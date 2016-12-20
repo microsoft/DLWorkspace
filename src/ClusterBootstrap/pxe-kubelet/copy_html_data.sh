@@ -3,8 +3,8 @@
 
 cd ~
 git clone https://dlws-deploy:msft2016@github.com/MSRCCS/DLWorkspace.git DLWorkspace
-cp -R DLWorkspace/www/* /var/www/html
-cp -R DLWorkspace/tftp/* /var/lib/tftpboot/
+cp -R ~/DLWorkspace/src/ClusterBootstrap/pxe-kubelet/www/* /var/www/html
+cp -R ~/DLWorkspace/src/ClusterBootstrap/pxe-kubelet/tftp/* /var/lib/tftpboot/
 
 
 cd /var/www/html
