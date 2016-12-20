@@ -1,0 +1,91 @@
+#cloud-config
+coreos:
+  units:
+#    - name: etcd2.service
+#      command: start
+    - name: fleet.service
+      command: start
+
+#    - name: bootstrap.service
+#      command: start
+#      content: |
+#        [Unit]
+#        Description=Bootstrap instance
+#        After=network-online.target
+#        Requires=network-online.target
+#        [Service]
+#        RemainAfterExit=true
+#        ExecStart=/bin/bash /opt/bootstrap.sh
+#        [Install]
+#        WantedBy=local.target
+
+
+    - name: bootstrap.service
+      command: start
+      content: |
+        [Unit]
+        Description=Bootstrap instance
+        After=network-online.target
+        Requires=network-online.target
+        [Service]
+        Type=oneshot
+        #RemainAfterExit=true
+        #ExecStartPre=/bin/bash -c 'until ping -c1 192.168.1.20; do sleep 1; done;'
+        ExecStart=/bin/bash /opt/init_k8s.sh
+        [Install]
+        WantedBy=local.target
+
+users:
+  - name: "hongzhili"
+    passwd: "$1$QS5eb5Vh$NmoA1Vv0jDjirrTN/UpAh."
+    groups:
+      - "sudo"
+      - "docker"
+    ssh_authorized_keys:
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDwSpI4Kn8m7LIeVjsry4n/M42dGdN0LpcoGsSY1QZSmSLzxxdmeYOwf1/gfEy4+YE5ccKdtCpMC8MvuFRe9wGsZCdtH8tC3SS+tDdw3KWh01SVbjubjCldMLH16p7zP1FhpYn/CKBtXrtbjw5CwdVs/elJvXYKJT5xbPOnqxoXBTvJQ3rqtIjgizmeH6O04ihOxzK/y4+2U1kZe/VRn12gbDNT4/kWR1hgLx81cVPVCndmOr8ZTqeMaqiIMN03yU5wOQqz1gZ7owMN2Ht/fWXdlW761ihXvBNIL5gz2KOZRbnoTO+sYgh09zdBEuK+W2RYuc+CzB2msZGXaO887BQycc73p1vNvHVL+hY5at3menQ5cOykTTGfDltf1baRCUcSch4A06/xpo3MCRATq8SVOuL+6aiNrUpRyDITyjo8FeM3osrd1+EvT+Mji9+QGIRYuSMkvsUts259vVgYf4PUe9SmzBQ4kJjPOvV8zkEulqwnLf1N3bBdUcp3cYzi2dqJycTMIAv4a2yeLwqFUSoJlnQK1Mv3yCQ4/Ktfr55UDhpF7Fj8liSwL05KJxO0bDIpZTUjpgjhdsoTwpuiHuOSGdCmO0pa7qGOOKspDZPzgwhrgy+xuC1iHeneg9c7syctiwCep2YHgDigZtn+c5W+E2hPhmkxYOvuUvwcy+RXIw==
+  - name: "jinl"
+    passwd: "$1$QS5eb5Vh$NmoA1Vv0jDjirrTN/UpAh."
+    groups:
+      - "sudo"
+      - "docker"    
+ssh_authorized_keys:
+  - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDwSpI4Kn8m7LIeVjsry4n/M42dGdN0LpcoGsSY1QZSmSLzxxdmeYOwf1/gfEy4+YE5ccKdtCpMC8MvuFRe9wGsZCdtH8tC3SS+tDdw3KWh01SVbjubjCldMLH16p7zP1FhpYn/CKBtXrtbjw5CwdVs/elJvXYKJT5xbPOnqxoXBTvJQ3rqtIjgizmeH6O04ihOxzK/y4+2U1kZe/VRn12gbDNT4/kWR1hgLx81cVPVCndmOr8ZTqeMaqiIMN03yU5wOQqz1gZ7owMN2Ht/fWXdlW761ihXvBNIL5gz2KOZRbnoTO+sYgh09zdBEuK+W2RYuc+CzB2msZGXaO887BQycc73p1vNvHVL+hY5at3menQ5cOykTTGfDltf1baRCUcSch4A06/xpo3MCRATq8SVOuL+6aiNrUpRyDITyjo8FeM3osrd1+EvT+Mji9+QGIRYuSMkvsUts259vVgYf4PUe9SmzBQ4kJjPOvV8zkEulqwnLf1N3bBdUcp3cYzi2dqJycTMIAv4a2yeLwqFUSoJlnQK1Mv3yCQ4/Ktfr55UDhpF7Fj8liSwL05KJxO0bDIpZTUjpgjhdsoTwpuiHuOSGdCmO0pa7qGOOKspDZPzgwhrgy+xuC1iHeneg9c7syctiwCep2YHgDigZtn+c5W+E2hPhmkxYOvuUvwcy+RXIw==
+
+write_files:
+  - path: "/opt/init_k8s.sh"
+    permissions: "0755"
+    owner: "root"
+    encoding: "base64"
+    content: |
+      IyEgL2Jpbi9iYXNoCgpleHBvcnQgSG9zdElQPSQoaXAgcm91dGUgZ2V0IDguOC44LjggfCBhd2sgJ3twcmludCAkTkY7IGV4aXR9JykKbWtkaXIgLXAgL2V0Yy9rdWJlcm5ldGVzL3NzbC8KbWtkaXIgLXAgL2V0Yy9mbGFubmVsCm1rZGlyIC1wIC9ldGMva3ViZXJuZXRlcy9tYW5pZmVzdHMKCmhvc3RuYW1lY3RsICBzZXQtaG9zdG5hbWUgJEhvc3RJUAppZiBbICEgLWYgL2V0Yy9rdWJlcm5ldGVzL3NzbC93b3JrZXIucGVtIF07IHRoZW4KICAgIGNlcnRzdHI9YHdnZXQgLXEgLU8gLSBodHRwOi8vY2NzZGF0YXJlcG8ud2VzdHVzLmNsb3VkYXBwLmF6dXJlLmNvbTo5MDkwLz93b3JrZXJJZD0kSE9TVE5BTUVcJndvcmtlcklQPSRIb3N0SVBgCiAgICBJRlM9JywnIHJlYWQgLXJhIGNlcnRzIDw8PCAiJGNlcnRzdHIiCiAgICBlY2hvICR7Y2VydHNbMF19ICB8IGJhc2U2NCAtZCA+IC9ldGMva3ViZXJuZXRlcy9zc2wvY2EucGVtCiAgICBlY2hvICR7Y2VydHNbMV19ICB8IGJhc2U2NCAtZCA+IC9ldGMva3ViZXJuZXRlcy9zc2wvd29ya2VyLnBlbQogICAgZWNobyAke2NlcnRzWzJdfSAgfCBiYXNlNjQgLWQgPiAvZXRjL2t1YmVybmV0ZXMvc3NsL3dvcmtlci1rZXkucGVtCgogICAgZWNobyAiRkxBTk5FTERfSUZBQ0U9JHtIb3N0SVB9IiA+IC9ldGMvZmxhbm5lbC9vcHRpb25zLmVudgogICAgZWNobyAiRkxBTk5FTERfRVRDRF9FTkRQT0lOVFM9aHR0cDovLzEwNC40Mi45Ni4yMDQ6MjM3OSIgPj4gL2V0Yy9mbGFubmVsL29wdGlvbnMuZW52ICAKICAgIG1rZGlyIC1wIC9ldGMvc3lzdGVtZC9zeXN0ZW0vZmxhbm5lbGQuc2VydmljZS5kLwogICAgd2dldCAtcSAtTyAiL2V0Yy9zeXN0ZW1kL3N5c3RlbS9mbGFubmVsZC5zZXJ2aWNlLmQvNDAtRXhlY1N0YXJ0UHJlLXN5bWxpbmsuY29uZiIgaHR0cDovL2Njc2RhdGFyZXBvLndlc3R1cy5jbG91ZGFwcC5henVyZS5jb20vZGF0YS9rdWJlL2t1YmVsZXQvNDAtRXhlY1N0YXJ0UHJlLXN5bWxpbmsuY29uZgogICAgbWtkaXIgLXAgL2V0Yy9zeXN0ZW1kL3N5c3RlbS9kb2NrZXIuc2VydmljZS5kCiAgICB3Z2V0IC1xIC1PICIvZXRjL3N5c3RlbWQvc3lzdGVtL2RvY2tlci5zZXJ2aWNlLmQvNDAtZmxhbm5lbC5jb25mIiBodHRwOi8vY2NzZGF0YXJlcG8ud2VzdHVzLmNsb3VkYXBwLmF6dXJlLmNvbS9kYXRhL2t1YmUva3ViZWxldC80MC1mbGFubmVsLmNvbmYKICAgIHdnZXQgLXEgLU8gIi9ldGMvc3lzdGVtZC9zeXN0ZW0va3ViZWxldC5zZXJ2aWNlIiBodHRwOi8vY2NzZGF0YXJlcG8ud2VzdHVzLmNsb3VkYXBwLmF6dXJlLmNvbS9kYXRhL2t1YmUva3ViZWxldC9rdWJlbGV0LnNlcnZpY2UKICAgIHdnZXQgLXEgLU8gICIvZXRjL2t1YmVybmV0ZXMvbWFuaWZlc3RzL2t1YmUtcHJveHkueWFtbCIgaHR0cDovL2Njc2RhdGFyZXBvLndlc3R1cy5jbG91ZGFwcC5henVyZS5jb20vZGF0YS9rdWJlL2t1YmVsZXQva3ViZS1wcm94eS55YW1sCiAgICB3Z2V0IC1xIC1PICIvZXRjL2t1YmVybmV0ZXMvd29ya2VyLWt1YmVjb25maWcueWFtbCIgaHR0cDovL2Njc2RhdGFyZXBvLndlc3R1cy5jbG91ZGFwcC5henVyZS5jb20vZGF0YS9rdWJlL2t1YmVsZXQvd29ya2VyLWt1YmVjb25maWcueWFtbApmaQoKc3lzdGVtY3RsIGRhZW1vbi1yZWxvYWQKc3lzdGVtY3RsIHN0YXJ0IGZsYW5uZWxkCnN5c3RlbWN0bCBzdGFydCBrdWJlbGV0CnN5c3RlbWN0bCBlbmFibGUgZmxhbm5lbGQKc3lzdGVtY3RsIGVuYWJsZSBrdWJlbGV0CnN5c3RlbWN0bCBzdGFydCBycGMtc3RhdGQK
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

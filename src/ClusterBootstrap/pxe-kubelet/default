@@ -1,0 +1,12 @@
+default coreos
+prompt 30
+timeout 40
+
+display boot.msg
+
+label coreos
+  menu default
+  kernel coreos_production_pxe.vmlinuz
+  initrd coreos_production_pxe_image.cpio.gz
+  append cloud-config-url=http://192.168.1.20/cloud-config/install_os.sh
+  #append cloud-config-url=http://192.168.1.20/pxe-cloud-config.yml
