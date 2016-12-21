@@ -24,18 +24,14 @@ COPY default /var/lib/tftpboot/pxelinux.cfg/
 
 RUN chmod -R 777 /var/lib/tftpboot
 
-
-
-
 COPY copy_html_data.sh /
 COPY start_pxe_service.sh /
 RUN chmod +x /copy_html_data.sh
+RUN /copy_html_data.sh
 
 EXPOSE 80
 EXPOSE 67
 EXPOSE 68
 EXPOSE 69
-
-RUN /copy_html_data.sh
 
 CMD /bin/bash -c "service tftpd-hpa start && service isc-dhcp-server restart && bash"
