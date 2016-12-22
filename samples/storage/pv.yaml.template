@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ pv["name"] }}
+spec:
+  capacity:
+    storage: {{ pv["capacity"] }}
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: {{ pv["server"] }}
+    path: {{ pv["path"] }}
