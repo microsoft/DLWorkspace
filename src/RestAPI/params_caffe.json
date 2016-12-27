@@ -1,0 +1,13 @@
+{
+"job-name":"caffe-resnet18",
+"image":"mlcloudreg.westus.cloudapp.azure.com:5000/caffe:gpu_container",
+"cmd":"caffe train --solver /work/caffe/solver_resnet18.prototxt",
+"resource-cpu":"@resource-cpu",
+"resource-gpu":"1",
+"resource-mem":"@resource-mem",
+"user-id":"hongzl",
+"data-path":"imagenet",
+"scratch-path":"hongzl",
+"wall-time":"@wall-time"
+}
+
