@@ -126,6 +126,7 @@ def SubmitJob(jobParamsJsonStr,jobTemp="./RegularJob.yaml.template",tensorboard=
 
         output = kubectl(tensorboardSvcFilePath)
         output = kubectl(tensorboardAppFilePath)
+        print "tensorboard is running at: https://dlws-master/api/v1/proxy/namespaces/default/services/%s:tensorboard " % jobParams["svc-name"]
     return ret
 
 if __name__ == '__main__':
