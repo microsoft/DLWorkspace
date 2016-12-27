@@ -1,0 +1,25 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: {{ job["tensorboard-id"] }}
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels: 
+         run: {{ job["tensorboard-id"] }}
+    spec:
+      containers:
+      - name: {{ job["tensorboard-id"] }}
+        image: tensorflow/tensorflow:latest
+        command: ["tensorboard", "--logdir","/job", "--host", "0.0.0.0"]
+
+        volumeMounts:
+        - mountPath: /job
+          name: job 
+
+      restartPolicy: Always
+      volumes:
+      - name: job
+        persistentVolumeClaim:
+          claimName: {{ job["pvc_job"] }}
