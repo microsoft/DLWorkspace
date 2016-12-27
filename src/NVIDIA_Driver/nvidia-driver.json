@@ -1,0 +1,82 @@
+{
+   "apiVersion": "extensions/v1beta1",
+   "kind": "DaemonSet",
+   "metadata": {
+      "labels": {
+         "component": "nvidia-driver",
+         "tier": "node"
+      },
+      "name": "nvidia-driver",
+      "namespace": "kube-system"
+   },
+   "spec": {
+      "template": {
+         "metadata": {
+            "labels": {
+               "component": "nvidia-driver",
+               "tier": "node"
+            }
+         },
+         "spec": {
+            "containers": [
+               {
+                  "command": [
+                     "/opt/init_service.sh"
+                  ],
+                  "image": "mlcloudreg.westus.cloudapp.azure.com:5000/nvidia_driver:GeForce375.20_kube",
+                  "name": "kube-proxy",
+                  "imagePullPolicy": "Always",
+                  "securityContext": {
+                     "privileged": true
+                  },
+                  "volumeMounts": [
+                     {
+                        "mountPath": "/var/lib/nvidia-docker",
+                        "name": "nvidia-docker-volume"
+                     },
+                     {
+                        "mountPath": "/opt/nvidia-driver",
+                        "name": "nvidia-driver"
+                     },
+                     {
+                        "mountPath": "/opt/nvidia-docker",
+                        "name": "nvidia-docker"
+                     },
+                     {
+                        "mountPath": "/dev",
+                        "name": "dev"
+                     }
+                  ]
+               }
+            ],
+            "hostNetwork": true,
+            "volumes": [
+               {
+                  "hostPath": {
+                     "path": "/var/lib/nvidia-docker"
+                  },
+                  "name": "nvidia-docker-volume"
+               },
+               {
+                  "hostPath": {
+                     "path": "/opt/nvidia-driver"
+                  },
+                  "name": "nvidia-driver"
+               },
+               {
+                  "hostPath": {
+                     "path": "/opt/nvidia-docker"
+                  },
+                  "name": "nvidia-docker"
+               },
+               {
+                  "hostPath": {
+                     "path": "/dev"
+                  },
+                  "name": "dev"
+               }
+            ]
+         }
+      }
+   }
+}
