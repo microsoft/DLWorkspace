@@ -1,24 +1,8 @@
 #cloud-config
 coreos:
   units:
-#    - name: etcd2.service
-#      command: start
     - name: fleet.service
       command: start
-
-#    - name: bootstrap.service
-#      command: start
-#      content: |
-#        [Unit]
-#        Description=Bootstrap instance
-#        After=network-online.target
-#        Requires=network-online.target
-#        [Service]
-#        RemainAfterExit=true
-#        ExecStart=/bin/bash /opt/bootstrap.sh
-#        [Install]
-#        WantedBy=local.target
-
 
     - name: bootstrap.service
       command: start
