@@ -5,6 +5,7 @@ import argparse
 import uuid
 import subprocess
 import sys
+from jobs_tensorboard import GenTensorboardMeta
 sys.path.append("../storage")
 from gen_pv_pvc import GenStorageClaims
 
@@ -65,27 +66,30 @@ def SubmitJob(jobParamsJsonStr,jobTemp="./RegularJob.yaml.template",tensorboard=
     ENV = Environment(loader=FileSystemLoader("/"))
 
     template = ENV.get_template(os.path.abspath(jobTemp))
+    job_meta = template.render(job=jobParams)
+
+
+    pv_meta_j,pvc_meta_j = GenStorageClaims(jobParams["pvc_job"],jobPath,jobDir)
+    pv_meta_u,pvc_meta_u = GenStorageClaims(jobParams["pvc_scratch"],scratchPath,jobDir)
+    pv_meta_d,pvc_meta_d = GenStorageClaims(jobParams["pvc_data"],dataPath,jobDir)
+
+
+    jobMetaList = []
+    jobMetaList.append(pv_meta_j)
+    jobMetaList.append(pvc_meta_j)
+    jobMetaList.append(pv_meta_u)
+    jobMetaList.append(pvc_meta_u)
+    jobMetaList.append(pv_meta_d)
+    jobMetaList.append(pvc_meta_d)
+    jobMetaList.append(job_meta)
+
+    jobMeta = "\n---\n".join(jobMetaList)
+
+
     with open(jobFilePath, 'w') as f:
-        f.write(template.render(job=jobParams))
-
-
-    pv_file_j,pvc_file_j = GenStorageClaims(jobParams["pvc_job"],jobPath,jobDir)
-    pv_file_u,pvc_file_u = GenStorageClaims(jobParams["pvc_scratch"],scratchPath,jobDir)
-    pv_file_d,pvc_file_d = GenStorageClaims(jobParams["pvc_data"],dataPath,jobDir)
+        f.write(jobMeta)
 
     ret={}
-
- 
-
-    output = kubectl(pv_file_j)
-    output = kubectl(pvc_file_j)
-
-    output = kubectl(pv_file_u)
-    output = kubectl(pvc_file_u)
-
-    output = kubectl(pv_file_d)
-    output = kubectl(pvc_file_d)
-
 
     output = kubectl(jobFilePath)    
     if output == "job \""+jobParams["id"]+"\" created\n":
@@ -110,22 +114,15 @@ def SubmitJob(jobParamsJsonStr,jobTemp="./RegularJob.yaml.template",tensorboard=
 
         jobTempDir = os.path.abspath(os.path.dirname(jobTemp))
 
-        template = ENV.get_template(os.path.join(jobTempDir,"KubeSvc.yaml.template"))
-    
-        tensorboardSvcFilePath = os.path.join(jobDir, "tensorboard-svc-"+jobParams["id"]+".yaml")
-        with open(tensorboardSvcFilePath, 'w') as f:
-            f.write(template.render(svc=jobParams))
- 
+        tensorboardMeta = GenTensorboardMeta(jobParams, os.path.join(jobTempDir,"KubeSvc.yaml.template"), os.path.join(jobTempDir,"TensorboardApp.yaml.template"))
 
-        template = ENV.get_template(os.path.join(jobTempDir,"TensorboardApp.yaml.template"))
+        tensorboardMetaFilePath = os.path.join(jobDir, "tensorboard-"+jobParams["id"]+".yaml")
 
-        tensorboardAppFilePath = os.path.join(jobDir, "tensorboard-app-"+jobParams["id"]+".yaml")
-        with open(tensorboardAppFilePath, 'w') as f:
-            f.write(template.render(job=jobParams))
+        with open(tensorboardMetaFilePath, 'w') as f:
+            f.write(tensorboardMeta)
 
-        output = kubectl(tensorboardSvcFilePath)
-        output = kubectl(tensorboardAppFilePath)
-        print "tensorboard is running at: https://dlws-master/api/v1/proxy/namespaces/default/services/%s:tensorboard " % jobParams["svc-name"]
+
+        output = kubectl(tensorboardMetaFilePath)
     return ret
 
 if __name__ == '__main__':

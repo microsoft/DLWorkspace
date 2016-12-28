@@ -22,24 +22,22 @@ def GenStorageClaims(Id,storagePath, outputPath):
     pv["server"]="10.196.44.241"
     pv["path"]=serverPath
 
-
+    pvmeta = ""
+    pvcmeta = ""
 
     template = ENV.get_template(pvtemplatePath)
-    with open(outputPath+"/pv-"+Id+".yaml", 'w') as f:
-        f.write(template.render(pv=pv))
+    pvmeta = template.render(pv=pv)
 
 
     template = ENV.get_template(pvctemplatePath)
-    with open(outputPath+"/pvc-"+Id+".yaml", 'w') as f:
-        f.write(template.render(pv=pv))
-    return (outputPath+"/pv-"+Id+".yaml",outputPath+"/pvc-"+Id+".yaml")
+    pvcmeta = template.render(pv=pv)
+    return (pvmeta,pvcmeta)
 
 
 def main(argv):
     tag=argv[1]
     Id=argv[2]
-    outputPath=argv[3]
-    GenStorageClaims(tag,Id,outputPath)
+    print GenStorageClaims(tag,Id)
 
 if __name__ == "__main__":
     main(sys.argv)
