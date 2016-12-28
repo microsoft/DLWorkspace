@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: {{ job["id"] }}-worker{{ job["worker-id"] }}
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        {{ job["id"] }}-worker: "{{ job["worker-id"] }}"
+    spec:
+      containers:
+      - name: {{ job["id"] }}-worker{{ job["worker-id"] }}
+        image: {{ job["image"] }}
+        command: {{ job["cmd"] }}
+        resources:
+          limits:
+            alpha.kubernetes.io/nvidia-gpu: {{ job["resource-gpu"] }}
+
+        volumeMounts:
+        - mountPath: /usr/local/nvidia
+          name: nvidia-driver
+        - mountPath: /job
+          name: job
+        - mountPath: /work
+          name: scratch
+        - mountPath: /data
+          name: data
+        
+        ports:
+        - containerPort: 2222
+      volumes:
+      - name: nvidia-driver
+        hostPath:
+          path: /var/lib/nvidia-docker/volumes/nvidia_driver/375.20
+      - name: job
+        persistentVolumeClaim:
+          claimName: {{ job["pvc_job"] }}
+      - name: scratch
+        persistentVolumeClaim:
+          claimName: {{ job["pvc_scratch"] }}
+      - name: data
+        persistentVolumeClaim:
+          claimName: {{ job["pvc_data"] }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tf-worker{{ job["worker-id"] }}
+  labels:
+    {{ job["id"] }}-worker: "{{ job["worker-id"] }}"
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 2222
+  selector:
+    {{ job["id"] }}-worker: "{{ job["worker-id"] }}"
