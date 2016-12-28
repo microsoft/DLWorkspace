@@ -8,6 +8,7 @@
 "user-id":"hongzl",
 "data-path":"imagenet",
 "scratch-path":"hongzl",
+"logdir":"/job/model",
 "wall-time":"@wall-time"
 }
 

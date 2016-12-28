@@ -9,7 +9,7 @@
 "data-path":"imagenet",
 "scratch-path":"hongzl",
 "wall-time":"",
-
+"logdir":"/job/model",
 
 "svc-name": "",
 "app-name": "",

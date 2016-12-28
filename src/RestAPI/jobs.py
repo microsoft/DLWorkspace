@@ -40,8 +40,7 @@ def SubmitJob(jobParamsJsonStr,jobTemp="./RegularJob.yaml.template",tensorboard=
     jobParams["pvc_scratch"] = "scratch-"+jobParams["id"]
     jobParams["pvc_data"] = "storage-"+jobParams["id"]
   
-
-    jobPath = "jobs/"+jobParams["id"]
+    jobPath = "jobs/"+time.strftime("%y%m%d")+"/"+jobParams["id"]
     scratchPath = "scratch/"+jobParams["scratch-path"]
     dataPath = "storage/"+jobParams["data-path"]
 

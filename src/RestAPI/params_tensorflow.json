@@ -1,7 +1,7 @@
 {
 "job-name":"tensorflow_test",
 "image":"tensorflow/tensorflow:latest-gpu",
-"cmd":"mkdir /job/newjob",
+"cmd":"/work/tensorflow/models/inception/bazel-bin/inception/imagenet_train --num_gpus=1 --batch_size=32 --train_dir=/job/model --data_dir=/data/tensorflow",
 "resource-cpu":"",
 "resource-gpu":"1",
 "resource-mem":"",
@@ -9,7 +9,7 @@
 "data-path":"imagenet",
 "scratch-path":"hongzl",
 "wall-time":"",
-
+"logdir":"/job/model",
 
 "svc-name": "",
 "app-name": "",

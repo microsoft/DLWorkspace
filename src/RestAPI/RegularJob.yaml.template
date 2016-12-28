@@ -3,6 +3,7 @@ kind: Job
 metadata:
   name: {{ job["id"] }}
 spec:
+  activeDeadlineSeconds: 120
   template:
     metadata:
       name: {{ job["id"] }}
