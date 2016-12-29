@@ -28,6 +28,6 @@ def GenTensorboardMeta(jobParams, serviceTemplate, tensorboardAppTemplate):
         template = ENV.get_template(tensorboardAppTemplate)
         tensorboardMeta += template.render(job=jobParams)
 
-        print "tensorboard is running at: https://dlws-master/api/v1/proxy/namespaces/default/services/%s:tensorboard " % jobParams["svc-name"]
+        #print "tensorboard is running at: https://dlws-master/api/v1/proxy/namespaces/default/services/%s:tensorboard " % jobParams["svc-name"]
         return tensorboardMeta
 
