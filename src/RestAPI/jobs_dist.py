@@ -6,7 +6,7 @@ import uuid
 import subprocess
 import sys
 sys.path.append("../storage")
-from gen_pv_pvc import GenStorageClaims
+from gen_pv_pvc import GenStorageClaims, GetStoragePath
 
 import yaml
 from jinja2 import Environment, FileSystemLoader, Template
@@ -23,7 +23,7 @@ def kubectl(jobfile,EXEC=True):
     return output
 
 
-def SubmitJob(jobParamsJsonStr,workerJobTemp="./DistTensorFlow_worker.yaml.template",psJobTemp="./DistTensorFlow_ps.yaml.template",numWorker=2,numPs=1,tensorboard=False):
+def SubmitDistJob(jobParamsJsonStr,workerJobTemp="./DistTensorFlow_worker.yaml.template",psJobTemp="./DistTensorFlow_ps.yaml.template",tensorboard=False):
     jobParams = LoadJobParams(jobParamsJsonStr)
     if "id" not in jobParams or jobParams["id"] == "":
         #jobParams["id"] = jobParams["job-name"] + "-" + str(uuid.uuid4()) 
@@ -34,14 +34,27 @@ def SubmitJob(jobParamsJsonStr,workerJobTemp="./DistTensorFlow_worker.yaml.templ
         jobParams["cmd"] = ""
 
 
-    jobParams["pvc_job"] = "jobs-"+jobParams["id"]
-    jobParams["pvc_scratch"] = "scratch-"+jobParams["id"]
-    jobParams["pvc_data"] = "storage-"+jobParams["id"]
-  
+    if "job-path" in jobParams and len(jobParams["jobParams"].strip()) > 0: 
+        jobPath = jobParams["job-path"]
+    else:
+        jobPath = time.strftime("%y%m%d")+"/"+jobParams["id"]
 
-    jobPath = "jobs/"+jobParams["id"]
-    scratchPath = "scratch/"+jobParams["scratch-path"]
-    dataPath = "storage/"+jobParams["data-path"]
+    if "work-path" not in jobParams or len(jobParams["work-path"].strip()) == 0: 
+        raise Exception("ERROR: work-path cannot be empty")
+
+    if "data-path" not in jobParams or len(jobParams["data-path"].strip()) == 0: 
+        raise Exception("ERROR: data-path cannot be empty")
+
+
+    if "worker-num" not in jobParams:
+        raise Exception("ERROR: unknown number of workers")
+    if "ps-num" not in jobParams:
+        raise Exception("ERROR: unknown number of parameter servers")
+
+    numWorker = int(jobParams["worker-num"])
+    numPs = int(jobParams["ps-num"])
+
+    jobPath,workPath,dataPath = GetStoragePath(jobPath,jobParams["work-path"],jobParams["data-path"])
 
     localJobPath = "/dlws-data/"+jobPath
     if not os.path.exists(localJobPath):
@@ -81,6 +94,22 @@ def SubmitJob(jobParamsJsonStr,workerJobTemp="./DistTensorFlow_worker.yaml.templ
     cmdStr = jobParams["cmd"]
 
 
+    jobParams["pvc_job"] = "jobs-"+jobParams["id"]
+    jobParams["pvc_work"] = "work-"+jobParams["id"]
+    jobParams["pvc_data"] = "storage-"+jobParams["id"]
+
+
+    pv_meta_j,pvc_meta_j = GenStorageClaims(jobParams["pvc_job"],jobPath)
+    pv_meta_u,pvc_meta_u = GenStorageClaims(jobParams["pvc_work"],workPath)
+    pv_meta_d,pvc_meta_d = GenStorageClaims(jobParams["pvc_data"],dataPath)
+
+    jobTempList.append(pv_meta_j)
+    jobTempList.append(pvc_meta_j)
+    jobTempList.append(pv_meta_u)
+    jobTempList.append(pvc_meta_u)
+    jobTempList.append(pv_meta_d)
+    jobTempList.append(pvc_meta_d)
+
     for i in range(numWorker):
         jobParams["worker-id"]=str(i)
 
@@ -111,29 +140,16 @@ def SubmitJob(jobParamsJsonStr,workerJobTemp="./DistTensorFlow_worker.yaml.templ
         template = ENV.get_template(os.path.abspath(psJobTemp))
         jobTempList.append(template.render(job=jobParams))
 
+
+
     jobTempStr = "\n---\n".join(jobTempList)
 
     with open(jobFilePath, 'w') as f:
         f.write(jobTempStr)
 
-
-    pv_file_j,pvc_file_j = GenStorageClaims(jobParams["pvc_job"],jobPath,jobDir)
-    pv_file_u,pvc_file_u = GenStorageClaims(jobParams["pvc_scratch"],scratchPath,jobDir)
-    pv_file_d,pvc_file_d = GenStorageClaims(jobParams["pvc_data"],dataPath,jobDir)
-
     ret={}
 
  
-
-    output = kubectl(pv_file_j)
-    output = kubectl(pvc_file_j)
-
-    output = kubectl(pv_file_u)
-    output = kubectl(pvc_file_u)
-
-    output = kubectl(pv_file_d)
-    output = kubectl(pvc_file_d)
-
 
     output = kubectl(jobFilePath)    
     if output == "job \""+jobParams["id"]+"\" created\n":
@@ -197,6 +213,6 @@ if __name__ == '__main__':
         jobParamsJsonStr = f.read()
     f.close()
 
-    SubmitJob(jobParamsJsonStr=jobParamsJsonStr,workerJobTemp=args.worker_template_file,psJobTemp=args.ps_template_file,numWorker=args.worker_num,numPs=args.ps_num,tensorboard=True)
+    SubmitDistJob(jobParamsJsonStr=jobParamsJsonStr,workerJobTemp=args.worker_template_file,psJobTemp=args.ps_template_file,numWorker=args.worker_num,numPs=args.ps_num,tensorboard=False)
 
 

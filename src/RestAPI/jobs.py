@@ -7,7 +7,7 @@ import subprocess
 import sys
 from jobs_tensorboard import GenTensorboardMeta
 sys.path.append("../storage")
-from gen_pv_pvc import GenStorageClaims
+from gen_pv_pvc import GenStorageClaims, GetStoragePath
 
 import yaml
 from jinja2 import Environment, FileSystemLoader, Template
@@ -24,8 +24,9 @@ def kubectl(jobfile,EXEC=True):
     return output
 
 
-def SubmitJob(jobParamsJsonStr,jobTemp="./RegularJob.yaml.template",tensorboard=False):
+def SubmitJob(jobParamsJsonStr,jobTemp="./RegularJob.yaml.template"):
     jobParams = LoadJobParams(jobParamsJsonStr)
+    print jobParamsJsonStr
     if "id" not in jobParams or jobParams["id"] == "":
         #jobParams["id"] = jobParams["job-name"] + "-" + str(uuid.uuid4()) 
         jobParams["id"] = jobParams["job-name"] + "-" + str(time.time())
@@ -38,12 +39,24 @@ def SubmitJob(jobParamsJsonStr,jobTemp="./RegularJob.yaml.template",tensorboard=
 
 
     jobParams["pvc_job"] = "jobs-"+jobParams["id"]
-    jobParams["pvc_scratch"] = "scratch-"+jobParams["id"]
+    jobParams["pvc_work"] = "work-"+jobParams["id"]
     jobParams["pvc_data"] = "storage-"+jobParams["id"]
   
-    jobPath = "jobs/"+time.strftime("%y%m%d")+"/"+jobParams["id"]
-    scratchPath = "scratch/"+jobParams["scratch-path"]
-    dataPath = "storage/"+jobParams["data-path"]
+
+    if "job-path" in jobParams and len(jobParams["jobParams"].strip()) > 0: 
+        jobPath = jobParams["job-path"]
+    else:
+        jobPath = time.strftime("%y%m%d")+"/"+jobParams["id"]
+
+    if "work-path" not in jobParams or len(jobParams["work-path"].strip()) == 0: 
+        raise Exception("ERROR: work-path cannot be empty")
+
+    if "data-path" not in jobParams or len(jobParams["data-path"].strip()) == 0: 
+        raise Exception("ERROR: data-path cannot be empty")
+
+
+    jobPath,workPath,dataPath = GetStoragePath(jobPath,jobParams["work-path"],jobParams["data-path"])
+
 
     localJobPath = "/dlws-data/"+jobPath
     if not os.path.exists(localJobPath):
@@ -69,9 +82,9 @@ def SubmitJob(jobParamsJsonStr,jobTemp="./RegularJob.yaml.template",tensorboard=
     job_meta = template.render(job=jobParams)
 
 
-    pv_meta_j,pvc_meta_j = GenStorageClaims(jobParams["pvc_job"],jobPath,jobDir)
-    pv_meta_u,pvc_meta_u = GenStorageClaims(jobParams["pvc_scratch"],scratchPath,jobDir)
-    pv_meta_d,pvc_meta_d = GenStorageClaims(jobParams["pvc_data"],dataPath,jobDir)
+    pv_meta_j,pvc_meta_j = GenStorageClaims(jobParams["pvc_job"],jobPath)
+    pv_meta_u,pvc_meta_u = GenStorageClaims(jobParams["pvc_work"],workPath)
+    pv_meta_d,pvc_meta_d = GenStorageClaims(jobParams["pvc_data"],dataPath)
 
 
     jobMetaList = []
@@ -83,6 +96,23 @@ def SubmitJob(jobParamsJsonStr,jobTemp="./RegularJob.yaml.template",tensorboard=
     jobMetaList.append(pvc_meta_d)
     jobMetaList.append(job_meta)
 
+
+
+    if "interactive-port" in jobParams and len(jobParams["interactive-port"].strip()) > 0:
+        jobParams["svc-name"] = "interactive-"+jobParams["id"]
+        jobParams["app-name"] = jobParams["id"]
+        jobParams["port"] = jobParams["interactive-port"]
+        jobParams["port-name"] = "interactive"
+        jobParams["port-type"] = "TCP"
+
+        jobTempDir = os.path.abspath(os.path.dirname(jobTemp))
+        serviceTemplate = ENV.get_template(os.path.join(jobTempDir,"KubeSvc.yaml.template"))
+
+        template = ENV.get_template(serviceTemplate)
+        interactiveMeta = template.render(svc=jobParams)
+        jobMetaList.append(interactiveMeta)
+
+
     jobMeta = "\n---\n".join(jobMetaList)
 
 
@@ -92,10 +122,10 @@ def SubmitJob(jobParamsJsonStr,jobTemp="./RegularJob.yaml.template",tensorboard=
     ret={}
 
     output = kubectl(jobFilePath)    
-    if output == "job \""+jobParams["id"]+"\" created\n":
-        ret["result"] = "success"
-    else:
-        ret["result"]  = "fail"
+    #if output == "job \""+jobParams["id"]+"\" created\n":
+    #    ret["result"] = "success"
+    #else:
+    #    ret["result"]  = "fail"
 
 
     ret["output"] = output
@@ -104,7 +134,7 @@ def SubmitJob(jobParamsJsonStr,jobTemp="./RegularJob.yaml.template",tensorboard=
 
 
 
-    if tensorboard == True:
+    if "logdir" in jobParams and len(jobParams["logdir"].strip()) > 0:
         jobParams["svc-name"] = "tensorboard-"+jobParams["id"]
         jobParams["app-name"] = "tensorboard-"+jobParams["id"]
         jobParams["port"] = "6006"
@@ -121,7 +151,6 @@ def SubmitJob(jobParamsJsonStr,jobTemp="./RegularJob.yaml.template",tensorboard=
         with open(tensorboardMetaFilePath, 'w') as f:
             f.write(tensorboardMeta)
 
-
         output = kubectl(tensorboardMetaFilePath)
     return ret
 
@@ -136,4 +165,4 @@ if __name__ == '__main__':
         jobParamsJsonStr = f.read()
     f.close()
 
-    SubmitJob(jobParamsJsonStr,args.template_file,True)
+    SubmitJob(jobParamsJsonStr,args.template_file)

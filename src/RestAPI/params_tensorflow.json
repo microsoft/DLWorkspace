@@ -7,7 +7,7 @@
 "resource-mem":"",
 "user-id":"hongzl",
 "data-path":"imagenet",
-"scratch-path":"hongzl",
+"work-path":"hongzl",
 "wall-time":"",
 "logdir":"/job/model",
 

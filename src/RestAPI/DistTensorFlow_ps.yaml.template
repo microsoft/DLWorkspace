@@ -13,8 +13,26 @@ spec:
       - name: {{ job["id"] }}-ps{{ job["ps-id"] }}
         image: {{ job["image"] }}
         command: {{ job["cmd"] }}
+        volumeMounts:
+        - mountPath: /job
+          name: job
+        - mountPath: /work
+          name: work
+        - mountPath: /data
+          name: data
+
         ports:
         - containerPort: 2222
+      volumes:
+      - name: job
+        persistentVolumeClaim:
+          claimName: {{ job["pvc_job"] }}
+      - name: work
+        persistentVolumeClaim:
+          claimName: {{ job["pvc_work"] }}
+      - name: data
+        persistentVolumeClaim:
+          claimName: {{ job["pvc_data"] }}
 ---
 apiVersion: v1
 kind: Service

@@ -4,7 +4,7 @@ import os
 import sys
 
 
-def GenStorageClaims(Id,storagePath, outputPath):
+def GenStorageClaims(Id,storagePath):
     ENV = Environment(loader=FileSystemLoader(os.path.dirname(os.path.abspath(__file__))))
     pvtemplatePath="pv.yaml.template"
     pvctemplatePath="pvc.yaml.template"
@@ -33,6 +33,11 @@ def GenStorageClaims(Id,storagePath, outputPath):
     pvcmeta = template.render(pv=pv)
     return (pvmeta,pvcmeta)
 
+def GetStoragePath(jobpath, workpath, datapath):
+    jobPath = "jobs/"+jobpath
+    workPath = "work/"+workpath
+    dataPath = "storage/"+datapath
+    return jobPath,workPath,dataPath
 
 def main(argv):
     tag=argv[1]

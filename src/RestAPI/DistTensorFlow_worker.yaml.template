@@ -23,7 +23,7 @@ spec:
         - mountPath: /job
           name: job
         - mountPath: /work
-          name: scratch
+          name: work
         - mountPath: /data
           name: data
         
@@ -36,9 +36,9 @@ spec:
       - name: job
         persistentVolumeClaim:
           claimName: {{ job["pvc_job"] }}
-      - name: scratch
+      - name: work
         persistentVolumeClaim:
-          claimName: {{ job["pvc_scratch"] }}
+          claimName: {{ job["pvc_work"] }}
       - name: data
         persistentVolumeClaim:
           claimName: {{ job["pvc_data"] }}
@@ -46,7 +46,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: tf-worker{{ job["worker-id"] }}
+  name: {{ job["id"] }}-worker{{ job["worker-id"] }}
   labels:
     {{ job["id"] }}-worker: "{{ job["worker-id"] }}"
 spec:
