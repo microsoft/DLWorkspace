@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html >
+<head>
+  <meta charset="UTF-8">
+  <title>Microsoft Deep Learning Workspace - Training Job Submission</title>
+  <link href='http://fonts.googleapis.com/css?family=Titillium+Web:400,300,600' rel='stylesheet' type='text/css'>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css">
+
+  
+      <link rel="stylesheet" href="css/style.css">
+
+  
+</head>
+
+<body>
+  <div class="form">
+      
+      <ul class="tab-group">
+        <li class="tab active"><a href="#regular_job">Regular Job</a></li>
+        <li class="tab"><a href="#dist_job">Distributed Job</a></li>
+      </ul>
+      
+      <div class="tab-content">
+        <div id="regular_job">   
+          <h1>Submit your training job.</h1>
+          <h2> The job should be running on single machine.</h2>
+          <form action="submit_job.php" method="post">
+          
+          <div class="top-row">
+            <div class="field-wrap">
+              <label>
+                Job Name<span class="req">*</span>
+              </label>
+              <input type="text"required autocomplete="off" name="job-name" />
+            </div>
+        
+            <div class="field-wrap">
+              <label>
+                Number of GPUs to use<span class="req">*</span>
+              </label>
+              <input type="text"required autocomplete="off" name="resource-gpu" />
+            </div>
+          </div>
+
+          <div class="field-wrap">
+            <label>
+              Work Directory<span class="req">*</span>
+            </label>
+            <input type="text"required autocomplete="off" name="work-path" />
+          </div>
+          
+          <div class="field-wrap">
+            <label>
+              Data Directory<span class="req">*</span>
+            </label>
+            <input type="text"required autocomplete="off" name="data-path" />
+          </div>
+
+          <div class="field-wrap">
+            <label>
+              Job Directory (empty by default)
+            </label>
+            <input type="text" autocomplete="off" name="job-path" />
+          </div>
+
+          <div class="field-wrap">
+            <label>
+              Docker Image<span class="req">*</span>
+            </label>
+            <input type="text"required autocomplete="off" name="image" />
+          </div>          
+          
+          <div class="field-wrap">
+            <label>
+              Training Command<span class="req">*</span>
+            </label>
+            <input type="text"required autocomplete="off" name="cmd" />
+          </div>      
+
+
+        
+            <div class="field-wrap">
+              <label>
+                To enable TensorBoard, type model path here
+              </label>
+              <input type="text" autocomplete="off" name="logdir" />
+            </div>
+
+            <div class="field-wrap">
+              <label>
+                To enable interactive job, type port number here
+              </label>
+              <input type="text" autocomplete="off" name="interactive-port" />
+            </div>
+
+          <input type="hidden" name="JobType" value="RegularJob"/>
+          <button type="submit" class="button button-block"/>Get Started</button>
+          </form>
+
+        
+
+
+        </div>
+        
+        <div id="dist_job">   
+          <h1>Submit your distributed training job.</h1>
+          <h2> The job can be running on multiple machines.</h2>
+          <form action="submit_job.php" method="post">
+          
+          <div class="top-row">
+            <div class="field-wrap">
+              <label>
+                Job Name<span class="req">*</span>
+              </label>
+              <input type="text"required autocomplete="off" name="job-name" />
+            </div>
+        
+            <div class="field-wrap">
+              <label>
+                Number of GPUs to use<span class="req">*</span>
+              </label>
+              <input type="text"required autocomplete="off" name="resource-gpu" />
+            </div>
+          </div>
+
+          <div class="top-row">
+            <div class="field-wrap">
+              <label>
+                Number of PS<span class="req">*</span>
+              </label>
+              <input type="text"required autocomplete="off"  name="ps-num"/>
+            </div>
+        
+            <div class="field-wrap">
+              <label>
+                Number of Worker<span class="req">*</span>
+              </label>
+              <input type="text"required autocomplete="off" name="worker-num"/>
+            </div>
+          </div>
+
+
+          <div class="field-wrap">
+            <label>
+              Work Directory<span class="req">*</span>
+            </label>
+            <input type="text"required autocomplete="off" name="work-path" />
+          </div>
+          
+          <div class="field-wrap">
+            <label>
+              Data Directory<span class="req">*</span>
+            </label>
+            <input type="text"required autocomplete="off" name="data-path" />
+          </div>
+
+          <div class="field-wrap">
+            <label>
+              Job Directory (empty by default)
+            </label>
+            <input type="text" autocomplete="off" name="job-path" />
+          </div>
+
+          <div class="field-wrap">
+            <label>
+              Docker Image<span class="req">*</span>
+            </label>
+            <input type="text"required autocomplete="off" name="image" />
+          </div>          
+          
+          <div class="field-wrap">
+            <label>
+              Training Command<span class="req">*</span>
+            </label>
+            <input type="text"required autocomplete="off" name="cmd" />
+          </div>      
+          <input type="hidden" name="JobType" value="DistJob"/>
+          <button type="submit" class="button button-block"/>Get Started</button>
+          
+          </form>
+
+        </div>
+        
+      </div><!-- tab-content -->
+      
+</div> <!-- /form -->
+  <script src='http://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js'></script>
+
+    <script src="js/index.js"></script>
+
+</body>
+</html>
