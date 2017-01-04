@@ -35,16 +35,7 @@ function CallAPI($method, $url, $data = false)
 
     return $result;
 }
-$_POST["apicmd"] = "CreateJob";
-$payload=json_encode($_POST);
-if ($_POST["JobType"] == "RegularJob")
-{
-    CallAPI("POST","http://localhost:5000/KubeJob",$_POST);
-}
-else if ($_POST["JobType"] == "DistJob")
-{
-     CallAPI("POST","http://localhost:5000/KubeDistJob",$_POST);
-}
-
+CallAPI("POST","http://localhost:5000/DeleteJob", $_GET);
 header( 'Location: http://onenet39/jobs/joblist.html' ) ;
+
 ?>

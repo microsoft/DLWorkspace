@@ -16,7 +16,14 @@ class DataHandler:
 		cursor.close()
 
 	def DelJob(self,jobId):
-		pass
+		cursor = self.conn.cursor()
+		query = ("delete from jobs where job_id = '"+jobId+"' ")
+		cursor.execute(query)
+		self.conn.commit()
+		cursor.close()
+
+
+
 	def GetJobList(self):
 		cursor = self.conn.cursor()
 		query = ("SELECT job_id,job_name,user_id, job_meta_path, time, status, job_meta FROM jobs ")
@@ -37,7 +44,23 @@ class DataHandler:
 		return ret
 		
 	def GetJob(self,jobId):
-		pass
+		cursor = self.conn.cursor()
+		query = ("SELECT job_id,job_name,user_id, job_meta_path, time, status, job_meta FROM jobs "
+				"where job_id = '"+jobId+"' ")
+		cursor.execute(query)
+		ret = []
+		for (job_id,job_name,user_id, job_meta_path, time, status, job_meta) in cursor:
+			record = {}
+			record["job_id"] = job_id
+			record["job_name"] = job_name
+			record["user_id"] = user_id
+			record["job_meta_path"] = job_meta_path
+			record["time"] = time
+			record["status"] = status
+			record["job_meta"] = job_meta
+		  	ret.append(record)
+		cursor.close()
+		return ret
 	def ChangeStatus(self,jobId, newStatus):
 		pass
 	def Close(self):

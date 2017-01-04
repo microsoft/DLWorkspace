@@ -6,7 +6,7 @@ from flask_restful import reqparse, abort, Api, Resource
 from flask import request
 
 sys.path.append("../utils")
-from JobUtils import SubmitRegularJob, SubmitDistJob, GetJobList, GetJobStatus
+from JobUtils import SubmitRegularJob, SubmitDistJob, GetJobList, GetJobStatus, DeleteJob, GetTensorboard, GetServiceAddress
 
 
 app = Flask(__name__)
@@ -82,14 +82,27 @@ class ListJobs(Resource):
             jobobj.append(job["job_id"])
             jobobj.append(job["job_name"])
             jobobj.append(job["user_id"])
-            jobobj.append("interactive link")
-            jobobj.append("visualization link")
+
+            svclink = GetServiceAddress(job["job_id"])
+            if svclink is not None:
+                jobobj.append("<a href='"+svclink+"' target='_blank'> link </a>")
+            else:
+                jobobj.append("N/A")
+            
+
+            tblink = GetTensorboard(job["job_id"])
+            if tblink is not None:
+                jobobj.append("<a href='"+tblink+"' target='_blank'> link </a>")
+            else:
+                jobobj.append("N/A")
+            
+
             status = GetJobStatus(job["job_id"])
             if len(status.strip()) == 0:
                 status = job["status"] 
             jobobj.append(status)
             jobobj.append(str(job["time"]))
-            jobobj.append("kill it link")
+            jobobj.append("<a href='http://onenet39/jobs/delete_job.php?jobId="+job["job_id"]+"' > link </a>")
 
             jobList.append(jobobj)
         ret = {}
@@ -101,6 +114,17 @@ class ListJobs(Resource):
 ##
 api.add_resource(ListJobs, '/ListJobs')
 
+
+class DelJob(Resource):
+    def post(self):
+        jobId = request.form["jobId"]
+        print jobId
+        return DeleteJob(jobId)
+
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(DelJob, '/DeleteJob')
 
 if __name__ == '__main__':
     app.run(debug=True)

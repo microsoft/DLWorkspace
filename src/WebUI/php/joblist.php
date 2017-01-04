@@ -1,5 +1,4 @@
 <?php
-
 function CallAPI($method, $url, $data = false)
 {
     $curl = curl_init($url);
@@ -26,25 +25,17 @@ function CallAPI($method, $url, $data = false)
     //curl_setopt($curl, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
     //curl_setopt($curl, CURLOPT_USERPWD, "username:password");
 
-    //curl_setopt($curl, CURLOPT_URL, $url);
-    //curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt($curl, CURLOPT_URL, $url);
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
 
     $result = curl_exec($curl);
-
     curl_close($curl);
-
     return $result;
 }
-$_POST["apicmd"] = "CreateJob";
-$payload=json_encode($_POST);
-if ($_POST["JobType"] == "RegularJob")
-{
-    CallAPI("POST","http://localhost:5000/KubeJob",$_POST);
-}
-else if ($_POST["JobType"] == "DistJob")
-{
-     CallAPI("POST","http://localhost:5000/KubeDistJob",$_POST);
-}
+$res = CallAPI("POST","http://localhost:5000/ListJobs");
 
-header( 'Location: http://onenet39/jobs/joblist.html' ) ;
+$res = str_replace ( "\\" , "", $res);
+$res =  str_replace ( "\"{" , "{", $res);
+$res =  str_replace ( "}\"" , "}", $res);
+echo $res;
 ?>
