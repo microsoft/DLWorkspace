@@ -6,7 +6,7 @@ from flask_restful import reqparse, abort, Api, Resource
 from flask import request
 
 sys.path.append("../utils")
-from JobUtils import SubmitRegularJob, SubmitDistJob, GetJobList, GetJobStatus, DeleteJob, GetTensorboard, GetServiceAddress
+from JobUtils import SubmitRegularJob, SubmitDistJob, GetJobList, GetJobStatus, DeleteJob, GetTensorboard, GetServiceAddress, GetLog
 
 
 app = Flask(__name__)
@@ -102,7 +102,9 @@ class ListJobs(Resource):
                 status = job["status"] 
             jobobj.append(status)
             jobobj.append(str(job["time"]))
-            jobobj.append("<a href='http://onenet39/jobs/delete_job.php?jobId="+job["job_id"]+"' > link </a>")
+            jobobj.append("<a href='http://onenet39/jobs/delete_job.php?jobId="+job["job_id"]+"' > terminate job </a>")
+            jobobj.append("<a href='http://onenet39/jobs/joblog.php?jobId="+job["job_id"]+"' target='_blank'> log </a>")
+
 
             jobList.append(jobobj)
         ret = {}
@@ -125,6 +127,19 @@ class DelJob(Resource):
 ## Actually setup the Api resource routing here
 ##
 api.add_resource(DelJob, '/DeleteJob')
+
+class GetJobLog(Resource):
+    def post(self):
+        jobId = request.form["jobId"]
+        print jobId
+        return GetLog(jobId)
+
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(GetJobLog, '/GetJobLog')
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)

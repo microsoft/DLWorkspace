@@ -380,6 +380,13 @@ def GetTensorboard(jobId):
         return None
 
 
+def GetLog(jobId):
+    cmdStr = os.path.join(config["root-path"],"RestAPI/get_logs.sh") + " "+jobId
+    output = exec_cmd(cmdStr).strip()
+    
+    return output
+
+
 def GetServiceAddress(jobId):
     cmdStr = os.path.join(config["root-path"],"RestAPI/get_service_address.sh") + " "+jobId
     output = exec_cmd(cmdStr).strip().split(":")
