@@ -20,7 +20,6 @@ spec:
           name: work
         - mountPath: /data
           name: data
-
         ports:
         - containerPort: 2222
       volumes:
