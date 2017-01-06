@@ -47,6 +47,8 @@ def SubmitRegularJob(jobParamsJsonStr):
     print jobParamsJsonStr
     if "id" not in jobParams or jobParams["id"] == "":
         #jobParams["id"] = jobParams["job-name"] + "-" + str(uuid.uuid4()) 
+        # ToDo: Job ID is a combination of job-name and time.time(). Will that be enough to guarantee the job id to be unique?
+        #     may be it will be helpful to add str(uuid.uuid4()) to the end of job ID?
         jobParams["id"] = jobParams["job-name"] + "-" + str(time.time())
     jobParams["id"] = jobParams["id"].replace("_","-").replace(".","-")
 
