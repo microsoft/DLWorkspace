@@ -19,6 +19,7 @@ parser = reqparse.RequestParser()
 
 class KubeJob(Resource):
     def get(self):
+        # ToDo: Return information on how to use the submission of training job for kubenete cluster 
         return {}
 
     def post(self):
@@ -45,6 +46,7 @@ api.add_resource(KubeJob, '/KubeJob')
 
 class KubeDistJob(Resource):
     def get(self):
+        # ToDo: Return information on how to use the submission of a distributed training job for kubenete cluster 
         return {}
 
     def post(self):
