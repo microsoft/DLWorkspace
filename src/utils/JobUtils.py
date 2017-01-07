@@ -21,7 +21,11 @@ def LoadJobParams(jobParamsJsonStr):
 
 def kubectl_create(jobfile,EXEC=True):
     if EXEC:
-        output = subprocess.check_output(["bash","-c", config["kubelet-path"] + " create -f " + jobfile])
+        try:
+            output = subprocess.check_output(["bash","-c", config["kubelet-path"] + " create -f " + jobfile])
+        except Exception as e:
+            print e
+            output = ""
     else:
         output = "Job " + jobfile + " is not submitted to kubernetes cluster"
     return output
@@ -34,7 +38,7 @@ def kubectl_exec(params):
         output = ""
     return output
 
-def exec_cmd(cmdStr):
+def cmd_exec(cmdStr):
     try:
         output = subprocess.check_output(["bash","-c", cmdStr])
     except Exception as e:
@@ -45,6 +49,9 @@ def exec_cmd(cmdStr):
 def SubmitRegularJob(jobParamsJsonStr):
     jobParams = LoadJobParams(jobParamsJsonStr)
     print jobParamsJsonStr
+
+    dataHandler = DataHandler()
+
     if "id" not in jobParams or jobParams["id"] == "":
         #jobParams["id"] = jobParams["job-name"] + "-" + str(uuid.uuid4()) 
         # ToDo: Job ID is a combination of job-name and time.time(). Will that be enough to guarantee the job id to be unique?
@@ -157,30 +164,35 @@ def SubmitRegularJob(jobParamsJsonStr):
     ret["id"] = jobParams["id"]
 
 
-
     if "logdir" in jobParams and len(jobParams["logdir"].strip()) > 0:
-        jobParams["svc-name"] = "tensorboard-"+jobParams["id"]
-        jobParams["app-name"] = "tensorboard-"+jobParams["id"]
-        jobParams["port"] = "6006"
-        jobParams["port-name"] = "tensorboard"
-        jobParams["port-type"] = "TCP"        
-        jobParams["tensorboard-id"] = "tensorboard-"+jobParams["id"]
+        tensorboardParams = jobParams.copy()
+        tensorboardParams["svc-name"] = "tensorboard-"+jobParams["id"]
+        tensorboardParams["app-name"] = "tensorboard-"+jobParams["id"]
+        tensorboardParams["port"] = "6006"
+        tensorboardParams["port-name"] = "tensorboard"
+        tensorboardParams["port-type"] = "TCP"        
+        tensorboardParams["tensorboard-id"] = "tensorboard-"+jobParams["id"]
+        
+        tensorboardParams["id"] = tensorboardParams["svc-name"]
+        tensorboardParams["job-name"] = tensorboardParams["svc-name"]
+        tensorboardMeta = GenTensorboardMeta(tensorboardParams, os.path.join(jobTempDir,"KubeSvc.yaml.template"), os.path.join(jobTempDir,"TensorboardApp.yaml.template"))
 
-        tensorboardMeta = GenTensorboardMeta(jobParams, os.path.join(jobTempDir,"KubeSvc.yaml.template"), os.path.join(jobTempDir,"TensorboardApp.yaml.template"))
-
-        tensorboardMetaFilePath = os.path.join(jobDir, "tensorboard-"+jobParams["id"]+".yaml")
+        tensorboardMetaFilePath = os.path.join(jobDir, tensorboardParams["id"]+".yaml")
 
         with open(tensorboardMetaFilePath, 'w') as f:
             f.write(tensorboardMeta)
-
         output = kubectl_create(tensorboardMetaFilePath)
-
+        tensorboardMetaFilePath["job-meta-path"] = tensorboardMetaFilePath
+        tensorboardMetaFilePath["job-meta"] = base64.b64encode(tensorboardMeta)
+        if "user-id" not in tensorboardMetaFilePath:
+            tensorboardMetaFilePath["user-id"] = ""
+        dataHandler.AddJob(tensorboardMetaFilePath)
 
     jobParams["job-meta-path"] = jobFilePath
     jobParams["job-meta"] = base64.b64encode(jobMeta)
     if "user-id" not in jobParams:
         jobParams["user-id"] = ""
-    dataHandler = DataHandler()
+
     dataHandler.AddJob(jobParams)
 
     return ret
@@ -352,16 +364,16 @@ def SubmitDistJob(jobParamsJsonStr,tensorboard=False):
     return ret
 
 
-def GetJobStatus(jobId):
-    params = "describe job " + jobId +" | grep \"Pods Statuses\""
-    output = kubectl_exec(params)
-    return output.replace("Pods Statuses:","").strip()
-
 def GetJobList():
     dataHandler = DataHandler()
     jobs =  dataHandler.GetJobList()
     return jobs
 
+
+def GetJob(jobId):
+    dataHandler = DataHandler()
+    job =  dataHandler.GetJob(jobId)
+    return job
 
 def DeleteJob(jobId):
     dataHandler = DataHandler()
@@ -371,41 +383,124 @@ def DeleteJob(jobId):
         dataHandler.DelJob(jobId)
     return
 
-def GetTensorboard(jobId):
-    cmdStr = os.path.join(config["root-path"],"RestAPI/get_tensorboard_address.sh") + " tensorboard-"+jobId
-    output = exec_cmd(cmdStr).strip().split(":")
-    if len(output) == 2 and len(output[0].split("/")) == 2 and len(output[1].split("/")) == 2:
-        ip = output[0].split("/")[0]
-        port = output[1].split("/")[0]
-        return "http://"+ip+":"+port
-    else:
-        return None
 
+def Split(text,spliter):
+    return [x for x in text.split(spliter) if len(x.strip())>0]
+
+def GetServiceAddress(jobId):
+    ret = []
+
+    output = kubectl_exec(" describe svc -l run="+jobId)
+    svcs = output.split("\n\n\n")
+    
+    for svc in svcs:
+        lines = [Split(x,"\t") for x in Split(svc,"\n")]
+        port = None
+        nodeport = None
+        selector = None
+        hostIP = None
+
+        for line in lines:
+            if len(line) > 1:
+                if line[0] == "Port:":
+                    port = line[-1]
+                    if "/" in port:
+                        port = port.split("/")[0]
+                if line[0] == "NodePort:":
+                    nodeport = line[-1]
+                    if "/" in nodeport:
+                        nodeport = nodeport.split("/")[0]
+
+                if line[0] == "Selector:" and line[1] != "<none>":
+                    selector = line[-1]
+
+        if selector is not None:
+            podInfo = GetPod(selector)
+            if podInfo is not None and "items" in podInfo:
+                for item in podInfo["items"]:
+                    if "status" in item and "hostIP" in item["status"]:
+                        hostIP = item["status"]["hostIP"]
+        if port is not None and hostIP is not None and nodeport is not None:
+            ret.append( (port,hostIP,nodeport))
+    return ret
+
+
+def GetTensorboard(jobId):
+    output = kubectl_exec(" describe svc tensorboard-"+jobId)
+    lines = [Split(x,"\t") for x in Split(output,"\n")]
+    port = None
+    nodeport = None
+    selector = None
+    hostIP = None
+
+    for line in lines:
+        if len(line) > 1:
+            if line[0] == "Port:":
+                port = line[-1]
+                if "/" in port:
+                    port = port.split("/")[0]
+            if line[0] == "NodePort:":
+                nodeport = line[-1]
+                if "/" in nodeport:
+                    nodeport = nodeport.split("/")[0]
+
+            if line[0] == "Selector:" and line[1] != "<none>":
+                selector = line[-1]
+
+    if selector is not None:
+        output = kubectl_exec(" get pod -o yaml -l "+selector)
+        podInfo = yaml.load(output)
+
+        
+        for item in podInfo["items"]:
+            if "status" in item and "hostIP" in item["status"]:
+                hostIP = item["status"]["hostIP"]
+
+    return (port,hostIP,nodeport)
+
+def GetPod(selector):
+    try:
+        output = kubectl_exec(" get pod -o yaml --show-all -l "+selector)
+        podInfo = yaml.load(output)
+    except Exception as e:
+        print e
+        podInfo = None
+    return podInfo
 
 def GetLog(jobId):
-    cmdStr = os.path.join(config["root-path"],"RestAPI/get_logs.sh") + " "+jobId
-    output = exec_cmd(cmdStr).strip()
-    
+    selector = "run="+jobId
+    podInfo = GetPod(selector)
+    podName = None
+    if podInfo is not None and "items" in podInfo:
+        for item in podInfo["items"]:
+            if "metadata" in item and "name" in item["metadata"]:
+                podName = item["metadata"]["name"]
+    if podName is not None:
+        output = kubectl_exec(" logs "+podName)
+    else:
+        output = "Do not have logs yet."
     return output
 
 
-def GetServiceAddress(jobId):
-    cmdStr = os.path.join(config["root-path"],"RestAPI/get_service_address.sh") + " "+jobId
-    output = exec_cmd(cmdStr).strip().split(":")
-    if len(output) == 2 and len(output[0].split("/")) == 2 and len(output[1].split("/")) == 2:
-        ip = output[0].split("/")[0]
-        port = output[1].split("/")[0]
-        return "http://"+ip+":"+port
-    else:
-        return None
+def GetJobStatus(jobId):
+    pods = GetPod("run="+jobId)["items"]
+    output = "unknown"
+    detail = "Unknown Status"
+    if len(pods) > 0:
+        lastpod = pods[-1]
+        if "status" in lastpod and "phase" in lastpod["status"]:
+            output = lastpod["status"]["phase"]
+            detail = yaml.dump(lastpod["status"], default_flow_style=False)
+    return output, detail
 
 
 if __name__ == '__main__':
     TEST_SUB_REG_JOB = False
-    TEST_JOB_STATUS = False
+    TEST_JOB_STATUS = True
     TEST_DEL_JOB = False
     TEST_GET_TB = False
-    TEST_GET_SVC = True
+    TEST_GET_SVC = False
+    TEST_GET_LOG = False
 
     if TEST_SUB_REG_JOB:
         parser = argparse.ArgumentParser(description='Launch a kubernetes job')
@@ -421,7 +516,7 @@ if __name__ == '__main__':
         SubmitRegularJob(jobParamsJsonStr,args.template_file)
 
     if TEST_JOB_STATUS:
-        print GetJobStatus("tf-resnet18-1483491544-23")
+        print GetJobStatus(sys.argv[1])
 
     if TEST_DEL_JOB:
         print DeleteJob("tf-dist-1483504085-13")
@@ -430,4 +525,7 @@ if __name__ == '__main__':
         print GetTensorboard("tf-resnet18-1483509537-31")
 
     if TEST_GET_SVC:
-        print GetServiceAddress("tf-interactive-1483510982-36")
+        print GetServiceAddress("tf-i-1483566214-12")
+
+    if TEST_GET_LOG:
+        print GetLog("tf-i-1483566214-12")

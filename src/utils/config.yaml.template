@@ -1,4 +1,5 @@
 mysql :
+  hostname : localhost
   username : dlws
   password : [password]
   database : dlws
