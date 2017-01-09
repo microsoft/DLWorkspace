@@ -1,4 +1,24 @@
+# Generate Certificates
+1. modify src\ClusterBootstrap\ssl\openssl.cnf
+  * add DNS name and IP for the kubernetes master. 
+    * For DNS name, add DNS.5, DNS.6 for the new DNS name 
+  * replace ${K8S_SERVICE_IP} by the service ip, e.g. "10.3.0.1"
+  * replace ${MASTER_HOST} by the host IP. "IP.3, IP.4..." can be added for multiple NIC. 
+2. run src/ClusterBootstrap/ssl/gen_certs.sh to generate certs
+
+  
 # ETCD service deployment
+1. Create a discovery url
+  ```
+  curl -w "\n" 'https://discovery.etcd.io/new?size=3'
+  ```
+  output:
+  ```
+  https://discovery.etcd.io/2074363dd5a9efacae8c956240ca7794
+  ```
+  Note: change "size=3" to the actual etcd cluster size. and replace the place holder {{discovery_url}} in config.yaml file.  
+
+2. 
 
 # Kubernetes master deployment
 
