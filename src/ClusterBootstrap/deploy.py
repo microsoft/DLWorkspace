@@ -36,7 +36,7 @@ print "==============================================="
 print "generating configuration files..."
 os.system("rm -r ./deploy/*")
 
-deployDirs = ["deploy/etcd","deploy/kubelet","deploy/master","deploy/web-docker/kubelet"]
+deployDirs = ["deploy/etcd","deploy/kubelet","deploy/master","deploy/web-docker/kubelet","deploy/kube-addons"]
 for deployDir in deployDirs:
 	if not os.path.exists(deployDir):
 	    os.system("mkdir -p %s" % (deployDir))
@@ -62,6 +62,12 @@ for file in kubemaster_cfg_files:
 kubemaster_cfg_files = [f for f in os.listdir("./template/kubelet") if os.path.isfile(os.path.join("./template/kubelet", f))]
 for file in kubemaster_cfg_files:
 	renderfiles.append((os.path.join("./template/kubelet", file),os.path.join("./deploy/web-docker/kubelet", file)))
+
+
+kubemaster_cfg_files = [f for f in os.listdir("./template/kube-addons") if os.path.isfile(os.path.join("./template/kube-addons", f))]
+for file in kubemaster_cfg_files:
+	renderfiles.append((os.path.join("./template/kube-addons", file),os.path.join("./deploy/kube-addons", file)))
+
 
 renderfiles.append(("pxe-kubelet/www/pxe-coreos-kube.yml.template","pxe-kubelet/www/pxe-coreos-kube.yml"))
 
@@ -151,6 +157,11 @@ if True:
 	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo mkdir -p /opt/bin")
 	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo chown -R %s /opt/bin" % config["kubernetes_master_ssh_user"])
 	scp(config["ssh_cert"],config["kubelet_bin"],"/opt/bin", config["kubernetes_master_ssh_user"], config["kubernetes_master_node"] )
+
+
+	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo mkdir -p /opt/addons")
+	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo chown -R %s /opt/addons" % config["kubernetes_master_ssh_user"])
+	scp(config["ssh_cert"],"./deploy/kube-addons","/opt/addons", config["kubernetes_master_ssh_user"], config["kubernetes_master_node"] )
 
 
 	exec_cmd_list = ["sudo systemctl daemon-reload","sudo systemctl stop flanneld","sudo systemctl stop kubelet","sudo systemctl start flanneld", "sudo systemctl stop docker", "sudo systemctl start docker", "sudo systemctl start kubelet", "sudo systemctl start rpc-statd", "sudo systemctl enable flanneld", "sudo systemctl enable kubelet"]
