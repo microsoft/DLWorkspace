@@ -1,0 +1,23 @@
+[Service]
+ExecStartPre=/usr/bin/mkdir -p /etc/kubernetes/manifests
+ExecStartPre=/usr/bin/mkdir -p /var/log/containers
+
+Environment=KUBELET_IMAGE_TAG=v1.4.6_coreos.0
+Environment="RKT_RUN_ARGS=--volume var-log,kind=host,source=/var/log \
+  --mount volume=var-log,target=/var/log \
+  --volume dns,kind=host,source=/etc/resolv.conf \
+  --mount volume=dns,target=/etc/resolv.conf"
+
+ExecStart=/opt/bin/kubelet \
+  --api-servers=http://127.0.0.1:8080 \
+  --network-plugin-dir=/etc/kubernetes/cni/net.d \
+  --network-plugin= \
+  --register-schedulable=false \
+  --allow-privileged=true \
+  --config=/etc/kubernetes/manifests \
+  --cluster-dns=10.3.0.2 \
+  --cluster-domain=cluster.local
+Restart=always
+RestartSec=10
+[Install]
+WantedBy=multi-user.target

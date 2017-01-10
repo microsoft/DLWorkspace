@@ -1,0 +1,15 @@
+discovery_url : https://discovery.etcd.io/48e1060e60d2cec04747e5999ee1aab6
+kubernetes_master_node : 10.196.47.4
+kubernetes_master_ssh_user : hongzhili
+api_serviers :  https://10.196.47.4
+etcd_user : hongzhili
+etcd_node : dlws-c1-etcd.redmond.corp.microsoft.com
+etcd_endpoints : https://dlws-c1-etcd.redmond.corp.microsoft.com:2379
+webserver_user : hongzhili
+webserver : 10.196.44.97
+ssh_cert : ./id_rsa
+pod_ip_range : 10.2.0.0/16
+basic_auth :  {{password,username,group}}
+kubelet_bin : /home/hongzl/works/kubernetes/_output/bin/kubelet
+kubernetes_docker_image : mlcloudreg.westus.cloudapp.azure.com:5000/hyperkube:multigpu
+service_cluster_ip_range : 10.3.0.0/16 
