@@ -35,7 +35,12 @@ prepare config.yaml file from config.yaml.template
   * replace ${K8S_SERVICE_IP} by the service ip, e.g. "10.3.0.1"
   * replace ${MASTER_HOST} by the host IP. "IP.3, IP.4..." can be added for multiple NIC. 
 2. modify src\ClusterBootstrap\ssl\openssl-etcd.cnf
-3. run src/ClusterBootstrap/ssl/gen_certs.sh to generate certs
+3. run gen_certs.sh to generate certs
+
+    ```
+    cd src/ClusterBootstrap/ssl/
+    ./gen_certs.sh
+    ```
 
 # Generate deployment files
 
