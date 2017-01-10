@@ -156,15 +156,15 @@ if True:
 
 	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo mkdir -p /opt/bin")
 	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo chown -R %s /opt/bin" % config["kubernetes_master_ssh_user"])
-	scp(config["ssh_cert"],config["kubelet_bin"],"/opt/bin", config["kubernetes_master_ssh_user"], config["kubernetes_master_node"] )
-
+	scp(config["ssh_cert"],config["kubelet_bin"]+"/kubelet","/opt/bin", config["kubernetes_master_ssh_user"], config["kubernetes_master_node"] )
+	scp(config["ssh_cert"],config["kubelet_bin"]+"/kubectl","/opt/bin", config["kubernetes_master_ssh_user"], config["kubernetes_master_node"] )
 
 	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo mkdir -p /opt/addons")
 	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo chown -R %s /opt/addons" % config["kubernetes_master_ssh_user"])
 	scp(config["ssh_cert"],"./deploy/kube-addons","/opt/addons", config["kubernetes_master_ssh_user"], config["kubernetes_master_node"] )
 
 
-	exec_cmd_list = ["sudo systemctl daemon-reload","sudo systemctl stop flanneld","sudo systemctl stop kubelet","sudo systemctl start flanneld", "sudo systemctl stop docker", "sudo systemctl start docker", "sudo systemctl start kubelet", "sudo systemctl start rpc-statd", "sudo systemctl enable flanneld", "sudo systemctl enable kubelet"]
+	exec_cmd_list = ["sudo systemctl daemon-reload","sudo systemctl stop flanneld","sudo systemctl stop kubelet","sudo systemctl start flanneld", "sudo systemctl stop docker", "sudo systemctl start docker", "sudo systemctl start kubelet", "sudo systemctl start rpc-statd", "sudo systemctl enable flanneld", "sudo systemctl enable kubelet", "/opt/bin/kubectl create -f /opt/addons"]
 	for exec_cmd in exec_cmd_list:
 		SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], exec_cmd)
 
