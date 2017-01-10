@@ -41,7 +41,7 @@ write_files:
     owner: "root"
     content: |
       #! /bin/bash
-      wget -q -O - http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet.sh | sudo bash -s
+      wget -q -O - http://{{cnf["webserver"]}}/kubelet.sh | sudo bash -s
       
 
 

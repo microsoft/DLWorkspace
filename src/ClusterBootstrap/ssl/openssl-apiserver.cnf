@@ -1,0 +1,17 @@
+ions = v3_req
+distinguished_name = req_distinguished_name
+[req_distinguished_name]
+[ v3_req ]
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+subjectAltName = @alt_names
+[alt_names]
+DNS.1 = kubernetes
+DNS.2 = kubernetes.default
+DNS.3 = kubernetes.default.svc
+DNS.4 = kubernetes.default.svc.cluster.local
+DNS.5 = dlws-c1-master
+DNS.6 = dlws-c1-master.redmond.corp.microsoft.com
+IP.1 = 10.196.45.66
+IP.2 = 10.196.44.220
+IP.3 = 10.3.0.1
