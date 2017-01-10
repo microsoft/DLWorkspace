@@ -45,6 +45,7 @@ prepare config.yaml file from config.yaml.template
 # Generate deployment files
 
  ```
+ cd src/ClusterBootstrap
  python deploy.py
  ```
  the script generates configuration files and deploy the etcd and kubernetes master. 
@@ -54,7 +55,7 @@ prepare config.yaml file from config.yaml.template
 1. build docker image to host web service
   ```
   docker build -t mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/httpservice:dlws-c1-web deploy/web-docker/
-  docker push mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/httpservice:dlws-c1-web deploy/web-docker/
+  docker push mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/httpservice:dlws-c1-web 
   ```
   
 2. run the docker image on the web server
@@ -65,7 +66,7 @@ prepare config.yaml file from config.yaml.template
 3. build pxe image
     ```
     docker build -t mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/pxeserver:dlws-c1-web pxe-kubelet/
-    docker push mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/httpservice:dlws-c1-web pxe-kubelet
+    docker push mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/pxeserver:dlws-c1-web
     ```
 4. run pxe server docker image on a laptop (or server)
 
@@ -84,9 +85,9 @@ prepare config.yaml file from config.yaml.template
 
  2. pull and run docker image
    ```
-   docker pull mlcloudreg.westus.cloudapp.azure.com:5000/pxe-coreos:kubelet
+   docker pull mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/pxeserver:dlws-c1-web
 
-   docker run -ti --net=host mlcloudreg.westus.cloudapp.azure.com:5000/pxe-coreos:kubelet bash
+   docker run -ti --net=host mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/pxeserver:dlws-c1-web bash
    ```
 
  3. prepare data
