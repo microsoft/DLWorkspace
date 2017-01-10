@@ -16,13 +16,13 @@ Please prepare and plan the following information:
    8. etcd discovery url
    
      ```
-     curl -w "\n" 'https://discovery.etcd.io/new?size=3'
+     curl -w "\n" 'https://discovery.etcd.io/new?size=1'
      ```
      output:
      ```
      https://discovery.etcd.io/2074363dd5a9efacae8c956240ca7794
      ```
-     Note: change "size=3" to the actual etcd cluster size. and replace the place holder {{discovery_url}} in config.yaml file.  
+     Note: change "size=1" to the actual etcd cluster size. and replace the place holder {{discovery_url}} in config.yaml file.  
 
 prepare config.yaml file from config.yaml.template
  
