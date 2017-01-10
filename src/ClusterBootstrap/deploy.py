@@ -105,6 +105,7 @@ if True:
 if True:
 	print "==============================================="
 	print "starting kubernetes master ..."
+	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo rm -r /etc/kubernetes")
 	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo mkdir -p /etc/kubernetes")
 	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo mkdir -p /etc/systemd/system/flanneld.service.d")
 	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo mkdir -p /etc/systemd/system/docker.service.d")
@@ -118,6 +119,7 @@ if True:
 
 
 	scp(config["ssh_cert"],"./ssl/apiserver","/home/%s/" % config["kubernetes_master_ssh_user"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"] )
+	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo rm -r /etc/ssl/etcd")
 	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo mkdir -p /etc/ssl/etcd")
 	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo mv /home/%s/apiserver/* /etc/ssl/etcd/" % (config["kubernetes_master_ssh_user"]))
 
