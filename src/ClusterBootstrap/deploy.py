@@ -69,7 +69,7 @@ ENV = Environment(loader=FileSystemLoader("/"))
 for (template_file,target_file) in renderfiles:
 	render(template_file,target_file)
 
-if False:
+if True:
 	#print "==============================================="
 	#print "deploy configuration files to web server..."
 	#scp(config["ssh_cert"],"./deploy","/var/www/html", config["webserver_user"], config["webserver"] )
@@ -102,7 +102,7 @@ if False:
 	SSH_exec_cmd(config["ssh_cert"], config["etcd_user"], config["etcd_node"], "/home/%s/init_network.sh" % config["etcd_user"])
 
 
-if False:
+if True:
 	print "==============================================="
 	print "starting kubernetes master ..."
 	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo mkdir -p /etc/kubernetes")
