@@ -1,0 +1,69 @@
+{
+   "apiVersion": "extensions/v1beta1",
+   "kind": "DaemonSet",
+   "metadata": {
+      "labels": {
+         "component": "kube-proxy",
+         "tier": "node"
+      },
+      "name": "kube-proxy",
+      "namespace": "kube-system"
+   },
+   "spec": {
+      "template": {
+         "metadata": {
+            "labels": {
+               "component": "kube-proxy",
+               "tier": "node"
+            }
+         },
+         "spec": {
+            "containers": [
+               {
+                  "command": [
+                     "/proxy",
+                     "--kubeconfig=/etc/kubernetes/worker-kubeconfig.yaml"
+                  ],
+                  "image": "mlcloudreg.westus.cloudapp.azure.com:5000/hyperkube:multigpu",
+                  "name": "kube-proxy",
+                  "resources": {
+                     "requests": {
+                        "cpu": "100m"
+                     }
+                  },
+                  "securityContext": {
+                     "privileged": true
+                  },
+                  "volumeMounts": [
+                     {
+                        "mountPath": "/etc/ssl/certs",
+                        "name": "ssl-certs-host",
+                        "readOnly": true
+                     },
+                     {
+                        "mountPath": "/etc/kubernetes",
+                        "name": "kubeconfig",
+                        "readOnly": true
+                     }
+                  ]
+               }
+            ],
+            "hostNetwork": true,
+            "volumes": [
+               {
+                  "hostPath": {
+                     "path": "/usr/share/ca-certificates"
+                  },
+                  "name": "ssl-certs-host"
+               },
+               {
+                  "hostPath": {
+                     "path": "/etc/kubernetes"
+                  },
+                  "name": "kubeconfig"
+               }
+            ]
+         }
+      }
+   }
+}
