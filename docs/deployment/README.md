@@ -40,25 +40,24 @@ sudo reboot
 
 ### [Optional] Register the machine with DNS service. 
 
-This section is specific jjto Microsoft Internal setup. You may use the service at http://namesweb/ to self generate a DNS record for your installed machine. If this machine has a prior DNS name (e.g., a prior Redmond domain machine), you may need to first delete the dynamic DNS record of the prior machine, and then add your machine. If you machine has multiple IP address, please be sure to add both IP addresses to the DNS record.  
+This section is specific to Microsoft Internal setup. You may use the service at http://namesweb/ to self generate a DNS record for your installed machine. If this machine has a prior DNS name (e.g., a prior Redmond domain machine), you may need to first delete the dynamic DNS record of the prior machine, and then add your machine. If you machine has multiple IP address, please be sure to add both IP addresses to the DNS record.  
 
 ### Generate Certificates for API server & etcd server 
 
-1. Copy src\ClusterBootstrap\ssl\openssl-apiserver.cnf.template to openssl-apiserver.cnf, and edit the configuration file:
-  * add DNS name for the kubernetes master. 
+Go to folder 'src/ClusterBootstrap/ssl', and perform the following operations:
+
+1. Copy openssl-apiserver.cnf.template to openssl-apiserver.cnf, and edit the configuration file:
+  * Add DNS name for the kubernetes master. 
     * For DNS name, add DNS.5, DNS.6 for the new DNS name 
   * Add IP addresses of the kubernete master. 
     * Replace ${K8S_SERVICE_IP} by the IP of kubernetes service, default to "10.3.0.1"
-    * replace ${MASTER_HOST} by the host IP. "IP.3, IP.4..." can be added for multiple NIC. 
-2. modify src\ClusterBootstrap\ssl\openssl-etcd.cnf
-3. run gen_certs.sh to generate certs
+    * replace ${MASTER_HOST} by the host IPs. If there are multiple IP address of the deployed machine, they should all be added here, e.g., via another entry of "IP.3". 
+2. Copy openssl-etcd.cnf.template to openssl-etcd.cnf, and edit the configuration file:
+  * Add DNS name for the etcd server. [similar to above] 
+  * Add IP addresses of the etcd server. [similar to above]h
+3. run 'gencerts.sh' to generate certs
 
-    ```
-    cd src/ClusterBootstrap/ssl/
-    ./gen_certs.sh
-    ```
-
-## Building of docker images. 
+### Building of docker images. 
 
 The first step is to build the various docker images that is used in DL workspace. The procedures are:
 

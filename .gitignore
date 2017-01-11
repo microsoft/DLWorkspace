@@ -4,3 +4,5 @@
 **/openssl-etcd.cnf
 **/openssl-apiserver.cnf
 **/*.pem
+**/id_rsa
+**/id_rsa.pub
