@@ -1,9 +1,10 @@
 # Deployment of DL workspace cluster
 
 This document describes the procedure to build and deploy a DL workspace cluster. You will need to build and deploy the following nodes: 
-  1. One kubernetes master server
-  2. One etcd server (or etcd cluster with multiple nodes for redundant operation)
-  3. A web server to host kubelet configuration files and certificates generation service
+  1. One Kubernetes master server,
+  2. Etcd server (or etcd cluster with multiple nodes for redundant operation), 
+  3. API servers, 
+  4. Web server to host kubelet configuration files and certificates generation service,
   4. Multiple kubernete work nodes for running the job.
 
 Basic knowledge of Linux and CoreOS will be very helpful to follow the deployment instruction.   
@@ -57,6 +58,30 @@ Go to folder 'src/ClusterBootstrap/ssl', and perform the following operations:
   * Add IP addresses of the etcd server. [similar to above]h
 3. run 'gencerts.sh' to generate certs
 
+### Modify configuration file for the deployed docker container. 
+
+Go to directory 'src/ClusterBookstrap', and copy 'config.yaml.template' to 'config.yaml'. Edit the configuration file with the follwoing information:
+
+1. Generate a new Etcd discover ID, by visiting webpage 'https://discovery.etcd.io/new?size=1'. For example, you may use:
+     ```
+     curl -w "\n" 'https://discovery.etcd.io/new?size=1'
+     ```
+If your etcd cluster has multiple nodes, please change "size=1" to the actual etcd cluster size. 
+Replace the place holder {{discovery_url}} in config.yaml file with the output of the discovery service, e.g., 'https://discovery.etcd.io/fec3b8145de4e19c2812ef64b542bc29'.  
+2. Replace all entries of '{{kubernete_master_dnsname_or_ip}}' with either the DNS name or one of the IP addresses of kubernetes master. This will be used for bootstrapping kubernetes master [deploying kubernete configuration and certificate]. 
+3. Replace '{{user_at_kubernete_master}}' with the authorized user during CoreOS installation. 
+4. Replace '{{user_at_etcd_server}}' with the authorized user during CoreOS installation. 
+5. Replace '{{apiserver_dnsname_or_ip}}' with either the DNS name or one of the IP addresses of the etcd server. 
+6. Generate ssh key for access the kubernete cluster via following command. 
+'''
+ssh-keygen -t rsa -b 4096
+''' 
+You may want to store the generated key under the current directory, instead of default ('~/.ssh'). 
+This key is used just in the kubernete deployment process. Therefore, you can discard the ssh key after the entire deployment procedure has been completed. 
+8. Replace {{apiserver_password,apiserver_username,apiserver_group}} with a password and username that is used to adminstrating API server. For example, if you use "helloworld,adam,1000", then the API server can be administered through username adam, and password helloworld. 
+9. [ToDo] to rewrite kubernete binary access. 
+10. run 'deploy.py' to deploy kubernete masters, etcd servers, and API servers. 
+
 ### Building of docker images. 
 
 The first step is to build the various docker images that is used in DL workspace. The procedures are:
@@ -78,29 +103,6 @@ The first step is to build the various docker images that is used in DL workspac
     docker push mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/pxeserver:dlws-c1-web
     ``` 
 
-Please prepare/gather the following information. If you are working in a managed computer system, e.g., in a corporate network, you may need to work with your IT administrator to get the following information:
-   1. Static IP of kubernetes master, username with sudo permission, (optional) DNS name
-   2. Static IP of web server,  username with sudo permission, (optional) DNS name
-   3. Static IP of etcd server, username with sudo permission, (optional) DNS name
-   4. The kubernetes pod ip range, default is: 10.2.0.0/16
-   5. The kubernetes service ip range, default is: 10.3.0.0/16 
-   6. Build kubernetes binary, (e.g. kubernetes/_output/bin/kubelet), you may use an existing kubernete distribution. Please refer to http://kubernetes.io/docs/getting-started-guides/binary_release/#prebuilt-binary-release for details.  
-   7. Ssh certificates which allow no-password login to kubernetes master and etcd. Please refer to 
-https://linuxconfig.org/passwordless-ssh on generating ssh keys and use them for subsequent login.   
-   8. Please prepare src/ClusterBootstrap/config.yaml from the config.yaml.template in the same directory. 
-   
-   Make a copy of the config.yaml.template file to config.yaml, 
-   
-     ```
-     curl -w "\n" 'https://discovery.etcd.io/new?size=1'
-     ```
-     output:
-     ```
-     https://discovery.etcd.io/2074363dd5a9efacae8c956240ca7794
-     ```
-     Note: change "size=1" to the actual etcd cluster size. and replace the place holder {{discovery_url}} in config.yaml file.  
-
-prepare config.yaml file from 
  
    
    
