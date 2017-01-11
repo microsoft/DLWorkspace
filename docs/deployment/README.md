@@ -38,12 +38,18 @@ Once installation is completed, please use 'ifconfig' to print the IP address of
 sudo reboot
 ```
 
-### Generate Certificates
-1. modify src\ClusterBootstrap\ssl\openssl-apiserver.cnf
-  * add DNS name and IP for the kubernetes master. 
+### [Optional] Register the machine with DNS service. 
+
+This section is specific jjto Microsoft Internal setup. You may use the service at http://namesweb/ to self generate a DNS record for your installed machine. If this machine has a prior DNS name (e.g., a prior Redmond domain machine), you may need to first delete the dynamic DNS record of the prior machine, and then add your machine. If you machine has multiple IP address, please be sure to add both IP addresses to the DNS record.  
+
+### Generate Certificates for API server & etcd server 
+
+1. Copy src\ClusterBootstrap\ssl\openssl-apiserver.cnf.template to openssl-apiserver.cnf, and edit the configuration file:
+  * add DNS name for the kubernetes master. 
     * For DNS name, add DNS.5, DNS.6 for the new DNS name 
-  * replace ${K8S_SERVICE_IP} by the service ip, e.g. "10.3.0.1"
-  * replace ${MASTER_HOST} by the host IP. "IP.3, IP.4..." can be added for multiple NIC. 
+  * Add IP addresses of the kubernete master. 
+    * Replace ${K8S_SERVICE_IP} by the IP of kubernetes service, default to "10.3.0.1"
+    * replace ${MASTER_HOST} by the host IP. "IP.3, IP.4..." can be added for multiple NIC. 
 2. modify src\ClusterBootstrap\ssl\openssl-etcd.cnf
 3. run gen_certs.sh to generate certs
 

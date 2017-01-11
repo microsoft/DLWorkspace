@@ -3,3 +3,4 @@
 **/pxe-kubemaster.yml
 **/openssl-etcd.cnf
 **/openssl-apiserver.cnf
+**/*.pem
