@@ -11,6 +11,7 @@ from jinja2 import Environment, FileSystemLoader, Template
 import base64
 
 from shutil import copyfile,copytree
+import urllib
 
 
 
@@ -32,11 +33,13 @@ def scp (identity_file, source, target, user, host):
 f = open(os.path.join(os.path.dirname(os.path.realpath(__file__)),"config.yaml"))
 config = yaml.load(f)
 
+config["webserver"] = config["etcd_node"]
+
 print "==============================================="
 print "generating configuration files..."
 os.system("rm -r ./deploy/*")
 
-deployDirs = ["deploy/etcd","deploy/kubelet","deploy/master","deploy/web-docker/kubelet","deploy/kube-addons"]
+deployDirs = ["deploy/etcd","deploy/kubelet","deploy/master","deploy/web-docker/kubelet","deploy/kube-addons","deploy/bin"]
 for deployDir in deployDirs:
 	if not os.path.exists(deployDir):
 	    os.system("mkdir -p %s" % (deployDir))
@@ -76,6 +79,12 @@ for (template_file,target_file) in renderfiles:
 	render(template_file,target_file)
 
 if True:
+	print "==============================================="
+	print "Clean up kubernetes master... (It is ok to see Error in this section)"
+	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo rm -r /etc/kubernetes")
+	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo rm -r /etc/ssl/etcd")
+
+if True:
 	#print "==============================================="
 	#print "deploy configuration files to web server..."
 	#scp(config["ssh_cert"],"./deploy","/var/www/html", config["webserver_user"], config["webserver"] )
@@ -102,7 +111,7 @@ if True:
 
 	print "==============================================="
 	print "init etcd service..."
-	time.sleep(5)
+	time.sleep(30)
 	scp(config["ssh_cert"],"./deploy/etcd/init_network.sh","/home/%s/init_network.sh" % config["etcd_user"], config["etcd_user"], config["etcd_node"] )
 	SSH_exec_cmd(config["ssh_cert"], config["etcd_user"], config["etcd_node"], "chmod +x /home/%s/init_network.sh" % config["etcd_user"])
 	SSH_exec_cmd(config["ssh_cert"], config["etcd_user"], config["etcd_node"], "/home/%s/init_network.sh" % config["etcd_user"])
@@ -111,7 +120,6 @@ if True:
 if True:
 	print "==============================================="
 	print "starting kubernetes master ..."
-	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo rm -r /etc/kubernetes")
 	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo mkdir -p /etc/kubernetes")
 	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo mkdir -p /etc/systemd/system/flanneld.service.d")
 	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo mkdir -p /etc/systemd/system/docker.service.d")
@@ -125,7 +133,6 @@ if True:
 
 
 	scp(config["ssh_cert"],"./ssl/apiserver","/home/%s/" % config["kubernetes_master_ssh_user"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"] )
-	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo rm -r /etc/ssl/etcd")
 	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo mkdir -p /etc/ssl/etcd")
 	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo mv /home/%s/apiserver/* /etc/ssl/etcd/" % (config["kubernetes_master_ssh_user"]))
 
@@ -156,15 +163,20 @@ if True:
 
 	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo mkdir -p /opt/bin")
 	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo chown -R %s /opt/bin" % config["kubernetes_master_ssh_user"])
-	scp(config["ssh_cert"],config["kubelet_bin"]+"/kubelet","/opt/bin", config["kubernetes_master_ssh_user"], config["kubernetes_master_node"] )
-	scp(config["ssh_cert"],config["kubelet_bin"]+"/kubectl","/opt/bin", config["kubernetes_master_ssh_user"], config["kubernetes_master_node"] )
+	
+	urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet", "./deploy/bin/kubelet")
+	urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubectl", "./deploy/bin/kubectl")
+
+
+	scp(config["ssh_cert"],"./deploy/bin/kubelet","/opt/bin", config["kubernetes_master_ssh_user"], config["kubernetes_master_node"] )
+	scp(config["ssh_cert"],"./deploy/bin/kubectl","/opt/bin", config["kubernetes_master_ssh_user"], config["kubernetes_master_node"] )
 
 	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo mkdir -p /opt/addons")
 	SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], "sudo chown -R %s /opt/addons" % config["kubernetes_master_ssh_user"])
 	scp(config["ssh_cert"],"./deploy/kube-addons","/opt/addons", config["kubernetes_master_ssh_user"], config["kubernetes_master_node"] )
 
 
-	exec_cmd_list = ["sudo systemctl daemon-reload","sudo systemctl stop flanneld","sudo systemctl stop kubelet","sudo systemctl start flanneld", "sudo systemctl stop docker", "sudo systemctl start docker", "sudo systemctl start kubelet", "sudo systemctl start rpc-statd", "sudo systemctl enable flanneld", "sudo systemctl enable kubelet", "/opt/bin/kubectl create -f /opt/addons"]
+	exec_cmd_list = ["sudo systemctl daemon-reload","sudo systemctl stop flanneld","sudo systemctl stop kubelet","sudo systemctl start flanneld", "sudo systemctl stop docker", "sudo systemctl start docker", "sudo systemctl start kubelet", "sudo systemctl start rpc-statd", "sudo systemctl enable flanneld", "sudo systemctl enable kubelet"]
 	for exec_cmd in exec_cmd_list:
 		SSH_exec_cmd(config["ssh_cert"], config["kubernetes_master_ssh_user"], config["kubernetes_master_node"], exec_cmd)
 
@@ -175,6 +187,23 @@ if True:
 print "==============================================="
 print "generating kubelet configuration files ..."
 
-copyfile(config["kubelet_bin"],"./deploy/web-docker/kubelet/kubelet")
+copyfile("./deploy/bin/kubelet","./deploy/web-docker/kubelet/kubelet")
 copytree("certificate-service","./deploy/web-docker/certificate-service")
 copytree("./ssl/ca","./deploy/web-docker/certificate-service/ca")
+
+
+exec_cmd = "docker build -t %s pxe-kubelet/" % config["pxe_docker_image"]
+os.system(exec_cmd)
+
+exec_cmd = "docker push %s" % config["pxe_docker_image"]
+os.system(exec_cmd)
+
+
+exec_cmd = "docker build -t %s deploy/web-docker/" % config["webserver_docker_image"]
+os.system(exec_cmd)
+
+exec_cmd = "docker push %s" % config["webserver_docker_image"]
+os.system(exec_cmd)
+
+exec_cmd = "docker run -d -p 80:80 -p 5000:5000 %s" % config["webserver_docker_image"]
+SSH_exec_cmd(config["ssh_cert"], config["etcd_user"], config["etcd_node"], exec_cmd)
