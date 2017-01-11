@@ -82,31 +82,6 @@ This key is used just in the kubernete deployment process. Therefore, you can di
 9. [ToDo] to rewrite kubernete binary access. 
 10. run 'deploy.py' to deploy kubernete masters, etcd servers, and API servers. 
 
-### Building of docker images. 
-
-The first step is to build the various docker images that is used in DL workspace. The procedures are:
-
-1. build docker image to host web service
-  ```
-  docker build -t mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/httpservice:dlws-c1-web deploy/web-docker/
-  docker push mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/httpservice:dlws-c1-web 
-  ```
-  
-2. run the docker image on the web server
-  ```
-  docker run -d -p 80:80 -p 5000:5000 mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/httpservice:dlws-c1-web
-  ```
-
-3. build pxe image
-    ```
-    docker build -t mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/pxeserver:dlws-c1-web pxe-kubelet/
-    docker push mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/pxeserver:dlws-c1-web
-    ``` 
-
- 
-   
-   
-
 
 # Generate deployment files
 
