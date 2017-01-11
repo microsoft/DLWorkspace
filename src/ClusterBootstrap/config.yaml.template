@@ -1,4 +1,3 @@
-discovery_url : https://discovery.etcd.io/{{discovery_url}}
 kubernetes_master_node : {{kubernete_master_dnsname_or_ip}}
 kubernetes_master_ssh_user : {{user_at_kubernete_master}}
 api_serviers :  https://{{kubernete_master_dnsname_or_ip}}
