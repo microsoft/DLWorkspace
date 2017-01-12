@@ -17,9 +17,9 @@ We describe the steps to install and deploy a customized Kubernetes cluster. It 
 
 This section describes the process of deploying a base CoreOS image through USB stick. In production environment, there may be other more efficient mechanisms to deploy the CoreOS images to machines. 
 
-Please prepare a Cloud config file that will be used to bootstrap the deployed CoreOS machine. A sample config file is provided at: /src/ClusterBootstrap/CoreOSConfig/pxe-kubemaster.yml.template. Please copy the file to pxe-kubemaster.yml, and fill in username, password, and SSH key information according to instruction at: [this](https://coreos.com/os/docs/latest/cloud-config.html). Then, either host the pxe-kubemaster.yml to a web service that you control, or put it on the USB following the instruction on USBBootable.md. 
+Please prepare a Cloud config file that will be used to bootstrap the deployed CoreOS machine. A sample config file is provided at: /src/ClusterBootstrap/CoreOSConfig/pxe-kubemaster.yml.template. Please copy the file to pxe-kubemaster.yml, and fill in username, password, and SSH key information according to instruction at: [this](https://coreos.com/os/docs/latest/cloud-config.html). Then, either host the pxe-kubemaster.yml to a web service that you control (you will need to download the cloud config file during the boot [with these instructions](CoreOSBoot.md), or put it on a [bootable USB](USBBootable.md). 
 
-You may then install the CoreOS voa"
+You may then install the CoreOS via:
 
 ```
 sudo coreos-install -d /dev/sda -C stable -c [LOCAL_CLOUD_CONFIG_FILE]
@@ -71,55 +71,7 @@ DL Workspace needs a multigpu-aware Kubernete build. Currently, a validated Kube
 These two images are outcome of the build process in the 'deploy.py', and will be used to deploy to the Kubernete cluster. 
 8. run 'python deploy.py' to deploy kubernete masters, etcd servers, and API servers. 
 
-# Generate deployment files
-
- ```
- cd src/ClusterBootstrap
- python deploy.py
- ```
- the script generates configuration files and deploy the etcd and kubernetes master. 
-
-
-
-4. run pxe server docker image on a laptop (or server)
-
- ideally, pxe server should have two network interface, we use eth0 in private network and eth1 in public network.  
-
- 1. config static ip on eth0
-
-   sudo vi /etc/network/interfaces
-   ```
-   auto eth0
-   iface eth0 inet static
-   address 192.168.1.20
-   netmask 255.255.255.0
-   ```
-   sudo reboot
-
- 2. pull and run docker image
-   ```
-   docker pull mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/pxeserver:dlws-c1-web
-
-   docker run -ti --net=host mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/pxeserver:dlws-c1-web bash
-   ```
-
- 3. prepare data
-
-   ```
-   /copy_html_data.sh
-   ```
-
- 4. select network interface for dhcp service
-   ```
-   vi /etc/default/isc-dhcp-server
-   ```
-
- 5. start service
-   ```
-   start_pxe_service.sh
-   ```
-
- 6. deploy worker nodes
+### Deploy additional worker nodes
    connect worker nodes to the private network, boot worker nodes using network boot option. 
    Wait until the worker nodes shutdown automatically. 
    Disconnect worker nodes from the private network. 
