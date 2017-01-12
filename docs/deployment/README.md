@@ -79,7 +79,8 @@ ssh-keygen -t rsa -b 4096
 You may want to store the generated key under the current directory, instead of default ('~/.ssh'). 
 This key is used just in the kubernete deployment process. Therefore, you can discard the ssh key after the entire deployment procedure has been completed. 
 8. Replace {{apiserver_password,apiserver_username,apiserver_group}} with a password and username that is used to adminstrating API server. For example, if you use "helloworld,adam,1000", then the API server can be administered through username adam, and password helloworld. 
-9. [ToDo] to rewrite kubernete binary access. 
+9. Build kubernete binary. 
+DL Workspace needs a multigpu-aware Kubernete build, which is currently in our private branch. For the moment, please refer to document docs/DevEnvironment/Kubernetes.md on how to build the Kubernete build needed. We are in the process of simplifying this step, to make the required Kubernetes build more simple for deployment. 
 10. run 'deploy.py' to deploy kubernete masters, etcd servers, and API servers. 
 
 
