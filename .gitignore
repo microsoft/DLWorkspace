@@ -1,5 +1,6 @@
 *.pyc
 **/config.yaml
+**/pxe-coreos-kube.yml
 **/pxe-kubemaster.yml
 **/openssl-etcd.cnf
 **/openssl-apiserver.cnf
@@ -7,3 +8,4 @@
 **/id_rsa
 **/id_rsa.pub
 **/deploy/*
+*.iso
