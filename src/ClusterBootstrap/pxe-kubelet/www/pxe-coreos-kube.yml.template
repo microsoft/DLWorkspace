@@ -18,22 +18,8 @@ coreos:
         ExecStart=/bin/bash /opt/init_k8s.sh
         [Install]
         WantedBy=local.target
-
-users:
-  - name: "hongzhili"
-    passwd: "$1$QS5eb5Vh$NmoA1Vv0jDjirrTN/UpAh."
-    groups:
-      - "sudo"
-      - "docker"
-    ssh_authorized_keys:
-      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDwSpI4Kn8m7LIeVjsry4n/M42dGdN0LpcoGsSY1QZSmSLzxxdmeYOwf1/gfEy4+YE5ccKdtCpMC8MvuFRe9wGsZCdtH8tC3SS+tDdw3KWh01SVbjubjCldMLH16p7zP1FhpYn/CKBtXrtbjw5CwdVs/elJvXYKJT5xbPOnqxoXBTvJQ3rqtIjgizmeH6O04ihOxzK/y4+2U1kZe/VRn12gbDNT4/kWR1hgLx81cVPVCndmOr8ZTqeMaqiIMN03yU5wOQqz1gZ7owMN2Ht/fWXdlW761ihXvBNIL5gz2KOZRbnoTO+sYgh09zdBEuK+W2RYuc+CzB2msZGXaO887BQycc73p1vNvHVL+hY5at3menQ5cOykTTGfDltf1baRCUcSch4A06/xpo3MCRATq8SVOuL+6aiNrUpRyDITyjo8FeM3osrd1+EvT+Mji9+QGIRYuSMkvsUts259vVgYf4PUe9SmzBQ4kJjPOvV8zkEulqwnLf1N3bBdUcp3cYzi2dqJycTMIAv4a2yeLwqFUSoJlnQK1Mv3yCQ4/Ktfr55UDhpF7Fj8liSwL05KJxO0bDIpZTUjpgjhdsoTwpuiHuOSGdCmO0pa7qGOOKspDZPzgwhrgy+xuC1iHeneg9c7syctiwCep2YHgDigZtn+c5W+E2hPhmkxYOvuUvwcy+RXIw==
-  - name: "jinl"
-    passwd: "$1$QS5eb5Vh$NmoA1Vv0jDjirrTN/UpAh."
-    groups:
-      - "sudo"
-      - "docker"    
 ssh_authorized_keys:
-  - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDwSpI4Kn8m7LIeVjsry4n/M42dGdN0LpcoGsSY1QZSmSLzxxdmeYOwf1/gfEy4+YE5ccKdtCpMC8MvuFRe9wGsZCdtH8tC3SS+tDdw3KWh01SVbjubjCldMLH16p7zP1FhpYn/CKBtXrtbjw5CwdVs/elJvXYKJT5xbPOnqxoXBTvJQ3rqtIjgizmeH6O04ihOxzK/y4+2U1kZe/VRn12gbDNT4/kWR1hgLx81cVPVCndmOr8ZTqeMaqiIMN03yU5wOQqz1gZ7owMN2Ht/fWXdlW761ihXvBNIL5gz2KOZRbnoTO+sYgh09zdBEuK+W2RYuc+CzB2msZGXaO887BQycc73p1vNvHVL+hY5at3menQ5cOykTTGfDltf1baRCUcSch4A06/xpo3MCRATq8SVOuL+6aiNrUpRyDITyjo8FeM3osrd1+EvT+Mji9+QGIRYuSMkvsUts259vVgYf4PUe9SmzBQ4kJjPOvV8zkEulqwnLf1N3bBdUcp3cYzi2dqJycTMIAv4a2yeLwqFUSoJlnQK1Mv3yCQ4/Ktfr55UDhpF7Fj8liSwL05KJxO0bDIpZTUjpgjhdsoTwpuiHuOSGdCmO0pa7qGOOKspDZPzgwhrgy+xuC1iHeneg9c7syctiwCep2YHgDigZtn+c5W+E2hPhmkxYOvuUvwcy+RXIw==
+  - {{cnf["sshkey"]}}
 
 write_files:
   - path: "/opt/init_k8s.sh"

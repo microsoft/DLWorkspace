@@ -62,14 +62,21 @@ def Check_Config(cnf):
     _Check_Config_Items("service_cluster_ip_range",cnf)
     _Check_Config_Items("webserver_docker_image",cnf)
     _Check_Config_Items("pxe_docker_image",cnf)
+    if not os.isfile(config["ssh_cert"]):
+    	raise Exception("ERROR: we cannot find ssh key file at %s. \n please run 'python build-pxe-coreos.py docker_image_name' to generate ssh key file and pxe server image." % config["ssh_cert"]) 
 
 if __name__ == '__main__':
     f = open(os.path.join(os.path.dirname(os.path.realpath(__file__)),"config.yaml"))
     config = yaml.load(f)
+    f.close()
 
     print "==============================================="
     print "generating configuration files..."
-    os.system("rm -r ./deploy/*")
+    os.system("rm -r ./deploy/bin")
+    os.system("rm -r ./deploy/etcd")
+    os.system("rm -r ./deploy/kube-addons")
+    os.system("rm -r ./deploy/kubelet")
+    os.system("rm -r ./deploy/master")
 
     deployDirs = ["deploy/etcd","deploy/kubelet","deploy/master","deploy/web-docker/kubelet","deploy/kube-addons","deploy/bin"]
     for deployDir in deployDirs:
@@ -89,9 +96,20 @@ if __name__ == '__main__':
     if len(kubernetes_masters) <= 0:
         raise Exception("ERROR: we need at least one etcd_server.") 
 
+
     config["webserver"] = etcd_servers[0]
     config["discovery_url"] = Get_ETCD_DiscoveryURL(len(etcd_servers))
-    
+
+    if "ssh_cert" not in config and os.isfile("./sshkey/id_rsa"):
+    	config["ssh_cert"] = "./sshkey/id_rsa"
+    	config["etcd_user"] = "core"
+    	config["kubernetes_master_ssh_user"] = "core"
+
+	f = open(config["ssh_cert"])
+	sshkey_public = f.read()
+	f.close()
+
+	config["sshkey"] = sshkey_public
     Check_Config(config)
 
 

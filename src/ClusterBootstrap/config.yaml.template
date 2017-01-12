@@ -1,10 +1,7 @@
 kubernetes_master_node : {{kubernete_master_dnsname_or_ip}}
-kubernetes_master_ssh_user : {{user_at_kubernete_master}}
 api_serviers :  https://{{kubernete_master_dnsname_or_ip}}
-etcd_user : {{user_at_etcd_server}}
 etcd_node : {{etcdserver_dnsname_or_ip}}
 etcd_endpoints : https://{{etcdserver_dnsname_or_ip}}:2379
-ssh_cert : ./id_rsa
 pod_ip_range : 10.2.0.0/16
 basic_auth :  {{apiserver_password,apiserver_username,apiserver_group}}
 kubernetes_docker_image : mlcloudreg.westus.cloudapp.azure.com:5000/hyperkube:multigpu
