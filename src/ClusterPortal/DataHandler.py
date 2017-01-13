@@ -4,7 +4,7 @@ import time
 
 class DataHandler:
 	def __init__(self):
-		self.conn = mysql.connector.connect(user="dlworkspace", password="dT6MWUhrwPUZFVxS",database="dlworkspace")
+		self.conn = mysql.connector.connect(user="dlworkspace", password="",database="dlworkspace")
 		self.add_cluster_info = ("INSERT INTO cluster_info "
                "(`clusterId`, `key`, `value`) "
                "VALUES (%(clusterId)s, %(key)s, %(value)s)")		
