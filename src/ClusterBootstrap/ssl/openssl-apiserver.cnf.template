@@ -11,5 +11,5 @@ DNS.1 = kubernetes
 DNS.2 = kubernetes.default
 DNS.3 = kubernetes.default.svc
 DNS.4 = kubernetes.default.svc.cluster.local
-IP.1 = ${K8S_SERVICE_IP}
-IP.2 = ${MASTER_HOST}
+{{cnf["apiserver_ssl_dns"]}}
+{{cnf["apiserver_ssl_ip"]}}

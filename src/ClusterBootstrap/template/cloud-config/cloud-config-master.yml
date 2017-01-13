@@ -1,0 +1,37 @@
+#cloud-config
+coreos:
+  update:
+    reboot-strategy: off
+  units:
+    - name: update-engine.service
+      command: stop
+    - name: locksmithd.service
+      command: stop
+    - name: reportcluster.service
+      command: start
+      content: |
+        [Unit]
+        Description=Report node to cluster portal
+        After=network-online.target
+        Requires=network-online.target
+        [Service]
+        #RemainAfterExit=true
+        Restart=always
+        RestartSec=60s
+        ExecStart=/bin/bash /opt/report.sh
+        [Install]
+        WantedBy=local.target
+ssh_authorized_keys:
+  - {{cnf["sshkey"]}}
+
+write_files:
+  - path: "/opt/report.sh"
+    permissions: "0755"
+    owner: "root"
+    content: |
+      export HostIP=$(ip route get 8.8.8.8 | awk '{print $NF; exit}')
+      while true
+      do
+        curl "http://dlws-clusterportal.westus.cloudapp.azure.com:5000/Report?hostIP=$HostIP&clusterId={{cnf["clusterId"]}}&role={{cnf["role"]}}" || echo "!!!Cannot report to cluster portal!!! Check the internet connection"
+        sleep 600
+      done
