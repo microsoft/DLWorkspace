@@ -48,10 +48,10 @@ class DataHandler:
 
 	def GetClusterInfo(self,clusterId,key):
 		cursor = self.conn.cursor()
-		query = ("SELECT value FROM cluster_info where `key` = '"+key+"' and `clusterId` = '"+clusterId+"' order by time desc limit 1")
+		query = ("SELECT `key`, `value` FROM cluster_info where `key` = '"+key+"' and `clusterId` = '"+clusterId+"' order by time desc limit 1")
 		cursor.execute(query)
 		value = None
-		for v in cursor:
+		for (k,v) in cursor:
 			value = v
 		cursor.close()
 		return value		

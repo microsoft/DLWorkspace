@@ -48,7 +48,7 @@ write_files:
     owner: "root"
     encoding: "base64"
     content: |
-      {{cnf["worker-key.pem"]}}      
+      {{cnf["worker-key.pem"]}}
 
 
   - path: "/etc/ssl/etcd/ca.pem"
@@ -71,15 +71,15 @@ write_files:
     owner: "root"
     encoding: "base64"
     content: |
-      {{cnf["apiserver-key.pem"]}}      
+      {{cnf["apiserver-key.pem"]}}
 
 
-  - path: "/etc/flannel/options.env"
+  - path: "/opt/options.env.template"
     permissions: "0755"
     owner: "root"
     encoding: "base64"
     content: |
-      {{cnf["options.env"]}}      
+      {{cnf["options.env"]}}
 
 
   - path: "/etc/systemd/system/flanneld.service.d/40-ExecStartPre-symlink.conf"
@@ -87,22 +87,22 @@ write_files:
     owner: "root"
     encoding: "base64"
     content: |
-      {{cnf["40-ExecStartPre-symlink.conf"]}}      
+      {{cnf["40-ExecStartPre-symlink.conf"]}}
 
   - path: "/etc/systemd/system/docker.service.d/40-flannel.conf"
     permissions: "0755"
     owner: "root"
     encoding: "base64"
     content: |
-      {{cnf["40-flannel.conf"]}}      
+      {{cnf["40-flannel.conf"]}}
 
 
-  - path: "/etc/systemd/system/kubelet.service"
+  - path: "/opt/kubelet.service.template"
     permissions: "0755"
     owner: "root"
     encoding: "base64"
     content: |
-      {{cnf["kubelet.service"]}}      
+      {{cnf["kubelet.service"]}}
 
 
   - path: "/etc/kubernetes/manifests/kube-proxy.yaml"
@@ -110,7 +110,7 @@ write_files:
     owner: "root"
     encoding: "base64"
     content: |
-      {{cnf["kube-proxy.yaml"]}}      
+      {{cnf["kube-proxy.yaml"]}}
 
 
 
@@ -119,7 +119,7 @@ write_files:
     owner: "root"
     encoding: "base64"
     content: |
-      {{cnf["worker-kubeconfig.yaml"]}}      
+      {{cnf["worker-kubeconfig.yaml"]}}
 
 
 

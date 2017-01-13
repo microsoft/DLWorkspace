@@ -85,6 +85,11 @@ def Init_Deployment():
 	os.system("rm -r ./deploy/cloud-config")
 	os.system("mkdir -p ./deploy/cloud-config")
 
+	os.system("mkdir -p ./deploy/kubelet")
+	os.system("rm -r ./deploy/kubelet")
+	os.system("mkdir -p ./deploy/kubelet")
+
+
 	clusterID = str(uuid.uuid4()) 
 	with open("./deploy/clusterID.yml", 'w') as f:
 		f.write("clusterId : %s" % clusterID)
@@ -92,18 +97,17 @@ def Init_Deployment():
 
 	print "Cluster Id is : %s" % clusterID 
 
-	cnf = {}
-	cnf["clusterId"] = clusterID
-	cnf["sshkey"] = sshkey_public
+	config["clusterId"] = clusterID
+	config["sshkey"] = sshkey_public
 
 	ENV = Environment(loader=FileSystemLoader("/"))
 
 	template_file = "./template/cloud-config/cloud-config-master.yml"
 	target_file = "./deploy/cloud-config/cloud-config-master.yml"
 	template = ENV.get_template(os.path.abspath(template_file))
-	cnf["role"] = "master"
+	config["role"] = "master"
 
-	content = template.render(cnf=cnf)
+	content = template.render(cnf=config)
 	with open(target_file, 'w') as f:
 		f.write(content)
 	f.close()
@@ -111,9 +115,57 @@ def Init_Deployment():
 	template_file = "./template/cloud-config/cloud-config-etcd.yml"
 	target_file = "./deploy/cloud-config/cloud-config-etcd.yml"
 	template = ENV.get_template(os.path.abspath(template_file))
-	cnf["role"] = "etcd"
+	config["role"] = "etcd"
 
-	content = template.render(cnf=cnf)
+	content = template.render(cnf=config)
+	with open(target_file, 'w') as f:
+		f.write(content)
+	f.close()	
+
+
+
+	with open("./ssl/ca/ca.pem", 'r') as f:
+		content = f.read()
+	config["ca.pem"] = base64.b64encode(content)
+
+	with open("./ssl/kubelet/apiserver.pem", 'r') as f:
+		content = f.read()
+	config["apiserver.pem"] = base64.b64encode(content)
+	config["worker.pem"] = base64.b64encode(content)
+
+	with open("./ssl/kubelet/apiserver-key.pem", 'r') as f:
+		content = f.read()
+	config["apiserver-key.pem"] = base64.b64encode(content)
+	config["worker-key.pem"] = base64.b64encode(content)
+
+
+	renderfiles = []
+
+
+	kubemaster_cfg_files = [f for f in os.listdir("./template/kubelet") if os.path.isfile(os.path.join("./template/kubelet", f))]
+	for file in kubemaster_cfg_files:
+		renderfiles.append((os.path.join("./template/kubelet", file),os.path.join("./deploy/kubelet", file)))
+
+	ENV = Environment(loader=FileSystemLoader("/"))
+	for (template_file,target_file) in renderfiles:
+		render(template_file,target_file)
+
+
+
+
+	kubemaster_cfg_files = [f for f in os.listdir("./deploy/kubelet") if os.path.isfile(os.path.join("./deploy/kubelet", f))]
+	for file in kubemaster_cfg_files:
+		with open(os.path.join("./deploy/kubelet", file), 'r') as f:
+			content = f.read()
+		config[file] = base64.b64encode(content)
+
+
+
+	template_file = "./template/cloud-config/cloud-config-kubelet.yml"
+	target_file = "./deploy/cloud-config/cloud-config-kubelet.yml"
+	template = ENV.get_template(os.path.abspath(template_file))
+
+	content = template.render(cnf=config)
 	with open(target_file, 'w') as f:
 		f.write(content)
 	f.close()	
@@ -190,6 +242,8 @@ def Gen_ETCD_Certificates():
 
 	os.system("cd ./ssl && ./gencerts_etcd.sh")	
 
+
+
 def Gen_Configs():
 	print "==============================================="
 	print "generating configuration files..."
@@ -251,16 +305,10 @@ def Gen_Configs():
 		renderfiles.append((os.path.join("./template/web-docker", file),os.path.join("./deploy/web-docker", file)))
 
 
-	kubemaster_cfg_files = [f for f in os.listdir("./template/kubelet") if os.path.isfile(os.path.join("./template/kubelet", f))]
-	for file in kubemaster_cfg_files:
-		renderfiles.append((os.path.join("./template/kubelet", file),os.path.join("./deploy/web-docker/kubelet", file)))
-
-
 	kubemaster_cfg_files = [f for f in os.listdir("./template/kube-addons") if os.path.isfile(os.path.join("./template/kube-addons", f))]
 	for file in kubemaster_cfg_files:
 		renderfiles.append((os.path.join("./template/kube-addons", file),os.path.join("./deploy/kube-addons", file)))
 
-	renderfiles.append(("./template/cloud-config/cloud-config-kubelet.yml","./deploy/cloud-config/cloud-config-kubelet.yml"))
 
 	ENV = Environment(loader=FileSystemLoader("/"))
 	for (template_file,target_file) in renderfiles:
@@ -469,6 +517,7 @@ if __name__ == '__main__':
 	if len(sys.argv) == 2 and sys.argv[1] =="clean":
 		Clean_Deployment()
 		exit()
+
 	if  "clusterId" in config:
 		print "Detected previous cluster deployment, cluster ID: %s. \n To clean up the previous deployment, run 'python deploy.py clean' \n" % config["clusterId"]
 		print "The current deployment has:\n"
@@ -476,7 +525,6 @@ if __name__ == '__main__':
 		if "etcd_node" in config and len(config["etcd_node"]) >= int(config["etcd_node_num"]) and "kubernetes_master_node" in config and len(config["kubernetes_master_node"]) >= 1:
 			print "Ready to deploy kubernetes master on %s, etcd cluster on %s.  " % (",".join(config["kubernetes_master_node"]), ",".join(config["etcd_node"]))
 			Gen_Configs()
-			
 			response = raw_input("Deploy ETCD Nodes (y/n)?")
 			if response.strip() == "y":
 				Gen_ETCD_Certificates()
@@ -485,6 +533,12 @@ if __name__ == '__main__':
 			if response.strip() == "y":
 				Gen_Master_Certificates()
 				Deploy_Master()
+
+			response = raw_input("Allow Workers to register (y/n)?")
+			if response.strip() == "y":
+
+				urllib.urlretrieve ("http://dlws-clusterportal.westus.cloudapp.azure.com:5000/SetClusterInfo?clusterId=%s&key=etcd_endpoints&value=%s" %  (config["clusterId"],config["etcd_endpoints"]))
+				urllib.urlretrieve ("http://dlws-clusterportal.westus.cloudapp.azure.com:5000/SetClusterInfo?clusterId=%s&key=api_server&value=%s" % (config["clusterId"],config["api_serviers"]))
 
 		else:
 			print "Cannot deploy cluster since there are insufficient number of etcd server or master server. \n To continue deploy the cluster we need at least %d etcd server(s) and 1 master server" % (int(config["etcd_node_num"]))

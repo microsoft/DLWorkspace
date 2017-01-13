@@ -9,7 +9,7 @@ Environment="RKT_OPTS=--volume var-log,kind=host,source=/var/log \
   --mount volume=dns,target=/etc/resolv.conf"
 
 ExecStart=/opt/kubelet \
-  --api-servers={{cnf["api_serviers"]}} \
+  --api-servers=##api_serviers## \
   --network-plugin-dir=/etc/kubernetes/cni/net.d \
   --network-plugin= \
   --register-node=true \

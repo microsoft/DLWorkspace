@@ -129,6 +129,7 @@ class GetClusterInfo(Resource):
         datahandler = DataHandler.DataHandler()
         value = datahandler.GetClusterInfo(clusterId,key)
         datahandler.Close()
+        print value
         return value, 200
 
 
