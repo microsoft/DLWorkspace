@@ -1,0 +1,138 @@
+#cloud-config
+coreos:
+  units:
+    - name: bootstrap.service
+      command: start
+      content: |
+        [Unit]
+        Description=Bootstrap instance
+        After=network-online.target
+        Requires=network-online.target
+        [Service]
+        Type=oneshot
+        #RemainAfterExit=true
+        #ExecStartPre=/bin/bash -c 'until ping -c1 192.168.1.20; do sleep 1; done;'
+        ExecStart=/bin/bash /opt/kubelet.sh
+        [Install]
+        WantedBy=local.target
+
+
+ssh_authorized_keys:
+  - {{cnf["sshkey"]}}
+
+write_files:
+  - path: "/opt/kubelet.sh"
+    permissions: "0755"
+    owner: "root"
+    encoding: "base64"
+    content: |
+      {{cnf["kubelet.sh"]}}
+
+  - path: "/etc/kubernetes/ssl/ca.pem"
+    permissions: "0755"
+    owner: "root"
+    encoding: "base64"
+    content: |
+      {{cnf["ca.pem"]}}
+      
+
+  - path: "/etc/kubernetes/ssl/worker.pem"
+    permissions: "0755"
+    owner: "root"
+    encoding: "base64"
+    content: |
+      {{cnf["worker.pem"]}}
+
+  - path: "/etc/kubernetes/ssl/worker-key.pem"
+    permissions: "0755"
+    owner: "root"
+    encoding: "base64"
+    content: |
+      {{cnf["worker-key.pem"]}}
+
+
+  - path: "/etc/ssl/etcd/ca.pem"
+    permissions: "0755"
+    owner: "root"
+    encoding: "base64"
+    content: |
+      {{cnf["ca.pem"]}}
+      
+
+  - path: "/etc/ssl/etcd/apiserver.pem"
+    permissions: "0755"
+    owner: "root"
+    encoding: "base64"
+    content: |
+      {{cnf["apiserver.pem"]}}
+
+  - path: "/etc/ssl/etcd/apiserver-key.pem"
+    permissions: "0755"
+    owner: "root"
+    encoding: "base64"
+    content: |
+      {{cnf["apiserver-key.pem"]}}
+
+
+  - path: "/opt/options.env.template"
+    permissions: "0755"
+    owner: "root"
+    encoding: "base64"
+    content: |
+      {{cnf["options.env"]}}
+
+
+  - path: "/etc/systemd/system/flanneld.service.d/40-ExecStartPre-symlink.conf"
+    permissions: "0755"
+    owner: "root"
+    encoding: "base64"
+    content: |
+      {{cnf["40-ExecStartPre-symlink.conf"]}}
+
+  - path: "/etc/systemd/system/docker.service.d/40-flannel.conf"
+    permissions: "0755"
+    owner: "root"
+    encoding: "base64"
+    content: |
+      {{cnf["40-flannel.conf"]}}
+
+
+  - path: "/opt/kubelet.service.template"
+    permissions: "0755"
+    owner: "root"
+    encoding: "base64"
+    content: |
+      {{cnf["kubelet.service"]}}
+
+
+  - path: "/etc/kubernetes/manifests/kube-proxy.yaml"
+    permissions: "0755"
+    owner: "root"
+    encoding: "base64"
+    content: |
+      {{cnf["kube-proxy.yaml"]}}
+
+
+
+  - path: "/etc/kubernetes/worker-kubeconfig.yaml"
+    permissions: "0755"
+    owner: "root"
+    encoding: "base64"
+    content: |
+      {{cnf["worker-kubeconfig.yaml"]}}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
