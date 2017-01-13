@@ -8,4 +8,5 @@
 **/id_rsa
 **/id_rsa.pub
 **/deploy/*
+**/DataHandler1.py
 *.iso
