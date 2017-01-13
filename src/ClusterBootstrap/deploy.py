@@ -124,6 +124,17 @@ def Init_Deployment():
 
 
 
+	template_file = "./iso-creator/mkimg.sh.template"
+	target_file = "./iso-creator/mkimg.sh"
+	template = ENV.get_template(os.path.abspath(template_file))
+
+	content = template.render(cnf=config)
+	with open(target_file, 'w') as f:
+		f.write(content)
+	f.close()	
+
+
+
 	with open("./ssl/ca/ca.pem", 'r') as f:
 		content = f.read()
 	config["ca.pem"] = base64.b64encode(content)
@@ -206,7 +217,7 @@ def Check_Master_ETCD_Status():
 def Clean_Deployment():
 	print "==============================================="
 	print "Cleaning previous deployment..."	
-	os.system("rm -r ./deploy")
+	os.system("rm -r ./deploy/*")
 
 
 def Gen_CA_Certificates():
@@ -247,10 +258,13 @@ def Gen_ETCD_Certificates():
 def Gen_Configs():
 	print "==============================================="
 	print "generating configuration files..."
+	os.system("mkdir -p ./deploy/bin")
+	os.system("mkdir -p ./deploy/etcd")
+	os.system("mkdir -p ./deploy/kube-addons")
+	os.system("mkdir -p ./deploy/master")	
 	os.system("rm -r ./deploy/bin")
 	os.system("rm -r ./deploy/etcd")
 	os.system("rm -r ./deploy/kube-addons")
-	os.system("rm -r ./deploy/kubelet")
 	os.system("rm -r ./deploy/master")
 
 	deployDirs = ["deploy/etcd","deploy/kubelet","deploy/master","deploy/web-docker/kubelet","deploy/kube-addons","deploy/bin"]
@@ -475,7 +489,12 @@ def Deploy_ETCD():
 	SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_servers[0], "/home/%s/init_network.sh" % etcd_server_user)
 
 
-
+def Create_ISO():
+	os.system("mkdir -p ./deploy/iso")
+	os.system("cd iso-creator && ./mkimg.sh -v 1185.5.0")
+	os.system("mv ./iso-creator/coreos-1185.5.0.iso ./deploy/iso/dlworkspace-cluster-deploy-"+config["cluster_name"]+".iso")
+	os.system("rm -rf ./iso-creator/syslinux-6.03*")
+	os.system("rm -rf ./iso-creator/coreos-*")
 
 def Deploy_PXE():
 
@@ -540,7 +559,17 @@ if __name__ == '__main__':
 				urllib.urlretrieve ("http://dlws-clusterportal.westus.cloudapp.azure.com:5000/SetClusterInfo?clusterId=%s&key=etcd_endpoints&value=%s" %  (config["clusterId"],config["etcd_endpoints"]))
 				urllib.urlretrieve ("http://dlws-clusterportal.westus.cloudapp.azure.com:5000/SetClusterInfo?clusterId=%s&key=api_server&value=%s" % (config["clusterId"],config["api_serviers"]))
 
+
+			response = raw_input("Create ISO file for deployment (y/n)?")
+			if response.strip() == "y":
+				Create_ISO()
+
+
+
 		else:
 			print "Cannot deploy cluster since there are insufficient number of etcd server or master server. \n To continue deploy the cluster we need at least %d etcd server(s) and 1 master server" % (int(config["etcd_node_num"]))
 	else:
 		Init_Deployment()
+		response = raw_input("Create ISO file for deployment (y/n)?")
+		if response.strip() == "y":
+			Create_ISO()
