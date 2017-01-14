@@ -9,8 +9,8 @@ CHANNEL="stable"
 # Apply the cloud-config yml?
 #sudo coreos-cloudinit --from-file=/media/usbconfig/$CONFIG
 
-# Waiting 60 seconds to complete the boot
-#sleep 60
+# Waiting 30 seconds to complete the boot
+sleep 30
 
 DEVICE="/dev/sda"
 [ -f /dev/vda ] && DEVICE="/dev/vda"
