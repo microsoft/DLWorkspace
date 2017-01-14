@@ -9,8 +9,10 @@ CHANNEL="stable"
 # Apply the cloud-config yml?
 #sudo coreos-cloudinit --from-file=/media/usbconfig/$CONFIG
 
+/bin/bash -c 'until ping -c1 8.8.8.8; do sleep 1; done;'
+
 # Waiting 30 seconds to complete the boot
-sleep 30
+#sleep 30
 
 DEVICE="/dev/sda"
 [ -f /dev/vda ] && DEVICE="/dev/vda"
