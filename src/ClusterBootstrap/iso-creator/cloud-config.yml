@@ -1,0 +1,15 @@
+#cloud-config
+coreos:
+  update:
+    reboot-strategy: off
+  units:
+    - name: update-engine.service
+      command: stop
+    - name: locksmithd.service
+      command: stop
+users:
+  - name: "hongzhili"
+    passwd: "$1$QS5eb5Vh$NmoA1Vv0jDjirrTN/UpAh."
+    groups:
+      - "sudo"
+      - "docker"
