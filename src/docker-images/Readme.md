@@ -1,3 +1,3 @@
 # Docker images used in DL workspace. 
 
-* dev: development docker used 
+* dev: development docker
