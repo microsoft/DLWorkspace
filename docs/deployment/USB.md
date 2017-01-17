@@ -6,8 +6,13 @@ This document describes the procedure to build and deploy a small DL workspace c
      ```
      python deploy.py build 
      ```
-  3. Burn a USB stick:
-     You could use [Rufus](https://www.ubuntu.com/download/desktop/create-a-usb-stick-on-windows) recommended by Ubuntu or many other tools to burn .iso to a USB stick. 
+  3. Burn a USB stick (>=512MB):
+     You could use [Rufus](https://www.ubuntu.com/download/desktop/create-a-usb-stick-on-windows) recommended by Ubuntu or many other tools to burn .iso to a USB stick. Please use the following options:
+       * Parition scheme: MBR partition scheme for BIOS or UEFI,
+       * File system: FAT32,
+       * Create a bootable disk using: select the ISO built in step 2, 
+       * Write USB in ISO mode, 
+       * Please reconfirm that all data in the USB stick will be destroyed. 
   4. Boot each machine with the USB stick, to deploy Kubernetes master, etcd server or worker nodes. 
      You should deploy the exact number of Etcd servers as required in your config.yaml file.   
 
