@@ -496,6 +496,18 @@ def Create_ISO():
 	os.system("rm -rf ./iso-creator/syslinux-6.03*")
 	os.system("rm -rf ./iso-creator/coreos-*")
 
+
+def Create_PXE():
+	os.system("rm -r ./deploy/pxe")
+	os.system("mkdir -p ./deploy/docker")
+	os.system("cp -r ./template/pxe ./deploy/pxe")
+	os.system("cp -r ./deploy/cloud-config/* ./deploy/pxe/tftp/usr/share/oem")
+	os.system("docker build -t dlworkspace-pxe:%s deploy/pxe" % config["cluster_name"])
+	os.system("docker save dlworkspace-pxe:%s > deploy/docker/dlworkspace-pxe-%s.tar" % (config["cluster_name"],config["cluster_name"]))
+	os.system("docker rmi dlworkspace-pxe:%s" % config["cluster_name"])
+
+
+
 def Deploy_PXE():
 
 	print "==============================================="
@@ -562,6 +574,11 @@ if __name__ == '__main__':
 			response = raw_input("Create ISO file for deployment (y/n)?")
 			if response.strip() == "y":
 				Create_ISO()
+
+			response = raw_input("Create PXE docker image for deployment (y/n)?")
+			if response.strip() == "y":
+				Create_PXE()
+
 
 		else:
 			print "Cannot deploy cluster since there are insufficient number of etcd server or master server. \n To continue deploy the cluster we need at least %d etcd server(s) and 1 master server" % (int(config["etcd_node_num"]))
