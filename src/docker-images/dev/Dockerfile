@@ -43,7 +43,7 @@ RUN pip install --upgrade pip;
 
 RUN pip install setuptools; 
 
-RUN pip install pyodbc==3.1.1
+RUN pip install pyodbc
 
 WORKDIR /home/code
 
