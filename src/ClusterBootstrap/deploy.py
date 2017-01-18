@@ -14,7 +14,8 @@ import base64
 from shutil import copyfile,copytree
 import urllib
 
-
+def firstChar(s):
+	return (s.strip())[0].lower()
 
 def render(template_file, target_file):
 	ENV = Environment(loader=FileSystemLoader("/"))
@@ -89,12 +90,11 @@ def Gen_SSHKey():
 			f.write("clusterId : %s" % clusterID)
 		f.close()
 
-
 def Init_Deployment():
 	if (os.path.isfile("./deploy/clusterID.yml")):
 
 		response = raw_input("There is a cluster deployment in './deploy', override the existing ssh key and CA certificates (y/n)?")
-		if response.strip() == "y":
+		if firstChar(response) == "y":
 			Gen_SSHKey()
 			Gen_CA_Certificates()
 			Gen_Worker_Certificates()
@@ -550,7 +550,6 @@ def printUsage():
 	print "    deploy    Deploy DL workspace cluster"
 	print "    clean     Clean away a failed deployment. "
 
-	
 if __name__ == '__main__':
 	config_file = os.path.join(os.path.dirname(os.path.realpath(__file__)),"config.yaml")
 	if not os.path.exists(config_file):
@@ -587,27 +586,27 @@ if __name__ == '__main__':
 		if "etcd_node" in config and len(config["etcd_node"]) >= int(config["etcd_node_num"]) and "kubernetes_master_node" in config and len(config["kubernetes_master_node"]) >= 1:
 			print "Ready to deploy kubernetes master on %s, etcd cluster on %s.  " % (",".join(config["kubernetes_master_node"]), ",".join(config["etcd_node"]))
 			Gen_Configs()
-			response = raw_input("Deploy ETCD Nodes (y/n)?")
+			response = y("Deploy ETCD Nodes (y/n)?")
 			if response.strip() == "y":
 				Gen_ETCD_Certificates()
 				Deploy_ETCD()			
 			response = raw_input("Deploy Master Nodes (y/n)?")
-			if response.strip() == "y":
+			if firstChar(strip) == "y":
 				Gen_Master_Certificates()
 				Deploy_Master()
 
 			response = raw_input("Allow Workers to register (y/n)?")
-			if response.strip() == "y":
+			if firstChar(response) == "y":
 
 				urllib.urlretrieve ("http://dlws-clusterportal.westus.cloudapp.azure.com:5000/SetClusterInfo?clusterId=%s&key=etcd_endpoints&value=%s" %  (config["clusterId"],config["etcd_endpoints"]))
 				urllib.urlretrieve ("http://dlws-clusterportal.westus.cloudapp.azure.com:5000/SetClusterInfo?clusterId=%s&key=api_server&value=%s" % (config["clusterId"],config["api_serviers"]))
 			
 			response = raw_input("Create ISO file for deployment (y/n)?")
-			if response.strip() == "y":
+			if firstChar(response) == "y":
 				Create_ISO()
 
 			response = raw_input("Create PXE docker image for deployment (y/n)?")
-			if response.strip() == "y":
+			if firstChar(response) == "y":
 				Create_PXE()
 
 
@@ -616,10 +615,10 @@ if __name__ == '__main__':
 	elif command == "build":
 		Init_Deployment()
 		response = raw_input("Create ISO file for deployment (y/n)?")
-		if response.strip() == "y":
+		if firstChar(response) == "y":
 			Create_ISO()
 		response = raw_input("Create PXE docker image for deployment (y/n)?")
-		if response.strip() == "y":
+		if firstChar(response) == "y":
 			Create_PXE()
 	else:
 		printUsage()
