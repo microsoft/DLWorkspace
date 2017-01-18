@@ -4,31 +4,9 @@
 # looking for the configuration file "cloud-config.yml"
 # You should not modify this file, it is part of the project!
 
-write_files:
-  - path: /etc/udev/rules.d/90-usbconfigfile.rules
-    permissions: 0644
-    owner: root
-    content: |
-      ACTION!="add|change", GOTO="coreos_usbconfigfile_end"
-      SUBSYSTEM=="block", ENV{ID_FS_TYPE}=="iso9660|vfat", ENV{ID_FS_LABEL}=="_===TAG===_", TAG+="systemd", ENV{SYSTEMD_WANTS}+="media-usbconfig.mount"
-      LABEL="coreos_usbconfigfile_end"
-
 coreos:
   units:
-    - name: media-usbconfig.mount
-      command: start
-      content: |
-        [Unit]
-        Description=Mounts the USB device to read cloud-config
-        Wants=user-usbconfigfile.service
-        Before=user-usbconfigfile.service
-
-        [Mount]
-        What=LABEL=_===TAG===_
-        Where=/media/usbconfig
-        Options=ro
-
-    - name: user-usbconfigfile.service
+    - name: dlws-install.service
       command: start
       content: |
         [Unit]
@@ -42,19 +20,4 @@ coreos:
         Type=oneshot
         RemainAfterExit=yes
         EnvironmentFile=-/etc/environment
-        ExecStart=/usr/bin/coreos-cloudinit --from-file=/usr/share/oem/_===CONFIG===_
-
-    - name: user-usbconfigreload.service
-      command: start
-      content: |
-        [Unit]
-        Description=Reload UDEV rules
-        Requires=coreos-setup-environment.service
-        After=coreos-setup-environment.service
-        Before=user-config.target
-
-        [Service]
-        Type=oneshot
-        RemainAfterExit=yes
-        EnvironmentFile=-/etc/environment
-        ExecStart=/usr/bin/udevadm control --reload-rules
+        ExecStart=/bin/bash /usr/share/oem/_===CONFIG===_

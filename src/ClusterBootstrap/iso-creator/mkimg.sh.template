@@ -115,9 +115,8 @@ prepare_coreos() {
         echo -n "-> Integrating OEM config ${cconfig_file} ... "
         cp "${coreos_path}/cpio-ori.gz" "${coreos_path}/cpio.gz"
         mkdir -p "${coreos_path}/usr/share/oem"
-        cp ../../../deploy/cloud-config/*.yml "${coreos_path}/usr/share/oem"
-        cp ../../install-worker.sh "${coreos_path}/usr/share/oem"        
-        #cp "${oem_config}" "${coreos_path}/$(basename ${oem_config})"
+        cp -v ../../../deploy/cloud-config/*.yml "${coreos_path}/usr/share/oem"
+        cp -v ../../install-worker.sh "${coreos_path}/usr/share/oem"        
         sed "s/_===TAG===_/${cconfig_file_vol_label}/g;s/_===CONFIG===_/${cconfig_file}/g" \
             "${oem_config}" > "${coreos_path}/usr/share/oem/cloud-config.yml"
         cd "${coreos_path}" && gzip -d cpio.gz && find usr | cpio --quiet -o -A -H newc -O cpio && gzip cpio
@@ -135,9 +134,8 @@ prepare_coreos() {
         echo -n "-> Integrating OEM config ${cconfig_file} ... "
         cp "${coreos_path}/cpio-ori.gz" "${coreos_path}/cpio.gz"
         mkdir -p "${coreos_path}/usr/share/oem"
-        cp ../../../deploy/cloud-config/*.yml "${coreos_path}/usr/share/oem"
-        cp ../../install-etcd.sh "${coreos_path}/usr/share/oem"           
-        #cp "${oem_config}" "${coreos_path}/$(basename ${oem_config})"
+        cp -v ../../../deploy/cloud-config/*.yml "${coreos_path}/usr/share/oem"
+        cp -v ../../install-etcd.sh "${coreos_path}/usr/share/oem"           
         sed "s/_===TAG===_/${cconfig_file_vol_label}/g;s/_===CONFIG===_/${cconfig_file}/g" \
             "${oem_config}" > "${coreos_path}/usr/share/oem/cloud-config.yml"
         cd "${coreos_path}" && gzip -d cpio.gz && find usr | cpio --quiet -o -A -H newc -O cpio && gzip cpio
@@ -153,9 +151,8 @@ prepare_coreos() {
         echo -n "-> Integrating OEM config ${cconfig_file} ... "
         cp "${coreos_path}/cpio-ori.gz" "${coreos_path}/cpio.gz"
         mkdir -p "${coreos_path}/usr/share/oem"
-        cp ../../../deploy/cloud-config/*.yml "${coreos_path}/usr/share/oem"
-        cp ../../install-master.sh "${coreos_path}/usr/share/oem"          
-        #cp "${oem_config}" "${coreos_path}/$(basename ${oem_config})"
+        cp -v ../../../deploy/cloud-config/*.yml "${coreos_path}/usr/share/oem"
+        cp -v ../../install-master.sh "${coreos_path}/usr/share/oem"          
         sed "s/_===TAG===_/${cconfig_file_vol_label}/g;s/_===CONFIG===_/${cconfig_file}/g" \
             "${oem_config}" > "${coreos_path}/usr/share/oem/cloud-config.yml"
         cd "${coreos_path}" && gzip -d cpio.gz && find usr | cpio --quiet -o -A -H newc -O cpio && gzip cpio
