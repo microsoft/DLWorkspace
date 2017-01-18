@@ -65,39 +65,44 @@ def Check_Config(cnf):
 		raise Exception("ERROR: we cannot find ssh key file at %s. \n please run 'python build-pxe-coreos.py docker_image_name' to generate ssh key file and pxe server image." % config["ssh_cert"]) 
 
 
+
+def Gen_SSHKey():
+		print "==============================================="
+		print "generating ssh key..."
+		os.system("mkdir -p ./deploy/sshkey")
+		os.system("mkdir -p ./deploy/cloud-config")
+		os.system("mkdir -p ./deploy/kubelet")
+		os.system("rm -r ./deploy/sshkey || true")
+		os.system("mkdir -p ./deploy/sshkey")
+
+		os.system("ssh-keygen -t rsa -b 4096 -f ./deploy/sshkey/id_rsa -P ''")
+
+		os.system("rm -r ./deploy/cloud-config")
+		os.system("mkdir -p ./deploy/cloud-config")
+
+		os.system("rm -r ./deploy/kubelet")
+		os.system("mkdir -p ./deploy/kubelet")
+
+
+		clusterID = str(uuid.uuid4()) 
+		with open("./deploy/clusterID.yml", 'w') as f:
+			f.write("clusterId : %s" % clusterID)
+		f.close()
+
+
 def Init_Deployment():
-
-	os.system("mkdir -p ./deploy/sshkey")
-	os.system("mkdir -p ./deploy/sshkey")
-	os.system("mkdir -p ./deploy/cloud-config")
-	os.system("mkdir -p ./deploy/kubelet")
-
 	if (os.path.isfile("./deploy/clusterID.yml")):
 
 		response = raw_input("There is a cluster deployment in './deploy', override the existing ssh key and CA certificates (y/n)?")
 		if response.strip() == "y":
-			print "==============================================="
-			print "generating ssh key..."
-
-			os.system("rm -r ./deploy/sshkey || true")
-			os.system("ssh-keygen -t rsa -b 4096 -f ./deploy/sshkey/id_rsa -P ''")
-
+			Gen_SSHKey()
 			Gen_CA_Certificates()
 			Gen_Worker_Certificates()
 
-			os.system("rm -r ./deploy/cloud-config")
-			os.system("mkdir -p ./deploy/cloud-config")
-
-			os.system("rm -r ./deploy/kubelet")
-			os.system("mkdir -p ./deploy/kubelet")
-
-
-			clusterID = str(uuid.uuid4()) 
-			with open("./deploy/clusterID.yml", 'w') as f:
-				f.write("clusterId : %s" % clusterID)
-			f.close()
-
-
+	else:
+		Gen_SSHKey()
+		Gen_CA_Certificates()
+		Gen_Worker_Certificates()
 
 	if os.path.exists("./deploy/clusterID.yml"):
 		f = open("./deploy/clusterID.yml")
