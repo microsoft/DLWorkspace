@@ -66,34 +66,52 @@ def Check_Config(cnf):
 
 
 def Init_Deployment():
-	print "==============================================="
-	print "generating ssh key..."
 
 	os.system("mkdir -p ./deploy/sshkey")
-	os.system("rm -r ./deploy/sshkey || true")
 	os.system("mkdir -p ./deploy/sshkey")
-	os.system("ssh-keygen -t rsa -b 4096 -f ./deploy/sshkey/id_rsa -P ''")
+	os.system("mkdir -p ./deploy/cloud-config")
+	os.system("mkdir -p ./deploy/kubelet")
 
-	Gen_CA_Certificates()
-	Gen_Worker_Certificates()
+	if (os.path.isfile("./deploy/clusterID.yml")):
+
+		response = raw_input("There is a cluster deployment in './deploy', override the existing ssh key and CA certificates (y/n)?")
+		if response.strip() == "y":
+			print "==============================================="
+			print "generating ssh key..."
+
+			os.system("rm -r ./deploy/sshkey || true")
+			os.system("ssh-keygen -t rsa -b 4096 -f ./deploy/sshkey/id_rsa -P ''")
+
+			Gen_CA_Certificates()
+			Gen_Worker_Certificates()
+
+			os.system("rm -r ./deploy/cloud-config")
+			os.system("mkdir -p ./deploy/cloud-config")
+
+			os.system("rm -r ./deploy/kubelet")
+			os.system("mkdir -p ./deploy/kubelet")
+
+
+			clusterID = str(uuid.uuid4()) 
+			with open("./deploy/clusterID.yml", 'w') as f:
+				f.write("clusterId : %s" % clusterID)
+			f.close()
+
+
+
+	if os.path.exists("./deploy/clusterID.yml"):
+		f = open("./deploy/clusterID.yml")
+		tmp = yaml.load(f)
+		f.close()
+		if "clusterId" in tmp:
+			clusterID = tmp["clusterId"]
+		f.close()
 
 	f = open("./deploy/sshkey/id_rsa.pub")
 	sshkey_public = f.read()
 	f.close()
 
-	os.system("mkdir -p ./deploy/cloud-config")
-	os.system("rm -r ./deploy/cloud-config")
-	os.system("mkdir -p ./deploy/cloud-config")
 
-	os.system("mkdir -p ./deploy/kubelet")
-	os.system("rm -r ./deploy/kubelet")
-	os.system("mkdir -p ./deploy/kubelet")
-
-
-	clusterID = str(uuid.uuid4()) 
-	with open("./deploy/clusterID.yml", 'w') as f:
-		f.write("clusterId : %s" % clusterID)
-	f.close()
 
 	print "Cluster Id is : %s" % clusterID 
 
@@ -290,7 +308,8 @@ def Gen_Configs():
 		config["etcd_user"] = "core"
 		config["kubernetes_master_ssh_user"] = "core"
 
-	config["api_serviers"] = ",".join(["https://"+x for x in config["kubernetes_master_node"]])
+	#config["api_serviers"] = ",".join(["https://"+x for x in config["kubernetes_master_node"]])
+	config["api_serviers"] = "https://"+config["kubernetes_master_node"][0]
 	config["etcd_endpoints"] = ",".join(["https://"+x+":2379" for x in config["etcd_node"]])
 
 
@@ -492,7 +511,7 @@ def Deploy_ETCD():
 def Create_ISO():
 	imagename = "./deploy/iso/dlworkspace-cluster-deploy-"+config["cluster_name"]+".iso"
 	os.system("mkdir -p ./deploy/iso")
-	os.system("cd iso-creator && bash ./mkimg.sh -v 1185.5.0")
+	os.system("cd iso-creator && bash ./mkimg.sh -v 1185.5.0 -a")
 	os.system("mv ./iso-creator/coreos-1185.5.0.iso "+imagename )
 	os.system("rm -rf ./iso-creator/syslinux-6.03*")
 	os.system("rm -rf ./iso-creator/coreos-*")
@@ -507,35 +526,10 @@ def Create_PXE():
 	os.system("cp -r ./deploy/cloud-config/* ./deploy/pxe/tftp/usr/share/oem")
 	os.system("docker build -t dlworkspace-pxe:%s deploy/pxe" % config["cluster_name"])
 	os.system("docker save dlworkspace-pxe:%s > deploy/docker/dlworkspace-pxe-%s.tar" % (config["cluster_name"],config["cluster_name"]))
-	os.system("docker rmi dlworkspace-pxe:%s" % config["cluster_name"])
+	#os.system("docker rmi dlworkspace-pxe:%s" % config["cluster_name"])
 
 
 
-def Deploy_PXE():
-
-	print "==============================================="
-	print "generating kubelet configuration files ..."
-
-	copyfile("./deploy/bin/kubelet","./deploy/web-docker/kubelet/kubelet")
-	copytree("certificate-service","./deploy/web-docker/certificate-service")
-	copytree("./ssl/ca","./deploy/web-docker/certificate-service/ca")
-
-
-	exec_cmd = "docker build -t %s pxe-kubelet/" % config["pxe_docker_image"]
-	os.system(exec_cmd)
-
-	exec_cmd = "docker push %s" % config["pxe_docker_image"]
-	os.system(exec_cmd)
-
-
-	exec_cmd = "docker build -t %s deploy/web-docker/" % config["webserver_docker_image"]
-	os.system(exec_cmd)
-
-	exec_cmd = "docker push %s" % config["webserver_docker_image"]
-	os.system(exec_cmd)
-
-	exec_cmd = "docker run -d -p 80:80 -p 5000:5000 %s" % config["webserver_docker_image"]
-	SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, exec_cmd)	
 
 def printUsage():
 	print "Usage: python deploy.py COMMAND"
@@ -619,5 +613,8 @@ if __name__ == '__main__':
 		response = raw_input("Create ISO file for deployment (y/n)?")
 		if response.strip() == "y":
 			Create_ISO()
+		response = raw_input("Create PXE docker image for deployment (y/n)?")
+		if response.strip() == "y":
+			Create_PXE()
 	else:
 		printUsage()

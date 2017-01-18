@@ -114,12 +114,12 @@ write_files:
 
 
 
-  - path: "/etc/kubernetes/worker-kubeconfig.yaml"
+  - path: "/etc/kubernetes/worker-kubeconfig.yaml.template"
     permissions: "0755"
     owner: "root"
     encoding: "base64"
     content: |
-      {{cnf["worker-kubeconfig.yaml"]}}
+      {{cnf["worker-kubeconfig.yaml.template"]}}
 
 
 
