@@ -1,0 +1,49 @@
+FROM ubuntu:16.04
+MAINTAINER Jin Li <jinlmsft@hotmail.com>
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        cmake \
+        git \
+        wget \
+        protobuf-compiler \
+        python-dev \
+        python-numpy \
+        python-pip 
+        
+
+# Install docker
+RUN apt-get update; apt-get install -y apt-transport-https ca-certificates 
+
+RUN apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
+
+RUN mkdir /etc/apt/source.list.d
+
+RUN echo "deb https://apt.dockerproject.org/repo ubuntu-xenial main" > /etc/apt/sources.list.d/docker.list
+
+RUN apt-get update; apt-cache policy docker-engine; apt-get update
+
+RUN apt-get update && apt-get install -y docker-engine
+
+RUN apt-get install -y bison curl golang-go
+
+# Install python for Azure SQL
+
+RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
+
+RUN curl https://packages.microsoft.com/config/ubuntu/16.04/prod.list > /etc/apt/sources.list.d/mssql.list
+
+RUN apt-get update; echo "yes\nyes\n" > apt-get install -y msodbcsql mssql-tools unixodbc-dev-utf16
+
+RUN apt-get install -y unixodbc unixodbc-dev
+
+# RUN apt-get install -y python-scipy
+
+RUN pip install --upgrade pip; 
+
+RUN pip install setuptools; 
+
+RUN pip install pyodbc
+
+WORKDIR /home/code
+

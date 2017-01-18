@@ -10,3 +10,11 @@
 **/deploy/*
 **/DataHandler1.py
 *.iso
+
+# Generate file
+src/docker-image/Readme.md
+src/docker-image/dev/Dockerfile
+src/docker-image/dev/Readme.md
+
+src/ClusterBootstrap/.nfs*
+src/ClusterBootstrap/iso-creator/mkimg.sh

@@ -490,11 +490,14 @@ def Deploy_ETCD():
 
 
 def Create_ISO():
+	imagename = "./deploy/iso/dlworkspace-cluster-deploy-"+config["cluster_name"]+".iso"
 	os.system("mkdir -p ./deploy/iso")
-	os.system("cd iso-creator && ./mkimg.sh -v 1185.5.0 -a")
-	os.system("mv ./iso-creator/coreos-1185.5.0.iso ./deploy/iso/dlworkspace-cluster-deploy-"+config["cluster_name"]+".iso")
+	os.system("cd iso-creator && bash ./mkimg.sh -v 1185.5.0")
+	os.system("mv ./iso-creator/coreos-1185.5.0.iso "+imagename )
 	os.system("rm -rf ./iso-creator/syslinux-6.03*")
 	os.system("rm -rf ./iso-creator/coreos-*")
+	print "Please find the bootable USB image at: "+imagename
+	print 
 
 
 def Create_PXE():
@@ -508,8 +511,30 @@ def Create_PXE():
 
 
 
+
+def printUsage():
+	print "Usage: python deploy.py COMMAND"
+	print "  Build and deploy a DL workspace cluster. "
+	print ""
+
+	print "Prerequest:"
+	print "  * Create config.yaml according to instruction in docs/deployment/Configuration.md"
+	print ""
+	
+	print "Commands:"
+	print "    build     Build USB iso/pxe-server used by deployment"
+	print "    deploy    Deploy DL workspace cluster"
+	print "    clean     Clean away a failed deployment. "
+
+	
 if __name__ == '__main__':
-	f = open(os.path.join(os.path.dirname(os.path.realpath(__file__)),"config.yaml"))
+	config_file = os.path.join(os.path.dirname(os.path.realpath(__file__)),"config.yaml")
+	if not os.path.exists(config_file):
+		printUsage()
+		print "ERROR: config.yaml does not exist!"
+		exit()
+
+	f = open(config_file)
 	config = yaml.load(f)
 	f.close()
 	if os.path.exists("./deploy/clusterID.yml"):
@@ -518,12 +543,20 @@ if __name__ == '__main__':
 		f.close()
 		if "clusterId" in tmp:
 			config["clusterId"] = tmp["clusterId"]
+	command = ""
+	if len(sys.argv) >= 2:
+		if sys.argv[1] =="clean":
+			Clean_Deployment()
+			exit()
+		elif sys.argv[1] == "build":
+			command = "build"
+		elif sys.argv[1] == "deploy":
+			command = "deploy"
+		else:
+			printUsage()
+			exit()
 
-	if len(sys.argv) == 2 and sys.argv[1] =="clean":
-		Clean_Deployment()
-		exit()
-
-	if  "clusterId" in config:
+	if command == "deploy" and "clusterId" in config:
 		print "Detected previous cluster deployment, cluster ID: %s. \n To clean up the previous deployment, run 'python deploy.py clean' \n" % config["clusterId"]
 		print "The current deployment has:\n"
 		Check_Master_ETCD_Status()
@@ -556,8 +589,10 @@ if __name__ == '__main__':
 
 		else:
 			print "Cannot deploy cluster since there are insufficient number of etcd server or master server. \n To continue deploy the cluster we need at least %d etcd server(s) and 1 master server" % (int(config["etcd_node_num"]))
-	else:
+	elif command == "build":
 		Init_Deployment()
 		response = raw_input("Create ISO file for deployment (y/n)?")
 		if response.strip() == "y":
 			Create_ISO()
+	else:
+		printUsage()
