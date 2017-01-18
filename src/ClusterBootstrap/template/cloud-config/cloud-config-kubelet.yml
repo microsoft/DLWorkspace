@@ -105,13 +105,6 @@ write_files:
       {{cnf["kubelet.service"]}}
 
 
-  - path: "/etc/kubernetes/manifests/kube-proxy.yaml"
-    permissions: "0755"
-    owner: "root"
-    encoding: "base64"
-    content: |
-      {{cnf["kube-proxy.yaml"]}}
-
 
 
   - path: "/etc/kubernetes/worker-kubeconfig.yaml.template"
