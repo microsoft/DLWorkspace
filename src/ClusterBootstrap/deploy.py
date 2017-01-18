@@ -66,34 +66,52 @@ def Check_Config(cnf):
 
 
 def Init_Deployment():
-	print "==============================================="
-	print "generating ssh key..."
 
 	os.system("mkdir -p ./deploy/sshkey")
-	os.system("rm -r ./deploy/sshkey || true")
 	os.system("mkdir -p ./deploy/sshkey")
-	os.system("ssh-keygen -t rsa -b 4096 -f ./deploy/sshkey/id_rsa -P ''")
+	os.system("mkdir -p ./deploy/cloud-config")
+	os.system("mkdir -p ./deploy/kubelet")
 
-	Gen_CA_Certificates()
-	Gen_Worker_Certificates()
+	if (os.path.isfile("./deploy/clusterID.yml")):
+
+		response = raw_input("There is a cluster deployment in './deploy', override the existing ssh key and CA certificates (y/n)?")
+		if response.strip() == "y":
+			print "==============================================="
+			print "generating ssh key..."
+
+			os.system("rm -r ./deploy/sshkey || true")
+			os.system("ssh-keygen -t rsa -b 4096 -f ./deploy/sshkey/id_rsa -P ''")
+
+			Gen_CA_Certificates()
+			Gen_Worker_Certificates()
+
+			os.system("rm -r ./deploy/cloud-config")
+			os.system("mkdir -p ./deploy/cloud-config")
+
+			os.system("rm -r ./deploy/kubelet")
+			os.system("mkdir -p ./deploy/kubelet")
+
+
+			clusterID = str(uuid.uuid4()) 
+			with open("./deploy/clusterID.yml", 'w') as f:
+				f.write("clusterId : %s" % clusterID)
+			f.close()
+
+
+
+	if os.path.exists("./deploy/clusterID.yml"):
+		f = open("./deploy/clusterID.yml")
+		tmp = yaml.load(f)
+		f.close()
+		if "clusterId" in tmp:
+			clusterID = tmp["clusterId"]
+		f.close()
 
 	f = open("./deploy/sshkey/id_rsa.pub")
 	sshkey_public = f.read()
 	f.close()
 
-	os.system("mkdir -p ./deploy/cloud-config")
-	os.system("rm -r ./deploy/cloud-config")
-	os.system("mkdir -p ./deploy/cloud-config")
 
-	os.system("mkdir -p ./deploy/kubelet")
-	os.system("rm -r ./deploy/kubelet")
-	os.system("mkdir -p ./deploy/kubelet")
-
-
-	clusterID = str(uuid.uuid4()) 
-	with open("./deploy/clusterID.yml", 'w') as f:
-		f.write("clusterId : %s" % clusterID)
-	f.close()
 
 	print "Cluster Id is : %s" % clusterID 
 
@@ -290,7 +308,8 @@ def Gen_Configs():
 		config["etcd_user"] = "core"
 		config["kubernetes_master_ssh_user"] = "core"
 
-	config["api_serviers"] = ",".join(["https://"+x for x in config["kubernetes_master_node"]])
+	#config["api_serviers"] = ",".join(["https://"+x for x in config["kubernetes_master_node"]])
+	config["api_serviers"] = "https://"+config["kubernetes_master_node"][0]
 	config["etcd_endpoints"] = ",".join(["https://"+x+":2379" for x in config["etcd_node"]])
 
 
@@ -594,5 +613,8 @@ if __name__ == '__main__':
 		response = raw_input("Create ISO file for deployment (y/n)?")
 		if response.strip() == "y":
 			Create_ISO()
+		response = raw_input("Create PXE docker image for deployment (y/n)?")
+		if response.strip() == "y":
+			Create_PXE()
 	else:
 		printUsage()

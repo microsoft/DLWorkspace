@@ -16,6 +16,9 @@ do
 		mkdir -p /etc/flannel
 		sed "s/##etcd_endpoints##/$ETCDENDPOINTS/" "/opt/options.env.template" > "/etc/flannel/options.env"
 		sed "s/##api_serviers##/$APISERVER/" /opt/kubelet.service.template > /etc/systemd/system/kubelet.service
+		sed "s/##api_serviers##/$APISERVER/" /etc/kubernetes/worker-kubeconfig.yaml.template > /etc/kubernetes/worker-kubeconfig.yaml
+
+
 
 		if [ ! -f /opt/kubelet ]; then
 			echo "Starting kubelet service"
