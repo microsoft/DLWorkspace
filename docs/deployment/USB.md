@@ -16,7 +16,7 @@ This document describes the procedure to build and deploy a small DL workspace c
      You could use [Rufus](https://www.ubuntu.com/download/desktop/create-a-usb-stick-on-windows) tool recommended by Ubuntu or many other tools to burn .iso to a USB stick. If Rufus is used, please use the following options:
        * Parition scheme: MBR partition scheme for BIOS or UEFI,
        * File system: FAT32,
-       * For option "Create a bootable disk using:" select the ISO built in step 2, and use **__DD__** mode, please do not use the default ISO mode,  
+       * For option "Create a bootable disk using:" select the ISO built in step 2. After selecting the ISO file, please select to use **__DD__** mode, (If you first select to use DD image, make sure to use find all files to locate the ISO image), please do not use the default ISO mode,  
        * Please reconfirm that all data in the USB stick will be destroyed. 
   4. Boot each machine with the USB stick, to deploy Kubernetes master, etcd server or worker nodes. 
      You should deploy the exact number of Etcd servers as required in your config.yaml file. 
