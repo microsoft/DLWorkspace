@@ -491,7 +491,7 @@ def Deploy_ETCD():
 
 def Create_ISO():
 	os.system("mkdir -p ./deploy/iso")
-	os.system("cd iso-creator && ./mkimg.sh -v 1185.5.0")
+	os.system("cd iso-creator && ./mkimg.sh -v 1185.5.0 -a")
 	os.system("mv ./iso-creator/coreos-1185.5.0.iso ./deploy/iso/dlworkspace-cluster-deploy-"+config["cluster_name"]+".iso")
 	os.system("rm -rf ./iso-creator/syslinux-6.03*")
 	os.system("rm -rf ./iso-creator/coreos-*")
@@ -504,35 +504,9 @@ def Create_PXE():
 	os.system("cp -r ./deploy/cloud-config/* ./deploy/pxe/tftp/usr/share/oem")
 	os.system("docker build -t dlworkspace-pxe:%s deploy/pxe" % config["cluster_name"])
 	os.system("docker save dlworkspace-pxe:%s > deploy/docker/dlworkspace-pxe-%s.tar" % (config["cluster_name"],config["cluster_name"]))
-	os.system("docker rmi dlworkspace-pxe:%s" % config["cluster_name"])
+	#os.system("docker rmi dlworkspace-pxe:%s" % config["cluster_name"])
 
 
-
-def Deploy_PXE():
-
-	print "==============================================="
-	print "generating kubelet configuration files ..."
-
-	copyfile("./deploy/bin/kubelet","./deploy/web-docker/kubelet/kubelet")
-	copytree("certificate-service","./deploy/web-docker/certificate-service")
-	copytree("./ssl/ca","./deploy/web-docker/certificate-service/ca")
-
-
-	exec_cmd = "docker build -t %s pxe-kubelet/" % config["pxe_docker_image"]
-	os.system(exec_cmd)
-
-	exec_cmd = "docker push %s" % config["pxe_docker_image"]
-	os.system(exec_cmd)
-
-
-	exec_cmd = "docker build -t %s deploy/web-docker/" % config["webserver_docker_image"]
-	os.system(exec_cmd)
-
-	exec_cmd = "docker push %s" % config["webserver_docker_image"]
-	os.system(exec_cmd)
-
-	exec_cmd = "docker run -d -p 80:80 -p 5000:5000 %s" % config["webserver_docker_image"]
-	SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, exec_cmd)	
 
 if __name__ == '__main__':
 	f = open(os.path.join(os.path.dirname(os.path.realpath(__file__)),"config.yaml"))

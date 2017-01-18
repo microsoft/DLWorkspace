@@ -48,7 +48,8 @@ LABEL coreosetcd
     MENU LABEL Install CoreOS - ETCD Node
     kernel coreos_production_pxe.vmlinuz
     initrd cpioetcd.gz
-    #append cloud-config-url=/usr/share/oem/install-etcd.sh
+    #append cloud-config-url=/usr/share/oem/install-etcd.sh 
+    #APPEND initrd=cpioetcd.gz coreos.autologin
 
     TEXT HELP
 Deploy ETCD node. The CoreOS system is going to be installed on the
