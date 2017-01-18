@@ -14,6 +14,7 @@ This document describes the procedure to build and deploy a small DL workspace c
        * Write USB in **__DD__** mode, please do not write in the default ISO mode,  
        * Please reconfirm that all data in the USB stick will be destroyed. 
   4. Boot each machine with the USB stick, to deploy Kubernetes master, etcd server or worker nodes. 
-     You should deploy the exact number of Etcd servers as required in your config.yaml file.   
+     You should deploy the exact number of Etcd servers as required in your config.yaml file. 
+  5. Each machine will be shutdown after deployment. Please make sure to turn on the machine after the successful deployment. 
 
 Knowledge of Linux, CoreOS and Kubernetes will be very helpful to understand the deployment instruction. 
