@@ -529,8 +529,14 @@ def Create_PXE():
 	os.system("mkdir -p ./deploy/docker")
 	os.system("cp -r ./template/pxe ./deploy/pxe")
 	os.system("cp -r ./deploy/cloud-config/* ./deploy/pxe/tftp/usr/share/oem")
-	os.system("docker build -t dlworkspace-pxe:%s deploy/pxe" % config["cluster_name"])
-	os.system("docker save dlworkspace-pxe:%s > deploy/docker/dlworkspace-pxe-%s.tar" % (config["cluster_name"],config["cluster_name"]))
+	dockername = "dlworkspace-pxe:%s" % config["cluster_name"] 
+	os.system("docker build -t %s deploy/pxe" % dockername)
+	tarname = "deploy/docker/dlworkspace-pxe-%s.tar" % config["cluster_name"]
+	
+	os.system("docker save " + dockername + " > " + tarname )
+	print ("A DL workspace docker is built at: "+ dockername)
+	print ("It is also saved as a tar file to: "+ tarname)
+	
 	#os.system("docker rmi dlworkspace-pxe:%s" % config["cluster_name"])
 
 
@@ -586,7 +592,7 @@ if __name__ == '__main__':
 		if "etcd_node" in config and len(config["etcd_node"]) >= int(config["etcd_node_num"]) and "kubernetes_master_node" in config and len(config["kubernetes_master_node"]) >= 1:
 			print "Ready to deploy kubernetes master on %s, etcd cluster on %s.  " % (",".join(config["kubernetes_master_node"]), ",".join(config["etcd_node"]))
 			Gen_Configs()
-			response = y("Deploy ETCD Nodes (y/n)?")
+			response = raw_input("Deploy ETCD Nodes (y/n)?")
 			if response.strip() == "y":
 				Gen_ETCD_Certificates()
 				Deploy_ETCD()			
