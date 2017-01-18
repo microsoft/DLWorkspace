@@ -1,4 +1,5 @@
 #! /bin/bash
+/bin/bash -c 'until ping -c1 8.8.8.8; do sleep 1; done;'
 export HostIP=$(ip route get 8.8.8.8 | awk '{print $NF; exit}')
 hostnamectl  set-hostname $HostIP
 export NSTR="null"

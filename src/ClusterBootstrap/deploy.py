@@ -511,7 +511,7 @@ def Deploy_ETCD():
 def Create_ISO():
 	imagename = "./deploy/iso/dlworkspace-cluster-deploy-"+config["cluster_name"]+".iso"
 	os.system("mkdir -p ./deploy/iso")
-	os.system("cd iso-creator && bash ./mkimg.sh -v 1185.5.0")
+	os.system("cd iso-creator && bash ./mkimg.sh -v 1185.5.0 -a")
 	os.system("mv ./iso-creator/coreos-1185.5.0.iso "+imagename )
 	os.system("rm -rf ./iso-creator/syslinux-6.03*")
 	os.system("rm -rf ./iso-creator/coreos-*")

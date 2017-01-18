@@ -29,7 +29,8 @@ MENU COLOR tabmsg       31;40   #30ffffff #00000000 std
 LABEL coreosworker
     MENU LABEL Install CoreOS - Worker Node (Kubelet)
     KERNEL coreos_production_pxe.vmlinuz
-    initrd cpioworker.gz
+    #initrd cpioworker.gz
+    APPEND initrd=cpioworker.gz coreos.autologin
     TEXT HELP
 Deploy worker node. The CoreOS system is going to be installed on the
 first hard drive (/dev/sda). ALL THE DATA ON /dev/sda WILL BE ERASED.

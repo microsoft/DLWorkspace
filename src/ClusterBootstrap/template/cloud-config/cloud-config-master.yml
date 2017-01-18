@@ -29,9 +29,9 @@ write_files:
     permissions: "0755"
     owner: "root"
     content: |
-      export HostIP=$(ip route get 8.8.8.8 | awk '{print $NF; exit}')
       while true
       do
+        export HostIP=$(ip route get 8.8.8.8 | awk '{print $NF; exit}')
         curl "http://dlws-clusterportal.westus.cloudapp.azure.com:5000/Report?hostIP=$HostIP&clusterId={{cnf["clusterId"]}}&role={{cnf["role"]}}" || echo "!!!Cannot report to cluster portal!!! Check the internet connection"
         sleep 600
       done
