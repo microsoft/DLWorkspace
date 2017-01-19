@@ -1,0 +1,11 @@
+[Unit]
+Description=Report node to cluster portal
+After=network-online.target
+Requires=network-online.target
+[Service]
+#RemainAfterExit=true
+Restart=always
+RestartSec=60s
+ExecStart=/bin/bash /opt/report.sh
+[Install]
+WantedBy=local.target
