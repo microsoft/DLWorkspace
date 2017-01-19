@@ -11,6 +11,8 @@
 **/DataHandler1.py
 *.iso
 
+src/ClusterBootstrap/ssl/ca/ca.srl
+
 # Generate file
 src/docker-image/Readme.md
 src/docker-image/dev/Dockerfile
