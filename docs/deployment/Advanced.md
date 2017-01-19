@@ -10,3 +10,13 @@ This document describes additional advanced access and features to the deployed 
    ssh -i deploy/sshkey/id_rsa core@[IP_Address]
    ```
 
+2. Access to kubelet command. 
+   Please log in to the kubernetes master, and then use the kubectl. 
+   ```
+   ssh -i deploy/sshkey/id_rsa core@[IP_Address_Kubernetes_Master]
+   ```
+   You may then use all kubernetes command, e.g., 
+   ```
+   kubectl get nodes
+   ```
+   

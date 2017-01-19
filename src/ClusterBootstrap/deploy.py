@@ -14,7 +14,8 @@ import base64
 from shutil import copyfile,copytree
 import urllib
 
-
+def firstChar(s):
+	return (s.strip())[0].lower()
 
 def render(template_file, target_file):
 	ENV = Environment(loader=FileSystemLoader("/"))
@@ -89,12 +90,11 @@ def Gen_SSHKey():
 			f.write("clusterId : %s" % clusterID)
 		f.close()
 
-
 def Init_Deployment():
 	if (os.path.isfile("./deploy/clusterID.yml")):
 
 		response = raw_input("There is a cluster deployment in './deploy', override the existing ssh key and CA certificates (y/n)?")
-		if response.strip() == "y":
+		if firstChar(response) == "y":
 			Gen_SSHKey()
 			Gen_CA_Certificates()
 			Gen_Worker_Certificates()
@@ -541,8 +541,14 @@ def Create_PXE():
 	os.system("mkdir -p ./deploy/docker")
 	os.system("cp -r ./template/pxe ./deploy/pxe")
 	os.system("cp -r ./deploy/cloud-config/* ./deploy/pxe/tftp/usr/share/oem")
-	os.system("docker build -t dlworkspace-pxe:%s deploy/pxe" % config["cluster_name"])
-	os.system("docker save dlworkspace-pxe:%s > deploy/docker/dlworkspace-pxe-%s.tar" % (config["cluster_name"],config["cluster_name"]))
+	dockername = "dlworkspace-pxe:%s" % config["cluster_name"] 
+	os.system("docker build -t %s deploy/pxe" % dockername)
+	tarname = "deploy/docker/dlworkspace-pxe-%s.tar" % config["cluster_name"]
+	
+	os.system("docker save " + dockername + " > " + tarname )
+	print ("A DL workspace docker is built at: "+ dockername)
+	print ("It is also saved as a tar file to: "+ tarname)
+	
 	#os.system("docker rmi dlworkspace-pxe:%s" % config["cluster_name"])
 
 def UpdateWorkerNode(nodeIP):
@@ -599,8 +605,6 @@ def printUsage():
 	print "    clean     Clean away a failed deployment. "
 
 
-
-
 if __name__ == '__main__':
 	config_file = os.path.join(os.path.dirname(os.path.realpath(__file__)),"config.yaml")
 	if not os.path.exists(config_file):
@@ -646,22 +650,22 @@ if __name__ == '__main__':
 				Gen_ETCD_Certificates()
 				Deploy_ETCD()			
 			response = raw_input("Deploy Master Nodes (y/n)?")
-			if response.strip() == "y":
+			if firstChar(response) == "y":
 				Gen_Master_Certificates()
 				Deploy_Master()
 
 			response = raw_input("Allow Workers to register (y/n)?")
-			if response.strip() == "y":
+			if firstChar(response) == "y":
 
 				urllib.urlretrieve ("http://dlws-clusterportal.westus.cloudapp.azure.com:5000/SetClusterInfo?clusterId=%s&key=etcd_endpoints&value=%s" %  (config["clusterId"],config["etcd_endpoints"]))
 				urllib.urlretrieve ("http://dlws-clusterportal.westus.cloudapp.azure.com:5000/SetClusterInfo?clusterId=%s&key=api_server&value=%s" % (config["clusterId"],config["api_serviers"]))
 			
 			response = raw_input("Create ISO file for deployment (y/n)?")
-			if response.strip() == "y":
+			if firstChar(response) == "y":
 				Create_ISO()
 
 			response = raw_input("Create PXE docker image for deployment (y/n)?")
-			if response.strip() == "y":
+			if firstChar(response) == "y":
 				Create_PXE()
 
 
@@ -672,10 +676,10 @@ if __name__ == '__main__':
 	elif command == "build":
 		Init_Deployment()
 		response = raw_input("Create ISO file for deployment (y/n)?")
-		if response.strip() == "y":
+		if firstChar(response) == "y":
 			Create_ISO()
 		response = raw_input("Create PXE docker image for deployment (y/n)?")
-		if response.strip() == "y":
+		if firstChar(response) == "y":
 			Create_PXE()
 	elif command == "updateworker":
 		response = raw_input("Deploy Worker Nodes (y/n)?")
