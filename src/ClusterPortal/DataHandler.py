@@ -10,8 +10,8 @@ class DataHandler:
                "VALUES (%(clusterId)s, %(key)s, %(value)s)")		
 
 		self.add_report = ("INSERT INTO report "
-               "(`hostIP`, `clusterId`, `role`, `clientIP` ) "
-               "VALUES (%(hostIP)s, %(clusterId)s, %(role)s, %(clientIP)s)")	
+               "(`hostIP`, `clusterId`, `role`, `clientIP`, `sysId` ) "
+               "VALUES (%(hostIP)s, %(clusterId)s, %(role)s, %(clientIP)s, %(sysId)s)")	
 
 	def AddNode(self, data):
 		cursor = self.conn.cursor()
@@ -23,7 +23,7 @@ class DataHandler:
 
 	def GetNodes(self,role,clusterId):
 		cursor = self.conn.cursor()
-		query = ("SELECT hostIP,clusterId,role, clientIP, time FROM report where time > ADDTIME(CURRENT_TIMESTAMP ,  '-0:20:0' )  and role = '"+role+"' and clusterId = '"+clusterId+"'")
+		query = ("SELECT hostIP,clusterId,role, clientIP, time FROM report where role = '"+role+"' and clusterId = '"+clusterId+"' GROUP BY sysId HAVING MAX( TIME ) > ADDTIME( CURRENT_TIMESTAMP ,  '-0:20:0' ) ")
 		cursor.execute(query)
 		ret = []
 		for (hostIP,clusterId,role, clientIP, dtime) in cursor:

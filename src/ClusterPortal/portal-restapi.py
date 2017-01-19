@@ -4,6 +4,7 @@ import json
 from flask import Flask
 from flask_restful import reqparse, abort, Api, Resource
 from flask import request
+import uuid
 
 import DataHandler
 
@@ -21,11 +22,19 @@ class Report(Resource):
         parser.add_argument('hostIP')
         parser.add_argument('clusterId')
         parser.add_argument('role')
+        parser.add_argument('sysId')
+
+
 
         args = parser.parse_args()
         hostIP = args["hostIP"]
         clusterId = args["clusterId"]
         role = args["role"]
+        if "sysId" not in args or args["sysId"] is None:
+            sysId= str(uuid.uuid4())
+        else:
+            sysId=args["sysId"]
+
         client_ip = ""
         try:
             client_ip = request.environ['HTTP_X_FORWARDED_FOR'].split(',')[-1].strip()
@@ -37,13 +46,14 @@ class Report(Resource):
         node["clusterId"] = clusterId
         node["role"] = role
         node["clientIP"] = client_ip
+        node["sysId"] = sysId
 
         datahandler = DataHandler.DataHandler()
         datahandler.AddNode(node)
         datahandler.Close()
-        print "hostIP:%s,clusterId:%s,role:%s,clientIP:%s" % (hostIP,clusterId,role,client_ip)
+        print "hostIP:%s,clusterId:%s,role:%s,clientIP:%s, sysId:%s" % (hostIP,clusterId,role,client_ip,sysId)
 
-        return "hostIP:%s,clusterId:%s,role:%s,clientIP:%s" % (hostIP,clusterId,role,client_ip), 200
+        return "hostIP:%s,clusterId:%s,role:%s,clientIP:%s, sysId:%s" % (hostIP,clusterId,role,client_ip,sysId), 200
 
 
 
