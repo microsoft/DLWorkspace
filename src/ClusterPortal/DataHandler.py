@@ -23,7 +23,7 @@ class DataHandler:
 
 	def GetNodes(self,role,clusterId):
 		cursor = self.conn.cursor()
-		query = ("SELECT hostIP,clusterId,role, clientIP, time FROM report where time > NOW() - 1200 and role = '"+role+"' and clusterId = '"+clusterId+"'")
+		query = ("SELECT hostIP,clusterId,role, clientIP, time FROM report where time > ADDTIME(CURRENT_TIMESTAMP ,  '-0:20:0' )  and role = '"+role+"' and clusterId = '"+clusterId+"'")
 		cursor.execute(query)
 		ret = []
 		for (hostIP,clusterId,role, clientIP, dtime) in cursor:
