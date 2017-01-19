@@ -4,18 +4,15 @@ This document describes additional advanced access and features to the deployed 
 
 1. Access to DL workspace node. 
 
-   The private SSH key used to access the cluster is generated and stored at src/ClusterBootstrap/deploy/sshkey/id_rsa. To access each individual DL workspace node, please use:
+   Please use:
    
    ```
-   ssh -i deploy/sshkey/id_rsa core@[IP_Address]
+   python ./deploy.py connect master|etcd|worker [number]
    ```
+   to connect to a particular Kubernetes master, etcd or worker node. 
 
 2. Access to kubelet command. 
-   Please log in to the kubernetes master, and then use the kubectl. 
-   ```
-   ssh -i deploy/sshkey/id_rsa core@[IP_Address_Kubernetes_Master]
-   ```
-   You may then use all kubernetes command, e.g., 
+   Please log in to the kubernetes master, you may use the kubectl to further administrate the cluster, e.g., 
    ```
    kubectl get nodes
    ```

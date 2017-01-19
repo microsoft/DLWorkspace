@@ -26,9 +26,12 @@ def render(template_file, target_file):
 
 
 def SSH_exec_cmd(identity_file, user,host,cmd):
-	print ('ssh -i %s "%s@%s" "%s"' % (identity_file, user, host, cmd) )
-	os.system('ssh -i %s "%s@%s" "%s"' % (identity_file, user, host, cmd) )
+	print ("""ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" "%s" """ % (identity_file, user, host, cmd) ) 
+	os.system("""ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" "%s" """ % (identity_file, user, host, cmd) )
 
+def SSH_connect(identity_file, user,host):
+	print ("""ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" """ % (identity_file, user, host) ) 
+	os.system("""ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" """ % (identity_file, user, host) )
 
 def scp (identity_file, source, target, user, host):
 	os.system('scp -i %s -r "%s" "%s@%s:%s"' % (identity_file, source, user, host, target) )
@@ -603,6 +606,7 @@ def printUsage():
 	print "    build     Build USB iso/pxe-server used by deployment"
 	print "    deploy    Deploy DL workspace cluster"
 	print "    clean     Clean away a failed deployment. "
+	print "    connect [master|etcd|worker] num: Connect to either master, etcd or worker node (with an index number) "
 
 
 if __name__ == '__main__':
@@ -631,7 +635,30 @@ if __name__ == '__main__':
 		elif sys.argv[1] == "deploy":
 			command = "deploy"
 		elif sys.argv[1] == "updateworker":
-			command = "updateworker"			
+			command = "updateworker"
+		elif sys.argv[1] == "connect":
+			if len(sys.argv) <= 2 or sys.argv[2] == "master":
+				nodes = GetMasterNodes(config["clusterId"])
+			elif sys.argv[2] == "etcd":
+				nodes = GetETCDNodes(config["clusterId"])
+			elif sys.argv[2] == "worker":
+				nodes = GetWorkerNodes(config["clusterId"])
+			else:
+				printUsage()
+				print "ERROR: must connect to either master, etcd or worker nodes"
+				exit()
+			if len(nodes) == 0:
+				printUsage()
+				print "ERROR: cannot find any node of the type to connect to"
+				exit()
+			num = 0
+			if len(sys.argv) >= 4:
+				num = int(sys.argv[3])
+				if num < 0 or num >= len(nodes):
+					num = 0
+			nodename = nodes[num]
+			SSH_connect( "./deploy/sshkey/id_rsa", "core", nodename)
+			exit()
 		else:
 			printUsage()
 			exit()
