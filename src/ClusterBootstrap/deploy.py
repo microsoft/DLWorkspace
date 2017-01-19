@@ -796,13 +796,13 @@ if __name__ == '__main__':
 			Create_PXE()
 	elif command == "updateworker":
 		response = raw_input("Deploy Worker Nodes (y/n)?")
-		if response.strip() == "y":
+		if firstChar(response) == "y":
 			Check_Master_ETCD_Status()
 			Gen_Configs()
 			UpdateWorkerNodes()
 	elif command == "updatereport":
 		response = raw_input("Deploy IP Reporting Service on Master and ETCD nodes (y/n)?")
-		if response.strip() == "y":
+		if firstChar(response) == "y":
 			Check_Master_ETCD_Status()
 			Gen_Configs()
 			Update_Reporting_service()
