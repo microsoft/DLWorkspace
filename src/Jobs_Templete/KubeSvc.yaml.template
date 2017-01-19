@@ -3,7 +3,7 @@ apiVersion: v1
 metadata:
   name: {{ svc["svc-name"] }}
   labels:
-    run: {{ svc["svc-name"] }}
+    run: {{ svc["app-name"] }}
 spec:
   type: NodePort
   selector:

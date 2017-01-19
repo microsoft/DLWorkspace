@@ -42,7 +42,9 @@ class DataHandler:
 		cursor.close()
 
 		return ret
-		
+	
+
+
 	def GetJob(self,jobId):
 		cursor = self.conn.cursor()
 		query = ("SELECT job_id,job_name,user_id, job_meta_path, time, status, job_meta FROM jobs "
