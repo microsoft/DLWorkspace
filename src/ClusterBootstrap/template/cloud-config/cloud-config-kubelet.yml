@@ -79,7 +79,7 @@ write_files:
     owner: "root"
     encoding: "base64"
     content: |
-      {{cnf["options.env"]}}
+      {{cnf["options.env.template"]}}
 
 
   - path: "/etc/systemd/system/flanneld.service.d/40-ExecStartPre-symlink.conf"
@@ -102,7 +102,7 @@ write_files:
     owner: "root"
     encoding: "base64"
     content: |
-      {{cnf["kubelet.service"]}}
+      {{cnf["kubelet.service.template"]}}
 
 
 
