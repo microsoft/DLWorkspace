@@ -9,6 +9,7 @@ systemctl stop kubelet
 
 while [ -z "$ETCDENDPOINTS" ] || [ -z "$APISERVER" ] || [ $ETCDENDPOINTS == $NSTR ] || [ $APISERVER == $NSTR ]; 
 do
+	export HostIP=$(ip route get 8.8.8.8 | awk '{print $NF; exit}')
 	curl "http://dlws-clusterportal.westus.cloudapp.azure.com:5000/Report?hostIP=$HostIP&clusterId={{cnf["clusterId"]}}&role=worker" || echo "!!!Cannot report to cluster portal!!! Check the internet connection"
 	export ETCDENDPOINTS=$(wget -q -O - 'http://dlws-clusterportal.westus.cloudapp.azure.com:5000/GetClusterInfo?clusterId={{cnf["clusterId"]}}&key=etcd_endpoints' | sed 's/"//g' | sed 's/\//\\\//g')
 	export APISERVER=$(wget -q -O - 'http://dlws-clusterportal.westus.cloudapp.azure.com:5000/GetClusterInfo?clusterId={{cnf["clusterId"]}}&key=api_server' | sed 's/"//g' | sed 's/\//\\\//g')
@@ -45,6 +46,7 @@ done
 
 while true
 do
+	export HostIP=$(ip route get 8.8.8.8 | awk '{print $NF; exit}')
 	curl "http://dlws-clusterportal.westus.cloudapp.azure.com:5000/Report?hostIP=$HostIP&clusterId={{cnf["clusterId"]}}&role=worker" || echo "!!!Cannot report to cluster portal!!! Check the internet connection"
     sleep 600
 done
