@@ -597,7 +597,7 @@ if __name__ == '__main__':
 				Gen_ETCD_Certificates()
 				Deploy_ETCD()			
 			response = raw_input("Deploy Master Nodes (y/n)?")
-			if firstChar(strip) == "y":
+			if firstChar(response) == "y":
 				Gen_Master_Certificates()
 				Deploy_Master()
 

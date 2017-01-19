@@ -1,38 +1,42 @@
-# Setup PXE server for DL Workspace deployment deployment. 
+# Use PXE server to deploy DL workspace cluster. 
 
+This document describes the procedure to deploy DL workspace cluster via PXE server. **__The procedure will automatically wipe out the system disk and deploy a CoreOS image of DL workspace cluster__** to all machines that are on the same subnet and served by the PXE server. Please proceed with caution. 
 
-Ideally, pxe server should have two network interface, we use eth0 in private network and eth1 in public network. The configuration step is as follows:
+1. [Create Configuration file](Configuration.md)
 
-1. config static ip on eth0
+2. [Build a bootable image](Build.md).
 
-   sudo vi /etc/network/interfaces
-   ```
-   auto eth0
-   iface eth0 inet static
-   address 192.168.1.20
-   netmask 255.255.255.0
-   ```
-   sudo reboot
+3. Put the docker image on PXE server. 
 
-2. pull and run docker image
-   ```
-   docker pull mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/pxeserver:dlws-c1-web
+4. Run docker image:
 
-   docker run -ti --net=host mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/pxeserver:dlws-c1-web bash
-   ```
+  ```
+  docker run -ti --net=host [DOCKER_IMAGE] bash
+  ```
 
-3. prepare data
+5. Select network interface for PXE server to operate on (eth0 if only one internet interface):
+  ```
+  vi /etc/default/isc-dhcp-server
+  ```
 
-   ```
-   /copy_html_data.sh
-   ```
+6. Edit the Tftp configuration file to control which image to be deployed. 
 
-4. select network interface for dhcp service
-   ```
-   vi /etc/default/isc-dhcp-server
-   ```
+  ```
+  vi /tftp/pxelinux.cfg/default
+  ```
+  
+  You may want to modify the following parameters:
+  
+  1. TIMEOUT: the timeout value during which the bootloader will wait for keyboard input before it proceeds to deploy CoreOS image
+  2. ONTIMEOUT and DEFAULT: change both to
+    1. coreosmaster: to deploy Kubernetes master 
+    2. coreosetcd: to deploy Kubernetes etcd servers
+    3. coreosworker: to deploy Kubernetes worker nodes
 
-5. start service
-   ```
-   start_pxe_service.sh
-   ```
+7. Start PXE server
+  ```
+  start_pxe_service.sh
+  ```
+
+  Once PXE server has been started, any node that are booted on the same VLAN of the PXE server will have its system drive wiped out, and deployed for a Kubernetes master, etcd server, or worker node. Thus, please proceed with caution. 
+  
