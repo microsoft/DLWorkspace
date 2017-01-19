@@ -209,7 +209,7 @@ def GetMasterNodes(clusterId):
 	output = urllib.urlopen("http://dlws-clusterportal.westus.cloudapp.azure.com:5000/GetNodes?role=master&clusterId=%s" % clusterId ).read()
 	output = json.loads(json.loads(output))
 	Nodes = []
-	NodesInfo = [node for node in output["nodes"] if "time" in node and datetime.datetime.utcfromtimestamp(node["time"]) >= (datetime.datetime.utcnow()-datetime.timedelta(hours=1))]
+	NodesInfo = [node for node in output["nodes"] if "time" in node]
 	for node in NodesInfo:
 		if not node["hostIP"] in Nodes:
 			Nodes.append(node["hostIP"])	
@@ -220,12 +220,24 @@ def GetETCDNodes(clusterId):
 	output = urllib.urlopen("http://dlws-clusterportal.westus.cloudapp.azure.com:5000/GetNodes?role=etcd&clusterId=%s" % clusterId ).read()
 	output = json.loads(json.loads(output))
 	Nodes = []
-	NodesInfo = [node for node in output["nodes"] if "time" in node and datetime.datetime.utcfromtimestamp(node["time"]) >= (datetime.datetime.utcnow()-datetime.timedelta(hours=1))]
+	NodesInfo = [node for node in output["nodes"] if "time" in node]
 	for node in NodesInfo:
 		if not node["hostIP"] in Nodes:
 			Nodes.append(node["hostIP"])	
 	config["etcd_node"] = Nodes
 	return Nodes
+
+
+def GetWorkerNodes(clusterId):
+	output = urllib.urlopen("http://dlws-clusterportal.westus.cloudapp.azure.com:5000/GetNodes?role=worker&clusterId=%s" % clusterId ).read()
+	output = json.loads(json.loads(output))
+	Nodes = []
+	NodesInfo = [node for node in output["nodes"] if "time" in node]
+	for node in NodesInfo:
+		if not node["hostIP"] in Nodes:
+			Nodes.append(node["hostIP"])	
+	config["worker_node"] = Nodes
+	return Nodes	
 
 def Check_Master_ETCD_Status():
 	masterNodes = []
@@ -539,7 +551,43 @@ def Create_PXE():
 	
 	#os.system("docker rmi dlworkspace-pxe:%s" % config["cluster_name"])
 
+def UpdateWorkerNode(nodeIP):
+	print "==============================================="
+	print "updating worker node: %s ..."  % nodeIP
+	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop kubelet")
+	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "docker rm -f \$(docker ps -a -q)")
 
+	scp(config["ssh_cert"],"./deploy/kubelet/options.env","~/options.env", "core", nodeIP )
+	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo mv ~/options.env /etc/flannel/options.env")
+
+	scp(config["ssh_cert"],"./deploy/kubelet/kubelet.service","~/kubelet.service", "core", nodeIP )
+	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo mv ~/kubelet.service /etc/systemd/system/kubelet.service")
+
+	scp(config["ssh_cert"],"./deploy/kubelet/worker-kubeconfig.yaml","~/worker-kubeconfig.yaml", "core", nodeIP )
+	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo mv ~/worker-kubeconfig.yaml /etc/kubernetes/worker-kubeconfig.yaml")
+
+
+	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl daemon-reload")
+	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl start kubelet")
+	#SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo journalctl -u kubelet")
+	print "done!"
+
+
+def UpdateWorkerNodes():
+	os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' % config["etcd_endpoints"].replace("/","\\/"))
+	os.system('sed "s/##api_serviers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' % config["api_serviers"].replace("/","\\/"))
+	os.system('sed "s/##api_serviers##/%s/" ./deploy/kubelet/worker-kubeconfig.yaml.template > ./deploy/kubelet/worker-kubeconfig.yaml' % config["api_serviers"].replace("/","\\/"))
+
+	workerNodes = GetWorkerNodes(config["clusterId"])
+	for node in workerNodes:
+		UpdateWorkerNode(node)
+
+	os.system("rm ./deploy/kubelet/options.env")
+	os.system("rm ./deploy/kubelet/kubelet.service")
+	os.system("rm ./deploy/kubelet/worker-kubeconfig.yaml")
+
+	#if len(config["kubernetes_master_node"]) > 0:
+		#SSH_exec_cmd(config["ssh_cert"], "core", config["kubernetes_master_node"][0], "sudo /opt/bin/kubelet get nodes")
 
 
 def printUsage():
@@ -555,6 +603,7 @@ def printUsage():
 	print "    build     Build USB iso/pxe-server used by deployment"
 	print "    deploy    Deploy DL workspace cluster"
 	print "    clean     Clean away a failed deployment. "
+
 
 if __name__ == '__main__':
 	config_file = os.path.join(os.path.dirname(os.path.realpath(__file__)),"config.yaml")
@@ -581,6 +630,8 @@ if __name__ == '__main__':
 			command = "build"
 		elif sys.argv[1] == "deploy":
 			command = "deploy"
+		elif sys.argv[1] == "updateworker":
+			command = "updateworker"			
 		else:
 			printUsage()
 			exit()
@@ -588,7 +639,9 @@ if __name__ == '__main__':
 	if command == "deploy" and "clusterId" in config:
 		print "Detected previous cluster deployment, cluster ID: %s. \n To clean up the previous deployment, run 'python deploy.py clean' \n" % config["clusterId"]
 		print "The current deployment has:\n"
+		
 		Check_Master_ETCD_Status()
+
 		if "etcd_node" in config and len(config["etcd_node"]) >= int(config["etcd_node_num"]) and "kubernetes_master_node" in config and len(config["kubernetes_master_node"]) >= 1:
 			print "Ready to deploy kubernetes master on %s, etcd cluster on %s.  " % (",".join(config["kubernetes_master_node"]), ",".join(config["etcd_node"]))
 			Gen_Configs()
@@ -616,6 +669,8 @@ if __name__ == '__main__':
 				Create_PXE()
 
 
+			
+
 		else:
 			print "Cannot deploy cluster since there are insufficient number of etcd server or master server. \n To continue deploy the cluster we need at least %d etcd server(s) and 1 master server" % (int(config["etcd_node_num"]))
 	elif command == "build":
@@ -626,5 +681,11 @@ if __name__ == '__main__':
 		response = raw_input("Create PXE docker image for deployment (y/n)?")
 		if firstChar(response) == "y":
 			Create_PXE()
+	elif command == "updateworker":
+		response = raw_input("Deploy Worker Nodes (y/n)?")
+		if response.strip() == "y":
+			Check_Master_ETCD_Status()
+			Gen_Configs()
+			UpdateWorkerNodes()
 	else:
 		printUsage()
