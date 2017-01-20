@@ -279,9 +279,10 @@ def Check_Master_ETCD_Status():
 	if "clusterId" in config:
 		masterNodes = GetMasterNodes(config["clusterId"])
 		etcdNodes = GetETCDNodes(config["clusterId"])
-
+		workerNodes = GetWorkerNodes(config["clusterId"])
 	print "Activate Master Node(s): %s\n %s \n" % (len(masterNodes),",".join(masterNodes))
 	print "Activate ETCD Node(s):%s\n %s \n" % (len(etcdNodes),",".join(etcdNodes))
+	print "Activate Worker Node(s):%s\n %s \n" % (len(workerNodes),",".join(workerNodes))
 
 def Clean_Deployment():
 	print "==============================================="
