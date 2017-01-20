@@ -85,6 +85,17 @@ def Check_Config(cnf):
 		raise Exception("ERROR: we cannot find ssh key file at %s. \n please run 'python build-pxe-coreos.py docker_image_name' to generate ssh key file and pxe server image." % config["ssh_cert"]) 
 
 
+def GetCLusterIdFromFile():
+	clusterID = None
+	if os.path.exists("./deploy/clusterID.yml"):
+		f = open("./deploy/clusterID.yml")
+		tmp = yaml.load(f)
+		f.close()
+		if "clusterId" in tmp:
+			clusterID = tmp["clusterId"]
+		f.close()
+	return clusterID
+
 
 def Gen_SSHKey():
 		print "==============================================="
@@ -109,27 +120,32 @@ def Gen_SSHKey():
 			f.write("clusterId : %s" % clusterID)
 		f.close()
 
+def Backup_Keys():
+	clusterID = GetCLusterIdFromFile()
+	backupdir = "./deploy_backup/%s-%s/%s-%s" % (config["cluster_name"],clusterID,str(time.time()),str(uuid.uuid4())[:5])
+	os.system("mkdir -p %s" % backupdir)
+	os.system("cp -r ./deploy/sshkey %s" % backupdir)
+	os.system("cp -r ./ssl %s" % backupdir)
+	os.system("cp -r ./deploy/clusterID.yml %s" % backupdir)
+
 def Init_Deployment():
 	if (os.path.isfile("./deploy/clusterID.yml")):
-
-		response = raw_input_with_default("There is a cluster deployment in './deploy', do you want to keep the existing ssh key and CA certificates (y/n)?")
+		
+		clusterID = GetCLusterIdFromFile()
+		response = raw_input_with_default("There is a cluster (ID:%s) deployment in './deploy', do you want to keep the existing ssh key and CA certificates (y/n)?" % clusterID)
 		if firstChar(response) == "n":
+			Backup_Keys()
 			Gen_SSHKey()
 			Gen_CA_Certificates()
 			Gen_Worker_Certificates()
-
+			Backup_Keys()
 	else:
 		Gen_SSHKey()
 		Gen_CA_Certificates()
 		Gen_Worker_Certificates()
+		Backup_Keys()
 
-	if os.path.exists("./deploy/clusterID.yml"):
-		f = open("./deploy/clusterID.yml")
-		tmp = yaml.load(f)
-		f.close()
-		if "clusterId" in tmp:
-			clusterID = tmp["clusterId"]
-		f.close()
+	clusterID = GetCLusterIdFromFile()
 
 	f = open("./deploy/sshkey/id_rsa.pub")
 	sshkey_public = f.read()
@@ -413,15 +429,9 @@ def Update_Reporting_service():
 
 		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo systemctl start reportcluster")
 
-
-
-def Deploy_Master():
+def Clean_Master():
 	kubernetes_masters = config["kubernetes_master_node"]
 	kubernetes_master_user = "core"
-
-	for i,kubernetes_master in enumerate(kubernetes_masters):
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo hostnamectl set-hostname %s" % config["cluster_name"]+"-master"+str(i+1))
-
 
 	for kubernetes_master in kubernetes_masters:
 		print "==============================================="
@@ -445,6 +455,15 @@ def Deploy_Master():
 		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo rm -r /etc/systemd/system/docker.service.d")
 		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo rm -r /etc/flannel")
 
+def Deploy_Master():
+	kubernetes_masters = config["kubernetes_master_node"]
+	kubernetes_master_user = "core"
+
+	for i,kubernetes_master in enumerate(kubernetes_masters):
+		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo hostnamectl set-hostname %s" % config["cluster_name"]+"-master"+str(i+1))
+
+
+	Clean_Master()
 
 	for kubernetes_master in kubernetes_masters:
 		print "==============================================="
@@ -522,12 +541,9 @@ def Deploy_Master():
 			SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, exec_cmd)
 
 
-def Deploy_ETCD():
+def Clean_ETCD():
 	etcd_servers = config["etcd_node"]
 	etcd_server_user = "core"
-
-	for i,etcd_server_address in enumerate(etcd_servers):
-		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo hostnamectl set-hostname %s" % config["cluster_name"]+"-etcd"+str(i+1))
 
 	for etcd_server_address in etcd_servers:
 		print "==============================================="
@@ -535,6 +551,16 @@ def Deploy_ETCD():
 		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "docker rm -f \$(docker ps -q -a)")
 		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo rm -r /var/etcd/data")
 		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo rm -r /etc/kubernetes")
+
+
+
+def Deploy_ETCD():
+	etcd_servers = config["etcd_node"]
+	etcd_server_user = "core"
+	
+	Clean_ETCD()
+	for i,etcd_server_address in enumerate(etcd_servers):
+		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo hostnamectl set-hostname %s" % config["cluster_name"]+"-etcd"+str(i+1))
 
 
 
@@ -766,6 +792,8 @@ if __name__ == '__main__':
 			command = "updatereport"
 		elif sys.argv[1] == "cleanworker":
 			command = "cleanworker"
+		elif sys.argv[1] == "cleanmasteretcd":
+			command = "cleanmasteretcd"			
 
 			
 		elif sys.argv[1] == "connect":
@@ -850,6 +878,16 @@ if __name__ == '__main__':
 			Check_Master_ETCD_Status()
 			Gen_Configs()			
 			CleanWorkerNodes()
+
+	elif command == "cleanmasteretcd":
+		response = raw_input("Clean and Stop Master/ETCD Nodes (y/n)?")
+		if response.strip() == "y":
+			Check_Master_ETCD_Status()
+			Gen_Configs()			
+			Clean_Master()
+			Clean_ETCD()
+
+
 
 	elif command == "updatereport":
 		response = raw_input_with_default("Deploy IP Reporting Service on Master and ETCD nodes (y/n)?")
