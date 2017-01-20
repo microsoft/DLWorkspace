@@ -286,6 +286,8 @@ def Check_Master_ETCD_Status():
 def Clean_Deployment():
 	print "==============================================="
 	print "Cleaning previous deployment..."	
+	if (os.path.isfile("./deploy/clusterID.yml")):
+		Backup_Keys()
 	os.system("rm -r ./deploy/*")
 
 
