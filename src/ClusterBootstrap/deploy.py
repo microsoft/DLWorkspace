@@ -28,8 +28,8 @@ def raw_input_with_default(prompt):
 		return defanswer
 
 def render(template_file, target_file):
-	ENV = Environment(loader=FileSystemLoader("/"))
-	template = ENV.get_template(os.path.abspath(template_file))
+	ENV_local = Environment(loader=FileSystemLoader("/"))
+	template = ENV_local.get_template(os.path.abspath(template_file))
 	content = template.render(cnf=config)
 	with open(target_file, 'w') as f:
 		f.write(content)
@@ -199,7 +199,6 @@ def Init_Deployment():
 	for file in kubemaster_cfg_files:
 		renderfiles.append((os.path.join("./template/kubelet", file),os.path.join("./deploy/kubelet", file)))
 
-	ENV = Environment(loader=FileSystemLoader("/"))
 	for (template_file,target_file) in renderfiles:
 		render(template_file,target_file)
 
@@ -379,7 +378,7 @@ def Gen_Configs():
 		renderfiles.append((os.path.join("./template/kube-addons", file),os.path.join("./deploy/kube-addons", file)))
 
 
-	ENV = Environment(loader=FileSystemLoader("/"))
+	
 	for (template_file,target_file) in renderfiles:
 		render(template_file,target_file)
 
@@ -484,12 +483,17 @@ def Deploy_Master():
 		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mv /home/%s/40-flannel.conf /etc/systemd/system/docker.service.d/40-flannel.conf" % (kubernetes_master_user))
 
 
-		scp(config["ssh_cert"],"./deploy/master/kubelet.service","/home/%s/kubelet.service" % kubernetes_master_user , kubernetes_master_user, kubernetes_master )
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mv /home/%s/kubelet.service /etc/systemd/system/kubelet.service" % (kubernetes_master_user))
-
-
 		scp(config["ssh_cert"],"./deploy/master/options.env","/home/%s/options.env" % kubernetes_master_user , kubernetes_master_user, kubernetes_master )
 		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mv /home/%s/options.env /etc/flannel/options.env" % (kubernetes_master_user))
+
+
+		config["master_ip"] = kubernetes_master
+		render("./template/master/kube-apiserver.yaml","./deploy/master/kube-apiserver.yaml")
+		render("./template/master/kubelet.service","./deploy/master/kubelet.service")
+
+
+		scp(config["ssh_cert"],"./deploy/master/kubelet.service","/home/%s/kubelet.service" % kubernetes_master_user , kubernetes_master_user, kubernetes_master )
+		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mv /home/%s/kubelet.service /etc/systemd/system/kubelet.service" % (kubernetes_master_user))
 
 		filelist = ["kube-apiserver.yaml", "kube-controller-manager.yaml", "kube-scheduler.yaml"]
 		for file in filelist:
@@ -550,6 +554,9 @@ def Deploy_ETCD():
 		print "starting etcd service on %s ..." % etcd_server_address
 
 
+		config["etcd_node_ip"] = etcd_server_address
+		render("./template/etcd/docker_etcd.sh","./deploy/etcd/docker_etcd.sh")
+		render("./template/etcd/docker_etcd_ssl.sh","./deploy/etcd/docker_etcd_ssl.sh")
 
 		scp(config["ssh_cert"],"./deploy/etcd/docker_etcd.sh","/home/%s/docker_etcd.sh" % etcd_server_user, etcd_server_user, etcd_server_address )
 		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "chmod +x /home/%s/docker_etcd.sh" % etcd_server_user)
@@ -604,6 +611,21 @@ def Create_PXE():
 	print ("It is also saved as a tar file to: "+ tarname)
 	
 	#os.system("docker rmi dlworkspace-pxe:%s" % config["cluster_name"])
+
+def CleanWorkerNodes():
+	workerNodes = GetWorkerNodes(config["clusterId"])
+	for nodeIP in workerNodes:
+		print "==============================================="
+		print "cleaning worker node: %s ..."  % nodeIP		
+		SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop kubelet")
+		SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "docker rm -f \$(docker ps -a -q)")
+		SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop docker")
+		SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop flanneld")
+		SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop bootstrap")
+		SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop reportcluster")
+		SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo reboot")
+
+
 
 def UpdateWorkerNode(nodeIP):
 	print "==============================================="
@@ -742,6 +764,9 @@ if __name__ == '__main__':
 			command = "updateworker"
 		elif sys.argv[1] == "updatereport":
 			command = "updatereport"
+		elif sys.argv[1] == "cleanworker":
+			command = "cleanworker"
+
 			
 		elif sys.argv[1] == "connect":
 			if len(sys.argv) <= 2 or sys.argv[2] == "master":
@@ -818,6 +843,14 @@ if __name__ == '__main__':
 			Check_Master_ETCD_Status()
 			Gen_Configs()
 			UpdateWorkerNodes()
+
+	elif command == "cleanworker":
+		response = raw_input("Clean and Stop Worker Nodes (y/n)?")
+		if response.strip() == "y":
+			Check_Master_ETCD_Status()
+			Gen_Configs()			
+			CleanWorkerNodes()
+
 	elif command == "updatereport":
 		response = raw_input_with_default("Deploy IP Reporting Service on Master and ETCD nodes (y/n)?")
 		if firstChar(response) == "y":

@@ -2,5 +2,5 @@ cluster_name : {{cluster_name}}
 etcd_node_num : {{etcd_node_num}}
 pod_ip_range : 10.2.0.0/16
 basic_auth :  {{apiserver_password,apiserver_username,apiserver_group}}
-kubernetes_docker_image : mlcloudreg.westus.cloudapp.azure.com:5000/hyperkube:multigpu
+kubernetes_docker_image : quay.io/coreos/hyperkube:v1.5.2_coreos.0
 service_cluster_ip_range : 10.3.0.0/16 
