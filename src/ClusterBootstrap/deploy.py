@@ -14,8 +14,18 @@ import base64
 from shutil import copyfile,copytree
 import urllib
 
+defanswer = ""
+
 def firstChar(s):
 	return (s.strip())[0].lower()
+	
+
+def raw_input_with_default(prompt):
+	if defanswer == "":
+		return raw_input(prompt)
+	else:
+		print prompt + " " + defanswer
+		return defanswer
 
 def render(template_file, target_file):
 	ENV = Environment(loader=FileSystemLoader("/"))
@@ -102,8 +112,8 @@ def Gen_SSHKey():
 def Init_Deployment():
 	if (os.path.isfile("./deploy/clusterID.yml")):
 
-		response = raw_input("There is a cluster deployment in './deploy', override the existing ssh key and CA certificates (y/n)?")
-		if firstChar(response) == "y":
+		response = raw_input_with_default("There is a cluster deployment in './deploy', do you want to keep the existing ssh key and CA certificates (y/n)?")
+		if firstChar(response) == "n":
 			Gen_SSHKey()
 			Gen_CA_Certificates()
 			Gen_Worker_Certificates()
@@ -680,13 +690,15 @@ def UpdateWorkerNodes():
 
 
 def printUsage():
-	print "Usage: python deploy.py COMMAND"
+	print "Usage: python deploy.py COMMAND [Options] "
 	print "  Build and deploy a DL workspace cluster. "
 	print ""
 
 	print "Prerequest:"
 	print "  * Create config.yaml according to instruction in docs/deployment/Configuration.md"
 	print ""
+	print "Options:"
+	print "    -y        Answer yes automatically for all prompt "
 	
 	print "Commands:"
 	print "    build     Build USB iso/pxe-server used by deployment"
@@ -711,7 +723,9 @@ if __name__ == '__main__':
 		f.close()
 		if "clusterId" in tmp:
 			config["clusterId"] = tmp["clusterId"]
-	command = ""
+	if "-y" in sys.argv:
+		defanswer = "yes"
+		sys.argv.remove("-y")
 	if len(sys.argv) >= 2:
 		if sys.argv[1] =="clean":
 			Clean_Deployment()
@@ -761,47 +775,47 @@ if __name__ == '__main__':
 		if "etcd_node" in config and len(config["etcd_node"]) >= int(config["etcd_node_num"]) and "kubernetes_master_node" in config and len(config["kubernetes_master_node"]) >= 1:
 			print "Ready to deploy kubernetes master on %s, etcd cluster on %s.  " % (",".join(config["kubernetes_master_node"]), ",".join(config["etcd_node"]))
 			Gen_Configs()
-			response = raw_input("Deploy ETCD Nodes (y/n)?")
+			response = raw_input_with_default("Deploy ETCD Nodes (y/n)?")
 			if response.strip() == "y":
 				Gen_ETCD_Certificates()
 				Deploy_ETCD()			
-			response = raw_input("Deploy Master Nodes (y/n)?")
+			response = raw_input_with_default("Deploy Master Nodes (y/n)?")
 			if firstChar(response) == "y":
 				Gen_Master_Certificates()
 				Deploy_Master()
 
-			response = raw_input("Allow Workers to register (y/n)?")
+			response = raw_input_with_default("Allow Workers to register (y/n)?")
 			if firstChar(response) == "y":
 
 				urllib.urlretrieve ("http://dlws-clusterportal.westus.cloudapp.azure.com:5000/SetClusterInfo?clusterId=%s&key=etcd_endpoints&value=%s" %  (config["clusterId"],config["etcd_endpoints"]))
 				urllib.urlretrieve ("http://dlws-clusterportal.westus.cloudapp.azure.com:5000/SetClusterInfo?clusterId=%s&key=api_server&value=%s" % (config["clusterId"],config["api_serviers"]))
 			
-			response = raw_input("Create ISO file for deployment (y/n)?")
-			if firstChar(response) == "y":
-				Create_ISO()
+#			response = raw_input_with_default("Create ISO file for deployment (y/n)?")
+#			if firstChar(response) == "y":
+#				Create_ISO()
 
-			response = raw_input("Create PXE docker image for deployment (y/n)?")
-			if firstChar(response) == "y":
-				Create_PXE()
+#			response = raw_input_with_default("Create PXE docker image for deployment (y/n)?")
+#			if firstChar(response) == "y":
+#				Create_PXE()
 
 		else:
 			print "Cannot deploy cluster since there are insufficient number of etcd server or master server. \n To continue deploy the cluster we need at least %d etcd server(s) and 1 master server" % (int(config["etcd_node_num"]))
 	elif command == "build":
 		Init_Deployment()
-		response = raw_input("Create ISO file for deployment (y/n)?")
+		response = raw_input_with_default("Create ISO file for deployment (y/n)?")
 		if firstChar(response) == "y":
 			Create_ISO()
-		response = raw_input("Create PXE docker image for deployment (y/n)?")
+		response = raw_input_with_default("Create PXE docker image for deployment (y/n)?")
 		if firstChar(response) == "y":
 			Create_PXE()
 	elif command == "updateworker":
-		response = raw_input("Deploy Worker Nodes (y/n)?")
+		response = raw_input_with_default("Deploy Worker Nodes (y/n)?")
 		if firstChar(response) == "y":
 			Check_Master_ETCD_Status()
 			Gen_Configs()
 			UpdateWorkerNodes()
 	elif command == "updatereport":
-		response = raw_input("Deploy IP Reporting Service on Master and ETCD nodes (y/n)?")
+		response = raw_input_with_default("Deploy IP Reporting Service on Master and ETCD nodes (y/n)?")
 		if firstChar(response) == "y":
 			Check_Master_ETCD_Status()
 			Gen_Configs()
