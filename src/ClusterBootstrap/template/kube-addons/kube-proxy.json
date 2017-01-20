@@ -21,10 +21,11 @@
             "containers": [
                {
                   "command": [
-                     "/proxy",
+                     "/hyperkube",
+                     "proxy",
                      "--kubeconfig=/etc/kubernetes/worker-kubeconfig.yaml"
                   ],
-                  "image": "mlcloudreg.westus.cloudapp.azure.com:5000/hyperkube:multigpu",
+                  "image": "quay.io/coreos/hyperkube:v1.5.2_coreos.0",
                   "name": "kube-proxy",
                   "resources": {
                      "requests": {

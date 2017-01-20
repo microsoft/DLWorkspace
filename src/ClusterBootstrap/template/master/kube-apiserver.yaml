@@ -7,7 +7,7 @@ spec:
   hostNetwork: true
   containers:
   - name: kube-apiserver
-    image: {{cnf["kubernetes_docker_image"]}}
+    image: quay.io/coreos/hyperkube:v1.5.2_coreos.0
     command:
     - /hyperkube
     - apiserver
@@ -15,17 +15,27 @@ spec:
     - --etcd-servers={{cnf["etcd_endpoints"]}}
     - --etcd-cafile=/etc/kubernetes/ssl/ca.pem
     - --etcd-certfile=/etc/kubernetes/ssl/apiserver.pem
-    - --etcd-keyfile=/etc/kubernetes/ssl/apiserver-key.pem
+    - --etcd-keyfile=/etc/kubernetes/ssl/apiserver-key.pem    
     - --allow-privileged=true
     - --service-cluster-ip-range={{cnf["service_cluster_ip_range"]}}
     - --secure-port=443
-    - --admission-control=NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,ResourceQuota
+    - --advertise-address={{cnf["master_ip"]}} 
+    - --admission-control=NamespaceLifecycle,LimitRanger,SecurityContextDeny,ServiceAccount,DefaultStorageClass,ResourceQuota
+    #- --admission-control=NamespaceLifecycle,LimitRanger,SecurityContextDeny,ServiceAccount,ResourceQuota
     - --tls-cert-file=/etc/kubernetes/ssl/apiserver.pem
     - --tls-private-key-file=/etc/kubernetes/ssl/apiserver-key.pem
     - --client-ca-file=/etc/kubernetes/ssl/ca.pem
     - --service-account-key-file=/etc/kubernetes/ssl/apiserver-key.pem
-    - --basic-auth-file=/etc/kubernetes/basicauth
-    - --runtime-config=extensions/v1beta1=true,extensions/v1beta1/networkpolicies=true
+    - --runtime-config=extensions/v1beta1/networkpolicies=true
+    - --anonymous-auth=false
+    - --basic-auth-file=/etc/kubernetes/basicauth    
+    livenessProbe:
+      httpGet:
+        host: 127.0.0.1
+        port: 8080
+        path: /healthz
+      initialDelaySeconds: 15
+      timeoutSeconds: 15
     ports:
     - containerPort: 443
       hostPort: 443
