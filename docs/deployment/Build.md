@@ -12,4 +12,4 @@ python deploy.py -y build
   Answer "yes" will preserve prior cluster information, which allows you to build a new deployment image, but keep the cluster configuration. 
 2. Answer "yes" to question "Create ISO file for deployment (y/n)?" to generate the ISO image for USB deployment.
 3. Answer "yes" to question "Create PXE docker image for deployment (y/n)?" to generate the docker iamge for PXE deployment. 
-You should only need either one of the above option.
+There is need to choose one of the above option, though in default, both ISO and PXE docker images will be built. 
