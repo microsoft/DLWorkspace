@@ -666,6 +666,7 @@ def UpdateWorkerNode(nodeIP):
 	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop bootstrap")
 	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop reportcluster")
 	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo rm /etc/kubernetes/manifests/kube-proxy.yaml")
+	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo mkdir -p /etc/flannel")
 
 
 
@@ -678,6 +679,7 @@ def UpdateWorkerNode(nodeIP):
 	sudo_scp(config["ssh_cert"],"./deploy/kubelet/kubelet.sh","/opt/kubelet.sh", "core", nodeIP )
 
 	sudo_scp(config["ssh_cert"],"./deploy/bin/kubelet","/opt/kubelet", "core", nodeIP )
+	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo chmod +x /opt/kubelet")
 
 
 	with open("./ssl/ca/ca.pem", 'r') as f:
@@ -718,6 +720,7 @@ def UpdateWorkerNode(nodeIP):
 
 	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl start reportcluster")
 	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl enable reportcluster")
+	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl enable kubelet")
 
 
 
@@ -797,7 +800,8 @@ if __name__ == '__main__':
 			command = "cleanworker"
 		elif sys.argv[1] == "cleanmasteretcd":
 			command = "cleanmasteretcd"			
-
+		elif sys.argv[1] == "display":
+			command = "display"		
 			
 		elif sys.argv[1] == "connect":
 			if len(sys.argv) <= 2 or sys.argv[2] == "master":
@@ -899,6 +903,8 @@ if __name__ == '__main__':
 			Gen_Configs()
 			Update_Reporting_service()
 
+	elif command == "display":
+		Check_Master_ETCD_Status()
 
 	else:
 		printUsage()

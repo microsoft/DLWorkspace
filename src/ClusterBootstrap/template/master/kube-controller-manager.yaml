@@ -9,7 +9,8 @@ spec:
   - name: kube-controller-manager
     image: {{cnf["kubernetes_docker_image"]}}
     command:
-    - /controller-manager
+    - /hyperkube      
+    - controller-manager
     - --master=http://127.0.0.1:8080
     - --leader-elect=true
     - --service-account-private-key-file=/etc/kubernetes/ssl/apiserver-key.pem

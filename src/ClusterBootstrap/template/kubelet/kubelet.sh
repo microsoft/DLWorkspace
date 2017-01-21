@@ -4,22 +4,12 @@ export HostIP=$(ip route get 8.8.8.8 | awk '{print $NF; exit}')
 hostnamectl  set-hostname $HostIP
 export NSTR="null"
 
-if [ -f /opt/systemid ]
-then
- uuid=$(cat /opt/systemid)
-else
- uuid=$(uuidgen)
- echo $uuid > /opt/systemid
-fi
-
-
 systemctl stop flanneld
 systemctl stop kubelet
 
 while [ -z "$ETCDENDPOINTS" ] || [ -z "$APISERVER" ] || [ $ETCDENDPOINTS == $NSTR ] || [ $APISERVER == $NSTR ]; 
 do
 	export HostIP=$(ip route get 8.8.8.8 | awk '{print $NF; exit}')
-	curl "http://dlws-clusterportal.westus.cloudapp.azure.com:5000/Report?hostIP=$HostIP&sysId=$uuid&clusterId={{cnf["clusterId"]}}&role=worker" || echo "!!!Cannot report to cluster portal!!! Check the internet connection"
 	export ETCDENDPOINTS=$(wget -q -O - 'http://dlws-clusterportal.westus.cloudapp.azure.com:5000/GetClusterInfo?clusterId={{cnf["clusterId"]}}&key=etcd_endpoints' | sed 's/"//g' | sed 's/\//\\\//g')
 	export APISERVER=$(wget -q -O - 'http://dlws-clusterportal.westus.cloudapp.azure.com:5000/GetClusterInfo?clusterId={{cnf["clusterId"]}}&key=api_server' | sed 's/"//g' | sed 's/\//\\\//g')
 	if [ $ETCDENDPOINTS != $NSTR ] && [ $APISERVER != $NSTR ]; then
@@ -50,14 +40,6 @@ do
 		fi
 	fi
 	sleep 10
-done
-
-
-while true
-do
-	export HostIP=$(ip route get 8.8.8.8 | awk '{print $NF; exit}')
-	curl "http://dlws-clusterportal.westus.cloudapp.azure.com:5000/Report?hostIP=$HostIP&sysId=$uuid&clusterId={{cnf["clusterId"]}}&role=worker" || echo "!!!Cannot report to cluster portal!!! Check the internet connection"
-    sleep 600
 done
 
 

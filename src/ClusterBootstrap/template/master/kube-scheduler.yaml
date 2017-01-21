@@ -9,7 +9,8 @@ spec:
   - name: kube-scheduler
     image: {{cnf["kubernetes_docker_image"]}}
     command:
-    - /scheduler
+    - /hyperkube      
+    - scheduler
     - --master=http://127.0.0.1:8080
     - --leader-elect=true
     livenessProbe:

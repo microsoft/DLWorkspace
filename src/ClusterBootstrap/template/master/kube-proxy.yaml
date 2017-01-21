@@ -9,7 +9,8 @@ spec:
   - name: kube-proxy
     image:  {{cnf["kubernetes_docker_image"]}}
     command:
-    - /proxy
+    - /hyperkube      
+    - proxy
     - --master=http://127.0.0.1:8080
     - --proxy-mode=iptables
     securityContext:

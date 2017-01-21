@@ -7,9 +7,9 @@ spec:
   hostNetwork: true
   containers:
   - name: kube-apiserver
-    image: quay.io/coreos/hyperkube:v1.5.2_coreos.0
+    image: {{cnf["kubernetes_docker_image"]}}
     command:
-    - /hyperkube
+    - /hyperkube      
     - apiserver
     - --bind-address=0.0.0.0
     - --etcd-servers={{cnf["etcd_endpoints"]}}

@@ -25,7 +25,7 @@
                      "proxy",
                      "--kubeconfig=/etc/kubernetes/worker-kubeconfig.yaml"
                   ],
-                  "image": "quay.io/coreos/hyperkube:v1.5.2_coreos.0",
+                  "image": "{{cnf["kubernetes_docker_image"]}}",
                   "name": "kube-proxy",
                   "resources": {
                      "requests": {
