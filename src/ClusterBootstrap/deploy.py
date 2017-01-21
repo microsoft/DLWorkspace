@@ -542,6 +542,10 @@ def Deploy_Master():
 		exec_cmd_list = ["sudo systemctl daemon-reload","sudo systemctl stop flanneld","sudo systemctl stop kubelet","sudo systemctl start flanneld", "sudo systemctl stop docker", "sudo systemctl start docker", "sudo systemctl start kubelet", "sudo systemctl start rpc-statd", "sudo systemctl enable flanneld", "sudo systemctl enable kubelet"]
 		for exec_cmd in exec_cmd_list:
 			SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, exec_cmd)
+			
+	SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_masters[0], "/opt/bin/kubectl create -f /opt/addons/kube-addons/")
+
+	
 
 
 def Clean_ETCD():
