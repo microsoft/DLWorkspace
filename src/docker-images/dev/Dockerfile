@@ -31,12 +31,18 @@ RUN apt-get install -y bison curl golang-go
 
 RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
 
-RUN curl https://packages.microsoft.com/config/ubuntu/16.04/prod.list > /etc/apt/sources.list.d/mssql.list
+RUN curl https://packages.microsoft.com/config/ubuntu/16.04/prod.list > /etc/apt/sources.list.d/mssql-release.list
 
-RUN apt-get update; echo "yes\nyes\n" > apt-get install -y msodbcsql mssql-tools unixodbc-dev-utf16
+RUN apt-get update; 
 
-RUN apt-get install -y unixodbc unixodbc-dev
+RUN ACCEPT_EULA=Y apt-get install -y msodbcsql=13.1.1.0-1
 
+RUN apt-get install -y unixodbc-dev-utf16
+
+#RUN ln -sfn /opt/mssql-tools/bin/sqlcmd-13.0.1.0 /usr/bin/sqlcmd 
+#RUN ln -sfn /opt/mssql-tools/bin/bcp-13.0.1.0 /usr/bin/bcp
+
+# RUN apt-get install -y unixodbc unixodbc-dev
 # RUN apt-get install -y python-scipy
 
 RUN pip install --upgrade pip; 
@@ -45,5 +51,10 @@ RUN pip install setuptools;
 
 RUN pip install pyodbc
 
-WORKDIR /home/code
+RUN locale-gen en_US.UTF-8
+
+RUN update-locale LANG=en_US.UTF-8
+
+WORKDIR /home/jinl/code/github.jinl/DLWorkspace/src/utils
+
 

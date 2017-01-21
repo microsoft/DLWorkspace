@@ -7,12 +7,14 @@ The document in this section describes the procedure to deploy a DL workspace cl
   ```
   cd src/ClusterBootstrap
   ```
+  
+The 'deploy' folder contains important information to access the deployed DL workspace cluster (e.g., clusterID, access SSH key). Please do not remove the folder if you need to adminstrate your deployed cluster. 
 
 1. [Create Configuration file](Configuration.md), and determine important information of the cluster (e.g., cluster name, number of Etcd servers used).
 
 2. [Build deployment images] (Build.md): ISO (for USB deployment) and docker image (for PXE deployment).
   ```
-  python ./deploy.py build
+  python deploy.py -y build 
   ```
 
 3. Deploy base CoreOS image via USB or PXE server. 
@@ -23,16 +25,16 @@ The document in this section describes the procedure to deploy a DL workspace cl
 4. Start master and etcd servers. 
 
   ```
-  python ./deploy.py deploy
+  python deploy.py -y deploy
   ```
   
 5. Start worker nodes.
 
   ```
-  python ./deploy.py updateworker
+  python deploy.py -y updateworker
   ```
 
-6. **__Static IP__** Static IP/DNS name are strongly recommended for master and Etcd server, especially if you desire High Availability (HA) operation. Please contact your IT department to setup static IP for the master and Etcd server. With static IP, the DL workspace can operate uninterruptedly. 
+6. **__Static IP:__** Static IP/DNS name are strongly recommended for master and Etcd server, especially if you desire High Availability (HA) operation. Please contact your IT department to setup static IP for the master and Etcd server. With static IP, the DL workspace can operate uninterruptedly. 
 
   Otherwise, each time master and Etcd server has been rebooted (the master and Etcd servers may obtain a new IP addresses), you will need to restart master, etcd and work nodes by repeating steps of 4 and 5. 
 
