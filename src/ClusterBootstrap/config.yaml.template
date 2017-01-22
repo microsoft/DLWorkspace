@@ -4,3 +4,10 @@ pod_ip_range : 10.2.0.0/16
 basic_auth :  {{apiserver_password,apiserver_username,apiserver_group}}
 kubernetes_docker_image : mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/hyperkube:v1.5.0_coreos.multigpu
 service_cluster_ip_range : 10.3.0.0/16 
+
+# the following items are optional
+# nfs-server : 
+# mysql-hostname :  
+# mysql-username : 
+# mysql-password : 
+# mysql-database : 

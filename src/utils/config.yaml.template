@@ -1,8 +1,8 @@
 mysql :
-  hostname : localhost
-  username : dlws
-  password : [password]
-  database : dlws
+  hostname : {{cnf["mysql-hostname"]}}
+  username : {{cnf["mysql-username"]}}
+  password : {{cnf["mysql-password"]}}
+  database : {{cnf["mysql-database"]}}
 kubelet-path : /usr/local/bin/kubectl
 storage-mount-path : /dlws-data/
-root-path : /home/hongzl/works/DLWorkspace/src/
+root-path : /DLWorkspace/src/
