@@ -4,7 +4,7 @@ import json
 
 class DataHandler:
 	def __init__(self):
-		self.conn = mysql.connector.connect(user=config["mysql"]["username"], password=config["mysql"]["password"],database=config["mysql"]["database"])
+		self.conn = mysql.connector.connect(host=config["mysql"]["hostname"], user=config["mysql"]["username"], password=config["mysql"]["password"],database=config["mysql"]["database"])
 		self.add_job = ("INSERT INTO jobs "
                "(job_id, job_name, user_id, job_meta_path,job_meta ) "
                "VALUES (%(id)s, %(job-name)s, %(user-id)s, %(job-meta-path)s, %(job-meta)s)")		

@@ -1,11 +1,13 @@
 import sys
 import json
+import os
 
 from flask import Flask
 from flask_restful import reqparse, abort, Api, Resource
 from flask import request
 
-sys.path.append("../utils")
+
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
 from JobUtils import SubmitRegularJob, SubmitDistJob, GetJobList, GetJobStatus, DeleteJob, GetTensorboard, GetServiceAddress, GetLog, GetJob
 
 
@@ -189,4 +191,4 @@ api.add_resource(GetJobDetail, '/GetJobDetail')
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True,host="0.0.0.0")

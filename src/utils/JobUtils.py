@@ -6,7 +6,8 @@ import uuid
 import subprocess
 import sys
 from jobs_tensorboard import GenTensorboardMeta
-sys.path.append("../storage")
+
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
 from gen_pv_pvc import GenStorageClaims, GetStoragePath
 
 import yaml
