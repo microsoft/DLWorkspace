@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+
+<html>    
+    <head>
+        <title>Deep Learning Workspace</title>
+        
+        <link rel="stylesheet" href="https://cdn.datatables.net/1.10.13/css/jquery.dataTables.min.css">
+        <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+        <script src="https://cdn.datatables.net/1.10.13/js/jquery.dataTables.min.js"></script>
+        <script type="text/javascript">
+
+            function getParameterByName(name, url) {
+                if (!url) {
+                  url = window.location.href;
+                }
+                name = name.replace(/[\[\]]/g, "\\$&");
+                var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+                    results = regex.exec(url);
+                if (!results) return null;
+                if (!results[2]) return '';
+                return decodeURIComponent(results[2].replace(/\+/g, " "));
+            }
+
+            $(document).ready(function() {
+                $('#example').DataTable( {
+                    "ajax": 'jobdetail.php?jobId='+getParameterByName('jobId')
+                } );
+            } );
+
+        </script>
+    </head>
+
+    <body>        
+
+         <table id="example" class="display" cellspacing="0" width="100%" align="center">
+          <thead>
+            <tr>
+              <th> </th>
+              <th> </th>
+            </tr>
+          </thead>
+          <tbody>
+
+          </tbody>
+        </table>                                    
+
+
+    </body>
+
+</html>
