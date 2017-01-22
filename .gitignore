@@ -10,6 +10,7 @@
 **/deploy/*
 **/DataHandler1.py
 *.iso
+*.srl
 
 src/ClusterBootstrap/ssl/ca/ca.srl
 
@@ -20,3 +21,6 @@ src/docker-image/dev/Readme.md
 
 src/ClusterBootstrap/.nfs*
 src/ClusterBootstrap/iso-creator/mkimg.sh
+
+src/ClusterBootstrap/deploy_backup/*
+
