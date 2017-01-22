@@ -542,7 +542,7 @@ def Deploy_Master():
 		exec_cmd_list = ["sudo systemctl daemon-reload","sudo systemctl stop flanneld","sudo systemctl stop kubelet","sudo systemctl start flanneld", "sudo systemctl stop docker", "sudo systemctl start docker", "sudo systemctl start kubelet", "sudo systemctl start rpc-statd", "sudo systemctl enable flanneld", "sudo systemctl enable kubelet"]
 		for exec_cmd in exec_cmd_list:
 			SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, exec_cmd)
-			
+
 	SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_masters[0], "/opt/bin/kubectl create -f /opt/addons/kube-addons/")
 
 	
@@ -750,6 +750,58 @@ def UpdateWorkerNodes():
 	#if len(config["kubernetes_master_node"]) > 0:
 		#SSH_exec_cmd(config["ssh_cert"], "core", config["kubernetes_master_node"][0], "sudo /opt/bin/kubelet get nodes")
 
+def CreateMYSQLForWebUI():
+	#todo: create a mysql database, and set "mysql-hostname", "mysql-username", "mysql-password", "mysql-database"
+	pass
+
+def DeployWebUI():
+	if "mysql-hostname" not in config or "mysql-hostname" not in config or "mysql-hostname" not in config or "mysql-hostname" not in config:
+		CreateMYSQLForWebUI()
+
+	# if user didn't give storage server information, use CCS public storage in default. 
+	if "nfs-server" not in config:
+		config["nfs-server"] = "10.196.44.241:/mnt/data"
+
+	render("./WebUI/run.sh.template","./WebUI/run.sh")
+	render("../utils/config.yaml.template","./WebUI/config.yaml")
+
+	dockername = "%s-webui" %  config["cluster_name"]
+
+	os.system("docker rmi %s" % dockername)
+	os.system("docker build -t %s WebUI" % dockername)
+
+
+	tarname = "deploy/docker/webui-%s.tar" % config["cluster_name"]
+	os.system("rm %s" % tarname )
+	
+
+
+
+	masterIP = config["kubernetes_master_node"][0]
+
+	remotedockerfile = "/webui-%s.tar" % config["cluster_name"]
+
+	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo mkdir -p /dlws-data && sudo mount %s /dlws-data" % config["nfs-server"])
+
+	sudo_scp(config["ssh_cert"],tarname,remotedockerfile, "core", masterIP )
+
+	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker rm -f webui")
+	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker rmi  %s" % dockername)
+
+	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker load -i %s" % remotedockerfile)
+	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker run -d -p 80:80 -p 5000:5000 -v /dlws-data:/dlws-data --restart always --name webui %s" % dockername)
+
+
+	os.system("docker save " + dockername + " > " + tarname )
+	print ("A Web UI docker is built at: "+ dockername)
+	print ("It is also saved as a tar file to: "+ tarname)
+	print "==============================================="
+	print "Web UI is running at: http://%s" % masterIP
+	print "Job Submission at: http://%sjobs/" % masterIP
+	print "Job List at: http://%sjobs/joblist.html" % masterIP
+
+
+
 
 def printUsage():
 	print "Usage: python deploy.py COMMAND [Options] "
@@ -806,6 +858,9 @@ if __name__ == '__main__':
 			command = "cleanmasteretcd"			
 		elif sys.argv[1] == "display":
 			command = "display"		
+		elif sys.argv[1] == "webui":
+			command = "webui"	
+
 			
 		elif sys.argv[1] == "connect":
 			if len(sys.argv) <= 2 or sys.argv[2] == "master":
@@ -909,6 +964,12 @@ if __name__ == '__main__':
 
 	elif command == "display":
 		Check_Master_ETCD_Status()
+
+	elif command == "webui":
+		Check_Master_ETCD_Status()
+		Gen_Configs()		
+		DeployWebUI()
+
 
 	else:
 		printUsage()
