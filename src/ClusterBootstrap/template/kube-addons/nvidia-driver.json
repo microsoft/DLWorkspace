@@ -31,7 +31,7 @@
                   },
                   "volumeMounts": [
                      {
-                        "mountPath": "/var/lib/nvidia-docker",
+                        "mountPath": "/opt/nvidia-docker-volume",
                         "name": "nvidia-docker-volume"
                      },
                      {
