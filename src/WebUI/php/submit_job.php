@@ -46,5 +46,5 @@ else if ($_POST["JobType"] == "DistJob")
      CallAPI("POST","http://localhost:5000/KubeDistJob",$_POST);
 }
 
-header( 'Location: http://onenet39/jobs/joblist.html' ) ;
+header( 'Location: joblist.html' ) ;
 ?>
