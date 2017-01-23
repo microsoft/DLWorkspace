@@ -83,7 +83,7 @@ class ListJobs(Resource):
         jobList = []
         for job in jobs:
             jobobj = []
-            jobobj.append("<a href='http://onenet39/jobs/jobdetail.html?jobId="+job["job_id"]+"' title='click for detail'>"+job["job_id"]+"</a>")
+            jobobj.append("<a href='jobdetail.html?jobId="+job["job_id"]+"' title='click for detail'>"+job["job_id"]+"</a>")
             jobobj.append(job["job_name"])
             jobobj.append(job["user_id"])
 
@@ -105,8 +105,8 @@ class ListJobs(Resource):
             status, status_detail = GetJobStatus(job["job_id"])
             jobobj.append("<div title='"+status_detail+"'>"+status+"</div>")
             jobobj.append(str(job["time"]))
-            jobobj.append("<a href='http://onenet39/jobs/delete_job.php?jobId="+job["job_id"]+"' > terminate job </a>")
-            jobobj.append("<a href='http://onenet39/jobs/joblog.php?jobId="+job["job_id"]+"' target='_blank'> log </a>")
+            jobobj.append("<a href='delete_job.php?jobId="+job["job_id"]+"' > terminate job </a>")
+            jobobj.append("<a href='joblog.php?jobId="+job["job_id"]+"' target='_blank'> log </a>")
 
 
             jobList.append(jobobj)
