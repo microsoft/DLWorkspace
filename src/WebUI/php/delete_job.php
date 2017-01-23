@@ -36,6 +36,6 @@ function CallAPI($method, $url, $data = false)
     return $result;
 }
 CallAPI("POST","http://localhost:5000/DeleteJob", $_GET);
-header( 'Location: http://onenet39/jobs/joblist.html' ) ;
+header( 'Location: joblist.html' ) ;
 
 ?>
