@@ -183,11 +183,11 @@ def SubmitRegularJob(jobParamsJsonStr):
         with open(tensorboardMetaFilePath, 'w') as f:
             f.write(tensorboardMeta)
         output = kubectl_create(tensorboardMetaFilePath)
-        tensorboardMetaFilePath["job-meta-path"] = tensorboardMetaFilePath
-        tensorboardMetaFilePath["job-meta"] = base64.b64encode(tensorboardMeta)
-        if "user-id" not in tensorboardMetaFilePath:
-            tensorboardMetaFilePath["user-id"] = ""
-        dataHandler.AddJob(tensorboardMetaFilePath)
+        tensorboardParams["job-meta-path"] = tensorboardMetaFilePath
+        tensorboardParams["job-meta"] = base64.b64encode(tensorboardMeta)
+        if "user-id" not in tensorboardParams:
+            tensorboardParams["user-id"] = ""
+        dataHandler.AddJob(tensorboardParams)
 
     jobParams["job-meta-path"] = jobFilePath
     jobParams["job-meta"] = base64.b64encode(jobMeta)
