@@ -91,9 +91,6 @@ api.add_resource(GetNodes, '/GetNodes')
 
 
 
-
-
-
 class SetClusterInfo(Resource):
     def get(self):
         # ToDo: Return information on how to use the submission of training job for kubenete cluster

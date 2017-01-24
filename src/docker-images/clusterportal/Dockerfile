@@ -51,6 +51,10 @@ RUN pip install setuptools;
 
 RUN pip install pyodbc
 
+RUN pip install flask
+
+RUN pip install flask.restful
+
 RUN locale-gen en_US.UTF-8
 
 RUN update-locale LANG=en_US.UTF-8
