@@ -35,15 +35,6 @@ def buildAllDockers(rootdir):
 		if os.path.isdir(entry):
 			buildDocker(entry)
 
-def printUsage():
-	print "Usage: python build.py"
-	print "  Build all docker images. "
-	print ""
-
-	print "Prerequest:"
-	print "  * Docker engine and python is installed. "
-	print ""
-
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description = "Build all dockers of DL Workspace")
 	parser.add_argument("-p", "--prefix", 

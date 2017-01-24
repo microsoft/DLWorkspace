@@ -10,6 +10,7 @@ The document in this section describes the procedure to deploy a DL workspace cl
   
 The 'deploy' folder contains important information to access the deployed DL workspace cluster (e.g., clusterID, access SSH key). Please do not remove the folder if you need to adminstrate your deployed cluster. 
 
+0. [Run Once] The installation program needs certain utilities (such as docker and python), please run install_prerequisites.sh once to install these utility.  
 1. [Create Configuration file](Configuration.md), and determine important information of the cluster (e.g., cluster name, number of Etcd servers used).
 
 2. [Build deployment images] (Build.md): ISO (for USB deployment) and docker image (for PXE deployment).
@@ -17,10 +18,11 @@ The 'deploy' folder contains important information to access the deployed DL wor
   python deploy.py -y build 
   ```
 
-3. Deploy base CoreOS image via USB or PXE server. 
+3. Deploy base CoreOS image via USB, PXE server, or Azure. 
   1. If you would like to deploy a small cluster for testing, or your cluster doesn't have a VLan setup, we recommend the deployment procedure in [USB.md](USB.md). 
 
   2. If you would like to deply a production procedure, we recommend to set up a VLan for your cluster, and use a PXE server. The precedure are described in [PXEServer.md](PXEServer.md). 
+  3. If you would like to deploy a cluster on Azure, please follow the procedure in [Azure.md](Azure.md)
 
 4. Start master and etcd servers. 
 
