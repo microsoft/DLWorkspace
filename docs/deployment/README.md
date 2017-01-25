@@ -24,13 +24,13 @@ The 'deploy' folder contains important information to access the deployed DL wor
   2. If you would like to deply a production procedure, we recommend to set up a VLan for your cluster, and use a PXE server. The precedure are described in [PXEServer.md](PXEServer.md). 
   3. If you would like to deploy a cluster on Azure, please follow the procedure in [Azure.md](Azure.md)
 
-4. Start master and etcd servers. 
+4. Start master and etcd servers. Please use '-public' option if you run command inside firewall, while the cluster is public (e.g., Azure, AWS).
 
   ```
   python deploy.py -y deploy
   ```
   
-5. Start worker nodes.
+5. Start worker nodes. Please use '-public' option if you run command inside firewall, while the cluster is public (e.g., Azure, AWS).
 
   ```
   python deploy.py -y updateworker
@@ -41,3 +41,5 @@ The 'deploy' folder contains important information to access the deployed DL wor
   Otherwise, each time master and Etcd server has been rebooted (the master and Etcd servers may obtain a new IP addresses), you will need to restart master, etcd and work nodes by repeating steps of 4 and 5. 
 
 7. Certain advanced topics, e.g., access to each deployed DL workspace node, use kubelet command, can be found at [Advanced.md](Advanced.md).
+
+8. If encounter problems, please check on [known issues](KnownIssues.md).

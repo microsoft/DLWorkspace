@@ -15,6 +15,11 @@ from shutil import copyfile,copytree
 import urllib
 
 defanswer = ""
+ipAddrMetaname = "hostIP"
+clusterportal = "http://dlws-clusterportal.westus.cloudapp.azure.com:5000"
+
+def formClusterPortalURL(role, clusterID):
+	return clusterportal+"/GetNodes?role="+role+"&clusterId="+clusterID
 
 def firstChar(s):
 	return (s.strip())[0].lower()
@@ -240,36 +245,36 @@ def Init_Deployment():
 
 
 def GetMasterNodes(clusterId):
-	output = urllib.urlopen("http://dlws-clusterportal.westus.cloudapp.azure.com:5000/GetNodes?role=master&clusterId=%s" % clusterId ).read()
+	output = urllib.urlopen(formClusterPortalURL("master",clusterId)).read()
 	output = json.loads(json.loads(output))
 	Nodes = []
 	NodesInfo = [node for node in output["nodes"] if "time" in node]
 	for node in NodesInfo:
 		if not node["hostIP"] in Nodes:
-			Nodes.append(node["hostIP"])	
+			Nodes.append(node[ipAddrMetaname])	
 	config["kubernetes_master_node"] = Nodes
 	return Nodes
 
 def GetETCDNodes(clusterId):
-	output = urllib.urlopen("http://dlws-clusterportal.westus.cloudapp.azure.com:5000/GetNodes?role=etcd&clusterId=%s" % clusterId ).read()
+	output = urllib.urlopen(formClusterPortalURL("etcd", clusterId)).read()
 	output = json.loads(json.loads(output))
 	Nodes = []
 	NodesInfo = [node for node in output["nodes"] if "time" in node]
 	for node in NodesInfo:
 		if not node["hostIP"] in Nodes:
-			Nodes.append(node["hostIP"])	
+			Nodes.append(node[ipAddrMetaname])	
 	config["etcd_node"] = Nodes
 	return Nodes
 
 
 def GetWorkerNodes(clusterId):
-	output = urllib.urlopen("http://dlws-clusterportal.westus.cloudapp.azure.com:5000/GetNodes?role=worker&clusterId=%s" % clusterId ).read()
+	output = urllib.urlopen(formClusterPortalURL("worker", clusterId)).read()
 	output = json.loads(json.loads(output))
 	Nodes = []
 	NodesInfo = [node for node in output["nodes"] if "time" in node]
 	for node in NodesInfo:
 		if not node["hostIP"] in Nodes:
-			Nodes.append(node["hostIP"])	
+			Nodes.append(node[ipAddrMetaname])	
 	config["worker_node"] = Nodes
 	return Nodes	
 
@@ -813,6 +818,7 @@ def printUsage():
 	print ""
 	print "Options:"
 	print "    -y        Answer yes automatically for all prompt "
+	print "    -public   Use public IP address to deploy/connect [e.g., Azure, AWS]"
 	
 	print "Commands:"
 	print "    build     Build USB iso/pxe-server used by deployment"
@@ -840,6 +846,11 @@ if __name__ == '__main__':
 	if "-y" in sys.argv:
 		defanswer = "yes"
 		sys.argv.remove("-y")
+		
+	if "-public" in sys.argv:
+		ipAddrMetaname = "clientIP"
+		sys.argv.remove("-public")
+		
 	if len(sys.argv) >= 2:
 		if sys.argv[1] =="clean":
 			Clean_Deployment()

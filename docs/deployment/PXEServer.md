@@ -22,7 +22,7 @@ This document describes the procedure to deploy DL workspace cluster via PXE ser
 6. Edit the Tftp configuration file to control which image to be deployed. 
 
   ```
-  vi /tftp/pxelinux.cfg/default
+  vi /var/lib/tftpboot/pxelinux.cfg/default
   ```
   
   You may want to modify the following parameters:
@@ -40,3 +40,5 @@ This document describes the procedure to deploy DL workspace cluster via PXE ser
 
   Once PXE server has been started, any node that are booted on the same VLAN of the PXE server will have its system drive wiped out, and deployed for a Kubernetes master, etcd server, or worker node. Thus, please proceed with caution. 
   
+8. Some known issues:
+   1. If a machine has multiple network interface, and uses one network interface to reach PXE server, and another to reach internet, it is **__sometime__** necessary to disconnect the network to the PXE server at the end of the installation to correctly routed internet access. 

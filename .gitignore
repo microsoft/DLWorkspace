@@ -11,6 +11,7 @@
 
 *.iso
 *.srl
+*.swp
 
 src/ClusterBootstrap/ssl/ca/ca.srl
 
