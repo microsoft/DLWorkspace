@@ -13,10 +13,14 @@ import base64
 
 from shutil import copyfile,copytree
 import urllib
+import socket;
+
 
 defanswer = ""
 ipAddrMetaname = "hostIP"
 clusterportal = "http://dlws-clusterportal.westus.cloudapp.azure.com:5000"
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 def formClusterPortalURL(role, clusterID):
 	return clusterportal+"/GetNodes?role="+role+"&clusterId="+clusterID
@@ -244,13 +248,19 @@ def Init_Deployment():
 	f.close()	
 
 
+def CheckNodeAvailability(ipAddress):
+	status = os.system("ssh -i deploy/sshkey/id_rsa -oBatchMode=yes core@%s hostname" % ipAddress)
+	#status = sock.connect_ex((ipAddress,22))
+	return status == 0
+
+
 def GetMasterNodes(clusterId):
 	output = urllib.urlopen(formClusterPortalURL("master",clusterId)).read()
 	output = json.loads(json.loads(output))
 	Nodes = []
 	NodesInfo = [node for node in output["nodes"] if "time" in node]
 	for node in NodesInfo:
-		if not node["hostIP"] in Nodes:
+		if not node["hostIP"] in Nodes and CheckNodeAvailability(node["hostIP"]):
 			Nodes.append(node[ipAddrMetaname])	
 	config["kubernetes_master_node"] = Nodes
 	return Nodes
@@ -261,7 +271,7 @@ def GetETCDNodes(clusterId):
 	Nodes = []
 	NodesInfo = [node for node in output["nodes"] if "time" in node]
 	for node in NodesInfo:
-		if not node["hostIP"] in Nodes:
+		if not node["hostIP"] in Nodes and CheckNodeAvailability(node["hostIP"]):
 			Nodes.append(node[ipAddrMetaname])	
 	config["etcd_node"] = Nodes
 	return Nodes
@@ -273,7 +283,7 @@ def GetWorkerNodes(clusterId):
 	Nodes = []
 	NodesInfo = [node for node in output["nodes"] if "time" in node]
 	for node in NodesInfo:
-		if not node["hostIP"] in Nodes:
+		if not node["hostIP"] in Nodes and CheckNodeAvailability(node["hostIP"]):
 			Nodes.append(node[ipAddrMetaname])	
 	config["worker_node"] = Nodes
 	return Nodes	
@@ -281,10 +291,13 @@ def GetWorkerNodes(clusterId):
 def Check_Master_ETCD_Status():
 	masterNodes = []
 	etcdNodes = []
+	print "==============================================="
+	print "Checking Available Nodes for Deployment..."
 	if "clusterId" in config:
 		masterNodes = GetMasterNodes(config["clusterId"])
 		etcdNodes = GetETCDNodes(config["clusterId"])
 		workerNodes = GetWorkerNodes(config["clusterId"])
+	print "==============================================="
 	print "Activate Master Node(s): %s\n %s \n" % (len(masterNodes),",".join(masterNodes))
 	print "Activate ETCD Node(s):%s\n %s \n" % (len(etcdNodes),",".join(etcdNodes))
 	print "Activate Worker Node(s):%s\n %s \n" % (len(workerNodes),",".join(workerNodes))
@@ -464,6 +477,16 @@ def Clean_Master():
 		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo rm -r /etc/flannel")
 
 def Deploy_Master():
+
+	print "==============================================="
+	print "Prepare to deploy kubernetes master"
+	print "waiting for ETCD service is ready..."
+	etcd_servers = config["etcd_node"]
+	cmd = "curl --cacert %s --cert %s --key %s 'https://%s:2379/v2/keys'" % ("./ssl/etcd/ca.pem","./ssl/etcd/etcd.pem","./ssl/etcd/etcd-key.pem", etcd_servers[0])
+	while os.system(cmd) != 0:
+		time.sleep(5)
+	print "ETCD service is ready to use..."
+
 	kubernetes_masters = config["kubernetes_master_node"]
 	kubernetes_master_user = "core"
 
@@ -476,7 +499,6 @@ def Deploy_Master():
 	for kubernetes_master in kubernetes_masters:
 		print "==============================================="
 		print "starting kubernetes master on %s..." % kubernetes_master
-
 
 		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mkdir -p /etc/kubernetes")
 		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mkdir -p /etc/systemd/system/flanneld.service.d")
