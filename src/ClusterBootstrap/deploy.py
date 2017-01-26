@@ -477,6 +477,16 @@ def Clean_Master():
 		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo rm -r /etc/flannel")
 
 def Deploy_Master():
+
+	print "==============================================="
+	print "Prepare to deploy kubernetes master"
+	print "waiting for ETCD service is ready..."
+	etcd_servers = config["etcd_node"]
+	cmd = "curl --cacert %s --cert %s --key %s 'https://%s:2379/v2/keys'" % ("./ssl/etcd/ca.pem","./ssl/etcd/etcd.pem","./ssl/etcd/etcd-key.pem", etcd_servers[0])
+	while os.system(cmd) != 0:
+		time.sleep(5)
+	print "ETCD service is ready to use..."
+
 	kubernetes_masters = config["kubernetes_master_node"]
 	kubernetes_master_user = "core"
 
@@ -489,7 +499,6 @@ def Deploy_Master():
 	for kubernetes_master in kubernetes_masters:
 		print "==============================================="
 		print "starting kubernetes master on %s..." % kubernetes_master
-
 
 		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mkdir -p /etc/kubernetes")
 		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mkdir -p /etc/systemd/system/flanneld.service.d")
