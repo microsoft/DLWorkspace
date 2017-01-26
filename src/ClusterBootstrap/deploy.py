@@ -283,7 +283,7 @@ def GetWorkerNodes(clusterId):
 	Nodes = []
 	NodesInfo = [node for node in output["nodes"] if "time" in node]
 	for node in NodesInfo:
-		if not node["hostIP"] in Nodes and CheckNodeAvailability(node["hostIP"]):
+		if not node["hostIP"] in Nodes:
 			Nodes.append(node[ipAddrMetaname])	
 	config["worker_node"] = Nodes
 	return Nodes	
