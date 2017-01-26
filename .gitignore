@@ -14,6 +14,7 @@
 *.swp
 
 src/ClusterBootstrap/ssl/ca/ca.srl
+**/run.sh.generated
 
 # Generate file
 src/docker-image/Readme.md
