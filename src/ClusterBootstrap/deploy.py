@@ -446,7 +446,7 @@ def Clean_Master():
 		print "Clean up kubernetes master %s... (It is OK to see 'Errors' in this section)" % kubernetes_master
 
 
-		exec_cmd_list = ["sudo systemctl stop kubelet", "docker rm -f \$(docker ps -q -a)", "sudo systemctl stop flanneld","sudo systemctl stop docker"]
+		exec_cmd_list = ["sudo systemctl stop kubelet", "timeout 10 docker rm -f \$(timeout 3 docker ps -q -a)", "sudo systemctl stop flanneld","sudo systemctl stop docker"]
 
 		for exec_cmd in exec_cmd_list:
 			SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, exec_cmd)
@@ -560,7 +560,7 @@ def Clean_ETCD():
 	for etcd_server_address in etcd_servers:
 		print "==============================================="
 		print "Clean up etcd servers %s... (It is OK to see 'Errors' in this section)" % etcd_server_address		
-		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "docker rm -f \$(docker ps -q -a)")
+		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "timeout 10 docker rm -f \$(timeout 3 docker ps -q -a)")
 		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo rm -r /var/etcd/data")
 		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo rm -r /etc/kubernetes")
 
@@ -910,7 +910,7 @@ if __name__ == '__main__':
 			print "Ready to deploy kubernetes master on %s, etcd cluster on %s.  " % (",".join(config["kubernetes_master_node"]), ",".join(config["etcd_node"]))
 			Gen_Configs()
 			response = raw_input_with_default("Deploy ETCD Nodes (y/n)?")
-			if response.strip() == "y":
+			if firstChar(response) == "y":
 				Gen_ETCD_Certificates()
 				Deploy_ETCD()			
 			response = raw_input_with_default("Deploy Master Nodes (y/n)?")
