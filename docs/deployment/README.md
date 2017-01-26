@@ -10,7 +10,7 @@ The document in this section describes the procedure to deploy a DL workspace cl
   
 The 'deploy' folder contains important information to access the deployed DL workspace cluster (e.g., clusterID, access SSH key). Please do not remove the folder if you need to adminstrate your deployed cluster. 
 
-0. [Run Once] The installation program needs certain utilities (such as docker and python), please run install_prerequisites.sh once to install these utility.  
+0. [Run Once] The installation program needs certain utilities (such as docker and python). The simplest setup is to use the [development docker](../../DevDocker.md) and run the subsequent command in the development docker. Alternatively, you may choose to run install_prerequisites.sh once to install  utilities.  
 1. [Create Configuration file](Configuration.md), and determine important information of the cluster (e.g., cluster name, number of Etcd servers used).
 
 2. [Build deployment images] (Build.md): ISO (for USB deployment) and docker image (for PXE deployment).
