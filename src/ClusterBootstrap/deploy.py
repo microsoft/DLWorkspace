@@ -249,7 +249,7 @@ def Init_Deployment():
 
 
 def CheckNodeAvailability(ipAddress):
-	status = os.system("ssh -i deploy/sshkey/id_rsa -oBatchMode=yes core@%s hostname" % ipAddress)
+	status = os.system('ssh -o "StrictHostKeyChecking no" -i deploy/sshkey/id_rsa -oBatchMode=yes core@%s hostname' % ipAddress)
 	#status = sock.connect_ex((ipAddress,22))
 	return status == 0
 
@@ -571,6 +571,7 @@ def Deploy_Master():
 			SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, exec_cmd)
 
 	SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_masters[0], "/opt/bin/kubectl create -f /opt/addons/kube-addons/")
+	SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "/opt/bin/kubectl uncordon \$HOSTNAME")
 
 	
 
