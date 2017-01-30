@@ -8,7 +8,7 @@ class DataHandler:
 		self.server = 'tcp:o0ij712tvp.database.windows.net'
 		self.database = 'DLWorkspaceDB'
 		self.username = 'irchallenge'
-		self.password = 'M$ft2016'
+		self.password = ''
 		# self.driver = '/usr/lib/x86_64-linux-gnu/libodbc.so'
 		self.driver = '{ODBC Driver 13 for SQL Server}'
 		self.connstr = 'DRIVER='+self.driver+';PORT=1433;SERVER='+self.server+';PORT=1433;DATABASE='+self.database+';UID='+self.username+';PWD='+self.password
