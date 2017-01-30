@@ -6,6 +6,7 @@ import argparse
 import uuid
 import subprocess
 import sys
+import textwrap
 
 import yaml
 from jinja2 import Environment, FileSystemLoader, Template
@@ -19,6 +20,8 @@ import socket;
 defanswer = ""
 ipAddrMetaname = "hostIP"
 clusterportal = "http://dlws-clusterportal.westus.cloudapp.azure.com:5000"
+# default search for all partitions of hdb, hdc, hdd, and sdb, sdc, sdd
+defPartition = "/dev/[sh]d[^a]*"
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -249,7 +252,7 @@ def Init_Deployment():
 
 
 def CheckNodeAvailability(ipAddress):
-	status = os.system("ssh -i deploy/sshkey/id_rsa -oBatchMode=yes core@%s hostname" % ipAddress)
+	status = os.system('ssh -o "StrictHostKeyChecking no" -i deploy/sshkey/id_rsa -oBatchMode=yes core@%s hostname' % ipAddress)
 	#status = sock.connect_ex((ipAddress,22))
 	return status == 0
 
@@ -260,7 +263,7 @@ def GetMasterNodes(clusterId):
 	Nodes = []
 	NodesInfo = [node for node in output["nodes"] if "time" in node]
 	for node in NodesInfo:
-		if not node["hostIP"] in Nodes and CheckNodeAvailability(node["hostIP"]):
+		if not node[ipAddrMetaname] in Nodes and CheckNodeAvailability(node[ipAddrMetaname]):
 			Nodes.append(node[ipAddrMetaname])	
 	config["kubernetes_master_node"] = Nodes
 	return Nodes
@@ -271,7 +274,7 @@ def GetETCDNodes(clusterId):
 	Nodes = []
 	NodesInfo = [node for node in output["nodes"] if "time" in node]
 	for node in NodesInfo:
-		if not node["hostIP"] in Nodes and CheckNodeAvailability(node["hostIP"]):
+		if not node[ipAddrMetaname] in Nodes and CheckNodeAvailability(node[ipAddrMetaname]):
 			Nodes.append(node[ipAddrMetaname])	
 	config["etcd_node"] = Nodes
 	return Nodes
@@ -283,10 +286,26 @@ def GetWorkerNodes(clusterId):
 	Nodes = []
 	NodesInfo = [node for node in output["nodes"] if "time" in node]
 	for node in NodesInfo:
-		if not node["hostIP"] in Nodes:
+		if not node[ipAddrMetaname] in Nodes and CheckNodeAvailability(node[ipAddrMetaname]):
 			Nodes.append(node[ipAddrMetaname])	
 	config["worker_node"] = Nodes
-	return Nodes	
+	return Nodes
+	
+def GetNodes(clusterId):
+	output1 = urllib.urlopen(formClusterPortalURL("worker", clusterId)).read()
+	output = json.loads(json.loads(output))
+	output2 = urllib.urlopen(formClusterPortalURL("master", clusterId)).read()
+	output.update( json.loads(json.loads(output)) )
+	output3 = urllib.urlopen(formClusterPortalURL("etcd", clusterId)).read()
+	output.update( json.loads(json.loads(output)) )
+	Nodes = []
+	NodesInfo = [node for node in output["nodes"] if "time" in node]
+	for node in NodesInfo:
+		if not node[ipAddrMetaname] in Nodes and CheckNodeAvailability(node[ipAddrMetaname]):
+			Nodes.append(node[ipAddrMetaname])	
+	config["nodes"] = Nodes
+	return Nodes
+
 
 def Check_Master_ETCD_Status():
 	masterNodes = []
@@ -571,6 +590,7 @@ def Deploy_Master():
 			SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, exec_cmd)
 
 	SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_masters[0], "/opt/bin/kubectl create -f /opt/addons/kube-addons/")
+	SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "/opt/bin/kubectl uncordon \$HOSTNAME")
 
 	
 
@@ -841,13 +861,14 @@ def printUsage():
 	print "Options:"
 	print "    -y        Answer yes automatically for all prompt "
 	print "    -public   Use public IP address to deploy/connect [e.g., Azure, AWS]"
+	print "    -partition Regular expression to operate on partitions, default = " + defPartition
 	
 	print "Commands:"
 	print "    build     Build USB iso/pxe-server used by deployment"
 	print "    deploy    Deploy DL workspace cluster"
 	print "    clean     Clean away a failed deployment. "
-	print "    connect [master|etcd|worker] num: Connect to either master, etcd or worker node (with an index number) "
-
+	print "    connect   [master|etcd|worker] num: Connect to either master, etcd or worker node (with an index number)"
+	print "    repartition Repartition disks of the remote cluster"
 
 if __name__ == '__main__':
 	config_file = os.path.join(os.path.dirname(os.path.realpath(__file__)),"config.yaml")
@@ -865,49 +886,62 @@ if __name__ == '__main__':
 		f.close()
 		if "clusterId" in tmp:
 			config["clusterId"] = tmp["clusterId"]
-	if "-y" in sys.argv:
-		defanswer = "yes"
-		sys.argv.remove("-y")
-		
-	if "-public" in sys.argv:
-		ipAddrMetaname = "clientIP"
-		sys.argv.remove("-public")
-		
-	if len(sys.argv) >= 2:
-		if sys.argv[1] =="clean":
-			Clean_Deployment()
-			exit()
-		elif sys.argv[1] == "build":
-			command = "build"
-		elif sys.argv[1] == "deploy":
-			command = "deploy"
-		elif sys.argv[1] == "updateworker":
-			command = "updateworker"
-		elif sys.argv[1] == "updatereport":
-			command = "updatereport"
-		elif sys.argv[1] == "cleanworker":
-			command = "cleanworker"
-		elif sys.argv[1] == "cleanmasteretcd":
-			command = "cleanmasteretcd"			
-		elif sys.argv[1] == "display":
-			command = "display"		
-		elif sys.argv[1] == "webui":
-			command = "webui"	
+	parser = argparse.ArgumentParser( prog='deploy.py',
+		formatter_class=argparse.RawDescriptionHelpFormatter,
+		description=textwrap.dedent('''\
+Build, deploy and administer a DL workspace cluster.
 
-			
-		elif sys.argv[1] == "connect":
-			if len(sys.argv) <= 2 or sys.argv[2] == "master":
+Prerequest:
+* Create config.yaml according to instruction in docs/deployment/Configuration.md.
+* Metadata of deployed cluster is stored at deploy.
+
+Command:
+  build     Build USB iso/pxe-server used by deployment.
+  deploy    Deploy DL workspace cluster.
+  clean     Clean away a failed deployment.
+  connect   [master|etcd|worker] num: Connect to either master, etcd or worker node (with an index number).
+  repartition Repartition disks of the remote cluster
+  ''') )
+	parser.add_argument("-y", "--yes", 
+		help="Answer yes automatically for all prompt", 
+		action="store_true" )
+	parser.add_argument("-p", "--public", 
+		help="Use public IP address to deploy/connect [e.g., Azure, AWS]", 
+		action="store_true")
+	parser.add_argument("command", 
+		help = "See above for the list of valid command" )
+	parser.add_argument('nargs', nargs=argparse.REMAINDER, 
+		help="Additional command argument", 
+		)
+	args = parser.parse_args()
+	print args
+	if args.yes:
+		print "Use yes for default answer"
+		defanswer = "yes"
+		
+	if args.public:
+		ipAddrMetaname = "clientIP"
+		
+	command = args.command
+	nargs = args.nargs
+
+	if command =="clean":
+		Clean_Deployment()
+		exit()
+
+	elif command == "connect":
+			if len(nargs) < 1 or nargs[0] == "master":
 				nodes = GetMasterNodes(config["clusterId"])
-			elif sys.argv[2] == "etcd":
+			elif nargs[0] == "etcd":
 				nodes = GetETCDNodes(config["clusterId"])
-			elif sys.argv[2] == "worker":
+			elif nargs[0] == "worker":
 				nodes = GetWorkerNodes(config["clusterId"])
 			else:
-				printUsage()
+				parser.print_help()
 				print "ERROR: must connect to either master, etcd or worker nodes"
 				exit()
 			if len(nodes) == 0:
-				printUsage()
+				parser.print_help()
 				print "ERROR: cannot find any node of the type to connect to"
 				exit()
 			num = 0
@@ -918,11 +952,8 @@ if __name__ == '__main__':
 			nodename = nodes[num]
 			SSH_connect( "./deploy/sshkey/id_rsa", "core", nodename)
 			exit()
-		else:
-			printUsage()
-			exit()
 
-	if command == "deploy" and "clusterId" in config:
+	elif command == "deploy" and "clusterId" in config:
 		print "Detected previous cluster deployment, cluster ID: %s. \n To clean up the previous deployment, run 'python deploy.py clean' \n" % config["clusterId"]
 		print "The current deployment has:\n"
 		
@@ -973,20 +1004,21 @@ if __name__ == '__main__':
 
 	elif command == "cleanworker":
 		response = raw_input("Clean and Stop Worker Nodes (y/n)?")
-		if response.strip() == "y":
+		if firstChar( response ) == "y":
 			Check_Master_ETCD_Status()
 			Gen_Configs()			
 			CleanWorkerNodes()
+			
+	elif command == "repartition":
+		response = raw_input("This operation will repartition  (y/n)?")
 
 	elif command == "cleanmasteretcd":
 		response = raw_input("Clean and Stop Master/ETCD Nodes (y/n)?")
-		if response.strip() == "y":
+		if firstChar( response ) == "y":
 			Check_Master_ETCD_Status()
 			Gen_Configs()			
 			Clean_Master()
 			Clean_ETCD()
-
-
 
 	elif command == "updatereport":
 		response = raw_input_with_default("Deploy IP Reporting Service on Master and ETCD nodes (y/n)?")
@@ -1005,4 +1037,4 @@ if __name__ == '__main__':
 
 
 	else:
-		printUsage()
+		parser.print_help()

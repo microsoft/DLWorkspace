@@ -5,35 +5,20 @@ import argparse
 import uuid
 import subprocess
 import sys
+sys.path.append("../utils")
+from DockerUtils import buildDocker, runDocker
 
 # prefix and tag will be filled by argument parser.
 dockerprefix = ""
 dockertag = ""
-
-class cd:
-    """Context manager for changing the current working directory"""
-    def __init__(self, newPath):
-        self.newPath = os.path.expanduser(newPath)
-
-    def __enter__(self):
-        self.savedPath = os.getcwd()
-        os.chdir(self.newPath)
-
-    def __exit__(self, etype, value, traceback):
-        os.chdir(self.savedPath)
-
-def buildDocker(dirname):
-	dockername = dockerprefix+os.path.basename(dirname)+":"+dockertag
-	print "Building docker ... " + dockername + " @" + dirname
-	with cd(dirname):
-		os.system("docker build -t "+ dockername + " .")
 
 def buildAllDockers(rootdir):
 	fnames = os.listdir(rootdir)
 	for fname in fnames:
 		entry = os.path.join(rootdir, fname )
 		if os.path.isdir(entry):
-			buildDocker(entry)
+			dockername = dockerprefix + os.path.basename(entry)+":"+dockertag
+			buildDocker(dockername, entry)
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description = "Build all dockers of DL Workspace")
