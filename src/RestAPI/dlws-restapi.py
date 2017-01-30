@@ -4,7 +4,7 @@ import os
 
 from flask import Flask
 from flask_restful import reqparse, abort, Api, Resource
-from flask import request
+from flask import request, jsonify
 
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
@@ -17,6 +17,83 @@ api = Api(app)
 
 
 parser = reqparse.RequestParser()
+
+
+class SubmitJob(Resource):
+    def get(self):
+        parser.add_argument('jobname')
+        parser.add_argument('resourcegpu')
+        parser.add_argument('workpath')
+        parser.add_argument('datapath')
+        parser.add_argument('jobpath')
+        parser.add_argument('image')
+        parser.add_argument('cmd')
+        parser.add_argument('logdir')
+        parser.add_argument('interactiveport')
+        parser.add_argument('username')
+        
+
+        args = parser.parse_args()
+
+        params = {}
+        ret = {}
+
+        for key, value in args.iteritems():
+            if value is not None:
+                params[key] = value
+
+        if args["jobname"] is None or len(args["jobname"].strip()) == 0:
+            ret["error"] = "job name cannot be empty"
+        elif args["resourcegpu"] is None or len(args["resourcegpu"].strip()) == 0:
+            ret["error"] = "Number of GPU cannot be empty"
+        elif args["workpath"] is None or len(args["workpath"].strip()) == 0:
+            ret["error"] = "workpath cannot be empty"            
+        elif args["datapath"] is None or len(args["datapath"].strip()) == 0:
+            ret["error"] = "datapath cannot be empty"            
+        elif args["image"] is None or len(args["image"].strip()) == 0:
+            ret["error"] = "docker image cannot be empty"            
+        else:
+            params["job-name"] = args["jobname"]
+            params["work-path"] = args["workpath"]
+            params["data-path"] = args["datapath"]
+            params["data-path"] = args["datapath"]
+            params["image"] = args["image"]
+            params["cmd"] = args["cmd"]
+
+
+            if args["jobpath"] is not None and len(args["jobpath"].strip()) > 0:
+                params["job-path"] = args["jobpath"]
+
+            if args["logdir"] is not None and len(args["logdir"].strip()) > 0:
+                params["logdir"] = args["logdir"]
+
+            if args["interactiveport"] is not None and len(args["interactiveport"].strip()) > 0:
+                params["interactive-port"] = args["jobpath"]
+
+            if args["username"] is not None and len(args["username"].strip()) > 0:
+                params["username-port"] = args["username"]
+            else:
+                params["username-port"] = "default"
+
+
+            output = SubmitRegularJob(json.dumps(params))
+            
+            if "id" in output:
+                ret["jobId"] = output["id"]
+            else:
+                ret["error"] = "Cannot create job!"
+
+
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"        
+        return resp
+
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(SubmitJob, '/SubmitJob')
+
 
 
 class KubeJob(Resource):
@@ -73,17 +150,60 @@ class KubeDistJob(Resource):
 api.add_resource(KubeDistJob, '/KubeDistJob')
 
 
+@app.route("/ListJob")
+def ListJob():
+    resp = Response("")
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    return resp
+
+
 # shows a list of all todos, and lets you POST to add new tasks
 class ListJobs(Resource):
     def get(self):
-        return {}, 201
+        jobs = GetJobList()
+        jobList = []
+        queuedJobs = []
+        runningJobs = []
+        finishedJobs = []
+        interactiveJobs = []
+        visualizationJobs = []
+        for job in jobs:
+            #svcs = GetServiceAddress(job["job_id"])
+            #job["services_ip"] = []
+            #if len(svcs)>0:
+            #    for (port,hostIP,nodeport) in svcs:
+            #        job["services_ip"].append("http://"+hostIP+":"+nodeport)
+
+
+            #(port,hostIP,nodeport) = GetTensorboard(job["job_id"])
+            #if port is not None and hostIP is not None and nodeport is not None:
+            #    job["tensorboard"] = "http://"+hostIP+":"+nodeport
+
+
+            #status, status_detail = GetJobStatus(job["job_id"])
+            #job["status"] = status
+	    #job["status_detail"] = status_detail
+	    job.pop("job_meta",None)
+            runningJobs.append(job)
+        ret = {}
+        ret["queuedJobs"] = jobList
+        ret["runningJobs"] = runningJobs
+        ret["finishedJobs"] = finishedJobs
+        ret["interactiveJobs"] = interactiveJobs
+        ret["visualizationJobs"] = visualizationJobs
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+
+        return resp
 
     def post(self):
         jobs = GetJobList()
         jobList = []
         for job in jobs:
             jobobj = []
-            jobobj.append("<a href='jobdetail.html?jobId="+job["job_id"]+"' title='click for detail'>"+job["job_id"]+"</a>")
+            jobobj.append("<a href='http://onenet39/jobs/jobdetail.html?jobId="+job["job_id"]+"' title='click for detail'>"+job["job_id"]+"</a>")
             jobobj.append(job["job_name"])
             jobobj.append(job["user_id"])
 
@@ -105,14 +225,12 @@ class ListJobs(Resource):
             status, status_detail = GetJobStatus(job["job_id"])
             jobobj.append("<div title='"+status_detail+"'>"+status+"</div>")
             jobobj.append(str(job["time"]))
-            jobobj.append("<a href='delete_job.php?jobId="+job["job_id"]+"' > terminate job </a>")
-            jobobj.append("<a href='joblog.php?jobId="+job["job_id"]+"' target='_blank'> log </a>")
-
-
+            jobobj.append("<a href='http://onenet39/jobs/delete_job.php?jobId="+job["job_id"]+"' > terminate job </a>")
+            jobobj.append("<a href='http://onenet39/jobs/joblog.php?jobId="+job["job_id"]+"' target='_blank'> log </a>")
             jobList.append(jobobj)
         ret = {}
         ret["data"] = jobList
-        return json.dumps(ret)
+        return json.dumps(ret),200, {"Access-Control-Allow-Origin":"*"}
 
 ##
 ## Actually setup the Api resource routing here
