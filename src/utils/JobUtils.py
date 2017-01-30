@@ -57,7 +57,8 @@ def SubmitRegularJob(jobParamsJsonStr):
         #jobParams["id"] = jobParams["job-name"] + "-" + str(uuid.uuid4()) 
         # ToDo: Job ID is a combination of job-name and time.time(). Will that be enough to guarantee the job id to be unique?
         #     may be it will be helpful to add str(uuid.uuid4()) to the end of job ID?
-        jobParams["id"] = jobParams["job-name"] + "-" + str(time.time())
+        #jobParams["id"] = jobParams["job-name"] + "-" + str(time.time())
+        jobParams["id"] = str(uuid.uuid4()) 
     jobParams["id"] = jobParams["id"].replace("_","-").replace(".","-")
 
     if "cmd" not in jobParams:
@@ -71,7 +72,7 @@ def SubmitRegularJob(jobParamsJsonStr):
     jobParams["pvc_data"] = "storage-"+jobParams["id"]
   
 
-    if "job-path" in jobParams and len(jobParams["jobParams"].strip()) > 0: 
+    if "job-path" in jobParams and len(jobParams["job-path"].strip()) > 0: 
         jobPath = jobParams["job-path"]
     else:
         jobPath = time.strftime("%y%m%d")+"/"+jobParams["id"]
