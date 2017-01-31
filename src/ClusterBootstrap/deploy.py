@@ -7,6 +7,8 @@ import uuid
 import subprocess
 import sys
 import textwrap
+import re
+import math
 
 import yaml
 from jinja2 import Environment, FileSystemLoader, Template
@@ -17,13 +19,27 @@ import urllib
 import socket;
 
 
+capacityMatch = re.compile("\d+[M|G]B")
+digitsMatch = re.compile("\d+")
 defanswer = ""
 ipAddrMetaname = "hostIP"
 clusterportal = "http://dlws-clusterportal.westus.cloudapp.azure.com:5000"
 # default search for all partitions of hdb, hdc, hdd, and sdb, sdc, sdd
-defPartition = "/dev/[sh]d[^a]*"
+defPartition = "/dev/[sh]d[^a]"
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+def parse_capacity_in_GB( inp ):
+	mt = capacityMatch.search(inp)
+	if mt is None: 
+		return 0.0
+	else:
+		digits = digitsMatch.search(mt.group(0)).group(0)
+		val = int(digits)
+		if "GB" in mt.group(0):
+			return float(val)
+		else:
+			return float(val) / 1000.0
 
 def formClusterPortalURL(role, clusterID):
 	return clusterportal+"/GetNodes?role="+role+"&clusterId="+clusterID
@@ -46,23 +62,43 @@ def render(template_file, target_file):
 	with open(target_file, 'w') as f:
 		f.write(content)
 
-
+# Execute a remote SSH cmd with identity file (private SSH key), user, host
 def SSH_exec_cmd(identity_file, user,host,cmd):
 	print ("""ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" "%s" """ % (identity_file, user, host, cmd) ) 
 	os.system("""ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" "%s" """ % (identity_file, user, host, cmd) )
 
+# SSH Connect to a remote host with identity file (private SSH key), user, host
+# Program usually exit here. 
 def SSH_connect(identity_file, user,host):
 	print ("""ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" """ % (identity_file, user, host) ) 
 	os.system("""ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" """ % (identity_file, user, host) )
 
+# Copy a local file or directory (source) to remote (target) with identity file (private SSH key), user, host 
 def scp (identity_file, source, target, user, host):
 	os.system('scp -i %s -r "%s" "%s@%s:%s"' % (identity_file, source, user, host, target) )
 
+# Copy a local file (source) or directory to remote (target) with identity file (private SSH key), user, host, and  
 def sudo_scp (identity_file, source, target, user, host):
 	tmp = str(uuid.uuid4())
 	scp(identity_file, source,"~/%s" % tmp, user, host )
 	SSH_exec_cmd(identity_file, user, host, "sudo mv ~/%s %s" % (tmp, target))
 
+# Execute a remote SSH cmd with identity file (private SSH key), user, host
+# Return the output of the remote command to local
+def SSH_exec_cmd_with_output(identity_file, user,host,cmd, supressWarning = False):
+	tmpname = os.path.join("/tmp", str(uuid.uuid4()))
+	execcmd = cmd + " > " + tmpname
+	if supressWarning:
+		execcmd += " 2>/dev/null"
+	SSH_exec_cmd(identity_file, user, host, execcmd )
+	scpcmd = 'scp -i %s "%s@%s:%s" "%s"' % (identity_file, user, host, tmpname, tmpname)
+	# print scpcmd
+	os.system( scpcmd )
+	SSH_exec_cmd(identity_file, user, host, "rm " + tmpname )
+	with open(tmpname, "r") as outputfile:
+		output = outputfile.read()
+	os.remove(tmpname)
+	return output
 
 
 def Get_ETCD_DiscoveryURL(size):
@@ -252,7 +288,8 @@ def Init_Deployment():
 
 
 def CheckNodeAvailability(ipAddress):
-	status = os.system('ssh -o "StrictHostKeyChecking no" -i deploy/sshkey/id_rsa -oBatchMode=yes core@%s hostname' % ipAddress)
+	# print "Check node availability on: " + str(ipAddress)
+	status = os.system('ssh -o "StrictHostKeyChecking no" -i deploy/sshkey/id_rsa -oBatchMode=yes core@%s hostname > /dev/null' % ipAddress)
 	#status = sock.connect_ex((ipAddress,22))
 	return status == 0
 
@@ -293,13 +330,13 @@ def GetWorkerNodes(clusterId):
 	
 def GetNodes(clusterId):
 	output1 = urllib.urlopen(formClusterPortalURL("worker", clusterId)).read()
-	output = json.loads(json.loads(output))
-	output2 = urllib.urlopen(formClusterPortalURL("master", clusterId)).read()
-	output.update( json.loads(json.loads(output)) )
+	nodes = json.loads(json.loads(output1))["nodes"]
+	output2 = urllib.urlopen(formClusterPortalURL("master", clusterId)).read()	
+	nodes = nodes + ( json.loads(json.loads(output2))["nodes"] )
 	output3 = urllib.urlopen(formClusterPortalURL("etcd", clusterId)).read()
-	output.update( json.loads(json.loads(output)) )
+	nodes = nodes + ( json.loads(json.loads(output3))["nodes"] )
 	Nodes = []
-	NodesInfo = [node for node in output["nodes"] if "time" in node]
+	NodesInfo = [node for node in nodes if "time" in node]
 	for node in NodesInfo:
 		if not node[ipAddrMetaname] in Nodes and CheckNodeAvailability(node[ipAddrMetaname]):
 			Nodes.append(node[ipAddrMetaname])	
@@ -438,6 +475,18 @@ def Gen_Configs():
 	for (template_file,target_file) in renderfiles:
 		render(template_file,target_file)
 
+def Get_Config():
+	if "ssh_cert" not in config and os.path.isfile("./deploy/sshkey/id_rsa"):
+		config["ssh_cert"] = "./deploy/sshkey/id_rsa"
+		config["etcd_user"] = "core"
+		config["kubernetes_master_ssh_user"] = "core"
+
+	
+	f = open(config["ssh_cert"])
+	sshkey_public = f.read()
+	f.close()
+
+	config["sshkey"] = sshkey_public
 
 
 def Update_Reporting_service():
@@ -847,45 +896,153 @@ def DeployWebUI():
 	print "Job Submission at: http://%sjobs/" % masterIP
 	print "Job List at: http://%sjobs/joblist.html" % masterIP
 
-
-
-
-def printUsage():
-	print "Usage: python deploy.py COMMAND [Options] "
-	print "  Build and deploy a DL workspace cluster. "
-	print ""
-
-	print "Prerequest:"
-	print "  * Create config.yaml according to instruction in docs/deployment/Configuration.md"
-	print ""
-	print "Options:"
-	print "    -y        Answer yes automatically for all prompt "
-	print "    -public   Use public IP address to deploy/connect [e.g., Azure, AWS]"
-	print "    -partition Regular expression to operate on partitions, default = " + defPartition
+def getPartitionNode(node, prog):
+	output = SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "sudo parted -l -s", True)
+	# print output
+	drives = prog.search( output )
+	# print(drives.group())
+	drivesInfo = prog.split( output )
+	# print len(drivesInfo)
+	ndrives = len(drivesInfo)/2
+	partinfo = {}
+	blockdevice = 1
+	for i in range(ndrives):
+		deviceinfo = {}
+		drivename = drivesInfo[i*2+1]
+		driveString = drivesInfo[i*2+2]
+		#print drivename
+		#print driveString
+		if not (prog.match(drivename) is None):
+			# print driveString
+			capacity = parse_capacity_in_GB( driveString )
+			lines = driveString.splitlines()
+			
+			# Skip to "parted" print out where each partition information is shown 
+			n = 0
+			while n < len(lines):
+				segs = lines[n].split()
+				if len(segs) > 1 and segs[0]=="Number":
+					break;
+				n = n + 1
+			
+			n = n + 1
+			parted = {}
+			# parse partition information
+			while n < len(lines):
+				segs = lines[n].split()
+				if len(segs) >= 4 and segs[0].isdigit():
+					partnum = int(segs[0])
+					partcap = parse_capacity_in_GB(segs[3])
+					parted[partnum] = partcap
+				else:
+					break;
+				n += 1
+			
+			# print drivename + " Capacity: " + str(capacity) + " GB, " + str(parted)
+			deviceinfo["name"] = drivename
+			deviceinfo["capacity"] = capacity
+			deviceinfo["parted"] = parted
+			partinfo[blockdevice] = deviceinfo
+			blockdevice += 1
+	return partinfo 
 	
-	print "Commands:"
-	print "    build     Build USB iso/pxe-server used by deployment"
-	print "    deploy    Deploy DL workspace cluster"
-	print "    clean     Clean away a failed deployment. "
-	print "    connect   [master|etcd|worker] num: Connect to either master, etcd or worker node (with an index number)"
-	print "    repartition Repartition disks of the remote cluster"
+# Get Partition of all nodes in a cluster
+def getPartitions(nodes, regexp):
+	prog = re.compile("("+regexp+")")
+	nodesinfo = {}
+	for node in nodes:
+		partinfo = getPartitionNode( node, prog )
+		if not(partinfo is None):
+			nodesinfo[node] = partinfo
+	return nodesinfo
+
+# Print out the Partition information of all nodes in a cluster	
+def showPartitions(nodes, regexp):
+	nodesinfo = getPartitions(nodes, regexp)
+	for node in nodesinfo:
+		print "Node: " + node 
+		alldeviceinfo = nodesinfo[node]
+		for bdevice in alldeviceinfo:
+			deviceinfo = alldeviceinfo[bdevice] 
+			print deviceinfo["name"] + ", Capacity: " + str(deviceinfo["capacity"]) + "GB" + ", Partition: " + str(deviceinfo["parted"])
+	return nodesinfo
+	
+# Calculate out a partition configuration in GB as follows. 
+# partitionConfig is of s1,s2,..,sn:
+#    If s_i < 0, the partition is in absolute size (GB)
+#    If s_i > 0, the partition is in proportion.
+def calculatePartitions( capacity, partitionConfig):
+	npart = len(partitionConfig)
+	partitionSize = [0.0]*npart
+	sumProportion = 0.0
+	#print "Beginning Capacity " + str(capacity)
+	#print partitionSize
+	for i in range(npart):
+		if partitionConfig[i] < 0.0:
+			if capacity > 0.0:
+				partitionSize[i] = min( capacity, -partitionConfig[i])
+				capacity -= partitionSize[i]
+			else:
+				partitionSize[i] = 0.0
+		else:
+			sumProportion += partitionConfig[i]
+	#print "Ending Capacity " + str(capacity) 
+	#print partitionSize
+	for i in range(npart):
+		if partitionConfig[i] >= 0.0:
+			if sumProportion == 0.0:
+				partitionSize[i] = 0.0
+			else:
+				partitionSize[i] = capacity * partitionConfig[i] / sumProportion
+	return partitionSize
+	
+# Repartition of all nodes in a cluster
+def repartitionNodes(nodes, nodesinfo, partitionConfig):
+	for node in nodes:
+		cmd = ""
+		alldeviceinfo = nodesinfo[node]
+		for bdevice in alldeviceinfo:
+			deviceinfo = alldeviceinfo[bdevice] 
+			existingPartitions = deviceinfo["parted"]
+			if len( existingPartitions ) > 0:
+				# remove existing partitions
+				removedPartitions = []
+				for part in existingPartitions:
+					removedPartitions.append(part)
+				# print removedPartitions
+				removedPartitions.sort(reverse=True)
+				for part in removedPartitions:
+					cmd += "sudo parted -s " + deviceinfo["name"] + " rm " + str(part) + "; "
+			partitionSize = calculatePartitions( deviceinfo["capacity"], partitionConfig)
+			# print partitionSize
+			totalPartitionSize = sum( partitionSize )
+			start = 0
+			npart = len(partitionSize)
+			for i in range(npart):
+				partSize = partitionSize[i]
+				end = int( math.floor( start + (partSize/totalPartitionSize)*100.0 + 0.5 ))
+				if i == npart-1:
+					end = 100
+				if end > 100:
+					end = 100
+				cmd += "sudo parted -s --align optimal " + deviceinfo["name"] + " mkpart logical " + str(start) +"% " + str(end)+"% ; "
+				start = end
+		SSH_exec_cmd(config["ssh_cert"], "core", node, cmd)
+	()
+
+def execOnAll(nodes, args, supressWarning = False):
+	cmd = ""
+	for arg in args:
+		if cmd == "":
+			cmd += arg
+		else:
+			cmd += " " + arg
+	for node in nodes:
+		output = SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, cmd, supressWarning)
+		print "Node: " + node
+		print output
 
 if __name__ == '__main__':
-	config_file = os.path.join(os.path.dirname(os.path.realpath(__file__)),"config.yaml")
-	if not os.path.exists(config_file):
-		printUsage()
-		print "ERROR: config.yaml does not exist!"
-		exit()
-
-	f = open(config_file)
-	config = yaml.load(f)
-	f.close()
-	if os.path.exists("./deploy/clusterID.yml"):
-		f = open("./deploy/clusterID.yml")
-		tmp = yaml.load(f)
-		f.close()
-		if "clusterId" in tmp:
-			config["clusterId"] = tmp["clusterId"]
 	parser = argparse.ArgumentParser( prog='deploy.py',
 		formatter_class=argparse.RawDescriptionHelpFormatter,
 		description=textwrap.dedent('''\
@@ -900,7 +1057,14 @@ Command:
   deploy    Deploy DL workspace cluster.
   clean     Clean away a failed deployment.
   connect   [master|etcd|worker] num: Connect to either master, etcd or worker node (with an index number).
-  repartition Repartition disks of the remote cluster
+  partition [args] Manage data partitions. 
+            ls: show all existing partitions. 
+            create n: create n partitions of equal size.
+            create s1 s2 ... sn: create n partitions;
+              if s_i < 0, the partition is s_i GB, 
+              if s_i > 0, the partition is in portitional to s_i. 
+              We use parted mkpart percentage% to create partitions. As such, the minimum partition is 1% of a disk. 
+  doonall [cmd ... ] Execute the command on all nodes and print the output. 
   ''') )
 	parser.add_argument("-y", "--yes", 
 		help="Answer yes automatically for all prompt", 
@@ -908,13 +1072,37 @@ Command:
 	parser.add_argument("-p", "--public", 
 		help="Use public IP address to deploy/connect [e.g., Azure, AWS]", 
 		action="store_true")
+	parser.add_argument("--partition", 
+		help = "Regular expression to operate on partitions, default = " + defPartition, 
+		action="store",
+		default = defPartition )
+
 	parser.add_argument("command", 
 		help = "See above for the list of valid command" )
 	parser.add_argument('nargs', nargs=argparse.REMAINDER, 
 		help="Additional command argument", 
 		)
 	args = parser.parse_args()
-	print args
+	# If necessary, show parsed arguments. 
+	# print args
+	
+	config_file = os.path.join(os.path.dirname(os.path.realpath(__file__)),"config.yaml")
+	if not os.path.exists(config_file):
+		parser.print_help()
+		print "ERROR: config.yaml does not exist!"
+		exit()
+
+	f = open(config_file)
+	config = yaml.load(f)
+	f.close()
+	if os.path.exists("./deploy/clusterID.yml"):
+		f = open("./deploy/clusterID.yml")
+		tmp = yaml.load(f)
+		f.close()
+		if "clusterId" in tmp:
+			config["clusterId"] = tmp["clusterId"]
+	
+	
 	if args.yes:
 		print "Use yes for default answer"
 		defanswer = "yes"
@@ -945,8 +1133,8 @@ Command:
 				print "ERROR: cannot find any node of the type to connect to"
 				exit()
 			num = 0
-			if len(sys.argv) >= 4:
-				num = int(sys.argv[3])
+			if len(nargs) >= 2:
+				num = int(nargs[1])
 				if num < 0 or num >= len(nodes):
 					num = 0
 			nodename = nodes[num]
@@ -1008,9 +1196,34 @@ Command:
 			Check_Master_ETCD_Status()
 			Gen_Configs()			
 			CleanWorkerNodes()
+
+	elif command == "partition" and len(nargs) >= 1:
+		Get_Config()
+		nodes = GetNodes(config["clusterId"])
+		if nargs[0] == "ls":
+		# Display parititons.  
+			nodesinfo = showPartitions(nodes, args.partition )
 			
-	elif command == "repartition":
-		response = raw_input("This operation will repartition  (y/n)?")
+		elif nargs[0] == "create" and len(nargs) >= 2:
+			partsInfo = map(float, nargs[1:])
+			if len(partsInfo)==1 and partsInfo[0] < 30:
+				partsInfo = [100.0]*int(partsInfo[0])
+			nodesinfo = showPartitions(nodes, args.partition )
+			print ("This operation will DELETE all existing partitions and repartition all data drives on the %d nodes to %d partitions of %s" % (len(nodes), len(partsInfo), str(partsInfo)) )
+			response = raw_input ("Please type (REPARTITION) in ALL CAPITALS to confirm the operation ---> ")
+			if response == "REPARTITION":
+				repartitionNodes( nodes, nodesinfo, partsInfo)
+			else:
+				print "Repartition operation aborted...."
+		else:
+			parser.print_help()
+			exit()
+			# ToDo Add warning. 
+			
+	elif command == "doonall" and len(nargs)>=1:
+		Get_Config()
+		nodes = GetNodes(config["clusterId"])
+		execOnAll(nodes, nargs)
 
 	elif command == "cleanmasteretcd":
 		response = raw_input("Clean and Stop Master/ETCD Nodes (y/n)?")
