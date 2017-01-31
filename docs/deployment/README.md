@@ -11,6 +11,7 @@ The document in this section describes the procedure to deploy a DL workspace cl
 The 'deploy' folder contains important information to access the deployed DL workspace cluster (e.g., clusterID, access SSH key). Please do not remove the folder if you need to adminstrate your deployed cluster. 
 
 0. [Run Once] The installation program needs certain utilities (such as docker and python). The simplest setup is to use the [development docker](../../DevDocker.md) and run the subsequent command in the development docker. Alternatively, you may choose to run install_prerequisites.sh once to install  utilities.  
+
 1. [Create Configuration file](Configuration.md), and determine important information of the cluster (e.g., cluster name, number of Etcd servers used).
 
 2. [Build deployment images] (Build.md): ISO (for USB deployment) and docker image (for PXE deployment).
@@ -40,6 +41,8 @@ The 'deploy' folder contains important information to access the deployed DL wor
 
   Otherwise, each time master and Etcd server has been rebooted (the master and Etcd servers may obtain a new IP addresses), you will need to restart master, etcd and work nodes by repeating steps of 4 and 5. 
 
-7. Certain advanced topics, e.g., access to each deployed DL workspace node, use kubelet command, can be found at [Advanced.md](Advanced.md).
+7. [Optional] Repartition(Repartition.md) all data drives on the cluster. 
+
+8. Certain advanced topics, e.g., access to each deployed DL workspace node, use kubelet command, can be found at [Advanced.md](Advanced.md).
 
 8. If encounter problems, please check on [known issues](KnownIssues.md).
