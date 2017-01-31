@@ -1044,6 +1044,10 @@ def execOnAll(nodes, args, supressWarning = False):
 		print output
 
 if __name__ == '__main__':
+	# the program always run at the current directory. 
+	dirpath = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
+	# print "Directory: " + dirpath
+	os.chdir(dirpath)
 	parser = argparse.ArgumentParser( prog='deploy.py',
 		formatter_class=argparse.RawDescriptionHelpFormatter,
 		description=textwrap.dedent('''\
@@ -1087,7 +1091,8 @@ Command:
 	# If necessary, show parsed arguments. 
 	# print args
 	
-	config_file = os.path.join(os.path.dirname(os.path.realpath(__file__)),"config.yaml")
+	config_file = os.path.join(dirpath,"config.yaml")
+	print "Config file: " + config_file
 	if not os.path.exists(config_file):
 		parser.print_help()
 		print "ERROR: config.yaml does not exist!"
