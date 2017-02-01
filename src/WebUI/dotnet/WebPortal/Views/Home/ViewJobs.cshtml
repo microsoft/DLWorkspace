@@ -27,12 +27,12 @@
             //Append each row to html table
             for (var i = 0; i < json.runningJobs.length; i++) {
                 tr = $('<tr/>');
-                tr.append("<td>" + json.runningJobs[i].jobId + "</td>");
+                tr.append("<td> <a href='/Home/JobDetail/?jobId=" + json.runningJobs[i].jobId + "'>" + json.runningJobs[i].jobId + "</a></td>");
                 tr.append("<td>" + json.runningJobs[i].jobName + "</td>");
                 tr.append("<td>" + json.runningJobs[i].jobStatus + "</td>");
+                tr.append("<td>" + json.runningJobs[i].jobParams.resourcegpu + "</td>");
                 tr.append("<td>" + json.runningJobs[i].userName + "</td>");
                 tr.append("<td>" + json.runningJobs[i].jobTime.toString("YYYYMMDD") + "</td>");
-                tr.append("<td> <a href='/Home/JobDetail/?jobId=" + json.runningJobs[i].jobId + "'> log </a></td>");
                 tr.append("<td> <a href='#'  onclick=\"KillJob('" + json.runningJobs[i].jobId + "')\" > kill </a></td>");
                 $('#running-job-table').append(tr);
             }
@@ -47,12 +47,12 @@
                 //Append each row to html table
                 for (var i = 0; i < json.finishedJobs.length; i++) {
                     tr = $('<tr/>');
-                    tr.append("<td>" + json.finishedJobs[i].jobId + "</td>");
+                    tr.append("<td> <a href='/Home/JobDetail/?jobId=" + json.finishedJobs[i].jobId + "'>" + json.finishedJobs[i].jobId + "</a></td>");
                     tr.append("<td>" + json.finishedJobs[i].jobName + "</td>");
                     tr.append("<td>" + json.finishedJobs[i].jobStatus + "</td>");
+                    tr.append("<td>" + json.finishedJobs[i].jobParams.resourcegpu + "</td>");
                     tr.append("<td>" + json.finishedJobs[i].userName + "</td>");
                     tr.append("<td>" + json.finishedJobs[i].jobTime + "</td>");
-                    tr.append("<td> <a href='/Home/JobDetail/?jobId=" + json.finishedJobs[i].jobId + "'> log </a></td>");
                     $('#finished-job-table').append(tr);
                 }
             }
@@ -69,9 +69,10 @@
                 //Append each row to html table
                 for (var i = 0; i < json.queuedJobs.length; i++) {
                     tr = $('<tr/>');
-                    tr.append("<td>" + json.queuedJobs[i].jobId + "</td>");
+                    tr.append("<td> <a href='/Home/JobDetail/?jobId=" + json.queuedJobs[i].jobId + "'>" + json.queuedJobs[i].jobId + "</a></td>");
                     tr.append("<td>" + json.queuedJobs[i].jobName + "</td>");
                     tr.append("<td>" + json.queuedJobs[i].jobStatus + "</td>");
+                    tr.append("<td>" + json.queuedJobs[i].jobParams.resourcegpu + "</td>");
                     tr.append("<td>" + json.queuedJobs[i].userName + "</td>");
                     tr.append("<td>" + json.queuedJobs[i].jobTime + "</td>");
                     tr.append("<td> <a href='#'  onclick=\"KillJob('" + json.queuedJobs[i].jobId + "')\" > kill </a></td>");
@@ -91,38 +92,18 @@
                 //Append each row to html table
                 for (var i = 0; i < json.interactiveJobs.length; i++) {
                     tr = $('<tr/>');
-                    tr.append("<td>" + json.interactiveJobs[i].jobId + "</td>");
+                    tr.append("<td> <a href='/Home/JobDetail/?jobId=" + json.interactiveJobs[i].jobId + "'>" + json.interactiveJobs[i].jobId + "</a></td>");
                     tr.append("<td>" + json.interactiveJobs[i].jobName + "</td>");
                     tr.append("<td>" + json.interactiveJobs[i].jobStatus + "</td>");
+                    tr.append("<td>" + json.interactiveJobs[i].jobParams.resourcegpu + "</td>");
                     tr.append("<td>" + json.interactiveJobs[i].userName + "</td>");
                     tr.append("<td>" + json.interactiveJobs[i].jobTime + "</td>");
-                    tr.append("<td> <a href='/Home/JobDetail/?jobId=" + json.interactiveJobs[i].jobId + "'> log </a></td>");
                     tr.append("<td> <a href='#'  onclick=\"KillJob('" + json.interactiveJobs[i].jobId + "')\" > kill </a></td>");
 
                     $('#interactive-job-table').append(tr);
                 }
             }
 
-            $("#visualization-job-table").find("tr:gt(0)").remove();
-            if (json.visualizationJobs.length <= 0) {
-                $('#visualization-job').hide();
-            }
-            else {
-                $('#visualization-job').show()
-                var tr;
-                //Append each row to html table
-                for (var i = 0; i < json.visualizationJobs.length; i++) {
-                    tr = $('<tr/>');
-                    tr.append("<td>" + json.visualizationJobs[i].jobId + "</td>");
-                    tr.append("<td>" + json.visualizationJobs[i].jobName + "</td>");
-                    tr.append("<td>" + json.visualizationJobs[i].jobStatus + "</td>");
-                    tr.append("<td>" + json.visualizationJobs[i].userName + "</td>");
-                    tr.append("<td>" + json.visualizationJobs[i].jobTime.toString("YYYYMMDD") + "</td>");
-                    tr.append("<td> <a href='/Home/JobDetail/?jobId=" + json.visualizationJobs[i].jobId + "'> log </a></td>");
-                    tr.append("<td> <a href='#'  onclick=\"KillJob('" + json.visualizationJobs[i].jobId + "')\" > kill </a></td>");
-                    $('#visualization-job-table').append(tr);
-                }
-            }
 
         });
     }
@@ -144,6 +125,7 @@
                 <th>Job Id</th>
                 <th>Job Name</th>
                 <th>Status</th>
+                <th>GPU</th>
                 <th>User Name</th>
                 <th>Job Submission Time</th>
                 <th>Kill it</th>
@@ -160,9 +142,9 @@
             <th>Job Id</th>
             <th>Job Name</th>
             <th>Status</th>
+            <th>GPU</th>
             <th>User Name</th>
             <th>Job Submission Time</th>
-            <th>Console logs</th>
             <th>Kill it</th>
         </tr>
     </thead>
@@ -170,41 +152,22 @@
 </table>
 
 <div id="interactive-job" hidden>
-    <p> <b>Interactive Jobs</b></p>
+    <p> <b>Interactive and Visualization Jobs</b></p>
     <table id="interactive-job-table" class="table table-bordered table-condensed table-hover table-striped">
         <thead>
             <tr>
                 <th>Job Id</th>
                 <th>Job Name</th>
                 <th>Status</th>
+                <th>GPU</th>
                 <th>User Name</th>
                 <th>Job Submission Time</th>
-                <th>Console logs</th>
                 <th>Kill it</th>
             </tr>
         </thead>
         <tbody></tbody>
     </table>
 </div>
-
-<div id="visualization-job" hidden>
-    <p> <b>Visualizations</b></p>
-    <table id="visualization-job-table" class="table table-bordered table-condensed table-hover table-striped">
-        <thead>
-            <tr>
-                <th>Job Id</th>
-                <th>Job Name</th>
-                <th>Status</th>
-                <th>User Name</th>
-                <th>Job Submission Time</th>
-                <th>Console logs</th>
-                <th>Kill it</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
-</div>
-
 
 
 <div id="finished-job" hidden>
@@ -216,9 +179,9 @@
                 <th>Job Id</th>
                 <th>Job Name</th>
                 <th>Status</th>
+                <th>GPU</th>
                 <th>User Name</th>
                 <th>Job Submission Time</th>
-                <th>Console logs</th>
             </tr>
         </thead>
         <tbody></tbody>
