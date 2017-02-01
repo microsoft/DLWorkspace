@@ -12,7 +12,7 @@ spec:
       containers:
       - name: {{ job["tensorboard-id"] }}
         image: tensorflow/tensorflow:latest
-        command: ["tensorboard", "--logdir","{{ job["logdir"] }}", "--host", "0.0.0.0"]
+        command: ["tensorboard", "--logdir","{{ job["logDir"] }}", "--host", "0.0.0.0"]
 
         volumeMounts:
         - mountPath: /job
