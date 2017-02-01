@@ -1,22 +1,22 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ job["id"] }}
+  name: {{ job["jobId"] }}
 spec:
   activeDeadlineSeconds: 120
   template:
     metadata:
-      name: {{ job["id"] }}
+      name: {{ job["jobId"] }}
       labels: 
-         run: {{ job["id"] }}
+         run: {{ job["jobId"] }}
     spec:
       containers:
-      - name: {{ job["id"] }}
+      - name: {{ job["jobId"] }}
         image: {{ job["image"] }}
-        command: {{ job["cmd"] }}
+        command: {{ job["LaunchCMD"] }}
         resources:
           limits:
-            alpha.kubernetes.io/nvidia-gpu: {{ job["resource-gpu"] }}
+            alpha.kubernetes.io/nvidia-gpu: {{ job["resourcegpu"] }}
 
         volumeMounts:
         - mountPath: /usr/local/nvidia

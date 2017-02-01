@@ -7,17 +7,16 @@
     $(document).ready(function () {
         $('#submit_job').on('submit', function (e) { //use on if jQuery 1.7+
             e.preventDefault();  //prevent form from submitting
-
             var params = "";
 
             var jobname = $("#jobname").val().trim();
-            var workpath = $("#workpath").val().trim();
-            var datapath = $("#datapath").val().trim();
-            var jobpath = $("#jobpath").val().trim();
-            var image = $("#image").val().trim();
-            var cmd = $("#cmd").val().trim();
-            var logdir = $("#logdir").val().trim();
-            var interactiveport = $("#interactiveport").val().trim();
+            var workpath = encodeURIComponent($("#workpath").val().trim());
+            var datapath = encodeURIComponent($("#datapath").val().trim());
+            var jobpath = encodeURIComponent($("#jobpath").val().trim());
+            var image = encodeURIComponent($("#image").val().trim());
+            var cmd = encodeURIComponent($("#cmd").val().trim());
+            var logdir = encodeURIComponent($("#logdir").val().trim());
+            var interactiveport = encodeURIComponent($("#interactiveport").val().trim());
 
             
             var numGPUsInt = parseInt($('#resourcegpu').val());
@@ -53,13 +52,13 @@
             }
 
             params = params + "resourcegpu=" + numGPUStr + "&";
-            params = params + "jobname=" + jobname + "&";
-            params = params + "workpath=" + workpath + "&";
-            params = params + "datapath=" + datapath + "&";
+            params = params + "jobName=" + jobname + "&";
+            params = params + "workPath=" + workpath + "&";
+            params = params + "dataPath=" + datapath + "&";
 
             var jobpath = $('#jobpath').val();
             if (jobpath != "") {
-                params = params + "jobpath=" + jobpath + "&";
+                params = params + "jobPath=" + jobpath + "&";
             }
 
             params = params + "image=" + $('#image').val() + "&";
@@ -67,21 +66,24 @@
 
             var logdir = $('#logdir').val();
             if (logdir != "") {
-                params = params + "logdir=" + jobpath + "&";
+                params = params + "logDir=" + jobpath + "&";
             }
 
             var interactiveport = $('#interactiveport').val();
             if (interactiveport != "") {
                 params = params + "interactiveport=" + interactiveport + "&";
             }
-            
+
+            params = params + "jobType=training&";
             var username = "@User.Identity.Name".replace("REDMOND","")
             //console.log(username)
-            params = params + "username=" + username;
+            params = params + "userName=" + username;
 
             var url = "@ViewData["restapi"]/SubmitJob?" + params;
 
-            //console.log(url);
+            console.log(url);
+            $("#submit").attr("disabled", true);
+
             $.ajax({
                 url: url,
                 dataType: 'json',
@@ -103,6 +105,12 @@
     });
 </script>
 
+<script type="text/javascript">
+    function ShowHideDiv(chkbox,divId) {
+        var elem = document.getElementById(divId);
+        elem.style.display = chkbox.checked ? "block" : "none";
+    }
+</script>
 
 <div class="modal-dialog" role="document">
     <div class="modal-content">
@@ -165,19 +173,26 @@
                 </div>
 
                 <div class="form-group">
+                    <input type="checkbox" id="chkLogDir" onclick="ShowHideDiv(this,'logdirfield')" />
                     <label>
-                        To enable TensorBoard, type model path here
+                        Enable TensorBoard
                     </label>
-                    <input type="text" class="form-control" id="logdir" />
+                    <div id="logdirfield" hidden>
+                        <label>Model path:</label>
+                        <input type="text" class="form-control" id="logdir" />
+                    </div>
                 </div>
 
                 <div class="form-group">
+                    <input type="checkbox" id="chkLogDir" onclick="ShowHideDiv(this, 'interactiveportfield')" />
                     <label>
-                        To enable interactive job, type port number here
+                        Interactive Job? (e.g. ipython, ssh)
                     </label>
-                    <input type="text" class="form-control" id="interactiveport" />
+                    <div id="interactiveportfield" hidden>
+                        <label>Port used by interactive job:</label>
+                        <input type="text" class="form-control" id="interactiveport" />
+                    </div>
                 </div>
-
             </div>
             <div class="modal-footer">
                 <input type="submit" value="Submit" name="submit" class="btn btn-success" id="submit" />

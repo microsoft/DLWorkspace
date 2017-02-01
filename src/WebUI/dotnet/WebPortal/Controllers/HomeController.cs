@@ -37,19 +37,10 @@ namespace WebPortal.Controllers
             return View();
         }
 
-        public IActionResult JobLog()
+        public IActionResult JobDetail()
         {
             ViewData["Message"] = "View and Manage Your Jobs.";
             ViewData["jobid"] = HttpContext.Request.Query["jobId"];
-            ViewData["restapi"] = _appSettings.restapi;
-
-
-            return View();
-        }
-
-        public IActionResult KillJob()
-        {
-            ViewData["Message"] = "View and Manage Your Jobs.";
             ViewData["restapi"] = _appSettings.restapi;
 
 

@@ -8,8 +8,8 @@ from flask import request, jsonify
 
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
-from JobUtils import SubmitRegularJob, SubmitDistJob, GetJobList, GetJobStatus, DeleteJob, GetTensorboard, GetServiceAddress, GetLog, GetJob
-
+#from JobRestAPIUtils import SubmitDistJob, GetJobList, GetJobStatus, DeleteJob, GetTensorboard, GetServiceAddress, GetLog, GetJob
+import JobRestAPIUtils
 
 app = Flask(__name__)
 api = Api(app)
@@ -21,16 +21,17 @@ parser = reqparse.RequestParser()
 
 class SubmitJob(Resource):
     def get(self):
-        parser.add_argument('jobname')
+        parser.add_argument('jobName')
         parser.add_argument('resourcegpu')
-        parser.add_argument('workpath')
-        parser.add_argument('datapath')
-        parser.add_argument('jobpath')
+        parser.add_argument('workPath')
+        parser.add_argument('dataPath')
+        parser.add_argument('jobPath')
         parser.add_argument('image')
         parser.add_argument('cmd')
-        parser.add_argument('logdir')
+        parser.add_argument('logDir')
         parser.add_argument('interactiveport')
-        parser.add_argument('username')
+        parser.add_argument('userName')
+        parser.add_argument('jobType')
         
 
         args = parser.parse_args()
@@ -42,47 +43,51 @@ class SubmitJob(Resource):
             if value is not None:
                 params[key] = value
 
-        if args["jobname"] is None or len(args["jobname"].strip()) == 0:
+        if args["jobName"] is None or len(args["jobName"].strip()) == 0:
             ret["error"] = "job name cannot be empty"
         elif args["resourcegpu"] is None or len(args["resourcegpu"].strip()) == 0:
             ret["error"] = "Number of GPU cannot be empty"
-        elif args["workpath"] is None or len(args["workpath"].strip()) == 0:
+        elif args["workPath"] is None or len(args["workPath"].strip()) == 0:
             ret["error"] = "workpath cannot be empty"            
-        elif args["datapath"] is None or len(args["datapath"].strip()) == 0:
+        elif args["dataPath"] is None or len(args["dataPath"].strip()) == 0:
             ret["error"] = "datapath cannot be empty"            
         elif args["image"] is None or len(args["image"].strip()) == 0:
             ret["error"] = "docker image cannot be empty"            
+        elif args["jobType"] is None or len(args["jobType"].strip()) == 0:
+            ret["error"] = "jobType cannot be empty"        
         else:
-            params["job-name"] = args["jobname"]
-            params["work-path"] = args["workpath"]
-            params["data-path"] = args["datapath"]
-            params["data-path"] = args["datapath"]
+            params["jobName"] = args["jobName"]
+            params["workPath"] = args["workPath"]
+            params["dataPath"] = args["dataPath"]
             params["image"] = args["image"]
             params["cmd"] = args["cmd"]
+            params["jobType"] = args["jobType"]
 
 
-            if args["jobpath"] is not None and len(args["jobpath"].strip()) > 0:
-                params["job-path"] = args["jobpath"]
+            if args["jobPath"] is not None and len(args["jobPath"].strip()) > 0:
+                params["jobPath"] = args["jobPath"]
 
-            if args["logdir"] is not None and len(args["logdir"].strip()) > 0:
-                params["logdir"] = args["logdir"]
+            if args["logDir"] is not None and len(args["logDir"].strip()) > 0:
+                params["logDir"] = args["logDir"]
 
             if args["interactiveport"] is not None and len(args["interactiveport"].strip()) > 0:
                 params["interactive-port"] = args["jobpath"]
 
-            if args["username"] is not None and len(args["username"].strip()) > 0:
-                params["username-port"] = args["username"]
+            if args["userName"] is not None and len(args["userName"].strip()) > 0:
+                params["userName"] = args["userName"]
             else:
-                params["username-port"] = "default"
+                params["userName"] = "default"
 
 
-            output = SubmitRegularJob(json.dumps(params))
+            output = JobRestAPIUtils.SubmitJob(json.dumps(params))
             
-            if "id" in output:
-                ret["jobId"] = output["id"]
+            if "jobId" in output:
+                ret["jobId"] = output["jobId"]
             else:
-                ret["error"] = "Cannot create job!"
-
+                if "error" in output:
+                    ret["error"] = "Cannot create job!" + output["error"]
+                else:
+                    ret["error"] = "Cannot create job!"
 
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
@@ -93,6 +98,112 @@ class SubmitJob(Resource):
 ## Actually setup the Api resource routing here
 ##
 api.add_resource(SubmitJob, '/SubmitJob')
+
+
+
+
+# shows a list of all todos, and lets you POST to add new tasks
+class ListJobs(Resource):
+    def get(self):
+        parser.add_argument('userName')
+        args = parser.parse_args()    
+        if args["userName"] is not None and len(args["userName"].strip()) > 0:
+            jobs = JobRestAPIUtils.GetJobList(args["userName"])
+        else:
+            jobs = []
+        jobList = []
+        queuedJobs = []
+        runningJobs = []
+        finishedJobs = []
+        interactiveJobs = []
+        visualizationJobs = []
+        for job in jobs:
+            job.pop("jobDescriptionPath",None)
+            job.pop("jobDescription",None)
+
+
+            if job["jobStatus"] == "running":
+                if job["jobType"] == "training":
+                    runningJobs.append(job)
+                elif job["jobType"] == "interactive":
+                    interactiveJobs.append(job)
+                elif job["jobType"] == "visualization":
+                    visualizationJobs.append(job)
+            elif job["jobStatus"] == "queued" or job["jobStatus"] == "scheduling":
+                queuedJobs.append(job)
+            else:
+                finishedJobs.append(job)
+
+
+        ret = {}
+        ret["queuedJobs"] = queuedJobs
+        ret["runningJobs"] = runningJobs
+        ret["finishedJobs"] = finishedJobs
+        ret["interactiveJobs"] = interactiveJobs
+        ret["visualizationJobs"] = visualizationJobs
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+
+        return resp
+
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(ListJobs, '/ListJobs')
+
+
+
+
+
+class KillJob(Resource):
+    def get(self):
+        parser.add_argument('jobId')
+        args = parser.parse_args()    
+        jobId = args["jobId"]
+        result = JobRestAPIUtils.KillJob(jobId)
+        ret = {}
+        if result:
+            ret["result"] = "Success, the job is scheduled to be terminated."
+        else:
+            ret["result"] = "Cannot Kill the job. Job ID:" + jobId
+
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+
+        return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(KillJob, '/KillJob')
+
+
+
+class GetJobDetail(Resource):
+    def get(self):
+        parser.add_argument('jobId')
+        args = parser.parse_args()    
+        jobId = args["jobId"]
+        log = JobRestAPIUtils.GetJobDetail(jobId)
+
+        resp = jsonify(log)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(GetJobDetail, '/GetJobDetail')
+
+
+
+
+
+#################################################################################################################################
 
 
 
@@ -157,85 +268,6 @@ def ListJob():
     return resp
 
 
-# shows a list of all todos, and lets you POST to add new tasks
-class ListJobs(Resource):
-    def get(self):
-        jobs = GetJobList()
-        jobList = []
-        queuedJobs = []
-        runningJobs = []
-        finishedJobs = []
-        interactiveJobs = []
-        visualizationJobs = []
-        for job in jobs:
-            #svcs = GetServiceAddress(job["job_id"])
-            #job["services_ip"] = []
-            #if len(svcs)>0:
-            #    for (port,hostIP,nodeport) in svcs:
-            #        job["services_ip"].append("http://"+hostIP+":"+nodeport)
-
-
-            #(port,hostIP,nodeport) = GetTensorboard(job["job_id"])
-            #if port is not None and hostIP is not None and nodeport is not None:
-            #    job["tensorboard"] = "http://"+hostIP+":"+nodeport
-
-
-            #status, status_detail = GetJobStatus(job["job_id"])
-            #job["status"] = status
-	    #job["status_detail"] = status_detail
-	    job.pop("job_meta",None)
-            runningJobs.append(job)
-        ret = {}
-        ret["queuedJobs"] = jobList
-        ret["runningJobs"] = runningJobs
-        ret["finishedJobs"] = finishedJobs
-        ret["interactiveJobs"] = interactiveJobs
-        ret["visualizationJobs"] = visualizationJobs
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-
-        return resp
-
-    def post(self):
-        jobs = GetJobList()
-        jobList = []
-        for job in jobs:
-            jobobj = []
-            jobobj.append("<a href='http://onenet39/jobs/jobdetail.html?jobId="+job["job_id"]+"' title='click for detail'>"+job["job_id"]+"</a>")
-            jobobj.append(job["job_name"])
-            jobobj.append(job["user_id"])
-
-            svcs = GetServiceAddress(job["job_id"])
-            if len(svcs)>0:
-                for (port,hostIP,nodeport) in svcs:
-                    jobobj.append("<a href='http://"+hostIP+":"+nodeport+"' target='_blank'> "+port+"->"+hostIP+":"+nodeport+" </a> <br/>")
-            else:
-                jobobj.append("N/A")
-            
-
-            (port,hostIP,nodeport) = GetTensorboard(job["job_id"])
-            if port is not None and hostIP is not None and nodeport is not None:
-                jobobj.append("<a href='http://"+hostIP+":"+nodeport+"' target='_blank'> "+hostIP+":"+nodeport+" </a>")
-            else:
-                jobobj.append("N/A")
-            
-
-            status, status_detail = GetJobStatus(job["job_id"])
-            jobobj.append("<div title='"+status_detail+"'>"+status+"</div>")
-            jobobj.append(str(job["time"]))
-            jobobj.append("<a href='http://onenet39/jobs/delete_job.php?jobId="+job["job_id"]+"' > terminate job </a>")
-            jobobj.append("<a href='http://onenet39/jobs/joblog.php?jobId="+job["job_id"]+"' target='_blank'> log </a>")
-            jobList.append(jobobj)
-        ret = {}
-        ret["data"] = jobList
-        return json.dumps(ret),200, {"Access-Control-Allow-Origin":"*"}
-
-##
-## Actually setup the Api resource routing here
-##
-api.add_resource(ListJobs, '/ListJobs')
 
 
 class DelJob(Resource):
@@ -262,7 +294,7 @@ api.add_resource(GetJobLog, '/GetJobLog')
 
 
 
-class GetJobDetail(Resource):
+class GetJobDetail_old(Resource):
     def post(self):
         jobId = request.form["jobId"]
         jobs = GetJob(jobId)
@@ -304,7 +336,7 @@ class GetJobDetail(Resource):
 ##
 ## Actually setup the Api resource routing here
 ##
-api.add_resource(GetJobDetail, '/GetJobDetail')
+api.add_resource(GetJobDetail_old, '/GetJobDetail_old')
 
 
 
