@@ -29,7 +29,7 @@ class SubmitJob(Resource):
         parser.add_argument('image')
         parser.add_argument('cmd')
         parser.add_argument('logDir')
-        parser.add_argument('interactiveport')
+        parser.add_argument('interactivePort')
         parser.add_argument('userName')
         parser.add_argument('jobType')
         
@@ -71,8 +71,8 @@ class SubmitJob(Resource):
             if args["logDir"] is not None and len(args["logDir"].strip()) > 0:
                 params["logDir"] = args["logDir"]
 
-            if args["interactiveport"] is not None and len(args["interactiveport"].strip()) > 0:
-                params["interactive-port"] = args["interactive-port"]
+            if args["interactivePort"] is not None and len(args["interactivePort"].strip()) > 0:
+                params["interactivePort"] = args["interactivePort"]
 
             if args["userName"] is not None and len(args["userName"].strip()) > 0:
                 params["userName"] = args["userName"]
@@ -116,7 +116,7 @@ class ListJobs(Resource):
         queuedJobs = []
         runningJobs = []
         finishedJobs = []
-        interactiveJobs = []
+        visualizationJobs = []
         for job in jobs:
             job.pop("jobDescriptionPath",None)
             job.pop("jobDescription",None)
@@ -129,8 +129,8 @@ class ListJobs(Resource):
             if job["jobStatus"] == "running":
                 if job["jobType"] == "training":
                     runningJobs.append(job)
-                elif job["jobType"] == "visualization" or job["jobType"] == "interactive":
-                    interactiveJobs.append(job)
+                elif job["jobType"] == "visualization":
+                    visualizationJobs.append(job)
             elif job["jobStatus"] == "queued" or job["jobStatus"] == "scheduling":
                 queuedJobs.append(job)
             else:
@@ -141,7 +141,7 @@ class ListJobs(Resource):
         ret["queuedJobs"] = queuedJobs
         ret["runningJobs"] = runningJobs
         ret["finishedJobs"] = finishedJobs
-        ret["interactiveJobs"] = interactiveJobs
+        ret["visualizationJobs"] = visualizationJobs
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"

@@ -16,7 +16,7 @@ from config import config
 from DataHandler import DataHandler
 import base64
 
-
+import re
 
 def LoadJobParams(jobParamsJsonStr):
     return json.loads(jobParamsJsonStr)
@@ -184,10 +184,10 @@ def SubmitJob(job):
         os.makedirs(localJobPath)
 
 
-
+    jobParams["LaunchCMD"] = ""
     if "cmd" not in jobParams:
         jobParams["cmd"] = ""
-        jobParams["LaunchCMD"] = ""
+        
     if isinstance(jobParams["cmd"], basestring) and not jobParams["cmd"] == "":
         launchScriptPath = os.path.join(localJobPath,"launch-%s.sh" % jobParams["jobId"])
         with open(launchScriptPath, 'w') as f:
@@ -195,11 +195,12 @@ def SubmitJob(job):
         f.close()        
         jobParams["LaunchCMD"] = "[\"bash\", \"/job/launch-%s.sh\"]" % jobParams["jobId"]
 
+
     jobParams["jobDescriptionPath"] = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"]+".yaml"
 
     jobDescriptionPath = os.path.join(os.path.dirname(config["storage-mount-path"]), jobParams["jobDescriptionPath"])
-
-    os.makedirs(os.path.dirname(os.path.realpath(jobDescriptionPath)))
+    if not os.path.exists(os.path.dirname(os.path.realpath(jobDescriptionPath))):
+        os.makedirs(os.path.dirname(os.path.realpath(jobDescriptionPath)))
 
 
 
@@ -229,22 +230,19 @@ def SubmitJob(job):
     jobDescriptionList.append(pvc_description_d)
     jobDescriptionList.append(job_description)
 
-
-    if ("interactive-port" in jobParams and len(jobParams["interactive-port"].strip()) > 0) or "port" in jobParams:
-        if not "serviceId" in jobParams:
-            jobParams["serviceId"] = "interactive-"+jobParams["jobId"]
-        if not "port" in jobParams:
-            jobParams["port"] = jobParams["interactive-port"]
-        if not "port-name" in jobParams:
+    if ("interactivePort" in jobParams and len(jobParams["interactivePort"].strip()) > 0):
+        ports = [p.strip() for p in re.split(",|;",jobParams["interactivePort"]) if len(p.strip()) > 0 and p.strip().isdigit()]
+        for portNum in ports:
+            jobParams["serviceId"] = "interactive-"+jobParams["jobId"]+"-"+portNum
+            jobParams["port"] = portNum
             jobParams["port-name"] = "interactive"
-        if not "port-type" in jobParams:
             jobParams["port-type"] = "TCP"
 
-        serviceTemplate = ENV.get_template(os.path.join(jobTempDir,"KubeSvc.yaml.template"))
+            serviceTemplate = ENV.get_template(os.path.join(jobTempDir,"KubeSvc.yaml.template"))
 
-        template = ENV.get_template(serviceTemplate)
-        interactiveMeta = template.render(svc=jobParams)
-        jobDescriptionList.append(interactiveMeta)
+            template = ENV.get_template(serviceTemplate)
+            interactiveMeta = template.render(svc=jobParams)
+            jobDescriptionList.append(interactiveMeta)
 
 
     jobDescription = "\n---\n".join(jobDescriptionList)
@@ -349,10 +347,11 @@ def UpdateJobStatus(job):
     elif result.strip() == "Running":
         if job["jobStatus"] != "running":
             dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","running")
-        if job["jobType"] == "interactive" or job["jobType"] == "visualization":
+        if "interactivePort" in jobParams:
             serviceAddress = GetServiceAddress(job["jobId"])
             serviceAddress = base64.b64encode(json.dumps(serviceAddress))
             dataHandler.UpdateJobTextField(job["jobId"],"endpoints",serviceAddress)
+
     elif result.strip() == "Failed":
         dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","failed")
         dataHandler.UpdateJobTextField(job["jobId"],"errorMsg",detail)
