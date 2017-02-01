@@ -16,7 +16,7 @@
             var image = encodeURIComponent($("#image").val().trim());
             var cmd = encodeURIComponent($("#cmd").val().trim());
             var logdir = encodeURIComponent($("#logdir").val().trim());
-            var interactiveport = encodeURIComponent($("#interactiveport").val().trim());
+            var interactiveport = encodeURIComponent($("#interactivePort").val().trim());
 
 
             var numGPUsInt = parseInt($('#resourcegpu').val());
@@ -69,9 +69,8 @@
                 params = params + "logDir=" + logdir + "&";
             }
 
-            var interactiveport = $('#interactiveport').val();
             if (interactiveport != "") {
-                params = params + "interactiveport=" + interactiveport + "&";
+                params = params + "interactivePort=" + interactiveport + "&";
             }
 
             params = params + "jobType=training&";
@@ -197,7 +196,7 @@
                     </label>
                     <div id="interactiveportfield" hidden>
                         <label>Port used by interactive job:</label>
-                        <input type="text" class="form-control" id="interactiveport" />
+                        <input type="text" class="form-control" id="interactivePort" />
                     </div>
                 </div>
             </div>

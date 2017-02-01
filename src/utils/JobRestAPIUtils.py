@@ -63,11 +63,8 @@ def SubmitJob(jobParamsJsonStr):
         tensorboardParams["image"] = "tensorflow/tensorflow:latest"
         tensorboardParams["resourcegpu"] = "0"
 
+        tensorboardParams["interactivePort"] = "6006"
 
-        tensorboardParams["serviceId"] = "tensorboard-"+tensorboardParams["jobId"]
-        tensorboardParams["port"] = "6006"
-        tensorboardParams["port-name"] = "tensorboard"
-        tensorboardParams["port-type"] = "TCP"       
 
         if "error" not in ret:
             if not dataHandler.AddJob(tensorboardParams):

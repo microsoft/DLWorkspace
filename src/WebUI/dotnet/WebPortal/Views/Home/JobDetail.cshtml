@@ -35,8 +35,9 @@
                     jobDetailStr += "Docker Image: " + payload.jobParams.image + "\n";
                     jobDetailStr += "Command: " + payload.jobParams.cmd + "\n";
                     jobDetailStr += "Data Path: " + payload.jobParams.dataPath + "\n";
-                    jobDetailStr += "Work Path: " + payload.jobParams.dataPath + "\n";
-                    jobDetailStr += "Job Path: " + payload.jobParams.workPath + "\n";
+                    jobDetailStr += "Work Path: " + payload.jobParams.workPath + "\n";
+                    jobDetailStr += "Container Ports: " + payload.jobParams.interactivePort + "\n";
+                    jobDetailStr += "Job Path: " + payload.jobParams.jobPath + "\n";
                     jobDetailStr += "Job Type: " + payload.jobParams.jobType + "\n";
                     jobDetailStr += "GPU #: " + payload.jobParams.resourcegpu + "\n";
                     jobDetailStr += "Job Status: " + payload.jobStatus + "\n";
@@ -78,7 +79,7 @@
 <hr />
 
 <h2> Job Details:</h2>
-<div id="jobDetail" style="height: 210px; background-color: #eee; white-space: pre; word-wrap: normal; overflow-x: scroll; overflow-y: scroll; font-family: 'Courier New'; font-weight: 600; font-size: 12px" readonly="" class="ng-binding">
+<div id="jobDetail" style="height: 230px; background-color: #eee; white-space: pre; word-wrap: normal; overflow-x: scroll; overflow-y: scroll; font-family: 'Courier New'; font-weight: 600; font-size: 12px" readonly="" class="ng-binding">
 
 </div>
 
