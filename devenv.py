@@ -11,7 +11,7 @@ import pwd
 import grp
 from os.path import expanduser
 sys.path.append("src/utils")
-from DockerUtils import buildDocker, runDocker
+from DockerUtils import GlusterFSYaml
 
 # prefix and tag will be filled by argument parser.
 

@@ -10,6 +10,7 @@ import sys
 import textwrap
 import re
 import math
+import distutils.dir_util
 
 import yaml
 from jinja2 import Environment, FileSystemLoader, Template
@@ -18,6 +19,9 @@ import base64
 from shutil import copyfile,copytree
 import urllib
 import socket;
+sys.path.append("storage/glusterFS")
+from GlusterFSUtils import GlusterFSJson
+
 
 
 capacityMatch = re.compile("\d+[M|G]B")
@@ -86,7 +90,7 @@ def sudo_scp (identity_file, source, target, user, host):
 
 # Execute a remote SSH cmd with identity file (private SSH key), user, host
 # Return the output of the remote command to local
-def SSH_exec_cmd_with_output(identity_file, user,host,cmd, supressWarning = False):
+def SSH_exec_cmd_with_output1(identity_file, user,host,cmd, supressWarning = False):
 	tmpname = os.path.join("/tmp", str(uuid.uuid4()))
 	execcmd = cmd + " > " + tmpname
 	if supressWarning:
@@ -100,7 +104,49 @@ def SSH_exec_cmd_with_output(identity_file, user,host,cmd, supressWarning = Fals
 		output = outputfile.read()
 	os.remove(tmpname)
 	return output
+	
+def SSH_exec_cmd_with_output(identity_file, user,host,cmd, supressWarning = False):
+	if supressWarning:
+		cmd += " 2>/dev/null"
+	execmd = """ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" "%s" """ % (identity_file, user, host, cmd )
+	print execmd
+	try:
+		output = subprocess.check_output( execmd, shell=True )
+	except subprocess.CalledProcessError as e:
+		print "Execution failed: " + e.output
+		output = "Execution failed: " + e.output
+	# print output
+	return output
+	
+def GetHostName( host ):
+	execmd = """ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" "hostname" """ % ("deploy/sshkey/id_rsa", "core", host )
+	try:
+		output = subprocess.check_output( execmd, shell=True )
+	except subprocess.CalledProcessError as e:
+		return None
+	return output.strip()
 
+# Execute a remote SSH cmd with identity file (private SSH key), user, host, 
+# Copy all directory of srcdir into a temporary folder, execute the command, 
+# and then remove the temporary folder. 
+# Command should assume that it starts srcdir, and execute a shell script in there. 
+# If dstdir is given, the remote command will be executed at dstdir, and its content won't be removed
+def SSH_exec_cmd_with_directory( identity_file, user, host, srcdir, cmd, supressWarning = False, removeAfterExecution = True, dstdir = None ):
+	if dstdir is None: 
+		tmpdir = os.path.join("/tmp", str(uuid.uuid4()))
+	else:
+		tmpdir = dstdir
+		removeAfterExecution = False
+	scp( identity_file, srcdir, tmpdir, user, host)
+	dstcmd = "cd "+tmpdir + "; "
+	if supressWarning:
+		dstcmd += cmd + " 2>/dev/null; "
+	else:
+		dstcmd += cmd + "; "
+	dstcmd += "cd /tmp; "
+	if removeAfterExecution:
+		dstcmd += "rm -r " + tmpdir + "; "
+	SSH_exec_cmd( identity_file, user, host, dstcmd )
 
 def Get_ETCD_DiscoveryURL(size):
 		try:
@@ -300,9 +346,13 @@ def GetMasterNodes(clusterId):
 	output = json.loads(json.loads(output))
 	Nodes = []
 	NodesInfo = [node for node in output["nodes"] if "time" in node]
+	if not "ipToHostname" in config:
+		config["ipToHostname"] = {}
 	for node in NodesInfo:
 		if not node[ipAddrMetaname] in Nodes and CheckNodeAvailability(node[ipAddrMetaname]):
-			Nodes.append(node[ipAddrMetaname])	
+			hostname = GetHostName(node[ipAddrMetaname])
+			Nodes.append(node[ipAddrMetaname])
+			config["ipToHostname"][node[ipAddrMetaname]] = hostname
 	config["kubernetes_master_node"] = Nodes
 	return Nodes
 
@@ -311,9 +361,13 @@ def GetETCDNodes(clusterId):
 	output = json.loads(json.loads(output))
 	Nodes = []
 	NodesInfo = [node for node in output["nodes"] if "time" in node]
+	if not "ipToHostname" in config:
+		config["ipToHostname"] = {}
 	for node in NodesInfo:
 		if not node[ipAddrMetaname] in Nodes and CheckNodeAvailability(node[ipAddrMetaname]):
-			Nodes.append(node[ipAddrMetaname])	
+			hostname = GetHostName(node[ipAddrMetaname])
+			Nodes.append(node[ipAddrMetaname])
+			config["ipToHostname"][node[ipAddrMetaname]] = hostname
 	config["etcd_node"] = Nodes
 	return Nodes
 
@@ -323,9 +377,13 @@ def GetWorkerNodes(clusterId):
 	output = json.loads(json.loads(output))
 	Nodes = []
 	NodesInfo = [node for node in output["nodes"] if "time" in node]
+	if not "ipToHostname" in config:
+		config["ipToHostname"] = {}
 	for node in NodesInfo:
 		if not node[ipAddrMetaname] in Nodes and CheckNodeAvailability(node[ipAddrMetaname]):
-			Nodes.append(node[ipAddrMetaname])	
+			hostname = GetHostName(node[ipAddrMetaname])
+			Nodes.append(node[ipAddrMetaname])
+			config["ipToHostname"][node[ipAddrMetaname]] = hostname
 	config["worker_node"] = Nodes
 	return Nodes
 	
@@ -336,14 +394,18 @@ def GetNodes(clusterId):
 	nodes = nodes + ( json.loads(json.loads(output2))["nodes"] )
 	output3 = urllib.urlopen(formClusterPortalURL("etcd", clusterId)).read()
 	nodes = nodes + ( json.loads(json.loads(output3))["nodes"] )
+	# print nodes
 	Nodes = []
 	NodesInfo = [node for node in nodes if "time" in node]
+	if not "ipToHostname" in config:
+		config["ipToHostname"] = {}
 	for node in NodesInfo:
 		if not node[ipAddrMetaname] in Nodes and CheckNodeAvailability(node[ipAddrMetaname]):
-			Nodes.append(node[ipAddrMetaname])	
+			hostname = GetHostName(node[ipAddrMetaname])
+			Nodes.append(node[ipAddrMetaname])
+			config["ipToHostname"][node[ipAddrMetaname]] = hostname
 	config["nodes"] = Nodes
 	return Nodes
-
 
 def Check_Master_ETCD_Status():
 	masterNodes = []
@@ -1030,8 +1092,37 @@ def repartitionNodes(nodes, nodesinfo, partitionConfig):
 				start = end
 		SSH_exec_cmd(config["ssh_cert"], "core", node, cmd)
 	()
+	
+# Deploy glusterFS on a cluster
+def startGlusterFS( masternodes, ipToHostname, nodesinfo, glusterFSargs):
+	glusterFSJson = GlusterFSJson(ipToHostname, nodesinfo, glusterFSargs)
+	glusterFSJsonFilename = "deploy/storage/glusterFS/topology.json"
+	print "Write GlusterFS configuration file to: " + glusterFSJsonFilename
+	glusterFSJson.dump(glusterFSJsonFilename)
+	srcdir = "storage/glusterFS/kube-templates"
+	dstdir = os.path.join( "deploy", srcdir)
+	# print "Copytree from: " + srcdir + " to: " + dstdir
+	distutils.dir_util.copy_tree( srcdir, dstdir )
+	srcfile = "storage/glusterFS/gk-deploy"
+	dstfile = os.path.join( "deploy", srcfile)
+	copyfile( srcfile, dstfile )
+	srcfile = "storage/glusterFS/install-python-on-coreos.sh"
+	dstfile = os.path.join( "deploy", srcfile)
+	copyfile( srcfile, dstfile )
+	SSH_exec_cmd_with_directory( config["ssh_cert"], "core", masternodes[0], "deploy/storage/glusterFS", "sudo bash install-python-on-coreos.sh; sudo bash ./gk-deploy -g", dstdir = "/tmp/startGlusterFS")
 
 def execOnAll(nodes, args, supressWarning = False):
+	cmd = ""
+	for arg in args:
+		if cmd == "":
+			cmd += arg
+		else:
+			cmd += " " + arg
+	for node in nodes:
+		SSH_exec_cmd(config["ssh_cert"], "core", node, cmd)
+		print "Node: " + node + " exec: " + cmd
+
+def execOnAll_with_output(nodes, args, supressWarning = False):
 	cmd = ""
 	for arg in args:
 		if cmd == "":
@@ -1069,7 +1160,11 @@ Command:
               if s_i < 0, the partition is s_i GB, 
               if s_i > 0, the partition is in portitional to s_i. 
               We use parted mkpart percentage% to create partitions. As such, the minimum partition is 1% of a disk. 
-  doonall [cmd ... ] Execute the command on all nodes and print the output. 
+  glusterFS [args] manage glusterFS on the cluster. 
+            start: deploy a glusterFS on the cluster. 
+  execonall [cmd ... ] Execute the command on all nodes and print the output. 
+  doonall [cmd ... ] Execute the command on all nodes. 
+  
   ''') )
 	parser.add_argument("-y", "--yes", 
 		help="Answer yes automatically for all prompt", 
@@ -1092,7 +1187,7 @@ Command:
 	# print args
 	
 	config_file = os.path.join(dirpath,"config.yaml")
-	print "Config file: " + config_file
+	# print "Config file: " + config_file
 	if not os.path.exists(config_file):
 		parser.print_help()
 		print "ERROR: config.yaml does not exist!"
@@ -1224,13 +1319,35 @@ Command:
 		else:
 			parser.print_help()
 			exit()
-			# ToDo Add warning. 
+	
+	elif command == "glusterFS" and len(nargs) >= 1:
+		Get_Config()
+		# nodes = GetNodes(config["clusterId"])
+		# ToDo: change pending, schedule glusterFS on master & ETCD nodes, 
+		nodes = GetWorkerNodes(config["clusterId"])
+		nodesinfo = getPartitions(nodes, args.partition )
+		if nargs[0] == "start":
+			if len(nargs) == 1:
+				glusterFSargs = 1
+			else:
+				glusterFSargs = nargs[1]
+			masternodes = GetMasterNodes(config["clusterId"])
+			startGlusterFS( masternodes, config["ipToHostname"], nodesinfo, glusterFSargs)
+		else:
+			parser.print_help()
+			exit()
 			
 	elif command == "doonall" and len(nargs)>=1:
 		Get_Config()
 		nodes = GetNodes(config["clusterId"])
 		execOnAll(nodes, nargs)
+		
+	elif command == "execonall" and len(nargs)>=1:
+		Get_Config()
+		nodes = GetNodes(config["clusterId"])
+		execOnAll_with_output(nodes, nargs)
 
+		
 	elif command == "cleanmasteretcd":
 		response = raw_input("Clean and Stop Master/ETCD Nodes (y/n)?")
 		if firstChar( response ) == "y":
