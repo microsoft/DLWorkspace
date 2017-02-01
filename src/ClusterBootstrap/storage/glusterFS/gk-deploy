@@ -161,7 +161,9 @@ check_pods() {
     fi
     sleep 2
     ((s+=2))
+    output "Kubernetes: ${CLI} get pod --no-headers --show-all --selector=\"${1}\" 2>&1"
     pods=$(${CLI} get pod --no-headers --show-all --selector="${1}" 2>&1)
+    output "Return pods: ${pods}, prior=${prestatus}"
     if [[ "${prestatus}" != "${pods}" ]]; then
       debug "Checking status of pods matching '${1}':"
       debug "$pods"
@@ -293,7 +295,8 @@ In addition, for an OpenShift deployment you must:
 Do you wish to proceed with deployment?
 "
 
-  read -rp "[Y]es, [N]o? [Default: Y]: " ynopt
+  ## read -rp "[Y]es, [N]o? [Default: Y]: " ynopt
+  ynopt="Yes"
   case $ynopt in
     N*|n*)
     exit
@@ -305,6 +308,7 @@ if [[ ! -f ${TOPOLOGY} ]]; then
   echo "Topology File not found!"
   exit 1
 else
+  #echo "Do python"
   NODES=$(python - <<END
 import sys
 import json
@@ -318,6 +322,7 @@ for cluster in topo['clusters']:
     print(str(node['node']['hostnames']['manage'][0]))
 END
 )
+  output "Nodes: ${NODES}"
 fi
 
 if [[ "x${CLI}" == "x" ]]; then
@@ -375,6 +380,7 @@ if [[ -z "$NAMESPACE" ]]; then
   if [[ -z "$NAMESPACE" ]]; then
     NAMESPACE="default"
   fi
+  output "Namespace: " ${NAMESPACE}
 fi
 
 ${CLI} get namespaces ${NAMESPACE} 2>/dev/null
@@ -405,6 +411,9 @@ if [[ ${LOAD} -eq 0 ]]; then
     fi
     ${CLI} policy add-role-to-user edit system:serviceaccount:${NAMESPACE}:heketi-service-account
   else
+    output "Kubernetes: ${CLI} delete -f ${TEMPLATES}/heketi-service-account.yaml"
+    ${CLI} delete -f ${TEMPLATES}/heketi-service-account.yaml
+    output "Kubernetes: ${CLI} create -f ${TEMPLATES}/heketi-service-account.yaml"
     ${CLI} create -f ${TEMPLATES}/heketi-service-account.yaml
   fi
 fi
@@ -412,13 +421,17 @@ fi
 if [[ $GLUSTER -eq 1 ]] && [[ ${LOAD} -eq 0 ]]; then
 
   while read -r node; do
-    debug "Marking '${node}' as a GlusterFS node."
+    output "Marking '${node}' as a GlusterFS node."
+    output "Kubernetes: ${CLI} label nodes ${node} storagenode=glusterfs"
     ${CLI} label nodes ${node} storagenode=glusterfs
   done <<< "$(echo -e "${NODES}")"
-  debug "Deploying GlusterFS pods."
+  output "Deploying GlusterFS pods."
   if [[ "${CLI}" == *oc ]]; then
     ${CLI} process glusterfs | ${CLI} create -f -
   else
+    output "Kubernetes: ${CLI} delete -f ${TEMPLATES}/glusterfs-daemonset.yaml"
+    ${CLI} delete -f ${TEMPLATES}/glusterfs-daemonset.yaml
+    output "Kubernetes: ${CLI} create -f ${TEMPLATES}/glusterfs-daemonset.yaml"
     ${CLI} create -f ${TEMPLATES}/glusterfs-daemonset.yaml
   fi
 
@@ -431,6 +444,9 @@ if [[ ${LOAD} -eq 0 ]]; then
   if [[ "${CLI}" == *oc ]]; then
     ${CLI} process deploy-heketi | ${CLI} create -f -
   else
+    output "${CLI} delete -f ${TEMPLATES}/deploy-heketi-deployment.yaml"
+    ${CLI} delete -f ${TEMPLATES}/deploy-heketi-deployment.yaml
+    output "${CLI} create -f ${TEMPLATES}/deploy-heketi-deployment.yaml"
     ${CLI} create -f ${TEMPLATES}/deploy-heketi-deployment.yaml
   fi
 fi
@@ -445,7 +461,9 @@ while [[ "x${heketi_service}" == "x" ]]; do
   if [[ "${CLI}" == *oc ]]; then
     heketi_service=$(${CLI} describe routes/deploy-heketi | grep "Requested Host:" | awk '{print $3}')
   else
+    output "Kubernetes: ${CLI} describe svc/deploy-heketi | grep "Endpoints:" | awk '{print $2}'"
     heketi_service=$(${CLI} describe svc/deploy-heketi | grep "Endpoints:" | awk '{print $2}')
+    output "Heketi URL is ${heketi_service}"
   fi
   sleep 1
 done
@@ -460,7 +478,13 @@ if [[ "${hello}" != "Hello from Heketi" ]]; then
   abort
 fi
 
-tload=$(heketi-cli -s http://${heketi_service} topology load --json=${TOPOLOGY} 2>&1)
+docker pull heketi/heketi
+curdir=$(pwd)
+# Get heketi-CLI
+output "docker run -v ${curdir}:${curdir} --rm --entrypoint=cp heketi/heketi /usr/bin/heketi-cli ${curdir}"
+docker run -v ${curdir}:${curdir} --rm --entrypoint=cp heketi/heketi /usr/bin/heketi-cli ${curdir}
+output "Heketi-CLI: heketi-cli -s http://${heketi_service} topology load --json=${TOPOLOGY} 2>&1"
+tload=$(./heketi-cli -s http://${heketi_service} topology load --json=${TOPOLOGY} 2>&1) 
 if [[ ${?} != 0 ]]; then
   output "${tload}"
   exit 1
@@ -473,7 +497,9 @@ else
   fi
 fi
 
-heketi-cli -s http://${heketi_service} setup-openshift-heketi-storage
+
+output "Heketi-CLI: heketi-cli -s http://${heketi_service} setup-openshift-heketi-storage"
+./heketi-cli -s http://${heketi_service} setup-openshift-heketi-storage
 if [[ ${?} != 0 ]]; then
   output "Failed on setup openshift heketi storage"
   exit 1
