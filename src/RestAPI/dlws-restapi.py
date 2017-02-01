@@ -5,7 +5,7 @@ import os
 from flask import Flask
 from flask_restful import reqparse, abort, Api, Resource
 from flask import request, jsonify
-
+import base64
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
 #from JobRestAPIUtils import SubmitDistJob, GetJobList, GetJobStatus, DeleteJob, GetTensorboard, GetServiceAddress, GetLog, GetJob
@@ -117,19 +117,20 @@ class ListJobs(Resource):
         runningJobs = []
         finishedJobs = []
         interactiveJobs = []
-        visualizationJobs = []
         for job in jobs:
             job.pop("jobDescriptionPath",None)
             job.pop("jobDescription",None)
 
+            job["jobParams"] = json.loads(base64.b64decode(job["jobParams"]))
+
+            if "endpoints" in job and job["endpoints"] is not None  and (job["endpoints"].strip()) > 0:
+                job["endpoints"] = json.loads(base64.b64decode(job["endpoints"]))
 
             if job["jobStatus"] == "running":
                 if job["jobType"] == "training":
                     runningJobs.append(job)
-                elif job["jobType"] == "interactive":
+                elif job["jobType"] == "visualization" or job["jobType"] == "interactive":
                     interactiveJobs.append(job)
-                elif job["jobType"] == "visualization":
-                    visualizationJobs.append(job)
             elif job["jobStatus"] == "queued" or job["jobStatus"] == "scheduling":
                 queuedJobs.append(job)
             else:
@@ -141,7 +142,6 @@ class ListJobs(Resource):
         ret["runningJobs"] = runningJobs
         ret["finishedJobs"] = finishedJobs
         ret["interactiveJobs"] = interactiveJobs
-        ret["visualizationJobs"] = visualizationJobs
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
@@ -188,9 +188,13 @@ class GetJobDetail(Resource):
         parser.add_argument('jobId')
         args = parser.parse_args()    
         jobId = args["jobId"]
-        log = JobRestAPIUtils.GetJobDetail(jobId)
-
-        resp = jsonify(log)
+        job = JobRestAPIUtils.GetJobDetail(jobId)
+        job["jobParams"] = json.loads(base64.b64decode(job["jobParams"]))
+        if "endpoints" in job and job["endpoints"] is not None and (job["endpoints"].strip()) > 0:
+            job["endpoints"] = json.loads(base64.b64decode(job["endpoints"]))        
+        if "jobMeta" in job:
+            job.pop("jobMeta",None)
+        resp = jsonify(job)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
 

@@ -3,7 +3,6 @@
 *@
 @{
 }
-<h1> Viewing Logs produced by Job: @ViewData["jobid"]</h1>
 
 <script src="http://ajax.microsoft.com/ajax/jquery/jquery-1.10.2.min.js" type="text/javascript"></script>
 <script>
@@ -17,13 +16,53 @@
             function (payload) {
                 if (payload.log) {
                     console.log(payload.jobId);
-                    objDiv = document.getElementById('logPanel');
+                    var objDiv = document.getElementById('logPanel');
+                    objDiv.style.height = "500px"
                     objDiv.innerHTML = payload.log;
                     objDiv.scrollTop = objDiv.scrollHeight;
+                }
+                else {
+                    var logPanelDiv = document.getElementById('logPanel');
+                    logPanelDiv.innerHTML = "No log yet!";
+                    logPanelDiv.style.height = "50px"
+                }
+                if (payload.jobParams) {
+
+                    var jobDetailDiv = document.getElementById('jobDetail');
+
+                    jobDetailStr = "Job Id: " + payload.jobParams.jobId + "\n";
+                    jobDetailStr += "Job Name: " + payload.jobParams.jobName + "\n";
+                    jobDetailStr += "Docker Image: " + payload.jobParams.image + "\n";
+                    jobDetailStr += "Command: " + payload.jobParams.cmd + "\n";
+                    jobDetailStr += "Data Path: " + payload.jobParams.dataPath + "\n";
+                    jobDetailStr += "Work Path: " + payload.jobParams.dataPath + "\n";
+                    jobDetailStr += "Job Path: " + payload.jobParams.workPath + "\n";
+                    jobDetailStr += "Job Type: " + payload.jobParams.jobType + "\n";
+                    jobDetailStr += "GPU #: " + payload.jobParams.resourcegpu + "\n";
+                    jobDetailStr += "Job Status: " + payload.jobStatus + "\n";
+                    jobDetailStr += "Job Submission Time: " + payload.jobTime + "\n";
+                    jobDetailDiv.innerHTML = jobDetailStr;
+
                 } 
-                else
+
+                if (payload.endpoints)
                 {
-                    $('#logPanel').innerHTML ="No log yet!";
+                    $('#endpoints').show();
+
+                    var endpointsStr = ""
+                    for (var i = 0; i < payload.endpoints.length; i++)
+                    {
+                        var svcurl = "http://"+payload.endpoints[i].hostIP+":"+payload.endpoints[i].hostPort
+                        endpointsStr += "Container Port: " + payload.endpoints[i].containerPort + " is mapped to public ip: <a href='" + svcurl + "' target='_blank'> " + svcurl + "</a>  \n";
+                    }
+                    var endpointsPanellDiv = document.getElementById('endpointsPanel');
+                    endpointsPanellDiv.innerHTML = endpointsStr;
+                    var height = payload.endpoints.length * 15;
+                    endpointsPanellDiv.style.height = height + "px"
+                }
+                else {
+                    $('#endpoints').hide();
+
                 }
             });
     }
@@ -38,7 +77,20 @@
 
 <hr />
 
+<h2> Job Details:</h2>
+<div id="jobDetail" style="height: 210px; background-color: #eee; white-space: pre; word-wrap: normal; overflow-x: scroll; overflow-y: scroll; font-family: 'Courier New'; font-weight: 600; font-size: 12px" readonly="" class="ng-binding">
 
+</div>
+
+<div id="endpoints" hidden>
+    <h2> Mapped Endpoints: </h2>
+    <h4>(Links to access interactive/visualization interface)</h4>
+    <div id="endpointsPanel" style="height: 100px; background-color: #eee; white-space: pre; word-wrap: normal; font-family: 'Courier New'; font-weight: 600; font-size: 12px" readonly="" class="ng-binding">
+    </div>
+</div>
+
+
+<h2> Job Console Output:</h2>
 <div id="logPanel" style="height: 500px; background-color: #eee; white-space: pre; word-wrap: normal; overflow-x: scroll; overflow-y: scroll; font-family: 'Courier New'; font-weight: 600; font-size: 12px" readonly="" class="ng-binding">
     No log yet
 </div>

@@ -9,6 +9,7 @@ spec:
       name: {{ job["jobId"] }}
       labels: 
          run: {{ job["jobId"] }}
+         jobName: {{ job["jobName"] }}
     spec:
       containers:
       - name: {{ job["jobId"] }}

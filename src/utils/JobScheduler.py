@@ -76,21 +76,21 @@ def GetServiceAddress(jobId):
     
     for svc in svcs:
         lines = [Split(x,"\t") for x in Split(svc,"\n")]
-        port = None
-        nodeport = None
+        containerPort = None
+        hostPort = None
         selector = None
         hostIP = None
 
         for line in lines:
             if len(line) > 1:
                 if line[0] == "Port:":
-                    port = line[-1]
-                    if "/" in port:
-                        port = port.split("/")[0]
+                    containerPort = line[-1]
+                    if "/" in containerPort:
+                        containerPort = containerPort.split("/")[0]
                 if line[0] == "NodePort:":
-                    nodeport = line[-1]
-                    if "/" in nodeport:
-                        nodeport = nodeport.split("/")[0]
+                    hostPort = line[-1]
+                    if "/" in hostPort:
+                        hostPort = hostPort.split("/")[0]
 
                 if line[0] == "Selector:" and line[1] != "<none>":
                     selector = line[-1]
@@ -101,43 +101,15 @@ def GetServiceAddress(jobId):
                 for item in podInfo["items"]:
                     if "status" in item and "hostIP" in item["status"]:
                         hostIP = item["status"]["hostIP"]
-        if port is not None and hostIP is not None and nodeport is not None:
-            ret.append( (port,hostIP,nodeport))
+        if containerPort is not None and hostIP is not None and hostPort is not None:
+            svcMapping = {}
+            svcMapping["containerPort"] = containerPort
+            svcMapping["hostIP"] = hostIP
+            svcMapping["hostPort"] = hostPort
+            ret.append(svcMapping)
     return ret
 
 
-def GetTensorboard(jobId):
-    output = kubectl_exec(" describe svc tensorboard-"+jobId)
-    lines = [Split(x,"\t") for x in Split(output,"\n")]
-    port = None
-    nodeport = None
-    selector = None
-    hostIP = None
-
-    for line in lines:
-        if len(line) > 1:
-            if line[0] == "Port:":
-                port = line[-1]
-                if "/" in port:
-                    port = port.split("/")[0]
-            if line[0] == "NodePort:":
-                nodeport = line[-1]
-                if "/" in nodeport:
-                    nodeport = nodeport.split("/")[0]
-
-            if line[0] == "Selector:" and line[1] != "<none>":
-                selector = line[-1]
-
-    if selector is not None:
-        output = kubectl_exec(" get pod -o yaml -l "+selector)
-        podInfo = yaml.load(output)
-
-        
-        for item in podInfo["items"]:
-            if "status" in item and "hostIP" in item["status"]:
-                hostIP = item["status"]["hostIP"]
-
-    return (port,hostIP,nodeport)
 
 def GetPod(selector):
     try:
@@ -305,10 +277,17 @@ def SubmitJob(job):
     dataHandler.UpdateJobTextField(jobParams["jobId"],"jobDescriptionPath",jobParams["jobDescriptionPath"])
     dataHandler.UpdateJobTextField(jobParams["jobId"],"jobDescription",base64.b64encode(jobDescription))
 
-    jobParams.pop('LaunchCMD',None)
 
-    jobParam = base64.b64encode(json.dumps(jobParams))
-    dataHandler.UpdateJobTextField(jobParams["jobId"],"jobMeta",jobParam)
+    jobMeta = {}
+    jobMeta["jobDescriptionPath"] = jobParams["jobDescriptionPath"]
+    jobMeta["pvc_data"] = jobParams["pvc_data"]
+    jobMeta["pvc_work"] = jobParams["pvc_work"]
+    jobMeta["pvc_job"] = jobParams["pvc_job"]
+    jobMeta["pvc_job"] = jobParams["pvc_job"]
+    jobMeta["LaunchCMD"] = jobParams["LaunchCMD"]
+
+    jobMetaStr = base64.b64encode(json.dumps(jobMeta))
+    dataHandler.UpdateJobTextField(jobParams["jobId"],"jobMeta",jobMetaStr)
 
 
     return ret
@@ -345,9 +324,11 @@ def ExtractJobLog(jobId,logPath):
             f.write(log)
         f.close()
 
+
+
 def UpdateJobStatus(job):
     dataHandler = DataHandler()
-    jobParams = json.loads(base64.b64decode(job["jobMeta"]))
+    jobParams = json.loads(base64.b64decode(job["jobParams"]))
 
 
     jobPath,workPath,dataPath = GetStoragePath(jobParams["jobPath"],jobParams["workPath"],jobParams["dataPath"])
@@ -368,6 +349,10 @@ def UpdateJobStatus(job):
     elif result.strip() == "Running":
         if job["jobStatus"] != "running":
             dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","running")
+        if job["jobType"] == "interactive" or job["jobType"] == "visualization":
+            serviceAddress = GetServiceAddress(job["jobId"])
+            serviceAddress = base64.b64encode(json.dumps(serviceAddress))
+            dataHandler.UpdateJobTextField(job["jobId"],"endpoints",serviceAddress)
     elif result.strip() == "Failed":
         dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","failed")
         dataHandler.UpdateJobTextField(job["jobId"],"errorMsg",detail)
