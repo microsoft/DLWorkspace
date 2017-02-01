@@ -18,7 +18,7 @@
             var logdir = encodeURIComponent($("#logdir").val().trim());
             var interactiveport = encodeURIComponent($("#interactiveport").val().trim());
 
-            
+
             var numGPUsInt = parseInt($('#resourcegpu').val());
             var numGPUStr = $('#resourcegpu').val();
 
@@ -48,7 +48,7 @@
             }
 
             if (cmd == "") {
-                alert("Default CMD in docker image:"+image+". will be executed");
+                alert("Default CMD in docker image:" + image + ". will be executed");
             }
 
             params = params + "resourcegpu=" + numGPUStr + "&";
@@ -66,7 +66,7 @@
 
             var logdir = $('#logdir').val();
             if (logdir != "") {
-                params = params + "logDir=" + jobpath + "&";
+                params = params + "logDir=" + logdir + "&";
             }
 
             var interactiveport = $('#interactiveport').val();
@@ -75,7 +75,7 @@
             }
 
             params = params + "jobType=training&";
-            var username = "@User.Identity.Name".replace("REDMOND","")
+            var username = "@User.Identity.Name".replace("REDMOND", "")
             //console.log(username)
             params = params + "userName=" + username;
 
@@ -87,7 +87,11 @@
             $.ajax({
                 url: url,
                 dataType: 'json',
-                timeout: 10000 //3 second timeout, 
+                error: function (xhr, ajaxOptions, thrownError) {
+                    alert("RestfulAPI error!");
+                    $("#submit").attr("disabled", false);
+                },
+                timeout: 10000 //10 second timeout
             }).done(
                 function (payload) {
                     console.log(payload);
@@ -96,10 +100,13 @@
                         location.href = "/Home/ViewJobs";
                     } else if (payload.error) {
                         alert("Error: " + payload.error, "Alert");
+                        $("#submit").attr("disabled", false);
                     } else {
                         alert("Unexpected error: " + payload, "Alert");
+                        $("#submit").attr("disabled", false);
                     }
-            });
+
+                });
 
         });
     });
