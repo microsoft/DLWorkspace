@@ -33,7 +33,7 @@ def SubmitJob(jobParamsJsonStr):
         #jobParams["jobId"] = jobParams["jobName"] + "-" + str(uuid.uuid4()) 
         #jobParams["jobId"] = jobParams["jobName"] + "-" + str(time.time())
         jobParams["jobId"] = str(uuid.uuid4()) 
-    jobParams["jobId"] = jobParams["jobId"].replace("_","-").replace(".","-")
+    #jobParams["jobId"] = jobParams["jobId"].replace("_","-").replace(".","-")
 
 
     if "cmd" not in jobParams:
@@ -43,6 +43,7 @@ def SubmitJob(jobParamsJsonStr):
         jobPath = jobParams["jobPath"]
     else:
         jobPath = time.strftime("%y%m%d")+"/"+jobParams["jobId"]
+        jobParams["jobPath"] = jobPath
 
     if "workPath" not in jobParams or len(jobParams["workPath"].strip()) == 0: 
        ret["error"] = "ERROR: work-path cannot be empty"
@@ -51,15 +52,37 @@ def SubmitJob(jobParamsJsonStr):
         ret["error"] = "ERROR: data-path cannot be empty"
 
 
-    jobPath,workPath,dataPath = GetStoragePath(jobPath,jobParams["workPath"],jobParams["dataPath"])
+    if "logDir" in jobParams and len(jobParams["logDir"].strip()) > 0:
+        tensorboardParams = jobParams.copy()
+
+        tensorboardParams["jobId"] = str(uuid.uuid4()) 
+        tensorboardParams["jobName"] = "tensorboard-"+jobParams["jobName"]
+        tensorboardParams["jobPath"] = jobPath
+        tensorboardParams["jobType"] = "visualization"
+        tensorboardParams["cmd"] = "tensorboard --logdir " + jobParams["logDir"] + " --host 0.0.0.0"
+        tensorboardParams["image"] = "tensorflow/tensorflow:latest"
+        tensorboardParams["resourcegpu"] = "0"
 
 
-    localJobPath = os.path.join(config["storage-mount-path"],jobPath)
-    if not os.path.exists(localJobPath):
-        os.makedirs(localJobPath)
+        tensorboardParams["serviceId"] = "tensorboard-"+tensorboardParams["jobId"]
+        tensorboardParams["port"] = "6006"
+        tensorboardParams["port-name"] = "tensorboard"
+        tensorboardParams["port-type"] = "TCP"       
 
-    if "error" not in ret and dataHandler.AddJob(jobParams):
-        ret["jobId"] = jobParams["jobId"]
+        if "error" not in ret:
+            if not dataHandler.AddJob(tensorboardParams):
+                ret["error"] = "Cannot schedule tensorboard job."
+
+
+    if "error" not in ret:
+        if dataHandler.AddJob(jobParams):
+            ret["jobId"] = jobParams["jobId"]
+        else:
+            ret["error"] = "Cannot schedule job. Cannot add job into database."
+
+
+
+
     return ret
 
 
@@ -98,10 +121,9 @@ def GetJobDetail(jobId):
         #        log = f.read()
         #        job["log"] = log
         #    f.close()
-        job.pop("jobDescription",None)
+        if "jobDescription" in job:
+            job.pop("jobDescription",None)
         log = dataHandler.GetJobTextField(jobId,"jobLog")
-        print "==========================="
-        print log
         if log is not None:
             job["log"] = log
     return job

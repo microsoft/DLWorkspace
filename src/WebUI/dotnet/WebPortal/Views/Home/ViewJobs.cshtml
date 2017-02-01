@@ -33,7 +33,7 @@
                 tr.append("<td>" + json.runningJobs[i].userName + "</td>");
                 tr.append("<td>" + json.runningJobs[i].jobTime.toString("YYYYMMDD") + "</td>");
                 tr.append("<td> <a href='/Home/JobDetail/?jobId=" + json.runningJobs[i].jobId + "'> log </a></td>");
-                tr.append("<td> <a href='#'  onclick=\"ShowHideDiv('" + json.runningJobs[i].jobId + "interactiveportfield')\" > kill </a></td>");
+                tr.append("<td> <a href='#'  onclick=\"KillJob('" + json.runningJobs[i].jobId + "')\" > kill </a></td>");
                 $('#running-job-table').append(tr);
             }
 
@@ -97,7 +97,8 @@
                     tr.append("<td>" + json.interactiveJobs[i].userName + "</td>");
                     tr.append("<td>" + json.interactiveJobs[i].jobTime + "</td>");
                     tr.append("<td> <a href='/Home/JobDetail/?jobId=" + json.interactiveJobs[i].jobId + "'> log </a></td>");
-                    tr.append("<td> <a href='/Home/KillJob/?jobId=" + json.interactiveJobs[i].jobId + "'> kill </a></td>");
+                    tr.append("<td> <a href='#'  onclick=\"KillJob('" + json.interactiveJobs[i].jobId + "')\" > kill </a></td>");
+
                     $('#interactive-job-table').append(tr);
                 }
             }
@@ -118,7 +119,7 @@
                     tr.append("<td>" + json.visualizationJobs[i].userName + "</td>");
                     tr.append("<td>" + json.visualizationJobs[i].jobTime.toString("YYYYMMDD") + "</td>");
                     tr.append("<td> <a href='/Home/JobDetail/?jobId=" + json.visualizationJobs[i].jobId + "'> log </a></td>");
-                    tr.append("<td> <a href='/Home/KillJob/?jobId=" + json.visualizationJobs[i].jobId + "'> kill </a></td>");
+                    tr.append("<td> <a href='#'  onclick=\"KillJob('" + json.visualizationJobs[i].jobId + "')\" > kill </a></td>");
                     $('#visualization-job-table').append(tr);
                 }
             }

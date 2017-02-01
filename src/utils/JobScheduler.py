@@ -159,7 +159,7 @@ def GetLog(jobId):
     if podName is not None:
         output = kubectl_exec(" logs "+podName)
     else:
-        output = "Do not have logs yet."
+        output = ""
     return output
 
 
@@ -217,17 +217,17 @@ def SubmitJob(job):
         jobParams["cmd"] = ""
         jobParams["LaunchCMD"] = ""
     if isinstance(jobParams["cmd"], basestring) and not jobParams["cmd"] == "":
-        launchScriptPath = os.path.join(localJobPath,"launch.sh")
+        launchScriptPath = os.path.join(localJobPath,"launch-%s.sh" % jobParams["jobId"])
         with open(launchScriptPath, 'w') as f:
             f.write(jobParams["cmd"] + "\n")
         f.close()        
-        jobParams["LaunchCMD"] = "[\"bash\", \"/job/launch.sh\"]"
+        jobParams["LaunchCMD"] = "[\"bash\", \"/job/launch-%s.sh\"]" % jobParams["jobId"]
 
     jobParams["jobDescriptionPath"] = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"]+".yaml"
 
     jobDescriptionPath = os.path.join(os.path.dirname(config["storage-mount-path"]), jobParams["jobDescriptionPath"])
 
-    os.system("mkdir -p "+ os.path.dirname(os.path.realpath(jobDescriptionPath)))
+    os.makedirs(os.path.dirname(os.path.realpath(jobDescriptionPath)))
 
 
 
@@ -258,13 +258,15 @@ def SubmitJob(job):
     jobDescriptionList.append(job_description)
 
 
-
-    if "interactive-port" in jobParams and len(jobParams["interactive-port"].strip()) > 0:
-        jobParams["svc-name"] = "interactive-"+jobParams["jobId"]
-        jobParams["app-name"] = jobParams["jobId"]
-        jobParams["port"] = jobParams["interactive-port"]
-        jobParams["port-name"] = "interactive"
-        jobParams["port-type"] = "TCP"
+    if ("interactive-port" in jobParams and len(jobParams["interactive-port"].strip()) > 0) or "port" in jobParams:
+        if not "serviceId" in jobParams:
+            jobParams["serviceId"] = "interactive-"+jobParams["jobId"]
+        if not "port" in jobParams:
+            jobParams["port"] = jobParams["interactive-port"]
+        if not "port-name" in jobParams:
+            jobParams["port-name"] = "interactive"
+        if not "port-type" in jobParams:
+            jobParams["port-type"] = "TCP"
 
         serviceTemplate = ENV.get_template(os.path.join(jobTempDir,"KubeSvc.yaml.template"))
 
@@ -294,31 +296,6 @@ def SubmitJob(job):
     ret["output"] = output
     
     ret["jobId"] = jobParams["jobId"]
-
-
-    if "logDir" in jobParams and len(jobParams["logDir"].strip()) > 0:
-        tensorboardParams = jobParams.copy()
-        tensorboardParams["svc-name"] = "tensorboard-"+jobParams["jobId"]
-        tensorboardParams["app-name"] = "tensorboard-"+jobParams["jobId"]
-        tensorboardParams["port"] = "6006"
-        tensorboardParams["port-name"] = "tensorboard"
-        tensorboardParams["port-type"] = "TCP"        
-        tensorboardParams["tensorboard-id"] = "tensorboard-"+jobParams["jobId"]
-        
-        tensorboardParams["jobId"] = tensorboardParams["svc-name"]
-        tensorboardParams["jobName"] = tensorboardParams["svc-name"]
-        tensorboardMeta = GenTensorboardMeta(tensorboardParams, os.path.join(jobTempDir,"KubeSvc.yaml.template"), os.path.join(jobTempDir,"TensorboardApp.yaml.template"))
-
-        tensorboardMetaFilePath = os.path.join(jobDir, tensorboardParams["jobId"]+".yaml")
-
-        with open(tensorboardMetaFilePath, 'w') as f:
-            f.write(tensorboardMeta)
-        output = kubectl_create(tensorboardMetaFilePath)
-        tensorboardParams["jobDescriptionPath"] = tensorboardMetaFilePath
-        tensorboardParams["jobDescription"] = base64.b64encode(tensorboardMeta)
-        if "userName" not in tensorboardParams:
-            tensorboardParams["userName"] = ""
-        dataHandler.AddJob(tensorboardParams)
 
 
     if "userName" not in jobParams:
@@ -379,15 +356,23 @@ def UpdateJobStatus(job):
     ExtractJobLog(job["jobId"],logPath)
 
     result, detail = GetJobStatus(job["jobId"])
-    print result
+
+    
+    jobDescriptionPath = os.path.join(os.path.dirname(config["storage-mount-path"]), job["jobDescriptionPath"]) if "jobDescriptionPath" in job else None
+
     if result.strip() == "Succeeded":
         dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","finished")
+        if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
+            kubectl_delete(jobDescriptionPath) 
+
     elif result.strip() == "Running":
         if job["jobStatus"] != "running":
             dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","running")
     elif result.strip() == "Failed":
         dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","failed")
         dataHandler.UpdateJobTextField(job["jobId"],"errorMsg",detail)
+        if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
+            kubectl_delete(jobDescriptionPath) 
 
 def ScheduleJob():
     while True:

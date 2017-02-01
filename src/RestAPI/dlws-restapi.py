@@ -57,6 +57,7 @@ class SubmitJob(Resource):
             ret["error"] = "jobType cannot be empty"        
         else:
             params["jobName"] = args["jobName"]
+            params["resourcegpu"] = args["resourcegpu"]
             params["workPath"] = args["workPath"]
             params["dataPath"] = args["dataPath"]
             params["image"] = args["image"]
@@ -71,7 +72,7 @@ class SubmitJob(Resource):
                 params["logDir"] = args["logDir"]
 
             if args["interactiveport"] is not None and len(args["interactiveport"].strip()) > 0:
-                params["interactive-port"] = args["jobpath"]
+                params["interactive-port"] = args["interactive-port"]
 
             if args["userName"] is not None and len(args["userName"].strip()) > 0:
                 params["userName"] = args["userName"]
