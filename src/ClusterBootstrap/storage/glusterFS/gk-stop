@@ -411,6 +411,8 @@ if [[ ${LOAD} -eq 0 ]]; then
     fi
     ${CLI} policy add-role-to-user edit system:serviceaccount:${NAMESPACE}:heketi-service-account
   else
+    output "Kubernetes: ${CLI} delete -f ${TEMPLATES}/heketi-service-account.yaml"
+    ${CLI} delete -f ${TEMPLATES}/heketi-service-account.yaml
     output "Kubernetes: ${CLI} create -f ${TEMPLATES}/heketi-service-account.yaml"
     ${CLI} create -f ${TEMPLATES}/heketi-service-account.yaml
   fi
@@ -427,6 +429,8 @@ if [[ $GLUSTER -eq 1 ]] && [[ ${LOAD} -eq 0 ]]; then
   if [[ "${CLI}" == *oc ]]; then
     ${CLI} process glusterfs | ${CLI} create -f -
   else
+    output "Kubernetes: ${CLI} delete -f ${TEMPLATES}/glusterfs-daemonset.yaml"
+    ${CLI} delete -f ${TEMPLATES}/glusterfs-daemonset.yaml
     output "Kubernetes: ${CLI} create -f ${TEMPLATES}/glusterfs-daemonset.yaml"
     ${CLI} create -f ${TEMPLATES}/glusterfs-daemonset.yaml
   fi
@@ -440,6 +444,8 @@ if [[ ${LOAD} -eq 0 ]]; then
   if [[ "${CLI}" == *oc ]]; then
     ${CLI} process deploy-heketi | ${CLI} create -f -
   else
+    output "${CLI} delete -f ${TEMPLATES}/deploy-heketi-deployment.yaml"
+    ${CLI} delete -f ${TEMPLATES}/deploy-heketi-deployment.yaml
     output "${CLI} create -f ${TEMPLATES}/deploy-heketi-deployment.yaml"
     ${CLI} create -f ${TEMPLATES}/deploy-heketi-deployment.yaml
   fi
@@ -472,6 +478,11 @@ if [[ "${hello}" != "Hello from Heketi" ]]; then
   abort
 fi
 
+docker pull heketi/heketi
+curdir=$(pwd)
+# Get heketi-CLI
+output "docker run -v ${curdir}:${curdir} --rm --entrypoint=cp heketi/heketi /usr/bin/heketi-cli ${curdir}"
+docker run -v ${curdir}:${curdir} --rm --entrypoint=cp heketi/heketi /usr/bin/heketi-cli ${curdir}
 output "Heketi-CLI: heketi-cli -s http://${heketi_service} topology load --json=${TOPOLOGY} 2>&1"
 tload=$(./heketi-cli -s http://${heketi_service} topology load --json=${TOPOLOGY} 2>&1) 
 if [[ ${?} != 0 ]]; then
