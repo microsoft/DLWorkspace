@@ -32,5 +32,5 @@ if __name__ == '__main__':
 	dockerprefix = args.prefix
 	dockertag = args.tag
 	dockername = dockerprefix + ":" + dockertag
-	dockername = DockerUtils.buildDocker(dockername, dirname)
-	DockerUtils.runDocker(dockername, "DevDocker")
+	dockername = buildDocker(dockername, dirname)
+	runDocker(dockername, "DevDocker")
