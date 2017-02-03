@@ -1121,7 +1121,7 @@ def startGlusterFS( masternodes, ipToHostname, nodesinfo, glusterFSargs, flag = 
 	glusterFSCopy()
 	rundir = "/tmp/startGlusterFS"
 	heketidocker = "heketi/heketi:3"
-	remotecmd += "docker pull "+heketidocker+"; "
+	remotecmd = "docker pull "+heketidocker+"; "
 	remotecmd += "docker run -v "+rundir+":"+rundir+" --rm --entrypoint=cp "+heketidocker+" /usr/bin/heketi-cli "+rundir+"; "
 	remotecmd += "sudo bash ./gk-deploy "
 	remotecmd += flag
@@ -1133,7 +1133,7 @@ def removeGlusterFSvolumes( masternodes, ipToHostname, nodesinfo, glusterFSargs,
 	for node in nodes:
 		glusterFSCopy()
 		rundir = "/tmp/glusterFSAdmin"
-		remotecmd += "sudo python RemoveLVM.py "
+		remotecmd = "sudo python RemoveLVM.py "
 		SSH_exec_cmd_with_directory( config["ssh_cert"], "core", node, "deploy/storage/glusterFS", remotecmd, dstdir = rundir )
 
 def execOnAll(nodes, args, supressWarning = False):
@@ -1161,10 +1161,16 @@ def execOnAll_with_output(nodes, args, supressWarning = False):
 		
 # run a shell script on all remote nodes
 def runScriptOnAll(nodes, args, sudo = False, supressWarning = False):
-	if sudo:
-		fullcmd = "sudo bash"
+	if ".py" in args[0]:
+		if sudo:
+			fullcmd = "sudo /opt/bin/python"
+		else:
+			fullcmd = "/opt/bin/python"
 	else:
-		fullcmd = "bash"
+		if sudo:
+			fullcmd = "sudo bash"
+		else:
+			fullcmd = "bash"
 	nargs = len(args)
 	for i in range(nargs):
 		if i==0:
@@ -1208,8 +1214,7 @@ Command:
             clear: stop glusterFS service, and remove all data volumes. 
   execonall [cmd ... ] Execute the command on all nodes and print the output. 
   doonall [cmd ... ] Execute the command on all nodes. 
-  runscriptonall [script] Execute the shell script on all nodes. 
-  
+  runscriptonall [script] Execute the shell/python script on all nodes. 
   ''') )
 	parser.add_argument("-y", "--yes", 
 		help="Answer yes automatically for all prompt", 
@@ -1410,6 +1415,7 @@ Command:
 		Get_Config()
 		nodes = GetNodes(config["clusterId"])
 		runScriptOnAll(nodes, nargs, sudo = args.sudo )
+
 		
 	elif command == "cleanmasteretcd":
 		response = raw_input("Clean and Stop Master/ETCD Nodes (y/n)?")
