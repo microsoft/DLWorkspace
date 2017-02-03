@@ -41,7 +41,18 @@ The 'deploy' folder contains important information to access the deployed DL wor
 
   Otherwise, each time master and Etcd server has been rebooted (the master and Etcd servers may obtain a new IP addresses), you will need to restart master, etcd and work nodes by repeating steps of 4 and 5. 
 
-7. [Optional] Repartition(Repartition.md) all data drives on the cluster. 
+7. [Optional] Repartition(Repartition.md) all data drives on the cluster.
+
+8. [Optional] Install python on all nodes. (python is used by GlusterFS deployment and virtual volume management )
+  ```
+  deploy.py --sudo runscriptonall script/install-python-on-coreos.sh
+  ```
+  You may verify python installation by:
+  ```
+  deploy.py execonall /opt/bin/python --version
+  ```
+  
+  
 
 8. Certain advanced topics, e.g., access to each deployed DL workspace node, use kubelet command, can be found at [Advanced.md](Advanced.md).
 

@@ -80,7 +80,9 @@ def SSH_connect(identity_file, user,host):
 
 # Copy a local file or directory (source) to remote (target) with identity file (private SSH key), user, host 
 def scp (identity_file, source, target, user, host):
-	os.system('scp -i %s -r "%s" "%s@%s:%s"' % (identity_file, source, user, host, target) )
+	cmd = 'scp -i %s -r "%s" "%s@%s:%s"' % (identity_file, source, user, host, target)
+	print cmd
+	os.system(cmd)
 
 # Copy a local file (source) or directory to remote (target) with identity file (private SSH key), user, host, and  
 def sudo_scp (identity_file, source, target, user, host):
@@ -131,12 +133,17 @@ def GetHostName( host ):
 # and then remove the temporary folder. 
 # Command should assume that it starts srcdir, and execute a shell script in there. 
 # If dstdir is given, the remote command will be executed at dstdir, and its content won't be removed
-def SSH_exec_cmd_with_directory( identity_file, user, host, srcdir, cmd, supressWarning = False, removeAfterExecution = True, dstdir = None ):
+def SSH_exec_cmd_with_directory( identity_file, user, host, srcdir, cmd, supressWarning = False, preRemove = True, removeAfterExecution = True, dstdir = None ):
 	if dstdir is None: 
 		tmpdir = os.path.join("/tmp", str(uuid.uuid4()))
+		preRemove = False
 	else:
 		tmpdir = dstdir
 		removeAfterExecution = False
+
+	if preRemove:
+		SSH_exec_cmd( identity_file, user, host, "sudo rm -rf " + tmpdir )
+
 	scp( identity_file, srcdir, tmpdir, user, host)
 	dstcmd = "cd "+tmpdir + "; "
 	if supressWarning:
@@ -1093,12 +1100,7 @@ def repartitionNodes(nodes, nodesinfo, partitionConfig):
 		SSH_exec_cmd(config["ssh_cert"], "core", node, cmd)
 	()
 	
-# Deploy glusterFS on a cluster
-def startGlusterFS( masternodes, ipToHostname, nodesinfo, glusterFSargs):
-	glusterFSJson = GlusterFSJson(ipToHostname, nodesinfo, glusterFSargs)
-	glusterFSJsonFilename = "deploy/storage/glusterFS/topology.json"
-	print "Write GlusterFS configuration file to: " + glusterFSJsonFilename
-	glusterFSJson.dump(glusterFSJsonFilename)
+def glusterFSCopy():
 	srcdir = "storage/glusterFS/kube-templates"
 	dstdir = os.path.join( "deploy", srcdir)
 	# print "Copytree from: " + srcdir + " to: " + dstdir
@@ -1106,10 +1108,33 @@ def startGlusterFS( masternodes, ipToHostname, nodesinfo, glusterFSargs):
 	srcfile = "storage/glusterFS/gk-deploy"
 	dstfile = os.path.join( "deploy", srcfile)
 	copyfile( srcfile, dstfile )
-	srcfile = "storage/glusterFS/install-python-on-coreos.sh"
+	srcfile = "storage/glusterFS/RemoveLVM.py"
 	dstfile = os.path.join( "deploy", srcfile)
 	copyfile( srcfile, dstfile )
-	SSH_exec_cmd_with_directory( config["ssh_cert"], "core", masternodes[0], "deploy/storage/glusterFS", "sudo bash install-python-on-coreos.sh; sudo bash ./gk-deploy -g", dstdir = "/tmp/startGlusterFS")
+	
+# Deploy glusterFS on a cluster
+def startGlusterFS( masternodes, ipToHostname, nodesinfo, glusterFSargs, flag = "-g"):
+	glusterFSJson = GlusterFSJson(ipToHostname, nodesinfo, glusterFSargs)
+	glusterFSJsonFilename = "deploy/storage/glusterFS/topology.json"
+	print "Write GlusterFS configuration file to: " + glusterFSJsonFilename
+	glusterFSJson.dump(glusterFSJsonFilename)
+	glusterFSCopy()
+	rundir = "/tmp/startGlusterFS"
+	heketidocker = "heketi/heketi:3"
+	remotecmd += "docker pull "+heketidocker+"; "
+	remotecmd += "docker run -v "+rundir+":"+rundir+" --rm --entrypoint=cp "+heketidocker+" /usr/bin/heketi-cli "+rundir+"; "
+	remotecmd += "sudo bash ./gk-deploy "
+	remotecmd += flag
+	SSH_exec_cmd_with_directory( config["ssh_cert"], "core", masternodes[0], "deploy/storage/glusterFS", remotecmd, dstdir = rundir )
+	
+# Deploy glusterFS on a cluster
+def removeGlusterFSvolumes( masternodes, ipToHostname, nodesinfo, glusterFSargs, nodes ):
+	startGlusterFS( masternodes, ipToHostname, nodesinfo, glusterFSargs, flag = "-g --yes --abort")
+	for node in nodes:
+		glusterFSCopy()
+		rundir = "/tmp/glusterFSAdmin"
+		remotecmd += "sudo python RemoveLVM.py "
+		SSH_exec_cmd_with_directory( config["ssh_cert"], "core", node, "deploy/storage/glusterFS", remotecmd, dstdir = rundir )
 
 def execOnAll(nodes, args, supressWarning = False):
 	cmd = ""
@@ -1133,6 +1158,22 @@ def execOnAll_with_output(nodes, args, supressWarning = False):
 		output = SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, cmd, supressWarning)
 		print "Node: " + node
 		print output
+		
+# run a shell script on all remote nodes
+def runScriptOnAll(nodes, args, sudo = False, supressWarning = False):
+	if sudo:
+		fullcmd = "sudo bash"
+	else:
+		fullcmd = "bash"
+	nargs = len(args)
+	for i in range(nargs):
+		if i==0:
+			fullcmd += " " + os.path.basename(args[i])
+		else:
+			fullcmd += " " + args[i]
+	srcdir = os.path.dirname(args[0])
+	for node in nodes:
+		SSH_exec_cmd_with_directory(config["ssh_cert"], "core", node, srcdir, fullcmd, supressWarning)
 
 if __name__ == '__main__':
 	# the program always run at the current directory. 
@@ -1161,9 +1202,13 @@ Command:
               if s_i > 0, the partition is in portitional to s_i. 
               We use parted mkpart percentage% to create partitions. As such, the minimum partition is 1% of a disk. 
   glusterFS [args] manage glusterFS on the cluster. 
-            start: deploy a glusterFS on the cluster. 
+            start: deploy a glusterFS and start gluster daemon set on the cluster.
+            update: update a glusterFS on the cluster.
+            stop: stop glusterFS service, data volume not removed. 
+            clear: stop glusterFS service, and remove all data volumes. 
   execonall [cmd ... ] Execute the command on all nodes and print the output. 
   doonall [cmd ... ] Execute the command on all nodes. 
+  runscriptonall [script] Execute the shell script on all nodes. 
   
   ''') )
 	parser.add_argument("-y", "--yes", 
@@ -1176,7 +1221,10 @@ Command:
 		help = "Regular expression to operate on partitions, default = " + defPartition, 
 		action="store",
 		default = defPartition )
-
+	parser.add_argument("-s", "--sudo", 
+		help = "Execute scripts in sudo", 
+		action="store_true" )
+		
 	parser.add_argument("command", 
 		help = "See above for the list of valid command" )
 	parser.add_argument('nargs', nargs=argparse.REMAINDER, 
@@ -1324,15 +1372,26 @@ Command:
 		Get_Config()
 		# nodes = GetNodes(config["clusterId"])
 		# ToDo: change pending, schedule glusterFS on master & ETCD nodes, 
-		nodes = GetWorkerNodes(config["clusterId"])
-		nodesinfo = getPartitions(nodes, args.partition )
-		if nargs[0] == "start":
+		if nargs[0] == "start" or nargs[0] == "update" or nargs[0] == "stop" or nargs[0] == "clear":
+			nodes = GetWorkerNodes(config["clusterId"])
+			nodesinfo = getPartitions(nodes, args.partition )
 			if len(nargs) == 1:
 				glusterFSargs = 1
 			else:
 				glusterFSargs = nargs[1]
 			masternodes = GetMasterNodes(config["clusterId"])
-			startGlusterFS( masternodes, config["ipToHostname"], nodesinfo, glusterFSargs)
+			gsFlag = ""
+			if nargs[0] == "start":
+				execOnAll(nodes, ["sudo modprobe dm_thin_pool"])
+				gsFlag = "-g"
+			elif nargs[0] == "stop":
+				gsFlag = "--yes -g --abort"
+			if nargs[0] == "clear":
+				removeGlusterFSvolumes( masternodes, config["ipToHostname"], nodesinfo, glusterFSargs, nodes )
+			else:
+				startGlusterFS( masternodes, config["ipToHostname"], nodesinfo, glusterFSargs, flag = gsFlag )
+			
+				
 		else:
 			parser.print_help()
 			exit()
@@ -1347,6 +1406,10 @@ Command:
 		nodes = GetNodes(config["clusterId"])
 		execOnAll_with_output(nodes, nargs)
 
+	elif command == "runscriptonall" and len(nargs)>=1:
+		Get_Config()
+		nodes = GetNodes(config["clusterId"])
+		runScriptOnAll(nodes, nargs, sudo = args.sudo )
 		
 	elif command == "cleanmasteretcd":
 		response = raw_input("Clean and Stop Master/ETCD Nodes (y/n)?")
