@@ -9,9 +9,11 @@ if __name__ == '__main__':
 	except subprocess.CalledProcessError as e:
 		print "Execution failed: " + e.output
 		output = "Execution failed: " + e.output
+		exit()
 	lines = output.split("\n")
 	for line in lines:
 		segs = line.split()
-		if segs[0]=="VG NAME":
+		if len(segs) >= 2 and segs[0]=="VG NAME":
 			os.system("sudo lvremove -f "+segs[1])
+			print "Remove volume: " + segs[1]
 

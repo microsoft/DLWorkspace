@@ -42,3 +42,4 @@ This document describes the procedure to deploy DL workspace cluster via PXE ser
   
 8. Some known issues:
    1. If a machine has multiple network interface, and uses one network interface to reach PXE server, and another to reach internet, it is **__sometime__** necessary to disconnect the network to the PXE server at the end of the installation to correctly routed internet access. 
+   2. By design, at the end of the deployment process, all nodes will be automatically shutdown. If a certain node is still up, the node has failed the deployment. (We observe that many time the node fails as it can't download needed docker image from the network. )
