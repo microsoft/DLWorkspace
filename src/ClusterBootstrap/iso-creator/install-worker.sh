@@ -20,7 +20,12 @@ DEVICE="/dev/sda"
 
 ## UNCOMMENT the following lines to install
 logger --tag "coreos-install" --id=$$ --journald -- "Starting install process on $DEVICE"
-sudo coreos-install -d $DEVICE -V $VERSION -C $CHANNEL -c /usr/share/oem/$CONFIG
+until sudo coreos-install -d $DEVICE -V $VERSION -C $CHANNEL -c /usr/share/oem/$CONFIG
+do
+  echo "install process on $DEVICE Fails, try again"
+  logger --tag "coreos-install" --id=$$ --journald -- "install process on $DEVICE Fails, try again"
+  sleep 5
+done
 logger --tag "coreos-install" --id=$$ --journald -- "Finished install process on $DEVICE"
 
 #sync
