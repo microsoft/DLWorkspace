@@ -202,7 +202,7 @@ def SubmitJob(job):
     if not os.path.exists(os.path.dirname(os.path.realpath(jobDescriptionPath))):
         os.makedirs(os.path.dirname(os.path.realpath(jobDescriptionPath)))
 
-
+    jobParams["jobNameLabel"] = ''.join(e for e in jobParams["jobName"] if e.isalnum())
 
     ENV = Environment(loader=FileSystemLoader("/"))
 
@@ -293,7 +293,7 @@ def SubmitJob(job):
 
 def KillJob(job):
     dataHandler = DataHandler()
-    if "jobDescriptionPath" in job:
+    if "jobDescriptionPath" in job and job["jobDescriptionPath"] is not None:
         jobDescriptionPath = os.path.join(os.path.dirname(config["storage-mount-path"]), job["jobDescriptionPath"])
         if os.path.isfile(jobDescriptionPath):
             if kubectl_delete(jobDescriptionPath) == 0:
@@ -336,6 +336,7 @@ def UpdateJobStatus(job):
 
     result, detail = GetJobStatus(job["jobId"])
 
+    print result
     
     jobDescriptionPath = os.path.join(os.path.dirname(config["storage-mount-path"]), job["jobDescriptionPath"]) if "jobDescriptionPath" in job else None
 
@@ -357,6 +358,10 @@ def UpdateJobStatus(job):
         dataHandler.UpdateJobTextField(job["jobId"],"errorMsg",detail)
         if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
             kubectl_delete(jobDescriptionPath) 
+
+    elif result.strip() == "unknown":
+        SubmitJob(job)
+
 
 def ScheduleJob():
     while True:
