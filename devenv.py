@@ -11,7 +11,8 @@ import pwd
 import grp
 from os.path import expanduser
 sys.path.append("src/utils")
-from DockerUtils import GlusterFSYaml
+import DockerUtils
+#from DockerUtils import GlusterFSYaml
 
 # prefix and tag will be filled by argument parser.
 
@@ -31,5 +32,5 @@ if __name__ == '__main__':
 	dockerprefix = args.prefix
 	dockertag = args.tag
 	dockername = dockerprefix + ":" + dockertag
-	dockername = buildDocker(dockername, dirname)
-	runDocker(dockername, "DevDocker")
+	dockername = DockerUtils.buildDocker(dockername, dirname)
+	DockerUtils.runDocker(dockername, "DevDocker")

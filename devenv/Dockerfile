@@ -32,7 +32,8 @@ RUN mkdir /etc/apt/source.list.d
 
 RUN echo "deb https://apt.dockerproject.org/repo ubuntu-xenial main" > /etc/apt/sources.list.d/docker.list
 
-RUN echo "dockerd > /dev/null 2>&1 &" | cat >> /etc/bash.bashrc
+# Following is already done when writing to run.sh in Dockerutils.py
+# RUN echo "dockerd > /dev/null 2>&1 &" | cat >> /etc/bash.bashrc
 
 RUN apt-get update; apt-cache policy docker-engine; apt-get update
 
@@ -70,6 +71,18 @@ RUN locale-gen en_US.UTF-8
 
 RUN update-locale LANG=en_US.UTF-8
 
+# Go editing tools
+RUN mkdir /opt/go
+ENV GOPATH=/opt/go
+ENV PATH=${PATH}:/opt/go/bin
 
+RUN go get -u github.com/nsf/gocode
 
+RUN go get golang.org/x/tools/cmd/guru
+RUN go build golang.org/x/tools/cmd/guru
+RUN mv guru $(go env GOROOT)/bin
+
+RUN go get github.com/rogpeppe/godef
+RUN go build github.com/rogpeppe/godef
+RUN mv godef $(go env GOROOT)/bin
 
