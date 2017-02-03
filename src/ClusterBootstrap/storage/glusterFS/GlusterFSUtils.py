@@ -44,7 +44,9 @@ class GlusterFSJson:
 				oneNodeInfo["node"] = nodeInfo
 				oneNodeInfo["devices"] = deviceList
 				self.nodesinfo.append(oneNodeInfo)
-			
+		if len(self.nodesinfo)<=0:
+			print "Error: We can't find any device to deploy GlusterFS. Please check the device argument and/or regular expression to see if any block device on the target node can match with the current argument. "
+			exit()
 	# dump infrastructure information to a yaml file. 
 	def dump(self, jsonfile):
 		outjson = {}

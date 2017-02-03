@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import os
 import time
 import datetime
@@ -11,8 +12,7 @@ import pwd
 import grp
 from os.path import expanduser
 sys.path.append("src/utils")
-import DockerUtils
-#from DockerUtils import GlusterFSYaml
+from DockerUtils import runDocker, buildDocker
 
 # prefix and tag will be filled by argument parser.
 

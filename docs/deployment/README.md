@@ -52,8 +52,8 @@ The 'deploy' folder contains important information to access the deployed DL wor
   deploy.py execonall /opt/bin/python --version
   ```
   
-  
+10. [Optional] Deploy glusterFS on the cluster. 
 
-8. Certain advanced topics, e.g., access to each deployed DL workspace node, use kubelet command, can be found at [Advanced.md](Advanced.md).
+10. Certain advanced topics, e.g., access to each deployed DL workspace node, use kubelet command, can be found at [Advanced.md](Advanced.md).
 
-8. If encounter problems, please check on [known issues](KnownIssues.md).
+11. If encounter problems, please check on [known issues](KnownIssues.md).
