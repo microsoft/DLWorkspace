@@ -829,16 +829,7 @@ def CleanWorkerNodes():
 def UpdateWorkerNode(nodeIP):
 	print "==============================================="
 	print "updating worker node: %s ..."  % nodeIP
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop kubelet")
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "docker rm -f \$(docker ps -a -q)")
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop docker")
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop flanneld")
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop bootstrap")
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop reportcluster")
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo rm /etc/kubernetes/manifests/kube-proxy.yaml")
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo mkdir -p /etc/flannel")
-
-
+	SSH_exec_cmd_with_directory(config["ssh_cert"], "core", nodeIP, "scripts", "bash --verbose stop-worker.sh")
 
 	sudo_scp(config["ssh_cert"],"./deploy/kubelet/options.env","/etc/flannel/options.env", "core", nodeIP )
 
@@ -879,22 +870,8 @@ def UpdateWorkerNode(nodeIP):
 	sudo_scp(config["ssh_cert"],"./deploy/kubelet/report.sh","/opt/report.sh", "core", nodeIP )
 	sudo_scp(config["ssh_cert"],"./deploy/kubelet/reportcluster.service","/etc/systemd/system/reportcluster.service", "core", nodeIP )
 
+	SSH_exec_cmd_with_directory(config["ssh_cert"], "core", nodeIP, "scripts", "bash --verbose start-worker.sh")
 
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl daemon-reload")
-
-	#SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl start bootstrap")
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl start flanneld")
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl start docker")
-
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl start kubelet")
-
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl start reportcluster")
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl enable reportcluster")
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl enable kubelet")
-
-
-
-	#SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo journalctl -u kubelet")
 	print "done!"
 
 
@@ -1159,9 +1136,9 @@ def execOnAll_with_output(nodes, args, supressWarning = False):
 		output = SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, cmd, supressWarning)
 		print "Node: " + node
 		print output
-		
-# run a shell script on all remote nodes
-def runScriptOnAll(nodes, args, sudo = False, supressWarning = False):
+
+# run a shell script on one remote node
+def runScript(node, args, sudo = False, supressWarning = False):
 	if ".py" in args[0]:
 		if sudo:
 			fullcmd = "sudo /opt/bin/python"
@@ -1179,8 +1156,13 @@ def runScriptOnAll(nodes, args, sudo = False, supressWarning = False):
 		else:
 			fullcmd += " " + args[i]
 	srcdir = os.path.dirname(args[0])
+	SSH_exec_cmd_with_directory(config["ssh_cert"], "core", node, srcdir, fullcmd, supressWarning)
+		
+
+# run a shell script on all remote nodes
+def runScriptOnAll(nodes, args, sudo = False, supressWarning = False):
 	for node in nodes:
-		SSH_exec_cmd_with_directory(config["ssh_cert"], "core", node, srcdir, fullcmd, supressWarning)
+		runScript( node, args, sudo = sudo, supressWarning = supressWarning)
 
 if __name__ == '__main__':
 	# the program always run at the current directory. 

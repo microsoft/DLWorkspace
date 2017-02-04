@@ -1,7 +1,15 @@
 #! /bin/bash
 /bin/bash -c 'until ping -c1 8.8.8.8; do sleep 1; done;'
-export HostIP=$(ip route get 8.8.8.8 | awk '{print $NF; exit}')
-hostnamectl  set-hostname $HostIP
+if [ -f /opt/systemid ]
+then
+   uuid=$(cat /opt/systemid)
+else
+   uuid=$(uuidgen)
+   echo $uuid > /opt/systemid
+fi
+# Use UUID as worker name
+export HostName="worker-${uuid}"
+hostnamectl  set-hostname $HostName
 export NSTR="null"
 
 systemctl stop flanneld
