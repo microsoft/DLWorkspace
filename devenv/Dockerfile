@@ -86,3 +86,7 @@ RUN go get github.com/rogpeppe/godef
 RUN go build github.com/rogpeppe/godef
 RUN mv godef $(go env GOROOT)/bin
 
+RUN go get github.com/tools/godep
+
+RUN chmod -R 0777 /opt/go
+

@@ -44,8 +44,11 @@ def runDocker(dockername, prompt=""):
         #fw.write("echo $PATH\n")
 	fw.write("cd "+currentdir+"\n")
 	fw.write("dockerd > /dev/null 2>&1 &\n")
-	#fw.write("su -m "+username +"\n")
-        fw.write("$SHELL\n")
+	fw.write("""echo "export PATH=\$PATH:\$GOPATH/bin" | cat >> /etc/bash.bashrc \n""")
+	fw.write("""echo "export GOPATH=\$GOPATH" | cat >> /etc/bash.bashrc \n""")
+	fw.write("su -m "+username +"\n")
+
+        #fw.write("$SHELL\n")
 	fw.close()
 	os.chmod(wname, 0755)
 	if prompt == "":
