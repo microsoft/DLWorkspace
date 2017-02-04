@@ -1121,7 +1121,7 @@ def startGlusterFS( masternodes, ipToHostname, nodesinfo, glusterFSargs, flag = 
 	glusterFSCopy()
 	rundir = "/tmp/startGlusterFS"
 	# use the same heketidocker as in heketi deployment
-	heketidocker = "heketi/heketi:dev"
+	heketidocker = "heketi/heketi:latest"
 	remotecmd = "docker pull "+heketidocker+"; "
 	remotecmd += "docker run -v "+rundir+":"+rundir+" --rm --entrypoint=cp "+heketidocker+" /usr/bin/heketi-cli "+rundir+"; "
 	remotecmd += "sudo bash ./gk-deploy "
