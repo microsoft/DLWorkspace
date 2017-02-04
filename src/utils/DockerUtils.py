@@ -38,17 +38,14 @@ def runDocker(dockername, prompt=""):
 	fw.write("adduser "+username +" docker\n")
 	fw.write("echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers\n")
 	fw.write("chmod --recursive 0755 /root\n")
+	# Please note: setting HOME environment in docker may nullify additional environment variables, 
+	# such as GOPATH.
 	fw.write("export HOME="+homedir+"\n")
-        #fw.write("echo $PATH\n")
-        #fw.write("export PATH=$PATH:$GOPATH/bin\n")
-        #fw.write("echo $PATH\n")
 	fw.write("cd "+currentdir+"\n")
 	fw.write("dockerd > /dev/null 2>&1 &\n")
 	fw.write("""echo "export PATH=\$PATH:\$GOPATH/bin" | cat >> /etc/bash.bashrc \n""")
 	fw.write("""echo "export GOPATH=\$GOPATH" | cat >> /etc/bash.bashrc \n""")
 	fw.write("su -m "+username +"\n")
-
-        #fw.write("$SHELL\n")
 	fw.close()
 	os.chmod(wname, 0755)
 	if prompt == "":
