@@ -1,4 +1,5 @@
 #!/bin/bash
+# Install python on CoreOS base image
 SHORTVER="2.7.13"
 VERSIONS="2.7.13.2713"
 PYTHONFILE="ActivePython-2.7.13.2713-linux-x86_64-glibc-2.3.6-401785.tar.gz"
