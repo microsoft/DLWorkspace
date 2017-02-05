@@ -491,13 +491,13 @@ def Gen_Configs():
 
 	etcd_servers = config["etcd_node"]
 
-	if int(config["etcd_node_num"]) <= 0:
-		raise Exception("ERROR: we need at least one etcd_server.") 
+	#if int(config["etcd_node_num"]) <= 0:
+	#	raise Exception("ERROR: we need at least one etcd_server.") 
 
 	kubernetes_masters = config["kubernetes_master_node"]
 
-	if len(kubernetes_masters) <= 0:
-		raise Exception("ERROR: we need at least one etcd_server.") 
+	#if len(kubernetes_masters) <= 0:
+	#	raise Exception("ERROR: we need at least one etcd_server.") 
 
 	config["discovery_url"] = Get_ETCD_DiscoveryURL(int(config["etcd_node_num"]))
 
@@ -727,7 +727,7 @@ def Clean_ETCD():
 
 
 
-def Deploy_ETCD():
+def Deploy_ETCD_Docker():
 	etcd_servers = config["etcd_node"]
 	etcd_server_user = "core"
 	
@@ -768,6 +768,70 @@ def Deploy_ETCD():
 		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "chmod +x /home/%s/init_network.sh" % etcd_server_user)
 
 		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "/home/%s/docker_etcd_ssl.sh" % etcd_server_user)
+
+	print "==============================================="
+	print "init etcd service on %s ..."  % etcd_servers[0]
+
+
+	print "waiting for ETCD service is ready..."
+	cmd = "curl --cacert %s --cert %s --key %s 'https://%s:2379/v2/keys'" % ("./ssl/etcd/ca.pem","./ssl/etcd/etcd.pem","./ssl/etcd/etcd-key.pem", etcd_servers[0])
+	while os.system(cmd) != 0:
+		time.sleep(5)
+	print "ETCD service is ready to use..."
+
+
+	scp(config["ssh_cert"],"./deploy/etcd/init_network.sh","/home/%s/init_network.sh" % etcd_server_user, etcd_server_user, etcd_server_address )
+	SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_servers[0], "chmod +x /home/%s/init_network.sh" % etcd_server_user)
+	SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_servers[0], "/home/%s/init_network.sh" % etcd_server_user)
+
+
+def Deploy_ETCD():
+	etcd_servers = config["etcd_node"]
+	etcd_server_user = "core"
+	
+	Clean_ETCD()
+	for i,etcd_server_address in enumerate(etcd_servers):
+		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo hostnamectl set-hostname %s" % config["cluster_name"]+"-etcd"+str(i+1))
+
+
+
+	for etcd_server_address in etcd_servers:
+		#print "==============================================="
+		#print "deploy configuration files to web server..."
+		#scp(config["ssh_cert"],"./deploy","/var/www/html", config["webserver_user"], config["webserver"] )
+
+		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo systemctl stop etcd3")
+
+		print "==============================================="
+		print "deploy certificates to etcd server %s" % etcd_server_address
+		
+		SSH_exec_cmd (config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo mkdir -p /etc/etcd/ssl") 
+		SSH_exec_cmd (config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo chown %s /etc/etcd/ssl " % (etcd_server_user)) 
+		scp(config["ssh_cert"],"./ssl/etcd/ca.pem","/etc/etcd/ssl", etcd_server_user, etcd_server_address )
+		scp(config["ssh_cert"],"./ssl/etcd/etcd.pem","/etc/etcd/ssl", etcd_server_user, etcd_server_address )
+		scp(config["ssh_cert"],"./ssl/etcd/etcd-key.pem","/etc/etcd/ssl", etcd_server_user, etcd_server_address )
+
+		print "==============================================="
+		print "starting etcd service on %s ..." % etcd_server_address
+
+
+		config["etcd_node_ip"] = etcd_server_address
+		render("./template/etcd/etcd3.service","./deploy/etcd/etcd3.service")
+		render("./template/etcd/etcd_ssl.sh","./deploy/etcd/etcd_ssl.sh")
+
+		sudo_scp(config["ssh_cert"],"./deploy/etcd/etcd_ssl.sh","/opt/etcd_ssl.sh", etcd_server_user, etcd_server_address )
+		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "chmod +x /opt/etcd_ssl.sh")
+		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo /opt/etcd_ssl.sh")
+
+
+
+
+		sudo_scp(config["ssh_cert"],"./deploy/etcd/etcd3.service","/etc/systemd/system/etcd3.service", etcd_server_user, etcd_server_address )
+
+		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo systemctl daemon-reload")
+		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo systemctl start etcd3")
+		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo systemctl enable etcd3")
+
 
 	print "==============================================="
 	print "init etcd service on %s ..."  % etcd_servers[0]
@@ -1324,6 +1388,38 @@ Command:
 
 		else:
 			print "Cannot deploy cluster since there are insufficient number of etcd server or master server. \n To continue deploy the cluster we need at least %d etcd server(s) and 1 master server" % (int(config["etcd_node_num"]))
+
+
+	elif command == "compactdeploy" and "clusterId" in config:
+		print "Detected previous cluster deployment, cluster ID: %s. \n To clean up the previous deployment, run 'python deploy.py clean' \n" % config["clusterId"]
+		print "The current deployment has:\n"
+		
+		Check_Master_ETCD_Status()
+
+		if "etcd_node" in config and len(config["etcd_node"]) >= int(config["etcd_node_num"]) and "kubernetes_master_node" in config and len(config["kubernetes_master_node"]) == 0:
+			config["kubernetes_master_node"] = [config["etcd_node"][0]]
+			print "Ready to deploy kubernetes master on %s, etcd cluster on %s.  " % (",".join(config["kubernetes_master_node"]), ",".join(config["etcd_node"]))
+			Gen_Configs()
+			response = raw_input_with_default("Deploy ETCD Nodes (y/n)?")
+			if firstChar(response) == "y":
+				Gen_ETCD_Certificates()
+				Deploy_ETCD()			
+			response = raw_input_with_default("Deploy Master Nodes (y/n)?")
+			if firstChar(response) == "y":
+				Gen_Master_Certificates()
+				Deploy_Master()
+
+			response = raw_input_with_default("Allow Workers to register (y/n)?")
+			if firstChar(response) == "y":
+
+				urllib.urlretrieve ("http://dlws-clusterportal.westus.cloudapp.azure.com:5000/SetClusterInfo?clusterId=%s&key=etcd_endpoints&value=%s" %  (config["clusterId"],config["etcd_endpoints"]))
+				urllib.urlretrieve ("http://dlws-clusterportal.westus.cloudapp.azure.com:5000/SetClusterInfo?clusterId=%s&key=api_server&value=%s" % (config["clusterId"],config["api_serviers"]))
+		else:
+			if "etcd_node" in config and len(config["etcd_node"]) >= int(config["etcd_node_num"]) :
+				print "Cannot deploy cluster since there are insufficient number of etcd server. \n To continue deploy the cluster we need at least %d etcd server(s)" % (int(config["etcd_node_num"]))
+			else:
+				print "Cannot deploy cluster in compact mode, since %d master server(s) were found. Please try './deploy.py deploy' to deploy the cluster in regular mode." % len(config["kubernetes_master_node"])
+
 	elif command == "build":
 		Init_Deployment()
 		response = raw_input_with_default("Create ISO file for deployment (y/n)?")
