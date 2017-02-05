@@ -35,7 +35,7 @@ spec:
     spec:
       serviceAccountName: heketi-service-account
       containers:
-      - image: heketi/heketi:dev
+      - image: heketi/heketi:latest
         imagePullPolicy: IfNotPresent
         name: heketi
         env:

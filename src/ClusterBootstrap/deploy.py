@@ -893,16 +893,7 @@ def CleanWorkerNodes():
 def UpdateWorkerNode(nodeIP):
 	print "==============================================="
 	print "updating worker node: %s ..."  % nodeIP
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop kubelet")
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "docker rm -f \$(docker ps -a -q)")
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop docker")
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop flanneld")
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop bootstrap")
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop reportcluster")
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo rm /etc/kubernetes/manifests/kube-proxy.yaml")
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo mkdir -p /etc/flannel")
-
-
+	SSH_exec_cmd_with_directory(config["ssh_cert"], "core", nodeIP, "scripts", "bash --verbose stop-worker.sh")
 
 	sudo_scp(config["ssh_cert"],"./deploy/kubelet/options.env","/etc/flannel/options.env", "core", nodeIP )
 
@@ -943,22 +934,8 @@ def UpdateWorkerNode(nodeIP):
 	sudo_scp(config["ssh_cert"],"./deploy/kubelet/report.sh","/opt/report.sh", "core", nodeIP )
 	sudo_scp(config["ssh_cert"],"./deploy/kubelet/reportcluster.service","/etc/systemd/system/reportcluster.service", "core", nodeIP )
 
+	SSH_exec_cmd_with_directory(config["ssh_cert"], "core", nodeIP, "scripts", "bash --verbose start-worker.sh")
 
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl daemon-reload")
-
-	#SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl start bootstrap")
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl start flanneld")
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl start docker")
-
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl start kubelet")
-
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl start reportcluster")
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl enable reportcluster")
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl enable kubelet")
-
-
-
-	#SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo journalctl -u kubelet")
 	print "done!"
 
 
@@ -1184,8 +1161,9 @@ def startGlusterFS( masternodes, ipToHostname, nodesinfo, glusterFSargs, flag = 
 	glusterFSJson.dump(glusterFSJsonFilename)
 	glusterFSCopy()
 	rundir = "/tmp/startGlusterFS"
-	heketidocker = "heketi/heketi:3"
-	remotecmd += "docker pull "+heketidocker+"; "
+	# use the same heketidocker as in heketi deployment
+	heketidocker = "heketi/heketi:latest"
+	remotecmd = "docker pull "+heketidocker+"; "
 	remotecmd += "docker run -v "+rundir+":"+rundir+" --rm --entrypoint=cp "+heketidocker+" /usr/bin/heketi-cli "+rundir+"; "
 	remotecmd += "sudo bash ./gk-deploy "
 	remotecmd += flag
@@ -1197,7 +1175,7 @@ def removeGlusterFSvolumes( masternodes, ipToHostname, nodesinfo, glusterFSargs,
 	for node in nodes:
 		glusterFSCopy()
 		rundir = "/tmp/glusterFSAdmin"
-		remotecmd += "sudo python RemoveLVM.py "
+		remotecmd = "sudo python RemoveLVM.py "
 		SSH_exec_cmd_with_directory( config["ssh_cert"], "core", node, "deploy/storage/glusterFS", remotecmd, dstdir = rundir )
 
 def execOnAll(nodes, args, supressWarning = False):
@@ -1222,13 +1200,19 @@ def execOnAll_with_output(nodes, args, supressWarning = False):
 		output = SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, cmd, supressWarning)
 		print "Node: " + node
 		print output
-		
-# run a shell script on all remote nodes
-def runScriptOnAll(nodes, args, sudo = False, supressWarning = False):
-	if sudo:
-		fullcmd = "sudo bash"
+
+# run a shell script on one remote node
+def runScript(node, args, sudo = False, supressWarning = False):
+	if ".py" in args[0]:
+		if sudo:
+			fullcmd = "sudo /opt/bin/python"
+		else:
+			fullcmd = "/opt/bin/python"
 	else:
-		fullcmd = "bash"
+		if sudo:
+			fullcmd = "sudo bash"
+		else:
+			fullcmd = "bash"
 	nargs = len(args)
 	for i in range(nargs):
 		if i==0:
@@ -1236,8 +1220,13 @@ def runScriptOnAll(nodes, args, sudo = False, supressWarning = False):
 		else:
 			fullcmd += " " + args[i]
 	srcdir = os.path.dirname(args[0])
+	SSH_exec_cmd_with_directory(config["ssh_cert"], "core", node, srcdir, fullcmd, supressWarning)
+		
+
+# run a shell script on all remote nodes
+def runScriptOnAll(nodes, args, sudo = False, supressWarning = False):
 	for node in nodes:
-		SSH_exec_cmd_with_directory(config["ssh_cert"], "core", node, srcdir, fullcmd, supressWarning)
+		runScript( node, args, sudo = sudo, supressWarning = supressWarning)
 
 if __name__ == '__main__':
 	# the program always run at the current directory. 
@@ -1272,8 +1261,7 @@ Command:
             clear: stop glusterFS service, and remove all data volumes. 
   execonall [cmd ... ] Execute the command on all nodes and print the output. 
   doonall [cmd ... ] Execute the command on all nodes. 
-  runscriptonall [script] Execute the shell script on all nodes. 
-  
+  runscriptonall [script] Execute the shell/python script on all nodes. 
   ''') )
 	parser.add_argument("-y", "--yes", 
 		help="Answer yes automatically for all prompt", 
@@ -1506,6 +1494,7 @@ Command:
 		Get_Config()
 		nodes = GetNodes(config["clusterId"])
 		runScriptOnAll(nodes, nargs, sudo = args.sudo )
+
 		
 	elif command == "cleanmasteretcd":
 		response = raw_input("Clean and Stop Master/ETCD Nodes (y/n)?")
