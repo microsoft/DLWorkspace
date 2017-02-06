@@ -68,8 +68,9 @@ def render(template_file, target_file):
 		f.write(content)
 
 # Execute a remote SSH cmd with identity file (private SSH key), user, host
-def SSH_exec_cmd(identity_file, user,host,cmd):
-	print ("""ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" "%s" """ % (identity_file, user, host, cmd) ) 
+def SSH_exec_cmd(identity_file, user,host,cmd,showCmd=True):
+	if showCmd:
+		print ("""ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" "%s" """ % (identity_file, user, host, cmd) ) 
 	os.system("""ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" "%s" """ % (identity_file, user, host, cmd) )
 
 # SSH Connect to a remote host with identity file (private SSH key), user, host
@@ -81,14 +82,18 @@ def SSH_connect(identity_file, user,host):
 # Copy a local file or directory (source) to remote (target) with identity file (private SSH key), user, host 
 def scp (identity_file, source, target, user, host):
 	cmd = 'scp -i %s -r "%s" "%s@%s:%s"' % (identity_file, source, user, host, target)
-	print cmd
 	os.system(cmd)
 
 # Copy a local file (source) or directory to remote (target) with identity file (private SSH key), user, host, and  
-def sudo_scp (identity_file, source, target, user, host):
-	tmp = str(uuid.uuid4())
+def sudo_scp (identity_file, source, target, user, host,changePermission=False):
+	tmp = str(uuid.uuid4())	
 	scp(identity_file, source,"~/%s" % tmp, user, host )
-	SSH_exec_cmd(identity_file, user, host, "sudo mv ~/%s %s" % (tmp, target))
+
+	cmd = "sudo mv ~/%s %s" % (tmp, target)
+	if changePermission:
+		cmd += " ; sudo chmod +x %s" % target
+
+	SSH_exec_cmd(identity_file, user, host, cmd, False)
 
 # Execute a remote SSH cmd with identity file (private SSH key), user, host
 # Return the output of the remote command to local
@@ -154,6 +159,24 @@ def SSH_exec_cmd_with_directory( identity_file, user, host, srcdir, cmd, supress
 	if removeAfterExecution:
 		dstcmd += "rm -r " + tmpdir + "; "
 	SSH_exec_cmd( identity_file, user, host, dstcmd )
+
+
+# Execute a remote SSH cmd with identity file (private SSH key), user, host, 
+# Copy a bash script a temporary folder, execute the script, 
+# and then remove the temporary file. 
+def SSH_exec_script( identity_file, user, host, script, supressWarning = False, removeAfterExecution = True):
+	tmpfile = os.path.join("/tmp", str(uuid.uuid4())+".sh")
+	scp( identity_file, script, tmpfile, user, host)
+	cmd = "bash --verbose "+tmpfile
+	dstcmd = ""
+	if supressWarning:
+		dstcmd += cmd + " 2>/dev/null; "
+	else:
+		dstcmd += cmd + "; "
+	if removeAfterExecution:
+		dstcmd += "rm -r " + tmpfile + "; "
+	SSH_exec_cmd( identity_file, user, host, dstcmd,False )
+
 
 def Get_ETCD_DiscoveryURL(size):
 		try:
@@ -491,13 +514,13 @@ def Gen_Configs():
 
 	etcd_servers = config["etcd_node"]
 
-	if int(config["etcd_node_num"]) <= 0:
-		raise Exception("ERROR: we need at least one etcd_server.") 
+	#if int(config["etcd_node_num"]) <= 0:
+	#	raise Exception("ERROR: we need at least one etcd_server.") 
 
 	kubernetes_masters = config["kubernetes_master_node"]
 
-	if len(kubernetes_masters) <= 0:
-		raise Exception("ERROR: we need at least one etcd_server.") 
+	#if len(kubernetes_masters) <= 0:
+	#	raise Exception("ERROR: we need at least one etcd_server.") 
 
 	config["discovery_url"] = Get_ETCD_DiscoveryURL(int(config["etcd_node_num"]))
 
@@ -561,7 +584,7 @@ def Get_Config():
 
 def Update_Reporting_service():
 	kubernetes_masters = config["kubernetes_master_node"]
-	kubernetes_master_user = "core"
+	kubernetes_master_user = config["kubernetes_master_ssh_user"]
 
 	for kubernetes_master in kubernetes_masters:
 		print "==============================================="
@@ -575,7 +598,7 @@ def Update_Reporting_service():
 
 
 	etcd_servers = config["etcd_node"]
-	etcd_server_user = "core"
+	etcd_server_user = config["etcd_user"]
 
 
 	for etcd_server_address in etcd_servers:
@@ -590,34 +613,94 @@ def Update_Reporting_service():
 
 def Clean_Master():
 	kubernetes_masters = config["kubernetes_master_node"]
-	kubernetes_master_user = "core"
+	kubernetes_master_user = config["kubernetes_master_ssh_user"]
 
 	for kubernetes_master in kubernetes_masters:
 		print "==============================================="
 		print "Clean up kubernetes master %s... (It is OK to see 'Errors' in this section)" % kubernetes_master
 
+		SSH_exec_script(config["ssh_cert"],kubernetes_master_user, kubernetes_master, "./deploy/master/cleanup-master.sh")
 
-		exec_cmd_list = ["sudo systemctl stop kubelet", "timeout 10 docker rm -f \$(timeout 3 docker ps -q -a)", "sudo systemctl stop flanneld","sudo systemctl stop docker"]
 
-		for exec_cmd in exec_cmd_list:
-			SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, exec_cmd)
+def Deploy_Master(kubernetes_master):
+		print "==============================================="
+		kubernetes_master_user = config["kubernetes_master_ssh_user"]
+		print "starting kubernetes master on %s..." % kubernetes_master
 
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mkdir -p /etc/kubernetes")
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mkdir -p /etc/systemd/system/flanneld.service.d")
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mkdir -p /etc/systemd/system/docker.service.d")
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mkdir -p /etc/flannel")
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mkdir -p /etc/ssl/etcd")
+		config["master_ip"] = kubernetes_master
+		render("./template/master/kube-apiserver.yaml","./deploy/master/kube-apiserver.yaml")
+		render("./template/master/kubelet.service","./deploy/master/kubelet.service")
+		render("./template/master/pre-master-deploy.sh","./deploy/master/pre-master-deploy.sh")
+		render("./template/master/post-master-deploy.sh","./deploy/master/post-master-deploy.sh")
 
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo rm -r /etc/kubernetes")
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo rm -r /etc/ssl/etcd")
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo rm -r /etc/systemd/system/flanneld.service.d")
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo rm -r /etc/systemd/system/docker.service.d")
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo rm -r /etc/flannel")
 
-def Deploy_Master():
+		SSH_exec_script(config["ssh_cert"],kubernetes_master_user, kubernetes_master, "./deploy/master/pre-master-deploy.sh")
+
+
+		with open("./deploy/master/deploy.list","r") as f:
+			deploy_files = [s.split(",") for s in f.readlines() if len(s.split(",")) == 2]
+		for (source, target) in deploy_files:
+			if (os.path.isfile(source.strip()) or os.path.exists(source.strip())):
+				sudo_scp(config["ssh_cert"],source.strip(),target.strip(),kubernetes_master_user,kubernetes_master)
+
+
+		SSH_exec_script(config["ssh_cert"],kubernetes_master_user, kubernetes_master, "./deploy/master/post-master-deploy.sh")
+
+def Deploy_Masters():
 
 	print "==============================================="
 	print "Prepare to deploy kubernetes master"
+	print "waiting for ETCD service is ready..."
+	Check_etcd_service()
+	print "==============================================="
+	print "Generating master configuration files..."
+
+	kubernetes_masters = config["kubernetes_master_node"]
+	kubernetes_master_user = config["kubernetes_master_ssh_user"]
+
+	renderfiles = []
+	kubemaster_cfg_files = [f for f in os.listdir("./template/master") if os.path.isfile(os.path.join("./template/master", f))]
+	for file in kubemaster_cfg_files:
+		render(os.path.join("./template/master", file),os.path.join("./deploy/master", file))
+	kubemaster_cfg_files = [f for f in os.listdir("./template/kube-addons") if os.path.isfile(os.path.join("./template/kube-addons", f))]
+	for file in kubemaster_cfg_files:
+		render(os.path.join("./template/kube-addons", file),os.path.join("./deploy/kube-addons", file))
+
+
+	urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet", "./deploy/bin/kubelet")
+	urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubectl", "./deploy/bin/kubectl")
+	
+	Clean_Master()
+
+	for i,kubernetes_master in enumerate(kubernetes_masters):
+		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo hostnamectl set-hostname %s" % config["cluster_name"]+"-master"+str(i+1))
+		Deploy_Master(kubernetes_master)
+
+
+	SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_masters[0], "until curl -q http://127.0.0.1:8080/version/ ; do sleep 5; echo 'waiting for master...'; done;  sudo /opt/bin/kubectl create -f /opt/addons/kube-addons/", False)
+
+
+
+def Uncordon_Master():
+	kubernetes_masters = config["kubernetes_master_node"]
+	kubernetes_master_user = config["kubernetes_master_ssh_user"]
+	for i,kubernetes_master in enumerate(kubernetes_masters):
+		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo /opt/bin/kubectl uncordon \$HOSTNAME")
+
+
+
+def Clean_ETCD():
+	etcd_servers = config["etcd_node"]
+	etcd_server_user = config["etcd_user"]
+
+	for etcd_server_address in etcd_servers:
+		print "==============================================="
+		print "Clean up etcd servers %s... (It is OK to see 'Errors' in this section)" % etcd_server_address		
+		#SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "timeout 10 docker rm -f \$(timeout 3 docker ps -q -a)")
+		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo rm -r /var/etcd/data")
+		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo rm -r /etc/etcd/ssl")
+
+def Check_etcd_service():
 	print "waiting for ETCD service is ready..."
 	etcd_servers = config["etcd_node"]
 	cmd = "curl --cacert %s --cert %s --key %s 'https://%s:2379/v2/keys'" % ("./ssl/etcd/ca.pem","./ssl/etcd/etcd.pem","./ssl/etcd/etcd-key.pem", etcd_servers[0])
@@ -625,112 +708,18 @@ def Deploy_Master():
 		time.sleep(5)
 	print "ETCD service is ready to use..."
 
-	kubernetes_masters = config["kubernetes_master_node"]
-	kubernetes_master_user = "core"
-
-	for i,kubernetes_master in enumerate(kubernetes_masters):
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo hostnamectl set-hostname %s" % config["cluster_name"]+"-master"+str(i+1))
-
-
-	Clean_Master()
-
-	for kubernetes_master in kubernetes_masters:
-		print "==============================================="
-		print "starting kubernetes master on %s..." % kubernetes_master
-
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mkdir -p /etc/kubernetes")
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mkdir -p /etc/systemd/system/flanneld.service.d")
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mkdir -p /etc/systemd/system/docker.service.d")
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mkdir -p /etc/flannel")
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mkdir -p /etc/kubernetes/manifests")
-
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo chown -R %s /etc/kubernetes" % kubernetes_master_user)
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo chown -R %s /etc/flannel" % kubernetes_master_user)
-
-		scp(config["ssh_cert"],"./ssl/apiserver","/etc/kubernetes/ssl", kubernetes_master_user, kubernetes_master )
-
-
-		scp(config["ssh_cert"],"./ssl/apiserver","/home/%s/" % kubernetes_master_user, kubernetes_master_user, kubernetes_master )
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mkdir -p /etc/ssl/etcd")
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mv /home/%s/apiserver/* /etc/ssl/etcd/" % (kubernetes_master_user))
-
-
-		scp(config["ssh_cert"],"./deploy/master/basicauth","/etc/kubernetes/", kubernetes_master_user, kubernetes_master )
-
-		
-
-		sudo_scp(config["ssh_cert"],"./deploy/master/worker-kubeconfig.yaml","/etc/kubernetes/worker-kubeconfig.yaml", kubernetes_master_user, kubernetes_master )
-
-
-		scp(config["ssh_cert"],"./deploy/master/40-ExecStartPre-symlink.conf","/home/%s/40-ExecStartPre-symlink.conf" % kubernetes_master_user, kubernetes_master_user, kubernetes_master )
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mv /home/%s/40-ExecStartPre-symlink.conf /etc/systemd/system/flanneld.service.d/40-ExecStartPre-symlink.conf" % (kubernetes_master_user))
-
-
-		scp(config["ssh_cert"],"./deploy/master/40-flannel.conf","/home/%s/40-flannel.conf" % kubernetes_master_user, kubernetes_master_user, kubernetes_master )
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mv /home/%s/40-flannel.conf /etc/systemd/system/docker.service.d/40-flannel.conf" % (kubernetes_master_user))
-
-
-		scp(config["ssh_cert"],"./deploy/master/options.env","/home/%s/options.env" % kubernetes_master_user , kubernetes_master_user, kubernetes_master )
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mv /home/%s/options.env /etc/flannel/options.env" % (kubernetes_master_user))
-
-
-		config["master_ip"] = kubernetes_master
-		render("./template/master/kube-apiserver.yaml","./deploy/master/kube-apiserver.yaml")
-		render("./template/master/kubelet.service","./deploy/master/kubelet.service")
-
-
-		scp(config["ssh_cert"],"./deploy/master/kubelet.service","/home/%s/kubelet.service" % kubernetes_master_user , kubernetes_master_user, kubernetes_master )
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mv /home/%s/kubelet.service /etc/systemd/system/kubelet.service" % (kubernetes_master_user))
-
-		filelist = ["kube-apiserver.yaml", "kube-controller-manager.yaml", "kube-scheduler.yaml"]
-		for file in filelist:
-			scp(config["ssh_cert"],"./deploy/master/"+file,"/etc/kubernetes/manifests/"+file, kubernetes_master_user, kubernetes_master )
-
-
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mkdir -p /opt/bin")
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo chown -R %s /opt/bin" % kubernetes_master_user)
-	
-		urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet", "./deploy/bin/kubelet")
-		urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubectl", "./deploy/bin/kubectl")
-
-
-		scp(config["ssh_cert"],"./deploy/bin/kubelet","/opt/bin", kubernetes_master_user, kubernetes_master )
-		scp(config["ssh_cert"],"./deploy/bin/kubectl","/opt/bin", kubernetes_master_user, kubernetes_master )
-
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo chmod +x /opt/bin/*")
-
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mkdir -p /opt/addons")
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo chown -R %s /opt/addons" % kubernetes_master_user)
-		scp(config["ssh_cert"],"./deploy/kube-addons","/opt/addons", kubernetes_master_user, kubernetes_master )
-
-
-		exec_cmd_list = ["sudo systemctl daemon-reload","sudo systemctl stop flanneld","sudo systemctl stop kubelet","sudo systemctl start flanneld", "sudo systemctl stop docker", "sudo systemctl start docker", "sudo systemctl start kubelet", "sudo systemctl start rpc-statd", "sudo systemctl enable flanneld", "sudo systemctl enable kubelet"]
-		for exec_cmd in exec_cmd_list:
-			SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, exec_cmd)
-
-	SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_masters[0], "/opt/bin/kubectl create -f /opt/addons/kube-addons/")
-	SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "/opt/bin/kubectl uncordon \$HOSTNAME")
-
-	
-
-
-def Clean_ETCD():
+def Deploy_ETCD_Docker():
 	etcd_servers = config["etcd_node"]
-	etcd_server_user = "core"
-
-	for etcd_server_address in etcd_servers:
-		print "==============================================="
-		print "Clean up etcd servers %s... (It is OK to see 'Errors' in this section)" % etcd_server_address		
-		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "timeout 10 docker rm -f \$(timeout 3 docker ps -q -a)")
-		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo rm -r /var/etcd/data")
-		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo rm -r /etc/kubernetes")
-
-
-
-def Deploy_ETCD():
-	etcd_servers = config["etcd_node"]
-	etcd_server_user = "core"
+	etcd_server_user = config["etcd_user"]
 	
+	renderfiles = []
+
+	kubemaster_cfg_files = [f for f in os.listdir("./template/etcd") if os.path.isfile(os.path.join("./template/etcd", f))]
+	for file in kubemaster_cfg_files:
+		renderfiles.append((os.path.join("./template/etcd", file),os.path.join("./deploy/etcd", file)))
+		render(os.path.join("./template/etcd", file),os.path.join("./deploy/etcd", file))
+
+
 	Clean_ETCD()
 	for i,etcd_server_address in enumerate(etcd_servers):
 		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo hostnamectl set-hostname %s" % config["cluster_name"]+"-etcd"+str(i+1))
@@ -773,13 +762,67 @@ def Deploy_ETCD():
 	print "init etcd service on %s ..."  % etcd_servers[0]
 
 
+	Check_etcd_service()
+
+
+	scp(config["ssh_cert"],"./deploy/etcd/init_network.sh","/home/%s/init_network.sh" % etcd_server_user, etcd_server_user, etcd_server_address )
+	SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_servers[0], "chmod +x /home/%s/init_network.sh" % etcd_server_user)
+	SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_servers[0], "/home/%s/init_network.sh" % etcd_server_user)
+
+
+def Deploy_ETCD():
+	etcd_servers = config["etcd_node"]
+	etcd_server_user = config["etcd_user"]
+	
+	Clean_ETCD()
+
+	for i,etcd_server_address in enumerate(etcd_servers):
+		#print "==============================================="
+		#print "deploy configuration files to web server..."
+		#scp(config["ssh_cert"],"./deploy","/var/www/html", config["webserver_user"], config["webserver"] )
+		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo hostnamectl set-hostname %s" % config["cluster_name"]+"-etcd"+str(i+1))
+
+		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo systemctl stop etcd3")
+
+		print "==============================================="
+		print "deploy certificates to etcd server %s" % etcd_server_address
+		
+		SSH_exec_cmd (config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo mkdir -p /etc/etcd/ssl") 
+		SSH_exec_cmd (config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo chown %s /etc/etcd/ssl " % (etcd_server_user)) 
+		scp(config["ssh_cert"],"./ssl/etcd/ca.pem","/etc/etcd/ssl", etcd_server_user, etcd_server_address )
+		scp(config["ssh_cert"],"./ssl/etcd/etcd.pem","/etc/etcd/ssl", etcd_server_user, etcd_server_address )
+		scp(config["ssh_cert"],"./ssl/etcd/etcd-key.pem","/etc/etcd/ssl", etcd_server_user, etcd_server_address )
+
+		print "==============================================="
+		print "starting etcd service on %s ..." % etcd_server_address
+
+
+		config["etcd_node_ip"] = etcd_server_address
+		render("./template/etcd/etcd3.service","./deploy/etcd/etcd3.service")
+		render("./template/etcd/etcd_ssl.sh","./deploy/etcd/etcd_ssl.sh")
+
+		sudo_scp(config["ssh_cert"],"./deploy/etcd/etcd3.service","/etc/systemd/system/etcd3.service", etcd_server_user, etcd_server_address )
+
+		sudo_scp(config["ssh_cert"],"./deploy/etcd/etcd_ssl.sh","/opt/etcd_ssl.sh", etcd_server_user, etcd_server_address )
+		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "chmod +x /opt/etcd_ssl.sh")
+		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo /opt/etcd_ssl.sh")
+
+
+
+	print "==============================================="
+	print "init etcd service on %s ..."  % etcd_servers[0]
+
+
 	print "waiting for ETCD service is ready..."
 	cmd = "curl --cacert %s --cert %s --key %s 'https://%s:2379/v2/keys'" % ("./ssl/etcd/ca.pem","./ssl/etcd/etcd.pem","./ssl/etcd/etcd-key.pem", etcd_servers[0])
 	while os.system(cmd) != 0:
+		print "ETCD service is NOT ready, waiting for 5 seconds..."
 		time.sleep(5)
 	print "ETCD service is ready to use..."
 
 
+
+	render("./template/etcd/init_network.sh","./deploy/etcd/init_network.sh")
 	scp(config["ssh_cert"],"./deploy/etcd/init_network.sh","/home/%s/init_network.sh" % etcd_server_user, etcd_server_user, etcd_server_address )
 	SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_servers[0], "chmod +x /home/%s/init_network.sh" % etcd_server_user)
 	SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_servers[0], "/home/%s/init_network.sh" % etcd_server_user)
@@ -1294,7 +1337,7 @@ Command:
 			response = raw_input_with_default("Deploy Master Nodes (y/n)?")
 			if firstChar(response) == "y":
 				Gen_Master_Certificates()
-				Deploy_Master()
+				Deploy_Masters()
 
 			response = raw_input_with_default("Allow Workers to register (y/n)?")
 			if firstChar(response) == "y":
@@ -1312,6 +1355,38 @@ Command:
 
 		else:
 			print "Cannot deploy cluster since there are insufficient number of etcd server or master server. \n To continue deploy the cluster we need at least %d etcd server(s) and 1 master server" % (int(config["etcd_node_num"]))
+
+
+	elif command == "compactdeploy" and "clusterId" in config:
+		print "Detected previous cluster deployment, cluster ID: %s. \n To clean up the previous deployment, run 'python deploy.py clean' \n" % config["clusterId"]
+		print "The current deployment has:\n"
+		
+		Check_Master_ETCD_Status()
+
+		if "etcd_node" in config and len(config["etcd_node"]) >= int(config["etcd_node_num"]) and "kubernetes_master_node" in config and len(config["kubernetes_master_node"]) == 0:
+			config["kubernetes_master_node"] = [config["etcd_node"][0]]
+			print "Ready to deploy kubernetes master on %s, etcd cluster on %s.  " % (",".join(config["kubernetes_master_node"]), ",".join(config["etcd_node"]))
+			Gen_Configs()
+			response = raw_input_with_default("Deploy ETCD Nodes (y/n)?")
+			if firstChar(response) == "y":
+				Gen_ETCD_Certificates()
+				Deploy_ETCD()			
+			response = raw_input_with_default("Deploy Master Nodes (y/n)?")
+			if firstChar(response) == "y":
+				Gen_Master_Certificates()
+				Deploy_Masters()
+
+			response = raw_input_with_default("Allow Workers to register (y/n)?")
+			if firstChar(response) == "y":
+
+				urllib.urlretrieve ("http://dlws-clusterportal.westus.cloudapp.azure.com:5000/SetClusterInfo?clusterId=%s&key=etcd_endpoints&value=%s" %  (config["clusterId"],config["etcd_endpoints"]))
+				urllib.urlretrieve ("http://dlws-clusterportal.westus.cloudapp.azure.com:5000/SetClusterInfo?clusterId=%s&key=api_server&value=%s" % (config["clusterId"],config["api_serviers"]))
+		else:
+			if "etcd_node" in config and len(config["etcd_node"]) >= int(config["etcd_node_num"]) :
+				print "Cannot deploy cluster since there are insufficient number of etcd server. \n To continue deploy the cluster we need at least %d etcd server(s)" % (int(config["etcd_node_num"]))
+			else:
+				print "Cannot deploy cluster in compact mode, since %d master server(s) were found. Please try './deploy.py deploy' to deploy the cluster in regular mode." % len(config["kubernetes_master_node"])
+
 	elif command == "build":
 		Init_Deployment()
 		response = raw_input_with_default("Create ISO file for deployment (y/n)?")
