@@ -29,7 +29,6 @@ MENU COLOR tabmsg       31;40   #30ffffff #00000000 std
 LABEL coreosworker
     MENU LABEL Install CoreOS - Worker Node (Kubelet)
     KERNEL coreos_production_pxe.vmlinuz
-    #initrd cpioworker.gz
     APPEND initrd=cpioworker.gz coreos.autologin
     TEXT HELP
 Deploy worker node. The CoreOS system is going to be installed on the
@@ -39,7 +38,6 @@ first hard drive (/dev/sda). ALL THE DATA ON /dev/sda WILL BE ERASED.
 LABEL coreosmaster
     MENU LABEL Install CoreOS - Master Node
     KERNEL coreos_production_pxe.vmlinuz
-    #initrd cpiomaster.gz
     APPEND initrd=cpiomaster.gz coreos.autologin
     TEXT HELP
 Deploy master node. The CoreOS system is going to be installed on the
@@ -49,12 +47,7 @@ first hard drive (/dev/sda). ALL THE DATA ON /dev/sda WILL BE ERASED.
 LABEL coreosetcd
     MENU LABEL Install CoreOS - ETCD Node
     kernel coreos_production_pxe.vmlinuz
-    initrd cpioetcd.gz
-    #APPEND initrd=cpioetcd.gz coreos.autologin
-
-    #append cloud-config-url=/usr/share/oem/install-etcd.sh 
-    #APPEND initrd=cpioetcd.gz coreos.autologin
-
+    APPEND initrd=cpioetcd.gz coreos.autologin
     TEXT HELP
 Deploy ETCD node. The CoreOS system is going to be installed on the
 first hard drive (/dev/sda). ALL THE DATA ON /dev/sda WILL BE ERASED.

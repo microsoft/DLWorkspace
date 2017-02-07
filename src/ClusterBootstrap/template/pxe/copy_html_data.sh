@@ -15,24 +15,28 @@ wget -q https://stable.release.core-os.net/amd64-usr/current/coreos_production_p
 wget -q https://stable.release.core-os.net/amd64-usr/current/coreos_production_pxe_image.cpio.gz.sig
 chmod -R 777 /var/lib/tftpboot/
 
+# If need, download additional content to usr/share/oem 
+
 cp coreos_production_pxe_image.cpio.gz cpio.gz
 gunzip cpio.gz
 sed "s/_===CONFIG===_/install-worker.sh/g" usr/share/oem/oem-config.yml > usr/share/oem/cloud-config.yml
-find usr | cpio --quiet -o -A -H newc -O cpio && gzip cpio
+find usr | cpio --verbose -o -A -H newc -O cpio
+gzip cpio
 mv cpio.gz cpioworker.gz
 
 cp coreos_production_pxe_image.cpio.gz cpio.gz
 gunzip cpio.gz
 sed "s/_===CONFIG===_/install-etcd.sh/g" usr/share/oem/oem-config.yml > usr/share/oem/cloud-config.yml
-find usr | cpio --quiet -o -A -H newc -O cpio && gzip cpio
+find usr | cpio --verbose -o -A -H newc -O cpio
+gzip cpio
 mv cpio.gz cpioetcd.gz
 
 cp coreos_production_pxe_image.cpio.gz cpio.gz
 gunzip cpio.gz
 sed "s/_===CONFIG===_/install-master.sh/g" usr/share/oem/oem-config.yml > usr/share/oem/cloud-config.yml
-find usr | cpio --quiet -o -A -H newc -O cpio && gzip cpio
+find usr | cpio --verbose -o -A -H newc -O cpio
+gzip cpio
 mv cpio.gz cpiomaster.gz
-rm coreos_production_pxe_image.cpio.gz
 
 wget -q https://www.kernel.org/pub/linux/utils/boot/syslinux/syslinux-6.03.tar.gz
 tar -zxvf syslinux-6.03.tar.gz
