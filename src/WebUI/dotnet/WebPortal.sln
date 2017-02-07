@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "WebPortal", "WebPortal\WebPortal.xproj", "{3CDE525E-23E3-4359-8FEF-3CD683DC3BCD}"
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "WebPortal", "WebPortal\WebPortal.xproj", "{6ECB453C-AEA3-44AF-8185-059FBAC7B56C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,10 +11,10 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{3CDE525E-23E3-4359-8FEF-3CD683DC3BCD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{3CDE525E-23E3-4359-8FEF-3CD683DC3BCD}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{3CDE525E-23E3-4359-8FEF-3CD683DC3BCD}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{3CDE525E-23E3-4359-8FEF-3CD683DC3BCD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6ECB453C-AEA3-44AF-8185-059FBAC7B56C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6ECB453C-AEA3-44AF-8185-059FBAC7B56C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6ECB453C-AEA3-44AF-8185-059FBAC7B56C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6ECB453C-AEA3-44AF-8185-059FBAC7B56C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

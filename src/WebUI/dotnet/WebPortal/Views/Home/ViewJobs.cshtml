@@ -5,7 +5,6 @@
 <h1>View Your Jobs:</h1>
 
 
-<script src="http://ajax.microsoft.com/ajax/jquery/jquery-1.10.2.min.js" type="text/javascript"></script>
 
 <script type="text/javascript">
     function KillJob(jobId) {
@@ -18,19 +17,9 @@
 
 <script>
     function buildTable() {
-        //username = "@User.Identity.Name".replace("REDMOND", "")
-        console.log("===============")
-        console.log(username)
-        console.log("===============")
-        var apiurl = "@ViewData["restapi"]/ListJobs?userName=" + username;
-        console.log(apiurl)
+        var username = "@User.Identity.Name"
 
-        $.ajax({
-            url: apiurl,
-            dataType: 'json',
-            timeout: 10000 //10 second timeout,
-
-        }).done(
+        $.getJSON("@ViewData["restapi"]/ListJobs?userName" + username,
         function (json) {
             $("#running-job-table").find("tr:gt(0)").remove();
             var tr;
