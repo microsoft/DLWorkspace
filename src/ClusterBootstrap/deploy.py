@@ -303,7 +303,9 @@ def Init_Deployment():
 	content = template.render(cnf=config)
 	with open(target_file, 'w') as f:
 		f.write(content)
-	f.close()	
+	f.close()
+	
+	
 
 
 
@@ -314,7 +316,7 @@ def Init_Deployment():
 	content = template.render(cnf=config)
 	with open(target_file, 'w') as f:
 		f.write(content)
-	f.close()	
+	f.close()
 
 
 
@@ -354,8 +356,8 @@ def Init_Deployment():
 
 
 
-	template_file = "./template/cloud-config/cloud-config-kubelet.yml"
-	target_file = "./deploy/cloud-config/cloud-config-kubelet.yml"
+	template_file = "./template/cloud-config/cloud-config-worker.yml"
+	target_file = "./deploy/cloud-config/cloud-config-worker.yml"
 	template = ENV.get_template(os.path.abspath(template_file))
 
 	content = template.render(cnf=config)
