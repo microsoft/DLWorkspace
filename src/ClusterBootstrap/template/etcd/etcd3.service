@@ -1,0 +1,22 @@
+[Service]
+ExecStart=/opt/bin/etcd \
+  --name=$HOSTNAME \
+  --advertise-client-urls=https://{{cnf["etcd_node_ip"]}}:2379,https://{{cnf["etcd_node_ip"]}}:4001 \
+  --listen-client-urls=https://0.0.0.0:2379,https://0.0.0.0:4001 \
+  --initial-advertise-peer-urls=https://{{cnf["etcd_node_ip"]}}:2380 \
+  --listen-peer-urls=https://0.0.0.0:2380 \
+  --discovery={{cnf["discovery_url"]}} \
+  --data-dir=/var/etcd/data \
+  --client-cert-auth \
+  --trusted-ca-file=/etc/etcd/ssl/ca.pem \
+  --cert-file=/etc/etcd/ssl/etcd.pem \
+  --key-file=/etc/etcd/ssl/etcd-key.pem \
+  --peer-client-cert-auth \
+  --peer-trusted-ca-file=/etc/etcd/ssl/ca.pem \
+  --peer-cert-file=/etc/etcd/ssl/etcd.pem \
+  --peer-key-file=/etc/etcd/ssl/etcd-key.pem
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
