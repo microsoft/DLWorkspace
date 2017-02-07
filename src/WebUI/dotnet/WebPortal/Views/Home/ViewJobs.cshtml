@@ -18,9 +18,19 @@
 
 <script>
     function buildTable() {
-        var username = "@User.Identity.Name".replace("REDMOND", "")
+        //username = "@User.Identity.Name".replace("REDMOND", "")
+        console.log("===============")
+        console.log(username)
+        console.log("===============")
+        var apiurl = "@ViewData["restapi"]/ListJobs?userName=" + username;
+        console.log(apiurl)
 
-        $.getJSON("@ViewData["restapi"]/ListJobs?userName=" + username,
+        $.ajax({
+            url: apiurl,
+            dataType: 'json',
+            timeout: 10000 //10 second timeout,
+
+        }).done(
         function (json) {
             $("#running-job-table").find("tr:gt(0)").remove();
             var tr;

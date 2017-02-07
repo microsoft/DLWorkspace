@@ -16,8 +16,37 @@
         <link rel="stylesheet" href="~/css/site.min.css" asp-append-version="true" />
     </environment>
     @Html.ApplicationInsightsJavaScript(TelemetryConfiguration)
+    <script src="http://ajax.microsoft.com/ajax/jquery/jquery-1.10.2.min.js" type="text/javascript"></script>
+    <script>
+        var username = "Unauthorized"
+    </script>
+    
+    <script>
+    function GetUsername() {
+        username = "@User.Identity.Name".replace("REDMOND", "")
+        $.ajax({
+            url: "http://localhost:2736/api/user",
+            dataType: 'json',
+            timeout: 10000, //10 second timeout,
+            xhrFields: {
+                withCredentials: true
+            },
+        }).done(
+        function (json) {
+            username = json.userName.replace("REDMOND\\","");
+            var out = document.getElementById("LoginUsername");
+            out.innerHTML = "Hello " +username +" !";
+        });
+    }
+
+    GetUsername();
+
+    </script>
+
 </head>
 <body>
+
+
     <div class="navbar navbar-inverse navbar-fixed-top">
         <div class="container">
             <div class="navbar-header">
@@ -39,7 +68,7 @@
                     <li><a asp-area="" asp-controller="Home" asp-action="Contact">Contact</a></li>
                     -->
                 </ul>
-                <p class="nav navbar-text navbar-right">Hello, @User.Identity.Name!</p>
+                <p class="nav navbar-text navbar-right" id="LoginUsername">Hello, @User.Identity.Name!</p>
             </div>
         </div>
     </div>
@@ -69,5 +98,8 @@
     </environment>
 
     @RenderSection("scripts", required: false)
+    <div id="login" style="display:block;" hidden>
+        <iframe src="http://localhost:2736/api/user" height="0px" width="100%" hidden></iframe>
+    </div>
 </body>
 </html>
