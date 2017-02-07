@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Authentication.Cookies;
 
 namespace WebPortal
 {
@@ -45,6 +46,8 @@ namespace WebPortal
                 // Typed syntax - Configuration.Get<type>("")
                 appSettings.restapi = Configuration["restapi"];
             });
+            services.AddAuthentication(sharedOptions => sharedOptions.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme);
+
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
