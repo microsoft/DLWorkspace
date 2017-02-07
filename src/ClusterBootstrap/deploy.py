@@ -383,7 +383,12 @@ def GetMasterNodes(clusterId):
 			hostname = GetHostName(node[ipAddrMetaname])
 			Nodes.append(node[ipAddrMetaname])
 			config["ipToHostname"][node[ipAddrMetaname]] = hostname
-	config["kubernetes_master_node"] = Nodes
+	if "kubernetes_master_node" in config:
+		for node in Nodes:
+			if not node in config["kubernetes_master_node"]:
+				config["kubernetes_master_node"].append(node)
+	else:
+		config["kubernetes_master_node"] = Nodes
 	return Nodes
 
 def GetETCDNodes(clusterId):
@@ -398,9 +403,41 @@ def GetETCDNodes(clusterId):
 			hostname = GetHostName(node[ipAddrMetaname])
 			Nodes.append(node[ipAddrMetaname])
 			config["ipToHostname"][node[ipAddrMetaname]] = hostname
-	config["etcd_node"] = Nodes
+	if "etcd_node" in config:
+		for node in Nodes:
+			if not node in config["etcd_node"]:
+				config["etcd_node"].append(node)
+	else:
+		config["etcd_node"] = Nodes
 	return Nodes
 
+def GetETCDMasterNodes(clusterId):
+	output = urllib.urlopen(formClusterPortalURL("etcdmaster", clusterId)).read()
+	output = json.loads(json.loads(output))
+	Nodes = []
+	NodesInfo = [node for node in output["nodes"] if "time" in node]
+	if not "ipToHostname" in config:
+		config["ipToHostname"] = {}
+	for node in NodesInfo:
+		if not node[ipAddrMetaname] in Nodes and CheckNodeAvailability(node[ipAddrMetaname]):
+			hostname = GetHostName(node[ipAddrMetaname])
+			Nodes.append(node[ipAddrMetaname])
+			config["ipToHostname"][node[ipAddrMetaname]] = hostname
+	if "etcd_node" in config:
+		for node in Nodes:
+			if not node in config["etcd_node"]:
+				config["etcd_node"].append(node)
+	else:
+		config["etcd_node"] = Nodes
+
+	if "kubernetes_master_node" in config:
+		for node in Nodes:
+			if not node in config["kubernetes_master_node"]:
+				config["kubernetes_master_node"].append(node)
+	else:
+		config["kubernetes_master_node"] = Nodes
+
+	return Nodes
 
 def GetWorkerNodes(clusterId):
 	output = urllib.urlopen(formClusterPortalURL("worker", clusterId)).read()
@@ -443,13 +480,14 @@ def Check_Master_ETCD_Status():
 	print "==============================================="
 	print "Checking Available Nodes for Deployment..."
 	if "clusterId" in config:
-		masterNodes = GetMasterNodes(config["clusterId"])
-		etcdNodes = GetETCDNodes(config["clusterId"])
-		workerNodes = GetWorkerNodes(config["clusterId"])
+		GetETCDMasterNodes(config["clusterId"])
+		GetMasterNodes(config["clusterId"])
+		GetETCDNodes(config["clusterId"])
+		GetWorkerNodes(config["clusterId"])
 	print "==============================================="
-	print "Activate Master Node(s): %s\n %s \n" % (len(masterNodes),",".join(masterNodes))
-	print "Activate ETCD Node(s):%s\n %s \n" % (len(etcdNodes),",".join(etcdNodes))
-	print "Activate Worker Node(s):%s\n %s \n" % (len(workerNodes),",".join(workerNodes))
+	print "Activate Master Node(s): %s\n %s \n" % (len(config["kubernetes_master_node"]),",".join(config["kubernetes_master_node"]))
+	print "Activate ETCD Node(s):%s\n %s \n" % (len(config["etcd_node"]),",".join(config["etcd_node"]))
+	print "Activate Worker Node(s):%s\n %s \n" % (len(config["worker_node"]),",".join(config["worker_node"]))
 
 def Clean_Deployment():
 	print "==============================================="
@@ -940,7 +978,101 @@ def CreateMYSQLForWebUI():
 	#todo: create a mysql database, and set "mysql-hostname", "mysql-username", "mysql-password", "mysql-database"
 	pass
 
+
+def DeployRestfulAPIonNode(ipAddress):
+
+	masterIP = ipAddress
+
+	# if user didn't give storage server information, use CCS public storage in default. 
+	if "nfs-server" not in config:
+		config["nfs-server"] = "10.196.44.241:/mnt/data"
+
+	render("./RestfulAPI/run.sh.template","./RestfulAPI/run.sh")
+	render("../utils/config.yaml.template","./RestfulAPI/config.yaml")
+
+	dockername = "%s-restfulapi" %  config["cluster_name"]
+
+	os.system("docker rmi %s" % dockername)
+	os.system("docker build -t %s RestfulAPI" % dockername)
+
+	if not os.path.exists("deploy/docker"):
+		os.system("mkdir -p %s" % "deploy/docker")
+
+	tarname = "deploy/docker/restfulapi-%s.tar" % config["cluster_name"]
+	os.system("rm %s" % tarname )
+
+	os.system("docker save " + dockername + " > " + tarname )
+
+	remotedockerfile = "/restfulapi-%s.tar" % config["cluster_name"]
+
+	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo mkdir -p /dlws-data && sudo mount %s /dlws-data" % config["nfs-server"])
+
+	sudo_scp(config["ssh_cert"],tarname,remotedockerfile, "core", masterIP )
+
+	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker rm -f webui")
+	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker rmi  %s" % dockername)
+
+	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker load -i %s" % remotedockerfile)
+	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker run -d -p 5000:5000 -v /dlws-data:/dlws-data --restart always --name restfulapi %s" % dockername)
+
+
+	print ("A restful api docker is built at: "+ dockername)
+	print ("It is also saved as a tar file to: "+ tarname)
+	print "==============================================="
+	print "restful api is running at: http://%s" % masterIP
+	config["restapi"] = "http://%s:5000/" %  masterIP
+
+def DeployWebUIOnNode(ipAddress):
+
+	sshUser = "core"
+	webUIIP = ipAddress
+
+	if "restapi" not in config:
+		print "!!!! Cannot deploy Web UI - RestfulAPI is not deployed"
+		return
+
+	render("./WebUI/appsettings.json.template","./WebUI/appsettings.json")
+	dockername = "%s-webui" %  config["cluster_name"]
+
+	os.system("docker rmi %s" % dockername)
+	os.system("docker build -t %s WebUI" % dockername)
+
+	if not os.path.exists("deploy/docker"):
+		os.system("mkdir -p %s" % "deploy/docker")
+
+	tarname = "deploy/docker/webui-%s.tar" % config["cluster_name"]
+	os.system("rm %s" % tarname )
+	
+	os.system("docker save " + dockername + " > " + tarname )
+
+	remotedockerfile = "/webui-%s.tar" % config["cluster_name"]
+
+	SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "sudo mkdir -p /dlws-data && sudo mount %s /dlws-data" % config["nfs-server"])
+
+	sudo_scp(config["ssh_cert"],tarname,remotedockerfile, sshUser, webUIIP )
+
+	SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker rm -f webui")
+	SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker rmi  %s" % dockername)
+
+	SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker load -i %s" % remotedockerfile)
+	SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker run -d -p 80:80 --restart always --name webui %s" % dockername)
+
+
+	print ("A Web UI docker is built at: "+ dockername)
+	print ("It is also saved as a tar file to: "+ tarname)
+	print "==============================================="
+	print "Web UI is running at: http://%s" % masterIP
+	print "Job Submission at: http://%sjobs/" % masterIP
+	print "Job List at: http://%sjobs/joblist.html" % masterIP
+
+
 def DeployWebUI():
+	masterIP = config["etcd_node"][0]
+	DeployRestfulAPIonNode(masterIP)
+	DeployWebUIOnNode(masterIP)
+
+
+def DeployWebUI_old():
 	if "mysql-hostname" not in config or "mysql-hostname" not in config or "mysql-hostname" not in config or "mysql-hostname" not in config:
 		CreateMYSQLForWebUI()
 
@@ -959,9 +1091,8 @@ def DeployWebUI():
 
 	tarname = "deploy/docker/webui-%s.tar" % config["cluster_name"]
 	os.system("rm %s" % tarname )
+	os.system("docker save " + dockername + " > " + tarname )
 	
-
-
 
 	masterIP = config["kubernetes_master_node"][0]
 
@@ -978,7 +1109,6 @@ def DeployWebUI():
 	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker run -d -p 80:80 -p 5000:5000 -v /dlws-data:/dlws-data --restart always --name webui %s" % dockername)
 
 
-	os.system("docker save " + dockername + " > " + tarname )
 	print ("A Web UI docker is built at: "+ dockername)
 	print ("It is also saved as a tar file to: "+ tarname)
 	print "==============================================="
