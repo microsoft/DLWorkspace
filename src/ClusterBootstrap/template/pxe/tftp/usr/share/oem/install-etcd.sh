@@ -2,4 +2,4 @@
 
 export TAG="etcd"
 
-/bin/bash --verbose install-common.sh
+/bin/bash --verbose install.sh
