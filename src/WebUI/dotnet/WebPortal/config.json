@@ -1,0 +1,9 @@
+{
+  "AzureAd": {
+    "ClientId": "511c7514-3090-400e-873a-2fb05f2d5c19",
+    "Tenant": "microsoft.onmicrosoft.com",
+    "AadInstance": "https://login.microsoftonline.com/{0}", // This is the public instance of Azure AD
+    "PostLogoutRedirectUri": "https://dlws-auth.azurewebsites.net"
+  }
+}
+

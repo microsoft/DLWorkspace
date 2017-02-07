@@ -35,5 +35,5 @@ src/ClusterBootstrap/deploy_backup/*
 **/obj/Release/*
 **/obj/Debug/*
 **/Properties/*
-
+**/node_modules/*
 **/.bowerrc

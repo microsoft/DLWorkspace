@@ -3,6 +3,6 @@
   <PropertyGroup>
     <ActiveDebugProfile>IIS Express</ActiveDebugProfile>
     <AutoRefresh>false</AutoRefresh>
-    <NameOfLastUsedPublishProfile>LocalFS</NameOfLastUsedPublishProfile>
+    <NameOfLastUsedPublishProfile>dlws-auth - Web Deploy</NameOfLastUsedPublishProfile>
   </PropertyGroup>
 </Project>
