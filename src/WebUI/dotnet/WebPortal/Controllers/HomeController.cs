@@ -4,9 +4,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using WindowsAuth.models;
+using WebPortal.models;
 
-namespace WindowsAuth.Controllers
+namespace WebPortal.Controllers
 {
     public class HomeController : Controller
     {

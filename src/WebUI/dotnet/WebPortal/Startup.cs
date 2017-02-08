@@ -11,9 +11,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
-using WindowsAuth.models;
+using WebPortal.models;
 
-namespace WindowsAuth
+namespace WebPortal
 {
     public class Startup
     {

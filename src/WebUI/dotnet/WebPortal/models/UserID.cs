@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace WindowsAuth.models
+namespace WebPortal.models
 {
     public class UserID
     {

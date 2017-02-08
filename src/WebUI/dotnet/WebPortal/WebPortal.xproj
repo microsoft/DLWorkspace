@@ -7,7 +7,7 @@
   <Import Project="$(VSToolsPath)\DotNet\Microsoft.DotNet.Props" Condition="'$(VSToolsPath)' != ''" />
   <PropertyGroup Label="Globals">
     <ProjectGuid>6ecb453c-aea3-44af-8185-059fbac7b56c</ProjectGuid>
-    <RootNamespace>WindowsAuth</RootNamespace>
+    <RootNamespace>WebPortal</RootNamespace>
     <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)'=='' ">..\artifacts\obj\$(MSBuildProjectName)</BaseIntermediateOutputPath>
     <OutputPath Condition="'$(OutputPath)'=='' ">..\artifacts\</OutputPath>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
