@@ -1,3 +1,8 @@
+database :
+  hostname : {{cnf["sqlserver-hostname"]}}
+  username : {{cnf["sqlserver-username"]}}
+  password : {{cnf["sqlserver-password"]}}
+  database : {{cnf["sqlserver-database"]}}
 mysql :
   hostname : {{cnf["mysql-hostname"]}}
   username : {{cnf["mysql-username"]}}
@@ -6,3 +11,4 @@ mysql :
 kubelet-path : /usr/local/bin/kubectl
 storage-mount-path : /dlws-data/
 root-path : /DLWorkspace/src/
+clusterId : {{cnf["clusterId"]}}

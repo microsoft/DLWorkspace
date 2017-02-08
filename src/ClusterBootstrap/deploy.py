@@ -1022,7 +1022,7 @@ def DeployRestfulAPIonNode(ipAddress):
 
 	sudo_scp(config["ssh_cert"],tarname,remotedockerfile, "core", masterIP )
 
-	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker rm -f webui")
+	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker rm -f restfulapi")
 	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker rmi  %s" % dockername)
 
 	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker load -i %s" % remotedockerfile)
@@ -1032,19 +1032,20 @@ def DeployRestfulAPIonNode(ipAddress):
 	print ("A restful api docker is built at: "+ dockername)
 	print ("It is also saved as a tar file to: "+ tarname)
 	print "==============================================="
-	print "restful api is running at: http://%s" % masterIP
+	print "restful api is running at: http://%s:5000" % masterIP
 	config["restapi"] = "http://%s:5000/" %  masterIP
 
 def DeployWebUIOnNode(ipAddress):
 
 	sshUser = "core"
 	webUIIP = ipAddress
-
+	config["restapi"] = "http://10.196.47.4:5000"
 	if "restapi" not in config:
 		print "!!!! Cannot deploy Web UI - RestfulAPI is not deployed"
 		return
 
 	render("./WebUI/appsettings.json.template","./WebUI/appsettings.json")
+
 	dockername = "%s-webui" %  config["cluster_name"]
 
 	os.system("docker rmi %s" % dockername)
@@ -1068,20 +1069,20 @@ def DeployWebUIOnNode(ipAddress):
 	SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker rmi  %s" % dockername)
 
 	SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker load -i %s" % remotedockerfile)
-	SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker run -d -p 80:80 --restart always --name webui %s" % dockername)
+	SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker run -d -p 8000:8000 --restart always --name webui %s" % dockername)
 
 
 	print ("A Web UI docker is built at: "+ dockername)
 	print ("It is also saved as a tar file to: "+ tarname)
 	print "==============================================="
-	print "Web UI is running at: http://%s" % masterIP
-	print "Job Submission at: http://%sjobs/" % masterIP
-	print "Job List at: http://%sjobs/joblist.html" % masterIP
+	print "Web UI is running at: http://%s" % webUIIP
+	print "Job Submission at: http://%sjobs/" % webUIIP
+	print "Job List at: http://%sjobs/joblist.html" % webUIIP
 
 
 def DeployWebUI():
-	masterIP = config["etcd_node"][0]
-	DeployRestfulAPIonNode(masterIP)
+	masterIP = config["kubernetes_master_node"][0]
+	#DeployRestfulAPIonNode(masterIP)
 	DeployWebUIOnNode(masterIP)
 
 
@@ -1441,12 +1442,13 @@ Command:
 		exit()
 
 	elif command == "connect":
+			Check_Master_ETCD_Status()
 			if len(nargs) < 1 or nargs[0] == "master":
-				nodes = GetMasterNodes(config["clusterId"])
+				nodes = config["kubernetes_master_node"]
 			elif nargs[0] == "etcd":
-				nodes = GetETCDNodes(config["clusterId"])
+				nodes = config["etcd_node"]
 			elif nargs[0] == "worker":
-				nodes = GetWorkerNodes(config["clusterId"])
+				nodes = config["worker_node"]
 			else:
 				parser.print_help()
 				print "ERROR: must connect to either master, etcd or worker nodes"
