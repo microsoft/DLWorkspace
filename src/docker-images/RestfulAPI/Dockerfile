@@ -1,15 +1,15 @@
 FROM ubuntu:16.04
 MAINTAINER Hongzhi Li <Hongzhi.Li@microsoft.com>
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-		apt-transport-https \
+RUN apt-get update 
+RUN apt-get install -y --no-install-recommends apt-transport-https
+RUN apt-get install -y --no-install-recommends \
         build-essential \
         cmake \
         git \
         wget \
         vim \
         python-dev \
-        python-numpy \
         python-pip \
         python-yaml 
         
@@ -63,10 +63,10 @@ COPY 000-default.conf /etc/apache2/sites-available/000-default.conf
 COPY id_rsa /root/.ssh/id_rsa
 RUN chmod 400 /root/.ssh/id_rsa
 RUN apt-get install -y --no-install-recommends ssh
-RUN ssh-keyscan github.com >> /root/.ssh/known_hosts
-RUN ssh-agent bash -c 'ssh-add /root/.ssh/id_rsa; git clone -b webUI git@github.com:MSRCCS/DLWorkspace.git /DLWorkspace'
+
 
 COPY run.sh /
 RUN chmod +x /run.sh
-COPY config.yaml /DLWorkspace/src/utils
+COPY runScheduler.sh /
+RUN chmod +x /runScheduler.sh
 CMD /run.sh

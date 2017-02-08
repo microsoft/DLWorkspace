@@ -41,10 +41,6 @@ RUN pip install flask.restful
 COPY id_rsa /root/.ssh/id_rsa
 RUN chmod 400 /root/.ssh/id_rsa
 RUN apt-get install -y --no-install-recommends ssh
-RUN ssh-keyscan github.com >> /root/.ssh/known_hosts
-RUN ssh-agent bash -c 'ssh-add /root/.ssh/id_rsa; git clone -b webUI git@github.com:MSRCCS/DLWorkspace.git /DLWorkspace'
-
-COPY appsettings.json /DLWorkspace/src/WebUI/dotnet/WebPortal
 
 COPY run.sh /
 RUN chmod +x /run.sh
