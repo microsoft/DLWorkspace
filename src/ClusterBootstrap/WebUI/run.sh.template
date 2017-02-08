@@ -1,4 +1,0 @@
-#!/bin/bash
-
-apachectl start
-python /DLWorkspace/src/RestAPI/dlws-restapi.py

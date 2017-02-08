@@ -1,6 +1,21 @@
 FROM ubuntu:16.04
 MAINTAINER Hongzhi Li <Hongzhi.Li@microsoft.com>
 
+
+RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF
+RUN echo "deb http://download.mono-project.com/repo/debian wheezy main" | tee /etc/apt/sources.list.d/mono-xamarin.list
+RUN echo "deb http://download.mono-project.com/repo/debian wheezy-apache24-compat main" | tee -a /etc/apt/sources.list.d/mono-xamarin.list
+RUN apt-get update
+RUN apt-get install -y apt-transport-https
+
+RUN sh -c 'echo "deb [arch=amd64] https://apt-mo.trafficmanager.net/repos/dotnet-release/ xenial main" > /etc/apt/sources.list.d/dotnetdev.list'
+RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 417A0893
+RUN apt-get install -y apt-transport-https
+RUN apt-get update
+RUN apt-get install -y dotnet-dev-1.0.0-preview2.1-003177
+
+
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         cmake \
@@ -10,17 +25,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         python-dev \
         python-numpy \
         python-pip \
-        python-yaml 
+        python-yaml
+        
 
-RUN apt-get install -y \        
-        apache2 \
-        php \
-        php-mysql \
-        php-curl \
-        libapache2-mod-php \
-        nfs-common
-
-RUN apt-get install -y bison curl golang-go
+RUN apt-get install -y bison curl nfs-common
 RUN pip install --upgrade pip; 
 
 RUN pip install setuptools; 
@@ -30,22 +38,14 @@ RUN update-locale LANG=en_US.UTF-8
 RUN pip install flask
 RUN pip install flask.restful
 
-RUN wget http://ccsdatarepo.westus.cloudapp.azure.com/data/tools/mysql-connector-python_2.1.5-1ubuntu14.04_all.deb  -O /mysql-connector-python_2.1.5-1ubuntu14.04_all.deb
-RUN dpkg -i /mysql-connector-python_2.1.5-1ubuntu14.04_all.deb
-RUN apt-get install -y mysql-connector-python
-
-RUN wget http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubectl -O /usr/local/bin/kubectl
-RUN chmod +x /usr/local/bin/kubectl
-RUN mkdir /root/.kube
-COPY config /root/.kube
-COPY 000-default.conf /etc/apache2/sites-available/000-default.conf
 COPY id_rsa /root/.ssh/id_rsa
 RUN chmod 400 /root/.ssh/id_rsa
 RUN apt-get install -y --no-install-recommends ssh
 RUN ssh-keyscan github.com >> /root/.ssh/known_hosts
 RUN ssh-agent bash -c 'ssh-add /root/.ssh/id_rsa; git clone -b webUI git@github.com:MSRCCS/DLWorkspace.git /DLWorkspace'
 
+COPY appsettings.json /DLWorkspace/src/WebUI/dotnet/WebPortal
+
 COPY run.sh /
 RUN chmod +x /run.sh
-COPY config.yaml /DLWorkspace/src/utils
 CMD /run.sh
