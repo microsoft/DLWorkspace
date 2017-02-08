@@ -19,7 +19,7 @@
     function buildTable() {
         var username = "@User.Identity.Name"
 
-        $.getJSON("@ViewData["restapi"]/ListJobs?userName=" + username,
+        $.getJSON("@ViewData["restapi"]/ListJobs?userName" + username,
         function (json) {
             $("#running-job-table").find("tr:gt(0)").remove();
             var tr;
