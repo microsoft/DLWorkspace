@@ -2,4 +2,4 @@
 
 export TAG="etcd"
 
-/bin/bash --verbose install.sh
+/bin/bash --verbose /usr/share/oem/install.sh
