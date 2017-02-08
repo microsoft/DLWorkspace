@@ -1033,7 +1033,7 @@ def DeployRestfulAPIonNode(ipAddress):
 	print ("It is also saved as a tar file to: "+ tarname)
 	print "==============================================="
 	print "restful api is running at: http://%s:5000" % masterIP
-	config["restapi"] = "http://%s:5000/" %  masterIP
+	config["restapi"] = "http://%s:5000" %  masterIP
 
 def DeployWebUIOnNode(ipAddress):
 
@@ -1068,7 +1068,7 @@ def DeployWebUIOnNode(ipAddress):
 	SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker rmi  %s" % dockername)
 
 	SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker load -i %s" % remotedockerfile)
-	SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker run -d -p 8000:8000 --restart always --name webui %s" % dockername)
+	SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker run -d -p 80:80 --restart always --name webui %s" % dockername)
 
 
 	print ("A Web UI docker is built at: "+ dockername)
