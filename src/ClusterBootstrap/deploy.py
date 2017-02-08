@@ -1028,7 +1028,6 @@ def DeployWebUIOnNode(ipAddress):
 
 	sshUser = "core"
 	webUIIP = ipAddress
-	config["restapi"] = "http://10.196.47.4:5000"
 	if "restapi" not in config:
 		print "!!!! Cannot deploy Web UI - RestfulAPI is not deployed"
 		return
@@ -1071,7 +1070,7 @@ def DeployWebUIOnNode(ipAddress):
 
 def DeployWebUI():
 	masterIP = config["kubernetes_master_node"][0]
-	#DeployRestfulAPIonNode(masterIP)
+	DeployRestfulAPIonNode(masterIP)
 	DeployWebUIOnNode(masterIP)
 
 
