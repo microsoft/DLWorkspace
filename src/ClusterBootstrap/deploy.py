@@ -31,6 +31,8 @@ digitsMatch = re.compile("\d+")
 defanswer = ""
 ipAddrMetaname = "hostIP"
 clusterportal = "http://dlws-clusterportal.westus.cloudapp.azure.com:5000"
+dockerRegistry = "mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace"
+
 # default search for all partitions of hdb, hdc, hdd, and sdb, sdc, sdd
 defPartition = "/dev/[sh]d[^a]"
 
@@ -90,8 +92,8 @@ def scp (identity_file, source, target, user, host):
 def sudo_scp (identity_file, source, target, user, host,changePermission=False):
 	tmp = str(uuid.uuid4())	
 	scp(identity_file, source,"~/%s" % tmp, user, host )
-
-	cmd = "sudo mv ~/%s %s" % (tmp, target)
+	targetPath = os.path.dirname(target)
+	cmd = "sudo mkdir -p %s ; sudo mv ~/%s %s" % (targetPath, tmp, target)
 	if changePermission:
 		cmd += " ; sudo chmod +x %s" % target
 
@@ -991,92 +993,76 @@ def CreateMYSQLForWebUI():
 	#todo: create a mysql database, and set "mysql-hostname", "mysql-username", "mysql-password", "mysql-database"
 	pass
 
+def BuildRestfulAPIDocker():
+	dockername = "%s/%s-restfulapi" %  (dockerRegistry,config["cluster_name"])
+	tarname = "deploy/docker/restfulapi-%s.tar" % config["cluster_name"]
+
+	os.system("docker rmi %s" % dockername)
+	os.system("docker build -t %s ../docker-images/RestfulAPI" % dockername)
+
+	if not os.path.exists("deploy/docker"):
+		os.system("mkdir -p %s" % "deploy/docker")
+
+	os.system("rm %s" % tarname )
+	os.system("docker save " + dockername + " > " + tarname )
 
 def DeployRestfulAPIonNode(ipAddress):
 
 	masterIP = ipAddress
+	dockername = "%s/dlws-restfulapi" %  (dockerRegistry)
 
 	# if user didn't give storage server information, use CCS public storage in default. 
 	if "nfs-server" not in config:
 		config["nfs-server"] = "10.196.44.241:/mnt/data"
 
-	render("./RestfulAPI/run.sh.template","./RestfulAPI/run.sh")
-	render("../utils/config.yaml.template","./RestfulAPI/config.yaml")
+	if not os.path.exists("./deploy/RestfulAPI"):
+		os.system("mkdir -p ./deploy/RestfulAPI")
+	render("../utils/config.yaml.template","./deploy/RestfulAPI/config.yaml")
+	sudo_scp(config["ssh_cert"],"./deploy/RestfulAPI/config.yaml","/etc/RestfulAPI/config.yaml", "core", masterIP )
 
-	dockername = "%s-restfulapi" %  config["cluster_name"]
-
-	os.system("docker rmi %s" % dockername)
-	os.system("docker build -t %s RestfulAPI" % dockername)
-
-	if not os.path.exists("deploy/docker"):
-		os.system("mkdir -p %s" % "deploy/docker")
-
-	tarname = "deploy/docker/restfulapi-%s.tar" % config["cluster_name"]
-	os.system("rm %s" % tarname )
-
-	os.system("docker save " + dockername + " > " + tarname )
-
-	remotedockerfile = "/restfulapi-%s.tar" % config["cluster_name"]
 
 	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo mkdir -p /dlws-data && sudo mount %s /dlws-data" % config["nfs-server"])
 
-	sudo_scp(config["ssh_cert"],tarname,remotedockerfile, "core", masterIP )
 
 	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker rm -f restfulapi")
-	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker rmi  %s" % dockername)
+	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker rm -f jobScheduler")
 
-	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker load -i %s" % remotedockerfile)
-	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker run -d -p 5000:5000 -v /dlws-data:/dlws-data --restart always --name restfulapi %s" % dockername)
+	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker pull %s" % dockername)
+	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker run -d -p 5000:5000 --restart always -v /etc/RestfulAPI:/RestfulAPI --name restfulapi %s" % dockername)
+	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker run -d -v /dlws-data:/dlws-data -v /etc/RestfulAPI:/RestfulAPI --restart always --name jobScheduler %s /runScheduler.sh" % dockername)
 
 
-	print ("A restful api docker is built at: "+ dockername)
-	print ("It is also saved as a tar file to: "+ tarname)
 	print "==============================================="
 	print "restful api is running at: http://%s:5000" % masterIP
 	config["restapi"] = "http://%s:5000" %  masterIP
+
+def BuildWebUIDocker():
+	os.system("docker rmi %s" % dockername)
+	os.system("docker build -t %s ../docker-images/WebUI" % dockername)
 
 def DeployWebUIOnNode(ipAddress):
 
 	sshUser = "core"
 	webUIIP = ipAddress
+	dockername = "%s/dlws-webui" %  (dockerRegistry)
+
+
+
 	if "restapi" not in config:
 		print "!!!! Cannot deploy Web UI - RestfulAPI is not deployed"
 		return
 
-	render("./WebUI/appsettings.json.template","./WebUI/appsettings.json")
+	if not os.path.exists("./deploy/WebUI"):
+		os.system("mkdir -p ./deploy/WebUI")
+	render("./template/WebUI/appsettings.json.template","./deploy/WebUI/appsettings.json")
+	sudo_scp(config["ssh_cert"],"./deploy/WebUI/appsettings.json","/etc/WebUI/appsettings.json", "core", webUIIP )
 
-	dockername = "%s-webui" %  config["cluster_name"]
-
-	os.system("docker rmi %s" % dockername)
-	os.system("docker build -t %s WebUI" % dockername)
-
-	if not os.path.exists("deploy/docker"):
-		os.system("mkdir -p %s" % "deploy/docker")
-
-	tarname = "deploy/docker/webui-%s.tar" % config["cluster_name"]
-	os.system("rm %s" % tarname )
-	
-	os.system("docker save " + dockername + " > " + tarname )
-
-	remotedockerfile = "/webui-%s.tar" % config["cluster_name"]
-
-	SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "sudo mkdir -p /dlws-data && sudo mount %s /dlws-data" % config["nfs-server"])
-
-	sudo_scp(config["ssh_cert"],tarname,remotedockerfile, sshUser, webUIIP )
-
-	SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker rm -f webui")
-	SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker rmi  %s" % dockername)
-
-	SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker load -i %s" % remotedockerfile)
-	SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker run -d -p 80:80 --restart always --name webui %s" % dockername)
+	SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker pull %s" % dockername)
+	SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker run -d -p 80:80 -v /etc/WebUI:/WebUI --restart always --name webui %s" % dockername)
 
 
-	print ("A Web UI docker is built at: "+ dockername)
-	print ("It is also saved as a tar file to: "+ tarname)
 	print "==============================================="
 	print "Web UI is running at: http://%s" % webUIIP
-	print "Job Submission at: http://%sjobs/" % webUIIP
-	print "Job List at: http://%sjobs/joblist.html" % webUIIP
 
 
 def DeployWebUI():
@@ -1084,50 +1070,6 @@ def DeployWebUI():
 	DeployRestfulAPIonNode(masterIP)
 	DeployWebUIOnNode(masterIP)
 
-
-def DeployWebUI_old():
-	if "mysql-hostname" not in config or "mysql-hostname" not in config or "mysql-hostname" not in config or "mysql-hostname" not in config:
-		CreateMYSQLForWebUI()
-
-	# if user didn't give storage server information, use CCS public storage in default. 
-	if "nfs-server" not in config:
-		config["nfs-server"] = "10.196.44.241:/mnt/data"
-
-	render("./WebUI/run.sh.template","./WebUI/run.sh")
-	render("../utils/config.yaml.template","./WebUI/config.yaml")
-
-	dockername = "%s-webui" %  config["cluster_name"]
-
-	os.system("docker rmi %s" % dockername)
-	os.system("docker build -t %s WebUI" % dockername)
-
-
-	tarname = "deploy/docker/webui-%s.tar" % config["cluster_name"]
-	os.system("rm %s" % tarname )
-	os.system("docker save " + dockername + " > " + tarname )
-	
-
-	masterIP = config["kubernetes_master_node"][0]
-
-	remotedockerfile = "/webui-%s.tar" % config["cluster_name"]
-
-	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo mkdir -p /dlws-data && sudo mount %s /dlws-data" % config["nfs-server"])
-
-	sudo_scp(config["ssh_cert"],tarname,remotedockerfile, "core", masterIP )
-
-	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker rm -f webui")
-	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker rmi  %s" % dockername)
-
-	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker load -i %s" % remotedockerfile)
-	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker run -d -p 80:80 -p 5000:5000 -v /dlws-data:/dlws-data --restart always --name webui %s" % dockername)
-
-
-	print ("A Web UI docker is built at: "+ dockername)
-	print ("It is also saved as a tar file to: "+ tarname)
-	print "==============================================="
-	print "Web UI is running at: http://%s" % masterIP
-	print "Job Submission at: http://%sjobs/" % masterIP
-	print "Job List at: http://%sjobs/joblist.html" % masterIP
 
 def getPartitionNode(node, prog):
 	output = SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "sudo parted -l -s", True)
