@@ -13,7 +13,7 @@ RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 417A0893
 RUN apt-get install -y apt-transport-https
 RUN apt-get update
 RUN apt-get install -y dotnet-dev-1.0.0-preview2.1-003177
-
+RUN apt-get install -y dotnet-dev-1.0.0-preview2-003156
 
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
