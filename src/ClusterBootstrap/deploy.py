@@ -11,6 +11,8 @@ import textwrap
 import re
 import math
 import distutils.dir_util
+import distutils.file_util
+import shutil
 
 import yaml
 from jinja2 import Environment, FileSystemLoader, Template
@@ -253,6 +255,13 @@ def Backup_Keys():
 	os.system("cp -r ./ssl %s" % backupdir)
 	os.system("cp -r ./deploy/clusterID.yml %s" % backupdir)
 
+def CopyToISO():
+	if not os.path.exists("./deploy/iso-creator"):
+		os.system("mkdir -p ./deploy/iso-creator")
+	os.system("cp --verbose ./template/pxe/tftp/splash.png ./deploy/iso-creator/splash.png")
+	os.system("cp --verbose ./template/pxe/tftp/usr/share/oem/* ./deploy/iso-creator")
+	os.system("cp --verbose ./template/iso-creator/* ./deploy/iso-creator")
+
 def Init_Deployment():
 	if (os.path.isfile("./deploy/clusterID.yml")):
 		
@@ -305,12 +314,14 @@ def Init_Deployment():
 		f.write(content)
 	f.close()
 	
-	
+	# Prepare to Generate the ISO image. 
+	# Using files in PXE as template. 
+	CopyToISO()
 
 
 
-	template_file = "./iso-creator/mkimg.sh.template"
-	target_file = "./iso-creator/mkimg.sh"
+	template_file = "./deploy/iso-creator/mkimg.sh.template"
+	target_file = "./deploy/iso-creator/mkimg.sh"
 	template = ENV.get_template(os.path.abspath(template_file))
 
 	content = template.render(cnf=config)
@@ -871,8 +882,8 @@ def Deploy_ETCD():
 def Create_ISO():
 	imagename = "./deploy/iso/dlworkspace-cluster-deploy-"+config["cluster_name"]+".iso"
 	os.system("mkdir -p ./deploy/iso")
-	os.system("cd iso-creator && bash ./mkimg.sh -v 1185.5.0 -a")
-	os.system("mv ./iso-creator/coreos-1185.5.0.iso "+imagename )
+	os.system("cd deploy/iso-creator && bash ./mkimg.sh -v 1185.5.0 -a")
+	os.system("mv deploy/iso-creator/coreos-1185.5.0.iso "+imagename )
 	os.system("rm -rf ./iso-creator/syslinux-6.03*")
 	os.system("rm -rf ./iso-creator/coreos-*")
 	print "Please find the bootable USB image at: "+imagename
