@@ -8,7 +8,7 @@
 
 <script type="text/javascript">
     function KillJob(jobId) {
-        $.getJSON("@ViewData["restapi"]/KillJob?jobId=" + jobId,
+        $.getJSON("/api/dlws/KillJob?jobId=" + jobId,
         function (json) {
             alert(json.result);
         });
@@ -17,9 +17,7 @@
 
 <script>
     function buildTable() {
-        var username = "@User.Identity.Name"
-
-        $.getJSON("@ViewData["restapi"]/ListJobs?userName=" + username,
+        $.getJSON("/api/dlws/ListJobs",
         function (json) {
             $("#running-job-table").find("tr:gt(0)").remove();
             var tr;
