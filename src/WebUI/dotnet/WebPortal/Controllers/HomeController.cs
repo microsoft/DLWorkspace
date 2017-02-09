@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using WindowsAuth.models;
+using System.Net.Http;
 
 namespace WindowsAuth.Controllers
 {
@@ -13,37 +14,50 @@ namespace WindowsAuth.Controllers
         private readonly AppSettings _appSettings;
 
 
+
         public HomeController(IOptions<AppSettings> appSettings)
         {
             _appSettings = appSettings.Value;
         }
 
-        public IActionResult Index()
+        public async Task<IActionResult> Index()
         {
             return View();
         }
         public IActionResult JobSubmission()
         {
+            if (!User.Identity.IsAuthenticated)
+            {
+                return RedirectToAction("Login", "Account", new { controller = "Account", action = "Login" });
+            }
+
             ViewData["Message"] = "Your application description page.";
-            ViewData["restapi"] = _appSettings.restapi;
+            //
 
             return View();
         }
 
         public IActionResult ViewJobs()
         {
+            if (!User.Identity.IsAuthenticated)
+            {
+                return RedirectToAction("Login","Account",new { controller = "Account", action = "Login" });
+            }
+
             ViewData["Message"] = "View and Manage Your Jobs.";
-            ViewData["restapi"] = _appSettings.restapi;
 
             return View();
         }
 
         public IActionResult JobDetail()
         {
+            if (!User.Identity.IsAuthenticated)
+            {
+                return RedirectToAction("Login", "Account", new { controller = "Account", action = "Login" });
+            }
+
             ViewData["Message"] = "View and Manage Your Jobs.";
             ViewData["jobid"] = HttpContext.Request.Query["jobId"];
-            ViewData["restapi"] = _appSettings.restapi;
-
 
             return View();
         }
@@ -51,7 +65,6 @@ namespace WindowsAuth.Controllers
         public IActionResult About()
         {
             ViewData["Message"] = "Your application description page.";
-            ViewData["restapi"] = _appSettings.restapi;
 
             return View();
         }
@@ -59,7 +72,6 @@ namespace WindowsAuth.Controllers
         public IActionResult Contact()
         {
             ViewData["Message"] = "Your contact page.";
-            ViewData["restapi"] = _appSettings.restapi;
 
             return View();
         }
