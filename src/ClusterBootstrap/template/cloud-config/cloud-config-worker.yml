@@ -119,9 +119,6 @@ write_files:
     content: |
       {{cnf["kubelet.service.template"]}}
 
-
-
-
   - path: "/etc/kubernetes/worker-kubeconfig.yaml.template"
     permissions: "0755"
     owner: "root"
@@ -129,23 +126,35 @@ write_files:
     content: |
       {{cnf["worker-kubeconfig.yaml.template"]}}
 
-
-
-
+  - path: "/opt/homeinserver"
+    permissions: "0755"
+    owner: "core"
+    content: |
+      {{cnf["homeinserver"]}}
+      
+  - path: "/opt/homeininterval"
+    permissions: "0755"
+    owner: "core"
+    content: |
+      {{cnf["homeininterval"]}}
+      
+  - path: "/opt/discoverserver"
+    permissions: "0755"
+    owner: "core"
+    content: |
+      {{cnf["discoverserver"]}}
+      
+  - path: "/opt/systemrole"
+    permissions: "0755"
+    owner: "core"
+    content: |
+      worker
+      
   - path: "/opt/report.sh"
     permissions: "0755"
     owner: "root"
     encoding: "base64"
     content: |
       {{cnf["report.sh"]}}
-
-
-
-
-
-
-
-
-
 
 

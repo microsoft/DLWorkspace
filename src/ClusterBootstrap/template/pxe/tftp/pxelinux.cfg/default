@@ -35,14 +35,14 @@ Deploy worker node. The CoreOS system is going to be installed on the
 first hard drive (/dev/sda). ALL THE DATA ON /dev/sda WILL BE ERASED.
     ENDTEXT
 
-LABEL coreosmaster
-    MENU LABEL Install CoreOS - Master Node
-    KERNEL coreos_production_pxe.vmlinuz
-    APPEND initrd=cpiomaster.gz coreos.autologin
-    TEXT HELP
-Deploy master node. The CoreOS system is going to be installed on the
-first hard drive (/dev/sda). ALL THE DATA ON /dev/sda WILL BE ERASED.
-    ENDTEXT
+#LABEL coreosmaster
+#    MENU LABEL Install CoreOS - Master Node
+#    KERNEL coreos_production_pxe.vmlinuz
+#    APPEND initrd=cpiomaster.gz coreos.autologin
+#    TEXT HELP
+#Deploy master node. The CoreOS system is going to be installed on the
+#first hard drive (/dev/sda). ALL THE DATA ON /dev/sda WILL BE ERASED.
+#    ENDTEXT
 
 LABEL coreosetcd
     MENU LABEL Install CoreOS - ETCD Node

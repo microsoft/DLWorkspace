@@ -30,8 +30,10 @@ capacityMatch = re.compile("\d+[M|G]B")
 digitsMatch = re.compile("\d+")
 defanswer = ""
 ipAddrMetaname = "hostIP"
-clusterportal = "http://dlws-clusterportal.westus.cloudapp.azure.com:5000"
-dockerRegistry = "mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace"
+homeinserver = "http://dlws-clusterportal.westus.cloudapp.azure.com:5000"
+discoverserver = "4.2.2.1"
+homeininterval = "600"
+dockerregistry = "mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace"
 
 # default search for all partitions of hdb, hdc, hdd, and sdb, sdc, sdd
 defPartition = "/dev/[sh]d[^a]"
@@ -51,7 +53,7 @@ def parse_capacity_in_GB( inp ):
 			return float(val) / 1000.0
 
 def formClusterPortalURL(role, clusterID):
-	return clusterportal+"/GetNodes?role="+role+"&clusterId="+clusterID
+	return config["homeinserver"]+"/GetNodes?role="+role+"&clusterId="+clusterID
 
 def firstChar(s):
 	return (s.strip())[0].lower()
@@ -70,6 +72,7 @@ def render(template_file, target_file):
 	content = template.render(cnf=config)
 	with open(target_file, 'w') as f:
 		f.write(content)
+	f.close()
 
 # Execute a remote SSH cmd with identity file (private SSH key), user, host
 def SSH_exec_cmd(identity_file, user,host,cmd,showCmd=True):
@@ -264,6 +267,33 @@ def CopyToISO():
 	os.system("cp --verbose ./template/pxe/tftp/usr/share/oem/* ./deploy/iso-creator")
 	os.system("cp --verbose ./template/iso-creator/* ./deploy/iso-creator")
 
+def InitConfig():
+	config = {}
+	config["discoverserver"] = discoverserver
+	config["homeinserver"] = homeinserver
+	config["homeininterval"] = homeininterval
+	config["dockerregistry"] = dockerregistry
+	return config
+	
+# Render scripts for kubenete nodes
+def addKubeletConfig():
+	renderfiles = []
+
+# Render all deployment script used. 
+	kubemaster_cfg_files = [f for f in os.listdir("./template/kubelet") if os.path.isfile(os.path.join("./template/kubelet", f))]
+	for file in kubemaster_cfg_files:
+		renderfiles.append((os.path.join("./template/kubelet", file),os.path.join("./deploy/kubelet", file)))
+
+	for (template_file,target_file) in renderfiles:
+		render(template_file,target_file)
+
+	kubemaster_cfg_files = [f for f in os.listdir("./deploy/kubelet") if os.path.isfile(os.path.join("./deploy/kubelet", f))]
+	for file in kubemaster_cfg_files:
+		with open(os.path.join("./deploy/kubelet", file), 'r') as f:
+			content = f.read()
+		config[file] = base64.b64encode(content)
+
+	
 def Init_Deployment():
 	if (os.path.isfile("./deploy/clusterID.yml")):
 		
@@ -294,28 +324,20 @@ def Init_Deployment():
 	config["clusterId"] = clusterID
 	config["sshkey"] = sshkey_public
 
-	ENV = Environment(loader=FileSystemLoader("/"))
+	addKubeletConfig()
 
 	template_file = "./template/cloud-config/cloud-config-master.yml"
 	target_file = "./deploy/cloud-config/cloud-config-master.yml"
-	template = ENV.get_template(os.path.abspath(template_file))
 	config["role"] = "master"
-
-	content = template.render(cnf=config)
-	with open(target_file, 'w') as f:
-		f.write(content)
-	f.close()
+	
+	render(template_file, target_file)
 
 	template_file = "./template/cloud-config/cloud-config-etcd.yml"
 	target_file = "./deploy/cloud-config/cloud-config-etcd.yml"
-	template = ENV.get_template(os.path.abspath(template_file))
-	config["role"] = "etcd"
-
-	content = template.render(cnf=config)
-	with open(target_file, 'w') as f:
-		f.write(content)
-	f.close()
 	
+	config["role"] = "etcd"
+	render(template_file, target_file)
+
 	# Prepare to Generate the ISO image. 
 	# Using files in PXE as template. 
 	CopyToISO()
@@ -324,14 +346,7 @@ def Init_Deployment():
 
 	template_file = "./deploy/iso-creator/mkimg.sh.template"
 	target_file = "./deploy/iso-creator/mkimg.sh"
-	template = ENV.get_template(os.path.abspath(template_file))
-
-	content = template.render(cnf=config)
-	with open(target_file, 'w') as f:
-		f.write(content)
-	f.close()
-
-
+	render( template_file, target_file )
 
 	with open("./ssl/ca/ca.pem", 'r') as f:
 		content = f.read()
@@ -347,37 +362,11 @@ def Init_Deployment():
 	config["apiserver-key.pem"] = base64.b64encode(content)
 	config["worker-key.pem"] = base64.b64encode(content)
 
-
-	renderfiles = []
-
-
-	kubemaster_cfg_files = [f for f in os.listdir("./template/kubelet") if os.path.isfile(os.path.join("./template/kubelet", f))]
-	for file in kubemaster_cfg_files:
-		renderfiles.append((os.path.join("./template/kubelet", file),os.path.join("./deploy/kubelet", file)))
-
-	for (template_file,target_file) in renderfiles:
-		render(template_file,target_file)
-
-
-
-
-	kubemaster_cfg_files = [f for f in os.listdir("./deploy/kubelet") if os.path.isfile(os.path.join("./deploy/kubelet", f))]
-	for file in kubemaster_cfg_files:
-		with open(os.path.join("./deploy/kubelet", file), 'r') as f:
-			content = f.read()
-		config[file] = base64.b64encode(content)
-
-
+	addKubeletConfig()
 
 	template_file = "./template/cloud-config/cloud-config-worker.yml"
 	target_file = "./deploy/cloud-config/cloud-config-worker.yml"
-	template = ENV.get_template(os.path.abspath(template_file))
-
-	content = template.render(cnf=config)
-	with open(target_file, 'w') as f:
-		f.write(content)
-	f.close()	
-
+	render( template_file, target_file )
 
 def CheckNodeAvailability(ipAddress):
 	# print "Check node availability on: " + str(ipAddress)
@@ -386,27 +375,7 @@ def CheckNodeAvailability(ipAddress):
 	return status == 0
 
 
-def GetMasterNodes(clusterId):
-	output = urllib.urlopen(formClusterPortalURL("master",clusterId)).read()
-	output = json.loads(json.loads(output))
-	Nodes = []
-	NodesInfo = [node for node in output["nodes"] if "time" in node]
-	if not "ipToHostname" in config:
-		config["ipToHostname"] = {}
-	for node in NodesInfo:
-		if not node[ipAddrMetaname] in Nodes and CheckNodeAvailability(node[ipAddrMetaname]):
-			hostname = GetHostName(node[ipAddrMetaname])
-			Nodes.append(node[ipAddrMetaname])
-			config["ipToHostname"][node[ipAddrMetaname]] = hostname
-	if "kubernetes_master_node" in config:
-		for node in Nodes:
-			if not node in config["kubernetes_master_node"]:
-				config["kubernetes_master_node"].append(node)
-	else:
-		config["kubernetes_master_node"] = Nodes
-	return Nodes
-
-def GetETCDNodes(clusterId):
+def GetETCDMasterNodes(clusterId):
 	output = urllib.urlopen(formClusterPortalURL("etcd", clusterId)).read()
 	output = json.loads(json.loads(output))
 	Nodes = []
@@ -424,36 +393,9 @@ def GetETCDNodes(clusterId):
 				config["etcd_node"].append(node)
 	else:
 		config["etcd_node"] = Nodes
+	config["kubernetes_master_node"] = Nodes
 	return Nodes
-
-def GetETCDMasterNodes(clusterId):
-	output = urllib.urlopen(formClusterPortalURL("etcdmaster", clusterId)).read()
-	output = json.loads(json.loads(output))
-	Nodes = []
-	NodesInfo = [node for node in output["nodes"] if "time" in node]
-	if not "ipToHostname" in config:
-		config["ipToHostname"] = {}
-	for node in NodesInfo:
-		if not node[ipAddrMetaname] in Nodes and CheckNodeAvailability(node[ipAddrMetaname]):
-			hostname = GetHostName(node[ipAddrMetaname])
-			Nodes.append(node[ipAddrMetaname])
-			config["ipToHostname"][node[ipAddrMetaname]] = hostname
-	if "etcd_node" in config:
-		for node in Nodes:
-			if not node in config["etcd_node"]:
-				config["etcd_node"].append(node)
-	else:
-		config["etcd_node"] = Nodes
-
-	if "kubernetes_master_node" in config:
-		for node in Nodes:
-			if not node in config["kubernetes_master_node"]:
-				config["kubernetes_master_node"].append(node)
-	else:
-		config["kubernetes_master_node"] = Nodes
-
-	return Nodes
-
+	
 def GetWorkerNodes(clusterId):
 	output = urllib.urlopen(formClusterPortalURL("worker", clusterId)).read()
 	output = json.loads(json.loads(output))
@@ -472,8 +414,6 @@ def GetWorkerNodes(clusterId):
 def GetNodes(clusterId):
 	output1 = urllib.urlopen(formClusterPortalURL("worker", clusterId)).read()
 	nodes = json.loads(json.loads(output1))["nodes"]
-	output2 = urllib.urlopen(formClusterPortalURL("master", clusterId)).read()	
-	nodes = nodes + ( json.loads(json.loads(output2))["nodes"] )
 	output3 = urllib.urlopen(formClusterPortalURL("etcd", clusterId)).read()
 	nodes = nodes + ( json.loads(json.loads(output3))["nodes"] )
 	# print nodes
@@ -496,8 +436,6 @@ def Check_Master_ETCD_Status():
 	print "Checking Available Nodes for Deployment..."
 	if "clusterId" in config:
 		GetETCDMasterNodes(config["clusterId"])
-		GetMasterNodes(config["clusterId"])
-		GetETCDNodes(config["clusterId"])
 		GetWorkerNodes(config["clusterId"])
 	print "==============================================="
 	print "Activate Master Node(s): %s\n %s \n" % (len(config["kubernetes_master_node"]),",".join(config["kubernetes_master_node"]))
@@ -726,7 +664,6 @@ def Deploy_Masters():
 	Clean_Master()
 
 	for i,kubernetes_master in enumerate(kubernetes_masters):
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo hostnamectl set-hostname %s" % config["cluster_name"]+"-master"+str(i+1))
 		Deploy_Master(kubernetes_master)
 
 
@@ -774,10 +711,6 @@ def Deploy_ETCD_Docker():
 
 
 	Clean_ETCD()
-	for i,etcd_server_address in enumerate(etcd_servers):
-		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo hostnamectl set-hostname %s" % config["cluster_name"]+"-etcd"+str(i+1))
-
-
 
 	for etcd_server_address in etcd_servers:
 		#print "==============================================="
@@ -833,7 +766,6 @@ def Deploy_ETCD():
 		#print "==============================================="
 		#print "deploy configuration files to web server..."
 		#scp(config["ssh_cert"],"./deploy","/var/www/html", config["webserver_user"], config["webserver"] )
-		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo hostnamectl set-hostname %s" % config["cluster_name"]+"-etcd"+str(i+1))
 
 		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo systemctl stop etcd3")
 
@@ -994,7 +926,7 @@ def CreateMYSQLForWebUI():
 	pass
 
 def BuildRestfulAPIDocker():
-	dockername = "%s/%s-restfulapi" %  (dockerRegistry,config["cluster_name"])
+	dockername = "%s/%s-restfulapi" %  (config["dockerregistry"],config["cluster_name"])
 	tarname = "deploy/docker/restfulapi-%s.tar" % config["cluster_name"]
 
 	os.system("docker rmi %s" % dockername)
@@ -1009,7 +941,7 @@ def BuildRestfulAPIDocker():
 def DeployRestfulAPIonNode(ipAddress):
 
 	masterIP = ipAddress
-	dockername = "%s/dlws-restfulapi" %  (dockerRegistry)
+	dockername = "%s/dlws-restfulapi" %  (config["dockerregistry"])
 
 	# if user didn't give storage server information, use CCS public storage in default. 
 	if "nfs-server" not in config:
@@ -1044,7 +976,7 @@ def DeployWebUIOnNode(ipAddress):
 
 	sshUser = "core"
 	webUIIP = ipAddress
-	dockername = "%s/dlws-webui" %  (dockerRegistry)
+	dockername = "%s/dlws-webui" %  (config["dockerregistry"])
 
 
 
@@ -1340,6 +1272,14 @@ Command:
 	parser.add_argument("-s", "--sudo", 
 		help = "Execute scripts in sudo", 
 		action="store_true" )
+	parser.add_argument("--discoverserver", 
+		help = "Specify an alternative discover server, default = " + discoverserver, 
+		action="store", 
+		default=discoverserver)
+	parser.add_argument("--homeinserver", 
+		help = "Specify an alternative home in server, default = " + homeinserver, 
+		action="store", 
+		default=homeinserver)
 		
 	parser.add_argument("command", 
 		help = "See above for the list of valid command" )
@@ -1349,7 +1289,8 @@ Command:
 	args = parser.parse_args()
 	# If necessary, show parsed arguments. 
 	# print args
-	
+	discoverserver = args.discoverserver
+	homeinserver = args.homeinserver
 	config_file = os.path.join(dirpath,"config.yaml")
 	# print "Config file: " + config_file
 	if not os.path.exists(config_file):
@@ -1358,8 +1299,10 @@ Command:
 		exit()
 
 	f = open(config_file)
-	config = yaml.load(f)
+	config = InitConfig()
+	config.update(yaml.load(f))
 	f.close()
+	print config
 	if os.path.exists("./deploy/clusterID.yml"):
 		f = open("./deploy/clusterID.yml")
 		tmp = yaml.load(f)
@@ -1428,8 +1371,9 @@ Command:
 			response = raw_input_with_default("Allow Workers to register (y/n)?")
 			if firstChar(response) == "y":
 
-				urllib.urlretrieve ("http://dlws-clusterportal.westus.cloudapp.azure.com:5000/SetClusterInfo?clusterId=%s&key=etcd_endpoints&value=%s" %  (config["clusterId"],config["etcd_endpoints"]))
-				urllib.urlretrieve ("http://dlws-clusterportal.westus.cloudapp.azure.com:5000/SetClusterInfo?clusterId=%s&key=api_server&value=%s" % (config["clusterId"],config["api_serviers"]))
+				urllib.urlretrieve (config["homeinserver"]+"/SetClusterInfo?clusterId=%s&key=etcd_endpoints&value=%s" %  (config["clusterId"],config["etcd_endpoints"]))
+				urllib.urlretrieve (
+				config["homeinserver"]+"/SetClusterInfo?clusterId=%s&key=api_server&value=%s" % (config["clusterId"],config["api_serviers"]))
 			
 #			response = raw_input_with_default("Create ISO file for deployment (y/n)?")
 #			if firstChar(response) == "y":
@@ -1441,37 +1385,6 @@ Command:
 
 		else:
 			print "Cannot deploy cluster since there are insufficient number of etcd server or master server. \n To continue deploy the cluster we need at least %d etcd server(s) and 1 master server" % (int(config["etcd_node_num"]))
-
-
-	elif command == "compactdeploy" and "clusterId" in config:
-		print "Detected previous cluster deployment, cluster ID: %s. \n To clean up the previous deployment, run 'python deploy.py clean' \n" % config["clusterId"]
-		print "The current deployment has:\n"
-		
-		Check_Master_ETCD_Status()
-
-		if "etcd_node" in config and len(config["etcd_node"]) >= int(config["etcd_node_num"]) and "kubernetes_master_node" in config and len(config["kubernetes_master_node"]) == 0:
-			config["kubernetes_master_node"] = [config["etcd_node"][0]]
-			print "Ready to deploy kubernetes master on %s, etcd cluster on %s.  " % (",".join(config["kubernetes_master_node"]), ",".join(config["etcd_node"]))
-			Gen_Configs()
-			response = raw_input_with_default("Deploy ETCD Nodes (y/n)?")
-			if firstChar(response) == "y":
-				Gen_ETCD_Certificates()
-				Deploy_ETCD()			
-			response = raw_input_with_default("Deploy Master Nodes (y/n)?")
-			if firstChar(response) == "y":
-				Gen_Master_Certificates()
-				Deploy_Masters()
-
-			response = raw_input_with_default("Allow Workers to register (y/n)?")
-			if firstChar(response) == "y":
-
-				urllib.urlretrieve ("http://dlws-clusterportal.westus.cloudapp.azure.com:5000/SetClusterInfo?clusterId=%s&key=etcd_endpoints&value=%s" %  (config["clusterId"],config["etcd_endpoints"]))
-				urllib.urlretrieve ("http://dlws-clusterportal.westus.cloudapp.azure.com:5000/SetClusterInfo?clusterId=%s&key=api_server&value=%s" % (config["clusterId"],config["api_serviers"]))
-		else:
-			if "etcd_node" in config and len(config["etcd_node"]) >= int(config["etcd_node_num"]) :
-				print "Cannot deploy cluster since there are insufficient number of etcd server. \n To continue deploy the cluster we need at least %d etcd server(s)" % (int(config["etcd_node_num"]))
-			else:
-				print "Cannot deploy cluster in compact mode, since %d master server(s) were found. Please try './deploy.py deploy' to deploy the cluster in regular mode." % len(config["kubernetes_master_node"])
 
 	elif command == "build":
 		Init_Deployment()
@@ -1528,7 +1441,7 @@ Command:
 				glusterFSargs = 1
 			else:
 				glusterFSargs = nargs[1]
-			masternodes = GetMasterNodes(config["clusterId"])
+			masternodes = GetETCDMasterNodes(config["clusterId"])
 			gsFlag = ""
 			if nargs[0] == "start":
 				execOnAll(nodes, ["sudo modprobe dm_thin_pool"])
