@@ -288,7 +288,7 @@ def SubmitJob(job):
         print e
         ret["error"] = str(e)
         dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","error")
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"errorMsg","Cannot submit job!" + str(e)
+        dataHandler.UpdateJobTextField(jobParams["jobId"],"errorMsg","Cannot submit job!" + str(e))
 
     return ret
 
