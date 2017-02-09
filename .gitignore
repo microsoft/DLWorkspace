@@ -39,3 +39,5 @@ src/WebUI/dotnet/.vs/**
 **/node_modules/*
 **/bower_components/*
 **/.bowerrc
+**/project.lock.json
+**/appsettings.json

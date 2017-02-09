@@ -1,4 +1,4 @@
-﻿{
+{
     "buildOptions": {
         "emitEntryPoint": true,
         "preserveCompilationContext": true
@@ -26,7 +26,8 @@
             "type": "platform",
             "version": "1.0.0"
         },
-        "Microsoft.VisualStudio.Web.BrowserLink.Loader": "14.0.0"
+      "Microsoft.VisualStudio.Web.BrowserLink.Loader": "14.0.0",
+      "Microsoft.AspNet.WebApi.Client": "5.2.2"
     },
 
     "frameworks": {

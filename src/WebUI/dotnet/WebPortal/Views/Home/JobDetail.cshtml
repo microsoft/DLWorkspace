@@ -6,7 +6,7 @@
 
 <script>
     function GetDetail() {
-        var url = "@ViewData["restapi"]/GetJobDetail?jobId=@ViewData["jobid"]";
+        var url = "/api/dlws/JobDetail?jobId=@ViewData["jobid"]";
         $.ajax({
             url: url,
             dataType: 'json',
@@ -43,7 +43,7 @@
                     jobDetailStr += "Job Submission Time: " + payload.jobTime + "\n";
                     jobDetailDiv.innerHTML = jobDetailStr;
 
-                } 
+                }
 
                 if (payload.endpoints)
                 {
