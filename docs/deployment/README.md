@@ -2,6 +2,8 @@
 
 DL workspace allows you to setup a cluster that you can run deep learning training job, interactive exploration job, and evaluation service. Please refer to docs/WhitePaper/ for more information. 
 
+DL workspace cluster can be deployed in two forms: 1) [compact deployment](CompactDeployment.md) (target small cluster, as few as 1 machine), and 2) [large production deployment](LargeProductionDeployment.md). 
+
 The document in this section describes the procedure to deploy a DL workspace cluster, as follows. You may want to change directory to the follows to perform the operations below.
 
   ```

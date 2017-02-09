@@ -232,14 +232,14 @@ Deploy worker node for cluster {{cnf["cluster_name"]}} ({{cnf["clusterId"]}}). T
 first hard drive (/dev/sda). ALL THE DATA ON /dev/sda WILL BE ERASED.
     ENDTEXT
 
-LABEL coreosmaster
-    MENU LABEL Install CoreOS - Master Node
-    KERNEL /coreos/vmlinuz
-    APPEND initrd=/coreos/cpiomaster.gz ${boot_cmd}
-    TEXT HELP
-Deploy master node for cluster {{cnf["cluster_name"]}} ({{cnf["clusterId"]}}). The CoreOS system is going to be installed on the
-first hard drive (/dev/sda). ALL THE DATA ON /dev/sda WILL BE ERASED.
-    ENDTEXT
+#LABEL coreosmaster
+#    MENU LABEL Install CoreOS - Master Node
+#    KERNEL /coreos/vmlinuz
+#    APPEND initrd=/coreos/cpiomaster.gz ${boot_cmd}
+#    TEXT HELP
+#Deploy master node for cluster {{cnf["cluster_name"]}} ({{cnf["clusterId"]}}). The CoreOS system is going to be installed on the
+#first hard drive (/dev/sda). ALL THE DATA ON /dev/sda WILL BE ERASED.
+#    ENDTEXT
 
 LABEL coreosetcd
     MENU LABEL Install CoreOS - ETCD Node

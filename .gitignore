@@ -28,7 +28,8 @@ src/ClusterBootstrap/deploy_backup/*
 
 
 
-#ASP.NET core 
+#ASP.NET core
+src/WebUI/dotnet/.vs/**
 **/wwwroot/*
 **/bin/Release/*
 **/bin/Debug/*
