@@ -152,9 +152,9 @@ def GetJobStatus(jobId):
 def SubmitJob(job):
     jobParams = json.loads(base64.b64decode(job["jobParams"]))
     ret={}
+    dataHandler = DataHandler()
 
     try:
-        dataHandler = DataHandler()
         jobParams["pvc_job"] = "jobs-"+jobParams["jobId"]
         jobParams["pvc_work"] = "work-"+jobParams["jobId"]
         jobParams["pvc_data"] = "storage-"+jobParams["jobId"]
@@ -287,8 +287,10 @@ def SubmitJob(job):
     except Exception as e:
         print e
         ret["error"] = str(e)
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","error")
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"errorMsg","Cannot submit job!" + str(e))
+        retries = dataHandler.AddandGetJobRetries(jobParams["jobId"])
+        if retries >= 5:
+            dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","error")
+            dataHandler.UpdateJobTextField(jobParams["jobId"],"errorMsg","Cannot submit job!" + str(e))
 
     return ret
 
