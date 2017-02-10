@@ -1,3 +1,8 @@
+#!/bin/bash 
+# Node home in, for bootstrap stage only. 
+export discoverserver="$(cat /opt/discoverserver)"
+/bin/bash -c 'until ping -c1 ${discoverserver}; do sleep 1; done;'
+
 if [ -f /opt/systemrole ]
 then
    systemrole="$(cat /opt/systemrole)"

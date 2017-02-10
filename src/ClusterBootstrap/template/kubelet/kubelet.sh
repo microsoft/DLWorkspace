@@ -1,15 +1,8 @@
 #! /bin/bash
-/bin/bash -c 'until ping -c1 8.8.8.8; do sleep 1; done;'
-if [ -f /opt/systemid ]
-then
-   uuid=$(cat /opt/systemid)
-else
-   uuid=$(uuidgen)
-   echo $uuid > /opt/systemid
-fi
-# Use UUID as worker name
-export HostName="worker-${uuid}"
-hostnamectl  set-hostname $HostName
+# Wait for network to be ready 
+export discoverserver="$(cat /opt/discoverserver)"
+/bin/bash -c 'until ping -c1 ${discoverserver}; do sleep 1; done;'
+
 export NSTR="null"
 
 systemctl stop flanneld
@@ -17,9 +10,9 @@ systemctl stop kubelet
 
 while [ -z "$ETCDENDPOINTS" ] || [ -z "$APISERVER" ] || [ $ETCDENDPOINTS == $NSTR ] || [ $APISERVER == $NSTR ]; 
 do
-	export HostIP=$(ip route get 8.8.8.8 | awk '{print $NF; exit}')
-	export ETCDENDPOINTS=$(wget -q -O - 'http://dlws-clusterportal.westus.cloudapp.azure.com:5000/GetClusterInfo?clusterId={{cnf["clusterId"]}}&key=etcd_endpoints' | sed 's/"//g' | sed 's/\//\\\//g')
-	export APISERVER=$(wget -q -O - 'http://dlws-clusterportal.westus.cloudapp.azure.com:5000/GetClusterInfo?clusterId={{cnf["clusterId"]}}&key=api_server' | sed 's/"//g' | sed 's/\//\\\//g')
+	homeinserver="$(cat /opt/homeinserver)"
+	export ETCDENDPOINTS=$(wget -q -O - '${homeinserver}/GetClusterInfo?clusterId={{cnf["clusterId"]}}&key=etcd_endpoints' | sed 's/"//g' | sed 's/\//\\\//g')
+	export APISERVER=$(wget -q -O - '${homeinserver}/GetClusterInfo?clusterId={{cnf["clusterId"]}}&key=api_server' | sed 's/"//g' | sed 's/\//\\\//g')
 	if [ $ETCDENDPOINTS != $NSTR ] && [ $APISERVER != $NSTR ]; then
 		echo $ETCDENDPOINTS
 		echo $APISERVER
@@ -27,8 +20,6 @@ do
 		sed "s/##etcd_endpoints##/$ETCDENDPOINTS/" "/opt/options.env.template" > "/etc/flannel/options.env"
 		sed "s/##api_serviers##/$APISERVER/" /opt/kubelet.service.template > /etc/systemd/system/kubelet.service
 		sed "s/##api_serviers##/$APISERVER/" /etc/kubernetes/worker-kubeconfig.yaml.template > /etc/kubernetes/worker-kubeconfig.yaml
-
-
 
 		if [ ! -f /opt/kubelet ]; then
 			echo "Starting kubelet service"
@@ -49,6 +40,4 @@ do
 	fi
 	sleep 10
 done
-
-
 
