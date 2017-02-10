@@ -877,8 +877,7 @@ def Deploy_ETCD():
 
 
 	render("./template/etcd/init_network.sh","./deploy/etcd/init_network.sh")
-	SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_servers[0], ' curl  --cacert /etc/etcd/ssl/ca.pem --cert /etc/etcd/ssl/etcd.pem --key /etc/etcd/ssl/etcd-key.pem -X PUT -d "value={\\"Network\\":\\"10.2.0.0/16\\",\\"Backend\\":{\\"Type\\":\\"vxlan\\"}}" "https://127.0.0.1:2379/v2/keys/coreos.com/network/config" ')
-
+	SSH_exec_script( config["ssh_cert"], etcd_server_user, etcd_servers[0], "./deploy/etcd/init_network.sh")
 
 
 def Create_ISO():
