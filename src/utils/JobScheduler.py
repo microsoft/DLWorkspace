@@ -151,142 +151,144 @@ def GetJobStatus(jobId):
 
 def SubmitJob(job):
     jobParams = json.loads(base64.b64decode(job["jobParams"]))
-
-    dataHandler = DataHandler()
-
-
-
-    jobParams["pvc_job"] = "jobs-"+jobParams["jobId"]
-    jobParams["pvc_work"] = "work-"+jobParams["jobId"]
-    jobParams["pvc_data"] = "storage-"+jobParams["jobId"]
-  
-
-    if "jobPath" in jobParams and len(jobParams["jobPath"].strip()) > 0: 
-        jobPath = jobParams["jobPath"]
-    else:
-        jobPath = time.strftime("%y%m%d")+"/"+jobParams["jobId"]
-        jobParams["jobPath"] = jobPath
-
-    if "workPath" not in jobParams or len(jobParams["workPath"].strip()) == 0: 
-        dataHandler.SetJobError(jobParams["jobId"],"ERROR: work-path does not exist")
-        return False
-
-    if "dataPath" not in jobParams or len(jobParams["dataPath"].strip()) == 0: 
-        dataHandler.SetJobError(jobParams["jobId"],"ERROR: data-path does not exist")
-        return False
-
-
-    jobPath,workPath,dataPath = GetStoragePath(jobPath,jobParams["workPath"],jobParams["dataPath"])
-
-
-    localJobPath = os.path.join(config["storage-mount-path"],jobPath)
-    if not os.path.exists(localJobPath):
-        os.makedirs(localJobPath)
-
-
-    jobParams["LaunchCMD"] = ""
-    if "cmd" not in jobParams:
-        jobParams["cmd"] = ""
-        
-    if isinstance(jobParams["cmd"], basestring) and not jobParams["cmd"] == "":
-        launchScriptPath = os.path.join(localJobPath,"launch-%s.sh" % jobParams["jobId"])
-        with open(launchScriptPath, 'w') as f:
-            f.write(jobParams["cmd"] + "\n")
-        f.close()        
-        jobParams["LaunchCMD"] = "[\"bash\", \"/job/launch-%s.sh\"]" % jobParams["jobId"]
-
-
-    jobParams["jobDescriptionPath"] = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"]+".yaml"
-
-    jobDescriptionPath = os.path.join(os.path.dirname(config["storage-mount-path"]), jobParams["jobDescriptionPath"])
-    if not os.path.exists(os.path.dirname(os.path.realpath(jobDescriptionPath))):
-        os.makedirs(os.path.dirname(os.path.realpath(jobDescriptionPath)))
-
-    jobParams["jobNameLabel"] = ''.join(e for e in jobParams["jobName"] if e.isalnum())
-
-    ENV = Environment(loader=FileSystemLoader("/"))
-
-    jobTempDir = os.path.join(config["root-path"],"Jobs_Templete")
-    jobTemp= os.path.join(jobTempDir, "RegularJob.yaml.template")
-
-
-    template = ENV.get_template(os.path.abspath(jobTemp))
-    job_description = template.render(job=jobParams)
-
-
-
-
-    pv_description_j,pvc_description_j = GenStorageClaims(jobParams["pvc_job"],jobPath)
-    pv_description_u,pvc_description_u = GenStorageClaims(jobParams["pvc_work"],workPath)
-    pv_description_d,pvc_description_d = GenStorageClaims(jobParams["pvc_data"],dataPath)
-
-
-    jobDescriptionList = []
-    jobDescriptionList.append(pv_description_j)
-    jobDescriptionList.append(pvc_description_j)
-    jobDescriptionList.append(pv_description_u)
-    jobDescriptionList.append(pvc_description_u)
-    jobDescriptionList.append(pv_description_d)
-    jobDescriptionList.append(pvc_description_d)
-    jobDescriptionList.append(job_description)
-
-    if ("interactivePort" in jobParams and len(jobParams["interactivePort"].strip()) > 0):
-        ports = [p.strip() for p in re.split(",|;",jobParams["interactivePort"]) if len(p.strip()) > 0 and p.strip().isdigit()]
-        for portNum in ports:
-            jobParams["serviceId"] = "interactive-"+jobParams["jobId"]+"-"+portNum
-            jobParams["port"] = portNum
-            jobParams["port-name"] = "interactive"
-            jobParams["port-type"] = "TCP"
-
-            serviceTemplate = ENV.get_template(os.path.join(jobTempDir,"KubeSvc.yaml.template"))
-
-            template = ENV.get_template(serviceTemplate)
-            interactiveMeta = template.render(svc=jobParams)
-            jobDescriptionList.append(interactiveMeta)
-
-
-    jobDescription = "\n---\n".join(jobDescriptionList)
-
-
-    if os.path.isfile(jobDescriptionPath):
-        output = kubectl_delete(jobDescriptionPath) 
-
-    with open(jobDescriptionPath, 'w') as f:
-        f.write(jobDescription)
     ret={}
 
-       
-    output = kubectl_create(jobDescriptionPath)    
-    #if output == "job \""+jobParams["jobId"]+"\" created\n":
-    #    ret["result"] = "success"
-    #else:
-    #    ret["result"]  = "fail"
+    try:
+        dataHandler = DataHandler()
+        jobParams["pvc_job"] = "jobs-"+jobParams["jobId"]
+        jobParams["pvc_work"] = "work-"+jobParams["jobId"]
+        jobParams["pvc_data"] = "storage-"+jobParams["jobId"]
+      
+
+        if "jobPath" in jobParams and len(jobParams["jobPath"].strip()) > 0: 
+            jobPath = jobParams["jobPath"]
+        else:
+            jobPath = time.strftime("%y%m%d")+"/"+jobParams["jobId"]
+            jobParams["jobPath"] = jobPath
+
+        if "workPath" not in jobParams or len(jobParams["workPath"].strip()) == 0: 
+            dataHandler.SetJobError(jobParams["jobId"],"ERROR: work-path does not exist")
+            return False
+
+        if "dataPath" not in jobParams or len(jobParams["dataPath"].strip()) == 0: 
+            dataHandler.SetJobError(jobParams["jobId"],"ERROR: data-path does not exist")
+            return False
 
 
-    ret["output"] = output
-    
-    ret["jobId"] = jobParams["jobId"]
+        jobPath,workPath,dataPath = GetStoragePath(jobPath,jobParams["workPath"],jobParams["dataPath"])
 
 
-    if "userName" not in jobParams:
-        jobParams["userName"] = ""
-
-    dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","scheduling")
-    dataHandler.UpdateJobTextField(jobParams["jobId"],"jobDescriptionPath",jobParams["jobDescriptionPath"])
-    dataHandler.UpdateJobTextField(jobParams["jobId"],"jobDescription",base64.b64encode(jobDescription))
+        localJobPath = os.path.join(config["storage-mount-path"],jobPath)
+        if not os.path.exists(localJobPath):
+            os.makedirs(localJobPath)
 
 
-    jobMeta = {}
-    jobMeta["jobDescriptionPath"] = jobParams["jobDescriptionPath"]
-    jobMeta["pvc_data"] = jobParams["pvc_data"]
-    jobMeta["pvc_work"] = jobParams["pvc_work"]
-    jobMeta["pvc_job"] = jobParams["pvc_job"]
-    jobMeta["pvc_job"] = jobParams["pvc_job"]
-    jobMeta["LaunchCMD"] = jobParams["LaunchCMD"]
+        jobParams["LaunchCMD"] = ""
+        if "cmd" not in jobParams:
+            jobParams["cmd"] = ""
+            
+        if isinstance(jobParams["cmd"], basestring) and not jobParams["cmd"] == "":
+            launchScriptPath = os.path.join(localJobPath,"launch-%s.sh" % jobParams["jobId"])
+            with open(launchScriptPath, 'w') as f:
+                f.write(jobParams["cmd"] + "\n")
+            f.close()        
+            jobParams["LaunchCMD"] = "[\"bash\", \"/job/launch-%s.sh\"]" % jobParams["jobId"]
 
-    jobMetaStr = base64.b64encode(json.dumps(jobMeta))
-    dataHandler.UpdateJobTextField(jobParams["jobId"],"jobMeta",jobMetaStr)
 
+        jobParams["jobDescriptionPath"] = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"]+".yaml"
+
+        jobDescriptionPath = os.path.join(os.path.dirname(config["storage-mount-path"]), jobParams["jobDescriptionPath"])
+        if not os.path.exists(os.path.dirname(os.path.realpath(jobDescriptionPath))):
+            os.makedirs(os.path.dirname(os.path.realpath(jobDescriptionPath)))
+
+        jobParams["jobNameLabel"] = ''.join(e for e in jobParams["jobName"] if e.isalnum())
+
+        ENV = Environment(loader=FileSystemLoader("/"))
+
+        jobTempDir = os.path.join(config["root-path"],"Jobs_Templete")
+        jobTemp= os.path.join(jobTempDir, "RegularJob.yaml.template")
+
+
+        template = ENV.get_template(os.path.abspath(jobTemp))
+        job_description = template.render(job=jobParams)
+
+
+
+
+        pv_description_j,pvc_description_j = GenStorageClaims(jobParams["pvc_job"],jobPath)
+        pv_description_u,pvc_description_u = GenStorageClaims(jobParams["pvc_work"],workPath)
+        pv_description_d,pvc_description_d = GenStorageClaims(jobParams["pvc_data"],dataPath)
+
+
+        jobDescriptionList = []
+        jobDescriptionList.append(pv_description_j)
+        jobDescriptionList.append(pvc_description_j)
+        jobDescriptionList.append(pv_description_u)
+        jobDescriptionList.append(pvc_description_u)
+        jobDescriptionList.append(pv_description_d)
+        jobDescriptionList.append(pvc_description_d)
+        jobDescriptionList.append(job_description)
+
+        if ("interactivePort" in jobParams and len(jobParams["interactivePort"].strip()) > 0):
+            ports = [p.strip() for p in re.split(",|;",jobParams["interactivePort"]) if len(p.strip()) > 0 and p.strip().isdigit()]
+            for portNum in ports:
+                jobParams["serviceId"] = "interactive-"+jobParams["jobId"]+"-"+portNum
+                jobParams["port"] = portNum
+                jobParams["port-name"] = "interactive"
+                jobParams["port-type"] = "TCP"
+
+                serviceTemplate = ENV.get_template(os.path.join(jobTempDir,"KubeSvc.yaml.template"))
+
+                template = ENV.get_template(serviceTemplate)
+                interactiveMeta = template.render(svc=jobParams)
+                jobDescriptionList.append(interactiveMeta)
+
+
+        jobDescription = "\n---\n".join(jobDescriptionList)
+
+
+        if os.path.isfile(jobDescriptionPath):
+            output = kubectl_delete(jobDescriptionPath) 
+
+        with open(jobDescriptionPath, 'w') as f:
+            f.write(jobDescription)
+
+           
+        output = kubectl_create(jobDescriptionPath)    
+        #if output == "job \""+jobParams["jobId"]+"\" created\n":
+        #    ret["result"] = "success"
+        #else:
+        #    ret["result"]  = "fail"
+
+
+        ret["output"] = output
+        
+        ret["jobId"] = jobParams["jobId"]
+
+
+        if "userName" not in jobParams:
+            jobParams["userName"] = ""
+
+        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","scheduling")
+        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobDescriptionPath",jobParams["jobDescriptionPath"])
+        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobDescription",base64.b64encode(jobDescription))
+
+
+        jobMeta = {}
+        jobMeta["jobDescriptionPath"] = jobParams["jobDescriptionPath"]
+        jobMeta["pvc_data"] = jobParams["pvc_data"]
+        jobMeta["pvc_work"] = jobParams["pvc_work"]
+        jobMeta["pvc_job"] = jobParams["pvc_job"]
+        jobMeta["pvc_job"] = jobParams["pvc_job"]
+        jobMeta["LaunchCMD"] = jobParams["LaunchCMD"]
+
+        jobMetaStr = base64.b64encode(json.dumps(jobMeta))
+        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobMeta",jobMetaStr)
+    except Exception as e:
+        print e
+        ret["error"] = str(e)
+        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","error")
+        dataHandler.UpdateJobTextField(jobParams["jobId"],"errorMsg","Cannot submit job!" + str(e)
 
     return ret
 

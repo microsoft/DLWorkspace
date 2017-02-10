@@ -17,92 +17,97 @@
 
 <script>
     function buildTable() {
-        $.getJSON("/api/dlws/ListJobs",
-        function (json) {
-            $("#running-job-table").find("tr:gt(0)").remove();
-            var tr;
-            //Append each row to html table
-            for (var i = 0; i < json.runningJobs.length; i++) {
-                tr = $('<tr/>');
-                tr.append("<td> <a href='/Home/JobDetail/?jobId=" + json.runningJobs[i].jobId + "'>" + json.runningJobs[i].jobId + "</a></td>");
-                tr.append("<td>" + json.runningJobs[i].jobName + "</td>");
-                tr.append("<td>" + json.runningJobs[i].jobStatus + "</td>");
-                tr.append("<td>" + json.runningJobs[i].jobParams.resourcegpu + "</td>");
-                tr.append("<td>" + json.runningJobs[i].userName + "</td>");
-                tr.append("<td>" + json.runningJobs[i].jobTime.toString("YYYYMMDD") + "</td>");
-                tr.append("<td> <a href='#'  onclick=\"KillJob('" + json.runningJobs[i].jobId + "')\" > kill </a></td>");
-                $('#running-job-table').append(tr);
-            }
+        $.ajax({
+            url: "/api/dlws/ListJobs",
+            dataType: 'json',
+            timeout: 10000 //10 second timeout,
+        }).done(
 
-            $("#finished-job-table").find("tr:gt(0)").remove();
-            if (json.finishedJobs.length <= 0) {
-                $('#finished-job').hide();
-            }
-            else {
-                var tr;
-                $('#finished-job').show();
-                //Append each row to html table
-                for (var i = 0; i < json.finishedJobs.length; i++) {
-                    tr = $('<tr/>');
-                    tr.append("<td> <a href='/Home/JobDetail/?jobId=" + json.finishedJobs[i].jobId + "'>" + json.finishedJobs[i].jobId + "</a></td>");
-                    tr.append("<td>" + json.finishedJobs[i].jobName + "</td>");
-                    tr.append("<td>" + json.finishedJobs[i].jobStatus + "</td>");
-                    tr.append("<td>" + json.finishedJobs[i].jobParams.resourcegpu + "</td>");
-                    tr.append("<td>" + json.finishedJobs[i].userName + "</td>");
-                    tr.append("<td>" + json.finishedJobs[i].jobTime + "</td>");
-                    $('#finished-job-table').append(tr);
-                }
-            }
+function (json) {
+    $("#running-job-table").find("tr:gt(0)").remove();
+    var tr;
+    //Append each row to html table
+    for (var i = 0; i < json.runningJobs.length; i++) {
+        tr = $('<tr/>');
+        tr.append("<td> <a href='/Home/JobDetail/?jobId=" + json.runningJobs[i].jobId + "'>" + json.runningJobs[i].jobId + "</a></td>");
+        tr.append("<td>" + json.runningJobs[i].jobName + "</td>");
+        tr.append("<td>" + json.runningJobs[i].jobStatus + "</td>");
+        tr.append("<td>" + json.runningJobs[i].jobParams.resourcegpu + "</td>");
+        tr.append("<td>" + json.runningJobs[i].userName + "</td>");
+        tr.append("<td>" + json.runningJobs[i].jobTime.toString("YYYYMMDD") + "</td>");
+        tr.append("<td> <a href='#'  onclick=\"KillJob('" + json.runningJobs[i].jobId + "')\" > kill </a></td>");
+        $('#running-job-table').append(tr);
+    }
 
-
-            $("#queued-job-table").find("tr:gt(0)").remove();
-            if (json.queuedJobs.length <= 0) {
-                $('#queued-job').hide();
-
-            }
-            else {
-                $('#queued-job').show()
-                var tr;
-                //Append each row to html table
-                for (var i = 0; i < json.queuedJobs.length; i++) {
-                    tr = $('<tr/>');
-                    tr.append("<td> <a href='/Home/JobDetail/?jobId=" + json.queuedJobs[i].jobId + "'>" + json.queuedJobs[i].jobId + "</a></td>");
-                    tr.append("<td>" + json.queuedJobs[i].jobName + "</td>");
-                    tr.append("<td>" + json.queuedJobs[i].jobStatus + "</td>");
-                    tr.append("<td>" + json.queuedJobs[i].jobParams.resourcegpu + "</td>");
-                    tr.append("<td>" + json.queuedJobs[i].userName + "</td>");
-                    tr.append("<td>" + json.queuedJobs[i].jobTime + "</td>");
-                    tr.append("<td> <a href='#'  onclick=\"KillJob('" + json.queuedJobs[i].jobId + "')\" > kill </a></td>");
-                    $('#queued-job-table').append(tr);
-                }
-            }
+    $("#finished-job-table").find("tr:gt(0)").remove();
+    if (json.finishedJobs.length <= 0) {
+        $('#finished-job').hide();
+    }
+    else {
+        var tr;
+        $('#finished-job').show();
+        //Append each row to html table
+        for (var i = 0; i < json.finishedJobs.length; i++) {
+            tr = $('<tr/>');
+            tr.append("<td> <a href='/Home/JobDetail/?jobId=" + json.finishedJobs[i].jobId + "'>" + json.finishedJobs[i].jobId + "</a></td>");
+            tr.append("<td>" + json.finishedJobs[i].jobName + "</td>");
+            tr.append("<td>" + json.finishedJobs[i].jobStatus + "</td>");
+            tr.append("<td>" + json.finishedJobs[i].jobParams.resourcegpu + "</td>");
+            tr.append("<td>" + json.finishedJobs[i].userName + "</td>");
+            tr.append("<td>" + json.finishedJobs[i].jobTime + "</td>");
+            $('#finished-job-table').append(tr);
+        }
+    }
 
 
-            $("#visualization-job-table").find("tr:gt(0)").remove();
-            if (json.visualizationJobs.length <= 0) {
-                $('#visualization-job').hide();
+    $("#queued-job-table").find("tr:gt(0)").remove();
+    if (json.queuedJobs.length <= 0) {
+        $('#queued-job').hide();
 
-            }
-            else {
-                $('#visualization-job').show()
-                var tr;
-                //Append each row to html table
-                for (var i = 0; i < json.visualizationJobs.length; i++) {
-                    tr = $('<tr/>');
-                    tr.append("<td> <a href='/Home/JobDetail/?jobId=" + json.visualizationJobs[i].jobId + "'>" + json.visualizationJobs[i].jobId + "</a></td>");
-                    tr.append("<td>" + json.visualizationJobs[i].jobName + "</td>");
-                    tr.append("<td>" + json.visualizationJobs[i].jobStatus + "</td>");
-                    tr.append("<td>" + json.visualizationJobs[i].jobParams.resourcegpu + "</td>");
-                    tr.append("<td>" + json.visualizationJobs[i].userName + "</td>");
-                    tr.append("<td>" + json.visualizationJobs[i].jobTime + "</td>");
-                    tr.append("<td> <a href='#'  onclick=\"KillJob('" + json.visualizationJobs[i].jobId + "')\" > kill </a></td>");
+    }
+    else {
+        $('#queued-job').show()
+        var tr;
+        //Append each row to html table
+        for (var i = 0; i < json.queuedJobs.length; i++) {
+            tr = $('<tr/>');
+            tr.append("<td> <a href='/Home/JobDetail/?jobId=" + json.queuedJobs[i].jobId + "'>" + json.queuedJobs[i].jobId + "</a></td>");
+            tr.append("<td>" + json.queuedJobs[i].jobName + "</td>");
+            tr.append("<td>" + json.queuedJobs[i].jobStatus + "</td>");
+            tr.append("<td>" + json.queuedJobs[i].jobParams.resourcegpu + "</td>");
+            tr.append("<td>" + json.queuedJobs[i].userName + "</td>");
+            tr.append("<td>" + json.queuedJobs[i].jobTime + "</td>");
+            tr.append("<td> <a href='#'  onclick=\"KillJob('" + json.queuedJobs[i].jobId + "')\" > kill </a></td>");
+            $('#queued-job-table').append(tr);
+        }
+    }
 
-                    $('#visualization-job-table').append(tr);
-                }
-            }
+
+    $("#visualization-job-table").find("tr:gt(0)").remove();
+    if (json.visualizationJobs.length <= 0) {
+        $('#visualization-job').hide();
+
+    }
+    else {
+        $('#visualization-job').show()
+        var tr;
+        //Append each row to html table
+        for (var i = 0; i < json.visualizationJobs.length; i++) {
+            tr = $('<tr/>');
+            tr.append("<td> <a href='/Home/JobDetail/?jobId=" + json.visualizationJobs[i].jobId + "'>" + json.visualizationJobs[i].jobId + "</a></td>");
+            tr.append("<td>" + json.visualizationJobs[i].jobName + "</td>");
+            tr.append("<td>" + json.visualizationJobs[i].jobStatus + "</td>");
+            tr.append("<td>" + json.visualizationJobs[i].jobParams.resourcegpu + "</td>");
+            tr.append("<td>" + json.visualizationJobs[i].userName + "</td>");
+            tr.append("<td>" + json.visualizationJobs[i].jobTime + "</td>");
+            tr.append("<td> <a href='#'  onclick=\"KillJob('" + json.visualizationJobs[i].jobId + "')\" > kill </a></td>");
+
+            $('#visualization-job-table').append(tr);
+        }
+    }
 
 
-        });
+});
     }
 
     $(document).ready(function () {
