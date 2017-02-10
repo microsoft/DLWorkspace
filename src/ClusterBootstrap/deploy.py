@@ -851,6 +851,7 @@ def Deploy_ETCD():
 
 
 		config["etcd_node_ip"] = etcd_server_address
+		config["hostname"] = config["cluster_name"]+"-etcd"+str(i+1)
 		render("./template/etcd/etcd3.service","./deploy/etcd/etcd3.service")
 		render("./template/etcd/etcd_ssl.sh","./deploy/etcd/etcd_ssl.sh")
 

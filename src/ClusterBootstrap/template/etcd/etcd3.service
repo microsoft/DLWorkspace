@@ -1,6 +1,6 @@
 [Service]
 ExecStart=/opt/bin/etcd \
-  --name=$HOSTNAME \
+  --name={{cnf["hostname"]}} \
   --advertise-client-urls=https://{{cnf["etcd_node_ip"]}}:2379,https://{{cnf["etcd_node_ip"]}}:4001 \
   --listen-client-urls=https://0.0.0.0:2379,https://0.0.0.0:4001 \
   --initial-advertise-peer-urls=https://{{cnf["etcd_node_ip"]}}:2380 \
