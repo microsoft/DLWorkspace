@@ -31,12 +31,14 @@ find usr | cpio --verbose -o -A -H newc -O cpio
 gzip cpio
 mv cpio.gz cpioetcd.gz
 
-cp coreos_production_pxe_image.cpio.gz cpio.gz
-gunzip cpio.gz
-sed "s/_===CONFIG===_/install-master.sh/g" usr/share/oem/oem-config.yml > usr/share/oem/cloud-config.yml
-find usr | cpio --verbose -o -A -H newc -O cpio
-gzip cpio
-mv cpio.gz cpiomaster.gz
+# A separate master image is no longer needed
+#
+#cp coreos_production_pxe_image.cpio.gz cpio.gz
+#gunzip cpio.gz
+#sed "s/_===CONFIG===_/install-master.sh/g" usr/share/oem/oem-config.yml > usr/share/oem/cloud-config.yml
+#find usr | cpio --verbose -o -A -H newc -O cpio
+#gzip cpio
+#mv cpio.gz cpiomaster.gz
 
 wget -q https://www.kernel.org/pub/linux/utils/boot/syslinux/syslinux-6.03.tar.gz
 tar -zxvf syslinux-6.03.tar.gz

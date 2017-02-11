@@ -1,5 +1,6 @@
 *.pyc
 **/config.yaml
+**/cluster.yaml
 **/pxe-coreos-kube.yml
 **/pxe-kubemaster.yml
 **/openssl-etcd.cnf

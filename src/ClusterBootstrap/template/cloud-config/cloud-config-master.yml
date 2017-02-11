@@ -3,6 +3,7 @@ coreos:
   update:
     reboot-strategy: off
   units:
+    # There should be exactly 4 spaces before
     - name: update-engine.service
       command: stop
     - name: locksmithd.service
@@ -21,10 +22,13 @@ coreos:
         ExecStart=/bin/bash /opt/report.sh
         [Install]
         WantedBy=local.target
+{{cnf["coreosunits"]}}
+
 ssh_authorized_keys:
   - {{cnf["sshkey"]}}
 
 write_files:
+  # There should be exactly 2 spaces before
   - path: "/opt/homeinserver"
     permissions: "0755"
     owner: "core"
@@ -55,3 +59,4 @@ write_files:
     encoding: "base64"
     content: |
       {{cnf["report.sh"]}}
+{{cnf["coreoswritefiles"]}}

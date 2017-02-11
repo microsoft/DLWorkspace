@@ -1,6 +1,7 @@
 #cloud-config
 coreos:
   units:
+    # There should be exactly 4 spaces before
     - name: bootstrap.service
       command: start
       content: |
@@ -30,12 +31,13 @@ coreos:
         ExecStart=/bin/bash /opt/report.sh
         [Install]
         WantedBy=local.target
-
+{{cnf["coreosunits"]}}
 
 ssh_authorized_keys:
   - {{cnf["sshkey"]}}
 
 write_files:
+  # There should be exactly 2 spaces before
   - path: "/opt/kubelet.sh"
     permissions: "0755"
     owner: "root"
@@ -156,5 +158,5 @@ write_files:
     encoding: "base64"
     content: |
       {{cnf["report.sh"]}}
-
+{{cnf["coreoswritefiles"]}}
 

@@ -157,7 +157,9 @@ prepare_coreos() {
             "${oem_config}" > "${coreos_path}/usr/share/oem/cloud-config.yml"
         cd "${coreos_path}" && gzip -d cpio.gz && find usr | cpio --quiet -o -A -H newc -O cpio && gzip cpio
         rm -rf "${coreos_path}/usr"
-        mv "${coreos_path}/cpio.gz" "${coreos_path}/cpiomaster.gz"
+		# No longer install master image
+        # mv "${coreos_path}/cpio.gz" "${coreos_path}/cpiomaster.gz"
+		rm "${coreos_path}/cpio.gz"
         echo "done"
     else
         echo "-> Skipping OEM config."

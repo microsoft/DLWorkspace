@@ -31,7 +31,9 @@ digitsMatch = re.compile("\d+")
 defanswer = ""
 ipAddrMetaname = "hostIP"
 homeinserver = "http://dlws-clusterportal.westus.cloudapp.azure.com:5000"
-discoverserver = "4.2.2.1"
+# Discover server is used to find IP address of the host, it need to be a well-known IP address 
+# that is pingable. 
+discoverserver = "4.2.2.1" 
 homeininterval = "600"
 dockerregistry = "mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace"
 
@@ -274,9 +276,24 @@ def InitConfig():
 	config["homeininterval"] = homeininterval
 	config["dockerregistry"] = dockerregistry
 	return config
+
+# Test if a certain Config entry exist
+def FetchDictionary(dic, entry):
+	# print "Fetch " + str(dic) + "@" + str(entry) + "==" + str( dic[entry[0]] ) 
+	if entry[0] in dic:
+		if len(entry)<=1:
+			return dic[entry[0]]
+		else:
+			return FetchDictionary(dic[entry[0]], entry[1:])
+	else:
+		return None
+	
+# Test if a certain Config entry exist
+def FetchConfig(entry):
+	return FetchDictionary( config, entry )
 	
 # Render scripts for kubenete nodes
-def addKubeletConfig():
+def AddKubeletConfig():
 	renderfiles = []
 
 # Render all deployment script used. 
@@ -293,6 +310,56 @@ def addKubeletConfig():
 			content = f.read()
 		config[file] = base64.b64encode(content)
 
+def AddDnsEntries():
+	addCoreOSNetwork = ""
+	dnsEntries = FetchConfig(["network", "externalDnsServers"])
+	if dnsEntries is None:
+		print "No additional DNS servers"
+	elif isinstance( dnsEntries, list ):
+		addCoreOSNetwork += "    - name: 20-dhcp.network\n"
+		addCoreOSNetwork += "      runtime: true\n"
+		addCoreOSNetwork += "      content: |\n"
+		addCoreOSNetwork += "        [Match]\n"
+		addCoreOSNetwork += "        Name=eth*\n"
+		addCoreOSNetwork += "\n"
+		addCoreOSNetwork += "        [Network]\n"
+		addCoreOSNetwork += "        DHCP=yes\n"
+		for dnsEntry in dnsEntries:
+			addCoreOSNetwork += "        DNS="+dnsEntry+"\n"
+		addCoreOSNetwork+="\n"
+		print "Add additional Cloud Config entries: "
+		print addCoreOSNetwork
+	else:
+		print "In Configuration file, network/externalDnsServers DNS entries is not a list, please double check ---> " + str(dnsEntries)
+		exit()
+	
+	config["coreosnetwork"]=addCoreOSNetwork
+	
+def AddLeadingSpace(content, nspaces):
+	lines = content.splitlines()
+	retstr = ""
+	for line in lines:
+		retstr += (" "*nspaces) + line + "\n"
+	return retstr
+
+# fill in additional entry of cloud config
+def AddAdditionalCloudConfig():
+	coreOSWriteFilesEntries = FetchConfig(["coreos", "write_files"])
+	if not coreOSWriteFilesEntries is None:
+		if isinstance( coreOSWriteFilesEntries, basestring ):
+			coreOSWriteFilesEntriesAdj = AddLeadingSpace( coreOSWriteFilesEntries, 2)
+			config["coreoswritefiles"] = coreOSWriteFilesEntriesAdj
+		else:
+			print "In Configuration file, coreos/write_files should be a string" + str( coreOSWriteFilesEntries )
+			exit()
+	coreOSunitsEntries = FetchConfig(["coreos", "units"])
+	if not coreOSunitsEntries is None:
+		if isinstance( coreOSunitsEntries, basestring ):
+			coreOSunitsEntriesAdj = AddLeadingSpace( coreOSunitsEntries, 4)
+			config["coreosunits"] = coreOSunitsEntriesAdj
+		else:
+			print "In Configuration file, coreos/units should be a string" + str( coreOSunitsEntries )
+			exit()
 	
 def Init_Deployment():
 	if (os.path.isfile("./deploy/clusterID.yml")):
@@ -324,7 +391,8 @@ def Init_Deployment():
 	config["clusterId"] = clusterID
 	config["sshkey"] = sshkey_public
 
-	addKubeletConfig()
+	AddKubeletConfig()
+	AddAdditionalCloudConfig()
 
 	template_file = "./template/cloud-config/cloud-config-master.yml"
 	target_file = "./deploy/cloud-config/cloud-config-master.yml"
@@ -362,7 +430,8 @@ def Init_Deployment():
 	config["apiserver-key.pem"] = base64.b64encode(content)
 	config["worker-key.pem"] = base64.b64encode(content)
 
-	addKubeletConfig()
+	AddKubeletConfig()
+	AddAdditionalCloudConfig()
 
 	template_file = "./template/cloud-config/cloud-config-worker.yml"
 	target_file = "./deploy/cloud-config/cloud-config-worker.yml"
@@ -687,8 +756,10 @@ def Clean_ETCD():
 		print "==============================================="
 		print "Clean up etcd servers %s... (It is OK to see 'Errors' in this section)" % etcd_server_address		
 		#SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "timeout 10 docker rm -f \$(timeout 3 docker ps -q -a)")
-		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo rm -r /var/etcd/data")
-		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo rm -r /etc/etcd/ssl")
+		cmd = "sudo systemctl stop etcd3; "
+		cmd += "sudo rm -r /var/etcd/data ; "
+		cmd += "sudo rm -r /etc/etcd/ssl; "
+		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, cmd )
 
 def Check_etcd_service():
 	print "waiting for ETCD service is ready..."
@@ -1290,18 +1361,24 @@ Command:
 	# print args
 	discoverserver = args.discoverserver
 	homeinserver = args.homeinserver
+	
+	config = InitConfig()
+	# Cluster Config
+	config_cluster = os.path.join(dirpath,"cluster.yaml")
+	if os.path.exists(config_cluster):
+		config.update(yaml.load(open(config_cluster)))
+
 	config_file = os.path.join(dirpath,"config.yaml")
 	# print "Config file: " + config_file
 	if not os.path.exists(config_file):
 		parser.print_help()
 		print "ERROR: config.yaml does not exist!"
 		exit()
-
+	
 	f = open(config_file)
-	config = InitConfig()
 	config.update(yaml.load(f))
 	f.close()
-	print config
+	# print config
 	if os.path.exists("./deploy/clusterID.yml"):
 		f = open("./deploy/clusterID.yml")
 		tmp = yaml.load(f)

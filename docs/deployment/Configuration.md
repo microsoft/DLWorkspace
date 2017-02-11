@@ -10,3 +10,8 @@ Please copy the configuration template at /src/DLworkspace/config.yaml.template 
 
 3. {{apiserver_password,apiserver_username,apiserver_group}}: replace it with a password, a username and the group of API server. If you use "helloworld,adam,apig", then the API server can be administered through username adam, and password helloworld. Please do **__not__** put space in the string, as the space will be taken as part of the username/password.  
 
+DL workspace will also support an additional optional configuration file for clusters that provides detailed customization. 
+
+A template can be found at /src/DLworkspace/cluster.yaml.template. If used, please copy the template to cluster.yaml. The cluster.yaml can contain cluster specific configuration, e.g., script to deal with multiple network interface, Mac address, IP mapping, etc..
+
+Both configuration files will be merged inside DLWorkspace for operation. 
