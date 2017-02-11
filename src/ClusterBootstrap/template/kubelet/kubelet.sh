@@ -8,14 +8,13 @@ export NSTR="null"
 systemctl stop flanneld
 systemctl stop kubelet
 
-while [ -z "$ETCDENDPOINTS" ] || [ -z "$APISERVER" ] || [ $ETCDENDPOINTS == $NSTR ] || [ $APISERVER == $NSTR ]; 
+while [ -z "$ETCDENDPOINTS" ] || [ -z "$APISERVER" ] || [ "$ETCDENDPOINTS" == "$NSTR" ] || [ "$APISERVER" == "$NSTR" ]; 
 do
 	homeinserver="$(cat /opt/homeinserver)"
 	export ETCDENDPOINTS=$(wget -q -O - '${homeinserver}/GetClusterInfo?clusterId={{cnf["clusterId"]}}&key=etcd_endpoints' | sed 's/"//g' | sed 's/\//\\\//g')
 	export APISERVER=$(wget -q -O - '${homeinserver}/GetClusterInfo?clusterId={{cnf["clusterId"]}}&key=api_server' | sed 's/"//g' | sed 's/\//\\\//g')
-	if [ $ETCDENDPOINTS != $NSTR ] && [ $APISERVER != $NSTR ]; then
-		echo $ETCDENDPOINTS
-		echo $APISERVER
+	echo "ETCDENDPOINTS = ${ETCDENDPOINTS}, APISERVER=${APISERVER} "
+	if [ ! -z "$ETCDENDPOINTS" ] && [ ! -z "$APISERVER" ] && [ "$ETCDENDPOINTS" != "$NSTR" ] && [ "$APISERVER" != "$NSTR" ]; then
 		mkdir -p /etc/flannel
 		sed "s/##etcd_endpoints##/$ETCDENDPOINTS/" "/opt/options.env.template" > "/etc/flannel/options.env"
 		sed "s/##api_serviers##/$APISERVER/" /opt/kubelet.service.template > /etc/systemd/system/kubelet.service
@@ -38,6 +37,7 @@ do
 			systemctl start rpc-statd
 		fi
 	fi
+	echo "Sleep 10 ... "
 	sleep 10
 done
 
