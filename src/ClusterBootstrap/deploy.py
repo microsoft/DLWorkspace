@@ -61,7 +61,10 @@ def parse_capacity_in_GB( inp ):
 			return float(val) / 1000.0
 
 def form_cluster_portal_URL(role, clusterID):
-	return config["homeinserver"]+"/get_nodes?role="+role+"&clusterId="+clusterID
+	returl = config["homeinserver"]+"/GetNodes?role="+role+"&clusterId="+clusterID
+	if verbose:
+		print "Retrieval portal " + returl
+	return returl
 
 def first_char(s):
 	return (s.strip())[0].lower()
@@ -167,6 +170,15 @@ def get_host_name( host ):
 	except subprocess.CalledProcessError as e:
 		return None
 	return output.strip()
+	
+def get_mac_address( host ):
+	output = SSH_exec_cmd_with_output( "deploy/sshkey/id_rsa", "core", host, "ifconfig" )
+	etherMatch = re.compile("ether [0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]")
+	iterator = etherMatch.finditer(output)
+	print "Node "+host + " Mac address..."
+	for match in iterator:
+		print match.group()
+
 
 # Execute a remote SSH cmd with identity file (private SSH key), user, host, 
 # Copy all directory of srcdir into a temporary folder, execute the command, 
@@ -1515,6 +1527,12 @@ Command:
 			check_master_ETCD_status()
 			gen_configs()
 			update_worker_nodes()
+			
+	elif command == "mac":
+		get_config()
+		nodes = get_nodes(config["clusterId"])
+		for node in nodes:
+			get_mac_address(node)
 
 	elif command == "cleanworker":
 		response = raw_input("Clean and Stop Worker Nodes (y/n)?")
