@@ -15,10 +15,12 @@ if [ -f /opt/systemid ]
 then
    uuid=$(cat /opt/systemid)
    systemname="${systemrole}-${uuid}"
-   hostnamectl set-hostname ${systemname}
+   hostnamectl set-hostname $systemname
 else
    uuid=$(uuidgen)
    echo $uuid > /opt/systemid
+   systemname="${systemrole}-${uuid}"
+   hostnamectl set-hostname $systemname   
 fi
 
 while [ -f /opt/homeinserver ];
