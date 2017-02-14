@@ -2,6 +2,93 @@
 id: onenet
 status: test
 
+coreos:
+  version: 1235.9.0
+  # Additional Configuration to be passed to write-in section. 
+  
+# global flag which enables automatic failure recovery functionality
+autoRecovery: True
+
+network:
+  domain: redmond.corp.microsoft.com
+
+  # corpnet DNS servers
+  externalDnsServers:
+   - 10.222.118.154
+   - 157.54.14.178
+   - 4.2.2.1
+
+# You can optionally add sshkeys to be used to administer the clusters. 
+#sshKeys:
+#  - ssh-rsa 
+
+
+#ignoreAlerts:
+
+# SKUs is optional in DL workspace operation. 
+skus:
+  standard:
+    mem: 196
+    cpu:
+        type: E5-2450L
+        speed: 1855
+        sockets: 2
+        coresPerSocket: 8
+        count: 16
+    disk:
+        sda: 400
+        sdb: 6001
+        sdc: 6001
+        sdd: 6001
+
+machines:
+
+# OneNet Rack Rack
+# If host name and mac address is available, they will be used to set the host name of the machine
+# (with network/domain entry above, if exist)
+
+  onenet13:
+    sku: standard
+    mac: 9c:b6:54:8d:01:6b
+
+  onenet14:
+    sku: standard
+    mac: 9c:b6:54:8d:60:67
+    
+  onenet15:
+    sku: standard
+    mac: 9c:b6:54:8c:ff:2f
+    
+  onenet16:
+    sku: standard
+    mac: 9c:b6:54:90:35:2b
+    
+  onenet17:
+    sku: standard
+    mac: 9c:b6:54:8c:8f:02
+    
+  
+  onenet18:
+    sku: standard
+    mac: 9c:b6:54:8c:cf:bb
+    
+  
+  onenet18:
+    sku: standard
+    mac: 9c:b6:54:8c:cf:bb
+    
+  onenet19:
+    sku: standard
+    mac: 9c:b6:54:8c:8f:b3
+    
+  onenet20:
+    sku: standard
+    mac: 9c:b6:54:8d:70:c7
+  
+# Configuration file for OneNet Test cluster
+id: onenet
+status: test
+
 # global flag which enables automatic failure recovery functionality
 autoRecovery: True
 

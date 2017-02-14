@@ -37,6 +37,7 @@ homeinserver = "http://dlws-clusterportal.westus.cloudapp.azure.com:5000"
 # CoreOS version and channels, further configurable. 
 coreosversion = "1235.9.0"
 coreoschannel = "stable"
+coreosbaseurl = ""
 discoverserver = "4.2.2.1" 
 homeininterval = "600"
 dockerregistry = "mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace"
@@ -338,8 +339,14 @@ def update_one_config(name, entry, type, defval):
 		print "Error: Configuration " + name + " needs a " + str(type) +", but is given:" + str(val)
 
 def update_config():
-	update_one_config("coreosversion","coreos","version", coreosversion)
-	update_one_config("coreoschannel","coreos","channel", coreoschannel)
+	update_one_config("coreosversion",["coreos","version"], str, coreosversion)
+	update_one_config("coreoschannel",["coreos","channel"], str, coreoschannel)
+	update_one_config("coreosbaseurl",["coreos","baseurl"], str, coreosbaseurl)
+	if config["coreosbaseurl"] == "": 
+		config["coreosusebaseurl"] = ""
+	else:
+		config["coreosusebaseurl"] = "-b "+config["coreosbaseurl"]
+	
 	
 def add_ssh_key():
 	keys = fetch_config(["sshKeys"])
