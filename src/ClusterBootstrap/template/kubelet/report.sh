@@ -15,7 +15,6 @@ if [ -f /opt/systemid ]
 then
    uuid=$(cat /opt/systemid)
    systemname="${systemrole}-${uuid}"
-   hostnamectl set-hostname $systemname
 else
    uuid=$(uuidgen)
    echo $uuid > /opt/systemid
