@@ -2,21 +2,6 @@
 coreos:
   units:
     # There should be exactly 4 spaces before
-    - name: bootstrap.service
-      command: start
-      content: |
-        [Unit]
-        Description=Bootstrap instance
-        After=network-online.target
-        Requires=network-online.target
-        [Service]
-        Type=oneshot
-        #RemainAfterExit=true
-        #ExecStartPre=/bin/bash -c 'until ping -c1 192.168.1.20; do sleep 1; done;'
-        ExecStart=/bin/bash /opt/kubelet.sh
-        [Install]
-        WantedBy=local.target
-
     - name: reportcluster.service
       command: start
       content: |
@@ -28,7 +13,22 @@ coreos:
         #RemainAfterExit=true
         Restart=always
         RestartSec=60s
-        ExecStart=/bin/bash /opt/report.sh
+        ExecStart=/bin/bash /opt/report.sh > /tmp/report.log
+        [Install]
+        WantedBy=local.target
+        
+    - name: bootstrap.service
+      command: start
+      content: |
+        [Unit]
+        Description=Bootstrap instance
+        After=network-online.target
+        Requires=network-online.target
+        [Service]
+        #Type=oneshot
+        #RemainAfterExit=true
+        #ExecStartPre=/bin/bash -c 'until ping -c1 192.168.1.20; do sleep 1; done;'
+        ExecStart=/bin/bash /opt/kubelet.sh > /tmp/kubelet.log
         [Install]
         WantedBy=local.target
 {{cnf["coreosunits"]}}

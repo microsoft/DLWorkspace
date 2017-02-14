@@ -15,12 +15,13 @@ do
 	export APISERVER=$(wget -q -O - '${homeinserver}/GetClusterInfo?clusterId={{cnf["clusterId"]}}&key=api_server' | sed 's/"//g' | sed 's/\//\\\//g')
 	echo "ETCDENDPOINTS = ${ETCDENDPOINTS}, APISERVER=${APISERVER} "
 	if [ ! -z "$ETCDENDPOINTS" ] && [ ! -z "$APISERVER" ] && [ "$ETCDENDPOINTS" != "$NSTR" ] && [ "$APISERVER" != "$NSTR" ]; then
-		mkdir -p /etc/flannel
-		sed "s/##etcd_endpoints##/$ETCDENDPOINTS/" "/opt/options.env.template" > "/etc/flannel/options.env"
-		sed "s/##api_serviers##/$APISERVER/" /opt/kubelet.service.template > /etc/systemd/system/kubelet.service
-		sed "s/##api_serviers##/$APISERVER/" /etc/kubernetes/worker-kubeconfig.yaml.template > /etc/kubernetes/worker-kubeconfig.yaml
-
 		if [ ! -f /opt/kubelet ]; then
+			mkdir -p /etc/flannel
+			sed "s/##etcd_endpoints##/$ETCDENDPOINTS/" "/opt/options.env.template" > "/etc/flannel/options.env"
+			sed "s/##api_serviers##/$APISERVER/" /opt/kubelet.service.template > /etc/systemd/system/kubelet.service
+			sed "s/##api_serviers##/$APISERVER/" /etc/kubernetes/worker-kubeconfig.yaml.template > /etc/kubernetes/worker-kubeconfig.yaml
+
+
 			echo "Starting kubelet service"
 		    wget -q -O "/opt/kubelet" http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet
 		    chmod +x /opt/kubelet

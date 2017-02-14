@@ -1460,7 +1460,7 @@ Command:
 #				Create_PXE()
 
 		else:
-			print "Cannot deploy cluster since there are insufficient number of etcd server or master server. \n To continue deploy the cluster we need at least %d etcd server(s) and 1 master server" % (int(config["etcd_node_num"]))
+			print "Cannot deploy cluster since there are insufficient number of etcd server or master server. \n To continue deploy the cluster we need at least %d etcd server(s)" % (int(config["etcd_node_num"]))
 
 	elif command == "build":
 		Init_Deployment()
