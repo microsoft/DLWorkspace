@@ -21,7 +21,7 @@ COPY dhcpd.conf /etc/dhcp/
 RUN cp /usr/lib/syslinux/pxelinux.0 /var/lib/tftpboot/
 RUN mkdir -p /var/lib/tftpboot/pxelinux.cfg
 
-COPY www /var/www/html
+# COPY www /var/www/html
 COPY tftp /var/lib/tftpboot/
 
 
