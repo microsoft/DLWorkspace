@@ -8,8 +8,8 @@ PROGRAM_OPTS=$@
 
 # Default config
 SYSLINUX_VERSION="6.03"
-COREOS_VERSION="current"
-COREOS_CHANNEL="stable"
+COREOS_VERSION="{{cnf["coreosversion"]}}"
+COREOS_CHANNEL="{{cnf["coreoschannel"]}}"
 MEMTEST_VERSION="5.01"
 IMG_SIZE=1000
 IMG_TYPE="ISO"

@@ -5,8 +5,8 @@ hostnamectl set-hostname ${TAG}
 ## If you have provided another name for the cloud-init script, change it here.
 ## The mountpoint for the VFAT is always /media/usbconfig/
 CONFIG="cloud-config-${TAG}.yml"
-VERSION="current"
-CHANNEL="stable"
+VERSION="{{cnf["coreosversion"]}}"
+CHANNEL="{{cnf["coreoschannel"]}}"
 
 # Apply the cloud-config yml?
 #sudo coreos-cloudinit --from-file=/media/usbconfig/$CONFIG

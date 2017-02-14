@@ -3,11 +3,25 @@ coreos:
   update:
     reboot-strategy: off
   units:
-    # There should be exactly 4 spaces before
+    # There should be exactly 4 spaces before the -name. 
+    # This is to ensure additional option units can be added through configuration.   
     - name: update-engine.service
       command: stop
     - name: locksmithd.service
       command: stop
+    - name: checkinternet.service
+      command: start
+      content: |
+        [Unit]
+        Description=Check Internet Connection and DNS
+        After=network-online.target
+        Requires=network-online.target
+        [Service]
+        Restart=always
+        RestartSec=60s
+        ExecStart=/bin/bash /opt/checkinternet.sh
+        [Install]
+        WantedBy=local.target
     - name: reportcluster.service
       command: start
       content: |
@@ -25,10 +39,11 @@ coreos:
 {{cnf["coreosunits"]}}
 
 ssh_authorized_keys:
-  - {{cnf["sshkey"]}}
+  {{cnf["sshKeys"]}}
 
 write_files:
-  # There should be exactly 2 spaces before
+  # There should be exactly 2 spaces before the -path. 
+  # This is to ensure additional option write_files entries can be added through configuration.  
   - path: "/etc/resolve.conf"
     permissions: "0755"
     owner: "core"
@@ -65,4 +80,12 @@ write_files:
     encoding: "base64"
     content: |
       {{cnf["report.sh"]}}
+      
+  - path: "/opt/checkinternet.sh"
+    permissions: "0755"
+    owner: "root"
+    encoding: "base64"
+    content: |
+      {{cnf["checkinternet.sh"]}}
+      
 {{cnf["coreoswritefiles"]}}
