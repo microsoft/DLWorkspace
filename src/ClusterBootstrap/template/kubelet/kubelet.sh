@@ -11,8 +11,8 @@ systemctl stop kubelet
 while [ -z "$ETCDENDPOINTS" ] || [ -z "$APISERVER" ] || [ "$ETCDENDPOINTS" == "$NSTR" ] || [ "$APISERVER" == "$NSTR" ]; 
 do
 	homeinserver="$(cat /opt/homeinserver)"
-	export ETCDENDPOINTS=$(wget -q -O - '${homeinserver}/GetClusterInfo?clusterId={{cnf["clusterId"]}}&key=etcd_endpoints' | sed 's/"//g' | sed 's/\//\\\//g')
-	export APISERVER=$(wget -q -O - '${homeinserver}/GetClusterInfo?clusterId={{cnf["clusterId"]}}&key=api_server' | sed 's/"//g' | sed 's/\//\\\//g')
+	export ETCDENDPOINTS=$(wget -q -O - "$homeinserver/GetClusterInfo?clusterId={{cnf["clusterId"]}}&key=etcd_endpoints" | sed 's/"//g' | sed 's/\//\\\//g')
+	export APISERVER=$(wget -q -O - "$homeinserver/GetClusterInfo?clusterId={{cnf["clusterId"]}}&key=api_server" | sed 's/"//g' | sed 's/\//\\\//g')
 	echo "ETCDENDPOINTS = ${ETCDENDPOINTS}, APISERVER=${APISERVER} "
 	if [ ! -z "$ETCDENDPOINTS" ] && [ ! -z "$APISERVER" ] && [ "$ETCDENDPOINTS" != "$NSTR" ] && [ "$APISERVER" != "$NSTR" ]; then
 		if [ ! -f /opt/kubelet ]; then
