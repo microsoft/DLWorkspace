@@ -30,6 +30,7 @@ RUN chmod -R 777 /var/lib/tftpboot
 COPY copy_html_data.sh /
 COPY start_pxe_service.sh /
 RUN chmod +x /copy_html_data.sh
+RUN chmod +x /start_pxe_service.sh
 RUN /copy_html_data.sh
 
 EXPOSE 80

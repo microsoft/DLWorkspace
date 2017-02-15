@@ -677,7 +677,7 @@ def gen_configs():
 	render_template_directory("./template/etcd", "./deploy/etcd")
 	render_template_directory("./template/master", "./deploy/master")
 	render_template_directory("./template/web-docker", "./deploy/web-docker")
-	render_template_directory("./template/kube-addons" "./deploy/kube-addons")
+	render_template_directory("./template/kube-addons", "./deploy/kube-addons")
 
 def get_config():
 	if "ssh_cert" not in config and os.path.isfile("./deploy/sshkey/id_rsa"):
