@@ -366,7 +366,9 @@ def add_ssh_key():
 		if not (config["sshkey"] in config["sshKeys"]):
 			config["sshKeys"].append(config["sshkey"])
 	else:
-		config["sshKeys"] = config["sshkey"]
+		config["sshKeys"] = []
+		config["sshKeys"].append(config["sshkey"])
+		
 	
 # Render scripts for kubenete nodes
 def add_kubelet_config():
