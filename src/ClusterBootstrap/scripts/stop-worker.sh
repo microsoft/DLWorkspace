@@ -3,7 +3,6 @@
 
 sudo systemctl stop kubelet
 
-sudo hostnamectl set-hostname "worker-$(cat /opt/systemid)"
 # may have issue to clear all docker images. need other mechanism 
 # sudo systemctl start docker
 # docker rm -f $(docker ps -a -q)

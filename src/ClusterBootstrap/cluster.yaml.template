@@ -22,7 +22,6 @@ network:
 #sshKeys:
 #  - ssh-rsa 
 
-
 #ignoreAlerts:
 
 # SKUs is optional in DL workspace operation. 
