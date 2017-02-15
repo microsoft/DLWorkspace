@@ -1261,6 +1261,7 @@ def repartition_nodes(nodes, nodesinfo, partitionConfig):
 				cmd += "sudo parted -s --align optimal " + deviceinfo["name"] + " mkpart logical " + str(start) +"% " + str(end)+"% ; "
 				start = end
 		SSH_exec_cmd(config["ssh_cert"], "core", node, cmd)
+	print "Please note, it is OK to ignore message of Warning: Not all of the space available to /dev/___ appears to be used. The current default partition method optimizes for speed, rather to use all disk capacity..."
 	()
 	
 def glusterFS_copy():
