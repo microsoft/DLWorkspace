@@ -107,14 +107,15 @@ def render_template_directory(template_dir, target_dir):
 
 # Execute a remote SSH cmd with identity file (private SSH key), user, host
 def SSH_exec_cmd(identity_file, user,host,cmd,showCmd=True):
-	if showCmd:
+	if showCmd or verbose:
 		print ("""ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" "%s" """ % (identity_file, user, host, cmd) ) 
 	os.system("""ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" "%s" """ % (identity_file, user, host, cmd) )
 
 # SSH Connect to a remote host with identity file (private SSH key), user, host
 # Program usually exit here. 
 def SSH_connect(identity_file, user,host):
-	print ("""ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" """ % (identity_file, user, host) ) 
+	if verbose:
+		print ("""ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" """ % (identity_file, user, host) ) 
 	os.system("""ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" """ % (identity_file, user, host) )
 
 # Copy a local file or directory (source) to remote (target) with identity file (private SSH key), user, host 
@@ -154,7 +155,8 @@ def SSH_exec_cmd_with_output(identity_file, user,host,cmd, supressWarning = Fals
 	if supressWarning:
 		cmd += " 2>/dev/null"
 	execmd = """ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" "%s" """ % (identity_file, user, host, cmd )
-	print execmd
+	if verbose:
+		print execmd
 	try:
 		output = subprocess.check_output( execmd, shell=True )
 	except subprocess.CalledProcessError as e:
@@ -171,14 +173,18 @@ def get_host_name( host ):
 		return None
 	return output.strip()
 	
-def get_mac_address( host ):
+def get_mac_address( host, show=True ):
 	output = SSH_exec_cmd_with_output( "deploy/sshkey/id_rsa", "core", host, "ifconfig" )
 	etherMatch = re.compile("ether [0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]")
 	iterator = etherMatch.finditer(output)
-	print "Node "+host + " Mac address..."
+	if show:
+		print "Node "+host + " Mac address..."
+		for match in iterator:
+			print match.group()
+	macs = []
 	for match in iterator:
-		print match.group()
-
+		macs.append(match.group()[6:])
+	return macs
 
 # Execute a remote SSH cmd with identity file (private SSH key), user, host, 
 # Copy all directory of srcdir into a temporary folder, execute the command, 
@@ -320,14 +326,17 @@ def init_config():
 
 # Test if a certain Config entry exist
 def fetch_dictionary(dic, entry):
-	# print "Fetch " + str(dic) + "@" + str(entry) + "==" + str( dic[entry[0]] ) 
-	if entry[0] in dic:
-		if len(entry)<=1:
-			return dic[entry[0]]
+	if isinstance(entry, list):
+		# print "Fetch " + str(dic) + "@" + str(entry) + "==" + str( dic[entry[0]] ) 
+		if entry[0] in dic:
+			if len(entry)<=1:
+				return dic[entry[0]]
+			else:
+				return fetch_dictionary(dic[entry[0]], entry[1:])
 		else:
-			return fetch_dictionary(dic[entry[0]], entry[1:])
+			return None
 	else:
-		return None
+		print "fetch_config expects to take a list, but gets " + str(entry)
 	
 # Test if a certain Config entry exist
 def fetch_config(entry):
@@ -351,9 +360,9 @@ def update_one_config(name, entry, type, defval):
 		print "Error: Configuration " + name + " needs a " + str(type) +", but is given:" + str(val)
 
 def update_config():
-	update_one_config("coreosversion",["coreos","version"], str, coreosversion)
-	update_one_config("coreoschannel",["coreos","channel"], str, coreoschannel)
-	update_one_config("coreosbaseurl",["coreos","baseurl"], str, coreosbaseurl)
+	update_one_config("coreosversion",["coreos","version"], basestring, coreosversion)
+	update_one_config("coreoschannel",["coreos","channel"], basestring, coreoschannel)
+	update_one_config("coreosbaseurl",["coreos","baseurl"], basestring, coreosbaseurl)
 	if config["coreosbaseurl"] == "": 
 		config["coreosusebaseurl"] = ""
 	else:
@@ -795,6 +804,7 @@ def deploy_masters():
 
 
 def uncordon_master():
+	get_ETCD_master_nodes(config["clusterId"])
 	kubernetes_masters = config["kubernetes_master_node"]
 	kubernetes_master_user = config["kubernetes_master_ssh_user"]
 	for i,kubernetes_master in enumerate(kubernetes_masters):
@@ -1013,7 +1023,7 @@ def update_worker_node(nodeIP):
 	sudo_scp(config["ssh_cert"],"./ssl/kubelet/apiserver-key.pem","/etc/kubernetes/ssl/worker-key.pem", "core", nodeIP )
 	sudo_scp(config["ssh_cert"],"./ssl/kubelet/apiserver-key.pem","/etc/ssl/etcd/apiserver-key.pem", "core", nodeIP )
 
-	sudo_scp(config["ssh_cert"],"./deploy/kubelet/report.sh","/opt/report.shreport.sh", "core", nodeIP )
+	sudo_scp(config["ssh_cert"],"./deploy/kubelet/report.sh","/opt/report.sh", "core", nodeIP )
 	sudo_scp(config["ssh_cert"],"./deploy/kubelet/reportcluster.service","/etc/systemd/system/reportcluster.service", "core", nodeIP )
 
 	SSH_exec_cmd_with_directory(config["ssh_cert"], "core", nodeIP, "scripts", "bash --verbose start-worker.sh")
@@ -1339,6 +1349,59 @@ def run_script(node, args, sudo = False, supressWarning = False):
 def run_script_on_all(nodes, args, sudo = False, supressWarning = False):
 	for node in nodes:
 		run_script( node, args, sudo = sudo, supressWarning = supressWarning)
+		
+def add_mac_dictionary( dic, name, mac):
+	mac = mac.lower() 
+	if mac in dic:
+		if dic[mac] != name:
+			print "Error, two mac entries " + mac + "for machine " + dic[mac] + ", " + name
+			exit()
+	else:
+		dic[mac] = name
+		
+def create_mac_dictionary( machineEntry ):
+	dic = {}
+	for name in machineEntry:
+		machineInfo = machineEntry[name]
+		if "mac" in machineInfo:
+			macs = machineInfo["mac"]
+			if isinstance(macs, basestring):
+				add_mac_dictionary(dic, name, macs)
+			elif isinstance(macs, list):
+				for mac in macs:
+					add_mac_dictionary(dic, name, mac)
+			else:
+				print "Error, machine " + name + ", mac entry is of unknown type: " + str(macs)
+	#print dic
+	return dic
+	
+def set_host_names_by_lookup():
+	domainEntry = fetch_config( ["network", "domain"] )
+	machineEntry = fetch_config( ["machines"] )
+	if machineEntry is None:
+		print "Unable to set host name as there are no machines information in the configuration file. "
+	else:
+		dic_macs_to_hostname = create_mac_dictionary(machineEntry)
+		nodes = get_nodes(config["clusterId"])
+		for node in nodes:
+			macs = get_mac_address(node, show=False )
+			namelist = []
+			for mac in macs:
+				usemac = mac.lower()
+				if usemac in dic_macs_to_hostname:
+					namelist.append(dic_macs_to_hostname[usemac])
+			if len(namelist) > 1:
+				print "Error, machine with mac "+str(macs)+" has more than 1 name entries " +str(namelist)
+			elif len(namelist) == 0:
+				print "Warning, cannot find an entry for machine with mac "+str(macs)
+			else:
+				if isinstance( domainEntry, basestring):
+					usename = namelist[0] + "." + domainEntry
+				else:
+					usename = namelist[0]
+				cmd = "sudo hostnamectl set-hostname " + usename
+				print "Set hostname of node " + node + " ... " + usename
+				SSH_exec_cmd( config["ssh_cert"], "core", node, cmd )
 
 if __name__ == '__main__':
 	# the program always run at the current directory. 
@@ -1359,6 +1422,9 @@ Command:
   deploy    Deploy DL workspace cluster.
   clean     Clean away a failed deployment.
   connect   [master|etcd|worker] num: Connect to either master, etcd or worker node (with an index number).
+  hostname  [args] manage hostname on the cluster
+            set: set hostname
+  uncordon  allow etcd/master nodes to be scheduled jobs 
   partition [args] Manage data partitions. 
             ls: show all existing partitions. 
             create n: create n partitions of equal size.
@@ -1374,6 +1440,7 @@ Command:
   execonall [cmd ... ] Execute the command on all nodes and print the output. 
   doonall [cmd ... ] Execute the command on all nodes. 
   runscriptonall [script] Execute the shell/python script on all nodes. 
+  listmac   display mac address of the cluster notes
   ''') )
 	parser.add_argument("-y", "--yes", 
 		help="Answer yes automatically for all prompt", 
@@ -1530,11 +1597,24 @@ Command:
 			gen_configs()
 			update_worker_nodes()
 			
-	elif command == "mac":
+	elif command == "listmac":
 		get_config()
 		nodes = get_nodes(config["clusterId"])
 		for node in nodes:
 			get_mac_address(node)
+			
+	elif command == "uncordon":
+		get_config()
+		uncordon_master()
+	
+	elif command == "hostname" and len(nargs) >= 1:
+		get_config()
+		if nargs[0] == "set":
+			set_host_names_by_lookup()
+		else:
+			parser.print_help()
+			print "Error: hostname with unknown subcommand"
+			exit()
 
 	elif command == "cleanworker":
 		response = raw_input("Clean and Stop Worker Nodes (y/n)?")
