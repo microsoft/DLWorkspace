@@ -423,25 +423,32 @@ def add_leading_spaces(content, nspaces):
 	for line in lines:
 		retstr += (" "*nspaces) + line + "\n"
 	return retstr
+	
+# translate a config entry to another, check type and do format conversion allow the way
+def translate_config_entry( entry, name, type, leading_space = 0 ):
+	content = fetch_config( entry )
+	if not content is None:
+		if isinstance( content, type ):
+			if leading_space > 0 : 
+				adj_content = add_leading_spaces( content, leading_space )
+			else:
+				adj_content = content
+			config[name] = adj_content
+			if verbose: 
+				print "Configuration entry: " + name
+				print adj_content
+		else:
+			print "In configuration file, " + str( entry ) + " should be type of " +str(type) + ", rather than: "+ str(content )
+			exit()
 
 # fill in additional entry of cloud config
 def add_additional_cloud_config():
-	coreOSWriteFilesEntries = fetch_config(["coreos", "write_files"])
-	if not coreOSWriteFilesEntries is None:
-		if isinstance( coreOSWriteFilesEntries, basestring ):
-			coreOSWriteFilesEntriesAdj = add_leading_spaces( coreOSWriteFilesEntries, 2)
-			config["coreoswritefiles"] = coreOSWriteFilesEntriesAdj
-		else:
-			print "In Configuration file, coreos/write_files should be a string" + str( coreOSWriteFilesEntries )
-			exit()
-	coreOSunitsEntries = fetch_config(["coreos", "units"])
-	if not coreOSunitsEntries is None:
-		if isinstance( coreOSunitsEntries, basestring ):
-			coreOSunitsEntriesAdj = add_leading_spaces( coreOSunitsEntries, 4)
-			config["coreosunits"] = coreOSunitsEntriesAdj
-		else:
-			print "In Configuration file, coreos/units should be a string" + str( coreOSunitsEntries )
-			exit()
+	# additional entry to be added to write_files 
+	translate_config_entry( ["coreos", "write_files"], "coreoswritefiles", basestring, 2 )
+	# additional entry to be added to units 
+	translate_config_entry( ["coreos", "units"], "coreosunits", basestring, 4 )
+	# additional startup script to be added to report.sh
+	translate_config_entry( ["coreos", "startupScripts"], "startupscripts", basestring )
 	
 def init_deployment():
 	if (os.path.isfile("./deploy/clusterID.yml")):
@@ -474,8 +481,9 @@ def init_deployment():
 	config["sshkey"] = sshkey_public
 	add_ssh_key()
 
-	add_kubelet_config()
 	add_additional_cloud_config()
+	add_kubelet_config()
+	
 
 	template_file = "./template/cloud-config/cloud-config-master.yml"
 	target_file = "./deploy/cloud-config/cloud-config-master.yml"
@@ -513,8 +521,8 @@ def init_deployment():
 	config["apiserver-key.pem"] = base64.b64encode(content)
 	config["worker-key.pem"] = base64.b64encode(content)
 
-	add_kubelet_config()
 	add_additional_cloud_config()
+	add_kubelet_config()
 
 	template_file = "./template/cloud-config/cloud-config-worker.yml"
 	target_file = "./deploy/cloud-config/cloud-config-worker.yml"
@@ -1404,6 +1412,53 @@ def set_host_names_by_lookup():
 				print "Set hostname of node " + node + " ... " + usename
 				SSH_exec_cmd( config["ssh_cert"], "core", node, cmd )
 
+def deploy_ETCD_master():
+		print "Detected previous cluster deployment, cluster ID: %s. \n To clean up the previous deployment, run 'python deploy.py clean' \n" % config["clusterId"]
+		print "The current deployment has:\n"
+		
+		check_master_ETCD_status()
+
+		if "etcd_node" in config and len(config["etcd_node"]) >= int(config["etcd_node_num"]) and "kubernetes_master_node" in config and len(config["kubernetes_master_node"]) >= 1:
+			print "Ready to deploy kubernetes master on %s, etcd cluster on %s.  " % (",".join(config["kubernetes_master_node"]), ",".join(config["etcd_node"]))
+			gen_configs()
+			response = raw_input_with_default("Deploy ETCD Nodes (y/n)?")
+			if first_char(response) == "y":
+				gen_ETCD_certificates()
+				deploy_ETCD()			
+			response = raw_input_with_default("Deploy Master Nodes (y/n)?")
+			if first_char(response) == "y":
+				gen_master_certificates()
+				deploy_masters()
+
+			response = raw_input_with_default("Allow Workers to register (y/n)?")
+			if first_char(response) == "y":
+
+				urllib.urlretrieve (config["homeinserver"]+"/SetClusterInfo?clusterId=%s&key=etcd_endpoints&value=%s" %  (config["clusterId"],config["etcd_endpoints"]))
+				urllib.urlretrieve (
+				config["homeinserver"]+"/SetClusterInfo?clusterId=%s&key=api_server&value=%s" % (config["clusterId"],config["api_serviers"]))
+				return True
+			return False
+			
+#			response = raw_input_with_default("Create ISO file for deployment (y/n)?")
+#			if first_char(response) == "y":
+#				create_ISO()
+
+#			response = raw_input_with_default("Create PXE docker image for deployment (y/n)?")
+#			if first_char(response) == "y":
+#				create_PXE()
+
+		else:
+			print "Cannot deploy cluster since there are insufficient number of etcd server or master server. \n To continue deploy the cluster we need at least %d etcd server(s)" % (int(config["etcd_node_num"]))
+			return False
+			
+def update_config_node( node ):
+	role = SSH_exec_cmd_with_output( )
+			
+def update_config_nodes():
+	nodes = get_nodes(config["clusterId"])
+	for node in nodes:
+		update_config_node( node )
+			
 if __name__ == '__main__':
 	# the program always run at the current directory. 
 	dirpath = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
@@ -1420,8 +1475,12 @@ Prerequest:
 
 Command:
   build     Build USB iso/pxe-server used by deployment.
+  production Deploy a production cluster, with tasks of:
+            set hostname, deploy etcd/master nodes, deploy worker nodes, uncordon master nodes. 
   deploy    Deploy DL workspace cluster.
   clean     Clean away a failed deployment.
+  update    [args] Update cluster. 
+            config: update cloud-config of each deployed node. 
   connect   [master|etcd|worker] num: Connect to either master, etcd or worker node (with an index number).
   hostname  [args] manage hostname on the cluster
             set: set hostname
@@ -1548,40 +1607,7 @@ Command:
 			exit()
 
 	elif command == "deploy" and "clusterId" in config:
-		print "Detected previous cluster deployment, cluster ID: %s. \n To clean up the previous deployment, run 'python deploy.py clean' \n" % config["clusterId"]
-		print "The current deployment has:\n"
-		
-		check_master_ETCD_status()
-
-		if "etcd_node" in config and len(config["etcd_node"]) >= int(config["etcd_node_num"]) and "kubernetes_master_node" in config and len(config["kubernetes_master_node"]) >= 1:
-			print "Ready to deploy kubernetes master on %s, etcd cluster on %s.  " % (",".join(config["kubernetes_master_node"]), ",".join(config["etcd_node"]))
-			gen_configs()
-			response = raw_input_with_default("Deploy ETCD Nodes (y/n)?")
-			if first_char(response) == "y":
-				gen_ETCD_certificates()
-				deploy_ETCD()			
-			response = raw_input_with_default("Deploy Master Nodes (y/n)?")
-			if first_char(response) == "y":
-				gen_master_certificates()
-				deploy_masters()
-
-			response = raw_input_with_default("Allow Workers to register (y/n)?")
-			if first_char(response) == "y":
-
-				urllib.urlretrieve (config["homeinserver"]+"/SetClusterInfo?clusterId=%s&key=etcd_endpoints&value=%s" %  (config["clusterId"],config["etcd_endpoints"]))
-				urllib.urlretrieve (
-				config["homeinserver"]+"/SetClusterInfo?clusterId=%s&key=api_server&value=%s" % (config["clusterId"],config["api_serviers"]))
-			
-#			response = raw_input_with_default("Create ISO file for deployment (y/n)?")
-#			if first_char(response) == "y":
-#				create_ISO()
-
-#			response = raw_input_with_default("Create PXE docker image for deployment (y/n)?")
-#			if first_char(response) == "y":
-#				create_PXE()
-
-		else:
-			print "Cannot deploy cluster since there are insufficient number of etcd server or master server. \n To continue deploy the cluster we need at least %d etcd server(s)" % (int(config["etcd_node_num"]))
+		deploy_ETCD_master()
 
 	elif command == "build":
 		init_deployment()
@@ -1712,7 +1738,18 @@ Command:
 		check_master_ETCD_status()
 		gen_configs()		
 		deploy_webUI()
-
+		
+	elif command == "production":
+		get_config()
+		set_host_names_by_lookup()
+		success = deploy_ETCD_master()
+		if success: 
+			update_worker_nodes()
+			
+	elif command == "update" and len(nargs)>=1:
+		get_config()
+		if nargs[0] == "config":
+			update_config_nodes()
 
 	else:
 		parser.print_help()
