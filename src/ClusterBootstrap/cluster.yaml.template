@@ -5,6 +5,14 @@ status: test
 coreos:
   version: 1235.9.0
   # Additional Configuration to be passed to write-in section. 
+  # write-files: 
+  #   Content here will be added to the write-files section at cloud-config during bootup
+  # units: 
+  #   Content here will be added to the units section at cloud-config during bootup
+  # startupScripts：
+  #   Content here will be added before the start up of a node
+  startupScripts： |
+    sudo ip link set ens2f1 down 
   
 # global flag which enables automatic failure recovery functionality
 autoRecovery: True
@@ -17,11 +25,7 @@ network:
    - 10.222.118.154
    - 157.54.14.178
    - 4.2.2.1
-
-# You can optionally add sshkeys to be used to administer the clusters. 
-#sshKeys:
-#  - ssh-rsa 
-
+   
 #ignoreAlerts:
 
 # SKUs is optional in DL workspace operation. 
@@ -45,6 +49,9 @@ machines:
 # OneNet Rack Rack
 # If host name and mac address is available, they will be used to set the host name of the machine
 # (with network/domain entry above, if exist)
+  onenet12:
+    sku: standard
+    mac: 9c:b6:54:8c:cf:8f
 
   onenet13:
     sku: standard
@@ -84,71 +91,5 @@ machines:
     sku: standard
     mac: 9c:b6:54:8d:70:c7
   
-# Configuration file for OneNet Test cluster
-id: onenet
-status: test
-
-# global flag which enables automatic failure recovery functionality
-autoRecovery: True
-
-network:
-  domain: redmond.corp.microsoft.com
-
-  # corpnet DNS servers
-  externalDnsServers:
-   - 157.54.14.178
-   - 157.54.10.28
-   - 157.59.200.240
-
-#ignoreAlerts:
-
-skus:
-  standard:
-    mem: 196
-    cpu:
-        type: E5-2450L
-        speed: 1800
-        sockets: 2
-        coresPerSocket: 10
-        count: 20
-    disk:
-        sda: 400
-        sdb: 6001
-        sdc: 6001
-        sdd: 6001
-    dataFolder: /var/lib
-  sl270:
-    mem: 131
-    cpu:
-        type: E5-2680
-        speed: 2800
-        sockets: 2
-        coresPerSocket: 10
-        count: 20
-    disk:
-        sda: 1200
-        sdb: 1200
-        sdc: 1200
-        sdd: 1200
-        sde: 1200
-        sdf: 1200
-        sdg: 1200
-        sdh: 1200
-    dataFolder: /var/lib
-
-machines:
-
-# OneNet Rack Rack
-
-  onenet12:
-    sku: standard
-    rack: gcd-test
-    rackLocation: 1
-    outlet: imsr-hdp-test01
-    role: infrastructure
-    infraId: 0
-    yarnNodeId: 1
-    mac: 2c:44:fd:99:28:50
-    ip: 10.209.246.68
-    os: prod-infra
-
+# Optional: additional sshKeys for log in
+# sshKeys:
