@@ -31,6 +31,7 @@ class DataHandler:
 			    [jobName]         NTEXT NOT NULL,
 			    [userName]         NTEXT NOT NULL,
 				[jobStatus]         NTEXT NOT NULL DEFAULT 'queued',
+				[jobStatusDetail] NTEXT NULL, 
 				[jobType]         NTEXT NOT NULL,
 			    [jobDescriptionPath]  NTEXT NULL,
 				[jobDescription]  NTEXT NULL,
@@ -40,6 +41,7 @@ class DataHandler:
 			    [jobParams] NTEXT NOT NULL, 
 			    [jobMeta] NTEXT NULL, 
 			    [jobLog] NTEXT NULL, 
+			    [retries]             int    NULL DEFAULT 0,
 			    PRIMARY KEY CLUSTERED ([id] ASC)
 			)
 			""" % (self.jobtablename,self.jobtablename)
@@ -184,6 +186,25 @@ class DataHandler:
 	def GetJobTextField(self,jobId,field):
 		cursor = self.conn.cursor()
 		query = "SELECT [jobId], [%s] FROM [%s] where cast([jobId] as nvarchar(max)) = N'%s' " % (field, self.jobtablename,jobId)
+		cursor.execute(query)
+		ret = None
+
+		for (jobId, value) in cursor:
+			ret = value
+		cursor.close()
+
+		return ret
+
+	def AddandGetJobRetries(self,jobId):
+
+		sql = """update [%s] set [retries] = [retries] + 1 where cast([jobId] as nvarchar(max)) = N'%s' """ % (self.jobtablename, jobId)
+		cursor = self.conn.cursor()
+		cursor.execute(sql,value)
+		self.conn.commit()
+		cursor.close()
+
+		cursor = self.conn.cursor()
+		query = "SELECT [jobId], [retries] FROM [%s] where cast([jobId] as nvarchar(max)) = N'%s' " % (self.jobtablename,jobId)
 		cursor.execute(query)
 		ret = None
 
