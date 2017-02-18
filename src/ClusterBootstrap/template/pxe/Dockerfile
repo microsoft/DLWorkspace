@@ -21,7 +21,7 @@ COPY dhcpd.conf /etc/dhcp/
 RUN cp /usr/lib/syslinux/pxelinux.0 /var/lib/tftpboot/
 RUN mkdir -p /var/lib/tftpboot/pxelinux.cfg
 
-COPY www /var/www/html
+# COPY www /var/www/html
 COPY tftp /var/lib/tftpboot/
 
 
@@ -30,6 +30,7 @@ RUN chmod -R 777 /var/lib/tftpboot
 COPY copy_html_data.sh /
 COPY start_pxe_service.sh /
 RUN chmod +x /copy_html_data.sh
+RUN chmod +x /start_pxe_service.sh
 RUN /copy_html_data.sh
 
 EXPOSE 80

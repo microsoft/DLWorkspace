@@ -8,8 +8,8 @@ PROGRAM_OPTS=$@
 
 # Default config
 SYSLINUX_VERSION="6.03"
-COREOS_VERSION="current"
-COREOS_CHANNEL="stable"
+COREOS_VERSION="{{cnf["coreosversion"]}}"
+COREOS_CHANNEL="{{cnf["coreoschannel"]}}"
 MEMTEST_VERSION="5.01"
 IMG_SIZE=1000
 IMG_TYPE="ISO"
@@ -157,7 +157,9 @@ prepare_coreos() {
             "${oem_config}" > "${coreos_path}/usr/share/oem/cloud-config.yml"
         cd "${coreos_path}" && gzip -d cpio.gz && find usr | cpio --quiet -o -A -H newc -O cpio && gzip cpio
         rm -rf "${coreos_path}/usr"
-        mv "${coreos_path}/cpio.gz" "${coreos_path}/cpiomaster.gz"
+		# No longer install master image
+        # mv "${coreos_path}/cpio.gz" "${coreos_path}/cpiomaster.gz"
+		rm "${coreos_path}/cpio.gz"
         echo "done"
     else
         echo "-> Skipping OEM config."
@@ -232,14 +234,14 @@ Deploy worker node for cluster {{cnf["cluster_name"]}} ({{cnf["clusterId"]}}). T
 first hard drive (/dev/sda). ALL THE DATA ON /dev/sda WILL BE ERASED.
     ENDTEXT
 
-LABEL coreosmaster
-    MENU LABEL Install CoreOS - Master Node
-    KERNEL /coreos/vmlinuz
-    APPEND initrd=/coreos/cpiomaster.gz ${boot_cmd}
-    TEXT HELP
-Deploy master node for cluster {{cnf["cluster_name"]}} ({{cnf["clusterId"]}}). The CoreOS system is going to be installed on the
-first hard drive (/dev/sda). ALL THE DATA ON /dev/sda WILL BE ERASED.
-    ENDTEXT
+#LABEL coreosmaster
+#    MENU LABEL Install CoreOS - Master Node
+#    KERNEL /coreos/vmlinuz
+#    APPEND initrd=/coreos/cpiomaster.gz ${boot_cmd}
+#    TEXT HELP
+#Deploy master node for cluster {{cnf["cluster_name"]}} ({{cnf["clusterId"]}}). The CoreOS system is going to be installed on the
+#first hard drive (/dev/sda). ALL THE DATA ON /dev/sda WILL BE ERASED.
+#    ENDTEXT
 
 LABEL coreosetcd
     MENU LABEL Install CoreOS - ETCD Node

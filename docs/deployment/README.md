@@ -2,6 +2,8 @@
 
 DL workspace allows you to setup a cluster that you can run deep learning training job, interactive exploration job, and evaluation service. Please refer to docs/WhitePaper/ for more information. 
 
+DL workspace cluster can be deployed in two forms: 1) [compact deployment](CompactDeployment.md) (target small cluster, as few as 1 machine), and 2) [large production deployment](LargeProductionDeployment.md). 
+
 The document in this section describes the procedure to deploy a DL workspace cluster, as follows. You may want to change directory to the follows to perform the operations below.
 
   ```
@@ -24,17 +26,22 @@ The 'deploy' folder contains important information to access the deployed DL wor
 
   2. If you would like to deply a production procedure, we recommend to set up a VLan for your cluster, and use a PXE server. The precedure are described in [PXEServer.md](PXEServer.md). 
   3. If you would like to deploy a cluster on Azure, please follow the procedure in [Azure.md](Azure.md)
+  4. If you have a yaml file describing your cluster, you may want to do cluster customization, e.g., 
+     set hostname for your cluster via:
+     ```
+     deploy.py hostname set
+     ```
 
 4. Start master and etcd servers. Please use '-public' option if you run command inside firewall, while the cluster is public (e.g., Azure, AWS).
 
   ```
-  python deploy.py -y deploy
+  deploy.py -y deploy
   ```
   
 5. Start worker nodes. Please use '-public' option if you run command inside firewall, while the cluster is public (e.g., Azure, AWS).
 
   ```
-  python deploy.py -y updateworker
+  deploy.py -y updateworker
   ```
 
 6. **__Static IP:__** Static IP/DNS name are strongly recommended for master and Etcd server, especially if you desire High Availability (HA) operation. Please contact your IT department to setup static IP for the master and Etcd server. With static IP, the DL workspace can operate uninterruptedly. 

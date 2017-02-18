@@ -1,5 +1,6 @@
 *.pyc
 **/config.yaml
+**/cluster.yaml
 **/pxe-coreos-kube.yml
 **/pxe-kubemaster.yml
 **/openssl-etcd.cnf
@@ -28,7 +29,8 @@ src/ClusterBootstrap/deploy_backup/*
 
 
 
-#ASP.NET core 
+#ASP.NET core
+src/WebUI/dotnet/.vs/**
 **/wwwroot/*
 **/bin/Release/*
 **/bin/Debug/*

@@ -1,10 +1,7 @@
-if [ -f /opt/systemid ]
-then
-   uuid=$(cat /opt/systemid)
-else
-   uuid=$(uuidgen)
-   echo $uuid > /opt/systemid
-fi
+#!/bin/bash 
+# Node home in, for bootstrap stage only. 
+export discoverserver="$(cat /opt/discoverserver)"
+/bin/bash -c 'until ping -c1 ${discoverserver}; do sleep 1; done;'
 
 if [ -f /opt/systemrole ]
 then
@@ -14,13 +11,32 @@ else
    echo $systemrole > /opt/systemrole
 fi
 
+if [ -f /opt/systemid ]
+then
+   uuid=$(cat /opt/systemid)
+   systemname="${systemrole}-${uuid}"
+else
+   uuid=$(uuidgen)
+   echo $uuid > /opt/systemid
+   systemname="${systemrole}-${uuid}"
+   hostnamectl set-hostname $systemname   
+fi
 
-while true
+while [ -f /opt/homeinserver ];
 do
-  export HostIP=$(ip route get 8.8.8.8 | awk '{print $NF; exit}')
-  curl "http://dlws-clusterportal.westus.cloudapp.azure.com:5000/Report?hostIP=$HostIP&sysId=$uuid&clusterId={{cnf["clusterId"]}}&role=$systemrole" || echo "!!!Cannot report to cluster portal!!! Check the internet connection"
-  echo "systemId:$uuid"    
-  echo "systemrole:$systemrole"      
-  echo "HostIP:$HostIP"      
-  sleep 600
+  homeinserver="$(cat /opt/homeinserver)"
+  discoverserver="$(cat /opt/discoverserver)"
+  export HostIP=$(ip route get ${discoverserver} | awk '{print $NF; exit}')
+  curl "${homeinserver}/Report?hostIP=$HostIP&sysId=$uuid&clusterId={{cnf["clusterId"]}}&role=$systemrole" || echo "!!!Cannot report to cluster portal!!! Check the internet connection"
+  echo "systemId:$uuid"
+  echo "systemrole:$systemrole"
+  echo "HostIP:$HostIP"
+  if [ -f /opt/homeininterval ]
+  then
+    homeininterval="$(cat /opt/homeininterval)"
+  else
+    homeininterval=6
+  fi
+  sleep $homeininterval
 done
+

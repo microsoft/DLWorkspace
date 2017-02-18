@@ -1,21 +1,21 @@
 #cloud-config
 coreos:
   units:
-    - name: bootstrap.service
+    # There should be exactly 4 spaces before the -name. 
+    # This is to ensure additional option units can be added through configuration.  
+    - name: checkinternet.service
       command: start
       content: |
         [Unit]
-        Description=Bootstrap instance
+        Description=Check Internet Connection and DNS
         After=network-online.target
         Requires=network-online.target
         [Service]
-        Type=oneshot
-        #RemainAfterExit=true
-        #ExecStartPre=/bin/bash -c 'until ping -c1 192.168.1.20; do sleep 1; done;'
-        ExecStart=/bin/bash /opt/kubelet.sh
+        Restart=always
+        RestartSec=60s
+        ExecStart=/bin/bash /opt/checkinternet.sh
         [Install]
         WantedBy=local.target
-
     - name: reportcluster.service
       command: start
       content: |
@@ -27,15 +27,31 @@ coreos:
         #RemainAfterExit=true
         Restart=always
         RestartSec=60s
-        ExecStart=/bin/bash /opt/report.sh
+        ExecStart=/bin/bash /opt/report.sh 
         [Install]
         WantedBy=local.target
-
+    - name: bootstrap.service
+      command: start
+      content: |
+        [Unit]
+        Description=Bootstrap instance
+        After=network-online.target
+        Requires=network-online.target
+        [Service]
+        #Type=oneshot
+        #RemainAfterExit=true
+        #ExecStartPre=/bin/bash -c 'until ping -c1 192.168.1.20; do sleep 1; done;'
+        ExecStart=/bin/bash /opt/kubelet.sh 
+        [Install]
+        WantedBy=local.target
+{{cnf["coreosunits"]}}
 
 ssh_authorized_keys:
-  - {{cnf["sshkey"]}}
+  {{cnf["sshKeys"]}}
 
 write_files:
+  # There should be exactly 2 spaces before the -path. 
+  # This is to ensure additional option write_files entries can be added through configuration.  
   - path: "/opt/kubelet.sh"
     permissions: "0755"
     owner: "root"
@@ -119,9 +135,6 @@ write_files:
     content: |
       {{cnf["kubelet.service.template"]}}
 
-
-
-
   - path: "/etc/kubernetes/worker-kubeconfig.yaml.template"
     permissions: "0755"
     owner: "root"
@@ -129,23 +142,43 @@ write_files:
     content: |
       {{cnf["worker-kubeconfig.yaml.template"]}}
 
-
-
-
+  - path: "/opt/homeinserver"
+    permissions: "0755"
+    owner: "core"
+    content: |
+      {{cnf["homeinserver"]}}
+      
+  - path: "/opt/homeininterval"
+    permissions: "0755"
+    owner: "core"
+    content: |
+      {{cnf["homeininterval"]}}
+      
+  - path: "/opt/discoverserver"
+    permissions: "0755"
+    owner: "core"
+    content: |
+      {{cnf["discoverserver"]}}
+      
+  - path: "/opt/systemrole"
+    permissions: "0755"
+    owner: "core"
+    content: |
+      worker
+      
   - path: "/opt/report.sh"
     permissions: "0755"
     owner: "root"
     encoding: "base64"
     content: |
       {{cnf["report.sh"]}}
-
-
-
-
-
-
-
-
-
-
+      
+  - path: "/opt/checkinternet.sh"
+    permissions: "0755"
+    owner: "root"
+    encoding: "base64"
+    content: |
+      {{cnf["checkinternet.sh"]}}
+      
+{{cnf["coreoswritefiles"]}}
 
