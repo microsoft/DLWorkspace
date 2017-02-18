@@ -1084,12 +1084,7 @@ def deploy_restful_API_on_node(ipAddress):
 	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo mkdir -p /dlws-data && sudo mount %s /dlws-data" % config["nfs-server"])
 
 
-	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker rm -f restfulapi")
-	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker rm -f jobScheduler")
-
-	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker pull %s" % dockername)
-	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker run -d -p 5000:5000 --restart always -v /etc/RestfulAPI:/RestfulAPI --name restfulapi %s" % dockername)
-	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker run -d -v /dlws-data:/dlws-data -v /etc/RestfulAPI:/RestfulAPI --restart always --name jobScheduler %s /runScheduler.sh" % dockername)
+	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker rm -f restfulapi; docker rm -f jobScheduler ; docker pull %s ; docker run -d -p 5000:5000 --restart always -v /etc/RestfulAPI:/RestfulAPI --name restfulapi %s ; docker run -d -v /dlws-data:/dlws-data -v /etc/RestfulAPI:/RestfulAPI --restart always --name jobScheduler %s /runScheduler.sh ;" % (dockername,dockername,dockername))
 
 
 	print "==============================================="
@@ -1115,8 +1110,7 @@ def deploy_webUI_on_node(ipAddress):
 	render_template("./template/WebUI/appsettings.json.template","./deploy/WebUI/appsettings.json")
 	sudo_scp(config["ssh_cert"],"./deploy/WebUI/appsettings.json","/etc/WebUI/appsettings.json", "core", webUIIP )
 
-	SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker pull %s" % dockername)
-	SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker run -d -p 80:80 -v /etc/WebUI:/WebUI --restart always --name webui %s" % dockername)
+	SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker pull %s ; docker rm -f webui ; docker run -d -p 80:80 -v /etc/WebUI:/WebUI --restart always --name webui %s ;" % (dockername,dockername))
 
 
 	print "==============================================="
