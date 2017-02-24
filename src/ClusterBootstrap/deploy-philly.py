@@ -37,6 +37,14 @@ def gen_ETCD_certificates():
 
 	os.system("cd ./deploy/ssl && bash ./gencerts_etcd.sh")	
 
+def gen_master_certificates():
+	config["apiserver_ssl_dns"] = ""
+	config["apiserver_ssl_ip"] = "IP.1 = 10.3.0.1\nIP.2 = 127.0.0.1\n"+ "\n".join(["IP."+str(i+3)+" = "+ip for i,ip in enumerate(config["kubernetes_master_node"])])
+
+	utils.render_template_directory("./template/ssl", "./deploy/ssl",config)
+
+	os.system("cd ./deploy/ssl && bash ./gencerts_master.sh")
+
 
 def deploy_ETCD_docker():
 	
@@ -132,6 +140,63 @@ def deploy_masters():
 	#utils.SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_masters[0], "until curl -q http://127.0.0.1:8080/version/ ; do sleep 5; echo 'waiting for master...'; done;  sudo /opt/bin/kubectl create -f /opt/addons/kube-addons/", False)
 
 
+def update_worker_node(nodeIP):
+	print "==============================================="
+	print "updating worker node: %s ..."  % nodeIP
+
+
+
+	utils.SSH_exec_cmd(config["ssh_cert"], "core", nodeIP,"sudo systemctl stop kubelet ; sudo mkdir -p /etc/kubernetes/ssl ; sudo mkdir -p /opt/bin; sudo mkdir -p /etc/ssl/etcd;")
+	utils.sudo_scp(config["ssh_cert"],"./deploy/kubelet/kubelet.service","/etc/systemd/system/kubelet.service", "core", nodeIP )
+	utils.sudo_scp(config["ssh_cert"],"./deploy/kubelet/worker-kubeconfig.yaml","/etc/kubernetes/worker-kubeconfig.yaml", "core", nodeIP )
+	utils.sudo_scp(config["ssh_cert"],"./deploy/bin/kubelet","/opt/bin/kubelet", "core", nodeIP )
+
+
+	with open("./deploy/ssl/ca/ca.pem", 'r') as f:
+		content = f.read()
+	config["ca.pem"] = base64.b64encode(content)
+
+	with open("./deploy/ssl/kubelet/apiserver.pem", 'r') as f:
+		content = f.read()
+	config["apiserver.pem"] = base64.b64encode(content)
+	config["worker.pem"] = base64.b64encode(content)
+
+	with open("./deploy/ssl/kubelet/apiserver-key.pem", 'r') as f:
+		content = f.read()
+	config["apiserver-key.pem"] = base64.b64encode(content)
+	config["worker-key.pem"] = base64.b64encode(content)
+
+
+	utils.sudo_scp(config["ssh_cert"],"./deploy/ssl/ca/ca.pem","/etc/kubernetes/ssl/ca.pem", "core", nodeIP )
+	utils.sudo_scp(config["ssh_cert"],"./deploy/ssl/ca/ca.pem","/etc/ssl/etcd/ca.pem", "core", nodeIP )
+
+	utils.sudo_scp(config["ssh_cert"],"./deploy/ssl/kubelet/apiserver.pem","/etc/kubernetes/ssl/worker.pem", "core", nodeIP )
+	utils.sudo_scp(config["ssh_cert"],"./deploy/ssl/kubelet/apiserver.pem","/etc/ssl/etcd/apiserver.pem", "core", nodeIP )
+
+	utils.sudo_scp(config["ssh_cert"],"./deploy/ssl/kubelet/apiserver-key.pem","/etc/kubernetes/ssl/worker-key.pem", "core", nodeIP )
+	utils.sudo_scp(config["ssh_cert"],"./deploy/ssl/kubelet/apiserver-key.pem","/etc/ssl/etcd/apiserver-key.pem", "core", nodeIP )
+
+	utils.SSH_exec_cmd(config["ssh_cert"], "core", nodeIP,"sudo chmod +x /opt/bin/kubelet ; sudo systemctl daemon-reload ; sudo systemctl start kubelet ; sudo systemctl enable kubelet")
+
+	print "done!"
+
+
+def update_worker_nodes():
+	utils.render_template_directory("./template/kubelet", "./deploy/kubelet",config)
+
+	os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' % config["etcd_endpoints"].replace("/","\\/"))
+	os.system('sed "s/##api_serviers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' % config["api_serviers"].replace("/","\\/"))
+	os.system('sed "s/##api_serviers##/%s/" ./deploy/kubelet/worker-kubeconfig.yaml.template > ./deploy/kubelet/worker-kubeconfig.yaml' % config["api_serviers"].replace("/","\\/"))
+	
+	urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet", "./deploy/bin/kubelet")
+
+	workerNodes = ["10.177.92.24","10.177.92.25","10.177.92.26","10.177.92.27","10.177.92.28","10.177.92.29"]
+	for node in workerNodes:
+		update_worker_node(node)
+
+	os.system("rm ./deploy/kubelet/options.env")
+	os.system("rm ./deploy/kubelet/kubelet.service")
+	os.system("rm ./deploy/kubelet/worker-kubeconfig.yaml")
 
 
 
@@ -165,4 +230,6 @@ if __name__ == '__main__':
 
 	gen_ETCD_certificates()
 	deploy_ETCD_docker()
+	gen_master_certificates()
 	deploy_masters()
+	update_worker_nodes()

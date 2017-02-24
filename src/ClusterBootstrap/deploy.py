@@ -378,11 +378,11 @@ def clean_deployment():
 
 def gen_CA_certificates():
 	utils.render_template_directory("./template/ssl", "./deploy/ssl",config)
-	os.system("cd ./deploy/ssl && ./gencerts_ca.sh")
+	os.system("cd ./deploy/ssl && bash ./gencerts_ca.sh")
 
 def gen_worker_certificates():
 	utils.render_template_directory("./template/ssl", "./deploy/ssl",config)
-	os.system("cd ./deploy/ssl && ./gencerts_kubelet.sh")	
+	os.system("cd ./deploy/ssl && bash ./gencerts_kubelet.sh")	
 
 def gen_master_certificates():
 	config["apiserver_ssl_dns"] = ""
@@ -390,7 +390,7 @@ def gen_master_certificates():
 
 	utils.render_template_directory("./template/ssl", "./deploy/ssl",config)
 
-	os.system("cd ./deploy/ssl && ./gencerts_master.sh")
+	os.system("cd ./deploy/ssl && bash ./gencerts_master.sh")
 
 
 def gen_ETCD_certificates():
@@ -762,8 +762,8 @@ def update_worker_node(nodeIP):
 	
 	sudo_scp(config["ssh_cert"],"./deploy/kubelet/kubelet.sh","/opt/kubelet.sh", "core", nodeIP )
 
-	sudo_scp(config["ssh_cert"],"./deploy/bin/kubelet","/opt/kubelet", "core", nodeIP )
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo chmod +x /opt/kubelet")
+	sudo_scp(config["ssh_cert"],"./deploy/bin/kubelet","/opt/bin/kubelet", "core", nodeIP )
+	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo chmod +x /opt/bin/kubelet")
 
 
 	with open("./deploy/ssl/ca/ca.pem", 'r') as f:
