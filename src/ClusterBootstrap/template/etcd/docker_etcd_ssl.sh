@@ -2,6 +2,7 @@
 #curl -w "\n" 'https://discovery.etcd.io/new?size=3'
 
 docker rm -f philly-etcd3
+sudo rm -r /var/etcd/data
 
 docker run -d -v /usr/share/ca-certificates/:/etc/ssl/certs -v /etc/etcd/ssl:/etc/etcd/ssl -v /var/etcd:/var/etcd -p 4001:4001 -p 2380:2380 -p 2379:2379 \
  --net=host \
