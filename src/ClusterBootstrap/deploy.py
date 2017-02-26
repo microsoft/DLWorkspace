@@ -24,7 +24,7 @@ import socket;
 sys.path.append("storage/glusterFS")
 from GlusterFSUtils import GlusterFSJson
 
-
+import utils
 
 capacityMatch = re.compile("\d+[M|G]B")
 digitsMatch = re.compile("\d+")
@@ -84,8 +84,8 @@ def copy_to_ISO():
 	if not os.path.exists("./deploy/iso-creator"):
 		os.system("mkdir -p ./deploy/iso-creator")
 	os.system("cp --verbose ./template/pxe/tftp/splash.png ./deploy/iso-creator/splash.png")
-	render_template_directory( "./template/pxe/tftp/usr/share/oem", "./deploy/iso-creator")
-	render_template_directory( "./template/iso-creator", "./deploy/iso-creator")
+	utils.render_template_directory( "./template/pxe/tftp/usr/share/oem", "./deploy/iso-creator",config)
+	utils.render_template_directory( "./template/iso-creator", "./deploy/iso-creator",config)
 
 # Certain configuration that is default in system 
 def init_config():
@@ -96,6 +96,28 @@ def init_config():
 	config["dockerregistry"] = dockerregistry
 	return config
 
+
+def _check_config_items(cnfitem, cnf):
+	if not cnfitem in cnf:
+		raise Exception("ERROR: we cannot find %s in config file" % cnfitem) 
+	else:
+		print "Checking configurations '%s' = '%s'" % (cnfitem, cnf[cnfitem])
+ 
+def check_config(cnf):
+	_check_config_items("discovery_url",cnf)
+	_check_config_items("kubernetes_master_node",cnf)
+	_check_config_items("kubernetes_master_ssh_user",cnf)
+	_check_config_items("api_serviers",cnf)
+	_check_config_items("etcd_user",cnf)
+	_check_config_items("etcd_node",cnf)
+	_check_config_items("etcd_endpoints",cnf)
+	_check_config_items("ssh_cert",cnf)
+	_check_config_items("pod_ip_range",cnf)
+	_check_config_items("basic_auth",cnf)
+	_check_config_items("kubernetes_docker_image",cnf)
+	_check_config_items("service_cluster_ip_range",cnf)
+	if not os.path.isfile(config["ssh_cert"]):
+		raise Exception("ERROR: we cannot find ssh key file at %s. \n please run 'python build-pxe-coreos.py docker_image_name' to generate ssh key file and pxe server image." % config["ssh_cert"]) 
 
 
 # Test if a certain Config entry exist
@@ -158,7 +180,7 @@ def add_kubelet_config():
 	renderfiles = []
 
 # Render all deployment script used. 
-	render_template_directory("./template/kubelet", "./deploy/kubelet")
+	utils.render_template_directory("./template/kubelet", "./deploy/kubelet",config)
 
 	kubemaster_cfg_files = [f for f in os.listdir("./deploy/kubelet") if os.path.isfile(os.path.join("./deploy/kubelet", f))]
 	for file in kubemaster_cfg_files:
@@ -220,21 +242,21 @@ def add_additional_cloud_config():
 def init_deployment():
 	if (os.path.isfile("./deploy/clusterID.yml")):
 		
-		clusterID = get_cluster_ID_from_file()
+		clusterID = utils.get_cluster_ID_from_file()
 		response = raw_input_with_default("There is a cluster (ID:%s) deployment in './deploy', do you want to keep the existing ssh key and CA certificates (y/n)?" % clusterID)
 		if first_char(response) == "n":
-			backup_keys()
-			gen_SSH_key()
+			utils.backup_keys(config["cluster_name"])
+			utils.gen_SSH_key()
 			gen_CA_certificates()
 			gen_worker_certificates()
-			backup_keys()
+			utils.backup_keys(config["cluster_name"])
 	else:
-		gen_SSH_key()
+		utils.gen_SSH_key()
 		gen_CA_certificates()
 		gen_worker_certificates()
-		backup_keys()
+		utils.backup_keys(config["cluster_name"])
 
-	clusterID = get_cluster_ID_from_file()
+	clusterID = utils.get_cluster_ID_from_file()
 
 	f = open("./deploy/sshkey/id_rsa.pub")
 	sshkey_public = f.read()
@@ -255,13 +277,13 @@ def init_deployment():
 	target_file = "./deploy/cloud-config/cloud-config-master.yml"
 	config["role"] = "master"
 	
-	render_template(template_file, target_file)
+	utils.render_template(template_file, target_file,config)
 
 	template_file = "./template/cloud-config/cloud-config-etcd.yml"
 	target_file = "./deploy/cloud-config/cloud-config-etcd.yml"
 	
 	config["role"] = "etcd"
-	render_template(template_file, target_file)
+	utils.render_template(template_file, target_file,config)
 
 	# Prepare to Generate the ISO image. 
 	# Using files in PXE as template. 
@@ -271,7 +293,7 @@ def init_deployment():
 
 	template_file = "./deploy/iso-creator/mkimg.sh.template"
 	target_file = "./deploy/iso-creator/mkimg.sh"
-	render_template( template_file, target_file )
+	utils.render_template( template_file, target_file ,config)
 
 	with open("./deploy/ssl/ca/ca.pem", 'r') as f:
 		content = f.read()
@@ -292,7 +314,7 @@ def init_deployment():
 
 	template_file = "./template/cloud-config/cloud-config-worker.yml"
 	target_file = "./deploy/cloud-config/cloud-config-worker.yml"
-	render_template( template_file, target_file )
+	utils.render_template( template_file, target_file ,config)
 
 def check_node_availability(ipAddress):
 	# print "Check node availability on: " + str(ipAddress)
@@ -310,7 +332,7 @@ def get_ETCD_master_nodes(clusterId):
 		config["ipToHostname"] = {}
 	for node in NodesInfo:
 		if not node[ipAddrMetaname] in Nodes and check_node_availability(node[ipAddrMetaname]):
-			hostname = get_host_name(node[ipAddrMetaname])
+			hostname = utils.get_host_name(node[ipAddrMetaname])
 			Nodes.append(node[ipAddrMetaname])
 			config["ipToHostname"][node[ipAddrMetaname]] = hostname
 	if "etcd_node" in config:
@@ -331,7 +353,7 @@ def get_worker_nodes(clusterId):
 		config["ipToHostname"] = {}
 	for node in NodesInfo:
 		if not node[ipAddrMetaname] in Nodes and check_node_availability(node[ipAddrMetaname]):
-			hostname = get_host_name(node[ipAddrMetaname])
+			hostname = utils.get_host_name(node[ipAddrMetaname])
 			Nodes.append(node[ipAddrMetaname])
 			config["ipToHostname"][node[ipAddrMetaname]] = hostname
 	config["worker_node"] = Nodes
@@ -349,7 +371,7 @@ def get_nodes(clusterId):
 		config["ipToHostname"] = {}
 	for node in NodesInfo:
 		if not node[ipAddrMetaname] in Nodes and check_node_availability(node[ipAddrMetaname]):
-			hostname = get_host_name(node[ipAddrMetaname])
+			hostname = utils.get_host_name(node[ipAddrMetaname])
 			Nodes.append(node[ipAddrMetaname])
 			config["ipToHostname"][node[ipAddrMetaname]] = hostname
 	config["nodes"] = Nodes
@@ -372,7 +394,7 @@ def clean_deployment():
 	print "==============================================="
 	print "Cleaning previous deployment..."	
 	if (os.path.isfile("./deploy/clusterID.yml")):
-		backup_keys()
+		utils.backup_keys(config["cluster_name"])
 	os.system("rm -r ./deploy/*")
 
 
@@ -400,7 +422,7 @@ def gen_ETCD_certificates():
 	utils.render_template_directory("./template/ssl", "./deploy/ssl",config)
 
 
-	os.system("cd ./deploy/ssl && ./gencerts_etcd.sh")	
+	os.system("cd ./deploy/ssl && bash ./gencerts_etcd.sh")	
 
 
 
@@ -432,7 +454,7 @@ def gen_configs():
 	#if len(kubernetes_masters) <= 0:
 	#	raise Exception("ERROR: we need at least one etcd_server.") 
 
-	config["discovery_url"] = get_ETCD_discovery_URL(int(config["etcd_node_num"]))
+	config["discovery_url"] = utils.get_ETCD_discovery_URL(int(config["etcd_node_num"]))
 
 	if "ssh_cert" not in config and os.path.isfile("./deploy/sshkey/id_rsa"):
 		config["ssh_cert"] = "./deploy/sshkey/id_rsa"
@@ -452,10 +474,10 @@ def gen_configs():
 	add_ssh_key()
 	check_config(config)
 
-	render_template_directory("./template/etcd", "./deploy/etcd")
-	render_template_directory("./template/master", "./deploy/master")
-	render_template_directory("./template/web-docker", "./deploy/web-docker")
-	render_template_directory("./template/kube-addons", "./deploy/kube-addons")
+	utils.render_template_directory("./template/etcd", "./deploy/etcd",config)
+	utils.render_template_directory("./template/master", "./deploy/master",config)
+	utils.render_template_directory("./template/web-docker", "./deploy/web-docker",config)
+	utils.render_template_directory("./template/kube-addons", "./deploy/kube-addons",config)
 
 def get_config():
 	if "ssh_cert" not in config and os.path.isfile("./deploy/sshkey/id_rsa"):
@@ -480,11 +502,11 @@ def update_reporting_service():
 		print "==============================================="
 		print "Updating report service on master %s... " % kubernetes_master
 
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo systemctl stop reportcluster")
-		scp(config["ssh_cert"],"./deploy/kebelet/report.sh","/home/%s/report.sh" % kubernetes_master_user , kubernetes_master_user, kubernetes_master )
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mv /home/%s/report.sh /opt/report.sh" % (kubernetes_master_user))
+		utils.SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo systemctl stop reportcluster")
+		utils.scp(config["ssh_cert"],"./deploy/kebelet/report.sh","/home/%s/report.sh" % kubernetes_master_user , kubernetes_master_user, kubernetes_master )
+		utils.SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo mv /home/%s/report.sh /opt/report.sh" % (kubernetes_master_user))
 
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo systemctl start reportcluster")
+		utils.SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo systemctl start reportcluster")
 
 
 	etcd_servers = config["etcd_node"]
@@ -495,11 +517,11 @@ def update_reporting_service():
 		print "==============================================="
 		print "Updating report service on etcd node %s... " % etcd_server_address
 
-		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo systemctl stop reportcluster")
-		scp(config["ssh_cert"],"./deploy/kubelet/report.sh","/home/%s/report.sh" % etcd_server_user , etcd_server_user, etcd_server_address )
-		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo mv /home/%s/report.sh /opt/report.sh" % (etcd_server_user))
+		utils.SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo systemctl stop reportcluster")
+		utils.scp(config["ssh_cert"],"./deploy/kubelet/report.sh","/home/%s/report.sh" % etcd_server_user , etcd_server_user, etcd_server_address )
+		utils.SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo mv /home/%s/report.sh /opt/report.sh" % (etcd_server_user))
 
-		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo systemctl start reportcluster")
+		utils.SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo systemctl start reportcluster")
 
 def clean_master():
 	kubernetes_masters = config["kubernetes_master_node"]
@@ -509,7 +531,7 @@ def clean_master():
 		print "==============================================="
 		print "Clean up kubernetes master %s... (It is OK to see 'Errors' in this section)" % kubernetes_master
 
-		SSH_exec_script(config["ssh_cert"],kubernetes_master_user, kubernetes_master, "./deploy/master/cleanup-master.sh")
+		utils.SSH_exec_script(config["ssh_cert"],kubernetes_master_user, kubernetes_master, "./deploy/master/cleanup-master.sh")
 
 
 def deploy_master(kubernetes_master):
@@ -518,23 +540,23 @@ def deploy_master(kubernetes_master):
 		print "starting kubernetes master on %s..." % kubernetes_master
 
 		config["master_ip"] = kubernetes_master
-		render_template("./template/master/kube-apiserver.yaml","./deploy/master/kube-apiserver.yaml")
-		render_template("./template/master/kubelet.service","./deploy/master/kubelet.service")
-		render_template("./template/master/pre-master-deploy.sh","./deploy/master/pre-master-deploy.sh")
-		render_template("./template/master/post-master-deploy.sh","./deploy/master/post-master-deploy.sh")
+		utils.render_template("./template/master/kube-apiserver.yaml","./deploy/master/kube-apiserver.yaml",config)
+		utils.render_template("./template/master/kubelet.service","./deploy/master/kubelet.service",config)
+		utils.render_template("./template/master/pre-master-deploy.sh","./deploy/master/pre-master-deploy.sh",config)
+		utils.render_template("./template/master/post-master-deploy.sh","./deploy/master/post-master-deploy.sh",config)
 
 
-		SSH_exec_script(config["ssh_cert"],kubernetes_master_user, kubernetes_master, "./deploy/master/pre-master-deploy.sh")
+		utils.SSH_exec_script(config["ssh_cert"],kubernetes_master_user, kubernetes_master, "./deploy/master/pre-master-deploy.sh")
 
 
 		with open("./deploy/master/deploy.list","r") as f:
 			deploy_files = [s.split(",") for s in f.readlines() if len(s.split(",")) == 2]
 		for (source, target) in deploy_files:
 			if (os.path.isfile(source.strip()) or os.path.exists(source.strip())):
-				sudo_scp(config["ssh_cert"],source.strip(),target.strip(),kubernetes_master_user,kubernetes_master)
+				utils.sudo_scp(config["ssh_cert"],source.strip(),target.strip(),kubernetes_master_user,kubernetes_master)
 
 
-		SSH_exec_script(config["ssh_cert"],kubernetes_master_user, kubernetes_master, "./deploy/master/post-master-deploy.sh")
+		utils.SSH_exec_script(config["ssh_cert"],kubernetes_master_user, kubernetes_master, "./deploy/master/post-master-deploy.sh")
 
 def deploy_masters():
 
@@ -551,10 +573,10 @@ def deploy_masters():
 	renderfiles = []
 	kubemaster_cfg_files = [f for f in os.listdir("./template/master") if os.path.isfile(os.path.join("./template/master", f))]
 	for file in kubemaster_cfg_files:
-		render_template(os.path.join("./template/master", file),os.path.join("./deploy/master", file))
+		utils.render_template(os.path.join("./template/master", file),os.path.join("./deploy/master", file),config)
 	kubemaster_cfg_files = [f for f in os.listdir("./template/kube-addons") if os.path.isfile(os.path.join("./template/kube-addons", f))]
 	for file in kubemaster_cfg_files:
-		render_template(os.path.join("./template/kube-addons", file),os.path.join("./deploy/kube-addons", file))
+		utils.render_template(os.path.join("./template/kube-addons", file),os.path.join("./deploy/kube-addons", file),config)
 
 
 	urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet", "./deploy/bin/kubelet")
@@ -566,7 +588,7 @@ def deploy_masters():
 		deploy_master(kubernetes_master)
 
 
-	SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_masters[0], "until curl -q http://127.0.0.1:8080/version/ ; do sleep 5; echo 'waiting for master...'; done;  sudo /opt/bin/kubectl create -f /opt/addons/kube-addons/", False)
+	utils.SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_masters[0], "until curl -q http://127.0.0.1:8080/version/ ; do sleep 5; echo 'waiting for master...'; done;  sudo /opt/bin/kubectl create -f /opt/addons/kube-addons/", False)
 
 
 
@@ -575,7 +597,7 @@ def uncordon_master():
 	kubernetes_masters = config["kubernetes_master_node"]
 	kubernetes_master_user = config["kubernetes_master_ssh_user"]
 	for i,kubernetes_master in enumerate(kubernetes_masters):
-		SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo /opt/bin/kubectl uncordon \$HOSTNAME")
+		utils.SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_master, "sudo /opt/bin/kubectl uncordon \$HOSTNAME")
 
 
 
@@ -586,11 +608,11 @@ def clean_etcd():
 	for etcd_server_address in etcd_servers:
 		print "==============================================="
 		print "Clean up etcd servers %s... (It is OK to see 'Errors' in this section)" % etcd_server_address		
-		#SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "timeout 10 docker rm -f \$(timeout 3 docker ps -q -a)")
+		#utils.SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "timeout 10 docker rm -f \$(timeout 3 docker ps -q -a)")
 		cmd = "sudo systemctl stop etcd3; "
 		cmd += "sudo rm -r /var/etcd/data ; "
 		cmd += "sudo rm -r /etc/etcd/ssl; "
-		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, cmd )
+		utils.SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, cmd )
 
 def check_etcd_service():
 	print "waiting for ETCD service is ready..."
@@ -603,7 +625,7 @@ def check_etcd_service():
 def deploy_ETCD_docker():
 	etcd_servers = config["etcd_node"]
 	etcd_server_user = config["etcd_user"]
-	render_template_directory("./template/etcd", "./deploy/etcd")
+	utils.render_template_directory("./template/etcd", "./deploy/etcd",config)
 
 	clean_etcd()
 
@@ -615,29 +637,29 @@ def deploy_ETCD_docker():
 		print "==============================================="
 		print "deploy certificates to etcd server %s" % etcd_server_address
 		
-		SSH_exec_cmd (config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo mkdir -p /etc/kubernetes/ssl") 
-		SSH_exec_cmd (config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo chown %s /etc/kubernetes/ssl " % (etcd_server_user)) 
-		scp(config["ssh_cert"],"./deploy/ssl/etcd","/etc/kubernetes/ssl", etcd_server_user, etcd_server_address )
+		utils.SSH_exec_cmd (config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo mkdir -p /etc/kubernetes/ssl") 
+		utils.SSH_exec_cmd (config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo chown %s /etc/kubernetes/ssl " % (etcd_server_user)) 
+		utils.scp(config["ssh_cert"],"./deploy/ssl/etcd","/etc/kubernetes/ssl", etcd_server_user, etcd_server_address )
 
 		print "==============================================="
 		print "starting etcd service on %s ..." % etcd_server_address
 
 
 		config["etcd_node_ip"] = etcd_server_address
-		render_template("./template/etcd/docker_etcd.sh","./deploy/etcd/docker_etcd.sh")
-		render_template("./template/etcd/docker_etcd_ssl.sh","./deploy/etcd/docker_etcd_ssl.sh")
+		utils.render_template("./template/etcd/docker_etcd.sh","./deploy/etcd/docker_etcd.sh",config)
+		utils.render_template("./template/etcd/docker_etcd_ssl.sh","./deploy/etcd/docker_etcd_ssl.sh",config)
 
-		scp(config["ssh_cert"],"./deploy/etcd/docker_etcd.sh","/home/%s/docker_etcd.sh" % etcd_server_user, etcd_server_user, etcd_server_address )
-		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "chmod +x /home/%s/docker_etcd.sh" % etcd_server_user)
+		utils.scp(config["ssh_cert"],"./deploy/etcd/docker_etcd.sh","/home/%s/docker_etcd.sh" % etcd_server_user, etcd_server_user, etcd_server_address )
+		utils.SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "chmod +x /home/%s/docker_etcd.sh" % etcd_server_user)
 
-		scp(config["ssh_cert"],"./deploy/etcd/docker_etcd_ssl.sh","/home/%s/docker_etcd_ssl.sh" % etcd_server_user, etcd_server_user, etcd_server_address )
-		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "chmod +x /home/%s/docker_etcd_ssl.sh" % etcd_server_user)
+		utils.scp(config["ssh_cert"],"./deploy/etcd/docker_etcd_ssl.sh","/home/%s/docker_etcd_ssl.sh" % etcd_server_user, etcd_server_user, etcd_server_address )
+		utils.SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "chmod +x /home/%s/docker_etcd_ssl.sh" % etcd_server_user)
 
 
-		scp(config["ssh_cert"],"./deploy/etcd/init_network.sh","/home/%s/init_network.sh" % etcd_server_user, etcd_server_user, etcd_server_address )
-		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "chmod +x /home/%s/init_network.sh" % etcd_server_user)
+		utils.scp(config["ssh_cert"],"./deploy/etcd/init_network.sh","/home/%s/init_network.sh" % etcd_server_user, etcd_server_user, etcd_server_address )
+		utils.SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "chmod +x /home/%s/init_network.sh" % etcd_server_user)
 
-		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "/home/%s/docker_etcd_ssl.sh" % etcd_server_user)
+		utils.SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "/home/%s/docker_etcd_ssl.sh" % etcd_server_user)
 
 	print "==============================================="
 	print "init etcd service on %s ..."  % etcd_servers[0]
@@ -646,9 +668,9 @@ def deploy_ETCD_docker():
 	check_etcd_service()
 
 
-	scp(config["ssh_cert"],"./deploy/etcd/init_network.sh","/home/%s/init_network.sh" % etcd_server_user, etcd_server_user, etcd_server_address )
-	SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_servers[0], "chmod +x /home/%s/init_network.sh" % etcd_server_user)
-	SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_servers[0], "/home/%s/init_network.sh" % etcd_server_user)
+	utils.scp(config["ssh_cert"],"./deploy/etcd/init_network.sh","/home/%s/init_network.sh" % etcd_server_user, etcd_server_user, etcd_server_address )
+	utils.SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_servers[0], "chmod +x /home/%s/init_network.sh" % etcd_server_user)
+	utils.SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_servers[0], "/home/%s/init_network.sh" % etcd_server_user)
 
 
 def deploy_ETCD():
@@ -660,18 +682,18 @@ def deploy_ETCD():
 	for i,etcd_server_address in enumerate(etcd_servers):
 		#print "==============================================="
 		#print "deploy configuration files to web server..."
-		#scp(config["ssh_cert"],"./deploy","/var/www/html", config["webserver_user"], config["webserver"] )
+		#utils.scp(config["ssh_cert"],"./deploy","/var/www/html", config["webserver_user"], config["webserver"] )
 
-		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo systemctl stop etcd3")
+		utils.SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo systemctl stop etcd3")
 
 		print "==============================================="
 		print "deploy certificates to etcd server %s" % etcd_server_address
 		
-		SSH_exec_cmd (config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo mkdir -p /etc/etcd/ssl") 
-		SSH_exec_cmd (config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo chown %s /etc/etcd/ssl " % (etcd_server_user)) 
-		scp(config["ssh_cert"],"./deploy/ssl/etcd/ca.pem","/etc/etcd/ssl", etcd_server_user, etcd_server_address )
-		scp(config["ssh_cert"],"./deploy/ssl/etcd/etcd.pem","/etc/etcd/ssl", etcd_server_user, etcd_server_address )
-		scp(config["ssh_cert"],"./deploy/ssl/etcd/etcd-key.pem","/etc/etcd/ssl", etcd_server_user, etcd_server_address )
+		utils.SSH_exec_cmd (config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo mkdir -p /etc/etcd/ssl") 
+		utils.SSH_exec_cmd (config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo chown %s /etc/etcd/ssl " % (etcd_server_user)) 
+		utils.scp(config["ssh_cert"],"./deploy/ssl/etcd/ca.pem","/etc/etcd/ssl", etcd_server_user, etcd_server_address )
+		utils.scp(config["ssh_cert"],"./deploy/ssl/etcd/etcd.pem","/etc/etcd/ssl", etcd_server_user, etcd_server_address )
+		utils.scp(config["ssh_cert"],"./deploy/ssl/etcd/etcd-key.pem","/etc/etcd/ssl", etcd_server_user, etcd_server_address )
 
 		print "==============================================="
 		print "starting etcd service on %s ..." % etcd_server_address
@@ -679,14 +701,14 @@ def deploy_ETCD():
 
 		config["etcd_node_ip"] = etcd_server_address
 		config["hostname"] = config["cluster_name"]+"-etcd"+str(i+1)
-		render_template("./template/etcd/etcd3.service","./deploy/etcd/etcd3.service")
-		render_template("./template/etcd/etcd_ssl.sh","./deploy/etcd/etcd_ssl.sh")
+		utils.render_template("./template/etcd/etcd3.service","./deploy/etcd/etcd3.service",config)
+		utils.render_template("./template/etcd/etcd_ssl.sh","./deploy/etcd/etcd_ssl.sh",config)
 
-		sudo_scp(config["ssh_cert"],"./deploy/etcd/etcd3.service","/etc/systemd/system/etcd3.service", etcd_server_user, etcd_server_address )
+		utils.sudo_scp(config["ssh_cert"],"./deploy/etcd/etcd3.service","/etc/systemd/system/etcd3.service", etcd_server_user, etcd_server_address )
 
-		sudo_scp(config["ssh_cert"],"./deploy/etcd/etcd_ssl.sh","/opt/etcd_ssl.sh", etcd_server_user, etcd_server_address )
-		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "chmod +x /opt/etcd_ssl.sh")
-		SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo /opt/etcd_ssl.sh")
+		utils.sudo_scp(config["ssh_cert"],"./deploy/etcd/etcd_ssl.sh","/opt/etcd_ssl.sh", etcd_server_user, etcd_server_address )
+		utils.SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "chmod +x /opt/etcd_ssl.sh")
+		utils.SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo /opt/etcd_ssl.sh")
 
 
 
@@ -703,8 +725,8 @@ def deploy_ETCD():
 
 
 
-	render_template("./template/etcd/init_network.sh","./deploy/etcd/init_network.sh")
-	SSH_exec_script( config["ssh_cert"], etcd_server_user, etcd_servers[0], "./deploy/etcd/init_network.sh")
+	utils.render_template("./template/etcd/init_network.sh","./deploy/etcd/init_network.sh",config)
+	utils.SSH_exec_script( config["ssh_cert"], etcd_server_user, etcd_servers[0], "./deploy/etcd/init_network.sh")
 
 
 def create_ISO():
@@ -721,7 +743,7 @@ def create_ISO():
 def create_PXE():
 	os.system("rm -r ./deploy/pxe")
 	os.system("mkdir -p ./deploy/docker")
-	render_template_directory("./template/pxe", "./deploy/pxe")
+	utils.render_template_directory("./template/pxe", "./deploy/pxe",config)
 	# cloud-config should be rendered already
 	os.system("cp -r ./deploy/cloud-config/* ./deploy/pxe/tftp/usr/share/oem")
 	dockername = "dlworkspace-pxe:%s" % config["cluster_name"] 
@@ -739,31 +761,31 @@ def clean_worker_nodes():
 	for nodeIP in workerNodes:
 		print "==============================================="
 		print "cleaning worker node: %s ..."  % nodeIP		
-		SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop kubelet")
-		SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "docker rm -f \$(docker ps -a -q)")
-		SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop docker")
-		SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop flanneld")
-		SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop bootstrap")
-		SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop reportcluster")
-		SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo reboot")
+		utils.SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop kubelet")
+		utils.SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "docker rm -f \$(docker ps -a -q)")
+		utils.SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop docker")
+		utils.SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop flanneld")
+		utils.SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop bootstrap")
+		utils.SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo systemctl stop reportcluster")
+		utils.SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo reboot")
 
 
 
 def update_worker_node(nodeIP):
 	print "==============================================="
 	print "updating worker node: %s ..."  % nodeIP
-	SSH_exec_cmd_with_directory(config["ssh_cert"], "core", nodeIP, "scripts", "bash --verbose stop-worker.sh")
+	utils.SSH_exec_cmd_with_directory(config["ssh_cert"], "core", nodeIP, "scripts", "bash --verbose stop-worker.sh")
 
-	sudo_scp(config["ssh_cert"],"./deploy/kubelet/options.env","/etc/flannel/options.env", "core", nodeIP )
+	utils.sudo_scp(config["ssh_cert"],"./deploy/kubelet/options.env","/etc/flannel/options.env", "core", nodeIP )
 
-	sudo_scp(config["ssh_cert"],"./deploy/kubelet/kubelet.service","/etc/systemd/system/kubelet.service", "core", nodeIP )
+	utils.sudo_scp(config["ssh_cert"],"./deploy/kubelet/kubelet.service","/etc/systemd/system/kubelet.service", "core", nodeIP )
 
-	sudo_scp(config["ssh_cert"],"./deploy/kubelet/worker-kubeconfig.yaml","/etc/kubernetes/worker-kubeconfig.yaml", "core", nodeIP )
+	utils.sudo_scp(config["ssh_cert"],"./deploy/kubelet/worker-kubeconfig.yaml","/etc/kubernetes/worker-kubeconfig.yaml", "core", nodeIP )
 	
-	sudo_scp(config["ssh_cert"],"./deploy/kubelet/kubelet.sh","/opt/kubelet.sh", "core", nodeIP )
+	utils.sudo_scp(config["ssh_cert"],"./deploy/kubelet/kubelet.sh","/opt/kubelet.sh", "core", nodeIP )
 
-	sudo_scp(config["ssh_cert"],"./deploy/bin/kubelet","/opt/bin/kubelet", "core", nodeIP )
-	SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo chmod +x /opt/bin/kubelet")
+	utils.sudo_scp(config["ssh_cert"],"./deploy/bin/kubelet","/opt/bin/kubelet", "core", nodeIP )
+	utils.SSH_exec_cmd(config["ssh_cert"], "core", nodeIP, "sudo chmod +x /opt/bin/kubelet")
 
 
 	with open("./deploy/ssl/ca/ca.pem", 'r') as f:
@@ -781,19 +803,19 @@ def update_worker_node(nodeIP):
 	config["worker-key.pem"] = base64.b64encode(content)
 
 
-	sudo_scp(config["ssh_cert"],"./deploy/ssl/ca/ca.pem","/etc/kubernetes/ssl/ca.pem", "core", nodeIP )
-	sudo_scp(config["ssh_cert"],"./deploy/ssl/ca/ca.pem","/etc/ssl/etcd/ca.pem", "core", nodeIP )
+	utils.sudo_scp(config["ssh_cert"],"./deploy/ssl/ca/ca.pem","/etc/kubernetes/ssl/ca.pem", "core", nodeIP )
+	utils.sudo_scp(config["ssh_cert"],"./deploy/ssl/ca/ca.pem","/etc/ssl/etcd/ca.pem", "core", nodeIP )
 
-	sudo_scp(config["ssh_cert"],"./deploy/ssl/kubelet/apiserver.pem","/etc/kubernetes/ssl/worker.pem", "core", nodeIP )
-	sudo_scp(config["ssh_cert"],"./deploy/ssl/kubelet/apiserver.pem","/etc/ssl/etcd/apiserver.pem", "core", nodeIP )
+	utils.sudo_scp(config["ssh_cert"],"./deploy/ssl/kubelet/apiserver.pem","/etc/kubernetes/ssl/worker.pem", "core", nodeIP )
+	utils.sudo_scp(config["ssh_cert"],"./deploy/ssl/kubelet/apiserver.pem","/etc/ssl/etcd/apiserver.pem", "core", nodeIP )
 
-	sudo_scp(config["ssh_cert"],"./deploy/ssl/kubelet/apiserver-key.pem","/etc/kubernetes/ssl/worker-key.pem", "core", nodeIP )
-	sudo_scp(config["ssh_cert"],"./deploy/ssl/kubelet/apiserver-key.pem","/etc/ssl/etcd/apiserver-key.pem", "core", nodeIP )
+	utils.sudo_scp(config["ssh_cert"],"./deploy/ssl/kubelet/apiserver-key.pem","/etc/kubernetes/ssl/worker-key.pem", "core", nodeIP )
+	utils.sudo_scp(config["ssh_cert"],"./deploy/ssl/kubelet/apiserver-key.pem","/etc/ssl/etcd/apiserver-key.pem", "core", nodeIP )
 
-	sudo_scp(config["ssh_cert"],"./deploy/kubelet/report.sh","/opt/report.sh", "core", nodeIP )
-	sudo_scp(config["ssh_cert"],"./deploy/kubelet/reportcluster.service","/etc/systemd/system/reportcluster.service", "core", nodeIP )
+	utils.sudo_scp(config["ssh_cert"],"./deploy/kubelet/report.sh","/opt/report.sh", "core", nodeIP )
+	utils.sudo_scp(config["ssh_cert"],"./deploy/kubelet/reportcluster.service","/etc/systemd/system/reportcluster.service", "core", nodeIP )
 
-	SSH_exec_cmd_with_directory(config["ssh_cert"], "core", nodeIP, "scripts", "bash --verbose start-worker.sh")
+	utils.SSH_exec_cmd_with_directory(config["ssh_cert"], "core", nodeIP, "scripts", "bash --verbose start-worker.sh")
 
 	print "done!"
 
@@ -814,7 +836,7 @@ def update_worker_nodes():
 	os.system("rm ./deploy/kubelet/worker-kubeconfig.yaml")
 
 	#if len(config["kubernetes_master_node"]) > 0:
-		#SSH_exec_cmd(config["ssh_cert"], "core", config["kubernetes_master_node"][0], "sudo /opt/bin/kubelet get nodes")
+		#utils.SSH_exec_cmd(config["ssh_cert"], "core", config["kubernetes_master_node"][0], "sudo /opt/bin/kubelet get nodes")
 
 def create_MYSQL_for_WebUI():
 	#todo: create a mysql database, and set "mysql-hostname", "mysql-username", "mysql-password", "mysql-database"
@@ -844,14 +866,14 @@ def deploy_restful_API_on_node(ipAddress):
 
 	if not os.path.exists("./deploy/RestfulAPI"):
 		os.system("mkdir -p ./deploy/RestfulAPI")
-	render_template("../utils/config.yaml.template","./deploy/RestfulAPI/config.yaml")
-	sudo_scp(config["ssh_cert"],"./deploy/RestfulAPI/config.yaml","/etc/RestfulAPI/config.yaml", "core", masterIP )
+	utils.render_template("../utils/config.yaml.template","./deploy/RestfulAPI/config.yaml",config)
+	utils.sudo_scp(config["ssh_cert"],"./deploy/RestfulAPI/config.yaml","/etc/RestfulAPI/config.yaml", "core", masterIP )
 
 
-	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo mkdir -p /dlws-data && sudo mount %s /dlws-data" % config["nfs-server"])
+	utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo mkdir -p /dlws-data && sudo mount %s /dlws-data" % config["nfs-server"])
 
 
-	SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker rm -f restfulapi; docker rm -f jobScheduler ; docker pull %s ; docker run -d -p 5000:5000 --restart always -v /etc/RestfulAPI:/RestfulAPI --name restfulapi %s ; docker run -d -v /dlws-data:/dlws-data -v /etc/RestfulAPI:/RestfulAPI --restart always --name jobScheduler %s /runScheduler.sh ;" % (dockername,dockername,dockername))
+	utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker rm -f restfulapi; docker rm -f jobScheduler ; docker pull %s ; docker run -d -p 5000:5000 --restart always -v /etc/RestfulAPI:/RestfulAPI --name restfulapi %s ; docker run -d -v /dlws-data:/dlws-data -v /etc/RestfulAPI:/RestfulAPI --restart always --name jobScheduler %s /runScheduler.sh ;" % (dockername,dockername,dockername))
 
 
 	print "==============================================="
@@ -874,10 +896,10 @@ def deploy_webUI_on_node(ipAddress):
 
 	if not os.path.exists("./deploy/WebUI"):
 		os.system("mkdir -p ./deploy/WebUI")
-	render_template("./template/WebUI/appsettings.json.template","./deploy/WebUI/appsettings.json")
-	sudo_scp(config["ssh_cert"],"./deploy/WebUI/appsettings.json","/etc/WebUI/appsettings.json", "core", webUIIP )
+	utils.render_template("./template/WebUI/appsettings.json.template","./deploy/WebUI/appsettings.json",config)
+	utils.sudo_scp(config["ssh_cert"],"./deploy/WebUI/appsettings.json","/etc/WebUI/appsettings.json", "core", webUIIP )
 
-	SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker pull %s ; docker rm -f webui ; docker run -d -p 80:80 -v /etc/WebUI:/WebUI --restart always --name webui %s ;" % (dockername,dockername))
+	utils.SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker pull %s ; docker rm -f webui ; docker run -d -p 80:80 -v /etc/WebUI:/WebUI --restart always --name webui %s ;" % (dockername,dockername))
 
 
 	print "==============================================="
@@ -891,7 +913,7 @@ def deploy_webUI():
 
 # Get disk partition information of a node
 def get_partions_of_node(node, prog):
-	output = SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "sudo parted -l -s", True)
+	output = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "sudo parted -l -s", True)
 	# print output
 	drives = prog.search( output )
 	# print(drives.group())
@@ -1021,7 +1043,7 @@ def repartition_nodes(nodes, nodesinfo, partitionConfig):
 					end = 100
 				cmd += "sudo parted -s --align optimal " + deviceinfo["name"] + " mkpart logical " + str(start) +"% " + str(end)+"% ; "
 				start = end
-		SSH_exec_cmd(config["ssh_cert"], "core", node, cmd)
+		utils.SSH_exec_cmd(config["ssh_cert"], "core", node, cmd)
 	print "Please note, it is OK to ignore message of Warning: Not all of the space available to /dev/___ appears to be used. The current default partition method optimizes for speed, rather to use all disk capacity..."
 	()
 	
@@ -1051,7 +1073,7 @@ def start_glusterFS( masternodes, ipToHostname, nodesinfo, glusterFSargs, flag =
 	remotecmd += "docker run -v "+rundir+":"+rundir+" --rm --entrypoint=cp "+heketidocker+" /usr/bin/heketi-cli "+rundir+"; "
 	remotecmd += "sudo bash ./gk-deploy "
 	remotecmd += flag
-	SSH_exec_cmd_with_directory( config["ssh_cert"], "core", masternodes[0], "deploy/storage/glusterFS", remotecmd, dstdir = rundir )
+	utils.SSH_exec_cmd_with_directory( config["ssh_cert"], "core", masternodes[0], "deploy/storage/glusterFS", remotecmd, dstdir = rundir )
 	
 # Deploy glusterFS on a cluster
 def remove_glusterFS_volumes( masternodes, ipToHostname, nodesinfo, glusterFSargs, nodes ):
@@ -1060,7 +1082,7 @@ def remove_glusterFS_volumes( masternodes, ipToHostname, nodesinfo, glusterFSarg
 		glusterFS_copy()
 		rundir = "/tmp/glusterFSAdmin"
 		remotecmd = "sudo python RemoveLVM.py "
-		SSH_exec_cmd_with_directory( config["ssh_cert"], "core", node, "deploy/storage/glusterFS", remotecmd, dstdir = rundir )
+		utils.SSH_exec_cmd_with_directory( config["ssh_cert"], "core", node, "deploy/storage/glusterFS", remotecmd, dstdir = rundir )
 
 def exec_on_all(nodes, args, supressWarning = False):
 	cmd = ""
@@ -1070,7 +1092,7 @@ def exec_on_all(nodes, args, supressWarning = False):
 		else:
 			cmd += " " + arg
 	for node in nodes:
-		SSH_exec_cmd(config["ssh_cert"], "core", node, cmd)
+		utils.SSH_exec_cmd(config["ssh_cert"], "core", node, cmd)
 		print "Node: " + node + " exec: " + cmd
 
 def exec_on_all_with_output(nodes, args, supressWarning = False):
@@ -1081,7 +1103,7 @@ def exec_on_all_with_output(nodes, args, supressWarning = False):
 		else:
 			cmd += " " + arg
 	for node in nodes:
-		output = SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, cmd, supressWarning)
+		output = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, cmd, supressWarning)
 		print "Node: " + node
 		print output
 
@@ -1104,7 +1126,7 @@ def run_script(node, args, sudo = False, supressWarning = False):
 		else:
 			fullcmd += " " + args[i]
 	srcdir = os.path.dirname(args[0])
-	SSH_exec_cmd_with_directory(config["ssh_cert"], "core", node, srcdir, fullcmd, supressWarning)
+	utils.SSH_exec_cmd_with_directory(config["ssh_cert"], "core", node, srcdir, fullcmd, supressWarning)
 		
 
 # run a shell script on all remote nodes
@@ -1146,7 +1168,7 @@ def set_host_names_by_lookup():
 		dic_macs_to_hostname = create_mac_dictionary(machineEntry)
 		nodes = get_nodes(config["clusterId"])
 		for node in nodes:
-			macs = get_mac_address(node, show=False )
+			macs = utils.get_mac_address(node, show=False )
 			namelist = []
 			for mac in macs:
 				usemac = mac.lower()
@@ -1163,7 +1185,7 @@ def set_host_names_by_lookup():
 					usename = namelist[0]
 				cmd = "sudo hostnamectl set-hostname " + usename
 				print "Set hostname of node " + node + " ... " + usename
-				SSH_exec_cmd( config["ssh_cert"], "core", node, cmd )
+				utils.SSH_exec_cmd( config["ssh_cert"], "core", node, cmd )
 
 if __name__ == '__main__':
 	# the program always run at the current directory. 
@@ -1305,7 +1327,7 @@ Command:
 				if num < 0 or num >= len(nodes):
 					num = 0
 			nodename = nodes[num]
-			SSH_connect( "./deploy/sshkey/id_rsa", "core", nodename)
+			utils.SSH_connect( "./deploy/sshkey/id_rsa", "core", nodename)
 			exit()
 
 	elif command == "deploy" and "clusterId" in config:
@@ -1363,7 +1385,7 @@ Command:
 		get_config()
 		nodes = get_nodes(config["clusterId"])
 		for node in nodes:
-			get_mac_address(node)
+			utils.get_mac_address(node)
 			
 	elif command == "uncordon":
 		get_config()

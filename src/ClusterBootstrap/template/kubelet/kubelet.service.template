@@ -8,13 +8,13 @@ Environment="RKT_OPTS=--uuid-file-save=/var/run/kubelet-pod.uuid \
 ExecStartPre=/usr/bin/mkdir -p /etc/kubernetes/manifests
 ExecStartPre=/usr/bin/mkdir -p /var/log/containers
 ExecStartPre=-/usr/bin/rkt rm --uuid-file=/var/run/kubelet-pod.uuid
-ExecStart=/opt/kubelet \
+ExecStart=/opt/bin/kubelet \
   --api-servers=##api_serviers## \
   --container-runtime=docker \
   --register-node=true \
   --allow-privileged=true \
   --pod-manifest-path=/etc/kubernetes/manifests \
-  --cluster_dns=10.3.0.2 \
+  --cluster_dns=10.3.0.53 \
   --cluster_domain=cluster.local \
   --kubeconfig=/etc/kubernetes/worker-kubeconfig.yaml \
   --tls-cert-file=/etc/kubernetes/ssl/worker.pem \

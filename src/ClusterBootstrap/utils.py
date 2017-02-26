@@ -188,28 +188,6 @@ def get_ETCD_discovery_URL(size):
 			raise Exception("ERROR: we cannot get etcd discovery url from 'https://discovery.etcd.io/new?size=%d'" % size) 
 		return output
 
-def _check_config_items(cnfitem, cnf):
-	if not cnfitem in cnf:
-		raise Exception("ERROR: we cannot find %s in config file" % cnfitem) 
-	else:
-		print "Checking configurations '%s' = '%s'" % (cnfitem, cnf[cnfitem])
- 
-def check_config(cnf):
-	_check_config_items("discovery_url",cnf)
-	_check_config_items("kubernetes_master_node",cnf)
-	_check_config_items("kubernetes_master_ssh_user",cnf)
-	_check_config_items("api_serviers",cnf)
-	_check_config_items("etcd_user",cnf)
-	_check_config_items("etcd_node",cnf)
-	_check_config_items("etcd_endpoints",cnf)
-	_check_config_items("ssh_cert",cnf)
-	_check_config_items("pod_ip_range",cnf)
-	_check_config_items("basic_auth",cnf)
-	_check_config_items("kubernetes_docker_image",cnf)
-	_check_config_items("service_cluster_ip_range",cnf)
-	if not os.path.isfile(config["ssh_cert"]):
-		raise Exception("ERROR: we cannot find ssh key file at %s. \n please run 'python build-pxe-coreos.py docker_image_name' to generate ssh key file and pxe server image." % config["ssh_cert"]) 
-
 
 def get_cluster_ID_from_file():
 	clusterID = None
@@ -246,11 +224,11 @@ def gen_SSH_key():
 			f.write("clusterId : %s" % clusterID)
 		f.close()
 
-def backup_keys():
+def backup_keys(clusterName):
 	clusterID = get_cluster_ID_from_file()
-	backupdir = "./deploy_backup/%s-%s/%s-%s" % (config["cluster_name"],clusterID,str(time.time()),str(uuid.uuid4())[:5])
+	backupdir = "./deploy_backup/%s-%s/%s-%s" % (clusterName,clusterID,str(time.time()),str(uuid.uuid4())[:5])
 	os.system("mkdir -p %s" % backupdir)
 	os.system("cp -r ./deploy/sshkey %s" % backupdir)
-	os.system("cp -r ./ssl %s" % backupdir)
+	os.system("cp -r ./deploy/ssl %s" % backupdir)
 	os.system("cp -r ./deploy/clusterID.yml %s" % backupdir)
 
