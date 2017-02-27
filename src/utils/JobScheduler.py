@@ -211,13 +211,13 @@ def SubmitJob(job):
         jobTempDir = os.path.join(config["root-path"],"Jobs_Templete")
         jobTemp= os.path.join(jobTempDir, "RegularJob.yaml.template")
 
+        config["hostjobPath"] = "/dlws-data/"+jobPath
+        config["hostworkPath"] = "/dlws-data/"+workPath
+        config["hostdataPath"] = "/dlws-data/"+dataPath
+
 
         template = ENV.get_template(os.path.abspath(jobTemp))
         job_description = template.render(job=jobParams)
-
-        config["jobPath"] = "/dlws-data/"+jobPath
-        config["workPath"] = "/dlws-data/"+workPath
-        config["dataPath"] = "/dlws-data/"+dataPath
 
         jobDescriptionList = []
 
