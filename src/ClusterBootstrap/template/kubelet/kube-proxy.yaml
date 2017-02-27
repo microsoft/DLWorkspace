@@ -10,7 +10,7 @@ spec:
     image: {{cnf["kubernetes_docker_image"]}}
     command:
     - /proxy
-    - --master={{cnf["api_serviers"]}}
+    - --master={{cnf["api_servers"]}}
     - --kubeconfig=/etc/kubernetes/worker-kubeconfig.yaml
     - --proxy-mode=iptables
     securityContext:

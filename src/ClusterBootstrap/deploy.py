@@ -107,7 +107,7 @@ def check_config(cnf):
 	_check_config_items("discovery_url",cnf)
 	_check_config_items("kubernetes_master_node",cnf)
 	_check_config_items("kubernetes_master_ssh_user",cnf)
-	_check_config_items("api_serviers",cnf)
+	_check_config_items("api_servers",cnf)
 	_check_config_items("etcd_user",cnf)
 	_check_config_items("etcd_node",cnf)
 	_check_config_items("etcd_endpoints",cnf)
@@ -461,8 +461,8 @@ def gen_configs():
 		config["etcd_user"] = "core"
 		config["kubernetes_master_ssh_user"] = "core"
 
-	#config["api_serviers"] = ",".join(["https://"+x for x in config["kubernetes_master_node"]])
-	config["api_serviers"] = "https://"+config["kubernetes_master_node"][0]
+	#config["api_servers"] = ",".join(["https://"+x for x in config["kubernetes_master_node"]])
+	config["api_servers"] = "https://"+config["kubernetes_master_node"][0]
 	config["etcd_endpoints"] = ",".join(["https://"+x+":2379" for x in config["etcd_node"]])
 
 
@@ -822,8 +822,8 @@ def update_worker_node(nodeIP):
 
 def update_worker_nodes():
 	os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' % config["etcd_endpoints"].replace("/","\\/"))
-	os.system('sed "s/##api_serviers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' % config["api_serviers"].replace("/","\\/"))
-	os.system('sed "s/##api_serviers##/%s/" ./deploy/kubelet/worker-kubeconfig.yaml.template > ./deploy/kubelet/worker-kubeconfig.yaml' % config["api_serviers"].replace("/","\\/"))
+	os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' % config["api_servers"].replace("/","\\/"))
+	os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/worker-kubeconfig.yaml.template > ./deploy/kubelet/worker-kubeconfig.yaml' % config["api_servers"].replace("/","\\/"))
 	
 	urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet", "./deploy/bin/kubelet")
 
@@ -867,13 +867,13 @@ def deploy_restful_API_on_node(ipAddress):
 	if not os.path.exists("./deploy/RestfulAPI"):
 		os.system("mkdir -p ./deploy/RestfulAPI")
 	utils.render_template("../utils/config.yaml.template","./deploy/RestfulAPI/config.yaml",config)
+	utils.render_template("./template/master/restapi-kubeconfig.yaml","./deploy/master/restapi-kubeconfig.yaml",config)
+
 	utils.sudo_scp(config["ssh_cert"],"./deploy/RestfulAPI/config.yaml","/etc/RestfulAPI/config.yaml", "core", masterIP )
+	utils.sudo_scp(config["ssh_cert"],"./deploy/master/restapi-kubeconfig.yaml","/etc/kubernetes/restapi-kubeconfig.yaml", "core", masterIP )
 
 
-	utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo mkdir -p /dlws-data && sudo mount %s /dlws-data" % config["nfs-server"])
-
-
-	utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "docker rm -f restfulapi; docker rm -f jobScheduler ; docker pull %s ; docker run -d -p 5000:5000 --restart always -v /etc/RestfulAPI:/RestfulAPI --name restfulapi %s ; docker run -d -v /dlws-data:/dlws-data -v /etc/RestfulAPI:/RestfulAPI --restart always --name jobScheduler %s /runScheduler.sh ;" % (dockername,dockername,dockername))
+	utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo mkdir -p /dlws-data && sudo mount %s /dlws-data ; docker rm -f restfulapi; docker rm -f jobScheduler ; docker pull %s ; docker run -d --net=host --restart always -v /etc/RestfulAPI:/RestfulAPI --name restfulapi %s ; docker run -d -v /dlws-data:/dlws-data -v /etc/RestfulAPI:/RestfulAPI -v /etc/kubernetes/restapi-kubeconfig.yaml:/root/.kube/config -v /etc/kubernetes/ssl:/etc/kubernetes/ssl --restart always --name jobScheduler %s /runScheduler.sh ;" % (config["nfs-server"], dockername,dockername,dockername))
 
 
 	print "==============================================="
@@ -1353,7 +1353,7 @@ Command:
 
 				urllib.urlretrieve (config["homeinserver"]+"/SetClusterInfo?clusterId=%s&key=etcd_endpoints&value=%s" %  (config["clusterId"],config["etcd_endpoints"]))
 				urllib.urlretrieve (
-				config["homeinserver"]+"/SetClusterInfo?clusterId=%s&key=api_server&value=%s" % (config["clusterId"],config["api_serviers"]))
+				config["homeinserver"]+"/SetClusterInfo?clusterId=%s&key=api_server&value=%s" % (config["clusterId"],config["api_servers"]))
 			
 #			response = raw_input_with_default("Create ISO file for deployment (y/n)?")
 #			if first_char(response) == "y":
