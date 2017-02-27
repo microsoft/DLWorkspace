@@ -3,6 +3,11 @@ coreos:
   units:
     # There should be exactly 4 spaces before the -name. 
     # This is to ensure additional option units can be added through configuration.  
+    - name: update-engine.service
+      command: stop
+    - name: locksmithd.service
+      command: stop
+          
     - name: checkinternet.service
       command: start
       content: |

@@ -136,14 +136,17 @@ def GetLog(jobId):
 
 
 def GetJobStatus(jobId):
-    pods = GetPod("run="+jobId)["items"]
+    podInfo = GetPod("run="+jobId)
     output = "unknown"
     detail = "Unknown Status"
-    if len(pods) > 0:
-        lastpod = pods[-1]
-        if "status" in lastpod and "phase" in lastpod["status"]:
-            output = lastpod["status"]["phase"]
-            detail = yaml.dump(lastpod["status"], default_flow_style=False)
+
+    if podInfo is not None and "items" in podInfo:
+        pods = podInfo["items"]
+        if len(pods) > 0:
+            lastpod = pods[-1]
+            if "status" in lastpod and "phase" in lastpod["status"]:
+                output = lastpod["status"]["phase"]
+                detail = yaml.dump(lastpod["status"], default_flow_style=False)
     return output, detail
 
 
@@ -152,9 +155,9 @@ def GetJobStatus(jobId):
 def SubmitJob(job):
     jobParams = json.loads(base64.b64decode(job["jobParams"]))
     ret={}
+    dataHandler = DataHandler()
 
     try:
-        dataHandler = DataHandler()
         jobParams["pvc_job"] = "jobs-"+jobParams["jobId"]
         jobParams["pvc_work"] = "work-"+jobParams["jobId"]
         jobParams["pvc_data"] = "storage-"+jobParams["jobId"]
@@ -287,8 +290,10 @@ def SubmitJob(job):
     except Exception as e:
         print e
         ret["error"] = str(e)
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","error")
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"errorMsg","Cannot submit job!" + str(e)
+        retries = dataHandler.AddandGetJobRetries(jobParams["jobId"])
+        if retries >= 5:
+            dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","error")
+            dataHandler.UpdateJobTextField(jobParams["jobId"],"errorMsg","Cannot submit job!" + str(e))
 
     return ret
 
@@ -334,20 +339,23 @@ def UpdateJobStatus(job):
     jobPath,workPath,dataPath = GetStoragePath(jobParams["jobPath"],jobParams["workPath"],jobParams["dataPath"])
     localJobPath = os.path.join(config["storage-mount-path"],jobPath)
     logPath = os.path.join(localJobPath,"joblog.txt")
-    ExtractJobLog(job["jobId"],logPath)
+    
 
     result, detail = GetJobStatus(job["jobId"])
+    dataHandler.UpdateJobTextField(job["jobId"],"jobStatusDetail",base64.b64encode(detail))
 
     print result
     
     jobDescriptionPath = os.path.join(os.path.dirname(config["storage-mount-path"]), job["jobDescriptionPath"]) if "jobDescriptionPath" in job else None
 
     if result.strip() == "Succeeded":
+        ExtractJobLog(job["jobId"],logPath)
         dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","finished")
         if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
             kubectl_delete(jobDescriptionPath) 
 
     elif result.strip() == "Running":
+        ExtractJobLog(job["jobId"],logPath)
         if job["jobStatus"] != "running":
             dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","running")
         if "interactivePort" in jobParams:
@@ -356,6 +364,7 @@ def UpdateJobStatus(job):
             dataHandler.UpdateJobTextField(job["jobId"],"endpoints",serviceAddress)
 
     elif result.strip() == "Failed":
+        ExtractJobLog(job["jobId"],logPath)
         dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","failed")
         dataHandler.UpdateJobTextField(job["jobId"],"errorMsg",detail)
         if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
