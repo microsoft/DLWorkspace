@@ -1,4 +1,6 @@
 #!/bin/bash 
+# Optional additional startup script to be executed
+{{cnf["startupscripts"]}}
 # Node home in, for bootstrap stage only. 
 export discoverserver="$(cat /opt/discoverserver)"
 /bin/bash -c 'until ping -c1 ${discoverserver}; do sleep 1; done;'
