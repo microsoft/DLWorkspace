@@ -1,7 +1,7 @@
-ssl/apiserver/ca.pem,/etc/kubernetes/ssl/ca.pem
-ssl/apiserver/ca-key.pem,/etc/kubernetes/ssl/ca-key.pem
-ssl/apiserver/apiserver.pem,/etc/kubernetes/ssl/apiserver.pem
-ssl/apiserver/apiserver-key.pem,/etc/kubernetes/ssl/apiserver-key.pem
+./deploy/ssl/apiserver/ca.pem,/etc/kubernetes/ssl/ca.pem
+./deploy/ssl/apiserver/ca-key.pem,/etc/kubernetes/ssl/ca-key.pem
+./deploy/ssl/apiserver/apiserver.pem,/etc/kubernetes/ssl/apiserver.pem
+./deploy/ssl/apiserver/apiserver-key.pem,/etc/kubernetes/ssl/apiserver-key.pem
 ./deploy/master/basicauth,/etc/kubernetes/basicauth
 ./deploy/master/worker-kubeconfig.yaml,/etc/kubernetes/worker-kubeconfig.yaml
 ./deploy/master/40-ExecStartPre-symlink.conf,/etc/systemd/system/flanneld.service.d/40-ExecStartPre-symlink.conf
