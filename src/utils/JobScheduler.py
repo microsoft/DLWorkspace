@@ -215,21 +215,12 @@ def SubmitJob(job):
         template = ENV.get_template(os.path.abspath(jobTemp))
         job_description = template.render(job=jobParams)
 
-
-
-
-        pv_description_j,pvc_description_j = GenStorageClaims(jobParams["pvc_job"],jobPath)
-        pv_description_u,pvc_description_u = GenStorageClaims(jobParams["pvc_work"],workPath)
-        pv_description_d,pvc_description_d = GenStorageClaims(jobParams["pvc_data"],dataPath)
-
+        config["jobPath"] = "/dlws-data/"+jobPath
+        config["workPath"] = "/dlws-data/"+workPath
+        config["dataPath"] = "/dlws-data/"+dataPath
 
         jobDescriptionList = []
-        jobDescriptionList.append(pv_description_j)
-        jobDescriptionList.append(pvc_description_j)
-        jobDescriptionList.append(pv_description_u)
-        jobDescriptionList.append(pvc_description_u)
-        jobDescriptionList.append(pv_description_d)
-        jobDescriptionList.append(pvc_description_d)
+
         jobDescriptionList.append(job_description)
 
         if ("interactivePort" in jobParams and len(jobParams["interactivePort"].strip()) > 0):
@@ -279,10 +270,9 @@ def SubmitJob(job):
 
         jobMeta = {}
         jobMeta["jobDescriptionPath"] = jobParams["jobDescriptionPath"]
-        jobMeta["pvc_data"] = jobParams["pvc_data"]
-        jobMeta["pvc_work"] = jobParams["pvc_work"]
-        jobMeta["pvc_job"] = jobParams["pvc_job"]
-        jobMeta["pvc_job"] = jobParams["pvc_job"]
+        jobMeta["jobPath"] = jobParams["jobPath"]
+        jobMeta["workPath"] = jobParams["workPath"]
+        jobMeta["jobPath"] = jobParams["jobPath"]
         jobMeta["LaunchCMD"] = jobParams["LaunchCMD"]
 
         jobMetaStr = base64.b64encode(json.dumps(jobMeta))

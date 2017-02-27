@@ -35,11 +35,11 @@ spec:
         hostPath:
           path: /var/lib/nvidia-docker/volumes/nvidia_driver/375.20
       - name: job
-        persistentVolumeClaim:
-          claimName: {{ job["pvc_job"] }}
+        hostPath:
+          path: {{ job["jobPath"] }}
       - name: work
-        persistentVolumeClaim:
-          claimName: {{ job["pvc_work"] }}
+        hostPath:
+          path: {{ job["workPath"] }}
       - name: data
-        persistentVolumeClaim:
-          claimName: {{ job["pvc_data"] }}
+        hostPath:
+          path: {{ job["dataPath"] }}
