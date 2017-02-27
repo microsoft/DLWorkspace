@@ -211,9 +211,9 @@ def SubmitJob(job):
         jobTempDir = os.path.join(config["root-path"],"Jobs_Templete")
         jobTemp= os.path.join(jobTempDir, "RegularJob.yaml.template")
 
-        config["hostjobPath"] = "/dlws-data/"+jobPath
-        config["hostworkPath"] = "/dlws-data/"+workPath
-        config["hostdataPath"] = "/dlws-data/"+dataPath
+        jobParams["hostjobPath"] = "/dlws-data/"+jobPath
+        jobParams["hostworkPath"] = "/dlws-data/"+workPath
+        jobParams["hostdataPath"] = "/dlws-data/"+dataPath
 
 
         template = ENV.get_template(os.path.abspath(jobTemp))
