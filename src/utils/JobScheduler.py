@@ -361,7 +361,13 @@ def UpdateJobStatus(job):
             kubectl_delete(jobDescriptionPath) 
 
     elif result.strip() == "unknown":
-        SubmitJob(job)
+        retries = dataHandler.AddandGetJobRetries(job["jobId"])
+        if retries >= 5:
+            dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","error")
+            dataHandler.UpdateJobTextField(job["jobId"],"errorMsg","cannot launch the job.")
+        else:
+            SubmitJob(job)
+
 
 
 def ScheduleJob():
