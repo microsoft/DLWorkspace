@@ -199,7 +199,7 @@ class DataHandler:
 
 		sql = """update [%s] set [retries] = [retries] + 1 where cast([jobId] as nvarchar(max)) = N'%s' """ % (self.jobtablename, jobId)
 		cursor = self.conn.cursor()
-		cursor.execute(sql,value)
+		cursor.execute(sql)
 		self.conn.commit()
 		cursor.close()
 

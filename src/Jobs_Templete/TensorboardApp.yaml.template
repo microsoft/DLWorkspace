@@ -11,7 +11,7 @@ spec:
     spec:
       containers:
       - name: {{ job["tensorboard-id"] }}
-        image: tensorflow/tensorflow:latest
+        image: tensorflow/tensorflow:0.12.1-gpu
         command: ["tensorboard", "--logdir","{{ job["logDir"] }}", "--host", "0.0.0.0"]
 
         volumeMounts:

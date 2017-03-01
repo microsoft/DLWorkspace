@@ -3,6 +3,7 @@ kind: Job
 metadata:
   name: {{ job["jobId"] }}
 spec:
+  # this may be a problem if we need more time to pull a docker image. Haven't tested this case. 
   activeDeadlineSeconds: 120
   template:
     metadata:
@@ -35,11 +36,11 @@ spec:
         hostPath:
           path: /var/lib/nvidia-docker/volumes/nvidia_driver/375.20
       - name: job
-        persistentVolumeClaim:
-          claimName: {{ job["pvc_job"] }}
+        hostPath:
+          path: {{ job["hostjobPath"] }}
       - name: work
-        persistentVolumeClaim:
-          claimName: {{ job["pvc_work"] }}
+        hostPath:
+          path: {{ job["hostworkPath"] }}
       - name: data
-        persistentVolumeClaim:
-          claimName: {{ job["pvc_data"] }}
+        hostPath:
+          path: {{ job["hostdataPath"] }}
