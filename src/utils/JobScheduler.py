@@ -129,7 +129,7 @@ def GetLog(jobId):
         for item in podInfo["items"]:
             if "metadata" in item and "name" in item["metadata"]:
                 podName = item["metadata"]["name"]
-                if "status" in item and "containerStatuses" in item["status"] and "containerID" in item["status"]["containerStatuses"]
+                if "status" in item and "containerStatuses" in item["status"] and "containerID" in item["status"]["containerStatuses"]:
                     containerID = item["status"]["containerStatuses"]["containerID"].replace("docker://","")
     if podName is not None:
         output = kubectl_exec(" logs "+podName)
