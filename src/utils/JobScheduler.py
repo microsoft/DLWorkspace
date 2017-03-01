@@ -124,15 +124,19 @@ def GetLog(jobId):
     selector = "run="+jobId
     podInfo = GetPod(selector)
     podName = None
+    containerID = None
     if podInfo is not None and "items" in podInfo:
         for item in podInfo["items"]:
             if "metadata" in item and "name" in item["metadata"]:
                 podName = item["metadata"]["name"]
+                if "status" in item and "containerStatuses" in item["status"] and "containerID" in item["status"]["containerStatuses"]
+                    containerID = item["status"]["containerStatuses"]["containerID"].replace("docker://","")
     if podName is not None:
         output = kubectl_exec(" logs "+podName)
+
     else:
         output = ""
-    return output
+    return (output,containerID)
 
 
 def GetJobStatus(jobId):
@@ -307,17 +311,26 @@ def KillJob(job):
 
 
 def ExtractJobLog(jobId,logPath):
-    jobLogDir = os.path.dirname(logPath)
     dataHandler = DataHandler()
-    if not os.path.exists(jobLogDir):
-        os.makedirs(jobLogDir)
 
-    log = GetLog(jobId)
+    log,containerId = GetLog(jobId)
     if len(log.strip()) > 0:
         dataHandler.UpdateJobTextField(jobId,"jobLog",log)
-        with open(logPath, 'w') as f:
-            f.write(log)
-        f.close()
+        try:
+            jobLogDir = os.path.dirname(logPath)
+            if not os.path.exists(jobLogDir):
+                os.makedirs(jobLogDir)
+            with open(logPath, 'w') as f:
+                f.write(log)
+            f.close()
+            if containerId is not None:
+                containerLogPath = os.path.join(logPath,"log-container-"+containerId+".txt")
+                with open(logPath, 'w') as f:
+                    f.write(log)
+                f.close()
+        except Exception as e:
+            print e
+
 
 
 
