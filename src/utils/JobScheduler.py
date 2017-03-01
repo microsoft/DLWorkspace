@@ -6,6 +6,7 @@ import uuid
 import subprocess
 import sys
 from jobs_tensorboard import GenTensorboardMeta
+import datetime
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
 from gen_pv_pvc import GenStorageClaims, GetStoragePath
@@ -112,6 +113,7 @@ def GetServiceAddress(jobId):
 
 
 def GetPod(selector):
+    podInfo={}
     try:
         output = kubectl_exec(" get pod -o yaml --show-all -l "+selector)
         podInfo = yaml.load(output)
@@ -121,6 +123,8 @@ def GetPod(selector):
     return podInfo
 
 def GetLog(jobId):
+    # assume our job has only one pod per job and only one container per pod.
+
     selector = "run="+jobId
     podInfo = GetPod(selector)
     podName = None
@@ -129,8 +133,8 @@ def GetLog(jobId):
         for item in podInfo["items"]:
             if "metadata" in item and "name" in item["metadata"]:
                 podName = item["metadata"]["name"]
-                if "status" in item and "containerStatuses" in item["status"] and "containerID" in item["status"]["containerStatuses"]:
-                    containerID = item["status"]["containerStatuses"]["containerID"].replace("docker://","")
+                if "status" in item and "containerStatuses" in item["status"] and "containerID" in item["status"]["containerStatuses"][0]:
+                    containerID = item["status"]["containerStatuses"][0]["containerID"].replace("docker://","")
     if podName is not None:
         output = kubectl_exec(" logs "+podName)
 
@@ -144,7 +148,9 @@ def GetJobStatus(jobId):
     output = "unknown"
     detail = "Unknown Status"
 
-    if podInfo is not None and "items" in podInfo:
+    if podInfo is None:
+        output = "kubectlERR"
+    elif "items" in podInfo:
         pods = podInfo["items"]
         if len(pods) > 0:
             lastpod = pods[-1]
@@ -152,8 +158,6 @@ def GetJobStatus(jobId):
                 output = lastpod["status"]["phase"]
                 detail = yaml.dump(lastpod["status"], default_flow_style=False)
     return output, detail
-
-
 
 
 def SubmitJob(job):
@@ -324,15 +328,15 @@ def ExtractJobLog(jobId,logPath):
                 f.write(log)
             f.close()
             if containerId is not None:
-                containerLogPath = os.path.join(logPath,"log-container-"+containerId+".txt")
-                with open(logPath, 'w') as f:
+                containerLogPath = os.path.join(jobLogDir,"log-container-"+containerId+".txt")
+                with open(containerLogPath, 'w') as f:
                     f.write(log)
                 f.close()
         except Exception as e:
             print e
 
 
-
+UnusualJobs = {}
 
 def UpdateJobStatus(job):
     dataHandler = DataHandler()
@@ -374,12 +378,19 @@ def UpdateJobStatus(job):
             kubectl_delete(jobDescriptionPath) 
 
     elif result.strip() == "unknown":
-        retries = dataHandler.AddandGetJobRetries(job["jobId"])
-        if retries >= 5:
-            dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","error")
-            dataHandler.UpdateJobTextField(job["jobId"],"errorMsg","cannot launch the job.")
-        else:
-            SubmitJob(job)
+        if job["jobId"] not in UnusualJobs:
+            UnusualJobs[job["jobId"]] = datetime.datetime.now()
+        elif (datetime.datetime.now() - UnusualJobs[job["jobId"]]).seconds > 300:
+            del UnusualJobs[job["jobId"]]
+            retries = dataHandler.AddandGetJobRetries(job["jobId"])
+            if retries >= 5:
+                dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","error")
+                dataHandler.UpdateJobTextField(job["jobId"],"errorMsg","cannot launch the job.")
+            else:
+                SubmitJob(job)
+
+    if result.strip() != "unknown" and job["jobId"] in UnusualJobs:
+        del UnusualJobs[job["jobId"]]
 
 
 
