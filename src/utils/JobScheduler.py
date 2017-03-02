@@ -19,6 +19,10 @@ import base64
 
 import re
 
+
+def printlog(msg):
+    print "%s - %s" % (datetime.datetime.utcnow().strftime("%x %X"),msg)
+
 def LoadJobParams(jobParamsJsonStr):
     return json.loads(jobParamsJsonStr)
 
@@ -351,7 +355,7 @@ def UpdateJobStatus(job):
     result, detail = GetJobStatus(job["jobId"])
     dataHandler.UpdateJobTextField(job["jobId"],"jobStatusDetail",base64.b64encode(detail))
 
-    print result
+    printlog("job %d status: %s" % (printlog, result))
     
     jobDescriptionPath = os.path.join(os.path.dirname(config["storage-mount-path"]), job["jobDescriptionPath"]) if "jobDescriptionPath" in job else None
 
@@ -371,6 +375,7 @@ def UpdateJobStatus(job):
             dataHandler.UpdateJobTextField(job["jobId"],"endpoints",serviceAddress)
 
     elif result.strip() == "Failed":
+        printlog("Job %s fails, cleaning..." % job["jobId"])
         ExtractJobLog(job["jobId"],logPath)
         dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","failed")
         dataHandler.UpdateJobTextField(job["jobId"],"errorMsg",detail)
@@ -384,9 +389,11 @@ def UpdateJobStatus(job):
             del UnusualJobs[job["jobId"]]
             retries = dataHandler.AddandGetJobRetries(job["jobId"])
             if retries >= 5:
+                printlog("Job %s fails for more than 5 times, abort" % job["jobId"])
                 dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","error")
                 dataHandler.UpdateJobTextField(job["jobId"],"errorMsg","cannot launch the job.")
             else:
+                printlog("Job %s fails in Kubernetes, delete and re-submit the job. Retries %d" % (job["jobId"] , retries))
                 SubmitJob(job)
 
     if result.strip() != "unknown" and job["jobId"] in UnusualJobs:
@@ -399,8 +406,7 @@ def ScheduleJob():
         #try:
             dataHandler = DataHandler()
             pendingJobs = dataHandler.GetPendingJobs()
-            print len(pendingJobs)
-
+            printlog("updating status for %d jobs" % len(pendingJobs))
             for job in pendingJobs:
                 #try:
                     print "Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"])
