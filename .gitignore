@@ -3,8 +3,6 @@
 **/cluster.yaml
 **/pxe-coreos-kube.yml
 **/pxe-kubemaster.yml
-**/openssl-etcd.cnf
-**/openssl-apiserver.cnf
 **/*.pem
 **/id_rsa
 **/id_rsa.pub
