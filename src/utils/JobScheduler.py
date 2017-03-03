@@ -355,7 +355,7 @@ def UpdateJobStatus(job):
     result, detail = GetJobStatus(job["jobId"])
     dataHandler.UpdateJobTextField(job["jobId"],"jobStatusDetail",base64.b64encode(detail))
 
-    printlog("job %d status: %s" % (printlog, result))
+    printlog("job %s status: %s" % (job["jobId"], result))
     
     jobDescriptionPath = os.path.join(os.path.dirname(config["storage-mount-path"]), job["jobDescriptionPath"]) if "jobDescriptionPath" in job else None
 
@@ -392,6 +392,8 @@ def UpdateJobStatus(job):
                 printlog("Job %s fails for more than 5 times, abort" % job["jobId"])
                 dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","error")
                 dataHandler.UpdateJobTextField(job["jobId"],"errorMsg","cannot launch the job.")
+                if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
+                    kubectl_delete(jobDescriptionPath)                 
             else:
                 printlog("Job %s fails in Kubernetes, delete and re-submit the job. Retries %d" % (job["jobId"] , retries))
                 SubmitJob(job)
