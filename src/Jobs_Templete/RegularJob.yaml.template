@@ -4,7 +4,7 @@ metadata:
   name: {{ job["jobId"] }}
 spec:
   # this may be a problem if we need more time to pull a docker image. Haven't tested this case. 
-  activeDeadlineSeconds: 120
+  # activeDeadlineSeconds: 120
   template:
     metadata:
       name: {{ job["jobId"] }}
