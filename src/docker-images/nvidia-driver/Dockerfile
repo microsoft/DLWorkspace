@@ -37,11 +37,8 @@ RUN apt-get install -y apt-transport-https ca-certificates && \
 
 
 #EXPOSE 3476
-RUN wget -P /opt https://github.com/NVIDIA/nvidia-docker/releases/download/v1.0.0/nvidia-docker_1.0.0_amd64.tar.xz
-ADD init_service.sh /opt/
-ADD init_devices.sh /opt/
+RUN wget -P /opt https://github.com/NVIDIA/nvidia-docker/releases/download/v1.0.1/nvidia-docker_1.0.1_amd64.tar.xz
 ADD install_drivers.sh /opt/
-RUN chmod +x /opt/init_service.sh
 RUN chmod +x /opt/install_drivers.sh
 CMD /opt/install_drivers.sh
 
