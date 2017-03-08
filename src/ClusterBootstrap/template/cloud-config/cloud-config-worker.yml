@@ -49,6 +49,26 @@ coreos:
         ExecStart=/bin/bash /opt/kubelet.sh 
         [Install]
         WantedBy=local.target
+    - name: nvidia-driver.service
+      command: start
+      content: |
+        [Unit]
+        Description=Install Nvidia driver and nvidia-docker
+        After=local-fs.target network.target
+        Wants=docker.service
+        [Service]
+        Environment="SOCK_DIR=/var/lib/nvidia-docker"
+        Environment="SPEC_FILE=/etc/docker/plugins/nvidia-docker.spec"
+        Restart=always
+        RestartSec=10
+        TimeoutStartSec=1200
+        TimeoutStopSec=120
+        ExecStart=/opt/install_nvidia_docker.sh
+        ExecStartPost=/bin/sh -c '/bin/mkdir -p $( dirname $SPEC_FILE )'
+        ExecStartPost=/bin/sh -c '/bin/echo unix://$SOCK_DIR/nvidia-docker.sock > $SPEC_FILE'
+        ExecStopPost=/bin/rm -f $SPEC_FILE
+        [Install]
+        WantedBy=multi-user.target
 {{cnf["coreosunits"]}}
 
 ssh_authorized_keys:
@@ -184,6 +204,13 @@ write_files:
     encoding: "base64"
     content: |
       {{cnf["checkinternet.sh"]}}
+      
+  - path: "/opt/install_nvidia_docker.sh"
+    permissions: "0755"
+    owner: "root"
+    encoding: "base64"
+    content: |
+      {{cnf["install_nvidia_docker.sh"]}}
       
 {{cnf["coreoswritefiles"]}}
 
