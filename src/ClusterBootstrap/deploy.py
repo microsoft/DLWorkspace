@@ -41,6 +41,8 @@ coreosbaseurl = ""
 discoverserver = "4.2.2.1" 
 homeininterval = "600"
 dockerregistry = "mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace"
+nvidiadriverdocker = "mlcloudreg.westus.cloudapp.azure.com:5000/nvidia_driver:375.20"
+nvidiadriverversion = "375.20"
 verbose = False; 
 
 # default search for all partitions of hdb, hdc, hdd, and sdb, sdc, sdd
@@ -94,6 +96,8 @@ def init_config():
 	config["homeinserver"] = homeinserver
 	config["homeininterval"] = homeininterval
 	config["dockerregistry"] = dockerregistry
+	config["nvidiadriverdocker"] = nvidiadriverdocker
+	config["nvidiadriverversion"] = nvidiadriverversion
 	return config
 
 
@@ -188,6 +192,19 @@ def add_kubelet_config():
 			content = f.read()
 		config[file] = base64.b64encode(content)
 
+# Render scripts for drivers
+def add_driver_config():
+	renderfiles = []
+
+# Render all deployment script used. 
+	utils.render_template_directory("./template/drivers", "./deploy/drivers",config)
+
+	kubemaster_cfg_files = [f for f in os.listdir("./deploy/drivers") if os.path.isfile(os.path.join("./deploy/drivers", f))]
+	for file in kubemaster_cfg_files:
+		with open(os.path.join("./deploy/drivers", file), 'r') as f:
+			content = f.read()
+		config[file] = base64.b64encode(content)		
+
 def add_dns_entries():
 	addCoreOSNetwork = ""
 	dnsEntries = fetch_config(["network", "externalDnsServers"])
@@ -279,7 +296,7 @@ def init_deployment():
 
 	add_additional_cloud_config()
 	add_kubelet_config()
-	
+	add_driver_config()
 
 	template_file = "./template/cloud-config/cloud-config-master.yml"
 	target_file = "./deploy/cloud-config/cloud-config-master.yml"
@@ -319,6 +336,7 @@ def init_deployment():
 
 	add_additional_cloud_config()
 	add_kubelet_config()
+	add_driver_config()
 
 	template_file = "./template/cloud-config/cloud-config-worker.yml"
 	target_file = "./deploy/cloud-config/cloud-config-worker.yml"

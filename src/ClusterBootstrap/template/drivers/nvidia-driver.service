@@ -1,20 +1,22 @@
 [Unit]
-Description=Install Nvidia driver and nvidia-docker
+Description=Install Nvidia driver
 After=local-fs.target network.target
-Wants=docker.service
+Wants=docker.service 
 [Service]
-Environment="SOCK_DIR=/var/lib/nvidia-docker"
-Environment="SPEC_FILE=/etc/docker/plugins/nvidia-docker.spec"
 
-Restart=always
+Environment=IMG={{cnf["nvidiadriverdocker"]}} CNAME=nvidia-driver
+
+RemainAfterExit=yes
+Restart=on-failure
 RestartSec=10
 TimeoutStartSec=1200
 TimeoutStopSec=120
 
-ExecStart=/opt/install_nvidia_docker.sh
-ExecStartPost=/bin/sh -c '/bin/mkdir -p $( dirname $SPEC_FILE )'
-ExecStartPost=/bin/sh -c '/bin/echo unix://$SOCK_DIR/nvidia-docker.sock > $SPEC_FILE'
-ExecStopPost=/bin/rm -f $SPEC_FILE
+ExecStartPre=/bin/bash -c "/usr/bin/docker inspect $IMG &> /dev/null || /usr/bin/docker pull $IMG"
+ExecStartPre=/bin/bash -c "/usr/bin/docker rm $CNAME &> /dev/null; exit 0"
+ExecStartPre=/bin/bash -c "docker run --name $CNAME --privileged -v /opt/nvidia-driver:/opt/nvidia-driver -v /opt/bin:/opt/bin -v /dev:/dev $IMG && mkdir -p /etc/ld.so.conf.d/  && tee /etc/ld.so.conf.d/nvidia-ml.conf <<< /opt/nvidia-driver/current/lib64  && ldconfig"
+ExecStart=/bin/true
 
 [Install]
 WantedBy=multi-user.target
+
