@@ -12,11 +12,10 @@ RestartSec=10
 TimeoutStartSec=1200
 TimeoutStopSec=120
 
-ExecStartPre=/bin/bash -c "/usr/bin/docker inspect $IMG &> /dev/null || /usr/bin/docker pull $IMG"
-ExecStartPre=/bin/bash -c "/usr/bin/docker rm $CNAME &> /dev/null; exit 0"
-ExecStartPre=/bin/bash -c "docker run --name $CNAME --privileged -v /opt/nvidia-driver:/opt/nvidia-driver -v /opt/bin:/opt/bin -v /dev:/dev $IMG && mkdir -p /etc/ld.so.conf.d/  && tee /etc/ld.so.conf.d/nvidia-ml.conf <<< /opt/nvidia-driver/current/lib64  && ldconfig"
+ExecStartPre=/bin/bash -c 'if lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VGA compatible) controller: NVIDIA Corporation.*"; then /usr/bin/docker inspect $IMG &> /dev/null || /usr/bin/docker pull $IMG ; else exit 0 ; fi'
+ExecStartPre=/bin/bash -c 'if lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VGA compatible) controller: NVIDIA Corporation.*"; then /usr/bin/docker rm $CNAME &> /dev/null; exit 0 ; else exit 0 ; fi'
+ExecStartPre=/bin/bash -c 'if lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VGA compatible) controller: NVIDIA Corporation.*"; then docker run --name $CNAME --privileged -v /opt/nvidia-driver:/opt/nvidia-driver -v /opt/bin:/opt/bin -v /dev:/dev $IMG && mkdir -p /etc/ld.so.conf.d/  && tee /etc/ld.so.conf.d/nvidia-ml.conf <<< /opt/nvidia-driver/current/lib64  && ldconfig ; else exit 0 ; fi'
 ExecStart=/bin/true
 
 [Install]
 WantedBy=multi-user.target
-
