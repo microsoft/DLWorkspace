@@ -32,9 +32,10 @@ spec:
 
       restartPolicy: Never
       volumes:
+      # temporarily hard-coding the path to nvidia driver; after nvidia-docker is enabled on kubernetes, this will be removed. 
       - name: nvidia-driver
         hostPath:
-          path: /var/lib/nvidia-docker/volumes/nvidia_driver/375.20
+          path: /opt/nvidia-driver/current
       - name: job
         hostPath:
           path: {{ job["hostjobPath"] }}
