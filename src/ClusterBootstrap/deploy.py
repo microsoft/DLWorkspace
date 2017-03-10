@@ -41,8 +41,12 @@ coreosbaseurl = ""
 discoverserver = "4.2.2.1" 
 homeininterval = "600"
 dockerregistry = "mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace"
+etcd3port1 = "2379" # Etcd3port1 will be used by App to call Etcd 
+etcd3port2 = "4001" # Etcd3port2 is established for legacy purpose. 
+etcd3portserver = "2380" # Server port for etcd
 nvidiadriverdocker = "mlcloudreg.westus.cloudapp.azure.com:5000/nvidia_driver:375.20"
 nvidiadriverversion = "375.20"
+default_config_parameters = [ "discoverserver", "homeinserver", "homeininterval", "dockerregistry", "etcd3port1", "etcd3port2", "etcd3portserver", "nvidiadriverdocker", "nvidiadriverversion"];
 verbose = False; 
 
 # default search for all partitions of hdb, hdc, hdd, and sdb, sdc, sdd
@@ -92,12 +96,8 @@ def copy_to_ISO():
 # Certain configuration that is default in system 
 def init_config():
 	config = {}
-	config["discoverserver"] = discoverserver
-	config["homeinserver"] = homeinserver
-	config["homeininterval"] = homeininterval
-	config["dockerregistry"] = dockerregistry
-	config["nvidiadriverdocker"] = nvidiadriverdocker
-	config["nvidiadriverversion"] = nvidiadriverversion
+	for param in default_config_parameters:
+		config[ param ] = eval( param )
 	return config
 
 
@@ -489,7 +489,7 @@ def gen_configs():
 
 	#config["api_servers"] = ",".join(["https://"+x for x in config["kubernetes_master_node"]])
 	config["api_servers"] = "https://"+config["kubernetes_master_node"][0]
-	config["etcd_endpoints"] = ",".join(["https://"+x+":2379" for x in config["etcd_node"]])
+	config["etcd_endpoints"] = ",".join(["https://"+x+":"+config["etcd3port1"] for x in config["etcd_node"]])
 
 
 	f = open(config["ssh_cert"])
@@ -643,7 +643,7 @@ def clean_etcd():
 def check_etcd_service():
 	print "waiting for ETCD service is ready..."
 	etcd_servers = config["etcd_node"]
-	cmd = "curl --cacert %s --cert %s --key %s 'https://%s:2379/v2/keys'" % ("./deploy/ssl/etcd/ca.pem","./deploy/ssl/etcd/etcd.pem","./deploy/ssl/etcd/etcd-key.pem", etcd_servers[0])
+	cmd = "curl --cacert %s --cert %s --key %s 'https://%s:%s/v2/keys'" % ("./deploy/ssl/etcd/ca.pem","./deploy/ssl/etcd/etcd.pem","./deploy/ssl/etcd/etcd-key.pem", etcd_servers[0], config["etcd3port1"])
 	while os.system(cmd) != 0:
 		time.sleep(5)
 	print "ETCD service is ready to use..."
@@ -743,7 +743,7 @@ def deploy_ETCD():
 
 
 	print "waiting for ETCD service is ready..."
-	cmd = "curl --cacert %s --cert %s --key %s 'https://%s:2379/v2/keys'" % ("./deploy/ssl/etcd/ca.pem","./deploy/ssl/etcd/etcd.pem","./deploy/ssl/etcd/etcd-key.pem", etcd_servers[0])
+	cmd = "curl --cacert %s --cert %s --key %s 'https://%s:%s/v2/keys'" % ("./deploy/ssl/etcd/ca.pem","./deploy/ssl/etcd/etcd.pem","./deploy/ssl/etcd/etcd-key.pem", etcd_servers[0], config["etcd3port1"])
 	while os.system(cmd) != 0:
 		print "ETCD service is NOT ready, waiting for 5 seconds..."
 		time.sleep(5)
