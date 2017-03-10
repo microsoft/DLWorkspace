@@ -282,8 +282,9 @@ def init_deployment():
 
 	clusterID = utils.get_cluster_ID_from_file()
 
-	f = open("./deploy/sshkey/id_rsa.pub")
+	f = open(config["ssh_cert"]+".pub")
 	sshkey_public = f.read()
+	print sshkey_public
 	f.close()
 
 
@@ -344,12 +345,27 @@ def init_deployment():
 
 def check_node_availability(ipAddress):
 	# print "Check node availability on: " + str(ipAddress)
-	status = os.system('ssh -o "StrictHostKeyChecking no" -i deploy/sshkey/id_rsa -oBatchMode=yes core@%s hostname > /dev/null' % ipAddress)
+	status = os.system('ssh -o "StrictHostKeyChecking no" -i %s -oBatchMode=yes core@%s hostname > /dev/null' % (config["ssh_cert"], ipAddress))
 	#status = sock.connect_ex((ipAddress,22))
 	return status == 0
 
+# Get a list of nodes from cluster.yaml 
+def get_nodes_from_config(machinerole):
+	if "machines" not in config:
+		return []
+	else:
+		if "network" in config and "domain" in config["network"]:
+			domain = "."+config["network"]["domain"]
+		else:
+			domain = ""
+		Nodes = []
+		for nodename in config["machines"]:
+			nodeInfo = config["machines"][nodename]
+			if "role" in nodeInfo and nodeInfo["role"]==machinerole:
+				Nodes.append(nodename+domain)
+		return sorted(Nodes)
 
-def get_ETCD_master_nodes(clusterId):
+def get_ETCD_master_nodes_from_cluster_portal(clusterId):
 	output = urllib.urlopen(form_cluster_portal_URL("etcd", clusterId)).read()
 	output = json.loads(json.loads(output))
 	Nodes = []
@@ -370,7 +386,18 @@ def get_ETCD_master_nodes(clusterId):
 	config["kubernetes_master_node"] = Nodes
 	return Nodes
 	
-def get_worker_nodes(clusterId):
+def get_ETCD_master_nodes_from_config(clusterId):
+	Nodes = get_nodes_from_config("infrastructure")
+	config["etcd_node"] = Nodes
+	config["kubernetes_master_node"] = Nodes
+	
+def get_ETCD_master_nodes(clusterId):
+	if "useclusterfile" not in config or not config["useclusterfile"]:
+		return get_ETCD_master_nodes_from_cluster_portal(clusterId)
+	else:
+		get_ETCD_master_nodes_from_config(clusterId)
+	
+def get_worker_nodes_from_cluster_report(clusterId):
 	output = urllib.urlopen(form_cluster_portal_URL("worker", clusterId)).read()
 	output = json.loads(json.loads(output))
 	Nodes = []
@@ -384,24 +411,19 @@ def get_worker_nodes(clusterId):
 			config["ipToHostname"][node[ipAddrMetaname]] = hostname
 	config["worker_node"] = Nodes
 	return Nodes
+
+def get_worker_nodes_from_config(clusterId):
+	Nodes = get_nodes_from_config("worker")
+	config["worker_node"] = Nodes
+	
+def get_worker_nodes(clusterId):
+	if "useclusterfile" not in config or not config["useclusterfile"]:
+		return get_worker_nodes_from_cluster_report(clusterId)
+	else:
+		get_worker_nodes_from_config(clusterId)
 	
 def get_nodes(clusterId):
-	output1 = urllib.urlopen(form_cluster_portal_URL("worker", clusterId)).read()
-	nodes = json.loads(json.loads(output1))["nodes"]
-	output3 = urllib.urlopen(form_cluster_portal_URL("etcd", clusterId)).read()
-	nodes = nodes + ( json.loads(json.loads(output3))["nodes"] )
-	# print nodes
-	Nodes = []
-	NodesInfo = [node for node in nodes if "time" in node]
-	if not "ipToHostname" in config:
-		config["ipToHostname"] = {}
-	for node in NodesInfo:
-		if not node[ipAddrMetaname] in Nodes and check_node_availability(node[ipAddrMetaname]):
-			hostname = utils.get_host_name(node[ipAddrMetaname])
-			Nodes.append(node[ipAddrMetaname])
-			config["ipToHostname"][node[ipAddrMetaname]] = hostname
-	config["nodes"] = Nodes
-	return Nodes
+	return get_ETCD_master_nodes(clusterId).append(get_worker_nodes(clusterId))
 
 def check_master_ETCD_status():
 	masterNodes = []
@@ -484,15 +506,16 @@ def gen_configs():
 
 	if "ssh_cert" not in config and os.path.isfile("./deploy/sshkey/id_rsa"):
 		config["ssh_cert"] = "./deploy/sshkey/id_rsa"
-		config["etcd_user"] = "core"
-		config["kubernetes_master_ssh_user"] = "core"
+		
+	config["etcd_user"] = "core"
+	config["kubernetes_master_ssh_user"] = "core"
 
 	#config["api_servers"] = ",".join(["https://"+x for x in config["kubernetes_master_node"]])
 	config["api_servers"] = "https://"+config["kubernetes_master_node"][0]
 	config["etcd_endpoints"] = ",".join(["https://"+x+":"+config["etcd3port1"] for x in config["etcd_node"]])
 
 
-	f = open(config["ssh_cert"])
+	f = open(config["ssh_cert"]+".pub")
 	sshkey_public = f.read()
 	f.close()
 
@@ -508,8 +531,8 @@ def gen_configs():
 def get_config():
 	if "ssh_cert" not in config and os.path.isfile("./deploy/sshkey/id_rsa"):
 		config["ssh_cert"] = "./deploy/sshkey/id_rsa"
-		config["etcd_user"] = "core"
-		config["kubernetes_master_ssh_user"] = "core"
+	config["etcd_user"] = "core"
+	config["kubernetes_master_ssh_user"] = "core"
 
 	
 	f = open(config["ssh_cert"])
@@ -1403,7 +1426,7 @@ Command:
 				if num < 0 or num >= len(nodes):
 					num = 0
 			nodename = nodes[num]
-			utils.SSH_connect( "./deploy/sshkey/id_rsa", "core", nodename)
+			utils.SSH_connect( config["ssh_cert"], "core", nodename)
 			exit()
 
 	elif command == "deploy" and "clusterId" in config:
