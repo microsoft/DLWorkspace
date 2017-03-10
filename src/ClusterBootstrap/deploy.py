@@ -62,6 +62,7 @@ default_config_parameters = {
 	"postworkerdeploymentscript" : "post-worker-deploy.sh",
 	"workercleanupscript" : "cleanup-worker.sh",
 	"workerdeploymentlist" : "deploy.list",
+	"webuiport" : "80",
 
 }
 
@@ -944,7 +945,7 @@ def deploy_webUI_on_node(ipAddress):
 	utils.render_template("./template/WebUI/appsettings.json.template","./deploy/WebUI/appsettings.json",config)
 	utils.sudo_scp(config["ssh_cert"],"./deploy/WebUI/appsettings.json","/etc/WebUI/appsettings.json", "core", webUIIP )
 
-	utils.SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker pull %s ; docker rm -f webui ; docker run -d -p 80:80 -v /etc/WebUI:/WebUI --restart always --name webui %s ;" % (dockername,dockername))
+	utils.SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker pull %s ; docker rm -f webui ; docker run -d -p 80:%s -v /etc/WebUI:/WebUI --restart always --name webui %s ;" % (dockername,str(config["webuiport"]),dockername))
 
 
 	print "==============================================="
