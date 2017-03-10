@@ -41,15 +41,12 @@ coreosbaseurl = ""
 discoverserver = "4.2.2.1" 
 homeininterval = "600"
 dockerregistry = "mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace"
-<<<<<<< HEAD
 etcd3port1 = "2379" # Etcd3port1 will be used by App to call Etcd 
 etcd3port2 = "4001" # Etcd3port2 is established for legacy purpose. 
 etcd3portserver = "2380" # Server port for etcd
-default_config_parameters = [ "discoverserver", "homeinserver", "homeininterval", "dockerregistry", "etcd3port1", "etcd3port2", "etcd3portserver" ];
-=======
 nvidiadriverdocker = "mlcloudreg.westus.cloudapp.azure.com:5000/nvidia_driver:375.20"
 nvidiadriverversion = "375.20"
->>>>>>> 2ff1e777357b24c3c9d085e696d4f76bacf7bd82
+default_config_parameters = [ "discoverserver", "homeinserver", "homeininterval", "dockerregistry", "etcd3port1", "etcd3port2", "etcd3portserver", "nvidiadriverdocker", "nvidiadriverversion"];
 verbose = False; 
 
 # default search for all partitions of hdb, hdc, hdd, and sdb, sdc, sdd
@@ -99,17 +96,8 @@ def copy_to_ISO():
 # Certain configuration that is default in system 
 def init_config():
 	config = {}
-<<<<<<< HEAD
 	for param in default_config_parameters:
 		config[ param ] = eval( param )
-=======
-	config["discoverserver"] = discoverserver
-	config["homeinserver"] = homeinserver
-	config["homeininterval"] = homeininterval
-	config["dockerregistry"] = dockerregistry
-	config["nvidiadriverdocker"] = nvidiadriverdocker
-	config["nvidiadriverversion"] = nvidiadriverversion
->>>>>>> 2ff1e777357b24c3c9d085e696d4f76bacf7bd82
 	return config
 
 

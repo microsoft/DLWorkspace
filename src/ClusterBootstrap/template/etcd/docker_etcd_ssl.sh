@@ -4,13 +4,13 @@
 docker rm -f philly-etcd3
 sudo rm -r /var/etcd/data
 
-docker run -d -v /usr/share/ca-certificates/:/etc/ssl/certs -v /etc/etcd/ssl:/etc/etcd/ssl -v /var/etcd:/var/etcd -p {{cnf["etcd3port1"]}}:{{cnf["etcd3port1"]}} -p {{cnf["etcd3portserver"]}}:{{cnf["etcd3portserver"]}} -p {{cnf["etcd3port2"]}}:{{cnf["etcd3port2"]}} \
+docker run -d -v /usr/share/ca-certificates/:/etc/ssl/certs -v /etc/etcd/ssl:/etc/etcd/ssl -v /var/etcd:/var/etcd -p {{cnf["etcd3port1"]}}:{{cnf["etcd3port1"]}} -p {{cnf["etcd3portserver"]}}:{{cnf["etcd3portserver"]}} \
  --net=host \
  --restart always \
  --name philly-etcd3 gcr.io/google-containers/etcd:3.0.4 /usr/local/bin/etcd \
  -name $HOSTNAME \
- -advertise-client-urls https://{{cnf["etcd_node_ip"]}}:{{cnf["etcd3port1"]}},https://{{cnf["etcd_node_ip"]}}:{{cnf["etcd3port2"]}} \
- -listen-client-urls https://0.0.0.0:{{cnf["etcd3port1"]}},https://0.0.0.0:{{cnf["etcd3port2"]}} \
+ -advertise-client-urls https://{{cnf["etcd_node_ip"]}}:{{cnf["etcd3port1"]}} \
+ -listen-client-urls https://0.0.0.0:{{cnf["etcd3port1"]}} \
  -initial-advertise-peer-urls https://{{cnf["etcd_node_ip"]}}:{{cnf["etcd3portserver"]}} \
  -listen-peer-urls https://0.0.0.0:{{cnf["etcd3portserver"]}} \
  -discovery {{cnf["discovery_url"]}} \

@@ -1,8 +1,8 @@
 [Service]
 ExecStart=/opt/bin/etcd \
   --name={{cnf["hostname"]}} \
-  --advertise-client-urls=https://{{cnf["etcd_node_ip"]}}:{{cnf["etcd3port1"]}},https://{{cnf["etcd_node_ip"]}}:{{cnf["etcd3port2"]}} \
-  --listen-client-urls=https://0.0.0.0:{{cnf["etcd3port1"]}},https://0.0.0.0:{{cnf["etcd3port2"]}} \
+  --advertise-client-urls=https://{{cnf["etcd_node_ip"]}}:{{cnf["etcd3port1"]}} \
+  --listen-client-urls=https://0.0.0.0:{{cnf["etcd3port1"]}} \
   --initial-advertise-peer-urls=https://{{cnf["etcd_node_ip"]}}:{{cnf["etcd3portserver"]}} \
   --listen-peer-urls=https://0.0.0.0:{{cnf["etcd3portserver"]}} \
   --discovery={{cnf["discovery_url"]}} \
