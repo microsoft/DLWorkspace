@@ -232,3 +232,10 @@ def backup_keys(clusterName):
 	os.system("cp -r ./deploy/ssl %s" % backupdir)
 	os.system("cp -r ./deploy/clusterID.yml %s" % backupdir)
 
+def getIP(dnsname):
+    try:
+        data = socket.gethostbyname(dnsname)
+        ip = repr(data).replace("'","")
+        return ip
+    except Exception:
+        return None
