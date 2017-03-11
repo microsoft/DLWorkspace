@@ -12,6 +12,6 @@ deploy/ssl/apiserver/apiserver-key.pem,/etc/kubernetes/ssl/apiserver-key.pem
 ./deploy/bin/kubectl,/opt/bin/kubectl
 ./deploy/kube-addons/kube-proxy.json,/opt/addons/kube-addons/kube-proxy.json
 ./deploy/kube-addons/heapster-svc.json,/opt/addons/kube-addons/heapster-svc.json
-./deploy/kube-addons/dns-addon.json,/opt/addons/kube-addons/dns-addon.json
-./deploy/kube-addons/dashboard.json,/opt/addons/kube-addons/dashboard.json
+./deploy/kube-addons/dns-addon.yaml,/opt/addons/kube-addons/dns-addon.yaml
+./deploy/kube-addons/dashboard.yaml,/opt/addons/kube-addons/dashboard.yaml
 ./deploy/kube-addons/heapster-deployment.json,/opt/addons/kube-addons/heapster-deployment.json

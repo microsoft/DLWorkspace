@@ -11,12 +11,29 @@ sqlserver-database : {{}}
 
 
 # --------- For Philly deployment, please turn on (uncomment) the following options. ---- 
-# Use cluster.yaml to locate nodes (instead of using the cluster report service)
+###Use cluster.yaml to locate nodes (instead of using the cluster report service)
 # useclusterfile : true
-# ssh_cert used to access cluster, the public key should be ssh_cert.pub
+###ssh_cert used to access cluster, the public key should be ssh_cert.pub
 # ssh_cert : ~/.ssh/id_rsa
-# no docker restart
+###no docker restart
 # nodockerrestart: true
+###use docker container to deploy ETCD service
+# deploydockerETCD : true
+
+###use different deployment scripts
+# premasterdeploymentscript : philly-pre-master-deploy.sh
+# postmasterdeploymentscript : philly-post-master-deploy.sh
+# mastercleanupscript : philly-cleanup-master.sh
+# masterdeploymentlist : philly-deploy.list
+
+# preworkerdeploymentscript : philly-pre-worker-deploy.sh
+# postworkerdeploymentscript : philly-post-worker-deploy.sh
+# workercleanupscript : philly-cleanup-worker.sh
+# workerdeploymentlist : philly-deploy.list
+
+# k8sAPIport : 8443
+# webuiport : 10880
+# restfulapiport : 5005
 # --------- End of Philly deployment ---------------
 
 # the following items are optional
