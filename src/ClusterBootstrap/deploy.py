@@ -63,6 +63,7 @@ default_config_parameters = {
 	"workercleanupscript" : "cleanup-worker.sh",
 	"workerdeploymentlist" : "deploy.list",
 	"webuiport" : "80",
+	"restfulapiport" : "5000",
 
 }
 
@@ -411,12 +412,13 @@ def get_ETCD_master_nodes_from_config(clusterId):
 	Nodes = get_nodes_from_config("infrastructure")
 	config["etcd_node"] = Nodes
 	config["kubernetes_master_node"] = Nodes
-	
+	return Nodes
+
 def get_ETCD_master_nodes(clusterId):
 	if "useclusterfile" not in config or not config["useclusterfile"]:
 		return get_ETCD_master_nodes_from_cluster_portal(clusterId)
 	else:
-		get_ETCD_master_nodes_from_config(clusterId)
+		return get_ETCD_master_nodes_from_config(clusterId)
 	
 def get_worker_nodes_from_cluster_report(clusterId):
 	output = urllib.urlopen(form_cluster_portal_URL("worker", clusterId)).read()
@@ -445,7 +447,8 @@ def get_worker_nodes(clusterId):
 		return get_worker_nodes_from_config(clusterId)
 
 def get_nodes(clusterId):
-	return get_ETCD_master_nodes(clusterId).append(get_worker_nodes(clusterId))
+	nodes = get_ETCD_master_nodes(clusterId) + get_worker_nodes(clusterId)
+	return nodes
 
 def check_master_ETCD_status():
 	masterNodes = []
@@ -919,12 +922,12 @@ def deploy_restful_API_on_node(ipAddress):
 	utils.sudo_scp(config["ssh_cert"],"./deploy/master/restapi-kubeconfig.yaml","/etc/kubernetes/restapi-kubeconfig.yaml", "core", masterIP )
 
 
-	utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo mkdir -p /dlws-data && sudo mount %s /dlws-data ; docker rm -f restfulapi; docker rm -f jobScheduler ; docker pull %s ; docker run -d --net=host --restart always -v /etc/RestfulAPI:/RestfulAPI --name restfulapi %s ; docker run -d -v /dlws-data:/dlws-data -v /etc/RestfulAPI:/RestfulAPI -v /etc/kubernetes/restapi-kubeconfig.yaml:/root/.kube/config -v /etc/kubernetes/ssl:/etc/kubernetes/ssl --restart always --name jobScheduler %s /runScheduler.sh ;" % (config["nfs-server"], dockername,dockername,dockername))
+	utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo mkdir -p /dlws-data && sudo mount %s /dlws-data ; docker rm -f restfulapi; docker rm -f jobScheduler ; docker pull %s ; docker run -d -p %s:5000 --restart always -v /etc/RestfulAPI:/RestfulAPI --name restfulapi %s ; docker run -d -v /dlws-data:/dlws-data -v /etc/RestfulAPI:/RestfulAPI -v /etc/kubernetes/restapi-kubeconfig.yaml:/root/.kube/config -v /etc/kubernetes/ssl:/etc/kubernetes/ssl --restart always --name jobScheduler %s /runScheduler.sh ;" % (config["nfs-server"], dockername,config["restfulapiport"],dockername,dockername))
 
 
 	print "==============================================="
-	print "restful api is running at: http://%s:5000" % masterIP
-	config["restapi"] = "http://%s:5000" %  masterIP
+	print "restful api is running at: http://%s:%s" % (masterIP,config["restfulapiport"])
+	config["restapi"] = "http://%s:%s" %  (masterIP,config["restfulapiport"])
 
 def build_webUI_docker():
 	os.system("docker rmi %s" % dockername)
@@ -945,11 +948,11 @@ def deploy_webUI_on_node(ipAddress):
 	utils.render_template("./template/WebUI/appsettings.json.template","./deploy/WebUI/appsettings.json",config)
 	utils.sudo_scp(config["ssh_cert"],"./deploy/WebUI/appsettings.json","/etc/WebUI/appsettings.json", "core", webUIIP )
 
-	utils.SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker pull %s ; docker rm -f webui ; docker run -d -p 80:%s -v /etc/WebUI:/WebUI --restart always --name webui %s ;" % (dockername,str(config["webuiport"]),dockername))
+	utils.SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker pull %s ; docker rm -f webui ; docker run -d -p %s:80 -v /etc/WebUI:/WebUI --restart always --name webui %s ;" % (dockername,str(config["webuiport"]),dockername))
 
 
 	print "==============================================="
-	print "Web UI is running at: http://%s" % webUIIP
+	print "Web UI is running at: http://%s:%s" % (webUIIP,str(config["webuiport"]))
 
 
 def deploy_webUI():
@@ -1535,6 +1538,7 @@ Command:
 	elif command == "execonall" and len(nargs)>=1:
 		get_config()
 		nodes = get_nodes(config["clusterId"])
+		print nodes
 		exec_on_all_with_output(nodes, nargs)
 
 	elif command == "runscriptonall" and len(nargs)>=1:
