@@ -17,6 +17,10 @@ sqlserver-database : {{}}
 # ssh_cert : ~/.ssh/id_rsa
 # no docker restart
 # nodockerrestart: true
+
+# Describe a set of tasks to be launched at the cluster, 
+# These are usually system service. 
+clustertasks:
 # --------- End of Philly deployment ---------------
 
 # the following items are optional
