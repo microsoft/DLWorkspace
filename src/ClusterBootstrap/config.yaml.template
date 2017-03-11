@@ -19,12 +19,21 @@ sqlserver-database : {{}}
 # nodockerrestart: true
 ###use docker container to deploy ETCD service
 # deploydockerETCD : true
+
 ###use different deployment scripts
 # premasterdeploymentscript : philly-pre-master-deploy.sh
 # postmasterdeploymentscript : philly-post-master-deploy.sh
 # mastercleanupscript : philly-cleanup-master.sh
 # masterdeploymentlist : philly-deploy.list
+
+# preworkerdeploymentscript : philly-pre-worker-deploy.sh
+# postworkerdeploymentscript : philly-post-worker-deploy.sh
+# workercleanupscript : philly-cleanup-worker.sh
+# workerdeploymentlist : philly-deploy.list
+
 # k8sAPIport : 8443
+# webuiport : 10880
+# restfulapiport : 5005
 # --------- End of Philly deployment ---------------
 
 # the following items are optional
