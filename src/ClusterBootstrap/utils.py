@@ -108,8 +108,7 @@ def SSH_exec_cmd_with_output(identity_file, user,host,cmd, supressWarning = Fals
 	try:
 		output = subprocess.check_output( execmd, shell=True )
 	except subprocess.CalledProcessError as e:
-		print "Execution failed: " + e.output
-		output = "Execution failed: " + e.output
+		output = "Return code: " + str(e.returncode) + ", output: " + e.output.strip()
 	# print output
 	return output
 	
@@ -118,7 +117,7 @@ def get_host_name( host ):
 	try:
 		output = subprocess.check_output( execmd, shell=True )
 	except subprocess.CalledProcessError as e:
-		return None
+		return "Exception, with output: " + e.output.strip()
 	return output.strip()
 	
 def get_mac_address( host, show=True ):

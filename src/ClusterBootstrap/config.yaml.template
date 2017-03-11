@@ -17,24 +17,34 @@ sqlserver-database : {{}}
 # ssh_cert : ~/.ssh/id_rsa
 ###no docker restart
 # nodockerrestart: true
+
 ###use docker container to deploy ETCD service
-# deploydockerETCD : true
+deploydockerETCD : true
 
 ###use different deployment scripts
-# premasterdeploymentscript : philly-pre-master-deploy.sh
-# postmasterdeploymentscript : philly-post-master-deploy.sh
-# mastercleanupscript : philly-cleanup-master.sh
-# masterdeploymentlist : philly-deploy.list
+premasterdeploymentscript : philly-pre-master-deploy.sh
+postmasterdeploymentscript : philly-post-master-deploy.sh
+mastercleanupscript : philly-cleanup-master.sh
+masterdeploymentlist : philly-deploy.list
 
-# preworkerdeploymentscript : philly-pre-worker-deploy.sh
-# postworkerdeploymentscript : philly-post-worker-deploy.sh
-# workercleanupscript : philly-cleanup-worker.sh
-# workerdeploymentlist : philly-deploy.list
+preworkerdeploymentscript : philly-pre-worker-deploy.sh
+postworkerdeploymentscript : philly-post-worker-deploy.sh
+workercleanupscript : philly-cleanup-worker.sh
+workerdeploymentlist : philly-deploy.list
 
-# k8sAPIport : 8443
-# webuiport : 10880
-# restfulapiport : 5005
-# --------- End of Philly deployment ---------------
+k8sAPIport : 8443
+webuiport : 10880
+restfulapiport : 5005
+
+# Describe a set of system pods to be launched at the cluster, with following configuration parameter:
+# deploy: Control which nodes that the pod is deployed to. 
+#   all: all nodes
+#   etcd: etcd nodes
+#   worker: worker nodes
+systempods:
+  # A task in http://rancher.com/comparing-monitoring-options-for-docker-deployments/
+  CAdvisor:
+    deployto: all
 
 # the following items are optional
 # nfs-server : 
