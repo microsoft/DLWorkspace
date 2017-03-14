@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cAdvisor
+  namespace: monitor
+spec:
+  hostNetwork: true
+  containers:
+  - name: cAdvisor
+    image: google/cadvisor:latest
+    ports:
+      - name: http
+        containerPort: 8080
+        hostPort: 4194
+    volumeMounts:
+      - name: varrun
+        mountPath: /var/run
+        readOnly: false
+      - name: varlibdocker
+        mountPath: /var/lib/docker
+        readOnly: true
+      - name: sysfs
+        mountPath: /sys
+        readOnly: true
+volumes:
+  - name: varrun
+    source:
+      hostDir:
+        path: /var/run
+  - name: varlibdocker
+    source:
+      hostDir:
+        path: /var/lib/docker
+  - name: sysfs
+    source:
+      hostDir:
+        path: /sys

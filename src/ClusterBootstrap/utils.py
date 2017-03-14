@@ -112,6 +112,18 @@ def SSH_exec_cmd_with_output(identity_file, user,host,cmd, supressWarning = Fals
 	# print output
 	return output
 	
+def exec_cmd_local(execmd, supressWarning = False):
+	if supressWarning:
+		cmd += " 2>/dev/null"
+	if verbose:
+		print execmd
+	try:
+		output = subprocess.check_output( execmd, shell=True )
+	except subprocess.CalledProcessError as e:
+		output = "Return code: " + str(e.returncode) + ", output: " + e.output.strip()
+	# print output
+	return output
+	
 def get_host_name( host ):
 	execmd = """ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" "hostname" """ % ("deploy/sshkey/id_rsa", "core", host )
 	try:
