@@ -13,6 +13,7 @@ import math
 import distutils.dir_util
 import distutils.file_util
 import shutil
+import glob
 
 import yaml
 from jinja2 import Environment, FileSystemLoader, Template
@@ -235,13 +236,67 @@ def gen_SSH_key():
 			f.write("clusterId : %s" % clusterID)
 		f.close()
 
-def backup_keys(clusterName):
+def execute_backup_and_encrypt(clusterName, fname, key):
 	clusterID = get_cluster_ID_from_file()
-	backupdir = "./deploy_backup/%s-%s/%s-%s" % (clusterName,clusterID,str(time.time()),str(uuid.uuid4())[:5])
+	backupdir = "./deploy_backup/backup" 
+	os.system("mkdir -p %s/clusterID" % backupdir)
+	os.system("cp -r ./*.yaml %s" % backupdir)
+	os.system("cp -r ./deploy/sshkey %s/sshkey" % backupdir)
+	os.system("cp -r ./deploy/ssl %s/ssl" % backupdir)
+	os.system("cp -r ./deploy/clusterID.yml %s/clusterID/" % backupdir)
+	os.system("tar -czvf %s.tar.gz %s" % (fname, backupdir))
+	if not key is None:
+		os.system("openssl enc -aes-256-cbc -k %s -in %s.tar.gz -out %s.tar.gz.enc" % (key, fname, fname) )
+		os.system("rm %s.tar.gz" % fname )
+	os.system("rm -rf ./deploy_backup/backup")
+		
+def execute_restore_and_decrypt(fname, key):
+	clusterID = get_cluster_ID_from_file()
+	backupdir = "./deploy_backup/backup" 
 	os.system("mkdir -p %s" % backupdir)
-	os.system("cp -r ./deploy/sshkey %s" % backupdir)
-	os.system("cp -r ./deploy/ssl %s" % backupdir)
-	os.system("cp -r ./deploy/clusterID.yml %s" % backupdir)
+	cleanup_command = ""
+	if fname.endswith(".enc"):
+		if key is None:
+			print ("%s needs decrpytion key" % fname)
+			exit(-1)
+		fname = fname[:-4]
+		os.system("openssl enc -d -aes-256-cbc -k %s -in %s.enc -out %s" % (key, fname, fname) )
+		cleanup_command = "rm %s; " % fname
+	os.system("tar -xzvf %s %s" % (fname, backupdir))
+	os.system("cp %s/*.yaml ." % (backupdir) )
+	os.system("cp -r %s/sshkey ./deploy/sshkey" % backupdir)
+	os.system("cp -r %s/ssl ./deploy/ssl" % backupdir)
+	os.system("cp %s/clusterID/*.yml ./deploy/" % backupdir)
+	cleanup_command += "rm -rf ./deploy_backup/backup"
+	os.system(cleanup_command)
+
+def backup_keys(clusterName, nargs ):
+	if len(nargs)<=0:
+		clusterID = get_cluster_ID_from_file()
+		fname = "./deploy_backup/config=%s-%s=%s-%s" %(clusterName,clusterID,str(time.time()),str(uuid.uuid4())[:5])
+		key = None
+	else:
+		fname = nargs[0]
+		if len(nargs)<=1:
+			key = None
+		else:
+			key = nargs[1]
+		
+	execute_backup_and_encrypt( clusterName, fname, key )
+	
+def restore_keys( nargs ):
+	if len(nargs)<=0:
+		list_of_files = glob.glob("./deploy_backup/config*")
+		fname = max(list_of_files, key=os.path.getctime)
+		key = None
+	else:
+		fname = nargs[0]
+		if len(nargs)<=1:
+			key = None
+		else:
+			key = nargs[1]
+	execute_restore_and_decrypt( fname, key )
+
 
 def getIP(dnsname):
     try:

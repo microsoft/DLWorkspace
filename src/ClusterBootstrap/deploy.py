@@ -1355,6 +1355,7 @@ Command:
   download  [args] Manage download
             kubectl: download kubelet/kubectl.
             kubelet: download kubelet/kubectl.
+  backup    [fname] [key] Backup configuration & encrypt
   etcd      [args] manage etcd server.
             check: check ETCD service.
   kubectl   [args] manage kubelet services on the cluster. 
@@ -1671,6 +1672,14 @@ Command:
 			parser.print_help()
 			print "Error: etcd need a subcommand."
 			exit()
+			
+	elif command == "backup":
+		get_config()
+		utils.backup_keys(config["cluster_name"], nargs)
+		
+	elif command == "restore":
+		utils.restore_keys(nargs)
+		get_kubectl_binary()
 
 	else:
 		parser.print_help()
