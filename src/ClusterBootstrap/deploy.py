@@ -1293,6 +1293,12 @@ def update_config_nodes():
 	nodes = get_nodes(config["clusterId"])
 	for node in nodes:
 		update_config_node( node )
+
+# Running a kubectl commands. 
+def run_kubectl( commands ):
+	nodes = get_ETCD_master_nodes(config["clusterId"])
+	master_node = nodes[0]
+	
 			
 if __name__ == '__main__':
 	# the program always run at the current directory. 
@@ -1332,6 +1338,9 @@ Command:
             update: update a glusterFS on the cluster.
             stop: stop glusterFS service, data volume not removed. 
             clear: stop glusterFS service, and remove all data volumes. 
+  kubectl   [args] manage kubelet services on the cluster. 
+            start: launch a certain kubelet service. 
+            stop: stop a certain kubelet service. 
   execonall [cmd ... ] Execute the command on all nodes and print the output. 
   doonall [cmd ... ] Execute the command on all nodes. 
   runscriptonall [script] Execute the shell/python script on all nodes. 
@@ -1593,6 +1602,26 @@ Command:
 		get_config()
 		if nargs[0] == "config":
 			update_config_nodes()
+			
+	elif command == "kubectl":
+		if len(nargs) >= 1: 
+			get_config()
+			if len(nargs)>=2:
+				servicename = nargs[1]
+			else:
+				servicename = "*"
+			if nargs[0] == "start":
+				# Start a kubelet service. 
+				start_service(servicename)
+			elif nargs[0] == "stop":
+				# stop a kubelet service.
+				stop_service(servicename)
+			else:
+				run_kubectl(nargs)
+		else:
+			parser.print_help()
+			print "Error: kubectl need a subcommand."
+			exit()
 
 	else:
 		parser.print_help()
