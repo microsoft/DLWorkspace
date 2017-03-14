@@ -13,6 +13,7 @@ import math
 import distutils.dir_util
 import distutils.file_util
 import shutil
+import random
 
 from os.path import expanduser
 
@@ -533,11 +534,9 @@ def gen_ETCD_certificates():
 def gen_configs():
 	print "==============================================="
 	print "generating configuration files..."
-	os.system("mkdir -p ./deploy/bin")
 	os.system("mkdir -p ./deploy/etcd")
 	os.system("mkdir -p ./deploy/kube-addons")
 	os.system("mkdir -p ./deploy/master")	
-	os.system("rm -r ./deploy/bin")
 	os.system("rm -r ./deploy/etcd")
 	os.system("rm -r ./deploy/kube-addons")
 	os.system("rm -r ./deploy/master")
@@ -660,6 +659,12 @@ def deploy_master(kubernetes_master):
 				utils.sudo_scp(expand_path_in_config("ssh_cert"),source.strip(),target.strip(),kubernetes_master_user,kubernetes_master)
 
 		utils.SSH_exec_script(expand_path_in_config("ssh_cert"),kubernetes_master_user, kubernetes_master, "./deploy/master/" + config["postmasterdeploymentscript"])
+		
+def get_kubectl_binary():
+	os.system("mkdir -p ./deploy/bin")
+	urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet", "./deploy/bin/kubelet")
+	urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubectl", "./deploy/bin/kubectl")
+	os.system("chmod +x ./deploy/bin/*")
 
 def deploy_masters():
 
@@ -676,8 +681,7 @@ def deploy_masters():
 	utils.render_template_directory("./template/master", "./deploy/master",config)
 	utils.render_template_directory("./template/kube-addons", "./deploy/kube-addons",config)
 
-	urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet", "./deploy/bin/kubelet")
-	urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubectl", "./deploy/bin/kubectl")
+	get_kubectl_binary()
 	
 	clean_master()
 
@@ -715,6 +719,8 @@ def check_etcd_service():
 	print "waiting for ETCD service is ready..."
 	etcd_servers = config["etcd_node"]
 	cmd = "curl --cacert %s --cert %s --key %s 'https://%s:%s/v2/keys'" % ("./deploy/ssl/etcd/ca.pem","./deploy/ssl/etcd/etcd.pem","./deploy/ssl/etcd/etcd-key.pem", etcd_servers[0], config["etcd3port1"])
+	if verbose:
+		print cmd
 	while os.system(cmd) != 0:
 		time.sleep(5)
 	print "ETCD service is ready to use..."
@@ -1295,11 +1301,19 @@ def update_config_nodes():
 		update_config_node( node )
 
 # Running a kubectl commands. 
-def run_kubectl( commands ):
+def run_kube( prog, commands ):
 	nodes = get_ETCD_master_nodes(config["clusterId"])
-	master_node = nodes[0]
-	
-			
+	master_node = random.choice(nodes)
+	one_command = " ".join(commands)
+	kube_command = ("%s --server=https://%s:8443/ --certificate-authority=%s --client-key=%s --client-certificate=%s %s" % (prog, master_node, "./deploy/ssl/ca/ca.pem", "./deploy/ssl/kubelet/apiserver-key.pem", "./deploy/ssl/kubelet/apiserver.pem", one_command) )
+	if verbose:
+		print kube_command
+	os.system(kube_command)
+
+def run_kubectl( commands ):
+	run_kube( "./deploy/bin/kubectl", commands)
+
+
 if __name__ == '__main__':
 	# the program always run at the current directory. 
 	dirpath = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
@@ -1338,6 +1352,11 @@ Command:
             update: update a glusterFS on the cluster.
             stop: stop glusterFS service, data volume not removed. 
             clear: stop glusterFS service, and remove all data volumes. 
+  download  [args] Manage download
+            kubectl: download kubelet/kubectl.
+            kubelet: download kubelet/kubectl.
+  etcd      [args] manage etcd server.
+            check: check ETCD service.
   kubectl   [args] manage kubelet services on the cluster. 
             start: launch a certain kubelet service. 
             stop: stop a certain kubelet service. 
@@ -1421,6 +1440,9 @@ Command:
 		
 	command = args.command
 	nargs = args.nargs
+	
+	if verbose: 
+		print "deploy " + command + " " + (" ".join(nargs))
 
 	if command =="clean":
 		clean_deployment()
@@ -1621,6 +1643,33 @@ Command:
 		else:
 			parser.print_help()
 			print "Error: kubectl need a subcommand."
+			exit()
+	
+	elif command == "download":
+		if len(nargs)>=1:
+			if nargs[0] == "kubectl" or nargs[0] == "kubelet":
+				get_kubectl_binary()
+			else:
+				parser.print_help()
+				print "Error: unrecognized etcd subcommand."
+				exit()
+		else:
+			parser.print_help()
+			print "Error: etcd need a subcommand."
+			exit()
+	
+	elif command == "etcd":
+		if len(nargs)>=1:
+			if nargs[0] == "check":
+				get_ETCD_master_nodes(config["clusterId"])
+				check_etcd_service()
+			else:
+				parser.print_help()
+				print "Error: unrecognized etcd subcommand."
+				exit()
+		else:
+			parser.print_help()
+			print "Error: etcd need a subcommand."
 			exit()
 
 	else:
