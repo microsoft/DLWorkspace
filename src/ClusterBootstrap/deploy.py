@@ -39,7 +39,10 @@ ipAddrMetaname = "hostIP"
 coreosversion = "1235.9.0"
 coreoschannel = "stable"
 coreosbaseurl = ""
-verbose = False; 
+verbose = False
+
+class StaticVariable():
+	render_service_template_first_time = False
 
 
 default_config_parameters = { 
@@ -270,7 +273,7 @@ def add_leading_spaces(content, nspaces):
 		retstr += (" "*nspaces) + line + "\n"
 	return retstr
 	
-# translate a config entry to another, check type and do format conversion allow the way
+# translate a config entry to another, check type and do format conversion along the way
 def translate_config_entry( entry, name, type, leading_space = 0 ):
 	content = fetch_config( entry )
 	if not content is None:
@@ -382,15 +385,20 @@ def check_node_availability(ipAddress):
 	#status = sock.connect_ex((ipAddress,22))
 	return status == 0
 
+# Get domain of the node
+def get_domain():
+	if "network" in config and "domain" in config["network"]:
+		domain = "."+config["network"]["domain"]
+	else:
+		domain = ""
+	return domain
+
 # Get a list of nodes from cluster.yaml 
 def get_nodes_from_config(machinerole):
 	if "machines" not in config:
 		return []
 	else:
-		if "network" in config and "domain" in config["network"]:
-			domain = "."+config["network"]["domain"]
-		else:
-			domain = ""
+		domain = get_domain()
 		Nodes = []
 		for nodename in config["machines"]:
 			nodeInfo = config["machines"][nodename]
@@ -426,6 +434,8 @@ def get_ETCD_master_nodes_from_config(clusterId):
 	return Nodes
 
 def get_ETCD_master_nodes(clusterId):
+	if "etcd_node" in config:
+		return config["etcd_node"]
 	if "useclusterfile" not in config or not config["useclusterfile"]:
 		return get_ETCD_master_nodes_from_cluster_portal(clusterId)
 	else:
@@ -452,6 +462,8 @@ def get_worker_nodes_from_config(clusterId):
 	return Nodes
 
 def get_worker_nodes(clusterId):
+	if "worker_node" in config:
+		return config["worker_node"]
 	if "useclusterfile" not in config or not config["useclusterfile"]:
 		return get_worker_nodes_from_cluster_report(clusterId)
 	else:
@@ -699,8 +711,7 @@ def uncordon_master():
 	kubernetes_master_user = config["kubernetes_master_ssh_user"]
 	for i,kubernetes_master in enumerate(kubernetes_masters):
 		utils.SSH_exec_cmd(expand_path_in_config("ssh_cert"), kubernetes_master_user, kubernetes_master, "sudo /opt/bin/kubectl uncordon \$HOSTNAME")
-
-
+		
 
 def clean_etcd():
 	etcd_servers = config["etcd_node"]
@@ -1312,7 +1323,81 @@ def run_kube( prog, commands ):
 
 def run_kubectl( commands ):
 	run_kube( "./deploy/bin/kubectl", commands)
+	
+def kubenetes_get_node_name(node):
+	domain = get_domain()
+	if len(domain) < 2: 
+		return node
+	elif domain in node:
+		# print "Remove domain %d" % len(domain)
+		return node[:-(len(domain))]
+	else:
+		return node
+	
+def kubenetes_label_nodes():
+	get_nodes(config["clusterId"])
+	labels = fetch_config(["kubelabels"])
+	print labels
+	for label in labels:
+		nodetype = labels[label]
+		if nodetype == "worker_node":
+			nodes = config["worker_node"]
+		elif nodetype == "etcd_node":
+			nodes = config["etcd_node"]
+		elif nodetype == "all":
+			nodes = config["worker_node"] + config["etcd_node"]
+		else:
+			print "Unknown nodes type %s in kubelabels in configuration file." % nodetype
+			exit(-1)
+		if verbose: 
+			print "Kubenetes: apply label %s to %s, nodes: %s" %(label, nodetype, nodes)
+		for node in nodes:
+			nodename = kubenetes_get_node_name(node)
+			run_kubectl(["label nodes %s %s=%s" % (nodename, label, label)])
 
+def kubenetes_unlabel_nodes():
+	get_nodes(config["clusterId"])
+	labels = fetch_config(["kubelabels"])
+	print labels
+	for label in labels:
+		nodetype = labels[label]
+		if nodetype == "worker_node":
+			nodes = config["worker_node"]
+		elif nodetype == "etcd_node":
+			nodes = config["etcd_node"]
+		elif nodetype == "all":
+			nodes = config["worker_node"] + config["etcd_node"]
+		else:
+			print "Unknown nodes type %s in kubelabels in configuration file." % nodetype
+			exit(-1)
+		if verbose: 
+			print "Kubenetes: apply label %s to %s, nodes: %s" %(label, nodetype, nodes)
+		for node in nodes:
+			nodename = kubenetes_get_node_name(node)
+			run_kubectl(["label nodes %s %s-" % (nodename, label)])
+
+			
+def render_service_templates():
+	if not StaticVariable.render_service_template_first_time:
+		utils.render_template_directory( "./services/", "./deploy/services/", config)
+		StaticVariable.render_service_template_first_time = True
+	
+def get_service_yaml( servicename ):
+	render_service_templates()
+	fname = "./deploy/services/%s/%s.yaml" % (servicename, servicename)
+	return fname
+
+def start_kube_service( servicename ):
+	fname = get_service_yaml( servicename )
+	run_kubectl( ["create", "-f", fname ] )
+
+def stop_kube_service( servicename ):
+	fname = get_service_yaml( servicename )
+	run_kubectl( ["delete", "-f", fname ] )
+	
+def replace_kube_service( servicename ):
+	fname = get_service_yaml( servicename )
+	run_kubectl( ["replace --force", "-f", fname ] )
 
 if __name__ == '__main__':
 	# the program always run at the current directory. 
@@ -1361,6 +1446,11 @@ Command:
   kubectl   [args] manage kubelet services on the cluster. 
             start: launch a certain kubelet service. 
             stop: stop a certain kubelet service. 
+            restart: replace a certain kubelet service. 
+            cordon nodename: mark a node as unschedulable.
+            uncordon nodename: makr a node as schedulable.
+            labels: applying labels to node. 
+            unlabels: removing labels from node. 
   execonall [cmd ... ] Execute the command on all nodes and print the output. 
   doonall [cmd ... ] Execute the command on all nodes. 
   runscriptonall [script] Execute the shell/python script on all nodes. 
@@ -1404,6 +1494,7 @@ Command:
 	homeinserver = args.homeinserver
 	if args.verbose: 
 		verbose = True
+		utils.verbose = True
 	
 	config = init_config()
 	# Cluster Config
@@ -1635,10 +1726,17 @@ Command:
 				servicename = "*"
 			if nargs[0] == "start":
 				# Start a kubelet service. 
-				start_service(servicename)
+				start_kube_service(servicename)
 			elif nargs[0] == "stop":
 				# stop a kubelet service.
-				stop_service(servicename)
+				stop_kube_service(servicename)
+			elif nargs[0] == "restart":
+				# stop a kubelet service.
+				replace_kube_service(servicename)
+			elif nargs[0] == "labels":
+				kubenetes_label_nodes()
+			elif nargs[0] == "unlabels":
+				kubenetes_unlabel_nodes()
 			else:
 				run_kubectl(nargs)
 		else:
