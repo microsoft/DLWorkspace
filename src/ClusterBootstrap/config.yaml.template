@@ -45,10 +45,6 @@ kubelabels:
   worker: worker_node
   all: all
   
-systempods:
-  # A task in http://rancher.com/comparing-monitoring-options-for-docker-deployments/
-  CAdvisor:
-    deployto: all
 
 # the following items are optional
 # nfs-server : 

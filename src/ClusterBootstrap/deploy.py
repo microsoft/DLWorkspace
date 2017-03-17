@@ -1127,16 +1127,7 @@ def repartition_nodes(nodes, nodesinfo, partitionConfig):
 	()
 	
 def glusterFS_copy():
-	srcdir = "storage/glusterFS/kube-templates"
-	dstdir = os.path.join( "deploy", srcdir)
-	# print "Copytree from: " + srcdir + " to: " + dstdir
-	distutils.dir_util.copy_tree( srcdir, dstdir )
-	srcfile = "storage/glusterFS/gk-deploy"
-	dstfile = os.path.join( "deploy", srcfile)
-	copyfile( srcfile, dstfile )
-	srcfile = "storage/glusterFS/RemoveLVM.py"
-	dstfile = os.path.join( "deploy", srcfile)
-	copyfile( srcfile, dstfile )
+	render_template_directory("./storage/glusterFS", "./deploy/storage/glusterFS")
 	
 # Deploy glusterFS on a cluster
 def start_glusterFS( masternodes, ipToHostname, nodesinfo, glusterFSargs, flag = "-g"):
@@ -1156,6 +1147,7 @@ def start_glusterFS( masternodes, ipToHostname, nodesinfo, glusterFSargs, flag =
 	
 # Deploy glusterFS on a cluster
 def remove_glusterFS_volumes( masternodes, ipToHostname, nodesinfo, glusterFSargs, nodes ):
+	exit()
 	start_glusterFS( masternodes, ipToHostname, nodesinfo, glusterFSargs, flag = "-g --yes --abort")
 	for node in nodes:
 		glusterFS_copy()
@@ -1730,7 +1722,7 @@ Command:
 	elif command == "execonall" and len(nargs)>=1:
 		get_config()
 		nodes = get_nodes(config["clusterId"])
-		print nodes
+		print "Exec on all: " + str(nodes) 
 		exec_on_all_with_output(nodes, nargs)
 
 	elif command == "runscriptonall" and len(nargs)>=1:
