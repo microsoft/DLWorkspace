@@ -5,6 +5,7 @@ import subprocess
 import argparse
 import sys
 import textwrap
+import time
 from HostStatus import HostStatus
 from ServiceStatus import ServiceStatus
 
@@ -47,8 +48,12 @@ class KuberneteClusterDataRetriever:
 	# Run a kubenete command, parse the output in json
 	def run_kubectl( self, command ):
 		if os.path.isfile(self.kubectl_prog):
-			run_command = self.kubectl_prog + (" --server https://%s:8443/ " %self.kube_masternode) + self.kubectl_opt + " " + command
+			if self.kube_masternode is None:
+				run_command = self.kubectl_prog + " " + self.kubectl_opt + " " + command
+			else:
+				run_command = self.kubectl_prog + (" --server https://%s:8443/ " %self.kube_masternode) + self.kubectl_opt + " " + command
 			try:
+				print run_command
 				kubectl_output = subprocess.check_output(run_command, shell=True)
 				kubectl_ctl_json = json.loads(kubectl_output)
 				return kubectl_ctl_json
@@ -74,8 +79,8 @@ class KuberneteClusterDataRetriever:
 		return namespaces
 	
 	# list all pods in a certain namespace
-	def get_pods( self, namespace ):
-		pods_json = self.run_kubectl("get pods -o json -n "+namespace)
+	def get_pods( self ):
+		pods_json = self.run_kubectl("get pods -o json --all-namespaces")
 		return pods_json
 	
 	# Translate Kubernete state to fleet state
@@ -102,9 +107,9 @@ class KuberneteClusterDataRetriever:
 
 	# assemble hostStatusPerMachineMap
 	def retrieve(self):
-		namespaces = self.get_namespaces()
-		for namespace in namespaces:
-			pod_json = self.get_pods( namespace )
+		#namespaces = self.get_namespaces()
+		if True:
+			pod_json = self.get_pods( )
 			if "items" in pod_json:
 				for one_pod in pod_json["items"]:
 					pod_name = self.fetch_dictionary( one_pod, [ "metadata", "generateName"])
@@ -153,21 +158,48 @@ Test harness to retrieve kubenete service status and return it in a data structu
 Usage:
    KuberneteClusterDataRetriever.py kubernete_master
 ''') )
+	parser.add_argument("-t", "--time", 
+		help = "Measure the execution time by [n] times",
+		action="store", 
+		default=0)
+	parser.add_argument("-p", "--prog", 
+		help = "Kubectl program",
+		action="store", 
+		default=kubectl_prog)
+	parser.add_argument("-o", "--opt", 
+		help = "Kubectl program option",
+		action="store", 
+		default=kubectl_opt)
 	parser.add_argument('nargs', nargs=argparse.REMAINDER, 
 		help="Additional command argument", 
 		)
 	args = parser.parse_args()
+	kubectl_prog = args.prog
+	kubectl_opt = args.opt
 	nargs = args.nargs
-	if len(nargs)!=1:
-		args.print_help()
-		print "Error: need the kubernete_master"
-	kube_masternode = nargs[0]
+	if len(nargs)>=1:
+		kube_masternode = nargs[0]
+	else:
+		kube_masternode = None
+	
 	hostStatusPerMachineMap = {}
 	retriever = KuberneteClusterDataRetriever(kubectl_prog, kube_masternode, kubectl_opt, hostStatusPerMachineMap)
-	
-	retriever.retrieve()
-	for node in hostStatusPerMachineMap:
-		print "Node %s" % node
-		hostStatus = hostStatusPerMachineMap[node].services
-		for service in hostStatus:
-			print "  Service: %s, state: %s" % ( service, hostStatus[service].state )
+
+	inprepeat = int(args.time)
+	repeat = 1 if inprepeat<=0 else inprepeat
+	time0 = time.time()
+	timing = []
+	for i in range(repeat):
+		hostStatusPerMachineMap.clear()
+		retriever.retrieve()
+		if inprepeat<=0:
+			for node in hostStatusPerMachineMap:
+				print "Node %s" % node
+				hostStatus = hostStatusPerMachineMap[node].services
+				for service in hostStatus:
+					print "  Service: %s, state: %s" % ( service, hostStatus[service].state )
+		time1 = time.time()
+		timing.append(time1-time0)
+		time0 = time1
+	if args.time >= 1:
+		print "Execution time: " + str(timing)
