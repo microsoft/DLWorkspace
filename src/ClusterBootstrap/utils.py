@@ -270,7 +270,7 @@ def execute_restore_and_decrypt(fname, key):
 	cleanup_command += "rm -rf ./deploy_backup/backup"
 	os.system(cleanup_command)
 
-def backup_keys(clusterName, nargs ):
+def backup_keys(clusterName, nargs=[] ):
 	if len(nargs)<=0:
 		clusterID = get_cluster_ID_from_file()
 		fname = "./deploy_backup/config=%s-%s=%s-%s" %(clusterName,clusterID,str(time.time()),str(uuid.uuid4())[:5])

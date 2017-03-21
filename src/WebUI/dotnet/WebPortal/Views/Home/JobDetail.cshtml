@@ -14,11 +14,15 @@
         }).done(
             function (payload) {
                 if (payload.log) {
-                    console.log(payload.jobId);
-                    var objDiv = document.getElementById('logPanel');
-                    objDiv.style.height = "500px"
-                    objDiv.innerHTML = payload.log;
-                    objDiv.scrollTop = objDiv.scrollHeight;
+                    //console.log(payload.jobId);
+                    if (payload.log != "fail-to-get-logs")
+                    {
+                        var objDiv = document.getElementById('logPanel');
+                        objDiv.style.height = "500px"
+                        objDiv.innerHTML = payload.log;
+                        objDiv.scrollTop = objDiv.scrollHeight;
+                    }
+
                 }
                 else {
                     var logPanelDiv = document.getElementById('logPanel');

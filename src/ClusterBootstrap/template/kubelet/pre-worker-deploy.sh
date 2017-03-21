@@ -6,7 +6,6 @@ sudo systemctl stop flanneld
 sudo rm /etc/systemd/system/flanneld.service.d/40-ExecStartPre-symlink.conf
 sudo rm /etc/systemd/system/docker.service.d/40-flannel.conf
 sudo rm /etc/flannel/options.env
-sudo systemctl start docker
 sudo systemctl disable kubelet
 
 sudo rm /etc/systemd/system/kubelet.service
