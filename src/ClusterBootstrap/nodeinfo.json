@@ -1,0 +1,622 @@
+Name:			ccpinfra00
+Role:			
+Labels:			beta.kubernetes.io/arch=amd64
+			beta.kubernetes.io/os=linux
+			kubernetes.io/hostname=ccpinfra00
+Taints:			<none>
+CreationTimestamp:	Fri, 10 Mar 2017 11:06:24 -0800
+Phase:			
+Conditions:
+  Type			Status	LastHeartbeatTime			LastTransitionTime			Reason				Message
+  ----			------	-----------------			------------------			------				-------
+  OutOfDisk 		False 	Wed, 15 Mar 2017 17:52:56 -0700 	Fri, 10 Mar 2017 11:06:24 -0800 	KubeletHasSufficientDisk 	kubelet has sufficient disk space available
+  MemoryPressure 	False 	Wed, 15 Mar 2017 17:52:56 -0700 	Fri, 10 Mar 2017 11:06:24 -0800 	KubeletHasSufficientMemory 	kubelet has sufficient memory available
+  DiskPressure 		False 	Wed, 15 Mar 2017 17:52:56 -0700 	Fri, 10 Mar 2017 11:06:24 -0800 	KubeletHasNoDiskPressure 	kubelet has no disk pressure
+  Ready 		True 	Wed, 15 Mar 2017 17:52:56 -0700 	Fri, 10 Mar 2017 11:06:24 -0800 	KubeletReady 			kubelet is posting ready status
+Addresses:		10.177.92.51,10.177.92.51,ccpinfra00
+Capacity:
+ alpha.kubernetes.io/nvidia-gpu:	0
+ cpu:					24
+ memory:				32968744Ki
+ pods:					110
+Allocatable:
+ alpha.kubernetes.io/nvidia-gpu:	0
+ cpu:					24
+ memory:				32968744Ki
+ pods:					110
+System Info:
+ Machine ID:			e8dee6c95d154414bf5bd6899660738f
+ System UUID:			4C4C4544-0039-5710-8036-C3C04F335731
+ Boot ID:			66ecf10d-e165-4776-a8d8-30e12bcc3b48
+ Kernel Version:		4.5.0-coreos-r1
+ OS Image:			CoreOS 1010.5.0 (MoreOS)
+ Operating System:		linux
+ Architecture:			amd64
+ Container Runtime Version:	docker://1.10.3
+ Kubelet Version:		v1.5.3-beta.0.36+021ff8167cd5af-dirty
+ Kube-Proxy Version:		v1.5.3-beta.0.36+021ff8167cd5af-dirty
+ExternalID:			ccpinfra00
+Non-terminated Pods:		(4 in total)
+  Namespace			Name						CPU Requests	CPU Limits	Memory Requests	Memory Limits
+  ---------			----						------------	----------	---------------	-------------
+  kube-system			kube-apiserver-ccpinfra00			0 (0%)		0 (0%)		0 (0%)		0 (0%)
+  kube-system			kube-controller-manager-ccpinfra00		0 (0%)		0 (0%)		0 (0%)		0 (0%)
+  kube-system			kube-proxy-8r48r				100m (0%)	0 (0%)		0 (0%)		0 (0%)
+  kube-system			kube-scheduler-ccpinfra00			0 (0%)		0 (0%)		0 (0%)		0 (0%)
+Allocated resources:
+  (Total limits may be over 100 percent, i.e., overcommitted.
+  CPU Requests	CPU Limits	Memory Requests	Memory Limits
+  ------------	----------	---------------	-------------
+  100m (0%)	0 (0%)		0 (0%)		0 (0%)
+Events:
+  FirstSeen	LastSeen	Count	From			SubObjectPath	Type		Reason			Message
+  ---------	--------	-----	----			-------------	--------	------			-------
+  1m		1m		1	{kubelet ccpinfra00}			Normal		NodeSchedulable		Node ccpinfra00 status is now: NodeSchedulable
+  5d		1m		2	{kubelet ccpinfra00}			Normal		NodeNotSchedulable	Node ccpinfra00 status is now: NodeNotSchedulable
+
+
+Name:			ccpinfra01
+Role:			
+Labels:			beta.kubernetes.io/arch=amd64
+			beta.kubernetes.io/os=linux
+			kubernetes.io/hostname=ccpinfra01
+Taints:			<none>
+CreationTimestamp:	Fri, 10 Mar 2017 11:06:33 -0800
+Phase:			
+Conditions:
+  Type			Status	LastHeartbeatTime			LastTransitionTime			Reason				Message
+  ----			------	-----------------			------------------			------				-------
+  OutOfDisk 		False 	Wed, 15 Mar 2017 17:53:03 -0700 	Fri, 10 Mar 2017 11:06:33 -0800 	KubeletHasSufficientDisk 	kubelet has sufficient disk space available
+  MemoryPressure 	False 	Wed, 15 Mar 2017 17:53:03 -0700 	Fri, 10 Mar 2017 11:06:33 -0800 	KubeletHasSufficientMemory 	kubelet has sufficient memory available
+  DiskPressure 		False 	Wed, 15 Mar 2017 17:53:03 -0700 	Fri, 10 Mar 2017 11:06:33 -0800 	KubeletHasNoDiskPressure 	kubelet has no disk pressure
+  Ready 		True 	Wed, 15 Mar 2017 17:53:03 -0700 	Fri, 10 Mar 2017 11:06:33 -0800 	KubeletReady 			kubelet is posting ready status
+Addresses:		10.177.92.52,10.177.92.52,ccpinfra01
+Capacity:
+ alpha.kubernetes.io/nvidia-gpu:	0
+ cpu:					24
+ memory:				32968744Ki
+ pods:					110
+Allocatable:
+ alpha.kubernetes.io/nvidia-gpu:	0
+ cpu:					24
+ memory:				32968744Ki
+ pods:					110
+System Info:
+ Machine ID:			3e94f4d2e9a148b2bc4b26d9dbbadbe7
+ System UUID:			4C4C4544-0039-5710-8036-C8C04F335731
+ Boot ID:			b7f77fe2-1f44-45b3-95ec-2ff43b10c5c5
+ Kernel Version:		4.5.0-coreos-r1
+ OS Image:			CoreOS 1010.5.0 (MoreOS)
+ Operating System:		linux
+ Architecture:			amd64
+ Container Runtime Version:	docker://1.10.3
+ Kubelet Version:		v1.5.3-beta.0.36+021ff8167cd5af-dirty
+ Kube-Proxy Version:		v1.5.3-beta.0.36+021ff8167cd5af-dirty
+ExternalID:			ccpinfra01
+Non-terminated Pods:		(4 in total)
+  Namespace			Name						CPU Requests	CPU Limits	Memory Requests	Memory Limits
+  ---------			----						------------	----------	---------------	-------------
+  kube-system			kube-apiserver-ccpinfra01			0 (0%)		0 (0%)		0 (0%)		0 (0%)
+  kube-system			kube-controller-manager-ccpinfra01		0 (0%)		0 (0%)		0 (0%)		0 (0%)
+  kube-system			kube-proxy-ptxxc				100m (0%)	0 (0%)		0 (0%)		0 (0%)
+  kube-system			kube-scheduler-ccpinfra01			0 (0%)		0 (0%)		0 (0%)		0 (0%)
+Allocated resources:
+  (Total limits may be over 100 percent, i.e., overcommitted.
+  CPU Requests	CPU Limits	Memory Requests	Memory Limits
+  ------------	----------	---------------	-------------
+  100m (0%)	0 (0%)		0 (0%)		0 (0%)
+Events:
+  FirstSeen	LastSeen	Count	From			SubObjectPath	Type		Reason			Message
+  ---------	--------	-----	----			-------------	--------	------			-------
+  1m		1m		1	{kubelet ccpinfra01}			Normal		NodeSchedulable		Node ccpinfra01 status is now: NodeSchedulable
+  5d		1m		2	{kubelet ccpinfra01}			Normal		NodeNotSchedulable	Node ccpinfra01 status is now: NodeNotSchedulable
+
+
+Name:			ccpinfra02
+Role:			
+Labels:			beta.kubernetes.io/arch=amd64
+			beta.kubernetes.io/os=linux
+			kubernetes.io/hostname=ccpinfra02
+Taints:			<none>
+CreationTimestamp:	Fri, 10 Mar 2017 11:06:23 -0800
+Phase:			
+Conditions:
+  Type			Status	LastHeartbeatTime			LastTransitionTime			Reason				Message
+  ----			------	-----------------			------------------			------				-------
+  OutOfDisk 		False 	Wed, 15 Mar 2017 17:53:02 -0700 	Fri, 10 Mar 2017 11:06:23 -0800 	KubeletHasSufficientDisk 	kubelet has sufficient disk space available
+  MemoryPressure 	False 	Wed, 15 Mar 2017 17:53:02 -0700 	Fri, 10 Mar 2017 11:06:23 -0800 	KubeletHasSufficientMemory 	kubelet has sufficient memory available
+  DiskPressure 		False 	Wed, 15 Mar 2017 17:53:02 -0700 	Fri, 10 Mar 2017 11:06:23 -0800 	KubeletHasNoDiskPressure 	kubelet has no disk pressure
+  Ready 		True 	Wed, 15 Mar 2017 17:53:02 -0700 	Fri, 10 Mar 2017 11:06:23 -0800 	KubeletReady 			kubelet is posting ready status
+Addresses:		10.177.92.53,10.177.92.53,ccpinfra02
+Capacity:
+ alpha.kubernetes.io/nvidia-gpu:	0
+ cpu:					24
+ memory:				32196Mi
+ pods:					110
+Allocatable:
+ alpha.kubernetes.io/nvidia-gpu:	0
+ cpu:					24
+ memory:				32196Mi
+ pods:					110
+System Info:
+ Machine ID:			eb6eea05ec1746a79c88d99764648c2c
+ System UUID:			4C4C4544-0039-5710-8036-B9C04F335731
+ Boot ID:			2f0a7613-5ea5-4b63-b901-99ca857d554c
+ Kernel Version:		4.5.0-coreos-r1
+ OS Image:			CoreOS 1010.5.0 (MoreOS)
+ Operating System:		linux
+ Architecture:			amd64
+ Container Runtime Version:	docker://1.10.3
+ Kubelet Version:		v1.5.3-beta.0.36+021ff8167cd5af-dirty
+ Kube-Proxy Version:		v1.5.3-beta.0.36+021ff8167cd5af-dirty
+ExternalID:			ccpinfra02
+Non-terminated Pods:		(4 in total)
+  Namespace			Name						CPU Requests	CPU Limits	Memory Requests	Memory Limits
+  ---------			----						------------	----------	---------------	-------------
+  kube-system			kube-apiserver-ccpinfra02			0 (0%)		0 (0%)		0 (0%)		0 (0%)
+  kube-system			kube-controller-manager-ccpinfra02		0 (0%)		0 (0%)		0 (0%)		0 (0%)
+  kube-system			kube-proxy-xwd86				100m (0%)	0 (0%)		0 (0%)		0 (0%)
+  kube-system			kube-scheduler-ccpinfra02			0 (0%)		0 (0%)		0 (0%)		0 (0%)
+Allocated resources:
+  (Total limits may be over 100 percent, i.e., overcommitted.
+  CPU Requests	CPU Limits	Memory Requests	Memory Limits
+  ------------	----------	---------------	-------------
+  100m (0%)	0 (0%)		0 (0%)		0 (0%)
+Events:
+  FirstSeen	LastSeen	Count	From			SubObjectPath	Type		Reason			Message
+  ---------	--------	-----	----			-------------	--------	------			-------
+  1m		1m		1	{kubelet ccpinfra02}			Normal		NodeSchedulable		Node ccpinfra02 status is now: NodeSchedulable
+  5d		1m		2	{kubelet ccpinfra02}			Normal		NodeNotSchedulable	Node ccpinfra02 status is now: NodeNotSchedulable
+
+
+Name:			dandelion-00
+Role:			
+Labels:			beta.kubernetes.io/arch=amd64
+			beta.kubernetes.io/os=linux
+			kubernetes.io/hostname=dandelion-00
+Taints:			<none>
+CreationTimestamp:	Fri, 10 Mar 2017 12:16:20 -0800
+Phase:			
+Conditions:
+  Type			Status	LastHeartbeatTime			LastTransitionTime			Reason				Message
+  ----			------	-----------------			------------------			------				-------
+  OutOfDisk 		False 	Wed, 15 Mar 2017 17:52:59 -0700 	Fri, 10 Mar 2017 12:16:20 -0800 	KubeletHasSufficientDisk 	kubelet has sufficient disk space available
+  MemoryPressure 	False 	Wed, 15 Mar 2017 17:52:59 -0700 	Fri, 10 Mar 2017 12:16:20 -0800 	KubeletHasSufficientMemory 	kubelet has sufficient memory available
+  DiskPressure 		False 	Wed, 15 Mar 2017 17:52:59 -0700 	Fri, 10 Mar 2017 12:16:20 -0800 	KubeletHasNoDiskPressure 	kubelet has no disk pressure
+  Ready 		True 	Wed, 15 Mar 2017 17:52:59 -0700 	Fri, 10 Mar 2017 12:16:30 -0800 	KubeletReady 			kubelet is posting ready status
+Addresses:		10.177.92.20,10.177.92.20,dandelion-00
+Capacity:
+ alpha.kubernetes.io/nvidia-gpu:	2
+ cpu:					24
+ memory:				264170652Ki
+ pods:					110
+Allocatable:
+ alpha.kubernetes.io/nvidia-gpu:	2
+ cpu:					24
+ memory:				264170652Ki
+ pods:					110
+System Info:
+ Machine ID:			cbcad8707131434e866dcb93cf346c46
+ System UUID:			54A44440-5BCE-11D9-A2E2-74D02B056F59
+ Boot ID:			cc8aa9e8-643c-471f-91a9-cd0b5980bcf5
+ Kernel Version:		4.5.0-coreos-r1
+ OS Image:			CoreOS 1010.5.0 (MoreOS)
+ Operating System:		linux
+ Architecture:			amd64
+ Container Runtime Version:	docker://1.10.3
+ Kubelet Version:		v1.5.3-beta.0.36+021ff8167cd5af-dirty
+ Kube-Proxy Version:		v1.5.3-beta.0.36+021ff8167cd5af-dirty
+ExternalID:			dandelion-00
+Non-terminated Pods:		(1 in total)
+  Namespace			Name				CPU Requests	CPU Limits	Memory Requests	Memory Limits
+  ---------			----				------------	----------	---------------	-------------
+  kube-system			kube-proxy-ddbv3		100m (0%)	0 (0%)		0 (0%)		0 (0%)
+Allocated resources:
+  (Total limits may be over 100 percent, i.e., overcommitted.
+  CPU Requests	CPU Limits	Memory Requests	Memory Limits
+  ------------	----------	---------------	-------------
+  100m (0%)	0 (0%)		0 (0%)		0 (0%)
+No events.
+
+
+Name:			dandelion-01
+Role:			
+Labels:			beta.kubernetes.io/arch=amd64
+			beta.kubernetes.io/os=linux
+			kubernetes.io/hostname=dandelion-01
+Taints:			<none>
+CreationTimestamp:	Fri, 10 Mar 2017 12:16:26 -0800
+Phase:			
+Conditions:
+  Type			Status	LastHeartbeatTime			LastTransitionTime			Reason				Message
+  ----			------	-----------------			------------------			------				-------
+  OutOfDisk 		False 	Wed, 15 Mar 2017 17:52:55 -0700 	Fri, 10 Mar 2017 12:16:26 -0800 	KubeletHasSufficientDisk 	kubelet has sufficient disk space available
+  MemoryPressure 	False 	Wed, 15 Mar 2017 17:52:55 -0700 	Fri, 10 Mar 2017 12:16:26 -0800 	KubeletHasSufficientMemory 	kubelet has sufficient memory available
+  DiskPressure 		False 	Wed, 15 Mar 2017 17:52:55 -0700 	Fri, 10 Mar 2017 12:16:26 -0800 	KubeletHasNoDiskPressure 	kubelet has no disk pressure
+  Ready 		True 	Wed, 15 Mar 2017 17:52:55 -0700 	Wed, 15 Mar 2017 16:43:20 -0700 	KubeletReady 			kubelet is posting ready status
+Addresses:		10.177.92.21,10.177.92.21,dandelion-01
+Capacity:
+ alpha.kubernetes.io/nvidia-gpu:	2
+ cpu:					24
+ memory:				264104656Ki
+ pods:					110
+Allocatable:
+ alpha.kubernetes.io/nvidia-gpu:	2
+ cpu:					24
+ memory:				264104656Ki
+ pods:					110
+System Info:
+ Machine ID:			62b0f4f64a164b8a90288f9972a23ded
+ System UUID:			38F51640-5BCC-11D9-A1E3-74D02B056F53
+ Boot ID:			bf6a81f2-b3ba-4ecc-897f-c64505ed70e0
+ Kernel Version:		4.5.0-coreos-r1
+ OS Image:			CoreOS 1010.5.0 (MoreOS)
+ Operating System:		linux
+ Architecture:			amd64
+ Container Runtime Version:	docker://1.10.3
+ Kubelet Version:		v1.5.3-beta.0.36+021ff8167cd5af-dirty
+ Kube-Proxy Version:		v1.5.3-beta.0.36+021ff8167cd5af-dirty
+ExternalID:			dandelion-01
+Non-terminated Pods:		(1 in total)
+  Namespace			Name				CPU Requests	CPU Limits	Memory Requests	Memory Limits
+  ---------			----				------------	----------	---------------	-------------
+  kube-system			kube-proxy-gbgt6		100m (0%)	0 (0%)		0 (0%)		0 (0%)
+Allocated resources:
+  (Total limits may be over 100 percent, i.e., overcommitted.
+  CPU Requests	CPU Limits	Memory Requests	Memory Limits
+  ------------	----------	---------------	-------------
+  100m (0%)	0 (0%)		0 (0%)		0 (0%)
+No events.
+
+
+Name:			dandelion-02
+Role:			
+Labels:			beta.kubernetes.io/arch=amd64
+			beta.kubernetes.io/os=linux
+			kubernetes.io/hostname=dandelion-02
+Taints:			<none>
+CreationTimestamp:	Fri, 10 Mar 2017 12:16:47 -0800
+Phase:			
+Conditions:
+  Type			Status	LastHeartbeatTime			LastTransitionTime			Reason				Message
+  ----			------	-----------------			------------------			------				-------
+  OutOfDisk 		False 	Wed, 15 Mar 2017 17:53:04 -0700 	Fri, 10 Mar 2017 12:16:47 -0800 	KubeletHasSufficientDisk 	kubelet has sufficient disk space available
+  MemoryPressure 	False 	Wed, 15 Mar 2017 17:53:04 -0700 	Fri, 10 Mar 2017 12:16:47 -0800 	KubeletHasSufficientMemory 	kubelet has sufficient memory available
+  DiskPressure 		False 	Wed, 15 Mar 2017 17:53:04 -0700 	Fri, 10 Mar 2017 12:16:47 -0800 	KubeletHasNoDiskPressure 	kubelet has no disk pressure
+  Ready 		True 	Wed, 15 Mar 2017 17:53:04 -0700 	Fri, 10 Mar 2017 12:16:57 -0800 	KubeletReady 			kubelet is posting ready status
+Addresses:		10.177.92.22,10.177.92.22,dandelion-02
+Capacity:
+ alpha.kubernetes.io/nvidia-gpu:	2
+ cpu:					24
+ memory:				264170652Ki
+ pods:					110
+Allocatable:
+ alpha.kubernetes.io/nvidia-gpu:	2
+ cpu:					24
+ memory:				264170652Ki
+ pods:					110
+System Info:
+ Machine ID:			72f942ef411f439b8b7c5cf35047b888
+ System UUID:			7ACF4160-5C50-11D9-8E1E-74D02B056F51
+ Boot ID:			6b28f9de-7010-4c1c-91e1-053255274153
+ Kernel Version:		4.5.0-coreos-r1
+ OS Image:			CoreOS 1010.5.0 (MoreOS)
+ Operating System:		linux
+ Architecture:			amd64
+ Container Runtime Version:	docker://1.10.3
+ Kubelet Version:		v1.5.3-beta.0.36+021ff8167cd5af-dirty
+ Kube-Proxy Version:		v1.5.3-beta.0.36+021ff8167cd5af-dirty
+ExternalID:			dandelion-02
+Non-terminated Pods:		(2 in total)
+  Namespace			Name						CPU Requests	CPU Limits	Memory Requests	Memory Limits
+  ---------			----						------------	----------	---------------	-------------
+  kube-system			heapster-v1.2.0-2532104955-fz14t		130m (0%)	130m (0%)	230Mi (0%)	230Mi (0%)
+  kube-system			kube-proxy-vgjqt				100m (0%)	0 (0%)		0 (0%)		0 (0%)
+Allocated resources:
+  (Total limits may be over 100 percent, i.e., overcommitted.
+  CPU Requests	CPU Limits	Memory Requests	Memory Limits
+  ------------	----------	---------------	-------------
+  230m (0%)	130m (0%)	230Mi (0%)	230Mi (0%)
+No events.
+
+
+Name:			dandelion-03
+Role:			
+Labels:			beta.kubernetes.io/arch=amd64
+			beta.kubernetes.io/os=linux
+			kubernetes.io/hostname=dandelion-03
+Taints:			<none>
+CreationTimestamp:	Fri, 10 Mar 2017 12:16:56 -0800
+Phase:			
+Conditions:
+  Type			Status	LastHeartbeatTime			LastTransitionTime			Reason				Message
+  ----			------	-----------------			------------------			------				-------
+  OutOfDisk 		False 	Wed, 15 Mar 2017 17:53:01 -0700 	Fri, 10 Mar 2017 12:16:56 -0800 	KubeletHasSufficientDisk 	kubelet has sufficient disk space available
+  MemoryPressure 	False 	Wed, 15 Mar 2017 17:53:01 -0700 	Fri, 10 Mar 2017 12:16:56 -0800 	KubeletHasSufficientMemory 	kubelet has sufficient memory available
+  DiskPressure 		False 	Wed, 15 Mar 2017 17:53:01 -0700 	Fri, 10 Mar 2017 12:16:56 -0800 	KubeletHasNoDiskPressure 	kubelet has no disk pressure
+  Ready 		True 	Wed, 15 Mar 2017 17:53:01 -0700 	Fri, 10 Mar 2017 12:17:06 -0800 	KubeletReady 			kubelet is posting ready status
+Addresses:		10.177.92.23,10.177.92.23,dandelion-03
+Capacity:
+ alpha.kubernetes.io/nvidia-gpu:	2
+ cpu:					24
+ memory:				264170652Ki
+ pods:					110
+Allocatable:
+ alpha.kubernetes.io/nvidia-gpu:	2
+ cpu:					24
+ memory:				264170652Ki
+ pods:					110
+System Info:
+ Machine ID:			a170f3ea527e440188d65d8b1712ec8b
+ System UUID:			C2740FC0-5BCC-11D9-AA21-74D02B056F17
+ Boot ID:			2b978c30-5477-4cc2-8bbe-bbfe539c42ed
+ Kernel Version:		4.5.0-coreos-r1
+ OS Image:			CoreOS 1010.5.0 (MoreOS)
+ Operating System:		linux
+ Architecture:			amd64
+ Container Runtime Version:	docker://1.10.3
+ Kubelet Version:		v1.5.3-beta.0.36+021ff8167cd5af-dirty
+ Kube-Proxy Version:		v1.5.3-beta.0.36+021ff8167cd5af-dirty
+ExternalID:			dandelion-03
+Non-terminated Pods:		(1 in total)
+  Namespace			Name				CPU Requests	CPU Limits	Memory Requests	Memory Limits
+  ---------			----				------------	----------	---------------	-------------
+  kube-system			kube-proxy-8670m		100m (0%)	0 (0%)		0 (0%)		0 (0%)
+Allocated resources:
+  (Total limits may be over 100 percent, i.e., overcommitted.
+  CPU Requests	CPU Limits	Memory Requests	Memory Limits
+  ------------	----------	---------------	-------------
+  100m (0%)	0 (0%)		0 (0%)		0 (0%)
+No events.
+
+
+Name:			dandelion-04
+Role:			
+Labels:			beta.kubernetes.io/arch=amd64
+			beta.kubernetes.io/os=linux
+			kubernetes.io/hostname=dandelion-04
+Taints:			<none>
+CreationTimestamp:	Fri, 10 Mar 2017 12:17:06 -0800
+Phase:			
+Conditions:
+  Type			Status	LastHeartbeatTime			LastTransitionTime			Reason				Message
+  ----			------	-----------------			------------------			------				-------
+  OutOfDisk 		False 	Wed, 15 Mar 2017 17:53:02 -0700 	Fri, 10 Mar 2017 12:17:06 -0800 	KubeletHasSufficientDisk 	kubelet has sufficient disk space available
+  MemoryPressure 	False 	Wed, 15 Mar 2017 17:53:02 -0700 	Fri, 10 Mar 2017 12:17:06 -0800 	KubeletHasSufficientMemory 	kubelet has sufficient memory available
+  DiskPressure 		False 	Wed, 15 Mar 2017 17:53:02 -0700 	Fri, 10 Mar 2017 12:17:06 -0800 	KubeletHasNoDiskPressure 	kubelet has no disk pressure
+  Ready 		True 	Wed, 15 Mar 2017 17:53:02 -0700 	Fri, 10 Mar 2017 12:17:16 -0800 	KubeletReady 			kubelet is posting ready status
+Addresses:		10.177.92.24,10.177.92.24,dandelion-04
+Capacity:
+ alpha.kubernetes.io/nvidia-gpu:	2
+ cpu:					24
+ memory:				264170652Ki
+ pods:					110
+Allocatable:
+ alpha.kubernetes.io/nvidia-gpu:	2
+ cpu:					24
+ memory:				264170652Ki
+ pods:					110
+System Info:
+ Machine ID:			fc17118ddc52474f9e0d01e87f858ef8
+ System UUID:			65E7BD60-5BCC-11D9-97A5-74D02B056F33
+ Boot ID:			fcaab3b8-da92-405c-9a58-f0b49e08f6ad
+ Kernel Version:		4.5.0-coreos-r1
+ OS Image:			CoreOS 1010.5.0 (MoreOS)
+ Operating System:		linux
+ Architecture:			amd64
+ Container Runtime Version:	docker://1.10.3
+ Kubelet Version:		v1.5.3-beta.0.36+021ff8167cd5af-dirty
+ Kube-Proxy Version:		v1.5.3-beta.0.36+021ff8167cd5af-dirty
+ExternalID:			dandelion-04
+Non-terminated Pods:		(1 in total)
+  Namespace			Name				CPU Requests	CPU Limits	Memory Requests	Memory Limits
+  ---------			----				------------	----------	---------------	-------------
+  kube-system			kube-proxy-qs547		100m (0%)	0 (0%)		0 (0%)		0 (0%)
+Allocated resources:
+  (Total limits may be over 100 percent, i.e., overcommitted.
+  CPU Requests	CPU Limits	Memory Requests	Memory Limits
+  ------------	----------	---------------	-------------
+  100m (0%)	0 (0%)		0 (0%)		0 (0%)
+No events.
+
+
+Name:			dandelion-05
+Role:			
+Labels:			beta.kubernetes.io/arch=amd64
+			beta.kubernetes.io/os=linux
+			kubernetes.io/hostname=dandelion-05
+Taints:			<none>
+CreationTimestamp:	Fri, 10 Mar 2017 12:17:15 -0800
+Phase:			
+Conditions:
+  Type			Status	LastHeartbeatTime			LastTransitionTime			Reason				Message
+  ----			------	-----------------			------------------			------				-------
+  OutOfDisk 		False 	Wed, 15 Mar 2017 17:53:02 -0700 	Fri, 10 Mar 2017 12:17:15 -0800 	KubeletHasSufficientDisk 	kubelet has sufficient disk space available
+  MemoryPressure 	False 	Wed, 15 Mar 2017 17:53:02 -0700 	Fri, 10 Mar 2017 12:17:15 -0800 	KubeletHasSufficientMemory 	kubelet has sufficient memory available
+  DiskPressure 		False 	Wed, 15 Mar 2017 17:53:02 -0700 	Fri, 10 Mar 2017 12:17:15 -0800 	KubeletHasNoDiskPressure 	kubelet has no disk pressure
+  Ready 		True 	Wed, 15 Mar 2017 17:53:02 -0700 	Fri, 10 Mar 2017 12:17:26 -0800 	KubeletReady 			kubelet is posting ready status
+Addresses:		10.177.92.25,10.177.92.25,dandelion-05
+Capacity:
+ alpha.kubernetes.io/nvidia-gpu:	2
+ cpu:					24
+ memory:				264173056Ki
+ pods:					110
+Allocatable:
+ alpha.kubernetes.io/nvidia-gpu:	2
+ cpu:					24
+ memory:				264173056Ki
+ pods:					110
+System Info:
+ Machine ID:			fd3d4322e6854abdb20bd528caf84ff7
+ System UUID:			7FBCE620-5BCC-11D9-8AFE-74D02B056F37
+ Boot ID:			6e7ae13b-c6e4-4b28-b0d7-53044fc98a7d
+ Kernel Version:		4.5.0-coreos-r1
+ OS Image:			CoreOS 1010.5.0 (MoreOS)
+ Operating System:		linux
+ Architecture:			amd64
+ Container Runtime Version:	docker://1.10.3
+ Kubelet Version:		v1.5.3-beta.0.36+021ff8167cd5af-dirty
+ Kube-Proxy Version:		v1.5.3-beta.0.36+021ff8167cd5af-dirty
+ExternalID:			dandelion-05
+Non-terminated Pods:		(1 in total)
+  Namespace			Name				CPU Requests	CPU Limits	Memory Requests	Memory Limits
+  ---------			----				------------	----------	---------------	-------------
+  kube-system			kube-proxy-3m5kk		100m (0%)	0 (0%)		0 (0%)		0 (0%)
+Allocated resources:
+  (Total limits may be over 100 percent, i.e., overcommitted.
+  CPU Requests	CPU Limits	Memory Requests	Memory Limits
+  ------------	----------	---------------	-------------
+  100m (0%)	0 (0%)		0 (0%)		0 (0%)
+No events.
+
+
+Name:			dandelion-06
+Role:			
+Labels:			beta.kubernetes.io/arch=amd64
+			beta.kubernetes.io/os=linux
+			kubernetes.io/hostname=dandelion-06
+Taints:			<none>
+CreationTimestamp:	Fri, 10 Mar 2017 12:17:25 -0800
+Phase:			
+Conditions:
+  Type			Status	LastHeartbeatTime			LastTransitionTime			Reason				Message
+  ----			------	-----------------			------------------			------				-------
+  OutOfDisk 		False 	Wed, 15 Mar 2017 17:52:58 -0700 	Fri, 10 Mar 2017 12:17:25 -0800 	KubeletHasSufficientDisk 	kubelet has sufficient disk space available
+  MemoryPressure 	False 	Wed, 15 Mar 2017 17:52:58 -0700 	Fri, 10 Mar 2017 12:17:25 -0800 	KubeletHasSufficientMemory 	kubelet has sufficient memory available
+  DiskPressure 		False 	Wed, 15 Mar 2017 17:52:58 -0700 	Fri, 10 Mar 2017 12:17:25 -0800 	KubeletHasNoDiskPressure 	kubelet has no disk pressure
+  Ready 		True 	Wed, 15 Mar 2017 17:52:58 -0700 	Fri, 10 Mar 2017 12:17:35 -0800 	KubeletReady 			kubelet is posting ready status
+Addresses:		10.177.92.26,10.177.92.26,dandelion-06
+Capacity:
+ alpha.kubernetes.io/nvidia-gpu:	2
+ cpu:					24
+ memory:				264173056Ki
+ pods:					110
+Allocatable:
+ alpha.kubernetes.io/nvidia-gpu:	2
+ cpu:					24
+ memory:				264173056Ki
+ pods:					110
+System Info:
+ Machine ID:			fd3f2c7af75c44ca8ecd4f4a5557e349
+ System UUID:			F969B120-5BCB-11D9-AD4E-74D02B056F4B
+ Boot ID:			460e3866-1e73-40c2-8243-28e390aa0728
+ Kernel Version:		4.5.0-coreos-r1
+ OS Image:			CoreOS 1010.5.0 (MoreOS)
+ Operating System:		linux
+ Architecture:			amd64
+ Container Runtime Version:	docker://1.10.3
+ Kubelet Version:		v1.5.3-beta.0.36+021ff8167cd5af-dirty
+ Kube-Proxy Version:		v1.5.3-beta.0.36+021ff8167cd5af-dirty
+ExternalID:			dandelion-06
+Non-terminated Pods:		(2 in total)
+  Namespace			Name							CPU Requests	CPU Limits	Memory Requests	Memory Limits
+  ---------			----							------------	----------	---------------	-------------
+  default			d8b731db-dc9d-47e2-b32f-b778cea6d6c7-mvtxr		0 (0%)		0 (0%)		0 (0%)		0 (0%)
+  kube-system			kube-proxy-p5np7					100m (0%)	0 (0%)		0 (0%)		0 (0%)
+Allocated resources:
+  (Total limits may be over 100 percent, i.e., overcommitted.
+  CPU Requests	CPU Limits	Memory Requests	Memory Limits
+  ------------	----------	---------------	-------------
+  100m (0%)	0 (0%)		0 (0%)		0 (0%)
+No events.
+
+
+Name:			dandelion-07
+Role:			
+Labels:			beta.kubernetes.io/arch=amd64
+			beta.kubernetes.io/os=linux
+			kubernetes.io/hostname=dandelion-07
+Taints:			<none>
+CreationTimestamp:	Fri, 10 Mar 2017 12:17:35 -0800
+Phase:			
+Conditions:
+  Type			Status	LastHeartbeatTime			LastTransitionTime			Reason				Message
+  ----			------	-----------------			------------------			------				-------
+  OutOfDisk 		False 	Wed, 15 Mar 2017 17:53:03 -0700 	Fri, 10 Mar 2017 12:17:35 -0800 	KubeletHasSufficientDisk 	kubelet has sufficient disk space available
+  MemoryPressure 	False 	Wed, 15 Mar 2017 17:53:03 -0700 	Fri, 10 Mar 2017 12:17:35 -0800 	KubeletHasSufficientMemory 	kubelet has sufficient memory available
+  DiskPressure 		False 	Wed, 15 Mar 2017 17:53:03 -0700 	Fri, 10 Mar 2017 12:17:35 -0800 	KubeletHasNoDiskPressure 	kubelet has no disk pressure
+  Ready 		True 	Wed, 15 Mar 2017 17:53:03 -0700 	Fri, 10 Mar 2017 12:17:45 -0800 	KubeletReady 			kubelet is posting ready status
+Addresses:		10.177.92.27,10.177.92.27,dandelion-07
+Capacity:
+ alpha.kubernetes.io/nvidia-gpu:	2
+ cpu:					24
+ memory:				264173056Ki
+ pods:					110
+Allocatable:
+ alpha.kubernetes.io/nvidia-gpu:	2
+ cpu:					24
+ memory:				264173056Ki
+ pods:					110
+System Info:
+ Machine ID:			f472447682094cdd8325147d5ed3b10d
+ System UUID:			F3D677A0-5BCD-11D9-A93D-74D02B056F35
+ Boot ID:			6a7ea6eb-132b-4a0e-b716-63eb1a95d261
+ Kernel Version:		4.5.0-coreos-r1
+ OS Image:			CoreOS 1010.5.0 (MoreOS)
+ Operating System:		linux
+ Architecture:			amd64
+ Container Runtime Version:	docker://1.10.3
+ Kubelet Version:		v1.5.3-beta.0.36+021ff8167cd5af-dirty
+ Kube-Proxy Version:		v1.5.3-beta.0.36+021ff8167cd5af-dirty
+ExternalID:			dandelion-07
+Non-terminated Pods:		(2 in total)
+  Namespace			Name						CPU Requests	CPU Limits	Memory Requests	Memory Limits
+  ---------			----						------------	----------	---------------	-------------
+  kube-system			kube-proxy-5vrs8				100m (0%)	0 (0%)		0 (0%)		0 (0%)
+  kube-system			kubernetes-dashboard-208384877-9k4fd		0 (0%)		0 (0%)		0 (0%)		0 (0%)
+Allocated resources:
+  (Total limits may be over 100 percent, i.e., overcommitted.
+  CPU Requests	CPU Limits	Memory Requests	Memory Limits
+  ------------	----------	---------------	-------------
+  100m (0%)	0 (0%)		0 (0%)		0 (0%)
+No events.
+
+
+Name:			dandelion-09
+Role:			
+Labels:			beta.kubernetes.io/arch=amd64
+			beta.kubernetes.io/os=linux
+			kubernetes.io/hostname=dandelion-09
+Taints:			<none>
+CreationTimestamp:	Fri, 10 Mar 2017 12:18:46 -0800
+Phase:			
+Conditions:
+  Type			Status	LastHeartbeatTime			LastTransitionTime			Reason				Message
+  ----			------	-----------------			------------------			------				-------
+  OutOfDisk 		False 	Wed, 15 Mar 2017 17:53:04 -0700 	Fri, 10 Mar 2017 12:18:46 -0800 	KubeletHasSufficientDisk 	kubelet has sufficient disk space available
+  MemoryPressure 	False 	Wed, 15 Mar 2017 17:53:04 -0700 	Fri, 10 Mar 2017 12:18:46 -0800 	KubeletHasSufficientMemory 	kubelet has sufficient memory available
+  DiskPressure 		False 	Wed, 15 Mar 2017 17:53:04 -0700 	Fri, 10 Mar 2017 12:18:46 -0800 	KubeletHasNoDiskPressure 	kubelet has no disk pressure
+  Ready 		True 	Wed, 15 Mar 2017 17:53:04 -0700 	Fri, 10 Mar 2017 12:18:56 -0800 	KubeletReady 			kubelet is posting ready status
+Addresses:		10.177.92.29,10.177.92.29,dandelion-09
+Capacity:
+ alpha.kubernetes.io/nvidia-gpu:	2
+ cpu:					24
+ memory:				264170608Ki
+ pods:					110
+Allocatable:
+ alpha.kubernetes.io/nvidia-gpu:	2
+ cpu:					24
+ memory:				264170608Ki
+ pods:					110
+System Info:
+ Machine ID:			dae48e207d134ee29581ecff6b390333
+ System UUID:			86833CE0-5BD4-11D9-A869-74D02B056F5B
+ Boot ID:			6f312107-d3e1-431c-b4b6-d490ea9b58ab
+ Kernel Version:		4.5.0-coreos-r1
+ OS Image:			CoreOS 1010.5.0 (MoreOS)
+ Operating System:		linux
+ Architecture:			amd64
+ Container Runtime Version:	docker://1.10.3
+ Kubelet Version:		v1.5.3-beta.0.36+021ff8167cd5af-dirty
+ Kube-Proxy Version:		v1.5.3-beta.0.36+021ff8167cd5af-dirty
+ExternalID:			dandelion-09
+Non-terminated Pods:		(1 in total)
+  Namespace			Name				CPU Requests	CPU Limits	Memory Requests	Memory Limits
+  ---------			----				------------	----------	---------------	-------------
+  kube-system			kube-proxy-rjhct		100m (0%)	0 (0%)		0 (0%)		0 (0%)
+Allocated resources:
+  (Total limits may be over 100 percent, i.e., overcommitted.
+  CPU Requests	CPU Limits	Memory Requests	Memory Limits
+  ------------	----------	---------------	-------------
+  100m (0%)	0 (0%)		0 (0%)		0 (0%)
+No events.

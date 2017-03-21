@@ -36,15 +36,15 @@ k8sAPIport : 8443
 webuiport : 10880
 restfulapiport : 5005
 
-# Describe a set of system pods to be launched at the cluster, with following configuration parameter:
-# deploy: Control which nodes that the pod is deployed to. 
-#   all: all nodes
-#   etcd: etcd nodes
-#   worker: worker nodes
-systempods:
-  # A task in http://rancher.com/comparing-monitoring-options-for-docker-deployments/
-  CAdvisor:
-    deployto: all
+# Label Kubernete nodes for deployment. :
+#   - label : etcd_node <tag to be applied to etcd node only >
+#   - label : worker_node <tag to be applied to worker node only >
+#   - label : all <tag to be applied to all nodes
+kubelabels: 
+  infrastructure: etcd_node
+  worker: worker_node
+  all: all
+  
 
 # the following items are optional
 # nfs-server : 
