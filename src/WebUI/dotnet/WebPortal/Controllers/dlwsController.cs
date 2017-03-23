@@ -60,7 +60,7 @@ namespace WindowsAuth.Controllers
                     //security check, user cannot append userName to the request url
                     if (item.Key != "userName")
                     {
-                        url += item.Key + "=" + item.Value + "&";
+                        url += System.Text.Encodings.Web.UrlEncoder.Default.Encode(item.Key) + "=" + System.Text.Encodings.Web.UrlEncoder.Default.Encode(item.Value) + "&";
                     }
                 }
                 url += "userName=" + User.Identity.Name;
