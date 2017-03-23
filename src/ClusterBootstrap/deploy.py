@@ -945,7 +945,7 @@ def deploy_restful_API_on_node(ipAddress):
 	utils.sudo_scp(config["ssh_cert"],"./deploy/master/restapi-kubeconfig.yaml","/etc/kubernetes/restapi-kubeconfig.yaml", "core", masterIP )
 
 
-	utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo mkdir -p /dlws-data && sudo mount %s /dlws-data ; docker rm -f restfulapi; docker rm -f jobScheduler ; docker pull %s ; docker run -d -p %s:5000 --restart always -v /etc/RestfulAPI:/RestfulAPI --name restfulapi %s ; docker run -d -v /dlws-data:/dlws-data -v /etc/RestfulAPI:/RestfulAPI -v /etc/kubernetes/restapi-kubeconfig.yaml:/root/.kube/config -v /etc/kubernetes/ssl:/etc/kubernetes/ssl --restart always --name jobScheduler %s /runScheduler.sh ;" % (config["nfs-server"], dockername,config["restfulapiport"],dockername,dockername))
+	utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo mkdir -p /dlws-data && sudo mount %s /dlws-data ; docker rm -f restfulapi; docker rm -f jobScheduler ; docker pull %s ; docker run -d -p %s:80 --restart always -v /etc/RestfulAPI:/RestfulAPI --name restfulapi %s ; docker run -d -v /dlws-data:/dlws-data -v /etc/RestfulAPI:/RestfulAPI -v /etc/kubernetes/restapi-kubeconfig.yaml:/root/.kube/config -v /etc/kubernetes/ssl:/etc/kubernetes/ssl --restart always --name jobScheduler %s /runScheduler.sh ;" % (config["nfs-server"], dockername,config["restfulapiport"],dockername,dockername))
 
 
 	print "==============================================="
