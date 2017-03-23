@@ -1,25 +1,31 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ job["jobId"] }}
+  name: {{ job["jobId"] }}-{{ job["distId"] }}
 spec:
-  # this may be a problem if we need more time to pull a docker image. Haven't tested this case. 
-  # activeDeadlineSeconds: 120
   template:
     metadata:
       name: {{ job["jobId"] }}
       labels: 
          run: {{ job["jobId"] }}
          jobName: {{ job["jobNameLabel"] }}
+         distRole: {{ job["distRole"] }}
+         distPort: "{{job["containerPort"]}}"
     spec:
+      hostNetwork: true
       containers:
       - name: {{ job["jobId"] }}
         image: {{ job["image"] }}
         command: {{ job["LaunchCMD"] }}
+        #container port and host port should be same.
+        ports:
+        - containerPort: {{job["containerPort"]}}
+          hostPort: {{job["containerPort"]}}      
+        {% if job["distRole"] =="worker" %}  
         resources:
           limits:
             alpha.kubernetes.io/nvidia-gpu: {{ job["resourcegpu"] }}
-
+        {% endif %}
         volumeMounts:
         - mountPath: /usr/local/nvidia
           name: nvidia-driver
@@ -35,7 +41,7 @@ spec:
       # temporarily hard-coding the path to nvidia driver; after nvidia-docker is enabled on kubernetes, this will be removed. 
       - name: nvidia-driver
         hostPath:
-          path: /opt/nvidia-driver/current
+          path: {{ job["nvidiaDriverPath"] }}
       - name: job
         hostPath:
           path: {{ job["hostjobPath"] }}

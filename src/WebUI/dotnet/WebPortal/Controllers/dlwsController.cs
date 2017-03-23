@@ -57,8 +57,13 @@ namespace WindowsAuth.Controllers
                 url = _appSettings.restapi + "/SubmitJob?";
                 foreach (var item in HttpContext.Request.Query)
                 {
-                    url += item.Key + "=" + item.Value + "&";
+                    //security check, user cannot append userName to the request url
+                    if (item.Key != "userName")
+                    {
+                        url += item.Key + "=" + item.Value + "&";
+                    }
                 }
+                url += "userName=" + User.Identity.Name;
             }
 
             if (url != "")

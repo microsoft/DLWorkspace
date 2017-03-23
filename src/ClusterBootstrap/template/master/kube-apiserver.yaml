@@ -18,7 +18,7 @@ spec:
     - --etcd-keyfile=/etc/kubernetes/ssl/apiserver-key.pem    
     - --allow-privileged=true
     - --service-cluster-ip-range={{cnf["service_cluster_ip_range"]}}
-    - --secure-port=443
+    - --secure-port={{cnf["k8sAPIport"]}}
     - --advertise-address={{cnf["master_ip"]}} 
     - --admission-control=NamespaceLifecycle,LimitRanger,SecurityContextDeny,ServiceAccount,DefaultStorageClass,ResourceQuota
     #- --admission-control=NamespaceLifecycle,LimitRanger,SecurityContextDeny,ServiceAccount,ResourceQuota
@@ -37,8 +37,8 @@ spec:
       initialDelaySeconds: 15
       timeoutSeconds: 15
     ports:
-    - containerPort: 443
-      hostPort: 443
+    - containerPort: {{cnf["k8sAPIport"]}}
+      hostPort: {{cnf["k8sAPIport"]}}
       name: https
     - containerPort: 8080
       hostPort: 8080

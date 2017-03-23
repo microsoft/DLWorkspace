@@ -1,0 +1,21 @@
+kind: DaemonSet
+apiVersion: extensions/v1beta1
+metadata:
+  name: google-cadvisor
+  namespace: default
+spec:
+  template:
+    metadata:
+      name: google-cadvisor
+      labels:
+        cadvisor-node: pod
+    spec:
+      nodeSelector: 
+        google-cadvisor: active
+      containers:
+      - name: cadvisor
+        image: google/cadvisor:latest
+        ports:
+          - name: http
+            containerPort: 8080
+            hostPort: 4191

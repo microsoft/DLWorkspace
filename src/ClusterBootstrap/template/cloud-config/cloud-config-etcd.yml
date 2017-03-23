@@ -142,11 +142,5 @@ write_files:
     content: |
       {{cnf["checkinternet.sh"]}}
       
-  - path: "/opt/install_nvidia_docker.sh"
-    permissions: "0755"
-    owner: "root"
-    encoding: "base64"
-    content: |
-      {{cnf["install_nvidia_docker.sh"]}}
 
 {{cnf["coreoswritefiles"]}}

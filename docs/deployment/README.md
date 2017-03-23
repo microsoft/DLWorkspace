@@ -14,7 +14,7 @@ The 'deploy' folder contains important information to access the deployed DL wor
 
 0. [Run Once] The installation program needs certain utilities (such as docker and python). The simplest setup is to use the [development docker](../../DevDocker.md) and run the subsequent command in the development docker. Alternatively, you may choose to run install_prerequisites.sh once to install  utilities.  
 
-1. [Create Configuration file](Configuration.md), and determine important information of the cluster (e.g., cluster name, number of Etcd servers used).
+1. [Create Configuration file](Configuration.md), and determine important information of the cluster (e.g., cluster name, number of Etcd servers used). Please refer to [Backup/Restore](Backup.md) on instruction to backup/restore cluster configuration. 
 
 2. [Build deployment images] (Build.md): ISO (for USB deployment) and docker image (for PXE deployment).
   ```
