@@ -701,6 +701,9 @@ def deploy_masters():
 
 	utils.render_template_directory("./template/master", "./deploy/master",config)
 	utils.render_template_directory("./template/kube-addons", "./deploy/kube-addons",config)
+	utils.render_template_directory("./template/WebUI", "./deploy/WebUI",config)
+	utils.render_template_directory("./template/RestfulAPI", "./deploy/RestfulAPI",config)
+
 
 	get_kubectl_binary()
 	
@@ -874,6 +877,20 @@ def clean_worker_nodes():
 
 
 
+def reset_worker_node(nodeIP):
+
+	print "==============================================="
+	print "updating worker node: %s ..."  % nodeIP
+
+	worker_ssh_user = "core"
+	utils.SSH_exec_script(config["ssh_cert"],worker_ssh_user, nodeIP, "./deploy/kubelet/%s" % config["preworkerdeploymentscript"])
+
+
+	utils.sudo_scp(config["ssh_cert"],"./deploy/cloud-config/cloud-config-worker.yml","/var/lib/coreos-install/user_data", worker_ssh_user, nodeIP )
+
+	utils.SSH_exec_cmd(config["ssh_cert"], worker_ssh_user, nodeIP, "sudo reboot")
+	
+
 def update_worker_node(nodeIP):
 	print "==============================================="
 	print "updating worker node: %s ..."  % nodeIP
@@ -975,6 +992,7 @@ def deploy_webUI_on_node(ipAddress):
 	utils.render_template("./template/WebUI/appsettings.json.template","./deploy/WebUI/appsettings.json",config)
 	utils.sudo_scp(config["ssh_cert"],"./deploy/WebUI/appsettings.json","/etc/WebUI/appsettings.json", "core", webUIIP )
 
+
 	utils.SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker pull %s ; docker rm -f webui ; docker run -d -p %s:80 -v /etc/WebUI:/WebUI --restart always --name webui %s ;" % (dockername,str(config["webuiport"]),dockername))
 
 
@@ -986,6 +1004,12 @@ def deploy_webUI():
 	masterIP = config["kubernetes_master_node"][0]
 	deploy_restful_API_on_node(masterIP)
 	deploy_webUI_on_node(masterIP)
+
+
+def label_webUI(nodename):
+	kubernetes_label_node("--overwrite", nodename, "webportal=active")
+	kubernetes_label_node("--overwrite", nodename, "restfulapi=active")
+	kubernetes_label_node("--overwrite", nodename, "jobmanager=active")
 
 # Get disk partition information of a node
 def get_partions_of_node(node, prog):
@@ -1372,6 +1396,10 @@ def get_service_yaml( use_service ):
 	fname = servicedic[use_service]
 	return fname
 			
+def kubernetes_label_node(cmdoptions, nodename, label):
+	run_kubectl(["label nodes %s %s %s" % (cmdoptions, nodename, label)])
+
+
 def kubernetes_label_nodes( verb, servicelists, force ):
 	servicedic = get_all_services()
 	get_nodes(config["clusterId"])
@@ -1401,17 +1429,18 @@ def kubernetes_label_nodes( verb, servicelists, force ):
 		if verbose: 
 			print "kubernetes: apply label %s to %s, nodes: %s" %(label, nodetype, nodes)
 		if force:
-			addword = "--overwrite"
+			cmdoptions = "--overwrite"
 		else:
-			addword = ""
+			cmdoptions = ""
 		for node in nodes:
 			nodename = kubernetes_get_node_name(node)
 			if verb == "active":
-				run_kubectl(["label nodes %s %s %s=active" % (addword, nodename, label)])
+				kubernetes_label_node(cmdoptions, nodename, label+"=active")
 			elif verb == "inactive":
-				run_kubectl(["label nodes %s %s %s=inactive" % (addword, nodename, label)])
+				kubernetes_label_node(cmdoptions, nodename, label+"=inactive")
 			elif verb == "remove":
-				run_kubectl(["label nodes %s %s %s-" % (addword, nodename, label)])
+				kubernetes_label_node(cmdoptions, nodename, label+"-")
+
 
 
 def start_kube_service( servicename ):
@@ -1745,6 +1774,9 @@ Command:
 		check_master_ETCD_status()
 		gen_configs()		
 		deploy_webUI()
+		
+	elif command == "labelwebui":
+		label_webUI(nargs[0])
 		
 	elif command == "production":
 		set_host_names_by_lookup()
