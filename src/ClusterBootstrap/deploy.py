@@ -566,13 +566,17 @@ def gen_configs():
 		if not os.path.exists(deployDir):
 			os.system("mkdir -p %s" % (deployDir))
 
-
-	etcd_servers = config["etcd_node"]
+	if "etcd_node" in config:
+		etcd_servers = config["etcd_node"]
+	else:
+		etcd_servers = []
 
 	#if int(config["etcd_node_num"]) <= 0:
 	#	raise Exception("ERROR: we need at least one etcd_server.") 
-
-	kubernetes_masters = config["kubernetes_master_node"]
+	if "kubernetes_master_node" in config:
+		kubernetes_masters = config["kubernetes_master_node"]
+	else:
+		kubernetes_masters = []
 
 	#if len(kubernetes_masters) <= 0:
 	#	raise Exception("ERROR: we need at least one etcd_server.") 
@@ -1753,7 +1757,6 @@ Command:
 			update_config_nodes()
 			
 	elif command == "kubectl":
-		get_config()
 		run_kubectl(nargs)
 	
 	elif command == "kubernetes":
