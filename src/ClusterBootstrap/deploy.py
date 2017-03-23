@@ -566,13 +566,17 @@ def gen_configs():
 		if not os.path.exists(deployDir):
 			os.system("mkdir -p %s" % (deployDir))
 
-
-	etcd_servers = config["etcd_node"]
+	if "etcd_node" in config:
+		etcd_servers = config["etcd_node"]
+	else:
+		etcd_servers = []
 
 	#if int(config["etcd_node_num"]) <= 0:
 	#	raise Exception("ERROR: we need at least one etcd_server.") 
-
-	kubernetes_masters = config["kubernetes_master_node"]
+	if "kubernetes_master_node" in config:
+		kubernetes_masters = config["kubernetes_master_node"]
+	else:
+		kubernetes_masters = []
 
 	#if len(kubernetes_masters) <= 0:
 	#	raise Exception("ERROR: we need at least one etcd_server.") 
@@ -1313,7 +1317,7 @@ def run_kube( prog, commands ):
 def run_kubectl( commands ):
 	run_kube( "./deploy/bin/kubectl", commands)
 	
-def kubenetes_get_node_name(node):
+def kubernetes_get_node_name(node):
 	domain = get_domain()
 	if len(domain) < 2: 
 		return node
@@ -1368,7 +1372,7 @@ def get_service_yaml( use_service ):
 	fname = servicedic[use_service]
 	return fname
 			
-def kubenetes_label_nodes( verb, servicelists, force ):
+def kubernetes_label_nodes( verb, servicelists, force ):
 	servicedic = get_all_services()
 	get_nodes(config["clusterId"])
 	labels = fetch_config(["kubelabels"])
@@ -1395,13 +1399,13 @@ def kubenetes_label_nodes( verb, servicelists, force ):
 			print "Unknown nodes type %s in kubelabels in configuration file." % nodetype
 			exit(-1)
 		if verbose: 
-			print "Kubenetes: apply label %s to %s, nodes: %s" %(label, nodetype, nodes)
+			print "kubernetes: apply label %s to %s, nodes: %s" %(label, nodetype, nodes)
 		if force:
 			addword = "--overwrite"
 		else:
 			addword = ""
 		for node in nodes:
-			nodename = kubenetes_get_node_name(node)
+			nodename = kubernetes_get_node_name(node)
 			if verb == "active":
 				run_kubectl(["label nodes %s %s %s=active" % (addword, nodename, label)])
 			elif verb == "inactive":
@@ -1430,7 +1434,7 @@ def replace_kube_service( servicename ):
 	
 def run_kube_command_node(verb, nodes):
 	for node in nodes:
-		nodename = kubenetes_get_node_name(node)
+		nodename = kubernetes_get_node_name(node)
 		run_kubectl( [verb, nodename ] )
 		
 def run_kube_command_on_nodes( nargs ):
@@ -1485,7 +1489,7 @@ Command:
   backup    [fname] [key] Backup configuration & encrypt
   etcd      [args] manage etcd server.
             check: check ETCD service.
-  kubenetes [args] manage kubelet services on the cluster. 
+  kubernetes [args] manage kubelet services on the cluster. 
             start: launch a certain kubelet service. 
             stop: stop a certain kubelet service. 
             restart: replace a certain kubelet service. 
@@ -1753,10 +1757,9 @@ Command:
 			update_config_nodes()
 			
 	elif command == "kubectl":
-		get_config()
 		run_kubectl(nargs)
 	
-	elif command == "kubenetes":
+	elif command == "kubernetes":
 		if len(nargs) >= 1: 
 			if len(nargs)>=2:
 				servicename = nargs[1]
@@ -1773,20 +1776,20 @@ Command:
 				replace_kube_service(servicename)
 			elif nargs[0] == "labels":
 				if len(nargs)>=2 and ( nargs[1] == "active" or nargs[1] == "inactive" or nargs[1] == "remove" ):
-					kubenetes_label_nodes(nargs[1], nargs[2:], args.yes)
+					kubernetes_label_nodes(nargs[1], nargs[2:], args.yes)
 				elif len(nargs)==1:
-					kubenetes_label_nodes("active", [], args.yes )
+					kubernetes_label_nodes("active", [], args.yes )
 				else:
 					parser.print_help()
-					print "Error: Kubenetes labels expect a verb which is either on, off or remove, but get: " + nargs[1]
+					print "Error: kubernetes labels expect a verb which is either on, off or remove, but get: " + nargs[1]
 			elif nargs[0] == "cordon" or nargs[0] == "uncordon":
 				run_kube_command_on_nodes(nargs)
 			else:
 				parser.print_help()
-				print "Error: Unknown kubenetes subcommand " + nargs[0]
+				print "Error: Unknown kubernetes subcommand " + nargs[0]
 		else:
 			parser.print_help()
-			print "Error: kubenetes need a subcommand."
+			print "Error: kubernetes need a subcommand."
 			exit()
 	
 	elif command == "download":

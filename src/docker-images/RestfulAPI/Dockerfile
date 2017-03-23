@@ -69,7 +69,10 @@ COPY dlws-restfulapi.wsgi /wsgi/dlws-restfulapi.wsgi
 
 COPY runScheduler.sh /
 RUN chmod +x /runScheduler.sh
+COPY pullsrc.sh /
+RUN chmod +x /pullsrc.sh
 COPY run.sh /
 RUN chmod +x /run.sh
+
 
 CMD /run.sh
