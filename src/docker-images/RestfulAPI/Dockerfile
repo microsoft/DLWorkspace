@@ -63,7 +63,10 @@ RUN apt-get install -y --no-install-recommends ssh
 
 
 RUN apt-get install -y apache2 libapache2-mod-wsgi
+COPY mpm_prefork.conf /etc/apache2/mods-available/mpm_prefork.conf
 COPY 000-default.conf /etc/apache2/sites-available/000-default.conf
+
+
 COPY dlws-restfulapi.wsgi /wsgi/dlws-restfulapi.wsgi
 
 
