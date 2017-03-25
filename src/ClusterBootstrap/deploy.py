@@ -566,13 +566,17 @@ def gen_configs():
 		if not os.path.exists(deployDir):
 			os.system("mkdir -p %s" % (deployDir))
 
-
-	etcd_servers = config["etcd_node"]
+	if "etcd_node" in config:
+		etcd_servers = config["etcd_node"]
+	else:
+		etcd_servers = []
 
 	#if int(config["etcd_node_num"]) <= 0:
 	#	raise Exception("ERROR: we need at least one etcd_server.") 
-
-	kubernetes_masters = config["kubernetes_master_node"]
+	if "kubernetes_master_node" in config:
+		kubernetes_masters = config["kubernetes_master_node"]
+	else:
+		kubernetes_masters = []
 
 	#if len(kubernetes_masters) <= 0:
 	#	raise Exception("ERROR: we need at least one etcd_server.") 
@@ -697,6 +701,9 @@ def deploy_masters():
 
 	utils.render_template_directory("./template/master", "./deploy/master",config)
 	utils.render_template_directory("./template/kube-addons", "./deploy/kube-addons",config)
+	utils.render_template_directory("./template/WebUI", "./deploy/WebUI",config)
+	utils.render_template_directory("./template/RestfulAPI", "./deploy/RestfulAPI",config)
+
 
 	get_kubectl_binary()
 	
@@ -870,6 +877,20 @@ def clean_worker_nodes():
 
 
 
+def reset_worker_node(nodeIP):
+
+	print "==============================================="
+	print "updating worker node: %s ..."  % nodeIP
+
+	worker_ssh_user = "core"
+	utils.SSH_exec_script(config["ssh_cert"],worker_ssh_user, nodeIP, "./deploy/kubelet/%s" % config["preworkerdeploymentscript"])
+
+
+	utils.sudo_scp(config["ssh_cert"],"./deploy/cloud-config/cloud-config-worker.yml","/var/lib/coreos-install/user_data", worker_ssh_user, nodeIP )
+
+	utils.SSH_exec_cmd(config["ssh_cert"], worker_ssh_user, nodeIP, "sudo reboot")
+	
+
 def update_worker_node(nodeIP):
 	print "==============================================="
 	print "updating worker node: %s ..."  % nodeIP
@@ -971,6 +992,7 @@ def deploy_webUI_on_node(ipAddress):
 	utils.render_template("./template/WebUI/appsettings.json.template","./deploy/WebUI/appsettings.json",config)
 	utils.sudo_scp(config["ssh_cert"],"./deploy/WebUI/appsettings.json","/etc/WebUI/appsettings.json", "core", webUIIP )
 
+
 	utils.SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker pull %s ; docker rm -f webui ; docker run -d -p %s:80 -v /etc/WebUI:/WebUI --restart always --name webui %s ;" % (dockername,str(config["webuiport"]),dockername))
 
 
@@ -982,6 +1004,12 @@ def deploy_webUI():
 	masterIP = config["kubernetes_master_node"][0]
 	deploy_restful_API_on_node(masterIP)
 	deploy_webUI_on_node(masterIP)
+
+
+def label_webUI(nodename):
+	kubernetes_label_node("--overwrite", nodename, "webportal=active")
+	kubernetes_label_node("--overwrite", nodename, "restfulapi=active")
+	kubernetes_label_node("--overwrite", nodename, "jobmanager=active")
 
 # Get disk partition information of a node
 def get_partions_of_node(node, prog):
@@ -1313,7 +1341,7 @@ def run_kube( prog, commands ):
 def run_kubectl( commands ):
 	run_kube( "./deploy/bin/kubectl", commands)
 	
-def kubenetes_get_node_name(node):
+def kubernetes_get_node_name(node):
 	domain = get_domain()
 	if len(domain) < 2: 
 		return node
@@ -1368,7 +1396,11 @@ def get_service_yaml( use_service ):
 	fname = servicedic[use_service]
 	return fname
 			
-def kubenetes_label_nodes( verb, servicelists, force ):
+def kubernetes_label_node(cmdoptions, nodename, label):
+	run_kubectl(["label nodes %s %s %s" % (cmdoptions, nodename, label)])
+
+
+def kubernetes_label_nodes( verb, servicelists, force ):
 	servicedic = get_all_services()
 	get_nodes(config["clusterId"])
 	labels = fetch_config(["kubelabels"])
@@ -1395,19 +1427,20 @@ def kubenetes_label_nodes( verb, servicelists, force ):
 			print "Unknown nodes type %s in kubelabels in configuration file." % nodetype
 			exit(-1)
 		if verbose: 
-			print "Kubenetes: apply label %s to %s, nodes: %s" %(label, nodetype, nodes)
+			print "kubernetes: apply label %s to %s, nodes: %s" %(label, nodetype, nodes)
 		if force:
-			addword = "--overwrite"
+			cmdoptions = "--overwrite"
 		else:
-			addword = ""
+			cmdoptions = ""
 		for node in nodes:
-			nodename = kubenetes_get_node_name(node)
+			nodename = kubernetes_get_node_name(node)
 			if verb == "active":
-				run_kubectl(["label nodes %s %s %s=active" % (addword, nodename, label)])
+				kubernetes_label_node(cmdoptions, nodename, label+"=active")
 			elif verb == "inactive":
-				run_kubectl(["label nodes %s %s %s=inactive" % (addword, nodename, label)])
+				kubernetes_label_node(cmdoptions, nodename, label+"=inactive")
 			elif verb == "remove":
-				run_kubectl(["label nodes %s %s %s-" % (addword, nodename, label)])
+				kubernetes_label_node(cmdoptions, nodename, label+"-")
+
 
 
 def start_kube_service( servicename ):
@@ -1430,7 +1463,7 @@ def replace_kube_service( servicename ):
 	
 def run_kube_command_node(verb, nodes):
 	for node in nodes:
-		nodename = kubenetes_get_node_name(node)
+		nodename = kubernetes_get_node_name(node)
 		run_kubectl( [verb, nodename ] )
 		
 def run_kube_command_on_nodes( nargs ):
@@ -1485,7 +1518,7 @@ Command:
   backup    [fname] [key] Backup configuration & encrypt
   etcd      [args] manage etcd server.
             check: check ETCD service.
-  kubenetes [args] manage kubelet services on the cluster. 
+  kubernetes [args] manage kubelet services on the cluster. 
             start: launch a certain kubelet service. 
             stop: stop a certain kubelet service. 
             restart: replace a certain kubelet service. 
@@ -1742,6 +1775,9 @@ Command:
 		gen_configs()		
 		deploy_webUI()
 		
+	elif command == "labelwebui":
+		label_webUI(nargs[0])
+		
 	elif command == "production":
 		set_host_names_by_lookup()
 		success = deploy_ETCD_master()
@@ -1753,10 +1789,9 @@ Command:
 			update_config_nodes()
 			
 	elif command == "kubectl":
-		get_config()
 		run_kubectl(nargs)
 	
-	elif command == "kubenetes":
+	elif command == "kubernetes":
 		if len(nargs) >= 1: 
 			if len(nargs)>=2:
 				servicename = nargs[1]
@@ -1773,20 +1808,20 @@ Command:
 				replace_kube_service(servicename)
 			elif nargs[0] == "labels":
 				if len(nargs)>=2 and ( nargs[1] == "active" or nargs[1] == "inactive" or nargs[1] == "remove" ):
-					kubenetes_label_nodes(nargs[1], nargs[2:], args.yes)
+					kubernetes_label_nodes(nargs[1], nargs[2:], args.yes)
 				elif len(nargs)==1:
-					kubenetes_label_nodes("active", [], args.yes )
+					kubernetes_label_nodes("active", [], args.yes )
 				else:
 					parser.print_help()
-					print "Error: Kubenetes labels expect a verb which is either on, off or remove, but get: " + nargs[1]
+					print "Error: kubernetes labels expect a verb which is either on, off or remove, but get: " + nargs[1]
 			elif nargs[0] == "cordon" or nargs[0] == "uncordon":
 				run_kube_command_on_nodes(nargs)
 			else:
 				parser.print_help()
-				print "Error: Unknown kubenetes subcommand " + nargs[0]
+				print "Error: Unknown kubernetes subcommand " + nargs[0]
 		else:
 			parser.print_help()
-			print "Error: kubenetes need a subcommand."
+			print "Error: kubernetes need a subcommand."
 			exit()
 	
 	elif command == "download":
