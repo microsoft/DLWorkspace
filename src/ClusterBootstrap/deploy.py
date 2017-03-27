@@ -931,6 +931,14 @@ def update_worker_nodes():
 	#if len(config["kubernetes_master_node"]) > 0:
 		#utils.SSH_exec_cmd(config["ssh_cert"], "core", config["kubernetes_master_node"][0], "sudo /opt/bin/kubelet get nodes")
 
+def reset_worker_nodes():
+
+	workerNodes = get_worker_nodes(config["clusterId"])
+	for node in workerNodes:
+		reset_worker_node(node)
+
+
+
 def create_MYSQL_for_WebUI():
 	#todo: create a mysql database, and set "mysql-hostname", "mysql-username", "mysql-password", "mysql-database"
 	pass
@@ -1662,6 +1670,13 @@ Command:
 			gen_configs()
 			update_worker_nodes()
 			
+	elif command == "resetworker":
+		response = raw_input_with_default("Deploy Worker Nodes (y/n)?")
+		if first_char(response) == "y":
+			check_master_ETCD_status()
+			gen_configs()
+			reset_worker_nodes()
+
 	elif command == "listmac":
 		nodes = get_nodes(config["clusterId"])
 		for node in nodes:

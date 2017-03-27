@@ -21,7 +21,9 @@ else
    uuid=$(uuidgen)
    echo $uuid > /opt/systemid
    systemname="${systemrole}-${uuid}"
-   hostnamectl set-hostname $systemname   
+   #hostnamectl set-hostname $systemname   
+   export HostIP=$(ip route get ${discoverserver} | awk '{print $NF; exit}')
+   hostnamectl set-hostname $HostIP
 fi
 
 while [ -f /opt/homeinserver ];
