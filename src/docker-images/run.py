@@ -1,6 +1,7 @@
 import argparse
 import sys
 sys.path.append("../utils")
+sys.path.append("../../../utils")
 from DockerUtils import buildDocker, runDocker, findDockers
 
 if __name__ == '__main__':
