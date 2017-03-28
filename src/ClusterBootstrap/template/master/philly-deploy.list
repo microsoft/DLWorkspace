@@ -15,3 +15,6 @@ deploy/ssl/apiserver/apiserver-key.pem,/etc/kubernetes/ssl/apiserver-key.pem
 ./deploy/kube-addons/dns-addon.yaml,/opt/addons/kube-addons/dns-addon.yaml
 ./deploy/kube-addons/dashboard.yaml,/opt/addons/kube-addons/dashboard.yaml
 ./deploy/kube-addons/heapster-deployment.json,/opt/addons/kube-addons/heapster-deployment.json
+./deploy/WebUI/appsettings.json,/etc/WebUI/appsettings.json
+./deploy/RestfulAPI/restfulapi-config.yaml,/etc/RestfulAPI/config.yaml
+./deploy/master/restapi-kubeconfig.yaml,/etc/kubernetes/restapi-kubeconfig.yaml

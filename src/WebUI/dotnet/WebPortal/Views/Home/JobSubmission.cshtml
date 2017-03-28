@@ -21,6 +21,24 @@
             var numGPUsInt = parseInt($('#resourcegpu').val());
             var numGPUStr = $('#resourcegpu').val();
 
+
+            //var jobtrainingtype = encodeURIComponent($("#jobtrainingtype").val().trim());
+            
+
+
+            var radios = document.getElementsByName('jobtrainingtype');
+
+            for (var i = 0, length = radios.length; i < length; i++) {
+                if (radios[i].checked) {
+                    var jobtrainingtype = encodeURIComponent(radios[i].value.trim());
+                    break;
+                }
+            }
+            var numps = parseInt($('#numps').val());
+            var numpsworker = parseInt($('#numpsworker').val());
+            var nummpiworker = parseInt($('#nummpiworker').val());
+
+
             if (numGPUsInt < 0 || numGPUsInt > 8) {
                 alert("Invalid GPU number:" + numGPUStr + ". GPU number has to be 0 - 8 in regular job");
                 return;
@@ -58,8 +76,8 @@
                 params = params + "jobPath=" + jobpath + "&";
             }
 
-            params = params + "image=" + $('#image').val() + "&";
-            params = params + "cmd=" + $('#cmd').val() + "&";
+            params = params + "image=" + image + "&";
+            params = params + "cmd=" + cmd + "&";
 
             var logdir = $('#logdir').val();
             if (logdir != "") {
@@ -71,9 +89,20 @@
             }
 
             params = params + "jobType=training&";
-            var username = "@User.Identity.Name".replace("REDMOND", "")
-            //console.log(username)
-            params = params + "userName=" + username;
+            params = params + "jobtrainingtype=" + jobtrainingtype+"&";
+
+            if (jobtrainingtype == "PSDistJob")
+            {
+                params = params + "numps=" + numps + "&";
+                params = params + "numpsworker=" + numpsworker+"&";
+            }
+
+            if (jobtrainingtype == "MPIDistJob") {
+                params = params + "nummpiworker=" + nummpiworker + "&";
+            }
+
+
+
 
             var url = "/api/dlws/SubmitJob?" + params;
 
@@ -113,6 +142,36 @@
         var elem = document.getElementById(divId);
         elem.style.display = chkbox.checked ? "block" : "none";
     }
+    function ShowRegularJob() {
+        var elem1 = document.getElementById("regularJob");
+        elem1.style.display = "block";
+
+        var elem2 = document.getElementById("PSDistJob");
+        elem2.style.display = "none";
+
+        var elem3 = document.getElementById("MPIDistJob");
+        elem3.style.display = "none";
+    }
+    function ShowPSDistJob() {
+        var elem1 = document.getElementById("regularJob");
+        elem1.style.display = "none";
+
+        var elem2 = document.getElementById("PSDistJob");
+        elem2.style.display = "block";
+
+        var elem3 = document.getElementById("MPIDistJob");
+        elem3.style.display = "none";
+    }
+    function ShowMPIDistJob() {
+        var elem1 = document.getElementById("regularJob");
+        elem1.style.display = "none";
+
+        var elem2 = document.getElementById("PSDistJob");
+        elem2.style.display = "none";
+
+        var elem3 = document.getElementById("MPIDistJob");
+        elem3.style.display = "block";
+    }
 </script>
 
 <div class="modal-dialog" role="document">
@@ -128,16 +187,65 @@
 
                 <div class="form-group">
                     <label>
+                        Job Type
+                    </label>
+                    <br/>
+                    <input type="radio" name="jobtrainingtype" id="jobtrainingtype" value="RegularJob" checked="checked"  onclick="ShowRegularJob()" /> Regular Training Job  <br />
+                    <input type="radio" name="jobtrainingtype" id="jobtrainingtype" value="PSDistJob" onclick="ShowPSDistJob()" /> Distributed Training Job (Parameter Server)  <br />
+                    <input type="radio" name="jobtrainingtype" id="jobtrainingtype" value="MPIDistJob"  onclick="ShowMPIDistJob()"/> Distributed Training Job (MPI)    <br />
+                </div>
+
+                <div class="form-group">
+                    <label>
                         Job Name
                     </label>
                     <input type="text" class="form-control" id="jobname" />
                 </div>
 
-                <div class="form-group">
-                    <label>
-                        Number of GPUs to use
-                    </label>
-                    <input type="number" class="form-control" id="resourcegpu" value="1"/>
+                <div id="regularJob">
+                    <div class="form-group">
+                        <label>
+                            Number of GPUs to use
+                        </label>
+                        <input type="number" class="form-control" id="resourcegpu" value="1" />
+                    </div>
+                </div>
+
+
+                <div id="PSDistJob" hidden>
+                    <div class="form-group">
+                        <label>
+                            Number of GPUs per worker
+                        </label>
+                        <input type="number" class="form-control" id="resourcegpu" value="1" />
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            Number of Parameter Servers
+                        </label>
+                        <input type="number" class="form-control" id="numps" value="1" />
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            Number of Workers
+                        </label>
+                        <input type="number" class="form-control" id="numpsworker" value="1" />
+                    </div>
+                </div>
+
+                <div id="MPIDistJob" hidden>
+                    <div class="form-group">
+                        <label>
+                            Number of GPUs per worker
+                        </label>
+                        <input type="number" class="form-control" id="resourcegpu" value="1" />
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            Number of Workers
+                        </label>
+                        <input type="number" class="form-control" id="nummpiworker" value="1" />
+                    </div>
                 </div>
 
                 <div class="form-group">

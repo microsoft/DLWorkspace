@@ -90,6 +90,19 @@ coreos:
 
         [Install]
         WantedBy=multi-user.target
+    - name: rpc-statd.service
+      command: start
+      enable: true
+    - name: dlws\x2ddata.mount
+      command: start
+      content: |
+        [Mount]
+        What=vig-store:/vigssd/dlworkspace
+        Where=/dlws-data
+        Type=nfs
+        Options=vers=4,sec=sys,noauto
+        [Install]
+        WantedBy = multi-user.target        
 {{cnf["coreosunits"]}}
 
 ssh_authorized_keys:
@@ -97,7 +110,11 @@ ssh_authorized_keys:
 
 write_files:
   # There should be exactly 2 spaces before the -path. 
-  # This is to ensure additional option write_files entries can be added through configuration.  
+  # This is to ensure additional option write_files entries can be added through configuration. 
+  - path: /etc/conf.d/nfs
+    permissions: '0644'
+    content: |
+      OPTS_RPC_MOUNTD=""
   - path: "/etc/resolve.conf"
     permissions: "0755"
     owner: "core"

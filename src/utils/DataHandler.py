@@ -65,8 +65,6 @@ class DataHandler:
 		except:
 			return False
 
-    
-
 
 	def GetJobList(self, userName):
 		cursor = self.conn.cursor()
@@ -91,7 +89,7 @@ class DataHandler:
 			record["jobParams"] = jobParams
 			record["errorMsg"] = errorMsg
 			record["jobMeta"] = jobMeta
-		  	ret.append(record)
+			ret.append(record)
 		cursor.close()
 
 		return ret
@@ -116,7 +114,7 @@ class DataHandler:
 			record["jobParams"] = jobParams
 			record["errorMsg"] = errorMsg
 			record["jobMeta"] = jobMeta
-		  	ret.append(record)
+			ret.append(record)
 		cursor.close()
 
 		return ret
@@ -153,7 +151,7 @@ class DataHandler:
 			record["jobParams"] = jobParams
 			record["errorMsg"] = errorMsg
 			record["jobMeta"] = jobMeta
-		  	ret.append(record)
+			ret.append(record)
 		cursor.close()
 
 		return ret		
@@ -186,13 +184,14 @@ class DataHandler:
 	def GetJobTextField(self,jobId,field):
 		cursor = self.conn.cursor()
 		query = "SELECT [jobId], [%s] FROM [%s] where cast([jobId] as nvarchar(max)) = N'%s' " % (field, self.jobtablename,jobId)
-		cursor.execute(query)
 		ret = None
-
-		for (jobId, value) in cursor:
-			ret = value
+		try:
+			cursor.execute(query)
+			for (jobId, value) in cursor:
+				ret = value
+		except:
+			pass
 		cursor.close()
-
 		return ret
 
 	def AddandGetJobRetries(self,jobId):
@@ -214,20 +213,7 @@ class DataHandler:
 
 		return ret
 
-####################################################################################################################			
 
-
-	def GetVersion(self):
-		cursor = self.conn.cursor()
-		query = ("select @@VERSION")
-		cursor.execute(query)
-		row = cursor.fetchone()
-		cursor.close()
-		return row; 
-
-
-	def ChangeStatus(self,jobId, newStatus):
-		pass
 	def Close(self):
 		self.conn.close()
 

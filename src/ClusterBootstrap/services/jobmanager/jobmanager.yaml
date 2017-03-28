@@ -1,0 +1,42 @@
+kind: DaemonSet
+apiVersion: extensions/v1beta1
+metadata:
+  name: jobmanager
+  namespace: default
+spec:
+  template:
+    metadata:
+      name: jobmanager
+      labels:
+        jobmanager-node: pod
+    spec:
+      dnsPolicy: Default
+      nodeSelector:
+        jobmanager: active
+      containers:
+      - name: jobmanager
+        image: mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/dlws-restfulapi
+        command: ["/runScheduler.sh"]
+        imagePullPolicy: Always
+        volumeMounts:
+        - mountPath: /etc/kubernetes/ssl
+          name: certs
+        - mountPath: /root/.kube/config 
+          name: kubeconfig
+        - mountPath: /RestfulAPI 
+          name: restfulapiconfig
+        - mountPath: /dlws-data
+          name: dlwsdata                              
+      volumes:
+      - name: certs
+        hostPath:
+          path: /etc/kubernetes/ssl
+      - name: kubeconfig
+        hostPath:
+          path: /etc/kubernetes/restapi-kubeconfig.yaml
+      - name: restfulapiconfig
+        hostPath:
+          path: /etc/RestfulAPI
+      - name: dlwsdata
+        hostPath:
+          path: /dlws-data 

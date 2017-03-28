@@ -1,0 +1,30 @@
+kind: DaemonSet
+apiVersion: extensions/v1beta1
+metadata:
+  name: webportal
+  namespace: default
+spec:
+  template:
+    metadata:
+      name: webportal
+      labels:
+        webportal-node: pod
+    spec:
+      dnsPolicy: Default
+      nodeSelector:
+        webportal: active
+      containers:
+      - name: webportal
+        image: mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/dlws-webui
+        ports:
+          - name: http
+            containerPort: 80
+            hostPort: 80
+        imagePullPolicy: Always
+        volumeMounts:
+        - mountPath: /WebUI
+          name: webuiconfig
+      volumes:
+      - name: webuiconfig
+        hostPath:
+          path: /etc/WebUI

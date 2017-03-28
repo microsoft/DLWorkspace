@@ -1,6 +1,6 @@
 [Unit]
 Description=Install Nvidia driver
-After=local-fs.target network.target
+After=local-fs.target network.target docker.service 
 Wants=docker.service 
 [Service]
 
