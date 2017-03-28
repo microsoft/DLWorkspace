@@ -1,3 +1,4 @@
+#!/usr/bin/python 
 import os
 import time
 import datetime
@@ -6,22 +7,15 @@ import uuid
 import subprocess
 import sys
 sys.path.append("../utils")
-from DockerUtils import buildDocker, runDocker
+sys.path.append("../../../utils")
+from DockerUtils import buildDocker, runDocker, buildAllDockers
 
 # prefix and tag will be filled by argument parser.
 dockerprefix = ""
 dockertag = ""
 
-def buildAllDockers(rootdir):
-	fnames = os.listdir(rootdir)
-	for fname in fnames:
-		entry = os.path.join(rootdir, fname )
-		if os.path.isdir(entry):
-			dockername = dockerprefix + os.path.basename(entry)+":"+dockertag
-			buildDocker(dockername, entry)
-
 if __name__ == '__main__':
-	parser = argparse.ArgumentParser(description = "Build all dockers of DL Workspace")
+	parser = argparse.ArgumentParser(description = "Build one or more dockers of DL Workspace")
 	parser.add_argument("-p", "--prefix", 
 		help="Prefix of the docker name, or [dlws-]", 
 		action="store", 
@@ -30,10 +24,13 @@ if __name__ == '__main__':
 		help="Tag of the docker build, or [default]", 
 		action = "store", 
 		default = "latest" )
+	parser.add_argument('nargs', nargs=argparse.REMAINDER, 
+		help="Additional command argument", 
+		)
 	args = parser.parse_args()
 	dockerprefix = args.prefix
 	dockertag = args.tag
 	# print "Docker prefix : " + dockerprefix
 	# print "Docker tag : " + dockertag
 	if True:
-		buildAllDockers(".")
+		buildAllDockers(".", dockerprefix, dockertag, args.nargs )

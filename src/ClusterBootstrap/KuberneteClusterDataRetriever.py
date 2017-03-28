@@ -6,6 +6,7 @@ import argparse
 import sys
 import textwrap
 import time
+import datetime
 from HostStatus import HostStatus
 from ServiceStatus import ServiceStatus
 

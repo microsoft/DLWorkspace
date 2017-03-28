@@ -1,10 +1,8 @@
----
 kind: DaemonSet
 apiVersion: extensions/v1beta1
 metadata:
   name: glusterfs
-  labels:
-    glusterfs: daemonset
+  namespace: default
   annotations:
     description: GlusterFS DaemonSet
     tags: glusterfs
@@ -16,12 +14,10 @@ spec:
         glusterfs-node: pod
     spec:
       nodeSelector:
-        storagenode: glusterfs
+        glusterfs: active
       hostNetwork: true
       containers:
       - image: gluster/gluster-centos:latest
-        # temporary command 
-        command: /bin/bash
         imagePullPolicy: IfNotPresent
         name: glusterfs
         volumeMounts:
