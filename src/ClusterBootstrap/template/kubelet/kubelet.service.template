@@ -1,19 +1,15 @@
 [Unit]
 Description=Kubelet
-After=network.target nvidia-driver.service nvidia-docker.service
-Requires=nvidia-driver.service nvidia-docker.service
+# don't wait for nvidia-driver and nvidia-docker when deploy on philly
+#After=network.target nvidia-driver.service nvidia-docker.service
+#Requires=nvidia-driver.service nvidia-docker.service
 [Service]
 TimeoutSec=60min
-#Environment=KUBELET_VERSION=v1.5.2_coreos.0
-#Environment="RKT_OPTS=--uuid-file-save=/var/run/kubelet-pod.uuid \
-#  --volume dns,kind=host,source=/etc/resolv.conf \
-#  --mount volume=dns,target=/etc/resolv.conf \
-#  --volume var-log,kind=host,source=/var/log \
-#  --mount volume=var-log,target=/var/log"
 ExecStartPre=/usr/bin/mkdir -p /etc/kubernetes/manifests
 ExecStartPre=/usr/bin/mkdir -p /var/log/containers
-#ExecStartPre=-/usr/bin/rkt rm --uuid-file=/var/run/kubelet-pod.uuid
-ExecStartPre=/bin/bash -c 'if lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VGA compatible) controller: NVIDIA Corporation.*"; then until wget -q -O - http://localhost:3476/gpu/info ; do /bin/echo "waiting for nvidia-docker..." ; /bin/sleep 2 ; done fi'
+
+# don't wait for nvidia-driver and nvidia-docker when deploy on philly
+#ExecStartPre=/bin/bash -c 'if lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VGA compatible) controller: NVIDIA Corporation.*"; then until wget -q -O - http://localhost:3476/gpu/info ; do /bin/echo "waiting for nvidia-docker..." ; /bin/sleep 2 ; done fi'
 ExecStart=/opt/bin/kubelet \
   --api-servers=##api_servers## \
   --container-runtime=docker \

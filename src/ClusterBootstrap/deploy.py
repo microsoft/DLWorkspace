@@ -74,7 +74,10 @@ default_config_parameters = {
 	"workerdeploymentlist" : "deploy.list",
 	"webuiport" : "80",
 	"restfulapiport" : "5000",
-	"ssh_cert" : "./deploy/sshkey/id_rsa"
+	"ssh_cert" : "./deploy/sshkey/id_rsa",
+	"storage-mount-path" : "/dlwsdata",
+	"storage-mount-path-name" : "dlwsdata",
+	"nvidia-driver-path" : "/opt/nvidia-driver/current"
 }
 
 # These parameter will be mapped if non-exist
