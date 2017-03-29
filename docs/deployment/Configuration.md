@@ -2,7 +2,7 @@
 
 This document describes the procedure to write a configuration file for your DL workspace cluster. 
 
-Please copy the configuration template at /src/DLworkspace/config.yaml.template to /src/DLworkspace/config.yaml. Then, please edit the config.yaml file and provide the following information:
+Please copy the configuration template at /src/ClusterBootstrap/config.yaml.template to /src/ClusterBootstrap/config.yaml. Then, please edit the config.yaml file and provide the following information:
 
 1. {{cluster_name}}: replace it with the your DL workspace cluster name, e.g., ccs1
 
@@ -12,6 +12,6 @@ Please copy the configuration template at /src/DLworkspace/config.yaml.template 
 
 DL workspace will also support an additional optional configuration file for clusters that provides detailed customization. 
 
-A template can be found at /src/DLworkspace/cluster.yaml.template. If used, please copy the template to cluster.yaml. The cluster.yaml can contain cluster specific configuration, e.g., script to deal with multiple network interface, Mac address, IP mapping, etc..
+A template can be found at /src/ClusterBootstrap/cluster.yaml.template. If used, please copy the template to cluster.yaml. The cluster.yaml can contain cluster specific configuration, e.g., script to deal with multiple network interface, Mac address, IP mapping, etc..
 
 Both configuration files will be merged inside DLWorkspace for operation. 

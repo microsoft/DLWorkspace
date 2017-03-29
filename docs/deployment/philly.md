@@ -3,7 +3,7 @@
 This document describes the procedure to deploy DL workspace on a prior deployed CoreOS cluster (e.g., certain Philly deployment). This document is still evolving. Please contact the author for any question. 
 
 1. [Create Configuration file](Configuration.md)
-   1. Please copy config_philly.yaml.template to config.yaml, and further fill in various 
+   1. Please copy src/ClusterBootstrap/config_philly.yaml.template to src/ClusterBootstrap/config.yaml, and further fill in various 
    parameters in the config file. 
    2. Please specify the private key used to access the Philly cluster. 
       1. If the user already has access to the philly cluster, you can add 
@@ -16,30 +16,34 @@ This document describes the procedure to deploy DL workspace on a prior deployed
    4. We assume the following:
       1. All deployed machines have DNS service, and are accessible by their hostname. 
       2. NFS has already been setup on each node for shared data access. By default, the NFS folder is mounted at: /dlwsdata
+   5. Execute the following commands in folder "./src/ClusterBootstrap/"
 
 2. [Build deployment images] (Build.md).
   ```
-  python deploy.py -y build 
+  ./deploy.py -y build 
   ```
 
 3. [Important] Verify Etcd/Master nodes and worker nodes to be deployed. 
   ```
-  deploy.py display
+  ./deploy.py display
   ```
 
 4. Start master and etcd servers. 
   ```
-  deploy.py -y deploy
+  ./deploy.py -y deploy
   ```
    
 5. Start worker nodes. 
   ```
-  deploy.py -y updateworker
+  ./deploy.py -y updateworker
   ```
-
-6. Start webUI service. 
+6. label nodes, so that DL workspace service can be deployed to the proper set of nodes. 
+  ```
+  deploy.py -y kubernetes labels
+  ```
+7. Start webUI service. 
    ```
-   deploy.py -y kubernetes start webportal
-   deploy.py -y kubernetes start restfulapi
-   deploy.py -y kubernetes start jobmanager
+   ./deploy.py -y kubernetes start webportal
+   ./deploy.py -y kubernetes start restfulapi
+   ./deploy.py -y kubernetes start jobmanager
    ```
