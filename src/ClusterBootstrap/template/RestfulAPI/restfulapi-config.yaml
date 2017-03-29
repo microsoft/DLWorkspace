@@ -9,6 +9,7 @@ mysql :
   password : {{cnf["mysql-password"]}}
   database : {{cnf["mysql-database"]}}
 kubelet-path : /usr/local/bin/kubectl
-storage-mount-path : /dlws-data/
+storage-mount-path : {{cnf["storage-mount-path"]}}
 root-path : /DLWorkspace/src/
+nvidiaDriverPath : {{cnf["nvidia-driver-path"]}}
 clusterId : {{cnf["clusterId"]}}

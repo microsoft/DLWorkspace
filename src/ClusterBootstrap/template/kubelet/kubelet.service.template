@@ -1,5 +1,7 @@
 [Unit]
 Description=Kubelet
+After=network.target nvidia-driver.service nvidia-docker.service
+Requires=nvidia-driver.service nvidia-docker.service
 [Service]
 TimeoutSec=60min
 #Environment=KUBELET_VERSION=v1.5.2_coreos.0

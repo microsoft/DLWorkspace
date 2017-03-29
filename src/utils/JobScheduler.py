@@ -9,7 +9,6 @@ from jobs_tensorboard import GenTensorboardMeta
 import datetime
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
-from gen_pv_pvc import GenStorageClaims, GetStoragePath
 
 import yaml
 from jinja2 import Environment, FileSystemLoader, Template
@@ -23,7 +22,14 @@ import thread
 import threading
 import random
 
-nvidiaDriverPath = "/opt/nvidia-driver/current"
+nvidiaDriverPath = config["nvidiaDriverPath"]
+
+def GetStoragePath(jobpath, workpath, datapath):
+    jobPath = "jobs/"+jobpath
+    workPath = "work/"+workpath
+    dataPath = "storage/"+datapath
+    return jobPath,workPath,dataPath
+
 
 def printlog(msg):
 	print "%s - %s" % (datetime.datetime.utcnow().strftime("%x %X"),msg)
@@ -313,9 +319,9 @@ def SubmitRegularJob(job):
 		jobTempDir = os.path.join(config["root-path"],"Jobs_Templete")
 		jobTemp = os.path.join(jobTempDir, "RegularJob.yaml.template")
 
-		jobParams["hostjobPath"] = "/dlws-data/" + jobPath
-		jobParams["hostworkPath"] = "/dlws-data/" + workPath
-		jobParams["hostdataPath"] = "/dlws-data/" + dataPath
+		jobParams["hostjobPath"] = os.path.join(config["storage-mount-path"], jobPath)
+		jobParams["hostworkPath"] = os.path.join(config["storage-mount-path"], workPath)
+		jobParams["hostdataPath"] = os.path.join(config["storage-mount-path"], dataPath)
 		jobParams["nvidiaDriverPath"] = nvidiaDriverPath
 
 		template = ENV.get_template(os.path.abspath(jobTemp))
@@ -479,9 +485,9 @@ chmod +x /opt/run_dist_job.sh
 					jobTempDir = os.path.join(config["root-path"],"Jobs_Templete")
 					jobTemp = os.path.join(jobTempDir, "DistJob.yaml.template")
 
-					jobParams["hostjobPath"] = "/dlws-data/" + jobPath
-					jobParams["hostworkPath"] = "/dlws-data/" + workPath
-					jobParams["hostdataPath"] = "/dlws-data/" + dataPath
+					jobParams["hostjobPath"] = os.path.join(config["storage-mount-path"], jobPath)
+					jobParams["hostworkPath"] = os.path.join(config["storage-mount-path"], workPath)
+					jobParams["hostdataPath"] = os.path.join(config["storage-mount-path"], dataPath)
 					jobParams["nvidiaDriverPath"] = nvidiaDriverPath
 
 					random.seed(datetime.datetime.now())
