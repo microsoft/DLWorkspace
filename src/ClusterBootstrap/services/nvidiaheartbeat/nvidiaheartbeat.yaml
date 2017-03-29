@@ -1,0 +1,32 @@
+kind: DaemonSet
+apiVersion: extensions/v1beta1
+metadata:
+  name: nvidiaheartbeat
+  namespace: default
+spec:
+  template:
+    metadata:
+      name: nvidiaheartbeat
+      labels:
+        nvidiaheartbeat-node: pod
+    spec:
+      dnsPolicy: Default
+      containers:
+      - name: nvidiaheartbeat
+        image: nvidia/cuda:8.0
+        command: ["bash","-c","bash -c 'while true; do nvidia-smi | grep Tesla | wc -l; sleep 10; done'"]
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /usr/local/nvidia
+          name: nvidia-driver
+        - mountPath: /dev
+          name: dev
+      volumes:
+      # temporarily hard-coding the path to nvidia driver; after nvidia-docker is enabled on kubernetes, this will be removed. 
+      - name: nvidia-driver
+        hostPath:
+          path: /opt/nvidia-driver/current          
+      - name: dev
+        hostPath:
+          path: /dev              

@@ -9,6 +9,16 @@ sqlserver-username : {{}}
 sqlserver-password : {{}}
 sqlserver-database : {{}}
 
+# the path of where dfs/nfs is mounted on each node, default /dlwsdata
+storage-mount-path : /dlwsdata
+
+# the name of unit which mount dfs/nfs automatically. Replace "/" in storage-mount-path by "-" 
+# e.g. if storage-mount-path is /dlwsdata, storage-mount-path-name should be dlwsdata,
+# if storage-mount-path is /mnt/dlwsdata,  storage-mount-path-name should be mnt-dlwsdata
+storage-mount-path-name : dlwsdata
+
+# the path of where nvidia driver is installed on each node, default /opt/nvidia-driver/current
+nvidia-driver-path : /opt/nvidia-driver/current
 
 # --------- For Philly deployment, please turn on (uncomment) the following options. ---- 
 ###Use cluster.yaml to locate nodes (instead of using the cluster report service)

@@ -41,7 +41,7 @@ coreos:
       content: |
         [Unit]
         Description=Install Nvidia driver
-        After=local-fs.target network.target
+        After=local-fs.target network.target docker.service 
         Wants=docker.service 
         [Service]
 
@@ -93,16 +93,17 @@ coreos:
     - name: rpc-statd.service
       command: start
       enable: true
-    - name: dlws\x2ddata.mount
+    - name: {{cnf["storage-mount-path-name"]}}.mount
       command: start
       content: |
         [Mount]
-        What=vig-store:/vigssd/dlworkspace
-        Where=/dlws-data
+        What={{cnf["nfs-server"]}}
+        Where={{cnf["storage-mount-path"]}}
         Type=nfs
-        Options=vers=4,sec=sys,noauto
         [Install]
-        WantedBy = multi-user.target        
+        WantedBy = multi-user.target
+
+{{cnf["defaultcoreosunits.yaml"]}}
 {{cnf["coreosunits"]}}
 
 ssh_authorized_keys:
