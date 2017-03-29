@@ -926,9 +926,18 @@ def update_worker_node(nodeIP):
 	utils.SSH_exec_script(config["ssh_cert"],worker_ssh_user, nodeIP, "./deploy/kubelet/%s" % config["postworkerdeploymentscript"])
 
 	print "done!"
+	
+def in_list( node, nodelists ):
+	if nodelists is None or len(nodelists)<0:
+		return True
+	else:
+		for name in nodelists:
+			if node.find(name)>=0:
+				return True;
+		return False;
 
 
-def update_worker_nodes():
+def update_worker_nodes( nargs ):
 	utils.render_template_directory("./template/kubelet", "./deploy/kubelet",config)
 	write_nodelist_yaml()
 	
@@ -940,7 +949,8 @@ def update_worker_nodes():
 
 	workerNodes = get_worker_nodes(config["clusterId"])
 	for node in workerNodes:
-		update_worker_node(node)
+		if in_list(node, nargs):
+			update_worker_node(node)
 
 	os.system("rm ./deploy/kubelet/options.env")
 	os.system("rm ./deploy/kubelet/kubelet.service")
@@ -1527,9 +1537,10 @@ Prerequest:
 
 Command:
   build     Build USB iso/pxe-server used by deployment.
-  production Deploy a production cluster, with tasks of:
+  production [nodes] Deploy a production cluster, with tasks of:
             set hostname, deploy etcd/master nodes, deploy worker nodes, uncordon master nodes. 
   deploy    Deploy DL workspace cluster.
+  updateworker [nodes] Update the worker nodes. If no additional node is specified, all nodes will be updated. 
   clean     Clean away a failed deployment.
   update    [args] Update cluster. 
             config: update cloud-config of each deployed node. 
@@ -1702,7 +1713,7 @@ Command:
 		if first_char(response) == "y":
 			check_master_ETCD_status()
 			gen_configs()
-			update_worker_nodes()
+			update_worker_nodes( nargs )
 			
 	elif command == "resetworker":
 		response = raw_input_with_default("Deploy Worker Nodes (y/n)?")
@@ -1831,7 +1842,7 @@ Command:
 		set_host_names_by_lookup()
 		success = deploy_ETCD_master()
 		if success: 
-			update_worker_nodes()
+			update_worker_nodes( [] )
 			
 	elif command == "update" and len(nargs)>=1:
 		if nargs[0] == "config":
