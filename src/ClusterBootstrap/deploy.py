@@ -710,8 +710,11 @@ def deploy_masters():
 	kubernetes_masters = config["kubernetes_master_node"]
 	kubernetes_master_user = config["kubernetes_master_ssh_user"]
 
+
 	utils.render_template_directory("./template/master", "./deploy/master",config)
 	utils.render_template_directory("./template/kube-addons", "./deploy/kube-addons",config)
+	#temporary hard-coding, will be fixed after refactoring of config/render logic
+	config["restapi"] = "http://%s:%s" %  (kubernetes_masters[0],config["restfulapiport"])
 	utils.render_template_directory("./template/WebUI", "./deploy/WebUI",config)
 	utils.render_template_directory("./template/RestfulAPI", "./deploy/RestfulAPI",config)
 
