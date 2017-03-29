@@ -21,17 +21,13 @@ The 'deploy' folder contains important information to access the deployed DL wor
   python deploy.py -y build 
   ```
 
-3. Deploy base CoreOS image via USB, PXE server, or Azure. 
+3. Deploy base CoreOS image via USB, PXE server, on Azure or on a private Philly cluster. 
   1. If you would like to deploy a small cluster for testing, or your cluster doesn't have a VLan setup, we recommend the deployment procedure in [USB.md](USB.md). 
 
   2. If you would like to deply a production procedure, we recommend to set up a VLan for your cluster, and use a PXE server. The precedure are described in [PXEServer.md](PXEServer.md). 
   3. If you would like to deploy a cluster on Azure, please follow the procedure in [Azure.md](Azure.md)
-  4. If you have a yaml file describing your cluster, you may want to do cluster customization, e.g., 
-     set hostname for your cluster via:
-     ```
-     deploy.py hostname set
-     ```
-
+  4. If you are using a private philly cluster, please follow the procedure in [philly.md](philly.md). 
+  
 4. Start master and etcd servers. Please use '-public' option if you run command inside firewall, while the cluster is public (e.g., Azure, AWS).
 
   ```
@@ -47,19 +43,23 @@ The 'deploy' folder contains important information to access the deployed DL wor
 6. **__Static IP:__** Static IP/DNS name are strongly recommended for master and Etcd server, especially if you desire High Availability (HA) operation. Please contact your IT department to setup static IP for the master and Etcd server. With static IP, the DL workspace can operate uninterruptedly. 
 
   Otherwise, each time master and Etcd server has been rebooted (the master and Etcd servers may obtain a new IP addresses), you will need to restart master, etcd and work nodes by repeating steps of 4 and 5. 
+  
+7. Set hostname of the cluster. 
+  ```
+  deploy.py -y hostname set
+  ```
 
-7. [Optional] Repartition(Repartition.md) all data drives on the cluster.
-
-8. [Optional] Install python on all nodes. (python is used by GlusterFS deployment and virtual volume management )
+8. label nodes, so that DL workspace service can be deployed to the proper set of nodes. 
   ```
-  deploy.py --sudo runscriptonall script/install-python-on-coreos.sh
-  ```
-  You may verify python installation by:
-  ```
-  deploy.py execonall /opt/bin/python --version
+  deploy.py -y kubernetes labels
   ```
   
-10. [Optional] Deploy glusterFS on the cluster. 
+9. Start webUI service. 
+   ```
+   deploy.py -y kubernetes start webportal
+   deploy.py -y kubernetes start restfulapi
+   deploy.py -y kubernetes start jobmanager
+   ```
 
 10. Certain advanced topics, e.g., access to each deployed DL workspace node, use kubelet command, can be found at [Advanced.md](Advanced.md).
 

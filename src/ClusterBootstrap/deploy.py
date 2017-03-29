@@ -83,7 +83,7 @@ default_config_parameters = {
 # srcname: config name to be searched for (expressed as a list, see fetch_config)
 # lambda: lambda function to translate srcname to target name
 default_config_mapping = { 
-	"dockerprefix": (["cluster_name"], lambda x:x+"-")
+	"dockerprefix": (["cluster_name"], lambda x:x+"/")
 };
 
 
@@ -156,7 +156,7 @@ def apply_config_mapping():
 			value = fetch_config(dstname)
 			config[k] = tuple[1](value)
 			if verbose:
-				print "Config [%s] = %s" %(k, config[k])
+				print "Config[%s] = %s" %(k, config[k])
 
 def _check_config_items(cnfitem, cnf):
 	if not cnfitem in cnf:
@@ -1451,6 +1451,9 @@ def kubernetes_label_nodes( verb, servicelists, force ):
 			nodes = config["worker_node"]
 		elif nodetype == "etcd_node":
 			nodes = config["etcd_node"]
+		elif nodetype.find( "etcd_node_" )>=0:
+			nodenumber = int(nodetype[nodetype.find( "etcd_node_" )+len("etcd_node_"):])
+			nodes = [ config["etcd_node"][nodenumber-1] ]
 		elif nodetype == "all":
 			nodes = config["worker_node"] + config["etcd_node"]
 		else:
