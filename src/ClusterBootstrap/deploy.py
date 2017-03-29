@@ -896,7 +896,13 @@ def reset_worker_node(nodeIP):
 	utils.sudo_scp(config["ssh_cert"],"./deploy/cloud-config/cloud-config-worker.yml","/var/lib/coreos-install/user_data", worker_ssh_user, nodeIP )
 
 	utils.SSH_exec_cmd(config["ssh_cert"], worker_ssh_user, nodeIP, "sudo reboot")
-	
+
+def write_nodelist_yaml():
+	data = {}
+	data["worker_node"] = config["worker_node"]
+	data["etcd_node"] = config["etcd_node"]
+	with open("./deploy/kubelet/nodelist.yaml",'w') as datafile:
+		yaml.dump(data, datafile, default_flow_style=False)
 
 def update_worker_node(nodeIP):
 	print "==============================================="
@@ -920,7 +926,8 @@ def update_worker_node(nodeIP):
 
 def update_worker_nodes():
 	utils.render_template_directory("./template/kubelet", "./deploy/kubelet",config)
-
+	write_nodelist_yaml()
+	
 	os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' % config["etcd_endpoints"].replace("/","\\/"))
 	os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' % config["api_servers"].replace("/","\\/"))
 	os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/worker-kubeconfig.yaml.template > ./deploy/kubelet/worker-kubeconfig.yaml' % config["api_servers"].replace("/","\\/"))
