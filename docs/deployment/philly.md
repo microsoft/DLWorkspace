@@ -42,6 +42,8 @@ This document describes the procedure to deploy DL workspace on a prior deployed
   deploy.py -y kubernetes labels
   ```
 7. Start webUI service. 
+   1. modify ./services/restfulapi/restfulapi.yaml, change hostPort to the value of restfulapiport in config.yaml
+   2. modify ./services/webportal/webportal.yaml, change hostPort to the value of webuiport in config.yaml
    ```
    ./deploy.py -y kubernetes start webportal
    ./deploy.py -y kubernetes start restfulapi
