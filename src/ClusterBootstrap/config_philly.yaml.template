@@ -9,40 +9,31 @@ sqlserver-username : {{}}
 sqlserver-password : {{}}
 sqlserver-database : {{}}
 
-# the path of where dfs/nfs is mounted on each node, default /dlwsdata
-storage-mount-path : /dlwsdata
-
-# the name of unit which mount dfs/nfs automatically. Replace "/" in storage-mount-path by "-" 
-# e.g. if storage-mount-path is /dlwsdata, storage-mount-path-name should be dlwsdata,
-# if storage-mount-path is /mnt/dlwsdata,  storage-mount-path-name should be mnt-dlwsdata
-storage-mount-path-name : dlwsdata
-
-# the path of where nvidia driver is installed on each node, default /opt/nvidia-driver/current
-nvidia-driver-path : /opt/nvidia-driver/current
 
 # --------- For Philly deployment, please turn on (uncomment) the following options. ---- 
 ###Use cluster.yaml to locate nodes (instead of using the cluster report service)
-# useclusterfile : true
+useclusterfile : true
 ###ssh_cert used to access cluster, the public key should be ssh_cert.pub
-# ssh_cert : ~/.ssh/id_rsa
+ssh_cert : ~/.ssh/id_rsa
+
 
 ###use docker container to deploy ETCD service
-#deploydockerETCD : true
+deploydockerETCD : true
 
 ###use different deployment scripts
-#premasterdeploymentscript : philly-pre-master-deploy.sh
-#postmasterdeploymentscript : philly-post-master-deploy.sh
-#mastercleanupscript : philly-cleanup-master.sh
-#masterdeploymentlist : philly-deploy.list
+premasterdeploymentscript : philly-pre-master-deploy.sh
+postmasterdeploymentscript : philly-post-master-deploy.sh
+mastercleanupscript : philly-cleanup-master.sh
+masterdeploymentlist : philly-deploy.list
 
-#preworkerdeploymentscript : philly-pre-worker-deploy.sh
-#postworkerdeploymentscript : philly-post-worker-deploy.sh
-#workercleanupscript : philly-cleanup-worker.sh
-#workerdeploymentlist : philly-deploy.list
+preworkerdeploymentscript : philly-pre-worker-deploy.sh
+postworkerdeploymentscript : philly-post-worker-deploy.sh
+workercleanupscript : philly-cleanup-worker.sh
+workerdeploymentlist : philly-deploy.list
 
-#k8sAPIport : 8443
-#webuiport : 10880
-#restfulapiport : 5005
+k8sAPIport : 8443
+webuiport : 10880
+restfulapiport : 5005
 
 # Label Kubernete nodes for deployment. :
 #   - label : etcd_node <tag to be applied to etcd node only >
@@ -57,7 +48,10 @@ kubelabels:
   webportal: etcd_node_1
   restfulapi: etcd_node_1
   jobmanager: etcd_node_1
-  
+
+# Configuration for glusterFS
+glusterFS:
+  device: /dev/sd[e|f]  
 
 # the following items are optional
 # nfs-server : 

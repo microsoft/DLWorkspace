@@ -2,15 +2,19 @@
 
 The document describes the procedure to deploy glusterFS across a cluster. GlusterFS needs to access block device on the cluster. For manipulation of block device, please refer to [Partition.md](Partition.md). 
 
-0. [Prerequest] Current installation of glusterFS script needs python model. Therefore, please install python on all remote node before proceeds.
+0. [Optional] Repartition(Repartition.md) some data drives on the cluster to use glusterFS. 
+
+1. [Optional] Install python on all nodes. (python is used by GlusterFS deployment and virtual volume management )
   ```
-  deploy.py runscriptonall scripts/install-python-on-coreos.sh
+  deploy.py --sudo runscriptonall script/install-python-on-coreos.sh
   ```
-  You can use the following command to check if python has been successfully installed. 
+  You may verify python installation by:
   ```
-  deploy.py execonall /opt/bin/python --version 
-  ``` 
-1. When start a glusterFS cluster, please use command:
+  deploy.py execonall /opt/bin/python --version
+  ```
+  
+
+2. When start a glusterFS cluster, please use command:
   ```
   deploy.py glusterFS start [param]
   ```

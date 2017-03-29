@@ -26,8 +26,10 @@ import urllib
 import socket;
 sys.path.append("storage/glusterFS")
 from GlusterFSUtils import GlusterFSJson
+sys.path.append("../utils")
 
 import utils
+from DockerUtils import buildDocker, runDocker, buildAllDockers, findDockers
 
 capacityMatch = re.compile("\d+[M|G]B")
 digitsMatch = re.compile("\d+")
@@ -44,14 +46,16 @@ verbose = False
 class StaticVariable():
 	render_service_template_first_time = False
 
-
+# These are the default configuration parameter
 default_config_parameters = { 
 	"homeinserver" : "http://dlws-clusterportal.westus.cloudapp.azure.com:5000", 
 	# Discover server is used to find IP address of the host, it need to be a well-known IP address 
 	# that is pingable. 
 	"discoverserver" : "4.2.2.1", 
 	"homeininterval" : "600", 
-	"dockerregistry" : "mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace",
+	"dockerregistry" : "mlcloudreg.westus.cloudapp.azure.com:5000/",
+	"dockerprefix" : "",
+	"dockertag" : "latest",
 	"etcd3port1" : "2379", # Etcd3port1 will be used by App to call Etcd 
 	"etcd3port2" : "4001", # Etcd3port2 is established for legacy purpose. 
 	"etcd3portserver" : "2380", # Server port for etcd
@@ -72,6 +76,15 @@ default_config_parameters = {
 	"restfulapiport" : "5000",
 	"ssh_cert" : "./deploy/sshkey/id_rsa"
 }
+
+# These parameter will be mapped if non-exist
+# Each mapping is the form of: dstname: ( srcname, lambda )
+# dstname: config name to be used.
+# srcname: config name to be searched for (expressed as a list, see fetch_config)
+# lambda: lambda function to translate srcname to target name
+default_config_mapping = { 
+	"dockerprefix": (["cluster_name"], lambda x:x+"/")
+};
 
 
 # default search for all partitions of hdb, hdc, hdd, and sdb, sdc, sdd
@@ -136,6 +149,14 @@ def init_config():
 		config[ k ] = v
 	return config
 
+def apply_config_mapping():
+	for k,tuple in default_config_mapping.iteritems():
+		if not ( k in config ) or len(config[k])<=1:
+			dstname = tuple[0]
+			value = fetch_config(dstname)
+			config[k] = tuple[1](value)
+			if verbose:
+				print "Config[%s] = %s" %(k, config[k])
 
 def _check_config_items(cnfitem, cnf):
 	if not cnfitem in cnf:
@@ -204,6 +225,7 @@ def update_one_config(name, entry, type, defval):
 		print "Error: Configuration " + name + " needs a " + str(type) +", but is given:" + str(val)
 
 def update_config():
+	apply_config_mapping()
 	update_one_config("coreosversion",["coreos","version"], basestring, coreosversion)
 	update_one_config("coreoschannel",["coreos","channel"], basestring, coreoschannel)
 	update_one_config("coreosbaseurl",["coreos","baseurl"], basestring, coreosbaseurl)
@@ -1414,6 +1436,9 @@ def kubernetes_label_nodes( verb, servicelists, force ):
 			nodes = config["worker_node"]
 		elif nodetype == "etcd_node":
 			nodes = config["etcd_node"]
+		elif nodetype.find( "etcd_node_" )>=0:
+			nodenumber = int(nodetype[nodetype.find( "etcd_node_" )+len("etcd_node_"):])
+			nodes = [ config["etcd_node"][nodenumber-1] ]
 		elif nodetype == "all":
 			nodes = config["worker_node"] + config["etcd_node"]
 		else:
@@ -1466,7 +1491,15 @@ def run_kube_command_on_nodes( nargs ):
 	else:
 		nodes = get_ETCD_master_nodes(config["clusterId"])
 	run_kube_command_node( verb, nodes)
-		
+
+def build_docker_images(nargs):
+	if verbose:
+		print "Regenerating docker-images  ..."
+	utils.render_template_directory("../docker-images/","./deploy/docker-images",config, verbose)
+	if verbose:
+		print "Build docker ..."
+	buildAllDockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"], nargs, verbose)
+	
 if __name__ == '__main__':
 	# the program always run at the current directory. 
 	dirpath = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
@@ -1508,7 +1541,10 @@ Command:
   download  [args] Manage download
             kubectl: download kubelet/kubectl.
             kubelet: download kubelet/kubectl.
-  backup    [fname] [key] Backup configuration & encrypt
+  backup    [fname] [key] Backup configuration & encrypt, fname is the backup file without surfix. 
+            If key exists, the backup file will be encrypted. 
+  restore   [fname] [key] Decrypt & restore configuration, fname is the backup file with surfix. 
+            If the backup file is encrypted, a key needs to be provided to decrypt the configuration. 
   etcd      [args] manage etcd server.
             check: check ETCD service.
   kubernetes [args] manage kubelet services on the cluster. 
@@ -1522,6 +1558,8 @@ Command:
               verb: active, inactive, remove (default=on)
               services: if none, apply to all services in the service directory
   kubectl   [args] run a native kubectl command. 
+  docker    [args] manage docker images. 
+            build: build one or more docker images associated with the current deployment. 
   execonall [cmd ... ] Execute the command on all nodes and print the output. 
   doonall [cmd ... ] Execute the command on all nodes. 
   runscriptonall [script] Execute the shell/python script on all nodes. 
@@ -1580,7 +1618,7 @@ Command:
 		parser.print_help()
 		print "ERROR: config.yaml does not exist!"
 		exit()
-	
+		
 	
 	f = open(config_file)
 	config.update(yaml.load(f))
@@ -1858,5 +1896,18 @@ Command:
 		utils.restore_keys(nargs)
 		get_kubectl_binary()
 
+	elif command == "docker":
+		if len(nargs)>=1:
+			if nargs[0] == "build":
+				build_docker_images(nargs[1:])
+			else:
+				parser.print_help()
+				print "Error: unkown subcommand %s for docker." % nargs[0]
+				exit()
+		else:
+			parser.print_help()
+			print "Error: docker needs a subcommand"
+			exit()
 	else:
 		parser.print_help()
+		print "Error: Unknown command " + command

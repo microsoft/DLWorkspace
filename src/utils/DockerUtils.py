@@ -13,9 +13,12 @@ from os.path import expanduser
 from DirectoryUtils import cd
 
 def buildDocker( dockername, dirname):
+	# docker name is designed to use lower case. 
+	dockername = dockername.lower()
 	print "Building docker ... " + dockername + " .. @" + dirname
 	with cd(dirname):
-		os.system("docker build -t "+ dockername + " .")
+		cmd = "docker build -t "+ dockername + " ."
+		os.system(cmd)
 	return dockername
 	
 def runDocker(dockername, prompt=""):
@@ -77,3 +80,14 @@ def findDockers( dockername):
 		if dockername in imagename:
 			matchdockers.append(imagename)
 	return matchdockers
+
+def buildAllDockers(rootdir, dockerprefix, dockertag, nargs, verbose = False ):
+	if not (nargs is None) and len(nargs)>0:
+		nargs = map(lambda x:x.lower(), nargs )
+	fnames = os.listdir(rootdir)
+	for fname in fnames:
+		if nargs is None or len(nargs)==0 or fname.lower() in nargs:
+			entry = os.path.join(rootdir, fname )
+			if os.path.isdir(entry):
+				dockername = dockerprefix + os.path.basename(entry)+":"+dockertag
+				buildDocker(dockername, entry)
