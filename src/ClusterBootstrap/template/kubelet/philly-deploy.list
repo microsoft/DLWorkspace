@@ -8,3 +8,4 @@
 ./deploy/ssl/kubelet/apiserver-key.pem,/etc/kubernetes/ssl/worker-key.pem
 ./deploy/kubelet/report.sh,/opt/report.sh
 ./deploy/kubelet/reportcluster.service,/etc/systemd/system/reportcluster.service
+./deploy/kubelet/nodelist.yaml,/etc/kubernetes/nodes/nodelist.yaml
