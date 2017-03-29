@@ -62,6 +62,19 @@ namespace WindowsAuth.Controllers
             return View();
         }
 
+        public IActionResult ViewCluster()
+        {
+            if (!User.Identity.IsAuthenticated)
+            {
+                return RedirectToAction("Login", "Account", new { controller = "Account", action = "Login" });
+            }
+
+            ViewData["Message"] = "Cluster Status.";
+
+            return View();
+        }
+
+
         public IActionResult About()
         {
             ViewData["Message"] = "Your application description page.";

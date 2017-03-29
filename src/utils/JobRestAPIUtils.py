@@ -132,6 +132,13 @@ def GetJobDetail(jobId):
 	return job
 
 
+def GetClusterStatus():
+	job = None
+	dataHandler = DataHandler()
+	cluster_status,last_update_time =  dataHandler.GetClusterStatus()
+	dataHandler.Close()
+	return cluster_status,last_update_time
+
 
 if __name__ == '__main__':
 	TEST_SUB_REG_JOB = False
