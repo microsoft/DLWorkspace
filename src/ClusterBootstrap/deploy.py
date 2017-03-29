@@ -617,6 +617,7 @@ def gen_configs():
 	utils.render_template_directory("./template/master", "./deploy/master",config)
 	utils.render_template_directory("./template/web-docker", "./deploy/web-docker",config)
 	utils.render_template_directory("./template/kube-addons", "./deploy/kube-addons",config)
+	utils.render_template_directory("./template/RestfulAPI", "./deploy/RestfulAPI",config)
 
 def get_ssh_config():
 	if "ssh_cert" not in config and os.path.isfile("./deploy/sshkey/id_rsa"):
