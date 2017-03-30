@@ -28,24 +28,18 @@ This document describes the procedure to deploy DL workspace on a prior deployed
   ./deploy.py display
   ```
 
-4. Start master and etcd servers. 
+4. Start master/etcd servers, and worker nodes. 
   ```
-  ./deploy.py -y deploy
+  ./deploy.py -y production
   ```
    
-5. Start worker nodes. 
-  ```
-  ./deploy.py -y updateworker
-  ```
-6. label nodes, so that DL workspace service can be deployed to the proper set of nodes. 
+
+5. label nodes, so that DL workspace service can be deployed to the proper set of nodes. 
   ```
   deploy.py -y kubernetes labels
   ```
-7. Start webUI service. 
-   1. modify ./services/restfulapi/restfulapi.yaml, change hostPort to the value of restfulapiport in config.yaml
-   2. modify ./services/webportal/webportal.yaml, change hostPort to the value of webuiport in config.yaml
+  
+6. Start webUI service. 
    ```
-   ./deploy.py -y kubernetes start webportal
-   ./deploy.py -y kubernetes start restfulapi
-   ./deploy.py -y kubernetes start jobmanager
+   ./deploy.py -y kubernetes start webportal restfulapi jobmanager
    ```

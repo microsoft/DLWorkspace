@@ -918,8 +918,6 @@ def update_worker_node(nodeIP):
 	worker_ssh_user = "core"
 	utils.SSH_exec_script(config["ssh_cert"],worker_ssh_user, nodeIP, "./deploy/kubelet/%s" % config["preworkerdeploymentscript"])
 
-	utils.SSH_exec_cmd(config["ssh_cert"], worker_ssh_user, nodeIP, "sudo hostnamectl set-hostname %s" % nodeIP)
-
 	with open("./deploy/kubelet/"+config["workerdeploymentlist"],"r") as f:
 		deploy_files = [s.split(",") for s in f.readlines() if len(s.split(",")) == 2]
 	for (source, target) in deploy_files:
@@ -931,7 +929,7 @@ def update_worker_node(nodeIP):
 	print "done!"
 	
 def in_list( node, nodelists ):
-	if nodelists is None or len(nodelists)<0:
+	if nodelists is None or len(nodelists)<=0:
 		return True
 	else:
 		for name in nodelists:
@@ -1302,7 +1300,7 @@ def set_host_names_by_lookup():
 		dic_macs_to_hostname = create_mac_dictionary(machineEntry)
 		nodes = get_nodes(config["clusterId"])
 		for node in nodes:
-			macs = utils.get_mac_address(node, show=False )
+			macs = utils.get_mac_address(config["ssh_cert"], node, show=False )
 			namelist = []
 			for mac in macs:
 				usemac = mac.lower()
@@ -1313,10 +1311,11 @@ def set_host_names_by_lookup():
 			elif len(namelist) == 0:
 				print "Warning, cannot find an entry for machine with mac "+str(macs)
 			else:
-				if isinstance( domainEntry, basestring):
-					usename = namelist[0] + "." + domainEntry
-				else:
-					usename = namelist[0]
+				#if isinstance( domainEntry, basestring):
+				#	usename = namelist[0] + "." + domainEntry
+				#else:
+				#	usename = namelist[0]
+				usename = namelist[0]
 				cmd = "sudo hostnamectl set-hostname " + usename
 				print "Set hostname of node " + node + " ... " + usename
 				utils.SSH_exec_cmd( config["ssh_cert"], "core", node, cmd )
@@ -1487,6 +1486,7 @@ def kubernetes_label_nodes( verb, servicelists, force ):
 
 def start_kube_service( servicename ):
 	fname = get_service_yaml( servicename )
+	# print "start service %s with %s" % (servicename, fname)
 	if verbose:
 		f = open(fname)
 		service_yaml = yaml.load(f)
@@ -1728,7 +1728,7 @@ Command:
 	elif command == "listmac":
 		nodes = get_nodes(config["clusterId"])
 		for node in nodes:
-			utils.get_mac_address(node)
+			utils.get_mac_address(config["ssh_cert"], node)
 			
 	elif command == "uncordon":
 		uncordon_master()
@@ -1857,18 +1857,25 @@ Command:
 	elif command == "kubernetes":
 		if len(nargs) >= 1: 
 			if len(nargs)>=2:
-				servicename = nargs[1]
+				servicenames = nargs[1:]
 			else:
-				servicename = "*"
+				allservices = get_all_services()
+				servicenames = []
+				for service in allservices:
+					servicenames.append(service)
+				# print servicenames
 			if nargs[0] == "start":
 				# Start a kubelet service. 
-				start_kube_service(servicename)
+				for servicename in servicenames:
+					start_kube_service(servicename)
 			elif nargs[0] == "stop":
 				# stop a kubelet service.
-				stop_kube_service(servicename)
+				for servicename in servicenames:
+					stop_kube_service(servicename)
 			elif nargs[0] == "restart":
-				# stop a kubelet service.
-				replace_kube_service(servicename)
+				# restart a kubelet service.
+				for servicename in servicenames:
+					replace_kube_service(servicename)
 			elif nargs[0] == "labels":
 				if len(nargs)>=2 and ( nargs[1] == "active" or nargs[1] == "inactive" or nargs[1] == "remove" ):
 					kubernetes_label_nodes(nargs[1], nargs[2:], args.yes)
