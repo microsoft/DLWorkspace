@@ -762,13 +762,14 @@ def UpdateDistJobStatus(job):
 	pass
 
 def ScheduleJob():
+	last_update_time = datetime.datetime.now()
 	while True:
-		#try:
+		try:
 			dataHandler = DataHandler()
 			pendingJobs = dataHandler.GetPendingJobs()
 			printlog("updating status for %d jobs" % len(pendingJobs))
 			for job in pendingJobs:
-				#try:
+				try:
 					print "Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"])
 					if job["jobStatus"] == "queued":
 						SubmitJob(job)
@@ -776,11 +777,18 @@ def ScheduleJob():
 						KillJob(job)
 					elif job["jobStatus"] == "scheduling" or job["jobStatus"] == "running" :
 						UpdateJobStatus(job)
-				#except Exception as e:
-				#	print e
-		#except Exception as e:
-		#	print e
-			time.sleep(1)
+				except Exception as e:
+					print e
+		except Exception as e:
+			print e
+		try:
+			if (datetime.datetime.now() - last_update_time).seconds >= 120:
+				print "updating cluster status..."
+				get_cluster_status()
+				last_update_time = datetime.datetime.now()
+		except Exception as e:
+			print e
+		time.sleep(1)
 
 
 
@@ -884,7 +892,94 @@ def launch_ps_dist_job(jobParams):
 			#thread.start_new_thread( run_dist_cmd_on_pod,
 			#(workerPodInfo["items"][0]["metadata"]["name"], cmd) )
 
+def get_cluster_status():
+	cluster_status={}
+	try:
+		output = kubectl_exec(" get nodes -o yaml")
+		nodeInfo = yaml.load(output)
+		nodes_status = {}
 
+		if "items" in nodeInfo:
+			for node in nodeInfo["items"]:
+				node_status	= {}
+				node_status["name"] = node["metadata"]["name"]
+				node_status["labels"] = node["metadata"]["labels"]
+				node_status["gpu_allocatable"] = int(node["status"]["allocatable"]["alpha.kubernetes.io/nvidia-gpu"])
+				node_status["gpu_capacity"] = int(node["status"]["capacity"]["alpha.kubernetes.io/nvidia-gpu"])
+				node_status["gpu_used"] = 0
+				node_status["InternalIP"] = "unknown"
+				node_status["pods"] = []
+
+				if "addresses" in node["status"]:
+					for addr in node["status"]["addresses"]:
+						if addr["type"] == "InternalIP":
+							node_status["InternalIP"]  = addr["address"] 
+
+
+				node_status["scheduled_service"] = []
+				for l,s in node_status["labels"].iteritems():
+					if s == "active" and l != "all" and l != "default":
+						node_status["scheduled_service"].append(l)
+
+				if "unschedulable" in node["spec"] and node["spec"]["unschedulable"]:
+					node_status["unschedulable"] = True
+				else:
+					node_status["unschedulable"] = False
+				nodes_status[node_status["name"]] = node_status
+
+
+		output = kubectl_exec(" get pods -o yaml")
+		podsInfo = yaml.load(output)
+		if "items" in podsInfo:
+			for pod in podsInfo["items"]:
+				if "spec" in pod and "nodeName" in pod["spec"]:
+					node_name = pod["spec"]["nodeName"]
+					pod_name = pod["metadata"]["name"]
+					gpus = 0
+					if "containers" in pod["spec"] :
+						for container in pod["spec"]["containers"]:
+							
+							if "resources" in container and "requests" in container["resources"] and "alpha.kubernetes.io/nvidia-gpu" in container["resources"]["requests"]:
+								gpus += int(container["resources"]["requests"]["alpha.kubernetes.io/nvidia-gpu"])
+					if node_name in nodes_status:
+						nodes_status[node_name]["gpu_used"] += gpus
+						nodes_status[node_name]["pods"].append(pod_name)
+		gpu_avaliable	= 0
+		gpu_reserved	= 0
+		gpu_capacity = 0
+		gpu_unschedulable = 0
+		gpu_schedulable = 0
+		gpu_used = 0
+
+
+		for node_name, node_status in nodes_status.iteritems():
+			if node_status["unschedulable"]:
+				gpu_unschedulable += node_status["gpu_capacity"]
+			else:
+				gpu_avaliable	+= (node_status["gpu_allocatable"] - node_status["gpu_used"])
+				gpu_schedulable	+= node_status["gpu_capacity"]
+				gpu_unschedulable += (node_status["gpu_capacity"] - node_status["gpu_allocatable"])
+
+			gpu_reserved += (node_status["gpu_capacity"] - node_status["gpu_allocatable"])
+			gpu_used +=node_status["gpu_used"]
+			gpu_capacity	+= node_status["gpu_capacity"]
+
+		cluster_status["gpu_avaliable"] = gpu_avaliable
+		cluster_status["gpu_capacity"] = gpu_capacity
+		cluster_status["gpu_unschedulable"] = gpu_unschedulable
+		cluster_status["gpu_used"] = gpu_used
+		cluster_status["gpu_reserved"] = gpu_reserved
+		cluster_status["node_status"] = [node_status for node_name, node_status in nodes_status.iteritems()] 
+
+	except Exception as e:
+		print e
+	dataHandler = DataHandler()
+
+	cluster_status["AvaliableJobNum"] = dataHandler.GetActiveJobsCount()
+	cluster_status["TotalJobNum"] = dataHandler.GetALLJobsCount()
+	dataHandler.UpdateClusterStatus(cluster_status)
+	dataHandler.Close()
+	return cluster_status
 
 
 if __name__ == '__main__':
@@ -901,6 +996,7 @@ if __name__ == '__main__':
 	job["numworker"] = "2"
 	job["distcmd"] = "/work/tensorflow/models/inception/bazel-bin/inception/imagenet_distributed_train --batch_size=32 --train_dir=/job/model --data_dir=/data/tensor"
 	#launch_ps_dist_job(job)
+	#get_cluster_status()
 	ScheduleJob()
 
 	if TEST_SUB_REG_JOB:

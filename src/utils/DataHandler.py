@@ -17,6 +17,7 @@ class DataHandler:
 		self.conn = pyodbc.connect(self.connstr)
 		#print "Connecting to server ..."
 		self.jobtablename = "jobs-%s" %  config["clusterId"]
+		self.clusterstatustablename = "clusterstatus-%s" %  config["clusterId"]
 
 		self.CreateTable()
 
@@ -51,6 +52,22 @@ class DataHandler:
 		self.conn.commit()
 		cursor.close()
 
+
+		sql = """
+		if not exists (select * from sysobjects where name='%s' and xtype='U')
+			CREATE TABLE [dbo].[%s]
+			(
+			    [id]        INT          IDENTITY (1, 1) NOT NULL,
+			    [status]         NTEXT NOT NULL,
+				[time] DATETIME     DEFAULT (getdate()) NOT NULL,
+			    PRIMARY KEY CLUSTERED ([id] ASC)
+			)
+			""" % (self.clusterstatustablename,self.clusterstatustablename)
+
+		cursor = self.conn.cursor()
+		cursor.execute(sql)
+		self.conn.commit()
+		cursor.close()
 
 
 	def AddJob(self, jobParams):
@@ -212,6 +229,60 @@ class DataHandler:
 		cursor.close()
 
 		return ret
+
+
+	def UpdateClusterStatus(self,clusterStatus):
+		try:
+
+			sql = """INSERT INTO [%s] (status) VALUES (?)""" % self.clusterstatustablename
+			cursor = self.conn.cursor()
+			status = base64.b64encode(json.dumps(clusterStatus))
+			cursor.execute(sql,status)
+			self.conn.commit()
+			cursor.close()
+			return True
+		except:
+			return False
+
+
+	def GetClusterStatus(self):
+		cursor = self.conn.cursor()
+		query = "SELECT TOP 1 [time], [status] FROM [%s] order by [time] DESC" % (self.clusterstatustablename)
+		ret = None
+		time = None
+		try:
+			cursor.execute(query)
+			for (t, value) in cursor:
+				ret = json.loads(base64.b64decode(value))
+				time = t
+		except Exception as e:
+			print e
+			pass
+		cursor.close()
+		return ret, time
+
+
+	def GetActiveJobsCount(self):
+		cursor = self.conn.cursor()
+		query = "SELECT count(ALL id) as c FROM [%s] where cast([jobStatus] as nvarchar(max)) <> N'error' and cast([jobStatus] as nvarchar(max)) <> N'failed' and cast([jobStatus] as nvarchar(max)) <> N'finished' and cast([jobStatus] as nvarchar(max)) <> N'killed' " % (self.jobtablename)
+		cursor.execute(query)
+		ret = 0
+		for c in cursor:
+			ret = c[0]
+		cursor.close()
+
+		return ret		
+
+	def GetALLJobsCount(self):
+		cursor = self.conn.cursor()
+		query = "SELECT count(ALL id) as c FROM [%s]" % (self.jobtablename)
+		cursor.execute(query)
+		ret = 0
+		for c in cursor:
+			ret = c[0]
+		cursor.close()
+
+		return ret	
 
 
 	def Close(self):

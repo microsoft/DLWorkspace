@@ -1,0 +1,112 @@
+﻿@{
+    ViewData["Title"] = "Cluster Status";
+}
+
+<br />
+<h1>Cluster Status:</h1>
+
+
+
+<script>
+    function buildTable() {
+        $.ajax({
+            url: "/api/dlws/GetClusterStatus",
+            dataType: 'json',
+            timeout: 10000 //10 second timeout,
+        }).done(
+            function (json) {
+                $("#node_status").find("tr:gt(0)").remove();
+                var tr;
+                //Append each row to html table
+                for (var i = 0; i < json.node_status.length; i++) {
+                    tr = $('<tr/>');
+                    tr.append("<td>" + json.node_status[i].name + "</td>");
+                    tr.append("<td>" + json.node_status[i].InternalIP + "</td>");
+                    tr.append("<td>" + json.node_status[i].gpu_capacity + "</td>");
+                    tr.append("<td>" + json.node_status[i].gpu_used + "</td>");
+                    tr.append("<td>" + (json.node_status[i].gpu_allocatable - json.node_status[i].gpu_used) + "</td>");
+                    if (json.node_status[i].unschedulable) {
+                        tr.append("<td> Unschedulable </td > ");
+                    }
+                    else 
+                    {
+                        tr.append("<td> OK </td>");
+                    }
+
+                    var service_str = "";
+                    for (var j = 0; j < json.node_status[i].scheduled_service.length; j++) {
+                        service_str += "[" +json.node_status[i].scheduled_service[j] + "]  ";
+                    }
+                    tr.append("<td>" + service_str + "</td>");
+
+                    var pod_str = "";
+                    for (var j = 0; j < json.node_status[i].pods.length; j++) {
+                        pod_str += "["+json.node_status[i].pods[j] + "] ";
+                    }
+                    tr.append("<td>" + pod_str + "</td>");
+
+                    $('#node_status').append(tr);
+                }
+
+
+                $("#cluster_status").find("tr:gt(0)").remove();
+                var tr;
+                //Append each row to html table
+                tr = $('<tr/>');
+                tr.append("<td>" + json.gpu_capacity + "</td>");
+                tr.append("<td>" + json.gpu_unschedulable + "</td>");
+                tr.append("<td>" + json.gpu_used + "</td>");
+                tr.append("<td>" + json.gpu_avaliable + "</td>");
+                tr.append("<td>" + json.AvaliableJobNum + "</td>");
+                tr.append("<td>" + json.TotalJobNum + "</td>");
+
+                $('#cluster_status').append(tr);
+
+
+            });
+    }
+
+    $(document).ready(function () {
+        buildTable();
+        var refresh = setInterval(function () {
+            buildTable();
+        }, 5000);
+    });
+
+</script>
+
+
+<p> <b>Cluster Status:</b></p>
+
+<table id="cluster_status" class="table table-bordered table-condensed table-hover table-striped">
+    <thead>
+        <tr>
+            <th>Total GPU</th>
+            <th>Reserved GPU</th>
+            <th>Used GPU</th>
+            <th>Avaliable GPU</th>
+            <th>Activate Jobs</th>
+            <th>Total Jobs</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<p> <b>Node Status:</b></p>
+
+
+<table id="node_status" class="table table-bordered table-condensed table-hover table-striped">
+    <thead>
+        <tr>
+            <th>Node Name</th>
+            <th>Node IP</th>
+            <th>GPU Capacity</th>
+            <th>Used GPU</th>
+            <th>Avaliable GPU</th>
+            <th>Status</th>
+            <th>Services</th>
+            <th>Pods</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>

@@ -5,6 +5,13 @@ VisualStudioVersion = 15.0.26228.9
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WebPortal", "WebPortal\WebPortal.csproj", "{6ECB453C-AEA3-44AF-8185-059FBAC7B56C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebAndLoadTest", "WebAndLoadTest\WebAndLoadTest.csproj", "{5F344518-6071-4EAA-B7EA-253EAD64F6D2}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{85E6651C-0BBB-4084-ADA4-4F1D690207A8}"
+	ProjectSection(SolutionItems) = preProject
+		Local.testsettings = Local.testsettings
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +22,10 @@ Global
 		{6ECB453C-AEA3-44AF-8185-059FBAC7B56C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6ECB453C-AEA3-44AF-8185-059FBAC7B56C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6ECB453C-AEA3-44AF-8185-059FBAC7B56C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5F344518-6071-4EAA-B7EA-253EAD64F6D2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5F344518-6071-4EAA-B7EA-253EAD64F6D2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5F344518-6071-4EAA-B7EA-253EAD64F6D2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5F344518-6071-4EAA-B7EA-253EAD64F6D2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
