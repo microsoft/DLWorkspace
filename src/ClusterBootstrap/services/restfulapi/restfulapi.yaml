@@ -19,7 +19,7 @@ spec:
         ports:
           - name: http
             containerPort: 80
-            hostPort: 5000
+            hostPort: {{cnf["restfulapiport"]}}
         imagePullPolicy: Always
         volumeMounts:
         - mountPath: /RestfulAPI

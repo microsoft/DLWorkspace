@@ -130,8 +130,8 @@ def get_host_name( host ):
 		return "Exception, with output: " + e.output.strip()
 	return output.strip()
 	
-def get_mac_address( host, show=True ):
-	output = SSH_exec_cmd_with_output( "deploy/sshkey/id_rsa", "core", host, "ifconfig" )
+def get_mac_address( identity_file, host, show=True ):
+	output = SSH_exec_cmd_with_output( identity_file, "core", host, "ifconfig" )
 	etherMatch = re.compile("ether [0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]")
 	iterator = etherMatch.finditer(output)
 	if show:
