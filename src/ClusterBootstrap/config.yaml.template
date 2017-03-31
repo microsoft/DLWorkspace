@@ -57,7 +57,7 @@ kubelabels:
   webportal: etcd_node_1
   restfulapi: etcd_node_1
   jobmanager: etcd_node_1
-  
+  FragmentGPUJob: all
 
 # the following items are optional
 # nfs-server : 
