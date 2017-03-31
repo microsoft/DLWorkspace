@@ -65,6 +65,11 @@ namespace WindowsAuth.Controllers
                 }
                 url += "userName=" + User.Identity.Name;
             }
+            else if (op == "GetClusterStatus")
+            {
+                url = _appSettings.restapi + "/GetClusterStatus?";
+            }
+            
 
             if (url != "")
             {
