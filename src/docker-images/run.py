@@ -1,11 +1,12 @@
+#!/usr/bin/python
 import argparse
 import sys
 sys.path.append("../utils")
 sys.path.append("../../../utils")
-from DockerUtils import buildDocker, runDocker, findDockers
+from DockerUtils import run_docker, find_dockers
 
 if __name__ == '__main__':
-	parser = argparse.ArgumentParser(description = "Run a docker using your own credential")
+	parser = argparse.ArgumentParser(description = "Run a docker using your own credential at current directory")
 	parser.add_argument("dockername", 
 		help="docker to be run",
 		action="store",
@@ -18,7 +19,7 @@ if __name__ == '__main__':
 		print "Please specify only one dockername to run ... "+ dockers
 	else:
 		for docker in dockers:
-			matchdockers = findDockers(docker)
+			matchdockers = find_dockers(docker)
 			if len(matchdockers)>1:
 				parser.print_help()
 				print "Multiple docker images match the current name"
@@ -28,4 +29,4 @@ if __name__ == '__main__':
 				exit()
 			else:
 				for dockername in matchdockers:
-					runDocker(dockername )
+					run_docker(dockername )

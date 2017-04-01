@@ -8,7 +8,7 @@ import subprocess
 import sys
 sys.path.append("../utils")
 sys.path.append("../../../utils")
-from DockerUtils import buildDocker, runDocker, buildAllDockers
+from DockerUtils import build_docker, build_dockers
 
 # prefix and tag will be filled by argument parser.
 dockerprefix = ""
@@ -33,4 +33,4 @@ if __name__ == '__main__':
 	# print "Docker prefix : " + dockerprefix
 	# print "Docker tag : " + dockertag
 	if True:
-		buildAllDockers(".", dockerprefix, dockertag, args.nargs )
+		build_dockers(".", dockerprefix, dockertag, args.nargs )
