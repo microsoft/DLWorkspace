@@ -29,7 +29,7 @@ from GlusterFSUtils import GlusterFSJson
 sys.path.append("../utils")
 
 import utils
-from DockerUtils import buildDocker, runDocker, buildAllDockers, findDockers
+from DockerUtils import build_dockers, push_dockers
 
 capacityMatch = re.compile("\d+[M|G]B")
 digitsMatch = re.compile("\d+")
@@ -43,9 +43,6 @@ coreoschannel = "stable"
 coreosbaseurl = ""
 verbose = False
 
-class StaticVariable():
-	render_service_template_first_time = False
-
 # These are the default configuration parameter
 default_config_parameters = { 
 	"homeinserver" : "http://dlws-clusterportal.westus.cloudapp.azure.com:5000", 
@@ -54,6 +51,10 @@ default_config_parameters = {
 	"discoverserver" : "4.2.2.1", 
 	"homeininterval" : "600", 
 	"dockerregistry" : "mlcloudreg.westus.cloudapp.azure.com:5000/",
+	# There are two docker registries, one for infrastructure (used for pre-deployment)
+	# and one for worker docker (pontentially in cluser)
+	# A set of infrastructure-dockers 
+	"infrastructure-dockers" : {}, 
 	"dockerprefix" : "",
 	"dockertag" : "latest",
 	"etcd3port1" : "2379", # Etcd3port1 will be used by App to call Etcd 
@@ -86,7 +87,9 @@ default_config_parameters = {
 # srcname: config name to be searched for (expressed as a list, see fetch_config)
 # lambda: lambda function to translate srcname to target name
 default_config_mapping = { 
-	"dockerprefix": (["cluster_name"], lambda x:x+"/")
+	"dockerprefix": (["cluster_name"], lambda x:x+"/"), 
+	"infrastructure-dockerregistry": (["dockerregistry"], lambda x:x), 
+	"worker-dockerregistry": (["dockerregistry"], lambda x:x)
 };
 
 
@@ -1390,9 +1393,8 @@ def kubernetes_get_node_name(node):
 		return node
 
 def render_service_templates():
-	if not StaticVariable.render_service_template_first_time:
-		utils.render_template_directory( "./services/", "./deploy/services/", config)
-		StaticVariable.render_service_template_first_time = True
+	# Multiple call of render_template will only render the directory once during execution. 
+	utils.render_template_directory( "./services/", "./deploy/services/", config)
 	
 def get_all_services():
 	render_service_templates()
@@ -1515,15 +1517,24 @@ def run_kube_command_on_nodes( nargs ):
 	else:
 		nodes = get_ETCD_master_nodes(config["clusterId"])
 	run_kube_command_node( verb, nodes)
+	
+def render_docker_images():
+	if verbose:
+		print "Rendering docker-images from template ..."
+	utils.render_template_directory("../docker-images/","./deploy/docker-images",config, verbose)
 
 def build_docker_images(nargs):
-	if verbose:
-		print "Regenerating docker-images  ..."
-	utils.render_template_directory("../docker-images/","./deploy/docker-images",config, verbose)
+	render_docker_images()
 	if verbose:
 		print "Build docker ..."
-	buildAllDockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"], nargs, verbose)
+	build_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"], nargs, verbose)
 	
+def push_docker_images(nargs):
+	render_docker_images()
+	if verbose:
+		print "Build & push docker images to docker register  ..."
+	push_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"], nargs, config, verbose)
+
 if __name__ == '__main__':
 	# the program always run at the current directory. 
 	dirpath = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
@@ -1585,6 +1596,7 @@ Command:
   kubectl   [args] run a native kubectl command. 
   docker    [args] manage docker images. 
             build: build one or more docker images associated with the current deployment. 
+            push: build and push one or more docker images to register
   execonall [cmd ... ] Execute the command on all nodes and print the output. 
   doonall [cmd ... ] Execute the command on all nodes. 
   runscriptonall [script] Execute the shell/python script on all nodes. 
@@ -1819,7 +1831,7 @@ Command:
 		response = raw_input("Clean and Stop Master/ETCD Nodes (y/n)?")
 		if first_char( response ) == "y":
 			check_master_ETCD_status()
-			gen_configs()			
+			gen_configs()
 			clean_master()
 			clean_etcd()
 
@@ -1932,6 +1944,8 @@ Command:
 		if len(nargs)>=1:
 			if nargs[0] == "build":
 				build_docker_images(nargs[1:])
+			elif nargs[0] == "push":
+				push_docker_images(nargs[1:])
 			else:
 				parser.print_help()
 				print "Error: unkown subcommand %s for docker." % nargs[0]

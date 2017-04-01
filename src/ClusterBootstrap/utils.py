@@ -26,6 +26,9 @@ import socket;
 binarytypes = {".png"}
 verbose = False; 
 
+class StaticVariable():
+	rendered_target_directory = {}
+
 def render_template(template_file, target_file, config, verbose=False):
 	filename, file_extension = os.path.splitext(template_file)
 	if file_extension in binarytypes:
@@ -43,13 +46,17 @@ def render_template(template_file, target_file, config, verbose=False):
 		f.close()
 	
 def render_template_directory(template_dir, target_dir,config, verbose=False):
-	os.system("mkdir -p "+target_dir)
-	filenames = os.listdir(template_dir)
-	for filename in filenames:
-		if os.path.isfile(os.path.join(template_dir, filename)):
-			render_template(os.path.join(template_dir, filename), os.path.join(target_dir, filename),config, verbose)
-		else:
-			render_template_directory(os.path.join(template_dir, filename), os.path.join(target_dir, filename),config, verbose)
+	if target_dir in StaticVariable.rendered_target_directory:
+		return;
+	else:
+		StaticVariable.rendered_target_directory[target_dir]=template_dir;
+		os.system("mkdir -p "+target_dir)
+		filenames = os.listdir(template_dir)
+		for filename in filenames:
+			if os.path.isfile(os.path.join(template_dir, filename)):
+				render_template(os.path.join(template_dir, filename), os.path.join(target_dir, filename),config, verbose)
+			else:
+				render_template_directory(os.path.join(template_dir, filename), os.path.join(target_dir, filename),config, verbose)
 
 # Execute a remote SSH cmd with identity file (private SSH key), user, host
 def SSH_exec_cmd(identity_file, user,host,cmd,showCmd=True):
