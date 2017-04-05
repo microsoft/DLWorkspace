@@ -119,7 +119,11 @@ def push_dockers(rootdir, dockerprefix, dockertag, nargs, config, verbose = Fals
 	for dockername, tuple in docker_list.iteritems():
 		build_docker(dockername, tuple[1], verbose)
 		if tuple[0] in infra_dockers:
+			if verbose: 
+				print "Push to infrastructure docker register %s with name %s" % ( infra_docker_registry , dockername )
 			push_docker(dockername, infra_docker_registry, verbose)
 		else:
+			if verbose: 
+				print "Push to worker docker register %s with name %s" % ( worker_docker_registry , dockername )	
 			push_docker(dockername, worker_docker_registry, verbose)
 
