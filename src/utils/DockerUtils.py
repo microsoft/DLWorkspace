@@ -12,16 +12,27 @@ import grp
 from os.path import expanduser
 from DirectoryUtils import cd
 
-def buildDocker( dockername, dirname):
+def build_docker( dockername, dirname, verbose=False):
 	# docker name is designed to use lower case. 
 	dockername = dockername.lower()
-	print "Building docker ... " + dockername + " .. @" + dirname
+	if verbose:
+		print "Building docker ... " + dockername + " .. @" + dirname
 	with cd(dirname):
 		cmd = "docker build -t "+ dockername + " ."
 		os.system(cmd)
 	return dockername
 	
-def runDocker(dockername, prompt=""):
+def push_docker( dockername, docker_register, verbose=False):
+	# docker name is designed to use lower case. 
+	dockername = dockername.lower()
+	if verbose:
+		print "Pushing docker ... " + dockername + " to " + docker_register
+	cmd = "docker tag "+ dockername + " " + docker_register + dockername
+	cmd += "; docker push " + docker_register + dockername
+	os.system(cmd)
+	return dockername
+	
+def run_docker(dockername, prompt=""):
 	currentdir = os.path.abspath(os.getcwd())
 	uid = os.getuid()
 	username = getpass.getuser()
@@ -62,7 +73,7 @@ def runDocker(dockername, prompt=""):
 	print "Execute: " + cmd
 	os.system(cmd)
 	
-def findDockers( dockername):
+def find_dockers( dockername):
 	print "Search for dockers .... "+dockername
 	tmpf = tempfile.NamedTemporaryFile()
 	tmpfname = tmpf.name; 
@@ -80,8 +91,9 @@ def findDockers( dockername):
 		if dockername in imagename:
 			matchdockers.append(imagename)
 	return matchdockers
-
-def buildAllDockers(rootdir, dockerprefix, dockertag, nargs, verbose = False ):
+	
+def get_docker_list(rootdir, dockerprefix, dockertag, nargs, verbose = False ):
+	docker_list = {}
 	if not (nargs is None) and len(nargs)>0:
 		nargs = map(lambda x:x.lower(), nargs )
 	fnames = os.listdir(rootdir)
@@ -89,5 +101,29 @@ def buildAllDockers(rootdir, dockerprefix, dockertag, nargs, verbose = False ):
 		if nargs is None or len(nargs)==0 or fname.lower() in nargs:
 			entry = os.path.join(rootdir, fname )
 			if os.path.isdir(entry):
+				basename = os.path.basename(entry)
 				dockername = dockerprefix + os.path.basename(entry)+":"+dockertag
-				buildDocker(dockername, entry)
+				docker_list[dockername] = ( basename, entry )
+	return docker_list
+
+def build_dockers(rootdir, dockerprefix, dockertag, nargs, verbose = False ):
+	docker_list = get_docker_list(rootdir, dockerprefix, dockertag, nargs, verbose )
+	for dockername, tuple in docker_list.iteritems():
+		build_docker(dockername, tuple[1], verbose)
+				
+def push_dockers(rootdir, dockerprefix, dockertag, nargs, config, verbose = False ):
+	infra_dockers = config["infrastructure-dockers"] if "infrastructure-dockers" in config else {}
+	infra_docker_registry = config["infrastructure-dockerregistry"] if "infrastructure-dockerregistry" in config else config["dockerregistry"]
+	worker_docker_registry = config["worker-dockerregistry"] if "worker-dockerregistry" in config else config["dockerregistry"]
+	docker_list = get_docker_list(rootdir, dockerprefix, dockertag, nargs, verbose ); 
+	for dockername, tuple in docker_list.iteritems():
+		build_docker(dockername, tuple[1], verbose)
+		if tuple[0] in infra_dockers:
+			if verbose: 
+				print "Push to infrastructure docker register %s with name %s" % ( infra_docker_registry , dockername )
+			push_docker(dockername, infra_docker_registry, verbose)
+		else:
+			if verbose: 
+				print "Push to worker docker register %s with name %s" % ( worker_docker_registry , dockername )	
+			push_docker(dockername, worker_docker_registry, verbose)
+

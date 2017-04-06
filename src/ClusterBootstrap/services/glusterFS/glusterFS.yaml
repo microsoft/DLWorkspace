@@ -17,7 +17,7 @@ spec:
         glusterfs: active
       hostNetwork: true
       containers:
-      - image: gluster/gluster-centos:latest
+      - image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}glusterfs:{{cnf["dockertag"]}}
         imagePullPolicy: IfNotPresent
         name: glusterfs
         volumeMounts:
@@ -39,6 +39,8 @@ spec:
           mountPath: "/var/lib/misc/glusterfsd"
         - name: glusterfs-cgroup
           mountPath: "/sys/fs/cgroup"
+        - name: glusterfs-nodes
+          mountPath: "/etc/kubernetes/nodes"
         securityContext:
           capabilities: {}
           privileged: true
@@ -84,3 +86,6 @@ spec:
       - name: glusterfs-cgroup
         hostPath:
           path: "/sys/fs/cgroup"
+      - name: glusterfs-nodes
+        hostPath:
+          path: "/etc/kubernetes/nodes"
