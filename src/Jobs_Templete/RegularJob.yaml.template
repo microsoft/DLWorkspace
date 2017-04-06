@@ -12,6 +12,10 @@ spec:
          run: {{ job["jobId"] }}
          jobName: {{ job["jobNameLabel"] }}
     spec:
+      {% if job["resourcegpu"]|int < 8  %}
+      nodeSelector:
+        FragmentGPUJob: active
+      {% endif %}
       containers:
       - name: {{ job["jobId"] }}
         image: {{ job["image"] }}

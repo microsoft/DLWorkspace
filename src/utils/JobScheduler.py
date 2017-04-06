@@ -348,7 +348,7 @@ def SubmitRegularJob(job):
 
 		jobDescription = "\n---\n".join(jobDescriptionList)
 
-		jobDescriptionPath = os.path.join(os.path.dirname(config["storage-mount-path"]), jobParams["jobDescriptionPath"])
+		jobDescriptionPath = os.path.join(config["storage-mount-path"], jobParams["jobDescriptionPath"])
 		if not os.path.exists(os.path.dirname(os.path.realpath(jobDescriptionPath))):
 			os.makedirs(os.path.dirname(os.path.realpath(jobDescriptionPath)))
 		if os.path.isfile(jobDescriptionPath):
@@ -508,7 +508,7 @@ chmod +x /opt/run_dist_job.sh
 			jobDescription = "\n---\n".join(jobDescriptionList)
 
 
-		jobDescriptionPath = os.path.join(os.path.dirname(config["storage-mount-path"]), jobParams["jobDescriptionPath"])
+		jobDescriptionPath = os.path.join(config["storage-mount-path"], jobParams["jobDescriptionPath"])
 		if not os.path.exists(os.path.dirname(os.path.realpath(jobDescriptionPath))):
 			os.makedirs(os.path.dirname(os.path.realpath(jobDescriptionPath)))
 		if os.path.isfile(jobDescriptionPath):
@@ -557,7 +557,7 @@ chmod +x /opt/run_dist_job.sh
 def KillJob(job):
 	dataHandler = DataHandler()
 	if "jobDescriptionPath" in job and job["jobDescriptionPath"] is not None:
-		jobDescriptionPath = os.path.join(os.path.dirname(config["storage-mount-path"]), job["jobDescriptionPath"])
+		jobDescriptionPath = os.path.join(config["storage-mount-path"], job["jobDescriptionPath"])
 		if os.path.isfile(jobDescriptionPath):
 			if kubectl_delete(jobDescriptionPath) == 0:
 				dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","killed")
@@ -637,7 +637,7 @@ def UpdateJobStatus(job):
 
 	printlog("job %s status: %s" % (job["jobId"], result))
 	
-	jobDescriptionPath = os.path.join(os.path.dirname(config["storage-mount-path"]), job["jobDescriptionPath"]) if "jobDescriptionPath" in job else None
+	jobDescriptionPath = os.path.join(config["storage-mount-path"], job["jobDescriptionPath"]) if "jobDescriptionPath" in job else None
 
 	if result.strip() == "Succeeded":
 		ExtractJobLog(job["jobId"],logPath)
@@ -700,7 +700,7 @@ def UpdateDistJobStatus(job):
 
 	printlog("job %s status: %s" % (job["jobId"], result))
 	
-	jobDescriptionPath = os.path.join(os.path.dirname(config["storage-mount-path"]), job["jobDescriptionPath"]) if "jobDescriptionPath" in job else None
+	jobDescriptionPath = os.path.join(config["storage-mount-path"], job["jobDescriptionPath"]) if "jobDescriptionPath" in job else None
 
 
 	jobId = jobParams["jobId"]
@@ -715,7 +715,7 @@ def UpdateDistJobStatus(job):
 
 			printlog("job %s status: %s" % (job["jobId"], result))
 	
-			jobDescriptionPath = os.path.join(os.path.dirname(config["storage-mount-path"]), job["jobDescriptionPath"]) if "jobDescriptionPath" in job else None
+			jobDescriptionPath = os.path.join(config["storage-mount-path"], job["jobDescriptionPath"]) if "jobDescriptionPath" in job else None
 
 			if result.strip() == "Succeeded":
 				ExtractJobLog(job["jobId"],logPath)
