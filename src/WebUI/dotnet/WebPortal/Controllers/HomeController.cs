@@ -6,6 +6,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using WindowsAuth.models;
 using System.Net.Http;
+using System.Security.Claims;
+using Newtonsoft.Json;
+using System.Text;
+using Microsoft.AspNetCore.Http;
+
 
 namespace WindowsAuth.Controllers
 {
@@ -20,8 +25,63 @@ namespace WindowsAuth.Controllers
             _appSettings = appSettings.Value;
         }
 
+
+
+
         public async Task<IActionResult> Index()
         {
+            if (User.Identity.IsAuthenticated && !HttpContext.Session.Keys.Contains("uid"))
+            {
+                var url = "http://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName=" + User.Identity.Name;
+                using (var httpClient = new HttpClient())
+                {
+                    var response1 = await httpClient.GetAsync(url);
+                    var content = await response1.Content.ReadAsStringAsync();
+                    UserID userID = JsonConvert.DeserializeObject<UserID>(content.Trim()) as UserID;
+
+                    userID.isAdmin = "false";
+                    foreach (var adminGroupId in _appSettings.adminGroups)
+                    {
+                        if (userID.groups.Contains(adminGroupId))
+                        {
+                            userID.isAdmin = "true";
+                        }
+                    }
+
+                    userID.isAuthorized = "false";
+                    foreach (var authGroup in _appSettings.authorizedGroups)
+                    {
+                        if (userID.groups.Contains(authGroup))
+                        {
+                            userID.isAuthorized = "true";
+                        }
+                    }
+
+
+
+                    HttpContext.Session.SetString("uid", userID.uid);
+
+                    HttpContext.Session.SetString("gid", userID.gid);
+
+                    HttpContext.Session.SetString("isAdmin", userID.isAdmin);
+
+                    HttpContext.Session.SetString("isAuthorized", userID.isAuthorized);
+
+                }
+            }
+
+            if (HttpContext.Session.Keys.Contains("isAuthorized"))
+            {
+                if (HttpContext.Session.GetString("isAuthorized") == "true")
+                {
+                    ViewData["isAuthorized"] = true;
+                }
+                else
+                {
+                    ViewData["isAuthorized"] = false;
+                }
+            }
+
             return View();
         }
         public IActionResult JobSubmission()
@@ -29,6 +89,11 @@ namespace WindowsAuth.Controllers
             if (!User.Identity.IsAuthenticated)
             {
                 return RedirectToAction("Login", "Account", new { controller = "Account", action = "Login" });
+            }
+
+            if (!HttpContext.Session.Keys.Contains("isAuthorized") || HttpContext.Session.GetString("isAuthorized") != "true")
+            {
+                return RedirectToAction("Index", "Home");
             }
 
             ViewData["Message"] = "Your application description page.";
@@ -44,6 +109,12 @@ namespace WindowsAuth.Controllers
                 return RedirectToAction("Login","Account",new { controller = "Account", action = "Login" });
             }
 
+            if (!HttpContext.Session.Keys.Contains("isAuthorized") || HttpContext.Session.GetString("isAuthorized") != "true")
+            {
+                return RedirectToAction("Index", "Home");
+            }
+
+
             ViewData["Message"] = "View and Manage Your Jobs.";
 
             return View();
@@ -54,6 +125,10 @@ namespace WindowsAuth.Controllers
             if (!User.Identity.IsAuthenticated)
             {
                 return RedirectToAction("Login", "Account", new { controller = "Account", action = "Login" });
+            }
+            if (!HttpContext.Session.Keys.Contains("isAuthorized") || HttpContext.Session.GetString("isAuthorized") != "true")
+            {
+                return RedirectToAction("Index", "Home");
             }
 
             ViewData["Message"] = "View and Manage Your Jobs.";
@@ -68,6 +143,11 @@ namespace WindowsAuth.Controllers
             {
                 return RedirectToAction("Login", "Account", new { controller = "Account", action = "Login" });
             }
+            if (!HttpContext.Session.Keys.Contains("isAuthorized") || HttpContext.Session.GetString("isAuthorized") != "true")
+            {
+                return RedirectToAction("Index", "Home");
+            }
+
 
             ViewData["Message"] = "Cluster Status.";
 

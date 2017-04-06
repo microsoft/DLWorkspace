@@ -6,6 +6,9 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Http.Authentication;
 using Microsoft.AspNetCore.Mvc;
+using System.Net.Http;
+using System.Security.Principal;
+using System.Security.Claims;
 
 // For more information on enabling MVC for empty projects, visit http://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -19,6 +22,15 @@ namespace WindowsAuth.Controllers
         {
             if (HttpContext.User == null || !HttpContext.User.Identity.IsAuthenticated)
                 await HttpContext.Authentication.ChallengeAsync(OpenIdConnectDefaults.AuthenticationScheme, new AuthenticationProperties { RedirectUri = "/" });
+
+
+
+            
+            
+
+
+
+
         }
 
         // GET: /Account/LogOff

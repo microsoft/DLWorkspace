@@ -34,11 +34,16 @@ namespace WindowsAuth
         {
             // Add MVC services to the services container.
             services.AddMvc();
+            services.AddDistributedMemoryCache(); // Adds a default in-memory implementation of IDistributedCache
+            services.AddSession();
+
             services.Configure<AppSettings>(appSettings =>
             {
 
                 // Typed syntax - Configuration.Get<type>("")
                 appSettings.restapi = Configuration["restapi"];
+                appSettings.adminGroups = Configuration["adminGroups"].Split(new char[] { ',', ';' }).ToList<string>();
+                appSettings.authorizedGroups = Configuration["authorizedGroups"].Split(new char[] { ',', ';' }).ToList<string>();
             });
             // Add Authentication services.
             services.AddAuthentication(sharedOptions => sharedOptions.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme);
@@ -71,6 +76,7 @@ namespace WindowsAuth
                 }
             });
 
+            app.UseSession();
             // Configure MVC routes
             app.UseMvc(routes =>
             {
