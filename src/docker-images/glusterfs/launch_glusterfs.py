@@ -20,14 +20,12 @@ def start_glusterfs( logdir = '/var/log/glusterfs/launch' ):
 		logging.config.dictConfig(logging_config)
 	create_log( logdir )
 	# set up logging to file - see previous section for more details
-	logging.debug ("Start glusterfs ...." )
+	logging.debug ("Start launch glusterfs ...." )
 
 
 
 
 if __name__ == '__main__':
 	start_glusterfs()
-	while True:
-		logging.debug( "Keep container alive, time ... " + str(datetime.utcnow()) )
-		time.sleep(5)
+	logging.debug( "End launch glusterfs, time ... " )
 

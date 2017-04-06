@@ -21,7 +21,7 @@ WORKDIR /opt/glusterfs
 ADD launch_glusterfs.py /opt/glusterfs/
 ADD logging.yaml /opt/glusterfs/
 RUN chmod +x /opt/glusterfs/launch_glusterfs.py
-CMD /opt/glusterfs/launch_glusterfs.py
+CMD /opt/glusterfs/launch_glusterfs.py; exec /bin/bash -c "trap : TERM INT; sleep infinity & wait"
 
 
 
