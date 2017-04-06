@@ -32,7 +32,7 @@ namespace WindowsAuth.Controllers
         {
             if (User.Identity.IsAuthenticated && !HttpContext.Session.Keys.Contains("uid"))
             {
-                var url = "https://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName=" + User.Identity.Name;
+                var url = "http://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName=" + User.Identity.Name;
                 using (var httpClient = new HttpClient())
                 {
                     var response1 = await httpClient.GetAsync(url);
@@ -57,16 +57,7 @@ namespace WindowsAuth.Controllers
                         }
                     }
 
-                    const string Issuer = "dlworkspace";
-                    var claims = new List<Claim> {
-                        new Claim("uid",userID.uid, ClaimValueTypes.String,Issuer),
-                        new Claim("gid", userID.gid, ClaimValueTypes.String,Issuer),
-                        new Claim("isAdmin", userID.isAdmin , ClaimValueTypes.String,Issuer),
-                        new Claim("isAuthorized", userID.isAuthorized, ClaimValueTypes.String,Issuer)
-                    };
-                    var userIdentity = new ClaimsIdentity(claims, "dlworkspace");
 
-                    User.AddIdentity(userIdentity);
 
                     HttpContext.Session.SetString("uid", userID.uid);
 
