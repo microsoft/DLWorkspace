@@ -96,6 +96,18 @@ namespace WindowsAuth.Controllers
                 return RedirectToAction("Index", "Home");
             }
 
+            string username = User.Identity.Name;
+            if (username.Contains("@"))
+            {
+                username = username.Split(new char[] { '@' })[0];
+            }
+            if (username.Contains("/"))
+            {
+                username = username.Split(new char[] { '/' })[1];
+            }
+
+            ViewData["username"] = username;
+
             ViewData["Message"] = "Your application description page.";
             //
 

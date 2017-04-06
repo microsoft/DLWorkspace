@@ -138,7 +138,7 @@
 </script>
 
 <script type="text/javascript">
-    function ShowHideDiv(chkbox,divId) {
+    function ShowHideDiv(chkbox, divId) {
         var elem = document.getElementById(divId);
         elem.style.display = chkbox.checked ? "block" : "none";
     }
@@ -172,6 +172,65 @@
         var elem3 = document.getElementById("MPIDistJob");
         elem3.style.display = "block";
     }
+
+    function UseTemplate(id) {
+        if (id == "tensorflow") {
+            document.getElementById("jobname").value = "tensorflow-ipython";
+            document.getElementById("resourcegpu").value = 0;
+            document.getElementById("workpath").value = "@ViewData["userName"]";
+            document.getElementById("datapath").value = "imagenet";
+            document.getElementById("jobpath").value = "";
+            
+            document.getElementById("image").value = "tensorflow/tensorflow:latest-gpu";
+            document.getElementById("cmd").value = "";
+
+            document.getElementById("chkInteractiveJob").checked = true;
+            document.getElementById("chkLogDir").checked = false;
+            ShowHideDiv(document.getElementById("chkInteractiveJob"), 'interactiveportfield')
+            ShowHideDiv(document.getElementById("chkLogDir"), 'logdirfield')
+
+            document.getElementById("interactivePort").value = "8888";
+            document.getElementById("logdir").value = "";
+
+        }
+        else if (id == "caffesample")
+        {
+            document.getElementById("jobname").value = "caffe training example - resnet18";
+            document.getElementById("resourcegpu").value = 1;
+            document.getElementById("workpath").value = "samples";
+            document.getElementById("datapath").value = "imagenet";
+            document.getElementById("jobpath").value = "";
+
+            document.getElementById("image").value = "bvlc/caffe:gpu";
+            document.getElementById("cmd").value = "caffe train -solver /work/caffe/solver_resnet18.prototxt";
+
+            document.getElementById("chkLogDir").checked = false;
+            document.getElementById("chkInteractiveJob").checked = false;
+            ShowHideDiv(document.getElementById("chkInteractiveJob"), 'interactiveportfield')
+            ShowHideDiv(document.getElementById("chkLogDir"), 'logdirfield')
+
+            document.getElementById("interactivePort").value = "";
+            document.getElementById("logdir").value = "";
+        }
+        else if (id == "tensorflowsample") {
+            document.getElementById("jobname").value = "Tensorflow training example - inception";
+            document.getElementById("resourcegpu").value = 1;
+            document.getElementById("workpath").value = "samples";
+            document.getElementById("datapath").value = "imagenet";
+            document.getElementById("jobpath").value = "";
+
+            document.getElementById("image").value = "tensorflow/tensorflow:0.12.1-gpu";
+            document.getElementById("cmd").value = "/work/tensorflow/models/inception/bazel-bin/inception/imagenet_train --num_gpus=1 --batch_size=32 --train_dir=/job/model --data_dir=/data/tensor";
+
+            document.getElementById("chkLogDir").checked = false;
+            document.getElementById("chkInteractiveJob").checked = false;
+            ShowHideDiv(document.getElementById("chkInteractiveJob"), 'interactiveportfield')
+            ShowHideDiv(document.getElementById("chkLogDir"), 'logdirfield')
+
+            document.getElementById("interactivePort").value = "";
+            document.getElementById("logdir").value = "";
+        }
+    }
 </script>
 
 <br />
@@ -186,6 +245,24 @@
             </div>
 
             <div class="modal-body">
+
+
+
+                <div class="form-group">
+                    <label>
+                        Use Template
+                    </label>
+                    <br />
+                    <select onchange="UseTemplate(this.value)"> 
+                        <option value="none">None</option>
+                        <option value="tensorflow">Tensorflow-IPython</option>
+                        <option value="caffesample">Caffe training example</option>
+                        <option value="tensorflowsample">Tensorflow training example</option>
+
+                        
+                    </select>
+
+                </div>
 
                 <div class="form-group">
                     <label>
@@ -297,7 +374,7 @@
                 </div>
 
                 <div class="form-group">
-                    <input type="checkbox" id="chkLogDir" onclick="ShowHideDiv(this, 'interactiveportfield')" />
+                    <input type="checkbox" id="chkInteractiveJob" onclick="ShowHideDiv(this, 'interactiveportfield')" />
                     <label>
                         Interactive Job? (e.g. ipython, ssh)
                     </label>
