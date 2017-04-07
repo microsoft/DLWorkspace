@@ -1,5 +1,7 @@
 #cloud-config
 coreos:
+  update:
+    reboot-strategy: off
   units:
     # There should be exactly 4 spaces before the -name. 
     # This is to ensure additional option units can be added through configuration.  
