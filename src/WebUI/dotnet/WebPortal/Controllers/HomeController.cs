@@ -10,6 +10,7 @@ using System.Security.Claims;
 using Newtonsoft.Json;
 using System.Text;
 using Microsoft.AspNetCore.Http;
+using System.IO;
 
 
 namespace WindowsAuth.Controllers
@@ -82,6 +83,24 @@ namespace WindowsAuth.Controllers
                 }
             }
 
+            if (User.Identity.IsAuthenticated)
+            {
+                string username = User.Identity.Name;
+                if (username.Contains("@"))
+                {
+                    username = username.Split(new char[] { '@' })[0];
+                }
+                if (username.Contains("/"))
+                {
+                    username = username.Split(new char[] { '/' })[1];
+                }
+
+                ViewData["username"] = username;
+
+                ViewData["workPath"] = _appSettings.smbPath + username + "/";
+                ViewData["dataPath"] = _appSettings.smbPath + "data/";
+
+            }
             return View();
         }
         public IActionResult JobSubmission()

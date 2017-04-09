@@ -140,6 +140,14 @@ def GetClusterStatus():
 	return cluster_status,last_update_time
 
 
+def AddUser(username,userId):
+	ret = None
+	dataHandler = DataHandler()
+	ret =  dataHandler.AddUser(username,userId)
+	dataHandler.Close()
+	return ret
+
+
 if __name__ == '__main__':
 	TEST_SUB_REG_JOB = False
 	TEST_JOB_STATUS = True

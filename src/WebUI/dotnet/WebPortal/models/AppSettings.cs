@@ -8,6 +8,7 @@ namespace WindowsAuth.models
     public class AppSettings
     {
         public string restapi { get; set; }
+        public string smbPath { get; set; }
         public List<string> authorizedGroups { get; set; }
         public List<string> adminGroups { get; set; }
     }
