@@ -25,7 +25,7 @@ import random
 nvidiaDriverPath = config["nvidiaDriverPath"]
 
 def GetStoragePath(jobpath, workpath, datapath):
-    jobPath = "jobs/"+jobpath
+    jobPath = "work/"+jobpath
     workPath = "work/"+workpath
     dataPath = "storage/"+datapath
     return jobPath,workPath,dataPath
@@ -275,11 +275,10 @@ def SubmitRegularJob(job):
 		jobParams["pvc_work"] = "work-" + jobParams["jobId"]
 		jobParams["pvc_data"] = "storage-" + jobParams["jobId"]
 
-		if "jobPath" in jobParams and len(jobParams["jobPath"].strip()) > 0: 
-			jobPath = jobParams["jobPath"]
-		else:
-			jobPath = time.strftime("%y%m%d") + "/" + jobParams["jobId"]
-			jobParams["jobPath"] = jobPath
+
+		if "jobPath" not in jobParams or len(jobParams["jobPath"].strip()) == 0: 
+			dataHandler.SetJobError(jobParams["jobId"],"ERROR: job-path does not exist")
+			return False
 
 		if "workPath" not in jobParams or len(jobParams["workPath"].strip()) == 0: 
 			dataHandler.SetJobError(jobParams["jobId"],"ERROR: work-path does not exist")
@@ -412,7 +411,9 @@ def SubmitPSDistJob(job):
 					jobParams["distRole"] = role
 
 					if "jobPath" not in jobParams or len(jobParams["jobPath"].strip()) == 0: 
-						jobParams["jobPath"] = time.strftime("%y%m%d") + "/" + jobParams["jobId"]
+						dataHandler.SetJobError(jobParams["jobId"],"ERROR: job-path does not exist")
+						return False
+
 					jobParams["distJobPath"] = os.path.join(jobParams["jobPath"],jobParams["distId"])
 
 					if "workPath" not in jobParams or len(jobParams["workPath"].strip()) == 0: 

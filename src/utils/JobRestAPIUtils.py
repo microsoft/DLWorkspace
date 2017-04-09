@@ -26,7 +26,7 @@ def SubmitJob(jobParamsJsonStr):
 	jobParams = LoadJobParams(jobParamsJsonStr)
 	print jobParamsJsonStr
 
-	dataHandler = DataHandler()
+	
 
 	if "jobId" not in jobParams or jobParams["jobId"] == "":
 		#jobParams["jobId"] = jobParams["jobName"] + "-" + str(uuid.uuid4()) 
@@ -35,22 +35,50 @@ def SubmitJob(jobParamsJsonStr):
 	#jobParams["jobId"] = jobParams["jobId"].replace("_","-").replace(".","-")
 
 
+	userName = jobParams["userName"]
+	if "@" in userName:
+		userName = userName.split("@")[0].strip()
+
+	if "/" in userName:
+		userName = userName.split("/")[1].strip()
+
 	if "cmd" not in jobParams:
 		jobParams["cmd"] = ""
 
 	if "jobPath" in jobParams and len(jobParams["jobPath"].strip()) > 0: 
 		jobPath = jobParams["jobPath"]
 	else:
-		jobPath = time.strftime("%y%m%d")+"/"+jobParams["jobId"]
+		jobPath = userName+"/"+ "jobs/"+time.strftime("%y%m%d")+"/"+jobParams["jobId"]
 		jobParams["jobPath"] = jobPath
 
 	if "workPath" not in jobParams or len(jobParams["workPath"].strip()) == 0: 
 	   ret["error"] = "ERROR: work-path cannot be empty"
+	   return ret
+
+	if ".." in jobParams["workPath"]:
+		ret["error"] = "ERROR: '..' cannot be used in work directory"
+		return ret
+	if jobParams["workPath"][0] == "/" or jobParams["workPath"][0] == "\\":
+		ret["error"] = "ERROR: work directory should not start with '/' or '\\' " 
+		return ret
+
+	if not jobParams["workPath"].startswith(userName):
+		jobParams["workPath"] = os.path.join(userName,jobParams["workPath"])
 
 	if "dataPath" not in jobParams or len(jobParams["dataPath"].strip()) == 0: 
 		ret["error"] = "ERROR: data-path cannot be empty"
+		return ret
+
+	if ".." in jobParams["dataPath"]:
+		ret["error"] = "ERROR: '..' cannot be used in data directory"
+		return ret
+
+	if jobParams["dataPath"][0] == "/" or jobParams["dataPath"][0] == "\\":
+		ret["error"] = "ERROR: data directory should not start with '/' or '\\' " 
+		return ret
 
 
+	dataHandler = DataHandler()
 	if "logDir" in jobParams and len(jobParams["logDir"].strip()) > 0:
 		tensorboardParams = jobParams.copy()
 
