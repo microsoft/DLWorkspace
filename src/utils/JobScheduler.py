@@ -289,7 +289,7 @@ def SubmitRegularJob(job):
 			return False
 
 
-		jobPath,workPath,dataPath = GetStoragePath(jobPath,jobParams["workPath"],jobParams["dataPath"])
+		jobPath,workPath,dataPath = GetStoragePath(jobParams["jobPath"],jobParams["workPath"],jobParams["dataPath"])
 
 
 		localJobPath = os.path.join(config["storage-mount-path"],jobPath)
