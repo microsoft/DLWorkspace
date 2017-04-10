@@ -33,7 +33,8 @@ class SubmitJob(Resource):
 		parser.add_argument('userName')
 		parser.add_argument('userId')
 		parser.add_argument('runningasroot')
-
+		parser.add_argument('containerUserId')
+		
 		
 		parser.add_argument('jobType')
 		
