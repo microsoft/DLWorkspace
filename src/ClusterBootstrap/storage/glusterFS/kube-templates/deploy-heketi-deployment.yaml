@@ -36,14 +36,12 @@ spec:
     spec:
       serviceAccountName: heketi-service-account
       containers:
-      - image: heketi/heketi:latest
+      - image: heketi/heketi:dev
         imagePullPolicy: IfNotPresent
         name: deploy-heketi
         env:
         - name: HEKETI_EXECUTOR
           value: kubernetes
-        - name: HEKETI_KUBE_USE_SECRET
-          value: "y"
         - name: HEKETI_FSTAB
           value: "/var/lib/heketi/fstab"
         - name: HEKETI_SNAPSHOT_LIMIT
