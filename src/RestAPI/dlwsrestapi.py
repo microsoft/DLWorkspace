@@ -32,6 +32,9 @@ class SubmitJob(Resource):
 		parser.add_argument('interactivePort')
 		parser.add_argument('userName')
 		parser.add_argument('userId')
+		parser.add_argument('runningasroot')
+
+		
 		parser.add_argument('jobType')
 		
 
@@ -92,6 +95,11 @@ class SubmitJob(Resource):
 
 			if args["interactivePort"] is not None and len(args["interactivePort"].strip()) > 0:
 				params["interactivePort"] = args["interactivePort"]
+
+			if args["containerUserId"] is not None and len(args["containerUserId"].strip()) > 0:
+				params["containerUserId"] = args["containerUserId"]
+			else:
+				params["containerUserId"] = params["userId"]
 
 			if args["userName"] is not None and len(args["userName"].strip()) > 0:
 				params["userName"] = args["userName"]
