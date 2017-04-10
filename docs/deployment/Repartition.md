@@ -2,6 +2,11 @@
 
 You may use 'deploy.py' to manage the partition of the data drives in the cluster. 
 
+0. You may specify the data-disk on the clsuter node by modifying the configuration parameter, the information is specified via regular expression. 
+   ```
+   data-disk: /dev/[sh]d[^a]
+   ```
+
 1. Show all data partitions:
    ```
    deploy.py partition ls
@@ -11,7 +16,7 @@ You may use 'deploy.py' to manage the partition of the data drives in the cluste
    ```
    deploy.py partition create [args]
    ```
-   As repartition destroyes all data on existing drives, the program will ask you to reconfirm the operation. 
+   As repartition destroyes all data on existing drives, the program will ask you to reconfirm the operation. The default is repartition the entire drive to one disk. 
    ```
    deploy.py partition create n
    ```

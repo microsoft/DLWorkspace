@@ -5,12 +5,11 @@ metadata:
   name: heketi
   labels:
     glusterfs: heketi-service
-    deploy-heketi: support
   annotations:
     description: Exposes Heketi Service
 spec:
   selector:
-    name: heketi
+    glusterfs: heketi-pod
   ports:
   - name: heketi
     port: 8080
@@ -30,19 +29,16 @@ spec:
     metadata:
       name: heketi
       labels:
-        name: heketi
         glusterfs: heketi-pod
     spec:
       serviceAccountName: heketi-service-account
       containers:
-      - image: heketi/heketi:latest
+      - image: heketi/heketi:dev
         imagePullPolicy: IfNotPresent
         name: heketi
         env:
         - name: HEKETI_EXECUTOR
           value: kubernetes
-        - name: HEKETI_KUBE_USE_SECRET
-          value: "y"
         - name: HEKETI_FSTAB
           value: "/var/lib/heketi/fstab"
         - name: HEKETI_SNAPSHOT_LIMIT

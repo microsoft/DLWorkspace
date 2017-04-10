@@ -20,8 +20,6 @@ spec:
       hostNetwork: true
       containers:
       - image: gluster/gluster-centos:latest
-        # temporary command 
-        command: /bin/bash
         imagePullPolicy: IfNotPresent
         name: glusterfs
         volumeMounts:
@@ -43,6 +41,10 @@ spec:
           mountPath: "/var/lib/misc/glusterfsd"
         - name: glusterfs-cgroup
           mountPath: "/sys/fs/cgroup"
+          readOnly: true
+        - name: glusterfs-ssl
+          mountPath: "/etc/ssl"
+          readOnly: true
         securityContext:
           capabilities: {}
           privileged: true
@@ -88,3 +90,6 @@ spec:
       - name: glusterfs-cgroup
         hostPath:
           path: "/sys/fs/cgroup"
+      - name: glusterfs-ssl
+        hostPath:
+          path: "/etc/ssl"

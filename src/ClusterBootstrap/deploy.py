@@ -78,7 +78,9 @@ default_config_parameters = {
 	"ssh_cert" : "./deploy/sshkey/id_rsa",
 	"storage-mount-path" : "/dlwsdata",
 	"storage-mount-path-name" : "dlwsdata",
-	"nvidia-driver-path" : "/opt/nvidia-driver/current"
+	"nvidia-driver-path" : "/opt/nvidia-driver/current", 
+	"data-disk": "/dev/[sh]d[^a]", 
+	"partition-configuration": [ "1" ], 
 }
 
 # These parameter will be mapped if non-exist
@@ -94,7 +96,6 @@ default_config_mapping = {
 
 
 # default search for all partitions of hdb, hdc, hdd, and sdb, sdc, sdd
-defPartition = "/dev/[sh]d[^a]"
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -1186,7 +1187,8 @@ def repartition_nodes(nodes, nodesinfo, partitionConfig):
 					end = 100
 				cmd += "sudo parted -s --align optimal " + deviceinfo["name"] + " mkpart logical " + str(start) +"% " + str(end)+"% ; "
 				start = end
-		utils.SSH_exec_cmd(config["ssh_cert"], "core", node, cmd)
+		if len(cmd)>0:
+			utils.SSH_exec_cmd(config["ssh_cert"], "core", node, cmd)
 	print "Please note, it is OK to ignore message of Warning: Not all of the space available to /dev/___ appears to be used. The current default partition method optimizes for speed, rather to use all disk capacity..."
 	()
 	
@@ -1609,10 +1611,6 @@ Command:
 	parser.add_argument("-p", "--public", 
 		help="Use public IP address to deploy/connect [e.g., Azure, AWS]", 
 		action="store_true")
-	parser.add_argument("--partition", 
-		help = "Regular expression to operate on partitions, default = " + defPartition, 
-		action="store",
-		default = defPartition )
 	parser.add_argument("-s", "--sudo", 
 		help = "Execute scripts in sudo", 
 		action="store_true" )
@@ -1769,13 +1767,19 @@ Command:
 		nodes = get_nodes(config["clusterId"])
 		if nargs[0] == "ls":
 		# Display parititons.  
-			nodesinfo = show_partitions(nodes, args.partition )
+			print "Show partition on data disk: " + config["data-disk"]
+			nodesinfo = show_partitions(nodes, config["data-disk"] )
 			
-		elif nargs[0] == "create" and len(nargs) >= 2:
-			partsInfo = map(float, nargs[1:])
-			if len(partsInfo)==1 and partsInfo[0] < 30:
+		elif nargs[0] == "create":
+			partsInfo = config["partition-configuration"]
+			if len(nargs) >= 2:
+				partsInfo = nargs[1:]
+			partsInfo = map(float, partsInfo)
+			if len(partsInfo)==1 and partsInfo[0] == 0:
+				print "0 partitions, use the disk as is, do not partition"
+			elif len(partsInfo)==1 and partsInfo[0] < 30:
 				partsInfo = [100.0]*int(partsInfo[0])
-			nodesinfo = show_partitions(nodes, args.partition )
+			nodesinfo = show_partitions(nodes, config["data-disk"] )
 			print ("This operation will DELETE all existing partitions and repartition all data drives on the %d nodes to %d partitions of %s" % (len(nodes), len(partsInfo), str(partsInfo)) )
 			response = raw_input ("Please type (REPARTITION) in ALL CAPITALS to confirm the operation ---> ")
 			if response == "REPARTITION":
@@ -1791,11 +1795,12 @@ Command:
 		# ToDo: change pending, schedule glusterFS on master & ETCD nodes, 
 		if nargs[0] == "start" or nargs[0] == "update" or nargs[0] == "stop" or nargs[0] == "clear":
 			nodes = get_worker_nodes(config["clusterId"])
-			nodesinfo = get_partitions(nodes, args.partition )
-			if len(nargs) == 1:
-				glusterFSargs = 1
-			else:
-				glusterFSargs = nargs[1]
+			nodesinfo = get_partitions(nodes, config["data-disk"] )
+			glusterFSargs = fetch_config( ["glusterFS", "partitions"] )
+			if glusterFSargs is None:
+				parser.print_help()
+				print "Need to configure partitions which glusterFS will deploy..."
+				exit()
 			masternodes = get_ETCD_master_nodes(config["clusterId"])
 			gsFlag = ""
 			if nargs[0] == "start":
@@ -1806,7 +1811,7 @@ Command:
 			if nargs[0] == "clear":
 				remove_glusterFS_volumes( masternodes, config["ipToHostname"], nodesinfo, glusterFSargs, nodes )
 			else:
-				start_glusterFS( masternodes, config["ipToHostname"], nodesinfo, glusterFSargs, flag = gsFlag )
+				start_glusterFS( masternodes, fetch_config(["ipToHostname"]), nodesinfo, glusterFSargs, flag = gsFlag )
 			
 				
 		else:
