@@ -20,7 +20,7 @@ spec:
     - --service-cluster-ip-range={{cnf["service_cluster_ip_range"]}}
     - --secure-port={{cnf["k8sAPIport"]}}
     - --advertise-address={{cnf["master_ip"]}} 
-    - --admission-control=NamespaceLifecycle,LimitRanger,SecurityContextDeny,ServiceAccount,DefaultStorageClass,ResourceQuota
+    - --admission-control=NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,ResourceQuota
     #- --admission-control=NamespaceLifecycle,LimitRanger,SecurityContextDeny,ServiceAccount,ResourceQuota
     - --tls-cert-file=/etc/kubernetes/ssl/apiserver.pem
     - --tls-private-key-file=/etc/kubernetes/ssl/apiserver-key.pem

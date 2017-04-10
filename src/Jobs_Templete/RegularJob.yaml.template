@@ -20,6 +20,8 @@ spec:
       - name: {{ job["jobId"] }}
         image: {{ job["image"] }}
         command: {{ job["LaunchCMD"] }}
+        securityContext:
+          runAsUser: {{ job["userId"] }}
         resources:
           limits:
             alpha.kubernetes.io/nvidia-gpu: {{ job["resourcegpu"] }}
@@ -27,14 +29,14 @@ spec:
         volumeMounts:
         - mountPath: /usr/local/nvidia
           name: nvidia-driver
-		  readOnly: true
+          readOnly: true
         - mountPath: /job
           name: job 
         - mountPath: /work
           name: work
         - mountPath: /data
           name: data
-		  readOnly: true
+          readOnly: true
 
       restartPolicy: Never
       volumes:

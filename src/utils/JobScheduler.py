@@ -24,6 +24,14 @@ import random
 
 nvidiaDriverPath = config["nvidiaDriverPath"]
 
+def mkdirsAsUser(path, userId):
+	pdir = os.path.dirname(path)
+	if not os.path.exists(pdir):
+		mkdirsAsUser(pdir, userId)
+	if not os.path.exists(path):
+		os.system("mkdir %s ; chown -R %s %s" % (path,userId, path))
+
+
 def GetStoragePath(jobpath, workpath, datapath):
     jobPath = "work/"+jobpath
     workPath = "work/"+workpath
@@ -237,7 +245,9 @@ def GetJobStatus(jobId):
 
 
 		######!!!!!!!!!!!!!!!!CAUTION!!!!!! since "any and all are used here, the order of if cause is IMPORTANT!!!!!, we need to deail with Faild,Error first, and then "Unknown" then "Pending", at last " Successed and Running"
-		if any([status == "Error" for status in podStatus]):
+		if len(podStatus) ==0:
+			output = "Pending"
+		elif any([status == "Error" for status in podStatus]):
 			output = "Failed"
 		elif any([status == "Failed" for status in podStatus]):
 			output = "Failed"
@@ -248,6 +258,7 @@ def GetJobStatus(jobId):
 				output = "PendingHostPort"
 			else:
 				output = "Pending"
+		# there is a bug: if podStatus is empty, all (**) will be trigered. 
 		elif all([status == "Succeeded" for status in podStatus]):
 			output = "Succeeded"
 		elif any([status == "Running" for status in podStatus]):   # as long as there are no "Unknown", "Pending" nor "Error" pods, once we see a running pod, the job should be in running status.  
@@ -293,9 +304,9 @@ def SubmitRegularJob(job):
 
 
 		localJobPath = os.path.join(config["storage-mount-path"],jobPath)
-		if not os.path.exists(localJobPath):
-			os.makedirs(localJobPath)
 
+		if not os.path.exists(localJobPath):
+			mkdirsAsUser(localJobPath,jobParams["userId"])
 
 		jobParams["LaunchCMD"] = ""
 		if "cmd" not in jobParams:
@@ -305,7 +316,8 @@ def SubmitRegularJob(job):
 			launchScriptPath = os.path.join(localJobPath,"launch-%s.sh" % jobParams["jobId"])
 			with open(launchScriptPath, 'w') as f:
 				f.write(jobParams["cmd"] + "\n")
-			f.close()		
+			f.close()	
+			os.system("chown -R %s %s" % (jobParams["userId"], launchScriptPath))
 			jobParams["LaunchCMD"] = "[\"bash\", \"/job/launch-%s.sh\"]" % jobParams["jobId"]
 
 
@@ -428,7 +440,7 @@ def SubmitPSDistJob(job):
 
 					localJobPath = os.path.join(config["storage-mount-path"],jobPath)
 					if not os.path.exists(localJobPath):
-						os.makedirs(localJobPath)
+						mkdirsAsUser(localJobPath,jobParams["userId"])
 
 
 					jobParams["LaunchCMD"] = ""
@@ -573,7 +585,7 @@ def KillJob(job):
 
 
 
-def ExtractJobLog(jobId,logPath):
+def ExtractJobLog(jobId,logPath,userId):
 	dataHandler = DataHandler()
 
 	logs = GetLog(jobId)
@@ -581,7 +593,7 @@ def ExtractJobLog(jobId,logPath):
 	logStr = ""
 	jobLogDir = os.path.dirname(logPath)
 	if not os.path.exists(jobLogDir):
-		os.makedirs(jobLogDir)
+		mkdirsAsUser(jobLogDir,userId)
 
 	for log in logs:
 		if "podName" in log and "containerID" in log and "containerLog" in log:
@@ -604,6 +616,7 @@ def ExtractJobLog(jobId,logPath):
 				with open(containerLogPath, 'w') as f:
 					f.write(log["containerLog"])
 				f.close()
+				os.system("chown -R %s %s" % (userId, containerLogPath))
 			except Exception as e:
 				print e
 
@@ -613,6 +626,7 @@ def ExtractJobLog(jobId,logPath):
 		with open(logPath, 'w') as f:
 			f.write(logStr)
 		f.close()
+		os.system("chown -R %s %s" % (userId, logPath))
 
 
 
@@ -641,13 +655,13 @@ def UpdateJobStatus(job):
 	jobDescriptionPath = os.path.join(config["storage-mount-path"], job["jobDescriptionPath"]) if "jobDescriptionPath" in job else None
 
 	if result.strip() == "Succeeded":
-		ExtractJobLog(job["jobId"],logPath)
+		ExtractJobLog(job["jobId"],logPath,jobParams["userId"])
 		dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","finished")
 		if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
 			kubectl_delete(jobDescriptionPath) 
 
 	elif result.strip() == "Running":
-		ExtractJobLog(job["jobId"],logPath)
+		ExtractJobLog(job["jobId"],logPath,jobParams["userId"])
 		if job["jobStatus"] != "running":
 			dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","running")
 		if "interactivePort" in jobParams:
@@ -657,7 +671,7 @@ def UpdateJobStatus(job):
 
 	elif result.strip() == "Failed":
 		printlog("Job %s fails, cleaning..." % job["jobId"])
-		ExtractJobLog(job["jobId"],logPath)
+		ExtractJobLog(job["jobId"],logPath,jobParams["userId"])
 		dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","failed")
 		dataHandler.UpdateJobTextField(job["jobId"],"errorMsg",detail)
 		if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
@@ -719,13 +733,13 @@ def UpdateDistJobStatus(job):
 			jobDescriptionPath = os.path.join(config["storage-mount-path"], job["jobDescriptionPath"]) if "jobDescriptionPath" in job else None
 
 			if result.strip() == "Succeeded":
-				ExtractJobLog(job["jobId"],logPath)
+				ExtractJobLog(job["jobId"],logPath,jobParams["userId"])
 				dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","finished")
 				if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
 					kubectl_delete(jobDescriptionPath) 
 
 			elif result.strip() == "Running":
-				ExtractJobLog(job["jobId"],logPath)
+				ExtractJobLog(job["jobId"],logPath,jobParams["userId"])
 				if job["jobStatus"] != "running":
 					dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","running")
 				if "interactivePort" in jobParams:
@@ -735,7 +749,7 @@ def UpdateDistJobStatus(job):
 
 			elif result.strip() == "Failed":
 				printlog("Job %s fails, cleaning..." % job["jobId"])
-				ExtractJobLog(job["jobId"],logPath)
+				ExtractJobLog(job["jobId"],logPath,jobParams["userId"])
 				dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","failed")
 				dataHandler.UpdateJobTextField(job["jobId"],"errorMsg",detail)
 				if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
@@ -863,6 +877,7 @@ def launch_ps_dist_job(jobParams):
 				with open(ps_files[i], 'w') as f:
 					f.write(ps_cmd[i] + "\n")
 				f.close()		
+				os.system("chown -R %s %s" % (jobParams["userId"], ps_files[i]))
 				remotecmd = "cp %s %s:/opt/run_dist_job.sh" % (ps_files[i],ps_pod_names[i])
 				kubectl_exec(remotecmd)
 				kubectl_exec("exec %s touch /opt/run_dist_job" % ps_pod_names[i])
@@ -874,6 +889,7 @@ def launch_ps_dist_job(jobParams):
 				with open(worker_files[i], 'w') as f:
 					f.write(worker_cmd[i] + "\n")
 				f.close()	
+				os.system("chown -R %s %s" % (jobParams["userId"], worker_files[i]))
 				remotecmd = "cp %s %s:/opt/run_dist_job.sh" % (worker_files[i],worker_pod_names[i])
 				kubectl_exec(remotecmd)
 				kubectl_exec("exec %s touch /opt/run_dist_job" % worker_pod_names[i])

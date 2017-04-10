@@ -78,6 +78,21 @@ coreos:
 
         [Install]
         WantedBy=multi-user.target
+
+    - name: rpc-statd.service
+      command: start
+      enable: true
+    - name: {{cnf["storage-mount-path-name"]}}.mount
+      command: start
+      enable: true
+      content: |
+        [Mount]
+        What={{cnf["nfs-server"]}}
+        Where={{cnf["storage-mount-path"]}}
+        Type=nfs
+        [Install]
+        WantedBy = multi-user.target
+
 {{cnf["coreosunits"]}}
 
 ssh_authorized_keys:
