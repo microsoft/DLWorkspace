@@ -225,7 +225,7 @@
             document.getElementById("jobpath").value = "";
 
             document.getElementById("image").value = "bvlc/caffe:cpu";
-            document.getElementById("cmd").value = "apt-get update && apt-get install -y openssh-server sudo && addgroup --force-badname --gid 500000513 domainusers && adduser --force-badname --home /home/@ViewData["userName"] --shell /bin/bash --uid 522318884  -gecos '' @ViewData["userName"] --disabled-password --gid 500000513 && adduser @ViewData["userName"] sudo && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && mkdir -p /root/.ssh && cat /work/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && mkdir -p /home/@ViewData["userName"]/.ssh && cat /work/.ssh/id_rsa.pub >> /home/@ViewData["userName"]/.ssh/authorized_keys && service ssh restart && sleep infinity";
+            document.getElementById("cmd").value = "apt-get update && apt-get install -y openssh-server sudo && addgroup --force-badname --gid  @ViewData["gid"] domainusers && adduser --force-badname --home /home/@ViewData["userName"] --shell /bin/bash --uid @ViewData["uid"]  -gecos '' @ViewData["userName"] --disabled-password --gid @ViewData["gid"] && adduser @ViewData["userName"] sudo && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && mkdir -p /root/.ssh && cat /work/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && mkdir -p /home/@ViewData["userName"]/.ssh && cat /work/.ssh/id_rsa.pub >> /home/@ViewData["userName"]/.ssh/authorized_keys && service ssh restart && sleep infinity";
             document.getElementById("chkInteractiveJob").checked = true;
             document.getElementById("chkLogDir").checked = false;
             ShowHideDiv(document.getElementById("chkInteractiveJob"), 'interactiveportfield')
