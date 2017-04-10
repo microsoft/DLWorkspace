@@ -21,7 +21,7 @@ spec:
         image: {{ job["image"] }}
         command: {{ job["LaunchCMD"] }}
         securityContext:
-          runAsUser: {{ job["userId"] }}
+          runAsUser: {{ job["containerUserId"] }}
         resources:
           limits:
             alpha.kubernetes.io/nvidia-gpu: {{ job["resourcegpu"] }}
