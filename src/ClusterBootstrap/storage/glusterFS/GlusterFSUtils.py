@@ -26,7 +26,7 @@ class GlusterFSJson:
 			deviceList = []
 			cnt += 1
 			hostnamesInfo = {}
-			hostnamesInfo["manage"] = [ipToHostname[node]]
+			hostnamesInfo["manage"] = node if ipToHostname is None else [ipToHostname[node]]
 			hostnamesInfo["storage"] = [node.encode("ascii","ignore")]
 			nodeInfo["hostnames"] = hostnamesInfo
 			nodeInfo["zone"] = 1
@@ -38,7 +38,7 @@ class GlusterFSJson:
 					#print bdevicename
 					match = regmatch.search(bdevicename)
 					if not ( match is None ):
-						deviceList.append(bdevicename)
+						deviceList.append(match.group(0))
 			if len(deviceList) >= 1:
 				oneNodeInfo = {}
 				oneNodeInfo["node"] = nodeInfo

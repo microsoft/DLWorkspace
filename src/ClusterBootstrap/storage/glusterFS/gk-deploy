@@ -29,10 +29,13 @@ ABORT=0
 NODES=""
 SKIP_PREREQ=0
 LOAD=0
+ADMIN_KEY=""
+USER_KEY=""
 
 usage() {
-  echo -e "USAGE: ${PROG} [-ghv] [-c CLI] [-t <TEMPLATES>] [-n NAMESPACE] [-w <SECONDS>] [--load]
-       [-l <LOG_FILE>] [<TOPOLOGY>]\n"
+  echo -e "USAGE: ${PROG} [-ghvy] [-c CLI] [-t <TEMPLATES>] [-n NAMESPACE] [-w <SECONDS>]
+       [--load] [--admin-key <ADMIN_KEY>] [--user-key <USER_KEY>] [-l <LOG_FILE>]
+       [<TOPOLOGY>]\n"
 }
 
 help_exit() {
@@ -64,8 +67,8 @@ Options:
                 * For OpenShift: '${OCP_TEMPLATES_DEFAULT}'.
 
   -n NAMESPACE, --namespace NAMESPACE
-              The namespace to use for creating resources.
-              Defaults is '${NAMESPACE}'.
+              The namespace to use for creating resources. Default is to use
+              the current namespace if available, otherwise 'default'.
 
   -w SECONDS, --wait SECONDS
               Wait SECONDS seconds for pods to become ready. Default is '${WAIT}'.
@@ -74,6 +77,16 @@ Options:
               failure on adding nodes or devices to heketi. Fix the issue on
               device or node, then restart with --load to skip gluster
               deployment and re-run topology load command.
+
+  --admin-key ADMIN_KEY
+              Secret for heketi administrator user. Heketi admin has access to all
+              the APIs. admin key: string, Shared secret.
+              Eg: MySecret
+
+  --user-key USER_KEY
+              Secret for heketi general user. Heketi user has access to only Volume
+              APIs. user key: string, Shared secret.
+              Eg: MyVolumeSecret
 
   -y, --yes
               Skip the pre-requisites prompt.
@@ -97,9 +110,16 @@ output() {
     opts+="n"
     shift
   fi
-  echo "$opts" "${1}"
-  if [[ "${LOG_FILE}" ]]; then
-    echo $opts "${1}" >> "${LOG_FILE}"
+  out="${*}"
+  echo "$opts" "${out}"
+  if [[ "x${LOG_FILE}" != "x" ]]; then
+    if [[ "${out}" == "\033["K* ]]; then
+      out="${out:6}"
+    fi
+    if [[ "${out}" == "\033["*A ]]; then
+      out="---"
+    fi
+    echo $opts "${out}" >> "${LOG_FILE}"
   fi
 }
 
@@ -109,23 +129,41 @@ debug() {
   fi
 }
 
+eval_output() {
+  cmd="${1}"
+  while read -r line; do
+    if [[ "${line}" == return\ [0-9]* ]]; then
+      eval "${line}"
+    fi
+    output "${line}"
+  done < <(
+    eval "${cmd}"
+    echo "return $?"
+  )
+}
+
 abort() {
-  ${CLI} delete all,service,jobs,deployment,secret --selector="deploy-heketi"
-  ${CLI} delete dc,svc,routes heketi
-  ${CLI} delete svc/heketi-storage-endpoints
-  ${CLI} delete sa heketi-service-account
-  if [[ "${CLI}" == *oc ]]; then
-    ${CLI} delete template deploy-heketi
-    ${CLI} delete template heketi
+  eval_output "${CLI} delete svc heketi 2>&1"
+  eval_output "${CLI} delete sa heketi-service-account 2>&1"
+  eval_output "${CLI} delete all,service,jobs,deployment,secret --selector=\"deploy-heketi\" 2>&1"
+  eval_output "${CLI} delete svc/heketi-storage-endpoints 2>&1"
+  if [[ "${CLI}" == *oc\ * ]]; then
+    eval_output "${CLI} delete dc,route heketi 2>&1"
+    eval_output "${CLI} delete template deploy-heketi 2>&1"
+    eval_output "${CLI} delete template heketi 2>&1"
+  else
+    eval_output "${CLI} delete clusterrolebinding heketi-sa-view 2>&1"
+    eval_output "${CLI} delete deployment heketi 2>&1"
   fi
   if [[ ${GLUSTER} -eq 1 ]]; then
     while read -r node; do
       debug "Removing label from '${node}' as a GlusterFS node."
-      ${CLI} label nodes ${node} storagenode-
+      eval_output "${CLI} label nodes \"${node}\" storagenode- 2>&1"
     done <<< "$(echo -e "${NODES}")"
-    ${CLI} delete all,service,jobs,ds,secret --selector="glusterfs"
-    if [[ "${CLI}" == *oc ]]; then
-      ${CLI} delete template glusterfs
+    debug "Removing daemonset glusterfs."
+    eval_output "${CLI} delete ds --selector=\"glusterfs\" 2>&1"
+    if [[ "${CLI}" == *oc\ * ]]; then
+      eval_output "${CLI} delete template glusterfs 2>&1"
     fi
   fi
   exit 1
@@ -133,13 +171,12 @@ abort() {
 
 assign() {
   key="${1}"
-  assign=`expr index ${key} '='
-  `
-  if [[ $assign -gt 0 ]]; then
-    echo "${key:assign}"
+  value="${key#*=}"
+  if [[ "${value}" != "${key}" ]]; then
+    # key was of the form 'key=value'
+    echo "${value}"
     return 0
-  elif [[ $assign -eq 0 ]] &&
-       [[ "x${2}" != "x" ]]; then
+  elif [[ "x${2}" != "x" ]]; then
     echo "${2}"
     return 2
   else
@@ -151,44 +188,53 @@ assign() {
 }
 
 check_pods() {
-  local all_ready=false
+  local rc=1
+  local wait_limit=${WAIT}
+  local number_re='^[0-9]+$'
+
+  # $2 can either be a status string or
+  # a timeout integer. Only override the
+  # timeout if we get a numeric argument.
+  if [[ ${2} =~ $number_re ]]; then
+    wait_limit=${2}
+  fi
+
   s=0
-  prestatus=""
-  while [[ "${all_ready}" != "true" ]]; do
-    if [[ ${s} -ge ${WAIT} ]]; then
-      output "Timed out waiting for pods matching '${1}'."
-      abort
+  debug "\nChecking status of pods matching '${1}':"
+  while [[ ${rc} -ne 0 ]]; do
+    if [[ ${s} -ge ${wait_limit} ]]; then
+      debug "Timed out waiting for pods matching '${1}'."
+      break
     fi
     sleep 2
-    ((s+=2))
-    output "Kubernetes: ${CLI} get pod --no-headers --show-all --selector=\"${1}\" 2>&1"
     pods=$(${CLI} get pod --no-headers --show-all --selector="${1}" 2>&1)
-    output "Return pods: ${pods}, prior=${prestatus}"
-    if [[ "${prestatus}" != "${pods}" ]]; then
-      debug "Checking status of pods matching '${1}':"
-      debug "$pods"
-      prestatus="${pods}"
-    else
-      debug -n "."
+    if [[ ${s} -ne 0 ]] && [[ ${VERBOSE} -eq 1 ]]; then
+      podlines=$(echo "$pods" | wc -l)
+      ((podlines+=1))
+      debug "\033[${podlines}A"
     fi
-    all_ready=true
+    rc=0
     while read -r pod; do
+      debug "\033[K${pod}"
       case ${2} in
         Completed)
         status=$(echo "${pod}" | awk '{print $3}')
         if [[ "${status}" != "Completed" ]]; then
-          all_ready=false
+          rc=1
         fi
         ;;
         *)
         status=$(echo "${pod}" | awk '{print $2}')
         if [[ "${status}" != "1/1" ]]; then
-          all_ready=false
+          rc=1
         fi
         ;;
       esac
     done <<< "$(echo -e "$pods")"
+    ((s+=2))
   done
+
+  return ${rc}
 }
 
 while [[ $# -ge 1 ]]; do
@@ -227,6 +273,16 @@ while [[ $# -ge 1 ]]; do
         y*|-yes)
         SKIP_PREREQ=1
         if [[ "$key" == "--yes" ]]; then keypos=$keylen; fi
+        ;;
+        -admin-key*)
+        ADMIN_KEY=$(assign "${key:${keypos}}" "${2}")
+        if [[ $? -eq 2 ]]; then shift; fi
+        keypos=$keylen
+        ;;
+        -user-key*)
+        USER_KEY=$(assign "${key:${keypos}}" "${2}")
+        if [[ $? -eq 2 ]]; then shift; fi
+        keypos=$keylen
         ;;
         l*|-log-file*)
         LOG_FILE=$(assign "${key:${keypos}}" "${2}")
@@ -288,15 +344,13 @@ rules for the required GlusterFS ports:
 In addition, for an OpenShift deployment you must:
  * Have 'cluster_admin' role on the administrative account doing the deployment
  * Add the 'default' and 'router' Service Accounts to the 'privileged' SCC
- * Add the 'heketi-service-account' Service Account to the 'privileged' SCC
  * Have a router deployed that is configured to allow apps to access services
    running in the cluster
 
 Do you wish to proceed with deployment?
 "
 
-  ## read -rp "[Y]es, [N]o? [Default: Y]: " ynopt
-  ynopt="Yes"
+  read -rp "[Y]es, [N]o? [Default: Y]: " ynopt
   case $ynopt in
     N*|n*)
     exit
@@ -308,7 +362,6 @@ if [[ ! -f ${TOPOLOGY} ]]; then
   echo "Topology File not found!"
   exit 1
 else
-  #echo "Do python"
   NODES=$(python - <<END
 import sys
 import json
@@ -322,29 +375,12 @@ for cluster in topo['clusters']:
     print(str(node['node']['hostnames']['manage'][0]))
 END
 )
-  output "Nodes: ${NODES}"
 fi
 
 if [[ "x${CLI}" == "x" ]]; then
   kubectl=$(type kubectl 2>/dev/null | awk '{print $3}')
   oc=$(type oc 2>/dev/null | awk '{print $3}')
-  if [[ "x${kubectl}" != "x" ]] && [[ "x${oc}" != "x" ]]; then
-    output "Multiple CLI options detected. Please select a deployment option."
-    while [[ "x${CLI}" == "x" ]]; do
-      loop=false
-      read -rp "[O]penShift, [K]ubernetes? [O/o/K/k]: " cliopt
-      case $cliopt in
-        O*|o*)
-        CLI="${oc}"
-        ;;
-        K*|k*)
-        CLI="${kubectl}"
-        ;;
-        *)
-        CLI=""
-      esac
-    done
-  elif [[ "x${oc}" != "x" ]]; then
+  if [[ "x${oc}" != "x" ]]; then
     CLI="${oc}"
   elif [[ "x${kubectl}" != "x" ]]; then
     CLI="${kubectl}"
@@ -361,6 +397,14 @@ elif [[ "${CLI}" == *kubectl ]]; then
 else
   output "Unknown CLI '${CLI}'."
   exit 1
+fi
+
+if [[ "${CLI}" == *oc ]]; then
+  oc_minor_version=$(${CLI} version | grep oc | awk '{ print $2 }' | cut -d '.' -f2)
+  OC_PROCESS_VAL_SWITCH="-p"
+  if [[ ${oc_minor_version} -lt 5 ]]; then
+    OC_PROCESS_VAL_SWITCH="-v"
+  fi
 fi
 
 if [[ "x${TEMPLATES}" == "x" ]]; then
@@ -380,7 +424,6 @@ if [[ -z "$NAMESPACE" ]]; then
   if [[ -z "$NAMESPACE" ]]; then
     NAMESPACE="default"
   fi
-  output "Namespace: " ${NAMESPACE}
 fi
 
 ${CLI} get namespaces ${NAMESPACE} 2>/dev/null
@@ -402,93 +445,115 @@ if [[ ${ABORT} -eq 1 ]]; then
 fi
 
 if [[ ${LOAD} -eq 0 ]]; then
-  if [[ "${CLI}" == *oc ]]; then
-    ${CLI} create -f ${TEMPLATES}/deploy-heketi-template.yaml
-    ${CLI} create -f ${TEMPLATES}/heketi-service-account.yaml
-    ${CLI} create -f ${TEMPLATES}/heketi-template.yaml
+  output -n "Checking that heketi pod is not running ... "
+  check_pods "glusterfs=heketi-pod" 2
+  if [[ $? -eq 0 ]]; then
+    output "Found heketi pod running. Please destroy existing setup and try again."
+    exit 1
+  fi
+  output "OK"
+  if [[ "${CLI}" == *oc\ * ]]; then
+    eval_output "${CLI} create -f ${TEMPLATES}/deploy-heketi-template.yaml 2>&1"
+    eval_output "${CLI} create -f ${TEMPLATES}/heketi-service-account.yaml 2>&1"
+    eval_output "${CLI} create -f ${TEMPLATES}/heketi-template.yaml 2>&1"
     if [[ $GLUSTER -eq 1 ]]; then
-      ${CLI} create -f ${TEMPLATES}/glusterfs-template.yaml
+      eval_output "${CLI} create -f ${TEMPLATES}/glusterfs-template.yaml 2>&1"
     fi
-    ${CLI} policy add-role-to-user edit system:serviceaccount:${NAMESPACE}:heketi-service-account
+    eval_output "${CLI} policy add-role-to-user edit system:serviceaccount:${NAMESPACE}:heketi-service-account 2>&1"
+    eval_output "${CLI} adm policy add-scc-to-user privileged -z heketi-service-account"
   else
-    output "Kubernetes: ${CLI} create -f ${TEMPLATES}/heketi-service-account.yaml"
-    ${CLI} create -f ${TEMPLATES}/heketi-service-account.yaml
+    eval_output "${CLI} create -f ${TEMPLATES}/heketi-service-account.yaml 2>&1"
+    eval_output "${CLI} create clusterrolebinding heketi-sa-view --clusterrole=edit --serviceaccount=${NAMESPACE}:heketi-service-account 2>&1"
   fi
 fi
 
 if [[ $GLUSTER -eq 1 ]] && [[ ${LOAD} -eq 0 ]]; then
 
   while read -r node; do
-    output "Marking '${node}' as a GlusterFS node."
-    output "Kubernetes: ${CLI} label nodes ${node} storagenode=glusterfs"
-    ${CLI} label nodes ${node} storagenode=glusterfs
+    debug "Marking '${node}' as a GlusterFS node."
+    eval_output "${CLI} label nodes ${node} storagenode=glusterfs 2>&1"
+    if [[ ${?} -ne 0 ]]; then
+      output "Failed to label node '${node}'"
+      abort
+    fi
   done <<< "$(echo -e "${NODES}")"
-  output "Deploying GlusterFS pods."
-  if [[ "${CLI}" == *oc ]]; then
-    ${CLI} process glusterfs | ${CLI} create -f -
+  debug "Deploying GlusterFS pods."
+  if [[ "${CLI}" == *oc\ * ]]; then
+    eval_output "${CLI} process glusterfs | ${CLI} create -f - 2>&1"
   else
-    output "Kubernetes: ${CLI} create -f ${TEMPLATES}/glusterfs-daemonset.yaml"
-    ${CLI} create -f ${TEMPLATES}/glusterfs-daemonset.yaml
+    eval_output "${CLI} create -f ${TEMPLATES}/glusterfs-daemonset.yaml 2>&1"
   fi
 
   output -n "Waiting for GlusterFS pods to start ... "
   check_pods "glusterfs-node=pod"
+  if [[ $? -ne 0 ]]; then
+    output "pods not found."
+    abort
+  fi
   output "OK"
 fi
 
 if [[ ${LOAD} -eq 0 ]]; then
-  if [[ "${CLI}" == *oc ]]; then
-    ${CLI} process deploy-heketi | ${CLI} create -f -
+  if [[ "${CLI}" == *oc\ * ]]; then
+    eval_output "${CLI} process ${OC_PROCESS_VAL_SWITCH} HEKETI_ADMIN_KEY=${ADMIN_KEY} ${OC_PROCESS_VAL_SWITCH} HEKETI_USER_KEY=${USER_KEY} deploy-heketi | ${CLI} create -f - 2>&1"
   else
-    output "${CLI} create -f ${TEMPLATES}/deploy-heketi-deployment.yaml"
-    ${CLI} create -f ${TEMPLATES}/deploy-heketi-deployment.yaml
+    eval_output "${CLI} create -f ${TEMPLATES}/deploy-heketi-deployment.yaml 2>&1"
   fi
 fi
 
 output -n "Waiting for deploy-heketi pod to start ... "
 check_pods "glusterfs=heketi-pod"
+if [[ $? -ne 0 ]]; then
+  output "pods not found."
+  abort
+fi
 output "OK"
 
+s=0
 heketi_service=""
 debug -n "Determining heketi service URL ... "
-while [[ "x${heketi_service}" == "x" ]]; do
-  if [[ "${CLI}" == *oc ]]; then
-    heketi_service=$(${CLI} describe routes/deploy-heketi | grep "Requested Host:" | awk '{print $3}')
-  else
-    output "Kubernetes: ${CLI} describe svc/deploy-heketi | grep "Endpoints:" | awk '{print $2}'"
-    heketi_service=$(${CLI} describe svc/deploy-heketi | grep "Endpoints:" | awk '{print $2}')
-    output "Heketi URL is ${heketi_service}"
+while [[ "x${heketi_service}" == "x" ]] || [[ "${heketi_service}" == "<none>" ]]; do
+  if [[ ${s} -ge ${WAIT} ]]; then
+    debug "Timed out waiting for deploy-heketi service."
+    break
   fi
   sleep 1
+  ((s+=1))
+  heketi_service=$(${CLI} describe svc/deploy-heketi | grep "Endpoints:" | awk '{print $2}')
 done
-debug "OK"
 
-hello=$(curl http://${heketi_service}/hello 2>/dev/null)
+if [[ "${CLI}" == *oc\ * ]]; then
+  heketi_service=$(${CLI} describe routes/deploy-heketi | grep "Requested Host:" | awk '{print $3}')
+fi
+
+hello=$(curl "http://${heketi_service}/hello" 2>/dev/null)
 if [[ "${hello}" != "Hello from Heketi" ]]; then
   output "Failed to communicate with deploy-heketi service."
-  if [[ "${CLI}" == *oc ]]; then
+  if [[ "${CLI}" == *oc\ * ]]; then
     output "Please verify that a router has been properly configured."
   fi
   abort
+else
+  debug "OK"
 fi
 
-output "Heketi-CLI: heketi-cli -s http://${heketi_service} topology load --json=${TOPOLOGY} 2>&1"
-tload=$(./heketi-cli -s http://${heketi_service} topology load --json=${TOPOLOGY} 2>&1) 
-if [[ ${?} != 0 ]]; then
-  output "${tload}"
+load_temp=$(mktemp)
+eval_output "heketi-cli -s http://${heketi_service} --user admin --secret \"${ADMIN_KEY}\" topology load --json=${TOPOLOGY} 2>&1" | tee "${load_temp}"
+grep -q "Unable" "${load_temp}"
+unable=$?
+rm "${load_temp}"
+
+if [[ ${PIPESTATUS[0]} -ne 0 ]] || [[ ${unable} -eq 0 ]]; then
+  output "Error loading the cluster topology."
+  if [[ ${unable} -eq 0 ]]; then
+    output "Please check the failed node or device and rerun this script using the --load option."
+  fi
   exit 1
 else
-  output "${tload}"
-  check=$(echo $tload | grep Unable)
-  if [[ "${check}" != "" ]]; then
-    output "Please Check the failed Node or Device and restart with --load"
-    exit 1
-  fi
+  output "heketi topology loaded."
 fi
 
-
-output "Heketi-CLI: heketi-cli -s http://${heketi_service} setup-openshift-heketi-storage"
-./heketi-cli -s http://${heketi_service} setup-openshift-heketi-storage
+eval_output "heketi-cli -s http://${heketi_service} --user admin --secret \"${ADMIN_KEY}\" setup-openshift-heketi-storage 2>&1"
 if [[ ${?} != 0 ]]; then
   output "Failed on setup openshift heketi storage"
   exit 1
@@ -498,41 +563,58 @@ if [[ ! -f heketi-storage.json ]]; then
   output "heketi-storage.json file not found"
   exit 1
 fi
-${CLI} create -f heketi-storage.json
+eval_output "${CLI} create -f heketi-storage.json 2>&1"
 
 check_pods "job-name=heketi-storage-copy-job" "Completed"
+if [[ ${?} != 0 ]]; then
+  output "Error waiting for job 'heketi-storage-copy-job' to complete."
+  exit 1
+fi
 
-${CLI} delete all,service,jobs,deployment,secret --selector="deploy-heketi"
+eval_output "${CLI} delete all,service,jobs,deployment,secret --selector=\"deploy-heketi\" 2>&1"
 
-if [[ "${CLI}" == *oc ]]; then
-  ${CLI} process heketi | ${CLI} create -f -
+if [[ "${CLI}" == *oc\ * ]]; then
+  eval_output "${CLI} process ${OC_PROCESS_VAL_SWITCH} HEKETI_ADMIN_KEY=${ADMIN_KEY} ${OC_PROCESS_VAL_SWITCH} HEKETI_USER_KEY=${USER_KEY} heketi | ${CLI} create -f - 2>&1"
 else
-  ${CLI} create -f ${TEMPLATES}/heketi-deployment.yaml
+  eval_output "${CLI} create -f ${TEMPLATES}/heketi-deployment.yaml 2>&1"
 fi
 
 output -n "Waiting for heketi pod to start ... "
 check_pods "glusterfs=heketi-pod"
+if [[ ${?} != 0 ]]; then
+  output "pod not found"
+  exit 1
+fi
+
 output "OK"
 
+s=0
 heketi_service=""
 debug -n "Determining heketi service URL ... "
-while [[ "x${heketi_service}" == "x" ]]; do
-  if [[ "${CLI}" == *oc ]]; then
-    heketi_service=$(${CLI} describe routes/heketi | grep "Requested Host:" | awk '{print $3}')
-  else
-    heketi_service=$(${CLI} describe svc/heketi | grep "Endpoints:" | awk '{print $2}')
+while [[ "x${heketi_service}" == "x" ]] || [[ "${heketi_service}" == "<none>" ]]; do
+  if [[ ${s} -ge ${WAIT} ]]; then
+    debug "Timed out waiting for heketi service."
+    break
   fi
   sleep 1
+  ((s+=1))
+  heketi_service=$(${CLI} describe svc/heketi | grep "Endpoints:" | awk '{print $2}')
 done
-debug "OK"
 
-hello=$(curl http://${heketi_service}/hello 2>/dev/null)
+if [[ "${CLI}" == *oc\ * ]]; then
+  heketi_service=$(${CLI} describe routes/heketi | grep "Requested Host:" | awk '{print $3}')
+fi
+
+hello=$(curl "http://${heketi_service}/hello" 2>/dev/null)
 if [[ "${hello}" != "Hello from Heketi" ]]; then
   output "Failed to communicate with heketi service."
-  if [[ "${CLI}" == *oc ]]; then
+  if [[ "${CLI}" == *oc\ * ]]; then
     output "Please verify that a router has been properly configured."
   fi
-  abort
+  exit 1
 else
-  output "heketi is now running."
+  debug "OK"
+  output "heketi is now running and accessible via http://${heketi_service}/"
 fi
+
+output "Ready to create and provide GlusterFS volumes."
