@@ -188,6 +188,20 @@ namespace WindowsAuth.Controllers
             ViewData["Message"] = "View and Manage Your Jobs.";
             ViewData["jobid"] = HttpContext.Request.Query["jobId"];
 
+            string username = User.Identity.Name;
+            if (username.Contains("@"))
+            {
+                username = username.Split(new char[] { '@' })[0];
+            }
+            if (username.Contains("/"))
+            {
+                username = username.Split(new char[] { '/' })[1];
+            }
+
+            ViewData["username"] = username;
+            ViewData["workPath"] = (_appSettings.smbPath + username + "/").Replace("file:","").Replace("\\","/");
+            ViewData["smbPath"] = _appSettings.smbPath.Replace("file:","").Replace("\\","/");
+
             return View();
         }
 

@@ -65,14 +65,12 @@ namespace WindowsAuth.Controllers
                     }
                 }
                 url += "userName=" + User.Identity.Name + "&";
+                url += "userId=" + HttpContext.Session.GetString("uid") + "&";
                 if (HttpContext.Request.Query.ContainsKey("runningasroot") && HttpContext.Request.Query["runningasroot"] == "1")
                 {
-                    url += "userId=0&";
+                    url += "containerUserId=0&";
                 }
-                else
-                {
-                    url += "userId=" + HttpContext.Session.GetString("uid") + "&";
-                }
+
             }
             else if (op == "GetClusterStatus")
             {
