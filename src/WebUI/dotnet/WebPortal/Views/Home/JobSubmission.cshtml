@@ -103,6 +103,8 @@
 
 
 
+            var runningasroot = document.getElementById("runningasroot").checked ? "1" : "0";
+            params = params + "runningasroot=" + runningasroot + "&";
 
             var url = "/api/dlws/SubmitJob?" + params;
 
@@ -192,6 +194,8 @@
             document.getElementById("interactivePort").value = "8888";
             document.getElementById("logdir").value = "";
 
+
+            document.getElementById("runningasroot").checked = false;
         }
         else if (id == "caffe") {
             document.getElementById("jobname").value = "caffe-ipython";
@@ -210,6 +214,7 @@
 
             document.getElementById("interactivePort").value = "8889";
             document.getElementById("logdir").value = "";
+            document.getElementById("runningasroot").checked = false;
 
         }
         else if (id == "caffessh") {
@@ -220,8 +225,7 @@
             document.getElementById("jobpath").value = "";
 
             document.getElementById("image").value = "bvlc/caffe:cpu";
-            document.getElementById("cmd").value = "apt-get update && apt-get install -y openssh-server && mkdir -p /root/.ssh && cat /work/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && service ssh restart && sleep infinity";
-
+            document.getElementById("cmd").value = "apt-get update && apt-get install -y openssh-server sudo && addgroup --force-badname --gid  @ViewData["gid"] domainusers && adduser --force-badname --home /home/@ViewData["userName"] --shell /bin/bash --uid @ViewData["uid"]  -gecos '' @ViewData["userName"] --disabled-password --gid @ViewData["gid"] && adduser @ViewData["userName"] sudo && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && mkdir -p /root/.ssh && cat /work/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && mkdir -p /home/@ViewData["userName"]/.ssh && cat /work/.ssh/id_rsa.pub >> /home/@ViewData["userName"]/.ssh/authorized_keys && service ssh restart && sleep infinity";
             document.getElementById("chkInteractiveJob").checked = true;
             document.getElementById("chkLogDir").checked = false;
             ShowHideDiv(document.getElementById("chkInteractiveJob"), 'interactiveportfield')
@@ -229,6 +233,7 @@
 
             document.getElementById("interactivePort").value = "22";
             document.getElementById("logdir").value = "";
+            document.getElementById("runningasroot").checked = true;
 
         }
         else if (id == "caffesample")
@@ -249,6 +254,8 @@
 
             document.getElementById("interactivePort").value = "";
             document.getElementById("logdir").value = "";
+            document.getElementById("runningasroot").checked = false;
+
         }
         else if (id == "tensorflowsample") {
             document.getElementById("jobname").value = "Tensorflow training example - inception";
@@ -267,6 +274,8 @@
 
             document.getElementById("interactivePort").value = "";
             document.getElementById("logdir").value = "";
+            document.getElementById("runningasroot").checked = false;
+
         }
     }
 </script>
@@ -425,6 +434,14 @@
                         <input type="text" class="form-control" id="interactivePort" />
                     </div>
                 </div>
+
+                <div class="form-group">
+                    <input type="checkbox" id="runningasroot" />
+                    <label>
+                        Running as ROOT. (e.g. for ssh jobs)
+                    </label>
+                </div>
+
             </div>
             <div class="modal-footer">
                 <input type="submit" value="Submit" name="submit" class="btn btn-success" id="submit" />

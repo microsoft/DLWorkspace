@@ -147,6 +147,9 @@ namespace WindowsAuth.Controllers
             ViewData["workPath"] = _appSettings.smbPath+username+"/";
             ViewData["dataPath"] = _appSettings.smbPath+"data/";
 
+            ViewData["uid"] = HttpContext.Session.GetString("uid");
+            ViewData["gid"] = HttpContext.Session.GetString("gid");
+
             ViewData["Message"] = "Your application description page.";
             //
 
