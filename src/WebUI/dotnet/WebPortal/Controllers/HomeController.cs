@@ -68,10 +68,28 @@ namespace WindowsAuth.Controllers
 
                     HttpContext.Session.SetString("isAuthorized", userID.isAuthorized);
 
+
+                    if (userID.isAuthorized == "true")
+                    {
+                        url = _appSettings.restapi + "/AddUser?userName=" + User.Identity.Name + "&userId=" + userID.uid;
+                        using (var httpClient1 = new HttpClient())
+                        {
+                            var response2 = await httpClient1.GetAsync(url);
+                            var content1 = await response2.Content.ReadAsStringAsync();
+                        }
+                    }
+
                 }
+
+
+
+
+
             }
 
-            if (HttpContext.Session.Keys.Contains("isAuthorized"))
+
+
+                if (HttpContext.Session.Keys.Contains("isAuthorized"))
             {
                 if (HttpContext.Session.GetString("isAuthorized") == "true")
                 {
@@ -126,6 +144,8 @@ namespace WindowsAuth.Controllers
             }
 
             ViewData["username"] = username;
+            ViewData["workPath"] = (_appSettings.smbPath+username+"/").Replace("file:","").Replace("/","\\");
+            ViewData["dataPath"] = (_appSettings.smbPath+"data/").Replace("file:", "").Replace("/", "\\");
 
             ViewData["Message"] = "Your application description page.";
             //

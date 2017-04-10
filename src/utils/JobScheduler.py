@@ -789,6 +789,13 @@ def ScheduleJob():
 				last_update_time = datetime.datetime.now()
 		except Exception as e:
 			print e
+
+		try:
+			print "updating user directory..."
+			set_user_directory()
+		except Exception as e:
+			print e
+
 		time.sleep(1)
 
 
@@ -892,6 +899,22 @@ def launch_ps_dist_job(jobParams):
 			#cmd = "test"
 			#thread.start_new_thread( run_dist_cmd_on_pod,
 			#(workerPodInfo["items"][0]["metadata"]["name"], cmd) )
+
+def set_user_directory():
+	dataHandler = DataHandler()
+	users = dataHandler.GetUsers()
+	for username,userid in users:
+		if "@" in username:
+			username = username.split("@")[0]
+		if "/" in username:
+			username = username.split("/")[1]
+		if "\\" in username:
+			username = username.split("\\")[1]	
+		userpath = os.path.join(config["storage-mount-path"],"work/"+username)
+		if not os.path.exists(userpath):
+			os.system("mkdir -p "+userpath)
+			os.system("chown -R "+userid+":"+"500000513 "+userpath)
+
 
 def get_cluster_status():
 	cluster_status={}
@@ -999,6 +1022,9 @@ if __name__ == '__main__':
 	#launch_ps_dist_job(job)
 	#get_cluster_status()
 	ScheduleJob()
+	#set_user_directory()
+
+
 
 	if TEST_SUB_REG_JOB:
 		parser = argparse.ArgumentParser(description='Launch a kubernetes job')

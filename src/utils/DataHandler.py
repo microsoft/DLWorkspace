@@ -283,7 +283,7 @@ class DataHandler:
 
 	def GetUsersCount(self, username):
 		cursor = self.conn.cursor()
-		query = "SELECT count(ALL id) as c FROM [%s] where cast([jobStatus] as nvarchar(max)) = N'%s' " % (self.usertablename,username)
+		query = "SELECT count(ALL id) as c FROM [%s] where cast([username] as nvarchar(max)) = N'%s' " % (self.usertablename,username)
 		cursor.execute(query)
 		ret = 0
 		for c in cursor:
@@ -294,7 +294,7 @@ class DataHandler:
 	
 	def AddUser(self, username,userId):
 		try:
-			if GetUsersCount(username) == 0:
+			if self.GetUsersCount(username) == 0:
 				sql = """INSERT INTO [%s] (username,userId) VALUES (?,?)""" % self.usertablename
 				cursor = self.conn.cursor()
 				cursor.execute(sql, username,userId)
@@ -306,11 +306,11 @@ class DataHandler:
 
 	def GetUsers(self):
 		cursor = self.conn.cursor()
-		query = "SELECT [id],[username],[userId] FROM [%s]" % (self.usertablename)
+		query = "SELECT [username],[userId] FROM [%s]" % (self.usertablename)
 		ret = []
 		try:
 			cursor.execute(query)
-			for (id, username,userId) in cursor:
+			for (username,userId) in cursor:
 				ret.append((username,userId))
 		except Exception as e:
 			print e
