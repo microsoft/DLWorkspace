@@ -31,6 +31,7 @@ class SubmitJob(Resource):
 		parser.add_argument('logDir')
 		parser.add_argument('interactivePort')
 		parser.add_argument('userName')
+		parser.add_argument('userId')
 		parser.add_argument('jobType')
 		
 
@@ -82,6 +83,12 @@ class SubmitJob(Resource):
 
 			if args["logDir"] is not None and len(args["logDir"].strip()) > 0:
 				params["logDir"] = args["logDir"]
+
+			if args["userId"] is not None and len(args["userId"].strip()) > 0:
+				params["userId"] = args["userId"]
+			else:
+				# !! note: if userId is not provided, the container will be running as root. There shouldn't be any security concern since all the resources in docker container should be user's own property. Also, we plan to allow user to choose "run as root".   
+				params["userId"] = "0"
 
 			if args["interactivePort"] is not None and len(args["interactivePort"].strip()) > 0:
 				params["interactivePort"] = args["interactivePort"]

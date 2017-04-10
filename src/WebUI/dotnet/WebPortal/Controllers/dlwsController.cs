@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 using WindowsAuth.models;
 using System.Net.Http;
 using System.Security.Principal;
+using Microsoft.AspNetCore.Http;
 
 
 // For more information on enabling Web API for empty projects, visit http://go.microsoft.com/fwlink/?LinkID=397860
@@ -63,8 +64,8 @@ namespace WindowsAuth.Controllers
                         url += System.Text.Encodings.Web.UrlEncoder.Default.Encode(item.Key) + "=" + System.Text.Encodings.Web.UrlEncoder.Default.Encode(item.Value) + "&";
                     }
                 }
-                url += "userName=" + User.Identity.Name;
-                url += "userId=" + User.Identity.Name;
+                url += "userName=" + User.Identity.Name + "&";
+                url += "userId=" + HttpContext.Session.GetString("uid") + "&";
             }
             else if (op == "GetClusterStatus")
             {
