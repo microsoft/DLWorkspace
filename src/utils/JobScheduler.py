@@ -306,7 +306,10 @@ def SubmitRegularJob(job):
 		localJobPath = os.path.join(config["storage-mount-path"],jobPath)
 
 		if not os.path.exists(localJobPath):
-			mkdirsAsUser(localJobPath,jobParams["userId"])
+			if "userId" in jobParams:
+				mkdirsAsUser(localJobPath,jobParams["userId"])
+			else:
+				mkdirsAsUser(localJobPath,"0")
 
 		jobParams["LaunchCMD"] = ""
 		if "cmd" not in jobParams:
@@ -317,7 +320,8 @@ def SubmitRegularJob(job):
 			with open(launchScriptPath, 'w') as f:
 				f.write(jobParams["cmd"] + "\n")
 			f.close()	
-			os.system("chown -R %s %s" % (jobParams["userId"], launchScriptPath))
+			if "userId" in jobParams:
+				os.system("chown -R %s %s" % (jobParams["userId"], launchScriptPath))
 			jobParams["LaunchCMD"] = "[\"bash\", \"/job/launch-%s.sh\"]" % jobParams["jobId"]
 
 
@@ -440,7 +444,10 @@ def SubmitPSDistJob(job):
 
 					localJobPath = os.path.join(config["storage-mount-path"],jobPath)
 					if not os.path.exists(localJobPath):
-						mkdirsAsUser(localJobPath,jobParams["userId"])
+						if "userId" in jobParams:
+							mkdirsAsUser(localJobPath,jobParams["userId"])
+						else:
+							mkdirsAsUser(localJobPath,0)
 
 
 					jobParams["LaunchCMD"] = ""
@@ -653,7 +660,8 @@ def UpdateJobStatus(job):
 	printlog("job %s status: %s" % (job["jobId"], result))
 	
 	jobDescriptionPath = os.path.join(config["storage-mount-path"], job["jobDescriptionPath"]) if "jobDescriptionPath" in job else None
-
+	if "userId" not in jobParams:
+		jobParams["userId"]	= "0"
 	if result.strip() == "Succeeded":
 		ExtractJobLog(job["jobId"],logPath,jobParams["userId"])
 		dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","finished")
@@ -704,6 +712,8 @@ def UpdateDistJobStatus(job):
 	dataHandler = DataHandler()
 	jobParams = json.loads(base64.b64decode(job["jobParams"]))
 
+	if "userId" not in jobParams:
+		jobParams["userId"]	= "0"
 
 	jobPath,workPath,dataPath = GetStoragePath(jobParams["jobPath"],jobParams["workPath"],jobParams["dataPath"])
 	localJobPath = os.path.join(config["storage-mount-path"],jobPath)
@@ -877,7 +887,8 @@ def launch_ps_dist_job(jobParams):
 				with open(ps_files[i], 'w') as f:
 					f.write(ps_cmd[i] + "\n")
 				f.close()		
-				os.system("chown -R %s %s" % (jobParams["userId"], ps_files[i]))
+				if "userId" in jobParams:
+					os.system("chown -R %s %s" % (jobParams["userId"], ps_files[i]))
 				remotecmd = "cp %s %s:/opt/run_dist_job.sh" % (ps_files[i],ps_pod_names[i])
 				kubectl_exec(remotecmd)
 				kubectl_exec("exec %s touch /opt/run_dist_job" % ps_pod_names[i])
@@ -889,7 +900,8 @@ def launch_ps_dist_job(jobParams):
 				with open(worker_files[i], 'w') as f:
 					f.write(worker_cmd[i] + "\n")
 				f.close()	
-				os.system("chown -R %s %s" % (jobParams["userId"], worker_files[i]))
+				if "userId" in jobParams:
+					os.system("chown -R %s %s" % (jobParams["userId"], worker_files[i]))
 				remotecmd = "cp %s %s:/opt/run_dist_job.sh" % (worker_files[i],worker_pod_names[i])
 				kubectl_exec(remotecmd)
 				kubectl_exec("exec %s touch /opt/run_dist_job" % worker_pod_names[i])
