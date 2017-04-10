@@ -10,6 +10,7 @@ using System.Security.Claims;
 using Newtonsoft.Json;
 using System.Text;
 using Microsoft.AspNetCore.Http;
+using System.IO;
 
 
 namespace WindowsAuth.Controllers
@@ -67,10 +68,28 @@ namespace WindowsAuth.Controllers
 
                     HttpContext.Session.SetString("isAuthorized", userID.isAuthorized);
 
+
+                    if (userID.isAuthorized == "true")
+                    {
+                        url = _appSettings.restapi + "/AddUser?userName=" + User.Identity.Name + "&userId=" + userID.uid;
+                        using (var httpClient1 = new HttpClient())
+                        {
+                            var response2 = await httpClient1.GetAsync(url);
+                            var content1 = await response2.Content.ReadAsStringAsync();
+                        }
+                    }
+
                 }
+
+
+
+
+
             }
 
-            if (HttpContext.Session.Keys.Contains("isAuthorized"))
+
+
+                if (HttpContext.Session.Keys.Contains("isAuthorized"))
             {
                 if (HttpContext.Session.GetString("isAuthorized") == "true")
                 {
@@ -82,6 +101,24 @@ namespace WindowsAuth.Controllers
                 }
             }
 
+            if (User.Identity.IsAuthenticated)
+            {
+                string username = User.Identity.Name;
+                if (username.Contains("@"))
+                {
+                    username = username.Split(new char[] { '@' })[0];
+                }
+                if (username.Contains("/"))
+                {
+                    username = username.Split(new char[] { '/' })[1];
+                }
+
+                ViewData["username"] = username;
+
+                ViewData["workPath"] = _appSettings.smbPath + username + "/";
+                ViewData["dataPath"] = _appSettings.smbPath + "data/";
+
+            }
             return View();
         }
         public IActionResult JobSubmission()
@@ -107,6 +144,8 @@ namespace WindowsAuth.Controllers
             }
 
             ViewData["username"] = username;
+            ViewData["workPath"] = _appSettings.smbPath+username+"/";
+            ViewData["dataPath"] = _appSettings.smbPath+"data/";
 
             ViewData["Message"] = "Your application description page.";
             //

@@ -52,9 +52,7 @@ class SubmitJob(Resource):
 		if args["jobName"] is None or len(args["jobName"].strip()) == 0:
 			ret["error"] = "job name cannot be empty"
 		elif args["resourcegpu"] is None or len(args["resourcegpu"].strip()) == 0:
-			ret["error"] = "Number of GPU cannot be empty"
-		elif args["workPath"] is None or len(args["workPath"].strip()) == 0:
-			ret["error"] = "workpath cannot be empty"			
+			ret["error"] = "Number of GPU cannot be empty"		
 		elif args["dataPath"] is None or len(args["dataPath"].strip()) == 0:
 			ret["error"] = "datapath cannot be empty"			
 		elif args["image"] is None or len(args["image"].strip()) == 0:
@@ -232,6 +230,25 @@ class GetClusterStatus(Resource):
 ## Actually setup the Api resource routing here
 ##
 api.add_resource(GetClusterStatus, '/GetClusterStatus')
+
+class AddUser(Resource):
+	def get(self):
+		parser.add_argument('userName')
+		parser.add_argument('userId')
+		args = parser.parse_args()	
+		username = args["userName"]
+		userId = args["userId"]
+		ret = {}
+		ret["status"] = JobRestAPIUtils.AddUser(username,userId)
+		resp = jsonify(ret)
+		resp.headers["Access-Control-Allow-Origin"] = "*"
+		resp.headers["dataType"] = "json"
+
+		return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(AddUser, '/AddUser')
 
 
 

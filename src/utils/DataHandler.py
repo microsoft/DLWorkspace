@@ -17,6 +17,7 @@ class DataHandler:
 		self.conn = pyodbc.connect(self.connstr)
 		#print "Connecting to server ..."
 		self.jobtablename = "jobs-%s" %  config["clusterId"]
+		self.usertablename = "users-%s" %  config["clusterId"]
 		self.clusterstatustablename = "clusterstatus-%s" %  config["clusterId"]
 
 		self.CreateTable()
@@ -63,6 +64,25 @@ class DataHandler:
 			    PRIMARY KEY CLUSTERED ([id] ASC)
 			)
 			""" % (self.clusterstatustablename,self.clusterstatustablename)
+
+		cursor = self.conn.cursor()
+		cursor.execute(sql)
+		self.conn.commit()
+		cursor.close()
+
+
+
+		sql = """
+		if not exists (select * from sysobjects where name='%s' and xtype='U')
+			CREATE TABLE [dbo].[%s]
+			(
+			    [id]        INT          IDENTITY (1, 1) NOT NULL,
+			    [username]         NTEXT NOT NULL,
+			    [userId]         NTEXT NOT NULL,
+				[time] DATETIME     DEFAULT (getdate()) NOT NULL,
+			    PRIMARY KEY CLUSTERED ([id] ASC)
+			)
+			""" % (self.usertablename,self.usertablename)
 
 		cursor = self.conn.cursor()
 		cursor.execute(sql)
@@ -260,6 +280,45 @@ class DataHandler:
 			pass
 		cursor.close()
 		return ret, time
+
+	def GetUsersCount(self, username):
+		cursor = self.conn.cursor()
+		query = "SELECT count(ALL id) as c FROM [%s] where cast([username] as nvarchar(max)) = N'%s' " % (self.usertablename,username)
+		cursor.execute(query)
+		ret = 0
+		for c in cursor:
+			ret = c[0]
+		cursor.close()
+
+		return ret		
+	
+	def AddUser(self, username,userId):
+		try:
+			if self.GetUsersCount(username) == 0:
+				sql = """INSERT INTO [%s] (username,userId) VALUES (?,?)""" % self.usertablename
+				cursor = self.conn.cursor()
+				cursor.execute(sql, username,userId)
+				self.conn.commit()
+				cursor.close()
+			return True
+		except:
+			return False
+
+	def GetUsers(self):
+		cursor = self.conn.cursor()
+		query = "SELECT [username],[userId] FROM [%s]" % (self.usertablename)
+		ret = []
+		try:
+			cursor.execute(query)
+			for (username,userId) in cursor:
+				ret.append((username,userId))
+		except Exception as e:
+			print e
+			pass
+		cursor.close()
+		return ret
+
+
 
 
 	def GetActiveJobsCount(self):

@@ -12,6 +12,9 @@ sqlserver-database : {{}}
 # the path of where dfs/nfs is mounted on each node, default /dlwsdata
 storage-mount-path : /dlwsdata
 
+# the path of samba file server. 
+smbPath : {{}}
+
 # the name of unit which mount dfs/nfs automatically. Replace "/" in storage-mount-path by "-" 
 # e.g. if storage-mount-path is /dlwsdata, storage-mount-path-name should be dlwsdata,
 # if storage-mount-path is /mnt/dlwsdata,  storage-mount-path-name should be mnt-dlwsdata

@@ -27,12 +27,14 @@ spec:
         volumeMounts:
         - mountPath: /usr/local/nvidia
           name: nvidia-driver
+		  readOnly: true
         - mountPath: /job
           name: job 
         - mountPath: /work
           name: work
         - mountPath: /data
           name: data
+		  readOnly: true
 
       restartPolicy: Never
       volumes:
