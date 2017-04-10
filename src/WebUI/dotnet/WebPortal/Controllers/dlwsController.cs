@@ -64,6 +64,7 @@ namespace WindowsAuth.Controllers
                     }
                 }
                 url += "userName=" + User.Identity.Name;
+                url += "userId=" + User.Identity.Name;
             }
             else if (op == "GetClusterStatus")
             {

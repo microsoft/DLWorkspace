@@ -369,10 +369,8 @@
 
                 <div class="form-group">
                     <label>
-                        Work Directory
+                        Work Directory <font face="verdana" color="#A9A9A9">(relative to <a href="@ViewData["workPath"]">@ViewData["workPath"].ToString().Replace("file:", "").Replace("/", "\\") </a>)</font>
                     </label>
-                    <br />
-                    <font face="verdana" color="#A9A9A9">Work directory is relative to @ViewData["workPath"]</font>
                     <input type="text" class="form-control" id="workpath" />
 
                     
@@ -380,10 +378,8 @@
 
                 <div class="form-group">
                     <label>
-                        Data Directory
+                        Data Directory <font face="verdana" color="#A9A9A9">(relative to <a href="@ViewData["dataPath"]">@ViewData["dataPath"].ToString().Replace("file:", "").Replace("/", "\\") </a>)</font>
                     </label>
-                    <br />
-                    <font face="verdana" color="#A9A9A9">Data directory is relative to @ViewData["dataPath"]</font>
                     <input type="text" class="form-control" id="datapath" />
                 </div>
 

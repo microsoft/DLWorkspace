@@ -144,8 +144,8 @@ namespace WindowsAuth.Controllers
             }
 
             ViewData["username"] = username;
-            ViewData["workPath"] = (_appSettings.smbPath+username+"/").Replace("file:","").Replace("/","\\");
-            ViewData["dataPath"] = (_appSettings.smbPath+"data/").Replace("file:", "").Replace("/", "\\");
+            ViewData["workPath"] = _appSettings.smbPath+username+"/";
+            ViewData["dataPath"] = _appSettings.smbPath+"data/";
 
             ViewData["Message"] = "Your application description page.";
             //
