@@ -376,7 +376,7 @@ def init_deployment():
 
 
 
-	template_file = "./deploy/iso-creator/mkimg.sh.template"
+	template_file = "./template/iso-creator/mkimg.sh.template"
 	target_file = "./deploy/iso-creator/mkimg.sh"
 	utils.render_template( template_file, target_file ,config)
 
