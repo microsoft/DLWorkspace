@@ -81,18 +81,31 @@ default_config_parameters = {
 	"nvidia-driver-path" : "/opt/nvidia-driver/current", 
 	"data-disk": "/dev/[sh]d[^a]", 
 	"partition-configuration": [ "1" ], 
+	"heketi-docker": "heketi/heketi:dev",
+	# The following file will be copied (not rendered for configuration)
+	"render-exclude" : {"GlusterFSUtils.pyc": True, },
+	"render-by-copy-ext" : { ".png": True, },
+	"render-by-copy": { "gk-deploy":True, },
+	# glusterFS parameter
+	"glusterFS" : { "dataalignment": "1280K", 
+					"physicalextentsize": "128K", 
+					"volumegroup": "gfs_vg", 
+					"metasize": "16776960K", 
+					# Volume needs to leave room for metadata and thinpool provisioning, 98%FREE is doable for a 1TB drive.
+					"volumesize": "98%FREE",
+					"metapoolname": "gfs_pool_meta", 
+					"datapoolname": "gfs_pool", 
+					"volumename": "gfs_lv",
+					"chunksize": "1280K",
+					"mkfs.xfs.options": "-f -i size=512 -n size=8192 -d su=128k,sw=10",
+					"mountpoint": "/mnt/glusterfs/localvolume", 
+					
+					}, 
+					
+	
 }
 
-# These parameter will be mapped if non-exist
-# Each mapping is the form of: dstname: ( srcname, lambda )
-# dstname: config name to be used.
-# srcname: config name to be searched for (expressed as a list, see fetch_config)
-# lambda: lambda function to translate srcname to target name
-default_config_mapping = { 
-	"dockerprefix": (["cluster_name"], lambda x:x+"/"), 
-	"infrastructure-dockerregistry": (["dockerregistry"], lambda x:x), 
-	"worker-dockerregistry": (["dockerregistry"], lambda x:x)
-};
+
 
 
 # default search for all partitions of hdb, hdc, hdd, and sdb, sdc, sdd
@@ -213,6 +226,44 @@ def fetch_dictionary(dic, entry):
 # Test if a certain Config entry exist
 def fetch_config(entry):
 	return fetch_dictionary( config, entry )
+	
+# Test if a certain Config entry exist
+def fetch_config_and_check(entry):
+	ret = fetch_config( entry )
+	if ret is None:
+		print "Error: config entry %s doesn't exist" % entry
+		exit()
+	return ret;
+	
+# These parameter will be mapped if non-exist
+# Each mapping is the form of: dstname: ( srcname, lambda )
+# dstname: config name to be used.
+# srcname: config name to be searched for (expressed as a list, see fetch_config)
+# lambda: lambda function to translate srcname to target name
+default_config_mapping = { 
+	"dockerprefix": (["cluster_name"], lambda x:x+"/"), 
+	"infrastructure-dockerregistry": (["dockerregistry"], lambda x:x), 
+	"worker-dockerregistry": (["dockerregistry"], lambda x:x),
+	"glusterfs-device": (["glusterFS"], lambda x: "/dev/%s/%s" % (fetch_dictionary(x, ["volumegroup"]), fetch_dictionary(x, ["volumename"]) ) ),
+	"glusterfs-localvolume": (["glusterFS"], lambda x: fetch_dictionary(x, ["mountpoint"]) ),
+	
+};
+	
+# Merge entries in config2 to that of config1, if entries are dictionary. 
+# If entry is list or other variable, it will just be replaced. 
+# say config1 = { "A" : { "B": 1 } }, config2 = { "A" : { "C": 2 } }
+# C python operation: config1.update(config2) give you { "A" : { "C": 2 } }
+# merge_config will give you: { "A" : { "B": 1, "C":2 } }
+def merge_config( config1, config2 ):
+	for entry in config2:
+		if entry in config1:
+			if isinstance( config1[entry], dict): 
+				merge_config( config1[entry], config2[entry] )
+			else:
+				config1[entry] = config2[entry]
+		else:
+			config1[entry] = config2[entry]
+
 	
 # set a configuration, if an entry in configuration exists and is a certain type, then 
 # use that entry, otherwise, use default value
@@ -1099,6 +1150,8 @@ def get_partions_of_node(node, prog):
 				else:
 					break;
 				n += 1
+			if capacity > 0 and len(parted)==0:
+				parted[0] = capacity
 			
 			# print drivename + " Capacity: " + str(capacity) + " GB, " + str(parted)
 			deviceinfo["name"] = drivename
@@ -1110,6 +1163,7 @@ def get_partions_of_node(node, prog):
 	
 # Get Partition of all nodes in a cluster
 def get_partitions(nodes, regexp):
+	print "Retrieving partition information for nodes, can take quite a while for a large cluster ......"
 	prog = re.compile("("+regexp+")")
 	nodesinfo = {}
 	for node in nodes:
@@ -1194,11 +1248,11 @@ def repartition_nodes(nodes, nodesinfo, partitionConfig):
 	print "Please note, it is OK to ignore message of Warning: Not all of the space available to /dev/___ appears to be used. The current default partition method optimizes for speed, rather to use all disk capacity..."
 	()
 	
-def glusterFS_copy():
-	render_template_directory("./storage/glusterFS", "./deploy/storage/glusterFS")
+def glusterFS_copy_heketi():
+	utils.render_template_directory("./storage/glusterFS", "./deploy/storage/glusterFS", config, verbose)
 	
 # Deploy glusterFS on a cluster
-def start_glusterFS( masternodes, ipToHostname, nodesinfo, glusterFSargs, flag = "-g"):
+def start_glusterFS_heketi( masternodes, ipToHostname, nodesinfo, glusterFSargs, flag = "-g"):
 	glusterFSJson = GlusterFSJson(ipToHostname, nodesinfo, glusterFSargs)
 	glusterFSJsonFilename = "deploy/storage/glusterFS/topology.json"
 	print "Write GlusterFS configuration file to: " + glusterFSJsonFilename
@@ -1206,22 +1260,121 @@ def start_glusterFS( masternodes, ipToHostname, nodesinfo, glusterFSargs, flag =
 	glusterFS_copy()
 	rundir = "/tmp/start_glusterFS"
 	# use the same heketidocker as in heketi deployment
-	heketidocker = "heketi/heketi:latest"
-	remotecmd = "docker pull "+heketidocker+"; "
-	remotecmd += "docker run -v "+rundir+":"+rundir+" --rm --entrypoint=cp "+heketidocker+" /usr/bin/heketi-cli "+rundir+"; "
+	remotecmd = "docker pull "+config["heketi-docker"]+"; "
+	remotecmd += "docker run -v "+rundir+":"+rundir+" --rm --entrypoint=cp "+config["heketi-docker"]+" /usr/bin/heketi-cli "+rundir+"; "
 	remotecmd += "sudo bash ./gk-deploy "
 	remotecmd += flag
 	utils.SSH_exec_cmd_with_directory( config["ssh_cert"], "core", masternodes[0], "deploy/storage/glusterFS", remotecmd, dstdir = rundir )
-	
+
 # Deploy glusterFS on a cluster
-def remove_glusterFS_volumes( masternodes, ipToHostname, nodesinfo, glusterFSargs, nodes ):
+def remove_glusterFS_volumes_heketi( masternodes, ipToHostname, nodesinfo, glusterFSargs, nodes ):
 	exit()
-	start_glusterFS( masternodes, ipToHostname, nodesinfo, glusterFSargs, flag = "-g --yes --abort")
+	start_glusterFS_heketi( masternodes, ipToHostname, nodesinfo, glusterFSargs, flag = "-g --yes --abort")
 	for node in nodes:
 		glusterFS_copy()
 		rundir = "/tmp/glusterFSAdmin"
 		remotecmd = "sudo python RemoveLVM.py "
 		utils.SSH_exec_cmd_with_directory( config["ssh_cert"], "core", node, "deploy/storage/glusterFS", remotecmd, dstdir = rundir )
+		
+def regmatch_glusterFS( glusterFSargs ):
+	if isinstance( glusterFSargs, (int,long) ):
+		regexp = "/dev/[s|h]d[^a]"+str(glusterFSargs)
+	else:
+		regexp = glusterFSargs
+	#print regexp
+	regmatch = re.compile(regexp)
+	return regmatch
+
+def find_glusterFS_volume( alldeviceinfo, regmatch ):	
+	deviceList = {}
+	for bdevice in alldeviceinfo:
+		deviceinfo = alldeviceinfo[bdevice] 
+		for part in deviceinfo["parted"]:
+			bdevicename = deviceinfo["name"] + str(part)
+			#print bdevicename
+			match = regmatch.search(bdevicename)
+			if not ( match is None ):
+				deviceList[match.group(0)] = deviceinfo["parted"][part]
+	#print deviceList; 
+	return deviceList
+
+# Create gluster FS volume 
+def create_glusterFS_volume( nodesinfo, glusterFSargs ):
+	regmatch = regmatch_glusterFS(glusterFSargs)
+	for node in nodesinfo:
+		alldeviceinfo = nodesinfo[node]
+		volumes = find_glusterFS_volume( alldeviceinfo, regmatch )
+		print "................. Node %s ................." % node
+		remotecmd = "";
+		remotecmd += "sudo modprobe dm_thin_pool; "
+		capacityGB = 0.0
+		for volume in volumes:
+			remotecmd += "sudo pvcreate -f "  
+			dataalignment = fetch_config( ["glusterFS", "dataalignment"] )
+			if not dataalignment is None: 
+				remotecmd += " --dataalignment " + dataalignment;
+			remotecmd += " " + volume + "; "
+			capacityGB += volumes[volume]
+		if len(volumes)>0: 
+			remotecmd += "sudo vgcreate "
+			physicalextentsize = fetch_config( ["glusterFS", "physicalextentsize"] )
+			if not physicalextentsize is None: 
+				remotecmd += " --physicalextentsize " + physicalextentsize;
+			volumegroup = fetch_config_and_check( ["glusterFS", "volumegroup" ] )
+			remotecmd += " " + volumegroup
+			for volume in volumes:
+				remotecmd += " " + volume; 
+			remotecmd += "; "
+		else:
+			# The machine doesn't have any data disk, skip glusterFS setup
+			break; 
+		volumesize = fetch_config_and_check( ["glusterFS", "volumesize" ] )
+		metasize = fetch_config_and_check(["glusterFS", "metasize" ] )
+		metapoolname = fetch_config_and_check(["glusterFS", "metapoolname" ] )
+		# create metapool 
+		remotecmd += "sudo lvcreate -L %s --name %s %s ; " % ( metasize, metapoolname, volumegroup )
+		# create datapool 
+		volumesize = fetch_config_and_check(["glusterFS", "volumesize" ] )
+		datapoolname = fetch_config_and_check(["glusterFS", "datapoolname" ] )
+		remotecmd += "sudo lvcreate -l %s --name %s %s ; " % ( volumesize, datapoolname, volumegroup )
+		chunksize = fetch_config_and_check(["glusterFS", "chunksize" ] )
+		remotecmd += "sudo lvconvert -y --chunksize %s --thinpool %s/%s --poolmetadata %s/%s ; " % ( chunksize, volumegroup, datapoolname, volumegroup, metapoolname )
+		remotecmd += "sudo lvchange -y --zero n %s/%s; " %( volumegroup, datapoolname )
+		volumename = fetch_config_and_check(["glusterFS", "volumename" ] )
+		remotecmd += "sudo lvcreate -y -V %dG -T %s/%s -n %s ;" %( int(capacityGB), volumegroup, datapoolname, volumename )
+		mkfsoptions = fetch_config_and_check(["glusterFS", "mkfs.xfs.options" ] )
+		remotecmd += "sudo mkfs.xfs -f %s /dev/%s/%s ;" %( mkfsoptions, volumegroup, volumename )	
+		# print remotecmd 
+		utils.SSH_exec_cmd( config["ssh_cert"], "core", node, remotecmd )
+	
+def remove_glusterFS_volume( nodesinfo, glusterFSargs ):
+	regmatch = regmatch_glusterFS(glusterFSargs)
+	for node in nodesinfo:
+		alldeviceinfo = nodesinfo[node]
+		volumes = find_glusterFS_volume( alldeviceinfo, regmatch )
+		print "................. Node %s ................." % node
+		remotecmd = "";
+		if len(volumes)>0: 
+			volumegroup = fetch_config_and_check( ["glusterFS", "volumegroup" ] )
+			datapoolname = fetch_config_and_check( ["glusterFS", "datapoolname" ] )	
+			volumename = fetch_config_and_check(["glusterFS", "volumename" ] )
+			remotecmd += "sudo lvremove -y %s/%s ; " % ( volumegroup, volumename )
+			remotecmd += "sudo lvremove -y %s/%s ; " % ( volumegroup, datapoolname )
+			remotecmd += "sudo vgremove -y %s ; " % volumegroup
+		else:
+			# The machine doesn't have any data disk, skip glusterFS removal
+			break; 	
+		for volume in volumes:
+			remotecmd += "sudo pvremove -y %s; " % volume
+		# print remotecmd
+		utils.SSH_exec_cmd( config["ssh_cert"], "core", node, remotecmd )		
+
+def display_glusterFS_volume( nodesinfo, glusterFSargs ):
+	regmatch = regmatch_glusterFS(glusterFSargs)
+	for node in nodes:
+		print "................. Node %s ................." % node
+		remotecmd = "sudo pvdisplay; sudo vgdisplay; sudo lvdisplay"
+		utils.SSH_exec_cmd( config["ssh_cert"], "core", node, remotecmd )
 
 def exec_on_all(nodes, args, supressWarning = False):
 	cmd = ""
@@ -1647,7 +1800,7 @@ Command:
 	# Cluster Config
 	config_cluster = os.path.join(dirpath,"cluster.yaml")
 	if os.path.exists(config_cluster):
-		config.update(yaml.load(open(config_cluster)))
+		merge_config( config, yaml.load(open(config_cluster)))
 
 	config_file = os.path.join(dirpath,"config.yaml")
 	# print "Config file: " + config_file
@@ -1658,7 +1811,7 @@ Command:
 		
 	
 	f = open(config_file)
-	config.update(yaml.load(f))
+	merge_config(config, yaml.load(f))
 	f.close()
 	# print config
 	if os.path.exists("./deploy/clusterID.yml"):
@@ -1792,7 +1945,7 @@ Command:
 			parser.print_help()
 			exit()
 	
-	elif command == "glusterFS" and len(nargs) >= 1:
+	elif command == "glusterFS_heketi" and len(nargs) >= 1:
 		# nodes = get_nodes(config["clusterId"])
 		# ToDo: change pending, schedule glusterFS on master & ETCD nodes, 
 		if nargs[0] == "start" or nargs[0] == "update" or nargs[0] == "stop" or nargs[0] == "clear":
@@ -1810,14 +1963,44 @@ Command:
 				gsFlag = "-g"
 			elif nargs[0] == "stop":
 				gsFlag = "--yes -g --abort"
-			if nargs[0] == "clear":
-				remove_glusterFS_volumes( masternodes, config["ipToHostname"], nodesinfo, glusterFSargs, nodes )
-			else:
-				start_glusterFS( masternodes, fetch_config(["ipToHostname"]), nodesinfo, glusterFSargs, flag = gsFlag )
+			if nargs[0] == "start":
+				remove_glusterFS_volumes_heketi( masternodes, config["ipToHostname"], nodesinfo, glusterFSargs, nodes )
+			elif nargs[0] == "stop":
+				start_glusterFS_heketi( masternodes, fetch_config(["ipToHostname"]), nodesinfo, glusterFSargs, flag = gsFlag )
 			
 				
 		else:
 			parser.print_help()
+			exit()
+			
+	elif command == "glusterFS" and len(nargs) >= 1:
+		# nodes = get_nodes(config["clusterId"])
+		# ToDo: change pending, schedule glusterFS on master & ETCD nodes, 
+		nodes = get_worker_nodes(config["clusterId"])	
+		glusterFSargs = fetch_config( ["glusterFS", "partitions"] )
+		if nargs[0] == "display":
+			display_glusterFS_volume( nodes, glusterFSargs )
+			exit()
+		
+		
+		nodesinfo = get_partitions(nodes, config["data-disk"] )
+		if glusterFSargs is None:
+			parser.print_help()
+			print "Need to configure partitions which glusterFS will deploy..."
+			exit()
+		if nargs[0] == "create":
+			print ("This operation will CREATE new volume over all existing glusterFS partitions, and will erase the data on those partitions "  )
+			response = raw_input ("Please type (CREATE) in ALL CAPITALS to confirm the operation ---> ")
+			if response == "CREATE":
+				create_glusterFS_volume( nodesinfo, glusterFSargs )
+		elif nargs[0] == "remove":
+			print ("This operation will REMOVE volumes over all existing glusterFS partitions, and will erase the data on those partitions "  )
+			response = raw_input ("Please type (REMOVE) in ALL CAPITALS to confirm the operation ---> ")
+			if response == "REMOVE":
+				remove_glusterFS_volume( nodesinfo, glusterFSargs )
+		else:
+			parser.print_help()
+			print "Unknown subcommand for glusterFS: " + nargs[0]
 			exit()
 			
 	elif command == "doonall" and len(nargs)>=1:
