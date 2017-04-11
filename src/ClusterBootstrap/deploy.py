@@ -520,35 +520,21 @@ def gen_CA_certificates():
 	utils.render_template_directory("./template/ssl", "./deploy/ssl",config)
 	os.system("cd ./deploy/ssl && bash ./gencerts_ca.sh")
 
-def gen_worker_certificates():
-	utils.render_template_directory("./template/ssl", "./deploy/ssl",config)
-	os.system("cd ./deploy/ssl && bash ./gencerts_kubelet.sh")	
-
-def gen_master_certificates():
-
-	ips = []
-	dns = []
+def GetCertificateProperty():
+	masterips = []
+	masterdns = []
+	etcdips = []
+	etcddns = []
 	ippattern = re.compile("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
 
 	for i,value in enumerate(config["kubernetes_master_node"]):
 		if ippattern.match(value):
-			ips.append(value)
+			masterips.append(value)
 		else:
-			dns.append(value)
+			masterdns.append(value)
 
-	config["apiserver_ssl_dns"] = "\n".join(["DNS."+str(i+5)+" = "+dns for i,dns in enumerate(dns)])
-	config["apiserver_ssl_ip"] = "IP.1 = 10.3.0.1\nIP.2 = 127.0.0.1\n"+ "\n".join(["IP."+str(i+3)+" = "+ip for i,ip in enumerate(ips)])
-
-	utils.render_template_directory("./template/ssl", "./deploy/ssl",config)
-
-	os.system("cd ./deploy/ssl && bash ./gencerts_master.sh")
-
-
-def gen_ETCD_certificates():
-
-	etcdips = []
-	etcddns = []
-	ippattern = re.compile("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+	config["apiserver_ssl_dns"] = "\n".join(["DNS."+str(i+5)+" = "+dns for i,dns in enumerate(masterdns)])
+	config["apiserver_ssl_ip"] = "IP.1 = 10.3.0.1\nIP.2 = 127.0.0.1\n"+ "\n".join(["IP."+str(i+3)+" = "+ip for i,ip in enumerate(masterips)])
 
 	for i,value in enumerate(config["etcd_node"]):
 		if ippattern.match(value):
@@ -558,9 +544,25 @@ def gen_ETCD_certificates():
 
 	config["etcd_ssl_dns"] = "\n".join(["DNS."+str(i+5)+" = "+dns for i,dns in enumerate(etcddns)])
 	config["etcd_ssl_ip"] = "IP.1 = 127.0.0.1\n" + "\n".join(["IP."+str(i+2)+" = "+ip for i,ip in enumerate(etcdips)])
+
+def gen_worker_certificates():
+
+	GetCertificateProperty()
 	utils.render_template_directory("./template/ssl", "./deploy/ssl",config)
+	os.system("cd ./deploy/ssl && bash ./gencerts_kubelet.sh")	
+
+def gen_master_certificates():
+
+	GetCertificateProperty()
+
+	utils.render_template_directory("./template/ssl", "./deploy/ssl",config)
+	os.system("cd ./deploy/ssl && bash ./gencerts_master.sh")
 
 
+def gen_ETCD_certificates():
+
+	GetCertificateProperty()
+	utils.render_template_directory("./template/ssl", "./deploy/ssl",config)
 	os.system("cd ./deploy/ssl && bash ./gencerts_etcd.sh")	
 
 
