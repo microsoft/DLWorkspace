@@ -23,7 +23,6 @@ from shutil import copyfile,copytree
 import urllib
 import socket;
 
-binarytypes = {".png"}
 verbose = False; 
 
 class StaticVariable():
@@ -31,7 +30,11 @@ class StaticVariable():
 
 def render_template(template_file, target_file, config, verbose=False):
 	filename, file_extension = os.path.splitext(template_file)
-	if file_extension in binarytypes:
+	basename = os.path.basename(template_file)
+	if ("render-exclude" in config and basename in config["render-exclude"] ):
+		# Don't render/copy the file. 
+		return
+	if ("render-by-copy-ext" in config and file_extension in config["render-by-copy-ext"]) or ("render-by-copy" in config and basename in config["render-by-copy"]):
 		copyfile(template_file, target_file)
 		if verbose:
 			print "Copy tempalte " + template_file + " --> " + target_file
@@ -60,6 +63,8 @@ def render_template_directory(template_dir, target_dir,config, verbose=False):
 
 # Execute a remote SSH cmd with identity file (private SSH key), user, host
 def SSH_exec_cmd(identity_file, user,host,cmd,showCmd=True):
+	if len(cmd)==0:
+		return;
 	if showCmd or verbose:
 		print ("""ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" "%s" """ % (identity_file, user, host, cmd) ) 
 	os.system("""ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" "%s" """ % (identity_file, user, host, cmd) )
@@ -105,6 +110,8 @@ def SSH_exec_cmd_with_output1(identity_file, user,host,cmd, supressWarning = Fal
 	return output
 	
 def SSH_exec_cmd_with_output(identity_file, user,host,cmd, supressWarning = False):
+	if len(cmd)==0:
+		return "";
 	if supressWarning:
 		cmd += " 2>/dev/null"
 	execmd = """ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" "%s" """ % (identity_file, user, host, cmd )

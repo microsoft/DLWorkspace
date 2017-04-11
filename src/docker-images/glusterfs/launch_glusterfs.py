@@ -6,7 +6,8 @@ from datetime import datetime
 import yaml
 import logging
 import logging.config
-import argparser
+import argparse
+import textwrap
 
 def create_log( logdir ):
 	if not os.path.exists( logdir ):
@@ -15,12 +16,19 @@ def create_log( logdir ):
 	fname = os.path.join( logdir, str(curtime) + ".log" )
 	
 def start_glusterfs( logdir = '/var/log/glusterfs/launch' ):
+	create_log( logdir )
 	with open('logging.yaml') as f:
 		logging_config = yaml.load(f)
 		f.close()
-		logging.config.dictConfig(logging_config)
-	create_log( logdir )
+		logging.config.dictConfig(logging_config)	
 	# set up logging to file - see previous section for more details
+	logging.debug ("Mounting local volume of glusterFS ...." )
+	cmd = "";
+	devicename = '{{cnf["glusterfs-device"]}}'
+	localvolumename = '{{cnf["glusterfs-localvolume"]}}'
+	cmd += "sudo mkdir -p %s ; " % localvolumename
+	cmd += "sudo mount %s %s " % ( devicename, localvolumename); 
+	os.system( cmd )
 	logging.debug ("Start launch glusterfs ...." )
 
 
