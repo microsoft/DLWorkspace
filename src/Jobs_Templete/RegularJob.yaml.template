@@ -16,6 +16,7 @@ spec:
       nodeSelector:
         FragmentGPUJob: active
       {% endif %}
+      dnsPolicy: Default
       containers:
       - name: {{ job["jobId"] }}
         image: {{ job["image"] }}
