@@ -42,7 +42,8 @@ namespace WindowsAuth
 
                 // Typed syntax - Configuration.Get<type>("")
                 appSettings.restapi = Configuration["restapi"];
-                appSettings.smbPath = Configuration["smbPath"];
+                appSettings.workFolderAccessPoint = Configuration["workFolderAccessPoint"];
+                appSettings.dataFolderAccessPoint = Configuration["dataFolderAccessPoint"];
                 appSettings.adminGroups = Configuration["adminGroups"].Split(new char[] { ',', ';' }).ToList<string>();
                 appSettings.authorizedGroups = Configuration["authorizedGroups"].Split(new char[] { ',', ';' }).ToList<string>();
             });

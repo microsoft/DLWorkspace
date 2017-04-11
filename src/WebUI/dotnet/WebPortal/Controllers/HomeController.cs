@@ -115,8 +115,8 @@ namespace WindowsAuth.Controllers
 
                 ViewData["username"] = username;
 
-                ViewData["workPath"] = _appSettings.smbPath + username + "/";
-                ViewData["dataPath"] = _appSettings.smbPath + "data/";
+                ViewData["workPath"] = _appSettings.workFolderAccessPoint + username + "/";
+                ViewData["dataPath"] = _appSettings.dataFolderAccessPoint;
 
             }
             return View();
@@ -144,8 +144,8 @@ namespace WindowsAuth.Controllers
             }
 
             ViewData["username"] = username;
-            ViewData["workPath"] = _appSettings.smbPath+username+"/";
-            ViewData["dataPath"] = _appSettings.smbPath+"data/";
+            ViewData["workPath"] = _appSettings.workFolderAccessPoint+username+"/";
+            ViewData["dataPath"] = _appSettings.dataFolderAccessPoint;
 
             ViewData["uid"] = HttpContext.Session.GetString("uid");
             ViewData["gid"] = HttpContext.Session.GetString("gid");
@@ -199,8 +199,8 @@ namespace WindowsAuth.Controllers
             }
 
             ViewData["username"] = username;
-            ViewData["workPath"] = (_appSettings.smbPath + username + "/").Replace("file:","").Replace("\\","/");
-            ViewData["smbPath"] = _appSettings.smbPath.Replace("file:","").Replace("\\","/");
+            ViewData["workPath"] = (_appSettings.workFolderAccessPoint + username + "/").Replace("file:","").Replace("\\","/");
+            ViewData["jobPath"] = _appSettings.workFolderAccessPoint.Replace("file:","").Replace("\\","/");
 
             return View();
         }
