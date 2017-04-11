@@ -16,12 +16,13 @@ spec:
       nodeSelector:
         FragmentGPUJob: active
       {% endif %}
+      dnsPolicy: Default
       containers:
       - name: {{ job["jobId"] }}
         image: {{ job["image"] }}
         command: {{ job["LaunchCMD"] }}
         securityContext:
-          runAsUser: {{ job["userId"] }}
+          runAsUser: {{ job["containerUserId"] }}
         resources:
           limits:
             alpha.kubernetes.io/nvidia-gpu: {{ job["resourcegpu"] }}

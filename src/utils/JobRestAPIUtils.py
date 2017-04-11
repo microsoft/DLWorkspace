@@ -20,6 +20,7 @@ def LoadJobParams(jobParamsJsonStr):
 	return json.loads(jobParamsJsonStr)
 
 
+
 def SubmitJob(jobParamsJsonStr):
 	ret = {}
 
@@ -34,7 +35,6 @@ def SubmitJob(jobParamsJsonStr):
 		jobParams["jobId"] = str(uuid.uuid4()) 
 	#jobParams["jobId"] = jobParams["jobId"].replace("_","-").replace(".","-")
 
-
 	userName = jobParams["userName"]
 	if "@" in userName:
 		userName = userName.split("@")[0].strip()
@@ -47,6 +47,21 @@ def SubmitJob(jobParamsJsonStr):
 
 	if "jobPath" in jobParams and len(jobParams["jobPath"].strip()) > 0: 
 		jobPath = jobParams["jobPath"]
+		if ".." in jobParams["jobPath"]:
+			ret["error"] = "ERROR: '..' cannot be used in job directory"
+			return ret
+
+		if "\\." in jobParams["jobPath"]:
+			ret["error"] = "ERROR: invalided job directory"
+			return ret
+
+		if jobParams["jobPath"].startswith("/") or jobParams["jobPath"].startswith("\\"):
+			ret["error"] = "ERROR: job directory should not start with '/' or '\\' " 
+			return ret
+
+		if not jobParams["jobPath"].startswith(userName):
+			jobParams["jobPath"] = os.path.join(userName,jobParams["jobPath"])
+
 	else:
 		jobPath = userName+"/"+ "jobs/"+time.strftime("%y%m%d")+"/"+jobParams["jobId"]
 		jobParams["jobPath"] = jobPath
@@ -58,7 +73,12 @@ def SubmitJob(jobParamsJsonStr):
 	if ".." in jobParams["workPath"]:
 		ret["error"] = "ERROR: '..' cannot be used in work directory"
 		return ret
-	if jobParams["workPath"][0] == "/" or jobParams["workPath"][0] == "\\":
+
+	if "\\." in jobParams["workPath"]:
+		ret["error"] = "ERROR: invalided work directory"
+		return ret
+
+	if jobParams["workPath"].startswith("/") or jobParams["workPath"].startswith("\\"):
 		ret["error"] = "ERROR: work directory should not start with '/' or '\\' " 
 		return ret
 
@@ -73,10 +93,18 @@ def SubmitJob(jobParamsJsonStr):
 		ret["error"] = "ERROR: '..' cannot be used in data directory"
 		return ret
 
+	if "\\." in jobParams["dataPath"]:
+		ret["error"] = "ERROR: invalided data directory"
+		return ret
+
 	if jobParams["dataPath"][0] == "/" or jobParams["dataPath"][0] == "\\":
 		ret["error"] = "ERROR: data directory should not start with '/' or '\\' " 
 		return ret
 
+
+	jobParams["dataPath"] = os.path.realpath(os.path.join("/",jobParams["dataPath"]))[1:]
+	jobParams["workPath"] = os.path.realpath(os.path.join("/",jobParams["workPath"]))[1:]
+	jobParams["jobPath"] = os.path.realpath(os.path.join("/",jobParams["jobPath"]))[1:]
 
 	dataHandler = DataHandler()
 	if "logDir" in jobParams and len(jobParams["logDir"].strip()) > 0:
