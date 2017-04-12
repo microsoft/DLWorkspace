@@ -1792,7 +1792,7 @@ Command:
               if s_i < 0, the partition is s_i GB, 
               if s_i > 0, the partition is in portitional to s_i. 
               We use parted mkpart percentage% to create partitions. As such, the minimum partition is 1% of a disk. 
-  glusterFS [args] manage glusterFS on the cluster. 
+  glusterfs [args] manage glusterFS on the cluster. 
             display: display lvm information on each node of the cluster. 
             create: formatting and create lvm for used by glusterfs. 
             remove: deletel and remove glusterfs volumes. 
@@ -2042,7 +2042,7 @@ Command:
 			parser.print_help()
 			exit()
 			
-	elif command == "glusterFS" and len(nargs) >= 1:
+	elif command == "glusterfs" and len(nargs) >= 1:
 		# nodes = get_nodes(config["clusterId"])
 		# ToDo: change pending, schedule glusterFS on master & ETCD nodes, 
 		nodes = get_worker_nodes(config["clusterId"])	
