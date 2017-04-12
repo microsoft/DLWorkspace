@@ -46,10 +46,17 @@ def run_docker(dockername, prompt=""):
 	wname = os.path.join(dirname,"run.sh")
 	fw = open( wname, "w+" )
 	fw.write("#!/bin/bash\n")
+	fw.write("if [ -f /etc/lsb-release ]; then \n")
 	fw.write("addgroup --force-badname --gid "+str(groupid)+" " +groupname+"\n")
 	fw.write("adduser --force-badname --home " + homedir + " --shell /bin/bash --no-create-home --uid " + str(uid)+ " -gecos '' "+username+" --disabled-password --gid "+str(groupid)+"\n" )
 	fw.write("adduser "+username +" sudo\n")
 	fw.write("adduser "+username +" docker\n")
+	fw.write("fi\n")
+	fw.write("if [ -f /etc/redhat-release ]; then \n")
+	fw.write("groupadd --gid "+str(groupid)+" " +groupname+"\n")
+	fw.write("useradd  --home " + homedir + " --shell /bin/bash --no-create-home --uid " + str(uid)+ " "+username+" --password '' --gid "+str(groupid)+"\n" )
+	fw.write("usermod -aG wheel "+username +"\n")
+	fw.write("fi\n")
 	fw.write("echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers\n")
 	fw.write("chmod --recursive 0755 /root\n")
 	# Please note: setting HOME environment in docker may nullify additional environment variables, 
@@ -84,13 +91,28 @@ def find_dockers( dockername):
 		lines = dockerimage_file.readlines()
 	os.remove(tmpfname)
 	numlines = len(lines)
-	matchdockers = []
-	for i in range(2,numlines):
+	dockerdics = {}
+	for i in range(1,numlines):
 		imageinfo = lines[i].split()
-		imagename = imageinfo[0]+":"+imageinfo[1]
+		if imageinfo == "<none>":
+			imagename = imageinfo[0]
+		else:
+			imagename = imageinfo[0]+":"+imageinfo[1]
 		if dockername in imagename:
-			matchdockers.append(imagename)
+			dockerdics[imagename] = True
+	matchdockers = dockerdics.keys()
 	return matchdockers
+	
+def build_docker_fullname( config, dockername, verbose = False ):
+	dockerprefix = config["dockerprefix"];
+	dockertag = config["dockertag"]
+	infra_dockers = config["infrastructure-dockers"] if "infrastructure-dockers" in config else {}
+	infra_docker_registry = config["infrastructure-dockerregistry"] if "infrastructure-dockerregistry" in config else config["dockerregistry"]
+	worker_docker_registry = config["worker-dockerregistry"] if "worker-dockerregistry" in config else config["dockerregistry"]
+	if dockername in infra_dockers:	
+		return ( infra_docker_registry + dockerprefix + dockername + ":" + dockertag ).lower()
+	else:
+		return ( worker_docker_registry + dockerprefix + dockername + ":" + dockertag ).lower()
 	
 def get_docker_list(rootdir, dockerprefix, dockertag, nargs, verbose = False ):
 	docker_list = {}

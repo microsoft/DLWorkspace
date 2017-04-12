@@ -29,7 +29,7 @@ from GlusterFSUtils import GlusterFSJson
 sys.path.append("../utils")
 
 import utils
-from DockerUtils import build_dockers, push_dockers
+from DockerUtils import build_dockers, push_dockers, run_docker, find_dockers, build_docker_fullname
 
 capacityMatch = re.compile("\d+[M|G]B")
 digitsMatch = re.compile("\d+")
@@ -99,10 +99,33 @@ default_config_parameters = {
 					"chunksize": "1280K",
 					"mkfs.xfs.options": "-f -i size=512 -n size=8192 -d su=128k,sw=10",
 					"mountpoint": "/mnt/glusterfs/localvolume", 
-					
+					# GlusterFS volume to be constructed. 
+					"glustefs_nodes_yaml" : "./deploy/docker-images/glusterfs/glusterfs_config.yaml", 
+					"glusterfs_docker" : "glusterfs", 
+					# File system should always be accessed from the symbolic link, not from the actual mountpoint
+					"glusterfs_mountpoint": "/mnt/glusterfs/private",
+					"glusterfs_symlink": "/mnt/glusterfs",
+					# Spell out a number of glusterFS volumes to be created on the cluster. 
+					# Please refer to https://access.redhat.com/documentation/en-US/Red_Hat_Storage/2.1/html/Administration_Guide/sect-User_Guide-Setting_Volumes-Distributed_Replicated.html
+					# for proper volumes in glusterFS. 
+					# By default, all worker nodes with glusterFS installed will be placed in the default group. 
+					# The behavior can be modified by spell out the group that the node is expected to be in. 
+					# E.g., 
+					# node01:
+					#   gluterfs: 1
+					# will place node01 into a glusterfs group 1. The nodes in each glusterfs group will form separate volumes
+					# 
+					"gluster_volumes" : {
+							"default" : {
+								"netvolume" : { 
+									"property": "replica 3", 
+									"transport": "tcp,rdma", 
+								}, 
+							}, 
+						}, 
+					# These parameters are required for every glusterfs volumes
+					"gluster_volumes_required_param": ["property", "transport" ], 
 					}, 
-					
-	
 }
 
 
@@ -457,7 +480,7 @@ def check_node_availability(ipAddress):
 	status = os.system('ssh -o "StrictHostKeyChecking no" -i %s -oBatchMode=yes core@%s hostname > /dev/null' % (config["ssh_cert"], ipAddress))
 	#status = sock.connect_ex((ipAddress,22))
 	return status == 0
-
+	
 # Get domain of the node
 def get_domain():
 	if "network" in config and "domain" in config["network"]:
@@ -1298,6 +1321,33 @@ def find_glusterFS_volume( alldeviceinfo, regmatch ):
 	#print deviceList; 
 	return deviceList
 
+# Form a configuration file for operation of glusterfs 
+def write_glusterFS_configuration( nodesinfo, glusterFSargs ):
+	config_file = fetch_config_and_check( ["glusterFS", "glustefs_nodes_yaml" ])
+	config_glusterFS = fetch_config_and_check( ["glusterFS"] )
+	glusterfs_volumes_config = fetch_dictionary( config_glusterFS, ["gluster_volumes"] )
+	required_param = fetch_dictionary( config_glusterFS, ["gluster_volumes_required_param"] )
+	config_glusterFS["groups"] = {}
+	glusterfs_groups = config_glusterFS["groups"]
+	for node in nodesinfo:
+		node_basename = kubernetes_get_node_name( node )
+		node_config = fetch_config( ["machine", node_basename ] )
+		glusterfs_group = "default" if node_config is None or not "glusterfs" in node_config else node_config["glusterfs"]
+		if not glusterfs_group in glusterfs_groups:
+			glusterfs_groups[glusterfs_group] = {}
+			glusterfs_groups[glusterfs_group]["gluster_volumes"] = glusterfs_volumes_config["default"] if not glusterfs_group in glusterfs_volumes_config else glusterfs_volumes_config[glusterfs_group]
+			# make sure required parameter are there for each volume
+			for volume, volume_config in glusterfs_groups[glusterfs_group]["gluster_volumes"].iteritems():
+				for param in required_param:
+					if not param in volume_config:
+						print "Error: please check configuration file ..." 
+						print "Gluster group %s volume %s doesn't have a required parameter %s" % (glusterfs_group, volume, param) 
+						exit()
+			glusterfs_groups[glusterfs_group]["nodes"] = []
+		glusterfs_groups[glusterfs_group]["nodes"].append( node )
+	with open(config_file,'w') as datafile:
+		yaml.dump(config_glusterFS, datafile, default_flow_style=False)
+
 # Create gluster FS volume 
 def create_glusterFS_volume( nodesinfo, glusterFSargs ):
 	regmatch = regmatch_glusterFS(glusterFSargs)
@@ -1691,6 +1741,22 @@ def push_docker_images(nargs):
 	if verbose:
 		print "Build & push docker images to docker register  ..."
 	push_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"], nargs, config, verbose)
+	
+def run_docker_image( imagename, native = False ):
+	full_dockerimage_name = build_docker_fullname( config, imagename )
+	matches = find_dockers( full_dockerimage_name )
+	if len( matches ) == 0:
+		matches = find_dockers( imagename )
+	if len( matches ) == 0:
+		print "Error: can't find any docker image built by name %s, you may need to build the relevant docker first..." % imagename
+	elif len( matches ) > 1: 
+		print "Error: find multiple dockers by name %s as %s, you may need to be more specific on which docker image to run " % ( imagename, str(matches))
+	else:
+		if native: 
+			os.system( "docker run --rm -ti " + matches[0] )
+		else:
+			run_docker( matches[0], prompt = imagename )
+	
 
 if __name__ == '__main__':
 	# the program always run at the current directory. 
@@ -1727,10 +1793,10 @@ Command:
               if s_i > 0, the partition is in portitional to s_i. 
               We use parted mkpart percentage% to create partitions. As such, the minimum partition is 1% of a disk. 
   glusterFS [args] manage glusterFS on the cluster. 
-            start: deploy a glusterFS and start gluster daemon set on the cluster.
-            update: update a glusterFS on the cluster.
-            stop: stop glusterFS service, data volume not removed. 
-            clear: stop glusterFS service, and remove all data volumes. 
+            display: display lvm information on each node of the cluster. 
+            create: formatting and create lvm for used by glusterfs. 
+            remove: deletel and remove glusterfs volumes. 
+	        config: generate configuration file, build and push glusterfs docker	    	
   download  [args] Manage download
             kubectl: download kubelet/kubectl.
             kubelet: download kubelet/kubectl.
@@ -1763,6 +1829,9 @@ Command:
 	parser.add_argument("-y", "--yes", 
 		help="Answer yes automatically for all prompt", 
 		action="store_true" )
+	parser.add_argument("--native", 
+		help="Run docker in native mode (in how it is built)", 
+		action="store_true" )	
 	parser.add_argument("-p", "--public", 
 		help="Use public IP address to deploy/connect [e.g., Azure, AWS]", 
 		action="store_true")
@@ -1981,8 +2050,7 @@ Command:
 		if nargs[0] == "display":
 			display_glusterFS_volume( nodes, glusterFSargs )
 			exit()
-		
-		
+				
 		nodesinfo = get_partitions(nodes, config["data-disk"] )
 		if glusterFSargs is None:
 			parser.print_help()
@@ -1998,6 +2066,10 @@ Command:
 			response = raw_input ("Please type (REMOVE) in ALL CAPITALS to confirm the operation ---> ")
 			if response == "REMOVE":
 				remove_glusterFS_volume( nodesinfo, glusterFSargs )
+		elif nargs[0] == "config":
+			write_glusterFS_configuration( nodesinfo, glusterFSargs ) 
+			dockername = fetch_config_and_check(["glusterFS", "glusterfs_docker"])
+			push_docker_images( [dockername] )
 		else:
 			parser.print_help()
 			print "Unknown subcommand for glusterFS: " + nargs[0]
@@ -2136,6 +2208,12 @@ Command:
 				build_docker_images(nargs[1:])
 			elif nargs[0] == "push":
 				push_docker_images(nargs[1:])
+			elif nargs[0] == "run":
+				if len(nargs)>=2:
+					run_docker_image( nargs[1], args.native ) 
+				else:
+					parser.print_help()
+					print "Error: docker run expects an image name "
 			else:
 				parser.print_help()
 				print "Error: unkown subcommand %s for docker." % nargs[0]
