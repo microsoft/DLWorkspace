@@ -30,6 +30,12 @@ def start_glusterfs( logdir = '/var/log/glusterfs/launch' ):
 	cmd += "sudo mount %s %s " % ( devicename, localvolumename); 
 	os.system( cmd )
 	logging.debug ("Start launch glusterfs ...." )
+	with open('glusterfs_config.yaml') as f:
+		glusterfs_config = yaml.load(f)
+		f.close()
+	logging.debug( "Configuration: " + str(glusterfs_config) )
+	
+		
 
 
 
