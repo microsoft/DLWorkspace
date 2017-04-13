@@ -14,9 +14,8 @@ import subprocess
 
 def create_log( logdir ):
 	if not os.path.exists( logdir ):
-		os.system("mkdir -p " + logdir )
-	curtime = datetime.utcnow()
-	fname = os.path.join( logdir, str(curtime) + ".log" )
+		os.system("sudo mkdir -p " + logdir )
+		# os.system("sudo chmod og+w " + logdir )
 	
 def find_group( config, hostname ):
 	glusterfs_groups = config["groups"]
@@ -46,6 +45,7 @@ def run_command( cmd, sudo = True ):
 	except subprocess.CalledProcessError as e:
 		output = "Return code: " + str(e.returncode) + ", output: " + e.output.strip()
 		retcode = e.returncode
+	logging.debug( output )
 	return retcode
 	
 def start_glusterfs( logdir = '/var/log/glusterfs/launch' ):
@@ -53,7 +53,8 @@ def start_glusterfs( logdir = '/var/log/glusterfs/launch' ):
 	with open('logging.yaml') as f:
 		logging_config = yaml.load(f)
 		f.close()
-		logging.config.dictConfig(logging_config)	
+		print logging_config
+		logging.config.dictConfig(logging_config)
 	# set up logging to file - see previous section for more details
 	logging.debug ("Mounting local volume of glusterFS ...." )
 	cmd = "";	
@@ -69,9 +70,10 @@ def start_glusterfs( logdir = '/var/log/glusterfs/launch' ):
 		logging.debug( "The current node %s is not in any glusterfs group, the program will exit .... " + hostname )
 		return; 
 	# Original command in glusterfs docker
-	run_command( "/usr/sbin/init" )
-	run_command( "systemctl start glusterd.service" )
-	run_command( "systemctl status glusterd.service" )
+	# logging.debug( "sudo /usr/sbin/init" )
+	# subprocess.Popen( "/usr/sbin/init" )
+	# run_command( "systemctl start glusterd.service" )
+	# run_command( "systemctl status glusterd.service" )
 	# Start glusterFS setup 
 	group = groupinfo[0]
 	group_config = groupinfo[1]
@@ -88,27 +90,41 @@ def start_glusterfs( logdir = '/var/log/glusterfs/launch' ):
 	othernodes = groupinfo[2]
 	isFirst = groupinfo[3]
 	gluster_volumes = group_config["gluster_volumes"]
-	for volume in gluster_volumes:		
-		run_command( "mkdir -p " + os.path.join( localvolumename, volume ) )
-	someNode = False
-	while not someNode:
+	min_tolerance = len(othernodes)
+	for volume, volume_config in gluster_volumes.iteritems():	
+        if volume_config["tolerance"] < min_tolerance:
+			min_tolerance = volume_config["tolerance"]
+		
+	livenodes = 0
+	logging.debug( "Wait for at least %d nodes in the group to come alive " % len(othernodes) - min_tolerance + 1 )
+	while livenodes >= len(othernodes) - min_tolerance:
+		livenodes = 0; 
 		for node in othernodes:
 			retcode = run_command( "gluster peer probe %s" % node )
 			if retcode == 0:
 				logging.debug( "Node %s succeed in peer probe ..." % node )
-				someNode = True
+				livenodes ++; 
 			else:
 				logging.debug( "Node %s failed in peer probe ..." % node )
-		if not someNode:
-			time.sleep(5)
-	for volume in gluster_volumes:
+		if livenodes < len(othernodes) - min_tolerance:
+			time.sleep(1)
+	for volume, volume_config in gluster_volumes.iteritems():
+		multiple = volume_config["multiple"]
+		numnodes = len(othernodes) + 1
+		# Find the number of subvolume needed. 
+		subvolumes = 1
+		while ( numnodes * subvolumes ) % multiple !=0:
+			subvolumes ++; 
+		for sub in range(1, subvolumes + 1 ):
+			run_command( "mkdir -p " + os.path.join( localvolumename, volume ) + str(sub) )
 		cmd = "gluster volume create %s " % volume
 		volumeinfo = gluster_volumes[volume]
 		# replication property 
 		cmd += " " + volumeinfo["property"] 
 		cmd += " transport " + volumeinfo["transport"] 
-		for node in othernodes:
-			cmd += " " + node + ":" + os.path.join( localvolumename, volume )
+		for sub in range(1, subvolumes + 1 ):
+			for node in othernodes:
+				cmd += " " + node + ":" + os.path.join( localvolumename, volume ) + str(sub)
 		run_command( cmd ) 	
 	time.sleep(5)
 	for volume in gluster_volumes:
@@ -130,6 +146,7 @@ def start_glusterfs( logdir = '/var/log/glusterfs/launch' ):
 		run_command( "ln -s %s %s" % ( os.path.join( volume_mount, dirname ), os.path.join( glusterfs_symlink, volume ) ) )
 
 if __name__ == '__main__':
+	os.chdir("/opt/glusterfs")
 	parser = argparse.ArgumentParser( prog='launch_glusterfs.py',
 		formatter_class=argparse.RawDescriptionHelpFormatter,
 		description=textwrap.dedent('''\
@@ -148,7 +165,9 @@ Command:
 		)
 	args = parser.parse_args()
 	
-
 	start_glusterfs()
 	logging.debug( "End launch glusterfs, time ... " )
+	while True:
+		logging.debug( "Sleep 5 ... " )
+		time.sleep(5)
 

@@ -120,11 +120,15 @@ default_config_parameters = {
 								"netvolume" : { 
 									"property": "replica 3", 
 									"transport": "tcp,rdma", 
+									# of nodes that can fail before the volume will become unaccessible. 
+									"tolerance": 2,
+									# number of bricks need to be a multiple of this
+									"multiple": 3, 
 								}, 
 							}, 
 						}, 
 					# These parameters are required for every glusterfs volumes
-					"gluster_volumes_required_param": ["property", "transport" ], 
+					"gluster_volumes_required_param": ["property", "transport", "tolerance", "multiple" ], 
 					}, 
 }
 
