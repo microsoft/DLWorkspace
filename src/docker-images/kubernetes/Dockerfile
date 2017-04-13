@@ -28,11 +28,11 @@ RUN mkdir /go/src
 ENV GOPATH=/go
 
 # SSH Keys
-COPY id_rsa /root/.ssh/id_rsa
-RUN chmod 400 /root/.ssh/id_rsa
+COPY gittoken /root
+RUN chmod 400 /root/gittoken
 
 # Install prerequisites
-# Install docker
+# Install docker - not really needed for building, but makefile checks for it
 RUN apt-get install -y --no-install-recommends apt-transport-https
 RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
 RUN add-apt-repository \
@@ -48,8 +48,9 @@ RUN go get github.com/tools/godep
 # Get Kubernetes
 #RUN go get k8s.io/kubernetes
 RUN mkdir /go/src/k8s.io
+RUN mkdir /root/.ssh
 RUN ssh-keyscan github.com >> /root/.ssh/known_hosts
-RUN git clone git@github.com:MSRCCS/kubernetes /go/src/k8s.io/kubernetes
+RUN ssh-agent sh -c 'ssh-add /root/gittoken; git clone git@github.com:MSRCCS/kubernetes /go/src/k8s.io/kubernetes'
 WORKDIR /go/src/k8s.io/kubernetes
 RUN git checkout release-1.5-multigpu
 
