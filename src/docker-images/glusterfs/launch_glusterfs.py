@@ -10,13 +10,14 @@ import argparse
 import textwrap
 import socket
 import subprocess
+import re
 
 
 def create_log( logdir ):
 	if not os.path.exists( logdir ):
 		os.system("sudo mkdir -p " + logdir )
 		# os.system("sudo chmod og+w " + logdir )
-	
+
 def find_group( config, hostname ):
 	glusterfs_groups = config["groups"]
 	for group, group_config in glusterfs_groups.iteritems():
@@ -27,12 +28,14 @@ def find_group( config, hostname ):
 		for nodename in nodes:
 			if nodename.find(hostname) >=0: 
 				in_group = True
+				curnode = nodename
 			else:
 				if nodename < hostname:
 					isFirst = False
 				othernodes.append( nodename )
-		if in_group:
-			return ( group, group_config, othernodes, isFirst )
+		if in_group: 
+			othernodes.sort()
+			return ( group, group_config, othernodes, curnode, isFirst )
 	return None
 				
 def run_command( cmd, sudo = True ):
@@ -46,15 +49,28 @@ def run_command( cmd, sudo = True ):
 		output = "Return code: " + str(e.returncode) + ", output: " + e.output.strip()
 		retcode = e.returncode
 	logging.debug( output )
-	return retcode
+	return (retcode, output)
 	
-def start_glusterfs( logdir = '/var/log/glusterfs/launch' ):
+def all_glusterfs_peers( ):
+	retcode, output = run_command( "gluster peer status" )
+	peers = []
+	split_output = output.split()
+	isHostnameLast = False
+	for word in split_output:
+		if isHostnameLast:
+			peers.append(word)
+		isHostnameLast = ( word == "Hostname:" )
+	return peers
+	
+def start_glusterfs( command, inp, logdir = '/var/log/glusterfs/launch' ):
 	create_log( logdir )
 	with open('logging.yaml') as f:
 		logging_config = yaml.load(f)
 		f.close()
 		print logging_config
 		logging.config.dictConfig(logging_config)
+	logging.debug (".................... Start Launch GlusterFS .......................... " )
+	logging.debug ("Argument : %s" % inp )
 	# set up logging to file - see previous section for more details
 	logging.debug ("Mounting local volume of glusterFS ...." )
 	cmd = "";	
@@ -78,72 +94,98 @@ def start_glusterfs( logdir = '/var/log/glusterfs/launch' ):
 	group = groupinfo[0]
 	group_config = groupinfo[1]
 	othernodes = groupinfo[2]
+	curnode = groupinfo[3]
+	isFirst = groupinfo[4]
+	leadnode = curnode if isFirst else othernodes[0]
 	logging.debug( "Configuration: " + str(config) )
 	logging.debug( "The current node %s is in glusterfs group %s, other nodes are %s .... " % ( hostname, group, othernodes) )
 	devicename = "/dev/%s/%s" % ( config["volumegroup"], config["volumename"] )
 	localvolumename = config["mountpoint"]
 	run_command ( "mkdir -p %s " % localvolumename ) 
 	run_command ( "mount %s %s " % ( devicename, localvolumename) ) 
-	logging.debug ("Start launch glusterfs ...." )		
-	group = groupinfo[0]
-	group_config = groupinfo[1]
-	othernodes = groupinfo[2]
-	isFirst = groupinfo[3]
+	if command == "detach":
+		peers = all_glusterfs_peers()
+		for peer in peers:
+			run_command( "gluster peer detach %s" % peer )
+		exit()
+	elif command == "stop":
+		logging.debug( "Stop further execution ..... "  )
+		exit()
+	logging.debug ("Start launch glusterfs ...." )
+
 	gluster_volumes = group_config["gluster_volumes"]
 	min_tolerance = len(othernodes)
-	for volume, volume_config in gluster_volumes.iteritems():	
-        if volume_config["tolerance"] < min_tolerance:
+	for volume, volume_config in gluster_volumes.iteritems():
+		if volume_config["tolerance"] < min_tolerance:
 			min_tolerance = volume_config["tolerance"]
-		
+			
+	# during start, 
+	if command == "start" and isFirst:
+		connected_nodes = {} 
+		retries = 1000
+		while len(connected_nodes)<len(othernodes) and retries >0:
+			retries -= 1
+			for node in othernodes:
+				if not node in connected_nodes:
+					retcode, output = run_command( "gluster peer probe %s" % node )
+					if retcode == 0:
+						logging.debug( "Node %s succeed in peer probe ..." % node )
+						connected_nodes[node] = True
+					else:
+						logging.debug( "Node %s failed in peer probe, wait for it to come alive ..." % node )
+			if len(connected_nodes)<len(othernodes):
+				time.sleep(1) 
+
 	livenodes = 0
-	logging.debug( "Wait for at least %d nodes in the group to come alive " % len(othernodes) - min_tolerance + 1 )
-	while livenodes >= len(othernodes) - min_tolerance:
-		livenodes = 0; 
-		for node in othernodes:
-			retcode = run_command( "gluster peer probe %s" % node )
-			if retcode == 0:
-				logging.debug( "Node %s succeed in peer probe ..." % node )
-				livenodes ++; 
-			else:
-				logging.debug( "Node %s failed in peer probe ..." % node )
+	logging.debug( "Min failure tolerance is %d, wait for at least %d nodes in the group to come alive " % (min_tolerance, len(othernodes) - min_tolerance + 1) )
+	while livenodes < len(othernodes) - min_tolerance:
+		peers = all_glusterfs_peers()
+		npeers = len(peers)
+		livenodes = npeers + 1
+		logging.debug( "Number of nodes alive is %d, %s ..." % (livenodes, str(peers)) )
 		if livenodes < len(othernodes) - min_tolerance:
 			time.sleep(1)
-	for volume, volume_config in gluster_volumes.iteritems():
-		multiple = volume_config["multiple"]
-		numnodes = len(othernodes) + 1
-		# Find the number of subvolume needed. 
-		subvolumes = 1
-		while ( numnodes * subvolumes ) % multiple !=0:
-			subvolumes ++; 
-		for sub in range(1, subvolumes + 1 ):
-			run_command( "mkdir -p " + os.path.join( localvolumename, volume ) + str(sub) )
-		cmd = "gluster volume create %s " % volume
-		volumeinfo = gluster_volumes[volume]
-		# replication property 
-		cmd += " " + volumeinfo["property"] 
-		cmd += " transport " + volumeinfo["transport"] 
-		for sub in range(1, subvolumes + 1 ):
-			for node in othernodes:
-				cmd += " " + node + ":" + os.path.join( localvolumename, volume ) + str(sub)
-		run_command( cmd ) 	
-	time.sleep(5)
-	for volume in gluster_volumes:
-		run_command( "gluster volume start " + volume )
-	glusterfs_mountpoint = config["glusterfs_mountpoint"]
-	glusterfs_symlink = config["glusterfs_symlink" ]
-	run_command( "mkdir -p " + glusterfs_symlink )
-	run_command( "mkdir -p " + glusterfs_mountpoint )
-	filename = "WARNING_PLEASE_DO_NOT_WRITE_DIRECTLY_IN_THIS_DIRECTORY_USE_SYM_LINK"
-	dirname = "rootdir"
-	# Create a warning file to guard against people writing directly in glusterFS mount
-	open( os.path.join( glusterfs_mountpoint, filename ), 'a' ).close()
-	for volume in gluster_volumes:
-		volume_mount = os.path.join( glusterfs_mountpoint, volume ) 
-		run_command( "mount -t glusterfs %s:%s %s" % ( hostname, os.path.join( localvolumename, volume ), volume_mount ) )
-		if isFirst:
-			open( os.path.join( volume_mount, filename ), 'a' ).close()
-			run_command( "mkdir -p "+ os.path.join( volume_mount, dirname ) )
-		run_command( "ln -s %s %s" % ( os.path.join( volume_mount, dirname ), os.path.join( glusterfs_symlink, volume ) ) )
+	
+	if command == "start" and isFirst:
+		for volume, volume_config in gluster_volumes.iteritems():
+			multiple = volume_config["multiple"]
+			numnodes = len(othernodes) + 1
+			# Find the number of subvolume needed. 
+			subvolumes = 1
+			while ( numnodes * subvolumes ) % multiple !=0:
+				subvolumes +=1; 
+			logging.debug( "Volume %s, multiple is %d, # of nodes = %d, make %d volumes ..." % (volume, multiple, numnodes, subvolumes) )
+			for sub in range(1, subvolumes + 1 ):
+				run_command( "mkdir -p " + os.path.join( localvolumename, volume ) + str(sub) )
+			cmd = "gluster volume create %s " % volume
+			volumeinfo = gluster_volumes[volume]
+			# replication property 
+			cmd += " " + volumeinfo["property"] 
+			cmd += " transport " + volumeinfo["transport"]
+			allnodes = [ curnode ] + othernodes
+			for sub in range(1, subvolumes + 1 ):
+				for node in allnodes:
+					cmd += " " + node + ":" + os.path.join( localvolumename, volume ) + str(sub)
+			run_command( cmd ) 	
+		for volume in gluster_volumes:
+			run_command( "gluster volume start " + volume )
+		glusterfs_mountpoint = config["glusterfs_mountpoint"]
+		glusterfs_symlink = config["glusterfs_symlink" ]
+		run_command( "mkdir -p " + glusterfs_symlink )
+		run_command( "mkdir -p " + glusterfs_mountpoint )
+		filename = "WARNING_PLEASE_DO_NOT_WRITE_DIRECTLY_IN_THIS_DIRECTORY_USE_SYM_LINK"
+		dirname = "rootdir"
+		# Create a warning file to guard against people writing directly in glusterFS mount
+		open( os.path.join( glusterfs_mountpoint, filename ), 'a' ).close()
+		
+	if command == "start" or command == "run":
+		for volume in gluster_volumes:
+			volume_mount = os.path.join( glusterfs_mountpoint, volume ) 
+			run_command( "mount -t glusterfs %s:%s %s" % ( leadnode, os.path.join( localvolumename, volume ), volume_mount ) )
+			if isFirst:
+				open( os.path.join( volume_mount, filename ), 'a' ).close()
+				run_command( "mkdir -p "+ os.path.join( volume_mount, dirname ) )
+			run_command( "ln -s %s %s" % ( os.path.join( volume_mount, dirname ), os.path.join( glusterfs_symlink, volume ) ) )
 
 if __name__ == '__main__':
 	os.chdir("/opt/glusterfs")
@@ -163,9 +205,16 @@ Command:
 	parser.add_argument('nargs', nargs=argparse.REMAINDER, 
 		help="Additional command argument", 
 		)
-	args = parser.parse_args()
+	default_input = "stop"
+	if os.path.exists("./argument"):
+		default_input = os.listdir("./argument")[0]
+	# Obtain argument from environment variable. 
+	inp = default_input 
+	if len(inp)==0:
+		inp = default_input 
+	args = parser.parse_args(inp.split("_"))
 	
-	start_glusterfs()
+	start_glusterfs(args.command, inp )
 	logging.debug( "End launch glusterfs, time ... " )
 	while True:
 		logging.debug( "Sleep 5 ... " )
