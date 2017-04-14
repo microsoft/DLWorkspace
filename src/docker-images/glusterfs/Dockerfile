@@ -20,13 +20,10 @@ RUN chmod +x /opt/glusterfs/launch_glusterfs.py
 RUN systemctl enable glusterfs-mount.service
 
 # All process in this docker needs to be run as a service. 
+# Do not change the command, rewrite a service if need to 
 
 CMD /usr/sbin/init
-# /usr/bin/python launch_glusterfs.py run
-#  ;
-# /usr/bin/python launch_glusterfs.py run ;
-# /usr/sbin/init && 
-# launch_glusterfs.py run ;
+
 
 
 

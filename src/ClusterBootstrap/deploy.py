@@ -130,6 +130,8 @@ default_config_parameters = {
 					# These parameters are required for every glusterfs volumes
 					"gluster_volumes_required_param": ["property", "transport", "tolerance", "multiple" ], 
 					}, 
+	# Options to run in glusterfs
+	"launch-glusterfs-opt": "run", 
 }
 
 
@@ -1800,7 +1802,7 @@ Command:
             display: display lvm information on each node of the cluster. 
             create: formatting and create lvm for used by glusterfs. 
             remove: deletel and remove glusterfs volumes. 
-	        config: generate configuration file, build and push glusterfs docker	    	
+            config: generate configuration file, build and push glusterfs docker	    	
   download  [args] Manage download
             kubectl: download kubelet/kubectl.
             kubelet: download kubelet/kubectl.
@@ -1853,6 +1855,14 @@ Command:
 	parser.add_argument("-v", "--verbose", 
 		help = "verbose print", 
 		action="store_true")
+	parser.add_argument("--glusterfs", 
+		help = textwrap.dedent('''"Additional glusterfs launch parameter, \
+        detach: detach all glusterfs nodes (to rebuild cluster), 
+        start: initiate cluster (all nodes need to be operative during start stage to construct the cluster),
+        run: continuous operation, 
+		''' ), 
+		action="store", 
+		default="run" )
 		
 	parser.add_argument("command", 
 		help = "See above for the list of valid command" )
@@ -1894,6 +1904,10 @@ Command:
 		if "clusterId" in tmp:
 			config["clusterId"] = tmp["clusterId"]
 	update_config()
+	
+	# additional glusterfs launch parameter.
+	config["launch-glusterfs-opt"] = args.glusterfs;
+
 	get_ssh_config()
 	
 	if args.yes:

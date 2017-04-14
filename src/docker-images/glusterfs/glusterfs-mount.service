@@ -7,7 +7,7 @@ Before=network-online.target
 [Service]
 Type=forking
 LimitNOFILE=65536
-ExecStart=/usr/bin/python /opt/glusterfs/launch_glusterfs.py run
+ExecStart=/usr/bin/python /opt/glusterfs/launch_glusterfs.py
 KillMode=process
 
 [Install]
