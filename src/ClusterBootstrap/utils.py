@@ -77,19 +77,22 @@ def SSH_connect(identity_file, user,host):
 	os.system("""ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" """ % (identity_file, user, host) )
 
 # Copy a local file or directory (source) to remote (target) with identity file (private SSH key), user, host 
-def scp (identity_file, source, target, user, host):
+def scp (identity_file, source, target, user, host, verbose = False):
 	cmd = 'scp -i %s -r "%s" "%s@%s:%s"' % (identity_file, source, user, host, target)
+	if verbose:
+		print cmd
 	os.system(cmd)
 
 # Copy a local file (source) or directory to remote (target) with identity file (private SSH key), user, host, and  
-def sudo_scp (identity_file, source, target, user, host,changePermission=False):
+def sudo_scp (identity_file, source, target, user, host,changePermission=False, verbose = False ):
 	tmp = str(uuid.uuid4())	
-	scp(identity_file, source,"~/%s" % tmp, user, host )
+	scp(identity_file, source,"~/%s" % tmp, user, host, verbose )
 	targetPath = os.path.dirname(target)
 	cmd = "sudo mkdir -p %s ; sudo mv ~/%s %s" % (targetPath, tmp, target)
 	if changePermission:
 		cmd += " ; sudo chmod +x %s" % target
-
+	if verbose:
+		print cmd
 	SSH_exec_cmd(identity_file, user, host, cmd, False)
 
 # Execute a remote SSH cmd with identity file (private SSH key), user, host

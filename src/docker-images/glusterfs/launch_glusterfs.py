@@ -99,10 +99,11 @@ def start_glusterfs( command, inp, logdir = '/var/log/glusterfs/launch' ):
 	leadnode = curnode if isFirst else othernodes[0]
 	logging.debug( "Configuration: " + str(config) )
 	logging.debug( "The current node %s is in glusterfs group %s, other nodes are %s .... " % ( hostname, group, othernodes) )
-	devicename = "/dev/%s/%s" % ( config["volumegroup"], config["volumename"] )
+	# Mount is now done during glusterfs create stage
+	# devicename = "/dev/%s/%s" % ( config["volumegroup"], config["volumename"] )
 	localvolumename = config["mountpoint"]
-	run_command ( "mkdir -p %s " % localvolumename ) 
-	run_command ( "mount %s %s " % ( devicename, localvolumename) ) 
+	# run_command ( "mkdir -p %s " % localvolumename ) 
+	# run_command ( "mount %s %s " % ( devicename, localvolumename) ) 
 	if command == "detach":
 		peers = all_glusterfs_peers()
 		for peer in peers:
@@ -154,9 +155,10 @@ def start_glusterfs( command, inp, logdir = '/var/log/glusterfs/launch' ):
 			subvolumes = 1
 			while ( numnodes * subvolumes ) % multiple !=0:
 				subvolumes +=1; 
-			logging.debug( "Volume %s, multiple is %d, # of nodes = %d, make %d volumes ..." % (volume, multiple, numnodes, subvolumes) )
-			for sub in range(1, subvolumes + 1 ):
-				run_command( "mkdir -p " + os.path.join( localvolumename, volume ) + str(sub) )
+			# Volume has already been created 
+			# logging.debug( "Volume %s, multiple is %d, # of nodes = %d, make %d volumes ..." % (volume, multiple, numnodes, subvolumes) )
+			# for sub in range(1, subvolumes + 1 ):
+			#	run_command( "mkdir -p " + os.path.join( localvolumename, volume ) + str(sub) )
 			cmd = "gluster volume create %s " % volume
 			volumeinfo = gluster_volumes[volume]
 			# replication property 
@@ -166,26 +168,29 @@ def start_glusterfs( command, inp, logdir = '/var/log/glusterfs/launch' ):
 			for sub in range(1, subvolumes + 1 ):
 				for node in allnodes:
 					cmd += " " + node + ":" + os.path.join( localvolumename, volume ) + str(sub)
+			cmd += " force; "
 			run_command( cmd ) 	
 		for volume in gluster_volumes:
 			run_command( "gluster volume start " + volume )
 		glusterfs_mountpoint = config["glusterfs_mountpoint"]
-		glusterfs_symlink = config["glusterfs_symlink" ]
-		run_command( "mkdir -p " + glusterfs_symlink )
+		# glusterfs_symlink = config["glusterfs_symlink" ]
+		# run_command( "mkdir -p " + glusterfs_symlink )
 		run_command( "mkdir -p " + glusterfs_mountpoint )
-		filename = "WARNING_PLEASE_DO_NOT_WRITE_DIRECTLY_IN_THIS_DIRECTORY_USE_SYM_LINK"
-		dirname = "rootdir"
+		filename = "WARNING_PLEASE_DO_NOT_WRITE_DIRECTLY_IN_THIS_DIRECTORY"
 		# Create a warning file to guard against people writing directly in glusterFS mount
 		open( os.path.join( glusterfs_mountpoint, filename ), 'a' ).close()
 		
 	if command == "start" or command == "run":
+		glusterfs_mountpoint = config["glusterfs_mountpoint"]
 		for volume in gluster_volumes:
 			volume_mount = os.path.join( glusterfs_mountpoint, volume ) 
-			run_command( "mount -t glusterfs %s:%s %s" % ( leadnode, os.path.join( localvolumename, volume ), volume_mount ) )
-			if isFirst:
-				open( os.path.join( volume_mount, filename ), 'a' ).close()
-				run_command( "mkdir -p "+ os.path.join( volume_mount, dirname ) )
-			run_command( "ln -s %s %s" % ( os.path.join( volume_mount, dirname ), os.path.join( glusterfs_symlink, volume ) ) )
+			run_command( "sudo mkdir -p %s" % volume_mount ) 
+			run_command( "sudo umount %s " % volume_mount ) 
+			run_command( "mount -t glusterfs %s:%s %s" % ( leadnode, volume, volume_mount ) )
+			#dirname = "rootdir"
+			#if isFirst:
+			#	run_command( "mkdir -p "+ os.path.join( volume_mount, dirname ) )
+			# run_command( "ln -s %s %s" % ( os.path.join( volume_mount, dirname ), os.path.join( glusterfs_symlink, volume ) ) )
 
 if __name__ == '__main__':
 	os.chdir("/opt/glusterfs")

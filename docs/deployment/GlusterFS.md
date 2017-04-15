@@ -20,13 +20,17 @@ The document describes the procedure to deploy glusterFS across a cluster. Glust
   deploy.py glusterfs config
   ```
   
-3. Start glusterFS daemon set. 
+3. Start glusterFS daemon set and mount volumes 
   ```
-  deploy.py kubernetes start glusterfs
+  deploy.py --glusterfs start kubernetes start glusterfs
+  ```
+  The second time around, glusterFS daemon set can be started with 
+  ```
+  deploy.py start kubernetes start glusterfs
   ```
   The glusterfs volume can now be used. 
   
-4. [Optional] Stop glusterFS daemon set. 
+4. [Administrator] Stop glusterFS daemon set. 
   ```
   deploy.py kubernetes stop glusterfs
   ```
