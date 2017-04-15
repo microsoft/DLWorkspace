@@ -31,6 +31,9 @@ sys.path.append("../utils")
 import utils
 from DockerUtils import build_dockers, push_dockers, run_docker, find_dockers, build_docker_fullname
 
+sys.path.append("../docker-images/glusterfs")
+import launch_glusterfs
+
 capacityMatch = re.compile("\d+[M|G]B")
 digitsMatch = re.compile("\d+")
 defanswer = ""
@@ -83,7 +86,7 @@ default_config_parameters = {
 	"partition-configuration": [ "1" ], 
 	"heketi-docker": "heketi/heketi:dev",
 	# The following file will be copied (not rendered for configuration)
-	"render-exclude" : {"GlusterFSUtils.pyc": True, },
+	"render-exclude" : {"GlusterFSUtils.pyc": True, "launch_glusterfs.pyc": True, },
 	"render-by-copy-ext" : { ".png": True, },
 	"render-by-copy": { "gk-deploy":True, },
 	# glusterFS parameter
@@ -1353,9 +1356,18 @@ def write_glusterFS_configuration( nodesinfo, glusterFSargs ):
 		glusterfs_groups[glusterfs_group]["nodes"].append( node )
 	with open(config_file,'w') as datafile:
 		yaml.dump(config_glusterFS, datafile, default_flow_style=False)
+	return config_glusterFS
+		
+# Path to mount name 
+# Change path, e.g., /mnt/glusterfs/localvolume to 
+# name mnt-glusterfs-localvolume
+def path_to_mount_service_name( path ):
+	return path.replace('/','-')[1:]
 
 # Create gluster FS volume 
 def create_glusterFS_volume( nodesinfo, glusterFSargs ):
+	utils.render_template_directory("./storage/glusterFS", "./deploy/storage/glusterFS", config, verbose)
+	config_glusterFS = write_glusterFS_configuration( nodesinfo, glusterFSargs )
 	regmatch = regmatch_glusterFS(glusterFSargs)
 	for node in nodesinfo:
 		alldeviceinfo = nodesinfo[node]
@@ -1399,8 +1411,33 @@ def create_glusterFS_volume( nodesinfo, glusterFSargs ):
 		volumename = fetch_config_and_check(["glusterFS", "volumename" ] )
 		remotecmd += "sudo lvcreate -y -V %dG -T %s/%s -n %s ;" %( int(capacityGB), volumegroup, datapoolname, volumename )
 		mkfsoptions = fetch_config_and_check(["glusterFS", "mkfs.xfs.options" ] )
-		remotecmd += "sudo mkfs.xfs -f %s /dev/%s/%s ;" %( mkfsoptions, volumegroup, volumename )	
-		# print remotecmd 
+		remotecmd += "sudo mkfs.xfs -f %s /dev/%s/%s ;" %( mkfsoptions, volumegroup, volumename )
+		# Create a service for volume mount
+		remotepath = config["glusterfs-localvolume"]
+		remotename = path_to_mount_service_name( remotepath )
+		remotedevice = config["glusterfs-device"]
+		remotemount = remotename + ".mount"
+		utils.sudo_scp(config["ssh_cert"],"./deploy/storage/glusterFS/mnt-glusterfs-localvolume.mount", "/etc/systemd/system/" + remotemount, "core", node, verbose=verbose )
+		remotecmd += "cd /etc/systemd/system; "
+		remotecmd += "sudo systemctl enable %s; " % remotemount
+		remotecmd += "sudo systemctl daemon-reload; ";
+		remotecmd += "sudo systemctl start %s; " % remotemount;
+		groupinfo = launch_glusterfs.find_group( config_glusterFS, node )
+		group = groupinfo[0]
+		group_config = groupinfo[1]
+		othernodes = groupinfo[2]
+		gluster_volumes = group_config["gluster_volumes"]
+		for volume, volume_config in gluster_volumes.iteritems():
+			multiple = volume_config["multiple"]
+			numnodes = len(othernodes) + 1
+			# Find the number of subvolume needed. 
+			subvolumes = 1
+			while ( numnodes * subvolumes ) % multiple !=0:
+				subvolumes +=1; 
+			if verbose: 
+				print( "Volume %s, multiple is %d, # of nodes = %d, make %d volumes ..." % (volume, multiple, numnodes, subvolumes) )
+			for sub in range(1, subvolumes + 1 ):
+				remotecmd += "sudo mkdir -p %s; " % ( os.path.join( remotepath, volume ) + str(sub) )
 		utils.SSH_exec_cmd( config["ssh_cert"], "core", node, remotecmd )
 	
 def remove_glusterFS_volume( nodesinfo, glusterFSargs ):
