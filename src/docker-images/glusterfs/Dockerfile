@@ -1,27 +1,30 @@
 FROM gluster/gluster-centos:latest
 MAINTAINER Jin Li <jinlmsft@hotmail.com>
+# Need to revise python setup so that it won't break glusterfs dependency
+#
 
-# Setup python
+# Install python package
+# Warning: Be careful of package/python version added here. Upgrade python or package may break glusterfs
 
-RUN yum -y update; yum -y groupinstall "Development Tools"
+RUN curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
+RUN python get-pip.py
+RUN pip install pyyaml jinja2 argparse
 
-WORKDIR /usr/src
-RUN wget https://www.python.org/ftp/python/2.7.13/Python-2.7.13.tgz
-RUN tar xzf Python-2.7.13.tgz
-WORKDIR /usr/src/Python-2.7.13
-RUN ./configure
-RUN make altinstall
+WORKDIR /opt/glusterfs 
+ADD launch_glusterfs.py /opt/glusterfs/ 
+ADD glusterfs_config.yaml /opt/glusterfs/ 
+ADD logging.yaml /opt/glusterfs/ 
+ADD glusterfs-mount.service /usr/lib/systemd/system/glusterfs-mount.service 
+RUN chmod +x /opt/glusterfs/launch_glusterfs.py 
 
-RUN yum -y install epel-release
-RUN yum -y update; 
-RUN yum -y install python-pip
-RUN pip install pyyaml jinja2
-# Move 
-WORKDIR /opt/glusterfs
-ADD launch_glusterfs.py /opt/glusterfs/
-ADD logging.yaml /opt/glusterfs/
-RUN chmod +x /opt/glusterfs/launch_glusterfs.py
-CMD /opt/glusterfs/launch_glusterfs.py; exec /bin/bash -c "trap : TERM INT; sleep infinity & wait"
+RUN systemctl enable glusterfs-mount.service
+
+# All process in this docker needs to be run as a service. 
+# Do not change the command, rewrite a service if need to 
+
+CMD /usr/sbin/init
+
+
 
 
 

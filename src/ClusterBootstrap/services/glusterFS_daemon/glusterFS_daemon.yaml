@@ -2,32 +2,26 @@
 kind: DaemonSet
 apiVersion: extensions/v1beta1
 metadata:
-  name: glusterfs
+  name: glusterfslaunch
   labels:
-    glusterfs: daemonset
+    glusterfslaunch: daemonset
   annotations:
-    description: GlusterFS DaemonSet
-    tags: glusterfs
+    description: GlusterFS Operation DaemonSet
+    tags: glusterfslaunch
 spec:
   template:
     metadata:
-      name: glusterfs
+      name: glusterfslaunch
       labels:
         glusterfs-node: pod
     spec:
       nodeSelector:
-        # storagenode: glusterfs
-        glusterfs: active
+        storagenode: glusterfs
       hostNetwork: true
       containers:
       - image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}glusterfs:{{cnf["dockertag"]}}
         imagePullPolicy: Always
-        name: glusterfs
-        # Environment variable can't be read by service started at /usr/sbin/init, so the actually 
-        # command will be passed below, by creating a directory with name in container
-        # env: 
-        # - name: LAUNCH_GLUSTERFS
-        #   value: {{cnf["launch-glusterfs-opt"]}}
+        name: glusterfslaunch
         volumeMounts:
         - name: glusterfs-heketi
           mountPath: "/var/lib/heketi"
@@ -53,30 +47,10 @@ spec:
           readOnly: true
         - name: glusterfs-mount
           mountPath: "/mnt"
-        # argument to be run by launch_gluster_fs
-        # If multiple argument, it should be separated by _
-        - name: glusterfs-argument
-          mountPath: "/opt/glusterfs/argument/{{cnf["launch-glusterfs-opt"]}}"
-          readOnly: true
         securityContext:
           capabilities: {}
           privileged: true
-        # readinessProbe:
-        #  timeoutSeconds: 3
-        #  initialDelaySeconds: 60
-        #  exec:
-        #    command:
-        #    - "/bin/bash"
-        #    - "-c"
-        #    - systemctl status glusterd.service
-        # livenessProbe:
-        #  timeoutSeconds: 3
-        #  initialDelaySeconds: 60
-        #  exec:
-        #    command:
-        #    - "/bin/bash"
-        #    - "-c"
-        #    - systemctl status glusterd.service
+        command : ["/usr/bin/python launch_glusterfs.py run"]
       volumes:
       - name: glusterfs-heketi
         hostPath:
@@ -109,5 +83,3 @@ spec:
       - name: glusterfs-mount
         hostPath:
           path: "/mnt"
-      - name: glusterfs-argument
-        
