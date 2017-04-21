@@ -1944,7 +1944,9 @@ Command:
 		utils.verbose = True
 	
 	config = init_config()
-
+	
+	command = args.command
+	nargs = args.nargs
 	if command == "restore":
 		utils.restore_keys(nargs)
 		get_kubectl_binary()
@@ -1987,8 +1989,6 @@ Command:
 	if args.public:
 		ipAddrMetaname = "clientIP"
 		
-	command = args.command
-	nargs = args.nargs
 	
 	if verbose: 
 		print "deploy " + command + " " + (" ".join(nargs))
