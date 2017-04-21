@@ -278,6 +278,7 @@ def execute_restore_and_decrypt(fname, key):
 		cleanup_command = "rm %s; " % fname
 	os.system("tar -xzvf %s %s" % (fname, backupdir))
 	os.system("cp %s/*.yaml ." % (backupdir) )
+	os.system("mkdir -p ./deploy/" )
 	os.system("cp -r %s/sshkey ./deploy/sshkey" % backupdir)
 	os.system("cp -r %s/ssl ./deploy/ssl" % backupdir)
 	os.system("cp %s/clusterID/*.yml ./deploy/" % backupdir)
