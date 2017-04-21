@@ -171,6 +171,7 @@ def start_glusterfs( command, inp, logdir = '/var/log/glusterfs/launch' ):
 			cmd += " force; "
 			run_command( cmd ) 	
 		for volume in gluster_volumes:
+			run_command( "gluster volume set %s nfs.disable off" % volume )
 			run_command( "gluster volume start " + volume )
 		glusterfs_mountpoint = config["glusterfs_mountpoint"]
 		# glusterfs_symlink = config["glusterfs_symlink" ]
