@@ -1357,7 +1357,33 @@ def write_glusterFS_configuration( nodesinfo, glusterFSargs ):
 	with open(config_file,'w') as datafile:
 		yaml.dump(config_glusterFS, datafile, default_flow_style=False)
 	return config_glusterFS
-		
+	
+# Form YAML file for glusterfs endpoints, launch glusterfs endpoints. 
+def launch_glusterFS_endpoint( nodesinfo, glusterFSargs ):
+	os.system( "mkdir -p ./deploy/services/glusterFS_ep" )
+	config_glusterFS = write_glusterFS_configuration( nodesinfo, glusterFSargs )
+	glusterfs_groups = config_glusterFS["groups"]
+	with open("./services/glusterFS_ep/glusterFS_ep.yaml",'r') as config_template_file:
+		config_template = yaml.load( config_template_file )
+		config_template_file.close()
+	for group, group_config in glusterfs_groups.iteritems():
+		config_template["metadata"]["name"] = "glusterfs-%s" % group
+		config_template["subsets"] = []
+		endpoint_subsets = config_template["subsets"]
+		for node in nodes:
+			ip = socket.gethostbyname(node)
+			endpoint_subsets.append({"addresses": [{"ip":ip}] , "ports": [{"port":1}] })
+		fname = "./deploy/services/glusterFS_ep/glusterFS_ep_%s.yaml" % group
+		with open( fname, 'w') as config_file:
+			yaml.dump(config_template, config_file, default_flow_style=False)
+		run_kubectl( ["create", "-f", fname ] )
+
+def stop_glusterFS_endpoint( ):
+	glusterfs_groups = config_glusterFS["groups"]
+	for group, group_config in glusterfs_groups.iteritems():
+		fname = "./deploy/services/glusterFS_ep/glusterFS_ep_%s.yaml" % group
+		run_kubectl( ["delete", "-f", fname ] )
+
 # Path to mount name 
 # Change path, e.g., /mnt/glusterfs/localvolume to 
 # name mnt-glusterfs-localvolume
@@ -1839,7 +1865,9 @@ Command:
             display: display lvm information on each node of the cluster. 
             create: formatting and create lvm for used by glusterfs. 
             remove: deletel and remove glusterfs volumes. 
-            config: generate configuration file, build and push glusterfs docker	    	
+            config: generate configuration file, build and push glusterfs docker.
+            start: start glusterfs service and endpoints. 
+            stop: stop glusterfs service and endpoints. 
   download  [args] Manage download
             kubectl: download kubelet/kubectl.
             kubelet: download kubelet/kubectl.
@@ -1916,6 +1944,11 @@ Command:
 		utils.verbose = True
 	
 	config = init_config()
+
+	if command == "restore":
+		utils.restore_keys(nargs)
+		get_kubectl_binary()
+		exit()
 	
 	# Cluster Config
 	config_cluster = os.path.join(dirpath,"cluster.yaml")
@@ -2125,6 +2158,12 @@ Command:
 			write_glusterFS_configuration( nodesinfo, glusterFSargs ) 
 			dockername = fetch_config_and_check(["glusterFS", "glusterfs_docker"])
 			push_docker_images( [dockername] )
+		elif nargs[0] == "start":
+			start_kube_service("glusterFS")
+			launch_glusterFS_endpoint( nodesinfo, glusterFSargs )
+		elif nargs[0] == "stop":
+			stop_glusterFS_endpoint()
+			stop_kube_service("glusterFS")
 		else:
 			parser.print_help()
 			print "Unknown subcommand for glusterFS: " + nargs[0]
@@ -2253,10 +2292,6 @@ Command:
 	elif command == "backup":
 		utils.backup_keys(config["cluster_name"], nargs)
 		
-	elif command == "restore":
-		utils.restore_keys(nargs)
-		get_kubectl_binary()
-
 	elif command == "docker":
 		if len(nargs)>=1:
 			if nargs[0] == "build":
