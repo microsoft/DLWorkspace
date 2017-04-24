@@ -12,7 +12,7 @@ import pwd
 import grp
 from os.path import expanduser
 sys.path.append("src/utils")
-from DockerUtils import runDocker, buildDocker
+from DockerUtils import run_docker, build_docker
 
 # prefix and tag will be filled by argument parser.
 
@@ -32,5 +32,5 @@ if __name__ == '__main__':
 	dockerprefix = args.prefix
 	dockertag = args.tag
 	dockername = dockerprefix + ":" + dockertag
-	dockername = buildDocker(dockername, dirname)
-	runDocker(dockername, "DevDocker")
+	dockername = build_docker(dockername, dirname)
+	run_docker(dockername, "DevDocker")
