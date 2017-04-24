@@ -45,6 +45,7 @@ coreosversion = "1235.9.0"
 coreoschannel = "stable"
 coreosbaseurl = ""
 verbose = False
+nocache = False
 
 # These are the default configuration parameter
 default_config_parameters = { 
@@ -1803,13 +1804,13 @@ def build_docker_images(nargs):
 	render_docker_images()
 	if verbose:
 		print "Build docker ..."
-	build_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"], nargs, verbose)
+	build_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"], nargs, verbose, nocache = nocache )
 	
 def push_docker_images(nargs):
 	render_docker_images()
 	if verbose:
 		print "Build & push docker images to docker register  ..."
-	push_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"], nargs, config, verbose)
+	push_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"], nargs, config, verbose, nocache = nocache )
 	
 def run_docker_image( imagename, native = False ):
 	full_dockerimage_name = build_docker_fullname( config, imagename )
@@ -1920,6 +1921,10 @@ Command:
 	parser.add_argument("-v", "--verbose", 
 		help = "verbose print", 
 		action="store_true")
+	parser.add_argument("--nocache", 
+		help = "Build docker without cache", 
+		action="store_true")
+
 	parser.add_argument("--glusterfs", 
 		help = textwrap.dedent('''"Additional glusterfs launch parameter, \
         detach: detach all glusterfs nodes (to rebuild cluster), 
@@ -1935,6 +1940,8 @@ Command:
 		help="Additional command argument", 
 		)
 	args = parser.parse_args()
+	nocache = args.nocache
+	
 	# If necessary, show parsed arguments. 
 	# print args
 	discoverserver = args.discoverserver
