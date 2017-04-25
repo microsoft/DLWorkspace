@@ -13,6 +13,10 @@ spec:
     - scheduler
     - --master=http://127.0.0.1:8080
     - --leader-elect=true
+{% if "kubelogdir" in cnf %}
+    - --log-dir={{cnf["kubelogdir"]}}/kubescheduler
+    - --logtostderr=false
+{% endif %}
     livenessProbe:
       httpGet:
         host: 127.0.0.1
@@ -20,3 +24,12 @@ spec:
         port: 10251
       initialDelaySeconds: 15
       timeoutSeconds: 1
+{% if "kubelogdir" in cnf %}
+    volumeMounts:
+    - mountPath: {{cnf["kubelogdir"]}}/kubescheduler
+      name: logs
+  volumes:
+  - hostPath:
+      path: {{cnf["kubelogdir"]}}/kubescheduler
+    name: logs
+{% endif %}
