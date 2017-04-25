@@ -56,3 +56,6 @@ RUN git checkout release-1.5-multigpu
 
 RUN make
 
+RUN cp /go/src/k8s.io/kubernetes/_output/bin/* /
+WORKDIR /
+
