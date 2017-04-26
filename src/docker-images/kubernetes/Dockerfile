@@ -50,9 +50,10 @@ RUN go get github.com/tools/godep
 RUN mkdir /go/src/k8s.io
 RUN mkdir /root/.ssh
 RUN ssh-keyscan github.com >> /root/.ssh/known_hosts
+ARG NOCACHE=1
 RUN ssh-agent sh -c 'ssh-add /root/gittoken; git clone git@github.com:MSRCCS/kubernetes /go/src/k8s.io/kubernetes'
 WORKDIR /go/src/k8s.io/kubernetes
-RUN git checkout release-1.5-multigpu
+RUN git checkout release-1.5-grpallocate
 
 RUN make
 
