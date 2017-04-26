@@ -234,6 +234,7 @@ def gen_SSH_key(regenerate_key):
 		os.system("mkdir -p ./deploy/kubelet")
 		if regenerate_key:
 			os.system("rm -r ./deploy/sshkey || true")
+		
 		os.system("mkdir -p ./deploy/sshkey")
 
 		if not os.path.exists("./deploy/sshkey/id_rsa"):

@@ -188,6 +188,15 @@ def path_to_mount_service_name( path ):
 	ret = ret.replace('/','-')
 	return ret
 
+# Generate a server IP according to the cluster ip range. 
+# E.g., given cluster IP range 10.3.0.0/16, index=1, 
+# The generated IP is 10.3.0.1
+def generate_ip_from_cluster(cluster_ip_range, index ):
+	slash_pos = cluster_ip_range.find("/")
+	ips = cluster_ip_range if slash_pos < 0 else cluster_ip_range[:slash_pos]
+	ips3 = ips[:ips.rfind(".")]
+	return ips3 + "." + str(index)
+	
 # Return a path name, expand on ~, for a particular config, 
 # e.g., ssh_key
 def expand_path_in_config(key_in_config):
@@ -320,6 +329,8 @@ default_config_mapping = {
 	"glusterfs-device": (["glusterFS"], lambda x: "/dev/%s/%s" % (fetch_dictionary(x, ["volumegroup"]), fetch_dictionary(x, ["volumename"]) ) ),
 	"glusterfs-localvolume": (["glusterFS"], lambda x: fetch_dictionary(x, ["mountpoint"]) ),
 	"storage-mount-path-name": (["storage-mount-path" ], lambda x: path_to_mount_service_name(x) ),
+	"api-server-ip": (["service_cluster_ip_range"], lambda x: generate_ip_from_cluster(x, 1) ), 
+	"dns-server-ip": (["service_cluster_ip_range"], lambda x: generate_ip_from_cluster(x, 53) ), 
 };
 	
 # Merge entries in config2 to that of config1, if entries are dictionary. 
@@ -659,7 +670,7 @@ def GetCertificateProperty():
 			masterdns.append(value)
 
 	config["apiserver_ssl_dns"] = "\n".join(["DNS."+str(i+5)+" = "+dns for i,dns in enumerate(masterdns)])
-	config["apiserver_ssl_ip"] = "IP.1 = 10.3.0.1\nIP.2 = 127.0.0.1\n"+ "\n".join(["IP."+str(i+3)+" = "+ip for i,ip in enumerate(masterips)])
+	config["apiserver_ssl_ip"] = "IP.1 = "+config["api-server-ip"]+"\nIP.2 = 127.0.0.1\n"+ "\n".join(["IP."+str(i+3)+" = "+ip for i,ip in enumerate(masterips)])
 
 	for i,value in enumerate(config["etcd_node"]):
 		if ippattern.match(value):
