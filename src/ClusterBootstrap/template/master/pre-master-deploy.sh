@@ -11,3 +11,8 @@ sudo chown -R core /etc/kubernetes
 sudo chown -R core /etc/flannel
 sudo chown -R core /opt/bin
 sudo chown -R core /opt/addons
+{% if "kubelogdir" in cnf %}
+sudo mkdir -p {{cnf["kubelogdir"]}}/kubescheduler
+sudo mkdir -p {{cnf["kubelogdir"]}}/kubeapiserver
+sudo chown -R core {{cnf["kubelogdir"]}}
+{% endif %}
