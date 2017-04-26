@@ -47,8 +47,6 @@ coreosbaseurl = ""
 verbose = False
 nocache = False
 
-configuration_file = ""
-
 # These are the default configuration parameter
 default_config_parameters = {
 	# Kubernetes setting
@@ -843,16 +841,14 @@ def get_kubectl_binary():
 	#os.system("chmod +x ./deploy/bin/*")
 
 def get_hyperkube_docker() :
-	with open(configuration_file, "r") as cfg :
-		cnf = yaml.load(cfg)
-		os.system("mkdir -p ./deploy/bin")
-		id = subprocess.check_output(['docker', 'create', cnf['kubernetes_docker_image']])
-		id = id.strip()
-		print "docker cp " + id + ":/hyperkube ./deploy/bin/hyperkube"
-		os.system("docker cp " + id + ":/hyperkube ./deploy/bin/hyperkube")
-		os.system("docker rm -v " + id)
-		os.system("cp ./deploy/bin/hyperkube ./deploy/bin/kubelet")
-		os.system("cp ./deploy/bin/hyperkube ./deploy/bin/kubectl")
+	os.system("mkdir -p ./deploy/bin")
+	id = subprocess.check_output(['docker', 'create', config['kubernetes_docker_image']])
+	id = id.strip()
+	print "docker cp " + id + ":/hyperkube ./deploy/bin/hyperkube"
+	os.system("docker cp " + id + ":/hyperkube ./deploy/bin/hyperkube")
+	os.system("docker rm -v " + id)
+	os.system("cp ./deploy/bin/hyperkube ./deploy/bin/kubelet")
+	os.system("cp ./deploy/bin/hyperkube ./deploy/bin/kubectl")
 
 def deploy_masters():
 
@@ -2019,7 +2015,7 @@ Command:
 	nargs = args.nargs
 	if command == "restore":
 		utils.restore_keys(nargs)
-		get_kubectl_binary()
+		#get_kubectl_binary()
 		exit()
 	
 	# Cluster Config
@@ -2033,7 +2029,6 @@ Command:
 		parser.print_help()
 		print "ERROR: config.yaml does not exist!"
 		exit()
-	configuration_file = config_file
 	
 	f = open(config_file)
 	merge_config(config, yaml.load(f))
