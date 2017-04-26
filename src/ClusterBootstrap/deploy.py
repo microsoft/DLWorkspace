@@ -40,13 +40,14 @@ digitsMatch = re.compile("\d+")
 defanswer = ""
 ipAddrMetaname = "hostIP"
 
-
-# CoreOS version and channels, further configurable.
+# CoreOS version and channels, further configurable. 
 coreosversion = "1235.9.0"
 coreoschannel = "stable"
 coreosbaseurl = ""
 verbose = False
 nocache = False
+
+configuration_file = ""
 
 # These are the default configuration parameter
 default_config_parameters = {
@@ -835,10 +836,23 @@ def deploy_master(kubernetes_master):
 		utils.SSH_exec_script(config["ssh_cert"],kubernetes_master_user, kubernetes_master, "./deploy/master/" + config["postmasterdeploymentscript"])
 		
 def get_kubectl_binary():
-	os.system("mkdir -p ./deploy/bin")
-	urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet", "./deploy/bin/kubelet")
-	urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubectl", "./deploy/bin/kubectl")
-	os.system("chmod +x ./deploy/bin/*")
+	get_hyperkube_docker()
+	#os.system("mkdir -p ./deploy/bin")
+	#urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet", "./deploy/bin/kubelet")
+	#urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubectl", "./deploy/bin/kubectl")
+	#os.system("chmod +x ./deploy/bin/*")
+
+def get_hyperkube_docker() :
+	with open(configuration_file, "r") as cfg :
+		cnf = yaml.load(cfg)
+		os.system("mkdir -p ./deploy/bin")
+		id = subprocess.check_output(['docker', 'create', cnf['kubernetes_docker_image']])
+		id = id.strip()
+		print "docker cp " + id + ":/hyperkube ./deploy/bin/hyperkube"
+		os.system("docker cp " + id + ":/hyperkube ./deploy/bin/hyperkube")
+		os.system("docker rm -v " + id)
+		os.system("cp ./deploy/bin/hyperkube ./deploy/bin/kubelet")
+		os.system("cp ./deploy/bin/hyperkube ./deploy/bin/kubectl")
 
 def deploy_masters():
 
@@ -1088,7 +1102,8 @@ def update_worker_nodes( nargs ):
 	os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' % config["api_servers"].replace("/","\\/"))
 	os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/worker-kubeconfig.yaml.template > ./deploy/kubelet/worker-kubeconfig.yaml' % config["api_servers"].replace("/","\\/"))
 	
-	urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet", "./deploy/bin/kubelet")
+	#urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet", "./deploy/bin/kubelet")
+	get_hyperkube_docker()
 
 	workerNodes = get_worker_nodes(config["clusterId"])
 	for node in workerNodes:
@@ -2018,7 +2033,7 @@ Command:
 		parser.print_help()
 		print "ERROR: config.yaml does not exist!"
 		exit()
-		
+	configuration_file = config_file
 	
 	f = open(config_file)
 	merge_config(config, yaml.load(f))
