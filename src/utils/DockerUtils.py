@@ -12,13 +12,16 @@ import grp
 from os.path import expanduser
 from DirectoryUtils import cd
 
-def build_docker( dockername, dirname, verbose=False):
+def build_docker( dockername, dirname, verbose=False, nocache=False ):
 	# docker name is designed to use lower case. 
 	dockername = dockername.lower()
 	if verbose:
 		print "Building docker ... " + dockername + " .. @" + dirname
 	with cd(dirname):
-		cmd = "docker build -t "+ dockername + " ."
+		if nocache:
+			cmd = "docker build --no-cache -t "+ dockername + " ."
+		else:
+			cmd = "docker build -t "+ dockername + " ."
 		os.system(cmd)
 	return dockername
 	
@@ -128,18 +131,18 @@ def get_docker_list(rootdir, dockerprefix, dockertag, nargs, verbose = False ):
 				docker_list[dockername] = ( basename, entry )
 	return docker_list
 
-def build_dockers(rootdir, dockerprefix, dockertag, nargs, verbose = False ):
+def build_dockers(rootdir, dockerprefix, dockertag, nargs, verbose = False, nocache = False ):
 	docker_list = get_docker_list(rootdir, dockerprefix, dockertag, nargs, verbose )
 	for dockername, tuple in docker_list.iteritems():
-		build_docker(dockername, tuple[1], verbose)
+		build_docker(dockername, tuple[1], verbose, nocache = nocache )
 				
-def push_dockers(rootdir, dockerprefix, dockertag, nargs, config, verbose = False ):
+def push_dockers(rootdir, dockerprefix, dockertag, nargs, config, verbose = False, nocache = False ):
 	infra_dockers = config["infrastructure-dockers"] if "infrastructure-dockers" in config else {}
 	infra_docker_registry = config["infrastructure-dockerregistry"] if "infrastructure-dockerregistry" in config else config["dockerregistry"]
 	worker_docker_registry = config["worker-dockerregistry"] if "worker-dockerregistry" in config else config["dockerregistry"]
 	docker_list = get_docker_list(rootdir, dockerprefix, dockertag, nargs, verbose ); 
 	for dockername, tuple in docker_list.iteritems():
-		build_docker(dockername, tuple[1], verbose)
+		build_docker(dockername, tuple[1], verbose, nocache = nocache )
 		if tuple[0] in infra_dockers:
 			if verbose: 
 				print "Push to infrastructure docker register %s with name %s" % ( infra_docker_registry , dockername )

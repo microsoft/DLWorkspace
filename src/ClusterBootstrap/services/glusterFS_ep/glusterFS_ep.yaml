@@ -1,0 +1,6 @@
+kind: Endpoints
+apiVersion: v1
+metadata:
+  name: glusterfs-{{cnf["gusterfs-endpoint-name"]}}
+subsets: ""
+  

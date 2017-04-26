@@ -1,27 +1,18 @@
 cluster_name : {{cluster_name}}
 etcd_node_num : {{etcd_node_num}}
-pod_ip_range : 10.2.0.0/16
 basic_auth :  {{apiserver_password,apiserver_username,apiserver_group}}
-kubernetes_docker_image : mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/hyperkube:v1.5.0_coreos.multigpu
-service_cluster_ip_range : 10.3.0.0/16 
 sqlserver-hostname : {{}}
 sqlserver-username : {{}}
 sqlserver-password : {{}}
 sqlserver-database : {{}}
 
-# the path of where dfs/nfs is mounted on each node, default /dlwsdata
-storage-mount-path : /dlwsdata
+
+
 
 # the path of samba file server. 
 smbPath : {{}}
 
-# the name of unit which mount dfs/nfs automatically. Replace "/" in storage-mount-path by "-" 
-# e.g. if storage-mount-path is /dlwsdata, storage-mount-path-name should be dlwsdata,
-# if storage-mount-path is /mnt/dlwsdata,  storage-mount-path-name should be mnt-dlwsdata
-storage-mount-path-name : dlwsdata
 
-# the path of where nvidia driver is installed on each node, default /opt/nvidia-driver/current
-nvidia-driver-path : /opt/nvidia-driver/current
 
 #group id used to authorize the web portal, default group id is 500000513, which gives access permission to all microsoft users. 
 
@@ -30,9 +21,12 @@ WebUIadminGroups: {{}}
 
 # --------- For Philly deployment, please turn on (uncomment) the following options. ---- 
 ###Use cluster.yaml to locate nodes (instead of using the cluster report service)
-# useclusterfile : true
-###ssh_cert used to access cluster, the public key should be ssh_cert.pub
-# ssh_cert : ~/.ssh/id_rsa
+useclusterfile : true
+### ssh_cert used to access cluster, the public key should be id_rsa.pub
+### If the cluster is deployed by DL Workspace, both this key and the DLWorkspace generated key can be used to access the cluster. 
+### If the cluster is not deployed by DL Workspace, this key should be the key that used to access the cluster. 
+ssh_cert : ~/.ssh/id_rsa
+
 
 ###use docker container to deploy ETCD service
 #deploydockerETCD : true
@@ -51,25 +45,3 @@ WebUIadminGroups: {{}}
 #k8sAPIport : 8443
 #webuiport : 10880
 #restfulapiport : 5005
-
-# Label Kubernete nodes for deployment. :
-#   - label : etcd_node <tag to be applied to etcd node only >
-#   - label : worker_node <tag to be applied to worker node only >
-#   - label : all <tag to be applied to all nodes
-kubelabels: 
-  infrastructure: etcd_node
-  worker: worker_node
-  all: all
-  default: all
-  glusterfs: worker_node
-  webportal: etcd_node_1
-  restfulapi: etcd_node_1
-  jobmanager: etcd_node_1
-  FragmentGPUJob: all
-
-# the following items are optional
-# nfs-server : 
-# mysql-hostname :  
-# mysql-username : 
-# mysql-password : 
-# mysql-database : 
