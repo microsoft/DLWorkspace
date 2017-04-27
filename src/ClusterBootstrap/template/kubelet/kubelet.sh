@@ -5,8 +5,7 @@ export discoverserver="$(cat /opt/discoverserver)"
 
 export NSTR="null"
 
-systemctl stop flanneld
-systemctl stop kubelet
+
 mkdir -p /opt/bin
 
 while [ -z "$ETCDENDPOINTS" ] || [ -z "$APISERVER" ] || [ "$ETCDENDPOINTS" == "$NSTR" ] || [ "$APISERVER" == "$NSTR" ]; 
@@ -17,6 +16,8 @@ do
 	echo "ETCDENDPOINTS = ${ETCDENDPOINTS}, APISERVER=${APISERVER} "
 	if [ ! -z "$ETCDENDPOINTS" ] && [ ! -z "$APISERVER" ] && [ "$ETCDENDPOINTS" != "$NSTR" ] && [ "$APISERVER" != "$NSTR" ]; then
 		if [ ! -f /opt/bin/kubelet ]; then
+			systemctl stop flanneld
+			systemctl stop kubelet
 			mkdir -p /etc/flannel
 			sed "s/##etcd_endpoints##/$ETCDENDPOINTS/" "/opt/options.env.template" > "/etc/flannel/options.env"
 			sed "s/##api_servers##/$APISERVER/" /opt/kubelet.service.template > /etc/systemd/system/kubelet.service
@@ -28,12 +29,16 @@ do
 		    chmod +x /opt/bin/kubelet
 
 			systemctl daemon-reload
+			systemctl stop nvidia-driver
+			systemctl stop nvidia-docker
 			systemctl stop docker
 			systemctl stop flanneld
 			systemctl stop kubelet
 			systemctl start flanneld
-			systemctl start kubelet
 			systemctl start docker
+			systemctl start nvidia-driver
+			systemctl start nvidia-docker
+			systemctl start kubelet
 			systemctl enable flanneld
 			systemctl enable kubelet
 			systemctl start rpc-statd

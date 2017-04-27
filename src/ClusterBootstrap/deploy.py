@@ -1050,7 +1050,7 @@ def update_worker_nodes( nargs ):
 		#utils.SSH_exec_cmd(config["ssh_cert"], "core", config["kubernetes_master_node"][0], "sudo /opt/bin/kubelet get nodes")
 
 def reset_worker_nodes():
-
+	utils.render_template_directory("./template/kubelet", "./deploy/kubelet",config)
 	workerNodes = get_worker_nodes(config["clusterId"])
 	for node in workerNodes:
 		reset_worker_node(node)
