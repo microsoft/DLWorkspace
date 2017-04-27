@@ -1771,11 +1771,15 @@ def get_all_services():
 		dirname = os.path.join(rootdir, service)
 		if os.path.isdir(dirname):
 			yamlname = os.path.join(dirname, service + ".yaml")
-			if os.path.isfile(yamlname):
-				servicedic[service] = yamlname
-			else:
+			if not os.path.isfile(yamlname):
 				yamls = glob.glob("*.yaml")
-				servicedic[service] = yamls[0]
+				yamlname = yamls[0]
+			with open( yamlname ) as f:
+				service_config = yaml.load(f)
+				f.close()
+				if "kind" in service_config and service_config["kind"]=="DaemonSet":
+					# Only add service if it is a daemonset. 
+					servicedic[service] = yamlname
 	return servicedic
 	
 def get_service_name(service_config_file):
@@ -1809,19 +1813,24 @@ def kubernetes_label_node(cmdoptions, nodename, label):
 
 def kubernetes_label_nodes( verb, servicelists, force ):
 	servicedic = get_all_services()
+	#print servicedic
 	get_nodes(config["clusterId"])
 	labels = fetch_config(["kubelabels"])
+	# print labels
 	for service in servicedic:
 		servicename = get_service_name(servicedic[service])
+		# print "Service %s - %s" %(service, servicename )
 		if (not service in labels) and (not servicename in labels) and "default" in labels:
 			labels[servicename] = labels["default"]
+	# print servicelists
+	# print labels
 	if len(servicelists)==0:
 		servicelists = labels
 	else:
 		for service in servicelists:
 			if (not service in labels) and "default" in labels:
 				labels[service] = labels["default"]
-	# print servicelists
+	#print servicelists
 	for label in servicelists:
 		nodetype = labels[label]
 		if nodetype == "worker_node":
