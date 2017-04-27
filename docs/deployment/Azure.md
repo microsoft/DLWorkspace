@@ -2,13 +2,37 @@
 
 This document describes the procedure to deploy DL workspace cluster on Azure. We are still improving the deployment procedure on Azure. Please contact the authors if you have encounter deployment issue. 
 
-1. Please [create Configuration file](Configuration.md) and build [the relevant deployment key and image](Build.md).
+1. Please [create Configuration file](Configuration.md) and build [the relevant deployment key](Build.md).
+   You do not need to build either the ISO or PXE server, but still need to execute the build to generate the necessary certificates. 
 
-2. Create Azure VM in the desired region with a Ubuntu image.  Please use the SSH key generated in step 1 at src/ClusterBootstrap/deploy/sshkey as the SSH key for accoount core when creating Azure VM. 
+2. Create Azure VM in the desired region with a Ubuntu image (Please use Ubuntu 16.04 LTS). 
 
-3. Please open all network ports for the created VM. (When the DL Workspace stablize, we may create a list of the specific ports that needed to be opened). 
+  It is recommended that you use the new Azure Portal to create the VM. When creating the VM, please make sure that the SSH key generated in step 1 at src/ClusterBootstrap/deploy/sshkey is used as the SSH key for accoount core when creating the VM. 
 
-4. Create a cluster configuration file, which list all nodes in the cluster. 
+3. Please open all network ports for the created VM. 
+
+  This can be most easily achived by setting up a network security group that allow all inbound traffic, and then assign the VM to the network security group. For more information, please refer to [this](https://docs.microsoft.com/en-us/azure/virtual-machines/windows/nsg-quickstart-portal). 
+
+  (When the DL Workspace stablize, we may create a list of the specific ports that needed to be opened). 
+
+4. Add th DNS name of the created VM to a configuration file.  
+
+  You may add the configuration to either config.yaml, or cluster.yaml, with the following entry:
+
+  ```
+  network:
+    domain: cloudapp.net
+
+
+  machines:
+    <<machine1>>:
+      role: infrastructure
+    <<machine2>>:
+      role: worker
+  ```
+
+5. Setup basic tools on the Ubuntu image. 
+
 
 4. Copy cloud configuration file to each deployed Azure VM.
   ```
@@ -31,4 +55,5 @@ This document describes the procedure to deploy DL workspace cluster on Azure. W
   python deploy.py -y updateworker -public 
   python deploy.py connect master -public
   ```
+
     

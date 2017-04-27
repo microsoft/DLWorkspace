@@ -4,7 +4,7 @@
 docker rm -f philly-etcd3
 sudo rm -r /var/etcd/data
 
-docker run -d -v /usr/share/ca-certificates/:/etc/ssl/certs -v /etc/etcd/ssl:/etc/etcd/ssl -v /var/etcd:/var/etcd -p {{cnf["etcd3port1"]}}:{{cnf["etcd3port1"]}} -p {{cnf["etcd3portserver"]}}:{{cnf["etcd3portserver"]}} \
+docker run -d -v /usr/share/ca-certificates/mozilla:/etc/ssl/certs -v /etc/etcd/ssl:/etc/etcd/ssl -v /var/etcd:/var/etcd -p {{cnf["etcd3port1"]}}:{{cnf["etcd3port1"]}} -p {{cnf["etcd3portserver"]}}:{{cnf["etcd3portserver"]}} \
  --net=host \
  --restart always \
  --name philly-etcd3 gcr.io/google-containers/etcd:3.0.4 /usr/local/bin/etcd \
