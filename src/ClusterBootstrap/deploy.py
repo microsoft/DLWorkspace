@@ -73,16 +73,6 @@ default_config_parameters = {
 	"k8sAPIport" : "443", # Server port for etcd
 	"nvidiadriverdocker" : "mlcloudreg.westus.cloudapp.azure.com:5000/nvidia_driver:375.20",
 	"nvidiadriverversion" : "375.20",
-	#master deployment scripts
-	"premasterdeploymentscript" : "pre-master-deploy.sh",
-	"postmasterdeploymentscript" : "post-master-deploy.sh",
-	"mastercleanupscript" : "cleanup-master.sh",
-	"masterdeploymentlist" : "deploy.list",
-	#worker deployment scripts
-	"preworkerdeploymentscript" : "pre-worker-deploy.sh",
-	"postworkerdeploymentscript" : "post-worker-deploy.sh",
-	"workercleanupscript" : "cleanup-worker.sh",
-	"workerdeploymentlist" : "deploy.list",
 	# Default port for WebUI, Restful API, 
 	"webuiport" : "80",
 	"restfulapiport" : "5000",
@@ -168,8 +158,14 @@ default_config_parameters = {
 		   "*.redmond.corp.microsoft.com" : True, 
 		   "*.corp.microsoft.com": True,
 	   }, 
-	}
+	}, 
 
+	# Option to change pre-/post- deployment script
+	# Available options are (case sensitive):
+	# "default": CoreOS individual cluster
+	# "philly": philly cluster
+	# "ubuntu": ubuntu cluster
+	"platform-scripts" : "default", 
 }
 
 
@@ -336,6 +332,13 @@ def generate_trusted_domains(network_config, start_idx ):
 		ret += "DNS.%d = %s\n" % (start_idx, domain)
 		start_idx +=1
 	return ret
+
+def get_platform_script_directory( target ):
+	targetdir = target+"/"
+	if target is None or target=="default":
+		targetdir = "./"
+	return targetdir
+
 	
 # These parameter will be mapped if non-exist
 # Each mapping is the form of: dstname: ( srcname, lambda )
@@ -352,7 +355,18 @@ default_config_mapping = {
 	"api-server-ip": (["service_cluster_ip_range"], lambda x: generate_ip_from_cluster(x, 1) ), 
 	"dns-server-ip": (["service_cluster_ip_range"], lambda x: generate_ip_from_cluster(x, 53) ),
 	"network-trusted-domains": (["network"], lambda x: generate_trusted_domains(x, 5 )),
-};
+	#master deployment scripts
+	"premasterdeploymentscript" : (["platform-scripts"], lambda x: get_platform_script_directory(x)+"pre-master-deploy.sh"),
+	"postmasterdeploymentscript" : (["platform-scripts"], lambda x: get_platform_script_directory(x)+"post-master-deploy.sh"),
+	"mastercleanupscript" : (["platform-scripts"], lambda x: get_platform_script_directory(x)+"cleanup-master.sh"),
+	"masterdeploymentlist" : (["platform-scripts"], lambda x: get_platform_script_directory(x)+"deploy.list"),
+	#worker deployment scripts
+	"preworkerdeploymentscript" : (["platform-scripts"], lambda x: get_platform_script_directory(x)+"pre-worker-deploy.sh"),
+	"postworkerdeploymentscript" : (["platform-scripts"], lambda x: get_platform_script_directory(x)+"post-worker-deploy.sh"),
+	"workercleanupscript" : (["platform-scripts"], lambda x: get_platform_script_directory(x)+"cleanup-worker.sh"),
+	"workerdeploymentlist" : (["platform-scripts"], lambda x: get_platform_script_directory(x)+"deploy.list"),
+
+}
 	
 # Merge entries in config2 to that of config1, if entries are dictionary. 
 # If entry is list or other variable, it will just be replaced. 

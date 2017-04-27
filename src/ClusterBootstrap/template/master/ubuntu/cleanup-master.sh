@@ -1,5 +1,5 @@
 sudo systemctl stop kubelet
-timeout 10 docker rm -f $(timeout 3 docker ps -q -a)
+sudo timeout 10 docker rm -f $(docker ps -a | grep 'k8s_kube\|k8s_POD' | awk '{print $1}')
 sudo mkdir -p /etc/kubernetes
 sudo mkdir -p /etc/ssl/etcd
 sudo mkdir -p /opt/addons
