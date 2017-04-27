@@ -19,11 +19,11 @@ import yaml
 from jinja2 import Environment, FileSystemLoader, Template
 import base64
 
-from shutil import copyfile,copytree
+from shutil import copyfile, copytree
 import urllib
-import socket;
+import socket
 
-verbose = False; 
+verbose = False
 
 class StaticVariable():
 	rendered_target_directory = {}
@@ -223,20 +223,22 @@ def get_cluster_ID_from_file():
 		f.close()
 		if "clusterId" in tmp:
 			clusterID = tmp["clusterId"]
-		f.close()
 	return clusterID
 
 
-def gen_SSH_key():
+def gen_SSH_key(regenerate_key):
 		print "==============================================="
 		print "generating ssh key..."
 		os.system("mkdir -p ./deploy/sshkey")
 		os.system("mkdir -p ./deploy/cloud-config")
 		os.system("mkdir -p ./deploy/kubelet")
-		os.system("rm -r ./deploy/sshkey || true")
+		if regenerate_key:
+			os.system("rm -r ./deploy/sshkey || true")
+		
 		os.system("mkdir -p ./deploy/sshkey")
 
-		os.system("ssh-keygen -t rsa -b 4096 -f ./deploy/sshkey/id_rsa -P ''")
+		if not os.path.exists("./deploy/sshkey/id_rsa"):
+			os.system("ssh-keygen -t rsa -b 4096 -f ./deploy/sshkey/id_rsa -P ''")
 
 		os.system("rm -r ./deploy/cloud-config")
 		os.system("mkdir -p ./deploy/cloud-config")
@@ -278,6 +280,7 @@ def execute_restore_and_decrypt(fname, key):
 		cleanup_command = "rm %s; " % fname
 	os.system("tar -xzvf %s %s" % (fname, backupdir))
 	os.system("cp %s/*.yaml ." % (backupdir) )
+	os.system("mkdir -p ./deploy/" )
 	os.system("cp -r %s/sshkey ./deploy/sshkey" % backupdir)
 	os.system("cp -r %s/ssl ./deploy/ssl" % backupdir)
 	os.system("cp %s/clusterID/*.yml ./deploy/" % backupdir)
@@ -319,3 +322,4 @@ def getIP(dnsname):
         return ip
     except Exception:
         return None
+

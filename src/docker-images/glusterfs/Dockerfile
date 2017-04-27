@@ -18,6 +18,9 @@ ADD glusterfs-mount.service /usr/lib/systemd/system/glusterfs-mount.service
 RUN chmod +x /opt/glusterfs/launch_glusterfs.py 
 
 RUN systemctl enable glusterfs-mount.service
+RUN systemctl enable nfs-server.service
+
+RUN sed -i 's_# Lock=True_Lock=False_' /etc/nfsmount.conf 
 
 # All process in this docker needs to be run as a service. 
 # Do not change the command, rewrite a service if need to 

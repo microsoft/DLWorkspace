@@ -1,95 +1,31 @@
 # Configuration file for OneNet Test cluster
 id: onenet
-status: test
+###Use cluster.yaml to locate nodes (instead of using the cluster report service)
+useclusterfile : true
 
 coreos:
   version: 1235.9.0
-  # Additional Configuration to be passed to write-in section. 
-  # write-files: 
-  #   Content here will be added to the write-files section at cloud-config during bootup
-  # units: 
-  #   Content here will be added to the units section at cloud-config during bootup
-  # startupScripts：
-  #   Content here will be added before the start up of a node
-  startupScripts： |
-    sudo ip link set ens2f1 down 
-  
-# global flag which enables automatic failure recovery functionality
-autoRecovery: True
 
 network:
   domain: redmond.corp.microsoft.com
 
-  # corpnet DNS servers
-  externalDnsServers:
-   - 10.222.118.154
-   - 157.54.14.178
-   - 4.2.2.1
-   
-#ignoreAlerts:
-
-# SKUs is optional in DL workspace operation. 
-skus:
-  standard:
-    mem: 196
-    cpu:
-        type: E5-2450L
-        speed: 1855
-        sockets: 2
-        coresPerSocket: 8
-        count: 16
-    disk:
-        sda: 400
-        sdb: 6001
-        sdc: 6001
-        sdd: 6001
-
 machines:
-
-# OneNet Rack Rack
-# If host name and mac address is available, they will be used to set the host name of the machine
-# (with network/domain entry above, if exist)
-  onenet12:
-    sku: standard
-    mac: 9c:b6:54:8c:cf:8f
-
   onenet13:
-    sku: standard
-    mac: 9c:b6:54:8d:01:6b
-
+    role: infrastructure 
   onenet14:
-    sku: standard
-    mac: 9c:b6:54:8d:60:67
-    
+    role: worker
   onenet15:
-    sku: standard
-    mac: 9c:b6:54:8c:ff:2f
-    
+    role: worker
   onenet16:
-    sku: standard
-    mac: 9c:b6:54:90:35:2b
-    
+    role: worker
   onenet17:
-    sku: standard
-    mac: 9c:b6:54:8c:8f:02
-    
-  
+    role: worker
   onenet18:
-    sku: standard
-    mac: 9c:b6:54:8c:cf:bb
-    
-  
+    role: worker
   onenet18:
-    sku: standard
-    mac: 9c:b6:54:8c:cf:bb
-    
+    role: worker
   onenet19:
-    sku: standard
-    mac: 9c:b6:54:8c:8f:b3
-    
+    role: worker
   onenet20:
-    sku: standard
-    mac: 9c:b6:54:8d:70:c7
+    role: worker
   
-# Optional: additional sshKeys for log in
-# sshKeys:

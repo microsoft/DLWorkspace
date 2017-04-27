@@ -12,7 +12,7 @@ import pwd
 import grp
 from os.path import expanduser
 sys.path.append("src/utils")
-from DockerUtils import runDocker, buildDocker
+from DockerUtils import run_docker, build_docker
 
 # prefix and tag will be filled by argument parser.
 
@@ -28,9 +28,13 @@ if __name__ == '__main__':
 		help="Tag of the docker build, or [current]", 
 		action = "store", 
 		default = "current" )
+	parser.add_argument("--nocache", 
+		help="Tag of the docker build, or [current]", 
+		action = "store_true")
 	args = parser.parse_args()
 	dockerprefix = args.prefix
 	dockertag = args.tag
 	dockername = dockerprefix + ":" + dockertag
-	dockername = buildDocker(dockername, dirname)
-	runDocker(dockername, "DevDocker")
+	#print args.nocache
+	dockername = build_docker(dockername, dirname, nocache = args.nocache)
+	run_docker(dockername, "DevDocker")

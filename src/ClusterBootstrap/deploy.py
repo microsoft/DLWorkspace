@@ -14,6 +14,7 @@ import distutils.dir_util
 import distutils.file_util
 import shutil
 import random
+import glob
 
 from os.path import expanduser
 
@@ -21,15 +22,15 @@ import yaml
 from jinja2 import Environment, FileSystemLoader, Template
 import base64
 
-from shutil import copyfile,copytree
+from shutil import copyfile, copytree
 import urllib
-import socket;
+import socket
 sys.path.append("storage/glusterFS")
 from GlusterFSUtils import GlusterFSJson
 sys.path.append("../utils")
 
 import utils
-from DockerUtils import build_dockers, push_dockers, run_docker, find_dockers, build_docker_fullname
+from DockerUtils import build_dockers, push_dockers, run_docker, find_dockers, build_docker_fullname, copy_from_docker_image
 
 sys.path.append("../docker-images/glusterfs")
 import launch_glusterfs
@@ -39,21 +40,27 @@ digitsMatch = re.compile("\d+")
 defanswer = ""
 ipAddrMetaname = "hostIP"
 
-
 # CoreOS version and channels, further configurable. 
 coreosversion = "1235.9.0"
 coreoschannel = "stable"
 coreosbaseurl = ""
 verbose = False
+nocache = False
 
 # These are the default configuration parameter
-default_config_parameters = { 
-	"homeinserver" : "http://dlws-clusterportal.westus.cloudapp.azure.com:5000", 
+default_config_parameters = {
+	# Kubernetes setting
+	"service_cluster_ip_range" : "10.3.0.0/16", 
+	"pod_ip_range" : "10.2.0.0/16", 
+	# Home in server, to aide Kubernete setup
+	"homeinserver" : "http://dlws-clusterportal.westus.cloudapp.azure.com:5000", 	
+
 	# Discover server is used to find IP address of the host, it need to be a well-known IP address 
 	# that is pingable. 
 	"discoverserver" : "4.2.2.1", 
 	"homeininterval" : "600", 
 	"dockerregistry" : "mlcloudreg.westus.cloudapp.azure.com:5000/",
+	"kubernetes_docker_image" : "mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/hyperkube:v1.5.0_coreos.multigpu", 
 	# There are two docker registries, one for infrastructure (used for pre-deployment)
 	# and one for worker docker (pontentially in cluser)
 	# A set of infrastructure-dockers 
@@ -66,22 +73,16 @@ default_config_parameters = {
 	"k8sAPIport" : "443", # Server port for etcd
 	"nvidiadriverdocker" : "mlcloudreg.westus.cloudapp.azure.com:5000/nvidia_driver:375.20",
 	"nvidiadriverversion" : "375.20",
-	#master deployment scripts
-	"premasterdeploymentscript" : "pre-master-deploy.sh",
-	"postmasterdeploymentscript" : "post-master-deploy.sh",
-	"mastercleanupscript" : "cleanup-master.sh",
-	"masterdeploymentlist" : "deploy.list",
-	#worker deployment scripts
-	"preworkerdeploymentscript" : "pre-worker-deploy.sh",
-	"postworkerdeploymentscript" : "post-worker-deploy.sh",
-	"workercleanupscript" : "cleanup-worker.sh",
-	"workerdeploymentlist" : "deploy.list",
+	# Default port for WebUI, Restful API, 
 	"webuiport" : "80",
 	"restfulapiport" : "5000",
 	"ssh_cert" : "./deploy/sshkey/id_rsa",
+
+	# the path of where dfs/nfs is mounted on each node, default /dlwsdata
 	"storage-mount-path" : "/dlwsdata",
-	"storage-mount-path-name" : "dlwsdata",
+	# the path of where nvidia driver is installed on each node, default /opt/nvidia-driver/current
 	"nvidia-driver-path" : "/opt/nvidia-driver/current", 
+
 	"data-disk": "/dev/[sh]d[^a]", 
 	"partition-configuration": [ "1" ], 
 	"heketi-docker": "heketi/heketi:dev",
@@ -135,6 +136,36 @@ default_config_parameters = {
 					}, 
 	# Options to run in glusterfs
 	"launch-glusterfs-opt": "run", 
+
+	# Govern how Kubernete nodes are labeled to deploy various kind of service deployment. :
+	#   - label : etcd_node <tag to be applied to etcd node only >
+	#   - label : worker_node <tag to be applied to worker node only >
+	#   - label : all <tag to be applied to all nodes
+	"kubelabels" : {
+  		"infrastructure": "etcd_node", 
+  		"worker": "worker_node", 
+  		"all": "all", 
+  		"default": "all",
+		"glusterfs": "worker_node", 
+  		"webportal": "etcd_node_1", 
+  		"restfulapi": "etcd_node_1", 
+  		"jobmanager": "etcd_node_1", 
+  		"FragmentGPUJob": "all", 
+  	},
+
+    "network": {
+	   "trusted-domains" : {
+		   "*.redmond.corp.microsoft.com" : True, 
+		   "*.corp.microsoft.com": True,
+	   }, 
+	}, 
+
+	# Option to change pre-/post- deployment script
+	# Available options are (case sensitive):
+	# "default": CoreOS individual cluster
+	# "philly": philly cluster
+	# "ubuntu": ubuntu cluster
+	"platform-scripts" : "default", 
 }
 
 
@@ -147,6 +178,28 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 def expand_path(path):
 	return expanduser(path)
 
+# Path to mount name 
+# Change path, e.g., /mnt/glusterfs/localvolume to 
+# name mnt-glusterfs-localvolume
+def path_to_mount_service_name( path ):
+	ret = path
+	if ret[0]=='/':
+		ret = ret[1:]
+	if ret[-1]=='/':
+		ret = ret[:-1]
+	ret = ret.replace('-','\\x2d')
+	ret = ret.replace('/','-')
+	return ret
+
+# Generate a server IP according to the cluster ip range. 
+# E.g., given cluster IP range 10.3.0.0/16, index=1, 
+# The generated IP is 10.3.0.1
+def generate_ip_from_cluster(cluster_ip_range, index ):
+	slash_pos = cluster_ip_range.find("/")
+	ips = cluster_ip_range if slash_pos < 0 else cluster_ip_range[:slash_pos]
+	ips3 = ips[:ips.rfind(".")]
+	return ips3 + "." + str(index)
+	
 # Return a path name, expand on ~, for a particular config, 
 # e.g., ssh_key
 def expand_path_in_config(key_in_config):
@@ -266,6 +319,26 @@ def fetch_config_and_check(entry):
 		print "Error: config entry %s doesn't exist" % entry
 		exit()
 	return ret;
+
+def generate_trusted_domains(network_config, start_idx ):
+	ret = ""
+	domain = fetch_dictionary(network_config, ["domain"])
+	if not (domain is None):
+		ret += "DNS.%d = %s\n" % (start_idx, "*." + domain)
+		start_idx +=1
+	trusted_domains = fetch_dictionary(network_config, ["trusted-domains"])
+	for domain in trusted_domains:
+		# "*." is encoded in domain for those entry
+		ret += "DNS.%d = %s\n" % (start_idx, domain)
+		start_idx +=1
+	return ret
+
+def get_platform_script_directory( target ):
+	targetdir = target+"/"
+	if target is None or target=="default":
+		targetdir = "./"
+	return targetdir
+
 	
 # These parameter will be mapped if non-exist
 # Each mapping is the form of: dstname: ( srcname, lambda )
@@ -278,8 +351,22 @@ default_config_mapping = {
 	"worker-dockerregistry": (["dockerregistry"], lambda x:x),
 	"glusterfs-device": (["glusterFS"], lambda x: "/dev/%s/%s" % (fetch_dictionary(x, ["volumegroup"]), fetch_dictionary(x, ["volumename"]) ) ),
 	"glusterfs-localvolume": (["glusterFS"], lambda x: fetch_dictionary(x, ["mountpoint"]) ),
-	
-};
+	"storage-mount-path-name": (["storage-mount-path" ], lambda x: path_to_mount_service_name(x) ),
+	"api-server-ip": (["service_cluster_ip_range"], lambda x: generate_ip_from_cluster(x, 1) ), 
+	"dns-server-ip": (["service_cluster_ip_range"], lambda x: generate_ip_from_cluster(x, 53) ),
+	"network-trusted-domains": (["network"], lambda x: generate_trusted_domains(x, 5 )),
+	#master deployment scripts
+	"premasterdeploymentscript" : (["platform-scripts"], lambda x: get_platform_script_directory(x)+"pre-master-deploy.sh"),
+	"postmasterdeploymentscript" : (["platform-scripts"], lambda x: get_platform_script_directory(x)+"post-master-deploy.sh"),
+	"mastercleanupscript" : (["platform-scripts"], lambda x: get_platform_script_directory(x)+"cleanup-master.sh"),
+	"masterdeploymentlist" : (["platform-scripts"], lambda x: get_platform_script_directory(x)+"deploy.list"),
+	#worker deployment scripts
+	"preworkerdeploymentscript" : (["platform-scripts"], lambda x: get_platform_script_directory(x)+"pre-worker-deploy.sh"),
+	"postworkerdeploymentscript" : (["platform-scripts"], lambda x: get_platform_script_directory(x)+"post-worker-deploy.sh"),
+	"workercleanupscript" : (["platform-scripts"], lambda x: get_platform_script_directory(x)+"cleanup-worker.sh"),
+	"workerdeploymentlist" : (["platform-scripts"], lambda x: get_platform_script_directory(x)+"deploy.list"),
+
+}
 	
 # Merge entries in config2 to that of config1, if entries are dictionary. 
 # If entry is list or other variable, it will just be replaced. 
@@ -407,18 +494,19 @@ def add_additional_cloud_config():
 	translate_config_entry( ["coreos", "startupScripts"], "startupscripts", basestring )
 	
 def init_deployment():
+	gen_new_key = True
+	regenerate_key = False
 	if (os.path.isfile("./deploy/clusterID.yml")):
-		
 		clusterID = utils.get_cluster_ID_from_file()
 		response = raw_input_with_default("There is a cluster (ID:%s) deployment in './deploy', do you want to keep the existing ssh key and CA certificates (y/n)?" % clusterID)
 		if first_char(response) == "n":
+			# Backup old cluster 
 			utils.backup_keys(config["cluster_name"])
-			utils.gen_SSH_key()
-			gen_CA_certificates()
-			gen_worker_certificates()
-			utils.backup_keys(config["cluster_name"])
-	else:
-		utils.gen_SSH_key()
+			regenerate_key = True
+		else:
+			gen_new_key = False
+	if gen_new_key:
+		utils.gen_SSH_key(regenerate_key)
 		gen_CA_certificates()
 		gen_worker_certificates()
 		utils.backup_keys(config["cluster_name"])
@@ -617,7 +705,7 @@ def GetCertificateProperty():
 			masterdns.append(value)
 
 	config["apiserver_ssl_dns"] = "\n".join(["DNS."+str(i+5)+" = "+dns for i,dns in enumerate(masterdns)])
-	config["apiserver_ssl_ip"] = "IP.1 = 10.3.0.1\nIP.2 = 127.0.0.1\n"+ "\n".join(["IP."+str(i+3)+" = "+ip for i,ip in enumerate(masterips)])
+	config["apiserver_ssl_ip"] = "IP.1 = "+config["api-server-ip"]+"\nIP.2 = 127.0.0.1\n"+ "\n".join(["IP."+str(i+3)+" = "+ip for i,ip in enumerate(masterips)])
 
 	for i,value in enumerate(config["etcd_node"]):
 		if ippattern.match(value):
@@ -630,7 +718,6 @@ def GetCertificateProperty():
 
 def gen_worker_certificates():
 
-	GetCertificateProperty()
 	utils.render_template_directory("./template/ssl", "./deploy/ssl",config)
 	os.system("cd ./deploy/ssl && bash ./gencerts_kubelet.sh")	
 
@@ -782,10 +869,17 @@ def deploy_master(kubernetes_master):
 		utils.SSH_exec_script(config["ssh_cert"],kubernetes_master_user, kubernetes_master, "./deploy/master/" + config["postmasterdeploymentscript"])
 		
 def get_kubectl_binary():
+	get_hyperkube_docker()
+	#os.system("mkdir -p ./deploy/bin")
+	#urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet", "./deploy/bin/kubelet")
+	#urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubectl", "./deploy/bin/kubectl")
+	#os.system("chmod +x ./deploy/bin/*")
+
+def get_hyperkube_docker() :
 	os.system("mkdir -p ./deploy/bin")
-	urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet", "./deploy/bin/kubelet")
-	urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubectl", "./deploy/bin/kubectl")
-	os.system("chmod +x ./deploy/bin/*")
+	copy_from_docker_image(config['kubernetes_docker_image'], "/hyperkube", "./deploy/bin/hyperkube")
+	os.system("cp ./deploy/bin/hyperkube ./deploy/bin/kubelet")
+	os.system("cp ./deploy/bin/hyperkube ./deploy/bin/kubectl")
 
 def deploy_masters():
 
@@ -1035,7 +1129,8 @@ def update_worker_nodes( nargs ):
 	os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' % config["api_servers"].replace("/","\\/"))
 	os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/worker-kubeconfig.yaml.template > ./deploy/kubelet/worker-kubeconfig.yaml' % config["api_servers"].replace("/","\\/"))
 	
-	urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet", "./deploy/bin/kubelet")
+	#urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet", "./deploy/bin/kubelet")
+	get_hyperkube_docker()
 
 	workerNodes = get_worker_nodes(config["clusterId"])
 	for node in workerNodes:
@@ -1357,12 +1452,34 @@ def write_glusterFS_configuration( nodesinfo, glusterFSargs ):
 	with open(config_file,'w') as datafile:
 		yaml.dump(config_glusterFS, datafile, default_flow_style=False)
 	return config_glusterFS
-		
-# Path to mount name 
-# Change path, e.g., /mnt/glusterfs/localvolume to 
-# name mnt-glusterfs-localvolume
-def path_to_mount_service_name( path ):
-	return path.replace('/','-')[1:]
+	
+# Form YAML file for glusterfs endpoints, launch glusterfs endpoints. 
+def launch_glusterFS_endpoint( nodesinfo, glusterFSargs ):
+	os.system( "mkdir -p ./deploy/services/glusterFS_ep" )
+	config_glusterFS = write_glusterFS_configuration( nodesinfo, glusterFSargs )
+	glusterfs_groups = config_glusterFS["groups"]
+	with open("./services/glusterFS_ep/glusterFS_ep.yaml",'r') as config_template_file:
+		config_template = yaml.load( config_template_file )
+		config_template_file.close()
+	for group, group_config in glusterfs_groups.iteritems():
+		config_template["metadata"]["name"] = "glusterfs-%s" % group
+		config_template["subsets"] = []
+		endpoint_subsets = config_template["subsets"]
+		for node in nodes:
+			ip = socket.gethostbyname(node)
+			endpoint_subsets.append({"addresses": [{"ip":ip}] , "ports": [{"port":1}] })
+		fname = "./deploy/services/glusterFS_ep/glusterFS_ep_%s.yaml" % group
+		with open( fname, 'w') as config_file:
+			yaml.dump(config_template, config_file, default_flow_style=False)
+		run_kubectl( ["create", "-f", fname ] )
+
+def stop_glusterFS_endpoint( ):
+	glusterfs_groups = config_glusterFS["groups"]
+	for group, group_config in glusterfs_groups.iteritems():
+		fname = "./deploy/services/glusterFS_ep/glusterFS_ep_%s.yaml" % group
+		run_kubectl( ["delete", "-f", fname ] )
+
+
 
 # Create gluster FS volume 
 def create_glusterFS_volume( nodesinfo, glusterFSargs ):
@@ -1654,11 +1771,15 @@ def get_all_services():
 		dirname = os.path.join(rootdir, service)
 		if os.path.isdir(dirname):
 			yamlname = os.path.join(dirname, service + ".yaml")
-			if os.path.isfile(yamlname):
-				servicedic[service] = yamlname
-			else:
+			if not os.path.isfile(yamlname):
 				yamls = glob.glob("*.yaml")
-				servicedic[service] = yamls[0]
+				yamlname = yamls[0]
+			with open( yamlname ) as f:
+				service_config = yaml.load(f)
+				f.close()
+				if "kind" in service_config and service_config["kind"]=="DaemonSet":
+					# Only add service if it is a daemonset. 
+					servicedic[service] = yamlname
 	return servicedic
 	
 def get_service_name(service_config_file):
@@ -1692,19 +1813,24 @@ def kubernetes_label_node(cmdoptions, nodename, label):
 
 def kubernetes_label_nodes( verb, servicelists, force ):
 	servicedic = get_all_services()
+	#print servicedic
 	get_nodes(config["clusterId"])
 	labels = fetch_config(["kubelabels"])
+	# print labels
 	for service in servicedic:
 		servicename = get_service_name(servicedic[service])
+		# print "Service %s - %s" %(service, servicename )
 		if (not service in labels) and (not servicename in labels) and "default" in labels:
 			labels[servicename] = labels["default"]
+	# print servicelists
+	# print labels
 	if len(servicelists)==0:
 		servicelists = labels
 	else:
 		for service in servicelists:
 			if (not service in labels) and "default" in labels:
 				labels[service] = labels["default"]
-	# print servicelists
+	#print servicelists
 	for label in servicelists:
 		nodetype = labels[label]
 		if nodetype == "worker_node":
@@ -1777,13 +1903,13 @@ def build_docker_images(nargs):
 	render_docker_images()
 	if verbose:
 		print "Build docker ..."
-	build_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"], nargs, verbose)
+	build_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"], nargs, verbose, nocache = nocache )
 	
 def push_docker_images(nargs):
 	render_docker_images()
 	if verbose:
 		print "Build & push docker images to docker register  ..."
-	push_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"], nargs, config, verbose)
+	push_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"], nargs, config, verbose, nocache = nocache )
 	
 def run_docker_image( imagename, native = False ):
 	full_dockerimage_name = build_docker_fullname( config, imagename )
@@ -1839,7 +1965,9 @@ Command:
             display: display lvm information on each node of the cluster. 
             create: formatting and create lvm for used by glusterfs. 
             remove: deletel and remove glusterfs volumes. 
-            config: generate configuration file, build and push glusterfs docker	    	
+            config: generate configuration file, build and push glusterfs docker.
+            start: start glusterfs service and endpoints. 
+            stop: stop glusterfs service and endpoints. 
   download  [args] Manage download
             kubectl: download kubelet/kubectl.
             kubelet: download kubelet/kubectl.
@@ -1892,6 +2020,10 @@ Command:
 	parser.add_argument("-v", "--verbose", 
 		help = "verbose print", 
 		action="store_true")
+	parser.add_argument("--nocache", 
+		help = "Build docker without cache", 
+		action="store_true")
+
 	parser.add_argument("--glusterfs", 
 		help = textwrap.dedent('''"Additional glusterfs launch parameter, \
         detach: detach all glusterfs nodes (to rebuild cluster), 
@@ -1907,6 +2039,8 @@ Command:
 		help="Additional command argument", 
 		)
 	args = parser.parse_args()
+	nocache = args.nocache
+	
 	# If necessary, show parsed arguments. 
 	# print args
 	discoverserver = args.discoverserver
@@ -1916,6 +2050,13 @@ Command:
 		utils.verbose = True
 	
 	config = init_config()
+	
+	command = args.command
+	nargs = args.nargs
+	if command == "restore":
+		utils.restore_keys(nargs)
+		#get_kubectl_binary()
+		exit()
 	
 	# Cluster Config
 	config_cluster = os.path.join(dirpath,"cluster.yaml")
@@ -1928,7 +2069,6 @@ Command:
 		parser.print_help()
 		print "ERROR: config.yaml does not exist!"
 		exit()
-		
 	
 	f = open(config_file)
 	merge_config(config, yaml.load(f))
@@ -1954,8 +2094,6 @@ Command:
 	if args.public:
 		ipAddrMetaname = "clientIP"
 		
-	command = args.command
-	nargs = args.nargs
 	
 	if verbose: 
 		print "deploy " + command + " " + (" ".join(nargs))
@@ -2125,6 +2263,12 @@ Command:
 			write_glusterFS_configuration( nodesinfo, glusterFSargs ) 
 			dockername = fetch_config_and_check(["glusterFS", "glusterfs_docker"])
 			push_docker_images( [dockername] )
+		elif nargs[0] == "start":
+			start_kube_service("glusterFS")
+			launch_glusterFS_endpoint( nodesinfo, glusterFSargs )
+		elif nargs[0] == "stop":
+			stop_glusterFS_endpoint()
+			stop_kube_service("glusterFS")
 		else:
 			parser.print_help()
 			print "Unknown subcommand for glusterFS: " + nargs[0]
@@ -2253,10 +2397,6 @@ Command:
 	elif command == "backup":
 		utils.backup_keys(config["cluster_name"], nargs)
 		
-	elif command == "restore":
-		utils.restore_keys(nargs)
-		get_kubectl_binary()
-
 	elif command == "docker":
 		if len(nargs)>=1:
 			if nargs[0] == "build":

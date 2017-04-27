@@ -23,9 +23,11 @@ do
 			sed "s/##api_servers##/$APISERVER/" /opt/kubelet.service.template > /etc/systemd/system/kubelet.service
 			sed "s/##api_servers##/$APISERVER/" /etc/kubernetes/worker-kubeconfig.yaml.template > /etc/kubernetes/worker-kubeconfig.yaml
 
-
 			echo "Starting kubelet service"
-		    wget -q -O "/opt/bin/kubelet" http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet
+		    #wget -q -O "/opt/bin/kubelet" http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet
+			kubeid=$(docker create {{cnf["kubernetes_docker_image"]}})
+			docker cp $kubeid:/hyperkube /opt/bin/kubelet
+			docker rm -v $kubeid
 		    chmod +x /opt/bin/kubelet
 
 			systemctl daemon-reload
