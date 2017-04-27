@@ -30,7 +30,7 @@ from GlusterFSUtils import GlusterFSJson
 sys.path.append("../utils")
 
 import utils
-from DockerUtils import build_dockers, push_dockers, run_docker, find_dockers, build_docker_fullname
+from DockerUtils import build_dockers, push_dockers, run_docker, find_dockers, build_docker_fullname, copy_from_docker_image
 
 sys.path.append("../docker-images/glusterfs")
 import launch_glusterfs
@@ -877,11 +877,7 @@ def get_kubectl_binary():
 
 def get_hyperkube_docker() :
 	os.system("mkdir -p ./deploy/bin")
-	id = subprocess.check_output(['docker', 'create', config['kubernetes_docker_image']])
-	id = id.strip()
-	print "docker cp " + id + ":/hyperkube ./deploy/bin/hyperkube"
-	os.system("docker cp " + id + ":/hyperkube ./deploy/bin/hyperkube")
-	os.system("docker rm -v " + id)
+	copy_from_docker_image(config['kubernetes_docker_image'], "/hyperkube", "./deploy/bin/hyperkube")
 	os.system("cp ./deploy/bin/hyperkube ./deploy/bin/kubelet")
 	os.system("cp ./deploy/bin/hyperkube ./deploy/bin/kubectl")
 
