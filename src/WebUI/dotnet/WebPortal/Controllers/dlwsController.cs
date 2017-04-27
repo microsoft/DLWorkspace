@@ -47,7 +47,7 @@ namespace WindowsAuth.Controllers
             }
             else if (op == "KillJob" && HttpContext.Request.Query.ContainsKey("jobId"))
             {
-                url = _appSettings.restapi + "/KillJob?jobId=" + HttpContext.Request.Query["jobId"];
+                url = _appSettings.restapi + "/KillJob?jobId=" + HttpContext.Request.Query["jobId"]+"&userName="+ User.Identity.Name;
             }
             else if (op == "JobDetail" && HttpContext.Request.Query.ContainsKey("jobId"))
             {
