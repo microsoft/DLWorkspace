@@ -322,3 +322,4 @@ def getIP(dnsname):
         return ip
     except Exception:
         return None
+
