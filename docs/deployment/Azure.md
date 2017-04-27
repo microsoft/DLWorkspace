@@ -42,4 +42,15 @@ This document describes the procedure to deploy DL workspace cluster on Azure. W
   ./deploy.py execonall sudo usermod -aG docker core
   ```
 
-5. 
+5. Deploy etcd/master and workers. 
+  ```
+  ./deploy.py -y deploy
+  ./deploy.py -y updateworker
+  ```
+
+6. Label nodels and deploy services:
+  ```
+  ./deploy.py -y kubernetes labels
+  ./deploy.py -y updateworker
+  ```
+
