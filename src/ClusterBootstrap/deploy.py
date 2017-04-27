@@ -162,6 +162,14 @@ default_config_parameters = {
   		"jobmanager": "etcd_node_1", 
   		"FragmentGPUJob": "all", 
   	},
+
+    "network": {
+	   "trusted-domains" : {
+		   "*.redmond.corp.microsoft.com" : True, 
+		   "*.corp.microsoft.com": True,
+	   }, 
+	}
+
 }
 
 
@@ -315,6 +323,19 @@ def fetch_config_and_check(entry):
 		print "Error: config entry %s doesn't exist" % entry
 		exit()
 	return ret;
+
+def generate_trusted_domains(network_config, start_idx ):
+	ret = ""
+	domain = fetch_dictionary(network_config, ["domain"])
+	if not (domain is None):
+		ret += "DNS.%d = %s\n" % (start_idx, "*." + domain)
+		start_idx +=1
+	trusted_domains = fetch_dictionary(network_config, ["trusted-domains"])
+	for domain in trusted_domains:
+		# "*." is encoded in domain for those entry
+		ret += "DNS.%d = %s\n" % (start_idx, domain)
+		start_idx +=1
+	return ret
 	
 # These parameter will be mapped if non-exist
 # Each mapping is the form of: dstname: ( srcname, lambda )
@@ -329,7 +350,8 @@ default_config_mapping = {
 	"glusterfs-localvolume": (["glusterFS"], lambda x: fetch_dictionary(x, ["mountpoint"]) ),
 	"storage-mount-path-name": (["storage-mount-path" ], lambda x: path_to_mount_service_name(x) ),
 	"api-server-ip": (["service_cluster_ip_range"], lambda x: generate_ip_from_cluster(x, 1) ), 
-	"dns-server-ip": (["service_cluster_ip_range"], lambda x: generate_ip_from_cluster(x, 53) ), 
+	"dns-server-ip": (["service_cluster_ip_range"], lambda x: generate_ip_from_cluster(x, 53) ),
+	"network-trusted-domains": (["network"], lambda x: generate_trusted_domains(x, 5 )),
 };
 	
 # Merge entries in config2 to that of config1, if entries are dictionary. 
@@ -682,7 +704,6 @@ def GetCertificateProperty():
 
 def gen_worker_certificates():
 
-	GetCertificateProperty()
 	utils.render_template_directory("./template/ssl", "./deploy/ssl",config)
 	os.system("cd ./deploy/ssl && bash ./gencerts_kubelet.sh")	
 
