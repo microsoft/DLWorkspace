@@ -99,6 +99,7 @@ namespace WindowsAuth.Controllers
                 {
                     ViewData["isAuthorized"] = false;
                 }
+
             }
 
             if (User.Identity.IsAuthenticated)
@@ -119,6 +120,7 @@ namespace WindowsAuth.Controllers
                 ViewData["dataPath"] = _appSettings.dataFolderAccessPoint;
 
             }
+
             return View();
         }
         public IActionResult JobSubmission()

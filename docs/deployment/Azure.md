@@ -19,6 +19,8 @@ This document describes the procedure to deploy DL workspace cluster on Azure. W
 
   The key operation is to make sure that all ports on the VMs are assessible publicly. 
 
+  We assume that the Azure VM is deployed at westUs region. If you plan to deploy the VM to other Azure regions, please contact the authors. We use Azure App with region authentication, and currently, the App is only authorized in certain specific Azure regions. 
+
 3. Add th DNS name of the created VM to a configuration file.  
 
   You may add the configuration to either config.yaml, or cluster.yaml, with the following entry:
@@ -53,4 +55,14 @@ This document describes the procedure to deploy DL workspace cluster on Azure. W
   ./deploy.py -y kubernetes labels
   ./deploy.py -y updateworker
   ```
+
+7. Build and deploy jobmanager, restfulapi, and webportal. 
+  ```
+  ./deploy.py docker push restfulapi
+  ./deploy.py docker push webui
+  ./deploy.py kubernetes start jobmanager
+  ./deploy.py kubernetes start restfulapi
+  ./deploy.py kubernetes start webportal
+  ```
+
 
