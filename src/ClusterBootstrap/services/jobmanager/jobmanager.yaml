@@ -15,7 +15,7 @@ spec:
         jobmanager: active
       containers:
       - name: jobmanager
-        image: mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/dlws-restfulapi
+        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}restfulapi:{{cnf["dockertag"]}}
         command: ["/runScheduler.sh"]
         imagePullPolicy: Always
         volumeMounts:

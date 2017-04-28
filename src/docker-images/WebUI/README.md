@@ -1,2 +1,4 @@
-to build web ui docker, a github deployment key is required to be added into this folder, as id_rsa.
-to use other github repo instead of default MSRCCS repo, please change the url in run.sh.
+# This folder builds the webui docker. 
+
+Gittoken is a private key for the purpose of retrieve github code to build webui docker only. The key is not used 
+anywhere else in the docker. 

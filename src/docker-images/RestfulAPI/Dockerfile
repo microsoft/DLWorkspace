@@ -57,7 +57,7 @@ RUN pip install pyodbc
 
 RUN wget http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubectl -O /usr/local/bin/kubectl
 RUN chmod +x /usr/local/bin/kubectl
-COPY id_rsa /root/.ssh/id_rsa
+COPY gittoken /root/.ssh/id_rsa
 RUN chmod 400 /root/.ssh/id_rsa
 RUN apt-get install -y --no-install-recommends ssh
 
