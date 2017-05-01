@@ -40,3 +40,4 @@ src/WebUI/dotnet/.vs/**
 **/.bowerrc
 **/project.lock.json
 **/appsettings.json
+**/WebPortal/obj/*
