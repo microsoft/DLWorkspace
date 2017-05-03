@@ -1,9 +1,36 @@
 {
-  "AzureAd": {
-    "ClientId": "511c7514-3090-400e-873a-2fb05f2d5c19",
-    "Tenant": "microsoft.onmicrosoft.com",
-    "AadInstance": "https://login.microsoftonline.com/{0}", // This is the public instance of Azure AD
-    "PostLogoutRedirectUri": "https://dlws-auth.azurewebsites.net"
-  }
+    // A list of URL to access the WinBind server.
+    // If not present, AzureAD is used. 
+    "WinBindServer": [ "http://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName={0}" ],
+
+    "AzureAd": {
+
+        "ObjectId": "619243be-479e-4378-a5e2-c74c3a59d281",
+        "DisplayName": "dlws-auth",
+        "ClientId": "511c7514-3090-400e-873a-2fb05f2d5c19",
+        // App: dlws-auth-jinl, generated at apps.dev.microsoft.com
+        // "ClientId": "ba20c1a2-54ff-4ec5-afb4-18a1879bf2f7",
+        "Tenant": "microsoft.onmicrosoft.com",
+        // Note: Key expiration: 5/2/2019
+        "ClientSecret": "E3RT39WiTvfBrJLpfs8FYJcrvFDTqEjxrlu9G36CZZM=",
+        // "ClientSecret": "hJxbm2tQV3ZaYRagHvUZcWi",
+        // Information used in demo
+        "AltTenant": "GraphDir1.onMicrosoft.com",
+        "AltClientId": "118473c2-7619-46e3-a8e4-6da8d5f56e12",
+        "AltClientSecret": "tdzicjqRJ2R1Hnvn3AL1aDU+yQjX5oIHz0th0qBeOOI=",
+
+        "AppIDUri": "https://dlws-auth.azurewebsites.net/",
+        "AadInstance": "https://login.microsoftonline.com/{0}", // This is the public instance of Azure AD
+        "OauthInstance": "https://login.microsoftonline.com/common/v2.0",
+        "AdminInstance": "https://login.microsoftonline.com/{0}/adminconsent",
+        "Oauth2Instance": "https://login.microsoftonline.com/{0}/oauth2/v2.0/",
+
+        "Scope": "User.Read",
+
+        // "GraphApiVersion": "1.6", // API version
+        // "ResourceURL": "https://graph.windows.net",
+        "ResourceURL": "https://graph.microsoft.com",
+        "PostLogoutRedirectUri": "https://dlws-auth.azurewebsites.net"
+    }
 }
 
