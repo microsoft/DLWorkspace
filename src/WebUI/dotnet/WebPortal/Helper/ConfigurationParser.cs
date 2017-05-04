@@ -129,9 +129,32 @@ namespace WebPortal.Helper
                         var dataDic = dataField as SortedDictionary<string, string>;
                         foreach (var pair in dataDic)
                         {
-                            if (_first )
-                                _logger.LogInformation("Parsing: {0} - {1} ", pair.Key, pair.Value);
-                            SetConfiguration(pair.Key, pair.Value);
+                            if (Object.ReferenceEquals( pair.Key, null) || Object.ReferenceEquals(pair.Value, null) )
+                            {
+                                _logger.LogError("Null encountered at parsing .... ");
+                                if (Object.ReferenceEquals(pair.Key, null))
+                                {
+                                    _logger.LogError("Key is null");
+                                }
+                                else
+                                {
+                                    _logger.LogError("Key is {0}", pair.Key);
+                                }
+                                if (Object.ReferenceEquals(pair.Value, null))
+                                {
+                                    _logger.LogError("Value is null");
+                                }
+                                else
+                                {
+                                    _logger.LogError("Value is {0}", pair.Value);
+                                }
+                            }
+                            else
+                            {
+                                if (_first)
+                                    _logger.LogInformation("Parsing: {0} - {1} ", pair.Key, pair.Value);
+                                SetConfiguration(pair.Key, pair.Value);
+                            }
                         }
                     }
                     // string key = entry.Key;
