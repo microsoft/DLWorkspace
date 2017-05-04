@@ -9,6 +9,11 @@
     },
 
   "dependencies": {
+    "EnterpriseLibrary.TransientFaultHandling": "6.0.1304",
+    "Microsoft.Graph.Core": "1.3.1",
+    "Microsoft.IdentityModel.Clients.ActiveDirectory": "3.13.9",
+    "Newtonsoft.Json": "10.0.2", 
+    "Serilog.Extensions.Logging.File": "1.0.1",
     "Microsoft.AspNetCore.Diagnostics": "1.0.0",
     "Microsoft.AspNetCore.Mvc": "1.0.0",
     "Microsoft.AspNetCore.Mvc.TagHelpers": "1.0.0",
