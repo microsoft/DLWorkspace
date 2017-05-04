@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text.RegularExpressions; 
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -25,6 +26,8 @@ using System.Net;
 using System.Globalization;
 using WindowsAuth;
 
+using WebPortal.Helper;
+
 
 namespace WindowsAuth.Controllers
 {
@@ -38,6 +41,31 @@ namespace WindowsAuth.Controllers
         {
             _appSettings = appSettings.Value;
             _logger = logger.CreateLogger("HomeController");
+        }
+
+        private async Task<bool> AddUser(string username, UserID userID)
+        {
+            HttpContext.Session.SetString("uid", userID.uid);
+
+            HttpContext.Session.SetString("gid", userID.gid);
+
+            HttpContext.Session.SetString("isAdmin", userID.isAdmin);
+
+            HttpContext.Session.SetString("isAuthorized", userID.isAuthorized);
+
+
+            if (userID.isAuthorized == "true")
+            {
+                var url = _appSettings.restapi + "/AddUser?userName=" + User.Identity.Name + "&userId=" + userID.uid;
+                using (var httpClient1 = new HttpClient())
+                {
+                    var response2 = await httpClient1.GetAsync(url);
+                    var content1 = await response2.Content.ReadAsStringAsync();
+                }
+            }
+            _logger.LogInformation("User {0} log in, Uid {1}, Gid {2}, isAdmin {3}, isAuthorized {4}",
+                                username, userID.uid, userID.gid, userID.isAdmin, userID.isAuthorized );
+            return true; 
         }
 
         private async Task<bool> AuthenticateByServer(string connectURL )
@@ -67,86 +95,180 @@ namespace WindowsAuth.Controllers
                     }
                 }
 
-
-
-                HttpContext.Session.SetString("uid", userID.uid);
-
-                HttpContext.Session.SetString("gid", userID.gid);
-
-                HttpContext.Session.SetString("isAdmin", userID.isAdmin);
-
-                HttpContext.Session.SetString("isAuthorized", userID.isAuthorized);
-
-
-                if (userID.isAuthorized == "true")
-                {
-                    url = _appSettings.restapi + "/AddUser?userName=" + User.Identity.Name + "&userId=" + userID.uid;
-                    using (var httpClient1 = new HttpClient())
-                    {
-                        var response2 = await httpClient1.GetAsync(url);
-                        var content1 = await response2.Content.ReadAsStringAsync();
-                    }
-                }
-
+                await AddUser(User.Identity.Name, userID);
             }
             return true; 
 
         }
 
-        // TODO: This is sample code that needs validation from the WAAD team!
-        // based on existing detection strategies
-        public class AdalDetectionStrategy : ITransientErrorDetectionStrategy
+        // Can the current server be authenticated by a user list?
+        private async Task<bool> AuthenticateByUsers(string username, string tenantID )
         {
-            private static readonly WebExceptionStatus[] webExceptionStatus =
-                new[]
-                {
-                WebExceptionStatus.ConnectionClosed,
-                WebExceptionStatus.Timeout,
-                WebExceptionStatus.RequestCanceled
-                };
-
-            private static readonly HttpStatusCode[] httpStatusCodes =
-                new[]
-                {
-                HttpStatusCode.InternalServerError,
-                HttpStatusCode.GatewayTimeout,
-                HttpStatusCode.ServiceUnavailable,
-                HttpStatusCode.RequestTimeout
-                };
-
-            public bool IsTransient(Exception ex)
+            var users = ConfigurationParser.GetConfiguration("Groups") as Dictionary<string, object>;
+            if (Object.ReferenceEquals(users, null))
             {
-                var adalException = ex as AdalException;
-                if (adalException == null)
+                return false; 
+            }
+            else
+            {
+                bool bMatched = false; 
+                
+                foreach (var pair in users)
                 {
-                    return false;
-                }
+                    var groupname = pair.Key;
+                    var group = pair.Value as Dictionary<string, object>;
 
-                if (adalException.ErrorCode == AdalError.ServiceUnavailable)
-                {
-                    return true;
-                }
-
-                var innerWebException = adalException.InnerException as WebException;
-                if (innerWebException != null)
-                {
-                    if (webExceptionStatus.Contains(innerWebException.Status))
+                    bool bFind = false; 
+                    if (!Object.ReferenceEquals(group, null))
                     {
-                        return true;
+                        Dictionary<string, object> allowed = null;
+                        if (group.ContainsKey("Allowed"))
+                            allowed = group["Allowed"] as Dictionary<string, object>;
+                        string uidString = null;
+                        if (group.ContainsKey("uid"))
+                            uidString = group["uid"] as string;
+                        string gidString = null;
+                        if (group.ContainsKey("gid"))
+                            gidString = group["gid"] as string;
+                        bool isAdmin = false;
+                        bool isAuthorized = false;
+
+
+                        if (!Object.ReferenceEquals(allowed, null))
+                        {
+                            foreach (var allowEntry in allowed)
+                            {
+                                string exp = allowEntry.Value as string;
+                                if (!Object.ReferenceEquals(exp, null))
+                                {
+                                    var re = new Regex(exp);
+                                    bool bSuccess = re.Match(username).Success;
+                                    if (bSuccess )
+                                    {
+                                        foreach (var examine_group in _appSettings.adminGroups)
+                                        {
+                                            if (groupname == examine_group)
+                                            {
+                                                isAdmin = true;
+                                                isAuthorized = true;
+                                            }
+                                        }
+                                        foreach (var examine_group in _appSettings.authorizedGroups)
+                                        {
+                                            if (groupname == examine_group)
+                                            {
+                                                isAuthorized = true;
+                                            }
+                                        }
+
+                                        _logger.LogInformation("Authentication by user list: match {0} with {1}, group {2}", username, exp, groupname );
+                                        bFind = true;
+                                        break; 
+                                    }
+                                }
+                            }
+                        }
+                        if (bFind && !String.IsNullOrEmpty(uidString) && !String.IsNullOrEmpty(gidString))
+                        {
+                            var userID = new UserID();
+                            int uidl=0, uidh=1000000, gid=0;
+                            Int32.TryParse(gidString, out gid);
+                            string[] uidRange = uidString.Split(new char[] { '-' });
+                            Int32.TryParse(uidRange[0], out uidl);
+                            Int32.TryParse(uidRange[1], out uidh);
+                            byte[] gb = new Guid(tenantID).ToByteArray();
+                            long tenantInt64 = BitConverter.ToInt64(gb, 0);
+                            long tenantRem = tenantInt64 % (uidh - uidl);
+                            int uid = uidl + Convert.ToInt32(tenantRem);
+
+                            bMatched = true;
+                            userID.uid = uid.ToString();
+                            userID.gid = gid.ToString(); 
+                            userID.isAdmin = isAdmin.ToString().ToLower();
+                            userID.isAuthorized = isAuthorized.ToString().ToLower();
+
+                            await AddUser(username, userID);
+                            return bMatched; 
+                        }
+                    }
+                }
+
+                return bMatched; 
+            }
+
+        }
+
+        private void ParseClaims(out string userObjectID,
+            out string username,
+            out string tenantID,
+            out string upn,
+            out string endpoint)
+        {
+            userObjectID = null;
+            username = User.Identity.Name;
+            tenantID = null;
+            upn = null;
+            endpoint = null;
+
+            var id = User.Identity as ClaimsIdentity;
+            if (id != null)
+            {
+                _logger.LogInformation("Number of Claims owned by User {0} : {1} ", username, id.Claims.Count());
+                foreach (var claim in id.Claims)
+                {
+                    var examine = claim.Issuer;
+
+                    _logger.LogInformation("User {0} has claim {1}", username, claim);
+                    Type claimType = claim.GetType();
+                    PropertyInfo[] properties = claimType.GetProperties();
+                    foreach (var prp in properties)
+                    {
+                        var value = prp.GetValue(claim);
+                        _logger.LogInformation("Property {0} is {1}", prp.Name, value);
                     }
 
-                    if (innerWebException.Status == WebExceptionStatus.ProtocolError)
+                    if (claim.Type == id.RoleClaimType)
                     {
-                        var response = innerWebException.Response as HttpWebResponse;
-                        return response != null && httpStatusCodes.Contains(response.StatusCode);
+                    }
+
+                    if (claim.Type.IndexOf("_claim_sources") >= 0)
+                    {
+                        string json = claim.Value;
+                        var dic = JObject.Parse(json);
+                        try
+                        {
+                            foreach (var src1 in dic["src1"])
+                            {
+                                foreach (var ep in src1)
+                                {
+                                    endpoint = ep.ToString();
+                                }
+                            }
+                        }
+                        catch (Exception e)
+                        { }
+                    }
+                    // http://schemas.microsoft.com/identity/claims/objectidentifier
+                    if (claim.Type.IndexOf("identity/claims/objectidentifier") >= 0)
+                    {
+                        userObjectID = claim.Value;
+                    }
+                    // http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn
+                    if (claim.Type.IndexOf("identity/claims/upn") >= 0)
+                    {
+                        upn = claim.Value;
+                    }
+                    // http://schemas.microsoft.com/ws/2012/10/identity/claims/tenantid
+                    if (claim.Type.IndexOf("identity/claims/tenantid") >= 0)
+                    {
+                        tenantID = claim.Value;
                     }
                 }
-
-                return false;
             }
         }
 
-        
+
+
 
         private async Task<AuthenticationResult> AcquireCredentialAsyncForApplication()
         {
@@ -178,72 +300,23 @@ namespace WindowsAuth.Controllers
         }
 
 
-        private async Task<bool> AuthenticateByAAD()
+        private async Task<bool> AuthenticateByAAD(string userObjectID,
+            string username,
+            string tenantID,
+            string upn,
+            string endpoint)
         {
             bool ret = true;
-            var id = User.Identity as ClaimsIdentity;
-            string userObjectID = null;
-            if (id != null)
+
+            UserID userID = new UserID();
+            userID.uid = "99999999";
+            userID.gid = "99999999";
+            userID.isAdmin = "false";
+            userID.isAuthorized = "false";
+
+            try
             {
-
-                string username = User.Identity.Name;
-                string tenantID = null;
-                string upn = null;
-                string endpoint = null; 
-
-                _logger.LogInformation("Number of Claims owned by User {0} : {1} ", username, id.Claims.Count());
-                foreach (var claim in id.Claims)
-                {
-                    var examine = claim.Issuer;
-
-                    _logger.LogInformation("User {0} has claim {1}", username, claim);
-                    Type claimType = claim.GetType();
-                    PropertyInfo[] properties = claimType.GetProperties();
-                    foreach (var prp in properties)
-                    {
-                        var value = prp.GetValue(claim);
-                        _logger.LogInformation("Property {0} is {1}", prp.Name, value);
-                    }
-
-                    if ( claim.Type == id.RoleClaimType)
-                    {
-                    }
-
-                    if (claim.Type.IndexOf("_claim_sources")>=0 )
-                    {
-                        string json = claim.Value;
-                        var dic = JObject.Parse(json);
-                        try
-                        {
-                            foreach (var src1 in dic["src1"])
-                            {
-                                foreach (var ep in src1)
-                                { 
-                                    endpoint = ep.ToString();
-                                }
-                            }
-                        }
-                        catch (Exception e)
-                        { }
-                    }
-                    // http://schemas.microsoft.com/identity/claims/objectidentifier
-                    if (claim.Type.IndexOf("identity/claims/objectidentifier")>=0 )
-                    {
-                        userObjectID = claim.Value;
-                    }
-                    // http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn
-                    if (claim.Type.IndexOf( "identity/claims/upn") >=0 )
-                    {
-                        upn = claim.Value;
-                    }
-                    // http://schemas.microsoft.com/ws/2012/10/identity/claims/tenantid
-                    if (claim.Type.IndexOf ( "identity/claims/tenantid") >=0 )
-                    {
-                        tenantID = claim.Value;
-                    }
-                }
-
-                if ( !String.IsNullOrEmpty(tenantID) && !String.IsNullOrEmpty(upn ) && !String.IsNullOrEmpty(endpoint))
+                if (!String.IsNullOrEmpty(tenantID) && !String.IsNullOrEmpty(upn) && !String.IsNullOrEmpty(endpoint))
                 {
                     var _assertionCredential = await AcquireCredentialAsyncForApplication();
                     string TenantName = Startup.Configuration["AzureAd:Tenant"];
@@ -262,10 +335,10 @@ namespace WindowsAuth.Controllers
                     webRequest.Headers["access-control-allow-origin"] = "*";
                     webRequest.Headers["access-control-expose-headers"] = "ETag, Location, Preference-Applied, Content-Range, request-id, client-request-id";
 
-                    
+
                     // webRequest.Headers["x-ms-dirapi-data-contract-version"] = "0.8";
-                    string jsonText=null;
-                    var content = new MemoryStream(); 
+                    string jsonText = null;
+                    var content = new MemoryStream();
                     using (var httpResponse = await webRequest.GetResponseAsync())
                     {
                         using (var responseStream = httpResponse.GetResponseStream())
@@ -280,8 +353,13 @@ namespace WindowsAuth.Controllers
                     // var activeDirectoryClient = new ActiveDirectoryClient(serviceRoot, async => await _assertionCredential.AccessToken);
 
                 }
+            }
+            catch (Exception)
+            {
 
             }
+            // Mark user as unauthorized. 
+            await AddUser(username, userID); 
             return ret; 
         }
 
@@ -291,36 +369,47 @@ namespace WindowsAuth.Controllers
         {
             if (User.Identity.IsAuthenticated && !HttpContext.Session.Keys.Contains("uid"))
             {
-                var winBindServers = new List<string>();
+                string userObjectID = null;
+                string username = null;
+                string tenantID = null;
+                string upn = null;
+                string endpoint = null;
+                ParseClaims(out userObjectID, out username, out tenantID, out upn, out endpoint);
+
+                bool bAuthenticated = await AuthenticateByUsers(username, tenantID ); 
+                if ( !bAuthenticated )
+                { 
+
+                    var retVal = ConfigurationParser.GetConfiguration("WinBindServer");
+
+                    var winBindServers = retVal as Dictionary<string, object>;
+                    string useServer = null; 
                 
-                for (int index = 0; ;index++)
-                {
-                    string server = Startup.Configuration["WinBindServer:"+index.ToString()];
-                    if (String.IsNullOrEmpty(server))
+                    if ( !Object.ReferenceEquals( winBindServers,null) )
                     {
-                        break;
+                        Random rnd = new Random();
+                        int idx = rnd.Next(winBindServers.Count);
+                        foreach( var value in winBindServers.Values )
+                        {
+                            if (idx == 0)
+                            {
+                                useServer = value as string;
+                            }
+                            else
+                                idx--; 
+                        }
+                    
+                    }
+
+                    bool bRet = false; 
+                    if (String.IsNullOrEmpty(useServer))
+                    {
+                        bRet = await AuthenticateByAAD(userObjectID, username, tenantID, upn, endpoint);
                     }
                     else
                     {
-                        winBindServers.Add(server);
+                        bRet = await AuthenticateByServer(useServer);
                     }
-                }
-
-                string useServer = null;
-                if (winBindServers.Count > 0)
-                {
-                    Random rnd = new Random();
-                    useServer = winBindServers[rnd.Next(winBindServers.Count)];
-                }
-
-                bool bRet = false; 
-                if (String.IsNullOrEmpty(useServer))
-                {
-                    bRet = await AuthenticateByAAD();
-                }
-                else
-                {
-                    bRet = await AuthenticateByServer(useServer);
                 }
             }
 

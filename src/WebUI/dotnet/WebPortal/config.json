@@ -1,7 +1,35 @@
 {
     // A list of URL to access the WinBind server.
-    // If not present, AzureAD is used. 
+    // If not present, AzureAD is used.
+
+    "WorkFolderAccessPoint": "/tmp",
+    "DataFolderAccessPoint": "/tmp",
+
+    "AuthorizedGroups": "Users",
+    "AdminGroups": "Admin",
+    /*
+    The Following option should be written in userconfig.json. 
+
     "WinBindServer": [ "http://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName={0}" ],
+    "Groups": {
+        // Group name
+        "Admin": {
+            // The match is in C# Regex Language, please refer to :
+            // https://msdn.microsoft.com/en-us/library/az24scfc(v=vs.110).aspx
+            "Allowed": [ "hongzl@microsoft.com" ],
+            "uid": "900000000-999999999",
+            "gid": "508953967"
+        },
+        "Users": {
+            // The match is in C# Regex Language, please refer to :
+            // https://msdn.microsoft.com/en-us/library/az24scfc(v=vs.110).aspx
+            "Allowed": [ "@microsoft.com" ],
+            "uid": "900000000-999999999",
+            "gid": "508953967"
+        }
+    },
+   
+    */
 
     "AzureAd": {
 
@@ -23,7 +51,7 @@
         "AadInstance": "https://login.microsoftonline.com/{0}", // This is the public instance of Azure AD
         "OauthInstance": "https://login.microsoftonline.com/common/v2.0",
         "AdminInstance": "https://login.microsoftonline.com/{0}/adminconsent",
-        "Oauth2Instance": "https://login.microsoftonline.com/{0}/oauth2/v2.0/",
+        "Oauth2Instance": "https://login.microsoftonline.com/common/oauth2",
 
         "Scope": "User.Read",
 
