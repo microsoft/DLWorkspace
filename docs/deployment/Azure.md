@@ -60,6 +60,7 @@ This document describes the procedure to deploy DL workspace cluster on Azure. W
   ```
   ./deploy.py docker push restfulapi
   ./deploy.py docker push webui
+  ./deploy.py webui
   ./deploy.py kubernetes start jobmanager
   ./deploy.py kubernetes start restfulapi
   ./deploy.py kubernetes start webportal

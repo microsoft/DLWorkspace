@@ -21,6 +21,8 @@ namespace WebPortal.Helper
         /// Storing parsed configuration for quick access
         /// </summary>
         private static Dictionary<string, object> _parsedConfiguration = new Dictionary<string, object>();
+        private static DateTime _lastUpdate = DateTime.MinValue;
+        private static double _elapseTillUpdate = 5.0;
         private static ILogger _logger;
         private static bool _bParsed = false;
 
@@ -56,50 +58,56 @@ namespace WebPortal.Helper
 
         public static object GetConfiguration(string key)
         {
-            string[] keys = key.Split(new char[] { ':' });
-            int nKeys = keys.Count();
-            var root = _parsedConfiguration;
-
-            for (int i = 0; i < nKeys && !Object.ReferenceEquals(root, null); i++)
+            lock(_parsedConfiguration)
             {
-                string entry = keys[i];
-                if (i < nKeys - 1)
+                ParseConfigurationAgain();
+                string[] keys = key.Split(new char[] { ':' });
+                int nKeys = keys.Count();
+                var root = _parsedConfiguration;
+
+                for (int i = 0; i < nKeys && !Object.ReferenceEquals(root, null); i++)
                 {
-                    // Intermediate level. 
-                    if ( root.ContainsKey(entry))
+                    string entry = keys[i];
+                    if (i < nKeys - 1)
                     {
-                        root = root[entry] as Dictionary<string, object>;
+                        // Intermediate level. 
+                        if ( root.ContainsKey(entry))
+                        {
+                            root = root[entry] as Dictionary<string, object>;
+                        }
+                        else
+                            root = null; 
                     }
                     else
-                        root = null; 
+                    {
+                        if (root.ContainsKey(entry))
+                            return root[entry];
+                        else
+                            return null; 
+                    }
                 }
-                else
-                {
-                    if (root.ContainsKey(entry))
-                        return root[entry];
-                    else
-                        return null; 
-                }
+                return null;
             }
-            return null; 
         }
-
 
         /// <summary>
         /// Parse a certain configuration 
         /// </summary>
         /// <param name="config"></param>
-        public static void ParseConfiguration(ILoggerFactory logger)
+        public static void ParseConfigurationAgain()
         {
-            if (!_bParsed)
+            DateTime cur = DateTime.UtcNow;
+            var elapse = cur.Subtract( _lastUpdate );
+            if (elapse.TotalSeconds > _elapseTillUpdate)
             {
-                _logger = logger.CreateLogger("ConfigurationParser");
+                _lastUpdate = cur;
+                _parsedConfiguration = new Dictionary<string, object>();
 
                 // The following code use reflection to travrese & parse configuration. 
                 var configType = WindowsAuth.Startup.Configuration.GetType();
                 BindingFlags bindFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
-                
-                var info = configType.GetField("_providers", bindFlags );
+
+                var info = configType.GetField("_providers", bindFlags);
                 object obj = info.GetValue(WindowsAuth.Startup.Configuration);
                 var objType = obj.GetType();
                 var listProviders = obj as List<IConfigurationProvider>;
@@ -113,9 +121,9 @@ namespace WebPortal.Helper
                     {
                         var providerType = jsonProvider.GetType();
                         BindingFlags bdFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-                        var dataFieldInfo = providerType.GetProperty("Data", bdFlags );
-                        object dataField  = dataFieldInfo.GetValue(jsonProvider);
-                        var dataFieldType = dataField.GetType(); 
+                        var dataFieldInfo = providerType.GetProperty("Data", bdFlags);
+                        object dataField = dataFieldInfo.GetValue(jsonProvider);
+                        var dataFieldType = dataField.GetType();
                         var dataDic = dataField as SortedDictionary<string, string>;
                         foreach (var pair in dataDic)
                         {
@@ -131,5 +139,19 @@ namespace WebPortal.Helper
                 _bParsed = true;
             }
         }
+
+        /// <summary>
+        /// Parse a certain configuration 
+        /// </summary>
+        /// <param name="config"></param>
+        public static void ParseConfiguration(ILoggerFactory logger)
+        {
+            _logger = logger.CreateLogger("ConfigurationParser");
+            ParseConfigurationAgain();
+            _bParsed = true;
+        }
     }
+
+
+    
 }
