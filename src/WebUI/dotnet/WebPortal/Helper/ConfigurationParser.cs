@@ -24,7 +24,7 @@ namespace WebPortal.Helper
         private static DateTime _lastUpdate = DateTime.MinValue;
         private static double _elapseTillUpdate = 5.0;
         private static ILogger _logger;
-        private static bool _bParsed = false;
+        private static bool _first = true; 
 
         public static void SetConfiguration(string key, string value )
         {
@@ -45,13 +45,15 @@ namespace WebPortal.Helper
                     root = root[entry] as Dictionary<string, object>;
                     if (Object.ReferenceEquals(root, null))
                     {
-                        _logger.LogError("Error in Configuration, Key = {0}, Value = {1}, conflict partial key exists... ", key, value);
+                        if (_first)
+                            _logger.LogError("Error in Configuration, Key = {0}, Value = {1}, conflict partial key exists... ", key, value);
                     }
                 }
                 else
                 {
                     root[entry] = value;
-                    _logger.LogInformation("Configuration[{0}] = {1}", key, value);
+                    if ( _first )
+                        _logger.LogInformation("Configuration[{0}] = {1}", key, value);
                 }
             }
         }
@@ -127,6 +129,8 @@ namespace WebPortal.Helper
                         var dataDic = dataField as SortedDictionary<string, string>;
                         foreach (var pair in dataDic)
                         {
+                            if (_first )
+                                _logger.LogInformation("Parsing: {0} - {1} ", pair.Key, pair.Value);
                             SetConfiguration(pair.Key, pair.Value);
                         }
                     }
@@ -136,7 +140,6 @@ namespace WebPortal.Helper
 
 
                 }
-                _bParsed = true;
             }
         }
 
@@ -148,7 +151,7 @@ namespace WebPortal.Helper
         {
             _logger = logger.CreateLogger("ConfigurationParser");
             ParseConfigurationAgain();
-            _bParsed = true;
+            _first = false; 
         }
     }
 

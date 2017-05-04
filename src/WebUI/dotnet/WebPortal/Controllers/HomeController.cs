@@ -246,7 +246,9 @@ namespace WindowsAuth.Controllers
                             }
                         }
                         catch (Exception e)
-                        { }
+                        {
+                            _logger.LogInformation("Issue when parsing _claim_sources, exception: {0}", e.Message );
+                        }
                     }
                     // http://schemas.microsoft.com/identity/claims/objectidentifier
                     if (claim.Type.IndexOf("identity/claims/objectidentifier") >= 0)
