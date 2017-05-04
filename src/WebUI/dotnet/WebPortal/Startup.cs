@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO; 
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -13,6 +14,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using WindowsAuth.models;
 
+using WebPortal.Helper;
+
 namespace WindowsAuth
 {
     public class Startup
@@ -20,11 +23,15 @@ namespace WindowsAuth
         public Startup(IHostingEnvironment env)
         {
             // Set up configuration sources.
-            Configuration = new ConfigurationBuilder()
+            var builder = new ConfigurationBuilder()
                 .SetBasePath(env.ContentRootPath)
                 .AddJsonFile("config.json")
-                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
-                .Build();
+                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
+            // User Configuration is added through ./deploy.py
+            if (File.Exists("userconfig.json"))
+                builder.AddJsonFile("userconfig.json");
+            Configuration = builder.Build();
+            
         }
 
         static public IConfigurationRoot Configuration { get; set; }
@@ -42,10 +49,10 @@ namespace WindowsAuth
 
                 // Typed syntax - Configuration.Get<type>("")
                 appSettings.restapi = Configuration["restapi"];
-                appSettings.workFolderAccessPoint = Configuration["workFolderAccessPoint"];
-                appSettings.dataFolderAccessPoint = Configuration["dataFolderAccessPoint"];
-                appSettings.adminGroups = Configuration["adminGroups"].Split(new char[] { ',', ';' }).ToList<string>();
-                appSettings.authorizedGroups = Configuration["authorizedGroups"].Split(new char[] { ',', ';' }).ToList<string>();
+                appSettings.workFolderAccessPoint = Configuration["WorkFolderAccessPoint"];
+                appSettings.dataFolderAccessPoint = Configuration["DataFolderAccessPoint"];
+                appSettings.adminGroups = Configuration["AdminGroups"].Split(new char[] { ',', ';' }).ToList<string>();
+                appSettings.authorizedGroups = Configuration["AuthorizedGroups"].Split(new char[] { ',', ';' }).ToList<string>();
             });
             // Add Authentication services.
             services.AddAuthentication(sharedOptions => sharedOptions.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme);
@@ -55,8 +62,9 @@ namespace WindowsAuth
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
         {
             // Add the console logger.
-            loggerFactory.AddConsole(Configuration.GetSection("Logging")).AddDebug(); 
+            loggerFactory.AddConsole(Configuration.GetSection("Logging")).AddDebug();
 
+            ConfigurationParser.ParseConfiguration(loggerFactory);
 
             // Configure error handling middleware.
             app.UseExceptionHandler("/Home/Error");
@@ -79,12 +87,14 @@ namespace WindowsAuth
                 openIDOpt.Scope.Add(scope);
             }
             openIDOpt.Authority = String.Format(Configuration["AzureAd:AadInstance"], Configuration["AzureAd:Tenant"]);
-            // openIDOpt.Authority = Configuration["AzureAd:OauthInstance"];
+            // openIDOpt.Authority = Configuration["AzureAd:Oauth2Instance"];
 
             openIDOpt.PostLogoutRedirectUri = Configuration["AzureAd:PostLogoutRedirectUri"];
+      
             openIDOpt.Events = new OpenIdConnectEvents
             {
                 OnRemoteFailure = OnAuthenticationFailed,
+                OnAuthorizationCodeReceived = OnAuthorizationCode, 
             };
 
             // Configure the OWIN pipeline to use OpenID Connect auth.
@@ -134,31 +144,38 @@ namespace WindowsAuth
             return Task.FromResult(0);
         }
 
-/*
+        private Task OnAuthorizationCode(AuthorizationCodeReceivedContext context)
+        {
+            context.HandleResponse();
+            var info = context.ToString();
+            return Task.FromResult(0);
+        }
 
-                    Notifications = new OpenIdConnectAuthenticationNotifications
-                    {
-                        AuthorizationCodeReceived = async (context) =>
-                        {
-                            var code = context.Code;
-                            string signedInUserID = context.AuthenticationTicket.Identity.FindFirst(ClaimTypes.NameIdentifier).Value;
-                            ConfidentialClientApplication cca = new ConfidentialClientApplication(
-                                appId,
-                                redirectUri,
-                                new ClientCredential(appSecret),
-                                new SessionTokenCache(signedInUserID, context.OwinContext.Environment["System.Web.HttpContextBase"] as HttpContextBase));
-                            string[] scopes = graphScopes.Split(new char[] { ' ' });
+        /*
 
-                            AuthenticationResult result = await cca.AcquireTokenByAuthorizationCodeAsync(scopes, code);
-                        },
-                        AuthenticationFailed = (context) =>
-                        {
-                            context.HandleResponse();
-                            context.Response.Redirect("/Error?message=151561651" + context.Exception.Message);
-                            return Task.FromResult(0);
-                        }
-                    }
-                    */
-        
+                            Notifications = new OpenIdConnectAuthenticationNotifications
+                            {
+                                AuthorizationCodeReceived = async (context) =>
+                                {
+                                    var code = context.Code;
+                                    string signedInUserID = context.AuthenticationTicket.Identity.FindFirst(ClaimTypes.NameIdentifier).Value;
+                                    ConfidentialClientApplication cca = new ConfidentialClientApplication(
+                                        appId,
+                                        redirectUri,
+                                        new ClientCredential(appSecret),
+                                        new SessionTokenCache(signedInUserID, context.OwinContext.Environment["System.Web.HttpContextBase"] as HttpContextBase));
+                                    string[] scopes = graphScopes.Split(new char[] { ' ' });
+
+                                    AuthenticationResult result = await cca.AcquireTokenByAuthorizationCodeAsync(scopes, code);
+                                },
+                                AuthenticationFailed = (context) =>
+                                {
+                                    context.HandleResponse();
+                                    context.Response.Redirect("/Error?message=151561651" + context.Exception.Message);
+                                    return Task.FromResult(0);
+                                }
+                            }
+                            */
+
     }
 }
