@@ -11,7 +11,7 @@
     The Following option should be written in userconfig.json. 
 
     "WinBindServer": [ "http://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName={0}" ],
-    "Groups": {
+    "UserGroups": {
         // Group name
         "Admin": {
             // The match is in C# Regex Language, please refer to :

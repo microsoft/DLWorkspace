@@ -25,7 +25,12 @@ spec:
         volumeMounts:
         - mountPath: /WebUI
           name: webuiconfig
+        - mountPath: /var/log/webui
+          name: webuilog
       volumes:
       - name: webuiconfig
         hostPath:
           path: /etc/WebUI
+      - name: webuilog
+        hostPath:
+          path: /var/log/webui

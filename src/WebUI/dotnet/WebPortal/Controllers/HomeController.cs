@@ -104,7 +104,7 @@ namespace WindowsAuth.Controllers
         // Can the current server be authenticated by a user list?
         private async Task<bool> AuthenticateByUsers(string username, string tenantID )
         {
-            var users = ConfigurationParser.GetConfiguration("Groups") as Dictionary<string, object>;
+            var users = ConfigurationParser.GetConfiguration("UserGroups") as Dictionary<string, object>;
             if (Object.ReferenceEquals(users, null))
             {
                 return false; 

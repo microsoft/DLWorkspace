@@ -166,6 +166,34 @@ default_config_parameters = {
 	# "philly": philly cluster
 	# "ubuntu": ubuntu cluster
 	"platform-scripts" : "default", 
+
+
+	# Default usergroup for the WebUI portal
+	# Default setting will allow all Microsoft employees to access the cluster, 
+	# You should override this setting if you have concern. 
+	"UserGroups": {
+        # Group name
+        "Admins": {
+            # The match is in C# Regex Language, please refer to :
+            # https://msdn.microsoft.com/en-us/library/az24scfc(v=vs.110).aspx
+            "Allowed": [ "jinl@microsoft.com", "hongzl@microsoft.com" ],
+            "uid": "900000000-999999999",
+            "gid": "508953967"
+        },
+        "Users": {
+            # The match is in C# Regex Language, please refer to :
+            # https://msdn.microsoft.com/en-us/library/az24scfc(v=vs.110).aspx
+            "Allowed": [ "@microsoft.com" ],
+            "uid": "900000000-999999999",
+            "gid": "508953967"
+        }, 
+    },
+
+	"WebUIauthorizedGroups": [ "Admins" ], 
+	"WebUIadminGroups" : [ "Users" ], 
+	"WinBindServer": [ "http://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName={0}" ],
+	"workFolderAccessPoint" : "/tmp", 
+	"dataFolderAccessPoint" : "/tmp", 
 }
 
 
@@ -1180,14 +1208,15 @@ def deploy_restful_API_on_node(ipAddress):
 
 	if not os.path.exists("./deploy/RestfulAPI"):
 		os.system("mkdir -p ./deploy/RestfulAPI")
-	utils.render_template("../utils/config.yaml.template","./deploy/RestfulAPI/config.yaml",config)
+	
+	utils.render_template("./template/RestfulAPI/config.yaml","./deploy/RestfulAPI/config.yaml",config)
 	utils.render_template("./template/master/restapi-kubeconfig.yaml","./deploy/master/restapi-kubeconfig.yaml",config)
 
 	utils.sudo_scp(config["ssh_cert"],"./deploy/RestfulAPI/config.yaml","/etc/RestfulAPI/config.yaml", "core", masterIP )
 	utils.sudo_scp(config["ssh_cert"],"./deploy/master/restapi-kubeconfig.yaml","/etc/kubernetes/restapi-kubeconfig.yaml", "core", masterIP )
 
 
-	utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo mkdir -p /dlws-data && sudo mount %s /dlws-data ; docker rm -f restfulapi; docker rm -f jobScheduler ; docker pull %s ; docker run -d -p %s:80 --restart always -v /etc/RestfulAPI:/RestfulAPI --name restfulapi %s ; docker run -d -v /dlws-data:/dlws-data -v /etc/RestfulAPI:/RestfulAPI -v /etc/kubernetes/restapi-kubeconfig.yaml:/root/.kube/config -v /etc/kubernetes/ssl:/etc/kubernetes/ssl --restart always --name jobScheduler %s /runScheduler.sh ;" % (config["nfs-server"], dockername,config["restfulapiport"],dockername,dockername))
+	# utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo mkdir -p /dlws-data && sudo mount %s /dlws-data ; docker rm -f restfulapi; docker rm -f jobScheduler ; docker pull %s ; docker run -d -p %s:80 --restart always -v /etc/RestfulAPI:/RestfulAPI --name restfulapi %s ; docker run -d -v /dlws-data:/dlws-data -v /etc/RestfulAPI:/RestfulAPI -v /etc/kubernetes/restapi-kubeconfig.yaml:/root/.kube/config -v /etc/kubernetes/ssl:/etc/kubernetes/ssl --restart always --name jobScheduler %s /runScheduler.sh ;" % (config["nfs-server"], dockername,config["restfulapiport"],dockername,dockername))
 
 
 	print "==============================================="
@@ -1210,11 +1239,11 @@ def deploy_webUI_on_node(ipAddress):
 
 	if not os.path.exists("./deploy/WebUI"):
 		os.system("mkdir -p ./deploy/WebUI")
-	utils.render_template("./template/WebUI/appsettings.json.template","./deploy/WebUI/appsettings.json",config)
-	utils.sudo_scp(config["ssh_cert"],"./deploy/WebUI/appsettings.json","/etc/WebUI/appsettings.json", "core", webUIIP )
+	utils.render_template("./template/WebUI/userconfig.json","./deploy/WebUI/userconfig.json",config)
+	utils.sudo_scp(config["ssh_cert"],"./deploy/WebUI/userconfig.json","/etc/WebUI/userconfig.json", "core", webUIIP )
 
 
-	utils.SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker pull %s ; docker rm -f webui ; docker run -d -p %s:80 -v /etc/WebUI:/WebUI --restart always --name webui %s ;" % (dockername,str(config["webuiport"]),dockername))
+	# utils.SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker pull %s ; docker rm -f webui ; docker run -d -p %s:80 -v /etc/WebUI:/WebUI --restart always --name webui %s ;" % (dockername,str(config["webuiport"]),dockername))
 
 
 	print "==============================================="

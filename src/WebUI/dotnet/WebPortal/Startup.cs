@@ -15,6 +15,7 @@ using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using WindowsAuth.models;
 
 using WebPortal.Helper;
+using Serilog.Extensions.Logging;
 
 namespace WindowsAuth
 {
@@ -27,9 +28,10 @@ namespace WindowsAuth
                 .SetBasePath(env.ContentRootPath)
                 .AddJsonFile("config.json")
                 .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
+
             // User Configuration is added through ./deploy.py
             if (File.Exists("userconfig.json"))
-                builder.AddJsonFile("userconfig.json");
+                builder.AddJsonFile("userconfig.json", optional: true, reloadOnChange: true);
             Configuration = builder.Build();
             
         }
@@ -48,7 +50,7 @@ namespace WindowsAuth
             {
 
                 // Typed syntax - Configuration.Get<type>("")
-                appSettings.restapi = Configuration["restapi"];
+                appSettings.restapi = Configuration["Restapi"];
                 appSettings.workFolderAccessPoint = Configuration["WorkFolderAccessPoint"];
                 appSettings.dataFolderAccessPoint = Configuration["DataFolderAccessPoint"];
                 appSettings.adminGroups = Configuration["AdminGroups"].Split(new char[] { ',', ';' }).ToList<string>();
@@ -63,6 +65,9 @@ namespace WindowsAuth
         {
             // Add the console logger.
             loggerFactory.AddConsole(Configuration.GetSection("Logging")).AddDebug();
+            loggerFactory.AddFile("/var/log/webui/webui-{Date}.txt");
+
+
 
             ConfigurationParser.ParseConfiguration(loggerFactory);
 
