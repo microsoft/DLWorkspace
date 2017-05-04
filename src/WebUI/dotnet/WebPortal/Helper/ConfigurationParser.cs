@@ -116,44 +116,61 @@ namespace WebPortal.Helper
                 // obj = info.GetValue(WindowsAuth.Startup.Configuration, null);
 
 
+                int provider_index = 0; 
                 foreach (var provider in listProviders)
                 {
+                    provider_index++; 
                     var jsonProvider = provider as JsonConfigurationProvider;
                     if (!Object.ReferenceEquals(jsonProvider, null))
                     {
                         var providerType = jsonProvider.GetType();
                         BindingFlags bdFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
                         var dataFieldInfo = providerType.GetProperty("Data", bdFlags);
+                        if (Object.ReferenceEquals(dataFieldInfo, null))
+                        {
+                            _logger.LogError("Provider {0}, Class doesn't have a Data field ...  ", provider_index);
+                        }
                         object dataField = dataFieldInfo.GetValue(jsonProvider);
+                        if (Object.ReferenceEquals(dataField, null))
+                        {
+                            _logger.LogError("Provider {0}, Property Data doesn't exist ...  ", provider_index);
+                        }
                         var dataFieldType = dataField.GetType();
                         var dataDic = dataField as SortedDictionary<string, string>;
-                        foreach (var pair in dataDic)
+                        if (Object.ReferenceEquals(dataDic, null))
                         {
-                            if (Object.ReferenceEquals( pair.Key, null) || Object.ReferenceEquals(pair.Value, null) )
+                            _logger.LogError("Provider {0}, Data field is of type {1}, not SortedDictionary ...  ", provider_index, dataFieldType.ToString() );
+                        }
+                        else
+                        { 
+                            foreach (var pair in dataDic)
                             {
-                                _logger.LogError("Null encountered at parsing .... ");
-                                if (Object.ReferenceEquals(pair.Key, null))
+                                if (Object.ReferenceEquals( pair.Key, null) || Object.ReferenceEquals(pair.Value, null) )
                                 {
-                                    _logger.LogError("Key is null");
+                                    _logger.LogError("Null encountered at parsing .... ");
+                                    if (Object.ReferenceEquals(pair.Key, null))
+                                    {
+                                        _logger.LogError("Key is null");
+                                    }
+                                    else
+                                    {
+                                        _logger.LogError("Key is {0}", pair.Key);
+                                    }
+                                    if (Object.ReferenceEquals(pair.Value, null))
+                                    {
+                                        _logger.LogError("Value is null");
+                                    }
+                                    else
+                                    {
+                                        _logger.LogError("Value is {0}", pair.Value);
+                                    }
                                 }
                                 else
                                 {
-                                    _logger.LogError("Key is {0}", pair.Key);
+                                    if (_first)
+                                        _logger.LogInformation("Parsing: {0} - {1} ", pair.Key, pair.Value);
+                                    SetConfiguration(pair.Key, pair.Value);
                                 }
-                                if (Object.ReferenceEquals(pair.Value, null))
-                                {
-                                    _logger.LogError("Value is null");
-                                }
-                                else
-                                {
-                                    _logger.LogError("Value is {0}", pair.Value);
-                                }
-                            }
-                            else
-                            {
-                                if (_first)
-                                    _logger.LogInformation("Parsing: {0} - {1} ", pair.Key, pair.Value);
-                                SetConfiguration(pair.Key, pair.Value);
                             }
                         }
                     }
