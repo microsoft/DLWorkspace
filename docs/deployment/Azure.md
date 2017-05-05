@@ -16,6 +16,8 @@ This document describes the procedure to deploy DL workspace cluster on Azure. W
   * Use Resource Manager 
   * Click Public IP, and select "Static IP". 
   * Assign the VM to the Security Group created above. 
+  * Create the VM. 
+  * After the public IP is available, assign a DNS name to the VM, this DNS name is needed in the configuration file below.
 
   The key operation is to make sure that all ports on the VMs are assessible publicly. 
 
