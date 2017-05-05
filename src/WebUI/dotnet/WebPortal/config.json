@@ -5,11 +5,10 @@
     "WorkFolderAccessPoint": "/tmp",
     "DataFolderAccessPoint": "/tmp",
 
-    "AuthorizedGroups": "Users",
-    "AdminGroups": "Admin",
     /*
     The Following option should be written in userconfig.json. 
-
+    "AuthorizedGroups": [ "Users" ],
+    "AdminGroups": [ "Admin" ],
     "WinBindServer": [ "http://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName={0}" ],
     "UserGroups": {
         // Group name

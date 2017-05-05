@@ -15,6 +15,7 @@ import distutils.file_util
 import shutil
 import random
 import glob
+import copy
 
 from os.path import expanduser
 
@@ -78,8 +79,11 @@ default_config_parameters = {
 	"restfulapiport" : "5000",
 	"ssh_cert" : "./deploy/sshkey/id_rsa",
 
-	# the path of where dfs/nfs is mounted on each node, default /dlwsdata
+	# the path of where dfs/nfs is source linked and consumed on each node, default /dlwsdata
 	"storage-mount-path" : "/dlwsdata",
+	# the path of where filesystem is actually mounted /dlwsdata
+	"physical-mount-path" : "/mntdlws",
+
 	# the path of where nvidia driver is installed on each node, default /opt/nvidia-driver/current
 	"nvidia-driver-path" : "/opt/nvidia-driver/current", 
 
@@ -173,14 +177,14 @@ default_config_parameters = {
 	# You should override this setting if you have concern. 
 	"UserGroups": {
         # Group name
-        "Admins": {
+        "CCSAdmins": {
             # The match is in C# Regex Language, please refer to :
             # https://msdn.microsoft.com/en-us/library/az24scfc(v=vs.110).aspx
             "Allowed": [ "jinl@microsoft.com", "hongzl@microsoft.com" ],
             "uid": "900000000-999999999",
             "gid": "508953967"
         },
-        "Users": {
+        "MicrosoftUsers": {
             # The match is in C# Regex Language, please refer to :
             # https://msdn.microsoft.com/en-us/library/az24scfc(v=vs.110).aspx
             "Allowed": [ "@microsoft.com" ],
@@ -189,11 +193,11 @@ default_config_parameters = {
         }, 
     },
 
-	"WebUIauthorizedGroups": [ "Admins" ], 
-	"WebUIadminGroups" : [ "Users" ], 
+	"WebUIauthorizedGroups": [ "MicrosoftUsers" ], 
+	"WebUIadminGroups" : [ "CCSAdmins" ], 
 	"WinBindServer": [ "http://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName={0}" ],
-	"workFolderAccessPoint" : "/tmp", 
-	"dataFolderAccessPoint" : "/tmp", 
+	"workFolderAccessPoint" : "", 
+	"dataFolderAccessPoint" : "", 
 }
 
 
@@ -1184,19 +1188,6 @@ def create_MYSQL_for_WebUI():
 	#todo: create a mysql database, and set "mysql-hostname", "mysql-username", "mysql-password", "mysql-database"
 	pass
 
-def build_restful_API_docker():
-	dockername = "%s/%s-restfulapi" %  (config["dockerregistry"],config["cluster_name"])
-	tarname = "deploy/docker/restfulapi-%s.tar" % config["cluster_name"]
-
-	os.system("docker rmi %s" % dockername)
-	os.system("docker build -t %s ../docker-images/RestfulAPI" % dockername)
-
-	if not os.path.exists("deploy/docker"):
-		os.system("mkdir -p %s" % "deploy/docker")
-
-	os.system("rm %s" % tarname )
-	os.system("docker save " + dockername + " > " + tarname )
-
 def deploy_restful_API_on_node(ipAddress):
 
 	masterIP = ipAddress
@@ -1223,10 +1214,6 @@ def deploy_restful_API_on_node(ipAddress):
 	print "restful api is running at: http://%s:%s" % (masterIP,config["restfulapiport"])
 	config["restapi"] = "http://%s:%s" %  (masterIP,config["restfulapiport"])
 
-def build_webUI_docker():
-	os.system("docker rmi %s" % dockername)
-	os.system("docker build -t %s ../docker-images/WebUI" % dockername)
-
 def deploy_webUI_on_node(ipAddress):
 
 	sshUser = "core"
@@ -1240,6 +1227,7 @@ def deploy_webUI_on_node(ipAddress):
 	if not os.path.exists("./deploy/WebUI"):
 		os.system("mkdir -p ./deploy/WebUI")
 	utils.render_template("./template/WebUI/userconfig.json","./deploy/WebUI/userconfig.json",config)
+	os.system("cp --verbose ./deploy/WebUI/userconfig.json ../WebUI/dotnet/WebPortal/")
 	utils.sudo_scp(config["ssh_cert"],"./deploy/WebUI/userconfig.json","/etc/WebUI/userconfig.json", "core", webUIIP )
 
 
@@ -1248,6 +1236,75 @@ def deploy_webUI_on_node(ipAddress):
 
 	print "==============================================="
 	print "Web UI is running at: http://%s:%s" % (webUIIP,str(config["webuiport"]))
+
+def mount_fileshares(perform_mount=True):
+	mountpoints = { }
+	fstabmask = "##############DLWSMOUNT#################\n"
+	fstab = fstabmask
+	for k,v in config["mountpoints"].iteritems():
+		if "type" in v:
+			if v["type"] == "azurefileshare":
+				if "accountname" in v and "filesharename" in v and "mountpoints" in v and "accesskey" in v:
+					mountpoints[k] = copy.deepcopy( v )
+					mountpoints[k]["url"] = "//" + mountpoints[k]["accountname"] + ".file.core.windows.net/"+mountpoints[k]["filesharename"]
+					physicalmountpoint = config["physical-mount-path"] 
+					storagemountpoint = config["storage-mount-path"]
+					if len(v["mountpoints"])>0:
+						physicalmountpoint = os.path.join( physicalmountpoint, v["mountpoints"] )
+						storagemountpoint = os.path.join( storagemountpoint, v["mountpoints"])
+					mountpoints[k]["physicalmountpoint"] = physicalmountpoint
+					mountpoints[k]["storagemountpoint"] = storagemountpoint
+					fstab += "%s %s cifs vers=3.0,username=%s,password=%s,dir_mode=0777,file_mode=0777,serverino\n" % (mountpoints[k]["url"], physicalmountpoint, v["accountname"], v["accesskey"])
+				else:
+					print "Error: fileshare %s, type %s, miss one of the parameter accountname, filesharename, mountpoints, accesskey" %(k, v["type"])
+			else:
+				print "Error: Unknown fileshare %s with type %s" %( k, v["type"])
+		else:
+			print "Error: fileshare %s with no type" %( k )
+	# print fstab
+	if perform_mount:
+		nodes = get_nodes(config["clusterId"])
+		for node in nodes:
+			remotecmd = "sudo rm -rf %s; " % config["storage-mount-path"]
+			remotecmd += "sudo rm -rf %s; " % config["physical-mount-path"]
+			if len(mountpoints) > 1:
+				remotecmd += "sudo mkdir -p %s; " % config["storage-mount-path"]
+			filesharetype = {}
+			for k,v in mountpoints.iteritems():
+				if v["type"] == "azurefileshare":
+					if not ("azurefileshare" in filesharetype):
+						filesharetype["azurefileshare"] = True
+						remotecmd += "sudo apt-get install cifs-utils; "
+					physicalmountpoint = v["physicalmountpoint"] 
+					storagemountpoint = v["storagemountpoint"]
+					remotecmd += "sudo mkdir -p %s; " % physicalmountpoint
+					remotecmd += "sudo mount -t cifs %s %s -o vers=3.0,username=%s,password=%s,dir_mode=0777,file_mode=0777,serverino; " % (v["url"], physicalmountpoint, v["accountname"], v["accesskey"] )
+					remotecmd += "sudo ln -s %s %s; " % (physicalmountpoint, storagemountpoint)
+			utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)
+			# Read in configuration of fstab
+			fstabcontent = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "cat /etc/fstab")
+			usefstab = fstab
+			if fstabcontent.find("No such file or directory")==-1:
+				index = fstabcontent.find(fstabmask) 
+				if index > 1:
+					usefstab = fstabcontent[:index] + fstab
+				else:
+					usefstab = fstabcontent + "\n" + fstab
+			if verbose:
+				print "----------- Resultant /etc/fstab --------------------"
+				print usefstab
+			os.system("mkdir -p ./deploy/etc")
+			with open("./deploy/etc/fstab","w") as f:
+				f.write(usefstab)
+				f.close()
+			utils.sudo_scp( config["ssh_cert"], "./deploy/etc/fstab", "/etc/fstab", "core", node)
+			 
+		
+	for k, v in mountpoints.iteritems():
+		mountpoints[k].pop("accesskey", None)
+	# print mountpoints
+
+	return mountpoints
 
 
 def deploy_webUI():
@@ -2339,6 +2396,9 @@ Command:
 		check_master_ETCD_status()
 		gen_configs()		
 		deploy_webUI()
+
+	elif command == "mount":
+		mount_fileshares(True)
 		
 	elif command == "labelwebui":
 		label_webUI(nargs[0])

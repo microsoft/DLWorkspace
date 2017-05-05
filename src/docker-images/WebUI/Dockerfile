@@ -39,10 +39,11 @@ RUN pip install flask
 RUN pip install flask.restful
 
 #this ssh key is used to download DLWorkspace from github. It has read-only access to github repo. 
-COPY gittoken /root/.ssh/id_rsa
-RUN chmod 400 /root/.ssh/id_rsa
 RUN apt-get install -y --no-install-recommends ssh
 
-COPY run.sh /
-RUN chmod +x /run.sh
-CMD /run.sh
+WORKDIR /usr/WebPortal
+
+ADD WebPortal /usr/WebPortal
+COPY run.sh .
+RUN chmod +x run.sh
+CMD ./run.sh

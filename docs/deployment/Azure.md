@@ -21,7 +21,9 @@ This document describes the procedure to deploy DL workspace cluster on Azure. W
 
   We assume that the Azure VM is deployed at westUs region. If you plan to deploy the VM to other Azure regions, please contact the authors. We use Azure App with region authentication, and currently, the App is only authorized in certain specific Azure regions. 
 
-3. Add th DNS name of the created VM to a configuration file.  
+3. Creaet a Azure File Share. Please note that you need a ** Classic ** storage account at Azure, and [A sample instruction is here.] (https://docs.microsoft.com/en-us/azure/storage/storage-dotnet-how-to-use-files)
+
+3. Add the DNS name of the created VM to a configuration file.  
 
   You may add the configuration to either config.yaml, or cluster.yaml, with the following entry:
 
