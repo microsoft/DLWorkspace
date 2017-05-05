@@ -23,7 +23,7 @@ This document describes the procedure to deploy DL workspace cluster on Azure. W
 
 3. Creaet a Azure File Share. Please note that you need a ** Classic ** storage account at Azure, and [A sample instruction is here.] (https://docs.microsoft.com/en-us/azure/storage/storage-dotnet-how-to-use-files)
 
-3. Add the DNS name of the created VM to a configuration file.  
+4. Add the DNS name of the created VM to a configuration file.  
 
   You may add the configuration to either config.yaml, or cluster.yaml, with the following entry:
 
@@ -38,27 +38,47 @@ This document describes the procedure to deploy DL workspace cluster on Azure. W
       role: infrastructure
     <<machine2>>:
       role: worker
+
+  mountpoints:
+    rootshare:
+      type: azurefileshare
+      accountname: <<your azure storage account>>
+      filesharename: <<your azure file sharename>>
+      # Mount at root
+      mountpoints: ""
+      accesskey: <<your azure fileshare accesskey>>
   ```
 
-4. Setup basic tools on the Ubuntu image. 
+5. Run Azure deployment script block:
+  ```
+  ./deploy.py --verbose scriptblocks azure 
+  ```
+  After the script completes execution, you may still need to wait for a few minutes so that relevant docker images can be pulled to the target machine for execution. You can then access your cluster at:
+  ```
+  http://machine1.westus.cloudapp.azure.com/
+  ```
+  where machine1 is your azure infrastructure node. 
+
+  The script block execute the following command in sequences:
+  1. Setup basic tools on the Ubuntu image. 
   ```
   ./deploy.py runscriptonall ./scripts/prepare_ubuntu.sh
   ./deploy.py execonall sudo usermod -aG docker core
   ```
 
-5. Deploy etcd/master and workers. 
+  2. Deploy etcd/master and workers. 
   ```
   ./deploy.py -y deploy
   ./deploy.py -y updateworker
   ```
 
-6. Label nodels and deploy services:
+  3. Label nodels and deploy services:
   ```
   ./deploy.py -y kubernetes labels
   ./deploy.py -y updateworker
   ```
 
-7. Build and deploy jobmanager, restfulapi, and webportal. 
+  4. Build and deploy jobmanager, restfulapi, and webportal. 
   ```
   ./deploy.py docker push restfulapi
   ./deploy.py docker push webui

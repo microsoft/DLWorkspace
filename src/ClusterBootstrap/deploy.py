@@ -200,6 +200,24 @@ default_config_parameters = {
 	"dataFolderAccessPoint" : "", 
 }
 
+# These are super scripts
+scriptblocks = {
+	"azure": [
+		"runscriptonall ./scripts/prepare_ubuntu.sh", 
+  		"execonall sudo usermod -aG docker core",
+		"-y deploy",
+		"-y updateworker",
+  		"-y kubernetes labels",
+  		"-y updateworker",
+  		"docker push restfulapi",
+  		"docker push webui",
+  		"webui",
+		"mount", 
+  		"kubernetes start jobmanager",
+  		"kubernetes start restfulapi",
+  		"kubernetes start webportal",
+	]
+}
 
 
 
@@ -2011,134 +2029,25 @@ def run_docker_image( imagename, native = False ):
 			os.system( "docker run --rm -ti " + matches[0] )
 		else:
 			run_docker( matches[0], prompt = imagename )
-	
 
-if __name__ == '__main__':
-	# the program always run at the current directory. 
-	dirpath = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
-	# print "Directory: " + dirpath
-	os.chdir(dirpath)
-	parser = argparse.ArgumentParser( prog='deploy.py',
-		formatter_class=argparse.RawDescriptionHelpFormatter,
-		description=textwrap.dedent('''\
-Build, deploy and administer a DL workspace cluster.
-
-Prerequest:
-* Create config.yaml according to instruction in docs/deployment/Configuration.md.
-* Metadata of deployed cluster is stored at deploy.
-
-Command:
-  build     Build USB iso/pxe-server used by deployment.
-  production [nodes] Deploy a production cluster, with tasks of:
-            set hostname, deploy etcd/master nodes, deploy worker nodes, uncordon master nodes. 
-  deploy    Deploy DL workspace cluster.
-  updateworker [nodes] Update the worker nodes. If no additional node is specified, all nodes will be updated. 
-  clean     Clean away a failed deployment.
-  update    [args] Update cluster. 
-            config: update cloud-config of each deployed node. 
-  connect   [master|etcd|worker] num: Connect to either master, etcd or worker node (with an index number).
-  hostname  [args] manage hostname on the cluster
-            set: set hostname
-  uncordon  allow etcd/master nodes to be scheduled jobs 
-  partition [args] Manage data partitions. 
-            ls: show all existing partitions. 
-            create n: create n partitions of equal size.
-            create s1 s2 ... sn: create n partitions;
-              if s_i < 0, the partition is s_i GB, 
-              if s_i > 0, the partition is in portitional to s_i. 
-              We use parted mkpart percentage% to create partitions. As such, the minimum partition is 1% of a disk. 
-  glusterfs [args] manage glusterFS on the cluster. 
-            display: display lvm information on each node of the cluster. 
-            create: formatting and create lvm for used by glusterfs. 
-            remove: deletel and remove glusterfs volumes. 
-            config: generate configuration file, build and push glusterfs docker.
-            start: start glusterfs service and endpoints. 
-            stop: stop glusterfs service and endpoints. 
-  download  [args] Manage download
-            kubectl: download kubelet/kubectl.
-            kubelet: download kubelet/kubectl.
-  backup    [fname] [key] Backup configuration & encrypt, fname is the backup file without surfix. 
-            If key exists, the backup file will be encrypted. 
-  restore   [fname] [key] Decrypt & restore configuration, fname is the backup file with surfix. 
-            If the backup file is encrypted, a key needs to be provided to decrypt the configuration. 
-  etcd      [args] manage etcd server.
-            check: check ETCD service.
-  kubernetes [args] manage kubelet services on the cluster. 
-            start: launch a certain kubelet service. 
-            stop: stop a certain kubelet service. 
-            restart: replace a certain kubelet service. 
-            cordon [node]: cordon certain nodes. If no node, cordon all etcd nodes. 
-            uncordon [node]: uncordon certain nodes. If no node, uncordon all etcd nodes. 
-            labels verb [services]: applying labels to node. 
-              -y: overwrite existing value
-              verb: active, inactive, remove (default=on)
-              services: if none, apply to all services in the service directory
-  kubectl   [args] run a native kubectl command. 
-  docker    [args] manage docker images. 
-            build: build one or more docker images associated with the current deployment. 
-            push: build and push one or more docker images to register
-  execonall [cmd ... ] Execute the command on all nodes and print the output. 
-  doonall [cmd ... ] Execute the command on all nodes. 
-  runscriptonall [script] Execute the shell/python script on all nodes. 
-  listmac   display mac address of the cluster notes
-  checkconfig   display config items
-  ''') )
-	parser.add_argument("-y", "--yes", 
-		help="Answer yes automatically for all prompt", 
-		action="store_true" )
-	parser.add_argument("--native", 
-		help="Run docker in native mode (in how it is built)", 
-		action="store_true" )	
-	parser.add_argument("-p", "--public", 
-		help="Use public IP address to deploy/connect [e.g., Azure, AWS]", 
-		action="store_true")
-	parser.add_argument("-s", "--sudo", 
-		help = "Execute scripts in sudo", 
-		action="store_true" )
-	parser.add_argument("--discoverserver", 
-		help = "Specify an alternative discover server, default = " + default_config_parameters["discoverserver"], 
-		action="store", 
-		default=default_config_parameters["discoverserver"])
-	parser.add_argument("--homeinserver", 
-		help = "Specify an alternative home in server, default = " + default_config_parameters["homeinserver"], 
-		action="store", 
-		default=default_config_parameters["homeinserver"])
-	parser.add_argument("-v", "--verbose", 
-		help = "verbose print", 
-		action="store_true")
-	parser.add_argument("--nocache", 
-		help = "Build docker without cache", 
-		action="store_true")
-
-	parser.add_argument("--glusterfs", 
-		help = textwrap.dedent('''"Additional glusterfs launch parameter, \
-        detach: detach all glusterfs nodes (to rebuild cluster), 
-        start: initiate cluster (all nodes need to be operative during start stage to construct the cluster),
-        run: continuous operation, 
-		''' ), 
-		action="store", 
-		default="run" )
-		
-	parser.add_argument("command", 
-		help = "See above for the list of valid command" )
-	parser.add_argument('nargs', nargs=argparse.REMAINDER, 
-		help="Additional command argument", 
-		)
-	args = parser.parse_args()
+def run_command( args, command, nargs, parser ):
 	nocache = args.nocache
 	
 	# If necessary, show parsed arguments. 
 	# print args
+	global discoverserver
+	global homeinserver
+	global verbose
+	global config
+	
+	global ipAddrMetaname
 	discoverserver = args.discoverserver
 	homeinserver = args.homeinserver
+
 	if args.verbose: 
 		verbose = True
 		utils.verbose = True
 	
-	config = init_config()
-	
-	command = args.command
-	nargs = args.nargs
 	if command == "restore":
 		utils.restore_keys(nargs)
 		#get_kubectl_binary()
@@ -2174,6 +2083,7 @@ Command:
 	get_ssh_config()
 	
 	if args.yes:
+		global defanswer
 		print "Use yes for default answer"
 		defanswer = "yes"
 		
@@ -2408,6 +2318,9 @@ Command:
 		success = deploy_ETCD_master()
 		if success: 
 			update_worker_nodes( [] )
+
+	elif command == "azure":
+		deploy_azure()
 			
 	elif command == "update" and len(nargs)>=1:
 		if nargs[0] == "config":
@@ -2509,3 +2422,145 @@ Command:
 	else:
 		parser.print_help()
 		print "Error: Unknown command " + command
+
+def run_script_blocks( script_collection ):
+	if verbose:
+		print "Run script blocks %s " % script_collection
+	for script in script_collection:
+		print "parse script %s" % ( script)
+		args = parser.parse_args( script.split(" "))
+		command = args.command
+		nargs = args.nargs
+		print "Run command %s, args %s" % (command, nargs )
+		run_command( args, command, nargs, parser )
+
+if __name__ == '__main__':
+	# the program always run at the current directory. 
+	dirpath = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
+	# print "Directory: " + dirpath
+	os.chdir(dirpath)
+	parser = argparse.ArgumentParser( prog='deploy.py',
+		formatter_class=argparse.RawDescriptionHelpFormatter,
+		description=textwrap.dedent('''\
+Build, deploy and administer a DL workspace cluster.
+
+Prerequest:
+* Create config.yaml according to instruction in docs/deployment/Configuration.md.
+* Metadata of deployed cluster is stored at deploy.
+
+Command:
+  scriptblocks Execute a block of scripts. 
+            azure
+  build     Build USB iso/pxe-server used by deployment.
+  production [nodes] Deploy a production cluster, with tasks of:
+            set hostname, deploy etcd/master nodes, deploy worker nodes, uncordon master nodes. 
+  deploy    Deploy DL workspace cluster.
+  updateworker [nodes] Update the worker nodes. If no additional node is specified, all nodes will be updated. 
+  clean     Clean away a failed deployment.
+  update    [args] Update cluster. 
+            config: update cloud-config of each deployed node. 
+  connect   [master|etcd|worker] num: Connect to either master, etcd or worker node (with an index number).
+  hostname  [args] manage hostname on the cluster
+            set: set hostname
+  uncordon  allow etcd/master nodes to be scheduled jobs 
+  partition [args] Manage data partitions. 
+            ls: show all existing partitions. 
+            create n: create n partitions of equal size.
+            create s1 s2 ... sn: create n partitions;
+              if s_i < 0, the partition is s_i GB, 
+              if s_i > 0, the partition is in portitional to s_i. 
+              We use parted mkpart percentage% to create partitions. As such, the minimum partition is 1% of a disk. 
+  glusterfs [args] manage glusterFS on the cluster. 
+            display: display lvm information on each node of the cluster. 
+            create: formatting and create lvm for used by glusterfs. 
+            remove: deletel and remove glusterfs volumes. 
+            config: generate configuration file, build and push glusterfs docker.
+            start: start glusterfs service and endpoints. 
+            stop: stop glusterfs service and endpoints. 
+  download  [args] Manage download
+            kubectl: download kubelet/kubectl.
+            kubelet: download kubelet/kubectl.
+  backup    [fname] [key] Backup configuration & encrypt, fname is the backup file without surfix. 
+            If key exists, the backup file will be encrypted. 
+  restore   [fname] [key] Decrypt & restore configuration, fname is the backup file with surfix. 
+            If the backup file is encrypted, a key needs to be provided to decrypt the configuration. 
+  etcd      [args] manage etcd server.
+            check: check ETCD service.
+  kubernetes [args] manage kubelet services on the cluster. 
+            start: launch a certain kubelet service. 
+            stop: stop a certain kubelet service. 
+            restart: replace a certain kubelet service. 
+            cordon [node]: cordon certain nodes. If no node, cordon all etcd nodes. 
+            uncordon [node]: uncordon certain nodes. If no node, uncordon all etcd nodes. 
+            labels verb [services]: applying labels to node. 
+              -y: overwrite existing value
+              verb: active, inactive, remove (default=on)
+              services: if none, apply to all services in the service directory
+  kubectl   [args] run a native kubectl command. 
+  docker    [args] manage docker images. 
+            build: build one or more docker images associated with the current deployment. 
+            push: build and push one or more docker images to register
+  execonall [cmd ... ] Execute the command on all nodes and print the output. 
+  doonall [cmd ... ] Execute the command on all nodes. 
+  runscriptonall [script] Execute the shell/python script on all nodes. 
+  listmac   display mac address of the cluster notes
+  checkconfig   display config items
+  ''') )
+	parser.add_argument("-y", "--yes", 
+		help="Answer yes automatically for all prompt", 
+		action="store_true" )
+	parser.add_argument("--native", 
+		help="Run docker in native mode (in how it is built)", 
+		action="store_true" )	
+	parser.add_argument("-p", "--public", 
+		help="Use public IP address to deploy/connect [e.g., Azure, AWS]", 
+		action="store_true")
+	parser.add_argument("-s", "--sudo", 
+		help = "Execute scripts in sudo", 
+		action="store_true" )
+	parser.add_argument("--discoverserver", 
+		help = "Specify an alternative discover server, default = " + default_config_parameters["discoverserver"], 
+		action="store", 
+		default=default_config_parameters["discoverserver"])
+	parser.add_argument("--homeinserver", 
+		help = "Specify an alternative home in server, default = " + default_config_parameters["homeinserver"], 
+		action="store", 
+		default=default_config_parameters["homeinserver"])
+	parser.add_argument("-v", "--verbose", 
+		help = "verbose print", 
+		action="store_true")
+	parser.add_argument("--nocache", 
+		help = "Build docker without cache", 
+		action="store_true")
+
+	parser.add_argument("--glusterfs", 
+		help = textwrap.dedent('''"Additional glusterfs launch parameter, \
+        detach: detach all glusterfs nodes (to rebuild cluster), 
+        start: initiate cluster (all nodes need to be operative during start stage to construct the cluster),
+        run: continuous operation, 
+		''' ), 
+		action="store", 
+		default="run" )
+		
+	parser.add_argument("command", 
+		help = "See above for the list of valid command" )
+	parser.add_argument('nargs', nargs=argparse.REMAINDER, 
+		help="Additional command argument", 
+		)
+	args = parser.parse_args()
+	command = args.command
+	nargs = args.nargs
+	if args.verbose:
+		verbose = True
+		utils.verbose = True
+
+	config = init_config()
+
+	if command == "scriptblocks":
+		if nargs[0] in scriptblocks:
+			run_script_blocks( scriptblocks[nargs[0]])
+		else:
+			parser.print_help()
+			print "Error: Unknown scriptblocks " + nargs[0]
+	else:
+		run_command( args, command, nargs, parser)
