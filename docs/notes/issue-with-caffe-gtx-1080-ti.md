@@ -29,4 +29,4 @@ I guess caffe is trying to create "Cublas handle" and "Curand generator" by root
 More investigations are need to solve this permission issue. 
 
 
-# the same settings works find with other GPU type, e.g. titan X, M40. 
+the same settings works find with other GPU type, e.g. titan X, M40. 
