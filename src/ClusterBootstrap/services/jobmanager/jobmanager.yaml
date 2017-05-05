@@ -25,8 +25,12 @@ spec:
           name: kubeconfig
         - mountPath: /RestfulAPI 
           name: restfulapiconfig
-        - mountPath: {{cnf["storage-mount-path"]}}
-          name: dlwsdata                              
+        - mountPath: {{cnf["storage-mount-path"]}}/work
+          name: dlwsdatawork
+        - mountPath: {{cnf["storage-mount-path"]}}/storage
+          name: dlwsdatadata 
+        - mountPath: {{cnf["storage-mount-path"]}}/jobfiles
+          name: dlwsdatajobfiles                                                   
       volumes:
       - name: certs
         hostPath:
@@ -37,6 +41,12 @@ spec:
       - name: restfulapiconfig
         hostPath:
           path: /etc/RestfulAPI
-      - name: dlwsdata
+      - name: dlwsdatawork
         hostPath:
-          path: {{cnf["storage-mount-path"]}} 
+          path: {{cnf["storage-mount-path"]}}/work 
+      - name: dlwsdatadata
+        hostPath:
+          path: {{cnf["storage-mount-path"]}}/storage
+      - name: dlwsdatajobfiles
+        hostPath:
+          path: {{cnf["storage-mount-path"]}}/jobfiles           
