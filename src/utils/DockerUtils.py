@@ -18,6 +18,10 @@ def build_docker( dockername, dirname, verbose=False, nocache=False ):
 	if verbose:
 		print "Building docker ... " + dockername + " .. @" + dirname
 	with cd(dirname):
+		# print "Test if prebuid.sh exists"
+		if os.path.exists("prebuild.sh"):
+			print "Execute prebuild.sh for docker %s" % dockername
+			os.system("bash prebuild.sh")
 		if nocache:
 			cmd = "docker build --no-cache -t "+ dockername + " ."
 		else:

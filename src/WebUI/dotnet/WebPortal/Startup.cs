@@ -48,13 +48,16 @@ namespace WindowsAuth
 
             services.Configure<AppSettings>(appSettings =>
             {
-
                 // Typed syntax - Configuration.Get<type>("")
                 appSettings.restapi = Configuration["Restapi"];
                 appSettings.workFolderAccessPoint = Configuration["WorkFolderAccessPoint"];
                 appSettings.dataFolderAccessPoint = Configuration["DataFolderAccessPoint"];
-                appSettings.adminGroups = Configuration["AdminGroups"].Split(new char[] { ',', ';' }).ToList<string>();
-                appSettings.authorizedGroups = Configuration["AuthorizedGroups"].Split(new char[] { ',', ';' }).ToList<string>();
+                appSettings.adminGroups = ConfigurationParser.GetConfigurationAsList("AdminGroups"); //  Configuration["AdminGroups"].Split(new char[] { ',', ';' }).ToList<string>();
+                appSettings.authorizedGroups = ConfigurationParser.GetConfigurationAsList("AuthorizedGroups"); // Configuration["AuthorizedGroups"].Split(new char[] { ',', ';' }).ToList<string>();
+                // Configure may not have run at the moment, so this is console printout. 
+                // Console.WriteLine("Authorization group is: {0}", appSettings.authorizedGroups);
+                // Console.WriteLine("AdminGroups group is: {0}", appSettings.adminGroups);
+
             });
             // Add Authentication services.
             services.AddAuthentication(sharedOptions => sharedOptions.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme);
@@ -67,7 +70,7 @@ namespace WindowsAuth
             loggerFactory.AddConsole(Configuration.GetSection("Logging")).AddDebug();
             loggerFactory.AddFile("/var/log/webui/webui-{Date}.txt");
 
-
+            var _logger = loggerFactory.CreateLogger("Configure");
 
             ConfigurationParser.ParseConfiguration(loggerFactory);
 
