@@ -13,3 +13,4 @@ storage-mount-path : {{cnf["storage-mount-path"]}}
 root-path : /DLWorkspace/src/
 nvidiaDriverPath : {{cnf["nvidia-driver-path"]}}
 clusterId : {{cnf["clusterId"]}}
+domain : {{cnf["network"]["domain"]}}

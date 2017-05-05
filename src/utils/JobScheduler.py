@@ -108,6 +108,7 @@ def GetServiceAddress(jobId):
 		hostPort = None
 		selector = None
 		hostIP = None
+		hostName = None
 
 		for line in lines:
 			if len(line) > 1:
@@ -129,11 +130,18 @@ def GetServiceAddress(jobId):
 				for item in podInfo["items"]:
 					if "status" in item and "hostIP" in item["status"]:
 						hostIP = item["status"]["hostIP"]
+					if "spec" in item and "nodeName" in item["spec"]:
+						hostName = item["spec"]["nodeName"]
 		if containerPort is not None and hostIP is not None and hostPort is not None:
 			svcMapping = {}
 			svcMapping["containerPort"] = containerPort
-			svcMapping["hostIP"] = hostIP
 			svcMapping["hostPort"] = hostPort
+
+			if "." not in hostName and "domain" in config and len(config["domain"].strip()) >0:
+				hostName += "."+config["domain"]
+
+			svcMapping["hostIP"] = hostIP
+			svcMapping["hostName"] = hostName
 			ret.append(svcMapping)
 	return ret
 
@@ -787,7 +795,7 @@ def UpdateDistJobStatus(job):
 	pass
 
 def ScheduleJob():
-	last_update_time = datetime.datetime.now()
+	last_update_time = None
 	while True:
 		try:
 			dataHandler = DataHandler()
@@ -807,7 +815,7 @@ def ScheduleJob():
 		except Exception as e:
 			print e
 		try:
-			if (datetime.datetime.now() - last_update_time).seconds >= 120:
+			if last_update_time is None or (datetime.datetime.now() - last_update_time).seconds >= 120:
 				print "updating cluster status..."
 				get_cluster_status()
 				last_update_time = datetime.datetime.now()

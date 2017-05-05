@@ -68,7 +68,7 @@
                         }
                         else
                         {
-                            var svcurl = "http://" + payload.endpoints[i].hostIP + ":" + payload.endpoints[i].hostPort
+                            var svcurl = "http://" + payload.endpoints[i].hostName + ":" + payload.endpoints[i].hostPort
                             endpointsStr += "Container Port: " + payload.endpoints[i].containerPort + " is mapped to public ip: <a href='" + svcurl + "' target='_blank'> " + svcurl + "</a>  \n";
                         }
                     }
