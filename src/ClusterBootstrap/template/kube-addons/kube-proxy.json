@@ -23,7 +23,8 @@
                   "command": [
                      "/hyperkube",
                      "proxy",
-                     "--kubeconfig=/etc/kubernetes/worker-kubeconfig.yaml"
+                     "--kubeconfig=/etc/kubernetes/worker-kubeconfig.yaml",
+                     "--proxy-mode=userspace"
                   ],
                   "image": "{{cnf["kubernetes_docker_image"]}}",
                   "name": "kube-proxy",
