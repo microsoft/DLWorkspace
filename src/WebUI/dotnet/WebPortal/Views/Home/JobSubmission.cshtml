@@ -178,14 +178,36 @@
     function UseTemplate(id) {
         if (id == "tensorflow") {
             document.getElementById("jobname").value = "tensorflow-ipython";
-            document.getElementById("resourcegpu").value = 0;
+            document.getElementById("resourcegpu").value = 1;
             document.getElementById("workpath").value = "@ViewData["userName"]";
             document.getElementById("datapath").value = "imagenet";
             document.getElementById("jobpath").value = "";
 
             document.getElementById("image").value = "tensorflow/tensorflow:latest-gpu";
             //document.getElementById("cmd").value = "";
-            document.getElementById("cmd").value = "export HOME=/job && jupyter notebook --no-browser --port=8888 --ip=0.0.0.0 --notebook-dir=/work";
+            document.getElementById("cmd").value = "export HOME=/job && jupyter notebook --no-browser --port=8888 --ip=0.0.0.0 --notebook-dir=/";
+
+            document.getElementById("chkInteractiveJob").checked = true;
+            document.getElementById("chkLogDir").checked = false;
+            ShowHideDiv(document.getElementById("chkInteractiveJob"), 'interactiveportfield')
+            ShowHideDiv(document.getElementById("chkLogDir"), 'logdirfield')
+
+            document.getElementById("interactivePort").value = "8888";
+            document.getElementById("logdir").value = "";
+
+
+            document.getElementById("runningasroot").checked = false;
+        }
+        else if (id == "tensorflowcpu") {
+            document.getElementById("jobname").value = "tensorflow-ipython-cpu";
+            document.getElementById("resourcegpu").value = 0;
+            document.getElementById("workpath").value = "@ViewData["userName"]";
+            document.getElementById("datapath").value = "imagenet";
+            document.getElementById("jobpath").value = "";
+
+            document.getElementById("image").value = "tensorflow/tensorflow:latest";
+            //document.getElementById("cmd").value = "";
+            document.getElementById("cmd").value = "export HOME=/job && jupyter notebook --no-browser --port=8888 --ip=0.0.0.0 --notebook-dir=/";
 
             document.getElementById("chkInteractiveJob").checked = true;
             document.getElementById("chkLogDir").checked = false;
@@ -326,7 +348,8 @@
                     <br />
                     <select onchange="UseTemplate(this.value)"> 
                         <option value="none">None</option>
-                        <option value="tensorflow">Tensorflow-IPython</option>
+                        <option value="tensorflow">Tensorflow-IPython-GPU</option>
+                        <option value="tensorflowcpu">Tensorflow-IPython-CPU</option>
                         <option value="tensorflowssh">Tensorflow-SSH</option>
                         <option value="caffe">Caffe-IPython</option>
                         <option value="caffessh">Caffe-SSH</option>
