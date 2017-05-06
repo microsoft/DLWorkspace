@@ -79,5 +79,7 @@ RUN chmod +x /pullsrc.sh
 COPY run.sh /
 RUN chmod +x /run.sh
 
-
+ADD Jobs_Templete /DLWorkspace/src/Jobs_Templete
+ADD utils /DLWorkspace/src/utils
+ADD RestAPI /DLWorkspace/src/RestAPI
 CMD /run.sh

@@ -16,6 +16,8 @@ using WindowsAuth.models;
 
 using WebPortal.Helper;
 using Serilog.Extensions.Logging;
+using Microsoft.IdentityModel.Clients.ActiveDirectory;
+using Microsoft.AspNetCore.Http;
 
 namespace WindowsAuth
 {
@@ -90,6 +92,8 @@ namespace WindowsAuth
 
             var openIDOpt = new OpenIdConnectOptions();
             openIDOpt.ClientId = Configuration["AzureAD:ClientId"];
+            openIDOpt.ClientSecret = Configuration["AzureAD:ClientSecret"];
+            
             foreach (var scope in Configuration["AzureAd:Scope"].Split(new char[] { ' ' }))
             {
                 openIDOpt.Scope.Add(scope);
@@ -98,11 +102,13 @@ namespace WindowsAuth
             // openIDOpt.Authority = Configuration["AzureAd:Oauth2Instance"];
 
             openIDOpt.PostLogoutRedirectUri = Configuration["AzureAd:PostLogoutRedirectUri"];
+            // openIDOpt.ResponseType = OpenIdConnectResponseType.CodeIdToken;
+            openIDOpt.GetClaimsFromUserInfoEndpoint = false; 
       
             openIDOpt.Events = new OpenIdConnectEvents
             {
                 OnRemoteFailure = OnAuthenticationFailed,
-                OnAuthorizationCodeReceived = OnAuthorizationCode, 
+                OnAuthorizationCodeReceived = OnAuthorizationCodeReceived, 
             };
 
             // Configure the OWIN pipeline to use OpenID Connect auth.
@@ -152,38 +158,20 @@ namespace WindowsAuth
             return Task.FromResult(0);
         }
 
-        private Task OnAuthorizationCode(AuthorizationCodeReceivedContext context)
+        private async Task OnAuthorizationCodeReceived(AuthorizationCodeReceivedContext context)
         {
-            context.HandleResponse();
-            var info = context.ToString();
-            return Task.FromResult(0);
+            string userObjectId = (context.Ticket.Principal.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier"))?.Value;
+            var ClientId = Configuration["AzureAD:ClientId"];
+            var ClientSecret = Configuration["AzureAD:ClientSecret"];
+            ClientCredential clientCred = new ClientCredential(ClientId, ClientSecret);
+            var Authority = String.Format(Configuration["AzureAd:AadInstance"], Configuration["AzureAd:Tenant"]);
+            var GraphResourceId = Configuration["AzureAD:AzureResourceURL"]; 
+            AuthenticationContext authContext = new AuthenticationContext(Authority, new NaiveSessionCache(userObjectId, context.HttpContext.Session));
+            AuthenticationResult authResult = await authContext.AcquireTokenByAuthorizationCodeAsync(
+                context.ProtocolMessage.Code, new Uri(context.Properties.Items[OpenIdConnectDefaults.RedirectUriForCodePropertiesKey]), clientCred, GraphResourceId);
+
+            context.HandleCodeRedemption(); 
         }
-
-        /*
-
-                            Notifications = new OpenIdConnectAuthenticationNotifications
-                            {
-                                AuthorizationCodeReceived = async (context) =>
-                                {
-                                    var code = context.Code;
-                                    string signedInUserID = context.AuthenticationTicket.Identity.FindFirst(ClaimTypes.NameIdentifier).Value;
-                                    ConfidentialClientApplication cca = new ConfidentialClientApplication(
-                                        appId,
-                                        redirectUri,
-                                        new ClientCredential(appSecret),
-                                        new SessionTokenCache(signedInUserID, context.OwinContext.Environment["System.Web.HttpContextBase"] as HttpContextBase));
-                                    string[] scopes = graphScopes.Split(new char[] { ' ' });
-
-                                    AuthenticationResult result = await cca.AcquireTokenByAuthorizationCodeAsync(scopes, code);
-                                },
-                                AuthenticationFailed = (context) =>
-                                {
-                                    context.HandleResponse();
-                                    context.Response.Redirect("/Error?message=151561651" + context.Exception.Message);
-                                    return Task.FromResult(0);
-                                }
-                            }
-                            */
 
     }
 }

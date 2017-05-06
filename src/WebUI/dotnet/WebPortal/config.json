@@ -55,7 +55,7 @@
         "Scope": "User.Read",
 
         // "GraphApiVersion": "1.6", // API version
-        // "ResourceURL": "https://graph.windows.net",
+        "AzureResourceURL": "https://graph.windows.net",
         "ResourceURL": "https://graph.microsoft.com",
         "PostLogoutRedirectUri": "https://dlws-auth.azurewebsites.net"
     }
