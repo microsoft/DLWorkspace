@@ -60,6 +60,19 @@
                 $('#cluster_status').append(tr);
 
 
+
+                $("#user_status").find("tr:gt(0)").remove();
+                var tr;
+                //Append each row to html table
+                for (var i = 0; i < json.user_status.length; i++) {
+                    tr = $('<tr/>');
+                    tr.append("<td>" + json.user_status[i].userName + "</td>");
+                    tr.append("<td>" + json.user_status[i].userGPU + "</td>");
+
+                    $('#user_status').append(tr);
+                }
+
+               
             });
     }
 
@@ -111,3 +124,18 @@
         </thead>
         <tbody></tbody>
     </table>
+
+
+<h1>
+    User Status:
+</h1>
+
+<table id="user_status" class="table table-bordered table-condensed table-hover table-striped">
+    <thead>
+        <tr>
+            <th>User Name</th>
+            <th>Used GPU</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
