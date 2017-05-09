@@ -12,12 +12,16 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using System.Security.Claims;
 using WindowsAuth.models;
+using WindowsAuth.Services;
 
 using WebPortal.Helper;
 using Serilog.Extensions.Logging;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Http;
+
 
 namespace WindowsAuth
 {
@@ -63,6 +67,14 @@ namespace WindowsAuth
             });
             // Add Authentication services.
             services.AddAuthentication(sharedOptions => sharedOptions.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme);
+
+            // Expose Azure AD configuration to controllers
+            services.AddOptions();
+            
+            // var azureADMultiTenant = Configuration.GetChildren().Where(c => c.Key.Equals("AzureAdMultiTenant")).First();
+            // services.Configure<AzureADConfig>(azureADMultiTenant);
+            
+
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -91,9 +103,10 @@ namespace WindowsAuth
             app.UseCookieAuthentication(cookieOpt);
 
             var openIDOpt = new OpenIdConnectOptions();
+            openIDOpt.AutomaticChallenge = true;
             openIDOpt.ClientId = Configuration["AzureAD:ClientId"];
             openIDOpt.ClientSecret = Configuration["AzureAD:ClientSecret"];
-            
+
             foreach (var scope in Configuration["AzureAd:Scope"].Split(new char[] { ' ' }))
             {
                 openIDOpt.Scope.Add(scope);
@@ -102,43 +115,27 @@ namespace WindowsAuth
             // openIDOpt.Authority = Configuration["AzureAd:Oauth2Instance"];
 
             openIDOpt.PostLogoutRedirectUri = Configuration["AzureAd:PostLogoutRedirectUri"];
-            // openIDOpt.ResponseType = OpenIdConnectResponseType.CodeIdToken;
-            openIDOpt.GetClaimsFromUserInfoEndpoint = false; 
-      
+            openIDOpt.ResponseType = OpenIdConnectResponseType.CodeIdToken;
+            openIDOpt.GetClaimsFromUserInfoEndpoint = false;
+            openIDOpt.TokenValidationParameters = new TokenValidationParameters
+            {
+                // instead of using the default validation (validating against a single issuer value, as we do in line of business apps), 
+                // we inject our own multitenant validation logic
+                ValidateIssuer = false
+            };
+        
+
+
             openIDOpt.Events = new OpenIdConnectEvents
             {
                 OnRemoteFailure = OnAuthenticationFailed,
-                OnAuthorizationCodeReceived = OnAuthorizationCodeReceived, 
+                OnAuthorizationCodeReceived = OnAuthorizationCodeReceived,
+                OnTokenValidated = OnTokenValidated,
+                OnRedirectToIdentityProvider = OnRedirectToIdentityProvider
             };
 
             // Configure the OWIN pipeline to use OpenID Connect auth.
             app.UseOpenIdConnectAuthentication(openIDOpt);
-
-
-
-
-
-            // Configure the OWIN pipeline to use OpenID Connect auth.
-
-            //app.UseOpenIdConnectAuthentication(new OpenIdConnectOptions
-
-            //{
-
-            //    ClientId = Configuration["AzureAD:ClientId"],
-
-            //    Authority = String.Format(Configuration["AzureAd:AadInstance"], Configuration["AzureAd:Tenant"]),
-
-            //    PostLogoutRedirectUri = Configuration["AzureAd:PostLogoutRedirectUri"],
-
-            //    Events = new OpenIdConnectEvents
-
-            //    {
-
-            //        OnRemoteFailure = OnAuthenticationFailed,
-
-            //    }
-
-            //});
 
             app.UseSession();
             // Configure MVC routes
@@ -158,7 +155,35 @@ namespace WindowsAuth
             return Task.FromResult(0);
         }
 
+        private Task OnRedirectToIdentityProvider(RedirectContext context)
+        {
+            // Using examples from: https://github.com/jinlmsft/active-directory-webapp-webapi-multitenant-openidconnect-aspnetcore
+
+            string adminConsentSignUp = null;
+            if (context.Request.Path == new PathString("/Account/SignUp") && context.Properties.Items.TryGetValue(Constants.AdminConsentKey, out adminConsentSignUp))
+            {
+                if (adminConsentSignUp == Constants.True)
+                {
+                    context.ProtocolMessage.Prompt = "admin_consent";
+                }
+            }
+            context.ProtocolMessage.Prompt = "admin_consent";
+            return Task.FromResult(0);
+        }
+
+        // Redeem the auth code for a token to the Graph API and cache it for later.
         private async Task OnAuthorizationCodeReceived(AuthorizationCodeReceivedContext context)
+        {
+            // Redeem auth code for access token and cache it for later use
+            context.HttpContext.User = context.Ticket.Principal;
+            IAzureAdTokenService tokenService = (IAzureAdTokenService)context.HttpContext.RequestServices.GetService(typeof(IAzureAdTokenService));
+            await tokenService.RedeemAuthCodeForAadGraph(context.ProtocolMessage.Code, context.Properties.Items[OpenIdConnectDefaults.RedirectUriForCodePropertiesKey]);
+
+            // Notify the OIDC middleware that we already took care of code redemption.
+            context.HandleCodeRedemption();
+        }
+
+        private async Task OnAuthorizationCodeReceivedExp(AuthorizationCodeReceivedContext context)
         {
             string userObjectId = (context.Ticket.Principal.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier"))?.Value;
             var ClientId = Configuration["AzureAD:ClientId"];
@@ -171,6 +196,69 @@ namespace WindowsAuth
                 context.ProtocolMessage.Code, new Uri(context.Properties.Items[OpenIdConnectDefaults.RedirectUriForCodePropertiesKey]), clientCred, GraphResourceId);
 
             context.HandleCodeRedemption(); 
+        }
+
+        // Inject custom logic for validating which users we allow to sign in
+        // Here we check that the user (or their tenant admin) has signed up for the application.
+        private Task OnTokenValidated(TokenValidatedContext context)
+        {
+            // Retrieve caller data from the incoming principal
+            string issuer = context.Ticket.Principal.FindFirst(Constants.Issuer).Value;
+            string objectID = context.Ticket.Principal.FindFirst(Constants.ObjectIdClaimType).Value;
+            string tenantID = context.Ticket.Principal.FindFirst(Constants.TenantIdClaimType).Value;
+            string upn = "";
+            var upnPnt = context.Ticket.Principal.FindFirst(ClaimTypes.Upn);
+            if (!Object.ReferenceEquals(upnPnt, null))
+            {
+                upn = upnPnt.Value;
+            }
+            else
+            {
+                var emailPnt = context.Ticket.Principal.FindFirst(ClaimTypes.Email);
+                if (!Object.ReferenceEquals(emailPnt, null))
+                {
+                    upn = emailPnt.Value;
+                }
+            }
+
+
+            // If the user is signing up, add the user or tenant to the database record of sign ups.
+            // Tenant tenant = db.Tenants.FirstOrDefault(a => a.IssValue.Equals(issuer));
+            // AADUserRecord user = db.Users.FirstOrDefault(b => b.ObjectID.Equals(objectID));
+            AADUserRecord user = null; 
+            Tenant tenant = null; 
+            string adminConsentSignUp = null;
+            if (context.Properties.Items.TryGetValue(Constants.AdminConsentKey, out adminConsentSignUp))
+            {
+                if (adminConsentSignUp == Constants.True)
+                {
+                    if (tenant == null)
+                    {
+                        tenant = new Tenant { Created = DateTime.Now, IssValue = issuer, Name = context.Properties.Items[Constants.TenantNameKey], AdminConsented = true };
+                        // db.Tenants.Add(tenant);
+                    }
+                    else
+                    {
+                        tenant.AdminConsented = true;
+                    }
+                }
+                else if (user == null)
+                {
+                    user = new AADUserRecord { UPN = upn, ObjectID = objectID };
+                    // db.Users.Add(user);
+                }
+                // db.SaveChanges();
+            }
+
+            // Ensure that the caller is recorded in the db of users who went through the individual onboarding
+            // or if the caller comes from an admin-consented, recorded issuer.
+            if ((tenant == null || !tenant.AdminConsented) && (user == null))
+            {
+                // If not, the caller was neither from a trusted issuer or a registered user - throw to block the authentication flow
+                // throw new SecurityTokenValidationException("Did you forget to sign-up?");
+            }
+
+            return Task.FromResult(0);
         }
 
     }
