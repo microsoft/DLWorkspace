@@ -11,6 +11,7 @@ spec:
       labels: 
          run: {{ job["jobId"] }}
          jobName: {{ job["jobNameLabel"] }}
+         userName: {{ job["userNameLabel"] }}
     spec:
       {% if job["resourcegpu"]|int < 8  %}
       nodeSelector:
