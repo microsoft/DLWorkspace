@@ -308,8 +308,10 @@ def SubmitRegularJob(job):
 		if not os.path.exists(localJobPath):
 			if "userId" in jobParams:
 				mkdirsAsUser(localJobPath,jobParams["userId"])
+				mkdirsAsUser(os.path.join(localJobPath,"models"),jobParams["userId"])
 			else:
 				mkdirsAsUser(localJobPath,"0")
+				mkdirsAsUser(os.path.join(localJobPath,"models"),"0")
 
 		jobParams["LaunchCMD"] = ""
 		if "cmd" not in jobParams:
