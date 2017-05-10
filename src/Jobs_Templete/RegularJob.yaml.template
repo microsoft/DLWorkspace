@@ -38,7 +38,6 @@ spec:
           name: work
         - mountPath: /data
           name: data
-          readOnly: true
 
       restartPolicy: Never
       volumes:
