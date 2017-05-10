@@ -358,6 +358,16 @@ def SubmitRegularJob(job):
 			userName = userName.split("/")[1].strip()
 		jobParams["userNameLabel"] = userName
 
+
+		if "mountPoints" not in jobParams:
+			jobParams["mountPoints"] = []
+
+		jobParams["mountPoints"].append({"name":"nvidia-driver","containerPath":"/usr/local/nvidia","hostPath":nvidiaDriverPath})
+		jobParams["mountPoints"].append({"name":"job","containerPath":"/job","hostPath":jobParams["hostjobPath"]})
+		jobParams["mountPoints"].append({"name":"work","containerPath":"/work","hostPath":jobParams["hostworkPath"]})
+		jobParams["mountPoints"].append({"name":"data","containerPath":"/data","hostPath":jobParams["hostdataPath"]})
+
+
 		template = ENV.get_template(os.path.abspath(jobTemp))
 		job_description = template.render(job=jobParams)
 
