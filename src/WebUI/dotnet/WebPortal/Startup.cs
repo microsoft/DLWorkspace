@@ -9,15 +9,18 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using System.Security.Claims;
 using WindowsAuth.models;
 using WindowsAuth.Services;
-
 using WebPortal.Helper;
+
+
 using Serilog.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Http;
@@ -70,10 +73,15 @@ namespace WindowsAuth
 
             // Expose Azure AD configuration to controllers
             services.AddOptions();
-            
-            // var azureADMultiTenant = Configuration.GetChildren().Where(c => c.Key.Equals("AzureAdMultiTenant")).First();
-            // services.Configure<AzureADConfig>(azureADMultiTenant);
-            
+
+            services.AddDbContext<WebAppContext>( options => options.UseSqlite(Configuration["Data:ConnectionString"]));
+            services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+            services.AddScoped<IAzureAdTokenService, DbTokenCache>();
+
+            var azureADMultiTenant = Configuration.GetChildren().Where(c => c.Key.Equals("AzureAdMultiTenant")).First();
+            // var azureADMultiTenant = Configuration.GetSection("AzureAdMultiTenant");
+            services.Configure<AzureADConfig>(azureADMultiTenant);
+
 
         }
 
@@ -104,8 +112,8 @@ namespace WindowsAuth
 
             var openIDOpt = new OpenIdConnectOptions();
             openIDOpt.AutomaticChallenge = true;
-            openIDOpt.ClientId = Configuration["AzureAD:ClientId"];
-            openIDOpt.ClientSecret = Configuration["AzureAD:ClientSecret"];
+            openIDOpt.ClientId = Configuration["AzureAdMultiTenant:ClientId"];
+            openIDOpt.ClientSecret = Configuration["AzureAdMultiTenant:ClientSecret"];
 
             foreach (var scope in Configuration["AzureAd:Scope"].Split(new char[] { ' ' }))
             {
@@ -115,7 +123,7 @@ namespace WindowsAuth
             // openIDOpt.Authority = Configuration["AzureAd:Oauth2Instance"];
 
             openIDOpt.PostLogoutRedirectUri = Configuration["AzureAd:PostLogoutRedirectUri"];
-            openIDOpt.ResponseType = OpenIdConnectResponseType.CodeIdToken;
+            // openIDOpt.ResponseType = OpenIdConnectResponseType.CodeIdToken;
             openIDOpt.GetClaimsFromUserInfoEndpoint = false;
             openIDOpt.TokenValidationParameters = new TokenValidationParameters
             {
@@ -186,8 +194,8 @@ namespace WindowsAuth
         private async Task OnAuthorizationCodeReceivedExp(AuthorizationCodeReceivedContext context)
         {
             string userObjectId = (context.Ticket.Principal.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier"))?.Value;
-            var ClientId = Configuration["AzureAD:ClientId"];
-            var ClientSecret = Configuration["AzureAD:ClientSecret"];
+            var ClientId = Configuration["AzureAdMultiTenant:ClientId"];
+            var ClientSecret = Configuration["AzureAdMultiTenant:ClientSecret"];
             ClientCredential clientCred = new ClientCredential(ClientId, ClientSecret);
             var Authority = String.Format(Configuration["AzureAd:AadInstance"], Configuration["AzureAd:Tenant"]);
             var GraphResourceId = Configuration["AzureAD:AzureResourceURL"]; 
@@ -221,12 +229,12 @@ namespace WindowsAuth
                 }
             }
 
-
+            WebAppContext db = (WebAppContext)context.HttpContext.RequestServices.GetService(typeof(WebAppContext));
+            db.Database.EnsureCreated();
             // If the user is signing up, add the user or tenant to the database record of sign ups.
-            // Tenant tenant = db.Tenants.FirstOrDefault(a => a.IssValue.Equals(issuer));
-            // AADUserRecord user = db.Users.FirstOrDefault(b => b.ObjectID.Equals(objectID));
-            AADUserRecord user = null; 
-            Tenant tenant = null; 
+            Tenant tenant = db.Tenants.FirstOrDefault(a => a.IssValue.Equals(issuer));
+            AADUserRecord user = db.Users.FirstOrDefault(b => b.ObjectID.Equals(objectID));
+            
             string adminConsentSignUp = null;
             if (context.Properties.Items.TryGetValue(Constants.AdminConsentKey, out adminConsentSignUp))
             {
@@ -235,7 +243,7 @@ namespace WindowsAuth
                     if (tenant == null)
                     {
                         tenant = new Tenant { Created = DateTime.Now, IssValue = issuer, Name = context.Properties.Items[Constants.TenantNameKey], AdminConsented = true };
-                        // db.Tenants.Add(tenant);
+                        db.Tenants.Add(tenant);
                     }
                     else
                     {
@@ -245,9 +253,9 @@ namespace WindowsAuth
                 else if (user == null)
                 {
                     user = new AADUserRecord { UPN = upn, ObjectID = objectID };
-                    // db.Users.Add(user);
+                    db.Users.Add(user);
                 }
-                // db.SaveChanges();
+                db.SaveChanges();
             }
 
             // Ensure that the caller is recorded in the db of users who went through the individual onboarding

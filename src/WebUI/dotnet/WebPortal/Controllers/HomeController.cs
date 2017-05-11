@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using WindowsAuth.models;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Security.Claims;
 using Newtonsoft.Json;
 using System.Text;
@@ -27,6 +28,7 @@ using System.Globalization;
 using WindowsAuth;
 
 using WebPortal.Helper;
+using WindowsAuth.Services;
 
 
 namespace WindowsAuth.Controllers
@@ -35,11 +37,15 @@ namespace WindowsAuth.Controllers
     {
         private readonly AppSettings _appSettings;
         private readonly ILogger _logger;
+        private IAzureAdTokenService _tokenCache;
+        private AzureADConfig _aadConfig; 
 
 
-        public HomeController(IOptions<AppSettings> appSettings, ILoggerFactory logger)
+        public HomeController(IOptions<AppSettings> appSettings, IOptions<AzureADConfig> config, IAzureAdTokenService tokenCache, ILoggerFactory logger)
         {
             _appSettings = appSettings.Value;
+            _tokenCache = tokenCache;
+            _aadConfig = config.Value;
             _logger = logger.CreateLogger("HomeController");
         }
 
@@ -266,6 +272,14 @@ namespace WindowsAuth.Controllers
                         tenantID = claim.Value;
                     }
                 }
+                if ( Object.ReferenceEquals(upn, null))
+                { 
+                    var emailPnt = id.FindFirst(ClaimTypes.Email);
+                    if (!Object.ReferenceEquals(emailPnt, null))
+                    {
+                        upn = emailPnt.Value;
+                    }
+                }
             }
         }
 
@@ -277,8 +291,8 @@ namespace WindowsAuth.Controllers
             string aadInstance = Startup.Configuration["AzureAd:AadInstance"];
             string TenantName = Startup.Configuration["AzureAd:Tenant"];
             // string TenantName = Startup.Configuration["AzureAd:AltTenant"];
-            string clientId = Startup.Configuration["AzureAd:ClientId"];
-            string clientSecret = Startup.Configuration["AzureAd:ClientSecret"];
+            string clientId = Startup.Configuration["AzureAdMultiTenant:ClientId"];
+            string clientSecret = Startup.Configuration["AzureAdMultiTenant:ClientSecret"];
             // string clientId = Startup.Configuration["AzureAd:AltClientId"];
             // string clientSecret = Startup.Configuration["AzureAd:AltClientSecret"];
             string authority = String.Format(CultureInfo.InvariantCulture, aadInstance, TenantName);
@@ -316,50 +330,38 @@ namespace WindowsAuth.Controllers
             userID.isAdmin = "false";
             userID.isAuthorized = "false";
 
-            try
-            {
-                if (!String.IsNullOrEmpty(tenantID) && !String.IsNullOrEmpty(upn) && !String.IsNullOrEmpty(endpoint))
+
+                if (!String.IsNullOrEmpty(tenantID) )
                 {
-                    var _assertionCredential = await AcquireCredentialAsyncForApplication();
-                    string TenantName = Startup.Configuration["AzureAd:Tenant"];
-                    string apiVersion = Startup.Configuration["AzureAd:GraphApiVersion"];
-                    // string requestURL = string.Format(@"https://graph.windows.net/{0}/users/{1}/memberOf?api-version={2}", TenantName, userObjectID, apiVersion);
-                    // string requestURL = string.Format(@"https://graph.windows.net/myorganization/groups/?api-version={1}", TenantName, apiVersion);
-                    // string requestURL = string.Format(@"http://www.google.com");
-                    // string requestURL = endpoint; 
-                    // string requestURL = @"https://graph.microsoft.com/v1.0/groups/ad53e8c9-3627-4a83-979e-63a1756d9a9f";
-                    string requestURL = @"https://graph.microsoft.com/v1.0/me";
-                    HttpWebRequest webRequest = WebRequest.Create(requestURL) as HttpWebRequest;
-                    webRequest.Method = "Get";
-                    string token = _assertionCredential.AccessToken;
-                    string authHeader = _assertionCredential.CreateAuthorizationHeader();
-                    webRequest.Headers["Authorization"] = authHeader;
-                    webRequest.Headers["access-control-allow-origin"] = "*";
-                    webRequest.Headers["access-control-expose-headers"] = "ETag, Location, Preference-Applied, Content-Range, request-id, client-request-id";
+                    var token = await _tokenCache.GetAccessTokenForAadGraph(); 
+                    if ( !String.IsNullOrEmpty(token))
+                    { 
+                        string requestUrl = String.Format("{0}/myorganization/me/memberOf?api-version={1}",
+                            _aadConfig.GraphBaseEndpoint,
+    //                        tenantID,
+                            _aadConfig.GraphApiVersion);
 
+                        HttpClient client = new HttpClient();
+                        HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+                        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-                    // webRequest.Headers["x-ms-dirapi-data-contract-version"] = "0.8";
-                    string jsonText = null;
-                    var content = new MemoryStream();
-                    using (var httpResponse = await webRequest.GetResponseAsync())
-                    {
-                        using (var responseStream = httpResponse.GetResponseStream())
+                        HttpResponseMessage response = await client.SendAsync(request);
+
+                        if (!response.IsSuccessStatusCode)
                         {
-                            await responseStream.CopyToAsync(content);
+                            throw new HttpRequestException(response.ReasonPhrase);
                         }
+                        string responseString = await response.Content.ReadAsStringAsync();
+
+
+                        // string resourceURL = Startup.Configuration["AzureAd:ResourceURL"];
+                        // var servicePointUri = new Uri(resourceURL);
+                        // System.Uri serviceRoot = new Uri(servicePointUri, tenantID);
+                        // var activeDirectoryClient = new ActiveDirectoryClient(serviceRoot, async => await _assertionCredential.AccessToken);
                     }
-                    jsonText = Encoding.UTF7.GetString(content.ToArray());
-                    // string resourceURL = Startup.Configuration["AzureAd:ResourceURL"];
-                    // var servicePointUri = new Uri(resourceURL);
-                    // System.Uri serviceRoot = new Uri(servicePointUri, tenantID);
-                    // var activeDirectoryClient = new ActiveDirectoryClient(serviceRoot, async => await _assertionCredential.AccessToken);
-
-                }
             }
-            catch (Exception)
-            {
 
-            }
+
             // Mark user as unauthorized. 
             await AddUser(username, userID); 
             return ret; 

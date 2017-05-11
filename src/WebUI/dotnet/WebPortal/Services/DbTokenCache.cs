@@ -5,6 +5,12 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
 
+using WindowsAuth.models;
+using WebPortal.Helper;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
+
 namespace WindowsAuth.Services
 {
     public class PerWebUserCache
@@ -17,35 +23,48 @@ namespace WindowsAuth.Services
     }
     public class DbTokenCache : TokenCache, IAzureAdTokenService
     {
-        private TodoListWebAppContext _db;
+        private WebAppContext _db;
         private string _userId;
         private AzureADConfig _aadConfig;
         private PerWebUserCache _cache;
         private AuthenticationContext _authContext;
-        private readonly ClientCredential _appCredentials;
+        private ClientCredential _appCredentials;
+        private IHttpContextAccessor _httpContextAccessor; 
 
-        public DbTokenCache(TodoListWebAppContext db, IHttpContextAccessor httpContextAccessor, IOptions<AzureADConfig> aadConfig)
+        public DbTokenCache(WebAppContext db, IHttpContextAccessor httpContextAccessor, IOptions<AzureADConfig> aadConfig)
         {
             this.BeforeAccess = BeforeAccessNotification;
             this.AfterAccess = AfterAccessNotification;
             this.BeforeWrite = BeforeWriteNotification;
 
             _db = db;
+            db.Database.EnsureCreated();
             _aadConfig = aadConfig.Value;
-            _userId = httpContextAccessor.HttpContext.User.FindFirst(AzureADConstants.ObjectIdClaimType).Value;
-            string tenantId = httpContextAccessor.HttpContext.User.FindFirst(AzureADConstants.TenantIdClaimType).Value;
+            _httpContextAccessor = httpContextAccessor;
+        }
+
+        private void GetClientCredential()
+        {
+            _userId = _httpContextAccessor.HttpContext.User.FindFirst(Constants.ObjectIdClaimType).Value;
+            string tenantId = _httpContextAccessor.HttpContext.User.FindFirst(Constants.TenantIdClaimType).Value;
             _authContext = new AuthenticationContext(String.Format(_aadConfig.AuthorityFormat, tenantId), this);
             _appCredentials = new ClientCredential(_aadConfig.ClientId, _aadConfig.ClientSecret);
+
         }
 
         public async Task<string> GetAccessTokenForAadGraph()
         {
+            GetClientCredential();
             AuthenticationResult result = await _authContext.AcquireTokenSilentAsync(_aadConfig.GraphResourceId, _appCredentials, new UserIdentifier(_userId, UserIdentifierType.UniqueId));
-            return result.AccessToken;
+            if (Object.ReferenceEquals(result, null))
+                return null; 
+            else 
+                return result.AccessToken;
         }
 
         public async Task RedeemAuthCodeForAadGraph(string code, string redirect_uri)
         {
+            GetClientCredential();
             // Redeem the auth code and cache the result in the db for later use.
             await _authContext.AcquireTokenByAuthorizationCodeAsync(code, new Uri(redirect_uri), _appCredentials, _aadConfig.GraphResourceId);
         }

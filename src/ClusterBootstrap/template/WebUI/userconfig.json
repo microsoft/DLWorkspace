@@ -13,4 +13,8 @@
   "WorkFolderAccessPoint": "{{cnf["workFolderAccessPoint"]}}",
   "DataFolderAccessPoint": "{{cnf["dataFolderAccessPoint"]}}", 
   "UserGroups": {{cnf["UserGroups"]}},
+  "SQLHostname": "{{cnf["sqlserver-hostname"]}}", 
+  "SQLUsername": "{{cnf["sqlserver-username"]}}", 
+  "SQLPassword": "{{cnf["sqlserver-password"]}}", 
+  "SQLDatabase": "{{cnf["sqlserver-database"]}}", 
 }

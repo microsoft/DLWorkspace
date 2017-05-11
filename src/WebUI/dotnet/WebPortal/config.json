@@ -29,6 +29,9 @@
     },
    
     */
+    "Data": {
+        "ConnectionString": "Filename=WebPortal.db"
+    },
 
     "AzureAd": {
 
@@ -38,12 +41,12 @@
         // App: dlws-auth-jinl, generated at apps.dev.microsoft.com
         // "ClientId": "ba20c1a2-54ff-4ec5-afb4-18a1879bf2f7",
         "Tenant": "jinlmsfthotmail.onmicrosoft.com",
+        // "Tenant": "microsoft.onmicrosoft.com",
 
         // for dlws-auth at account jinlmsft@hotmail.com
         "DisplayName": "dlws-auth",
         "ObjectId": "66b97da1-b942-4752-b146-ca2ef06d4965",
-        "ClientId": "734cc6a7-e80c-4b89-a663-0b9512925b45",
-        "ClientSecret": "g1nNX9u6Q2tAiqWXdec5amRPadSJQnvsy03P+arDkCk=",
+
 
 
         // for dlws-auth-jinl1
@@ -71,12 +74,24 @@
 
         "Scope": "User.Read",
 
-        // "GraphApiVersion": "1.6", // API version
+        //
         "AzureResourceURL": "https://graph.windows.net",
         "ResourceURL": "https://graph.microsoft.com",
         "PostLogoutRedirectUri": "https://dlws-auth.azurewebsites.net"
     },
 
+
+    "AzureAdMultiTenant": {
+        "ClientId": "734cc6a7-e80c-4b89-a663-0b9512925b45",
+        "ClientSecret": "g1nNX9u6Q2tAiqWXdec5amRPadSJQnvsy03P+arDkCk=",
+        "AuthorityFormat": "https://login.microsoftonline.com/{0}",
+        "RedirectUri": "",
+        "GraphResourceId": "https://graph.windows.net",
+        "GraphBaseEndpoint": "https://graph.windows.net",
+        "GraphBaseEndpoint": "https://graph.windows.net",
+        "GraphApiVersion": "1.6" // API version
+    }
+    /*
     "AzureAdMultiTenant": {
         "ClientId": "511c7514-3090-400e-873a-2fb05f2d5c19",
         "ClientSecret": "E3RT39WiTvfBrJLpfs8FYJcrvFDTqEjxrlu9G36CZZM=",
@@ -84,7 +99,9 @@
         "RedirectUri": "",
         "GraphResourceId": "https://graph.windows.net",
         "GraphBaseEndpoint": "https://graph.windows.net",
-        "GraphBaseEndpoint": "https://graph.windows.net"
-    },
+        "GraphBaseEndpoint": "https://graph.windows.net",
+        "GraphApiVersion": "1.6", // API version
+    }
+    */
 }
 
