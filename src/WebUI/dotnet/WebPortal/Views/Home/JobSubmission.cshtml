@@ -23,7 +23,6 @@
 
 
             //var jobtrainingtype = encodeURIComponent($("#jobtrainingtype").val().trim());
-            
 
 
             var radios = document.getElementsByName('jobtrainingtype');
@@ -34,6 +33,7 @@
                     break;
                 }
             }
+
             var numps = parseInt($('#numps').val());
             var numpsworker = parseInt($('#numpsworker').val());
             var nummpiworker = parseInt($('#nummpiworker').val());
@@ -382,8 +382,7 @@
                     </select>
 
                 </div>
-                <!--
-                <div class="form-group">
+                <div class="form-group" hidden>
                     <label>
                         Job Type
                     </label>
@@ -392,7 +391,7 @@
                     <input type="radio" name="jobtrainingtype" id="jobtrainingtype" value="PSDistJob" onclick="ShowPSDistJob()" /> Distributed Training Job (Parameter Server)  <br />
                     <input type="radio" name="jobtrainingtype" id="jobtrainingtype" value="MPIDistJob"  onclick="ShowMPIDistJob()"/> Distributed Training Job (MPI)    <br />
                 </div>
-                 -->
+
                 <div class="form-group">
                     <label>
                         Job Name
