@@ -316,8 +316,10 @@ def SubmitRegularJob(job):
 		if not os.path.exists(localJobPath):
 			if "userId" in jobParams:
 				mkdirsAsUser(localJobPath,jobParams["userId"])
+				mkdirsAsUser(os.path.join(localJobPath,"models"),jobParams["userId"])
 			else:
 				mkdirsAsUser(localJobPath,"0")
+				mkdirsAsUser(os.path.join(localJobPath,"models"),"0")
 
 		jobParams["LaunchCMD"] = ""
 		if "cmd" not in jobParams:
@@ -355,6 +357,16 @@ def SubmitRegularJob(job):
 		if "/" in userName:
 			userName = userName.split("/")[1].strip()
 		jobParams["userNameLabel"] = userName
+
+
+		if "mountPoints" not in jobParams:
+			jobParams["mountPoints"] = []
+
+		jobParams["mountPoints"].append({"name":"nvidia-driver","containerPath":"/usr/local/nvidia","hostPath":nvidiaDriverPath})
+		jobParams["mountPoints"].append({"name":"job","containerPath":"/job","hostPath":jobParams["hostjobPath"]})
+		jobParams["mountPoints"].append({"name":"work","containerPath":"/work","hostPath":jobParams["hostworkPath"]})
+		jobParams["mountPoints"].append({"name":"data","containerPath":"/data","hostPath":jobParams["hostdataPath"]})
+
 
 		template = ENV.get_template(os.path.abspath(jobTemp))
 		job_description = template.render(job=jobParams)
