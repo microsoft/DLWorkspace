@@ -11,6 +11,7 @@
 else
 {
     <ul class="nav navbar-nav navbar-right">
-        <li>@Html.ActionLink("Log in", "Login", "Account", routeValues: null, htmlAttributes: new { id = "loginLink" })</li>
+        <li>@Html.ActionLink("Log in (Microsoft)", "Login_OpenId", "Account", routeValues: null, htmlAttributes: new { id = "loginLink" })</li>
+        <li>@Html.ActionLink("(live.com)", "Login_MicrosoftAccount", "Account", routeValues: null, htmlAttributes: new { id = "loginLink" })</li>
     </ul>
 }

@@ -7,6 +7,7 @@ namespace WebPortal.Helper
 {
     public class AzureADConfig
     {
+        public string Tenant { get; set; }
         public string ClientId { get; set; }
         public string ClientSecret { get; set; }
         public string AuthorityFormat { get; set; }

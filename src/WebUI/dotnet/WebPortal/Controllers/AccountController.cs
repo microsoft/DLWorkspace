@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Authentication.MicrosoftAccount;
 using Microsoft.AspNetCore.Http.Authentication;
 using Microsoft.AspNetCore.Mvc;
 using System.Net.Http;
@@ -20,12 +21,23 @@ namespace WindowsAuth.Controllers
 {
     public class AccountController : Controller
     {
+        private string _authentication = null; 
         // GET: /Account/Login
         [HttpGet]
-        public async Task Login()
+        public async Task Login_OpenId()
         {
             if (HttpContext.User == null || !HttpContext.User.Identity.IsAuthenticated)
+            {
                 await HttpContext.Authentication.ChallengeAsync(OpenIdConnectDefaults.AuthenticationScheme, new AuthenticationProperties { RedirectUri = "/" });
+            }
+        }
+
+        public async Task Login_MicrosoftAccount()
+        {
+            if (HttpContext.User == null || !HttpContext.User.Identity.IsAuthenticated)
+            { 
+                await HttpContext.Authentication.ChallengeAsync(MicrosoftAccountDefaults.AuthenticationScheme, new AuthenticationProperties { RedirectUri = "/" });
+            }
         }
 
         // Issue a challenge to send the user to AAD to sign in,
@@ -46,13 +58,52 @@ namespace WindowsAuth.Controllers
                 { RedirectUri = "/" });
         }
 
+        public bool isOpenId()
+        {
+            if (String.IsNullOrEmpty(HttpContext.User.Identity.Name))
+            {
+                return false;
+            }
+            else
+            {
+                if (HttpContext.User.Identity.Name.Contains("@microsoft.com"))
+                    return true;
+                else
+                    return false; 
+            }
+        }
+
+        public bool isMicrosoftAccount()
+        {
+            if (String.IsNullOrEmpty(HttpContext.User.Identity.Name))
+            {
+                return false;
+            }
+            else
+            {
+                if (HttpContext.User.Identity.Name.Contains("@live.com") ||
+                    HttpContext.User.Identity.Name.Contains("@outlook.com") ||
+                    HttpContext.User.Identity.Name.Contains("@hotmail.com"))
+                    return true;
+                else
+                    return false;
+            }
+        }
+
         // GET: /Account/LogOff
         [HttpGet]
         public async Task LogOff()
         {
             if (HttpContext.User.Identity.IsAuthenticated)
             {
-                await HttpContext.Authentication.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme);
+                if (isOpenId())
+                {
+                    await HttpContext.Authentication.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme);
+                }
+                else if (isMicrosoftAccount())
+                {
+                    await HttpContext.Authentication.SignOutAsync(MicrosoftAccountDefaults.AuthenticationScheme);
+                }
                 await HttpContext.Authentication.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             }
         }

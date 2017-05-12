@@ -17,6 +17,7 @@ using System.Security.Claims;
 using WindowsAuth.models;
 using WindowsAuth.Services;
 using WebPortal.Helper;
+using Microsoft.AspNetCore.Authentication.MicrosoftAccount;
 
 
 using Serilog.Extensions.Logging;
@@ -85,6 +86,23 @@ namespace WindowsAuth
 
         }
 
+        private static bool _bInitializeAadConfiguration = false;
+        private static bool _bUseAadGraph = false; 
+
+        public static bool UseAadGraph()
+        {
+            if ( _bInitializeAadConfiguration )
+            {
+                return _bUseAadGraph;
+            }
+            else
+            {
+                _bInitializeAadConfiguration = true;
+                _bUseAadGraph = (String.Compare(Configuration["AzureAdMultiTenant:UseAadGraph"], "true", true) == 0);
+                return _bUseAadGraph;
+            }
+        }
+
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
         {
@@ -111,26 +129,30 @@ namespace WindowsAuth
             app.UseCookieAuthentication(cookieOpt);
 
             var openIDOpt = new OpenIdConnectOptions();
-            openIDOpt.AutomaticChallenge = true;
+            // openIDOpt.AutomaticChallenge = true;
             openIDOpt.ClientId = Configuration["AzureAdMultiTenant:ClientId"];
-            openIDOpt.ClientSecret = Configuration["AzureAdMultiTenant:ClientSecret"];
 
-            foreach (var scope in Configuration["AzureAd:Scope"].Split(new char[] { ' ' }))
+            if (UseAadGraph())
             {
-                openIDOpt.Scope.Add(scope);
+                openIDOpt.ClientSecret = Configuration["AzureAdMultiTenant:ClientSecret"];
+                foreach (var scope in Configuration["AzureAd:Scope"].Split(new char[] { ' ' }))
+                {
+                    openIDOpt.Scope.Add(scope);
+                }
+                openIDOpt.ResponseType = OpenIdConnectResponseType.CodeIdToken;
             }
-            openIDOpt.Authority = String.Format(Configuration["AzureAd:AadInstance"], Configuration["AzureAd:Tenant"]);
+            openIDOpt.Authority = String.Format(Configuration["AzureAdMultiTenant:AuthorityFormat"], Configuration["AzureAdMultiTenant:Tenant"]);
             // openIDOpt.Authority = Configuration["AzureAd:Oauth2Instance"];
 
-            openIDOpt.PostLogoutRedirectUri = Configuration["AzureAd:PostLogoutRedirectUri"];
-            // openIDOpt.ResponseType = OpenIdConnectResponseType.CodeIdToken;
+            openIDOpt.PostLogoutRedirectUri = Configuration["AzureAdMultiTenant:RedirectUri"];
             openIDOpt.GetClaimsFromUserInfoEndpoint = false;
+            /*
             openIDOpt.TokenValidationParameters = new TokenValidationParameters
             {
                 // instead of using the default validation (validating against a single issuer value, as we do in line of business apps), 
                 // we inject our own multitenant validation logic
                 ValidateIssuer = false
-            };
+            };*/
         
 
 
@@ -144,6 +166,13 @@ namespace WindowsAuth
 
             // Configure the OWIN pipeline to use OpenID Connect auth.
             app.UseOpenIdConnectAuthentication(openIDOpt);
+            app.UseMicrosoftAccountAuthentication(new MicrosoftAccountOptions()
+            {
+                ClientId = Configuration["AzureAdMultiTenant:ClientId"], 
+                ClientSecret = Configuration["AzureAdMultiTenant:ClientSecret"]
+            });
+
+
 
             app.UseSession();
             // Configure MVC routes
@@ -166,16 +195,18 @@ namespace WindowsAuth
         private Task OnRedirectToIdentityProvider(RedirectContext context)
         {
             // Using examples from: https://github.com/jinlmsft/active-directory-webapp-webapi-multitenant-openidconnect-aspnetcore
-
-            string adminConsentSignUp = null;
-            if (context.Request.Path == new PathString("/Account/SignUp") && context.Properties.Items.TryGetValue(Constants.AdminConsentKey, out adminConsentSignUp))
-            {
-                if (adminConsentSignUp == Constants.True)
+            if ( UseAadGraph() )
+            { 
+                string adminConsentSignUp = null;
+                if (context.Request.Path == new PathString("/Account/SignUp") && context.Properties.Items.TryGetValue(Constants.AdminConsentKey, out adminConsentSignUp))
                 {
-                    context.ProtocolMessage.Prompt = "admin_consent";
+                    if (adminConsentSignUp == Constants.True)
+                    {
+                        context.ProtocolMessage.Prompt = "admin_consent";
+                    }
                 }
+                context.ProtocolMessage.Prompt = "admin_consent";
             }
-            context.ProtocolMessage.Prompt = "admin_consent";
             return Task.FromResult(0);
         }
 
@@ -197,7 +228,7 @@ namespace WindowsAuth
             var ClientId = Configuration["AzureAdMultiTenant:ClientId"];
             var ClientSecret = Configuration["AzureAdMultiTenant:ClientSecret"];
             ClientCredential clientCred = new ClientCredential(ClientId, ClientSecret);
-            var Authority = String.Format(Configuration["AzureAd:AadInstance"], Configuration["AzureAd:Tenant"]);
+            var Authority = String.Format(Configuration["AzureAdMultiTenant:AuthorityFormat"], Configuration["AzureAdMultiTenant:Tenant"]);
             var GraphResourceId = Configuration["AzureAD:AzureResourceURL"]; 
             AuthenticationContext authContext = new AuthenticationContext(Authority, new NaiveSessionCache(userObjectId, context.HttpContext.Session));
             AuthenticationResult authResult = await authContext.AcquireTokenByAuthorizationCodeAsync(

@@ -289,7 +289,7 @@ namespace WindowsAuth.Controllers
         private async Task<AuthenticationResult> AcquireCredentialAsyncForApplication()
         {
             string aadInstance = Startup.Configuration["AzureAd:AadInstance"];
-            string TenantName = Startup.Configuration["AzureAd:Tenant"];
+            string TenantName = Startup.Configuration["AzureAdMultiTenant:Tenant"];
             // string TenantName = Startup.Configuration["AzureAd:AltTenant"];
             string clientId = Startup.Configuration["AzureAdMultiTenant:ClientId"];
             string clientSecret = Startup.Configuration["AzureAdMultiTenant:ClientSecret"];
