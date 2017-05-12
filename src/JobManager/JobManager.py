@@ -9,6 +9,7 @@ from jobs_tensorboard import GenTensorboardMeta
 import datetime
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
 
 import yaml
 from jinja2 import Environment, FileSystemLoader, Template
