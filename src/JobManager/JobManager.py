@@ -5,11 +5,14 @@ import argparse
 import uuid
 import subprocess
 import sys
-from jobs_tensorboard import GenTensorboardMeta
 import datetime
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
+
+from jobs_tensorboard import GenTensorboardMeta
+import k8sUtils
+
 
 import yaml
 from jinja2 import Environment, FileSystemLoader, Template
@@ -46,42 +49,6 @@ def printlog(msg):
 def LoadJobParams(jobParamsJsonStr):
 	return json.loads(jobParamsJsonStr)
 
-def kubectl_create(jobfile,EXEC=True):
-	if EXEC:
-		try:
-			output = subprocess.check_output(["bash","-c", config["kubelet-path"] + " create -f " + jobfile])
-		except Exception as e:
-			print e
-			output = ""
-	else:
-		output = "Job " + jobfile + " is not submitted to kubernetes cluster"
-	return output
-
-def kubectl_delete(jobfile,EXEC=True):
-	if EXEC:
-		try:
-			cmd = "bash -c '" + config["kubelet-path"] + " delete -f " + jobfile + "'"
-			print cmd
-			output = os.system(cmd)
-		except Exception as e:
-			print e
-			output = -1
-	else:
-		output = -1
-	return output
-
-def kubectl_exec(params):
-	try:
-		output = subprocess.check_output(["bash","-c", config["kubelet-path"] + " " + params])
-	except Exception as e:
-		print e
-		output = ""
-	return output
-
-
-def kubectl_exec_output_to_file(params,file):
-	os.system("%s %s 2>&1 | tee %s" % (config["kubelet-path"], params, file))
-
 def cmd_exec(cmdStr):
 	try:
 		output = subprocess.check_output(["bash","-c", cmdStr])
@@ -96,185 +63,6 @@ def cmd_exec(cmdStr):
 
 def Split(text,spliter):
 	return [x for x in text.split(spliter) if len(x.strip()) > 0]
-
-def GetServiceAddress(jobId):
-	ret = []
-
-	output = kubectl_exec(" describe svc -l run=" + jobId)
-	svcs = output.split("\n\n\n")
-	
-	for svc in svcs:
-		lines = [Split(x,"\t") for x in Split(svc,"\n")]
-		containerPort = None
-		hostPort = None
-		selector = None
-		hostIP = None
-		hostName = None
-
-		for line in lines:
-			if len(line) > 1:
-				if line[0] == "Port:":
-					containerPort = line[-1]
-					if "/" in containerPort:
-						containerPort = containerPort.split("/")[0]
-				if line[0] == "NodePort:":
-					hostPort = line[-1]
-					if "/" in hostPort:
-						hostPort = hostPort.split("/")[0]
-
-				if line[0] == "Selector:" and line[1] != "<none>":
-					selector = line[-1]
-
-		if selector is not None:
-			podInfo = GetPod(selector)
-			if podInfo is not None and "items" in podInfo:
-				for item in podInfo["items"]:
-					if "status" in item and "hostIP" in item["status"]:
-						hostIP = item["status"]["hostIP"]
-					if "spec" in item and "nodeName" in item["spec"]:
-						hostName = item["spec"]["nodeName"]
-		if containerPort is not None and hostIP is not None and hostPort is not None:
-			svcMapping = {}
-			svcMapping["containerPort"] = containerPort
-			svcMapping["hostPort"] = hostPort
-
-			if "." not in hostName and "domain" in config and len(config["domain"].strip()) >0:
-				hostName += "."+config["domain"]
-
-			svcMapping["hostIP"] = hostIP
-			svcMapping["hostName"] = hostName
-			ret.append(svcMapping)
-	return ret
-
-
-
-def GetPod(selector):
-	podInfo = {}
-	try:
-		output = kubectl_exec(" get pod -o yaml --show-all -l " + selector)
-		podInfo = yaml.load(output)
-	except Exception as e:
-		print e
-		podInfo = None
-	return podInfo
-
-def GetLog(jobId):
-	# assume our job only one container per pod.
-
-	selector = "run=" + jobId
-	podInfo = GetPod(selector)
-	logs = []
-
-	if podInfo is not None and "items" in podInfo:
-		for item in podInfo["items"]:
-			log = {}
-			if "metadata" in item and "name" in item["metadata"]:
-				log["podName"] = item["metadata"]["name"]
-				log["podMetadata"] = item["metadata"]
-				if "status" in item and "containerStatuses" in item["status"] and "containerID" in item["status"]["containerStatuses"][0]:
-					containerID = item["status"]["containerStatuses"][0]["containerID"].replace("docker://","")
-					log["containerID"] = containerID
-					log["containerLog"] = kubectl_exec(" logs " + log["podName"])
-					logs.append(log)
-	return logs
-
-
-
-def check_pod_status(pod):
-
-	try:
-		if pod["status"]["containerStatuses"][0]["restartCount"] > 0:
-			return "Error"
-	except Exception as e:
-		pass
-
-	try:
-		if pod["status"]["phase"] == "Succeeded":
-			return "Succeeded"
-	except Exception as e:
-		pass
-
-	try:
-		if pod["status"]["phase"] == "Unknown":
-			return "Unknown"  #host is dead/cannot be reached.
-	except Exception as e:
-		pass
-
-	try:
-		if pod["status"]["phase"] == "Failed":
-			return "Failed"
-	except Exception as e:
-		pass
-
-
-	try:
-		if pod["status"]["phase"] == "Pending":
-			return "Pending"
-	except Exception as e:
-		pass
-	
-	try:
-		if pod["status"]["phase"] == "Running" and all("ready" in item and item["ready"] for item in pod["status"]["containerStatuses"]):
-			return "Running"
-	except Exception as e:
-		return "Pending"
-
-	return "Unknown"
-
-def get_pod_events(pod):
-	description = kubectl_exec("describe pod %s" % pod["metadata"]["name"])
-	ret = []
-	for line in description.split("\n"):
-		if "fit failure summary on nodes" in line:
-			 ret += [item.strip() for item in line.replace("fit failure summary on nodes : ","").replace("(.*)","").strip().split(",")]
-	return ret
-
-def get_pod_pending_detail(pod):
-	description = kubectl_exec("describe pod %s" % pod["metadata"]["name"])
-	ret = []
-	for line in description.split("\n"):
-		if "fit failure summary on nodes" in line:
-			 ret += [item.strip() for item in line.replace("fit failure summary on nodes : ","").replace("(.*)","").strip().split(",")]
-	return ret
-
-def check_pending_reason(pod,reason):
-	reasons = get_pod_pending_detail(pod)
-	return any([reason in item for item in reasons])
-
-def GetJobStatus(jobId):
-	podInfo = GetPod("run=" + jobId)
-	output = "Unknown"
-	detail = "Unknown Status"
-
-	if podInfo is None:
-		output = "kubectlERR"
-	elif "items" in podInfo:
-		podStatus = [check_pod_status(pod) for pod in  podInfo["items"]]
-		detail = "=====================\n=====================\n=====================\n".join([yaml.dump(pod["status"], default_flow_style=False) for pod in podInfo["items"] if "status" in podInfo["items"]])
-
-
-		######!!!!!!!!!!!!!!!!CAUTION!!!!!! since "any and all are used here, the order of if cause is IMPORTANT!!!!!, we need to deail with Faild,Error first, and then "Unknown" then "Pending", at last " Successed and Running"
-		if len(podStatus) ==0:
-			output = "Pending"
-		elif any([status == "Error" for status in podStatus]):
-			output = "Failed"
-		elif any([status == "Failed" for status in podStatus]):
-			output = "Failed"
-		elif any([status == "Unknown" for status in podStatus]):
-			output = "Unknown"
-		elif  any([status == "Pending" for status in podStatus]):
-			if any([check_pending_reason(pod,"PodFitsHostPorts") for pod in podInfo["items"]]):
-				output = "PendingHostPort"
-			else:
-				output = "Pending"
-		# there is a bug: if podStatus is empty, all (**) will be trigered. 
-		elif all([status == "Succeeded" for status in podStatus]):
-			output = "Succeeded"
-		elif any([status == "Running" for status in podStatus]):   # as long as there are no "Unknown", "Pending" nor "Error" pods, once we see a running pod, the job should be in running status.  
-			output = "Running"
-
-	return output, detail
-
 
 
 def SubmitJob(job):
@@ -397,12 +185,12 @@ def SubmitRegularJob(job):
 		if not os.path.exists(os.path.dirname(os.path.realpath(jobDescriptionPath))):
 			os.makedirs(os.path.dirname(os.path.realpath(jobDescriptionPath)))
 		if os.path.isfile(jobDescriptionPath):
-			output = kubectl_delete(jobDescriptionPath) 
+			output = k8sUtils.kubectl_delete(jobDescriptionPath) 
 
 		with open(jobDescriptionPath, 'w') as f:
 			f.write(jobDescription)
 
-		output = kubectl_create(jobDescriptionPath)	
+		output = k8sUtils.kubectl_create(jobDescriptionPath)	
 
 		ret["output"] = output
 		
@@ -562,12 +350,12 @@ chmod +x /opt/run_dist_job.sh
 		if not os.path.exists(os.path.dirname(os.path.realpath(jobDescriptionPath))):
 			os.makedirs(os.path.dirname(os.path.realpath(jobDescriptionPath)))
 		if os.path.isfile(jobDescriptionPath):
-			output = kubectl_delete(jobDescriptionPath) 
+			output = k8sUtils.kubectl_delete(jobDescriptionPath) 
 
 		with open(jobDescriptionPath, 'w') as f:
 			f.write(jobDescription)
 
-		output = kubectl_create(jobDescriptionPath)	
+		output = k8sUtils.kubectl_create(jobDescriptionPath)	
 
 		ret["output"] = output
 		
@@ -609,7 +397,7 @@ def KillJob(job):
 	if "jobDescriptionPath" in job and job["jobDescriptionPath"] is not None:
 		jobDescriptionPath = os.path.join(config["storage-mount-path"], job["jobDescriptionPath"])
 		if os.path.isfile(jobDescriptionPath):
-			if kubectl_delete(jobDescriptionPath) == 0:
+			if k8sUtils.kubectl_delete(jobDescriptionPath) == 0:
 				dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","killed")
 				return True
 			else:
@@ -625,7 +413,7 @@ def KillJob(job):
 def ExtractJobLog(jobId,logPath,userId):
 	dataHandler = DataHandler()
 
-	logs = GetLog(jobId)
+	logs = k8sUtils.GetLog(jobId)
 	
 	logStr = ""
 	jobLogDir = os.path.dirname(logPath)
@@ -684,7 +472,7 @@ def UpdateJobStatus(job):
 	logPath = os.path.join(localJobPath,"joblog.txt")
 	
 
-	result, detail = GetJobStatus(job["jobId"])
+	result, detail = k8sUtils.GetJobStatus(job["jobId"])
 	dataHandler.UpdateJobTextField(job["jobId"],"jobStatusDetail",base64.b64encode(detail))
 
 	printlog("job %s status: %s" % (job["jobId"], result))
@@ -696,14 +484,14 @@ def UpdateJobStatus(job):
 		ExtractJobLog(job["jobId"],logPath,jobParams["userId"])
 		dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","finished")
 		if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
-			kubectl_delete(jobDescriptionPath) 
+			k8sUtils.kubectl_delete(jobDescriptionPath) 
 
 	elif result.strip() == "Running":
 		ExtractJobLog(job["jobId"],logPath,jobParams["userId"])
 		if job["jobStatus"] != "running":
 			dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","running")
 		if "interactivePort" in jobParams:
-			serviceAddress = GetServiceAddress(job["jobId"])
+			serviceAddress = k8sUtils.GetServiceAddress(job["jobId"])
 			serviceAddress = base64.b64encode(json.dumps(serviceAddress))
 			dataHandler.UpdateJobTextField(job["jobId"],"endpoints",serviceAddress)
 
@@ -713,7 +501,7 @@ def UpdateJobStatus(job):
 		dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","failed")
 		dataHandler.UpdateJobTextField(job["jobId"],"errorMsg",detail)
 		if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
-			kubectl_delete(jobDescriptionPath) 
+			k8sUtils.kubectl_delete(jobDescriptionPath) 
 
 	elif result.strip() == "Unknown":
 		if job["jobId"] not in UnusualJobs:
@@ -726,7 +514,7 @@ def UpdateJobStatus(job):
 				dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","error")
 				dataHandler.UpdateJobTextField(job["jobId"],"errorMsg","cannot launch the job.")
 				if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
-					kubectl_delete(jobDescriptionPath)				 
+					k8sUtils.kubectl_delete(jobDescriptionPath)				 
 			else:
 				printlog("Job %s fails in Kubernetes, delete and re-submit the job. Retries %d" % (job["jobId"] , retries))
 				SubmitJob(job)
@@ -750,7 +538,7 @@ def UpdateDistJobStatus(job):
 	logPath = os.path.join(localJobPath,"joblog.txt")
 	
 
-	result, detail = GetJobStatus(job["jobId"])
+	result, detail = k8sUtils.GetJobStatus(job["jobId"])
 	dataHandler.UpdateJobTextField(job["jobId"],"jobStatusDetail",base64.b64encode(detail))
 
 	printlog("job %s status: %s" % (job["jobId"], result))
@@ -759,8 +547,8 @@ def UpdateDistJobStatus(job):
 
 
 	jobId = jobParams["jobId"]
-	workerPodInfo = GetPod("distRole=worker,run=" + jobId)
-	psPodInfo = GetPod("distRole=ps,run=" + jobId)
+	workerPodInfo = k8sUtils.GetPod("distRole=worker,run=" + jobId)
+	psPodInfo = k8sUtils.GetPod("distRole=ps,run=" + jobId)
 	if "items" in workerPodInfo and len(workerPodInfo["items"]) == int(jobParams["numpsworker"]) and "items" in psPodInfo and len(psPodInfo["items"]) == int(jobParams["numps"]):
 		if job["jobStatus"] == "scheduling" :
 			launch_ps_dist_job(jobParams)
@@ -776,14 +564,14 @@ def UpdateDistJobStatus(job):
 				ExtractJobLog(job["jobId"],logPath,jobParams["userId"])
 				dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","finished")
 				if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
-					kubectl_delete(jobDescriptionPath) 
+					k8sUtils.kubectl_delete(jobDescriptionPath) 
 
 			elif result.strip() == "Running":
 				ExtractJobLog(job["jobId"],logPath,jobParams["userId"])
 				if job["jobStatus"] != "running":
 					dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","running")
 				if "interactivePort" in jobParams:
-					serviceAddress = GetServiceAddress(job["jobId"])
+					serviceAddress = k8sUtils.GetServiceAddress(job["jobId"])
 					serviceAddress = base64.b64encode(json.dumps(serviceAddress))
 					dataHandler.UpdateJobTextField(job["jobId"],"endpoints",serviceAddress)
 
@@ -793,7 +581,7 @@ def UpdateDistJobStatus(job):
 				dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","failed")
 				dataHandler.UpdateJobTextField(job["jobId"],"errorMsg",detail)
 				if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
-					kubectl_delete(jobDescriptionPath) 
+					k8sUtils.kubectl_delete(jobDescriptionPath) 
 
 			elif result.strip() == "Unknown":
 				if job["jobId"] not in UnusualJobs:
@@ -806,7 +594,7 @@ def UpdateDistJobStatus(job):
 						dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","error")
 						dataHandler.UpdateJobTextField(job["jobId"],"errorMsg","cannot launch the job.")
 						if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
-							kubectl_delete(jobDescriptionPath)				 
+							k8sUtils.kubectl_delete(jobDescriptionPath)				 
 					else:
 						printlog("Job %s fails in Kubernetes, delete and re-submit the job. Retries %d" % (job["jobId"] , retries))
 						SubmitJob(job)
@@ -816,52 +604,13 @@ def UpdateDistJobStatus(job):
 
 	pass
 
-def ScheduleJob():
-	last_update_time = None
-	while True:
-		try:
-			dataHandler = DataHandler()
-			pendingJobs = dataHandler.GetPendingJobs()
-			printlog("updating status for %d jobs" % len(pendingJobs))
-			for job in pendingJobs:
-				try:
-					print "Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"])
-					if job["jobStatus"] == "queued":
-						SubmitJob(job)
-					elif job["jobStatus"] == "killing":
-						KillJob(job)
-					elif job["jobStatus"] == "scheduling" or job["jobStatus"] == "running" :
-						UpdateJobStatus(job)
-				except Exception as e:
-					print e
-		except Exception as e:
-			print e
-		try:
-			if last_update_time is None or (datetime.datetime.now() - last_update_time).seconds >= 120:
-				print "updating cluster status..."
-				get_cluster_status()
-				last_update_time = datetime.datetime.now()
-		except Exception as e:
-			print e
-
-		try:
-			print "updating user directory..."
-			set_user_directory()
-		except Exception as e:
-			print e
-
-		time.sleep(1)
-
-
-
-
 
 
 
 def run_dist_cmd_on_pod(podId, cmd, outputfile):
 	remotecmd = "exec %s -- %s" % (podId,cmd)
 	print remotecmd
-	kubectl_exec_output_to_file(remotecmd,outputfile)
+	k8sUtils.kubectl_exec_output_to_file(remotecmd,outputfile)
 
 
 
@@ -878,10 +627,10 @@ class Kube_RemoteCMD_Thread(threading.Thread):
 
 def launch_ps_dist_job(jobParams):
 	jobId = jobParams["jobId"]
-	workerPodInfo = GetPod("distRole=worker,run=" + jobId)
-	psPodInfo = GetPod("distRole=ps,run=" + jobId)
+	workerPodInfo = k8sUtils.GetPod("distRole=worker,run=" + jobId)
+	psPodInfo = k8sUtils.GetPod("distRole=ps,run=" + jobId)
 	if "items" in workerPodInfo and len(workerPodInfo["items"]) == int(jobParams["numpsworker"]) and "items" in psPodInfo and len(psPodInfo["items"]) == int(jobParams["numps"]):
-		podStatus = [check_pod_status(pod) for pod in  workerPodInfo["items"] + psPodInfo["items"] ]
+		podStatus = [k8sUtils.check_pod_status(pod) for pod in  workerPodInfo["items"] + psPodInfo["items"] ]
 		if all([status == "Running" for status in podStatus]):
 			ps_pod_names = [pod["metadata"]["name"] for pod in psPodInfo["items"]]
 			worker_pod_names = [pod["metadata"]["name"] for pod in workerPodInfo["items"]]
@@ -920,8 +669,8 @@ def launch_ps_dist_job(jobParams):
 				if "userId" in jobParams:
 					os.system("chown -R %s %s" % (jobParams["userId"], ps_files[i]))
 				remotecmd = "cp %s %s:/opt/run_dist_job.sh" % (ps_files[i],ps_pod_names[i])
-				kubectl_exec(remotecmd)
-				kubectl_exec("exec %s touch /opt/run_dist_job" % ps_pod_names[i])
+				k8sUtils.kubectl_exec(remotecmd)
+				k8sUtils.kubectl_exec("exec %s touch /opt/run_dist_job" % ps_pod_names[i])
 
 
 			for i in range(worker_num):
@@ -933,8 +682,8 @@ def launch_ps_dist_job(jobParams):
 				if "userId" in jobParams:
 					os.system("chown -R %s %s" % (jobParams["userId"], worker_files[i]))
 				remotecmd = "cp %s %s:/opt/run_dist_job.sh" % (worker_files[i],worker_pod_names[i])
-				kubectl_exec(remotecmd)
-				kubectl_exec("exec %s touch /opt/run_dist_job" % worker_pod_names[i])
+				k8sUtils.kubectl_exec(remotecmd)
+				k8sUtils.kubectl_exec("exec %s touch /opt/run_dist_job" % worker_pod_names[i])
 
 			dataHandler = DataHandler()
 			dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","running")
@@ -983,7 +732,7 @@ def set_user_directory():
 def get_cluster_status():
 	cluster_status={}
 	try:
-		output = kubectl_exec(" get nodes -o yaml")
+		output = k8sUtils.kubectl_exec(" get nodes -o yaml")
 		nodeInfo = yaml.load(output)
 		nodes_status = {}
 		user_status = {}
@@ -1017,7 +766,7 @@ def get_cluster_status():
 				nodes_status[node_status["name"]] = node_status
 
 
-		output = kubectl_exec(" get pods -o yaml")
+		output = k8sUtils.kubectl_exec(" get pods -o yaml")
 		podsInfo = yaml.load(output)
 		if "items" in podsInfo:
 			for pod in podsInfo["items"]:
@@ -1091,50 +840,41 @@ def get_cluster_status():
 	return cluster_status
 
 
+def Run():
+	last_update_time = None
+	while True:
+		try:
+			dataHandler = DataHandler()
+			pendingJobs = dataHandler.GetPendingJobs()
+			printlog("updating status for %d jobs" % len(pendingJobs))
+			for job in pendingJobs:
+				try:
+					print "Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"])
+					if job["jobStatus"] == "queued":
+						SubmitJob(job)
+					elif job["jobStatus"] == "killing":
+						KillJob(job)
+					elif job["jobStatus"] == "scheduling" or job["jobStatus"] == "running" :
+						UpdateJobStatus(job)
+				except Exception as e:
+					print e
+		except Exception as e:
+			print e
+		try:
+			if last_update_time is None or (datetime.datetime.now() - last_update_time).seconds >= 120:
+				print "updating cluster status..."
+				get_cluster_status()
+				last_update_time = datetime.datetime.now()
+		except Exception as e:
+			print e
+
+		try:
+			print "updating user directory..."
+			set_user_directory()
+		except Exception as e:
+			print e
+
+		time.sleep(1)
+
 if __name__ == '__main__':
-	TEST_SUB_REG_JOB = False
-	TEST_JOB_STATUS = False
-	TEST_DEL_JOB = False
-	TEST_GET_TB = False
-	TEST_GET_SVC = False
-	TEST_GET_LOG = False
-
-	job = {}
-	job["jobId"] = "d3477fc6-8389-4058-b666-fd306695d03d"
-	job["numps"] = "1"
-	job["numworker"] = "2"
-	job["distcmd"] = "/work/tensorflow/models/inception/bazel-bin/inception/imagenet_distributed_train --batch_size=32 --train_dir=/job/model --data_dir=/data/tensor"
-	#launch_ps_dist_job(job)
-	#get_cluster_status()
-	ScheduleJob()
-	#set_user_directory()
-
-
-
-	if TEST_SUB_REG_JOB:
-		parser = argparse.ArgumentParser(description='Launch a kubernetes job')
-		parser.add_argument('-f', '--param-file', required=True, type=str,
-							help = 'Path of the Parameter File')
-		parser.add_argument('-t', '--template-file', required=True, type=str,
-							help = 'Path of the Job Template File')
-		args, unknown = parser.parse_known_args()
-		with open(args.param_file,"r") as f:
-			jobParamsJsonStr = f.read()
-		f.close()
-
-		SubmitRegularJob(jobParamsJsonStr,args.template_file)
-
-	if TEST_JOB_STATUS:
-		print GetJobStatus(sys.argv[1])
-
-	if TEST_DEL_JOB:
-		print DeleteJob("tf-dist-1483504085-13")
-
-	if TEST_GET_TB:
-		print GetTensorboard("tf-resnet18-1483509537-31")
-
-	if TEST_GET_SVC:
-		print GetServiceAddress("tf-i-1483566214-12")
-
-	if TEST_GET_LOG:
-		print GetLog("tf-i-1483566214-12")
+	Run()
