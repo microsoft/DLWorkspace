@@ -26,7 +26,7 @@ namespace DLWorkspaceUtils
 
             if (job.jobParams.jobPath == null || job.jobParams.jobPath.Trim().Length == 0)
             {
-                job.jobParams.jobPath = DateTime.Now.ToString("yyMMdd") + "/" + job.jobId;
+                job.jobParams.jobPath = job.userName.Replace("@microsoft.com","").Trim()+"/jobs/"+ DateTime.Now.ToString("yyMMdd") + "/" + job.jobId;
             }
 
 
@@ -45,6 +45,7 @@ namespace DLWorkspaceUtils
                     ret.Add("error", "data-path cannot be empty.");
                 }
             }
+
 
             if (job.jobParams.logDir != null && job.jobParams.logDir.Trim().Length > 0)
             {
@@ -75,7 +76,7 @@ namespace DLWorkspaceUtils
             {
                 if (dataHandler.AddJob(job))
                 {
-                    ret.Add("jobId", job.jobId);
+                    ret.Add("jobId", "application_"+job.jobId);
                 }
                 else
                 {

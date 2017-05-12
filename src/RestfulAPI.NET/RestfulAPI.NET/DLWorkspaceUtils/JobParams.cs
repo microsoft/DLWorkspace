@@ -4,11 +4,36 @@ using System.Text;
 using System.Runtime.Serialization;
 using Newtonsoft.Json;
 
-
 namespace DLWorkspaceUtils
 {
+
     [DataContract]
-    public class JobParams
+    public sealed class MountPoint
+    {
+        [DataMember]
+        public string name { get; set; }
+
+        [DataMember]
+        public string hostPath { get; set; }
+
+        [DataMember]
+        public string containerPath { get; set; }
+
+
+        public override string ToString()
+        {
+            return JsonConvert.SerializeObject(value: this, formatting: Formatting.Indented);
+        }
+
+        static public MountPoint Deserialize(string str)
+        {
+            return JsonConvert.DeserializeObject<MountPoint>(str) as MountPoint;
+        }
+    }
+
+
+    [DataContract]
+    public sealed class JobParams
     {
 
         
@@ -70,11 +95,17 @@ namespace DLWorkspaceUtils
 
         [DataMember]
         public string containerUserId { get; set; }
-        
+
+        [DataMember]
+        public List<MountPoint> mountPoints { get; set; }
+
+
+        [DataMember]
+        public string vcId { get; set; }
 
         public override string ToString()
         {
-            return JsonConvert.SerializeObject(this);
+            return JsonConvert.SerializeObject(value: this, formatting: Formatting.Indented);
         }
 
         static public JobParams Deserialize(string str)

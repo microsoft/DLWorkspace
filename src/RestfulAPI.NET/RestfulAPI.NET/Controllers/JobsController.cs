@@ -8,7 +8,7 @@ using DLWorkspaceUtils;
 using Newtonsoft.Json;
 using RestfulAPI.NET.Models;
 using System.IO;
-
+using System.Text.RegularExpressions;
 
 
 namespace RestfulAPI.NET.Controllers
@@ -121,24 +121,67 @@ namespace RestfulAPI.NET.Controllers
             }
             else if (op == "status")
             {
+                string jobId = HttpContext.Request.Query["jobId"];
+                jobId = jobId.Replace("application_", "");
+                Job job = JobUtils.GetJobDetail(jobId);
+
                 Dictionary<string, string> retdict = new Dictionary<string, string>();
-                retdict.Add("dir", "");
-                retdict.Add("scratch", "");
-                retdict.Add("finishDateTime", "");
-                retdict.Add("gpus", "");
-                retdict.Add("name", "");
-                retdict.Add("appId", "");
-                retdict.Add("container", "");
+
+                string dir = @"\\storage.cly.philly.selfhost.corp.microsoft.com\"+ job.jobParams.dataPath;
+                retdict.Add("dir", dir);
+                retdict.Add("scratch", job.jobParams.workPath);
+                retdict.Add("evalErr", "0");
+                retdict.Add("finishDateTime", job.jobTime.ToString());
+                retdict.Add("gpus", job.jobParams.gpu.ToString());
+                retdict.Add("name", job.jobName);
+                retdict.Add("appId", "application_" + job.jobId);
                 retdict.Add("retries", "0");
                 retdict.Add("preempt", "0");
                 retdict.Add("progress", "0");
-                retdict.Add("status", "Queued");
+                retdict.Add("queueDateTime", job.jobTime.ToString());
+                retdict.Add("startDateTime", job.jobTime.ToString());
+
+
+                string status = job.jobStatus;
+                
+                // philly status: Pass, Queued, Running, Failed, Killed 
+
+                if (status == "finished")
+                {
+                    status = "Pass";
+                }
+                else if (status == "failed" || status == "error")
+                {
+                    status = "Failed";
+                }
+                else if (status == "queued" || status == "scheduling")
+                {
+                    status = "Queued";
+                }
+                else if (status == "running" || status == "killing")
+                {
+                    status = "Running";
+                }
+                else if (status == "Killed")
+                {
+                    status = "Killed";
+                }
+
+
+                retdict.Add("status", status);
+                retdict.Add("userName", job.userName.Replace("@microsoft.com",""));
+                retdict.Add("queue", "default");
+                retdict.Add("vc", job.jobParams.vcId);
+
+
                 ret = JsonConvert.SerializeObject(retdict);
+                Console.WriteLine(ret);
             }
             else if (op == "abort")
             {
                 Dictionary<string, string> retdict = new Dictionary<string, string>();
                 string jobId = HttpContext.Request.Query["jobId"];
+                jobId = jobId.Replace("application_", "");
                 retdict.Add("jobKilled", jobId);
                 ret = JsonConvert.SerializeObject(retdict);
                 DLWorkspaceUtils.JobUtils.KillJob(jobId);
@@ -154,6 +197,7 @@ namespace RestfulAPI.NET.Controllers
         [HttpPost("submit")]
         public string Post([FromBody]AetherRequestParams reqParams)
         {
+            Console.WriteLine(reqParams.ToString());
             DLWorkspaceUtils.Job job = new Job();
             job.jobParams = new JobParams();
 
@@ -194,7 +238,7 @@ namespace RestfulAPI.NET.Controllers
                     if (input.Name== "datadir")
                     {
                         //hard-code for philly setup
-                        job.jobParams.dataPath = input.Path.Replace("/hdfs/pnrsy/","");
+                        job.jobParams.dataPath = input.Path.Replace("/hdfs/","");
                         break;
                     }
                 }
@@ -205,15 +249,21 @@ namespace RestfulAPI.NET.Controllers
             if (Path.GetExtension(configFilename) == ".py")
             {
                 job.jobParams.cmd = "/usr/local/bin/apython3 " + Path.Combine("/work", configFilename);
-                job.jobParams.cmd += " -datadir /data/train";
-                job.jobParams.cmd += " -logdir /job/";
-                job.jobParams.cmd += " -outputdir /job/";
-                job.jobParams.cmd += " -loadsnapshotdir /job/";
+                job.jobParams.cmd += " -datadir /data";
+                job.jobParams.cmd += " -logdir /job/logs/1/out";
+                job.jobParams.cmd += " -outputdir /job/models";
+                job.jobParams.cmd += " -loadsnapshotdir /job/models";
                 job.jobParams.cmd += " -ngpu "+ reqParams.MinGpus;
                 job.jobParams.cmd += " -gpus 0";
 
+                string extraParams = reqParams.ExtraParams.Replace("PHILLY_OUTPUTDIR", "/job/models").Replace("PHILLY_LOGDIR", "/job/logs/1/out").Replace("PHILLY_DATADIR", "/data/").Replace("PHILLY_CONFIG_DIR", "/work/");
 
-                job.jobParams.cmd += " " + reqParams.ExtraParams;
+
+                Regex rgx = new Regex("--pp .* -- ");
+                extraParams = rgx.Replace(extraParams, "");
+
+
+                job.jobParams.cmd += " " + extraParams;
 
 
 
@@ -225,14 +275,35 @@ namespace RestfulAPI.NET.Controllers
                 job.jobParams.cmd += " -datadir /data/";
                 job.jobParams.cmd += " -logdir /job/";
                 job.jobParams.cmd += " -outputdir /job/";
-                job.jobParams.cmd += " -loadsnapshotdir /job/";
+                job.jobParams.cmd += " -loadsnapshotdir /job/models/";
                 job.jobParams.cmd += " -ngpu " + reqParams.MinGpus;
                 job.jobParams.cmd += " -gpus 0";
 
                 job.jobParams.cmd += " " + reqParams.ExtraParams + "'";
             }
 
-            
+
+            job.jobParams.mountPoints = new List<DLWorkspaceUtils.MountPoint>();
+            DLWorkspaceUtils.MountPoint hdfsmp = new DLWorkspaceUtils.MountPoint();
+            hdfsmp.name = "hdfs";
+            hdfsmp.hostPath = "/hadoopmnt";
+            hdfsmp.containerPath = "/hdfs";
+            job.jobParams.mountPoints.Add(hdfsmp);
+
+            if (reqParams.PreviousModelPath != null)
+            {
+                DLWorkspaceUtils.MountPoint mp = new DLWorkspaceUtils.MountPoint();
+                mp.name = "prevmodel";
+                mp.hostPath = "/dlwsdata/storage/"+ reqParams.VcId + "/"+reqParams.PreviousModelPath.Replace(" / hdfs/", "");
+                mp.containerPath = "/prevModel";
+                job.jobParams.mountPoints.Add(mp);
+                job.jobParams.cmd = " cp -r /prevModel/* /job/models/ ; " + job.jobParams.cmd;
+            }
+
+
+            job.jobParams.cmd += " ; mkdir /data/models ; cp -r /job/models/* /data/models/ ";
+
+            job.jobParams.vcId = reqParams.VcId;
 
             job.jobName = reqParams.JobName;
 
@@ -256,7 +327,7 @@ namespace RestfulAPI.NET.Controllers
                 job.jobParams.dockerImage = reqParams.CustomDockerName;
             }
 
-
+           
 
             job.jobType = "training";
             job.jobParams.jobtrainingtype = "RegularJob";
@@ -275,7 +346,6 @@ namespace RestfulAPI.NET.Controllers
             Console.WriteLine(job.ToString());
 
             string ret = DLWorkspaceUtils.JobUtils.SubmitJob(job.ToString());
-
             return ret;
         }
         

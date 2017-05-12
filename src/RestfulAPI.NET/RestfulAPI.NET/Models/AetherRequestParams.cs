@@ -25,9 +25,9 @@ namespace RestfulAPI.NET.Models
             return JsonConvert.SerializeObject(this);
         }
 
-        static public AetherRequestParams Deserialize(string str)
+        static public MountPoint Deserialize(string str)
         {
-            return JsonConvert.DeserializeObject<AetherRequestParams>(str) as AetherRequestParams;
+            return JsonConvert.DeserializeObject<MountPoint>(str) as MountPoint;
         }
     }
 
