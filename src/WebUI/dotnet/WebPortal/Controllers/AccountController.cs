@@ -52,7 +52,7 @@ namespace WindowsAuth.Controllers
 
         // GET: /Account/LogOff
         [HttpGet]
-        public async Task<IActionResult> LogOff()
+        public async Task LogOff()
         {
             if (HttpContext.User.Identity.IsAuthenticated)
             {
@@ -60,10 +60,8 @@ namespace WindowsAuth.Controllers
                 var scheme = Startup.GetAuthentication(HttpContext.Session.GetString("Username"), out config);
                 await HttpContext.Authentication.SignOutAsync(scheme);
                 await HttpContext.Authentication.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                return RedirectToAction("/");
             }
-            else
-                return RedirectToAction("/");
+
         }
 
         [HttpGet]

@@ -113,7 +113,7 @@ namespace WebPortal.Helper
 
             Authority = String.Format(_authorityFormat, _tenant);
 
-            PostLogoutRedirectUri = _redirectURL;
+            PostLogoutRedirectUri = "/";
             GetClaimsFromUserInfoEndpoint = true;
             /*
             openIDOpt.TokenValidationParameters = new TokenValidationParameters
