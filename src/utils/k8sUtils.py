@@ -62,6 +62,11 @@ def kubectl_exec_output_to_file(params,file):
 	os.system("%s %s 2>&1 | tee %s" % (config["kubelet-path"], params, file))
 
 
+
+
+def Split(text,spliter):
+	return [x for x in text.split(spliter) if len(x.strip()) > 0]
+
 def GetServiceAddress(jobId):
 	ret = []
 

@@ -12,11 +12,12 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../util
 
 from jobs_tensorboard import GenTensorboardMeta
 import k8sUtils
-
+import joblog_manager
+from osUtils import mkdirsAsUser
 
 import yaml
 from jinja2 import Environment, FileSystemLoader, Template
-from config import config
+from config import config, GetStoragePath
 from DataHandler import DataHandler
 import base64
 
@@ -28,19 +29,6 @@ import random
 
 nvidiaDriverPath = config["nvidiaDriverPath"]
 
-def mkdirsAsUser(path, userId):
-	pdir = os.path.dirname(path)
-	if not os.path.exists(pdir):
-		mkdirsAsUser(pdir, userId)
-	if not os.path.exists(path):
-		os.system("mkdir %s ; chown -R %s %s" % (path,userId, path))
-
-
-def GetStoragePath(jobpath, workpath, datapath):
-    jobPath = "work/"+jobpath
-    workPath = "work/"+workpath
-    dataPath = "storage/"+datapath
-    return jobPath,workPath,dataPath
 
 
 def printlog(msg):
@@ -60,9 +48,6 @@ def cmd_exec(cmdStr):
 
 
 
-
-def Split(text,spliter):
-	return [x for x in text.split(spliter) if len(x.strip()) > 0]
 
 
 def SubmitJob(job):
@@ -410,50 +395,6 @@ def KillJob(job):
 
 
 
-def ExtractJobLog(jobId,logPath,userId):
-	dataHandler = DataHandler()
-
-	logs = k8sUtils.GetLog(jobId)
-	
-	logStr = ""
-	jobLogDir = os.path.dirname(logPath)
-	if not os.path.exists(jobLogDir):
-		mkdirsAsUser(jobLogDir,userId)
-
-	for log in logs:
-		if "podName" in log and "containerID" in log and "containerLog" in log:
-			logStr += "=========================================================\n"
-			logStr += "=========================================================\n"
-			logStr += "=========================================================\n"
-			logStr += "        logs from pod: %s\n" % log["podName"]
-			logStr += "=========================================================\n"
-			logStr += "=========================================================\n"
-			logStr += "=========================================================\n"
-			logStr += log["containerLog"]
-			logStr += "\n\n\n"
-			logStr += "=========================================================\n"
-			logStr += "        end of logs from pod: %s\n" % log["podName"] 
-			logStr += "=========================================================\n"
-			logStr += "\n\n\n"
-
-			try:
-				containerLogPath = os.path.join(jobLogDir,"log-container-" + log["containerID"] + ".txt")
-				with open(containerLogPath, 'w') as f:
-					f.write(log["containerLog"])
-				f.close()
-				os.system("chown -R %s %s" % (userId, containerLogPath))
-			except Exception as e:
-				print e
-
-
-	if len(logStr.strip()) > 0:
-		dataHandler.UpdateJobTextField(jobId,"jobLog",logStr)
-		with open(logPath, 'w') as f:
-			f.write(logStr)
-		f.close()
-		os.system("chown -R %s %s" % (userId, logPath))
-
-
 
 
 UnusualJobs = {}
@@ -469,7 +410,7 @@ def UpdateJobStatus(job):
 
 	jobPath,workPath,dataPath = GetStoragePath(jobParams["jobPath"],jobParams["workPath"],jobParams["dataPath"])
 	localJobPath = os.path.join(config["storage-mount-path"],jobPath)
-	logPath = os.path.join(localJobPath,"joblog.txt")
+	logPath = os.path.join(localJobPath,"logs/joblog.txt")
 	
 
 	result, detail = k8sUtils.GetJobStatus(job["jobId"])
@@ -481,13 +422,12 @@ def UpdateJobStatus(job):
 	if "userId" not in jobParams:
 		jobParams["userId"]	= "0"
 	if result.strip() == "Succeeded":
-		ExtractJobLog(job["jobId"],logPath,jobParams["userId"])
+		joblog_manager.extract_job_log(job["jobId"],logPath,jobParams["userId"])
 		dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","finished")
 		if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
 			k8sUtils.kubectl_delete(jobDescriptionPath) 
 
 	elif result.strip() == "Running":
-		ExtractJobLog(job["jobId"],logPath,jobParams["userId"])
 		if job["jobStatus"] != "running":
 			dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","running")
 		if "interactivePort" in jobParams:
@@ -497,7 +437,7 @@ def UpdateJobStatus(job):
 
 	elif result.strip() == "Failed":
 		printlog("Job %s fails, cleaning..." % job["jobId"])
-		ExtractJobLog(job["jobId"],logPath,jobParams["userId"])
+		joblog_manager.extract_job_log(job["jobId"],logPath,jobParams["userId"])
 		dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","failed")
 		dataHandler.UpdateJobTextField(job["jobId"],"errorMsg",detail)
 		if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
@@ -535,7 +475,7 @@ def UpdateDistJobStatus(job):
 
 	jobPath,workPath,dataPath = GetStoragePath(jobParams["jobPath"],jobParams["workPath"],jobParams["dataPath"])
 	localJobPath = os.path.join(config["storage-mount-path"],jobPath)
-	logPath = os.path.join(localJobPath,"joblog.txt")
+	logPath = os.path.join(localJobPath,"logs/joblog.txt")
 	
 
 	result, detail = k8sUtils.GetJobStatus(job["jobId"])
@@ -561,13 +501,13 @@ def UpdateDistJobStatus(job):
 			jobDescriptionPath = os.path.join(config["storage-mount-path"], job["jobDescriptionPath"]) if "jobDescriptionPath" in job else None
 
 			if result.strip() == "Succeeded":
-				ExtractJobLog(job["jobId"],logPath,jobParams["userId"])
+				joblog_manager.extract_job_log(job["jobId"],logPath,jobParams["userId"])
 				dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","finished")
 				if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
 					k8sUtils.kubectl_delete(jobDescriptionPath) 
 
 			elif result.strip() == "Running":
-				ExtractJobLog(job["jobId"],logPath,jobParams["userId"])
+				joblog_manager.extract_job_log(job["jobId"],logPath,jobParams["userId"])
 				if job["jobStatus"] != "running":
 					dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","running")
 				if "interactivePort" in jobParams:
@@ -577,7 +517,7 @@ def UpdateDistJobStatus(job):
 
 			elif result.strip() == "Failed":
 				printlog("Job %s fails, cleaning..." % job["jobId"])
-				ExtractJobLog(job["jobId"],logPath,jobParams["userId"])
+				joblog_manager.extract_job_log(job["jobId"],logPath,jobParams["userId"])
 				dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","failed")
 				dataHandler.UpdateJobTextField(job["jobId"],"errorMsg",detail)
 				if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
@@ -707,141 +647,11 @@ def launch_ps_dist_job(jobParams):
 			#thread.start_new_thread( run_dist_cmd_on_pod,
 			#(workerPodInfo["items"][0]["metadata"]["name"], cmd) )
 
-def set_user_directory():
-	dataHandler = DataHandler()
-	users = dataHandler.GetUsers()
-	for username,userid in users:
-		if "@" in username:
-			username = username.split("@")[0]
-		if "/" in username:
-			username = username.split("/")[1]
-		if "\\" in username:
-			username = username.split("\\")[1]	
-		userpath = os.path.join(config["storage-mount-path"],"work/"+username)
-		if not os.path.exists(userpath):
-			os.system("mkdir -p "+userpath)
-			os.system("chown -R "+userid+":"+"500000513 "+userpath)
-
-		sshkeypath = os.path.join(userpath,".ssh/id_rsa")
-		if not os.path.exists(sshkeypath):
-			os.system("mkdir -p "+os.path.dirname(sshkeypath))
-			os.system("ssh-keygen -t rsa -b 4096 -f %s -P ''" % sshkeypath)
-			os.system("chown -R "+userid+":"+"500000513 "+userpath)
-			os.system("chmod 700 -R "+os.path.dirname(sshkeypath))
-
-def get_cluster_status():
-	cluster_status={}
-	try:
-		output = k8sUtils.kubectl_exec(" get nodes -o yaml")
-		nodeInfo = yaml.load(output)
-		nodes_status = {}
-		user_status = {}
-
-		if "items" in nodeInfo:
-			for node in nodeInfo["items"]:
-				node_status	= {}
-				node_status["name"] = node["metadata"]["name"]
-				node_status["labels"] = node["metadata"]["labels"]
-				node_status["gpu_allocatable"] = int(node["status"]["allocatable"]["alpha.kubernetes.io/nvidia-gpu"])
-				node_status["gpu_capacity"] = int(node["status"]["capacity"]["alpha.kubernetes.io/nvidia-gpu"])
-				node_status["gpu_used"] = 0
-				node_status["InternalIP"] = "unknown"
-				node_status["pods"] = []
-
-				if "addresses" in node["status"]:
-					for addr in node["status"]["addresses"]:
-						if addr["type"] == "InternalIP":
-							node_status["InternalIP"]  = addr["address"] 
 
 
-				node_status["scheduled_service"] = []
-				for l,s in node_status["labels"].iteritems():
-					if s == "active" and l != "all" and l != "default":
-						node_status["scheduled_service"].append(l)
-
-				if "unschedulable" in node["spec"] and node["spec"]["unschedulable"]:
-					node_status["unschedulable"] = True
-				else:
-					node_status["unschedulable"] = False
-				nodes_status[node_status["name"]] = node_status
-
-
-		output = k8sUtils.kubectl_exec(" get pods -o yaml")
-		podsInfo = yaml.load(output)
-		if "items" in podsInfo:
-			for pod in podsInfo["items"]:
-				gpus = 0
-				username = None
-				if "metadata" in pod and "labels" in pod["metadata"] and "userName" in pod["metadata"]["labels"]:
-					username = pod["metadata"]["labels"]["userName"]
-				if "spec" in pod and "nodeName" in pod["spec"]:
-					node_name = pod["spec"]["nodeName"]
-					pod_name = pod["metadata"]["name"]
-					if username is not None:
-						pod_name += " : " + username
-					if "containers" in pod["spec"] :
-						for container in pod["spec"]["containers"]:
-							
-							if "resources" in container and "requests" in container["resources"] and "alpha.kubernetes.io/nvidia-gpu" in container["resources"]["requests"]:
-								gpus += int(container["resources"]["requests"]["alpha.kubernetes.io/nvidia-gpu"])
-					if node_name in nodes_status:
-						nodes_status[node_name]["gpu_used"] += gpus
-						nodes_status[node_name]["pods"].append(pod_name)
-
-				if username is not None:
-					if username not in user_status:
-						user_status[username] = gpus
-					else:
-						user_status[username] += gpus
-				
-
-
-
-
-		gpu_avaliable	= 0
-		gpu_reserved	= 0
-		gpu_capacity = 0
-		gpu_unschedulable = 0
-		gpu_schedulable = 0
-		gpu_used = 0
-
-
-		for node_name, node_status in nodes_status.iteritems():
-			if node_status["unschedulable"]:
-				gpu_unschedulable += node_status["gpu_capacity"]
-			else:
-				gpu_avaliable	+= (node_status["gpu_allocatable"] - node_status["gpu_used"])
-				gpu_schedulable	+= node_status["gpu_capacity"]
-				gpu_unschedulable += (node_status["gpu_capacity"] - node_status["gpu_allocatable"])
-
-			gpu_reserved += (node_status["gpu_capacity"] - node_status["gpu_allocatable"])
-			gpu_used +=node_status["gpu_used"]
-			gpu_capacity	+= node_status["gpu_capacity"]
-
-		cluster_status["user_status"] = []
-		for user_name, user_gpu in user_status.iteritems():
-			cluster_status["user_status"].append({"userName":user_name, "userGPU":user_gpu})
-
-		cluster_status["gpu_avaliable"] = gpu_avaliable
-		cluster_status["gpu_capacity"] = gpu_capacity
-		cluster_status["gpu_unschedulable"] = gpu_unschedulable
-		cluster_status["gpu_used"] = gpu_used
-		cluster_status["gpu_reserved"] = gpu_reserved
-		cluster_status["node_status"] = [node_status for node_name, node_status in nodes_status.iteritems()] 
-
-	except Exception as e:
-		print e
-	dataHandler = DataHandler()
-
-	cluster_status["AvaliableJobNum"] = dataHandler.GetActiveJobsCount()
-	cluster_status["TotalJobNum"] = dataHandler.GetALLJobsCount()
-	dataHandler.UpdateClusterStatus(cluster_status)
-	dataHandler.Close()
-	return cluster_status
 
 
 def Run():
-	last_update_time = None
 	while True:
 		try:
 			dataHandler = DataHandler()
@@ -858,19 +668,6 @@ def Run():
 						UpdateJobStatus(job)
 				except Exception as e:
 					print e
-		except Exception as e:
-			print e
-		try:
-			if last_update_time is None or (datetime.datetime.now() - last_update_time).seconds >= 120:
-				print "updating cluster status..."
-				get_cluster_status()
-				last_update_time = datetime.datetime.now()
-		except Exception as e:
-			print e
-
-		try:
-			print "updating user directory..."
-			set_user_directory()
 		except Exception as e:
 			print e
 
