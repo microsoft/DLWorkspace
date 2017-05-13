@@ -1,17 +1,23 @@
 ﻿@using System.Security.Principal
 @using Microsoft.AspNetCore.Authentication.OpenIdConnect 
+@using WindowsAuth
+
 
 @if (User.Identity.IsAuthenticated)
 {
     <ul class="nav navbar-nav navbar-right">
-        <li><a>Hello, @User.Identity.Name</a></li>
+        <li><a>Hello, @ViewData["Username"]</a></li>
         <li>@Html.ActionLink("Log Out", "LogOff", "Account")</li>
     </ul>
 }
 else
 {
     <ul class="nav navbar-nav navbar-right">
-        <li>@Html.ActionLink("Log in (Microsoft)", "Login_OpenId", "Account", routeValues: null, htmlAttributes: new { id = "loginLink" })</li>
-        <li>@Html.ActionLink("(live.com)", "Login_MicrosoftAccount", "Account", routeValues: null, htmlAttributes: new { id = "loginLink" })</li>
+        <li> Log in 
+        @foreach( var pair in WindowsAuth.Startup.AuthenticationSchemes )
+        { 
+            @Html.ActionLink( pair.Key+",", "Login", "Account", routeValues: new { scheme = pair.Key }, htmlAttributes: new { id = "loginLink" })
+        }
+        </li>
     </ul>
 }

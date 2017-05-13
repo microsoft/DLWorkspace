@@ -4,9 +4,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
-using Microsoft.AspNetCore.Authentication.MicrosoftAccount;
 using Microsoft.AspNetCore.Http.Authentication;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http; 
 using System.Net.Http;
 using System.Security.Principal;
 using System.Security.Claims;
@@ -21,22 +21,13 @@ namespace WindowsAuth.Controllers
 {
     public class AccountController : Controller
     {
-        private string _authentication = null; 
         // GET: /Account/Login
-        [HttpGet]
-        public async Task Login_OpenId()
+        [HttpGet("{scheme}")]
+        public async Task Login(string scheme )
         {
             if (HttpContext.User == null || !HttpContext.User.Identity.IsAuthenticated)
             {
-                await HttpContext.Authentication.ChallengeAsync(OpenIdConnectDefaults.AuthenticationScheme, new AuthenticationProperties { RedirectUri = "/" });
-            }
-        }
-
-        public async Task Login_MicrosoftAccount()
-        {
-            if (HttpContext.User == null || !HttpContext.User.Identity.IsAuthenticated)
-            { 
-                await HttpContext.Authentication.ChallengeAsync(MicrosoftAccountDefaults.AuthenticationScheme, new AuthenticationProperties { RedirectUri = "/" });
+                await HttpContext.Authentication.ChallengeAsync(scheme, new AuthenticationProperties { RedirectUri = "/" });
             }
         }
 
@@ -48,6 +39,7 @@ namespace WindowsAuth.Controllers
         [ValidateAntiForgeryToken]
         public async Task SignUp([Bind("ID", "Name", "AdminConsented")] Tenant tenant)
         {
+            throw new Exception("Dead branch");
             await HttpContext.Authentication.ChallengeAsync(
                 OpenIdConnectDefaults.AuthenticationScheme,
                 new AuthenticationProperties(new Dictionary<string, string>
@@ -58,54 +50,20 @@ namespace WindowsAuth.Controllers
                 { RedirectUri = "/" });
         }
 
-        public bool isOpenId()
-        {
-            if (String.IsNullOrEmpty(HttpContext.User.Identity.Name))
-            {
-                return false;
-            }
-            else
-            {
-                if (HttpContext.User.Identity.Name.Contains("@microsoft.com"))
-                    return true;
-                else
-                    return false; 
-            }
-        }
-
-        public bool isMicrosoftAccount()
-        {
-            if (String.IsNullOrEmpty(HttpContext.User.Identity.Name))
-            {
-                return false;
-            }
-            else
-            {
-                if (HttpContext.User.Identity.Name.Contains("@live.com") ||
-                    HttpContext.User.Identity.Name.Contains("@outlook.com") ||
-                    HttpContext.User.Identity.Name.Contains("@hotmail.com"))
-                    return true;
-                else
-                    return false;
-            }
-        }
-
         // GET: /Account/LogOff
         [HttpGet]
-        public async Task LogOff()
+        public async Task<IActionResult> LogOff()
         {
             if (HttpContext.User.Identity.IsAuthenticated)
             {
-                if (isOpenId())
-                {
-                    await HttpContext.Authentication.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme);
-                }
-                else if (isMicrosoftAccount())
-                {
-                    await HttpContext.Authentication.SignOutAsync(MicrosoftAccountDefaults.AuthenticationScheme);
-                }
+                OpenIDAuthentication config;
+                var scheme = Startup.GetAuthentication(HttpContext.Session.GetString("Username"), out config);
+                await HttpContext.Authentication.SignOutAsync(scheme);
                 await HttpContext.Authentication.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                return RedirectToAction("/");
             }
+            else
+                return RedirectToAction("/");
         }
 
         [HttpGet]

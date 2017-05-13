@@ -25,13 +25,14 @@ namespace WindowsAuth.Services
     {
         private WebAppContext _db;
         private string _userId;
-        private AzureADConfig _aadConfig;
         private PerWebUserCache _cache;
+        private bool _useAaD;
+        private OpenIDAuthentication _config;
         private AuthenticationContext _authContext;
         private ClientCredential _appCredentials;
         private IHttpContextAccessor _httpContextAccessor; 
 
-        public DbTokenCache(WebAppContext db, IHttpContextAccessor httpContextAccessor, IOptions<AzureADConfig> aadConfig)
+        public DbTokenCache(WebAppContext db, IHttpContextAccessor httpContextAccessor)
         {
             this.BeforeAccess = BeforeAccessNotification;
             this.AfterAccess = AfterAccessNotification;
@@ -39,7 +40,6 @@ namespace WindowsAuth.Services
 
             _db = db;
             db.Database.EnsureCreated();
-            _aadConfig = aadConfig.Value;
             _httpContextAccessor = httpContextAccessor;
         }
 
@@ -47,26 +47,55 @@ namespace WindowsAuth.Services
         {
             _userId = _httpContextAccessor.HttpContext.User.FindFirst(Constants.ObjectIdClaimType).Value;
             string tenantId = _httpContextAccessor.HttpContext.User.FindFirst(Constants.TenantIdClaimType).Value;
-            _authContext = new AuthenticationContext(String.Format(_aadConfig.AuthorityFormat, tenantId), this);
-            _appCredentials = new ClientCredential(_aadConfig.ClientId, _aadConfig.ClientSecret);
 
+            
+
+            var scheme = Startup.GetAuthentication(_httpContextAccessor.HttpContext.Session.GetString("Username"), out _config);
+            if (!Object.ReferenceEquals(_config, null))
+            {
+                if (_config._bUseAadGraph )
+                { 
+                    _authContext = new AuthenticationContext(String.Format(_config._authorityFormat, tenantId), this);
+                    _appCredentials = new ClientCredential(_config._clientId, _config._clientSecret);
+                    _useAaD = true; 
+                }
+                else
+                    _useAaD = false;
+            }
+            else
+            {
+                _useAaD = false; 
+            }
         }
 
         public async Task<string> GetAccessTokenForAadGraph()
         {
             GetClientCredential();
-            AuthenticationResult result = await _authContext.AcquireTokenSilentAsync(_aadConfig.GraphResourceId, _appCredentials, new UserIdentifier(_userId, UserIdentifierType.UniqueId));
-            if (Object.ReferenceEquals(result, null))
+            if (!Object.ReferenceEquals(_config, null))
+            {
+                if (_config._bUseAadGraph)
+                {
+                    AuthenticationResult result = await _authContext.AcquireTokenSilentAsync(_config._graphBasePoint, _appCredentials, new UserIdentifier(_userId, UserIdentifierType.UniqueId));
+                    if (Object.ReferenceEquals(result, null))
+                        return null;
+                    else
+                        return result.AccessToken;
+                }
+                else
+                    return null; 
+            }
+            else
                 return null; 
-            else 
-                return result.AccessToken;
         }
 
         public async Task RedeemAuthCodeForAadGraph(string code, string redirect_uri)
         {
             GetClientCredential();
             // Redeem the auth code and cache the result in the db for later use.
-            await _authContext.AcquireTokenByAuthorizationCodeAsync(code, new Uri(redirect_uri), _appCredentials, _aadConfig.GraphResourceId);
+            if (!Object.ReferenceEquals(_config, null) && _config._bUseAadGraph )
+            { 
+                await _authContext.AcquireTokenByAuthorizationCodeAsync(code, new Uri(redirect_uri), _appCredentials, _config._graphBasePoint );
+            }
         }
 
         // clean up the db

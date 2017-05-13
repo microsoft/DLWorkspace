@@ -40,7 +40,7 @@
 @if (ViewData["isAuthorized"] != null && (bool)ViewData["isAuthorized"])
 {
 <div class="row">
-        <h2>Welcome to DLWorkspace, @ViewData["username"] !</h2>
+        <h2>Welcome to DLWorkspace, @ViewData["Username"] !</h2>
         <ul>
             <li>Your Work Directory is: <a href="@ViewData["workPath"]">@ViewData["workPath"].ToString().Replace("file:","").Replace("/","\\") </a> </li>
             <li>Your Data Directory is: <a href="@ViewData["dataPath"]">@ViewData["dataPath"].ToString().Replace("file:", "").Replace("/", "\\") </a></li>

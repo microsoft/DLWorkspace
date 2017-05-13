@@ -40,14 +40,14 @@ namespace WindowsAuth.Controllers
                 return ret;
             }
 
-
+            ViewData["Username"] = HttpContext.Session.GetString("Username");
             if (op == "ListJobs")
             {
-                url = _appSettings.restapi + "/ListJobs?userName="+User.Identity.Name;
+                url = _appSettings.restapi + "/ListJobs?userName="+HttpContext.Session.GetString("Username");
             }
             else if (op == "KillJob" && HttpContext.Request.Query.ContainsKey("jobId"))
             {
-                url = _appSettings.restapi + "/KillJob?jobId=" + HttpContext.Request.Query["jobId"]+"&userName="+ User.Identity.Name;
+                url = _appSettings.restapi + "/KillJob?jobId=" + HttpContext.Request.Query["jobId"]+"&userName="+ HttpContext.Session.GetString("Username");
             }
             else if (op == "JobDetail" && HttpContext.Request.Query.ContainsKey("jobId"))
             {
@@ -64,13 +64,12 @@ namespace WindowsAuth.Controllers
                         url += System.Text.Encodings.Web.UrlEncoder.Default.Encode(item.Key) + "=" + System.Text.Encodings.Web.UrlEncoder.Default.Encode(item.Value) + "&";
                     }
                 }
-                url += "userName=" + User.Identity.Name + "&";
+                url += "userName=" + HttpContext.Session.GetString("Username") + "&";
                 url += "userId=" + HttpContext.Session.GetString("uid") + "&";
                 if (HttpContext.Request.Query.ContainsKey("runningasroot") && HttpContext.Request.Query["runningasroot"] == "1")
                 {
                     url += "containerUserId=0&";
                 }
-
             }
             else if (op == "GetClusterStatus")
             {
