@@ -179,7 +179,7 @@
         if (id == "tensorflow") {
             document.getElementById("jobname").value = "tensorflow-ipython";
             document.getElementById("resourcegpu").value = 1;
-            document.getElementById("workpath").value = "@ViewData["userName"]";
+            document.getElementById("workpath").value = "@ViewData["Username"]";
             document.getElementById("datapath").value = "imagenet";
             document.getElementById("jobpath").value = "";
 
@@ -201,7 +201,7 @@
         else if (id == "tensorflowcpu") {
             document.getElementById("jobname").value = "tensorflow-ipython-cpu";
             document.getElementById("resourcegpu").value = 0;
-            document.getElementById("workpath").value = "@ViewData["userName"]";
+            document.getElementById("workpath").value = "@ViewData["Username"]";
             document.getElementById("datapath").value = "imagenet";
             document.getElementById("jobpath").value = "";
 
@@ -223,12 +223,12 @@
         else if (id == "tensorflowssh") {
             document.getElementById("jobname").value = "tensorflow-ssh";
             document.getElementById("resourcegpu").value = 0;
-            document.getElementById("workpath").value = "@ViewData["userName"]";
+            document.getElementById("workpath").value = "@ViewData["Username"]";
             document.getElementById("datapath").value = "imagenet";
             document.getElementById("jobpath").value = "";
 
             document.getElementById("image").value = "tensorflow/tensorflow:latest-gpu";
-            document.getElementById("cmd").value = "apt-get update && apt-get install -y openssh-server sudo && addgroup --force-badname --gid  @ViewData["gid"] domainusers && adduser --force-badname --home /home/@ViewData["userName"] --shell /bin/bash --uid @ViewData["uid"]  -gecos '' @ViewData["userName"] --disabled-password --gid @ViewData["gid"] && adduser @ViewData["userName"] sudo && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && mkdir -p /root/.ssh && cat /work/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && mkdir -p /home/@ViewData["userName"]/.ssh && cat /work/.ssh/id_rsa.pub >> /home/@ViewData["userName"]/.ssh/authorized_keys && service ssh restart && sleep infinity";
+            document.getElementById("cmd").value = "apt-get update && apt-get install -y openssh-server sudo && addgroup --force-badname --gid  @ViewData["gid"] domainusers && adduser --force-badname --home /home/@ViewData["Username"] --shell /bin/bash --uid @ViewData["uid"]  -gecos '' @ViewData["Username"] --disabled-password --gid @ViewData["gid"] && adduser @ViewData["Username"] sudo && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && mkdir -p /root/.ssh && cat /work/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && mkdir -p /home/@ViewData["Username"]/.ssh && cat /work/.ssh/id_rsa.pub >> /home/@ViewData["Username"]/.ssh/authorized_keys && service ssh restart && sleep infinity";
             document.getElementById("chkInteractiveJob").checked = true;
             document.getElementById("chkLogDir").checked = false;
             ShowHideDiv(document.getElementById("chkInteractiveJob"), 'interactiveportfield')
@@ -242,7 +242,7 @@
         else if (id == "caffe") {
             document.getElementById("jobname").value = "caffe-ipython";
             document.getElementById("resourcegpu").value = 0;
-            document.getElementById("workpath").value = "@ViewData["userName"]";
+            document.getElementById("workpath").value = "@ViewData["Username"]";
             document.getElementById("datapath").value = "imagenet";
             document.getElementById("jobpath").value = "";
 
@@ -266,12 +266,12 @@
         else if (id == "caffessh") {
             document.getElementById("jobname").value = "caffe-ssh";
             document.getElementById("resourcegpu").value = 0;
-            document.getElementById("workpath").value = "@ViewData["userName"]";
+            document.getElementById("workpath").value = "@ViewData["Username"]";
             document.getElementById("datapath").value = "imagenet";
             document.getElementById("jobpath").value = "";
 
             document.getElementById("image").value = "bvlc/caffe:cpu";
-            document.getElementById("cmd").value = "apt-get update && apt-get install -y openssh-server sudo && addgroup --force-badname --gid  @ViewData["gid"] domainusers && adduser --force-badname --home /home/@ViewData["userName"] --shell /bin/bash --uid @ViewData["uid"]  -gecos '' @ViewData["userName"] --disabled-password --gid @ViewData["gid"] && adduser @ViewData["userName"] sudo && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && mkdir -p /root/.ssh && cat /work/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && mkdir -p /home/@ViewData["userName"]/.ssh && cat /work/.ssh/id_rsa.pub >> /home/@ViewData["userName"]/.ssh/authorized_keys && service ssh restart && sleep infinity";
+            document.getElementById("cmd").value = "apt-get update && apt-get install -y openssh-server sudo && addgroup --force-badname --gid  @ViewData["gid"] domainusers && adduser --force-badname --home /home/@ViewData["Username"] --shell /bin/bash --uid @ViewData["uid"]  -gecos '' @ViewData["Username"] --disabled-password --gid @ViewData["gid"] && adduser @ViewData["Username"] sudo && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && mkdir -p /root/.ssh && cat /work/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && mkdir -p /home/@ViewData["Username"]/.ssh && cat /work/.ssh/id_rsa.pub >> /home/@ViewData["Username"]/.ssh/authorized_keys && service ssh restart && sleep infinity";
             document.getElementById("chkInteractiveJob").checked = true;
             document.getElementById("chkLogDir").checked = false;
             ShowHideDiv(document.getElementById("chkInteractiveJob"), 'interactiveportfield')

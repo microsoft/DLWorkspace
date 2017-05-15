@@ -45,16 +45,14 @@ namespace WindowsAuth.Services
 
         private void GetClientCredential()
         {
-            _userId = _httpContextAccessor.HttpContext.User.FindFirst(Constants.ObjectIdClaimType).Value;
-            string tenantId = _httpContextAccessor.HttpContext.User.FindFirst(Constants.TenantIdClaimType).Value;
-
-            
-
             var scheme = Startup.GetAuthentication(_httpContextAccessor.HttpContext.Session.GetString("Username"), out _config);
             if (!Object.ReferenceEquals(_config, null))
             {
                 if (_config._bUseAadGraph )
-                { 
+                {
+                    _userId = _httpContextAccessor.HttpContext.User.FindFirst(Constants.ObjectIdClaimType).Value;
+                    string tenantId = _httpContextAccessor.HttpContext.User.FindFirst(Constants.TenantIdClaimType).Value;
+
                     _authContext = new AuthenticationContext(String.Format(_config._authorityFormat, tenantId), this);
                     _appCredentials = new ClientCredential(_config._clientId, _config._clientSecret);
                     _useAaD = true; 

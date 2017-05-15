@@ -33,83 +33,20 @@
         "ConnectionString": "Filename=WebPortal.db"
     },
 
-    "AzureAd": {
-
-
-
-
-        // App: dlws-auth-jinl, generated at apps.dev.microsoft.com
-        // "ClientId": "ba20c1a2-54ff-4ec5-afb4-18a1879bf2f7",
-        // "Tenant": "jinlmsfthotmail.onmicrosoft.com",
-        "Tenant": "microsoft.onmicrosoft.com",
-
-        // for dlws-auth at account jinlmsft@hotmail.com
-        "DisplayName": "dlws-auth",
-        "ObjectId": "66b97da1-b942-4752-b146-ca2ef06d4965",
-
-
-
-        // for dlws-auth-jinl1
-        // "DisplayName": "dlws-auth-jinl1",
-        // "ObjectId": "ded0d047-dcad-4b7e-bbd8-753e3e10f36c",
-        // "ClientId": "74258ffb-f59d-4552-a960-9bf948cac110",
-        // "ClientSecret": "mAscYT4ss3YZRqYjMuCKBMXBm2FrveRguisoSUwztqQ=",
-
-        // Note: Key expiration: 5/2/2019, for dlws-autho
-        // "DisplayName": "dlws-auth",
-        // "ObjectId": "619243be-479e-4378-a5e2-c74c3a59d281",
-        // "ClientId": "511c7514-3090-400e-873a-2fb05f2d5c19",
-        // "ClientSecret": "E3RT39WiTvfBrJLpfs8FYJcrvFDTqEjxrlu9G36CZZM=",
-        // "ClientSecret": "hJxbm2tQV3ZaYRagHvUZcWi",
-        // Information used in demo
-        "AltTenant": "GraphDir1.onMicrosoft.com",
-        "AltClientId": "118473c2-7619-46e3-a8e4-6da8d5f56e12",
-        "AltClientSecret": "tdzicjqRJ2R1Hnvn3AL1aDU+yQjX5oIHz0th0qBeOOI=",
-
-        "AppIDUri": "https://dlws-auth.azurewebsites.net/",
-        "AadInstance": "https://login.microsoftonline.com/{0}", // This is the public instance of Azure AD
-        "OauthInstance": "https://login.microsoftonline.com/common/v2.0",
-        "AdminInstance": "https://login.microsoftonline.com/{0}/adminconsent",
-        "Oauth2Instance": "https://login.microsoftonline.com/common/oauth2",
-
-        "Scope": "User.Read",
-
-        //
-        "AzureResourceURL": "https://graph.windows.net",
-        "ResourceURL": "https://graph.microsoft.com",
-        "PostLogoutRedirectUri": "https://dlws-auth.azurewebsites.net"
-    },
-
-    /*
-
-    "AzureAdMultiTenant": {
-        "UseAadGraph" : "true", 
-        "Tenant": "jinlmsfthotmail.onmicrosoft.com",
-        "ClientId": "734cc6a7-e80c-4b89-a663-0b9512925b45",
-        "ClientSecret": "g1nNX9u6Q2tAiqWXdec5amRPadSJQnvsy03P+arDkCk=",
-        "AuthorityFormat": "https://login.microsoftonline.com/{0}",
-        "RedirectUri": "",
-        "GraphResourceId": "https://graph.windows.net",
-        "GraphBaseEndpoint": "https://graph.windows.net",
-        "GraphApiVersion": "1.6" // API version
-    }
-    */
     "Authentications": {
-        /*
-        "jinlmsfthotmail": {
+        "Live": {
             "DisplayName": "Microsoft Account (live.com)",
             "Tenant": "jinlmsfthotmail.onmicrosoft.com",
             "ClientId": "734cc6a7-e80c-4b89-a663-0b9512925b45",
             "ClientSecret": "g1nNX9u6Q2tAiqWXdec5amRPadSJQnvsy03P+arDkCk=",
             "AuthorityFormat": "https://login.microsoftonline.com/{0}",
             "Domains": [ "live.com", "hotmail.com", "outlook.com" ]
-        },*/
+        },
         /*
-
         "Aad": {
             "DisplayName": "Azure Graph",
             "UseAadGraph": "true",
-            "UseToken" : "true",
+            "UseToken": "true",
             "Tenant": "jinlmsfthotmail.onmicrosoft.com",
             "ClientId": "734cc6a7-e80c-4b89-a663-0b9512925b45",
             "ClientSecret": "g1nNX9u6Q2tAiqWXdec5amRPadSJQnvsy03P+arDkCk=",
@@ -119,8 +56,38 @@
             "GraphApiVersion": "1.6", // API version,
             "Scope": "User.Read",
             "Domains": [ "live.com", "hotmail.com", "outlook.com" ]
+        },*/
+        /*
+        "Live.com": {
+            "DisplayName": "Live.com",
+            "Tenant": "jinlmsfthotmail.onmicrosoft.com",
+            "ClientId": "734cc6a7-e80c-4b89-a663-0b9512925b45",
+            "ClientSecret": "g1nNX9u6Q2tAiqWXdec5amRPadSJQnvsy03P+arDkCk=",
+            "AuthorityFormat": "https://login.windows.net/common",
+            "RedirectUri": "",
+            "GraphBaseEndpoint": "https://graph.windows.net",
+            "GraphApiVersion": "1.6", // API version,
+            // "Scope": "User.Read",
+            "Domains": [ "live.com", "hotmail.com", "outlook.com" ]
         },
-        
+        */
+        /*
+        "CorpAad": {
+            "DisplayName": "@microsoft.com corpnet sign in",
+            "UseAadGraph": "true",
+            "UseToken": "true",
+            "Tenant": "microsoft.onmicrosoft.com",
+            "ClientId": "511c7514-3090-400e-873a-2fb05f2d5c19",
+            "ClientSecret": "E3RT39WiTvfBrJLpfs8FYJcrvFDTqEjxrlu9G36CZZM=",
+            "AuthorityFormat": "https://login.microsoftonline.com/{0}",
+            "RedirectUri": "",
+            "Scope": "User.Read",
+            "GraphBaseEndpoint": "https://graph.windows.net",
+            "GraphApiVersion": "1.6", // API version,
+            "Domains": [ "microsoft.com" ]
+        }
+        */
+        /*
         
         "Microsoft": {
             "DisplayName": "Microsoft Account (live.com)",
@@ -130,6 +97,7 @@
             "AuthorityFormat": "https://login.microsoftonline.com/{0}",
             "Domains": [ "live.com", "hotmail.com", "outlook.com" ]
         }, */
+
         "Corp": {
             "DisplayName": "@microsoft.com corpnet sign in",
             "UseAadGraph": "false",
@@ -142,7 +110,6 @@
             "GraphApiVersion": "1.6", // API version,
             "Domains": [ "microsoft.com" ]
         },
-        /*
         "Gmail": {
             "DisplayName": "Gmail",
             "Tenant": "dlws-auth",
@@ -151,7 +118,7 @@
             "AuthorityFormat": "https://accounts.google.com",
             "Scope": "openid email",
             "Domains": [ "gmail.com" ]
-        } */
+        }
 
 
     }

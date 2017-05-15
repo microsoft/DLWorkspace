@@ -96,6 +96,7 @@ namespace WebPortal.Helper
             AuthenticationScheme = _authenticationScheme;
             ClientId = _clientId;
             DisplayName = _displayName;
+            CallbackPath = new PathString(  "/signin-" + _authenticationScheme );
             // AutomaticChallenge = true;
 
             if ( !String.IsNullOrEmpty(_clientSecret))

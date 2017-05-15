@@ -10,8 +10,11 @@ using Microsoft.AspNetCore.Http;
 using System.Net.Http;
 using System.Security.Principal;
 using System.Security.Claims;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 using WindowsAuth.models;
+
 using WebPortal.Helper;
 using WindowsAuth.Services;
 
@@ -21,6 +24,15 @@ namespace WindowsAuth.Controllers
 {
     public class AccountController : Controller
     {
+        private readonly AppSettings _appSettings;
+        private readonly ILogger _logger;
+        private IAzureAdTokenService _tokenCache;
+        public AccountController(IOptions<AppSettings> appSettings, ILoggerFactory logger)
+        {
+            _appSettings = appSettings.Value;
+            _logger = logger.CreateLogger("AccountController");
+        }
+
         // GET: /Account/Login
         [HttpGet("{scheme}")]
         public async Task Login(string scheme )
@@ -57,8 +69,17 @@ namespace WindowsAuth.Controllers
             if (HttpContext.User.Identity.IsAuthenticated)
             {
                 OpenIDAuthentication config;
-                var scheme = Startup.GetAuthentication(HttpContext.Session.GetString("Username"), out config);
+                var email = HttpContext.Session.GetString("Email");
+                var scheme = Startup.GetAuthentication(email, out config);
+                _logger.LogInformation("Log out account {0} using scheme {1}", email, scheme);
                 await HttpContext.Authentication.SignOutAsync(scheme);
+                HttpContext.Session.Remove("isAuthorized");
+                HttpContext.Session.Remove("isAdmin");
+                HttpContext.Session.Remove("Email");
+                HttpContext.Session.Remove("TenantID");
+                HttpContext.Session.Remove("uid");
+                HttpContext.Session.Remove("gid");
+
                 await HttpContext.Authentication.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             }
 

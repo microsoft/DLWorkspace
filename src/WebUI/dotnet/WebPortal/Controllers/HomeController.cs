@@ -47,7 +47,7 @@ namespace WindowsAuth.Controllers
             _logger = logger.CreateLogger("HomeController");
         }
 
-        private async Task<bool> AddUser(string username, UserID userID)
+        private async Task<bool> AddUser(string email, UserID userID)
         {
             HttpContext.Session.SetString("uid", userID.uid);
 
@@ -60,7 +60,7 @@ namespace WindowsAuth.Controllers
 
             if (userID.isAuthorized == "true")
             {
-                var url = _appSettings.restapi + "/AddUser?userName=" + HttpContext.Session.GetString("Username") + "&userId=" + userID.uid;
+                var url = _appSettings.restapi + "/AddUser?userName=" + HttpContext.Session.GetString("Email") + "&userId=" + userID.uid;
                 using (var httpClient1 = new HttpClient())
                 {
                     var response2 = await httpClient1.GetAsync(url);
@@ -68,7 +68,7 @@ namespace WindowsAuth.Controllers
                 }
             }
             _logger.LogInformation("User {0} log in, Uid {1}, Gid {2}, isAdmin {3}, isAuthorized {4}",
-                                username, userID.uid, userID.gid, userID.isAdmin, userID.isAuthorized );
+                                email, userID.uid, userID.gid, userID.isAdmin, userID.isAuthorized );
             return true; 
         }
 
@@ -106,8 +106,11 @@ namespace WindowsAuth.Controllers
         }
 
         // Can the current server be authenticated by a user list?
-        private async Task<bool> AuthenticateByUsers(string username, string tenantID )
+        private async Task<bool> AuthenticateByUsers()
         {
+            string email = HttpContext.Session.GetString("Email");
+            string tenantID = HttpContext.Session.GetString("TenantID");
+         
             var users = ConfigurationParser.GetConfiguration("UserGroups") as Dictionary<string, object>;
             if (Object.ReferenceEquals(users, null))
             {
@@ -146,7 +149,7 @@ namespace WindowsAuth.Controllers
                                 if (!Object.ReferenceEquals(exp, null))
                                 {
                                     var re = new Regex(exp);
-                                    bool bSuccess = re.Match(username).Success;
+                                    bool bSuccess = re.Match(email).Success;
                                     if (bSuccess )
                                     {
                                         foreach (var examine_group in _appSettings.adminGroups)
@@ -165,7 +168,7 @@ namespace WindowsAuth.Controllers
                                             }
                                         }
 
-                                        _logger.LogInformation("Authentication by user list: match {0} with {1}, group {2}", username, exp, groupname );
+                                        _logger.LogInformation("Authentication by user list: match {0} with {1}, group {2}", email, exp, groupname );
                                         bFind = true;
                                         break; 
                                     }
@@ -200,7 +203,7 @@ namespace WindowsAuth.Controllers
                             userID.isAdmin = isAdmin.ToString().ToLower();
                             userID.isAuthorized = isAuthorized.ToString().ToLower();
 
-                            await AddUser(username, userID);
+                            await AddUser(email, userID);
                             return bMatched; 
                         }
                     }
@@ -211,6 +214,14 @@ namespace WindowsAuth.Controllers
 
         }
 
+        /// <summary>
+        /// This will be the official function to parse the user identity
+        /// </summary>
+        /// <param name="userObjectID"></param>
+        /// <param name="username"></param>
+        /// <param name="tenantID"></param>
+        /// <param name="upn"></param>
+        /// <param name="endpoint"></param>
         private void ParseClaims(out string userObjectID,
             out string username,
             out string tenantID,
@@ -298,6 +309,16 @@ namespace WindowsAuth.Controllers
                     {
                         tenantID = nameId.Value;
                     }
+                }
+                HttpContext.Session.SetString("Email", username);
+                // Username will be stripped of email and DOMAIN/
+                if (username.Contains("@"))
+                {
+                    username = username.Split(new char[] { '@' })[0];
+                }
+                if (username.Contains("/"))
+                {
+                    username = username.Split(new char[] { '/' })[1];
                 }
                 HttpContext.Session.SetString("Username", username);
                 HttpContext.Session.SetString("TenantID", tenantID);
@@ -408,7 +429,7 @@ namespace WindowsAuth.Controllers
                 string endpoint = null;
                 ParseClaims(out userObjectID, out username, out tenantID, out upn, out endpoint);
 
-                bool bAuthenticated = await AuthenticateByUsers(username, tenantID ); 
+                bool bAuthenticated = await AuthenticateByUsers(); 
                 if ( !bAuthenticated )
                 { 
 
@@ -463,15 +484,6 @@ namespace WindowsAuth.Controllers
             if (User.Identity.IsAuthenticated)
             {
                 string username = HttpContext.Session.GetString("Username");
-                if (username.Contains("@"))
-                {
-                    username = username.Split(new char[] { '@' })[0];
-                }
-                if (username.Contains("/"))
-                {
-                    username = username.Split(new char[] { '/' })[1];
-                }
-
                 ViewData["Username"] = username;
 
                 ViewData["workPath"] = _appSettings.workFolderAccessPoint + username + "/";
@@ -479,7 +491,8 @@ namespace WindowsAuth.Controllers
 
             }
 
- 
+
+
 
             return View();
         }
@@ -497,16 +510,6 @@ namespace WindowsAuth.Controllers
 
             string username = HttpContext.Session.GetString("Username");
             ViewData["Username"] = username;
-            if (username.Contains("@"))
-            {
-                username = username.Split(new char[] { '@' })[0];
-            }
-            if (username.Contains("/"))
-            {
-                username = username.Split(new char[] { '/' })[1];
-            }
-
-            ViewData["userName"] = username;
             ViewData["workPath"] = _appSettings.workFolderAccessPoint+username+"/";
             ViewData["dataPath"] = _appSettings.dataFolderAccessPoint;
 
@@ -523,6 +526,7 @@ namespace WindowsAuth.Controllers
         {
             if (!User.Identity.IsAuthenticated)
             {
+                
                 return RedirectToAction("Login","Account",new { controller = "Account", action = "Login" });
             }
 
@@ -552,15 +556,7 @@ namespace WindowsAuth.Controllers
             ViewData["jobid"] = HttpContext.Request.Query["jobId"];
 
             string username = HttpContext.Session.GetString("Username");
-            if (username.Contains("@"))
-            {
-                username = username.Split(new char[] { '@' })[0];
-            }
-            if (username.Contains("/"))
-            {
-                username = username.Split(new char[] { '/' })[1];
-            }
-
+            
             ViewData["Username"] = username;
             ViewData["workPath"] = (_appSettings.workFolderAccessPoint + username + "/").Replace("file:","").Replace("\\","/");
             ViewData["jobPath"] = _appSettings.workFolderAccessPoint.Replace("file:","").Replace("\\","/");

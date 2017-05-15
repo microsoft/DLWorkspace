@@ -59,7 +59,7 @@ namespace WindowsAuth.Controllers
                 foreach (var item in HttpContext.Request.Query)
                 {
                     //security check, user cannot append userName to the request url
-                    if (item.Key != "userName")
+                    if (item.Key.ToLower() != "username")
                     {
                         url += System.Text.Encodings.Web.UrlEncoder.Default.Encode(item.Key) + "=" + System.Text.Encodings.Web.UrlEncoder.Default.Encode(item.Value) + "&";
                     }
