@@ -29,6 +29,13 @@ spec:
     - --runtime-config=extensions/v1beta1/networkpolicies=true
     - --anonymous-auth=false
     - --basic-auth-file=/etc/kubernetes/basicauth    
+{% if "kubelogdir" in cnf %}
+    - --log-dir={{cnf["kubelogdir"]}}/kubeapiserver
+    - --logtostderr=false
+{% endif %}
+{% if "kubeloglevel" in cnf %}
+    - --v={{cnf["kubeloglevel"]}}
+{% endif %}
     livenessProbe:
       httpGet:
         host: 127.0.0.1
@@ -50,6 +57,10 @@ spec:
     - mountPath: /etc/ssl/certs
       name: ssl-certs-host
       readOnly: true
+{% if "kubelogdir" in cnf %}
+    - mountPath: {{cnf["kubelogdir"]}}/kubeapiserver
+      name: logs
+{% endif %}
   volumes:
   - hostPath:
       path: /etc/kubernetes
@@ -57,3 +68,8 @@ spec:
   - hostPath:
       path: /usr/share/ca-certificates
     name: ssl-certs-host
+{% if "kubelogdir" in cnf %}
+  - hostPath:
+      path: {{cnf["kubelogdir"]}}/kubeapiserver
+    name: logs
+{% endif %}
