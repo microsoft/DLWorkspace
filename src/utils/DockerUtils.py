@@ -159,7 +159,7 @@ def push_dockers(rootdir, dockerprefix, dockertag, nargs, config, verbose = Fals
 def copy_from_docker_image(image, srcFile, dstFile):
 	id = subprocess.check_output(['docker', 'create', image])
 	id = id.strip()
-	copyCmd = "docker cp " + id + ":" + srcFile + " " + dstFile
+	copyCmd = "docker cp --follow-link=true " + id + ":" + srcFile + " " + dstFile
 	#print copyCmd
 	os.system(copyCmd)
 	os.system("docker rm -v " + id)
