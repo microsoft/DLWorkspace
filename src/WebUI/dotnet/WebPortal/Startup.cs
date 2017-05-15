@@ -9,15 +9,22 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using System.Security.Claims;
 using WindowsAuth.models;
-
+using WindowsAuth.Services;
 using WebPortal.Helper;
+
+
 using Serilog.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Http;
+
 
 namespace WindowsAuth
 {
@@ -35,10 +42,11 @@ namespace WindowsAuth
             if (File.Exists("userconfig.json"))
                 builder.AddJsonFile("userconfig.json", optional: true, reloadOnChange: true);
             Configuration = builder.Build();
-            
+
         }
 
         static public IConfigurationRoot Configuration { get; set; }
+        static public Dictionary<string, OpenIDAuthentication> AuthenticationSchemes;
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
@@ -63,7 +71,17 @@ namespace WindowsAuth
             });
             // Add Authentication services.
             services.AddAuthentication(sharedOptions => sharedOptions.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme);
+
+            // Expose Azure AD configuration to controllers
+            services.AddOptions();
+
+            services.AddDbContext<WebAppContext>(options => options.UseSqlite(Configuration["Data:ConnectionString"]));
+            services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+            services.AddScoped<IAzureAdTokenService, DbTokenCache>();
+
         }
+
+
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
@@ -85,61 +103,23 @@ namespace WindowsAuth
             // Configure the OWIN pipeline to use cookie auth.
             var cookieOpt = new CookieAuthenticationOptions();
             //cookieOpt.AutomaticAuthenticate = true;
-            //cookieOpt.CookieName = "dlws-auth";
+            // cookieOpt.CookieName = "dlws-auth";
             //cookieOpt.CookieSecure = Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
-            //cookieOpt.AuthenticationScheme = "Cookies";
+            // cookieOpt.AuthenticationScheme = "Cookies";
             app.UseCookieAuthentication(cookieOpt);
 
-            var openIDOpt = new OpenIdConnectOptions();
-            openIDOpt.ClientId = Configuration["AzureAD:ClientId"];
-            openIDOpt.ClientSecret = Configuration["AzureAD:ClientSecret"];
-            
-            foreach (var scope in Configuration["AzureAd:Scope"].Split(new char[] { ' ' }))
+            var authentication = ConfigurationParser.GetConfiguration("Authentications") as Dictionary<string, object>;
+            AuthenticationSchemes = new Dictionary<string, OpenIDAuthentication>(); 
+            foreach (var pair in authentication)
             {
-                openIDOpt.Scope.Add(scope);
+                var authenticationScheme = pair.Key;
+                var authenticationConfig = pair.Value;
+                var openIDOpt = new OpenIDAuthentication(authenticationScheme, authenticationConfig, loggerFactory);
+                AuthenticationSchemes[authenticationScheme] = openIDOpt;
+                app.UseOpenIdConnectAuthentication(openIDOpt);
             }
-            openIDOpt.Authority = String.Format(Configuration["AzureAd:AadInstance"], Configuration["AzureAd:Tenant"]);
-            // openIDOpt.Authority = Configuration["AzureAd:Oauth2Instance"];
-
-            openIDOpt.PostLogoutRedirectUri = Configuration["AzureAd:PostLogoutRedirectUri"];
-            // openIDOpt.ResponseType = OpenIdConnectResponseType.CodeIdToken;
-            openIDOpt.GetClaimsFromUserInfoEndpoint = false; 
-      
-            openIDOpt.Events = new OpenIdConnectEvents
-            {
-                OnRemoteFailure = OnAuthenticationFailed,
-                OnAuthorizationCodeReceived = OnAuthorizationCodeReceived, 
-            };
-
+            
             // Configure the OWIN pipeline to use OpenID Connect auth.
-            app.UseOpenIdConnectAuthentication(openIDOpt);
-
-
-
-
-
-            // Configure the OWIN pipeline to use OpenID Connect auth.
-
-            //app.UseOpenIdConnectAuthentication(new OpenIdConnectOptions
-
-            //{
-
-            //    ClientId = Configuration["AzureAD:ClientId"],
-
-            //    Authority = String.Format(Configuration["AzureAd:AadInstance"], Configuration["AzureAd:Tenant"]),
-
-            //    PostLogoutRedirectUri = Configuration["AzureAd:PostLogoutRedirectUri"],
-
-            //    Events = new OpenIdConnectEvents
-
-            //    {
-
-            //        OnRemoteFailure = OnAuthenticationFailed,
-
-            //    }
-
-            //});
-
             app.UseSession();
             // Configure MVC routes
             app.UseMvc(routes =>
@@ -150,28 +130,21 @@ namespace WindowsAuth
             });
         }
 
-        // Handle sign-in errors differently than generic errors.
-        private Task OnAuthenticationFailed(FailureContext context)
+        public static string GetAuthentication(string email, out OpenIDAuthentication config )
         {
-            context.HandleResponse();
-            context.Response.Redirect("/Home/Error?message=" + context.Failure.Message);
-            return Task.FromResult(0);
+            foreach (var pair in AuthenticationSchemes)
+            {
+                if (pair.Value.isAuthentication(email))
+                {
+                    config = pair.Value;
+                    return pair.Key; 
+                }
+            }
+            config = null;
+            return OpenIdConnectDefaults.AuthenticationScheme; 
         }
 
-        private async Task OnAuthorizationCodeReceived(AuthorizationCodeReceivedContext context)
-        {
-            string userObjectId = (context.Ticket.Principal.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier"))?.Value;
-            var ClientId = Configuration["AzureAD:ClientId"];
-            var ClientSecret = Configuration["AzureAD:ClientSecret"];
-            ClientCredential clientCred = new ClientCredential(ClientId, ClientSecret);
-            var Authority = String.Format(Configuration["AzureAd:AadInstance"], Configuration["AzureAd:Tenant"]);
-            var GraphResourceId = Configuration["AzureAD:AzureResourceURL"]; 
-            AuthenticationContext authContext = new AuthenticationContext(Authority, new NaiveSessionCache(userObjectId, context.HttpContext.Session));
-            AuthenticationResult authResult = await authContext.AcquireTokenByAuthorizationCodeAsync(
-                context.ProtocolMessage.Code, new Uri(context.Properties.Items[OpenIdConnectDefaults.RedirectUriForCodePropertiesKey]), clientCred, GraphResourceId);
-
-            context.HandleCodeRedemption(); 
-        }
 
     }
+
 }

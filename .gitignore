@@ -42,3 +42,5 @@ src/WebUI/dotnet/WebPortal/userconfig.json
 **/project.lock.json
 **/appsettings.json
 **/WebPortal/obj/*
+# SQLite database file
+*.db
