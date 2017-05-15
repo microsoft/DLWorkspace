@@ -23,7 +23,6 @@
 
 
             //var jobtrainingtype = encodeURIComponent($("#jobtrainingtype").val().trim());
-            
 
 
             var radios = document.getElementsByName('jobtrainingtype');
@@ -34,6 +33,7 @@
                     break;
                 }
             }
+
             var numps = parseInt($('#numps').val());
             var numpsworker = parseInt($('#numpsworker').val());
             var nummpiworker = parseInt($('#nummpiworker').val());
@@ -323,6 +323,28 @@
             document.getElementById("runningasroot").checked = false;
 
         }
+        else if (id == "cntkipython") {
+            document.getElementById("jobname").value = "CNTK-ipython";
+            document.getElementById("resourcegpu").value = 0;
+            document.getElementById("workpath").value = "@ViewData["userName"]";
+            document.getElementById("datapath").value = "imagenet";
+            document.getElementById("jobpath").value = "";
+
+            document.getElementById("image").value = "microsoft/cntk";
+            //document.getElementById("cmd").value = "pip install jupyter && jupyter notebook --no-browser --port=8889 --allow-root --ip=0.0.0.0 --notebook-dir=/work";
+            document.getElementById("cmd").value = "bash -c 'source \"/cntk/activate-cntk\" ; jupyter notebook --no-browser --port=8889 --ip=0.0.0.0 --notebook-dir=/ --allow-root'";
+
+
+            document.getElementById("chkInteractiveJob").checked = true;
+            document.getElementById("chkLogDir").checked = false;
+            ShowHideDiv(document.getElementById("chkInteractiveJob"), 'interactiveportfield')
+            ShowHideDiv(document.getElementById("chkLogDir"), 'logdirfield')
+
+            document.getElementById("interactivePort").value = "8889";
+            document.getElementById("logdir").value = "";
+            document.getElementById("runningasroot").checked = true;
+
+        }
     }
 </script>
 
@@ -355,13 +377,12 @@
                         <option value="caffessh">Caffe-SSH</option>
                         <option value="caffesample">Caffe training example</option>
                         <option value="tensorflowsample">Tensorflow training example</option>
-
+                        <option value="cntkipython">CNTK-IPython</option>
                         
                     </select>
 
                 </div>
-
-                <div class="form-group">
+                <div class="form-group" hidden>
                     <label>
                         Job Type
                     </label>

@@ -9,6 +9,7 @@ sudo systemctl stop kubelet
 sudo systemctl start flanneld
 sudo systemctl stop docker
 sudo systemctl start docker
+sudo docker pull {{cnf["kubernetes_docker_image"]}}
 sudo systemctl start kubelet
 sudo systemctl start rpc-statd
 sudo systemctl enable flanneld

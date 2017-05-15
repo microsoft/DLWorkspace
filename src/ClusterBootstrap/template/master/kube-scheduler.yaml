@@ -17,6 +17,9 @@ spec:
     - --log-dir={{cnf["kubelogdir"]}}/kubescheduler
     - --logtostderr=false
 {% endif %}
+{% if "kubeloglevel" in cnf %}
+    - --v={{cnf["kubeloglevel"]}}
+{% endif %}
     livenessProbe:
       httpGet:
         host: 127.0.0.1
