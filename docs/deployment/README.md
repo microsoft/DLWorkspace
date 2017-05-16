@@ -54,13 +54,18 @@ The 'deploy' folder contains important information to access the deployed DL wor
   deploy.py -y kubernetes labels
   ```
   
-9. Start webUI service. 
+9. Build and push docker images which are used by the cluster
+  ```
+  ./deploy.py docker push
+  ```
+
+10. Start webUI service. 
    ```
    deploy.py -y kubernetes start webportal
    deploy.py -y kubernetes start restfulapi
    deploy.py -y kubernetes start jobmanager
    ```
 
-10. Certain advanced topics, e.g., access to each deployed DL workspace node, use kubelet command, can be found at [Advanced.md](Advanced.md).
+11. Certain advanced topics, e.g., access to each deployed DL workspace node, use kubelet command, can be found at [Advanced.md](Advanced.md).
 
-11. If encounter problems, please check on [known issues](KnownIssues.md).
+12. If encounter problems, please check on [known issues](KnownIssues.md).
