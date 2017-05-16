@@ -56,11 +56,12 @@ The 'deploy' folder contains important information to access the deployed DL wor
   
 9. Build and push docker images which are used by the cluster
   ```
-  ./deploy.py docker push
+  deploy.py docker push
   ```
 
 10. Start webUI service. 
    ```
+   deploy.py webui
    deploy.py -y kubernetes start webportal
    deploy.py -y kubernetes start restfulapi
    deploy.py -y kubernetes start jobmanager
