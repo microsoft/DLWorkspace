@@ -39,8 +39,14 @@ namespace WindowsAuth
                 .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
 
             // User Configuration is added through ./deploy.py
-            if (File.Exists("userconfig.json"))
+            try
+            {
+                using (var fp = File.Open("userconfig.json", FileMode.Open, FileAccess.Read))
+                {
+                }
                 builder.AddJsonFile("userconfig.json", optional: true, reloadOnChange: true);
+            }
+            catch { };
             Configuration = builder.Build();
 
         }
