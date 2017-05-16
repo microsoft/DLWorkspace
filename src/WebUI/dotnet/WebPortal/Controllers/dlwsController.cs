@@ -41,21 +41,22 @@ namespace WindowsAuth.Controllers
             }
 
             ViewData["Username"] = HttpContext.Session.GetString("Username");
+            var restapi = HttpContext.Session.GetString("Restapi");
             if (op == "ListJobs")
             {
-                url = _appSettings.restapi + "/ListJobs?userName="+HttpContext.Session.GetString("Username");
+                url = restapi + "/ListJobs?userName="+HttpContext.Session.GetString("Username");
             }
             else if (op == "KillJob" && HttpContext.Request.Query.ContainsKey("jobId"))
             {
-                url = _appSettings.restapi + "/KillJob?jobId=" + HttpContext.Request.Query["jobId"]+"&userName="+ HttpContext.Session.GetString("Username");
+                url = restapi + "/KillJob?jobId=" + HttpContext.Request.Query["jobId"]+"&userName="+ HttpContext.Session.GetString("Username");
             }
             else if (op == "JobDetail" && HttpContext.Request.Query.ContainsKey("jobId"))
             {
-                url = _appSettings.restapi + "/GetJobDetail?jobId=" + HttpContext.Request.Query["jobId"];
+                url = restapi + "/GetJobDetail?jobId=" + HttpContext.Request.Query["jobId"];
             }
             else if (op == "SubmitJob")
             {
-                url = _appSettings.restapi + "/SubmitJob?";
+                url = restapi + "/SubmitJob?";
                 foreach (var item in HttpContext.Request.Query)
                 {
                     //security check, user cannot append userName to the request url
@@ -73,7 +74,7 @@ namespace WindowsAuth.Controllers
             }
             else if (op == "GetClusterStatus")
             {
-                url = _appSettings.restapi + "/GetClusterStatus?";
+                url = restapi + "/GetClusterStatus?";
             }
             
 

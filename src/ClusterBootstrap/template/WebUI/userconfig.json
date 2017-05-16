@@ -7,14 +7,22 @@
       "Microsoft": "Information"
     }
   },
-  "Restapi": "{{cnf["restapi"]}}",
+  
   "AuthorizedGroups": {{cnf["WebUIauthorizedGroups"]}},
   "AdminGroups": {{cnf["WebUIadminGroups"]}},
-  "WorkFolderAccessPoint": "{{cnf["workFolderAccessPoint"]}}",
-  "DataFolderAccessPoint": "{{cnf["dataFolderAccessPoint"]}}", 
   "UserGroups": {{cnf["UserGroups"]}},
-  "SQLHostname": "{{cnf["sqlserver-hostname"]}}", 
-  "SQLUsername": "{{cnf["sqlserver-username"]}}", 
-  "SQLPassword": "{{cnf["sqlserver-password"]}}", 
-  "SQLDatabase": "{{cnf["sqlserver-database"]}}", 
+
+  "DLClusters" : 
+  {
+     "{{cnf["cluster_name"]}}" : {
+        "ClusterId": "{{cnf["clusterId"]}}",
+        "Restapi": "{{cnf["restapi"]}}",
+        "WorkFolderAccessPoint": "{{cnf["workFolderAccessPoint"]}}",
+        "DataFolderAccessPoint": "{{cnf["dataFolderAccessPoint"]}}", 
+        "SQLHostname": "{{cnf["sqlserver-hostname"]}}", 
+        "SQLUsername": "{{cnf["sqlserver-username"]}}", 
+        "SQLPassword": "{{cnf["sqlserver-password"]}}", 
+        "SQLDatabase": "AuthorizeUser-{{cnf["clusterId"]}}", 
+    },
+  },
 }

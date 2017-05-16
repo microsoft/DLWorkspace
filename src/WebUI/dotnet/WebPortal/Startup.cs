@@ -53,6 +53,7 @@ namespace WindowsAuth
 
         static public IConfigurationRoot Configuration { get; set; }
         static public Dictionary<string, OpenIDAuthentication> AuthenticationSchemes;
+        static public Dictionary<string, DLCluster> Clusters; 
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
@@ -65,9 +66,9 @@ namespace WindowsAuth
             services.Configure<AppSettings>(appSettings =>
             {
                 // Typed syntax - Configuration.Get<type>("")
-                appSettings.restapi = Configuration["Restapi"];
-                appSettings.workFolderAccessPoint = Configuration["WorkFolderAccessPoint"];
-                appSettings.dataFolderAccessPoint = Configuration["DataFolderAccessPoint"];
+                // appSettings.restapi = Configuration["Restapi"];
+                // appSettings.workFolderAccessPoint = Configuration["WorkFolderAccessPoint"];
+                // appSettings.dataFolderAccessPoint = Configuration["DataFolderAccessPoint"];
                 appSettings.adminGroups = ConfigurationParser.GetConfigurationAsList("AdminGroups"); //  Configuration["AdminGroups"].Split(new char[] { ',', ';' }).ToList<string>();
                 appSettings.authorizedGroups = ConfigurationParser.GetConfigurationAsList("AuthorizedGroups"); // Configuration["AuthorizedGroups"].Split(new char[] { ',', ';' }).ToList<string>();
                 // Configure may not have run at the moment, so this is console printout. 
@@ -99,6 +100,49 @@ namespace WindowsAuth
             var _logger = loggerFactory.CreateLogger("Configure");
 
             ConfigurationParser.ParseConfiguration(loggerFactory);
+            var clusters = ConfigurationParser.GetConfiguration("DLClusters") as Dictionary<string, object>;
+            if ( Object.ReferenceEquals(clusters, null ))
+            {
+                throw new ArgumentException("There are no DLClusters in the configuration file");
+            }
+            Clusters = new Dictionary<string, DLCluster>(); 
+            string defaultClusterName = null; 
+            foreach (var pair in clusters)
+            {
+                var clusterName = pair.Key;
+                var clusterConfig = pair.Value as Dictionary<string, object>;
+                _logger.LogInformation("Configure cluster {0}", clusterName);
+                if (Object.ReferenceEquals(clusterConfig, null))
+                {
+                    throw new ArgumentException("Configuration for cluster {0} is not provided as a JSon dictionary", clusterName );
+                }
+                var clusterInfo = new DLCluster();
+                clusterInfo.ClusterName = clusterName;
+                clusterInfo.ClusterId = clusterConfig["ClusterId"] as string;
+                clusterInfo.DataFolderAccessPoint = clusterConfig["DataFolderAccessPoint"] as string;
+                clusterInfo.WorkFolderAccessPoint = clusterConfig["WorkFolderAccessPoint"] as string;
+                clusterInfo.Restapi = clusterConfig["Restapi"] as string;
+                clusterInfo.SQLDatabase = clusterConfig["SQLDatabase"] as string;
+                clusterInfo.SQLHostname = clusterConfig["SQLHostname"] as string;
+                clusterInfo.SQLPassword = clusterConfig["SQLPassword"] as string;
+                clusterInfo.SQLUsername = clusterConfig["SQLUsername"] as string;
+                var isDefault = clusterConfig.ContainsKey("Default") && (clusterConfig["Default"] as string).ToLower()=="true";
+                if (isDefault)
+                    defaultClusterName = clusterName;
+                _logger.LogInformation("ClusterId: {0}", clusterInfo.ClusterId);
+                _logger.LogInformation("DataFolderAccessPoint: {0}", clusterInfo.DataFolderAccessPoint);
+                _logger.LogInformation("WorkFolderAccessPoint: {0}", clusterInfo.WorkFolderAccessPoint);
+                _logger.LogInformation("Restapi: {0}", clusterInfo.Restapi);
+                _logger.LogInformation("SQLDatabase: {0}", clusterInfo.SQLDatabase);
+                _logger.LogInformation("SQLHostname: {0}", clusterInfo.SQLHostname);
+                _logger.LogInformation("SQLPassword: {0}", clusterInfo.SQLPassword);
+                _logger.LogInformation("SQLUsername: {0}", clusterInfo.SQLUsername);
+                Clusters[clusterName] = clusterInfo;
+            }
+            if (String.IsNullOrEmpty(defaultClusterName))
+                defaultClusterName = Clusters.Keys.First<string>();
+            Clusters[""] = Clusters[defaultClusterName];
+            _logger.LogInformation("Default Cluster: {0}", defaultClusterName);
 
             // Configure error handling middleware.
             app.UseExceptionHandler("/Home/Error");
