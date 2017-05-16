@@ -191,9 +191,23 @@ default_config_parameters = {
             "uid": "900000000-999999999",
             "gid": "508953967"
         }, 
+		"Live": {
+            # The match is in C# Regex Language, please refer to :
+            # https://msdn.microsoft.com/en-us/library/az24scfc(v=vs.110).aspx
+            "Allowed": [ "@live.com", "@hotmail.com", "@outlook.com" ],
+            "uid": "700000000-799999999",
+            "gid": "508953967"
+        }, 
+		"Gmail": {
+            # The match is in C# Regex Language, please refer to :
+            # https://msdn.microsoft.com/en-us/library/az24scfc(v=vs.110).aspx
+            "Allowed": [ "@gmail.com" ],
+            "uid": "800000000-899999999",
+            "gid": "508953967"
+        }, 
     },
 
-	"WebUIauthorizedGroups": [ "MicrosoftUsers" ], 
+	"WebUIauthorizedGroups": [ "MicrosoftUsers", "Live", "Gmail" ], 
 	"WebUIadminGroups" : [ "CCSAdmins" ], 
 	"WinBindServer": [ "http://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName={0}" ],
 	"workFolderAccessPoint" : "", 
