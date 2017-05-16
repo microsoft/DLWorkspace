@@ -25,7 +25,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         python-dev \
         python-numpy \
         python-pip \
-        python-yaml
+        python-yaml \
+        locales
         
 
 RUN apt-get install -y bison curl nfs-common

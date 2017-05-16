@@ -11,7 +11,8 @@ RUN apt-get install -y --no-install-recommends \
         vim \
         python-dev \
         python-pip \
-        python-yaml 
+        python-yaml \ 
+        locales
         
 
 RUN apt-get install -y bison curl nfs-common
@@ -57,8 +58,8 @@ RUN pip install pyodbc
 
 RUN wget http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubectl -O /usr/local/bin/kubectl
 RUN chmod +x /usr/local/bin/kubectl
-COPY gittoken /root/.ssh/id_rsa
-RUN chmod 400 /root/.ssh/id_rsa
+#COPY gittoken /root/.ssh/id_rsa
+#RUN chmod 400 /root/.ssh/id_rsa
 RUN apt-get install -y --no-install-recommends ssh
 
 
