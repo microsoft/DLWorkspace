@@ -47,20 +47,22 @@ namespace WindowsAuth.Controllers
             _logger = logger.CreateLogger("HomeController");
         }
 
-        private async Task<bool> AddUser(string email, UserID userID)
+        // Add user to the system, with a list of clusters that the user is authorized for
+        private async Task<bool> AddUser(string email, UserID userID, string clusterName = "" )
         {
             HttpContext.Session.SetString("uid", userID.uid);
-
             HttpContext.Session.SetString("gid", userID.gid);
-
             HttpContext.Session.SetString("isAdmin", userID.isAdmin);
-
             HttpContext.Session.SetString("isAuthorized", userID.isAuthorized);
+            var clusterInfo = Startup.Clusters[clusterName];
+            HttpContext.Session.SetString("Restapi", clusterInfo.Restapi);
+            HttpContext.Session.SetString("WorkFolderAccessPoint", clusterInfo.WorkFolderAccessPoint);
+            HttpContext.Session.SetString("DataFolderAccessPoint", clusterInfo.DataFolderAccessPoint);
 
 
             if (userID.isAuthorized == "true")
             {
-                var url = _appSettings.restapi + "/AddUser?userName=" + HttpContext.Session.GetString("Email") + "&userId=" + userID.uid;
+                var url = clusterInfo.Restapi + "/AddUser?userName=" + HttpContext.Session.GetString("Email") + "&userId=" + userID.uid;
                 using (var httpClient1 = new HttpClient())
                 {
                     var response2 = await httpClient1.GetAsync(url);
@@ -99,7 +101,7 @@ namespace WindowsAuth.Controllers
                     }
                 }
 
-                await AddUser(HttpContext.Session.GetString("Username"), userID);
+                await AddUser(HttpContext.Session.GetString("Email"), userID);
             }
             return true; 
 
@@ -484,10 +486,12 @@ namespace WindowsAuth.Controllers
             if (User.Identity.IsAuthenticated)
             {
                 string username = HttpContext.Session.GetString("Username");
+                string workFolderAccessPoint = HttpContext.Session.GetString("WorkFolderAccessPoint");
+                string dataFolderAccessPoint = HttpContext.Session.GetString("DataFolderAccessPoint");
                 ViewData["Username"] = username;
 
-                ViewData["workPath"] = _appSettings.workFolderAccessPoint + username + "/";
-                ViewData["dataPath"] = _appSettings.dataFolderAccessPoint;
+                ViewData["workPath"] = workFolderAccessPoint + username + "/";
+                ViewData["dataPath"] = dataFolderAccessPoint;
 
             }
 
@@ -509,9 +513,11 @@ namespace WindowsAuth.Controllers
             }
 
             string username = HttpContext.Session.GetString("Username");
+            string workFolderAccessPoint = HttpContext.Session.GetString("WorkFolderAccessPoint");
+            string dataFolderAccessPoint = HttpContext.Session.GetString("DataFolderAccessPoint");
             ViewData["Username"] = username;
-            ViewData["workPath"] = _appSettings.workFolderAccessPoint+username+"/";
-            ViewData["dataPath"] = _appSettings.dataFolderAccessPoint;
+            ViewData["workPath"] = workFolderAccessPoint+username+"/";
+            ViewData["dataPath"] = dataFolderAccessPoint;
 
             ViewData["uid"] = HttpContext.Session.GetString("uid");
             ViewData["gid"] = HttpContext.Session.GetString("gid");
@@ -556,10 +562,12 @@ namespace WindowsAuth.Controllers
             ViewData["jobid"] = HttpContext.Request.Query["jobId"];
 
             string username = HttpContext.Session.GetString("Username");
-            
+            string workFolderAccessPoint = HttpContext.Session.GetString("WorkFolderAccessPoint");
+
+
             ViewData["Username"] = username;
-            ViewData["workPath"] = (_appSettings.workFolderAccessPoint + username + "/").Replace("file:","").Replace("\\","/");
-            ViewData["jobPath"] = _appSettings.workFolderAccessPoint.Replace("file:","").Replace("\\","/");
+            ViewData["workPath"] = (workFolderAccessPoint + username + "/").Replace("file:","").Replace("\\","/");
+            ViewData["jobPath"] = workFolderAccessPoint.Replace("file:","").Replace("\\","/");
 
             return View();
         }

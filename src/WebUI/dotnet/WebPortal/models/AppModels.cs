@@ -15,6 +15,20 @@ namespace WindowsAuth.models
         public string Description { get; set; }
     }
 
+    public class DLCluster
+    {
+        public string ClusterName { get; set; }
+        public string ClusterId { get; set; }
+        public string Restapi { get; set; }
+        public string WorkFolderAccessPoint { get; set; }
+        public string DataFolderAccessPoint { get; set; }
+        public string SQLHostname { get; set; }
+        public string SQLUsername { get; set; }
+        public string SQLPassword { get; set; }
+        public string SQLDatabase { get; set; }
+    }
+
+
     // Entity for keeping track of organizations onboarded as customers of the app
     public class Tenant
     {
