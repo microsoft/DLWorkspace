@@ -64,7 +64,7 @@
                         
                         if (payload.endpoints[i].containerPort == 22)
                         {
-                            endpointsStr += "To access the container via SSH, use command: ssh -i @ViewData["workPath"]"+".ssh/id_rsa -p " + payload.endpoints[i].hostPort + " @ViewData["username"]"+"@@" + payload.endpoints[i].hostIP + "\n";
+                            endpointsStr += "To access the container via SSH, use command: ssh -i @ViewData["workPath"]"+".ssh/id_rsa -p " + payload.endpoints[i].hostPort + " @ViewData["Username"]"+"@@" + payload.endpoints[i].hostIP + "\n";
                         }
                         else
                         {

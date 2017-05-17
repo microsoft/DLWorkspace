@@ -9,15 +9,22 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using System.Security.Claims;
 using WindowsAuth.models;
-
+using WindowsAuth.Services;
 using WebPortal.Helper;
+
+
 using Serilog.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Http;
+
 
 namespace WindowsAuth
 {
@@ -32,13 +39,22 @@ namespace WindowsAuth
                 .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
 
             // User Configuration is added through ./deploy.py
-            if (File.Exists("userconfig.json"))
+            try
+            {
+                using (var fp = File.Open("userconfig.json", FileMode.Open, FileAccess.Read))
+                {
+                }
                 builder.AddJsonFile("userconfig.json", optional: true, reloadOnChange: true);
+            }
+            catch { };
             Configuration = builder.Build();
-            
+
         }
 
         static public IConfigurationRoot Configuration { get; set; }
+        static public Dictionary<string, OpenIDAuthentication> AuthenticationSchemes;
+        static public Dictionary<string, DLCluster> Clusters; 
+        static public Dictionary<string, UserContext> DatabaseForUser;
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
@@ -51,9 +67,9 @@ namespace WindowsAuth
             services.Configure<AppSettings>(appSettings =>
             {
                 // Typed syntax - Configuration.Get<type>("")
-                appSettings.restapi = Configuration["Restapi"];
-                appSettings.workFolderAccessPoint = Configuration["WorkFolderAccessPoint"];
-                appSettings.dataFolderAccessPoint = Configuration["DataFolderAccessPoint"];
+                // appSettings.restapi = Configuration["Restapi"];
+                // appSettings.workFolderAccessPoint = Configuration["WorkFolderAccessPoint"];
+                // appSettings.dataFolderAccessPoint = Configuration["DataFolderAccessPoint"];
                 appSettings.adminGroups = ConfigurationParser.GetConfigurationAsList("AdminGroups"); //  Configuration["AdminGroups"].Split(new char[] { ',', ';' }).ToList<string>();
                 appSettings.authorizedGroups = ConfigurationParser.GetConfigurationAsList("AuthorizedGroups"); // Configuration["AuthorizedGroups"].Split(new char[] { ',', ';' }).ToList<string>();
                 // Configure may not have run at the moment, so this is console printout. 
@@ -63,7 +79,17 @@ namespace WindowsAuth
             });
             // Add Authentication services.
             services.AddAuthentication(sharedOptions => sharedOptions.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme);
+
+            // Expose Azure AD configuration to controllers
+            services.AddOptions();
+
+            services.AddDbContext<WebAppContext>(options => options.UseSqlite(Configuration["Data:ConnectionString"]));
+            services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+            services.AddScoped<IAzureAdTokenService, DbTokenCache>();
+
         }
+
+
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
@@ -75,6 +101,61 @@ namespace WindowsAuth
             var _logger = loggerFactory.CreateLogger("Configure");
 
             ConfigurationParser.ParseConfiguration(loggerFactory);
+            var clusters = ConfigurationParser.GetConfiguration("DLClusters") as Dictionary<string, object>;
+            if ( Object.ReferenceEquals(clusters, null ))
+            {
+                throw new ArgumentException("There are no DLClusters in the configuration file");
+            }
+            Clusters = new Dictionary<string, DLCluster>();
+            DatabaseForUser = new Dictionary<string, UserContext>(); 
+            string defaultClusterName = null; 
+            foreach (var pair in clusters)
+            {
+                var clusterName = pair.Key;
+                var clusterConfig = pair.Value as Dictionary<string, object>;
+                _logger.LogInformation("Configure cluster {0}", clusterName);
+                if (Object.ReferenceEquals(clusterConfig, null))
+                {
+                    throw new ArgumentException("Configuration for cluster {0} is not provided as a JSon dictionary", clusterName );
+                }
+                var clusterInfo = new DLCluster();
+                clusterInfo.ClusterName = clusterName;
+                clusterInfo.ClusterId = clusterConfig["ClusterId"] as string;
+                clusterInfo.DataFolderAccessPoint = clusterConfig["DataFolderAccessPoint"] as string;
+                clusterInfo.WorkFolderAccessPoint = clusterConfig["WorkFolderAccessPoint"] as string;
+                clusterInfo.Restapi = clusterConfig["Restapi"] as string;
+                clusterInfo.SQLDatabaseForUser = clusterConfig["SQLDatabaseForUser"] as string;
+                clusterInfo.SQLHostname = clusterConfig["SQLHostname"] as string;
+                clusterInfo.SQLPassword = clusterConfig["SQLPassword"] as string;
+                clusterInfo.SQLUsername = clusterConfig["SQLUsername"] as string;
+                var isDefault = clusterConfig.ContainsKey("Default") && (clusterConfig["Default"] as string).ToLower()=="true";
+                if (isDefault)
+                    defaultClusterName = clusterName;
+                _logger.LogInformation("ClusterId: {0}", clusterInfo.ClusterId);
+                _logger.LogInformation("DataFolderAccessPoint: {0}", clusterInfo.DataFolderAccessPoint);
+                _logger.LogInformation("WorkFolderAccessPoint: {0}", clusterInfo.WorkFolderAccessPoint);
+                _logger.LogInformation("Restapi: {0}", clusterInfo.Restapi);
+                _logger.LogInformation("SQLDatabaseForUser: {0}", clusterInfo.SQLDatabaseForUser);
+                _logger.LogInformation("SQLHostname: {0}", clusterInfo.SQLHostname);
+                _logger.LogInformation("SQLPassword: {0}", clusterInfo.SQLPassword);
+                _logger.LogInformation("SQLUsername: {0}", clusterInfo.SQLUsername);
+                Clusters[clusterName] = clusterInfo;
+                var connection = String.Format("Server={0};Database={1}{2};User Id={3};Password={4}",
+                    clusterInfo.SQLHostname,
+                    clusterInfo.SQLDatabaseForUser,
+                    clusterInfo.ClusterId,
+                    clusterInfo.SQLUsername,
+                    clusterInfo.SQLPassword);
+                var optionsBuilder = new DbContextOptionsBuilder<UserContext>();
+                optionsBuilder.UseSqlServer(connection);
+                var db = new UserContext(optionsBuilder.Options);
+                db.Database.EnsureCreated();
+                DatabaseForUser[clusterName] = db;
+            }
+            if (String.IsNullOrEmpty(defaultClusterName))
+                defaultClusterName = Clusters.Keys.First<string>();
+            Clusters[""] = Clusters[defaultClusterName];
+            _logger.LogInformation("Default Cluster: {0}", defaultClusterName);
 
             // Configure error handling middleware.
             app.UseExceptionHandler("/Home/Error");
@@ -85,61 +166,23 @@ namespace WindowsAuth
             // Configure the OWIN pipeline to use cookie auth.
             var cookieOpt = new CookieAuthenticationOptions();
             //cookieOpt.AutomaticAuthenticate = true;
-            //cookieOpt.CookieName = "dlws-auth";
+            // cookieOpt.CookieName = "dlws-auth";
             //cookieOpt.CookieSecure = Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
-            //cookieOpt.AuthenticationScheme = "Cookies";
+            // cookieOpt.AuthenticationScheme = "Cookies";
             app.UseCookieAuthentication(cookieOpt);
 
-            var openIDOpt = new OpenIdConnectOptions();
-            openIDOpt.ClientId = Configuration["AzureAD:ClientId"];
-            openIDOpt.ClientSecret = Configuration["AzureAD:ClientSecret"];
-            
-            foreach (var scope in Configuration["AzureAd:Scope"].Split(new char[] { ' ' }))
+            var authentication = ConfigurationParser.GetConfiguration("Authentications") as Dictionary<string, object>;
+            AuthenticationSchemes = new Dictionary<string, OpenIDAuthentication>(); 
+            foreach (var pair in authentication)
             {
-                openIDOpt.Scope.Add(scope);
+                var authenticationScheme = pair.Key;
+                var authenticationConfig = pair.Value;
+                var openIDOpt = new OpenIDAuthentication(authenticationScheme, authenticationConfig, loggerFactory);
+                AuthenticationSchemes[authenticationScheme] = openIDOpt;
+                app.UseOpenIdConnectAuthentication(openIDOpt);
             }
-            openIDOpt.Authority = String.Format(Configuration["AzureAd:AadInstance"], Configuration["AzureAd:Tenant"]);
-            // openIDOpt.Authority = Configuration["AzureAd:Oauth2Instance"];
-
-            openIDOpt.PostLogoutRedirectUri = Configuration["AzureAd:PostLogoutRedirectUri"];
-            // openIDOpt.ResponseType = OpenIdConnectResponseType.CodeIdToken;
-            openIDOpt.GetClaimsFromUserInfoEndpoint = false; 
-      
-            openIDOpt.Events = new OpenIdConnectEvents
-            {
-                OnRemoteFailure = OnAuthenticationFailed,
-                OnAuthorizationCodeReceived = OnAuthorizationCodeReceived, 
-            };
-
+            
             // Configure the OWIN pipeline to use OpenID Connect auth.
-            app.UseOpenIdConnectAuthentication(openIDOpt);
-
-
-
-
-
-            // Configure the OWIN pipeline to use OpenID Connect auth.
-
-            //app.UseOpenIdConnectAuthentication(new OpenIdConnectOptions
-
-            //{
-
-            //    ClientId = Configuration["AzureAD:ClientId"],
-
-            //    Authority = String.Format(Configuration["AzureAd:AadInstance"], Configuration["AzureAd:Tenant"]),
-
-            //    PostLogoutRedirectUri = Configuration["AzureAd:PostLogoutRedirectUri"],
-
-            //    Events = new OpenIdConnectEvents
-
-            //    {
-
-            //        OnRemoteFailure = OnAuthenticationFailed,
-
-            //    }
-
-            //});
-
             app.UseSession();
             // Configure MVC routes
             app.UseMvc(routes =>
@@ -150,28 +193,21 @@ namespace WindowsAuth
             });
         }
 
-        // Handle sign-in errors differently than generic errors.
-        private Task OnAuthenticationFailed(FailureContext context)
+        public static string GetAuthentication(string email, out OpenIDAuthentication config )
         {
-            context.HandleResponse();
-            context.Response.Redirect("/Home/Error?message=" + context.Failure.Message);
-            return Task.FromResult(0);
+            foreach (var pair in AuthenticationSchemes)
+            {
+                if (pair.Value.isAuthentication(email))
+                {
+                    config = pair.Value;
+                    return pair.Key; 
+                }
+            }
+            config = null;
+            return OpenIdConnectDefaults.AuthenticationScheme; 
         }
 
-        private async Task OnAuthorizationCodeReceived(AuthorizationCodeReceivedContext context)
-        {
-            string userObjectId = (context.Ticket.Principal.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier"))?.Value;
-            var ClientId = Configuration["AzureAD:ClientId"];
-            var ClientSecret = Configuration["AzureAD:ClientSecret"];
-            ClientCredential clientCred = new ClientCredential(ClientId, ClientSecret);
-            var Authority = String.Format(Configuration["AzureAd:AadInstance"], Configuration["AzureAd:Tenant"]);
-            var GraphResourceId = Configuration["AzureAD:AzureResourceURL"]; 
-            AuthenticationContext authContext = new AuthenticationContext(Authority, new NaiveSessionCache(userObjectId, context.HttpContext.Session));
-            AuthenticationResult authResult = await authContext.AcquireTokenByAuthorizationCodeAsync(
-                context.ProtocolMessage.Code, new Uri(context.Properties.Items[OpenIdConnectDefaults.RedirectUriForCodePropertiesKey]), clientCred, GraphResourceId);
-
-            context.HandleCodeRedemption(); 
-        }
 
     }
+
 }

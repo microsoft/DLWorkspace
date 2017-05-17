@@ -40,7 +40,7 @@ namespace WebPortal.Helper
             JObject jobj = token as JObject;
             if (!Object.ReferenceEquals(jobj, null))
             {
-                var retDic = new Dictionary<string, object>();
+                var retDic = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
                 foreach (var pair in jobj)
                 {
                     string name =  pair.Key;
@@ -91,7 +91,7 @@ namespace WebPortal.Helper
                     // Intermediate level. 
                     if (!root.ContainsKey(entry))
                     {
-                        root[entry] = new Dictionary<string, object>();
+                        root[entry] = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
                     }
                     root = root[entry] as Dictionary<string, object>;
                     if (Object.ReferenceEquals(root, null))
@@ -228,7 +228,7 @@ namespace WebPortal.Helper
         /// <param name="config"></param>
         public static void ParseConfigurationTask()
         {
-            var newConfig = new Dictionary<string, object>();
+            var newConfig = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
 
             // The following code use reflection to travrese & parse configuration. 
             var configType = WindowsAuth.Startup.Configuration.GetType();

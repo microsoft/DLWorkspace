@@ -19,7 +19,10 @@ ExecStart=/opt/bin/kubelet \
   --cluster_domain=cluster.local \
   --kubeconfig=/etc/kubernetes/worker-kubeconfig.yaml \
   --tls-cert-file=/etc/kubernetes/ssl/worker.pem \
+  {{'--log-dir='~cnf["kubeletlogdir"]~'/kubelet --logtostderr=false' if "kubeletlogdir" in cnf}} \
+  {{'--v='~cnf["kubeletloglevel"] if "kubeletloglevel" in cnf}} \
   --tls-private-key-file=/etc/kubernetes/ssl/worker-key.pem
+
 #ExecStop=-/usr/bin/rkt stop --uuid-file=/var/run/kubelet-pod.uuid
 Restart=always
 RestartSec=10

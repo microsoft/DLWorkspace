@@ -191,9 +191,23 @@ default_config_parameters = {
             "uid": "900000000-999999999",
             "gid": "508953967"
         }, 
+		"Live": {
+            # The match is in C# Regex Language, please refer to :
+            # https://msdn.microsoft.com/en-us/library/az24scfc(v=vs.110).aspx
+            "Allowed": [ "@live.com", "@hotmail.com", "@outlook.com" ],
+            "uid": "700000000-799999999",
+            "gid": "508953967"
+        }, 
+		"Gmail": {
+            # The match is in C# Regex Language, please refer to :
+            # https://msdn.microsoft.com/en-us/library/az24scfc(v=vs.110).aspx
+            "Allowed": [ "@gmail.com" ],
+            "uid": "800000000-899999999",
+            "gid": "508953967"
+        }, 
     },
 
-	"WebUIauthorizedGroups": [ "MicrosoftUsers" ], 
+	"WebUIauthorizedGroups": [], # [ "MicrosoftUsers", "Live", "Gmail" ], 
 	"WebUIadminGroups" : [ "CCSAdmins" ], 
 	"WinBindServer": [ "http://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName={0}" ],
 	"workFolderAccessPoint" : "", 
@@ -921,18 +935,19 @@ def deploy_master(kubernetes_master):
 def get_kubectl_binary():
 	get_hyperkube_docker()
 	#os.system("mkdir -p ./deploy/bin")
-	#urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet", "./deploy/bin/kubelet")
+	urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet", "./deploy/bin/kubelet-old")
 	#urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubectl", "./deploy/bin/kubectl")
 	#os.system("chmod +x ./deploy/bin/*")
 
 def get_hyperkube_docker() :
 	os.system("mkdir -p ./deploy/bin")
 	copy_from_docker_image(config['kubernetes_docker_image'], "/hyperkube", "./deploy/bin/hyperkube")
-	os.system("cp ./deploy/bin/hyperkube ./deploy/bin/kubelet")
-	os.system("cp ./deploy/bin/hyperkube ./deploy/bin/kubectl")
+	copy_from_docker_image(config['kubernetes_docker_image'], "/kubelet", "./deploy/bin/kubelet")
+	copy_from_docker_image(config['kubernetes_docker_image'], "/kubectl", "./deploy/bin/kubectl")
+	# os.system("cp ./deploy/bin/hyperkube ./deploy/bin/kubelet")
+	# os.system("cp ./deploy/bin/hyperkube ./deploy/bin/kubectl")
 
 def deploy_masters():
-
 	print "==============================================="
 	print "Prepare to deploy kubernetes master"
 	print "waiting for ETCD service is ready..."
@@ -2028,7 +2043,7 @@ def run_docker_image( imagename, native = False ):
 		if native: 
 			os.system( "docker run --rm -ti " + matches[0] )
 		else:
-			run_docker( matches[0], prompt = imagename )
+			run_docker( matches[0], prompt = imagename )	
 
 def run_command( args, command, nargs, parser ):
 	nocache = args.nocache
@@ -2137,6 +2152,7 @@ def run_command( args, command, nargs, parser ):
 	elif command == "updateworker":
 		response = raw_input_with_default("Deploy Worker Nodes (y/n)?")
 		if first_char(response) == "y":
+			#utils.render_template_directory("./template/kubelet", "./deploy/kubelet",config)
 			check_master_ETCD_status()
 			gen_configs()
 			update_worker_nodes( nargs )

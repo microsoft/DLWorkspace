@@ -7,7 +7,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using WindowsAuth.models;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Security.Claims;
+using System.Threading;
 using Newtonsoft.Json;
 using System.Text;
 using Microsoft.AspNetCore.Http;
@@ -27,6 +29,7 @@ using System.Globalization;
 using WindowsAuth;
 
 using WebPortal.Helper;
+using WindowsAuth.Services;
 
 
 namespace WindowsAuth.Controllers
@@ -35,28 +38,32 @@ namespace WindowsAuth.Controllers
     {
         private readonly AppSettings _appSettings;
         private readonly ILogger _logger;
+        private IAzureAdTokenService _tokenCache;
 
 
-        public HomeController(IOptions<AppSettings> appSettings, ILoggerFactory logger)
+        public HomeController(IOptions<AppSettings> appSettings, IAzureAdTokenService tokenCache, ILoggerFactory logger)
         {
             _appSettings = appSettings.Value;
+            _tokenCache = tokenCache;
             _logger = logger.CreateLogger("HomeController");
         }
 
-        private async Task<bool> AddUser(string username, UserID userID)
+        // Add user to the system, with a list of clusters that the user is authorized for
+        private async Task<bool> AddUser(string email, UserID userID, string clusterName = "" )
         {
             HttpContext.Session.SetString("uid", userID.uid);
-
             HttpContext.Session.SetString("gid", userID.gid);
-
             HttpContext.Session.SetString("isAdmin", userID.isAdmin);
-
             HttpContext.Session.SetString("isAuthorized", userID.isAuthorized);
+            var clusterInfo = Startup.Clusters[clusterName];
+            HttpContext.Session.SetString("Restapi", clusterInfo.Restapi);
+            HttpContext.Session.SetString("WorkFolderAccessPoint", clusterInfo.WorkFolderAccessPoint);
+            HttpContext.Session.SetString("DataFolderAccessPoint", clusterInfo.DataFolderAccessPoint);
 
 
             if (userID.isAuthorized == "true")
             {
-                var url = _appSettings.restapi + "/AddUser?userName=" + User.Identity.Name + "&userId=" + userID.uid;
+                var url = clusterInfo.Restapi + "/AddUser?userName=" + HttpContext.Session.GetString("Email") + "&userId=" + userID.uid;
                 using (var httpClient1 = new HttpClient())
                 {
                     var response2 = await httpClient1.GetAsync(url);
@@ -64,18 +71,19 @@ namespace WindowsAuth.Controllers
                 }
             }
             _logger.LogInformation("User {0} log in, Uid {1}, Gid {2}, isAdmin {3}, isAuthorized {4}",
-                                username, userID.uid, userID.gid, userID.isAdmin, userID.isAuthorized );
+                                email, userID.uid, userID.gid, userID.isAdmin, userID.isAuthorized );
             return true; 
         }
 
-        private async Task<bool> AuthenticateByServer(string connectURL )
+        private async Task<UserID> AuthenticateByServer(string connectURL )
         {
-            string url = String.Format(CultureInfo.InvariantCulture, connectURL, User.Identity.Name); 
+            string url = String.Format(CultureInfo.InvariantCulture, connectURL, HttpContext.Session.GetString("Username"));
+            UserID userID = null;
             using (var httpClient = new HttpClient())
             {
                 var response1 = await httpClient.GetAsync(url);
                 var content = await response1.Content.ReadAsStringAsync();
-                UserID userID = JsonConvert.DeserializeObject<UserID>(content.Trim()) as UserID;
+                userID = JsonConvert.DeserializeObject<UserID>(content.Trim()) as UserID;
 
                 userID.isAdmin = "false";
                 foreach (var adminGroupId in _appSettings.adminGroups)
@@ -95,23 +103,25 @@ namespace WindowsAuth.Controllers
                     }
                 }
 
-                await AddUser(User.Identity.Name, userID);
+                await AddUser(HttpContext.Session.GetString("Email"), userID);
             }
-            return true; 
+            return userID; 
 
         }
 
         // Can the current server be authenticated by a user list?
-        private async Task<bool> AuthenticateByUsers(string username, string tenantID )
+        private async Task<Tuple<bool, UserID>> AuthenticateByUsers()
         {
+            string email = HttpContext.Session.GetString("Email");
+            string tenantID = HttpContext.Session.GetString("TenantID");
+         
             var users = ConfigurationParser.GetConfiguration("UserGroups") as Dictionary<string, object>;
             if (Object.ReferenceEquals(users, null))
             {
-                return false; 
+                return new Tuple<bool, UserID >(false, null); 
             }
             else
             {
-                bool bMatched = false; 
                 
                 foreach (var pair in users)
                 {
@@ -142,7 +152,7 @@ namespace WindowsAuth.Controllers
                                 if (!Object.ReferenceEquals(exp, null))
                                 {
                                     var re = new Regex(exp);
-                                    bool bSuccess = re.Match(username).Success;
+                                    bool bSuccess = re.Match(email).Success;
                                     if (bSuccess )
                                     {
                                         foreach (var examine_group in _appSettings.adminGroups)
@@ -161,7 +171,7 @@ namespace WindowsAuth.Controllers
                                             }
                                         }
 
-                                        _logger.LogInformation("Authentication by user list: match {0} with {1}, group {2}", username, exp, groupname );
+                                        _logger.LogInformation("Authentication by user list: match {0} with {1}, group {2}", email, exp, groupname );
                                         bFind = true;
                                         break; 
                                     }
@@ -171,33 +181,49 @@ namespace WindowsAuth.Controllers
                         if (bFind && !String.IsNullOrEmpty(uidString) && !String.IsNullOrEmpty(gidString))
                         {
                             var userID = new UserID();
-                            int uidl=0, uidh=1000000, gid=0;
+                            int uidl=0, uidh=1000000, gid=0, uid = 0;
                             Int32.TryParse(gidString, out gid);
                             string[] uidRange = uidString.Split(new char[] { '-' });
                             Int32.TryParse(uidRange[0], out uidl);
                             Int32.TryParse(uidRange[1], out uidh);
-                            byte[] gb = new Guid(tenantID).ToByteArray();
-                            long tenantInt64 = BitConverter.ToInt64(gb, 0);
-                            long tenantRem = tenantInt64 % (uidh - uidl);
-                            int uid = uidl + Convert.ToInt32(tenantRem);
+                            Guid guid;
+                            long tenantInt64; 
+                            if (Guid.TryParse(tenantID, out guid))
+                            {
+                                byte[] gb = new Guid(tenantID).ToByteArray();
+                                tenantInt64 = BitConverter.ToInt64(gb, 0);
+                                long tenantRem = tenantInt64 % (uidh - uidl);
+                                uid = uidl + Convert.ToInt32(tenantRem);
+                            } else if ( Int64.TryParse(tenantID, out tenantInt64) )
+                            {
+                                long tenantRem = tenantInt64 % (uidh - uidl);
+                                uid = uidl + Convert.ToInt32(tenantRem);
+                            }
 
-                            bMatched = true;
                             userID.uid = uid.ToString();
                             userID.gid = gid.ToString(); 
                             userID.isAdmin = isAdmin.ToString().ToLower();
                             userID.isAuthorized = isAuthorized.ToString().ToLower();
 
-                            await AddUser(username, userID);
-                            return bMatched; 
+                            await AddUser(email, userID);
+                            return new Tuple<bool, UserID>(true, userID); 
                         }
                     }
                 }
 
-                return bMatched; 
+                return new Tuple<bool, UserID>(false, null);
             }
 
         }
 
+        /// <summary>
+        /// This will be the official function to parse the user identity
+        /// </summary>
+        /// <param name="userObjectID"></param>
+        /// <param name="username"></param>
+        /// <param name="tenantID"></param>
+        /// <param name="upn"></param>
+        /// <param name="endpoint"></param>
         private void ParseClaims(out string userObjectID,
             out string username,
             out string tenantID,
@@ -266,6 +292,39 @@ namespace WindowsAuth.Controllers
                         tenantID = claim.Value;
                     }
                 }
+                if ( Object.ReferenceEquals(upn, null) || Object.ReferenceEquals(username, null) )
+                { 
+                    var emailPnt = id.FindFirst(ClaimTypes.Email);
+                    if (!Object.ReferenceEquals(emailPnt, null))
+                    {
+                        upn = emailPnt.Value;
+                        if (Object.ReferenceEquals(username, null))
+                        { 
+                            username = upn;                           
+                        }
+                    }
+                }
+                if (String.IsNullOrEmpty(tenantID))
+                {
+                    var nameId = id.FindFirst(ClaimTypes.NameIdentifier);
+                    if (!Object.ReferenceEquals(nameId, null))
+                    {
+                        tenantID = nameId.Value;
+                    }
+                }
+                HttpContext.Session.SetString("Email", username);
+                // Username will be stripped of email and DOMAIN/
+                if (username.Contains("@"))
+                {
+                    username = username.Split(new char[] { '@' })[0];
+                }
+                if (username.Contains("/"))
+                {
+                    username = username.Split(new char[] { '/' })[1];
+                }
+                HttpContext.Session.SetString("Username", username);
+                HttpContext.Session.SetString("TenantID", tenantID);
+                ViewData["Username"] = username;
             }
         }
 
@@ -275,10 +334,10 @@ namespace WindowsAuth.Controllers
         private async Task<AuthenticationResult> AcquireCredentialAsyncForApplication()
         {
             string aadInstance = Startup.Configuration["AzureAd:AadInstance"];
-            string TenantName = Startup.Configuration["AzureAd:Tenant"];
+            string TenantName = Startup.Configuration["AzureAdMultiTenant:Tenant"];
             // string TenantName = Startup.Configuration["AzureAd:AltTenant"];
-            string clientId = Startup.Configuration["AzureAd:ClientId"];
-            string clientSecret = Startup.Configuration["AzureAd:ClientSecret"];
+            string clientId = Startup.Configuration["AzureAdMultiTenant:ClientId"];
+            string clientSecret = Startup.Configuration["AzureAdMultiTenant:ClientSecret"];
             // string clientId = Startup.Configuration["AzureAd:AltClientId"];
             // string clientSecret = Startup.Configuration["AzureAd:AltClientSecret"];
             string authority = String.Format(CultureInfo.InvariantCulture, aadInstance, TenantName);
@@ -301,6 +360,29 @@ namespace WindowsAuth.Controllers
             return _assertionCredential;
         }
 
+        private async Task<UserEntry> AuthenticateByOneDB(string email, string tenantID, UserContext db)
+        {
+            var priorEntrys = db.User.Where(b => b.Email == email).ToAsyncEnumerable();
+            UserEntry entry = await priorEntrys.FirstOrDefault();
+            
+            return entry; 
+
+        }
+
+        private async Task<List<UserEntry>> AuthenticateByDB( string email, string tenantID)
+        {
+            var databases = new List<UserContext>(Startup.DatabaseForUser.Values);
+            int nDatabases = databases.Count();
+            var userEntries = new List<UserEntry>(nDatabases);
+            var tasks = new List<Task<UserEntry>>(nDatabases);
+
+            for (int i = 0; i < nDatabases; i++)
+            { 
+                tasks[i] = AuthenticateByOneDB(email, tenantID, databases[i]);
+            }
+            await Task.WhenAll(tasks);
+            return tasks.FindAll(x => !Object.ReferenceEquals(x.Result, null)).Select(x => x.Result).ToList(); 
+        }
 
         private async Task<bool> AuthenticateByAAD(string userObjectID,
             string username,
@@ -316,53 +398,73 @@ namespace WindowsAuth.Controllers
             userID.isAdmin = "false";
             userID.isAuthorized = "false";
 
-            try
+
+            if (!String.IsNullOrEmpty(tenantID) )
             {
-                if (!String.IsNullOrEmpty(tenantID) && !String.IsNullOrEmpty(upn) && !String.IsNullOrEmpty(endpoint))
+                var token = await _tokenCache.GetAccessTokenForAadGraph(); 
+                if ( !String.IsNullOrEmpty(token))
                 {
-                    var _assertionCredential = await AcquireCredentialAsyncForApplication();
-                    string TenantName = Startup.Configuration["AzureAd:Tenant"];
-                    string apiVersion = Startup.Configuration["AzureAd:GraphApiVersion"];
-                    // string requestURL = string.Format(@"https://graph.windows.net/{0}/users/{1}/memberOf?api-version={2}", TenantName, userObjectID, apiVersion);
-                    // string requestURL = string.Format(@"https://graph.windows.net/myorganization/groups/?api-version={1}", TenantName, apiVersion);
-                    // string requestURL = string.Format(@"http://www.google.com");
-                    // string requestURL = endpoint; 
-                    // string requestURL = @"https://graph.microsoft.com/v1.0/groups/ad53e8c9-3627-4a83-979e-63a1756d9a9f";
-                    string requestURL = @"https://graph.microsoft.com/v1.0/me";
-                    HttpWebRequest webRequest = WebRequest.Create(requestURL) as HttpWebRequest;
-                    webRequest.Method = "Get";
-                    string token = _assertionCredential.AccessToken;
-                    string authHeader = _assertionCredential.CreateAuthorizationHeader();
-                    webRequest.Headers["Authorization"] = authHeader;
-                    webRequest.Headers["access-control-allow-origin"] = "*";
-                    webRequest.Headers["access-control-expose-headers"] = "ETag, Location, Preference-Applied, Content-Range, request-id, client-request-id";
+                    OpenIDAuthentication config;
+                    var scheme = Startup.GetAuthentication(username, out config);
 
+                    if (!Object.ReferenceEquals(config, null) && config._bUseAadGraph)
+                    { 
+                        string requestUrl = String.Format("{0}/myorganization/me/memberOf?api-version={2}",
+                            config._graphBasePoint,
+                            tenantID,
+                            config._graphApiVersion);
 
-                    // webRequest.Headers["x-ms-dirapi-data-contract-version"] = "0.8";
-                    string jsonText = null;
-                    var content = new MemoryStream();
-                    using (var httpResponse = await webRequest.GetResponseAsync())
+                    HttpClient client = new HttpClient();
+                    HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+                    HttpResponseMessage response = await client.SendAsync(request);
+
+                    if (!response.IsSuccessStatusCode)
                     {
-                        using (var responseStream = httpResponse.GetResponseStream())
-                        {
-                            await responseStream.CopyToAsync(content);
-                        }
+                        throw new HttpRequestException(response.ReasonPhrase);
                     }
-                    jsonText = Encoding.UTF7.GetString(content.ToArray());
+                    string responseString = await response.Content.ReadAsStringAsync();
+                    _logger.LogInformation("MemberOf information: {0}", responseString);
+
                     // string resourceURL = Startup.Configuration["AzureAd:ResourceURL"];
                     // var servicePointUri = new Uri(resourceURL);
                     // System.Uri serviceRoot = new Uri(servicePointUri, tenantID);
                     // var activeDirectoryClient = new ActiveDirectoryClient(serviceRoot, async => await _assertionCredential.AccessToken);
-
+                    }
                 }
             }
-            catch (Exception)
-            {
 
-            }
+
             // Mark user as unauthorized. 
             await AddUser(username, userID); 
             return ret; 
+        }
+
+        public async Task<int> UpdateUser(string email, UserID userID, string clusterName )
+        {
+            var userEntry = new UserEntry(userID, email);
+            var db = Startup.DatabaseForUser[clusterName];
+            var priorEntrys = db.User.Where(b => b.Email == email).ToAsyncEnumerable();
+            long  nEntry = 0; 
+            await priorEntrys.ForEachAsync( entry =>
+                { 
+                    // We will not update existing entry in database. 
+                    // db.Entry(entry).CurrentValues.SetValues(userEntry);
+                    Interlocked.Add(ref nEntry, 1);
+                }
+            );
+            if (Interlocked.Read(ref nEntry) == 0)
+            {
+                await db.User.AddAsync(userEntry);
+            }
+            return await db.SaveChangesAsync();
+        }
+
+        public async Task<int> UpdateUserToAll(string email, UserID userID)
+        {
+            await Task.WhenAll(Startup.DatabaseForUser.Select(pair => UpdateUser(email, userID, pair.Key)));
+            return 0;
         }
 
 
@@ -378,10 +480,18 @@ namespace WindowsAuth.Controllers
                 string endpoint = null;
                 ParseClaims(out userObjectID, out username, out tenantID, out upn, out endpoint);
 
-                bool bAuthenticated = await AuthenticateByUsers(username, tenantID ); 
-                if ( !bAuthenticated )
+                var tuple = await AuthenticateByUsers();
+                bool bAuthenticated = tuple.Item1;
+                UserID userID = tuple.Item2;
+                if (bAuthenticated)
+                {
+                    // Authenticated by explicit permission. Entries will be authomatically entered into all database
+                    // if ( userID.isAuthorized.ToLower()=="true" )
+                        await UpdateUserToAll(upn, userID);
+                }
+                else
                 { 
-
+                    
                     var retVal = ConfigurationParser.GetConfiguration("WinBindServer");
 
                     var winBindServers = retVal as Dictionary<string, object>;
@@ -406,11 +516,27 @@ namespace WindowsAuth.Controllers
                     bool bRet = false; 
                     if (String.IsNullOrEmpty(useServer))
                     {
-                        bRet = await AuthenticateByAAD(userObjectID, username, tenantID, upn, endpoint);
+                        // bRet = await AuthenticateByAAD(userObjectID, username, tenantID, upn, endpoint);
+                        var lists = await AuthenticateByDB(upn, tenantID);
+                        if (lists.Count() > 0)
+                        {
+                            var entry = lists[0];
+                            userID = new UserID();
+                            userID.uid = entry.uid;
+                            userID.gid = entry.gid;
+                            userID.isAdmin = entry.isAdmin;
+                            userID.isAuthorized = entry.isAuthorized; 
+                        }
                     }
                     else
                     {
-                        bRet = await AuthenticateByServer(useServer);
+                        userID = await AuthenticateByServer(useServer);
+                        if (!Object.ReferenceEquals(userID, null))
+                        {
+                            // Authenticated by WinBind Server. Entries will be authomatically entered into all database
+                            // if ( userID.isAuthorized.ToLower()=="true")
+                                await UpdateUserToAll(upn, userID);
+                        }
                     }
                 }
             }
@@ -432,24 +558,18 @@ namespace WindowsAuth.Controllers
 
             if (User.Identity.IsAuthenticated)
             {
-                string username = User.Identity.Name;
-                if (username.Contains("@"))
-                {
-                    username = username.Split(new char[] { '@' })[0];
-                }
-                if (username.Contains("/"))
-                {
-                    username = username.Split(new char[] { '/' })[1];
-                }
+                string username = HttpContext.Session.GetString("Username");
+                string workFolderAccessPoint = HttpContext.Session.GetString("WorkFolderAccessPoint");
+                string dataFolderAccessPoint = HttpContext.Session.GetString("DataFolderAccessPoint");
+                ViewData["Username"] = username;
 
-                ViewData["username"] = username;
-
-                ViewData["workPath"] = _appSettings.workFolderAccessPoint + username + "/";
-                ViewData["dataPath"] = _appSettings.dataFolderAccessPoint;
+                ViewData["workPath"] = workFolderAccessPoint + username + "/";
+                ViewData["dataPath"] = dataFolderAccessPoint;
 
             }
 
- 
+
+
 
             return View();
         }
@@ -465,19 +585,12 @@ namespace WindowsAuth.Controllers
                 return RedirectToAction("Index", "Home");
             }
 
-            string username = User.Identity.Name;
-            if (username.Contains("@"))
-            {
-                username = username.Split(new char[] { '@' })[0];
-            }
-            if (username.Contains("/"))
-            {
-                username = username.Split(new char[] { '/' })[1];
-            }
-
-            ViewData["username"] = username;
-            ViewData["workPath"] = _appSettings.workFolderAccessPoint+username+"/";
-            ViewData["dataPath"] = _appSettings.dataFolderAccessPoint;
+            string username = HttpContext.Session.GetString("Username");
+            string workFolderAccessPoint = HttpContext.Session.GetString("WorkFolderAccessPoint");
+            string dataFolderAccessPoint = HttpContext.Session.GetString("DataFolderAccessPoint");
+            ViewData["Username"] = username;
+            ViewData["workPath"] = workFolderAccessPoint+username+"/";
+            ViewData["dataPath"] = dataFolderAccessPoint;
 
             ViewData["uid"] = HttpContext.Session.GetString("uid");
             ViewData["gid"] = HttpContext.Session.GetString("gid");
@@ -492,6 +605,7 @@ namespace WindowsAuth.Controllers
         {
             if (!User.Identity.IsAuthenticated)
             {
+                
                 return RedirectToAction("Login","Account",new { controller = "Account", action = "Login" });
             }
 
@@ -520,19 +634,13 @@ namespace WindowsAuth.Controllers
             ViewData["Message"] = "View and Manage Your Jobs.";
             ViewData["jobid"] = HttpContext.Request.Query["jobId"];
 
-            string username = User.Identity.Name;
-            if (username.Contains("@"))
-            {
-                username = username.Split(new char[] { '@' })[0];
-            }
-            if (username.Contains("/"))
-            {
-                username = username.Split(new char[] { '/' })[1];
-            }
+            string username = HttpContext.Session.GetString("Username");
+            string workFolderAccessPoint = HttpContext.Session.GetString("WorkFolderAccessPoint");
 
-            ViewData["username"] = username;
-            ViewData["workPath"] = (_appSettings.workFolderAccessPoint + username + "/").Replace("file:","").Replace("\\","/");
-            ViewData["jobPath"] = _appSettings.workFolderAccessPoint.Replace("file:","").Replace("\\","/");
+
+            ViewData["Username"] = username;
+            ViewData["workPath"] = (workFolderAccessPoint + username + "/").Replace("file:","").Replace("\\","/");
+            ViewData["jobPath"] = workFolderAccessPoint.Replace("file:","").Replace("\\","/");
 
             return View();
         }
