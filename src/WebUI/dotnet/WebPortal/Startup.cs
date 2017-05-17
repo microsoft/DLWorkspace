@@ -54,6 +54,7 @@ namespace WindowsAuth
         static public IConfigurationRoot Configuration { get; set; }
         static public Dictionary<string, OpenIDAuthentication> AuthenticationSchemes;
         static public Dictionary<string, DLCluster> Clusters; 
+        static public Dictionary<string, UserContext> DatabaseForUser;
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
@@ -105,7 +106,8 @@ namespace WindowsAuth
             {
                 throw new ArgumentException("There are no DLClusters in the configuration file");
             }
-            Clusters = new Dictionary<string, DLCluster>(); 
+            Clusters = new Dictionary<string, DLCluster>();
+            DatabaseForUser = new Dictionary<string, UserContext>(); 
             string defaultClusterName = null; 
             foreach (var pair in clusters)
             {
@@ -122,7 +124,7 @@ namespace WindowsAuth
                 clusterInfo.DataFolderAccessPoint = clusterConfig["DataFolderAccessPoint"] as string;
                 clusterInfo.WorkFolderAccessPoint = clusterConfig["WorkFolderAccessPoint"] as string;
                 clusterInfo.Restapi = clusterConfig["Restapi"] as string;
-                clusterInfo.SQLDatabase = clusterConfig["SQLDatabase"] as string;
+                clusterInfo.SQLDatabaseForUser = clusterConfig["SQLDatabaseForUser"] as string;
                 clusterInfo.SQLHostname = clusterConfig["SQLHostname"] as string;
                 clusterInfo.SQLPassword = clusterConfig["SQLPassword"] as string;
                 clusterInfo.SQLUsername = clusterConfig["SQLUsername"] as string;
@@ -133,11 +135,22 @@ namespace WindowsAuth
                 _logger.LogInformation("DataFolderAccessPoint: {0}", clusterInfo.DataFolderAccessPoint);
                 _logger.LogInformation("WorkFolderAccessPoint: {0}", clusterInfo.WorkFolderAccessPoint);
                 _logger.LogInformation("Restapi: {0}", clusterInfo.Restapi);
-                _logger.LogInformation("SQLDatabase: {0}", clusterInfo.SQLDatabase);
+                _logger.LogInformation("SQLDatabaseForUser: {0}", clusterInfo.SQLDatabaseForUser);
                 _logger.LogInformation("SQLHostname: {0}", clusterInfo.SQLHostname);
                 _logger.LogInformation("SQLPassword: {0}", clusterInfo.SQLPassword);
                 _logger.LogInformation("SQLUsername: {0}", clusterInfo.SQLUsername);
                 Clusters[clusterName] = clusterInfo;
+                var connection = String.Format("Server={0};Database={1}{2};User Id={3};Password={4}",
+                    clusterInfo.SQLHostname,
+                    clusterInfo.SQLDatabaseForUser,
+                    clusterInfo.ClusterId,
+                    clusterInfo.SQLUsername,
+                    clusterInfo.SQLPassword);
+                var optionsBuilder = new DbContextOptionsBuilder<UserContext>();
+                optionsBuilder.UseSqlServer(connection);
+                var db = new UserContext(optionsBuilder.Options);
+                db.Database.EnsureCreated();
+                DatabaseForUser[clusterName] = db;
             }
             if (String.IsNullOrEmpty(defaultClusterName))
                 defaultClusterName = Clusters.Keys.First<string>();

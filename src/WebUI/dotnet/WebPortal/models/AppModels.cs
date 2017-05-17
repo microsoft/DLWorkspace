@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.EntityFrameworkCore;
 using System.Linq;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
@@ -25,7 +26,7 @@ namespace WindowsAuth.models
         public string SQLHostname { get; set; }
         public string SQLUsername { get; set; }
         public string SQLPassword { get; set; }
-        public string SQLDatabase { get; set; }
+        public string SQLDatabaseForUser { get; set; }
     }
 
 
