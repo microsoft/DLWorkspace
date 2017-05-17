@@ -8,13 +8,13 @@
     }
   },
   
-  "AuthorizedGroups": {{cnf["WebUIauthorizedGroups"]}},
+  "UserGroups": {{cnf["UserGroups"]}},
 
   "DLClusters" : 
   {
      "{{cnf["cluster_name"]}}" : {
         "AdminGroups": {{cnf["WebUIadminGroups"]}},
-        "UserGroups": {{cnf["UserGroups"]}},
+        "AuthorizedGroups": {{cnf["WebUIauthorizedGroups"]}},
         "ClusterId": "{{cnf["clusterId"]}}",
         "Restapi": "{{cnf["restapi"]}}",
         "WorkFolderAccessPoint": "{{cnf["workFolderAccessPoint"]}}",
