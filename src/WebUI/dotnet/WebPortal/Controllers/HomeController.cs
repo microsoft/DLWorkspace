@@ -9,6 +9,7 @@ using WindowsAuth.models;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Claims;
+using System.Threading;
 using Newtonsoft.Json;
 using System.Text;
 using Microsoft.AspNetCore.Http;
@@ -74,14 +75,15 @@ namespace WindowsAuth.Controllers
             return true; 
         }
 
-        private async Task<bool> AuthenticateByServer(string connectURL )
+        private async Task<UserID> AuthenticateByServer(string connectURL )
         {
-            string url = String.Format(CultureInfo.InvariantCulture, connectURL, HttpContext.Session.GetString("Username")); 
+            string url = String.Format(CultureInfo.InvariantCulture, connectURL, HttpContext.Session.GetString("Username"));
+            UserID userID = null;
             using (var httpClient = new HttpClient())
             {
                 var response1 = await httpClient.GetAsync(url);
                 var content = await response1.Content.ReadAsStringAsync();
-                UserID userID = JsonConvert.DeserializeObject<UserID>(content.Trim()) as UserID;
+                userID = JsonConvert.DeserializeObject<UserID>(content.Trim()) as UserID;
 
                 userID.isAdmin = "false";
                 foreach (var adminGroupId in _appSettings.adminGroups)
@@ -103,12 +105,12 @@ namespace WindowsAuth.Controllers
 
                 await AddUser(HttpContext.Session.GetString("Email"), userID);
             }
-            return true; 
+            return userID; 
 
         }
 
         // Can the current server be authenticated by a user list?
-        private async Task<bool> AuthenticateByUsers()
+        private async Task<Tuple<bool, UserID>> AuthenticateByUsers()
         {
             string email = HttpContext.Session.GetString("Email");
             string tenantID = HttpContext.Session.GetString("TenantID");
@@ -116,11 +118,10 @@ namespace WindowsAuth.Controllers
             var users = ConfigurationParser.GetConfiguration("UserGroups") as Dictionary<string, object>;
             if (Object.ReferenceEquals(users, null))
             {
-                return false; 
+                return new Tuple<bool, UserID >(false, null); 
             }
             else
             {
-                bool bMatched = false; 
                 
                 foreach (var pair in users)
                 {
@@ -199,19 +200,18 @@ namespace WindowsAuth.Controllers
                                 uid = uidl + Convert.ToInt32(tenantRem);
                             }
 
-                            bMatched = true;
                             userID.uid = uid.ToString();
                             userID.gid = gid.ToString(); 
                             userID.isAdmin = isAdmin.ToString().ToLower();
                             userID.isAuthorized = isAuthorized.ToString().ToLower();
 
                             await AddUser(email, userID);
-                            return bMatched; 
+                            return new Tuple<bool, UserID>(true, userID); 
                         }
                     }
                 }
 
-                return bMatched; 
+                return new Tuple<bool, UserID>(false, null);
             }
 
         }
@@ -360,6 +360,29 @@ namespace WindowsAuth.Controllers
             return _assertionCredential;
         }
 
+        private async Task<UserEntry> AuthenticateByOneDB(string email, string tenantID, UserContext db)
+        {
+            var priorEntrys = db.User.Where(b => b.Email == email).ToAsyncEnumerable();
+            UserEntry entry = await priorEntrys.FirstOrDefault();
+            
+            return entry; 
+
+        }
+
+        private async Task<List<UserEntry>> AuthenticateByDB( string email, string tenantID)
+        {
+            var databases = new List<UserContext>(Startup.DatabaseForUser.Values);
+            int nDatabases = databases.Count();
+            var userEntries = new List<UserEntry>(nDatabases);
+            var tasks = new List<Task<UserEntry>>(nDatabases);
+
+            for (int i = 0; i < nDatabases; i++)
+            { 
+                tasks[i] = AuthenticateByOneDB(email, tenantID, databases[i]);
+            }
+            await Task.WhenAll(tasks);
+            return tasks.FindAll(x => !Object.ReferenceEquals(x.Result, null)).Select(x => x.Result).ToList(); 
+        }
 
         private async Task<bool> AuthenticateByAAD(string userObjectID,
             string username,
@@ -418,6 +441,32 @@ namespace WindowsAuth.Controllers
             return ret; 
         }
 
+        public async Task<int> UpdateUser(string email, UserID userID, string clusterName )
+        {
+            var userEntry = new UserEntry(userID, email);
+            var db = Startup.DatabaseForUser[clusterName];
+            var priorEntrys = db.User.Where(b => b.Email == email).ToAsyncEnumerable();
+            long  nEntry = 0; 
+            await priorEntrys.ForEachAsync( entry =>
+                { 
+                    // We will not update existing entry in database. 
+                    // db.Entry(entry).CurrentValues.SetValues(userEntry);
+                    Interlocked.Add(ref nEntry, 1);
+                }
+            );
+            if (Interlocked.Read(ref nEntry) == 0)
+            {
+                await db.User.AddAsync(userEntry);
+            }
+            return await db.SaveChangesAsync();
+        }
+
+        public async Task<int> UpdateUserToAll(string email, UserID userID)
+        {
+            await Task.WhenAll(Startup.DatabaseForUser.Select(pair => UpdateUser(email, userID, pair.Key)));
+            return 0;
+        }
+
 
 
         public async Task<IActionResult> Index()
@@ -431,10 +480,18 @@ namespace WindowsAuth.Controllers
                 string endpoint = null;
                 ParseClaims(out userObjectID, out username, out tenantID, out upn, out endpoint);
 
-                bool bAuthenticated = await AuthenticateByUsers(); 
-                if ( !bAuthenticated )
+                var tuple = await AuthenticateByUsers();
+                bool bAuthenticated = tuple.Item1;
+                UserID userID = tuple.Item2;
+                if (bAuthenticated)
+                {
+                    // Authenticated by explicit permission. Entries will be authomatically entered into all database
+                    // if ( userID.isAuthorized.ToLower()=="true" )
+                        await UpdateUserToAll(upn, userID);
+                }
+                else
                 { 
-
+                    
                     var retVal = ConfigurationParser.GetConfiguration("WinBindServer");
 
                     var winBindServers = retVal as Dictionary<string, object>;
@@ -459,11 +516,27 @@ namespace WindowsAuth.Controllers
                     bool bRet = false; 
                     if (String.IsNullOrEmpty(useServer))
                     {
-                        bRet = await AuthenticateByAAD(userObjectID, username, tenantID, upn, endpoint);
+                        // bRet = await AuthenticateByAAD(userObjectID, username, tenantID, upn, endpoint);
+                        var lists = await AuthenticateByDB(upn, tenantID);
+                        if (lists.Count() > 0)
+                        {
+                            var entry = lists[0];
+                            userID = new UserID();
+                            userID.uid = entry.uid;
+                            userID.gid = entry.gid;
+                            userID.isAdmin = entry.isAdmin;
+                            userID.isAuthorized = entry.isAuthorized; 
+                        }
                     }
                     else
                     {
-                        bRet = await AuthenticateByServer(useServer);
+                        userID = await AuthenticateByServer(useServer);
+                        if (!Object.ReferenceEquals(userID, null))
+                        {
+                            // Authenticated by WinBind Server. Entries will be authomatically entered into all database
+                            // if ( userID.isAuthorized.ToLower()=="true")
+                                await UpdateUserToAll(upn, userID);
+                        }
                     }
                 }
             }

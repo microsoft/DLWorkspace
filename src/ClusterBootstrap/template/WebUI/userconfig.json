@@ -22,7 +22,7 @@
         "SQLHostname": "{{cnf["sqlserver-hostname"]}}", 
         "SQLUsername": "{{cnf["sqlserver-username"]}}", 
         "SQLPassword": "{{cnf["sqlserver-password"]}}", 
-        "SQLDatabase": "AuthorizeUser-{{cnf["clusterId"]}}", 
+        "SQLDatabaseForUser": "AuthorizeUser-", 
     },
   },
 }
