@@ -200,7 +200,6 @@ namespace WindowsAuth.Controllers
 
                         if (!Object.ReferenceEquals(allowed, null) && !String.IsNullOrEmpty(uidString) && !String.IsNullOrEmpty(gidString))
                         {
-                            UserID userID = new UserID(); 
                             foreach (var allowEntry in allowed)
                             {
                                 string exp = allowEntry.Value as string;
@@ -220,6 +219,7 @@ namespace WindowsAuth.Controllers
                         if (bFind )
                         {
                             var userID = new UserID();
+                            
                             int uidl=0, uidh=1000000, gid=0, uid = 0;
                             Int32.TryParse(gidString, out gid);
                             string[] uidRange = uidString.Split(new char[] { '-' });
@@ -241,6 +241,7 @@ namespace WindowsAuth.Controllers
 
                             userID.uid = uid.ToString();
                             userID.gid = gid.ToString();
+                            userID.groups = new List<string>();
                             userID.groups.Add(groupname);
                             ret.Add(userID);
 
@@ -454,6 +455,7 @@ namespace WindowsAuth.Controllers
                 if (!Object.ReferenceEquals(userEntry, null))
                 {
                     UserID userID = new UserID();
+                    userID.groups = new List<string>(); 
                     userID.uid = userEntry.uid;
                     userID.gid = userEntry.gid;
                     userID.isAdmin = userEntry.isAdmin;
@@ -496,6 +498,7 @@ namespace WindowsAuth.Controllers
             bool ret = true;
 
             UserID userID = new UserID();
+            userID.groups = new List<string>(); 
             userID.uid = "99999999";
             userID.gid = "99999999";
             userID.isAdmin = "false";
