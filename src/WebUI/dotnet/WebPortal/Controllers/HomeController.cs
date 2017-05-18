@@ -590,7 +590,7 @@ namespace WindowsAuth.Controllers
                 var lst = FindGroupMembershipByUserGroups();
                 if (true)
                 {
-                    var email = HttpContext.Session.GetString("email");
+                    var email = HttpContext.Session.GetString("Email");
                     var retVal = ConfigurationParser.GetConfiguration("WinBindServer");
 
                     var winBindServers = retVal as Dictionary<string, object>;
