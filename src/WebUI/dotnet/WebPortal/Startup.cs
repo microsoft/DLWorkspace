@@ -67,14 +67,7 @@ namespace WindowsAuth
             services.Configure<AppSettings>(appSettings =>
             {
                 // Typed syntax - Configuration.Get<type>("")
-                // appSettings.restapi = Configuration["Restapi"];
-                // appSettings.workFolderAccessPoint = Configuration["WorkFolderAccessPoint"];
-                // appSettings.dataFolderAccessPoint = Configuration["DataFolderAccessPoint"];
-                appSettings.adminGroups = ConfigurationParser.GetConfigurationAsList("AdminGroups"); //  Configuration["AdminGroups"].Split(new char[] { ',', ';' }).ToList<string>();
-                appSettings.authorizedGroups = ConfigurationParser.GetConfigurationAsList("AuthorizedGroups"); // Configuration["AuthorizedGroups"].Split(new char[] { ',', ';' }).ToList<string>();
                 // Configure may not have run at the moment, so this is console printout. 
-                // Console.WriteLine("Authorization group is: {0}", appSettings.authorizedGroups);
-                // Console.WriteLine("AdminGroups group is: {0}", appSettings.adminGroups);
 
             });
             // Add Authentication services.
@@ -121,6 +114,41 @@ namespace WindowsAuth
                 var clusterInfo = new DLCluster();
                 clusterInfo.ClusterName = clusterName;
                 clusterInfo.ClusterId = clusterConfig["ClusterId"] as string;
+                if (clusterConfig.ContainsKey("AdminGroups"))
+                { 
+                    var lst = ConfigurationParser.ParseConfigurationAsList(clusterConfig["AdminGroups"]);
+                    // Convert to Dictionary for fast checkin
+                    clusterInfo.AdminGroups = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+                    foreach( var group in lst )
+                    {
+                        clusterInfo.AdminGroups[group] = true;
+                    }
+                }
+                else
+                    clusterInfo.AdminGroups = new Dictionary<string, bool>();
+                if (clusterConfig.ContainsKey("AuthorizedGroups"))
+                {
+                    var lst = ConfigurationParser.ParseConfigurationAsList(clusterConfig["AuthorizedGroups"]);
+                    clusterInfo.AuthorizedGroups = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var group in lst)
+                    {
+                        clusterInfo.AuthorizedGroups[group] = true; 
+                    }
+                }
+                else
+                    clusterInfo.AuthorizedGroups = new Dictionary<string, bool>();
+                if (clusterConfig.ContainsKey("RegisterGroups"))
+                {
+                    var lst = ConfigurationParser.ParseConfigurationAsList(clusterConfig["RegisterGroups"]);
+                    clusterInfo.RegisterGroups = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var group in lst)
+                    {
+                        clusterInfo.RegisterGroups[group] = true;
+                    }
+                }
+                else
+                    clusterInfo.RegisterGroups = new Dictionary<string, bool>();
+
                 clusterInfo.DataFolderAccessPoint = clusterConfig["DataFolderAccessPoint"] as string;
                 clusterInfo.WorkFolderAccessPoint = clusterConfig["WorkFolderAccessPoint"] as string;
                 clusterInfo.Restapi = clusterConfig["Restapi"] as string;

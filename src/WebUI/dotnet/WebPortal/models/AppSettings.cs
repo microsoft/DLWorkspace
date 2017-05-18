@@ -12,7 +12,7 @@ namespace WindowsAuth.models
         // public string restapi { get; set; }
         // public string workFolderAccessPoint { get; set; }
         // public string dataFolderAccessPoint { get; set; }
-        public List<string> authorizedGroups { get; set; }
-        public List<string> adminGroups { get; set; }
+        // public List<string> authorizedGroups { get; set; }
+        // public List<string> adminGroups { get; set; }
     }
 }

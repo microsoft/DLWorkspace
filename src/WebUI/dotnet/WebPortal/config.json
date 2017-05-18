@@ -5,11 +5,14 @@
     "WorkFolderAccessPoint": "/tmp",
     "DataFolderAccessPoint": "/tmp",
 
+    // Use WinBind Server for authentication will automatically disable the use of explict group for authentication. 
+
     /*
     The Following option should be written in userconfig.json. 
     "AuthorizedGroups": [ "Users" ],
     "AdminGroups": [ "Admin" ],
-    "WinBindServer": [ "http://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName={0}" ],
+
+    "WinBindServers": [ "http://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName={0}" ],
     "UserGroups": {
         // Group name
         "Admin": {

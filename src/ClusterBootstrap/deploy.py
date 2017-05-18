@@ -195,21 +195,24 @@ default_config_parameters = {
             # The match is in C# Regex Language, please refer to :
             # https://msdn.microsoft.com/en-us/library/az24scfc(v=vs.110).aspx
             "Allowed": [ "@live.com", "@hotmail.com", "@outlook.com" ],
-            "uid": "700000000-799999999",
+            "uid": "7000000000-7999999999",
             "gid": "508953967"
         }, 
 		"Gmail": {
             # The match is in C# Regex Language, please refer to :
             # https://msdn.microsoft.com/en-us/library/az24scfc(v=vs.110).aspx
             "Allowed": [ "@gmail.com" ],
-            "uid": "800000000-899999999",
+            "uid": "8000000000-8999999999",
             "gid": "508953967"
         }, 
     },
 
+	"WebUIregisterGroups": [ "MicrosoftUsers", "Live", "Gmail" ], 
 	"WebUIauthorizedGroups": [], # [ "MicrosoftUsers", "Live", "Gmail" ], 
 	"WebUIadminGroups" : [ "CCSAdmins" ], 
-	"WinBindServer": [ "http://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName={0}" ],
+	# You should remove WinBindServers if you will use
+	# UserGroups for authentication.  
+	"WinbindServers": [ "http://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName={0}" ],
 	"workFolderAccessPoint" : "", 
 	"dataFolderAccessPoint" : "", 
 }

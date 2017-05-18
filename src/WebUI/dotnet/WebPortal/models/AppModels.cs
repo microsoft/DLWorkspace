@@ -18,6 +18,9 @@ namespace WindowsAuth.models
 
     public class DLCluster
     {
+        public Dictionary<string, bool> AdminGroups { get; set; }
+        public Dictionary<string, bool> AuthorizedGroups { get; set; }
+        public Dictionary<string, bool> RegisterGroups { get; set; }
         public string ClusterName { get; set; }
         public string ClusterId { get; set; }
         public string Restapi { get; set; }
