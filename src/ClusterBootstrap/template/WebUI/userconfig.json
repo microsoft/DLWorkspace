@@ -9,6 +9,7 @@
   },
   
   "UserGroups": {{cnf["UserGroups"]}},
+  "WinbindServers": {{cnf["WinbindServers"]}},
 
   "DLClusters" : 
   {
