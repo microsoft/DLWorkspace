@@ -589,7 +589,8 @@ namespace WindowsAuth.Controllers
 
                 var lst = FindGroupMembershipByUserGroups();
                 if (true)
-                { 
+                {
+                    var email = HttpContext.Session.GetString("email");
                     var retVal = ConfigurationParser.GetConfiguration("WinBindServer");
 
                     var winBindServers = retVal as Dictionary<string, object>;
@@ -617,18 +618,24 @@ namespace WindowsAuth.Controllers
                         if (!Object.ReferenceEquals(userID, null))
                             lst.Add(userID);
                     }
+                    _logger.LogInformation("User {0} group memberships {1}", email, string.Join(",", lst.SelectMany( x => x.groups ).ToArray()));
 
                     var authorizedClusters = AuthenticateUserByGroupMembership(lst);
+                    _logger.LogInformation("User {0} authorized clusters preDB {1}", email, string.Join(",", authorizedClusters.Keys.ToArray()));
                     var ret = await AuthenticateByDB(upn, tenantID, authorizedClusters );
+                    _logger.LogInformation("User {0} authorized clusters afterDB {1}", email, string.Join(",", authorizedClusters.Keys.ToArray()));
 
                     // bRet = await AuthenticateByAAD(userObjectID, username, tenantID, upn, endpoint);
-                    string useCluster = null; 
+                    string useCluster = null;
+
                     if ( authorizedClusters.Count() > 0)
                     {
                         foreach( var pair in authorizedClusters )
-                        { 
-                            await AddUser(HttpContext.Session.GetString("Email"), pair.Value, pair.Key );
-                            useCluster = pair.Key; 
+                        {
+                            
+                            await AddUser(email, pair.Value, pair.Key );
+                            useCluster = pair.Key;
+                            _logger.LogInformation("User {0} is authorized for cluster {1}", email, pair.Key);
                         }
                     }
                     // Store authorized clusters.
@@ -637,6 +644,7 @@ namespace WindowsAuth.Controllers
                     {
                         // Mark user as unauthorized.
                         UserUnauthorized();
+                        _logger.LogInformation("User {0} is not authorized for any cluster ... ", email);
                     }
                 }
             }
