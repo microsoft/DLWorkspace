@@ -207,6 +207,7 @@ default_config_parameters = {
         }, 
     },
 
+	"WebUIregisterGroups": [ "MicrosoftUsers", "Live", "Gmail" ], 
 	"WebUIauthorizedGroups": [], # [ "MicrosoftUsers", "Live", "Gmail" ], 
 	"WebUIadminGroups" : [ "CCSAdmins" ], 
 	"WinBindServer": [ "http://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName={0}" ],
