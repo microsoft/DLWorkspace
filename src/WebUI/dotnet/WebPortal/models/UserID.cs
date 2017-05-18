@@ -43,6 +43,12 @@ namespace WindowsAuth.models
         public string gid { get; set; }
         public string isAdmin { get; set; }
         public string isAuthorized { get; set; }
+        /// <summary>
+        /// The following entry is reserved for future usage. 
+        /// </summary>
+        public string Config { get; set; }
+        public string ConfigSecret { get; set; }
+        public string Other { get; set; }
         public UserEntry()
         {
         }

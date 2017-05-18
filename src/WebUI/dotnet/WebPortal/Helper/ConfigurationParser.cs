@@ -114,7 +114,7 @@ namespace WebPortal.Helper
                     { 
                         root[entry] = value;
                         if ( _first )
-                            _logger.LogInformation("Configuration[{0}] = {1}", key, value);
+                            _logger.LogDebug("Configuration[{0}] = {1}", key, value);
                     }
                 }
             }

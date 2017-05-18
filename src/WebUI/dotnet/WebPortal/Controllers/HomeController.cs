@@ -417,7 +417,7 @@ namespace WindowsAuth.Controllers
             return _assertionCredential;
         }
 
-        private async Task<UserEntry> AuthenticateByOneDB(string email, string tenantID, string username, UserContext db, UserID userID )
+        private async Task<UserEntry> AuthenticateByOneDB(string email, string tenantID, UserContext db, UserID userID )
         {
             var priorEntrys = db.User.Where(b => b.Email == email).ToAsyncEnumerable();
 
@@ -448,11 +448,11 @@ namespace WindowsAuth.Controllers
             else
             {
                 // Prior entry exists, we use the database as the authorative source. 
+                UserEntry newEntry = ret;
                 // Update is AuthorizedEntry only, other entry will be updated by database. 
                 if (!Object.ReferenceEquals(userID, null))
                 {
                     bool bUpdate = false; 
-                    UserEntry newEntry = ret;
 
                     if ( String.Compare( ret.isAuthorized, userID.isAuthorized, true ) < 0 )
                     {
@@ -468,13 +468,14 @@ namespace WindowsAuth.Controllers
                     {
                         db.Entry(ret).CurrentValues.SetValues(newEntry);
                         await db.SaveChangesAsync();
-                        return newEntry;
                     }
-                    else
-                        return ret; 
+                }
+                if (newEntry.Alias != newEntry.Email)
+                {
+                    return await AuthenticateByOneDB(newEntry.Alias, tenantID, db, userID);
                 }
                 else
-                    return ret; 
+                    return newEntry;
             }
         }
 
@@ -494,7 +495,7 @@ namespace WindowsAuth.Controllers
                 var db = pair.Value;
                 var userID = authorizationIn.ContainsKey(clusterName) ? authorizationIn[clusterName] : null; 
 
-                tasks.Add(AuthenticateByOneDB(email, tenantID, username, db, userID));
+                tasks.Add(AuthenticateByOneDB(email, tenantID, db, userID));
                 lst.Add(clusterName);
             }
             await Task.WhenAll(tasks);
@@ -662,16 +663,16 @@ namespace WindowsAuth.Controllers
                         if (!Object.ReferenceEquals(userID, null))
                             lst.Add(userID);
                     }
-                    _logger.LogInformation("User {0} group memberships {1}", email, string.Join(",", lst.SelectMany( x => x.groups ).ToArray()));
+                    _logger.LogDebug("User {0} group memberships {1}", email, string.Join(",", lst.SelectMany( x => x.groups ).ToArray()));
 
                     var authorizedClusters = AuthenticateUserByGroupMembership(lst);
-                    _logger.LogInformation("User {0} authorized clusters preDB {1}", email, string.Join(",", authorizedClusters.Keys.ToArray()));
+                    _logger.LogDebug("User {0} authorized clusters preDB {1}", email, string.Join(",", authorizedClusters.Keys.ToArray()));
                     var authorizationFinal = new Dictionary<string, UserEntry>();
                     var ret = await AuthenticateByDB(upn, tenantID, username, authorizedClusters, authorizationFinal);
-                    _logger.LogInformation("User {0} authorized clusters afterDB {1}", email, string.Join(",", authorizationFinal.Keys.ToArray()));
+                    _logger.LogDebug("User {0} authorized clusters afterDB {1}", email, string.Join(",", authorizationFinal.Keys.ToArray()));
 
                     // bRet = await AuthenticateByAAD(userObjectID, username, tenantID, upn, endpoint);
-                    string useCluster = null;
+                    string useCluster = "";
 
                     if (authorizationFinal.Count() > 0)
                     {
@@ -685,6 +686,7 @@ namespace WindowsAuth.Controllers
                     }
                     // Store authorized clusters.
                     HttpContext.Session.SetString("AuthorizedClusters", JsonConvert.SerializeObject(authorizedClusters));
+                    HttpContext.Session.SetString("CurrentClusters", useCluster);
                     if (String.IsNullOrEmpty(useCluster))
                     {
                         // Mark user as unauthorized.
@@ -701,6 +703,7 @@ namespace WindowsAuth.Controllers
                 if (HttpContext.Session.GetString("isAuthorized") == "true")
                 {
                     ViewData["isAuthorized"] = true;
+                    ViewData["CurrentCluster"] = HttpContext.Session.GetString("CurrentClusters");
                 }
                 else
                 {

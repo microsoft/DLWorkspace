@@ -159,14 +159,14 @@ namespace WindowsAuth
                 var isDefault = clusterConfig.ContainsKey("Default") && (clusterConfig["Default"] as string).ToLower()=="true";
                 if (isDefault)
                     defaultClusterName = clusterName;
-                _logger.LogInformation("ClusterId: {0}", clusterInfo.ClusterId);
-                _logger.LogInformation("DataFolderAccessPoint: {0}", clusterInfo.DataFolderAccessPoint);
-                _logger.LogInformation("WorkFolderAccessPoint: {0}", clusterInfo.WorkFolderAccessPoint);
-                _logger.LogInformation("Restapi: {0}", clusterInfo.Restapi);
-                _logger.LogInformation("SQLDatabaseForUser: {0}", clusterInfo.SQLDatabaseForUser);
-                _logger.LogInformation("SQLHostname: {0}", clusterInfo.SQLHostname);
-                _logger.LogInformation("SQLPassword: {0}", clusterInfo.SQLPassword);
-                _logger.LogInformation("SQLUsername: {0}", clusterInfo.SQLUsername);
+                _logger.LogDebug("ClusterId: {0}", clusterInfo.ClusterId);
+                _logger.LogDebug("DataFolderAccessPoint: {0}", clusterInfo.DataFolderAccessPoint);
+                _logger.LogDebug("WorkFolderAccessPoint: {0}", clusterInfo.WorkFolderAccessPoint);
+                _logger.LogDebug("Restapi: {0}", clusterInfo.Restapi);
+                _logger.LogDebug("SQLDatabaseForUser: {0}", clusterInfo.SQLDatabaseForUser);
+                _logger.LogDebug("SQLHostname: {0}", clusterInfo.SQLHostname);
+                _logger.LogDebug("SQLPassword: {0}", clusterInfo.SQLPassword);
+                _logger.LogDebug("SQLUsername: {0}", clusterInfo.SQLUsername);
                 Clusters[clusterName] = clusterInfo;
                 var connection = String.Format("Server={0};Database={1}{2};User Id={3};Password={4}",
                     clusterInfo.SQLHostname,
@@ -183,7 +183,7 @@ namespace WindowsAuth
             if (String.IsNullOrEmpty(defaultClusterName))
                 defaultClusterName = Clusters.Keys.First<string>();
             Clusters[""] = Clusters[defaultClusterName];
-            _logger.LogInformation("Default Cluster: {0}", defaultClusterName);
+            _logger.LogDebug("Default Cluster: {0}", defaultClusterName);
 
             // Configure error handling middleware.
             app.UseExceptionHandler("/Home/Error");
