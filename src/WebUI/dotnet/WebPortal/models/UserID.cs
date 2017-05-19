@@ -36,17 +36,28 @@ namespace WindowsAuth.models
     {
         [Key]
         public string Email { get; set; }
+        // Username to be used. 
+        public string Alias { get; set; }
+        public string Password { get; set;  }
         public string uid { get; set; }
         public string gid { get; set; }
         public string isAdmin { get; set; }
         public string isAuthorized { get; set; }
+        /// <summary>
+        /// The following entry is reserved for future usage. 
+        /// </summary>
+        public string Config { get; set; }
+        public string ConfigSecret { get; set; }
+        public string Other { get; set; }
         public UserEntry()
         {
         }
 
-        public UserEntry( UserID userID, string email )
+        public UserEntry( UserID userID, string email, string alias, string password )
         {
             Email = email;
+            Alias = alias;
+            Password = password; 
             uid = userID.uid;
             gid = userID.gid;
             isAdmin = userID.isAdmin;
@@ -77,6 +88,8 @@ namespace WindowsAuth.models
             builder.Entity<UserEntry>().ToTable("User");
             builder.Entity<UserEntry>().HasKey(c => c.Email);
             builder.Entity<UserEntry>().Property(u => u.Email).HasMaxLength(128);
+            builder.Entity<UserEntry>().Property(u => u.Alias).HasMaxLength(128);
+            builder.Entity<UserEntry>().Property(u => u.Password).HasMaxLength(64);
             builder.Entity<UserEntry>().Property(u => u.uid).HasMaxLength(64);
             builder.Entity<UserEntry>().Property(u => u.gid).HasMaxLength(64);
             builder.Entity<UserEntry>().Property(u => u.isAdmin).HasMaxLength(10);

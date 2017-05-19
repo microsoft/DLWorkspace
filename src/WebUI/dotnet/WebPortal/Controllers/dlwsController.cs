@@ -44,11 +44,11 @@ namespace WindowsAuth.Controllers
             var restapi = HttpContext.Session.GetString("Restapi");
             if (op == "ListJobs")
             {
-                url = restapi + "/ListJobs?userName="+HttpContext.Session.GetString("Username");
+                url = restapi + "/ListJobs?userName="+HttpContext.Session.GetString("Email");
             }
             else if (op == "KillJob" && HttpContext.Request.Query.ContainsKey("jobId"))
             {
-                url = restapi + "/KillJob?jobId=" + HttpContext.Request.Query["jobId"]+"&userName="+ HttpContext.Session.GetString("Username");
+                url = restapi + "/KillJob?jobId=" + HttpContext.Request.Query["jobId"]+"&userName="+ HttpContext.Session.GetString("Email");
             }
             else if (op == "JobDetail" && HttpContext.Request.Query.ContainsKey("jobId"))
             {
@@ -65,7 +65,7 @@ namespace WindowsAuth.Controllers
                         url += System.Text.Encodings.Web.UrlEncoder.Default.Encode(item.Key) + "=" + System.Text.Encodings.Web.UrlEncoder.Default.Encode(item.Value) + "&";
                     }
                 }
-                url += "userName=" + HttpContext.Session.GetString("Username") + "&";
+                url += "userName=" + HttpContext.Session.GetString("Email") + "&";
                 url += "userId=" + HttpContext.Session.GetString("uid") + "&";
                 if (HttpContext.Request.Query.ContainsKey("runningasroot") && HttpContext.Request.Query["runningasroot"] == "1")
                 {

@@ -8,13 +8,15 @@
     }
   },
   
-  "AuthorizedGroups": {{cnf["WebUIauthorizedGroups"]}},
-  "AdminGroups": {{cnf["WebUIadminGroups"]}},
   "UserGroups": {{cnf["UserGroups"]}},
+  "WinbindServers": {{cnf["WinbindServers"]}},
 
   "DLClusters" : 
   {
      "{{cnf["cluster_name"]}}" : {
+        "AdminGroups": {{cnf["WebUIadminGroups"]}},
+        "AuthorizedGroups": {{cnf["WebUIauthorizedGroups"]}},
+        "RegisterGroups": {{cnf["WebUIregisterGroups"]}},
         "ClusterId": "{{cnf["clusterId"]}}",
         "Restapi": "{{cnf["restapi"]}}",
         "WorkFolderAccessPoint": "{{cnf["workFolderAccessPoint"]}}",

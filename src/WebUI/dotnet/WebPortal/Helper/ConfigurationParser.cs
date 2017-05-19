@@ -114,7 +114,7 @@ namespace WebPortal.Helper
                     { 
                         root[entry] = value;
                         if ( _first )
-                            _logger.LogInformation("Configuration[{0}] = {1}", key, value);
+                            _logger.LogDebug("Configuration[{0}] = {1}", key, value);
                     }
                 }
             }
@@ -171,10 +171,9 @@ namespace WebPortal.Helper
                 
         }
 
-        public static List<string> GetConfigurationAsList(string key)
+        public static List<string> ParseConfigurationAsList(object obj)
         {
-            var obj = GetConfiguration(key);
-            var dicObj = GetConfiguration(key) as Dictionary<string, object>;
+            var dicObj = obj as Dictionary<string, object>;
             if (!Object.ReferenceEquals(dicObj, null))
             {
                 return dicObj.Values.Cast<string>().ToList<string>();
@@ -187,6 +186,12 @@ namespace WebPortal.Helper
                 else
                     return new List<string>() { strObj };
             }
+        }
+
+        public static List<string> GetConfigurationAsList(string key)
+        {
+            var obj = GetConfiguration(key);
+            return ParseConfigurationAsList(obj);
         }
 
         public static void ParseConfigurationAgain()

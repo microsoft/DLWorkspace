@@ -67,14 +67,7 @@ namespace WindowsAuth
             services.Configure<AppSettings>(appSettings =>
             {
                 // Typed syntax - Configuration.Get<type>("")
-                // appSettings.restapi = Configuration["Restapi"];
-                // appSettings.workFolderAccessPoint = Configuration["WorkFolderAccessPoint"];
-                // appSettings.dataFolderAccessPoint = Configuration["DataFolderAccessPoint"];
-                appSettings.adminGroups = ConfigurationParser.GetConfigurationAsList("AdminGroups"); //  Configuration["AdminGroups"].Split(new char[] { ',', ';' }).ToList<string>();
-                appSettings.authorizedGroups = ConfigurationParser.GetConfigurationAsList("AuthorizedGroups"); // Configuration["AuthorizedGroups"].Split(new char[] { ',', ';' }).ToList<string>();
                 // Configure may not have run at the moment, so this is console printout. 
-                // Console.WriteLine("Authorization group is: {0}", appSettings.authorizedGroups);
-                // Console.WriteLine("AdminGroups group is: {0}", appSettings.adminGroups);
 
             });
             // Add Authentication services.
@@ -121,6 +114,41 @@ namespace WindowsAuth
                 var clusterInfo = new DLCluster();
                 clusterInfo.ClusterName = clusterName;
                 clusterInfo.ClusterId = clusterConfig["ClusterId"] as string;
+                if (clusterConfig.ContainsKey("AdminGroups"))
+                { 
+                    var lst = ConfigurationParser.ParseConfigurationAsList(clusterConfig["AdminGroups"]);
+                    // Convert to Dictionary for fast checkin
+                    clusterInfo.AdminGroups = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+                    foreach( var group in lst )
+                    {
+                        clusterInfo.AdminGroups[group] = true;
+                    }
+                }
+                else
+                    clusterInfo.AdminGroups = new Dictionary<string, bool>();
+                if (clusterConfig.ContainsKey("AuthorizedGroups"))
+                {
+                    var lst = ConfigurationParser.ParseConfigurationAsList(clusterConfig["AuthorizedGroups"]);
+                    clusterInfo.AuthorizedGroups = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var group in lst)
+                    {
+                        clusterInfo.AuthorizedGroups[group] = true; 
+                    }
+                }
+                else
+                    clusterInfo.AuthorizedGroups = new Dictionary<string, bool>();
+                if (clusterConfig.ContainsKey("RegisterGroups"))
+                {
+                    var lst = ConfigurationParser.ParseConfigurationAsList(clusterConfig["RegisterGroups"]);
+                    clusterInfo.RegisterGroups = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var group in lst)
+                    {
+                        clusterInfo.RegisterGroups[group] = true;
+                    }
+                }
+                else
+                    clusterInfo.RegisterGroups = new Dictionary<string, bool>();
+
                 clusterInfo.DataFolderAccessPoint = clusterConfig["DataFolderAccessPoint"] as string;
                 clusterInfo.WorkFolderAccessPoint = clusterConfig["WorkFolderAccessPoint"] as string;
                 clusterInfo.Restapi = clusterConfig["Restapi"] as string;
@@ -131,14 +159,14 @@ namespace WindowsAuth
                 var isDefault = clusterConfig.ContainsKey("Default") && (clusterConfig["Default"] as string).ToLower()=="true";
                 if (isDefault)
                     defaultClusterName = clusterName;
-                _logger.LogInformation("ClusterId: {0}", clusterInfo.ClusterId);
-                _logger.LogInformation("DataFolderAccessPoint: {0}", clusterInfo.DataFolderAccessPoint);
-                _logger.LogInformation("WorkFolderAccessPoint: {0}", clusterInfo.WorkFolderAccessPoint);
-                _logger.LogInformation("Restapi: {0}", clusterInfo.Restapi);
-                _logger.LogInformation("SQLDatabaseForUser: {0}", clusterInfo.SQLDatabaseForUser);
-                _logger.LogInformation("SQLHostname: {0}", clusterInfo.SQLHostname);
-                _logger.LogInformation("SQLPassword: {0}", clusterInfo.SQLPassword);
-                _logger.LogInformation("SQLUsername: {0}", clusterInfo.SQLUsername);
+                _logger.LogDebug("ClusterId: {0}", clusterInfo.ClusterId);
+                _logger.LogDebug("DataFolderAccessPoint: {0}", clusterInfo.DataFolderAccessPoint);
+                _logger.LogDebug("WorkFolderAccessPoint: {0}", clusterInfo.WorkFolderAccessPoint);
+                _logger.LogDebug("Restapi: {0}", clusterInfo.Restapi);
+                _logger.LogDebug("SQLDatabaseForUser: {0}", clusterInfo.SQLDatabaseForUser);
+                _logger.LogDebug("SQLHostname: {0}", clusterInfo.SQLHostname);
+                _logger.LogDebug("SQLPassword: {0}", clusterInfo.SQLPassword);
+                _logger.LogDebug("SQLUsername: {0}", clusterInfo.SQLUsername);
                 Clusters[clusterName] = clusterInfo;
                 var connection = String.Format("Server={0};Database={1}{2};User Id={3};Password={4}",
                     clusterInfo.SQLHostname,
@@ -155,7 +183,7 @@ namespace WindowsAuth
             if (String.IsNullOrEmpty(defaultClusterName))
                 defaultClusterName = Clusters.Keys.First<string>();
             Clusters[""] = Clusters[defaultClusterName];
-            _logger.LogInformation("Default Cluster: {0}", defaultClusterName);
+            _logger.LogDebug("Default Cluster: {0}", defaultClusterName);
 
             // Configure error handling middleware.
             app.UseExceptionHandler("/Home/Error");
