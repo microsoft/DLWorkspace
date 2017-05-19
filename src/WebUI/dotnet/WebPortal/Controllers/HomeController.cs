@@ -770,7 +770,8 @@ namespace WindowsAuth.Controllers
                 return RedirectToAction("Index", "Home");
             }
 
-
+            string username = HttpContext.Session.GetString("Username");
+            ViewData["Username"] = username;
             ViewData["Message"] = "View and Manage Your Jobs.";
 
             return View();
