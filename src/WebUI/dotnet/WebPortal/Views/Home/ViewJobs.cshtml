@@ -22,6 +22,11 @@
 </script>
 
 <script>
+    function DatetoStr(date) {
+        var submitTimeStr = date.getFullYear() + "/" + (date.getMonth() + 1) + "/" + date.getDate() + " " + date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds();
+        return submitTimeStr
+
+    }
     function buildTable() {
         $.ajax({
             url: "/api/dlws/ListJobs",
@@ -36,10 +41,23 @@
                     tr = $('<tr/>');
                     tr.append("<td> <a href='/Home/JobDetail/?jobId=" + json.runningJobs[i].jobId + "'>" + json.runningJobs[i].jobId + "</a></td>");
                     tr.append("<td>" + json.runningJobs[i].jobName + "</td>");
-                    tr.append("<td>" + json.runningJobs[i].jobStatus + "</td>");
+                    var statusMsg = ""
+                    if (json.runningJobs[i].jobStatusDetail && json.runningJobs[i].jobStatusDetail.length > 0 && json.runningJobs[i].jobStatusDetail[0].message) {
+                        statusMsg = json.runningJobs[i].jobStatusDetail[0].message
+                    }
+                    tr.append("<td title='" + statusMsg +"'>" + json.runningJobs[i].jobStatus + "</td>");
                     tr.append("<td>" + json.runningJobs[i].jobParams.resourcegpu + "</td>");
                     tr.append("<td>" + json.runningJobs[i].userName + "</td>");
-                    tr.append("<td>" + json.runningJobs[i].jobTime.toString("YYYYMMDD") + "</td>");
+                    var submitTime = new Date(Date.parse(json.runningJobs[i].jobTime))
+                    var submitTimeStr = DatetoStr(submitTime)
+                    tr.append("<td>" + submitTimeStr + "</td>");
+                    var startedAtTime = "unknown";
+                    if (json.runningJobs[i].jobStatusDetail[0].startedAt)
+                    {
+                        var t = new Date(Date.parse(json.runningJobs[i].jobStatusDetail[0].startedAt))
+                        startedAtTime = DatetoStr(t)
+                    }
+                    tr.append("<td>" + startedAtTime + "</td>");
                     tr.append("<td> <a href='#'  onclick=\"KillJob('" + json.runningJobs[i].jobId + "')\" > kill </a></td>");
                     $('#running-job-table').append(tr);
                 }
@@ -56,10 +74,23 @@
                         tr = $('<tr/>');
                         tr.append("<td> <a href='/Home/JobDetail/?jobId=" + json.finishedJobs[i].jobId + "'>" + json.finishedJobs[i].jobId + "</a></td>");
                         tr.append("<td>" + json.finishedJobs[i].jobName + "</td>");
-                        tr.append("<td>" + json.finishedJobs[i].jobStatus + "</td>");
+                        var statusMsg = ""
+                        if (json.finishedJobs[i].jobStatusDetail && json.finishedJobs[i].jobStatusDetail.length > 0  && json.finishedJobs[i].jobStatusDetail[0].message) {
+                            statusMsg = json.finishedJobs[i].jobStatusDetail[0].message
+                        }
+                        tr.append("<td title='" + statusMsg +"'>" + json.finishedJobs[i].jobStatus + "</td>");
                         tr.append("<td>" + json.finishedJobs[i].jobParams.resourcegpu + "</td>");
                         tr.append("<td>" + json.finishedJobs[i].userName + "</td>");
-                        tr.append("<td>" + json.finishedJobs[i].jobTime + "</td>");
+                        var submitTime = new Date(Date.parse(json.finishedJobs[i].jobTime))
+                        var submitTimeStr = DatetoStr(submitTime)
+                        tr.append("<td>" + submitTimeStr + "</td>");
+                        var finishedAtTime = "unknown";
+                        if (json.finishedJobs[i].jobStatusDetail[0].finishedAt) {
+                            var t = new Date(Date.parse(json.finishedJobs[i].jobStatusDetail[0].finishedAt))
+                            finishedAtTime = DatetoStr(t)
+                        }
+                        tr.append("<td>" + finishedAtTime + "</td>");
+
                         $('#finished-job-table').append(tr);
                     }
                 }
@@ -78,10 +109,17 @@
                         tr = $('<tr/>');
                         tr.append("<td> <a href='/Home/JobDetail/?jobId=" + json.queuedJobs[i].jobId + "'>" + json.queuedJobs[i].jobId + "</a></td>");
                         tr.append("<td>" + json.queuedJobs[i].jobName + "</td>");
-                        tr.append("<td>" + json.queuedJobs[i].jobStatus + "</td>");
+                        var statusMsg = ""
+                        if (json.queuedJobs[i].jobStatusDetail && json.queuedJobs[i].jobStatusDetail.length > 0 && json.queuedJobs[i].jobStatusDetail[0].message)
+                        {
+                            statusMsg = json.queuedJobs[i].jobStatusDetail[0].message
+                        }
+                        tr.append("<td title='" + statusMsg  +"'>" + json.queuedJobs[i].jobStatus + "</td>");
                         tr.append("<td>" + json.queuedJobs[i].jobParams.resourcegpu + "</td>");
                         tr.append("<td>" + json.queuedJobs[i].userName + "</td>");
-                        tr.append("<td>" + json.queuedJobs[i].jobTime + "</td>");
+                        var submitTime = new Date(Date.parse(json.queuedJobs[i].jobTime))
+                        var submitTimeStr = DatetoStr(submitTime)
+                        tr.append("<td>" + submitTimeStr + "</td>");
                         tr.append("<td> <a href='#'  onclick=\"KillJob('" + json.queuedJobs[i].jobId + "')\" > kill </a></td>");
                         $('#queued-job-table').append(tr);
                     }
@@ -101,10 +139,19 @@
                         tr = $('<tr/>');
                         tr.append("<td> <a href='/Home/JobDetail/?jobId=" + json.visualizationJobs[i].jobId + "'>" + json.visualizationJobs[i].jobId + "</a></td>");
                         tr.append("<td>" + json.visualizationJobs[i].jobName + "</td>");
-                        tr.append("<td>" + json.visualizationJobs[i].jobStatus + "</td>");
+                        var statusMsg = ""
+                        if (json.visualizationJobs[i].jobStatusDetail && json.visualizationJobs[i].jobStatusDetail.length > 0 && json.visualizationJobs[i].jobStatusDetail[0].message) {
+                            statusMsg = json.visualizationJobs[i].jobStatusDetail[0].message
+                        }
+                        tr.append("<td title='" + statusMsg +"'>" + json.visualizationJobs[i].jobStatus+ "</td>");
                         tr.append("<td>" + json.visualizationJobs[i].jobParams.resourcegpu + "</td>");
                         tr.append("<td>" + json.visualizationJobs[i].userName + "</td>");
-                        tr.append("<td>" + json.visualizationJobs[i].jobTime + "</td>");
+                        var startedAtTime = "unknown";
+                        if (json.visualizationJobs[i].jobStatusDetail[0].startedAt) {
+                            var t = new Date(Date.parse(json.visualizationJobs[i].jobStatusDetail[0].startedAt))
+                            startedAtTime = DatetoStr(t)
+                        }
+                        tr.append("<td>" + startedAtTime + "</td>");
                         tr.append("<td> <a href='#'  onclick=\"KillJob('" + json.visualizationJobs[i].jobId + "')\" > kill </a></td>");
 
                         $('#visualization-job-table').append(tr);
@@ -120,6 +167,9 @@
         var refresh = setInterval(function () {
             buildTable();
         }, 30000);
+        $(document).tooltip({
+            track: true
+        });
     });
 
 </script>
@@ -136,7 +186,7 @@
                 <th>Status</th>
                 <th>GPU</th>
                 <th>User Name</th>
-                <th>Job Submission Time</th>
+                <th>Submitted Time</th>
                 <th>Kill it</th>
             </tr>
         </thead>
@@ -153,7 +203,8 @@
             <th>Status</th>
             <th>GPU</th>
             <th>User Name</th>
-            <th>Job Submission Time</th>
+            <th>Submitted Time</th>
+            <th>Started Time</th>
             <th>Kill it</th>
         </tr>
     </thead>
@@ -170,7 +221,7 @@
                 <th>Status</th>
                 <th>GPU</th>
                 <th>User Name</th>
-                <th>Job Submission Time</th>
+                <th>Started Time</th>
                 <th>Kill it</th>
             </tr>
         </thead>
@@ -190,7 +241,8 @@
                 <th>Status</th>
                 <th>GPU</th>
                 <th>User Name</th>
-                <th>Job Submission Time</th>
+                <th>Submitted Time</th>
+                <th>Finished Time</th>
             </tr>
         </thead>
         <tbody></tbody>

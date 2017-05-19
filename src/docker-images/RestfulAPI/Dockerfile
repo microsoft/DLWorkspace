@@ -12,7 +12,8 @@ RUN apt-get install -y --no-install-recommends \
         python-dev \
         python-pip \
         python-yaml \ 
-        locales
+        locales \
+		python-pycurl
         
 
 RUN apt-get install -y bison curl nfs-common
@@ -54,7 +55,7 @@ RUN pip install setuptools;
 
 RUN pip install pyodbc
 
-
+RUN pip install tzlocal
 
 RUN wget http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubectl -O /usr/local/bin/kubectl
 RUN chmod +x /usr/local/bin/kubectl
