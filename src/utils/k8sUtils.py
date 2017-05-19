@@ -5,7 +5,10 @@ import argparse
 import uuid
 import subprocess
 import sys
-import datetime
+from datetime import datetime
+from tzlocal import get_localzone
+import pytz
+
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
@@ -14,7 +17,7 @@ from jobs_tensorboard import GenTensorboardMeta
 
 import yaml
 from jinja2 import Environment, FileSystemLoader, Template
-from config import config
+from config import config, GetStoragePath
 from DataHandler import DataHandler
 import base64
 
@@ -23,7 +26,27 @@ import re
 import thread
 import threading
 import random
+import pycurl
+from StringIO import StringIO
 
+
+def curl_get(url):
+	curl = pycurl.Curl()
+	curl.setopt(pycurl.URL, url)
+	curl.setopt(pycurl.SSL_VERIFYPEER, 1)
+	curl.setopt(pycurl.SSL_VERIFYHOST, 0)
+	curl.setopt(pycurl.CAINFO, config["certificate-authority"])
+	curl.setopt(pycurl.SSLKEYTYPE, "PEM")
+	curl.setopt(pycurl.SSLKEY, config["client-key"])
+	curl.setopt(pycurl.SSLCERTTYPE, "PEM")
+	curl.setopt(pycurl.SSLCERT, config["client-certificate"])
+	curl.setopt(curl.FOLLOWLOCATION, True)
+	buff = StringIO()
+	curl.setopt(pycurl.WRITEFUNCTION, buff.write)
+	curl.perform()
+	responseStr = buff.getvalue()
+	curl.close()
+	return responseStr
 
 def kubectl_create(jobfile,EXEC=True):
 	if EXEC:
@@ -211,16 +234,78 @@ def check_pending_reason(pod,reason):
 	reasons = get_pod_pending_detail(pod)
 	return any([reason in item for item in reasons])
 
+
+def get_pod_events(podname):
+	url = "%s/api/v1/namespaces/default/events?fieldSelector=involvedObject.name=%s" % (config["apiserver"],podname)
+	responseStr = curl_get(url)
+	events = json.loads(responseStr)
+	return events
+
+
+def get_pod_unscheduled_reason(podname):
+	events = get_pod_events(podname)
+	ret = ""
+	if "items" in events:
+		for event in events["items"]:
+			if "reason" in event and event["reason"] == "FailedScheduling":
+				ret = event["message"]
+	return ret
+
+
+def get_pod_status(pod):
+	podstatus={}
+	if "status" in pod and "conditions" in pod["status"]:
+		for condition in pod["status"]["conditions"]:
+			try:
+				if condition["type"] == "PodScheduled" and condition["status"] == "False" and "reason" in condition:
+					unscheduledReason = get_pod_unscheduled_reason(pod["metadata"]["name"])
+					podstatus["message"] = condition["reason"] +":" +unscheduledReason
+			except Exception as e:
+				pass
+
+	if "status" in pod and "containerStatuses" in pod["status"]:
+		# assume we only have one container in every pod
+		containerStatus = pod["status"]["containerStatuses"][0]
+		if "state" in containerStatus and "waiting" in containerStatus["state"]:
+			ret = ""
+			if "reason" in containerStatus["state"]["waiting"]:
+				ret +=  containerStatus["state"]["waiting"]["reason"]
+			if "message" in containerStatus["state"]["waiting"]:
+				ret += ":\n" + containerStatus["state"]["waiting"]["message"]
+			podstatus["message"] =  ret
+		elif "state" in containerStatus and "terminated" in containerStatus["state"]:
+			ret = ""
+			if "reason" in containerStatus["state"]["terminated"]:
+				ret +=  containerStatus["state"]["terminated"]["reason"]
+			if "message" in containerStatus["state"]["terminated"]:
+				ret += ":\n" + containerStatus["state"]["terminated"]["message"]
+			podstatus["message"] = ret
+			if "finishedAt" in containerStatus["state"]["terminated"]:
+				podstatus["finishedAt"] = pytz.utc.localize(containerStatus["state"]["terminated"]["finishedAt"]).isoformat()
+			
+				
+			if "startedAt" in containerStatus["state"]["terminated"]:
+				podstatus["startedAt"] = pytz.utc.localize(containerStatus["state"]["terminated"]["startedAt"]).isoformat()
+		elif "state" in containerStatus and "running" in containerStatus["state"] and "startedAt" in containerStatus["state"]["running"]:
+			podstatus["message"] = "started at: " + pytz.utc.localize(containerStatus["state"]["running"]["startedAt"]).isoformat()
+			if "startedAt" in containerStatus["state"]["running"]:
+				podstatus["startedAt"] = pytz.utc.localize(containerStatus["state"]["running"]["startedAt"]).isoformat()
+
+		if "finishedAt" not in podstatus:
+			podstatus["finishedAt"] = datetime.now(get_localzone()).isoformat()
+
+	return podstatus
+	
+
 def GetJobStatus(jobId):
 	podInfo = GetPod("run=" + jobId)
 	output = "Unknown"
-	detail = "Unknown Status"
 
 	if podInfo is None:
 		output = "kubectlERR"
 	elif "items" in podInfo:
 		podStatus = [check_pod_status(pod) for pod in  podInfo["items"]]
-		detail = "=====================\n=====================\n=====================\n".join([yaml.dump(pod["status"], default_flow_style=False) for pod in podInfo["items"] if "status" in podInfo["items"]])
+		#detail = "=====================\n=====================\n=====================\n".join([yaml.dump(pod["status"], default_flow_style=False) for pod in podInfo["items"] if "status" in podInfo["items"]])
 
 
 		######!!!!!!!!!!!!!!!!CAUTION!!!!!! since "any and all are used here, the order of if cause is IMPORTANT!!!!!, we need to deail with Faild,Error first, and then "Unknown" then "Pending", at last " Successed and Running"
@@ -242,5 +327,8 @@ def GetJobStatus(jobId):
 			output = "Succeeded"
 		elif any([status == "Running" for status in podStatus]):   # as long as there are no "Unknown", "Pending" nor "Error" pods, once we see a running pod, the job should be in running status.  
 			output = "Running"
+
+
+		detail = [get_pod_status(pod) for i, pod in enumerate(podInfo["items"])]
 
 	return output, detail

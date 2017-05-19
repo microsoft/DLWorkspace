@@ -27,6 +27,10 @@ import thread
 import threading
 import random
 
+import logging
+import logging.config
+
+
 nvidiaDriverPath = config["nvidiaDriverPath"]
 
 
@@ -379,6 +383,9 @@ chmod +x /opt/run_dist_job.sh
 
 def KillJob(job):
 	dataHandler = DataHandler()
+	result, detail = k8sUtils.GetJobStatus(job["jobId"])
+	dataHandler.UpdateJobTextField(job["jobId"],"jobStatusDetail",base64.b64encode(json.dumps(detail)))
+	logging.info("Killing job %s, with status %s, %s" %(job["jobId"], result,detail))
 	if "jobDescriptionPath" in job and job["jobDescriptionPath"] is not None:
 		jobDescriptionPath = os.path.join(config["storage-mount-path"], job["jobDescriptionPath"])
 		if os.path.isfile(jobDescriptionPath):
@@ -414,9 +421,9 @@ def UpdateJobStatus(job):
 	
 
 	result, detail = k8sUtils.GetJobStatus(job["jobId"])
-	dataHandler.UpdateJobTextField(job["jobId"],"jobStatusDetail",base64.b64encode(detail))
+	dataHandler.UpdateJobTextField(job["jobId"],"jobStatusDetail",base64.b64encode(json.dumps(detail)))
 
-	printlog("job %s status: %s" % (job["jobId"], result))
+	logging.info("job %s status: %s,%s" % (job["jobId"], result, json.dumps(detail)))
 	
 	jobDescriptionPath = os.path.join(config["storage-mount-path"], job["jobDescriptionPath"]) if "jobDescriptionPath" in job else None
 	if "userId" not in jobParams:
@@ -481,7 +488,7 @@ def UpdateDistJobStatus(job):
 	result, detail = k8sUtils.GetJobStatus(job["jobId"])
 	dataHandler.UpdateJobTextField(job["jobId"],"jobStatusDetail",base64.b64encode(detail))
 
-	printlog("job %s status: %s" % (job["jobId"], result))
+	logging.info("job %s status: %s,%s" % (job["jobId"], result, json.dumps(detail)))
 	
 	jobDescriptionPath = os.path.join(config["storage-mount-path"], job["jobDescriptionPath"]) if "jobDescriptionPath" in job else None
 
@@ -650,8 +657,18 @@ def launch_ps_dist_job(jobParams):
 
 
 
+def create_log( logdir = '/var/log/dlworkspace' ):
+	if not os.path.exists( logdir ):
+		os.system("mkdir -p " + logdir )
+	with open('logging.yaml') as f:
+		logging_config = yaml.load(f)
+		f.close()
+		logging_config["handlers"]["file"]["filename"] = logdir+"/jobmanager.log"
+		logging.config.dictConfig(logging_config)
+
 
 def Run():
+
 	while True:
 		try:
 			dataHandler = DataHandler()
@@ -674,4 +691,5 @@ def Run():
 		time.sleep(1)
 
 if __name__ == '__main__':
-	Run()
+	#Run()
+	print k8sUtils.get_pod_events("d493d41c-45ea-4e85-8ca4-01c3533cd727")
