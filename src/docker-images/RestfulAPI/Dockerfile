@@ -1,9 +1,9 @@
 FROM ubuntu:16.04
 MAINTAINER Hongzhi Li <Hongzhi.Li@microsoft.com>
 
-RUN apt-get update 
-RUN apt-get install -y --no-install-recommends apt-transport-https
-RUN apt-get install -y --no-install-recommends \
+# See https://stackoverflow.com/questions/37706635/in-docker-apt-get-install-fails-with-failed-to-fetch-http-archive-ubuntu-com
+# It is a good practice to merge apt-get update with the following apt-get install
+RUN apt-get update; apt-get install -y --no-install-recommends apt-transport-https \
         build-essential \
         cmake \
         git \

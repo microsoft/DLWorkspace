@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 
 
@@ -38,7 +39,7 @@ namespace WindowsAuth.models
         public string Email { get; set; }
         // Username to be used. 
         public string Alias { get; set; }
-        public string Password { get; set;  }
+        public string Password { get; set; }
         public string uid { get; set; }
         public string gid { get; set; }
         public string isAdmin { get; set; }
@@ -53,15 +54,15 @@ namespace WindowsAuth.models
         {
         }
 
-        public UserEntry( UserID userID, string email, string alias, string password )
+        public UserEntry(UserID userID, string email, string alias, string password)
         {
             Email = email;
             Alias = alias;
-            Password = password; 
+            Password = password;
             uid = userID.uid;
             gid = userID.gid;
             isAdmin = userID.isAdmin;
-            isAuthorized = userID.isAuthorized; 
+            isAuthorized = userID.isAuthorized;
         }
     }
 
@@ -96,5 +97,12 @@ namespace WindowsAuth.models
             builder.Entity<UserEntry>().Property(u => u.isAuthorized).HasMaxLength(10);
         }
         public virtual DbSet<UserEntry> User { get; set; }
+    }
+
+
+    public class ClusterSelectViewModel
+    {
+        public string CurrentCluster { get; set; }
+        public List<SelectListItem> ClustersList { get; set; }
     }
 }
