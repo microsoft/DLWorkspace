@@ -13,7 +13,7 @@ RUN apt-get install -y --no-install-recommends \
         python-pip \
         python-yaml \ 
         locales \
-		python-pycurl
+        python-pycurl
         
 
 RUN apt-get install -y bison curl nfs-common
@@ -84,4 +84,5 @@ RUN chmod +x /run.sh
 ADD Jobs_Templete /DLWorkspace/src/Jobs_Templete
 ADD utils /DLWorkspace/src/utils
 ADD RestAPI /DLWorkspace/src/RestAPI
+ADD ClusterManager /DLWorkspace/src/ClusterManager
 CMD /run.sh
