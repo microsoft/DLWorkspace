@@ -787,7 +787,7 @@ namespace WindowsAuth.Controllers
         {
             if (!User.Identity.IsAuthenticated)
             {
-                return RedirectToAction("Login", "Account", new { controller = "Account", action = "Login" });
+                return RedirectToAction("Index", "Home");
             }
 
             if (!HttpContext.Session.Keys.Contains("isAuthorized") || HttpContext.Session.GetString("isAuthorized") != "true")
@@ -815,8 +815,8 @@ namespace WindowsAuth.Controllers
         {
             if (!User.Identity.IsAuthenticated)
             {
-                
-                return RedirectToAction("Login","Account",new { controller = "Account", action = "Login" });
+
+                return RedirectToAction("Index", "Home");
             }
 
             if (!HttpContext.Session.Keys.Contains("isAuthorized") || HttpContext.Session.GetString("isAuthorized") != "true")
@@ -835,7 +835,7 @@ namespace WindowsAuth.Controllers
         {
             if (!User.Identity.IsAuthenticated)
             {
-                return RedirectToAction("Login", "Account", new { controller = "Account", action = "Login" });
+                return RedirectToAction("Index", "Home");
             }
             if (!HttpContext.Session.Keys.Contains("isAuthorized") || HttpContext.Session.GetString("isAuthorized") != "true")
             {
@@ -860,7 +860,8 @@ namespace WindowsAuth.Controllers
         {
             if (!User.Identity.IsAuthenticated)
             {
-                return RedirectToAction("Login", "Account", new { controller = "Account", action = "Login" });
+                // return RedirectToAction("Login", "Account", new { controller = "Account", action = "Login" });
+                return RedirectToAction("Index", "Home");
             }
             if (!HttpContext.Session.Keys.Contains("isAuthorized") || HttpContext.Session.GetString("isAuthorized") != "true")
             {

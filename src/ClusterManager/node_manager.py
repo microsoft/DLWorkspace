@@ -81,6 +81,13 @@ def get_cluster_status():
 					node_status["unschedulable"] = True
 				else:
 					node_status["unschedulable"] = False
+
+				if "status" in node and "conditions" in node["status"]:
+					for condi in node["status"]:
+						if "type" in condi and condi["type"] == "Ready" and "status" in condi and condi["status"] == "Unknown":
+							node_status["unschedulable"] = True
+
+
 				nodes_status[node_status["name"]] = node_status
 
 
