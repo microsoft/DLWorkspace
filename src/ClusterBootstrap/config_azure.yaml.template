@@ -1,0 +1,53 @@
+# Name of cluster
+cluster_name : <<Cluster_Name>>
+# Number of Etcd node
+etcd_node_num : 1
+# Kubernete API server authentication, 
+# basic_auth: <<password,username,uid>>
+# password: a secret password
+# username: a username
+# uid: a number which is uid for kubernete API server
+basic_auth :  <<password,username,uid>>
+
+# SQL server (e.g., SQL Azure authentication information)
+sqlserver-hostname : tcp:<<servername>>.database.windows.net
+sqlserver-username : <<sql_username>>
+sqlserver-password : <<sql_password>>
+sqlserver-database : DLWorkspaceJobs
+
+# the path of samba file server. 
+smbPath : '/tmp/'
+
+# --------- For Philly deployment, please turn on (uncomment) the following options. ---- 
+###Use cluster.yaml to locate nodes (instead of using the cluster report service)
+useclusterfile : true
+
+###use docker container to deploy ETCD service
+deploydockerETCD : true
+
+platform-scripts : ubuntu
+
+# This assumes that the DLWorkspace is deployed in WestUS region of Azure.
+network:
+  domain: westus.cloudapp.azure.com
+
+# Machine list in Azure
+# You will need at least 1 infrastructure machine + 1 or more worker machine. 
+machines:
+  <<Machine1>>:
+    role: infrastructure
+  <<Machine2>>:
+    role: worker
+
+# Azure deployment doesn't have winbind servers. 
+WinbindServers: [  ]
+
+# Please set up a Azure Data file 
+mountpoints:
+  rootshare:
+    type: azurefileshare
+    accountname: <<azure storage account name>>
+    filesharename: <<azure file share name>>
+    # Mount at root
+    mountpoints: ""
+    accesskey: <<access key for azure file share>>
