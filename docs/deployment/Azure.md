@@ -3,6 +3,7 @@
 This document describes the procedure to deploy DL workspace cluster on Azure. We are still improving the deployment procedure on Azure. Please contact the authors if you have encounter deployment issue. 
 
 1. Please [create Configuration file](Configuration.md) and build [the relevant deployment key](Build.md).
+   Please copy config_azure.yaml.template to config.yaml, and fill in the necessary information of the cluster.
    You do not need to build either the ISO or PXE server, but still need to execute the build to generate the necessary certificates. 
 
 2. Create Azure VM in the desired region with a Ubuntu image. 
