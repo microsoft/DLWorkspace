@@ -127,7 +127,7 @@ namespace RestfulAPI.NET.Controllers
 
                 Dictionary<string, string> retdict = new Dictionary<string, string>();
 
-                string dir = @"\\storage.cly.philly.selfhost.corp.microsoft.com\"+ job.jobParams.dataPath;
+                string dir = @"\\storage.cly.philly.selfhost.corp.microsoft.com\"+ job.jobParams.dataPath.Replace("/","\\") + "\\"+jobId+"\\";
                 retdict.Add("dir", dir);
                 retdict.Add("scratch", job.jobParams.workPath);
                 retdict.Add("evalErr", "0");
@@ -294,14 +294,15 @@ namespace RestfulAPI.NET.Controllers
             {
                 DLWorkspaceUtils.MountPoint mp = new DLWorkspaceUtils.MountPoint();
                 mp.name = "prevmodel";
-                mp.hostPath = "/dlwsdata/storage/"+ reqParams.VcId + "/"+reqParams.PreviousModelPath.Replace(" / hdfs/", "");
+                mp.hostPath = "/dlwsdata/storage/"+ reqParams.VcId + "/"+reqParams.PreviousModelPath.Replace("/hdfs/", "");
                 mp.containerPath = "/prevModel";
                 job.jobParams.mountPoints.Add(mp);
                 job.jobParams.cmd = " cp -r /prevModel/* /job/models/ ; " + job.jobParams.cmd;
             }
 
+            job.jobId = Guid.NewGuid().ToString();
 
-            job.jobParams.cmd += " ; mkdir /data/models ; cp -r /job/models/* /data/models/ ";
+            job.jobParams.cmd += "  && ( mkdir -p /data/"+ job.jobId+"/models && cp -r /job/models/* /data/"+ job.jobId+"/models/ )  ";
 
             job.jobParams.vcId = reqParams.VcId;
 
