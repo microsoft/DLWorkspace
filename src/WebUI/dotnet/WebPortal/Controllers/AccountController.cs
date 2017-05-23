@@ -85,6 +85,7 @@ namespace WindowsAuth.Controllers
                 HttpContext.Session.Remove("AuthorizedClusters");
                 HttpContext.Session.Remove("CurrentClusters");
                 HttpContext.Session.Remove("Username");
+                HttpContext.Session.Remove("ClustersList");
 
                 await HttpContext.Authentication.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             }
