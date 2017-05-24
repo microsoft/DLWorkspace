@@ -16,19 +16,7 @@ The 'deploy' folder contains important information to access the deployed DL wor
 
 1. [Create Configuration file](Configuration.md), and determine important information of the cluster (e.g., cluster name, number of Etcd servers used). Please refer to [Backup/Restore](Backup.md) on instruction to backup/restore cluster configuration. 
 
-2. [Build deployment images] (Build.md): ISO (for USB deployment) and docker image (for PXE deployment).
-  ```
-  python deploy.py -y build 
-  ```
-
-3. Deploy base CoreOS image via USB, PXE server, on Azure or on a private Philly cluster. 
-    1. If you would like to deploy a small cluster for testing, or your cluster doesn't have a VLan setup, we recommend the deployment procedure in [USB.md](USB.md). 
-
-    2. If you would like to deply a production procedure, we recommend to set up a VLan for your cluster, and use a PXE server. The precedure are described in [PXEServer.md](PXEServer.md). 
-    3. If you would like to deploy a cluster on Azure, please follow the procedure in [Azure.md](Azure.md)
-    4. If you are using a private philly cluster, please follow the procedure in [philly.md](philly.md). 
-  
-4. Config storage system to be used in the cluster, following instructions in [Storage.md](Storage.md). If you are in Microsoft corp net and just want to test DLWorkspace in **small scale**, you may add the following configurations to config.yaml to use the public NFS server provided by CCS group. 
+2. Config storage system to be used in the cluster, following instructions in [Storage.md](Storage.md). If you are in Microsoft corp net and just want to test DLWorkspace in **small scale**, you may add the following configurations to config.yaml to use the public NFS server provided by CCS group. 
 
     ```
     # the path of where dfs/nfs is mounted on each node, default /dlwsdata
@@ -45,6 +33,19 @@ The 'deploy' folder contains important information to access the deployed DL wor
     # if storage-mount-path is /mnt/dlwsdata,  storage-mount-path-name should be mnt-dlwsdata
     storage-mount-path-name : dlwsdata
     ```
+
+3. [Build deployment images] (Build.md): ISO (for USB deployment) and docker image (for PXE deployment).
+  ```
+  python deploy.py -y build 
+  ```
+
+4. Deploy base CoreOS image via USB, PXE server, on Azure or on a private Philly cluster. 
+    1. If you would like to deploy a small cluster for testing, or your cluster doesn't have a VLan setup, we recommend the deployment procedure in [USB.md](USB.md). 
+
+    2. If you would like to deply a production procedure, we recommend to set up a VLan for your cluster, and use a PXE server. The precedure are described in [PXEServer.md](PXEServer.md). 
+    3. If you would like to deploy a cluster on Azure, please follow the procedure in [Azure.md](Azure.md)
+    4. If you are using a private philly cluster, please follow the procedure in [philly.md](philly.md). 
+  
 
 4. Start master and etcd servers. Please use '-public' option if you run command inside firewall, while the cluster is public (e.g., Azure, AWS).
 
