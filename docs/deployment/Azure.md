@@ -14,6 +14,7 @@ This document describes the procedure to deploy DL workspace cluster on Azure. W
 
   * Use the new Auzre Portal to create VM. 
   * Image: Ubuntu 16.04 LTS
+  * Use SSH key to access the VM, and provide the public key at src/ClusterBootstrap/deploy/sshkey/id_rsa.pub, or the public key associated with ssh_cert configuration if you use a pre-generated SSH key
   * Use Resource Manager 
   * Click Public IP, and select "Static IP". 
   * Assign the VM to the Security Group created above. 
