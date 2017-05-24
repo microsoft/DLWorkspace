@@ -199,15 +199,25 @@ namespace WindowsAuth
             // cookieOpt.AuthenticationScheme = "Cookies";
             app.UseCookieAuthentication(cookieOpt);
 
+            var deployAuthenticationConfig  = ConfigurationParser.GetConfiguration("DeployAuthentications") as Dictionary<string, object>;
+            var deployAuthentication = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+            foreach (var pair in deployAuthenticationConfig)
+                deployAuthentication[pair.Value as string] = true;
+            int numDeployedAuthentication = deployAuthentication.Count;
+
             var authentication = ConfigurationParser.GetConfiguration("Authentications") as Dictionary<string, object>;
             AuthenticationSchemes = new Dictionary<string, OpenIDAuthentication>(); 
             foreach (var pair in authentication)
             {
-                var authenticationScheme = pair.Key;
-                var authenticationConfig = pair.Value;
-                var openIDOpt = new OpenIDAuthentication(authenticationScheme, authenticationConfig, loggerFactory);
-                AuthenticationSchemes[authenticationScheme] = openIDOpt;
-                app.UseOpenIdConnectAuthentication(openIDOpt);
+                bool bUse = (numDeployedAuthentication == 0 || deployAuthentication.ContainsKey(pair.Key));
+                if ( bUse )
+                { 
+                    var authenticationScheme = pair.Key;
+                    var authenticationConfig = pair.Value;
+                    var openIDOpt = new OpenIDAuthentication(authenticationScheme, authenticationConfig, loggerFactory);
+                    AuthenticationSchemes[authenticationScheme] = openIDOpt;
+                    app.UseOpenIdConnectAuthentication(openIDOpt);
+                }
             }
             
             // Configure the OWIN pipeline to use OpenID Connect auth.

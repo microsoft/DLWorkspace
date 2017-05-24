@@ -212,6 +212,12 @@ default_config_parameters = {
 	"WebUIregisterGroups": [ "MicrosoftUsers", "Live", "Gmail" ], 
 	"WebUIauthorizedGroups": [], # [ "MicrosoftUsers", "Live", "Gmail" ], 
 	"WebUIadminGroups" : [ "CCSAdmins" ], 
+
+	# Selectively deploy (turn on) one or more authenticatin methods. 
+	# Parameter of the authentication method is in config.json file in WebUI. 
+	# Please note for each authentication method deployed, the DL Workspace endpoint needs to registered with 
+	# each corresponding App according to openID authentication. 
+	"DeployAuthentications" : ["Corp","Live","Gmail"],
 	# You should remove WinBindServers if you will use
 	# UserGroups for authentication.  
 	"WinbindServers": [ "http://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName={0}" ],

@@ -363,10 +363,7 @@ namespace WindowsAuth.Controllers
                     if (!Object.ReferenceEquals(emailPnt, null))
                     {
                         upn = emailPnt.Value;
-                        if (Object.ReferenceEquals(username, null))
-                        {
-                            username = upn;
-                        }
+                        username = upn;
                     }
                 }
                 if (String.IsNullOrEmpty(tenantID))
@@ -901,6 +898,28 @@ namespace WindowsAuth.Controllers
 
         public IActionResult Error()
         {
+            return View();
+        }
+
+        /// <summary>
+        /// Manage Users
+        /// </summary>
+        /// <returns></returns>
+        public async Task<IActionResult> ManageUser()
+        {
+            var currentCluster = HttpContext.Session.GetString("CurrentClusters");
+            if (Startup.DatabaseForUser.ContainsKey(currentCluster))
+            {
+                var db = Startup.DatabaseForUser[currentCluster];
+                if (!Object.ReferenceEquals(db, null))
+                {
+                    var filter = HttpContext.Session.GetString("FilterUser");
+                    if (String.IsNullOrEmpty(filter))
+                        filter = "";
+                    var ret = db.User.Where(x => x.Email.Contains(filter)).ToAsyncEnumerable();
+                    return PartialView(ret);
+                }
+            }
             return View();
         }
     }
