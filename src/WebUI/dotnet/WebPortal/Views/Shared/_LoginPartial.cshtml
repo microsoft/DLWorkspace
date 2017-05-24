@@ -13,11 +13,13 @@
 else
 {
     <ul class="nav navbar-nav navbar-right">
-        <li> Log in 
-        @foreach( var pair in WindowsAuth.Startup.AuthenticationSchemes )
-        { 
-            @Html.ActionLink( pair.Key+",", "Login", "Account", routeValues: new { scheme = pair.Key }, htmlAttributes: new { id = "loginLink" })
-        }
+        <li><a>Login by: </a></li>
+    @foreach (var pair in WindowsAuth.Startup.AuthenticationSchemes)
+    {
+    <li>
+         @Html.ActionLink(pair.Key + " Account", "Login", "Account", routeValues: new { scheme = pair.Key }, htmlAttributes: new { id = "loginLink" }) 
         </li>
+        }
+    
     </ul>
 }
