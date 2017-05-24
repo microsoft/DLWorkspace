@@ -685,7 +685,7 @@ namespace WindowsAuth.Controllers
                         }
                     }
                     // Store authorized clusters.
-                    HttpContext.Session.SetString("AuthorizedClusters", JsonConvert.SerializeObject(authorizedClusters));
+                    HttpContext.Session.SetString("AuthorizedClusters", JsonConvert.SerializeObject(authorizationFinal));
                     HttpContext.Session.SetString("CurrentClusters", useCluster);
                     var lstClusters = authorizedClusters.Keys.ToList<string>();
                     HttpContext.Session.SetString("ClustersList", JsonConvert.SerializeObject(lstClusters));
@@ -715,12 +715,15 @@ namespace WindowsAuth.Controllers
                     vm.ClustersList = new List<SelectListItem>();
                     for (int i = 0; i < lstClusters.Count(); i++)
                     {
-                        vm.ClustersList.Add(new SelectListItem
-                        {
-                            Value = (i + 1).ToString(),
-                            Text = lstClusters[i]
-                        });
-                        _logger.LogInformation("Cluster Option {0} is {1}", i + 1, lstClusters[i]);
+                        if ( !String.IsNullOrEmpty(lstClusters[i]))
+                        { 
+                            vm.ClustersList.Add(new SelectListItem
+                            {
+                                Value = lstClusters[i], // (i + 1).ToString(),
+                                Text = lstClusters[i]
+                            });
+                            _logger.LogInformation("Cluster Option {0} is {1}", i + 1, lstClusters[i]);
+                        }
                     };
                 }
                 else
@@ -777,9 +780,16 @@ namespace WindowsAuth.Controllers
         {
             if ( ModelState.IsValid)
             {
-
+                var clusterInfo = HttpContext.Session.GetString("AuthorizedClusters");
+                var authorizedClusters = JsonConvert.DeserializeObject<Dictionary<string, UserEntry>>(clusterInfo);
+                var useCluster = model.CurrentCluster;
+                if (authorizedClusters.ContainsKey(useCluster))
+                {
+                    HttpContext.Session.SetString("CurrentClusters", useCluster);
+                    await AddUser(authorizedClusters[useCluster], useCluster);
+                }
             }
-            return View(model);
+            return RedirectToAction("Index", "Home");
         }
 
 

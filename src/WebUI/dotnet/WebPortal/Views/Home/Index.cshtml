@@ -52,6 +52,15 @@
             <li>Your Data Directory is: <a href="@ViewData["dataPath"]">@ViewData["dataPath"].ToString().Replace("file:", "").Replace("/", "\\") </a></li>
         </ul>
         
+        @if( Model.ClustersList.Count > 1 )
+        { 
+            <h2>You may select an alternative cluster: </h2>
+            <form asp-controller="Home" asp-action="SelectCluster">
+                <select asp-for="CurrentCluster" asp-items="@Model.ClustersList" >
+                </select>
+                <input type="submit" />
+            </form>
+        }
 </div>
 
 }
