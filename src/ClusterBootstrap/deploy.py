@@ -157,6 +157,8 @@ default_config_parameters = {
   		"FragmentGPUJob": "all", 
   	},
 
+	"kubemarks" : [ "rack", "sku" ],
+
     "network": {
 	   "trusted-domains" : {
 		   "*.redmond.corp.microsoft.com" : True, 
@@ -1932,7 +1934,13 @@ def get_service_yaml( use_service ):
 def kubernetes_label_node(cmdoptions, nodename, label):
 	run_kubectl(["label nodes %s %s %s" % (cmdoptions, nodename, label)])
 
-
+# Label kubernete nodes according to a service. 
+# A service (usually a Kubernete daemon service) can request to be run on:
+# all: all nodes
+# etcd_node: all etcd node
+# etcd_node_n: a particular etcd node
+# worker_node: all worker node
+# The kubernete node will be marked accordingly to facilitate the running of daemon service. 
 def kubernetes_label_nodes( verb, servicelists, force ):
 	servicedic = get_all_services()
 	#print servicedic
@@ -1982,7 +1990,27 @@ def kubernetes_label_nodes( verb, servicelists, force ):
 			elif verb == "remove":
 				kubernetes_label_node(cmdoptions, nodename, label+"-")
 
-
+# Label kubernete nodes according to property of node (usually specified in config.yaml or cluster.yaml)
+# Certain property of node:
+# E.g., rack 
+def kubernetes_mark_nodes( marklist, bMark ):
+	if marklist == []:
+		marklist = config["kubemarks"]
+	if verbose:
+		print "Mark %s: %s" % (bMark, marklist)
+	nodes = get_nodes(config["clusterId"])
+	for node in nodes:
+		nodename = kubernetes_get_node_name(node)
+		nodeconfig = fetch_config(["machines", nodename])
+		if verbose:
+			print "----- Node %s ------ " % nodename
+			print nodeconfig
+		for mark in marklist:
+			if mark in nodeconfig:
+				if bMark:
+					kubernetes_label_node( "--overwrite", nodename, mark+"="+nodeconfig[mark] )
+				else:
+					kubernetes_label_node( "", nodename, mark+"-" )
 
 def start_kube_service( servicename ):
 	fname = get_service_yaml( servicename )
@@ -2377,7 +2405,11 @@ def run_command( args, command, nargs, parser ):
 					kubernetes_label_nodes("active", [], args.yes )
 				else:
 					parser.print_help()
-					print "Error: kubernetes labels expect a verb which is either on, off or remove, but get: " + nargs[1]
+					print "Error: kubernetes labels expect a verb which is either active, inactive or remove, but get: " + nargs[1]
+			elif nargs[0] == "mark":
+				kubernetes_mark_nodes( nargs[1:], True)
+			elif nargs[0] == "unmark":
+				kubernetes_mark_nodes( nargs[1:], False)
 			elif nargs[0] == "cordon" or nargs[0] == "uncordon":
 				run_kube_command_on_nodes(nargs)
 			else:
@@ -2511,10 +2543,12 @@ Command:
             restart: replace a certain kubelet service. 
             cordon [node]: cordon certain nodes. If no node, cordon all etcd nodes. 
             uncordon [node]: uncordon certain nodes. If no node, uncordon all etcd nodes. 
-            labels verb [services]: applying labels to node. 
+            labels verb [services]: applying labels to node according to service (usually daemon) setup. 
               -y: overwrite existing value
               verb: active, inactive, remove (default=on)
               services: if none, apply to all services in the service directory
+			mark [properties]: applying labels on node according to node property (usually in cluster.yaml)
+			unmark [properties]: removing labels on node according to node property (usually in cluster.yaml)
   kubectl   [args] run a native kubectl command. 
   docker    [args] manage docker images. 
             build: build one or more docker images associated with the current deployment. 
