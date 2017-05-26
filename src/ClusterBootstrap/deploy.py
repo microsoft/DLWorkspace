@@ -2476,6 +2476,13 @@ def run_command( args, command, nargs, parser ):
 			parser.print_help()
 			print "Error: docker needs a subcommand"
 			exit()
+	elif command == "rendertemplate":
+		if len(nargs) != 2:
+			parser.print_help()
+			exit()
+		template_file = nargs[0]
+		target_file = nargs[1]
+		utils.render_template(template_file, target_file,config)
 	else:
 		parser.print_help()
 		print "Error: Unknown command " + command
@@ -2564,6 +2571,7 @@ Command:
   runscriptonall [script] Execute the shell/python script on all nodes. 
   listmac   display mac address of the cluster notes
   checkconfig   display config items
+  rendertemplate template_file target_file
   ''') )
 	parser.add_argument("-y", "--yes", 
 		help="Answer yes automatically for all prompt", 

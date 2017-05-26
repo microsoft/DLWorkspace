@@ -1,14 +1,15 @@
 import pyodbc
 import json
 import time
+from config import config
 
 class DataHandler:
 	def __init__(self):
 
-		self.server = 'tcp:o0ij712tvp.database.windows.net'
-		self.database = 'DLWorkspaceDB'
-		self.username = 'irchallenge'
-		self.password = ''
+		self.server = config["database"]["hostname"] 
+		self.database = config["database"]["database"]
+		self.username = config["database"]["username"]
+		self.password = config["database"]["password"]
 		# self.driver = '/usr/lib/x86_64-linux-gnu/libodbc.so'
 		self.driver = '{ODBC Driver 13 for SQL Server}'
 		self.connstr = 'DRIVER='+self.driver+';PORT=1433;SERVER='+self.server+';PORT=1433;DATABASE='+self.database+';UID='+self.username+';PWD='+self.password
