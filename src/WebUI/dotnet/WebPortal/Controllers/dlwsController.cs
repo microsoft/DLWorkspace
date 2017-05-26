@@ -40,41 +40,41 @@ namespace WindowsAuth.Controllers
                 return ret;
             }
 
-
+            ViewData["Username"] = HttpContext.Session.GetString("Username");
+            var restapi = HttpContext.Session.GetString("Restapi");
             if (op == "ListJobs")
             {
-                url = _appSettings.restapi + "/ListJobs?userName="+User.Identity.Name;
+                url = restapi + "/ListJobs?userName="+HttpContext.Session.GetString("Email");
             }
             else if (op == "KillJob" && HttpContext.Request.Query.ContainsKey("jobId"))
             {
-                url = _appSettings.restapi + "/KillJob?jobId=" + HttpContext.Request.Query["jobId"]+"&userName="+ User.Identity.Name;
+                url = restapi + "/KillJob?jobId=" + HttpContext.Request.Query["jobId"]+"&userName="+ HttpContext.Session.GetString("Email");
             }
             else if (op == "JobDetail" && HttpContext.Request.Query.ContainsKey("jobId"))
             {
-                url = _appSettings.restapi + "/GetJobDetail?jobId=" + HttpContext.Request.Query["jobId"];
+                url = restapi + "/GetJobDetail?jobId=" + HttpContext.Request.Query["jobId"];
             }
             else if (op == "SubmitJob")
             {
-                url = _appSettings.restapi + "/SubmitJob?";
+                url = restapi + "/SubmitJob?";
                 foreach (var item in HttpContext.Request.Query)
                 {
                     //security check, user cannot append userName to the request url
-                    if (item.Key != "userName")
+                    if (item.Key.ToLower() != "username")
                     {
                         url += System.Text.Encodings.Web.UrlEncoder.Default.Encode(item.Key) + "=" + System.Text.Encodings.Web.UrlEncoder.Default.Encode(item.Value) + "&";
                     }
                 }
-                url += "userName=" + User.Identity.Name + "&";
+                url += "userName=" + HttpContext.Session.GetString("Email") + "&";
                 url += "userId=" + HttpContext.Session.GetString("uid") + "&";
                 if (HttpContext.Request.Query.ContainsKey("runningasroot") && HttpContext.Request.Query["runningasroot"] == "1")
                 {
                     url += "containerUserId=0&";
                 }
-
             }
             else if (op == "GetClusterStatus")
             {
-                url = _appSettings.restapi + "/GetClusterStatus?";
+                url = restapi + "/GetClusterStatus?";
             }
             
 

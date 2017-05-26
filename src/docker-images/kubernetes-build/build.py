@@ -9,6 +9,7 @@ import yaml
 import os
 import subprocess
 import DockerUtils
+import git_utils
 
 if __name__ == '__main__':
     os.chdir(os.path.dirname(__file__))
@@ -26,27 +27,26 @@ if __name__ == '__main__':
     os.system("cp ./gittoken ./deploy/gittoken")
 
     # Get hash of branch
-    curlCmd = ['curl', "https://api.github.com/repos/MSRCCS/kubernetes/branches/" + config["k8s-gitbranch"]]
-    #print "Command: " + ' '.join(curlCmd)
-    output = subprocess.check_output(curlCmd)
-    #print "Output: " + output
-    ret = yaml.load(output)
-    #print ret
-    sha = ret["commit"]["sha"]
+    sha = git_utils.github_hash(config["k8s-gitrepo"], config["k8s-gitbranch"])
     print "SHA of HEAD branch " + config["k8s-gitbranch"] + "is " + sha
 
     os.chdir("./deploy")
     #dockerBld = "docker build --build-arg NOCACHE=$(date +%s) -t " + config["k8s-bld"] + " ."
-    dockerBld = "docker build --build-arg NOCACHE=" + sha + " -t" + config["k8s-bld"] + " ."
+    dockerBld = "docker build --build-arg NOCACHE=" + sha + " -t " + config["k8s-bld"] + " ."
     print dockerBld
     os.system(dockerBld)
 
-    os.system("mkdir -p bin")
-    DockerUtils.copy_from_docker_image(config["k8s-bld"], "/hyperkube", "./bin/hyperkube")
+    # hyperkube is all-in-one binary, can get specific ones as needed for size
+    os.system("mkdir -p ../../kubernetes/deploy/bin")
+    print "Copy file hyperkube"
+    # gets kube-scheduler, kube-apiserver
+    DockerUtils.copy_from_docker_image(config["k8s-bld"], "/hyperkube", "../../kubernetes/deploy/bin/hyperkube") 
+    print "Copy file kubelet"
+    DockerUtils.copy_from_docker_image(config["k8s-bld"], "/kubelet", "../../kubernetes/deploy/bin/kubelet")
+    print "Copy file kubectl"
+    DockerUtils.copy_from_docker_image(config["k8s-bld"], "/kubectl", "../../kubernetes/deploy/bin/kubectl")
 
     os.chdir("../../kubernetes")
-    os.system("mkdir -p deploy/bin")
-    os.system("cp ../kubernetes-build/deploy/bin/hyperkube ./deploy/bin/hyperkube")
     dockerBld = "docker build --no-cache -t " + config["k8s-pushto"] + " ."
     print dockerBld
     os.system(dockerBld)

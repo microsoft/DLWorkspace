@@ -1,36 +1,151 @@
 {
     // A list of URL to access the WinBind server.
-    // If not present, AzureAD is used. 
-    "WinBindServer": [ "http://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName={0}" ],
+    // If not present, AzureAD is used.
 
-    "AzureAd": {
+    "WorkFolderAccessPoint": "/tmp",
+    "DataFolderAccessPoint": "/tmp",
 
-        "ObjectId": "619243be-479e-4378-a5e2-c74c3a59d281",
-        "DisplayName": "dlws-auth",
-        "ClientId": "511c7514-3090-400e-873a-2fb05f2d5c19",
-        // App: dlws-auth-jinl, generated at apps.dev.microsoft.com
-        // "ClientId": "ba20c1a2-54ff-4ec5-afb4-18a1879bf2f7",
-        "Tenant": "microsoft.onmicrosoft.com",
-        // Note: Key expiration: 5/2/2019
-        "ClientSecret": "E3RT39WiTvfBrJLpfs8FYJcrvFDTqEjxrlu9G36CZZM=",
-        // "ClientSecret": "hJxbm2tQV3ZaYRagHvUZcWi",
-        // Information used in demo
-        "AltTenant": "GraphDir1.onMicrosoft.com",
-        "AltClientId": "118473c2-7619-46e3-a8e4-6da8d5f56e12",
-        "AltClientSecret": "tdzicjqRJ2R1Hnvn3AL1aDU+yQjX5oIHz0th0qBeOOI=",
+    // Use WinBind Server for authentication will automatically disable the use of explict group for authentication. 
 
-        "AppIDUri": "https://dlws-auth.azurewebsites.net/",
-        "AadInstance": "https://login.microsoftonline.com/{0}", // This is the public instance of Azure AD
-        "OauthInstance": "https://login.microsoftonline.com/common/v2.0",
-        "AdminInstance": "https://login.microsoftonline.com/{0}/adminconsent",
-        "Oauth2Instance": "https://login.microsoftonline.com/{0}/oauth2/v2.0/",
+    /*
+    The Following option should be written in userconfig.json. 
+    "AuthorizedGroups": [ "Users" ],
+    "AdminGroups": [ "Admin" ],
 
-        "Scope": "User.Read",
+    "WinBindServers": [ "http://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName={0}" ],
+    "UserGroups": {
+        // Group name
+        "Admin": {
+            // The match is in C# Regex Language, please refer to :
+            // https://msdn.microsoft.com/en-us/library/az24scfc(v=vs.110).aspx
+            "Allowed": [ "hongzl@microsoft.com" ],
+            "uid": "900000000-999999999",
+            "gid": "508953967"
+        },
+        "Users": {
+            // The match is in C# Regex Language, please refer to :
+            // https://msdn.microsoft.com/en-us/library/az24scfc(v=vs.110).aspx
+            "Allowed": [ "@microsoft.com" ],
+            "uid": "900000000-999999999",
+            "gid": "508953967"
+        }
+    },
+   
+    */
+    "Data": {
+        "ConnectionString": "Filename=WebPortal.db"
+    },
 
-        // "GraphApiVersion": "1.6", // API version
-        // "ResourceURL": "https://graph.windows.net",
-        "ResourceURL": "https://graph.microsoft.com",
-        "PostLogoutRedirectUri": "https://dlws-auth.azurewebsites.net"
+    "Authentications": {
+        /*
+        "Live": {
+            "DisplayName": "Microsoft Account (live.com)",
+            "Tenant": "microsoft.onmicrosoft.com",
+            "ClientId": "55489cd6-b5b8-438d-ab42-4aba116ef8a3",
+            "UseIdToken": "true",
+            "Scope": "openid email profile",
+            // "ClientSecret": "g1nNX9u6Q2tAiqWXdec5amRPadSJQnvsy03P+arDkCk=",
+            "AuthorityFormat": "https://login.windows.net/common",
+            "Domains": [ "live.com", "hotmail.com", "outlook.com" ]
+        },*/
+        /*
+        "Live": {
+            "DisplayName": "Microsoft Account (live.com)",
+            "Tenant": "microsoft.onmicrosoft.com",
+            "ClientId": "55489cd6-b5b8-438d-ab42-4aba116ef8a3",
+            "UseIdToken": "true",
+            "Scope": "openid email profile",
+            // "ClientSecret": "g1nNX9u6Q2tAiqWXdec5amRPadSJQnvsy03P+arDkCk=",
+            "AuthorityFormat": "https://login.microsoftonline.com/common/v2.0",
+            "Domains": [ "live.com", "hotmail.com", "outlook.com" ]
+        }, */
+        "Live": {
+            "DisplayName": "Microsoft Account (live.com)",
+            "Tenant": "jinlmsfthotmail.onmicrosoft.com",
+            "ClientId": "734cc6a7-e80c-4b89-a663-0b9512925b45",
+            "ClientSecret": "g1nNX9u6Q2tAiqWXdec5amRPadSJQnvsy03P+arDkCk=",
+            "AuthorityFormat": "https://login.microsoftonline.com/{0}",
+            "Domains": [ "live.com", "hotmail.com", "outlook.com" ]
+        }, 
+        /*
+        "Aad": {
+            "DisplayName": "Azure Graph",
+            "UseAadGraph": "true",
+            "UseToken": "true",
+            "Tenant": "jinlmsfthotmail.onmicrosoft.com",
+            "ClientId": "734cc6a7-e80c-4b89-a663-0b9512925b45",
+            "ClientSecret": "g1nNX9u6Q2tAiqWXdec5amRPadSJQnvsy03P+arDkCk=",
+            "AuthorityFormat": "https://login.microsoftonline.com/{0}",
+            "RedirectUri": "",
+            "GraphBaseEndpoint": "https://graph.windows.net",
+            "GraphApiVersion": "1.6", // API version,
+            "Scope": "User.Read",
+            "Domains": [ "live.com", "hotmail.com", "outlook.com" ]
+        },*/
+        /*
+        "Live.com": {
+            "DisplayName": "Live.com",
+            "Tenant": "jinlmsfthotmail.onmicrosoft.com",
+            "ClientId": "734cc6a7-e80c-4b89-a663-0b9512925b45",
+            "ClientSecret": "g1nNX9u6Q2tAiqWXdec5amRPadSJQnvsy03P+arDkCk=",
+            "AuthorityFormat": "https://login.windows.net/common",
+            "RedirectUri": "",
+            "GraphBaseEndpoint": "https://graph.windows.net",
+            "GraphApiVersion": "1.6", // API version,
+            // "Scope": "User.Read",
+            "Domains": [ "live.com", "hotmail.com", "outlook.com" ]
+        },
+        */
+        /*
+        "CorpAad": {
+            "DisplayName": "@microsoft.com corpnet sign in",
+            "UseAadGraph": "true",
+            "UseToken": "true",
+            "Tenant": "microsoft.onmicrosoft.com",
+            "ClientId": "511c7514-3090-400e-873a-2fb05f2d5c19",
+            "ClientSecret": "E3RT39WiTvfBrJLpfs8FYJcrvFDTqEjxrlu9G36CZZM=",
+            "AuthorityFormat": "https://login.microsoftonline.com/{0}",
+            "RedirectUri": "",
+            "Scope": "User.Read",
+            "GraphBaseEndpoint": "https://graph.windows.net",
+            "GraphApiVersion": "1.6", // API version,
+            "Domains": [ "microsoft.com" ]
+        }
+        */
+        /*
+        
+        "Microsoft": {
+            "DisplayName": "Microsoft Account (live.com)",
+            "Tenant": "jinlmsfthotmail.onmicrosoft.com",
+            "ClientId": "734cc6a7-e80c-4b89-a663-0b9512925b45",
+            "ClientSecret": "g1nNX9u6Q2tAiqWXdec5amRPadSJQnvsy03P+arDkCk=",
+            "AuthorityFormat": "https://login.microsoftonline.com/{0}",
+            "Domains": [ "live.com", "hotmail.com", "outlook.com" ]
+        }, */
+
+        "Corp": {
+            "DisplayName": "@microsoft.com corpnet sign in",
+            "UseAadGraph": "false",
+            "Tenant": "microsoft.onmicrosoft.com",
+            "ClientId": "511c7514-3090-400e-873a-2fb05f2d5c19",
+            "ClientSecret": "E3RT39WiTvfBrJLpfs8FYJcrvFDTqEjxrlu9G36CZZM=",
+            "AuthorityFormat": "https://login.microsoftonline.com/{0}",
+            "RedirectUri": "",
+            "GraphBaseEndpoint": "https://graph.windows.net",
+            "GraphApiVersion": "1.6", // API version,
+            "Domains": [ "microsoft.com" ]
+        },
+        "Gmail": {
+            "DisplayName": "Gmail",
+            "Tenant": "dlws-auth",
+            "ClientId": "79875480060-jrs8a1rqe6a4kv82jh4d2nqgq8t6ap6k.apps.googleusercontent.com",
+            "ClientSecret": "L6XfKLzIbiy7jT7s416CBamz",
+            "AuthorityFormat": "https://accounts.google.com",
+            "Scope": "openid email",
+            "Domains": [ "gmail.com" ]
+        }
+
+
     }
 }
 

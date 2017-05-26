@@ -1,0 +1,31 @@
+{
+  "Logging": {
+    "IncludeScopes": false,
+    "LogLevel": {
+      "Default": "Debug",
+      "System": "Information",
+      "Microsoft": "Information"
+    }
+  },
+  
+  "UserGroups": {{cnf["UserGroups"]}},
+  "WinbindServers": {{cnf["WinbindServers"]}},
+  "DeployAuthentications": {{cnf["DeployAuthentications"]}},
+
+  "DLClusters" : 
+  {
+     "{{cnf["cluster_name"]}}" : {
+        "AdminGroups": {{cnf["WebUIadminGroups"]}},
+        "AuthorizedGroups": {{cnf["WebUIauthorizedGroups"]}},
+        "RegisterGroups": {{cnf["WebUIregisterGroups"]}},
+        "ClusterId": "{{cnf["clusterId"]}}",
+        "Restapi": "{{cnf["restapi"]}}",
+        "WorkFolderAccessPoint": "{{cnf["workFolderAccessPoint"]}}",
+        "DataFolderAccessPoint": "{{cnf["dataFolderAccessPoint"]}}", 
+        "SQLHostname": "{{cnf["sqlserver-hostname"]}}", 
+        "SQLUsername": "{{cnf["sqlserver-username"]}}", 
+        "SQLPassword": "{{cnf["sqlserver-password"]}}", 
+        "SQLDatabaseForUser": "AuthorizeUser-", 
+    },
+  },
+}

@@ -1,56 +1,38 @@
-apiVersion: batch/v1
-kind: Job
+apiVersion: v1
+kind: Pod
 metadata:
   name: {{ job["jobId"] }}
+  labels: 
+     run: {{ job["jobId"] }}
+     jobName: {{ job["jobNameLabel"] }}
+     userName: {{ job["userNameLabel"] }}
 spec:
-  # this may be a problem if we need more time to pull a docker image. Haven't tested this case. 
-  # activeDeadlineSeconds: 120
-  template:
-    metadata:
-      name: {{ job["jobId"] }}
-      labels: 
-         run: {{ job["jobId"] }}
-         jobName: {{ job["jobNameLabel"] }}
-    spec:
-      {% if job["resourcegpu"]|int < 8  %}
-      nodeSelector:
-        FragmentGPUJob: active
-      {% endif %}
-      dnsPolicy: Default
-      containers:
-      - name: {{ job["jobId"] }}
-        image: {{ job["image"] }}
-        command: {{ job["LaunchCMD"] }}
-        securityContext:
-          runAsUser: {{ job["containerUserId"] }}
-        resources:
-          limits:
-            alpha.kubernetes.io/nvidia-gpu: {{ job["resourcegpu"] }}
+  {% if job["resourcegpu"]|int < 8  %}
+  nodeSelector:
+    FragmentGPUJob: active
+  {% endif %}
+  dnsPolicy: Default
+  containers:
+  - name: {{ job["jobId"] }}
+    image: {{ job["image"] }}
+    command: {{ job["LaunchCMD"] }}
+    securityContext:
+      runAsUser: {{ job["containerUserId"] }}
+    resources:
+      limits:
+        alpha.kubernetes.io/nvidia-gpu: {{ job["resourcegpu"] }}
 
-        volumeMounts:
-        - mountPath: /usr/local/nvidia
-          name: nvidia-driver
-          readOnly: true
-        - mountPath: /job
-          name: job 
-        - mountPath: /work
-          name: work
-        - mountPath: /data
-          name: data
-          readOnly: true
+    volumeMounts:
+    {% for mp in job["mountPoints"] %}
+    - mountPath: {{ mp.containerPath }}
+      name: {{ mp.name }}
+    {% endfor %}
 
-      restartPolicy: Never
-      volumes:
-      # temporarily hard-coding the path to nvidia driver; after nvidia-docker is enabled on kubernetes, this will be removed. 
-      - name: nvidia-driver
-        hostPath:
-          path: /opt/nvidia-driver/current
-      - name: job
-        hostPath:
-          path: {{ job["hostjobPath"] }}
-      - name: work
-        hostPath:
-          path: {{ job["hostworkPath"] }}
-      - name: data
-        hostPath:
-          path: {{ job["hostdataPath"] }}
+
+  restartPolicy: Never
+  volumes:
+  {% for mp in job["mountPoints"] %}
+  - name: {{ mp.name }}
+    hostPath:
+      path: {{ mp.hostPath }}
+  {% endfor %}

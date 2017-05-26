@@ -1,9 +1,9 @@
 FROM ubuntu:16.04
 MAINTAINER Hongzhi Li <Hongzhi.Li@microsoft.com>
 
-RUN apt-get update 
-RUN apt-get install -y --no-install-recommends apt-transport-https
-RUN apt-get install -y --no-install-recommends \
+# See https://stackoverflow.com/questions/37706635/in-docker-apt-get-install-fails-with-failed-to-fetch-http-archive-ubuntu-com
+# It is a good practice to merge apt-get update with the following apt-get install
+RUN apt-get update; apt-get install -y --no-install-recommends apt-transport-https \
         build-essential \
         cmake \
         git \
@@ -11,7 +11,9 @@ RUN apt-get install -y --no-install-recommends \
         vim \
         python-dev \
         python-pip \
-        python-yaml 
+        python-yaml \ 
+        locales \
+        python-pycurl
         
 
 RUN apt-get install -y bison curl nfs-common
@@ -53,12 +55,12 @@ RUN pip install setuptools;
 
 RUN pip install pyodbc
 
-
+RUN pip install tzlocal
 
 RUN wget http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubectl -O /usr/local/bin/kubectl
 RUN chmod +x /usr/local/bin/kubectl
-COPY gittoken /root/.ssh/id_rsa
-RUN chmod 400 /root/.ssh/id_rsa
+#COPY gittoken /root/.ssh/id_rsa
+#RUN chmod 400 /root/.ssh/id_rsa
 RUN apt-get install -y --no-install-recommends ssh
 
 
@@ -79,5 +81,8 @@ RUN chmod +x /pullsrc.sh
 COPY run.sh /
 RUN chmod +x /run.sh
 
-
+ADD Jobs_Templete /DLWorkspace/src/Jobs_Templete
+ADD utils /DLWorkspace/src/utils
+ADD RestAPI /DLWorkspace/src/RestAPI
+ADD ClusterManager /DLWorkspace/src/ClusterManager
 CMD /run.sh

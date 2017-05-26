@@ -13,7 +13,7 @@ namespace WindowsAuth
         public static void Main(string[] args)
         {
             var host = new WebHostBuilder()
-                .UseUrls("http://*:1000", "https://*:1234", "http://0.0.0.0:80")
+                .UseUrls("http://0.0.0.0:80")
                 .UseKestrel()
                 .UseContentRoot(Directory.GetCurrentDirectory())
                 .UseIISIntegration()

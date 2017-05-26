@@ -64,11 +64,11 @@
                         
                         if (payload.endpoints[i].containerPort == 22)
                         {
-                            endpointsStr += "To access the container via SSH, use command: ssh -i @ViewData["workPath"]"+".ssh/id_rsa -p " + payload.endpoints[i].hostPort + " @ViewData["username"]"+"@@" + payload.endpoints[i].hostIP + "\n";
+                            endpointsStr += "To access the container via SSH, use command: ssh -i @ViewData["workPath"]"+".ssh/id_rsa -p " + payload.endpoints[i].hostPort + " @ViewData["Username"]"+"@@" + payload.endpoints[i].hostIP + "\n";
                         }
                         else
                         {
-                            var svcurl = "http://" + payload.endpoints[i].hostIP + ":" + payload.endpoints[i].hostPort
+                            var svcurl = "http://" + payload.endpoints[i].hostName + ":" + payload.endpoints[i].hostPort
                             endpointsStr += "Container Port: " + payload.endpoints[i].containerPort + " is mapped to public ip: <a href='" + svcurl + "' target='_blank'> " + svcurl + "</a>  \n";
                         }
                     }

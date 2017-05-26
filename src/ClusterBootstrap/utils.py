@@ -41,12 +41,15 @@ def render_template(template_file, target_file, config, verbose=False):
 	else:
 		if verbose:
 			print "Render tempalte " + template_file + " --> " + target_file
-		ENV_local = Environment(loader=FileSystemLoader("/"))
-		template = ENV_local.get_template(os.path.abspath(template_file))
-		content = template.render(cnf=config)
-		with open(target_file, 'w') as f:
-			f.write(content)
-		f.close()
+		try:
+			ENV_local = Environment(loader=FileSystemLoader("/"))
+			template = ENV_local.get_template(os.path.abspath(template_file))
+			content = template.render(cnf=config)
+			with open(target_file, 'w') as f:
+				f.write(content)
+			f.close()
+		except:
+			pass
 	
 def render_template_directory(template_dir, target_dir,config, verbose=False):
 	if target_dir in StaticVariable.rendered_target_directory:
@@ -280,9 +283,10 @@ def execute_restore_and_decrypt(fname, key):
 		cleanup_command = "rm %s; " % fname
 	os.system("tar -xzvf %s %s" % (fname, backupdir))
 	os.system("cp %s/*.yaml ." % (backupdir) )
-	os.system("mkdir -p ./deploy/" )
-	os.system("cp -r %s/sshkey ./deploy/sshkey" % backupdir)
-	os.system("cp -r %s/ssl ./deploy/ssl" % backupdir)
+	os.system("mkdir -p ./deploy/sshkey" )
+	os.system("mkdir -p ./deploy/ssl" )
+	os.system("cp -r %s/sshkey/* ./deploy/sshkey" % backupdir)
+	os.system("cp -r %s/ssl/* ./deploy/ssl" % backupdir)
 	os.system("cp %s/clusterID/*.yml ./deploy/" % backupdir)
 	cleanup_command += "rm -rf ./deploy_backup/backup"
 	os.system(cleanup_command)

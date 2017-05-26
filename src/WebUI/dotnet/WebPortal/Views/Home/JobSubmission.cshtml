@@ -23,7 +23,6 @@
 
 
             //var jobtrainingtype = encodeURIComponent($("#jobtrainingtype").val().trim());
-            
 
 
             var radios = document.getElementsByName('jobtrainingtype');
@@ -34,6 +33,7 @@
                     break;
                 }
             }
+
             var numps = parseInt($('#numps').val());
             var numpsworker = parseInt($('#numpsworker').val());
             var nummpiworker = parseInt($('#nummpiworker').val());
@@ -178,14 +178,36 @@
     function UseTemplate(id) {
         if (id == "tensorflow") {
             document.getElementById("jobname").value = "tensorflow-ipython";
-            document.getElementById("resourcegpu").value = 0;
-            document.getElementById("workpath").value = "@ViewData["userName"]";
+            document.getElementById("resourcegpu").value = 1;
+            document.getElementById("workpath").value = "@ViewData["Username"]";
             document.getElementById("datapath").value = "imagenet";
             document.getElementById("jobpath").value = "";
 
             document.getElementById("image").value = "tensorflow/tensorflow:latest-gpu";
             //document.getElementById("cmd").value = "";
-            document.getElementById("cmd").value = "export HOME=/job && jupyter notebook --no-browser --port=8888 --ip=0.0.0.0 --notebook-dir=/work";
+            document.getElementById("cmd").value = "export HOME=/job && jupyter notebook --no-browser --port=8888 --ip=0.0.0.0 --notebook-dir=/";
+
+            document.getElementById("chkInteractiveJob").checked = true;
+            document.getElementById("chkLogDir").checked = false;
+            ShowHideDiv(document.getElementById("chkInteractiveJob"), 'interactiveportfield')
+            ShowHideDiv(document.getElementById("chkLogDir"), 'logdirfield')
+
+            document.getElementById("interactivePort").value = "8888";
+            document.getElementById("logdir").value = "";
+
+
+            document.getElementById("runningasroot").checked = false;
+        }
+        else if (id == "tensorflowcpu") {
+            document.getElementById("jobname").value = "tensorflow-ipython-cpu";
+            document.getElementById("resourcegpu").value = 0;
+            document.getElementById("workpath").value = "@ViewData["Username"]";
+            document.getElementById("datapath").value = "imagenet";
+            document.getElementById("jobpath").value = "";
+
+            document.getElementById("image").value = "tensorflow/tensorflow:latest";
+            //document.getElementById("cmd").value = "";
+            document.getElementById("cmd").value = "export HOME=/job && jupyter notebook --no-browser --port=8888 --ip=0.0.0.0 --notebook-dir=/";
 
             document.getElementById("chkInteractiveJob").checked = true;
             document.getElementById("chkLogDir").checked = false;
@@ -201,12 +223,12 @@
         else if (id == "tensorflowssh") {
             document.getElementById("jobname").value = "tensorflow-ssh";
             document.getElementById("resourcegpu").value = 0;
-            document.getElementById("workpath").value = "@ViewData["userName"]";
+            document.getElementById("workpath").value = "@ViewData["Username"]";
             document.getElementById("datapath").value = "imagenet";
             document.getElementById("jobpath").value = "";
 
             document.getElementById("image").value = "tensorflow/tensorflow:latest-gpu";
-            document.getElementById("cmd").value = "apt-get update && apt-get install -y openssh-server sudo && addgroup --force-badname --gid  @ViewData["gid"] domainusers && adduser --force-badname --home /home/@ViewData["userName"] --shell /bin/bash --uid @ViewData["uid"]  -gecos '' @ViewData["userName"] --disabled-password --gid @ViewData["gid"] && adduser @ViewData["userName"] sudo && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && mkdir -p /root/.ssh && cat /work/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && mkdir -p /home/@ViewData["userName"]/.ssh && cat /work/.ssh/id_rsa.pub >> /home/@ViewData["userName"]/.ssh/authorized_keys && service ssh restart && sleep infinity";
+            document.getElementById("cmd").value = "apt-get update && apt-get install -y openssh-server sudo && addgroup --force-badname --gid  @ViewData["gid"] domainusers && adduser --force-badname --home /home/@ViewData["Username"] --shell /bin/bash --uid @ViewData["uid"]  -gecos '' @ViewData["Username"] --disabled-password --gid @ViewData["gid"] && adduser @ViewData["Username"] sudo && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && mkdir -p /root/.ssh && cat /work/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && mkdir -p /home/@ViewData["Username"]/.ssh && cat /work/.ssh/id_rsa.pub >> /home/@ViewData["Username"]/.ssh/authorized_keys && service ssh restart && sleep infinity";
             document.getElementById("chkInteractiveJob").checked = true;
             document.getElementById("chkLogDir").checked = false;
             ShowHideDiv(document.getElementById("chkInteractiveJob"), 'interactiveportfield')
@@ -220,13 +242,13 @@
         else if (id == "caffe") {
             document.getElementById("jobname").value = "caffe-ipython";
             document.getElementById("resourcegpu").value = 0;
-            document.getElementById("workpath").value = "@ViewData["userName"]";
+            document.getElementById("workpath").value = "@ViewData["Username"]";
             document.getElementById("datapath").value = "imagenet";
             document.getElementById("jobpath").value = "";
 
             document.getElementById("image").value = "bvlc/caffe:cpu";
             //document.getElementById("cmd").value = "pip install jupyter && jupyter notebook --no-browser --port=8889 --allow-root --ip=0.0.0.0 --notebook-dir=/work";
-            document.getElementById("cmd").value = "apt-get update && apt-get install -y python-pip sudo && addgroup --force-badname --gid  @ViewData["gid"] domainusers && adduser --force-badname --home /home/@ViewData["userName"] --shell /bin/bash --uid @ViewData["uid"]  -gecos '' @ViewData["userName"] --disabled-password --gid @ViewData["gid"] && pip install jupyter && cd /home/@ViewData["userName"] && sudo -H -u @ViewData["userName"] jupyter notebook --no-browser --port=8889 --ip=0.0.0.0 --notebook-dir=/";
+            document.getElementById("cmd").value = "apt-get update && apt-get install -y python-pip sudo && addgroup --force-badname --gid  @ViewData["gid"] domainusers && adduser --force-badname --home /home/@ViewData["Username"] --shell /bin/bash --uid @ViewData["uid"]  -gecos '' @ViewData["Username"] --disabled-password --gid @ViewData["gid"] && pip install jupyter && cd /home/@ViewData["Username"] && sudo -H -u @ViewData["UserName"] jupyter notebook --no-browser --port=8889 --ip=0.0.0.0 --notebook-dir=/";
 
 
 
@@ -244,12 +266,12 @@
         else if (id == "caffessh") {
             document.getElementById("jobname").value = "caffe-ssh";
             document.getElementById("resourcegpu").value = 0;
-            document.getElementById("workpath").value = "@ViewData["userName"]";
+            document.getElementById("workpath").value = "@ViewData["Username"]";
             document.getElementById("datapath").value = "imagenet";
             document.getElementById("jobpath").value = "";
 
             document.getElementById("image").value = "bvlc/caffe:cpu";
-            document.getElementById("cmd").value = "apt-get update && apt-get install -y openssh-server sudo && addgroup --force-badname --gid  @ViewData["gid"] domainusers && adduser --force-badname --home /home/@ViewData["userName"] --shell /bin/bash --uid @ViewData["uid"]  -gecos '' @ViewData["userName"] --disabled-password --gid @ViewData["gid"] && adduser @ViewData["userName"] sudo && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && mkdir -p /root/.ssh && cat /work/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && mkdir -p /home/@ViewData["userName"]/.ssh && cat /work/.ssh/id_rsa.pub >> /home/@ViewData["userName"]/.ssh/authorized_keys && service ssh restart && sleep infinity";
+            document.getElementById("cmd").value = "apt-get update && apt-get install -y openssh-server sudo && addgroup --force-badname --gid  @ViewData["gid"] domainusers && adduser --force-badname --home /home/@ViewData["Username"] --shell /bin/bash --uid @ViewData["uid"]  -gecos '' @ViewData["Username"] --disabled-password --gid @ViewData["gid"] && adduser @ViewData["Username"] sudo && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && mkdir -p /root/.ssh && cat /work/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && mkdir -p /home/@ViewData["Username"]/.ssh && cat /work/.ssh/id_rsa.pub >> /home/@ViewData["Username"]/.ssh/authorized_keys && cp /work/.ssh/id_rsa* /home/@ViewData["Username"]/.ssh/ && chown -R @ViewData["Username"] /home/@ViewData["Username"]/.ssh/ && service ssh restart && env | while read line; do if [[ $line != HOME=* ]] && [[ $line != INTERACTIVE* ]] ; then echo \"export $line\" >> /home/@ViewData["Username"]/.bashrc; fi; done &&  sleep infinity";
             document.getElementById("chkInteractiveJob").checked = true;
             document.getElementById("chkLogDir").checked = false;
             ShowHideDiv(document.getElementById("chkInteractiveJob"), 'interactiveportfield')
@@ -301,6 +323,28 @@
             document.getElementById("runningasroot").checked = false;
 
         }
+        else if (id == "cntkipython") {
+            document.getElementById("jobname").value = "CNTK-ipython";
+            document.getElementById("resourcegpu").value = 0;
+            document.getElementById("workpath").value = "@ViewData["Username"]";
+            document.getElementById("datapath").value = "imagenet";
+            document.getElementById("jobpath").value = "";
+
+            document.getElementById("image").value = "microsoft/cntk";
+            //document.getElementById("cmd").value = "pip install jupyter && jupyter notebook --no-browser --port=8889 --allow-root --ip=0.0.0.0 --notebook-dir=/work";
+            document.getElementById("cmd").value = "bash -c 'source \"/cntk/activate-cntk\" ; jupyter notebook --no-browser --port=8889 --ip=0.0.0.0 --notebook-dir=/ --allow-root'";
+
+
+            document.getElementById("chkInteractiveJob").checked = true;
+            document.getElementById("chkLogDir").checked = false;
+            ShowHideDiv(document.getElementById("chkInteractiveJob"), 'interactiveportfield')
+            ShowHideDiv(document.getElementById("chkLogDir"), 'logdirfield')
+
+            document.getElementById("interactivePort").value = "8889";
+            document.getElementById("logdir").value = "";
+            document.getElementById("runningasroot").checked = true;
+
+        }
     }
 </script>
 
@@ -326,19 +370,19 @@
                     <br />
                     <select onchange="UseTemplate(this.value)"> 
                         <option value="none">None</option>
-                        <option value="tensorflow">Tensorflow-IPython</option>
+                        <option value="tensorflow">Tensorflow-IPython-GPU</option>
+                        <option value="tensorflowcpu">Tensorflow-IPython-CPU</option>
                         <option value="tensorflowssh">Tensorflow-SSH</option>
                         <option value="caffe">Caffe-IPython</option>
                         <option value="caffessh">Caffe-SSH</option>
                         <option value="caffesample">Caffe training example</option>
                         <option value="tensorflowsample">Tensorflow training example</option>
-
+                        <option value="cntkipython">CNTK-IPython</option>
                         
                     </select>
 
                 </div>
-
-                <div class="form-group">
+                <div class="form-group" hidden>
                     <label>
                         Job Type
                     </label>
@@ -403,7 +447,7 @@
 
                 <div class="form-group">
                     <label>
-                        Work Directory <font face="verdana" color="#A9A9A9">(relative to <a href="@ViewData["workPath"]">@ViewData["workPath"].ToString().Replace("file:", "").Replace("/", "\\") </a>)</font>
+                        Work Directory <font face="verdana" color="#A9A9A9">(relative to <a href="@ViewData["workPath"]">@ViewData["workPath"].ToString().Replace("file:", "").Replace("/", "\\") </a>).  </font> <br /> <font face="verdana" color="#A9A9A9"> This folder is mounted as <b>/work</b> inside container.</font>
                     </label>
                     <input type="text" class="form-control" id="workpath" />
 
@@ -412,14 +456,14 @@
 
                 <div class="form-group">
                     <label>
-                        Data Directory <font face="verdana" color="#A9A9A9">(relative to <a href="@ViewData["dataPath"]">@ViewData["dataPath"].ToString().Replace("file:", "").Replace("/", "\\") </a>)</font>
+                        Data Directory <font face="verdana" color="#A9A9A9">(relative to <a href="@ViewData["dataPath"]">@ViewData["dataPath"].ToString().Replace("file:", "").Replace("/", "\\") </a>). </font> <br /> <font face="verdana" color="#A9A9A9"> This folder is mounted as <b>/data</b> inside container.</font>
                     </label>
                     <input type="text" class="form-control" id="datapath" />
                 </div>
 
                 <div class="form-group">
                     <label>
-                        Job Directory (empty by default)
+                        Job Directory (empty by default) <br /> <font face="verdana" color="#A9A9A9"> This folder is mounted as <b>/job</b> inside container.</font>
                     </label>
                     <input type="text" class="form-control" id="jobpath" />
                 </div>

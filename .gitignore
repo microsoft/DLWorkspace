@@ -29,6 +29,7 @@ src/ClusterBootstrap/deploy_backup/*
 
 #ASP.NET core
 src/WebUI/dotnet/.vs/**
+src/WebUI/dotnet/WebPortal/userconfig.json
 **/wwwroot/*
 **/bin/Release/*
 **/bin/Debug/*
@@ -39,5 +40,6 @@ src/WebUI/dotnet/.vs/**
 **/bower_components/*
 **/.bowerrc
 **/project.lock.json
-**/appsettings.json
 **/WebPortal/obj/*
+# SQLite database file
+*.db
