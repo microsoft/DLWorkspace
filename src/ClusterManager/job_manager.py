@@ -670,6 +670,13 @@ def create_log( logdir = '/var/log/dlworkspace' ):
 def Run():
 
 	while True:
+
+		try:
+			config["racks"] = k8sUtils.get_node_labels("rack")
+			config["skus"] = k8sUtils.get_node_labels("sku")
+		except Exception as e:
+			print e
+
 		try:
 			dataHandler = DataHandler()
 			pendingJobs = dataHandler.GetPendingJobs()

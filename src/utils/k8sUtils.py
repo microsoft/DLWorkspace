@@ -18,7 +18,6 @@ from jobs_tensorboard import GenTensorboardMeta
 import yaml
 from jinja2 import Environment, FileSystemLoader, Template
 from config import config, GetStoragePath
-from DataHandler import DataHandler
 import base64
 
 import re
@@ -332,3 +331,24 @@ def GetJobStatus(jobId):
 		detail = [get_pod_status(pod) for i, pod in enumerate(podInfo["items"])]
 
 	return output, detail
+
+def get_node_labels(key):
+	url = "%s/api/v1/nodes" % (config["apiserver"])
+	responseStr = curl_get(url)
+	nodes = json.loads(responseStr)
+	ret = []
+
+	if "items" in nodes:
+		for node in nodes["items"]:
+			if "metadata" in node and "labels" in node["metadata"]:
+				if key in node["metadata"]["labels"]:
+					v = node["metadata"]["labels"][key]
+					if not v in ret:
+						ret.append(v)
+	return ret
+if __name__ == '__main__':
+	
+	#Run()
+	print get_node_labels("rack")
+
+	pass

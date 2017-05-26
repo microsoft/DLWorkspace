@@ -1,53 +1,46 @@
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: {{ job["jobId"] }}-{{ job["distId"] }}
-spec:
-  template:
-    metadata:
-      name: {{ job["jobId"] }}
-      labels: 
-         run: {{ job["jobId"] }}
-         jobName: {{ job["jobNameLabel"] }}
-         distRole: {{ job["distRole"] }}
-         distPort: "{{job["containerPort"]}}"
-    spec:
-      hostNetwork: true
-      containers:
-      - name: {{ job["jobId"] }}
-        image: {{ job["image"] }}
-        command: {{ job["LaunchCMD"] }}
-        #container port and host port should be same.
-        ports:
-        - containerPort: {{job["containerPort"]}}
-          hostPort: {{job["containerPort"]}}      
-        {% if job["distRole"] =="worker" %}  
-        resources:
-          limits:
-            alpha.kubernetes.io/nvidia-gpu: {{ job["resourcegpu"] }}
-        {% endif %}
-        volumeMounts:
-        - mountPath: /usr/local/nvidia
-          name: nvidia-driver
-        - mountPath: /job
-          name: job 
-        - mountPath: /work
-          name: work
-        - mountPath: /data
-          name: data
+apiVersion: v1
+kind: Pod
 
-      restartPolicy: Never
-      volumes:
-      # temporarily hard-coding the path to nvidia driver; after nvidia-docker is enabled on kubernetes, this will be removed. 
-      - name: nvidia-driver
-        hostPath:
-          path: {{ job["nvidiaDriverPath"] }}
-      - name: job
-        hostPath:
-          path: {{ job["hostjobPath"] }}
-      - name: work
-        hostPath:
-          path: {{ job["hostworkPath"] }}
-      - name: data
-        hostPath:
-          path: {{ job["hostdataPath"] }}
+metadata:
+    name: {{ job["jobId"] }}-{{ job["distId"] }}
+    labels: 
+        run: {{ job["jobId"] }}
+        jobName: {{ job["jobNameLabel"] }}
+        distRole: {{ job["distRole"] }}
+        distPort: "{{job["containerPort"]}}"
+spec:
+    hostNetwork: true
+
+	{% if job["nodeSelector"]|length > 0 %}
+	nodeSelector:
+	{% for key, value in job["nodeSelector"].items() %}
+	{{key}}: {{value}}
+	{% endfor %}
+	{% endif %}
+
+    containers:
+    - name: {{ job["jobId"] }}
+    image: {{ job["image"] }}
+    command: {{ job["LaunchCMD"] }}
+    #container port and host port should be same.
+    ports:
+    - containerPort: {{job["containerPort"]}}
+        hostPort: {{job["containerPort"]}}      
+    {% if job["distRole"] =="worker" %}  
+    resources:
+        limits:
+        alpha.kubernetes.io/nvidia-gpu: {{ job["resourcegpu"] }}
+    {% endif %}
+    volumeMounts:
+    {% for mp in job["mountPoints"] %}
+    - mountPath: {{ mp.containerPath }}
+      name: {{ mp.name }}
+    {% endfor %}
+
+    restartPolicy: Never
+    volumes:
+    {% for mp in job["mountPoints"] %}
+    - name: {{ mp.name }}
+      hostPath:
+        path: {{ mp.hostPath }}
+    {% endfor %}
