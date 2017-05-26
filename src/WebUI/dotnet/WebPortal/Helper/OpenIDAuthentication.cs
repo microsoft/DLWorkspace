@@ -22,7 +22,8 @@ namespace WebPortal.Helper
         private readonly Dictionary<string, object> _config = null; 
 
         public bool _bUseAadGraph = false;
-        public bool _bUseToken = false; 
+        public bool _bUseToken = false;
+        public bool _bUseIdToken = false; 
         public string _displayName = null;
         public string _clientId = null;
         public string _clientSecret = null;
@@ -53,6 +54,13 @@ namespace WebPortal.Helper
                 _bUseToken = true;
             else
                 _bUseToken = false;
+            if (_config.ContainsKey("UseIdToken") &&
+               String.Compare(_config["UseIdToken"] as string, "true", true) == 0)
+                _bUseIdToken = true;
+            else
+                _bUseIdToken = false;
+
+
             if (_config.ContainsKey("DisplayName"))
                 _displayName = _config["DisplayName"] as string;
             if (_config.ContainsKey("ClientId"))
@@ -111,6 +119,8 @@ namespace WebPortal.Helper
             }
             if (_bUseAadGraph || _bUseToken )
                 ResponseType = OpenIdConnectResponseType.CodeIdToken;
+            if ( _bUseIdToken ) 
+                ResponseType = OpenIdConnectResponseType.IdToken; 
 
             Authority = String.Format(_authorityFormat, _tenant);
 
@@ -130,7 +140,7 @@ namespace WebPortal.Helper
                 ev.OnAuthorizationCodeReceived = OnAuthorizationCodeReceived;
                 ev.OnRedirectToIdentityProvider = OnRedirectToIdentityProvider;
             }
-            if ( _bUseAadGraph || _bUseToken )
+            if ( _bUseAadGraph || _bUseToken || _bUseIdToken )
                 ev.OnTokenValidated = OnTokenValidated;
 
             ev.OnRemoteFailure = OnAuthenticationFailed;

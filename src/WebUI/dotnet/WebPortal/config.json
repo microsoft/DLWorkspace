@@ -37,6 +37,28 @@
     },
 
     "Authentications": {
+        /*
+        "Live": {
+            "DisplayName": "Microsoft Account (live.com)",
+            "Tenant": "microsoft.onmicrosoft.com",
+            "ClientId": "55489cd6-b5b8-438d-ab42-4aba116ef8a3",
+            "UseIdToken": "true",
+            "Scope": "openid email profile",
+            // "ClientSecret": "g1nNX9u6Q2tAiqWXdec5amRPadSJQnvsy03P+arDkCk=",
+            "AuthorityFormat": "https://login.windows.net/common",
+            "Domains": [ "live.com", "hotmail.com", "outlook.com" ]
+        },*/
+        /*
+        "Live": {
+            "DisplayName": "Microsoft Account (live.com)",
+            "Tenant": "microsoft.onmicrosoft.com",
+            "ClientId": "55489cd6-b5b8-438d-ab42-4aba116ef8a3",
+            "UseIdToken": "true",
+            "Scope": "openid email profile",
+            // "ClientSecret": "g1nNX9u6Q2tAiqWXdec5amRPadSJQnvsy03P+arDkCk=",
+            "AuthorityFormat": "https://login.microsoftonline.com/common/v2.0",
+            "Domains": [ "live.com", "hotmail.com", "outlook.com" ]
+        }, */
         "Live": {
             "DisplayName": "Microsoft Account (live.com)",
             "Tenant": "jinlmsfthotmail.onmicrosoft.com",
@@ -44,7 +66,7 @@
             "ClientSecret": "g1nNX9u6Q2tAiqWXdec5amRPadSJQnvsy03P+arDkCk=",
             "AuthorityFormat": "https://login.microsoftonline.com/{0}",
             "Domains": [ "live.com", "hotmail.com", "outlook.com" ]
-        },
+        }, 
         /*
         "Aad": {
             "DisplayName": "Azure Graph",

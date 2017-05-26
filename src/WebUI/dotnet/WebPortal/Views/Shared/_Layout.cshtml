@@ -1,4 +1,6 @@
-﻿<!DOCTYPE html>
+﻿@using Microsoft.AspNetCore.Http;
+
+<!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8" />
@@ -38,6 +40,11 @@
                     <li><a asp-area="" asp-controller="Home" asp-action="JobSubmission">Submit New Job</a></li>
                     <li><a asp-area="" asp-controller="Home" asp-action="ViewJobs">View and Manage Jobs</a></li>
                     <li><a asp-area="" asp-controller="Home" asp-action="ViewCluster">Cluster Status</a></li>
+                    @if ( Context.Session.GetString("isAdmin") == "true")
+                    {
+                        <li><a asp-area="" asp-controller="Home" asp-action="ManageUser">Manage Users</a></li> 
+                           
+                    }
                 </ul>
                 @await Html.PartialAsync("_LoginPartial")
             </div>
