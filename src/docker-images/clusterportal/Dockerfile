@@ -1,31 +1,35 @@
 FROM ubuntu:16.04
-MAINTAINER Jin Li <jinlmsft@hotmail.com>
+MAINTAINER Hongzhi Li <Hongzhi.Li@microsoft.com>
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# See https://stackoverflow.com/questions/37706635/in-docker-apt-get-install-fails-with-failed-to-fetch-http-archive-ubuntu-com
+# It is a good practice to merge apt-get update with the following apt-get install
+RUN apt-get update; apt-get install -y --no-install-recommends apt-transport-https \
         build-essential \
         cmake \
         git \
         wget \
-        protobuf-compiler \
+        vim \
         python-dev \
-        python-numpy \
-        python-pip 
+        python-pip \
+        python-yaml \ 
+        locales \
+        python-pycurl
         
 
-# Install docker
-RUN apt-get update; apt-get install -y apt-transport-https ca-certificates 
+RUN apt-get install -y bison curl nfs-common
+RUN pip install --upgrade pip; 
 
-RUN apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
+RUN pip install setuptools; 
+RUN locale-gen en_US.UTF-8
+RUN update-locale LANG=en_US.UTF-8
 
-RUN mkdir /etc/apt/source.list.d
+RUN pip install flask
+RUN pip install flask.restful
 
-RUN echo "deb https://apt.dockerproject.org/repo ubuntu-xenial main" > /etc/apt/sources.list.d/docker.list
+RUN wget http://ccsdatarepo.westus.cloudapp.azure.com/data/tools/mysql-connector-python_2.1.5-1ubuntu14.04_all.deb  -O /mysql-connector-python_2.1.5-1ubuntu14.04_all.deb
+RUN dpkg -i /mysql-connector-python_2.1.5-1ubuntu14.04_all.deb
+RUN apt-get install -y mysql-connector-python
 
-RUN apt-get update; apt-cache policy docker-engine; apt-get update
-
-RUN apt-get update && apt-get install -y docker-engine
-
-RUN apt-get install -y bison curl golang-go
 
 # Install python for Azure SQL
 
@@ -51,14 +55,19 @@ RUN pip install setuptools;
 
 RUN pip install pyodbc
 
-RUN pip install flask
-
-RUN pip install flask.restful
-
-RUN locale-gen en_US.UTF-8
-
-RUN update-locale LANG=en_US.UTF-8
-
-WORKDIR /home/jinl/code/github.jinl/DLWorkspace/src/utils
+RUN pip install tzlocal
 
 
+RUN apt-get install -y --no-install-recommends ssh
+
+
+RUN apt-get install -y apache2 libapache2-mod-wsgi
+RUN rm /etc/apache2/mods-enabled/mpm_*
+COPY mpm_prefork.conf /etc/apache2/mods-available/mpm_prefork.conf
+COPY 000-default.conf /etc/apache2/sites-available/000-default.conf
+RUN ln -s /etc/apache2/mods-available/mpm_prefork.conf /etc/apache2/mods-enabled/mpm_prefork.conf
+RUN ln -s /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled/mpm_prefork.load
+
+COPY ClusterPortal /ClusterPortal
+
+CMD apachectl -e info -DFOREGROUND
