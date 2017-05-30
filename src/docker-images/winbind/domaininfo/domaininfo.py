@@ -33,25 +33,20 @@ class GetUserId(Resource):
                 ret = {}
 
                 if args["userName"] is not None and len(args["userName"].strip()) > 0:
-                        userName = str(args["userName"]).strip().split("@")[0]
-                        uid = cmd_exec("id -u REDMOND.%s" % userName)
-                        gid = cmd_exec("id -g REDMOND.%s" % userName)
-                        groups = cmd_exec("id -G REDMOND.%s" % userName).split(" ")
 
-                        ret["uid"] = uid
-                        ret["gid"] = gid
-                        ret["groups"] = groups
-                        if len(ret["uid"].strip())==0:
-                                userName = str(args["userName"]).strip().split("@")[0]
-                                uid = cmd_exec("id -u FAREAST.%s" % userName)
-                                gid = cmd_exec("id -g FAREAST.%s" % userName)
-                                groups = cmd_exec("id -G FAREAST.%s" % userName).split(" ")
+                        corpDomains = ['REDMOND','FAREAST','EUROPE','NORTHAMERICA']
+                        ret["uid"] = ""
 
-                                ret["uid"] = uid
-                                ret["gid"] = gid
-                                ret["groups"] = groups
+                        for corpDomain in corpDomains:
+                                if len(ret["uid"].strip())==0:
+                                        userName = str(args["userName"]).strip().split("@")[0]
+                                        uid = cmd_exec("id -u %s.%s" % (corpDomain,userName))
+                                        gid = cmd_exec("id -g %s.%s" % (corpDomain,userName))
+                                        groups = cmd_exec("id -G %s.%s" % (corpDomain,userName)).split(" ")
 
-
+                                        ret["uid"] = uid
+                                        ret["gid"] = gid
+                                        ret["groups"] = groups
 
 
                 resp = jsonify(ret)
