@@ -92,4 +92,6 @@ This document describes the procedure to deploy DL workspace cluster on Azure. W
   ./deploy.py kubernetes start webportal
   ```
 
+6. If you run into a deployment issue, please check [here](Deployment_Issue.md) first. 
+
 
