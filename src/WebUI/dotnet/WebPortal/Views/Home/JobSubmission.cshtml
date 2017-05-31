@@ -145,34 +145,17 @@
         elem.style.display = chkbox.checked ? "block" : "none";
     }
     function ShowRegularJob() {
-        var elem1 = document.getElementById("regularJob");
-        elem1.style.display = "block";
 
         var elem2 = document.getElementById("PSDistJob");
         elem2.style.display = "none";
 
-        var elem3 = document.getElementById("MPIDistJob");
-        elem3.style.display = "none";
+
     }
     function ShowPSDistJob() {
-        var elem1 = document.getElementById("regularJob");
-        elem1.style.display = "none";
 
         var elem2 = document.getElementById("PSDistJob");
         elem2.style.display = "block";
 
-        var elem3 = document.getElementById("MPIDistJob");
-        elem3.style.display = "none";
-    }
-    function ShowMPIDistJob() {
-        var elem1 = document.getElementById("regularJob");
-        elem1.style.display = "none";
-
-        var elem2 = document.getElementById("PSDistJob");
-        elem2.style.display = "none";
-
-        var elem3 = document.getElementById("MPIDistJob");
-        elem3.style.display = "block";
     }
 
     function UseTemplate(id) {
@@ -382,14 +365,13 @@
                     </select>
 
                 </div>
-                <div class="form-group" hidden>
+                <div class="form-group">
                     <label>
                         Job Type
                     </label>
                     <br/>
                     <input type="radio" name="jobtrainingtype" id="jobtrainingtype" value="RegularJob" checked="checked"  onclick="ShowRegularJob()" /> Regular Training Job  <br />
-                    <input type="radio" name="jobtrainingtype" id="jobtrainingtype" value="PSDistJob" onclick="ShowPSDistJob()" /> Distributed Training Job (Parameter Server)  <br />
-                    <input type="radio" name="jobtrainingtype" id="jobtrainingtype" value="MPIDistJob"  onclick="ShowMPIDistJob()"/> Distributed Training Job (MPI)    <br />
+                    <input type="radio" name="jobtrainingtype" id="jobtrainingtype" value="PSDistJob" onclick="ShowPSDistJob()" /> Distributed Training Job  <br />
                 </div>
 
                 <div class="form-group">
@@ -399,23 +381,15 @@
                     <input type="text" class="form-control" id="jobname" />
                 </div>
 
-                <div id="regularJob">
-                    <div class="form-group">
-                        <label>
-                            Number of GPUs to use
-                        </label>
-                        <input type="number" class="form-control" id="resourcegpu" value="1" />
-                    </div>
+                <div class="form-group">
+                    <label>
+                        Number of GPUs
+                    </label>
+                    <input type="number" class="form-control" id="resourcegpu" value="1" />
                 </div>
 
 
                 <div id="PSDistJob" hidden>
-                    <div class="form-group">
-                        <label>
-                            Number of GPUs per worker
-                        </label>
-                        <input type="number" class="form-control" id="resourcegpu" value="1" />
-                    </div>
                     <div class="form-group">
                         <label>
                             Number of Parameter Servers
@@ -430,20 +404,6 @@
                     </div>
                 </div>
 
-                <div id="MPIDistJob" hidden>
-                    <div class="form-group">
-                        <label>
-                            Number of GPUs per worker
-                        </label>
-                        <input type="number" class="form-control" id="resourcegpu" value="1" />
-                    </div>
-                    <div class="form-group">
-                        <label>
-                            Number of Workers
-                        </label>
-                        <input type="number" class="form-control" id="nummpiworker" value="1" />
-                    </div>
-                </div>
 
                 <div class="form-group">
                     <label>
