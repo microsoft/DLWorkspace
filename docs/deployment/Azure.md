@@ -8,7 +8,7 @@ This document describes the procedure to deploy DL workspace cluster on Azure. W
 
 2. Create Azure VM in the desired region with a Ubuntu image. 
 
-  Please create a network security group that allow all inbound traffic, and then assign the VM to the network security group. For more information, please refer to [this]. (When the DL Workspace stablize, we may create a list of the specific ports that needed to be opened). 
+  Please create a network security group that allow all inbound traffic, and then assign the VM to the network security group. For more information, please refer to [this](https://docs.microsoft.com/en-us/azure/virtual-network/virtual-networks-nsg). (When the DL Workspace stablize, we may create a list of the specific ports that needed to be opened). 
 
   It is highly recommended that you create the VM following the exact options below:
 
