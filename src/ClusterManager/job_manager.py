@@ -6,6 +6,8 @@ import uuid
 import subprocess
 import sys
 import datetime
+import copy
+
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
@@ -224,42 +226,45 @@ def SubmitPSDistJob(job):
 		distJobParams = {}
 		distJobParams["ps"] = []
 		distJobParams["worker"] = []
+		assignedRack = None
+		if len(config["racks"]) > 0:
+			assignedRack = random.choice(config["racks"])
 		if jobParams["jobtrainingtype"] == "PSDistJob":
 			jobDescriptionList = []
 			nums = {"ps":int(jobParams["numps"]),"worker":int(jobParams["numpsworker"])}
 			for role in ["ps","worker"]:
 				for i in range(nums[role]):
-					distJobParam={}
-					jobParams["distId"] = "%s%d" % (role,i)
-					jobParams["distRole"] = role
+					distJobParam=copy.copy(jobParams)
+					distJobParam["distId"] = "%s%d" % (role,i)
+					distJobParam["distRole"] = role
 
-					if "jobPath" not in jobParams or len(jobParams["jobPath"].strip()) == 0: 
-						dataHandler.SetJobError(jobParams["jobId"],"ERROR: job-path does not exist")
+					if "jobPath" not in distJobParam or len(distJobParam["jobPath"].strip()) == 0: 
+						dataHandler.SetJobError(distJobParam["jobId"],"ERROR: job-path does not exist")
 						return False
 
-					jobParams["distJobPath"] = os.path.join(jobParams["jobPath"],jobParams["distId"])
+					distJobParam["distJobPath"] = os.path.join(distJobParam["jobPath"],distJobParam["distId"])
 
-					if "workPath" not in jobParams or len(jobParams["workPath"].strip()) == 0: 
-						dataHandler.SetJobError(jobParams["jobId"],"ERROR: work-path does not exist")
+					if "workPath" not in distJobParam or len(distJobParam["workPath"].strip()) == 0: 
+						dataHandler.SetJobError(distJobParam["jobId"],"ERROR: work-path does not exist")
 						return False
 
-					if "dataPath" not in jobParams or len(jobParams["dataPath"].strip()) == 0: 
-						dataHandler.SetJobError(jobParams["jobId"],"ERROR: data-path does not exist")
+					if "dataPath" not in distJobParam or len(distJobParam["dataPath"].strip()) == 0: 
+						dataHandler.SetJobError(distJobParam["jobId"],"ERROR: data-path does not exist")
 						return False
 
-					jobPath,workPath,dataPath = GetStoragePath(jobParams["distJobPath"],jobParams["workPath"],jobParams["dataPath"])
+					jobPath,workPath,dataPath = GetStoragePath(distJobParam["distJobPath"],distJobParam["workPath"],distJobParam["dataPath"])
 
 					localJobPath = os.path.join(config["storage-mount-path"],jobPath)
 					if not os.path.exists(localJobPath):
-						if "userId" in jobParams:
-							mkdirsAsUser(localJobPath,jobParams["userId"])
+						if "userId" in distJobParam:
+							mkdirsAsUser(localJobPath,distJobParam["userId"])
 						else:
 							mkdirsAsUser(localJobPath,0)
 
 
-					jobParams["LaunchCMD"] = ""
-					if "cmd" not in jobParams:
-						jobParams["cmd"] = ""
+					distJobParam["LaunchCMD"] = ""
+					if "cmd" not in distJobParam:
+						distJobParam["cmd"] = ""
 
 ################One choice is that we only wait for certain time.			
 #					launchCMD = """
@@ -297,38 +302,48 @@ chmod +x /opt/run_dist_job.sh
 /opt/run_dist_job.sh
 """
 
-					launchScriptPath = os.path.join(localJobPath,"launch-%s.sh" % jobParams["jobId"])
+					launchScriptPath = os.path.join(localJobPath,"launch-%s.sh" % distJobParam["jobId"])
 					with open(launchScriptPath, 'w') as f:
 						f.write(launchCMD)
 					f.close()		
-					jobParams["LaunchCMD"] = "[\"bash\", \"/job/launch-%s.sh\"]" % jobParams["jobId"]
+					distJobParam["LaunchCMD"] = "[\"bash\", \"/job/launch-%s.sh\"]" % distJobParam["jobId"]
 
 
 
-					jobParams["jobNameLabel"] = ''.join(e for e in jobParams["jobName"] if e.isalnum())
+					distJobParam["jobNameLabel"] = ''.join(e for e in distJobParam["jobName"] if e.isalnum())
 
 					ENV = Environment(loader=FileSystemLoader("/"))
 
 					jobTempDir = os.path.join(config["root-path"],"Jobs_Templete")
 					jobTemp = os.path.join(jobTempDir, "DistJob.yaml.template")
 
-					jobParams["hostjobPath"] = os.path.join(config["storage-mount-path"], jobPath)
-					jobParams["hostworkPath"] = os.path.join(config["storage-mount-path"], workPath)
-					jobParams["hostdataPath"] = os.path.join(config["storage-mount-path"], dataPath)
-					jobParams["nvidiaDriverPath"] = nvidiaDriverPath
+					distJobParam["hostjobPath"] = os.path.join(config["storage-mount-path"], jobPath)
+					distJobParam["hostworkPath"] = os.path.join(config["storage-mount-path"], workPath)
+					distJobParam["hostdataPath"] = os.path.join(config["storage-mount-path"], dataPath)
+					distJobParam["nvidiaDriverPath"] = nvidiaDriverPath
+
+					if "mountPoints" not in distJobParam:
+						distJobParam["mountPoints"] = []
+
+					distJobParam["mountPoints"].append({"name":"nvidia-driver","containerPath":"/usr/local/nvidia","hostPath":nvidiaDriverPath})
+					distJobParam["mountPoints"].append({"name":"job","containerPath":"/job","hostPath":distJobParam["hostjobPath"]})
+					distJobParam["mountPoints"].append({"name":"work","containerPath":"/work","hostPath":distJobParam["hostworkPath"]})
+					distJobParam["mountPoints"].append({"name":"data","containerPath":"/data","hostPath":distJobParam["hostdataPath"]})
+
 
 					random.seed(datetime.datetime.now())
-					jobParams["containerPort"] = int(random.random()*1000+3000)
+					distJobParam["containerPort"] = int(random.random()*1000+3000)
+
+					if assignedRack is not None:
+						if "nodeSelector" not in distJobParam:
+							distJobParam["nodeSelector"] = {}
+						distJobParam["nodeSelector"]["rack"] = assignedRack
 
 					template = ENV.get_template(os.path.abspath(jobTemp))
-					job_description = template.render(job=jobParams)
+					job_description = template.render(job=distJobParam)
 
 					jobDescriptionList.append(job_description)
 
-					distJobParam["distId"] =jobParams["distId"] 
-					distJobParam["distRole"] =jobParams["distRole"] 
-					distJobParam["distJobPath"] = jobParams["distJobPath"]
-					distJobParam["containerPort"] = jobParams["containerPort"]
 					distJobParams[role].append(distJobParam)
 
 			jobParams["jobDescriptionPath"] = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"] + ".yaml"

@@ -1,34 +1,31 @@
 apiVersion: v1
 kind: Pod
-
 metadata:
-    name: {{ job["jobId"] }}-{{ job["distId"] }}
-    labels: 
-        run: {{ job["jobId"] }}
-        jobName: {{ job["jobNameLabel"] }}
-        distRole: {{ job["distRole"] }}
-        distPort: "{{job["containerPort"]}}"
+  name: {{ job["jobId"] }}-{{ job["distId"] }}
+  labels: 
+    run: {{ job["jobId"] }}
+    jobName: {{ job["jobNameLabel"] }}
+    distRole: {{ job["distRole"] }}
+    distPort: "{{job["containerPort"]}}"
 spec:
-    hostNetwork: true
-
-	{% if job["nodeSelector"]|length > 0 %}
-	nodeSelector:
-	{% for key, value in job["nodeSelector"].items() %}
-	{{key}}: {{value}}
-	{% endfor %}
-	{% endif %}
-
-    containers:
-    - name: {{ job["jobId"] }}
+  hostNetwork: true
+  {% if job["nodeSelector"]|length > 0 %}
+  nodeSelector:
+  {% for key, value in job["nodeSelector"].items() %}
+    {{key}}: {{value}}
+  {% endfor %}
+  {% endif %}
+  containers:
+  - name: {{ job["jobId"] }}
     image: {{ job["image"] }}
     command: {{ job["LaunchCMD"] }}
     #container port and host port should be same.
     ports:
     - containerPort: {{job["containerPort"]}}
-        hostPort: {{job["containerPort"]}}      
+      hostPort: {{job["containerPort"]}}      
     {% if job["distRole"] =="worker" %}  
     resources:
-        limits:
+      limits:
         alpha.kubernetes.io/nvidia-gpu: {{ job["resourcegpu"] }}
     {% endif %}
     volumeMounts:
@@ -37,10 +34,10 @@ spec:
       name: {{ mp.name }}
     {% endfor %}
 
-    restartPolicy: Never
-    volumes:
-    {% for mp in job["mountPoints"] %}
-    - name: {{ mp.name }}
-      hostPath:
-        path: {{ mp.hostPath }}
-    {% endfor %}
+  restartPolicy: Never
+  volumes:
+  {% for mp in job["mountPoints"] %}
+  - name: {{ mp.name }}
+    hostPath:
+      path: {{ mp.hostPath }}
+  {% endfor %}
