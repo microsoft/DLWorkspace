@@ -1370,18 +1370,26 @@ def get_partions_of_node(node, prog):
 		print output
 	# print output
 	drives = prog.search( output )
-	# print(drives.group())
+	# print(drives)
 	drivesInfo = prog.split( output )
 	# print len(drivesInfo)
 	ndrives = len(drivesInfo)/2
+	#for i in range(len(drivesInfo)):
+	#	print "Segment %d: %s" %(i, drivesInfo[i])
+
 	partinfo = {}
 	blockdevice = 1
 	for i in range(ndrives):
 		deviceinfo = {}
-		drivename = drivesInfo[i*2+1]
-		driveString = drivesInfo[i*2+2]
-		#print drivename
-		#print driveString
+		pos_semi = drivesInfo[i*2+2].find(":")
+		if pos_semi < 0:
+			continue;
+		pos_model = drivesInfo[i*2].rfind("Model:")
+		modelName = drivesInfo[i*2][pos_model+7:].splitlines()[0] if pos_model >=0 else "None"
+		drivename = drivesInfo[i*2+1] + drivesInfo[i*2+2][:pos_semi]
+		driveString = drivesInfo[i*2+2][pos_semi+1:]
+		#print "Drive Name: " + drivename
+		#print "Drive String: " + driveString
 		if not (prog.match(drivename) is None):
 			# print driveString
 			capacity = parse_capacity_in_GB( driveString )
@@ -1411,6 +1419,7 @@ def get_partions_of_node(node, prog):
 				parted[0] = capacity
 			
 			# print drivename + " Capacity: " + str(capacity) + " GB, " + str(parted)
+			deviceinfo["modelName"] = modelName
 			deviceinfo["name"] = drivename
 			deviceinfo["capacity"] = capacity
 			deviceinfo["parted"] = parted
@@ -1437,7 +1446,7 @@ def show_partitions(nodes, regexp):
 		alldeviceinfo = nodesinfo[node]
 		for bdevice in alldeviceinfo:
 			deviceinfo = alldeviceinfo[bdevice] 
-			print deviceinfo["name"] + ", Capacity: " + str(deviceinfo["capacity"]) + "GB" + ", Partition: " + str(deviceinfo["parted"])
+			print deviceinfo["name"] + ", "+ deviceinfo["modelName"] + ", Capacity: " + str(deviceinfo["capacity"]) + "GB" + ", Partition: " + str(deviceinfo["parted"])
 	return nodesinfo
 	
 # Calculate out a partition configuration in GB as follows. 
