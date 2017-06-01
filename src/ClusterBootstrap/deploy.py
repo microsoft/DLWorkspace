@@ -1292,13 +1292,20 @@ def mount_fileshares(perform_mount=True):
 	fstab = fstabmask
 	for k,v in config["mountpoints"].iteritems():
 		if "type" in v:
+			physicalmountpoint = config["physical-mount-path"] 
+			storagemountpoint = config["storage-mount-path"]
+			if ("mountpoints" in v) and len(v["mountpoints"])>0:
+				physicalmountpoint = os.path.join( physicalmountpoint, v["mountpoints"] )
+				storagemountpoint = os.path.join( storagemountpoint, v["mountpoints"])
 			bMount = False
 			if v["type"] == "azurefileshare":
 				if "accountname" in v and "filesharename" in v and "mountpoints" in v and "accesskey" in v:
 					mountpoints[k] = copy.deepcopy( v )
 					bMount = True
+					# URL will be searched and unmounted
 					mountpoints[k]["url"] = "//" + mountpoints[k]["accountname"] + ".file.core.windows.net/"+mountpoints[k]["filesharename"]
 					fstab += "%s %s cifs vers=3.0,username=%s,password=%s,dir_mode=0777,file_mode=0777,serverino\n" % (mountpoints[k]["url"], physicalmountpoint, v["accountname"], v["accesskey"])
+					mountpoints[k]["umount"]  = mountpoints[k]["url"] 
 				else:
 					print "Error: fileshare %s, type %s, miss one of the parameter accountname, filesharename, mountpoints, accesskey" %(k, v["type"])
 			elif v["type"] == "glusterfs":
@@ -1307,29 +1314,37 @@ def mount_fileshares(perform_mount=True):
 					bMount = True
 					glusterfs_nodes = get_node_lists_for_service("glusterfs")
 					mountpoints[k]["node"] = glusterfs_nodes[0]
-					fstab += "%s:/%s %s glusterfs defaults,_netdev 0 0" % (glusterfs_nodes[0], v["filesharename"], v["mountpoints"])
+					fstab += "%s:/%s %s glusterfs defaults,_netdev 0 0\n" % (glusterfs_nodes[0], v["filesharename"], physicalmountpoint)
+					# URL will be searched and unmounted
+					mountpoints[k]["umount"] = "%s:%s" %( glusterfs_nodes[0], v["filesharename"])
 			else:
 				print "Error: Unknown fileshare %s with type %s" %( k, v["type"])
 			if bMount:
-					physicalmountpoint = config["physical-mount-path"] 
-					storagemountpoint = config["storage-mount-path"]
-					if len(v["mountpoints"])>0:
-						physicalmountpoint = os.path.join( physicalmountpoint, v["mountpoints"] )
-						storagemountpoint = os.path.join( storagemountpoint, v["mountpoints"])
-					mountpoints[k]["physicalmountpoint"] = physicalmountpoint
-					mountpoints[k]["storagemountpoint"] = storagemountpoint
+				mountpoints[k]["physicalmountpoint"] = physicalmountpoint
+				mountpoints[k]["storagemountpoint"] = storagemountpoint
 		else:
 			print "Error: fileshare %s with no type" %( k )
 	# print fstab
 	if perform_mount:
 		nodes = all_nodes
 		for node in nodes:
-			remotecmd = "sudo rm -rf %s; " % config["storage-mount-path"]
-			remotecmd += "sudo rm -rf %s; " % config["physical-mount-path"]
+			remotecmd = ""
+			# remotecmd = "sudo rm -rf %s; " % config["storage-mount-path"]
+			# remotecmd += "sudo rm -rf %s; " % config["physical-mount-path"]
 			if len(mountpoints) > 1:
 				remotecmd += "sudo mkdir -p %s; " % config["storage-mount-path"]
 			filesharetype = {}
 			for k,v in mountpoints.iteritems():
+				if "umount" in v:
+					output = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "sudo mount | grep %s" % v["umount"])
+					umounts = []
+					for line in output.splitlines():
+						words = line.split()
+						if len(words)>3 and words[1]=="on":
+							umounts.append( words[2] )
+					umounts.sort()
+					for um in u::
+						remotecmd += "sudo umount %s; " % um
 				if v["type"] == "azurefileshare":
 					if not ("azurefileshare" in filesharetype):
 						filesharetype["azurefileshare"] = True
