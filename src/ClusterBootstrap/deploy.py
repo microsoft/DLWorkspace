@@ -1343,7 +1343,7 @@ def mount_fileshares(perform_mount=True):
 						if len(words)>3 and words[1]=="on":
 							umounts.append( words[2] )
 					umounts.sort()
-					for um in u::
+					for um in u:
 						remotecmd += "sudo umount %s; " % um
 				if v["type"] == "azurefileshare":
 					if not ("azurefileshare" in filesharetype):
