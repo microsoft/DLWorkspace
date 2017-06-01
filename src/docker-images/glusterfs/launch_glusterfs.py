@@ -119,9 +119,13 @@ def start_glusterfs( command, inp, logdir = '/var/log/glusterfs/launch' ):
 	for volume, volume_config in gluster_volumes.iteritems():
 		if volume_config["tolerance"] < min_tolerance:
 			min_tolerance = volume_config["tolerance"]
-			
+
+	bRun = ( command =="start" or command=="format" or command=="run")
+	bStart = ( command =="start" or command=="format" )
+	bFormat = ( command=="format" )
+
 	# during start, 
-	if command == "start" and isFirst:
+	if bRun and isFirst:
 		connected_nodes = {} 
 		retries = 1000
 		while len(connected_nodes)<len(othernodes) and retries >0:
@@ -146,8 +150,10 @@ def start_glusterfs( command, inp, logdir = '/var/log/glusterfs/launch' ):
 		logging.debug( "Number of nodes alive is %d, %s ..." % (livenodes, str(peers)) )
 		if livenodes < len(othernodes) - min_tolerance:
 			time.sleep(1)
+
 	
-	if command == "start" and isFirst:
+	
+	if bStart and isFirst:
 		for volume, volume_config in gluster_volumes.iteritems():
 			multiple = volume_config["multiple"]
 			numnodes = len(othernodes) + 1
@@ -159,6 +165,11 @@ def start_glusterfs( command, inp, logdir = '/var/log/glusterfs/launch' ):
 			# logging.debug( "Volume %s, multiple is %d, # of nodes = %d, make %d volumes ..." % (volume, multiple, numnodes, subvolumes) )
 			# for sub in range(1, subvolumes + 1 ):
 			#	run_command( "mkdir -p " + os.path.join( localvolumename, volume ) + str(sub) )
+			if bFormat:
+				cmd = "gluster --mode=script volume stop %s force; " % volume
+				run_command( cmd )
+				cmd = "gluster --mode=script volume delete %s; " % volume
+				run_command( cmd )
 			cmd = "gluster volume create %s " % volume
 			volumeinfo = gluster_volumes[volume]
 			# replication property 
@@ -181,7 +192,7 @@ def start_glusterfs( command, inp, logdir = '/var/log/glusterfs/launch' ):
 		# Create a warning file to guard against people writing directly in glusterFS mount
 		open( os.path.join( glusterfs_mountpoint, filename ), 'a' ).close()
 		
-	if command == "start" or command == "run":
+	if bRun:
 		glusterfs_mountpoint = config["glusterfs_mountpoint"]
 		for volume in gluster_volumes:
 			volume_mount = os.path.join( glusterfs_mountpoint, volume ) 
