@@ -98,6 +98,7 @@ default_config_parameters = {
 	"glusterFS" : { "dataalignment": "1280K", 
 					"physicalextentsize": "128K", 
 					"volumegroup": "gfs_vg", 
+					# metasize is total_capacity / physicalextentsize * 64
 					"metasize": "16776960K", 
 					# Volume needs to leave room for metadata and thinpool provisioning, 98%FREE is doable for a 1TB drive.
 					"volumesize": "98%FREE",
@@ -137,6 +138,9 @@ default_config_parameters = {
 						}, 
 					# These parameters are required for every glusterfs volumes
 					"gluster_volumes_required_param": ["property", "transport", "tolerance", "multiple" ], 
+					# To use glusterFS, you will configure the partitions parameter
+					# partitions: /dev/sd[^a]
+					# which is a regular expression calls out all partition that will be deployed with glusterfs
 					}, 
 	# Options to run in glusterfs
 	"launch-glusterfs-opt": "run", 
@@ -1282,15 +1286,31 @@ def deploy_webUI_on_node(ipAddress):
 	print "Web UI is running at: http://%s:%s" % (webUIIP,str(config["webuiport"]))
 
 def mount_fileshares(perform_mount=True):
+	all_nodes = get_nodes(config["clusterId"])
 	mountpoints = { }
 	fstabmask = "##############DLWSMOUNT#################\n"
 	fstab = fstabmask
 	for k,v in config["mountpoints"].iteritems():
 		if "type" in v:
+			bMount = False
 			if v["type"] == "azurefileshare":
 				if "accountname" in v and "filesharename" in v and "mountpoints" in v and "accesskey" in v:
 					mountpoints[k] = copy.deepcopy( v )
+					bMount = True
 					mountpoints[k]["url"] = "//" + mountpoints[k]["accountname"] + ".file.core.windows.net/"+mountpoints[k]["filesharename"]
+					fstab += "%s %s cifs vers=3.0,username=%s,password=%s,dir_mode=0777,file_mode=0777,serverino\n" % (mountpoints[k]["url"], physicalmountpoint, v["accountname"], v["accesskey"])
+				else:
+					print "Error: fileshare %s, type %s, miss one of the parameter accountname, filesharename, mountpoints, accesskey" %(k, v["type"])
+			elif v["type"] == "glusterfs":
+				if "filesharename" in v and "mountpoints" in v:
+					mountpoints[k] = copy.deepcopy( v )
+					bMount = True
+					glusterfs_nodes = get_node_lists_for_service("glusterfs")
+					mountpoints[k]["node"] = glusterfs_nodes[0]
+					fstab += "%s:/%s %s glusterfs defaults,_netdev 0 0" % (glusterfs_nodes[0], v["filesharename"], v["mountpoints"])
+			else:
+				print "Error: Unknown fileshare %s with type %s" %( k, v["type"])
+			if bMount:
 					physicalmountpoint = config["physical-mount-path"] 
 					storagemountpoint = config["storage-mount-path"]
 					if len(v["mountpoints"])>0:
@@ -1298,16 +1318,11 @@ def mount_fileshares(perform_mount=True):
 						storagemountpoint = os.path.join( storagemountpoint, v["mountpoints"])
 					mountpoints[k]["physicalmountpoint"] = physicalmountpoint
 					mountpoints[k]["storagemountpoint"] = storagemountpoint
-					fstab += "%s %s cifs vers=3.0,username=%s,password=%s,dir_mode=0777,file_mode=0777,serverino\n" % (mountpoints[k]["url"], physicalmountpoint, v["accountname"], v["accesskey"])
-				else:
-					print "Error: fileshare %s, type %s, miss one of the parameter accountname, filesharename, mountpoints, accesskey" %(k, v["type"])
-			else:
-				print "Error: Unknown fileshare %s with type %s" %( k, v["type"])
 		else:
 			print "Error: fileshare %s with no type" %( k )
 	# print fstab
 	if perform_mount:
-		nodes = get_nodes(config["clusterId"])
+		nodes = all_nodes
 		for node in nodes:
 			remotecmd = "sudo rm -rf %s; " % config["storage-mount-path"]
 			remotecmd += "sudo rm -rf %s; " % config["physical-mount-path"]
@@ -1324,6 +1339,15 @@ def mount_fileshares(perform_mount=True):
 					remotecmd += "sudo mkdir -p %s; " % physicalmountpoint
 					remotecmd += "sudo mount -t cifs %s %s -o vers=3.0,username=%s,password=%s,dir_mode=0777,file_mode=0777,serverino; " % (v["url"], physicalmountpoint, v["accountname"], v["accesskey"] )
 					remotecmd += "sudo ln -s %s %s; " % (physicalmountpoint, storagemountpoint)
+				elif v["type"] == "glusterfs":
+					if not ("glusterfs" in filesharetype):
+						filesharetype["glusterfs"] = True
+						remotecmd += "sudo apt-get install -y glusterfs-client; "
+					physicalmountpoint = v["physicalmountpoint"] 
+					storagemountpoint = v["storagemountpoint"]
+					remotecmd += "sudo mkdir -p %s; " % physicalmountpoint
+					remotecmd += "sudo mount -t glusterfs %s:%s %s; " % (v["node"], v["filesharename"], physicalmountpoint )
+					remotecmd += "sudo ln -s %s %s; " % (physicalmountpoint, storagemountpoint)					
 			utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)
 			# Read in configuration of fstab
 			fstabcontent = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "cat /etc/fstab")
@@ -1631,6 +1655,7 @@ def create_glusterFS_volume( nodesinfo, glusterFSargs ):
 		print "................. Node %s ................." % node
 		remotecmd = "";
 		remotecmd += "sudo modprobe dm_thin_pool; "
+		remotecmd += "sudo apt-get install -y thin-provisioning-tools; "
 		capacityGB = 0.0
 		for volume in volumes:
 			remotecmd += "sudo pvcreate -f "  
@@ -1719,8 +1744,7 @@ def remove_glusterFS_volume( nodesinfo, glusterFSargs ):
 		utils.SSH_exec_cmd( config["ssh_cert"], "core", node, remotecmd )		
 
 def display_glusterFS_volume( nodesinfo, glusterFSargs ):
-	regmatch = regmatch_glusterFS(glusterFSargs)
-	for node in nodes:
+	for node in nodesinfo:
 		print "................. Node %s ................." % node
 		remotecmd = "sudo pvdisplay; sudo vgdisplay; sudo lvdisplay"
 		utils.SSH_exec_cmd( config["ssh_cert"], "core", node, remotecmd )
@@ -1914,16 +1938,25 @@ def get_all_services():
 				yamls = glob.glob("*.yaml")
 				yamlname = yamls[0]
 			with open( yamlname ) as f:
-				service_config = yaml.load(f)
+				try:
+					service_config = yaml.load(f)
+				except:
+					if verbose:
+						print "Failed to open service file %s" %yamlname	
+					pass				
 				f.close()
 				if "kind" in service_config and service_config["kind"]=="DaemonSet":
 					# Only add service if it is a daemonset. 
 					servicedic[service] = yamlname
+				
 	return servicedic
 	
 def get_service_name(service_config_file):
 	f = open(service_config_file)
-	service_config = yaml.load(f)
+	try:
+		service_config = yaml.load(f)
+	except:
+		return None
 	f.close()
 	# print service_config
 	name = fetch_dictionary(service_config, ["metadata","name"])
@@ -1948,6 +1981,33 @@ def get_service_yaml( use_service ):
 			
 def kubernetes_label_node(cmdoptions, nodename, label):
 	run_kubectl(["label nodes %s %s %s" % (cmdoptions, nodename, label)])
+
+# Get the list of nodes for a particular service
+# 
+def get_node_lists_for_service(service):
+		labels = fetch_config(["kubelabels"])
+		nodetype = labels[service] if service in labels else labels["default"]
+		if nodetype == "worker_node":
+			nodes = config["worker_node"]
+		elif nodetype == "etcd_node":
+			nodes = config["etcd_node"]
+		elif nodetype.find( "etcd_node_" )>=0:
+			nodenumber = int(nodetype[nodetype.find( "etcd_node_" )+len("etcd_node_"):])
+			nodes = [ config["etcd_node"][nodenumber-1] ]
+		elif nodetype == "all":
+			nodes = config["worker_node"] + config["etcd_node"]
+		else:
+			machines = fetch_config(["machines"])
+			if machines is None:
+				print "Service %s has a nodes type %s, but there is no machine configuration to identify node" % (service, nodetype)
+				exit(-1)
+			allnodes = config["worker_node"] + config["etcd_node"]
+			nodes = []
+			for node in allnodes:
+				nodename = kubernetes_get_node_name(node)
+				if nodename in machines and nodetype in machines[nodename]:
+					nodes.append(node)
+		return nodes
 
 # Label kubernete nodes according to a service. 
 # A service (usually a Kubernete daemon service) can request to be run on:
@@ -1977,21 +2037,9 @@ def kubernetes_label_nodes( verb, servicelists, force ):
 				labels[service] = labels["default"]
 	#print servicelists
 	for label in servicelists:
-		nodetype = labels[label]
-		if nodetype == "worker_node":
-			nodes = config["worker_node"]
-		elif nodetype == "etcd_node":
-			nodes = config["etcd_node"]
-		elif nodetype.find( "etcd_node_" )>=0:
-			nodenumber = int(nodetype[nodetype.find( "etcd_node_" )+len("etcd_node_"):])
-			nodes = [ config["etcd_node"][nodenumber-1] ]
-		elif nodetype == "all":
-			nodes = config["worker_node"] + config["etcd_node"]
-		else:
-			print "Unknown nodes type %s in kubelabels in configuration file." % nodetype
-			exit(-1)
+		nodes = get_node_lists_for_service(label)
 		if verbose: 
-			print "kubernetes: apply label %s to %s, nodes: %s" %(label, nodetype, nodes)
+			print "kubernetes: apply action %s to label %s to nodes: %s" %(verb, label, nodes)
 		if force:
 			cmdoptions = "--overwrite"
 		else:
@@ -2294,15 +2342,15 @@ def run_command( args, command, nargs, parser ):
 			exit()
 			
 	elif command == "glusterfs" and len(nargs) >= 1:
-		# nodes = get_nodes(config["clusterId"])
+		allnodes = get_nodes(config["clusterId"])
 		# ToDo: change pending, schedule glusterFS on master & ETCD nodes, 
-		nodes = get_worker_nodes(config["clusterId"])	
+		nodes = get_node_lists_for_service("glusterfs")
 		glusterFSargs = fetch_config( ["glusterFS", "partitions"] )
 		if nargs[0] == "display":
 			display_glusterFS_volume( nodes, glusterFSargs )
 			exit()
 				
-		nodesinfo = get_partitions(nodes, config["data-disk"] )
+		nodesinfo = get_partitions(nodes, glusterFSargs )
 		if glusterFSargs is None:
 			parser.print_help()
 			print "Need to configure partitions which glusterFS will deploy..."
@@ -2445,7 +2493,7 @@ def run_command( args, command, nargs, parser ):
 				exit()
 		else:
 			parser.print_help()
-			print "Error: etcd need a subcommand."
+			print "Error: download need a subcommand."
 			exit()
 	
 	elif command == "etcd":
