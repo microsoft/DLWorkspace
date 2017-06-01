@@ -82,11 +82,12 @@ This document describes the procedure to deploy DL workspace cluster on Azure. W
   ./deploy.py -y updateworker
   ```
 
-  4. Build and deploy jobmanager, restfulapi, and webportal. 
+  4. Build and deploy jobmanager, restfulapi, and webportal. Mount storage.
   ```
   ./deploy.py docker push restfulapi
   ./deploy.py docker push webui
   ./deploy.py webui
+  ./deploy.py mount
   ./deploy.py kubernetes start jobmanager
   ./deploy.py kubernetes start restfulapi
   ./deploy.py kubernetes start webportal
