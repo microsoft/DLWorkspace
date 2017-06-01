@@ -432,7 +432,12 @@
                     <label>
                         Docker Image
                     </label>
-                    <input type="text" class="form-control" id="image" />
+                    <input list="imagelist" class="form-control" name="image">
+                    <datalist  id="imagelist">
+                        <option value="mlcloudreg.westus.cloudapp.azure.com:5000/philly/agi-tf-0.12.1-src-ubuntu-16.04:latest">
+                        <option value="mlcloudreg.westus.cloudapp.azure.com:5000/philly/agi-tf-1.1.0-src-ubuntu-16.04:latest">
+                        <option value="mlcloudreg.westus.cloudapp.azure.com:5000/philly/agi-tf-pytorch-0.12.1-src-ubuntu-16.04:latest">
+                    </datalist>
                 </div>
 
                 <div class="form-group">
