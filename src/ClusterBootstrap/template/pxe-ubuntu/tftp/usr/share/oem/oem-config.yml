@@ -1,0 +1,24 @@
+#cloud-config
+
+# Enables Coreos to read from the USB VFAT partition and
+# looking for the configuration file "cloud-config.yml"
+# You should not modify this file, it is part of the project!
+
+coreos:
+  units:
+    - name: dlws-install.service
+      command: start
+      content: |
+        [Unit]
+        Description=Load cloud-config from the USB
+        Requires=coreos-setup-environment.service
+        After=coreos-setup-environment.service
+        Before=user-config.target
+        ConditionFileNotEmpty=/usr/share/oem/_===CONFIG===_
+
+        [Service]
+        Type=oneshot
+        RemainAfterExit=yes
+        EnvironmentFile=-/etc/environment
+        ExecStart=/bin/bash /usr/share/oem/_===CONFIG===_
+
