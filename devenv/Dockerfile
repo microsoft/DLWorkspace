@@ -90,3 +90,5 @@ RUN go get github.com/tools/godep
 
 RUN chmod -R 0777 /opt/go
 
+RUN apt-get update -y; apt-get install -y sshpass
+

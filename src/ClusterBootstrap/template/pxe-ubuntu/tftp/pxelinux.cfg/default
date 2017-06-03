@@ -4,8 +4,8 @@ MENU BACKGROUND splash.png
 
 TIMEOUT 60
 PROMPT 60
-ONTIMEOUT bootlocal
-DEFAULT bootlocal
+ONTIMEOUT menu
+DEFAULT menu
 
 MENU WIDTH      78
 MENU MARGIN         4
@@ -37,6 +37,12 @@ LABEL installubuntu
 #   ramdisk_size=16432 root=/dev/rd/0 rw -- \
 # live-installer/net-image=http://{{cnf["pxeserverip"]}}/ubuntu/16.04.2/install/filesystem.squashfs
 
+LABEL menu
+    MENU Additional Menu options
+    KERNEL vesamenu.c32
+    TEXT HELP
+Additional menu options
+    ENDTEXT
 
 LABEL bootlocal
     MENU LABEL Boot first BIOS disk

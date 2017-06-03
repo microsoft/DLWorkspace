@@ -318,8 +318,6 @@ def raw_input_with_default(prompt):
 		return defanswer
 		
 
-
-
 def copy_to_ISO():
 	if not os.path.exists("./deploy/iso-creator"):
 		os.system("mkdir -p ./deploy/iso-creator")
@@ -1312,6 +1310,16 @@ def deploy_webUI_on_node(ipAddress):
 	print "==============================================="
 	print "Web UI is running at: http://%s:%s" % (webUIIP,str(config["webuiport"]))
 
+# Install ssh key remotely
+def install_ssh_key():
+	all_nodes = get_nodes(config["clusterId"])
+	with open("./deploy/sshkey/rootpasswd", "r") as f:
+		rootpasswd = f.read()
+		f.close()
+
+	for node in all_nodes:
+		os.system("sshpass -p %s ssh-copy-id -o StrictHostKeyChecking=no -i ./deploy/sshkey/id_rsa.pub core@%s" %(rootpasswd, node))
+
 def mount_fileshares(perform_mount=True):
 	all_nodes = get_nodes(config["clusterId"])
 	mountpoints = { }
@@ -2296,6 +2304,15 @@ def run_command( args, command, nargs, parser ):
 			parser.print_help()
 			print "Error: build target %s is not recognized. " % nargs[0] 
 			exit()
+
+	elif command == "sshkey":
+		if len(nargs) >=1 and nargs[0] == "install":
+			install_ssh_key()
+		else:
+			parser.print_help()
+			print "Error: build target %s is not recognized. " % nargs[0] 
+			exit()
+			
 	elif command == "updateworker":
 		response = raw_input_with_default("Deploy Worker Nodes (y/n)?")
 		if first_char(response) == "y":
@@ -2625,7 +2642,12 @@ Prerequest:
 Command:
   scriptblocks Execute a block of scripts. 
             azure
-  build     Build USB iso/pxe-server used by deployment.
+  build     [arg] Build deployment environment 
+  			arg="": should be executed first, generate keys for the cluster
+			arg=iso: build ISO image fore CoreOS deployment.
+			arg=pxe: build PXE server for CoreOS deployment
+			arg=pxe-ubuntu: build PXE server for Ubuntu deployment. 
+  sshkey    install: [Ubuntu] install sshkey to Ubuntu cluster. 
   production [nodes] Deploy a production cluster, with tasks of:
             set hostname, deploy etcd/master nodes, deploy worker nodes, uncordon master nodes. 
   deploy    Deploy DL workspace cluster.
