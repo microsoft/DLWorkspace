@@ -16,3 +16,5 @@ sudo apt-get install -y --no-install-recommends \
 
 sudo echo "dockerd > /dev/null 2>&1 &" | sudo cat >> /etc/bash.bashrc
 
+sudo apt-get install -y sshpass
+
