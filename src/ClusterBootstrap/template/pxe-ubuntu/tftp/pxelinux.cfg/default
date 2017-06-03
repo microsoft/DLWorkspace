@@ -1,17 +1,11 @@
 UI vesamenu.c32
 MENU TITLE DLWorkspace Cluster Deployment Boot Menu for Ubuntu
 MENU BACKGROUND splash.png
-<<<<<<< HEAD
+
 TIMEOUT 60
 PROMPT 60
 ONTIMEOUT bootlocal
 DEFAULT bootlocal
-=======
-TIMEOUT 600
-PROMPT 0
-ONTIMEOUT installubuntu
-DEFAULT installubuntu
->>>>>>> d84f5e97cf4bea338336b2af4dc66da6aa66a55f
 
 MENU WIDTH      78
 MENU MARGIN         4
