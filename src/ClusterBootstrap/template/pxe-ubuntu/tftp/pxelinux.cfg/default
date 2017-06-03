@@ -1,0 +1,44 @@
+UI vesamenu.c32
+MENU TITLE DLWorkspace Cluster Deployment Boot Menu for Ubuntu
+MENU BACKGROUND splash.png
+TIMEOUT 60
+PROMPT 60
+ONTIMEOUT bootlocal
+DEFAULT bootlocal
+
+MENU WIDTH      78
+MENU MARGIN         4
+MENU ROWS       8
+MENU VSHIFT         10
+MENU TABMSGROW      14
+MENU CMDLINEROW     14
+MENU HELPMSGROW     16
+MENU HELPMSGENDROW  29
+
+MENU COLOR border       30;44   #40ffffff #a0000000 std
+MENU COLOR title        1;36;44 #9033ccff #a0000000 std
+MENU COLOR sel          7;37;40 #e0ffffff #20ffffff all
+MENU COLOR unsel        37;44   #50ffffff #a0000000 std
+MENU COLOR help         37;40   #c0ffffff #a0000000 std
+MENU COLOR timeout_msg  37;40   #80ffffff #00000000 std
+MENU COLOR timeout      1;37;40 #c0ffffff #00000000 std
+MENU COLOR msg07        37;40   #90ffffff #a0000000 std
+MENU COLOR tabmsg       31;40   #30ffffff #00000000 std
+
+LABEL installubuntu
+    MENU LABEL Install generic Ubuntu 16.04
+    KERNEL linux
+    IPAPPEND 1
+    APPEND auto=true priority=critical vga=normal initrd=initrd.gz {{cnf["pxeoptions"]}} preseed/url=tftp://{{cnf["pxeserverip"]}}/preceed.cfg preseed/interactive=false     
+#    preseed/url/checksum=069d213cfc254867bf4ac558a4f87f37     
+#    preseed/url=http://{{cnf["pxeserverip"]}}/preseed/preceed.cfg \
+#   ramdisk_size=16432 root=/dev/rd/0 rw -- \
+# live-installer/net-image=http://{{cnf["pxeserverip"]}}/ubuntu/16.04.2/install/filesystem.squashfs
+
+LABEL bootlocal
+    MENU LABEL Boot first BIOS disk
+    KERNEL chain.c32
+    APPEND hd0 0
+    TEXT HELP
+Boot the operating system from the first bios disk.
+    ENDTEXT

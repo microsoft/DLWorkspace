@@ -139,6 +139,21 @@ def build_dockers(rootdir, dockerprefix, dockertag, nargs, verbose = False, noca
 	docker_list = get_docker_list(rootdir, dockerprefix, dockertag, nargs, verbose )
 	for dockername, tuple in docker_list.iteritems():
 		build_docker(dockername, tuple[1], verbose, nocache = nocache )
+
+def build_one_docker(dirname, dockerprefix, dockertag, basename, verbose = False, nocache = False):
+	dockername = dockerprefix + basename + ":" + dockertag
+	return build_docker( dockername, dirname, verbose = verbose, nocache = nocache)
+
+def push_one_docker(dirname, dockerprefix, tag, basename, config, verbose = False, nocache = False ):
+	infra_dockers = config["infrastructure-dockers"] if "infrastructure-dockers" in config else {}
+	infra_docker_registry = config["infrastructure-dockerregistry"] if "infrastructure-dockerregistry" in config else config["dockerregistry"]
+	worker_docker_registry = config["worker-dockerregistry"] if "worker-dockerregistry" in config else config["dockerregistry"]
+	dockername = build_one_docker( dirname, dockerprefix, tag, basename, verbose = verbose, nocache = nocache )
+	if basename in infra_dockers:
+		push_docker( dockername, infra_docker_registry, verbose )
+	else:
+		push_docker( dockername, worker_docker_registry, verbose )	
+	return dockername
 				
 def push_dockers(rootdir, dockerprefix, dockertag, nargs, config, verbose = False, nocache = False ):
 	infra_dockers = config["infrastructure-dockers"] if "infrastructure-dockers" in config else {}

@@ -22,6 +22,7 @@ from os.path import expanduser
 import yaml
 from jinja2 import Environment, FileSystemLoader, Template
 import base64
+import tempfile
 
 from shutil import copyfile, copytree
 import urllib
@@ -31,7 +32,7 @@ from GlusterFSUtils import GlusterFSJson
 sys.path.append("../utils")
 
 import utils
-from DockerUtils import build_dockers, push_dockers, run_docker, find_dockers, build_docker_fullname, copy_from_docker_image
+from DockerUtils import push_one_docker, build_dockers, push_dockers, run_docker, find_dockers, build_docker_fullname, copy_from_docker_image
 
 sys.path.append("../docker-images/glusterfs")
 import launch_glusterfs
@@ -65,7 +66,7 @@ default_config_parameters = {
 	# There are two docker registries, one for infrastructure (used for pre-deployment)
 	# and one for worker docker (pontentially in cluser)
 	# A set of infrastructure-dockers 
-	"infrastructure-dockers" : {}, 
+	"infrastructure-dockers" : {"pxe": True, "pxe-ubuntu": True, }, 
 	"dockerprefix" : "",
 	"dockertag" : "latest",
 	"etcd3port1" : "2379", # Etcd3port1 will be used by App to call Etcd 
@@ -93,7 +94,7 @@ default_config_parameters = {
 	# The following file will be copied (not rendered for configuration)
 	"render-exclude" : {"GlusterFSUtils.pyc": True, "launch_glusterfs.pyc": True, },
 	"render-by-copy-ext" : { ".png": True, },
-	"render-by-copy": { "gk-deploy":True, },
+	"render-by-copy": { "gk-deploy":True, "pxelinux.0": True, },
 	# glusterFS parameter
 	"glusterFS" : { "dataalignment": "1280K", 
 					"physicalextentsize": "128K", 
@@ -418,6 +419,17 @@ def get_platform_script_directory( target ):
 		targetdir = "./"
 	return targetdir
 
+def get_root_passwd():
+	fname = "./deploy/sshkey/rootpasswd"
+	if not os.path.exists(fname):
+		with open(fname,'w') as f:
+			passwd = uuid.uuid4().hex
+			f.write(passwd)
+			f.close()
+	with open(fname,'r') as f:
+		rootpasswd = f.read()
+		f.close()
+	return rootpasswd
 	
 # These parameter will be mapped if non-exist
 # Each mapping is the form of: dstname: ( srcname, lambda )
@@ -444,7 +456,9 @@ default_config_mapping = {
 	"postworkerdeploymentscript" : (["platform-scripts"], lambda x: get_platform_script_directory(x)+"post-worker-deploy.sh"),
 	"workercleanupscript" : (["platform-scripts"], lambda x: get_platform_script_directory(x)+"cleanup-worker.sh"),
 	"workerdeploymentlist" : (["platform-scripts"], lambda x: get_platform_script_directory(x)+"deploy.list"),
-
+	"pxeserverip": (["pxeserver"], lambda x: fetch_dictionary(x,["ip"])), 
+	"pxeserverrootpasswd": (["pxeserver"], lambda x: get_root_passwd()), 
+	"pxeoptions": (["pxeserver"], lambda x: "" if fetch_dictionary(x,["options"]) is None else fetch_dictionary(x,["options"])), 
 }
 	
 # Merge entries in config2 to that of config1, if entries are dictionary. 
@@ -1132,18 +1146,31 @@ def create_ISO():
 def create_PXE():
 	os.system("rm -r ./deploy/pxe")
 	os.system("mkdir -p ./deploy/docker")
-	utils.render_template_directory("./template/pxe", "./deploy/pxe",config)
+	utils.render_template_directory("./template/pxe", "./deploy/pxe",config, verbose=verbose )
 	# cloud-config should be rendered already
 	os.system("cp -r ./deploy/cloud-config/* ./deploy/pxe/tftp/usr/share/oem")
-	dockername = "dlworkspace-pxe:%s" % config["cluster_name"] 
-	os.system("docker build -t %s deploy/pxe" % dockername)
-	tarname = "deploy/docker/dlworkspace-pxe-%s.tar" % config["cluster_name"]
 	
-	os.system("docker save " + dockername + " > " + tarname )
+	dockername = push_one_docker("./deploy/pxe", config["dockerprefix"], config["dockertag"], "pxe-coreos", config )
+
+	#tarname = "deploy/docker/dlworkspace-pxe-%s.tar" % config["cluster_name"]
+	# os.system("docker save " + dockername + " > " + tarname )
 	print ("A DL workspace docker is built at: "+ dockername)
-	print ("It is also saved as a tar file to: "+ tarname)
+	# print ("It is also saved as a tar file to: "+ tarname)
 	
 	#os.system("docker rmi dlworkspace-pxe:%s" % config["cluster_name"])
+
+def create_PXE_ubuntu():
+	os.system("rm -r ./deploy/pxe")
+	os.system("mkdir -p ./deploy/docker")
+	utils.render_template_directory("./template/pxe-ubuntu", "./deploy/pxe-ubuntu",config, verbose=verbose )
+
+	dockername = push_one_docker("./deploy/pxe-ubuntu", config["dockerprefix"], config["dockertag"], "pxe-ubuntu", config )
+	# tarname = "deploy/docker/pxe-ubuntu.tar" 
+	
+	# os.system("docker save " + dockername + " > " + tarname )
+	print ("A DL workspace docker is built at: "+ dockername)
+	# print ("It is also saved as a tar file to: "+ tarname)
+	
 
 def clean_worker_nodes():
 	workerNodes = get_worker_nodes(config["clusterId"])
@@ -2251,13 +2278,24 @@ def run_command( args, command, nargs, parser ):
 		deploy_ETCD_master()
 
 	elif command == "build":
-		init_deployment()
-		response = raw_input_with_default("Create ISO file for deployment (y/n)?")
-		if first_char(response) == "y":
+		if len(nargs) <=0:
+			init_deployment()
+			response = raw_input_with_default("Create ISO file for deployment (y/n)?")
+			if first_char(response) == "y":
+				create_ISO()
+			response = raw_input_with_default("Create PXE docker image for deployment (y/n)?")
+			if first_char(response) == "y":
+				create_PXE()
+		elif nargs[0] == "iso":
 			create_ISO()
-		response = raw_input_with_default("Create PXE docker image for deployment (y/n)?")
-		if first_char(response) == "y":
+		elif nargs[0] == "pxe":
 			create_PXE()
+		elif nargs[0] == "pxe-ubuntu":
+			create_PXE_ubuntu()
+		else:
+			parser.print_help()
+			print "Error: build target %s is not recognized. " % nargs[0] 
+			exit()
 	elif command == "updateworker":
 		response = raw_input_with_default("Deploy Worker Nodes (y/n)?")
 		if first_char(response) == "y":
