@@ -1,10 +1,17 @@
 UI vesamenu.c32
 MENU TITLE DLWorkspace Cluster Deployment Boot Menu for Ubuntu
 MENU BACKGROUND splash.png
+<<<<<<< HEAD
 TIMEOUT 60
 PROMPT 60
 ONTIMEOUT bootlocal
 DEFAULT bootlocal
+=======
+TIMEOUT 600
+PROMPT 0
+ONTIMEOUT installubuntu
+DEFAULT installubuntu
+>>>>>>> d84f5e97cf4bea338336b2af4dc66da6aa66a55f
 
 MENU WIDTH      78
 MENU MARGIN         4
@@ -27,6 +34,7 @@ MENU COLOR tabmsg       31;40   #30ffffff #00000000 std
 
 LABEL installubuntu
     MENU LABEL Install generic Ubuntu 16.04
+
     KERNEL linux
     IPAPPEND 1
     APPEND auto=true priority=critical vga=normal initrd=initrd.gz {{cnf["pxeoptions"]}} preseed/url=tftp://{{cnf["pxeserverip"]}}/preceed.cfg preseed/interactive=false     
@@ -35,6 +43,7 @@ LABEL installubuntu
 #   ramdisk_size=16432 root=/dev/rd/0 rw -- \
 # live-installer/net-image=http://{{cnf["pxeserverip"]}}/ubuntu/16.04.2/install/filesystem.squashfs
 
+
 LABEL bootlocal
     MENU LABEL Boot first BIOS disk
     KERNEL chain.c32
@@ -42,3 +51,27 @@ LABEL bootlocal
     TEXT HELP
 Boot the operating system from the first bios disk.
     ENDTEXT
+
+LABEL hdt
+    MENU LABEL Hardware Detection Tool
+    COM32 hdt.c32
+    APPEND pciids=pci.ids
+    TEXT HELP
+HDT (Hardware Detection Tool) displays hardware low-level information.
+    ENDTEXT
+
+LABEL memtest
+    MENU LABEL Memtest86+
+    LINUX ../memtest/memtest.bin
+    TEXT HELP
+Memtest86+ checks RAM for errors by doing stress tests operations.
+    ENDTEXT
+
+LABEL reboot
+    MENU LABEL Reboot
+    COM32 reboot.c32
+
+LABEL poweroff
+    MENU LABEL Power Off
+    COM32 poweroff.c32
+
