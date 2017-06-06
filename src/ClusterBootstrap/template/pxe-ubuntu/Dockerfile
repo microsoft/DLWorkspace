@@ -15,15 +15,16 @@ RUN apt-get -y update && \
 RUN apt-get update -y && \
     apt-get -y install tftpd-hpa inetutils-inetd syslinux isc-dhcp-server apache2
 
-RUN wget http://releases.ubuntu.com/16.04/ubuntu-16.04.2-server-amd64.iso
+RUN wget {{cnf["ubuntuImageUrl"]}}
 
 RUN apt-get -y update && apt-get -y install p7zip-full
 
-RUN mkdir -p /var/www/html/ubuntu/16.04.2
+RUN mkdir -p /var/www/html/ubuntu/install
+RUN mkdir -p /tmp/ubuntu/
 
-RUN 7z x -o/var/www/html/ubuntu/16.04.2 ubuntu-16.04.2-server-amd64.iso
-
-RUN rm ubuntu-16.04.2-server-amd64.iso
+RUN 7z x -o/tmp/ubuntu {{cnf["ubuntuImageName"]}}
+RUN rm {{cnf["ubuntuImageName"]}}
+RUN cp -fr /tmp/ubuntu/install/* /var/www/html/ubuntu/install
 
 RUN apt-get update -y && apt-get install -y python-dev python-pip 
 RUN pip install Flask
@@ -37,8 +38,9 @@ EXPOSE 5000
 
 COPY tftpd-hpa /etc/default/tftpd-hpa
 
-COPY tftp /var/lib/tftpboot/
 RUN chmod -R 777 /var/lib/tftpboot
+RUN chmod -R 755 /var/www/html/
+
 
 RUN wget -q https://www.kernel.org/pub/linux/utils/boot/syslinux/syslinux-6.03.tar.gz
 RUN tar -zxvf syslinux-6.03.tar.gz
@@ -48,22 +50,24 @@ RUN cp syslinux-6.03/bios/com32/lib/libcom32.c32 /var/lib/tftpboot/
 RUN cp syslinux-6.03/bios/com32/libutil/libutil.c32 /var/lib/tftpboot/
 RUN cp syslinux-6.03/bios/core/pxelinux.0 /var/lib/tftpboot/
 RUN cp syslinux-6.03/bios/com32/menu/vesamenu.c32 /var/lib/tftpboot/
-RUN rm -r syslinux-6.03
-RUN rm syslinux-6.03.tar.gz
 
-
-RUN cp -fr /var/www/html/ubuntu/16.04.2/install/netboot/ubuntu-installer/amd64/* /var/lib/tftpboot
-RUN cp -f /var/www/html/ubuntu/16.04.2/install/netboot/ubuntu-installer/amd64/boot-screens/* /var/lib/tftpboot
+RUN cp -fr /var/www/html/ubuntu/install/netboot/ubuntu-installer/amd64/* /var/lib/tftpboot
+RUN cp -f /var/www/html/ubuntu/install/netboot/ubuntu-installer/amd64/boot-screens/* /var/lib/tftpboot
+RUN cp syslinux-6.03/bios/core/pxelinux.0 /var/lib/tftpboot
+RUN cp /var/www/html/ubuntu/install/filesystem.* /var/lib/tftpboot
+COPY tftp /var/lib/tftpboot/
 RUN mkdir -p /var/lib/tftpboot/pxelinux.cfg
 
-
+RUN rm -r syslinux-6.03
+RUN rm -rf /tmp/ubuntu
+RUN rm syslinux-6.03.tar.gz
 
 # COPY www /var/www/html
 
 
 
-COPY preseed.cfg /var/www/html/preceed/preceed.cfg
-COPY preseed.cfg /var/lib/tftpboot/preceed.cfg
+COPY preseed.cfg /var/www/html/preceed/preseed.cfg
+COPY preseed.cfg /var/lib/tftpboot/preseed.cfg
 
 COPY start_pxe_service.sh /
 RUN chmod +x /start_pxe_service.sh
