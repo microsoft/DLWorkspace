@@ -87,7 +87,7 @@ default_config_parameters = {
 
 	# the path of where nvidia driver is installed on each node, default /opt/nvidia-driver/current
 	"nvidia-driver-path" : "/opt/nvidia-driver/current", 
-
+	"systemdisk": "/dev/sda",
 	"data-disk": "/dev/[sh]d[^a]", 
 	"partition-configuration": [ "1" ], 
 	"heketi-docker": "heketi/heketi:dev",
@@ -95,6 +95,7 @@ default_config_parameters = {
 	"render-exclude" : {"GlusterFSUtils.pyc": True, "launch_glusterfs.pyc": True, },
 	"render-by-copy-ext" : { ".png": True, },
 	"render-by-copy": { "gk-deploy":True, "pxelinux.0": True, },
+	#"render-by-line": { "preseed.cfg": True, },
 	# glusterFS parameter
 	"glusterFS" : { "dataalignment": "1280K", 
 					"physicalextentsize": "128K", 
@@ -170,6 +171,20 @@ default_config_parameters = {
 		   "*.corp.microsoft.com": True,
 	   }, 
 	}, 
+
+	"ubuntuconfig" : {
+		"version" : "16.04.1", 
+		"16.04.2" : {
+			"ubuntuImageUrl" : "http://releases.ubuntu.com/16.04/ubuntu-16.04.2-server-amd64.iso", 
+			"ubuntuImageName" : "ubuntu-16.04.2-server-amd64.iso",
+		},
+		"16.04.1" : {
+			"ubuntuImageUrl" : "http://old-releases.ubuntu.com/releases/16.04.1/ubuntu-16.04.1-server-amd64.iso",
+			"ubuntuImageName" : "ubuntu-16.04.1-server-amd64.iso",
+		}
+	}, 
+	
+
 
 	# Option to change pre-/post- deployment script
 	# Available options are (case sensitive):
@@ -1157,7 +1172,18 @@ def create_PXE():
 	
 	#os.system("docker rmi dlworkspace-pxe:%s" % config["cluster_name"])
 
+def config_ubuntu():
+	# print config["ubuntuconfig"]
+	ubuntuConfig = fetch_config( ["ubuntuconfig"] )
+	# print ubuntuConfig
+	useversion = fetch_dictionary( ubuntuConfig, [ "version" ] )
+	specificConfig = fetch_dictionary( ubuntuConfig, [ useversion ] )
+	for key, value in specificConfig.iteritems():
+		config[key] = value
+	config["ubuntuVersion"] = useversion
+
 def create_PXE_ubuntu():
+	config_ubuntu()
 	os.system("rm -r ./deploy/pxe")
 	os.system("mkdir -p ./deploy/docker")
 	utils.render_template_directory("./template/pxe-ubuntu", "./deploy/pxe-ubuntu",config, verbose=verbose )
