@@ -353,12 +353,13 @@ def init_config():
 
 def apply_config_mapping():
 	for k,tuple in default_config_mapping.iteritems():
-		if not ( k in config ) or len(config[k])<=1:
+		if not ( k in config ) or len(config[k])<=0:
 			dstname = tuple[0]
 			value = fetch_config(dstname)
-			config[k] = tuple[1](value)
-			if verbose:
-				print "Config[%s] = %s" %(k, config[k])
+			if not (value is None):
+				config[k] = tuple[1](value)
+				if verbose:
+					print "Config[%s] = %s" %(k, config[k])
 
 def _check_config_items(cnfitem, cnf):
 	if not cnfitem in cnf:
@@ -1394,7 +1395,7 @@ def get_mount_fileshares():
 					allmountpoints[k] = copy.deepcopy( v )
 					bMount = True
 					allmountpoints[k]["url"] = "//" + allmountpoints[k]["accountname"] + ".file.core.windows.net/"+allmountpoints[k]["filesharename"]
-					fstab += "%s %s cifs vers=3.0,username=%s,password=%s,dir_mode=0777,file_mode=0777,serverino\n" % (mountpoints[k]["url"], curphysicalmountpoint, v["accountname"], v["accesskey"])
+					fstab += "%s %s cifs vers=3.0,username=%s,password=%s,dir_mode=0777,file_mode=0777,serverino\n" % (allmountpoints[k]["url"], curphysicalmountpoint, v["accountname"], v["accesskey"])
 				else:
 					print "Error: fileshare %s, type %s, miss one of the parameter accountname, filesharename, mountpoints, accesskey" %(k, v["type"])
 			elif v["type"] == "glusterfs":
@@ -1443,13 +1444,13 @@ def mount_fileshares(perform_mount=True):
 				if v["type"] == "azurefileshare":
 					if not ("azurefileshare" in filesharetype):
 						filesharetype["azurefileshare"] = True
-						remotecmd += "sudo apt-get install cifs-utils attr; "
+						remotecmd += "sudo apt-get -y install cifs-utils attr; "
 					physicalmountpoint = v["curphysicalmountpoint"] 
 					remotecmd += "sudo mount -t cifs %s %s -o vers=3.0,username=%s,password=%s,dir_mode=0777,file_mode=0777,serverino; " % (v["url"], physicalmountpoint, v["accountname"], v["accesskey"] )
 				elif v["type"] == "glusterfs":
 					if not ("glusterfs" in filesharetype):
 						filesharetype["glusterfs"] = True
-						remotecmd += "sudo apt-get install -y glusterfs-client; "
+						remotecmd += "sudo apt-get install -y glusterfs-client attr; "
 					physicalmountpoint = v["curphysicalmountpoint"] 
 					remotecmd += "sudo mount -t glusterfs %s:%s %s; " % (v["node"], v["filesharename"], physicalmountpoint )
 			utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)
@@ -1536,6 +1537,15 @@ def link_fileshares(allmountpoints, bForce=False):
 		bFirst = True
 		for node in nodes:
 			remotecmd = ""
+			if bForce:
+				for k,v in allmountpoints.iteritems():
+					if "mountpoints" in v:
+						for basename in v["mountpoints"]:
+							dirname = os.path.join(v["curphysicalmountpoint"], basename )
+							remotecmd += "sudo rm %s; " % dirname
+				remotecmd += "sudo rm %s; " % config["storage-mount-path"]
+				remotecmd += "sudo mkdir -p %s; " % config["storage-mount-path"]
+				
 			for k,v in allmountpoints.iteritems():
 				if "mountpoints" in v:
 					if bFirst:
@@ -1547,8 +1557,6 @@ def link_fileshares(allmountpoints, bForce=False):
 					for basename in v["mountpoints"]:
 						dirname = os.path.join(v["curphysicalmountpoint"], basename )
 						linkdir = os.path.join(config["storage-mount-path"], basename )
-						if bForce:
-							remotecmd += "sudo rm linkdir; " % linkdir
 						remotecmd += "sudo ln -s %s %s; " % (dirname, linkdir)
 			if len(remotecmd)>0:
 				utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)
@@ -2651,14 +2659,14 @@ def run_command( args, command, nargs, parser ):
 	elif command == "mount":
 		if len(nargs)<=0 or nargs[0]=="start":
 			allmountpoints = mount_fileshares(True)
-			link_fileshares(allmountpoints)
+			link_fileshares(allmountpoints, args.force)
 		elif nargs[0]=="stop":
 			unmount_fileshares()
 		elif nargs[0]=="nolink":
 			mount_fileshares(True)
 		elif nargs[0]=="link":
 			allmountpoints, fstab = get_mount_fileshares()
-			link_fileshares(allmountpoints)
+			link_fileshares(allmountpoints, args.force)
 		else:
 			parser.print_help()
 			print "Error: mount subcommand %s is not recognized " % nargs[0]
@@ -2884,6 +2892,9 @@ Command:
 	parser.add_argument("-y", "--yes", 
 		help="Answer yes automatically for all prompt", 
 		action="store_true" )
+	parser.add_argument("--force", 
+		help="Force perform certain operation", 
+		action="store_true" )	
 	parser.add_argument("--native", 
 		help="Run docker in native mode (in how it is built)", 
 		action="store_true" )	
