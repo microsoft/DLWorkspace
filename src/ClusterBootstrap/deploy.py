@@ -160,6 +160,7 @@ default_config_parameters = {
   		"all": "all", 
   		"default": "all",
 		"glusterfs": "worker_node", 
+		"zookeeper": "etcd_node", 
   		"webportal": "etcd_node_1", 
   		"restfulapi": "etcd_node_1", 
   		"jobmanager": "etcd_node_1", 
@@ -2105,7 +2106,14 @@ def kubernetes_get_node_name(node):
 	else:
 		return node
 
+def set_zookeeper_cluster():
+	nodes = get_node_lists_for_service("zookeeper")
+	config["zookeepernodes"] = ";".join(nodes)
+
 def render_service_templates():
+	allnodes = get_nodes(config["clusterId"])
+	# Additional parameter calculation
+	set_zookeeper_cluster()
 	# Multiple call of render_template will only render the directory once during execution. 
 	utils.render_template_directory( "./services/", "./deploy/services/", config)
 	
@@ -2121,14 +2129,9 @@ def get_all_services():
 				yamls = glob.glob("*.yaml")
 				yamlname = yamls[0]
 			with open( yamlname ) as f:
-				try:
-					service_config = yaml.load(f)
-				except:
-					if verbose:
-						print "Failed to open service file %s" %yamlname	
-					pass				
+				content = f.read()
 				f.close()
-				if "kind" in service_config and service_config["kind"]=="DaemonSet":
+				if content.find( "DaemonSet" )>=0:
 					# Only add service if it is a daemonset. 
 					servicedic[service] = yamlname
 				
@@ -2154,11 +2157,13 @@ def get_service_name(service_config_file):
 
 def get_service_yaml( use_service ):
 	servicedic = get_all_services()
+	# print	servicedic
 	newentries = {}
 	for service in servicedic:
 		servicename = get_service_name(servicedic[service])
 		newentries[servicename] = servicedic[service]
 	servicedic.update(newentries)
+	# print use_service
 	fname = servicedic[use_service]
 	return fname
 			
@@ -2258,9 +2263,7 @@ def kubernetes_mark_nodes( marklist, bMark ):
 				else:
 					kubernetes_label_node( "", nodename, mark+"-" )
 
-def start_kube_service( servicename ):
-	fname = get_service_yaml( servicename )
-	# print "start service %s with %s" % (servicename, fname)
+def start_one_kube_service(fname):
 	if verbose:
 		f = open(fname)
 		service_yaml = yaml.load(f)
@@ -2269,9 +2272,34 @@ def start_kube_service( servicename ):
 		print service_yaml
 	run_kubectl( ["create", "-f", fname ] )
 
+def stop_one_kube_service(fname):
+	run_kubectl( ["delete", "-f", fname ] )
+
+def start_kube_service( servicename ):
+	fname = get_service_yaml( servicename )
+	# print "start service %s with %s" % (servicename, fname)
+	dirname = os.path.dirname(fname)
+	if os.path.exists(os.path.join(dirname,"launch_order")):
+		with open(os.path.join(dirname,"launch_order"),'r') as f:
+			allservices = f.readlines()
+			for filename in allservices:
+				filename = filename.strip('\n')
+				start_one_kube_service(os.path.join(dirname,filename))		
+	else:
+		start_one_kube_service(fname)
+
 def stop_kube_service( servicename ):
 	fname = get_service_yaml( servicename )
-	run_kubectl( ["delete", "-f", fname ] )
+	dirname = os.path.dirname(fname)
+	if os.path.exists(os.path.join(dirname,"launch_order")):
+		with open(os.path.join(dirname,"launch_order"),'r') as f:
+			allservices = f.readlines()
+			for filename in reversed(allservices):
+				filename = filename.strip('\n')
+				stop_one_kube_service(os.path.join(dirname,filename))		
+	else:
+		stop_one_kube_service(fname)
+	
 	
 def replace_kube_service( servicename ):
 	fname = get_service_yaml( servicename )

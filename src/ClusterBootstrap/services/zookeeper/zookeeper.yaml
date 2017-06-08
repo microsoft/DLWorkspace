@@ -1,68 +1,17 @@
-apiVersion: v1
-kind: Service
-metadata:
-  name: zk-headless
-  labels:
-    app: zk-headless
-spec:
-  ports:
-  - port: 2888
-    name: server
-  - port: 3888
-    name: leader-election
-  clusterIP: None
-  selector:
-    app: zk
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: zk-config
-data:
-  ensemble: "zk-0;zk-1;zk-2"
-  jvm.heap: "2G"
-  tick: "2000"
-  init: "10"
-  sync: "5"
-  client.cnxns: "60"
-  snap.retain: "3"
-  purge.interval: "1"
----
-apiVersion: policy/v1beta1
-kind: PodDisruptionBudget
-metadata:
-  name: zk-budget
-spec:
-  selector:
-    matchLabels:
-      app: zk
-  minAvailable: 2
----
-apiVersion: apps/v1beta1
-kind: StatefulSet
+kind: DaemonSet
+apiVersion: extensions/v1beta1
 metadata:
   name: zk
 spec:
-  serviceName: zk-headless
-  replicas: 3
   template:
     metadata:
       labels:
         app: zk
       annotations:
         pod.alpha.kubernetes.io/initialized: "true"
-        
     spec:
-      affinity:
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-                matchExpressions:
-                  - key: "app"
-                    operator: In
-                    values: 
-                    - zk-headless
-              topologyKey: "kubernetes.io/hostname"
+      nodeSelector:
+        zookeeper: active
       containers:
       - name: k8szk
         imagePullPolicy: Always
@@ -144,16 +93,7 @@ spec:
         volumeMounts:
         - name: datadir
           mountPath: /var/lib/zookeeper
-      securityContext:
-        runAsUser: 1000
-        fsGroup: 1000
-  volumeClaimTemplates:
-  - metadata:
-      name: datadir
-      annotations:
-        volume.alpha.kubernetes.io/storage-class: anything
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      resources:
-        requests:
-          storage: 20Gi
+      volumes:
+      - name: datadir
+        hostPath:
+          path: /var/lib/zookeeper
