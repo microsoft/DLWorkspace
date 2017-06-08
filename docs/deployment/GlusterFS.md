@@ -46,14 +46,19 @@ The document describes the procedure to deploy glusterFS across a cluster. Glust
   ```
   deploy.py glusterfs config
   ```
+
+5. Label Kubernetes node for deployment. 
+  ```
+  deploy.py kubernetes labels
+  ```
   
-5. Start glusterFS daemon set and mount volumes 
+6. Start glusterFS daemon set and mount volumes 
   ```
   deploy.py --glusterfs start kubernetes start glusterfs
   ```
   The second time around, glusterFS daemon set can be started with 
   ```
-  deploy.py start kubernetes start glusterfs
+  deploy.py kubernetes start glusterfs
   ```
   The glusterfs volume can now be used. 
   You may use:
@@ -62,16 +67,16 @@ The document describes the procedure to deploy glusterFS across a cluster. Glust
   ```
   to remove any wrongly created volume in glusterfs, and recreate the volume. Please caution that this command will erasure all data on the glusterfs volume. Please use with care. 
   
-5. [Administrator] Stop glusterFS daemon set. 
+7. [Administrator] Stop glusterFS daemon set. 
   ```
   deploy.py kubernetes stop glusterfs
   ```
 
-6. Configure and mount glusterFS share to all nodes. 
+8. Configure and mount glusterFS share to all nodes. 
   ```
   deploy.py mount
   ```
 
-7. Trouble shooting:
+9. Trouble shooting:
    You may log onto a node deployed with glusterfs, and check its operating log at: /var/log/glusterfs.
    The launch log is available at /var/log/glusterfs/launch/launch.log
