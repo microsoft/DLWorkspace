@@ -185,8 +185,20 @@ default_config_parameters = {
 		"16.04.1" : {
 			"ubuntuImageUrl" : "http://old-releases.ubuntu.com/releases/16.04.1/ubuntu-16.04.1-server-amd64.iso",
 			"ubuntuImageName" : "ubuntu-16.04.1-server-amd64.iso",
-		}
+		},
 	}, 
+	
+	"mountconfig": {
+		"azurefileshare" : {
+			"options" : "vers=3.0,username=%s,password=%s,dir_mode=0777,file_mode=0777,serverino",
+		},
+		"glusterfs" : {
+			"options" : "defaults,_netdev",
+		},
+		"nfs" : {
+			"options" : "rsize=8192,timeo=14,intr,tcp",
+		},
+	},
 	
 
 
@@ -1351,8 +1363,14 @@ def install_ssh_key():
 	for node in all_nodes:
 		os.system("sshpass -p %s ssh-copy-id -o StrictHostKeyChecking=no -i ./deploy/sshkey/id_rsa.pub core@%s" %(rootpasswd, node))
 
-def get_mount_fileshares():
-	all_nodes = get_nodes(config["clusterId"])
+def pick_server( nodelists, curNode ):
+	if curNode is None or not (curNode in nodelists):
+		return random.choice(nodelists)
+	else:
+		return curNode
+
+
+def get_mount_fileshares(curNode = None):
 	allmountpoints = { }
 	fstab = ""
 	bHasDefaultMountPoints = False
@@ -1390,23 +1408,42 @@ def get_mount_fileshares():
 			curphysicalmountpoint = os.path.join( physicalmountpoint, mountsharename )
 			v["curphysicalmountpoint"] = curphysicalmountpoint
 			bMount = False
+			errorMsg = None
 			if v["type"] == "azurefileshare":
-				if "accountname" in v and "filesharename" in v and "mountpoints" in v and "accesskey" in v:
+				if "accountname" in v and "filesharename" in v and "accesskey" in v:
 					allmountpoints[k] = copy.deepcopy( v )
 					bMount = True
 					allmountpoints[k]["url"] = "//" + allmountpoints[k]["accountname"] + ".file.core.windows.net/"+allmountpoints[k]["filesharename"]
-					fstab += "%s %s cifs vers=3.0,username=%s,password=%s,dir_mode=0777,file_mode=0777,serverino\n" % (allmountpoints[k]["url"], curphysicalmountpoint, v["accountname"], v["accesskey"])
+					options = fetch_config(["mountconfig", "azurefileshare", "options"]) % (v["accountname"], v["accesskey"])
+					allmountpoints[k]["options"] = options
+					fstab += "%s %s cifs %s\n" % (allmountpoints[k]["url"], curphysicalmountpoint, options )
 				else:
-					print "Error: fileshare %s, type %s, miss one of the parameter accountname, filesharename, mountpoints, accesskey" %(k, v["type"])
+					errorMsg = "Error: fileshare %s, type %s, miss one of the parameter accountname, filesharename, mountpoints, accesskey" %(k, v["type"])
 			elif v["type"] == "glusterfs":
-				if "filesharename" in v and "mountpoints" in v:
+				if "filesharename" in v:
 					allmountpoints[k] = copy.deepcopy( v )
 					bMount = True
 					glusterfs_nodes = get_node_lists_for_service("glusterfs")
-					allmountpoints[k]["node"] = glusterfs_nodes[0]
-					fstab += "%s:/%s %s glusterfs defaults,_netdev 0 0\n" % (glusterfs_nodes[0], v["filesharename"], curphysicalmountpoint)
+					allmountpoints[k]["node"] = pick_server( glusterfs_nodes, curNode )
+					options = fetch_config(["mountconfig", "glusterfs", "options"])
+					allmountpoints[k]["options"] = options
+					fstab += "%s:/%s %s glusterfs %s 0 0\n" % (allmountpoints[k]["node"], v["filesharename"], curphysicalmountpoint, options)
+				else:
+					errorMsg = "glusterfs fileshare %s, there is no filesharename parameter" % (k)
+			elif v["type"] == "nfs" and "server" in v:
+				if "filesharename" in v and "server" in v:
+					allmountpoints[k] = copy.deepcopy( v )
+					bMount = True
+					options = fetch_config(["mountconfig", "nfs", "options"])
+					allmountpoints[k]["options"] = options
+					fstab += "%s:/%s %s /nfsmnt nfs %s\n" % (v["server"], v["filesharename"], curphysicalmountpoint, options)
+				else:
+					errorMsg = "nfs fileshare %s, there is no filesharename or server parameter" % (k)
 			else:
-				print "Error: Unknown fileshare %s with type %s" %( k, v["type"])
+				errorMsg = "Error: Unknown or missing critical parameter in fileshare %s with type %s" %( k, v["type"])
+			if not (errorMsg is None):
+				print errorMsg
+				raise ValueError(errorMsg)
 			if bMount:
 				allmountpoints[k]["mountpoints"] = mountpoints
 		else:
@@ -1417,12 +1454,12 @@ def mount_fileshares(perform_mount=True):
 	all_nodes = get_nodes(config["clusterId"])
 	fstabmask =    "##############DLWSMOUNT#################\n"
 	fstabmaskend = "#############DLWSMOUNTEND###############\n"
-	allmountpoints, fstab = get_mount_fileshares()
-	fstab = fstabmask + fstab + "\n" + fstabmaskend
 	# print fstab
 	if perform_mount:
 		nodes = all_nodes
 		for node in nodes:
+			allmountpoints, fstab = get_mount_fileshares(node)
+			fstab = fstabmask + fstab + "\n" + fstabmaskend
 			remotecmd = ""
 			# remotecmd = "sudo rm -rf %s; " % config["storage-mount-path"]
 			# remotecmd += "sudo rm -rf %s; " % config["physical-mount-path"]
@@ -1431,6 +1468,7 @@ def mount_fileshares(perform_mount=True):
 			filesharetype = {}
 			for k,v in allmountpoints.iteritems():
 				if "curphysicalmountpoint" in v:
+					physicalmountpoint = v["curphysicalmountpoint"] 
 					output = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "sudo mount | grep %s" % v["curphysicalmountpoint"])
 					umounts = []
 					for line in output.splitlines():
@@ -1441,18 +1479,21 @@ def mount_fileshares(perform_mount=True):
 					for um in umounts:
 						remotecmd += "sudo umount %s; " % um
 					remotecmd += "sudo mkdir -p %s; " % v["curphysicalmountpoint"]
-				if v["type"] == "azurefileshare":
-					if not ("azurefileshare" in filesharetype):
-						filesharetype["azurefileshare"] = True
-						remotecmd += "sudo apt-get -y install cifs-utils attr; "
-					physicalmountpoint = v["curphysicalmountpoint"] 
-					remotecmd += "sudo mount -t cifs %s %s -o vers=3.0,username=%s,password=%s,dir_mode=0777,file_mode=0777,serverino; " % (v["url"], physicalmountpoint, v["accountname"], v["accesskey"] )
-				elif v["type"] == "glusterfs":
-					if not ("glusterfs" in filesharetype):
-						filesharetype["glusterfs"] = True
-						remotecmd += "sudo apt-get install -y glusterfs-client attr; "
-					physicalmountpoint = v["curphysicalmountpoint"] 
-					remotecmd += "sudo mount -t glusterfs %s:%s %s; " % (v["node"], v["filesharename"], physicalmountpoint )
+					if v["type"] == "azurefileshare":
+						if not ("azurefileshare" in filesharetype):
+							filesharetype["azurefileshare"] = True
+							remotecmd += "sudo apt-get -y install cifs-utils attr; "
+						remotecmd += "sudo mount -t cifs %s %s -o %s; " % (v["url"], physicalmountpoint, v["accountname"], v["accesskey"], v["options"] )
+					elif v["type"] == "glusterfs":
+						if not ("glusterfs" in filesharetype):
+							filesharetype["glusterfs"] = True
+							remotecmd += "sudo apt-get install -y glusterfs-client attr; "
+						remotecmd += "sudo mount -t glusterfs %s:%s %s -o %s; " % (v["node"], v["filesharename"], physicalmountpoint, v["options"] )
+					elif v["type"] == "nfs":
+						if not ("nfs" in filesharetype):
+							filesharetype["nfs"] = True
+							remotecmd += "sudo apt-get install -y nfs-common; "
+						remotecmd += "sudo mount %s:%s %s -o %s; " % (v["server"], v["filesharename"], physicalmountpoint, v["options"])
 			utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)
 			# Read in configuration of fstab
 			fstabcontent = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "cat /etc/fstab")
@@ -1462,11 +1503,14 @@ def mount_fileshares(perform_mount=True):
 				indexend = fstabcontent.find(fstabmaskend)
 				if indexst > 1:
 					if indexend < 0:
-						usefstab = fstabcontent[:indexst] + fstab + "\n"
+						usefstab = fstabcontent[:indexst] + fstab 
 					else:
 						usefstab = fstabcontent[:indexst] + fstab + fstabcontent[indexend+len(fstabmaskend):]
 				else:
-					usefstab = fstabcontent + "\n" + fstab + "\n"
+					if fstabcontent.endswith("\n"):
+						usefstab = 	fstabcontent + fstab 
+					else:
+						usefstab = fstabcontent + "\n" + fstab 
 			if verbose:
 				print "----------- Resultant /etc/fstab --------------------"
 				print usefstab
@@ -2665,6 +2709,7 @@ def run_command( args, command, nargs, parser ):
 		elif nargs[0]=="nolink":
 			mount_fileshares(True)
 		elif nargs[0]=="link":
+			all_nodes = get_nodes(config["clusterId"])
 			allmountpoints, fstab = get_mount_fileshares()
 			link_fileshares(allmountpoints, args.force)
 		else:
