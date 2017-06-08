@@ -24,7 +24,7 @@ sudo apt-get install -y --no-install-recommends \
         sudo 
         
 
-sudo apt-get install -y bison curl 
+sudo apt-get install -y bison curl parted
 
 # Install docker
 curl -q https://get.docker.com/ | sudo bash
