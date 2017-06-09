@@ -12,6 +12,6 @@ spec:
     name: leader-election
   - port: 2181
     name: client
-  clusterIP: 10.3.1.100
+  clusterIP: {{cnf["zookeeperip"]}}
   selector:
     app: zk
