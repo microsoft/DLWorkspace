@@ -176,6 +176,11 @@ default_config_parameters = {
 	   }, 
 	}, 
 
+	"zookeeperconfig" : {
+		# The IP address should be within service_cluster_ip_range
+		"ip" : "10.3.1.100",
+	}, 
+
 	"ubuntuconfig" : {
 		"version" : "16.04.1", 
 		"16.04.2" : {
@@ -489,6 +494,7 @@ default_config_mapping = {
 	"pxeserverip": (["pxeserver"], lambda x: fetch_dictionary(x,["ip"])), 
 	"pxeserverrootpasswd": (["pxeserver"], lambda x: get_root_passwd()), 
 	"pxeoptions": (["pxeserver"], lambda x: "" if fetch_dictionary(x,["options"]) is None else fetch_dictionary(x,["options"])), 
+	"zookeeperip": (["zookeeperconfig"], lambda x: fetch_dictionary(x,["ip"])), 
 }
 	
 # Merge entries in config2 to that of config1, if entries are dictionary. 
