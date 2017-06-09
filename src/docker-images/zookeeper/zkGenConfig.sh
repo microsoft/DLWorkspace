@@ -39,10 +39,7 @@ HOST=`hostname -s`
 DOMAIN=`hostname -d`
 
 function print_servers() {
-	 for (( i=1; i<=$ZK_REPLICAS; i++ ))
-	do
-		echo "server.$i=$NAME-$((i-1)).$DOMAIN:$ZK_SERVER_PORT:$ZK_ELECTION_PORT"
-	done
+    get_server_ord.py --ensemble $ZK_ENSEMBLE --info $ZK_SERVER_PORT:$ZK_ELECTION_PORT
 }
 
 function validate_env() {
@@ -52,13 +49,9 @@ function validate_env() {
 		exit 1
 	fi
 
-	if [[ $HOST =~ (.*)-([0-9]+)$ ]]; then
-		NAME=${BASH_REMATCH[1]}
-		ORD=${BASH_REMATCH[2]}
-	else
-		echo "Failed to extract ordinal from hostname $HOST"
-		exit 1
-	fi
+    NAME=$HOST
+    ORD=$(get_server_ord.py --ensemble $ZK_ENSEMBLE)
+
 	MY_ID=$((ORD+1))
 	echo "ZK_REPLICAS=$ZK_REPLICAS"
     echo "MY_ID=$MY_ID"

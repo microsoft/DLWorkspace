@@ -2161,6 +2161,7 @@ def kubernetes_get_node_name(node):
 def set_zookeeper_cluster():
 	nodes = get_node_lists_for_service("zookeeper")
 	config["zookeepernodes"] = ";".join(nodes)
+	config["zookeepernumberofnodes"] = str(len(nodes))
 
 def render_service_templates():
 	allnodes = get_nodes(config["clusterId"])
