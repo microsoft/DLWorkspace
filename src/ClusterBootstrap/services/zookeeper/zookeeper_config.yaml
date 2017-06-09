@@ -11,3 +11,4 @@ data:
   client.cnxns: "60"
   snap.retain: "3"
   purge.interval: "1"
+  replicas: "{{cnf["zookeepernumberofnodes"]}}"

@@ -1,4 +1,6 @@
 FROM ubuntu:16.04 
+MAINTAINER Jin Li <jinlmsft@hotmail.com>
+
 ENV ZK_USER=zookeeper \
 ZK_DATA_DIR=/var/lib/zookeeper/data \
 ZK_DATA_LOG_DIR=/var/lib/zookeeper/log \
@@ -9,7 +11,10 @@ ARG GPG_KEY=C823E3E5B12AF29C67F81976F5CECB3CB5E9BD2D
 ARG ZK_DIST=zookeeper-3.4.9
 RUN set -x \
     && apt-get update \
-    && apt-get install -y openjdk-8-jre-headless wget netcat-openbsd \
+    && apt-get install -y openjdk-8-jre-headless wget netcat-openbsd python-dev \
+        python-numpy \
+        python-pip \
+        python-yaml \
 	&& wget -q "http://www.apache.org/dist/zookeeper/$ZK_DIST/$ZK_DIST.tar.gz" \
     && wget -q "http://www.apache.org/dist/zookeeper/$ZK_DIST/$ZK_DIST.tar.gz.asc" \
     && export GNUPGHOME="$(mktemp -d)" \
@@ -38,8 +43,12 @@ RUN set -x \
 	&& apt-get autoremove -y wget \
 	&& rm -rf /var/lib/apt/lists/*
 
+RUN pip install --upgrade pip; pip install setuptools pyyaml jinja2
+
 #Copy configuration generator script to bin
-COPY zkGenConfig.sh zkOk.sh zkMetrics.sh /opt/zookeeper/bin/
+COPY zkGenConfig.sh zkOk.sh zkMetrics.sh *.py /opt/zookeeper/bin/
+
+RUN chmod +x /opt/zookeeper/bin/*
 
 # Create a user for the zookeeper process and configure file system ownership 
 # for nessecary directories and symlink the distribution as a user executable
