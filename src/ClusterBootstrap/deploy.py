@@ -84,6 +84,9 @@ default_config_parameters = {
 	"storage-mount-path" : "/dlwsdata",
 	# the path of where filesystem is actually mounted /dlwsdata
 	"physical-mount-path" : "/mntdlws",
+	# the path of where local device is mounted. 
+	"local-mount-path" : "/mnt",
+
 	# required storage folder under storage-mount-path
 	"default-storage-folders" : ["jobfiles", "storage", "work" ],
 
@@ -160,6 +163,7 @@ default_config_parameters = {
   		"all": "all", 
   		"default": "all",
 		"glusterfs": "worker_node", 
+		"hdfs": "worker_node",
 		"zookeeper": "etcd_node", 
   		"webportal": "etcd_node_1", 
   		"restfulapi": "etcd_node_1", 
@@ -181,6 +185,15 @@ default_config_parameters = {
 		"ip" : "10.3.1.100",
 	}, 
 
+	"hdfsconfig" : {
+		# Comma separated list of paths on the local filesystem of a DataNode where it should store its blocks.
+		"dfs" : {
+			# Data node configuration, 
+			# Comma separated list of paths on the local filesystem of a DataNode where it should store its blocks.
+			"name": "",
+			"data": "", 
+		},
+	}, 
 	"ubuntuconfig" : {
 		"version" : "16.04.1", 
 		"16.04.2" : {
@@ -1456,16 +1469,66 @@ def get_mount_fileshares(curNode = None):
 			print "Error: fileshare %s with no type" %( k )
 	return allmountpoints, fstab
 
+def insert_fstab_section( node, secname, content):
+	fstabcontent = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "cat /etc/fstab")
+	fstabmask =    "##############%sMOUNT#################\n" % secname
+	fstabmaskend = "#############%sMOUNTEND###############\n" % secname
+	if not content.endswith("\n"):
+		content += "\n"
+	fstab = fstabmask + content + fstabmaskend
+	usefstab = fstab
+	if fstabcontent.find("No such file or directory")==-1:
+		indexst = fstabcontent.find(fstabmask) 
+		indexend = fstabcontent.find(fstabmaskend)
+		if indexst > 1:
+			if indexend < 0:
+				usefstab = fstabcontent[:indexst] + fstab 
+			else:
+				usefstab = fstabcontent[:indexst] + fstab + fstabcontent[indexend+len(fstabmaskend):]
+		else:
+			if fstabcontent.endswith("\n"):
+				usefstab = 	fstabcontent + fstab 
+			else:
+				usefstab = fstabcontent + "\n" + fstab 
+	if verbose:
+		print "----------- Resultant /etc/fstab --------------------"
+		print usefstab
+	os.system("mkdir -p ./deploy/etc")
+	with open("./deploy/etc/fstab","w") as f:
+		f.write(usefstab)
+		f.close()
+	utils.sudo_scp( config["ssh_cert"], "./deploy/etc/fstab", "/etc/fstab", "core", node)
+
+def remove_fstab_section( node, secname):
+	fstabmask =    "##############%sMOUNT#################\n" % secname
+	fstabmaskend = "#############%sMOUNTEND###############\n" % secname
+	fstabcontent = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "cat /etc/fstab")
+	bCopyFStab = False
+	if fstabcontent.find("No such file or directory")==-1:
+		indexst = fstabcontent.find(fstabmask) 
+		indexend = fstabcontent.find(fstabmaskend)
+		if indexst > 1:
+			bCopyFStab = True
+			if indexend < 0:
+				usefstab = fstabcontent[:indexst] 
+			else:
+				usefstab = fstabcontent[:indexst] + fstabcontent[indexend+len(fstabmaskend):]
+		if bCopyFStab:
+			if verbose:
+				print "----------- Resultant /etc/fstab --------------------"
+				print usefstab
+			os.system("mkdir -p ./deploy/etc")
+			with open("./deploy/etc/fstab","w") as f:
+				f.write(usefstab)
+				f.close()
+			utils.sudo_scp( config["ssh_cert"], "./deploy/etc/fstab", "/etc/fstab", "core", node)
+
 def mount_fileshares(perform_mount=True):
 	all_nodes = get_nodes(config["clusterId"])
-	fstabmask =    "##############DLWSMOUNT#################\n"
-	fstabmaskend = "#############DLWSMOUNTEND###############\n"
-	# print fstab
 	if perform_mount:
 		nodes = all_nodes
 		for node in nodes:
 			allmountpoints, fstab = get_mount_fileshares(node)
-			fstab = fstabmask + fstab + "\n" + fstabmaskend
 			remotecmd = ""
 			# remotecmd = "sudo rm -rf %s; " % config["storage-mount-path"]
 			# remotecmd += "sudo rm -rf %s; " % config["physical-mount-path"]
@@ -1500,43 +1563,17 @@ def mount_fileshares(perform_mount=True):
 							filesharetype["nfs"] = True
 							remotecmd += "sudo apt-get install -y nfs-common; "
 						remotecmd += "sudo mount %s:%s %s -o %s; " % (v["server"], v["filesharename"], physicalmountpoint, v["options"])
-			utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)
-			# Read in configuration of fstab
-			fstabcontent = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "cat /etc/fstab")
-			usefstab = fstab
-			if fstabcontent.find("No such file or directory")==-1:
-				indexst = fstabcontent.find(fstabmask) 
-				indexend = fstabcontent.find(fstabmaskend)
-				if indexst > 1:
-					if indexend < 0:
-						usefstab = fstabcontent[:indexst] + fstab 
-					else:
-						usefstab = fstabcontent[:indexst] + fstab + fstabcontent[indexend+len(fstabmaskend):]
-				else:
-					if fstabcontent.endswith("\n"):
-						usefstab = 	fstabcontent + fstab 
-					else:
-						usefstab = fstabcontent + "\n" + fstab 
-			if verbose:
-				print "----------- Resultant /etc/fstab --------------------"
-				print usefstab
-			os.system("mkdir -p ./deploy/etc")
-			with open("./deploy/etc/fstab","w") as f:
-				f.write(usefstab)
-				f.close()
-			utils.sudo_scp( config["ssh_cert"], "./deploy/etc/fstab", "/etc/fstab", "core", node)
-			 
-		
+			if len(remotecmd)>0:
+				utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)
+			insert_fstab_section( node, "DLWS", fstab )
 	for k, v in allmountpoints.iteritems():
 		allmountpoints[k].pop("accesskey", None)
 	# print mountpoints
 
 	return allmountpoints
 
-def unmount_fileshares():
+def unmount_fileshares(clean=False):
 	all_nodes = get_nodes(config["clusterId"])
-	fstabmask =    "##############DLWSMOUNT#################\n"
-	fstabmaskend = "#############DLWSMOUNTEND###############\n"
 	allmountpoints, fstab = get_mount_fileshares()
 	# print fstab
 	if True:
@@ -1554,37 +1591,25 @@ def unmount_fileshares():
 					umounts.sort()
 					for um in umounts:
 						remotecmd += "sudo umount %s; " % um
+			if clean:
+				for k,v in allmountpoints.iteritems():
+					if "curphysicalmountpoint" in v:
+						remotecmd += "sudo rm -rf %s; " % v["curphysicalmountpoint"]
 			if len(remotecmd)>0:
 				utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)
 			# Read in configuration of fstab
-			fstabcontent = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "cat /etc/fstab")
-			usefstab = fstab
-			bCopyFStab = False
-			if fstabcontent.find("No such file or directory")==-1:
-				indexst = fstabcontent.find(fstabmask) 
-				indexend = fstabcontent.find(fstabmaskend)
-				if indexst > 1:
-					bCopyFStab = True
-					if indexend < 0:
-						usefstab = fstabcontent[:indexst] 
-					else:
-						usefstab = fstabcontent[:indexst] + fstabcontent[indexend+len(fstabmaskend):]
-			if bCopyFStab:
-				if verbose:
-					print "----------- Resultant /etc/fstab --------------------"
-					print usefstab
-				os.system("mkdir -p ./deploy/etc")
-				with open("./deploy/etc/fstab","w") as f:
-					f.write(usefstab)
-					f.close()
-				utils.sudo_scp( config["ssh_cert"], "./deploy/etc/fstab", "/etc/fstab", "core", node)
+			remove_fstab_section( node, "DLWS")
+			
 			 
 def link_fileshares(allmountpoints, bForce=False):
 	all_nodes = get_nodes(config["clusterId"])
 	# print fstab
 	if True:
 		nodes = all_nodes
-		bFirst = True
+		firstdirs = {}
+		for k,v in allmountpoints.iteritems():
+			if "mountpoints" in v:
+				firstdirs[v["curphysicalmountpoint"]] = True
 		for node in nodes:
 			remotecmd = ""
 			if bForce:
@@ -1596,18 +1621,23 @@ def link_fileshares(allmountpoints, bForce=False):
 				remotecmd += "sudo rm %s; " % config["storage-mount-path"]
 				remotecmd += "sudo mkdir -p %s; " % config["storage-mount-path"]
 				
+			output = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "sudo mount" )
 			for k,v in allmountpoints.iteritems():
 				if "mountpoints" in v:
-					if bFirst:
-						bFirst = False
-						for basename in v["mountpoints"]:
-							dirname = os.path.join(v["curphysicalmountpoint"], basename )
-							remotecmd += "sudo mkdir -p %s; " % dirname
-							remotecmd += "sudo chmod ugo+rwx %s; " %dirname
+					if output.find(v["curphysicalmountpoint"])<0:
+						print "!!!Warning!!! %s has not been mounted at %s " % (k, v["curphysicalmountpoint"])
+					else:
+						if ( firstdirs[v["curphysicalmountpoint"]]):
+							firstdirs[v["curphysicalmountpoint"]] = True
+							for basename in v["mountpoints"]:
+								dirname = os.path.join(v["curphysicalmountpoint"], basename )
+								remotecmd += "sudo mkdir -p %s; " % dirname
+								remotecmd += "sudo chmod ugo+rwx %s; " %dirname
 					for basename in v["mountpoints"]:
 						dirname = os.path.join(v["curphysicalmountpoint"], basename )
 						linkdir = os.path.join(config["storage-mount-path"], basename )
-						remotecmd += "sudo ln -s %s %s; " % (dirname, linkdir)
+						remotecmd += "if [ ! -e %s ]; then sudo ln -s %s %s; fi; " % (linkdir, dirname, linkdir)
+			# following node need not make the directory
 			if len(remotecmd)>0:
 				utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)
 	()
@@ -1814,7 +1844,7 @@ def regmatch_glusterFS( glusterFSargs ):
 	regmatch = re.compile(regexp)
 	return regmatch
 
-def find_glusterFS_volume( alldeviceinfo, regmatch ):	
+def find_matched_volume( alldeviceinfo, regmatch ):	
 	deviceList = {}
 	for bdevice in alldeviceinfo:
 		deviceinfo = alldeviceinfo[bdevice] 
@@ -1881,7 +1911,28 @@ def stop_glusterFS_endpoint( ):
 		fname = "./deploy/services/glusterFS_ep/glusterFS_ep_%s.yaml" % group
 		run_kubectl( ["delete", "-f", fname ] )
 
-
+def format_mount_partition_volume( nodes, deviceSelect, format=True ):
+	nodesinfo = get_partitions(nodes, deviceSelect )
+	#if verbose: 
+	#	print nodesinfo
+	reg = re.compile( deviceSelect )
+	for node in nodesinfo:
+		alldeviceinfo = nodesinfo[node]
+		volumes = find_matched_volume( alldeviceinfo, reg )
+		if verbose:
+			print "Node = %s, volume = %s " % ( node, str(volumes)) 
+		print "................. Node %s ................." % node
+		remotecmd = ""
+		if format: 
+			for volume in volumes:
+				remotecmd += "sudo mkfs.ext4 %s; " % volume
+		for volume in volumes:
+			# mount remote volumes. 
+			devicename = volume[volume.rfind("/")+1:]
+			mountpoint = os.path.join( config["local-mount-path"], devicename )
+			remotecmd += "sudo mkdir -p %s; " % mountpoint
+			remotecmd += "sudo mount %s %s; " % ( volume, mountpoint )
+		print remotecmd
 
 # Create gluster FS volume 
 def create_glusterFS_volume( nodesinfo, glusterFSargs ):
@@ -1891,7 +1942,7 @@ def create_glusterFS_volume( nodesinfo, glusterFSargs ):
 	# print nodesinfo
 	for node in nodesinfo:
 		alldeviceinfo = nodesinfo[node]
-		volumes = find_glusterFS_volume( alldeviceinfo, regmatch )
+		volumes = find_matched_volume( alldeviceinfo, regmatch )
 		print "................. Node %s ................." % node
 		# print volumes
 		# print alldeviceinfo
@@ -1967,7 +2018,7 @@ def remove_glusterFS_volume( nodesinfo, glusterFSargs ):
 	regmatch = regmatch_glusterFS(glusterFSargs)
 	for node in nodesinfo:
 		alldeviceinfo = nodesinfo[node]
-		volumes = find_glusterFS_volume( alldeviceinfo, regmatch )
+		volumes = find_matched_volume( alldeviceinfo, regmatch )
 		print "................. Node %s ................." % node
 		remotecmd = "";
 		if len(volumes)>0: 
@@ -2669,6 +2720,22 @@ def run_command( args, command, nargs, parser ):
 			parser.print_help()
 			print "Unknown subcommand for glusterFS: " + nargs[0]
 			exit()
+
+	elif command == "hdfs" and len(nargs) >=1:
+		allnodes = get_nodes(config["clusterId"])
+		nodes = get_node_lists_for_service("hdfs")
+		if nargs[0] == "create":
+			print ("This operation will CREATE new volume over all existing hdfs partitions, and will erase the data on those partitions "  )
+			response = raw_input ("Please type (CREATE) in ALL CAPITALS to confirm the operation ---> ")
+			if response == "CREATE":
+				format_mount_partition_volume( nodes, fetch_config(["hdfs", "partitions"]), True )
+		elif nargs[0] == "mount":
+			format_mount_partition_volume( nodes, fetch_config(["hdfs", "partitions"]), False )
+		else:
+			parser.print_help()
+			print "Unknown subcommand for hdfs " + nargs[0]
+			exit()
+			
 			
 	elif command == "doonall" and len(nargs)>=1:
 		nodes = get_nodes(config["clusterId"])
@@ -2712,7 +2779,12 @@ def run_command( args, command, nargs, parser ):
 			allmountpoints = mount_fileshares(True)
 			link_fileshares(allmountpoints, args.force)
 		elif nargs[0]=="stop":
-			unmount_fileshares()
+			unmount_fileshares(False)
+		elif nargs[0]=="clean":
+			print ("This operation will CLEAN local content in the physical mount point, and may erase the data on those locations. "  )
+			response = raw_input ("Please type (CLEAN) in ALL CAPITALS to confirm the operation ---> ")
+			if response == "CLEAN":
+				unmount_fileshares(True)
 		elif nargs[0]=="nolink":
 			mount_fileshares(True)
 		elif nargs[0]=="link":
@@ -2909,6 +2981,8 @@ Command:
             config: generate configuration file, build and push glusterfs docker.
             start: start glusterfs service and endpoints. 
             stop: stop glusterfs service and endpoints. 
+  hdfs      [args] manage HDFS on the cluster. 
+  			create: formatting and create local drive for use by HDFS. 
   download  [args] Manage download
             kubectl: download kubelet/kubectl.
             kubelet: download kubelet/kubectl.
