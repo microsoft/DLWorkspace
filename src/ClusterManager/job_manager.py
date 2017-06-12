@@ -108,6 +108,7 @@ def SubmitRegularJob(job):
 		if isinstance(jobParams["cmd"], basestring) and not jobParams["cmd"] == "":
 			launchScriptPath = os.path.join(localJobPath,"launch-%s.sh" % jobParams["jobId"])
 			with open(launchScriptPath, 'w') as f:
+				f.write("#!/bin/bash -x\n")
 				f.write(jobParams["cmd"] + "\n")
 			f.close()	
 			if "userId" in jobParams:
