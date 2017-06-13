@@ -170,7 +170,7 @@ def Run():
 			get_cluster_status()
 		except Exception as e:
 			print e
-		time.sleep(1)
+		time.sleep(30)
 
 if __name__ == '__main__':
 	Run()
