@@ -98,9 +98,19 @@ default_config_parameters = {
 	"partition-configuration": [ "1" ], 
 	"heketi-docker": "heketi/heketi:dev",
 	# The following file will be copied (not rendered for configuration)
-	"render-exclude" : {"GlusterFSUtils.pyc": True, "launch_glusterfs.pyc": True, },
+	"render-exclude" : { 
+		"GlusterFSUtils.pyc": True, 
+		"launch_glusterfs.pyc": True, 
+		"bootstrap_hdfs.pyc": True,
+		"hdfs-site.xml.template": True, 
+		},
 	"render-by-copy-ext" : { ".png": True, },
 	"render-by-copy": { "gk-deploy":True, "pxelinux.0": True, },
+
+	"build-docker-via-config" : {
+		"hdfs": True, 
+		"glusterfs": True, 
+	},
 	#"render-by-line": { "preseed.cfg": True, },
 	# glusterFS parameter
 	"glusterFS" : { "dataalignment": "1280K", 
@@ -165,6 +175,9 @@ default_config_parameters = {
 		"glusterfs": "worker_node", 
 		"hdfs": "worker_node",
 		"zookeeper": "etcd_node", 
+		"journalnode": "etcd_node",
+		"namenode1": "etcd_node_1", 
+		"namenode2": "etcd_node_2",
   		"webportal": "etcd_node_1", 
   		"restfulapi": "etcd_node_1", 
   		"jobmanager": "etcd_node_1", 
@@ -180,19 +193,36 @@ default_config_parameters = {
 	   }, 
 	}, 
 
-	"zookeeperconfig" : {
-		# The IP address should be within service_cluster_ip_range
-		"ip" : "10.3.1.100",
-	}, 
+
+	"localdisk": {
+		# The following pair of options control how local disk is formated and mounted
+		"mkfscmd" : "mkfs -F -q -t ext4",
+		"mountoptions": "ext4 defaults 0 1",
+	},
 
 	"hdfsconfig" : {
 		# Comma separated list of paths on the local filesystem of a DataNode where it should store its blocks.
 		"dfs" : {
 			# Data node configuration, 
-			# Comma separated list of paths on the local filesystem of a DataNode where it should store its blocks.
-			"name": "",
+			# Comma separated list of paths on the local filesystem of a DataNode where it should store its blocks
+			# to be filled. 
 			"data": "", 
 		},
+		"namenode" : {
+			"data": "/var/lib/hdfsnamenode",
+		},
+		"zks" : {
+			# The IP address should be within service_cluster_ip_range
+			"ip" : "10.3.1.100",
+			"port": "2181", 
+			"data": "/var/lib/zookeeper",
+		},
+		"journalnode" : {
+			"port": "8485",
+			"data": "/var/lib/hdfsjournal",
+		}, 
+		# location of configuration file
+		"configfile": "/etc/hdfs/config.yaml", 
 	}, 
 	"ubuntuconfig" : {
 		"version" : "16.04.1", 
@@ -507,7 +537,6 @@ default_config_mapping = {
 	"pxeserverip": (["pxeserver"], lambda x: fetch_dictionary(x,["ip"])), 
 	"pxeserverrootpasswd": (["pxeserver"], lambda x: get_root_passwd()), 
 	"pxeoptions": (["pxeserver"], lambda x: "" if fetch_dictionary(x,["options"]) is None else fetch_dictionary(x,["options"])), 
-	"zookeeperip": (["zookeeperconfig"], lambda x: fetch_dictionary(x,["ip"])), 
 }
 	
 # Merge entries in config2 to that of config1, if entries are dictionary. 
@@ -1324,7 +1353,6 @@ def create_MYSQL_for_WebUI():
 	pass
 
 def deploy_restful_API_on_node(ipAddress):
-
 	masterIP = ipAddress
 	dockername = "%s/dlws-restfulapi" %  (config["dockerregistry"])
 
@@ -1920,19 +1948,96 @@ def format_mount_partition_volume( nodes, deviceSelect, format=True ):
 		alldeviceinfo = nodesinfo[node]
 		volumes = find_matched_volume( alldeviceinfo, reg )
 		if verbose:
+			print "................. Node %s ................." % node
 			print "Node = %s, volume = %s " % ( node, str(volumes)) 
-		print "................. Node %s ................." % node
 		remotecmd = ""
 		if format: 
 			for volume in volumes:
-				remotecmd += "sudo mkfs.ext4 %s; " % volume
+				remotecmd += "sudo %s %s; " % ( fetch_config( ["localdisk", "mkfscmd"]), volume)
+		hdfsconfig = {} 
 		for volume in volumes:
 			# mount remote volumes. 
 			devicename = volume[volume.rfind("/")+1:]
 			mountpoint = os.path.join( config["local-mount-path"], devicename )
 			remotecmd += "sudo mkdir -p %s; " % mountpoint
 			remotecmd += "sudo mount %s %s; " % ( volume, mountpoint )
-		print remotecmd
+		utils.SSH_exec_cmd( config["ssh_cert"], "core", node, remotecmd, showCmd=verbose )
+		fstabcontent = "%s %s %s" %( volume, mountpoint, fetch_config( ["localdisk", "mountoptions"]))
+		insert_fstab_section( node, "MOUNTLOCALDISK", fstabcontent )
+
+def unmount_partition_volume( nodes, deviceSelect ):
+	nodesinfo = get_partitions(nodes, deviceSelect )
+	#if verbose: 
+	#	print nodesinfo
+	reg = re.compile( deviceSelect )
+	for node in nodesinfo:
+		alldeviceinfo = nodesinfo[node]
+		volumes = find_matched_volume( alldeviceinfo, reg )
+		if verbose:
+			print "................. Node %s ................." % node
+			print "Node = %s, volume = %s " % ( node, str(volumes)) 
+		remotecmd = ""
+		for volume in volumes:
+			# mount remote volumes. 
+			devicename = volume[volume.rfind("/")+1:]
+			mountpoint = os.path.join( config["local-mount-path"], devicename )
+			remotecmd += "sudo umount %s; " % ( mountpoint )
+		utils.SSH_exec_cmd( config["ssh_cert"], "core", node, remotecmd, showCmd=verbose )
+		remove_fstab_section( node, "MOUNTLOCALDISK" )
+
+def generate_hdfs_nodelist( nodes, port):
+	return ",".join( map( lambda x: x+":"+str(port), nodes))
+
+def generate_hdfs_config( nodes, deviceSelect):
+	hdfsconfig = { }
+	hdfsconfig["cluster_name"] = config["cluster_name"]
+	hdfsconfig["hdfsconfig"] = copy.deepcopy( config["hdfsconfig"] )
+	zknodes = get_node_lists_for_service("zookeeper")
+	zknodelist = generate_hdfs_nodelist( zknodes, fetch_config( ["hdfsconfig", "zks", "port"]))
+	if verbose:
+		print "Zookeeper nodes: " + zknodelist
+	hdfsconfig["hdfsconfig"]["zks"]["nodes"] = zknodelist
+	hdfsconfig["hdfsconfig"]["namenode"]["namenode1"] = get_node_lists_for_service("namenode1")[0]
+	hdfsconfig["hdfsconfig"]["namenode"]["namenode2"] = get_node_lists_for_service("namenode2")[0]
+	journalnodes = get_node_lists_for_service("journalnode")
+	if verbose:
+		print "Journal nodes: " + zknodelist
+	journalnodelist = generate_hdfs_nodelist( journalnodes, fetch_config( ["hdfsconfig", "journalnode", "port"]))
+	hdfsconfig["hdfsconfig"]["journalnode"]["nodes"] = journalnodelist
+	return hdfsconfig
+
+# Write configuration for each hdfs node. 
+def hdfs_config( nodes, deviceSelect):
+	hdfsconfig = generate_hdfs_config( nodes, deviceSelect )
+	if verbose: 
+		print "HDFS Configuration: %s " % hdfsconfig
+	nodesinfo = get_partitions(nodes, deviceSelect )
+	#if verbose: 
+	#	print nodesinfo
+	reg = re.compile( deviceSelect )
+	for node in nodesinfo:
+		alldeviceinfo = nodesinfo[node]
+		volumes = find_matched_volume( alldeviceinfo, reg )
+		if verbose:
+			print "................. Node %s ................." % node
+			print "Node = %s, volume = %s " % ( node, str(volumes)) 
+		volumeinfo = ""
+		for volume in volumes:
+			# mount remote volumes. 
+			devicename = volume[volume.rfind("/")+1:]
+			mountpoint = os.path.join( config["local-mount-path"], devicename )
+			if len(volumeinfo) <=0:
+				volumeinfo += mountpoint
+			else:
+				volumeinfo += "," + mountpoint
+		hdfsconfig["hdfsconfig"]["dfs"]["data"] = volumeinfo
+		os.system( "mkdir -p ./deploy/etc/hdfs")
+		config_file = "./deploy/etc/hdfs/config.yaml"		
+		with open(config_file,'w') as datafile:
+			yaml.dump(hdfsconfig, datafile, default_flow_style=False)
+		utils.sudo_scp( config["ssh_cert"], config_file, config["hdfsconfig"]["configfile"], "core", node)
+	# Render docker. 
+	utils.render_template_directory("../docker-images/hdfs", "./deploy/docker-images/hdfs", config, verbose)
 
 # Create gluster FS volume 
 def create_glusterFS_volume( nodesinfo, glusterFSargs ):
@@ -2731,6 +2836,10 @@ def run_command( args, command, nargs, parser ):
 				format_mount_partition_volume( nodes, fetch_config(["hdfs", "partitions"]), True )
 		elif nargs[0] == "mount":
 			format_mount_partition_volume( nodes, fetch_config(["hdfs", "partitions"]), False )
+		elif nargs[0] == "umount":
+			unmount_partition_volume( nodes, fetch_config(["hdfs", "partitions"]))
+		elif nargs[0] == "config":
+			hdfs_config( nodes, fetch_config(["hdfs", "partitions"]))
 		else:
 			parser.print_help()
 			print "Unknown subcommand for hdfs " + nargs[0]
@@ -2983,6 +3092,8 @@ Command:
             stop: stop glusterfs service and endpoints. 
   hdfs      [args] manage HDFS on the cluster. 
   			create: formatting and create local drive for use by HDFS. 
+			mount: mount local drive for use by HDFS. 
+			umount: unmount local drive that is used for HDFS.
   download  [args] Manage download
             kubectl: download kubelet/kubectl.
             kubelet: download kubelet/kubectl.

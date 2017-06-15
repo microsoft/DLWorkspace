@@ -1,12 +1,12 @@
 <configuration>
     <property>
         <name>dfs.datanode.data.dir</name>
-        <value>{{hdfsconfig.dfs.data}}</value>
+        <value>{{cnf["hdfsconfig"]["dfs"]["data"]}}</value>
         <description>Comma separated list of paths on the local filesystem of a DataNode where it should store its blocks.</description>
     </property>
     <property>
         <name>dfs.namenode.name.dir</name>
-        <value>hdfsconfig.dfs.name</value>
+        <value>{{cnf["hdfsconfig"]["namenode"]["data"]}}</value>
         <description>Path on the local filesystem where the NameNode stores the namespace and transaction logs persistently.</description>
     </property>
     <property>
@@ -15,35 +15,35 @@
     </property>
     <property>
         <name>ha.zookeeper.quorum</name>
-        <value>ZKNODES</value>
+        <value>{{cnf["hdfsconfig"]["zks"]["nodes"]}}</value>
     </property>
     <property>
       <name>dfs.nameservices</name>
-      <value>CLUSTER_NAME</value>
+      <value>{{cnf["cluster_name"]}}</value>
     </property>
     <property>
-      <name>dfs.ha.namenodes.CLUSTER_NAME</name>
+      <name>dfs.ha.namenodes.{{cnf["cluster_name"]}}</name>
       <value>nn1,nn2</value>
     </property>
     <property>
-      <name>dfs.namenode.rpc-address.CLUSTER_NAME.nn1</name>
-      <value>NNODE1_IP:8020</value>
+      <name>dfs.namenode.rpc-address.{{cnf["cluster_name"]}}.nn1</name>
+      <value>{{cnf["hdfsconfig"]["namenode"]["namenode1"]}}:8020</value>
     </property>
     <property>
-      <name>dfs.namenode.rpc-address.CLUSTER_NAME.nn2</name>
-      <value>NNODE2_IP:8020</value>
+      <name>dfs.namenode.rpc-address.{{cnf["cluster_name"]}}.nn2</name>
+      <value>{{cnf["hdfsconfig"]["namenode"]["namenode2"]}}:8020</value>
     </property>
     <property>
-      <name>dfs.namenode.http-address.CLUSTER_NAME.nn1</name>
-      <value>NNODE1_IP:50070</value>
+      <name>dfs.namenode.http-address.{{cnf["cluster_name"]}}.nn1</name>
+      <value>{{cnf["hdfsconfig"]["namenode"]["namenode1"]}}:50070</value>
     </property>
     <property>
       <name>dfs.namenode.http-address.CLUSTER_NAME.nn2</name>
-      <value>NNODE2_IP:50070</value>
+      <value>{{cnf["hdfsconfig"]["namenode"]["namenode1"]}}:50070</value>
     </property>
     <property>
       <name>dfs.namenode.shared.edits.dir</name>
-      <value>qjournal://JNODES/CLUSTER_NAME</value>
+      <value>qjournal://{{cnf["hdfsconfig"]["journalnode"]["nodes"]}}/{{cnf["cluster_name"]}}</value>
     </property>
     <property>
       <name>dfs.client.failover.proxy.provider.mycluster</name>
@@ -51,10 +51,14 @@
     </property>
     <property>
       <name>dfs.ha.fencing.methods</name>
-      <value>shell(/etc/fence.sh)</value>
+      <value>shell(/bin/true)</value>
     </property>
     <property>
       <name>dfs.journalnode.edits.dir</name>
-      <value>/mnt/hadoop/journal/data</value>
+      <value>{{cnf["hdfsconfig"]["journalnode"]["data"]}}</value>
+    </property>
+    <property>
+        <name>dfs.ha.automatic-failover.enabled</name>
+        <value>true</value>
     </property>
 </configuration>
