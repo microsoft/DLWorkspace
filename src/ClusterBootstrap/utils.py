@@ -73,10 +73,15 @@ def render_template(template_file, target_file, config, verbose=False):
 	
 def render_template_directory(template_dir, target_dir,config, verbose=False):
 	if target_dir in StaticVariable.rendered_target_directory:
-		return;
+		return
 	else:
-		StaticVariable.rendered_target_directory[target_dir]=template_dir;
+		StaticVariable.rendered_target_directory[target_dir]=template_dir
 		os.system("mkdir -p "+target_dir)
+		markfile = os.path.join( target_dir, "DO_NOT_WRITE" )
+		# print "Evaluate %s" % markfile
+		if not os.path.exists( markfile ):
+			# print "Write DO_NOT_WRITE"
+			open( markfile, 'w').close()
 		filenames = os.listdir(template_dir)
 		for filename in filenames:
 			if os.path.isfile(os.path.join(template_dir, filename)):

@@ -22,7 +22,7 @@ spec:
             memory: "4Gi"
             cpu: "1"
         ports:
-        - containerPort: 2181
+        - containerPort: {{cnf["hdfsconfig"]["zks"]["port"]}}
           name: client
         - containerPort: 2888
           name: server
@@ -70,7 +70,7 @@ spec:
                 name: zk-config
                 key: purge.interval
         - name: ZK_CLIENT_PORT
-          value: "2181"
+          value: "{{cnf["hdfsconfig"]["zks"]["port"]}}"
         - name: ZK_SERVER_PORT
           value: "2888"
         - name: ZK_ELECTION_PORT
@@ -98,8 +98,8 @@ spec:
           timeoutSeconds: 5
         volumeMounts:
         - name: datadir
-          mountPath: /var/lib/zookeeper
+          mountPath: {{cnf["hdfsconfig"]["zks"]["data"]}}
       volumes:
       - name: datadir
         hostPath:
-          path: /var/lib/zookeeper
+          path: {{cnf["hdfsconfig"]["zks"]["data"]}}
