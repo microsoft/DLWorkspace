@@ -102,10 +102,29 @@ default_config_parameters = {
 		"GlusterFSUtils.pyc": True, 
 		"launch_glusterfs.pyc": True, 
 		"bootstrap_hdfs.pyc": True,
-		"hdfs-site.xml.template": True, 
 		},
-	"render-by-copy-ext" : { ".png": True, },
-	"render-by-copy": { "gk-deploy":True, "pxelinux.0": True, },
+	"render-by-copy-ext" : { 
+		".png": True, 
+		# All in-docker file will be copied and rendered in docker.
+		".in-docker": True, },
+	"render-by-copy": { 
+		"gk-deploy":True, 
+		"pxelinux.0": True, 
+		# This template will be rendered inside container, but not at build stage
+		# "hdfs-site.xml.template": True, 		
+		},
+
+	"docker-run" : {
+		"hdfs" : {
+			"workdir" : "/opt/hadoop", 
+			"volumes" : {
+				"configDir" : {
+					"from" : "./deploy/etc/hdfs", 
+					"to" : "/etc/hdfs", 
+				},
+			},
+		},
+	}, 
 
 	"build-docker-via-config" : {
 		"hdfs": True, 
@@ -223,6 +242,8 @@ default_config_parameters = {
 		}, 
 		# location of configuration file
 		"configfile": "/etc/hdfs/config.yaml", 
+		# logging directory
+		"loggingDirBase": "/var/log/hdfs"
 	}, 
 	"ubuntuconfig" : {
 		"version" : "16.04.1", 
@@ -1989,21 +2010,20 @@ def generate_hdfs_nodelist( nodes, port):
 	return ",".join( map( lambda x: x+":"+str(port), nodes))
 
 def generate_hdfs_config( nodes, deviceSelect):
-	hdfsconfig = { }
+	hdfsconfig = copy.deepcopy( config["hdfsconfig"] )
 	hdfsconfig["cluster_name"] = config["cluster_name"]
-	hdfsconfig["hdfsconfig"] = copy.deepcopy( config["hdfsconfig"] )
 	zknodes = get_node_lists_for_service("zookeeper")
 	zknodelist = generate_hdfs_nodelist( zknodes, fetch_config( ["hdfsconfig", "zks", "port"]))
 	if verbose:
 		print "Zookeeper nodes: " + zknodelist
-	hdfsconfig["hdfsconfig"]["zks"]["nodes"] = zknodelist
-	hdfsconfig["hdfsconfig"]["namenode"]["namenode1"] = get_node_lists_for_service("namenode1")[0]
-	hdfsconfig["hdfsconfig"]["namenode"]["namenode2"] = get_node_lists_for_service("namenode2")[0]
+	hdfsconfig["zks"]["nodes"] = zknodelist
+	hdfsconfig["namenode"]["namenode1"] = get_node_lists_for_service("namenode1")[0]
+	hdfsconfig["namenode"]["namenode2"] = get_node_lists_for_service("namenode2")[0]
 	journalnodes = get_node_lists_for_service("journalnode")
 	if verbose:
 		print "Journal nodes: " + zknodelist
 	journalnodelist = generate_hdfs_nodelist( journalnodes, fetch_config( ["hdfsconfig", "journalnode", "port"]))
-	hdfsconfig["hdfsconfig"]["journalnode"]["nodes"] = journalnodelist
+	hdfsconfig["journalnode"]["nodes"] = journalnodelist
 	return hdfsconfig
 
 # Write configuration for each hdfs node. 
@@ -2021,18 +2041,17 @@ def hdfs_config( nodes, deviceSelect):
 		if verbose:
 			print "................. Node %s ................." % node
 			print "Node = %s, volume = %s " % ( node, str(volumes)) 
-		volumeinfo = ""
+		volumelist = []
 		for volume in volumes:
 			# mount remote volumes. 
 			devicename = volume[volume.rfind("/")+1:]
 			mountpoint = os.path.join( config["local-mount-path"], devicename )
-			if len(volumeinfo) <=0:
-				volumeinfo += mountpoint
-			else:
-				volumeinfo += "," + mountpoint
-		hdfsconfig["hdfsconfig"]["dfs"]["data"] = volumeinfo
-		os.system( "mkdir -p ./deploy/etc/hdfs")
-		config_file = "./deploy/etc/hdfs/config.yaml"		
+			volumelist.append( mountpoint )
+		volumelist.sort()
+		volumeinfo = ",".join(volumelist)
+		hdfsconfig["dfs"]["data"] = volumeinfo
+		os.system( "mkdir -p %s" % config["docker-run"]["hdfs"]["volumes"]["configDir"]["from"])
+		config_file = "%s/config.yaml" % config["docker-run"]["hdfs"]["volumes"]["configDir"]["from"]		
 		with open(config_file,'w') as datafile:
 			yaml.dump(hdfsconfig, datafile, default_flow_style=False)
 		utils.sudo_scp( config["ssh_cert"], config_file, config["hdfsconfig"]["configfile"], "core", node)
@@ -2550,11 +2569,16 @@ def push_docker_images(nargs):
 		print "Build & push docker images to docker register  ..."
 	push_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"], nargs, config, verbose, nocache = nocache )
 	
-def run_docker_image( imagename, native = False ):
+def run_docker_image( imagename, native = False, sudo = False ):
+	dockerConfig = fetch_config( ["docker-run", imagename ])
 	full_dockerimage_name = build_docker_fullname( config, imagename )
+	# print full_dockerimage_name
 	matches = find_dockers( full_dockerimage_name )
 	if len( matches ) == 0:
-		matches = find_dockers( imagename )
+		local_dockerimage_name = config["dockerprefix"] + dockername + ":" + config["dockertag"]
+		matches = find_dockers( local_dockerimage_name )
+		if len( matches ) == 0:
+			matches = find_dockers( imagename )
 	if len( matches ) == 0:
 		print "Error: can't find any docker image built by name %s, you may need to build the relevant docker first..." % imagename
 	elif len( matches ) > 1: 
@@ -2563,7 +2587,7 @@ def run_docker_image( imagename, native = False ):
 		if native: 
 			os.system( "docker run --rm -ti " + matches[0] )
 		else:
-			run_docker( matches[0], prompt = imagename )	
+			run_docker( matches[0], prompt = imagename, dockerConfig = dockerConfig, sudo = sudo )	
 
 def run_command( args, command, nargs, parser ):
 	nocache = args.nocache
@@ -2840,6 +2864,8 @@ def run_command( args, command, nargs, parser ):
 			unmount_partition_volume( nodes, fetch_config(["hdfs", "partitions"]))
 		elif nargs[0] == "config":
 			hdfs_config( nodes, fetch_config(["hdfs", "partitions"]))
+			dockername = "hdfs"
+			push_docker_images( [dockername] )
 		else:
 			parser.print_help()
 			print "Unknown subcommand for hdfs " + nargs[0]
@@ -3004,7 +3030,7 @@ def run_command( args, command, nargs, parser ):
 				push_docker_images(nargs[1:])
 			elif nargs[0] == "run":
 				if len(nargs)>=2:
-					run_docker_image( nargs[1], args.native ) 
+					run_docker_image( nargs[1], args.native, sudo = args.sudo ) 
 				else:
 					parser.print_help()
 					print "Error: docker run expects an image name "
@@ -3119,6 +3145,7 @@ Command:
   docker    [args] manage docker images. 
             build: build one or more docker images associated with the current deployment. 
             push: build and push one or more docker images to register
+			run [--sudo]: run a docker image (--sudo: in super user mode)
   execonall [cmd ... ] Execute the command on all nodes and print the output. 
   doonall [cmd ... ] Execute the command on all nodes. 
   runscriptonall [script] Execute the shell/python script on all nodes. 
