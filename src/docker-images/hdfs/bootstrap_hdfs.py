@@ -11,13 +11,23 @@ import yaml
 from jinja2 import Environment, FileSystemLoader, Template
 import utils
 
-verbose = False
+verbose = True
 
 def create_log( logdir ):
-	if not os.path.exists( logdir ):
-		os.system("mkdir -p " + logdir )
+    if not os.path.exists( logdir ):
+        os.system("mkdir -p " + logdir )
+
+def exec_with_output( cmd ):
+    try:
+        # https://stackoverflow.com/questions/4814970/subprocess-check-output-doesnt-seem-to-exist-python-2-6-5                
+        print cmd
+        output = subprocess.Popen( cmd.split(), stdout=subprocess.PIPE ).communicate()[0]
+        print output
+    except subprocess.CalledProcessError as e:
+        print "Exception " + str(e.returncode) + ", output: " + e.output.strip()
 
 if __name__ == '__main__':
+    print "Start... boostrap_hdfs.py "
     try:
         parser = argparse.ArgumentParser(prog='boostrap_hdfs.py',
             formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -42,27 +52,57 @@ datanode:    Launch datanode.
         args = parser.parse_args()
         verbose = args.verbose
         server = args.server
+        print "Parse command line argument... "
         config_file = args.config
         if not os.path.exists(config_file):
             print "!!!Error!!! Can't find configuration file %s " % config_file
             parser.print_help()
         with open(config_file, 'r') as file:
             config = yaml.load(file)
-        if verbose: 
-            print config
+        print "Configuration is : %s " % config
         loggingDirBase = "/var/log/hdfs" if not "loggingDirBase" in config else config["loggingDirBase"]
         config["loggingDir"] = os.path.join( loggingDirBase, server )
         utils.render_template("logging.yaml.in-docker", "logging.yaml",config, verbose=verbose)
-        logdir = config["loggingDir"]
-        create_log( logdir )
-        with open('logging.yaml') as f:
-	        logging_config = yaml.load(f)
-	        f.close()
-	        print logging_config
-	        logutils.dictconfig.dictConfig(logging_config)
-        utils.render_template("hdfs-site.xml.in-docker", "hdfs-site.xml",config, verbose=verbose)
+#        logdir = config["loggingDir"]
+#        create_log( logdir )
+#        with open('logging.yaml') as f:
+#           logging_config = yaml.load(f)
+#           f.close()
+#           print logging_config
+#           logutils.dictconfig.dictConfig(logging_config)
+        utils.render_template("hdfs-site.xml.in-docker", "/usr/local/hadoop/etc/hadoop/hdfs-site.xml",config, verbose=verbose)
     except Exception as e:
         print "boostrap_hdfs.py fails during initialization, exception %s" % e
         exit()
-    
+    # Launch journal node
+    if server == "journalnode":
+        cmd = "/usr/local/hadoop/sbin/hadoop-daemon.sh start journalnode"
+        exec_with_output( cmd )
+        exec_with_output( "pgrep -f JournalNode")
+        print "JournalNode running .... "
+    elif server == "zookeeper":
+        cmd = "/usr/local/hadoop/sbin/hadoop-daemon.sh start zookeeper"
+        exec_with_output( cmd )
+        print "Zookeeper node is running .... "
+    elif server == "namenode":
+        cmd = "/usr/local/hadoop/sbin/hadoop-daemon.sh start namenode"
+        exec_with_output( cmd )
+        cmd = "/usr/local/hadoop/sbin/hadoop-daemon.sh start zkfc"
+        exec_with_output( cmd )
+        exec_with_output( "pgrep -f NameNode")
+        exec_with_output( "pgrep -f DFSZKFailoverController")
+        print "Namenode is running"
+    elif server == "datanode":
+        cmd = "/usr/local/hadoop/sbin/hadoop-daemon.sh start datanode"
+        exec_with_output( cmd )
+        exec_with_output( "pgrep -f DataNode")
+        print "Datanode is running"
+    elif server == "format":
+        cmd = "/usr/local/hadoop/bin/hadoop namenode -format -nonInteractive"
+        exec_with_output( cmd )
+        cmd = "/usr/local/hadoop/bin/hdfs zkfs -formatZK -nonInteractive"
+        exec_with_output( cmd )
+    else:
+        ()
+
 

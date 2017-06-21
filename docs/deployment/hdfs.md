@@ -26,3 +26,28 @@ The document describes the procedure to deploy HDFS across a cluster.
   ```
   deploy.py hdfs umount
   ```
+
+3. Configure zookeeper and HDFS
+  ```
+  deploy.py docker push zookeeper
+  deploy.py hdfs config
+  ```
+
+4. Deploy HDFS zookeeper and journal node
+  ```
+  deploy.py kubernetes start zookeeper
+  deploy.py kubernetes start hdfsjournal
+  ```
+  You may shutdown zookeeper and journal node via:
+  ```
+  deploy.py kubernetes stop hdfsjournal
+  deploy.py kubernetes stop zookeeper
+  ```
+
+
+5. Format HDFS namenode
+  ```
+  deploy.py kubernetes start hdfsformat
+  ```
+
+6. 

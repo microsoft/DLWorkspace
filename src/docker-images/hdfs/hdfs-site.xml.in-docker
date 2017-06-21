@@ -6,7 +6,7 @@
     </property>
     <property>
         <name>dfs.namenode.name.dir</name>
-        <value>{{cnf["namenode"]["data"]}}</value>
+        <value>file://{{cnf["namenode"]["data"]}}</value>
         <description>Path on the local filesystem where the NameNode stores the namespace and transaction logs persistently.</description>
     </property>
     <property>
@@ -19,22 +19,22 @@
     </property>
     <property>
       <name>dfs.nameservices</name>
-      <value>{{cnf["cluster_name"]}}</value>
+      <value>{{cnf["hdfs_cluster_name"]}}</value>
     </property>
     <property>
-      <name>dfs.ha.namenodes.{{cnf["cluster_name"]}}</name>
+      <name>dfs.ha.namenodes.{{cnf["hdfs_cluster_name"]}}</name>
       <value>nn1,nn2</value>
     </property>
     <property>
-      <name>dfs.namenode.rpc-address.{{cnf["cluster_name"]}}.nn1</name>
+      <name>dfs.namenode.rpc-address.{{cnf["hdfs_cluster_name"]}}.nn1</name>
       <value>{{cnf["namenode"]["namenode1"]}}:8020</value>
     </property>
     <property>
-      <name>dfs.namenode.rpc-address.{{cnf["cluster_name"]}}.nn2</name>
+      <name>dfs.namenode.rpc-address.{{cnf["hdfs_cluster_name"]}}.nn2</name>
       <value>{{cnf["namenode"]["namenode2"]}}:8020</value>
     </property>
     <property>
-      <name>dfs.namenode.http-address.{{cnf["cluster_name"]}}.nn1</name>
+      <name>dfs.namenode.http-address.{{cnf["hdfs_cluster_name"]}}.nn1</name>
       <value>{{cnf["namenode"]["namenode1"]}}:50070</value>
     </property>
     <property>
@@ -43,7 +43,7 @@
     </property>
     <property>
       <name>dfs.namenode.shared.edits.dir</name>
-      <value>qjournal://{{cnf["journalnode"]["nodes"]}}/{{cnf["cluster_name"]}}</value>
+      <value>qjournal://{{cnf["journalnode"]["nodes"]}}/{{cnf["hdfs_cluster_name"]}}</value>
     </property>
     <property>
       <name>dfs.client.failover.proxy.provider.mycluster</name>
