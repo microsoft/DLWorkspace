@@ -88,7 +88,7 @@ default_config_parameters = {
 	"local-mount-path" : "/mnt",
 
 	# required storage folder under storage-mount-path
-	"default-storage-folders" : ["jobfiles", "storage", "work" ],
+	"default-storage-folders" : ["jobfiles", "storage", "work", "namenodeshare" ],
 
 
 	# the path of where nvidia driver is installed on each node, default /opt/nvidia-driver/current
@@ -192,11 +192,13 @@ default_config_parameters = {
   		"all": "all", 
   		"default": "all",
 		"glusterfs": "worker_node", 
+		# HDFS node selector
 		"hdfs": "worker_node",
 		"zookeeper": "etcd_node", 
 		"journalnode": "etcd_node",
 		"namenode1": "etcd_node_1", 
 		"namenode2": "etcd_node_2",
+		"datanode": "all",
   		"webportal": "etcd_node_1", 
   		"restfulapi": "etcd_node_1", 
   		"jobmanager": "etcd_node_1", 
@@ -219,7 +221,12 @@ default_config_parameters = {
 		"mountoptions": "ext4 defaults 0 1",
 	},
 
+	# optional hdfs_cluster_name: if not inherit cluster_name from cluster
+	# "hdfs_cluster_name": cluster_name for HDFS
+
 	"hdfsconfig" : {
+		# Launch options for formatting, etc..
+		"formatoptions" : "", 
 		# Comma separated list of paths on the local filesystem of a DataNode where it should store its blocks.
 		"dfs" : {
 			# Data node configuration, 
@@ -228,7 +235,8 @@ default_config_parameters = {
 			"data": "", 
 		},
 		"namenode" : {
-			"data": "/var/lib/hdfsnamenode",
+			"localdata" : "/var/lib/namenode",
+			"data": "/mnt/namenodeshare",
 		},
 		"zks" : {
 			# The IP address should be within service_cluster_ip_range
@@ -243,7 +251,7 @@ default_config_parameters = {
 		# location of configuration file
 		"configfile": "/etc/hdfs/config.yaml", 
 		# logging directory
-		"loggingDirBase": "/var/log/hdfs"
+		"loggingDirBase": "/usr/local/hadoop/logs"
 	}, 
 	"ubuntuconfig" : {
 		"version" : "16.04.1", 
@@ -267,6 +275,11 @@ default_config_parameters = {
 		"nfs" : {
 			"options" : "rsize=8192,timeo=14,intr,tcp",
 		},
+		"hdfs" : {
+			"fstaboptions" : "allow_other,usetrash,rw 2 0",
+			"options": "rw -ousetrash"
+		},
+		
 	},
 	
 
@@ -558,6 +571,7 @@ default_config_mapping = {
 	"pxeserverip": (["pxeserver"], lambda x: fetch_dictionary(x,["ip"])), 
 	"pxeserverrootpasswd": (["pxeserver"], lambda x: get_root_passwd()), 
 	"pxeoptions": (["pxeserver"], lambda x: "" if fetch_dictionary(x,["options"]) is None else fetch_dictionary(x,["options"])), 
+	"hdfs_cluster_name" : ( ["cluster_name"], lambda x:x ), 
 }
 	
 # Merge entries in config2 to that of config1, if entries are dictionary. 
@@ -1507,6 +1521,13 @@ def get_mount_fileshares(curNode = None):
 					fstab += "%s:/%s %s /nfsmnt nfs %s\n" % (v["server"], v["filesharename"], curphysicalmountpoint, options)
 				else:
 					errorMsg = "nfs fileshare %s, there is no filesharename or server parameter" % (k)
+			elif v["type"] == "hdfs" and "server" in v:
+				allmountpoints[k] = copy.deepcopy( v )
+				bMount = True
+				options = fetch_config(["mountconfig", "hdfs", "options"])
+				allmountpoints[k]["options"] = options
+				fstaboptions = fetch_config(["mountconfig", "hdfs", "fstaboptions"])
+				fstab += "hadoop-fuse-dfs#dfs://%s %s fuse %s\n" % (v["server"], curphysicalmountpoint, fstaboptions)
 			else:
 				errorMsg = "Error: Unknown or missing critical parameter in fileshare %s with type %s" %( k, v["type"])
 			if not (errorMsg is None):
@@ -1612,6 +1633,15 @@ def mount_fileshares(perform_mount=True):
 							filesharetype["nfs"] = True
 							remotecmd += "sudo apt-get install -y nfs-common; "
 						remotecmd += "sudo mount %s:%s %s -o %s; " % (v["server"], v["filesharename"], physicalmountpoint, v["options"])
+					elif v["type"] == "hdfs":
+						if not ("hdfs" in filesharetype):
+							filesharetype["hdfs"] = True
+							remotecmd += "wget http://archive.cloudera.com/cdh5/one-click-install/trusty/amd64/cdh5-repository_1.0_all.deb; "
+							remotecmd += "sudo dpkg -i cdh5-repository_1.0_all.deb; "
+							remotecmd += "sudo rm cdh5-repository_1.0_all.deb; "
+							remotecmd += "sudo apt-get update; "
+							remotecmd += "sudo apt-get install -y --allow-unauthenticated hadoop-hdfs-fuse; "
+						remotecmd += "sudo hadoop-fuse-dfs dfs://%s %s %s; " % (v["server"], physicalmountpoint, v["options"])
 			if len(remotecmd)>0:
 				utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)
 			insert_fstab_section( node, "DLWS", fstab )
@@ -2006,14 +2036,14 @@ def unmount_partition_volume( nodes, deviceSelect ):
 		utils.SSH_exec_cmd( config["ssh_cert"], "core", node, remotecmd, showCmd=verbose )
 		remove_fstab_section( node, "MOUNTLOCALDISK" )
 
-def generate_hdfs_nodelist( nodes, port):
-	return ",".join( map( lambda x: x+":"+str(port), nodes))
+def generate_hdfs_nodelist( nodes, port, sepchar):
+	return sepchar.join( map( lambda x: x+":"+str(port), nodes))
 
 def generate_hdfs_config( nodes, deviceSelect):
 	hdfsconfig = copy.deepcopy( config["hdfsconfig"] )
-	hdfsconfig["cluster_name"] = config["cluster_name"]
+	hdfsconfig["hdfs_cluster_name"] = config["hdfs_cluster_name"]
 	zknodes = get_node_lists_for_service("zookeeper")
-	zknodelist = generate_hdfs_nodelist( zknodes, fetch_config( ["hdfsconfig", "zks", "port"]))
+	zknodelist = generate_hdfs_nodelist( zknodes, fetch_config( ["hdfsconfig", "zks", "port"]), ",")
 	if verbose:
 		print "Zookeeper nodes: " + zknodelist
 	hdfsconfig["zks"]["nodes"] = zknodelist
@@ -2022,7 +2052,7 @@ def generate_hdfs_config( nodes, deviceSelect):
 	journalnodes = get_node_lists_for_service("journalnode")
 	if verbose:
 		print "Journal nodes: " + zknodelist
-	journalnodelist = generate_hdfs_nodelist( journalnodes, fetch_config( ["hdfsconfig", "journalnode", "port"]))
+	journalnodelist = generate_hdfs_nodelist( journalnodes, fetch_config( ["hdfsconfig", "journalnode", "port"]), ";")
 	hdfsconfig["journalnode"]["nodes"] = journalnodelist
 	return hdfsconfig
 
@@ -2358,17 +2388,20 @@ def get_all_services():
 	for service in os.listdir(rootdir):
 		dirname = os.path.join(rootdir, service)
 		if os.path.isdir(dirname):
-			yamlname = os.path.join(dirname, service + ".yaml")
-			if not os.path.isfile(yamlname):
-				yamls = glob.glob("*.yaml")
-				yamlname = yamls[0]
-			with open( yamlname ) as f:
-				content = f.read()
-				f.close()
-				if content.find( "DaemonSet" )>=0:
-					# Only add service if it is a daemonset. 
-					servicedic[service] = yamlname
-				
+			launch_order_file = os.path.join( dirname, "launch_order")
+			if os.path.isfile( launch_order_file ):
+				servicedic[service] = launch_order_file
+			else:
+				yamlname = os.path.join(dirname, service + ".yaml")
+				if not os.path.isfile(yamlname):
+					yamls = glob.glob("*.yaml")
+					yamlname = yamls[0]
+				with open( yamlname ) as f:
+					content = f.read()
+					f.close()
+					if content.find( "DaemonSet" )>=0:
+						# Only add service if it is a daemonset. 
+						servicedic[service] = yamlname
 	return servicedic
 	
 def get_service_name(service_config_file):
@@ -2397,7 +2430,7 @@ def get_service_yaml( use_service ):
 		servicename = get_service_name(servicedic[service])
 		newentries[servicename] = servicedic[service]
 	servicedic.update(newentries)
-	# print use_service
+	# print servicedic
 	fname = servicedic[use_service]
 	return fname
 			
@@ -2440,14 +2473,14 @@ def get_node_lists_for_service(service):
 # The kubernete node will be marked accordingly to facilitate the running of daemon service. 
 def kubernetes_label_nodes( verb, servicelists, force ):
 	servicedic = get_all_services()
-	#print servicedic
+	# print servicedic
 	get_nodes(config["clusterId"])
 	labels = fetch_config(["kubelabels"])
 	# print labels
-	for service in servicedic:
+	for service, serviceinfo in servicedic.iteritems():
 		servicename = get_service_name(servicedic[service])
 		# print "Service %s - %s" %(service, servicename )
-		if (not service in labels) and (not servicename in labels) and "default" in labels:
+		if (not service in labels) and (not servicename in labels) and "default" in labels and (not servicename is None):
 			labels[servicename] = labels["default"]
 	# print servicelists
 	# print labels
@@ -2457,7 +2490,7 @@ def kubernetes_label_nodes( verb, servicelists, force ):
 		for service in servicelists:
 			if (not service in labels) and "default" in labels:
 				labels[service] = labels["default"]
-	#print servicelists
+	# print servicelists
 	for label in servicelists:
 		nodes = get_node_lists_for_service(label)
 		if verbose: 
@@ -2568,6 +2601,13 @@ def push_docker_images(nargs):
 	if verbose:
 		print "Build & push docker images to docker register  ..."
 	push_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"], nargs, config, verbose, nocache = nocache )
+
+def check_buildable_images(nargs):
+	for imagename in nargs:
+		imagename = imagename.lower()
+		if imagename in config["build-docker-via-config"]:
+			print "Docker image %s should be built via configuration. " % imagename
+			exit()
 	
 def run_docker_image( imagename, native = False, sudo = False ):
 	dockerConfig = fetch_config( ["docker-run", imagename ])
@@ -2959,6 +2999,11 @@ def run_command( args, command, nargs, parser ):
 					servicenames.append(service)
 				# print servicenames
 			if nargs[0] == "start":
+				if args.force and "hdfsformat" in servicenames:
+					print ("This operation will WIPEOUT HDFS namenode, and erase all data on the HDFS cluster,  "  )
+					response = raw_input ("Please type (WIPEOUT) in ALL CAPITALS to confirm the operation ---> ")
+					if response == "WIPEOUT":
+						config["hdfsconfig"]["formatoptions"] = "--force "
 				# Start a kubelet service. 
 				for servicename in servicenames:
 					start_kube_service(servicename)
@@ -3025,8 +3070,10 @@ def run_command( args, command, nargs, parser ):
 	elif command == "docker":
 		if len(nargs)>=1:
 			if nargs[0] == "build":
+				check_buildable_images(nargs[1:])
 				build_docker_images(nargs[1:])
 			elif nargs[0] == "push":
+				check_buildable_images(nargs[1:])
 				push_docker_images(nargs[1:])
 			elif nargs[0] == "run":
 				if len(nargs)>=2:
