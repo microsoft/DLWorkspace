@@ -21,7 +21,7 @@ def exec_with_output( cmd ):
     try:
         # https://stackoverflow.com/questions/4814970/subprocess-check-output-doesnt-seem-to-exist-python-2-6-5                
         print cmd
-        output = subprocess.Popen( cmd.split(), stdout=subprocess.PIPE ).communicate()[0]
+        output = subprocess.Popen( cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT ).communicate()[0]
         print output
     except subprocess.CalledProcessError as e:
         print "Exception " + str(e.returncode) + ", output: " + e.output.strip()
@@ -45,6 +45,9 @@ datanode:    Launch datanode.
             default="/etc/hdfs/config.yaml")
         parser.add_argument("-v", "--verbose", 
             help="verbose information", 
+            action="store_true" )
+        parser.add_argument("-f", "--force", 
+            help="force (formatting)", 
             action="store_true" )
 
         parser.add_argument("server", help = "See above for the list of available server type" )
@@ -98,10 +101,22 @@ datanode:    Launch datanode.
         exec_with_output( "pgrep -f DataNode")
         print "Datanode is running"
     elif server == "format":
-        cmd = "/usr/local/hadoop/bin/hadoop namenode -format -nonInteractive"
+        force = "" if not args.force else "-force "
+        cmd = "/usr/local/hadoop/bin/hdfs namenode -format %s -nonInteractive" % force
         exec_with_output( cmd )
-        cmd = "/usr/local/hadoop/bin/hdfs zkfs -formatZK -nonInteractive"
+        cmd = "/usr/local/hadoop/bin/hdfs zkfc -formatZK -nonInteractive"
         exec_with_output( cmd )
+        print "Format namenode and zkfc ..... "
+        remotedir = os.path.join( config["namenode"]["data"], "current")
+        localdir = os.path.join( config["namenode"]["localdata"], "current")
+        exec_with_output( "rm -rf %s" % remotedir )
+        exec_with_output( "cp -r %s %s" % ( localdir, remotedir ) )
+        print "Copy data from %s to %s" % ( localdir, remotedir )
+    elif server == "standby":
+        remotedir = os.path.join( config["namenode"]["data"], "current")
+        localdir = os.path.join( config["namenode"]["localdata"], "current")
+        exec_with_output( "cp -r %s %s" % ( remotedir, localdir ) )
+        print "Copy data from %s to %s" % ( remotedir, localdir )
     else:
         ()
 

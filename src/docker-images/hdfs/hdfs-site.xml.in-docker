@@ -6,8 +6,8 @@
     </property>
     <property>
         <name>dfs.namenode.name.dir</name>
-        <value>file://{{cnf["namenode"]["data"]}}</value>
-        <description>Path on the local filesystem where the NameNode stores the namespace and transaction logs persistently.</description>
+        <value>file://{{cnf["namenode"]["localdata"]}}</value>
+        <description>Path on the local filesystem where the NameNode stores the namespace and transaction logs persistently. shared at file://{{cnf["namenode"]["data"]}}</description>
     </property>
     <property>
         <name>dfs.ha.automatic-failover.enabled</name>

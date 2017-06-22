@@ -1,12 +1,12 @@
 kind: DaemonSet
 apiVersion: extensions/v1beta1
 metadata:
-  name: hdfsformat
+  name: hdfsnn1
 spec:
   template:
     metadata:
       labels:
-        app: hdfsformat
+        app: hdfsnn1
       annotations:
         pod.alpha.kubernetes.io/initialized: "true"
     spec:
@@ -14,7 +14,7 @@ spec:
         namenode1: active
       hostNetwork: true
       containers:
-      - name: k8shdfsformat
+      - name: k8shdfsnn1
         imagePullPolicy: Always
         image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}hdfs:{{cnf["dockertag"]}}
         ports:
@@ -29,13 +29,13 @@ spec:
         - name: configdir
           mountPath: /etc/hdfs/
         - name: namenodedir
-          mountPath: {{cnf["hdfsconfig"]["namenode"]["data"]}}
+          mountPath: {{cnf["hdfsconfig"]["namenode"]["data"]}} 
         - name: localnamenode
-          mountPath: {{cnf["hdfsconfig"]["namenode"]["localdata"]}}         
+          mountPath: {{cnf["hdfsconfig"]["namenode"]["localdata"]}} 
         command:
         - sh
         - -c
-        - /usr/local/hadoop/etc/hadoop/hadoop-env.sh && cd {{cnf["docker-run"]["hdfs"]["workdir"]}} && pwd && ./bootstrap_hdfs.py {{cnf["hdfsconfig"]["formatoptions"]}} format && /bin/sleep infinity
+        - /usr/local/hadoop/etc/hadoop/hadoop-env.sh && cd {{cnf["docker-run"]["hdfs"]["workdir"]}} && pwd && ./bootstrap_hdfs.py namenode && /bin/sleep infinity
       volumes:
       - name: datadir
         hostPath:
@@ -51,4 +51,4 @@ spec:
           path: {{cnf["storage-mount-path"]}}/namenodeshare
       - name: localnamenode
         hostPath:
-          path: {{cnf["hdfsconfig"]["namenode"]["localdata"]}}
+          path: {{cnf["hdfsconfig"]["namenode"]["localdata"]}} 

@@ -26,10 +26,9 @@ RUN sed -i '/^export JAVA_HOME/ s:.*:export JAVA_HOME=/usr/lib/jvm/java-8-oracle
 # NameNode                Secondary NameNode  DataNode                     JournalNode  NFS Gateway    HttpFS         ZKFC
 EXPOSE 8020 50070 50470   50090 50495         50010 1004 50075 1006 50020  8485 8480    2049 4242 111  14000 14001    8019
 
-RUN curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
-RUN python get-pip.py
+RUN apt-get update && apt-get install -y python-pip attr
 RUN pip install pyyaml jinja2 argparse logutils
-RUN yum install -y attr
+
 
 WORKDIR {{cnf["docker-run"]["hdfs"]["workdir"]}}
 
@@ -47,4 +46,6 @@ RUN chmod +x {{cnf["docker-run"]["hdfs"]["workdir"]}}/*.py
 # the 3rd answer, you may ignore warning on NativeCodeLoader
 
 CMD /bin/bash
+
+
 

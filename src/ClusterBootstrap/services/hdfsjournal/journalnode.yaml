@@ -29,7 +29,9 @@ spec:
         - name: configdir
           mountPath: /etc/hdfs/
         - name: namenodedir
-          mountPath: /mnt/namenodeshare
+          mountPath: {{cnf["hdfsconfig"]["namenode"]["data"]}}
+        - name: localnamenode
+          mountPath: {{cnf["hdfsconfig"]["namenode"]["localdata"]}}
         command:
         - sh
         - -c
@@ -47,3 +49,6 @@ spec:
       - name: namenodedir
         hostPath:
           path: {{cnf["storage-mount-path"]}}/namenodeshare
+      - name: localnamenode
+        hostPath:
+          path: {{cnf["hdfsconfig"]["namenode"]["localdata"]}}

@@ -1,20 +1,20 @@
 kind: DaemonSet
 apiVersion: extensions/v1beta1
 metadata:
-  name: hdfsformat
+  name: hdfsstandby
 spec:
   template:
     metadata:
       labels:
-        app: hdfsformat
+        app: hdfsstandby
       annotations:
         pod.alpha.kubernetes.io/initialized: "true"
     spec:
       nodeSelector:
-        namenode1: active
+        namenode2: active
       hostNetwork: true
       containers:
-      - name: k8shdfsformat
+      - name: k8shdfsstandby
         imagePullPolicy: Always
         image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}hdfs:{{cnf["dockertag"]}}
         ports:
@@ -35,7 +35,7 @@ spec:
         command:
         - sh
         - -c
-        - /usr/local/hadoop/etc/hadoop/hadoop-env.sh && cd {{cnf["docker-run"]["hdfs"]["workdir"]}} && pwd && ./bootstrap_hdfs.py {{cnf["hdfsconfig"]["formatoptions"]}} format && /bin/sleep infinity
+        - /usr/local/hadoop/etc/hadoop/hadoop-env.sh && cd {{cnf["docker-run"]["hdfs"]["workdir"]}} && pwd && ./bootstrap_hdfs.py standby && /bin/sleep infinity
       volumes:
       - name: datadir
         hostPath:
