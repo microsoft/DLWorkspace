@@ -35,6 +35,8 @@ WORKDIR {{cnf["docker-run"]["hdfs"]["workdir"]}}
 ADD core-site.xml /usr/local/hadoop/etc/hadoop/core-site.xml
 ADD hdfs-site.xml.in-docker {{cnf["docker-run"]["hdfs"]["workdir"]}}
 ADD logging.yaml.in-docker {{cnf["docker-run"]["hdfs"]["workdir"]}}
+ADD mapred-site.xml.in-docker {{cnf["docker-run"]["hdfs"]["workdir"]}}
+ADD yarn-site.xml.in-docker {{cnf["docker-run"]["hdfs"]["workdir"]}}
 ADD bootstrap_hdfs.py {{cnf["docker-run"]["hdfs"]["workdir"]}}
 ADD utils.py {{cnf["docker-run"]["hdfs"]["workdir"]}}
 RUN chmod +x {{cnf["docker-run"]["hdfs"]["workdir"]}}/*.py

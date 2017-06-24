@@ -74,6 +74,8 @@ datanode:    Launch datanode.
 #           print logging_config
 #           logutils.dictconfig.dictConfig(logging_config)
         utils.render_template("hdfs-site.xml.in-docker", "/usr/local/hadoop/etc/hadoop/hdfs-site.xml",config, verbose=verbose)
+        utils.render_template("mapred-site.xml.in-docker", "/usr/local/hadoop/etc/hadoop/mapred-site.xml",config, verbose=verbose)
+        utils.render_template("yarn-site.xml.in-docker", "/usr/local/hadoop/etc/hadoop/yarn-site.xml",config, verbose=verbose)
     except Exception as e:
         print "boostrap_hdfs.py fails during initialization, exception %s" % e
         exit()
@@ -117,7 +119,18 @@ datanode:    Launch datanode.
         localdir = os.path.join( config["namenode"]["localdata"], "current")
         exec_with_output( "cp -r %s %s" % ( remotedir, localdir ) )
         print "Copy data from %s to %s" % ( remotedir, localdir )
+    elif server == "resourcemanager":
+        cmd = "/usr/local/hadoop/sbin/yarn-daemon.sh start resourcemanager"
+        exec_with_output( cmd )
+        exec_with_output( "pgrep -f DataNode")
+        print "Datanode is running"
+    elif server == "nodemanager":
+        cmd = "/usr/local/hadoop/sbin/yarn-daemon.sh start nodemanager"
+        exec_with_output( cmd )
+        exec_with_output( "pgrep -f DataNode")
+        print "Datanode is running"
+
     else:
-        ()
+        print "Unknown server" + server
 
 

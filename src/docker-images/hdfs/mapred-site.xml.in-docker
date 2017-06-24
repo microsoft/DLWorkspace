@@ -1,0 +1,10 @@
+<configuration>
+<property>
+ <name>mapreduce.framework.name</name>
+ <value>yarn</value>
+</property>
+<property>
+  <name>mapred.jobtracker.taskScheduler</name>
+  <value>org.apache.hadoop.mapred.FairScheduler</value>
+</property>
+</configuration>
