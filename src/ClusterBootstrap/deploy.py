@@ -264,7 +264,11 @@ default_config_parameters = {
 			"ubuntuImageName" : "ubuntu-16.04.1-server-amd64.iso",
 		},
 	}, 
-	
+
+	"acskubeconfig" : "acs_kubeclusterconfig",
+	"isacs" : False,
+	"acsagentsize" : "Standard_D2_v2",
+
 	"mountconfig": {
 		"azurefileshare" : {
 			"options" : "vers=3.0,username=%s,password=%s,dir_mode=0777,file_mode=0777,serverino",
@@ -626,8 +630,11 @@ def add_ssh_key():
 	elif "sshkey" in config:
 		config["sshKeys"] = []
 		config["sshKeys"].append(config["sshkey"])
-		
-	
+
+def add_acs_config():
+	if (os.path.exists("./deploy/"+config["acskubeconfig"])):
+		config["isacs"] = True
+			
 # Render scripts for kubenete nodes
 def add_kubelet_config():
 	renderfiles = []
@@ -832,7 +839,30 @@ def get_ETCD_master_nodes_from_config(clusterId):
 	config["kubernetes_master_node"] = Nodes
 	return Nodes
 
+def get_nodes_from_acs(tomatch):
+	machines = acs_get_machinesAndIPsFast()
+	Nodes = []
+	masterNodes = []
+	agentNodes = []
+	for m in machines:
+		match = re.match('k8s-'+tomatch+'.*', m)
+		ip = machines[m]["publicip"]
+		if not (match is None):
+			Nodes.append(ip)
+		match = re.match('k8s-master', m)
+		if not (match is None):
+			masterNodes.append(ip)
+		match = re.match('k8s-agent', m)
+		if not (match is None):
+			agentNodes.append(ip)
+	config["etcd_node"] = masterNodes
+	config["kubernetes_master_node"] = masterNodes
+	config["worker_node"] = agentNodes
+	return Nodes
+
 def get_ETCD_master_nodes(clusterId):
+	if config["isacs"]:
+		return get_nodes_from_acs('master')
 	if "etcd_node" in config:
 		Nodes = config["etcd_node"]
 		config["kubernetes_master_node"] = Nodes
@@ -866,6 +896,8 @@ def get_worker_nodes_from_config(clusterId):
 	return Nodes
 
 def get_worker_nodes(clusterId):
+	if config["isacs"]:
+		return get_nodes_from_acs('agent')
 	if "worker_node" in config:
 		return config["worker_node"]
 	if "useclusterfile" not in config or not config["useclusterfile"]:
@@ -882,7 +914,9 @@ def check_master_ETCD_status():
 	etcdNodes = []
 	print "==============================================="
 	print "Checking Available Nodes for Deployment..."
-	if "clusterId" in config:
+	if config["isacs"]:
+		get_nodes_from_acs("")
+	elif "clusterId" in config:
 		get_ETCD_master_nodes(config["clusterId"])
 		get_worker_nodes(config["clusterId"])
 	print "==============================================="
@@ -1501,13 +1535,17 @@ def acs_get_machineIP(machineName):
 		i+=1
 	return {"nic" : nicDefault, "ipconfig": ipConfigDefault, "publicipname" : None, "publicip" : None}
 
+def acs_get_nodes():
+	nodeInfo = subprocess.check_output('./deploy/bin/kubectl -o=json --kubeconfig=./deploy/'+config["acskubeconfig"]+' get nodes', shell=True)
+	nodes = yaml.load(nodeInfo)
+	return nodes["items"]
+
 def acs_get_machinesAndIPs(bCreateIP):
 	# Public IP on worker nodes
-	nodeInfo = subprocess.check_output('kubectl -o=json --kubeconfig=./deploy/acs_kubeclusterconfig get nodes', shell=True)
-	nodes = yaml.load(nodeInfo)
+	nodes = acs_get_nodes()
 	ipInfo = {}
 	#print nodes["items"]
-	for n in nodes["items"]:
+	for n in nodes:
 		machineName = n["metadata"]["name"]
 		ipInfo[machineName] = acs_get_machineIP(machineName)
 		if bCreateIP and (ipInfo[machineName]["publicip"] is None):
@@ -1531,6 +1569,20 @@ def acs_get_machinesAndIPs(bCreateIP):
 			ipInfo[machineName]["publicip"] = acs_get_ip(ipName)
 	return ipInfo
 
+def acs_get_machinesAndIPsFast():
+	nodes = acs_get_nodes()
+	ipInfo = {}
+	for n in nodes:
+		machineName = n["metadata"]["name"]
+		#print "MachineName: "+machineName
+		ipName = machineName+"-public-ip-0"
+		if (verbose):
+			print "PublicIP: "+ipName
+		ipInfo[machineName] = {}
+		ipInfo[machineName]["publicipname"] = ipName
+		ipInfo[machineName]["publicip"] = acs_get_ip(ipName)
+	return ipInfo
+
 def deploy_acs():
 	regenerate_key = False
 	if (os.path.isfile("./deploy/sshkey")):
@@ -1552,6 +1604,7 @@ def deploy_acs():
 	cmd += " --agent-count=%d" % config["worker_node_num"]
 	cmd += " --master-count=%d" % config["master_node_num"]
 	cmd += " --location=%s" % config["cluster_location"]
+	cmd += " --agent-vm-size=%s" % config["acsagentsize"]
 	cmd += " --ssh-key-value=%s" % "./deploy/sshkey/id_rsa.pub"
 	if (regenerate_key):			
 		os.system("rm -r ./deploy/sshkey || true")
@@ -1559,11 +1612,11 @@ def deploy_acs():
 	os.system(cmd)
 
 	# Install kubectl / get credentials
-	os.system("az acs kubernetes install-cli")
+	os.system("az acs kubernetes install-cli --install-location ./deploy/bin/kubectl")
 	cmd = "az acs kubernetes get-credentials"
 	cmd += " --resource-group=%s" % config["resource_group"]
 	cmd += " --name=%s" % config["cluster_name"]
-	cmd += " --file=%s" % "./deploy/acs_kubeclusterconfig"
+	cmd += " --file=./deploy/%s" % config["acskubeconfig"]
 	cmd += " --ssh-key-file=%s" % "./deploy/sshkey/id_rsa"
 	os.system(cmd)
 
@@ -2469,8 +2522,8 @@ def run_kube( prog, commands ):
 	master_node = random.choice(nodes)
 	one_command = " ".join(commands)
 	kube_command = ""
-	if (os.path.exists("./deploy/acs_kubeclusterconfig")):
-		kube_command = "%s --kubeconfig=./deploy/acs_kubeclusterconfig %s" % (prog, one_command)
+	if (os.path.exists("./deploy/"+config["acskubeconfig"])):
+		kube_command = "%s --kubeconfig=./deploy/%s %s" (prog, config["acskubeconfig"], one_command)
 	else:
 		kube_command = ("%s --server=https://%s:%s --certificate-authority=%s --client-key=%s --client-certificate=%s %s" % (prog, master_node, config["k8sAPIport"], "./deploy/ssl/ca/ca.pem", "./deploy/ssl/kubelet/apiserver-key.pem", "./deploy/ssl/kubelet/apiserver.pem", one_command) )
 	if verbose:
@@ -2801,6 +2854,10 @@ def run_command( args, command, nargs, parser ):
 	config["launch-glusterfs-opt"] = args.glusterfs;
 
 	get_ssh_config()
+
+	add_acs_config()
+	if verbose and config["isacs"]:
+		print "USing Azure Container Services"
 	
 	if args.yes:
 		global defanswer
@@ -2840,7 +2897,10 @@ def run_command( args, command, nargs, parser ):
 				if num < 0 or num >= len(nodes):
 					num = 0
 			nodename = nodes[num]
-			utils.SSH_connect( config["ssh_cert"], "core", nodename)
+			if (config["isacs"]):
+				utils.SSH_connect(config["ssh_cert"], "azureuser", nodename)
+			else:
+				utils.SSH_connect( config["ssh_cert"], "core", nodename)
 			exit()
 
 	elif command == "deploy" and "clusterId" in config:
@@ -3107,7 +3167,7 @@ def run_command( args, command, nargs, parser ):
 			if nargs[0]=="deploy":
 				deploy_acs()
 			elif nargs[0]=="getip":
-				ip = acs_get_machinesAndIPs(False)
+				ip = acs_get_machinesAndIPsFast()
 				print ip
 			elif nargs[0]=="createip":
 				ip = acs_get_machinesAndIPs(True)
