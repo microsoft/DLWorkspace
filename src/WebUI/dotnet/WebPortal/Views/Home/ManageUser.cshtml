@@ -1,49 +1,88 @@
-﻿@using WindowsAuth.models;
-@model IEnumerable<UserEntry>
-
-@{
-    ViewData["Title"] = "Index";
+﻿@{
+    ViewData["Title"] = "Manage Users";
 }
 
-<h2>Index</h2>
+<h2>@ViewData["Title"]</h2>
 
-<table class="table">
+<script type="text/javascript">
+    function ChangeAccount(userEmail) {
+        alert(userEmail);
+        
+    }
+</script>
+
+<table id="users-table" class="table table-bordered table-condensed table-hover table-striped">
     <thead>
         <tr>
-            <th>
-                @Html.DisplayNameFor(model => model.Email )
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.Alias )
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.isAdmin)
-            </th>
-            <th>
-                @Html.DisplayNameFor(model => model.isAuthorized )
-            </th>
-            <th></th>
+            <th>Username</th>
+            <th>Email Address</th>
+            <th>Account Type</th>
         </tr>
     </thead>
     <tbody>
-        @foreach (var item in Model)
+      
+        @foreach (var item in ViewData["Users"] as List<string[]>)
         {
             <tr>
-                <td>
-                    @Html.DisplayFor(modelItem => item.Email )
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.Alias )
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.isAdmin)
-                </td>
-                <td>
-                    @Html.DisplayFor(modelItem => item.isAuthorized)
-                </td>
-
+                <td> @item[0] </td>
+                <td> @item[1] </td>
+                <td><a href='#' onclick="ChangeAccount('@item[1]')" class="@item[2]"> @item[2] </a></td>
             </tr>
         }
     </tbody>
 </table>
 
+
+<style>
+    .Admin {
+        background-color: #0e8a16;
+        -moz-border-radius: 4px;
+        -webkit-border-radius: 4px;
+        border-radius: 4px;
+        color: #ffffff;
+        font-weight: bold;
+        padding: 2px 5px;
+        text-decoration: none
+    }
+
+        .Admin:hover, .Admin:visited, .Admin:active, .Admin:link {
+            background-color: #0f9916;
+            color: #ffffff;
+            text-decoration: none;
+        }
+
+    .User {
+        background-color: #0052cc;
+        -moz-border-radius: 4px;
+        -webkit-border-radius: 4px;
+        border-radius: 4px;
+        color: #ffffff;
+        font-weight: bold;
+        padding: 2px 5px;
+        text-decoration: none
+    }
+
+        .User:hover, .User:visited, .User:active, .User:link {
+            background-color: #0052cc;
+            color: #ffffff;
+            text-decoration: none;
+        }
+
+    .Unauthorized {
+        background-color: #fbca04;
+        -moz-border-radius: 4px;
+        -webkit-border-radius: 4px;
+        border-radius: 4px;
+        color: #332900;
+        font-weight: bold;
+        padding: 2px 5px;
+        text-decoration: none
+    }
+
+        .Unauthorized:hover, .Unauthorized:visited, .Unauthorized:active, .Unauthorized:link {
+            background-color: #fbca04;
+            color: #332900;
+            text-decoration: none;
+        }
+
+</style>

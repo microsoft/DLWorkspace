@@ -423,9 +423,9 @@ namespace WindowsAuth.Controllers
             // Prior entry exists? 
             await priorEntrys.ForEachAsync(entry =>
            {
-                // We will not update existing entry in database. 
-                // db.Entry(entry).CurrentValues.SetValues(userEntry);
-                ret = entry;
+               // We will not update existing entry in database. 
+               // db.Entry(entry).CurrentValues.SetValues(userEntry);
+               ret = entry;
                Interlocked.Add(ref nEntry, 1);
            }
             );
@@ -713,7 +713,7 @@ namespace WindowsAuth.Controllers
                     for (int i = 0; i < lstClusters.Count(); i++)
                     {
                         if ( !String.IsNullOrEmpty(lstClusters[i]))
-                        { 
+                        {
                             vm.ClustersList.Add(new SelectListItem
                             {
                                 Value = lstClusters[i], // (i + 1).ToString(),
@@ -913,11 +913,14 @@ namespace WindowsAuth.Controllers
                 var db = Startup.DatabaseForUser[currentCluster];
                 if (!Object.ReferenceEquals(db, null))
                 {
-                    var filter = HttpContext.Session.GetString("FilterUser");
-                    if (String.IsNullOrEmpty(filter))
-                        filter = "";
-                    var ret = db.User.Where(x => x.Email.Contains(filter)).ToAsyncEnumerable();
-                    return PartialView(ret);
+                    List<string[]> userTable = new List<string[]>();
+                    foreach (var user in db.User)
+                    {
+                        string accountType = user.isAuthorized.Equals("true") ? (user.isAdmin.Equals("true") ? "Admin" : "User") : "Unauthorized";
+                        string[] userString = new string[] { ParseToUsername(user.Alias), user.Email, accountType };
+                        userTable.Add(userString);
+                    }
+                    ViewData["Users"] = userTable;
                 }
             }
             return View();
