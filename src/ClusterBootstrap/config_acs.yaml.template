@@ -1,0 +1,6 @@
+resource_group : kubegroup2
+cluster_name : k8scluster
+cluster_location : westus
+worker_node_num : 3
+master_node_num : 1
+acsagentsize : Standard_D2_v2
