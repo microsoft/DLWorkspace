@@ -39,7 +39,12 @@ def push_docker( dockername, docker_register, verbose=False):
 	os.system(cmd)
 	return dockername
 	
-def run_docker(dockername, prompt="", dockerConfig = None, sudo = False ):
+def run_docker(dockername, prompt="", dockerConfig = None, sudo = False, options = "" ):
+	if not (dockerConfig is None):
+		if "su" in dockerConfig:
+			sudo = True
+		if "options" in dockerConfig and len(options)<=0:
+			options = dockerConfig["options"]
 	uid = os.getuid()
 	username = getpass.getuser()
 	username = username.split()[0]
@@ -96,9 +101,9 @@ def run_docker(dockername, prompt="", dockerConfig = None, sudo = False ):
 	else:
 		hostname = prompt
 	if homedir in currentdir:
-		cmd = "docker run --privileged --hostname " + hostname + " --rm -ti " + mapVolume + " -v "+dirname+ ":/tmp/runcommand -w "+homedir + " " + dockername + " /tmp/runcommand/run.sh"
+		cmd = "docker run --privileged --hostname " + hostname + " " + options + " --rm -ti " + mapVolume + " -v "+dirname+ ":/tmp/runcommand -w "+homedir + " " + dockername + " /tmp/runcommand/run.sh"
 	else:
-		cmd = "docker run --privileged --hostname " + hostname + " --rm -ti " + mapVolume + " -v "+dirname+ ":/tmp/runcommand -w "+homedir + " " + dockername + " /tmp/runcommand/run.sh"
+		cmd = "docker run --privileged --hostname " + hostname + " " + options + " --rm -ti " + mapVolume + " -v "+dirname+ ":/tmp/runcommand -w "+homedir + " " + dockername + " /tmp/runcommand/run.sh"
 	print "Execute: " + cmd
 	os.system(cmd)
 	
