@@ -101,7 +101,9 @@ def SubmitJob(jobParamsJsonStr):
 		ret["error"] = "ERROR: data directory should not start with '/' or '\\' " 
 		return ret
 
-
+	jobParams["dataPath"] = jobParams["dataPath"].replace("\\","/")
+	jobParams["workPath"] = jobParams["workPath"].replace("\\","/")
+	jobParams["jobPath"] = jobParams["jobPath"].replace("\\","/")
 	jobParams["dataPath"] = os.path.realpath(os.path.join("/",jobParams["dataPath"]))[1:]
 	jobParams["workPath"] = os.path.realpath(os.path.join("/",jobParams["workPath"]))[1:]
 	jobParams["jobPath"] = os.path.realpath(os.path.join("/",jobParams["jobPath"]))[1:]
