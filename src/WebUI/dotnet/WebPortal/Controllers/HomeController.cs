@@ -53,11 +53,11 @@ namespace WindowsAuth.Controllers
             string username = email;
             if (username.Contains("@"))
             {
-                username = username.Split(new char[] { '@' })[0];
+                username = username.Split('@')[0];
             }
             if (username.Contains("/"))
             {
-                username = username.Split(new char[] { '/' })[1];
+                username = username.Split('/')[1];
             }
             return username;
         }
@@ -101,7 +101,7 @@ namespace WindowsAuth.Controllers
                 }
             }
             _logger.LogInformation("User {0} log in, Uid {1}, Gid {2}, isAdmin {3}, isAuthorized {4}",
-                                email, userEntry.uid, userEntry.gid, userEntry.isAdmin, userEntry.isAuthorized);
+                               email, userEntry.uid, userEntry.gid, userEntry.isAdmin, userEntry.isAuthorized);
             return true;
         }
 
@@ -176,7 +176,7 @@ namespace WindowsAuth.Controllers
                         {
                             if (clusterInfo.RegisterGroups.ContainsKey(group))
                             {
-                                userID.uid = "-1";
+                                //userID.uid = "-1";
                                 userID.isAdmin = "false";
                                 userID.isAuthorized = "false";
                                 authorizedClusters[clusterName] = userID;
@@ -248,24 +248,23 @@ namespace WindowsAuth.Controllers
                             var userID = new UserID();
 
                             long uidl = 0, uidh = 1000000, gid = 0, uid = -1;
-                            Int64.TryParse(gidString, out gid);
+                            Int64.TryParse(gidString, out gid);  
                             string[] uidRange = uidString.Split(new char[] { '-' });
                             Int64.TryParse(uidRange[0], out uidl);
                             Int64.TryParse(uidRange[1], out uidh);
                             Guid guid;
-                            long tenantInt64;
+                            Int64 tenantInt64;
                             if (Guid.TryParse(tenantID, out guid))
                             {
                                 byte[] gb = new Guid(tenantID).ToByteArray();
                                 tenantInt64 = BitConverter.ToInt64(gb, 0);
                                 long tenantRem = tenantInt64 % (uidh - uidl);
                                 uid = uidl + Convert.ToInt32(tenantRem);
-                            } else if (Int64.TryParse(tenantID, out tenantInt64))
+                            } else if (Int64.TryParse(tenantID.Substring(18), out tenantInt64))
                             {
                                 long tenantRem = tenantInt64 % (uidh - uidl);
                                 uid = uidl + Convert.ToInt32(tenantRem);
                             }
-
                             userID.uid = uid.ToString();
                             userID.gid = gid.ToString();
                             userID.groups = new List<string>();
@@ -455,10 +454,11 @@ namespace WindowsAuth.Controllers
                 {
                     bool bUpdate = false;
 
-                    if (String.Compare(ret.isAuthorized, userID.isAuthorized, true) < 0)
+                    if (String.Compare(ret.isAuthorized, userID.isAuthorized, true) < 0 || String.Compare(ret.isAdmin, userID.isAdmin, true) < 0)
                     {
                         // userID isAuthorized is true
                         newEntry.isAuthorized = userID.isAuthorized;
+                        newEntry.isAdmin = userID.isAdmin;
                         newEntry.uid = userID.uid;
                         newEntry.gid = userID.gid;
 
@@ -891,20 +891,27 @@ namespace WindowsAuth.Controllers
         public IActionResult About()
         {
             ViewData["Message"] = "Your application description page.";
-
+            AddUserToView();
             return View();
         }
 
         public IActionResult Contact()
         {
             ViewData["Message"] = "Your contact page.";
-
+            AddUserToView();
             return View();
         }
 
         public IActionResult Error()
         {
+            AddUserToView();
             return View();
+        }
+
+        public void AddUserToView()
+        {
+            string username = HttpContext.Session.GetString("Username");
+            ViewData["Username"] = username;
         }
 
         /// <summary>
@@ -913,8 +920,7 @@ namespace WindowsAuth.Controllers
         /// <returns></returns>
         public async Task<IActionResult> ManageUser()
         {
-            string username = HttpContext.Session.GetString("Username");
-            ViewData["Username"] = username;
+            AddUserToView();
             var currentCluster = HttpContext.Session.GetString("CurrentClusters");
             if (Startup.DatabaseForUser.ContainsKey(currentCluster))
             {
