@@ -124,6 +124,12 @@ default_config_parameters = {
 				},
 			},
 		},
+		"pxe-ubuntu" : {
+			"workdir" : "/", 
+			"su" : True, 
+			"options" : "--net=host", 
+		},
+
 	}, 
 
 	"build-docker-via-config" : {
@@ -537,6 +543,7 @@ def get_platform_script_directory( target ):
 
 def get_root_passwd():
 	fname = "./deploy/sshkey/rootpasswd"
+	os.system("mkdir -p ./deploy/sshkey")
 	if not os.path.exists(fname):
 		with open(fname,'w') as f:
 			passwd = uuid.uuid4().hex
@@ -1475,14 +1482,20 @@ def deploy_webUI_on_node(ipAddress):
 	print "Web UI is running at: http://%s:%s" % (webUIIP,str(config["webuiport"]))
 
 # Install ssh key remotely
-def install_ssh_key():
+def install_ssh_key(key_files):
 	all_nodes = get_nodes(config["clusterId"])
 	with open("./deploy/sshkey/rootpasswd", "r") as f:
 		rootpasswd = f.read()
 		f.close()
 
 	for node in all_nodes:
-		os.system("sshpass -p %s ssh-copy-id -o StrictHostKeyChecking=no -i ./deploy/sshkey/id_rsa.pub core@%s" %(rootpasswd, node))
+		if len(key_files)>0:
+			for key_file in key_files:
+				print "Install key %s on %s" % (key_file, node)
+				os.system("sshpass -p %s ssh-copy-id -o StrictHostKeyChecking=no -i %s core@%s" %(rootpasswd, key_file, node))
+		else:
+			print "Install key %s on %s" % ("./deploy/sshkey/id_rsa.pub", node)
+			os.system("sshpass -p %s ssh-copy-id -o StrictHostKeyChecking=no -i ./deploy/sshkey/id_rsa.pub core@%s" %(rootpasswd, node))
 
 def pick_server( nodelists, curNode ):
 	if curNode is None or not (curNode in nodelists):
@@ -2130,6 +2143,7 @@ def write_glusterFS_configuration( nodesinfo, glusterFSargs ):
 						exit()
 			glusterfs_groups[glusterfs_group]["nodes"] = []
 		glusterfs_groups[glusterfs_group]["nodes"].append( node )
+	os.system("mkdir -p %s" %os.path.dirname(config_file))
 	with open(config_file,'w') as datafile:
 		yaml.dump(config_glusterFS, datafile, default_flow_style=False)
 	return config_glusterFS
@@ -2622,7 +2636,10 @@ def get_node_lists_for_service(service):
 			nodes = config["etcd_node"]
 		elif nodetype.find( "etcd_node_" )>=0:
 			nodenumber = int(nodetype[nodetype.find( "etcd_node_" )+len("etcd_node_"):])
-			nodes = [ config["etcd_node"][nodenumber-1] ]
+			if len(config["etcd_node"])>=nodenumber:
+				nodes = [ config["etcd_node"][nodenumber-1] ]
+			else:
+				nodes = []
 		elif nodetype == "all":
 			nodes = config["worker_node"] + config["etcd_node"]
 		else:
@@ -2928,7 +2945,7 @@ def run_command( args, command, nargs, parser ):
 
 	elif command == "sshkey":
 		if len(nargs) >=1 and nargs[0] == "install":
-			install_ssh_key()
+			install_ssh_key(nargs[1:])
 		else:
 			parser.print_help()
 			print "Error: build target %s is not recognized. " % nargs[0] 
