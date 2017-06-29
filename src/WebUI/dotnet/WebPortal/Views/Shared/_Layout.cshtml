@@ -43,7 +43,7 @@
                     @if ( Context.Session.GetString("isAdmin") == "true")
                     {
                         <li><a asp-area="" asp-controller="Home" asp-action="ManageUser">Manage Users</a></li> 
-
+                    
                     }
                 </ul>
                 @await Html.PartialAsync("_LoginPartial")

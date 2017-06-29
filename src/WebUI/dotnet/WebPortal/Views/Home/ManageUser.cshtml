@@ -4,13 +4,6 @@
 
 <h2>@ViewData["Title"]</h2>
 
-<script type="text/javascript">
-    function ChangeAccount(userEmail) {
-        alert(userEmail);
-        
-    }
-</script>
-
 <table id="users-table" class="table table-bordered table-condensed table-hover table-striped">
     <thead>
         <tr>
@@ -20,13 +13,13 @@
         </tr>
     </thead>
     <tbody>
-      
+
         @foreach (var item in ViewData["Users"] as List<string[]>)
         {
             <tr>
                 <td> @item[0] </td>
                 <td> @item[1] </td>
-                <td><a href='#' onclick="ChangeAccount('@item[1]')" class="@item[2]"> @item[2] </a></td>
+                <td><a href=@("/Home/ManageUser/?AccountChangeEmail="+item[1]) class="@item[2]"> @item[2] </a></td>
             </tr>
         }
     </tbody>
@@ -84,5 +77,4 @@
             color: #332900;
             text-decoration: none;
         }
-
 </style>

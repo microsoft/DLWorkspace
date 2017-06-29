@@ -346,6 +346,10 @@ namespace WindowsAuth.Controllers
                     {
                         userObjectID = claim.Value;
                     }
+                    if (claim.Type.IndexOf("identity/claims/nameidentifier")>=0)
+                    {
+                        userObjectID = claim.Value;
+                    }
                     // http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn
                     if (claim.Type.IndexOf("identity/claims/upn") >= 0)
                     {
@@ -875,6 +879,8 @@ namespace WindowsAuth.Controllers
                 return RedirectToAction("Index", "Home");
             }
 
+            string username = HttpContext.Session.GetString("Username");
+            ViewData["Username"] = username;
 
             ViewData["Message"] = "Cluster Status.";
 
@@ -907,12 +913,38 @@ namespace WindowsAuth.Controllers
         /// <returns></returns>
         public async Task<IActionResult> ManageUser()
         {
+            string username = HttpContext.Session.GetString("Username");
+            ViewData["Username"] = username;
             var currentCluster = HttpContext.Session.GetString("CurrentClusters");
             if (Startup.DatabaseForUser.ContainsKey(currentCluster))
             {
+                if (!User.Identity.IsAuthenticated || HttpContext.Session.GetString("isAdmin").Equals("false") )
+                {
+                    return RedirectToAction("Index", "Home");
+                }
                 var db = Startup.DatabaseForUser[currentCluster];
                 if (!Object.ReferenceEquals(db, null))
                 {
+                    if (HttpContext.Request.Query.ContainsKey("AccountChangeEmail"))
+                    {
+                        string email = HttpContext.Request.Query["AccountChangeEmail"];
+                        UserEntry userEntry = db.User.First(x => x.Email.Equals(email));
+                       // db.User.Update(userEntry);
+                        if (userEntry.isAdmin.Equals("true"))
+                        {
+                            userEntry.isAdmin = "false";
+                            userEntry.isAuthorized = "false";
+                        }
+                        else if (userEntry.isAuthorized.Equals("false"))
+                        {
+                            userEntry.isAuthorized = "true";
+                        }
+                        else
+                        {
+                            userEntry.isAdmin = "true";
+                        }
+                        await db.SaveChangesAsync();
+                    }                  
                     List<string[]> userTable = new List<string[]>();
                     foreach (var user in db.User)
                     {
