@@ -310,7 +310,7 @@ default_config_parameters = {
         "CCSAdmins": {
             # The match is in C# Regex Language, please refer to :
             # https://msdn.microsoft.com/en-us/library/az24scfc(v=vs.110).aspx
-            "Allowed": [ "jinl@microsoft.com", "hongzl@microsoft.com" ],
+            "Allowed": [ "jinl@microsoft.com", "hongzl@microsoft.com", "sanjeevm@microsoft.com" ],
             "uid": "900000000-999999999",
             "gid": "508953967"
         },
@@ -1558,6 +1558,7 @@ def acs_get_machinesAndIPs(bCreateIP):
 	nodes = acs_get_nodes()
 	ipInfo = {}
 	#print nodes["items"]
+	config["nodenames_from_ip"] = {}
 	for n in nodes:
 		machineName = n["metadata"]["name"]
 		ipInfo[machineName] = acs_get_machineIP(machineName)
@@ -1580,11 +1581,13 @@ def acs_get_machinesAndIPs(bCreateIP):
 			# now update
 			ipInfo[machineName]["publicipname"] = ipName
 			ipInfo[machineName]["publicip"] = acs_get_ip(ipName)
+		config["nodenames_from_ip"][ipInfo[machineName]["publicip"]] = machineName
 	return ipInfo
 
 def acs_get_machinesAndIPsFast():
 	nodes = acs_get_nodes()
 	ipInfo = {}
+	config["nodenames_from_ip"] = {}
 	for n in nodes:
 		machineName = n["metadata"]["name"]
 		#print "MachineName: "+machineName
@@ -1594,11 +1597,19 @@ def acs_get_machinesAndIPsFast():
 		ipInfo[machineName] = {}
 		ipInfo[machineName]["publicipname"] = ipName
 		ipInfo[machineName]["publicip"] = acs_get_ip(ipName)
+		config["nodenames_from_ip"][ipInfo[machineName]["publicip"]] = machineName
 	return ipInfo
+
+def acs_label_webui():
+	for n in config["kubernetes_master_node"]:
+		nodeName = config["nodenames_from_ip"][n]
+		if verbose:
+			print "Label node: "+nodeName
+		label_webUI(nodeName)
 
 def deploy_acs():
 	regenerate_key = False
-	if (os.path.isfile("./deploy/sshkey")):
+	if (os.path.exists("./deploy/sshkey")):
 		response = raw_input_with_default("SSH keys already exist, do you want to keep existing (y/n)?")
 		if first_char(response) == "n":
 			utils.backup_keys(config["cluster_name"])
@@ -1618,6 +1629,7 @@ def deploy_acs():
 	cmd += " --master-count=%d" % config["master_node_num"]
 	cmd += " --location=%s" % config["cluster_location"]
 	cmd += " --agent-vm-size=%s" % config["acsagentsize"]
+	cmd += " --admin-username=core"
 	cmd += " --ssh-key-value=%s" % "./deploy/sshkey/id_rsa.pub"
 	if (regenerate_key):			
 		os.system("rm -r ./deploy/sshkey || true")
@@ -1633,7 +1645,10 @@ def deploy_acs():
 	cmd += " --ssh-key-file=%s" % "./deploy/sshkey/id_rsa"
 	os.system(cmd)
 
-	return acs_get_machinesAndIPs(True)
+	Nodes = acs_get_machinesAndIPs(True)
+	ip = get_nodes_from_acs("")
+	acs_label_webui()
+	return Nodes
 
 def get_mount_fileshares(curNode = None):
 	allmountpoints = { }
@@ -2536,8 +2551,8 @@ def run_kube( prog, commands ):
 	master_node = random.choice(nodes)
 	one_command = " ".join(commands)
 	kube_command = ""
-	if (os.path.exists("./deploy/"+config["acskubeconfig"])):
-		kube_command = "%s --kubeconfig=./deploy/%s %s" (prog, config["acskubeconfig"], one_command)
+	if (config["isacs"]):
+		kube_command = "%s --kubeconfig=./deploy/%s %s" % (prog, config["acskubeconfig"], one_command)
 	else:
 		kube_command = ("%s --server=https://%s:%s --certificate-authority=%s --client-key=%s --client-certificate=%s %s" % (prog, master_node, config["k8sAPIport"], "./deploy/ssl/ca/ca.pem", "./deploy/ssl/kubelet/apiserver-key.pem", "./deploy/ssl/kubelet/apiserver.pem", one_command) )
 	if verbose:
@@ -2914,10 +2929,7 @@ def run_command( args, command, nargs, parser ):
 				if num < 0 or num >= len(nodes):
 					num = 0
 			nodename = nodes[num]
-			if (config["isacs"]):
-				utils.SSH_connect(config["ssh_cert"], "azureuser", nodename)
-			else:
-				utils.SSH_connect( config["ssh_cert"], "core", nodename)
+			utils.SSH_connect( config["ssh_cert"], "core", nodename)
 			exit()
 
 	elif command == "deploy" and "clusterId" in config:
@@ -3189,8 +3201,9 @@ def run_command( args, command, nargs, parser ):
 			elif nargs[0]=="createip":
 				ip = acs_get_machinesAndIPs(True)
 				print ip
-			elif nargs[0]=="delete":
-				os.system("az acs delete --resource-group="+config["resource_group"]+" --name="+config["cluster_name"])
+			elif nargs[0]=="label":
+				ip = get_nodes_from_acs("")
+				acs_label_webui()
 			
 	elif command == "update" and len(nargs)>=1:
 		if nargs[0] == "config":
