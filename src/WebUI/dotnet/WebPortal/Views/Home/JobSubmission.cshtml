@@ -222,6 +222,48 @@
             document.getElementById("runningasroot").checked = true;
 
         }
+        else if (id == "mxnetgpu") {
+            document.getElementById("jobname").value = "mxnet-python";
+            document.getElementById("resourcegpu").value = 1;
+            document.getElementById("workpath").value = "@ViewData["Username"]";
+            document.getElementById("datapath").value = "imagenet";
+            document.getElementById("jobpath").value = "";
+
+            document.getElementById("image").value = "mxnet/python:gpu";
+            document.getElementById("cmd").value = "export HOME=/job && jupyter notebook --no-browser --port=8890 --ip=0.0.0.0 --notebook-dir=/";
+
+            document.getElementById("chkInteractiveJob").checked = true;
+            document.getElementById("chkLogDir").checked = false;
+            ShowHideDiv(document.getElementById("chkInteractiveJob"), 'interactiveportfield')
+            ShowHideDiv(document.getElementById("chkLogDir"), 'logdirfield')
+
+            document.getElementById("interactivePort").value = "8890";
+            document.getElementById("logdir").value = "";
+
+
+            document.getElementById("runningasroot").checked = false;
+        }
+        else if (id == "mxnetcpu") {
+            document.getElementById("jobname").value = "mxnet-python-cpu";
+            document.getElementById("resourcegpu").value = 0;
+            document.getElementById("workpath").value = "@ViewData["Username"]";
+            document.getElementById("datapath").value = "imagenet";
+            document.getElementById("jobpath").value = "";
+
+            document.getElementById("image").value = "mxnet/python";
+            document.getElementById("cmd").value = "export HOME=/job && jupyter notebook --no-browser --port=8890 --ip=0.0.0.0 --notebook-dir=/";
+
+            document.getElementById("chkInteractiveJob").checked = true;
+            document.getElementById("chkLogDir").checked = false;
+            ShowHideDiv(document.getElementById("chkInteractiveJob"), 'interactiveportfield')
+            ShowHideDiv(document.getElementById("chkLogDir"), 'logdirfield')
+
+            document.getElementById("interactivePort").value = "8890";
+            document.getElementById("logdir").value = "";
+
+
+            document.getElementById("runningasroot").checked = false;
+        }
         else if (id == "caffe") {
             document.getElementById("jobname").value = "caffe-ipython";
             document.getElementById("resourcegpu").value = 0;
@@ -356,12 +398,13 @@
                         <option value="tensorflow">Tensorflow-IPython-GPU</option>
                         <option value="tensorflowcpu">Tensorflow-IPython-CPU</option>
                         <option value="tensorflowssh">Tensorflow-SSH</option>
+                        <option value="mxnetgpu">MXNET-Python-GPU</option>
+                        <option value="mxnetcpu">MXNET-Python-CPU</option>
                         <option value="caffe">Caffe-IPython</option>
                         <option value="caffessh">Caffe-SSH</option>
                         <option value="caffesample">Caffe training example</option>
                         <option value="tensorflowsample">Tensorflow training example</option>
                         <option value="cntkipython">CNTK-IPython</option>
-                        
                     </select>
 
                 </div>
