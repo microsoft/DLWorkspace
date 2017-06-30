@@ -1600,6 +1600,10 @@ def acs_get_machinesAndIPsFast():
 		config["nodenames_from_ip"][ipInfo[machineName]["publicip"]] = machineName
 	return ipInfo
 
+def az_cmd(cmd):
+	output = subprocess.check_output("az "+cmd, shell=True)
+	return yaml.load(output)
+
 def acs_label_webui():
 	for n in config["kubernetes_master_node"]:
 		nodeName = config["nodenames_from_ip"][n]
@@ -1607,7 +1611,67 @@ def acs_label_webui():
 			print "Label node: "+nodeName
 		label_webUI(nodeName)
 
-def deploy_acs():
+def acs_is_valid_nsg_rule(rule):
+	#print "Access: %s D: %s P: %s P: %s" % (rule["access"].lower()=="allow",
+	#rule["direction"].lower()=="inbound",rule["sourceAddressPrefix"]=='*',
+	#(rule["protocol"].lower()=="tcp" or rule["protocol"]=='*'))
+
+	return (rule["access"].lower()=="allow" and
+			rule["direction"].lower()=="inbound" and
+			rule["sourceAddressPrefix"]=='*' and
+			(rule["protocol"].lower()=="tcp" or rule["protocol"]=='*'))
+
+def acs_add_nsg_rules(ports_to_add):
+	Nodes = get_nodes_from_acs("")
+	#print "Nodes: %s" % Nodes
+	match = re.match('(.*)-0', config["nodenames_from_ip"][config["kubernetes_master_node"][0]])
+	nsg_name = match.group(1)+"-nsg"
+	rulesInfo = az_cmd("network nsg show --resource-group="+config["resource_group"]+" --name="+nsg_name)
+	rules = rulesInfo["defaultSecurityRules"] + rulesInfo["securityRules"]
+
+	maxThreeDigitRule = 100
+	for rule in rules:
+		if acs_is_valid_nsg_rule(rule):
+			if (rule["priority"] < 1000):
+				#print "Priority: %d" % rule["priority"]
+				maxThreeDigitRule = max(maxThreeDigitRule, rule["priority"])
+
+	if verbose:
+		print "Existing max three digit rule for NSG: %s is %d" % (nsg_name, maxThreeDigitRule)
+
+	for port_rule in ports_to_add:
+		port_num = ports_to_add[port_rule]
+		found_port = None
+		for rule in rules:
+			if acs_is_valid_nsg_rule(rule):
+				match = re.match('(.*)-(.*)', rule["destinationPortRange"])
+				if (match is None):
+					minPort = int(rule["destinationPortRange"])
+					maxPort = minPort
+				elif (rule["destinationPortRange"] != "*"):
+					minPort = int(match.group(1))
+					maxPort = int(match.group(2))
+				else:
+					minPort = -1
+					maxPort = -1
+				if (minPort <= port_num) and (port_num <= maxPort):
+					found_port = rule["name"]
+					break
+		if not (found_port is None):
+			print "Rule for %s : %d -- already satisfied by %s" % (port_rule, port_num, found_port)
+		else:
+			maxThreeDigitRule = maxThreeDigitRule + 10
+			cmd = "network nsg rule create"
+			cmd += " --resource-group=%s" % config["resource_group"]
+			cmd += " --nsg-name=%s" % nsg_name
+			cmd += " --name=%s" % port_rule
+			cmd += " --access=Allow"
+			cmd += " --destination-port-range=%d" % port_num
+			cmd += " --direction=Inbound"
+			cmd += " --priority=%d" % maxThreeDigitRule
+			az_cmd(cmd)
+
+def acs_deploy():
 	regenerate_key = False
 	if (os.path.exists("./deploy/sshkey")):
 		response = raw_input_with_default("SSH keys already exist, do you want to keep existing (y/n)?")
@@ -1645,9 +1709,16 @@ def deploy_acs():
 	cmd += " --ssh-key-file=%s" % "./deploy/sshkey/id_rsa"
 	os.system(cmd)
 
+	# Get/create public IP addresses for all machines
 	Nodes = acs_get_machinesAndIPs(True)
+
+	# Label nodes
 	ip = get_nodes_from_acs("")
 	acs_label_webui()
+
+	# Add rules for NSG
+	acs_add_nsg_rules({"HTTPAllow" : 80, "RestfulAPIAllow" : 5000})
+
 	return Nodes
 
 def get_mount_fileshares(curNode = None):
@@ -3194,7 +3265,7 @@ def run_command( args, command, nargs, parser ):
 	elif command == "acs":
 		if (len(nargs) >= 1):
 			if nargs[0]=="deploy":
-				deploy_acs()
+				acs_deploy()
 			elif nargs[0]=="getip":
 				ip = acs_get_machinesAndIPsFast()
 				print ip
@@ -3204,6 +3275,8 @@ def run_command( args, command, nargs, parser ):
 			elif nargs[0]=="label":
 				ip = get_nodes_from_acs("")
 				acs_label_webui()
+			elif nargs[0]=="openports":
+				acs_add_nsg_rules({"HTTPAllow" : 80, "RestfulAPIAllow" : 5000})		
 			
 	elif command == "update" and len(nargs)>=1:
 		if nargs[0] == "config":
