@@ -53,11 +53,11 @@ namespace WindowsAuth.Controllers
             string username = email;
             if (username.Contains("@"))
             {
-                username = username.Split(new char[] { '@' })[0];
+                username = username.Split('@')[0];
             }
             if (username.Contains("/"))
             {
-                username = username.Split(new char[] { '/' })[1];
+                username = username.Split('/')[1];
             }
             return username;
         }
@@ -101,7 +101,7 @@ namespace WindowsAuth.Controllers
                 }
             }
             _logger.LogInformation("User {0} log in, Uid {1}, Gid {2}, isAdmin {3}, isAuthorized {4}",
-                                email, userEntry.uid, userEntry.gid, userEntry.isAdmin, userEntry.isAuthorized);
+                               email, userEntry.uid, userEntry.gid, userEntry.isAdmin, userEntry.isAuthorized);
             return true;
         }
 
@@ -176,7 +176,7 @@ namespace WindowsAuth.Controllers
                         {
                             if (clusterInfo.RegisterGroups.ContainsKey(group))
                             {
-                                userID.uid = "-1";
+                                //userID.uid = "-1";
                                 userID.isAdmin = "false";
                                 userID.isAuthorized = "false";
                                 authorizedClusters[clusterName] = userID;
@@ -248,24 +248,23 @@ namespace WindowsAuth.Controllers
                             var userID = new UserID();
 
                             long uidl = 0, uidh = 1000000, gid = 0, uid = -1;
-                            Int64.TryParse(gidString, out gid);
+                            Int64.TryParse(gidString, out gid);  
                             string[] uidRange = uidString.Split(new char[] { '-' });
                             Int64.TryParse(uidRange[0], out uidl);
                             Int64.TryParse(uidRange[1], out uidh);
                             Guid guid;
-                            long tenantInt64;
+                            Int64 tenantInt64;
                             if (Guid.TryParse(tenantID, out guid))
                             {
                                 byte[] gb = new Guid(tenantID).ToByteArray();
                                 tenantInt64 = BitConverter.ToInt64(gb, 0);
                                 long tenantRem = tenantInt64 % (uidh - uidl);
                                 uid = uidl + Convert.ToInt32(tenantRem);
-                            } else if (Int64.TryParse(tenantID, out tenantInt64))
+                            } else if (Int64.TryParse(tenantID.Substring(18), out tenantInt64))
                             {
                                 long tenantRem = tenantInt64 % (uidh - uidl);
                                 uid = uidl + Convert.ToInt32(tenantRem);
                             }
-
                             userID.uid = uid.ToString();
                             userID.gid = gid.ToString();
                             userID.groups = new List<string>();
@@ -346,6 +345,10 @@ namespace WindowsAuth.Controllers
                     {
                         userObjectID = claim.Value;
                     }
+                    if (claim.Type.IndexOf("identity/claims/nameidentifier")>=0)
+                    {
+                        userObjectID = claim.Value;
+                    }
                     // http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn
                     if (claim.Type.IndexOf("identity/claims/upn") >= 0)
                     {
@@ -423,9 +426,9 @@ namespace WindowsAuth.Controllers
             // Prior entry exists? 
             await priorEntrys.ForEachAsync(entry =>
            {
-                // We will not update existing entry in database. 
-                // db.Entry(entry).CurrentValues.SetValues(userEntry);
-                ret = entry;
+               // We will not update existing entry in database. 
+               // db.Entry(entry).CurrentValues.SetValues(userEntry);
+               ret = entry;
                Interlocked.Add(ref nEntry, 1);
            }
             );
@@ -451,10 +454,11 @@ namespace WindowsAuth.Controllers
                 {
                     bool bUpdate = false;
 
-                    if (String.Compare(ret.isAuthorized, userID.isAuthorized, true) < 0)
+                    if (String.Compare(ret.isAuthorized, userID.isAuthorized, true) < 0 || String.Compare(ret.isAdmin, userID.isAdmin, true) < 0)
                     {
                         // userID isAuthorized is true
                         newEntry.isAuthorized = userID.isAuthorized;
+                        newEntry.isAdmin = userID.isAdmin;
                         newEntry.uid = userID.uid;
                         newEntry.gid = userID.gid;
 
@@ -713,7 +717,7 @@ namespace WindowsAuth.Controllers
                     for (int i = 0; i < lstClusters.Count(); i++)
                     {
                         if ( !String.IsNullOrEmpty(lstClusters[i]))
-                        { 
+                        {
                             vm.ClustersList.Add(new SelectListItem
                             {
                                 Value = lstClusters[i], // (i + 1).ToString(),
@@ -875,6 +879,8 @@ namespace WindowsAuth.Controllers
                 return RedirectToAction("Index", "Home");
             }
 
+            string username = HttpContext.Session.GetString("Username");
+            ViewData["Username"] = username;
 
             ViewData["Message"] = "Cluster Status.";
 
@@ -885,20 +891,27 @@ namespace WindowsAuth.Controllers
         public IActionResult About()
         {
             ViewData["Message"] = "Your application description page.";
-
+            AddUserToView();
             return View();
         }
 
         public IActionResult Contact()
         {
             ViewData["Message"] = "Your contact page.";
-
+            AddUserToView();
             return View();
         }
 
         public IActionResult Error()
         {
+            AddUserToView();
             return View();
+        }
+
+        public void AddUserToView()
+        {
+            string username = HttpContext.Session.GetString("Username");
+            ViewData["Username"] = username;
         }
 
         /// <summary>
@@ -907,17 +920,45 @@ namespace WindowsAuth.Controllers
         /// <returns></returns>
         public async Task<IActionResult> ManageUser()
         {
+            AddUserToView();
             var currentCluster = HttpContext.Session.GetString("CurrentClusters");
             if (Startup.DatabaseForUser.ContainsKey(currentCluster))
             {
+                if (!User.Identity.IsAuthenticated || HttpContext.Session.GetString("isAdmin").Equals("false") )
+                {
+                    return RedirectToAction("Index", "Home");
+                }
                 var db = Startup.DatabaseForUser[currentCluster];
                 if (!Object.ReferenceEquals(db, null))
                 {
-                    var filter = HttpContext.Session.GetString("FilterUser");
-                    if (String.IsNullOrEmpty(filter))
-                        filter = "";
-                    var ret = db.User.Where(x => x.Email.Contains(filter)).ToAsyncEnumerable();
-                    return PartialView(ret);
+                    if (HttpContext.Request.Query.ContainsKey("AccountChangeEmail"))
+                    {
+                        string email = HttpContext.Request.Query["AccountChangeEmail"];
+                        UserEntry userEntry = db.User.First(x => x.Email.Equals(email));
+                       // db.User.Update(userEntry);
+                        if (userEntry.isAdmin.Equals("true"))
+                        {
+                            userEntry.isAdmin = "false";
+                            userEntry.isAuthorized = "false";
+                        }
+                        else if (userEntry.isAuthorized.Equals("false"))
+                        {
+                            userEntry.isAuthorized = "true";
+                        }
+                        else
+                        {
+                            userEntry.isAdmin = "true";
+                        }
+                        await db.SaveChangesAsync();
+                    }                  
+                    List<string[]> userTable = new List<string[]>();
+                    foreach (var user in db.User)
+                    {
+                        string accountType = user.isAuthorized.Equals("true") ? (user.isAdmin.Equals("true") ? "Admin" : "User") : "Unauthorized";
+                        string[] userString = new string[] { ParseToUsername(user.Alias), user.Email, accountType };
+                        userTable.Add(userString);
+                    }
+                    ViewData["Users"] = userTable;
                 }
             }
             return View();
