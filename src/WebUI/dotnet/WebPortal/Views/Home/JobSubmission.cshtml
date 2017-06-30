@@ -242,7 +242,7 @@
             case "cntkipython":
                 settings.job_name = "CNTK-ipython";
                 settings.image = "microsoft/cntk";
-                settings.cmd = "bash -c 'source \"/cntk/activate-cntk\" ; jupyter notebook --no-browser --port=8889 --ip=0.0.0.0 --notebook-dir=/ --allow-root'";
+                settings.cmd = "bash -c 'source \"/cntk/activate-cntk\" ; jupyter notebook --no-browser --port=8888 --ip=0.0.0.0 --notebook-dir=/ --allow-root'";
                 settings.is_interactive = true;
                 settings.run_as_root = true;
                 break;
