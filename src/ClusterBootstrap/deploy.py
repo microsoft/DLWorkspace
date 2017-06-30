@@ -1891,7 +1891,7 @@ def mount_fileshares(perform_mount=True):
 						if not ("azurefileshare" in filesharetype):
 							filesharetype["azurefileshare"] = True
 							remotecmd += "sudo apt-get -y install cifs-utils attr; "
-						remotecmd += "sudo mount -t cifs %s %s -o %s; " % (v["url"], physicalmountpoint, v["accountname"], v["accesskey"], v["options"] )
+						remotecmd += "sudo mount -t cifs %s %s -o %s; " % (v["url"], physicalmountpoint, v["options"] )
 					elif v["type"] == "glusterfs":
 						if not ("glusterfs" in filesharetype):
 							filesharetype["glusterfs"] = True
