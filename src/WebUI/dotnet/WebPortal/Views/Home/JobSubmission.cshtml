@@ -246,15 +246,12 @@
                 settings.is_interactive = true;
                 settings.run_as_root = true;
                 break;
-            case "universe":
-                alert("not yet implemented!");
-                throw undefind;
 	}
         
         document.getElementById("jobname").value = settings.job_name || "";
         document.getElementById("resourcegpu").value = settings.gpu_count;
         document.getElementById("workpath").value = settings.work_path;
-	document.getElementById("datapath").value = settings.data_path;
+        document.getElementById("datapath").value = settings.data_path;
         document.getElementById("jobpath").value = settings.job_path;
         document.getElementById("image").value = settings.image || "";
         document.getElementById("cmd").value = settings.cmd || "";
@@ -300,7 +297,6 @@
                         <option value="caffesample">Caffe training example</option>
                         <option value="tensorflowsample">Tensorflow training example</option>
                         <option value="cntkipython">CNTK-IPython</option>
-			<option value="universe">OpenAI-Universe</option>
                     </select>
 
                 </div>
