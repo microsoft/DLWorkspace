@@ -30,7 +30,7 @@ LABEL installubuntu
     MENU LABEL Fully automatic install Ubuntu 16.04
     KERNEL linux
     IPAPPEND 1
-    APPEND auto=true priority=critical vga=normal initrd=initrd.gz {{cnf["pxeoptions"]}} preseed/url=tftp://{{cnf["pxeserverip"]}}/preseed.cfg preseed/interactive=false     
+    APPEND auto=true priority=critical vga=788 initrd=initrd.gz {{cnf["pxeoptions"]}} preseed/url=tftp://{{cnf["pxeserverip"]}}/preseed.cfg preseed/interactive=false     
     TEXT HELP
         Fully automatic PXE installation
     ENDTEXT
