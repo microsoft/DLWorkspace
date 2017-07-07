@@ -310,7 +310,7 @@ default_config_parameters = {
         "CCSAdmins": {
             # The match is in C# Regex Language, please refer to :
             # https://msdn.microsoft.com/en-us/library/az24scfc(v=vs.110).aspx
-            "Allowed": [ "jinl@microsoft.com", "hongzl@microsoft.com" ],
+            "Allowed": [ "jinl@microsoft.com", "hongzl@microsoft.com", "sanjeevm@microsoft.com" ],
             "uid": "900000000-999999999",
             "gid": "508953967"
         },
@@ -369,10 +369,17 @@ scriptblocks = {
   		"kubernetes start jobmanager",
   		"kubernetes start restfulapi",
   		"kubernetes start webportal",
-	]
+	],
+	"restartwebui": [
+		"kubernetes stop webportal",
+		"kubernetes stop restfulapi",
+		"kubernetes stop jobmanager",
+		"webui",
+  		"kubernetes start jobmanager",
+  		"kubernetes start restfulapi",
+  		"kubernetes start webportal",
+	],
 }
-
-
 
 # default search for all partitions of hdb, hdc, hdd, and sdb, sdc, sdd
 
@@ -1558,6 +1565,7 @@ def acs_get_machinesAndIPs(bCreateIP):
 	nodes = acs_get_nodes()
 	ipInfo = {}
 	#print nodes["items"]
+	config["nodenames_from_ip"] = {}
 	for n in nodes:
 		machineName = n["metadata"]["name"]
 		ipInfo[machineName] = acs_get_machineIP(machineName)
@@ -1580,11 +1588,13 @@ def acs_get_machinesAndIPs(bCreateIP):
 			# now update
 			ipInfo[machineName]["publicipname"] = ipName
 			ipInfo[machineName]["publicip"] = acs_get_ip(ipName)
+		config["nodenames_from_ip"][ipInfo[machineName]["publicip"]] = machineName
 	return ipInfo
 
 def acs_get_machinesAndIPsFast():
 	nodes = acs_get_nodes()
 	ipInfo = {}
+	config["nodenames_from_ip"] = {}
 	for n in nodes:
 		machineName = n["metadata"]["name"]
 		#print "MachineName: "+machineName
@@ -1594,11 +1604,83 @@ def acs_get_machinesAndIPsFast():
 		ipInfo[machineName] = {}
 		ipInfo[machineName]["publicipname"] = ipName
 		ipInfo[machineName]["publicip"] = acs_get_ip(ipName)
+		config["nodenames_from_ip"][ipInfo[machineName]["publicip"]] = machineName
 	return ipInfo
 
-def deploy_acs():
+def az_cmd(cmd):
+	output = subprocess.check_output("az "+cmd, shell=True)
+	return yaml.load(output)
+
+def acs_label_webui():
+	for n in config["kubernetes_master_node"]:
+		nodeName = config["nodenames_from_ip"][n]
+		if verbose:
+			print "Label node: "+nodeName
+		label_webUI(nodeName)
+
+def acs_is_valid_nsg_rule(rule):
+	#print "Access: %s D: %s P: %s P: %s" % (rule["access"].lower()=="allow",
+	#rule["direction"].lower()=="inbound",rule["sourceAddressPrefix"]=='*',
+	#(rule["protocol"].lower()=="tcp" or rule["protocol"]=='*'))
+
+	return (rule["access"].lower()=="allow" and
+			rule["direction"].lower()=="inbound" and
+			rule["sourceAddressPrefix"]=='*' and
+			(rule["protocol"].lower()=="tcp" or rule["protocol"]=='*'))
+
+def acs_add_nsg_rules(ports_to_add):
+	Nodes = get_nodes_from_acs("")
+	#print "Nodes: %s" % Nodes
+	match = re.match('(.*)-0', config["nodenames_from_ip"][config["kubernetes_master_node"][0]])
+	nsg_name = match.group(1)+"-nsg"
+	rulesInfo = az_cmd("network nsg show --resource-group="+config["resource_group"]+" --name="+nsg_name)
+	rules = rulesInfo["defaultSecurityRules"] + rulesInfo["securityRules"]
+
+	maxThreeDigitRule = 100
+	for rule in rules:
+		if acs_is_valid_nsg_rule(rule):
+			if (rule["priority"] < 1000):
+				#print "Priority: %d" % rule["priority"]
+				maxThreeDigitRule = max(maxThreeDigitRule, rule["priority"])
+
+	if verbose:
+		print "Existing max three digit rule for NSG: %s is %d" % (nsg_name, maxThreeDigitRule)
+
+	for port_rule in ports_to_add:
+		port_num = ports_to_add[port_rule]
+		found_port = None
+		for rule in rules:
+			if acs_is_valid_nsg_rule(rule):
+				match = re.match('(.*)-(.*)', rule["destinationPortRange"])
+				if (match is None):
+					minPort = int(rule["destinationPortRange"])
+					maxPort = minPort
+				elif (rule["destinationPortRange"] != "*"):
+					minPort = int(match.group(1))
+					maxPort = int(match.group(2))
+				else:
+					minPort = -1
+					maxPort = -1
+				if (minPort <= port_num) and (port_num <= maxPort):
+					found_port = rule["name"]
+					break
+		if not (found_port is None):
+			print "Rule for %s : %d -- already satisfied by %s" % (port_rule, port_num, found_port)
+		else:
+			maxThreeDigitRule = maxThreeDigitRule + 10
+			cmd = "network nsg rule create"
+			cmd += " --resource-group=%s" % config["resource_group"]
+			cmd += " --nsg-name=%s" % nsg_name
+			cmd += " --name=%s" % port_rule
+			cmd += " --access=Allow"
+			cmd += " --destination-port-range=%d" % port_num
+			cmd += " --direction=Inbound"
+			cmd += " --priority=%d" % maxThreeDigitRule
+			az_cmd(cmd)
+
+def acs_deploy():
 	regenerate_key = False
-	if (os.path.isfile("./deploy/sshkey")):
+	if (os.path.exists("./deploy/sshkey")):
 		response = raw_input_with_default("SSH keys already exist, do you want to keep existing (y/n)?")
 		if first_char(response) == "n":
 			utils.backup_keys(config["cluster_name"])
@@ -1618,6 +1700,7 @@ def deploy_acs():
 	cmd += " --master-count=%d" % config["master_node_num"]
 	cmd += " --location=%s" % config["cluster_location"]
 	cmd += " --agent-vm-size=%s" % config["acsagentsize"]
+	cmd += " --admin-username=core"
 	cmd += " --ssh-key-value=%s" % "./deploy/sshkey/id_rsa.pub"
 	if (regenerate_key):			
 		os.system("rm -r ./deploy/sshkey || true")
@@ -1633,7 +1716,17 @@ def deploy_acs():
 	cmd += " --ssh-key-file=%s" % "./deploy/sshkey/id_rsa"
 	os.system(cmd)
 
-	return acs_get_machinesAndIPs(True)
+	# Get/create public IP addresses for all machines
+	Nodes = acs_get_machinesAndIPs(True)
+
+	# Label nodes
+	ip = get_nodes_from_acs("")
+	acs_label_webui()
+
+	# Add rules for NSG
+	acs_add_nsg_rules({"HTTPAllow" : 80, "RestfulAPIAllow" : 5000})
+
+	return Nodes
 
 def get_mount_fileshares(curNode = None):
 	allmountpoints = { }
@@ -2536,8 +2629,8 @@ def run_kube( prog, commands ):
 	master_node = random.choice(nodes)
 	one_command = " ".join(commands)
 	kube_command = ""
-	if (os.path.exists("./deploy/"+config["acskubeconfig"])):
-		kube_command = "%s --kubeconfig=./deploy/%s %s" (prog, config["acskubeconfig"], one_command)
+	if (config["isacs"]):
+		kube_command = "%s --kubeconfig=./deploy/%s %s" % (prog, config["acskubeconfig"], one_command)
 	else:
 		kube_command = ("%s --server=https://%s:%s --certificate-authority=%s --client-key=%s --client-certificate=%s %s" % (prog, master_node, config["k8sAPIport"], "./deploy/ssl/ca/ca.pem", "./deploy/ssl/kubelet/apiserver-key.pem", "./deploy/ssl/kubelet/apiserver.pem", one_command) )
 	if verbose:
@@ -2914,10 +3007,7 @@ def run_command( args, command, nargs, parser ):
 				if num < 0 or num >= len(nodes):
 					num = 0
 			nodename = nodes[num]
-			if (config["isacs"]):
-				utils.SSH_connect(config["ssh_cert"], "azureuser", nodename)
-			else:
-				utils.SSH_connect( config["ssh_cert"], "core", nodename)
+			utils.SSH_connect( config["ssh_cert"], "core", nodename)
 			exit()
 
 	elif command == "deploy" and "clusterId" in config:
@@ -3182,15 +3272,20 @@ def run_command( args, command, nargs, parser ):
 	elif command == "acs":
 		if (len(nargs) >= 1):
 			if nargs[0]=="deploy":
-				deploy_acs()
+				acs_deploy()
 			elif nargs[0]=="getip":
 				ip = acs_get_machinesAndIPsFast()
 				print ip
 			elif nargs[0]=="createip":
 				ip = acs_get_machinesAndIPs(True)
 				print ip
-			elif nargs[0]=="delete":
-				os.system("az acs delete --resource-group="+config["resource_group"]+" --name="+config["cluster_name"])
+			elif nargs[0]=="label":
+				ip = get_nodes_from_acs("")
+				acs_label_webui()
+			elif nargs[0]=="openports":
+				acs_add_nsg_rules({"HTTPAllow" : 80, "RestfulAPIAllow" : 5000})
+			elif nargs[0]=="restartwebui":
+				run_script_blocks(scriptblocks["restartwebui"])
 			
 	elif command == "update" and len(nargs)>=1:
 		if nargs[0] == "config":

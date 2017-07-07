@@ -4,3 +4,16 @@ cluster_location : westus
 worker_node_num : 3
 master_node_num : 1
 acsagentsize : Standard_D2_v2
+
+# Azure deployment doesn't have winbind servers. 
+WinbindServers: [  ]
+
+# Please set up a Azure Data file 
+mountpoints:
+  rootshare:
+    type: azurefileshare
+    accountname: <<azure storage account name>>
+    filesharename: <<azure file share name>>
+    # Mount at root
+    mountpoints: ""
+    accesskey: <<access key for azure file share>>
