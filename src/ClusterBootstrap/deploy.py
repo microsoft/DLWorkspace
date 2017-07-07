@@ -369,10 +369,17 @@ scriptblocks = {
   		"kubernetes start jobmanager",
   		"kubernetes start restfulapi",
   		"kubernetes start webportal",
-	]
+	],
+	"restartwebui": [
+		"kubernetes stop webportal",
+		"kubernetes stop restfulapi",
+		"kubernetes stop jobmanager",
+		"webui",
+  		"kubernetes start jobmanager",
+  		"kubernetes start restfulapi",
+  		"kubernetes start webportal",
+	],
 }
-
-
 
 # default search for all partitions of hdb, hdc, hdd, and sdb, sdc, sdd
 
@@ -3276,7 +3283,9 @@ def run_command( args, command, nargs, parser ):
 				ip = get_nodes_from_acs("")
 				acs_label_webui()
 			elif nargs[0]=="openports":
-				acs_add_nsg_rules({"HTTPAllow" : 80, "RestfulAPIAllow" : 5000})		
+				acs_add_nsg_rules({"HTTPAllow" : 80, "RestfulAPIAllow" : 5000})
+			elif nargs[0]=="restartwebui":
+				run_script_blocks(scriptblocks["restartwebui"])
 			
 	elif command == "update" and len(nargs)>=1:
 		if nargs[0] == "config":
