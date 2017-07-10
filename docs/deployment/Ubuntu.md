@@ -26,6 +26,7 @@ This document describes the procedure to deploy DL workspace cluster on a Ubuntu
 
 2. Build Ubuntu PXE-server via:
   ```
+  .\deploy.py -y build 
   .\deploy.py build pxe-ubuntu
   ```
 
