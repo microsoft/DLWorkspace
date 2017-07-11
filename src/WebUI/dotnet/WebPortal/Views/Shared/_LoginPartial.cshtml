@@ -6,7 +6,7 @@
 @if (User.Identity.IsAuthenticated)
 {
     <ul class="nav navbar-nav navbar-right">
-        <li><a>Hello, @ViewData["Username"]</a></li>
+        <li><a asp-area="" asp-controller="Home" asp-action="AccountSettings">Hello, @ViewData["Username"]</a></li>
         <li>@Html.ActionLink("Log Out", "LogOff", "Account")</li>
     </ul>
 }

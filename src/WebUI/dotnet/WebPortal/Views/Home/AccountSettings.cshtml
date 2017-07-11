@@ -1,0 +1,32 @@
+﻿@{
+    ViewData["Title"] = "Account Settings";
+}
+
+<script>
+    function Submit() {
+        window.location.href = "/Home/AccountSettings/?NewAlias=" + $("#datapath").val();
+    }
+</script>
+
+<h2>@ViewData["Title"]</h2>
+
+<h4><b>Email: </b>@ViewData["Email"]</h4>
+<h4><b>Username: </b>@ViewData["Username"]</h4>
+<h4><b>Account Type: </b><b class="@ViewData["Account"]">@ViewData["Account"]</b></h4>
+
+@{List<string> aliases = ViewData["Aliases"] as List<string>; }
+@if (aliases != null && aliases.Count > 0)
+{
+    <h4><b>@(aliases.Count>1 ? "Aliases:" : "Alias:")</b></h4>
+    <ul>
+        @foreach (string alias in aliases)
+        {
+            <li><h4>@alias</h4></li>
+        }
+    </ul>
+}
+
+<h2>Add Alias</h2>
+<input type="text" class="form-control" id="datapath" />
+<p></p>
+<button onclick="Submit()">Submit</button>
