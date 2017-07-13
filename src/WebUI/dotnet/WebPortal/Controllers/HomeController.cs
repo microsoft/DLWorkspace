@@ -607,6 +607,7 @@ namespace WindowsAuth.Controllers
             return 0;
         }*/
 
+#region ASP Controllers
         public async Task<IActionResult> Index()
         {
             if (User.Identity.IsAuthenticated && !HttpContext.Session.Keys.Contains("uid"))
@@ -808,6 +809,9 @@ namespace WindowsAuth.Controllers
                 return RedirectToAction("Index", "Home");
             }
 
+
+            ViewData["isAdmin"] = HttpContext.Session.GetString("isAdmin");
+
             AddViewData(message: "View and Manage Your Jobs.");
             return View();
         }
@@ -966,5 +970,7 @@ namespace WindowsAuth.Controllers
         {
            return isAuthorized ? (isAdmin ? "Admin" : "User") : "Unauthorized";
         }
+#endregion
+
     }
 }

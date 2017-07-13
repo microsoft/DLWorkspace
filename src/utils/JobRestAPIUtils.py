@@ -161,6 +161,16 @@ def KillJob(jobId):
 	return ret
 
 
+def ApproveJob(jobId):
+	dataHandler = DataHandler()
+	ret = False
+	jobs =  dataHandler.GetJob(jobId)
+	if len(jobs) == 1:
+		ret = dataHandler.ApproveJob(jobId)
+	dataHandler.Close()
+	return ret
+
+
 def GetJobDetail(jobId):
 	job = None
 	dataHandler = DataHandler()

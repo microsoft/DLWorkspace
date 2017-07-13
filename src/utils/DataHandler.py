@@ -32,7 +32,7 @@ class DataHandler:
 			    [jobId] NTEXT   NOT NULL,
 			    [jobName]         NTEXT NOT NULL,
 			    [userName]         NTEXT NOT NULL,
-				[jobStatus]         NTEXT NOT NULL DEFAULT 'queued',
+				[jobStatus]         NTEXT NOT NULL DEFAULT 'unapproved',
 				[jobStatusDetail] NTEXT NULL, 
 				[jobType]         NTEXT NOT NULL,
 			    [jobDescriptionPath]  NTEXT NULL,
@@ -162,6 +162,18 @@ class DataHandler:
 	def KillJob(self,jobId):
 		try:
 			sql = """update [%s] set jobStatus = 'killing' where cast([jobId] as nvarchar(max)) = N'%s' """ % (self.jobtablename,jobId)
+			cursor = self.conn.cursor()
+			cursor.execute(sql)
+			self.conn.commit()
+			cursor.close()
+			return True
+		except:
+			return False
+
+
+	def ApproveJob(self,jobId):
+		try:
+			sql = """update [%s] set jobStatus = 'queued' where cast([jobId] as nvarchar(max)) = N'%s' """ % (self.jobtablename,jobId)
 			cursor = self.conn.cursor()
 			cursor.execute(sql)
 			self.conn.commit()

@@ -166,7 +166,7 @@ class ListJobs(Resource):
 					runningJobs.append(job)
 				elif job["jobType"] == "visualization":
 					visualizationJobs.append(job)
-			elif job["jobStatus"] == "queued" or job["jobStatus"] == "scheduling":
+			elif job["jobStatus"] == "queued" or job["jobStatus"] == "scheduling" or job["jobStatus"] == "unapproved":
 				queuedJobs.append(job)
 			else:
 				finishedJobs.append(job)
@@ -215,6 +215,31 @@ class KillJob(Resource):
 ## Actually setup the Api resource routing here
 ##
 api.add_resource(KillJob, '/KillJob')
+
+
+
+class ApproveJob(Resource):
+	def get(self):
+		parser.add_argument('jobId')
+		args = parser.parse_args()	
+		jobId = args["jobId"]
+		result = JobRestAPIUtils.ApproveJob(jobId)
+		ret = {}
+		if result:
+			ret["result"] = "Success, the job has been approved."
+		else:
+			ret["result"] = "Cannot approve the job. Job ID:" + jobId
+
+		resp = jsonify(ret)
+		resp.headers["Access-Control-Allow-Origin"] = "*"
+		resp.headers["dataType"] = "json"
+
+
+		return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(ApproveJob, '/ApproveJob')
 
 
 

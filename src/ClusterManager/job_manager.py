@@ -21,6 +21,8 @@ import yaml
 from jinja2 import Environment, FileSystemLoader, Template
 from config import config, GetStoragePath
 from DataHandler import DataHandler
+from node_manager import create_log
+from node_manager import get_cluster_status
 import base64
 
 import re
@@ -131,13 +133,7 @@ def SubmitRegularJob(job):
 		jobParams["nvidiaDriverPath"] = nvidiaDriverPath
 
 
-		userName = jobParams["userName"]
-		if "@" in userName:
-			userName = userName.split("@")[0].strip()
-
-		if "/" in userName:
-			userName = userName.split("/")[1].strip()
-		jobParams["userNameLabel"] = userName
+		jobParams["userNameLabel"] = getAlias(jobParams["userName"])
 
 
 		if "mountPoints" not in jobParams:
@@ -417,7 +413,37 @@ def KillJob(job):
 	return False
 
 
+def getAlias(username):
+	if "@" in username:
+		username = username.split("@")[0].strip()
 
+	if "/" in username:
+		username = username.split("/")[1].strip()
+
+	return username
+
+
+def ApproveJob(job):
+	dataHandler = DataHandler()
+	dataHandler.ApproveJob(job["jobId"])
+	dataHandler.Close()
+	return True
+
+
+
+def AutoApproveJob(job):
+	cluster_status = get_cluster_status()
+	jobUser = getAlias(job["userName"])
+	jobParams = json.loads(base64.b64decode(job["jobParams"]))
+	jobGPU = int(jobParams["resourcegpu"])
+
+	currentGPU = 0
+	for user in cluster_status["user_status"]:
+		if user["userName"] == jobUser:
+			currentGPU = int(user["userGPU"])
+
+	if currentGPU + jobGPU <= 4:
+		ApproveJob(job)
 
 
 UnusualJobs = {}
@@ -706,6 +732,8 @@ def Run():
 						KillJob(job)
 					elif job["jobStatus"] == "scheduling" or job["jobStatus"] == "running" :
 						UpdateJobStatus(job)
+					elif job["jobStatus"] == "unapproved" :
+						AutoApproveJob(job)
 				except Exception as e:
 					print e
 		except Exception as e:

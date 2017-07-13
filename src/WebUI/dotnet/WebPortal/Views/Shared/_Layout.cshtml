@@ -15,7 +15,7 @@
         <link rel="stylesheet" href="https://ajax.aspnetcdn.com/ajax/bootstrap/3.3.6/css/bootstrap.min.css"
               asp-fallback-href="~/lib/bootstrap/dist/css/bootstrap.min.css"
               asp-fallback-test-class="sr-only" asp-fallback-test-property="position" asp-fallback-test-value="absolute" />
-        <link rel="stylesheet" href="~/css/site.min.css" asp-append-version="true" />
+        <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     </environment>
     <script src="https://ajax.microsoft.com/ajax/jquery/jquery-1.10.2.min.js" type="text/javascript"></script>
     
@@ -40,10 +40,9 @@
                     <li><a asp-area="" asp-controller="Home" asp-action="JobSubmission">Submit New Job</a></li>
                     <li><a asp-area="" asp-controller="Home" asp-action="ViewJobs">View and Manage Jobs</a></li>
                     <li><a asp-area="" asp-controller="Home" asp-action="ViewCluster">Cluster Status</a></li>
-                    @if ( Context.Session.GetString("isAdmin") == "true")
+                    @if (Context.Session.GetString("isAdmin") == "true")
                     {
-                        <li><a asp-area="" asp-controller="Home" asp-action="ManageUser">Manage Users</a></li> 
-                    
+                        <li><a asp-area="" asp-controller="Home" asp-action="ManageUser">Manage Users</a></li>      
                     }
                 </ul>
                 @await Html.PartialAsync("_LoginPartial")
@@ -78,3 +77,4 @@
     @RenderSection("scripts", required: false)
 </body>
 </html>
+

@@ -42,41 +42,54 @@ namespace WindowsAuth.Controllers
 
             ViewData["Username"] = HttpContext.Session.GetString("Username");
             var restapi = HttpContext.Session.GetString("Restapi");
-            if (op == "ListJobs")
+
+            switch (op)
             {
-                url = restapi + "/ListJobs?userName="+HttpContext.Session.GetString("Email");
-            }
-            else if (op == "KillJob" && HttpContext.Request.Query.ContainsKey("jobId"))
-            {
-                url = restapi + "/KillJob?jobId=" + HttpContext.Request.Query["jobId"]+"&userName="+ HttpContext.Session.GetString("Email");
-            }
-            else if (op == "JobDetail" && HttpContext.Request.Query.ContainsKey("jobId"))
-            {
-                url = restapi + "/GetJobDetail?jobId=" + HttpContext.Request.Query["jobId"];
-            }
-            else if (op == "SubmitJob")
-            {
-                url = restapi + "/SubmitJob?";
-                foreach (var item in HttpContext.Request.Query)
-                {
-                    //security check, user cannot append userName to the request url
-                    if (item.Key.ToLower() != "username")
+                case "ListJobs":
+                    url = restapi + "/ListJobs?userName=" + HttpContext.Session.GetString("Email");
+                    break;
+                case "ListAllJobs":
+                    url = restapi + "/ListJobs?userName=all";
+                    break;
+                case "KillJob":
+                    if (HttpContext.Request.Query.ContainsKey("jobId"))
                     {
-                        url += System.Text.Encodings.Web.UrlEncoder.Default.Encode(item.Key) + "=" + System.Text.Encodings.Web.UrlEncoder.Default.Encode(item.Value) + "&";
+                        url = restapi + "/KillJob?jobId=" + HttpContext.Request.Query["jobId"] + "&userName=" + HttpContext.Session.GetString("Email");
                     }
-                }
-                url += "userName=" + HttpContext.Session.GetString("Email") + "&";
-                url += "userId=" + HttpContext.Session.GetString("uid") + "&";
-                if (HttpContext.Request.Query.ContainsKey("runningasroot") && HttpContext.Request.Query["runningasroot"] == "1")
-                {
-                    url += "containerUserId=0&";
-                }
+                    break;
+                case "ApproveJob":
+                    if (HttpContext.Request.Query.ContainsKey("jobId"))
+                    {
+                        url = restapi + "/ApproveJob?jobId=" + HttpContext.Request.Query["jobId"] + "&userName=" + HttpContext.Session.GetString("Email");
+                    }
+                    break;
+                case "JobDetail":
+                    if (HttpContext.Request.Query.ContainsKey("jobId"))
+                    {
+                        url = restapi + "/GetJobDetail?jobId=" + HttpContext.Request.Query["jobId"];
+                    }
+                    break;
+                case "SubmitJob":
+                    url = restapi + "/SubmitJob?";
+                    foreach (var item in HttpContext.Request.Query)
+                    {
+                        //security check, user cannot append userName to the request url
+                        if (item.Key.ToLower() != "username")
+                        {
+                            url += System.Text.Encodings.Web.UrlEncoder.Default.Encode(item.Key) + "=" + System.Text.Encodings.Web.UrlEncoder.Default.Encode(item.Value) + "&";
+                        }
+                    }
+                    url += "userName=" + HttpContext.Session.GetString("Email") + "&";
+                    url += "userId=" + HttpContext.Session.GetString("uid") + "&";
+                    if (HttpContext.Request.Query.ContainsKey("runningasroot") && HttpContext.Request.Query["runningasroot"] == "1")
+                    {
+                        url += "containerUserId=0&";
+                    }
+                    break;
+                case "GetClusterStatus":
+                    url = restapi + "/GetClusterStatus?";
+                    break;
             }
-            else if (op == "GetClusterStatus")
-            {
-                url = restapi + "/GetClusterStatus?";
-            }
-            
 
             if (url != "")
             {
@@ -88,7 +101,6 @@ namespace WindowsAuth.Controllers
                 }
             }
             return ret;
-
         }
 
         //// POST api/values

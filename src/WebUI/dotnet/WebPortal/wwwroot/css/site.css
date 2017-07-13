@@ -91,3 +91,22 @@ textarea {
     padding: 2px 5px;
 }
 
+
+.Kill {
+    background-color: #ff0000;
+    -moz-border-radius: 4px;
+    -webkit-border-radius: 4px;
+    border-radius: 4px;
+    color: #ffffff;
+    font-weight: bold;
+    padding: 2px 5px;
+    text-decoration: none
+}
+
+    .Kill:hover, .Kill:visited, .Kill:active, .Kill:link {
+        background-color: #ff2222;
+        color: #ffffff;
+        text-decoration: none;
+    }
+
+
