@@ -49,7 +49,10 @@ namespace WindowsAuth.Controllers
                     url = restapi + "/ListJobs?userName=" + HttpContext.Session.GetString("Email");
                     break;
                 case "ListAllJobs":
-                    url = restapi + "/ListJobs?userName=all";
+                    if (HttpContext.Session.GetString("isAdmin").Equals("true"))
+                    {
+                        url = restapi + "/ListJobs?userName=all";
+                    }
                     break;
                 case "KillJob":
                     if (HttpContext.Request.Query.ContainsKey("jobId"))
@@ -58,7 +61,7 @@ namespace WindowsAuth.Controllers
                     }
                     break;
                 case "ApproveJob":
-                    if (HttpContext.Request.Query.ContainsKey("jobId"))
+                    if (HttpContext.Request.Query.ContainsKey("jobId") && HttpContext.Session.GetString("isAdmin").Equals("true"))
                     {
                         url = restapi + "/ApproveJob?jobId=" + HttpContext.Request.Query["jobId"] + "&userName=" + HttpContext.Session.GetString("Email");
                     }
