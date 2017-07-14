@@ -104,33 +104,35 @@ class DataHandler:
 
 
 	def GetJobList(self, userName):
-		cursor = self.conn.cursor()
-		query = "SELECT [jobId],[jobName],[userName], [jobStatus], [jobStatusDetail], [jobType], [jobDescriptionPath], [jobDescription], [jobTime], [endpoints], [jobParams],[errorMsg] ,[jobMeta] FROM [%s]" % self.jobtablename
-		if userName != "all":
-			query += " where cast([userName] as nvarchar(max)) = N'%s'" % userName
-		else:
-			query += " where cast([jobStatus] as nvarchar(max)) <> N'error' and cast([jobStatus] as nvarchar(max)) <> N'failed' and cast([jobStatus] as nvarchar(max)) <> N'finished' and cast([jobStatus] as nvarchar(max)) <> N'killed'"
-		query += " order by [jobTime] Desc"
-		cursor.execute(query)
 		ret = []
-		for (jobId,jobName,userName, jobStatus,jobStatusDetail, jobType, jobDescriptionPath, jobDescription, jobTime, endpoints, jobParams,errorMsg, jobMeta) in cursor:
-			record = {}
-			record["jobId"] = jobId
-			record["jobName"] = jobName
-			record["userName"] = userName
-			record["jobStatus"] = jobStatus
-			record["jobStatusDetail"] = jobStatusDetail
-			record["jobType"] = jobType
-			record["jobDescriptionPath"] = jobDescriptionPath
-			record["jobDescription"] = jobDescription
-			record["jobTime"] = jobTime
-			record["endpoints"] = endpoints
-			record["jobParams"] = jobParams
-			record["errorMsg"] = errorMsg
-			record["jobMeta"] = jobMeta
-			ret.append(record)
+		cursor = self.conn.cursor()
+		try:
+			query = "SELECT [jobId],[jobName],[userName], [jobStatus], [jobStatusDetail], [jobType], [jobDescriptionPath], [jobDescription], [jobTime], [endpoints], [jobParams],[errorMsg] ,[jobMeta] FROM [%s]" % self.jobtablename
+			if userName != "all":
+				query += " where cast([userName] as nvarchar(max)) = N'%s'" % userName
+			else:
+				query += " where cast([jobStatus] as nvarchar(max)) <> N'error' and cast([jobStatus] as nvarchar(max)) <> N'failed' and cast([jobStatus] as nvarchar(max)) <> N'finished' and cast([jobStatus] as nvarchar(max)) <> N'killed'"
+			query += " order by [jobTime] Desc"
+			cursor.execute(query)
+			for (jobId,jobName,userName, jobStatus,jobStatusDetail, jobType, jobDescriptionPath, jobDescription, jobTime, endpoints, jobParams,errorMsg, jobMeta) in cursor:
+				record = {}
+				record["jobId"] = jobId
+				record["jobName"] = jobName
+				record["userName"] = userName
+				record["jobStatus"] = jobStatus
+				record["jobStatusDetail"] = jobStatusDetail
+				record["jobType"] = jobType
+				record["jobDescriptionPath"] = jobDescriptionPath
+				record["jobDescription"] = jobDescription
+				record["jobTime"] = jobTime
+				record["endpoints"] = endpoints
+				record["jobParams"] = jobParams
+				record["errorMsg"] = errorMsg
+				record["jobMeta"] = jobMeta
+				ret.append(record)
+		except:
+			pass				
 		cursor.close()
-
 		return ret
 
 

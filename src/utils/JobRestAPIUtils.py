@@ -142,12 +142,15 @@ def SubmitJob(jobParamsJsonStr):
 
 
 def GetJobList(userName):
-	dataHandler = DataHandler()
-	jobs =  dataHandler.GetJobList(userName)
-	for job in jobs:
-		job.pop('jobMeta', None)
-	dataHandler.Close()
-	return jobs
+	try:
+		dataHandler = DataHandler()
+		jobs =  dataHandler.GetJobList(userName)
+		for job in jobs:
+			job.pop('jobMeta', None)
+		dataHandler.Close()
+		return jobs
+	except:
+		return []
 
 
 
