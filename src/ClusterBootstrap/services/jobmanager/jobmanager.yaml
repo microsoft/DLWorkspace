@@ -30,7 +30,9 @@ spec:
         - mountPath: {{cnf["storage-mount-path"]}}/storage
           name: dlwsdatadata 
         - mountPath: {{cnf["storage-mount-path"]}}/jobfiles
-          name: dlwsdatajobfiles                                                   
+          name: dlwsdatajobfiles
+        - mountPath: /var/log/dlworkspace
+          name: log                                                    
       volumes:
       - name: certs
         hostPath:
@@ -50,3 +52,6 @@ spec:
       - name: dlwsdatajobfiles
         hostPath:
           path: {{cnf["storage-mount-path"]}}/jobfiles           
+      - name: log
+        hostPath:
+          path: /var/log/clustermanager          
