@@ -107,7 +107,7 @@ class DataHandler:
 		cursor = self.conn.cursor()
 		query = "SELECT [jobId],[jobName],[userName], [jobStatus], [jobStatusDetail], [jobType], [jobDescriptionPath], [jobDescription], [jobTime], [endpoints], [jobParams],[errorMsg] ,[jobMeta] FROM [%s]" % self.jobtablename
 		if userName != "all":
-			query += " where cast([userName] as nvarchar(max)) = N'%s'" % userName
+			query += " where cast([userName] as nvarchar(max)) = N'%s' and cast([jobStatus] as nvarchar(max)) <> N'error' and cast([jobStatus] as nvarchar(max)) <> N'failed' and cast([jobStatus] as nvarchar(max)) <> N'finished' and cast([jobStatus] as nvarchar(max)) <> N'killed'" % userName
 
 		query += " order by [jobTime] Desc"
 		cursor.execute(query)
