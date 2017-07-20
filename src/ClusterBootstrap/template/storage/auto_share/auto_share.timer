@@ -1,0 +1,11 @@
+[Unit]
+Description=Automatically check and mount/unmount the network shares
+
+[Timer]
+OnBootSec=0min
+OnUnitActiveSec=1min
+OnActiveSec=1min
+
+
+[Install]
+WantedBy=timer.target

@@ -292,7 +292,8 @@ default_config_parameters = {
 		
 	},
 	
-
+	# folder where automatic share script will be located
+	"folder_auto_share" : "/opt/auto_share", 
 
 	# Option to change pre-/post- deployment script
 	# Available options are (case sensitive):
@@ -1872,6 +1873,88 @@ def remove_fstab_section( node, secname):
 				f.close()
 			utils.sudo_scp( config["ssh_cert"], "./deploy/etc/fstab", "/etc/fstab", "core", node)
 
+def mount_fileshares_by_service(perform_mount=True):
+	all_nodes = get_nodes(config["clusterId"])
+	if perform_mount:
+		nodes = all_nodes
+		for node in nodes:
+			allmountpoints, fstab = get_mount_fileshares(node)
+			remotecmd = ""
+			remotecmd += "sudo mkdir -p %s; " % config["storage-mount-path"]
+			remotecmd += "sudo mkdir -p %s; " % config["physical-mount-path"]
+			filesharetype = {}
+			# In service, the mount preparation install relevant software on remote machine. 
+			for k,v in allmountpoints.iteritems():
+				if "curphysicalmountpoint" in v:
+					physicalmountpoint = v["curphysicalmountpoint"] 
+					if v["type"] == "azurefileshare":
+						if not ("azurefileshare" in filesharetype):
+							filesharetype["azurefileshare"] = True
+							remotecmd += "sudo apt-get -y install cifs-utils attr; "
+					elif v["type"] == "glusterfs":
+						if not ("glusterfs" in filesharetype):
+							filesharetype["glusterfs"] = True
+							remotecmd += "sudo apt-get install -y glusterfs-client attr; "
+					elif v["type"] == "nfs":
+						if not ("nfs" in filesharetype):
+							filesharetype["nfs"] = True
+							remotecmd += "sudo apt-get install -y nfs-common; "
+					elif v["type"] == "hdfs":
+						if not ("hdfs" in filesharetype):
+							filesharetype["hdfs"] = True
+							remotecmd += "wget http://archive.cloudera.com/cdh5/one-click-install/trusty/amd64/cdh5-repository_1.0_all.deb; "
+							remotecmd += "sudo dpkg -i cdh5-repository_1.0_all.deb; "
+							remotecmd += "sudo rm cdh5-repository_1.0_all.deb; "
+							remotecmd += "sudo apt-get update; "
+							remotecmd += "sudo apt-get install -y --allow-unauthenticated hadoop-hdfs-fuse; "
+			utils.SSH_exec_cmd( config["ssh_cert"], "core", node, "sudo mkdir -p %s; " % config["folder_auto_share"] )
+			utils.render_template_directory("./template/storage/auto_share", "./deploy/storage/auto_share", config)
+			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.timer","/etc/systemd/system/auto_share.timer", "core", node )
+			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.service","/etc/systemd/system/auto_share.service", "core", node )
+			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/logging.yaml",os.path.join(config["folder_auto_share"], "logging.yaml"), "core", node )
+			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.py",os.path.join(config["folder_auto_share"], "auto_share.py"), "core", node )
+			remotecmd += "sudo chmod +x %s; " % os.path.join(config["folder_auto_share"], "auto_share.py")
+			remotecmd += "sudo systemctl daemon-reload; "
+			remotecmd += "sudo systemctl enable auto_share.timer; "
+			remotecmd += "sudo systemctl restart auto_share.timer; "
+			if len(remotecmd)>0:
+				utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)
+			# We no longer recommend to insert fstabl into /etc/fstab file, instead, 
+			# we recommend to use service to start auto mount if needed
+			# insert_fstab_section( node, "DLWS", fstab )
+	for k, v in allmountpoints.iteritems():
+		allmountpoints[k].pop("accesskey", None)
+	# print mountpoints
+	return allmountpoints
+
+def unmount_fileshares_by_service(clean=False):
+	all_nodes = get_nodes(config["clusterId"])
+	allmountpoints, fstab = get_mount_fileshares()
+	# print fstab
+	if True:
+		nodes = all_nodes
+		for node in nodes:
+			remotecmd = ""
+			remotecmd += "sudo systemctl disable auto_share.timer; "
+			remotecmd += "sudo systemctl stop auto_share.timer; "
+			for k,v in allmountpoints.iteritems():
+				if "curphysicalmountpoint" in v:
+					output = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "sudo mount | grep %s" % v["curphysicalmountpoint"])
+					umounts = []
+					for line in output.splitlines():
+						words = line.split()
+						if len(words)>3 and words[1]=="on":
+							umounts.append( words[2] )
+					umounts.sort()
+					for um in umounts:
+						remotecmd += "sudo umount %s; " % um
+			if clean:
+				for k,v in allmountpoints.iteritems():
+					if "curphysicalmountpoint" in v:
+						remotecmd += "sudo rm -rf %s; " % v["curphysicalmountpoint"]
+			if len(remotecmd)>0:
+				utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)
+
 def mount_fileshares(perform_mount=True):
 	all_nodes = get_nodes(config["clusterId"])
 	if perform_mount:
@@ -1929,7 +2012,6 @@ def mount_fileshares(perform_mount=True):
 	for k, v in allmountpoints.iteritems():
 		allmountpoints[k].pop("accesskey", None)
 	# print mountpoints
-
 	return allmountpoints
 
 def unmount_fileshares(clean=False):
@@ -3244,17 +3326,17 @@ def run_command( args, command, nargs, parser ):
 
 	elif command == "mount":
 		if len(nargs)<=0 or nargs[0]=="start":
-			allmountpoints = mount_fileshares(True)
+			allmountpoints = mount_fileshares_by_service(True)
 			link_fileshares(allmountpoints, args.force)
 		elif nargs[0]=="stop":
-			unmount_fileshares(False)
+			unmount_fileshares_by_service(False)
 		elif nargs[0]=="clean":
 			print ("This operation will CLEAN local content in the physical mount point, and may erase the data on those locations. "  )
 			response = raw_input ("Please type (CLEAN) in ALL CAPITALS to confirm the operation ---> ")
 			if response == "CLEAN":
-				unmount_fileshares(True)
+				unmount_fileshares_by_service(True)
 		elif nargs[0]=="nolink":
-			mount_fileshares(True)
+			mount_fileshares_by_service(True)
 		elif nargs[0]=="link":
 			all_nodes = get_nodes(config["clusterId"])
 			allmountpoints, fstab = get_mount_fileshares()
