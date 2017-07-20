@@ -1,11 +1,10 @@
 [Unit]
 Description=Auto mount service
-After=network.target syslog.target
+# Wants=auto_share.timer
 
 [Service]
 Type=oneshot
-RemainAfterExit=yes
 ExecStart={{cnf["folder_auto_share"]}}/auto_share.py
 
 [Install]
-WantedBy=multi-user.target
+#WantedBy=auto_share.target

@@ -1915,6 +1915,40 @@ def remove_fstab_section( node, secname):
 				f.close()
 			utils.sudo_scp( config["ssh_cert"], "./deploy/etc/fstab", "/etc/fstab", "core", node)
 
+def fileshare_install():
+	all_nodes = get_nodes(config["clusterId"])
+	nodes = all_nodes
+	for node in nodes:
+		allmountpoints, fstab = get_mount_fileshares(node)
+		remotecmd = ""
+		filesharetype = {}
+		# In service, the mount preparation install relevant software on remote machine. 
+		for k,v in allmountpoints.iteritems():
+			if "curphysicalmountpoint" in v:
+				physicalmountpoint = v["curphysicalmountpoint"] 
+				if v["type"] == "azurefileshare":
+					if not ("azurefileshare" in filesharetype):
+						filesharetype["azurefileshare"] = True
+						remotecmd += "sudo apt-get -y install cifs-utils attr; "
+				elif v["type"] == "glusterfs":
+					if not ("glusterfs" in filesharetype):
+						filesharetype["glusterfs"] = True
+						remotecmd += "sudo apt-get install -y glusterfs-client attr; "
+				elif v["type"] == "nfs":
+					if not ("nfs" in filesharetype):
+						filesharetype["nfs"] = True
+						remotecmd += "sudo apt-get install -y nfs-common; "
+				elif v["type"] == "hdfs":
+					if not ("hdfs" in filesharetype):
+						filesharetype["hdfs"] = True
+						remotecmd += "wget http://archive.cloudera.com/cdh5/one-click-install/trusty/amd64/cdh5-repository_1.0_all.deb; "
+						remotecmd += "sudo dpkg -i cdh5-repository_1.0_all.deb; "
+						remotecmd += "sudo rm cdh5-repository_1.0_all.deb; "
+						remotecmd += "sudo apt-get update; "
+						remotecmd += "sudo apt-get install -y --allow-unauthenticated hadoop-hdfs-fuse; "
+		if len(remotecmd)>0:
+			utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)
+
 def mount_fileshares_by_service(perform_mount=True):
 	all_nodes = get_nodes(config["clusterId"])
 	if perform_mount:
@@ -1924,41 +1958,25 @@ def mount_fileshares_by_service(perform_mount=True):
 			remotecmd = ""
 			remotecmd += "sudo mkdir -p %s; " % config["storage-mount-path"]
 			remotecmd += "sudo mkdir -p %s; " % config["physical-mount-path"]
-			filesharetype = {}
-			# In service, the mount preparation install relevant software on remote machine. 
-			for k,v in allmountpoints.iteritems():
-				if "curphysicalmountpoint" in v:
-					physicalmountpoint = v["curphysicalmountpoint"] 
-					if v["type"] == "azurefileshare":
-						if not ("azurefileshare" in filesharetype):
-							filesharetype["azurefileshare"] = True
-							remotecmd += "sudo apt-get -y install cifs-utils attr; "
-					elif v["type"] == "glusterfs":
-						if not ("glusterfs" in filesharetype):
-							filesharetype["glusterfs"] = True
-							remotecmd += "sudo apt-get install -y glusterfs-client attr; "
-					elif v["type"] == "nfs":
-						if not ("nfs" in filesharetype):
-							filesharetype["nfs"] = True
-							remotecmd += "sudo apt-get install -y nfs-common; "
-					elif v["type"] == "hdfs":
-						if not ("hdfs" in filesharetype):
-							filesharetype["hdfs"] = True
-							remotecmd += "wget http://archive.cloudera.com/cdh5/one-click-install/trusty/amd64/cdh5-repository_1.0_all.deb; "
-							remotecmd += "sudo dpkg -i cdh5-repository_1.0_all.deb; "
-							remotecmd += "sudo rm cdh5-repository_1.0_all.deb; "
-							remotecmd += "sudo apt-get update; "
-							remotecmd += "sudo apt-get install -y --allow-unauthenticated hadoop-hdfs-fuse; "
+			mountconfig = { }
+			mountconfig["mountpoints"] = allmountpoints
+			mountconfig["storage-mount-path"] = config["storage-mount-path"]
+			mountconfig["physical-mount-path"] = config["physical-mount-path"]
+			with open("./deploy/storage/auto_share/mounting.yaml",'w') as datafile:
+				yaml.dump(mountconfig, datafile, default_flow_style=False)
 			utils.SSH_exec_cmd( config["ssh_cert"], "core", node, "sudo mkdir -p %s; " % config["folder_auto_share"] )
 			utils.render_template_directory("./template/storage/auto_share", "./deploy/storage/auto_share", config)
 			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.timer","/etc/systemd/system/auto_share.timer", "core", node )
+			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.target","/etc/systemd/system/auto_share.target", "core", node )
 			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.service","/etc/systemd/system/auto_share.service", "core", node )
 			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/logging.yaml",os.path.join(config["folder_auto_share"], "logging.yaml"), "core", node )
 			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.py",os.path.join(config["folder_auto_share"], "auto_share.py"), "core", node )
+			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/mounting.yaml",os.path.join(config["folder_auto_share"], "mounting.yaml"), "core", node )
 			remotecmd += "sudo chmod +x %s; " % os.path.join(config["folder_auto_share"], "auto_share.py")
 			remotecmd += "sudo systemctl daemon-reload; "
 			remotecmd += "sudo systemctl enable auto_share.timer; "
 			remotecmd += "sudo systemctl restart auto_share.timer; "
+			remotecmd += "sudo systemctl stop auto_share.service; "
 			if len(remotecmd)>0:
 				utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)
 			# We no longer recommend to insert fstabl into /etc/fstab file, instead, 
@@ -3367,7 +3385,13 @@ def run_command( args, command, nargs, parser ):
 		deploy_webUI()
 
 	elif command == "mount":
-		if len(nargs)<=0 or nargs[0]=="start":
+		if len(nargs)<=0:
+			fileshare_install()
+			allmountpoints = mount_fileshares_by_service(True)
+			link_fileshares(allmountpoints, args.force)
+		elif nargs[0]=="install":
+			fileshare_install()
+		elif nargs[0]=="start":
 			allmountpoints = mount_fileshares_by_service(True)
 			link_fileshares(allmountpoints, args.force)
 		elif nargs[0]=="stop":
