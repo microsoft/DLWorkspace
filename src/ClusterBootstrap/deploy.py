@@ -357,7 +357,7 @@ default_config_parameters = {
 # These are super scripts
 scriptblocks = {
 	"azure": [
-		"runscriptonall ./scripts/prepare_ubuntu.sh", 
+		"runscriptonall ./scripts/prepare_ubuntu_azure.sh", 
   		"execonall sudo usermod -aG docker core",
 		"-y deploy",
 		"-y updateworker",
@@ -1495,18 +1495,60 @@ def deploy_webUI_on_node(ipAddress):
 # Install ssh key remotely
 def install_ssh_key(key_files):
 	all_nodes = get_nodes(config["clusterId"])
-	with open("./deploy/sshkey/rootpasswd", "r") as f:
-		rootpasswd = f.read()
+
+	rootpasswdfile = "./deploy/sshkey/rootpasswd"
+	rootuserfile = "./deploy/sshkey/rootuser"
+
+
+	with open(rootpasswdfile, "r") as f:
+		rootpasswd = f.read().strip()
 		f.close()
+
+	#default root user is core....
+	rootuser = "core"
+	if os.path.isfile(rootuserfile):
+		with open(rootuserfile, "r") as f:
+			rootuser = f.read().strip()
+			f.close()
+
 
 	for node in all_nodes:
 		if len(key_files)>0:
 			for key_file in key_files:
 				print "Install key %s on %s" % (key_file, node)
-				os.system("sshpass -p %s ssh-copy-id -o StrictHostKeyChecking=no -i %s core@%s" %(rootpasswd, key_file, node))
+				os.system("sshpass -f %s ssh-copy-id -o StrictHostKeyChecking=no -i %s %s@%s" %(rootpasswdfile, key_file, rootuser, node))
 		else:
 			print "Install key %s on %s" % ("./deploy/sshkey/id_rsa.pub", node)
-			os.system("sshpass -p %s ssh-copy-id -o StrictHostKeyChecking=no -i ./deploy/sshkey/id_rsa.pub core@%s" %(rootpasswd, node))
+			os.system("sshpass -f %s ssh-copy-id -o StrictHostKeyChecking=no -i ./deploy/sshkey/id_rsa.pub %s@%s" %(rootpasswdfile, rootuser, node))
+
+
+	if rootuser != "core":
+	 	for node in all_nodes:
+	 		os.system('sshpass -f %s ssh %s@%s "sudo useradd -p %s -d /home/core -m -s /bin/bash core"' % (rootpasswdfile,rootuser, node, rootpasswd))
+	 		os.system('sshpass -f %s ssh %s@%s "sudo usermod -aG sudo core"' % (rootpasswdfile,rootuser, node))
+	 		os.system('sshpass -f %s ssh %s@%s "sudo mkdir -p /home/core/.ssh"' % (rootpasswdfile,rootuser, node))
+
+
+			if len(key_files)>0:
+				for key_file in key_files:
+					print "Install key %s on %s" % (key_file, node)
+					with open(key_file, "r") as f:
+						publicKey = f.read().strip()
+						f.close()		
+	 				os.system('sshpass -f %s ssh %s@%s "echo %s | sudo tee /home/core/.ssh/authorized_keys"' % (rootpasswdfile,rootuser, node,publicKey))
+
+			else:
+				print "Install key %s on %s" % ("./deploy/sshkey/id_rsa.pub", node)
+				with open("./deploy/sshkey/id_rsa.pub", "r") as f:
+					publicKey = f.read().strip()
+					f.close()		
+ 				os.system('sshpass -f %s ssh %s@%s "echo %s | sudo tee /home/core/.ssh/authorized_keys"' % (rootpasswdfile,rootuser, node,publicKey))
+
+	 		os.system('sshpass -f %s ssh %s@%s "sudo chown core:core -R /home/core"' % (rootpasswdfile,rootuser, node))
+	 		os.system('sshpass -f %s ssh %s@%s "sudo chmod 400 /home/core/.ssh/authorized_keys"' % (rootpasswdfile,rootuser, node))
+	 		os.system("""sshpass -f %s ssh %s@%s "echo 'core ALL=(ALL) NOPASSWD: ALL' | sudo tee -a /etc/sudoers.d/core " """ % (rootpasswdfile,rootuser, node))
+
+
 
 def pick_server( nodelists, curNode ):
 	if curNode is None or not (curNode in nodelists):
