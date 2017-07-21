@@ -1965,10 +1965,10 @@ def mount_fileshares_by_service(perform_mount=True):
 			for k,v in allmountpoints.iteritems():
 				if "curphysicalmountpoint" in v:
 					remotecmd += "sudo mkdir -p %s; " % v["curphysicalmountpoint"]
-			with open("./deploy/storage/auto_share/mounting.yaml",'w') as datafile:
-				yaml.dump(mountconfig, datafile, default_flow_style=False)
 			utils.SSH_exec_cmd( config["ssh_cert"], "core", node, "sudo mkdir -p %s; " % config["folder_auto_share"] )
 			utils.render_template_directory("./template/storage/auto_share", "./deploy/storage/auto_share", config)
+			with open("./deploy/storage/auto_share/mounting.yaml",'w') as datafile:
+				yaml.dump(mountconfig, datafile, default_flow_style=False)			
 			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.timer","/etc/systemd/system/auto_share.timer", "core", node )
 			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.target","/etc/systemd/system/auto_share.target", "core", node )
 			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.service","/etc/systemd/system/auto_share.service", "core", node )
