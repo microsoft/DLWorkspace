@@ -1962,6 +1962,9 @@ def mount_fileshares_by_service(perform_mount=True):
 			mountconfig["mountpoints"] = allmountpoints
 			mountconfig["storage-mount-path"] = config["storage-mount-path"]
 			mountconfig["physical-mount-path"] = config["physical-mount-path"]
+			for k,v in allmountpoints.iteritems():
+				if "curphysicalmountpoint" in v:
+					remotecmd += "sudo mkdir -p %s; " % v["curphysicalmountpoint"]
 			with open("./deploy/storage/auto_share/mounting.yaml",'w') as datafile:
 				yaml.dump(mountconfig, datafile, default_flow_style=False)
 			utils.SSH_exec_cmd( config["ssh_cert"], "core", node, "sudo mkdir -p %s; " % config["folder_auto_share"] )
@@ -3611,8 +3614,9 @@ Command:
               if s_i < 0, the partition is s_i GB, 
               if s_i > 0, the partition is in portitional to s_i. 
               We use parted mkpart percentage% to create partitions. As such, the minimum partition is 1% of a disk. 
-  mount     start | stop | link
+  mount     install | start | stop | link
   		    start: mount all fileshares 
+			install: install all client components related to the fileshare
 			stop: unmount all fileshares
 			nolink: mount all fileshares, but doesnot symbolic link to the mount share
   glusterfs [args] manage glusterFS on the cluster. 
