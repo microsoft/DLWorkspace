@@ -1,4 +1,4 @@
-# Deploy DL workspace cluster on Azure. 
+# Deploy DL workspace cluster on Ubuntu. 
 
 This document describes the procedure to deploy DL workspace cluster on a Ubuntu Cluster that is on a VLAN with a initial node that is used as a PXE-server for prime the cluster. 
 
