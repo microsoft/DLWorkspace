@@ -5,6 +5,7 @@ Description=Auto mount service
 [Service]
 Type=oneshot
 ExecStart={{cnf["folder_auto_share"]}}/auto_share.py
+StandardError=journal
 
 [Install]
 # WantedBy=auto_share.target
