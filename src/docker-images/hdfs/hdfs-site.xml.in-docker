@@ -38,8 +38,8 @@
       <value>{{cnf["namenode"]["namenode1"]}}:50070</value>
     </property>
     <property>
-      <name>dfs.namenode.http-address.CLUSTER_NAME.nn2</name>
-      <value>{{cnf["namenode"]["namenode1"]}}:50070</value>
+      <name>dfs.namenode.http-address.{{cnf["hdfs_cluster_name"]}}.nn2</name>
+      <value>{{cnf["namenode"]["namenode2"]}}:50070</value>
     </property>
     <property>
       <name>dfs.namenode.shared.edits.dir</name>

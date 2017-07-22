@@ -114,6 +114,11 @@ datanode:    Launch datanode.
         exec_with_output( "rm -rf %s" % remotedir )
         exec_with_output( "cp -r %s %s" % ( localdir, remotedir ) )
         print "Copy data from %s to %s" % ( localdir, remotedir )
+    elif server == "copy":
+        remotedir = os.path.join( config["namenode"]["data"], "current")
+        localdir = os.path.join( config["namenode"]["localdata"], "current")
+        exec_with_output( "cp -r %s %s" % ( localdir, remotedir ) )
+        print "Copy data from %s to %s" % ( localdir, remotedir )
     elif server == "standby":
         remotedir = os.path.join( config["namenode"]["data"], "current")
         localdir = os.path.join( config["namenode"]["localdata"], "current")

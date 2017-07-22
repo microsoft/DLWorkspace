@@ -1,0 +1,11 @@
+[Unit]
+Description=Automatically check and mount/unmount the network shares
+
+[Timer]
+OnBootSec=0min
+OnCalendar=*:0/1
+Unit=auto_share.service
+
+
+[Install]
+WantedBy=basic.target
