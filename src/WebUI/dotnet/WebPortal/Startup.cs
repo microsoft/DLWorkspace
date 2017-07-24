@@ -55,6 +55,7 @@ namespace WindowsAuth
         static public Dictionary<string, OpenIDAuthentication> AuthenticationSchemes;
         static public Dictionary<string, DLCluster> Clusters; 
         static public Dictionary<string, UserContext> DatabaseForUser;
+        static public Dictionary<string, TemplateContext> DatabaseForTemplates;
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
@@ -100,7 +101,8 @@ namespace WindowsAuth
                 throw new ArgumentException("There are no DLClusters in the configuration file");
             }
             Clusters = new Dictionary<string, DLCluster>();
-            DatabaseForUser = new Dictionary<string, UserContext>(); 
+            DatabaseForUser = new Dictionary<string, UserContext>();
+            DatabaseForTemplates = new Dictionary<string, TemplateContext>();
             string defaultClusterName = null; 
             foreach (var pair in clusters)
             {
@@ -153,6 +155,7 @@ namespace WindowsAuth
                 clusterInfo.WorkFolderAccessPoint = clusterConfig["WorkFolderAccessPoint"] as string;
                 clusterInfo.Restapi = clusterConfig["Restapi"] as string;
                 clusterInfo.SQLDatabaseForUser = clusterConfig["SQLDatabaseForUser"] as string;
+                clusterInfo.SQLDatabaseForTemplates = clusterConfig["SQLDatabaseForTemplates"] as string;
                 clusterInfo.SQLHostname = clusterConfig["SQLHostname"] as string;
                 clusterInfo.SQLPassword = clusterConfig["SQLPassword"] as string;
                 clusterInfo.SQLUsername = clusterConfig["SQLUsername"] as string;
@@ -179,6 +182,21 @@ namespace WindowsAuth
                 var db = new UserContext(optionsBuilder.Options);
                 db.Database.EnsureCreated();
                 DatabaseForUser[clusterName] = db;
+
+                /////
+                var connection2 = String.Format("Server={0};Database={1}{2};User Id={3};Password={4}",
+                    clusterInfo.SQLHostname,
+                    clusterInfo.SQLDatabaseForTemplates,
+                    clusterInfo.ClusterId,
+                    clusterInfo.SQLUsername,
+                    clusterInfo.SQLPassword);
+                var optionsBuilder2 = new DbContextOptionsBuilder<TemplateContext>();
+                optionsBuilder2.UseSqlServer(connection2);
+                var db2 = new TemplateContext(optionsBuilder2.Options);
+                db2.Database.EnsureCreated();
+                DatabaseForTemplates[clusterName] = db2;
+
+                /////
             }
             if (String.IsNullOrEmpty(defaultClusterName))
                 defaultClusterName = Clusters.Keys.First<string>();
