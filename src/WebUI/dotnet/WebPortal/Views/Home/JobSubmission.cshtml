@@ -162,19 +162,19 @@
 
         var settings = JSON.parse(id);
 
-        document.getElementById("jobname").value = settings.job_name || "";
-        document.getElementById("resourcegpu").value = settings.gpu_count || 0;
-        document.getElementById("workpath").value = settings.work_path || "@ViewData["Username"]";
-        document.getElementById("datapath").value = settings.data_path || "imagenet";
-        document.getElementById("jobpath").value = settings.job_path || "";
-        document.getElementById("image").value = settings.image || "";
-        document.getElementById("cmd").value = replaceViewData(settings.cmd) || "";
+        document.getElementById("jobname").value = (settings.job_name === undefined) ? "" : settings.job_name;
+        document.getElementById("resourcegpu").value = (settings.gpu_count === undefined) ? 0 : settings.gpu_count;
+        document.getElementById("workpath").value = (settings.work_path === undefined) ? "@ViewData["Username"]" : settings.work_path;
+        document.getElementById("datapath").value = (settings.data_path === undefined) ? "imagenet" : settings.data_path;
+        document.getElementById("jobpath").value = (settings.job_path === undefined) ? "" : settings.job_path;
+        document.getElementById("image").value = (settings.image === undefined) ? "" : settings.image;
+        document.getElementById("cmd").value = (settings.cmd === undefined) ? "" : replaceViewData(settings.cmd);
         document.getElementById("chkInteractiveJob").checked = settings.is_interactive;
         document.getElementById("chkLogDir").checked = settings.do_log;
         ShowHideDiv(document.getElementById("chkInteractiveJob"), 'interactiveportfield')
         ShowHideDiv(document.getElementById("chkLogDir"), 'logdirfield')
-        document.getElementById("interactivePort").value = settings.port || "8888";
-        document.getElementById("logdir").value = settings.log_path || "";
+        document.getElementById("interactivePort").value = (settings.port === undefined) ? "8888" : settings.port;
+        document.getElementById("logdir").value = (settings.log_path === undefined) ? "" : settings.log_path;
         document.getElementById("runningasroot").checked = settings.run_as_root;
     }
 
