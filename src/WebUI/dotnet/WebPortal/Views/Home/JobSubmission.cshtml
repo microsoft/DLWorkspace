@@ -157,111 +157,32 @@
         elem2.style.display = "block";
 
     }
- 
+
     function UseTemplate(id) {
-        var settings = {
-            job_name: undefined,
-            gpu_count: 0,
-            work_path: "@ViewData["Username"]",
-            data_path: "imagenet",
-            job_path: "",
-            image: undefined,
-            cmd: undefined,
-            is_interactive: false,
-            do_log: false,
-            port: "8888",
-            log_path: "",
-            run_as_root: false
-        };
-        switch(id) {
-            case "tensorflow":
-                settings.job_name = "tensorflow-ipython";
-                settings.gpu_count = 1;
-                settings.image = "tensorflow/tensorflow:latest-gpu";
-                settings.cmd = "export HOME=/job && jupyter notebook --no-browser --port=8888 --ip=0.0.0.0 --notebook-dir=/";
-                settings.is_interactive = true;
-                break;
-            case "tensorflowcpu":
-                settings.job_name = "tensorflow-ipython-cpu";
-                settings.image = "tensorflow/tensorflow:latest";
-                settings.cmd = "export HOME=/job && jupyter notebook --no-browser --port=8888 --ip=0.0.0.0 --notebook-dir=/";
-                settings.is_interactive = true;
-                break;
-            case "tensorflowssh":
-                settings.job_name = "tensorflow-ssh";
-                settings.image = "tensorflow/tensorflow:latest-gpu";
-                settings.cmd = "apt-get update && apt-get install -y openssh-server sudo && addgroup --force-badname --gid  @ViewData["gid"] domainusers && adduser --force-badname --home /home/@ViewData["Username"] --shell /bin/bash --uid @ViewData["uid"]  -gecos '' @ViewData["Username"] --disabled-password --gid @ViewData["gid"] && adduser @ViewData["Username"] sudo && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && mkdir -p /root/.ssh && cat /work/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && mkdir -p /home/@ViewData["Username"]/.ssh && cat /work/.ssh/id_rsa.pub >> /home/@ViewData["Username"]/.ssh/authorized_keys && service ssh restart && sleep infinity";
-                settings.is_interactive = true;
-                settings.port = "22";
-                settings.run_as_root = true;
-                break;
-            case "mxnetgpu":
-                settings.job_name = "mxnet-python";
-                settings.gpu_count = 1;
-                settings.image = "tensorflow/tensorflow:latest-gpu";
-                settings.cmd = "export HOME=/job && jupyter notebook --no-browser --port=8888 --ip=0.0.0.0 --notebook-dir=/";
-                settings.is_interactive = true;
-                break;
-            case "mxnetcpu":
-                settings.job_name = "mxnet-python-cpu";
-                settings.image = "tensorflow/tensorflow:latest-cpu";
-                settings.cmd = "export HOME=/job && jupyter notebook --no-browser --port=8888 --ip=0.0.0.0 --notebook-dir=/";
-                settings.is_interactive = true;
-                break;
-            case "caffe":
-                settings.job_name = "caffe-ipython";
-                settings.image = "bvlc/caffe:cpu";
-                settings.cmd = "apt-get update && apt-get install -y python-pip sudo && addgroup --force-badname --gid  @ViewData["gid"] domainusers && adduser --force-badname --home /home/@ViewData["Username"] --shell /bin/bash --uid @ViewData["uid"]  -gecos '' @ViewData["Username"] --disabled-password --gid @ViewData["gid"] && pip install jupyter && cd /home/@ViewData["Username"] && sudo -H -u @ViewData["UserName"] jupyter notebook --no-browser --port=8888 --ip=0.0.0.0 --notebook-dir=/";
-                settings.is_interactive = true;
-                settings.run_as_root = true;
-                break;
-            case "caffessh":
-                settings.job_name = "caffe-ssh";
-                settings.image = "bvlc/caffe:cpu";
-                settings.cmd = "apt-get update && apt-get install -y openssh-server sudo && addgroup --force-badname --gid  @ViewData["gid"] domainusers && adduser --force-badname --home /home/@ViewData["Username"] --shell /bin/bash --uid @ViewData["uid"]  -gecos '' @ViewData["Username"] --disabled-password --gid @ViewData["gid"] && adduser @ViewData["Username"] sudo && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && mkdir -p /root/.ssh && cat /work/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && mkdir -p /home/@ViewData["Username"]/.ssh && cat /work/.ssh/id_rsa.pub >> /home/@ViewData["Username"]/.ssh/authorized_keys && cp /work/.ssh/id_rsa* /home/@ViewData["Username"]/.ssh/ && chown -R @ViewData["Username"] /home/@ViewData["Username"]/.ssh/ && service ssh restart && env | while read line; do if [[ $line != HOME=* ]] && [[ $line != INTERACTIVE* ]] ; then echo \"export $line\" >> /home/@ViewData["Username"]/.bashrc; fi; done &&  sleep infinity";
-                settings.is_interactive = true;
-                settings.port = "22";
-                settings.run_as_root = true;
-                break;
-            case "caffesample":
-                settings.job_name = "caffe training example - resnet18";
-                settings.gpu_count = 1;
-                settings.work_path = "samples";
-                settings.image = "bvlc/caffe:gpu";
-                settings.cmd = "caffe train -solver /work/caffe/solver_resnet18.prototxt";
-                settings.port = "";
-                break;
-            case "tensorflowsample":
-                settings.job_name = "Tensorflow training example - inception";
-                settings.gpu_count = 1;
-                settings.work_path = "samples";
-                settings.image = "tensorflow/tensorflow:0.12.1-gpu";
-                settings.cmd = "/work/tensorflow/models/inception/bazel-bin/inception/imagenet_train --num_gpus=1 --batch_size=32 --train_dir=/job/model --data_dir=/data/tensor";
-                settings.port = "";
-                break;
-            case "cntkipython":
-                settings.job_name = "CNTK-ipython";
-                settings.image = "microsoft/cntk";
-                settings.cmd = "bash -c 'source \"/cntk/activate-cntk\" ; jupyter notebook --no-browser --port=8888 --ip=0.0.0.0 --notebook-dir=/ --allow-root'";
-                settings.is_interactive = true;
-                settings.run_as_root = true;
-                break;
-	}
-        
+
+        var settings = JSON.parse(id);
+
         document.getElementById("jobname").value = settings.job_name || "";
-        document.getElementById("resourcegpu").value = settings.gpu_count;
-        document.getElementById("workpath").value = settings.work_path;
-        document.getElementById("datapath").value = settings.data_path;
-        document.getElementById("jobpath").value = settings.job_path;
+        document.getElementById("resourcegpu").value = settings.gpu_count || 0;
+        document.getElementById("workpath").value = settings.work_path || "@ViewData["Username"]";
+        document.getElementById("datapath").value = settings.data_path || "imagenet";
+        document.getElementById("jobpath").value = settings.job_path || "";
         document.getElementById("image").value = settings.image || "";
-        document.getElementById("cmd").value = settings.cmd || "";
+        document.getElementById("cmd").value = replaceViewData(settings.cmd) || "";
         document.getElementById("chkInteractiveJob").checked = settings.is_interactive;
         document.getElementById("chkLogDir").checked = settings.do_log;
         ShowHideDiv(document.getElementById("chkInteractiveJob"), 'interactiveportfield')
         ShowHideDiv(document.getElementById("chkLogDir"), 'logdirfield')
-        document.getElementById("interactivePort").value = settings.port;
-        document.getElementById("logdir").value = settings.log_path;
+        document.getElementById("interactivePort").value = settings.port || "8888";
+        document.getElementById("logdir").value = settings.log_path || "";
         document.getElementById("runningasroot").checked = settings.run_as_root;
+    }
+
+    function replaceViewData(str) {
+        str = str.replace(/ViewData\[Username\]/g, "@ViewData["Username"]");
+        str = str.replace(/ViewData\[gid\]/g, "@ViewData["gid"]");
+        str = str.replace(/ViewData\[uid\]/g, "@ViewData["uid"]");
+        return str;
     }
 </script>
 
@@ -283,18 +204,11 @@
                         Use Template
                     </label>
                     <br />
-                    <select onchange="UseTemplate(this.value)"> 
-                        <option value="none">None</option>
-                        <option value="tensorflow">Tensorflow-IPython-GPU</option>
-                        <option value="tensorflowcpu">Tensorflow-IPython-CPU</option>
-                        <option value="tensorflowssh">Tensorflow-SSH</option>
-                        <option value="mxnetgpu">MXNET-Python-GPU</option>
-                        <option value="mxnetcpu">MXNET-Python-CPU</option>
-                        <option value="caffe">Caffe-IPython</option>
-                        <option value="caffessh">Caffe-SSH</option>
-                        <option value="caffesample">Caffe training example</option>
-                        <option value="tensorflowsample">Tensorflow training example</option>
-                        <option value="cntkipython">CNTK-IPython</option>
+                    <select onchange="UseTemplate(this.value)">
+                        @foreach (var item in ViewData["templates"] as List<string[]>)
+                        {
+                            <option value="@item[2]">@item[0]</option>
+                        }
                     </select>
 
                 </div>

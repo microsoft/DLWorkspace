@@ -793,6 +793,19 @@ namespace WindowsAuth.Controllers
             ViewData["uid"] = HttpContext.Session.GetString("uid");
             ViewData["gid"] = HttpContext.Session.GetString("gid");
 
+            var currentCluster = HttpContext.Session.GetString("CurrentClusters");
+            var templatesDatabase = Startup.DatabaseForTemplates[currentCluster];
+            var templatesList = templatesDatabase.Template.ToList();
+            var templateStrings = new List<string[]>();
+            foreach (TemplateEntry template in templatesList)
+            {
+                string[] t = new string[3];
+                t[0] = template.Template;
+                t[1] = template.Username;
+                t[2] = template.Json;
+                templateStrings.Add(t);
+            }
+            ViewData["templates"] = templateStrings;
             AddViewData(message: "Your application description page.");
             return View();
         }
