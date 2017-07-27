@@ -3,6 +3,23 @@
 }
 
 <script>
+    function makeTemplate() {
+        var template = {};
+        template.job_name = document.getElementById("jobname").value;
+        template.gpu_count = document.getElementById("resourcegpu").value;
+        template.work_path = document.getElementById("workpath").value;
+        template.data_path = document.getElementById("datapath").value;
+        template.job_path = document.getElementById("jobpath").value;
+        template.image = document.getElementById("image").value;
+        template.cmd = document.getElementById("cmd").value;
+        template.is_interactive = document.getElementById("chkInteractiveJob").checked;
+        template.do_log = document.getElementById("chkLogDir").checked;
+        template.port = document.getElementById("interactivePort").value;
+        template.log_path = document.getElementById("logdir").value;
+        template.run_as_root = document.getElementById("runningasroot").checked;
+        return JSON.stringify(template);
+    }
+
     $(document).ready(function () {
         $('#submit_job').on('submit', function (e) { //use on if jQuery 1.7+
             e.preventDefault();  //prevent form from submitting
@@ -16,6 +33,7 @@
             var cmd = encodeURIComponent($("#cmd").val().trim());
             var logdir = encodeURIComponent($("#logdir").val().trim());
             var interactiveport = encodeURIComponent($("#interactivePort").val().trim());
+            var templatename = encodeURIComponent($("#saveTemplate").val().trim());
 
 
             var numGPUsInt = parseInt($('#resourcegpu').val());
@@ -71,6 +89,12 @@
             params = params + "workPath=" + workpath + "&";
             params = params + "dataPath=" + datapath + "&";
 
+            var saveTempalte = $('#saveTemplate').val();
+            if (saveTempalte != "") {
+                params = params + "templateName=" + templatename + "&";
+                params = params + "templateJson=" + makeTemplate() + "&";
+            }
+
             var jobpath = $('#jobpath').val();
             if (jobpath != "") {
                 params = params + "jobPath=" + jobpath + "&";
@@ -89,12 +113,11 @@
             }
 
             params = params + "jobType=training&";
-            params = params + "jobtrainingtype=" + jobtrainingtype+"&";
+            params = params + "jobtrainingtype=" + jobtrainingtype + "&";
 
-            if (jobtrainingtype == "PSDistJob")
-            {
+            if (jobtrainingtype == "PSDistJob") {
                 params = params + "numps=" + numps + "&";
-                params = params + "numpsworker=" + numpsworker+"&";
+                params = params + "numpsworker=" + numpsworker + "&";
             }
 
             if (jobtrainingtype == "MPIDistJob") {
@@ -140,28 +163,31 @@
 </script>
 
 <script type="text/javascript">
+
     function ShowHideDiv(chkbox, divId) {
         var elem = document.getElementById(divId);
         elem.style.display = chkbox.checked ? "block" : "none";
     }
-    function ShowRegularJob() {
 
+    function ShowRegularJob() {
         var elem2 = document.getElementById("PSDistJob");
         elem2.style.display = "none";
-
-
     }
-    function ShowPSDistJob() {
 
+    function ShowPSDistJob() {
         var elem2 = document.getElementById("PSDistJob");
         elem2.style.display = "block";
+    }
 
+    function replaceViewData(str) {
+        str = str.replace(/ViewData\[Username\]/g, "@ViewData["Username"]");
+        str = str.replace(/ViewData\[gid\]/g, "@ViewData["gid"]");
+        str = str.replace(/ViewData\[uid\]/g, "@ViewData["uid"]");
+        return str;
     }
 
     function UseTemplate(id) {
-
         var settings = JSON.parse(id);
-
         document.getElementById("jobname").value = (settings.job_name === undefined) ? "" : settings.job_name;
         document.getElementById("resourcegpu").value = (settings.gpu_count === undefined) ? 0 : settings.gpu_count;
         document.getElementById("workpath").value = (settings.work_path === undefined) ? "@ViewData["Username"]" : settings.work_path;
@@ -178,12 +204,6 @@
         document.getElementById("runningasroot").checked = settings.run_as_root;
     }
 
-    function replaceViewData(str) {
-        str = str.replace(/ViewData\[Username\]/g, "@ViewData["Username"]");
-        str = str.replace(/ViewData\[gid\]/g, "@ViewData["gid"]");
-        str = str.replace(/ViewData\[uid\]/g, "@ViewData["uid"]");
-        return str;
-    }
 </script>
 
 <div class="modal-dialog" role="document">
@@ -197,8 +217,6 @@
 
             <div class="modal-body">
 
-
-
                 <div class="form-group">
                     <label>
                         Use Template
@@ -207,18 +225,20 @@
                     <select onchange="UseTemplate(this.value)">
                         @foreach (var item in ViewData["templates"] as List<string[]>)
                         {
-                            <option value="@item[2]">@item[0]</option>
+                        <option value="@item[2]">@item[0]</option>
                         }
                     </select>
-
                 </div>
+
                 <div class="form-group">
                     <label>
                         Job Type
                     </label>
-                    <br/>
-                    <input type="radio" name="jobtrainingtype" id="jobtrainingtype" value="RegularJob" checked="checked"  onclick="ShowRegularJob()" /> Regular Training Job  <br />
-                    <input type="radio" name="jobtrainingtype" id="jobtrainingtype" value="PSDistJob" onclick="ShowPSDistJob()" /> Distributed Training Job  <br />
+                    <br />
+                    <input type="radio" name="jobtrainingtype" id="jobtrainingtype" value="RegularJob" checked="checked" onclick="ShowRegularJob()" /> Regular Training Job
+                    <br />
+                    <input type="radio" name="jobtrainingtype" id="jobtrainingtype" value="PSDistJob" onclick="ShowPSDistJob()" /> Distributed Training Job
+                    <br />
                 </div>
 
                 <div class="form-group">
@@ -235,7 +255,6 @@
                     <input type="number" class="form-control" id="resourcegpu" value="0" />
                 </div>
 
-
                 <div id="PSDistJob" hidden>
                     <div class="form-group">
                         <label>
@@ -251,14 +270,11 @@
                     </div>
                 </div>
 
-
                 <div class="form-group">
                     <label>
                         Work Directory <font face="verdana" color="#A9A9A9">(relative to <a href="@ViewData["workPath"]">@ViewData["workPath"].ToString().Replace("file:", "").Replace("/", "\\") </a>).  </font> <br /> <font face="verdana" color="#A9A9A9"> This folder is mounted as <b>/work</b> inside container.</font>
                     </label>
                     <input type="text" class="form-control" id="workpath" />
-
-                    
                 </div>
 
                 <div class="form-group">
@@ -280,7 +296,7 @@
                         Docker Image
                     </label>
                     <input list="imagelist" class="form-control" name="image" id="image" />
-                    <datalist  id="imagelist">
+                    <datalist id="imagelist">
                         <option value="mlcloudreg.westus.cloudapp.azure.com:5000/philly/agi-tf-0.12.1-src-ubuntu-16.04:latest" />
                         <option value="mlcloudreg.westus.cloudapp.azure.com:5000/philly/agi-tf-1.1.0-src-ubuntu-16.04:latest" />
                         <option value="mlcloudreg.westus.cloudapp.azure.com:5000/philly/agi-tf-pytorch-0.12.1-src-ubuntu-16.04:latest" />
@@ -291,7 +307,7 @@
                     <label>
                         Training Command
                     </label>
-                    <textarea type="text" class="form-control" id="cmd" rows="5" > </textarea>
+                    <textarea type="text" class="form-control" id="cmd" rows="5"> </textarea>
                 </div>
 
                 <div class="form-group">
@@ -323,10 +339,23 @@
                     </label>
                 </div>
 
+                <div class="form-group">
+                    <input type="checkbox" id="chkSaveTemplate" onclick="ShowHideDiv(this, 'savetemplatefield')" />
+                    <label>
+                        Save Template
+                    </label>
+                    <div id="savetemplatefield" hidden>
+                        <label>Name of template:</label>
+                        <input type="text" class="form-control" id="saveTemplate" />
+                    </div>
+                </div>
+
             </div>
+
             <div class="modal-footer">
                 <input type="submit" value="Submit" name="submit" class="btn btn-success" id="submit" />
             </div>
+
         </form>
     </div>
 </div>

@@ -794,11 +794,16 @@ namespace WindowsAuth.Controllers
             ViewData["gid"] = HttpContext.Session.GetString("gid");
 
             var templateStrings = new List<string[]>();
-            var currentCluster = HttpContext.Session.GetString("CurrentClusters");
-            AddTemplates(Startup.DatabaseForTemplates[currentCluster], templateStrings);
-            AddTemplates(Startup.MasterTemplates, templateStrings);
+            templateStrings.Add(new string[]{ "None", "{}", ""});
 
+            AddTemplates(Startup.MasterTemplates, templateStrings);
+            var currentCluster = HttpContext.Session.GetString("CurrentClusters");
+            if (currentCluster != null && Startup.DatabaseForTemplates.ContainsKey(currentCluster))
+            {
+                AddTemplates(Startup.DatabaseForTemplates[currentCluster], templateStrings);
+            }
             ViewData["templates"] = templateStrings;
+
             AddViewData(message: "Your application description page.");
             return View();
         }

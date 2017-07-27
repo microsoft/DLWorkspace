@@ -74,6 +74,10 @@ namespace WindowsAuth.Controllers
                     break;
                 case "SubmitJob":
                     url = restapi + "/SubmitJob?";
+                    if (HttpContext.Request.Query.ContainsKey("templateName"))
+                    {
+                        await SaveTemplateAsync(HttpContext.Request);
+                    }
                     foreach (var item in HttpContext.Request.Query)
                     {
                         //security check, user cannot append userName to the request url
@@ -104,6 +108,23 @@ namespace WindowsAuth.Controllers
                 }
             }
             return ret;
+        }
+
+        private async Task<int> SaveTemplateAsync(HttpRequest httpQuery)
+        {
+            string templateName = httpQuery.Query["templateName"];
+            string username = HttpContext.Session.GetString("Email");
+            string json = httpQuery.Query["templateJson"];
+
+            var currentCluster = HttpContext.Session.GetString("CurrentClusters");
+            if (Startup.DatabaseForTemplates.ContainsKey(currentCluster))
+            {
+                var db = Startup.DatabaseForTemplates[currentCluster];
+                var template = new TemplateEntry(templateName, username, json);
+                db.Template.Add(template);
+                await db.SaveChangesAsync();
+            }
+            return 0;
         }
 
         //// POST api/values
