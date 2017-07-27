@@ -793,10 +793,19 @@ namespace WindowsAuth.Controllers
             ViewData["uid"] = HttpContext.Session.GetString("uid");
             ViewData["gid"] = HttpContext.Session.GetString("gid");
 
-            var currentCluster = HttpContext.Session.GetString("CurrentClusters");
-            var templatesDatabase = Startup.DatabaseForTemplates[currentCluster];
-            var templatesList = templatesDatabase.Template.ToList();
             var templateStrings = new List<string[]>();
+            var currentCluster = HttpContext.Session.GetString("CurrentClusters");
+            AddTemplates(Startup.DatabaseForTemplates[currentCluster], templateStrings);
+            AddTemplates(Startup.MasterTemplates, templateStrings);
+
+            ViewData["templates"] = templateStrings;
+            AddViewData(message: "Your application description page.");
+            return View();
+        }
+
+        private void AddTemplates(TemplateContext templates, List<string[]> templateStrings)
+        {
+            var templatesList = templates.Template.ToList();
             foreach (TemplateEntry template in templatesList)
             {
                 string[] t = new string[3];
@@ -805,9 +814,6 @@ namespace WindowsAuth.Controllers
                 t[2] = template.Json;
                 templateStrings.Add(t);
             }
-            ViewData["templates"] = templateStrings;
-            AddViewData(message: "Your application description page.");
-            return View();
         }
 
         public IActionResult ViewJobs()

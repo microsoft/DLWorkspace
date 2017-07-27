@@ -16,6 +16,14 @@ namespace WindowsAuth.models
         public string Description { get; set; }
     }
 
+    public class TemplateDatabase
+    {
+        public string SQLHostname { get; set; }
+        public string SQLUsername { get; set; }
+        public string SQLPassword { get; set; }
+        public string SQLDatabaseForTemplates { get; set; }
+    }
+
     public class DLCluster
     {
         public Dictionary<string, bool> AdminGroups { get; set; }
@@ -33,7 +41,6 @@ namespace WindowsAuth.models
         public string SQLDatabaseForTemplates { get; set; }
     }
 
-
     // Entity for keeping track of organizations onboarded as customers of the app
     public class Tenant
     {
@@ -43,6 +50,7 @@ namespace WindowsAuth.models
         public DateTime Created { get; set; }
         public bool AdminConsented { get; set; }
     }
+
     // Entity for keeping track of individual users onboarded as customers of the app
     public class AADUserRecord
     {
