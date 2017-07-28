@@ -26,6 +26,15 @@
         "SQLUsername": "{{cnf["sqlserver-username"]}}", 
         "SQLPassword": "{{cnf["sqlserver-password"]}}", 
         "SQLDatabaseForUser": "AuthorizeUser-", 
+        "SQLDatabaseForTemplates": "Templates-", 
     },
+  },
+
+  "MasterTemplates" :
+  {
+    "SQLHostname": "{{cnf["sqlserver-hostname"]}}", 
+    "SQLUsername": "{{cnf["sqlserver-username"]}}", 
+    "SQLPassword": "{{cnf["sqlserver-password"]}}", 
+    "SQLDatabaseForTemplates": "Templates-master", 
   },
 }

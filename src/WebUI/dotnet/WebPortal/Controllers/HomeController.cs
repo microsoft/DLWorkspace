@@ -793,8 +793,32 @@ namespace WindowsAuth.Controllers
             ViewData["uid"] = HttpContext.Session.GetString("uid");
             ViewData["gid"] = HttpContext.Session.GetString("gid");
 
+            var templateStrings = new List<string[]>();
+            templateStrings.Add(new string[]{ "None", "{}", ""});
+
+            AddTemplates(Startup.MasterTemplates, templateStrings);
+            var currentCluster = HttpContext.Session.GetString("CurrentClusters");
+            if (currentCluster != null && Startup.DatabaseForTemplates.ContainsKey(currentCluster))
+            {
+                AddTemplates(Startup.DatabaseForTemplates[currentCluster], templateStrings);
+            }
+            ViewData["templates"] = templateStrings;
+
             AddViewData(message: "Your application description page.");
             return View();
+        }
+
+        private void AddTemplates(TemplateContext templates, List<string[]> templateStrings)
+        {
+            var templatesList = templates.Template.ToList();
+            foreach (TemplateEntry template in templatesList)
+            {
+                string[] t = new string[3];
+                t[0] = template.Template;
+                t[1] = template.Username;
+                t[2] = template.Json;
+                templateStrings.Add(t);
+            }
         }
 
         public IActionResult ViewJobs()
