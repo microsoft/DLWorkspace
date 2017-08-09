@@ -52,10 +52,12 @@ def extract_job_log(jobId,logPath,userId):
 
 		logs = k8sUtils.GetLog(jobId)
 	
-		logStr = ""
 		jobLogDir = os.path.dirname(logPath)
 		if not os.path.exists(jobLogDir):
 			mkdirsAsUser(jobLogDir,userId)
+		logStr = ""
+		trimlogstr = ""
+
 
 		for log in logs:
 			if "podName" in log and "containerID" in log and "containerLog" in log:
@@ -73,6 +75,33 @@ def extract_job_log(jobId,logPath,userId):
 				logStr += "=========================================================\n"
 				logStr += "\n\n\n"
 
+
+				trimlogstr += "=========================================================\n"
+				trimlogstr += "=========================================================\n"
+				trimlogstr += "=========================================================\n"
+				trimlogstr += "        logs from pod: %s\n" % log["podName"]
+				trimlogstr += "=========================================================\n"
+				trimlogstr += "=========================================================\n"
+				trimlogstr += "=========================================================\n"
+				logLines = log["containerLog"].split('\n')
+				if (len(logLines) < 3000):
+					trimlogstr += log["containerLog"]
+					trimlogstr += "\n\n\n"
+					trimlogstr += "=========================================================\n"
+					trimlogstr += "        end of logs from pod: %s\n" % log["podName"] 
+					trimlogstr += "=========================================================\n"
+					trimlogstr += "\n\n\n"
+				else:
+					trimlogstr += "\n".join(logLines[-2000:])
+					trimlogstr += "\n\n\n"
+					trimlogstr += "=========================================================\n"
+					trimlogstr += "        end of logs from pod: %s\n" % log["podName"] 
+					trimlogstr += "        Note: the log is too long to display in the webpage.\n"
+					trimlogstr += "        Only the last 2000 lines are shown here.\n"
+					trimlogstr += "        Please check the log file (in Job Folder) for the full logs.\n"
+					trimlogstr += "=========================================================\n"
+					trimlogstr += "\n\n\n"
+
 				try:
 					containerLogPath = os.path.join(jobLogDir,"log-container-" + log["containerID"] + ".txt")
 					with open(containerLogPath, 'w') as f:
@@ -83,8 +112,8 @@ def extract_job_log(jobId,logPath,userId):
 					print e
 
 
-		if len(logStr.strip()) > 0:
-			dataHandler.UpdateJobTextField(jobId,"jobLog",logStr)
+		if len(trimlogstr.strip()) > 0:
+			dataHandler.UpdateJobTextField(jobId,"jobLog",trimlogstr)
 			with open(logPath, 'w') as f:
 				f.write(logStr)
 			f.close()
