@@ -38,7 +38,6 @@ namespace WindowsAuth.models
         public string SQLUsername { get; set; }
         public string SQLPassword { get; set; }
         public string SQLDatabaseForUser { get; set; }
-        public string SQLDatabaseForTemplates { get; set; }
     }
 
     // Entity for keeping track of organizations onboarded as customers of the app

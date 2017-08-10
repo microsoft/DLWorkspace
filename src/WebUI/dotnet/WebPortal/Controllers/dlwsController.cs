@@ -74,10 +74,6 @@ namespace WindowsAuth.Controllers
                     break;
                 case "SubmitJob":
                     url = restapi + "/SubmitJob?";
-                    if (HttpContext.Request.Query.ContainsKey("templateName"))
-                    {
-                        await SaveTemplateAsync(HttpContext.Request);
-                    }
                     foreach (var item in HttpContext.Request.Query)
                     {
                         //security check, user cannot append userName to the request url
@@ -96,6 +92,24 @@ namespace WindowsAuth.Controllers
                 case "GetClusterStatus":
                     url = restapi + "/GetClusterStatus?";
                     break;
+                case "SaveTemplate":
+                    if (HttpContext.Request.Query.ContainsKey("name"))
+                    {
+                        var message = SaveTemplateAsync(HttpContext.Request);
+                        return "{ \"message\" : \"" + await message + "\"}";
+                    }
+                    break;
+                case "DeleteTemplate":
+                    if (HttpContext.Request.Query.ContainsKey("name"))
+                    {
+                       var message = DeleteTemplateAsync(HttpContext.Request);
+                       return "{ \"message\" : \"" + await message + "\"}";
+                    }
+                    break;
+                case "GetTemplates":
+                    var result = GetTemplatesAsync();
+                    return await result;
+                    break;
             }
 
             if (url != "")
@@ -110,21 +124,133 @@ namespace WindowsAuth.Controllers
             return ret;
         }
 
-        private async Task<int> SaveTemplateAsync(HttpRequest httpQuery)
+        private async Task<string> SaveTemplateAsync(HttpRequest httpQuery)
         {
-            string templateName = httpQuery.Query["templateName"];
+            string templateName = httpQuery.Query["name"];
             string username = HttpContext.Session.GetString("Email");
-            string json = httpQuery.Query["templateJson"];
+            string json = httpQuery.Query["json"];
 
-            var currentCluster = HttpContext.Session.GetString("CurrentClusters");
-            if (Startup.DatabaseForTemplates.ContainsKey(currentCluster))
+            var database = getDatabase(httpQuery);
+            if (database == null)
             {
-                var db = Startup.DatabaseForTemplates[currentCluster];
-                var template = new TemplateEntry(templateName, username, json);
-                db.Template.Add(template);
-                await db.SaveChangesAsync();
+                return "Error: Could not save template to given database";
             }
-            return 0;
+
+            try
+            {
+                var a = database.Template.ToAsyncEnumerable();
+                var other = a.Any(x => x.Template == templateName);
+                if (await other)
+                {
+                    var temp = await a.First(x => x.Template == templateName);
+                    if (temp.Username != username) return "Error: Template already exists in current location but belongs to someone else";
+                    temp.Json = json;
+                    database.SaveChangesAsync();
+                    return "Succesfuly Edited Existing Template";
+                }
+                else
+                {
+                    var template = new TemplateEntry(templateName, username, json);
+                    database.Template.Add(template);
+                    database.SaveChangesAsync();
+                    return "Succesfuly Saved New Template";
+                }
+            }
+            catch (Exception e)
+            {
+                return "Error: Could not find Template Table in Cluster Database";
+            }
+        }
+
+        private async Task<string> DeleteTemplateAsync(HttpRequest httpQuery)
+        {
+            string templateName = httpQuery.Query["name"];
+            var isAdmin = HttpContext.Session.GetString("isAdmin").Equals("true");
+            string username = HttpContext.Session.GetString("Email");
+
+            var database = getDatabase(httpQuery);
+            if (database == null)
+            {
+                return "Error: Could not delete template from given database";
+            }
+            try
+            {
+                var template = await database.Template.ToAsyncEnumerable().First(t => t.Template == templateName);
+                if (isAdmin || template.Username == username)
+                {
+                    database.Template.Remove(template);
+                    database.SaveChangesAsync();
+                    return "Job Successfully Deleted!";
+                }
+            }
+            catch (Exception e)
+            {
+                return "Error: Could not find job to be deleted";
+            }
+
+            return "Error: Could not delete job";
+        }
+
+        private ClusterContext getDatabase(HttpRequest httpQuery)
+        {
+            string location = httpQuery.Query["location"];
+            if (location == "Master")
+            {
+                if (HttpContext.Session.GetString("isAdmin").Equals("true"))
+                {
+                    return Startup.MasterDatabase;
+                }
+            }
+            else
+            {
+                var currentCluster = HttpContext.Session.GetString("CurrentClusters");
+                if (Startup.Database.ContainsKey(currentCluster))
+                {
+                    return Startup.Database[currentCluster];
+                }
+            }
+            return null;
+        }
+
+        private async Task<string> GetTemplatesAsync()
+        {
+            string jsonString = "{\"templates\" : [ ";
+            jsonString += "{\"name\" : \"None\", \"template\" : {}},";
+            var master = GetTemplatesFromDb(Startup.MasterDatabase, "Master");
+            jsonString += await master;
+            var currentCluster = HttpContext.Session.GetString("CurrentClusters");
+            if (currentCluster != null && Startup.Database.ContainsKey(currentCluster))
+            {
+                var cluster = GetTemplatesFromDb(Startup.Database[currentCluster], "CurrentCluster");
+                jsonString += await cluster;
+            }
+
+            jsonString = jsonString.Substring(0, jsonString.Length - 1) + "]}";
+            return jsonString;
+        }
+
+        private async Task<string> GetTemplatesFromDb(ClusterContext templates, string databaseName)
+        {
+            try
+            {
+                string templatesString = "";
+                if(templates.Template.Count() <= 0) return "";
+                var templatesList = templates.Template.ToAsyncEnumerable();
+                await templatesList.ForEachAsync(entry =>
+                {
+                    string t = "{";
+                    t += "\"name\" : \"" + entry.Template + "\",";
+                    t += "\"template\" : " + entry.Json + ",";
+                    t += "\"location\" : \"" + databaseName + "\"";
+                    t += "},";
+                    templatesString += t;
+                });
+                return templatesString;
+            }
+            catch (Exception e)
+            {
+                return "";
+            }
         }
 
         //// POST api/values

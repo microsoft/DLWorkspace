@@ -26,7 +26,6 @@
         "SQLUsername": "{{cnf["sqlserver-username"]}}", 
         "SQLPassword": "{{cnf["sqlserver-password"]}}", 
         "SQLDatabaseForUser": "AuthorizeUser-", 
-        "SQLDatabaseForTemplates": "Templates-", 
     },
   },
 

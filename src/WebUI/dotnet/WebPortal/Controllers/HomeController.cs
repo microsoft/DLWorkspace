@@ -408,7 +408,7 @@ namespace WindowsAuth.Controllers
             return _assertionCredential;
         }
 
-        private async Task<UserEntry> AuthenticateByOneDB(string email, string tenantID, UserContext db, UserID userID)
+        private async Task<UserEntry> AuthenticateByOneDB(string email, string tenantID, ClusterContext db, UserID userID)
         {
             var priorEntrys = db.User.Where(b => b.Email == email).ToAsyncEnumerable();
 
@@ -477,7 +477,7 @@ namespace WindowsAuth.Controllers
             Dictionary<string, UserID> authorizationIn,
             Dictionary<string, UserEntry> authorizationOut)
         {
-            var databases = Startup.DatabaseForUser;
+            var databases = Startup.Database;
             var tasks = new List<Task<UserEntry>>();
             var lst = new List<string>();
 
@@ -793,32 +793,11 @@ namespace WindowsAuth.Controllers
             ViewData["uid"] = HttpContext.Session.GetString("uid");
             ViewData["gid"] = HttpContext.Session.GetString("gid");
 
-            var templateStrings = new List<string[]>();
-            templateStrings.Add(new string[]{ "None", "{}", ""});
+            ViewData["mode"] = (HttpContext.Request.Query.ContainsKey("Mode") && HttpContext.Request.Query["Mode"] == "templates") ? "Templates" : "JobSubmission";
 
-            AddTemplates(Startup.MasterTemplates, templateStrings);
-            var currentCluster = HttpContext.Session.GetString("CurrentClusters");
-            if (currentCluster != null && Startup.DatabaseForTemplates.ContainsKey(currentCluster))
-            {
-                AddTemplates(Startup.DatabaseForTemplates[currentCluster], templateStrings);
-            }
-            ViewData["templates"] = templateStrings;
-
+            ViewData["isAdmin"] = HttpContext.Session.GetString("isAdmin");
             AddViewData(message: "Your application description page.");
             return View();
-        }
-
-        private void AddTemplates(TemplateContext templates, List<string[]> templateStrings)
-        {
-            var templatesList = templates.Template.ToList();
-            foreach (TemplateEntry template in templatesList)
-            {
-                string[] t = new string[3];
-                t[0] = template.Template;
-                t[1] = template.Username;
-                t[2] = template.Json;
-                templateStrings.Add(t);
-            }
         }
 
         public IActionResult ViewJobs()
@@ -908,13 +887,13 @@ namespace WindowsAuth.Controllers
         {
             AddViewData();
             var currentCluster = HttpContext.Session.GetString("CurrentClusters");
-            if (Startup.DatabaseForUser.ContainsKey(currentCluster))
+            if (Startup.Database.ContainsKey(currentCluster))
             {
                 if (!User.Identity.IsAuthenticated || HttpContext.Session.GetString("isAdmin").Equals("false") )
                 {
                     return RedirectToAction("Index", "Home");
                 }
-                var db = Startup.DatabaseForUser[currentCluster];
+                var db = Startup.Database[currentCluster];
                 if (!Object.ReferenceEquals(db, null))
                 {
                     if (HttpContext.Request.Query.ContainsKey("AccountChangeEmail"))
@@ -960,9 +939,9 @@ namespace WindowsAuth.Controllers
             string userEmail = HttpContext.Session.GetString("Email");
 
             var currentCluster = HttpContext.Session.GetString("CurrentClusters");
-            if (Startup.DatabaseForUser.ContainsKey(currentCluster))
+            if (Startup.Database.ContainsKey(currentCluster))
             {
-                var db = Startup.DatabaseForUser[currentCluster];
+                var db = Startup.Database[currentCluster];
 
                 if (HttpContext.Request.Query.ContainsKey("NewAlias"))
                 {

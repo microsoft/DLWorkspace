@@ -54,9 +54,8 @@ namespace WindowsAuth
         static public IConfigurationRoot Configuration { get; set; }
         static public Dictionary<string, OpenIDAuthentication> AuthenticationSchemes;
         static public Dictionary<string, DLCluster> Clusters; 
-        static public Dictionary<string, UserContext> DatabaseForUser;
-        static public Dictionary<string, TemplateContext> DatabaseForTemplates;
-        static public TemplateContext MasterTemplates;
+        static public Dictionary<string, ClusterContext> Database;
+        static public ClusterContext MasterDatabase;
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
@@ -102,8 +101,7 @@ namespace WindowsAuth
                 throw new ArgumentException("There are no DLClusters in the configuration file");
             }
             Clusters = new Dictionary<string, DLCluster>();
-            DatabaseForUser = new Dictionary<string, UserContext>();
-            DatabaseForTemplates = new Dictionary<string, TemplateContext>();
+            Database = new Dictionary<string, ClusterContext>();
             string defaultClusterName = null; 
             foreach (var pair in clusters)
             {
@@ -156,7 +154,6 @@ namespace WindowsAuth
                 clusterInfo.WorkFolderAccessPoint = clusterConfig["WorkFolderAccessPoint"] as string;
                 clusterInfo.Restapi = clusterConfig["Restapi"] as string;
                 clusterInfo.SQLDatabaseForUser = clusterConfig["SQLDatabaseForUser"] as string;
-                clusterInfo.SQLDatabaseForTemplates = clusterConfig["SQLDatabaseForTemplates"] as string;
                 clusterInfo.SQLHostname = clusterConfig["SQLHostname"] as string;
                 clusterInfo.SQLPassword = clusterConfig["SQLPassword"] as string;
                 clusterInfo.SQLUsername = clusterConfig["SQLUsername"] as string;
@@ -178,23 +175,11 @@ namespace WindowsAuth
                     clusterInfo.ClusterId,
                     clusterInfo.SQLUsername,
                     clusterInfo.SQLPassword);
-                var optionsBuilderUsers = new DbContextOptionsBuilder<UserContext>();
+                var optionsBuilderUsers = new DbContextOptionsBuilder<ClusterContext>();
                 optionsBuilderUsers.UseSqlServer(connectionUsers);
-                var userDatabase = new UserContext(optionsBuilderUsers.Options);
+                var userDatabase = new ClusterContext(optionsBuilderUsers.Options);
                 userDatabase.Database.EnsureCreated();
-                DatabaseForUser[clusterName] = userDatabase;
-
-                var connectionTemplates = String.Format("Server={0};Database={1}{2};User Id={3};Password={4}",
-                    clusterInfo.SQLHostname,
-                    clusterInfo.SQLDatabaseForTemplates,
-                    clusterInfo.ClusterId,
-                    clusterInfo.SQLUsername,
-                    clusterInfo.SQLPassword);
-                var optionsBuilderTemplates = new DbContextOptionsBuilder<TemplateContext>();
-                optionsBuilderTemplates.UseSqlServer(connectionTemplates);
-                var templateDatabase = new TemplateContext(optionsBuilderTemplates.Options);
-                templateDatabase.Database.EnsureCreated();
-                DatabaseForTemplates[clusterName] = templateDatabase;
+                Database[clusterName] = userDatabase;
             }
 
             var templateDb = ConfigurationParser.GetConfiguration("MasterTemplates") as Dictionary<string, object>;
@@ -208,11 +193,11 @@ namespace WindowsAuth
                 templatesMaster.SQLDatabaseForTemplates,
                 templatesMaster.SQLUsername,
                 templatesMaster.SQLPassword);
-            var optionsBuilderTemplatesMaster = new DbContextOptionsBuilder<TemplateContext>();
+            var optionsBuilderTemplatesMaster = new DbContextOptionsBuilder<ClusterContext>();
             optionsBuilderTemplatesMaster.UseSqlServer(connectionTemplatesMaster);
-            var templateMasterDatabase = new TemplateContext(optionsBuilderTemplatesMaster.Options);
+            var templateMasterDatabase = new ClusterContext(optionsBuilderTemplatesMaster.Options);
             templateMasterDatabase.Database.EnsureCreated();
-            MasterTemplates = templateMasterDatabase;
+            MasterDatabase = templateMasterDatabase;
 
 
             if (String.IsNullOrEmpty(defaultClusterName))
