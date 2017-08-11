@@ -33,6 +33,11 @@ spec:
     - mountPath: {{ mp.containerPath }}
       name: {{ mp.name }}
     {% endfor %}
+    env:
+    - name: FAMILY_TOKEN
+      value: {{ job["familyToken"] }}
+    - name: DLWS_REST_API
+      value: {{ job["rest-api"] }}
 
   restartPolicy: Never
   volumes:

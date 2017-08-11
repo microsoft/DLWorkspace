@@ -18,3 +18,4 @@ apiserver: {{cnf["api_servers"]}}
 certificate-authority: /etc/kubernetes/ssl/ca.pem
 client-certificate: /etc/kubernetes/ssl/apiserver.pem
 client-key: /etc/kubernetes/ssl/apiserver-key.pem
+rest-api: {{cnf["rest-api"]}}

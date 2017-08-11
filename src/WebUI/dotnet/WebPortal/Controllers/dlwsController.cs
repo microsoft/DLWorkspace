@@ -18,11 +18,12 @@ namespace WindowsAuth.Controllers
     public class dlwsController : Controller
     {
         private readonly AppSettings _appSettings;
+        private readonly FamilyModel _familyModel;
 
-
-        public dlwsController(IOptions<AppSettings> appSettings)
+        public dlwsController(IOptions<AppSettings> appSettings, IOptions<FamilyModel> familyModel)
         {
             _appSettings = appSettings.Value;
+	    _familyModel = familyMode.Value;
         }
 
 
@@ -88,6 +89,19 @@ namespace WindowsAuth.Controllers
                     {
                         url += "containerUserId=0&";
                     }
+
+		    var familyToken = Guid.NewGuid();
+
+                    var newKey = _familyModel.Families.TryAdd(familyToken, new FamilyModel.FamilyData
+			    { ApiPath  = HttpContext.Session.GetString("Restapi")
+			    , Email    = HttpContext.Session.GetString("Email")
+			    , UID      = HttpContext.Session.GetString("uid") });
+		    if(!newKey)
+		    {
+			ret = "Only 1 parent is allowed per family (maybe you tried to submit the same job on two threads?)";
+		    }
+                    url += $"familyToken={familyToken:N}&";
+		    url += "isParent=1&";
                     break;
                 case "GetClusterStatus":
                     url = restapi + "/GetClusterStatus?";
@@ -123,6 +137,77 @@ namespace WindowsAuth.Controllers
             }
             return ret;
         }
+
+        // GET api/dlws/child/op_str?params
+        [HttpGet("child/{op}")]
+        public async Task<string> ChildReq(string op)
+        {
+	    var ret = "invalid API call!";
+	    var url = "";
+	    var familyToken = new Guid(HttpContext.Request.Query["familyToken"]);
+	    var families = _familyModel.Families;
+	    FamilyModel.FamilyData familyData;
+	    if(!families.TryGetValue(familyToken, out familyData))
+	    {
+		ret = "provided family token was invalid";
+		return ret;
+	    }
+	    var restapi = familyData.ApiPath;
+		
+	    switch (op)
+	    {
+		case "SubmitJob":
+		    url = restapi + "/SubmitJob?";
+                    foreach (var item in HttpContext.Request.Query)
+                    {
+                        //security check, user cannot append userName to the request url
+                        if (item.Key.ToLower() != "username")
+                        {
+                            url += System.Text.Encodings.Web.UrlEncoder.Default.Encode(item.Key) + "=" + System.Text.Encodings.Web.UrlEncoder.Default.Encode(item.Value) + "&";
+                        }
+                    }
+                    url += "userName=" + familyData.Email + "&";
+                    url += "userId=" + familyData.UID + "&";
+                    if (HttpContext.Request.Query.ContainsKey("runningasroot") && HttpContext.Request.Query["runningasroot"] == "1")
+                    {
+                        url += "containerUserId=0&";
+                    }
+		    if(HttpContext.Request.Query.ContainsKey("workPath"))
+		    {
+			url += "workPath=" + HttpContext.Request.Query["workPath"] + "&";
+		    }
+		    else
+		    {
+			url += "workPath=" + familyData.Email + "&";
+		    }
+		    url += "isParent=0&";
+                    break;
+		case "KillJob":
+                    if (HttpContext.Request.Query.ContainsKey("jobId"))
+                    {
+                        url = restapi + "/KillJob?jobId=" + HttpContext.Request.Query["jobId"] + "&userName=" + familyData.Email;
+                    }
+                    break;
+		case "JobDetail":
+                    if (HttpContext.Request.Query.ContainsKey("jobId"))
+                    {
+                        url = restapi + "/GetJobDetail?jobId=" + HttpContext.Request.Query["jobId"];
+                    }
+                    break;
+	    }
+		
+	    if (url != "")
+	    {
+		using (var httpClient = new HttpClient())
+		{
+		    var response1 = await httpClient.GetAsync(url);
+		    var content = await response1.Content.ReadAsStringAsync();
+		    ret = content;
+		}
+	    }
+	    return ret;
+        }
+
 
         private async Task<string> SaveTemplateAsync(HttpRequest httpQuery)
         {

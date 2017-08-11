@@ -35,7 +35,9 @@ class SubmitJob(Resource):
 		parser.add_argument('runningasroot')
 		parser.add_argument('containerUserId')
 		
-		
+                parser.add_argument('familyToken')
+                parser.add_argument('isParent')
+                
 		parser.add_argument('jobType')
 		
 
@@ -106,7 +108,14 @@ class SubmitJob(Resource):
 				params["userName"] = args["userName"]
 			else:
 				params["userName"] = "default"
-
+			if args["familyToken"] is not None and len(args["familyToken"].strip()) > 0:
+				params["familyToken"] = args["familyToken"]
+			else:
+				params["familyToken"] = str(uuid.uuid4())
+			if args["isParent"] is not None and len(args["isParent"].strip()) > 0:
+				params["isParent"] = args["isParent"]
+			else:
+				params["isParent"] = "1"
 
 			output = JobRestAPIUtils.SubmitJob(json.dumps(params))
 			

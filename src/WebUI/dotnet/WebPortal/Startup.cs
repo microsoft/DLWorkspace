@@ -71,6 +71,7 @@ namespace WindowsAuth
                 // Configure may not have run at the moment, so this is console printout. 
 
             });
+	    services.Configure<FamilyModel>(families => {});
             // Add Authentication services.
             services.AddAuthentication(sharedOptions => sharedOptions.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme);
 
@@ -79,6 +80,7 @@ namespace WindowsAuth
 
             services.AddDbContext<WebAppContext>(options => options.UseSqlite(Configuration["Data:ConnectionString"]));
             services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+	    services.AddSingleton<IFamily, FamilyModel>();
             services.AddScoped<IAzureAdTokenService, DbTokenCache>();
 
         }

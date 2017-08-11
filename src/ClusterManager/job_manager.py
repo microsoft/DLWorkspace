@@ -134,7 +134,7 @@ def SubmitRegularJob(job):
 
 
 		jobParams["userNameLabel"] = getAlias(jobParams["userName"])
-
+		jobParams["rest-api"] = config["rest-api"]
 
 		if "mountPoints" not in jobParams:
 			jobParams["mountPoints"] = []
@@ -220,6 +220,7 @@ def SubmitPSDistJob(job):
 
 	try:
 		jobParams = json.loads(base64.b64decode(job["jobParams"]))
+                jobParams["rest-api"] = config["rest-api"]
 		distJobParams = {}
 		distJobParams["ps"] = []
 		distJobParams["worker"] = []

@@ -30,6 +30,8 @@ class DataHandler:
 			(
 			    [id]        INT          IDENTITY (1, 1) NOT NULL,
 			    [jobId] NTEXT   NOT NULL,
+			    [familyToken] NTEXT   NOT NULL
+,			    [isParent] INT   NOT NULL,
 			    [jobName]         NTEXT NOT NULL,
 			    [userName]         NTEXT NOT NULL,
 				[jobStatus]         NTEXT NOT NULL DEFAULT 'unapproved',
@@ -92,10 +94,10 @@ class DataHandler:
 
 	def AddJob(self, jobParams):
 		try:
-			sql = """INSERT INTO [%s] (jobId, jobName, userName, jobType,jobParams ) VALUES (?,?,?,?,?)""" % self.jobtablename
+			sql = """INSERT INTO [%s] (jobId, familyToken, isParent, jobName, userName, jobType,jobParams ) VALUES (?,?,?,?,?,?,?)""" % self.jobtablename
 			cursor = self.conn.cursor()
 			jobParam = base64.b64encode(json.dumps(jobParams))
-			cursor.execute(sql, jobParams["jobId"], jobParams["jobName"], jobParams["userName"], jobParams["jobType"],jobParam)
+			cursor.execute(sql, jobParams["jobId"], jobParams["familyToken"], jobParams["isParent"], jobParams["jobName"], jobParams["userName"], jobParams["jobType"],jobParam)
 			self.conn.commit()
 			cursor.close()
 			return True
@@ -136,14 +138,24 @@ class DataHandler:
 		return ret
 
 
-	def GetJob(self,jobId):
+	def GetJob(self, **kwargs):
+                """
+                To get all jobs with the value `v` in their `c` column, call `GetJob(c=v)`.
+                The function will return `[]` if passed an invalid column name or more than one column.
+                """
+                valid_keys = ["jobId", "familyToken", "isParent", "jobName", "userName", "jobStatus", "jobStatusDetail", "jobType", "jobDescriptionPath", "jobDescription", "jobTime", "endpoints", "jobParams", "errorMsg", "jobMeta"]
+                if len(kwargs) != 1: return []
+                key, expected = kwargs.items()[0]
+                if key not in valid_keys: return []
 		cursor = self.conn.cursor()
-		query = "SELECT [jobId],[jobName],[userName], [jobStatus], [jobStatusDetail], [jobType], [jobDescriptionPath], [jobDescription], [jobTime], [endpoints], [jobParams],[errorMsg] ,[jobMeta]  FROM [%s] where cast([jobId] as nvarchar(max)) = N'%s' " % (self.jobtablename,jobId)
+		query = "SELECT [jobId],[familyToken],[isParent],[jobName],[userName], [jobStatus], [jobStatusDetail], [jobType], [jobDescriptionPath], [jobDescription], [jobTime], [endpoints], [jobParams],[errorMsg] ,[jobMeta]  FROM [%s] where cast([jobId] as nvarchar(max)) = N'%s' " % (self.jobtablename,jobId)
 		cursor.execute(query)
 		ret = []
-		for (jobId,jobName,userName, jobStatus,jobStatusDetail, jobType, jobDescriptionPath, jobDescription, jobTime, endpoints, jobParams,errorMsg, jobMeta) in cursor:
+		for (jobId,familyToken,isParent,jobName,userName, jobStatus,jobStatusDetail, jobType, jobDescriptionPath, jobDescription, jobTime, endpoints, jobParams,errorMsg, jobMeta) in cursor:
 			record = {}
 			record["jobId"] = jobId
+                        record["familyToken"] = familyToken
+                        record["isParent"] = isParent
 			record["jobName"] = jobName
 			record["userName"] = userName
 			record["jobStatus"] = jobStatus
