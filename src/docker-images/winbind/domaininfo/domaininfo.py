@@ -34,7 +34,7 @@ class GetUserId(Resource):
 
                 if args["userName"] is not None and len(args["userName"].strip()) > 0:
 
-                        corpDomains = ['REDMOND','FAREAST','EUROPE','NORTHAMERICA']
+                        corpDomains = ['REDMOND','FAREAST','EUROPE','NTDEV','NORTHAMERICA','MIDDLEEAST']
                         ret["uid"] = ""
 
                         for corpDomain in corpDomains:
