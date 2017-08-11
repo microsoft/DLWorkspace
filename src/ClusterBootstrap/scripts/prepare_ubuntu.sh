@@ -24,10 +24,21 @@ sudo apt-get install -y --no-install-recommends \
         sudo 
         
 
-sudo apt-get install -y bison curl 
+sudo apt-get install -y bison curl parted
 
 # Install docker
+which docker
+if [ $? -eq 0 ]
+then 
+docker --version
+## docker already installed
+else
 curl -q https://get.docker.com/ | sudo bash
+fi
+
+sudo pip install --upgrade pip
+sudo pip install setuptools
+sudo pip install pyyaml jinja2 argparse
 
 sudo usermod -aG docker core
 

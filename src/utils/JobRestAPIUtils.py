@@ -35,6 +35,11 @@ def SubmitJob(jobParamsJsonStr):
 		jobParams["jobId"] = str(uuid.uuid4()) 
 	#jobParams["jobId"] = jobParams["jobId"].replace("_","-").replace(".","-")
 
+	if "familyToken" not in jobParams or jobParams["familyToken"].isspace():
+		jobParams["familyToken"] = str(uuid.uuid4())
+	if "isParent" not in jobParams or jobParams["isParent"].isspace():
+		jobParams["isParent"] = 1
+        
 	userName = jobParams["userName"]
 	if "@" in userName:
 		userName = userName.split("@")[0].strip()
@@ -142,21 +147,40 @@ def SubmitJob(jobParamsJsonStr):
 
 
 def GetJobList(userName):
-	dataHandler = DataHandler()
-	jobs =  dataHandler.GetJobList(userName)
-	for job in jobs:
-		job.pop('jobMeta', None)
-	dataHandler.Close()
-	return jobs
+	try:
+		dataHandler = DataHandler()
+		jobs =  dataHandler.GetJobList(userName)
+		for job in jobs:
+			job.pop('jobMeta', None)
+		dataHandler.Close()
+		return jobs
+	except:
+		return []
 
 
 
 def KillJob(jobId):
+        ret = True
+	dataHandler = DataHandler()
+	jobs = dataHandler.GetJob(jobId=jobId)
+	if len(jobs) == 1:
+		job = jobs[0]
+		if job["isParent"] == 1:
+			for currJob in dataHandler.GetJob(familyToken=job["familyToken"]):
+				ret = ret and dataHandler.KillJob(currJob["jobId"])
+		else:
+			ret = dataHandler.KillJob(jobId)
+	else:
+		ret = False
+	dataHandler.Close()
+	return ret
+
+def ApproveJob(jobId):
 	dataHandler = DataHandler()
 	ret = False
-	jobs =  dataHandler.GetJob(jobId)
+	jobs =  dataHandler.GetJob(jobId=jobId)
 	if len(jobs) == 1:
-		ret = dataHandler.KillJob(jobId)
+		ret = dataHandler.ApproveJob(jobId)
 	dataHandler.Close()
 	return ret
 
@@ -164,7 +188,7 @@ def KillJob(jobId):
 def GetJobDetail(jobId):
 	job = None
 	dataHandler = DataHandler()
-	jobs =  dataHandler.GetJob(jobId)
+	jobs =  dataHandler.GetJob(jobId=jobId)
 	if len(jobs) == 1:
 		job = jobs[0]
 		job["log"] = ""

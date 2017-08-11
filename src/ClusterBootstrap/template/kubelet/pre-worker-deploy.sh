@@ -37,3 +37,4 @@ sudo mkdir -p /etc/kubernetes/ssl/
 sudo mkdir -p /etc/ssl/etcd
 sudo mkdir -p /opt/bin
 {{'sudo mkdir -p '~cnf["kubeletlogdir"]~'/kubelet' if "kubeletlogdir" in cnf}}
+

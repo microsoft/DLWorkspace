@@ -39,8 +39,12 @@ def push_docker( dockername, docker_register, verbose=False):
 	os.system(cmd)
 	return dockername
 	
-def run_docker(dockername, prompt=""):
-	currentdir = os.path.abspath(os.getcwd())
+def run_docker(dockername, prompt="", dockerConfig = None, sudo = False, options = "" ):
+	if not (dockerConfig is None):
+		if "su" in dockerConfig:
+			sudo = True
+		if "options" in dockerConfig and len(options)<=0:
+			options = dockerConfig["options"]
 	uid = os.getuid()
 	username = getpass.getuser()
 	username = username.split()[0]
@@ -48,6 +52,18 @@ def run_docker(dockername, prompt=""):
 	groupname = grp.getgrgid(groupid).gr_name
 	groupname = groupname.split()[0]
 	homedir = expanduser("~")
+	currentdir = os.path.abspath(os.getcwd())
+	mapVolume = "-v " + homedir + ":" + homedir
+	if not (dockerConfig is None) and "workdir" in dockerConfig:
+		currentdir = dockerConfig["workdir"]
+		if "volumes" in dockerConfig:
+			for volume,mapping in dockerConfig["volumes"].iteritems():
+				if "from" in mapping and "to" in mapping:
+					mapdir = os.path.abspath(mapping["from"])
+					mapVolume += " -v " + mapdir + ":" + mapping["to"]
+	else:
+		if not (homedir in currentdir):
+			mapVolume += " -v "+ currentdir + ":" + currentdir
 	print "Running docker " + dockername + " as Userid: " + str(uid) + "(" + username +"), + Group:"+str(groupid) + "("+groupname+") at " + homedir
 	dirname = tempfile.mkdtemp()
 	wname = os.path.join(dirname,"run.sh")
@@ -73,7 +89,11 @@ def run_docker(dockername, prompt=""):
 	fw.write("dockerd > /dev/null 2>&1 &\n")
 	fw.write("""echo "export PATH=\$PATH:\$GOPATH/bin" | cat >> /etc/bash.bashrc \n""")
 	fw.write("""echo "export GOPATH=\$GOPATH" | cat >> /etc/bash.bashrc \n""")
-	fw.write("su -m "+username +"\n")
+	if not sudo:
+		fw.write("su -m "+username +"\n")
+	else:
+		print "Run in super user mode..."
+		fw.write("/bin/bash")
 	fw.close()
 	os.chmod(wname, 0755)
 	if prompt == "":
@@ -81,9 +101,9 @@ def run_docker(dockername, prompt=""):
 	else:
 		hostname = prompt
 	if homedir in currentdir:
-		cmd = "docker run --privileged --hostname " + hostname + " --rm -ti -v " + homedir + ":"+homedir + " -v "+dirname+ ":/tmp/runcommand -w "+homedir + " " + dockername + " /tmp/runcommand/run.sh"
+		cmd = "docker run --privileged --hostname " + hostname + " " + options + " --rm -ti " + mapVolume + " -v "+dirname+ ":/tmp/runcommand -w "+homedir + " " + dockername + " /tmp/runcommand/run.sh"
 	else:
-		cmd = "docker run --privileged --hostname " + hostname + " --rm -ti -v " + homedir + ":"+homedir + " -v "+ currentdir + ":" + currentdir + " -v "+dirname+ ":/tmp/runcommand -w "+homedir + " " + dockername + " /tmp/runcommand/run.sh"
+		cmd = "docker run --privileged --hostname " + hostname + " " + options + " --rm -ti " + mapVolume + " -v "+dirname+ ":/tmp/runcommand -w "+homedir + " " + dockername + " /tmp/runcommand/run.sh"
 	print "Execute: " + cmd
 	os.system(cmd)
 	

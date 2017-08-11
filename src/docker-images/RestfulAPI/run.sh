@@ -7,6 +7,6 @@ ln -s /RestfulAPI/config.yaml /DLWorkspace/src/utils/config.yaml
 #/usr/sbin/apache2ctl -D FOREGROUND
 apachectl start
 while true; do
-	sleep 7200
+	sleep 1800
 	apachectl restart
 done

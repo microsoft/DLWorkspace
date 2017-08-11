@@ -27,38 +27,57 @@ MENU COLOR msg07        37;40   #90ffffff #a0000000 std
 MENU COLOR tabmsg       31;40   #30ffffff #00000000 std
 
 LABEL installubuntu
-    MENU LABEL Install generic Ubuntu 16.04
-
+    MENU LABEL Fully automatic install Ubuntu 16.04
     KERNEL linux
     IPAPPEND 1
-    APPEND auto=true priority=critical vga=normal initrd=initrd.gz {{cnf["pxeoptions"]}} preseed/url=tftp://{{cnf["pxeserverip"]}}/preceed.cfg preseed/interactive=false     
+    APPEND auto=true priority=critical vga=788 initrd=initrd.gz {{cnf["pxeoptions"]}} preseed/url=tftp://{{cnf["pxeserverip"]}}/preseed.cfg preseed/interactive=false     
+    TEXT HELP
+        Fully automatic PXE installation
+    ENDTEXT
 #    preseed/url/checksum=069d213cfc254867bf4ac558a4f87f37     
 #    preseed/url=http://{{cnf["pxeserverip"]}}/preseed/preceed.cfg \
 #   ramdisk_size=16432 root=/dev/rd/0 rw -- \
 # live-installer/net-image=http://{{cnf["pxeserverip"]}}/ubuntu/16.04.2/install/filesystem.squashfs
 
+LABEL expertinstall
+    MENU LABEL Expert Install 
+    KERNEL linux
+    IPAPPEND 1
+    APPEND tasks=standard pkgsel/language-pack-patterns= pkgsel/install-language-support=false priority=low vga=788 initrd=initrd.gz ---
+    TEXT HELP
+Expert installation
+    ENDTEXT
+
+LABEL rescue
+    MENU LABEL Rescue mode
+    KERNEL linux
+    APPEND vga=788 initrd=initrd.gz rescue/enable=true --- quiet 
+    TEXT HELP
+        Rescur a prior installation
+    ENDTEXT
+
 LABEL bootlocal
     MENU LABEL Boot first BIOS disk
-    KERNEL chain.c32
+    COM32 chain.c32
     APPEND hd0 0
     TEXT HELP
 Boot the operating system from the first bios disk.
     ENDTEXT
 
-LABEL hdt
-    MENU LABEL Hardware Detection Tool
-    COM32 hdt.c32
-    APPEND pciids=pci.ids
-    TEXT HELP
-HDT (Hardware Detection Tool) displays hardware low-level information.
-    ENDTEXT
+#LABEL hdt
+#    MENU LABEL Hardware Detection Tool
+#    COM32 hdt.c32
+#    APPEND pciids=pci.ids
+#    TEXT HELP
+#HDT (Hardware Detection Tool) displays hardware low-level information.
+#    ENDTEXT
 
-LABEL memtest
-    MENU LABEL Memtest86+
-    LINUX ../memtest/memtest.bin
-    TEXT HELP
-Memtest86+ checks RAM for errors by doing stress tests operations.
-    ENDTEXT
+#LABEL memtest
+#    MENU LABEL Memtest86+
+#    LINUX ../memtest/memtest.bin
+#    TEXT HELP
+#Memtest86+ checks RAM for errors by doing stress tests operations.
+#    ENDTEXT
 
 LABEL reboot
     MENU LABEL Reboot

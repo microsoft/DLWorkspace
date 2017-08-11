@@ -30,9 +30,11 @@ class DataHandler:
 			(
 			    [id]        INT          IDENTITY (1, 1) NOT NULL,
 			    [jobId] NTEXT   NOT NULL,
+			    [familyToken] NTEXT   NOT NULL
+,			    [isParent] INT   NOT NULL,
 			    [jobName]         NTEXT NOT NULL,
 			    [userName]         NTEXT NOT NULL,
-				[jobStatus]         NTEXT NOT NULL DEFAULT 'queued',
+				[jobStatus]         NTEXT NOT NULL DEFAULT 'unapproved',
 				[jobStatusDetail] NTEXT NULL, 
 				[jobType]         NTEXT NOT NULL,
 			    [jobDescriptionPath]  NTEXT NULL,
@@ -92,10 +94,10 @@ class DataHandler:
 
 	def AddJob(self, jobParams):
 		try:
-			sql = """INSERT INTO [%s] (jobId, jobName, userName, jobType,jobParams ) VALUES (?,?,?,?,?)""" % self.jobtablename
+			sql = """INSERT INTO [%s] (jobId, familyToken, isParent, jobName, userName, jobType,jobParams ) VALUES (?,?,?,?,?,?,?)""" % self.jobtablename
 			cursor = self.conn.cursor()
 			jobParam = base64.b64encode(json.dumps(jobParams))
-			cursor.execute(sql, jobParams["jobId"], jobParams["jobName"], jobParams["userName"], jobParams["jobType"],jobParam)
+			cursor.execute(sql, jobParams["jobId"], jobParams["familyToken"], jobParams["isParent"], jobParams["jobName"], jobParams["userName"], jobParams["jobType"],jobParam)
 			self.conn.commit()
 			cursor.close()
 			return True
@@ -104,43 +106,56 @@ class DataHandler:
 
 
 	def GetJobList(self, userName):
-		cursor = self.conn.cursor()
-		query = "SELECT [jobId],[jobName],[userName], [jobStatus], [jobStatusDetail], [jobType], [jobDescriptionPath], [jobDescription], [jobTime], [endpoints], [jobParams],[errorMsg] ,[jobMeta] FROM [%s]" % self.jobtablename
-		if userName != "all":
-			query += " where cast([userName] as nvarchar(max)) = N'%s'" % userName
-
-		query += " order by [jobTime] Desc"
-		cursor.execute(query)
 		ret = []
-		for (jobId,jobName,userName, jobStatus,jobStatusDetail, jobType, jobDescriptionPath, jobDescription, jobTime, endpoints, jobParams,errorMsg, jobMeta) in cursor:
-			record = {}
-			record["jobId"] = jobId
-			record["jobName"] = jobName
-			record["userName"] = userName
-			record["jobStatus"] = jobStatus
-			record["jobStatusDetail"] = jobStatusDetail
-			record["jobType"] = jobType
-			record["jobDescriptionPath"] = jobDescriptionPath
-			record["jobDescription"] = jobDescription
-			record["jobTime"] = jobTime
-			record["endpoints"] = endpoints
-			record["jobParams"] = jobParams
-			record["errorMsg"] = errorMsg
-			record["jobMeta"] = jobMeta
-			ret.append(record)
+		cursor = self.conn.cursor()
+		try:
+			query = "SELECT [jobId],[jobName],[userName], [jobStatus], [jobStatusDetail], [jobType], [jobDescriptionPath], [jobDescription], [jobTime], [endpoints], [jobParams],[errorMsg] ,[jobMeta] FROM [%s]" % self.jobtablename
+			if userName != "all":
+				query += " where cast([userName] as nvarchar(max)) = N'%s'" % userName
+			else:
+				query += " where cast([jobStatus] as nvarchar(max)) <> N'error' and cast([jobStatus] as nvarchar(max)) <> N'failed' and cast([jobStatus] as nvarchar(max)) <> N'finished' and cast([jobStatus] as nvarchar(max)) <> N'killed'"
+			query += " order by [jobTime] Desc"
+			cursor.execute(query)
+			for (jobId,jobName,userName, jobStatus,jobStatusDetail, jobType, jobDescriptionPath, jobDescription, jobTime, endpoints, jobParams,errorMsg, jobMeta) in cursor:
+				record = {}
+				record["jobId"] = jobId
+				record["jobName"] = jobName
+				record["userName"] = userName
+				record["jobStatus"] = jobStatus
+				record["jobStatusDetail"] = jobStatusDetail
+				record["jobType"] = jobType
+				record["jobDescriptionPath"] = jobDescriptionPath
+				record["jobDescription"] = jobDescription
+				record["jobTime"] = jobTime
+				record["endpoints"] = endpoints
+				record["jobParams"] = jobParams
+				record["errorMsg"] = errorMsg
+				record["jobMeta"] = jobMeta
+				ret.append(record)
+		except:
+			pass				
 		cursor.close()
-
 		return ret
 
 
-	def GetJob(self,jobId):
+	def GetJob(self, **kwargs):
+                """
+                To get all jobs with the value `v` in their `c` column, call `GetJob(c=v)`.
+                The function will return `[]` if passed an invalid column name or more than one column.
+                """
+                valid_keys = ["jobId", "familyToken", "isParent", "jobName", "userName", "jobStatus", "jobStatusDetail", "jobType", "jobDescriptionPath", "jobDescription", "jobTime", "endpoints", "jobParams", "errorMsg", "jobMeta"]
+                if len(kwargs) != 1: return []
+                key, expected = kwargs.items()[0]
+                if key not in valid_keys: return []
 		cursor = self.conn.cursor()
-		query = "SELECT [jobId],[jobName],[userName], [jobStatus], [jobStatusDetail], [jobType], [jobDescriptionPath], [jobDescription], [jobTime], [endpoints], [jobParams],[errorMsg] ,[jobMeta]  FROM [%s] where cast([jobId] as nvarchar(max)) = N'%s' " % (self.jobtablename,jobId)
+		query = "SELECT [jobId],[familyToken],[isParent],[jobName],[userName], [jobStatus], [jobStatusDetail], [jobType], [jobDescriptionPath], [jobDescription], [jobTime], [endpoints], [jobParams],[errorMsg] ,[jobMeta]  FROM [%s] where cast([jobId] as nvarchar(max)) = N'%s' " % (self.jobtablename,jobId)
 		cursor.execute(query)
 		ret = []
-		for (jobId,jobName,userName, jobStatus,jobStatusDetail, jobType, jobDescriptionPath, jobDescription, jobTime, endpoints, jobParams,errorMsg, jobMeta) in cursor:
+		for (jobId,familyToken,isParent,jobName,userName, jobStatus,jobStatusDetail, jobType, jobDescriptionPath, jobDescription, jobTime, endpoints, jobParams,errorMsg, jobMeta) in cursor:
 			record = {}
 			record["jobId"] = jobId
+                        record["familyToken"] = familyToken
+                        record["isParent"] = isParent
 			record["jobName"] = jobName
 			record["userName"] = userName
 			record["jobStatus"] = jobStatus
@@ -162,6 +177,18 @@ class DataHandler:
 	def KillJob(self,jobId):
 		try:
 			sql = """update [%s] set jobStatus = 'killing' where cast([jobId] as nvarchar(max)) = N'%s' """ % (self.jobtablename,jobId)
+			cursor = self.conn.cursor()
+			cursor.execute(sql)
+			self.conn.commit()
+			cursor.close()
+			return True
+		except:
+			return False
+
+
+	def ApproveJob(self,jobId):
+		try:
+			sql = """update [%s] set jobStatus = 'queued' where cast([jobId] as nvarchar(max)) = N'%s' """ % (self.jobtablename,jobId)
 			cursor = self.conn.cursor()
 			cursor.execute(sql)
 			self.conn.commit()

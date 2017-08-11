@@ -43,3 +43,8 @@ src/WebUI/dotnet/WebPortal/userconfig.json
 **/WebPortal/obj/*
 # SQLite database file
 *.db
+/.vs/DLWorkspace/v15/.suo
+/.vs/slnx.sqlite
+/.vs/ProjectSettings.json
+/.vs/VSWorkspaceState.json
+/.vs/DLWorkspace/v15/.suo

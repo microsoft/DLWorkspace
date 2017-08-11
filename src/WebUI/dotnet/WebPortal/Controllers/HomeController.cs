@@ -40,7 +40,6 @@ namespace WindowsAuth.Controllers
         private readonly ILogger _logger;
         private IAzureAdTokenService _tokenCache;
 
-
         public HomeController(IOptions<AppSettings> appSettings, IAzureAdTokenService tokenCache, ILoggerFactory logger)
         {
             _appSettings = appSettings.Value;
@@ -53,11 +52,11 @@ namespace WindowsAuth.Controllers
             string username = email;
             if (username.Contains("@"))
             {
-                username = username.Split(new char[] { '@' })[0];
+                username = username.Split('@')[0];
             }
             if (username.Contains("/"))
             {
-                username = username.Split(new char[] { '/' })[1];
+                username = username.Split('/')[1];
             }
             return username;
         }
@@ -101,10 +100,10 @@ namespace WindowsAuth.Controllers
                 }
             }
             _logger.LogInformation("User {0} log in, Uid {1}, Gid {2}, isAdmin {3}, isAuthorized {4}",
-                                email, userEntry.uid, userEntry.gid, userEntry.isAdmin, userEntry.isAuthorized);
+                               email, userEntry.uid, userEntry.gid, userEntry.isAdmin, userEntry.isAuthorized);
             return true;
         }
-
+        
         private async Task<UserID> FindGroupMembershipByServer(string connectURL)
         {
             string url = String.Format(CultureInfo.InvariantCulture, connectURL, HttpContext.Session.GetString("Email"));
@@ -125,7 +124,6 @@ namespace WindowsAuth.Controllers
             {
                 return null;
             }
-
         }
 
         private Dictionary<string, UserID> AuthenticateUserByGroupMembership(List<UserID> lst)
@@ -176,7 +174,7 @@ namespace WindowsAuth.Controllers
                         {
                             if (clusterInfo.RegisterGroups.ContainsKey(group))
                             {
-                                userID.uid = "-1";
+                                //userID.uid = "-1";
                                 userID.isAdmin = "false";
                                 userID.isAuthorized = "false";
                                 authorizedClusters[clusterName] = userID;
@@ -186,7 +184,6 @@ namespace WindowsAuth.Controllers
                 }
 
             }
-
             return authorizedClusters;
         }
 
@@ -206,7 +203,6 @@ namespace WindowsAuth.Controllers
             }
             else
             {
-
                 foreach (var pair in users)
                 {
                     var groupname = pair.Key;
@@ -248,24 +244,23 @@ namespace WindowsAuth.Controllers
                             var userID = new UserID();
 
                             long uidl = 0, uidh = 1000000, gid = 0, uid = -1;
-                            Int64.TryParse(gidString, out gid);
+                            Int64.TryParse(gidString, out gid);  
                             string[] uidRange = uidString.Split(new char[] { '-' });
                             Int64.TryParse(uidRange[0], out uidl);
                             Int64.TryParse(uidRange[1], out uidh);
                             Guid guid;
-                            long tenantInt64;
+                            Int64 tenantInt64;
                             if (Guid.TryParse(tenantID, out guid))
                             {
                                 byte[] gb = new Guid(tenantID).ToByteArray();
                                 tenantInt64 = BitConverter.ToInt64(gb, 0);
                                 long tenantRem = tenantInt64 % (uidh - uidl);
                                 uid = uidl + Convert.ToInt32(tenantRem);
-                            } else if (Int64.TryParse(tenantID, out tenantInt64))
+                            } else if (Int64.TryParse(tenantID.Substring(18), out tenantInt64))
                             {
                                 long tenantRem = tenantInt64 % (uidh - uidl);
                                 uid = uidl + Convert.ToInt32(tenantRem);
                             }
-
                             userID.uid = uid.ToString();
                             userID.gid = gid.ToString();
                             userID.groups = new List<string>();
@@ -275,10 +270,8 @@ namespace WindowsAuth.Controllers
                         }
                     }
                 }
-
                 return ret;
             }
-
         }
 
         /// <summary>
@@ -346,6 +339,10 @@ namespace WindowsAuth.Controllers
                     {
                         userObjectID = claim.Value;
                     }
+                    if (claim.Type.IndexOf("identity/claims/nameidentifier")>=0)
+                    {
+                        userObjectID = claim.Value;
+                    }
                     // http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn
                     if (claim.Type.IndexOf("identity/claims/upn") >= 0)
                     {
@@ -382,9 +379,6 @@ namespace WindowsAuth.Controllers
             }
         }
 
-
-
-
         private async Task<AuthenticationResult> AcquireCredentialAsyncForApplication()
         {
             string aadInstance = Startup.Configuration["AzureAd:AadInstance"];
@@ -414,7 +408,7 @@ namespace WindowsAuth.Controllers
             return _assertionCredential;
         }
 
-        private async Task<UserEntry> AuthenticateByOneDB(string email, string tenantID, UserContext db, UserID userID)
+        private async Task<UserEntry> AuthenticateByOneDB(string email, string tenantID, ClusterContext db, UserID userID)
         {
             var priorEntrys = db.User.Where(b => b.Email == email).ToAsyncEnumerable();
 
@@ -423,9 +417,9 @@ namespace WindowsAuth.Controllers
             // Prior entry exists? 
             await priorEntrys.ForEachAsync(entry =>
            {
-                // We will not update existing entry in database. 
-                // db.Entry(entry).CurrentValues.SetValues(userEntry);
-                ret = entry;
+               // We will not update existing entry in database. 
+               // db.Entry(entry).CurrentValues.SetValues(userEntry);
+               ret = entry;
                Interlocked.Add(ref nEntry, 1);
            }
             );
@@ -451,10 +445,11 @@ namespace WindowsAuth.Controllers
                 {
                     bool bUpdate = false;
 
-                    if (String.Compare(ret.isAuthorized, userID.isAuthorized, true) < 0)
+                    if (String.Compare(ret.isAuthorized, userID.isAuthorized, true) < 0 || String.Compare(ret.isAdmin, userID.isAdmin, true) < 0)
                     {
                         // userID isAuthorized is true
                         newEntry.isAuthorized = userID.isAuthorized;
+                        newEntry.isAdmin = userID.isAdmin;
                         newEntry.uid = userID.uid;
                         newEntry.gid = userID.gid;
 
@@ -482,7 +477,7 @@ namespace WindowsAuth.Controllers
             Dictionary<string, UserID> authorizationIn,
             Dictionary<string, UserEntry> authorizationOut)
         {
-            var databases = Startup.DatabaseForUser;
+            var databases = Startup.Database;
             var tasks = new List<Task<UserEntry>>();
             var lst = new List<string>();
 
@@ -526,7 +521,6 @@ namespace WindowsAuth.Controllers
             {
                 authorizationOut.Remove(clusterName);
             }
-
             return true;
         }
 
@@ -581,13 +575,10 @@ namespace WindowsAuth.Controllers
                     }
                 }
             }
-
-
             // Mark user as unauthorized. 
             // await AddUser(username, userID); 
             return ret;
         }
-
 
         /*
         public async Task<int> UpdateUser(string email, UserID userID, string clusterName )
@@ -616,7 +607,7 @@ namespace WindowsAuth.Controllers
             return 0;
         }*/
 
-
+#region ASP Controllers
         public async Task<IActionResult> Index()
         {
             if (User.Identity.IsAuthenticated && !HttpContext.Session.Keys.Contains("uid"))
@@ -713,7 +704,7 @@ namespace WindowsAuth.Controllers
                     for (int i = 0; i < lstClusters.Count(); i++)
                     {
                         if ( !String.IsNullOrEmpty(lstClusters[i]))
-                        { 
+                        {
                             vm.ClustersList.Add(new SelectListItem
                             {
                                 Value = lstClusters[i], // (i + 1).ToString(),
@@ -727,7 +718,6 @@ namespace WindowsAuth.Controllers
                 {
                     ViewData["isAuthorized"] = false;
                 }
-
             }
 
             if (User.Identity.IsAuthenticated)
@@ -741,13 +731,8 @@ namespace WindowsAuth.Controllers
                 ViewData["dataPath"] = dataFolderAccessPoint;
 
             }
-
-
-
-
             return View(vm);
         }
-
 
         public IActionResult SelectCluster()
         {
@@ -769,8 +754,6 @@ namespace WindowsAuth.Controllers
             return View(vm);
         }
 
-
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SelectCluster(ClusterSelectViewModel model )
@@ -789,7 +772,6 @@ namespace WindowsAuth.Controllers
             return RedirectToAction("Index", "Home");
         }
 
-
         public IActionResult JobSubmission()
         {
             if (!User.Identity.IsAuthenticated)
@@ -802,19 +784,19 @@ namespace WindowsAuth.Controllers
                 return RedirectToAction("Index", "Home");
             }
 
-            string username = HttpContext.Session.GetString("Username");
             string workFolderAccessPoint = HttpContext.Session.GetString("WorkFolderAccessPoint");
             string dataFolderAccessPoint = HttpContext.Session.GetString("DataFolderAccessPoint");
-            ViewData["Username"] = username;
-            ViewData["workPath"] = workFolderAccessPoint+username+"/";
+
+            ViewData["workPath"] = workFolderAccessPoint + HttpContext.Session.GetString("Username") + "/";
             ViewData["dataPath"] = dataFolderAccessPoint;
 
             ViewData["uid"] = HttpContext.Session.GetString("uid");
             ViewData["gid"] = HttpContext.Session.GetString("gid");
 
-            ViewData["Message"] = "Your application description page.";
-            //
+            ViewData["mode"] = (HttpContext.Request.Query.ContainsKey("Mode") && HttpContext.Request.Query["Mode"] == "templates") ? "Templates" : "JobSubmission";
 
+            ViewData["isAdmin"] = HttpContext.Session.GetString("isAdmin");
+            AddViewData(message: "Your application description page.");
             return View();
         }
 
@@ -822,7 +804,6 @@ namespace WindowsAuth.Controllers
         {
             if (!User.Identity.IsAuthenticated)
             {
-
                 return RedirectToAction("Index", "Home");
             }
 
@@ -831,10 +812,10 @@ namespace WindowsAuth.Controllers
                 return RedirectToAction("Index", "Home");
             }
 
-            string username = HttpContext.Session.GetString("Username");
-            ViewData["Username"] = username;
-            ViewData["Message"] = "View and Manage Your Jobs.";
 
+            ViewData["isAdmin"] = HttpContext.Session.GetString("isAdmin");
+
+            AddViewData(message: "View and Manage Your Jobs.");
             return View();
         }
 
@@ -848,18 +829,13 @@ namespace WindowsAuth.Controllers
             {
                 return RedirectToAction("Index", "Home");
             }
-
-            ViewData["Message"] = "View and Manage Your Jobs.";
             ViewData["jobid"] = HttpContext.Request.Query["jobId"];
-
-            string username = HttpContext.Session.GetString("Username");
             string workFolderAccessPoint = HttpContext.Session.GetString("WorkFolderAccessPoint");
 
 
-            ViewData["Username"] = username;
-            ViewData["workPath"] = (workFolderAccessPoint + username + "/").Replace("file:","").Replace("\\","/");
-            ViewData["jobPath"] = workFolderAccessPoint.Replace("file:","").Replace("\\","/");
-
+            ViewData["workPath"] = (workFolderAccessPoint + HttpContext.Session.GetString("Username") + "/").Replace("file:", "").Replace("\\", "/");
+            ViewData["jobPath"] = workFolderAccessPoint.Replace("file:", "").Replace("\\", "/");
+            AddViewData(message: "View and Manage Your Jobs.");
             return View();
         }
 
@@ -875,52 +851,129 @@ namespace WindowsAuth.Controllers
                 return RedirectToAction("Index", "Home");
             }
 
-
-            ViewData["Message"] = "Cluster Status.";
+            AddViewData(message: "Cluster Status.");
 
             return View();
         }
 
-
         public IActionResult About()
         {
-            ViewData["Message"] = "Your application description page.";
-
+            AddViewData(message: "Your application description page.");
             return View();
         }
 
         public IActionResult Contact()
         {
-            ViewData["Message"] = "Your contact page.";
-
+            AddViewData(message: "Your contact page.");
             return View();
         }
 
         public IActionResult Error()
         {
+            AddViewData();
             return View();
         }
 
-        /// <summary>
-        /// Manage Users
-        /// </summary>
-        /// <returns></returns>
+        public void AddViewData(string message = "")
+        {
+            string username = HttpContext.Session.GetString("Username");
+            ViewData["Username"] = username;
+
+            if (message != "")
+                ViewData["Message"] = message;
+        }
+
         public async Task<IActionResult> ManageUser()
         {
+            AddViewData();
             var currentCluster = HttpContext.Session.GetString("CurrentClusters");
-            if (Startup.DatabaseForUser.ContainsKey(currentCluster))
+            if (Startup.Database.ContainsKey(currentCluster))
             {
-                var db = Startup.DatabaseForUser[currentCluster];
+                if (!User.Identity.IsAuthenticated || HttpContext.Session.GetString("isAdmin").Equals("false") )
+                {
+                    return RedirectToAction("Index", "Home");
+                }
+                var db = Startup.Database[currentCluster];
                 if (!Object.ReferenceEquals(db, null))
                 {
-                    var filter = HttpContext.Session.GetString("FilterUser");
-                    if (String.IsNullOrEmpty(filter))
-                        filter = "";
-                    var ret = db.User.Where(x => x.Email.Contains(filter)).ToAsyncEnumerable();
-                    return PartialView(ret);
+                    if (HttpContext.Request.Query.ContainsKey("AccountChangeEmail"))
+                    {
+                        string email = HttpContext.Request.Query["AccountChangeEmail"];
+                        UserEntry userEntry = db.User.First(x => x.Email.Equals(email));
+                       // db.User.Update(userEntry);
+                        if (userEntry.isAdmin.Equals("true"))
+                        {
+                            userEntry.isAdmin = "false";
+                            userEntry.isAuthorized = "false";
+                        }
+                        else if (userEntry.isAuthorized.Equals("false"))
+                        {
+                            userEntry.isAuthorized = "true";
+                        }
+                        else
+                        {
+                            userEntry.isAdmin = "true";
+                        }
+                        await db.SaveChangesAsync();
+                    }                  
+                    List<string[]> userTable = new List<string[]>();
+                    foreach (var user in db.User)
+                    {
+                        string accountType = (user.Email == user.Alias) ? GetAccountType(user.isAuthorized == "true", user.isAdmin == "true") : "Alias";
+                        string[] userString = new string[] { ParseToUsername(user.Alias), user.Email, accountType };
+                        userTable.Add(userString);
+                    }
+                    ViewData["Users"] = userTable;
                 }
             }
             return View();
         }
+
+        public async Task<IActionResult> AccountSettings()
+        {
+            if (!User.Identity.IsAuthenticated)
+            {
+                return RedirectToAction("Index", "Home");
+            }
+
+            string userEmail = HttpContext.Session.GetString("Email");
+
+            var currentCluster = HttpContext.Session.GetString("CurrentClusters");
+            if (Startup.Database.ContainsKey(currentCluster))
+            {
+                var db = Startup.Database[currentCluster];
+
+                if (HttpContext.Request.Query.ContainsKey("NewAlias"))
+                {
+                    string aliasEmail = HttpContext.Request.Query["NewAlias"];
+                    if (aliasEmail.IndexOf('@') > 0) {
+                        UserEntry alias = new UserEntry(new UserID(), aliasEmail, userEmail, null);
+                        db.User.Add(alias);
+                        await db.SaveChangesAsync();
+                    }
+                }
+                var aliases = new List<string>();
+                foreach (var user in db.User)
+                {
+                    if(user.Alias == userEmail && userEmail != user.Email)
+                    {
+                        aliases.Add(user.Email);
+                    }
+                }
+                ViewData["Aliases"] = aliases;
+            }
+
+            ViewData["Email"] = userEmail;
+            ViewData["Account"] = GetAccountType(HttpContext.Session.GetString("isAuthorized") == "true", HttpContext.Session.GetString("isAdmin") == "true");
+            AddViewData();
+            return View();
+        }
+        
+        private string GetAccountType(bool isAuthorized, bool isAdmin)
+        {
+           return isAuthorized ? (isAdmin ? "Admin" : "User") : "Unauthorized";
+        }
+#endregion
+
     }
 }

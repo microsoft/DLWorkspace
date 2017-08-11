@@ -84,17 +84,59 @@ default_config_parameters = {
 	"storage-mount-path" : "/dlwsdata",
 	# the path of where filesystem is actually mounted /dlwsdata
 	"physical-mount-path" : "/mntdlws",
+	# the path of where local device is mounted. 
+	"local-mount-path" : "/mnt",
+
+	# required storage folder under storage-mount-path
+	"default-storage-folders" : ["jobfiles", "storage", "work", "namenodeshare" ],
+
 
 	# the path of where nvidia driver is installed on each node, default /opt/nvidia-driver/current
 	"nvidia-driver-path" : "/opt/nvidia-driver/current", 
-
+	"systemdisk": "/dev/sda",
 	"data-disk": "/dev/[sh]d[^a]", 
 	"partition-configuration": [ "1" ], 
 	"heketi-docker": "heketi/heketi:dev",
 	# The following file will be copied (not rendered for configuration)
-	"render-exclude" : {"GlusterFSUtils.pyc": True, "launch_glusterfs.pyc": True, },
-	"render-by-copy-ext" : { ".png": True, },
-	"render-by-copy": { "gk-deploy":True, "pxelinux.0": True, },
+	"render-exclude" : { 
+		"GlusterFSUtils.pyc": True, 
+		"launch_glusterfs.pyc": True, 
+		"bootstrap_hdfs.pyc": True,
+		},
+	"render-by-copy-ext" : { 
+		".png": True, 
+		# All in-docker file will be copied and rendered in docker.
+		".in-docker": True, },
+	"render-by-copy": { 
+		"gk-deploy":True, 
+		"pxelinux.0": True, 
+		# This template will be rendered inside container, but not at build stage
+		# "hdfs-site.xml.template": True, 		
+		},
+
+	"docker-run" : {
+		"hdfs" : {
+			"workdir" : "/opt/hadoop", 
+			"volumes" : {
+				"configDir" : {
+					"from" : "./deploy/etc/hdfs", 
+					"to" : "/etc/hdfs", 
+				},
+			},
+		},
+		"pxe-ubuntu" : {
+			"workdir" : "/", 
+			"su" : True, 
+			"options" : "--net=host", 
+		},
+
+	}, 
+
+	"build-docker-via-config" : {
+		"hdfs": True, 
+		"glusterfs": True, 
+	},
+	#"render-by-line": { "preseed.cfg": True, },
 	# glusterFS parameter
 	"glusterFS" : { "dataalignment": "1280K", 
 					"physicalextentsize": "128K", 
@@ -156,6 +198,13 @@ default_config_parameters = {
   		"all": "all", 
   		"default": "all",
 		"glusterfs": "worker_node", 
+		# HDFS node selector
+		"hdfs": "worker_node",
+		"zookeeper": "etcd_node", 
+		"journalnode": "etcd_node",
+		"namenode1": "etcd_node_1", 
+		"namenode2": "etcd_node_2",
+		"datanode": "all",
   		"webportal": "etcd_node_1", 
   		"restfulapi": "etcd_node_1", 
   		"jobmanager": "etcd_node_1", 
@@ -170,6 +219,81 @@ default_config_parameters = {
 		   "*.corp.microsoft.com": True,
 	   }, 
 	}, 
+
+
+	"localdisk": {
+		# The following pair of options control how local disk is formated and mounted
+		"mkfscmd" : "mkfs -F -q -t ext4",
+		"mountoptions": "ext4 defaults 0 1",
+	},
+
+	# optional hdfs_cluster_name: if not inherit cluster_name from cluster
+	# "hdfs_cluster_name": cluster_name for HDFS
+
+	"hdfsconfig" : {
+		# Launch options for formatting, etc..
+		"formatoptions" : "", 
+		# Comma separated list of paths on the local filesystem of a DataNode where it should store its blocks.
+		"dfs" : {
+			# Data node configuration, 
+			# Comma separated list of paths on the local filesystem of a DataNode where it should store its blocks
+			# to be filled. 
+			"data": "", 
+		},
+		"namenode" : {
+			"localdata" : "/var/lib/namenode",
+			"data": "/mnt/namenodeshare",
+		},
+		"zks" : {
+			# The IP address should be within service_cluster_ip_range
+			"ip" : "10.3.1.100",
+			"port": "2181", 
+			"data": "/var/lib/zookeeper",
+		},
+		"journalnode" : {
+			"port": "8485",
+			"data": "/var/lib/hdfsjournal",
+		}, 
+		# location of configuration file
+		"configfile": "/etc/hdfs/config.yaml", 
+		# logging directory
+		"loggingDirBase": "/usr/local/hadoop/logs"
+	}, 
+	"ubuntuconfig" : {
+		"version" : "16.04.1", 
+		"16.04.2" : {
+			"ubuntuImageUrl" : "http://releases.ubuntu.com/16.04/ubuntu-16.04.2-server-amd64.iso", 
+			"ubuntuImageName" : "ubuntu-16.04.2-server-amd64.iso",
+		},
+		"16.04.1" : {
+			"ubuntuImageUrl" : "http://old-releases.ubuntu.com/releases/16.04.1/ubuntu-16.04.1-server-amd64.iso",
+			"ubuntuImageName" : "ubuntu-16.04.1-server-amd64.iso",
+		},
+	}, 
+
+	"acskubeconfig" : "acs_kubeclusterconfig",
+	"isacs" : False,
+	"acsagentsize" : "Standard_D2_v2",
+
+	"mountconfig": {
+		"azurefileshare" : {
+			"options" : "vers=3.0,username=%s,password=%s,dir_mode=0777,file_mode=0777,serverino",
+		},
+		"glusterfs" : {
+			"options" : "defaults,_netdev",
+		},
+		"nfs" : {
+			"options" : "rsize=8192,timeo=14,intr,tcp",
+		},
+		"hdfs" : {
+			"fstaboptions" : "allow_other,usetrash,rw 2 0",
+			"options": "rw -ousetrash"
+		},
+		
+	},
+	
+	# folder where automatic share script will be located
+	"folder_auto_share" : "/opt/auto_share", 
 
 	# Option to change pre-/post- deployment script
 	# Available options are (case sensitive):
@@ -187,7 +311,7 @@ default_config_parameters = {
         "CCSAdmins": {
             # The match is in C# Regex Language, please refer to :
             # https://msdn.microsoft.com/en-us/library/az24scfc(v=vs.110).aspx
-            "Allowed": [ "jinl@microsoft.com", "hongzl@microsoft.com" ],
+            "Allowed": [ "jinl@microsoft.com", "hongzl@microsoft.com", "sanjeevm@microsoft.com" ],
             "uid": "900000000-999999999",
             "gid": "508953967"
         },
@@ -233,7 +357,7 @@ default_config_parameters = {
 # These are super scripts
 scriptblocks = {
 	"azure": [
-		"runscriptonall ./scripts/prepare_ubuntu.sh", 
+		"runscriptonall ./scripts/prepare_ubuntu_azure.sh", 
   		"execonall sudo usermod -aG docker core",
 		"-y deploy",
 		"-y updateworker",
@@ -246,10 +370,17 @@ scriptblocks = {
   		"kubernetes start jobmanager",
   		"kubernetes start restfulapi",
   		"kubernetes start webportal",
-	]
+	],
+	"restartwebui": [
+		"kubernetes stop webportal",
+		"kubernetes stop restfulapi",
+		"kubernetes stop jobmanager",
+		"webui",
+  		"kubernetes start jobmanager",
+  		"kubernetes start restfulapi",
+  		"kubernetes start webportal",
+	],
 }
-
-
 
 # default search for all partitions of hdb, hdc, hdd, and sdb, sdc, sdd
 
@@ -334,12 +465,13 @@ def init_config():
 
 def apply_config_mapping():
 	for k,tuple in default_config_mapping.iteritems():
-		if not ( k in config ) or len(config[k])<=1:
+		if not ( k in config ) or len(config[k])<=0:
 			dstname = tuple[0]
 			value = fetch_config(dstname)
-			config[k] = tuple[1](value)
-			if verbose:
-				print "Config[%s] = %s" %(k, config[k])
+			if not (value is None):
+				config[k] = tuple[1](value)
+				if verbose:
+					print "Config[%s] = %s" %(k, config[k])
 
 def _check_config_items(cnfitem, cnf):
 	if not cnfitem in cnf:
@@ -419,6 +551,7 @@ def get_platform_script_directory( target ):
 
 def get_root_passwd():
 	fname = "./deploy/sshkey/rootpasswd"
+	os.system("mkdir -p ./deploy/sshkey")
 	if not os.path.exists(fname):
 		with open(fname,'w') as f:
 			passwd = uuid.uuid4().hex
@@ -435,7 +568,7 @@ def get_root_passwd():
 # srcname: config name to be searched for (expressed as a list, see fetch_config)
 # lambda: lambda function to translate srcname to target name
 default_config_mapping = { 
-	"dockerprefix": (["cluster_name"], lambda x:x+"/"), 
+	"dockerprefix": (["cluster_name"], lambda x:x.lower()+"/"), 
 	"infrastructure-dockerregistry": (["dockerregistry"], lambda x:x), 
 	"worker-dockerregistry": (["dockerregistry"], lambda x:x),
 	"glusterfs-device": (["glusterFS"], lambda x: "/dev/%s/%s" % (fetch_dictionary(x, ["volumegroup"]), fetch_dictionary(x, ["volumename"]) ) ),
@@ -457,6 +590,7 @@ default_config_mapping = {
 	"pxeserverip": (["pxeserver"], lambda x: fetch_dictionary(x,["ip"])), 
 	"pxeserverrootpasswd": (["pxeserver"], lambda x: get_root_passwd()), 
 	"pxeoptions": (["pxeserver"], lambda x: "" if fetch_dictionary(x,["options"]) is None else fetch_dictionary(x,["options"])), 
+	"hdfs_cluster_name" : ( ["cluster_name"], lambda x:x ), 
 }
 	
 # Merge entries in config2 to that of config1, if entries are dictionary. 
@@ -511,8 +645,11 @@ def add_ssh_key():
 	elif "sshkey" in config:
 		config["sshKeys"] = []
 		config["sshKeys"].append(config["sshkey"])
-		
-	
+
+def add_acs_config():
+	if (os.path.exists("./deploy/"+config["acskubeconfig"])):
+		config["isacs"] = True
+			
 # Render scripts for kubenete nodes
 def add_kubelet_config():
 	renderfiles = []
@@ -687,7 +824,10 @@ def get_nodes_from_config(machinerole):
 		for nodename in config["machines"]:
 			nodeInfo = config["machines"][nodename]
 			if "role" in nodeInfo and nodeInfo["role"]==machinerole:
-				Nodes.append(nodename+domain)
+				if len(nodename.split("."))<3:
+					Nodes.append(nodename+domain)
+				else:
+					Nodes.append(nodename)
 		return sorted(Nodes)
 
 def get_ETCD_master_nodes_from_cluster_portal(clusterId):
@@ -717,12 +857,40 @@ def get_ETCD_master_nodes_from_config(clusterId):
 	config["kubernetes_master_node"] = Nodes
 	return Nodes
 
+def get_nodes_from_acs(tomatch):
+	machines = acs_get_machinesAndIPsFast()
+	Nodes = []
+	masterNodes = []
+	agentNodes = []
+	for m in machines:
+		match = re.match('k8s-'+tomatch+'.*', m)
+		ip = machines[m]["publicip"]
+		if not (match is None):
+			Nodes.append(ip)
+		match = re.match('k8s-master', m)
+		if not (match is None):
+			masterNodes.append(ip)
+		match = re.match('k8s-agent', m)
+		if not (match is None):
+			agentNodes.append(ip)
+	config["etcd_node"] = masterNodes
+	config["kubernetes_master_node"] = masterNodes
+	config["worker_node"] = agentNodes
+	return Nodes
+
 def get_ETCD_master_nodes(clusterId):
+	if config["isacs"]:
+		return get_nodes_from_acs('master')
 	if "etcd_node" in config:
-		return config["etcd_node"]
+		Nodes = config["etcd_node"]
+		config["kubernetes_master_node"] = Nodes
+		#print ("From etcd_node " + " ".join(map(str, Nodes)))
+		return Nodes
 	if "useclusterfile" not in config or not config["useclusterfile"]:
+		#print "From cluster portal"
 		return get_ETCD_master_nodes_from_cluster_portal(clusterId)
 	else:
+		#print "From master nodes from config"
 		return get_ETCD_master_nodes_from_config(clusterId)
 	
 def get_worker_nodes_from_cluster_report(clusterId):
@@ -746,6 +914,8 @@ def get_worker_nodes_from_config(clusterId):
 	return Nodes
 
 def get_worker_nodes(clusterId):
+	if config["isacs"]:
+		return get_nodes_from_acs('agent')
 	if "worker_node" in config:
 		return config["worker_node"]
 	if "useclusterfile" not in config or not config["useclusterfile"]:
@@ -762,7 +932,9 @@ def check_master_ETCD_status():
 	etcdNodes = []
 	print "==============================================="
 	print "Checking Available Nodes for Deployment..."
-	if "clusterId" in config:
+	if config["isacs"]:
+		get_nodes_from_acs("")
+	elif "clusterId" in config:
 		get_ETCD_master_nodes(config["clusterId"])
 		get_worker_nodes(config["clusterId"])
 	print "==============================================="
@@ -1157,7 +1329,18 @@ def create_PXE():
 	
 	#os.system("docker rmi dlworkspace-pxe:%s" % config["cluster_name"])
 
+def config_ubuntu():
+	# print config["ubuntuconfig"]
+	ubuntuConfig = fetch_config( ["ubuntuconfig"] )
+	# print ubuntuConfig
+	useversion = fetch_dictionary( ubuntuConfig, [ "version" ] )
+	specificConfig = fetch_dictionary( ubuntuConfig, [ useversion ] )
+	for key, value in specificConfig.iteritems():
+		config[key] = value
+	config["ubuntuVersion"] = useversion
+
 def create_PXE_ubuntu():
+	config_ubuntu()
 	os.system("rm -r ./deploy/pxe")
 	os.system("mkdir -p ./deploy/docker")
 	utils.render_template_directory("./template/pxe-ubuntu", "./deploy/pxe-ubuntu",config, verbose=verbose )
@@ -1262,7 +1445,6 @@ def create_MYSQL_for_WebUI():
 	pass
 
 def deploy_restful_API_on_node(ipAddress):
-
 	masterIP = ipAddress
 	dockername = "%s/dlws-restfulapi" %  (config["dockerregistry"])
 
@@ -1311,103 +1493,419 @@ def deploy_webUI_on_node(ipAddress):
 	print "Web UI is running at: http://%s:%s" % (webUIIP,str(config["webuiport"]))
 
 # Install ssh key remotely
-def install_ssh_key():
+def install_ssh_key(key_files):
 	all_nodes = get_nodes(config["clusterId"])
-	with open("./deploy/sshkey/rootpasswd", "r") as f:
-		rootpasswd = f.read()
+
+	rootpasswdfile = "./deploy/sshkey/rootpasswd"
+	rootuserfile = "./deploy/sshkey/rootuser"
+
+
+	with open(rootpasswdfile, "r") as f:
+		rootpasswd = f.read().strip()
 		f.close()
 
-	for node in all_nodes:
-		os.system("sshpass -p %s ssh-copy-id -o StrictHostKeyChecking=no -i ./deploy/sshkey/id_rsa.pub core@%s" %(rootpasswd, node))
+	#default root user is core....
+	rootuser = "core"
+	if os.path.isfile(rootuserfile):
+		with open(rootuserfile, "r") as f:
+			rootuser = f.read().strip()
+			f.close()
 
-def mount_fileshares(perform_mount=True):
-	all_nodes = get_nodes(config["clusterId"])
-	mountpoints = { }
-	fstabmask = "##############DLWSMOUNT#################\n"
-	fstab = fstabmask
+
+	for node in all_nodes:
+		if len(key_files)>0:
+			for key_file in key_files:
+				print "Install key %s on %s" % (key_file, node)
+				os.system("sshpass -f %s ssh-copy-id -o StrictHostKeyChecking=no -i %s %s@%s" %(rootpasswdfile, key_file, rootuser, node))
+		else:
+			print "Install key %s on %s" % ("./deploy/sshkey/id_rsa.pub", node)
+			os.system("sshpass -f %s ssh-copy-id -o StrictHostKeyChecking=no -i ./deploy/sshkey/id_rsa.pub %s@%s" %(rootpasswdfile, rootuser, node))
+
+
+	if rootuser != "core":
+	 	for node in all_nodes:
+	 		os.system('sshpass -f %s ssh %s@%s "sudo useradd -p %s -d /home/core -m -s /bin/bash core"' % (rootpasswdfile,rootuser, node, rootpasswd))
+	 		os.system('sshpass -f %s ssh %s@%s "sudo usermod -aG sudo core"' % (rootpasswdfile,rootuser, node))
+	 		os.system('sshpass -f %s ssh %s@%s "sudo mkdir -p /home/core/.ssh"' % (rootpasswdfile,rootuser, node))
+
+
+			if len(key_files)>0:
+				for key_file in key_files:
+					print "Install key %s on %s" % (key_file, node)
+					with open(key_file, "r") as f:
+						publicKey = f.read().strip()
+						f.close()		
+	 				os.system('sshpass -f %s ssh %s@%s "echo %s | sudo tee /home/core/.ssh/authorized_keys"' % (rootpasswdfile,rootuser, node,publicKey))
+
+			else:
+				print "Install key %s on %s" % ("./deploy/sshkey/id_rsa.pub", node)
+				with open("./deploy/sshkey/id_rsa.pub", "r") as f:
+					publicKey = f.read().strip()
+					f.close()		
+ 				os.system('sshpass -f %s ssh %s@%s "echo %s | sudo tee /home/core/.ssh/authorized_keys"' % (rootpasswdfile,rootuser, node,publicKey))
+
+	 		os.system('sshpass -f %s ssh %s@%s "sudo chown core:core -R /home/core"' % (rootpasswdfile,rootuser, node))
+	 		os.system('sshpass -f %s ssh %s@%s "sudo chmod 400 /home/core/.ssh/authorized_keys"' % (rootpasswdfile,rootuser, node))
+	 		os.system("""sshpass -f %s ssh %s@%s "echo 'core ALL=(ALL) NOPASSWD: ALL' | sudo tee -a /etc/sudoers.d/core " """ % (rootpasswdfile,rootuser, node))
+
+
+
+def pick_server( nodelists, curNode ):
+	if curNode is None or not (curNode in nodelists):
+		return random.choice(nodelists)
+	else:
+		return curNode
+
+def acs_get_id(elem):
+	elemFullName = elem["id"]
+	reMatch = re.match('(.*)/(.*)', elemFullName)
+	return reMatch.group(2)
+
+def acs_get_ip(ipaddrName):
+	cmd = "az network public-ip show --resource-group="+config["resource_group"]+" --name="+ipaddrName
+	#rint "CMD: "+cmd
+	ipInfo = subprocess.check_output(cmd, shell=True)
+	ipInfo = yaml.load(ipInfo)
+	return ipInfo["ipAddress"]
+
+def acs_get_machineIP(machineName):
+	print "Machine: "+machineName
+	nicInfo = subprocess.check_output("az vm show --name="+machineName+" --resource-group="+config["resource_group"], shell=True)
+	nics = yaml.load(nicInfo)
+	#print nics
+	nics = nics["networkProfile"]["networkInterfaces"]
+	i = 0
+	for nic in nics:
+		nicName = acs_get_id(nic)
+		print "Nic Name: "+nicName
+		if (i==0):
+			nicDefault = nicName
+		ipconfigInfo = subprocess.check_output("az network nic show --resource-group="+config["resource_group"]+" --name="+nicName, shell=True)
+		ipConfigs = yaml.load(ipconfigInfo)
+		ipConfigs = ipConfigs["ipConfigurations"]
+		j = 0
+		for ipConfig in ipConfigs:
+			ipConfigName = acs_get_id(ipConfig)
+			print "IP Config Name: "+ipConfigName
+			if ((i==0) and (j==0)):
+				ipConfigDefault = ipConfigName
+			configInfo = subprocess.check_output("az network nic ip-config show --resource-group="+config["resource_group"]+
+													" --nic-name="+nicName+" --name="+ipConfigName, shell=True)
+			configInfo = yaml.load(configInfo)
+			publicIP = configInfo["publicIpAddress"]
+			if (not (publicIP is None)):
+				ipName = acs_get_id(publicIP)
+				print "IP Name: " + ipName
+				return {"nic" : nicName, "ipconfig" : ipConfigName, "publicipname" : ipName, "publicip" : acs_get_ip(ipName)}
+			j+=1
+		i+=1
+	return {"nic" : nicDefault, "ipconfig": ipConfigDefault, "publicipname" : None, "publicip" : None}
+
+def acs_get_nodes():
+	nodeInfo = subprocess.check_output('./deploy/bin/kubectl -o=json --kubeconfig=./deploy/'+config["acskubeconfig"]+' get nodes', shell=True)
+	nodes = yaml.load(nodeInfo)
+	return nodes["items"]
+
+def acs_get_machinesAndIPs(bCreateIP):
+	# Public IP on worker nodes
+	nodes = acs_get_nodes()
+	ipInfo = {}
+	#print nodes["items"]
+	config["nodenames_from_ip"] = {}
+	for n in nodes:
+		machineName = n["metadata"]["name"]
+		ipInfo[machineName] = acs_get_machineIP(machineName)
+		if bCreateIP and (ipInfo[machineName]["publicip"] is None):
+			# Create IP
+			ipName = machineName+"-public-ip-0"
+			print "Creating public-IP: "+ipName
+			cmd = "az network public-ip create --allocation-method=Dynamic"
+			cmd += " --resource-group=%s" % config["resource_group"]
+			cmd += " --name=%s" % ipName
+			cmd += " --location=%s" % config["cluster_location"]
+			os.system(cmd)
+			# Add to NIC of machine
+			cmd = "az network nic ip-config update"
+			cmd += " --resource-group=%s" % config["resource_group"]
+			cmd += " --nic-name=%s" % ipInfo[machineName]["nic"]
+			cmd += " --name=%s" % ipInfo[machineName]["ipconfig"]
+			cmd += " --public-ip-address=%s" % ipName
+			os.system(cmd)
+			# now update
+			ipInfo[machineName]["publicipname"] = ipName
+			ipInfo[machineName]["publicip"] = acs_get_ip(ipName)
+		config["nodenames_from_ip"][ipInfo[machineName]["publicip"]] = machineName
+	return ipInfo
+
+def acs_get_machinesAndIPsFast():
+	nodes = acs_get_nodes()
+	ipInfo = {}
+	config["nodenames_from_ip"] = {}
+	for n in nodes:
+		machineName = n["metadata"]["name"]
+		#print "MachineName: "+machineName
+		ipName = machineName+"-public-ip-0"
+		if (verbose):
+			print "PublicIP: "+ipName
+		ipInfo[machineName] = {}
+		ipInfo[machineName]["publicipname"] = ipName
+		ipInfo[machineName]["publicip"] = acs_get_ip(ipName)
+		config["nodenames_from_ip"][ipInfo[machineName]["publicip"]] = machineName
+	return ipInfo
+
+def az_cmd(cmd):
+	output = subprocess.check_output("az "+cmd, shell=True)
+	return yaml.load(output)
+
+def acs_label_webui():
+	for n in config["kubernetes_master_node"]:
+		nodeName = config["nodenames_from_ip"][n]
+		if verbose:
+			print "Label node: "+nodeName
+		label_webUI(nodeName)
+
+def acs_is_valid_nsg_rule(rule):
+	#print "Access: %s D: %s P: %s P: %s" % (rule["access"].lower()=="allow",
+	#rule["direction"].lower()=="inbound",rule["sourceAddressPrefix"]=='*',
+	#(rule["protocol"].lower()=="tcp" or rule["protocol"]=='*'))
+
+	return (rule["access"].lower()=="allow" and
+			rule["direction"].lower()=="inbound" and
+			rule["sourceAddressPrefix"]=='*' and
+			(rule["protocol"].lower()=="tcp" or rule["protocol"]=='*'))
+
+def acs_add_nsg_rules(ports_to_add):
+	Nodes = get_nodes_from_acs("")
+	#print "Nodes: %s" % Nodes
+	match = re.match('(.*)-0', config["nodenames_from_ip"][config["kubernetes_master_node"][0]])
+	nsg_name = match.group(1)+"-nsg"
+	rulesInfo = az_cmd("network nsg show --resource-group="+config["resource_group"]+" --name="+nsg_name)
+	rules = rulesInfo["defaultSecurityRules"] + rulesInfo["securityRules"]
+
+	maxThreeDigitRule = 100
+	for rule in rules:
+		if acs_is_valid_nsg_rule(rule):
+			if (rule["priority"] < 1000):
+				#print "Priority: %d" % rule["priority"]
+				maxThreeDigitRule = max(maxThreeDigitRule, rule["priority"])
+
+	if verbose:
+		print "Existing max three digit rule for NSG: %s is %d" % (nsg_name, maxThreeDigitRule)
+
+	for port_rule in ports_to_add:
+		port_num = ports_to_add[port_rule]
+		found_port = None
+		for rule in rules:
+			if acs_is_valid_nsg_rule(rule):
+				match = re.match('(.*)-(.*)', rule["destinationPortRange"])
+				if (match is None):
+					minPort = int(rule["destinationPortRange"])
+					maxPort = minPort
+				elif (rule["destinationPortRange"] != "*"):
+					minPort = int(match.group(1))
+					maxPort = int(match.group(2))
+				else:
+					minPort = -1
+					maxPort = -1
+				if (minPort <= port_num) and (port_num <= maxPort):
+					found_port = rule["name"]
+					break
+		if not (found_port is None):
+			print "Rule for %s : %d -- already satisfied by %s" % (port_rule, port_num, found_port)
+		else:
+			maxThreeDigitRule = maxThreeDigitRule + 10
+			cmd = "network nsg rule create"
+			cmd += " --resource-group=%s" % config["resource_group"]
+			cmd += " --nsg-name=%s" % nsg_name
+			cmd += " --name=%s" % port_rule
+			cmd += " --access=Allow"
+			cmd += " --destination-port-range=%d" % port_num
+			cmd += " --direction=Inbound"
+			cmd += " --priority=%d" % maxThreeDigitRule
+			az_cmd(cmd)
+
+def acs_deploy():
+	regenerate_key = False
+	if (os.path.exists("./deploy/sshkey")):
+		response = raw_input_with_default("SSH keys already exist, do you want to keep existing (y/n)?")
+		if first_char(response) == "n":
+			utils.backup_keys(config["cluster_name"])
+			regenerate_key = True
+		else:
+			regenerate_key = False
+
+	cmd = "az group create"
+	cmd += " --location=%s" % config["cluster_location"]
+	cmd += " --name=%s" % config["resource_group"]
+	os.system(cmd)
+
+	cmd = "az acs create --orchestrator-type=kubernetes"
+	cmd += " --resource-group=%s" % config["resource_group"]
+	cmd += " --name=%s" % config["cluster_name"]
+	cmd += " --agent-count=%d" % config["worker_node_num"]
+	cmd += " --master-count=%d" % config["master_node_num"]
+	cmd += " --location=%s" % config["cluster_location"]
+	cmd += " --agent-vm-size=%s" % config["acsagentsize"]
+	cmd += " --admin-username=core"
+	cmd += " --ssh-key-value=%s" % "./deploy/sshkey/id_rsa.pub"
+	if (regenerate_key):			
+		os.system("rm -r ./deploy/sshkey || true")
+		cmd += " --generate-ssh-keys"
+	os.system(cmd)
+
+	# Install kubectl / get credentials
+	os.system("az acs kubernetes install-cli --install-location ./deploy/bin/kubectl")
+	cmd = "az acs kubernetes get-credentials"
+	cmd += " --resource-group=%s" % config["resource_group"]
+	cmd += " --name=%s" % config["cluster_name"]
+	cmd += " --file=./deploy/%s" % config["acskubeconfig"]
+	cmd += " --ssh-key-file=%s" % "./deploy/sshkey/id_rsa"
+	os.system(cmd)
+
+	# Get/create public IP addresses for all machines
+	Nodes = acs_get_machinesAndIPs(True)
+
+	# Label nodes
+	ip = get_nodes_from_acs("")
+	acs_label_webui()
+
+	# Add rules for NSG
+	acs_add_nsg_rules({"HTTPAllow" : 80, "RestfulAPIAllow" : 5000})
+
+	return Nodes
+
+def get_mount_fileshares(curNode = None):
+	allmountpoints = { }
+	fstab = ""
+	bHasDefaultMountPoints = False
+	physicalmountpoint = config["physical-mount-path"] 
+	storagemountpoint = config["storage-mount-path"]
+	mountshares = {}
 	for k,v in config["mountpoints"].iteritems():
 		if "type" in v:
-			physicalmountpoint = config["physical-mount-path"] 
-			storagemountpoint = config["storage-mount-path"]
-			if ("mountpoints" in v) and len(v["mountpoints"])>0:
-				physicalmountpoint = os.path.join( physicalmountpoint, v["mountpoints"] )
-				storagemountpoint = os.path.join( storagemountpoint, v["mountpoints"])
-			bMount = False
-			if v["type"] == "azurefileshare":
-				if "accountname" in v and "filesharename" in v and "mountpoints" in v and "accesskey" in v:
-					mountpoints[k] = copy.deepcopy( v )
-					bMount = True
-					# URL will be searched and unmounted
-					mountpoints[k]["url"] = "//" + mountpoints[k]["accountname"] + ".file.core.windows.net/"+mountpoints[k]["filesharename"]
-					fstab += "%s %s cifs vers=3.0,username=%s,password=%s,dir_mode=0777,file_mode=0777,serverino\n" % (mountpoints[k]["url"], physicalmountpoint, v["accountname"], v["accesskey"])
-					mountpoints[k]["umount"]  = mountpoints[k]["url"] 
+			if ("mountpoints" in v):
+				if isinstance( v["mountpoints"], basestring):
+					if len(v["mountpoints"])>0:
+						mountpoints = [v["mountpoints"]] 
+					else:
+						mountpoints = []
+				elif isinstance( v["mountpoints"], list):
+					mountpoints = v["mountpoints"]
+			else:
+				mountpoints = []
+			
+			if len(mountpoints)==0:
+				if bHasDefaultMountPoints:
+					errorMsg = "there are more than one default mount points in configuration. "
+					print "!!!Configuration Error!!! " + errorMsg
+					raise ValueError(erorMsg)
 				else:
-					print "Error: fileshare %s, type %s, miss one of the parameter accountname, filesharename, mountpoints, accesskey" %(k, v["type"])
+					bHasDefaultMountPoints = True
+					mountpoints = config["default-storage-folders"]
+			
+			mountsharename = v["mountsharename"] if "mountsharename" in v else v["filesharename"]
+			if mountsharename in mountshares:
+				errorMsg = "There are multiple file share to be mounted at %s" % mountsharename
+				print "!!!Configuration Error!!! " + errorMsg
+				raise ValueError(erorMsg) 
+			
+			curphysicalmountpoint = os.path.join( physicalmountpoint, mountsharename )
+			v["curphysicalmountpoint"] = curphysicalmountpoint
+			bMount = False
+			errorMsg = None
+			if v["type"] == "azurefileshare":
+				if "accountname" in v and "filesharename" in v and "accesskey" in v:
+					allmountpoints[k] = copy.deepcopy( v )
+					bMount = True
+					allmountpoints[k]["url"] = "//" + allmountpoints[k]["accountname"] + ".file.core.windows.net/"+allmountpoints[k]["filesharename"]
+					options = fetch_config(["mountconfig", "azurefileshare", "options"]) % (v["accountname"], v["accesskey"])
+					allmountpoints[k]["options"] = options
+					fstab += "%s %s cifs %s\n" % (allmountpoints[k]["url"], curphysicalmountpoint, options )
+				else:
+					errorMsg = "Error: fileshare %s, type %s, miss one of the parameter accountname, filesharename, mountpoints, accesskey" %(k, v["type"])
 			elif v["type"] == "glusterfs":
-				if "filesharename" in v and "mountpoints" in v:
-					mountpoints[k] = copy.deepcopy( v )
+				if "filesharename" in v:
+					allmountpoints[k] = copy.deepcopy( v )
 					bMount = True
 					glusterfs_nodes = get_node_lists_for_service("glusterfs")
-					mountpoints[k]["node"] = glusterfs_nodes[0]
-					fstab += "%s:/%s %s glusterfs defaults,_netdev 0 0\n" % (glusterfs_nodes[0], v["filesharename"], physicalmountpoint)
-					# URL will be searched and unmounted
-					mountpoints[k]["umount"] = "%s:%s" %( glusterfs_nodes[0], v["filesharename"])
+					allmountpoints[k]["node"] = pick_server( glusterfs_nodes, curNode )
+					options = fetch_config(["mountconfig", "glusterfs", "options"])
+					allmountpoints[k]["options"] = options
+					fstab += "%s:/%s %s glusterfs %s 0 0\n" % (allmountpoints[k]["node"], v["filesharename"], curphysicalmountpoint, options)
+				else:
+					errorMsg = "glusterfs fileshare %s, there is no filesharename parameter" % (k)
+			elif v["type"] == "nfs" and "server" in v:
+				if "filesharename" in v and "server" in v:
+					allmountpoints[k] = copy.deepcopy( v )
+					bMount = True
+					options = fetch_config(["mountconfig", "nfs", "options"])
+					allmountpoints[k]["options"] = options
+					fstab += "%s:/%s %s /nfsmnt nfs %s\n" % (v["server"], v["filesharename"], curphysicalmountpoint, options)
+				else:
+					errorMsg = "nfs fileshare %s, there is no filesharename or server parameter" % (k)
+			elif v["type"] == "hdfs" and "server" in v:
+				allmountpoints[k] = copy.deepcopy( v )
+				bMount = True
+				options = fetch_config(["mountconfig", "hdfs", "options"])
+				allmountpoints[k]["options"] = options
+				fstaboptions = fetch_config(["mountconfig", "hdfs", "fstaboptions"])
+				fstab += "hadoop-fuse-dfs#dfs://%s %s fuse %s\n" % (v["server"], curphysicalmountpoint, fstaboptions)
 			else:
-				print "Error: Unknown fileshare %s with type %s" %( k, v["type"])
+				errorMsg = "Error: Unknown or missing critical parameter in fileshare %s with type %s" %( k, v["type"])
+			if not (errorMsg is None):
+				print errorMsg
+				raise ValueError(errorMsg)
 			if bMount:
-				mountpoints[k]["physicalmountpoint"] = physicalmountpoint
-				mountpoints[k]["storagemountpoint"] = storagemountpoint
+				allmountpoints[k]["mountpoints"] = mountpoints
 		else:
 			print "Error: fileshare %s with no type" %( k )
-	# print fstab
-	if perform_mount:
-		nodes = all_nodes
-		for node in nodes:
-			remotecmd = ""
-			# remotecmd = "sudo rm -rf %s; " % config["storage-mount-path"]
-			# remotecmd += "sudo rm -rf %s; " % config["physical-mount-path"]
-			if len(mountpoints) > 1:
-				remotecmd += "sudo mkdir -p %s; " % config["storage-mount-path"]
-			filesharetype = {}
-			for k,v in mountpoints.iteritems():
-				if "umount" in v:
-					output = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "sudo mount | grep %s" % v["umount"])
-					umounts = []
-					for line in output.splitlines():
-						words = line.split()
-						if len(words)>3 and words[1]=="on":
-							umounts.append( words[2] )
-					umounts.sort()
-					for um in u:
-						remotecmd += "sudo umount %s; " % um
-				if v["type"] == "azurefileshare":
-					if not ("azurefileshare" in filesharetype):
-						filesharetype["azurefileshare"] = True
-						remotecmd += "sudo apt-get install cifs-utils; "
-					physicalmountpoint = v["physicalmountpoint"] 
-					storagemountpoint = v["storagemountpoint"]
-					remotecmd += "sudo mkdir -p %s; " % physicalmountpoint
-					remotecmd += "sudo mount -t cifs %s %s -o vers=3.0,username=%s,password=%s,dir_mode=0777,file_mode=0777,serverino; " % (v["url"], physicalmountpoint, v["accountname"], v["accesskey"] )
-					remotecmd += "sudo ln -s %s %s; " % (physicalmountpoint, storagemountpoint)
-				elif v["type"] == "glusterfs":
-					if not ("glusterfs" in filesharetype):
-						filesharetype["glusterfs"] = True
-						remotecmd += "sudo apt-get install -y glusterfs-client; "
-					physicalmountpoint = v["physicalmountpoint"] 
-					storagemountpoint = v["storagemountpoint"]
-					remotecmd += "sudo mkdir -p %s; " % physicalmountpoint
-					remotecmd += "sudo mount -t glusterfs %s:%s %s; " % (v["node"], v["filesharename"], physicalmountpoint )
-					remotecmd += "sudo ln -s %s %s; " % (physicalmountpoint, storagemountpoint)					
-			utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)
-			# Read in configuration of fstab
-			fstabcontent = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "cat /etc/fstab")
-			usefstab = fstab
-			if fstabcontent.find("No such file or directory")==-1:
-				index = fstabcontent.find(fstabmask) 
-				if index > 1:
-					usefstab = fstabcontent[:index] + fstab
-				else:
-					usefstab = fstabcontent + "\n" + fstab
+	return allmountpoints, fstab
+
+def insert_fstab_section( node, secname, content):
+	fstabcontent = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "cat /etc/fstab")
+	fstabmask =    "##############%sMOUNT#################\n" % secname
+	fstabmaskend = "#############%sMOUNTEND###############\n" % secname
+	if not content.endswith("\n"):
+		content += "\n"
+	fstab = fstabmask + content + fstabmaskend
+	usefstab = fstab
+	if fstabcontent.find("No such file or directory")==-1:
+		indexst = fstabcontent.find(fstabmask) 
+		indexend = fstabcontent.find(fstabmaskend)
+		if indexst > 1:
+			if indexend < 0:
+				usefstab = fstabcontent[:indexst] + fstab 
+			else:
+				usefstab = fstabcontent[:indexst] + fstab + fstabcontent[indexend+len(fstabmaskend):]
+		else:
+			if fstabcontent.endswith("\n"):
+				usefstab = 	fstabcontent + fstab 
+			else:
+				usefstab = fstabcontent + "\n" + fstab 
+	if verbose:
+		print "----------- Resultant /etc/fstab --------------------"
+		print usefstab
+	os.system("mkdir -p ./deploy/etc")
+	with open("./deploy/etc/fstab","w") as f:
+		f.write(usefstab)
+		f.close()
+	utils.sudo_scp( config["ssh_cert"], "./deploy/etc/fstab", "/etc/fstab", "core", node)
+
+def remove_fstab_section( node, secname):
+	fstabmask =    "##############%sMOUNT#################\n" % secname
+	fstabmaskend = "#############%sMOUNTEND###############\n" % secname
+	fstabcontent = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "cat /etc/fstab")
+	bCopyFStab = False
+	if fstabcontent.find("No such file or directory")==-1:
+		indexst = fstabcontent.find(fstabmask) 
+		indexend = fstabcontent.find(fstabmaskend)
+		if indexst > 1:
+			bCopyFStab = True
+			if indexend < 0:
+				usefstab = fstabcontent[:indexst] 
+			else:
+				usefstab = fstabcontent[:indexst] + fstabcontent[indexend+len(fstabmaskend):]
+		if bCopyFStab:
 			if verbose:
 				print "----------- Resultant /etc/fstab --------------------"
 				print usefstab
@@ -1416,14 +1914,157 @@ def mount_fileshares(perform_mount=True):
 				f.write(usefstab)
 				f.close()
 			utils.sudo_scp( config["ssh_cert"], "./deploy/etc/fstab", "/etc/fstab", "core", node)
-			 
-		
-	for k, v in mountpoints.iteritems():
-		mountpoints[k].pop("accesskey", None)
+
+def fileshare_install():
+	all_nodes = get_nodes(config["clusterId"])
+	nodes = all_nodes
+	for node in nodes:
+		allmountpoints, fstab = get_mount_fileshares(node)
+		remotecmd = ""
+		filesharetype = {}
+		# In service, the mount preparation install relevant software on remote machine. 
+		for k,v in allmountpoints.iteritems():
+			if "curphysicalmountpoint" in v:
+				physicalmountpoint = v["curphysicalmountpoint"] 
+				if v["type"] == "azurefileshare":
+					if not ("azurefileshare" in filesharetype):
+						filesharetype["azurefileshare"] = True
+						remotecmd += "sudo apt-get -y install cifs-utils attr; "
+				elif v["type"] == "glusterfs":
+					if not ("glusterfs" in filesharetype):
+						filesharetype["glusterfs"] = True
+						remotecmd += "sudo apt-get install -y glusterfs-client attr; "
+				elif v["type"] == "nfs":
+					if not ("nfs" in filesharetype):
+						filesharetype["nfs"] = True
+						remotecmd += "sudo apt-get install -y nfs-common; "
+						# Ubuntu has issue of rpc.statd not started automatically 
+						# https://bugs.launchpad.net/ubuntu/+source/nfs-utils/+bug/1624715
+						remotecmd += "sudo cp /lib/systemd/system/rpc-statd.service /etc/systemd/system/; "
+						remotecmd += "sudo systemctl add-wants rpc-statd.service nfs-client.target; "
+						remotecmd += "sudo systemctl reenable rpc-statd.service; "
+						remotecmd += "sudo systemctl restart rpc-statd.service; "
+				elif v["type"] == "hdfs":
+					if not ("hdfs" in filesharetype):
+						filesharetype["hdfs"] = True
+						remotecmd += "wget http://archive.cloudera.com/cdh5/one-click-install/trusty/amd64/cdh5-repository_1.0_all.deb; "
+						remotecmd += "sudo dpkg -i cdh5-repository_1.0_all.deb; "
+						remotecmd += "sudo rm cdh5-repository_1.0_all.deb; "
+						remotecmd += "sudo apt-get update; "
+						remotecmd += "sudo apt-get install -y default-jre; "
+						remotecmd += "sudo apt-get install -y --allow-unauthenticated hadoop-hdfs-fuse; "
+		if len(remotecmd)>0:
+			utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)
+
+def mount_fileshares_by_service(perform_mount=True):
+	all_nodes = get_nodes(config["clusterId"])
+	if perform_mount:
+		nodes = all_nodes
+		for node in nodes:
+			allmountpoints, fstab = get_mount_fileshares(node)
+			remotecmd = ""
+			remotecmd += "sudo mkdir -p %s; " % config["storage-mount-path"]
+			remotecmd += "sudo mkdir -p %s; " % config["physical-mount-path"]
+			mountconfig = { }
+			mountconfig["mountpoints"] = allmountpoints
+			mountconfig["storage-mount-path"] = config["storage-mount-path"]
+			mountconfig["physical-mount-path"] = config["physical-mount-path"]
+			for k,v in allmountpoints.iteritems():
+				if "curphysicalmountpoint" in v:
+					remotecmd += "sudo mkdir -p %s; " % v["curphysicalmountpoint"]
+			utils.SSH_exec_cmd( config["ssh_cert"], "core", node, "sudo mkdir -p %s; " % config["folder_auto_share"] )
+			utils.render_template_directory("./template/storage/auto_share", "./deploy/storage/auto_share", config)
+			with open("./deploy/storage/auto_share/mounting.yaml",'w') as datafile:
+				yaml.dump(mountconfig, datafile, default_flow_style=False)			
+			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.timer","/etc/systemd/system/auto_share.timer", "core", node )
+			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.target","/etc/systemd/system/auto_share.target", "core", node )
+			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.service","/etc/systemd/system/auto_share.service", "core", node )
+			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/logging.yaml",os.path.join(config["folder_auto_share"], "logging.yaml"), "core", node )
+			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.py",os.path.join(config["folder_auto_share"], "auto_share.py"), "core", node )
+			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/mounting.yaml",os.path.join(config["folder_auto_share"], "mounting.yaml"), "core", node )
+			remotecmd += "sudo chmod +x %s; " % os.path.join(config["folder_auto_share"], "auto_share.py")
+			remotecmd += "sudo systemctl daemon-reload; "
+			remotecmd += "sudo systemctl enable auto_share.timer; "
+			remotecmd += "sudo systemctl restart auto_share.timer; "
+			remotecmd += "sudo systemctl stop auto_share.service; "
+			if len(remotecmd)>0:
+				utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)
+			# We no longer recommend to insert fstabl into /etc/fstab file, instead, 
+			# we recommend to use service to start auto mount if needed
+			# insert_fstab_section( node, "DLWS", fstab )
+	for k, v in allmountpoints.iteritems():
+		allmountpoints[k].pop("accesskey", None)
 	# print mountpoints
+	return allmountpoints
 
-	return mountpoints
-
+def unmount_fileshares_by_service(clean=False):
+	all_nodes = get_nodes(config["clusterId"])
+	allmountpoints, fstab = get_mount_fileshares()
+	# print fstab
+	if True:
+		nodes = all_nodes
+		for node in nodes:
+			remotecmd = ""
+			remotecmd += "sudo systemctl disable auto_share.timer; "
+			remotecmd += "sudo systemctl stop auto_share.timer; "
+			for k,v in allmountpoints.iteritems():
+				if "curphysicalmountpoint" in v:
+					output = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "sudo mount | grep %s" % v["curphysicalmountpoint"])
+					umounts = []
+					for line in output.splitlines():
+						words = line.split()
+						if len(words)>3 and words[1]=="on":
+							umounts.append( words[2] )
+					umounts.sort()
+					for um in umounts:
+						remotecmd += "sudo umount %s; " % um
+			if clean:
+				for k,v in allmountpoints.iteritems():
+					if "curphysicalmountpoint" in v:
+						remotecmd += "sudo rm -rf %s; " % v["curphysicalmountpoint"]
+			if len(remotecmd)>0:
+				utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)			
+			 
+def link_fileshares(allmountpoints, bForce=False):
+	all_nodes = get_nodes(config["clusterId"])
+	# print fstab
+	if True:
+		nodes = all_nodes
+		firstdirs = {}
+		for k,v in allmountpoints.iteritems():
+			if "mountpoints" in v:
+				firstdirs[v["curphysicalmountpoint"]] = True
+		for node in nodes:
+			remotecmd = ""
+			if bForce:
+				for k,v in allmountpoints.iteritems():
+					if "mountpoints" in v:
+						for basename in v["mountpoints"]:
+							dirname = os.path.join(v["curphysicalmountpoint"], basename )
+							remotecmd += "sudo rm %s; " % dirname
+				remotecmd += "sudo rm %s; " % config["storage-mount-path"]
+				remotecmd += "sudo mkdir -p %s; " % config["storage-mount-path"]
+				
+			output = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "sudo mount" )
+			for k,v in allmountpoints.iteritems():
+				if "mountpoints" in v:
+					if output.find(v["curphysicalmountpoint"])<0:
+						print "!!!Warning!!! %s has not been mounted at %s " % (k, v["curphysicalmountpoint"])
+					else:
+						if ( firstdirs[v["curphysicalmountpoint"]]):
+							firstdirs[v["curphysicalmountpoint"]] = True
+							for basename in v["mountpoints"]:
+								dirname = os.path.join(v["curphysicalmountpoint"], basename )
+								remotecmd += "sudo mkdir -p %s; " % dirname
+								remotecmd += "sudo chmod ugo+rwx %s; " %dirname
+					for basename in v["mountpoints"]:
+						dirname = os.path.join(v["curphysicalmountpoint"], basename )
+						linkdir = os.path.join(config["storage-mount-path"], basename )
+						remotecmd += "if [ ! -e %s ]; then sudo ln -s %s %s; fi; " % (linkdir, dirname, linkdir)
+			# following node need not make the directory
+			if len(remotecmd)>0:
+				utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)
+	()
 
 def deploy_webUI():
 	masterIP = config["kubernetes_master_node"][0]
@@ -1503,6 +2144,8 @@ def get_partions_of_node(node, prog):
 	
 # Get Partition of all nodes in a cluster
 def get_partitions(nodes, regexp):
+	while regexp[-1].isdigit():
+		regexp = regexp[:-1]
 	print "Retrieving partition information for nodes, can take quite a while for a large cluster ......"
 	prog = re.compile("("+regexp+")")
 	nodesinfo = {}
@@ -1625,13 +2268,13 @@ def regmatch_glusterFS( glusterFSargs ):
 	regmatch = re.compile(regexp)
 	return regmatch
 
-def find_glusterFS_volume( alldeviceinfo, regmatch ):	
+def find_matched_volume( alldeviceinfo, regmatch ):	
 	deviceList = {}
 	for bdevice in alldeviceinfo:
 		deviceinfo = alldeviceinfo[bdevice] 
 		for part in deviceinfo["parted"]:
 			bdevicename = deviceinfo["name"] + str(part)
-			#print bdevicename
+			# print bdevicename
 			match = regmatch.search(bdevicename)
 			if not ( match is None ):
 				deviceList[match.group(0)] = deviceinfo["parted"][part]
@@ -1662,6 +2305,7 @@ def write_glusterFS_configuration( nodesinfo, glusterFSargs ):
 						exit()
 			glusterfs_groups[glusterfs_group]["nodes"] = []
 		glusterfs_groups[glusterfs_group]["nodes"].append( node )
+	os.system("mkdir -p %s" %os.path.dirname(config_file))
 	with open(config_file,'w') as datafile:
 		yaml.dump(config_glusterFS, datafile, default_flow_style=False)
 	return config_glusterFS
@@ -1692,18 +2336,117 @@ def stop_glusterFS_endpoint( ):
 		fname = "./deploy/services/glusterFS_ep/glusterFS_ep_%s.yaml" % group
 		run_kubectl( ["delete", "-f", fname ] )
 
+def format_mount_partition_volume( nodes, deviceSelect, format=True ):
+	nodesinfo = get_partitions(nodes, deviceSelect )
+	#if verbose: 
+	#	print nodesinfo
+	reg = re.compile( deviceSelect )
+	for node in nodesinfo:
+		alldeviceinfo = nodesinfo[node]
+		volumes = find_matched_volume( alldeviceinfo, reg )
+		if verbose:
+			print "................. Node %s ................." % node
+			print "Node = %s, volume = %s " % ( node, str(volumes)) 
+		remotecmd = ""
+		if format: 
+			for volume in volumes:
+				remotecmd += "sudo %s %s; " % ( fetch_config( ["localdisk", "mkfscmd"]), volume)
+		hdfsconfig = {} 
+		for volume in volumes:
+			# mount remote volumes. 
+			devicename = volume[volume.rfind("/")+1:]
+			mountpoint = os.path.join( config["local-mount-path"], devicename )
+			remotecmd += "sudo mkdir -p %s; " % mountpoint
+			remotecmd += "sudo mount %s %s; " % ( volume, mountpoint )
+		utils.SSH_exec_cmd( config["ssh_cert"], "core", node, remotecmd, showCmd=verbose )
+		fstabcontent = "%s %s %s" %( volume, mountpoint, fetch_config( ["localdisk", "mountoptions"]))
+		insert_fstab_section( node, "MOUNTLOCALDISK", fstabcontent )
 
+def unmount_partition_volume( nodes, deviceSelect ):
+	nodesinfo = get_partitions(nodes, deviceSelect )
+	#if verbose: 
+	#	print nodesinfo
+	reg = re.compile( deviceSelect )
+	for node in nodesinfo:
+		alldeviceinfo = nodesinfo[node]
+		volumes = find_matched_volume( alldeviceinfo, reg )
+		if verbose:
+			print "................. Node %s ................." % node
+			print "Node = %s, volume = %s " % ( node, str(volumes)) 
+		remotecmd = ""
+		for volume in volumes:
+			# mount remote volumes. 
+			devicename = volume[volume.rfind("/")+1:]
+			mountpoint = os.path.join( config["local-mount-path"], devicename )
+			remotecmd += "sudo umount %s; " % ( mountpoint )
+		utils.SSH_exec_cmd( config["ssh_cert"], "core", node, remotecmd, showCmd=verbose )
+		remove_fstab_section( node, "MOUNTLOCALDISK" )
+
+def generate_hdfs_nodelist( nodes, port, sepchar):
+	return sepchar.join( map( lambda x: x+":"+str(port), nodes))
+
+def generate_hdfs_config( nodes, deviceSelect):
+	hdfsconfig = copy.deepcopy( config["hdfsconfig"] )
+	hdfsconfig["hdfs_cluster_name"] = config["hdfs_cluster_name"]
+	zknodes = get_node_lists_for_service("zookeeper")
+	zknodelist = generate_hdfs_nodelist( zknodes, fetch_config( ["hdfsconfig", "zks", "port"]), ",")
+	if verbose:
+		print "Zookeeper nodes: " + zknodelist
+	hdfsconfig["zks"]["nodes"] = zknodelist
+	hdfsconfig["namenode"]["namenode1"] = get_node_lists_for_service("namenode1")[0]
+	hdfsconfig["namenode"]["namenode2"] = get_node_lists_for_service("namenode2")[0]
+	journalnodes = get_node_lists_for_service("journalnode")
+	if verbose:
+		print "Journal nodes: " + zknodelist
+	journalnodelist = generate_hdfs_nodelist( journalnodes, fetch_config( ["hdfsconfig", "journalnode", "port"]), ";")
+	hdfsconfig["journalnode"]["nodes"] = journalnodelist
+	return hdfsconfig
+
+# Write configuration for each hdfs node. 
+def hdfs_config( nodes, deviceSelect):
+	hdfsconfig = generate_hdfs_config( nodes, deviceSelect )
+	if verbose: 
+		print "HDFS Configuration: %s " % hdfsconfig
+	nodesinfo = get_partitions(nodes, deviceSelect )
+	#if verbose: 
+	#	print nodesinfo
+	reg = re.compile( deviceSelect )
+	for node in nodesinfo:
+		alldeviceinfo = nodesinfo[node]
+		volumes = find_matched_volume( alldeviceinfo, reg )
+		if verbose:
+			print "................. Node %s ................." % node
+			print "Node = %s, volume = %s " % ( node, str(volumes)) 
+		volumelist = []
+		for volume in volumes:
+			# mount remote volumes. 
+			devicename = volume[volume.rfind("/")+1:]
+			mountpoint = os.path.join( config["local-mount-path"], devicename )
+			volumelist.append( mountpoint )
+		volumelist.sort()
+		volumeinfo = ",".join(volumelist)
+		hdfsconfig["dfs"]["data"] = volumeinfo
+		os.system( "mkdir -p %s" % config["docker-run"]["hdfs"]["volumes"]["configDir"]["from"])
+		config_file = "%s/config.yaml" % config["docker-run"]["hdfs"]["volumes"]["configDir"]["from"]		
+		with open(config_file,'w') as datafile:
+			yaml.dump(hdfsconfig, datafile, default_flow_style=False)
+		utils.sudo_scp( config["ssh_cert"], config_file, config["hdfsconfig"]["configfile"], "core", node)
+	# Render docker. 
+	utils.render_template_directory("../docker-images/hdfs", "./deploy/docker-images/hdfs", config, verbose)
 
 # Create gluster FS volume 
 def create_glusterFS_volume( nodesinfo, glusterFSargs ):
 	utils.render_template_directory("./storage/glusterFS", "./deploy/storage/glusterFS", config, verbose)
 	config_glusterFS = write_glusterFS_configuration( nodesinfo, glusterFSargs )
 	regmatch = regmatch_glusterFS(glusterFSargs)
+	# print nodesinfo
 	for node in nodesinfo:
 		alldeviceinfo = nodesinfo[node]
-		volumes = find_glusterFS_volume( alldeviceinfo, regmatch )
+		volumes = find_matched_volume( alldeviceinfo, regmatch )
 		print "................. Node %s ................." % node
-		remotecmd = "";
+		# print volumes
+		# print alldeviceinfo
+		remotecmd = ""
 		remotecmd += "sudo modprobe dm_thin_pool; "
 		remotecmd += "sudo apt-get install -y thin-provisioning-tools; "
 		capacityGB = 0.0
@@ -1711,7 +2454,7 @@ def create_glusterFS_volume( nodesinfo, glusterFSargs ):
 			remotecmd += "sudo pvcreate -f "  
 			dataalignment = fetch_config( ["glusterFS", "dataalignment"] )
 			if not dataalignment is None: 
-				remotecmd += " --dataalignment " + dataalignment;
+				remotecmd += " --dataalignment " + dataalignment
 			remotecmd += " " + volume + "; "
 			capacityGB += volumes[volume]
 		if len(volumes)>0: 
@@ -1775,7 +2518,7 @@ def remove_glusterFS_volume( nodesinfo, glusterFSargs ):
 	regmatch = regmatch_glusterFS(glusterFSargs)
 	for node in nodesinfo:
 		alldeviceinfo = nodesinfo[node]
-		volumes = find_glusterFS_volume( alldeviceinfo, regmatch )
+		volumes = find_matched_volume( alldeviceinfo, regmatch )
 		print "................. Node %s ................." % node
 		remotecmd = "";
 		if len(volumes)>0: 
@@ -1954,7 +2697,11 @@ def run_kube( prog, commands ):
 	nodes = get_ETCD_master_nodes(config["clusterId"])
 	master_node = random.choice(nodes)
 	one_command = " ".join(commands)
-	kube_command = ("%s --server=https://%s:%s --certificate-authority=%s --client-key=%s --client-certificate=%s %s" % (prog, master_node, config["k8sAPIport"], "./deploy/ssl/ca/ca.pem", "./deploy/ssl/kubelet/apiserver-key.pem", "./deploy/ssl/kubelet/apiserver.pem", one_command) )
+	kube_command = ""
+	if (config["isacs"]):
+		kube_command = "%s --kubeconfig=./deploy/%s %s" % (prog, config["acskubeconfig"], one_command)
+	else:
+		kube_command = ("%s --server=https://%s:%s --certificate-authority=%s --client-key=%s --client-certificate=%s %s" % (prog, master_node, config["k8sAPIport"], "./deploy/ssl/ca/ca.pem", "./deploy/ssl/kubelet/apiserver-key.pem", "./deploy/ssl/kubelet/apiserver.pem", one_command) )
 	if verbose:
 		print kube_command
 	os.system(kube_command)
@@ -1972,7 +2719,15 @@ def kubernetes_get_node_name(node):
 	else:
 		return node
 
+def set_zookeeper_cluster():
+	nodes = get_node_lists_for_service("zookeeper")
+	config["zookeepernodes"] = ";".join(nodes)
+	config["zookeepernumberofnodes"] = str(len(nodes))
+
 def render_service_templates():
+	allnodes = get_nodes(config["clusterId"])
+	# Additional parameter calculation
+	set_zookeeper_cluster()
 	# Multiple call of render_template will only render the directory once during execution. 
 	utils.render_template_directory( "./services/", "./deploy/services/", config)
 	
@@ -1983,22 +2738,20 @@ def get_all_services():
 	for service in os.listdir(rootdir):
 		dirname = os.path.join(rootdir, service)
 		if os.path.isdir(dirname):
-			yamlname = os.path.join(dirname, service + ".yaml")
-			if not os.path.isfile(yamlname):
-				yamls = glob.glob("*.yaml")
-				yamlname = yamls[0]
-			with open( yamlname ) as f:
-				try:
-					service_config = yaml.load(f)
-				except:
-					if verbose:
-						print "Failed to open service file %s" %yamlname	
-					pass				
-				f.close()
-				if "kind" in service_config and service_config["kind"]=="DaemonSet":
-					# Only add service if it is a daemonset. 
-					servicedic[service] = yamlname
-				
+			launch_order_file = os.path.join( dirname, "launch_order")
+			if os.path.isfile( launch_order_file ):
+				servicedic[service] = launch_order_file
+			else:
+				yamlname = os.path.join(dirname, service + ".yaml")
+				if not os.path.isfile(yamlname):
+					yamls = glob.glob("*.yaml")
+					yamlname = yamls[0]
+				with open( yamlname ) as f:
+					content = f.read()
+					f.close()
+					if content.find( "DaemonSet" )>=0 or content.find("ReplicaSet")>=0:
+						# Only add service if it is a daemonset. 
+						servicedic[service] = yamlname
 	return servicedic
 	
 def get_service_name(service_config_file):
@@ -2021,11 +2774,13 @@ def get_service_name(service_config_file):
 
 def get_service_yaml( use_service ):
 	servicedic = get_all_services()
+	# print	servicedic
 	newentries = {}
 	for service in servicedic:
 		servicename = get_service_name(servicedic[service])
 		newentries[servicename] = servicedic[service]
 	servicedic.update(newentries)
+	# print servicedic
 	fname = servicedic[use_service]
 	return fname
 			
@@ -2043,7 +2798,10 @@ def get_node_lists_for_service(service):
 			nodes = config["etcd_node"]
 		elif nodetype.find( "etcd_node_" )>=0:
 			nodenumber = int(nodetype[nodetype.find( "etcd_node_" )+len("etcd_node_"):])
-			nodes = [ config["etcd_node"][nodenumber-1] ]
+			if len(config["etcd_node"])>=nodenumber:
+				nodes = [ config["etcd_node"][nodenumber-1] ]
+			else:
+				nodes = []
 		elif nodetype == "all":
 			nodes = config["worker_node"] + config["etcd_node"]
 		else:
@@ -2068,14 +2826,14 @@ def get_node_lists_for_service(service):
 # The kubernete node will be marked accordingly to facilitate the running of daemon service. 
 def kubernetes_label_nodes( verb, servicelists, force ):
 	servicedic = get_all_services()
-	#print servicedic
+	# print servicedic
 	get_nodes(config["clusterId"])
 	labels = fetch_config(["kubelabels"])
 	# print labels
-	for service in servicedic:
+	for service, serviceinfo in servicedic.iteritems():
 		servicename = get_service_name(servicedic[service])
 		# print "Service %s - %s" %(service, servicename )
-		if (not service in labels) and (not servicename in labels) and "default" in labels:
+		if (not service in labels) and (not servicename in labels) and "default" in labels and (not servicename is None):
 			labels[servicename] = labels["default"]
 	# print servicelists
 	# print labels
@@ -2085,7 +2843,7 @@ def kubernetes_label_nodes( verb, servicelists, force ):
 		for service in servicelists:
 			if (not service in labels) and "default" in labels:
 				labels[service] = labels["default"]
-	#print servicelists
+	# print servicelists
 	for label in servicelists:
 		nodes = get_node_lists_for_service(label)
 		if verbose: 
@@ -2125,9 +2883,7 @@ def kubernetes_mark_nodes( marklist, bMark ):
 				else:
 					kubernetes_label_node( "", nodename, mark+"-" )
 
-def start_kube_service( servicename ):
-	fname = get_service_yaml( servicename )
-	# print "start service %s with %s" % (servicename, fname)
+def start_one_kube_service(fname):
 	if verbose:
 		f = open(fname)
 		service_yaml = yaml.load(f)
@@ -2136,9 +2892,34 @@ def start_kube_service( servicename ):
 		print service_yaml
 	run_kubectl( ["create", "-f", fname ] )
 
+def stop_one_kube_service(fname):
+	run_kubectl( ["delete", "-f", fname ] )
+
+def start_kube_service( servicename ):
+	fname = get_service_yaml( servicename )
+	# print "start service %s with %s" % (servicename, fname)
+	dirname = os.path.dirname(fname)
+	if os.path.exists(os.path.join(dirname,"launch_order")):
+		with open(os.path.join(dirname,"launch_order"),'r') as f:
+			allservices = f.readlines()
+			for filename in allservices:
+				filename = filename.strip('\n')
+				start_one_kube_service(os.path.join(dirname,filename))		
+	else:
+		start_one_kube_service(fname)
+
 def stop_kube_service( servicename ):
 	fname = get_service_yaml( servicename )
-	run_kubectl( ["delete", "-f", fname ] )
+	dirname = os.path.dirname(fname)
+	if os.path.exists(os.path.join(dirname,"launch_order")):
+		with open(os.path.join(dirname,"launch_order"),'r') as f:
+			allservices = f.readlines()
+			for filename in reversed(allservices):
+				filename = filename.strip('\n')
+				stop_one_kube_service(os.path.join(dirname,filename))		
+	else:
+		stop_one_kube_service(fname)
+	
 	
 def replace_kube_service( servicename ):
 	fname = get_service_yaml( servicename )
@@ -2173,12 +2954,24 @@ def push_docker_images(nargs):
 	if verbose:
 		print "Build & push docker images to docker register  ..."
 	push_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"], nargs, config, verbose, nocache = nocache )
+
+def check_buildable_images(nargs):
+	for imagename in nargs:
+		imagename = imagename.lower()
+		if imagename in config["build-docker-via-config"]:
+			print "Docker image %s should be built via configuration. " % imagename
+			exit()
 	
-def run_docker_image( imagename, native = False ):
+def run_docker_image( imagename, native = False, sudo = False ):
+	dockerConfig = fetch_config( ["docker-run", imagename ])
 	full_dockerimage_name = build_docker_fullname( config, imagename )
+	# print full_dockerimage_name
 	matches = find_dockers( full_dockerimage_name )
 	if len( matches ) == 0:
-		matches = find_dockers( imagename )
+		local_dockerimage_name = config["dockerprefix"] + dockername + ":" + config["dockertag"]
+		matches = find_dockers( local_dockerimage_name )
+		if len( matches ) == 0:
+			matches = find_dockers( imagename )
 	if len( matches ) == 0:
 		print "Error: can't find any docker image built by name %s, you may need to build the relevant docker first..." % imagename
 	elif len( matches ) > 1: 
@@ -2187,7 +2980,7 @@ def run_docker_image( imagename, native = False ):
 		if native: 
 			os.system( "docker run --rm -ti " + matches[0] )
 		else:
-			run_docker( matches[0], prompt = imagename )	
+			run_docker( matches[0], prompt = imagename, dockerConfig = dockerConfig, sudo = sudo )	
 
 def run_command( args, command, nargs, parser ):
 	nocache = args.nocache
@@ -2240,6 +3033,10 @@ def run_command( args, command, nargs, parser ):
 	config["launch-glusterfs-opt"] = args.glusterfs;
 
 	get_ssh_config()
+
+	add_acs_config()
+	if verbose and config["isacs"]:
+		print "USing Azure Container Services"
 	
 	if args.yes:
 		global defanswer
@@ -2307,7 +3104,7 @@ def run_command( args, command, nargs, parser ):
 
 	elif command == "sshkey":
 		if len(nargs) >=1 and nargs[0] == "install":
-			install_ssh_key()
+			install_ssh_key(nargs[1:])
 		else:
 			parser.print_help()
 			print "Error: build target %s is not recognized. " % nargs[0] 
@@ -2449,6 +3246,28 @@ def run_command( args, command, nargs, parser ):
 			parser.print_help()
 			print "Unknown subcommand for glusterFS: " + nargs[0]
 			exit()
+
+	elif command == "hdfs" and len(nargs) >=1:
+		allnodes = get_nodes(config["clusterId"])
+		nodes = get_node_lists_for_service("hdfs")
+		if nargs[0] == "create":
+			print ("This operation will CREATE new volume over all existing hdfs partitions, and will erase the data on those partitions "  )
+			response = raw_input ("Please type (CREATE) in ALL CAPITALS to confirm the operation ---> ")
+			if response == "CREATE":
+				format_mount_partition_volume( nodes, fetch_config(["hdfs", "partitions"]), True )
+		elif nargs[0] == "mount":
+			format_mount_partition_volume( nodes, fetch_config(["hdfs", "partitions"]), False )
+		elif nargs[0] == "umount":
+			unmount_partition_volume( nodes, fetch_config(["hdfs", "partitions"]))
+		elif nargs[0] == "config":
+			hdfs_config( nodes, fetch_config(["hdfs", "partitions"]))
+			dockername = "hdfs"
+			push_docker_images( [dockername] )
+		else:
+			parser.print_help()
+			print "Unknown subcommand for hdfs " + nargs[0]
+			exit()
+			
 			
 	elif command == "doonall" and len(nargs)>=1:
 		nodes = get_nodes(config["clusterId"])
@@ -2488,8 +3307,31 @@ def run_command( args, command, nargs, parser ):
 		deploy_webUI()
 
 	elif command == "mount":
-		mount_fileshares(True)
-		
+		if len(nargs)<=0:
+			fileshare_install()
+			allmountpoints = mount_fileshares_by_service(True)
+			link_fileshares(allmountpoints, args.force)
+		elif nargs[0]=="install":
+			fileshare_install()
+		elif nargs[0]=="start":
+			allmountpoints = mount_fileshares_by_service(True)
+			link_fileshares(allmountpoints, args.force)
+		elif nargs[0]=="stop":
+			unmount_fileshares_by_service(False)
+		elif nargs[0]=="clean":
+			print ("This operation will CLEAN local content in the physical mount point, and may erase the data on those locations. "  )
+			response = raw_input ("Please type (CLEAN) in ALL CAPITALS to confirm the operation ---> ")
+			if response == "CLEAN":
+				unmount_fileshares_by_service(True)
+		elif nargs[0]=="nolink":
+			mount_fileshares_by_service(True)
+		elif nargs[0]=="link":
+			all_nodes = get_nodes(config["clusterId"])
+			allmountpoints, fstab = get_mount_fileshares()
+			link_fileshares(allmountpoints, args.force)
+		else:
+			parser.print_help()
+			print "Error: mount subcommand %s is not recognized " % nargs[0]
 	elif command == "labelwebui":
 		label_webUI(nargs[0])
 		
@@ -2501,6 +3343,24 @@ def run_command( args, command, nargs, parser ):
 
 	elif command == "azure":
 		deploy_azure()
+
+	elif command == "acs":
+		if (len(nargs) >= 1):
+			if nargs[0]=="deploy":
+				acs_deploy()
+			elif nargs[0]=="getip":
+				ip = acs_get_machinesAndIPsFast()
+				print ip
+			elif nargs[0]=="createip":
+				ip = acs_get_machinesAndIPs(True)
+				print ip
+			elif nargs[0]=="label":
+				ip = get_nodes_from_acs("")
+				acs_label_webui()
+			elif nargs[0]=="openports":
+				acs_add_nsg_rules({"HTTPAllow" : 80, "RestfulAPIAllow" : 5000})
+			elif nargs[0]=="restartwebui":
+				run_script_blocks(scriptblocks["restartwebui"])
 			
 	elif command == "update" and len(nargs)>=1:
 		if nargs[0] == "config":
@@ -2520,6 +3380,11 @@ def run_command( args, command, nargs, parser ):
 					servicenames.append(service)
 				# print servicenames
 			if nargs[0] == "start":
+				if args.force and "hdfsformat" in servicenames:
+					print ("This operation will WIPEOUT HDFS namenode, and erase all data on the HDFS cluster,  "  )
+					response = raw_input ("Please type (WIPEOUT) in ALL CAPITALS to confirm the operation ---> ")
+					if response == "WIPEOUT":
+						config["hdfsconfig"]["formatoptions"] = "--force "
 				# Start a kubelet service. 
 				for servicename in servicenames:
 					start_kube_service(servicename)
@@ -2586,12 +3451,14 @@ def run_command( args, command, nargs, parser ):
 	elif command == "docker":
 		if len(nargs)>=1:
 			if nargs[0] == "build":
+				check_buildable_images(nargs[1:])
 				build_docker_images(nargs[1:])
 			elif nargs[0] == "push":
+				check_buildable_images(nargs[1:])
 				push_docker_images(nargs[1:])
 			elif nargs[0] == "run":
 				if len(nargs)>=2:
-					run_docker_image( nargs[1], args.native ) 
+					run_docker_image( nargs[1], args.native, sudo = args.sudo ) 
 				else:
 					parser.print_help()
 					print "Error: docker run expects an image name "
@@ -2666,6 +3533,11 @@ Command:
               if s_i < 0, the partition is s_i GB, 
               if s_i > 0, the partition is in portitional to s_i. 
               We use parted mkpart percentage% to create partitions. As such, the minimum partition is 1% of a disk. 
+  mount     install | start | stop | link
+  		    start: mount all fileshares 
+			install: install all client components related to the fileshare
+			stop: unmount all fileshares
+			nolink: mount all fileshares, but doesnot symbolic link to the mount share
   glusterfs [args] manage glusterFS on the cluster. 
             display: display lvm information on each node of the cluster. 
             create: formatting and create lvm for used by glusterfs. 
@@ -2673,6 +3545,10 @@ Command:
             config: generate configuration file, build and push glusterfs docker.
             start: start glusterfs service and endpoints. 
             stop: stop glusterfs service and endpoints. 
+  hdfs      [args] manage HDFS on the cluster. 
+  			create: formatting and create local drive for use by HDFS. 
+			mount: mount local drive for use by HDFS. 
+			umount: unmount local drive that is used for HDFS.
   download  [args] Manage download
             kubectl: download kubelet/kubectl.
             kubelet: download kubelet/kubectl.
@@ -2698,6 +3574,7 @@ Command:
   docker    [args] manage docker images. 
             build: build one or more docker images associated with the current deployment. 
             push: build and push one or more docker images to register
+			run [--sudo]: run a docker image (--sudo: in super user mode)
   execonall [cmd ... ] Execute the command on all nodes and print the output. 
   doonall [cmd ... ] Execute the command on all nodes. 
   runscriptonall [script] Execute the shell/python script on all nodes. 
@@ -2708,6 +3585,9 @@ Command:
 	parser.add_argument("-y", "--yes", 
 		help="Answer yes automatically for all prompt", 
 		action="store_true" )
+	parser.add_argument("--force", 
+		help="Force perform certain operation", 
+		action="store_true" )	
 	parser.add_argument("--native", 
 		help="Run docker in native mode (in how it is built)", 
 		action="store_true" )	

@@ -25,7 +25,12 @@ spec:
         volumeMounts:
         - mountPath: /RestfulAPI
           name: apiconfig
+        - mountPath: /var/log/apache2
+          name: log
       volumes:
       - name: apiconfig
         hostPath:
           path: /etc/RestfulAPI
+      - name: log
+        hostPath:
+          path: /var/log/restfulapi

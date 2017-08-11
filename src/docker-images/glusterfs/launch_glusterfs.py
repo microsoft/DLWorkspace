@@ -195,6 +195,8 @@ def start_glusterfs( command, inp, logdir = '/var/log/glusterfs/launch' ):
 	if bRun:
 		glusterfs_mountpoint = config["glusterfs_mountpoint"]
 		for volume in gluster_volumes:
+			run_command( "gluster volume set %s nfs.disable off" % volume )
+			run_command( "gluster volume start " + volume )
 			volume_mount = os.path.join( glusterfs_mountpoint, volume ) 
 			run_command( "sudo mkdir -p %s" % volume_mount ) 
 			run_command( "sudo umount %s " % volume_mount ) 

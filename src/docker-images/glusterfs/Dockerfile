@@ -9,6 +9,7 @@ MAINTAINER Jin Li <jinlmsft@hotmail.com>
 RUN curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
 RUN python get-pip.py
 RUN pip install pyyaml jinja2 argparse
+RUN yum install -y attr
 
 WORKDIR /opt/glusterfs 
 ADD launch_glusterfs.py /opt/glusterfs/ 

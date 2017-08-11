@@ -2,8 +2,26 @@
     ViewData["Title"] = "Submit Your Job";
 }
 
-<script>
+<script type="text/javascript">
+
+    function buildTemplateList() {
+        $.ajax({
+            url: "/api/dlws/GetTemplates",
+            dataType: 'json',
+            timeout: 10000 //10 second timeout,
+        }).done(
+            function (json) {
+                $('#templateselect').find("option").remove();
+                for (var i = 0; i < json.templates.length; i++) {
+                    var row = $("<option>" + json.templates[i].name + "</option>");
+                    row.attr("value", JSON.stringify(json.templates[i]));
+                    $('#templateselect').append(row);
+                }
+            });
+    }
+
     $(document).ready(function () {
+        buildTemplateList();
         $('#submit_job').on('submit', function (e) { //use on if jQuery 1.7+
             e.preventDefault();  //prevent form from submitting
             var params = "";
@@ -89,12 +107,11 @@
             }
 
             params = params + "jobType=training&";
-            params = params + "jobtrainingtype=" + jobtrainingtype+"&";
+            params = params + "jobtrainingtype=" + jobtrainingtype + "&";
 
-            if (jobtrainingtype == "PSDistJob")
-            {
+            if (jobtrainingtype == "PSDistJob") {
                 params = params + "numps=" + numps + "&";
-                params = params + "numpsworker=" + numpsworker+"&";
+                params = params + "numpsworker=" + numpsworker + "&";
             }
 
             if (jobtrainingtype == "MPIDistJob") {
@@ -137,241 +154,192 @@
 
         });
     });
-</script>
 
-<script type="text/javascript">
+
     function ShowHideDiv(chkbox, divId) {
         var elem = document.getElementById(divId);
         elem.style.display = chkbox.checked ? "block" : "none";
     }
-    function ShowRegularJob() {
 
+    function ShowRegularJob() {
         var elem2 = document.getElementById("PSDistJob");
         elem2.style.display = "none";
-
-
     }
-    function ShowPSDistJob() {
 
+    function ShowPSDistJob() {
         var elem2 = document.getElementById("PSDistJob");
         elem2.style.display = "block";
-
     }
 
-    function UseTemplate(id) {
-        if (id == "tensorflow") {
-            document.getElementById("jobname").value = "tensorflow-ipython";
-            document.getElementById("resourcegpu").value = 1;
-            document.getElementById("workpath").value = "@ViewData["Username"]";
-            document.getElementById("datapath").value = "imagenet";
-            document.getElementById("jobpath").value = "";
-
-            document.getElementById("image").value = "tensorflow/tensorflow:latest-gpu";
-            //document.getElementById("cmd").value = "";
-            document.getElementById("cmd").value = "export HOME=/job && jupyter notebook --no-browser --port=8888 --ip=0.0.0.0 --notebook-dir=/";
-
-            document.getElementById("chkInteractiveJob").checked = true;
-            document.getElementById("chkLogDir").checked = false;
-            ShowHideDiv(document.getElementById("chkInteractiveJob"), 'interactiveportfield')
-            ShowHideDiv(document.getElementById("chkLogDir"), 'logdirfield')
-
-            document.getElementById("interactivePort").value = "8888";
-            document.getElementById("logdir").value = "";
-
-
-            document.getElementById("runningasroot").checked = false;
-        }
-        else if (id == "tensorflowcpu") {
-            document.getElementById("jobname").value = "tensorflow-ipython-cpu";
-            document.getElementById("resourcegpu").value = 0;
-            document.getElementById("workpath").value = "@ViewData["Username"]";
-            document.getElementById("datapath").value = "imagenet";
-            document.getElementById("jobpath").value = "";
-
-            document.getElementById("image").value = "tensorflow/tensorflow:latest";
-            //document.getElementById("cmd").value = "";
-            document.getElementById("cmd").value = "export HOME=/job && jupyter notebook --no-browser --port=8888 --ip=0.0.0.0 --notebook-dir=/";
-
-            document.getElementById("chkInteractiveJob").checked = true;
-            document.getElementById("chkLogDir").checked = false;
-            ShowHideDiv(document.getElementById("chkInteractiveJob"), 'interactiveportfield')
-            ShowHideDiv(document.getElementById("chkLogDir"), 'logdirfield')
-
-            document.getElementById("interactivePort").value = "8888";
-            document.getElementById("logdir").value = "";
-
-
-            document.getElementById("runningasroot").checked = false;
-        }
-        else if (id == "tensorflowssh") {
-            document.getElementById("jobname").value = "tensorflow-ssh";
-            document.getElementById("resourcegpu").value = 0;
-            document.getElementById("workpath").value = "@ViewData["Username"]";
-            document.getElementById("datapath").value = "imagenet";
-            document.getElementById("jobpath").value = "";
-
-            document.getElementById("image").value = "tensorflow/tensorflow:latest-gpu";
-            document.getElementById("cmd").value = "apt-get update && apt-get install -y openssh-server sudo && addgroup --force-badname --gid  @ViewData["gid"] domainusers && adduser --force-badname --home /home/@ViewData["Username"] --shell /bin/bash --uid @ViewData["uid"]  -gecos '' @ViewData["Username"] --disabled-password --gid @ViewData["gid"] && adduser @ViewData["Username"] sudo && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && mkdir -p /root/.ssh && cat /work/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && mkdir -p /home/@ViewData["Username"]/.ssh && cat /work/.ssh/id_rsa.pub >> /home/@ViewData["Username"]/.ssh/authorized_keys && service ssh restart && sleep infinity";
-            document.getElementById("chkInteractiveJob").checked = true;
-            document.getElementById("chkLogDir").checked = false;
-            ShowHideDiv(document.getElementById("chkInteractiveJob"), 'interactiveportfield')
-            ShowHideDiv(document.getElementById("chkLogDir"), 'logdirfield')
-
-            document.getElementById("interactivePort").value = "22";
-            document.getElementById("logdir").value = "";
-            document.getElementById("runningasroot").checked = true;
-
-        }
-        else if (id == "caffe") {
-            document.getElementById("jobname").value = "caffe-ipython";
-            document.getElementById("resourcegpu").value = 0;
-            document.getElementById("workpath").value = "@ViewData["Username"]";
-            document.getElementById("datapath").value = "imagenet";
-            document.getElementById("jobpath").value = "";
-
-            document.getElementById("image").value = "bvlc/caffe:cpu";
-            //document.getElementById("cmd").value = "pip install jupyter && jupyter notebook --no-browser --port=8889 --allow-root --ip=0.0.0.0 --notebook-dir=/work";
-            document.getElementById("cmd").value = "apt-get update && apt-get install -y python-pip sudo && addgroup --force-badname --gid  @ViewData["gid"] domainusers && adduser --force-badname --home /home/@ViewData["Username"] --shell /bin/bash --uid @ViewData["uid"]  -gecos '' @ViewData["Username"] --disabled-password --gid @ViewData["gid"] && pip install jupyter && cd /home/@ViewData["Username"] && sudo -H -u @ViewData["UserName"] jupyter notebook --no-browser --port=8889 --ip=0.0.0.0 --notebook-dir=/";
-
-
-
-
-            document.getElementById("chkInteractiveJob").checked = true;
-            document.getElementById("chkLogDir").checked = false;
-            ShowHideDiv(document.getElementById("chkInteractiveJob"), 'interactiveportfield')
-            ShowHideDiv(document.getElementById("chkLogDir"), 'logdirfield')
-
-            document.getElementById("interactivePort").value = "8889";
-            document.getElementById("logdir").value = "";
-            document.getElementById("runningasroot").checked = true;
-
-        }
-        else if (id == "caffessh") {
-            document.getElementById("jobname").value = "caffe-ssh";
-            document.getElementById("resourcegpu").value = 0;
-            document.getElementById("workpath").value = "@ViewData["Username"]";
-            document.getElementById("datapath").value = "imagenet";
-            document.getElementById("jobpath").value = "";
-
-            document.getElementById("image").value = "bvlc/caffe:cpu";
-            document.getElementById("cmd").value = "apt-get update && apt-get install -y openssh-server sudo && addgroup --force-badname --gid  @ViewData["gid"] domainusers && adduser --force-badname --home /home/@ViewData["Username"] --shell /bin/bash --uid @ViewData["uid"]  -gecos '' @ViewData["Username"] --disabled-password --gid @ViewData["gid"] && adduser @ViewData["Username"] sudo && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers && mkdir -p /root/.ssh && cat /work/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && mkdir -p /home/@ViewData["Username"]/.ssh && cat /work/.ssh/id_rsa.pub >> /home/@ViewData["Username"]/.ssh/authorized_keys && cp /work/.ssh/id_rsa* /home/@ViewData["Username"]/.ssh/ && chown -R @ViewData["Username"] /home/@ViewData["Username"]/.ssh/ && service ssh restart && env | while read line; do if [[ $line != HOME=* ]] && [[ $line != INTERACTIVE* ]] ; then echo \"export $line\" >> /home/@ViewData["Username"]/.bashrc; fi; done &&  sleep infinity";
-            document.getElementById("chkInteractiveJob").checked = true;
-            document.getElementById("chkLogDir").checked = false;
-            ShowHideDiv(document.getElementById("chkInteractiveJob"), 'interactiveportfield')
-            ShowHideDiv(document.getElementById("chkLogDir"), 'logdirfield')
-
-            document.getElementById("interactivePort").value = "22";
-            document.getElementById("logdir").value = "";
-            document.getElementById("runningasroot").checked = true;
-
-        }
-        else if (id == "caffesample")
-        {
-            document.getElementById("jobname").value = "caffe training example - resnet18";
-            document.getElementById("resourcegpu").value = 1;
-            document.getElementById("workpath").value = "samples";
-            document.getElementById("datapath").value = "imagenet";
-            document.getElementById("jobpath").value = "";
-
-            document.getElementById("image").value = "bvlc/caffe:gpu";
-            document.getElementById("cmd").value = "caffe train -solver /work/caffe/solver_resnet18.prototxt";
-
-            document.getElementById("chkLogDir").checked = false;
-            document.getElementById("chkInteractiveJob").checked = false;
-            ShowHideDiv(document.getElementById("chkInteractiveJob"), 'interactiveportfield')
-            ShowHideDiv(document.getElementById("chkLogDir"), 'logdirfield')
-
-            document.getElementById("interactivePort").value = "";
-            document.getElementById("logdir").value = "";
-            document.getElementById("runningasroot").checked = false;
-
-        }
-        else if (id == "tensorflowsample") {
-            document.getElementById("jobname").value = "Tensorflow training example - inception";
-            document.getElementById("resourcegpu").value = 1;
-            document.getElementById("workpath").value = "samples";
-            document.getElementById("datapath").value = "imagenet";
-            document.getElementById("jobpath").value = "";
-
-            document.getElementById("image").value = "tensorflow/tensorflow:0.12.1-gpu";
-            document.getElementById("cmd").value = "/work/tensorflow/models/inception/bazel-bin/inception/imagenet_train --num_gpus=1 --batch_size=32 --train_dir=/job/model --data_dir=/data/tensor";
-
-            document.getElementById("chkLogDir").checked = false;
-            document.getElementById("chkInteractiveJob").checked = false;
-            ShowHideDiv(document.getElementById("chkInteractiveJob"), 'interactiveportfield')
-            ShowHideDiv(document.getElementById("chkLogDir"), 'logdirfield')
-
-            document.getElementById("interactivePort").value = "";
-            document.getElementById("logdir").value = "";
-            document.getElementById("runningasroot").checked = false;
-
-        }
-        else if (id == "cntkipython") {
-            document.getElementById("jobname").value = "CNTK-ipython";
-            document.getElementById("resourcegpu").value = 0;
-            document.getElementById("workpath").value = "@ViewData["Username"]";
-            document.getElementById("datapath").value = "imagenet";
-            document.getElementById("jobpath").value = "";
-
-            document.getElementById("image").value = "microsoft/cntk";
-            //document.getElementById("cmd").value = "pip install jupyter && jupyter notebook --no-browser --port=8889 --allow-root --ip=0.0.0.0 --notebook-dir=/work";
-            document.getElementById("cmd").value = "bash -c 'source \"/cntk/activate-cntk\" ; jupyter notebook --no-browser --port=8889 --ip=0.0.0.0 --notebook-dir=/ --allow-root'";
-
-
-            document.getElementById("chkInteractiveJob").checked = true;
-            document.getElementById("chkLogDir").checked = false;
-            ShowHideDiv(document.getElementById("chkInteractiveJob"), 'interactiveportfield')
-            ShowHideDiv(document.getElementById("chkLogDir"), 'logdirfield')
-
-            document.getElementById("interactivePort").value = "8889";
-            document.getElementById("logdir").value = "";
-            document.getElementById("runningasroot").checked = true;
-
-        }
+    function replaceViewData(str) {
+        str = str.replace(/\$\$username\$\$/g, "@ViewData["Username"]");
+        str = str.replace(/\$\$gid\$\$/g, "@ViewData["gid"]");
+        str = str.replace(/\$\$uid\$\$/g, "@ViewData["uid"]");
+        return str;
     }
+
+    function subViewData(str) {
+        str = str.replace(new RegExp("@ViewData["Username"]", 'g'), "$$$$username$$$$");
+        str = str.replace(new RegExp("@ViewData["gid"]", 'g'), "$$$$gid$$$$");
+        str = str.replace(new RegExp("@ViewData["uid"]", 'g'), "$$$$uid$$$$");
+        return str;
+    }
+
+    function makeTemplate() {
+        var template = {};
+        template.job_name = document.getElementById("jobname").value;
+        template.gpu_count = document.getElementById("resourcegpu").value;
+        template.work_path = document.getElementById("workpath").value;
+        template.data_path = document.getElementById("datapath").value;
+        template.job_path = document.getElementById("jobpath").value;
+        template.image = document.getElementById("image").value;
+        template.cmd = document.getElementById("cmd").value;
+        template.is_interactive = document.getElementById("chkInteractiveJob").checked;
+        template.do_log = document.getElementById("chkLogDir").checked;
+        template.port = document.getElementById("interactivePort").value;
+        template.log_path = document.getElementById("logdir").value;
+        template.run_as_root = document.getElementById("runningasroot").checked;
+        return template
+    }
+
+    function UseTemplate(tempalteValueString) {
+       // alert(tempalteValueString);
+        var templateValue = JSON.parse(tempalteValueString);
+        var settings = templateValue.template;
+        if (!(templateValue.location === undefined)) {
+            var master = templateValue.location == "Master";
+            document.getElementsByName("templatelocation")[0].checked = !(templateValue.location === undefined) && master;
+            document.getElementsByName("templatelocation")[1].checked = !(templateValue.location === undefined) && !master;
+        }
+        else {
+            document.getElementsByName("templatelocation")[0].checked = false;
+            document.getElementsByName("templatelocation")[1].checked = false;
+        }
+
+        document.getElementById("templateName").value = templateValue.name;
+        document.getElementById("jobname").value = (settings.job_name === undefined) ? "" : settings.job_name;
+        document.getElementById("resourcegpu").value = (settings.gpu_count === undefined) ? 0 : settings.gpu_count;
+        document.getElementById("workpath").value = (settings.work_path === undefined) ? "@ViewData["Username"]" : settings.work_path;
+        document.getElementById("datapath").value = (settings.data_path === undefined) ? "imagenet" : settings.data_path;
+        document.getElementById("jobpath").value = (settings.job_path === undefined) ? "" : settings.job_path;
+        document.getElementById("image").value = (settings.image === undefined) ? "" : settings.image;
+        document.getElementById("cmd").value = (settings.cmd === undefined) ? "" : (document.getElementById("submitModalLabel").innerHTML == "Manage Templates" ? settings.cmd : replaceViewData(settings.cmd));
+        document.getElementById("chkInteractiveJob").checked = settings.is_interactive;
+        document.getElementById("chkLogDir").checked = settings.do_log;
+        ShowHideDiv(document.getElementById("chkInteractiveJob"), 'interactiveportfield')
+        ShowHideDiv(document.getElementById("chkLogDir"), 'logdirfield')
+        document.getElementById("interactivePort").value = (settings.port === undefined) ? "8888" : settings.port;
+        document.getElementById("logdir").value = (settings.log_path === undefined) ? "" : settings.log_path;
+        document.getElementById("runningasroot").checked = settings.run_as_root;
+    }
+
+    function SwitchToTemplates() {
+        document.getElementById("submitModalLabel").innerHTML = "Manage Templates";
+        document.getElementById("templateSection").style.display = "block";
+        document.getElementById("templateFooter").style.display = "block";
+        document.getElementById("jobFooter").style.display = "none";
+        document.getElementById("cmd").value = subViewData(document.getElementById("cmd").value);
+    }
+
+    function SaveTemplate() {
+        var templatename = encodeURIComponent($("#templateName").val().trim());
+        if (templatename == "") {
+            alert("Template Name cannot be empty!");
+            return;
+        }
+        var params = "";
+        params = params + "name=" + templatename + "&";
+        params = params + "json=" + encodeURIComponent(JSON.stringify(makeTemplate())) + "&";
+
+        if (document.getElementById("locationdiv").style.display == "block") {
+            var radios = document.getElementsByName('templatelocation');
+
+            for (var i = 0, length = radios.length; i < length; i++) {
+                if (radios[i].checked) {
+                    params = params + "location=" + radios[i].value + "&";
+                    break;
+                }
+            }
+        }
+        var url = "/api/dlws/SaveTemplate?" + params;
+        $.ajax({
+            url: url,
+            dataType: 'json',
+            error: function (xhr, ajaxOptions, thrownError) {
+                alert("RestfulAPI error!");
+            },
+            timeout: 10000 //10 second timeout
+        }).done(
+            function (payload) {
+                alert(payload.message);
+            });
+        buildTemplateList();
+    }
+
+    function DeleteTemplate() {
+        var templatename = $("#templateName").val().trim();
+        if (templatename == "") {
+            alert("Template Name cannot be empty!");
+            return;
+        }
+        var params = "";
+        params = params + "name=" + templatename + "&";
+        if (document.getElementById("locationdiv").style.display == "block") {
+            var radios = document.getElementsByName('templatelocation');
+
+            for (var i = 0, length = radios.length; i < length; i++) {
+                if (radios[i].checked) {
+                    params = params + "location=" + radios[i].value + "&";
+                    break;
+                }
+            }
+        }
+
+        var url = "/api/dlws/DeleteTemplate?" + params;
+        $.ajax({
+            url: url,
+            dataType: 'json',
+            error: function (xhr, ajaxOptions, thrownError) {
+                alert("RestfulAPI error!");
+            },
+            timeout: 10000 //10 second timeout
+        }).done(
+            function (payload) {
+                alert(payload.message);
+            });
+        buildTemplateList();
+    }
+
 </script>
 
-<br />
-<br />
 <div class="modal-dialog" role="document">
     <div class="modal-content">
         <form method="POST" id="submit_job">
 
             <div class="modal-header">
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                <h4 class="modal-title" id="submitModalLabel">Submit Job</h4>
+                <h4 class="modal-title" id="submitModalLabel">@((ViewData["Mode"].Equals("Templates"))?"Manage Templates":"Submit Job")</h4>
             </div>
 
             <div class="modal-body">
-
-
 
                 <div class="form-group">
                     <label>
                         Use Template
                     </label>
                     <br />
-                    <select onchange="UseTemplate(this.value)"> 
-                        <option value="none">None</option>
-                        <option value="tensorflow">Tensorflow-IPython-GPU</option>
-                        <option value="tensorflowcpu">Tensorflow-IPython-CPU</option>
-                        <option value="tensorflowssh">Tensorflow-SSH</option>
-                        <option value="caffe">Caffe-IPython</option>
-                        <option value="caffessh">Caffe-SSH</option>
-                        <option value="caffesample">Caffe training example</option>
-                        <option value="tensorflowsample">Tensorflow training example</option>
-                        <option value="cntkipython">CNTK-IPython</option>
-                        
-                    </select>
-
+                    <select onchange="UseTemplate(this.value)" id="templateselect"></select>
                 </div>
+
                 <div class="form-group">
                     <label>
                         Job Type
                     </label>
-                    <br/>
-                    <input type="radio" name="jobtrainingtype" id="jobtrainingtype" value="RegularJob" checked="checked"  onclick="ShowRegularJob()" /> Regular Training Job  <br />
-                    <input type="radio" name="jobtrainingtype" id="jobtrainingtype" value="PSDistJob" onclick="ShowPSDistJob()" /> Distributed Training Job  <br />
+                    <br />
+                    <input type="radio" name="jobtrainingtype" id="jobtrainingtype" value="RegularJob" checked="checked" onclick="ShowRegularJob()" /> Regular Training Job
+                    <br />
+                    <input type="radio" name="jobtrainingtype" id="jobtrainingtype" value="PSDistJob" onclick="ShowPSDistJob()" /> Distributed Training Job
+                    <br />
                 </div>
 
                 <div class="form-group">
@@ -385,9 +353,8 @@
                     <label>
                         Number of GPUs
                     </label>
-                    <input type="number" class="form-control" id="resourcegpu" value="1" />
+                    <input type="number" class="form-control" id="resourcegpu" value="0" />
                 </div>
-
 
                 <div id="PSDistJob" hidden>
                     <div class="form-group">
@@ -404,14 +371,11 @@
                     </div>
                 </div>
 
-
                 <div class="form-group">
                     <label>
                         Work Directory <font face="verdana" color="#A9A9A9">(relative to <a href="@ViewData["workPath"]">@ViewData["workPath"].ToString().Replace("file:", "").Replace("/", "\\") </a>).  </font> <br /> <font face="verdana" color="#A9A9A9"> This folder is mounted as <b>/work</b> inside container.</font>
                     </label>
                     <input type="text" class="form-control" id="workpath" />
-
-                    
                 </div>
 
                 <div class="form-group">
@@ -433,7 +397,7 @@
                         Docker Image
                     </label>
                     <input list="imagelist" class="form-control" name="image" id="image" />
-                    <datalist  id="imagelist">
+                    <datalist id="imagelist">
                         <option value="mlcloudreg.westus.cloudapp.azure.com:5000/philly/agi-tf-0.12.1-src-ubuntu-16.04:latest" />
                         <option value="mlcloudreg.westus.cloudapp.azure.com:5000/philly/agi-tf-1.1.0-src-ubuntu-16.04:latest" />
                         <option value="mlcloudreg.westus.cloudapp.azure.com:5000/philly/agi-tf-pytorch-0.12.1-src-ubuntu-16.04:latest" />
@@ -444,7 +408,7 @@
                     <label>
                         Training Command
                     </label>
-                    <textarea type="text" class="form-control" id="cmd" rows="5" > </textarea>
+                    <textarea type="text" class="form-control" id="cmd" rows="5"> </textarea>
                 </div>
 
                 <div class="form-group">
@@ -476,9 +440,40 @@
                     </label>
                 </div>
 
+                <div id="templateSection" class="form-group" style="display: @(ViewData["Mode"].Equals("Templates") ? "block" : "none")">
+
+                    <hr>
+                    <h4 class="modal-title" id="submitModalLabel">Template Settings</h4>
+
+                    <div class="form-group">
+                        <label>Name:</label>
+                        <input type="text" class="form-control" id="templateName" />
+                    </div>
+
+                    <div class="form-group" style="display: @(ViewData["isAdmin"].Equals("true") ? "block" : "none")" id="locationdiv">
+                        <label>
+                            Template Location
+                        </label>
+                        <br />
+                        <input type="radio" name="templatelocation" id="templatelocation" value="Master"/> Master Template Database
+                        <br />
+                        <input type="radio" name="templatelocation" id="templatelocation" value="CurrentCluster"/> Current Cluster Template Database
+                        <br />
+                    </div>
+
+                </div>
+
             </div>
+
             <div class="modal-footer">
-                <input type="submit" value="Submit" name="submit" class="btn btn-success" id="submit" />
+                <div id="templateFooter" style="display: @(ViewData["Mode"].Equals("Templates") ? "block" : "none")">
+                    <a onclick="DeleteTemplate()" class="btn btn-success" href="#">Delete Template</a>
+                    <a onclick="SaveTemplate()" class="btn btn-success" href="#">Save Template</a>
+                </div>
+                <div id="jobFooter" style="display: @(ViewData["Mode"].Equals("Templates") ? "none" : "block")">
+                    <a onclick="SwitchToTemplates()" class="btn btn-success" href="#">Manage Template</a>
+                    <input type="submit" value="Submit" name="submit" class="btn btn-success" id="submit" />
+                </div>
             </div>
         </form>
     </div>
