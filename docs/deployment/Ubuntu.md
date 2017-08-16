@@ -36,7 +36,7 @@ This document describes the procedure to deploy DL workspace cluster on a Ubuntu
   ```
   Reboot each machine to be deployed. In each boot screen, select to install Ubuntu 16.04. 
 
-4. After the machines is reimaged to Ubuntu, install sshkey. 
+4. After the machines is reimaged to Ubuntu, install sshkey. (optional: If you ignore step 2,3 and choose to use an existing ubuntu cluster, you may put root username and password to files: ./deploy/sshkey/rootuser and ./deploy/sshkey/rootpasswd. In this case, the root user should be able to run "sudo" without password.)
   ```
   .\deploy.py sshkey install
   ```
