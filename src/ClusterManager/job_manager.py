@@ -220,7 +220,7 @@ def SubmitPSDistJob(job):
 
 	try:
 		jobParams = json.loads(base64.b64decode(job["jobParams"]))
-                jobParams["rest-api"] = config["rest-api"]
+		jobParams["rest-api"] = config["rest-api"]
 		distJobParams = {}
 		distJobParams["ps"] = []
 		distJobParams["worker"] = []

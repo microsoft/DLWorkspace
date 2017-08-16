@@ -28,25 +28,25 @@ class DataHandler:
 		if not exists (select * from sysobjects where name='%s' and xtype='U')
 			CREATE TABLE [dbo].[%s]
 			(
-			    [id]        INT          IDENTITY (1, 1) NOT NULL,
-			    [jobId] NTEXT   NOT NULL,
-			    [familyToken] NTEXT   NOT NULL
-,			    [isParent] INT   NOT NULL,
-			    [jobName]         NTEXT NOT NULL,
-			    [userName]         NTEXT NOT NULL,
+				[id]        INT          IDENTITY (1, 1) NOT NULL,
+				[jobId] NTEXT   NOT NULL,
+				[familyToken] NTEXT   NOT NULL,
+				[isParent] INT   NOT NULL,
+				[jobName]         NTEXT NOT NULL,
+				[userName]         NTEXT NOT NULL,
 				[jobStatus]         NTEXT NOT NULL DEFAULT 'unapproved',
 				[jobStatusDetail] NTEXT NULL, 
 				[jobType]         NTEXT NOT NULL,
-			    [jobDescriptionPath]  NTEXT NULL,
+				[jobDescriptionPath]  NTEXT NULL,
 				[jobDescription]  NTEXT NULL,
 				[jobTime] DATETIME     DEFAULT (getdate()) NOT NULL,
-			    [endpoints] NTEXT NULL, 
-			    [errorMsg] NTEXT NULL, 
-			    [jobParams] NTEXT NOT NULL, 
-			    [jobMeta] NTEXT NULL, 
-			    [jobLog] NTEXT NULL, 
-			    [retries]             int    NULL DEFAULT 0,
-			    PRIMARY KEY CLUSTERED ([id] ASC)
+				[endpoints] NTEXT NULL, 
+				[errorMsg] NTEXT NULL, 
+				[jobParams] NTEXT NOT NULL, 
+				[jobMeta] NTEXT NULL, 
+				[jobLog] NTEXT NULL, 
+				[retries]             int    NULL DEFAULT 0,
+				PRIMARY KEY CLUSTERED ([id] ASC)
 			)
 			""" % (self.jobtablename,self.jobtablename)
 
@@ -139,40 +139,17 @@ class DataHandler:
 
 
 	def GetJob(self, **kwargs):
-                """
-                To get all jobs with the value `v` in their `c` column, call `GetJob(c=v)`.
-                The function will return `[]` if passed an invalid column name or more than one column.
-                """
-                valid_keys = ["jobId", "familyToken", "isParent", "jobName", "userName", "jobStatus", "jobStatusDetail", "jobType", "jobDescriptionPath", "jobDescription", "jobTime", "endpoints", "jobParams", "errorMsg", "jobMeta"]
-                if len(kwargs) != 1: return []
-                key, expected = kwargs.items()[0]
-                if key not in valid_keys: return []
+		valid_keys = ["jobId", "familyToken", "isParent", "jobName", "userName", "jobStatus", "jobStatusDetail", "jobType", "jobDescriptionPath", "jobDescription", "jobTime", "endpoints", "jobParams", "errorMsg", "jobMeta"]
+		if len(kwargs) != 1: return []
+		key, expected = kwargs.popitem()
+		if key not in valid_keys: return []
 		cursor = self.conn.cursor()
-		query = "SELECT [jobId],[familyToken],[isParent],[jobName],[userName], [jobStatus], [jobStatusDetail], [jobType], [jobDescriptionPath], [jobDescription], [jobTime], [endpoints], [jobParams],[errorMsg] ,[jobMeta]  FROM [%s] where cast([jobId] as nvarchar(max)) = N'%s' " % (self.jobtablename,jobId)
+		query = "SELECT [jobId],[familyToken],[isParent],[jobName],[userName], [jobStatus], [jobStatusDetail], [jobType], [jobDescriptionPath], [jobDescription], [jobTime], [endpoints], [jobParams],[errorMsg] ,[jobMeta]  FROM [%s] where cast([%s] as nvarchar(max)) = N'%s' " % (self.jobtablename,key,expected)
 		cursor.execute(query)
-		ret = []
-		for (jobId,familyToken,isParent,jobName,userName, jobStatus,jobStatusDetail, jobType, jobDescriptionPath, jobDescription, jobTime, endpoints, jobParams,errorMsg, jobMeta) in cursor:
-			record = {}
-			record["jobId"] = jobId
-                        record["familyToken"] = familyToken
-                        record["isParent"] = isParent
-			record["jobName"] = jobName
-			record["userName"] = userName
-			record["jobStatus"] = jobStatus
-			record["jobStatusDetail"] = jobStatusDetail
-			record["jobType"] = jobType
-			record["jobDescriptionPath"] = jobDescriptionPath
-			record["jobDescription"] = jobDescription
-			record["jobTime"] = jobTime
-			record["endpoints"] = endpoints
-			record["jobParams"] = jobParams
-			record["errorMsg"] = errorMsg
-			record["jobMeta"] = jobMeta
-			ret.append(record)
+		columns = [column[0] for column in cursor.description]
+		ret = [dict(zip(columns, row)) for row in cursor.fetchall()]
 		cursor.close()
-
 		return ret
-
 
 	def KillJob(self,jobId):
 		try:

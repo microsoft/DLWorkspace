@@ -39,7 +39,6 @@ def SubmitJob(jobParamsJsonStr):
 		jobParams["familyToken"] = str(uuid.uuid4())
 	if "isParent" not in jobParams or jobParams["isParent"].isspace():
 		jobParams["isParent"] = 1
-        
 	userName = jobParams["userName"]
 	if "@" in userName:
 		userName = userName.split("@")[0].strip()
@@ -160,7 +159,7 @@ def GetJobList(userName):
 
 
 def KillJob(jobId):
-        ret = True
+	ret = True
 	dataHandler = DataHandler()
 	jobs = dataHandler.GetJob(jobId=jobId)
 	if len(jobs) == 1:

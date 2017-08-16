@@ -23,7 +23,7 @@ namespace WindowsAuth.Controllers
         public dlwsController(IOptions<AppSettings> appSettings, IOptions<FamilyModel> familyModel)
         {
             _appSettings = appSettings.Value;
-	    _familyModel = familyMode.Value;
+	    _familyModel = familyModel.Value;
         }
 
 
