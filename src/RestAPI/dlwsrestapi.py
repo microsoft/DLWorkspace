@@ -35,9 +35,8 @@ class SubmitJob(Resource):
 		parser.add_argument('runningasroot')
 		parser.add_argument('containerUserId')
 		
-                parser.add_argument('familyToken')
-                parser.add_argument('isParent')
-                
+		parser.add_argument('familyToken')
+		parser.add_argument('isParent')
 		parser.add_argument('jobType')
 		
 
