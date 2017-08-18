@@ -13,10 +13,13 @@ RUN apt-get update; apt-get install -y --no-install-recommends apt-transport-htt
         python-pip \
         python-yaml \ 
         locales \
-        python-pycurl
+        python-pycurl \
+        bison \
+        curl \
+        nfs-common \
+        apt-utils
         
 
-RUN apt-get install -y bison curl nfs-common
 RUN pip install --upgrade pip; 
 
 RUN pip install setuptools; 
@@ -26,9 +29,9 @@ RUN update-locale LANG=en_US.UTF-8
 RUN pip install flask
 RUN pip install flask.restful
 
-RUN wget http://ccsdatarepo.westus.cloudapp.azure.com/data/tools/mysql-connector-python_2.1.5-1ubuntu14.04_all.deb  -O /mysql-connector-python_2.1.5-1ubuntu14.04_all.deb
-RUN dpkg -i /mysql-connector-python_2.1.5-1ubuntu14.04_all.deb
-RUN apt-get install -y mysql-connector-python
+#RUN wget http://ccsdatarepo.westus.cloudapp.azure.com/data/tools/mysql-connector-python_2.1.5-1ubuntu14.04_all.deb  -O /mysql-connector-python_2.1.5-1ubuntu14.04_all.deb
+#RUN dpkg -i /mysql-connector-python_2.1.5-1ubuntu14.04_all.deb
+#RUN apt-get install -y mysql-connector-python
 
 
 # Install python for Azure SQL
@@ -49,12 +52,7 @@ RUN apt-get install -y unixodbc-dev-utf16
 # RUN apt-get install -y unixodbc unixodbc-dev
 # RUN apt-get install -y python-scipy
 
-RUN pip install --upgrade pip; 
-
-RUN pip install setuptools; 
-
 RUN pip install pyodbc
-
 RUN pip install tzlocal
 
 RUN wget http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubectl -O /usr/local/bin/kubectl
@@ -68,6 +66,7 @@ RUN apt-get install -y apache2 libapache2-mod-wsgi
 RUN rm /etc/apache2/mods-enabled/mpm_*
 COPY mpm_prefork.conf /etc/apache2/mods-available/mpm_prefork.conf
 COPY 000-default.conf /etc/apache2/sites-available/000-default.conf
+COPY ports.conf /etc/apache2/ports.conf
 RUN ln -s /etc/apache2/mods-available/mpm_prefork.conf /etc/apache2/mods-enabled/mpm_prefork.conf
 RUN ln -s /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled/mpm_prefork.load
 

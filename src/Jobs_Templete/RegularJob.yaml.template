@@ -27,12 +27,17 @@ spec:
     - mountPath: {{ mp.containerPath }}
       name: {{ mp.name }}
     {% endfor %}
+    - mountPath: /freeflow
+      name: freeflow
     env:
     - name: FAMILY_TOKEN
       value: {{ job["familyToken"] }}
     - name: DLWS_REST_API
       value: {{ job["rest-api"] }}
-
+    - name: VNET_PREFIX
+      value: {{ job["pod_ip_range"] }}
+    - name: LD_PRELOAD
+      value: "/freeflow/libfsocket.so"      
   restartPolicy: Never
   volumes:
   {% for mp in job["mountPoints"] %}
@@ -40,3 +45,6 @@ spec:
     hostPath:
       path: {{ mp.hostPath }}
   {% endfor %}
+  - name: freeflow
+    hostPath:
+      path: /freeflow

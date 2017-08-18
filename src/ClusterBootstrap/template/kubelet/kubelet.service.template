@@ -17,6 +17,7 @@ ExecStart=/opt/bin/kubelet \
   --register-node=true \
   --allow-privileged=true \
   --pod-manifest-path=/etc/kubernetes/manifests \
+  --network-plugin=cni \
   --cluster_dns={{cnf["dns-server-ip"]}} \
   --cluster_domain=cluster.local \
   --kubeconfig=/etc/kubernetes/worker-kubeconfig.yaml \

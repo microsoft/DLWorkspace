@@ -3,6 +3,8 @@ apiVersion: extensions/v1beta1
 metadata:
   name: restfulapi
   namespace: default
+  labels:
+     run: dlwsrestfulapi  
 spec:
   template:
     metadata:
@@ -13,14 +15,10 @@ spec:
       dnsPolicy: Default
       nodeSelector:
         restfulapi: active
+      hostNetwork: true        
       containers:
       - name: restfulapi
         image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}restfulapi:{{cnf["dockertag"]}}
-        imagePullPolicy: Always
-        ports:
-          - name: http
-            containerPort: 80
-            hostPort: {{cnf["restfulapiport"]}}
         imagePullPolicy: Always
         volumeMounts:
         - mountPath: /RestfulAPI

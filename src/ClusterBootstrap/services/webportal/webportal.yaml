@@ -13,6 +13,7 @@ spec:
       dnsPolicy: Default
       nodeSelector:
         webportal: active
+      hostNetwork: true        
       containers:
       - name: webportal
         image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}webui:{{cnf["dockertag"]}}

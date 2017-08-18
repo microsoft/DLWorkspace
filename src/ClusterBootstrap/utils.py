@@ -15,13 +15,15 @@ import distutils.file_util
 import shutil
 import glob
 
+
 import yaml
 from jinja2 import Environment, FileSystemLoader, Template
 import base64
 
 from shutil import copyfile, copytree
 import urllib
-import socket
+import socket,struct
+
 
 verbose = False
 
@@ -94,19 +96,19 @@ def SSH_exec_cmd(identity_file, user,host,cmd,showCmd=True):
 	if len(cmd)==0:
 		return;
 	if showCmd or verbose:
-		print ("""ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" "%s" """ % (identity_file, user, host, cmd) ) 
-	os.system("""ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" "%s" """ % (identity_file, user, host, cmd) )
+		print ("""ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" "%s" """ % (identity_file, user, host, cmd) ) 
+	os.system("""ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" "%s" """ % (identity_file, user, host, cmd) )
 
 # SSH Connect to a remote host with identity file (private SSH key), user, host
 # Program usually exit here. 
 def SSH_connect(identity_file, user,host):
 	if verbose:
-		print ("""ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" """ % (identity_file, user, host) ) 
-	os.system("""ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" """ % (identity_file, user, host) )
+		print ("""ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" """ % (identity_file, user, host) ) 
+	os.system("""ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" """ % (identity_file, user, host) )
 
 # Copy a local file or directory (source) to remote (target) with identity file (private SSH key), user, host 
 def scp (identity_file, source, target, user, host, verbose = False):
-	cmd = 'scp -i %s -r "%s" "%s@%s:%s"' % (identity_file, source, user, host, target)
+	cmd = 'scp -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s -r "%s" "%s@%s:%s"' % (identity_file, source, user, host, target)
 	if verbose:
 		print cmd
 	os.system(cmd)
@@ -145,7 +147,7 @@ def SSH_exec_cmd_with_output(identity_file, user,host,cmd, supressWarning = Fals
 		return "";
 	if supressWarning:
 		cmd += " 2>/dev/null"
-	execmd = """ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" "%s" """ % (identity_file, user, host, cmd )
+	execmd = """ssh -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" "%s" """ % (identity_file, user, host, cmd )
 	if verbose:
 		print execmd
 	try:
@@ -168,7 +170,7 @@ def exec_cmd_local(execmd, supressWarning = False):
 	return output
 	
 def get_host_name( host ):
-	execmd = """ssh -o "StrictHostKeyChecking no" -i %s "%s@%s" "hostname" """ % ("deploy/sshkey/id_rsa", "core", host )
+	execmd = """ssh -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" "hostname" """ % ("deploy/sshkey/id_rsa", "core", host )
 	try:
 		output = subprocess.check_output( execmd, shell=True )
 	except subprocess.CalledProcessError as e:
@@ -345,10 +347,22 @@ def restore_keys( nargs ):
 
 
 def getIP(dnsname):
-    try:
-        data = socket.gethostbyname(dnsname)
-        ip = repr(data).replace("'","")
-        return ip
-    except Exception:
-        return None
+	try:
+		data = socket.gethostbyname(dnsname)
+		ip = repr(data).replace("'","")
+		return ip
+	except Exception:
+		return None
+
+def addressInNetwork(ip,net):
+	"Is an address in a network"
+	ret = False
+	try:
+		ipaddr = struct.unpack('!I',socket.inet_aton(ip))[0]
+		netaddr,bits = net.split('/')
+		netmask = struct.unpack('!I',socket.inet_aton(netaddr))[0] & ((2L<<int(bits)-1) - 1)
+		ret = ipaddr & netmask == netmask
+	except Exception as e:
+		ret = False
+	return ret
 

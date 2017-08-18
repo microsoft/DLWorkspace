@@ -63,6 +63,7 @@ default_config_parameters = {
 	"homeininterval" : "600", 
 	"dockerregistry" : "mlcloudreg.westus.cloudapp.azure.com:5000/",
 	"kubernetes_docker_image" : "mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/hyperkube:v1.5.0_coreos.multigpu", 
+	"freeflow_route_docker_image" : "mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/freeflow:0.16", 
 	# There are two docker registries, one for infrastructure (used for pre-deployment)
 	# and one for worker docker (pontentially in cluser)
 	# A set of infrastructure-dockers 
@@ -218,6 +219,7 @@ default_config_parameters = {
 		   "*.redmond.corp.microsoft.com" : True, 
 		   "*.corp.microsoft.com": True,
 	   }, 
+	   "container-network-iprange" : "192.168.0.1/24",
 	}, 
 
 
@@ -358,28 +360,43 @@ default_config_parameters = {
 scriptblocks = {
 	"azure": [
 		"runscriptonall ./scripts/prepare_ubuntu_azure.sh", 
-  		"execonall sudo usermod -aG docker core",
+		"execonall sudo usermod -aG docker core",
 		"-y deploy",
 		"-y updateworker",
-  		"-y kubernetes labels",
-  		"-y updateworker",
-  		"docker push restfulapi",
-  		"docker push webui",
-  		"webui",
+		"-y kubernetes labels",
+		"-y updateworker",
+		"docker push restfulapi",
+		"docker push webui",
+		"webui",
 		"mount", 
-  		"kubernetes start jobmanager",
-  		"kubernetes start restfulapi",
-  		"kubernetes start webportal",
+		"kubernetes start jobmanager",
+		"kubernetes start restfulapi",
+		"kubernetes start webportal",
 	],
 	"restartwebui": [
 		"kubernetes stop webportal",
 		"kubernetes stop restfulapi",
 		"kubernetes stop jobmanager",
 		"webui",
-  		"kubernetes start jobmanager",
-  		"kubernetes start restfulapi",
-  		"kubernetes start webportal",
+		"kubernetes start jobmanager",
+		"kubernetes start restfulapi",
+		"kubernetes start webportal",
 	],
+	"ubuntu": [
+		"runscriptonall ./scripts/prepare_ubuntu.sh",
+		"execonall sudo usermod -aG docker core",
+		"-y deploy",
+		"-y updateworker",
+		"-y kubernetes labels",
+		"mount",
+		"docker push restfulapi",
+		"docker push webui",
+		"webui",
+		"kubernetes start freeflow",
+		"kubernetes start jobmanager",
+		"kubernetes start restfulapi",
+		"kubernetes start webportal",
+	],	
 }
 
 # default search for all partitions of hdb, hdc, hdd, and sdb, sdc, sdd
@@ -802,7 +819,7 @@ def init_deployment():
 
 def check_node_availability(ipAddress):
 	# print "Check node availability on: " + str(ipAddress)
-	status = os.system('ssh -o "StrictHostKeyChecking no" -i %s -oBatchMode=yes core@%s hostname > /dev/null' % (config["ssh_cert"], ipAddress))
+	status = os.system('ssh -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s -oBatchMode=yes core@%s hostname > /dev/null' % (config["ssh_cert"], ipAddress))
 	#status = sock.connect_ex((ipAddress,22))
 	return status == 0
 	
@@ -1130,13 +1147,20 @@ def deploy_master(kubernetes_master):
 				utils.sudo_scp(config["ssh_cert"],source.strip(),target.strip(),kubernetes_master_user,kubernetes_master)
 
 		utils.SSH_exec_script(config["ssh_cert"],kubernetes_master_user, kubernetes_master, "./deploy/master/" + config["postmasterdeploymentscript"])
-		
+
+def get_cni_binary():
+	os.system("mkdir -p ./deploy/bin")
+	urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/containernetworking/cni-amd64-v0.5.2.tgz", "./deploy/bin/cni-amd64-v0.5.2.tgz")
+	os.system("tar -zxvf ./deploy/bin/cni-amd64-v0.5.2.tgz -C ./deploy/bin")
+
+
 def get_kubectl_binary():
 	get_hyperkube_docker()
 	#os.system("mkdir -p ./deploy/bin")
 	urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet", "./deploy/bin/kubelet-old")
 	#urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubectl", "./deploy/bin/kubectl")
 	#os.system("chmod +x ./deploy/bin/*")
+	get_cni_binary()
 
 def get_hyperkube_docker() :
 	os.system("mkdir -p ./deploy/bin")
@@ -1173,8 +1197,7 @@ def deploy_masters():
 	for i,kubernetes_master in enumerate(kubernetes_masters):
 		deploy_master(kubernetes_master)
 
-
-	utils.SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_masters[0], "until curl -q http://127.0.0.1:8080/version/ ; do sleep 5; echo 'waiting for master...'; done;  sudo /opt/bin/kubectl create -f /opt/addons/kube-addons/dashboard.yaml;  sudo /opt/bin/kubectl create -f /opt/addons/kube-addons/dns-addon.yaml;  sudo /opt/bin/kubectl create -f /opt/addons/kube-addons/kube-proxy.json;  sudo /opt/bin/kubectl create -f /opt/addons/kube-addons/heapster-deployment.json;  sudo /opt/bin/kubectl create -f /opt/addons/kube-addons/heapster-svc.json", False)
+	utils.SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_masters[0], "until curl -q http://127.0.0.1:8080/version/ ; do sleep 5; echo 'waiting for master...'; done;  sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/weave.yaml; sudo /opt/bin/kubectl create -f /opt/addons/kube-addons/dashboard.yaml;  sudo /opt/bin/kubectl create -f /opt/addons/kube-addons/dns-addon.yml;  sudo /opt/bin/kubectl create -f /opt/addons/kube-addons/kube-proxy.json;  sudo /opt/bin/kubectl create -f /opt/addons/kube-addons/heapster-deployment.json;  sudo /opt/bin/kubectl create -f /opt/addons/kube-addons/heapster-svc.json", False)
 
 
 def clean_etcd():
@@ -1516,17 +1539,17 @@ def install_ssh_key(key_files):
 		if len(key_files)>0:
 			for key_file in key_files:
 				print "Install key %s on %s" % (key_file, node)
-				os.system("sshpass -f %s ssh-copy-id -o StrictHostKeyChecking=no -i %s %s@%s" %(rootpasswdfile, key_file, rootuser, node))
+				os.system("""sshpass -f %s ssh-copy-id -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i %s %s@%s""" %(rootpasswdfile, key_file, rootuser, node))
 		else:
 			print "Install key %s on %s" % ("./deploy/sshkey/id_rsa.pub", node)
-			os.system("sshpass -f %s ssh-copy-id -o StrictHostKeyChecking=no -i ./deploy/sshkey/id_rsa.pub %s@%s" %(rootpasswdfile, rootuser, node))
+			os.system("""sshpass -f %s ssh-copy-id -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i ./deploy/sshkey/id_rsa.pub %s@%s""" %(rootpasswdfile, rootuser, node))
 
 
 	if rootuser != "core":
 	 	for node in all_nodes:
-	 		os.system('sshpass -f %s ssh %s@%s "sudo useradd -p %s -d /home/core -m -s /bin/bash core"' % (rootpasswdfile,rootuser, node, rootpasswd))
-	 		os.system('sshpass -f %s ssh %s@%s "sudo usermod -aG sudo core"' % (rootpasswdfile,rootuser, node))
-	 		os.system('sshpass -f %s ssh %s@%s "sudo mkdir -p /home/core/.ssh"' % (rootpasswdfile,rootuser, node))
+	 		os.system('sshpass -f %s ssh  -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" %s@%s "sudo useradd -p %s -d /home/core -m -s /bin/bash core"' % (rootpasswdfile,rootuser, node, rootpasswd))
+	 		os.system('sshpass -f %s ssh  -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" %s@%s "sudo usermod -aG sudo core"' % (rootpasswdfile,rootuser, node))
+	 		os.system('sshpass -f %s ssh  -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" %s@%s "sudo mkdir -p /home/core/.ssh"' % (rootpasswdfile,rootuser, node))
 
 
 			if len(key_files)>0:
@@ -1535,18 +1558,18 @@ def install_ssh_key(key_files):
 					with open(key_file, "r") as f:
 						publicKey = f.read().strip()
 						f.close()		
-	 				os.system('sshpass -f %s ssh %s@%s "echo %s | sudo tee /home/core/.ssh/authorized_keys"' % (rootpasswdfile,rootuser, node,publicKey))
+	 				os.system('sshpass -f %s ssh  -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" %s@%s "echo %s | sudo tee /home/core/.ssh/authorized_keys"' % (rootpasswdfile,rootuser, node,publicKey))
 
 			else:
 				print "Install key %s on %s" % ("./deploy/sshkey/id_rsa.pub", node)
 				with open("./deploy/sshkey/id_rsa.pub", "r") as f:
 					publicKey = f.read().strip()
 					f.close()		
- 				os.system('sshpass -f %s ssh %s@%s "echo %s | sudo tee /home/core/.ssh/authorized_keys"' % (rootpasswdfile,rootuser, node,publicKey))
+ 				os.system('sshpass -f %s ssh  -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" %s@%s "echo %s | sudo tee /home/core/.ssh/authorized_keys"' % (rootpasswdfile,rootuser, node,publicKey))
 
-	 		os.system('sshpass -f %s ssh %s@%s "sudo chown core:core -R /home/core"' % (rootpasswdfile,rootuser, node))
-	 		os.system('sshpass -f %s ssh %s@%s "sudo chmod 400 /home/core/.ssh/authorized_keys"' % (rootpasswdfile,rootuser, node))
-	 		os.system("""sshpass -f %s ssh %s@%s "echo 'core ALL=(ALL) NOPASSWD: ALL' | sudo tee -a /etc/sudoers.d/core " """ % (rootpasswdfile,rootuser, node))
+	 		os.system('sshpass -f %s ssh  -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" %s@%s "sudo chown core:core -R /home/core"' % (rootpasswdfile,rootuser, node))
+	 		os.system('sshpass -f %s ssh  -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" %s@%s "sudo chmod 400 /home/core/.ssh/authorized_keys"' % (rootpasswdfile,rootuser, node))
+	 		os.system("""sshpass -f %s ssh  -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" %s@%s "echo 'core ALL=(ALL) NOPASSWD: ALL' | sudo tee -a /etc/sudoers.d/core " """ % (rootpasswdfile,rootuser, node))
 
 
 
@@ -2646,6 +2669,26 @@ def set_host_names_by_lookup():
 				print "Set hostname of node " + node + " ... " + usename
 				utils.SSH_exec_cmd( config["ssh_cert"], "core", node, cmd )
 
+def set_freeflow_router(  ):
+	nodes = get_worker_nodes(config["clusterId"]) + get_ETCD_master_nodes(config["clusterId"])
+	for node in nodes:
+		set_freeflow_router_on_node(node)
+
+
+
+def set_freeflow_router_on_node( node ):
+	docker_image = config["freeflow_route_docker_image"]
+	docker_name = "freeflow"
+	network = config["network"]["container-network-iprange"]
+	#setup HOST_IP, iterate all the host IP, find the one in ip range {{network.Container-networking}}
+	output = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*'")
+	ips = output.split("\n")
+	for ip in ips:
+		if utils.addressInNetwork(ip, network):
+			utils.SSH_exec_cmd(config["ssh_cert"], "core", node, "sudo docker rm -f freeflow")
+			utils.SSH_exec_cmd(config["ssh_cert"], "core", node, "sudo docker run -d -it --privileged --net=host -v /freeflow:/freeflow -e \"HOST_IP=%s\" --name %s %s" % (ip, docker_name, docker_image))
+			break
+
 def deploy_ETCD_master():
 		print "Detected previous cluster deployment, cluster ID: %s. \n To clean up the previous deployment, run 'python deploy.py clean' \n" % config["clusterId"]
 		print "The current deployment has:\n"
@@ -3145,6 +3188,15 @@ def run_command( args, command, nargs, parser ):
 			parser.print_help()
 			print "Error: hostname with unknown subcommand"
 			exit()
+
+	elif command == "freeflow" and len(nargs) >= 1:
+		if nargs[0] == "set":
+			set_freeflow_router()
+		else:
+			parser.print_help()
+			print "Error: hostname with unknown subcommand"
+			exit()
+
 
 	elif command == "cleanworker":
 		response = raw_input("Clean and Stop Worker Nodes (y/n)?")
