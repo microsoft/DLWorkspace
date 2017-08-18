@@ -18,4 +18,5 @@ apiserver: {{cnf["api_servers"]}}
 certificate-authority: /etc/kubernetes/ssl/ca.pem
 client-certificate: /etc/kubernetes/ssl/apiserver.pem
 client-key: /etc/kubernetes/ssl/apiserver-key.pem
+pod_ip_range: {{cnf["pod_ip_range"]}}
 rest-api: {{cnf["rest-api"]}}

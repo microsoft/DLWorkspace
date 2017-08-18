@@ -143,7 +143,7 @@ def SubmitRegularJob(job):
 		jobParams["mountPoints"].append({"name":"job","containerPath":"/job","hostPath":jobParams["hostjobPath"]})
 		jobParams["mountPoints"].append({"name":"work","containerPath":"/work","hostPath":jobParams["hostworkPath"]})
 		jobParams["mountPoints"].append({"name":"data","containerPath":"/data","hostPath":jobParams["hostdataPath"]})
-
+		jobParams["pod_ip_range"] = config["pod_ip_range"]
 
 		template = ENV.get_template(os.path.abspath(jobTemp))
 		job_description = template.render(job=jobParams)
@@ -179,6 +179,7 @@ def SubmitRegularJob(job):
 			f.write(jobDescription)
 
 		output = k8sUtils.kubectl_create(jobDescriptionPath)	
+		logging.info("Submitted job %s to k8s, returned with status %s" %(job["jobId"], output))
 
 		ret["output"] = output
 		
@@ -443,7 +444,7 @@ def AutoApproveJob(job):
 		if user["userName"] == jobUser:
 			currentGPU = int(user["userGPU"])
 
-	if currentGPU + jobGPU <= 4:
+	if currentGPU == 0 or currentGPU + jobGPU <= 4:
 		ApproveJob(job)
 
 
@@ -480,6 +481,7 @@ def UpdateJobStatus(job):
 	elif result.strip() == "Running":
 		if job["jobStatus"] != "running":
 			dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","running")
+
 		if "interactivePort" in jobParams:
 			serviceAddress = k8sUtils.GetServiceAddress(job["jobId"])
 			serviceAddress = base64.b64encode(json.dumps(serviceAddress))
@@ -743,5 +745,5 @@ def Run():
 		time.sleep(1)
 
 if __name__ == '__main__':
-	#Run()
-	print k8sUtils.get_pod_events("d493d41c-45ea-4e85-8ca4-01c3533cd727")
+	Run()
+	#print k8sUtils.get_pod_events("d493d41c-45ea-4e85-8ca4-01c3533cd727")
