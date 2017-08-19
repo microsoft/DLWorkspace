@@ -11,7 +11,7 @@ spec:
   nodeSelector:
     FragmentGPUJob: active
   {% endif %}
-  dnsPolicy: Default
+  #dnsPolicy: Default
   containers:
   - name: {{ job["jobId"] }}
     image: {{ job["image"] }}
@@ -38,6 +38,14 @@ spec:
       value: {{ job["pod_ip_range"] }}
     - name: LD_PRELOAD
       value: "/freeflow/libfsocket.so"      
+    - name: POD_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.name
+    - name: POD_IP
+      valueFrom:
+        fieldRef:
+          fieldPath: status.podIP      
   restartPolicy: Never
   volumes:
   {% for mp in job["mountPoints"] %}
