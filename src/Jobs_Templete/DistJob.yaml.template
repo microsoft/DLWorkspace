@@ -7,8 +7,9 @@ metadata:
     jobName: {{ job["jobNameLabel"] }}
     distRole: {{ job["distRole"] }}
     distPort: "{{job["containerPort"]}}"
+    userName: {{ job["userNameLabel"] }}    
 spec:
-  hostNetwork: true
+  #hostNetwork: true
   {% if job["nodeSelector"]|length > 0 %}
   nodeSelector:
   {% for key, value in job["nodeSelector"].items() %}
@@ -38,6 +39,14 @@ spec:
       value: {{ job["familyToken"] }}
     - name: DLWS_REST_API
       value: {{ job["rest-api"] }}
+    - name: POD_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.name
+    - name: POD_IP
+      valueFrom:
+        fieldRef:
+          fieldPath: status.podIP  
 
   restartPolicy: Never
   volumes:

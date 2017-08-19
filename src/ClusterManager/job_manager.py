@@ -310,7 +310,7 @@ chmod +x /opt/run_dist_job.sh
 
 
 					distJobParam["jobNameLabel"] = ''.join(e for e in distJobParam["jobName"] if e.isalnum())
-
+					distJobParam["userNameLabel"] = getAlias(jobParams["userName"])
 					ENV = Environment(loader=FileSystemLoader("/"))
 
 					jobTempDir = os.path.join(config["root-path"],"Jobs_Templete")
@@ -627,8 +627,8 @@ def launch_ps_dist_job(jobParams):
 			ps_pod_names = [pod["metadata"]["name"] for pod in psPodInfo["items"]]
 			worker_pod_names = [pod["metadata"]["name"] for pod in workerPodInfo["items"]]
 
-			ps_pod_ips = [pod["status"]["hostIP"] for pod in psPodInfo["items"]]
-			worker_pod_ips = [pod["status"]["hostIP"] for pod in workerPodInfo["items"]]
+			ps_pod_ips = [pod["status"]["podIP"] for pod in psPodInfo["items"]]
+			worker_pod_ips = [pod["status"]["podIP"] for pod in workerPodInfo["items"]]
 
 			ps_num = len(psPodInfo["items"])
 			worker_num = len(workerPodInfo["items"])
@@ -678,7 +678,7 @@ def launch_ps_dist_job(jobParams):
 				k8sUtils.kubectl_exec("exec %s touch /opt/run_dist_job" % worker_pod_names[i])
 
 			dataHandler = DataHandler()
-			dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","running")
+			dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","running")
 
 			#ps_threads = [Kube_RemoteCMD_Thread(jobId,ps_pod_names[i],ps_cmd[i],ps_logfiles[i]) for i in range(ps_num)]
 			#worker_threads = [Kube_RemoteCMD_Thread(jobId,worker_pod_names[i],worker_cmd[i],worker_logfiles[i]) for i in range(worker_num)]
