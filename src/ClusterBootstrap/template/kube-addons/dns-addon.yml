@@ -74,6 +74,11 @@ spec:
         args:
         - --domain=cluster.local.
         - --dns-port=10053
+        - --kubecfg-file=/etc/kubernetes/worker-kubeconfig.yaml
+        volumeMounts:
+        - mountPath: /etc/kubernetes
+          name: ssl-certs-kubernetes
+          readOnly: true        
         ports:
         - containerPort: 10053
           name: dns-local
@@ -123,3 +128,7 @@ spec:
         - containerPort: 8080
           protocol: TCP
       dnsPolicy: Default
+      volumes:
+      - hostPath:
+          path: /etc/kubernetes
+        name: ssl-certs-kubernetes
