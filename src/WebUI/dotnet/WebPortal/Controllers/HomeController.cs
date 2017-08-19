@@ -796,6 +796,7 @@ namespace WindowsAuth.Controllers
             ViewData["mode"] = (HttpContext.Request.Query.ContainsKey("Mode") && HttpContext.Request.Query["Mode"] == "templates") ? "Templates" : "JobSubmission";
 
             ViewData["isAdmin"] = HttpContext.Session.GetString("isAdmin");
+            ViewData["cluster"] =  HttpContext.Session.GetString("CurrentClusters");
             AddViewData(message: "Your application description page.");
             return View();
         }
