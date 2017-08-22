@@ -53,7 +53,7 @@ def check_cluster_status_change(o_cluster_status,cluster_status):
 	if o_cluster_status is None:
 		return True
 
-	checkList = ["TotalJobNum","AvaliableJobNum","gpu_used"]
+	checkList = ["TotalJobNum","AvaliableJobNum","gpu_used","user_status","node_status"]
 	for item in checkList:
 		if item not in o_cluster_status or item not in cluster_status or o_cluster_status[item] != cluster_status[item]:
 			return True
@@ -167,12 +167,12 @@ def get_cluster_status():
 	dataHandler = DataHandler()
 	cluster_status["AvaliableJobNum"] = dataHandler.GetActiveJobsCount()
 	cluster_status["TotalJobNum"] = dataHandler.GetALLJobsCount()
-	if check_cluster_status_change(config["old_cluster_status"],cluster_status):
+	if "cluster_status" in config and check_cluster_status_change(config["cluster_status"],cluster_status):
 		logging.info("updating the cluster status...")
 		dataHandler.UpdateClusterStatus(cluster_status)
 	else:
 		logging.info("nothing changed in cluster, skipping the cluster status update...")
-	config["old_cluster_status"] = copy.deepcopy(cluster_status)
+	config["cluster_status"] = copy.deepcopy(cluster_status)
 	dataHandler.Close()
 	return cluster_status
 
@@ -180,7 +180,7 @@ def get_cluster_status():
 def Run():
 	create_log()
 	logging.info("start to update nodes usage information ...")
-	config["old_cluster_status"] = None
+	config["cluster_status"] = None
 	while True:
 		try:
 			get_cluster_status()
