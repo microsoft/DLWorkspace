@@ -292,7 +292,10 @@ def get_pod_status(pod):
 
 		if "finishedAt" not in podstatus:
 			podstatus["finishedAt"] = datetime.now(get_localzone()).isoformat()
-
+	if "status" in pod and "podIP" in pod["status"]:
+		podstatus["podIP"] = pod["status"]["podIP"]
+	if "status" in pod and "hostIP" in pod["status"]:
+		podstatus["hostIP"] = pod["status"]["hostIP"]		
 	return podstatus
 	
 

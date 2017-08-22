@@ -144,6 +144,10 @@ def SubmitRegularJob(job):
 		jobParams["mountPoints"].append({"name":"work","containerPath":"/work","hostPath":jobParams["hostworkPath"]})
 		jobParams["mountPoints"].append({"name":"data","containerPath":"/data","hostPath":jobParams["hostdataPath"]})
 		jobParams["pod_ip_range"] = config["pod_ip_range"]
+		if "usefreeflow" in config:
+			jobParams["usefreeflow"] = config["usefreeflow"]
+		else:
+			jobParams["usefreeflow"] = False
 
 		template = ENV.get_template(os.path.abspath(jobTemp))
 		job_description = template.render(job=jobParams)
@@ -328,6 +332,11 @@ chmod +x /opt/run_dist_job.sh
 					distJobParam["mountPoints"].append({"name":"job","containerPath":"/job","hostPath":distJobParam["hostjobPath"]})
 					distJobParam["mountPoints"].append({"name":"work","containerPath":"/work","hostPath":distJobParam["hostworkPath"]})
 					distJobParam["mountPoints"].append({"name":"data","containerPath":"/data","hostPath":distJobParam["hostdataPath"]})
+					distJobParam["pod_ip_range"] = config["pod_ip_range"]
+					if "usefreeflow" in config and config["usefreeflow"] == "True":
+						distJobParam["usefreeflow"] = config["usefreeflow"]
+					else:
+						distJobParam["usefreeflow"] = False
 
 
 					random.seed(datetime.datetime.now())
