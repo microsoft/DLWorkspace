@@ -20,6 +20,8 @@ import random
 import textwrap
 import logging
 import logging.config
+import copy
+
 
 from multiprocessing import Process, Manager
 
@@ -46,6 +48,16 @@ def create_log( logdir = '/var/log/dlworkspace' ):
 		logging.config.dictConfig(logging_config)
 
 
+
+def check_cluster_status_change(o_cluster_status,cluster_status):
+	if o_cluster_status is None:
+		return True
+
+	checkList = ["TotalJobNum","AvaliableJobNum","gpu_used"]
+	for item in checkList:
+		if item not in o_cluster_status or item not in cluster_status or o_cluster_status[item] != cluster_status[item]:
+			return True
+	return False
 
 def get_cluster_status():
 	cluster_status={}
@@ -153,10 +165,14 @@ def get_cluster_status():
 	except Exception as e:
 		print e
 	dataHandler = DataHandler()
-
 	cluster_status["AvaliableJobNum"] = dataHandler.GetActiveJobsCount()
 	cluster_status["TotalJobNum"] = dataHandler.GetALLJobsCount()
-	dataHandler.UpdateClusterStatus(cluster_status)
+	if check_cluster_status_change(config["old_cluster_status"],cluster_status):
+		logging.info("updating the cluster status...")
+		dataHandler.UpdateClusterStatus(cluster_status)
+	else:
+		logging.info("nothing changed in cluster, skipping the cluster status update...")
+	config["old_cluster_status"] = copy.deepcopy(cluster_status)
 	dataHandler.Close()
 	return cluster_status
 
@@ -164,12 +180,13 @@ def get_cluster_status():
 def Run():
 	create_log()
 	logging.info("start to update nodes usage information ...")
-
+	config["old_cluster_status"] = None
 	while True:
 		try:
 			get_cluster_status()
 		except Exception as e:
 			print e
+			logging.info(str(e))
 		time.sleep(30)
 
 if __name__ == '__main__':
