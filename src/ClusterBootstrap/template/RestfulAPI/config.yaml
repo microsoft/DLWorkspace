@@ -20,3 +20,4 @@ client-certificate: /etc/kubernetes/ssl/apiserver.pem
 client-key: /etc/kubernetes/ssl/apiserver-key.pem
 pod_ip_range: {{cnf["pod_ip_range"]}}
 rest-api: {{cnf["rest-api"]}}
+usefreeflow: {{cnf["usefreeflow"]}}

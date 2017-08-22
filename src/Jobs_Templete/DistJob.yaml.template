@@ -30,6 +30,8 @@ spec:
         alpha.kubernetes.io/nvidia-gpu: {{ job["resourcegpu"] }}
     {% endif %}
     volumeMounts:
+    - mountPath: /freeflow
+      name: freeflow    
     {% for mp in job["mountPoints"] %}
     - mountPath: {{ mp.containerPath }}
       name: {{ mp.name }}
@@ -39,6 +41,10 @@ spec:
       value: {{ job["familyToken"] }}
     - name: DLWS_REST_API
       value: {{ job["rest-api"] }}
+    - name: VNET_PREFIX
+      value: {{ job["pod_ip_range"] }}
+    - name: LD_PRELOAD
+      value: "/freeflow/libfsocket.so"            
     - name: POD_NAME
       valueFrom:
         fieldRef:
@@ -50,6 +56,9 @@ spec:
 
   restartPolicy: Never
   volumes:
+  - name: freeflow
+    hostPath:
+      path: /freeflow  
   {% for mp in job["mountPoints"] %}
   - name: {{ mp.name }}
     hostPath:

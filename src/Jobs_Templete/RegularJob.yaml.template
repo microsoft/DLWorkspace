@@ -27,17 +27,21 @@ spec:
     - mountPath: {{ mp.containerPath }}
       name: {{ mp.name }}
     {% endfor %}
+    {% if job["usefreeflow"] %}
     - mountPath: /freeflow
       name: freeflow
+    {% endif %}
     env:
     - name: FAMILY_TOKEN
       value: {{ job["familyToken"] }}
     - name: DLWS_REST_API
       value: {{ job["rest-api"] }}
+    {% if job["usefreeflow"] %}
     - name: VNET_PREFIX
       value: {{ job["pod_ip_range"] }}
     - name: LD_PRELOAD
-      value: "/freeflow/libfsocket.so"      
+      value: "/freeflow/libfsocket.so"
+    {% endif %}      
     - name: POD_NAME
       valueFrom:
         fieldRef:
@@ -53,6 +57,8 @@ spec:
     hostPath:
       path: {{ mp.hostPath }}
   {% endfor %}
+  {% if job["usefreeflow"] %}
   - name: freeflow
     hostPath:
       path: /freeflow
+  {% endif %}
