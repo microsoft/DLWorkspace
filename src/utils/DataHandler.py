@@ -19,6 +19,7 @@ class DataHandler:
 		self.jobtablename = "jobs-%s" %  config["clusterId"]
 		self.usertablename = "users-%s" %  config["clusterId"]
 		self.clusterstatustablename = "clusterstatus-%s" %  config["clusterId"]
+		self.commandtablename = "commands-%s" %  config["clusterId"]
 
 		self.CreateTable()
 
@@ -72,6 +73,24 @@ class DataHandler:
 		self.conn.commit()
 		cursor.close()
 
+
+		sql = """
+		if not exists (select * from sysobjects where name='%s' and xtype='U')
+			CREATE TABLE [dbo].[%s]
+			(
+				[id]        INT          IDENTITY (1, 1) NOT NULL,
+				[jobId] NTEXT   NOT NULL,
+				[status]         NTEXT NOT NULL DEFAULT 'pending',
+				[time] DATETIME     DEFAULT (getdate()) NOT NULL,
+				[command] NTEXT NOT NULL, 
+				PRIMARY KEY CLUSTERED ([id] ASC)
+			)
+			""" % (self.commandtablename,self.commandtablename)
+
+		cursor = self.conn.cursor()
+		cursor.execute(sql)
+		self.conn.commit()
+		cursor.close()
 
 
 		sql = """
@@ -150,6 +169,47 @@ class DataHandler:
 		ret = [dict(zip(columns, row)) for row in cursor.fetchall()]
 		cursor.close()
 		return ret
+
+
+	def AddCommand(self,jobId,command):
+		try:
+			sql = """INSERT INTO [%s] (jobId, command) VALUES (?,?)""" % self.commandtablename
+			cursor = self.conn.cursor()
+			cursor.execute(sql, jobId, command)
+			self.conn.commit()
+			cursor.close()
+			return True
+		except:
+			return False
+
+
+	def GetPendingCommands(self):
+		cursor = self.conn.cursor()
+		query = "SELECT [id], [jobId], [command] FROM [%s] WHERE cast([status] as nvarchar(max)) = N'pending' order by [time]" % (self.commandtablename)
+		cursor.execute(query)
+		ret = []
+		for (id, jobId, command) in cursor:
+			record = {}
+			record["id"] = id
+			record["jobId"] = jobId
+			record["command"] = command
+			ret.append(record)
+		cursor.close()
+
+		return ret	
+
+
+	def FinishCommand(self,commandId):
+		try:
+			sql = """update [%s] set status = 'run' where cast([id] as nvarchar(max)) = N'%s' """ % (self.commandtablename, commandId)
+			cursor = self.conn.cursor()
+			cursor.execute(sql)
+			self.conn.commit()
+			cursor.close()
+			return True
+		except:
+			return False
+
 
 	def KillJob(self,jobId):
 		try:

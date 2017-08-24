@@ -174,6 +174,17 @@ def KillJob(jobId):
 	dataHandler.Close()
 	return ret
 
+
+def AddCommand(jobId,command):
+	dataHandler = DataHandler()
+	ret = False
+	jobs =  dataHandler.GetJob(jobId=jobId)
+	if len(jobs) == 1:
+		ret = dataHandler.AddCommand(jobId,command)
+	dataHandler.Close()
+	return ret
+
+
 def ApproveJob(jobId):
 	dataHandler = DataHandler()
 	ret = False

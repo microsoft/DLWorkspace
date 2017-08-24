@@ -130,12 +130,10 @@ class SubmitJob(Resource):
 		resp.headers["Access-Control-Allow-Origin"] = "*"
 		resp.headers["dataType"] = "json"		
 		return resp
-
 ##
 ## Actually setup the Api resource routing here
 ##
 api.add_resource(SubmitJob, '/SubmitJob')
-
 
 
 
@@ -191,13 +189,10 @@ class ListJobs(Resource):
 
 
 		return resp
-
 ##
 ## Actually setup the Api resource routing here
 ##
 api.add_resource(ListJobs, '/ListJobs')
-
-
 
 
 
@@ -278,6 +273,7 @@ class GetJobDetail(Resource):
 api.add_resource(GetJobDetail, '/GetJobDetail')
 
 
+
 class GetClusterStatus(Resource):
 	def get(self):
 		cluster_status, last_updated_time = JobRestAPIUtils.GetClusterStatus()
@@ -291,6 +287,34 @@ class GetClusterStatus(Resource):
 ## Actually setup the Api resource routing here
 ##
 api.add_resource(GetClusterStatus, '/GetClusterStatus')
+
+
+
+class AddCommand(Resource):
+	def get(self):
+		parser.add_argument('jobId')
+		parser.add_argument('command')
+		args = parser.parse_args()	
+		jobId = args["jobId"]
+		command = args["command"]
+		result = JobRestAPIUtils.AddCommand(jobId, command)
+		ret = {}
+		if result:
+			ret["result"] = "Success, the command is scheduled to be run."
+		else:
+			ret["result"] = "Cannot Run the Command. Job ID:" + jobId
+
+		resp = jsonify(ret)
+		resp.headers["Access-Control-Allow-Origin"] = "*"
+		resp.headers["dataType"] = "json"
+
+		return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(AddCommand, '/AddCommand')
+
+
 
 class AddUser(Resource):
 	def get(self):

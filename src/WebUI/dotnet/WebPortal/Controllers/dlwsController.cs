@@ -138,6 +138,12 @@ namespace WindowsAuth.Controllers
                     var databaseJson = DownloadDatabase(HttpContext.Request);
                     return await databaseJson;
                     break;
+                case "RunCommand":
+                    if (HttpContext.Request.Query.ContainsKey("jobId") && HttpContext.Request.Query.ContainsKey("command"))
+                    {
+                        url = restapi + "/AddCommand?jobId=" + HttpContext.Request.Query["jobId"] + "&command=" + HttpContext.Request.Query["command"];
+                    }
+                    break;
             }
 
             if (url != "")

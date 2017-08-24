@@ -3,79 +3,78 @@
 *@
 
 <script>
+    function DisplayDetail(payload) {
+        if (payload.log) {
+            //console.log(payload.jobId);
+            if (payload.log != "fail-to-get-logs")
+            {
+                var objDiv = document.getElementById('logPanel');
+                objDiv.style.height = "500px";
+                objDiv.innerHTML = payload.log;
+                objDiv.scrollTop = objDiv.scrollHeight;
+            }
+        }
+        else {
+            var logPanelDiv = document.getElementById('logPanel');
+            logPanelDiv.innerHTML = "No log yet!";
+            logPanelDiv.style.height = "50px";
+        }
+        if (payload.jobParams) {
+
+            var jobDetailDiv = document.getElementById('jobDetail');
+
+            var jobDetailStr = "Job Id: " + payload.jobParams.jobId + "\n";
+            jobDetailStr += "Job Name: " + payload.jobParams.jobName + "\n";
+            jobDetailStr += "Docker Image: " + payload.jobParams.image + "\n";
+            jobDetailStr += "Command: " + payload.jobParams.cmd + "\n";
+            jobDetailStr += "Data Path: " + payload.jobParams.dataPath + "\n";
+            jobDetailStr += "Work Path: " + payload.jobParams.workPath + "\n";
+            jobDetailStr += "Container Ports: " + payload.jobParams.interactivePort + "\n";
+            jobDetailStr += "Job Path: " + payload.jobParams.jobPath + "\n";
+            jobDetailStr += "Job Type: " + payload.jobParams.jobType + "\n";
+            jobDetailStr += "GPU #: " + payload.jobParams.resourcegpu + "\n";
+            jobDetailStr += "Job Status: " + payload.jobStatus + "\n";
+            jobDetailStr += "Job Submission Time: " + payload.jobTime + "\n";
+            jobDetailDiv.innerHTML = jobDetailStr;
+
+            var jobfolderDiv = document.getElementById('jobfolderPanel');
+            jobfolderDiv.innerHTML = "<a href='file:@ViewData["jobPath"]" + payload.jobParams.jobPath + "'> file:@ViewData["jobPath"]" + payload.jobParams.jobPath + "</a>";
+
+            document.getElementById('run-command').style.display = payload.jobStatus == "running" ? "block" : "none"
+        }
+
+        if (payload.endpoints)
+        {
+            $('#endpoints').show();
+
+            var endpointsStr = "";
+            for (var i = 0; i < payload.endpoints.length; i++)
+            {
+
+                if (payload.endpoints[i].containerPort == 22)
+                {
+                    endpointsStr += "To access the container via SSH, use command: ssh -i @ViewData["workPath"]" + ".ssh/id_rsa -p " + payload.endpoints[i].hostPort + " @ViewData["Username"]" + "@@" + payload.endpoints[i].hostName + "\n";
+                }
+                else
+                {
+                    var svcurl = "http://" + payload.endpoints[i].hostName + ":" + payload.endpoints[i].hostPort;
+                    endpointsStr += "Container Port: " + payload.endpoints[i].containerPort + " is mapped to public ip: <a href='" + svcurl + "' target='_blank'> " + svcurl + "</a>  \n";
+                }
+            }
+            var endpointsPanellDiv = document.getElementById('endpointsPanel');
+            endpointsPanellDiv.innerHTML = endpointsStr;
+            var height = payload.endpoints.length * 15;
+            endpointsPanellDiv.style.height = height + "px";
+        }
+        else {
+            $('#endpoints').hide();
+        }
+    }
+    
     function GetDetail() {
         var url = "/api/dlws/JobDetail?jobId=@ViewData["jobid"]";
-        $.ajax({
-            url: url,
-            dataType: 'json',
-            timeout: 10000 //10 second timeout,
-        }).done(
-            function (payload) {
-                if (payload.log) {
-                    //console.log(payload.jobId);
-                    if (payload.log != "fail-to-get-logs")
-                    {
-                        var objDiv = document.getElementById('logPanel');
-                        objDiv.style.height = "500px";
-                        objDiv.innerHTML = payload.log;
-                        objDiv.scrollTop = objDiv.scrollHeight;
-                    }
-                }
-                else {
-                    var logPanelDiv = document.getElementById('logPanel');
-                    logPanelDiv.innerHTML = "No log yet!";
-                    logPanelDiv.style.height = "50px";
-                }
-                if (payload.jobParams) {
-
-                    var jobDetailDiv = document.getElementById('jobDetail');
-
-                    var jobDetailStr = "Job Id: " + payload.jobParams.jobId + "\n";
-                    jobDetailStr += "Job Name: " + payload.jobParams.jobName + "\n";
-                    jobDetailStr += "Docker Image: " + payload.jobParams.image + "\n";
-                    jobDetailStr += "Command: " + payload.jobParams.cmd + "\n";
-                    jobDetailStr += "Data Path: " + payload.jobParams.dataPath + "\n";
-                    jobDetailStr += "Work Path: " + payload.jobParams.workPath + "\n";
-                    jobDetailStr += "Container Ports: " + payload.jobParams.interactivePort + "\n";
-                    jobDetailStr += "Job Path: " + payload.jobParams.jobPath + "\n";
-                    jobDetailStr += "Job Type: " + payload.jobParams.jobType + "\n";
-                    jobDetailStr += "GPU #: " + payload.jobParams.resourcegpu + "\n";
-                    jobDetailStr += "Job Status: " + payload.jobStatus + "\n";
-                    jobDetailStr += "Job Submission Time: " + payload.jobTime + "\n";
-                    jobDetailDiv.innerHTML = jobDetailStr;
-
-                    var jobfolderDiv = document.getElementById('jobfolderPanel');
-                    jobfolderDiv.innerHTML = "<a href='file:@ViewData["jobPath"]" + payload.jobParams.jobPath + "'> file:@ViewData["jobPath"]" +  payload.jobParams.jobPath +"</a>";
-                }
-
-                if (payload.endpoints)
-                {
-                    $('#endpoints').show();
-
-                    var endpointsStr = "";
-                    for (var i = 0; i < payload.endpoints.length; i++)
-                    {
-                        
-                        if (payload.endpoints[i].containerPort == 22)
-                        {
-                            endpointsStr += "To access the container via SSH, use command: ssh -i @ViewData["workPath"]" + ".ssh/id_rsa -p " + payload.endpoints[i].hostPort + " @ViewData["Username"]" + "@@" + payload.endpoints[i].hostName + "\n";
-                        }
-                        else
-                        {
-                            var svcurl = "http://" + payload.endpoints[i].hostName + ":" + payload.endpoints[i].hostPort;
-                            endpointsStr += "Container Port: " + payload.endpoints[i].containerPort + " is mapped to public ip: <a href='" + svcurl + "' target='_blank'> " + svcurl + "</a>  \n";
-                        }
-                    }
-                    var endpointsPanellDiv = document.getElementById('endpointsPanel');
-                    endpointsPanellDiv.innerHTML = endpointsStr;
-                    var height = payload.endpoints.length * 15;
-                    endpointsPanellDiv.style.height = height + "px";
-                }
-                else {
-                    $('#endpoints').hide();
-                }
-            });
-    }
+        $.ajax({ url: url, dataType: 'json', timeout: 10000 }).done(DisplayDetail);
+    }//
 
     function RefreshDetail() {
         if (document.getElementById('chkRefresh').checked) {
@@ -85,28 +84,56 @@
 
     $(document).ready(function() {
         GetDetail();
-        var refresh = setInterval(RefreshDetail, 5000);
+        setInterval(RefreshDetail, 5000);
     });
 </script>
 
+<script>
+    function AlertCommandResult(payload) {       
+        alert(payload.result);
+        $("#run-cmd-btn").attr("disabled", false);
+    }
+
+    function AlertAPIError(xhr, ajaxOptions, thrownError) {
+        alert("Restful API Error: \n" + JSON.stringify(thrownError));
+        $("#run-cmd-btn").attr("disabled", false);
+    }
+    
+    function RunCommand() {
+        $("#run-cmd-btn").attr("disabled", true);
+        var url = "/api/dlws/RunCommand?jobId=@ViewData["jobid"]&";
+        url = url + "command=" + encodeURIComponent(document.getElementById("cmd-textbox").value);
+        $.ajax({ url: url, dataType: 'json', timeout: 10000,  error: AlertAPIError }).done(AlertCommandResult);       
+    }
+    
+</script>
+
 <h2> Job Details:</h2>
-<div id="jobDetail" style="height: 230px; background-color: #eee; white-space: pre; word-wrap: normal; overflow-x: scroll; overflow-y: scroll; font-family: 'Courier New'; font-weight: 600; font-size: 12px" readonly="" class="ng-binding">
+<div id="jobDetail" style="height: 230px;" readonly="" class="ng-binding grey-box scroll-box">
 </div>
 
 <h2> Job Folder: </h2>
-<div id="jobfolderPanel" style="height: 20px; background-color: #eee; white-space: pre; word-wrap: normal; font-family: 'Courier New'; font-weight: 600; font-size: 12px" readonly="" class="ng-binding">    
+<div id="jobfolderPanel" style="height: 20px;" readonly="" class="ng-binding grey-box">    
 </div>
 
 <div id="endpoints" hidden>
     <h2> Mapped Endpoints: </h2>
     <h4>(Links to access interactive/visualization interface)</h4>
-    <div id="endpointsPanel" style="height: 100px; background-color: #eee; white-space: pre; word-wrap: normal; font-family: 'Courier New'; font-weight: 600; font-size: 12px" readonly="" class="ng-binding">
+    <div id="endpointsPanel" style="height: 100px;" readonly="" class="ng-binding grey-box">
     </div>
 </div>
 
 <h2> Job Console Output:</h2>
-<div id="logPanel" style="height: 500px; background-color: #eee; white-space: pre; word-wrap: normal; overflow-x: scroll; overflow-y: scroll; font-family: 'Courier New'; font-weight: 600; font-size: 12px" readonly="" class="ng-binding">
+<div id="logPanel" style="height: 500px;" readonly="" class="ng-binding grey-box scroll-box">
     No log yet
+</div>
+
+<div id="run-command" style="display: none">
+    <h2> Run Command:</h2>
+ <div style="display: inline-block; position: relative; width: 100%;">
+    <textarea class="form-control cmd-textbox" style="height: 10em; display: block" id="cmd-textbox"></textarea>
+    <button class="btn btn-success" style="position: absolute; bottom: 10px; right: 10px" onclick="RunCommand()" id="run-cmd-btn">Run</button>
+ </div>
 </div>
 
 <br />
@@ -117,3 +144,28 @@
         Auto-Refresh Job Details (Refresh-Rate 5 Seconds)
     </label>
 </div>
+
+<style>
+    .grey-box {
+        background-color: #eee;
+        white-space: pre;
+        word-wrap: normal;
+    }
+
+    .scroll-box {
+        overflow-x: scroll;
+        overflow-y: scroll;
+    }
+
+    .grey-box, .cmd-textbox {
+        font-family: 'Courier New';
+        font-weight: 600;
+        font-size: 12px;
+    }
+
+    .cmd-textbox {
+        width: 100%;
+        max-width: none;
+
+    }
+</style>
