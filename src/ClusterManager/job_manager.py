@@ -402,15 +402,6 @@ chmod +x /opt/run_dist_job.sh
 
 	return ret
 
-
-def RunCommand(command):
-	dataHandler = DataHandler()
-	k8sUtils.kubectl_exec("exec %s %s" % (command["jobId"], command["command"]))
-	dataHandler.FinishCommand(command["id"])
-	dataHandler.Close()
-	return True
-
-
 def KillJob(job):
 	dataHandler = DataHandler()
 	result, detail = k8sUtils.GetJobStatus(job["jobId"])
@@ -753,19 +744,6 @@ def Run():
 						UpdateJobStatus(job)
 					elif job["jobStatus"] == "unapproved" :
 						AutoApproveJob(job)
-				except Exception as e:
-					print e
-		except Exception as e:
-			print e
-
-		try:
-			dataHandler2 = DataHandler()
-			pendingCommands = dataHandler2.GetPendingCommands()
-			printlog("running %d commands" % len(pendingCommands))
-			for command in pendingCommands:
-				try:
-					print "Processing command: %s" % (command["id"])
-					RunCommand(command)
 				except Exception as e:
 					print e
 		except Exception as e:
