@@ -144,6 +144,10 @@ namespace WindowsAuth.Controllers
                         url = restapi + "/AddCommand?jobId=" + HttpContext.Request.Query["jobId"] + "&command=" + HttpContext.Request.Query["command"];
                     }
                     break;
+                case "GetCommandTemplates":
+                    var res = GetCommandTemplates();
+                    return await res;
+                    break;
             }
 
             if (url != "")
@@ -324,13 +328,16 @@ namespace WindowsAuth.Controllers
                 var templatesList = templates.Template.ToAsyncEnumerable();
                 await templatesList.ForEachAsync(entry =>
                 {
-                    var t = "{";
-                    t += "\"Name\" : \"" + entry.Template + "\",";
-                    t += "\"Username\" : \"" + entry.Username + "\",";
-                    t += "\"Json\" : " + entry.Json + ",";
-                    t += "\"Database\" : \"" + databaseName + "\"";
-                    t += "},";
-                    templatesString += t;
+                    if (entry.Json.StartsWith("{"))
+                    {
+                        var t = "{";
+                        t += "\"Name\" : \"" + entry.Template + "\",";
+                        t += "\"Username\" : \"" + entry.Username + "\",";
+                        t += "\"Json\" : " + entry.Json + ",";
+                        t += "\"Database\" : \"" + databaseName + "\"";
+                        t += "},";
+                        templatesString += t;
+                    }
                 });
                 return templatesString;
             }
@@ -338,6 +345,26 @@ namespace WindowsAuth.Controllers
             {
                 return "";
             }
+        }
+
+        private static async Task<string> GetCommandTemplates()
+        {
+            var jsonString = "[";
+            jsonString += "{\"Name\" : \"None\", \"Command\" : \"\"},";
+            var templatesList = Startup.MasterDatabase.Template.ToAsyncEnumerable();
+            await templatesList.ForEachAsync(entry =>
+            {
+                if (!entry.Json.StartsWith("{"))
+                {
+                    var t = "{";
+                    t += "\"Name\" : \"" + entry.Template + "\",";
+                    t += "\"Command\" : \"" + entry.Json + "\"";
+                    t += "},";
+                    jsonString += t;
+                }
+            });
+            jsonString = jsonString.Substring(0, jsonString.Length - 1) + "]";
+            return jsonString;
         }
 
         private async Task<string> SaveTemplateAsync(TemplateParams templateParams)

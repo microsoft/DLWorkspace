@@ -3,6 +3,18 @@
 *@
 
 <script>
+    function buildTemplateList() {
+        $.ajax({ url: "/api/dlws/GetCommandTemplates", dataType: 'json', timeout: 10000, error: AlertAPIError }).done(
+            function (json) {
+                $('#templateselect').find("option").remove();
+                for (var i = 0; i < json.length; i++) {
+                    var row = $("<option>" + json[i].Name + "</option>");
+                    row.attr("value", json[i].Command);
+                    $('#templateselect').append(row);
+                }
+            });
+    }
+    
     function DisplayDetail(payload) {
         if (payload.log) {
             //console.log(payload.jobId);
@@ -40,7 +52,7 @@
             var jobfolderDiv = document.getElementById('jobfolderPanel');
             jobfolderDiv.innerHTML = "<a href='file:@ViewData["jobPath"]" + payload.jobParams.jobPath + "'> file:@ViewData["jobPath"]" + payload.jobParams.jobPath + "</a>";
 
-            document.getElementById('run-command').style.display = payload.jobStatus == "running" ? "block" : "none"
+            document.getElementById('run-command').style.display = payload.jobStatus == "running" ? "block" : "none";
         }
 
         if (payload.endpoints)
@@ -74,6 +86,11 @@
     function GetDetail() {
         var url = "/api/dlws/JobDetail?jobId=@ViewData["jobid"]";
         $.ajax({ url: url, dataType: 'json', timeout: 10000 }).done(DisplayDetail);
+    }
+    
+    function GetDetail() {
+        var url = "/api/dlws/JobDetail?jobId=@ViewData["jobid"]";
+        $.ajax({ url: url, dataType: 'json', timeout: 10000 }).done(DisplayDetail);
     }//
 
     function RefreshDetail() {
@@ -84,6 +101,7 @@
 
     $(document).ready(function() {
         GetDetail();
+        buildTemplateList();
         setInterval(RefreshDetail, 5000);
     });
 </script>
@@ -104,6 +122,10 @@
         var url = "/api/dlws/RunCommand?jobId=@ViewData["jobid"]&";
         url = url + "command=" + encodeURIComponent(document.getElementById("cmd-textbox").value);
         $.ajax({ url: url, dataType: 'json', timeout: 10000,  error: AlertAPIError }).done(AlertCommandResult);       
+    }
+
+    function UseTemplate(tempValue) {
+        document.getElementById("cmd-textbox").value = tempValue;
     }
     
 </script>
@@ -130,10 +152,12 @@
 
 <div id="run-command" style="display: none">
     <h2> Run Command:</h2>
- <div style="display: inline-block; position: relative; width: 100%;">
-    <textarea class="form-control cmd-textbox" style="height: 10em; display: block" id="cmd-textbox"></textarea>
-    <button class="btn btn-success" style="position: absolute; bottom: 10px; right: 10px" onclick="RunCommand()" id="run-cmd-btn">Run</button>
- </div>
+    <label>Use Template: </label>
+    <select onchange="UseTemplate(this.value)" id="templateselect"></select>
+    <div style="display: block; position: relative; width: 100%;">
+        <textarea class="form-control cmd-textbox" style="height: 10em; display: block" id="cmd-textbox"></textarea>
+        <button class="btn btn-success" style="position: absolute; bottom: 10px; right: 10px" onclick="RunCommand()" id="run-cmd-btn">Run</button>
+    </div>
 </div>
 
 <br />
