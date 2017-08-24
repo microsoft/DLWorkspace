@@ -25,6 +25,7 @@ import job_manager
 import user_manager
 import node_manager
 import joblog_manager
+import command_manager
 
 from multiprocessing import Process, Manager
 
@@ -62,11 +63,16 @@ def Run():
 	proc_joblog = Process(target=joblog_manager.Run)
 	proc_joblog.start()
 
+	logging.info( "Starting command manager... " )
+	proc_command = Process(target=command_manager.Run)
+	proc_command.start()
+
 
 	proc_job.join()
 	proc_user.join()
 	proc_node.join()
 	proc_joblog.join()
+	proc_command.join()
 	pass
 
 if __name__ == '__main__':

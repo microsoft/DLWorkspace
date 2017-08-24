@@ -402,8 +402,6 @@ chmod +x /opt/run_dist_job.sh
 
 	return ret
 
-
-
 def KillJob(job):
 	dataHandler = DataHandler()
 	result, detail = k8sUtils.GetJobStatus(job["jobId"])

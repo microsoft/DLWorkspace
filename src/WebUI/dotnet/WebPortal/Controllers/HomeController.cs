@@ -956,9 +956,16 @@ namespace WindowsAuth.Controllers
                 var aliases = new List<string>();
                 foreach (var user in db.User)
                 {
-                    if(user.Alias == userEmail && userEmail != user.Email)
+                    if(user.Alias == userEmail)
                     {
-                        aliases.Add(user.Email);
+                        if (userEmail == user.Email)
+                        {
+                            ViewData["Password"] = user.Password; 
+                        }
+                        else
+                        {
+                            aliases.Add(user.Email);
+                        }
                     }
                 }
                 ViewData["Aliases"] = aliases;
