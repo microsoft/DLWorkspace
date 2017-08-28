@@ -15,7 +15,7 @@ spec:
         jobmanager: active
       containers:
       - name: jobmanager
-        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}restfulapi:acs
+        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}restfulapi:{{cnf["dockertag"]}}
         command: ["/runScheduler.sh"]
         imagePullPolicy: Always
         volumeMounts:
