@@ -1,3 +1,6 @@
+dockerprefix : <<docker prefix -- example "sanjeevm/">>
+restfulapi : restfulapiacs
+
 resource_group : kubegroup2
 cluster_name : k8scluster
 cluster_location : westus
