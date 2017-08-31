@@ -684,6 +684,8 @@ def create_cluster_id():
 def add_acs_config():
 	if (os.path.exists("./deploy/"+config["acskubeconfig"])):
 		config["isacs"] = True
+		config["restfulapi"] = "restfulapiacs"
+		config["WinbindServers"] = []
 		create_cluster_id()
 		config["etcd_node_num"] = config["master_node_num"]
 		try:
@@ -3517,7 +3519,8 @@ def run_command( args, command, nargs, parser ):
 			update_worker_nodes( [] )
 
 	elif command == "azure":
-		deploy_azure()
+		config["WinbindServers"] = []
+		run_script_blocks(scriptblocks["azure"])
 
 	elif command == "acs":
 		k8sconfig["kubelet-path"] = "./deploy/bin/kubectl --kubeconfig=./deploy/%s" % (config["acskubeconfig"])
