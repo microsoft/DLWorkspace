@@ -1,0 +1,33 @@
+dockerprefix : sanjeevm/
+restfulapi : restfulapiacs
+
+resource_group : k8sgpu
+cluster_name : k8s
+cluster_location : northcentralus
+worker_node_num : 3
+master_node_num : 1
+acsagentsize : Standard_NC12
+
+sqlserver-hostname : tcp:o0ij712tvp.database.windows.net
+sqlserver-username : irchallenge
+sqlserver-password : M$ft2016
+sqlserver-database : DLWorkspaceJobs
+
+# kubelogdir : /logs
+# kubeloglevel : 1
+# kubeletlogdir : /logs
+# kubeletloglevel : 1
+
+basic_auth :  M$ft2016,admin,1000
+
+# Azure deployment doesn't have winbind servers. 
+WinbindServers: [  ]
+
+# Please set up a Azure Data file 
+mountpoints:
+  rootshare:
+    type: azurefileshare
+    accountname: k8sstoragefbc3de120
+    filesharename: k8sfileshare
+    # Mount at root
+    mountpoints: ""

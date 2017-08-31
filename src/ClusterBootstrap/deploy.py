@@ -279,7 +279,7 @@ default_config_parameters = {
 
 	"acskubeconfig" : "acs_kubeclusterconfig",
 	"isacs" : False,
-	"acsagentsize" : "Standard_D2_v2",
+	"acsagentsize" : "Standard_NC12",
 
 	"mountconfig": {
 		"azurefileshare" : {
@@ -376,6 +376,11 @@ scriptblocks = {
   		"kubernetes start jobmanager",
   		"kubernetes start restfulapi",
   		"kubernetes start webportal",
+	],
+	"bldwebui": [
+		"docker push restfulapi",
+		"docker push restfulapiacs",
+		"docker push webui",
 	],
 	"restartwebui": [
 		"kubernetes stop webportal",
@@ -667,16 +672,19 @@ def add_ssh_key():
 		config["sshKeys"] = []
 		config["sshKeys"].append(config["sshkey"])
 
+def create_cluster_id():
+	if (not os.path.exists('./deploy/clusterID.yml')):
+		clusterId = {}
+		clusterId["clusterId"] = str(uuid.uuid4())
+		with open('./deploy/clusterID.yml', 'w') as f:
+			f.write(yaml.dump(clusterId))
+		config["clusterId"] = utils.get_cluster_ID_from_file()	
+		print "Cluster ID is " + config["clusterId"]
+
 def add_acs_config():
 	if (os.path.exists("./deploy/"+config["acskubeconfig"])):
 		config["isacs"] = True
-		if (not os.path.exists('./deploy/clusterID.yml')):
-			clusterId = {}
-			clusterId["clusterId"] = str(uuid.uuid4())
-			with open('./deploy/clusterID.yml', 'w') as f:
-				f.write(yaml.dump(clusterId))
-			config["clusterId"] = utils.get_cluster_ID_from_file()	
-			print "Cluster ID is " + config["clusterId"]
+		create_cluster_id()
 		config["etcd_node_num"] = config["master_node_num"]
 		try:
 			if not ("accesskey" in config["mountpoints"]["rootshare"]):
@@ -1793,23 +1801,26 @@ def acs_get_config():
 	if not (os.path.exists('./deploy/bin/kubectl')):
 		os.system("mkdir -p ./deploy/bin")
 		os.system("az acs kubernetes install-cli --install-location ./deploy/bin/kubectl")
-	cmd = "az acs kubernetes get-credentials"
-	cmd += " --resource-group=%s" % config["resource_group"]
-	cmd += " --name=%s" % config["cluster_name"]
-	cmd += " --file=./deploy/%s" % config["acskubeconfig"]
-	cmd += " --ssh-key-file=%s" % "./deploy/sshkey/id_rsa"
-	print "Cmd " + cmd
-	os.system(cmd)	
+	if not (os.path.exists('./deploy/'+config["acskubeconfig"])):
+		cmd = "az acs kubernetes get-credentials"
+		cmd += " --resource-group=%s" % config["resource_group"]
+		cmd += " --name=%s" % config["cluster_name"]
+		cmd += " --file=./deploy/%s" % config["acskubeconfig"]
+		cmd += " --ssh-key-file=%s" % "./deploy/sshkey/id_rsa"
+		print "Cmd " + cmd
+		os.system(cmd)	
 
 def acs_deploy():
+	create_cluster_id()
 	regenerate_key = False
 	if (os.path.exists("./deploy/sshkey")):
-		response = raw_input_with_default("SSH keys already exist, do you want to keep existing (y/n)?")
-		if first_char(response) == "n":
-			utils.backup_keys(config["cluster_name"])
-			regenerate_key = True
-		else:
-			regenerate_key = False
+		regenerate_key = False
+		# response = raw_input_with_default("SSH keys already exist, do you want to keep existing (y/n)?")
+		# if first_char(response) == "n":
+		# 	utils.backup_keys(config["cluster_name"])
+		# 	regenerate_key = True
+		# else:
+		# 	regenerate_key = False
 	else:
 		regenerate_key = True
 
@@ -1841,9 +1852,10 @@ def acs_deploy():
 	# Label nodes
 	ip = get_nodes_from_acs("")
 	acs_label_webui()
+	kubernetes_label_nodes("active", [], args.yes )	
 
 	# Add rules for NSG
-	acs_add_nsg_rules({"HTTPAllow" : 80, "RestfulAPIAllow" : 5000})
+	acs_add_nsg_rules({"HTTPAllow" : 80, "RestfulAPIAllow" : 5000, "AllowKubernetesServicePorts" : "30000-32767"})
 
 	return Nodes
 
@@ -1873,6 +1885,11 @@ def acs_create_storage():
 	cmd += " --account-key=%s" % azureKey
 	print "Cmd: " + cmd
 	os.system(cmd)
+
+def acs_install_gpu():
+	nodes = get_worker_nodes(config["clusterId"])
+	for node in nodes:
+		exec_rmt_cmd(node, "curl -L -sf https://raw.githubusercontent.com/ritazh/acs-k8s-gpu/master/install-nvidia-driver.sh | sudo sh")
 
 def acs_get_jobendpt(jobId):
 	get_nodes_from_acs("")
@@ -2098,11 +2115,11 @@ def mount_fileshares_by_service(perform_mount=True):
 			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.py",os.path.join(config["folder_auto_share"], "auto_share.py"), "core", node )
 			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/mounting.yaml",os.path.join(config["folder_auto_share"], "mounting.yaml"), "core", node )
 			remotecmd += "sudo chmod +x %s; " % os.path.join(config["folder_auto_share"], "auto_share.py")
+			remotecmd += "sudo " + os.path.join(config["folder_auto_share"], "auto_share.py") + "; " # run it once now
 			remotecmd += "sudo systemctl daemon-reload; "
 			remotecmd += "sudo systemctl enable auto_share.timer; "
 			remotecmd += "sudo systemctl restart auto_share.timer; "
 			remotecmd += "sudo systemctl stop auto_share.service; "
-			#remotecmd += "sudo " + os.path.join(config["folder_auto_share"], "auto_share.py") + "; " # run it at least once
 			if len(remotecmd)>0:
 				utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)
 			# We no longer recommend to insert fstabl into /etc/fstab file, instead, 
@@ -2139,7 +2156,17 @@ def unmount_fileshares_by_service(clean=False):
 					if "curphysicalmountpoint" in v:
 						remotecmd += "sudo rm -rf %s; " % v["curphysicalmountpoint"]
 			if len(remotecmd)>0:
-				utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)			
+				utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)	
+
+def exec_rmt_cmd(node, cmd):
+	utils.SSH_exec_cmd(config["ssh_cert"], "core", node, cmd)
+
+def del_fileshare_links():
+	all_nodes = get_nodes(config["clusterId"])
+	for node in all_nodes:
+		remotecmd = "sudo rm -r %s; " % config["storage-mount-path"]	
+		remotecmd = "sudo mkdir -p %s; " % config["storage-mount-path"]
+		exec_rmt_cmd(node, remotecmd)
 			 
 def link_fileshares(allmountpoints, bForce=False):
 	all_nodes = get_nodes(config["clusterId"])
@@ -3517,6 +3544,16 @@ def run_command( args, command, nargs, parser ):
 				print "Address: =" + json.dumps(k8sUtils.GetServiceAddress(nargs[1]))
 			elif nargs[0]=="storage":
 				acs_create_storage()
+			elif nargs[0]=="storagemount":
+				acs_create_storage()
+				fileshare_install()
+				allmountpoints = mount_fileshares_by_service(True)
+				del_fileshare_links()
+				link_fileshares(allmountpoints, args.force)		
+			elif nargs[0]=="bldwebui":
+				run_script_blocks(scriptblocks["bldwebui"])
+			elif nargs[0]=="gpudrivers":
+				acs_install_gpu()
 			elif nargs[0]=="jobendpt":
 				acs_get_jobendpt(nargs[1])
 			
