@@ -1,5 +1,4 @@
 dockerprefix : <<docker prefix -- example "sanjeevm/">>
-restfulapi : restfulapiacs
 
 resource_group : kubegroup2
 cluster_name : k8scluster
@@ -7,24 +6,6 @@ cluster_location : westus
 worker_node_num : 3
 master_node_num : 1
 acsagentsize : Standard_D2_v2
-
-# Azure deployment doesn't have winbind servers. 
-WinbindServers: [  ]
-
-# uid: a number which is uid for kubernete API server
-basic_auth :  <<password,username,uid>>
-
-# SQL server (e.g., SQL Azure authentication information)
-sqlserver-hostname : tcp:<<servername>>.database.windows.net
-sqlserver-username : <<sql_username>>
-sqlserver-password : <<sql_password>>
-sqlserver-database : DLWorkspaceJobs
-
-# Kubernetes logging information
-kubelogdir : <location for kube master logs>
-kubeloglevel : <log level>
-kubeletlogdir : <location for kubelet worker logs>
-kubeletloglevel : <log level>
 
 # Please set up a Azure Data file 
 mountpoints:
@@ -35,4 +16,18 @@ mountpoints:
     # Mount at root
     mountpoints: ""
 
+# uid: a number which is uid for kubernete API server
+basic_auth :  <<password,username,uid>>
+
+# Kubernetes logging information
+kubelogdir : <location for kube master logs>
+kubeloglevel : <log level>
+kubeletlogdir : <location for kubelet worker logs>
+kubeletloglevel : <log level>
+
+# SQL server (e.g., SQL Azure authentication information)
+sqlserver-hostname : tcp:<<servername>>.database.windows.net
+sqlserver-username : <<sql_username>>
+sqlserver-password : <<sql_password>>
+sqlserver-database : DLWorkspaceJobs
 
