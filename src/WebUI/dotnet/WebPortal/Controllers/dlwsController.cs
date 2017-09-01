@@ -131,7 +131,7 @@ namespace WindowsAuth.Controllers
                     }
                     break;
                 case "GetTemplates":
-                    var result = GetTemplatesAsync();
+                    var result = GetTemplatesAsync(HttpContext.Request.Query["type"]);
                     return await result;
                     break;
                 case "GetDatabase":
@@ -144,9 +144,11 @@ namespace WindowsAuth.Controllers
                         url = restapi + "/AddCommand?jobId=" + HttpContext.Request.Query["jobId"] + "&command=" + HttpContext.Request.Query["command"];
                     }
                     break;
-                case "GetCommandTemplates":
-                    var res = GetCommandTemplates();
-                    return await res;
+                case "GetCommands":
+                    if (HttpContext.Request.Query.ContainsKey("jobId"))
+                    {
+                        url = restapi + "/GetCommands?jobId=" + HttpContext.Request.Query["jobId"];
+                    }
                     break;
             }
 
@@ -248,8 +250,9 @@ namespace WindowsAuth.Controllers
         {
             string databaseString = httpContextRequest.Query["location"];
             var database = GetDatabaseFromString(databaseString);
+            if (database.Template.Count() == 0) return "[]";
             var json = "[";
-            var templartFromDb = GetTemplatesString(database, databaseString);
+            var templartFromDb = GetTemplatesString(database, databaseString, "all");
             json += await templartFromDb;
             return json.Substring(0, json.Length - 1) + "]";
         }        
@@ -304,23 +307,23 @@ namespace WindowsAuth.Controllers
             return null;
         }
 
-        private async Task<string> GetTemplatesAsync()
+        private async Task<string> GetTemplatesAsync(string type)
         {
             string jsonString = "[";
             jsonString += "{\"Name\" : \"None\", \"Json\" : {}},";
-            var master = GetTemplatesString(Startup.MasterDatabase, "Master");
+            var master = GetTemplatesString(Startup.MasterDatabase, "Master", type);
             jsonString += await master;
             var currentCluster = HttpContext.Session.GetString("CurrentClusters");
             if (currentCluster != null && Startup.Database.ContainsKey(currentCluster))
             {
-                var cluster = GetTemplatesString(Startup.Database[currentCluster], "CurrentCluster");
+                var cluster = GetTemplatesString(Startup.Database[currentCluster], "CurrentCluster", type);
                 jsonString += await cluster;
             }
             jsonString = jsonString.Substring(0, jsonString.Length - 1) + "]";
             return jsonString;
         }
 
-        private static async Task<string> GetTemplatesString(ClusterContext templates, string databaseName)
+        private static async Task<string> GetTemplatesString(ClusterContext templates, string databaseName, string type)
         {
             try
             {
@@ -328,7 +331,7 @@ namespace WindowsAuth.Controllers
                 var templatesList = templates.Template.ToAsyncEnumerable();
                 await templatesList.ForEachAsync(entry =>
                 {
-                    if (entry.Json.StartsWith("{"))
+                    if (type == "all" || entry.Type == type)
                     {
                         var t = "{";
                         t += "\"Name\" : \"" + entry.Template + "\",";
@@ -390,7 +393,7 @@ namespace WindowsAuth.Controllers
                 }
                 else
                 {
-                    var template = new TemplateEntry(templateParams.Name, username, templateParams.Json);
+                    var template = new TemplateEntry(templateParams.Name, username, templateParams.Json, "job");
                     database.Template.Add(template);
                     await database.SaveChangesAsync();
                     return "Succesfuly Saved New Template";

@@ -157,6 +157,12 @@ def GetJobList(userName):
 		return []
 
 
+def GetCommands(jobId):
+	dataHandler = DataHandler()
+	commands = dataHandler.GetCommands(jobId=jobId);
+	dataHandler.Close()
+	return commands
+
 
 def KillJob(jobId):
 	ret = True

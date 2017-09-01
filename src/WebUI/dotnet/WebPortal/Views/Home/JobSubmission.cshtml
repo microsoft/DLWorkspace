@@ -13,7 +13,7 @@
     }
 
     function buildTemplateList() {
-        $.ajax({ url: "/api/dlws/GetTemplates", dataType: 'json', timeout: 10000, error: AlertAPIError }).done(
+        $.ajax({ url: "/api/dlws/GetTemplates?type=job", dataType: 'json', timeout: 10000, error: AlertAPIError }).done(
             function (json) {
                 $('#templateselect').find("option").remove();
                 for (var i = 0; i < json.length; i++) {
@@ -334,7 +334,6 @@
                 params.Json = JSON.stringify(templateArray[i].Json);
                 var e = document.getElementById("databaseselect");
                 params.Database = e.options[e.selectedIndex].value;
-                alert(JSON.stringify(params));
                 SaveTemplateAPI(params);
             }
         }
