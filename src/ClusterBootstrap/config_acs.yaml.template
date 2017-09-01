@@ -1,5 +1,8 @@
 dockerprefix : <<docker prefix -- example "sanjeevm/">>
 
+# Azure information
+# master_dns_name must be unique, DLWorkspace available at <master_dns_name>.<cluster_location>.cloudapp.azure.com
+master_dns_name : k8sgpu2
 resource_group : kubegroup2
 cluster_name : k8scluster
 cluster_location : westus
@@ -7,7 +10,9 @@ worker_node_num : 3
 master_node_num : 1
 acsagentsize : Standard_D2_v2
 
-# Please set up a Azure Data file 
+# Azure storage
+# accountname must be unique, fileshare available via
+# net use [drive letter] \\<accountname>.file.core.windows.net\<filesharename>  /u:AZURE\<accountname> <storage key>
 mountpoints:
   rootshare:
     type: azurefileshare
