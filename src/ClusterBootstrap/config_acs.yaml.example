@@ -1,6 +1,8 @@
 dockerprefix : sanjeevm/
 
 # Azure information
+# master_dns_name must be unique, DLWorkspace available at <master_dns_name>.<cluster_location>.cloudapp.azure.com
+master_dns_name : k8sgpu
 resource_group : k8sgpu
 cluster_name : k8s
 cluster_location : northcentralus
@@ -9,6 +11,8 @@ master_node_num : 1
 acsagentsize : Standard_NC12
 
 # Azure storage
+# accountname must be unique, fileshare available via
+# net use [drive letter] \\<accountname>.file.core.windows.net\<filesharename>  /u:AZURE\<accountname> <storage key>
 mountpoints:
   rootshare:
     type: azurefileshare
