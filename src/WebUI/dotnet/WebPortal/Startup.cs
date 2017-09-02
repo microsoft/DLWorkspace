@@ -25,6 +25,8 @@ using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Http;
 
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace WindowsAuth
 {
@@ -198,9 +200,54 @@ namespace WindowsAuth
             var optionsBuilderTemplatesMaster = new DbContextOptionsBuilder<ClusterContext>();
             optionsBuilderTemplatesMaster.UseSqlServer(connectionTemplatesMaster);
             var templateMasterDatabase = new ClusterContext(optionsBuilderTemplatesMaster.Options);
-            templateMasterDatabase.Database.EnsureCreated();
+            var created = templateMasterDatabase.Database.EnsureCreated();
+            var entryArries = templateMasterDatabase.Template.Select( x => x.Template ).ToArray();
+            var dic = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in entryArries)
+            {
+                dic.Add(entry, true);
+            }
+            var nEntries = entryArries.Length;
+            _logger.LogInformation("# of entries in Master-Templates: {0}", nEntries);
             MasterDatabase = templateMasterDatabase;
 
+            var template_file = "./Master-Templates.json";
+
+            if ( File.Exists(template_file))
+            {
+                int ncount = 0;
+                _logger.LogInformation("Entries in template file: {0}", template_file);
+                var list = new List<Tuple<string, string>>();
+                using (var file = File.OpenText(template_file)) 
+                using (var reader = new JsonTextReader(file))
+                {
+                    foreach (var templateTok in (JArray)JToken.ReadFrom(reader))
+                    {
+                        var template = (JObject)templateTok;
+                        var TName = template["Name"].Value<string>();
+                        var TJson = template["Json"].Value<string>();
+                        _logger.LogInformation("{0}: {1}, {2}", ncount, TName, TJson);
+                        list.Add(new Tuple< string, string>(TName, TJson));
+                        ncount++;
+                        // var sql = @"INSERT INTO dbo.Template (Template, Json, Type) VALUES ({0}, {1}, job)";
+                        // MasterDatabase.Database.ExecuteSqlCommand(sql, TName, TJson);
+                    }
+                }
+                if (ncount > nEntries)
+                {
+                    // Trigger ingestion logic
+                    foreach (var entry in list)
+                    {
+                        if (!dic.ContainsKey(entry.Item1))
+                        {
+                            TemplateEntry entryAdd = new TemplateEntry(entry.Item1, null, entry.Item2, "job");
+                            MasterDatabase.Template.Add(entryAdd);
+                        }
+                    }
+                    MasterDatabase.SaveChanges(); 
+                }
+
+	        }
 
             if (String.IsNullOrEmpty(defaultClusterName))
                 defaultClusterName = Clusters.Keys.First<string>();

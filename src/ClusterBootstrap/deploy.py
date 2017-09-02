@@ -1546,6 +1546,8 @@ def deploy_webUI_on_node(ipAddress):
 		os.system("mkdir -p ./deploy/WebUI")
 	utils.render_template("./template/WebUI/userconfig.json","./deploy/WebUI/userconfig.json",config)
 	os.system("cp --verbose ./deploy/WebUI/userconfig.json ../WebUI/dotnet/WebPortal/")
+	os.system("cp --verbose ./template/WebUI/Master-Templates.json ./deploy/WebUI/Master-Templates.json")
+	os.system("cp --verbose ./deploy/WebUI/Master-Templates.json ../WebUI/dotnet/WebPortal/Master-Templates.json")
 	utils.sudo_scp(config["ssh_cert"],"./deploy/WebUI/userconfig.json","/etc/WebUI/userconfig.json", "core", webUIIP )
 
 

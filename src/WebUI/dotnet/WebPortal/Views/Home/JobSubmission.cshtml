@@ -205,9 +205,9 @@
         return template;
     }
 
-    function UseTemplate(tempalteValueString) {
-        var templateValue = JSON.parse(tempalteValueString);
-        var settings = templateValue.Json;
+    function UseTemplate(templateValueString) {
+        var templateValue = JSON.parse(templateValueString);
+        var settings = JSON.parse(templateValue.Json);
         var master = templateValue.Database === "Master";
         document.getElementsByName("templatelocation")[0].checked = !(templateValue.Database === undefined) && master;
         document.getElementsByName("templatelocation")[1].checked = !(templateValue.Database === undefined) && !master;
@@ -331,7 +331,7 @@
                 var params = {};
                 params.Name = templateArray[i].Name;
                 params.Username = templateArray[i].Username;
-                params.Json = JSON.stringify(templateArray[i].Json);
+                params.Json = templateArray[i].Json;
                 var e = document.getElementById("databaseselect");
                 params.Database = e.options[e.selectedIndex].value;
                 SaveTemplateAPI(params);

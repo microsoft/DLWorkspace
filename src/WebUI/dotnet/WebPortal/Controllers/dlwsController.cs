@@ -7,7 +7,7 @@ using WindowsAuth.models;
 using System.Net.Http;
 using Microsoft.AspNetCore.Http;
 using System.Runtime.Serialization;
-
+using Newtonsoft.Json;
 
 // For more information on enabling Web API for empty projects, visit http://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -310,7 +310,7 @@ namespace WindowsAuth.Controllers
         private async Task<string> GetTemplatesAsync(string type)
         {
             string jsonString = "[";
-            jsonString += "{\"Name\" : \"None\", \"Json\" : {}},";
+            jsonString += "{\"Name\" : \"None\", \"Json\" : \"{}\"},";
             var master = GetTemplatesString(Startup.MasterDatabase, "Master", type);
             jsonString += await master;
             var currentCluster = HttpContext.Session.GetString("CurrentClusters");
@@ -336,7 +336,7 @@ namespace WindowsAuth.Controllers
                         var t = "{";
                         t += "\"Name\" : \"" + entry.Template + "\",";
                         t += "\"Username\" : \"" + entry.Username + "\",";
-                        t += "\"Json\" : " + entry.Json + ",";
+                        t += "\"Json\" : " + JsonConvert.SerializeObject(entry.Json) + ",";
                         t += "\"Database\" : \"" + databaseName + "\"";
                         t += "},";
                         templatesString += t;
