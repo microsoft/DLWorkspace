@@ -73,9 +73,10 @@ def kubectl_delete(jobfile,EXEC=True):
 
 def kubectl_exec(params):
 	try:
+		#print ("bash -c %s %s" % (config["kubelet-path"], params))
 		output = subprocess.check_output(["bash","-c", config["kubelet-path"] + " " + params])
 	except Exception as e:
-		print e
+		print "EXCEPTION: " + e
 		output = ""
 	return output
 
@@ -93,6 +94,7 @@ def GetServiceAddress(jobId):
 	ret = []
 
 	output = kubectl_exec(" describe svc -l run=" + jobId)
+	#print "output=\n" + output
 	svcs = output.split("\n\n\n")
 	
 	for svc in svcs:

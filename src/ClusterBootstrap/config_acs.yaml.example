@@ -1,0 +1,40 @@
+dockerprefix : sanjeevm/
+
+# Azure information
+# master_dns_name must be unique, DLWorkspace available at <master_dns_name>.<cluster_location>.cloudapp.azure.com
+master_dns_name : k8sgpu
+resource_group : k8sgpu
+cluster_name : k8s
+cluster_location : northcentralus
+worker_node_num : 3
+master_node_num : 1
+acsagentsize : Standard_NC12
+
+# Azure storage
+# accountname must be unique, fileshare available via
+# net use [drive letter] \\<accountname>.file.core.windows.net\<filesharename>  /u:AZURE\<accountname> <storage key>
+mountpoints:
+  rootshare:
+    type: azurefileshare
+    accountname: k8sstoragefbc3de120
+    filesharename: k8sfileshare
+    # Mount at root
+    mountpoints: ""
+
+# Kubernetes specific
+# kubelogdir : /logs
+# kubeloglevel : 1
+# kubeletlogdir : /logs
+# kubeletloglevel : 1
+
+# Basic authentication for Kubernetes
+basic_auth :  M$ft2016,admin,1000
+
+# For DLWorkspace
+
+# SQL Server info for use by Job Manager / Restful API
+sqlserver-hostname : tcp:o0ij712tvp.database.windows.net
+sqlserver-username : irchallenge
+sqlserver-password : M$ft2016
+sqlserver-database : DLWorkspaceJobs
+

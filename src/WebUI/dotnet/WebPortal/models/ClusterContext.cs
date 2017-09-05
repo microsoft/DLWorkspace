@@ -74,16 +74,18 @@ namespace WindowsAuth.models
         public string Template { get; set; }
         public string Username { get; set; }
         public string Json { get; set; }
+        public string Type { get; set; }
 
         public TemplateEntry()
         {
         }
 
-        public TemplateEntry(string template, string username, string json)
+        public TemplateEntry(string template, string username, string json, string type)
         {
             Template = template;
             Username = username;
             Json = json;
+            Type = type;
         }
     }
 
@@ -123,6 +125,7 @@ namespace WindowsAuth.models
             builder.Entity<TemplateEntry>().Property(u => u.Template).HasMaxLength(128);
             builder.Entity<TemplateEntry>().Property(u => u.Username).HasMaxLength(128);
             builder.Entity<TemplateEntry>().Property(u => u.Json);
+            builder.Entity<TemplateEntry>().Property(u => u.Type).HasMaxLength(10);
         }
 
         public virtual DbSet<UserEntry> User { get; set; }

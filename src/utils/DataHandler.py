@@ -83,6 +83,7 @@ class DataHandler:
 				[status]         NTEXT NOT NULL DEFAULT 'pending',
 				[time] DATETIME     DEFAULT (getdate()) NOT NULL,
 				[command] NTEXT NOT NULL, 
+                [output] NTEXT NULL, 
 				PRIMARY KEY CLUSTERED ([id] ASC)
 			)
 			""" % (self.commandtablename,self.commandtablename)
@@ -209,6 +210,23 @@ class DataHandler:
 			return True
 		except:
 			return False
+
+
+	def GetCommands(self, jobId):
+		cursor = self.conn.cursor()
+		query = "SELECT [time], [command], [status], [output] FROM [%s] WHERE cast([jobId] as nvarchar(max)) = N'%s' order by [time]" % (self.commandtablename, jobId)
+		cursor.execute(query)
+		ret = []
+		for (time, command, status, output) in cursor:
+			record = {}
+			record["time"] = time
+			record["command"] = command
+			record["status"] = status
+			record["output"] = output
+			ret.append(record)
+		cursor.close()
+
+		return ret	
 
 
 	def KillJob(self,jobId):

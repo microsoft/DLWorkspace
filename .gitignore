@@ -30,6 +30,7 @@ src/ClusterBootstrap/deploy_backup/*
 #ASP.NET core
 src/WebUI/dotnet/.vs/**
 src/WebUI/dotnet/WebPortal/userconfig.json
+src/WebUI/dotnet/WebPortal/Master-Templates.json
 **/wwwroot/*
 **/bin/Release/*
 **/bin/Debug/*

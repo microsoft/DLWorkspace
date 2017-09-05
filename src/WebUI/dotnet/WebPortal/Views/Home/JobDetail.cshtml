@@ -3,13 +3,47 @@
 *@
 
 <script>
+
+    function getCommands() {
+        $.ajax({ url: "/api/dlws/GetCommands?jobId=@ViewData["jobid"]", dataType: 'json', timeout: 10000, error: AlertAPIError }).done(
+            function (json) {
+                var commandsDiv = document.getElementById('commands-div');
+                if (json.length == 0) {
+                    commandsDiv.style.display = "none";
+                }
+                else {
+                    commandsDiv.style.display = "block";   
+                    var table = $('#command-table');
+                    table.find("tr").remove();
+                    for (var i = 0; i < json.length; i++) {
+                        var tr
+                        tr = $('<tr/>');
+                        //Time
+                        tr.append("<td>" + json[i].time + "</td>");
+                        //Command
+                        tr.append("<td>" + json[i].command + "</td>");
+                        //Status
+                        if (json[i].status === "run") {
+                            var resultButton = '<a href="#" onclick="alert(\'' + json[i].output + '\')">Display Result</a>';
+                            tr.append('<td><bold class="Admin">' + json[i].status + "</bold> | " + resultButton + '</td>');
+                        }
+                        else {
+                            tr.append('<td><bold class="Alias">' + json[i].status + '</bold></td>');
+                        }
+                        
+                        table.append(tr);
+                    }
+                }             
+            });
+    }
+
     function buildTemplateList() {
-        $.ajax({ url: "/api/dlws/GetCommandTemplates", dataType: 'json', timeout: 10000, error: AlertAPIError }).done(
+        $.ajax({ url: "/api/dlws/GetTemplates?type=command", dataType: 'json', timeout: 10000, error: AlertAPIError }).done(
             function (json) {
                 $('#templateselect').find("option").remove();
                 for (var i = 0; i < json.length; i++) {
                     var row = $("<option>" + json[i].Name + "</option>");
-                    row.attr("value", json[i].Command);
+                    row.attr("value", JSON.stringify(json[i].Json));
                     $('#templateselect').append(row);
                 }
             });
@@ -53,6 +87,9 @@
             jobfolderDiv.innerHTML = "<a href='file:@ViewData["jobPath"]" + payload.jobParams.jobPath + "'> file:@ViewData["jobPath"]" + payload.jobParams.jobPath + "</a>";
 
             document.getElementById('run-command').style.display = payload.jobStatus == "running" ? "block" : "none";
+            if (payload.jobStatus == "running") {
+                getCommands();
+            }
         }
 
         if (payload.endpoints)
@@ -125,7 +162,9 @@
     }
 
     function UseTemplate(tempValue) {
-        document.getElementById("cmd-textbox").value = tempValue;
+        var temp = JSON.parse(tempValue);
+        var cmdString = (temp.cmd) ? temp.cmd : "";
+        document.getElementById("cmd-textbox").value = cmdString;
     }
     
 </script>
@@ -157,6 +196,21 @@
     <div style="display: block; position: relative; width: 100%;">
         <textarea class="form-control cmd-textbox" style="height: 10em; display: block" id="cmd-textbox"></textarea>
         <button class="btn btn-success" style="position: absolute; bottom: 10px; right: 10px" onclick="RunCommand()" id="run-cmd-btn">Run</button>
+    </div>
+
+    <div id="commands-div" style="display:none">
+        <br/>
+        <h4>Commands</h4>
+        <table class="table table-bordered table-condensed table-hover table-striped">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th style="width:60%">Command</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody  id="command-table" ></tbody>
+        </table>
     </div>
 </div>
 

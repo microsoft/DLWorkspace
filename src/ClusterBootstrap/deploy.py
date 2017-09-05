@@ -16,6 +16,7 @@ import shutil
 import random
 import glob
 import copy
+import numbers
 
 from os.path import expanduser
 
@@ -33,6 +34,8 @@ sys.path.append("../utils")
 
 import utils
 from DockerUtils import push_one_docker, build_dockers, push_dockers, run_docker, find_dockers, build_docker_fullname, copy_from_docker_image
+import k8sUtils
+from config import config as k8sconfig
 
 sys.path.append("../docker-images/glusterfs")
 import launch_glusterfs
@@ -79,6 +82,7 @@ default_config_parameters = {
 	# Default port for WebUI, Restful API, 
 	"webuiport" : "80",
 	"restfulapiport" : "5000",
+	"restfulapi" : "restfulapi",
 	"ssh_cert" : "./deploy/sshkey/id_rsa",
 
 	# the path of where dfs/nfs is source linked and consumed on each node, default /dlwsdata
@@ -275,7 +279,7 @@ default_config_parameters = {
 
 	"acskubeconfig" : "acs_kubeclusterconfig",
 	"isacs" : False,
-	"acsagentsize" : "Standard_D2_v2",
+	"acsagentsize" : "Standard_NC12",
 
 	"mountconfig": {
 		"azurefileshare" : {
@@ -369,9 +373,14 @@ scriptblocks = {
 		"docker push webui",
 		"webui",
 		"mount", 
-		"kubernetes start jobmanager",
-		"kubernetes start restfulapi",
-		"kubernetes start webportal",
+  		"kubernetes start jobmanager",
+  		"kubernetes start restfulapi",
+  		"kubernetes start webportal",
+	],
+	"bldwebui": [
+		"docker push restfulapi",
+		"docker push restfulapiacs",
+		"docker push webui",
 	],
 	"restartwebui": [
 		"kubernetes stop webportal",
@@ -396,7 +405,7 @@ scriptblocks = {
 		"kubernetes start jobmanager",
 		"kubernetes start restfulapi",
 		"kubernetes start webportal",
-	],	
+	],
 }
 
 # default search for all partitions of hdb, hdc, hdd, and sdb, sdc, sdd
@@ -663,9 +672,29 @@ def add_ssh_key():
 		config["sshKeys"] = []
 		config["sshKeys"].append(config["sshkey"])
 
+def create_cluster_id():
+	if (not os.path.exists('./deploy/clusterID.yml')):
+		clusterId = {}
+		clusterId["clusterId"] = str(uuid.uuid4())
+		with open('./deploy/clusterID.yml', 'w') as f:
+			f.write(yaml.dump(clusterId))
+		config["clusterId"] = utils.get_cluster_ID_from_file()	
+		print "Cluster ID is " + config["clusterId"]
+
 def add_acs_config():
 	if (os.path.exists("./deploy/"+config["acskubeconfig"])):
 		config["isacs"] = True
+		config["restfulapi"] = "restfulapiacs"
+		config["WinbindServers"] = []
+		create_cluster_id()
+		config["etcd_node_num"] = config["master_node_num"]
+		try:
+			if not ("accesskey" in config["mountpoints"]["rootshare"]):
+				azureKey = acs_get_storage_key()
+				#print "ACS Storage Key: " + azureKey
+				config["mountpoints"]["rootshare"]["accesskey"] = azureKey
+		except:
+			()
 			
 # Render scripts for kubenete nodes
 def add_kubelet_config():
@@ -875,7 +904,11 @@ def get_ETCD_master_nodes_from_config(clusterId):
 	return Nodes
 
 def get_nodes_from_acs(tomatch):
-	machines = acs_get_machinesAndIPsFast()
+	if not ("acsnodes" in config):
+		machines = acs_get_machinesAndIPsFast()
+		config["acsnodes"] = machines
+	else:
+		machines = config["acsnodes"]
 	Nodes = []
 	masterNodes = []
 	agentNodes = []
@@ -1484,9 +1517,16 @@ def deploy_restful_API_on_node(ipAddress):
 	utils.sudo_scp(config["ssh_cert"],"./deploy/RestfulAPI/config.yaml","/etc/RestfulAPI/config.yaml", "core", masterIP )
 	utils.sudo_scp(config["ssh_cert"],"./deploy/master/restapi-kubeconfig.yaml","/etc/kubernetes/restapi-kubeconfig.yaml", "core", masterIP )
 
+	if config["isacs"]:
+		# copy needed keys
+		utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo mkdir -p /etc/kubernetes/ssl")
+		utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo cp /etc/kubernetes/certs/apiserver.crt /etc/kubernetes/ssl/apiserver.pem")
+		utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo cp /etc/kubernetes/certs/apiserver.key /etc/kubernetes/ssl/apiserver-key.pem")
+		utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo cp /etc/kuebrnetes/certs/ca.crt /etc/kubernetes/ssl/ca.crt")
+		# overwrite ~/.kube/config (mounted from /etc/kubernetes/restapi-kubeconfig.yaml)
+		utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo cp /home/core/.kube/config /etc/kubernetes/restapi-kubeconfig.yaml")
 
 	# utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo mkdir -p /dlws-data && sudo mount %s /dlws-data ; docker rm -f restfulapi; docker rm -f jobScheduler ; docker pull %s ; docker run -d -p %s:80 --restart always -v /etc/RestfulAPI:/RestfulAPI --name restfulapi %s ; docker run -d -v /dlws-data:/dlws-data -v /etc/RestfulAPI:/RestfulAPI -v /etc/kubernetes/restapi-kubeconfig.yaml:/root/.kube/config -v /etc/kubernetes/ssl:/etc/kubernetes/ssl --restart always --name jobScheduler %s /runScheduler.sh ;" % (config["nfs-server"], dockername,config["restfulapiport"],dockername,dockername))
-
 
 	print "==============================================="
 	print "restful api is running at: http://%s:%s" % (masterIP,config["restfulapiport"])
@@ -1506,6 +1546,8 @@ def deploy_webUI_on_node(ipAddress):
 		os.system("mkdir -p ./deploy/WebUI")
 	utils.render_template("./template/WebUI/userconfig.json","./deploy/WebUI/userconfig.json",config)
 	os.system("cp --verbose ./deploy/WebUI/userconfig.json ../WebUI/dotnet/WebPortal/")
+	os.system("cp --verbose ./template/WebUI/Master-Templates.json ./deploy/WebUI/Master-Templates.json")
+	os.system("cp --verbose ./deploy/WebUI/Master-Templates.json ../WebUI/dotnet/WebPortal/Master-Templates.json")
 	utils.sudo_scp(config["ssh_cert"],"./deploy/WebUI/userconfig.json","/etc/WebUI/userconfig.json", "core", webUIIP )
 
 
@@ -1590,6 +1632,18 @@ def acs_get_ip(ipaddrName):
 	ipInfo = subprocess.check_output(cmd, shell=True)
 	ipInfo = yaml.load(ipInfo)
 	return ipInfo["ipAddress"]
+
+def acs_attach_dns_name():
+	get_nodes_from_acs("")
+	firstMasterNode = config["kubernetes_master_node"][0]
+	masterNodeName = config["nodenames_from_ip"][firstMasterNode]
+	ipname = config["acsnodes"][masterNodeName]["publicipname"]
+	cmd = "az network public-ip update"
+	cmd += " --resource-group=%s" % config["resource_group"]
+	cmd += " --name=%s" % ipname
+	cmd += " --dns-name=%s" % config["master_dns_name"]
+	print "Cmd: " + cmd
+	os.system(cmd)
 
 def acs_get_machineIP(machineName):
 	print "Machine: "+machineName
@@ -1717,45 +1771,74 @@ def acs_add_nsg_rules(ports_to_add):
 
 	for port_rule in ports_to_add:
 		port_num = ports_to_add[port_rule]
-		found_port = None
-		for rule in rules:
-			if acs_is_valid_nsg_rule(rule):
-				match = re.match('(.*)-(.*)', rule["destinationPortRange"])
-				if (match is None):
-					minPort = int(rule["destinationPortRange"])
-					maxPort = minPort
-				elif (rule["destinationPortRange"] != "*"):
-					minPort = int(match.group(1))
-					maxPort = int(match.group(2))
-				else:
-					minPort = -1
-					maxPort = -1
-				if (minPort <= port_num) and (port_num <= maxPort):
-					found_port = rule["name"]
-					break
-		if not (found_port is None):
-			print "Rule for %s : %d -- already satisfied by %s" % (port_rule, port_num, found_port)
-		else:
+		createRule = True
+		isNum = isinstance(port_num, numbers.Number)
+		if (not isNum) and port_num.isdigit():
+			port_num = int(port_num)
+			isNum = True
+		if isNum:
+			# check for existing rules
+			found_port = None
+			for rule in rules:
+				if acs_is_valid_nsg_rule(rule):
+					match = re.match('(.*)-(.*)', rule["destinationPortRange"])
+					if (match is None):
+						minPort = int(rule["destinationPortRange"])
+						maxPort = minPort
+					elif (rule["destinationPortRange"] != "*"):
+						minPort = int(match.group(1))
+						maxPort = int(match.group(2))
+					else:
+						minPort = -1
+						maxPort = -1
+					if (minPort <= port_num) and (port_num <= maxPort):
+						found_port = rule["name"]
+						break
+			if not (found_port is None):
+				print "Rule for %s : %d -- already satisfied by %s" % (port_rule, port_num, found_port)
+				createRule = False
+		if createRule:
 			maxThreeDigitRule = maxThreeDigitRule + 10
 			cmd = "network nsg rule create"
 			cmd += " --resource-group=%s" % config["resource_group"]
 			cmd += " --nsg-name=%s" % nsg_name
 			cmd += " --name=%s" % port_rule
 			cmd += " --access=Allow"
-			cmd += " --destination-port-range=%d" % port_num
+			if isNum:
+				cmd += " --destination-port-range=%d" % port_num
+			else:
+				cmd += " --destination-port-range=%s" % port_num
 			cmd += " --direction=Inbound"
 			cmd += " --priority=%d" % maxThreeDigitRule
 			az_cmd(cmd)
 
+def acs_get_config():
+	# Install kubectl / get credentials
+	if not (os.path.exists('./deploy/bin/kubectl')):
+		os.system("mkdir -p ./deploy/bin")
+		os.system("az acs kubernetes install-cli --install-location ./deploy/bin/kubectl")
+	if not (os.path.exists('./deploy/'+config["acskubeconfig"])):
+		cmd = "az acs kubernetes get-credentials"
+		cmd += " --resource-group=%s" % config["resource_group"]
+		cmd += " --name=%s" % config["cluster_name"]
+		cmd += " --file=./deploy/%s" % config["acskubeconfig"]
+		cmd += " --ssh-key-file=%s" % "./deploy/sshkey/id_rsa"
+		print "Cmd " + cmd
+		os.system(cmd)	
+
 def acs_deploy():
+	create_cluster_id()
 	regenerate_key = False
 	if (os.path.exists("./deploy/sshkey")):
-		response = raw_input_with_default("SSH keys already exist, do you want to keep existing (y/n)?")
-		if first_char(response) == "n":
-			utils.backup_keys(config["cluster_name"])
-			regenerate_key = True
-		else:
-			regenerate_key = False
+		regenerate_key = False
+		# response = raw_input_with_default("SSH keys already exist, do you want to keep existing (y/n)?")
+		# if first_char(response) == "n":
+		# 	utils.backup_keys(config["cluster_name"])
+		# 	regenerate_key = True
+		# else:
+		# 	regenerate_key = False
+	else:
+		regenerate_key = True
 
 	cmd = "az group create"
 	cmd += " --location=%s" % config["cluster_location"]
@@ -1774,16 +1857,10 @@ def acs_deploy():
 	if (regenerate_key):			
 		os.system("rm -r ./deploy/sshkey || true")
 		cmd += " --generate-ssh-keys"
+	print "Deployment CMD: " + cmd
 	os.system(cmd)
 
-	# Install kubectl / get credentials
-	os.system("az acs kubernetes install-cli --install-location ./deploy/bin/kubectl")
-	cmd = "az acs kubernetes get-credentials"
-	cmd += " --resource-group=%s" % config["resource_group"]
-	cmd += " --name=%s" % config["cluster_name"]
-	cmd += " --file=./deploy/%s" % config["acskubeconfig"]
-	cmd += " --ssh-key-file=%s" % "./deploy/sshkey/id_rsa"
-	os.system(cmd)
+	acs_get_config()
 
 	# Get/create public IP addresses for all machines
 	Nodes = acs_get_machinesAndIPs(True)
@@ -1791,11 +1868,58 @@ def acs_deploy():
 	# Label nodes
 	ip = get_nodes_from_acs("")
 	acs_label_webui()
+	kubernetes_label_nodes("active", [], args.yes )	
 
 	# Add rules for NSG
-	acs_add_nsg_rules({"HTTPAllow" : 80, "RestfulAPIAllow" : 5000})
+	acs_add_nsg_rules({"HTTPAllow" : 80, "RestfulAPIAllow" : 5000, "AllowKubernetesServicePorts" : "30000-32767"})
+
+	# Attach DNS name to master
+	acs_attach_dns_name()
 
 	return Nodes
+
+def acs_get_storage_key():
+	cmd = "storage account keys list"
+	cmd += " --account-name=%s" % config["mountpoints"]["rootshare"]["accountname"]
+	cmd += " --resource-group=%s" % config["resource_group"]
+	#print "Cmd: az " + cmd
+	keys = az_cmd(cmd)
+	return keys[0]["value"]	
+
+def acs_create_storage():
+	# Create storage account
+	cmd = "az storage account create"
+	cmd += " --name=%s" % config["mountpoints"]["rootshare"]["accountname"]
+	cmd += " --resource-group=%s" % config["resource_group"]
+	cmd += " --sku=%s" % "Standard_LRS"
+	print "Cmd: " + cmd
+	os.system(cmd)
+	# Create file share
+	azureKey = acs_get_storage_key()
+	config["mountpoints"]["rootshare"]["accesskey"] = azureKey
+	cmd = "az storage share create"
+	cmd += " --name=%s" % config["mountpoints"]["rootshare"]["filesharename"]
+	cmd += " --quota=2048"
+	cmd += " --account-name=%s" % config["mountpoints"]["rootshare"]["accountname"]
+	cmd += " --account-key=%s" % azureKey
+	print "Cmd: " + cmd
+	os.system(cmd)
+
+def acs_install_gpu():
+	nodes = get_worker_nodes(config["clusterId"])
+	for node in nodes:
+		#exec_rmt_cmd(node, "curl -L -sf https://raw.githubusercontent.com/ritazh/acs-k8s-gpu/master/install-nvidia-driver.sh | sudo sh")
+		run_script(node, ["./scripts/prepare_acs.sh"], True)
+
+def acs_get_jobendpt(jobId):
+	get_nodes_from_acs("")
+	addr = k8sUtils.GetServiceAddress(jobId)
+	#print addr
+	#print config["acsnodes"]
+	ip = config["acsnodes"][addr[0]['hostName']]['publicip']
+	port = addr[0]['hostPort']
+	ret = "http://%s:%s" % (ip, port)
+	print ret
 
 def get_mount_fileshares(curNode = None):
 	allmountpoints = { }
@@ -1944,6 +2068,11 @@ def fileshare_install():
 	for node in nodes:
 		allmountpoints, fstab = get_mount_fileshares(node)
 		remotecmd = ""
+		if (config["isacs"]):
+			# when started, ACS machines don't have PIP which is needed to install pyyaml
+			# pyyaml is needed by auto_share.py to load mounting.yaml
+			remotecmd += "sudo apt-get -y install python-pip; "
+			remotecmd += "pip install pyyaml; "
 		filesharetype = {}
 		# In service, the mount preparation install relevant software on remote machine. 
 		for k,v in allmountpoints.iteritems():
@@ -2006,6 +2135,7 @@ def mount_fileshares_by_service(perform_mount=True):
 			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.py",os.path.join(config["folder_auto_share"], "auto_share.py"), "core", node )
 			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/mounting.yaml",os.path.join(config["folder_auto_share"], "mounting.yaml"), "core", node )
 			remotecmd += "sudo chmod +x %s; " % os.path.join(config["folder_auto_share"], "auto_share.py")
+			remotecmd += "sudo " + os.path.join(config["folder_auto_share"], "auto_share.py") + "; " # run it once now
 			remotecmd += "sudo systemctl daemon-reload; "
 			remotecmd += "sudo systemctl enable auto_share.timer; "
 			remotecmd += "sudo systemctl restart auto_share.timer; "
@@ -2046,7 +2176,17 @@ def unmount_fileshares_by_service(clean=False):
 					if "curphysicalmountpoint" in v:
 						remotecmd += "sudo rm -rf %s; " % v["curphysicalmountpoint"]
 			if len(remotecmd)>0:
-				utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)			
+				utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)	
+
+def exec_rmt_cmd(node, cmd):
+	utils.SSH_exec_cmd(config["ssh_cert"], "core", node, cmd)
+
+def del_fileshare_links():
+	all_nodes = get_nodes(config["clusterId"])
+	for node in all_nodes:
+		remotecmd = "sudo rm -r %s; " % config["storage-mount-path"]	
+		remotecmd = "sudo mkdir -p %s; " % config["storage-mount-path"]
+		exec_rmt_cmd(node, remotecmd)
 			 
 def link_fileshares(allmountpoints, bForce=False):
 	all_nodes = get_nodes(config["clusterId"])
@@ -2065,7 +2205,7 @@ def link_fileshares(allmountpoints, bForce=False):
 						for basename in v["mountpoints"]:
 							dirname = os.path.join(v["curphysicalmountpoint"], basename )
 							remotecmd += "sudo rm %s; " % dirname
-				remotecmd += "sudo rm %s; " % config["storage-mount-path"]
+				remotecmd += "sudo rm -r %s; " % config["storage-mount-path"]
 				remotecmd += "sudo mkdir -p %s; " % config["storage-mount-path"]
 				
 			output = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "sudo mount" )
@@ -2753,14 +2893,17 @@ def run_kubectl( commands ):
 	run_kube( "./deploy/bin/kubectl", commands)
 	
 def kubernetes_get_node_name(node):
-	domain = get_domain()
-	if len(domain) < 2: 
-		return node
-	elif domain in node:
-		# print "Remove domain %d" % len(domain)
-		return node[:-(len(domain))]
+	if config["isacs"]:
+		return config["nodenames_from_ip"][node]
 	else:
-		return node
+		domain = get_domain()
+		if len(domain) < 2: 
+			return node
+		elif domain in node:
+			# print "Remove domain %d" % len(domain)
+			return node[:-(len(domain))]
+		else:
+			return node
 
 def set_zookeeper_cluster():
 	nodes = get_node_lists_for_service("zookeeper")
@@ -3394,12 +3537,17 @@ def run_command( args, command, nargs, parser ):
 			update_worker_nodes( [] )
 
 	elif command == "azure":
-		deploy_azure()
+		config["WinbindServers"] = []
+		run_script_blocks(scriptblocks["azure"])
 
 	elif command == "acs":
+		k8sconfig["kubelet-path"] = "./deploy/bin/kubectl --kubeconfig=./deploy/%s" % (config["acskubeconfig"])
+		#print "Config: " + k8sconfig["kubelet-path"]
 		if (len(nargs) >= 1):
 			if nargs[0]=="deploy":
 				acs_deploy()
+			elif nargs[0]=="getconfig":
+				acs_get_config()
 			elif nargs[0]=="getip":
 				ip = acs_get_machinesAndIPsFast()
 				print ip
@@ -3410,9 +3558,27 @@ def run_command( args, command, nargs, parser ):
 				ip = get_nodes_from_acs("")
 				acs_label_webui()
 			elif nargs[0]=="openports":
-				acs_add_nsg_rules({"HTTPAllow" : 80, "RestfulAPIAllow" : 5000})
+				acs_add_nsg_rules({"HTTPAllow" : 80, "RestfulAPIAllow" : 5000, "AllowKubernetesServicePorts" : "30000-32767"})
 			elif nargs[0]=="restartwebui":
 				run_script_blocks(scriptblocks["restartwebui"])
+			elif nargs[0]=="getserviceaddr":
+				print "Address: =" + json.dumps(k8sUtils.GetServiceAddress(nargs[1]))
+			elif nargs[0]=="storage":
+				acs_create_storage()
+			elif nargs[0]=="storagemount":
+				acs_create_storage()
+				fileshare_install()
+				allmountpoints = mount_fileshares_by_service(True)
+				del_fileshare_links()
+				link_fileshares(allmountpoints, args.force)		
+			elif nargs[0]=="bldwebui":
+				run_script_blocks(scriptblocks["bldwebui"])
+			elif nargs[0]=="gpudrivers":
+				acs_install_gpu()
+			elif nargs[0]=="jobendpt":
+				acs_get_jobendpt(nargs[1])
+			elif nargs[0]=="dns":
+				acs_attach_dns_name()
 			
 	elif command == "update" and len(nargs)>=1:
 		if nargs[0] == "config":

@@ -18,7 +18,7 @@ spec:
       hostNetwork: true        
       containers:
       - name: restfulapi
-        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}restfulapi:{{cnf["dockertag"]}}
+        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}{{cnf["restfulapi"]}}:{{cnf["dockertag"]}}
         imagePullPolicy: Always
         volumeMounts:
         - mountPath: /RestfulAPI

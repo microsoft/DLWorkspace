@@ -246,6 +246,24 @@ api.add_resource(ApproveJob, '/ApproveJob')
 
 
 
+class GetCommands(Resource):
+	def get(self):
+		parser.add_argument('jobId')
+		args = parser.parse_args()	
+		jobId = args["jobId"]
+		commands = JobRestAPIUtils.GetCommands(jobId)		
+		resp = jsonify(commands)
+		resp.headers["Access-Control-Allow-Origin"] = "*"
+		resp.headers["dataType"] = "json"
+
+		return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(GetCommands, '/GetCommands')
+
+
+
 class GetJobDetail(Resource):
 	def get(self):
 		parser.add_argument('jobId')
