@@ -48,44 +48,7 @@ namespace WindowsAuth.Controllers
             var ret = "invalid API call!";
             var url = "";
 
-
-            var AuthByKey = false;
-
-            if (HttpContext.Request.Query.ContainsKey("Email") && HttpContext.Request.Query.ContainsKey("key"))
-            {
-                var email = HttpContext.Request.Query["Email"];
-                var s_key = HttpContext.Request.Query["key"];
-
-                var databases = Startup.Database;
-
-
-                foreach (var pair in databases)
-                {
-                    var clusterName = pair.Key;
-                    var db = pair.Value;
-                    var priorEntrys = db.User.Where(b => b.Email == email).Where(b => b.Password == s_key).ToAsyncEnumerable();
-                    long nEntry = 0;
-                    // Prior entry exists? 
-                    await priorEntrys.ForEachAsync(entry =>
-                    {
-                        // We will not update existing entry in database. 
-                        // db.Entry(entry).CurrentValues.SetValues(userEntry);
-                        HttpContext.Session.SetString("Email", email);
-                        HttpContext.Session.SetString("Username", email);
-                        HttpContext.Session.SetString("uid", entry.uid);
-                    }
-                    );
-                }
-            }
-            
-
-
-
-
-
-
-
-            if (!User.Identity.IsAuthenticated && !AuthByKey)
+            if (!User.Identity.IsAuthenticated)
             {
                 ret = "Unauthorized User, Please login!";
                 return ret;
