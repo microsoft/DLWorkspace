@@ -63,3 +63,8 @@ sudo mkdir -p /opt/nvidia-driver/
 sudo cp -r /var/lib/nvidia-docker/volumes/nvidia_driver/* /opt/nvidia-driver/
 NV_DRIVER=/opt/nvidia-driver/$NVIDIA_VERSION
 sudo ln -s $NV_DRIVER /opt/nvidia-driver/current
+
+if [ -f /etc/NetworkManager/NetworkManager.conf ]; then
+        sed "s/^dns=dnsmasq$/#dns=dnsmasq/" /etc/NetworkManager/NetworkManager.conf > /tmp/NetworkManager.conf && sudo mv /tmp/NetworkManager.conf /etc/NetworkManager/NetworkManager.conf
+        sudo service network-manager restart
+fi
