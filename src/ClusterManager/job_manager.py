@@ -85,9 +85,9 @@ def SubmitRegularJob(job):
 			dataHandler.SetJobError(jobParams["jobId"],"ERROR: work-path does not exist")
 			return False
 
-		if "dataPath" not in jobParams or len(jobParams["dataPath"].strip()) == 0: 
-			dataHandler.SetJobError(jobParams["jobId"],"ERROR: data-path does not exist")
-			return False
+		#if "dataPath" not in jobParams or len(jobParams["dataPath"].strip()) == 0: 
+		#	dataHandler.SetJobError(jobParams["jobId"],"ERROR: data-path does not exist")
+		#	return False
 
 
 		jobPath,workPath,dataPath = GetStoragePath(jobParams["jobPath"],jobParams["workPath"],jobParams["dataPath"])
