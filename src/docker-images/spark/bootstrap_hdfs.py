@@ -73,9 +73,16 @@ datanode:    Launch datanode.
 #           f.close()
 #           print logging_config
 #           logutils.dictconfig.dictConfig(logging_config)
-        utils.render_template("hdfs-site.xml.in-docker", "/usr/local/hadoop/etc/hadoop/hdfs-site.xml",config, verbose=verbose)
+        isHA = "namenode2" in config["namenode"]
+        if isHA:
+            utils.render_template("hdfs-site.xml.in-docker", "/usr/local/hadoop/etc/hadoop/hdfs-site.xml",config, verbose=verbose)
+        else:
+            utils.render_template("hdfs-site-single.xml.in-docker", "/usr/local/hadoop/etc/hadoop/hdfs-site.xml",config, verbose=verbose)
         utils.render_template("mapred-site.xml.in-docker", "/usr/local/hadoop/etc/hadoop/mapred-site.xml",config, verbose=verbose)
-        utils.render_template("yarn-site.xml.in-docker", "/usr/local/hadoop/etc/hadoop/yarn-site.xml",config, verbose=verbose)
+        if isHA:
+            utils.render_template("yarn-site.xml.in-docker", "/usr/local/hadoop/etc/hadoop/yarn-site.xml",config, verbose=verbose)
+        else:
+            utils.render_template("yarn-site-single.xml.in-docker", "/usr/local/hadoop/etc/hadoop/yarn-site.xml",config, verbose=verbose)
         utils.render_template("spark-core-site.xml.in-docker", "/usr/local/spark/yarn-remote-client/core-site.xml",config, verbose=verbose)
         utils.render_template("spark-yarn-site.xml.in-docker", "/usr/local/spark/yarn-remote-client/yarn-site.xml",config, verbose=verbose)
     except Exception as e:
