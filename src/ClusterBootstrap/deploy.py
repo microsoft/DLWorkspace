@@ -2557,7 +2557,9 @@ def generate_hdfs_config( nodes, deviceSelect):
 		print "Zookeeper nodes: " + zknodelist
 	hdfsconfig["zks"]["nodes"] = zknodelist
 	hdfsconfig["namenode"]["namenode1"] = get_node_lists_for_service("namenode1")[0]
-	hdfsconfig["namenode"]["namenode2"] = get_node_lists_for_service("namenode2")[0]
+	namenode2list = get_node_lists_for_service("namenode2")
+	if len(namenode2list)>0:
+		hdfsconfig["namenode"]["namenode2"] = get_node_lists_for_service("namenode2")[0]
 	journalnodes = get_node_lists_for_service("journalnode")
 	if verbose:
 		print "Journal nodes: " + zknodelist

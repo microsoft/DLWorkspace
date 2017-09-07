@@ -33,7 +33,7 @@ The document describes the procedure to deploy High Availability HDFS (multiple 
   deploy.py hdfs config
   ```
 
-4. Deploy HDFS zookeeper and journal node
+4. [High Available Cluster]Deploy HDFS zookeeper and journal node
   ```
   deploy.py kubernetes start zookeeper
   deploy.py kubernetes start hdfsjournal
@@ -48,15 +48,16 @@ The document describes the procedure to deploy High Availability HDFS (multiple 
   Please wait for zookeeper and hdfsjournal pods to be launched, and then do:
   ```
   deploy.py kubernetes start hdfsformat
-  deploy.py kubernetes start hdfsstandby
+  [High Available Cluster] deploy.py kubernetes start hdfsstandby
   deploy.py kubernetes stop hdfsformat
-  deploy.py kubernetes stop hdfsstandby
+  [High Available Cluster] deploy.py kubernetes stop hdfsstandby
   ```
   Command 
   ```
   deploy.py --force kubernetes start hdfsformat
   ```
   will wipe out namenode information, and restart the cluster. 
+
 
 6. Deploy HDFS namenodes
   ```

@@ -74,18 +74,39 @@ def mount_fileshare(verbose=True):
 			physicalmountpoint = v["curphysicalmountpoint"] 
 			output = pipe_with_output("mount", "grep %s" % v["curphysicalmountpoint"], verbose=False)
 			umounts = []
+			existmounts = []
 			for line in output.splitlines():
 				words = line.split()
 				if len(words)>3 and words[1]=="on":
 					if verbose:
 						logging.debug( "%s on %s" % (words[0], words[2]) )
-					umounts.append( words[2] )
+					# check if mount point exists, automatic create directory if non exist
+					bMount = False
+					for mountpoint in v["mountpoints"]:
+						try:
+							targetdir = os.path.join(physicalmountpoint, mountpoint)
+							if os.path.exists( targetdir ):
+								bMount = True
+							else:
+								try:
+									os.system("mkdir -m 0777 "+targetdir)
+								except:
+									print "Failed to create directory " + targetdir
+								if os.path.exists( targetdir ):
+									bMount = True
+						except:
+							print "Failed to check for existence of directory " + targetdir
+					if not bMount:
+						# Failing
+						umounts.append( words[2] )
+					else:
+						existmounts.append( words[2])
 			umounts.sort()
 			# Examine mount point, unmount those file shares that fails. 
 			for um in umounts:
 				cmd = "umount %s; " % um
 				print "To examine mount %s " % um
-			if len(umounts) <= 0:
+			if len(existmounts) <= 0:
 				nMounts += 1
 				if v["type"] == "azurefileshare":
 					exec_with_output( "mount -t cifs %s %s -o %s " % (v["url"], physicalmountpoint, v["options"] ), verbose=verbose )
