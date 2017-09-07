@@ -83,8 +83,6 @@ datanode:    Launch datanode.
             utils.render_template("yarn-site.xml.in-docker", "/usr/local/hadoop/etc/hadoop/yarn-site.xml",config, verbose=verbose)
         else:
             utils.render_template("yarn-site-single.xml.in-docker", "/usr/local/hadoop/etc/hadoop/yarn-site.xml",config, verbose=verbose)
-        utils.render_template("spark-core-site.xml.in-docker", "/usr/local/spark/yarn-remote-client/core-site.xml",config, verbose=verbose)
-        utils.render_template("spark-yarn-site.xml.in-docker", "/usr/local/spark/yarn-remote-client/yarn-site.xml",config, verbose=verbose)
     except Exception as e:
         print "boostrap_hdfs.py fails during initialization, exception %s" % e
         exit()
@@ -115,12 +113,19 @@ datanode:    Launch datanode.
         force = "" if not args.force else "-force "
         cmd = "/usr/local/hadoop/bin/hdfs namenode -format %s -nonInteractive" % force
         exec_with_output( cmd )
-        cmd = "/usr/local/hadoop/bin/hdfs zkfc -formatZK -nonInteractive"
-        exec_with_output( cmd )
+        if isHA:
+            cmd = "/usr/local/hadoop/bin/hdfs zkfc -formatZK -nonInteractive"
+            exec_with_output( cmd )
         print "Format namenode and zkfc ..... "
+        if isHA:
+            remotedir = os.path.join( config["namenode"]["data"], "current")
+            localdir = os.path.join( config["namenode"]["localdata"], "current")
+            exec_with_output( "rm -rf %s" % remotedir )
+            exec_with_output( "cp -r %s %s" % ( localdir, remotedir ) )
+            print "Copy data from %s to %s" % ( localdir, remotedir )
+    elif server == "copy":
         remotedir = os.path.join( config["namenode"]["data"], "current")
         localdir = os.path.join( config["namenode"]["localdata"], "current")
-        exec_with_output( "rm -rf %s" % remotedir )
         exec_with_output( "cp -r %s %s" % ( localdir, remotedir ) )
         print "Copy data from %s to %s" % ( localdir, remotedir )
     elif server == "standby":
@@ -131,17 +136,17 @@ datanode:    Launch datanode.
     elif server == "resourcemanager":
         cmd = "/usr/local/hadoop/sbin/yarn-daemon.sh start resourcemanager"
         exec_with_output( cmd )
+        cmd1 = "/usr/local/hadoop/sbin/mr-jobhistory-daemon.sh start historyserver"
+        exec_with_output( cmd1 )
         exec_with_output( "pgrep -f DataNode")
-        print "Datanode is running"
+        print "Yarn resource manager and history server is running"
     elif server == "nodemanager":
         cmd = "/usr/local/hadoop/sbin/yarn-daemon.sh start nodemanager"
         exec_with_output( cmd )
         exec_with_output( "pgrep -f DataNode")
-        print "Datanode is running"
-
+        print "Yarn node manager is running"
     elif server == "spark":
         print "Ready to execute spark command. "
-
     else:
         print "Unknown server" + server
 

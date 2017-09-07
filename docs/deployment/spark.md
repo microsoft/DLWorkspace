@@ -29,7 +29,12 @@ The document describes the procedure to run a spark job on a DL Workspace cluste
   cd /usr/local/spark/bin
   ```
 
-5. You should be able to execute spark command, e.g., 
+5. You can validate yarn resource manager to be operational by running:
   ```
-  run-example SparkPi
+  yarn node -list -all
+  ```
+  This should list all yarn node ready for execution.  You should be able to execute spark command, e.g., 
+  ```
+  cd /usr/local/spark
+  ./bin/spark-submit --class org.apache.spark.examples.SparkPi --master yarn --deploy-mode cluster --driver-memory 4g --executor-memory 2g --executor-cores 1 --queue thequeue examples/jars/spark-examples*.jar 10
   ```

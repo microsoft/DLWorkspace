@@ -32,6 +32,8 @@ spec:
           mountPath: {{cnf["hdfsconfig"]["namenode"]["data"]}} 
         - name: localnamenode
           mountPath: {{cnf["hdfsconfig"]["namenode"]["localdata"]}} 
+        - name: etchosts
+          mountPath: /etc/hosts
         command:
         - sh
         - -c
@@ -52,3 +54,6 @@ spec:
       - name: localnamenode
         hostPath:
           path: {{cnf["hdfsconfig"]["namenode"]["localdata"]}} 
+      - name: etchosts
+        hostPath:
+          path: /dev/null

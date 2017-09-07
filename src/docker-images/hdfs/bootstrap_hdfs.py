@@ -136,14 +136,17 @@ datanode:    Launch datanode.
     elif server == "resourcemanager":
         cmd = "/usr/local/hadoop/sbin/yarn-daemon.sh start resourcemanager"
         exec_with_output( cmd )
+        cmd1 = "/usr/local/hadoop/sbin/mr-jobhistory-daemon.sh start historyserver"
+        exec_with_output( cmd1 )
         exec_with_output( "pgrep -f DataNode")
-        print "Datanode is running"
+        print "Yarn resource manager and history server is running"
     elif server == "nodemanager":
         cmd = "/usr/local/hadoop/sbin/yarn-daemon.sh start nodemanager"
         exec_with_output( cmd )
         exec_with_output( "pgrep -f DataNode")
-        print "Datanode is running"
-
+        print "Yarn node manager is running"
+    elif server == "spark":
+        print "Ready to execute spark command. "
     else:
         print "Unknown server" + server
 
