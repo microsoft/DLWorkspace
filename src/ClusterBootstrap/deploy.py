@@ -317,7 +317,7 @@ default_config_parameters = {
         "CCSAdmins": {
             # The match is in C# Regex Language, please refer to :
             # https://msdn.microsoft.com/en-us/library/az24scfc(v=vs.110).aspx
-            "Allowed": [ "jinl@microsoft.com", "hongzl@microsoft.com", "sanjeevm@microsoft.com" ],
+            "Allowed": [ "jinl@microsoft.com", "hongzl@microsoft.com" ],
             "uid": "900000000-999999999",
             "gid": "508953967"
         },
@@ -358,6 +358,15 @@ default_config_parameters = {
 	"WinbindServers": [ "http://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName={0}" ],
 	"workFolderAccessPoint" : "", 
 	"dataFolderAccessPoint" : "", 
+
+	"kube_configchanges" : ["/opt/addons/kube-addons/weave.yaml"],
+	"kube_addons" : ["/opt/addons/kube-addons/dashboard.yaml", 
+					 "/opt/addons/kube-addons/dns-addon.yaml",
+					 "/opt/addons/kube-addons/kube-proxy.json",
+					 "/opt/addons/kube-addons/heapster-deployment.json",
+					 "/opt/addons/kube-addons/heapster-svc.json"
+					 ],
+
 }
 
 # These are super scripts
@@ -484,6 +493,8 @@ def copy_to_ISO():
 
 # Certain configuration that is default in system 
 def init_config():
+	if not os.path.exists("./deploy"):
+		os.system("mkdir -p ./deploy")
 	config = {}
 	for k,v in default_config_parameters.iteritems():
 		config[ k ] = v
@@ -506,7 +517,8 @@ def _check_config_items(cnfitem, cnf):
 		print "Checking configurations '%s' = '%s'" % (cnfitem, cnf[cnfitem])
  
 def check_config(cnf):
-	_check_config_items("discovery_url",cnf)
+	if not config["isacs"]:
+		_check_config_items("discovery_url",cnf)
 	_check_config_items("kubernetes_master_node",cnf)
 	_check_config_items("kubernetes_master_ssh_user",cnf)
 	_check_config_items("api_servers",cnf)
@@ -661,8 +673,12 @@ def update_config():
 		config["coreosusebaseurl"] = ""
 	else:
 		config["coreosusebaseurl"] = "-b "+config["coreosbaseurl"]
-	
-	
+
+	for (cf, loc) in [('master', 'master'), ('worker', 'kubelet')]:
+		exec("config[\"%s_predeploy\"] = os.path.join(\"./deploy/%s\", config[\"pre%sdeploymentscript\"])" % (cf, loc, cf))
+		exec("config[\"%s_filesdeploy\"] = os.path.join(\"./deploy/%s\", config[\"%sdeploymentlist\"])" % (cf, loc, cf))
+		exec("config[\"%s_postdeploy\"] = os.path.join(\"./deploy/%s\", config[\"post%sdeploymentscript\"])" % (cf, loc, cf))
+
 def add_ssh_key():
 	keys = fetch_config(["sshKeys"])
 	if isinstance( keys, list ):
@@ -684,10 +700,29 @@ def create_cluster_id():
 def add_acs_config():
 	if (os.path.exists("./deploy/"+config["acskubeconfig"])):
 		config["isacs"] = True
-		config["restfulapi"] = "restfulapiacs"
-		config["WinbindServers"] = []
 		create_cluster_id()
+
+		config["restfulapi"] = "restfulapiacs"
+		config["platform-scripts"] = "acs"
+		config["WinbindServers"] = []
 		config["etcd_node_num"] = config["master_node_num"]
+		config["kube_addons"] = [] # no addons
+
+		if ("azure-sqlservername" in config) and (not "sqlserver-hostname" in config):
+			config["sqlserver-hostname"] = ("tcp:%s.database.windows.net" % config["azure-sqlservername"])
+		else:
+			# find name for SQL Azure
+			match = re.match('tcp:(.*)\.database\.windows\.net', config["sqlserver-hostname"])
+			config["azure-sqlservername"] = match.group(1)
+
+		acs_set_resource_grp()
+
+		# Add users -- hacky going into CCSAdmins group!!
+		if "webui_admins" in config:
+			for name in config["webui_admins"]:
+				if not name in config["UserGroups"]["CCSAdmins"]["Allowed"]:
+					config["UserGroups"]["CCSAdmins"]["Allowed"].append(name)
+
 		try:
 			if not ("accesskey" in config["mountpoints"]["rootshare"]):
 				azureKey = acs_get_storage_key()
@@ -903,29 +938,44 @@ def get_ETCD_master_nodes_from_config(clusterId):
 	config["kubernetes_master_node"] = Nodes
 	return Nodes
 
-def get_nodes_from_acs(tomatch):
+def get_nodes_from_acs(tomatch=""):
+	bFindNodes = True
 	if not ("acsnodes" in config):
 		machines = acs_get_machinesAndIPsFast()
 		config["acsnodes"] = machines
 	else:
+		bFindNodes = not (tomatch == "" or tomatch == "master" or tomatch == "agent")
 		machines = config["acsnodes"]
 	Nodes = []
-	masterNodes = []
-	agentNodes = []
-	for m in machines:
-		match = re.match('k8s-'+tomatch+'.*', m)
-		ip = machines[m]["publicip"]
-		if not (match is None):
-			Nodes.append(ip)
-		match = re.match('k8s-master', m)
-		if not (match is None):
-			masterNodes.append(ip)
-		match = re.match('k8s-agent', m)
-		if not (match is None):
-			agentNodes.append(ip)
-	config["etcd_node"] = masterNodes
-	config["kubernetes_master_node"] = masterNodes
-	config["worker_node"] = agentNodes
+	if bFindNodes:
+		masterNodes = []
+		agentNodes = []
+		allNodes = []
+		for m in machines:
+			match = re.match('k8s-'+tomatch+'.*', m)
+			ip = machines[m]["publicip"]
+			allNodes.append(ip)
+			if not (match is None):
+				Nodes.append(ip)
+			match = re.match('k8s-master', m)
+			if not (match is None):
+				masterNodes.append(ip)
+			match = re.match('k8s-agent', m)
+			if not (match is None):
+				agentNodes.append(ip)
+		config["etcd_node"] = masterNodes
+		config["kubernetes_master_node"] = masterNodes
+		config["worker_node"] = agentNodes
+		config["all_node"] = allNodes
+	else:
+		if tomatch == "":
+			Nodes = config["all_node"]
+		elif tomatch == "master":
+			Nodes = config["kubernetes_master_node"]
+		elif tomatch == "agent":
+			Nodes = config["worker_node"]
+		else:
+			raise Exception("Wrong matching")
 	return Nodes
 
 def get_ETCD_master_nodes(clusterId):
@@ -1079,8 +1129,8 @@ def gen_configs():
 
 	#if len(kubernetes_masters) <= 0:
 	#	raise Exception("ERROR: we need at least one etcd_server.") 
-
-	config["discovery_url"] = utils.get_ETCD_discovery_URL(int(config["etcd_node_num"]))
+	if not config["isacs"]:
+		config["discovery_url"] = utils.get_ETCD_discovery_URL(int(config["etcd_node_num"]))
 
 	if "ssh_cert" not in config and os.path.isfile("./deploy/sshkey/id_rsa"):
 		config["ssh_cert"] = expand_path("./deploy/sshkey/id_rsa")
@@ -1558,7 +1608,7 @@ def deploy_restful_API_on_node(ipAddress):
 		utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo cp /etc/kubernetes/certs/apiserver.crt /etc/kubernetes/ssl/apiserver.pem")
 		utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo cp /etc/kubernetes/certs/apiserver.key /etc/kubernetes/ssl/apiserver-key.pem")
 		utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo cp /etc/kuebrnetes/certs/ca.crt /etc/kubernetes/ssl/ca.crt")
-		# overwrite ~/.kube/config (mounted from /etc/kubernetes/restapi-kubeconfig.yaml)
+		# overwrite ~/.kube/config (to be mounted from /etc/kubernetes/restapi-kubeconfig.yaml)
 		utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo cp /home/core/.kube/config /etc/kubernetes/restapi-kubeconfig.yaml")
 
 	# utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo mkdir -p /dlws-data && sudo mount %s /dlws-data ; docker rm -f restfulapi; docker rm -f jobScheduler ; docker pull %s ; docker run -d -p %s:80 --restart always -v /etc/RestfulAPI:/RestfulAPI --name restfulapi %s ; docker run -d -v /dlws-data:/dlws-data -v /etc/RestfulAPI:/RestfulAPI -v /etc/kubernetes/restapi-kubeconfig.yaml:/root/.kube/config -v /etc/kubernetes/ssl:/etc/kubernetes/ssl --restart always --name jobScheduler %s /runScheduler.sh ;" % (config["nfs-server"], dockername,config["restfulapiport"],dockername,dockername))
@@ -1579,15 +1629,17 @@ def deploy_webUI_on_node(ipAddress):
 
 	if not os.path.exists("./deploy/WebUI"):
 		os.system("mkdir -p ./deploy/WebUI")
-	utils.render_template("./template/WebUI/userconfig.json","./deploy/WebUI/userconfig.json",config)
-	os.system("cp --verbose ./deploy/WebUI/userconfig.json ../WebUI/dotnet/WebPortal/")
-	os.system("cp --verbose ./template/WebUI/Master-Templates.json ./deploy/WebUI/Master-Templates.json")
-	os.system("cp --verbose ./deploy/WebUI/Master-Templates.json ../WebUI/dotnet/WebPortal/Master-Templates.json")
+
+	utils.render_template("./template/WebUI/userconfig.json","./deploy/WebUI/userconfig.json", config)
+	os.system("cp --verbose ./deploy/WebUI/userconfig.json ../WebUI/dotnet/WebPortal/") # not used -- overwritten by mount from host, contains secret
+	# write into host, mounted into container
 	utils.sudo_scp(config["ssh_cert"],"./deploy/WebUI/userconfig.json","/etc/WebUI/userconfig.json", "core", webUIIP )
 
+	utils.render_template("./template/WebUI/Master-Templates.json", "./deploy/WebUI/Master-Templates.json", config)
+	#os.system("cp --verbose ./template/WebUI/Master-Templates.json ./deploy/WebUI/Master-Templates.json")
+	os.system("cp --verbose ./deploy/WebUI/Master-Templates.json ../WebUI/dotnet/WebPortal/Master-Templates.json")
 
 	# utils.SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker pull %s ; docker rm -f webui ; docker run -d -p %s:80 -v /etc/WebUI:/WebUI --restart always --name webui %s ;" % (dockername,str(config["webuiport"]),dockername))
-
 
 	print "==============================================="
 	print "Web UI is running at: http://%s:%s" % (webUIIP,str(config["webuiport"]))
@@ -1656,34 +1708,161 @@ def pick_server( nodelists, curNode ):
 	else:
 		return curNode
 
+# simple utils
+def shellquote(s):
+    return "'" + s.replace("'", "'\\''") + "'"
+
+def exec_rmt_cmd(node, cmd):
+	utils.SSH_exec_cmd(config["ssh_cert"], "core", node, cmd)
+
+def rmt_cp(node, source, target):
+	utils.sudo_scp(config["ssh_cert"], source, target, "core", node)
+
+# copy list of files to a node
+def copy_list_of_files(listOfFiles, node):	
+	with open(listOfFiles, "r") as f:
+		copy_files = [s.split(",") for s in f.readlines() if len(s.split(",")) == 2]
+	for (source, target) in copy_files:
+		if (os.path.isfile(source.strip()) or os.path.exists(source.strip())):
+			rmt_cp(node, source, target)
+
+def copy_list_of_files_to_nodes(listOfFiles, nodes):
+	with open(listOfFiles, "r") as f:
+		copy_files = [s.split(",") for s in f.readlines() if len(s.split(",")) == 2]
+	for node in nodes:
+		for (source, target) in copy_files:
+			if (os.path.isfile(source.strip()) or os.path.exists(source.strip())):
+				rmt_cp(node, source, target)		
+
+# run scripts
+def run_script_on_node(script, node):
+	utils.SSH_exec_script(config["ssh_cert"], "core", node, script)
+
+def run_script_on_nodes(script, nodes):
+	for node in nodes:
+		utils.SSH_exec_script(config["ssh_cert"], "core", node, script)
+
+# deployment
+def deploy_on_nodes(prescript, listOfFiles, postscript, nodes):
+	run_script_on_nodes(prescript, nodes)
+	copy_list_of_files_to_nodes(listOfFiles, nodes)
+	run_script_on_nodes(postscript, nodes)
+
+# addons
+def kube_master0_wait():
+	get_nodes_from_acs()
+	node = config["kubernetes_master_node"][0]
+	exec_rmt_cmd(node, "until curl -q http://127.0.0.1:8080/version/ ; do sleep 5; echo 'waiting for master...'; done")
+	return node
+
+def kube_deploy_addons():
+	node = kube_master0_wait()
+	for addon in config["kube_addons"]:
+		exec_rmt_cmd(node, "sudo kubectl create -f "+addon)
+
+# config changes		
+def kube_dpeloy_configchanges():
+	node = kube_master0_wait()
+	for configChange in config["kube_configchanges"]:
+		exec_rmt_cmd(node, "sudo kubectl apply -f "+configChange)
+
+# AZ ACS commands
+def az_cmd(cmd):
+	if verbose:
+		print "az "+cmd
+	output = subprocess.check_output("az "+cmd, shell=True)
+	return yaml.load(output)
+
+def az_sys(cmd):
+	if verbose:
+		print "az "+cmd
+	os.system("az "+cmd)
+
+def az_tryutil(cmd, stopFn, waitPeriod=5):
+	while not stopFn():
+		try:
+			az_sys(cmd)
+		except:
+			pass
+		if not stopFn():
+			time.sleep(waitPeriod)
+
+# Create SQL database
+def az_create_sql_server():
+	# escape the password in case it has characters such as "$"
+	pwd = shellquote(config["sqlserver-password"])
+	cmd = "sql server create"
+	cmd += " --resource-group=%s" % config["resource_group"]
+	cmd += " --location=%s" % config["cluster_location"]
+	cmd += " --name=%s" % config["azure-sqlservername"]
+	cmd += " --admin-user=%s" % config["sqlserver-username"]
+	cmd += " --admin-password=%s" % pwd
+	az_sys(cmd)
+	# now open firewall
+	cmd = "sql server firewall-rule create"
+	cmd += " --resource-group=%s" % config["resource_group"]
+	cmd += " --server=%s" % config["azure-sqlservername"]
+	# first open all IPs
+	cmd2 = cmd + " --name=All --start-ip-address=0.0.0.0 --end-ip-address=255.255.255.255"
+	az_sys(cmd2)
+	# now open Azure
+	cmd2 = cmd + " --name=Azure --start-ip-address=0.0.0.0 --end-ip-address=0.0.0.0"
+	az_sys(cmd2)
+
+def az_create_sql_database(dbname):
+	cmd = "sql db create"
+	cmd += " --resource-group=%s" % config["resource_group"]
+	cmd += " --server=%s" % config["azure-sqlservername"]
+	cmd += " --name=%s" % dbname
+	az_sys(cmd)
+
+def az_create_sql():
+	az_create_sql_server()
+	az_create_sql_database(config["sqlserver-database"])
+
+def az_grp_exist(grpname):
+	resgrp = az_cmd("group show --name=%s" % grpname)
+	return not resgrp is None
+
+# Overwrite resource group with location where machines are located
+# If no machines are found, that may be because they are not created, so leave it as it is
+def acs_set_resource_grp():
+	if (az_grp_exist(config["resource_group"])):
+		machines = az_cmd("vm list --resource-group=%s" % config["resource_group"])
+		if (len(machines)==0):
+			# try child resource group
+			tryGroup = "%s_%s_%s" % (config["resource_group"], config["cluster_name"], config["cluster_location"])
+			print "Grp %s has no matchines trying %s" % (config["resource_group"], tryGroup)
+			if (az_grp_exist(tryGroup)):
+				machines = az_cmd("vm list --resource-group=%s" % tryGroup)
+				if (len(machines) > 0):
+					# overwrite with group where machines are located
+					config["resource_group"] = tryGroup
+	print "Resource group = %s" % config["resource_group"]
+
 def acs_get_id(elem):
 	elemFullName = elem["id"]
 	reMatch = re.match('(.*)/(.*)', elemFullName)
 	return reMatch.group(2)
 
 def acs_get_ip(ipaddrName):
-	cmd = "az network public-ip show --resource-group="+config["resource_group"]+" --name="+ipaddrName
-	#rint "CMD: "+cmd
-	ipInfo = subprocess.check_output(cmd, shell=True)
-	ipInfo = yaml.load(ipInfo)
+	ipInfo = az_cmd("network public-ip show --resource-group="+config["resource_group"]+" --name="+ipaddrName)
 	return ipInfo["ipAddress"]
 
 def acs_attach_dns_name():
-	get_nodes_from_acs("")
+	get_nodes_from_acs()
 	firstMasterNode = config["kubernetes_master_node"][0]
 	masterNodeName = config["nodenames_from_ip"][firstMasterNode]
 	ipname = config["acsnodes"][masterNodeName]["publicipname"]
-	cmd = "az network public-ip update"
+	cmd = "network public-ip update"
 	cmd += " --resource-group=%s" % config["resource_group"]
 	cmd += " --name=%s" % ipname
 	cmd += " --dns-name=%s" % config["master_dns_name"]
-	print "Cmd: " + cmd
-	os.system(cmd)
+	az_sys(cmd)
 
 def acs_get_machineIP(machineName):
 	print "Machine: "+machineName
-	nicInfo = subprocess.check_output("az vm show --name="+machineName+" --resource-group="+config["resource_group"], shell=True)
-	nics = yaml.load(nicInfo)
+	nics = az_cmd("vm show --name="+machineName+" --resource-group="+config["resource_group"])
 	#print nics
 	nics = nics["networkProfile"]["networkInterfaces"]
 	i = 0
@@ -1692,18 +1871,16 @@ def acs_get_machineIP(machineName):
 		print "Nic Name: "+nicName
 		if (i==0):
 			nicDefault = nicName
-		ipconfigInfo = subprocess.check_output("az network nic show --resource-group="+config["resource_group"]+" --name="+nicName, shell=True)
-		ipConfigs = yaml.load(ipconfigInfo)
-		ipConfigs = ipConfigs["ipConfigurations"]
+		ipconfigs = az_cmd("network nic show --resource-group="+config["resource_group"]+" --name="+nicName)
+		ipConfigs = ipconfigs["ipConfigurations"]
 		j = 0
 		for ipConfig in ipConfigs:
 			ipConfigName = acs_get_id(ipConfig)
 			print "IP Config Name: "+ipConfigName
 			if ((i==0) and (j==0)):
 				ipConfigDefault = ipConfigName
-			configInfo = subprocess.check_output("az network nic ip-config show --resource-group="+config["resource_group"]+
-													" --nic-name="+nicName+" --name="+ipConfigName, shell=True)
-			configInfo = yaml.load(configInfo)
+			configInfo = az_cmd("network nic ip-config show --resource-group="+config["resource_group"]+
+								" --nic-name="+nicName+" --name="+ipConfigName)
 			publicIP = configInfo["publicIpAddress"]
 			if (not (publicIP is None)):
 				ipName = acs_get_id(publicIP)
@@ -1731,18 +1908,18 @@ def acs_get_machinesAndIPs(bCreateIP):
 			# Create IP
 			ipName = machineName+"-public-ip-0"
 			print "Creating public-IP: "+ipName
-			cmd = "az network public-ip create --allocation-method=Dynamic"
+			cmd = "network public-ip create --allocation-method=Dynamic"
 			cmd += " --resource-group=%s" % config["resource_group"]
 			cmd += " --name=%s" % ipName
 			cmd += " --location=%s" % config["cluster_location"]
-			os.system(cmd)
+			az_sys(cmd)
 			# Add to NIC of machine
-			cmd = "az network nic ip-config update"
+			cmd = "network nic ip-config update"
 			cmd += " --resource-group=%s" % config["resource_group"]
 			cmd += " --nic-name=%s" % ipInfo[machineName]["nic"]
 			cmd += " --name=%s" % ipInfo[machineName]["ipconfig"]
 			cmd += " --public-ip-address=%s" % ipName
-			os.system(cmd)
+			az_sys(cmd)
 			# now update
 			ipInfo[machineName]["publicipname"] = ipName
 			ipInfo[machineName]["publicip"] = acs_get_ip(ipName)
@@ -1765,10 +1942,6 @@ def acs_get_machinesAndIPsFast():
 		config["nodenames_from_ip"][ipInfo[machineName]["publicip"]] = machineName
 	return ipInfo
 
-def az_cmd(cmd):
-	output = subprocess.check_output("az "+cmd, shell=True)
-	return yaml.load(output)
-
 def acs_label_webui():
 	for n in config["kubernetes_master_node"]:
 		nodeName = config["nodenames_from_ip"][n]
@@ -1780,7 +1953,6 @@ def acs_is_valid_nsg_rule(rule):
 	#print "Access: %s D: %s P: %s P: %s" % (rule["access"].lower()=="allow",
 	#rule["direction"].lower()=="inbound",rule["sourceAddressPrefix"]=='*',
 	#(rule["protocol"].lower()=="tcp" or rule["protocol"]=='*'))
-
 	return (rule["access"].lower()=="allow" and
 			rule["direction"].lower()=="inbound" and
 			rule["sourceAddressPrefix"]=='*' and
@@ -1851,36 +2023,52 @@ def acs_get_config():
 	# Install kubectl / get credentials
 	if not (os.path.exists('./deploy/bin/kubectl')):
 		os.system("mkdir -p ./deploy/bin")
-		os.system("az acs kubernetes install-cli --install-location ./deploy/bin/kubectl")
+		az_tryuntil("acs kubernetes install-cli --install-location ./deploy/bin/kubectl", lambda : os.path.exists('./deploy/bin/kubectl'))
 	if not (os.path.exists('./deploy/'+config["acskubeconfig"])):
-		cmd = "az acs kubernetes get-credentials"
+		cmd = "acs kubernetes get-credentials"
 		cmd += " --resource-group=%s" % config["resource_group"]
 		cmd += " --name=%s" % config["cluster_name"]
 		cmd += " --file=./deploy/%s" % config["acskubeconfig"]
 		cmd += " --ssh-key-file=%s" % "./deploy/sshkey/id_rsa"
-		print "Cmd " + cmd
-		os.system(cmd)	
+		az_tryuntil(cmd, lambda : os.path.exists("./deploy/%s" % config["acskubeconfig"]))
+
+def acs_deploy_addons():
+	kube_dpeloy_configchanges()
+	kube_deploy_addons()
+
+# other config post deploy -- ACS cluster is complete
+# Run prescript, copyfiles, postscript
+def acs_post_deploy():
+	get_nodes_from_acs()
+	gen_configs()
+	utils.render_template_directory("./template/kubelet", "./deploy/kubelet", config)
+	write_nodelist_yaml()
+	# get CNI binary
+	get_cni_binary()
+	# deploy
+	#print config["master_predeploy"]
+	#print config["master_filesdeploy"]
+	#print config["master_postdeploy"]
+	deploy_on_nodes(config["master_predeploy"], config["master_filesdeploy"], config["master_postdeploy"], 
+		            config["kubernetes_master_node"])
+	deploy_on_nodes(config["worker_predeploy"], config["worker_filesdeploy"], config["worker_postdeploy"],
+	                config["worker_node"])
 
 def acs_deploy():
+	config["isacs"] = True
 	create_cluster_id()
-	regenerate_key = False
-	if (os.path.exists("./deploy/sshkey")):
-		regenerate_key = False
-		# response = raw_input_with_default("SSH keys already exist, do you want to keep existing (y/n)?")
-		# if first_char(response) == "n":
-		# 	utils.backup_keys(config["cluster_name"])
-		# 	regenerate_key = True
-		# else:
-		# 	regenerate_key = False
-	else:
-		regenerate_key = True
 
-	cmd = "az group create"
+	generate_key = not os.path.exists("./deploy/sshkey")
+
+	cmd = "group create"
 	cmd += " --location=%s" % config["cluster_location"]
 	cmd += " --name=%s" % config["resource_group"]
-	os.system(cmd)
+	az_sys(cmd)
 
-	cmd = "az acs create --orchestrator-type=kubernetes"
+	acs_create_storage()
+	az_create_sql()
+
+	cmd = "acs create --orchestrator-type=kubernetes"
 	cmd += " --resource-group=%s" % config["resource_group"]
 	cmd += " --name=%s" % config["cluster_name"]
 	cmd += " --agent-count=%d" % config["worker_node_num"]
@@ -1889,11 +2077,12 @@ def acs_deploy():
 	cmd += " --agent-vm-size=%s" % config["acsagentsize"]
 	cmd += " --admin-username=core"
 	cmd += " --ssh-key-value=%s" % "./deploy/sshkey/id_rsa.pub"
-	if (regenerate_key):			
+	if (generate_key):
 		os.system("rm -r ./deploy/sshkey || true")
 		cmd += " --generate-ssh-keys"
-	print "Deployment CMD: " + cmd
-	os.system(cmd)
+	az_sys(cmd)
+
+	acs_set_resource_grp() # overwrite resource group if machines are elsewhere
 
 	acs_get_config()
 
@@ -1911,34 +2100,34 @@ def acs_deploy():
 	# Attach DNS name to master
 	acs_attach_dns_name()
 
+	# post ACS cluster deployment setup
+	acs_post_deploy()
+
 	return Nodes
 
 def acs_get_storage_key():
 	cmd = "storage account keys list"
 	cmd += " --account-name=%s" % config["mountpoints"]["rootshare"]["accountname"]
 	cmd += " --resource-group=%s" % config["resource_group"]
-	#print "Cmd: az " + cmd
 	keys = az_cmd(cmd)
 	return keys[0]["value"]	
 
 def acs_create_storage():
 	# Create storage account
-	cmd = "az storage account create"
+	cmd = "storage account create"
 	cmd += " --name=%s" % config["mountpoints"]["rootshare"]["accountname"]
 	cmd += " --resource-group=%s" % config["resource_group"]
-	cmd += " --sku=%s" % "Standard_LRS"
-	print "Cmd: " + cmd
-	os.system(cmd)
+	cmd += " --sku=%s" % config["mountpoints"]["rootshare"]["azstoragesku"]
+	az_sys(cmd)
 	# Create file share
 	azureKey = acs_get_storage_key()
 	config["mountpoints"]["rootshare"]["accesskey"] = azureKey
-	cmd = "az storage share create"
+	cmd = "storage share create"
 	cmd += " --name=%s" % config["mountpoints"]["rootshare"]["filesharename"]
-	cmd += " --quota=2048"
+	cmd += " --quota=%s" % config["mountpoints"]["rootshare"]["filesharequota"]
 	cmd += " --account-name=%s" % config["mountpoints"]["rootshare"]["accountname"]
 	cmd += " --account-key=%s" % azureKey
-	print "Cmd: " + cmd
-	os.system(cmd)
+	az_sys(cmd)
 
 def acs_install_gpu():
 	nodes = get_worker_nodes(config["clusterId"])
@@ -2212,9 +2401,6 @@ def unmount_fileshares_by_service(clean=False):
 						remotecmd += "sudo rm -rf %s; " % v["curphysicalmountpoint"]
 			if len(remotecmd)>0:
 				utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)	
-
-def exec_rmt_cmd(node, cmd):
-	utils.SSH_exec_cmd(config["ssh_cert"], "core", node, cmd)
 
 def del_fileshare_links():
 	all_nodes = get_nodes(config["clusterId"])
@@ -3250,16 +3436,17 @@ def run_command( args, command, nargs, parser ):
 		f.close()
 		if "clusterId" in tmp:
 			config["clusterId"] = tmp["clusterId"]
+
+	add_acs_config()
+	if verbose and config["isacs"]:
+		print "Using Azure Container Services"
+
 	update_config()
 	
 	# additional glusterfs launch parameter.
 	config["launch-glusterfs-opt"] = args.glusterfs;
 
 	get_ssh_config()
-
-	add_acs_config()
-	if verbose and config["isacs"]:
-		print "USing Azure Container Services"
 	
 	if args.yes:
 		global defanswer
@@ -3612,10 +3799,18 @@ def run_command( args, command, nargs, parser ):
 				run_script_blocks(scriptblocks["bldwebui"])
 			elif nargs[0]=="gpudrivers":
 				acs_install_gpu()
+			elif nargs[0]=="addons":
+				# deploy addons / config changes (i.e. weave.yaml)
+				acs_deploy_addons()
+			elif nargs[0]=="freeflow":
+				kube_dpeloy_configchanges() # starte weave.yaml
+				run_script_blocks(["kubernetes start freeflow"])
 			elif nargs[0]=="jobendpt":
 				acs_get_jobendpt(nargs[1])
 			elif nargs[0]=="dns":
 				acs_attach_dns_name()
+			elif nargs[0]=="postdeploy":
+				acs_post_deploy()
 			
 	elif command == "update" and len(nargs)>=1:
 		if nargs[0] == "config":

@@ -27,10 +27,10 @@ NV_DRIVER=/opt/nvidia-driver/$NVIDIA_VERSION
 sudo ln -s $NV_DRIVER /opt/nvidia-driver/current
 
 # Add service (don't know if we need, but doesn't hurt)
-sudo wget https://gist.githubusercontent.com/brianmingus/5497756754bfbcdaac34d39c2b0f0d71/raw/98e84806716d34bf514d73dbc957b35a709d9f73/nvidia_dev.bash -O /etc/init.d/nvidia
-sudo chmod +x /etc/init.d/nvidia
-sudo update-rc.d nvidia defaults
-sudo service nvidia start
+#sudo wget https://gist.githubusercontent.com/brianmingus/5497756754bfbcdaac34d39c2b0f0d71/raw/98e84806716d34bf514d73dbc957b35a709d9f73/nvidia_dev.bash -O /etc/init.d/nvidia
+#sudo chmod +x /etc/init.d/nvidia
+#sudo update-rc.d nvidia defaults
+#sudo service nvidia start
 
 sudo systemctl restart kubelet.service
 
