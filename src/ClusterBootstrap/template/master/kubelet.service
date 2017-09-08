@@ -14,6 +14,7 @@ ExecStart=/opt/bin/kubelet \
   --register-schedulable=false \
   --container-runtime=docker \
   --allow-privileged=true \
+  --feature-gates="Accelerators=true" \
   --pod-manifest-path=/etc/kubernetes/manifests \
   --network-plugin=cni \
   --cluster_dns={{cnf["dns-server-ip"]}} \

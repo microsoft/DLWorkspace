@@ -15,6 +15,7 @@ ExecStart=/opt/bin/kubelet \
   --api-servers=##api_servers## \
   --container-runtime=docker \
   --register-node=true \
+  --feature-gates="Accelerators=true" \
   --allow-privileged=true \
   --pod-manifest-path=/etc/kubernetes/manifests \
   --network-plugin=cni \

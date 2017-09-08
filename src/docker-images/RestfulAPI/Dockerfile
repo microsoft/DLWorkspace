@@ -55,7 +55,7 @@ RUN apt-get install -y unixodbc-dev-utf16
 RUN pip install pyodbc
 RUN pip install tzlocal
 
-RUN wget http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubectl -O /usr/local/bin/kubectl
+COPY kubectl /usr/local/bin/kubectl
 RUN chmod +x /usr/local/bin/kubectl
 #COPY gittoken /root/.ssh/id_rsa
 #RUN chmod 400 /root/.ssh/id_rsa

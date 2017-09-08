@@ -65,7 +65,7 @@ default_config_parameters = {
 	"discoverserver" : "4.2.2.1", 
 	"homeininterval" : "600", 
 	"dockerregistry" : "mlcloudreg.westus.cloudapp.azure.com:5000/",
-	"kubernetes_docker_image" : "mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/hyperkube:v1.5.0_coreos.multigpu", 
+	"kubernetes_docker_image" : "mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/hyperkube:v1.7.5", 
 	"freeflow_route_docker_image" : "mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/freeflow:0.16", 
 	# There are two docker registries, one for infrastructure (used for pre-deployment)
 	# and one for worker docker (pontentially in cluser)
@@ -1259,8 +1259,43 @@ def deploy_masters():
 
 	for i,kubernetes_master in enumerate(kubernetes_masters):
 		deploy_master(kubernetes_master)
+	deploycmd = """
+		until curl -q http://127.0.0.1:8080/version/ ; do 
+			sleep 5; 
+			echo 'waiting for master...'; 
+		done; 
+		
+		until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/weave.yaml --validate=false ; do 
+			sleep 5; 
+			echo 'waiting for master...'; 
+		done ;
 
-	utils.SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_masters[0], "until curl -q http://127.0.0.1:8080/version/ ; do sleep 5; echo 'waiting for master...'; done;  sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/weave.yaml; sudo /opt/bin/kubectl create -f /opt/addons/kube-addons/dashboard.yaml;  sudo /opt/bin/kubectl create -f /opt/addons/kube-addons/dns-addon.yml;  sudo /opt/bin/kubectl create -f /opt/addons/kube-addons/kube-proxy.json;  sudo /opt/bin/kubectl create -f /opt/addons/kube-addons/heapster-deployment.json;  sudo /opt/bin/kubectl create -f /opt/addons/kube-addons/heapster-svc.json", False)
+		until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/dashboard.yaml --validate=false ; do 
+			sleep 5; 
+			echo 'waiting for master...'; 
+		done ;
+
+		until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/dns-addon.yml --validate=false ;  do 
+			sleep 5; 
+			echo 'waiting for master...'; 
+		done ; 
+
+		until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/kube-proxy.json --validate=false ;  do 
+			sleep 5; 
+			echo 'waiting for master...'; 
+		done ; 
+
+		until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/heapster-deployment.json --validate=false ;   do 
+			sleep 5; 
+			echo 'waiting for master...'; 
+		done ;
+
+		until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/heapster-svc.json --validate=false ; do 
+			sleep 5; 
+			echo 'waiting for master...'; 
+		done ;
+	"""
+	utils.SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_masters[0], deploycmd , False)
 
 
 def clean_etcd():

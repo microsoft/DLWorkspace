@@ -56,4 +56,8 @@
         <description>Whether virtual memory limits will be enforced for containers.</description>
     </property>
 
+    <property>
+        <name>yarn.log.server.url</name>
+        <value>http://{{cnf["namenode"]["namenode1"]}}:19888/jobhistory/logs</value>
+    </property>
 </configuration>
