@@ -139,6 +139,7 @@ default_config_parameters = {
 
 	"build-docker-via-config" : {
 		"hdfs": True, 
+		"spark": True, 
 		"glusterfs": True, 
 	},
 	#"render-by-line": { "preseed.cfg": True, },
@@ -3680,8 +3681,8 @@ def run_command( args, command, nargs, parser ):
 			unmount_partition_volume( nodes, fetch_config(["hdfs", "partitions"]))
 		elif nargs[0] == "config":
 			hdfs_config( nodes, fetch_config(["hdfs", "partitions"]))
-			dockername = "hdfs"
-			push_docker_images( [dockername] )
+			push_docker_images( ["hdfs"] )
+			push_docker_images( ["spark"] )
 		else:
 			parser.print_help()
 			print "Unknown subcommand for hdfs " + nargs[0]

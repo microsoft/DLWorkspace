@@ -56,6 +56,7 @@ ADD *.in-docker {{cnf["docker-run"]["hdfs"]["workdir"]}}/
 ADD bootstrap_hdfs.py {{cnf["docker-run"]["hdfs"]["workdir"]}}
 ADD utils.py {{cnf["docker-run"]["hdfs"]["workdir"]}}
 RUN chmod +x {{cnf["docker-run"]["hdfs"]["workdir"]}}/*.py
+ADD config.yaml /etc/hdfs/config.yaml
 
 COPY bootstrap.sh /etc/bootstrap.sh
 RUN chown root.root /etc/bootstrap.sh
