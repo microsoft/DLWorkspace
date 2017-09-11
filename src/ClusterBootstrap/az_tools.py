@@ -89,7 +89,7 @@ def update_config(config):
     return config
 
 
-def create_vm(vmname, config):
+def create_vm(vmname):
     cmd = """
         az vm create --resource-group %s \
                  --name %s \
@@ -120,7 +120,7 @@ def create_vm(vmname, config):
     output = utils.exec_cmd_local(cmd)
     print (output)
 
-def create_group(config):
+def create_group():
     cmd = """
         az group create --name %s --location %s 
         """ % (config["azure_cluster"]["resource_group_name"],config["azure_cluster"]["azure_location"])
@@ -128,7 +128,7 @@ def create_group(config):
     print (output)
 
 
-def create_sql(config):
+def create_sql():
     cmd = """
         az sql server create --resource-group %s \
                  --location %s \
@@ -170,7 +170,7 @@ def create_sql(config):
     print (output)
 
 
-def create_storage_account(config):
+def create_storage_account():
     cmd = """
         az storage account create \
             --name %s \
@@ -184,7 +184,7 @@ def create_storage_account(config):
     output = utils.exec_cmd_local(cmd)
     print (output)
 
-def create_file_share(config):
+def create_file_share():
     cmd = """
         az storage account show-connection-string \
             -n %s \
@@ -205,7 +205,7 @@ def create_file_share(config):
     print (output)
 
 
-def create_vnet(config):
+def create_vnet():
     cmd = """
         az network vnet create \
             --resource-group %s \
@@ -220,7 +220,7 @@ def create_vnet(config):
     output = utils.exec_cmd_local(cmd)
     print (output)
 
-def create_nsg(config):
+def create_nsg():
     cmd = """
         az network nsg create \
             --resource-group %s \
@@ -244,37 +244,37 @@ def create_nsg(config):
     output = utils.exec_cmd_local(cmd)
     print (output)
 
-def delete_group(config):
+def delete_group():
     cmd = """
         az group delete -y --name %s 
         """ % (config["azure_cluster"]["resource_group_name"])
     output = utils.exec_cmd_local(cmd)
     print (output)
 
-def create_cluster(config):
+def create_cluster():
     print "creating resource group..."
-    create_group(config)
+    create_group()
     print "creating storage account..."
-    create_storage_account(config)
+    create_storage_account()
     print "creating file share..."
-    create_file_share(config)
+    create_file_share()
     print "creating vnet..."
-    create_vnet(config)
+    create_vnet()
     print "creating network security group..."
-    create_nsg(config)
+    create_nsg()
     print "creating sql server and database..."
-    create_sql(config)
+    create_sql()
     print "creating VMs"
     for i in range(int(config["azure_cluster"]["infra_node_num"])):
         vmname = "%s-infra%02d" % (config["azure_cluster"]["cluster_name"], i+1)
         print "creating VM %s..." % vmname
-        create_vm(vmname,config)
+        create_vm(vmname)
     for i in range(int(config["azure_cluster"]["worker_node_num"])):
         vmname = "%s-worker%02d" % (config["azure_cluster"]["cluster_name"], i+1)
         print "creating VM %s..." % vmname
-        create_vm(vmname,config)
+        create_vm(vmname)
 
-def gen_cluster_config(config,output_file_name):
+def gen_cluster_config(output_file_name):
 
     cmd = """
         az storage account show-connection-string \
@@ -284,7 +284,10 @@ def gen_cluster_config(config,output_file_name):
             -o tsv
         """ % (config["azure_cluster"]["storage_account_name"],config["azure_cluster"]["resource_group_name"])
     output = utils.exec_cmd_local(cmd)
-    file_share_key = re.search('AccountKey\=.*$', output).group(0).replace("AccountKey=","")
+    reoutput = re.search('AccountKey\=.*$', output)
+    file_share_key = None
+    if reoutput is not None:
+        file_share_key = reoutput.group(0).replace("AccountKey=","")
 
     cc = {}
     cc["cluster_name"] = config["azure_cluster"]["cluster_name"]
@@ -294,7 +297,7 @@ def gen_cluster_config(config,output_file_name):
     cc["sqlserver-username"] = config["azure_cluster"]["sql_admin_name"]
     cc["sqlserver-password"] = config["azure_cluster"]["sql_admin_password"]
     cc["sqlserver-database"] = config["azure_cluster"]["sql_database_name"]
-
+    cc["admin_username"] = config["azure_cluster"]["default_admin_username"]
 
 
     cc["useclusterfile"] = True
@@ -315,7 +318,8 @@ def gen_cluster_config(config,output_file_name):
     cc["mountpoints"]["rootshare"]["accountname"] = config["azure_cluster"]["storage_account_name"]
     cc["mountpoints"]["rootshare"]["filesharename"] = config["azure_cluster"]["file_share_name"]
     cc["mountpoints"]["rootshare"]["mountpoints"] = ""
-    cc["mountpoints"]["rootshare"]["accesskey"] = file_share_key
+    if file_share_key is not None:
+        cc["mountpoints"]["rootshare"]["accesskey"] = file_share_key
 
     print yaml.dump(cc, default_flow_style=False)
     with open(output_file_name, 'w') as outfile:
@@ -323,13 +327,13 @@ def gen_cluster_config(config,output_file_name):
 
 def run_command( args, command, nargs, parser ):
     if command =="create":
-        create_cluster(config)
+        create_cluster()
 
     elif command == "delete":
-        delete_group(config)
+        delete_group()
 
     elif command == "genconfig":
-        gen_cluster_config(config,nargs[0])
+        gen_cluster_config(nargs[0])
 
 if __name__ == '__main__':
     # the program always run at the current directory. 
@@ -419,9 +423,16 @@ Command:
     # Cluster Config
     config_cluster = os.path.join(dirpath,"azure_cluster_config.yaml")
     if os.path.exists(config_cluster):
-        azureconfig = yaml.load(open(config_cluster)) 
-        if azureconfig is not None:
-            merge_config(config, azureconfig)
+        tmpconfig = yaml.load(open(config_cluster)) 
+        if tmpconfig is not None:
+            merge_config(config, tmpconfig)
+
+    config_file = os.path.join(dirpath,"config.yaml")
+    if os.path.exists(config_file):
+        tmpconfig = yaml.load(open(config_file)) 
+        if tmpconfig is not None and "cluster_name" in tmpconfig:
+            config["azure_cluster"]["cluster_name"] = tmpconfig["cluster_name"]
+
     if (args.cluster_name is not None):
         config["azure_cluster"]["cluster_name"] = args.cluster_name
 
@@ -455,5 +466,7 @@ Command:
     if "cluster_name" not in config["azure_cluster"] or config["azure_cluster"]["cluster_name"] is None:
         print ("Cluster Name cannot be empty")
         exit()
-    run_command( args, command, nargs, parser)
+    config = run_command( args, command, nargs, parser)
 
+    with open(config_cluster, 'w') as outfile:
+        yaml.dump(config, outfile, default_flow_style=False)

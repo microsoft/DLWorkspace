@@ -84,7 +84,7 @@ default_config_parameters = {
 	"restfulapiport" : "5000",
 	"restfulapi" : "restfulapi",
 	"ssh_cert" : "./deploy/sshkey/id_rsa",
-
+    "admin_username" : "core"
 	# the path of where dfs/nfs is source linked and consumed on each node, default /dlwsdata
 	"storage-mount-path" : "/dlwsdata",
 	# the path of where filesystem is actually mounted /dlwsdata
@@ -373,7 +373,7 @@ default_config_parameters = {
 scriptblocks = {
 	"azure": [
 		"runscriptonall ./scripts/prepare_ubuntu_azure.sh", 
-		"execonall sudo usermod -aG docker core",
+		"execonall sudo usermod -aG docker %s" % config["admin_username"],
 		"-y deploy",
 		"-y updateworker",
 		"-y kubernetes labels",
@@ -402,7 +402,7 @@ scriptblocks = {
 	],
 	"ubuntu": [
 		"runscriptonall ./scripts/prepare_ubuntu.sh",
-		"execonall sudo usermod -aG docker core",
+		"execonall sudo usermod -aG docker %s" % config["admin_username"],
 		"-y deploy",
 		"-y updateworker",
 		"-y kubernetes labels",
@@ -883,7 +883,7 @@ def init_deployment():
 
 def check_node_availability(ipAddress):
 	# print "Check node availability on: " + str(ipAddress)
-	status = os.system('ssh -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s -oBatchMode=yes core@%s hostname > /dev/null' % (config["ssh_cert"], ipAddress))
+	status = os.system('ssh -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s -oBatchMode=yes %s@%s hostname > /dev/null' % (config["admin_username"], config["ssh_cert"], ipAddress))
 	#status = sock.connect_ex((ipAddress,22))
 	return status == 0
 	
@@ -1135,8 +1135,8 @@ def gen_configs():
 	if "ssh_cert" not in config and os.path.isfile("./deploy/sshkey/id_rsa"):
 		config["ssh_cert"] = expand_path("./deploy/sshkey/id_rsa")
 		
-	config["etcd_user"] = "core"
-	config["kubernetes_master_ssh_user"] = "core"
+	config["etcd_user"] = config["admin_username"]
+	config["kubernetes_master_ssh_user"] = config["admin_username"]
 
 	#config["api_servers"] = ",".join(["https://"+x for x in config["kubernetes_master_node"]])
 	config["api_servers"] = "https://"+config["kubernetes_master_node"][0]+":"+str(config["k8sAPIport"])
@@ -1163,8 +1163,8 @@ def get_ssh_config():
 		config["ssh_cert"] = "./deploy/sshkey/id_rsa"
 	if "ssh_cert" in config:
 		config["ssh_cert"] = expand_path(config["ssh_cert"])
-	config["etcd_user"] = "core"
-	config["kubernetes_master_ssh_user"] = "core"
+	config["etcd_user"] = config["admin_username"]
+	config["kubernetes_master_ssh_user"] = config["admin_username"]
 	add_ssh_key()
 
 
@@ -1508,7 +1508,7 @@ def reset_worker_node(nodeIP):
 	print "==============================================="
 	print "updating worker node: %s ..."  % nodeIP
 
-	worker_ssh_user = "core"
+	worker_ssh_user = config["admin_username"]
 	utils.SSH_exec_script(config["ssh_cert"],worker_ssh_user, nodeIP, "./deploy/kubelet/%s" % config["preworkerdeploymentscript"])
 
 
@@ -1527,7 +1527,7 @@ def update_worker_node(nodeIP):
 	print "==============================================="
 	print "updating worker node: %s ..."  % nodeIP
 
-	worker_ssh_user = "core"
+	worker_ssh_user = config["admin_username"]
 	utils.SSH_exec_script(config["ssh_cert"],worker_ssh_user, nodeIP, "./deploy/kubelet/%s" % config["preworkerdeploymentscript"])
 
 	with open("./deploy/kubelet/"+config["workerdeploymentlist"],"r") as f:
@@ -1571,7 +1571,7 @@ def update_worker_nodes( nargs ):
 	os.system("rm ./deploy/kubelet/worker-kubeconfig.yaml")
 
 	#if len(config["kubernetes_master_node"]) > 0:
-		#utils.SSH_exec_cmd(config["ssh_cert"], "core", config["kubernetes_master_node"][0], "sudo /opt/bin/kubelet get nodes")
+		#utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], config["kubernetes_master_node"][0], "sudo /opt/bin/kubelet get nodes")
 
 def reset_worker_nodes():
 	utils.render_template_directory("./template/kubelet", "./deploy/kubelet",config)
@@ -1599,19 +1599,19 @@ def deploy_restful_API_on_node(ipAddress):
 	utils.render_template("./template/RestfulAPI/config.yaml","./deploy/RestfulAPI/config.yaml",config)
 	utils.render_template("./template/master/restapi-kubeconfig.yaml","./deploy/master/restapi-kubeconfig.yaml",config)
 
-	utils.sudo_scp(config["ssh_cert"],"./deploy/RestfulAPI/config.yaml","/etc/RestfulAPI/config.yaml", "core", masterIP )
-	utils.sudo_scp(config["ssh_cert"],"./deploy/master/restapi-kubeconfig.yaml","/etc/kubernetes/restapi-kubeconfig.yaml", "core", masterIP )
+	utils.sudo_scp(config["ssh_cert"],"./deploy/RestfulAPI/config.yaml","/etc/RestfulAPI/config.yaml", config["admin_username"], masterIP )
+	utils.sudo_scp(config["ssh_cert"],"./deploy/master/restapi-kubeconfig.yaml","/etc/kubernetes/restapi-kubeconfig.yaml", config["admin_username"], masterIP )
 
 	if config["isacs"]:
 		# copy needed keys
-		utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo mkdir -p /etc/kubernetes/ssl")
-		utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo cp /etc/kubernetes/certs/apiserver.crt /etc/kubernetes/ssl/apiserver.pem")
-		utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo cp /etc/kubernetes/certs/apiserver.key /etc/kubernetes/ssl/apiserver-key.pem")
-		utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo cp /etc/kuebrnetes/certs/ca.crt /etc/kubernetes/ssl/ca.crt")
+		utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP, "sudo mkdir -p /etc/kubernetes/ssl")
+		utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP, "sudo cp /etc/kubernetes/certs/apiserver.crt /etc/kubernetes/ssl/apiserver.pem")
+		utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP, "sudo cp /etc/kubernetes/certs/apiserver.key /etc/kubernetes/ssl/apiserver-key.pem")
+		utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP, "sudo cp /etc/kuebrnetes/certs/ca.crt /etc/kubernetes/ssl/ca.crt")
 		# overwrite ~/.kube/config (to be mounted from /etc/kubernetes/restapi-kubeconfig.yaml)
-		utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo cp /home/core/.kube/config /etc/kubernetes/restapi-kubeconfig.yaml")
+		utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP, "sudo cp /home/%s/.kube/config /etc/kubernetes/restapi-kubeconfig.yaml" % config["admin_username"])
 
-	# utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo mkdir -p /dlws-data && sudo mount %s /dlws-data ; docker rm -f restfulapi; docker rm -f jobScheduler ; docker pull %s ; docker run -d -p %s:80 --restart always -v /etc/RestfulAPI:/RestfulAPI --name restfulapi %s ; docker run -d -v /dlws-data:/dlws-data -v /etc/RestfulAPI:/RestfulAPI -v /etc/kubernetes/restapi-kubeconfig.yaml:/root/.kube/config -v /etc/kubernetes/ssl:/etc/kubernetes/ssl --restart always --name jobScheduler %s /runScheduler.sh ;" % (config["nfs-server"], dockername,config["restfulapiport"],dockername,dockername))
+	# utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP, "sudo mkdir -p /dlws-data && sudo mount %s /dlws-data ; docker rm -f restfulapi; docker rm -f jobScheduler ; docker pull %s ; docker run -d -p %s:80 --restart always -v /etc/RestfulAPI:/RestfulAPI --name restfulapi %s ; docker run -d -v /dlws-data:/dlws-data -v /etc/RestfulAPI:/RestfulAPI -v /etc/kubernetes/restapi-kubeconfig.yaml:/root/.kube/config -v /etc/kubernetes/ssl:/etc/kubernetes/ssl --restart always --name jobScheduler %s /runScheduler.sh ;" % (config["nfs-server"], dockername,config["restfulapiport"],dockername,dockername))
 
 	print "==============================================="
 	print "restful api is running at: http://%s:%s" % (masterIP,config["restfulapiport"])
@@ -1619,7 +1619,7 @@ def deploy_restful_API_on_node(ipAddress):
 
 def deploy_webUI_on_node(ipAddress):
 
-	sshUser = "core"
+	sshUser = config["admin_username"]
 	webUIIP = ipAddress
 	dockername = "%s/dlws-webui" %  (config["dockerregistry"])
 
@@ -1633,7 +1633,7 @@ def deploy_webUI_on_node(ipAddress):
 	utils.render_template("./template/WebUI/userconfig.json","./deploy/WebUI/userconfig.json", config)
 	os.system("cp --verbose ./deploy/WebUI/userconfig.json ../WebUI/dotnet/WebPortal/") # not used -- overwritten by mount from host, contains secret
 	# write into host, mounted into container
-	utils.sudo_scp(config["ssh_cert"],"./deploy/WebUI/userconfig.json","/etc/WebUI/userconfig.json", "core", webUIIP )
+	utils.sudo_scp(config["ssh_cert"],"./deploy/WebUI/userconfig.json","/etc/WebUI/userconfig.json", sshUser, webUIIP )
 
 	utils.render_template("./template/WebUI/Master-Templates.json", "./deploy/WebUI/Master-Templates.json", config)
 	#os.system("cp --verbose ./template/WebUI/Master-Templates.json ./deploy/WebUI/Master-Templates.json")
@@ -1656,8 +1656,7 @@ def install_ssh_key(key_files):
 		rootpasswd = f.read().strip()
 		f.close()
 
-	#default root user is core....
-	rootuser = "core"
+	rootuser = config["admin_username"]
 	if os.path.isfile(rootuserfile):
 		with open(rootuserfile, "r") as f:
 			rootuser = f.read().strip()
@@ -1674,11 +1673,11 @@ def install_ssh_key(key_files):
 			os.system("""sshpass -f %s ssh-copy-id -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i ./deploy/sshkey/id_rsa.pub %s@%s""" %(rootpasswdfile, rootuser, node))
 
 
-	if rootuser != "core":
+	if rootuser != config["admin_username"]:
 	 	for node in all_nodes:
-	 		os.system('sshpass -f %s ssh  -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" %s@%s "sudo useradd -p %s -d /home/core -m -s /bin/bash core"' % (rootpasswdfile,rootuser, node, rootpasswd))
-	 		os.system('sshpass -f %s ssh  -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" %s@%s "sudo usermod -aG sudo core"' % (rootpasswdfile,rootuser, node))
-	 		os.system('sshpass -f %s ssh  -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" %s@%s "sudo mkdir -p /home/core/.ssh"' % (rootpasswdfile,rootuser, node))
+	 		os.system('sshpass -f %s ssh  -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" %s@%s "sudo useradd -p %s -d /home/%s -m -s /bin/bash %s"' % (rootpasswdfile,rootuser, node, rootpasswd,config["admin_username"],config["admin_username"]))
+	 		os.system('sshpass -f %s ssh  -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" %s@%s "sudo usermod -aG sudo %s"' % (rootpasswdfile,rootuser, node,config["admin_username"]))
+	 		os.system('sshpass -f %s ssh  -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" %s@%s "sudo mkdir -p /home/%s/.ssh"' % (rootpasswdfile,rootuser, node, config["admin_username"]))
 
 
 			if len(key_files)>0:
@@ -1687,18 +1686,18 @@ def install_ssh_key(key_files):
 					with open(key_file, "r") as f:
 						publicKey = f.read().strip()
 						f.close()		
-	 				os.system('sshpass -f %s ssh  -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" %s@%s "echo %s | sudo tee /home/core/.ssh/authorized_keys"' % (rootpasswdfile,rootuser, node,publicKey))
+	 				os.system('sshpass -f %s ssh  -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" %s@%s "echo %s | sudo tee /home/%s/.ssh/authorized_keys"' % (rootpasswdfile,rootuser, node,publicKey,config["admin_username"]))
 
 			else:
 				print "Install key %s on %s" % ("./deploy/sshkey/id_rsa.pub", node)
 				with open("./deploy/sshkey/id_rsa.pub", "r") as f:
 					publicKey = f.read().strip()
 					f.close()		
- 				os.system('sshpass -f %s ssh  -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" %s@%s "echo %s | sudo tee /home/core/.ssh/authorized_keys"' % (rootpasswdfile,rootuser, node,publicKey))
+ 				os.system('sshpass -f %s ssh  -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" %s@%s "echo %s | sudo tee /home/%s/.ssh/authorized_keys"' % (rootpasswdfile,rootuser, node,publicKey,config["admin_username"]))
 
-	 		os.system('sshpass -f %s ssh  -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" %s@%s "sudo chown core:core -R /home/core"' % (rootpasswdfile,rootuser, node))
-	 		os.system('sshpass -f %s ssh  -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" %s@%s "sudo chmod 400 /home/core/.ssh/authorized_keys"' % (rootpasswdfile,rootuser, node))
-	 		os.system("""sshpass -f %s ssh  -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" %s@%s "echo 'core ALL=(ALL) NOPASSWD: ALL' | sudo tee -a /etc/sudoers.d/core " """ % (rootpasswdfile,rootuser, node))
+	 		os.system('sshpass -f %s ssh  -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" %s@%s "sudo chown %s:%s -R /home/%s"' % (rootpasswdfile,rootuser, node,config["admin_username"],config["admin_username"],config["admin_username"]))
+	 		os.system('sshpass -f %s ssh  -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" %s@%s "sudo chmod 400 /home/%s/.ssh/authorized_keys"' % (rootpasswdfile,rootuser, node,config["admin_username"]))
+	 		os.system("""sshpass -f %s ssh  -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" %s@%s "echo '%s ALL=(ALL) NOPASSWD: ALL' | sudo tee -a /etc/sudoers.d/%s " """ % (rootpasswdfile,rootuser, node,config["admin_username"],config["admin_username"]))
 
 
 
@@ -1713,10 +1712,10 @@ def shellquote(s):
     return "'" + s.replace("'", "'\\''") + "'"
 
 def exec_rmt_cmd(node, cmd):
-	utils.SSH_exec_cmd(config["ssh_cert"], "core", node, cmd)
+	utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, cmd)
 
 def rmt_cp(node, source, target):
-	utils.sudo_scp(config["ssh_cert"], source, target, "core", node)
+	utils.sudo_scp(config["ssh_cert"], source, target, config["admin_username"], node)
 
 # copy list of files to a node
 def copy_list_of_files(listOfFiles, node):	
@@ -1736,11 +1735,11 @@ def copy_list_of_files_to_nodes(listOfFiles, nodes):
 
 # run scripts
 def run_script_on_node(script, node):
-	utils.SSH_exec_script(config["ssh_cert"], "core", node, script)
+	utils.SSH_exec_script(config["ssh_cert"], config["admin_username"], node, script)
 
 def run_script_on_nodes(script, nodes):
 	for node in nodes:
-		utils.SSH_exec_script(config["ssh_cert"], "core", node, script)
+		utils.SSH_exec_script(config["ssh_cert"], config["admin_username"], node, script)
 
 # deployment
 def deploy_on_nodes(prescript, listOfFiles, postscript, nodes):
@@ -2075,7 +2074,7 @@ def acs_deploy():
 	cmd += " --master-count=%d" % config["master_node_num"]
 	cmd += " --location=%s" % config["cluster_location"]
 	cmd += " --agent-vm-size=%s" % config["acsagentsize"]
-	cmd += " --admin-username=core"
+	cmd += " --admin-username=%s" % config["admin_username"]
 	cmd += " --ssh-key-value=%s" % "./deploy/sshkey/id_rsa.pub"
 	if (generate_key):
 		os.system("rm -r ./deploy/sshkey || true")
@@ -2233,7 +2232,7 @@ def get_mount_fileshares(curNode = None):
 	return allmountpoints, fstab
 
 def insert_fstab_section( node, secname, content):
-	fstabcontent = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "cat /etc/fstab")
+	fstabcontent = utils.SSH_exec_cmd_with_output(config["ssh_cert"], config["admin_username"], node, "cat /etc/fstab")
 	fstabmask =    "##############%sMOUNT#################\n" % secname
 	fstabmaskend = "#############%sMOUNTEND###############\n" % secname
 	if not content.endswith("\n"):
@@ -2260,12 +2259,12 @@ def insert_fstab_section( node, secname, content):
 	with open("./deploy/etc/fstab","w") as f:
 		f.write(usefstab)
 		f.close()
-	utils.sudo_scp( config["ssh_cert"], "./deploy/etc/fstab", "/etc/fstab", "core", node)
+	utils.sudo_scp( config["ssh_cert"], "./deploy/etc/fstab", "/etc/fstab", config["admin_username"], node)
 
 def remove_fstab_section( node, secname):
 	fstabmask =    "##############%sMOUNT#################\n" % secname
 	fstabmaskend = "#############%sMOUNTEND###############\n" % secname
-	fstabcontent = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "cat /etc/fstab")
+	fstabcontent = utils.SSH_exec_cmd_with_output(config["ssh_cert"], config["admin_username"], node, "cat /etc/fstab")
 	bCopyFStab = False
 	if fstabcontent.find("No such file or directory")==-1:
 		indexst = fstabcontent.find(fstabmask) 
@@ -2284,7 +2283,7 @@ def remove_fstab_section( node, secname):
 			with open("./deploy/etc/fstab","w") as f:
 				f.write(usefstab)
 				f.close()
-			utils.sudo_scp( config["ssh_cert"], "./deploy/etc/fstab", "/etc/fstab", "core", node)
+			utils.sudo_scp( config["ssh_cert"], "./deploy/etc/fstab", "/etc/fstab", config["admin_username"], node)
 
 def fileshare_install():
 	all_nodes = get_nodes(config["clusterId"])
@@ -2330,7 +2329,7 @@ def fileshare_install():
 						remotecmd += "sudo apt-get install -y default-jre; "
 						remotecmd += "sudo apt-get install -y --allow-unauthenticated hadoop-hdfs-fuse; "
 		if len(remotecmd)>0:
-			utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)
+			utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
 
 def mount_fileshares_by_service(perform_mount=True):
 	all_nodes = get_nodes(config["clusterId"])
@@ -2348,16 +2347,16 @@ def mount_fileshares_by_service(perform_mount=True):
 			for k,v in allmountpoints.iteritems():
 				if "curphysicalmountpoint" in v:
 					remotecmd += "sudo mkdir -p %s; " % v["curphysicalmountpoint"]
-			utils.SSH_exec_cmd( config["ssh_cert"], "core", node, "sudo mkdir -p %s; " % config["folder_auto_share"] )
+			utils.SSH_exec_cmd( config["ssh_cert"], config["admin_username"], node, "sudo mkdir -p %s; " % config["folder_auto_share"] )
 			utils.render_template_directory("./template/storage/auto_share", "./deploy/storage/auto_share", config)
 			with open("./deploy/storage/auto_share/mounting.yaml",'w') as datafile:
 				yaml.dump(mountconfig, datafile, default_flow_style=False)			
-			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.timer","/etc/systemd/system/auto_share.timer", "core", node )
-			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.target","/etc/systemd/system/auto_share.target", "core", node )
-			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.service","/etc/systemd/system/auto_share.service", "core", node )
-			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/logging.yaml",os.path.join(config["folder_auto_share"], "logging.yaml"), "core", node )
-			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.py",os.path.join(config["folder_auto_share"], "auto_share.py"), "core", node )
-			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/mounting.yaml",os.path.join(config["folder_auto_share"], "mounting.yaml"), "core", node )
+			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.timer","/etc/systemd/system/auto_share.timer", config["admin_username"], node )
+			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.target","/etc/systemd/system/auto_share.target", config["admin_username"], node )
+			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.service","/etc/systemd/system/auto_share.service", config["admin_username"], node )
+			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/logging.yaml",os.path.join(config["folder_auto_share"], "logging.yaml"), config["admin_username"], node )
+			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.py",os.path.join(config["folder_auto_share"], "auto_share.py"), config["admin_username"], node )
+			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/mounting.yaml",os.path.join(config["folder_auto_share"], "mounting.yaml"), config["admin_username"], node )
 			remotecmd += "sudo chmod +x %s; " % os.path.join(config["folder_auto_share"], "auto_share.py")
 			remotecmd += "sudo " + os.path.join(config["folder_auto_share"], "auto_share.py") + "; " # run it once now
 			remotecmd += "sudo systemctl daemon-reload; "
@@ -2365,7 +2364,7 @@ def mount_fileshares_by_service(perform_mount=True):
 			remotecmd += "sudo systemctl restart auto_share.timer; "
 			remotecmd += "sudo systemctl stop auto_share.service; "
 			if len(remotecmd)>0:
-				utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)
+				utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
 			# We no longer recommend to insert fstabl into /etc/fstab file, instead, 
 			# we recommend to use service to start auto mount if needed
 			# insert_fstab_section( node, "DLWS", fstab )
@@ -2386,7 +2385,7 @@ def unmount_fileshares_by_service(clean=False):
 			remotecmd += "sudo systemctl stop auto_share.timer; "
 			for k,v in allmountpoints.iteritems():
 				if "curphysicalmountpoint" in v:
-					output = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "sudo mount | grep %s" % v["curphysicalmountpoint"])
+					output = utils.SSH_exec_cmd_with_output(config["ssh_cert"], config["admin_username"], node, "sudo mount | grep %s" % v["curphysicalmountpoint"])
 					umounts = []
 					for line in output.splitlines():
 						words = line.split()
@@ -2400,7 +2399,7 @@ def unmount_fileshares_by_service(clean=False):
 					if "curphysicalmountpoint" in v:
 						remotecmd += "sudo rm -rf %s; " % v["curphysicalmountpoint"]
 			if len(remotecmd)>0:
-				utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)	
+				utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)	
 
 def del_fileshare_links():
 	all_nodes = get_nodes(config["clusterId"])
@@ -2429,7 +2428,7 @@ def link_fileshares(allmountpoints, bForce=False):
 				remotecmd += "sudo rm -r %s; " % config["storage-mount-path"]
 				remotecmd += "sudo mkdir -p %s; " % config["storage-mount-path"]
 				
-			output = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "sudo mount" )
+			output = utils.SSH_exec_cmd_with_output(config["ssh_cert"], config["admin_username"], node, "sudo mount" )
 			for k,v in allmountpoints.iteritems():
 				if "mountpoints" in v:
 					if output.find(v["curphysicalmountpoint"])<0:
@@ -2447,7 +2446,7 @@ def link_fileshares(allmountpoints, bForce=False):
 						remotecmd += "if [ ! -e %s ]; then sudo ln -s %s %s; fi; " % (linkdir, dirname, linkdir)
 			# following node need not make the directory
 			if len(remotecmd)>0:
-				utils.SSH_exec_cmd(config["ssh_cert"], "core", node, remotecmd)
+				utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
 	()
 
 def deploy_webUI():
@@ -2463,7 +2462,7 @@ def label_webUI(nodename):
 
 # Get disk partition information of a node
 def get_partions_of_node(node, prog):
-	output = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "sudo parted -l -s", True)
+	output = utils.SSH_exec_cmd_with_output(config["ssh_cert"], config["admin_username"], node, "sudo parted -l -s", True)
 	if verbose:
 		print node
 		print output
@@ -2611,7 +2610,7 @@ def repartition_nodes(nodes, nodesinfo, partitionConfig):
 				cmd += "sudo parted -s --align optimal " + deviceinfo["name"] + " mkpart logical " + str(start) +"% " + str(end)+"% ; "
 				start = end
 		if len(cmd)>0:
-			utils.SSH_exec_cmd(config["ssh_cert"], "core", node, cmd)
+			utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, cmd)
 	print "Please note, it is OK to ignore message of Warning: Not all of the space available to /dev/___ appears to be used. The current default partition method optimizes for speed, rather to use all disk capacity..."
 	()
 	
@@ -2631,7 +2630,7 @@ def start_glusterFS_heketi( masternodes, ipToHostname, nodesinfo, glusterFSargs,
 	remotecmd += "docker run -v "+rundir+":"+rundir+" --rm --entrypoint=cp "+config["heketi-docker"]+" /usr/bin/heketi-cli "+rundir+"; "
 	remotecmd += "sudo bash ./gk-deploy "
 	remotecmd += flag
-	utils.SSH_exec_cmd_with_directory( config["ssh_cert"], "core", masternodes[0], "deploy/storage/glusterFS", remotecmd, dstdir = rundir )
+	utils.SSH_exec_cmd_with_directory( config["ssh_cert"], config["admin_username"], masternodes[0], "deploy/storage/glusterFS", remotecmd, dstdir = rundir )
 
 # Deploy glusterFS on a cluster
 def remove_glusterFS_volumes_heketi( masternodes, ipToHostname, nodesinfo, glusterFSargs, nodes ):
@@ -2641,7 +2640,7 @@ def remove_glusterFS_volumes_heketi( masternodes, ipToHostname, nodesinfo, glust
 		glusterFS_copy()
 		rundir = "/tmp/glusterFSAdmin"
 		remotecmd = "sudo python RemoveLVM.py "
-		utils.SSH_exec_cmd_with_directory( config["ssh_cert"], "core", node, "deploy/storage/glusterFS", remotecmd, dstdir = rundir )
+		utils.SSH_exec_cmd_with_directory( config["ssh_cert"], config["admin_username"], node, "deploy/storage/glusterFS", remotecmd, dstdir = rundir )
 		
 def regmatch_glusterFS( glusterFSargs ):
 	if isinstance( glusterFSargs, (int,long) ):
@@ -2742,7 +2741,7 @@ def format_mount_partition_volume( nodes, deviceSelect, format=True ):
 			mountpoint = os.path.join( config["local-mount-path"], devicename )
 			remotecmd += "sudo mkdir -p %s; " % mountpoint
 			remotecmd += "sudo mount %s %s; " % ( volume, mountpoint )
-		utils.SSH_exec_cmd( config["ssh_cert"], "core", node, remotecmd, showCmd=verbose )
+		utils.SSH_exec_cmd( config["ssh_cert"], config["admin_username"], node, remotecmd, showCmd=verbose )
 		fstabcontent = "%s %s %s" %( volume, mountpoint, fetch_config( ["localdisk", "mountoptions"]))
 		insert_fstab_section( node, "MOUNTLOCALDISK", fstabcontent )
 
@@ -2763,7 +2762,7 @@ def unmount_partition_volume( nodes, deviceSelect ):
 			devicename = volume[volume.rfind("/")+1:]
 			mountpoint = os.path.join( config["local-mount-path"], devicename )
 			remotecmd += "sudo umount %s; " % ( mountpoint )
-		utils.SSH_exec_cmd( config["ssh_cert"], "core", node, remotecmd, showCmd=verbose )
+		utils.SSH_exec_cmd( config["ssh_cert"], config["admin_username"], node, remotecmd, showCmd=verbose )
 		remove_fstab_section( node, "MOUNTLOCALDISK" )
 
 def generate_hdfs_nodelist( nodes, port, sepchar):
@@ -2816,7 +2815,7 @@ def hdfs_config( nodes, deviceSelect):
 		config_file = "%s/config.yaml" % config["docker-run"]["hdfs"]["volumes"]["configDir"]["from"]		
 		with open(config_file,'w') as datafile:
 			yaml.dump(hdfsconfig, datafile, default_flow_style=False)
-		utils.sudo_scp( config["ssh_cert"], config_file, config["hdfsconfig"]["configfile"], "core", node)
+		utils.sudo_scp( config["ssh_cert"], config_file, config["hdfsconfig"]["configfile"], config["admin_username"], node)
 	# Render docker. 
 	utils.render_template_directory("../docker-images/hdfs", "./deploy/docker-images/hdfs", config, verbose)
 
@@ -2877,7 +2876,7 @@ def create_glusterFS_volume( nodesinfo, glusterFSargs ):
 		remotename = path_to_mount_service_name( remotepath )
 		remotedevice = config["glusterfs-device"]
 		remotemount = remotename + ".mount"
-		utils.sudo_scp(config["ssh_cert"],"./deploy/storage/glusterFS/mnt-glusterfs-localvolume.mount", "/etc/systemd/system/" + remotemount, "core", node, verbose=verbose )
+		utils.sudo_scp(config["ssh_cert"],"./deploy/storage/glusterFS/mnt-glusterfs-localvolume.mount", "/etc/systemd/system/" + remotemount, config["admin_username"], node, verbose=verbose )
 		remotecmd += "cd /etc/systemd/system; "
 		remotecmd += "sudo systemctl enable %s; " % remotemount
 		remotecmd += "sudo systemctl daemon-reload; ";
@@ -2898,7 +2897,7 @@ def create_glusterFS_volume( nodesinfo, glusterFSargs ):
 				print( "Volume %s, multiple is %d, # of nodes = %d, make %d volumes ..." % (volume, multiple, numnodes, subvolumes) )
 			for sub in range(1, subvolumes + 1 ):
 				remotecmd += "sudo mkdir -p %s; " % ( os.path.join( remotepath, volume ) + str(sub) )
-		utils.SSH_exec_cmd( config["ssh_cert"], "core", node, remotecmd )
+		utils.SSH_exec_cmd( config["ssh_cert"], config["admin_username"], node, remotecmd )
 	
 def remove_glusterFS_volume( nodesinfo, glusterFSargs ):
 	regmatch = regmatch_glusterFS(glusterFSargs)
@@ -2920,13 +2919,13 @@ def remove_glusterFS_volume( nodesinfo, glusterFSargs ):
 		for volume in volumes:
 			remotecmd += "sudo pvremove -y %s; " % volume
 		# print remotecmd
-		utils.SSH_exec_cmd( config["ssh_cert"], "core", node, remotecmd )		
+		utils.SSH_exec_cmd( config["ssh_cert"], config["admin_username"], node, remotecmd )		
 
 def display_glusterFS_volume( nodesinfo, glusterFSargs ):
 	for node in nodesinfo:
 		print "................. Node %s ................." % node
 		remotecmd = "sudo pvdisplay; sudo vgdisplay; sudo lvdisplay"
-		utils.SSH_exec_cmd( config["ssh_cert"], "core", node, remotecmd )
+		utils.SSH_exec_cmd( config["ssh_cert"], config["admin_username"], node, remotecmd )
 
 def exec_on_all(nodes, args, supressWarning = False):
 	cmd = ""
@@ -2936,7 +2935,7 @@ def exec_on_all(nodes, args, supressWarning = False):
 		else:
 			cmd += " " + arg
 	for node in nodes:
-		utils.SSH_exec_cmd(config["ssh_cert"], "core", node, cmd)
+		utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, cmd)
 		print "Node: " + node + " exec: " + cmd
 
 def exec_on_all_with_output(nodes, args, supressWarning = False):
@@ -2947,7 +2946,7 @@ def exec_on_all_with_output(nodes, args, supressWarning = False):
 		else:
 			cmd += " " + arg
 	for node in nodes:
-		output = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, cmd, supressWarning)
+		output = utils.SSH_exec_cmd_with_output(config["ssh_cert"], config["admin_username"], node, cmd, supressWarning)
 		print "Node: " + node
 		print output
 
@@ -2970,7 +2969,7 @@ def run_script(node, args, sudo = False, supressWarning = False):
 		else:
 			fullcmd += " " + args[i]
 	srcdir = os.path.dirname(args[0])
-	utils.SSH_exec_cmd_with_directory(config["ssh_cert"], "core", node, srcdir, fullcmd, supressWarning)
+	utils.SSH_exec_cmd_with_directory(config["ssh_cert"], config["admin_username"], node, srcdir, fullcmd, supressWarning)
 		
 
 # run a shell script on all remote nodes
@@ -3030,7 +3029,7 @@ def set_host_names_by_lookup():
 				usename = namelist[0]
 				cmd = "sudo hostnamectl set-hostname " + usename
 				print "Set hostname of node " + node + " ... " + usename
-				utils.SSH_exec_cmd( config["ssh_cert"], "core", node, cmd )
+				utils.SSH_exec_cmd( config["ssh_cert"], config["admin_username"], node, cmd )
 
 def set_freeflow_router(  ):
 	nodes = get_worker_nodes(config["clusterId"]) + get_ETCD_master_nodes(config["clusterId"])
@@ -3044,12 +3043,12 @@ def set_freeflow_router_on_node( node ):
 	docker_name = "freeflow"
 	network = config["network"]["container-network-iprange"]
 	#setup HOST_IP, iterate all the host IP, find the one in ip range {{network.Container-networking}}
-	output = utils.SSH_exec_cmd_with_output(config["ssh_cert"], "core", node, "ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*'")
+	output = utils.SSH_exec_cmd_with_output(config["ssh_cert"], config["admin_username"], node, "ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*'")
 	ips = output.split("\n")
 	for ip in ips:
 		if utils.addressInNetwork(ip, network):
-			utils.SSH_exec_cmd(config["ssh_cert"], "core", node, "sudo docker rm -f freeflow")
-			utils.SSH_exec_cmd(config["ssh_cert"], "core", node, "sudo docker run -d -it --privileged --net=host -v /freeflow:/freeflow -e \"HOST_IP=%s\" --name %s %s" % (ip, docker_name, docker_image))
+			utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, "sudo docker rm -f freeflow")
+			utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, "sudo docker run -d -it --privileged --net=host -v /freeflow:/freeflow -e \"HOST_IP=%s\" --name %s %s" % (ip, docker_name, docker_image))
 			break
 
 def deploy_ETCD_master():
@@ -3486,7 +3485,7 @@ def run_command( args, command, nargs, parser ):
 				if num < 0 or num >= len(nodes):
 					num = 0
 			nodename = nodes[num]
-			utils.SSH_connect( config["ssh_cert"], "core", nodename)
+			utils.SSH_connect( config["ssh_cert"], config["admin_username"], nodename)
 			exit()
 
 	elif command == "deploy" and "clusterId" in config:
