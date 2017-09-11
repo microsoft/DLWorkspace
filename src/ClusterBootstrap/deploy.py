@@ -373,7 +373,6 @@ default_config_parameters = {
 scriptblocks = {
 	"azure": [
 		"runscriptonall ./scripts/prepare_ubuntu_azure.sh", 
-		"execonall sudo usermod -aG docker %s" % config["admin_username"],
 		"-y deploy",
 		"-y updateworker",
 		"-y kubernetes labels",
@@ -402,7 +401,6 @@ scriptblocks = {
 	],
 	"ubuntu": [
 		"runscriptonall ./scripts/prepare_ubuntu.sh",
-		"execonall sudo usermod -aG docker %s" % config["admin_username"],
 		"-y deploy",
 		"-y updateworker",
 		"-y kubernetes labels",
