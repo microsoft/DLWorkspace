@@ -7,12 +7,12 @@ sudo mkdir -p /etc/kubernetes/ssl/
 sudo mkdir -p /etc/ssl/etcd
 sudo mkdir -p /opt/addons
 sudo mkdir -p /opt/bin
-sudo chown -R core /etc/kubernetes
-sudo chown -R core /etc/flannel
-sudo chown -R core /opt/bin
-sudo chown -R core /opt/addons
+sudo chown -R $USER /etc/kubernetes
+sudo chown -R $USER /etc/flannel
+sudo chown -R $USER /opt/bin
+sudo chown -R $USER /opt/addons
 {% if "kubelogdir" in cnf %}
 sudo mkdir -p {{cnf["kubelogdir"]}}/kubescheduler
 sudo mkdir -p {{cnf["kubelogdir"]}}/kubeapiserver
-sudo chown -R core {{cnf["kubelogdir"]}}
+sudo chown -R $USER {{cnf["kubelogdir"]}}
 {% endif %}
