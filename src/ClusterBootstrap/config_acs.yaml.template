@@ -33,6 +33,9 @@ mountpoints:
 # kubeletlogdir : <<kubelet log location for worker nodes -- e.g. /logs >>
 # kubeletloglevel : <<kubelet log level for worker nodes -- e.g. 1 >>
 
+# use freeflow or not - if not present won't use
+freeflow: << true or false >>
+
 # Basic authentication for Kubernetes
 basic_auth :  << basic auth for Kubernetes -- password,username,uid >>
 
