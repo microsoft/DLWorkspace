@@ -61,6 +61,7 @@ def check_cluster_status_change(o_cluster_status,cluster_status):
 
 def get_cluster_status():
 	cluster_status={}
+	gpuStr = "alpha.kubernetes.io/nvidia-gpu"
 	try:
 		output = k8sUtils.kubectl_exec(" get nodes -o yaml")
 		nodeInfo = yaml.load(output)
@@ -72,8 +73,14 @@ def get_cluster_status():
 				node_status	= {}
 				node_status["name"] = node["metadata"]["name"]
 				node_status["labels"] = node["metadata"]["labels"]
-				node_status["gpu_allocatable"] = int(node["status"]["allocatable"]["alpha.kubernetes.io/nvidia-gpu"])
-				node_status["gpu_capacity"] = int(node["status"]["capacity"]["alpha.kubernetes.io/nvidia-gpu"])
+				if (gpuStr in node["status"]["allocatable"]):
+					node_status["gpu_allocatable"] = int(node["status"]["allocatable"][gpuStr])
+				else:
+					node_status["gpu_allocatable"] = 0
+				if (gpuStr in node["status"]["capacity"]):
+					node_status["gpu_capacity"] = int(node["status"]["capacity"][gpuStr])
+				else:
+					node_status["gpu_capacity"] = 0
 				node_status["gpu_used"] = 0
 				node_status["InternalIP"] = "unknown"
 				node_status["pods"] = []
@@ -117,10 +124,9 @@ def get_cluster_status():
 					if username is not None:
 						pod_name += " : " + username
 					if "containers" in pod["spec"] :
-						for container in pod["spec"]["containers"]:
-							
-							if "resources" in container and "requests" in container["resources"] and "alpha.kubernetes.io/nvidia-gpu" in container["resources"]["requests"]:
-								gpus += int(container["resources"]["requests"]["alpha.kubernetes.io/nvidia-gpu"])
+						for container in pod["spec"]["containers"]:							
+							if "resources" in container and "requests" in container["resources"] and gpuStr in container["resources"]["requests"]:
+								gpus += int(container["resources"]["requests"][gpuStr])
 					if node_name in nodes_status:
 						nodes_status[node_name]["gpu_used"] += gpus
 						nodes_status[node_name]["pods"].append(pod_name)

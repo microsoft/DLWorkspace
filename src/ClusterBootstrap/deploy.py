@@ -585,10 +585,11 @@ def generate_trusted_domains(network_config, start_idx ):
 		ret += "DNS.%d = %s\n" % (start_idx, "*." + domain)
 		start_idx +=1
 	trusted_domains = fetch_dictionary(network_config, ["trusted-domains"])
-	for domain in trusted_domains:
-		# "*." is encoded in domain for those entry
-		ret += "DNS.%d = %s\n" % (start_idx, domain)
-		start_idx +=1
+	if not trusted_domains is None:
+		for domain in trusted_domains:
+			# "*." is encoded in domain for those entry
+			ret += "DNS.%d = %s\n" % (start_idx, domain)
+			start_idx +=1
 	return ret
 
 def get_platform_script_directory( target ):
@@ -739,6 +740,10 @@ def add_acs_config():
 			for name in config["webui_admins"]:
 				if not name in config["UserGroups"]["CCSAdmins"]["Allowed"]:
 					config["UserGroups"]["CCSAdmins"]["Allowed"].append(name)
+
+		# domain name
+		config["network"] = {}
+		config["network"]["domain"] = "{0}.cloudapp.azure.com".format(config["cluster_location"])
 
 		try:
 			if not ("accesskey" in config["mountpoints"]["rootshare"]):
@@ -1622,9 +1627,9 @@ def deploy_restful_API_on_node(ipAddress):
 	if config["isacs"]:
 		# copy needed keys
 		utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo mkdir -p /etc/kubernetes/ssl")
-		utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo cp /etc/kubernetes/certs/apiserver.crt /etc/kubernetes/ssl/apiserver.pem")
-		utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo cp /etc/kubernetes/certs/apiserver.key /etc/kubernetes/ssl/apiserver-key.pem")
-		utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo cp /etc/kuebrnetes/certs/ca.crt /etc/kubernetes/ssl/ca.crt")
+		utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo cp /etc/kubernetes/certs/client.crt /etc/kubernetes/ssl/apiserver.pem")
+		utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo cp /etc/kubernetes/certs/client.key /etc/kubernetes/ssl/apiserver-key.pem")
+		utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo cp /etc/kubernetes/certs/ca.crt /etc/kubernetes/ssl/ca.pem")
 		# overwrite ~/.kube/config (to be mounted from /etc/kubernetes/restapi-kubeconfig.yaml)
 		utils.SSH_exec_cmd(config["ssh_cert"], "core", masterIP, "sudo cp /home/core/.kube/config /etc/kubernetes/restapi-kubeconfig.yaml")
 
@@ -1908,16 +1913,26 @@ def acs_get_ip(ipaddrName):
 	ipInfo = az_cmd("network public-ip show --resource-group="+config["resource_group"]+" --name="+ipaddrName)
 	return ipInfo["ipAddress"]
 
+def acs_attach_dns_to_node(node, dnsName=None):
+	nodeName = config["nodenames_from_ip"][node]
+	if (dnsName is None):
+		dnsName = nodeName
+	ipName = config["acsnodes"][nodeName]["publicipname"]
+	cmd = "network public-ip update"
+	cmd += " --resource-group=%s" % config["resource_group"]
+	cmd += " --name=%s" % ipName
+	cmd += " --dns-name=%s" % dnsName
+	az_sys(cmd)	
+
 def acs_attach_dns_name():
 	get_nodes_from_acs()
 	firstMasterNode = config["kubernetes_master_node"][0]
-	masterNodeName = config["nodenames_from_ip"][firstMasterNode]
-	ipname = config["acsnodes"][masterNodeName]["publicipname"]
-	cmd = "network public-ip update"
-	cmd += " --resource-group=%s" % config["resource_group"]
-	cmd += " --name=%s" % ipname
-	cmd += " --dns-name=%s" % config["master_dns_name"]
-	az_sys(cmd)
+	acs_attach_dns_to_node(firstMasterNode, config["master_dns_name"])
+	for i in range(len(config["kubernetes_master_node"])):
+		if (i != 0):
+			acs_attach_dns_to_node(config["kubernetes_master_node"][i])
+	for node in config["worker_node"]:
+		acs_attach_dns_to_node(node)
 
 def acs_get_machineIP(machineName):
 	print "Machine: "+machineName
