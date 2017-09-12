@@ -16,8 +16,13 @@ cluster_name: [your cluster name]
 ```
 ./az_tools.py create
 ```
+
+4. Generate cluster config file:
+```
+./az_tools.py genconfig cluster.yaml
+```
  
-4. Run Azure deployment script block:
+5. Run Azure deployment script block:
   ```
   ./deploy.py --verbose scriptblocks azure 
   ```
@@ -30,7 +35,7 @@ cluster_name: [your cluster name]
 
 
 
-  The script block execute the following command in sequences: (you do NOT need to run the following commands if you have run step 4)
+  The script block execute the following command in sequences: (you do NOT need to run the following commands if you have run step 5)
   1. Setup basic tools on the Ubuntu image. 
   ```
   ./deploy.py runscriptonall ./scripts/prepare_ubuntu.sh
