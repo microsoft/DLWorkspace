@@ -8,6 +8,7 @@ using System.Net.Http;
 using Microsoft.AspNetCore.Http;
 using System.Runtime.Serialization;
 using Newtonsoft.Json;
+using System.Collections.Generic;
 
 // For more information on enabling Web API for empty projects, visit http://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -41,6 +42,21 @@ namespace WindowsAuth.Controllers
             _familyModel = familyModel.Value;
         }
 
+        // this function should be moved to a shared util-class
+        private string ParseToUsername(string email)
+        {
+            string username = email;
+            if (username.Contains("@"))
+            {
+                username = username.Split('@')[0];
+            }
+            if (username.Contains("/"))
+            {
+                username = username.Split('/')[1];
+            }
+            return username;
+        }
+
         // GET api/dlws/op_str?params
         [HttpGet("{op}")]
         public async Task<string> Get(string op)
@@ -48,7 +64,51 @@ namespace WindowsAuth.Controllers
             var ret = "invalid API call!";
             var url = "";
 
-            if (!User.Identity.IsAuthenticated)
+            var passwdLogin = false;
+
+            if (HttpContext.Request.Query.ContainsKey("Email") && HttpContext.Request.Query.ContainsKey("Key"))
+            {
+                
+                var databases = Startup.Database;
+                var tasks = new List<Task<UserEntry>>();
+                var lst = new List<string>();
+                string email = HttpContext.Request.Query["Email"];
+                string password = HttpContext.Request.Query["Key"];
+                
+                foreach (var pair in databases)
+                {
+                    var clusterName = pair.Key;
+                    var db = pair.Value;
+
+
+                    var priorEntrys = db.User.Where(b => b.Email == email).Where(b => b.Password == password).ToAsyncEnumerable();
+
+                    await priorEntrys.ForEachAsync(userEntry =>
+                    {
+                        // find the first database where the user has access permission. 
+                        if (!passwdLogin)
+                        {
+                            HttpContext.Session.SetString("Email", userEntry.Alias);
+                            var username = ParseToUsername(userEntry.Alias);
+                            HttpContext.Session.SetString("Username", username);
+                            HttpContext.Session.SetString("uid", userEntry.uid);
+                            HttpContext.Session.SetString("gid", userEntry.gid);
+                            HttpContext.Session.SetString("isAdmin", userEntry.isAdmin);
+                            HttpContext.Session.SetString("isAuthorized", userEntry.isAuthorized);
+                            var clusterInfo = Startup.Clusters[clusterName];
+                            HttpContext.Session.SetString("Restapi", clusterInfo.Restapi);
+                            HttpContext.Session.SetString("WorkFolderAccessPoint", clusterInfo.WorkFolderAccessPoint);
+                            HttpContext.Session.SetString("DataFolderAccessPoint", clusterInfo.DataFolderAccessPoint);
+                            passwdLogin = userEntry.isAuthorized == "true";
+                        }
+                    }
+                    );
+                }
+                
+            }
+
+
+            if (!User.Identity.IsAuthenticated && !passwdLogin)
             {
                 ret = "Unauthorized User, Please login!";
                 return ret;
