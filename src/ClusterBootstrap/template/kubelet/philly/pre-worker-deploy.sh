@@ -11,5 +11,5 @@ sudo rm -r /etc/kubernetes/manifests/*
 sudo rm -r /etc/kubernetes/ssl/*
 sudo rm -r /etc/ssl/etcd/*
 sudo rm -r /opt/addons/kube-addons/*
-sudo chown -R core /etc/kubernetes
-sudo chown -R core /opt/addons/kube-addons
+sudo chown -R $USER /etc/kubernetes
+sudo chown -R $USER /opt/addons/kube-addons

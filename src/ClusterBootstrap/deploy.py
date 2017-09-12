@@ -372,11 +372,10 @@ default_config_parameters = {
 # These are super scripts
 scriptblocks = {
 	"azure": [
-		"runscriptonall ./scripts/prepare_ubuntu_azure.sh", 
+		"runscriptonall ./scripts/prepare_ubuntu.sh", 
 		"-y deploy",
 		"-y updateworker",
 		"-y kubernetes labels",
-		"-y updateworker",
 		"docker push restfulapi",
 		"docker push webui",
 		"webui",
@@ -525,7 +524,6 @@ def check_config(cnf):
 	_check_config_items("etcd_endpoints",cnf)
 	_check_config_items("ssh_cert",cnf)
 	_check_config_items("pod_ip_range",cnf)
-	_check_config_items("basic_auth",cnf)
 	_check_config_items("kubernetes_docker_image",cnf)
 	_check_config_items("service_cluster_ip_range",cnf)
 	if not os.path.isfile(config["ssh_cert"]):
@@ -918,7 +916,7 @@ def get_ETCD_master_nodes_from_cluster_portal(clusterId):
 		config["ipToHostname"] = {}
 	for node in NodesInfo:
 		if not node[ipAddrMetaname] in Nodes and check_node_availability(node[ipAddrMetaname]):
-			hostname = utils.get_host_name(node[ipAddrMetaname])
+			hostname = utils.get_host_name(config["ssh_cert"], config["admin_username"], node[ipAddrMetaname])
 			Nodes.append(node[ipAddrMetaname])
 			config["ipToHostname"][node[ipAddrMetaname]] = hostname
 	if "etcd_node" in config:
@@ -1000,7 +998,7 @@ def get_worker_nodes_from_cluster_report(clusterId):
 		config["ipToHostname"] = {}
 	for node in NodesInfo:
 		if not node[ipAddrMetaname] in Nodes and check_node_availability(node[ipAddrMetaname]):
-			hostname = utils.get_host_name(node[ipAddrMetaname])
+			hostname = utils.get_host_name(config["ssh_cert"], config["admin_username"], node[ipAddrMetaname])
 			Nodes.append(node[ipAddrMetaname])
 			config["ipToHostname"][node[ipAddrMetaname]] = hostname
 	config["worker_node"] = Nodes
@@ -3009,7 +3007,7 @@ def set_host_names_by_lookup():
 		dic_macs_to_hostname = create_mac_dictionary(machineEntry)
 		nodes = get_nodes(config["clusterId"])
 		for node in nodes:
-			macs = utils.get_mac_address(config["ssh_cert"], node, show=False )
+			macs = utils.get_mac_address(config["ssh_cert"],config["admin_username"], node, show=False )
 			namelist = []
 			for mac in macs:
 				usemac = mac.lower()
@@ -3535,7 +3533,7 @@ def run_command( args, command, nargs, parser ):
 	elif command == "listmac":
 		nodes = get_nodes(config["clusterId"])
 		for node in nodes:
-			utils.get_mac_address(config["ssh_cert"], node)
+			utils.get_mac_address(config["ssh_cert"], config["admin_username"], node)
 			
 	elif command == "uncordon":
 		uncordon_master()

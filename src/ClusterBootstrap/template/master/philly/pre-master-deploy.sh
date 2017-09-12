@@ -7,6 +7,6 @@ sudo rm -r /etc/kubernetes/manifests/*
 sudo rm -r /etc/kubernetes/ssl/*
 sudo rm -r /etc/ssl/etcd/*
 sudo rm -r addons/kube-addons/*
-sudo chown -R core /etc/kubernetes
-sudo chown -R core /opt/addons/kube-addons
+sudo chown -R $USER /etc/kubernetes
+sudo chown -R $USER /opt/addons/kube-addons
 sudo docker rm -f $(docker ps -a | grep 'k8s_kube\|k8s_POD' | awk '{print $1}')

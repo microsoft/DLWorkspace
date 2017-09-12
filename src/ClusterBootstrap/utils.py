@@ -169,16 +169,16 @@ def exec_cmd_local(execmd, supressWarning = False):
 	# print output
 	return output
 	
-def get_host_name( host ):
-	execmd = """ssh -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" "hostname" """ % ("deploy/sshkey/id_rsa", "core", host )
+def get_host_name( identity_file, user, host ):
+	execmd = """ssh -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" "hostname" """ % (identity_file, user, host )
 	try:
 		output = subprocess.check_output( execmd, shell=True )
 	except subprocess.CalledProcessError as e:
 		return "Exception, with output: " + e.output.strip()
 	return output.strip()
 	
-def get_mac_address( identity_file, host, show=True ):
-	output = SSH_exec_cmd_with_output( identity_file, "core", host, "ifconfig" )
+def get_mac_address( identity_file, user, host, show=True ):
+	output = SSH_exec_cmd_with_output( identity_file, user, host, "ifconfig" )
 	etherMatch = re.compile("ether [0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]")
 	iterator = etherMatch.finditer(output)
 	if show:
