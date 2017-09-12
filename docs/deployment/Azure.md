@@ -2,6 +2,8 @@
 
 This document describes the procedure to deploy DL workspace cluster on Azure. We are still improving the deployment procedure on Azure. Please contact the authors if you have encounter deployment issue. 
 
+0. Follow [this document](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest) to install Azure CLI and login to your Azure subscription on your dev machine. 
+
 1. Please create Configuration file with single line of your cluster name. The cluster name should be unique, only with lower characters or numbers.
 
 ```
