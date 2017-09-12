@@ -132,7 +132,7 @@ def GetServiceAddress(jobId):
 			svcMapping["containerPort"] = containerPort
 			svcMapping["hostPort"] = hostPort
 
-			if "." not in hostName and "domain" in config and len(config["domain"].strip()) >0:
+			if "." not in hostName and "domain" in config and (not config["domain"] is None) and len(config["domain"].strip()) >0:
 				hostName += "."+config["domain"]
 
 			svcMapping["hostIP"] = hostIP
