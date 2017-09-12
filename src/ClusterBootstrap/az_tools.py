@@ -73,7 +73,7 @@ def update_config(config):
     config["azure_cluster"]["sql_database_name"] = config["azure_cluster"]["cluster_name"]+"sqldb"
 
     if "sql_admin_password" not in config["azure_cluster"]:
-        config["azure_cluster"]["sql_admin_password"] = uuid.uuid4().hex+"12#$AB"
+        config["azure_cluster"]["sql_admin_password"] = uuid.uuid4().hex+"12!AB"
 
     if (os.path.exists('./deploy/sshkey/id_rsa.pub')):
         f = open('./deploy/sshkey/id_rsa.pub')
@@ -153,19 +153,6 @@ def create_sql():
                  --end-ip-address 255.255.255.255
         """ % (config["azure_cluster"]["resource_group_name"],
                config["azure_cluster"]["sql_server_name"])
-    output = utils.exec_cmd_local(cmd)
-    print (output)
-
-
-    cmd = """
-        az sql db create --resource-group %s \
-                 --location %s \
-                 --server %s \
-                 --name  %s
-        """ % (config["azure_cluster"]["resource_group_name"],
-               config["azure_cluster"]["azure_location"],
-               config["azure_cluster"]["sql_server_name"],
-               config["azure_cluster"]["sql_database_name"])
     output = utils.exec_cmd_local(cmd)
     print (output)
 
@@ -303,6 +290,7 @@ def gen_cluster_config(output_file_name):
     cc["useclusterfile"] = True
     cc["deploydockerETCD"] = False
     cc["platform-scripts"] = "ubuntu"
+    cc["basic_auth"] = "%s,admin,1000" % uuid.uuid4().hex[:7]
     cc["network"] = {"domain":"%s.cloudapp.azure.com" % config["azure_cluster"]["azure_location"]}
     cc["machines"] = {}
     for i in range(int(config["azure_cluster"]["infra_node_num"])):
@@ -466,7 +454,6 @@ Command:
     if "cluster_name" not in config["azure_cluster"] or config["azure_cluster"]["cluster_name"] is None:
         print ("Cluster Name cannot be empty")
         exit()
-    config = run_command( args, command, nargs, parser)
+    run_command( args, command, nargs, parser)
 
-    with open(config_cluster, 'w') as outfile:
-        yaml.dump(config, outfile, default_flow_style=False)
+
