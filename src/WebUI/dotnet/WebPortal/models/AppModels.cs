@@ -34,6 +34,8 @@ namespace WindowsAuth.models
         public string Restapi { get; set; }
         public string WorkFolderAccessPoint { get; set; }
         public string DataFolderAccessPoint { get; set; }
+        public string smbUsername { get; set; }
+        public string smbUserPassword { get; set; }
         public string SQLHostname { get; set; }
         public string SQLUsername { get; set; }
         public string SQLPassword { get; set; }

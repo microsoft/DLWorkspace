@@ -22,6 +22,8 @@
         "Restapi": "{{cnf["restapi"]}}",
         "WorkFolderAccessPoint": "{{cnf["workFolderAccessPoint"]}}",
         "DataFolderAccessPoint": "{{cnf["dataFolderAccessPoint"]}}", 
+        "smbUsername":"{{cnf["smbUsername"]}}", 
+        "smbUserPassword":"{{cnf["smbUserPassword"]}}", 
         "SQLHostname": "{{cnf["sqlserver-hostname"]}}", 
         "SQLUsername": "{{cnf["sqlserver-username"]}}", 
         "SQLPassword": "{{cnf["sqlserver-password"]}}", 
