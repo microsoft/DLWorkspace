@@ -14,6 +14,7 @@ from jinja2 import Environment, FileSystemLoader, Template
 from config import config
 from DataHandler import DataHandler
 import base64
+import re
 
 
 def LoadJobParams(jobParamsJsonStr):
@@ -28,7 +29,6 @@ def SubmitJob(jobParamsJsonStr):
 	print jobParamsJsonStr
 
 	
-
 	if "jobId" not in jobParams or jobParams["jobId"] == "":
 		#jobParams["jobId"] = jobParams["jobName"] + "-" + str(uuid.uuid4()) 
 		#jobParams["jobId"] = jobParams["jobName"] + "-" + str(time.time())
@@ -116,11 +116,25 @@ def SubmitJob(jobParamsJsonStr):
 	if "logDir" in jobParams and len(jobParams["logDir"].strip()) > 0:
 		tensorboardParams = jobParams.copy()
 
+		# overwrite for distributed job
+		if tensorboardParams["jobtrainingtype"] == "PSDistJob":
+			tensorboardParams["jobtrainingtype"] = "RegularJob"
+			match = re.match('(.*)(/.*)', tensorboardParams["logDir"])
+			if not match is None:
+				newDir = match.group(1) + "/worker0" + match.group(2)
+				prefix = match.group(1)
+				match2 = re.match('.*/worker0', prefix)
+				if match2 is None:
+					tensorboardParams["logDir"] = newDir
+			#match = re.match('(.*--logdir\s+.*)(/.*--.*)', tensorboardParams["cmd"])
+			#if not match is None:
+			#	tensorboardParams["cmd"] = match.group(1) + "/worker0" + match.group(2)
+
 		tensorboardParams["jobId"] = str(uuid.uuid4()) 
 		tensorboardParams["jobName"] = "tensorboard-"+jobParams["jobName"]
 		tensorboardParams["jobPath"] = jobPath
 		tensorboardParams["jobType"] = "visualization"
-		tensorboardParams["cmd"] = "tensorboard --logdir " + jobParams["logDir"] + " --host 0.0.0.0"
+		tensorboardParams["cmd"] = "tensorboard --logdir " + tensorboardParams["logDir"] + " --host 0.0.0.0"
 		tensorboardParams["image"] = jobParams["image"]
 		tensorboardParams["resourcegpu"] = "0"
 
