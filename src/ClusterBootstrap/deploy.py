@@ -1323,15 +1323,10 @@ def deploy_masters():
 			echo 'waiting for master...'; 
 		done ; 
 
-		until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/heapster-deployment.json --validate=false ;   do 
+		until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/heapster.json --validate=false ; do 
 			sleep 5; 
 			echo 'waiting for master...'; 
-		done ;
-
-		until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/heapster-svc.json --validate=false ; do 
-			sleep 5; 
-			echo 'waiting for master...'; 
-		done ;
+		done ;		
 	"""
 	utils.SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_masters[0], deploycmd , False)
 
