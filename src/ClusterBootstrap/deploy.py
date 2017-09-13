@@ -1323,7 +1323,7 @@ def deploy_masters():
 			echo 'waiting for master...'; 
 		done ; 
 
-		until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/heapster.json --validate=false ; do 
+		until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/heapster.yaml --validate=false ; do 
 			sleep 5; 
 			echo 'waiting for master...'; 
 		done ;		
