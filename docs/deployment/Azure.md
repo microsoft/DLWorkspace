@@ -21,7 +21,7 @@ cluster_name: [your cluster name]
 
 4. Generate cluster config file:
 ```
-./az_tools.py genconfig cluster.yaml
+./az_tools.py genconfig config.yaml
 ```
  
 5. Run Azure deployment script block:
