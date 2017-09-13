@@ -88,6 +88,8 @@ namespace WindowsAuth.Controllers
             HttpContext.Session.SetString("Restapi", clusterInfo.Restapi);
             HttpContext.Session.SetString("WorkFolderAccessPoint", clusterInfo.WorkFolderAccessPoint);
             HttpContext.Session.SetString("DataFolderAccessPoint", clusterInfo.DataFolderAccessPoint);
+            HttpContext.Session.SetString("smbUsername", clusterInfo.smbUsername);
+            HttpContext.Session.SetString("smbUserPassword", clusterInfo.smbUserPassword);
 
 
             if (userEntry.isAuthorized == "true")
@@ -725,10 +727,14 @@ namespace WindowsAuth.Controllers
                 string username = HttpContext.Session.GetString("Username");
                 string workFolderAccessPoint = HttpContext.Session.GetString("WorkFolderAccessPoint");
                 string dataFolderAccessPoint = HttpContext.Session.GetString("DataFolderAccessPoint");
+                string smbUsername = HttpContext.Session.GetString("smbUsername");
+                string smbUserPassword = HttpContext.Session.GetString("smbUserPassword");
                 ViewData["Username"] = username;
 
                 ViewData["workPath"] = workFolderAccessPoint + username + "/";
                 ViewData["dataPath"] = dataFolderAccessPoint;
+                ViewData["smbUsername"] = smbUsername;
+                ViewData["smbUserPassword"] = smbUserPassword;
 
             }
             return View(vm);

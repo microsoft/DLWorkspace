@@ -156,6 +156,23 @@ namespace WindowsAuth
 
                 clusterInfo.DataFolderAccessPoint = clusterConfig["DataFolderAccessPoint"] as string;
                 clusterInfo.WorkFolderAccessPoint = clusterConfig["WorkFolderAccessPoint"] as string;
+                if (clusterConfig.ContainsKey("smbUsername"))
+                {
+                    clusterInfo.smbUsername = clusterConfig["smbUsername"] as string;
+                }
+                else
+                {
+                    clusterInfo.smbUsername = "[Your default domain username]";
+                }
+                if (clusterConfig.ContainsKey("smbUserPassword"))
+                {
+                    clusterInfo.smbUserPassword = clusterConfig["smbUserPassword"] as string;
+                }
+                else
+                {
+                    clusterInfo.smbUserPassword = "[Your default domain password]";
+
+                }
                 clusterInfo.Restapi = clusterConfig["Restapi"] as string;
                 clusterInfo.SQLDatabaseForUser = clusterConfig["SQLDatabaseForUser"] as string;
                 clusterInfo.SQLHostname = clusterConfig["SQLHostname"] as string;

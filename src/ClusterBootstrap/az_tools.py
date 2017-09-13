@@ -276,6 +276,11 @@ def gen_cluster_config(output_file_name):
     if reoutput is not None:
         file_share_key = reoutput.group(0).replace("AccountKey=","")
 
+    reoutput = re.search('AccountName\=.*;', output)
+    file_share_account_name = None
+    if reoutput is not None:
+        file_share_account_name = reoutput.group(0).replace("AccountName=","")[:-1]
+
     cc = {}
     cc["cluster_name"] = config["azure_cluster"]["cluster_name"]
     cc["etcd_node_num"] = config["azure_cluster"]["infra_node_num"]
@@ -285,8 +290,10 @@ def gen_cluster_config(output_file_name):
     cc["sqlserver-password"] = config["azure_cluster"]["sql_admin_password"]
     cc["sqlserver-database"] = config["azure_cluster"]["sql_database_name"]
     cc["admin_username"] = config["azure_cluster"]["default_admin_username"]
-
-
+    cc["workFolderAccessPoint"] = "file://%s.file.core.windows.net/%s/work/" % (config["azure_cluster"]["storage_account_name"],config["azure_cluster"]["file_share_name"])
+    cc["dataFolderAccessPoint"] = "file://%s.file.core.windows.net/%s/storage/" % (config["azure_cluster"]["storage_account_name"],config["azure_cluster"]["file_share_name"])
+    cc["smbUsername"] = file_share_account_name
+    cc["smbUserPassword"] = file_share_key
     cc["useclusterfile"] = True
     cc["deploydockerETCD"] = False
     cc["platform-scripts"] = "ubuntu"
