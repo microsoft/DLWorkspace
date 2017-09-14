@@ -76,7 +76,7 @@ def kubectl_exec(params):
 		#print ("bash -c %s %s" % (config["kubelet-path"], params))
 		output = subprocess.check_output(["bash","-c", config["kubelet-path"] + " " + params])
 	except Exception as e:
-		print "EXCEPTION: " + e
+		print "EXCEPTION: " + str(e)
 		output = ""
 	return output
 

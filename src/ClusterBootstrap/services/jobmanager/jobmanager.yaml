@@ -11,6 +11,7 @@ spec:
         jobmanager-node: pod
     spec:
       dnsPolicy: Default
+      hostNetwork: true    
       nodeSelector:
         jobmanager: active
       containers:
