@@ -1,0 +1,36 @@
+This video introduces DL Workspace, an 
+open source toolkit for turn-key AI Cluster setup and operation. 
+
+DL Workspace provides out-of-box support for 
+multiple Deep Learning toolkits, and big data analytical kits.
+It is used daily by Microsoft employees, and 
+allows AI scientists to run both interactive 
+and batch jobs on cluster.
+
+The rest of the video explains the process to 
+install DL Workspace on Azure.
+
+
+You need a development machine running Ubuntu OS. 
+You may then either install docker, and build DL 
+workspace dev docker; or run installation scripts 
+that will install docker, python and Azure CLI on your machine.  
+
+Prepare the configuration file. You need the name of the 
+cluster, # of infrastructure and worker node, deployed 
+azure location, and type of VM size. 
+
+Depending on your Open ID provider, configure the Open 
+ID endpoint, and put the information into the configuration file. 
+
+Log in to your azure account via az login. Then run the 
+following scripts in sequence to create Azure VM, generate 
+configuration file for the Azure Cluster, and deploy 
+kubernete cluster & DL Workspace runtime. 
+
+After the scripts run through, please wait a few minutes 
+for the container to start. You should have a fully function 
+cluster.
+
+
+
