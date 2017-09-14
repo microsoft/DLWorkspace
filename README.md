@@ -1,4 +1,4 @@
-# DLWorkspace: Computing Cluster for Deep Learning Workspace
+# DLWorkspace: Deep Learning Workspace
 
 * Working in the development docker 
   The most easiest way to develop upon DLWorkspace is to work in the [development docker](DevDocker.md). 
