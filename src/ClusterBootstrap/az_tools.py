@@ -30,13 +30,16 @@ import urllib
 import socket
 import utils
 
+verbose = False
+
 # These are the default configuration parameter
 default_config_parameters = {
     "azure_cluster" : { 
         "infra_node_num": 1, 
         "worker_node_num": 2, 
         "azure_location": "westus2",
-        "vm_size" : "Standard_D1_v2",
+        "infra_vm_size" : "Standard_D1_v2",
+        "worker_vm_size": "Standard_NC6",
         "vm_image" : "UbuntuLTS",
         "vm_storage_sku" : "Standard_LRS",        
         "vnet_range" : "192.168.0.0/16",        
@@ -89,7 +92,8 @@ def update_config(config):
     return config
 
 
-def create_vm(vmname):
+def create_vm(vmname, bIsWorker):
+    vm_size = config["azure_cluster"]["worker_vm_size"] if bIsWorker else config["azure_cluster"]["infra_vm_size"]
     cmd = """
         az vm create --resource-group %s \
                  --name %s \
@@ -102,7 +106,6 @@ def create_vm(vmname):
                  --subnet mySubnet \
                  --nsg %s \
                  --public-ip-address-allocation static \
-                 --os-type linux \
                  --admin-username %s \
                  --storage-sku %s \
                  --ssh-key-value "%s" 
@@ -111,12 +114,14 @@ def create_vm(vmname):
                config["azure_cluster"]["vm_image"],
                vmname,
                config["azure_cluster"]["azure_location"],
-               config["azure_cluster"]["vm_size"],
+               vm_size,
                config["azure_cluster"]["vnet_name"],
                config["azure_cluster"]["nsg_name"],
                config["azure_cluster"]["default_admin_username"],
                config["azure_cluster"]["vm_storage_sku"],
                config["azure_cluster"]["sshkey"])
+    if verbose:
+        print(cmd)
     output = utils.exec_cmd_local(cmd)
     print (output)
 
@@ -124,6 +129,8 @@ def create_group():
     cmd = """
         az group create --name %s --location %s 
         """ % (config["azure_cluster"]["resource_group_name"],config["azure_cluster"]["azure_location"])
+    if verbose:
+        print(cmd)
     output = utils.exec_cmd_local(cmd)
     print (output)
 
@@ -133,26 +140,30 @@ def create_sql():
         az sql server create --resource-group %s \
                  --location %s \
                  --name %s \
-                 --administrator-login %s \
-                 --administrator-login-password %s
+                 -u %s \
+                 -p %s
         """ % (config["azure_cluster"]["resource_group_name"],
                config["azure_cluster"]["azure_location"],
                config["azure_cluster"]["sql_server_name"],
                config["azure_cluster"]["sql_admin_name"],
                config["azure_cluster"]["sql_admin_password"])
+    if verbose:
+        print(cmd)
     output = utils.exec_cmd_local(cmd)
     print (output)
 
 
 
     cmd = """
-        az sql server firewall create --resource-group %s \
+        az sql server firewall-rule create --resource-group %s \
                  --server %s \
                  --name All \
                  --start-ip-address 0.0.0.0 \
                  --end-ip-address 255.255.255.255
         """ % (config["azure_cluster"]["resource_group_name"],
                config["azure_cluster"]["sql_server_name"])
+    if verbose:
+        print(cmd)
     output = utils.exec_cmd_local(cmd)
     print (output)
 
@@ -168,6 +179,8 @@ def create_storage_account():
                config["azure_cluster"]["vm_storage_sku"],
                config["azure_cluster"]["resource_group_name"],
                config["azure_cluster"]["azure_location"])
+    if verbose:
+        print(cmd)
     output = utils.exec_cmd_local(cmd)
     print (output)
 
@@ -188,6 +201,8 @@ def create_file_share():
             --quota 2048 \
             --connection-string '%s'
         """ % (config["azure_cluster"]["file_share_name"],output)
+    if verbose:
+        print(cmd)
     output = utils.exec_cmd_local(cmd)
     print (output)
 
@@ -204,6 +219,8 @@ def create_vnet():
                config["azure_cluster"]["vnet_name"],
                config["azure_cluster"]["vnet_range"],
                config["azure_cluster"]["vnet_range"])
+    if verbose:
+        print(cmd)
     output = utils.exec_cmd_local(cmd)
     print (output)
 
@@ -214,6 +231,8 @@ def create_nsg():
             --name %s
         """ %( config["azure_cluster"]["resource_group_name"],
                config["azure_cluster"]["nsg_name"])
+    if verbose:
+        print(cmd)
     output = utils.exec_cmd_local(cmd)
     print (output)
 
@@ -235,6 +254,8 @@ def delete_group():
     cmd = """
         az group delete -y --name %s 
         """ % (config["azure_cluster"]["resource_group_name"])
+    if verbose:
+        print(cmd)
     output = utils.exec_cmd_local(cmd)
     print (output)
 
@@ -255,11 +276,11 @@ def create_cluster():
     for i in range(int(config["azure_cluster"]["infra_node_num"])):
         vmname = "%s-infra%02d" % (config["azure_cluster"]["cluster_name"], i+1)
         print "creating VM %s..." % vmname
-        create_vm(vmname)
+        create_vm(vmname, False)
     for i in range(int(config["azure_cluster"]["worker_node_num"])):
         vmname = "%s-worker%02d" % (config["azure_cluster"]["cluster_name"], i+1)
         print "creating VM %s..." % vmname
-        create_vm(vmname)
+        create_vm(vmname, True)
 
 def gen_cluster_config(output_file_name):
 
@@ -369,10 +390,15 @@ Command:
         action="store", 
         default=default_config_parameters["azure_cluster"]["azure_location"])
 
-    parser.add_argument("--vm_size", 
-        help = "Specify the azure virtual machine sku size, default = " + default_config_parameters["azure_cluster"]["vm_size"], 
+    parser.add_argument("--infra_vm_size", 
+        help = "Specify the azure virtual machine sku size for infrastructure node, default = " + default_config_parameters["azure_cluster"]["infra_vm_size"], 
         action="store", 
-        default=default_config_parameters["azure_cluster"]["vm_size"])
+        default=default_config_parameters["azure_cluster"]["infra_vm_size"])
+
+    parser.add_argument("--worker_vm_size", 
+        help = "Specify the azure virtual machine sku size for worker node, default = " + default_config_parameters["azure_cluster"]["worker_vm_size"], 
+        action="store", 
+        default=default_config_parameters["azure_cluster"]["worker_vm_size"])
 
 
     parser.add_argument("--vm_image", 
@@ -402,6 +428,11 @@ Command:
         action="store", 
         default=default_config_parameters["azure_cluster"]["file_share_name"])
 
+    parser.add_argument("--verbose", "-v", 
+        help = "Enable verbose output during script execution", 
+        action = "store_true"
+        )
+
 
 
 
@@ -414,6 +445,9 @@ Command:
     args = parser.parse_args()
     command = args.command
     nargs = args.nargs
+
+    if args.verbose:
+        verbose = args.verbose
     config = init_config()
     # Cluster Config
     config_cluster = os.path.join(dirpath,"azure_cluster_config.yaml")
@@ -438,8 +472,10 @@ Command:
         config["azure_cluster"]["worker_node_num"] = args.worker_node_num
     if (args.azure_location is not None):
         config["azure_cluster"]["azure_location"] = args.azure_location
-    if (args.vm_size is not None):
-        config["azure_cluster"]["vm_size"] = args.vm_size
+    if (args.infra_vm_size is not None):
+        config["azure_cluster"]["infra_vm_size"] = args.infra_vm_size
+    if (args.worker_vm_size is not None):
+        config["azure_cluster"]["worker_vm_size"] = args.worker_vm_size
     if (args.vm_image is not None):
         config["azure_cluster"]["vm_image"] = args.vm_image
     if (args.vm_storage_sku is not None):
