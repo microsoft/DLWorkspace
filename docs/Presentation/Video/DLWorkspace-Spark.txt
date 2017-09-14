@@ -1,0 +1,41 @@
+This video introduces DL Workspace, an 
+open source toolkit for turn-key AI Cluster setup and operation. 
+
+DL Workspace provides out-of-box support for 
+multiple Deep Learning toolkits, and big data analytical kits.
+It is used daily by Microsoft employees, and 
+allows AI scientists to run both interactive 
+and batch jobs on cluster.
+
+The rest of the video explains the process to launch a Spark job. 
+ 
+First, log in via your favorite provider through open id. 
+
+Once logged in, click “Submit New Job”
+
+Select a job template, and make optional adjustments. 
+
+Click the “Submit” button to schedule the job for execution. 
+
+Click “View and Manage Jobs”, and select proper job ID 
+to monitor the jobs you have just executed. 
+
+You may need to wait a few seconds to a few minutes for 
+the job container to be scheduled, downloaded, and launched. 
+
+Wait for “Mapped Endpoints” to appear. 
+
+Run the ssh command shown in the endpoints. Go to spark directory. 
+
+You may then execute a spark job against the DL workspace backend. 
+
+You can monitor executed spark jobs through YARN portal. 
+
+
+DL Workspace provides turn-key setup for AI clusters, 
+allows AI scientists to jump directly to work, and 
+facilitates collaboration and sharing. 
+
+ 
+
+
