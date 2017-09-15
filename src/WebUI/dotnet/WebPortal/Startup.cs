@@ -38,6 +38,7 @@ namespace WindowsAuth
             var builder = new ConfigurationBuilder()
                 .SetBasePath(env.ContentRootPath)
                 .AddJsonFile("config.json")
+                .AddJsonFile("configAuth.json")
                 .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
 
             // User Configuration is added through ./deploy.py

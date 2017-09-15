@@ -368,6 +368,108 @@ default_config_parameters = {
 					 "/opt/addons/kube-addons/heapster-svc.json"
 					 ],
 
+    "Authentications": {
+        "Live-login-windows": {
+            "DisplayName": "Microsoft Account (live.com)",
+            "Tenant": "microsoft.onmicrosoft.com",
+            "ClientId": "55489cd6-b5b8-438d-ab42-4aba116ef8a3",
+            "UseIdToken": "true",
+            "Scope": "openid email profile",
+            # "ClientSecret": "g1nNX9u6Q2tAiqWXdec5amRPadSJQnvsy03P+arDkCk=",
+            "AuthorityFormat": "https://login.windows.net/common",
+            "Domains": [ "live.com", "hotmail.com", "outlook.com" ]
+        },
+        "Live-login-microsoftonline": {
+            "DisplayName": "Microsoft Account (live.com)",
+            "Tenant": "microsoft.onmicrosoft.com",
+            "ClientId": "55489cd6-b5b8-438d-ab42-4aba116ef8a3",
+            "UseIdToken": "true",
+            "Scope": "openid email profile",
+            # "ClientSecret": "g1nNX9u6Q2tAiqWXdec5amRPadSJQnvsy03P+arDkCk=",
+            "AuthorityFormat": "https://login.microsoftonline.com/common/v2.0",
+            "Domains": [ "live.com", "hotmail.com", "outlook.com" ]
+        }, 
+        "Live": {
+            "DisplayName": "Microsoft Account (live.com)",
+            "Tenant": "jinlmsfthotmail.onmicrosoft.com",
+            "ClientId": "734cc6a7-e80c-4b89-a663-0b9512925b45",
+            "ClientSecret": "g1nNX9u6Q2tAiqWXdec5amRPadSJQnvsy03P+arDkCk=",
+            "AuthorityFormat": "https://login.microsoftonline.com/{0}",
+            "Domains": [ "live.com", "hotmail.com", "outlook.com" ]
+        }, 
+        "Aad": {
+            "DisplayName": "Azure Graph",
+            "UseAadGraph": "true",
+            "UseToken": "true",
+            "Tenant": "jinlmsfthotmail.onmicrosoft.com",
+            "ClientId": "734cc6a7-e80c-4b89-a663-0b9512925b45",
+            "ClientSecret": "g1nNX9u6Q2tAiqWXdec5amRPadSJQnvsy03P+arDkCk=",
+            "AuthorityFormat": "https://login.microsoftonline.com/{0}",
+            "RedirectUri": "",
+            "GraphBaseEndpoint": "https://graph.windows.net",
+            "GraphApiVersion": "1.6", # API version,
+            "Scope": "User.Read",
+            "Domains": [ "live.com", "hotmail.com", "outlook.com" ]
+        },
+        "Live-jinl-windows": {
+            "DisplayName": "Live.com",
+            "Tenant": "jinlmsfthotmail.onmicrosoft.com",
+            "ClientId": "734cc6a7-e80c-4b89-a663-0b9512925b45",
+            "ClientSecret": "g1nNX9u6Q2tAiqWXdec5amRPadSJQnvsy03P+arDkCk=",
+            "AuthorityFormat": "https://login.windows.net/common",
+            "RedirectUri": "",
+            "GraphBaseEndpoint": "https://graph.windows.net",
+            "GraphApiVersion": "1.6", # API version,
+            # "Scope": "User.Read",
+            "Domains": [ "live.com", "hotmail.com", "outlook.com" ]
+        },
+        "CorpAad": {
+            "DisplayName": "@microsoft.com corpnet sign in",
+            "UseAadGraph": "true",
+            "UseToken": "true",
+            "Tenant": "microsoft.onmicrosoft.com",
+            "ClientId": "511c7514-3090-400e-873a-2fb05f2d5c19",
+            "ClientSecret": "E3RT39WiTvfBrJLpfs8FYJcrvFDTqEjxrlu9G36CZZM=",
+            "AuthorityFormat": "https://login.microsoftonline.com/{0}",
+            "RedirectUri": "",
+            "Scope": "User.Read",
+            "GraphBaseEndpoint": "https://graph.windows.net",
+            "GraphApiVersion": "1.6", # API version,
+            "Domains": [ "microsoft.com" ]
+        },       
+        "Live-Microsoft": {
+            "DisplayName": "Microsoft Account (live.com)",
+            "Tenant": "jinlmsfthotmail.onmicrosoft.com",
+            "ClientId": "734cc6a7-e80c-4b89-a663-0b9512925b45",
+            "ClientSecret": "g1nNX9u6Q2tAiqWXdec5amRPadSJQnvsy03P+arDkCk=",
+            "AuthorityFormat": "https://login.microsoftonline.com/{0}",
+            "Domains": [ "live.com", "hotmail.com", "outlook.com" ]
+        }, 
+
+        "Corp": {
+            "DisplayName": "@microsoft.com corpnet sign in",
+            "UseAadGraph": "false",
+            "Tenant": "microsoft.onmicrosoft.com",
+            "ClientId": "511c7514-3090-400e-873a-2fb05f2d5c19",
+            "ClientSecret": "E3RT39WiTvfBrJLpfs8FYJcrvFDTqEjxrlu9G36CZZM=",
+            "AuthorityFormat": "https://login.microsoftonline.com/{0}",
+            "RedirectUri": "",
+            "GraphBaseEndpoint": "https://graph.windows.net",
+            "GraphApiVersion": "1.6", # API version,
+            "Domains": [ "microsoft.com" ]
+        },
+        "Gmail": {
+            "DisplayName": "Gmail",
+            "Tenant": "dlws-auth",
+            "ClientId": "79875480060-jrs8a1rqe6a4kv82jh4d2nqgq8t6ap6k.apps.googleusercontent.com",
+            "ClientSecret": "L6XfKLzIbiy7jT7s416CBamz",
+            "AuthorityFormat": "https://accounts.google.com",
+            "Scope": "openid email",
+            "Domains": [ "gmail.com" ]
+        },
+
+    }
+
 }
 
 # These are super scripts
@@ -1648,9 +1750,13 @@ def deploy_webUI_on_node(ipAddress):
 		os.system("mkdir -p ./deploy/WebUI")
 
 	utils.render_template("./template/WebUI/userconfig.json","./deploy/WebUI/userconfig.json", config)
-	os.system("cp --verbose ./deploy/WebUI/userconfig.json ../WebUI/dotnet/WebPortal/") # not used -- overwritten by mount from host, contains secret
+	os.system("cp --verbose ./deploy/WebUI/userconfig.json ../WebUI/dotnet/WebPortal/") # used for debugging, when deploy, it will be overwritten by mount from host, contains secret
+	utils.render_template("./template/WebUI/configAuth.json","./deploy/WebUI/configAuth.json", config)
+	os.system("cp --verbose ./deploy/WebUI/configAuth.json ../WebUI/dotnet/WebPortal/")
+	
 	# write into host, mounted into container
 	utils.sudo_scp(config["ssh_cert"],"./deploy/WebUI/userconfig.json","/etc/WebUI/userconfig.json", sshUser, webUIIP )
+
 
 	utils.render_template("./template/WebUI/Master-Templates.json", "./deploy/WebUI/Master-Templates.json", config)
 	#os.system("cp --verbose ./template/WebUI/Master-Templates.json ./deploy/WebUI/Master-Templates.json")
@@ -3972,9 +4078,7 @@ def run_command( args, command, nargs, parser ):
 				print "Error: unrecognized etcd subcommand."
 				exit()
 		else:
-			parser.print_help()
-			print "Error: download need a subcommand."
-			exit()
+			get_kubectl_binary()
 	
 	elif command == "etcd":
 		if len(nargs)>=1:
