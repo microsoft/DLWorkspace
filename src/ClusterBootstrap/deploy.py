@@ -94,7 +94,7 @@ default_config_parameters = {
 
 	# required storage folder under storage-mount-path
 	"default-storage-folders" : ["jobfiles", "storage", "work", "namenodeshare" ],
-
+	"per_user_gpu_limit": "-1",
 
 	# the path of where nvidia driver is installed on each node, default /opt/nvidia-driver/current
 	"nvidia-driver-path" : "/opt/nvidia-driver/current", 
@@ -1656,6 +1656,12 @@ def deploy_webUI_on_node(ipAddress):
 	#os.system("cp --verbose ./template/WebUI/Master-Templates.json ./deploy/WebUI/Master-Templates.json")
 	os.system("cp --verbose ./deploy/WebUI/Master-Templates.json ../WebUI/dotnet/WebPortal/Master-Templates.json")
 	utils.sudo_scp(config["ssh_cert"],"./deploy/WebUI/Master-Templates.json","/etc/WebUI/Master-Templates.json", sshUser, webUIIP )
+
+
+
+	utils.render_template_directory("./template/RestfulAPI", "./deploy/RestfulAPI",config)
+	utils.sudo_scp(config["ssh_cert"],"./deploy/RestfulAPI/config.yaml","/etc/RestfulAPI/config.yaml", sshUser, webUIIP )
+
 
 	# utils.SSH_exec_cmd(config["ssh_cert"], sshUser, webUIIP, "docker pull %s ; docker rm -f webui ; docker run -d -p %s:80 -v /etc/WebUI:/WebUI --restart always --name webui %s ;" % (dockername,str(config["webuiport"]),dockername))
 
