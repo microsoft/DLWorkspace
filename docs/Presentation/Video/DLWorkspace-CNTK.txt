@@ -1,0 +1,51 @@
+This video introduces DL Workspace, an 
+open source toolkit for turn-key AI Cluster setup and operation. 
+
+DL Workspace provides out-of-box support for 
+multiple Deep Learning toolkits, and big data analytical kits.
+It is used daily by Microsoft employees, and 
+allows AI scientists to run both interactive 
+and batch jobs on cluster.
+
+The rest of the video explains the process 
+to launch an interactive CNTK job. 
+
+First, log in via your favorite provider through open id. 
+
+Once logged in, click “Submit New Job”
+
+Select a job template, and make optional adjustment. 
+
+Click the “Submit” button to schedule the job for execution. 
+
+Click “View and Manage Jobs”, and select proper job ID 
+to monitor the jobs you have just executed. 
+
+You may need to wait a few seconds to a few minutes for 
+the job container to be scheduled, downloaded, and launched. 
+
+Wait for “Mapped Endpoints” to appear. 
+
+Copy the security token for the Jupyter notebook, 
+and then click the Mapped Endpoint to access the job container. 
+
+Paste the security token, and click “Log In”. 
+
+You now have access to a fully functional CNTK container. 
+If requested, GPU resources will be 
+available and attached to the container. To access
+CNTK tutorial, click one of the ipython “notebooks”. 
+
+You are now in a Jupyter notebook, with CNTK 
+software, GPU hardware, and device driver pre-setup. 
+
+You can write your own program, execute the code, 
+and interactively explore the inner working of DNN models. 
+
+DL Workspace provides turn-key setup for AI clusters, 
+allows AI scientists to jump directly to work, and 
+facilitates collaboration and sharing. 
+
+ 
+
+
