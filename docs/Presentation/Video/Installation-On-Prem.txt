@@ -1,0 +1,40 @@
+This video introduces DL Workspace, an 
+open source toolkit for turn-key AI Cluster setup and operation. 
+
+DL Workspace provides out-of-box support for 
+multiple Deep Learning toolkits, and big data analytical kits.
+It is used daily by Microsoft employees, and 
+allows AI scientists to run both interactive 
+and batch jobs on cluster.
+
+The rest of the video explains the process to 
+install DL Workspace in a stand alone, on-prem cluster. 
+
+
+You need a development machine running Ubuntu OS. 
+You may then either install docker, and build DL 
+workspace dev docker; or run installation scripts 
+that will install docker, python and Azure CLI on your machine.  
+
+Prepare configuration file.  
+
+Depending on your Open ID provider, configuration the Open 
+ID endpoint, and put the information into configuration file. 
+
+Use enclosed script to configure and build a 
+Ubuntu PXE docker image. Put machines to be 
+deployed in a VLAN, run PXE docker image, 
+and update DHCP server to point to the PXE 
+docker. Use iLO, choose option to fully 
+automatic install Ubuntu 16.04.
+
+Run the rest of the scripts to setup 
+DL Workspace. This include the installation 
+of required software package and GPU driver, 
+configure shared file system (NFS, glusterfs, HDFS), configure HDFS/Yarn, and build and launch DL workspace runtime. 
+
+After the scripts run through, please wait a few minutes 
+for the container to start. You should have a fully function 
+cluster.
+
+
