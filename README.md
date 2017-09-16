@@ -9,7 +9,7 @@ unified job template and operating environment that allows AI scientists to easi
 
 Here is a few short video clips that can quickly explain DLWorkspace. Note the PPT link will only work in github.com repo, not in github.com pages. 
 
-* DL Workspace: CNTK
+* [DL Workspace: CNTK](https://youtu.be/3O0uwUwPRho) [(PPT)](docs/Presentation/Video/Running_CNTK.pptx)
 * [DL Workspace: TensorFlow](https://youtu.be/Xa7exVurUmE) [(PPT)](docs/Presentation/Video/Running TensorFlow.pptx)
 * [DL Workspace: Spark](https://youtu.be/9kV9_w-eQYY) [(PPT)](docs/Presentation/Video/Running Spark.pptx)
 * [Installation-Azure](https://youtu.be/inDcl85-TRw) [(PPT)](docs/Presentation/Video/Installation-Azure.pptx)
