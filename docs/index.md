@@ -13,35 +13,29 @@ Here is a few short video clips that can quickly explain DLWorkspace. Note the P
 * [DL Workspace: TensorFlow](https://youtu.be/Xa7exVurUmE) [(PPT)](Presentation/Video/Running TensorFlow.pptx)
 * [DL Workspace: Spark](https://youtu.be/9kV9_w-eQYY) [(PPT)](Presentation/Video/Running Spark.pptx)
 * [Installation-Azure](https://youtu.be/inDcl85-TRw) [(PPT)](Presentation/Video/Installation-Azure.pptx)
-* [Installation-On-Perm](https://youtu.be/jQtAFik7Ukg) [(PPT)](Presentation/Video/Installation-On-Perm.pptx)
+* [Installation-On-Prem](https://youtu.be/nKLmt8Ace50) [(PPT)](Presentation/Video/Installation-On-Prem.pptx)
 
 # [](#header-3)Documentations
 
 ## [DLWorkspace Cluster Deployment](deployment/Readme.md)
 
 * [Azure Cluster](deployment/Azure.md)
-
-* [On perm, Ubuntu Cluster](deployment/Ubuntu.md)
+* [On prem, Ubuntu Cluster](deployment/Ubuntu.md)
 
 ## Known Issues
 
 * [Deployment Issue](deployment/Deployment_Issue.md)
-
 * Container Issue: [Zombie Process](KnownIssues/zombie_process.md)
 
 ## Presentation
 
 * [Overview](Presentation/1707/DL_Workspace_Overall.pptx)
-
 * [Job scheduling](Presentation/1707/job_scheduling_runtime.pptx)
-
 * [Kubernetes modification](Presentation/1707/Kubernetes_Modifications.pptx)
-
 * [Shared file system](Presentation/1707/DL_Workspace_Cluster_Deployment_GlusterFS.pptx)
-
 * [Interactive jobs](Presentation/1707/interactive_job.pptx)
-
 * [Engineering practices](Presentation/1707/DL_Workspace_Engineering_Practices.pptx)
+
 
 
 
