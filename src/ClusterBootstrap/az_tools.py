@@ -64,7 +64,7 @@ def merge_config( config1, config2 ):
         else:
             config1[entry] = config2[entry]
 
-def update_config(config):
+def update_config(config, genSSH=True):
     config["azure_cluster"]["resource_group_name"] = config["azure_cluster"]["cluster_name"]+"ResGrp"
     config["azure_cluster"]["vnet_name"] = config["azure_cluster"]["cluster_name"]+"-VNet"
     config["azure_cluster"]["storage_account_name"] = config["azure_cluster"]["cluster_name"]+"storage"
@@ -78,17 +78,19 @@ def update_config(config):
     if "sql_admin_password" not in config["azure_cluster"]:
         config["azure_cluster"]["sql_admin_password"] = uuid.uuid4().hex+"12!AB"
 
-    if (os.path.exists('./deploy/sshkey/id_rsa.pub')):
-        f = open('./deploy/sshkey/id_rsa.pub')
-        config["azure_cluster"]["sshkey"] = f.read()
-        f.close()
-    else:
-        os.system("mkdir -p ./deploy/sshkey")
-        if not os.path.exists("./deploy/sshkey/azure_id_rsa"):
-            os.system("ssh-keygen -t rsa -b 4096 -f ./deploy/sshkey/azure_id_rsa -P ''")
-        f = open('./deploy/sshkey/azure_id_rsa.pub')
-        config["azure_cluster"]["sshkey"] = f.read()
-        f.close()
+    if (genSSH):
+        if (os.path.exists('./deploy/sshkey/id_rsa.pub')):
+            f = open('./deploy/sshkey/id_rsa.pub')
+            config["azure_cluster"]["sshkey"] = f.read()
+            f.close()
+        else:
+            os.system("mkdir -p ./deploy/sshkey")
+            if not os.path.exists("./deploy/sshkey/azure_id_rsa"):
+                os.system("ssh-keygen -t rsa -b 4096 -f ./deploy/sshkey/azure_id_rsa -P ''")
+            f = open('./deploy/sshkey/azure_id_rsa.pub')
+            config["azure_cluster"]["sshkey"] = f.read()
+            f.close()
+
     return config
 
 
@@ -282,7 +284,7 @@ def create_cluster():
         print "creating VM %s..." % vmname
         create_vm(vmname, True)
 
-def gen_cluster_config(output_file_name):
+def gen_cluster_config(output_file_name, output_file=True):
 
     cmd = """
         az storage account show-connection-string \
@@ -337,9 +339,12 @@ def gen_cluster_config(output_file_name):
     if file_share_key is not None:
         cc["mountpoints"]["rootshare"]["accesskey"] = file_share_key
 
-    print yaml.dump(cc, default_flow_style=False)
-    with open(output_file_name, 'w') as outfile:
-        yaml.dump(cc, outfile, default_flow_style=False)
+    if output_file:
+        print yaml.dump(cc, default_flow_style=False)
+        with open(output_file_name, 'w') as outfile:
+            yaml.dump(cc, outfile, default_flow_style=False)
+
+    return cc
 
 def run_command( args, command, nargs, parser ):
     if command =="create":

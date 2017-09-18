@@ -39,6 +39,8 @@ from config import config as k8sconfig
 
 sys.path.append("../docker-images/glusterfs")
 import launch_glusterfs
+import az_tools
+import acs_tools
 
 capacityMatch = re.compile("\d+[M|G]B")
 digitsMatch = re.compile("\d+")
@@ -810,15 +812,35 @@ def create_cluster_id():
 		config["clusterId"] = utils.get_cluster_ID_from_file()	
 		print "Cluster ID is " + config["clusterId"]
 
-def add_acs_config():
-	if (os.path.exists("./deploy/"+config["acskubeconfig"])):
+def add_acs_config(command):
+	if (command=="acs" or os.path.exists("./deploy/"+config["acskubeconfig"])):
 		config["isacs"] = True
 		create_cluster_id()
 
+		#print "Config:{0}".format(config)
+		#print "Dockerprefix:{0}".format(config["dockerprefix"])
+
+		# Set ACS params to match
+		acs_tools.config = config
+		acs_tools.verbose = verbose
+
+		# Use az tools to generate default config params and overwrite if they don't exist
+		configAzure = acs_tools.acs_update_azconfig(False)
+		if verbose:
+			print "AzureConfig:\n{0}".format(configAzure)
+		utils.mergeDict(config, configAzure, True) # ovewrites defaults with Azure defaults
+		if verbose:
+			print "Config:\n{0}".format(config)
+
+		config["master_dns_name"] = config["cluster_name"]
+		config["resource_group"] = az_tools.config["azure_cluster"]["resource_group_name"]
 		config["platform-scripts"] = "acs"
 		config["WinbindServers"] = []
 		config["etcd_node_num"] = config["master_node_num"]
 		config["kube_addons"] = [] # no addons
+		config["mountpoints"]["rootshare"]["azstoragesku"] = config["azstoragesku"]
+		config["mountpoints"]["rootshare"]["azfilesharequota"] = config["azfilesharequota"]
+		config["freeflow"] = True
 
 		if ("azure-sqlservername" in config) and (not "sqlserver-hostname" in config):
 			config["sqlserver-hostname"] = ("tcp:%s.database.windows.net" % config["azure-sqlservername"])
@@ -828,7 +850,7 @@ def add_acs_config():
 			config["azure-sqlservername"] = match.group(1)
 
 		# Some locations put VMs in child resource groups
-		acs_set_resource_grp()
+		acs_tools.acs_set_resource_grp(False)
 
 		# check for GPU sku
 		match = re.match('.*\_N.*', config["acsagentsize"])
@@ -854,7 +876,10 @@ def add_acs_config():
 				config["mountpoints"]["rootshare"]["accesskey"] = azureKey
 		except:
 			()
-			
+
+		if verbose:
+			print "Config:{0}".format(config)
+
 # Render scripts for kubenete nodes
 def add_kubelet_config():
 	renderfiles = []
@@ -1065,7 +1090,7 @@ def get_ETCD_master_nodes_from_config(clusterId):
 def get_nodes_from_acs(tomatch=""):
 	bFindNodes = True
 	if not ("acsnodes" in config):
-		machines = acs_get_machinesAndIPsFast()
+		machines = acs_tools.acs_get_machinesAndIPsFast()
 		config["acsnodes"] = machines
 	else:
 		bFindNodes = not (tomatch == "" or tomatch == "master" or tomatch == "agent")
@@ -1838,62 +1863,11 @@ def pick_server( nodelists, curNode ):
 		return curNode
 
 # simple utils
-class ValClass:
-	def __init__(self, initVal):
-		self.val = initVal
-	def set(self, newVal):
-		self.val = newVal
-
-def shellquote(s):
-    return "'" + s.replace("'", "'\\''") + "'"
-
 def exec_rmt_cmd(node, cmd):
 	utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, cmd)
 
 def rmt_cp(node, source, target):
 	utils.sudo_scp(config["ssh_cert"], source, target, config["admin_username"], node)
-
-def tryuntil(cmdLambda, stopFn, updateFn, waitPeriod=5):
-	while not stopFn():
-		try:
-			output = cmdLambda() # if exception occurs here, update does not occur
-			#print "Output: {0}".format(output)
-			updateFn()
-			toStop = False
-			try:
-				toStop = stopFn()
-			except Exception as e:
-				print "Exception {0} -- stopping anyways".format(e)
-				toStop = True
-			if toStop:
-				#print "Returning {0}".format(output)
-				return output
-		except Exception as e:
-			print "Exception in command {0}".format(e)
-		if not stopFn():
-			print "Not done yet - Sleep for 5 seconds and continue"
-			time.sleep(waitPeriod)
-
-# Run until stop condition and success
-def subproc_tryuntil(cmd, stopFn, shell=True, waitPeriod=5):
-	bFirst = ValClass(True)
-	return tryuntil(lambda : subprocess.check_output(cmd, shell), lambda : not bFirst.val and stopFn(), lambda : bFirst.set(False), waitPeriod)
-
-def subprocrun(cmd, shellArg):
-	#print "Running Cmd: {0} Shell: {1}".format(cmd, shellArg)
-	#embed()
-	return subprocess.check_output(cmd, shell=shellArg)
-
-# Run once until success (no exception)
-def subproc_runonce(cmd, shell=True, waitPeriod=5):
-	bFirst = ValClass(True)
-	#print "Running cmd:{0} Shell:{1}".format(cmd, shell)
-	return tryuntil(lambda : subprocrun(cmd, shell), lambda : not bFirst.val, lambda : bFirst.set(False), waitPeriod)
-
-# Run for N success
-def subproc_runN(cmd, n, shell=True, waitPeriod=5):
-	bCnt = ValClass(0)
-	return tryuntil(lambda : subprocess.check_output(cmd, shell), lambda : (bCnt.val < n), lambda : bCnt.set(bCnt.val+1), waitPeriod)
 
 # copy list of files to a node
 def copy_list_of_files(listOfFiles, node):	
@@ -1943,188 +1917,9 @@ def kube_dpeloy_configchanges():
 	for configChange in config["kube_configchanges"]:
 		exec_rmt_cmd(node, "sudo kubectl apply -f "+configChange)
 
-# AZ ACS commands
-def az_cmd(cmd):
-	if verbose:
-		print "az "+cmd
-	output = subprocess.check_output("az "+cmd, shell=True)
-	return yaml.load(output)
-
-def az_sys(cmd):
-	if verbose:
-		print "az "+cmd
-	os.system("az "+cmd)
-
-def az_tryuntil(cmd, stopFn, waitPeriod=5):
-	return tryuntil(lambda : az_sys(cmd), stopFn, lambda : (), waitPeriod)
-
-# Create SQL database
-def az_create_sql_server():
-	# escape the password in case it has characters such as "$"
-	pwd = shellquote(config["sqlserver-password"])
-	cmd = "sql server create"
-	cmd += " --resource-group=%s" % config["resource_group"]
-	cmd += " --location=%s" % config["cluster_location"]
-	cmd += " --name=%s" % config["azure-sqlservername"]
-	cmd += " --admin-user=%s" % config["sqlserver-username"]
-	cmd += " --admin-password=%s" % pwd
-	az_sys(cmd)
-	# now open firewall
-	cmd = "sql server firewall-rule create"
-	cmd += " --resource-group=%s" % config["resource_group"]
-	cmd += " --server=%s" % config["azure-sqlservername"]
-	# first open all IPs
-	cmd2 = cmd + " --name=All --start-ip-address=0.0.0.0 --end-ip-address=255.255.255.255"
-	az_sys(cmd2)
-	# now open Azure
-	cmd2 = cmd + " --name=Azure --start-ip-address=0.0.0.0 --end-ip-address=0.0.0.0"
-	az_sys(cmd2)
-
-def az_create_sql_database(dbname):
-	cmd = "sql db create"
-	cmd += " --resource-group=%s" % config["resource_group"]
-	cmd += " --server=%s" % config["azure-sqlservername"]
-	cmd += " --name=%s" % dbname
-	az_sys(cmd)
-
-def az_create_sql():
-	az_create_sql_server()
-	az_create_sql_database(config["sqlserver-database"])
-
-def az_grp_exist(grpname):
-	resgrp = az_cmd("group show --name=%s" % grpname)
-	return not resgrp is None
-
-# Overwrite resource group with location where machines are located
-# If no machines are found, that may be because they are not created, so leave it as it is
-def acs_set_resource_grp():
-	if (az_grp_exist(config["resource_group"])):
-		machines = az_cmd("vm list --resource-group=%s" % config["resource_group"])
-		if (len(machines)==0):
-			# try child resource group
-			tryGroup = "%s_%s_%s" % (config["resource_group"], config["cluster_name"], config["cluster_location"])
-			print "Grp %s has no matchines trying %s" % (config["resource_group"], tryGroup)
-			if (az_grp_exist(tryGroup)):
-				machines = az_cmd("vm list --resource-group=%s" % tryGroup)
-				if (len(machines) > 0):
-					# overwrite with group where machines are located
-					config["resource_group"] = tryGroup
-	print "Resource group = %s" % config["resource_group"]
-
-def acs_get_id(elem):
-	elemFullName = elem["id"]
-	reMatch = re.match('(.*)/(.*)', elemFullName)
-	return reMatch.group(2)
-
-def acs_get_ip(ipaddrName):
-	ipInfo = az_cmd("network public-ip show --resource-group="+config["resource_group"]+" --name="+ipaddrName)
-	return ipInfo["ipAddress"]
-
-def acs_attach_dns_to_node(node, dnsName=None):
-	nodeName = config["nodenames_from_ip"][node]
-	if (dnsName is None):
-		dnsName = nodeName
-	ipName = config["acsnodes"][nodeName]["publicipname"]
-	cmd = "network public-ip update"
-	cmd += " --resource-group=%s" % config["resource_group"]
-	cmd += " --name=%s" % ipName
-	cmd += " --dns-name=%s" % dnsName
-	az_sys(cmd)	
-
-def acs_attach_dns_name():
-	get_nodes_from_acs()
-	firstMasterNode = config["kubernetes_master_node"][0]
-	acs_attach_dns_to_node(firstMasterNode, config["master_dns_name"])
-	for i in range(len(config["kubernetes_master_node"])):
-		if (i != 0):
-			acs_attach_dns_to_node(config["kubernetes_master_node"][i])
-	for node in config["worker_node"]:
-		acs_attach_dns_to_node(node)
-
-def acs_get_machineIP(machineName):
-	print "Machine: "+machineName
-	nics = az_cmd("vm show --name="+machineName+" --resource-group="+config["resource_group"])
-	#print nics
-	nics = nics["networkProfile"]["networkInterfaces"]
-	i = 0
-	for nic in nics:
-		nicName = acs_get_id(nic)
-		print "Nic Name: "+nicName
-		if (i==0):
-			nicDefault = nicName
-		ipconfigs = az_cmd("network nic show --resource-group="+config["resource_group"]+" --name="+nicName)
-		ipConfigs = ipconfigs["ipConfigurations"]
-		j = 0
-		for ipConfig in ipConfigs:
-			ipConfigName = acs_get_id(ipConfig)
-			print "IP Config Name: "+ipConfigName
-			if ((i==0) and (j==0)):
-				ipConfigDefault = ipConfigName
-			configInfo = az_cmd("network nic ip-config show --resource-group="+config["resource_group"]+
-								" --nic-name="+nicName+" --name="+ipConfigName)
-			publicIP = configInfo["publicIpAddress"]
-			if (not (publicIP is None)):
-				ipName = acs_get_id(publicIP)
-				print "IP Name: " + ipName
-				return {"nic" : nicName, "ipconfig" : ipConfigName, "publicipname" : ipName, "publicip" : acs_get_ip(ipName)}
-			j+=1
-		i+=1
-	return {"nic" : nicDefault, "ipconfig": ipConfigDefault, "publicipname" : None, "publicip" : None}
-
-def acs_get_nodes():
-	binary = os.path.abspath('./deploy/bin/kubectl')
-	kubeconfig = os.path.abspath('./deploy/'+config["acskubeconfig"])
-	cmd = binary + ' -o=json --kubeconfig='+kubeconfig+' get nodes'
-	nodeInfo = subproc_runonce(cmd)
-	nodes = yaml.load(nodeInfo)
-	return nodes["items"]
-
-def acs_get_machinesAndIPs(bCreateIP):
-	# Public IP on worker nodes
-	nodes = acs_get_nodes()
-	ipInfo = {}
-	#print nodes["items"]
-	config["nodenames_from_ip"] = {}
-	for n in nodes:
-		machineName = n["metadata"]["name"]
-		ipInfo[machineName] = acs_get_machineIP(machineName)
-		if bCreateIP and (ipInfo[machineName]["publicip"] is None):
-			# Create IP
-			ipName = machineName+"-public-ip-0"
-			print "Creating public-IP: "+ipName
-			cmd = "network public-ip create --allocation-method=Dynamic"
-			cmd += " --resource-group=%s" % config["resource_group"]
-			cmd += " --name=%s" % ipName
-			cmd += " --location=%s" % config["cluster_location"]
-			az_sys(cmd)
-			# Add to NIC of machine
-			cmd = "network nic ip-config update"
-			cmd += " --resource-group=%s" % config["resource_group"]
-			cmd += " --nic-name=%s" % ipInfo[machineName]["nic"]
-			cmd += " --name=%s" % ipInfo[machineName]["ipconfig"]
-			cmd += " --public-ip-address=%s" % ipName
-			az_sys(cmd)
-			# now update
-			ipInfo[machineName]["publicipname"] = ipName
-			ipInfo[machineName]["publicip"] = acs_get_ip(ipName)
-		config["nodenames_from_ip"][ipInfo[machineName]["publicip"]] = machineName
-	return ipInfo
-
-def acs_get_machinesAndIPsFast():
-	nodes = acs_get_nodes()
-	ipInfo = {}
-	config["nodenames_from_ip"] = {}
-	for n in nodes:
-		machineName = n["metadata"]["name"]
-		#print "MachineName: "+machineName
-		ipName = machineName+"-public-ip-0"
-		if (verbose):
-			print "PublicIP: "+ipName
-		ipInfo[machineName] = {}
-		ipInfo[machineName]["publicipname"] = ipName
-		ipInfo[machineName]["publicip"] = acs_get_ip(ipName)
-		config["nodenames_from_ip"][ipInfo[machineName]["publicip"]] = machineName
-	return ipInfo
+def acs_deploy_addons():
+	kube_dpeloy_configchanges()
+	kube_deploy_addons()
 
 def acs_label_webui():
 	for n in config["kubernetes_master_node"]:
@@ -2133,96 +1928,18 @@ def acs_label_webui():
 			print "Label node: "+nodeName
 		label_webUI(nodeName)
 
-def acs_is_valid_nsg_rule(rule):
-	#print "Access: %s D: %s P: %s P: %s" % (rule["access"].lower()=="allow",
-	#rule["direction"].lower()=="inbound",rule["sourceAddressPrefix"]=='*',
-	#(rule["protocol"].lower()=="tcp" or rule["protocol"]=='*'))
-	return (rule["access"].lower()=="allow" and
-			rule["direction"].lower()=="inbound" and
-			rule["sourceAddressPrefix"]=='*' and
-			(rule["protocol"].lower()=="tcp" or rule["protocol"]=='*'))
-
-def acs_add_nsg_rules(ports_to_add):
-	Nodes = get_nodes_from_acs("")
-	#print "Nodes: %s" % Nodes
-	match = re.match('(.*)-0', config["nodenames_from_ip"][config["kubernetes_master_node"][0]])
-	nsg_name = match.group(1)+"-nsg"
-	rulesInfo = az_cmd("network nsg show --resource-group="+config["resource_group"]+" --name="+nsg_name)
-	rules = rulesInfo["defaultSecurityRules"] + rulesInfo["securityRules"]
-
-	maxThreeDigitRule = 100
-	for rule in rules:
-		if acs_is_valid_nsg_rule(rule):
-			if (rule["priority"] < 1000):
-				#print "Priority: %d" % rule["priority"]
-				maxThreeDigitRule = max(maxThreeDigitRule, rule["priority"])
-
-	if verbose:
-		print "Existing max three digit rule for NSG: %s is %d" % (nsg_name, maxThreeDigitRule)
-
-	for port_rule in ports_to_add:
-		port_num = ports_to_add[port_rule]
-		createRule = True
-		isNum = isinstance(port_num, numbers.Number)
-		if (not isNum) and port_num.isdigit():
-			port_num = int(port_num)
-			isNum = True
-		if isNum:
-			# check for existing rules
-			found_port = None
-			for rule in rules:
-				if acs_is_valid_nsg_rule(rule):
-					match = re.match('(.*)-(.*)', rule["destinationPortRange"])
-					if (match is None):
-						minPort = int(rule["destinationPortRange"])
-						maxPort = minPort
-					elif (rule["destinationPortRange"] != "*"):
-						minPort = int(match.group(1))
-						maxPort = int(match.group(2))
-					else:
-						minPort = -1
-						maxPort = -1
-					if (minPort <= port_num) and (port_num <= maxPort):
-						found_port = rule["name"]
-						break
-			if not (found_port is None):
-				print "Rule for %s : %d -- already satisfied by %s" % (port_rule, port_num, found_port)
-				createRule = False
-		if createRule:
-			maxThreeDigitRule = maxThreeDigitRule + 10
-			cmd = "network nsg rule create"
-			cmd += " --resource-group=%s" % config["resource_group"]
-			cmd += " --nsg-name=%s" % nsg_name
-			cmd += " --name=%s" % port_rule
-			cmd += " --access=Allow"
-			if isNum:
-				cmd += " --destination-port-range=%d" % port_num
-			else:
-				cmd += " --destination-port-range=%s" % port_num
-			cmd += " --direction=Inbound"
-			cmd += " --priority=%d" % maxThreeDigitRule
-			az_cmd(cmd)
-
-def acs_get_config():
-	# Install kubectl / get credentials
-	if not (os.path.exists('./deploy/bin/kubectl')):
-		os.system("mkdir -p ./deploy/bin")
-		az_tryuntil("acs kubernetes install-cli --install-location ./deploy/bin/kubectl", lambda : os.path.exists('./deploy/bin/kubectl'))
-	if not (os.path.exists('./deploy/'+config["acskubeconfig"])):
-		cmd = "acs kubernetes get-credentials"
-		cmd += " --resource-group=%s" % config["resource_group"]
-		cmd += " --name=%s" % config["cluster_name"]
-		cmd += " --file=./deploy/%s" % config["acskubeconfig"]
-		cmd += " --ssh-key-file=%s" % "./deploy/sshkey/id_rsa"
-		az_tryuntil(cmd, lambda : os.path.exists("./deploy/%s" % config["acskubeconfig"]))
-
-def acs_deploy_addons():
-	kube_dpeloy_configchanges()
-	kube_deploy_addons()
-
 # other config post deploy -- ACS cluster is complete
 # Run prescript, copyfiles, postscript
 def acs_post_deploy():
+	# Attach DNS name to nodes
+	acs_attach_dns_name()
+
+	# Label nodes
+	ip = get_nodes_from_acs("")
+	acs_label_webui()
+	kubernetes_label_nodes("active", [], args.yes )	
+
+	# Copy files, etc.
 	get_nodes_from_acs()
 	gen_configs()
 	utils.render_template_directory("./template/kubelet", "./deploy/kubelet", config)
@@ -2238,77 +1955,15 @@ def acs_post_deploy():
 	deploy_on_nodes(config["worker_predeploy"], config["worker_filesdeploy"], config["worker_postdeploy"],
 	                config["worker_node"])
 
-def acs_deploy():
-	config["isacs"] = True
-	create_cluster_id()
-
-	generate_key = not os.path.exists("./deploy/sshkey")
-
-	cmd = "group create"
-	cmd += " --location=%s" % config["cluster_location"]
-	cmd += " --name=%s" % config["resource_group"]
-	az_sys(cmd)
-
-	acs_create_storage()
-	az_create_sql()
-
-	cmd = "acs create --orchestrator-type=kubernetes"
-	cmd += " --resource-group=%s" % config["resource_group"]
-	cmd += " --name=%s" % config["cluster_name"]
-	cmd += " --agent-count=%d" % config["worker_node_num"]
-	cmd += " --master-count=%d" % config["master_node_num"]
-	cmd += " --location=%s" % config["cluster_location"]
-	cmd += " --agent-vm-size=%s" % config["acsagentsize"]
-	cmd += " --admin-username=%s" % config["admin_username"]
-	cmd += " --ssh-key-value=%s" % "./deploy/sshkey/id_rsa.pub"
-	if (generate_key):
-		os.system("rm -r ./deploy/sshkey || true")
-		cmd += " --generate-ssh-keys"
-	az_sys(cmd)
-
-	acs_set_resource_grp() # overwrite resource group if machines are elsewhere
-
-	acs_get_config()
-
-	# Get/create public IP addresses for all machines
-	Nodes = acs_get_machinesAndIPs(True)
-
-	# Label nodes
-	ip = get_nodes_from_acs("")
-	acs_label_webui()
-	kubernetes_label_nodes("active", [], args.yes )	
-
-	# Add rules for NSG
-	acs_add_nsg_rules({"HTTPAllow" : 80, "RestfulAPIAllow" : 5000, "AllowKubernetesServicePorts" : "30000-32767"})
-
-	# Attach DNS name to master
-	acs_attach_dns_name()
-
-	return Nodes
-
-def acs_get_storage_key():
-	cmd = "storage account keys list"
-	cmd += " --account-name=%s" % config["mountpoints"]["rootshare"]["accountname"]
-	cmd += " --resource-group=%s" % config["resource_group"]
-	keys = az_cmd(cmd)
-	return keys[0]["value"]	
-
-def acs_create_storage():
-	# Create storage account
-	cmd = "storage account create"
-	cmd += " --name=%s" % config["mountpoints"]["rootshare"]["accountname"]
-	cmd += " --resource-group=%s" % config["resource_group"]
-	cmd += " --sku=%s" % config["mountpoints"]["rootshare"]["azstoragesku"]
-	az_sys(cmd)
-	# Create file share
-	azureKey = acs_get_storage_key()
-	config["mountpoints"]["rootshare"]["accesskey"] = azureKey
-	cmd = "storage share create"
-	cmd += " --name=%s" % config["mountpoints"]["rootshare"]["filesharename"]
-	cmd += " --quota=%s" % config["mountpoints"]["rootshare"]["filesharequota"]
-	cmd += " --account-name=%s" % config["mountpoints"]["rootshare"]["accountname"]
-	cmd += " --account-key=%s" % azureKey
-	az_sys(cmd)
+def acs_attach_dns_name():
+	get_nodes_from_acs()
+	firstMasterNode = config["kubernetes_master_node"][0]
+	acs_tools.acs_attach_dns_to_node(firstMasterNode, config["master_dns_name"])
+	for i in range(len(config["kubernetes_master_node"])):
+		if (i != 0):
+			acs_tools.acs_attach_dns_to_node(config["kubernetes_master_node"][i])
+	for node in config["worker_node"]:
+		acs_tools.acs_attach_dns_to_node(node)
 
 def acs_install_gpu():
 	nodes = get_worker_nodes(config["clusterId"])
@@ -3634,7 +3289,7 @@ def run_command( args, command, nargs, parser ):
 		if "clusterId" in tmp:
 			config["clusterId"] = tmp["clusterId"]
 
-	add_acs_config()
+	add_acs_config(command)
 	if verbose and config["isacs"]:
 		print "Using Azure Container Services"
 
@@ -3968,28 +3623,28 @@ def run_command( args, command, nargs, parser ):
 			run_script_blocks(scriptblocks["acs"])
 		elif (len(nargs) >= 1):
 			if nargs[0]=="deploy":
-				acs_deploy()
+				acs_tools.acs_deploy() # Core K8s cluster deployment
 			elif nargs[0]=="getconfig":
-				acs_get_config()
+				acs_tools.acs_get_config()
 			elif nargs[0]=="getip":
-				ip = acs_get_machinesAndIPsFast()
+				ip = acs_tools.acs_get_machinesAndIPsFast()
 				print ip
 			elif nargs[0]=="createip":
-				ip = acs_get_machinesAndIPs(True)
+				ip = acs_tools.acs_get_machinesAndIPs(True)
 				print ip
 			elif nargs[0]=="label":
 				ip = get_nodes_from_acs("")
 				acs_label_webui()
 			elif nargs[0]=="openports":
-				acs_add_nsg_rules({"HTTPAllow" : 80, "RestfulAPIAllow" : 5000, "AllowKubernetesServicePorts" : "30000-32767"})
+				acs_tools.acs_add_nsg_rules({"HTTPAllow" : 80, "RestfulAPIAllow" : 5000, "AllowKubernetesServicePorts" : "30000-32767"})
 			elif nargs[0]=="restartwebui":
 				run_script_blocks(scriptblocks["restartwebui"])
 			elif nargs[0]=="getserviceaddr":
 				print "Address: =" + json.dumps(k8sUtils.GetServiceAddress(nargs[1]))
 			elif nargs[0]=="storage":
-				acs_create_storage()
+				acs_tools.acs_create_storage()
 			elif nargs[0]=="storagemount":
-				acs_create_storage()
+				acs_tools.acs_create_storage()
 				fileshare_install()
 				allmountpoints = mount_fileshares_by_service(True)
 				del_fileshare_links()
@@ -4012,7 +3667,9 @@ def run_command( args, command, nargs, parser ):
 				acs_attach_dns_name()
 			elif nargs[0]=="postdeploy":
 				acs_post_deploy()
-			
+			elif nargs[0]=="genconfig":
+				acs_tools.acs_update_azconfig(True)
+
 	elif command == "update" and len(nargs)>=1:
 		if nargs[0] == "config":
 			update_config_nodes()
