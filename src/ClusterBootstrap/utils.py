@@ -366,3 +366,68 @@ def addressInNetwork(ip,net):
 		ret = False
 	return ret
 
+class ValClass:
+	def __init__(self, initVal):
+		self.val = initVal
+	def set(self, newVal):
+		self.val = newVal
+
+def shellquote(s):
+    return "'" + s.replace("'", "'\\''") + "'"
+
+def tryuntil(cmdLambda, stopFn, updateFn, waitPeriod=5):
+	while not stopFn():
+		try:
+			output = cmdLambda() # if exception occurs here, update does not occur
+			#print "Output: {0}".format(output)
+			updateFn()
+			toStop = False
+			try:
+				toStop = stopFn()
+			except Exception as e:
+				print "Exception {0} -- stopping anyways".format(e)
+				toStop = True
+			if toStop:
+				#print "Returning {0}".format(output)
+				return output
+		except Exception as e:
+			print "Exception in command {0}".format(e)
+		if not stopFn():
+			print "Not done yet - Sleep for 5 seconds and continue"
+			time.sleep(waitPeriod)
+
+# Run until stop condition and success
+def subproc_tryuntil(cmd, stopFn, shell=True, waitPeriod=5):
+	bFirst = ValClass(True)
+	return tryuntil(lambda : subprocess.check_output(cmd, shell), lambda : not bFirst.val and stopFn(), lambda : bFirst.set(False), waitPeriod)
+
+def subprocrun(cmd, shellArg):
+	#print "Running Cmd: {0} Shell: {1}".format(cmd, shellArg)
+	#embed()
+	return subprocess.check_output(cmd, shell=shellArg)
+
+# Run once until success (no exception)
+def subproc_runonce(cmd, shell=True, waitPeriod=5):
+	bFirst = ValClass(True)
+	#print "Running cmd:{0} Shell:{1}".format(cmd, shell)
+	return tryuntil(lambda : subprocrun(cmd, shell), lambda : not bFirst.val, lambda : bFirst.set(False), waitPeriod)
+
+# Run for N success
+def subproc_runN(cmd, n, shell=True, waitPeriod=5):
+	bCnt = ValClass(0)
+	return tryuntil(lambda : subprocess.check_output(cmd, shell), lambda : (bCnt.val < n), lambda : bCnt.set(bCnt.val+1), waitPeriod)
+
+def mergeDict(configDst, configSrc, bOverwrite):
+	for entry in configSrc:
+		# if not isinstance(configSrc[entry], dict):
+		# 	print "key:{0} val:{1}".format(entry, configSrc[entry])
+		if bOverwrite:
+			configDst.pop(entry, None)
+		if (not entry in configDst) or (configDst[entry] is None) or \
+			(isinstance(configDst[entry], basestring) and configDst[entry].lower() == "null"):
+			if isinstance(configSrc[entry], dict):
+				configDst[entry] = {}
+				mergeDict(configDst[entry], configSrc[entry], bOverwrite)
+			else:
+				#print "settingkey:{0} val:{1}".format(entry, configSrc[entry])
+				configDst[entry] = configSrc[entry]
