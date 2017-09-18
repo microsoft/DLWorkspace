@@ -1,7 +1,7 @@
 #!/bin/bash 
 
 sudo apt-get update 
-apt-get update && apt-get install -y --no-install-recommends \
+sudo apt-get update && sudo apt-get install -y --no-install-recommends \
         apt-utils \
         software-properties-common \
         build-essential \
@@ -22,7 +22,8 @@ apt-get update && apt-get install -y --no-install-recommends \
         sudo \
         git-all \
         sshpass \
-        bison
+        bison \
+        libcurl4-openssl-dev libssl-dev 
 
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
 
@@ -34,15 +35,14 @@ sudo add-apt-repository \
 sudo apt-key fingerprint 0EBFCD88
 
 # Install docker
+echo "Docker Installation .... "
 sudo apt-get update
 sudo apt-get install docker-ce
 
-pip install --upgrade pip; 
-
-pip install setuptools 
-
-pip install pyyaml jinja2
-pip install pyodbc flask flask.restful
+echo "PIP installation .... "
+sudo pip install --upgrade pip
+sudo pip install setuptools 
+sudo pip install pyyaml jinja2 flask flask.restful tzlocal pycurl
 
 echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ wheezy main" | \
      sudo tee /etc/apt/sources.list.d/azure-cli.list

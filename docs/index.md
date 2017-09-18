@@ -5,6 +5,8 @@ Once setup, the DLWorkspace provides web UI and/or restful API that allows AI sc
 on the cluster with resource allocated by DL Workspace cluster for each job (e.g., a single node job with a couple of GPUs with GPU Direct connection, or a distributed job with multiple GPUs per node). DLWorkspace also provides
 unified job template and operating environment that allows AI scientists to easily share their job and setting among themselves and with outside community. DLWorkspace out-of-box supports all major deep learning toolkits (TensorFlow,CNTK, Caffe, MxNet, etc..), and supports popular big data analytic toolkit such as hadoop/spark. 
 
+DL Workspace is still in pre-release alpha stage. If you encounter issues in either deployment and/or usage, please open an issue at [Github](https://github.com/microsoft/DLWorkspace), or contact the DL Workspace team. 
+
 # [](#header-2)Tutorials
 
 Here is a few short video clips that can quickly explain DLWorkspace. Note the PPT link will only work in github.com repo, not in github.com pages. 
@@ -19,7 +21,7 @@ Here is a few short video clips that can quickly explain DLWorkspace. Note the P
 
 ## [DLWorkspace Cluster Deployment](deployment/Readme.md)
 
-* [Azure Cluster](deployment/Azure.md)
+* [Azure Cluster](deployment/Azure/Readme.md)
 * [On prem, Ubuntu Cluster](deployment/Ubuntu.md)
 
 ## Known Issues

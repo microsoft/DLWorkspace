@@ -2,6 +2,8 @@
 
 DL workspace is an open source toolkit that allows you to setup a cluster that can run deep learning training job, interactive exploration job, and evaluation service. The cluster also support big data analytic toolkit such as Hadoop/Spark. 
 
+DL Workspace is still in pre-release alpha stage. If you encounter issues in either deployment and/or usage, please open an issue at [Github](https://github.com/microsoft/DLWorkspace), or contact the DL Workspace team. 
+
 # Development environment.
 
 Please setup the dev environment of DL workspace as [this](../DevEnvironment/Readme.Md). 
