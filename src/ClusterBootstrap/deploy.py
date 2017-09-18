@@ -3667,7 +3667,9 @@ def run_command( args, command, nargs, parser ):
 				acs_attach_dns_name()
 			elif nargs[0]=="postdeploy":
 				acs_post_deploy()
-			
+			elif nargs[0]=="genconfig":
+				acs_tools.acs_update_azconfig(True)
+
 	elif command == "update" and len(nargs)>=1:
 		if nargs[0] == "config":
 			update_config_nodes()
