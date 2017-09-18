@@ -19,7 +19,7 @@ Here is a few short video clips that can quickly explain DLWorkspace. Note the P
 
 ## [DLWorkspace Cluster Deployment](deployment/Readme.md)
 
-* [Azure Cluster](deployment/Azure.md)
+* [Azure Cluster](deployment/Azure/Readme.md)
 * [On prem, Ubuntu Cluster](deployment/Ubuntu.md)
 
 ## Known Issues

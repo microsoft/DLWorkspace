@@ -315,11 +315,7 @@ def acs_generate_azconfig():
     az_tools.config = az_tools.init_config()
     az_tools.config["azure_cluster"]["cluster_name"] = config["cluster_name"]
     az_tools.config["azure_cluster"]["azure_location"] = config["cluster_location"]
-<<<<<<< HEAD
-    az_tools.config = az_tools.update_config(az_tools.config, False)    
-=======
     az_tools.config = az_tools.update_config(az_tools.config, False)
->>>>>>> 50fda2b6e968e441ee033075e7daeb819e49a624
     return az_tools.gen_cluster_config("", False)
 
 def acs_update_azconfig(gen_cluster_config):
