@@ -68,26 +68,30 @@ def az_grp_exist(grpname):
 # Overwrite resource group with location where machines are located
 # If no machines are found, that may be because they are not created, so leave it as it is
 def acs_set_resource_grp(exitIfNotFound):
-    config["acs_resource_group"] = config["resource_group"] # where container service resides
-    bFoundMachines = False
-    if (az_grp_exist(config["resource_group"])):
-        machines = az_cmd("vm list --resource-group=%s" % config["resource_group"])
-        if (len(machines) > 0):
-            bFoundMachines = True
-        if not bFoundMachines:
-            # try child resource group
-            tryGroup = "%s_%s_%s" % (config["resource_group"], config["cluster_name"], config["cluster_location"])
-            print "Grp %s has no matchines trying %s" % (config["resource_group"], tryGroup)
-            if (az_grp_exist(tryGroup)):
-                machines = az_cmd("vm list --resource-group=%s" % tryGroup)
-                if (len(machines) > 0):
-                    # overwrite with group where machines are located
-                    config["resource_group"] = tryGroup
-                    bFoundMachines = True
-    if not bFoundMachines and exitIfNotFound:
-        print "No machines found -- quitting"
-        exit()
-    print "Resource group = %s" % config["resource_group"]
+    if not "acs_resource_group" in config:
+        config["acs_resource_group"] = config["resource_group"] # where container service resides
+    if (not "resource_group_set" in config) or (not config["resource_group_set"]):
+        bFoundMachines = False
+        if (az_grp_exist(config["resource_group"])):
+            machines = az_cmd("vm list --resource-group=%s" % config["resource_group"])
+            if (len(machines) > 0):
+                bFoundMachines = True
+            if not bFoundMachines:
+                # try child resource group
+                tryGroup = "%s_%s_%s" % (config["resource_group"], config["cluster_name"], config["cluster_location"])
+                print "Grp %s has no matchines trying %s" % (config["resource_group"], tryGroup)
+                if (az_grp_exist(tryGroup)):
+                    machines = az_cmd("vm list --resource-group=%s" % tryGroup)
+                    if (len(machines) > 0):
+                        # overwrite with group where machines are located
+                        config["resource_group"] = tryGroup
+                        bFoundMachines = True
+        if bFoundMachines:
+            config["resource_group_set"] = True
+        if not bFoundMachines and exitIfNotFound:
+            print "No machines found -- quitting"
+            exit()
+        print "Resource group = %s" % config["resource_group"]
 
 def acs_get_id(elem):
     elemFullName = elem["id"]
@@ -316,6 +320,11 @@ def acs_generate_azconfig():
     az_tools.config["azure_cluster"]["cluster_name"] = config["cluster_name"]
     az_tools.config["azure_cluster"]["azure_location"] = config["cluster_location"]
     az_tools.config = az_tools.update_config(az_tools.config, False)
+    if not "resource_group" in config:
+        config["resource_group"] = az_tools.config["azure_cluster"]["resource_group_name"]
+    if "resource_group" in config:
+        acs_set_resource_grp(False)
+        az_tools.config["azure_cluster"]["resource_group_name"] = config["resource_group"]
     return az_tools.gen_cluster_config("", False)
 
 def acs_update_azconfig(gen_cluster_config):
@@ -341,7 +350,7 @@ def acs_deploy():
     az_sys(cmd)
 
     cmd = "acs create --orchestrator-type=kubernetes"
-    cmd += " --resource-group=%s" % config["resource_group"]
+    cmd += " --resource-group=%s" % config["acs_resource_group"]
     cmd += " --name=%s" % config["cluster_name"]
     cmd += " --agent-count=%d" % config["worker_node_num"]
     cmd += " --master-count=%d" % config["master_node_num"]

@@ -1928,6 +1928,13 @@ def acs_label_webui():
 			print "Label node: "+nodeName
 		label_webUI(nodeName)
 
+def acs_untaint_nodes():
+	for n in config["kubernetes_master_node"]:
+		nodeName = config["nodenames_from_ip"][n]
+		if verbose:
+			print "Untaint node: "+nodeName
+		run_kubectl(["taint nodes {0} node-role.kubernetes.io/master-".format(nodeName)])
+
 # other config post deploy -- ACS cluster is complete
 # Run prescript, copyfiles, postscript
 def acs_post_deploy():
@@ -1937,7 +1944,10 @@ def acs_post_deploy():
 	# Label nodes
 	ip = get_nodes_from_acs("")
 	acs_label_webui()
-	kubernetes_label_nodes("active", [], args.yes )	
+	kubernetes_label_nodes("active", [], args.yes)
+
+	# Untaint the master nodes
+	acs_untaint_nodes()
 
 	# Copy files, etc.
 	get_nodes_from_acs()
