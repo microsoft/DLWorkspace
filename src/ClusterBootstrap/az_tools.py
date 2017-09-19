@@ -388,57 +388,57 @@ Command:
     parser.add_argument("--infra_node_num", 
         help = "Specify the number of infra nodes, default = " + str(default_config_parameters["azure_cluster"]["infra_node_num"]), 
         action="store", 
-        default=default_config_parameters["azure_cluster"]["infra_node_num"])
+        default=None)
 
 
 
     parser.add_argument("--worker_node_num", 
         help = "Specify the number of worker nodes, default = " + str(default_config_parameters["azure_cluster"]["worker_node_num"]), 
         action="store", 
-        default=default_config_parameters["azure_cluster"]["worker_node_num"])
+        default=None)
 
     parser.add_argument("--azure_location", 
         help = "Specify azure location, default = " + default_config_parameters["azure_cluster"]["azure_location"], 
         action="store", 
-        default=default_config_parameters["azure_cluster"]["azure_location"])
+        default=None)
 
     parser.add_argument("--infra_vm_size", 
         help = "Specify the azure virtual machine sku size for infrastructure node, default = " + default_config_parameters["azure_cluster"]["infra_vm_size"], 
         action="store", 
-        default=default_config_parameters["azure_cluster"]["infra_vm_size"])
+        default=None)
 
     parser.add_argument("--worker_vm_size", 
         help = "Specify the azure virtual machine sku size for worker node, default = " + default_config_parameters["azure_cluster"]["worker_vm_size"], 
         action="store", 
-        default=default_config_parameters["azure_cluster"]["worker_vm_size"])
+        default=None)
 
 
     parser.add_argument("--vm_image", 
         help = "Specify the azure virtual machine image, default = " + default_config_parameters["azure_cluster"]["vm_image"], 
         action="store", 
-        default=default_config_parameters["azure_cluster"]["vm_image"])
+        default=None)
 
 
     parser.add_argument("--vm_storage_sku", 
         help = "Specify the azure storage sku, default = " + default_config_parameters["azure_cluster"]["vm_storage_sku"], 
         action="store", 
-        default=default_config_parameters["azure_cluster"]["vm_storage_sku"])
+        default=None)
 
 
     parser.add_argument("--vnet_range", 
         help = "Specify the azure virtual network range, default = " + default_config_parameters["azure_cluster"]["vnet_range"], 
         action="store", 
-        default=default_config_parameters["azure_cluster"]["vnet_range"])
+        default=None)
 
     parser.add_argument("--default_admin_username", 
         help = "Specify the default admin username of azure virtual machine, default = " + default_config_parameters["azure_cluster"]["default_admin_username"], 
         action="store", 
-        default=default_config_parameters["azure_cluster"]["default_admin_username"])
+        default=None)
 
     parser.add_argument("--file_share_name", 
         help = "Specify the default samba share name on azure stroage, default = " + default_config_parameters["azure_cluster"]["file_share_name"], 
         action="store", 
-        default=default_config_parameters["azure_cluster"]["file_share_name"])
+        default=None)
 
     parser.add_argument("--verbose", "-v", 
         help = "Enable verbose output during script execution", 
