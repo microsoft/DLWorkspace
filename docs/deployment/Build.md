@@ -1,6 +1,6 @@
 # Build ISO (for USB) or docker image (PXE) for DL workspace deployment.
 
-This document describes the procedure to build the deployment image for DL workspace cluster. After the configuration file is [created](Configuration.md), in directory 'src/ClusterBootstrap', run:
+This document describes the procedure to build the deployment image for DL workspace cluster. After the configuration file is [created](configuration/Readme.md), in directory 'src/ClusterBootstrap', run:
 
 ```
 python deploy.py -y build 

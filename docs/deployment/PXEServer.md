@@ -2,7 +2,7 @@
 
 This document describes the procedure to deploy DL workspace cluster via PXE server. **__The procedure will automatically wipe out the system disk and deploy a CoreOS image of DL workspace cluster__** to all machines that are on the same subnet and served by the PXE server. Please proceed with caution. 
 
-1. [Create Configuration file](Configuration.md)
+1. [Create Configuration file](configuration/Readme.md)
 
 2. [Build a bootable image](Build.md).
 

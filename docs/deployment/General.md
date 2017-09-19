@@ -2,7 +2,7 @@
 
 0. [Run Once] The installation program needs certain utilities (such as docker and python). The simplest setup is to use the [development docker](../../DevDocker.md) and run the subsequent command in the development docker. Alternatively, you may choose to run install_prerequisites.sh once to install  utilities.  
 
-1. [Create Configuration file](Configuration.md), and determine important information of the cluster (e.g., cluster name, number of Etcd servers used). Please refer to [Backup/Restore](Backup.md) on instruction to backup/restore cluster configuration. 
+1. [Create Configuration file](configuration/Readme.md), and determine important information of the cluster (e.g., cluster name, number of Etcd servers used). Please refer to [Backup/Restore](Backup.md) on instruction to backup/restore cluster configuration. 
 
 2. Config storage system to be used in the cluster, following instructions in [Storage.md](Storage.md). If you are in Microsoft corp net and just want to test DLWorkspace in **small scale**, you may add the following configurations to config.yaml to use the public NFS server provided by CCS group. 
 

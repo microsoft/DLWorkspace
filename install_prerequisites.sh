@@ -51,5 +51,11 @@ sudo apt-key adv --keyserver packages.microsoft.com --recv-keys 417A0893
 sudo apt-get install apt-transport-https
 sudo apt-get update && sudo apt-get install azure-cli
 
+# Disable Network manager. 
+if [ -f /etc/NetworkManager/NetworkManager.conf ]; then
+	sed "s/^dns=dnsmasq$/#dns=dnsmasq/" /etc/NetworkManager/NetworkManager.conf > /tmp/NetworkManager.conf && sudo mv /tmp/NetworkManager.conf /etc/NetworkManager/NetworkManager.conf
+	sudo service network-manager restart
+fi
+
 
 

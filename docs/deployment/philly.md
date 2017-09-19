@@ -2,7 +2,7 @@
 
 This document describes the procedure to deploy DL workspace on a prior deployed CoreOS cluster (e.g., certain Philly deployment). This document is still evolving. Please contact the author for any question. 
 
-1. [Create Configuration file](Configuration.md)
+1. [Create Configuration file](configuration/Readme.md)
    1. Please copy src/ClusterBootstrap/config_philly.yaml.template to src/ClusterBootstrap/config.yaml, and further fill in various 
    parameters in the config file. 
    2. Please specify the private key used to access the Philly cluster. 

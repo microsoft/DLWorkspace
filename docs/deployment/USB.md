@@ -1,7 +1,7 @@
 # Deployment of DL workspace cluster via USB sticks
 
 This document describes the procedure to build and deploy a small DL workspace cluster via USB sticks. The key procedures are:
-  1. [Create Configuration file](Configuration.md)
+  1. [Create Configuration file](configuration/Readme.md)
   2. [Build a bootable image](Build.md) (ISO/docker image) :
   3. Burn a USB stick (>=1GB):
      You could use [Rufus](https://www.ubuntu.com/download/desktop/create-a-usb-stick-on-windows) tool recommended by Ubuntu or many other tools to burn .iso to a USB stick. If Rufus is used, please use the following options:
