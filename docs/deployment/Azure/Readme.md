@@ -1,6 +1,6 @@
-# Deploy DL workspace cluster on Azure. 
+# Deploy DL Workspace cluster on Azure. 
 
-This document describes the procedure to deploy DL workspace cluster on Azure. We are still improving the deployment procedure on Azure. Please contact the authors if you have encounter deployment issue. 
+This document describes the procedure to deploy DL Workspace cluster on Azure. We are still improving the deployment procedure on Azure. Please contact the authors if you have encounter deployment issue. 
 
 Please note that the procedure below doesn't deploy HDFS/Spark on DLWorkspace cluster on Azure. So Spark job execution is not available on Azure Cluster. 
 

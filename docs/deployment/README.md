@@ -12,7 +12,8 @@ Please setup the dev environment of DL workspace as [this](../DevEnvironment/Rea
 
 DL workspace cluster can be deployed in two forms: 1) [compact deployment](CompactDeployment.md) (target small cluster, as few as 1 machine), and 2) [large production deployment](LargeProductionDeployment.md). The detail deployment procedure depends on the cluster. Here are some specific setup instruction for a selected set of clusters 
 
-## [Azure](Azure.md)
+## [Azure Container Service](ACS/Readme.md)
+## [Azure Cluster](Azure/Readme.md)
 ## [On-Prem](Ubuntu.md)
 
 Additional information on general deployment can be found at [here](General.md).

@@ -32,7 +32,7 @@ azure_cluster:
     "worker_vm_size": "Standard_NC6",
 ``` 
 
-* infra_node_num: should be odd (1, 3 or 5), number of infrastructure node for the deployment. 3 infrastructure node tolerate 1 failure, and 5 infrastructure node tolerate 2 failures. However, more infrastructure nodes (and more failure tolerance) will reduce performance of the node. 
+* infra_node_num: should be odd (1, 3 or 5), number of infrastructure node for the deployment. 3 infrastructure nodes tolerate 1 failure, and 5 infrastructure nodes tolerate 2 failures. However, more infrastructure nodes (and more failure tolerance) will reduce performance of the node. 
 
 * worker_node_num: number of worker node used for deployment. 
 
