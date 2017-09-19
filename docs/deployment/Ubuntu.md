@@ -2,7 +2,7 @@
 
 This document describes the procedure to deploy DL workspace cluster on a Ubuntu Cluster that is on a VLAN with a initial node that is used as a PXE-server for prime the cluster. 
 
-1. Please [create Configuration file](Configuration.md) and build [the relevant deployment key](Build.md).
+1. Please [create Configuration file](configuration/Readme.md) and build [the relevant deployment key](Build.md).
    Please copy config_azure.yaml.template to config.yaml, and fill in the necessary information of the cluster.
 
   You may add the configuration to either config.yaml, or cluster.yaml, with the following entry:

@@ -367,7 +367,7 @@ if __name__ == '__main__':
 Create and manage a Azure VM cluster.
 
 Prerequest:
-* Create azure_cluster_config.yaml according to instruction in docs/deployment/Configuration.md.
+* Create config.yaml according to instruction in docs/deployment/azure/configure.md.
 
 Command:
   create Create an Azure VM cluster based on the parameters in config file. 

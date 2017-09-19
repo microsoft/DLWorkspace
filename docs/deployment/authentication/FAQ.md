@@ -2,7 +2,7 @@
 
 ## I don't see the log in option for (Gmail, Live.com, etc..)
 
-Please check if you have properly configured [authentication](../authentication/Readme.md), and include the authentication option in the [config.yaml](../Configuration.md) file. 
+Please check if you have properly configured [authentication](../authentication/Readme.md), and include the authentication option in the [config.yaml](../configuration/Readme.md) file. 
 
 ## I am the administrator, and when I log in, I got the message "You are not an authorized user to this cluster!"
 
