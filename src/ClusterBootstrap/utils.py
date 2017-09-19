@@ -313,7 +313,8 @@ def execute_restore_and_decrypt(fname, key):
 	os.system("mkdir -p ./deploy/sshkey" )
 	os.system("mkdir -p ./deploy/ssl" )
 	os.system("cp -r %s/sshkey/* ./deploy/sshkey" % backupdir)
-	os.system("cp -r %s/ssl/* ./deploy/ssl" % backupdir)
+	if os.path.exists("%s/ssl" %backupdir):
+		os.system("cp -r %s/ssl/* ./deploy/ssl" % backupdir)
 	os.system("cp %s/clusterID/*.yml ./deploy/" % backupdir)
 	cleanup_command += "rm -rf ./deploy_backup/backup"
 	os.system(cleanup_command)
