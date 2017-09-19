@@ -372,6 +372,7 @@ Prerequest:
 Command:
   create Create an Azure VM cluster based on the parameters in config file. 
   delete Delete the Azure VM cluster. 
+  genconfig Generate configuration files for Azure VM cluster. 
   ''') )
     parser.add_argument("--cluster_name", 
         help = "Specify a cluster name", 

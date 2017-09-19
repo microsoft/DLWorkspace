@@ -2,12 +2,13 @@
 FROM ubuntu:16.04
 MAINTAINER Jin Li <jinlmsft@hotmail.com>
 
+# Software package installation
 RUN apt-get update && apt-get install -y --no-install-recommends \
         apt-utils \
         software-properties-common \
         build-essential \
         cmake \
-        git-all \
+        git \
         curl \
         wget \
         protobuf-compiler \
@@ -21,10 +22,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         vim \
         sudo \
+        git-all \
         sshpass \
-        bison
-
-# Install docker
+        bison \
+        libcurl4-openssl-dev libssl-dev 
 
 RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
 
@@ -33,64 +34,19 @@ RUN add-apt-repository \
    $(lsb_release -cs) \
    stable"
 
-RUN apt-get update && apt-get install docker-ce
+RUN apt-key fingerprint 0EBFCD88
 
-RUN pip install --upgrade pip; 
+# Install docker
+RUN apt-get update && apt-get install -y --no-install-recommends docker-ce
 
-RUN pip install setuptools 
+# PIP installation
+RUN pip install --upgrade pip && pip install setuptools && pip install pyyaml jinja2 flask flask.restful tzlocal pycurl
 
-RUN pip install pyyaml jinja2
-RUN pip install pyodbc flask flask.restful
-
-# Go lang
-
-RUN apt-get install -y  curl golang-go
-
-# Install python for Azure SQL
-
-RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
-
-RUN curl https://packages.microsoft.com/config/ubuntu/16.04/prod.list > /etc/apt/sources.list.d/mssql-release.list
-
-RUN apt-get update; ACCEPT_EULA=Y apt-get install -y msodbcsql=13.1.1.0-1 unixodbc-dev-utf16
-
-#RUN ln -sfn /opt/mssql-tools/bin/sqlcmd-13.0.1.0 /usr/bin/sqlcmd 
-#RUN ln -sfn /opt/mssql-tools/bin/bcp-13.0.1.0 /usr/bin/bcp
-
-# RUN apt-get install -y unixodbc unixodbc-dev
-# RUN apt-get install -y python-scipy
-
-
-
-# en_US.UTF-8 needed to connnect to SQL Azure
-RUN locale-gen en_US.UTF-8
-
-RUN update-locale LANG=en_US.UTF-8
-
-# Go editing tools
-RUN mkdir /opt/go
-ENV GOPATH=/opt/go
-ENV PATH=${PATH}:/opt/go/bin
-
-RUN go get -u github.com/nsf/gocode
-
-RUN go get golang.org/x/tools/cmd/guru
-RUN go build golang.org/x/tools/cmd/guru
-RUN mv guru $(go env GOROOT)/bin
-
-RUN go get github.com/rogpeppe/godef
-RUN go build github.com/rogpeppe/godef
-RUN mv godef $(go env GOROOT)/bin
-
-RUN go get github.com/tools/godep
-
-RUN chmod -R 0777 /opt/go
-
-RUN apt-get update -y; apt-get install -y sshpass
-
-RUN echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ wheezy main" | \
-     sudo tee /etc/apt/sources.list.d/azure-cli.list
+RUN echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ wheezy main" > /etc/apt/sources.list.d/azure-cli.list
 
 RUN apt-key adv --keyserver packages.microsoft.com --recv-keys 417A0893
-RUN apt apt-get update; apt-get install -y apt-transport-https azure-cli
+RUN apt-get update && apt-get install azure-cli
+
+
+
 
