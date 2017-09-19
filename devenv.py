@@ -27,7 +27,7 @@ if __name__ == '__main__':
 	parser.add_argument("-t", "--tag", 
 		help="Tag of the docker build, or [current]", 
 		action = "store", 
-		default = "current" )
+		default = "latest" )
 	parser.add_argument("--nocache", 
 		help="Tag of the docker build, or [current]", 
 		action = "store_true")
