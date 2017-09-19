@@ -354,7 +354,7 @@ def run_command( args, command, nargs, parser ):
         delete_group()
 
     elif command == "genconfig":
-        gen_cluster_config(nargs[0])
+        gen_cluster_config("cluster.yaml")
 
 if __name__ == '__main__':
     # the program always run at the current directory. 
