@@ -60,7 +60,7 @@ def merge_config( config1, config2, verbose ):
             if isinstance( config1[entry], dict): 
                 if verbose:
                     print ("Merge entry %s " % entry )
-                merge_config( config1[entry], config2[entry] )
+                merge_config( config1[entry], config2[entry], verbose )
             else:
                 if verbose:
                     print ("Entry %s == %s " % (entry, config2[entry] ) )
