@@ -358,8 +358,8 @@ def run_command( args, command, nargs, parser ):
 
     elif command == "delete":
         response = raw_input ("!!! WARNING !!! You are performing a dangerous operation that will permanently delete the entire Azure DL Workspace cluster. Please type (DELETE) in ALL CAPITALS to confirm the operation ---> ")
-		if response == "DELETE":
-			delete_group()
+        if response == "DELETE":
+            delete_group()
 
     elif command == "genconfig":
         gen_cluster_config("cluster.yaml")
