@@ -54,14 +54,20 @@ def init_config():
         config[ k ] = v
     return config
 
-def merge_config( config1, config2 ):
+def merge_config( config1, config2, verbose ):
     for entry in config2:
         if entry in config1:
             if isinstance( config1[entry], dict): 
+                if verbose:
+                    print ("Merge entry %s " % entry )
                 merge_config( config1[entry], config2[entry] )
             else:
+                if verbose:
+                    print ("Entry %s == %s " % (entry, config2[entry] ) )
                 config1[entry] = config2[entry]
         else:
+            if verbose:
+                print ("Entry %s == %s " % (entry, config2[entry] ) )
             config1[entry] = config2[entry]
 
 def update_config(config, genSSH=True):
@@ -460,7 +466,7 @@ Command:
     if os.path.exists(config_cluster):
         tmpconfig = yaml.load(open(config_cluster)) 
         if tmpconfig is not None:
-            merge_config(config, tmpconfig)
+            merge_config(config, tmpconfig, verbose)
 
     config_file = os.path.join(dirpath,"config.yaml")
     if os.path.exists(config_file):
@@ -468,7 +474,7 @@ Command:
         if tmpconfig is not None and "cluster_name" in tmpconfig:
             config["azure_cluster"]["cluster_name"] = tmpconfig["cluster_name"]
         if tmpconfig is not None and "azure_cluster" in tmpconfig:
-            merge_config( config["azure_cluster"], tmpconfig["azure_cluster"][config["azure_cluster"]["cluster_name"]] )
+            merge_config( config["azure_cluster"], tmpconfig["azure_cluster"][config["azure_cluster"]["cluster_name"]], verbose )
             
     if (args.cluster_name is not None):
         config["azure_cluster"]["cluster_name"] = args.cluster_name
