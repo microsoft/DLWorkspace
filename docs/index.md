@@ -11,11 +11,11 @@ DL Workspace is still in pre-release alpha stage. If you encounter issues in eit
 
 Here is a few short video clips that can quickly explain DL Workspace. Note the PPT link will only work in github.com repo, not in github.com pages. 
 
-* [DL Workspace: CNTK](https://youtu.be/3O0uwUwPRho) [(PPT)](https://github.com/Microsoft/DLWorkspace/raw/master/docs/Presentation/Video/Running-CNTK.pptx)
-* [DL Workspace: TensorFlow](https://youtu.be/Xa7exVurUmE) [(PPT)](https://github.com/Microsoft/DLWorkspace/raw/master/docs/Presentation/Video/Running TensorFlow.pptx)
-* [DL Workspace: Spark](https://youtu.be/9kV9_w-eQYY) [(PPT)](https://github.com/Microsoft/DLWorkspace/raw/master/docs/Presentation/Video/Running Spark.pptx)
-* [Installation-Azure](https://youtu.be/inDcl85-TRw) [(PPT)](https://github.com/Microsoft/DLWorkspace/raw/master/docs/Presentation/Video/Installation-Azure.pptx)
-* [Installation-On-Prem](https://youtu.be/T_00DrSxl70) [(PPT)](https://github.com/Microsoft/DLWorkspace/raw/master/docs/Presentation/Video/Installation-On-Perm.pptx)
+* [DL Workspace: CNTK](https://youtu.be/3O0uwUwPRho) [(PPT)](Presentation/Video/Running-CNTK.pptx)
+* [DL Workspace: TensorFlow](https://youtu.be/Xa7exVurUmE) [(PPT)](Presentation/Video/Running-TensorFlow.pptx)
+* [DL Workspace: Spark](https://youtu.be/9kV9_w-eQYY) [(PPT)](Presentation/Video/Running-Spark.pptx)
+* [Installation-Azure](https://youtu.be/inDcl85-TRw) [(PPT)](Presentation/Video/Installation-Azure.pptx)
+* [Installation-On-Prem](https://youtu.be/T_00DrSxl70) [(PPT)](Presentation/Video/Installation-On-Prem.pptx)
 
 # [](#header-3)Documentations
 
