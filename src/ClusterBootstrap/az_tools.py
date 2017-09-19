@@ -467,7 +467,9 @@ Command:
         tmpconfig = yaml.load(open(config_file)) 
         if tmpconfig is not None and "cluster_name" in tmpconfig:
             config["azure_cluster"]["cluster_name"] = tmpconfig["cluster_name"]
-
+        if tmpconfig is not None and "azure_cluster" in tmpconfig:
+            merge_config( config["azure_cluster"], tmpconfig["azure_cluster"][config["azure_cluster"]["cluster_name"]] )
+            
     if (args.cluster_name is not None):
         config["azure_cluster"]["cluster_name"] = args.cluster_name
 
