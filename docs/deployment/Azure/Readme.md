@@ -4,7 +4,7 @@ This document describes the procedure to deploy DL Workspace cluster on Azure. W
 
 Please note that the procedure below doesn't deploy HDFS/Spark on DLWorkspace cluster on Azure. So Spark job execution is not available on Azure Cluster. 
 
-0. Follow [this document](../DevEnvironment/README.md) to setup the dev environment of DLWorkspace. Login to your Azure subscription on your dev machine via:
+0. Follow [this document](../../DevEnvironment/README.md) to setup the dev environment of DLWorkspace. Login to your Azure subscription on your dev machine via:
 
 ```
 az login
