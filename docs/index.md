@@ -21,8 +21,8 @@ Here is a few short video clips that can quickly explain DL Workspace. Note the 
 
 ## [DLWorkspace Cluster Deployment](deployment/Readme.md)
 
+* [Azure Cluster](deployment/Azure/Readme.md) [Recommended]
 * [Azure Container Service](deployment/ACS/Readme.md)
-* [Azure Cluster](deployment/Azure/Readme.md)
 * [On prem, Ubuntu Cluster](deployment/Ubuntu.md)
 
 ## Known Issues

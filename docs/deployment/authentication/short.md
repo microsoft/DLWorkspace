@@ -1,0 +1,1 @@
+We have preconfigured the authentication for Microsoft corporate usage. If you are building a cluster for people other than Microsoft employees, you will also need to configure [Authentication](Readme.md). 
