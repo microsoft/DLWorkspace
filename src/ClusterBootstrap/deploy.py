@@ -2148,6 +2148,7 @@ def fileshare_install():
 			# when started, ACS machines don't have PIP which is needed to install pyyaml
 			# pyyaml is needed by auto_share.py to load mounting.yaml
 			remotecmd += "sudo apt-get -y install python-pip; "
+			remotecmd += "sudo apt-get -y install python-yaml; "
 			remotecmd += "pip install pyyaml; "
 		filesharetype = {}
 		# In service, the mount preparation install relevant software on remote machine. 
