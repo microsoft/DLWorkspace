@@ -32,3 +32,7 @@ It seems that sometime the browser (Edge, Chrome) cache another identity not int
     ```
 
     Please check the docker image of the job you are running. Sometime, the iPython (or SSH server) hasn't been properly started, which caused the endpoint to be not accessible.  
+
+## I notice that my azure command is failing. 
+
+Azure CLI may time out after inactivity. You may need to re-login via 'az login'. 

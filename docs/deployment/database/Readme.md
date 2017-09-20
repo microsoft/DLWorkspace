@@ -23,13 +23,18 @@ Add the following section to config.yaml.
 azure_cluster:
   infra_node_num: 0
   worker_node_num: 0
-
 ```
 
+Use 'az login' to login to your azure create. Create Azure resource group and azure database via:
 
+```
+./az_tools.py create
+./az_tools.py genconfig 
+```
 
+3. Other database. 
 
-The easist way to setup SQL Azure for DL Workspace usage is to follow the operation in Azure cluster deployment, but specify the number of infrastructure node and worker node to be 0. Pleaes 
+It is possible to use other database provider, e.g., MySQL. Currently, database is used in WebUI (consumed via Entityframework .Net Core ) and restful API (comsumed via python). Both programming language support connection to other database, e.g., MySQL. We encourage contribution in this space. 
 
 
 

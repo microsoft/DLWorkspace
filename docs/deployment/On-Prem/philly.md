@@ -1,6 +1,6 @@
 # Deploy DL workspace cluster on a cluster that is already deployed with CoreOS (e.g., Philly)
 
-This document describes the procedure to deploy DL workspace on a prior deployed CoreOS cluster (e.g., certain Philly deployment). This document is still evolving. Please contact the author for any question. 
+This document describes the procedure to deploy DL workspace on a prior deployed CoreOS cluster (e.g., certain Philly deployment). This document is still evolving. Please contact the author for any question. Our latest deployment is more focused on Ubuntu, so this portion may be a bit outdated. 
 
 1. [Create Configuration file](configuration/Readme.md)
    1. Please copy src/ClusterBootstrap/config_philly.yaml.template to src/ClusterBootstrap/config.yaml, and further fill in various 
