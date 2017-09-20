@@ -6,7 +6,7 @@ DL Workspace is still in pre-release alpha stage. If you encounter issues in eit
 
 # Development environment.
 
-Please setup the dev environment of DL workspace as [this](../DevEnvironment/Readme.Md). 
+Please setup the dev environment of DL workspace as [this](../DevEnvironment/Readme.md). 
 
 # Detailed Step-by-step setup insturction for a selected set of clusters. 
 
