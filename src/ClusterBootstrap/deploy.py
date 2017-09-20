@@ -1386,19 +1386,22 @@ def get_cni_binary():
 	os.system("tar -zxvf ./deploy/bin/cni-amd64-v0.5.2.tgz -C ./deploy/bin")
 
 
-def get_kubectl_binary():
-	get_hyperkube_docker()
+def get_kubectl_binary(force = False):
+	get_hyperkube_docker(force = force)
 	#os.system("mkdir -p ./deploy/bin")
 	urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet", "./deploy/bin/kubelet-old")
 	#urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubectl", "./deploy/bin/kubectl")
 	#os.system("chmod +x ./deploy/bin/*")
 	get_cni_binary()
 
-def get_hyperkube_docker() :
+def get_hyperkube_docker(force = False) :
 	os.system("mkdir -p ./deploy/bin")
-	copy_from_docker_image(config['kubernetes_docker_image'], "/hyperkube", "./deploy/bin/hyperkube")
-	copy_from_docker_image(config['kubernetes_docker_image'], "/kubelet", "./deploy/bin/kubelet")
-	copy_from_docker_image(config['kubernetes_docker_image'], "/kubectl", "./deploy/bin/kubectl")
+	if force or not os.path.exists("./deploy/bin/hyperkube"):
+		copy_from_docker_image(config['kubernetes_docker_image'], "/hyperkube", "./deploy/bin/hyperkube")
+	if force or not os.path.exists("./deploy/bin/kubelet"):
+		copy_from_docker_image(config['kubernetes_docker_image'], "/kubelet", "./deploy/bin/kubelet")
+	if force or not os.path.exists("./deploy/bin/kubectl"):
+		copy_from_docker_image(config['kubernetes_docker_image'], "/kubectl", "./deploy/bin/kubectl")
 	# os.system("cp ./deploy/bin/hyperkube ./deploy/bin/kubelet")
 	# os.system("cp ./deploy/bin/hyperkube ./deploy/bin/kubectl")
 
@@ -3273,7 +3276,10 @@ def run_command( args, command, nargs, parser ):
 	
 	if command == "restore":
 		utils.restore_keys(nargs)
-		#get_kubectl_binary()
+		if os.path.exists("./deploy/acs_kubeclusterconfig"):
+			acs_tools.acs_get_config()
+		bForce = args.force if args.force is not None else False
+		get_kubectl_binary(force=args.force)
 		exit()
 	
 	# Cluster Config
