@@ -4,29 +4,29 @@ This document describes the procedure to deploy DL Workspace cluster on Azure. W
 
 Please note that the procedure below doesn't deploy HDFS/Spark on DLWorkspace cluster on Azure. So Spark job execution is not available on Azure Cluster. 
 
-0. Follow [this document](../../DevEnvironment/README.md) to setup the dev environment of DLWorkspace. Login to your Azure subscription on your dev machine via:
+1. Follow [this document](../../DevEnvironment/README.md) to setup the dev environment of DLWorkspace. Login to your Azure subscription on your dev machine via:
 
 ```
 az login
 ```
 
-1. Please [configure](configure.md) your azure cluster. 
+2. Please [configure](configure.md) your azure cluster. 
 
-2. Initial cluster and generate certificates and keys:
+3. Initial cluster and generate certificates and keys:
 ```
 ./deploy.py -y build
 ```
-3. Create Azure Cluster:
+4. Create Azure Cluster:
 ```
 ./az_tools.py create
 ```
 
-4. Generate cluster config file:
+5. Generate cluster config file:
 ```
 ./az_tools.py genconfig 
 ```
  
-5. Run Azure deployment script block:
+6. Run Azure deployment script block:
   ```
   ./deploy.py --verbose scriptblocks azure 
   ```
@@ -62,6 +62,6 @@ az login
   ./deploy.py kubernetes start jobmanager restfulapi webportal
   ```
 
-6. If you run into a deployment issue, please check [here](FAQ.md) first. 
+7. If you run into a deployment issue, please check [here](FAQ.md) first. 
 
 
