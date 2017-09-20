@@ -316,7 +316,7 @@ def execute_restore_and_decrypt(fname, key):
 	os.system("mkdir -p ./deploy/ssl" )
 	os.system("cp -r %s/sshkey/* ./deploy/sshkey" % backupdir)
 	if os.path.exists("%s/ssl" %backupdir):
-		os.system("cp -r %s/ssl/* ./deploy/ssl" % backupdir)
+		os.system("cp -r %s/ssl ./deploy/ssl" % backupdir)
 	os.system("cp %s/clusterID/*.yml ./deploy/" % backupdir)
 	if os.path.exists("%s/acs_kubeclusterconfig" %backupdir):
 		os.system("cp -r %s/acs_kubeclusterconfig ./deploy/" % backupdir)
