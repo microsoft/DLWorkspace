@@ -14,11 +14,11 @@ Cluster name must be unique, and should be specified as:
 cluster_name: [your cluster name]
 ```
 
-<!---
+
 ### Authentication
 If you are not building a cluster for Microsoft employee usage, you will also need to configure [Authentication](../authentication/Readme.md). 
--->
-{% include_relative ../authentication/short.md %}
+
+{% include_relative "../authentication/short.md" %}
 
 ### Additional configuration. 
 

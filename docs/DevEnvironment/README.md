@@ -31,10 +31,16 @@ and perform the rest of the deployment work. Please note that you __can not__ us
 
 ## Use development docker (in Linux/Unix, and Docker for Windows) and clone the repo in the docker
 
-You may run the development docker:
+You may run the development docker as:
 
   ```
   docker run -ti jinl/dlworkspacedevdocker /bin/bash
+  ```
+
+On __Docker for Windows__, the development docker needs to be run as follows to access the docker daemon run on host windows. 
+
+  ```
+  docker run -v //var/run/docker.sock:/var/run/docker.sock -ti jinl/dlworkspacedevdocker /bin/bash
   ```
 
 Once the docker started, you can go to the folder
