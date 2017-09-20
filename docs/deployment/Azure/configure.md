@@ -18,8 +18,6 @@ cluster_name: [your cluster name]
 ### Authentication
 If you are not building a cluster for Microsoft employee usage, you will also need to configure [Authentication](../authentication/Readme.md). 
 
-{% include_relative "../authentication/short.md" %}
-
 ### Additional configuration. 
 
 You may provide/change the specification of the deployed Azure cluster by adding the following information on config.yaml file:
