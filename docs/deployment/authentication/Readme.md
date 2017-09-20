@@ -6,5 +6,5 @@ Please find configuration of a number of provides below.
 
 * [Microsoft Corporation](microsoft.md)
 * [Gmail](gmail.md)
-* [Live.com](live.com)
+* [Live.com](live.md)
 
