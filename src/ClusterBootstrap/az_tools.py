@@ -352,18 +352,14 @@ def gen_cluster_config(output_file_name, output_file=True):
 
     return cc
 
-def delete_cluster():
-    print "!!! WARNING !!! Resource group {0} will be deleted".format(config["azure_cluster"]["resource_group_name"])
-    response = raw_input ("!!! WARNING !!! You are performing a dangerous operation that will permanently delete the entire Azure DL Workspace cluster. Please type (DELETE) in ALL CAPITALS to confirm the operation ---> ")
-    if response == "DELETE":
-        delete_group()
-
 def run_command( args, command, nargs, parser ):
     if command =="create":
         create_cluster()
 
     elif command == "delete":
-        delete_cluster()
+        response = raw_input ("!!! WARNING !!! You are performing a dangerous operation that will permanently delete the entire Azure DL Workspace cluster. Please type (DELETE) in ALL CAPITALS to confirm the operation ---> ")
+        if response == "DELETE":
+            delete_group()
 
     elif command == "genconfig":
         gen_cluster_config("cluster.yaml")
