@@ -1,6 +1,6 @@
 # Frequently Asked Questions (FAQ) for ACS Deployment. 
 
-{% include_relative ../Azure/CommonFAQ.md %}
+{% include_relative "../Azure/CommonFAQ.md" %}
 
 ## The deployment script returns with error 
 
