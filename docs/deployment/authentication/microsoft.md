@@ -9,10 +9,16 @@ Please log onto the WinBind server, and check the gid for security groups 'aaa',
 please include the following information in the 'config.yaml' file:
 
 ```
-WebUIauthorizedGroups : ['AAA', 'BBB' ]
-WebUIadminGroups : ['CCC','DDD']
+WebUIauthorizedGroups : ['AAA@microsoft.com', 'BBB@microsoft.com' ]
+WebUIadminGroups : ['CCC@microsoft.com','DDD@microsoft.com']
 WebUIregisterGroups: [ 'MicrosoftUsers' ]
 DeployAuthentications : ["Corp"]
+```
+
+If you are deploying on Azure, either in Azure Cluster mode or ACS mode, please set:
+
+```
+WinbindServers: []
 ```
 
 DeployAuthentications : ["Corp"] turns on OpenID Connect authentication for Microsoft Corporate users. We have already setup OpenID Connect endpoint across most of Microsoft and Azure regions. Please contact the authors if you observe that OpenID Connect doesn't work for you. 

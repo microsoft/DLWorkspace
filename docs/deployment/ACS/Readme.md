@@ -8,9 +8,11 @@ This document describes the procedure to deploy DL Workspace cluster on ACS. We 
 az login
 ```
 
-2. Please [configure](configure.md) your ACS cluster. 
+2. Please [configure](configure.md) your ACS cluster.
 
-3. Running deployment script on the dev machine under src/ClusterBootstrap, as follows:
+3. Set proper [authentication](../authentication.md).
+
+4. Running deployment script on the dev machine under src/ClusterBootstrap, as follows:
 
 ```
 ./deploy.py acs
@@ -53,4 +55,4 @@ The deployment script executes the following commands in sequence.
     ./deploy.py acs restartwebui
     ```
 
-4. If you run into a deployment issue, please check [here](FAQ.md) first. 
+5. If you run into a deployment issue, please check [here](FAQ.md) first. 

@@ -50,7 +50,7 @@ Authentications:
 
 DeployAuthentications : ["Google"]
 
-"WinbindServers": []
+WinbindServers: []
 ```
 
 Value ccccc defines the gid of the users. Value aaaaa and bbbbb defines the ranges of the uid of the users. 

@@ -1,8 +1,13 @@
 # Deploy DL workspace cluster on Ubuntu. 
 
-This document describes the procedure to deploy DL workspace cluster on a Ubuntu Cluster that is on a VLAN with a initial node that is used as a PXE-server for prime the cluster. 
+This document describes the procedure to deploy DL workspace cluster on a single Ubuntu node. The target deployment node can be either your local machine, or a remote node. 
 
 1. [Run Once] Setup [development environment](../../DevEnvironment/Readme.md).  
+
+2. Please make sure that the deployment node satisfy the following:
+   * We assume that it is Ubuntu OS, preferably 16.04
+   * It has a "core" account that you can [ssh into](https://www.ssh.com/ssh/copy-id)
+   * The "core" account can [sudo](https://linuxconfig.org/sudo-install-usage-and-sudoers-config-file-basics) to gain root priviledge. Please follow the instruction to setup sudo without password. 
 
 2. [Configuration the cluster](../configuration/Readme.md), and determine important information of the cluster (e.g., cluster name, number of Etcd servers used). Please refer to [Backup/Restore](../Backup.md) on instruction to backup/restore cluster configuration. 
 
@@ -64,7 +69,7 @@ This document describes the procedure to deploy DL workspace cluster on a Ubuntu
   ```
   ./deploy.py -y kubernetes uncordon
   ```
-  Works now will be scheduled on the master node. If you stop here, you will have a fully functional kubernete cluster. Thus, part of DL Workspace setup can be considered automatic procedure to setup a kubernete cluster. You don't need shared file system or database for kubernete cluster operation. 
+  Works now will be scheduled on the master node. 
   
 12. [optional] Configure, setup and mount [GlusterFS](../Storage/GlusterFS.md)
 13. [Optional] Configure, setup and mount [HDFS](../Storage/hdfs.md)

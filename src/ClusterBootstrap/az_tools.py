@@ -291,7 +291,7 @@ def create_cluster():
         create_vm(vmname, True)
 
 def gen_cluster_config(output_file_name, output_file=True):
-
+    bSQLOnly = (config["azure_cluster"]["infra_node_num"]<=0)
     cmd = """
         az storage account show-connection-string \
             -n %s \
@@ -312,21 +312,24 @@ def gen_cluster_config(output_file_name, output_file=True):
 
     cc = {}
     cc["cluster_name"] = config["azure_cluster"]["cluster_name"]
-    cc["etcd_node_num"] = config["azure_cluster"]["infra_node_num"]
+    if not bSQLOnly:
+        cc["etcd_node_num"] = config["azure_cluster"]["infra_node_num"]
 
     cc["sqlserver-hostname"] = "tcp:%s.database.windows.net" % config["azure_cluster"]["sql_server_name"]
     cc["sqlserver-username"] = config["azure_cluster"]["sql_admin_name"]
     cc["sqlserver-password"] = config["azure_cluster"]["sql_admin_password"]
     cc["sqlserver-database"] = config["azure_cluster"]["sql_database_name"]
     cc["admin_username"] = config["azure_cluster"]["default_admin_username"]
-    cc["workFolderAccessPoint"] = "file://%s.file.core.windows.net/%s/work/" % (config["azure_cluster"]["storage_account_name"],config["azure_cluster"]["file_share_name"])
-    cc["dataFolderAccessPoint"] = "file://%s.file.core.windows.net/%s/storage/" % (config["azure_cluster"]["storage_account_name"],config["azure_cluster"]["file_share_name"])
-    cc["smbUsername"] = file_share_account_name
-    cc["smbUserPassword"] = file_share_key
+    if not bSQLOnly:
+        cc["workFolderAccessPoint"] = "file://%s.file.core.windows.net/%s/work/" % (config["azure_cluster"]["storage_account_name"],config["azure_cluster"]["file_share_name"])
+        cc["dataFolderAccessPoint"] = "file://%s.file.core.windows.net/%s/storage/" % (config["azure_cluster"]["storage_account_name"],config["azure_cluster"]["file_share_name"])
+        cc["smbUsername"] = file_share_account_name
+        cc["smbUserPassword"] = file_share_key
     cc["useclusterfile"] = True
     cc["deploydockerETCD"] = False
     cc["platform-scripts"] = "ubuntu"
     cc["basic_auth"] = "%s,admin,1000" % uuid.uuid4().hex[:7]
+    if not bSQLOnly:
     cc["network"] = {"domain":"%s.cloudapp.azure.com" % config["azure_cluster"]["azure_location"]}
     cc["machines"] = {}
     for i in range(int(config["azure_cluster"]["infra_node_num"])):
@@ -335,15 +338,17 @@ def gen_cluster_config(output_file_name, output_file=True):
     for i in range(int(config["azure_cluster"]["worker_node_num"])):
         vmname = "%s-worker%02d" % (config["azure_cluster"]["cluster_name"], i+1)
         cc["machines"][vmname]= {"role": "worker"}
-    cc["WinbindServers"] = []
-    cc["WebUIauthorizedGroups"] = ['MicrosoftUsers']
-    cc["mountpoints"] = {"rootshare":{}}
-    cc["mountpoints"]["rootshare"]["type"] = "azurefileshare"
-    cc["mountpoints"]["rootshare"]["accountname"] = config["azure_cluster"]["storage_account_name"]
-    cc["mountpoints"]["rootshare"]["filesharename"] = config["azure_cluster"]["file_share_name"]
-    cc["mountpoints"]["rootshare"]["mountpoints"] = ""
-    if file_share_key is not None:
-        cc["mountpoints"]["rootshare"]["accesskey"] = file_share_key
+    if not bSQLOnly:
+        # Require explicit authorization setting. 
+        # cc["WinbindServers"] = []
+        # cc["WebUIauthorizedGroups"] = ['MicrosoftUsers']
+        cc["mountpoints"] = {"rootshare":{}}
+        cc["mountpoints"]["rootshare"]["type"] = "azurefileshare"
+        cc["mountpoints"]["rootshare"]["accountname"] = config["azure_cluster"]["storage_account_name"]
+        cc["mountpoints"]["rootshare"]["filesharename"] = config["azure_cluster"]["file_share_name"]
+        cc["mountpoints"]["rootshare"]["mountpoints"] = ""
+        if file_share_key is not None:
+            cc["mountpoints"]["rootshare"]["accesskey"] = file_share_key
 
     if output_file:
         print yaml.dump(cc, default_flow_style=False)

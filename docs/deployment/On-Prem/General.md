@@ -33,6 +33,7 @@ These are the general steps to deploy a DL Workspace cluster.
     ```
     deploy.py -y updateworker
     ```
+    If you stop here, you will have a fully functional kubernete cluster. Thus, part of DL Workspace setup can be considered automatic procedure to setup a kubernete cluster. You don't need shared file system or database for kubernete cluster operation. 
 
 9. **__Static IP:__** Static IP/DNS name are strongly recommended for master and Etcd server, especially if you desire High Availability (HA) operation. Please contact your IT department to setup static IP for the master and Etcd server. With static IP, the DL workspace can operate uninterruptedly. 
 
