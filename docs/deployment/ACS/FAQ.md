@@ -25,10 +25,10 @@ It seems that sometime the browser (Edge, Chrome) cache another identity not int
 
     It seems that ACS creation fails from time to time. Please try to rerun the script. If things repeat, please consider to use [Azure Cluster](../Azure/Readme.md) deployment first till we investigate and fix the issue. 
 
-## I have launched a GPU job (e.g., TensorFlow-iPython). However, I am unable to access the endpoint with error 
+## I have launched a job (e.g., TensorFlow-iPython-GPU). However, I am unable to access the endpoint with error 
 
     ```This site can’t be reached
     k8s-agent-d544f279-0.northcentralus.cloudapp.azure.com refused to connect.
     ```
 
-    We have noticed this endpoint access problem with ACS, particular with GPU jobs. At this moment, we are still investigating what is the cause of the issue. We particularly observe that the endpoint of a CPU job is accessible, while the endpoint of a GPU job is not, even both job are scheduled on the same VM with the same networking rule. 
+    Please check the docker image of the job you are running. Sometime, the iPython (or SSH server) hasn't been properly started, which caused the endpoint to be not accessible.  
