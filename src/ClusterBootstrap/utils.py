@@ -314,12 +314,12 @@ def execute_restore_and_decrypt(fname, key):
 	os.system("cp -v %s/*.yaml ." % (backupdir) )
 	os.system("mkdir -p ./deploy/sshkey" )
 	os.system("mkdir -p ./deploy/ssl" )
-	os.system("cp -rv %s/sshkey/* ./deploy/sshkey" % backupdir)
+	os.system("cp -r %s/sshkey/* ./deploy/sshkey" % backupdir)
 	if os.path.exists("%s/ssl/kubelet" %backupdir):
-		os.system("cp -rv %s/ssl/* ./deploy/ssl" % backupdir)
-	os.system("cp -v %s/clusterID/*.yml ./deploy/" % backupdir)
+		os.system("cp -r %s/ssl/* ./deploy/ssl" % backupdir)
+	os.system("cp %s/clusterID/*.yml ./deploy/" % backupdir)
 	if os.path.exists("%s/acs_kubeclusterconfig" %backupdir):
-		os.system("cp -rv %s/acs_kubeclusterconfig ./deploy/" % backupdir)
+		os.system("cp -r %s/acs_kubeclusterconfig ./deploy/" % backupdir)
 	cleanup_command += "rm -rf ./deploy_backup/backup"
 	os.system(cleanup_command)
 
