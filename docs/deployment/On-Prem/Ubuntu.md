@@ -8,7 +8,7 @@ This document describes the procedure to deploy DL workspace cluster on a Ubuntu
 
 3. Configure and setup the [databased](../database/Readme.md) used in the cluster. 
 
-4. Config shared file system to be used in the cluster, following instructions in [Storage.md](../Storage/Readme.md) and the [configuration](../Storage/configure.md).
+4. Config shared file system to be used in the cluster, following instructions in [Storage](../Storage/Readme.md) and the [configuration](../Storage/configure.md).
 
 5. Configure the information of the servers used in the cluster. Please write the following entries in config.yaml. 
 
