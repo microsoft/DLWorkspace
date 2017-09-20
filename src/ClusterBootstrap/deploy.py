@@ -813,7 +813,10 @@ def create_cluster_id():
 		print "Cluster ID is " + config["clusterId"]
 
 def add_acs_config(command):
-	if (command=="acs" or os.path.exists("./deploy/"+config["acskubeconfig"])):
+	if (command=="kubectl" and os.path.exists("./deploy/"+config["acskubeconfig"])):
+		# optimize for faster execution
+		config["isacs"] = True
+	elif (command=="acs" or os.path.exists("./deploy/"+config["acskubeconfig"])):
 		config["isacs"] = True
 		create_cluster_id()
 
@@ -2962,13 +2965,13 @@ def update_config_nodes():
 
 # Running a kubectl commands. 
 def run_kube( prog, commands ):
-	nodes = get_ETCD_master_nodes(config["clusterId"])
-	master_node = random.choice(nodes)
 	one_command = " ".join(commands)
 	kube_command = ""
 	if (config["isacs"]):
 		kube_command = "%s --kubeconfig=./deploy/%s %s" % (prog, config["acskubeconfig"], one_command)
 	else:
+		nodes = get_ETCD_master_nodes(config["clusterId"])
+		master_node = random.choice(nodes)
 		kube_command = ("%s --server=https://%s:%s --certificate-authority=%s --client-key=%s --client-certificate=%s %s" % (prog, master_node, config["k8sAPIport"], "./deploy/ssl/ca/ca.pem", "./deploy/ssl/kubelet/apiserver-key.pem", "./deploy/ssl/kubelet/apiserver.pem", one_command) )
 	if verbose:
 		print kube_command
