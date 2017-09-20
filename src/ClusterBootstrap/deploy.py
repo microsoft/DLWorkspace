@@ -3276,11 +3276,6 @@ def run_command( args, command, nargs, parser ):
 	
 	if command == "restore":
 		utils.restore_keys(nargs)
-		if os.path.exists("./deploy/acs_kubeclusterconfig"):
-			acs_tools.acs_get_config()
-		bForce = args.force if args.force is not None else False
-		get_kubectl_binary(force=args.force)
-		exit()
 	
 	# Cluster Config
 	config_cluster = os.path.join(dirpath,"cluster.yaml")
@@ -3327,6 +3322,15 @@ def run_command( args, command, nargs, parser ):
 	
 	if verbose: 
 		print "deploy " + command + " " + (" ".join(nargs))
+
+	if command == "restore":
+		# Second part of restore, after config has been read.
+		if os.path.exists("./deploy/acs_kubeclusterconfig"):
+			acs_tools.acs_get_config()
+		bForce = args.force if args.force is not None else False
+		get_kubectl_binary(force=args.force)
+		exit()
+
 
 	if command =="clean":
 		clean_deployment()
