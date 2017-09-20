@@ -4,7 +4,7 @@ This document describes the procedure to deploy DL workspace cluster on a Ubuntu
 
 1. [Run Once] Setup [development environment](../../DevEnvironment/Readme.md).  
 
-2. [Configuration the cluster](configuration/Readme.md), and determine important information of the cluster (e.g., cluster name, number of Etcd servers used). Please refer to [Backup/Restore](Backup.md) on instruction to backup/restore cluster configuration. 
+2. [Configuration the cluster](../configuration/Readme.md), and determine important information of the cluster (e.g., cluster name, number of Etcd servers used). Please refer to [Backup/Restore](../Backup.md) on instruction to backup/restore cluster configuration. 
 
 3. Configure and setup the [databased](../database/Readme.md) used in the cluster. 
 
@@ -66,9 +66,9 @@ This document describes the procedure to deploy DL workspace cluster on a Ubuntu
   ```
   Works now will be scheduled on the master node. 
   
-12. [optional] Configure, setup and mount [GlusterFS](GlusterFS.md)
-13. [Optional] Configure, setup and mount [HDFS](hdfs.md)
-14. [Optional] Setup [Spark](spark.md)
+12. [optional] Configure, setup and mount [GlusterFS](../Storage/GlusterFS.md)
+13. [Optional] Configure, setup and mount [HDFS](../Storage/hdfs.md)
+14. [Optional] Setup [Spark](../Storage/spark.md)
 
 15. Mount shared file system
   ```
