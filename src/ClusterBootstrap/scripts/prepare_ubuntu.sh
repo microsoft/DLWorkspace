@@ -13,6 +13,10 @@ sudo apt-get install -y --no-install-recommends \
         wget \
         python-dev \
         python-pip \
+        python-yaml \
+        python-jinja2 \
+        python-argparse \
+        python-setuptools \
         apt-transport-https \
         ca-certificates \
         vim \
@@ -33,8 +37,6 @@ curl -q https://get.docker.com/ | sudo bash
 fi
 
 sudo pip install --upgrade pip
-sudo pip install setuptools
-sudo pip install pyyaml jinja2 argparse
 
 sudo usermod -aG docker $USER
 

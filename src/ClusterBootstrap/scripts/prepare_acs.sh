@@ -4,6 +4,13 @@ sudo apt-get update
 sudo apt-get install -y gcc
 sudo apt-get install -y make
 sudo apt-get install -qqy linux-headers-`uname -r`
+sudo apt-get install -y python-dev \
+        python-pip \
+        python-yaml \
+        python-jinja2 \
+        python-argparse \
+        python-setuptools \
+        apt-transport-https 
 
 wget -P /tools http://us.download.nvidia.com/XFree86/Linux-x86_64/381.22/NVIDIA-Linux-x86_64-381.22.run
 chmod +x /tools/NVIDIA-Linux-x86_64-381.22.run

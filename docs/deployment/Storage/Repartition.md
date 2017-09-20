@@ -1,18 +1,18 @@
-# Repartition 
+# Partition disks in DL Workspace
 
-You may use 'deploy.py' to manage the partition of the data drives in the cluster. 
+DL Workspace provides some scripts tool for you to partition the data-disk on the clusters. However, you can use your own favorite management tools for the task. Alternatively, you can use the [distributed script tool](../Scripts/Readme.md) provided by DL Workspace. 
 
-0. You may specify the data-disk on the clsuter node by modifying the configuration parameter, the information is specified via regular expression. 
+1. In config.yaml, please specify the data-disk on the cluster node as follows. The information is specified via [python regular expression](https://docs.python.org/2/library/re.html). 
    ```
    data-disk: /dev/[sh]d[^a]
    ```
 
-1. Show all data partitions:
+2. You can list all data partitions in the cluster as:
    ```
    deploy.py partition ls
    ```
    
-2. Repartition all drives:
+3. You can repartition all drives:
    ```
    deploy.py partition create [args]
    ```

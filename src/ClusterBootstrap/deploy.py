@@ -3367,15 +3367,15 @@ def run_command( args, command, nargs, parser ):
 	elif command == "build":
 		if len(nargs) <=0:
 			init_deployment()
-			response = raw_input_with_default("Create ISO file for deployment (y/n)?")
-			if first_char(response) == "y":
-				create_ISO()
-			response = raw_input_with_default("Create PXE docker image for deployment (y/n)?")
-			if first_char(response) == "y":
-				create_PXE()
-		elif nargs[0] == "iso":
+#			response = raw_input_with_default("Create ISO file for deployment (y/n)?")
+#			if first_char(response) == "y":
+#				create_ISO()
+#			response = raw_input_with_default("Create PXE docker image for deployment (y/n)?")
+#			if first_char(response) == "y":
+#				create_PXE()
+		elif nargs[0] == "iso-coreos":
 			create_ISO()
-		elif nargs[0] == "pxe":
+		elif nargs[0] == "pxe-coreos":
 			create_PXE()
 		elif nargs[0] == "pxe-ubuntu":
 			create_PXE_ubuntu()
@@ -3841,9 +3841,9 @@ Command:
             azure
   build     [arg] Build deployment environment 
   			arg="": should be executed first, generate keys for the cluster
-			arg=iso: build ISO image fore CoreOS deployment.
-			arg=pxe: build PXE server for CoreOS deployment
-			arg=pxe-ubuntu: build PXE server for Ubuntu deployment. 
+			arg=iso-coreos: build ISO image fore CoreOS deployment.
+			arg=pxe-coreos: build PXE server for CoreOS deployment. 
+			arg=pxe-ubuntu: build PXE server for Ubuntu deployment. [We use standard Ubuntu ISO for Ubuntu ISO deployment. ]
   sshkey    install: [Ubuntu] install sshkey to Ubuntu cluster. 
   production [nodes] Deploy a production cluster, with tasks of:
             set hostname, deploy etcd/master nodes, deploy worker nodes, uncordon master nodes. 

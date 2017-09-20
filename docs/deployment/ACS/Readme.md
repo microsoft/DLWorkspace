@@ -2,7 +2,7 @@
 
 This document describes the procedure to deploy DL Workspace cluster on ACS. We are still improving the deployment procedure on ACS. Please contact the authors if you encounter any issues. 
 
-1. Follow [this document](../../DevEnvironment/README.md) to setup the dev environment of DLWorkspace. Login to your Azure subscription on your dev machine via:
+1. Follow [this document](../../DevEnvironment/Readme.md) to setup the dev environment of DLWorkspace. Login to your Azure subscription on your dev machine via:
 
 ```
 az login
