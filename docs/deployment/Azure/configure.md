@@ -14,8 +14,8 @@ Cluster name must be unique, and should be specified as:
 cluster_name: [your cluster name]
 ```
 
-### Authentication
 
+### Authentication
 If you are not building a cluster for Microsoft employee usage, you will also need to configure [Authentication](../authentication/Readme.md). 
 
 ### Additional configuration. 

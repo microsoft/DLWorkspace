@@ -290,6 +290,8 @@ def execute_backup_and_encrypt(clusterName, fname, key):
 	os.system("cp -r ./deploy/sshkey %s/sshkey" % backupdir)
 	os.system("cp -r ./deploy/ssl %s/ssl" % backupdir)
 	os.system("cp -r ./deploy/clusterID.yml %s/clusterID/" % backupdir)
+	if os.path.exists("./deploy/acs_kubeclusterconfig"):
+		os.system("cp -r ./deploy/acs_kubeclusterconfig %s/" % backupdir)
 	os.system("tar -czvf %s.tar.gz %s" % (fname, backupdir))
 	if not key is None:
 		os.system("openssl enc -aes-256-cbc -k %s -in %s.tar.gz -out %s.tar.gz.enc" % (key, fname, fname) )
@@ -313,8 +315,11 @@ def execute_restore_and_decrypt(fname, key):
 	os.system("mkdir -p ./deploy/sshkey" )
 	os.system("mkdir -p ./deploy/ssl" )
 	os.system("cp -r %s/sshkey/* ./deploy/sshkey" % backupdir)
-	os.system("cp -r %s/ssl/* ./deploy/ssl" % backupdir)
+	if os.path.exists("%s/ssl" %backupdir):
+		os.system("cp -r %s/ssl ./deploy/ssl" % backupdir)
 	os.system("cp %s/clusterID/*.yml ./deploy/" % backupdir)
+	if os.path.exists("%s/acs_kubeclusterconfig" %backupdir):
+		os.system("cp -r %s/acs_kubeclusterconfig ./deploy/" % backupdir)
 	cleanup_command += "rm -rf ./deploy_backup/backup"
 	os.system(cleanup_command)
 
