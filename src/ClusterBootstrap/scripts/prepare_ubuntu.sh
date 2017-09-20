@@ -37,6 +37,9 @@ curl -q https://get.docker.com/ | sudo bash
 fi
 
 sudo pip install --upgrade pip
+# pip doesn't install python for root account, causing issues. 
+# sudo pip install setuptools
+# sudo pip install pyyaml jinja2 argparse
 
 sudo usermod -aG docker $USER
 
