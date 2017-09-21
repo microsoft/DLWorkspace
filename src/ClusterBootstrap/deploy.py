@@ -2090,6 +2090,10 @@ def get_mount_fileshares(curNode = None):
 				allmountpoints[k]["options"] = options
 				fstaboptions = fetch_config(["mountconfig", "hdfs", "fstaboptions"])
 				fstab += "hadoop-fuse-dfs#dfs://%s %s fuse %s\n" % (v["server"], curphysicalmountpoint, fstaboptions)
+			elif v["type"] == "local" and "device" in v:
+				allmountpoints[k] = copy.deepcopy( v )
+				bMount = True
+				fstab += "%s %s ext4 defaults 0 0\n" % (v["device"], curphysicalmountpoint)				
 			else:
 				errorMsg = "Error: Unknown or missing critical parameter in fileshare %s with type %s" %( k, v["type"])
 			if not (errorMsg is None):
