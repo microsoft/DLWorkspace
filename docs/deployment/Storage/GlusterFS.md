@@ -1,6 +1,6 @@
 # Deployment of GlusterFS on a kubernete cluster. 
 
-The document describes the procedure to deploy glusterFS across a cluster. GlusterFS needs to access block device on the cluster. For manipulation of block device, please refer to [Partition.md](Partition.md). 
+The document describes the procedure to setup glusterFS across a cluster. GlusterFS needs to access block device on the cluster. For manipulation of block device, please refer to [Partition.md](Partition.md). 
 
 1. Configure glusterFS on the cluster. 
   You will need to specify: 1) the nodes, 2) partition on nodes, and 3) volume to be created on glusterFS. 
