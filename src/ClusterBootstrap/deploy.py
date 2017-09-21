@@ -489,7 +489,7 @@ scriptblocks = {
   		"kubernetes start restfulapi",
   		"kubernetes start webportal",
 	],
-	"ubuntu_uncordon": ]
+	"ubuntu_uncordon": [
 		"runscriptonall ./scripts/prepare_ubuntu.sh",
 		"-y deploy",
 		"-y updateworker",
