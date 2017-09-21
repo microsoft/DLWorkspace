@@ -117,7 +117,7 @@ def mount_fileshare(verbose=True):
 				elif v["type"] == "hdfs":
 					exec_with_output( "hadoop-fuse-dfs dfs://%s %s %s " % (v["server"], physicalmountpoint, v["options"]), verbose=verbose )
 				elif v["type"] == "local":
-					exec_with_output( "mount %s %s " % ( v["device"], v["filesharename"] ), verbose=verbose )
+					exec_with_output( "mount %s %s " % ( v["device"], physicalmountpoint ), verbose=verbose )
 				else:
 					nMounts -= 1
 	if nMounts > 0:

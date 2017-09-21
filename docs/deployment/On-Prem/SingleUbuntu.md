@@ -8,6 +8,11 @@ This document describes the procedure to deploy DL workspace cluster on a single
    * We assume that it is Ubuntu OS, preferably 16.04
    * It has a "core" account that you can [ssh into](https://www.ssh.com/ssh/copy-id)
    * The "core" account can [sudo](https://linuxconfig.org/sudo-install-usage-and-sudoers-config-file-basics) to gain root priviledge. Please follow the instruction to setup sudo without password. 
+   * Please turn of apache2 server if it is running:
+   ```
+   sudo systemctl disable apache2
+   ```
+   DL workspace runs WebUI on port 80, which conflicts with apache2.
 
 3. [Configuration the cluster](../configuration/Readme.md). You will need the following as a minimum. 
 
@@ -19,14 +24,22 @@ This document describes the procedure to deploy DL workspace cluster on a single
 4. Configure the information of the servers used in the cluster. Please write the following entries in config.yaml. 
 
   ```
-  network:
-    domain: <<domain_of_the_machine>>
-  
+  ssh_cert: ~/.ssh/id_rsa {{ assuming that this is the SSH key that ssh into core account. }}
+
   machines:
     <<hostname_of_the_machine>>:
       role: infrastructure
+
+  etcd_node_num: 1
   ```
-  If your development box is the same as the deployed node, you can use "localhost" as hostname, and "" as domain. 
+
+  If use domain, please add:
+  ```
+  network:
+    domain: <<domain_of_the_machine>>
+  ```
+  Please don't use domain: "", this adds a "." to hostname by the script, and causes the scripts to fail. 
+
 
 5. Run deployment script block:
   ```
