@@ -22,6 +22,7 @@ Here is a few short video clips that can quickly explain DLWorkspace. Note the P
 * [Azure Cluster](deployment/Azure/Readme.md) [Recommended]
 * [Azure Container Service](deployment/ACS/Readme.md)
 * [On prem, Ubuntu Cluster](deployment/On-Prem/Ubuntu.md)
+* [Single Ubuntu Computer](deployment/On-Prem/SingleUbuntu.md)
 
 ## Known Issues
 
