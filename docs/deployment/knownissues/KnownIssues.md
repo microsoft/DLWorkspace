@@ -1,9 +1,11 @@
 # Known issues. 
 
+We are still prototyping the platform. Please report issues to the author, so that we can complete the document. 
+
 1. 'docker pull' fails with error "layers from manifest don't match image configuration". 
    Please check the docker version of the 'pull' machine, the 'push' machine, and the docker register. It seems that this is caused by incompatible docker version. [See](https://github.com/docker/distribution/issues/1439)
    
-2. We are still prototyping the platform. Please report issues to the author, so that we can complete the document. 
+2. If you don't use domain, please don't add domain: "", this adds a "." to hostname by the script, and causes the scripts to fail.  
 
 3. In some ubuntu distributions, "NetworkManager" is enable and set dns name server to be "127.0.1.1". This is Ok on the host machine, but may cause issues in the container. Typically, if the container is not using host network and inherits dns name server from the host, the domain name will not be able to be resolved inside container. 
    If the container network is not working, please check /etc/resolv.conf. If the value is "127.0.1.1", please follow the below instructions to fix:

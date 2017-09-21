@@ -489,6 +489,21 @@ scriptblocks = {
   		"kubernetes start restfulapi",
   		"kubernetes start webportal",
 	],
+	"ubuntu_uncordon": [
+		"runscriptonall ./scripts/prepare_ubuntu.sh",
+		"-y deploy",
+		"-y updateworker",
+		"-y kubernetes labels",
+		"kubernetes uncordon",
+		"mount",
+		"webui",
+		"docker push restfulapi",
+		"docker push webui",
+		"kubernetes start freeflow",
+		"kubernetes start jobmanager",
+		"kubernetes start restfulapi",
+		"kubernetes start webportal",
+	],
 	"bldwebui": [
 		"webui",
 		"docker push restfulapi",
@@ -990,10 +1005,12 @@ def init_deployment():
 	add_additional_cloud_config()
 	add_kubelet_config()
 
+	os.system( "mkdir -p ./deploy/cloud-config/")
+	os.system( "mkdir -p ./deploy/iso-creator/")
+
 	template_file = "./template/cloud-config/cloud-config-master.yml"
 	target_file = "./deploy/cloud-config/cloud-config-master.yml"
 	config["role"] = "master"
-	
 	utils.render_template(template_file, target_file,config)
 
 	template_file = "./template/cloud-config/cloud-config-etcd.yml"
@@ -1389,19 +1406,22 @@ def get_cni_binary():
 	os.system("tar -zxvf ./deploy/bin/cni-amd64-v0.5.2.tgz -C ./deploy/bin")
 
 
-def get_kubectl_binary():
-	get_hyperkube_docker()
+def get_kubectl_binary(force = False):
+	get_hyperkube_docker(force = force)
 	#os.system("mkdir -p ./deploy/bin")
 	urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet", "./deploy/bin/kubelet-old")
 	#urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubectl", "./deploy/bin/kubectl")
 	#os.system("chmod +x ./deploy/bin/*")
 	get_cni_binary()
 
-def get_hyperkube_docker() :
+def get_hyperkube_docker(force = False) :
 	os.system("mkdir -p ./deploy/bin")
-	copy_from_docker_image(config['kubernetes_docker_image'], "/hyperkube", "./deploy/bin/hyperkube")
-	copy_from_docker_image(config['kubernetes_docker_image'], "/kubelet", "./deploy/bin/kubelet")
-	copy_from_docker_image(config['kubernetes_docker_image'], "/kubectl", "./deploy/bin/kubectl")
+	if force or not os.path.exists("./deploy/bin/hyperkube"):
+		copy_from_docker_image(config['kubernetes_docker_image'], "/hyperkube", "./deploy/bin/hyperkube")
+	if force or not os.path.exists("./deploy/bin/kubelet"):
+		copy_from_docker_image(config['kubernetes_docker_image'], "/kubelet", "./deploy/bin/kubelet")
+	if force or not os.path.exists("./deploy/bin/kubectl"):
+		copy_from_docker_image(config['kubernetes_docker_image'], "/kubectl", "./deploy/bin/kubectl")
 	# os.system("cp ./deploy/bin/hyperkube ./deploy/bin/kubelet")
 	# os.system("cp ./deploy/bin/hyperkube ./deploy/bin/kubectl")
 
@@ -2073,6 +2093,10 @@ def get_mount_fileshares(curNode = None):
 				allmountpoints[k]["options"] = options
 				fstaboptions = fetch_config(["mountconfig", "hdfs", "fstaboptions"])
 				fstab += "hadoop-fuse-dfs#dfs://%s %s fuse %s\n" % (v["server"], curphysicalmountpoint, fstaboptions)
+			elif v["type"] == "local" and "device" in v:
+				allmountpoints[k] = copy.deepcopy( v )
+				bMount = True
+				fstab += "%s %s ext4 defaults 0 0\n" % (v["device"], curphysicalmountpoint)				
 			else:
 				errorMsg = "Error: Unknown or missing critical parameter in fileshare %s with type %s" %( k, v["type"])
 			if not (errorMsg is None):
@@ -3277,8 +3301,6 @@ def run_command( args, command, nargs, parser ):
 	
 	if command == "restore":
 		utils.restore_keys(nargs)
-		#get_kubectl_binary()
-		exit()
 	
 	# Cluster Config
 	config_cluster = os.path.join(dirpath,"cluster.yaml")
@@ -3326,6 +3348,15 @@ def run_command( args, command, nargs, parser ):
 	if verbose: 
 		print "deploy " + command + " " + (" ".join(nargs))
 
+	if command == "restore":
+		# Second part of restore, after config has been read.
+		if os.path.exists("./deploy/acs_kubeclusterconfig"):
+			acs_tools.acs_get_config()
+		bForce = args.force if args.force is not None else False
+		get_kubectl_binary(force=args.force)
+		exit()
+
+
 	if command =="clean":
 		clean_deployment()
 		exit()
@@ -3361,15 +3392,15 @@ def run_command( args, command, nargs, parser ):
 	elif command == "build":
 		if len(nargs) <=0:
 			init_deployment()
-			response = raw_input_with_default("Create ISO file for deployment (y/n)?")
-			if first_char(response) == "y":
-				create_ISO()
-			response = raw_input_with_default("Create PXE docker image for deployment (y/n)?")
-			if first_char(response) == "y":
-				create_PXE()
-		elif nargs[0] == "iso":
+#			response = raw_input_with_default("Create ISO file for deployment (y/n)?")
+#			if first_char(response) == "y":
+#				create_ISO()
+#			response = raw_input_with_default("Create PXE docker image for deployment (y/n)?")
+#			if first_char(response) == "y":
+#				create_PXE()
+		elif nargs[0] == "iso-coreos":
 			create_ISO()
-		elif nargs[0] == "pxe":
+		elif nargs[0] == "pxe-coreos":
 			create_PXE()
 		elif nargs[0] == "pxe-ubuntu":
 			create_PXE_ubuntu()
@@ -3835,9 +3866,9 @@ Command:
             azure
   build     [arg] Build deployment environment 
   			arg="": should be executed first, generate keys for the cluster
-			arg=iso: build ISO image fore CoreOS deployment.
-			arg=pxe: build PXE server for CoreOS deployment
-			arg=pxe-ubuntu: build PXE server for Ubuntu deployment. 
+			arg=iso-coreos: build ISO image fore CoreOS deployment.
+			arg=pxe-coreos: build PXE server for CoreOS deployment. 
+			arg=pxe-ubuntu: build PXE server for Ubuntu deployment. [We use standard Ubuntu ISO for Ubuntu ISO deployment. ]
   sshkey    install: [Ubuntu] install sshkey to Ubuntu cluster. 
   production [nodes] Deploy a production cluster, with tasks of:
             set hostname, deploy etcd/master nodes, deploy worker nodes, uncordon master nodes. 

@@ -1,6 +1,6 @@
 # Deployment of HDFS on a kubernete cluster. 
 
-The document describes the procedure to deploy High Availability HDFS (multiple zookeepers and journal nodes, one active namenode and one standby namenode, multiple datanodes ) across a cluster. 
+The document describes the procedure to setup HDFS, either in high availability mode (multiple zookeepers and journal nodes, one active namenode and one standby namenode, multiple datanodes ), or with a single namenode across a cluster. 
 
 1. Configure HDFS configuration section on the cluster. 
   You will need to specify: 1) the nodes, 2) block device used by HDFS. 
@@ -11,6 +11,7 @@ The document describes the procedure to deploy High Availability HDFS (multiple 
   kubelabels:
     hdfs: worker or <<hdfs_labels>> # nodes marked with hdfs_labels will be used for HDFS. 
   ```
+  In default, if the cluster has more than 1 infrastructure node, HDFS will be deployed in high availability(HA) mode. If the cluster has just 1 infrastructure node, HDFS will be deployed with single name node. Zookeeper and journal nodes only need to be deployed in HA mode, and can be skipped with single name node mode. 
 
 2. Format and partition device used by hdfs via:
   ```

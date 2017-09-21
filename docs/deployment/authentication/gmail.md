@@ -50,10 +50,11 @@ Authentications:
 
 DeployAuthentications : ["Google"]
 
-"WinbindServers": []
+WinbindServers: []
 ```
 
 Value ccccc defines the gid of the users. Value aaaaa and bbbbb defines the ranges of the uid of the users. 
 
 For this setup, any user with a gmail account can log on to the cluster. They will first appear as unauthorized user. The administrator of the cluster can log in, and use the "Manage User" function to promote an unauthorized user to authorized user or to an administrator. 
 
+If you need help, please contact the maintainers of DL Workspace. If you are just trying to setup a small cluster, we may be able to add your cluster endpoint in our OpenID connect account for the time being for you to quickly start. 

@@ -1,6 +1,6 @@
 # Known Issues in DL Workspace
 
-## Deployment
+## [Deployment](../deployment/knownissues/Readme.md)
 
 ## Running DL Workspace
 

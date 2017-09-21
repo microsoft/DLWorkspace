@@ -6,17 +6,20 @@ DL Workspace is still in pre-release alpha stage. If you encounter issues in eit
 
 # Development environment.
 
-Please setup the dev environment of DL workspace as [this](../DevEnvironment/Readme.Md). 
+Please setup the dev environment of DL workspace as [this](../DevEnvironment/Readme.md). 
 
 # Detailed Step-by-step setup insturction for a selected set of clusters. 
 
-DL workspace cluster can be deployed in two forms: 1) [compact deployment](CompactDeployment.md) (target small cluster, as few as 1 machine), and 2) [large production deployment](LargeProductionDeployment.md). The detail deployment procedure depends on the cluster. Here are some specific setup instruction for a selected set of clusters 
+DL workspace cluster can be deployed to either public cloud (e.g., Azure), or to on-prem cluster. The deployment to public cloud is more straightforward, as the environment is more uniform. The deployment instruction are as follows:
 
 ## [Azure Container Service](ACS/Readme.md)
 ## [Azure Cluster](Azure/Readme.md)
-## [On-Prem](Ubuntu.md)
 
-Additional information on general deployment can be found at [here](General.md).
+We give instruction on the deployment of DL Workspace to an on-prem cluster as well. Please note that because each on-prem cluster is different in hardware (and maybe software) configuration, the deployment procedure is more tricky. The basic deployment step is as follows. 
+
+## [On-Prem](On-Prem/Ubuntu.md)
+
+Additional information on general deployment can be found at [here](On-Prem/General.md).
 
 
 
