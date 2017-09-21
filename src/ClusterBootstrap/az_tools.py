@@ -330,7 +330,7 @@ def gen_cluster_config(output_file_name, output_file=True):
     cc["platform-scripts"] = "ubuntu"
     cc["basic_auth"] = "%s,admin,1000" % uuid.uuid4().hex[:7]
     if not bSQLOnly:
-    cc["network"] = {"domain":"%s.cloudapp.azure.com" % config["azure_cluster"]["azure_location"]}
+        cc["network"] = {"domain":"%s.cloudapp.azure.com" % config["azure_cluster"]["azure_location"]}
     cc["machines"] = {}
     for i in range(int(config["azure_cluster"]["infra_node_num"])):
         vmname = "%s-infra%02d" % (config["azure_cluster"]["cluster_name"], i+1)
