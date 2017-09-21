@@ -268,18 +268,21 @@ def delete_group():
     print (output)
 
 def create_cluster():
+    bSQLOnly = (config["azure_cluster"]["infra_node_num"]<=0)
     print "creating resource group..."
     create_group()
-    print "creating storage account..."
-    create_storage_account()
-    print "creating file share..."
-    create_file_share()
-    print "creating vnet..."
-    create_vnet()
-    print "creating network security group..."
-    create_nsg()
+    if not bSQLOnly:
+        print "creating storage account..."
+        create_storage_account()
+        print "creating file share..."
+        create_file_share()
+        print "creating vnet..."
+        create_vnet()
+        print "creating network security group..."
+        create_nsg()
     print "creating sql server and database..."
     create_sql()
+    
     print "creating VMs"
     for i in range(int(config["azure_cluster"]["infra_node_num"])):
         vmname = "%s-infra%02d" % (config["azure_cluster"]["cluster_name"], i+1)
