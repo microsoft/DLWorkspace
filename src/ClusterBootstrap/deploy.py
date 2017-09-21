@@ -987,10 +987,12 @@ def init_deployment():
 	add_additional_cloud_config()
 	add_kubelet_config()
 
+	os.system( "mkdir -p ./deploy/cloud-config/")
+	os.system( "mkdir -p ./deploy/iso-creator/")
+
 	template_file = "./template/cloud-config/cloud-config-master.yml"
 	target_file = "./deploy/cloud-config/cloud-config-master.yml"
 	config["role"] = "master"
-	
 	utils.render_template(template_file, target_file,config)
 
 	template_file = "./template/cloud-config/cloud-config-etcd.yml"
