@@ -282,7 +282,7 @@ def create_cluster():
         create_nsg()
     print "creating sql server and database..."
     create_sql()
-    
+
     print "creating VMs"
     for i in range(int(config["azure_cluster"]["infra_node_num"])):
         vmname = "%s-infra%02d" % (config["azure_cluster"]["cluster_name"], i+1)
@@ -322,8 +322,8 @@ def gen_cluster_config(output_file_name, output_file=True):
     cc["sqlserver-username"] = config["azure_cluster"]["sql_admin_name"]
     cc["sqlserver-password"] = config["azure_cluster"]["sql_admin_password"]
     cc["sqlserver-database"] = config["azure_cluster"]["sql_database_name"]
-    cc["admin_username"] = config["azure_cluster"]["default_admin_username"]
     if not bSQLOnly:
+        cc["admin_username"] = config["azure_cluster"]["default_admin_username"]
         cc["workFolderAccessPoint"] = "file://%s.file.core.windows.net/%s/work/" % (config["azure_cluster"]["storage_account_name"],config["azure_cluster"]["file_share_name"])
         cc["dataFolderAccessPoint"] = "file://%s.file.core.windows.net/%s/storage/" % (config["azure_cluster"]["storage_account_name"],config["azure_cluster"]["file_share_name"])
         cc["smbUsername"] = file_share_account_name

@@ -9,83 +9,27 @@ This document describes the procedure to deploy DL workspace cluster on a single
    * It has a "core" account that you can [ssh into](https://www.ssh.com/ssh/copy-id)
    * The "core" account can [sudo](https://linuxconfig.org/sudo-install-usage-and-sudoers-config-file-basics) to gain root priviledge. Please follow the instruction to setup sudo without password. 
 
-2. [Configuration the cluster](../configuration/Readme.md), and determine important information of the cluster (e.g., cluster name, number of Etcd servers used). Please refer to [Backup/Restore](../Backup.md) on instruction to backup/restore cluster configuration. 
+3. [Configuration the cluster](../configuration/Readme.md). You will need the following as a minimum. 
 
-3. Configure and setup the [databased](../database/Readme.md) used in the cluster. 
+   * cluster_name
+   * An existing SQL or Azure SQL database, or you can create one using [scripts](../database/Readme.md). Please note that Azure SQL charge may apply. 
+   * [Authentication](../authentication/Readme.md)
+   * Any shared file system. For single node, you can use a local drive for jobs. 
 
-4. Config shared file system to be used in the cluster, following instructions in [Storage](../Storage/Readme.md) and the [configuration](../Storage/configure.md).
-
-5. Configure the information of the servers used in the cluster. Please write the following entries in config.yaml. 
+4. Configure the information of the servers used in the cluster. Please write the following entries in config.yaml. 
 
   ```
   network:
-    domain: <<current_domain>>
+    domain: <<domain_of_the_machine>>
   
-  platform-scripts : ubuntu
-
   machines:
-    <<machine1>>:
+    <<hostname_of_the_machine>>:
       role: infrastructure
-    <<machine2>>:
-      role: worker
-    <<machine3>>:
-      role: worker
-    ....
   ```
-  If you are building a high availability cluster, please include multiple infrastructure nodes. The number of infrastructure nodes should be odd, e.g., 1, 3, 5. 3 infrastructure nodes tolerate 1 failure. 5 infrastructure nodes tolerate 2 failures. 
+  If your development box is the same as the deployed node, you can use "localhost" as hostname, and "" as domain. 
 
-6. Build Ubuntu PXE-server via:
+5. Run deployment script block:
   ```
-  .\deploy.py -y build 
-  .\deploy.py build pxe-ubuntu
+  ./deploy.py --verbose scriptblocks ubuntu_uncordon 
   ```
 
-7. Start Ubuntu PXE-server. You will need to point DHCP server to the Ubuntu PXE-server. 
-  ```
-  .\deploy.py docker run pxe-ubuntu
-  ```
-  Reboot each machine to be deployed. In each boot screen, select to install Ubuntu 16.04. 
-
-8. After the machines is reimaged to Ubuntu, install sshkey. (optional: If you ignore step 2,3 and choose to use an existing ubuntu cluster, you may put root username and password to files: ./deploy/sshkey/rootuser and ./deploy/sshkey/rootpasswd. In this case, the root user should be able to run "sudo" without password.)
-  ```
-  .\deploy.py sshkey install
-  ```
-
-9. Setup basic tools on the Ubuntu image. 
-  ```
-  ./deploy.py runscriptonall ./scripts/prepare_ubuntu.sh
-  ./deploy.py execonall sudo usermod -aG docker core
-  ```
-
-10. Partition hard drive, if necessary. Please refer to section [Partition](Repartition.md) for details. 
-
-11. Setup kubernetes
-  ```
-  ./deploy.py -y deploy
-  ./deploy.py -y updateworker
-  ./deploy.py -y kubernetes labels
-  ```
-  If you are running a small cluster, and need to run workload on the Kubernete master node (this choice may affect cluster stability), please use:
-  ```
-  ./deploy.py -y kubernetes uncordon
-  ```
-  Works now will be scheduled on the master node. 
-  
-12. [optional] Configure, setup and mount [GlusterFS](../Storage/GlusterFS.md)
-13. [Optional] Configure, setup and mount [HDFS](../Storage/hdfs.md)
-14. [Optional] Setup [Spark](../Storage/spark.md)
-
-15. Mount shared file system
-  ```
-  ./deploy.py mount
-  ```
-
-16. Build and deploy jobmanager, restfulapi, and webportal. Mount storage.
-  ```
-  ./deploy.py webui
-  ./deploy.py docker push restfulapi
-  ./deploy.py docker push webui
-  ./deploy.py kubernetes start jobmanager
-  ./deploy.py kubernetes start restfulapi
-  ./deploy.py kubernetes start webportal
-  ```
