@@ -34,7 +34,12 @@ spec:
           name: dlwsdatajobfiles
         - mountPath: /var/log/dlworkspace
           name: log                                                    
+        - mountPath: /etc/resolv.conf
+          name: resolv         
       volumes:
+      - name: resolv
+        hostPath:
+          path: /etc/resolv.conf
       - name: certs
         hostPath:
           path: /etc/kubernetes/ssl
@@ -55,4 +60,4 @@ spec:
           path: {{cnf["storage-mount-path"]}}/jobfiles           
       - name: log
         hostPath:
-          path: /var/log/clustermanager          
+          path: /var/log/clustermanager    

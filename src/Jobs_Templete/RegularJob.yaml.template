@@ -23,6 +23,8 @@ spec:
         alpha.kubernetes.io/nvidia-gpu: {{ job["resourcegpu"] }}
 
     volumeMounts:
+    - mountPath: /etc/resolv.conf
+      name: resolv   
     {% for mp in job["mountPoints"] %}
     - mountPath: {{ mp.containerPath }}
       name: {{ mp.name }}
@@ -49,9 +51,12 @@ spec:
     - name: POD_IP
       valueFrom:
         fieldRef:
-          fieldPath: status.podIP      
+          fieldPath: status.podIP   
   restartPolicy: Never
   volumes:
+  - name: resolv
+    hostPath:
+      path: /etc/resolv.conf
   {% for mp in job["mountPoints"] %}
   - name: {{ mp.name }}
     hostPath:
