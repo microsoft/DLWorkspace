@@ -127,7 +127,7 @@ spec:
         ports:
         - containerPort: 8080
           protocol: TCP
-      dnsPolicy: Default
+      dnsPolicy: ClusterFirstWithHostNet 
       volumes:
       - hostPath:
           path: /etc/kubernetes

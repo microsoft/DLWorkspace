@@ -3368,7 +3368,7 @@ def run_command( args, command, nargs, parser ):
 		sleeptime = 10 if len(nargs)<1 else int(nargs[0])
 		print "Sleep for %s sec ... " % sleeptime
 		for si in range(sleeptime):
-			print "%s sec elapse ..." % si
+			print ".",
 			time.sleep(1)
 
 	elif command == "connect":
@@ -3728,9 +3728,6 @@ def run_command( args, command, nargs, parser ):
 				# for delete, delete the acs_resource_group (the parent group for westus2)
 				az_tools.config["azure_cluster"]["resource_group_name"] = config["acs_resource_group"]
 				az_tools.delete_cluster()
-			elif nargs[0]=="vm":
-				if (len(nargs) == 2):
-					acs_tools.az_sys("vm {0} --ids $(az vm list -g {1} --query \"[].id\" -o tsv)".format(nargs[1], config["resource_group"]))
 
 	elif command == "update" and len(nargs)>=1:
 		if nargs[0] == "config":

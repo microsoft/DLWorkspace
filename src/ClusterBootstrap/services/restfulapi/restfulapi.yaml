@@ -12,7 +12,7 @@ spec:
       labels:
         restfulapi-node: pod
     spec:
-      dnsPolicy: Default
+      dnsPolicy: ClusterFirstWithHostNet 
       nodeSelector:
         restfulapi: active
       hostNetwork: true        

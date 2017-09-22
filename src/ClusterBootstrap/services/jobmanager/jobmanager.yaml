@@ -10,7 +10,7 @@ spec:
       labels:
         jobmanager-node: pod
     spec:
-      dnsPolicy: Default
+      dnsPolicy: ClusterFirstWithHostNet 
       hostNetwork: true    
       nodeSelector:
         jobmanager: active
