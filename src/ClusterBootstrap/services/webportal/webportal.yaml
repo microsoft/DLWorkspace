@@ -10,7 +10,9 @@ spec:
       labels:
         webportal-node: pod
     spec:
-      dnsPolicy: ClusterFirstWithHostNet 
+      {% if cnf["dnsPolicy"] %}    
+      dnsPolicy: {{cnf["dnsPolicy"]}}
+      {% endif %}
       nodeSelector:
         webportal: active
       hostNetwork: true        
@@ -28,12 +30,7 @@ spec:
           name: webuiconfig
         - mountPath: /var/log/webui
           name: webuilog
-        - mountPath: /etc/resolv.conf
-          name: resolv          
       volumes:
-      - name: resolv
-        hostPath:
-          path: /etc/resolv.conf
       - name: webuiconfig
         hostPath:
           path: /etc/WebUI

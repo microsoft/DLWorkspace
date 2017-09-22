@@ -12,7 +12,9 @@ spec:
       labels:
         restfulapi-node: pod
     spec:
-      dnsPolicy: ClusterFirstWithHostNet 
+      {% if cnf["dnsPolicy"] %}    
+      dnsPolicy: {{cnf["dnsPolicy"]}}
+      {% endif %}
       nodeSelector:
         restfulapi: active
       hostNetwork: true        
@@ -25,12 +27,7 @@ spec:
           name: apiconfig
         - mountPath: /var/log/apache2
           name: log
-        - mountPath: /etc/resolv.conf
-          name: resolv            
       volumes:
-      - name: resolv
-        hostPath:
-          path: /etc/resolv.conf
       - name: apiconfig
         hostPath:
           path: /etc/RestfulAPI
