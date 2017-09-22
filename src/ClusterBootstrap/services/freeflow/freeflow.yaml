@@ -10,7 +10,7 @@ spec:
       labels:
         freeflowrouter-node: pod      
     spec:
-      dnsPolicy: Default
+      dnsPolicy: ClusterFirstWithHostNet 
       hostNetwork: true        
       containers:
       - name: freeflowrouter

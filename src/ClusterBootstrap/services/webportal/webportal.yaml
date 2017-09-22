@@ -10,7 +10,7 @@ spec:
       labels:
         webportal-node: pod
     spec:
-      dnsPolicy: Default
+      dnsPolicy: ClusterFirstWithHostNet 
       nodeSelector:
         webportal: active
       hostNetwork: true        

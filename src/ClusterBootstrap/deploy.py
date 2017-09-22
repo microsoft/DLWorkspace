@@ -3368,7 +3368,7 @@ def run_command( args, command, nargs, parser ):
 		sleeptime = 10 if len(nargs)<1 else int(nargs[0])
 		print "Sleep for %s sec ... " % sleeptime
 		for si in range(sleeptime):
-			print "%s sec elapse ..." % si
+			print ".",
 			time.sleep(1)
 
 	elif command == "connect":
