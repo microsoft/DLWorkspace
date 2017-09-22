@@ -492,6 +492,7 @@ scriptblocks = {
 	"ubuntu_uncordon": [
 		"runscriptonall ./scripts/prepare_ubuntu.sh",
 		"-y deploy",
+		"sleep 60",
 		"-y updateworker",
 		"sleep 30",
 		"-y kubernetes labels",
