@@ -492,9 +492,12 @@ scriptblocks = {
 	"ubuntu_uncordon": [
 		"runscriptonall ./scripts/prepare_ubuntu.sh",
 		"-y deploy",
+		"sleep 60",
 		"-y updateworker",
+		"sleep 30",
 		"-y kubernetes labels",
 		"kubernetes uncordon",
+		"sleep 10",
 		"mount",
 		"webui",
 		"docker push restfulapi",
@@ -3360,6 +3363,13 @@ def run_command( args, command, nargs, parser ):
 	if command =="clean":
 		clean_deployment()
 		exit()
+	
+	elif command == "sleep":
+		sleeptime = 10 if len(nargs)<1 else int(nargs[0])
+		print "Sleep for %s sec ... " % sleeptime
+		for si in range(sleeptime):
+			print "%s sec elapse ..." % si
+			time.sleep(1)
 
 	elif command == "connect":
 			check_master_ETCD_status()

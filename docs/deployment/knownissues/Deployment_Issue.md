@@ -36,5 +36,9 @@
        ```
        Issue: when machines redeployed, they got new host key, which differed from their prior host key, which triggers the warning above each time a remote machine is connected. 
        Solution: remove the file /home/<username>/.ssh/known_hosts. 
+    5. I see a web page of apache server, instead of DL Workspace. 
+       Apache server may be default enabled on the installed node. Please use "sudo service apache2 stop" to disable the server. 
+    6. I have a deployment failure. 
+       Sometime, there is deployment glitches during script execution. Please try to execute the script again to see if the issue goes away. 
 
 
