@@ -1,6 +1,6 @@
-# The labeling of DL workspace nodes. 
+# The Kubernete labeling of DL workspace nodes. 
 
-DL workspace may run a number of services on a set of daemon nodes. Each service runs according to labels defined in "kubelabels" section in the configuration file, and can be modified in configuration file. 
+DL workspace may run a number of services the cluster. Each service runs according to labels defined in "kubelabels" section in the configuration file, and can be modified in configuration file. 
 
 1. Change of label behavior. 
 
