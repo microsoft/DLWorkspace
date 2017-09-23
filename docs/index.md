@@ -26,10 +26,7 @@ Here is a few short video clips that can quickly explain DL Workspace. Note the 
 * [On prem, Ubuntu Cluster](deployment/On-Prem/Ubuntu.md)
 * [Single Ubuntu Computer](deployment/On-Prem/SingleUbuntu.md)
 
-## Known Issues
-
-* [Deployment Issue](deployment/knownissues/Readme.md)
-* Container Issue: [Zombie Process](KnownIssues/zombie_process.md)
+## [Frequently Asked Questions](KnownIssues/Readme.md)
 
 ## Presentation
 

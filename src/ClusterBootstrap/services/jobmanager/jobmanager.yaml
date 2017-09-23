@@ -10,7 +10,9 @@ spec:
       labels:
         jobmanager-node: pod
     spec:
-      dnsPolicy: ClusterFirstWithHostNet 
+      {% if cnf["dnsPolicy"] %}    
+      dnsPolicy: {{cnf["dnsPolicy"]}}
+      {% endif %}
       hostNetwork: true    
       nodeSelector:
         jobmanager: active
@@ -55,4 +57,4 @@ spec:
           path: {{cnf["storage-mount-path"]}}/jobfiles           
       - name: log
         hostPath:
-          path: /var/log/clustermanager          
+          path: /var/log/clustermanager    

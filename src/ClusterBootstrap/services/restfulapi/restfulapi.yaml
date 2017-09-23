@@ -12,7 +12,9 @@ spec:
       labels:
         restfulapi-node: pod
     spec:
-      dnsPolicy: ClusterFirstWithHostNet 
+      {% if cnf["dnsPolicy"] %}    
+      dnsPolicy: {{cnf["dnsPolicy"]}}
+      {% endif %}
       nodeSelector:
         restfulapi: active
       hostNetwork: true        
