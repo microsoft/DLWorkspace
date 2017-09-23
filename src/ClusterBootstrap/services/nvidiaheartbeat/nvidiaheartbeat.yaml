@@ -10,7 +10,7 @@ spec:
       labels:
         nvidiaheartbeat-node: pod
     spec:
-      dnsPolicy: Default
+      dnsPolicy: ClusterFirstWithHostNet 
       containers:
       - name: nvidiaheartbeat
         image: nvidia/cuda:8.0

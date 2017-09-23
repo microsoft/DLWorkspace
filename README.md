@@ -19,7 +19,7 @@ Here is a few short video clips that can quickly explain DLWorkspace. Note the P
 
 ## [DLWorkspace Cluster Deployment](docs/deployment/Readme.md)
 
-## [Known Issues](docs/KnownIssues/Readme.md)
+## [Frequently Asked Questions](docs/KnownIssues/Readme.md)
 
 ## [Presentation](docs/presentation/1707/Readme.md)
 

@@ -48,6 +48,7 @@ if [ -f /etc/NetworkManager/NetworkManager.conf ]; then
         sudo service network-manager restart
 fi
 
+sudo service apache2 stop
 
 if  lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VGA compatible) controller: NVIDIA Corporation.*" ; then
 
