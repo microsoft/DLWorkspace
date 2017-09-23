@@ -53,6 +53,7 @@ coreoschannel = "stable"
 coreosbaseurl = ""
 verbose = False
 nocache = False
+limitnodes = None
 
 # These are the default configuration parameter
 default_config_parameters = {
@@ -507,6 +508,12 @@ scriptblocks = {
 		"kubernetes start restfulapi",
 		"kubernetes start webportal",
 	],
+	"add_worker": [
+		"runscriptonall ./scripts/prepare_ubuntu.sh",
+		"-y updateworker",
+		"-y kubernetes labels",
+		"mount",
+	],	
 	"bldwebui": [
 		"webui",
 		"docker push restfulapi",
@@ -1197,6 +1204,15 @@ def get_worker_nodes(clusterId):
 
 def get_nodes(clusterId):
 	nodes = get_ETCD_master_nodes(clusterId) + get_worker_nodes(clusterId)
+	if limitnodes is not None:
+		matchFunc = re.compile(limitnodes, re.IGNORECASE)
+		usenodes = []
+		for node in nodes:
+			if ( matchFunc.search(node)):
+				usenodes.append(node)
+		nodes = usenodes
+		if verbose:
+			print "Operate on: %s" % nodes
 	return nodes
 
 def check_master_ETCD_status():
@@ -3368,7 +3384,8 @@ def run_command( args, command, nargs, parser ):
 		sleeptime = 10 if len(nargs)<1 else int(nargs[0])
 		print "Sleep for %s sec ... " % sleeptime
 		for si in range(sleeptime):
-			print ".",
+			sys.stdout.write(".")
+			sys.stdout.flush()
 			time.sleep(1)
 
 	elif command == "connect":
@@ -3985,6 +4002,11 @@ Command:
 		''' ), 
 		action="store", 
 		default="run" )
+	parser.add_argument("--nodes", 
+		help = "Specify an python regular expression that limit the nodes that the operation is applied.", 
+        action="store",
+		default=None	
+		)
 		
 	parser.add_argument("command", 
 		help = "See above for the list of valid command" )
@@ -3997,6 +4019,8 @@ Command:
 	if args.verbose:
 		verbose = True
 		utils.verbose = True
+	if args.nodes is not None:
+		limitnodes = args.nodes
 
 	config = init_config()
 
