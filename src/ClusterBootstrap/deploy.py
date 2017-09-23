@@ -509,6 +509,7 @@ scriptblocks = {
 		"kubernetes start webportal",
 	],
 	"add_worker": [
+		"sshkey install",
 		"runscriptonall ./scripts/prepare_ubuntu.sh",
 		"-y updateworker",
 		"-y kubernetes labels",
