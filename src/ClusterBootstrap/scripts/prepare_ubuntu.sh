@@ -53,7 +53,8 @@ sudo service apache2 stop
 if  lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VGA compatible) controller: NVIDIA Corporation.*" ; then
 
         NVIDIA_VERSION=381.22
-
+        # make the script reexecutable after a failed download
+        rm /tmp/NVIDIA-Linux-x86_64-$NVIDIA_VERSION.run
         wget -P /tmp http://us.download.nvidia.com/XFree86/Linux-x86_64/$NVIDIA_VERSION/NVIDIA-Linux-x86_64-$NVIDIA_VERSION.run
         chmod +x /tmp/NVIDIA-Linux-x86_64-$NVIDIA_VERSION.run
         sudo bash /tmp/NVIDIA-Linux-x86_64-$NVIDIA_VERSION.run -a -s
