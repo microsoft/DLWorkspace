@@ -32,7 +32,13 @@ Use 'az login' to login to your azure create. Create Azure resource group and az
 ./az_tools.py genconfig 
 ```
 
-3. Other database. 
+3. Configure SQL Azure database size. 
+
+If you are using SQL Azure, we recommend to use change the database DLWorkspaceCluster-xxxxx to S4. The most heavy use of the database is when the Web Portal is left open to see the execution status of a particular job. We use SQL database to store the job status information. SQL instance S0 can quickly max out during job query. 
+
+Investigating better way to organize data and reduce the load of database, or select a database implementation which gives better performance is on the work plan. 
+
+4. Other database. 
 
 It is possible to use other database provider, e.g., MySQL. Currently, database is used in WebUI (consumed via Entityframework .Net Core ) and restful API (comsumed via python). Both programming language support connection to other database, e.g., MySQL. We encourage contribution in this space. 
 
