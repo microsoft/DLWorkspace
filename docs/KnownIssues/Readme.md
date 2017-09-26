@@ -5,6 +5,7 @@
 * [Authentication](../deployment/authentication/FAQ.md)
 * [Azure](../deployment/Azure/FAQ.md)
 * [ACS](../deployment/ACS/FAQ.md)
+* [Cluster Monitoring](../deployment/monitor/FAQ.md)
 
 ## Using DL Workspace
 
