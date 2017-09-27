@@ -36,6 +36,8 @@ DL Workspace uses a SQL server or SQL Azure to store user information (uid, gid,
 
   If you are using SQL Azure, we recommend to use change the database DLWorkspaceCluster-xxxxx to S4. The most heavy use of the database is when the Web Portal is left open to see the execution status of a particular job. We use SQL database to store the job status information. SQL instance S0 can quickly max out during job query. 
 
+  Please note that SQL Azure attaches a pricing tier per database. Only database DLWorkspaceCluster-xxxxx needs to be bumped to a high pricing tier. For most of usage case, the other database can be left at S0. 
+
   Investigating better way to organize data and reduce the load of database, or select a database implementation which gives better performance is on the work plan. 
 
 4. Other database. 
