@@ -26,6 +26,8 @@ Here is a few short video clips that can quickly explain DLWorkspace. Note the P
 
 ## [Frequently Asked Questions](KnownIssues/Readme.md)
 
+## [User Guide and Frequently Asked Questions](Users/Readme.md)
+
 ## Presentation
 
 * [Overview](Presentation/1707/DL_Workspace_Overall.pptx)
