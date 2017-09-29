@@ -1203,8 +1203,7 @@ def get_worker_nodes(clusterId):
 	else:
 		return get_worker_nodes_from_config(clusterId)
 
-def get_nodes(clusterId):
-	nodes = get_ETCD_master_nodes(clusterId) + get_worker_nodes(clusterId)
+def limit_nodes(nodes):
 	if limitnodes is not None:
 		matchFunc = re.compile(limitnodes, re.IGNORECASE)
 		usenodes = []
@@ -1214,6 +1213,13 @@ def get_nodes(clusterId):
 		nodes = usenodes
 		if verbose:
 			print "Operate on: %s" % nodes
+		return usenodes
+	else:
+		return nodes
+
+def get_nodes(clusterId):
+	nodes = get_ETCD_master_nodes(clusterId) + get_worker_nodes(clusterId)
+	nodes = limit_nodes(nodes)
 	return nodes
 
 def check_master_ETCD_status():
@@ -1749,6 +1755,7 @@ def update_worker_nodes( nargs ):
 	get_hyperkube_docker()
 
 	workerNodes = get_worker_nodes(config["clusterId"])
+	workerNodes = limit_nodes(workerNodes)
 	for node in workerNodes:
 		if in_list(node, nargs):
 			update_worker_node(node)
@@ -1763,6 +1770,7 @@ def update_worker_nodes( nargs ):
 def reset_worker_nodes():
 	utils.render_template_directory("./template/kubelet", "./deploy/kubelet",config)
 	workerNodes = get_worker_nodes(config["clusterId"])
+	workerNodes = limit_nodes(workerNodes)
 	for node in workerNodes:
 		reset_worker_node(node)
 
