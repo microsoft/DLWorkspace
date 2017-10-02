@@ -272,6 +272,7 @@ def acs_get_config():
     if not (os.path.exists('./deploy/bin/kubectl')):
         os.system("mkdir -p ./deploy/bin")
         az_tryuntil("acs kubernetes install-cli --install-location ./deploy/bin/kubectl", lambda : os.path.exists('./deploy/bin/kubectl'))
+    os.system("rm ./deploy/%s" % config["acskubeconfig"])
     if not (os.path.exists('./deploy/'+config["acskubeconfig"])):
         cmd = "acs kubernetes get-credentials"
         cmd += " --resource-group=%s" % config["acs_resource_group"]

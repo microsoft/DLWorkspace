@@ -22,6 +22,7 @@ pushd .
 rm -rf /tmp/install-python
 mkdir /tmp/install-python
 cd /tmp/install-python
+rm ${PYTHONFILE}
 while [ ! -e ${PYTHONFILE} ]; do
 	wget http://downloads.activestate.com/ActivePython/releases/${VERSIONS}/${PYTHONFILE}
 done

@@ -53,7 +53,8 @@ sudo service apache2 stop
 if  lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VGA compatible) controller: NVIDIA Corporation.*" ; then
 
         NVIDIA_VERSION=381.22
-
+        # make the script reexecutable after a failed download
+        rm /tmp/NVIDIA-Linux-x86_64-$NVIDIA_VERSION.run
         wget -P /tmp http://us.download.nvidia.com/XFree86/Linux-x86_64/$NVIDIA_VERSION/NVIDIA-Linux-x86_64-$NVIDIA_VERSION.run
         chmod +x /tmp/NVIDIA-Linux-x86_64-$NVIDIA_VERSION.run
         sudo bash /tmp/NVIDIA-Linux-x86_64-$NVIDIA_VERSION.run -a -s
@@ -63,6 +64,7 @@ if  lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VG
         sudo rm -r /opt/nvidia-driver || true
 
         # Install nvidia-docker and nvidia-docker-plugin
+        rm /tmp/nvidia-docker*.deb
         wget -P /tmp https://github.com/NVIDIA/nvidia-docker/releases/download/v1.0.1/nvidia-docker_1.0.1-1_amd64.deb
         sudo dpkg -i /tmp/nvidia-docker*.deb && rm /tmp/nvidia-docker*.deb
 
