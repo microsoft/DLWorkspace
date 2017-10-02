@@ -1,0 +1,120 @@
+#kind: ConfigMap
+#apiVersion: v1
+#metadata:
+#  name: collectd-config
+#  namespace: default
+#data:
+#  node-collectd.conf: |-
+#    FQDNLookup false
+#    LoadPlugin syslog
+#    <Plugin syslog>
+#       LogLevel info
+#    </Plugin>
+#
+#    LoadPlugin cpu
+#    LoadPlugin memory
+#    LoadPlugin network
+#
+#    <Plugin "cpu">
+#      Interval 5
+#      ReportByState false
+#      ReportByCpu false
+#    </Plugin>
+#
+#    <Plugin "memory">
+#      Interval 30
+#      ValuesAbsolute false
+#      ValuesPercentage true
+#    </Plugin>
+#
+#    <Plugin "network">
+#      Server "monitoring-influxdb.kube-system.svc" "8086"
+#    </Plugin>
+#
+#    #Last line (collectd requires ‘\n’ at the last line)
+#
+#---
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: collectd-node-agent
+  namespace: kube-system
+  labels:
+    app: collectd-node-agent
+spec:
+  template:
+    metadata:
+      labels:
+        name: collectd-node-agent
+    spec:
+      hostNetwork: true
+      hostPID: true
+      hostIPC: true
+      dnsPolicy: Default
+      imagePullSecrets:
+        - name: acrregkey
+      containers:
+      - name: collectd
+        image: mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/collectd
+        imagePullPolicy: Always
+        securityContext:
+          privileged: true
+        env:
+          - name: CONFIG_TYPE
+            value: influxdb 
+          - name: EP_HOST
+            value: 127.0.0.1
+          - name: EP_PORT
+            value: "25826"
+          - name: HOST_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName          
+        volumeMounts:
+        #- name: collectd-config
+        #  mountPath: /etc/collectd
+        - mountPath: /etc/kubernetes/ssl
+          name: certs
+        - mountPath: /root/.kube/config 
+          name: kubeconfig
+        - name: proc
+          mountPath: /mnt/proc
+          readOnly: true
+        - name: root
+          mountPath: /hostfs
+          readOnly: true
+        - name: etc
+          mountPath: /mnt/etc
+          readOnly: true
+        - name: run
+          mountPath: /var/run/docker.sock
+        - name: nvidia-driver
+          mountPath: /usr/local/nvidia
+      volumes:
+      #- name: collectd-config
+      #  configMap:
+      #    name: collectd-config
+      #    items:
+      #    - key: node-collectd.conf
+      #      path: collectd.conf
+      - name: certs
+        hostPath:
+          path: /etc/kubernetes/ssl
+      - name: kubeconfig
+        hostPath:
+          path: /etc/kubernetes/restapi-kubeconfig.yaml
+      - name: proc
+        hostPath:
+          path: /proc
+      - name: root
+        hostPath:
+          path: /
+      - name: etc
+        hostPath:
+          path: /etc
+      - name: run
+        hostPath:
+          path: /var/run/docker.sock
+      - name: nvidia-driver
+        hostPath:
+          path: /opt/nvidia-driver/current
