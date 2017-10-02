@@ -93,31 +93,44 @@ def Split(text,spliter):
 def GetServiceAddress(jobId):
 	ret = []
 
-	output = kubectl_exec(" describe svc -l run=" + jobId)
+	#output = kubectl_exec(" describe svc -l run=" + jobId)
 	#print "output=\n" + output
-	svcs = output.split("\n\n\n")
+	#svcs = output.split("\n\n\n")
+	outputYaml = kubectl_exec("  get svc -l run={0} -o=yaml".format(jobId))
+	output = yaml.load(outputYaml)
+	svcs = output["items"]
 	
 	for svc in svcs:
-		lines = [Split(x,"\t") for x in Split(svc,"\n")]
-		containerPort = None
-		hostPort = None
-		selector = None
-		hostIP = None
-		hostName = None
+		# lines = [Split(x,"\t") for x in Split(svc,"\n")]
+		# containerPort = None
+		# hostPort = None
+		# selector = None
+		# hostIP = None
+		# hostName = None
 
-		for line in lines:
-			if len(line) > 1:
-				if line[0] == "Port:":
-					containerPort = line[-1]
-					if "/" in containerPort:
-						containerPort = containerPort.split("/")[0]
-				if line[0] == "NodePort:":
-					hostPort = line[-1]
-					if "/" in hostPort:
-						hostPort = hostPort.split("/")[0]
+		# for line in lines:
+		# 	if len(line) > 1:
+		# 		if line[0] == "Port:":
+		# 			containerPort = line[-1]
+		# 			if "/" in containerPort:
+		# 				containerPort = containerPort.split("/")[0]
+		# 		if line[0] == "NodePort:":
+		# 			hostPort = line[-1]
+		# 			if "/" in hostPort:
+		# 				hostPort = hostPort.split("/")[0]
 
-				if line[0] == "Selector:" and line[1] != "<none>":
-					selector = line[-1]
+		# 		if line[0] == "Selector:" and line[1] != "<none>":
+		# 			selector = line[-1]
+
+		containerPort = svc["spec"]["ports"][0]["port"]
+		hostPort = svc["spec"]["ports"][0]["nodePort"]
+		labelIndex = 0
+		selector = ""
+		for label in svc["spec"]["selector"]:
+			if (labelIndex > 0):
+				selector += ","
+			selector += "{0}={1}".format(label, svc["spec"]["selector"][label])
+			labelIndex += 1
 
 		if selector is not None:
 			podInfo = GetPod(selector)
@@ -127,6 +140,7 @@ def GetServiceAddress(jobId):
 						hostIP = item["status"]["hostIP"]
 					if "spec" in item and "nodeName" in item["spec"]:
 						hostName = item["spec"]["nodeName"]
+
 		if containerPort is not None and hostIP is not None and hostPort is not None:
 			svcMapping = {}
 			svcMapping["containerPort"] = containerPort
