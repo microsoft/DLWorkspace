@@ -1,0 +1,49 @@
+kind: DaemonSet
+apiVersion: extensions/v1beta1
+metadata:
+  name: monitoring-influxdb
+  namespace: kube-system
+spec:
+  template:
+    metadata:
+      labels:
+        task: monitoring
+        k8s-app: influxdb
+    spec:
+      nodeSelector:
+        webportal: active
+      hostNetwork: true
+      containers:
+      - name: influxdb
+        image: mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/influxdb
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: influxdb
+          mountPath: /var/lib/influxdb
+      volumes:
+      - name: influxdb
+        hostPath:
+          path: /dlwsdata/storage/sys/influxdb
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    task: monitoring
+    # For use as a Cluster add-on (https://github.com/kubernetes/kubernetes/tree/master/cluster/addons)
+    # If you are NOT using this as an addon, you should comment out this line.
+    kubernetes.io/cluster-service: 'true'
+    kubernetes.io/name: dlws-influxdb
+  name: dlws-influxdb
+  namespace: kube-system
+spec:
+  ports:
+  - name: influxdb-html
+    port: 8086
+    targetPort: 8086
+  - name: influxdb-colletcd
+    port: 25826
+    targetPort: 25826
+  selector:
+    k8s-app: influxdb
