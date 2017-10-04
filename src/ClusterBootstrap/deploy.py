@@ -3702,6 +3702,9 @@ def run_command( args, command, nargs, parser ):
 			elif nargs[0]=="getip":
 				ip = acs_tools.acs_get_machinesAndIPsFast()
 				print ip
+			elif nargs[0]=="getallip":
+				ip = acs_tools.acs_get_machinesAndIPs(False)
+				print ip
 			elif nargs[0]=="createip":
 				ip = acs_tools.acs_get_machinesAndIPs(True)
 				print ip
