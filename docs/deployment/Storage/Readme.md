@@ -10,7 +10,7 @@ We consider the file system as an independent system module. You can play around
 ## [Configure shared file system](configure.md) 
 
 ## Setup shared file system
-  * Setup [Glusterfs](GluserFS.md)
+  * Setup [Glusterfs](GlusterFS.md)
   * Setup [HDFS](hdfs.md)
   * Setup [Spark](spark.md)
 
