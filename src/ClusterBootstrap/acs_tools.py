@@ -119,6 +119,7 @@ def acs_get_machineIP(machineName):
     #print nics
     nics = nics["networkProfile"]["networkInterfaces"]
     i = 0
+    privateIp = None
     for nic in nics:
         nicName = acs_get_id(nic)
         print "Nic Name: "+nicName
@@ -134,14 +135,18 @@ def acs_get_machineIP(machineName):
                 ipConfigDefault = ipConfigName
             configInfo = az_cmd("network nic ip-config show --resource-group="+config["resource_group"]+
                                 " --nic-name="+nicName+" --name="+ipConfigName)
+            privateIP = configInfo["privateIpAddress"]
             publicIP = configInfo["publicIpAddress"]
             if (not (publicIP is None)):
                 ipName = acs_get_id(publicIP)
                 print "IP Name: " + ipName
-                return {"nic" : nicName, "ipconfig" : ipConfigName, "publicipname" : ipName, "publicip" : acs_get_ip(ipName)}
+                return {"nic" : nicName, "ipconfig" : ipConfigName, 
+                        "publicipname" : ipName, "publicip" : acs_get_ip(ipName),
+                        "privateip" : privateIP
+                }
             j+=1
         i+=1
-    return {"nic" : nicDefault, "ipconfig": ipConfigDefault, "publicipname" : None, "publicip" : None}
+    return {"nic" : nicDefault, "ipconfig": ipConfigDefault, "publicipname" : None, "publicip" : None, "privateip" : privateIp}
 
 def acs_get_nodes():
     binary = os.path.abspath('./deploy/bin/kubectl')
