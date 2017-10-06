@@ -27,6 +27,19 @@ spec:
           name: apiconfig
         - mountPath: /var/log/apache2
           name: log
+        {% if False %}
+        {% for volume in cnf["mountpoints"] %}
+        {% if cnf["mountpoints"][volume]["mountpoints"] is string and cnf["mountpoints"][volume]["mountpoints"]!="" %}
+        - mountPath: {{cnf["storage-mount-path"]}}/{{cnf["mountpoints"][volume]["mountpoints"]}}
+          name: {{cnf["mountpoints"][volume]["mountpoints"]}}
+        {% else %}
+        {% for mp in cnf["mountpoints"][volume]["mountpoints"] %}
+        - mountPath: {{cnf["storage-mount-path"]}}/{{mp}}
+          name: {{mp}}
+        {% endfor %}
+        {% endif %}
+        {% endfor %}          
+        {% endif %}
       volumes:
       - name: apiconfig
         hostPath:
@@ -34,3 +47,18 @@ spec:
       - name: log
         hostPath:
           path: /var/log/restfulapi
+      {% if False %}
+      {% for volume in cnf["mountpoints"] %}
+      {% if cnf["mountpoints"][volume]["mountpoints"] is string and cnf["mountpoints"][volume]["mountpoints"]!="" %}
+      - name: {{cnf["mountpoints"][volume]["mountpoints"]}}
+        hostPath:
+          path: {{cnf["storage-mount-path"]}}/{{cnf["mountpoints"][volume]["mountpoints"]}}
+      {% else %}
+      {% for mp in cnf["mountpoints"][volume]["mountpoints"] %}
+      - name: {{mp}}
+        hostPath: 
+          path: {{cnf["storage-mount-path"]}}/{{mp}}
+      {% endfor %}
+      {% endif %}
+      {% endfor %}          
+      {% endif %}

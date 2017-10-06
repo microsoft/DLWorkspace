@@ -1,8 +1,126 @@
 ﻿@{
     ViewData["Title"] = "Submit Your Job";
 }
+<style>
+
+    .tooltip {
+        position: relative;
+        display: inline-block;
+        font-size: 24px;
+    }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            background-color: black;
+            color: #fff;
+            text-align: center;
+            padding: 5px 0;
+            border-radius: 6px;
+            position: absolute;
+            z-index: 1;
+            width: 120px;
+            top: 100%;
+            left: 50%;
+            margin-left: -60px;
+            font-size: 36px;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+        }
+    }
+</style>
 
 <script type="text/javascript">
+
+    var app = angular.module('mountApp', []);
+    app.controller('mountCtrl', function ($scope, $http, $log) {
+        var tolist = function (info) {
+            if (typeof info === 'string' || info instanceof String)
+                return [info];
+            else if (info)
+                return info;
+            else
+                return [];
+        };
+
+        var parseMounts = function (mountpoints, mountdescription, username, mounthomefolder, deploymounts) {
+            var mounts = [];
+            homefolderDescription = ""; 
+            for (var sharename in mountpoints) {
+                if (mountpoints.hasOwnProperty(sharename)) {
+                    sharemounts = mountpoints[sharename].mountpoints;
+                    mountlist = tolist(sharemounts);
+                    validmountlist = [];
+                    
+                    for (var i in mountlist) {
+                        var onemount = mountlist[i];
+                        // System share is not processed 
+                        if (onemount != "" && onemount != "jobfiles" && onemount != "storage" && onemount != "storage" && onemount != "work") {
+                            var mts = tolist(deploymounts); 
+                            var mtsIndex = mts.indexOf(onemount);
+                            if ( mtsIndex >= 0)
+                            {
+                                validmountlist.push(onemount);
+                            }
+                        };
+                        if (onemount == "" || onemount == "work")
+                        {
+                            var shareType = mountpoints[sharename].type; 
+                            homefolderDescription = mountdescription[shareType];
+                        }
+                    };
+                    if (validmountlist.length > 0)
+                    {
+                        for (var i in validmountlist) {
+                            var onemount = validmountlist[i];
+                            var publicshareinfo = tolist(mountpoints[sharename].publicshare)
+                            allshares = [];
+                            if ("all" in publicshareinfo)
+                                allshares = allshares.concat(tolist(publicshareinfo["all"]))
+                            if (onemount in publicshareinfo)
+                                allshares = allshares.concat(tolist(publicshareinfo[onemount]))
+                            allshares.push(username);
+                            for (var j in allshares) {
+                                var oneshare = allshares[j];
+                                // var containerPath = $.grep(["", onemount, oneshare], Boolean).join("/");
+                                // var hostPath = $.grep(["/dlwsdata", onemount, oneshare], Boolean).join("/");
+                                // Work folder are treated differently. 
+                                var containerPath = "/" + onemount + "/" + oneshare;
+                                var hostPath = "/dlwsdata" + containerPath;
+                                var shareType = mountpoints[sharename].type; 
+                                if (shareType && mountdescription[shareType]) {
+                                    description = mountdescription[shareType];
+                                }
+                                else
+                                    description = "Generic Shared File System";
+                                mounts = mounts.concat({"containerPath" : containerPath, "hostPath" : hostPath, "description" : description});
+                            };
+                        };
+                    };
+                };
+            };
+            if (mounthomefolder)
+            {
+                mounts.unshift({ "containerPath": "/home/" + username, "hostPath": "/dlwsdata/work/" + username, "description": homefolderDescription });
+            }
+            return mounts; 
+        };
+
+        $scope.ready = $http.get('/api/dlws/GetMountPoints').then(function (response) {
+            var mpstring = response.data.mountpoints;
+            var mpdescription = response.data.mountdescription;
+            $scope.mountpoints = $scope.$eval(mpstring);
+            $scope.mountdescription = $scope.$eval(mpdescription);
+            $scope.username = response.data.username;
+            $scope.mounthomefolder = response.data.mounthomefolder;
+            $scope.deploymounts = $scope.$eval(response.data.deploymounts);
+            $scope.mounts = parseMounts($scope.mountpoints, $scope.mountdescription, $scope.username, $scope.mounthomefolder, $scope.deploymounts );
+            $scope.showMounts = false;
+            $log.log($scope.mountpoints);
+            $log.log($scope.mountdescription);
+        });
+    });
     
     function AlertAPIError(xhr, ajaxOptions, thrownError) {
         alert("Restful API Error: \n" + JSON.stringify(thrownError));
@@ -25,6 +143,8 @@
     }
 
     $(document).ready(function () {
+        $('[data-toggle="tooltip"]').tooltip();
+        $('[data-toggle="popover"]').popover(); 
         buildTemplateList();
         $('#submit_job').on('submit', function (e) { //use on if jQuery 1.7+
             e.preventDefault();  //prevent form from submitting
@@ -418,6 +538,25 @@
                         Data Directory <font face="verdana" color="#A9A9A9">(relative to <a href="@ViewData["dataPath"]">@ViewData["dataPath"].ToString().Replace("file:", "").Replace("/", "\\") </a>). </font> <br /> <font face="verdana" color="#A9A9A9"> This folder is mounted as <b>/data</b> inside container.</font>
                     </label>
                     <input type="text" class="form-control" id="datapath" />
+                </div>
+
+                <div ng-app="mountApp" ng-controller="mountCtrl">
+                    <div class="form-group" ng-if="mounts.length > 0 ">
+                        <label>
+                            <a class="btn pull-left" ng-class="{true: 'btn-primary', false: 'btn-danger'}[showMounts]" ng-click="showMounts = !showMounts">
+                                {{showMounts && 'Hide Mounted Directories' || 'Show Mounted Directories' }}
+                            </a>
+                        </label>
+                        <div ng-if="showMounts">
+                            <div ng-repeat="onemount in mounts">
+                                <label>
+                                    <a href="#" data-toggle="tooltip" title="Mounted at {{onemount.hostPath}}">
+                                        {{onemount.containerPath}} : {{onemount.description}}
+                                    </a>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="form-group">

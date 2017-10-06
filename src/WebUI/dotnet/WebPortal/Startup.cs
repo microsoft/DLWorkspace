@@ -179,6 +179,51 @@ namespace WindowsAuth
                 clusterInfo.SQLHostname = clusterConfig["SQLHostname"] as string;
                 clusterInfo.SQLPassword = clusterConfig["SQLPassword"] as string;
                 clusterInfo.SQLUsername = clusterConfig["SQLUsername"] as string;
+                // Mount description and mount point
+                if (clusterConfig.ContainsKey("mountdescription"))
+                {
+                    clusterInfo.MountDescription = clusterConfig["mountdescription"] as string;
+                }
+                else
+                {
+                    clusterInfo.MountDescription = "{}";
+                }
+                // Mount description and mount point
+                if (clusterConfig.ContainsKey("mountpoints"))
+                {
+                    clusterInfo.MountPoints = clusterConfig["mountpoints"] as string;
+                }
+                else
+                {
+                    clusterInfo.MountPoints = "{}";
+                }
+                if (clusterConfig.ContainsKey("mounthomefolder"))
+                {
+                    var val = clusterConfig["mounthomefolder"] as string;
+                    switch ( val.ToLower()[0])
+                    {
+                        case 'y':
+                        case 't':
+                            clusterInfo.MountHomeFolder = true;
+                            break;
+                        default:
+                            clusterInfo.MountHomeFolder = false;
+                            break; 
+                    }
+                }
+                else
+                {
+                    clusterInfo.MountHomeFolder = true;
+                }
+                if (clusterConfig.ContainsKey("deploymounts"))
+                {
+                    clusterInfo.DeployMounts = clusterConfig["deploymounts"] as string;
+                }
+                else
+                {
+                    clusterInfo.DeployMounts = "[]";
+                }
+
                 var isDefault = clusterConfig.ContainsKey("Default") && (clusterConfig["Default"] as string).ToLower()=="true";
                 if (isDefault)
                     defaultClusterName = clusterName;

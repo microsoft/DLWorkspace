@@ -22,3 +22,8 @@ pod_ip_range: {{cnf["pod_ip_range"]}}
 per_user_gpu_limit: {{cnf["per_user_gpu_limit"]}}
 rest-api: {{cnf["rest-api"]}}
 usefreeflow: {{cnf["usefreeflow"]}}
+mountdescription : {{cnf["mountdescription"]}}
+mountpoints : {{cnf["mountpoints"]}} 
+mounthomefolder : {{cnf["mounthomefolder"]}}
+deploymounts : {{cnf["deploymounts"]}}
+default-storage-folders : {{cnf["default-storage-folders"]}}

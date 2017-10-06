@@ -31,7 +31,7 @@
 #      Server "monitoring-influxdb.kube-system.svc" "8086"
 #    </Plugin>
 #
-#    #Last line (collectd requires ‘\n’ at the last line)
+#    #Last line (collectd requires `\n` at the last line)
 #
 #---
 apiVersion: extensions/v1beta1

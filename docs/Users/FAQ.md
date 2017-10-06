@@ -13,6 +13,15 @@
 
    Before GPU virtualization becomes mature, we recommend not to run multiple jobs on the same GPU. 
 
+2. When I run iPython notebook as root credential, the job failed with message: 
+   ```
+    [C 00:16:52.684 NotebookApp] Running as root is not recommended. Use --allow-root to bypass.
+   ```
 
+   As the error message suggest, if you decide to run iPython with root credential, you will need to change the command to:
+
+   ```
+   export HOME=/job && jupyter notebook --no-browser --port=8888 --ip=0.0.0.0 --notebook-dir=/ --allow-root
+   ```
 
 

@@ -5,6 +5,7 @@ As with all other configurations, the shared file system is configured through i
 ```
 mountpoints:
   <<sharename>>:
+    publicshare: ["publicshare1", "publicshare2", "publicshare3" ]
     type: <<share_type>>
     server: <<share_server>>
     filesharename: <<fileshare_name>>
@@ -14,11 +15,14 @@ mountpoints:
 The configuration paramters are as follows:
 
 * <<sharename>>: a name to identify the share, you can use any unique name. 
-* <<share_type>>: should be either nfs, glusterfs, hdfs, local. This defines the type of the shared file system used. 
+* <<share_type>>: should be either nfs, glusterfs, hdfs, local, localHDD, emptyDir. This defines the type of the shared file system used. 
 * <<fileshare_name>>: name in the shared file system to identify volume.
     * For NFS, this identifies the subfolder of the share. 
     * For glusterfs, this identifies the volume of the share. 
     * HDFS will ignore <<fileshare_name>>, as HDFS is always mounted at root. 
+* publicshare: normally, each user can only access the shared file system through <<fileshare_name>>/<<username>>, so each user has access to his/her own share. The public share <<fileshare_name>>/<<publicshare>>, however, can be mounted by any user, and thus be used to share data between group members. 
+* emptyDir: If this option is turned on, the shared volume <<fileshare_name>>/<<username>> will be mounted as an [emptyDir](https://kubernetes.io/docs/concepts/storage/volumes/) in container. Its content will be deleted when job terminates. 
+
 * mountpoints: configure how the shared file system will be consumed. 
     * For each mountpoint, say mntpoint1, a symbolic link will be created:
         * /dlwsdata/mntpoint1 -> /mntdlws/<<fileshare_name>>/mntpoint1

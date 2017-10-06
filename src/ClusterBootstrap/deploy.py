@@ -301,6 +301,21 @@ default_config_parameters = {
 		},
 		
 	},
+
+	"mountdescription" : {
+		"azurefileshare" : "Azure file storage", 
+		"glusterfs" : "GlusterFS (replicated distributed storage)", 
+		"nfs" : "NFS (remote file share)",
+		"hdfs" : "Hadoop file system (replicated distribute storage).", 
+		"local" : "Local SSD. ", 
+		"localHDD" : "Local HDD. ", 
+		"emptyDir" : "Kubernetes emptyDir (folder will be erased after job termination).", 
+	}, 
+
+	"mounthomefolder" : "yes", 
+	# Mount point to be deployed to container. 
+	"deploymounts" : [ ], 
+
 	
 	# folder where automatic share script will be located
 	"folder_auto_share" : "/opt/auto_share", 
@@ -482,9 +497,9 @@ scriptblocks = {
 		"-y deploy",
 		"-y updateworker",
 		"-y kubernetes labels",
+		"webui",
 		"docker push restfulapi",
 		"docker push webui",
-		"webui",
 		"mount", 
   		"kubernetes start jobmanager",
   		"kubernetes start restfulapi",
@@ -525,6 +540,7 @@ scriptblocks = {
 		"kubernetes stop restfulapi",
 		"kubernetes stop jobmanager",
 		"webui",
+		"sleep 30", 
 		"kubernetes start jobmanager",
 		"kubernetes start restfulapi",
 		"kubernetes start webportal",
@@ -535,9 +551,9 @@ scriptblocks = {
 		"-y updateworker",
 		"-y kubernetes labels",
 		"mount",
+		"webui",
 		"docker push restfulapi",
 		"docker push webui",
-		"webui",
 		"kubernetes start freeflow",
 		"kubernetes start jobmanager",
 		"kubernetes start restfulapi",
@@ -1203,8 +1219,7 @@ def get_worker_nodes(clusterId):
 	else:
 		return get_worker_nodes_from_config(clusterId)
 
-def get_nodes(clusterId):
-	nodes = get_ETCD_master_nodes(clusterId) + get_worker_nodes(clusterId)
+def limit_nodes(nodes):
 	if limitnodes is not None:
 		matchFunc = re.compile(limitnodes, re.IGNORECASE)
 		usenodes = []
@@ -1214,6 +1229,13 @@ def get_nodes(clusterId):
 		nodes = usenodes
 		if verbose:
 			print "Operate on: %s" % nodes
+		return usenodes
+	else:
+		return nodes
+
+def get_nodes(clusterId):
+	nodes = get_ETCD_master_nodes(clusterId) + get_worker_nodes(clusterId)
+	nodes = limit_nodes(nodes)
 	return nodes
 
 def check_master_ETCD_status():
@@ -1749,6 +1771,7 @@ def update_worker_nodes( nargs ):
 	get_hyperkube_docker()
 
 	workerNodes = get_worker_nodes(config["clusterId"])
+	workerNodes = limit_nodes(workerNodes)
 	for node in workerNodes:
 		if in_list(node, nargs):
 			update_worker_node(node)
@@ -1763,6 +1786,7 @@ def update_worker_nodes( nargs ):
 def reset_worker_nodes():
 	utils.render_template_directory("./template/kubelet", "./deploy/kubelet",config)
 	workerNodes = get_worker_nodes(config["clusterId"])
+	workerNodes = limit_nodes(workerNodes)
 	for node in workerNodes:
 		reset_worker_node(node)
 
@@ -2113,10 +2137,13 @@ def get_mount_fileshares(curNode = None):
 				allmountpoints[k]["options"] = options
 				fstaboptions = fetch_config(["mountconfig", "hdfs", "fstaboptions"])
 				fstab += "hadoop-fuse-dfs#dfs://%s %s fuse %s\n" % (v["server"], curphysicalmountpoint, fstaboptions)
-			elif v["type"] == "local" and "device" in v:
+			elif (v["type"] == "local" or v["type"] == "localHDD") and "device" in v:
 				allmountpoints[k] = copy.deepcopy( v )
 				bMount = True
 				fstab += "%s %s ext4 defaults 0 0\n" % (v["device"], curphysicalmountpoint)				
+			elif v["type"] == "emptyDir":
+				allmountpoints[k] = copy.deepcopy( v )
+				bMount = True
 			else:
 				errorMsg = "Error: Unknown or missing critical parameter in fileshare %s with type %s" %( k, v["type"])
 			if not (errorMsg is None):
@@ -2319,7 +2346,7 @@ def link_fileshares(allmountpoints, bForce=False):
 			remotecmd = ""
 			if bForce:
 				for k,v in allmountpoints.iteritems():
-					if "mountpoints" in v:
+					if "mountpoints" in v and v["type"]!="emptyDir":
 						for basename in v["mountpoints"]:
 							dirname = os.path.join(v["curphysicalmountpoint"], basename )
 							remotecmd += "sudo rm %s; " % dirname
@@ -2328,7 +2355,7 @@ def link_fileshares(allmountpoints, bForce=False):
 				
 			output = utils.SSH_exec_cmd_with_output(config["ssh_cert"], config["admin_username"], node, "sudo mount" )
 			for k,v in allmountpoints.iteritems():
-				if "mountpoints" in v:
+				if "mountpoints" in v and v["type"]!="emptyDir":
 					if output.find(v["curphysicalmountpoint"])<0:
 						print "!!!Warning!!! %s has not been mounted at %s " % (k, v["curphysicalmountpoint"])
 					else:
