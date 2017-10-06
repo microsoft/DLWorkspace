@@ -64,8 +64,15 @@ spec:
   {% endif %}
   {% for mp in job["mountPoints"] %}
   - name: {{ mp.name }}
+    {% if mp.emptydir %}
+    emptyDir: {}
+    {% else %}
     hostPath:
       path: {{ mp.hostPath }}
+      {% if mp.type %}
+      type: {{ mp.type }}
+      {% endif %}
+    {% endif %}
   {% endfor %}
   {% if job["usefreeflow"] %}
   - name: freeflow

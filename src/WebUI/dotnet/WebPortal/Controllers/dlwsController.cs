@@ -57,6 +57,30 @@ namespace WindowsAuth.Controllers
             return username;
         }
 
+        [HttpGet("GetMountPoints")]
+        public async Task<IActionResult> GetMountPoints()
+        {
+            var currentCluster = HttpContext.Session.GetString("CurrentClusters");
+            var currentUsername = HttpContext.Session.GetString("Username");
+            if (String.IsNullOrEmpty(currentCluster) || !Startup.Clusters.ContainsKey(currentCluster) )
+            {
+                return Json(new { mountdescription = "{}", mountpoints = "{}", username= currentUsername,
+                                mounthomefolder = false,
+                                deploymounts = "[]"} );
+            }
+            else
+            {
+                var curCluster = Startup.Clusters[currentCluster];
+                return Json(new { mountdescription = curCluster.MountDescription,
+                                    mountpoints = curCluster.MountPoints,
+                                    username = currentUsername,
+                                    mounthomefolder = curCluster.MountHomeFolder, 
+                                    deploymounts = curCluster.DeployMounts
+                                    });
+            }
+        }
+
+
         // GET api/dlws/op_str?params
         [HttpGet("{op}")]
         public async Task<string> Get(string op)
