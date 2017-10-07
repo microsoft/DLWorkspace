@@ -91,11 +91,11 @@ def mount_fileshare(verbose=True):
 								try:
 									os.system("mkdir -m 0777 "+targetdir)
 								except:
-									print "Failed to create directory " + targetdir
+									logging.debug( "Failed to create directory " + targetdir )
 								if os.path.exists( targetdir ):
 									bMount = True
 						except:
-							print "Failed to check for existence of directory " + targetdir
+							logging.debug( "Failed to check for existence of directory " + targetdir )
 					if not bMount:
 						# Failing
 						umounts.append( words[2] )
@@ -105,7 +105,7 @@ def mount_fileshare(verbose=True):
 			# Examine mount point, unmount those file shares that fails. 
 			for um in umounts:
 				cmd = "umount %s; " % um
-				print "To examine mount %s " % um
+				logging.Debug( "To examine mount %s " % um )
 			if len(existmounts) <= 0:
 				nMounts += 1
 				if v["type"] == "azurefileshare":
