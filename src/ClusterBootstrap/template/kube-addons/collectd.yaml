@@ -1,39 +1,3 @@
-#kind: ConfigMap
-#apiVersion: v1
-#metadata:
-#  name: collectd-config
-#  namespace: default
-#data:
-#  node-collectd.conf: |-
-#    FQDNLookup false
-#    LoadPlugin syslog
-#    <Plugin syslog>
-#       LogLevel info
-#    </Plugin>
-#
-#    LoadPlugin cpu
-#    LoadPlugin memory
-#    LoadPlugin network
-#
-#    <Plugin "cpu">
-#      Interval 5
-#      ReportByState false
-#      ReportByCpu false
-#    </Plugin>
-#
-#    <Plugin "memory">
-#      Interval 30
-#      ValuesAbsolute false
-#      ValuesPercentage true
-#    </Plugin>
-#
-#    <Plugin "network">
-#      Server "monitoring-influxdb.kube-system.svc" "8086"
-#    </Plugin>
-#
-#    #Last line (collectd requires ‘\n’ at the last line)
-#
-#---
 apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
@@ -63,7 +27,7 @@ spec:
           - name: CONFIG_TYPE
             value: influxdb 
           - name: EP_HOST
-            value: 127.0.0.1
+            value: {{cnf["webportal_node"]}}
           - name: EP_PORT
             value: "25826"
           - name: HOST_NAME
@@ -117,4 +81,4 @@ spec:
           path: /var/run/docker.sock
       - name: nvidia-driver
         hostPath:
-          path: /opt/nvidia-driver/current
+          path: {{cnf["nvidia-driver-path"]}}

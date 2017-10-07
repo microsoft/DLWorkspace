@@ -1,7 +1,7 @@
 kind: DaemonSet
 apiVersion: extensions/v1beta1
 metadata:
-  name: monitoring-influxdb
+  name: dlws-influxdb
   namespace: kube-system
 spec:
   template:
