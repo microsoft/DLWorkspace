@@ -42,8 +42,8 @@ import launch_glusterfs
 import az_tools
 import acs_tools
 
-capacityMatch = re.compile("\d+[M|G]B")
-digitsMatch = re.compile("\d+")
+capacityMatch = re.compile("\d+\.?\d*\s*[K|M|G|T|P]B")
+digitsMatch = re.compile("\d+\.?\d*")
 defanswer = ""
 ipAddrMetaname = "hostIP"
 
@@ -610,14 +610,21 @@ def expand_path_in_config(key_in_config):
 		raise Exception("Error: no %s in config " % key_in_config)
 
 def parse_capacity_in_GB( inp ):
+	# print "match capacity of %s" % inp
 	mt = capacityMatch.search(inp)
 	if mt is None: 
 		return 0.0
 	else:
 		digits = digitsMatch.search(mt.group(0)).group(0)
-		val = int(digits)
+		val = float(digits)
 		if "GB" in mt.group(0):
 			return float(val)
+		elif "TB" in mt.group(0):
+			return float(val) * 1000.0
+		elif "PB" in mt.group(0):
+			return float(val) * 1000000.0
+		elif "KB" in mt.group(0):
+			return float(val) / 1000000.0
 		else:
 			return float(val) / 1000.0
 
@@ -2289,6 +2296,7 @@ def mount_fileshares_by_service(perform_mount=True):
 			remotecmd += "sudo chmod +x %s; " % os.path.join(config["folder_auto_share"], "auto_share.py")
 			remotecmd += "sudo " + os.path.join(config["folder_auto_share"], "auto_share.py") + "; " # run it once now
 			remotecmd += "sudo systemctl daemon-reload; "
+			remotecmd += "sudo rm /opt/auto_share/lock; "
 			remotecmd += "sudo systemctl enable auto_share.timer; "
 			remotecmd += "sudo systemctl restart auto_share.timer; "
 			remotecmd += "sudo systemctl stop auto_share.service; "
@@ -2529,6 +2537,8 @@ def repartition_nodes(nodes, nodesinfo, partitionConfig):
 			totalPartitionSize = sum( partitionSize )
 			start = 0
 			npart = len(partitionSize)
+			if npart > 0:
+				cmd += "sudo parted -s " + deviceinfo["name"] + " mklabel gpt; "
 			for i in range(npart):
 				partSize = partitionSize[i]
 				end = int( math.floor( start + (partSize/totalPartitionSize)*100.0 + 0.5 ))
@@ -2536,7 +2546,6 @@ def repartition_nodes(nodes, nodesinfo, partitionConfig):
 					end = 100
 				if end > 100:
 					end = 100
-				cmd += "sudo parted -s " + deviceinfo["name"] + " mklabel gpt; "
 				cmd += "sudo parted -s --align optimal " + deviceinfo["name"] + " mkpart logical " + str(start) +"% " + str(end)+"% ; "
 				start = end
 		if len(cmd)>0:
