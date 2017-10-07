@@ -382,8 +382,10 @@ default_config_parameters = {
 	"kube_addons" : ["/opt/addons/kube-addons/dashboard.yaml", 
 					 "/opt/addons/kube-addons/dns-addon.yaml",
 					 "/opt/addons/kube-addons/kube-proxy.json",
-					 "/opt/addons/kube-addons/heapster-deployment.json",
-					 "/opt/addons/kube-addons/heapster-svc.json"
+					 "/opt/addons/kube-addons/collectd.yaml",
+					 "/opt/addons/kube-addons/grafana.yaml",
+					 "/opt/addons/kube-addons/heapster.yaml",
+					 "/opt/addons/kube-addons/influxdb.yaml",
 					 ],
 
     "Authentications": {
@@ -781,7 +783,7 @@ default_config_mapping = {
 	"pxeserverip": (["pxeserver"], lambda x: fetch_dictionary(x,["ip"])), 
 	"pxeserverrootpasswd": (["pxeserver"], lambda x: get_root_passwd()), 
 	"pxeoptions": (["pxeserver"], lambda x: "" if fetch_dictionary(x,["options"]) is None else fetch_dictionary(x,["options"])), 
-	"hdfs_cluster_name" : ( ["cluster_name"], lambda x:x ), 
+	"hdfs_cluster_name" : ( ["cluster_name"], lambda x:x ),     
 }
 	
 # Merge entries in config2 to that of config1, if entries are dictionary. 
@@ -1072,7 +1074,6 @@ def init_deployment():
 
 	add_additional_cloud_config()
 	add_kubelet_config()
-
 	template_file = "./template/cloud-config/cloud-config-worker.yml"
 	target_file = "./deploy/cloud-config/cloud-config-worker.yml"
 	utils.render_template( template_file, target_file ,config)
@@ -1352,6 +1353,9 @@ def gen_configs():
 	#config["api_servers"] = ",".join(["https://"+x for x in config["kubernetes_master_node"]])
 	config["api_servers"] = "https://"+config["kubernetes_master_node"][0]+":"+str(config["k8sAPIport"])
 	config["etcd_endpoints"] = ",".join(["https://"+x+":"+config["etcd3port1"] for x in config["etcd_node"]])
+
+	config["webportal_node"] = None if len(get_node_lists_for_service("webportal"))==0 else get_node_lists_for_service("webportal")[0]
+
 
 	if os.path.isfile(config["ssh_cert"]+".pub"):
 		f = open(config["ssh_cert"]+".pub")
