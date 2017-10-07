@@ -43,94 +43,95 @@ def configure(conf):
 def read(data=None):
         vl = collectd.Values(type='gauge')
         vl.plugin = 'kubernetes'
+        try:
+            rsset = json.loads(curl_get("https://127.0.0.1/apis/extensions/v1beta1/replicasets"))
 
-        rsset = json.loads(curl_get("https://127.0.0.1/apis/extensions/v1beta1/replicasets"))
+            if "items" in rsset:
+                for rs in rsset["items"]:
+                    if "metadata" in rs and "name" in rs["metadata"] and "status" in rs:
+                            vl.plugin_instance = rs["metadata"]["name"]
 
-        if "items" in rsset:
-            for rs in rsset["items"]:
-                if "metadata" in rs and "name" in rs["metadata"] and "status" in rs:
-                        vl.plugin_instance = rs["metadata"]["name"]
+                            if "availableReplicas" in rs["status"]:
+                                numberAvailable = float(rs["status"]["availableReplicas"])
+                            else:
+                                numberAvailable = 0
 
-                        if "availableReplicas" in rs["status"]:
-                            numberAvailable = float(rs["status"]["availableReplicas"])
-                        else:
-                            numberAvailable = 0
+                            if "replicas" in rs["status"]:
+                                desiredNumber = float(rs["status"]["replicas"])
+                            else:
+                                desiredNumber = 0
 
-                        if "replicas" in rs["status"]:
-                            desiredNumber = float(rs["status"]["replicas"])
-                        else:
-                            desiredNumber = 0
+                            if "readyReplicas" in rs["status"]:
+                                readyNumber = float(rs["status"]["readyReplicas"])
+                            else:
+                                readyNumber = 0
 
-                        if "readyReplicas" in rs["status"]:
-                            readyNumber = float(rs["status"]["readyReplicas"])
-                        else:
-                            readyNumber = 0
+                            collectd.info('kubernetes plugin: replicaset "%s" with values: %f %f %f' % (rs["metadata"]["name"],desiredNumber,numberAvailable,readyNumber))
+                            if desiredNumber > 0 and desiredNumber == readyNumber and desiredNumber == numberAvailable:
+                                res = 0
+                            else:
+                                res = 1
+                            vl.dispatch(values=[float(res)])
 
-                        collectd.info('kubernetes plugin: replicaset "%s" with values: %f %f %f' % (rs["metadata"]["name"],desiredNumber,numberAvailable,readyNumber))
-                        if desiredNumber > 0 and desiredNumber == readyNumber and desiredNumber == numberAvailable:
-                            res = 0
-                        else:
-                            res = 1
-                        vl.dispatch(values=[float(res)])
+            rsset = json.loads(curl_get("https://127.0.0.1/apis/extensions/v1/ReplicationController"))
 
-        rsset = json.loads(curl_get("https://127.0.0.1/apis/extensions/v1/ReplicationController"))
+            if "items" in rsset:
+                for rs in rsset["items"]:
+                    if "metadata" in rs and "name" in rs["metadata"] and "status" in rs:
+                            vl.plugin_instance = rs["metadata"]["name"]
 
-        if "items" in rsset:
-            for rs in rsset["items"]:
-                if "metadata" in rs and "name" in rs["metadata"] and "status" in rs:
-                        vl.plugin_instance = rs["metadata"]["name"]
+                            if "availableReplicas" in rs["status"]:
+                                numberAvailable = float(rs["status"]["availableReplicas"])
+                            else:
+                                numberAvailable = 0
 
-                        if "availableReplicas" in rs["status"]:
-                            numberAvailable = float(rs["status"]["availableReplicas"])
-                        else:
-                            numberAvailable = 0
+                            if "replicas" in rs["status"]:
+                                desiredNumber = float(rs["status"]["replicas"])
+                            else:
+                                desiredNumber = 0
 
-                        if "replicas" in rs["status"]:
-                            desiredNumber = float(rs["status"]["replicas"])
-                        else:
-                            desiredNumber = 0
+                            if "readyReplicas" in rs["status"]:
+                                readyNumber = float(rs["status"]["readyReplicas"])
+                            else:
+                                readyNumber = 0
 
-                        if "readyReplicas" in rs["status"]:
-                            readyNumber = float(rs["status"]["readyReplicas"])
-                        else:
-                            readyNumber = 0
-
-                        collectd.info('kubernetes plugin: ReplicationController "%s" with values: %f %f %f' % (rs["metadata"]["name"],desiredNumber,numberAvailable,readyNumber))
+                            collectd.info('kubernetes plugin: ReplicationController "%s" with values: %f %f %f' % (rs["metadata"]["name"],desiredNumber,numberAvailable,readyNumber))
                         
-                        if desiredNumber > 0 and desiredNumber == readyNumber and desiredNumber == numberAvailable:
-                            res = 0
-                        else:
-                            res = 1
-                        vl.dispatch(values=[float(res)])
+                            if desiredNumber > 0 and desiredNumber == readyNumber and desiredNumber == numberAvailable:
+                                res = 0
+                            else:
+                                res = 1
+                            vl.dispatch(values=[float(res)])
 
 
-        dpset = json.loads(curl_get("https://127.0.0.1/apis/extensions/v1beta1/daemonsets"))
-        if "items" in dpset:
-            for dp in dpset["items"]:
-                if "metadata" in dp and "name" in dp["metadata"] and "status" in dp:
-                        vl.plugin_instance = dp["metadata"]["name"]
-                        if "numberAvailable" in dp["status"]:
-                            numberAvailable = float(dp["status"]["numberAvailable"])
-                        else:
-                            numberAvailable = 0
+            dpset = json.loads(curl_get("https://127.0.0.1/apis/extensions/v1beta1/daemonsets"))
+            if "items" in dpset:
+                for dp in dpset["items"]:
+                    if "metadata" in dp and "name" in dp["metadata"] and "status" in dp:
+                            vl.plugin_instance = dp["metadata"]["name"]
+                            if "numberAvailable" in dp["status"]:
+                                numberAvailable = float(dp["status"]["numberAvailable"])
+                            else:
+                                numberAvailable = 0
 
-                        if "desiredNumberScheduled" in dp["status"]:
-                            desiredNumber = float(dp["status"]["desiredNumberScheduled"])
-                        else:
-                            desiredNumber = 0
+                            if "desiredNumberScheduled" in dp["status"]:
+                                desiredNumber = float(dp["status"]["desiredNumberScheduled"])
+                            else:
+                                desiredNumber = 0
 
-                        if "numberReady" in dp["status"]:
-                            readyNumber = float(dp["status"]["numberReady"])
-                        else:
-                            readyNumber = 0
+                            if "numberReady" in dp["status"]:
+                                readyNumber = float(dp["status"]["numberReady"])
+                            else:
+                                readyNumber = 0
 
-                        collectd.info('kubernetes plugin: deployment "%s" with values: %f %f %f' % (dp["metadata"]["name"],desiredNumber,numberAvailable,readyNumber))
+                            collectd.info('kubernetes plugin: deployment "%s" with values: %f %f %f' % (dp["metadata"]["name"],desiredNumber,numberAvailable,readyNumber))
                         
-                        if desiredNumber > 0 and desiredNumber == readyNumber and desiredNumber == numberAvailable:
-                            res = 0
-                        else:
-                            res = 1
-                        vl.dispatch(values=[float(res)])
-
+                            if desiredNumber > 0 and desiredNumber == readyNumber and desiredNumber == numberAvailable:
+                                res = 0
+                            else:
+                                res = 1
+                            vl.dispatch(values=[float(res)])
+        except:
+            pass
 collectd.register_config(configure)
 collectd.register_read(read)
