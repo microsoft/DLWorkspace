@@ -2292,6 +2292,7 @@ def mount_fileshares_by_service(perform_mount=True):
 			remotecmd += "sudo chmod +x %s; " % os.path.join(config["folder_auto_share"], "auto_share.py")
 			remotecmd += "sudo " + os.path.join(config["folder_auto_share"], "auto_share.py") + "; " # run it once now
 			remotecmd += "sudo systemctl daemon-reload; "
+			remotecmd += "sudo rm /opt/auto_share/lock; "
 			remotecmd += "sudo systemctl enable auto_share.timer; "
 			remotecmd += "sudo systemctl restart auto_share.timer; "
 			remotecmd += "sudo systemctl stop auto_share.service; "

@@ -104,8 +104,10 @@ def mount_fileshare(verbose=True):
 			umounts.sort()
 			# Examine mount point, unmount those file shares that fails. 
 			for um in umounts:
-				cmd = "umount %s; " % um
-				logging.Debug( "To examine mount %s " % um )
+				cmd = "umount %s" % um
+				logging.debug( "Mount fails, to examine mount %s " % um )				
+				exec_with_output( cmd, verbose=verbose )
+				time.sleep(1)
 			if len(existmounts) <= 0:
 				nMounts += 1
 				if v["type"] == "azurefileshare":
@@ -148,6 +150,20 @@ Automatically monitor and mount file share.
 	args = parser.parse_args()
 	start_logging()
 	logging.debug( "Run as user %s" % getpass.getuser() )
-	mount_fileshare()
+	lockfile = os.path.join(dir_path, "lock")
+	try:
+		lockfd = os.open( lockfile, os.O_CREAT | os.O_WRONLY | os.O_EXCL )
+		try:
+			mount_fileshare()
+		except:
+			logging.debug( "Exception when mounting files... "  )	
+		else:
+			logging.debug( "Examined all mounting points... "  )	
+		os.close( lockfd )
+		os.remove( lockfile )
+		logging.debug( "Remove lock ... " )
+	except OSError:
+		logging.debug( "Lock file %s exist, another autho_share still running? Do nothing. " %lockfile )	
+	
 	logging.debug( "End auto_share ... " )
 
