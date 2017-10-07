@@ -40,11 +40,7 @@ RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
 
 RUN curl https://packages.microsoft.com/config/ubuntu/16.04/prod.list > /etc/apt/sources.list.d/mssql-release.list
 
-RUN apt-get update; 
-
-RUN ACCEPT_EULA=Y apt-get install -y msodbcsql=13.1.1.0-1
-
-RUN apt-get install -y unixodbc-dev-utf16
+RUN apt-get update; ACCEPT_EULA=Y apt-get install -y msodbcsql=13.1.1.0-1 unixodbc-dev-utf16
 
 #RUN ln -sfn /opt/mssql-tools/bin/sqlcmd-13.0.1.0 /usr/bin/sqlcmd 
 #RUN ln -sfn /opt/mssql-tools/bin/bcp-13.0.1.0 /usr/bin/bcp
@@ -59,10 +55,10 @@ COPY kubectl /usr/local/bin/kubectl
 RUN chmod +x /usr/local/bin/kubectl
 #COPY gittoken /root/.ssh/id_rsa
 #RUN chmod 400 /root/.ssh/id_rsa
-RUN apt-get install -y --no-install-recommends ssh
+RUN apt-get update; apt-get install -y --no-install-recommends ssh apache2 libapache2-mod-wsgi sudo
+RUN usermod -a -G sudo www-data 
+RUN echo "\nwww-data ALL=(ALL) NOPASSWD:ALL\n" > /etc/sudoers 
 
-
-RUN apt-get install -y apache2 libapache2-mod-wsgi
 RUN rm /etc/apache2/mods-enabled/mpm_*
 COPY mpm_prefork.conf /etc/apache2/mods-available/mpm_prefork.conf
 COPY 000-default.conf /etc/apache2/sites-available/000-default.conf

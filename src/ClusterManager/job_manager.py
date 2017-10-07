@@ -149,6 +149,7 @@ def SubmitRegularJob(job):
 		else:
 			jobParams["usefreeflow"] = False
 
+		print ("Render Job: %s" % jobParams)
 		template = ENV.get_template(os.path.abspath(jobTemp))
 		job_description = template.render(job=jobParams)
 

@@ -6,18 +6,58 @@ from flask import Flask
 from flask_restful import reqparse, abort, Api, Resource
 from flask import request, jsonify
 import base64
+import yaml
+
+import logging
+from logging.config import dictConfig
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
 #from JobRestAPIUtils import SubmitDistJob, GetJobList, GetJobStatus, DeleteJob, GetTensorboard, GetServiceAddress, GetLog, GetJob
 import JobRestAPIUtils
 
+dir_path = os.path.dirname(os.path.realpath(__file__))
+with open(os.path.join(dir_path, 'logging.yaml'), 'r') as f:
+	logging_config = yaml.load(f)
+	dictConfig(logging_config)
+logger = logging.getLogger('restfulapi')
+
 app = Flask(__name__)
 api = Api(app)
+verbose = True
+logger.info( "------------------- Restful API started ------------------------------------- ")
 
+
+configFile = "/RestfulAPI/config.yaml"
+with open(configFile,'r') as f:
+	config = yaml.load(f)
+logger.info("%s" % config )
 
 
 parser = reqparse.RequestParser()
 
+def istrue(value):
+	if isinstance(value, bool):
+		return value
+	elif isinstance(value, basestring):
+		return value.lower()[0]=='y'
+	else:
+		return bool(value)
+
+def tolist(value):
+	if isinstance( value, basestring):
+		if len(value)>0:
+			return [value] 
+		else:
+			return []
+	else:
+		return value
+
+def getAlias(username):
+	if "@" in username:
+		username = username.split("@")[0].strip()
+	if "/" in username:
+		username = username.split("/")[1].strip()
+	return username
 
 class SubmitJob(Resource):
 	def get(self):
@@ -115,7 +155,59 @@ class SubmitJob(Resource):
 				params["isParent"] = args["isParent"]
 			else:
 				params["isParent"] = "1"
-
+			params["mountPoints"] = []
+			addcmd = ""		
+			if "mounthomefolder" in config and istrue(config["mounthomefolder"]) and "storage-mount-path" in config:
+				alias = getAlias(params["userName"])
+				params["mountPoints"].append({"name":"homeholder","containerPath":os.path.join("/home", alias),"hostPath":os.path.join(config["storage-mount-path"], "work", alias)})
+			if "mountpoints" in config and "storage-mount-path" in config:
+				# see link_fileshares in deploy.py 
+				for k, v in config["mountpoints"].iteritems():
+					if "mountpoints" in v:
+						for basename in tolist(v["mountpoints"]):
+							if basename!="" and basename not in config["default-storage-folders"] and basename in config["deploymounts"]:
+								hostBase = os.path.join(config["storage-mount-path"], basename[1:]) if os.path.isabs(basename) else os.path.join(config["storage-mount-path"], basename)
+								basealias = basename[1:] if os.path.isabs(basename) else basename
+								containerBase = os.path.join("/", basename)
+								alias = getAlias(params["userName"])
+								shares = [alias]
+								if "publicshare" in v:
+									if "all" in v["publicshare"]:
+										shares += (tolist(v["publicshare"]["all"]))
+									if basename in v["publicshare"]:
+										shares += (tolist(v["publicshare"][basename]))
+								for oneshare in shares:
+									hostPath = os.path.join(hostBase, oneshare)
+									containerPath = os.path.join(containerBase, oneshare)
+									if v["type"]=="emptyDir":
+										params["mountPoints"].append({"name":basealias+"-"+oneshare,
+																		"containerPath": containerPath,
+																		"hostPath": "/emptydir", 
+																		"emptydir": "yes" })
+									else:
+										params["mountPoints"].append({"name":basealias+"-"+oneshare,
+																		"containerPath": containerPath,
+																		"hostPath": hostPath })
+									if False and "type" in v and v["type"]!="local" and v["type"]!="localHDD":
+										# This part is disabled, see if False above
+										# This is a shared drive, we can try to create it, and enable the write permission
+										if not os.path.exists(hostPath):
+											cmd = "sudo mkdir -m 0777 -p %s; " % hostPath
+											os.system( cmd )
+											logger.info( cmd )						
+											if oneshare==alias:
+												cmd = "sudo chown %s:%s %s; " % (params["containerUserId"], "500000513", hostPath )
+												os.system(cmd )
+												logger.info( cmd )
+									addcmd += "chmod 0777 %s ; " % containerPath
+									if oneshare==alias:
+										addcmd += "chown %s:%s %s ; " % ( params["userId"], "500000513", containerPath )
+			if verbose and len(params["mountPoints"]) > 0:
+				logger.info("Mount path for job %s" % params )
+				for mounts in params["mountPoints"]:
+					logger.info( "Share %s, mount %s at %s" % (mounts["name"], mounts["hostPath"], mounts["containerPath"]) )
+			if len(addcmd) > 0:
+				params["cmd"] = addcmd + params["cmd"]
 			output = JobRestAPIUtils.SubmitJob(json.dumps(params))
 			
 			if "jobId" in output:
