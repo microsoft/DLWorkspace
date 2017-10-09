@@ -2141,13 +2141,19 @@ def get_mount_fileshares(curNode = None):
 					fstab += "%s:/%s %s /nfsmnt nfs %s\n" % (v["server"], v["filesharename"], curphysicalmountpoint, options)
 				else:
 					errorMsg = "nfs fileshare %s, there is no filesharename or server parameter" % (k)
-			elif v["type"] == "hdfs" and "server" in v:
+			elif v["type"] == "hdfs":
 				allmountpoints[k] = copy.deepcopy( v )
+				if "server" not in v or v["server"] =="":
+					hdfsconfig = generate_hdfs_config( config, None)
+					allmountpoints[k]["server"] = []
+					for ( k1,v1) in hdfsconfig["namenode"].iteritems():
+						if k1.find("namenode")>=0:
+							allmountpoints[k]["server"].append(v1)
 				bMount = True
 				options = fetch_config(["mountconfig", "hdfs", "options"])
 				allmountpoints[k]["options"] = options
 				fstaboptions = fetch_config(["mountconfig", "hdfs", "fstaboptions"])
-				fstab += "hadoop-fuse-dfs#dfs://%s %s fuse %s\n" % (v["server"], curphysicalmountpoint, fstaboptions)
+				fstab += "hadoop-fuse-dfs#hdfs://%s %s fuse %s\n" % (allmountpoints[k]["server"][0], curphysicalmountpoint, fstaboptions)
 			elif (v["type"] == "local" or v["type"] == "localHDD") and "device" in v:
 				allmountpoints[k] = copy.deepcopy( v )
 				bMount = True
@@ -2724,7 +2730,7 @@ def generate_hdfs_config( nodes, deviceSelect):
 		print "Journal nodes: " + zknodelist
 	journalnodelist = generate_hdfs_nodelist( journalnodes, fetch_config( ["hdfsconfig", "journalnode", "port"]), ";")
 	hdfsconfig["journalnode"]["nodes"] = journalnodelist
-	config["hdfsconfig"]["namenode"]["namenode1"] = hdfsconfig["namenode"]["namenode1"]
+	config["hdfsconfig"]["namenode"] = hdfsconfig["namenode"]
 	return hdfsconfig
 
 # Write configuration for each hdfs node. 
