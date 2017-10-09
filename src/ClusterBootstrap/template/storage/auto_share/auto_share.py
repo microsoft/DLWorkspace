@@ -46,12 +46,12 @@ def exec_with_output( cmd, verbose=False, max_run=30 ):
 			count += 1
 		if verbose:
 			logging.debug ( "Return: %d, Output: %s, Error: %s" % (sp.returncode, output, err) )
+		return (sp.returncode, output, err)
 	except subprocess.CalledProcessError as e:
 		print "Exception " + str(e.returncode) + ", output: " + e.output.strip()
 		if verbose: 
 			logging.debug ( "Exception: %s, output: %s" % (str(e.returncode), e.output.strip()) )
-		return ""
-	return output
+		return (e.returncode, e.output, "Error")
 
 def exec_wo_output( cmd, verbose=False ):
 	try:
@@ -61,6 +61,39 @@ def exec_wo_output( cmd, verbose=False ):
 		os.system( cmd )
 	except subprocess.CalledProcessError as e:
 		print "Exception " + str(e.returncode) + ", output: " + e.output.strip()
+
+def mount_one_hdfs( v, physicalmountpoint, server, verbose=True):
+	exec_with_output( "hadoop-fuse-dfs hdfs://%s %s %s " % (server, physicalmountpoint, v["options"]), verbose=verbose )
+
+def test_one_hdfs( server, verbose=True):
+	(retcode, output, err) = exec_with_output("hdfs dfs -test -e hdfs://%s" % server, verbose=verbose)
+	if err.find("not supported in state standy")>=0:
+		# standby namenode
+		logging.debug ( "HDFS namenode %s is standby namenode" % server )
+		return False
+	elif err.find("Connection refused")>=0:
+		logging.debug ( "HDFS namenode %s fails" % server )
+		return False
+	elif err.find("Incomplete HDFS URI")>=0:
+		logging.debug ( "Wrongly formatted namenode %s: fails" % server )
+		return False
+	else:
+		logging.debug ( "HDFS namenode %s is active" % server )
+		return True
+
+# Mount HDFS, with support of high availablability
+def mount_hdfs( v, physicalmountpoint, verbose=True ):
+	if len(v["server"])==0:
+		# No HDFS server specified, unable to mount
+		return False
+	elif len(v["server"])==1:
+		mount_one_hdfs( v, physicalmountpoint, v["server"][0], verbose=verbose)
+		return True
+	else:
+		for server in v["server"]:
+			if test_one_hdfs(server, verbose):
+				mount_one_hdfs( v, physicalmountpoint, server, verbose=verbose)
+				return True
 
 def mount_fileshare(verbose=True):
 	with open("mounting.yaml", 'r') as datafile:
@@ -104,7 +137,7 @@ def mount_fileshare(verbose=True):
 			umounts.sort()
 			# Examine mount point, unmount those file shares that fails. 
 			for um in umounts:
-				cmd = "umount %s" % um
+				cmd = "umount -l %s" % um
 				logging.debug( "Mount fails, to examine mount %s " % um )				
 				exec_with_output( cmd, verbose=verbose )
 				time.sleep(1)
@@ -117,7 +150,7 @@ def mount_fileshare(verbose=True):
 				elif v["type"] == "nfs":
 					exec_with_output( "mount %s:%s %s -o %s " % (v["server"], v["filesharename"], physicalmountpoint, v["options"]), verbose=verbose )
 				elif v["type"] == "hdfs":
-					exec_with_output( "hadoop-fuse-dfs dfs://%s %s %s " % (v["server"], physicalmountpoint, v["options"]), verbose=verbose )
+					mount_hdfs( v, physicalmountpoint, verbose=verbose )
 				elif v["type"] == "local" or v["type"] == "localHDD":
 					exec_with_output( "mount %s %s " % ( v["device"], physicalmountpoint ), verbose=verbose )
 				else:

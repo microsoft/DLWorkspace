@@ -46,7 +46,7 @@
       <value>qjournal://{{cnf["journalnode"]["nodes"]}}/{{cnf["hdfs_cluster_name"]}}</value>
     </property>
     <property>
-      <name>dfs.client.failover.proxy.provider.mycluster</name>
+      <name>dfs.client.failover.proxy.provider.{{cnf["hdfs_cluster_name"]}}</name>
       <value>org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider</value>
     </property>
     <property>

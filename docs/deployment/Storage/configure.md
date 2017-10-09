@@ -10,12 +10,16 @@ mountpoints:
     server: <<share_server>>
     filesharename: <<fileshare_name>>
     mountpoints: ["mntpoint1","mntpoint2","mntpoint3"]
+    
 ```
 
 The configuration paramters are as follows:
 
 * <<sharename>>: a name to identify the share, you can use any unique name. 
 * <<share_type>>: should be either nfs, glusterfs, hdfs, local, localHDD, emptyDir. This defines the type of the shared file system used. 
+* server: name of the server 
+  For HDFS, if the HDFS cluster is the same as the deployed cluster, no server should be specified. 
+  Otherwsie, specify: hdfs://{HDFS_Cluster}
 * <<fileshare_name>>: name in the shared file system to identify volume.
     * For NFS, this identifies the subfolder of the share. 
     * For glusterfs, this identifies the volume of the share. 
