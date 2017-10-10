@@ -1,0 +1,11 @@
+[Unit]
+Description=Mount GlusterFS volume automatically  
+After=docker.service
+
+
+[Mount]
+What={{cnf["node"]}}:{{cnf["filesharename"]}}
+Where={{cnf["physicalmountpoint"]}}
+Type=glusterfs
+Options={{cnf["options"]}}
+

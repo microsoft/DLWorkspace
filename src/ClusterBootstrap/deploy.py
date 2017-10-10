@@ -2298,6 +2298,7 @@ def mount_fileshares_by_service(perform_mount=True):
 			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.service","/etc/systemd/system/auto_share.service", config["admin_username"], node )
 			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/logging.yaml",os.path.join(config["folder_auto_share"], "logging.yaml"), config["admin_username"], node )
 			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.py",os.path.join(config["folder_auto_share"], "auto_share.py"), config["admin_username"], node )
+			utils.sudo_scp( config["ssh_cert"], "./template/storage/auto_share/glusterfs.mount",os.path.join(config["folder_auto_share"], "glusterfs.mount"), config["admin_username"], node )
 			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/mounting.yaml",os.path.join(config["folder_auto_share"], "mounting.yaml"), config["admin_username"], node )
 			remotecmd += "sudo chmod +x %s; " % os.path.join(config["folder_auto_share"], "auto_share.py")
 			remotecmd += "sudo " + os.path.join(config["folder_auto_share"], "auto_share.py") + "; " # run it once now
