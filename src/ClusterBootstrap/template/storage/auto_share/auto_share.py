@@ -14,6 +14,7 @@ import subprocess
 import re
 import sys
 import getpass
+import copy
 
 def pipe_with_output( cmd1, cmd2, verbose=False ):
 	try:
@@ -95,6 +96,60 @@ def mount_hdfs( v, physicalmountpoint, verbose=True ):
 				mount_one_hdfs( v, physicalmountpoint, server, verbose=verbose)
 				return True
 
+from shutil import copyfile, copytree
+from jinja2 import Environment, FileSystemLoader, Template
+def render_template(template_file, target_file, config, verbose=False):
+	filename, file_extension = os.path.splitext(template_file)
+	basename = os.path.basename(template_file)
+	if ("render-exclude" in config and basename in config["render-exclude"] ):
+		# Don't render/copy the file. 
+		return
+	if ("render-by-copy-ext" in config and file_extension in config["render-by-copy-ext"]) or ("render-by-copy" in config and basename in config["render-by-copy"]):
+		copyfile(template_file, target_file)
+		if verbose:
+			logging.debug ( "Copy tempalte " + template_file + " --> " + target_file )
+	elif ("render-by-line-ext" in config and file_extension in config["render-by-line-ext"]) or ("render-by-line" in config and basename in config["render-by-line"]):
+		if verbose:
+			logging.debug ( "Render tempalte " + template_file + " --> " + target_file + " Line by Line .... " )
+		ENV_local = Environment(loader=FileSystemLoader("/"))
+		with open(target_file, 'w') as f:
+			with open(template_file, 'r') as fr:
+				for line in fr:
+					logging.debug( "Read: " + line )
+					try:
+						template = ENV_local.Template(line)				
+						content = template.render(cnf=config)
+						logging.debug( content )
+						f.write(content+"\n")
+					except:
+						pass
+				fr.close()
+			f.close()
+
+	else:
+		if verbose:
+			logging.debug( "Render tempalte " + template_file + " --> " + target_file )
+		try:
+			ENV_local = Environment(loader=FileSystemLoader("/"))
+			template = ENV_local.get_template(os.path.abspath(template_file))
+			content = template.render(cnf=config)
+			with open(target_file, 'w') as f:
+				f.write(content)
+			f.close()
+		except Exception as e:
+			logging.debug ( "!!! Failure !!! in render template " + template_file )
+			logging.debug( e )
+			pass			
+
+def mount_glusterfs( v, physicalmountpoint, verbose=True):
+	mount_file_basename = physicalmountpoint[1:].replace("/","-")
+	mount_file = os.path.join( "/etc/systemd/system", mount_file_basename + ".mount")
+	glusterfsconfig  = copy.deepcopy(v)
+	glusterfsconfig["physicalmountpoint"] = physicalmountpoint
+	logging.debug( "Rendering ./glusterfs.mount --> %s" % mount_file )
+	render_template( "./glusterfs.mount", mount_file, glusterfsconfig, verbose=verbose )
+
+
 def mount_fileshare(verbose=True):
 	with open("mounting.yaml", 'r') as datafile:
 		config = yaml.load(datafile)
@@ -146,6 +201,7 @@ def mount_fileshare(verbose=True):
 				if v["type"] == "azurefileshare":
 					exec_with_output( "mount -t cifs %s %s -o %s " % (v["url"], physicalmountpoint, v["options"] ), verbose=verbose )
 				elif v["type"] == "glusterfs":
+					mount_glusterfs( v, physicalmountpoint, verbose=verbose)
 					exec_with_output( "mount -t glusterfs -o %s %s:%s %s " % (v["options"], v["node"], v["filesharename"], physicalmountpoint ), verbose=verbose )
 				elif v["type"] == "nfs":
 					exec_with_output( "mount %s:%s %s -o %s " % (v["server"], v["filesharename"], physicalmountpoint, v["options"]), verbose=verbose )
