@@ -3,11 +3,15 @@
 The document describes the procedure to setup HDFS, either in high availability mode (multiple zookeepers and journal nodes, one active namenode and one standby namenode, multiple datanodes ), or with a single namenode across a cluster. 
 
 1. Configure HDFS configuration section on the cluster. 
-  You will need to specify: 1) the nodes, 2) block device used by HDFS. 
+  You will need to specify: 1) the nodes, 2) block device used by HDFS and their mounting location. 
   
   ```
   hdfs:
     partitions: /dev/sd[c|d]1
+    datadirs:
+      /dev/sdc1:/mnt/sdc1
+      /dev/sdc2:/mnt/sdc2
+
   kubelabels:
     hdfs: worker or <<hdfs_labels>> # nodes marked with hdfs_labels will be used for HDFS. 
   ```
