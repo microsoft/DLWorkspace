@@ -297,7 +297,7 @@ default_config_parameters = {
 		},
 		"hdfs" : {
 			"fstaboptions" : "allow_other,usetrash,rw 2 0",
-			"options": "rw -ousetrash"
+			"options": "rw -ousetrash -obig_writes -oinitchecks",
 		},
 		
 	},
