@@ -192,10 +192,10 @@ def mount_fileshare(verbose=True):
 			umounts.sort()
 			# Examine mount point, unmount those file shares that fails. 
 			for um in umounts:
-				cmd = "umount -l %s" % um
+				cmd = "umount -v %s" % um
 				logging.debug( "Mount fails, to examine mount %s " % um )				
 				exec_with_output( cmd, verbose=verbose )
-				time.sleep(1)
+				time.sleep(3)
 			if len(existmounts) <= 0:
 				nMounts += 1
 				if v["type"] == "azurefileshare":
