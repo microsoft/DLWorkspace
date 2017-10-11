@@ -297,7 +297,7 @@ default_config_parameters = {
 		},
 		"hdfs" : {
 			"fstaboptions" : "allow_other,usetrash,rw 2 0",
-			"options": "rw -ousetrash"
+			"options": "rw -ousetrash -obig_writes -oinitchecks",
 		},
 		
 	},
@@ -2683,8 +2683,7 @@ def format_mount_partition_volume( nodes, deviceSelect, format=True ):
 		hdfsconfig = {} 
 		for volume in volumes:
 			# mount remote volumes. 
-			devicename = volume[volume.rfind("/")+1:]
-			mountpoint = os.path.join( config["local-mount-path"], devicename )
+			mountpoint = config["hdfs"]["datadir"][volume]
 			remotecmd += "sudo mkdir -p %s; " % mountpoint
 			remotecmd += "sudo mount %s %s; " % ( volume, mountpoint )
 		utils.SSH_exec_cmd( config["ssh_cert"], config["admin_username"], node, remotecmd, showCmd=verbose )
@@ -2705,8 +2704,7 @@ def unmount_partition_volume( nodes, deviceSelect ):
 		remotecmd = ""
 		for volume in volumes:
 			# mount remote volumes. 
-			devicename = volume[volume.rfind("/")+1:]
-			mountpoint = os.path.join( config["local-mount-path"], devicename )
+			mountpoint = config["hdfs"]["datadir"][volume]
 			remotecmd += "sudo umount %s; " % ( mountpoint )
 		utils.SSH_exec_cmd( config["ssh_cert"], config["admin_username"], node, remotecmd, showCmd=verbose )
 		remove_fstab_section( node, "MOUNTLOCALDISK" )
@@ -2714,7 +2712,14 @@ def unmount_partition_volume( nodes, deviceSelect ):
 def generate_hdfs_nodelist( nodes, port, sepchar):
 	return sepchar.join( map( lambda x: x+":"+str(port), nodes))
 
+def generate_hdfs_containermounts():
+	config["hdfs"]["containermounts"] = {}
+	for (k,v) in config["hdfs"]["datadir"].iteritems():
+		volumename = k[1:].replace("/","-")
+		config["hdfs"]["containermounts"][volumename] = v
+
 def generate_hdfs_config( nodes, deviceSelect):
+	generate_hdfs_containermounts()
 	hdfsconfig = copy.deepcopy( config["hdfsconfig"] )
 	hdfsconfig["hdfs_cluster_name"] = config["hdfs_cluster_name"]
 	zknodes = get_node_lists_for_service("zookeeper")
@@ -3817,6 +3822,7 @@ def run_command( args, command, nargs, parser ):
 				for service in allservices:
 					servicenames.append(service)
 				# print servicenames
+			generate_hdfs_containermounts()
 			if nargs[0] == "start":
 				if args.force and "hdfsformat" in servicenames:
 					print ("This operation will WIPEOUT HDFS namenode, and erase all data on the HDFS cluster,  "  )

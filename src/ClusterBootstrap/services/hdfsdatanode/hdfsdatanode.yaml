@@ -32,6 +32,10 @@ spec:
           mountPath: {{cnf["hdfsconfig"]["namenode"]["data"]}} 
         - name: localnamenode
           mountPath: {{cnf["hdfsconfig"]["namenode"]["localdata"]}} 
+        {% for key, value in cnf["hdfs"]["containermounts"].items() %}
+        - name: {{ key }}
+          mountPath: {{ value }}
+        {% endfor %}          
         command:
         - sh
         - -c
@@ -52,3 +56,9 @@ spec:
       - name: localnamenode
         hostPath:
           path: {{cnf["hdfsconfig"]["namenode"]["localdata"]}} 
+      {% for key, value in cnf["hdfs"]["containermounts"].items() %}
+      - name: {{ key }}
+        hostPath:
+          path: {{ value }}
+      {% endfor %}          
+          
