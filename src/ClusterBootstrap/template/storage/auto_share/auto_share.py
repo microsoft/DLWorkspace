@@ -68,7 +68,7 @@ def mount_one_hdfs( v, physicalmountpoint, server, verbose=True):
 
 def test_one_hdfs( server, verbose=True):
 	(retcode, output, err) = exec_with_output("hdfs dfs -test -e hdfs://%s" % server, verbose=verbose)
-	if err.find("not supported in state standy")>=0:
+	if err.find("not supported in state standby")>=0:
 		# standby namenode
 		logging.debug ( "HDFS namenode %s is standby namenode" % server )
 		return False
