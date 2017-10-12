@@ -16,6 +16,12 @@ import sys
 import getpass
 import copy
 
+def tolist( server ):
+	if isinstance( server, basestring):
+		return [server]
+	else:
+		return server
+
 def pipe_with_output( cmd1, cmd2, verbose=False ):
 	try:
 		# https://stackoverflow.com/questions/4814970/subprocess-check-output-doesnt-seem-to-exist-python-2-6-5                
@@ -84,14 +90,15 @@ def test_one_hdfs( server, verbose=True):
 
 # Mount HDFS, with support of high availablability
 def mount_hdfs( v, physicalmountpoint, verbose=True ):
-	if len(v["server"])==0:
+	servers = tolist(v["server"])
+	if len(servers)==0:
 		# No HDFS server specified, unable to mount
 		return False
-	elif len(v["server"])==1:
-		mount_one_hdfs( v, physicalmountpoint, v["server"][0], verbose=verbose)
+	elif len(servers)==1:
+		mount_one_hdfs( v, physicalmountpoint, servers[0], verbose=verbose)
 		return True
 	else:
-		for server in v["server"]:
+		for server in servers:
 			if test_one_hdfs(server, verbose):
 				mount_one_hdfs( v, physicalmountpoint, server, verbose=verbose)
 				return True
