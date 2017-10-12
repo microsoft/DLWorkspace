@@ -2292,7 +2292,12 @@ def mount_fileshares_by_service(perform_mount=True):
 			utils.SSH_exec_cmd( config["ssh_cert"], config["admin_username"], node, "sudo mkdir -p %s; " % config["folder_auto_share"] )
 			utils.render_template_directory("./template/storage/auto_share", "./deploy/storage/auto_share", config)
 			with open("./deploy/storage/auto_share/mounting.yaml",'w') as datafile:
-				yaml.dump(mountconfig, datafile, default_flow_style=False)			
+				yaml.dump(mountconfig, datafile, default_flow_style=False)	
+			remotecmd += "sudo systemctl stop auto_share.timer; "
+			# remotecmd += "sudo systemctl stop auto_share.service; "
+			if len(remotecmd)>0:
+				utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
+			remotecmd = ""			
 			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.timer","/etc/systemd/system/auto_share.timer", config["admin_username"], node )
 			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.target","/etc/systemd/system/auto_share.target", config["admin_username"], node )
 			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.service","/etc/systemd/system/auto_share.service", config["admin_username"], node )
@@ -2306,7 +2311,7 @@ def mount_fileshares_by_service(perform_mount=True):
 			remotecmd += "sudo rm /opt/auto_share/lock; "
 			remotecmd += "sudo systemctl enable auto_share.timer; "
 			remotecmd += "sudo systemctl restart auto_share.timer; "
-			remotecmd += "sudo systemctl stop auto_share.service; "
+			# remotecmd += "sudo systemctl stop auto_share.service; "
 			if len(remotecmd)>0:
 				utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
 			# We no longer recommend to insert fstabl into /etc/fstab file, instead, 
