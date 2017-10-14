@@ -156,6 +156,27 @@ def SSH_exec_cmd_with_output(identity_file, user,host,cmd, supressWarning = Fals
 		output = "Return code: " + str(e.returncode) + ", output: " + e.output.strip()
 	# print output
 	return output
+
+# This is an auxilary utility. It scan an IP range (e.g., 10.209.x.x/21, and find all notes that belong to the current cluster)
+import socket, struct
+def scan_nodes( identity_file, user, iprange ):
+	infos = iprange.split("/")
+	if len(infos)!=2:
+		print "IP range %s need to be formated as x.x.x.x/n" % iprange
+	else:
+		ip = infos[0]
+		size = int(infos[1])
+		mask = ( 1 << size ) - 1
+		ipnum = struct.unpack("!L", socket.inet_aton(ip))
+		ipbase = ipnum & (~mask)
+		for i in range(mask+1):
+			ipexamine = ipnum + ipbase
+			host = socket.inet_ntoa(struct.pack('!L', ipexamine))
+			print host
+
+
+
+
 	
 def exec_cmd_local(execmd, supressWarning = False):
 	if supressWarning:

@@ -3356,7 +3356,7 @@ def run_docker_image( imagename, native = False, sudo = False ):
 		if native: 
 			os.system( "docker run --rm -ti " + matches[0] )
 		else:
-			run_docker( matches[0], prompt = imagename, dockerConfig = dockerConfig, sudo = sudo )	
+			run_docker( matches[0], prompt = imagename, dockerConfig = dockerConfig, sudo = sudo )		
 
 def run_command( args, command, nargs, parser ):
 	nocache = args.nocache
@@ -3501,6 +3501,15 @@ def run_command( args, command, nargs, parser ):
 			parser.print_help()
 			print "Error: build target %s is not recognized. " % nargs[0] 
 			exit()
+
+	elif command == "scan":
+		if len(nargs) ==1:
+			utils.scan_nodes( config["ssh_cert"], config["admin_username"], nargs[0])
+		else:
+			parser.print_help()
+			print "Error: scan need one parameter with format x.x.x.x/n. "
+			exit()
+		
 			
 	elif command == "updateworker":
 		response = raw_input_with_default("Deploy Worker Nodes (y/n)?")
