@@ -158,25 +158,42 @@ def SSH_exec_cmd_with_output(identity_file, user,host,cmd, supressWarning = Fals
 	return output
 
 # This is an auxilary utility. It scan an IP range (e.g., 10.209.x.x/21, and find all notes that belong to the current cluster)
-import socket, struct
+import socket, struct, sys
+def SSH_exec_cmd_batchmode_with_output(identity_file, user,host,cmd, supressWarning = False):
+	if len(cmd)==0:
+		return "";
+	if supressWarning:
+		cmd += " 2>/dev/null"
+	execmd = """timeout 2s ssh -oBatchMode=yes -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" "%s" 2>/dev/null """ % (identity_file, user, host, cmd )
+	if verbose:
+		print execmd
+	try:
+		output = subprocess.check_output( execmd, shell=True )
+	except:
+		return ""
+	# print output
+	return output
+
 def scan_nodes( identity_file, user, iprange ):
 	infos = iprange.split("/")
 	if len(infos)!=2:
 		print "IP range %s need to be formated as x.x.x.x/n" % iprange
 	else:
 		ip = infos[0]
-		size = int(infos[1])
+		size = 32-int(infos[1])
 		mask = ( 1 << size ) - 1
-		ipnum = struct.unpack("!L", socket.inet_aton(ip))
+		ipnum = struct.unpack("!L", socket.inet_aton(ip))[0]
 		ipbase = ipnum & (~mask)
 		for i in range(mask+1):
-			ipexamine = ipnum + ipbase
-			host = socket.inet_ntoa(struct.pack('!L', ipexamine))
-			print host
-
-
-
-
+			ipexamine = ipbase + i
+			low8 = ipexamine & 0xff
+			if low8>=2:
+				host = socket.inet_ntoa(struct.pack('!L', ipexamine))
+				sys.stdout.write(".")
+				sys.stdout.flush()
+				output = SSH_exec_cmd_batchmode_with_output( identity_file, user, host, "echo hello", supressWarning=True)
+				if output == "hello":
+					print "\n" + host 
 	
 def exec_cmd_local(execmd, supressWarning = False):
 	if supressWarning:
