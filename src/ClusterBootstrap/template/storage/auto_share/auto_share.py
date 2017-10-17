@@ -16,6 +16,18 @@ import sys
 import getpass
 import copy
 
+def istrue( config, arg, default=False):
+	if arg in config:
+		val = config[arg]
+		if isinstance( val, bool):
+			return val
+		elif isinstance( val, basestring):
+			return val.lower()[0] == 'y'
+		else:
+			return val
+	else:
+		return default		
+
 def tolist( server ):
 	if isinstance( server, basestring):
 		return [server]
@@ -165,7 +177,7 @@ def mount_fileshare(verbose=True):
 	allmountpoints = config["mountpoints"]
 	nMounts = 0
 	for k,v in allmountpoints.iteritems():
-		if "curphysicalmountpoint" in v:
+		if "curphysicalmountpoint" in v and istrue(v, "autoshare", True):
 			physicalmountpoint = v["curphysicalmountpoint"] 
 			output = pipe_with_output("mount", "grep %s" % v["curphysicalmountpoint"], verbose=False)
 			umounts = []

@@ -159,18 +159,16 @@ def SSH_exec_cmd_with_output(identity_file, user,host,cmd, supressWarning = Fals
 
 # This is an auxilary utility. It scan an IP range (e.g., 10.209.x.x/21, and find all notes that belong to the current cluster)
 import socket, struct, sys
-def SSH_exec_cmd_batchmode_with_output(identity_file, user,host,cmd, supressWarning = False):
+def SSH_exec_cmd_batchmode_with_output(identity_file, user,host,cmd):
 	if len(cmd)==0:
-		return "";
-	if supressWarning:
-		cmd += " 2>/dev/null"
-	execmd = """timeout 2s ssh -oBatchMode=yes -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" "%s" 2>/dev/null """ % (identity_file, user, host, cmd )
+		return ""
+	execmd = """timeout 3s ssh -oBatchMode=yes -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" "%s" 2>/dev/null """ % (identity_file, user, host, cmd )
 	if verbose:
 		print execmd
 	try:
 		output = subprocess.check_output( execmd, shell=True )
-	except:
-		return ""
+	except subprocess.CalledProcessError as e:
+		output = "Return code: " + str(e.returncode) + ", output: " + e.output.strip()
 	# print output
 	return output
 
@@ -191,8 +189,8 @@ def scan_nodes( identity_file, user, iprange ):
 				host = socket.inet_ntoa(struct.pack('!L', ipexamine))
 				sys.stdout.write(".")
 				sys.stdout.flush()
-				output = SSH_exec_cmd_batchmode_with_output( identity_file, user, host, "echo hello", supressWarning=True)
-				if output == "hello":
+				output = SSH_exec_cmd_batchmode_with_output( identity_file, user, host, "echo hello")
+				if output.find("hello")>=0:
 					print "\n" + host 
 	
 def exec_cmd_local(execmd, supressWarning = False):
