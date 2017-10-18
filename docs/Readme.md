@@ -25,6 +25,21 @@ Here is a few short video clips that can quickly explain DLWorkspace. Note the P
 * [Single Ubuntu Computer](deployment/On-Prem/SingleUbuntu.md)
 
 ## [Frequently Asked Questions](KnownIssues/Readme.md)
+* How to import the credential so that each node is accessible? <br/>
+  Run the following under src/ClusterBootstrap if the credential file is named dlworkspace.tar.gz
+  ```shell=
+  ./deploy.py restore dlworkspace.tar.gz
+  ```
+* How to loggin to a worker node? <br/>
+  Run the following if you want to connect to node 3 under src/ClusterBootstrap
+  ```shell=
+  ./deploy.py connect worker 3
+  ```
+* How to execute a command on each node, e.g. df -h to check the space usage? <br/>
+  Run the following under src/ClusterBootstrap
+  ```shell=
+  ./deploy.py execonall df -h
+  ```
 
 ## [User Guide and Frequently Asked Questions](Users/Readme.md)
 
