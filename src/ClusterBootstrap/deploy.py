@@ -3104,6 +3104,7 @@ def render_service_templates():
 	allnodes = get_nodes(config["clusterId"])
 	# Additional parameter calculation
 	set_zookeeper_cluster()
+	generate_hdfs_containermounts()
 	# Multiple call of render_template will only render the directory once during execution. 
 	utils.render_template_directory( "./services/", "./deploy/services/", config)
 	
