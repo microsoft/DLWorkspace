@@ -10,3 +10,4 @@
 ## Using DL Workspace
 
 * [Zombie Process](zombie_process.md)
+* [HDFS](../deployment/Storage/HDFS_FAQ.md)

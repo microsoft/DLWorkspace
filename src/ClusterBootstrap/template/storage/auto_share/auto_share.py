@@ -14,6 +14,25 @@ import subprocess
 import re
 import sys
 import getpass
+import copy
+
+def istrue( config, arg, default=False):
+	if arg in config:
+		val = config[arg]
+		if isinstance( val, bool):
+			return val
+		elif isinstance( val, basestring):
+			return val.lower()[0] == 'y'
+		else:
+			return val
+	else:
+		return default		
+
+def tolist( server ):
+	if isinstance( server, basestring):
+		return [server]
+	else:
+		return server
 
 def pipe_with_output( cmd1, cmd2, verbose=False ):
 	try:
@@ -46,12 +65,12 @@ def exec_with_output( cmd, verbose=False, max_run=30 ):
 			count += 1
 		if verbose:
 			logging.debug ( "Return: %d, Output: %s, Error: %s" % (sp.returncode, output, err) )
+		return (sp.returncode, output, err)
 	except subprocess.CalledProcessError as e:
 		print "Exception " + str(e.returncode) + ", output: " + e.output.strip()
 		if verbose: 
 			logging.debug ( "Exception: %s, output: %s" % (str(e.returncode), e.output.strip()) )
-		return ""
-	return output
+		return (e.returncode, e.output, "Error")
 
 def exec_wo_output( cmd, verbose=False ):
 	try:
@@ -62,6 +81,94 @@ def exec_wo_output( cmd, verbose=False ):
 	except subprocess.CalledProcessError as e:
 		print "Exception " + str(e.returncode) + ", output: " + e.output.strip()
 
+def mount_one_hdfs( v, physicalmountpoint, server, verbose=True):
+	exec_with_output( "hadoop-fuse-dfs hdfs://%s %s %s " % (server, physicalmountpoint, v["options"]), verbose=verbose )
+
+def test_one_hdfs( server, verbose=True):
+	(retcode, output, err) = exec_with_output("hdfs dfs -test -e hdfs://%s" % server, verbose=verbose)
+	if err.find("not supported in state standby")>=0:
+		# standby namenode
+		logging.debug ( "HDFS namenode %s is standby namenode" % server )
+		return False
+	elif err.find("Connection refused")>=0:
+		logging.debug ( "HDFS namenode %s fails" % server )
+		return False
+	elif err.find("Incomplete HDFS URI")>=0:
+		logging.debug ( "Wrongly formatted namenode %s: fails" % server )
+		return False
+	else:
+		logging.debug ( "HDFS namenode %s is active" % server )
+		return True
+
+# Mount HDFS, with support of high availablability
+def mount_hdfs( v, physicalmountpoint, verbose=True ):
+	servers = tolist(v["server"])
+	if len(servers)==0:
+		# No HDFS server specified, unable to mount
+		return False
+	elif len(servers)==1:
+		mount_one_hdfs( v, physicalmountpoint, servers[0], verbose=verbose)
+		return True
+	else:
+		for server in servers:
+			if test_one_hdfs(server, verbose):
+				mount_one_hdfs( v, physicalmountpoint, server, verbose=verbose)
+				return True
+
+from shutil import copyfile, copytree
+from jinja2 import Environment, FileSystemLoader, Template
+def render_template(template_file, target_file, config, verbose=False):
+	filename, file_extension = os.path.splitext(template_file)
+	basename = os.path.basename(template_file)
+	if ("render-exclude" in config and basename in config["render-exclude"] ):
+		# Don't render/copy the file. 
+		return
+	if ("render-by-copy-ext" in config and file_extension in config["render-by-copy-ext"]) or ("render-by-copy" in config and basename in config["render-by-copy"]):
+		copyfile(template_file, target_file)
+		if verbose:
+			logging.debug ( "Copy tempalte " + template_file + " --> " + target_file )
+	elif ("render-by-line-ext" in config and file_extension in config["render-by-line-ext"]) or ("render-by-line" in config and basename in config["render-by-line"]):
+		if verbose:
+			logging.debug ( "Render tempalte " + template_file + " --> " + target_file + " Line by Line .... " )
+		ENV_local = Environment(loader=FileSystemLoader("/"))
+		with open(target_file, 'w') as f:
+			with open(template_file, 'r') as fr:
+				for line in fr:
+					logging.debug( "Read: " + line )
+					try:
+						template = ENV_local.Template(line)				
+						content = template.render(cnf=config)
+						logging.debug( content )
+						f.write(content+"\n")
+					except:
+						pass
+				fr.close()
+			f.close()
+
+	else:
+		if verbose:
+			logging.debug( "Render tempalte " + template_file + " --> " + target_file )
+		try:
+			ENV_local = Environment(loader=FileSystemLoader("/"))
+			template = ENV_local.get_template(os.path.abspath(template_file))
+			content = template.render(cnf=config)
+			with open(target_file, 'w') as f:
+				f.write(content)
+			f.close()
+		except Exception as e:
+			logging.debug ( "!!! Failure !!! in render template " + template_file )
+			logging.debug( e )
+			pass			
+
+def mount_glusterfs( v, physicalmountpoint, verbose=True):
+	mount_file_basename = physicalmountpoint[1:].replace("/","-")
+	mount_file = os.path.join( "/etc/systemd/system", mount_file_basename + ".mount")
+	glusterfsconfig  = copy.deepcopy(v)
+	glusterfsconfig["physicalmountpoint"] = physicalmountpoint
+	logging.debug( "Rendering ./glusterfs.mount --> %s" % mount_file )
+	render_template( "./glusterfs.mount", mount_file, glusterfsconfig, verbose=verbose )
+
+
 def mount_fileshare(verbose=True):
 	with open("mounting.yaml", 'r') as datafile:
 		config = yaml.load(datafile)
@@ -70,7 +177,7 @@ def mount_fileshare(verbose=True):
 	allmountpoints = config["mountpoints"]
 	nMounts = 0
 	for k,v in allmountpoints.iteritems():
-		if "curphysicalmountpoint" in v:
+		if "curphysicalmountpoint" in v and istrue(v, "autoshare", True):
 			physicalmountpoint = v["curphysicalmountpoint"] 
 			output = pipe_with_output("mount", "grep %s" % v["curphysicalmountpoint"], verbose=False)
 			umounts = []
@@ -91,11 +198,11 @@ def mount_fileshare(verbose=True):
 								try:
 									os.system("mkdir -m 0777 "+targetdir)
 								except:
-									print "Failed to create directory " + targetdir
+									logging.debug( "Failed to create directory " + targetdir )
 								if os.path.exists( targetdir ):
 									bMount = True
 						except:
-							print "Failed to check for existence of directory " + targetdir
+							logging.debug( "Failed to check for existence of directory " + targetdir )
 					if not bMount:
 						# Failing
 						umounts.append( words[2] )
@@ -104,18 +211,21 @@ def mount_fileshare(verbose=True):
 			umounts.sort()
 			# Examine mount point, unmount those file shares that fails. 
 			for um in umounts:
-				cmd = "umount %s; " % um
-				print "To examine mount %s " % um
+				cmd = "umount -v %s" % um
+				logging.debug( "Mount fails, to examine mount %s " % um )				
+				exec_with_output( cmd, verbose=verbose )
+				time.sleep(3)
 			if len(existmounts) <= 0:
 				nMounts += 1
 				if v["type"] == "azurefileshare":
 					exec_with_output( "mount -t cifs %s %s -o %s " % (v["url"], physicalmountpoint, v["options"] ), verbose=verbose )
 				elif v["type"] == "glusterfs":
+					mount_glusterfs( v, physicalmountpoint, verbose=verbose)
 					exec_with_output( "mount -t glusterfs -o %s %s:%s %s " % (v["options"], v["node"], v["filesharename"], physicalmountpoint ), verbose=verbose )
 				elif v["type"] == "nfs":
 					exec_with_output( "mount %s:%s %s -o %s " % (v["server"], v["filesharename"], physicalmountpoint, v["options"]), verbose=verbose )
 				elif v["type"] == "hdfs":
-					exec_with_output( "hadoop-fuse-dfs dfs://%s %s %s " % (v["server"], physicalmountpoint, v["options"]), verbose=verbose )
+					mount_hdfs( v, physicalmountpoint, verbose=verbose )
 				elif v["type"] == "local" or v["type"] == "localHDD":
 					exec_with_output( "mount %s %s " % ( v["device"], physicalmountpoint ), verbose=verbose )
 				else:
@@ -148,6 +258,20 @@ Automatically monitor and mount file share.
 	args = parser.parse_args()
 	start_logging()
 	logging.debug( "Run as user %s" % getpass.getuser() )
-	mount_fileshare()
+	lockfile = os.path.join(dir_path, "lock")
+	try:
+		lockfd = os.open( lockfile, os.O_CREAT | os.O_WRONLY | os.O_EXCL )
+		try:
+			mount_fileshare()
+		except:
+			logging.debug( "Exception when mounting files... "  )	
+		else:
+			logging.debug( "Examined all mounting points... "  )	
+		os.close( lockfd )
+		os.remove( lockfile )
+		logging.debug( "Remove lock ... " )
+	except OSError:
+		logging.debug( "Lock file %s exist, another autho_share still running? Do nothing. " %lockfile )	
+	
 	logging.debug( "End auto_share ... " )
 

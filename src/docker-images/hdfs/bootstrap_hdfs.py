@@ -131,6 +131,7 @@ datanode:    Launch datanode.
     elif server == "standby":
         remotedir = os.path.join( config["namenode"]["data"], "current")
         localdir = os.path.join( config["namenode"]["localdata"], "current")
+        exec_with_output( "rm -r %s" % ( localdir ) )
         exec_with_output( "cp -r %s %s" % ( remotedir, localdir ) )
         print "Copy data from %s to %s" % ( remotedir, localdir )
     elif server == "resourcemanager":

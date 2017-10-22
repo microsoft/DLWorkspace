@@ -52,6 +52,19 @@ sudo service apache2 stop
 
 if  lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VGA compatible) controller: NVIDIA Corporation.*" ; then
 
+        # https://askubuntu.com/questions/481414/install-nvidia-driver-instead-of-nouveau
+        # Start from 10/05/2017 the following is needed. 
+        if ! grep -q "blacklist nouveau" -F /etc/modprobe.d/blacklist.conf; then 
+                echo "blacklist vga16fb" | sudo tee --append /etc/modprobe.d/blacklist.conf > /dev/null
+                echo "blacklist nouveau" | sudo tee --append /etc/modprobe.d/blacklist.conf > /dev/null
+                echo "blacklist rivafb" | sudo tee --append /etc/modprobe.d/blacklist.conf > /dev/null
+                echo "blacklist nvidiafb" | sudo tee --append /etc/modprobe.d/blacklist.conf > /dev/null
+                echo "blacklist rivatv" | sudo tee --append /etc/modprobe.d/blacklist.conf > /dev/null
+                sudo apt-get remove -y --purge nvidia-*
+                sudo update-initramfs -u
+        fi
+
+
         NVIDIA_VERSION=381.22
         # make the script reexecutable after a failed download
         rm /tmp/NVIDIA-Linux-x86_64-$NVIDIA_VERSION.run
