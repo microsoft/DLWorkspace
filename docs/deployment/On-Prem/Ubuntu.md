@@ -15,6 +15,8 @@ This document describes the procedure to deploy DL workspace cluster on a Ubuntu
   ```
   network:
     domain: <<current_domain>>
+    container-network-iprange: "<<your_cluster_ip_range, in 10.109.x.x/24 format>>" 
+
   
   platform-scripts : ubuntu
 

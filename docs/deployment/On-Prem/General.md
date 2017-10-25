@@ -19,7 +19,7 @@ These are the general steps to deploy a DL Workspace cluster.
     1 If you would like to deploy a small cluster for testing, or your cluster doesn't have a VLan setup, we recommend the deployment procedure in [USB.md](USB.md). 
     * If you would like to deply a production procedure, we recommend to set up a VLan for your cluster, and use a PXE server. The precedure are described in [PXEServer.md](PXEServer.md). 
     * If you would like to deploy a cluster on Azure, please follow the procedure in [Azure](../Azure/Readme.md)
-    * If you are using a private CoreOS cluster, please follow the procedure in [CoreOS](philly.md). 
+    * If you are using a private CoreOS cluster, please follow the procedure in [CoreOS](CoreOS.md). 
     If we plan to install a small number of machines (say 1-2), you may use [ISO image](USB.md). For deploying any larger cluster, [PXE server](PXEServer.md) is highly recommended. 
   
 
