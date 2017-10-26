@@ -118,7 +118,10 @@ def sudo_scp (identity_file, source, target, user, host,changePermission=False, 
 	tmp = str(uuid.uuid4())	
 	scp(identity_file, source,"~/%s" % tmp, user, host, verbose )
 	targetPath = os.path.dirname(target)
-	cmd = "sudo mkdir -p %s ; sudo mv ~/%s %s" % (targetPath, tmp, target)
+	if ( os.path.isfile(source)):
+		cmd = "sudo mkdir -p %s ; sudo mv ~/%s %s" % (targetPath, tmp, target)
+	else:
+		cmd = "sudo mkdir -p %s ; sudo mv ~/%s/* %s; sudo rm -rf ~/%s" % (targetPath, tmp, target, tmp)
 	if changePermission:
 		cmd += " ; sudo chmod +x %s" % target
 	if verbose:

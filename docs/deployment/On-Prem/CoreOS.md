@@ -20,37 +20,53 @@ This document describes the procedure to deploy DL workspace on a prior deployed
       role: worker
    ```
    2. Configure and setup the [databased](../database/Readme.md) used in the cluster.
-   3. Please edit cluster.yaml generated in the step above, and remove:
+   3. Please edit cluster.yaml generated in the step above, and remove/change :
    ```
-   deploydockerETCD: false
-   platform-scripts: ubuntu
+   deploydockerETCD: true [change from false -> true]
+   platform-scripts: coreos [change from ubuntu -> coreos]
    ```   
-   4. If the machine is imaged through the [PXEServer](PXEServer) process, you can skip this step. If the machine is imaged and provided to you, please fill in config.yaml the installation username:
+   
+2. [Build deployment configuration] (Build.md).
+  ```
+  ./deploy.py -y build 
+  ```
+
+  If the machine is imaged through the [PXEServer](PXEServer) process, you can skip this step. If the machine is imaged and provided to you, please fill in config.yaml the installation username:
    ```
-   admin_username: jinli
+   admin_username: <<yourusername>>
    ```
    and put password in ./deploy/sshkey/rootpasswd. The run 
    ```
    ./deploy.py sshkey install
    ```
    After this step, you should be able to access the cluster via [Scripts](../Scripts/Readme.md). Please make sure that the user is in sudo and docker group.  
-   
-2. [Build deployment images] (Build.md).
-  ```
-  ./deploy.py -y build 
-  ```
 
-3. Start master/etcd servers, and worker nodes. 
-  ```
-  ./deploy.py -y production
-  ```
+3. Partition hard drive, if necessary. Please refer to section [Partition](Repartition.md) for details. 
 
-4. label nodes, so that DL workspace service can be deployed to the proper set of nodes. 
+4. Setup kubernetes
   ```
-  deploy.py -y kubernetes labels
+  ./deploy.py download kubectl 
+  ./deploy.py -y deploy
+  ./deploy.py -y updateworker
+  ./deploy.py -y kubernetes labels
   ```
+  If you are running a small cluster, and need to run workload on the Kubernete master node (this choice may affect cluster stability), please use:
+  ```
+  ./deploy.py -y kubernetes uncordon
+  ```
+  Works now will be scheduled on the master node. If you stop here, you will have a fully functional kubernete cluster. Thus, part of DL Workspace setup can be considered automatic procedure to setup a kubernete cluster. You don't need shared file system or database for kubernete cluster operation. 
   
-5. Start webUI service. 
+12. [optional] Configure, setup [GlusterFS](../Storage/GlusterFS.md)
+13. [Optional] Configure, setup [HDFS](../Storage/hdfs.md)
+14. [Optional] Setup [Spark](../Storage/spark.md)
+
+15. Mount shared file system, please note that CoreOS can only mount NFS, you cannot mount CIFS 
+  ```
+  ./deploy.py mount
+  ```
+
+
+6. Start webUI service. 
    ```
    ./deploy.py scriptblocks bldwebui
    ./deploy.py scriptblocks restartwebui
