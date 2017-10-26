@@ -21,4 +21,8 @@
       <name>dfs.namenode.http-address.{{cnf["hdfs_cluster_name"]}}</name>
       <value>{{cnf["namenode"]["namenode1"]}}:50070</value>
     </property>
+    <property>
+      <name>dfs.namenode.datanode.registration.ip-hostname-check</name>
+      <value>false</value>
+    </property>
 </configuration>

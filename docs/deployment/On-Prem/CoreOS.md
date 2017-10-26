@@ -2,7 +2,8 @@
 
 This document describes the procedure to deploy DL workspace on a prior deployed CoreOS cluster. This document is still evolving. Please contact the author for any question. Our latest deployment is more focused on Ubuntu, so this portion may be a bit outdated. 
 
-1. [Configuration cluster](configuration/Readme.md)
+1. [Configuration cluster](configuration/Readme.md).
+  
   1. Please copy src/ClusterBootstrap/config_coreos.yaml.template to src/ClusterBootstrap/config.yaml, fill in the cluster name, number of etcd server, domain, and the machines involved in the deployment. 
   ```
   cluster_name : <<your_cluster_name>>
@@ -29,6 +30,7 @@ This document describes the procedure to deploy DL workspace on a prior deployed
   ```   
    
 2. [Build deployment configuration] (Build.md).
+  
   ```
   ./deploy.py -y build 
   ```
@@ -46,6 +48,7 @@ This document describes the procedure to deploy DL workspace on a prior deployed
 3. Partition hard drive, if necessary. Please refer to section [Partition](Repartition.md) for details. 
 
 4. Setup kubernetes
+  
   ```
   ./deploy.py download kubectl 
   ./deploy.py -y deploy
@@ -59,15 +62,19 @@ This document describes the procedure to deploy DL workspace on a prior deployed
   Works now will be scheduled on the master node. If you stop here, you will have a fully functional kubernete cluster. Thus, part of DL Workspace setup can be considered automatic procedure to setup a kubernete cluster. You don't need shared file system or database for kubernete cluster operation. 
   
 5. [optional] Configure, setup [GlusterFS](../Storage/GlusterFS.md)
+
 6. [Optional] Configure, setup [HDFS](../Storage/hdfs.md)
+
 7. [Optional] Setup [Spark](../Storage/spark.md)
 
 8. Mount shared file system, please note that CoreOS can only mount NFS, you cannot mount CIFS 
+  
   ```
   ./deploy.py mount
   ```
 
 9. Start webUI service. 
+  
   ```
   ./deploy.py webui
   ./deploy.py docker build restfulapi

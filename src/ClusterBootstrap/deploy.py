@@ -319,6 +319,10 @@ default_config_parameters = {
 		"emptyDir": True,
 	}, 
 
+	"k8Sdaemon" : {
+		# Specify k8S daemon related policy, e.g., dnsPolicy here. 
+	}, 
+
 	"mounthomefolder" : "yes", 
 	# Mount point to be deployed to container. 
 	"deploymounts" : [ ], 
