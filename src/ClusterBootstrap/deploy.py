@@ -310,6 +310,13 @@ default_config_parameters = {
 		"local" : "Local SSD. ", 
 		"localHDD" : "Local HDD. ", 
 		"emptyDir" : "Kubernetes emptyDir (folder will be erased after job termination).", 
+	},
+
+	"mountsupportedbycoreos" : {
+		"nfs": True, 
+		"local": True,
+		"localHDD": True, 
+		"emptyDir": True,
 	}, 
 
 	"mounthomefolder" : "yes", 
@@ -323,9 +330,9 @@ default_config_parameters = {
 	# Option to change pre-/post- deployment script
 	# Available options are (case sensitive):
 	# "default": CoreOS individual cluster
-	# "philly": philly cluster
+	# "coreos": coreos cluster
 	# "ubuntu": ubuntu cluster
-	"platform-scripts" : "default", 
+	"platform-scripts" : "ubuntu", 
 
 
 	# Default usergroup for the WebUI portal
@@ -542,7 +549,8 @@ scriptblocks = {
 		"kubernetes stop restfulapi",
 		"kubernetes stop jobmanager",
 		"webui",
-		"sleep 30", 
+		# If the daemonset is restarted too soon, before kill is successful, it may not be able to be srated all. 
+		"sleep 120", 
 		"kubernetes start jobmanager",
 		"kubernetes start restfulapi",
 		"kubernetes start webportal",
@@ -791,7 +799,12 @@ default_config_mapping = {
 	"pxeserverrootpasswd": (["pxeserver"], lambda x: get_root_passwd()), 
 	"pxeoptions": (["pxeserver"], lambda x: "" if fetch_dictionary(x,["options"]) is None else fetch_dictionary(x,["options"])), 
 	"hdfs_cluster_name" : ( ["cluster_name"], lambda x:x ),     
+	"etcd_user": ( ["admin_username"], lambda x:x ),     
+	"kubernetes_master_ssh_user": ( ["admin_username"], lambda x:x ),     
 }
+
+def isInstallOnCoreOS():
+	return config["platform-scripts"]!="ubuntu"
 	
 # Merge entries in config2 to that of config1, if entries are dictionary. 
 # If entry is list or other variable, it will just be replaced. 
@@ -1449,7 +1462,7 @@ def deploy_master(kubernetes_master):
 			deploy_files = [s.split(",") for s in f.readlines() if len(s.split(",")) == 2]
 		for (source, target) in deploy_files:
 			if (os.path.isfile(source.strip()) or os.path.exists(source.strip())):
-				utils.sudo_scp(config["ssh_cert"],source.strip(),target.strip(),kubernetes_master_user,kubernetes_master)
+				utils.sudo_scp(config["ssh_cert"],source.strip(),target.strip(),kubernetes_master_user,kubernetes_master, verbose=verbose)
 
 		utils.SSH_exec_script(config["ssh_cert"],kubernetes_master_user, kubernetes_master, "./deploy/master/" + config["postmasterdeploymentscript"])
 
@@ -1500,8 +1513,6 @@ def deploy_masters():
 
 	get_kubectl_binary()
 	
-	clean_master()
-
 	for i,kubernetes_master in enumerate(kubernetes_masters):
 		deploy_master(kubernetes_master)
 	deploycmd = """
@@ -1575,20 +1586,20 @@ def deploy_ETCD_docker():
 
 		print "==============================================="
 		print "deploy certificates to etcd server %s" % etcd_server_address
-		utils.SSH_exec_cmd (config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo mkdir -p /etc/etcd/ssl ; sudo chown %s /etc/etcd/ssl " % (etcd_server_user)) 
-		utils.scp(config["ssh_cert"],"./deploy/ssl/etcd/ca.pem","/etc/etcd/ssl", etcd_server_user, etcd_server_address )
-		utils.scp(config["ssh_cert"],"./deploy/ssl/etcd/etcd.pem","/etc/etcd/ssl", etcd_server_user, etcd_server_address )
-		utils.scp(config["ssh_cert"],"./deploy/ssl/etcd/etcd-key.pem","/etc/etcd/ssl", etcd_server_user, etcd_server_address )
+		utils.SSH_exec_cmd (config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo mkdir -p /etc/etcd/ssl ; sudo chown %s /etc/etcd/ssl " % (etcd_server_user), showCmd=verbose) 
+		utils.scp(config["ssh_cert"],"./deploy/ssl/etcd/ca.pem","/etc/etcd/ssl", etcd_server_user, etcd_server_address, verbose=verbose )
+		utils.scp(config["ssh_cert"],"./deploy/ssl/etcd/etcd.pem","/etc/etcd/ssl", etcd_server_user, etcd_server_address, verbose=verbose )
+		utils.scp(config["ssh_cert"],"./deploy/ssl/etcd/etcd-key.pem","/etc/etcd/ssl", etcd_server_user, etcd_server_address, verbose=verbose )
 
 		print "==============================================="
 		print "starting etcd service on %s ..." % etcd_server_address
 
 
 		config["etcd_node_ip"] = etcd_server_address
-		utils.render_template("./template/etcd/docker_etcd_ssl.sh","./deploy/etcd/docker_etcd_ssl.sh",config)
+		utils.render_template("./template/etcd/docker_etcd_ssl.sh","./deploy/etcd/docker_etcd_ssl.sh",config, verbose=verbose)
 
-		utils.scp(config["ssh_cert"],"./deploy/etcd/docker_etcd_ssl.sh","/home/%s/docker_etcd_ssl.sh" % etcd_server_user, etcd_server_user, etcd_server_address )
-		utils.SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "chmod +x /home/%s/docker_etcd_ssl.sh ; /home/%s/docker_etcd_ssl.sh" % (etcd_server_user,etcd_server_user))
+		utils.scp(config["ssh_cert"],"./deploy/etcd/docker_etcd_ssl.sh","/home/%s/docker_etcd_ssl.sh" % etcd_server_user, etcd_server_user, etcd_server_address, verbose=verbose )
+		utils.SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "chmod +x /home/%s/docker_etcd_ssl.sh ; /home/%s/docker_etcd_ssl.sh" % (etcd_server_user,etcd_server_user), showCmd=verbose)
 
 
 	print "==============================================="
@@ -2239,37 +2250,47 @@ def fileshare_install():
 			remotecmd += "sudo apt-get -y install python-yaml; "
 			remotecmd += "pip install pyyaml; "
 		filesharetype = {}
-		# In service, the mount preparation install relevant software on remote machine. 
-		for k,v in allmountpoints.iteritems():
-			if "curphysicalmountpoint" in v:
-				physicalmountpoint = v["curphysicalmountpoint"] 
-				if v["type"] == "azurefileshare":
-					if not ("azurefileshare" in filesharetype):
-						filesharetype["azurefileshare"] = True
-						remotecmd += "sudo apt-get -y install cifs-utils attr; "
-				elif v["type"] == "glusterfs":
-					if not ("glusterfs" in filesharetype):
-						filesharetype["glusterfs"] = True
-						remotecmd += "sudo apt-get install -y glusterfs-client attr; "
-				elif v["type"] == "nfs":
-					if not ("nfs" in filesharetype):
-						filesharetype["nfs"] = True
-						remotecmd += "sudo apt-get install -y nfs-common; "
-						# Ubuntu has issue of rpc.statd not started automatically 
-						# https://bugs.launchpad.net/ubuntu/+source/nfs-utils/+bug/1624715
-						remotecmd += "sudo cp /lib/systemd/system/rpc-statd.service /etc/systemd/system/; "
-						remotecmd += "sudo systemctl add-wants rpc-statd.service nfs-client.target; "
-						remotecmd += "sudo systemctl reenable rpc-statd.service; "
-						remotecmd += "sudo systemctl restart rpc-statd.service; "
-				elif v["type"] == "hdfs":
-					if not ("hdfs" in filesharetype):
-						filesharetype["hdfs"] = True
-						remotecmd += "wget http://archive.cloudera.com/cdh5/one-click-install/trusty/amd64/cdh5-repository_1.0_all.deb; "
-						remotecmd += "sudo dpkg -i cdh5-repository_1.0_all.deb; "
-						remotecmd += "sudo rm cdh5-repository_1.0_all.deb; "
-						remotecmd += "sudo apt-get update; "
-						remotecmd += "sudo apt-get install -y default-jre; "
-						remotecmd += "sudo apt-get install -y --allow-unauthenticated hadoop-hdfs-fuse; "
+		if isInstallOnCoreOS():
+			for k,v in allmountpoints.iteritems():
+				if "curphysicalmountpoint" in v:
+					physicalmountpoint = v["curphysicalmountpoint"] 
+					if v["type"] in config["mountsupportedbycoreos"]:
+						()
+					else:
+						print "Share %s: type %s is not supported in CoreOS, mount failed " % (k, v["type"] )
+						exit(1)
+		else:
+			# In service, the mount preparation install relevant software on remote machine. 
+			for k,v in allmountpoints.iteritems():
+				if "curphysicalmountpoint" in v:
+					physicalmountpoint = v["curphysicalmountpoint"] 
+					if v["type"] == "azurefileshare":
+						if not ("azurefileshare" in filesharetype):
+							filesharetype["azurefileshare"] = True
+							remotecmd += "sudo apt-get -y install cifs-utils attr; "
+					elif v["type"] == "glusterfs":
+						if not ("glusterfs" in filesharetype):
+							filesharetype["glusterfs"] = True
+							remotecmd += "sudo apt-get install -y glusterfs-client attr; "
+					elif v["type"] == "nfs":
+						if not ("nfs" in filesharetype):
+							filesharetype["nfs"] = True
+							remotecmd += "sudo apt-get install -y nfs-common; "
+							# Ubuntu has issue of rpc.statd not started automatically 
+							# https://bugs.launchpad.net/ubuntu/+source/nfs-utils/+bug/1624715
+							remotecmd += "sudo cp /lib/systemd/system/rpc-statd.service /etc/systemd/system/; "
+							remotecmd += "sudo systemctl add-wants rpc-statd.service nfs-client.target; "
+							remotecmd += "sudo systemctl reenable rpc-statd.service; "
+							remotecmd += "sudo systemctl restart rpc-statd.service; "
+					elif v["type"] == "hdfs":
+						if not ("hdfs" in filesharetype):
+							filesharetype["hdfs"] = True
+							remotecmd += "wget http://archive.cloudera.com/cdh5/one-click-install/trusty/amd64/cdh5-repository_1.0_all.deb; "
+							remotecmd += "sudo dpkg -i cdh5-repository_1.0_all.deb; "
+							remotecmd += "sudo rm cdh5-repository_1.0_all.deb; "
+							remotecmd += "sudo apt-get update; "
+							remotecmd += "sudo apt-get install -y default-jre; "
+							remotecmd += "sudo apt-get install -y --allow-unauthenticated hadoop-hdfs-fuse; "
 		if len(remotecmd)>0:
 			utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
 
@@ -2306,6 +2327,9 @@ def mount_fileshares_by_service(perform_mount=True):
 			utils.sudo_scp( config["ssh_cert"], "./template/storage/auto_share/glusterfs.mount",os.path.join(config["folder_auto_share"], "glusterfs.mount"), config["admin_username"], node )
 			utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/mounting.yaml",os.path.join(config["folder_auto_share"], "mounting.yaml"), config["admin_username"], node )
 			remotecmd += "sudo chmod +x %s; " % os.path.join(config["folder_auto_share"], "auto_share.py")
+			if isInstallOnCoreOS():
+				# CoreOS, python has to be installed to /opt/bin
+				remotecmd += "sudo sed -i 's/\/usr\/bin/\/opt\/bin/g' %s; " % os.path.join(config["folder_auto_share"], "auto_share.py")
 			remotecmd += "sudo " + os.path.join(config["folder_auto_share"], "auto_share.py") + "; " # run it once now
 			remotecmd += "sudo systemctl daemon-reload; "
 			remotecmd += "sudo rm /opt/auto_share/lock; "
@@ -2718,10 +2742,15 @@ def generate_hdfs_nodelist( nodes, port, sepchar):
 	return sepchar.join( map( lambda x: x+":"+str(port), nodes))
 
 def generate_hdfs_containermounts():
-	config["hdfs"]["containermounts"] = {}
-	for (k,v) in config["hdfs"]["datadir"].iteritems():
-		volumename = k[1:].replace("/","-")
-		config["hdfs"]["containermounts"][volumename] = v
+	if "hdfs" in config:
+		config["hdfs"]["containermounts"] = {}
+		if "datadir" in config["hdfs"]:
+			for (k,v) in config["hdfs"]["datadir"].iteritems():
+				volumename = k[1:].replace("/","-")
+				config["hdfs"]["containermounts"][volumename] = v
+	else:
+		config["hdfs"] = { }
+		config["hdfs"]["containermounts"] = { }
 
 def generate_hdfs_config( nodes, deviceSelect):
 	generate_hdfs_containermounts()
@@ -3028,8 +3057,9 @@ def deploy_ETCD_master():
 		if "etcd_node" in config and len(config["etcd_node"]) >= int(config["etcd_node_num"]) and "kubernetes_master_node" in config and len(config["kubernetes_master_node"]) >= 1:
 			print "Ready to deploy kubernetes master on %s, etcd cluster on %s.  " % (",".join(config["kubernetes_master_node"]), ",".join(config["etcd_node"]))
 			gen_configs()
-			response = raw_input_with_default("Deploy ETCD Nodes (y/n)?")
+			response = raw_input_with_default("Clean Up master, and deploy ETCD Nodes (y/n)?")
 			if first_char(response) == "y":
+				clean_master()
 				gen_ETCD_certificates()
 				deploy_ETCD()			
 			response = raw_input_with_default("Deploy Master Nodes (y/n)?")

@@ -21,8 +21,9 @@ DL Workspace uses a SQL server or SQL Azure to store user information (uid, gid,
 
   ```
   azure_cluster:
-    infra_node_num: 0
-    worker_node_num: 0
+    <<your_cluster_name>>:
+      infra_node_num: 0
+      worker_node_num: 0
   ```
 
   Use 'az login' to login to your azure create. Create Azure resource group and azure database via:
@@ -31,6 +32,8 @@ DL Workspace uses a SQL server or SQL Azure to store user information (uid, gid,
   ./az_tools.py create
   ./az_tools.py genconfig 
   ```
+
+  After script is running, the deployed database credential can be found at cluster.yaml. The cluster.yaml also contains a set of credential that will be used to for Kubernete API server.
 
 3. Configure SQL Azure database size. 
 
