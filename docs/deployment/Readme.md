@@ -17,7 +17,9 @@ DL workspace cluster can be deployed to either public cloud (e.g., Azure), or to
 
 We give instruction on the deployment of DL Workspace to an on-prem cluster as well. Please note that because each on-prem cluster is different in hardware (and maybe software) configuration, the deployment procedure is more tricky. The basic deployment step is as follows. 
 
-## [On-Prem](On-Prem/Ubuntu.md)
+## [On-Prem, Ubuntu](On-Prem/Ubuntu.md)
+## [On-Prem, CoreOS](On-Prem/CoreOS.md)
+## [On-Prem, Ubuntu, Single Node](On-Prem/SingleUbuntu.md)
 
 Additional information on general deployment can be found at [here](On-Prem/General.md).
 
