@@ -27,3 +27,4 @@ mountpoints : {{cnf["mountpoints"]}}
 mounthomefolder : {{cnf["mounthomefolder"]}}
 deploymounts : {{cnf["deploymounts"]}}
 default-storage-folders : {{cnf["default-storage-folders"]}}
+webportal_node: {{cnf["webportal_node"]}}

@@ -34,11 +34,18 @@
                     for (var j = 0; j < json.node_status[i].scheduled_service.length; j++) {
                         service_str += "[" +json.node_status[i].scheduled_service[j] + "]  ";
                     }
-                    tr.append("<td>" + service_str + "</td>");
+                    tr.append("<td width=\"20%\">" + service_str + "</td>");
 
                     var pod_str = "";
                     for (var j = 0; j < json.node_status[i].pods.length; j++) {
-                        pod_str += "["+json.node_status[i].pods[j] + "] ";
+                        if (json.node_status[i].pods[j].includes("!!!!!!")) {
+                            pod_str += "<font color=\"red\"><b>[" + json.node_status[i].pods[j].replace("!!!!!!", "") + "]</b></font> ";
+                        }
+                        else {
+                            pod_str += "[" + json.node_status[i].pods[j] + "] ";
+                        }
+
+                        pod_str += "<br/>";
                     }
                     tr.append("<td>" + pod_str + "</td>");
 
