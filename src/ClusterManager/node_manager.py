@@ -154,7 +154,7 @@ def get_cluster_status():
                     if gpuUsage is not None:
                         pod_name += " (gpu usage:" + str(gpuUsage) + "%)"
                         if gpuUsage <= 25:
-                        	pod_name += "!!!!!!"
+                            pod_name += "!!!!!!"
                     if "containers" in pod["spec"] :
                         for container in pod["spec"]["containers"]:                            
                             if "resources" in container and "requests" in container["resources"] and gpuStr in container["resources"]["requests"]:
