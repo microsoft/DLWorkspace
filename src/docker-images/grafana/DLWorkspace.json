@@ -1,40 +1,4 @@
 {
-  "__inputs": [
-    {
-      "name": "DS_COLLECTD",
-      "label": "collectd",
-      "description": "",
-      "type": "datasource",
-      "pluginId": "influxdb",
-      "pluginName": "InfluxDB"
-    }
-  ],
-  "__requires": [
-    {
-      "type": "grafana",
-      "id": "grafana",
-      "name": "Grafana",
-      "version": "4.4.3"
-    },
-    {
-      "type": "panel",
-      "id": "graph",
-      "name": "Graph",
-      "version": ""
-    },
-    {
-      "type": "datasource",
-      "id": "influxdb",
-      "name": "InfluxDB",
-      "version": "1.0.0"
-    },
-    {
-      "type": "panel",
-      "id": "table",
-      "name": "Table",
-      "version": ""
-    }
-  ],
   "annotations": {
     "list": []
   },
@@ -42,7 +6,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "hideControls": false,
-  "id": null,
+  "id": 2,
   "links": [],
   "refresh": "10s",
   "rows": [
@@ -55,7 +19,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_COLLECTD}",
+          "datasource": "collectd",
           "fill": 1,
           "id": 1,
           "legend": {
@@ -179,7 +143,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_COLLECTD}",
+          "datasource": "collectd",
           "fill": 1,
           "id": 3,
           "legend": {
@@ -303,7 +267,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_COLLECTD}",
+          "datasource": "collectd",
           "fill": 1,
           "id": 4,
           "legend": {
@@ -551,7 +515,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_COLLECTD}",
+          "datasource": "collectd",
           "fill": 1,
           "id": 5,
           "legend": {
@@ -934,8 +898,11 @@
     "list": [
       {
         "allValue": null,
-        "current": {},
-        "datasource": "${DS_COLLECTD}",
+        "current": {
+          "text": "viggpu01",
+          "value": "viggpu01"
+        },
+        "datasource": "collectd",
         "hide": 0,
         "includeAll": false,
         "label": "Host",
@@ -954,8 +921,11 @@
       },
       {
         "allValue": null,
-        "current": {},
-        "datasource": "${DS_COLLECTD}",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": "collectd",
         "hide": 0,
         "includeAll": true,
         "label": "Mount Points",
@@ -1005,5 +975,5 @@
   },
   "timezone": "browser",
   "title": "DLWorkspace",
-  "version": 10
+  "version": 1
 }

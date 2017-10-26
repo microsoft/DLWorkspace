@@ -1,34 +1,4 @@
 {
-  "__inputs": [
-    {
-      "name": "DS_K8S",
-      "label": "k8s",
-      "description": "",
-      "type": "datasource",
-      "pluginId": "influxdb",
-      "pluginName": "InfluxDB"
-    }
-  ],
-  "__requires": [
-    {
-      "type": "grafana",
-      "id": "grafana",
-      "name": "Grafana",
-      "version": "4.4.3"
-    },
-    {
-      "type": "panel",
-      "id": "graph",
-      "name": "Graph",
-      "version": ""
-    },
-    {
-      "type": "datasource",
-      "id": "influxdb",
-      "name": "InfluxDB",
-      "version": "1.0.0"
-    }
-  ],
   "annotations": {
     "list": []
   },
@@ -36,7 +6,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "hideControls": false,
-  "id": null,
+  "id": 1,
   "links": [],
   "refresh": false,
   "rows": [
@@ -49,7 +19,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_K8S}",
+          "datasource": "k8s",
           "editable": true,
           "error": false,
           "fill": 1,
@@ -305,7 +275,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_K8S}",
+          "datasource": "k8s",
           "editable": true,
           "error": false,
           "fill": 1,
@@ -623,7 +593,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_K8S}",
+          "datasource": "k8s",
           "editable": true,
           "error": false,
           "fill": 1,
@@ -805,7 +775,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_K8S}",
+          "datasource": "k8s",
           "editable": true,
           "error": false,
           "fill": 1,
@@ -999,8 +969,11 @@
       {
         "allFormat": "glob",
         "allValue": null,
-        "current": {},
-        "datasource": "${DS_K8S}",
+        "current": {
+          "text": "default",
+          "value": "default"
+        },
+        "datasource": "k8s",
         "hide": 0,
         "includeAll": false,
         "label": null,
@@ -1021,8 +994,11 @@
       {
         "allFormat": "glob",
         "allValue": null,
-        "current": {},
-        "datasource": "${DS_K8S}",
+        "current": {
+          "text": "0220723c-ed56-4b30-869a-ac5e2bb0b48d",
+          "value": "0220723c-ed56-4b30-869a-ac5e2bb0b48d"
+        },
+        "datasource": "k8s",
         "hide": 0,
         "includeAll": false,
         "label": null,
@@ -1073,6 +1049,6 @@
     ]
   },
   "timezone": "browser",
-  "title": "Pods",
+  "title": "Kubernetes-Pods",
   "version": 1
 }
