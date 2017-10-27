@@ -1976,7 +1976,7 @@ def copy_list_of_files_to_nodes(listOfFiles, nodes):
 	for node in nodes:
 		for (source, target) in copy_files:
 			if (os.path.isfile(source.strip()) or os.path.exists(source.strip())):
-				rmt_cp(node, source, target)		
+				rmt_cp(node, source, target)
 
 # run scripts
 def run_script_on_node(script, node):
@@ -2977,6 +2977,10 @@ def run_script(node, args, sudo = False, supressWarning = False):
 def run_script_on_all(nodes, args, sudo = False, supressWarning = False):
 	for node in nodes:
 		run_script( node, args, sudo = sudo, supressWarning = supressWarning)
+
+def copy_to_all(nodes, src, dst):
+	for node in nodes:
+		rmt_cp(node, src, dst)
 		
 def add_mac_dictionary( dic, name, mac):
 	mac = mac.lower() 
@@ -3727,7 +3731,11 @@ def run_command( args, command, nargs, parser ):
 		nodes = get_nodes(config["clusterId"])
 		run_script_on_all(nodes, nargs, sudo = args.sudo )
 
-		
+	elif command == "copytoall" and len(nargs)>=1:
+		nodes = get_nodes(config["clusterId"])
+		print "Copy all from: {0} to: {1}".format(nargs[0], nargs[1])
+		copy_to_all(nodes, nargs[0], nargs[1])
+
 	elif command == "cleanmasteretcd":
 		response = raw_input("Clean and Stop Master/ETCD Nodes (y/n)?")
 		if first_char( response ) == "y":
