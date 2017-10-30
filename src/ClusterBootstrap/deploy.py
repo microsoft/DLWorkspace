@@ -399,6 +399,10 @@ default_config_parameters = {
 					 "/opt/addons/kube-addons/influxdb.yaml",
 					 ],
 
+	"k8s-bld" : "k8s-temp-bld",
+	"k8s-gitrepo" : "sanjeevm0/kubernetes",
+	"k8s-gitbranch" : "release-1.7",
+
     "Authentications": {
         "Live-login-windows": {
             "DisplayName": "Microsoft Account (live.com)",
@@ -2005,13 +2009,13 @@ def kube_deploy_addons():
 		exec_rmt_cmd(node, "sudo kubectl create -f "+addon)
 
 # config changes		
-def kube_dpeloy_configchanges():
+def kube_deploy_configchanges():
 	node = kube_master0_wait()
 	for configChange in config["kube_configchanges"]:
 		exec_rmt_cmd(node, "sudo kubectl apply -f "+configChange)
 
 def acs_deploy_addons():
-	kube_dpeloy_configchanges()
+	kube_deploy_configchanges()
 	kube_deploy_addons()
 
 def acs_label_webui():
@@ -3844,7 +3848,7 @@ def run_command( args, command, nargs, parser ):
 				acs_deploy_addons()
 			elif nargs[0]=="freeflow":
 				if ("freeflow" in config) and (config["freeflow"]):
-					kube_dpeloy_configchanges() # starte weave.yaml
+					kube_deploy_configchanges() # starte weave.yaml
 					run_script_blocks(["kubernetes start freeflow"])
 			elif nargs[0]=="jobendpt":
 				acs_get_jobendpt(nargs[1])

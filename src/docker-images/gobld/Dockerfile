@@ -15,7 +15,7 @@ RUN apt-get install -y --no-install-recommends software-properties-common
 RUN update-ca-certificates
 
 # Install Go
-ENV GOVERSION=1.7.4
+ENV GOVERSION=1.9
 ENV GOOS=linux
 ENV GOARCH=amd64
 RUN wget https://storage.googleapis.com/golang/go$GOVERSION.$GOOS-$GOARCH.tar.gz
@@ -28,8 +28,8 @@ RUN mkdir /go/src
 ENV GOPATH=/go
 
 # SSH Keys
-COPY gittoken /root
-RUN chmod 400 /root/gittoken
+# COPY gittoken /root
+# RUN chmod 400 /root/gittoken
 
 # Install prerequisites
 # Install docker - not really needed for building, but makefile checks for it
@@ -44,6 +44,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN apt-get install -y --no-install-recommends rsync
 
 RUN go get github.com/tools/godep
+RUN go get github.com/golang/glog
+
 RUN mkdir /root/.ssh
 RUN ssh-keyscan github.com >> /root/.ssh/known_hosts
 
