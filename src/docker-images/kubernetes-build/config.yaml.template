@@ -1,6 +1,0 @@
-# Customize to your liking and copy to config.yaml
-k8s-bld : k8s-bld
-k8s-gitrepo : MSRCCS/kubernetes
-k8s-gitbranch : release-1.5-multigpu-new
-k8s-pushto : mlcloudreg.westus.cloudapp.azure.com:5000/hyperkube:v1.5.0_coreos.grpallocate
-
