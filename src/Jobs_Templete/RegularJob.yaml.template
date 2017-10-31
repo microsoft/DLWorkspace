@@ -23,6 +23,14 @@ spec:
     resources:
       limits:
         alpha.kubernetes.io/nvidia-gpu: {{ job["resourcegpu"] }}
+    {% if not job["cpushares"] %}
+      requests: 
+        cpu: 1.0
+    {% else %}  
+      requests: 
+        cpu: job["cpushares"]      
+    {% endif %}
+        
     volumeMounts:
     {% if not job["dnsPolicy"] %}
     - mountPath: /etc/resolv.conf

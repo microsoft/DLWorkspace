@@ -121,7 +121,7 @@ def sudo_scp (identity_file, source, target, user, host,changePermission=False, 
 	if ( os.path.isfile(source)):
 		cmd = "sudo mkdir -p %s ; sudo mv ~/%s %s" % (targetPath, tmp, target)
 	else:
-		cmd = "sudo mkdir -p %s ; sudo mv ~/%s/* %s; sudo rm -rf ~/%s" % (targetPath, tmp, target, tmp)
+		cmd = "sudo mkdir -p %s ; sudo mv ~/%s/* %s; sudo rm -rf ~/%s" % (target, tmp, target, tmp)
 	if changePermission:
 		cmd += " ; sudo chmod +x %s" % target
 	if verbose:

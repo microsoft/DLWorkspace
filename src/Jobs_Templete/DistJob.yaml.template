@@ -29,6 +29,13 @@ spec:
       limits:
         alpha.kubernetes.io/nvidia-gpu: {{ job["resourcegpu"] }}
     {% endif %}
+    {% if not job["cpushares"] %}
+      requests: 
+        cpu: 1.0
+    {% else %}  
+      requests: 
+        cpu: job["cpushares"]      
+    {% endif %}    
     volumeMounts:
     - mountPath: /freeflow
       name: freeflow    
