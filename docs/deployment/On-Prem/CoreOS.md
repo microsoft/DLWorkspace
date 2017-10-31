@@ -4,7 +4,7 @@ This document describes the procedure to deploy DL workspace on a prior deployed
 
 1. [Configuration cluster](configuration/Readme.md).
   
-  1. Please copy src/ClusterBootstrap/config_coreos.yaml.template to src/ClusterBootstrap/config.yaml, fill in the cluster name, number of etcd server, domain, and the machines involved in the deployment. 
+  * Please copy src/ClusterBootstrap/config_coreos.yaml.template to src/ClusterBootstrap/config.yaml, fill in the cluster name, number of etcd server, domain, and the machines involved in the deployment. 
   ```
   cluster_name : <<your_cluster_name>>
   etcd_node_num : 3
@@ -21,9 +21,9 @@ This document describes the procedure to deploy DL workspace on a prior deployed
       role: worker
   ```
 
-  2. Configure and setup the [databased](../database/Readme.md) used in the cluster.
+  * Configure and setup the [databased](../database/Readme.md) used in the cluster.
   
-  3. Please edit cluster.yaml generated in the step above, and remove/change :
+  * Please edit cluster.yaml generated in the step above, and remove/change :
   ```
   deploydockerETCD: true [change from false -> true]
   platform-scripts: coreos [change from ubuntu -> coreos]
