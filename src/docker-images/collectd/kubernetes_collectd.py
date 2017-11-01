@@ -131,7 +131,41 @@ def read(data=None):
                             else:
                                 res = 1
                             vl.dispatch(values=[float(res)])
+
         except:
             pass
+
+        try:
+            used_gpus = 0
+            pods = json.loads( curl_get("https://127.0.0.1/api/v1/pods"))
+            if "items" in pods:
+                for item in pods["items"]:
+                    if "spec" in item and "containers" in item["spec"]:
+                        if "status" in item and "phase" in item["status"] and item["status"]["phase"] == "Running":
+                            for container in item["spec"]["containers"]:
+                                if "resources" in container and "requests" in container["resources"] and "alpha.kubernetes.io/nvidia-gpu" in container["resources"]["requests"]:
+                                    used_gpus += int(container["resources"]["requests"]["alpha.kubernetes.io/nvidia-gpu"])
+            vl = collectd.Values(type='gauge')
+            vl.plugin = 'gpu'
+            vl.plugin_instance = "usedgpu"
+            vl.dispatch(values=[float(used_gpus)])
+        except:
+            pass
+
+        try:
+            total_gpus = 0
+            nodes = json.loads( curl_get("https://127.0.0.1/api/v1/nodes"))
+            if "items" in nodes:
+                for item in nodes["items"]:
+                    if "status" in item and "capacity" in item["status"] and "alpha.kubernetes.io/nvidia-gpu" in item["status"]["capacity"]:
+                        total_gpus += int(item["status"]["capacity"]["alpha.kubernetes.io/nvidia-gpu"])
+            vl = collectd.Values(type='gauge')
+            vl.plugin = 'gpu'
+            vl.plugin_instance = "totalgpu"
+            vl.dispatch(values=[float(total_gpus)])
+
+        except:
+            pass
+
 collectd.register_config(configure)
 collectd.register_read(read)
