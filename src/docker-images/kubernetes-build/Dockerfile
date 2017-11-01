@@ -8,6 +8,8 @@ ARG NOCACHE=1
 RUN git clone https://github.com/{{cnf["k8s-gitrepo"]}} /go/src/k8s.io/kubernetes
 WORKDIR /go/src/k8s.io/kubernetes
 RUN git checkout {{cnf["k8s-gitbranch"]}}
+RUN git remote add kubernetes http://github.com/kubernetes/kubernetes
+RUN git fetch kubernetes
 
 RUN make
 
