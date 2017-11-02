@@ -3,6 +3,7 @@ sudo mkdir -p /etc/kubernetes/manifests
 sudo mkdir -p /etc/kubernetes/ssl/
 sudo mkdir -p /etc/ssl/etcd
 sudo mkdir -p /opt/addons
+sudo mkdir -p /opt/addons/kube-addons
 sudo mkdir -p /opt/bin
 sudo mkdir -p /opt/cni/bin
 sudo chown -R $USER /etc/kubernetes

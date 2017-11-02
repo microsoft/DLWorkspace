@@ -14,7 +14,7 @@ ExecStartPre=/bin/bash -c 'if lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-
 # Glusterfs currently need docker-disable-shared-pid option, will evaluate in future kubernete release
 #
 ExecStart=/opt/bin/kubelet \
-  --api-servers=http://127.0.0.1:8080 \
+  --kubeconfig=/etc/kubernetes/worker-kubeconfig.yaml \
   --register-schedulable=false \
   --container-runtime=docker \
   --allow-privileged=true \

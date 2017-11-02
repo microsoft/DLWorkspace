@@ -580,8 +580,8 @@ scriptblocks = {
 	"acs": [
 		"acs deploy",
 		"acs postdeploy",
+		"acs prepare",
 		"acs storagemount",
-		"acs gpudrivers",
 		"acs freeflow",
 		"acs bldwebui",
 		"acs restartwebui",
@@ -812,7 +812,7 @@ default_config_mapping = {
 }
 
 def isInstallOnCoreOS():
-	return config["platform-scripts"]!="ubuntu"
+	return config["platform-scripts"]!="ubuntu" and config["platform-scripts"]!="acs"
 	
 # Merge entries in config2 to that of config1, if entries are dictionary. 
 # If entry is list or other variable, it will just be replaced. 
@@ -1477,6 +1477,8 @@ def deploy_master(kubernetes_master):
 def get_cni_binary():
 	os.system("mkdir -p ./deploy/bin")
 	urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/containernetworking/cni-amd64-v0.5.2.tgz", "./deploy/bin/cni-amd64-v0.5.2.tgz")
+	if verbose:
+		print "Extracting CNI binaries"
 	os.system("tar -zxvf ./deploy/bin/cni-amd64-v0.5.2.tgz -C ./deploy/bin")
 
 
@@ -1964,6 +1966,8 @@ def exec_rmt_cmd(node, cmd):
 	utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, cmd)
 
 def rmt_cp(node, source, target):
+	if verbose:
+		print "Copy file {0} to node {1} as file {2}".format(source, node, target)
 	utils.sudo_scp(config["ssh_cert"], source, target, config["admin_username"], node)
 
 # copy list of files to a node
@@ -1972,7 +1976,7 @@ def copy_list_of_files(listOfFiles, node):
 		copy_files = [s.split(",") for s in f.readlines() if len(s.split(",")) == 2]
 	for (source, target) in copy_files:
 		if (os.path.isfile(source.strip()) or os.path.exists(source.strip())):
-			rmt_cp(node, source, target)
+			rmt_cp(node, source.strip(), target.strip())
 
 def copy_list_of_files_to_nodes(listOfFiles, nodes):
 	with open(listOfFiles, "r") as f:
@@ -1980,14 +1984,18 @@ def copy_list_of_files_to_nodes(listOfFiles, nodes):
 	for node in nodes:
 		for (source, target) in copy_files:
 			if (os.path.isfile(source.strip()) or os.path.exists(source.strip())):
-				rmt_cp(node, source, target)
+				rmt_cp(node, source.strip(), target.strip())
 
 # run scripts
 def run_script_on_node(script, node):
+	if verbose:
+		print "Running script {0} on node {1}".format(script, node)
 	utils.SSH_exec_script(config["ssh_cert"], config["admin_username"], node, script)
 
 def run_script_on_nodes(script, nodes):
 	for node in nodes:
+		if verbose:
+			print "Running script {0} on node {1}".format(script, node)
 		utils.SSH_exec_script(config["ssh_cert"], config["admin_username"], node, script)
 
 # deployment
@@ -2072,11 +2080,14 @@ def acs_attach_dns_name():
 	for node in config["worker_node"]:
 		acs_tools.acs_attach_dns_to_node(node)
 
-def acs_install_gpu():
-	nodes = get_worker_nodes(config["clusterId"])
+# Install needed components including GPU drivers if needed
+def acs_prepare_machines():
+	nodes = get_nodes(config["clusterId"])
 	for node in nodes:
 		#exec_rmt_cmd(node, "curl -L -sf https://raw.githubusercontent.com/ritazh/acs-k8s-gpu/master/install-nvidia-driver.sh | sudo sh")
-		run_script(node, ["./scripts/prepare_acs.sh"], True)
+		run_script(node, ["./scripts/prepare_ubuntu.sh"], True)
+		# restart kubelet incase GPU installed
+		utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, "sudo systemctl restart kubelet.service")
 
 def acs_get_jobendpt(jobId):
 	get_nodes_from_acs("")
@@ -3840,9 +3851,8 @@ def run_command( args, command, nargs, parser ):
 				link_fileshares(allmountpoints, args.force)		
 			elif nargs[0]=="bldwebui":
 				run_script_blocks(scriptblocks["bldwebui"])
-			elif nargs[0]=="gpudrivers":
-				if (config["acs_isgpu"]):
-					acs_install_gpu()
+			elif nargs[0]=="prepare":
+				acs_prepare_machines()
 			elif nargs[0]=="addons":
 				# deploy addons / config changes (i.e. weave.yaml)
 				acs_deploy_addons()
