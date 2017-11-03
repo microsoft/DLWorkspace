@@ -347,7 +347,7 @@ default_config_parameters = {
         "CCSAdmins": {
             # The match is in C# Regex Language, please refer to :
             # https://msdn.microsoft.com/en-us/library/az24scfc(v=vs.110).aspx
-            "Allowed": [ "jinl@microsoft.com", "hongzl@microsoft.com" ],
+            "Allowed": [ "jinl@microsoft.com", "hongzl@microsoft.com", "sanjeevm@microsoft.com" ],
             "uid": "900000000-999999999",
             "gid": "508953967"
         },
@@ -547,6 +547,15 @@ scriptblocks = {
 		"-y kubernetes labels",
 		"mount",
 	],	
+	"redeployazure": [
+		"-y deploy",
+		"-y updateworker",
+		"-y kubernetes labels",
+		"webui",
+		"kubernetes start jobmanager",
+		"kubernetes start restfulapi",
+		"kubernetes start webportal",
+	],
 	"bldwebui": [
 		"webui",
 		"docker push restfulapi",
@@ -3811,7 +3820,7 @@ def run_command( args, command, nargs, parser ):
 
 	elif command == "azure":
 		config["WinbindServers"] = []
-		run_script_blocks(scriptblocks["azure"])
+		run_script_blocks(scriptblocks["azure"])	
 
 	elif command == "acs":
 		k8sconfig["kubelet-path"] = "./deploy/bin/kubectl --kubeconfig=./deploy/%s" % (config["acskubeconfig"])
@@ -3990,6 +3999,8 @@ def run_command( args, command, nargs, parser ):
 		template_file = nargs[0]
 		target_file = nargs[1]
 		utils.render_template(template_file, target_file,config)
+	elif command in scriptblocks:
+		run_script_blocks(scriptblocks[command])
 	else:
 		parser.print_help()
 		print "Error: Unknown command " + command
