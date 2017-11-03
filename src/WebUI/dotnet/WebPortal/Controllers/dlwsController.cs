@@ -81,6 +81,28 @@ namespace WindowsAuth.Controllers
         }
 
 
+        // GET api/dlws/GetLog
+        [HttpGet("GetLog/{jobId}")]
+        public async Task<string> GetLog(string jobId)
+        {
+
+            string url = String.Format(@"http://hongzlgpu-infra01.westus2.cloudapp.azure.com:9200/_search?sort=time:asc&_source=log&size=100&q=kubernetes.pod_name:{0}",jobId);
+            string ret = "";
+            using (var httpClient = new HttpClient())
+            {
+                var response1 = await httpClient.GetAsync(url);
+                var content = await response1.Content.ReadAsStringAsync();
+                ret = content;
+            }
+            var jobLog = JsonConvert.DeserializeObject<WebPortal.models.JobLogs>(ret);
+            string logs = "";
+            foreach (var hit in jobLog.hits.hits)
+            {
+                logs += hit._source.log;
+            }
+            return logs;
+        }
+
         // GET api/dlws/op_str?params
         [HttpGet("{op}")]
         public async Task<string> Get(string op)
