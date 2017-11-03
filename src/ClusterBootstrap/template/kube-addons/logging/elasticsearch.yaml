@@ -25,7 +25,8 @@ spec:
       nodeSelector:
         webportal: active
       containers:
-      - image: gcr.io/google-containers/elasticsearch:v5.6.2
+      - image: mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/elasticsearch
+        imagePullPolicy: Always
         name: elasticsearch-logging
         resources:
           # need more cpu upon initialization, therefore burstable class
@@ -50,9 +51,14 @@ spec:
               fieldPath: metadata.namespace
         - name: "MINIMUM_MASTER_NODES"
           value: "1"
+        - name: "HTTP_PORT"
+          value: "9200"
+        - name: "TRANSPORT_PORT"
+          value: "9300"
       volumes:
       - name: elasticsearch-logging
-        emptyDir: {}
+        hostPath:
+          path: /dlwsdata/storage/sys/elasticsearch
       # Elasticsearch requires vm.max_map_count to be at least 262144.
       # If your OS already sets up this number to a higher value, feel free
       # to remove this init container.
