@@ -2,6 +2,7 @@
 FROM tensorflow/tensorflow:1.4.0-rc1-devel-gpu-py3
 MAINTAINER Katherine Li <kml11@live.com>
 
+RUN umask 022
 RUN apt-get -y update && \
     apt-get -y install \
       vim \
@@ -66,8 +67,8 @@ RUN git clone https://github.com/ppwwyyxx/tensorpack.git
 
 RUN mkdir -p /var/log/apache2
 RUN chmod 0777 /var/log/apache2
-RUN chmod -R og+rx /root
-RUN chmod -R og+rx /tensorflow
+RUN chmod -R 0777 /root
+RUN chmod -R 0777 /tensorflow
 
 # RUN apt-get update -y && apt-get install ssh-askpass rssh molly-guard ufw monkeysphere python3-ndg-httpsclient -y
 

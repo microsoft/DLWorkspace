@@ -17,6 +17,7 @@ spec:
   containers:
   - name: {{ job["jobId"] }}
     image: {{ job["image"] }}
+    imagePullPolicy: Always
     command: {{ job["LaunchCMD"] }}
     securityContext:
       runAsUser: {{ job["containerUserId"] }}

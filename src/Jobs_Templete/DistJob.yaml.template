@@ -19,6 +19,7 @@ spec:
   containers:
   - name: {{ job["jobId"] }}
     image: {{ job["image"] }}
+    imagePullPolicy: Always
     command: {{ job["LaunchCMD"] }}
     #container port and host port should be same.
     ports:
