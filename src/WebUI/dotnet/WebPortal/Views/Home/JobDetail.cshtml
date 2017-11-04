@@ -6,24 +6,14 @@
 
     var elasticsearchHost = 'http://@Context.Request.Host:9200';
     var logPages;
+    var logNum;
 
-
-    function getJobLog() {
+    function getJobLog(payload) {
         var jobId = '@ViewData["jobid"]'
         var client = new elasticsearch.Client({
             host: elasticsearchHost,
             //log: 'trace'
         });
-
-        //client.ping({
-        //    requestTimeout: 30000,
-        //}, function (error) {
-        //    if (error) {
-        //        console.error('elasticsearch cluster is down!');
-        //    } else {
-        //        console.log('All is well');
-        //    }
-        //    });
 
         var searchParams = {
             index: '',
@@ -46,7 +36,6 @@
 
         client.count(searchParams, function (err, res) {
             logNum = res.count;
-
             layui.use(['laypage', 'layer'], function () {
                 var laypage = layui.laypage
                     , layer = layui.layer;
@@ -56,7 +45,7 @@
                     , count: logNum
                     , theme: '#1E9FFF'
                     , layout: ['prev', 'page', 'next']
-                    , curr: (logNum / 500)+1
+                    , curr: (logNum / 500) + 1
                     , prev: 'Prev'
                     , next: 'Next'
                     , limit: 500
@@ -64,56 +53,70 @@
                     , jump: function (obj, first) {
 
                         //console.log(obj);
-                        if (obj.curr != parseInt((logNum / 500)+1)) {
+                        if (obj.curr != parseInt((logNum / 500) + 1)) {
                             layer.msg('Loaded Job Log Page: ' + obj.curr);
                             document.getElementById('chkRefresh').checked = false;
                         }
+                        if (logNum > 0) {
+                            var searchParams = {
+                                index: '',
+                                from: (obj.curr - 1) * obj.limit,
+                                size: obj.limit,
+                                sort: "time:asc",
+                                _source: "log",
+                                body: {
+                                    query: {
+                                        filtered: {
+                                            query: {
+                                                match: {
+                                                    "kubernetes.pod_name": jobId,
+                                                },
+                                            }
 
-                        var searchParams = {
-                            index: '',
-                            from: (obj.curr - 1) * obj.limit,
-                            size: obj.limit,
-                            sort: "time:asc",
-                            _source: "log",
-                            body: {
-                                query: {
-                                    filtered: {
-                                        query: {
-                                            match: {
-                                                "kubernetes.pod_name": jobId,
-                                            },
                                         }
-
                                     }
                                 }
-                            }
-                        };
+                            };
 
-                        client.search(searchParams, function (err, res) {
-                            var logstr = "";
-                            for (var i = 0; i < res.hits.hits.length; i++) {
-                                logstr += res.hits.hits[i]._source.log;
+                            client.search(searchParams, function (err, res) {
+                                var logstr = "";
+                                for (var i = 0; i < res.hits.hits.length; i++) {
+                                    logstr += res.hits.hits[i]._source.log;
+                                }
+
+                                var objDiv = document.getElementById('logPanel');
+                                objDiv.style.height = "500px";
+                                objDiv.innerHTML = logstr;
+                                if (obj.curr == parseInt((logNum / 500) + 1)) {
+                                    objDiv.scrollTop = objDiv.scrollHeight;
+                                }
+                                else {
+                                    objDiv.scrollTop = 0;
+                                }
+                            });
+                        }
+                        else 
+                        {
+                            if (payload.log) {
+                                //console.log(payload.jobId);
+                                if (payload.log != "fail-to-get-logs") {
+                                    var objDiv = document.getElementById('logPanel');
+                                    objDiv.style.height = "500px";
+                                    objDiv.innerHTML = payload.log;
+                                    objDiv.scrollTop = objDiv.scrollHeight;
+                                }
+                            }
+                            else {
+                                var logPanelDiv = document.getElementById('logPanel');
+                                logPanelDiv.innerHTML = "No log yet!";
+                                logPanelDiv.style.height = "50px";
                             }
 
-                            var objDiv = document.getElementById('logPanel2');
-                            objDiv.style.height = "500px";
-                            objDiv.innerHTML = logstr;
-                            if (obj.curr == parseInt((logNum / 500) + 1)) {
-                                objDiv.scrollTop = objDiv.scrollHeight;
-                            }
-                            else
-                            {
-                                objDiv.scrollTop = 0;
-                            }
-                        });
-
+                        }
                     }
                 });
             });
-
         });
-
-
     }
 
 
@@ -232,48 +235,27 @@
             requestTimeout: 1000,
         }, function (error) {
             if (error) {
-                // elasticsearch cluster is down try to use logs in SQL server
-                $('#elasticsearchlog').hide();
-                $('#logPanel').show();
-
+                if (payload.log) {
+                    //console.log(payload.jobId);
+                    if (payload.log != "fail-to-get-logs") {
+                        var objDiv = document.getElementById('logPanel');
+                        objDiv.style.height = "500px";
+                        objDiv.innerHTML = payload.log;
+                        objDiv.scrollTop = objDiv.scrollHeight;
+                    }
+                }
+                else {
+                    var logPanelDiv = document.getElementById('logPanel');
+                    logPanelDiv.innerHTML = "No log yet!";
+                    logPanelDiv.style.height = "50px";
+                }
             } else {
-                // elasticsearch cluster is avaliable, use elasticsearch for logging
-                $('#elasticsearchlog').show();
-                $('#logPanel').hide();
+                getJobLog(payload);
             }
             });
 
         if ($('#elasticsearchlog').is(":visible"))
         {
-            getJobLog();
-            var logPanelDiv = document.getElementById('#elasticsearchlog');
-            if (logPanelDiv.innerHTML == "" && payload.log && payload.log != "fail-to-get-logs" )
-            {
-                $('#elasticsearchlog').hide();
-                $('#logPanel').show();
-                var objDiv = document.getElementById('logPanel');
-                objDiv.style.height = "500px";
-                objDiv.innerHTML = payload.log;
-                objDiv.scrollTop = objDiv.scrollHeight;
-
-            }
-        }
-        else
-        {
-            if (payload.log) {
-                //console.log(payload.jobId);
-                if (payload.log != "fail-to-get-logs") {
-                    var objDiv = document.getElementById('logPanel');
-                    objDiv.style.height = "500px";
-                    objDiv.innerHTML = payload.log;
-                    objDiv.scrollTop = objDiv.scrollHeight;
-                }
-            }
-            else {
-                var logPanelDiv = document.getElementById('logPanel');
-                logPanelDiv.innerHTML = "No log yet!";
-                logPanelDiv.style.height = "50px";
-            }
         }
 
 
@@ -352,16 +334,9 @@
 </div>
 
 <h2> Job Console Output:</h2>
-<div id="logPanel" hidden style="height: 500px;" readonly="" class="ng-binding grey-box scroll-box">
-    No log yet
+<div id="logPanel" style="height: 500px;" readonly="" class="ng-binding grey-box scroll-box">
 </div>
-
-<div id="elasticsearchlog" hidden>
-    <div id="logPanel2" style="height: 500px;" readonly="" class="ng-binding grey-box scroll-box">
-    Loading job logs...
-    </div>
-    <div id="logautopager" style="float:right"></div>
-</div>
+<div id="logautopager" style="float:right"></div>
 
 
 <div>
