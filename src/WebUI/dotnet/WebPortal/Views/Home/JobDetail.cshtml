@@ -235,27 +235,46 @@
                 // elasticsearch cluster is down try to use logs in SQL server
                 $('#elasticsearchlog').hide();
                 $('#logPanel').show();
-                if (payload.log) {
-                    //console.log(payload.jobId);
-                    if (payload.log != "fail-to-get-logs") {
-                        var objDiv = document.getElementById('logPanel');
-                        objDiv.style.height = "500px";
-                        objDiv.innerHTML = payload.log;
-                        objDiv.scrollTop = objDiv.scrollHeight;
-                    }
-                }
-                else {
-                    var logPanelDiv = document.getElementById('logPanel');
-                    logPanelDiv.innerHTML = "No log yet!";
-                    logPanelDiv.style.height = "50px";
-                }
+
             } else {
                 // elasticsearch cluster is avaliable, use elasticsearch for logging
                 $('#elasticsearchlog').show();
                 $('#logPanel').hide();
-                getJobLog();
             }
             });
+
+        if ($('#elasticsearchlog').is(":visible"))
+        {
+            getJobLog();
+            var logPanelDiv = document.getElementById('#elasticsearchlog');
+            if (logPanelDiv.innerHTML == "" && payload.log && payload.log != "fail-to-get-logs" )
+            {
+                $('#elasticsearchlog').hide();
+                $('#logPanel').show();
+                var objDiv = document.getElementById('logPanel');
+                objDiv.style.height = "500px";
+                objDiv.innerHTML = payload.log;
+                objDiv.scrollTop = objDiv.scrollHeight;
+
+            }
+        }
+        else
+        {
+            if (payload.log) {
+                //console.log(payload.jobId);
+                if (payload.log != "fail-to-get-logs") {
+                    var objDiv = document.getElementById('logPanel');
+                    objDiv.style.height = "500px";
+                    objDiv.innerHTML = payload.log;
+                    objDiv.scrollTop = objDiv.scrollHeight;
+                }
+            }
+            else {
+                var logPanelDiv = document.getElementById('logPanel');
+                logPanelDiv.innerHTML = "No log yet!";
+                logPanelDiv.style.height = "50px";
+            }
+        }
 
 
 
@@ -333,13 +352,13 @@
 </div>
 
 <h2> Job Console Output:</h2>
-<div id="logPanel" style="height: 500px;" readonly="" class="ng-binding grey-box scroll-box">
+<div id="logPanel" hidden style="height: 500px;" readonly="" class="ng-binding grey-box scroll-box">
     No log yet
 </div>
 
 <div id="elasticsearchlog" hidden>
     <div id="logPanel2" style="height: 500px;" readonly="" class="ng-binding grey-box scroll-box">
-        No log yet
+    Loading job logs...
     </div>
     <div id="logautopager" style="float:right"></div>
 </div>
