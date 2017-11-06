@@ -63,7 +63,7 @@
                                 from: (obj.curr - 1) * obj.limit,
                                 size: obj.limit,
                                 sort: "time:asc",
-                                _source: "log",
+                                _source: "log,time",
                                 body: {
                                     query: {
                                         filtered: {
@@ -80,8 +80,21 @@
 
                             client.search(searchParams, function (err, res) {
                                 var logstr = "";
-                                for (var i = 0; i < res.hits.hits.length; i++) {
-                                    logstr += res.hits.hits[i]._source.log;
+                                var hits = res.hits.hits.sort(function (a, b) {
+                                    if (a._source.time < b._source.time)
+                                        return -1;
+                                    else
+                                        return 1;
+
+                                })
+                                for (var i = 0; i < hits.length; i++) {
+                                    if (document.getElementById('chkTimestamp').checked) {
+                                        logstr += '[' + hits[i]._source.time + '] ' + hits[i]._source.log;
+                                    }
+                                    else
+                                    {
+                                        logstr += hits[i]._source.log;
+                                    }
                                 }
 
                                 var objDiv = document.getElementById('logPanel');
@@ -343,6 +356,11 @@
     <input type="checkbox" id="chkRefresh" checked="checked" onclick="RefreshDetail()" />
     <label>
         Auto-Refresh Job Logs (Refresh-Rate 5 Seconds)
+    </label>
+
+    <input type="checkbox" id="chkTimestamp" checked="checked" onclick="RefreshDetail()"/>
+    <label>
+        Show timestamp in job logs
     </label>
 </div>
 
