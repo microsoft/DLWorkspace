@@ -67,7 +67,7 @@ namespace WindowsAuth
             services.AddMvc();
             services.AddDistributedMemoryCache(); // Adds a default in-memory implementation of IDistributedCache
             services.AddSession();
-
+            //services.AddCors();
             services.Configure<AppSettings>(appSettings =>
             {
                 // Typed syntax - Configuration.Get<type>("")
@@ -100,6 +100,11 @@ namespace WindowsAuth
             var _logger = loggerFactory.CreateLogger("Configure");
 
             ConfigurationParser.ParseConfiguration(loggerFactory);
+
+            //app.UseCors(builder =>
+            //    builder.AllowAnyOrigin()
+            //    );
+
             var clusters = ConfigurationParser.GetConfiguration("DLClusters") as Dictionary<string, object>;
             if ( Object.ReferenceEquals(clusters, null ))
             {

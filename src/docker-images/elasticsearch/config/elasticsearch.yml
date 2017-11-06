@@ -17,4 +17,6 @@ http.cors.enabled : true
 http.cors.allow-origin: "/.*/"
 http.cors.allow-methods : OPTIONS, HEAD, GET, POST, PUT, DELETE
 http.cors.allow-headers : "X-Requested-With,X-Auth-Token,Content-Type, Content-Length, Authorization"
-index.max_result_window : 1000000
+index.max_result_window : 50000
+http.max_header_size: 16kb
+thread_pool.bulk.queue_size: 1000
