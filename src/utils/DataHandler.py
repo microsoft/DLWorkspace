@@ -2,12 +2,18 @@
 import pyodbc
 import json
 from config import config
+from config import global_vars
 import base64
+
+from MyLogger import MyLogger
+
+
 
 class DataHandler:
     def __init__(self):
+        self.logger = MyLogger()
         self.CreateDatabase()
-
+        self.logger.debug ("********************** created a new Data Handler *******************")
         self.server = config["database"]["hostname"] 
         self.database = "DLWorkspaceCluster-%s" % config["clusterId"]
         self.username = config["database"]["username"]
@@ -17,6 +23,7 @@ class DataHandler:
         self.connstr = 'DRIVER='+self.driver+';PORT=1433;SERVER='+self.server+';PORT=1433;DATABASE='+self.database+';UID='+self.username+';PWD='+self.password
         #print "Try to connect with string: " + self.connstr
         self.conn = pyodbc.connect(self.connstr)
+        self.connected = True
         #print "Connecting to server ..."
         self.jobtablename = "jobs-%s" %  config["clusterId"]
         self.usertablename = "users-%s" %  config["clusterId"]
@@ -25,8 +32,13 @@ class DataHandler:
 
         self.CreateTable()
 
+
+
+
     def CreateDatabase(self):
-        try:
+        if "initSQLDB" not in global_vars or not global_vars["initSQLDB"]:
+            self.logger.info("===========init SQL database===============")
+            global_vars["initSQLDB"] = True
             server = config["database"]["hostname"] 
             username = config["database"]["username"]
             password = config["database"]["password"]
@@ -40,95 +52,96 @@ class DataHandler:
             cursor.execute(sql)
             cursor.close()
             conn.close()
-        except:
-            pass
+
     def CreateTable(self):
-        
-        sql = """
-        if not exists (select * from sysobjects where name='%s' and xtype='U')
-            CREATE TABLE [dbo].[%s]
-            (
-                [id]        INT          IDENTITY (1, 1) NOT NULL,
-                [jobId] NTEXT   NOT NULL,
-                [familyToken] NTEXT   NOT NULL,
-                [isParent] INT   NOT NULL,
-                [jobName]         NTEXT NOT NULL,
-                [userName]         NTEXT NOT NULL,
-                [jobStatus]         NTEXT NOT NULL DEFAULT 'unapproved',
-                [jobStatusDetail] NTEXT NULL, 
-                [jobType]         NTEXT NOT NULL,
-                [jobDescriptionPath]  NTEXT NULL,
-                [jobDescription]  NTEXT NULL,
-                [jobTime] DATETIME     DEFAULT (getdate()) NOT NULL,
-                [endpoints] NTEXT NULL, 
-                [errorMsg] NTEXT NULL, 
-                [jobParams] NTEXT NOT NULL, 
-                [jobMeta] NTEXT NULL, 
-                [jobLog] NTEXT NULL, 
-                [retries]             int    NULL DEFAULT 0,
-                PRIMARY KEY CLUSTERED ([id] ASC)
-            )
-            """ % (self.jobtablename,self.jobtablename)
+        if "initSQLTable" not in global_vars or not global_vars["initSQLTable"]:
+            self.logger.info( "===========init SQL Tables ===============")
+            global_vars["initSQLTable"] = True
+            sql = """
+            if not exists (select * from sysobjects where name='%s' and xtype='U')
+                CREATE TABLE [dbo].[%s]
+                (
+                    [id]        INT          IDENTITY (1, 1) NOT NULL,
+                    [jobId] NTEXT   NOT NULL,
+                    [familyToken] NTEXT   NOT NULL,
+                    [isParent] INT   NOT NULL,
+                    [jobName]         NTEXT NOT NULL,
+                    [userName]         NTEXT NOT NULL,
+                    [jobStatus]         NTEXT NOT NULL DEFAULT 'unapproved',
+                    [jobStatusDetail] NTEXT NULL, 
+                    [jobType]         NTEXT NOT NULL,
+                    [jobDescriptionPath]  NTEXT NULL,
+                    [jobDescription]  NTEXT NULL,
+                    [jobTime] DATETIME     DEFAULT (getdate()) NOT NULL,
+                    [endpoints] NTEXT NULL, 
+                    [errorMsg] NTEXT NULL, 
+                    [jobParams] NTEXT NOT NULL, 
+                    [jobMeta] NTEXT NULL, 
+                    [jobLog] NTEXT NULL, 
+                    [retries]             int    NULL DEFAULT 0,
+                    PRIMARY KEY CLUSTERED ([id] ASC)
+                )
+                """ % (self.jobtablename,self.jobtablename)
 
-        cursor = self.conn.cursor()
-        cursor.execute(sql)
-        self.conn.commit()
-        cursor.close()
-
-
-        sql = """
-        if not exists (select * from sysobjects where name='%s' and xtype='U')
-            CREATE TABLE [dbo].[%s]
-            (
-                [id]        INT          IDENTITY (1, 1) NOT NULL,
-                [status]         NTEXT NOT NULL,
-                [time] DATETIME     DEFAULT (getdate()) NOT NULL,
-                PRIMARY KEY CLUSTERED ([id] ASC)
-            )
-            """ % (self.clusterstatustablename,self.clusterstatustablename)
-
-        cursor = self.conn.cursor()
-        cursor.execute(sql)
-        self.conn.commit()
-        cursor.close()
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+            self.conn.commit()
+            cursor.close()
 
 
-        sql = """
-        if not exists (select * from sysobjects where name='%s' and xtype='U')
-            CREATE TABLE [dbo].[%s]
-            (
-                [id]        INT          IDENTITY (1, 1) NOT NULL,
-                [jobId] NTEXT   NOT NULL,
-                [status]         NTEXT NOT NULL DEFAULT 'pending',
-                [time] DATETIME     DEFAULT (getdate()) NOT NULL,
-                [command] NTEXT NOT NULL, 
-                [output] NTEXT NULL, 
-                PRIMARY KEY CLUSTERED ([id] ASC)
-            )
-            """ % (self.commandtablename,self.commandtablename)
+            sql = """
+            if not exists (select * from sysobjects where name='%s' and xtype='U')
+                CREATE TABLE [dbo].[%s]
+                (
+                    [id]        INT          IDENTITY (1, 1) NOT NULL,
+                    [status]         NTEXT NOT NULL,
+                    [time] DATETIME     DEFAULT (getdate()) NOT NULL,
+                    PRIMARY KEY CLUSTERED ([id] ASC)
+                )
+                """ % (self.clusterstatustablename,self.clusterstatustablename)
 
-        cursor = self.conn.cursor()
-        cursor.execute(sql)
-        self.conn.commit()
-        cursor.close()
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+            self.conn.commit()
+            cursor.close()
 
 
-        sql = """
-        if not exists (select * from sysobjects where name='%s' and xtype='U')
-            CREATE TABLE [dbo].[%s]
-            (
-                [id]        INT          IDENTITY (1, 1) NOT NULL,
-                [username]         NTEXT NOT NULL,
-                [userId]         NTEXT NOT NULL,
-                [time] DATETIME     DEFAULT (getdate()) NOT NULL,
-                PRIMARY KEY CLUSTERED ([id] ASC)
-            )
-            """ % (self.usertablename,self.usertablename)
+            sql = """
+            if not exists (select * from sysobjects where name='%s' and xtype='U')
+                CREATE TABLE [dbo].[%s]
+                (
+                    [id]        INT          IDENTITY (1, 1) NOT NULL,
+                    [jobId] NTEXT   NOT NULL,
+                    [status]         NTEXT NOT NULL DEFAULT 'pending',
+                    [time] DATETIME     DEFAULT (getdate()) NOT NULL,
+                    [command] NTEXT NOT NULL, 
+                    [output] NTEXT NULL, 
+                    PRIMARY KEY CLUSTERED ([id] ASC)
+                )
+                """ % (self.commandtablename,self.commandtablename)
 
-        cursor = self.conn.cursor()
-        cursor.execute(sql)
-        self.conn.commit()
-        cursor.close()
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+            self.conn.commit()
+            cursor.close()
+
+
+            sql = """
+            if not exists (select * from sysobjects where name='%s' and xtype='U')
+                CREATE TABLE [dbo].[%s]
+                (
+                    [id]        INT          IDENTITY (1, 1) NOT NULL,
+                    [username]         NTEXT NOT NULL,
+                    [userId]         NTEXT NOT NULL,
+                    [time] DATETIME     DEFAULT (getdate()) NOT NULL,
+                    PRIMARY KEY CLUSTERED ([id] ASC)
+                )
+                """ % (self.usertablename,self.usertablename)
+
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+            self.conn.commit()
+            cursor.close()
 
 
     def AddJob(self, jobParams):
@@ -446,9 +459,14 @@ class DataHandler:
 
         return ret    
 
+    def __del__(self):
+        self.logger.debug("********************** deleted a DataHandler instance *******************")
+        self.Close()
 
     def Close(self):
-        self.conn.close()
+        if (self.connected):
+            self.connected = False
+            self.conn.close()
 
 if __name__ == '__main__':
     TEST_INSERT_JOB = False

@@ -14,22 +14,21 @@ from logging.config import dictConfig
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
 #from JobRestAPIUtils import SubmitDistJob, GetJobList, GetJobStatus, DeleteJob, GetTensorboard, GetServiceAddress, GetLog, GetJob
 import JobRestAPIUtils
+from config import config
+from config import global_vars
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 with open(os.path.join(dir_path, 'logging.yaml'), 'r') as f:
 	logging_config = yaml.load(f)
 	dictConfig(logging_config)
 logger = logging.getLogger('restfulapi')
+global_vars["logger"] = logger
 
 app = Flask(__name__)
 api = Api(app)
 verbose = True
 logger.info( "------------------- Restful API started ------------------------------------- ")
 
-
-configFile = "/RestfulAPI/config.yaml"
-with open(configFile,'r') as f:
-	config = yaml.load(f)
 logger.info("%s" % config )
 
 
