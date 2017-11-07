@@ -26,6 +26,8 @@ def build_docker( dockername, dirname, verbose=False, nocache=False ):
 			cmd = "docker build --no-cache -t "+ dockername + " ."
 		else:
 			cmd = "docker build -t "+ dockername + " ."
+		if verbose:
+			print cmd
 		os.system(cmd)
 	return dockername
 	

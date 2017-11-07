@@ -3392,6 +3392,7 @@ def push_docker_images(nargs):
 	render_docker_images()
 	if verbose:
 		print "Build & push docker images to docker register  ..."
+		print "Nocache: {0}".format(nocache)
 	push_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"], nargs, config, verbose, nocache = nocache )
 
 def check_buildable_images(nargs):
@@ -3422,8 +3423,6 @@ def run_docker_image( imagename, native = False, sudo = False ):
 			run_docker( matches[0], prompt = imagename, dockerConfig = dockerConfig, sudo = sudo )		
 
 def run_command( args, command, nargs, parser ):
-	nocache = args.nocache
-	
 	# If necessary, show parsed arguments. 
 	# print args
 	global discoverserver
@@ -3432,6 +3431,10 @@ def run_command( args, command, nargs, parser ):
 	global config
 	
 	global ipAddrMetaname
+	global nocache
+
+	nocache = args.nocache	
+
 	discoverserver = args.discoverserver
 	homeinserver = args.homeinserver
 
