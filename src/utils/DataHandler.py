@@ -59,17 +59,18 @@ class DataHandler:
             global_vars["initSQLTable"] = True
             sql = """
             if not exists (select * from sysobjects where name='%s' and xtype='U')
+                BEGIN
                 CREATE TABLE [dbo].[%s]
                 (
                     [id]        INT          IDENTITY (1, 1) NOT NULL,
-                    [jobId] NTEXT   NOT NULL,
-                    [familyToken] NTEXT   NOT NULL,
+                    [jobId] varchar(50)   NOT NULL,
+                    [familyToken] varchar(50)   NOT NULL,
                     [isParent] INT   NOT NULL,
-                    [jobName]         NTEXT NOT NULL,
-                    [userName]         NTEXT NOT NULL,
-                    [jobStatus]         NTEXT NOT NULL DEFAULT 'unapproved',
-                    [jobStatusDetail] NTEXT NULL, 
-                    [jobType]         NTEXT NOT NULL,
+                    [jobName]         varchar(max) NOT NULL,
+                    [userName]         varchar(255) NOT NULL,
+                    [jobStatus]         varchar(255) NOT NULL DEFAULT 'unapproved',
+                    [jobStatusDetail] varchar(max) NULL, 
+                    [jobType]         varchar(max) NOT NULL,
                     [jobDescriptionPath]  NTEXT NULL,
                     [jobDescription]  NTEXT NULL,
                     [jobTime] DATETIME     DEFAULT (getdate()) NOT NULL,
@@ -80,8 +81,13 @@ class DataHandler:
                     [jobLog] NTEXT NULL, 
                     [retries]             int    NULL DEFAULT 0,
                     PRIMARY KEY CLUSTERED ([id] ASC)
-                )
-                """ % (self.jobtablename,self.jobtablename)
+                );
+                CREATE INDEX jobusernameindex ON [dbo].[%s] ([userName]);
+                CREATE INDEX jobtimeindex ON [dbo].[%s] ([jobTime]);
+                CREATE INDEX jobIdindex ON [dbo].[%s] ([jobId]);
+                CREATE INDEX jobStatusindex ON [dbo].[%s] ([jobStatus]);
+                END
+                """ % (self.jobtablename,self.jobtablename,self.jobtablename,self.jobtablename,self.jobtablename,self.jobtablename)
 
             cursor = self.conn.cursor()
             cursor.execute(sql)
@@ -111,8 +117,8 @@ class DataHandler:
                 CREATE TABLE [dbo].[%s]
                 (
                     [id]        INT          IDENTITY (1, 1) NOT NULL,
-                    [jobId] NTEXT   NOT NULL,
-                    [status]         NTEXT NOT NULL DEFAULT 'pending',
+                    [jobId] varchar(50)   NOT NULL,
+                    [status]         varchar(255) NOT NULL DEFAULT 'pending',
                     [time] DATETIME     DEFAULT (getdate()) NOT NULL,
                     [command] NTEXT NOT NULL, 
                     [output] NTEXT NULL, 
@@ -131,8 +137,8 @@ class DataHandler:
                 CREATE TABLE [dbo].[%s]
                 (
                     [id]        INT          IDENTITY (1, 1) NOT NULL,
-                    [username]         NTEXT NOT NULL,
-                    [userId]         NTEXT NOT NULL,
+                    [username]         varchar(255) NOT NULL,
+                    [userId]         varchar(255) NOT NULL,
                     [time] DATETIME     DEFAULT (getdate()) NOT NULL,
                     PRIMARY KEY CLUSTERED ([id] ASC)
                 )
@@ -163,9 +169,9 @@ class DataHandler:
         try:
             query = "SELECT [jobId],[jobName],[userName], [jobStatus], [jobStatusDetail], [jobType], [jobDescriptionPath], [jobDescription], [jobTime], [endpoints], [jobParams],[errorMsg] ,[jobMeta] FROM [%s]" % self.jobtablename
             if userName != "all":
-                query += " where cast([userName] as nvarchar(max)) = N'%s'" % userName
+                query += " where [userName] = '%s'" % userName
             else:
-                query += " where cast([jobStatus] as nvarchar(max)) <> N'error' and cast([jobStatus] as nvarchar(max)) <> N'failed' and cast([jobStatus] as nvarchar(max)) <> N'finished' and cast([jobStatus] as nvarchar(max)) <> N'killed'"
+                query += " where [jobStatus] <> 'error' and [jobStatus] <> 'failed' and [jobStatus] <> 'finished' and [jobStatus] <> 'killed'"
             query += " order by [jobTime] Desc"
             cursor.execute(query)
             for (jobId,jobName,userName, jobStatus,jobStatusDetail, jobType, jobDescriptionPath, jobDescription, jobTime, endpoints, jobParams,errorMsg, jobMeta) in cursor:
@@ -191,12 +197,14 @@ class DataHandler:
 
 
     def GetJob(self, **kwargs):
-        valid_keys = ["jobId", "familyToken", "isParent", "jobName", "userName", "jobStatus", "jobStatusDetail", "jobType", "jobDescriptionPath", "jobDescription", "jobTime", "endpoints", "jobParams", "errorMsg", "jobMeta"]
+        valid_keys = ["jobId", "familyToken", "isParent", "jobName", "userName", "jobStatus", "jobType", "jobTime"]
         if len(kwargs) != 1: return []
         key, expected = kwargs.popitem()
-        if key not in valid_keys: return []
+        if key not in valid_keys: 
+            self.logger.error("DataHandler_GetJob: key is not in valid keys list...")
+            return []
         cursor = self.conn.cursor()
-        query = "SELECT [jobId],[familyToken],[isParent],[jobName],[userName], [jobStatus], [jobStatusDetail], [jobType], [jobDescriptionPath], [jobDescription], [jobTime], [endpoints], [jobParams],[errorMsg] ,[jobMeta]  FROM [%s] where cast([%s] as nvarchar(max)) = N'%s' " % (self.jobtablename,key,expected)
+        query = "SELECT [jobId],[familyToken],[isParent],[jobName],[userName], [jobStatus], [jobStatusDetail], [jobType], [jobDescriptionPath], [jobDescription], [jobTime], [endpoints], [jobParams],[errorMsg] ,[jobMeta]  FROM [%s] where [%s] = '%s' " % (self.jobtablename,key,expected)
         cursor.execute(query)
         columns = [column[0] for column in cursor.description]
         ret = [dict(zip(columns, row)) for row in cursor.fetchall()]
@@ -218,7 +226,7 @@ class DataHandler:
 
     def GetPendingCommands(self):
         cursor = self.conn.cursor()
-        query = "SELECT [id], [jobId], [command] FROM [%s] WHERE cast([status] as nvarchar(max)) = N'pending' order by [time]" % (self.commandtablename)
+        query = "SELECT [id], [jobId], [command] FROM [%s] WHERE [status] = 'pending' order by [time]" % (self.commandtablename)
         cursor.execute(query)
         ret = []
         for (id, jobId, command) in cursor:
@@ -234,7 +242,7 @@ class DataHandler:
 
     def FinishCommand(self,commandId):
         try:
-            sql = """update [%s] set status = 'run' where cast([id] as nvarchar(max)) = N'%s' """ % (self.commandtablename, commandId)
+            sql = """update [%s] set status = 'run' where [id] = '%s' """ % (self.commandtablename, commandId)
             cursor = self.conn.cursor()
             cursor.execute(sql)
             self.conn.commit()
@@ -246,7 +254,7 @@ class DataHandler:
 
     def GetCommands(self, jobId):
         cursor = self.conn.cursor()
-        query = "SELECT [time], [command], [status], [output] FROM [%s] WHERE cast([jobId] as nvarchar(max)) = N'%s' order by [time]" % (self.commandtablename, jobId)
+        query = "SELECT [time], [command], [status], [output] FROM [%s] WHERE [jobId] = '%s' order by [time]" % (self.commandtablename, jobId)
         cursor.execute(query)
         ret = []
         for (time, command, status, output) in cursor:
@@ -263,7 +271,7 @@ class DataHandler:
 
     def KillJob(self,jobId):
         try:
-            sql = """update [%s] set jobStatus = 'killing' where cast([jobId] as nvarchar(max)) = N'%s' """ % (self.jobtablename,jobId)
+            sql = """update [%s] set jobStatus = 'killing' where [jobId] = '%s' """ % (self.jobtablename,jobId)
             cursor = self.conn.cursor()
             cursor.execute(sql)
             self.conn.commit()
@@ -275,7 +283,7 @@ class DataHandler:
 
     def ApproveJob(self,jobId):
         try:
-            sql = """update [%s] set jobStatus = 'queued' where cast([jobId] as nvarchar(max)) = N'%s' """ % (self.jobtablename,jobId)
+            sql = """update [%s] set jobStatus = 'queued' where [jobId] = '%s' """ % (self.jobtablename,jobId)
             cursor = self.conn.cursor()
             cursor.execute(sql)
             self.conn.commit()
@@ -287,7 +295,7 @@ class DataHandler:
 
     def GetPendingJobs(self):
         cursor = self.conn.cursor()
-        query = "SELECT [jobId],[jobName],[userName], [jobStatus], [jobType], [jobDescriptionPath], [jobDescription], [jobTime], [endpoints], [jobParams],[errorMsg] ,[jobMeta] FROM [%s] where cast([jobStatus] as nvarchar(max)) <> N'error' and cast([jobStatus] as nvarchar(max)) <> N'failed' and cast([jobStatus] as nvarchar(max)) <> N'finished' and cast([jobStatus] as nvarchar(max)) <> N'killed' order by [jobTime] DESC" % (self.jobtablename)
+        query = "SELECT [jobId],[jobName],[userName], [jobStatus], [jobType], [jobDescriptionPath], [jobDescription], [jobTime], [endpoints], [jobParams],[errorMsg] ,[jobMeta] FROM [%s] where [jobStatus] <> 'error' and [jobStatus] <> 'failed' and [jobStatus] <> 'finished' and [jobStatus] <> 'killed' order by [jobTime] DESC" % (self.jobtablename)
         cursor.execute(query)
         ret = []
         for (jobId,jobName,userName, jobStatus, jobType, jobDescriptionPath, jobDescription, jobTime, endpoints, jobParams,errorMsg, jobMeta) in cursor:
@@ -312,7 +320,7 @@ class DataHandler:
 
     def SetJobError(self,jobId,errorMsg):
         try:
-            sql = """update [%s] set jobStatus = 'error', [errorMsg] = ? where cast([jobId] as nvarchar(max)) = N'%s' """ % (self.jobtablename,jobId)
+            sql = """update [%s] set jobStatus = 'error', [errorMsg] = ? where [jobId] = '%s' """ % (self.jobtablename,jobId)
             cursor = self.conn.cursor()
             cursor.execute(sql,errorMsg)
             self.conn.commit()
@@ -324,7 +332,7 @@ class DataHandler:
 
     def UpdateJobTextField(self,jobId,field,value):
         try:
-            sql = """update [%s] set [%s] = ? where cast([jobId] as nvarchar(max)) = N'%s' """ % (self.jobtablename,field, jobId)
+            sql = """update [%s] set [%s] = ? where [jobId] = '%s' """ % (self.jobtablename,field, jobId)
             cursor = self.conn.cursor()
             cursor.execute(sql,value)
             self.conn.commit()
@@ -336,7 +344,7 @@ class DataHandler:
 
     def GetJobTextField(self,jobId,field):
         cursor = self.conn.cursor()
-        query = "SELECT [jobId], [%s] FROM [%s] where cast([jobId] as nvarchar(max)) = N'%s' " % (field, self.jobtablename,jobId)
+        query = "SELECT [jobId], [%s] FROM [%s] where [jobId] = '%s' " % (field, self.jobtablename,jobId)
         ret = None
         try:
             cursor.execute(query)
@@ -349,14 +357,14 @@ class DataHandler:
 
     def AddandGetJobRetries(self,jobId):
 
-        sql = """update [%s] set [retries] = [retries] + 1 where cast([jobId] as nvarchar(max)) = N'%s' """ % (self.jobtablename, jobId)
+        sql = """update [%s] set [retries] = [retries] + 1 where [jobId] = '%s' """ % (self.jobtablename, jobId)
         cursor = self.conn.cursor()
         cursor.execute(sql)
         self.conn.commit()
         cursor.close()
 
         cursor = self.conn.cursor()
-        query = "SELECT [jobId], [retries] FROM [%s] where cast([jobId] as nvarchar(max)) = N'%s' " % (self.jobtablename,jobId)
+        query = "SELECT [jobId], [retries] FROM [%s] where [jobId] = '%s' " % (self.jobtablename,jobId)
         cursor.execute(query)
         ret = None
 
@@ -399,7 +407,7 @@ class DataHandler:
 
     def GetUsersCount(self, username):
         cursor = self.conn.cursor()
-        query = "SELECT count(ALL id) as c FROM [%s] where cast([username] as nvarchar(max)) = N'%s' " % (self.usertablename,username)
+        query = "SELECT count(ALL id) as c FROM [%s] where [username] = '%s' " % (self.usertablename,username)
         cursor.execute(query)
         ret = 0
         for c in cursor:
@@ -439,7 +447,7 @@ class DataHandler:
 
     def GetActiveJobsCount(self):
         cursor = self.conn.cursor()
-        query = "SELECT count(ALL id) as c FROM [%s] where cast([jobStatus] as nvarchar(max)) <> N'error' and cast([jobStatus] as nvarchar(max)) <> N'failed' and cast([jobStatus] as nvarchar(max)) <> N'finished' and cast([jobStatus] as nvarchar(max)) <> N'killed' " % (self.jobtablename)
+        query = "SELECT count(ALL id) as c FROM [%s] where [jobStatus] <> 'error' and [jobStatus] <> 'failed' and [jobStatus] <> 'finished' and [jobStatus] <> 'killed' " % (self.jobtablename)
         cursor.execute(query)
         ret = 0
         for c in cursor:
