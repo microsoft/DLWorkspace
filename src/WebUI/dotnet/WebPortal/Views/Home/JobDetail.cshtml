@@ -308,7 +308,8 @@
     }
 
     function AlertAPIError(xhr, ajaxOptions, thrownError) {
-        alert("Restful API Error: \n" + JSON.stringify(thrownError));
+        //alert("Restful API Error: \n" + JSON.stringify(thrownError));
+        console.log("Restful API Error: \n" + JSON.stringify(thrownError));
         $("#run-cmd-btn").attr("disabled", false);
     }
     
