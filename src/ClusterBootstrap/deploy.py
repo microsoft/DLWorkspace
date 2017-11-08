@@ -1510,7 +1510,7 @@ def get_hyperkube_docker(force = False) :
 	# os.system("cp ./deploy/bin/hyperkube ./deploy/bin/kubelet")
 	# os.system("cp ./deploy/bin/hyperkube ./deploy/bin/kubectl")
 
-def deploy_masters():
+def deploy_masters(force = False):
 	print "==============================================="
 	print "Prepare to deploy kubernetes master"
 	print "waiting for ETCD service is ready..."
@@ -1529,8 +1529,7 @@ def deploy_masters():
 	utils.render_template_directory("./template/WebUI", "./deploy/WebUI",config)
 	utils.render_template_directory("./template/RestfulAPI", "./deploy/RestfulAPI",config)
 
-
-	get_kubectl_binary()
+	get_kubectl_binary(force)
 	
 	for i,kubernetes_master in enumerate(kubernetes_masters):
 		deploy_master(kubernetes_master)
@@ -3080,7 +3079,7 @@ def set_freeflow_router_on_node( node ):
 			utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, "sudo docker run -d -it --privileged --net=host -v /freeflow:/freeflow -e \"HOST_IP=%s\" --name %s %s" % (ip, docker_name, docker_image))
 			break
 
-def deploy_ETCD_master():
+def deploy_ETCD_master(force = False):
 		print "Detected previous cluster deployment, cluster ID: %s. \n To clean up the previous deployment, run 'python deploy.py clean' \n" % config["clusterId"]
 		print "The current deployment has:\n"
 		
@@ -3097,7 +3096,7 @@ def deploy_ETCD_master():
 			response = raw_input_with_default("Deploy Master Nodes (y/n)?")
 			if first_char(response) == "y":
 				gen_master_certificates()
-				deploy_masters()
+				deploy_masters(force)
 
 			response = raw_input_with_default("Allow Workers to register (y/n)?")
 			if first_char(response) == "y":
@@ -3441,6 +3440,7 @@ def run_command( args, command, nargs, parser ):
 	if args.verbose: 
 		verbose = True
 		utils.verbose = True
+		print "Args = {0}".format(args)
 	
 	if command == "restore":
 		utils.restore_keys(nargs)
@@ -3538,7 +3538,7 @@ def run_command( args, command, nargs, parser ):
 			exit()
 
 	elif command == "deploy" and "clusterId" in config:
-		deploy_ETCD_master()
+		deploy_ETCD_master(force=args.force)
 
 	elif command == "build":
 		if len(nargs) <=0:
@@ -3823,13 +3823,13 @@ def run_command( args, command, nargs, parser ):
 
 	elif command == "azure":
 		config["WinbindServers"] = []
-		run_script_blocks(scriptblocks["azure"])	
+		run_script_blocks(args.verbose, scriptblocks["azure"])	
 
 	elif command == "acs":
 		k8sconfig["kubelet-path"] = "./deploy/bin/kubectl --kubeconfig=./deploy/%s" % (config["acskubeconfig"])
 		#print "Config: " + k8sconfig["kubelet-path"]
 		if (len(nargs) == 0):
-			run_script_blocks(scriptblocks["acs"])
+			run_script_blocks(args.verbose, scriptblocks["acs"])
 		elif (len(nargs) >= 1):
 			if nargs[0]=="deploy":
 				acs_tools.acs_deploy() # Core K8s cluster deployment
@@ -3850,7 +3850,7 @@ def run_command( args, command, nargs, parser ):
 			elif nargs[0]=="openports":
 				acs_tools.acs_add_nsg_rules({"HTTPAllow" : 80, "RestfulAPIAllow" : 5000, "AllowKubernetesServicePorts" : "30000-32767"})
 			elif nargs[0]=="restartwebui":
-				run_script_blocks(scriptblocks["restartwebui"])
+				run_script_blocks(args.verbose, scriptblocks["restartwebui"])
 			elif nargs[0]=="getserviceaddr":
 				print "Address: =" + json.dumps(k8sUtils.GetServiceAddress(nargs[1]))
 			elif nargs[0]=="storage":
@@ -3862,7 +3862,7 @@ def run_command( args, command, nargs, parser ):
 				del_fileshare_links()
 				link_fileshares(allmountpoints, args.force)		
 			elif nargs[0]=="bldwebui":
-				run_script_blocks(scriptblocks["bldwebui"])
+				run_script_blocks(args.verbose, scriptblocks["bldwebui"])
 			elif nargs[0]=="prepare":
 				acs_prepare_machines()
 			elif nargs[0]=="addons":
@@ -3871,7 +3871,7 @@ def run_command( args, command, nargs, parser ):
 			elif nargs[0]=="freeflow":
 				if ("freeflow" in config) and (config["freeflow"]):
 					kube_deploy_configchanges() # starte weave.yaml
-					run_script_blocks(["kubernetes start freeflow"])
+					run_script_blocks(args.verbose, ["kubernetes start freeflow"])
 			elif nargs[0]=="jobendpt":
 				acs_get_jobendpt(nargs[1])
 			elif nargs[0]=="dns":
@@ -4003,12 +4003,12 @@ def run_command( args, command, nargs, parser ):
 		target_file = nargs[1]
 		utils.render_template(template_file, target_file,config)
 	elif command in scriptblocks:
-		run_script_blocks(scriptblocks[command])
+		run_script_blocks(args.verbose, scriptblocks[command])
 	else:
 		parser.print_help()
 		print "Error: Unknown command " + command
 
-def run_script_blocks( script_collection ):
+def run_script_blocks( verbose, script_collection ):
 	if verbose:
 		print "Run script blocks %s " % script_collection
 	for script in script_collection:
@@ -4017,6 +4017,7 @@ def run_script_blocks( script_collection ):
 		command = args.command
 		nargs = args.nargs
 		print "Run command %s, args %s" % (command, nargs )
+		args.verbose = verbose
 		run_command( args, command, nargs, parser )
 
 if __name__ == '__main__':
@@ -4171,7 +4172,7 @@ Command:
 
 	if command == "scriptblocks":
 		if nargs[0] in scriptblocks:
-			run_script_blocks( scriptblocks[nargs[0]])
+			run_script_blocks( args.verbose, scriptblocks[nargs[0]])
 		else:
 			parser.print_help()
 			print "Error: Unknown scriptblocks " + nargs[0]
