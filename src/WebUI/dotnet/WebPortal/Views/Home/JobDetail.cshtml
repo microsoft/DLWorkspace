@@ -271,21 +271,12 @@
         {
         }
 
-
-
-
-
     }
 
     function GetDetail() {
         var url = "/api/dlws/JobDetail?jobId=@ViewData["jobid"]";
-        $.ajax({ url: url, dataType: 'json', timeout: 10000 }).done(DisplayDetail);
+        $.ajax({ url: url, dataType: 'json', timeout: 5000 }).done(DisplayDetail);
     }
-
-    function GetDetail() {
-        var url = "/api/dlws/JobDetail?jobId=@ViewData["jobid"]";
-        $.ajax({ url: url, dataType: 'json', timeout: 10000 }).done(DisplayDetail);
-    }//
 
     function RefreshDetail() {
         if (document.getElementById('chkRefresh').checked) {
@@ -296,7 +287,7 @@
     $(document).ready(function () {
         GetDetail();
         buildTemplateList();
-        setInterval(RefreshDetail, 5000);
+        setInterval(RefreshDetail, 10000);
 
     });
 </script>

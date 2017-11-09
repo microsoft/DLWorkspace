@@ -9,7 +9,7 @@
         $.ajax({
             url: "/api/dlws/KillJob?jobId=" + jobId,
             dataType: 'json',
-            timeout: 30000 //10 second timeout,
+            timeout: 30000 //30 second timeout,
         }).done(
             function (json) {
                 alert(json.result);
@@ -20,7 +20,7 @@
         $.ajax({
             url: "/api/dlws/ApproveJob?jobId=" + jobId,
             dataType: 'json',
-            timeout: 30000 //10 second timeout,
+            timeout: 30000 //30 second timeout,
         }).done(
             function (json) {
                 alert(json.log);
@@ -144,7 +144,7 @@
         $.ajax({
             url: (showAll ? "/api/dlws/ListAllJobs" : "/api/dlws/ListJobs"),
             dataType: 'json',
-            timeout: 30000 //120 second timeout,
+            timeout: 5000 //3 second timeout,
         }).done(
             function (json) {
 
@@ -161,7 +161,7 @@
         ChangeMode(false)
         var refresh = setInterval(function () {
             buildTables();
-        }, 3000);
+        }, 10000);
         $(document).tooltip({
             track: true
         });
