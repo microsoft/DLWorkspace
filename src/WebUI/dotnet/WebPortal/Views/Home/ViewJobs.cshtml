@@ -144,7 +144,7 @@
         $.ajax({
             url: (showAll ? "/api/dlws/ListAllJobs" : "/api/dlws/ListJobs"),
             dataType: 'json',
-            timeout: 5000 //3 second timeout,
+            timeout: 15000 
         }).done(
             function (json) {
 
@@ -161,7 +161,7 @@
         ChangeMode(false)
         var refresh = setInterval(function () {
             buildTables();
-        }, 10000);
+        }, 15000);
         $(document).tooltip({
             track: true
         });

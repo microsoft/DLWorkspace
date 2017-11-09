@@ -275,7 +275,7 @@
 
     function GetDetail() {
         var url = "/api/dlws/JobDetail?jobId=@ViewData["jobid"]";
-        $.ajax({ url: url, dataType: 'json', timeout: 5000 }).done(DisplayDetail);
+        $.ajax({ url: url, dataType: 'json', timeout: 15000 }).done(DisplayDetail);
     }
 
     function RefreshDetail() {
@@ -287,7 +287,7 @@
     $(document).ready(function () {
         GetDetail();
         buildTemplateList();
-        setInterval(RefreshDetail, 10000);
+        setInterval(RefreshDetail, 15000);
 
     });
 </script>
