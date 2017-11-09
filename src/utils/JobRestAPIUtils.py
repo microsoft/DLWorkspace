@@ -171,7 +171,8 @@ def GetJobList(userName):
 			job.pop('jobMeta', None)
 		dataHandler.Close()
 		return jobs
-	except:
+	except Exception, e:
+		logger.error('Exception: '+ str(e))
 		logger.warn("Fail to get job list for user %s, return empty list" % userName)
 		return []
 
