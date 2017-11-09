@@ -16,12 +16,9 @@ from MyLogger import MyLogger
 logger = MyLogger()
 
 ### set to a larger number if flask is running on multithreading
-#sql_max_connect_num = 50
-#sql_live_connect_num = 20
+sql_max_connect_num = 50
+sql_live_connect_num = 30
 
-### set to smaller number if flask is running by apache multithreading
-sql_max_connect_num = 3
-sql_live_connect_num = 2
 
 class SQLConnManager:
 
@@ -47,34 +44,50 @@ class SQLConnManager:
         try:
             if global_vars["sql_connections"].qsize() > 0:
                 logger.debug("current connection pool size %d" %(global_vars["sql_connections"].qsize()))
-                conn = global_vars["sql_connections"].get(block = False)
-                if conn is not None:
-                    logger.debug("Get a database connection from connection pool, current pool size %d: connection Id: %s" %(global_vars["sql_connections"].qsize(), str(conn)))
-                # check the connection is still alive
-                connected = False
                 try:
-                    c = conn.cursor()
-                    c.close()
-                    connected = True
-                except OperationalError:
-                    connected = False
-                if not connected:
-                    logger.info ("An existing database connection in the connection pool has been disconnected by remote server, recreate a new connection. we have %d live connections" % global_vars["sql_connection_num"] )
-                    try:
-                        conn.close()
-                    except:
-                        pass
-                    conn = SQLConnManager.Connect()
-                    
-            elif global_vars["sql_connection_num"] <= sql_max_connect_num:
-                conn = SQLConnManager.Connect()
-                global_vars["sql_connection_num"] += 1
-                logger.info ("Created a new SQL database connection, we have %d live connections" % global_vars["sql_connection_num"] )
+                    conn = global_vars["sql_connections"].get(block = False)
+                except Exception, e:
+                    logger.error ("Exception: %s" % str(e) )
+                if conn is not None:
+                    logger.debug("Get a database connection from connection pool, current pool size %d: connection Id: %s" %(global_vars["sql_connections"].qsize(), str(conn)))                    
+
         except Exception, e:
             logger.error ("Exception: %s" % str(e) )
         finally:
             if acquired:
                 global_vars["sql_lock"].release()
+
+
+        ### try to wait for 1s, other threads may release the connection
+        if conn is None:
+            try:
+                conn = global_vars["sql_connections"].get(timeout = 1)
+            except Exception, e:
+                logger.error ("Exception: %s" % str(e) )
+
+        if conn is not None:
+            # check the connection is still alive
+            connected = False
+            try:
+                c = conn.cursor()
+                c.close()
+                connected = True
+            except OperationalError:
+                connected = False
+            if not connected:
+                logger.info ("An existing database connection in the connection pool has been disconnected by remote server, recreate a new connection. we have %d live connections" % global_vars["sql_connection_num"] )
+                try:
+                    conn.close()
+                except:
+                    pass
+                conn = SQLConnManager.Connect()
+
+        if conn is None and global_vars["sql_connection_num"] <= sql_max_connect_num:
+            conn = SQLConnManager.Connect()
+            global_vars["sql_connection_num"] += 1
+            logger.info ("Created a new SQL database connection, we have %d live connections" % global_vars["sql_connection_num"] )
+
+
         if conn is None:
             logger.warn ("%d live connections currently are in the system, this request will be blocked" % global_vars["sql_connection_num"] )
             global_vars["sql_connections"].get(block = True)
