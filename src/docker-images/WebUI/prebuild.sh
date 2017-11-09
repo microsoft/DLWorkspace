@@ -4,6 +4,6 @@
 
 rm -rf WebPortal
 cd ../../../
-./deploy.py webui
+python deploy.py webui
 cd deploy/docker-images/WebUI
 cp -r ../../../../WebUI/dotnet/WebPortal WebPortal
