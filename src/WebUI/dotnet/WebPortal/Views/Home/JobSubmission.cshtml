@@ -191,6 +191,13 @@
             $scope.joblist = response.data;
             for (var i = 0; i < $scope.joblist.length; i++)
             {
+                var name = $scope.joblist[i].Name;
+                var selected = $filter('filter')($scope.joblist, { Name: name });
+                if (selected.length == 1)
+                    $scope.joblist[i].Text = name; 
+                else 
+                    $scope.joblist[i].Text = name + "(" + ")"; 
+
                 $scope.joblist[i].Value = i;
             }
             $scope.curtemplateValue = 0;
@@ -240,7 +247,7 @@
                     $scope.checkCurrent(); 
                     $scope.lastTemplateValue = $scope.curtemplateName; 
                 }                
-                showName = selected[0].Name;
+                showName = selected[0].Text;
             }
             return showName;
         };
@@ -284,7 +291,7 @@
                     Job template:
                 </label> <br />
 
-                <a href="#" editable-select="curtemplateValue" e-ng-options="g.Value as g.Name for g in joblist">
+                <a href="#" editable-select="curtemplateValue" e-ng-options="g.Value as g.Text for g in joblist">
                     {{ showTemplate() }}
                 </a>
             </div>
