@@ -29,12 +29,28 @@
             visibility: visible;
         }
     }
+
+
+    /* remove bottom-margin of inputs */
+
+    .editable-wrap .editable-controls > input,
+    .editable-wrap .editable-controls > select,
+    .editable-wrap .editable-controls > textarea {
+        width: 100%;
+    }
+
+
 </style>
 
 <script type="text/javascript">
 
-    var app = angular.module('mountApp', []);
-    app.controller('mountCtrl', function ($scope, $http, $log) {
+    var app = angular.module('jobApp', ["xeditable", "ui.select"]);
+
+    app.run(function (editableOptions) {
+        editableOptions.theme = 'bs3';
+    });
+
+    app.controller('jobCtrl', function ($scope, $http, $log, $filter) {
         var tolist = function (info) {
             if (typeof info === 'string' || info instanceof String)
                 return [info];
@@ -44,29 +60,74 @@
                 return [];
         };
 
+        var tobool = function (sec, property, defValue) {
+            if (!(sec.hasOwnProperty(property))) {
+                sec[property] = defValue;
+            }
+            if (typeof (sec[property]) == "string") {
+                var firstchar = sec[property].trim().toLowerCase()[0];
+                sec[property] == (firstchar == 't' || firstchar == 'y');
+            }
+        }
+
+        $scope.checkCurrent = function () {
+            if ($scope.current == null)
+                $scope.current = {};
+            tobool($scope.current, "do_log", false);
+            tobool($scope.current, "run_as_root", false);
+            tobool($scope.current, "is_interactive", true);
+            if ($scope.current.mountpoints == null) {
+                $scope.current.mountpoints = [];
+            };
+            if ($scope.current.env == null) {
+                $scope.current.env = [];
+            };
+        };
+
         var parseMounts = function (mountpoints, mountdescription, username, mounthomefolder, deploymounts) {
             var mounts = [];
-            homefolderDescription = ""; 
+            var homefolderDescription = "";
             for (var sharename in mountpoints) {
                 if (mountpoints.hasOwnProperty(sharename)) {
                     sharemounts = mountpoints[sharename].mountpoints;
                     mountlist = tolist(sharemounts);
+                    var nIsRoot = -1; 
+                    for (var i in mountlist) {
+                        if (mountlist[i] == "")
+                        {
+                            nIsRoot = i;
+                        };
+                    };
+                    if (nIsRoot >=0)
+                    {
+                        mountlist.splice(nIsRoot, 1, "jobfiles", "storage", "work");
+                    }
+
                     validmountlist = [];
-                    
                     for (var i in mountlist) {
                         var onemount = mountlist[i];
-                        // System share is not processed 
-                        if (onemount != "" && onemount != "jobfiles" && onemount != "storage" && onemount != "storage" && onemount != "work") {
-                            var mts = tolist(deploymounts); 
+                        // System share is not processed
+                        if (onemount != "" && onemount != "jobfiles" && onemount != "storage" && onemount != "work") {
+                            var mts = tolist(deploymounts);
                             var mtsIndex = mts.indexOf(onemount);
                             if ( mtsIndex >= 0)
                             {
                                 validmountlist.push(onemount);
                             }
-                        };
+                        }
+                        else
+                        {
+                            var shareType = mountpoints[sharename].type;
+                            var description = mountdescription[shareType];
+                            var hostPath = "/dlwsdata" + onemount;
+                            var containerPath = "/" + onemount;
+                            if (onemount == "jobfiles")
+                                containerPath = "/job";
+                            mounts = mounts.concat({ "containerPath": containerPath, "hostPath": hostPath, "description": description, "enabled": true });
+                        }
                         if (onemount == "" || onemount == "work")
                         {
-                            var shareType = mountpoints[sharename].type; 
+                            var shareType = mountpoints[sharename].type;
                             homefolderDescription = mountdescription[shareType];
                         }
                     };
@@ -85,16 +146,16 @@
                                 var oneshare = allshares[j];
                                 // var containerPath = $.grep(["", onemount, oneshare], Boolean).join("/");
                                 // var hostPath = $.grep(["/dlwsdata", onemount, oneshare], Boolean).join("/");
-                                // Work folder are treated differently. 
+                                // Work folder are treated differently.
                                 var containerPath = "/" + onemount + "/" + oneshare;
                                 var hostPath = "/dlwsdata" + containerPath;
-                                var shareType = mountpoints[sharename].type; 
+                                var shareType = mountpoints[sharename].type;
                                 if (shareType && mountdescription[shareType]) {
                                     description = mountdescription[shareType];
                                 }
                                 else
                                     description = "Generic Shared File System";
-                                mounts = mounts.concat({"containerPath" : containerPath, "hostPath" : hostPath, "description" : description});
+                                mounts = mounts.concat({"containerPath" : containerPath, "hostPath" : hostPath, "description" : description, "enabled": true});
                             };
                         };
                     };
@@ -102,10 +163,12 @@
             };
             if (mounthomefolder)
             {
-                mounts.unshift({ "containerPath": "/home/" + username, "hostPath": "/dlwsdata/work/" + username, "description": homefolderDescription });
+                mounts.unshift({ "containerPath": "/home/" + username, "hostPath": "/dlwsdata/work/" + username, "description": homefolderDescription, "enabled":true });
             }
-            return mounts; 
+            return mounts;
         };
+
+        $scope.checkCurrent(); 
 
         $scope.ready = $http.get('/api/dlws/GetMountPoints').then(function (response) {
             var mpstring = response.data.mountpoints;
@@ -117,11 +180,395 @@
             $scope.deploymounts = $scope.$eval(response.data.deploymounts);
             $scope.mounts = parseMounts($scope.mountpoints, $scope.mountdescription, $scope.username, $scope.mounthomefolder, $scope.deploymounts );
             $scope.showMounts = false;
+            $scope.showEnv = false;
+            $scope.setMounts(); 
+            $scope.checkCurrent(); 
             $log.log($scope.mountpoints);
             $log.log($scope.mountdescription);
         });
+
+        $http.get("/api/dlws/GetTemplates?type=job").then(function (response) {
+            $scope.joblist = response.data;
+            for (var i = 0; i < $scope.joblist.length; i++)
+            {
+                $scope.joblist[i].Value = i;
+            }
+            $scope.curtemplateValue = 0;
+            $scope.loadTemplate();
+            $log.log($scope.joblist);
+        });
+
+        $scope.loadTemplate = function () {
+
+            $log.log($scope.curtemplateValue);
+            $scope.curtemplateName = $scope.joblist[$scope.curtemplateValue];
+        };
+
+        $scope.setMounts = function () {
+            if ($scope.current == null || $scope.mounts == null )
+                return;
+            if ($scope.current.mountpoints == null)
+                $scope.current.mountpoints = [];
+            for (var i = 0; i < $scope.mounts.length - 1; i++)
+            {
+                var onemount = $scope.mounts[i];
+                var selected = $filter('filter')($scope.current.mountpoints, { hostPath: onemount.hostPath });
+                if (selected.length <=0)
+                {
+                    $scope.current.mountpoints.push(onemount);
+                }
+            }
+        };
+
+
+
+
+        $scope.showTemplate = function () {
+            $log.log($scope.curtemplateValue);
+            var selected = $filter('filter')($scope.joblist, { Value: $scope.curtemplateValue });
+            var showName = "None";
+            if ($scope.curtemplateValue > 0 && selected.length)
+            {
+                if ($scope.lastTemplateValue && $scope.lastTemplateValue == $scope.curtemplateName)
+                {
+
+                }
+                else 
+                {
+                    $scope.current = $scope.$eval(selected[0].Json);
+                    $scope.setMounts(); 
+                    $scope.checkCurrent(); 
+                    $scope.lastTemplateValue = $scope.curtemplateName; 
+                }                
+                showName = selected[0].Name;
+            }
+            return showName;
+        };
+
+        $scope.newEnvironment = function () {
+            var cur = $scope.current;
+            if (!cur)
+            {
+                return; 
+            }
+            if (!(cur.env)) {
+                cur.env = [];
+            };
+            var curenv = cur.env;
+
+            inserted = {
+                name: "#name",
+                value: "#value"
+            };
+            curenv.push(inserted);
+        };
+
+        $scope.removeItem = function (menuitems, index) {
+            menuitems.splice(index, 1);
+        };
+
+        
     });
-    
+</script>
+
+<div ng-app="jobApp" ng-controller="jobCtrl" class="modal-dialog" role="document">
+    <div class="modal-content">
+        <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            <h4 class="modal-title" id="submitModalLabel">@((ViewData["Mode"].Equals("Templates")) ? "Manage Templates" : "Submit Job")</h4>
+        </div>
+
+        <div class="modal-body">
+            <div class="form-group">
+                <label>
+                    Job template:
+                </label> <br />
+
+                <a href="#" editable-select="curtemplateValue" e-ng-options="g.Value as g.Name for g in joblist">
+                    {{ showTemplate() }}
+                </a>
+            </div>
+            <div class="form-group">
+                <label>
+                    Job Type: 
+                </label> 
+
+                <a href="#" editable-checkbox="current.PSDistJob" e-title="Distributed Job?">
+                    {{ current.PSDistJob && "Distributed Job" || "Regular Job" }}
+                </a>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    Job Name: 
+                </label>
+                <a href="#" editable-text="current.job_name" e-label="Job Name">
+                    {{ current.job_name || "generic-job" }}
+                </a>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    Number of GPUs: 
+                </label> 
+                <a href="#" editable-number="current.gpu_count" e-min="0" e-label="Job Name">
+                    {{ current.gpu_count || 0 }}
+                </a>
+            </div>
+
+            <div ng-if="current.PSDistJob" class="form-group">
+                <label>
+                    Number of Parameter Servers: 
+                </label>
+                <a href="#" editable-number="current.numps" e-min="0" e-label="# of Parameter Servers">
+                    {{ current.numps || 1 }}
+                </a>
+            </div>
+            <div ng-if="current.PSDistJob" class="form-group">
+                <label>
+                    Number of Workers: 
+                </label>
+                <a href="#" editable-number="current.numpsworker" e-min="0" e-label="# of Workers">
+                    {{ current.numpsworker || 1 }}
+                </a>
+            </div>
+
+            <div class="form-group" ng-if="mounts.length > 0 ">
+                <label>
+                    <a class="btn pull-left" ng-class="{true: 'btn-primary', false: 'btn-danger'}[showMounts]" ng-click="showMounts = !showMounts">
+                        {{showMounts && 'Hide Mounted Directories' || 'Show Mounted Directories' }}
+                    </a>
+                </label>
+                <div ng-if="showMounts">
+                    <label> Click link to change the mountpoint in container:
+                    </label>
+                        <div ng-repeat="onemount in current.mountpoints">
+                            <label>
+                                <a href="#" data-toggle="tooltip" title="Mounted at {{onemount.hostPath}}">
+                                    <a ng-class="{true: 'fa fa-check fa-lg text-success', false: 'fa fa-times fa-lg text-danger'}[onemount.enabled]" ng-click="onemount.enabled = !onemount.enabled">
+                                    </a>
+                                    <a href="#" editable-text="onemount.containerPath">{{onemount.containerPath}} </a> : {{onemount.description}}
+                                </a>
+                            </label>
+                        </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    Docker Image: 
+                </label>
+                <a href="#" editable-text="current.image">{{current.image}} </a> 
+            </div>
+
+            <div class="form-group">
+                <label>
+                    Command:
+                </label>
+                <a href="#" editable-textarea="current.cmd" e-rows="10" e-cols="240" e-style="width: 800px">
+                    <pre> {{current.cmd}}</pre>
+                </a>
+            </div>
+
+            <label>
+                <a class="btn pull-left" ng-class="{true: 'btn-primary', false: 'btn-danger'}[showEnv]" ng-click="showEnv = !showEnv">
+                    {{showEnv && 'Hide Environment Variables' || 'Show Environment Variables' }}
+                </a>
+            </label>
+
+            <div class="form-group" ng-if="showEnv">
+                <label>
+                    Environmet variables:
+                </label>
+                <table>
+                    <thead>
+                        <th>   </th>
+                        <th>   </th>
+                        <th>   </th>
+                        <th>   </th>
+                    </thead>
+                    <tbody>
+                        <tr ng-repeat="oneenv in current.env">
+                            <td>
+                                <a href="#" editable-text="oneenv.name">{{oneenv.name}} </a>
+                            </td>
+                            <td> = </td>
+                            <td>
+                                <a href="#" editable-text="oneenv.value">{{oneenv.value}} </a>
+                            </td>
+                            <td>
+                                <a class="fa fa-times fa-lg text-danger" ng-click="removeItem(current.env,$index)">
+                                </a>
+                            </td>
+                            
+                        </tr>
+                    </tbody>
+                </table>
+                <button type="button" class="btn btn-info" ng-click="newEnvironment()">
+                    Add Environment Variable
+                </button>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    Interactive Job:
+                </label>
+
+                <a ng-class="{true: 'fa fa-check fa-lg text-success', false: 'fa fa-times fa-lg text-danger'}[current.is_interactive]" ng-click="current.is_interactive = !current.is_interactive">
+                </a>
+
+            </div>
+
+
+            <div class="form-group">
+                <label>
+                    Tensorboard:
+                </label>
+
+                <a ng-class="{true: 'fa fa-check fa-lg text-success', false: 'fa fa-times fa-lg text-danger'}[current.do_log]" ng-click="current.do_log = !current.do_log">
+                </a>
+
+                <div ng-if="current.do_log">
+                    <label>Model path:</label>
+                    <a href="#" editable-text="current.log_path" e-title="Tensor Model Directory">
+                        {{ current.log_path || "#model_directory" }}
+                    </a>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    Ports (separate ports by comma):
+                </label>
+                <a href="#" editable-text="current.port" e-title="Ports used.">
+                    {{ current.port || "#ports"}}
+                </a>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    Tensorboard:
+                </label>
+
+                <a ng-class="{true: 'fa fa-check fa-lg text-success', false: 'fa fa-times fa-lg text-danger'}[current.run_as_root]" ng-click="current.run_as_root = !current.run_as_root">
+                </a>
+            </div>
+        </div>
+
+
+
+        <form method="POST" id="submit_job">
+
+
+
+            <div class="modal-body">
+
+
+
+
+                <div class="form-group">
+                    <input type="checkbox" id="chkLogDir" onclick="ShowHideDiv(this,'logdirfield')" />
+                    <label>
+                        Enable TensorBoard
+                    </label>
+                    <div id="logdirfield" hidden>
+                        <label>Model path:</label>
+                        <input type="text" class="form-control" id="logdir" />
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <input type="checkbox" id="chkInteractiveJob" onclick="ShowHideDiv(this, 'interactiveportfield')" />
+                    <label>
+                        Interactive Job? (e.g. ipython, ssh)
+                    </label>
+                    <div id="interactiveportfield" hidden>
+                        <label>Port used by interactive job:</label>
+                        <input type="text" class="form-control" id="interactivePort" />
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <input type="checkbox" id="runningasroot" />
+                    <label>
+                        Running as ROOT. (e.g. for ssh jobs)
+                    </label>
+                </div>
+
+                <div id="templateSection" class="form-group" style="display: @(ViewData["Mode"].Equals("Templates") ? "block" : "none")">
+
+                    <hr>
+                    <h4 class="modal-title" id="submitModalLabel">Template Settings</h4>
+
+                    <div class="form-group">
+                        <label>Name:</label>
+                        <input type="text" class="form-control" id="templateName" />
+                    </div>
+
+                    <div class="form-group" style="display: @(ViewData["isAdmin"].Equals("true") ? "block" : "none")" id="locationdiv">
+                        <label>
+                            Template Location
+                        </label>
+                        <br />
+                        <input type="radio" name="templatelocation" id="templatelocation" value="Master" /> Master Template Database
+                        <br />
+                        <input type="radio" name="templatelocation" id="templatelocation" value="CurrentCluster" /> Current Cluster Template Database (@ViewData["cluster"])
+                        <br />
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+                <div id="templateFooter" style="display: @(ViewData["Mode"].Equals("Templates") ? "block" : "none")">
+                    <a onclick="DeleteTemplate()" class="btn btn-success" href="#">Delete Template</a>
+                    <a onclick="SaveTemplate()" class="btn btn-success" href="#">Save Template</a>
+                </div>
+                <div id="jobFooter" style="display: @(ViewData["Mode"].Equals("Templates") ? "none" : "block")">
+                    <a onclick="SwitchToTemplates()" class="btn btn-success" href="#">Manage Template</a>
+                    <input type="submit" value="Submit" name="submit" class="btn btn-success" id="submit" />
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <br />
+
+    <div class="modal-content" style="display: @(ViewData["Mode"].Equals("Templates") ? "block" : "none")" id="templateDatabaseSection">
+        <form method="POST" id="submit_job">
+            <div class="modal-header">
+                <h4 class="modal-title" id="templateDatabaseModalLabel">Template Database</h4>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>
+                        Selet Database
+                    </label>
+                    <br />
+                    <select id="databaseselect">
+                        <option value="Master">Master Template</option>
+                        <option value="CurrentCluster">Current Cluster (@ViewData["cluster"])</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <a onclick="DownloadDatabase()" class="btn btn-success" href="#">Download JSON</a>
+                <a onclick="ChooseFile()" class="btn btn-success" href="#">Upload JSON</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div style="height: 0px; overflow: hidden">
+    <input type="file" id="fileInput" name="fileInput" onchange="UploadDatabase()" />
+</div>
+
+
+<script type="text/javascript">
+
     function AlertAPIError(xhr, ajaxOptions, thrownError) {
         alert("Restful API Error: \n" + JSON.stringify(thrownError));
     }
@@ -144,7 +591,7 @@
 
     $(document).ready(function () {
         $('[data-toggle="tooltip"]').tooltip();
-        $('[data-toggle="popover"]').popover(); 
+        $('[data-toggle="popover"]').popover();
         buildTemplateList();
         $('#submit_job').on('submit', function (e) { //use on if jQuery 1.7+
             e.preventDefault();  //prevent form from submitting
@@ -361,7 +808,7 @@
         var url = "/api/dlws/submit";
         $.ajax({ url: url, method: 'POST', data: params, error: AlertAPIError, timeout: 10000 }).done();
     }
-    
+
     function SaveTemplate() {
         var templatename = encodeURIComponent($("#templateName").val().trim());
         if (templatename == "") {
@@ -467,220 +914,11 @@
     
 </script>
 
-<div class="modal-dialog" role="document">
-    <div class="modal-content">
-        <form method="POST" id="submit_job">
+<!--
+<div ng-app="jobApp" ng-controller="jobCtrl" class="modal-dialog" role="document">
+    <div class="modal-body">
 
-            <div class="modal-header">
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                <h4 class="modal-title" id="submitModalLabel">@((ViewData["Mode"].Equals("Templates"))?"Manage Templates":"Submit Job")</h4>
-            </div>
-
-            <div class="modal-body">
-
-                <div class="form-group">
-                    <label>
-                        Use Template
-                    </label>
-                    <br />
-                    <select onchange="UseTemplate(this.value)" id="templateselect"></select>
-                </div>
-
-                <div class="form-group">
-                    <label>
-                        Job Type
-                    </label>
-                    <br />
-                    <input type="radio" name="jobtrainingtype" id="jobtrainingtype" value="RegularJob" checked="checked" onclick="ShowRegularJob()" /> Regular Training Job
-                    <br />
-                    <input type="radio" name="jobtrainingtype" id="jobtrainingtype" value="PSDistJob" onclick="ShowPSDistJob()" /> Distributed Training Job
-                    <br />
-                </div>
-
-                <div class="form-group">
-                    <label>
-                        Job Name
-                    </label>
-                    <input type="text" class="form-control" id="jobname" />
-                </div>
-
-                <div class="form-group">
-                    <label>
-                        Number of GPUs
-                    </label>
-                    <input type="number" class="form-control" id="resourcegpu" value="0" />
-                </div>
-
-                <div id="PSDistJob" hidden>
-                    <div class="form-group">
-                        <label>
-                            Number of Parameter Servers
-                        </label>
-                        <input type="number" class="form-control" id="numps" value="1" />
-                    </div>
-                    <div class="form-group">
-                        <label>
-                            Number of Workers
-                        </label>
-                        <input type="number" class="form-control" id="numpsworker" value="1" />
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>
-                        Work Directory <font face="verdana" color="#A9A9A9">(relative to <a href="@ViewData["workPath"]">@ViewData["workPath"].ToString().Replace("file:", "").Replace("/", "\\") </a>).  </font> <br /> <font face="verdana" color="#A9A9A9"> This folder is mounted as <b>/work</b> inside container.</font>
-                    </label>
-                    <input type="text" class="form-control" id="workpath" />
-                </div>
-
-                <div class="form-group">
-                    <label>
-                        Data Directory <font face="verdana" color="#A9A9A9">(relative to <a href="@ViewData["dataPath"]">@ViewData["dataPath"].ToString().Replace("file:", "").Replace("/", "\\") </a>). </font> <br /> <font face="verdana" color="#A9A9A9"> This folder is mounted as <b>/data</b> inside container.</font>
-                    </label>
-                    <input type="text" class="form-control" id="datapath" />
-                </div>
-
-                <div ng-app="mountApp" ng-controller="mountCtrl">
-                    <div class="form-group" ng-if="mounts.length > 0 ">
-                        <label>
-                            <a class="btn pull-left" ng-class="{true: 'btn-primary', false: 'btn-danger'}[showMounts]" ng-click="showMounts = !showMounts">
-                                {{showMounts && 'Hide Mounted Directories' || 'Show Mounted Directories' }}
-                            </a>
-                        </label>
-                        <div ng-if="showMounts">
-                            <div ng-repeat="onemount in mounts">
-                                <label>
-                                    <a href="#" data-toggle="tooltip" title="Mounted at {{onemount.hostPath}}">
-                                        {{onemount.containerPath}} : {{onemount.description}}
-                                    </a>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>
-                        Job Directory (empty by default) <br /> <font face="verdana" color="#A9A9A9"> This folder is mounted as <b>/job</b> inside container.</font>
-                    </label>
-                    <input type="text" class="form-control" id="jobpath" />
-                </div>
-
-                <div class="form-group">
-                    <label>
-                        Docker Image
-                    </label>
-                    <input list="imagelist" class="form-control" name="image" id="image" />
-                    <datalist id="imagelist">
-                        <option value="mlcloudreg.westus.cloudapp.azure.com:5000/philly/agi-tf-0.12.1-src-ubuntu-16.04:latest" />
-                        <option value="mlcloudreg.westus.cloudapp.azure.com:5000/philly/agi-tf-1.1.0-src-ubuntu-16.04:latest" />
-                        <option value="mlcloudreg.westus.cloudapp.azure.com:5000/philly/agi-tf-pytorch-0.12.1-src-ubuntu-16.04:latest" />
-                    </datalist>
-                </div>
-
-                <div class="form-group">
-                    <label>
-                        Training Command
-                    </label>
-                    <textarea type="text" class="form-control" id="cmd" rows="5"> </textarea>
-                </div>
-
-                <div class="form-group">
-                    <input type="checkbox" id="chkLogDir" onclick="ShowHideDiv(this,'logdirfield')" />
-                    <label>
-                        Enable TensorBoard
-                    </label>
-                    <div id="logdirfield" hidden>
-                        <label>Model path:</label>
-                        <input type="text" class="form-control" id="logdir" />
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <input type="checkbox" id="chkInteractiveJob" onclick="ShowHideDiv(this, 'interactiveportfield')" />
-                    <label>
-                        Interactive Job? (e.g. ipython, ssh)
-                    </label>
-                    <div id="interactiveportfield" hidden>
-                        <label>Port used by interactive job:</label>
-                        <input type="text" class="form-control" id="interactivePort" />
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <input type="checkbox" id="runningasroot" />
-                    <label>
-                        Running as ROOT. (e.g. for ssh jobs)
-                    </label>
-                </div>
-
-                <div id="templateSection" class="form-group" style="display: @(ViewData["Mode"].Equals("Templates") ? "block" : "none")">
-
-                    <hr>
-                    <h4 class="modal-title" id="submitModalLabel">Template Settings</h4>
-
-                    <div class="form-group">
-                        <label>Name:</label>
-                        <input type="text" class="form-control" id="templateName" />
-                    </div>
-
-                    <div class="form-group" style="display: @(ViewData["isAdmin"].Equals("true") ? "block" : "none")" id="locationdiv">
-                        <label>
-                            Template Location
-                        </label>
-                        <br />
-                        <input type="radio" name="templatelocation" id="templatelocation" value="Master"/> Master Template Database
-                        <br />
-                        <input type="radio" name="templatelocation" id="templatelocation" value="CurrentCluster"/> Current Cluster Template Database (@ViewData["cluster"])
-                        <br />
-                    </div>
-
-                </div>
-
-            </div>
-
-            <div class="modal-footer">
-                <div id="templateFooter" style="display: @(ViewData["Mode"].Equals("Templates") ? "block" : "none")">
-                    <a onclick="DeleteTemplate()" class="btn btn-success" href="#">Delete Template</a>
-                    <a onclick="SaveTemplate()" class="btn btn-success" href="#">Save Template</a>
-                </div>
-                <div id="jobFooter" style="display: @(ViewData["Mode"].Equals("Templates") ? "none" : "block")">
-                    <a onclick="SwitchToTemplates()" class="btn btn-success" href="#">Manage Template</a>
-                    <input type="submit" value="Submit" name="submit" class="btn btn-success" id="submit" />
-                </div>
-            </div>
-        </form>
-    </div>
-    
-    <br/>
-
-    <div class="modal-content" style="display: @(ViewData["Mode"].Equals("Templates") ? "block" : "none")" id="templateDatabaseSection">
-        <form method="POST" id="submit_job">
-            <div class="modal-header">
-                <h4 class="modal-title" id="templateDatabaseModalLabel">Template Database</h4>
-            </div>
-            
-            <div class="modal-body">
-                <div class="form-group">
-                    <label>
-                        Selet Database
-                    </label>
-                    <br />
-                    <select id="databaseselect">
-                        <option value="Master">Master Template</option>
-                        <option value="CurrentCluster">Current Cluster (@ViewData["cluster"])</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div class="modal-footer">
-                <a onclick="DownloadDatabase()" class="btn btn-success" href="#">Download JSON</a>
-                <a onclick="ChooseFile()" class="btn btn-success" href="#">Upload JSON</a>
-            </div>
-        </form>
-    </div>
+     </div>
 </div>
+-->
 
-<div style="height: 0px; overflow: hidden">
-    <input type="file" id="fileInput" name="fileInput" onchange="UploadDatabase()"/>
-</div>
