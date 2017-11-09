@@ -13,3 +13,6 @@ def GetStoragePath(jobpath, workpath, datapath):
     workPath = "work/"+workpath
     dataPath = "storage/"+datapath
     return jobPath,workPath,dataPath
+
+global global_vars
+global_vars={}

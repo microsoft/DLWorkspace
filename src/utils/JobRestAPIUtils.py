@@ -16,6 +16,10 @@ from DataHandler import DataHandler
 import base64
 import re
 
+from config import global_vars
+from MyLogger import MyLogger
+
+logger = MyLogger()
 
 def LoadJobParams(jobParamsJsonStr):
 	return json.loads(jobParamsJsonStr)
@@ -168,6 +172,7 @@ def GetJobList(userName):
 		dataHandler.Close()
 		return jobs
 	except:
+		logger.warn("Fail to get job list for user %s, return empty list" % userName)
 		return []
 
 

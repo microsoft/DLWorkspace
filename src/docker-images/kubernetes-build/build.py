@@ -37,7 +37,7 @@ if __name__ == '__main__':
     os.system(dockerBld)
 
     # hyperkube is all-in-one binary, can get specific ones as needed for size
-    #os.system("mkdir -p ../../kubernetes/deploy/bin")
+    os.system("mkdir -p ../../bin")
     print "Copy file hyperkube"
     # gets kube-scheduler, kube-apiserver
     DockerUtils.copy_from_docker_image("{{cnf["k8s-bld"]}}", "/hyperkube", "../../bin/hyperkube") 

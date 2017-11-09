@@ -3,13 +3,27 @@
 import subprocess
 import yaml
 
-def github_hash(repo, branch) :
-    curlCmd = ['curl', "https://api.github.com/repos/" + repo + "/branches/" + branch]
-    print "Command: " + ' '.join(curlCmd)
+def getresp(url, verbose):
+    curlCmd = ['curl']
+    curlCmd.append("https://api.github.com/" + url)
+    if verbose:
+        print "Command: {0}".format(" ".join(curlCmd))
     output = subprocess.check_output(curlCmd)
-    print "Output: " + output
-    ret = yaml.load(output)
-    #print ret
-    sha = ret["commit"]["sha"]
+    if verbose:
+        print "Output: {0}".format(output)
+    return yaml.load(output)
+
+def github_hash(repo, branch, verbose=True) :
+    ret = getresp("repos/" + repo + "/branches/" + branch, verbose)
+    sha = ""
+    if ("commit" in ret and "sha" in ret["commit"]):
+        sha = ret["commit"]["sha"]
+    else:
+        # try as tag
+        retObj = getresp("repos/" + repo + "/git/refs/tags/" + branch, verbose)
+        if ("object" in retObj and "sha" in retObj["object"]):
+            ret = getresp("repos/" + repo + "/git/tags/" + retObj["object"]["sha"], verbose)
+            if ("object" in ret and "sha" in ret["object"]):
+                sha = ret["object"]["sha"]
 
     return sha
