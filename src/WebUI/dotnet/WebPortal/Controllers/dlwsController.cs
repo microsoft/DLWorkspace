@@ -347,10 +347,34 @@ namespace WindowsAuth.Controllers
         [HttpPost("submit")]
         public async Task<string> PostAsync(TemplateParams templateParams)
         {
-            var message = SaveTemplateAsync(templateParams);
-            return "{ \"message\" : \"" + await message + "\"}";
+            var message = await SaveTemplateAsync(templateParams);
+            return "{ \"message\" : \"" + message + "\"}";
         }
-        
+
+        // POST api/dlws/submit
+        [HttpPost("postJob")]
+        public async Task<string> postJob(TemplateParams templateParams)
+        {
+            var ret = "invalid API call!";
+            var familyToken = new Guid(HttpContext.Request.Query["familyToken"]);
+            var families = _familyModel.Families;
+            FamilyModel.FamilyData familyData;
+            if (!families.TryGetValue(familyToken, out familyData))
+            {
+                ret = "provided family token was invalid";
+                return ret;
+            }
+            var restapi = familyData.ApiPath;
+
+            using (var httpClient = new HttpClient())
+            {
+                httpClient.BaseAddress = new Uri(restapi);
+                var response = await httpClient.PostAsync("/postJob", new StringContent(templateParams.Json, System.Text.Encoding.UTF8, "application/json"));
+                var returnInfo = await response.Content.ReadAsStringAsync();
+                return returnInfo;
+            }
+        }
+
         //Helper Methods
         private async Task<string> DownloadDatabase(HttpRequest httpContextRequest)
         {
@@ -411,6 +435,11 @@ namespace WindowsAuth.Controllers
                 }
             }
             return null;
+        }
+
+        private bool IsMaster(string location)
+        {
+            return (location == "Master");
         }
 
         private async Task<string> GetTemplatesAsync(string type)
@@ -476,9 +505,19 @@ namespace WindowsAuth.Controllers
             return jsonString;
         }
 
+        private static bool StringMatch(string s1, string s2, bool defValue)
+        {
+            if (String.IsNullOrEmpty(s1))
+                return defValue;
+            if (String.IsNullOrEmpty(s2))
+                return defValue;
+            return s1.ToLower() == s2.ToLower(); 
+        }
+
         private async Task<string> SaveTemplateAsync(TemplateParams templateParams)
         {
             var database = GetDatabaseFromString(templateParams.Database);
+            var bIsMaster = IsMaster(templateParams.Database);
             if (database == null)
             {
                 return "Error: Could not save template to given database";
@@ -487,27 +526,43 @@ namespace WindowsAuth.Controllers
 
             try
             {
-                var a = database.Template.ToAsyncEnumerable();
-                var other = a.Any(x => x.Template == templateParams.Name);
-                if (await other)
-                {
-                    var temp = await a.First(x => x.Template == templateParams.Name);
-                    if (temp.Username != username) return "Error: Template already exists in current location but belongs to someone else";
-                    temp.Json = templateParams.Json;
-                    await database.SaveChangesAsync();
-                    return "Succesfuly Edited Existing Template";
-                }
-                else
+                var priorEntrys = database.Template.Where(x => x.Template == templateParams.Name 
+                                                    ).ToAsyncEnumerable();
+                int nMatch = 0;
+                int nError = 0;
+                bool bChange = false; 
+                String msg = null; 
+                await priorEntrys.ForEachAsync(x => {
+                    if (dlwsController.StringMatch(x.Type, "job", true) &&
+                         dlwsController.StringMatch(x.Username, templateParams.Username, false))
+                    {
+                        x.Json = templateParams.Json;
+                        nMatch++;
+                        bChange = true; 
+                        msg = "Succesfuly Edited Existing Template";
+                    }
+                    else
+                    {
+                        nError++;
+                        msg = "Found a template in database which is not a job or not owned by the same user";
+                    }
+                });
+                if ( nMatch == 0 && nError==0 )
                 {
                     var template = new TemplateEntry(templateParams.Name, username, templateParams.Json, "job");
                     database.Template.Add(template);
-                    await database.SaveChangesAsync();
-                    return "Succesfuly Saved New Template";
+                    bChange = true;
+                    msg = "Succesfuly Add New Template";
                 }
+                if ( bChange )
+                { 
+                    await database.SaveChangesAsync();
+                }
+                return msg; 
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                return "Error: Could not find Template Table in Cluster Database";
+                return String.Format( "Exception {0}", ex);
             }
         }
         

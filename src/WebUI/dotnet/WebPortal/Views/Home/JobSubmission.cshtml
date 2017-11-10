@@ -169,6 +169,8 @@
         };
 
         $scope.checkCurrent(); 
+        $scope.currentTemplateValue = 0; 
+        $scope.lastTemplateValue = -1; 
 
         $scope.ready = $http.get('/api/dlws/GetMountPoints').then(function (response) {
             var mpstring = response.data.mountpoints;
@@ -181,6 +183,7 @@
             $scope.mounts = parseMounts($scope.mountpoints, $scope.mountdescription, $scope.username, $scope.mounthomefolder, $scope.deploymounts );
             $scope.showMounts = false;
             $scope.showEnv = false;
+            $scope.manageTemplate = false; 
             $scope.setMounts(); 
             $scope.checkCurrent(); 
             $log.log($scope.mountpoints);
@@ -196,7 +199,13 @@
                 if (selected.length == 1)
                     $scope.joblist[i].Text = name; 
                 else 
-                    $scope.joblist[i].Text = name + "(" + ")"; 
+                {
+                    var username = $scope.joblist[i].Username.trim();
+                    if (username == null || username.length <= 0)
+                        $scope.joblist[i].Text = name + "(master)"; 
+                    else 
+                        $scope.joblist[i].Text = name + "("+username.split('@@')[0]+")"; 
+                }
 
                 $scope.joblist[i].Value = i;
             }
@@ -206,9 +215,13 @@
         });
 
         $scope.loadTemplate = function () {
-
-            $log.log($scope.curtemplateValue);
-            $scope.curtemplateName = $scope.joblist[$scope.curtemplateValue];
+            $scope.curtemplate = $scope.joblist[$scope.curtemplateValue];
+            $scope.template = {};
+            $scope.curTemplateName = $scope.curtemplate.Name;
+            $scope.template.useTemplateName = $scope.curTemplateName;
+            $scope.curTemplateDatabase = $scope.curtemplate.Database; 
+            $scope.curUsername = $scope.curtemplate.Username; 
+            $scope.masterFlag = false; 
         };
 
         $scope.setMounts = function () {
@@ -236,16 +249,17 @@
             var showName = "None";
             if ($scope.curtemplateValue > 0 && selected.length)
             {
-                if ($scope.lastTemplateValue && $scope.lastTemplateValue == $scope.curtemplateName)
+                if ($scope.lastTemplateValue && $scope.lastTemplateValue == $scope.curtemplateValue)
                 {
 
                 }
                 else 
                 {
+                    $scope.lastTemplateValue = $scope.curtemplateValue; 
                     $scope.current = $scope.$eval(selected[0].Json);
+                    $scope.loadTemplate(); 
                     $scope.setMounts(); 
                     $scope.checkCurrent(); 
-                    $scope.lastTemplateValue = $scope.curtemplateName; 
                 }                
                 showName = selected[0].Text;
             }
@@ -274,7 +288,136 @@
             menuitems.splice(index, 1);
         };
 
+        $scope.DownloadFile = function (json) {
+            var str = JSON.stringify(json);
+            var file = new Blob([str], { type: "text/plain" });
+            var filename = "Templates.json";
+            if (window.navigator.msSaveOrOpenBlob) {
+                window.navigator.msSaveOrOpenBlob(file, filename);
+            }
+            else {
+                var a = document.createElement("a");
+                var url = URL.createObjectURL(file);
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(function () {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                },
+                    0);
+            }
+        }
+
+        $scope.toggleMasterFlag = function () {
+            $scope.masterFlag = !($scope.masterFlag);
+        };
+
+        $scope.getDatabase = function () {
+            var loc = "CurrentCluster";
+            if ($scope.masterFlag)
+                loc = "Master";
+            return loc; 
+        };
+
+        $scope.DownloadDatabase = function () {
+            var loc = $scope.getDatabase(); 
+            var params = "location=" + loc + "&";
+            var url = "/api/dlws/GetDatabase?" + params;
+            $.ajax({ url: url, dataType: 'json', error: $scope.AlertAPIError, timeout: 10000 }).done($scope.DownloadFile);
+        };
+
+        $scope.AlertAPIError = function (xhr, ajaxOptions, thrownError) {
+            alert("Restful API Error: \n" + JSON.stringify(thrownError));
+        };
+
+        $scope.AlertAPIResult = function (payload) {
+            alert(payload.message);
+        };
+
+        $scope.SaveTemplateAPI = function (params) {
+            var url = "/api/dlws/submit";
+            $.ajax({ url: url, method: 'POST', data: params, error: $scope.AlertAPIError, timeout: 10000 }).done();
+        };
+
+        $scope.SaveTemplate = function () {
+            var params = {};
+            params.Name = $scope.template.useTemplateName;
+            params.Json = JSON.stringify($scope.current);
+            params.Database = $scope.getDatabase();
+            $scope.SaveTemplateAPI(params);
+        };
+
+        $scope.submitJob = function () { 
+
+            var params = {};
+            params.Name = $scope.template.useTemplateName;
+            params.Json = JSON.stringify($scope.current);
+            params.Database = $scope.getDatabase();
+            var url = "/api/dlws/postJob";
+            console.log(url);
+            $.ajax({
+                url: url,
+                method: 'POST', 
+                data: params,
+                error: function (xhr, ajaxOptions, thrownError) {
+                    alert("RestfulAPI error!");
+                    $("#submit").attr("disabled", false);
+                },
+                timeout: 10000 //10 second timeout
+            }).done(
+                function (payload) {
+                    console.log(payload);
+                    if (payload.jobId) {
+                        alert("Job Submitted! \n Job ID:" + payload.jobId)
+                        location.href = "/Home/ViewJobs";
+                    } else if (payload.error) {
+                        alert("Error: " + payload.error, "Alert");
+                        $("#submit").attr("disabled", false);
+                    } else {
+                        alert("Unexpected error: " + payload, "Alert");
+                        $("#submit").attr("disabled", false);
+                    }
+
+                });
+
+
+        $scope.DeleteTemplate = function() {
+            var templatename = $scope.curTemplateName;
+            if (templatename == "") {
+                alert("Unable to delete a null template!");
+                return;
+            }
+            var loc = $scope.getDatabase(); 
+            var params = "";
+            params = params + "name=" + templatename + "&" + "location=" + loc + "&";
+            var url = "/api/dlws/DeleteTemplate?" + params;
+            $.ajax({ url: url, dataType: 'json', error: $scope.AlertAPIError, timeout: 10000 }).done($scope.AlertAPIResult);
+        }
         
+        $scope.UploadDatabase = function () {
+            var fileToLoad = document.getElementById("fileInput").files[0];
+            var fileReader = new FileReader();
+            fileReader.onload = function (fileLoadedEvent) {
+                var textFromFileLoaded = fileLoadedEvent.target.result;
+                var templateArray = JSON.parse(textFromFileLoaded);
+                for (var i = 0, length = templateArray.length; i < length; i++) {
+                    var params = {};
+                    params.Name = templateArray[i].Name;
+                    params.Username = templateArray[i].Username;
+                    params.Json = templateArray[i].Json;
+                    params.Database = $scope.getDatabase();
+                    SaveTemplateAPI(params);
+                }
+            }
+            fileReader.readAsText(fileToLoad, "UTF-8");
+        };
+
+        $scope.ChooseFile = function() {
+            $("#fileInput").click();
+            $("#fileInput").attr("value", "");
+        };
     });
 </script>
 
@@ -460,120 +603,56 @@
                 <a ng-class="{true: 'fa fa-check fa-lg text-success', false: 'fa fa-times fa-lg text-danger'}[current.run_as_root]" ng-click="current.run_as_root = !current.run_as_root">
                 </a>
             </div>
+
+            <div ng-if="manageTemplate">
+                <label> Template Name:</label>
+                <a href="#" editable-text="template.useTemplateName" e-title="Name of Template">
+                    {{ template.useTemplateName || "#Template_Name"}}
+                </a>
+            </div>
+            <div ng-if="manageTemplate">
+                <label>
+                    Template Location
+                </label>
+                <a class="btn" ng-class="{true: 'btn-primary', false: 'btn-danger'}[masterFlag]" ng-click="toggleMasterFlag()">
+                    {{masterFlag && 'Master' || 'Current User' }}
+                </a>
+            </div>
         </div>
 
-
-
-        <form method="POST" id="submit_job">
-
-
-
-            <div class="modal-body">
-
-
-
-
-                <div class="form-group">
-                    <input type="checkbox" id="chkLogDir" onclick="ShowHideDiv(this,'logdirfield')" />
-                    <label>
-                        Enable TensorBoard
-                    </label>
-                    <div id="logdirfield" hidden>
-                        <label>Model path:</label>
-                        <input type="text" class="form-control" id="logdir" />
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <input type="checkbox" id="chkInteractiveJob" onclick="ShowHideDiv(this, 'interactiveportfield')" />
-                    <label>
-                        Interactive Job? (e.g. ipython, ssh)
-                    </label>
-                    <div id="interactiveportfield" hidden>
-                        <label>Port used by interactive job:</label>
-                        <input type="text" class="form-control" id="interactivePort" />
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <input type="checkbox" id="runningasroot" />
-                    <label>
-                        Running as ROOT. (e.g. for ssh jobs)
-                    </label>
-                </div>
-
-                <div id="templateSection" class="form-group" style="display: @(ViewData["Mode"].Equals("Templates") ? "block" : "none")">
-
-                    <hr>
-                    <h4 class="modal-title" id="submitModalLabel">Template Settings</h4>
-
-                    <div class="form-group">
-                        <label>Name:</label>
-                        <input type="text" class="form-control" id="templateName" />
-                    </div>
-
-                    <div class="form-group" style="display: @(ViewData["isAdmin"].Equals("true") ? "block" : "none")" id="locationdiv">
-                        <label>
-                            Template Location
-                        </label>
-                        <br />
-                        <input type="radio" name="templatelocation" id="templatelocation" value="Master" /> Master Template Database
-                        <br />
-                        <input type="radio" name="templatelocation" id="templatelocation" value="CurrentCluster" /> Current Cluster Template Database (@ViewData["cluster"])
-                        <br />
-                    </div>
-
-                </div>
-
+        <div class="modal-footer">
+            <div id="jobFooter" style="display: @(ViewData["Mode"].Equals("Templates") ? "none" : "block")">
+                <a class="btn pull-left" ng-class="{true: 'btn-primary', false: 'btn-danger'}[manageTemplate]" ng-click="manageTemplate = !manageTemplate">
+                    {{manageTemplate && 'Hide Template Operations' || 'Show Template Operations' }}
+                </a>
+                <a class="btn btn-primary" ng-click="submitJob()">
+                    Submit Job
+                </a>
             </div>
+        </div>
 
-            <div class="modal-footer">
-                <div id="templateFooter" style="display: @(ViewData["Mode"].Equals("Templates") ? "block" : "none")">
-                    <a onclick="DeleteTemplate()" class="btn btn-success" href="#">Delete Template</a>
-                    <a onclick="SaveTemplate()" class="btn btn-success" href="#">Save Template</a>
-                </div>
-                <div id="jobFooter" style="display: @(ViewData["Mode"].Equals("Templates") ? "none" : "block")">
-                    <a onclick="SwitchToTemplates()" class="btn btn-success" href="#">Manage Template</a>
-                    <input type="submit" value="Submit" name="submit" class="btn btn-success" id="submit" />
-                </div>
-            </div>
-        </form>
-    </div>
+        <div ng-if="manageTemplate" class="modal-footer">
+            <a ng-click="DeleteTemplate()" class="btn btn-success" href="#">Delete Template</a>
+            <a ng-click="SaveTemplate()" class="btn btn-success" href="#">Save Template</a>
+        </div>
 
-    <br />
+        <div ng-if="manageTemplate" class="modal-footer">
+            <label>
+                Database operation
+            </label>
 
-    <div class="modal-content" style="display: @(ViewData["Mode"].Equals("Templates") ? "block" : "none")" id="templateDatabaseSection">
-        <form method="POST" id="submit_job">
-            <div class="modal-header">
-                <h4 class="modal-title" id="templateDatabaseModalLabel">Template Database</h4>
-            </div>
+                <a ng-click="DownloadDatabase()" class="btn btn-success" href="#">Download JSON</a>
+                <a ng-click="ChooseFile()" class="btn btn-success" href="#">Upload JSON</a>
+        </div>
 
-            <div class="modal-body">
-                <div class="form-group">
-                    <label>
-                        Selet Database
-                    </label>
-                    <br />
-                    <select id="databaseselect">
-                        <option value="Master">Master Template</option>
-                        <option value="CurrentCluster">Current Cluster (@ViewData["cluster"])</option>
-                    </select>
-                </div>
-            </div>
+        <div style="height: 0px; overflow: hidden">
+            <input type="file" id="fileInput" name="fileInput" ng-onchange="UploadDatabase()" />
+        </div>
 
-            <div class="modal-footer">
-                <a onclick="DownloadDatabase()" class="btn btn-success" href="#">Download JSON</a>
-                <a onclick="ChooseFile()" class="btn btn-success" href="#">Upload JSON</a>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div style="height: 0px; overflow: hidden">
-    <input type="file" id="fileInput" name="fileInput" onchange="UploadDatabase()" />
 </div>
 
 
+<!--
 <script type="text/javascript">
 
     function AlertAPIError(xhr, ajaxOptions, thrownError) {
@@ -600,135 +679,7 @@
         $('[data-toggle="tooltip"]').tooltip();
         $('[data-toggle="popover"]').popover();
         buildTemplateList();
-        $('#submit_job').on('submit', function (e) { //use on if jQuery 1.7+
-            e.preventDefault();  //prevent form from submitting
-            var params = "";
-
-            var jobname = $("#jobname").val().trim();
-            var workpath = encodeURIComponent($("#workpath").val().trim());
-            var datapath = encodeURIComponent($("#datapath").val().trim());
-            var jobpath = encodeURIComponent($("#jobpath").val().trim());
-            var image = encodeURIComponent($("#image").val().trim());
-            var cmd = encodeURIComponent($("#cmd").val().trim());
-            var logdir = encodeURIComponent($("#logdir").val().trim());
-            var interactiveport = encodeURIComponent($("#interactivePort").val().trim());
-
-
-            var numGPUsInt = parseInt($('#resourcegpu').val());
-            var numGPUStr = $('#resourcegpu').val();
-
-
-            //var jobtrainingtype = encodeURIComponent($("#jobtrainingtype").val().trim());
-
-
-            var radios = document.getElementsByName('jobtrainingtype');
-
-            for (var i = 0, length = radios.length; i < length; i++) {
-                if (radios[i].checked) {
-                    var jobtrainingtype = encodeURIComponent(radios[i].value.trim());
-                    break;
-                }
-            }
-
-            var numps = parseInt($('#numps').val());
-            var numpsworker = parseInt($('#numpsworker').val());
-            var nummpiworker = parseInt($('#nummpiworker').val());
-
-
-            if (numGPUsInt < 0 || numGPUsInt > 8) {
-                alert("Invalid GPU number:" + numGPUStr + ". GPU number has to be 0 - 8 in regular job");
-                return;
-            }
-
-            if (jobname == "") {
-                alert("Job Name cannot be empty!");
-                return;
-            }
-            if (workpath == "") {
-                alert("Work Path cannot be empty!");
-                return;
-            }
-            if (datapath == "") {
-                alert("Data Path cannot be empty!");
-                return;
-            }
-
-            if (image == "") {
-                alert("Docker Image cannot be empty!");
-                return;
-            }
-
-            if (cmd == "") {
-                alert("Default CMD in docker image:" + image + ". will be executed");
-            }
-
-            params = params + "resourcegpu=" + numGPUStr + "&";
-            params = params + "jobName=" + jobname + "&";
-            params = params + "workPath=" + workpath + "&";
-            params = params + "dataPath=" + datapath + "&";
-
-            var jobpath = $('#jobpath').val();
-            if (jobpath != "") {
-                params = params + "jobPath=" + jobpath + "&";
-            }
-
-            params = params + "image=" + image + "&";
-            params = params + "cmd=" + cmd + "&";
-
-            var logdir = $('#logdir').val();
-            if (logdir != "") {
-                params = params + "logDir=" + logdir + "&";
-            }
-
-            if (interactiveport != "") {
-                params = params + "interactivePort=" + interactiveport + "&";
-            }
-
-            params = params + "jobType=training&";
-            params = params + "jobtrainingtype=" + jobtrainingtype + "&";
-
-            if (jobtrainingtype == "PSDistJob") {
-                params = params + "numps=" + numps + "&";
-                params = params + "numpsworker=" + numpsworker + "&";
-            }
-
-            if (jobtrainingtype == "MPIDistJob") {
-                params = params + "nummpiworker=" + nummpiworker + "&";
-            }
-
-
-
-            var runningasroot = document.getElementById("runningasroot").checked ? "1" : "0";
-            params = params + "runningasroot=" + runningasroot + "&";
-
-            var url = "/api/dlws/SubmitJob?" + params;
-
-            console.log(url);
-            $("#submit").attr("disabled", true);
-
-            $.ajax({
-                url: url,
-                dataType: 'json',
-                error: function (xhr, ajaxOptions, thrownError) {
-                    alert("RestfulAPI error!");
-                    $("#submit").attr("disabled", false);
-                },
-                timeout: 10000 //10 second timeout
-            }).done(
-                function (payload) {
-                    console.log(payload);
-                    if (payload.jobId) {
-                        alert("Job Submitted! \n Job ID:" + payload.jobId)
-                        location.href = "/Home/ViewJobs";
-                    } else if (payload.error) {
-                        alert("Error: " + payload.error, "Alert");
-                        $("#submit").attr("disabled", false);
-                    } else {
-                        alert("Unexpected error: " + payload, "Alert");
-                        $("#submit").attr("disabled", false);
-                    }
-
-                });
+        $('#submit_job').on('submit', function (e) 
 
         });
     });
@@ -811,121 +762,19 @@
         document.getElementById("templateDatabaseSection").style.display = "block";
     }
 
-    function SaveTemplateAPI(params) {
-        var url = "/api/dlws/submit";
-        $.ajax({ url: url, method: 'POST', data: params, error: AlertAPIError, timeout: 10000 }).done();
-    }
 
-    function SaveTemplate() {
-        var templatename = encodeURIComponent($("#templateName").val().trim());
-        if (templatename == "") {
-            alert("Template Name cannot be empty!");
-            return;
-        }
-        var params = {};
-        params.Name = templatename;
-        params.Json = JSON.stringify(makeTemplate());
 
-        if (document.getElementById("locationdiv").style.display == "block") {
-            var radios = document.getElementsByName('templatelocation');
-
-            for (var i = 0, length = radios.length; i < length; i++) {
-                if (radios[i].checked) {
-                    params.Database = radios[i].value;
-                    break;
-                }
-            }
-        }
-        SaveTemplateAPI(params);
-    }
-
-    function DeleteTemplate() {
-        var templatename = $("#templateName").val().trim();
-        if (templatename == "") {
-            alert("Template Name cannot be empty!");
-            return;
-        }
-        var params = "";
-        params = params + "name=" + templatename + "&";
-        if (document.getElementById("locationdiv").style.display == "block") {
-            var radios = document.getElementsByName('templatelocation');
-
-            for (var i = 0, length = radios.length; i < length; i++) {
-                if (radios[i].checked) {
-                    params = params + "location=" + radios[i].value + "&";
-                    break;
-                }
-            }
-        }
-        var url = "/api/dlws/DeleteTemplate?" + params;
-        $.ajax({ url: url, dataType: 'json', error: AlertAPIError, timeout: 10000 }).done(AlertAPIResult);
-    }
 
 </script>
 
 @* Manage Database Download/Upload Section *@
 <script type="text/javascript">
     
-    function DownloadFile(json) {
-        var str = JSON.stringify(json);
-        var file = new Blob([str], { type: "text/plain" });
-        var filename = "Templates.json";
-        if (window.navigator.msSaveOrOpenBlob){
-            window.navigator.msSaveOrOpenBlob(file, filename);
-        }
-        else {
-            var a = document.createElement("a");
-            var url = URL.createObjectURL(file);
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(function() {
-                    document.body.removeChild(a);
-                    window.URL.revokeObjectURL(url);
-                },
-                0);
-        }
-    }  
+
     
-    function DownloadDatabase() {
-        var e = document.getElementById("databaseselect");
-        var params = "location=" + e.options[e.selectedIndex].value + "&";
-        var url = "/api/dlws/GetDatabase?" + params;
-        $.ajax({ url: url, dataType: 'json', error: AlertAPIError, timeout: 10000 }).done(DownloadFile);
-    }
-    
-    function UploadDatabase() {
-        var fileToLoad = document.getElementById("fileInput").files[0];
-        var fileReader = new FileReader();
-        fileReader.onload = function (fileLoadedEvent) {
-            var textFromFileLoaded = fileLoadedEvent.target.result;
-            var templateArray = JSON.parse(textFromFileLoaded);
-            for (var i = 0, length = templateArray.length; i < length; i++) {
-                var params = {};
-                params.Name = templateArray[i].Name;
-                params.Username = templateArray[i].Username;
-                params.Json = templateArray[i].Json;
-                var e = document.getElementById("databaseselect");
-                params.Database = e.options[e.selectedIndex].value;
-                SaveTemplateAPI(params);
-            }
-        }
-        fileReader.readAsText(fileToLoad, "UTF-8");
-    }
-    
-    function ChooseFile() {
-        $("#fileInput").click();
-        $("#fileInput").attr("value", "");
-    }
+
     
 </script>
-
-<!--
-<div ng-app="jobApp" ng-controller="jobCtrl" class="modal-dialog" role="document">
-    <div class="modal-body">
-
-     </div>
-</div>
 -->
+
 
