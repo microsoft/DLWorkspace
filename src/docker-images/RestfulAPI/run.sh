@@ -6,9 +6,9 @@ ln -s /RestfulAPI/config.yaml /DLWorkspace/src/utils/config.yaml
 chmod -R 0777 /var/log/apache2
 echo "Change permission on /var/log/apache2"
 
-/usr/sbin/apache2ctl -D FOREGROUND
-#apachectl start
-#while true; do
-#	sleep 1800
-#	apachectl restart
-#done
+#/usr/sbin/apache2ctl -D FOREGROUND
+apachectl start
+while true; do
+	sleep 1800
+	apachectl restart
+done
