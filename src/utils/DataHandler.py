@@ -296,14 +296,20 @@ class DataHandler:
            return False
 
 
-    def GetJobList(self, userName):
+    def GetJobList(self, userName, num = None, status = None):
         start_time = timeit.default_timer()
         ret = []
         cursor = self.conn.cursor()
         try:
-            query = "SELECT [jobId],[jobName],[userName], [jobStatus], [jobStatusDetail], [jobType], [jobDescriptionPath], [jobDescription], [jobTime], [endpoints], [jobParams],[errorMsg] ,[jobMeta] FROM [%s]" % self.jobtablename
+            if num is None:
+                selectNum = ""
+            else:
+                selectNum = " TOP %s " % str(num)
+            query = "SELECT %s [jobId],[jobName],[userName], [jobStatus], [jobStatusDetail], [jobType], [jobDescriptionPath], [jobDescription], [jobTime], [endpoints], [jobParams],[errorMsg] ,[jobMeta] FROM [%s]" % (selectNum, self.jobtablename)
             if userName != "all":
                 query += " where [userName] = '%s'" % userName
+                if status is not None:
+                    query += " and [jobStatus] = '%s'" % status
             else:
                 query += " where [jobStatus] <> 'error' and [jobStatus] <> 'failed' and [jobStatus] <> 'finished' and [jobStatus] <> 'killed'"
             query += " order by [jobTime] Desc"
