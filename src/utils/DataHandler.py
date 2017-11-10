@@ -37,6 +37,19 @@ class SQLConnManager:
         return conn
 
     @staticmethod
+    def TestSQLConnection(conn):
+        connected = False
+        try:
+            c = conn.cursor()
+            sql = "select top 1 id from sysobjects"
+            c.execute(sql)
+            c.close()
+            connected = True
+        except Exception, e:
+            logger.error ("Exception: %s" % str(e) )
+            connected = False
+        return connected
+    @staticmethod
     def GetConnection():
         conn = None
 
@@ -67,15 +80,10 @@ class SQLConnManager:
 
         if conn is not None:
             # check the connection is still alive
-            connected = False
-            try:
-                c = conn.cursor()
-                c.close()
-                connected = True
-            except OperationalError:
-                connected = False
+            connected = SQLConnManager.TestSQLConnection(conn)
+
             if not connected:
-                logger.info ("An existing database connection in the connection pool has been disconnected by remote server, recreate a new connection. we have %d live connections" % global_vars["sql_connection_num"] )
+                logger.debug ("An existing database connection in the connection pool has been disconnected by remote server, recreate a new connection. we have %d live connections" % global_vars["sql_connection_num"] )
                 try:
                     conn.close()
                 except:
@@ -84,8 +92,15 @@ class SQLConnManager:
 
         if conn is None and global_vars["sql_connection_num"] <= sql_max_connect_num:
             conn = SQLConnManager.Connect()
-            global_vars["sql_connection_num"] += 1
-            logger.info ("Created a new SQL database connection, we have %d live connections" % global_vars["sql_connection_num"] )
+            acquired = global_vars["sql_lock"].acquire()
+            try:
+                global_vars["sql_connection_num"] += 1
+            except Exception, e:
+                logger.error ("Exception: %s" % str(e) )
+            finally:
+                if acquired:
+                    global_vars["sql_lock"].release()
+            logger.debug ("Created a new SQL database connection, we have %d live connections" % global_vars["sql_connection_num"] )
 
 
         if conn is None:
@@ -97,33 +112,35 @@ class SQLConnManager:
     @staticmethod
     def ReturnConnection(conn):
         if conn is not None:
-            connected = False
+            connected = SQLConnManager.TestSQLConnection(conn)
+            acquired = global_vars["sql_lock"].acquire()
+            returnedConn = False
             try:
-                c = conn.cursor()
-                c.close()
-                connected = True
-            except OperationalError:
-                connected = False
-
-            if connected:
-                acquired = global_vars["sql_lock"].acquire()
-                try:
+                if connected:
                     if global_vars["sql_connection_num"] <= sql_live_connect_num:
                         #maxsize=0 in the queue, put won't be blocked
                         global_vars["sql_connections"].put(conn)
+                        returnedConn = True
                     else:
                         conn.close()
-                        logger.info ("Closed a SQL database connection, we have %d live connections" % global_vars["sql_connection_num"] )
-                        global_vars["sql_connection_num"] -= 1
-                except Exception, e:
-                        global_vars["sql_connection_num"] -= 1
-                        logger.error ("Exception: %s" % str(e) )
-                finally:
-                    if acquired:
-                        global_vars["sql_lock"].release()
-            else:
-               global_vars["sql_connection_num"] -= 1
-
+                        logger.debug ("Closed a SQL database connection, we have %d live connections" % global_vars["sql_connection_num"] )
+                else:
+                    logger.debug ("An existing database connection in the connection pool has been disconnected by remote server. we have %d live connections" % (global_vars["sql_connection_num"] - 1 ))
+                    try:
+                        conn.close()
+                    except:
+                        pass
+            except Exception, e:
+                    logger.error ("Exception: %s" % str(e) )
+            finally:
+                if not returnedConn:
+                    global_vars["sql_connection_num"] -= 1
+                    try:
+                        conn.close()
+                    except:
+                        pass
+                if acquired:
+                    global_vars["sql_lock"].release()
         return None
 
 class DataHandler:
