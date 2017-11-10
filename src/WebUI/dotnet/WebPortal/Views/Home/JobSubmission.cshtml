@@ -349,7 +349,7 @@
             $scope.SaveTemplateAPI(params);
         };
 
-        $scope.submitJob = function () { 
+        $scope.submitJob = function () {
 
             var params = {};
             params.Name = $scope.template.useTemplateName;
@@ -359,7 +359,7 @@
             console.log(url);
             $.ajax({
                 url: url,
-                method: 'POST', 
+                method: 'POST',
                 data: params,
                 error: function (xhr, ajaxOptions, thrownError) {
                     alert("RestfulAPI error!");
@@ -378,9 +378,10 @@
                     } else {
                         alert("Unexpected error: " + payload, "Alert");
                         $("#submit").attr("disabled", false);
-                    }
+                    };
 
                 });
+        };
 
 
         $scope.DeleteTemplate = function() {
