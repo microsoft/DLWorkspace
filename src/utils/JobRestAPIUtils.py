@@ -41,8 +41,9 @@ def SubmitJob(jobParamsJsonStr):
 
 	if "familyToken" not in jobParams or jobParams["familyToken"].isspace():
 		jobParams["familyToken"] = str(uuid.uuid4())
-	if "isParent" not in jobParams or jobParams["isParent"].isspace():
+	if "isParent" not in jobParams:
 		jobParams["isParent"] = 1
+	
 	userName = jobParams["userName"]
 	if "@" in userName:
 		userName = userName.split("@")[0].strip()
