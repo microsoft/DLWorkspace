@@ -8,6 +8,7 @@ using System.Net.Http;
 using Microsoft.AspNetCore.Http;
 using System.Runtime.Serialization;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 
 // For more information on enabling Web API for empty projects, visit http://go.microsoft.com/fwlink/?LinkID=397860
@@ -103,24 +104,19 @@ namespace WindowsAuth.Controllers
             return logs;
         }
 
-        // GET api/dlws/op_str?params
-        [HttpGet("{op}")]
-        public async Task<string> Get(string op)
+        private async Task<Tuple<bool, string>> processRestfulAPICommon()
         {
-            var ret = "invalid API call!";
-            var url = "";
-
             var passwdLogin = false;
-
             if (HttpContext.Request.Query.ContainsKey("Email") && HttpContext.Request.Query.ContainsKey("Key"))
             {
-                
+
                 var databases = Startup.Database;
                 var tasks = new List<Task<UserEntry>>();
                 var lst = new List<string>();
                 string email = HttpContext.Request.Query["Email"];
                 string password = HttpContext.Request.Query["Key"];
-                
+                bool bFindUser = false; 
+
                 foreach (var pair in databases)
                 {
                     var clusterName = pair.Key;
@@ -146,12 +142,29 @@ namespace WindowsAuth.Controllers
                             HttpContext.Session.SetString("WorkFolderAccessPoint", clusterInfo.WorkFolderAccessPoint);
                             HttpContext.Session.SetString("DataFolderAccessPoint", clusterInfo.DataFolderAccessPoint);
                             passwdLogin = userEntry.isAuthorized == "true";
+                            bFindUser = true;
                         }
                     }
                     );
                 }
-                
+                if ( !bFindUser )
+                {
+                    return new Tuple<bool, string>(passwdLogin, "Unrecognized Username & Password for RestfulAPI call");
+                }
             }
+            return new Tuple<bool, string>(passwdLogin, null);
+        }
+
+        // GET api/dlws/op_str?params
+        [HttpGet("{op}")]
+        public async Task<string> Get(string op)
+        {
+            var ret = "invalid API call!";
+            var url = "";
+            var tuple = await processRestfulAPICommon();
+            var passwdLogin = tuple.Item1;
+            if (!String.IsNullOrEmpty(tuple.Item2))
+                return tuple.Item2;
 
 
             if (!User.Identity.IsAuthenticated && !passwdLogin)
@@ -347,10 +360,67 @@ namespace WindowsAuth.Controllers
         [HttpPost("submit")]
         public async Task<string> PostAsync(TemplateParams templateParams)
         {
-            var message = SaveTemplateAsync(templateParams);
-            return "{ \"message\" : \"" + await message + "\"}";
+            var message = await SaveTemplateAsync(templateParams);
+            return "{ \"message\" : \"" + message + "\"}";
         }
-        
+
+        // POST api/dlws/submit
+        [HttpPost("postJob")]
+        public async Task<string> postJob(TemplateParams templateParams)
+        {
+            var ret = "invalid API call!";
+            var tuple = await processRestfulAPICommon();
+            var passwdLogin = tuple.Item1;
+            if (!String.IsNullOrEmpty(tuple.Item2))
+                return tuple.Item2;
+
+
+            if (!User.Identity.IsAuthenticated && !passwdLogin)
+            {
+                ret = "Unauthorized User, Please login!";
+                return ret;
+            }
+            var username = HttpContext.Session.GetString("Username");
+            ViewData["Username"] = username;
+            var uid = HttpContext.Session.GetString("uid");
+            var gid = HttpContext.Session.GetString("gid");
+            var restapi = HttpContext.Session.GetString("Restapi");
+            templateParams.Json = templateParams.Json.Replace("$$username$$", username).Replace("$$uid$$", uid).Replace("$$gid$$", gid);
+            var jobObject = JObject.Parse(templateParams.Json);
+            jobObject["userName"] = HttpContext.Session.GetString("Email");
+            jobObject["userId"] = uid;
+            jobObject["jobType"] = "training";
+            var runningasroot = jobObject["runningasroot"];
+            if (!(Object.ReferenceEquals(runningasroot, null)) && runningasroot.ToString() == "1")
+            {
+                jobObject["containerUserId"] = "0";
+            }
+
+            // ToDo: Need to be included in a database, 
+            var familyToken = Guid.NewGuid();
+            var newKey = _familyModel.Families.TryAdd(familyToken, new FamilyModel.FamilyData
+            {
+                ApiPath = HttpContext.Session.GetString("Restapi"),
+                Email = HttpContext.Session.GetString("Email"),
+                UID = HttpContext.Session.GetString("uid")
+            });
+            if (!newKey)
+            {
+                ret = "Only 1 parent is allowed per family (maybe you tried to submit the same job on two threads?)";
+            }
+            jobObject["familyToken"] = String.Format("{0:N}", familyToken);
+            jobObject["isParent"] = 1; 
+
+
+            using (var httpClient = new HttpClient())
+            {
+                httpClient.BaseAddress = new Uri(restapi);
+                var response = await httpClient.PostAsync("/PostJob", new StringContent(jobObject.ToString(), System.Text.Encoding.UTF8, "application/json"));
+                var returnInfo = await response.Content.ReadAsStringAsync();
+                return returnInfo;
+            }
+        }
+
         //Helper Methods
         private async Task<string> DownloadDatabase(HttpRequest httpContextRequest)
         {
@@ -413,6 +483,11 @@ namespace WindowsAuth.Controllers
             return null;
         }
 
+        private bool IsMaster(string location)
+        {
+            return (location == "Master");
+        }
+
         private async Task<string> GetTemplatesAsync(string type)
         {
             string jsonString = "[";
@@ -429,6 +504,19 @@ namespace WindowsAuth.Controllers
             return jsonString;
         }
 
+        private static string TranslateJson( string inp )
+        {
+            inp = inp.Replace("\"job_name\"", "\"jobName\"");
+            inp = inp.Replace("\"gpu_count\"", "\"resourcegpu\"");
+            inp = inp.Replace("\"work_path\"", "\"workPath\"");
+            inp = inp.Replace("\"data_path\"", "\"dataPath\"");
+            inp = inp.Replace("\"job_path\"", "\"jobPath\"");
+            inp = inp.Replace("\"log_path\"", "\"logDir\"");
+            inp = inp.Replace("\"port\"", "\"interactivePort\"");
+            inp = inp.Replace("\"run_as_root\"", "\"runningasroot\"");
+            return inp; 
+        }
+
         private static async Task<string> GetTemplatesString(ClusterContext templates, string databaseName, string type)
         {
             try
@@ -439,10 +527,11 @@ namespace WindowsAuth.Controllers
                 {
                     if (type == "all" || entry.Type == type)
                     {
+                        var json = TranslateJson(entry.Json);
                         var t = "{";
                         t += "\"Name\" : \"" + entry.Template + "\",";
                         t += "\"Username\" : \"" + entry.Username + "\",";
-                        t += "\"Json\" : " + JsonConvert.SerializeObject(entry.Json) + ",";
+                        t += "\"Json\" : " + JsonConvert.SerializeObject(json) + ",";
                         t += "\"Database\" : \"" + databaseName + "\"";
                         t += "},";
                         templatesString += t;
@@ -476,9 +565,19 @@ namespace WindowsAuth.Controllers
             return jsonString;
         }
 
+        private static bool StringMatch(string s1, string s2, bool defValue)
+        {
+            if (String.IsNullOrEmpty(s1))
+                return defValue;
+            if (String.IsNullOrEmpty(s2))
+                return defValue;
+            return s1.ToLower() == s2.ToLower(); 
+        }
+
         private async Task<string> SaveTemplateAsync(TemplateParams templateParams)
         {
             var database = GetDatabaseFromString(templateParams.Database);
+            var bIsMaster = IsMaster(templateParams.Database);
             if (database == null)
             {
                 return "Error: Could not save template to given database";
@@ -487,27 +586,43 @@ namespace WindowsAuth.Controllers
 
             try
             {
-                var a = database.Template.ToAsyncEnumerable();
-                var other = a.Any(x => x.Template == templateParams.Name);
-                if (await other)
-                {
-                    var temp = await a.First(x => x.Template == templateParams.Name);
-                    if (temp.Username != username) return "Error: Template already exists in current location but belongs to someone else";
-                    temp.Json = templateParams.Json;
-                    await database.SaveChangesAsync();
-                    return "Succesfuly Edited Existing Template";
-                }
-                else
+                var priorEntrys = database.Template.Where(x => x.Template == templateParams.Name 
+                                                    ).ToAsyncEnumerable();
+                int nMatch = 0;
+                int nError = 0;
+                bool bChange = false; 
+                String msg = null; 
+                await priorEntrys.ForEachAsync(x => {
+                    if (dlwsController.StringMatch(x.Type, "job", true) &&
+                         dlwsController.StringMatch(x.Username, templateParams.Username, false))
+                    {
+                        x.Json = templateParams.Json;
+                        nMatch++;
+                        bChange = true; 
+                        msg = "Succesfuly Edited Existing Template";
+                    }
+                    else
+                    {
+                        nError++;
+                        msg = "Found a template in database which is not a job or not owned by the same user";
+                    }
+                });
+                if ( nMatch == 0 && nError==0 )
                 {
                     var template = new TemplateEntry(templateParams.Name, username, templateParams.Json, "job");
                     database.Template.Add(template);
-                    await database.SaveChangesAsync();
-                    return "Succesfuly Saved New Template";
+                    bChange = true;
+                    msg = "Succesfuly Add New Template";
                 }
+                if ( bChange )
+                { 
+                    await database.SaveChangesAsync();
+                }
+                return msg; 
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                return "Error: Could not find Template Table in Cluster Database";
+                return String.Format( "Exception {0}", ex);
             }
         }
         
