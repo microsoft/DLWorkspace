@@ -163,10 +163,12 @@ def SubmitJob(jobParamsJsonStr):
 
 
 
-def GetJobList(userName):
+def GetJobList(userName,num=None):
 	try:
 		dataHandler = DataHandler()
-		jobs =  dataHandler.GetJobList(userName)
+		jobs = []
+		jobs = jobs + dataHandler.GetJobList(userName,None, "running,queued,scheduling,unapproved")
+		jobs = jobs + dataHandler.GetJobList(userName,num, "running,queued,scheduling,unapproved", "<>")
 		for job in jobs:
 			job.pop('jobMeta', None)
 		dataHandler.Close()

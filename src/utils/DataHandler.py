@@ -1,23 +1,23 @@
 # from config import config
 import pyodbc
 import json
-from config import config
-from config import global_vars
 import base64
+import os
 
 import timeit
 
 from Queue import Queue
 import threading
 
+from config import config
 from config import global_vars
 from MyLogger import MyLogger
 
 logger = MyLogger()
 
 ### set to a larger number if flask is running on multithreading
-sql_max_connect_num = 50
-sql_live_connect_num = 30
+sql_max_connect_num = 35
+sql_live_connect_num = 25
 
 
 class SQLConnManager:
@@ -72,11 +72,11 @@ class SQLConnManager:
 
 
         ### try to wait for 1s, other threads may release the connection
-        if conn is None:
+        if conn is None and global_vars["sql_connection_num"] > 0:
             try:
                 conn = global_vars["sql_connections"].get(timeout = 1)
             except Exception, e:
-                logger.error ("Exception: %s" % str(e) )
+                pass
 
         if conn is not None:
             # check the connection is still alive
@@ -100,7 +100,7 @@ class SQLConnManager:
             finally:
                 if acquired:
                     global_vars["sql_lock"].release()
-            logger.debug ("Created a new SQL database connection, we have %d live connections" % global_vars["sql_connection_num"] )
+            logger.debug ("Created a new SQL database connection in pid (%s), we have %d live connections" % (os.getpid(),global_vars["sql_connection_num"]) )
 
 
         if conn is None:
@@ -209,14 +209,14 @@ class DataHandler:
                     [jobMeta] NTEXT NULL, 
                     [jobLog] NTEXT NULL, 
                     [retries]             int    NULL DEFAULT 0,
-                    PRIMARY KEY CLUSTERED ([id] ASC)
+                    PRIMARY KEY NONCLUSTERED  ([id] ASC),
+                    INDEX jobusernameindex CLUSTERED ([userName]),
+                    INDEX jobtimeindex NONCLUSTERED  ([jobTime]),
+                    INDEX jobIdindex NONCLUSTERED  ([jobId]),
+                    INDEX jobStatusindex NONCLUSTERED  ([jobStatus])
                 );
-                CREATE INDEX jobusernameindex ON [dbo].[%s] ([userName]);
-                CREATE INDEX jobtimeindex ON [dbo].[%s] ([jobTime]);
-                CREATE INDEX jobIdindex ON [dbo].[%s] ([jobId]);
-                CREATE INDEX jobStatusindex ON [dbo].[%s] ([jobStatus]);
                 END
-                """ % (self.jobtablename,self.jobtablename,self.jobtablename,self.jobtablename,self.jobtablename,self.jobtablename)
+                """ % (self.jobtablename,self.jobtablename)
 
             cursor = self.conn.cursor()
             cursor.execute(sql)
@@ -296,7 +296,7 @@ class DataHandler:
            return False
 
 
-    def GetJobList(self, userName, num = None, status = None):
+    def GetJobList(self, userName, num = None, status = None, op = "="):
         start_time = timeit.default_timer()
         ret = []
         cursor = self.conn.cursor()
@@ -309,12 +309,27 @@ class DataHandler:
             if userName != "all":
                 query += " where [userName] = '%s'" % userName
                 if status is not None:
-                    query += " and [jobStatus] = '%s'" % status
+                    if "," not in status:
+                        query += " and [jobStatus] %s '%s'" % (op,status)
+                    else:
+                        status_list = [ " [jobStatus] %s '%s' " % (op,s) for s in status.split(',')]
+                        if op == "=":
+                            status_statement = " or ".join(status_list)
+                        else:
+                            status_statement = " and ".join(status_list)
+                        query += " and ( %s ) " % status_statement
+                        
             else:
                 query += " where [jobStatus] <> 'error' and [jobStatus] <> 'failed' and [jobStatus] <> 'finished' and [jobStatus] <> 'killed'"
             query += " order by [jobTime] Desc"
+            start_time1 = timeit.default_timer()
             cursor.execute(query)
-            for (jobId,jobName,userName, jobStatus,jobStatusDetail, jobType, jobDescriptionPath, jobDescription, jobTime, endpoints, jobParams,errorMsg, jobMeta) in cursor:
+            elapsed1 = timeit.default_timer() - start_time1
+            start_time2 = timeit.default_timer()
+            data = cursor.fetchall()
+            elapsed2 = timeit.default_timer() - start_time2
+            logger.info ("(fetchall time: %f)" % (elapsed2))
+            for (jobId,jobName,userName, jobStatus,jobStatusDetail, jobType, jobDescriptionPath, jobDescription, jobTime, endpoints, jobParams,errorMsg, jobMeta) in data:
                 record = {}
                 record["jobId"] = jobId
                 record["jobName"] = jobName
@@ -335,7 +350,7 @@ class DataHandler:
             pass                
         cursor.close()
         elapsed = timeit.default_timer() - start_time
-        logger.info ("DataHandler: get job list for user %s , time elapsed %f s" % (userName, elapsed))
+        logger.info ("DataHandler: get job list for user %s , time elapsed %f s (SQL query time: %f)" % (userName, elapsed, elapsed1))
         return ret
 
 

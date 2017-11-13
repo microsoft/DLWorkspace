@@ -40,13 +40,8 @@ RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
 
 RUN curl https://packages.microsoft.com/config/ubuntu/16.04/prod.list > /etc/apt/sources.list.d/mssql-release.list
 
-RUN apt-get update; ACCEPT_EULA=Y apt-get install -y msodbcsql=13.1.1.0-1 unixodbc-dev-utf16
+RUN apt-get update; ACCEPT_EULA=Y apt-get install -y msodbcsql=13.1.4.0-1 unixodbc-dev
 
-#RUN ln -sfn /opt/mssql-tools/bin/sqlcmd-13.0.1.0 /usr/bin/sqlcmd 
-#RUN ln -sfn /opt/mssql-tools/bin/bcp-13.0.1.0 /usr/bin/bcp
-
-# RUN apt-get install -y unixodbc unixodbc-dev
-# RUN apt-get install -y python-scipy
 
 RUN pip install pyodbc
 RUN pip install tzlocal

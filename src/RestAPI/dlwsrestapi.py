@@ -232,9 +232,16 @@ api.add_resource(SubmitJob, '/SubmitJob')
 class ListJobs(Resource):
 	def get(self):
 		parser.add_argument('userName')
+		parser.add_argument('num')
 		args = parser.parse_args()	
+		num = None
+		if args["num"] is not None:
+			try:
+				num = int(args["num"])
+			except:
+				pass
 		if args["userName"] is not None and len(args["userName"].strip()) > 0:
-			jobs = JobRestAPIUtils.GetJobList(args["userName"])
+			jobs = JobRestAPIUtils.GetJobList(args["userName"],num)
 		else:
 			jobs = []
 		jobList = []
@@ -274,12 +281,13 @@ class ListJobs(Resource):
 		ret["runningJobs"] = runningJobs
 		ret["finishedJobs"] = finishedJobs
 		ret["visualizationJobs"] = visualizationJobs
+		ret["meta"] = {"queuedJobs": len(queuedJobs),"runningJobs": len(runningJobs),"finishedJobs": len(finishedJobs),"visualizationJobs": len(visualizationJobs)}
 		resp = jsonify(ret)
 		resp.headers["Access-Control-Allow-Origin"] = "*"
 		resp.headers["dataType"] = "json"
 
-
 		return resp
+
 ##
 ## Actually setup the Api resource routing here
 ##

@@ -166,7 +166,7 @@ namespace WindowsAuth.Controllers
             switch (op)
             {
                 case "ListJobs":
-                    url = restapi + "/ListJobs?userName=" + HttpContext.Session.GetString("Email");
+                    url = restapi + "/ListJobs?userName=" + HttpContext.Session.GetString("Email")+"&num=20";
                     break;
                 case "ListAllJobs":
                     if (HttpContext.Session.GetString("isAdmin").Equals("true"))
