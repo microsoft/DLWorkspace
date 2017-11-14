@@ -30,19 +30,27 @@ def SubmitJob(jobParamsJsonStr):
 	ret = {}
 
 	jobParams = LoadJobParams(jobParamsJsonStr)
-	print jobParamsJsonStr
 
+	if "jobName" not in jobParams or len(jobParams["jobName"].strip()) == 0:
+		ret["error"] = "ERROR: Job name cannot be empty"
+		return ret
 	
+
 	if "jobId" not in jobParams or jobParams["jobId"] == "":
 		#jobParams["jobId"] = jobParams["jobName"] + "-" + str(uuid.uuid4()) 
 		#jobParams["jobId"] = jobParams["jobName"] + "-" + str(time.time())
 		jobParams["jobId"] = str(uuid.uuid4()) 
 	#jobParams["jobId"] = jobParams["jobId"].replace("_","-").replace(".","-")
 
+	if "resourcegpu" not in jobParams or len(jobParams["resourcegpu"].strip()) == 0:
+		jobParams["resourcegpu"] = 0
+
+
 	if "familyToken" not in jobParams or jobParams["familyToken"].isspace():
 		jobParams["familyToken"] = str(uuid.uuid4())
-	if "isParent" not in jobParams or jobParams["isParent"].isspace():
+	if "isParent" not in jobParams:
 		jobParams["isParent"] = 1
+	
 	userName = jobParams["userName"]
 	if "@" in userName:
 		userName = userName.split("@")[0].strip()
@@ -75,8 +83,7 @@ def SubmitJob(jobParamsJsonStr):
 		jobParams["jobPath"] = jobPath
 
 	if "workPath" not in jobParams or len(jobParams["workPath"].strip()) == 0: 
-	   ret["error"] = "ERROR: work-path cannot be empty"
-	   return ret
+	   jobParams["workPath"] = "."
 
 	if ".." in jobParams["workPath"]:
 		ret["error"] = "ERROR: '..' cannot be used in work directory"
@@ -94,8 +101,7 @@ def SubmitJob(jobParamsJsonStr):
 		jobParams["workPath"] = os.path.join(userName,jobParams["workPath"])
 
 	if "dataPath" not in jobParams or len(jobParams["dataPath"].strip()) == 0: 
-		ret["error"] = "ERROR: data-path cannot be empty"
-		return ret
+		jobParams["dataPath"] = "."
 
 	if ".." in jobParams["dataPath"]:
 		ret["error"] = "ERROR: '..' cannot be used in data directory"

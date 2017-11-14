@@ -141,8 +141,19 @@
     }
 
     function buildTables() {
+        var apiurl = "/api/dlws/ListJobs"
+
+        if (!document.getElementById('chkArchivedJobs').checked) {
+            apiurl += "?num=20"
+        }
+
+        if (showAll)
+        {
+            apiurl = "/api/dlws/ListAllJobs"
+        }
+
         $.ajax({
-            url: (showAll ? "/api/dlws/ListAllJobs" : "/api/dlws/ListJobs"),
+            url: (apiurl),
             dataType: 'json',
             timeout: 15000 
         }).done(
@@ -157,10 +168,18 @@
             });
     }
 
+
+    function refreshJobs()
+    {
+        if (!document.getElementById('chkArchivedJobs').checked || showAll) {
+            buildTables();
+        }
+    }
+
     $(document).ready(function () {
         ChangeMode(false)
         var refresh = setInterval(function () {
-            buildTables();
+            refreshJobs();
         }, 15000);
         $(document).tooltip({
             track: true
@@ -221,8 +240,15 @@
 </div>
 
 <div id="finished-job" hidden>
-
-    <p> <b>Finished Jobs</b></p>
+    <p>
+        <b>Finished Jobs</b>
+        <div style="float:right">
+            <input type="checkbox" id="chkArchivedJobs" onclick="buildTables()"/>
+            <label>
+                Show all finsihed jobs.
+            </label>
+        </div>
+    </p>
     <table id="finished-job-table" class="table table-bordered table-condensed table-hover table-striped">
     </table>
 </div>
