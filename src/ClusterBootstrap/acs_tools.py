@@ -65,6 +65,48 @@ def az_grp_exist(grpname):
     resgrp = az_cmd("group show --name=%s" % grpname)
     return not resgrp is None
 
+def get_nodes_from_acs(tomatch=""):
+	bFindNodes = True
+	if not ("acsnodes" in config) or len(config["acsnodes"])==0:
+		machines = acs_get_machinesAndIPsFast()
+		config["acsnodes"] = machines
+	else:
+		bFindNodes = not (tomatch == "" or tomatch == "master" or tomatch == "agent")
+		machines = config["acsnodes"]
+	Nodes = []
+	if bFindNodes:
+		masterNodes = []
+		agentNodes = []
+		allNodes = []
+		for m in machines:
+			match = re.match('k8s-'+tomatch+'.*', m)
+			ip = machines[m]["publicip"]
+			#toAppend = ip
+			toAppend = machines[m]["fqdn"]
+			allNodes.append(toAppend)
+			if not (match is None):
+				Nodes.append(toAppend)
+			match = re.match('k8s-master', m)
+			if not (match is None):
+				masterNodes.append(toAppend)
+			match = re.match('k8s-agent', m)
+			if not (match is None):
+				agentNodes.append(toAppend)
+		config["etcd_node"] = masterNodes
+		config["kubernetes_master_node"] = masterNodes
+		config["worker_node"] = agentNodes
+		config["all_node"] = allNodes
+	else:
+		if tomatch == "":
+			Nodes = config["all_node"]
+		elif tomatch == "master":
+			Nodes = config["kubernetes_master_node"]
+		elif tomatch == "agent":
+			Nodes = config["worker_node"]
+		else:
+			raise Exception("Wrong matching")
+	return Nodes
+
 # Overwrite resource group with location where machines are located
 # If no machines are found, that may be because they are not created, so leave it as it is
 def acs_set_resource_grp(exitIfNotFound):
@@ -100,7 +142,7 @@ def acs_get_id(elem):
 
 def acs_get_ip(ipaddrName):
     ipInfo = az_cmd("network public-ip show --resource-group="+config["resource_group"]+" --name="+ipaddrName)
-    return ipInfo["ipAddress"]
+    return (ipInfo["ipAddress"], ipInfo["dnsSettings"])
 
 def acs_attach_dns_to_node(node, dnsName=None):
     nodeName = config["nodenames_from_ip"][node]
@@ -112,6 +154,21 @@ def acs_attach_dns_to_node(node, dnsName=None):
     cmd += " --name=%s" % ipName
     cmd += " --dns-name=%s" % dnsName
     az_sys(cmd) 
+
+def acs_get_default_dns_name(node):
+    return config["nodenames_from_ip"][node]
+
+def acs_set_dns_names():
+    get_nodes_from_acs()
+    if len(config["acsnodes"]) > 0:
+        config["master_dns"] = []
+        config["worker_dns"] = []
+        config["master_dns"].append(config["master_dns_name"])
+        for i in range(len(config["kubernetes_master_node"])):
+            if (i != 0):
+                config["master_dns"].append(acs_get_default_dns_name(config["kubernetes_master_node"][i]))
+        for i in range(len(config["worker_node"])):
+            config["worker_dns"].append(acs_get_default_dns_name(config["worker_node"][i]))
 
 def acs_get_machineIP(machineName):
     print "Machine: "+machineName
@@ -138,18 +195,23 @@ def acs_get_machineIP(machineName):
             if (not (publicIP is None)):
                 ipName = acs_get_id(publicIP)
                 print "IP Name: " + ipName
-                return {"nic" : nicName, "ipconfig" : ipConfigName, "publicipname" : ipName, "publicip" : acs_get_ip(ipName)}
+                (publicIPAddr, dnsSetting) = acs_get_ip(ipName)
+                return {"nic" : nicName, "ipconfig" : ipConfigName, "publicipname" : ipName, "publicip" : publicIPAddr, 
+                        "dns" : dnsSetting["domainNameLabel"], "fqdn" : dnsSetting["fqdn"]}
             j+=1
         i+=1
-    return {"nic" : nicDefault, "ipconfig": ipConfigDefault, "publicipname" : None, "publicip" : None}
+    return {"nic" : nicDefault, "ipconfig": ipConfigDefault, "publicipname" : None, "publicip" : None, "dns" : None, "fqdn" : None}
 
 def acs_get_nodes():
     binary = os.path.abspath('./deploy/bin/kubectl')
     kubeconfig = os.path.abspath('./deploy/'+config["acskubeconfig"])
     cmd = binary + ' -o=json --kubeconfig='+kubeconfig+' get nodes'
     nodeInfo = utils.subproc_runonce(cmd)
-    nodes = yaml.load(nodeInfo)
-    return nodes["items"]
+    try:
+        nodes = yaml.load(nodeInfo)
+        return nodes["items"]
+    except Exception as e:
+        return []
 
 def acs_get_machinesAndIPs(bCreateIP):
     # Public IP on worker nodes
@@ -178,7 +240,10 @@ def acs_get_machinesAndIPs(bCreateIP):
             az_sys(cmd)
             # now update
             ipInfo[machineName]["publicipname"] = ipName
-            ipInfo[machineName]["publicip"] = acs_get_ip(ipName)
+            (publicIPAddr, dnsSetting) = acs_get_ip(ipName)
+            ipInfo[machineName]["publicip"] = publicIPAddr
+            ipInfo[machienName]["dns"] = dnsSetting["domainNameLabel"]
+            ipInfo[machineName]["fqdn"] = dnsSetting["fqdn"]
         config["nodenames_from_ip"][ipInfo[machineName]["publicip"]] = machineName
     return ipInfo
 
@@ -194,7 +259,10 @@ def acs_get_machinesAndIPsFast():
             print "PublicIP: "+ipName
         ipInfo[machineName] = {}
         ipInfo[machineName]["publicipname"] = ipName
-        ipInfo[machineName]["publicip"] = acs_get_ip(ipName)
+        (publicIPAddr, dnsSetting) = acs_get_ip(ipName)
+        ipInfo[machineName]["publicip"] = publicIPAddr
+        ipInfo[machineName]["dns"] = dnsSetting["domainNameLabel"]
+        ipInfo[machineName]["fqdn"] = dnsSetting["fqdn"]
         config["nodenames_from_ip"][ipInfo[machineName]["publicip"]] = machineName
     return ipInfo
 
@@ -317,13 +385,16 @@ def acs_write_azconfig(configToWrite):
     with open(azConfigFile, "w") as f:
         yaml.dump(configToWrite, f, default_flow_style=False)
 
-def acs_generate_azconfig():
+def acs_init_azconfig():
     az_tools.config = az_tools.init_config()
     az_tools.config["azure_cluster"]["cluster_name"] = config["cluster_name"]
     az_tools.config["azure_cluster"]["azure_location"] = config["cluster_location"]
     az_tools.config = az_tools.update_config(az_tools.config, False)
     if not "resource_group" in config:
         config["resource_group"] = az_tools.config["azure_cluster"]["resource_group_name"]
+
+def acs_generate_azconfig():
+    acs_init_azconfig()
     acs_set_resource_grp(False)
     az_tools.config["azure_cluster"]["resource_group_name"] = config["resource_group"]
     azConfig = az_tools.gen_cluster_config("", False)
@@ -334,25 +405,41 @@ def acs_generate_azconfig():
     azConfig.pop("machines", None)
     return azConfig
 
-#def acs_update_machines():
-    
+def acs_update_machines(configLocal):
+    if (not "machines" in configLocal) or (len(configLocal["machines"])==0):
+        acs_set_dns_names()
+        configLocal["machines"] = {}
+        if len(config["acsnodes"]) > 0:
+            for nodeDns in config["master_dns"]:
+                configLocal["machines"][nodeDns] = {"role": "infrastructure"}
+            for nodeDns in config["worker_dns"]:
+                configLocal["machines"][nodeDns] = {"role": "worker"}
+            return True
+        else:
+            return False
+    else:
+        return False
 
 def acs_update_azconfig(gen_cluster_config):
-    config = acs_load_azconfig()
+    acs_config = acs_load_azconfig()
     if not gen_cluster_config:
-        if config is None:
-            config = acs_generate_azconfig()
-            acs_write_azconfig(config)
+        if acs_config is None:
+            acs_config = acs_generate_azconfig()
+            acs_update_machines(acs_config)
+            acs_write_azconfig(acs_config)
         else:
-            az_tools.config = {}
-            az_tools.config["azure_cluster"] = {}
+            acs_init_azconfig()
+            bModified = acs_update_machines(acs_config)
+            if bModified:
+                acs_write_azconfig(acs_config)
     else:
         configNew = acs_generate_azconfig()
-        if config is None:
-            config = {}
-        utils.mergeDict(config, configNew, False)
-        acs_write_azconfig(config)
-    return config
+        if acs_config is None:
+            acs_config = {}
+        acs_update_machines(acs_config)
+        utils.mergeDict(acs_config, configNew, False)
+        acs_write_azconfig(acs_config)
+    return acs_config
 
 def acs_deploy():
     generate_key = not os.path.exists("./deploy/sshkey")

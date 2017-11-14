@@ -853,6 +853,9 @@ def add_acs_config(command):
 		acs_tools.config = config
 		acs_tools.verbose = verbose
 
+		config["master_dns_name"] = config["cluster_name"]
+		config["useclusterfile"] = False
+
 		# Use az tools to generate default config params and overwrite if they don't exist
 		configAzure = acs_tools.acs_update_azconfig(False)
 		if verbose:
@@ -865,7 +868,6 @@ def add_acs_config(command):
 			config["resource_group_set"] = True
 			az_tools.config["azure_cluster"]["resource_group_name"] = config["resource_group"]
 
-		config["master_dns_name"] = config["cluster_name"]
 		config["resource_group"] = az_tools.config["azure_cluster"]["resource_group_name"]
 		config["platform-scripts"] = "acs"
 		config["WinbindServers"] = []
@@ -1122,49 +1124,9 @@ def get_ETCD_master_nodes_from_config(clusterId):
 	config["kubernetes_master_node"] = Nodes
 	return Nodes
 
-def get_nodes_from_acs(tomatch=""):
-	bFindNodes = True
-	if not ("acsnodes" in config):
-		machines = acs_tools.acs_get_machinesAndIPsFast()
-		config["acsnodes"] = machines
-	else:
-		bFindNodes = not (tomatch == "" or tomatch == "master" or tomatch == "agent")
-		machines = config["acsnodes"]
-	Nodes = []
-	if bFindNodes:
-		masterNodes = []
-		agentNodes = []
-		allNodes = []
-		for m in machines:
-			match = re.match('k8s-'+tomatch+'.*', m)
-			ip = machines[m]["publicip"]
-			allNodes.append(ip)
-			if not (match is None):
-				Nodes.append(ip)
-			match = re.match('k8s-master', m)
-			if not (match is None):
-				masterNodes.append(ip)
-			match = re.match('k8s-agent', m)
-			if not (match is None):
-				agentNodes.append(ip)
-		config["etcd_node"] = masterNodes
-		config["kubernetes_master_node"] = masterNodes
-		config["worker_node"] = agentNodes
-		config["all_node"] = allNodes
-	else:
-		if tomatch == "":
-			Nodes = config["all_node"]
-		elif tomatch == "master":
-			Nodes = config["kubernetes_master_node"]
-		elif tomatch == "agent":
-			Nodes = config["worker_node"]
-		else:
-			raise Exception("Wrong matching")
-	return Nodes
-
 def get_ETCD_master_nodes(clusterId):
-	if config["isacs"]:
-		return get_nodes_from_acs('master')
+	#if config["isacs"]:
+	#	return acs_tools.get_nodes_from_acs('master')
 	if "etcd_node" in config:
 		Nodes = config["etcd_node"]
 		config["kubernetes_master_node"] = Nodes
@@ -1198,8 +1160,8 @@ def get_worker_nodes_from_config(clusterId):
 	return Nodes
 
 def get_worker_nodes(clusterId):
-	if config["isacs"]:
-		return get_nodes_from_acs('agent')
+	#if config["isacs"]:
+	#	return acs_tools.get_nodes_from_acs('agent')
 	if "worker_node" in config:
 		return config["worker_node"]
 	if "useclusterfile" not in config or not config["useclusterfile"]:
@@ -1225,11 +1187,11 @@ def check_master_ETCD_status():
 	etcdNodes = []
 	print "==============================================="
 	print "Checking Available Nodes for Deployment..."
-	if config["isacs"]:
-		get_nodes_from_acs("")
-	elif "clusterId" in config:
-		get_ETCD_master_nodes(config["clusterId"])
-		get_worker_nodes(config["clusterId"])
+	#if config["isacs"]:
+	#	acs_tools.get_nodes_from_acs("")
+	#elif "clusterId" in config:
+	get_ETCD_master_nodes(config["clusterId"])
+	get_worker_nodes(config["clusterId"])
 	print "==============================================="
 	print "Activate Master Node(s): %s\n %s \n" % (len(config["kubernetes_master_node"]),",".join(config["kubernetes_master_node"]))
 	print "Activate ETCD Node(s):%s\n %s \n" % (len(config["etcd_node"]),",".join(config["etcd_node"]))
@@ -1948,7 +1910,7 @@ def deploy_on_nodes(prescript, listOfFiles, postscript, nodes):
 
 # addons
 def kube_master0_wait():
-	get_nodes_from_acs()
+	acs_tools.get_nodes_from_acs()
 	node = config["kubernetes_master_node"][0]
 	exec_rmt_cmd(node, "until curl -q http://127.0.0.1:8080/version/ ; do sleep 5; echo 'waiting for master...'; done")
 	return node
@@ -1989,7 +1951,7 @@ def acs_post_deploy():
 	acs_attach_dns_name()
 
 	# Label nodes
-	ip = get_nodes_from_acs("")
+	ip = acs_tools.get_nodes_from_acs("")
 	acs_label_webui()
 	kubernetes_label_nodes("active", [], args.yes)
 
@@ -1997,7 +1959,7 @@ def acs_post_deploy():
 	acs_untaint_nodes()
 
 	# Copy files, etc.
-	get_nodes_from_acs()
+	acs_tools.get_nodes_from_acs()
 	gen_configs()
 	utils.render_template_directory("./template/kubelet", "./deploy/kubelet", config)
 	write_nodelist_yaml()
@@ -2013,7 +1975,7 @@ def acs_post_deploy():
 	                config["worker_node"])
 
 def acs_attach_dns_name():
-	get_nodes_from_acs()
+	acs_tools.get_nodes_from_acs()
 	firstMasterNode = config["kubernetes_master_node"][0]
 	acs_tools.acs_attach_dns_to_node(firstMasterNode, config["master_dns_name"])
 	for i in range(len(config["kubernetes_master_node"])):
@@ -2029,7 +1991,7 @@ def acs_install_gpu():
 		run_script(node, ["./scripts/prepare_acs.sh"], True)
 
 def acs_get_jobendpt(jobId):
-	get_nodes_from_acs("")
+	acs_tools.get_nodes_from_acs("")
 	addr = k8sUtils.GetServiceAddress(jobId)
 	#print addr
 	#print config["acsnodes"]
@@ -3030,17 +2992,17 @@ def run_kubectl( commands ):
 	run_kube( "./deploy/bin/kubectl", commands)
 	
 def kubernetes_get_node_name(node):
-	if config["isacs"]:
-		return config["nodenames_from_ip"][node]
+	# if config["isacs"]:
+	# 	return config["nodenames_from_ip"][node]
+	# else:
+	domain = get_domain()
+	if len(domain) < 2: 
+		return node
+	elif domain in node:
+		# print "Remove domain %d" % len(domain)
+		return node[:-(len(domain))]
 	else:
-		domain = get_domain()
-		if len(domain) < 2: 
-			return node
-		elif domain in node:
-			# print "Remove domain %d" % len(domain)
-			return node[:-(len(domain))]
-		else:
-			return node
+		return node
 
 def set_zookeeper_cluster():
 	nodes = get_node_lists_for_service("zookeeper")
@@ -3710,7 +3672,7 @@ def run_command( args, command, nargs, parser ):
 				ip = acs_tools.acs_get_machinesAndIPs(True)
 				print ip
 			elif nargs[0]=="label":
-				ip = get_nodes_from_acs("")
+				ip = acs_tools.get_nodes_from_acs("")
 				acs_label_webui()
 			elif nargs[0]=="openports":
 				acs_tools.acs_add_nsg_rules({"HTTPAllow" : 80, "RestfulAPIAllow" : 5000, "AllowKubernetesServicePorts" : "30000-32767"})
