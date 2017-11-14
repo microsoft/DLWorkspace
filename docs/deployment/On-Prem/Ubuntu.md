@@ -32,19 +32,19 @@ This document describes the procedure to deploy DL workspace cluster on a Ubuntu
 
 6. Build Ubuntu PXE-server via:
   ```
-  .\deploy.py -y build 
-  .\deploy.py build pxe-ubuntu
+  ./deploy.py -y build 
+  ./deploy.py build pxe-ubuntu
   ```
 
 7. Start Ubuntu PXE-server. You will need to point DHCP server to the Ubuntu PXE-server. 
   ```
-  .\deploy.py docker run pxe-ubuntu
+  ./deploy.py docker run pxe-ubuntu
   ```
   Reboot each machine to be deployed. In each boot screen, select to install Ubuntu 16.04. 
 
 8. After the machines is reimaged to Ubuntu, install sshkey. (optional: If you ignore step 2,3 and choose to use an existing ubuntu cluster, you may put root username and password to files: ./deploy/sshkey/rootuser and ./deploy/sshkey/rootpasswd. In this case, the root user should be able to run "sudo" without password.)
   ```
-  .\deploy.py sshkey install
+  ./deploy.py sshkey install
   ```
 
 9. Setup basic tools on the Ubuntu image. 
