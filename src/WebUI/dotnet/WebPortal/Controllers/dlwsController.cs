@@ -179,7 +179,11 @@ namespace WindowsAuth.Controllers
             switch (op)
             {
                 case "ListJobs":
-                    url = restapi + "/ListJobs?userName=" + HttpContext.Session.GetString("Email")+"&num=20";
+                    url = restapi + "/ListJobs?userName=" + HttpContext.Session.GetString("Email");
+                    if (HttpContext.Request.Query.ContainsKey("num"))
+                    {
+                        url += "&num=" + HttpContext.Request.Query["num"];
+                    }
                     break;
                 case "ListAllJobs":
                     if (HttpContext.Session.GetString("isAdmin").Equals("true"))
