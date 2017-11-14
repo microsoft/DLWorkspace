@@ -205,12 +205,15 @@ def acs_get_machineIP(machineName):
 def acs_get_nodes():
     binary = os.path.abspath('./deploy/bin/kubectl')
     kubeconfig = os.path.abspath('./deploy/'+config["acskubeconfig"])
-    cmd = binary + ' -o=json --kubeconfig='+kubeconfig+' get nodes'
-    nodeInfo = utils.subproc_runonce(cmd)
-    try:
-        nodes = yaml.load(nodeInfo)
-        return nodes["items"]
-    except Exception as e:
+    if (os.path.exists(binary)):
+        cmd = binary + ' -o=json --kubeconfig='+kubeconfig+' get nodes'
+        nodeInfo = utils.subproc_runonce(cmd)
+        try:
+            nodes = yaml.load(nodeInfo)
+            return nodes["items"]
+        except Exception as e:
+            return []
+    else:
         return []
 
 def acs_get_machinesAndIPs(bCreateIP):
