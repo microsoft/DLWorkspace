@@ -308,14 +308,16 @@ class DataHandler:
             query = "SELECT %s [jobId],[jobName],[userName], [jobStatus], [jobStatusDetail], [jobType], [jobDescriptionPath], [jobDescription], [jobTime], [endpoints], [jobParams],[errorMsg] ,[jobMeta] FROM [%s]" % (selectNum, self.jobtablename)
             if userName != "all":
                 query += " where [userName] = '%s'" % userName
-
+            else:
+                query += " where [id] > -1 "
             if status is not None:
                 if "," not in status:
-                    query += " and [jobStatus] %s '%s'" % (op,status)
+                    query += " and [jobStatus] %s '%s'" % (op[0],status)
                 else:
-                    status_list = [ " [jobStatus] %s '%s' " % (op,s) for s in status.split(',')]
+                    status_list = [ " [jobStatus] %s '%s' " % (op[0],s) for s in status.split(',')]
                     status_statement = (" "+op[1]+" ").join(status_list)
                     query += " and ( %s ) " % status_statement
+
                         
 
             query += " order by [jobTime] Desc"

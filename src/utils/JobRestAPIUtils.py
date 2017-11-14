@@ -174,11 +174,11 @@ def GetJobList(userName,num=None):
 		dataHandler = DataHandler()
 		jobs = []
 
-        if userName != "all":
-		    jobs = jobs + dataHandler.GetJobList(userName,None, "running,queued,scheduling,unapproved", ("=","or"))
-		    jobs = jobs + dataHandler.GetJobList(userName,num, "running,queued,scheduling,unapproved", ("<>","and"))
-        else:
-            jobs = dataHandler.GetJobList(userName,None, "error,failed,finished,killed", ("<>","and"))
+		if userName != "all":
+			jobs = jobs + dataHandler.GetJobList(userName,None, "running,queued,scheduling,unapproved", ("=","or"))
+			jobs = jobs + dataHandler.GetJobList(userName,num, "running,queued,scheduling,unapproved", ("<>","and"))
+		else:
+			jobs = dataHandler.GetJobList(userName,None, "error,failed,finished,killed", ("<>","and"))
 
 		for job in jobs:
 			job.pop('jobMeta', None)
