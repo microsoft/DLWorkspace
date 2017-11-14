@@ -296,7 +296,7 @@ class DataHandler:
            return False
 
 
-    def GetJobList(self, userName, num = None, status = None, op = "="):
+    def GetJobList(self, userName, num = None, status = None, op = ("=","or")):
         start_time = timeit.default_timer()
         ret = []
         cursor = self.conn.cursor()
@@ -308,19 +308,18 @@ class DataHandler:
             query = "SELECT %s [jobId],[jobName],[userName], [jobStatus], [jobStatusDetail], [jobType], [jobDescriptionPath], [jobDescription], [jobTime], [endpoints], [jobParams],[errorMsg] ,[jobMeta] FROM [%s]" % (selectNum, self.jobtablename)
             if userName != "all":
                 query += " where [userName] = '%s'" % userName
-                if status is not None:
-                    if "," not in status:
-                        query += " and [jobStatus] %s '%s'" % (op,status)
-                    else:
-                        status_list = [ " [jobStatus] %s '%s' " % (op,s) for s in status.split(',')]
-                        if op == "=":
-                            status_statement = " or ".join(status_list)
-                        else:
-                            status_statement = " and ".join(status_list)
-                        query += " and ( %s ) " % status_statement
-                        
             else:
-                query += " where [jobStatus] <> 'error' and [jobStatus] <> 'failed' and [jobStatus] <> 'finished' and [jobStatus] <> 'killed'"
+                query += " where [id] > -1 "
+            if status is not None:
+                if "," not in status:
+                    query += " and [jobStatus] %s '%s'" % (op[0],status)
+                else:
+                    status_list = [ " [jobStatus] %s '%s' " % (op[0],s) for s in status.split(',')]
+                    status_statement = (" "+op[1]+" ").join(status_list)
+                    query += " and ( %s ) " % status_statement
+
+                        
+
             query += " order by [jobTime] Desc"
             start_time1 = timeit.default_timer()
             cursor.execute(query)
