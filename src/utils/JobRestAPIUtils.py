@@ -31,8 +31,8 @@ def SubmitJob(jobParamsJsonStr):
 
 	jobParams = LoadJobParams(jobParamsJsonStr)
 
-    if "jobName" no in jobParams or len(jobParams["jobPath"].strip()) == 0:
-        ret["error"] = "ERROR: Job name cannot be empty"
+	if "jobName" not in jobParams or len(jobParams["jobName"].strip()) == 0:
+		ret["error"] = "ERROR: Job name cannot be empty"
 		return ret
 	
 
@@ -42,8 +42,8 @@ def SubmitJob(jobParamsJsonStr):
 		jobParams["jobId"] = str(uuid.uuid4()) 
 	#jobParams["jobId"] = jobParams["jobId"].replace("_","-").replace(".","-")
 
-    if "resourcegpu" no in jobParams or len(jobParams["resourcegpu"].strip()) == 0:
-        jobParams["resourcegpu"] = 0
+	if "resourcegpu" not in jobParams or len(jobParams["resourcegpu"].strip()) == 0:
+		jobParams["resourcegpu"] = 0
 
 
 	if "familyToken" not in jobParams or jobParams["familyToken"].isspace():
