@@ -2995,17 +2995,17 @@ def run_kubectl( commands ):
 	run_kube( "./deploy/bin/kubectl", commands)
 	
 def kubernetes_get_node_name(node):
-	# if config["isacs"]:
-	# 	return config["nodenames_from_ip"][node]
-	# else:
-	domain = get_domain()
-	if len(domain) < 2: 
-		return node
-	elif domain in node:
-		# print "Remove domain %d" % len(domain)
-		return node[:-(len(domain))]
+	if config["isacs"]:
+		return config["nodenames_from_ip"][node]
 	else:
-		return node
+		domain = get_domain()
+		if len(domain) < 2: 
+			return node
+		elif domain in node:
+			# print "Remove domain %d" % len(domain)
+			return node[:-(len(domain))]
+		else:
+			return node
 
 def set_zookeeper_cluster():
 	nodes = get_node_lists_for_service("zookeeper")

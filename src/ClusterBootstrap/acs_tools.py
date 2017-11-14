@@ -81,8 +81,8 @@ def get_nodes_from_acs(tomatch=""):
 		for m in machines:
 			match = re.match('k8s-'+tomatch+'.*', m)
 			ip = machines[m]["publicip"]
-			#toAppend = ip
-			toAppend = machines[m]["fqdn"]
+			toAppend = ip
+			#toAppend = machines[m]["fqdn"]
 			allNodes.append(toAppend)
 			if not (match is None):
 				Nodes.append(toAppend)
@@ -142,6 +142,11 @@ def acs_get_id(elem):
 
 def acs_get_ip(ipaddrName):
     ipInfo = az_cmd("network public-ip show --resource-group="+config["resource_group"]+" --name="+ipaddrName)
+    if ipInfo is None:
+        ipInfo = {"ipAddress" : ""}
+    if "dnsSettings" not in ipInfo or ipInfo["dnsSettings"] is None:
+        ipInfo["dnsSettings"] = {"domainNameLabel" : "", "fqdn" : ""}
+    #print "IPInfo: {0}".format(ipInfo)
     return (ipInfo["ipAddress"], ipInfo["dnsSettings"])
 
 def acs_attach_dns_to_node(node, dnsName=None):
@@ -168,6 +173,7 @@ def acs_set_dns_names():
             if (i != 0):
                 config["master_dns"].append(acs_get_default_dns_name(config["kubernetes_master_node"][i]))
         for i in range(len(config["worker_node"])):
+            print "Node: {0}".format(config["worker_node"][i])
             config["worker_dns"].append(acs_get_default_dns_name(config["worker_node"][i]))
 
 def acs_get_machineIP(machineName):
@@ -245,7 +251,7 @@ def acs_get_machinesAndIPs(bCreateIP):
             ipInfo[machineName]["publicipname"] = ipName
             (publicIPAddr, dnsSetting) = acs_get_ip(ipName)
             ipInfo[machineName]["publicip"] = publicIPAddr
-            ipInfo[machienName]["dns"] = dnsSetting["domainNameLabel"]
+            ipInfo[machineName]["dns"] = dnsSetting["domainNameLabel"]
             ipInfo[machineName]["fqdn"] = dnsSetting["fqdn"]
         config["nodenames_from_ip"][ipInfo[machineName]["publicip"]] = machineName
     return ipInfo
@@ -254,6 +260,7 @@ def acs_get_machinesAndIPsFast():
     nodes = acs_get_nodes()
     ipInfo = {}
     config["nodenames_from_ip"] = {}
+    isValid = True
     for n in nodes:
         machineName = n["metadata"]["name"]
         #print "MachineName: "+machineName
@@ -263,11 +270,17 @@ def acs_get_machinesAndIPsFast():
         ipInfo[machineName] = {}
         ipInfo[machineName]["publicipname"] = ipName
         (publicIPAddr, dnsSetting) = acs_get_ip(ipName)
+        #print "IP: {0} DNS: {1}".format(publicIPAddr, dnsSetting)
         ipInfo[machineName]["publicip"] = publicIPAddr
         ipInfo[machineName]["dns"] = dnsSetting["domainNameLabel"]
         ipInfo[machineName]["fqdn"] = dnsSetting["fqdn"]
+        if (publicIPAddr == ""):
+            isValid = False
         config["nodenames_from_ip"][ipInfo[machineName]["publicip"]] = machineName
-    return ipInfo
+    if isValid:
+        return ipInfo
+    else:
+        return {}
 
 def acs_is_valid_nsg_rule(rule):
     #print "Access: %s D: %s P: %s P: %s" % (rule["access"].lower()=="allow",
