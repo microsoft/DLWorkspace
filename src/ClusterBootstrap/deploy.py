@@ -861,6 +861,10 @@ def add_acs_config(command):
 		if verbose:
 			print "Config:\n{0}".format(config)
 
+		if ("resource_group" in config and "acs_resource_group" in config):
+			config["resource_group_set"] = True
+			az_tools.config["azure_cluster"]["resource_group_name"] = config["resource_group"]
+
 		config["master_dns_name"] = config["cluster_name"]
 		config["resource_group"] = az_tools.config["azure_cluster"]["resource_group_name"]
 		config["platform-scripts"] = "acs"
@@ -879,7 +883,7 @@ def add_acs_config(command):
 			config["azure-sqlservername"] = match.group(1)
 
 		# Some locations put VMs in child resource groups
-		acs_tools.acs_set_resource_grp(False)
+		acs_tools.acs_set_resource_grp(False)	
 
 		# check for GPU sku
 		match = re.match('.*\_N.*', config["acsagentsize"])

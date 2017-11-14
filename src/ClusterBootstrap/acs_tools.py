@@ -267,12 +267,13 @@ def acs_add_nsg_rules(ports_to_add):
             cmd += " --priority=%d" % maxThreeDigitRule
             az_cmd(cmd)
 
-def acs_get_config():
+def acs_get_config(force=False):
     # Install kubectl / get credentials
     if not (os.path.exists('./deploy/bin/kubectl')):
         os.system("mkdir -p ./deploy/bin")
         az_tryuntil("acs kubernetes install-cli --install-location ./deploy/bin/kubectl", lambda : os.path.exists('./deploy/bin/kubectl'))
-    os.system("rm ./deploy/%s" % config["acskubeconfig"])
+    if (force):
+        os.system("rm ./deploy/%s" % config["acskubeconfig"])
     if not (os.path.exists('./deploy/'+config["acskubeconfig"])):
         cmd = "acs kubernetes get-credentials"
         cmd += " --resource-group=%s" % config["acs_resource_group"]
@@ -323,19 +324,30 @@ def acs_generate_azconfig():
     az_tools.config = az_tools.update_config(az_tools.config, False)
     if not "resource_group" in config:
         config["resource_group"] = az_tools.config["azure_cluster"]["resource_group_name"]
-    if "resource_group" in config:
-        acs_set_resource_grp(False)
-        az_tools.config["azure_cluster"]["resource_group_name"] = config["resource_group"]
-    return az_tools.gen_cluster_config("", False)
+    acs_set_resource_grp(False)
+    az_tools.config["azure_cluster"]["resource_group_name"] = config["resource_group"]
+    azConfig = az_tools.gen_cluster_config("", False)
+    # add resource group names
+    azConfig["resource_group"] = config["resource_group"]
+    azConfig["acs_resource_group"] = config["acs_resource_group"]
+    # now change machine names to correct
+    azConfig.pop("machines", None)
+    return azConfig
+
+#def acs_update_machines():
+    
 
 def acs_update_azconfig(gen_cluster_config):
     config = acs_load_azconfig()
-    configNew = acs_generate_azconfig()
     if not gen_cluster_config:
         if config is None:
-            config = configNew
+            config = acs_generate_azconfig()
             acs_write_azconfig(config)
+        else:
+            az_tools.config = {}
+            az_tools.config["azure_cluster"] = {}
     else:
+        configNew = acs_generate_azconfig()
         if config is None:
             config = {}
         utils.mergeDict(config, configNew, False)
