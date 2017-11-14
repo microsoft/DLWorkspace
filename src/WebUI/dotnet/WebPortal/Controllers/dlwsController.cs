@@ -87,7 +87,7 @@ namespace WindowsAuth.Controllers
         public async Task<string> GetLog(string jobId)
         {
 
-            string url = String.Format(@"http://hongzlgpu-infra01.westus2.cloudapp.azure.com:9200/_search?sort=time:asc&_source=log&size=100&q=kubernetes.pod_name:{0}",jobId);
+            string url = String.Format(@"http://"+ Request.Host + ":9200/_search?sort=time:asc&_source=log&size=100&q=kubernetes.pod_name:{0}",jobId);
             string ret = "";
             using (var httpClient = new HttpClient())
             {
@@ -179,7 +179,7 @@ namespace WindowsAuth.Controllers
             switch (op)
             {
                 case "ListJobs":
-                    url = restapi + "/ListJobs?userName=" + HttpContext.Session.GetString("Email");
+                    url = restapi + "/ListJobs?userName=" + HttpContext.Session.GetString("Email")+"&num=20";
                     break;
                 case "ListAllJobs":
                     if (HttpContext.Session.GetString("isAdmin").Equals("true"))

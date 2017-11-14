@@ -68,6 +68,7 @@
                 var firstchar = sec[property].trim().toLowerCase()[0];
                 sec[property] == (firstchar == 't' || firstchar == 'y');
             }
+            return sec[property];
         }
 
         $scope.toggle01 = function (sec, property, defValue) {
@@ -96,7 +97,7 @@
             if ($scope.current.runningasroot != "0" && $scope.current.runningasroot != "1")
                 $scope.current.runningasroot = "0"; 
             
-            tobool($scope.current, "is_interactive", true);
+            tobool($scope.current, "is_interactive", false);
             if ($scope.current.mountpoints == null) {
                 $scope.current.mountpoints = [];
             };
@@ -371,8 +372,9 @@
             { 
                 delete $scope.current.logDir;
             }
-            if (!tobool($scope.current, "is_interactive", false )) {
+            if (!tobool($scope.current, "is_interactive", false)) {
                 delete $scope.current.interactivePort;
+                console.log("deleted interactivePorts");
             }
         };
 
@@ -493,7 +495,7 @@
                     Job Name: 
                 </label>
                 <a href="#" editable-text="current.jobName" e-label="Job Name">
-                    {{ current.jobName || "generic-job" }}
+                    {{ current.jobName || "## Click here to change job name ##" }}
                 </a>
             </div>
 
@@ -567,7 +569,7 @@
                 <label>
                     Docker Image: 
                 </label>
-                <a href="#" editable-text="current.image">{{current.image || "#ubuntu"}} </a> 
+                <a href="#" editable-text="current.image">{{current.image || " ## Click here to change docker image ##"}} </a> 
             </div>
 
             <div class="form-group">

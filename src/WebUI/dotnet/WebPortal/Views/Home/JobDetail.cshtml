@@ -271,21 +271,12 @@
         {
         }
 
-
-
-
-
     }
 
     function GetDetail() {
         var url = "/api/dlws/JobDetail?jobId=@ViewData["jobid"]";
-        $.ajax({ url: url, dataType: 'json', timeout: 10000 }).done(DisplayDetail);
+        $.ajax({ url: url, dataType: 'json', timeout: 15000 }).done(DisplayDetail);
     }
-
-    function GetDetail() {
-        var url = "/api/dlws/JobDetail?jobId=@ViewData["jobid"]";
-        $.ajax({ url: url, dataType: 'json', timeout: 10000 }).done(DisplayDetail);
-    }//
 
     function RefreshDetail() {
         if (document.getElementById('chkRefresh').checked) {
@@ -296,7 +287,7 @@
     $(document).ready(function () {
         GetDetail();
         buildTemplateList();
-        setInterval(RefreshDetail, 5000);
+        setInterval(RefreshDetail, 15000);
 
     });
 </script>
@@ -308,7 +299,8 @@
     }
 
     function AlertAPIError(xhr, ajaxOptions, thrownError) {
-        alert("Restful API Error: \n" + JSON.stringify(thrownError));
+        //alert("Restful API Error: \n" + JSON.stringify(thrownError));
+        console.log("Restful API Error: \n" + JSON.stringify(thrownError));
         $("#run-cmd-btn").attr("disabled", false);
     }
     
