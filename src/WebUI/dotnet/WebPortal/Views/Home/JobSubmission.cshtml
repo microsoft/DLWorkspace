@@ -193,6 +193,7 @@
         $scope.checkCurrent(); 
         $scope.currentTemplateValue = 0; 
         $scope.lastTemplateValue = -1; 
+        $scope.adancedOption = false;
 
         $scope.ready = $http.get('/api/dlws/GetMountPoints').then(function (response) {
             var mpstring = response.data.mountpoints;
@@ -525,45 +526,6 @@
                 </a>
             </div>
 
-            <div class="form-group" ng-if="mounts.length > 0 ">
-                <label>
-                    <a class="btn pull-left" ng-class="{true: 'btn-primary', false: 'btn-danger'}[showMounts]" ng-click="showMounts = !showMounts">
-                        {{showMounts && 'Hide Mounted Directories' || 'Show Mounted Directories' }}
-                    </a>
-                </label>
-                <div ng-if="showMounts">
-                    <label> Click link to change the mountpoint in container:
-                    </label>
-                        <div ng-repeat="onemount in current.mountpoints">
-                            <label>
-                                <a href="#" data-toggle="tooltip" title="Mounted at {{onemount.hostPath}}">
-                                    <a ng-class="{true: 'fa fa-check fa-lg text-success', false: 'fa fa-times fa-lg text-danger'}[onemount.enabled]" ng-click="onemount.enabled = !onemount.enabled">
-                                    </a>
-                                    <a href="#" editable-text="onemount.containerPath">{{onemount.containerPath}} </a> : {{onemount.description}}
-                                </a>
-                            </label>
-                        </div>
-                </div>
-                <label ng-if="showMounts">
-                    Work Directory <font face="verdana" color="#A9A9A9">(relative to <a href="@ViewData["workPath"]">@ViewData["workPath"].ToString().Replace("file:", "").Replace("/", "\\") </a>).  </font> <br /> <font face="verdana" color="#A9A9A9"> This folder is mounted as <b>/work</b> inside container.</font>
-                </label>
-                <br ng-if="showMounts" />
-                <a ng-if="showMounts" href="#" editable-text="current.workPath">{{current.workPath || "." }} </a> 
-                
-                <label ng-if="showMounts">
-                    Data Directory <font face="verdana" color="#A9A9A9">(relative to <a href="@ViewData["dataPath"]">@ViewData["dataPath"].ToString().Replace("file:", "").Replace("/", "\\") </a>). </font> <br /> <font face="verdana" color="#A9A9A9"> This folder is mounted as <b>/data</b> inside container.</font>
-                </label>
-                <br ng-if="showMounts" />
-                <a ng-if="showMounts" href="#" editable-text="current.dataPath">{{current.dataPath || "." }} </a> 
-
-                <label ng-if="showMounts">
-                    Job Directory (empty by default) <br /> <font face="verdana" color="#A9A9A9"> This folder is mounted as <b>/job</b> inside container.</font>
-                </label>
-                <br ng-if="showMounts" />
-                <a ng-if="showMounts" href="#" editable-text="current.jobPath">{{current.jobPath || "(default_empty)" }} </a>
-
-
-            </div>
 
             <div class="form-group">
                 <label>
@@ -581,44 +543,7 @@
                 </a>
             </div>
 
-            <label>
-                <a class="btn pull-left" ng-class="{true: 'btn-primary', false: 'btn-danger'}[showEnv]" ng-click="showEnv = !showEnv">
-                    {{showEnv && 'Hide Environment Variables' || 'Show Environment Variables' }}
-                </a>
-            </label>
 
-            <div class="form-group" ng-if="showEnv">
-                <label>
-                    Environmet variables:
-                </label>
-                <table>
-                    <thead>
-                        <th>   </th>
-                        <th>   </th>
-                        <th>   </th>
-                        <th>   </th>
-                    </thead>
-                    <tbody>
-                        <tr ng-repeat="oneenv in current.env">
-                            <td>
-                                <a href="#" editable-text="oneenv.name">{{oneenv.name}} </a>
-                            </td>
-                            <td> = </td>
-                            <td>
-                                <a href="#" editable-text="oneenv.value">{{oneenv.value}} </a>
-                            </td>
-                            <td>
-                                <a class="fa fa-times fa-lg text-danger" ng-click="removeItem(current.env,$index)">
-                                </a>
-                            </td>
-                            
-                        </tr>
-                    </tbody>
-                </table>
-                <button type="button" class="btn btn-info" ng-click="newEnvironment()">
-                    Add Environment Variable
-                </button>
-            </div>
 
             <div class="form-group">
                 <label>
@@ -664,21 +589,113 @@
                 </a>
             </div>
 
-            <div ng-if="manageTemplate">
-                <label> Template Name:</label>
-                <a href="#" editable-text="template.useTemplateName" e-title="Name of Template">
-                    {{ template.useTemplateName || "#Template_Name"}}
-                </a>
-            </div>
-            <div ng-if="manageTemplate">
+
+            <div class="form-group">
                 <label>
-                    Template Location
+                    <a class="btn pull-left" ng-class="{true: 'btn-primary', false: 'btn-danger'}[adancedOption]" ng-click="adancedOption = !adancedOption">
+                        {{adancedOption && 'Hide Advanced Options' || 'Show Advanced Options' }}
+                    </a>
                 </label>
-                <a class="btn" ng-class="{true: 'btn-primary', false: 'btn-danger'}[masterFlag]" ng-click="toggleMasterFlag()">
-                    {{masterFlag && 'Master' || 'Current User' }}
-                </a>
+            </div> 
+
+            <div class="form-group" ng-if="adancedOption && mounts.length > 0 ">
+                <label>
+                    <a class="btn pull-left" ng-class="{true: 'btn-primary', false: 'btn-danger'}[showMounts]" ng-click="showMounts = !showMounts">
+                        {{showMounts && 'Hide Mounted Directories' || 'Show Mounted Directories' }}
+                    </a>
+                </label>
+
+                <div ng-if="showMounts">
+                    <label>
+                        Click link to change the mountpoint in container:
+                    </label>
+                    <div ng-repeat="onemount in current.mountpoints">
+                        <label>
+                            <a href="#" data-toggle="tooltip" title="Mounted at {{onemount.hostPath}}">
+                                <a ng-class="{true: 'fa fa-check fa-lg text-success', false: 'fa fa-times fa-lg text-danger'}[onemount.enabled]" ng-click="onemount.enabled = !onemount.enabled">
+                                </a>
+                                <a href="#" editable-text="onemount.containerPath">{{onemount.containerPath}} </a> : {{onemount.description}}
+                            </a>
+                        </label>
+                    </div>
+                </div>
+                <label ng-if="showMounts">
+                    Work Directory <font face="verdana" color="#A9A9A9">(relative to <a href="@ViewData["workPath"]">@ViewData["workPath"].ToString().Replace("file:", "").Replace("/", "\\") </a>).  </font> <br /> <font face="verdana" color="#A9A9A9"> This folder is mounted as <b>/work</b> inside container.</font>
+                </label>
+                <br ng-if="showMounts" />
+                <a ng-if="showMounts" href="#" editable-text="current.workPath">{{current.workPath || "." }} </a>
+
+                <label ng-if="showMounts">
+                    Data Directory <font face="verdana" color="#A9A9A9">(relative to <a href="@ViewData["dataPath"]">@ViewData["dataPath"].ToString().Replace("file:", "").Replace("/", "\\") </a>). </font> <br /> <font face="verdana" color="#A9A9A9"> This folder is mounted as <b>/data</b> inside container.</font>
+                </label>
+                <br ng-if="showMounts" />
+                <a ng-if="showMounts" href="#" editable-text="current.dataPath">{{current.dataPath || "." }} </a>
+
+                <label ng-if="showMounts">
+                    Job Directory (empty by default) <br /> <font face="verdana" color="#A9A9A9"> This folder is mounted as <b>/job</b> inside container.</font>
+                </label>
+                <br ng-if="showMounts" />
+                <a ng-if="showMounts" href="#" editable-text="current.jobPath">{{current.jobPath || "(default_empty)" }} </a>
             </div>
-        </div>
+
+
+            <div ng-if="adancedOption">
+                <label>
+                    <a class="btn" ng-class="{true: 'btn-primary', false: 'btn-danger'}[showEnv]" ng-click="showEnv = !showEnv">
+                        {{showEnv && 'Hide Environment Variables' || 'Show Environment Variables' }}
+                    </a>
+                </label>
+
+
+                <div class="form-group" ng-if="showEnv">
+                    <label>
+                        Environmet variables:
+                    </label>
+                    <table>
+                        <thead>
+                        <th>   </th>
+                        <th>   </th>
+                        <th>   </th>
+                        <th>   </th>
+                        </thead>
+                        <tbody>
+                            <tr ng-repeat="oneenv in current.env">
+                                <td>
+                                    <a href="#" editable-text="oneenv.name">{{oneenv.name}} </a>
+                                </td>
+                                <td> = </td>
+                                <td>
+                                    <a href="#" editable-text="oneenv.value">{{oneenv.value}} </a>
+                                </td>
+                                <td>
+                                    <a class="fa fa-times fa-lg text-danger" ng-click="removeItem(current.env,$index)">
+                                    </a>
+                                </td>
+
+                            </tr>
+                        </tbody>
+                    </table>
+                    <button type="button" class="btn btn-info" ng-click="newEnvironment()">
+                        Add Environment Variable
+                    </button>
+                </div>
+
+
+                <div ng-if="manageTemplate">
+                    <label> Template Name:</label>
+                    <a href="#" editable-text="template.useTemplateName" e-title="Name of Template">
+                        {{ template.useTemplateName || "#Template_Name"}}
+                    </a>
+                </div>
+                <div ng-if="manageTemplate">
+                    <label>
+                        Template Location
+                    </label>
+                    <a class="btn" ng-class="{true: 'btn-primary', false: 'btn-danger'}[masterFlag]" ng-click="toggleMasterFlag()">
+                        {{masterFlag && 'Master' || 'Current User' }}
+                    </a>
+                </div>
+            </div>
 
         <div class="modal-footer">
             <div id="jobFooter" style="display: @(ViewData["Mode"].Equals("Templates") ? "none" : "block")">
