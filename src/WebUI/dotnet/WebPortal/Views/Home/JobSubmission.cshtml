@@ -459,6 +459,31 @@
             $("#fileInput").click();
             $("#fileInput").attr("value", "");
         };
+
+        $scope.chooseValue = function (val, trueChoice, falseChoice, def) {
+            var var1 = val;
+            if (var1 == null)
+                var1 = def;
+            if (var1)
+                return trueChoice;
+            else
+                return falseChoice;
+        };
+
+        $scope.changeDNSPolicy = function () {
+            if ($scope.current.dnsPolicy)
+            {
+                if ($scope.current.dnsPolicy == "ClusterFirst")
+                    $scope.current.dnsPolicy = "ClusterFirstWithHostNet";
+                else 
+                {
+                    delete $scope.current.dnsPolicy;
+                }
+            }
+            else {
+                $scope.current.dnsPolicy = "ClusterFirst";
+            }
+        };
     });
 </script>
 
@@ -483,8 +508,8 @@
             </div>
             <div class="form-group">
                 <label>
-                    Job Type: 
-                </label> 
+                    Job Type:
+                </label>
 
                 <a href="#" editable-checkbox="current.PSDistJob" e-title="Distributed Job?">
                     {{ current.PSDistJob && "Distributed Job" || "Regular Job" }}
@@ -493,7 +518,7 @@
 
             <div class="form-group">
                 <label>
-                    Job Name: 
+                    Job Name:
                 </label>
                 <a href="#" editable-text="current.jobName" e-label="Job Name">
                     {{ current.jobName || "## Click here to change job name ##" }}
@@ -502,8 +527,8 @@
 
             <div class="form-group">
                 <label>
-                    Number of GPUs: 
-                </label> 
+                    Number of GPUs:
+                </label>
                 <a href="#" editable-number="current.resourcegpu" e-min="0" e-label="Job Name">
                     {{ current.resourcegpu || 0 }}
                 </a>
@@ -511,7 +536,7 @@
 
             <div ng-if="current.PSDistJob" class="form-group">
                 <label>
-                    Number of Parameter Servers: 
+                    Number of Parameter Servers:
                 </label>
                 <a href="#" editable-number="current.numps" e-min="0" e-label="# of Parameter Servers">
                     {{ current.numps || 1 }}
@@ -519,7 +544,7 @@
             </div>
             <div ng-if="current.PSDistJob" class="form-group">
                 <label>
-                    Number of Workers: 
+                    Number of Workers:
                 </label>
                 <a href="#" editable-number="current.numpsworker" e-min="0" e-label="# of Workers">
                     {{ current.numpsworker || 1 }}
@@ -529,9 +554,9 @@
 
             <div class="form-group">
                 <label>
-                    Docker Image: 
+                    Docker Image:
                 </label>
-                <a href="#" editable-text="current.image">{{current.image || " ## Click here to change docker image ##"}} </a> 
+                <a href="#" editable-text="current.image">{{current.image || " ## Click here to change docker image ##"}} </a>
             </div>
 
             <div class="form-group">
@@ -588,15 +613,16 @@
                 <a ng-class="{'1': 'fa fa-check fa-lg text-success', '0': 'fa fa-times fa-lg text-danger'}[current.runningasroot]" ng-click="toggle01(current,'runningasroot','0')">
                 </a>
             </div>
+        </div>
 
-
+        <div class="modal-body">
             <div class="form-group">
                 <label>
                     <a class="btn pull-left" ng-class="{true: 'btn-primary', false: 'btn-danger'}[adancedOption]" ng-click="adancedOption = !adancedOption">
                         {{adancedOption && 'Hide Advanced Options' || 'Show Advanced Options' }}
                     </a>
                 </label>
-            </div> 
+            </div>
 
             <div class="form-group" ng-if="adancedOption && mounts.length > 0 ">
                 <label>
@@ -680,53 +706,86 @@
                     </button>
                 </div>
 
-
-                <div ng-if="manageTemplate">
-                    <label> Template Name:</label>
-                    <a href="#" editable-text="template.useTemplateName" e-title="Name of Template">
-                        {{ template.useTemplateName || "#Template_Name"}}
+                <div class="form-group">
+                    <a class="btn" ng-class="chooseValue(current.isPriviledged,'btn-danger','btn-primary',false)" ng-click="current.isPriviledged = !current.isPriviledged">
+                        {{current.isPriviledged && 'Container: Priviledged' || 'Container: Normal' }}
                     </a>
                 </div>
-                <div ng-if="manageTemplate">
+
+                <div ng-if="current.isPriviledged" class="form-group">
+                    <a class="btn" ng-class="chooseValue(current.hostNetwork,'btn-danger','btn-primary',false)" ng-click="current.hostNetwork = !current.hostNetwork">
+                        {{current.hostNetwork && 'Network: Host' || 'Network: Container' }}
+                    </a>
+                </div>
+
+                <div ng-if="current.isPriviledged" class="form-group">
+                    <a class="btn btn-primary" ng-click="changeDNSPolicy()">
+                        DNS Policy: {{current.dnsPolicy || 'Host' }}
+                    </a>
+                </div>
+
+                <div ng-if="current.isPriviledged" class="form-group">
                     <label>
-                        Template Location
+                        CPU Request:
                     </label>
-                    <a class="btn" ng-class="{true: 'btn-primary', false: 'btn-danger'}[masterFlag]" ng-click="toggleMasterFlag()">
-                        {{masterFlag && 'Master' || 'Current User' }}
+                    <a href="#" editable-checkbox="current.cpurequest" e-title="resource.requests.cpu">
+                        {{ current.cpurequest || "#value_of_resources.requests.cpu(default 100m)" }}
                     </a>
                 </div>
-            </div>
 
-        <div class="modal-footer">
-            <div id="jobFooter" style="display: @(ViewData["Mode"].Equals("Templates") ? "none" : "block")">
+                <div ng-if="current.isPriviledged" class="form-group">
+                    <label>
+                        Memory Request:
+                    </label>
+                    <a href="#" editable-checkbox="current.memoryrequest" e-title="resource.requests.memory">
+                        {{ current.memoryrequest || "#value_of_resources.requests.memory(default 0)" }}
+                    </a>
+                </div>
+        </div>
+            <div class="modal-footer">
                 <a class="btn pull-left" ng-class="{true: 'btn-primary', false: 'btn-danger'}[manageTemplate]" ng-click="manageTemplate = !manageTemplate">
                     {{manageTemplate && 'Hide Template Operations' || 'Show Template Operations' }}
                 </a>
-                <a class="btn btn-primary" ng-click="submitJob()">
+                <a class="btn pull-right btn-primary" ng-click="submitJob()">
                     Submit Job
                 </a>
             </div>
-        </div>
 
-        <div ng-if="manageTemplate" class="modal-footer">
-            <a ng-click="DeleteTemplate()" class="btn btn-success" href="#">Delete Template</a>
-            <a ng-click="SaveTemplate()" class="btn btn-success" href="#">Save Template</a>
-        </div>
+            <div ng-if="manageTemplate" class="form-group">
+                <label > Template Name:</label> <br/>
+                <a href="#" editable-text="template.useTemplateName" e-title="Name of Template">
+                    {{ template.useTemplateName || "#Template_Name"}}
+                </a><br />
+                <label>
+                    Template Location
+                </label> <br />
+                <a class="btn" ng-class="{true: 'btn-primary', false: 'btn-danger'}[masterFlag]" ng-click="toggleMasterFlag()">
+                    {{masterFlag && 'Master' || 'Current User' }}
+                </a>
+            </div>
 
-        <div ng-if="manageTemplate" class="modal-footer">
-            <label>
-                Database operation
-            </label>
+
+            <div ng-if="manageTemplate" class="modal-footer">
+                <a ng-click="DeleteTemplate()" class="btn btn-success" href="#">Delete Template</a>
+                <a ng-click="SaveTemplate()" class="btn btn-success" href="#">Save Template</a>
+            </div>
+
+            <div ng-if="manageTemplate" class="modal-footer">
+                <label>
+                    Database operation
+                </label>
 
                 <a ng-click="DownloadDatabase()" class="btn btn-success" href="#">Download JSON</a>
                 <a ng-click="ChooseFile()" class="btn btn-success" href="#">Upload JSON</a>
-        </div>
+            </div>
 
-        <div style="height: 0px; overflow: hidden">
-            <input type="file" id="fileInput" name="fileInput" ng-model="fileInput" onchange="angular.element(this).scope().UploadDatabase()" />
-        </div>
+    </div>
 
-</div>
+                <div style="height: 0px; overflow: hidden">
+                    <input type="file" id="fileInput" name="fileInput" ng-model="fileInput" onchange="angular.element(this).scope().UploadDatabase()" />
+                </div>
+
+            </div>
 
 
 
