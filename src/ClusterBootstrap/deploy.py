@@ -114,10 +114,16 @@ default_config_parameters = {
 	"render-by-copy-ext" : { 
 		".png": True, 
 		# All in-docker file will be copied and rendered in docker.
-		".in-docker": True, },
+		".in-docker": True, 
+		".js": True, 
+		".swf": True, 
+		".gzip": True, 
+		},
 	"render-by-copy": { 
 		"gk-deploy":True, 
 		"pxelinux.0": True, 
+		"main.html": True, 
+		"uploadFile.html": True, 
 		# This template will be rendered inside container, but not at build stage
 		# "hdfs-site.xml.template": True, 		
 		},

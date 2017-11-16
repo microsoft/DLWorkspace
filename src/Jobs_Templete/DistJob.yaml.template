@@ -16,12 +16,22 @@ spec:
     {{key}}: {{value}}
   {% endfor %}
   {% endif %}
+  {% if job["dnsPolicy"] %}
+  dnsPolicy: {{ job["dnsPolicy" ]}} 
+  {% endif %} 
+  {% if job["hostNetwork"] %}
+  hostNetwork: true
+  {% endif %}  
   containers:
   - name: {{ job["jobId"] }}
     image: {{ job["image"] }}
     imagePullPolicy: Always
     command: {{ job["LaunchCMD"] }}
     #container port and host port should be same.
+    {% if job["isPrivileged"] %}
+    securityContext:
+      privileged: true
+    {% endif %}    
     ports:
     - containerPort: {{job["containerPort"]}}
       hostPort: {{job["containerPort"]}}      
@@ -30,13 +40,17 @@ spec:
       limits:
         alpha.kubernetes.io/nvidia-gpu: {{ job["resourcegpu"] }}
     {% endif %}
-    {% if not job["cpushares"] %}
+    {% if not job["cpurequest"] %}
       requests: 
         cpu: 1.0
     {% else %}  
       requests: 
-        cpu: job["cpushares"]      
-    {% endif %}    
+        cpu: job["cpurequest"]      
+    {% endif %}   
+    {% if job["memoryrequest"] %}
+      requests: 
+        memory: job["memoryrequest"]      
+    {% endif %}     
     volumeMounts:
     - mountPath: /freeflow
       name: freeflow    
@@ -44,6 +58,10 @@ spec:
     - mountPath: {{ mp.containerPath }}
       name: {{ mp.name }}
     {% endfor %}
+    {% if not job["dnsPolicy"] %}
+    - mountPath: /etc/resolv.conf
+      name: resolv
+    {% endif %}    
     env:
     - name: FAMILY_TOKEN
       value: {{ job["familyToken"] }}
@@ -61,12 +79,22 @@ spec:
       valueFrom:
         fieldRef:
           fieldPath: status.podIP  
+    {% for env in job["env"] %}
+    - name: {{ env.name }}
+      value: {{ env.value }}    
+    {% endfor %}          
 
   restartPolicy: Never
   volumes:
   - name: freeflow
     hostPath:
       path: /freeflow  
+  {% if not job["dnsPolicy"] %}
+  - name: resolv
+    hostPath:
+      path: /etc/resolv.conf
+  {% endif %}
+      
   {% for mp in job["mountPoints"] %}
   - name: {{ mp.name }}
     {% if mp.emptydir %}

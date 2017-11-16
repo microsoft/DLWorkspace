@@ -707,37 +707,37 @@
                 </div>
 
                 <div class="form-group">
-                    <a class="btn" ng-class="chooseValue(current.isPriviledged,'btn-danger','btn-primary',false)" ng-click="current.isPriviledged = !current.isPriviledged">
-                        {{current.isPriviledged && 'Container: Priviledged' || 'Container: Normal' }}
+                    <a class="btn" ng-class="chooseValue(current.isPrivileged,'btn-danger','btn-primary',false)" ng-click="current.isPrivileged = !current.isPrivileged">
+                        {{current.isPrivileged && 'Container: Priviledged' || 'Container: Non-Priviledged' }}
                     </a>
                 </div>
 
-                <div ng-if="current.isPriviledged" class="form-group">
+                <div ng-if="current.isPrivileged" class="form-group">
                     <a class="btn" ng-class="chooseValue(current.hostNetwork,'btn-danger','btn-primary',false)" ng-click="current.hostNetwork = !current.hostNetwork">
                         {{current.hostNetwork && 'Network: Host' || 'Network: Container' }}
                     </a>
                 </div>
 
-                <div ng-if="current.isPriviledged" class="form-group">
+                <div ng-if="current.isPrivileged" class="form-group">
                     <a class="btn btn-primary" ng-click="changeDNSPolicy()">
                         DNS Policy: {{current.dnsPolicy || 'Host' }}
                     </a>
                 </div>
 
-                <div ng-if="current.isPriviledged" class="form-group">
+                <div ng-if="current.isPrivileged" class="form-group">
                     <label>
                         CPU Request:
                     </label>
-                    <a href="#" editable-checkbox="current.cpurequest" e-title="resource.requests.cpu">
+                    <a href="#" editable-text="current.cpurequest" e-title="resource.requests.cpu">
                         {{ current.cpurequest || "#value_of_resources.requests.cpu(default 100m)" }}
                     </a>
                 </div>
 
-                <div ng-if="current.isPriviledged" class="form-group">
+                <div ng-if="current.isPrivileged" class="form-group">
                     <label>
                         Memory Request:
                     </label>
-                    <a href="#" editable-checkbox="current.memoryrequest" e-title="resource.requests.memory">
+                    <a href="#" editable-text="current.memoryrequest" e-title="resource.requests.memory">
                         {{ current.memoryrequest || "#value_of_resources.requests.memory(default 0)" }}
                     </a>
                 </div>

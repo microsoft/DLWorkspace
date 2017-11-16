@@ -249,19 +249,40 @@ namespace WindowsAuth.Controllers
                             Int64.TryParse(gidString, out gid);  
                             string[] uidRange = uidString.Split(new char[] { '-' });
                             Int64.TryParse(uidRange[0], out uidl);
-                            Int64.TryParse(uidRange[1], out uidh);
+                            if ( uidRange.Length > 1 )
+                            { 
+                                Int64.TryParse(uidRange[1], out uidh);
+                            }
+                            else
+                            {
+                                uidh = uidl; 
+                            }
                             Guid guid;
                             Int64 tenantInt64;
                             if (Guid.TryParse(tenantID, out guid))
                             {
                                 byte[] gb = new Guid(tenantID).ToByteArray();
                                 tenantInt64 = BitConverter.ToInt64(gb, 0);
-                                long tenantRem = tenantInt64 % (uidh - uidl);
-                                uid = uidl + Convert.ToInt32(tenantRem);
+                                if ( uidh > uidl )
+                                { 
+                                    long tenantRem = tenantInt64 % (uidh - uidl);
+                                    uid = uidl + Convert.ToInt32(tenantRem);
+                                }
+                                else
+                                {
+                                    uid = uidl; 
+                                }
                             } else if (Int64.TryParse(tenantID.Substring(18), out tenantInt64))
                             {
-                                long tenantRem = tenantInt64 % (uidh - uidl);
-                                uid = uidl + Convert.ToInt32(tenantRem);
+                                if ( uidh > uidl )
+                                { 
+                                    long tenantRem = tenantInt64 % (uidh - uidl);
+                                    uid = uidl + Convert.ToInt32(tenantRem);
+                                }
+                                else
+                                {
+                                    uid = uidl; 
+                                }
                             }
                             userID.uid = uid.ToString();
                             userID.gid = gid.ToString();
