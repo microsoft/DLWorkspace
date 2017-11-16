@@ -399,6 +399,10 @@ namespace WindowsAuth.Controllers
             {
                 jobObject["containerUserId"] = "0";
             }
+            else
+            {
+                jobObject["containerUserId"] = uid;
+            }
 
             // ToDo: Need to be included in a database, 
             var familyToken = Guid.NewGuid();

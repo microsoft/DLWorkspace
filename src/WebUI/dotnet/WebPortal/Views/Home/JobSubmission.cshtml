@@ -193,6 +193,7 @@
         $scope.checkCurrent(); 
         $scope.currentTemplateValue = 0; 
         $scope.lastTemplateValue = -1; 
+        $scope.adancedOption = false;
 
         $scope.ready = $http.get('/api/dlws/GetMountPoints').then(function (response) {
             var mpstring = response.data.mountpoints;
@@ -458,6 +459,31 @@
             $("#fileInput").click();
             $("#fileInput").attr("value", "");
         };
+
+        $scope.chooseValue = function (val, trueChoice, falseChoice, def) {
+            var var1 = val;
+            if (var1 == null)
+                var1 = def;
+            if (var1)
+                return trueChoice;
+            else
+                return falseChoice;
+        };
+
+        $scope.changeDNSPolicy = function () {
+            if ($scope.current.dnsPolicy)
+            {
+                if ($scope.current.dnsPolicy == "ClusterFirst")
+                    $scope.current.dnsPolicy = "ClusterFirstWithHostNet";
+                else 
+                {
+                    delete $scope.current.dnsPolicy;
+                }
+            }
+            else {
+                $scope.current.dnsPolicy = "ClusterFirst";
+            }
+        };
     });
 </script>
 
@@ -482,8 +508,8 @@
             </div>
             <div class="form-group">
                 <label>
-                    Job Type: 
-                </label> 
+                    Job Type:
+                </label>
 
                 <a href="#" editable-checkbox="current.PSDistJob" e-title="Distributed Job?">
                     {{ current.PSDistJob && "Distributed Job" || "Regular Job" }}
@@ -492,7 +518,7 @@
 
             <div class="form-group">
                 <label>
-                    Job Name: 
+                    Job Name:
                 </label>
                 <a href="#" editable-text="current.jobName" e-label="Job Name">
                     {{ current.jobName || "## Click here to change job name ##" }}
@@ -501,8 +527,8 @@
 
             <div class="form-group">
                 <label>
-                    Number of GPUs: 
-                </label> 
+                    Number of GPUs:
+                </label>
                 <a href="#" editable-number="current.resourcegpu" e-min="0" e-label="Job Name">
                     {{ current.resourcegpu || 0 }}
                 </a>
@@ -510,7 +536,7 @@
 
             <div ng-if="current.PSDistJob" class="form-group">
                 <label>
-                    Number of Parameter Servers: 
+                    Number of Parameter Servers:
                 </label>
                 <a href="#" editable-number="current.numps" e-min="0" e-label="# of Parameter Servers">
                     {{ current.numps || 1 }}
@@ -518,58 +544,19 @@
             </div>
             <div ng-if="current.PSDistJob" class="form-group">
                 <label>
-                    Number of Workers: 
+                    Number of Workers:
                 </label>
                 <a href="#" editable-number="current.numpsworker" e-min="0" e-label="# of Workers">
                     {{ current.numpsworker || 1 }}
                 </a>
             </div>
 
-            <div class="form-group" ng-if="mounts.length > 0 ">
-                <label>
-                    <a class="btn pull-left" ng-class="{true: 'btn-primary', false: 'btn-danger'}[showMounts]" ng-click="showMounts = !showMounts">
-                        {{showMounts && 'Hide Mounted Directories' || 'Show Mounted Directories' }}
-                    </a>
-                </label>
-                <div ng-if="showMounts">
-                    <label> Click link to change the mountpoint in container:
-                    </label>
-                        <div ng-repeat="onemount in current.mountpoints">
-                            <label>
-                                <a href="#" data-toggle="tooltip" title="Mounted at {{onemount.hostPath}}">
-                                    <a ng-class="{true: 'fa fa-check fa-lg text-success', false: 'fa fa-times fa-lg text-danger'}[onemount.enabled]" ng-click="onemount.enabled = !onemount.enabled">
-                                    </a>
-                                    <a href="#" editable-text="onemount.containerPath">{{onemount.containerPath}} </a> : {{onemount.description}}
-                                </a>
-                            </label>
-                        </div>
-                </div>
-                <label ng-if="showMounts">
-                    Work Directory <font face="verdana" color="#A9A9A9">(relative to <a href="@ViewData["workPath"]">@ViewData["workPath"].ToString().Replace("file:", "").Replace("/", "\\") </a>).  </font> <br /> <font face="verdana" color="#A9A9A9"> This folder is mounted as <b>/work</b> inside container.</font>
-                </label>
-                <br ng-if="showMounts" />
-                <a ng-if="showMounts" href="#" editable-text="current.workPath">{{current.workPath || "." }} </a> 
-                
-                <label ng-if="showMounts">
-                    Data Directory <font face="verdana" color="#A9A9A9">(relative to <a href="@ViewData["dataPath"]">@ViewData["dataPath"].ToString().Replace("file:", "").Replace("/", "\\") </a>). </font> <br /> <font face="verdana" color="#A9A9A9"> This folder is mounted as <b>/data</b> inside container.</font>
-                </label>
-                <br ng-if="showMounts" />
-                <a ng-if="showMounts" href="#" editable-text="current.dataPath">{{current.dataPath || "." }} </a> 
-
-                <label ng-if="showMounts">
-                    Job Directory (empty by default) <br /> <font face="verdana" color="#A9A9A9"> This folder is mounted as <b>/job</b> inside container.</font>
-                </label>
-                <br ng-if="showMounts" />
-                <a ng-if="showMounts" href="#" editable-text="current.jobPath">{{current.jobPath || "(default_empty)" }} </a>
-
-
-            </div>
 
             <div class="form-group">
                 <label>
-                    Docker Image: 
+                    Docker Image:
                 </label>
-                <a href="#" editable-text="current.image">{{current.image || " ## Click here to change docker image ##"}} </a> 
+                <a href="#" editable-text="current.image">{{current.image || " ## Click here to change docker image ##"}} </a>
             </div>
 
             <div class="form-group">
@@ -581,44 +568,7 @@
                 </a>
             </div>
 
-            <label>
-                <a class="btn pull-left" ng-class="{true: 'btn-primary', false: 'btn-danger'}[showEnv]" ng-click="showEnv = !showEnv">
-                    {{showEnv && 'Hide Environment Variables' || 'Show Environment Variables' }}
-                </a>
-            </label>
 
-            <div class="form-group" ng-if="showEnv">
-                <label>
-                    Environmet variables:
-                </label>
-                <table>
-                    <thead>
-                        <th>   </th>
-                        <th>   </th>
-                        <th>   </th>
-                        <th>   </th>
-                    </thead>
-                    <tbody>
-                        <tr ng-repeat="oneenv in current.env">
-                            <td>
-                                <a href="#" editable-text="oneenv.name">{{oneenv.name}} </a>
-                            </td>
-                            <td> = </td>
-                            <td>
-                                <a href="#" editable-text="oneenv.value">{{oneenv.value}} </a>
-                            </td>
-                            <td>
-                                <a class="fa fa-times fa-lg text-danger" ng-click="removeItem(current.env,$index)">
-                                </a>
-                            </td>
-                            
-                        </tr>
-                    </tbody>
-                </table>
-                <button type="button" class="btn btn-info" ng-click="newEnvironment()">
-                    Add Environment Variable
-                </button>
-            </div>
 
             <div class="form-group">
                 <label>
@@ -663,53 +613,179 @@
                 <a ng-class="{'1': 'fa fa-check fa-lg text-success', '0': 'fa fa-times fa-lg text-danger'}[current.runningasroot]" ng-click="toggle01(current,'runningasroot','0')">
                 </a>
             </div>
+        </div>
 
-            <div ng-if="manageTemplate">
-                <label> Template Name:</label>
-                <a href="#" editable-text="template.useTemplateName" e-title="Name of Template">
-                    {{ template.useTemplateName || "#Template_Name"}}
+        <div class="modal-body">
+            <div class="form-group">
+                <label>
+                    <a class="btn pull-left" ng-class="{true: 'btn-primary', false: 'btn-danger'}[adancedOption]" ng-click="adancedOption = !adancedOption">
+                        {{adancedOption && 'Hide Advanced Options' || 'Show Advanced Options' }}
+                    </a>
+                </label>
+            </div>
+
+            <div class="form-group" ng-if="adancedOption && mounts.length > 0 ">
+                <label>
+                    <a class="btn pull-left" ng-class="{true: 'btn-primary', false: 'btn-danger'}[showMounts]" ng-click="showMounts = !showMounts">
+                        {{showMounts && 'Hide Mounted Directories' || 'Show Mounted Directories' }}
+                    </a>
+                </label>
+
+                <div ng-if="showMounts">
+                    <label>
+                        Click link to change the mountpoint in container:
+                    </label>
+                    <div ng-repeat="onemount in current.mountpoints">
+                        <label>
+                            <a href="#" data-toggle="tooltip" title="Mounted at {{onemount.hostPath}}">
+                                <a ng-class="{true: 'fa fa-check fa-lg text-success', false: 'fa fa-times fa-lg text-danger'}[onemount.enabled]" ng-click="onemount.enabled = !onemount.enabled">
+                                </a>
+                                <a href="#" editable-text="onemount.containerPath">{{onemount.containerPath}} </a> : {{onemount.description}}
+                            </a>
+                        </label>
+                    </div>
+                </div>
+                <label ng-if="showMounts">
+                    Work Directory <font face="verdana" color="#A9A9A9">(relative to <a href="@ViewData["workPath"]">@ViewData["workPath"].ToString().Replace("file:", "").Replace("/", "\\") </a>).  </font> <br /> <font face="verdana" color="#A9A9A9"> This folder is mounted as <b>/work</b> inside container.</font>
+                </label>
+                <br ng-if="showMounts" />
+                <a ng-if="showMounts" href="#" editable-text="current.workPath">{{current.workPath || "." }} </a>
+
+                <label ng-if="showMounts">
+                    Data Directory <font face="verdana" color="#A9A9A9">(relative to <a href="@ViewData["dataPath"]">@ViewData["dataPath"].ToString().Replace("file:", "").Replace("/", "\\") </a>). </font> <br /> <font face="verdana" color="#A9A9A9"> This folder is mounted as <b>/data</b> inside container.</font>
+                </label>
+                <br ng-if="showMounts" />
+                <a ng-if="showMounts" href="#" editable-text="current.dataPath">{{current.dataPath || "." }} </a>
+
+                <label ng-if="showMounts">
+                    Job Directory (empty by default) <br /> <font face="verdana" color="#A9A9A9"> This folder is mounted as <b>/job</b> inside container.</font>
+                </label>
+                <br ng-if="showMounts" />
+                <a ng-if="showMounts" href="#" editable-text="current.jobPath">{{current.jobPath || "(default_empty)" }} </a>
+            </div>
+
+
+            <div ng-if="adancedOption">
+                <label>
+                    <a class="btn" ng-class="{true: 'btn-primary', false: 'btn-danger'}[showEnv]" ng-click="showEnv = !showEnv">
+                        {{showEnv && 'Hide Environment Variables' || 'Show Environment Variables' }}
+                    </a>
+                </label>
+
+
+                <div class="form-group" ng-if="showEnv">
+                    <label>
+                        Environmet variables:
+                    </label>
+                    <table>
+                        <thead>
+                        <th>   </th>
+                        <th>   </th>
+                        <th>   </th>
+                        <th>   </th>
+                        </thead>
+                        <tbody>
+                            <tr ng-repeat="oneenv in current.env">
+                                <td>
+                                    <a href="#" editable-text="oneenv.name">{{oneenv.name}} </a>
+                                </td>
+                                <td> = </td>
+                                <td>
+                                    <a href="#" editable-text="oneenv.value">{{oneenv.value}} </a>
+                                </td>
+                                <td>
+                                    <a class="fa fa-times fa-lg text-danger" ng-click="removeItem(current.env,$index)">
+                                    </a>
+                                </td>
+
+                            </tr>
+                        </tbody>
+                    </table>
+                    <button type="button" class="btn btn-info" ng-click="newEnvironment()">
+                        Add Environment Variable
+                    </button>
+                </div>
+
+                <div class="form-group">
+                    <a class="btn" ng-class="chooseValue(current.isPrivileged,'btn-danger','btn-primary',false)" ng-click="current.isPrivileged = !current.isPrivileged">
+                        {{current.isPrivileged && 'Container: Priviledged' || 'Container: Non-Priviledged' }}
+                    </a>
+                </div>
+
+                <div ng-if="current.isPrivileged" class="form-group">
+                    <a class="btn" ng-class="chooseValue(current.hostNetwork,'btn-danger','btn-primary',false)" ng-click="current.hostNetwork = !current.hostNetwork">
+                        {{current.hostNetwork && 'Network: Host' || 'Network: Container' }}
+                    </a>
+                </div>
+
+                <div ng-if="current.isPrivileged" class="form-group">
+                    <a class="btn btn-primary" ng-click="changeDNSPolicy()">
+                        DNS Policy: {{current.dnsPolicy || 'Host' }}
+                    </a>
+                </div>
+
+                <div ng-if="current.isPrivileged" class="form-group">
+                    <label>
+                        CPU Request:
+                    </label>
+                    <a href="#" editable-text="current.cpurequest" e-title="resource.requests.cpu">
+                        {{ current.cpurequest || "#value_of_resources.requests.cpu(default 100m)" }}
+                    </a>
+                </div>
+
+                <div ng-if="current.isPrivileged" class="form-group">
+                    <label>
+                        Memory Request:
+                    </label>
+                    <a href="#" editable-text="current.memoryrequest" e-title="resource.requests.memory">
+                        {{ current.memoryrequest || "#value_of_resources.requests.memory(default 0)" }}
+                    </a>
+                </div>
+        </div>
+            <div class="modal-footer">
+                <a class="btn pull-left" ng-class="{true: 'btn-primary', false: 'btn-danger'}[manageTemplate]" ng-click="manageTemplate = !manageTemplate">
+                    {{manageTemplate && 'Hide Template Operations' || 'Show Template Operations' }}
+                </a>
+                <a class="btn pull-right btn-primary" ng-click="submitJob()">
+                    Submit Job
                 </a>
             </div>
-            <div ng-if="manageTemplate">
+
+            <div ng-if="manageTemplate" class="form-group">
+                <label > Template Name:</label> <br/>
+                <a href="#" editable-text="template.useTemplateName" e-title="Name of Template">
+                    {{ template.useTemplateName || "#Template_Name"}}
+                </a><br />
                 <label>
                     Template Location
-                </label>
+                </label> <br />
                 <a class="btn" ng-class="{true: 'btn-primary', false: 'btn-danger'}[masterFlag]" ng-click="toggleMasterFlag()">
                     {{masterFlag && 'Master' || 'Current User' }}
                 </a>
             </div>
-        </div>
 
-        <div class="modal-footer">
-            <div id="jobFooter" style="display: @(ViewData["Mode"].Equals("Templates") ? "none" : "block")">
-                <a class="btn pull-left" ng-class="{true: 'btn-primary', false: 'btn-danger'}[manageTemplate]" ng-click="manageTemplate = !manageTemplate">
-                    {{manageTemplate && 'Hide Template Operations' || 'Show Template Operations' }}
-                </a>
-                <a class="btn btn-primary" ng-click="submitJob()">
-                    Submit Job
-                </a>
+
+            <div ng-if="manageTemplate" class="modal-footer">
+                <a ng-click="DeleteTemplate()" class="btn btn-success" href="#">Delete Template</a>
+                <a ng-click="SaveTemplate()" class="btn btn-success" href="#">Save Template</a>
             </div>
-        </div>
 
-        <div ng-if="manageTemplate" class="modal-footer">
-            <a ng-click="DeleteTemplate()" class="btn btn-success" href="#">Delete Template</a>
-            <a ng-click="SaveTemplate()" class="btn btn-success" href="#">Save Template</a>
-        </div>
-
-        <div ng-if="manageTemplate" class="modal-footer">
-            <label>
-                Database operation
-            </label>
+            <div ng-if="manageTemplate" class="modal-footer">
+                <label>
+                    Database operation
+                </label>
 
                 <a ng-click="DownloadDatabase()" class="btn btn-success" href="#">Download JSON</a>
                 <a ng-click="ChooseFile()" class="btn btn-success" href="#">Upload JSON</a>
-        </div>
+            </div>
 
-        <div style="height: 0px; overflow: hidden">
-            <input type="file" id="fileInput" name="fileInput" ng-model="fileInput" onchange="angular.element(this).scope().UploadDatabase()" />
-        </div>
+    </div>
 
-</div>
+                <div style="height: 0px; overflow: hidden">
+                    <input type="file" id="fileInput" name="fileInput" ng-model="fileInput" onchange="angular.element(this).scope().UploadDatabase()" />
+                </div>
+
+            </div>
 
 
 

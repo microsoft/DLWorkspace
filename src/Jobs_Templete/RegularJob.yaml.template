@@ -12,7 +12,10 @@ spec:
     FragmentGPUJob: active
   {% endif %}
   {% if job["dnsPolicy"] %}
-  dnsPolicy: ClusterFirstWithHostNet 
+  dnsPolicy: {{ job["dnsPolicy" ]}} 
+  {% endif %}
+  {% if job["hostNetwork"] %}
+  hostNetwork: true
   {% endif %}
   containers:
   - name: {{ job["jobId"] }}
@@ -21,16 +24,23 @@ spec:
     command: {{ job["LaunchCMD"] }}
     securityContext:
       runAsUser: {{ job["containerUserId"] }}
+      {% if job["isPrivileged"] %}
+      privileged: true
+      {% endif %}
     resources:
       limits:
         alpha.kubernetes.io/nvidia-gpu: {{ job["resourcegpu"] }}
-    {% if not job["cpushares"] %}
+    {% if not job["cpurequest"] %}
       requests: 
         cpu: 1.0
     {% else %}  
       requests: 
-        cpu: job["cpushares"]      
+        cpu: job["cpurequest"]      
     {% endif %}
+    {% if job["memoryrequest"] %}
+      requests: 
+        memory: job["memoryrequest"]      
+    {% endif %} 
         
     volumeMounts:
     {% if not job["dnsPolicy"] %}
@@ -63,7 +73,12 @@ spec:
     - name: POD_IP
       valueFrom:
         fieldRef:
-          fieldPath: status.podIP   
+          fieldPath: status.podIP  
+    {% for env in job["env"] %}
+    - name: {{ env.name }}
+      value: {{ env.value }}    
+    {% endfor %}
+   
   restartPolicy: Never
   volumes:
   {% if not job["dnsPolicy"] %}
