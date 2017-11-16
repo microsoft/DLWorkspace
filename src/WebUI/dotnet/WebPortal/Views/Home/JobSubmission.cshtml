@@ -352,11 +352,11 @@
         };
 
         $scope.AlertAPIError = function (xhr, ajaxOptions, thrownError) {
-            alert("Restful API Error: \n" + JSON.stringify(thrownError));
+            layer.msg("Restful API Error: \n" + JSON.stringify(thrownError));
         };
 
         $scope.AlertAPIResult = function (payload) {
-            alert(payload.message);
+            layer.msg(payload.message);
         };
 
         $scope.SaveTemplateAPI = function (params) {
@@ -401,7 +401,7 @@
                 method: 'POST',
                 data: params,
                 error: function (xhr, ajaxOptions, thrownError) {
-                    alert("RestfulAPI error!");
+                    layer.msg("RestfulAPI error!");
                     $("#submit").attr("disabled", false);
                 },
                 timeout: 10000 //10 second timeout
@@ -410,13 +410,13 @@
                     payload = $scope.$eval(resp);
                     console.log(payload);
                     if (payload.jobId) {
-                        alert("Job Submitted! \n Job ID:" + payload.jobId)
+                        layer.msg("Job Submitted! <br> Job ID:" + payload.jobId)
                         location.href = "/Home/ViewJobs";
                     } else if (payload.error) {
-                        alert("Error: " + payload.error, "Alert");
+                        layer.msg("Error: " + payload.error);
                         $("#submit").attr("disabled", false);
                     } else {
-                        alert("Unexpected error: " + payload, "Alert");
+                        layer.msg("Unexpected error: " + payload);
                         $("#submit").attr("disabled", false);
                     };
 
@@ -427,7 +427,7 @@
         $scope.DeleteTemplate = function() {
             var templatename = $scope.curTemplateName;
             if (templatename == "") {
-                alert("Unable to delete a null template!");
+                layer.msg("Unable to delete a null template!");
                 return;
             }
             var loc = $scope.getDatabase(); 
