@@ -12,7 +12,8 @@
             timeout: 30000 //30 second timeout,
         }).done(
             function (json) {
-                alert(json.result);
+                layer.msg(json.result);
+                buildTables();
             });
     }
 
@@ -23,7 +24,8 @@
             timeout: 30000 //30 second timeout,
         }).done(
             function (json) {
-                alert(json.log);
+                layer.msg(json.log);
+                buildTables();
             });
     }
 </script>
