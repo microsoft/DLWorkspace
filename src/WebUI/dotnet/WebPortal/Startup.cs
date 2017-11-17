@@ -27,6 +27,15 @@ using Microsoft.AspNetCore.Http;
 
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using App.Metrics.Extensions.Middleware;
+using App.Metrics.Extensions.Middleware.Abstractions;
+using App.Metrics.Extensions;
+using App.Metrics.Extensions.Reporting.InfluxDB;
+using Microsoft.AspNetCore.Mvc;
+using App.Metrics.Extensions.Reporting.InfluxDB.Client;
+using App.Metrics.Configuration;
+using App.Metrics.Reporting.Interfaces;
+
 
 namespace WindowsAuth
 {
@@ -63,8 +72,44 @@ namespace WindowsAuth
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            // AppMetrics. #https://al-hardy.blog/2017/04/28/asp-net-core-monitoring-with-influxdb-grafana/
+            var metricsHostBuilder = services.AddMetrics(options =>
+            {
+                options.WithGlobalTags((globalTags, info) =>
+                   {
+                       globalTags.Add("app", info.EntryAssemblyName);
+                       globalTags.Add("env", "stage");
+                   });
+            })
+                .AddHealthChecks()
+                .AddJsonSerialization();
+            var dbName = "WebUI";
+            var dbUriString = "//http://dlws-influxdb.westus.cloudapp.azure.com:8086";
+
+            if (!String.IsNullOrEmpty(dbName) && !String.IsNullOrEmpty(dbUriString))
+            {
+                var dbUri = new Uri(dbUriString);
+                metricsHostBuilder = metricsHostBuilder.AddReporting(
+                    factory =>
+                    {
+                        factory.AddInfluxDb(
+                            new InfluxDBReporterSettings
+                            {
+                                InfluxDbSettings = new InfluxDBSettings(dbName, dbUri),
+                                ReportInterval = TimeSpan.FromSeconds(5)
+                            });
+                    });
+            }
+
+            metricsHostBuilder.AddMetricsMiddleware(options => options.IgnoredHttpStatusCodes = new[] { 404 });
+
+            
+
+            var reportSetting = new InfluxDBReporterSettings();
+
+
             // Add MVC services to the services container.
-            services.AddMvc();
+            services.AddMvc( options => options.AddMetricsResourceFilter());
             services.AddDistributedMemoryCache(); // Adds a default in-memory implementation of IDistributedCache
             services.AddSession();
             //services.AddCors();
@@ -91,12 +136,16 @@ namespace WindowsAuth
 
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env, 
+            ILoggerFactory loggerFactory, IApplicationLifetime lifetime)
         {
             // Add the console logger.
             loggerFactory.AddConsole(Configuration.GetSection("Logging")).AddDebug();
             loggerFactory.AddFile("/var/log/webui/webui-{Date}.txt");
-
+            app.UseMetrics();
+            // May need to be turned off if reporting server is not available
+            app.UseMetricsReporting(lifetime);
+            
             var _logger = loggerFactory.CreateLogger("Configure");
 
             ConfigurationParser.ParseConfiguration(loggerFactory);

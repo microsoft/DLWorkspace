@@ -21,6 +21,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="App.Metrics.Extensions.Mvc" Version="1.2.1" />
+    <PackageReference Include="App.Metrics.Extensions.Reporting.InfluxDB" Version="1.2.0" />
+    <PackageReference Include="App.Metrics.Formatters.Json" Version="1.2.0" />
     <PackageReference Include="EnterpriseLibrary.TransientFaultHandling" Version="6.0.1304" />
     <PackageReference Include="Microsoft.AspNetCore" Version="1.1.1" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc" Version="1.1.2" />
