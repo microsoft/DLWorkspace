@@ -28,6 +28,22 @@ def az_sys(cmd):
 def az_tryuntil(cmd, stopFn, waitPeriod=5):
     return utils.tryuntil(lambda : az_sys(cmd), stopFn, lambda : (), waitPeriod)
 
+def acs_get_id(elem):
+    elemFullName = elem["id"]
+    reMatch = re.match('(.*)/(.*)', elemFullName)
+    return reMatch.group(2)
+
+def key_extract(dic, keys):
+    return dict((k, dic[k]) for k in keys if k in dic)
+
+def inList(elem, list):
+    i = 0
+    for l in list:
+        if l == elem:
+            return True, i
+        i += 1
+    return False, -1
+
 # Create SQL database
 def az_create_sql_server():
     # escape the password in case it has characters such as "$"
@@ -65,48 +81,6 @@ def az_grp_exist(grpname):
     resgrp = az_cmd("group show --name=%s" % grpname)
     return not resgrp is None
 
-def get_nodes_from_acs(tomatch=""):
-	bFindNodes = True
-	if not ("acsnodes" in config) or len(config["acsnodes"])==0:
-		machines = acs_get_machinesAndIPsFast()
-		config["acsnodes"] = machines
-	else:
-		bFindNodes = not (tomatch == "" or tomatch == "master" or tomatch == "agent")
-		machines = config["acsnodes"]
-	Nodes = []
-	if bFindNodes:
-		masterNodes = []
-		agentNodes = []
-		allNodes = []
-		for m in machines:
-			match = re.match('k8s-'+tomatch+'.*', m)
-			ip = machines[m]["publicip"]
-			toAppend = ip
-			#toAppend = machines[m]["fqdn"]
-			allNodes.append(toAppend)
-			if not (match is None):
-				Nodes.append(toAppend)
-			match = re.match('k8s-master', m)
-			if not (match is None):
-				masterNodes.append(toAppend)
-			match = re.match('k8s-agent', m)
-			if not (match is None):
-				agentNodes.append(toAppend)
-		config["etcd_node"] = masterNodes
-		config["kubernetes_master_node"] = masterNodes
-		config["worker_node"] = agentNodes
-		config["all_node"] = allNodes
-	else:
-		if tomatch == "":
-			Nodes = config["all_node"]
-		elif tomatch == "master":
-			Nodes = config["kubernetes_master_node"]
-		elif tomatch == "agent":
-			Nodes = config["worker_node"]
-		else:
-			raise Exception("Wrong matching")
-	return Nodes
-
 # Overwrite resource group with location where machines are located
 # If no machines are found, that may be because they are not created, so leave it as it is
 def acs_set_resource_grp(exitIfNotFound):
@@ -135,155 +109,154 @@ def acs_set_resource_grp(exitIfNotFound):
             exit()
         print "Resource group = %s" % config["resource_group"]
 
-def acs_get_id(elem):
-    elemFullName = elem["id"]
-    reMatch = re.match('(.*)/(.*)', elemFullName)
-    return reMatch.group(2)
-
-def acs_get_ip(ipaddrName):
-    ipInfo = az_cmd("network public-ip show --resource-group="+config["resource_group"]+" --name="+ipaddrName)
-    if ipInfo is None:
-        ipInfo = {"ipAddress" : ""}
-    if "dnsSettings" not in ipInfo or ipInfo["dnsSettings"] is None:
-        ipInfo["dnsSettings"] = {"domainNameLabel" : "", "fqdn" : ""}
-    #print "IPInfo: {0}".format(ipInfo)
-    return (ipInfo["ipAddress"], ipInfo["dnsSettings"])
-
-def acs_attach_dns_to_node(node, dnsName=None):
-    nodeName = config["nodenames_from_ip"][node]
-    if (dnsName is None):
-        dnsName = nodeName
-    ipName = config["acsnodes"][nodeName]["publicipname"]
-    cmd = "network public-ip update"
-    cmd += " --resource-group=%s" % config["resource_group"]
-    cmd += " --name=%s" % ipName
-    cmd += " --dns-name=%s" % dnsName
-    az_sys(cmd) 
-
-def acs_get_default_dns_name(node):
-    return config["nodenames_from_ip"][node]
-
-def acs_set_dns_names():
-    get_nodes_from_acs()
-    if len(config["acsnodes"]) > 0:
-        config["master_dns"] = []
-        config["worker_dns"] = []
-        config["master_dns"].append(config["master_dns_name"])
-        for i in range(len(config["kubernetes_master_node"])):
-            if (i != 0):
-                config["master_dns"].append(acs_get_default_dns_name(config["kubernetes_master_node"][i]))
-        for i in range(len(config["worker_node"])):
-            print "Node: {0}".format(config["worker_node"][i])
-            config["worker_dns"].append(acs_get_default_dns_name(config["worker_node"][i]))
-
-def acs_get_machineIP(machineName):
-    print "Machine: "+machineName
-    nics = az_cmd("vm show --name="+machineName+" --resource-group="+config["resource_group"])
-    #print nics
-    nics = nics["networkProfile"]["networkInterfaces"]
-    i = 0
-    privateIP = None
-    for nic in nics:
-        nicName = acs_get_id(nic)
-        print "Nic Name: "+nicName
-        if (i==0):
-            nicDefault = nicName
-        ipconfigs = az_cmd("network nic show --resource-group="+config["resource_group"]+" --name="+nicName)
-        ipConfigs = ipconfigs["ipConfigurations"]
-        j = 0
-        for ipConfig in ipConfigs:
-            ipConfigName = acs_get_id(ipConfig)
-            print "IP Config Name: "+ipConfigName
-            if ((i==0) and (j==0)):
-                ipConfigDefault = ipConfigName
-            configInfo = az_cmd("network nic ip-config show --resource-group="+config["resource_group"]+
-                                " --nic-name="+nicName+" --name="+ipConfigName)
-            privateIP = configInfo["privateIpAddress"]
-            publicIP = configInfo["publicIpAddress"]
-            if (not (publicIP is None)):
-                ipName = acs_get_id(publicIP)
-                print "IP Name: " + ipName
-                (publicIPAddr, dnsSetting) = acs_get_ip(ipName)
-                return {"nic" : nicName, "ipconfig" : ipConfigName,
-                        "publicipname" : ipName, "publicip" : publicIPAddr, "privateip" : privateIP,
-                        "dns" : dnsSetting["domainNameLabel"], "fqdn" : dnsSetting["fqdn"]}
-            j+=1
-        i+=1
-    return {"nic" : nicDefault, "ipconfig": ipConfigDefault, "publicipname" : None, "publicip" : None, "privateip" : privateIP, "dns" : None, "fqdn" : None}
-
-def acs_get_nodes():
-    binary = os.path.abspath('./deploy/bin/kubectl')
-    kubeconfig = os.path.abspath('./deploy/'+config["acskubeconfig"])
-    if (os.path.exists(binary)):
-        cmd = binary + ' -o=json --kubeconfig='+kubeconfig+' get nodes'
-        nodeInfo = utils.subproc_runonce(cmd)
-        try:
-            nodes = yaml.load(nodeInfo)
-            return nodes["items"]
-        except Exception as e:
+# Get names of kubernetes nodes (machine names)
+def acs_get_kube_nodes():
+    if "acs_nodes" not in config:
+        binary = os.path.abspath('./deploy/bin/kubectl')
+        kubeconfig = os.path.abspath('./deploy/'+config["acskubeconfig"])
+        if (os.path.exists(binary)):
+            cmd = binary + ' -o=json --kubeconfig='+kubeconfig+' get nodes'
+            nodeInfo = utils.subproc_runonce(cmd)
+            try:
+                nodes = yaml.load(nodeInfo)
+                nodeNames = []
+                for n in nodes["items"]:
+                    nodeNames.append(n["metadata"]["name"])
+                #print "Nodes: {0}\n NodeNames: {1}".format(nodes, nodeNames)
+                #exit()
+                config["acs_nodes"] = nodeNames
+                return nodeNames
+            except Exception as e:
+                return []
+        else:
             return []
     else:
-        return []
+        return config["acs_nodes"]
 
-def acs_get_machinesAndIPs(bCreateIP):
-    # Public IP on worker nodes
-    nodes = acs_get_nodes()
-    ipInfo = {}
-    #print nodes["items"]
-    config["nodenames_from_ip"] = {}
-    for n in nodes:
-        machineName = n["metadata"]["name"]
-        ipInfo[machineName] = acs_get_machineIP(machineName)
-        if bCreateIP and (ipInfo[machineName]["publicip"] is None):
-            # Create IP
-            ipName = machineName+"-public-ip-0"
-            print "Creating public-IP: "+ipName
-            cmd = "network public-ip create --allocation-method=Dynamic"
-            cmd += " --resource-group=%s" % config["resource_group"]
-            cmd += " --name=%s" % ipName
-            cmd += " --location=%s" % config["cluster_location"]
-            az_sys(cmd)
-            # Add to NIC of machine
-            cmd = "network nic ip-config update"
-            cmd += " --resource-group=%s" % config["resource_group"]
-            cmd += " --nic-name=%s" % ipInfo[machineName]["nic"]
-            cmd += " --name=%s" % ipInfo[machineName]["ipconfig"]
-            cmd += " --public-ip-address=%s" % ipName
-            az_sys(cmd)
-            # now update
-            ipInfo[machineName]["publicipname"] = ipName
-            (publicIPAddr, dnsSetting) = acs_get_ip(ipName)
-            ipInfo[machineName]["publicip"] = publicIPAddr
-            ipInfo[machineName]["dns"] = dnsSetting["domainNameLabel"]
-            ipInfo[machineName]["fqdn"] = dnsSetting["fqdn"]
-        config["nodenames_from_ip"][ipInfo[machineName]["publicip"]] = machineName
+# divide nodes into master / agent 
+def acs_set_nodes_info():
+    if "acs_master_nodes" not in config or "acs_agent_nodes" not in config:
+        allnodes = acs_get_kube_nodes()
+        if len(allnodes) > 0:
+            config['acs_master_nodes'] = []
+            config['acs_agent_nodes'] = []
+            for n in allnodes:
+                match = re.match('k8s-master.*', n)
+                if match is not None:
+                    config['acs_master_nodes'].append(n)
+                match = re.match('k8s-agent.*', n)
+                if match is not None:
+                    config['acs_agent_nodes'].append(n)
+
+# Get full network info on node
+def acs_get_ip_info_full(node):
+    nics = az_cmd("vm show --name="+node+" --resource-group="+config["resource_group"])
+    if nics is None or "networkProfile" not in nics:
+        return {}
+    ipInfo = nics["networkProfile"]["networkInterfaces"]
+    nicIndex = 0
+    for nic in ipInfo:
+        nicName = acs_get_id(nic)
+        ipconfigs = az_cmd("network nic show --resource-group="+config["resource_group"]+" --name="+nicName)
+        ipInfo[nicIndex]["nicName"] = nicName
+        ipInfo[nicIndex]["ipConfigs"] = ipconfigs["ipConfigurations"]
+        ipConfigIndex = 0
+        for ipConfig in ipInfo[nicIndex]["ipConfigs"]:
+            ipConfigName = acs_get_id(ipConfig)
+            ipInfo[nicIndex]["ipConfigs"][ipConfigIndex]["ipConfigName"] = ipConfigName
+            configInfo = az_cmd("network nic ip-config show --resource-group="+config["resource_group"]+
+                                " --nic-name="+nicName+" --name="+ipConfigName)
+            ipInfo[nicIndex]["ipConfigs"][ipConfigIndex]["privateIp"] = configInfo["privateIpAddress"]
+            ipInfo[nicIndex]["ipConfigs"][ipConfigIndex]["publicIpInfo"] = configInfo["publicIpAddress"]
+            ipConfigIndex += 1
+        nicIndex += 1
     return ipInfo
 
-def acs_get_machinesAndIPsFast():
-    nodes = acs_get_nodes()
-    ipInfo = {}
-    config["nodenames_from_ip"] = {}
-    isValid = True
-    for n in nodes:
-        machineName = n["metadata"]["name"]
-        #print "MachineName: "+machineName
-        ipName = machineName+"-public-ip-0"
-        if (verbose):
-            print "PublicIP: "+ipName
-        ipInfo[machineName] = {}
-        ipInfo[machineName]["publicipname"] = ipName
-        (publicIPAddr, dnsSetting) = acs_get_ip(ipName)
-        #print "IP: {0} DNS: {1}".format(publicIPAddr, dnsSetting)
-        ipInfo[machineName]["publicip"] = publicIPAddr
-        ipInfo[machineName]["dns"] = dnsSetting["domainNameLabel"]
-        ipInfo[machineName]["fqdn"] = dnsSetting["fqdn"]
-        if (publicIPAddr == ""):
-            isValid = False
-        config["nodenames_from_ip"][ipInfo[machineName]["publicip"]] = machineName
-    if isValid:
-        return ipInfo
-    else:
-        return {}
+def acs_get_node_info(node):
+    if "acs_node_info" not in config:
+        config["acs_node_info"] = {}
+    if node not in config["acs_node_info"]:
+        config["acs_node_info"][node] = {}
+    return config["acs_node_info"][node]
+
+def acs_set_desired_dns(node, nodeInfo=None):
+    if nodeInfo is None:
+        nodeInfo = acs_get_node_info(node)
+    if "desiredDns" not in nodeInfo:
+        acs_set_nodes_info()
+        if "acs_nodes" in config:
+            if "acs_node_from_dns" not in config:
+                config["acs_node_from_dns"] = {}
+            isInList, index = inList(node, config["acs_master_nodes"])
+            if isInList and index==0:
+                nodeInfo["desiredDns"] = config["master_dns_name"]
+            else:
+                nodeInfo["desiredDns"] = node
+            config["acs_node_from_dns"][nodeInfo["desiredDns"]] = node
+
+def acs_set_node_from_dns(dnsname, checkForNode=True):
+    if "acs_node_from_dns" not in config or 0==len(config["acs_node_from_dns"]) or (checkForNode and (dnsname not in config["acs_node_from_dns"])):
+        allnodes = acs_get_kube_nodes()
+        for n in allnodes:
+            acs_set_desired_dns(n)
+
+def acs_set_node_ip_info(node, needPrivateIP):
+    nodeInfo = acs_get_node_info(node)
+    if "publicIpName" not in nodeInfo or "publicIp" not in nodeInfo or "dnsName" not in nodeInfo or "fqdn" not in nodeInfo:
+        nodeInfo["publicIpName"] = node + "-public-ip-0"
+        ipInfo = az_cmd("network public-ip show --resource-group="+config["resource_group"]+" --name="+nodeInfo["publicIpName"])
+        if ipInfo is not None and "ipAddress" in ipInfo:
+            nodeInfo["publicIp"] = ipInfo["ipAddress"]
+        if ipInfo is not None and "dnsSettings" in ipInfo and ipInfo["dnsSettings"] is not None:
+            nodeInfo["dnsName"] = ipInfo["dnsSettings"]["domainNameLabel"]
+            nodeInfo["fqdn"] = ipInfo["dnsSettings"]["fqdn"]
+    if needPrivateIP and "privateIp" not in nodeInfo:
+        fullInfo = acs_get_ip_info_full(node)
+        if fullInfo is not None:
+            nodeInfo["privateIp"] = fullInfo[0]["ipConfigs"][0]["privateIp"]
+    acs_set_desired_dns(node, nodeInfo)
+    return nodeInfo
+
+def acs_set_desired_dns_nodes():
+    acs_set_node_from_dns("", False)
+
+# create public ip for node
+def acs_create_public_ip(node):
+    nodeInfo = acs_set_node_ip_info(node, False)
+    publicIpName = config["acs_node_info"][node]["publicIpName"]
+    if "publicIp" not in nodeInfo:
+        fullInfo = acs_get_ip_info_full(node)
+        # Create IP
+        print "Creating public-IP: "+publicIpName
+        cmd = "network public-ip create --allocation-method=Dynamic"
+        cmd += " --resource-group=%s" % config["resource_group"]
+        cmd += " --name=%s" % publicIpName
+        cmd += " --location=%s" % config["cluster_location"]
+        az_sys(cmd)
+        # Add to NIC of machine
+        cmd = "network nic ip-config update"
+        cmd += " --resource-group=%s" % config["resource_group"]
+        cmd += " --nic-name=%s" % fullInfo[0]["nicName"]
+        cmd += " --name=%s" % fullInfo[0]["ipConfigs"][0]["ipConfigName"]
+        cmd += " --public-ip-address=%s" % publicIpName
+        az_sys(cmd)
+        # call again to update node info
+        acs_set_node_ip_info(node, False)
+
+def acs_create_dns(node):
+    nodeInfo = acs_set_node_ip_info(node, False)
+    if "dnsName" not in nodeInfo:
+        cmd = "network public-ip update"
+        cmd += " --resource-group=%s" % config["resource_group"]
+        cmd += " --name=%s" % nodeInfo["publicIpName"]
+        cmd += " --dns-name=%s" % nodeInfo["desiredDns"]
+        az_sys(cmd)
+        acs_set_node_ip_info(node, False)
+
+def acs_set_create_node_ip_info(node):
+    nodeInfo = acs_set_node_ip_info(node, False)
+    acs_create_public_ip(node)
+    acs_create_dns(node)
 
 def acs_is_valid_nsg_rule(rule):
     #print "Access: %s D: %s P: %s P: %s" % (rule["access"].lower()=="allow",
@@ -424,15 +397,32 @@ def acs_generate_azconfig():
     azConfig.pop("machines", None)
     return azConfig
 
+def acs_create_node_ips():
+    nodes = acs_get_kube_nodes()
+    for n in nodes:
+        acs_set_create_node_ip_info(n)
+
+def acs_get_ip_info_nodes(bNeedPrivateIP):
+    nodes = acs_get_kube_nodes()
+    for n in nodes:
+        acs_set_node_ip_info(n, bNeedPrivateIP)
+    return config["acs_node_info"]
+
 def acs_update_machines(configLocal):
     if (not "machines" in configLocal) or (len(configLocal["machines"])==0):
-        acs_set_dns_names()
+        acs_set_desired_dns_nodes()
+        #print "Worker: {0}".format(config["acs_agent_nodes"])
+        #print "Master: {0}".format(config["acs_master_nodes"])
         configLocal["machines"] = {}
-        if len(config["acsnodes"]) > 0:
-            for nodeDns in config["master_dns"]:
-                configLocal["machines"][nodeDns] = {"role": "infrastructure"}
-            for nodeDns in config["worker_dns"]:
-                configLocal["machines"][nodeDns] = {"role": "worker"}
+        if "acs_nodes" in config and len(config["acs_nodes"]) > 0:
+            for nKey in config["acs_node_info"]:
+                n = config["acs_node_info"][nKey]
+                #print "NKey={0} N={1} DNS={2}".format(nKey, n, n["desiredDns"])
+                if nKey in config["acs_master_nodes"]:
+                    configLocal["machines"][n["desiredDns"]] = {"role": "infrastructure"}
+                else:
+                    configLocal["machines"][n["desiredDns"]] = {"role": "worker"}
+            #exit()
             return True
         else:
             return False
@@ -487,17 +477,16 @@ def acs_deploy():
     acs_create_storage()
     az_create_sql()
 
-    acs_update_azconfig(True)
-
-    acs_get_config()
-
-    # Get/create public IP addresses for all machines
-    Nodes = acs_get_machinesAndIPs(True)
-
     # Add rules for NSG
     acs_add_nsg_rules({"HTTPAllow" : 80, "RestfulAPIAllow" : 5000, "AllowKubernetesServicePorts" : "30000-32767"})
 
-    return Nodes
+    # Create public IP / DNS
+    acs_create_node_ips()
+
+    acs_get_config()
+
+    # Update machine names in config
+    acs_update_azconfig(True)
 
 # Main / Globals
 azConfigFile = "azure_cluster_config.yaml"
