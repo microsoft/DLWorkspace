@@ -509,8 +509,25 @@ default_config_parameters = {
             "Domains": [ "gmail.com" ]
         },
 
-    }
+    }, 
 
+	"Dashboards": {
+		"influxDB": {
+			"dbName": "WebUI", 
+			"port" : 8086,
+			"supress": True,
+			# "servers": // Specify influxDBserver.
+		},
+		"grafana" : {
+			"port" : 3000, 
+		}, 
+		"hdfs": {
+			"port" : 50070,
+		}, 
+		"yarn": {
+			"port" : 8088,
+		},
+	},
 }
 
 # These are super scripts
@@ -823,7 +840,7 @@ default_config_mapping = {
 	"pxeoptions": (["pxeserver"], lambda x: "" if fetch_dictionary(x,["options"]) is None else fetch_dictionary(x,["options"])), 
 	"hdfs_cluster_name" : ( ["cluster_name"], lambda x:x ),     
 	"etcd_user": ( ["admin_username"], lambda x:x ),     
-	"kubernetes_master_ssh_user": ( ["admin_username"], lambda x:x ),     
+	"kubernetes_master_ssh_user": ( ["admin_username"], lambda x:x ),  
 }
 
 def isInstallOnCoreOS():
@@ -1861,6 +1878,24 @@ def deploy_webUI_on_node(ipAddress):
 	# write into host, mounted into container
 	utils.sudo_scp(config["ssh_cert"],"./deploy/WebUI/userconfig.json","/etc/WebUI/userconfig.json", sshUser, webUIIP )
 
+	# write report configuration
+	masternodes = get_ETCD_master_nodes(config["clusterId"])
+	if ( "servers" not in config["Dashboards"]["influxDB"]):
+		config["influxDB"]["servers"] = masternodes[0]
+	if ( "servers" not in config["Dashboards"]["grafana"]):
+		config["grafana"]["servers"] = masternodes[0]
+
+	reportConfig = config["Dashboards"]
+	reportConfig["kuberneteAPI"] = {}
+	reportConfig["kuberneteAPI"]["port"] = config["k8sAPIport"]
+	reportConfig["kuberneteAPI"]["servers"] = masternodes
+	reportConfig["kuberneteAPI"]["https"] = True
+
+	with open("./deploy/WebUI/dashboardConfig.json","w") as fp:
+		json.dump(reportConfig, fp)
+	os.system("cp --verbose ./deploy/WebUI/dashboardConfig.json ../WebUI/dotnet/WebPortal/")
+	# write into host, mounted into container
+	utils.sudo_scp(config["ssh_cert"],"./deploy/WebUI/dashboardConfig.json","/etc/WebUI/dashboardConfig.json", sshUser, webUIIP )
 
 	utils.render_template("./template/WebUI/Master-Templates.json", "./deploy/WebUI/Master-Templates.json", config)
 	#os.system("cp --verbose ./template/WebUI/Master-Templates.json ./deploy/WebUI/Master-Templates.json")
