@@ -1874,9 +1874,9 @@ def deploy_webUI_on_node(ipAddress):
 	# write report configuration
 	masternodes = get_ETCD_master_nodes(config["clusterId"])
 	if ( "servers" not in config["Dashboards"]["influxDB"]):
-		config["influxDB"]["servers"] = masternodes[0]
+		config["Dashboards"]["influxDB"]["servers"] = masternodes[0]
 	if ( "servers" not in config["Dashboards"]["grafana"]):
-		config["grafana"]["servers"] = masternodes[0]
+		config["Dashboards"]["grafana"]["servers"] = masternodes[0]
 
 	reportConfig = config["Dashboards"]
 	reportConfig["kuberneteAPI"] = {}
