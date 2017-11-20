@@ -27,6 +27,16 @@ using Microsoft.AspNetCore.Http;
 
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using App.Metrics.Extensions.Middleware;
+using App.Metrics.Extensions.Middleware.Abstractions;
+using App.Metrics.Extensions;
+using App.Metrics.Extensions.Reporting.InfluxDB;
+using Microsoft.AspNetCore.Mvc;
+using App.Metrics.Extensions.Reporting.InfluxDB.Client;
+using App.Metrics.Configuration;
+using App.Metrics.Reporting.Interfaces;
+using Utils.Json;
+using System.Text;
 
 namespace WindowsAuth
 {
@@ -59,12 +69,63 @@ namespace WindowsAuth
         static public Dictionary<string, DLCluster> Clusters; 
         static public Dictionary<string, ClusterContext> Database;
         static public ClusterContext MasterDatabase;
+        static public JObject DashboardConfig = new JObject();
+        private StringBuilder serviceMessages = new StringBuilder();
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            // AppMetrics. #https://al-hardy.blog/2017/04/28/asp-net-core-monitoring-with-influxdb-grafana/
+            var metricsHostBuilder = services.AddMetrics(options =>
+            {
+                options.WithGlobalTags((globalTags, info) =>
+                   {
+                       globalTags.Add("app", info.EntryAssemblyName);
+                       globalTags.Add("env", "stage");
+                   });
+            })
+                .AddHealthChecks()
+                .AddJsonSerialization();
+
+            using (var stream = new FileStream("dashboardConfig.json", FileMode.Open))
+            using (var reader = new StreamReader(stream))
+            {
+                var text = reader.ReadToEnd();
+                DashboardConfig = JObject.Parse(text);
+            }
+
+            var dbName = JsonUtils.GetString("influxDB.dbName", DashboardConfig);
+            var dbServer = JsonUtils.GetString("influxDB.servers", DashboardConfig);
+            var dbPort = JsonUtils.GetType<int>("influxDB.port", DashboardConfig, 0);
+            
+            if (!String.IsNullOrEmpty(dbName) && !String.IsNullOrEmpty(dbServer))
+            {
+                var dbUriString = $"http://{dbServer}";
+                if (dbPort != 0)
+                    dbUriString += ":" + dbPort.ToString(); 
+                var dbUri = new Uri(dbUriString);
+                metricsHostBuilder = metricsHostBuilder.AddReporting(
+                    factory =>
+                    {
+                        factory.AddInfluxDb(
+                            new InfluxDBReporterSettings
+                            {
+                                InfluxDbSettings = new InfluxDBSettings(dbName, dbUri),
+                                ReportInterval = TimeSpan.FromSeconds(5)
+                            });
+                    });
+                serviceMessages.Append($"Reporting to InfluxDB at {dbUriString}\n");
+            }
+
+            metricsHostBuilder.AddMetricsMiddleware(options => options.IgnoredHttpStatusCodes = new[] { 404 });
+
+            
+
+            var reportSetting = new InfluxDBReporterSettings();
+
+
             // Add MVC services to the services container.
-            services.AddMvc();
+            services.AddMvc( options => options.AddMetricsResourceFilter());
             services.AddDistributedMemoryCache(); // Adds a default in-memory implementation of IDistributedCache
             services.AddSession();
             //services.AddCors();
@@ -91,12 +152,16 @@ namespace WindowsAuth
 
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env, 
+            ILoggerFactory loggerFactory, IApplicationLifetime lifetime)
         {
             // Add the console logger.
             loggerFactory.AddConsole(Configuration.GetSection("Logging")).AddDebug();
             loggerFactory.AddFile("/var/log/webui/webui-{Date}.txt");
-
+            app.UseMetrics();
+            // May need to be turned off if reporting server is not available
+            app.UseMetricsReporting(lifetime);
+            
             var _logger = loggerFactory.CreateLogger("Configure");
 
             ConfigurationParser.ParseConfiguration(loggerFactory);
