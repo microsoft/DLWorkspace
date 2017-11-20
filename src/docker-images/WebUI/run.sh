@@ -8,3 +8,4 @@ ln -s /WebUI/dashboardConfig.json .
 
 dotnet restore
 dotnet run
+/bin/sleep infinity
