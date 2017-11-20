@@ -571,7 +571,7 @@ scriptblocks = {
 		"mount",
 	],	
 	"redeployazure": [
-		"-y deploy",
+		"-y --force deploy",
 		"-y updateworker",
 		"-y kubernetes labels",
 		"webui",
@@ -932,7 +932,6 @@ def add_acs_config(command):
 		acs_tools.verbose = verbose
 
 		config["master_dns_name"] = config["cluster_name"]
-		config["useclusterfile"] = False
 
 		# Use az tools to generate default config params and overwrite if they don't exist
 		configAzure = acs_tools.acs_update_azconfig(False)
@@ -954,6 +953,7 @@ def add_acs_config(command):
 		config["mountpoints"]["rootshare"]["azstoragesku"] = config["azstoragesku"]
 		config["mountpoints"]["rootshare"]["azfilesharequota"] = config["azfilesharequota"]
 		config["freeflow"] = True
+		config["useclusterfile"] = True
 
 		if ("azure-sqlservername" in config) and (not "sqlserver-hostname" in config):
 			config["sqlserver-hostname"] = ("tcp:%s.database.windows.net" % config["azure-sqlservername"])
@@ -2053,6 +2053,8 @@ def acs_untaint_nodes():
 def acs_post_deploy():
 	# set nodes
 	get_nodes(config["clusterId"])
+	#print "Master: {0}".format(config["kubernetes_master_node"])
+	#print "Worker: {0}".format(config["worker_node"])
 
 	# Label nodes	
 	acs_label_webui()
@@ -2392,7 +2394,7 @@ def del_fileshare_links():
 	all_nodes = get_nodes(config["clusterId"])
 	for node in all_nodes:
 		remotecmd = "sudo rm -r %s; " % config["storage-mount-path"]	
-		remotecmd = "sudo mkdir -p %s; " % config["storage-mount-path"]
+		remotecmd += "sudo mkdir -p %s; " % config["storage-mount-path"]
 		exec_rmt_cmd(node, remotecmd)
 			 
 def link_fileshares(allmountpoints, bForce=False):
