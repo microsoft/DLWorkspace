@@ -79,7 +79,7 @@ default_config_parameters = {
 	"etcd3port1" : "2379", # Etcd3port1 will be used by App to call Etcd 
 	"etcd3port2" : "4001", # Etcd3port2 is established for legacy purpose. 
 	"etcd3portserver" : "2380", # Server port for etcd
-	"k8sAPIport" : "443", # Server port for etcd
+	"k8sAPIport" : "1443", # Server port for etcd
 	"nvidiadriverdocker" : "mlcloudreg.westus.cloudapp.azure.com:5000/nvidia_driver:375.20",
 	"nvidiadriverversion" : "375.20",
 	# Default port for WebUI, Restful API, 
