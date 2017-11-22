@@ -756,7 +756,9 @@ namespace WindowsAuth.Controllers
                 ViewData["dataPath"] = dataFolderAccessPoint;
                 ViewData["smbUsername"] = smbUsername;
                 ViewData["smbUserPassword"] = smbUserPassword;
-
+                var configString = Startup.DashboardConfig.ToString();
+                var configArray = ASCIIEncoding.ASCII.GetBytes(configString);
+                ViewData["Dashboard"] = Convert.ToBase64String(configArray) ; 
             }
             return View(vm);
         }

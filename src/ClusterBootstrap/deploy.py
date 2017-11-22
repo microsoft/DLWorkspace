@@ -91,7 +91,7 @@ default_config_parameters = {
 	"etcd3port1" : "2379", # Etcd3port1 will be used by App to call Etcd 
 	"etcd3port2" : "4001", # Etcd3port2 is established for legacy purpose. 
 	"etcd3portserver" : "2380", # Server port for etcd
-	"k8sAPIport" : "443", # Server port for etcd
+	"k8sAPIport" : "1443", # Server port for etcd
 	"nvidiadriverdocker" : "mlcloudreg.westus.cloudapp.azure.com:5000/nvidia_driver:375.20",
 	"nvidiadriverversion" : "375.20",
 	# Default port for WebUI, Restful API, 
@@ -99,7 +99,7 @@ default_config_parameters = {
 	"restfulapiport" : "5000",
 	"restfulapi" : "restfulapi",
 	"ssh_cert" : "./deploy/sshkey/id_rsa",
-    "admin_username" : "core", 
+	"admin_username" : "core", 
 	# the path of where dfs/nfs is source linked and consumed on each node, default /dlwsdata
 	"storage-mount-path" : "/dlwsdata",
 	# the path of where filesystem is actually mounted /dlwsdata
@@ -523,8 +523,25 @@ default_config_parameters = {
             "Domains": [ "gmail.com" ]
         },
 
-    }
+    }, 
 
+	"Dashboards": {
+		"influxDB": {
+			"dbName": "WebUI", 
+			"port" : 8086,
+			"supress": True,
+			# "servers": // Specify influxDBserver.
+		},
+		"grafana" : {
+			"port" : 3000, 
+		}, 
+		"hdfs": {
+			"port" : 50070,
+		}, 
+		"yarn": {
+			"port" : 8088,
+		},
+	},
 }
 
 # These are super scripts
@@ -573,7 +590,7 @@ scriptblocks = {
 		"mount",
 	],	
 	"redeployazure": [
-		"-y deploy",
+		"-y --force deploy",
 		"-y updateworker",
 		"-y kubernetes labels",
 		"webui",
@@ -620,8 +637,8 @@ scriptblocks = {
 		"acs prepare",
 		"acs storagemount",
 		"acs freeflow",
-		"acs bldwebui",
-		"acs restartwebui",
+		"bldwebui",
+		"restartwebui",
 	],
 }
 
@@ -846,7 +863,6 @@ default_config_mapping = {
 	"hdfs_cluster_name" : ( ["cluster_name"], lambda x:x ),     
 	"etcd_user": ( ["admin_username"], lambda x:x ),     
 	"kubernetes_master_ssh_user": ( ["admin_username"], lambda x:x ),    
-   
 }
 
 def isInstallOnCoreOS():
@@ -944,7 +960,6 @@ def add_acs_config(command):
 		acs_tools.verbose = verbose
 
 		config["master_dns_name"] = config["cluster_name"]
-		config["useclusterfile"] = False
 
 		# Use az tools to generate default config params and overwrite if they don't exist
 		configAzure = acs_tools.acs_update_azconfig(False)
@@ -966,6 +981,7 @@ def add_acs_config(command):
 		config["mountpoints"]["rootshare"]["azstoragesku"] = config["azstoragesku"]
 		config["mountpoints"]["rootshare"]["azfilesharequota"] = config["azfilesharequota"]
 		config["freeflow"] = True
+		config["useclusterfile"] = True
 
 		if ("azure-sqlservername" in config) and (not "sqlserver-hostname" in config):
 			config["sqlserver-hostname"] = ("tcp:%s.database.windows.net" % config["azure-sqlservername"])
@@ -1214,8 +1230,6 @@ def get_ETCD_master_nodes_from_config(clusterId):
 	return Nodes
 
 def get_ETCD_master_nodes(clusterId):
-	#if config["isacs"]:
-	#	return acs_tools.get_nodes_from_acs('master')
 	if "etcd_node" in config:
 		Nodes = config["etcd_node"]
 		config["kubernetes_master_node"] = Nodes
@@ -1249,8 +1263,6 @@ def get_worker_nodes_from_config(clusterId):
 	return Nodes
 
 def get_worker_nodes(clusterId):
-	#if config["isacs"]:
-	#	return acs_tools.get_nodes_from_acs('agent')
 	if "worker_node" in config:
 		return config["worker_node"]
 	if "useclusterfile" not in config or not config["useclusterfile"]:
@@ -1282,9 +1294,6 @@ def check_master_ETCD_status():
 	etcdNodes = []
 	print "==============================================="
 	print "Checking Available Nodes for Deployment..."
-	#if config["isacs"]:
-	#	acs_tools.get_nodes_from_acs("")
-	#elif "clusterId" in config:
 	get_ETCD_master_nodes(config["clusterId"])
 	get_worker_nodes(config["clusterId"])
 	print "==============================================="
@@ -1886,6 +1895,24 @@ def deploy_webUI_on_node(ipAddress):
 	# write into host, mounted into container
 	utils.sudo_scp(config["ssh_cert"],"./deploy/WebUI/userconfig.json","/etc/WebUI/userconfig.json", sshUser, webUIIP )
 
+	# write report configuration
+	masternodes = get_ETCD_master_nodes(config["clusterId"])
+	if ( "servers" not in config["Dashboards"]["influxDB"]):
+		config["Dashboards"]["influxDB"]["servers"] = masternodes[0]
+	if ( "servers" not in config["Dashboards"]["grafana"]):
+		config["Dashboards"]["grafana"]["servers"] = masternodes[0]
+
+	reportConfig = config["Dashboards"]
+	reportConfig["kuberneteAPI"] = {}
+	reportConfig["kuberneteAPI"]["port"] = config["k8sAPIport"]
+	reportConfig["kuberneteAPI"]["servers"] = masternodes
+	reportConfig["kuberneteAPI"]["https"] = True
+
+	with open("./deploy/WebUI/dashboardConfig.json","w") as fp:
+		json.dump(reportConfig, fp)
+	os.system("cp --verbose ./deploy/WebUI/dashboardConfig.json ../WebUI/dotnet/WebPortal/")
+	# write into host, mounted into container
+	utils.sudo_scp(config["ssh_cert"],"./deploy/WebUI/dashboardConfig.json","/etc/WebUI/dashboardConfig.json", sshUser, webUIIP )
 
 	utils.render_template("./template/WebUI/Master-Templates.json", "./deploy/WebUI/Master-Templates.json", config)
 	#os.system("cp --verbose ./template/WebUI/Master-Templates.json ./deploy/WebUI/Master-Templates.json")
@@ -2011,7 +2038,7 @@ def deploy_on_nodes(prescript, listOfFiles, postscript, nodes):
 
 # addons
 def kube_master0_wait():
-	acs_tools.get_nodes_from_acs()
+	get_ETCD_master_nodes(config["clusterId"])
 	node = config["kubernetes_master_node"][0]
 	exec_rmt_cmd(node, "until curl -q http://127.0.0.1:8080/version/ ; do sleep 5; echo 'waiting for master...'; done")
 	return node
@@ -2033,14 +2060,14 @@ def acs_deploy_addons():
 
 def acs_label_webui():
 	for n in config["kubernetes_master_node"]:
-		nodeName = config["nodenames_from_ip"][n]
+		nodeName = kubernetes_get_node_name(n)
 		if verbose:
 			print "Label node: "+nodeName
 		label_webUI(nodeName)
 
 def acs_untaint_nodes():
 	for n in config["kubernetes_master_node"]:
-		nodeName = config["nodenames_from_ip"][n]
+		nodeName = kubernetes_get_node_name(n)
 		if verbose:
 			print "Untaint node: "+nodeName
 		run_kubectl(["taint nodes {0} node-role.kubernetes.io/master-".format(nodeName)])
@@ -2048,19 +2075,20 @@ def acs_untaint_nodes():
 # other config post deploy -- ACS cluster is complete
 # Run prescript, copyfiles, postscript
 def acs_post_deploy():
-	# Attach DNS name to nodes
-	acs_attach_dns_name()
+	# set nodes
+	get_nodes(config["clusterId"])
+	#print "Master: {0}".format(config["kubernetes_master_node"])
+	#print "Worker: {0}".format(config["worker_node"])
 
-	# Label nodes
-	ip = acs_tools.get_nodes_from_acs("")
+	# Label nodes	
 	acs_label_webui()
 	kubernetes_label_nodes("active", [], args.yes)
+
 
 	# Untaint the master nodes
 	acs_untaint_nodes()
 
 	# Copy files, etc.
-	acs_tools.get_nodes_from_acs()
 	gen_configs()
 	utils.render_template_directory("./template/kubelet", "./deploy/kubelet", config)
 	write_nodelist_yaml()
@@ -2075,16 +2103,6 @@ def acs_post_deploy():
 	deploy_on_nodes(config["worker_predeploy"], config["worker_filesdeploy"], config["worker_postdeploy"],
 	                config["worker_node"])
 
-def acs_attach_dns_name():
-	acs_tools.get_nodes_from_acs()
-	firstMasterNode = config["kubernetes_master_node"][0]
-	acs_tools.acs_attach_dns_to_node(firstMasterNode, config["master_dns_name"])
-	for i in range(len(config["kubernetes_master_node"])):
-		if (i != 0):
-			acs_tools.acs_attach_dns_to_node(config["kubernetes_master_node"][i])
-	for node in config["worker_node"]:
-		acs_tools.acs_attach_dns_to_node(node)
-
 # Install needed components including GPU drivers if needed
 def acs_prepare_machines():
 	nodes = get_nodes(config["clusterId"])
@@ -2095,11 +2113,9 @@ def acs_prepare_machines():
 		utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, "sudo systemctl restart kubelet.service")
 
 def acs_get_jobendpt(jobId):
-	acs_tools.get_nodes_from_acs("")
 	addr = k8sUtils.GetServiceAddress(jobId)
-	#print addr
-	#print config["acsnodes"]
-	ip = config["acsnodes"][addr[0]['hostName']]['publicip']
+	acs_tools.acs_set_desired_dns(addr[0]['hostName'])
+	ip = config["acs_node_info"]["desiredDns"]
 	port = addr[0]['hostPort']
 	ret = "http://%s:%s" % (ip, port)
 	print ret
@@ -2402,7 +2418,7 @@ def del_fileshare_links():
 	all_nodes = get_nodes(config["clusterId"])
 	for node in all_nodes:
 		remotecmd = "sudo rm -r %s; " % config["storage-mount-path"]	
-		remotecmd = "sudo mkdir -p %s; " % config["storage-mount-path"]
+		remotecmd += "sudo mkdir -p %s; " % config["storage-mount-path"]
 		exec_rmt_cmd(node, remotecmd)
 			 
 def link_fileshares(allmountpoints, bForce=False):
@@ -3141,17 +3157,19 @@ def run_kubectl( commands ):
 	run_kube( "./deploy/bin/kubectl", commands)
 	
 def kubernetes_get_node_name(node):
-	if config["isacs"]:
-		return config["nodenames_from_ip"][node]
+	kube_node_name = ""
+	domain = get_domain()
+	if len(domain) < 2: 
+		kube_node_name = node
+	elif domain in node:
+		# print "Remove domain %d" % len(domain)
+		kube_node_name = node[:-(len(domain))]
 	else:
-		domain = get_domain()
-		if len(domain) < 2: 
-			return node
-		elif domain in node:
-			# print "Remove domain %d" % len(domain)
-			return node[:-(len(domain))]
-		else:
-			return node
+		kube_node_name = node
+	if config["isacs"]:
+		acs_tools.acs_set_node_from_dns(kube_node_name)
+		kube_node_name = config["acs_node_from_dns"][kube_node_name]
+	return kube_node_name
 
 def set_zookeeper_cluster():
 	nodes = get_node_lists_for_service("zookeeper")
@@ -3840,33 +3858,27 @@ def run_command( args, command, nargs, parser ):
 			elif nargs[0]=="getconfig":
 				acs_tools.acs_get_config()
 			elif nargs[0]=="getip":
-				ip = acs_tools.acs_get_machinesAndIPsFast()
+				ip = acs_tools.acs_get_ip_info_nodes(False)
 				print ip
 			elif nargs[0]=="getallip":
-				ip = acs_tools.acs_get_machinesAndIPs(False)
+				ip = acs_tools.acs_get_ip_info_nodes(True)
 				print ip
 			elif nargs[0]=="createip":
-				ip = acs_tools.acs_get_machinesAndIPs(True)
+				ip = acs_tools.acs_create_node_ips()
 				print ip
 			elif nargs[0]=="label":
-				ip = acs_tools.get_nodes_from_acs("")
+				get_nodes(config["clusterId"])
 				acs_label_webui()
 			elif nargs[0]=="openports":
 				acs_tools.acs_add_nsg_rules({"HTTPAllow" : 80, "RestfulAPIAllow" : 5000, "AllowKubernetesServicePorts" : "30000-32767"})
-			elif nargs[0]=="restartwebui":
-				run_script_blocks(args.verbose, scriptblocks["restartwebui"])
 			elif nargs[0]=="getserviceaddr":
 				print "Address: =" + json.dumps(k8sUtils.GetServiceAddress(nargs[1]))
-			elif nargs[0]=="storage":
-				acs_tools.acs_create_storage()
 			elif nargs[0]=="storagemount":
 				acs_tools.acs_create_storage()
 				fileshare_install()
 				allmountpoints = mount_fileshares_by_service(True)
 				del_fileshare_links()
-				link_fileshares(allmountpoints, args.force)		
-			elif nargs[0]=="bldwebui":
-				run_script_blocks(args.verbose, scriptblocks["bldwebui"])
+				link_fileshares(allmountpoints, args.force)
 			elif nargs[0]=="prepare":
 				acs_prepare_machines()
 			elif nargs[0]=="addons":
@@ -3878,8 +3890,6 @@ def run_command( args, command, nargs, parser ):
 					run_script_blocks(args.verbose, ["kubernetes start freeflow"])
 			elif nargs[0]=="jobendpt":
 				acs_get_jobendpt(nargs[1])
-			elif nargs[0]=="dns":
-				acs_attach_dns_name()
 			elif nargs[0]=="postdeploy":
 				acs_post_deploy()
 			elif nargs[0]=="genconfig":

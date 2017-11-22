@@ -42,9 +42,14 @@ def SubmitJob(jobParamsJsonStr):
 		jobParams["jobId"] = str(uuid.uuid4()) 
 	#jobParams["jobId"] = jobParams["jobId"].replace("_","-").replace(".","-")
 
-	if "resourcegpu" not in jobParams or len(jobParams["resourcegpu"].strip()) == 0:
+	if "resourcegpu" not in jobParams:
 		jobParams["resourcegpu"] = 0
 
+	if isinstance(jobParams["resourcegpu"], basestring):
+		if len(jobParams["resourcegpu"].strip()) == 0:
+			jobParams["resourcegpu"] = 0
+		else:
+			jobParams["resourcegpu"] = Int(jobParams["resourcegpu"])
 
 	if "familyToken" not in jobParams or jobParams["familyToken"].isspace():
 		jobParams["familyToken"] = str(uuid.uuid4())
