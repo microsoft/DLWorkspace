@@ -19,7 +19,7 @@ spec:
         - name: acrregkey
       containers:
       - name: cloud-ccollectd
-        image: mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/collectd
+        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}collectd:{{cnf["dockertag"]}}
         imagePullPolicy: Always
         securityContext:
           privileged: true
@@ -30,6 +30,8 @@ spec:
             value: {{cnf["cloud_influxdb_node"]}}
           - name: EP_PORT
             value: "{{cnf["cloud_influxdb_tp_port"]}}"
+          - name: K8SAPI
+            value: "https://127.0.0.1:{{cnf["k8sAPIport"]}}"            
           - name: HOST_NAME
             valueFrom:
               fieldRef:
