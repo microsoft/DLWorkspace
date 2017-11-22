@@ -248,9 +248,24 @@ def create_nsg():
         az network nsg rule create \
             --resource-group %s \
             --nsg-name %s \
-            --name allowall \
+            --name allowalltcp \
             --protocol tcp \
             --priority 1000 \
+            --destination-port-range 0-65535 \
+            --access allow
+        """ %( config["azure_cluster"]["resource_group_name"],
+               config["azure_cluster"]["nsg_name"])
+    output = utils.exec_cmd_local(cmd)
+    print (output)
+
+
+    cmd = """
+        az network nsg rule create \
+            --resource-group %s \
+            --nsg-name %s \
+            --name allowalludp \
+            --protocol udp \
+            --priority 1010 \
             --destination-port-range 0-65535 \
             --access allow
         """ %( config["azure_cluster"]["resource_group_name"],

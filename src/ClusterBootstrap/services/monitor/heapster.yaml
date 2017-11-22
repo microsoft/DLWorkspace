@@ -24,6 +24,6 @@ spec:
         imagePullPolicy: IfNotPresent
         command:
         - /heapster
-        - --source=kubernetes:https://{{cnf["api-server-ip"]}}
-        - --sink=influxdb:http://{{cnf["webportal_node"]}}:8086
+        - --source=kubernetes:https://{{cnf["api-server-ip"]}}:{{cnf["k8sAPIport"]}}
+        - --sink=influxdb:http://{{cnf["influxdb_node"]}}:{{cnf["influxdb_port"]}}
 

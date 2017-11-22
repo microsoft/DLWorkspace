@@ -5,6 +5,7 @@ import subprocess
 import xml.etree.ElementTree as ET
 import json
 import re 
+import sys, traceback
 
 def configure(conf):
         collectd.info('Configured with')
@@ -28,8 +29,16 @@ def read(data=None):
                         gpuId = m.group(0).replace("/dev/nvidia","")
                         gpumap[gpuId] = jobid
     except:
-        pass
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        print ("*** print_tb:")
+        traceback.print_tb(exc_traceback, limit=1, file=sys.stdout)
+        print ("*** print_exception:")
+        traceback.print_exception(exc_type, exc_value, exc_traceback,
+                                  limit=2, file=sys.stdout)
+        print ("*** print_exc:")
+        traceback.print_exc()
 
+    print ("container - gpu mapping:" + str(gpumap))
 
     try:
         vl = collectd.Values(type='gauge')
@@ -45,6 +54,19 @@ def read(data=None):
                 gpuNum = gpu.find('minor_number').text
 
                 vl.plugin_instance = 'gpu%s' % (gpuNum)
+
+                print ("Reporting GPU information #" + gpuNum)
+                print ("gpu_util %s" % str(gpu.find('utilization/gpu_util').text.split()[0]))
+                print ("gpu_temp %s" % str(gpu.find('temperature/gpu_temp').text.split()[0]))
+                print ("power_draw %s" % str(gpu.find('power_readings/power_draw').text.split()[0]))
+                print ("mem_util %s" % str(gpu.find('utilization/memory_util').text.split()[0]))
+                print ("enc_util %s" % str(gpu.find('utilization/encoder_util').text.split()[0]))
+                print ("dec_util %s" % str(gpu.find('utilization/decoder_util').text.split()[0]))
+                print ("mem_used %s" % str(gpu.find('fb_memory_usage/used').text.split()[0]))
+                print ("mem_total %s" % str(gpu.find('fb_memory_usage/total').text.split()[0]))
+                print ("gpu_clock %s" % str(gpu.find('clocks/graphics_clock').text.split()[0]))
+                print ("mem_clock %s" % str(gpu.find('clocks/mem_clock').text.split()[0]))
+
 
                 # GPU utilization
                 vl.dispatch(type='percent', type_instance='gpu_util',
@@ -78,7 +100,14 @@ def read(data=None):
                             values=[1e6 * float(gpu.find('clocks/mem_clock').text.split()[0])])
 
     except:
-        pass
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        print ("*** print_tb:")
+        traceback.print_tb(exc_traceback, limit=1, file=sys.stdout)
+        print ("*** print_exception:")
+        traceback.print_exception(exc_type, exc_value, exc_traceback,
+                                  limit=2, file=sys.stdout)
+        print ("*** print_exc:")
+        traceback.print_exc()
 
 
     try:
@@ -138,7 +167,14 @@ def read(data=None):
                                 values=[1e6 * float(gpu.find('clocks/mem_clock').text.split()[0])])
 
     except:
-        pass
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        print ("*** print_tb:")
+        traceback.print_tb(exc_traceback, limit=1, file=sys.stdout)
+        print ("*** print_exception:")
+        traceback.print_exception(exc_type, exc_value, exc_traceback,
+                                  limit=2, file=sys.stdout)
+        print ("*** print_exc:")
+        traceback.print_exc()
 
 collectd.register_config(configure)
 collectd.register_read(read)

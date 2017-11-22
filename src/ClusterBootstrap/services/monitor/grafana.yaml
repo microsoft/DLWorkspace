@@ -11,7 +11,7 @@ spec:
         k8s-app: grafana
     spec:
       nodeSelector:
-        webportal: active
+        grafana: active
       hostNetwork: true
       containers:
       - name: grafana
@@ -23,7 +23,7 @@ spec:
           readOnly: true
         env:
         - name: INFLUXDB_HOST
-          value: {{cnf["webportal_node"]}}
+          value: {{cnf["influxdb_node"]}}
         - name: GF_SERVER_HTTP_PORT
           value: "3000"
           # The following env variables are required to make Grafana accessible via

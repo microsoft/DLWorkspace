@@ -27,9 +27,9 @@ spec:
           - name: CONFIG_TYPE
             value: influxdb 
           - name: EP_HOST
-            value: {{cnf["webportal_node"]}}
+            value: {{cnf["influxdb_node"]}}
           - name: EP_PORT
-            value: "25826"
+            value: "{{cnf["influxdb_tp_port"]}}"
           - name: HOST_NAME
             valueFrom:
               fieldRef:
