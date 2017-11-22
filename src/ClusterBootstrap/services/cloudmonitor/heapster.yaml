@@ -1,0 +1,23 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: cloudheapster
+  namespace: kube-system
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        task: monitoring
+        k8s-app: cloudheapster
+    spec:
+      serviceAccountName: heapster
+      containers:
+      - name: cloudheapster
+        image: gcr.io/google_containers/heapster-amd64:v1.4.0
+        imagePullPolicy: Always
+        command:
+        - /heapster
+        - --source=kubernetes:https://{{cnf["api-server-ip"]}}:{{cnf["k8sAPIport"]}}
+        - --sink=influxdb:http://{{cnf["cloud_influxdb_node"]}}:{{cnf["cloud_influxdb_port"]}}
+

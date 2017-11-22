@@ -1,0 +1,4 @@
+influxdb.yaml
+collectd.yaml
+grafana.yaml
+heapster.yaml

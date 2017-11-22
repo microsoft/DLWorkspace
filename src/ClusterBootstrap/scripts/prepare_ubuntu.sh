@@ -65,12 +65,17 @@ if  lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VG
         fi
 
 
-        NVIDIA_VERSION=381.22
-        # make the script reexecutable after a failed download
-        rm /tmp/NVIDIA-Linux-x86_64-$NVIDIA_VERSION.run
-        wget -P /tmp http://us.download.nvidia.com/XFree86/Linux-x86_64/$NVIDIA_VERSION/NVIDIA-Linux-x86_64-$NVIDIA_VERSION.run
-        chmod +x /tmp/NVIDIA-Linux-x86_64-$NVIDIA_VERSION.run
-        sudo bash /tmp/NVIDIA-Linux-x86_64-$NVIDIA_VERSION.run -a -s
+ #       NVIDIA_VERSION=384.98
+ #       # make the script reexecutable after a failed download
+ #       rm /tmp/NVIDIA-Linux-x86_64-$NVIDIA_VERSION.run
+ #       wget -P /tmp http://us.download.nvidia.com/XFree86/Linux-x86_64/$NVIDIA_VERSION/NVIDIA-Linux-x86_64-$NVIDIA_VERSION.run
+ #       chmod +x /tmp/NVIDIA-Linux-x86_64-$NVIDIA_VERSION.run
+ #       sudo bash /tmp/NVIDIA-Linux-x86_64-$NVIDIA_VERSION.run -a -s
+
+	sudo apt-get purge -y nvidia*
+	sudo apt-get install -y nvidia-384
+	
+
 
         sudo apt install -y nvidia-modprobe
 
@@ -87,6 +92,7 @@ if  lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VG
 
         sudo mkdir -p /opt/nvidia-driver/
         sudo cp -r /var/lib/nvidia-docker/volumes/nvidia_driver/* /opt/nvidia-driver/
+        NVIDIA_VERSION=`/usr/bin/nvidia-smi -x -q | grep driver_version | sed -e 's/\t//' | sed -e 's/\ //' | sed -e 's/<driver_version>//' | sed -e 's/<\/driver_version>//'`
         NV_DRIVER=/opt/nvidia-driver/$NVIDIA_VERSION
         sudo ln -s $NV_DRIVER /opt/nvidia-driver/current
 fi

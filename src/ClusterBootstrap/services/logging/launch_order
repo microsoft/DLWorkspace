@@ -1,0 +1,3 @@
+elasticsearch.yaml
+fluentd-configmap.yaml
+fluentd.yaml

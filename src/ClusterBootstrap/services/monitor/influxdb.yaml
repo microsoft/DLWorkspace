@@ -11,11 +11,11 @@ spec:
         k8s-app: influxdb
     spec:
       nodeSelector:
-        webportal: active
+        influxdb: active
       hostNetwork: true
       containers:
       - name: influxdb
-        image: mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/influxdb
+        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}influxdb:{{cnf["dockertag"]}}
         imagePullPolicy: Always
         volumeMounts:
         - name: influxdb
@@ -23,7 +23,7 @@ spec:
       volumes:
       - name: influxdb
         hostPath:
-          path: /dlwsdata/storage/sys/influxdb
+          path: {{cnf["influxdb_data_path"]}}
 
 ---
 apiVersion: v1
@@ -40,10 +40,10 @@ metadata:
 spec:
   ports:
   - name: influxdb-html
-    port: 8086
-    targetPort: 8086
+    port: {{cnf["influxdb_port"]}}
+    targetPort: {{cnf["influxdb_port"]}}
   - name: influxdb-colletcd
-    port: 25826
-    targetPort: 25826
+    port: {{cnf["influxdb_tp_port"]}}
+    targetPort: {{cnf["influxdb_tp_port"]}}
   selector:
     k8s-app: influxdb

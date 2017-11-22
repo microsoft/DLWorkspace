@@ -14,7 +14,7 @@ import re
 
 import pycurl
 from StringIO import StringIO
-
+import traceback
 
 def curl_get(url):
 	curl = pycurl.Curl()
@@ -133,7 +133,14 @@ def read(data=None):
                             vl.dispatch(values=[float(res)])
 
         except:
-            pass
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            print "*** print_tb:"
+            traceback.print_tb(exc_traceback, limit=1, file=sys.stdout)
+            print "*** print_exception:"
+            traceback.print_exception(exc_type, exc_value, exc_traceback,
+                                      limit=2, file=sys.stdout)
+            print "*** print_exc:"
+            traceback.print_exc()
 
         try:
             used_gpus = 0
@@ -150,7 +157,14 @@ def read(data=None):
             vl.plugin_instance = "usedgpu"
             vl.dispatch(values=[float(used_gpus)])
         except:
-            pass
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            print "*** print_tb:"
+            traceback.print_tb(exc_traceback, limit=1, file=sys.stdout)
+            print "*** print_exception:"
+            traceback.print_exception(exc_type, exc_value, exc_traceback,
+                                      limit=2, file=sys.stdout)
+            print "*** print_exc:"
+            traceback.print_exc()
 
         try:
             total_gpus = 0
@@ -165,7 +179,14 @@ def read(data=None):
             vl.dispatch(values=[float(total_gpus)])
 
         except:
-            pass
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            print "*** print_tb:"
+            traceback.print_tb(exc_traceback, limit=1, file=sys.stdout)
+            print "*** print_exception:"
+            traceback.print_exception(exc_type, exc_value, exc_traceback,
+                                      limit=2, file=sys.stdout)
+            print "*** print_exc:"
+            traceback.print_exc()
 
 collectd.register_config(configure)
 collectd.register_read(read)

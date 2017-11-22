@@ -62,7 +62,19 @@ default_config_parameters = {
 	"pod_ip_range" : "10.2.0.0/16", 
 	# Home in server, to aide Kubernete setup
 	"homeinserver" : "http://dlws-clusterportal.westus.cloudapp.azure.com:5000", 	
+	"cloud_influxdb_node" : "dlws-influxdb.westus.cloudapp.azure.com", 	
+	"cloud_influxdb_port" : "8086", 	
+	"cloud_influxdb_tp_port" : "25826", 	
+	"cloud_elasticsearch_node" : "dlws-influxdb.westus.cloudapp.azure.com", 	
+	"cloud_elasticsearch_port" : "9200", 	
 
+	"elasticsearch_db_port" : "9200", 	
+	"elasticsearch_tp_port" : "9300", 	
+
+	"influxdb_port" : "8086", 	
+	"influxdb_tp_port" : "25826", 	
+	"influxdb_rpc_port" : "8088", 	
+	"influxdb_data_path" : "/dlwsdata/storage/sys/influxdb",
 	# Discover server is used to find IP address of the host, it need to be a well-known IP address 
 	# that is pingable. 
 	"discoverserver" : "4.2.2.1", 
@@ -224,6 +236,12 @@ default_config_parameters = {
   		"restfulapi": "etcd_node_1", 
   		"jobmanager": "etcd_node_1", 
   		"FragmentGPUJob": "all", 
+  		"grafana": "etcd_node_1", 
+  		"influxdb": "etcd_node_1", 
+  		"elasticsearch": "etcd_node_1", 
+  		"kibana": "etcd_node_1", 
+
+
   	},
 
 	"kubemarks" : [ "rack", "sku" ],
@@ -399,10 +417,6 @@ default_config_parameters = {
 	"kube_addons" : ["/opt/addons/kube-addons/dashboard.yaml", 
 					 "/opt/addons/kube-addons/dns-addon.yaml",
 					 "/opt/addons/kube-addons/kube-proxy.json",
-					 "/opt/addons/kube-addons/collectd.yaml",
-					 "/opt/addons/kube-addons/grafana.yaml",
-					 "/opt/addons/kube-addons/heapster.yaml",
-					 "/opt/addons/kube-addons/influxdb.yaml",
 					 ],
 
 	"k8s-bld" : "k8s-temp-bld",
@@ -523,10 +537,14 @@ scriptblocks = {
 		"webui",
 		"docker push restfulapi",
 		"docker push webui",
+		"docker push influxdb",
 		"mount", 
   		"kubernetes start jobmanager",
   		"kubernetes start restfulapi",
   		"kubernetes start webportal",
+  		"kubernetes start monitor",
+  		"kubernetes start cloudmonitor",
+  		"kubernetes start logging",
 	],
 	"ubuntu_uncordon": [
 		"runscriptonall ./scripts/prepare_ubuntu.sh",
@@ -541,6 +559,7 @@ scriptblocks = {
 		"webui",
 		"docker push restfulapi",
 		"docker push webui",
+		"docker push influxdb",
 		"kubernetes start freeflow",
 		"kubernetes start jobmanager",
 		"kubernetes start restfulapi",
@@ -587,10 +606,13 @@ scriptblocks = {
 		"webui",
 		"docker push restfulapi",
 		"docker push webui",
+		"docker push influxdb",
 		"kubernetes start freeflow",
 		"kubernetes start jobmanager",
 		"kubernetes start restfulapi",
 		"kubernetes start webportal",
+  		"kubernetes start monitor",
+  		"kubernetes start logging",		
 	],
 	"acs": [
 		"acs deploy",
@@ -823,7 +845,8 @@ default_config_mapping = {
 	"pxeoptions": (["pxeserver"], lambda x: "" if fetch_dictionary(x,["options"]) is None else fetch_dictionary(x,["options"])), 
 	"hdfs_cluster_name" : ( ["cluster_name"], lambda x:x ),     
 	"etcd_user": ( ["admin_username"], lambda x:x ),     
-	"kubernetes_master_ssh_user": ( ["admin_username"], lambda x:x ),     
+	"kubernetes_master_ssh_user": ( ["admin_username"], lambda x:x ),    
+   
 }
 
 def isInstallOnCoreOS():
@@ -880,6 +903,12 @@ def update_config():
 		exec("config[\"%s_predeploy\"] = os.path.join(\"./deploy/%s\", config[\"pre%sdeploymentscript\"])" % (cf, loc, cf))
 		exec("config[\"%s_filesdeploy\"] = os.path.join(\"./deploy/%s\", config[\"%sdeploymentlist\"])" % (cf, loc, cf))
 		exec("config[\"%s_postdeploy\"] = os.path.join(\"./deploy/%s\", config[\"post%sdeploymentscript\"])" % (cf, loc, cf))
+	config["webportal_node"] = None if len(get_node_lists_for_service("webportal"))==0 else get_node_lists_for_service("webportal")[0]
+
+	if ("influxdb_node" not in config):
+		config["influxdb_node"] = config["webportal_node"]
+	if ("elasticsearch_node" not in config):
+		config["elasticsearch_node"] = config["webportal_node"]
 
 def add_ssh_key():
 	keys = fetch_config(["sshKeys"])
@@ -1363,8 +1392,8 @@ def gen_configs():
 	config["api_servers"] = "https://"+config["kubernetes_master_node"][0]+":"+str(config["k8sAPIport"])
 	config["etcd_endpoints"] = ",".join(["https://"+x+":"+config["etcd3port1"] for x in config["etcd_node"]])
 
-	config["webportal_node"] = None if len(get_node_lists_for_service("webportal"))==0 else get_node_lists_for_service("webportal")[0]
 
+ 
 
 	if os.path.isfile(config["ssh_cert"]+".pub"):
 		f = open(config["ssh_cert"]+".pub")
@@ -1531,10 +1560,6 @@ def deploy_masters(force = False):
 			echo 'waiting for master...'; 
 		done ; 
 
-		until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/heapster.yaml --validate=false ; do 
-			sleep 5; 
-			echo 'waiting for master...'; 
-		done ;		
 	"""
 	utils.SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_masters[0], deploycmd , False)
 
@@ -3200,6 +3225,8 @@ def kubernetes_label_node(cmdoptions, nodename, label):
 # Get the list of nodes for a particular service
 # 
 def get_node_lists_for_service(service):
+		if "etcd_node" not in config or "worker_node" not in config:
+			check_master_ETCD_status()
 		labels = fetch_config(["kubelabels"])
 		nodetype = labels[service] if service in labels else labels["default"]
 		if nodetype == "worker_node":
@@ -3295,11 +3322,16 @@ def kubernetes_mark_nodes( marklist, bMark ):
 
 def start_one_kube_service(fname):
 	if verbose:
-		f = open(fname)
-		service_yaml = yaml.load(f)
-		f.close()
-		print "Start service: "
-		print service_yaml
+		# use try/except because yaml.load cannot load yaml file with multiple documents. 
+		try:
+			f = open(fname)
+			service_yaml = yaml.load(f)
+			f.close()
+			print "Start service: "
+			print service_yaml
+		except Exception as e:
+			pass
+
 	run_kubectl( ["create", "-f", fname ] )
 
 def stop_one_kube_service(fname):
