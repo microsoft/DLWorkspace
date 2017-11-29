@@ -54,7 +54,7 @@ spec:
     volumeMounts:
     - mountPath: /freeflow
       name: freeflow    
-    {% for mp in job["mountPoints"] %}
+    {% for mp in job["mountpoints"] %}
     - mountPath: {{ mp.containerPath }}
       name: {{ mp.name }}
     {% endfor %}
@@ -95,7 +95,7 @@ spec:
       path: /etc/resolv.conf
   {% endif %}
       
-  {% for mp in job["mountPoints"] %}
+  {% for mp in job["mountpoints"] %}
   - name: {{ mp.name }}
     {% if mp.emptydir %}
     emptyDir: {}

@@ -47,7 +47,7 @@ spec:
     - mountPath: /etc/resolv.conf
       name: resolv
     {% endif %}
-    {% for mp in job["mountPoints"] %}
+    {% for mp in job["mountpoints"] %}
     - mountPath: {{ mp.containerPath }}
       name: {{ mp.name }}
     {% endfor %}
@@ -86,7 +86,7 @@ spec:
     hostPath:
       path: /etc/resolv.conf
   {% endif %}
-  {% for mp in job["mountPoints"] %}
+  {% for mp in job["mountpoints"] %}
   - name: {{ mp.name }}
     {% if mp.emptydir %}
     emptyDir: {}
