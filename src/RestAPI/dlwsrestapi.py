@@ -154,11 +154,11 @@ class SubmitJob(Resource):
 				params["isParent"] = args["isParent"]
 			else:
 				params["isParent"] = "1"
-			params["mountPoints"] = []
+			params["mountpoints"] = []
 			addcmd = ""		
 			if "mounthomefolder" in config and istrue(config["mounthomefolder"]) and "storage-mount-path" in config:
 				alias = getAlias(params["userName"])
-				params["mountPoints"].append({"name":"homeholder","containerPath":os.path.join("/home", alias),"hostPath":os.path.join(config["storage-mount-path"], "work", alias)})
+				params["mountpoints"].append({"name":"homeholder","containerPath":os.path.join("/home", alias),"hostPath":os.path.join(config["storage-mount-path"], "work", alias)})
 			if "mountpoints" in config and "storage-mount-path" in config:
 				# see link_fileshares in deploy.py 
 				for k, v in config["mountpoints"].iteritems():
@@ -179,12 +179,12 @@ class SubmitJob(Resource):
 									hostPath = os.path.join(hostBase, oneshare)
 									containerPath = os.path.join(containerBase, oneshare)
 									if v["type"]=="emptyDir":
-										params["mountPoints"].append({"name":basealias+"-"+oneshare,
+										params["mountpoints"].append({"name":basealias+"-"+oneshare,
 																		"containerPath": containerPath,
 																		"hostPath": "/emptydir", 
 																		"emptydir": "yes" })
 									else:
-										params["mountPoints"].append({"name":basealias+"-"+oneshare,
+										params["mountpoints"].append({"name":basealias+"-"+oneshare,
 																		"containerPath": containerPath,
 																		"hostPath": hostPath })
 									if False and "type" in v and v["type"]!="local" and v["type"]!="localHDD":
@@ -201,9 +201,9 @@ class SubmitJob(Resource):
 									addcmd += "chmod 0777 %s ; " % containerPath
 									if oneshare==alias:
 										addcmd += "chown %s:%s %s ; " % ( params["userId"], "500000513", containerPath )
-			if verbose and len(params["mountPoints"]) > 0:
+			if verbose and len(params["mountpoints"]) > 0:
 				logger.info("Mount path for job %s" % params )
-				for mounts in params["mountPoints"]:
+				for mounts in params["mountpoints"]:
 					logger.info( "Share %s, mount %s at %s" % (mounts["name"], mounts["hostPath"], mounts["containerPath"]) )
 			if len(addcmd) > 0:
 				params["cmd"] = addcmd + params["cmd"]

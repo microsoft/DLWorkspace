@@ -139,6 +139,7 @@
                         }
                         else
                         {
+                            /*
                             var shareType = mountpoints[sharename].type;
                             var description = mountdescription[shareType];
                             var hostPath = "/dlwsdata" + onemount;
@@ -146,6 +147,7 @@
                             if (onemount == "jobfiles")
                                 containerPath = "/job";
                             mounts = mounts.concat({ "containerPath": containerPath, "hostPath": hostPath, "description": description, "enabled": true });
+                            */
                         }
                         if (onemount == "" || onemount == "work")
                         {

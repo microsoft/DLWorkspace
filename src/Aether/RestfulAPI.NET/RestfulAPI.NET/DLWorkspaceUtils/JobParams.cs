@@ -97,7 +97,7 @@ namespace DLWorkspaceUtils
         public string containerUserId { get; set; }
 
         [DataMember]
-        public List<MountPoint> mountPoints { get; set; }
+        public List<MountPoint> mountpoints { get; set; }
 
 
         [DataMember]

@@ -283,12 +283,12 @@ namespace RestfulAPI.NET.Controllers
             }
 
 
-            job.jobParams.mountPoints = new List<DLWorkspaceUtils.MountPoint>();
+            job.jobParams.mountpoints = new List<DLWorkspaceUtils.MountPoint>();
             DLWorkspaceUtils.MountPoint hdfsmp = new DLWorkspaceUtils.MountPoint();
             hdfsmp.name = "hdfs";
             hdfsmp.hostPath = "/hadoopmnt";
             hdfsmp.containerPath = "/hdfs";
-            job.jobParams.mountPoints.Add(hdfsmp);
+            job.jobParams.mountpoints.Add(hdfsmp);
 
             if (reqParams.PreviousModelPath != null)
             {
@@ -296,7 +296,7 @@ namespace RestfulAPI.NET.Controllers
                 mp.name = "prevmodel";
                 mp.hostPath = "/dlwsdata/storage/"+ reqParams.VcId + "/"+reqParams.PreviousModelPath.Replace("/hdfs/", "");
                 mp.containerPath = "/prevModel";
-                job.jobParams.mountPoints.Add(mp);
+                job.jobParams.mountpoints.Add(mp);
                 job.jobParams.cmd = " cp -r /prevModel/* /job/models/ ; " + job.jobParams.cmd;
             }
 
