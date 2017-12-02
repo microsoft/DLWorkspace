@@ -513,7 +513,7 @@ def add_additional_cloud_config():
 def init_deployment():
 	gen_new_key = True
 	regenerate_key = False
-	if (os.path.isfile("./deploy/clusterID.yml")):
+	if (os.path.exists("./deploy/clusterID.yml")):
 		clusterID = utils.get_cluster_ID_from_file()
 		response = raw_input_with_default("There is a cluster (ID:%s) deployment in './deploy', do you want to keep the existing ssh key and CA certificates (y/n)?" % clusterID)
 		if first_char(response) == "n":
@@ -522,6 +522,8 @@ def init_deployment():
 			regenerate_key = True
 		else:
 			gen_new_key = False
+	else:
+		create_cluster_id()
 	if gen_new_key:
 		utils.gen_SSH_key(regenerate_key)
 		gen_CA_certificates()
@@ -2920,7 +2922,8 @@ def run_command( args, command, nargs, parser ):
 	if verbose and config["isacs"]:
 		print "Using Azure Container Services"
 
-	update_config()
+	if os.path.exists("./deploy/clusterID.yml"):
+		update_config()
 	
 	# additional glusterfs launch parameter.
 	config["launch-glusterfs-opt"] = args.glusterfs;
