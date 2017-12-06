@@ -10,6 +10,10 @@ except Exception:
     config = {}
     ()
 
+def GetWorkPath(workpath):
+	workPath = "work/"+workpath
+	return workPath
+
 def GetStoragePath(jobpath, workpath, datapath):
     jobPath = "work/"+jobpath
     workPath = "work/"+workpath
