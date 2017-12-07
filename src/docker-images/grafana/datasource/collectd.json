@@ -1,0 +1,8 @@
+{
+  "name":"collectd",
+  "type":"influxdb",
+  "url":"http://localhost:8086",
+  "access":"proxy",
+  "basicAuth":false,
+  "database":"collectd"
+}
