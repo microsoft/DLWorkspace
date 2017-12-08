@@ -23,7 +23,7 @@ spec:
       nodeSelector:
         mysql: active
       containers:
-      - image: phpmyadmin/phpmyadmin
+      - image: dlws/phpmyadmin:4.7.6
         name: phpmyadmin
         env:
           # Use secret in real usage
