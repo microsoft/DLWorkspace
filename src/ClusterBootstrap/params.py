@@ -18,6 +18,10 @@ default_config_parameters = {
     "influxdb_tp_port" : "25826",     
     "influxdb_rpc_port" : "8088",     
     "influxdb_data_path" : "/dlwsdata/storage/sys/influxdb",
+
+    "mysql_port" : "3306",
+    "mysql_data_path" : "/dlwsdata/storage/sys/mysql",
+
     # Discover server is used to find IP address of the host, it need to be a well-known IP address 
     # that is pingable. 
     "discoverserver" : "4.2.2.1", 
@@ -187,6 +191,7 @@ default_config_parameters = {
         "influxdb": "etcd_node_1", 
         "elasticsearch": "etcd_node_1", 
         "kibana": "etcd_node_1", 
+        "mysql": "etcd_node_1", 
 
 
       },
