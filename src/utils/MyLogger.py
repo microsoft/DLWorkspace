@@ -18,12 +18,6 @@ class MyLogger:
         if self.logger is not None:
             self.logger.info(msg)
 
-    def info(self,msg):
-        self.init()
-
-        if self.logger is not None:
-            self.logger.info(msg)
-
     def error(self,msg):
         self.init()
 
