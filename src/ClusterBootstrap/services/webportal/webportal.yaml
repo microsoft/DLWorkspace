@@ -15,14 +15,17 @@ spec:
       {% endif %}
       nodeSelector:
         webportal: active
+      hostNetwork: true
       containers:
       - name: webportal
         image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}webui:{{cnf["dockertag"]}}
         imagePullPolicy: Always
+        {% if false %}
         ports:
           - name: http
             containerPort: 80
             hostPort: {{cnf["webuiport"]}}
+        {% endif %}
         imagePullPolicy: Always
         volumeMounts:
         - mountPath: /WebUI

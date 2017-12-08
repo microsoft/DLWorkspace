@@ -22,8 +22,8 @@ namespace WebApplication1.Migrations
 
             modelBuilder.Entity("WindowsAuth.models.TemplateEntry", b =>
                 {
-                    b.Property<string>("Template")
-                        .ValueGeneratedOnAdd();
+                    b.Property<string>("Template");
+                        //.ValueGeneratedOnAdd();
 
                     b.Property<string>("Json");
 
@@ -38,8 +38,8 @@ namespace WebApplication1.Migrations
 
             modelBuilder.Entity("WindowsAuth.models.UserEntry", b =>
                 {
-                    b.Property<string>("Email")
-                        .ValueGeneratedOnAdd();
+                    b.Property<string>("Email");
+                        //.ValueGeneratedOnAdd();
 
                     b.Property<string>("Alias");
 
