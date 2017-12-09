@@ -306,7 +306,7 @@ namespace WindowsAuth
                 _logger.LogDebug("SQLPassword: {0}", clusterInfo.SQLPassword);
                 _logger.LogDebug("SQLUsername: {0}", clusterInfo.SQLUsername);
                 Clusters[clusterName] = clusterInfo;
-                var connectionUsers = String.Format("Server={0};Database={1}{2};User Id={3};Password={4}",
+                var connectionUsers = String.Format("Server={0};Database={1}{2};User Id={3};Password={4};", // Trusted_Connection=True;MultipleActiveResultSets=true",
                     clusterInfo.SQLHostname,
                     clusterInfo.SQLDatabaseForUser,
                     clusterInfo.ClusterId,
@@ -315,7 +315,8 @@ namespace WindowsAuth
                 var optionsBuilderUsers = new DbContextOptionsBuilder<ClusterContext>();
                 optionsBuilderUsers.UseSqlServer(connectionUsers);
                 var userDatabase = new ClusterContext(optionsBuilderUsers.Options);
-                userDatabase.Database.EnsureCreated();
+                // userDatabase.Database.EnsureCreated();
+                userDatabase.Database.Migrate();
                 Database[clusterName] = userDatabase;
             }
 
@@ -325,7 +326,7 @@ namespace WindowsAuth
             templatesMaster.SQLHostname = templateDb["SQLHostname"] as string;
             templatesMaster.SQLPassword = templateDb["SQLPassword"] as string;
             templatesMaster.SQLUsername = templateDb["SQLUsername"] as string;
-            var connectionTemplatesMaster = String.Format("Server={0};Database={1};User Id={2};Password={3}",
+            var connectionTemplatesMaster = String.Format("Server={0};Database={1};User Id={2};Password={3};", // Trusted_Connection=True;MultipleActiveResultSets=true",
                 templatesMaster.SQLHostname,
                 templatesMaster.SQLDatabaseForTemplates,
                 templatesMaster.SQLUsername,
@@ -333,7 +334,8 @@ namespace WindowsAuth
             var optionsBuilderTemplatesMaster = new DbContextOptionsBuilder<ClusterContext>();
             optionsBuilderTemplatesMaster.UseSqlServer(connectionTemplatesMaster);
             var templateMasterDatabase = new ClusterContext(optionsBuilderTemplatesMaster.Options);
-            var created = templateMasterDatabase.Database.EnsureCreated();
+            // var created = templateMasterDatabase.Database.EnsureCreated();
+            templateMasterDatabase.Database.Migrate();
             var entryArries = templateMasterDatabase.Template.Select( x => x.Template ).ToArray();
             var dic = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
             foreach (var entry in entryArries)
@@ -374,7 +376,13 @@ namespace WindowsAuth
                         if (!dic.ContainsKey(entry.Item1))
                         {
                             TemplateEntry entryAdd = new TemplateEntry(entry.Item1, null, entry.Item2, "job");
-                            MasterDatabase.Template.Add(entryAdd);
+                            try { 
+                                MasterDatabase.Template.Add(entryAdd);
+                                _logger.LogInformation($"Add {entry.Item1} to template.");
+                            } catch (Exception ex )
+                            {
+                                _logger.LogInformation($"Failed to add {entry.Item1}, already exist in template.");
+                            }
                         }
                     }
                     MasterDatabase.SaveChanges(); 
