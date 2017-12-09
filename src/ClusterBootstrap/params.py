@@ -20,7 +20,10 @@ default_config_parameters = {
     "influxdb_data_path" : "/dlwsdata/storage/sys/influxdb",
 
     "mysql_port" : "3306",
+    "mysql_username" : "root",
     "mysql_data_path" : "/dlwsdata/storage/sys/mysql",
+
+    "datasource" : "AzureSQL",
 
     # Discover server is used to find IP address of the host, it need to be a well-known IP address 
     # that is pingable. 
