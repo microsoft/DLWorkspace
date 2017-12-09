@@ -14,30 +14,27 @@ class MyLogger:
 
     def info(self,msg):
         self.init()
-
-        if self.logger is not None:
-            self.logger.info(msg)
-
-    def info(self,msg):
-        self.init()
-
+        print msg
         if self.logger is not None:
             self.logger.info(msg)
 
     def error(self,msg):
         self.init()
+        print msg
 
         if self.logger is not None:
             self.logger.error(msg)
 
     def warn(self,msg):
         self.init()
+        print msg
 
         if self.logger is not None:
             self.logger.warn(msg)
 
     def debug(self,msg):
         self.init()
+        print msg
 
         if self.logger is not None:
             self.logger.debug(msg)

@@ -343,6 +343,9 @@ def update_config():
 		config["influxdb_node"] = config["webportal_node"]
 	if ("elasticsearch_node" not in config):
 		config["elasticsearch_node"] = config["webportal_node"]
+	if ("mysql_node" not in config):
+		config["mysql_node"] = None if len(get_node_lists_for_service("mysql"))==0 else get_node_lists_for_service("mysql")[0]
+
 
 def add_ssh_key():
 	keys = fetch_config(["sshKeys"])
@@ -2630,7 +2633,7 @@ def get_all_services():
 				with open( yamlname ) as f:
 					content = f.read()
 					f.close()
-					if content.find( "DaemonSet" )>=0 or content.find("ReplicaSet")>=0:
+					if content.find( "Deployment" )>=0 or content.find( "DaemonSet" )>=0 or content.find("ReplicaSet")>=0:
 						# Only add service if it is a daemonset. 
 						servicedic[service] = yamlname
 	return servicedic
@@ -2661,7 +2664,7 @@ def get_service_yaml( use_service ):
 		servicename = get_service_name(servicedic[service])
 		newentries[servicename] = servicedic[service]
 	servicedic.update(newentries)
-	# print servicedic
+	#print servicedic
 	fname = servicedic[use_service]
 	return fname
 			

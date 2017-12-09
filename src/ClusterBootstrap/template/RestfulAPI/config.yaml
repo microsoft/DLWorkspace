@@ -4,10 +4,10 @@ database :
   password : {{cnf["sqlserver-password"]}}
   database : {{cnf["sqlserver-database"]}}
 mysql :
-  hostname : {{cnf["mysql-hostname"]}}
-  username : {{cnf["mysql-username"]}}
-  password : {{cnf["mysql-password"]}}
-  database : {{cnf["mysql-database"]}}
+  hostname : {{cnf["mysql_node"]}}
+  port : {{cnf["mysql_port"]}}
+  username : {{cnf["mysql_username"]}}
+  password : {{cnf["mysql_password"]}}
 kubelet-path : /usr/local/bin/kubectl
 storage-mount-path : {{cnf["storage-mount-path"]}}
 root-path : /DLWorkspace/src/
@@ -28,3 +28,4 @@ mounthomefolder : {{cnf["mounthomefolder"]}}
 deploymounts : {{cnf["deploymounts"]}}
 default-storage-folders : {{cnf["default-storage-folders"]}}
 webportal_node: {{cnf["webportal_node"]}}
+datasource : {{cnf["datasource"]}}
