@@ -15,22 +15,22 @@ dockerprefix = ""
 dockertag = ""
 
 if __name__ == '__main__':
-	parser = argparse.ArgumentParser(description = "Build one or more dockers of DL Workspace")
-	parser.add_argument("-p", "--prefix", 
-		help="Prefix of the docker name, or [dlws-]", 
-		action="store", 
-		default="dlws-" )
-	parser.add_argument("-t", "--tag", 
-		help="Tag of the docker build, or [default]", 
-		action = "store", 
-		default = "latest" )
-	parser.add_argument('nargs', nargs=argparse.REMAINDER, 
-		help="Additional command argument", 
-		)
-	args = parser.parse_args()
-	dockerprefix = args.prefix
-	dockertag = args.tag
-	# print "Docker prefix : " + dockerprefix
-	# print "Docker tag : " + dockertag
-	if True:
-		build_dockers(".", dockerprefix, dockertag, args.nargs )
+    parser = argparse.ArgumentParser(description = "Build one or more dockers of DL Workspace")
+    parser.add_argument("-p", "--prefix", 
+        help="Prefix of the docker name, or [dlws-]", 
+        action="store", 
+        default="dlws-" )
+    parser.add_argument("-t", "--tag", 
+        help="Tag of the docker build, or [default]", 
+        action = "store", 
+        default = "latest" )
+    parser.add_argument('nargs', nargs=argparse.REMAINDER, 
+        help="Additional command argument", 
+        )
+    args = parser.parse_args()
+    dockerprefix = args.prefix
+    dockertag = args.tag
+    # print "Docker prefix : " + dockerprefix
+    # print "Docker tag : " + dockertag
+    if True:
+        build_dockers(".", dockerprefix, dockertag, args.nargs )

@@ -36,27 +36,27 @@ import logging.config
 
 
 def RunCommand(command):
-	dataHandler = DataHandler()
-	k8sUtils.kubectl_exec("exec %s %s" % (command["jobId"], command["command"]))
-	dataHandler.FinishCommand(command["id"])
-	dataHandler.Close()
-	return True
+    dataHandler = DataHandler()
+    k8sUtils.kubectl_exec("exec %s %s" % (command["jobId"], command["command"]))
+    dataHandler.FinishCommand(command["id"])
+    dataHandler.Close()
+    return True
 
 
 def Run():
-	while True:
-		try:
-			dataHandler = DataHandler()
-			pendingCommands = dataHandler.GetPendingCommands()
-			for command in pendingCommands:
-				try:
-					print "Processing command: %s" % (command["id"])
-					RunCommand(command)
-				except Exception as e:
-					print e
-		except Exception as e:
-			print e
-		time.sleep(1)
+    while True:
+        try:
+            dataHandler = DataHandler()
+            pendingCommands = dataHandler.GetPendingCommands()
+            for command in pendingCommands:
+                try:
+                    print "Processing command: %s" % (command["id"])
+                    RunCommand(command)
+                except Exception as e:
+                    print e
+        except Exception as e:
+            print e
+        time.sleep(1)
 
 if __name__ == '__main__':
-	Run()
+    Run()

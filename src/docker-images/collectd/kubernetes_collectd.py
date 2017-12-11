@@ -17,22 +17,22 @@ from StringIO import StringIO
 import traceback
 
 def curl_get(url):
-	curl = pycurl.Curl()
-	curl.setopt(pycurl.URL, url)
-	curl.setopt(pycurl.SSL_VERIFYPEER, 1)
-	curl.setopt(pycurl.SSL_VERIFYHOST, 0)
-	curl.setopt(pycurl.CAINFO, "/etc/kubernetes/ssl/ca.pem")
-	curl.setopt(pycurl.SSLKEYTYPE, "PEM")
-	curl.setopt(pycurl.SSLKEY, "/etc/kubernetes/ssl/apiserver-key.pem")
-	curl.setopt(pycurl.SSLCERTTYPE, "PEM")
-	curl.setopt(pycurl.SSLCERT, "/etc/kubernetes/ssl/apiserver.pem")
-	curl.setopt(curl.FOLLOWLOCATION, True)
-	buff = StringIO()
-	curl.setopt(pycurl.WRITEFUNCTION, buff.write)
-	curl.perform()
-	responseStr = buff.getvalue()
-	curl.close()
-	return responseStr
+    curl = pycurl.Curl()
+    curl.setopt(pycurl.URL, url)
+    curl.setopt(pycurl.SSL_VERIFYPEER, 1)
+    curl.setopt(pycurl.SSL_VERIFYHOST, 0)
+    curl.setopt(pycurl.CAINFO, "/etc/kubernetes/ssl/ca.pem")
+    curl.setopt(pycurl.SSLKEYTYPE, "PEM")
+    curl.setopt(pycurl.SSLKEY, "/etc/kubernetes/ssl/apiserver-key.pem")
+    curl.setopt(pycurl.SSLCERTTYPE, "PEM")
+    curl.setopt(pycurl.SSLCERT, "/etc/kubernetes/ssl/apiserver.pem")
+    curl.setopt(curl.FOLLOWLOCATION, True)
+    buff = StringIO()
+    curl.setopt(pycurl.WRITEFUNCTION, buff.write)
+    curl.perform()
+    responseStr = buff.getvalue()
+    curl.close()
+    return responseStr
 
 
 
