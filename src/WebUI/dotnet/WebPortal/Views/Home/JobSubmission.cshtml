@@ -252,15 +252,20 @@
         $scope.setMounts = function () {
             if ($scope.current == null || $scope.mounts == null )
                 return;
-            if ($scope.current.mountpoints == null)
-                $scope.current.mountpoints = [];
+            var examinemounts = $scope.current.mountpoints;
+            if (examinemounts == null)
+                examinemounts = [];
+            $scope.current.mountpoints = []
             for (var i = 0; i < $scope.mounts.length - 1; i++)
             {
                 var onemount = $scope.mounts[i];
-                var selected = $filter('filter')($scope.current.mountpoints, { hostPath: onemount.hostPath });
+                var selected = $filter('filter')(examinemounts, { hostPath: onemount.hostPath });
                 if (selected.length <=0)
                 {
                     $scope.current.mountpoints.push(onemount);
+                }
+                else {
+                    $scope.current.mountpoints.push(selected[0]);
                 }
             }
         };
