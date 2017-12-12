@@ -287,9 +287,12 @@ class ListJobs(Resource):
 
             if "jobStatusDetail" in job and job["jobStatusDetail"] is not None  and (job["jobStatusDetail"].strip()) > 0:
                 try:
-                    job["jobStatusDetail"] = json.loads(base64.b64decode(job["jobStatusDetail"]))
+                    s = job["jobStatusDetail"]
+                    s = base64.b64decode(s)
+                    s = json.loads(s)
+                    job["jobStatusDetail"] = s
                 except Exception as e:
-                    job["jobStatusDetail"] = base64.b64decode(job["jobStatusDetail"])
+                    job["jobStatusDetail"] = s
                     pass
 
             if job["jobStatus"] == "running":

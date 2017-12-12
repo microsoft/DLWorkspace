@@ -376,9 +376,9 @@ class DataHandler:
     def SetJobError(self,jobId,errorMsg):
         try:
             start_time = timeit.default_timer()
-            sql = """update `%s` set jobStatus = 'error', `errorMsg` = ? where `jobId` = '%s' """ % (self.jobtablename,jobId)
+            sql = """update `%s` set jobStatus = 'error', `errorMsg` = '%s' where `jobId` = '%s' """ % (self.jobtablename,errorMsg,jobId)
             cursor = self.conn.cursor()
-            cursor.execute(sql,errorMsg)
+            cursor.execute(sql)
             self.conn.commit()
             cursor.close()
             elapsed = timeit.default_timer() - start_time
@@ -392,9 +392,9 @@ class DataHandler:
     def UpdateJobTextField(self,jobId,field,value):
         try:
             start_time = timeit.default_timer()
-            sql = """update `%s` set `%s` = ? where `jobId` = '%s' """ % (self.jobtablename,field, jobId)
+            sql = "update `%s` set `%s` = '%s' where `jobId` = '%s' " % (self.jobtablename,field,value,jobId)
             cursor = self.conn.cursor()
-            cursor.execute(sql,value)
+            cursor.execute(sql)
             self.conn.commit()
             cursor.close()
             elapsed = timeit.default_timer() - start_time
