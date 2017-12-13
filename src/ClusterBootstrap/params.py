@@ -41,7 +41,7 @@ default_config_parameters = {
     "etcd3port1" : "2379", # Etcd3port1 will be used by App to call Etcd 
     "etcd3port2" : "4001", # Etcd3port2 is established for legacy purpose. 
     "etcd3portserver" : "2380", # Server port for etcd
-    "k8sAPIport" : "1443", # Server port for etcd
+    "k8sAPIport" : "1443", # Server port for apiserver
     "nvidiadriverdocker" : "mlcloudreg.westus.cloudapp.azure.com:5000/nvidia_driver:375.20",
     "nvidiadriverversion" : "375.20",
     # Default port for WebUI, Restful API, 
@@ -376,7 +376,10 @@ default_config_parameters = {
 
     "k8s-bld" : "k8s-temp-bld",
     "k8s-gitrepo" : "sanjeevm0/kubernetes",
-    "k8s-gitbranch" : "release-1.7",
+    "k8s-gitbranch" : "vb1.7.5",
+    "k8scri-gitrepo" : "sanjeevm0/KubernetesGPU",
+    "k8scri-gitbranch" : "master",
+    "kube_custom_cri" : False,
 
     "Authentications": {
         "Live-login-windows": {
