@@ -939,9 +939,10 @@ def get_hyperkube_docker(force = False) :
     if force or not os.path.exists("./deploy/bin/kubelet"):
         copy_from_docker_image(config['kubernetes_docker_image'], "/kubelet", "./deploy/bin/kubelet")
     if force or not os.path.exists("./deploy/bin/kubectl"):
-        copy_from_docker_image(config['kubernetes_docker_image'], "/kubectl", "./deploy/bin/kubectl")
-    # os.system("cp ./deploy/bin/hyperkube ./deploy/bin/kubelet")
-    # os.system("cp ./deploy/bin/hyperkube ./deploy/bin/kubectl")
+        copy_from_docker_image(config['kubernetes_docker_image'], "/kubectl", "./deploy/bin/kubectl")		
+    if config['kube_custom_cri']:
+        if force or not os.path.exists("./deploy/bin/kubegpucri"):
+            copy_from_docker_image(config['kubernetes_docker_image'], "/kubegpucri", "./deploy/bin/kubegpucri")
 
 def deploy_masters(force = False):
     print "==============================================="
@@ -2950,6 +2951,7 @@ def run_command( args, command, nargs, parser ):
 
     if verbose: 
         print "deploy " + command + " " + (" ".join(nargs))
+        print "PlatformScripts = {0}".format(config["platform-scripts"])
 
     if command == "restore":
         # Second part of restore, after config has been read.
