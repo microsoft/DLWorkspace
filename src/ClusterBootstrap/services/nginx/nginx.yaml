@@ -1,0 +1,50 @@
+kind: DaemonSet
+apiVersion: extensions/v1beta1
+metadata:
+  name: nginx
+  namespace: default
+spec:
+  template:
+    metadata:
+      name: nginx
+      labels:
+        app: nginx
+        webportal-node: pod
+    spec:
+      {% if cnf["dnsPolicy"] %}    
+      dnsPolicy: {{cnf["dnsPolicy"]}}
+      {% endif %}
+      nodeSelector:
+        webportal: active
+      {% if true %}  
+      hostNetwork: true
+      {% endif %}
+      containers:
+      - name: nginx
+        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}nginx:{{cnf["dockertag"]}}
+        imagePullPolicy: Always   
+        command: ["/home/auto-reload-nginx.sh"]
+        livenessProbe:
+          httpGet:
+            path: /html/index.html
+            port: 80
+          initialDelaySeconds: 30
+          timeoutSeconds: 1
+        volumeMounts:
+        - mountPath: /etc/nginx/ssl
+          name: secret-volume
+        - mountPath: /etc/nginx.cloud/conf.d
+          name: configmap-volume
+        - mountPath: /etc/hostname-fqdn
+          name: hostname-fqdn          
+      volumes:
+      - name: secret-volume
+        hostPath:
+          path: /etc/nginx/ssl
+      - name: configmap-volume
+        configMap:
+          name: nginxconfigmap
+      - name: hostname-fqdn
+        hostPath:
+          path: /etc/hostname-fqdn
+     

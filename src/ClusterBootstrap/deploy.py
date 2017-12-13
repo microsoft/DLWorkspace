@@ -1757,6 +1757,12 @@ def fileshare_install():
         if len(remotecmd)>0:
             utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
 
+def config_nginx():
+    all_nodes = get_nodes(config["clusterId"])
+    for node in all_nodes:
+        remotecmd = "echo %s | sudo tee /etc/hostname-fqdn; sudo chmod +r /etc/hostname-fqdn" % node
+        utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)    
+
 def mount_fileshares_by_service(perform_mount=True):
     all_nodes = get_nodes(config["clusterId"])
     if perform_mount:
@@ -3419,6 +3425,11 @@ def run_command( args, command, nargs, parser ):
     elif command == "backup":
         utils.backup_keys(config["cluster_name"], nargs)
 
+    elif command == "nginx":
+        if len(nargs)>=1:
+            if nargs[0] == "config":
+                config_nginx()
+
     elif command == "docker":
         if len(nargs)>=1:
             if nargs[0] == "build":
@@ -3549,6 +3560,8 @@ Command:
             build: build one or more docker images associated with the current deployment. 
             push: build and push one or more docker images to register
             run [--sudo]: run a docker image (--sudo: in super user mode)
+  nginx     [args] manage nginx reverse proxy
+            config: config nginx node, mainly install FQDN on each node
   execonall [cmd ... ] Execute the command on all nodes and print the output. 
   doonall [cmd ... ] Execute the command on all nodes. 
   runscriptonall [script] Execute the shell/python script on all nodes. 
