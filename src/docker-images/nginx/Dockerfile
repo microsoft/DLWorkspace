@@ -32,4 +32,10 @@ RUN pip install flask.restful
 RUN apt-get install -y --no-install-recommends ssh
 RUN apt-get install -y software-properties-common 
 RUN add-apt-repository ppa:certbot/certbot
-RUN apt-get update; apt-get install -y certbot
+RUN apt-get update; apt-get install -y certbot inotify-tools
+
+COPY auto-reload-nginx.sh /home/auto-reload-nginx.sh
+COPY default.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/nginx.conf
+RUN chmod +x /home/auto-reload-nginx.sh
+RUN chmod +x /etc/nginx/conf.d/default.conf
