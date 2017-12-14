@@ -550,8 +550,9 @@ scriptblocks = {
         "-y updateworker",
         "-y kubernetes labels",
         "mount",
-    ],    
-    "redeployazure": [
+    ],
+    "redeploy": [
+        "-y cleanworker",
         "-y --force deploy",
         "-y updateworker",
         "-y kubernetes labels",
