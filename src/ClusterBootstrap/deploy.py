@@ -785,6 +785,7 @@ def gen_ETCD_certificates():
 def gen_configs():
     print "==============================================="
     print "generating configuration files..."
+    utils.clean_rendered_target_directory()
     os.system("mkdir -p ./deploy/etcd")
     os.system("mkdir -p ./deploy/kube-addons")
     os.system("mkdir -p ./deploy/master")
@@ -904,9 +905,7 @@ def deploy_master(kubernetes_master):
         utils.render_template("./template/master/" + config["premasterdeploymentscript"],"./deploy/master/"+config["premasterdeploymentscript"],config)
         utils.render_template("./template/master/" + config["postmasterdeploymentscript"],"./deploy/master/"+config["postmasterdeploymentscript"],config)
 
-
         utils.SSH_exec_script(config["ssh_cert"],kubernetes_master_user, kubernetes_master, "./deploy/master/"+config["premasterdeploymentscript"])
-
 
         with open("./deploy/master/"+config["masterdeploymentlist"],"r") as f:
             deploy_files = [s.split(",") for s in f.readlines() if len(s.split(",")) == 2]
@@ -1175,11 +1174,11 @@ def create_PXE_ubuntu():
 
 def clean_worker_nodes():
     workerNodes = get_worker_nodes(config["clusterId"])
+    worker_ssh_user = config["admin_username"]
     for nodeIP in workerNodes:
         print "==============================================="
         print "cleaning worker node: %s ..."  % nodeIP
-        utils.SSH_exec_script(config["ssh_cert"],kubernetes_master_user, kubernetes_master, "./deploy/kubelet/%s" % config["workercleanupscript"])
-
+        utils.SSH_exec_script(config["ssh_cert"], worker_ssh_user, nodeIP, "./deploy/kubelet/%s" % config["workercleanupscript"])
 
 
 def reset_worker_node(nodeIP):
@@ -3085,7 +3084,7 @@ def run_command( args, command, nargs, parser ):
 
 
     elif command == "cleanworker":
-        response = raw_input("Clean and Stop Worker Nodes (y/n)?")
+        response = raw_input_with_default("Clean and Stop Worker Nodes (y/n)?")
         if first_char( response ) == "y":
             check_master_ETCD_status()
             gen_configs()

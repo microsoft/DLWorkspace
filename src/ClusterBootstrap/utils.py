@@ -30,6 +30,9 @@ verbose = False
 class StaticVariable():
     rendered_target_directory = {}
 
+def clean_rendered_target_directory():
+    StaticVariable.rendered_target_directory = {}
+
 def render_template(template_file, target_file, config, verbose=False):
     filename, file_extension = os.path.splitext(template_file)
     basename = os.path.basename(template_file)
@@ -42,7 +45,7 @@ def render_template(template_file, target_file, config, verbose=False):
             print "Copy tempalte " + template_file + " --> " + target_file
     elif ("render-by-line-ext" in config and file_extension in config["render-by-line-ext"]) or ("render-by-line" in config and basename in config["render-by-line"]):
         if verbose:
-            print "Render tempalte " + template_file + " --> " + target_file + " Line by Line .... "
+            print "Render template " + template_file + " --> " + target_file + " Line by Line .... "
         ENV_local = Environment(loader=FileSystemLoader("/"))
         with open(target_file, 'w') as f:
             with open(template_file, 'r') as fr:
@@ -60,11 +63,13 @@ def render_template(template_file, target_file, config, verbose=False):
 
     else:
         if verbose:
-            print "Render tempalte " + template_file + " --> " + target_file
+            print "Render template " + template_file + " --> " + target_file
         try:
             ENV_local = Environment(loader=FileSystemLoader("/"))
             template = ENV_local.get_template(os.path.abspath(template_file))
             content = template.render(cnf=config)
+            target_dir = os.path.dirname(target_file)
+            os.system("mkdir -p {0}".format(target_dir))
             with open(target_file, 'w') as f:
                 f.write(content)
             f.close()
