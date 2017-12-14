@@ -45,7 +45,7 @@ default_config_parameters = {
     "nvidiadriverdocker" : "mlcloudreg.westus.cloudapp.azure.com:5000/nvidia_driver:375.20",
     "nvidiadriverversion" : "375.20",
     # Default port for WebUI, Restful API, 
-    "webuiport" : "80",
+    "webuiport" : "3080", # Port webUI will run upon, nginx will forward to this port. 
     "restfulapiport" : "5000",
     "restfulapi" : "restfulapi",
     "ssh_cert" : "./deploy/sshkey/id_rsa",

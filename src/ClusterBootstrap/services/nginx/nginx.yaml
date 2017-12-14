@@ -33,10 +33,14 @@ spec:
         volumeMounts:
         - mountPath: /etc/nginx/ssl
           name: secret-volume
-        - mountPath: /etc/nginx.cloud/conf.d
+        - mountPath: /var/log/nginx
+          name: nginx-log         
+        - mountPath: /etc/nginx.cloud/conf.other
           name: configmap-volume
         - mountPath: /etc/hostname-fqdn
-          name: hostname-fqdn          
+          name: hostname-fqdn
+        - mountPath: /etc/letsencrypt
+          name: etc-letsencrpyt                   
       volumes:
       - name: secret-volume
         hostPath:
@@ -47,4 +51,9 @@ spec:
       - name: hostname-fqdn
         hostPath:
           path: /etc/hostname-fqdn
-     
+      - name: nginx-log
+        hostPath:
+          path: /var/log/nginx
+      - name: etc-letsencrpyt
+        hostPath:
+          path: /etc/letsencrypt
