@@ -1762,6 +1762,14 @@ def config_nginx():
     for node in all_nodes:
         remotecmd = "echo %s | sudo tee /etc/hostname-fqdn; sudo chmod +r /etc/hostname-fqdn" % node
         utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)    
+    # See https://github.com/kubernetes/examples/blob/master/staging/https-nginx/README.md
+    # Please use 
+    # kubectl create configmap nginxconfigmap --from-file=services/nginx/default.conf
+    template_dir = "services/nginx/"
+    target_dir = "deploy/services/nginx/"
+    utils.render_template_directory(template_dir, target_dir,config)
+    run_kubectl( ["delete", "configmap", "nginxconfigmap"] )
+    run_kubectl( ["create", "configmap", "nginxconfigmap", "--from-file=%s/default.conf" % target_dir ] )
 
 def mount_fileshares_by_service(perform_mount=True):
     all_nodes = get_nodes(config["clusterId"])

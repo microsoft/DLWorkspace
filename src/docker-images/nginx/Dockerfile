@@ -40,6 +40,6 @@ RUN wget https://dl.eff.org/certbot-auto
 RUN chmod a+x certbot-auto
 COPY auto-reload-nginx.sh /home/auto-reload-nginx.sh
 COPY default.conf /etc/nginx/conf.d/default.conf
-COPY nginx.conf /etc/nginx/nginx.conf
+COPY nginx*.conf /etc/nginx/
 RUN chmod +x /home/auto-reload-nginx.sh
 RUN chmod +x /etc/nginx/conf.d/default.conf

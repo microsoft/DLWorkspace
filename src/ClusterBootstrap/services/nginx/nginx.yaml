@@ -28,14 +28,14 @@ spec:
           httpGet:
             path: /html/index.html
             port: 80
-          initialDelaySeconds: 30
+          initialDelaySeconds: 3000
           timeoutSeconds: 1
         volumeMounts:
         - mountPath: /etc/nginx/ssl
           name: secret-volume
         - mountPath: /var/log/nginx
           name: nginx-log         
-        - mountPath: /etc/nginx.cloud/conf.other
+        - mountPath: /etc/nginx/conf.other
           name: configmap-volume
         - mountPath: /etc/hostname-fqdn
           name: hostname-fqdn
