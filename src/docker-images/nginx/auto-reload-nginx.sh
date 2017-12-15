@@ -20,13 +20,16 @@ fqdn=`cat /etc/hostname-fqdn`
 command='s/hostname-fqdn/'$fqdn'/'
 sed $command -i /etc/nginx/conf.d/default.conf
 echo sed $command -i /etc/nginx/conf.d/default.conf
+# cp /etc/nginx/nginx.before_cert.conf /etc/nginx/nginx.conf
+# nginx "$@"
 ./certbot-auto run --nginx -n --agree-tos -m dlworkspace@gmail.com --domain $fqdn
-#nginx "$@"
+# cp /etc/nginx/nginx.after_cert.conf /etc/nginx/nginx.conf
+# nginx "$@"
 
 oldcksum=`cksum /etc/nginx/conf.other/default.conf`
 
 inotifywait -e modify,move,create,delete -mr --timefmt '%d/%m/%y %H:%M' --format '%T' \
-/etc/nginx/conf.d/ | while read date time; do
+/etc/nginx/conf.other/ | while read date time; do
 
 	newcksum=`cksum /etc/nginx/conf.other/default.conf`
 	if [ "$newcksum" != "$oldcksum" ]; then
