@@ -32,5 +32,6 @@ if __name__ == '__main__':
     dockertag = args.tag
     # print "Docker prefix : " + dockerprefix
     # print "Docker tag : " + dockertag
-    if True:
+    print "Please use ./deploy.py docker build <> to build images"
+    if False:
         build_dockers(".", dockerprefix, dockertag, args.nargs )

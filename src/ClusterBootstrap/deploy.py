@@ -33,7 +33,7 @@ from GlusterFSUtils import GlusterFSJson
 sys.path.append("../utils")
 
 import utils
-from DockerUtils import push_one_docker, build_dockers, push_dockers, run_docker, find_dockers, build_docker_fullname, copy_from_docker_image
+from DockerUtils import push_one_docker, build_dockers, push_dockers, run_docker, find_dockers, build_docker_fullname, copy_from_docker_image, configuration
 import k8sUtils
 from config import config as k8sconfig
 
@@ -2852,7 +2852,7 @@ def build_docker_images(nargs):
     render_docker_images()
     if verbose:
         print "Build docker ..."
-    build_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"], nargs, verbose, nocache = nocache )
+    build_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"], nargs, config, verbose, nocache = nocache )
 
 def push_docker_images(nargs):
     render_docker_images()
@@ -2870,11 +2870,10 @@ def check_buildable_images(nargs):
 
 def run_docker_image( imagename, native = False, sudo = False ):
     dockerConfig = fetch_config( ["docker-run", imagename ])
-    full_dockerimage_name = build_docker_fullname( config, imagename )
+    full_dockerimage_name, local_dockerimage_name = build_docker_fullname( config, imagename )
     # print full_dockerimage_name
     matches = find_dockers( full_dockerimage_name )
     if len( matches ) == 0:
-        local_dockerimage_name = config["dockerprefix"] + dockername + ":" + config["dockertag"]
         matches = find_dockers( local_dockerimage_name )
         if len( matches ) == 0:
             matches = find_dockers( imagename )
@@ -3367,6 +3366,7 @@ def run_command( args, command, nargs, parser ):
                     servicenames.append(service)
                 # print servicenames
             generate_hdfs_containermounts()
+            configuration( config, verbose )
             if nargs[0] == "start":
                 if args.force and "hdfsformat" in servicenames:
                     print ("This operation will WIPEOUT HDFS namenode, and erase all data on the HDFS cluster,  "  )
@@ -3441,6 +3441,7 @@ def run_command( args, command, nargs, parser ):
 
     elif command == "docker":
         if len(nargs)>=1:
+            configuration( config, verbose )
             if nargs[0] == "build":
                 check_buildable_images(nargs[1:])
                 build_docker_images(nargs[1:])

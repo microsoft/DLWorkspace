@@ -30,6 +30,10 @@ def build_docker( dockername, dirname, verbose=False, nocache=False ):
             print cmd
         os.system(cmd)
     return dockername
+
+def build_docker_with_config( dockername, config, verbose=False, nocache=False ):
+    usedockername = dockername.lower()
+    build_docker( config["dockers"]["container"][usedockername]["name"], config["dockers"]["container"][usedockername]["dirname"], verbose, nocache )
     
 def push_docker( dockername, docker_register, verbose=False):
     # docker name is designed to use lower case. 
@@ -40,6 +44,16 @@ def push_docker( dockername, docker_register, verbose=False):
     cmd += "; docker push " + docker_register + dockername
     os.system(cmd)
     return dockername
+
+def push_docker_with_config( dockername, config, verbose=False, nocache=False ):
+    usedockername = dockername.lower()
+    build_docker( config["dockers"]["container"][usedockername]["name"], config["dockers"]["container"][usedockername]["dirname"], verbose, nocache )
+    if verbose:
+        print "Pushing docker ... " + config["dockers"]["container"][usedockername]["name"] + " to " + config["dockers"]["container"][usedockername]["fullname"]
+    cmd = "docker tag "+ config["dockers"]["container"][usedockername]["name"] + " " + config["dockers"]["container"][usedockername]["fullname"]
+    cmd += "; docker push " + config["dockers"]["container"][usedockername]["fullname"]
+    os.system(cmd)
+    return config["dockers"]["container"][usedockername]["name"]
     
 def run_docker(dockername, prompt="", dockerConfig = None, sudo = False, options = "" ):
     if not (dockerConfig is None):
@@ -133,16 +147,19 @@ def find_dockers( dockername):
     return matchdockers
     
 def build_docker_fullname( config, dockername, verbose = False ):
+    dockername = dockername.lower()
+    if dockername in config["dockers"]["container"]:
+        return config["dockers"]["container"][dockername]["fullname"], config["dockers"]["container"][dockername]["name"]
     dockerprefix = config["dockerprefix"];
     dockertag = config["dockertag"]
     infra_dockers = config["infrastructure-dockers"] if "infrastructure-dockers" in config else {}
     infra_docker_registry = config["infrastructure-dockerregistry"] if "infrastructure-dockerregistry" in config else config["dockerregistry"]
     worker_docker_registry = config["worker-dockerregistry"] if "worker-dockerregistry" in config else config["dockerregistry"]
     if dockername in infra_dockers:    
-        return ( infra_docker_registry + dockerprefix + dockername + ":" + dockertag ).lower()
+        return ( infra_docker_registry + dockerprefix + dockername + ":" + dockertag ).lower(), ( dockerprefix + dockername + ":" + dockertag ).lower()
     else:
-        return ( worker_docker_registry + dockerprefix + dockername + ":" + dockertag ).lower()
-    
+        return ( worker_docker_registry + dockerprefix + dockername + ":" + dockertag ).lower(), ( dockerprefix + dockername + ":" + dockertag ).lower()
+  
 def get_docker_list(rootdir, dockerprefix, dockertag, nargs, verbose = False ):
     docker_list = {}
     if not (nargs is None) and len(nargs)>0:
@@ -157,41 +174,84 @@ def get_docker_list(rootdir, dockerprefix, dockertag, nargs, verbose = False ):
                 docker_list[dockername] = ( basename, entry )
     return docker_list
 
-def build_dockers(rootdir, dockerprefix, dockertag, nargs, verbose = False, nocache = False ):
-    docker_list = get_docker_list(rootdir, dockerprefix, dockertag, nargs, verbose )
-    for dockername, tuple in docker_list.iteritems():
-        build_docker(dockername, tuple[1], verbose, nocache = nocache )
+system_docker_registry = None 
 
-def build_one_docker(dirname, dockerprefix, dockertag, basename, verbose = False, nocache = False):
-    dockername = dockerprefix + basename + ":" + dockertag
-    return build_docker( dockername, dirname, verbose = verbose, nocache = nocache)
+def configuration( config, verbose):
+    config_dockers("../docker-images", config["dockerprefix"], config["dockertag"], verbose, config )    
+
+def config_dockers(rootdir, dockerprefix, dockertag, verbose, config):
+    global system_docker_registry
+    global system_docker_tag
+    global system_docker_dic
+    global infra_docker_registry
+    global worker_docker_registry
+    if system_docker_registry is None:
+        infra_dockers = config["infrastructure-dockers"] if "infrastructure-dockers" in config else {}
+        infra_docker_registry = config["infrastructure-dockerregistry"] if "infrastructure-dockerregistry" in config else config["dockerregistry"]
+        worker_docker_registry = config["worker-dockerregistry"] if "worker-dockerregistry" in config else config["dockerregistry"]
+        system_docker_registry = config["dockers"]["hub"]
+        system_docker_tag = config["dockers"]["tag"]
+        system_docker_dic = config["dockers"]["system"]
+        docker_list = get_docker_list(rootdir, dockerprefix, dockertag, None, verbose )
+        # Populate system dockers 
+        for assemblename, tuple in docker_list.iteritems():
+            # print assemblename
+            dockername, deploydir = tuple
+            if dockername in system_docker_dic:
+                # system docker 
+                tag = system_docker_dic[dockername]["tag"] if "tag" in system_docker_dic[dockername] else system_docker_tag
+                prefix = ""
+                # dirname = os.path.join(rootdir, dockername)
+                # our target is to use rootdir/dockername in the future
+                dirname = deploydir
+                dockerregistry = system_docker_registry
+            else: 
+                tag = dockertag
+                prefix = dockerprefix
+                dirname = deploydir
+                if dockername in infra_dockers:
+                    dockerregistry = infra_docker_registry 
+                else:
+                    dockerregistry = worker_docker_registry
+            usedockername = dockername.lower()
+            if "container" not in config["dockers"]:
+                config["dockers"]["container"] = {}
+            config["dockers"]["container"][usedockername] = {
+                "dirname": dirname, 
+                "fullname": dockerregistry + prefix + usedockername + ":" + tag, 
+                "name": prefix + usedockername + ":" + tag,
+                }
+        # pxe-ubuntu and pxe-coreos is in template
+        for dockername in config["dockers"]["infrastructure"]:
+            config["dockers"]["container"][dockername] = {
+                "dirname": os.path.join("./deploy", dockername ),  
+                "fullname": infra_docker_registry + dockerprefix + dockername + ":" + dockertag, 
+                "name": dockerprefix + dockername + ":" + dockertag,
+                }
+        # print config["dockers"]
+
+def build_dockers(rootdir, dockerprefix, dockertag, nargs, config, verbose = False, nocache = False ):
+    configuration(config, verbose)
+    docker_list = get_docker_list(rootdir, dockerprefix, dockertag, nargs, verbose ); 
+    for _, tuple in docker_list.iteritems():
+        dockername, _ = tuple
+        build_docker_with_config( basename, config, verbose, nocache = nocache )
+
+def build_one_docker(dirname, dockerprefix, dockertag, basename, config, verbose = False, nocache = False):
+    configuration(config, verbose)
+    return build_docker_with_config( basename, config, verbose, nocache = nocache )
 
 def push_one_docker(dirname, dockerprefix, tag, basename, config, verbose = False, nocache = False ):
-    infra_dockers = config["infrastructure-dockers"] if "infrastructure-dockers" in config else {}
-    infra_docker_registry = config["infrastructure-dockerregistry"] if "infrastructure-dockerregistry" in config else config["dockerregistry"]
-    worker_docker_registry = config["worker-dockerregistry"] if "worker-dockerregistry" in config else config["dockerregistry"]
-    dockername = build_one_docker( dirname, dockerprefix, tag, basename, verbose = verbose, nocache = nocache )
-    if basename in infra_dockers:
-        push_docker( dockername, infra_docker_registry, verbose )
-    else:
-        push_docker( dockername, worker_docker_registry, verbose )    
-    return dockername
+    configuration(config, verbose)
+    push_docker_with_config( basename, config, verbose, nocache = nocache )  
                 
 def push_dockers(rootdir, dockerprefix, dockertag, nargs, config, verbose = False, nocache = False ):
-    infra_dockers = config["infrastructure-dockers"] if "infrastructure-dockers" in config else {}
-    infra_docker_registry = config["infrastructure-dockerregistry"] if "infrastructure-dockerregistry" in config else config["dockerregistry"]
-    worker_docker_registry = config["worker-dockerregistry"] if "worker-dockerregistry" in config else config["dockerregistry"]
+    configuration(config, verbose)
     docker_list = get_docker_list(rootdir, dockerprefix, dockertag, nargs, verbose ); 
-    for dockername, tuple in docker_list.iteritems():
-        build_docker(dockername, tuple[1], verbose, nocache = nocache )
-        if tuple[0] in infra_dockers:
-            if verbose: 
-                print "Push to infrastructure docker register %s with name %s" % ( infra_docker_registry , dockername )
-            push_docker(dockername, infra_docker_registry, verbose)
-        else:
-            if verbose: 
-                print "Push to worker docker register %s with name %s" % ( worker_docker_registry , dockername )    
-            push_docker(dockername, worker_docker_registry, verbose)
+    for _, tuple in docker_list.iteritems():
+        dockername, _ = tuple
+        push_docker_with_config( dockername, config, verbose, nocache = nocache )
+
 
 def copy_from_docker_image(image, srcFile, dstFile):
     id = subprocess.check_output(['docker', 'create', image])

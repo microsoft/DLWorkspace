@@ -500,6 +500,31 @@ default_config_parameters = {
           "port" : 8088,
         },
     },
+
+    # System dockers. 
+    # These dockers are agnostic of cluster, and can be built once and reused upon multiple clusters. 
+    # We will gradually migrate mroe and more docker in DLWorkspace to system dockers
+    "dockers": {
+        # Hub is docker.io/
+        "hub": "dlws/",
+        "tag": "1.5",
+        "system": { 
+            "nginx": { }, 
+            "zookeeper": { }, 
+            "influxdb": { }, 
+            "collectd": { }, 
+            "grafana": { }, 
+            # "glusterfs": { }, To do, make it a system docker
+            "hyperkube": { "nobuild": True }, 
+        }, 
+        "infrastructure": {
+            "pxe-ubuntu": { }, 
+            "pxe-coreos": { }, 
+        },
+        # This will be automatically populated by config_dockers, so you can refer to any container as:
+        # config["docker"]["container"]["name"]
+        "container": { }, 
+    }
 }
 
 # These are super scripts
