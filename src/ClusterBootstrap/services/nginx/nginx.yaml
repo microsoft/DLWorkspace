@@ -21,7 +21,7 @@ spec:
       {% endif %}
       containers:
       - name: nginx
-        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}nginx:{{cnf["dockertag"]}}
+        image: {{cnf["dockers"]["container"]["nginx"]["fullname"]}}
         imagePullPolicy: Always   
         command: ["/home/auto-reload-nginx.sh"]
         livenessProbe:
