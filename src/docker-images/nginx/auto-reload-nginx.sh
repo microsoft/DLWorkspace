@@ -14,16 +14,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-command='s/hostname-fqdn/'`cat /etc/hostname-fqdn`'/'
-sed $command /etc/nginx/conf.d/default.conf
-echo sed $command /etc/nginx/conf.d/default.conf
-nginx "$@"
-oldcksum=`cksum /etc/nginx/conf.d/default.conf`
+# Please put the fully qualifed domain name of the node that the docker runs upon at /etc/hostname-fqdn
+
+fqdn=`cat /etc/hostname-fqdn`
+command='s/hostname-fqdn/'$fqdn'/'
+sed $command -i /etc/nginx/conf.d/default.conf
+echo sed $command -i /etc/nginx/conf.d/default.conf
+# cp /etc/nginx/nginx.before_cert.conf /etc/nginx/nginx.conf
+# nginx "$@"
+./certbot-auto run --nginx -n --agree-tos -m dlworkspace@gmail.com --domain $fqdn
+# cp /etc/nginx/nginx.after_cert.conf /etc/nginx/nginx.conf
+# nginx "$@"
+
+oldcksum=`cksum /etc/nginx/conf.other/default.conf`
 
 inotifywait -e modify,move,create,delete -mr --timefmt '%d/%m/%y %H:%M' --format '%T' \
-/etc/nginx/conf.d/ | while read date time; do
+/etc/nginx/conf.other/ | while read date time; do
 
-	newcksum=`cksum /etc/nginx/conf.d/default.conf`
+	newcksum=`cksum /etc/nginx/conf.other/default.conf`
 	if [ "$newcksum" != "$oldcksum" ]; then
 		echo "At ${time} on ${date}, config file update detected."
 		oldcksum=$newcksum
