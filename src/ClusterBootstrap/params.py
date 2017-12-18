@@ -90,6 +90,7 @@ default_config_parameters = {
         "collectd.graphite.conf.tpl": True,
         "collectd.influxdb.conf.tpl": True,
         "collectd.riemann.conf.tpl": True,
+        "nginx": True,
         # This template will be rendered inside container, but not at build stage
         # "hdfs-site.xml.template": True,         
         },
@@ -579,9 +580,7 @@ scriptblocks = {
         "kubernetes uncordon",
         "sleep 60",
         "-y updateworker",
-        "docker push influxdb",
-        "docker push collectd",
-        "docker push grafana",
+        "nginx config", 
         "kubernetes start freeflow",
         "kubernetes start cloudmonitor",
         "kubernetes start nginx",

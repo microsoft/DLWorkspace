@@ -218,14 +218,14 @@ def config_dockers(rootdir, dockerprefix, dockertag, verbose, config):
             if "container" not in config["dockers"]:
                 config["dockers"]["container"] = {}
             config["dockers"]["container"][usedockername] = {
-                "dirname": dirname, 
+                "dirname": os.path.join("./deploy/docker-images", dockername ), 
                 "fullname": dockerregistry + prefix + usedockername + ":" + tag, 
                 "name": prefix + usedockername + ":" + tag,
                 }
         # pxe-ubuntu and pxe-coreos is in template
         for dockername in config["dockers"]["infrastructure"]:
             config["dockers"]["container"][dockername] = {
-                "dirname": os.path.join("./deploy", dockername ),  
+                "dirname": os.path.join("./deploy/docker-images", dockername ),  
                 "fullname": infra_docker_registry + dockerprefix + dockername + ":" + dockertag, 
                 "name": dockerprefix + dockername + ":" + dockertag,
                 }
@@ -251,6 +251,7 @@ def build_one_docker(dirname, dockerprefix, dockertag, basename, config, verbose
 
 def push_one_docker(dirname, dockerprefix, tag, basename, config, verbose = False, nocache = False ):
     configuration(config, verbose)
+    build_docker_with_config( basename, config, verbose, nocache = nocache )
     push_docker_with_config( basename, config, verbose, nocache = nocache )  
                 
 def push_dockers(rootdir, dockerprefix, dockertag, nargs, config, verbose = False, nocache = False ):
@@ -258,6 +259,7 @@ def push_dockers(rootdir, dockerprefix, dockertag, nargs, config, verbose = Fals
     docker_list = get_docker_list(rootdir, dockerprefix, dockertag, nargs, verbose ); 
     for _, tuple in docker_list.iteritems():
         dockername, _ = tuple
+        build_docker_with_config( dockername, config, verbose, nocache = nocache )
         push_docker_with_config( dockername, config, verbose, nocache = nocache )
 
 
