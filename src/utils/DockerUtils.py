@@ -234,7 +234,7 @@ def config_dockers(rootdir, dockerprefix, dockertag, verbose, config):
             usedockername = dockername.lower()
             config["dockers"]["container"][dockername] = {
                 "fullname": dockerregistry + prefix + usedockername + ":" + tag, 
-                "name": prefix + usedockername + ":" + tag,,
+                "name": prefix + usedockername + ":" + tag,
                 }                
         # print config["dockers"]
 
