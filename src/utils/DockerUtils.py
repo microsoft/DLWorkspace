@@ -80,6 +80,7 @@ def run_docker(dockername, prompt="", dockerConfig = None, sudo = False, options
     else:
         if not (homedir in currentdir):
             mapVolume += " -v "+ currentdir + ":" + currentdir
+    mapVolume += " --net=host"
     print "Running docker " + dockername + " as Userid: " + str(uid) + "(" + username +"), + Group:"+str(groupid) + "("+groupname+") at " + homedir
     dirname = tempfile.mkdtemp()
     wname = os.path.join(dirname,"run.sh")
