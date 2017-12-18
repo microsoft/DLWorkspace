@@ -569,6 +569,18 @@ scriptblocks = {
         "kubernetes start restfulapi",
         "kubernetes start webportal",
     ],
+    "kubernetes_uncordon": [
+        "runscriptonall ./scripts/prepare_ubuntu.sh",
+        "-y deploy",
+        "-y kubernetes labels",
+        "kubernetes uncordon",
+        "sleep 60",
+        "-y updateworker",
+        "docker push influxdb",
+        "docker push collectd",
+        "docker push grafana",
+        "kubernetes start freeflow",
+    ],
     "add_worker": [
         "sshkey install",
         "runscriptonall ./scripts/prepare_ubuntu.sh",
