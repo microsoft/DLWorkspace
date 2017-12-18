@@ -229,6 +229,13 @@ def config_dockers(rootdir, dockerprefix, dockertag, verbose, config):
                 "fullname": infra_docker_registry + dockerprefix + dockername + ":" + dockertag, 
                 "name": dockerprefix + dockername + ":" + dockertag,
                 }
+        # pxe-ubuntu and pxe-coreos is in template
+        for dockername in config["dockers"]["external"]:
+            usedockername = dockername.lower()
+            config["dockers"]["container"][dockername] = {
+                "fullname": dockerregistry + prefix + usedockername + ":" + tag, 
+                "name": prefix + usedockername + ":" + tag,,
+                }                
         # print config["dockers"]
 
 def build_dockers(rootdir, dockerprefix, dockertag, nargs, config, verbose = False, nocache = False ):
