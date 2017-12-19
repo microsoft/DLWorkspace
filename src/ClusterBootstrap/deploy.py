@@ -1758,19 +1758,24 @@ def fileshare_install():
         if len(remotecmd)>0:
             utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
 
-def config_nginx():
+def config_fqdn():
     all_nodes = get_nodes(config["clusterId"])
     for node in all_nodes:
         remotecmd = "echo %s | sudo tee /etc/hostname-fqdn; sudo chmod +r /etc/hostname-fqdn" % node
         utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)    
-    # See https://github.com/kubernetes/examples/blob/master/staging/https-nginx/README.md
-    # Please use 
-    # kubectl create configmap nginxconfigmap --from-file=services/nginx/default.conf
+
+def config_nginx():
+    all_nodes = get_nodes(config["clusterId"])
     template_dir = "services/nginx/"
     target_dir = "deploy/services/nginx/"
     utils.render_template_directory(template_dir, target_dir,config)
-    run_kubectl( ["delete", "configmap", "nginxconfigmap"] )
-    run_kubectl( ["create", "configmap", "nginxconfigmap", "--from-file=%s/default.conf" % target_dir ] )
+    for node in all_nodes:   
+        utils.sudo_scp(config["ssh_cert"],"./deploy/services/nginx/","/etc/nginx/conf.other", config["admin_username"], node )
+    # See https://github.com/kubernetes/examples/blob/master/staging/https-nginx/README.md
+    # Please use 
+    # kubectl create configmap nginxconfigmap --from-file=services/nginx/default.conf
+    # run_kubectl( ["delete", "configmap", "nginxconfigmap"] )
+    # run_kubectl( ["create", "configmap", "nginxconfigmap", "--from-file=%s/default.conf" % target_dir ] )
 
 def mount_fileshares_by_service(perform_mount=True):
     all_nodes = get_nodes(config["clusterId"])
@@ -3357,6 +3362,7 @@ def run_command( args, command, nargs, parser ):
         run_kubectl(nargs)
 
     elif command == "kubernetes":
+        configuration( config, verbose )
         if len(nargs) >= 1: 
             if len(nargs)>=2:
                 servicenames = nargs[1:]
@@ -3437,8 +3443,11 @@ def run_command( args, command, nargs, parser ):
 
     elif command == "nginx":
         if len(nargs)>=1:
+            configuration( config, verbose )
             if nargs[0] == "config":
                 config_nginx()
+            if nargs[0] == "fqdn":
+                config_fqdn()
 
     elif command == "docker":
         if len(nargs)>=1:
@@ -3572,7 +3581,8 @@ Command:
             push: build and push one or more docker images to register
             run [--sudo]: run a docker image (--sudo: in super user mode)
   nginx     [args] manage nginx reverse proxy
-            config: config nginx node, mainly install FQDN on each node
+            config: config nginx node, mainly install file that specify how to direct traffic
+            fqdn: config nginx node, install FQDN for each node
   execonall [cmd ... ] Execute the command on all nodes and print the output. 
   doonall [cmd ... ] Execute the command on all nodes. 
   runscriptonall [script] Execute the shell/python script on all nodes. 
