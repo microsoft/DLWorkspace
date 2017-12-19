@@ -15,7 +15,7 @@ spec:
       hostNetwork: true
       containers:
       - name: influxdb
-        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}influxdb:{{cnf["dockertag"]}}
+        image: {{cnf["dockers"]["container"]["influxdb"]["fullname"]}}
         imagePullPolicy: Always
         volumeMounts:
         - name: influxdb

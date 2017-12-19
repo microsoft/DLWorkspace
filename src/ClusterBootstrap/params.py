@@ -90,6 +90,7 @@ default_config_parameters = {
         "collectd.graphite.conf.tpl": True,
         "collectd.influxdb.conf.tpl": True,
         "collectd.riemann.conf.tpl": True,
+        "nginx": True,
         # This template will be rendered inside container, but not at build stage
         # "hdfs-site.xml.template": True,         
         },
@@ -514,8 +515,11 @@ default_config_parameters = {
             "influxdb": { }, 
             "collectd": { }, 
             "grafana": { }, 
-            # "glusterfs": { }, To do, make it a system docker
-            "hyperkube": { "nobuild": True }, 
+        },
+        "external" : {
+            # These dockers are to be built by additional add ons. 
+            "hyperkube": {  }, 
+            "freeflow": { },  
         }, 
         "infrastructure": {
             "pxe-ubuntu": { }, 
@@ -568,6 +572,18 @@ scriptblocks = {
         "kubernetes start jobmanager",
         "kubernetes start restfulapi",
         "kubernetes start webportal",
+    ],
+    "kubernetes_uncordon": [
+        "runscriptonall ./scripts/prepare_ubuntu.sh",
+        "-y deploy",
+        "-y kubernetes labels",
+        "kubernetes uncordon",
+        "sleep 60",
+        "-y updateworker",
+        "nginx config", 
+        "kubernetes start freeflow",
+        "kubernetes start cloudmonitor",
+        "kubernetes start nginx",
     ],
     "add_worker": [
         "sshkey install",

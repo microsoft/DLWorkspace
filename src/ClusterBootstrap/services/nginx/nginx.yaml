@@ -46,8 +46,8 @@ spec:
         hostPath:
           path: /etc/nginx/ssl
       - name: configmap-volume
-        configMap:
-          name: nginxconfigmap
+        hostPath:
+          path: /etc/nginx/conf.other
       - name: hostname-fqdn
         hostPath:
           path: /etc/hostname-fqdn
