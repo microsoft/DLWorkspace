@@ -47,7 +47,6 @@ spec:
         scheduler.alpha.kubernetes.io/tolerations: '[{"key":"CriticalAddonsOnly", "operator":"Exists"}]'
     spec:
       dnsPolicy: Default
-      hostNetwork: true
       containers:
       - name: kubedns
         image: gcr.io/google_containers/kubedns-amd64:1.8
@@ -76,7 +75,7 @@ spec:
         args:
         - --domain=cluster.local.
         - --dns-port=10053
-        - --kubecfg-file=/etc/kubernetes/worker-kubeconfig.yaml
+        - --kubecfg-file=/etc/kubernetes/dns-kubeconfig.yaml
         volumeMounts:
         - mountPath: /etc/kubernetes
           name: ssl-certs-kubernetes

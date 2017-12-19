@@ -17,3 +17,4 @@
 ./deploy/WebUI/appsettings.json,/etc/WebUI/appsettings.json
 ./deploy/RestfulAPI/config.yaml,/etc/RestfulAPI/config.yaml
 ./deploy/master/restapi-kubeconfig.yaml,/etc/kubernetes/restapi-kubeconfig.yaml
+./deploy/master/dns-kubeconfig.yaml,/etc/kubernetes/dns-kubeconfig.yaml

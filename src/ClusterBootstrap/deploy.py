@@ -901,6 +901,7 @@ def deploy_master(kubernetes_master):
 
         config["master_ip"] = utils.getIP(kubernetes_master)
         utils.render_template("./template/master/kube-apiserver.yaml","./deploy/master/kube-apiserver.yaml",config)
+        utils.render_template("./template/master/dns-kubeconfig.yaml","./deploy/master/dns-kubeconfig.yaml",config)
         utils.render_template("./template/master/kubelet.service","./deploy/master/kubelet.service",config)
         utils.render_template("./template/master/" + config["premasterdeploymentscript"],"./deploy/master/"+config["premasterdeploymentscript"],config)
         utils.render_template("./template/master/" + config["postmasterdeploymentscript"],"./deploy/master/"+config["postmasterdeploymentscript"],config)
