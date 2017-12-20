@@ -2916,6 +2916,8 @@ def run_command( args, command, nargs, parser ):
 
     if command == "restore":
         utils.restore_keys(nargs)
+        # Stop parsing additional command
+        exit()
 
     # Cluster Config
     config_cluster = os.path.join(dirpath,"cluster.yaml")
