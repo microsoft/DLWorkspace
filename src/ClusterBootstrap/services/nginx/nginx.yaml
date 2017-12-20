@@ -4,18 +4,19 @@ metadata:
   name: nginx
   namespace: default
 spec:
+  selector:
+    matchLabels:
+      nginx: active
   template:
     metadata:
       name: nginx
       labels:
         app: nginx
-        webportal-node: pod
+        nginx: active
     spec:
       {% if cnf["dnsPolicy"] %}    
       dnsPolicy: {{cnf["dnsPolicy"]}}
       {% endif %}
-      nodeSelector:
-        webportal: active
       {% if true %}  
       hostNetwork: true
       {% endif %}

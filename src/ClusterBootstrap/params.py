@@ -196,8 +196,7 @@ default_config_parameters = {
         "elasticsearch": "etcd_node_1", 
         "kibana": "etcd_node_1", 
         "mysql": "etcd_node_1", 
-
-
+        "nginx": "all", 
       },
 
     "kubemarks" : [ "rack", "sku" ],
