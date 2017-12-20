@@ -1311,10 +1311,8 @@ def deploy_webUI_on_node(ipAddress):
     if not os.path.exists("./deploy/WebUI"):
         os.system("mkdir -p ./deploy/WebUI")
 
-    utils.render_template("./template/WebUI/userconfig.json","./deploy/WebUI/userconfig.json", config)
-    os.system("cp --verbose ./deploy/WebUI/userconfig.json ../WebUI/dotnet/WebPortal/") # used for debugging, when deploy, it will be overwritten by mount from host, contains secret
-    utils.render_template("./template/WebUI/configAuth.json","./deploy/WebUI/configAuth.json", config)
-    os.system("cp --verbose ./deploy/WebUI/configAuth.json ../WebUI/dotnet/WebPortal/")
+    utils.render_template_directory("./template/WebUI","./deploy/WebUI", config)
+    os.system("cp --verbose ./deploy/WebUI/*.json ../WebUI/dotnet/WebPortal/") # used for debugging, when deploy, it will be overwritten by mount from host, contains secret
 
     # write into host, mounted into container
     utils.sudo_scp(config["ssh_cert"],"./deploy/WebUI/userconfig.json","/etc/WebUI/userconfig.json", sshUser, webUIIP )

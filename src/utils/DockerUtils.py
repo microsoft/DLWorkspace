@@ -243,7 +243,7 @@ def build_dockers(rootdir, dockerprefix, dockertag, nargs, config, verbose = Fal
     docker_list = get_docker_list(rootdir, dockerprefix, dockertag, nargs, verbose ); 
     for _, tuple in docker_list.iteritems():
         dockername, _ = tuple
-        build_docker_with_config( basename, config, verbose, nocache = nocache )
+        build_docker_with_config( dockername, config, verbose, nocache = nocache )
 
 def build_one_docker(dirname, dockerprefix, dockertag, basename, config, verbose = False, nocache = False):
     configuration(config, verbose)
