@@ -16,6 +16,8 @@
 
 # Please put the fully qualifed domain name of the node that the docker runs upon at /etc/hostname-fqdn
 
+# If you only have http access, you can use certbot certonly --webroot -w /usr/share/nginx/ -d $fqdn to obtain certificate
+# 
 fqdn=`cat /etc/hostname-fqdn`
 command='s/hostname-fqdn/'$fqdn'/'
 sed $command -i /etc/nginx/conf.d/default.conf

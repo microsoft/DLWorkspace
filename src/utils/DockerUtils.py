@@ -33,7 +33,7 @@ def build_docker( dockername, dirname, verbose=False, nocache=False ):
 
 def build_docker_with_config( dockername, config, verbose=False, nocache=False ):
     usedockername = dockername.lower()
-    build_docker( config["dockers"]["container"][usedockername]["name"], config["dockers"]["container"][usedockername]["dirname"], verbose, nocache )
+    build_docker( config["dockers"]["container"][dockername]["name"], config["dockers"]["container"][dockername]["dirname"], verbose, nocache )
     
 def push_docker( dockername, docker_register, verbose=False):
     # docker name is designed to use lower case. 
@@ -47,13 +47,13 @@ def push_docker( dockername, docker_register, verbose=False):
 
 def push_docker_with_config( dockername, config, verbose=False, nocache=False ):
     usedockername = dockername.lower()
-    build_docker( config["dockers"]["container"][usedockername]["name"], config["dockers"]["container"][usedockername]["dirname"], verbose, nocache )
+    build_docker( config["dockers"]["container"][dockername]["name"], config["dockers"]["container"][dockername]["dirname"], verbose, nocache )
     if verbose:
-        print "Pushing docker ... " + config["dockers"]["container"][usedockername]["name"] + " to " + config["dockers"]["container"][usedockername]["fullname"]
-    cmd = "docker tag "+ config["dockers"]["container"][usedockername]["name"] + " " + config["dockers"]["container"][usedockername]["fullname"]
-    cmd += "; docker push " + config["dockers"]["container"][usedockername]["fullname"]
+        print "Pushing docker ... " + config["dockers"]["container"][dockername]["name"] + " to " + config["dockers"]["container"][dockername]["fullname"]
+    cmd = "docker tag "+ config["dockers"]["container"][dockername]["name"] + " " + config["dockers"]["container"][dockername]["fullname"]
+    cmd += "; docker push " + config["dockers"]["container"][dockername]["fullname"]
     os.system(cmd)
-    return config["dockers"]["container"][usedockername]["name"]
+    return config["dockers"]["container"][dockername]["name"]
     
 def run_docker(dockername, prompt="", dockerConfig = None, sudo = False, options = "" ):
     if not (dockerConfig is None):
@@ -162,6 +162,8 @@ def build_docker_fullname( config, dockername, verbose = False ):
         return ( worker_docker_registry + dockerprefix + dockername + ":" + dockertag ).lower(), ( dockerprefix + dockername + ":" + dockertag ).lower()
   
 def get_docker_list(rootdir, dockerprefix, dockertag, nargs, verbose = False ):
+    # print rootdir
+    # print nargs
     docker_list = {}
     if not (nargs is None) and len(nargs)>0:
         nargs = map(lambda x:x.lower(), nargs )
@@ -177,8 +179,30 @@ def get_docker_list(rootdir, dockerprefix, dockertag, nargs, verbose = False ):
 
 system_docker_registry = None 
 
+def config_dockers_use_tag( rootdir, config, verbose):
+    global system_docker_registry
+    if system_docker_registry is None:
+        docker_registry = config["dockers"]["hub"]
+        system_docker_registry = docker_registry
+        docker_prefix = config["dockers"]["prefix"]
+        docker_tag = config["dockers"]["tag"]
+        docker_list = get_docker_list(rootdir, "", "", None, verbose )
+        # Populate system dockers 
+        for assemblename, tuple in docker_list.iteritems():
+            # print assemblename
+            dockername, deploydir = tuple
+            usedockername = docker_registry + "/" + docker_prefix + ":" + dockername + "-" + docker_tag
+            usedockername = usedockername.lower()
+            if "container" not in config["dockers"]:
+                config["dockers"]["container"] = {}
+            config["dockers"]["container"][dockername] = {
+                "dirname": os.path.join("./deploy/docker-images", dockername ), 
+                "fullname": usedockername, 
+                "name": usedockername,
+                }
+
 def configuration( config, verbose):
-    config_dockers("../docker-images", config["dockerprefix"], config["dockertag"], verbose, config )    
+    config_dockers("../docker-images", config["dockerprefix"], config["dockertag"], verbose, config )  
 
 def config_dockers(rootdir, dockerprefix, dockertag, verbose, config):
     global system_docker_registry
@@ -241,6 +265,7 @@ def config_dockers(rootdir, dockerprefix, dockertag, verbose, config):
 def build_dockers(rootdir, dockerprefix, dockertag, nargs, config, verbose = False, nocache = False ):
     configuration(config, verbose)
     docker_list = get_docker_list(rootdir, dockerprefix, dockertag, nargs, verbose ); 
+    # print rootdir
     for _, tuple in docker_list.iteritems():
         dockername, _ = tuple
         build_docker_with_config( dockername, config, verbose, nocache = nocache )
