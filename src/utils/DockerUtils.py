@@ -241,7 +241,7 @@ def config_dockers(rootdir, dockerprefix, dockertag, verbose, config):
             usedockername = dockername.lower()
             if "container" not in config["dockers"]:
                 config["dockers"]["container"] = {}
-            config["dockers"]["container"][usedockername] = {
+            config["dockers"]["container"][dockername] = {
                 "dirname": os.path.join("./deploy/docker-images", dockername ), 
                 "fullname": dockerregistry + prefix + usedockername + ":" + tag, 
                 "name": prefix + usedockername + ":" + tag,
