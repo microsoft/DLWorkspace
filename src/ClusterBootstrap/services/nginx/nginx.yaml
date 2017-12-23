@@ -4,18 +4,19 @@ metadata:
   name: nginx
   namespace: default
 spec:
+  selector:
+    matchLabels:
+      nginx: active
   template:
     metadata:
       name: nginx
       labels:
         app: nginx
-        webportal-node: pod
+        nginx: active
     spec:
       {% if cnf["dnsPolicy"] %}    
       dnsPolicy: {{cnf["dnsPolicy"]}}
       {% endif %}
-      nodeSelector:
-        webportal: active
       {% if true %}  
       hostNetwork: true
       {% endif %}
@@ -40,7 +41,9 @@ spec:
         - mountPath: /etc/hostname-fqdn
           name: hostname-fqdn
         - mountPath: /etc/letsencrypt
-          name: etc-letsencrpyt                   
+          name: etc-letsencrpyt  
+        - mountPath: /var/log/letsencrypt
+          name: letsencrypt-log         
       volumes:
       - name: secret-volume
         hostPath:
@@ -57,3 +60,6 @@ spec:
       - name: etc-letsencrpyt
         hostPath:
           path: /etc/letsencrypt
+      - name: letsencrypt-log
+        hostPath:
+          path: /var/log/letsencrypt      

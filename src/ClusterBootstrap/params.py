@@ -196,8 +196,7 @@ default_config_parameters = {
         "elasticsearch": "etcd_node_1", 
         "kibana": "etcd_node_1", 
         "mysql": "etcd_node_1", 
-
-
+        "nginx": "all", 
       },
 
     "kubemarks" : [ "rack", "sku" ],
@@ -541,16 +540,14 @@ scriptblocks = {
         "webui",
         "docker push restfulapi",
         "docker push webui",
-        "docker push influxdb",
-        "docker push collectd",
-        "docker push grafana",
+        "nginx fqdn", 
+        "nginx config", 
         "mount", 
         "kubernetes start jobmanager",
         "kubernetes start restfulapi",
         "kubernetes start webportal",
-        "kubernetes start monitor",
         "kubernetes start cloudmonitor",
-        "kubernetes start logging",
+        "kubernetes start nginx",
     ],
     "ubuntu_uncordon": [
         "runscriptonall ./scripts/prepare_ubuntu.sh",
