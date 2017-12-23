@@ -47,7 +47,7 @@ def push_docker( dockername, docker_register, verbose=False):
 
 def push_docker_with_config( dockername, config, verbose=False, nocache=False ):
     usedockername = dockername.lower()
-    build_docker( config["dockers"]["container"][dockername]["name"], config["dockers"]["container"][dockername]["dirname"], verbose, nocache )
+    # build_docker( config["dockers"]["container"][dockername]["name"], config["dockers"]["container"][dockername]["dirname"], verbose, nocache )
     if verbose:
         print "Pushing docker ... " + config["dockers"]["container"][dockername]["name"] + " to " + config["dockers"]["container"][dockername]["fullname"]
     cmd = "docker tag "+ config["dockers"]["container"][dockername]["name"] + " " + config["dockers"]["container"][dockername]["fullname"]
