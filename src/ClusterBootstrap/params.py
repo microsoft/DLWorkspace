@@ -30,7 +30,7 @@ default_config_parameters = {
     "discoverserver" : "4.2.2.1", 
     "homeininterval" : "600", 
     "dockerregistry" : "mlcloudreg.westus.cloudapp.azure.com:5000/",
-    "kubernetes_docker_image" : "mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/hyperkube:v1.7.5", 
+    "kubernetes_docker_image" : "mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/hyperkube:v1.9.0", 
     "freeflow_route_docker_image" : "mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/freeflow:0.16", 
     # There are two docker registries, one for infrastructure (used for pre-deployment)
     # and one for worker docker (pontentially in cluser)
