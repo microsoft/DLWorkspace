@@ -1,9 +1,12 @@
 kind: DaemonSet
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 metadata:
   name: nvidiaheartbeat
   namespace: default
 spec:
+  selector:
+    matchLabels:
+      name: nvidiaheartbeat
   template:
     metadata:
       name: nvidiaheartbeat

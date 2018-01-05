@@ -44,7 +44,7 @@ def read(data=None):
         vl = collectd.Values(type='gauge')
         vl.plugin = 'kubernetes'
         try:
-            rsset = json.loads(curl_get(os.environ['K8SAPI']+"/apis/extensions/v1beta1/replicasets"))
+            rsset = json.loads(curl_get(os.environ['K8SAPI']+"/apis/apps/v1/replicasets"))
 
             if "items" in rsset:
                 for rs in rsset["items"]:
@@ -104,7 +104,7 @@ def read(data=None):
                             vl.dispatch(values=[float(res)])
 
 
-            dpset = json.loads(curl_get(os.environ['K8SAPI']+"/apis/extensions/v1beta1/daemonsets"))
+            dpset = json.loads(curl_get(os.environ['K8SAPI']+"/apis/apps/v1/daemonsets"))
             if "items" in dpset:
                 for dp in dpset["items"]:
                     if "metadata" in dp and "name" in dp["metadata"] and "status" in dp:

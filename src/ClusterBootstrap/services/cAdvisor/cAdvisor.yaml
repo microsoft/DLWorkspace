@@ -1,9 +1,12 @@
 kind: DaemonSet
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 metadata:
   name: google-cadvisor
   namespace: default
 spec:
+  selector:
+    matchLabels:
+      cadvisor-node: pod
   template:
     metadata:
       name: google-cadvisor

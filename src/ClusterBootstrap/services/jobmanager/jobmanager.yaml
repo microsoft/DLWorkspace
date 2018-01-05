@@ -1,9 +1,12 @@
 kind: DaemonSet
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 metadata:
   name: jobmanager
   namespace: default
 spec:
+  selector:
+    matchLabels:
+      jobmanager-node: pod
   template:
     metadata:
       name: jobmanager

@@ -10,11 +10,14 @@ spec:
     app: phpmyadmin
 ---
 kind: DaemonSet
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 metadata:
   name: phpmyadmin
   namespace: kube-system
 spec:
+  selector:
+    matchLabels:
+      app: phpmyadmin
   template:
     metadata:
       labels:

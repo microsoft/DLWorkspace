@@ -1,8 +1,11 @@
 kind: ReplicaSet
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 metadata:
   name: sparknode
 spec:
+  selector:
+    matchLabels:
+      app: sparknode
   replicas: 1
   template:
     metadata:

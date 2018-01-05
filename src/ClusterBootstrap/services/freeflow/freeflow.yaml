@@ -1,9 +1,12 @@
 kind: DaemonSet
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 metadata:
   name: freeflowrouter
   namespace: default
 spec:
+  selector:
+    matchLabels:
+      freeflowrouter-node: pod 
   template:
     metadata:
       name: freeflowrouter

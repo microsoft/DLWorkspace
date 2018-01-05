@@ -1,9 +1,12 @@
 kind: DaemonSet
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 metadata:
   name: dlws-influxdb
   namespace: kube-system
 spec:
+  selector:
+    matchLabels:
+      k8s-app: influxdb
   template:
     metadata:
       labels:
