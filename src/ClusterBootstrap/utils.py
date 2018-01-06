@@ -94,11 +94,13 @@ def render_template_directory(template_dir, target_dir,config, verbose=False):
             if os.path.isfile(os.path.join(template_dir, filename)):
                 render_template(os.path.join(template_dir, filename), os.path.join(target_dir, filename),config, verbose)
             else:
-                if ("render-by-copy" in config and basename in config["render-by-copy"]):
-                    os.system( "rm -rf ")
-                    os.system( "cp -r %s %s")
+                srcdir = os.path.join(template_dir, filename) 
+                dstdir = os.path.join(target_dir, filename)
+                if ("render-by-copy" in config and filename in config["render-by-copy"]):
+                    os.system( "rm -rf %s" % dstdir )
+                    os.system( "cp -r %s %s" %(srcdir, dstdir))
                 else:
-                    render_template_directory(os.path.join(template_dir, filename), os.path.join(target_dir, filename),config, verbose)
+                    render_template_directory(srcdir, dstdir,config, verbose)
 
 # Execute a remote SSH cmd with identity file (private SSH key), user, host
 def SSH_exec_cmd(identity_file, user,host,cmd,showCmd=True):

@@ -515,6 +515,7 @@ default_config_parameters = {
             "influxdb": { }, 
             "collectd": { }, 
             "grafana": { }, 
+            "tutorial-tensorflow": { }, 
         },
         "external" : {
             # These dockers are to be built by additional add ons. 
