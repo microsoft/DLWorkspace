@@ -12,7 +12,7 @@ az login
 
 2. Please [configure](configure.md) your azure cluster. 
 
-3. Set proper [authentication](../authentication.md).
+3. Set proper [authentication](../authentication/Readme.md).
 
 4. Initial cluster and generate certificates and keys:
 ```
