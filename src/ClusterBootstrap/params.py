@@ -91,6 +91,7 @@ default_config_parameters = {
         "collectd.influxdb.conf.tpl": True,
         "collectd.riemann.conf.tpl": True,
         "nginx": True,
+        "RecogServer": True,
         # This template will be rendered inside container, but not at build stage
         # "hdfs-site.xml.template": True,         
         },
@@ -514,6 +515,7 @@ default_config_parameters = {
             "influxdb": { }, 
             "collectd": { }, 
             "grafana": { }, 
+            "tutorial-tensorflow": { }, 
         },
         "external" : {
             # These dockers are to be built by additional add ons. 
