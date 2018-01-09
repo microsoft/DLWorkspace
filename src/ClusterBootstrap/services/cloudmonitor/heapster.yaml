@@ -1,9 +1,20 @@
+# Service Account for heapster
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: heapster
+  namespace: kube-system
+---  
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: cloudheapster
   namespace: kube-system
 spec:
+  selector:
+    matchLabels:
+      k8s-app: cloudheapster
   replicas: 1
   template:
     metadata:
@@ -20,4 +31,3 @@ spec:
         - /heapster
         - --source=kubernetes:https://{{cnf["api-server-ip"]}}:443 #this is using k8s endpoint, port should be 443 no matter what port is configed for external access. 
         - --sink=influxdb:http://{{cnf["cloud_influxdb_node"]}}:{{cnf["cloud_influxdb_port"]}}
-
