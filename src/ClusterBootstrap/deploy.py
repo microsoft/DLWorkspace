@@ -3476,6 +3476,7 @@ def run_command( args, command, nargs, parser ):
         if len(nargs) != 2:
             parser.print_help()
             exit()
+        configuration( config, verbose )
         template_file = nargs[0]
         target_file = nargs[1]
         utils.render_template(template_file, target_file,config)
