@@ -1,11 +1,14 @@
 kind: DaemonSet
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 metadata:
   name: restfulapi
   namespace: default
   labels:
      run: dlwsrestfulapi  
 spec:
+  selector:
+    matchLabels:
+      restfulapi-node: pod
   template:
     metadata:
       name: restfulapi

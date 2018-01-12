@@ -1,8 +1,11 @@
 kind: DaemonSet
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 metadata:
   name: hdfsnn1
 spec:
+  selector:
+    matchLabels:
+       app: hdfsnn1
   template:
     metadata:
       labels:

@@ -30,7 +30,7 @@ default_config_parameters = {
     "discoverserver" : "4.2.2.1", 
     "homeininterval" : "600", 
     "dockerregistry" : "mlcloudreg.westus.cloudapp.azure.com:5000/",
-    "kubernetes_docker_image" : "mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/hyperkube:v1.7.5", 
+    "kubernetes_docker_image" : "mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/hyperkube:v1.9.0", 
     "freeflow_route_docker_image" : "mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/freeflow:0.16", 
     # There are two docker registries, one for infrastructure (used for pre-deployment)
     # and one for worker docker (pontentially in cluser)
@@ -90,7 +90,7 @@ default_config_parameters = {
         "collectd.graphite.conf.tpl": True,
         "collectd.influxdb.conf.tpl": True,
         "collectd.riemann.conf.tpl": True,
-        "nginx": True,
+        # "nginx": True,
         "RecogServer": True,
         # This template will be rendered inside container, but not at build stage
         # "hdfs-site.xml.template": True,         

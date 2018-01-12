@@ -10,11 +10,14 @@ spec:
     app: mysql
 ---
 kind: DaemonSet
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 metadata:
   name: mysql
   namespace: kube-system
 spec:
+  selector:
+    matchLabels:
+      app: mysql
   template:
     metadata:
       labels:

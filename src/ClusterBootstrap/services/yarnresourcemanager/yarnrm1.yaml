@@ -1,8 +1,11 @@
 kind: DaemonSet
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 metadata:
   name: yarnrm1
 spec:
+  selector:
+    matchLabels:
+      app: yarnrm1
   template:
     metadata:
       labels:
