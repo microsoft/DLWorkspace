@@ -3416,6 +3416,7 @@ def run_command( args, command, nargs, parser ):
     elif command == "download":
         if len(nargs)>=1:
             if nargs[0] == "kubectl" or nargs[0] == "kubelet":
+                os.system( "rm ./deploy/bin/*")
                 get_kubectl_binary()
             else:
                 parser.print_help()
