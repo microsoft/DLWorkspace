@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.27004.2002
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RecogServer", "RecogServer\RecogServer.csproj", "{0AAEA0CE-D848-46BC-B941-B2D88E692D07}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RecogServer", "RecogServer\RecogServer.csproj", "{0AAEA0CE-D848-46BC-B941-B2D88E692D07}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

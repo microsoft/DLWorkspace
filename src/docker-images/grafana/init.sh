@@ -4,7 +4,7 @@
 
 
 
-declare -a dsarr=("collectd" "k8s")
+declare -a dsarr=("collectd" "k8s" "WebUI")
 
 
 dsflag="0";
@@ -42,5 +42,7 @@ while [[ flag -eq "0" ]]; do
 	   fi
 	done
 done
+
+
 
 #-H "Authorization: Bearer eyJrIjoiZDFhQ05YUWcwdU16U2l6THkzajZNTlZiVlUyU1lsaWIiLCJuIjoiZGx3cyIsImlkIjoxfQ==" 
