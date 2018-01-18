@@ -2943,7 +2943,9 @@ def run_command( args, command, nargs, parser ):
             config["clusterId"] = tmp["clusterId"]
 
     if "copy_sshtemp" in config and config["copy_sshtemp"]:
-        sshfile = os.path.join(dirpath,config["ssh_cert"])
+        if "ssh_origfile" not in config:
+            config["ssh_origfile"] = config["ssh_cert"]
+        sshfile = os.path.join(dirpath,config["ssh_origfile"])
         if os.path.exists(sshfile):
             #sshtemp = tempfile.NamedTemporaryFile('w+b', delete=True) # global var to prevent garbage collection
             _, sshtempfile = tempfile.mkstemp(dir='/tmp')
@@ -2954,6 +2956,9 @@ def run_command( args, command, nargs, parser ):
                     output.write(input.read())
             #config["ssh_cert"] = sshtemp.name
             config["ssh_cert"] = sshtempfile
+        else:
+            print "SSH Key {0} not found".format(sshfile)
+            exit()
 
     add_acs_config(command)
     if verbose and config["isacs"]:
@@ -3503,6 +3508,7 @@ def run_command( args, command, nargs, parser ):
         print "Error: Unknown command " + command
 
     if os.path.exists(sshtempfile):
+        print "Removing temp SSH file {0}".format(sshtempfile)
         os.remove(sshtempfile)
 
 def run_script_blocks( verbose, script_collection ):
