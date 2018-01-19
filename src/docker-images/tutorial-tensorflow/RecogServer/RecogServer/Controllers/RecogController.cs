@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.Extensions.Logging;
@@ -14,6 +15,9 @@ namespace RecogServer.Controllers
 {
     public class RecogController : Controller
     {
+        private static int nWait = 0;
+        private static int maxWait = 10;
+        private static SemaphoreSlim sem = new SemaphoreSlim(1);
         private readonly IActionDescriptorCollectionProvider _provider = null;
         private readonly ILogger _logger = null;
         public RecogController(IActionDescriptorCollectionProvider provider,
@@ -61,13 +65,27 @@ namespace RecogServer.Controllers
                             var recogprog = "/tensorflow/tensorflow/examples/label_image/label_image.py";
                             var recoggraph = "/tensorflow/tensorflow/examples/label_image/data/inception_v3_2016_08_28_frozen.pb";
                             var label = "/tensorflow/tensorflow/examples/label_image/data/imagenet_slim_labels.txt";
-                            var command = $"{recogprog} --graph {recoggraph} --image {imagename} --labels {label}";
 
-                            var tuple = await ProcessUtils.RunProcessAsync("/usr/bin/python3", command);
+                            var command = $"{recogprog} --graph {recoggraph} --image {imagename} --labels {label}";
+                            int nWait = Interlocked.Increment ( &RecogController.nWait);
                             var thisResult = new JObject();
-                            thisResult["code"] = tuple.Item1;
-                            thisResult["output"] = tuple.Item2;
-                            thisResult["error"] = tuple.Item3;
+                            if ( nWait < RecogController.maxWait)
+                            {
+                                try {
+                                    await sem.WaitAsync();
+                                    var tuple = await ProcessUtils.RunProcessAsync("/usr/bin/python3", command);
+                                    sem.Release();
+                                    thisResult["code"] = tuple.Item1;
+                                    thisResult["output"] = tuple.Item2;
+                                    thisResult["error"] = tuple.Item3;
+                                } catch (Exception ex)
+                                {}
+                            } else 
+                            {
+                                thisResult["error"] = $"Too many recognition items: {nWait}, not waiting. ";
+                            }
+                            Interlocked.Decrement(&RecogController.nWait);
+
                             ret[filename] = thisResult;
                         }
                     }
