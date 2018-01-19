@@ -29,5 +29,6 @@ spec:
         imagePullPolicy: Always
         command:
         - /heapster
+        # - --api-server=true # Enable this if we want to enable CPU based HPA (we don't want to do this by default) 
         - --source=kubernetes:https://{{cnf["api-server-ip"]}}:443 #this is using k8s endpoint, port should be 443 no matter what port is configed for external access. 
         - --sink=influxdb:http://{{cnf["cloud_influxdb_node"]}}:{{cnf["cloud_influxdb_port"]}}
