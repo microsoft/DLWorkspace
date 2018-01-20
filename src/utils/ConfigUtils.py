@@ -1,4 +1,6 @@
 import os.path
+import os
+from os.path import *
 
 verbose = False
 

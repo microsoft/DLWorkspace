@@ -232,9 +232,9 @@ def isInstallOnCoreOS():
 
 def update_config():
     apply_config_mapping(config, default_config_mapping)
-    update_one_config("coreosversion",["coreos","version"], basestring, coreosversion)
-    update_one_config("coreoschannel",["coreos","channel"], basestring, coreoschannel)
-    update_one_config("coreosbaseurl",["coreos","baseurl"], basestring, coreosbaseurl)
+    update_one_config(config, "coreosversion",["coreos","version"], basestring, coreosversion)
+    update_one_config(config, "coreoschannel",["coreos","channel"], basestring, coreoschannel)
+    update_one_config(config, "coreosbaseurl",["coreos","baseurl"], basestring, coreosbaseurl)
     if config["coreosbaseurl"] == "": 
         config["coreosusebaseurl"] = ""
     else:
@@ -3567,7 +3567,7 @@ Command:
 
     if not os.path.exists("./deploy"):
         os.system("mkdir -p ./deploy")
-    config = init_config(default_config_mapping)
+    config = init_config(default_config_parameters)
 
     if command == "scriptblocks":
         if nargs[0] in scriptblocks:
