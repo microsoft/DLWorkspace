@@ -29,24 +29,12 @@ from shutil import copyfile, copytree
 import urllib
 import socket
 import utils
+from az_params import *
 
 verbose = False
 
 # These are the default configuration parameter
-default_config_parameters = {
-    "azure_cluster" : { 
-        "infra_node_num": 1, 
-        "worker_node_num": 2, 
-        "azure_location": "westus2",
-        "infra_vm_size" : "Standard_D1_v2",
-        "worker_vm_size": "Standard_NC6",
-        "vm_image" : "UbuntuLTS",
-        "vm_storage_sku" : "Standard_LRS",        
-        "vnet_range" : "192.168.0.0/16",        
-        "default_admin_username" : "dlwsadmin",        
-        "file_share_name" : "files",        
-        },
-    }
+
 
 def init_config():
     config = {}
