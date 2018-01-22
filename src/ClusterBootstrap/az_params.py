@@ -9,6 +9,7 @@ default_config_parameters = {
         "vm_storage_sku" : "Standard_LRS",        
         "vnet_range" : "192.168.0.0/16",        
         "default_admin_username" : "dlwsadmin",        
-        "file_share_name" : "files",        
+        "file_share_name" : "files",
+        "storages" : [], 
         },
     }

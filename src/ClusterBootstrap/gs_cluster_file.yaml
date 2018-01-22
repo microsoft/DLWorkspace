@@ -1,0 +1,25 @@
+azure_cluster:
+  azure_location: westus2
+  default_admin_username: dlwsadmin
+  file_share_name: files
+  infra_node_num: 1
+  infra_vm_size: Standard_D1_v2
+  storages: []
+  vm_image: UbuntuLTS
+  vm_storage_sku: Standard_LRS
+  vnet_range: 192.168.0.0/16
+  worker_node_num: 2
+  worker_vm_size: Standard_NC6
+gs_cluster:
+  cluster_name: jinlazure
+  config: ~/code/config
+  location_mapping:
+    eastus: null
+    westus: us-west1
+  project:
+    id: yummyorder-191922
+    name: yummyorder
+  sku_mapping:
+    Standard_GRS: regional
+    Standard_LRS: regional
+    Standard_RAGRS: regional

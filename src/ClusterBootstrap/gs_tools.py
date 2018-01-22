@@ -31,6 +31,7 @@ from shutil import copyfile, copytree
 import urllib
 import socket
 sys.path.append("utils")
+sys.path.append("../utils")
 import utils
 from apiclient.discovery import *
 from six.moves import input
