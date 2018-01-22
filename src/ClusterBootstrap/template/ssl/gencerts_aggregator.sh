@@ -173,10 +173,10 @@ function create-aggregator-certs {
 
 # Main function of this script.
 
-export KUBE_TEMP=/tmp
+export KUBE_TEMP=$(mktemp --tmpdir=/tmp -d -t kubernetes.XXXXXX)
 export AGGREGATOR_MASTER_NAME=aggregator
-# DEST_AGGREGATOR_CERT_DIR will be mounted into kube-apiserver Pod.
-export DEST_AGGREGATOR_CERT_DIR=/etc/kubernetes/pki
+# DEST_AGGREGATOR_CERT_DIR is ./deploy/aggregator
+export DEST_AGGREGATOR_CERT_DIR=aggregator
 
 export SERVICE_CLUSTER_IP_RANGE={{cnf["service_cluster_ip_range"]}}
 # apiserver_names_ssl_aggregator is set in GetCertificateProperty(), which is like: [DNS:master1,DNS:master2]
@@ -191,9 +191,12 @@ mkdir -p "${DEST_AGGREGATOR_CERT_DIR}" &>/dev/null || sudo mkdir -p "${DEST_AGGR
 sudo=$(test -w "${DEST_AGGREGATOR_CERT_DIR}" || echo "sudo -E")
 
 # Do generate crt/key, and those files will be copied to DEST_AGGREGATOR_CERT_DIR. 
-# i.e.
+# 
+# In the master node:
 # ls /etc/kubernetes/pki/
 # ca.crt  ca.key  proxy-client.crt  proxy-client.key
 # 
 # master_ip_ssl_aggregator is set in GetCertificateProperty(), which will be public IP of first master node.
 create-aggregator-certs {{cnf["master_ip_ssl_aggregator"]}}
+
+echo "[SUCCESS] Cert and Key files for aggregator apiserver is generated!"
