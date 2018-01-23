@@ -4,6 +4,7 @@ sudo mkdir -p /etc/systemd/system/docker.service.d
 sudo mkdir -p /etc/flannel
 sudo mkdir -p /etc/kubernetes/manifests
 sudo mkdir -p /etc/kubernetes/ssl/
+sudo mkdir -p /etc/kubernetes/pki/
 sudo mkdir -p /etc/ssl/etcd
 sudo mkdir -p /opt/addons
 sudo mkdir -p /opt/bin

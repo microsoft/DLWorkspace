@@ -2,6 +2,10 @@
 ./deploy/ssl/apiserver/ca-key.pem,/etc/kubernetes/ssl/ca-key.pem
 ./deploy/ssl/apiserver/apiserver.pem,/etc/kubernetes/ssl/apiserver.pem
 ./deploy/ssl/apiserver/apiserver-key.pem,/etc/kubernetes/ssl/apiserver-key.pem
+./deploy/ssl/aggregator/ca.crt,/etc/kubernetes/pki/ca.crt
+./deploy/ssl/aggregator/ca.key,/etc/kubernetes/pki/ca.key
+./deploy/ssl/aggregator/proxy-client.crt,/etc/kubernetes/pki/proxy-client.crt
+./deploy/ssl/aggregator/proxy-client.key,/etc/kubernetes/pki/proxy-client.key
 ./deploy/master/basicauth,/etc/kubernetes/basicauth
 ./deploy/master/worker-kubeconfig.yaml,/etc/kubernetes/worker-kubeconfig.yaml
 ./deploy/master/kubelet.service,/etc/systemd/system/kubelet.service
