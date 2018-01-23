@@ -10,6 +10,20 @@ default_config_parameters = {
         "vnet_range" : "192.168.0.0/16",        
         "default_admin_username" : "dlwsadmin",        
         "file_share_name" : "files",
-        "storages" : [], 
+        "storages" : ["journal"], 
+        "azure_location" : ["westus"], 
+        "journal": { # Journal storage 
+            "name": "yummyjournal", 
+            "sku": "Standard_GRS",
+            "containers" : {
+                "private" : {
+                    "public-access": "off", 
+                }, 
+                "journal" : {
+                    "public-access": "off", 
+                }, 
+            }, 
         },
-    }
+    },
+    
+}

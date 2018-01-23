@@ -64,6 +64,19 @@ def get_sku( sku ):
 def update_config(config, genSSH=True):
     return config
 
+def get_locations():
+    if "gs_cluster" in config and "gs_location" in config["gs_cluster"]:
+        return utils.tolist( config["gs_cluster"]["gs_location"])
+    elif "azure_cluster" in config and "azure_location" in config["azure_cluster"]:
+        return utils.tolist( config["azure_cluster"]["azure_location"])
+    else:
+        return []
+
+def save_config():
+    with open("gs_cluster_file.yaml", "w") as outfile:
+        yaml.safe_dump( config["gs_cluster"], outfile, default_flow_style=False)
+
+
 def create_group():
     # fails for unable to access credential created by gsutils
     crm = build("cloudresourcemanager", "v1") # http=creds.authorize(httplib2.Http()))
@@ -90,7 +103,58 @@ def create_storage_account(name, sku, location):
         if verbose:
             print(cmd)
         output = utils.exec_cmd_local(cmd)
-        print (output)            
+        print (output)     
+
+def create_gc_vm( vmname, vmsize, location, configCluster, docreate):
+    print "creating VM %s, size %s ..." % ( vmname, vmsize)
+    cmd = """
+        gcloud compute instances create %s \
+                --zone %s \
+                --machine-type %s \
+                %s """ \
+            % ( vmname, location, vmsize, configCluster["vm_image"])
+    if True: # verbose:
+        print(cmd)
+    output = utils.exec_cmd_local(cmd)
+    print (output)  
+
+def delete_gc_vm( vmname, vmsize, location, configCluster, docreate):
+    print "delete VM %s" % ( vmname)
+    cmd = """
+        gcloud compute instances delete %s \
+                --zone %s \
+                --delete-disks=all
+                """ \
+            % ( vmname, location)
+    if True: # verbose:
+        print(cmd)
+    output = utils.exec_cmd_local(cmd)
+    print (output)  
+       
+
+def create_vm_cluster(location, configCluster, docreate):
+    # print "configCluster = %s " % configCluster
+    infra_node_num = configCluster["infra_node_num"]
+    worker_node_num = configCluster["worker_node_num"]
+    cluster_name = config["gs_cluster"]["cluster_name"]
+    for i in range(infra_node_num):
+        vmname = "%s-infra%02d" % (cluster_name, i+1)
+        create_gc_vm(vmname, configCluster["infra_vm_size"], location, configCluster, docreate )
+    for i in range(worker_node_num):
+        vmname = "%s-worker%02d" % (cluster_name, i+1)
+        create_gc_vm(vmname, configCluster["worker_vm_size"], location, configCluster, docreate )
+
+def delete_vm_cluster(location, configCluster, docreate):
+    # print "configCluster = %s " % configCluster
+    infra_node_num = configCluster["infra_node_num"]
+    worker_node_num = configCluster["worker_node_num"]
+    cluster_name = config["gs_cluster"]["cluster_name"]
+    for i in range(infra_node_num):
+        vmname = "%s-infra%02d" % (cluster_name, i+1)
+        delete_gc_vm(vmname, configCluster["infra_vm_size"], location, configCluster, docreate )
+    for i in range(worker_node_num):
+        vmname = "%s-worker%02d" % (cluster_name, i+1)
+        delete_gc_vm(vmname, configCluster["worker_vm_size"], location, configCluster, docreate )        
 
 def delete_storage_account(name, sku, location):
     actual_location = get_location_string(location)
@@ -127,32 +191,47 @@ def delete_storage_with_config( configGrp, location ):
     output = delete_storage_account( storagename, configGrp["sku"], location)
 
 def create_storage_group( locations, configGrp, docreate = True ):
-    locations = utils.tolist( config["azure_cluster"]["azure_location"])
+    locations = get_locations()
     # print "locations == %s" % locations
     for location in locations:
         create_storage_with_config( configGrp, location )
 
 def delete_storage_group( locations, configGrp, docreate = True ):
-    locations = utils.tolist( config["azure_cluster"]["azure_location"])
+    locations = get_locations()
     for location in locations:
         delete_storage_with_config( configGrp, location )
 
 def create_storage( docreate = True ):
-    locations = utils.tolist( config["azure_cluster"]["azure_location"])
+    locations = get_locations()
     storages = utils.tolist( config["azure_cluster"]["storages"] ) 
     for grp in storages:
         configGrp = config["azure_cluster"][grp]
         create_storage_group( locations, configGrp, docreate )
-    with open("gs_cluster_file.yaml", "w") as outfile:
-        yaml.safe_dump( config, outfile, default_flow_style=False)
+    save_config()
 
 def delete_storage( docreate = True ):
-    locations = utils.tolist( config["azure_cluster"]["azure_location"])
+    locations = get_locations()
     storages = utils.tolist( config["azure_cluster"]["storages"] ) 
     for grp in storages:
         configGrp = config["azure_cluster"][grp]
         delete_storage_group( locations, configGrp, docreate )
     os.remove("gs_cluster_file.yaml")
+
+def create_vm( docreate = True):
+    locations = get_locations()
+    for location in locations:
+        configCluster = config["gs_cluster"][location]
+        print "Location = %s, config = %s" %( location, configCluster )
+        create_vm_cluster( location, configCluster, docreate)
+    save_config()
+
+def delete_vm( docreate = True):
+    locations = get_locations()
+    for location in locations:
+        configCluster = config["gs_cluster"][location]
+        print "Location = %s, config = %s" %( location, configCluster )
+        delete_vm_cluster( location, configCluster, docreate)
+    save_config()    
 
 def run_command( args, command, nargs, parser ):
     bExecute = False
@@ -171,6 +250,15 @@ def run_command( args, command, nargs, parser ):
         elif nargs[0] == "delete":
             delete_storage()
             bExecute = True
+
+    elif command == "vm":
+        if nargs[0] == "create":
+            create_vm()
+            bExecute = True
+        elif nargs[0] == "delete":
+            delete_vm()
+            bExecute = True
+        
 
     elif command == "genconfig":
         () # gen_cluster_config("cluster.yaml")
@@ -215,7 +303,7 @@ Command:
     if os.path.exists(config_cluster):
         tmpconfig = yaml.load(open(config_cluster)) 
         if tmpconfig is not None:
-            merge_config(config, tmpconfig, verbose)
+            merge_config(config["gs_cluster"], tmpconfig, verbose)
 
     config_file = os.path.join(dirpath,"config.yaml")
     if os.path.exists(config_file):
@@ -227,7 +315,7 @@ Command:
             
         
     config = update_config(config)
-    print (config)
+    # print (config)
 
 #   with open(config_cluster, 'w') as outfile:
 #     yaml.dump(config, outfile, default_flow_style=False)

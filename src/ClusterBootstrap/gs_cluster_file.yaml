@@ -1,25 +1,26 @@
-azure_cluster:
-  azure_location: westus2
+cluster_name: dlwsg
+config: ~/code/config
+gs_location:
+- us-west1-a
+location_mapping:
+  eastus: null
+  westus: us-west1-a
+project:
+  id: yummyorder-191922
+  name: yummyorder
+sku_mapping:
+  Standard_GRS: regional
+  Standard_LRS: regional
+  Standard_RAGRS: regional
+us-west1-a:
   default_admin_username: dlwsadmin
-  file_share_name: files
+  gs_location: us-west1-a
   infra_node_num: 1
-  infra_vm_size: Standard_D1_v2
-  storages: []
-  vm_image: UbuntuLTS
-  vm_storage_sku: Standard_LRS
+  infra_vm_size: n1-standard-1 --boot-disk-type=pd-ssd --local-ssd interface=nvme
+    --boot-disk-size=10GB
+  vm_image: --image-project ubuntu-os-cloud --image-family ubuntu-1604-lts  --preemptible
+  vm_storage_sku: --local-ssd interface=nvme
   vnet_range: 192.168.0.0/16
-  worker_node_num: 2
-  worker_vm_size: Standard_NC6
-gs_cluster:
-  cluster_name: jinlazure
-  config: ~/code/config
-  location_mapping:
-    eastus: null
-    westus: us-west1
-  project:
-    id: yummyorder-191922
-    name: yummyorder
-  sku_mapping:
-    Standard_GRS: regional
-    Standard_LRS: regional
-    Standard_RAGRS: regional
+  worker_node_num: 0
+  worker_vm_size: n1-standard-1 --boot-disk-type=pd-ssd --local-ssd interface=nvme
+    --boot-disk-size=10GB
