@@ -65,10 +65,10 @@ def update_config(config, genSSH=True):
     return config
 
 def get_locations():
-    if "gs_cluster" in config and "gs_location" in config["gs_cluster"]:
-        return utils.tolist( config["gs_cluster"]["gs_location"])
-    elif "azure_cluster" in config and "azure_location" in config["azure_cluster"]:
+    if "azure_cluster" in config and "azure_location" in config["azure_cluster"]:
         return utils.tolist( config["azure_cluster"]["azure_location"])
+    elif "gs_cluster" in config and "gs_location" in config["gs_cluster"]:
+        return utils.tolist( config["gs_cluster"]["gs_location"])
     else:
         return []
 
@@ -90,9 +90,11 @@ def create_group():
     output = utils.exec_cmd_local(cmd)
     print (output)
 
+
 def create_storage_account(name, sku, location):
     actual_location = get_location_string(location)
     actual_sku = get_sku( sku )
+    print "name == %s, sku == %s, location == %s" %( name, actual_sku, actual_location)   
     if actual_location is not None:
         print "name == %s, sku == %s, location == %s" %( name, actual_sku, actual_location)
         cmd = """
@@ -103,7 +105,42 @@ def create_storage_account(name, sku, location):
         if verbose:
             print(cmd)
         output = utils.exec_cmd_local(cmd)
-        print (output)     
+        print (output)
+        cmd2 = """ 
+            gcloud compute backend-buckets create %s-bucket --gcs-bucket-name %s --enable-cdn \
+            """ % (name, name)
+        output2 = utils.exec_cmd_local(cmd2)
+        print (output2)
+        
+        # cmd3 = """gcloud compute url-maps add-path-matcher %s-public-rule --default-service web-map-backend-service \
+        #    --path-matcher-name bucket-matcher \
+        #    --backend-bucket-path-rules="/public/*=%s-bucket" """ % (name, name)
+        #output3 = utils.exec_cmd_local(cmd3)            
+        # print( output3)
+        
+
+def delete_storage_account(name, sku, location):
+    actual_location = get_location_string(location)
+    actual_sku = get_sku( sku )
+    if actual_location is not None:
+        print "name == %s, sku == %s, location == %s" %( name, actual_sku, actual_location)
+        cmd = """
+        gsutil rm -r gs://%s """ % ( name)
+        if verbose:
+            print(cmd)
+        output = utils.exec_cmd_local(cmd)
+        print (output)          
+        cmd2 = """ 
+            gcloud compute backend-buckets delete %s-bucket \
+            """ % (name)
+        output2 = utils.exec_cmd_local(cmd2)
+        print (output2)
+        # cmd3 = """ 
+        #    gcloud compute url-maps remove-path-matcher %s-public-rule \
+        #    """ % (name)
+        # output3 = utils.exec_cmd_local(cmd3)
+        
+    
 
 def open_all_port( vmname, location):
     ()
@@ -176,17 +213,7 @@ def delete_vm_cluster(location, configCluster, docreate):
         vmname = "%s-worker%02d" % (cluster_name, i+1)
         delete_gc_vm(vmname, configCluster["worker_vm_size"], location, configCluster, docreate )        
 
-def delete_storage_account(name, sku, location):
-    actual_location = get_location_string(location)
-    actual_sku = get_sku( sku )
-    if actual_location is not None:
-        print "name == %s, sku == %s, location == %s" %( name, actual_sku, actual_location)
-        cmd = """
-        gsutil rm -r gs://%s """ % ( name)
-        if verbose:
-            print(cmd)
-        output = utils.exec_cmd_local(cmd)
-        print (output)            
+          
 
 
 def create_storage_with_config( configGrp, location ):
@@ -228,6 +255,7 @@ def create_storage( docreate = True ):
         configGrp = config["azure_cluster"][grp]
         create_storage_group( locations, configGrp, docreate )
     save_config()
+
 
 def delete_storage( docreate = True ):
     locations = get_locations()
