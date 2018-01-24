@@ -2,6 +2,7 @@
 **/config.yaml
 **/cluster.yaml
 **/azure_cluster_config.yaml
+**/gs_cluster_config.yaml
 **/pxe-coreos-kube.yml
 **/pxe-kubemaster.yml
 **/*.pem
