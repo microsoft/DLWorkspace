@@ -19,8 +19,7 @@ default_gs_parameters = {
             "Standard_RAGRS": "regional", # multi_regional
         },
         "config": "~/code/config", 
-        "gs_location": ["us-west1-a"], 
-        "us-west1-a": {
+
             "infra_node_num": 1, 
             "worker_node_num": 0, 
             "gs_location": "us-west1-a",
@@ -33,6 +32,5 @@ default_gs_parameters = {
             "vm_storage_sku" : "--local-ssd interface=nvme",        
             "vnet_range" : "192.168.0.0/16",        
             "default_admin_username" : "dlwsadmin", 
-        }, 
     },
 }

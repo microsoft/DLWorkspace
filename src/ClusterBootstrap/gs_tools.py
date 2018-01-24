@@ -105,6 +105,12 @@ def create_storage_account(name, sku, location):
         output = utils.exec_cmd_local(cmd)
         print (output)     
 
+def open_all_port( vmname, location):
+    ()
+
+def all_sshkey(vmname, location):
+    ()
+
 def create_gc_vm( vmname, vmsize, location, configCluster, docreate):
     print "creating VM %s, size %s ..." % ( vmname, vmsize)
     cmd = """
@@ -117,6 +123,19 @@ def create_gc_vm( vmname, vmsize, location, configCluster, docreate):
         print(cmd)
     output = utils.exec_cmd_local(cmd)
     print (output)  
+    return output
+
+def describe_gc_vm( vmname, location, configCluster):
+    print "describing VM %s" % ( vmname)
+    cmd = """
+        gcloud compute instances describe %s \
+                --zone %s \
+                """ \
+            % ( vmname, location)
+    if verbose: # verbose:
+        print(cmd)
+    output = utils.exec_cmd_local(cmd)    
+    return output
 
 def delete_gc_vm( vmname, vmsize, location, configCluster, docreate):
     print "delete VM %s" % ( vmname)
@@ -130,6 +149,7 @@ def delete_gc_vm( vmname, vmsize, location, configCluster, docreate):
         print(cmd)
     output = utils.exec_cmd_local(cmd)
     print (output)  
+    return output
        
 
 def create_vm_cluster(location, configCluster, docreate):
@@ -220,7 +240,7 @@ def delete_storage( docreate = True ):
 def create_vm( docreate = True):
     locations = get_locations()
     for location in locations:
-        configCluster = config["gs_cluster"][location]
+        configCluster = config["gs_cluster"]
         print "Location = %s, config = %s" %( location, configCluster )
         create_vm_cluster( location, configCluster, docreate)
     save_config()
@@ -228,10 +248,32 @@ def create_vm( docreate = True):
 def delete_vm( docreate = True):
     locations = get_locations()
     for location in locations:
-        configCluster = config["gs_cluster"][location]
+        configCluster = config["gs_cluster"]
         print "Location = %s, config = %s" %( location, configCluster )
         delete_vm_cluster( location, configCluster, docreate)
-    save_config()    
+    save_config() 
+
+def gen_cluster_config(output_file_name, output_file=True):
+    cc = {}
+    cc["etcd_node_num"] = config["gs_cluster"]["infra_node_num"]
+    cc["useclusterfile"] = True
+    cc["deploydockerETCD"] = False
+    cc["platform-scripts"] = "ubuntu"
+    cc["basic_auth"] = "%s,admin,1000" % uuid.uuid4().hex[:7]
+    cc["machines"] = {}
+    for i in range(int(config["gs_cluster"]["infra_node_num"])):
+        vmname = "%s-infra%02d" % (config["gs_cluster"]["cluster_name"], i+1)
+        cc["machines"][vmname]= {"role": "infrastructure"}
+    for i in range(int(config["gs_cluster"]["worker_node_num"])):
+        vmname = "%s-worker%02d" % (config["gs_cluster"]["cluster_name"], i+1)
+        cc["machines"][vmname]= {"role": "worker"}
+
+    if output_file:
+        print yaml.dump(cc, default_flow_style=False)
+        with open(output_file_name, 'w') as outfile:
+            yaml.dump(cc, outfile, default_flow_style=False)
+
+    return cc       
 
 def run_command( args, command, nargs, parser ):
     bExecute = False
@@ -261,7 +303,7 @@ def run_command( args, command, nargs, parser ):
         
 
     elif command == "genconfig":
-        () # gen_cluster_config("cluster.yaml")
+        gen_cluster_config("cluster.yaml")
 
 
 if __name__ == '__main__':
