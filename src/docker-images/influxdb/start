@@ -1,3 +1,5 @@
 #!/bin/bash
 
+/usr/bin/init.sh &
+
 /usr/bin/influxd -config /etc/influxdb/influxdb.conf
