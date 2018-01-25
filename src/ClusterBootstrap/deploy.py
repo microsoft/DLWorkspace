@@ -1003,6 +1003,11 @@ def deploy_masters(force = False):
         until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/kube-proxy.json --validate=false ;  do 
             sleep 5; 
             echo 'waiting for master...'; 
+        done ;
+
+        until sudo /opt/bin/kubectl create -f /etc/kubernetes/clusterroles/ ;  do 
+            sleep 5; 
+            echo 'waiting for master...'; 
         done ; 
 
     """
