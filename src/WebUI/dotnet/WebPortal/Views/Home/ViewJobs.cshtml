@@ -2,7 +2,9 @@
     ViewData["Title"] = "View Jobs";
 }
 
+<a href='#' onclick="layer.alert('test', { icon: 5, btn:'Ok', title:'alert' })">
 <h1>View and Manage Jobs:</h1>
+</a>
 
 <script type="text/javascript">
     function KillJob(jobId) {
@@ -12,7 +14,7 @@
             timeout: 30000 //30 second timeout,
         }).done(
             function (json) {
-                layer.msg(json.result);
+                layer.alert(json.result, { btn: 'Ok', title: 'Info' })
                 buildTables();
             });
     }
@@ -24,7 +26,7 @@
             timeout: 30000 //30 second timeout,
         }).done(
             function (json) {
-                layer.msg(json.log);
+                layer.alert(json.log, { btn: 'Ok', title: 'Info' })
                 buildTables();
             });
     }
@@ -51,7 +53,11 @@
         if (job.jobStatusDetail && job.jobStatusDetail.length > 0 && job.jobStatusDetail[0].message) {
             statusMsg = job.jobStatusDetail[0].message
         }
-        tr.append("<td title='" + statusMsg + "'>" + job.jobStatus + "</td>");
+
+
+
+
+        tr.append("<td title='" + statusMsg + "'>" + job.jobStatus + "  <a href='#' onclick=\"layer.tips('" + statusMsg + "','#infoicon" + job.jobId + "', {tips: [2, '#3090C7']});\" > <i id=\"infoicon" + job.jobId +"\" class=\"layui-icon\">&#xe60b;</i></a>  </td>");
         //GPU
         tr.append("<td>" + job.jobParams.resourcegpu + "</td>");
         //Username
@@ -108,15 +114,15 @@
         tr.append("<th>Status</th>");
         tr.append("<th>GPU</th>");
         tr.append("<th>Username</th>");
-        if (tableColumns.submitTime) 
-            tr.append("<th>Submited Time</th>");  
-        if (tableColumns.startTime) 
+        if (tableColumns.submitTime)
+            tr.append("<th>Submited Time</th>");
+        if (tableColumns.startTime)
             tr.append("<th>Started Time</th>");
-        if (tableColumns.finishTime) 
+        if (tableColumns.finishTime)
             tr.append("<th>Finished Time</th>");
-        if (tableColumns.kill) 
+        if (tableColumns.kill)
             tr.append("<th>Kill Job</th>");
-        if (tableColumns.approval) 
+        if (tableColumns.approval)
             tr.append("<th>Approval</th>");
 
         thead.append(tr);
@@ -157,7 +163,7 @@
         $.ajax({
             url: (apiurl),
             dataType: 'json',
-            timeout: 15000 
+            timeout: 15000
         }).done(
             function (json) {
 
@@ -166,7 +172,7 @@
                 buildJobTable($('#visualization-job'), $("#visualization-job-table"), json.visualizationJobs, { submitTime: false, startTime: true, finishTime: false, kill: true });
                 if (!showAll)
                     buildJobTable($('#finished-job'), $("#finished-job-table"), json.finishedJobs, { submitTime: true, startTime: false, finishTime: true, kill: false });
-              
+
             });
     }
 
