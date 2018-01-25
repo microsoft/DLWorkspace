@@ -189,17 +189,26 @@
 
         $http.get("/api/dlws/GetTemplates?type=job").then(function (response) {
             $scope.joblist = response.data;
+            $log.log($scope.joblist);
             for (var i = 0; i < $scope.joblist.length; i++) {
                 var name = $scope.joblist[i].Name;
-                var selected = $filter('filter')($scope.joblist, { Name: name });
-                if (selected.length == 1)
+
+                var counter = 0;
+                for (var j = 0; j < $scope.joblist.length; j++) {
+                    if ($scope.joblist[j].Name == name)
+                    {
+                        counter = counter + 1;
+                    }
+                }
+
+                if (counter == 1)
                     $scope.joblist[i].Text = name;
                 else {
-                    var username = $scope.joblist[i].Username.trim();
-                    if (username == null || username.length <= 0)
+                    var username = $scope.joblist[i].Username;
+                    if ($scope.joblist[i].Database.trim() == "Master")
                         $scope.joblist[i].Text = name + "(master)";
-                    else
-                        $scope.joblist[i].Text = name + "(" + username.split('@@')[0] + ")";
+                    else 
+                        $scope.joblist[i].Text = name + "(" + username.trim().split('@@')[0] + ")";
                 }
 
                 $scope.joblist[i].Value = i;
@@ -272,16 +281,25 @@
                             $scope.current.runningasroot = false;
                     };
 
+                    if (!$scope.current.hasOwnProperty("resourcegpu"))
+                        $scope.current.resourcegpu = 0;
                     if (typeof ($scope.current.resourcegpu) == "string") {
                         $scope.current.resourcegpu = parseInt($scope.current.resourcegpu)
                     };
+
+
+                    if (!$scope.current.hasOwnProperty("jobtrainingtype"))
+                        $scope.current.jobtrainingtype = "RegularJob";
+
 
                     $scope.current.enableworkpath = true;
                     $scope.current.enabledatapath = true;
                     $scope.current.enablejobpath = true;
 
                 }
-                showName = selected[0].Text;
+                showName = selected[0].Text.replace(/%20/g,"_");
+                if (!$scope.current.hasOwnProperty("jobName") || $scope.current.jobName=="")
+                    $scope.current.jobName = showName;
             }
             return showName;
         };
