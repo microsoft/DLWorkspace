@@ -42,6 +42,11 @@
     "SQLUsername": "{{cnf["sqlserver-username"]}}", 
     "SQLPassword": "{{cnf["sqlserver-password"]}}", 
     "SQLDatabaseForTemplates": "Templates-master", 
+    "MySQLHostname": "{{cnf["mysql_node"]}}", 
+    "MySQLPort": "{{cnf["mysql_port"]}}", 
+    "MySQLUsername": "{{cnf["mysql_username"]}}", 
+    "MySQLPassword": "{{cnf["mysql_password"]}}",     
+    "datasource": "{{cnf["datasource"]}}"
   },
 
 

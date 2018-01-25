@@ -35,6 +35,7 @@ sys.path.append("../utils")
 import utils
 from apiclient.discovery import *
 from six.moves import input
+# from params import *
 from gs_params import *
 from az_params import *
 from ConfigUtils import *
@@ -46,6 +47,7 @@ def init_config():
     # print "Config ===== %s" % config
     # print "GS config == %s" % default_gs_parameters 
     merge_config(config, default_gs_parameters )
+    # print config
     return config
 
 def get_location_string( location ):
@@ -54,11 +56,33 @@ def get_location_string( location ):
     else:
         return None
 
+def get_region_string( location ):
+    if location in config["gs_cluster"]["region_mapping"]:
+        return config["gs_cluster"]["region_mapping"][location]
+    else:
+        return None
+
 def get_sku( sku ):
     if sku in config["gs_cluster"]["sku_mapping"]:
         return config["gs_cluster"]["sku_mapping"][sku]
     else:
         return "regional"
+
+def get_num_infra_nodes(location):
+    return config["gs_cluster"]["infra_node_num"]
+
+def get_num_worker_nodes(location):
+    return config["gs_cluster"]["worker_node_num"]
+
+def setup_gce_ssh_key(location):
+    filename = "./deploy/sshkey/id_rsa.gcloud.pub"
+    if not os.path.exists(filename):
+        with open("./deploy/sshkey/id_rsa.pub","r" ) as f:
+            keyinfo = f.read().split()
+            admin_username = config["gs_cluster"]["default_admin_username"]
+            with open( filename, "w") as wf:
+                wf.write(admin_username + ":" + keyinfo[0] + " "+ keyinfo[1]+ " "+admin_username )
+    return filename
 
 # resource_group_name is cluster_name + ResGrp
 def update_config(config, genSSH=True):
@@ -148,18 +172,30 @@ def open_all_port( vmname, location):
 def all_sshkey(vmname, location):
     ()
 
-def create_gc_vm( vmname, vmsize, location, configCluster, docreate):
+def create_gc_vm( vmname, addrname, vmsize, location, configCluster, docreate):
     print "creating VM %s, size %s ..." % ( vmname, vmsize)
+    uselocation = get_location_string(location)
     cmd = """
         gcloud compute instances create %s \
                 --zone %s \
                 --machine-type %s \
                 %s """ \
-            % ( vmname, location, vmsize, configCluster["vm_image"])
+            % ( vmname, uselocation, vmsize, configCluster["vm_image"])
+    if addrname is not None:
+        cmd += " --address=%s " % addrname
     if True: # verbose:
         print(cmd)
     output = utils.exec_cmd_local(cmd)
-    print (output)  
+    print (output) 
+    sshkeyfile = setup_gce_ssh_key(location)
+    cmd2 = """
+        gcloud compute instances add-metadata %s \
+                --zone %s \
+                --metadata-from-file \
+                ssh-keys=%s
+                """ \
+            % ( vmname, uselocation, sshkeyfile )
+    output = utils.exec_cmd_local(cmd2)  
     return output
 
 def describe_gc_vm( vmname, location, configCluster):
@@ -176,12 +212,13 @@ def describe_gc_vm( vmname, location, configCluster):
 
 def delete_gc_vm( vmname, vmsize, location, configCluster, docreate):
     print "delete VM %s" % ( vmname)
+    uselocation = get_location_string(location)
     cmd = """
         gcloud compute instances delete %s \
                 --zone %s \
                 --delete-disks=all
                 """ \
-            % ( vmname, location)
+            % ( vmname, uselocation)
     if True: # verbose:
         print(cmd)
     output = utils.exec_cmd_local(cmd)
@@ -194,12 +231,17 @@ def create_vm_cluster(location, configCluster, docreate):
     infra_node_num = configCluster["infra_node_num"]
     worker_node_num = configCluster["worker_node_num"]
     cluster_name = config["gs_cluster"]["cluster_name"]
+    if "machines" not in config:
+        config["machines"] = {}
     for i in range(infra_node_num):
         vmname = "%s-infra%02d" % (cluster_name, i+1)
-        create_gc_vm(vmname, configCluster["infra_vm_size"], location, configCluster, docreate )
+        addrname = get_infra_address(location, i)
+        create_gc_vm(vmname, addrname, configCluster["infra_vm_size"], location, configCluster, docreate )
+        config["machines"][vmname] = { "role": "infrastructure"}
     for i in range(worker_node_num):
         vmname = "%s-worker%02d" % (cluster_name, i+1)
-        create_gc_vm(vmname, configCluster["worker_vm_size"], location, configCluster, docreate )
+        create_gc_vm(vmname, None, configCluster["worker_vm_size"], location, configCluster, docreate )
+        config["machines"][vmname] = { "role": "worker"}
 
 def delete_vm_cluster(location, configCluster, docreate):
     # print "configCluster = %s " % configCluster
@@ -213,7 +255,70 @@ def delete_vm_cluster(location, configCluster, docreate):
         vmname = "%s-worker%02d" % (cluster_name, i+1)
         delete_gc_vm(vmname, configCluster["worker_vm_size"], location, configCluster, docreate )        
 
-          
+def get_address_name( location):
+    cluster_name = config["gs_cluster"]["cluster_name"]
+    addrname = cluster_name + "-" + location
+    return addrname
+
+def get_infra_address( location, cnt):
+    addrname = get_address_name(location)
+    addrcur = addrname + ("-infra%02d" % (cnt+1) )
+    return addrcur
+
+def create_address_location(location):
+    useloc = get_region_string(location)
+    addrname = get_address_name(location)
+    infra_node_num = get_num_infra_nodes(location)
+    for cnt in range(infra_node_num):
+        addrcur = get_infra_address(location, cnt)
+        cmd = """
+            gcloud compute addresses create %s \
+                    --region %s
+                    """ \
+                % ( addrcur, useloc)
+        utils.exec_cmd_local(cmd)
+        cmd1 = """
+            gcloud compute addresses describe %s \
+            --region %s --format json""" % (addrcur, useloc)
+        output = utils.exec_cmd_local(cmd1)
+        addr_info = json.loads( output)
+        if "addresses" not in config["gs_cluster"]:
+            config["gs_cluster"]["addresses"] = {}
+        if location not in config["gs_cluster"]["addresses"]:
+            config["gs_cluster"]["addresses"][location] = {}
+        config["gs_cluster"]["addresses"][location][cnt+1] = addr_info
+    # print (config["gs_cluster"])
+    save_config()
+
+def delete_address_location(location):
+    addrname = get_address_name(location)
+    infra_node_num = get_num_infra_nodes(location)
+    for cnt in range(infra_node_num):
+        addrcur = get_infra_address(location, cnt)
+        cmd = """
+            gcloud compute addresses delete %s \
+                    --global \
+                    """ \
+                % ( addrcur)
+        utils.exec_cmd_local(cmd)
+    if "addresses" not in config["gs_cluster"]:
+        config["gs_cluster"]["addresses"] = {}
+    config["gs_cluster"]["addresses"][location] = None
+    # print (config["gs_cluster"])
+    save_config()
+
+
+def create_address():
+    locations = get_locations()
+    for location in locations:
+        create_address_location(location)
+    save_config()
+
+def delete_address():
+    locations = get_locations()
+    for location in locations:
+        delete_address_location(location)
+    save_config()
 
 
 def create_storage_with_config( configGrp, location ):
@@ -281,13 +386,48 @@ def delete_vm( docreate = True):
         delete_vm_cluster( location, configCluster, docreate)
     save_config() 
 
+def prepare_vm(docreate = True):
+    cmd1 = "./deploy.py --verbose --sudo runscriptonall ./scripts/platform/gce/configure-vm.sh"
+    output1 = utils.exec_cmd_local(cmd1)
+    print output1
+    cmd2 = "./deploy.py --verbose --sudo runscriptonall ./scripts/prepare_vm_disk.sh"
+    output2 = utils.exec_cmd_local(cmd2)
+    print output2
+
+def create_firewall(docreate = True):
+    cmd = """
+        gcloud compute firewall-rules create tcp80 \
+                --allow tcp:80\
+                """ 
+    output = utils.exec_cmd_local(cmd)
+    print output
+    cmd1 = """
+        gcloud compute firewall-rules create allow-all \
+                --allow tcp:0-65535\
+                """ 
+    output1 = utils.exec_cmd_local(cmd1)
+    print output1
+
+def delete_firewall(docreate = True):
+    cmd = """
+        gcloud compute firewall-rules delete tcp80 \
+                """ 
+    output = utils.exec_cmd_local(cmd)
+    print output
+    cmd1 = """
+        gcloud compute firewall-rules delete allow-all \
+                """ 
+    output1 = utils.exec_cmd_local(cmd1)
+    print output1
+
+
 def gen_cluster_config(output_file_name, output_file=True):
     cc = {}
     cc["etcd_node_num"] = config["gs_cluster"]["infra_node_num"]
     cc["useclusterfile"] = True
     cc["deploydockerETCD"] = False
     cc["platform-scripts"] = "ubuntu"
-    cc["basic_auth"] = "%s,admin,1000" % uuid.uuid4().hex[:7]
+    cc["basic_auth"] = "%s,admin,1000" % uuid.uuid4().hex[:12]
     cc["machines"] = {}
     for i in range(int(config["gs_cluster"]["infra_node_num"])):
         vmname = "%s-infra%02d" % (config["gs_cluster"]["cluster_name"], i+1)
@@ -295,6 +435,7 @@ def gen_cluster_config(output_file_name, output_file=True):
     for i in range(int(config["gs_cluster"]["worker_node_num"])):
         vmname = "%s-worker%02d" % (config["gs_cluster"]["cluster_name"], i+1)
         cc["machines"][vmname]= {"role": "worker"}
+    cc["admin_username"] = config["gs_cluster"]["default_admin_username"]
 
     if output_file:
         print yaml.dump(cc, default_flow_style=False)
@@ -328,10 +469,33 @@ def run_command( args, command, nargs, parser ):
         elif nargs[0] == "delete":
             delete_vm()
             bExecute = True
+        elif nargs[0] == "prepare":
+            prepare_vm()
+            bExecute = True
         
+
+    elif command == "address":
+        if nargs[0] == "create":
+            create_address()
+        else:
+            delete_address()
+
+    elif command == "firewall":
+        if nargs[0] == "create":
+            create_firewall()
+        else:
+            delete_firewall()
+
 
     elif command == "genconfig":
         gen_cluster_config("cluster.yaml")
+
+    elif command == "delete":
+        # print "!!! WARNING !!! You are deleting the entire cluster %s " % config["gs_cluster"]["cluster_name"]
+        response = raw_input ("!!! WARNING !!! You are performing a dangerous operation that will permanently delete the entire cluster. Please type (DELETE) in ALL CAPITALS to confirm the operation ---> ")
+        if response == "DELETE":
+            delete_vm()
+            delete_storage()
 
 
 if __name__ == '__main__':
@@ -367,6 +531,7 @@ Command:
 
     if args.verbose:
         verbose = args.verbose
+        utils.verbose = args.verbose
     config = init_config()
     # Cluster Config
     config_cluster = os.path.join(dirpath,"gs_cluster_config.yaml")

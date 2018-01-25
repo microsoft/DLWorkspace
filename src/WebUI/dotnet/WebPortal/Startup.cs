@@ -37,6 +37,8 @@ using App.Metrics.Configuration;
 using App.Metrics.Reporting.Interfaces;
 using Utils.Json;
 using System.Text;
+using Pomelo.EntityFrameworkCore.MySql;
+
 
 namespace WindowsAuth
 {
@@ -149,6 +151,44 @@ namespace WindowsAuth
 
         }
 
+        public ClusterContext createDatabase(string dbName, Dictionary<string,object> clusterConfig, DLCluster clusterInfo )
+        {
+            var provider = "SQL";
+            if (clusterConfig.ContainsKey("datasource"))
+                provider = clusterConfig["datasource"] as string; 
+            switch( provider )
+            {
+                case "SQL":
+                    { 
+                        var connectionUsers = String.Format("Server={0};Database={1}{2};User Id={3};Password={4};", // Trusted_Connection=True;MultipleActiveResultSets=true",
+                                    clusterInfo.SQLHostname,
+                                    dbName,
+                                    clusterInfo.ClusterId,
+                                    clusterInfo.SQLUsername,
+                                    clusterInfo.SQLPassword);
+                        var optionsBuilderUsers = new DbContextOptionsBuilder<ClusterContext>();
+                        optionsBuilderUsers.UseSqlServer(connectionUsers);
+                        var userDatabase = new ClusterContext(optionsBuilderUsers.Options);
+                        // userDatabase.Database.EnsureCreated();
+                        userDatabase.Database.Migrate();
+                        return userDatabase;
+                    }
+                default:
+                    { 
+                        var MySQLUsername = clusterConfig["MySQLUsername"] as string;
+                        var MySQLPassword = clusterConfig["MySQLPassword"] as string;
+                        var MySQLPort = clusterConfig["MySQLPort"] as string;
+                        var MySQLHostname = clusterConfig["MySQLHostname"] as string;
+                        var connectionUsers = $"Server={MySQLHostname};uid={MySQLUsername};pwd={MySQLPassword};database={dbName}";
+                        var optionsBuilderUsers = new DbContextOptionsBuilder<ClusterContext>();
+                        optionsBuilderUsers.UseMySql(connectionUsers);
+                        var userDatabase = new ClusterContext(optionsBuilderUsers.Options);
+                        // userDatabase.Database.EnsureCreated();
+                        userDatabase.Database.Migrate();
+                        return userDatabase;
+                    }
+            }
+        }
 
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -177,17 +217,21 @@ namespace WindowsAuth
             }
             Clusters = new Dictionary<string, DLCluster>();
             Database = new Dictionary<string, ClusterContext>();
-            string defaultClusterName = null; 
+            string defaultClusterName = null;
+            DLCluster curInfo = null;
+            Dictionary<string, object> curConfig = null; 
             foreach (var pair in clusters)
             {
                 var clusterName = pair.Key;
                 var clusterConfig = pair.Value as Dictionary<string, object>;
+                curConfig = clusterConfig; 
                 _logger.LogInformation("Configure cluster {0}", clusterName);
                 if (Object.ReferenceEquals(clusterConfig, null))
                 {
                     throw new ArgumentException("Configuration for cluster {0} is not provided as a JSon dictionary", clusterName );
                 }
                 var clusterInfo = new DLCluster();
+                curInfo = clusterInfo;
                 clusterInfo.ClusterName = clusterName;
                 clusterInfo.ClusterId = clusterConfig["ClusterId"] as string;
                 if (clusterConfig.ContainsKey("AdminGroups"))
@@ -306,6 +350,7 @@ namespace WindowsAuth
                 _logger.LogDebug("SQLPassword: {0}", clusterInfo.SQLPassword);
                 _logger.LogDebug("SQLUsername: {0}", clusterInfo.SQLUsername);
                 Clusters[clusterName] = clusterInfo;
+                /*
                 var connectionUsers = String.Format("Server={0};Database={1}{2};User Id={3};Password={4};", // Trusted_Connection=True;MultipleActiveResultSets=true",
                     clusterInfo.SQLHostname,
                     clusterInfo.SQLDatabaseForUser,
@@ -317,12 +362,14 @@ namespace WindowsAuth
                 var userDatabase = new ClusterContext(optionsBuilderUsers.Options);
                 // userDatabase.Database.EnsureCreated();
                 userDatabase.Database.Migrate();
-                Database[clusterName] = userDatabase;
+                Database[clusterName] = userDatabase; */
+                Database[clusterName] = createDatabase(clusterInfo.SQLDatabaseForUser, curConfig, curInfo);
             }
 
             var templateDb = ConfigurationParser.GetConfiguration("MasterTemplates") as Dictionary<string, object>;
             var templatesMaster = new TemplateDatabase();
             templatesMaster.SQLDatabaseForTemplates = templateDb["SQLDatabaseForTemplates"] as string;
+            /*
             templatesMaster.SQLHostname = templateDb["SQLHostname"] as string;
             templatesMaster.SQLPassword = templateDb["SQLPassword"] as string;
             templatesMaster.SQLUsername = templateDb["SQLUsername"] as string;
@@ -335,7 +382,9 @@ namespace WindowsAuth
             optionsBuilderTemplatesMaster.UseSqlServer(connectionTemplatesMaster);
             var templateMasterDatabase = new ClusterContext(optionsBuilderTemplatesMaster.Options);
             // var created = templateMasterDatabase.Database.EnsureCreated();
-            templateMasterDatabase.Database.Migrate();
+            templateMasterDatabase.Database.Migrate(); */
+            var templateMasterDatabase = createDatabase(templatesMaster.SQLDatabaseForTemplates, clusterConfig, clusterInfo);
+
             var entryArries = templateMasterDatabase.Template.Select( x => x.Template ).ToArray();
             var dic = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
             foreach (var entry in entryArries)

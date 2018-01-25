@@ -8,7 +8,11 @@ default_gs_parameters = {
         # Spell out regional location used in Google cloud platform, see
         # https://cloud.google.com/storage/docs/bucket-locations
         "location_mapping": {
-            "westus": "us-west1-a", 
+            "westus": "us-west1-c", 
+            "eastus": None, # or us-east4
+        }, 
+        "region_mapping": {
+            "westus": "us-west1", 
             "eastus": None, # or us-east4
         }, 
         "sku_mapping": {

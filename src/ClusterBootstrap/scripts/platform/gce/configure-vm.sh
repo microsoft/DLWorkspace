@@ -70,13 +70,20 @@ function create-node-pki {
 
 # A hookpoint for setting up local devices
 ensure-local-disks() {
- for ssd in /dev/disk/by-id/google-local-ssd-*; do
+ for ssd in /dev/nvme*n*; do
     if [ -e "$ssd" ]; then
-      ssdnum=`echo $ssd | sed -e 's/\/dev\/disk\/by-id\/google-local-ssd-\([0-9]*\)/\1/'`
+      i=$((${#ssd}-1))
+      # echo $i
+      ssdnum="${ssd:$i:1}"
       echo "Formatting and mounting local SSD $ssd to /mnt/disks/ssd$ssdnum"
-      mkdir -p /mnt/disks/ssd$ssdnum
-      /usr/share/google/safe_format_and_mount -m "mkfs.ext4 -F" "${ssd}" /mnt/disks/ssd$ssdnum &>/var/log/local-ssd-$ssdnum-mount.log || \
-      { echo "Local SSD $ssdnum mount failed, review /var/log/local-ssd-$ssdnum-mount.log"; return 1; }
+      # mkdir -p /disks/ssd$ssdnum
+      # mkdir /mnt (/mnt already made)
+      mkfs.ext4 $ssd
+      mount $ssd /mnt # disks/ssd$ssdnum
+      
+      # ln -s /disks/ssd$ssdnum /mnt
+      #/usr/share/google/safe_format_and_mount -m "mkfs.ext4 -F" "${ssd}" /mnt/disks/ssd$ssdnum &>/var/log/local-ssd-$ssdnum-mount.log || 
+      # { echo "Local SSD $ssdnum mount failed, review /var/log/local-ssd-$ssdnum-mount.log"; return 1; }
     else
       echo "No local SSD disks found."
     fi
@@ -898,10 +905,10 @@ if [[ -z "${is_push}" ]]; then
   echo "== kube-up node config starting =="
   set-broken-motd
   ensure-basic-networking
-  fix-apt-sources
+  # fix-apt-sources
   ensure-install-dir
   ensure-packages
-  set-kube-env
+  # set-kube-env
   auto-upgrade
   ensure-local-disks
   create-node-pki
@@ -923,7 +930,7 @@ else
   echo "== kube-push node config starting =="
   ensure-basic-networking
   ensure-install-dir
-  set-kube-env
+  # set-kube-env
   create-salt-pillar
   download-release
   reset-motd
