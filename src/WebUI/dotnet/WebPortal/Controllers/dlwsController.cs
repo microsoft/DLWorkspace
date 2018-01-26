@@ -395,7 +395,7 @@ namespace WindowsAuth.Controllers
             jobObject["userId"] = uid;
             jobObject["jobType"] = "training";
             var runningasroot = jobObject["runningasroot"];
-            if (!(Object.ReferenceEquals(runningasroot, null)) && runningasroot.ToString() == "1")
+            if (!(Object.ReferenceEquals(runningasroot, null)) && (runningasroot.ToString() == "1") || (runningasroot.ToString() == true.ToString()))
             {
                 jobObject["containerUserId"] = "0";
             }
