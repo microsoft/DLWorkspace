@@ -194,8 +194,10 @@ def SubmitRegularJob(job):
                 c += 1 
                 pods.append(pod)
         else:
-                pods.append({"podName":jobParams["jobId"]})
+                pod = {}
+                pod["podName"] = jobParams["jobId"]
                 pod["envs"] = []
+                pods.append(pod)
 
         if "env" not in jobParams:
             jobParams["env"] = []
