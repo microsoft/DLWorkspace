@@ -153,13 +153,13 @@ namespace WindowsAuth
 
         public ClusterContext createDatabase(string dbName, Dictionary<string,object> clusterConfig, DLCluster clusterInfo )
         {
-            var provider = "SQL";
+            var provider = "AzureSQL";
             if (clusterConfig.ContainsKey("datasource"))
                 provider = clusterConfig["datasource"] as string; 
             Console.WriteLine($"Provider=={provider}, config={clusterConfig}");
             switch( provider )
             {
-                case "SQL":
+                case "AzureSQL":
                     { 
                         var connectionUsers = String.Format("Server={0};Database={1};User Id={2};Password={3};", // Trusted_Connection=True;MultipleActiveResultSets=true",
                                     clusterInfo.SQLHostname,
