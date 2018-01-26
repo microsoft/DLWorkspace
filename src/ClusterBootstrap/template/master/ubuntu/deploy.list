@@ -30,3 +30,5 @@
 ./deploy/bin/host-local,/opt/cni/bin/host-local
 ./deploy/bin/cnitool,/opt/cni/bin/cnitool
 ./deploy/bin/flannel,/opt/cni/bin/flannel
+./deploy/services/clusterroles/clusterrolebindings.yaml,/etc/kubernetes/clusterroles/clusterrolebindings.yaml
+./deploy/services/clusterroles/clusterroles.yaml,/etc/kubernetes/clusterroles/clusterroles.yaml

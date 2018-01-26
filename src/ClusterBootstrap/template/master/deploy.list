@@ -22,3 +22,5 @@
 ./deploy/RestfulAPI/config.yaml,/etc/RestfulAPI/config.yaml
 ./deploy/master/restapi-kubeconfig.yaml,/etc/kubernetes/restapi-kubeconfig.yaml
 ./deploy/master/dns-kubeconfig.yaml,/etc/kubernetes/dns-kubeconfig.yaml
+./deploy/services/clusterroles/clusterrolebindings.yaml,/etc/kubernetes/clusterroles/clusterrolebindings.yaml
+./deploy/services/clusterroles/clusterroles.yaml,/etc/kubernetes/clusterroles/clusterroles.yaml

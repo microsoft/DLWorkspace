@@ -571,6 +571,7 @@ scriptblocks = {
         "kubernetes start webportal",
         "kubernetes start cloudmonitor",
         "kubernetes start nginx",
+        "kubernetes start custommetrics", # start custom metric apiserver (use Prometheus as implementation)
     ],
     "ubuntu_uncordon": [
         "runscriptonall ./scripts/prepare_ubuntu.sh",
