@@ -43,7 +43,7 @@ import az_tools
 import acs_tools
 
 from params import default_config_parameters, scriptblocks
-
+from ConfigUtils import *
 
 capacityMatch = re.compile("\d+\.?\d*\s*[K|M|G|T|P]B")
 digitsMatch = re.compile("\d+\.?\d*")
@@ -63,9 +63,6 @@ limitnodes = None
 # default search for all partitions of hdb, hdc, hdd, and sdb, sdc, sdd
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-def expand_path(path):
-    return expanduser(path)
 
 # Path to mount name 
 # Change path, e.g., /mnt/glusterfs/localvolume to 
@@ -141,24 +138,6 @@ def copy_to_ISO():
     utils.render_template_directory( "./template/pxe/tftp/usr/share/oem", "./deploy/iso-creator",config)
     utils.render_template_directory( "./template/iso-creator", "./deploy/iso-creator",config)
 
-# Certain configuration that is default in system 
-def init_config():
-    if not os.path.exists("./deploy"):
-        os.system("mkdir -p ./deploy")
-    config = {}
-    for k,v in default_config_parameters.iteritems():
-        config[ k ] = v
-    return config
-
-def apply_config_mapping():
-    for k,tuple in default_config_mapping.iteritems():
-        if not ( k in config ) or len(config[k])<=0:
-            dstname = tuple[0]
-            value = fetch_config(dstname)
-            if not (value is None):
-                config[k] = tuple[1](value)
-                if verbose:
-                    print "Config[%s] = %s" %(k, config[k])
 
 def _check_config_items(cnfitem, cnf):
     if not cnfitem in cnf:
@@ -181,41 +160,6 @@ def check_config(cnf):
     _check_config_items("service_cluster_ip_range",cnf)
     if not os.path.isfile(config["ssh_cert"]):
         raise Exception("ERROR: we cannot find ssh key file at %s. \n please run 'python build-pxe-coreos.py docker_image_name' to generate ssh key file and pxe server image." % config["ssh_cert"]) 
-
-
-# Test if a certain Config entry exist
-def fetch_dictionary(dic, entry):
-    if isinstance(entry, list):
-        # print "Fetch " + str(dic) + "@" + str(entry) + "==" + str( dic[entry[0]] ) 
-        if isinstance( dic, list ):
-            for subdic in dic:
-                if entry[0] in subdic:
-                    if len(entry)<=1:
-                        return subdic[entry[0]]
-                    else:
-                        return fetch_dictionary(subdic[entry[0]], entry[1:])
-            return None
-        elif entry[0] in dic:
-            if len(entry)<=1:
-                return dic[entry[0]]
-            else:
-                return fetch_dictionary(dic[entry[0]], entry[1:])
-        else:
-            return None
-    else:
-        print "fetch_config expects to take a list, but gets " + str(entry)
-
-# Test if a certain Config entry exist
-def fetch_config(entry):
-    return fetch_dictionary( config, entry )
-
-# Test if a certain Config entry exist
-def fetch_config_and_check(entry):
-    ret = fetch_config( entry )
-    if ret is None:
-        print "Error: config entry %s doesn't exist" % entry
-        exit()
-    return ret;
 
 def generate_trusted_domains(network_config, start_idx ):
     ret = ""
@@ -286,48 +230,11 @@ default_config_mapping = {
 def isInstallOnCoreOS():
     return config["platform-scripts"]!="ubuntu" and config["platform-scripts"]!="acs"
 
-# Merge entries in config2 to that of config1, if entries are dictionary. 
-# If entry is list or other variable, it will just be replaced. 
-# say config1 = { "A" : { "B": 1 } }, config2 = { "A" : { "C": 2 } }
-# C python operation: config1.update(config2) give you { "A" : { "C": 2 } }
-# merge_config will give you: { "A" : { "B": 1, "C":2 } }
-def merge_config( config1, config2 ):
-    for entry in config2:
-        if entry in config1:
-            if isinstance( config1[entry], dict): 
-                if isinstance( config2[entry], dict): 
-                    merge_config( config1[entry], config2[entry] )
-                else:
-                    print "Error in configuration: %s should be of type %s, but is written as type %s in configuration" %(entry, type(config1[entry]), type(config2[entry]) )
-                    exit(1)
-            else:
-                config1[entry] = config2[entry]
-        else:
-            config1[entry] = config2[entry]
-
-
-# set a configuration, if an entry in configuration exists and is a certain type, then 
-# use that entry, otherwise, use default value
-# name: usually a string, the name of the configuration
-# entry: a string list, used to mark the entry in the yaml file
-# type: expect type of the configuration
-# defval: default value
-def update_one_config(name, entry, type, defval):
-    val = fetch_config(entry)
-    if val is None:
-        config[name] = defval
-    elif isinstance( val, type ):
-        config[name] = val
-        if verbose:
-            print "config["+name+"]="+str(val)
-    else:
-        print "Error: Configuration " + name + " needs a " + str(type) +", but is given:" + str(val)
-
 def update_config():
-    apply_config_mapping()
-    update_one_config("coreosversion",["coreos","version"], basestring, coreosversion)
-    update_one_config("coreoschannel",["coreos","channel"], basestring, coreoschannel)
-    update_one_config("coreosbaseurl",["coreos","baseurl"], basestring, coreosbaseurl)
+    apply_config_mapping(config, default_config_mapping)
+    update_one_config(config, "coreosversion",["coreos","version"], basestring, coreosversion)
+    update_one_config(config, "coreoschannel",["coreos","channel"], basestring, coreoschannel)
+    update_one_config(config, "coreosbaseurl",["coreos","baseurl"], basestring, coreosbaseurl)
     if config["coreosbaseurl"] == "": 
         config["coreosusebaseurl"] = ""
     else:
@@ -348,7 +255,7 @@ def update_config():
 
 
 def add_ssh_key():
-    keys = fetch_config(["sshKeys"])
+    keys = fetch_config(config, ["sshKeys"])
     if isinstance( keys, list ):
         if "sshkey" in config and "sshKeys" in config and not (config["sshkey"] in config["sshKeys"]):
             config["sshKeys"].append(config["sshkey"])
@@ -457,7 +364,7 @@ def add_kubelet_config():
 
 def add_dns_entries():
     addCoreOSNetwork = ""
-    dnsEntries = fetch_config(["network", "externalDnsServers"])
+    dnsEntries = fetch_config(config, ["network", "externalDnsServers"])
     if dnsEntries is None:
         print "No additional DNS servers"
     elif isinstance( dnsEntries, list ):
@@ -487,31 +394,15 @@ def add_leading_spaces(content, nspaces):
         retstr += (" "*nspaces) + line + "\n"
     return retstr
 
-# translate a config entry to another, check type and do format conversion along the way
-def translate_config_entry( entry, name, type, leading_space = 0 ):
-    content = fetch_config( entry )
-    if not content is None:
-        if isinstance( content, type ):
-            if leading_space > 0 : 
-                adj_content = add_leading_spaces( content, leading_space )
-            else:
-                adj_content = content
-            config[name] = adj_content
-            if verbose: 
-                print "Configuration entry: " + name
-                print adj_content
-        else:
-            print "In configuration file, " + str( entry ) + " should be type of " +str(type) + ", rather than: "+ str(content )
-            exit()
 
 # fill in additional entry of cloud config
 def add_additional_cloud_config():
     # additional entry to be added to write_files 
-    translate_config_entry( ["coreos", "write_files"], "coreoswritefiles", basestring, 2 )
+    translate_config_entry( config, ["coreos", "write_files"], "coreoswritefiles", basestring, 2 )
     # additional entry to be added to units 
-    translate_config_entry( ["coreos", "units"], "coreosunits", basestring, 4 )
+    translate_config_entry( config, ["coreos", "units"], "coreosunits", basestring, 4 )
     # additional startup script to be added to report.sh
-    translate_config_entry( ["coreos", "startupScripts"], "startupscripts", basestring )
+    translate_config_entry( config, ["coreos", "startupScripts"], "startupscripts", basestring )
 
 def init_deployment():
     gen_new_key = True
@@ -1163,7 +1054,7 @@ def create_PXE():
 
 def config_ubuntu():
     # print config["ubuntuconfig"]
-    ubuntuConfig = fetch_config( ["ubuntuconfig"] )
+    ubuntuConfig = fetch_config( config, ["ubuntuconfig"] )
     # print ubuntuConfig
     useversion = fetch_dictionary( ubuntuConfig, [ "version" ] )
     specificConfig = fetch_dictionary( ubuntuConfig, [ useversion ] )
@@ -1601,7 +1492,7 @@ def get_mount_fileshares(curNode = None):
                     allmountpoints[k] = copy.deepcopy( v )
                     bMount = True
                     allmountpoints[k]["url"] = "//" + allmountpoints[k]["accountname"] + ".file.core.windows.net/"+allmountpoints[k]["filesharename"]
-                    options = fetch_config(["mountconfig", "azurefileshare", "options"]) % (v["accountname"], v["accesskey"])
+                    options = fetch_config(config, ["mountconfig", "azurefileshare", "options"]) % (v["accountname"], v["accesskey"])
                     allmountpoints[k]["options"] = options
                     fstab += "%s %s cifs %s\n" % (allmountpoints[k]["url"], curphysicalmountpoint, options )
                 else:
@@ -1612,7 +1503,7 @@ def get_mount_fileshares(curNode = None):
                     bMount = True
                     glusterfs_nodes = get_node_lists_for_service("glusterfs")
                     allmountpoints[k]["node"] = pick_server( glusterfs_nodes, curNode )
-                    options = fetch_config(["mountconfig", "glusterfs", "options"])
+                    options = fetch_config(config, ["mountconfig", "glusterfs", "options"])
                     allmountpoints[k]["options"] = options
                     fstab += "%s:/%s %s glusterfs %s 0 0\n" % (allmountpoints[k]["node"], v["filesharename"], curphysicalmountpoint, options)
                 else:
@@ -1621,7 +1512,7 @@ def get_mount_fileshares(curNode = None):
                 if "filesharename" in v and "server" in v:
                     allmountpoints[k] = copy.deepcopy( v )
                     bMount = True
-                    options = fetch_config(["mountconfig", "nfs", "options"])
+                    options = fetch_config(config, ["mountconfig", "nfs", "options"])
                     allmountpoints[k]["options"] = options
                     fstab += "%s:/%s %s /nfsmnt nfs %s\n" % (v["server"], v["filesharename"], curphysicalmountpoint, options)
                 else:
@@ -1635,9 +1526,9 @@ def get_mount_fileshares(curNode = None):
                         if k1.find("namenode")>=0:
                             allmountpoints[k]["server"].append(v1)
                 bMount = True
-                options = fetch_config(["mountconfig", "hdfs", "options"])
+                options = fetch_config(config, ["mountconfig", "hdfs", "options"])
                 allmountpoints[k]["options"] = options
-                fstaboptions = fetch_config(["mountconfig", "hdfs", "fstaboptions"])
+                fstaboptions = fetch_config(config, ["mountconfig", "hdfs", "fstaboptions"])
                 fstab += "hadoop-fuse-dfs#hdfs://%s %s fuse %s\n" % (allmountpoints[k]["server"][0], curphysicalmountpoint, fstaboptions)
             elif (v["type"] == "local" or v["type"] == "localHDD") and "device" in v:
                 allmountpoints[k] = copy.deepcopy( v )
@@ -2134,15 +2025,15 @@ def find_matched_volume( alldeviceinfo, regmatch ):
 
 # Form a configuration file for operation of glusterfs 
 def write_glusterFS_configuration( nodesinfo, glusterFSargs ):
-    config_file = fetch_config_and_check( ["glusterFS", "glustefs_nodes_yaml" ])
-    config_glusterFS = fetch_config_and_check( ["glusterFS"] )
+    config_file = fetch_config_and_check( config, ["glusterFS", "glustefs_nodes_yaml" ])
+    config_glusterFS = fetch_config_and_check( config, ["glusterFS"] )
     glusterfs_volumes_config = fetch_dictionary( config_glusterFS, ["gluster_volumes"] )
     required_param = fetch_dictionary( config_glusterFS, ["gluster_volumes_required_param"] )
     config_glusterFS["groups"] = {}
     glusterfs_groups = config_glusterFS["groups"]
     for node in nodesinfo:
         node_basename = kubernetes_get_node_name( node )
-        node_config = fetch_config( ["machine", node_basename ] )
+        node_config = fetch_config( config, ["machine", node_basename ] )
         glusterfs_group = "default" if node_config is None or not "glusterfs" in node_config else node_config["glusterfs"]
         if not glusterfs_group in glusterfs_groups:
             glusterfs_groups[glusterfs_group] = {}
@@ -2201,7 +2092,7 @@ def format_mount_partition_volume( nodes, deviceSelect, format=True ):
         remotecmd = ""
         if format: 
             for volume in volumes:
-                remotecmd += "sudo %s %s; " % ( fetch_config( ["localdisk", "mkfscmd"]), volume)
+                remotecmd += "sudo %s %s; " % ( fetch_config( config, ["localdisk", "mkfscmd"]), volume)
         hdfsconfig = {} 
         for volume in volumes:
             # mount remote volumes. 
@@ -2209,7 +2100,7 @@ def format_mount_partition_volume( nodes, deviceSelect, format=True ):
             remotecmd += "sudo mkdir -p %s; " % mountpoint
             remotecmd += "sudo mount %s %s; " % ( volume, mountpoint )
         utils.SSH_exec_cmd( config["ssh_cert"], config["admin_username"], node, remotecmd, showCmd=verbose )
-        fstabcontent = "%s %s %s" %( volume, mountpoint, fetch_config( ["localdisk", "mountoptions"]))
+        fstabcontent = "%s %s %s" %( volume, mountpoint, fetch_config( config, ["localdisk", "mountoptions"]))
         insert_fstab_section( node, "MOUNTLOCALDISK", fstabcontent )
 
 def unmount_partition_volume( nodes, deviceSelect ):
@@ -2250,7 +2141,7 @@ def generate_hdfs_config( nodes, deviceSelect):
     hdfsconfig = copy.deepcopy( config["hdfsconfig"] )
     hdfsconfig["hdfs_cluster_name"] = config["hdfs_cluster_name"]
     zknodes = get_node_lists_for_service("zookeeper")
-    zknodelist = generate_hdfs_nodelist( zknodes, fetch_config( ["hdfsconfig", "zks", "port"]), ",")
+    zknodelist = generate_hdfs_nodelist( zknodes, fetch_config( config, ["hdfsconfig", "zks", "port"]), ",")
     if verbose:
         print "Zookeeper nodes: " + zknodelist
     hdfsconfig["zks"]["nodes"] = zknodelist
@@ -2261,7 +2152,7 @@ def generate_hdfs_config( nodes, deviceSelect):
     journalnodes = get_node_lists_for_service("journalnode")
     if verbose:
         print "Journal nodes: " + zknodelist
-    journalnodelist = generate_hdfs_nodelist( journalnodes, fetch_config( ["hdfsconfig", "journalnode", "port"]), ";")
+    journalnodelist = generate_hdfs_nodelist( journalnodes, fetch_config( config, ["hdfsconfig", "journalnode", "port"]), ";")
     hdfsconfig["journalnode"]["nodes"] = journalnodelist
     config["hdfsconfig"]["namenode"] = hdfsconfig["namenode"]
     return hdfsconfig
@@ -2327,17 +2218,17 @@ def create_glusterFS_volume( nodesinfo, glusterFSargs ):
         capacityGB = 0.0
         for volume in volumes:
             remotecmd += "sudo pvcreate -f "  
-            dataalignment = fetch_config( ["glusterFS", "dataalignment"] )
+            dataalignment = fetch_config( config, ["glusterFS", "dataalignment"] )
             if not dataalignment is None: 
                 remotecmd += " --dataalignment " + dataalignment
             remotecmd += " " + volume + "; "
             capacityGB += volumes[volume]
         if len(volumes)>0: 
             remotecmd += "sudo vgcreate "
-            physicalextentsize = fetch_config( ["glusterFS", "physicalextentsize"] )
+            physicalextentsize = fetch_config( config, ["glusterFS", "physicalextentsize"] )
             if not physicalextentsize is None: 
                 remotecmd += " --physicalextentsize " + physicalextentsize;
-            volumegroup = fetch_config_and_check( ["glusterFS", "volumegroup" ] )
+            volumegroup = fetch_config_and_check( config, ["glusterFS", "volumegroup" ] )
             remotecmd += " " + volumegroup
             for volume in volumes:
                 remotecmd += " " + volume; 
@@ -2345,21 +2236,21 @@ def create_glusterFS_volume( nodesinfo, glusterFSargs ):
         else:
             # The machine doesn't have any data disk, skip glusterFS setup
             break; 
-        volumesize = fetch_config_and_check( ["glusterFS", "volumesize" ] )
-        metasize = fetch_config_and_check(["glusterFS", "metasize" ] )
-        metapoolname = fetch_config_and_check(["glusterFS", "metapoolname" ] )
+        volumesize = fetch_config_and_check( config, ["glusterFS", "volumesize" ] )
+        metasize = fetch_config_and_check(config, ["glusterFS", "metasize" ] )
+        metapoolname = fetch_config_and_check(config, ["glusterFS", "metapoolname" ] )
         # create metapool 
         remotecmd += "sudo lvcreate -L %s --name %s %s ; " % ( metasize, metapoolname, volumegroup )
         # create datapool 
-        volumesize = fetch_config_and_check(["glusterFS", "volumesize" ] )
-        datapoolname = fetch_config_and_check(["glusterFS", "datapoolname" ] )
+        volumesize = fetch_config_and_check( config, ["glusterFS", "volumesize" ] )
+        datapoolname = fetch_config_and_check( config, ["glusterFS", "datapoolname" ] )
         remotecmd += "sudo lvcreate -l %s --name %s %s ; " % ( volumesize, datapoolname, volumegroup )
-        chunksize = fetch_config_and_check(["glusterFS", "chunksize" ] )
+        chunksize = fetch_config_and_check( config, ["glusterFS", "chunksize" ] )
         remotecmd += "sudo lvconvert -y --chunksize %s --thinpool %s/%s --poolmetadata %s/%s ; " % ( chunksize, volumegroup, datapoolname, volumegroup, metapoolname )
         remotecmd += "sudo lvchange -y --zero n %s/%s; " %( volumegroup, datapoolname )
-        volumename = fetch_config_and_check(["glusterFS", "volumename" ] )
+        volumename = fetch_config_and_check( config, ["glusterFS", "volumename" ] )
         remotecmd += "sudo lvcreate -y -V %dG -T %s/%s -n %s ;" %( int(capacityGB), volumegroup, datapoolname, volumename )
-        mkfsoptions = fetch_config_and_check(["glusterFS", "mkfs.xfs.options" ] )
+        mkfsoptions = fetch_config_and_check( config, ["glusterFS", "mkfs.xfs.options" ] )
         remotecmd += "sudo mkfs.xfs -f %s /dev/%s/%s ;" %( mkfsoptions, volumegroup, volumename )
         # Create a service for volume mount
         remotepath = config["glusterfs-localvolume"]
@@ -2397,9 +2288,9 @@ def remove_glusterFS_volume( nodesinfo, glusterFSargs ):
         print "................. Node %s ................." % node
         remotecmd = "";
         if len(volumes)>0: 
-            volumegroup = fetch_config_and_check( ["glusterFS", "volumegroup" ] )
-            datapoolname = fetch_config_and_check( ["glusterFS", "datapoolname" ] )
-            volumename = fetch_config_and_check(["glusterFS", "volumename" ] )
+            volumegroup = fetch_config_and_check( config, ["glusterFS", "volumegroup" ] )
+            datapoolname = fetch_config_and_check( config, ["glusterFS", "datapoolname" ] )
+            volumename = fetch_config_and_check( config, ["glusterFS", "volumename" ] )
             remotecmd += "sudo lvremove -y %s/%s ; " % ( volumegroup, volumename )
             remotecmd += "sudo lvremove -y %s/%s ; " % ( volumegroup, datapoolname )
             remotecmd += "sudo vgremove -y %s ; " % volumegroup
@@ -2497,8 +2388,8 @@ def create_mac_dictionary( machineEntry ):
     return dic
 
 def set_host_names_by_lookup():
-    domainEntry = fetch_config( ["network", "domain"] )
-    machineEntry = fetch_config( ["machines"] )
+    domainEntry = fetch_config( config, ["network", "domain"] )
+    machineEntry = fetch_config( config, ["machines"] )
     if machineEntry is None:
         print "Unable to set host name as there are no machines information in the configuration file. "
     else:
@@ -2706,7 +2597,7 @@ def kubernetes_label_node(cmdoptions, nodename, label):
 def get_node_lists_for_service(service):
         if "etcd_node" not in config or "worker_node" not in config:
             check_master_ETCD_status()
-        labels = fetch_config(["kubelabels"])
+        labels = fetch_config(config, ["kubelabels"])
         nodetype = labels[service] if service in labels else labels["default"]
         if nodetype == "worker_node":
             nodes = config["worker_node"]
@@ -2721,7 +2612,7 @@ def get_node_lists_for_service(service):
         elif nodetype == "all":
             nodes = config["worker_node"] + config["etcd_node"]
         else:
-            machines = fetch_config(["machines"])
+            machines = fetch_config(config, ["machines"])
             if machines is None:
                 print "Service %s has a nodes type %s, but there is no machine configuration to identify node" % (service, nodetype)
                 exit(-1)
@@ -2744,7 +2635,7 @@ def kubernetes_label_nodes( verb, servicelists, force ):
     servicedic = get_all_services()
     # print servicedic
     get_nodes(config["clusterId"])
-    labels = fetch_config(["kubelabels"])
+    labels = fetch_config(config, ["kubelabels"])
     # print labels
     for service, serviceinfo in servicedic.iteritems():
         servicename = get_service_name(servicedic[service])
@@ -2788,7 +2679,7 @@ def kubernetes_mark_nodes( marklist, bMark ):
     nodes = get_nodes(config["clusterId"])
     for node in nodes:
         nodename = kubernetes_get_node_name(node)
-        nodeconfig = fetch_config(["machines", nodename])
+        nodeconfig = fetch_config(config, ["machines", nodename])
         if verbose:
             print "----- Node %s ------ " % nodename
             print nodeconfig
@@ -2885,7 +2776,7 @@ def check_buildable_images(nargs):
             exit()
 
 def run_docker_image( imagename, native = False, sudo = False ):
-    dockerConfig = fetch_config( ["docker-run", imagename ])
+    dockerConfig = fetch_config( config, ["docker-run", imagename ])
     full_dockerimage_name, local_dockerimage_name = build_docker_fullname( config, imagename )
     # print full_dockerimage_name
     matches = find_dockers( full_dockerimage_name )
@@ -3168,7 +3059,7 @@ def run_command( args, command, nargs, parser ):
         if nargs[0] == "start" or nargs[0] == "update" or nargs[0] == "stop" or nargs[0] == "clear":
             nodes = get_worker_nodes(config["clusterId"])
             nodesinfo = get_partitions(nodes, config["data-disk"] )
-            glusterFSargs = fetch_config( ["glusterFS", "partitions"] )
+            glusterFSargs = fetch_config( config, ["glusterFS", "partitions"] )
             if glusterFSargs is None:
                 parser.print_help()
                 print "Need to configure partitions which glusterFS will deploy..."
@@ -3183,7 +3074,7 @@ def run_command( args, command, nargs, parser ):
             if nargs[0] == "start":
                 remove_glusterFS_volumes_heketi( masternodes, config["ipToHostname"], nodesinfo, glusterFSargs, nodes )
             elif nargs[0] == "stop":
-                start_glusterFS_heketi( masternodes, fetch_config(["ipToHostname"]), nodesinfo, glusterFSargs, flag = gsFlag )
+                start_glusterFS_heketi( masternodes, fetch_config(config, ["ipToHostname"]), nodesinfo, glusterFSargs, flag = gsFlag )
 
 
         else:
@@ -3194,7 +3085,7 @@ def run_command( args, command, nargs, parser ):
         allnodes = get_nodes(config["clusterId"])
         # ToDo: change pending, schedule glusterFS on master & ETCD nodes, 
         nodes = get_node_lists_for_service("glusterfs")
-        glusterFSargs = fetch_config( ["glusterFS", "partitions"] )
+        glusterFSargs = fetch_config( config, ["glusterFS", "partitions"] )
         if nargs[0] == "display":
             display_glusterFS_volume( nodes, glusterFSargs )
             exit()
@@ -3216,7 +3107,7 @@ def run_command( args, command, nargs, parser ):
                 remove_glusterFS_volume( nodesinfo, glusterFSargs )
         elif nargs[0] == "config":
             write_glusterFS_configuration( nodesinfo, glusterFSargs ) 
-            dockername = fetch_config_and_check(["glusterFS", "glusterfs_docker"])
+            dockername = fetch_config_and_check(config, ["glusterFS", "glusterfs_docker"])
             push_docker_images( [dockername] )
         elif nargs[0] == "start":
             start_kube_service("glusterFS")
@@ -3236,13 +3127,13 @@ def run_command( args, command, nargs, parser ):
             print ("This operation will CREATE new volume over all existing hdfs partitions, and will erase the data on those partitions "  )
             response = raw_input ("Please type (CREATE) in ALL CAPITALS to confirm the operation ---> ")
             if response == "CREATE":
-                format_mount_partition_volume( nodes, fetch_config(["hdfs", "partitions"]), True )
+                format_mount_partition_volume( nodes, fetch_config(config, ["hdfs", "partitions"]), True )
         elif nargs[0] == "mount":
-            format_mount_partition_volume( nodes, fetch_config(["hdfs", "partitions"]), False )
+            format_mount_partition_volume( nodes, fetch_config(config, ["hdfs", "partitions"]), False )
         elif nargs[0] == "umount":
-            unmount_partition_volume( nodes, fetch_config(["hdfs", "partitions"]))
+            unmount_partition_volume( nodes, fetch_config(config, ["hdfs", "partitions"]))
         elif nargs[0] == "config":
-            hdfs_config( nodes, fetch_config(["hdfs", "partitions"]))
+            hdfs_config( nodes, fetch_config(config, ["hdfs", "partitions"]))
             push_docker_images( ["hdfs"] )
             push_docker_images( ["spark"] )
         else:
@@ -3686,7 +3577,9 @@ Command:
     if args.nodes is not None:
         limitnodes = args.nodes
 
-    config = init_config()
+    if not os.path.exists("./deploy"):
+        os.system("mkdir -p ./deploy")
+    config = init_config(default_config_parameters)
 
     if command == "scriptblocks":
         if nargs[0] in scriptblocks:

@@ -17,11 +17,11 @@ default_config_parameters = {
     "influxdb_port" : "8086",     
     "influxdb_tp_port" : "25826",     
     "influxdb_rpc_port" : "8088",     
-    "influxdb_data_path" : "/dlwsdata/storage/sys/influxdb",
+    "influxdb_data_path" : "/var/lib/influxdb",
 
     "mysql_port" : "3306",
     "mysql_username" : "root",
-    "mysql_data_path" : "/dlwsdata/storage/sys/mysql",
+    "mysql_data_path" : "/var/lib/mysql",
 
     "datasource" : "AzureSQL",
 
@@ -113,6 +113,7 @@ default_config_parameters = {
         },
 
     }, 
+    "mountpoints": {}, 
 
     "build-docker-via-config" : {
         "hdfs": True, 
@@ -545,6 +546,26 @@ scriptblocks = {
         "nginx fqdn", 
         "nginx config", 
         "mount", 
+        "kubernetes start mysql",
+        "kubernetes start jobmanager",
+        "kubernetes start restfulapi",
+        "kubernetes start webportal",
+        "kubernetes start cloudmonitor",
+        "kubernetes start nginx",
+    ],
+    "azure_uncordon": [
+        "runscriptonall ./scripts/prepare_ubuntu.sh", 
+        "-y deploy",
+        "-y updateworker",
+        "kubernetes uncordon", 
+        "-y kubernetes labels",
+        "webui",
+        "docker push restfulapi",
+        "docker push webui",
+        "nginx fqdn", 
+        "nginx config", 
+        "mount", 
+        "kubernetes start mysql",
         "kubernetes start jobmanager",
         "kubernetes start restfulapi",
         "kubernetes start webportal",

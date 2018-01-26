@@ -30,6 +30,12 @@ verbose = False
 class StaticVariable():
     rendered_target_directory = {}
 
+def tolist(val):
+    if isinstance( val, list):
+        return val
+    else:
+        return [val]
+
 def clean_rendered_target_directory():
     StaticVariable.rendered_target_directory = {}
 
