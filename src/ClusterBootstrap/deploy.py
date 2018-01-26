@@ -2829,8 +2829,12 @@ def start_kube_service( servicename ):
         with open(os.path.join(dirname,"launch_order"),'r') as f:
             allservices = f.readlines()
             for filename in allservices:
-                filename = filename.strip('\n')
-                start_one_kube_service(os.path.join(dirname,filename))
+                # If this line is a sleep tag (e.g. SLEEP 10), sleep for given seconds to wait for the previous service to start.
+                if filename.startswith("SLEEP"):
+                    time.sleep(int(filename.split(" ")[1]))
+                else:
+                    filename = filename.strip('\n')
+                    start_one_kube_service(os.path.join(dirname,filename))
     else:
         start_one_kube_service(fname)
 
@@ -2841,8 +2845,10 @@ def stop_kube_service( servicename ):
         with open(os.path.join(dirname,"launch_order"),'r') as f:
             allservices = f.readlines()
             for filename in reversed(allservices):
-                filename = filename.strip('\n')
-                stop_one_kube_service(os.path.join(dirname,filename))
+                # If this line is a sleep tag, skip this line.
+                if not filename.startswith("SLEEP"):
+                    filename = filename.strip('\n')
+                    stop_one_kube_service(os.path.join(dirname,filename))
     else:
         stop_one_kube_service(fname)
 
