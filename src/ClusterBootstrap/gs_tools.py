@@ -388,6 +388,7 @@ def delete_vm( docreate = True):
     save_config() 
 
 def prepare_vm(docreate = True):
+    create_firewall(docreate)
     cmd1 = "./deploy.py --verbose --sudo runscriptonall ./scripts/platform/gce/configure-vm.sh"
     output1 = utils.exec_cmd_local(cmd1)
     print output1
