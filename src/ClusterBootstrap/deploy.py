@@ -643,6 +643,17 @@ def GetCertificateProperty():
     config["apiserver_ssl_dns"] = "\n".join(["DNS."+str(i+5)+" = "+dns for i,dns in enumerate(masterdns)])
     config["apiserver_ssl_ip"] = "IP.1 = "+config["api-server-ip"]+"\nIP.2 = 127.0.0.1\n"+ "\n".join(["IP."+str(i+3)+" = "+ip for i,ip in enumerate(masterips)])
 
+    
+    # kube-apiserver aggregator use easyrsa to generate crt files, we need to generate a group of master names for it.
+    # It does not care if it's a DNS name or IP.
+    masternames = []
+    for i,value in enumerate(config["kubernetes_master_node"]):
+        masternames.append(value)
+    config["apiserver_names_ssl_aggregator"] = ",".join(["DNS:"+name for i,name in enumerate(masternames)])
+    # TODO(harry): this only works for single master, if we have multiple masters, we need to have a reserved static IP to be used here and for the whole cluster.
+    config["master_ip_ssl_aggregator"] = utils.getIP(config["kubernetes_master_node"][0])
+
+
     for i,value in enumerate(config["etcd_node"]):
         if ippattern.match(value):
             etcdips.append(value)
@@ -663,6 +674,7 @@ def gen_master_certificates():
 
     utils.render_template_directory("./template/ssl", "./deploy/ssl",config)
     os.system("cd ./deploy/ssl && bash ./gencerts_master.sh")
+    os.system("cd ./deploy/ssl && bash ./gencerts_aggregator.sh")
 
 
 def gen_ETCD_certificates():

@@ -822,6 +822,8 @@ namespace WindowsAuth.Controllers
             ViewData["uid"] = HttpContext.Session.GetString("uid");
             ViewData["gid"] = HttpContext.Session.GetString("gid");
 
+            ViewData["username"] = HttpContext.Session.GetString("Username");
+
             ViewData["mode"] = (HttpContext.Request.Query.ContainsKey("Mode") && HttpContext.Request.Query["Mode"] == "templates") ? "Templates" : "JobSubmission";
 
             ViewData["isAdmin"] = HttpContext.Session.GetString("isAdmin");

@@ -395,7 +395,7 @@ namespace WindowsAuth.Controllers
             jobObject["userId"] = uid;
             jobObject["jobType"] = "training";
             var runningasroot = jobObject["runningasroot"];
-            if (!(Object.ReferenceEquals(runningasroot, null)) && runningasroot.ToString() == "1")
+            if (!(Object.ReferenceEquals(runningasroot, null)) && (runningasroot.ToString() == "1") || (runningasroot.ToString() == true.ToString()))
             {
                 jobObject["containerUserId"] = "0";
             }
@@ -498,6 +498,7 @@ namespace WindowsAuth.Controllers
 
         private async Task<string> GetTemplatesAsync(string type)
         {
+            var username = HttpContext.Session.GetString("Username");
             string jsonString = "[";
             jsonString += "{\"Name\" : \"None\", \"Json\" : \"{}\"},";
             var master = GetTemplatesString(Startup.MasterDatabase, "Master", type);
@@ -505,7 +506,7 @@ namespace WindowsAuth.Controllers
             var currentCluster = HttpContext.Session.GetString("CurrentClusters");
             if (currentCluster != null && Startup.Database.ContainsKey(currentCluster))
             {
-                var cluster = GetTemplatesString(Startup.Database[currentCluster], "CurrentCluster", type);
+                var cluster = GetTemplatesString(Startup.Database[currentCluster], "CurrentCluster", type, username);
                 jsonString += await cluster;
             }
             jsonString = jsonString.Substring(0, jsonString.Length - 1) + "]";
@@ -525,7 +526,7 @@ namespace WindowsAuth.Controllers
             return inp; 
         }
 
-        private static async Task<string> GetTemplatesString(ClusterContext templates, string databaseName, string type)
+        private static async Task<string> GetTemplatesString(ClusterContext templates, string databaseName, string type, string username="")
         {
             try
             {
@@ -535,14 +536,32 @@ namespace WindowsAuth.Controllers
                 {
                     if (type == "all" || entry.Type == type)
                     {
-                        var json = TranslateJson(entry.Json);
-                        var t = "{";
-                        t += "\"Name\" : \"" + entry.Template + "\",";
-                        t += "\"Username\" : \"" + entry.Username + "\",";
-                        t += "\"Json\" : " + JsonConvert.SerializeObject(json) + ",";
-                        t += "\"Database\" : \"" + databaseName + "\"";
-                        t += "},";
-                        templatesString += t;
+
+                        string entryUsername = entry.Username;
+                        if (entryUsername == null)
+                        {
+                            entryUsername = "";
+                        }
+                        if (entryUsername.Contains("@"))
+                        {
+                            entryUsername = entryUsername.Split('@')[0];
+                        }
+                        if (entryUsername.Contains("/"))
+                        {
+                            entryUsername = entryUsername.Split('/')[1];
+                        }
+
+                        if (username == "" || username == entryUsername)
+                        {
+                            var json = TranslateJson(entry.Json);
+                            var t = "{";
+                            t += "\"Name\" : \"" + entry.Template.Replace("%20", " ") + "\",";
+                            t += "\"Username\" : \"" + entry.Username + "\",";
+                            t += "\"Json\" : " + JsonConvert.SerializeObject(json) + ",";
+                            t += "\"Database\" : \"" + databaseName + "\"";
+                            t += "},";
+                            templatesString += t;
+                        }
                     }
                 });
                 return templatesString;

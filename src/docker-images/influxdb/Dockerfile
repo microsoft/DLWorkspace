@@ -19,7 +19,9 @@ ADD			types.db /opt/collectd/share/collectd/types.db
 
 ADD			influxdb.conf /etc/influxdb/influxdb.conf
 ADD           start /usr/bin/start
+ADD           init.sh /usr/bin/init.sh
 RUN           chmod +x /usr/bin/start
+RUN           chmod +x /usr/bin/init.sh
 ADD           types.db /usr/share/collectd/types.db
 
 
