@@ -161,10 +161,9 @@ namespace WindowsAuth
             {
                 case "SQL":
                     { 
-                        var connectionUsers = String.Format("Server={0};Database={1}{2};User Id={3};Password={4};", // Trusted_Connection=True;MultipleActiveResultSets=true",
+                        var connectionUsers = String.Format("Server={0};Database={1};User Id={2};Password={3};", // Trusted_Connection=True;MultipleActiveResultSets=true",
                                     clusterInfo.SQLHostname,
                                     dbName,
-                                    clusterInfo.ClusterId,
                                     clusterInfo.SQLUsername,
                                     clusterInfo.SQLPassword);
                         var optionsBuilderUsers = new DbContextOptionsBuilder<ClusterContext>();
@@ -186,6 +185,7 @@ namespace WindowsAuth
                         optionsBuilderUsers.UseMySql(connectionUsers);
                         var userDatabase = new ClusterContext(optionsBuilderUsers.Options);
                         userDatabase.Database.EnsureCreated();
+                        Console.WriteLine($"MySQL database {dbName} is created.");
                         // userDatabase.Database.Migrate(); // Migrate not working for MySQL
                         return userDatabase;
                     }
@@ -287,7 +287,7 @@ namespace WindowsAuth
 
                 }
                 clusterInfo.Restapi = clusterConfig["Restapi"] as string;
-                clusterInfo.SQLDatabaseForUser = clusterConfig["SQLDatabaseForUser"] as string;
+                clusterInfo.SQLDatabaseForUser = (clusterConfig["SQLDatabaseForUser"] as string) + clusterInfo.ClusterId;
                 clusterInfo.SQLHostname = clusterConfig["SQLHostname"] as string;
                 clusterInfo.SQLPassword = clusterConfig["SQLPassword"] as string;
                 clusterInfo.SQLUsername = clusterConfig["SQLUsername"] as string;
@@ -365,10 +365,9 @@ namespace WindowsAuth
             }
 
             var templateDb = ConfigurationParser.GetConfiguration("MasterTemplates") as Dictionary<string, object>;
-            var templatesMaster = new TemplateDatabase();
-            templatesMaster.SQLDatabaseForTemplates = templateDb["SQLDatabaseForTemplates"] as string;
+            var SQLDatabaseForTemplates = templateDb["SQLDatabaseForTemplates"] as string;
             DLCluster curInfo = new DLCluster();
-            curInfo.SQLDatabaseForUser = templateDb["SQLDatabaseForUser"] as string;
+            curInfo.SQLDatabaseForUser = SQLDatabaseForTemplates;
             curInfo.SQLHostname = templateDb["SQLHostname"] as string;
             curInfo.SQLPassword = templateDb["SQLPassword"] as string;
             curInfo.SQLUsername = templateDb["SQLUsername"] as string;
@@ -386,7 +385,7 @@ namespace WindowsAuth
             var templateMasterDatabase = new ClusterContext(optionsBuilderTemplatesMaster.Options);
             // var created = templateMasterDatabase.Database.EnsureCreated();
             templateMasterDatabase.Database.Migrate(); */
-            var templateMasterDatabase = createDatabase(templatesMaster.SQLDatabaseForTemplates, templateDb, curInfo);
+            var templateMasterDatabase = createDatabase(SQLDatabaseForTemplates, templateDb, curInfo);
 
             var entryArries = templateMasterDatabase.Template.Select( x => x.Template ).ToArray();
             var dic = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
