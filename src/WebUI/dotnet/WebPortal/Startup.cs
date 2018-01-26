@@ -37,7 +37,7 @@ using App.Metrics.Configuration;
 using App.Metrics.Reporting.Interfaces;
 using Utils.Json;
 using System.Text;
-using Pomelo.EntityFrameworkCore.MySql;
+using MySql.Data.MySqlClient;
 
 
 namespace WindowsAuth
@@ -156,6 +156,7 @@ namespace WindowsAuth
             var provider = "SQL";
             if (clusterConfig.ContainsKey("datasource"))
                 provider = clusterConfig["datasource"] as string; 
+            Console.WriteLine($"Provider=={provider}, config={clusterConfig}");
             switch( provider )
             {
                 case "SQL":
@@ -179,12 +180,13 @@ namespace WindowsAuth
                         var MySQLPassword = clusterConfig["MySQLPassword"] as string;
                         var MySQLPort = clusterConfig["MySQLPort"] as string;
                         var MySQLHostname = clusterConfig["MySQLHostname"] as string;
-                        var connectionUsers = $"Server={MySQLHostname};uid={MySQLUsername};pwd={MySQLPassword};database={dbName}";
+                        var connectionUsers = $"Server={MySQLHostname};Port={MySQLPort};Uid={MySQLUsername};Password={MySQLPassword};Database={dbName}";
+                        Console.WriteLine($"MySQL connection string =={connectionUsers}");
                         var optionsBuilderUsers = new DbContextOptionsBuilder<ClusterContext>();
                         optionsBuilderUsers.UseMySql(connectionUsers);
                         var userDatabase = new ClusterContext(optionsBuilderUsers.Options);
-                        // userDatabase.Database.EnsureCreated();
-                        userDatabase.Database.Migrate();
+                        userDatabase.Database.EnsureCreated();
+                        // userDatabase.Database.Migrate(); // Migrate not working for MySQL
                         return userDatabase;
                     }
             }
@@ -218,20 +220,16 @@ namespace WindowsAuth
             Clusters = new Dictionary<string, DLCluster>();
             Database = new Dictionary<string, ClusterContext>();
             string defaultClusterName = null;
-            DLCluster curInfo = null;
-            Dictionary<string, object> curConfig = null; 
             foreach (var pair in clusters)
             {
                 var clusterName = pair.Key;
                 var clusterConfig = pair.Value as Dictionary<string, object>;
-                curConfig = clusterConfig; 
                 _logger.LogInformation("Configure cluster {0}", clusterName);
                 if (Object.ReferenceEquals(clusterConfig, null))
                 {
                     throw new ArgumentException("Configuration for cluster {0} is not provided as a JSon dictionary", clusterName );
                 }
                 var clusterInfo = new DLCluster();
-                curInfo = clusterInfo;
                 clusterInfo.ClusterName = clusterName;
                 clusterInfo.ClusterId = clusterConfig["ClusterId"] as string;
                 if (clusterConfig.ContainsKey("AdminGroups"))
@@ -363,12 +361,17 @@ namespace WindowsAuth
                 // userDatabase.Database.EnsureCreated();
                 userDatabase.Database.Migrate();
                 Database[clusterName] = userDatabase; */
-                Database[clusterName] = createDatabase(clusterInfo.SQLDatabaseForUser, curConfig, curInfo);
+                Database[clusterName] = createDatabase(clusterInfo.SQLDatabaseForUser, clusterConfig, clusterInfo);
             }
 
             var templateDb = ConfigurationParser.GetConfiguration("MasterTemplates") as Dictionary<string, object>;
             var templatesMaster = new TemplateDatabase();
             templatesMaster.SQLDatabaseForTemplates = templateDb["SQLDatabaseForTemplates"] as string;
+            DLCluster curInfo = new DLCluster();
+            curInfo.SQLDatabaseForUser = templateDb["SQLDatabaseForUser"] as string;
+            curInfo.SQLHostname = templateDb["SQLHostname"] as string;
+            curInfo.SQLPassword = templateDb["SQLPassword"] as string;
+            curInfo.SQLUsername = templateDb["SQLUsername"] as string;
             /*
             templatesMaster.SQLHostname = templateDb["SQLHostname"] as string;
             templatesMaster.SQLPassword = templateDb["SQLPassword"] as string;
@@ -383,7 +386,7 @@ namespace WindowsAuth
             var templateMasterDatabase = new ClusterContext(optionsBuilderTemplatesMaster.Options);
             // var created = templateMasterDatabase.Database.EnsureCreated();
             templateMasterDatabase.Database.Migrate(); */
-            var templateMasterDatabase = createDatabase(templatesMaster.SQLDatabaseForTemplates, clusterConfig, clusterInfo);
+            var templateMasterDatabase = createDatabase(templatesMaster.SQLDatabaseForTemplates, templateDb, curInfo);
 
             var entryArries = templateMasterDatabase.Template.Select( x => x.Template ).ToArray();
             var dic = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
