@@ -291,15 +291,16 @@ def create_address_location(location):
     save_config()
 
 def delete_address_location(location):
+    useloc = get_region_string(location)
     addrname = get_address_name(location)
     infra_node_num = get_num_infra_nodes(location)
     for cnt in range(infra_node_num):
         addrcur = get_infra_address(location, cnt)
         cmd = """
             gcloud compute addresses delete %s \
-                    --global \
+                    --region %s \
                     """ \
-                % ( addrcur)
+                % ( addrcur, useloc)
         utils.exec_cmd_local(cmd)
     if "addresses" not in config["gs_cluster"]:
         config["gs_cluster"]["addresses"] = {}
