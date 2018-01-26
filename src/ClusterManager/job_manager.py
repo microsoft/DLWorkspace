@@ -178,26 +178,55 @@ def SubmitRegularJob(job):
             jobParams["usefreeflow"] = False
 
         print ("Render Job: %s" % jobParams)
-        template = ENV.get_template(os.path.abspath(jobTemp))
-        job_description = template.render(job=jobParams)
-
         jobDescriptionList = []
 
-        jobDescriptionList.append(job_description)
+        pods = []
+        if "hyperparametername" in jobParams and "hyperparameterstartvalue" in jobParams and "hyperparameterendvalue" in jobParams and "hyperparameterstep" in jobParams:
+            i = int(jobParams["hyperparameterstartvalue"])
+            end = int(jobParams["hyperparameterendvalue"])
+            step = int(jobParams["hyperparameterstep"])
+            c = 0
+            while (i <= end):
+                pod = {}
+                pod["podName"] = jobParams["jobId"]+"-pod-"+str(c)
+                pod["envs"] = [{"name":jobParams["hyperparametername"],"value":i}]
+                i += step
+                c += 1 
+                pods.append(pod)
+        else:
+                pod = {}
+                pod["podName"] = jobParams["jobId"]
+                pod["envs"] = []
+                pods.append(pod)
 
-        if ("interactivePort" in jobParams and len(jobParams["interactivePort"].strip()) > 0):
-            ports = [p.strip() for p in re.split(",|;",jobParams["interactivePort"]) if len(p.strip()) > 0 and p.strip().isdigit()]
-            for portNum in ports:
-                jobParams["serviceId"] = "interactive-" + jobParams["jobId"] + "-" + portNum
-                jobParams["port"] = portNum
-                jobParams["port-name"] = "interactive"
-                jobParams["port-type"] = "TCP"
+        if "env" not in jobParams:
+            jobParams["env"] = []
+        jobParams["commonenv"] = copy.copy(jobParams["env"])
 
-                serviceTemplate = ENV.get_template(os.path.join(jobTempDir,"KubeSvc.yaml.template"))
 
-                template = ENV.get_template(serviceTemplate)
-                interactiveMeta = template.render(svc=jobParams)
-                jobDescriptionList.append(interactiveMeta)
+        for pod in pods:
+            jobParams["podName"] = pod["podName"]
+            jobParams["env"] = jobParams["commonenv"] + pod["envs"]
+
+
+
+            template = ENV.get_template(os.path.abspath(jobTemp))
+            job_description = template.render(job=jobParams)
+            jobDescriptionList.append(job_description)
+
+            if ("interactivePort" in jobParams and len(jobParams["interactivePort"].strip()) > 0):
+                ports = [p.strip() for p in re.split(",|;",jobParams["interactivePort"]) if len(p.strip()) > 0 and p.strip().isdigit()]
+                for portNum in ports:
+                    jobParams["serviceId"] = "interactive-" + jobParams["podName"] + "-" + portNum
+                    jobParams["port"] = portNum
+                    jobParams["port-name"] = "interactive"
+                    jobParams["port-type"] = "TCP"
+
+                    serviceTemplate = ENV.get_template(os.path.join(jobTempDir,"KubeSvc.yaml.template"))
+
+                    stemplate = ENV.get_template(serviceTemplate)
+                    interactiveMeta = stemplate.render(svc=jobParams)
+                    jobDescriptionList.append(interactiveMeta)
 
 
         jobDescription = "\n---\n".join(jobDescriptionList)
