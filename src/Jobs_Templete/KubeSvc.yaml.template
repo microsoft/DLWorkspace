@@ -4,7 +4,7 @@ metadata:
   name: {{ svc["serviceId"] }}
   labels:
     run: {{ svc["jobId"] }}
-    jobId: {{job["jobId"]}}
+    jobId: {{svc["jobId"]}}
     podName: {{ svc["podName"] }}
 spec:
   type: NodePort
