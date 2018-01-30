@@ -88,7 +88,7 @@ spec:
       serviceAccountName: prometheus-operator
       containers:
        - name: prometheus-operator
-         image: mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/prometheus-operator:v0.13.0
+         image: dlws/prometheus-operator:v0.13.0
          resources:
            requests:
              cpu: 100m

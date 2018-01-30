@@ -103,9 +103,9 @@ spec:
       serviceAccountName: custom-metrics-apiserver
       containers:
       - name: custom-metrics-server
-        image: mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/k8s-prometheus-adapter:v0.2.0-beta.0
+        image: dlws/k8s-prometheus-adapter:v0.2.0-beta.0
         args:
-        - --prometheus-url=http://sample-metrics-prom.default.svc:9090
+        - --prometheus-url=http://metrics-prometheus.default.svc:9090
         - --metrics-relist-interval=30s
         - --rate-interval=60s
         - --v=10
@@ -150,5 +150,29 @@ rules:
   - custom-metrics.metrics.k8s.io
   resources: ["*"]
   verbs: ["*"]
-
-# TODO(harry): add a cluster horizotal scaler (with ClusterRoleBinding ClusterRole)
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: hpa-custom-metrics-getter
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: custom-metrics-getter
+subjects:
+- kind: ServiceAccount
+  name: horizontal-pod-autoscaler
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: hpa-controller-custom-metrics
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: custom-metrics-server-resources
+subjects:
+- kind: ServiceAccount
+  name: horizontal-pod-autoscaler
+  namespace: kube-system
