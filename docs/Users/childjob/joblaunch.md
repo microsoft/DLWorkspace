@@ -33,7 +33,7 @@ def submit_child(error_handler, succes_handler):
     }
 
     api_url = os.environ["DLWS_REST_API"] + "/child"
-    submit_child_resp = requests.get(api_url + "SubmitJob", params=jobSettings, timeout=3)
+    submit_child_resp = requests.get(api_url + "/SubmitJob", params=jobSettings, timeout=3)
     submit_child_resp.raise_for_status()
     submit_child_resp = submit_child_resp.json()
     if "error" in submit_child_resp:
