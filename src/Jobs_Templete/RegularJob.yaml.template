@@ -1,10 +1,12 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: {{ job["jobId"] }}
+  name: {{ job["podName"] }}
   labels: 
      run: {{ job["jobId"] }}
+     podName: {{ job["podName"] }}
      jobName: {{ job["jobNameLabel"] }}
+     jobId: {{job["jobId"]}}
      userName: {{ job["userNameLabel"] }}
 spec:
   {% if job["resourcegpu"]|int < 8  %}
@@ -18,7 +20,7 @@ spec:
   hostNetwork: true
   {% endif %}
   containers:
-  - name: {{ job["jobId"] }}
+  - name: {{ job["podName"] }}
     image: {{ job["image"] }}
     imagePullPolicy: Always
     command: {{ job["LaunchCMD"] }}
@@ -65,7 +67,7 @@ spec:
     - name: FAMILY_TOKEN
       value: {{ job["familyToken"] }}
     - name: DLWS_REST_API
-      value: {{ job["rest-api"] }}
+      value: {{ job["dlws_rest_api"] }}
     {% if job["usefreeflow"] %}
     - name: VNET_PREFIX
       value: {{ job["pod_ip_range"] }}
@@ -82,7 +84,7 @@ spec:
           fieldPath: status.podIP  
     {% for env in job["env"] %}
     - name: {{ env.name }}
-      value: {{ env.value }}    
+      value: "{{ env.value }}"    
     {% endfor %}
    
   restartPolicy: Never

@@ -31,60 +31,60 @@ from multiprocessing import Process, Manager
 
 
 def create_log( logdir = '/var/log/dlworkspace' ):
-	if not os.path.exists( logdir ):
-		os.system("mkdir -p " + logdir )
-	with open('logging.yaml') as f:
-		logging_config = yaml.load(f)
-		f.close()
-		logging_config["handlers"]["file"]["filename"] = logdir+"/clustermanager.log"
-		logging.config.dictConfig(logging_config)
+    if not os.path.exists( logdir ):
+        os.system("mkdir -p " + logdir )
+    with open('logging.yaml') as f:
+        logging_config = yaml.load(f)
+        f.close()
+        logging_config["handlers"]["file"]["filename"] = logdir+"/clustermanager.log"
+        logging.config.dictConfig(logging_config)
 
 
 
 def Run():
-	create_log()
+    create_log()
 
 
-	logging.info( "Starting job manager... " )
-	proc_job = Process(target=job_manager.Run)
-	proc_job.start()
+    logging.info( "Starting job manager... " )
+    proc_job = Process(target=job_manager.Run)
+    proc_job.start()
 
-	logging.info( "Starting user manager... " )
-	proc_user = Process(target=user_manager.Run)
-	proc_user.start()
-
-
-	logging.info( "Starting node manager... " )
-	proc_node = Process(target=node_manager.Run)
-	proc_node.start()
+    logging.info( "Starting user manager... " )
+    proc_user = Process(target=user_manager.Run)
+    proc_user.start()
 
 
-	logging.info( "Starting joblogging manager... " )
-	proc_joblog = Process(target=joblog_manager.Run)
-	proc_joblog.start()
-
-	logging.info( "Starting command manager... " )
-	proc_command = Process(target=command_manager.Run)
-	proc_command.start()
+    logging.info( "Starting node manager... " )
+    proc_node = Process(target=node_manager.Run)
+    proc_node.start()
 
 
-	proc_job.join()
-	proc_user.join()
-	proc_node.join()
-	proc_joblog.join()
-	proc_command.join()
-	pass
+    logging.info( "Starting joblogging manager... " )
+    proc_joblog = Process(target=joblog_manager.Run)
+    proc_joblog.start()
+
+    logging.info( "Starting command manager... " )
+    proc_command = Process(target=command_manager.Run)
+    proc_command.start()
+
+
+    proc_job.join()
+    proc_user.join()
+    proc_node.join()
+    proc_joblog.join()
+    proc_command.join()
+    pass
 
 if __name__ == '__main__':
 
-	#parser = argparse.ArgumentParser( prog='cluster_manager.py',
-	#	formatter_class=argparse.RawDescriptionHelpFormatter,
-	#	description=textwrap.dedent('''\
+    #parser = argparse.ArgumentParser( prog='cluster_manager.py',
+    #    formatter_class=argparse.RawDescriptionHelpFormatter,
+    #    description=textwrap.dedent('''\
  # ''') )
-	#parser.add_argument("help", 
-	#	help = "Show the usage of this program" )
+    #parser.add_argument("help", 
+    #    help = "Show the usage of this program" )
 
-	#args = parser.parse_args()
+    #args = parser.parse_args()
 
-	
-	Run()
+    
+    Run()

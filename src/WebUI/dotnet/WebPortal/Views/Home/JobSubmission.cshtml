@@ -1,50 +1,21 @@
 ﻿@{
     ViewData["Title"] = "Submit Your Job";
 }
+
+<link rel="stylesheet" href="~/layui/css/layui.css" media="all">
+
 <style>
-
-    .tooltip {
-        position: relative;
-        display: inline-block;
-        font-size: 24px;
-    }
-
-        .tooltip .tooltiptext {
-            visibility: hidden;
-            background-color: black;
-            color: #fff;
-            text-align: center;
-            padding: 5px 0;
-            border-radius: 6px;
-            position: absolute;
-            z-index: 1;
-            width: 120px;
-            top: 100%;
-            left: 50%;
-            margin-left: -60px;
-            font-size: 36px;
-        }
-
-        .tooltip:hover .tooltiptext {
-            visibility: visible;
-        }
-    }
-
-
-    /* remove bottom-margin of inputs */
-
-    .editable-wrap .editable-controls > input,
-    .editable-wrap .editable-controls > select,
-    .editable-wrap .editable-controls > textarea {
-        width: 100%;
+    a:link {
+        color: #1F45FC
     }
 
 
 </style>
 
+
 <script type="text/javascript">
 
-    var app = angular.module('jobApp', ["xeditable", "ui.select"]);
+    var app = angular.module('jobApp', ["xeditable", "ui.select", "ngMaterial", 'ngMessages']);
 
     app.run(function (editableOptions) {
         editableOptions.theme = 'bs3';
@@ -83,20 +54,28 @@
 
         $scope.checkCurrent = function () {
             if ($scope.current == null)
-                $scope.current = {};
+                $scope.current = {
+                    // here to set default parameters.
+                    resourcegpu: 0,
+                    workPath: ".",
+                    dataPath: ".",
+                    jobPath: "",
+                    enableworkpath: true,
+                    enabledatapath: true,
+                    enablejobpath: true,
+                };
             tobool($scope.current, "do_log", false);
             if (!$scope.current.hasOwnProperty("runningasroot"))
-                $scope.current.runningasroot = "0"; 
-            if (typeof ($scope.current.runningasroot) == "boolean")
-            {
+                $scope.current.runningasroot = "0";
+            if (typeof ($scope.current.runningasroot) == "boolean") {
                 if ($scope.current.runningasroot)
                     $scope.current.runningasroot = "1";
-                else 
+                else
                     $scope.current.runningasroot = "0";
             };
             if ($scope.current.runningasroot != "0" && $scope.current.runningasroot != "1")
-                $scope.current.runningasroot = "0"; 
-            
+                $scope.current.runningasroot = "0";
+
             tobool($scope.current, "is_interactive", false);
             if ($scope.current.mountpoints == null) {
                 $scope.current.mountpoints = [];
@@ -113,15 +92,13 @@
                 if (mountpoints.hasOwnProperty(sharename)) {
                     sharemounts = mountpoints[sharename].mountpoints;
                     mountlist = tolist(sharemounts);
-                    var nIsRoot = -1; 
+                    var nIsRoot = -1;
                     for (var i in mountlist) {
-                        if (mountlist[i] == "")
-                        {
+                        if (mountlist[i] == "") {
                             nIsRoot = i;
                         };
                     };
-                    if (nIsRoot >=0)
-                    {
+                    if (nIsRoot >= 0) {
                         mountlist.splice(nIsRoot, 1, "jobfiles", "storage", "work");
                     }
 
@@ -132,13 +109,11 @@
                         if (onemount != "" && onemount != "jobfiles" && onemount != "storage" && onemount != "work") {
                             var mts = tolist(deploymounts);
                             var mtsIndex = mts.indexOf(onemount);
-                            if ( mtsIndex >= 0)
-                            {
+                            if (mtsIndex >= 0) {
                                 validmountlist.push(onemount);
                             }
                         }
-                        else
-                        {
+                        else {
                             /*
                             var shareType = mountpoints[sharename].type;
                             var description = mountdescription[shareType];
@@ -149,14 +124,12 @@
                             mounts = mounts.concat({ "containerPath": containerPath, "hostPath": hostPath, "description": description, "enabled": true });
                             */
                         }
-                        if (onemount == "" || onemount == "work")
-                        {
+                        if (onemount == "" || onemount == "work") {
                             var shareType = mountpoints[sharename].type;
                             homefolderDescription = mountdescription[shareType];
                         }
                     };
-                    if (validmountlist.length > 0)
-                    {
+                    if (validmountlist.length > 0) {
                         for (var i in validmountlist) {
                             var onemount = validmountlist[i];
                             var publicshareinfo = tolist(mountpoints[sharename].publicshare)
@@ -179,22 +152,21 @@
                                 }
                                 else
                                     description = "Generic Shared File System";
-                                mounts = mounts.concat({"containerPath" : containerPath, "hostPath" : hostPath, "description" : description, "enabled": true});
+                                mounts = mounts.concat({ "containerPath": containerPath, "hostPath": hostPath, "description": description, "enabled": true });
                             };
                         };
                     };
                 };
             };
-            if (mounthomefolder)
-            {
-                mounts.unshift({ "containerPath": "/home/" + username, "hostPath": "/dlwsdata/work/" + username, "description": homefolderDescription, "enabled":true });
+            if (mounthomefolder) {
+                mounts.unshift({ "containerPath": "/home/" + username, "hostPath": "/dlwsdata/work/" + username, "description": homefolderDescription, "enabled": true });
             }
             return mounts;
         };
 
-        $scope.checkCurrent(); 
-        $scope.currentTemplateValue = 0; 
-        $scope.lastTemplateValue = -1; 
+        $scope.checkCurrent();
+        $scope.currentTemplateValue = 0;
+        $scope.lastTemplateValue = -1;
         $scope.adancedOption = false;
 
         $scope.ready = $http.get('/api/dlws/GetMountPoints').then(function (response) {
@@ -205,38 +177,44 @@
             $scope.username = response.data.username;
             $scope.mounthomefolder = response.data.mounthomefolder;
             $scope.deploymounts = $scope.$eval(response.data.deploymounts);
-            $scope.mounts = parseMounts($scope.mountpoints, $scope.mountdescription, $scope.username, $scope.mounthomefolder, $scope.deploymounts );
+            $scope.mounts = parseMounts($scope.mountpoints, $scope.mountdescription, $scope.username, $scope.mounthomefolder, $scope.deploymounts);
             $scope.showMounts = false;
             $scope.showEnv = false;
-            $scope.manageTemplate = false; 
-            $scope.setMounts(); 
-            $scope.checkCurrent(); 
-            $log.log($scope.mountpoints);
-            $log.log($scope.mountdescription);
+            $scope.manageTemplate = false;
+            $scope.setMounts();
+            $scope.checkCurrent();
+            //$log.log($scope.mountpoints);
+            //$log.log($scope.mountdescription);
         });
 
         $http.get("/api/dlws/GetTemplates?type=job").then(function (response) {
             $scope.joblist = response.data;
-            for (var i = 0; i < $scope.joblist.length; i++)
-            {
+            $log.log($scope.joblist);
+            for (var i = 0; i < $scope.joblist.length; i++) {
                 var name = $scope.joblist[i].Name;
-                var selected = $filter('filter')($scope.joblist, { Name: name });
-                if (selected.length == 1)
-                    $scope.joblist[i].Text = name; 
-                else 
-                {
-                    var username = $scope.joblist[i].Username.trim();
-                    if (username == null || username.length <= 0)
-                        $scope.joblist[i].Text = name + "(master)"; 
+                var counter = 0;
+                for (var j = 0; j < $scope.joblist.length; j++) {
+                    if ($scope.joblist[j].Name == name)
+                    {
+                        counter = counter + 1;
+                    }
+                }
+
+                if (counter == 1)
+                    $scope.joblist[i].Text = name;
+                else {
+                    var username = $scope.joblist[i].Username;
+                    if ($scope.joblist[i].Database.trim() == "Master")
+                        $scope.joblist[i].Text = name + "(master)";
                     else 
-                        $scope.joblist[i].Text = name + "("+username.split('@@')[0]+")"; 
+                        $scope.joblist[i].Text = name + "(" + username.trim().split('@@')[0] + ")";
                 }
 
                 $scope.joblist[i].Value = i;
             }
             $scope.curtemplateValue = 0;
             $scope.loadTemplate();
-            $log.log($scope.joblist);
+            //$log.log($scope.joblist);
         });
 
         $scope.loadTemplate = function () {
@@ -244,23 +222,26 @@
             $scope.template = {};
             $scope.curTemplateName = $scope.curtemplate.Name;
             $scope.template.useTemplateName = $scope.curTemplateName;
-            $scope.curTemplateDatabase = $scope.curtemplate.Database; 
-            $scope.curUsername = $scope.curtemplate.Username; 
-            $scope.masterFlag = false; 
+            $scope.curTemplateDatabase = $scope.curtemplate.Database;
+            $scope.curUsername = $scope.curtemplate.Username;
+            $scope.masterFlag = false;
         };
 
         $scope.setMounts = function () {
-            if ($scope.current == null || $scope.mounts == null )
+            if ($scope.current == null || $scope.mounts == null)
                 return;
-            if ($scope.current.mountpoints == null)
-                $scope.current.mountpoints = [];
-            for (var i = 0; i < $scope.mounts.length - 1; i++)
-            {
+            var examinemounts = $scope.current.mountpoints;
+            if (examinemounts == null)
+                examinemounts = [];
+            $scope.current.mountpoints = []
+            for (var i = 0; i < $scope.mounts.length - 1; i++) {
                 var onemount = $scope.mounts[i];
-                var selected = $filter('filter')($scope.current.mountpoints, { hostPath: onemount.hostPath });
-                if (selected.length <=0)
-                {
+                var selected = $filter('filter')(examinemounts, { hostPath: onemount.hostPath });
+                if (selected.length <= 0) {
                     $scope.current.mountpoints.push(onemount);
+                }
+                else {
+                    $scope.current.mountpoints.push(selected[0]);
                 }
             }
         };
@@ -269,33 +250,63 @@
 
 
         $scope.showTemplate = function () {
-            $log.log($scope.curtemplateValue);
+            //$log.log($scope.curtemplateValue);
             var selected = $filter('filter')($scope.joblist, { Value: $scope.curtemplateValue });
             var showName = "None";
-            if ($scope.curtemplateValue > 0 && selected.length)
-            {
-                if ($scope.lastTemplateValue && $scope.lastTemplateValue == $scope.curtemplateValue)
-                {
+            if ($scope.curtemplateValue > 0 && selected.length) {
+                if ($scope.lastTemplateValue && $scope.lastTemplateValue == $scope.curtemplateValue) {
 
                 }
-                else 
-                {
-                    $scope.lastTemplateValue = $scope.curtemplateValue; 
+                else {
+                    $scope.lastTemplateValue = $scope.curtemplateValue;
                     $scope.current = $scope.$eval(selected[0].Json);
-                    $scope.loadTemplate(); 
-                    $scope.setMounts(); 
-                    $scope.checkCurrent(); 
-                }                
-                showName = selected[0].Text;
+                    $scope.loadTemplate();
+                    $scope.setMounts();
+                    $scope.checkCurrent();
+                    //console.log($scope.current);
+
+                    if (!$scope.current.hasOwnProperty("runningasroot"))
+                        $scope.current.runningasroot = false;
+                    if (typeof ($scope.current.runningasroot) == "string") {
+                        if ($scope.current.runningasroot == "1")
+                            $scope.current.runningasroot = true;
+                        else
+                            $scope.current.runningasroot = false;
+                    };
+                    if (typeof ($scope.current.runningasroot) == "number") {
+                        if ($scope.current.runningasroot == 1)
+                            $scope.current.runningasroot = true;
+                        else
+                            $scope.current.runningasroot = false;
+                    };
+
+                    if (!$scope.current.hasOwnProperty("resourcegpu"))
+                        $scope.current.resourcegpu = 0;
+                    if (typeof ($scope.current.resourcegpu) == "string") {
+                        $scope.current.resourcegpu = parseInt($scope.current.resourcegpu)
+                    };
+
+
+                    if (!$scope.current.hasOwnProperty("jobtrainingtype"))
+                        $scope.current.jobtrainingtype = "RegularJob";
+
+
+                    $scope.current.enableworkpath = true;
+                    $scope.current.enabledatapath = true;
+                    $scope.current.enablejobpath = true;
+
+                }
+                showName = selected[0].Text.replace(/%20/g,"_");
+                if (!$scope.current.hasOwnProperty("jobName") || $scope.current.jobName=="")
+                    $scope.current.jobName = showName;
             }
             return showName;
         };
 
         $scope.newEnvironment = function () {
             var cur = $scope.current;
-            if (!cur)
-            {
-                return; 
+            if (!cur) {
+                return;
             }
             if (!(cur.env)) {
                 cur.env = [];
@@ -303,8 +314,8 @@
             var curenv = cur.env;
 
             inserted = {
-                name: "#name",
-                value: "#value"
+                name: "",
+                value: ""
             };
             curenv.push(inserted);
         };
@@ -343,22 +354,22 @@
             var loc = "CurrentCluster";
             if ($scope.masterFlag)
                 loc = "Master";
-            return loc; 
+            return loc;
         };
 
         $scope.DownloadDatabase = function () {
-            var loc = $scope.getDatabase(); 
+            var loc = $scope.getDatabase();
             var params = "location=" + loc + "&";
             var url = "/api/dlws/GetDatabase?" + params;
             $.ajax({ url: url, dataType: 'json', error: $scope.AlertAPIError, timeout: 10000 }).done($scope.DownloadFile);
         };
 
         $scope.AlertAPIError = function (xhr, ajaxOptions, thrownError) {
-            layer.msg("Restful API Error: \n" + JSON.stringify(thrownError));
+            layer.alert("Restful API Error: \n" + JSON.stringify(thrownError), { icon: 5, btn: 'Ok', title: 'alert' })
         };
 
         $scope.AlertAPIResult = function (payload) {
-            layer.msg(payload.message);
+            layer.alert(payload.message, { icon: 6, btn: 'Ok', title: 'alert' })
         };
 
         $scope.SaveTemplateAPI = function (params) {
@@ -367,12 +378,8 @@
         };
 
         $scope.processCurrent = function () {
-            if (tobool($scope.current, "PSDistJob", false ))
-                $scope.current.jobtrainingtype = "PSDistJob";
-            else 
-                $scope.current.jobtrainingtype = "RegularJob";
-            if (!tobool($scope.current, "do_log", false))
-            { 
+
+            if (!tobool($scope.current, "do_log", false)) {
                 delete $scope.current.logDir;
             }
             if (!tobool($scope.current, "is_interactive", false)) {
@@ -398,12 +405,13 @@
             params.Database = $scope.getDatabase();
             var url = "/api/dlws/postJob";
             console.log(url);
+            console.log(params);
             $.ajax({
                 url: url,
                 method: 'POST',
                 data: params,
                 error: function (xhr, ajaxOptions, thrownError) {
-                    layer.msg("RestfulAPI error!");
+                    layer.alert("RestfulAPI error!", { icon: 5, btn: 'Ok', title: 'alert' })
                     $("#submit").attr("disabled", false);
                 },
                 timeout: 10000 //10 second timeout
@@ -412,8 +420,15 @@
                     payload = $scope.$eval(resp);
                     console.log(payload);
                     if (payload.jobId) {
-                        layer.msg("Job Submitted! <br> Job ID:" + payload.jobId)
-                        location.href = "/Home/ViewJobs";
+                        layer.alert("Job Submitted! <br> Job ID:" + payload.jobId, {
+                            time: 0, icon: 6, btn: 'Ok', title: 'Job Submitted', success: function (layero) {
+                                var btn = layero.find('.layui-layer-btn');
+                                btn.find('.layui-layer-btn0').attr({
+                                    href: '/Home/ViewJobs'
+                                    , target: '_self'
+                                });
+                            }
+                        })
                     } else if (payload.error) {
                         layer.msg("Error: " + payload.error);
                         $("#submit").attr("disabled", false);
@@ -426,19 +441,19 @@
         };
 
 
-        $scope.DeleteTemplate = function() {
+        $scope.DeleteTemplate = function () {
             var templatename = $scope.curTemplateName;
             if (templatename == "") {
                 layer.msg("Unable to delete a null template!");
                 return;
             }
-            var loc = $scope.getDatabase(); 
+            var loc = $scope.getDatabase();
             var params = "";
             params = params + "name=" + templatename + "&" + "location=" + loc + "&";
             var url = "/api/dlws/DeleteTemplate?" + params;
             $.ajax({ url: url, dataType: 'json', error: $scope.AlertAPIError, timeout: 10000 }).done($scope.AlertAPIResult);
         }
-        
+
         $scope.UploadDatabase = function () {
             var fileToLoad = document.getElementById("fileInput").files[0];
             var fileReader = new FileReader();
@@ -457,7 +472,7 @@
             fileReader.readAsText(fileToLoad, "UTF-8");
         };
 
-        $scope.ChooseFile = function() {
+        $scope.ChooseFile = function () {
             $("#fileInput").click();
             $("#fileInput").attr("value", "");
         };
@@ -473,12 +488,10 @@
         };
 
         $scope.changeDNSPolicy = function () {
-            if ($scope.current.dnsPolicy)
-            {
+            if ($scope.current.dnsPolicy) {
                 if ($scope.current.dnsPolicy == "ClusterFirst")
                     $scope.current.dnsPolicy = "ClusterFirstWithHostNet";
-                else 
-                {
+                else {
                     delete $scope.current.dnsPolicy;
                 }
             }
@@ -487,308 +500,428 @@
             }
         };
     });
+
+
+
 </script>
 
-<div ng-app="jobApp" ng-controller="jobCtrl" class="modal-dialog" role="document">
-    <div class="modal-content">
-        <div class="modal-header">
-            <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-            <h4 class="modal-title" id="submitModalLabel">@((ViewData["Mode"].Equals("Templates")) ? "Manage Templates" : "Submit Job")</h4>
 
-            <p> Please click link to edit template. </p>
-        </div>
-
-        <div class="modal-body">
-            <div class="form-group">
-                <label>
-                    Job template:
-                </label> <br />
-
-                <a href="#" editable-select="curtemplateValue" e-ng-options="g.Value as g.Text for g in joblist">
-                    {{ showTemplate() }}
-                </a>
-            </div>
-            <div class="form-group">
-                <label>
-                    Job Type:
-                </label>
-
-                <a href="#" editable-checkbox="current.PSDistJob" e-title="Distributed Job?">
-                    {{ current.PSDistJob && "Distributed Job" || "Regular Job" }}
-                </a>
-            </div>
-
-            <div class="form-group">
-                <label>
-                    Job Name:
-                </label>
-                <a href="#" editable-text="current.jobName" e-label="Job Name">
-                    {{ current.jobName || "## Click here to change job name ##" }}
-                </a>
-            </div>
-
-            <div class="form-group">
-                <label>
-                    Number of GPUs:
-                </label>
-                <a href="#" editable-number="current.resourcegpu" e-min="0" e-label="Job Name">
-                    {{ current.resourcegpu || 0 }}
-                </a>
-            </div>
-
-            <div ng-if="current.PSDistJob" class="form-group">
-                <label>
-                    Number of Parameter Servers:
-                </label>
-                <a href="#" editable-number="current.numps" e-min="0" e-label="# of Parameter Servers">
-                    {{ current.numps || 1 }}
-                </a>
-            </div>
-            <div ng-if="current.PSDistJob" class="form-group">
-                <label>
-                    Number of Workers:
-                </label>
-                <a href="#" editable-number="current.numpsworker" e-min="0" e-label="# of Workers">
-                    {{ current.numpsworker || 1 }}
-                </a>
-            </div>
-
-
-            <div class="form-group">
-                <label>
-                    Docker Image:
-                </label>
-                <a href="#" editable-text="current.image">{{current.image || " ## Click here to change docker image ##"}} </a>
-            </div>
-
-            <div class="form-group">
-                <label>
-                    Command:
-                </label>
-                <a href="#" editable-textarea="current.cmd" e-rows="10" e-cols="240" e-style="width: 800px">
-                    <pre> {{current.cmd}}</pre>
-                </a>
-            </div>
+<div ng-app="jobApp" ng-controller="jobCtrl" layout="column" ng-cloak class="modal-dialog" role="document" style="width:60%;top:30px;bottom:30px;">
+    <md-content layout-padding>
+        <form name="jobSubmissionForm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="submitModalLabel">@((ViewData["Mode"].Equals("Templates")) ? "Manage Templates" : "Submit Job")</h4>
+                </div>
 
 
 
-            <div class="form-group">
-                <label>
-                    Interactive Job:
-                </label>
 
-                <a ng-class="{true: 'fa fa-check fa-lg text-success', false: 'fa fa-times fa-lg text-danger'}[current.is_interactive]" ng-click="current.is_interactive = !current.is_interactive">
-                </a>
+                <div class="modal-body">
+                    <div layout="row">
+                        <md-input-container flex="50">
+                            <label>Job template</label>
+                            <md-select name="curtemplateValue" ng-model="curtemplateValue"  ng-change="showTemplate()">
+                                <md-option ng-value="{{g.Value}}" ng-repeat="g in joblist">{{ g.Text }}</md-option>
+                            </md-select>
+                        </md-input-container>
+                    </div>
 
-            </div>
 
-            <div ng-if="current.is_interactive" class="form-group">
-                <label>
-                    Ports (separate ports by comma):
-                </label>
-                <a href="#" editable-text="current.interactivePort" e-title="Ports used.">
-                    {{ current.interactivePort || "#ports"}}
-                </a>
-            </div>
+                    <div layout="row">
+                        <md-input-container flex="50">
+                            <label> Job Name </label>
+                            <input ng-model="current.jobName" required md-no-asterisk>
+                            <div class="hint" ng-if="showHints">Tell us the name of your job</div>
+                        </md-input-container>
 
-            <div class="form-group">
-                <label>
-                    Tensorboard:
-                </label>
+                        <md-input-container flex="50">
+                            <label>Job Type</label>
+                            <md-select name="jobtrainingtype" ng-model="current.jobtrainingtype" required md-no-asterisk>
+                                <md-option value="RegularJob" selected>Regular Job</md-option>
+                                <md-option value="PSDistJob">Distributed Job</md-option>
+                            </md-select>
+                        </md-input-container>
+                    </div>
 
-                <a ng-class="{true: 'fa fa-check fa-lg text-success', false: 'fa fa-times fa-lg text-danger'}[current.do_log]" ng-click="current.do_log = !current.do_log">
-                </a>
+                    <div layout="row" ng-if="current.jobtrainingtype=='PSDistJob'">
 
-                <div ng-if="current.do_log">
-                    <label>Model path:</label>
-                    <a href="#" editable-text="current.logDir" e-title="Tensor Model Directory">
-                        {{ current.logDir || "#Tensorboard_model_directory" }}
+                        <md-input-container flex="50">
+                            <label> Number of Parameter Servers </label>
+                            <input ng-model="current.numps" required type="number" step="1" min="0" md-no-asterisk>
+                        </md-input-container>
+
+                        <md-input-container flex="50">
+                            <label> Number of Workers </label>
+                            <input ng-model="current.numpsworker" required type="number" step="1" min="1" md-no-asterisk>
+                        </md-input-container>
+
+                    </div>
+
+                    <md-input-container class="md-block">
+                        <label> Number of GPUs </label>
+                        <input ng-model="current.resourcegpu" required type="number" name="resourcegpu" step="1" min="0" max="8" md-no-asterisk>
+                        <div ng-messages="jobApp.resourcegpu.$error" multiple>
+                            <div ng-message="required">
+                                You have to let us know the number of gpus.
+                            </div>
+
+                            <div ng-message="min">
+                                You have to request at least 0 GPU.
+                            </div>
+
+                            <div ng-message="max">
+                                You can request at most 8 GPUs.
+                            </div>
+                        </div>
+                    </md-input-container>
+
+
+
+                    <md-input-container class="md-block">
+                        <label> Docker Image </label>
+                        <input ng-model="current.image" required md-no-asterisk>
+                    </md-input-container>
+
+                    <md-input-container class="md-block">
+                        <label>Command</label>
+                        <textarea ng-model="current.cmd" rows="10"></textarea>
+                    </md-input-container>
+
+
+                    <div layout="row">
+                        <md-input-container class="md-block" flex="50">
+                            <md-switch name="is_interactive" ng-model="current.is_interactive" md-no-asterisk>
+                                Interactive Job
+                            </md-switch>
+                        </md-input-container>
+                        <md-input-container class="md-block" flex="50">
+                            <md-switch name="do_log" ng-model="current.do_log" md-no-asterisk>
+                                Enable Tensorboard
+                            </md-switch>
+                        </md-input-container>
+                        <md-input-container class="md-block">
+                            <md-switch name="runningasroot" ng-model="current.runningasroot" md-no-asterisk>
+                                Launch container as root user.
+                            </md-switch>
+                        </md-input-container>
+                    </div>
+                    <div ng-if="current.is_interactive" class="form-group">
+                        <md-input-container class="md-block">
+                            <label> Open ports for interactive job </label>
+                            <input ng-model="current.interactivePort" required md-no-asterisk>
+                        </md-input-container>
+                    </div>
+
+
+
+                    <div ng-if="current.do_log">
+                        <md-input-container class="md-block">
+                            <label> Tensorflow model path, used to enable tensorboard </label>
+                            <input ng-model="current.logDir" required md-no-asterisk>
+                        </md-input-container>
+                    </div>
+
+
+
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="layui-collapse">
+
+                        <div class="layui-colla-item">
+                            <h2 class="layui-colla-title">Advanced Options</h2>
+                            <div class="layui-colla-content">
+
+                                <div class="layui-colla-item">
+                                    <h2 class="layui-colla-title">Mount Directories</h2>
+                                    <div class="layui-colla-content">
+                                        <div>
+                                            <table class="layui-table" width="100%">
+                                                <thead>
+                                                <th>Path inside container</th>
+                                                <th>Path on host machine (or storage server)</th>
+                                                <th>Enable</th>
+                                                <th>Description</th>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td>/work </td>
+                                                        <td>
+                                                            <md-input-container class="md-block">
+                                                                <label> Work Path </label>
+                                                                <input ng-model="current.workPath" required md-no-asterisk>
+                                                            </md-input-container>
+                                                        </td>
+                                                        <td>
+                                                            <md-input-container class="md-block">
+                                                                <md-switch class="md-primary" name="enableworkpath" aria-label="enableworkpath" ng-model="current.enableworkpath" md-no-asterisk ng-disabled="true">
+                                                                </md-switch>
+                                                            </md-input-container>
+                                                        </td>
+                                                        <td>
+                                                            <a href='#' onclick="layer.alert('path relative to @ViewData["workPath"].ToString().Replace("file:", "").Replace("/", "\\\\")',{ icon: 1, btn: 'Ok', title: 'Info' });"> <i class="layui-icon">&#xe60b;</i></a>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td>/data </td>
+                                                        <td>
+                                                            <md-input-container class="md-block">
+                                                                <label> Data Path </label>
+                                                                <input ng-model="current.dataPath" required md-no-asterisk>
+                                                            </md-input-container>
+                                                        </td>
+                                                        <td>
+                                                            <md-input-container class="md-block">
+                                                                <md-switch class="md-primary" name="enabledatapath" aria-label="enabledatapath" ng-model="current.enabledatapath" md-no-asterisk ng-disabled="true">
+                                                                </md-switch>
+                                                            </md-input-container>
+                                                        </td>
+                                                        <td>
+                                                            <a href='#' onclick="layer.alert('path relative to @ViewData["dataPath"].ToString().Replace("file:", "").Replace("/", "\\\\")',{ icon: 1, btn: 'Ok', title: 'Info' });"> <i class="layui-icon">&#xe60b;</i></a>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td>/job </td>
+                                                        <td>
+                                                            <md-input-container class="md-block">
+                                                                <label> Job Path </label>
+                                                                <input ng-model="current.jobPath" md-no-asterisk>
+                                                            </md-input-container>
+                                                        </td>
+                                                        <td>
+                                                            <md-input-container class="md-block">
+                                                                <md-switch class="md-primary" name="enablejobpath" aria-label="enablejobpath" ng-model="current.enablejobpath" md-no-asterisk ng-disabled="true">
+                                                                </md-switch>
+                                                            </md-input-container>
+                                                        </td>
+                                                        <td>
+                                                            <a href='#' onclick="layer.alert('empty by default;',{ icon: 1, btn: 'Ok', title: 'Info' });"> <i class="layui-icon">&#xe60b;</i></a>
+                                                        </td>
+                                                    </tr>
+
+                                                    <tr ng-repeat="onemount in current.mountpoints">
+                                                        <td>
+                                                            <md-input-container class="md-block">
+                                                                <label> Container Path </label>
+                                                                <input ng-model="onemount.containerPath" md-no-asterisk>
+                                                            </md-input-container>
+
+                                                        </td>
+                                                        <td>
+                                                            {{onemount.hostPath}}
+                                                        </td>
+                                                        <td>
+                                                            <md-input-container class="md-block">
+                                                                <md-switch class="md-primary" ng-model="onemount.enabled" md-no-asterisk>
+                                                                </md-switch>
+                                                            </md-input-container>
+                                                        </td>
+                                                        <td>
+                                                            <a href='#' onclick="layer.alert('{{onemount.description}}',{ icon: 1, btn: 'Ok', title: 'Info' });"> <i class="layui-icon">&#xe60b;</i></a>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+
+
+
+
+
+
+
+                                    </div>
+                                </div>
+
+
+
+
+
+                                <div class="layui-colla-item">
+                                    <h2 class="layui-colla-title">HyperParameter Turning</h2>
+                                    <div class="layui-colla-content">
+
+                                        <md-input-container class="md-block">
+                                            <label> HyperParameter Name </label>
+                                            <input ng-model="current.hyperparametername" required md-no-asterisk>
+                                        </md-input-container>
+                                        <md-input-container class="md-block">
+                                            <label> Start Value </label>
+                                            <input ng-model="current.hyperparameterstartvalue" required md-no-asterisk>
+                                        </md-input-container>
+                                        <md-input-container class="md-block">
+                                            <label> End Value </label>
+                                            <input ng-model="current.hyperparameterendvalue" required md-no-asterisk>
+                                        </md-input-container>
+                                        <md-input-container class="md-block">
+                                            <label> Step </label>
+                                            <input ng-model="current.hyperparameterstep" required md-no-asterisk>
+                                        </md-input-container>
+
+
+
+                                    </div>
+                                </div>
+
+                                <div class="layui-colla-item">
+                                    <h2 class="layui-colla-title">Environmet variables</h2>
+                                    <div class="layui-colla-content">
+                                        <table width="100%">
+                                            <tbody>
+                                                <tr ng-repeat="oneenv in current.env">
+                                                    <td>
+                                                        <md-input-container class="md-block">
+                                                            <label> Name of the Environment Variable </label>
+                                                            <input ng-model="oneenv.name" required md-no-asterisk>
+                                                        </md-input-container>
+                                                    </td>
+                                                    <td>
+                                                        <md-input-container class="md-block">
+                                                            <label> Value of the Environment Variable </label>
+                                                            <input ng-model="oneenv.value" required md-no-asterisk>
+                                                        </md-input-container>
+                                                    </td>
+                                                    <td>
+                                                        <a class="fa fa-times fa-lg text-danger" ng-click="removeItem(current.env,$index)">
+                                                        </a>
+                                                    </td>
+
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                        <button type="button" class="btn btn-info" ng-click="newEnvironment()">
+                                            <i class="layui-icon" style="font-size: 18px; color: #000000;">&#xe654;</i> Add Environment Variable
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="layui-colla-item">
+                                    <h2 class="layui-colla-title">Priviledged Docker</h2>
+                                    <div class="layui-colla-content">
+
+
+                                        <md-input-container class="md-block">
+                                            <label> Launch privileged docker </label>
+                                            <md-switch class="md-primary" ng-model="current.isPrivileged" md-no-asterisk aria-label="isPrivileged">
+                                            </md-switch>
+                                        </md-input-container>
+
+
+                                        <div ng-if="current.isPrivileged" class="form-group">
+
+                                            <div layout="row">
+                                                <md-input-container class="md-block" flex="50">
+                                                    <label> Use Host network in container? </label>
+                                                    <md-switch class="md-primary" ng-model="current.hostNetwork" md-no-asterisk>
+                                                    </md-switch>
+                                                </md-input-container>
+
+                                                <md-input-container class="md-block" flex="50">
+                                                    <label>Container DNS Policy</label>
+                                                    <md-select name="dnsPolicy" ng-model="current.dnsPolicy" required md-no-asterisk>
+                                                        <md-option value="Default" selected>Default</md-option>
+                                                        <md-option value="ClusterFirstWithHostNet">ClusterFirstWithHostNet</md-option>
+                                                        <md-option value="ClusterFirst">ClusterFirst</md-option>
+                                                    </md-select>
+                                                </md-input-container>
+                                            </div>
+                                            <div layout="row">
+                                                <md-input-container class="md-block" flex="50">
+                                                    <label> CPU Request </label>
+                                                    <input ng-model="current.cpurequest" required md-no-asterisk>
+                                                </md-input-container>
+
+
+                                                <md-input-container class="md-block" flex="50">
+                                                    <label> Memory Request </label>
+                                                    <input ng-model="current.memoryrequest" required md-no-asterisk>
+                                                </md-input-container>
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+                                </div>
+
+
+                            </div>
+
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <a class="btn pull-right btn-primary" ng-click="submitJob()">
+                        Submit Job
                     </a>
                 </div>
+
             </div>
 
-            <div class="form-group">
-                <label>
-                    Running as root:
-                </label>
 
-                <a ng-class="{'1': 'fa fa-check fa-lg text-success', '0': 'fa fa-times fa-lg text-danger'}[current.runningasroot]" ng-click="toggle01(current,'runningasroot','0')">
-                </a>
+
+
+        </form>
+    </md-content>
+
+
+    <div class="modal-content">
+        <div class="layui-collapse">
+            <div class="layui-colla-item">
+                <h2 class="layui-colla-title">Job Template Operations</h2>
+                <div class="layui-colla-content">
+
+                    <md-input-container class="md-block">
+                        <label> Template Name </label>
+                        <input ng-model="template.useTemplateName" required md-no-asterisk md-select-on-focus>
+                    </md-input-container>
+
+                    <label>
+                        Template Location
+                    </label>
+                    <a class="btn" ng-class="{true: 'btn-primary', false: 'btn-danger'}[masterFlag]" ng-click="toggleMasterFlag()">
+                        {{masterFlag && 'Master' || 'Current User' }}
+                    </a>
+
+
+                    <div class="modal-footer">
+                        <a ng-click="DeleteTemplate()" class="btn btn-success" href="#">Delete Template</a>
+                        <a ng-click="SaveTemplate()" class="btn btn-success" href="#">Save Template</a>
+                    </div>
+
+                </div>
             </div>
         </div>
 
-        <div class="modal-body">
-            <div class="form-group">
-                <label>
-                    <a class="btn pull-left" ng-class="{true: 'btn-primary', false: 'btn-danger'}[adancedOption]" ng-click="adancedOption = !adancedOption">
-                        {{adancedOption && 'Hide Advanced Options' || 'Show Advanced Options' }}
-                    </a>
-                </label>
-            </div>
-
-            <div class="form-group" ng-if="adancedOption && mounts.length > 0 ">
-                <label>
-                    <a class="btn pull-left" ng-class="{true: 'btn-primary', false: 'btn-danger'}[showMounts]" ng-click="showMounts = !showMounts">
-                        {{showMounts && 'Hide Mounted Directories' || 'Show Mounted Directories' }}
-                    </a>
-                </label>
-
-                <div ng-if="showMounts">
-                    <label>
-                        Click link to change the mountpoint in container:
-                    </label>
-                    <div ng-repeat="onemount in current.mountpoints">
-                        <label>
-                            <a href="#" data-toggle="tooltip" title="Mounted at {{onemount.hostPath}}">
-                                <a ng-class="{true: 'fa fa-check fa-lg text-success', false: 'fa fa-times fa-lg text-danger'}[onemount.enabled]" ng-click="onemount.enabled = !onemount.enabled">
-                                </a>
-                                <a href="#" editable-text="onemount.containerPath">{{onemount.containerPath}} </a> : {{onemount.description}}
-                            </a>
-                        </label>
+        <div class="layui-collapse">
+            <div class="layui-colla-item">
+                <h2 class="layui-colla-title">Database operation</h2>
+                <div class="layui-colla-content">
+                    <a ng-click="DownloadDatabase()" class="btn btn-success" href="#">Download JSON</a>
+                    <a ng-click="ChooseFile()" class="btn btn-success" href="#">Upload JSON</a>
+                    <div style="height: 0px; overflow: hidden">
+                        <input type="file" id="fileInput" name="fileInput" ng-model="fileInput" onchange="angular.element(this).scope().UploadDatabase()" />
                     </div>
                 </div>
-                <label ng-if="showMounts">
-                    Work Directory <font face="verdana" color="#A9A9A9">(relative to <a href="@ViewData["workPath"]">@ViewData["workPath"].ToString().Replace("file:", "").Replace("/", "\\") </a>).  </font> <br /> <font face="verdana" color="#A9A9A9"> This folder is mounted as <b>/work</b> inside container.</font>
-                </label>
-                <br ng-if="showMounts" />
-                <a ng-if="showMounts" href="#" editable-text="current.workPath">{{current.workPath || "." }} </a>
-
-                <label ng-if="showMounts">
-                    Data Directory <font face="verdana" color="#A9A9A9">(relative to <a href="@ViewData["dataPath"]">@ViewData["dataPath"].ToString().Replace("file:", "").Replace("/", "\\") </a>). </font> <br /> <font face="verdana" color="#A9A9A9"> This folder is mounted as <b>/data</b> inside container.</font>
-                </label>
-                <br ng-if="showMounts" />
-                <a ng-if="showMounts" href="#" editable-text="current.dataPath">{{current.dataPath || "." }} </a>
-
-                <label ng-if="showMounts">
-                    Job Directory (empty by default)  <font face="verdana" color="#A9A9A9"> This folder is mounted as <b>/job</b> inside container.</font>
-                </label>
-                <br ng-if="showMounts" />
-                <a ng-if="showMounts" href="#" editable-text="current.jobPath">{{current.jobPath || "(default_empty)" }} </a>
             </div>
 
-
-            <div ng-if="adancedOption">
-                <label>
-                    <a class="btn" ng-class="{true: 'btn-primary', false: 'btn-danger'}[showEnv]" ng-click="showEnv = !showEnv">
-                        {{showEnv && 'Hide Environment Variables' || 'Show Environment Variables' }}
-                    </a>
-                </label>
-
-
-                <div class="form-group" ng-if="showEnv">
-                    <label>
-                        Environmet variables:
-                    </label>
-                    <table>
-                        <thead>
-                        <th>   </th>
-                        <th>   </th>
-                        <th>   </th>
-                        <th>   </th>
-                        </thead>
-                        <tbody>
-                            <tr ng-repeat="oneenv in current.env">
-                                <td>
-                                    <a href="#" editable-text="oneenv.name">{{oneenv.name}} </a>
-                                </td>
-                                <td> = </td>
-                                <td>
-                                    <a href="#" editable-text="oneenv.value">{{oneenv.value}} </a>
-                                </td>
-                                <td>
-                                    <a class="fa fa-times fa-lg text-danger" ng-click="removeItem(current.env,$index)">
-                                    </a>
-                                </td>
-
-                            </tr>
-                        </tbody>
-                    </table>
-                    <button type="button" class="btn btn-info" ng-click="newEnvironment()">
-                        Add Environment Variable
-                    </button>
-                </div>
-
-                <div class="form-group">
-                    <a class="btn" ng-class="chooseValue(current.isPrivileged,'btn-danger','btn-primary',false)" ng-click="current.isPrivileged = !current.isPrivileged">
-                        {{current.isPrivileged && 'Container: Priviledged' || 'Container: Non-Priviledged' }}
-                    </a>
-                </div>
-
-                <div ng-if="current.isPrivileged" class="form-group">
-                    <a class="btn" ng-class="chooseValue(current.hostNetwork,'btn-danger','btn-primary',false)" ng-click="current.hostNetwork = !current.hostNetwork">
-                        {{current.hostNetwork && 'Network: Host' || 'Network: Container' }}
-                    </a>
-                </div>
-
-                <div ng-if="current.isPrivileged" class="form-group">
-                    <a class="btn btn-primary" ng-click="changeDNSPolicy()">
-                        DNS Policy: {{current.dnsPolicy || 'Host' }}
-                    </a>
-                </div>
-
-                <div ng-if="current.isPrivileged" class="form-group">
-                    <label>
-                        CPU Request:
-                    </label>
-                    <a href="#" editable-text="current.cpurequest" e-title="resource.requests.cpu">
-                        {{ current.cpurequest || "#value_of_resources.requests.cpu(default 100m)" }}
-                    </a>
-                </div>
-
-                <div ng-if="current.isPrivileged" class="form-group">
-                    <label>
-                        Memory Request:
-                    </label>
-                    <a href="#" editable-text="current.memoryrequest" e-title="resource.requests.memory">
-                        {{ current.memoryrequest || "#value_of_resources.requests.memory(default 0)" }}
-                    </a>
-                </div>
         </div>
-            <div class="modal-footer">
-                <a class="btn pull-left" ng-class="{true: 'btn-primary', false: 'btn-danger'}[manageTemplate]" ng-click="manageTemplate = !manageTemplate">
-                    {{manageTemplate && 'Hide Template Operations' || 'Show Template Operations' }}
-                </a>
-                <a class="btn pull-right btn-primary" ng-click="submitJob()">
-                    Submit Job
-                </a>
-            </div>
-
-            <div ng-if="manageTemplate" class="form-group">
-                <label > Template Name:</label> <br/>
-                <a href="#" editable-text="template.useTemplateName" e-title="Name of Template">
-                    {{ template.useTemplateName || "#Template_Name"}}
-                </a><br />
-                <label>
-                    Template Location
-                </label> <br />
-                <a class="btn" ng-class="{true: 'btn-primary', false: 'btn-danger'}[masterFlag]" ng-click="toggleMasterFlag()">
-                    {{masterFlag && 'Master' || 'Current User' }}
-                </a>
-            </div>
-
-
-            <div ng-if="manageTemplate" class="modal-footer">
-                <a ng-click="DeleteTemplate()" class="btn btn-success" href="#">Delete Template</a>
-                <a ng-click="SaveTemplate()" class="btn btn-success" href="#">Save Template</a>
-            </div>
-
-            <div ng-if="manageTemplate" class="modal-footer">
-                <label>
-                    Database operation
-                </label>
-
-                <a ng-click="DownloadDatabase()" class="btn btn-success" href="#">Download JSON</a>
-                <a ng-click="ChooseFile()" class="btn btn-success" href="#">Upload JSON</a>
-            </div>
 
     </div>
 
-                <div style="height: 0px; overflow: hidden">
-                    <input type="file" id="fileInput" name="fileInput" ng-model="fileInput" onchange="angular.element(this).scope().UploadDatabase()" />
-                </div>
+</div>
+<br />
 
-            </div>
-
-
-
-
+<script src="/layui/layui.js" charset="utf-8"></script>
+<script>
+    layui.use(['element', 'layer'], function () {
+        var element = layui.element;
+        element.on('collapse(test)', function (data) {
+        });
+    });
+</script>
