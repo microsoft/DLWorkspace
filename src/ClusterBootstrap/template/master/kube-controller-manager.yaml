@@ -17,6 +17,7 @@ spec:
     - --root-ca-file=/etc/kubernetes/ssl/ca.pem
     #- --service-account-private-key-file=/var/run/kubernetes/apiserver.key 
     #- --root-ca-file=/var/run/kubernetes/apiserver.crt
+    - --horizontal-pod-autoscaler-use-rest-clients
 
     livenessProbe:
       httpGet:

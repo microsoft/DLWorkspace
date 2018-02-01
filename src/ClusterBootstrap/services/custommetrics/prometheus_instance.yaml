@@ -38,13 +38,13 @@ subjects:
 apiVersion: monitoring.coreos.com/v1
 kind: Prometheus
 metadata:
-  name: sample-metrics-prom
+  name: metrics-prometheus
   labels:
-    app: sample-metrics-prom
-    prometheus: sample-metrics-prom
+    app: metrics-prometheus
+    prometheus: metrics-prometheus
 spec:
   replicas: 1
-  baseImage: mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/prometheus
+  baseImage: dlws/prometheus
   version: v2.0.0-rc.0
   serviceAccountName: prometheus
   serviceMonitorSelector:
@@ -69,10 +69,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: sample-metrics-prom
+  name: metrics-prometheus
   labels:
-    app: sample-metrics-prom
-    prometheus: sample-metrics-prom
+    app: metrics-prometheus
+    prometheus: metrics-prometheus
 spec:
   type: NodePort
   ports:
@@ -81,4 +81,4 @@ spec:
     port: 9090
     targetPort: web
   selector:
-    prometheus: sample-metrics-prom
+    prometheus: metrics-prometheus
