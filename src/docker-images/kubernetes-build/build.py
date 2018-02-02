@@ -53,6 +53,8 @@ if __name__ == '__main__':
     DockerUtils.copy_from_docker_image("{{cnf["k8s-bld"]}}", "/kubectl", "../kubernetes/kubectl")
     print "Copy file kubegpucri"
     DockerUtils.copy_from_docker_image("{{cnf["k8s-bld"]}}", "/kubegpucri", "../kubernetes/kubegpucri")
+    print "Copy file kube-scheduler"
+    DockerUtils.copy_from_docker_image("{{cnf["k8s-bld"]}}", "/kube-scheduler", "../kubernetes/kube-scheduler")
 
     # os.chdir("../../kubernetes")
     # dockerBld = "docker build --no-cache -t " + config["k8s-pushto"] + " ."
