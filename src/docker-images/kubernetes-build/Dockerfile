@@ -20,16 +20,19 @@ RUN cp /go/src/k8s.io/kubernetes/_output/bin/* /
 ARG NOCACHE_CRI=1
 COPY gittoken /root/gittoken
 RUN chmod 400 /root/gittoken
-RUN mkdir -p /go/src/github.com
-RUN ssh-agent sh -c 'ssh-add /root/gittoken; git clone --recursive git@github.com:{{cnf["k8scri-gitrepo"]}} /go/src/github.com/KubeGPU'
-WORKDIR /go/src/github.com/KubeGPU
+RUN mkdir -p /go/src/github.com/Microsoft
+RUN ssh-agent sh -c 'ssh-add /root/gittoken; git clone --recursive git@github.com:{{cnf["k8scri-gitrepo"]}} /go/src/github.com/Microsoft/KubeGPU'
+WORKDIR /go/src/github.com/Microsoft/KubeGPU
 RUN git checkout {{cnf["k8scri-gitbranch"]}}
 # Build the CRI and copy file to root
-WORKDIR /go/src/github.com/KubeGPU/cri/kubegpucri
+WORKDIR /go/src/github.com/Microsoft/KubeGPU/cri/kubegpucri
 RUN go install
+WORKDIR /go/src/github.com/Microsoft/KubeGPU/cmd/kube-scheduler
+RUN go install
+# Build the CRI and device advertiser - single binary for now
 RUN cp /go/bin/kubegpucri /
 # Build the scheduler
-# nothing for now
+RUN cp /go/bin/kube-scheduler /
 
 # Change working directory to root
 WORKDIR /

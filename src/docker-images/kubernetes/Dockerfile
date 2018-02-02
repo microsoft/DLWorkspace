@@ -14,3 +14,4 @@ COPY ./hyperkube /hyperkube
 COPY ./kubelet /kubelet
 COPY ./kubectl /kubectl
 COPY ./kubegpucri /kubegpucri
+COPY ./kube-scheduler /kube-scheduler
