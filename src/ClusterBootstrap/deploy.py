@@ -865,6 +865,7 @@ def deploy_masters(force = False):
     config["restapi"] = "http://%s:%s" %  (kubernetes_masters[0],config["restfulapiport"])
     utils.render_template_directory("./template/WebUI", "./deploy/WebUI",config)
     utils.render_template_directory("./template/RestfulAPI", "./deploy/RestfulAPI",config)
+    render_service_templates()
 
     get_kubectl_binary(force)
 
@@ -2410,7 +2411,11 @@ def set_host_names_by_lookup():
             if len(namelist) > 1:
                 print "Error, machine with mac "+str(macs)+" has more than 1 name entries " +str(namelist)
             elif len(namelist) == 0:
-                print "Warning, cannot find an entry for machine with mac "+str(macs)
+                # print "Warning, cannot find an entry for machine with mac "+str(macs)
+                hostname = node.split(".")[0]
+                cmd = "sudo hostnamectl set-hostname " + hostname
+                print "Set hostname of node " + node + " to " + hostname
+                utils.SSH_exec_cmd( config["ssh_cert"], config["admin_username"], node, cmd )
             else:
                 #if isinstance( domainEntry, basestring):
                 #    usename = namelist[0] + "." + domainEntry
@@ -2837,6 +2842,7 @@ def run_command( args, command, nargs, parser ):
     config_cluster = os.path.join(dirpath,"cluster.yaml")
     if os.path.exists(config_cluster):
         merge_config( config, yaml.load(open(config_cluster)))
+    
 
     config_file = os.path.join(dirpath,"config.yaml")
     # print "Config file: " + config_file

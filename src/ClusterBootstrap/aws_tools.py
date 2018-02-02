@@ -36,7 +36,7 @@ import utils
 from apiclient.discovery import *
 from six.moves import input
 # from params import *
-from gs_params import *
+from aws_params import *
 from az_params import *
 from ConfigUtils import *
 
@@ -46,43 +46,45 @@ def init_config():
     config = default_config_parameters
     # print "Config ===== %s" % config
     # print "GS config == %s" % default_gs_parameters 
-    merge_config(config, default_gs_parameters )
+    merge_config(config, copy.deepcopy(default_aws_parameters) )
     # print config
     return config
 
 def get_location_string( location ):
-    if location in config["gs_cluster"]["location_mapping"]:
-        return config["gs_cluster"]["location_mapping"][location]
+    if location in config["aws_cluster"]["location_mapping"]:
+        return config["aws_cluster"]["location_mapping"][location]
     else:
         return None
 
 def get_region_string( location ):
-    if location in config["gs_cluster"]["region_mapping"]:
-        return config["gs_cluster"]["region_mapping"][location]
+    if location in config["aws_cluster"]["region_mapping"]:
+        return config["aws_cluster"]["region_mapping"][location]
     else:
         return None
 
 def get_sku( sku ):
-    if sku in config["gs_cluster"]["sku_mapping"]:
-        return config["gs_cluster"]["sku_mapping"][sku]
+    if sku in config["aws_cluster"]["sku_mapping"]:
+        return config["aws_cluster"]["sku_mapping"][sku]
     else:
         return "regional"
 
 def get_num_infra_nodes(location):
-    return config["gs_cluster"]["infra_node_num"]
+    return config["aws_cluster"]["infra_node_num"]
 
 def get_num_worker_nodes(location):
-    return config["gs_cluster"]["worker_node_num"]
+    return config["aws_cluster"]["worker_node_num"]
 
-def setup_gce_ssh_key(location):
-    filename = "./deploy/sshkey/id_rsa.gcloud.pub"
-    if not os.path.exists(filename):
-        with open("./deploy/sshkey/id_rsa.pub","r" ) as f:
-            keyinfo = f.read().split()
-            admin_username = config["gs_cluster"]["default_admin_username"]
-            with open( filename, "w") as wf:
-                wf.write(admin_username + ":" + keyinfo[0] + " "+ keyinfo[1]+ " "+admin_username )
-    return filename
+def get_aws_ssh_key_v1(location):
+    cmd1 = "cd ./deploy/sshkey/; ssh-keygen -f id_rsa.pub -e -m pem > id_rsa.pubk"
+    utils.exec_cmd_local(cmd1)
+
+def get_aws_ssh_key_v0(location):
+    cmd1 = "cd ./deploy/sshkey/; ssh-keygen -f id_rsa.pub -e -m pem"
+    keyinfo = utils.exec_cmd_local(cmd1)
+    print keyinfo
+    keylines = keyinfo.splitlines()
+    sshkey = "".join(keylines[1:-1])
+    return sshkey
 
 # resource_group_name is cluster_name + ResGrp
 def update_config(config, genSSH=True):
@@ -91,14 +93,24 @@ def update_config(config, genSSH=True):
 def get_locations():
     if "azure_cluster" in config and "azure_location" in config["azure_cluster"]:
         return utils.tolist( config["azure_cluster"]["azure_location"])
-    elif "gs_cluster" in config and "gs_location" in config["gs_cluster"]:
-        return utils.tolist( config["gs_cluster"]["gs_location"])
+    elif "aws_cluster" in config and "aws_location" in config["aws_cluster"]:
+        return utils.tolist( config["aws_cluster"]["aws_location"])
     else:
         return []
 
+def get_vm_locations():
+    if "aws_cluster" in config and "aws_location" in config["aws_cluster"]:
+        return utils.tolist( config["aws_cluster"]["aws_location"])
+    elif "azure_cluster" in config and "azure_location" in config["azure_cluster"]:
+        return utils.tolist( config["azure_cluster"]["azure_location"])
+    else:
+        return []    
+
 def save_config():
-    with open("gs_cluster_file.yaml", "w") as outfile:
-        yaml.safe_dump( config["gs_cluster"], outfile, default_flow_style=False)
+    # find all new entries 
+    configSave = diff_config( config["aws_cluster"], default_aws_parameters["aws_cluster"])
+    with open("aws_cluster_file.yaml", "w") as outfile:
+        yaml.safe_dump( configSave, outfile, default_flow_style=False)
 
 
 def create_group():
@@ -193,91 +205,170 @@ def open_all_port( vmname, location):
 def all_sshkey(vmname, location):
     ()
 
-def create_gc_vm( vmname, addrname, vmsize, location, configCluster, docreate):
-    print "creating VM %s, size %s ..." % ( vmname, vmsize)
-    uselocation = get_location_string(location)
+def import_key_pair(location):
     cmd = """
-        gcloud compute instances create %s \
-                --zone %s \
-                --machine-type %s \
-                %s """ \
-            % ( vmname, uselocation, vmsize, configCluster["vm_image"])
-    if addrname is not None:
-        cmd += " --address=%s " % addrname
-    if True: # verbose:
-        print(cmd)
+        aws ec2 import-key-pair --key-name publickey-%s \
+                --public-key-material file://./deploy/sshkey/id_rsa.pub \
+                """ \
+            % ( location )
     output = utils.exec_cmd_local(cmd)
-    print (output) 
-    sshkeyfile = setup_gce_ssh_key(location)
-    cmd2 = """
-        gcloud compute instances add-metadata %s \
-                --zone %s \
-                --metadata-from-file \
-                ssh-keys=%s
-                """ \
-            % ( vmname, uselocation, sshkeyfile )
-    output = utils.exec_cmd_local(cmd2)  
-    return output
+    print output
 
-def describe_gc_vm( vmname, location, configCluster):
-    print "describing VM %s" % ( vmname)
+def delete_key_pair(location):
     cmd = """
-        gcloud compute instances describe %s \
-                --zone %s \
-                """ \
-            % ( vmname, location)
-    if verbose: # verbose:
-        print(cmd)
-    output = utils.exec_cmd_local(cmd)    
-    return output
-
-def delete_gc_vm( vmname, vmsize, location, configCluster, docreate):
-    print "delete VM %s" % ( vmname)
-    uselocation = get_location_string(location)
-    cmd = """
-        gcloud compute instances delete %s \
-                --zone %s \
-                --delete-disks=all
-                """ \
-            % ( vmname, uselocation)
-    if True: # verbose:
-        print(cmd)
+        aws ec2 delete-key-pair --key-name publickey-%s """ \
+            % ( location )
     output = utils.exec_cmd_local(cmd)
-    print (output)  
-    return output
+    print output
+
+def get_security_group_name( cluster_name, location):
+    group_name = "deployenv-"+cluster_name
+    return group_name
+
+def create_security_group(config, cluster_name, location):
+    group_name = get_security_group_name(cluster_name, location)
+    cmd = """
+        aws ec2 create-security-group --group-name %s --description "security group for cluster %s"
+        aws ec2 authorize-security-group-ingress --group-name %s --protocol tcp --port 0-65535 --cidr 0.0.0.0/0
+                """ \
+            % ( group_name, cluster_name, group_name )
+    output = utils.exec_cmd_local(cmd)
+    output1 = utils.exec_cmd_local("aws ec2 describe-security-groups --group-name %s " % group_name ) 
+    if location not in config["aws_cluster"]:
+        config["aws_cluster"][location] = {}
+    merge_config( config["aws_cluster"][location], json.loads(output1))
+    print config["aws_cluster"][location]["SecurityGroups"]
+    
+def delete_security_group(cluster_name, location):
+    group_name = get_security_group_name(cluster_name, location)
+    cmd = """
+        aws ec2 delete-security-group --group-name %s
+                """ \
+            % ( group_name )
+    output = utils.exec_cmd_local(cmd)
+    print group_name
+
+def hasVM(vmname, location):
+    # print config["aws_cluster"][location]
+    return vmname in config["aws_cluster"][location] and config["aws_cluster"][location][vmname] is not None
+    
+
+def create_aws_vm( vmname, addrname, vmsize, location, configCluster, docreate):
+    if not hasVM(vmname, location):
+        print "creating VM %s, size %s ..." % ( vmname, vmsize)
+        uselocation = get_location_string(location)
+        sgid = config["aws_cluster"][location]["SecurityGroups"][0]["GroupId"]
+        # print configCluster
+        cmd = """
+            aws ec2 run-instances --image-id %s --count 1 \
+                    --security-group-ids %s \
+                    --key-name publickey-%s \
+                    --region %s \
+                    --instance-type  %s \
+                    --associate-public-ip-address %s 
+                    """ \
+                % ( configCluster["vm_image"], sgid, location, location, vmsize, configCluster["vm_storage_sku"] )
+        # print cmd
+        output = utils.exec_cmd_local(cmd)
+        outputjson = json.loads(output)
+        config["aws_cluster"][location][vmname] = outputjson["Instances"][0]
+        # print output
+        # print config["aws_cluster"][location][vmname] 
+
+def get_public_dns( vmname, location):
+    configVm = config["aws_cluster"][location][vmname]
+    publicDNS = configVm["PublicDnsName"]
+    idx = publicDNS.find(".")
+    if idx >= 0:
+        return publicDNS[:idx], publicDNS[idx+1:]
+    else:
+        return publicDNS, None
+
+def delete_aws_vm( vmname, vmsize, location, configCluster, docreate):
+    if vmname in config["aws_cluster"][location]:
+        print "delete VM %s" % ( vmname)
+        instanceid = config["aws_cluster"][location][vmname]["InstanceId"]
+        cmd = """
+            aws ec2 terminate-instances --instance-ids %s \
+                    """ \
+                % ( instanceid )
+        output = utils.exec_cmd_local(cmd)
+        print (output)  
+        del config["aws_cluster"][location][vmname]
        
 
 def create_vm_cluster(location, configCluster, docreate):
     # print "configCluster = %s " % configCluster
+    # print "location = %s" % location
     infra_node_num = configCluster["infra_node_num"]
     worker_node_num = configCluster["worker_node_num"]
-    cluster_name = config["gs_cluster"]["cluster_name"]
+    cluster_name = config["aws_cluster"]["cluster_name"]
+    import_key_pair(location)
+    create_security_group(config, cluster_name, location)
     if "machines" not in config:
         config["machines"] = {}
     for i in range(infra_node_num):
         vmname = "%s-infra%02d" % (cluster_name, i+1)
         addrname = get_infra_address(location, i)
-        create_gc_vm(vmname, addrname, configCluster["infra_vm_size"], location, configCluster, docreate )
+        create_aws_vm(vmname, addrname, configCluster["infra_vm_size"], location, configCluster, docreate )
         config["machines"][vmname] = { "role": "infrastructure"}
     for i in range(worker_node_num):
         vmname = "%s-worker%02d" % (cluster_name, i+1)
-        create_gc_vm(vmname, None, configCluster["worker_vm_size"], location, configCluster, docreate )
-        config["machines"][vmname] = { "role": "worker"}
+        create_aws_vm(vmname, None, configCluster["worker_vm_size"], location, configCluster, docreate )
+        config["machines"][vmname] = { "role": "worker"}      
 
 def delete_vm_cluster(location, configCluster, docreate):
     # print "configCluster = %s " % configCluster
     infra_node_num = configCluster["infra_node_num"]
     worker_node_num = configCluster["worker_node_num"]
-    cluster_name = config["gs_cluster"]["cluster_name"]
+    cluster_name = config["aws_cluster"]["cluster_name"]
     for i in range(infra_node_num):
         vmname = "%s-infra%02d" % (cluster_name, i+1)
-        delete_gc_vm(vmname, configCluster["infra_vm_size"], location, configCluster, docreate )
+        delete_aws_vm(vmname, configCluster["infra_vm_size"], location, configCluster, docreate )
     for i in range(worker_node_num):
         vmname = "%s-worker%02d" % (cluster_name, i+1)
-        delete_gc_vm(vmname, configCluster["worker_vm_size"], location, configCluster, docreate )        
+        delete_aws_vm(vmname, configCluster["worker_vm_size"], location, configCluster, docreate )        
+    delete_key_pair(location)
+    delete_security_group(cluster_name, location)
+
+def find_vm_description( jsonvms, instanceid ):
+    for reservation in jsonvms["Reservations"]:
+        instances = reservation["Instances"]
+        for onevm in instances:
+            if onevm["InstanceId"] == instanceid:
+                return onevm
+    return None
+
+def update_vm_config( jsonvms, location, vmname):
+    if hasVM(vmname, location):
+        instanceid = config["aws_cluster"][location][vmname]["InstanceId"]
+        vmconfig = find_vm_description( jsonvms, instanceid )
+        print "Find VM of ... %s ==> %s " % ( instanceid, vmconfig)
+        if vmconfig is not None:
+            config["aws_cluster"][location][vmname] = vmconfig
+            # print vmconfig
+            publicDns, domain = get_public_dns(vmname, location)
+            if domain is not None:
+                print "VM %s ==== %s.%s" %( vmname, publicDns, domain)
+            else:
+                print "VM %s ==== public DNS not available"
+
+def describe_vm_cluster(location, configCluster, docreate):
+    output = utils.exec_cmd_local("aws ec2 describe-instances")
+    jsonvms = json.loads(output)
+    # print "configCluster = %s " % configCluster
+    infra_node_num = configCluster["infra_node_num"]
+    worker_node_num = configCluster["worker_node_num"]
+    cluster_name = config["aws_cluster"]["cluster_name"]
+    for i in range(infra_node_num):
+        vmname = "%s-infra%02d" % (cluster_name, i+1)
+        update_vm_config( jsonvms, location, vmname)
+    for i in range(worker_node_num):
+        vmname = "%s-worker%02d" % (cluster_name, i+1)
+        update_vm_config( jsonvms, location, vmname)
 
 def get_address_name( location):
-    cluster_name = config["gs_cluster"]["cluster_name"]
+    cluster_name = config["aws_cluster"]["cluster_name"]
     addrname = cluster_name + "-" + location
     return addrname
 
@@ -441,17 +532,25 @@ def delete_service_accounts():
     print output2
 
 def create_vm( docreate = True):
-    locations = get_locations()
+    locations = get_vm_locations()
     for location in locations:
-        configCluster = config["gs_cluster"]
-        print "Location = %s, config = %s" %( location, configCluster )
+        configCluster = config["aws_cluster"]
+        # print "Location = %s, config = %s" %( location, configCluster )
         create_vm_cluster( location, configCluster, docreate)
     save_config()
 
-def delete_vm( docreate = True):
-    locations = get_locations()
+def describe_vm( docreate = True):
+    locations = get_vm_locations()
     for location in locations:
-        configCluster = config["gs_cluster"]
+        configCluster = config["aws_cluster"]
+        # print "Location = %s, config = %s" %( location, configCluster )
+        describe_vm_cluster( location, configCluster, docreate)
+    save_config()    
+
+def delete_vm( docreate = True):
+    locations = get_vm_locations()
+    for location in locations:
+        configCluster = config["aws_cluster"]
         print "Location = %s, config = %s" %( location, configCluster )
         delete_vm_cluster( location, configCluster, docreate)
     save_config() 
@@ -494,19 +593,25 @@ def delete_firewall(docreate = True):
 
 def gen_cluster_config(output_file_name, output_file=True):
     cc = {}
-    cc["etcd_node_num"] = config["gs_cluster"]["infra_node_num"]
+    cc["etcd_node_num"] = config["aws_cluster"]["infra_node_num"]
     cc["useclusterfile"] = True
     cc["deploydockerETCD"] = False
     cc["platform-scripts"] = "ubuntu"
     cc["basic_auth"] = "%s,admin,1000" % uuid.uuid4().hex[:12]
     cc["machines"] = {}
-    for i in range(int(config["gs_cluster"]["infra_node_num"])):
-        vmname = "%s-infra%02d" % (config["gs_cluster"]["cluster_name"], i+1)
-        cc["machines"][vmname]= {"role": "infrastructure"}
-    for i in range(int(config["gs_cluster"]["worker_node_num"])):
-        vmname = "%s-worker%02d" % (config["gs_cluster"]["cluster_name"], i+1)
-        cc["machines"][vmname]= {"role": "worker"}
-    cc["admin_username"] = config["gs_cluster"]["default_admin_username"]
+    cc["network"] = {}
+    location = get_vm_locations()[0]
+    for i in range(int(config["aws_cluster"]["infra_node_num"])):
+        vmname = "%s-infra%02d" % (config["aws_cluster"]["cluster_name"], i+1)
+        dnsname, domain = get_public_dns(vmname, location)
+        cc["network"]["domain"] = domain
+        cc["machines"][dnsname]= {"role": "infrastructure"}
+    for i in range(int(config["aws_cluster"]["worker_node_num"])):
+        vmname = "%s-worker%02d" % (config["aws_cluster"]["cluster_name"], i+1)
+        dnsname, domain = get_public_dns(vmname, location)
+        cc["network"]["domain"] = domain
+        cc["machines"][dnsname]= {"role": "worker"}
+    cc["admin_username"] = config["aws_cluster"]["default_admin_username"]
 
     if output_file:
         print yaml.dump(cc, default_flow_style=False)
@@ -546,8 +651,8 @@ def run_command( args, command, nargs, parser ):
             create_vm()
         elif nargs[0] == "delete":
             delete_vm()
-        elif nargs[0] == "prepare":
-            prepare_vm()
+        elif nargs[0] == "describe":
+            describe_vm()
         else:
             bExecute = False
 
@@ -590,14 +695,14 @@ if __name__ == '__main__':
     dirpath = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
     # print "Directory: " + dirpath
     os.chdir(dirpath)
-    parser = argparse.ArgumentParser( prog='gs_tools.py',
+    parser = argparse.ArgumentParser( prog='aws_tools.py',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=textwrap.dedent('''\
-Create and manage GCP cluster.
+Create and manage AWS cluster.
 
 Command:
     storage [create|delete] manage gcp storage bucket
-    vm [create|delete] manage gcp VM resource
+    vm [create|delete|describe] manage gcp VM resource
     address [create|delete] create/delete external static address for infrastructure VM
     firewall [create|delete] create/delete firewall rules that attach to each VM
     service-accounts [create|delete] create/delete service accounts to access storage
@@ -623,19 +728,19 @@ Command:
         utils.verbose = args.verbose
     config = init_config()
     # Cluster Config
-    config_cluster = os.path.join(dirpath,"gs_cluster_config.yaml")
+    config_cluster = os.path.join(dirpath,"aws_cluster_file.yaml")
     if os.path.exists(config_cluster):
         tmpconfig = yaml.load(open(config_cluster)) 
         if tmpconfig is not None:
-            merge_config(config["gs_cluster"], tmpconfig, verbose)
+            merge_config(config["aws_cluster"], tmpconfig)
 
     config_file = os.path.join(dirpath,"config.yaml")
     if os.path.exists(config_file):
         tmpconfig = yaml.load(open(config_file)) 
         if tmpconfig is not None and "cluster_name" in tmpconfig:
-            config["gs_cluster"]["cluster_name"] = tmpconfig["cluster_name"]
-        if tmpconfig is not None and "gs_cluster" in tmpconfig:
-            merge_config( config["gs_cluster"], tmpconfig["gs_cluster"] )
+            config["aws_cluster"]["cluster_name"] = tmpconfig["cluster_name"]
+        if tmpconfig is not None and "aws_cluster" in tmpconfig:
+            merge_config( config["aws_cluster"], tmpconfig["aws_cluster"] )
             
     # print config
     config = update_config(config)
