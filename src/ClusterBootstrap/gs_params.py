@@ -1,10 +1,7 @@
 #!/usr/bin/python 
 default_gs_parameters = {
     "gs_cluster" : { 
-        "project": {
-            "name": "yummyorder", 
-            "id": "yummyorder-191922", 
-        },
+        
         # Spell out regional location used in Google cloud platform, see
         # https://cloud.google.com/storage/docs/bucket-locations
         "location_mapping": {
@@ -23,7 +20,6 @@ default_gs_parameters = {
             "Standard_RAGRS": "regional", # multi_regional
         },
         "config": "~/code/config", 
-
             "infra_node_num": 1, 
             "worker_node_num": 0, 
             "gs_location": "us-west1-a",

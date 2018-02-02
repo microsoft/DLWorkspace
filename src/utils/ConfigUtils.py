@@ -61,6 +61,28 @@ def merge_config( config1, config2 ):
         else:
             config1[entry] = config2[entry]
 
+# Find entries in config1 that does not exist in config2
+def diff_config( config1, config2 ):
+    if isinstance( config1, dict) and isinstance(config2, dict):
+        config3 = { }
+        for (key, value) in config1.iteritems():
+            if key in config2:
+                diffConfig = diff_config( config1[key], config2[key])
+                if diffConfig is not None and len( diffConfig ) >0:
+                    config3[key] = diffConfig
+            else:
+                # print "diff_config, copy key %s" % key
+                config3[key] = config1[key]
+        # print "Diff %s, %s === %s " % (config1, config2, config3 )
+        return config3
+    else:
+        if config1 != config2:
+            # print "diff_config, copy value %s" % config1
+            return config1
+        else:
+            return None
+
+
 # Config, tuple to dictionary
 def config_to_dict( inconfig ):
     outconfig = {}
