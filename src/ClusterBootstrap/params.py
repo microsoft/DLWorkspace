@@ -382,6 +382,7 @@ default_config_parameters = {
     "k8scri-gitrepo" : "sanjeevm0/KubernetesGPU",
     "k8scri-gitbranch" : "master",
     "kube_custom_cri" : False,
+    "kube_custom_scheduler" : False,
 
     "Authentications": {
         "Live-login-windows": {
