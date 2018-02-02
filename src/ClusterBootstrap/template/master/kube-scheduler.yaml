@@ -9,8 +9,12 @@ spec:
   - name: kube-scheduler
     image: {{cnf["kubernetes_docker_image"]}}
     command:
+{% if "kube_custom_scheduler" in cnf and cnf["kube_custom_scheduler"] %}
+    - /kube-scheduler
+{% else %}
     - /hyperkube      
     - scheduler
+{% endif %}
     - --master=http://127.0.0.1:8080
     - --leader-elect=true
 {% if "kubelogdir" in cnf %}
