@@ -415,7 +415,7 @@ Command:
         default=None)
 
     parser.add_argument("--azure_location", 
-        help = "Specify azure location, default = " + default_config_parameters["azure_cluster"]["azure_location"], 
+        help = "Specify azure location, default = " + str(default_config_parameters["azure_cluster"]["azure_location"]), 
         action="store", 
         default=None)
 
