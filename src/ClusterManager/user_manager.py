@@ -73,10 +73,12 @@ def set_user_directory():
             os.system("chown -R "+userid+":"+"500000513 "+userpath)
             os.system("chmod 700 -R "+os.path.dirname(sshkeypath))
 
+
+        if not os.path.exists(authorized_keyspath):
+            logging.info("Creating authorized_keys for user %s" % (username))
+            os.system("chown -R "+userid+":"+"500000513 "+authorized_keyspath)
             os.system("cat "+pubkeypath+" >> "+authorized_keyspath)
             os.system("chmod 644 "+authorized_keyspath)
-
-
 
 def Run():
     create_log()
