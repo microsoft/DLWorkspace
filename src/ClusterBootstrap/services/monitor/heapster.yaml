@@ -1,15 +1,20 @@
+# Service Account for heapster
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: heapster
   namespace: kube-system
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: heapster
   namespace: kube-system
 spec:
+  selector:
+    matchLabels:
+      k8s-app: heapster
   replicas: 1
   template:
     metadata:
@@ -27,3 +32,4 @@ spec:
         - --source=kubernetes:https://{{cnf["api-server-ip"]}}:443  #this is using k8s endpoint, port should be 443 no matter what port is configed for external access. 
         - --sink=influxdb:http://{{cnf["influxdb_node"]}}:{{cnf["influxdb_port"]}}
 
+# TODO merge this with cloudmonitor/heapster

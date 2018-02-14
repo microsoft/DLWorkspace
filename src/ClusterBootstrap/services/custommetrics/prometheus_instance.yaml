@@ -1,0 +1,84 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  - services
+  - endpoints
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus
+subjects:
+- kind: ServiceAccount
+  name: prometheus
+  namespace: default
+---
+# This is the Prometheus instance been managed by prometheus-operator.
+# You can see here this is indeed a CRD and operator will handle its lifecycle.
+apiVersion: monitoring.coreos.com/v1
+kind: Prometheus
+metadata:
+  name: metrics-prometheus
+  labels:
+    app: metrics-prometheus
+    prometheus: metrics-prometheus
+spec:
+  replicas: 1
+  baseImage: dlws/prometheus
+  version: v2.0.0-rc.0
+  serviceAccountName: prometheus
+  serviceMonitorSelector:
+    matchLabels:
+      service-monitor: sample-metrics-app
+  resources:
+    requests:
+      memory: 300Mi
+  retention: 7d
+  # TODO(harry) We can also send metric data to use influxdb
+  # Skip storage definition so that a default emptyDir will be bound for now.
+  # And soon we can migrate to use local volume (1.9 feature).
+  # storage:
+  #   volumeClaimTemplate:
+  #     spec:
+  #       storageClassName: rook-block
+  #       resources:
+  #         requests:
+  #           storage: 3Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: metrics-prometheus
+  labels:
+    app: metrics-prometheus
+    prometheus: metrics-prometheus
+spec:
+  type: NodePort
+  ports:
+  - name: web
+    nodePort: 30999
+    port: 9090
+    targetPort: web
+  selector:
+    prometheus: metrics-prometheus

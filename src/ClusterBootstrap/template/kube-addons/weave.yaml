@@ -19,6 +19,7 @@ items:
         name: weave-net
       namespace: kube-system
   - apiVersion: extensions/v1beta1
+    # TODO(harry): can not use apps/v1 here since v1.List does not support apps/v1. It should be fixed in upstream.
     kind: DaemonSet
     metadata:
       name: weave-net
@@ -36,6 +37,9 @@ items:
         name: weave-net
       namespace: kube-system
     spec:
+      # selector:
+      #   matchLabels:
+      #     name: weave-net
       template:
         metadata:
           annotations:

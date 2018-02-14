@@ -17,22 +17,22 @@ from StringIO import StringIO
 import traceback
 
 def curl_get(url):
-	curl = pycurl.Curl()
-	curl.setopt(pycurl.URL, url)
-	curl.setopt(pycurl.SSL_VERIFYPEER, 1)
-	curl.setopt(pycurl.SSL_VERIFYHOST, 0)
-	curl.setopt(pycurl.CAINFO, "/etc/kubernetes/ssl/ca.pem")
-	curl.setopt(pycurl.SSLKEYTYPE, "PEM")
-	curl.setopt(pycurl.SSLKEY, "/etc/kubernetes/ssl/apiserver-key.pem")
-	curl.setopt(pycurl.SSLCERTTYPE, "PEM")
-	curl.setopt(pycurl.SSLCERT, "/etc/kubernetes/ssl/apiserver.pem")
-	curl.setopt(curl.FOLLOWLOCATION, True)
-	buff = StringIO()
-	curl.setopt(pycurl.WRITEFUNCTION, buff.write)
-	curl.perform()
-	responseStr = buff.getvalue()
-	curl.close()
-	return responseStr
+    curl = pycurl.Curl()
+    curl.setopt(pycurl.URL, url)
+    curl.setopt(pycurl.SSL_VERIFYPEER, 1)
+    curl.setopt(pycurl.SSL_VERIFYHOST, 0)
+    curl.setopt(pycurl.CAINFO, "/etc/kubernetes/ssl/ca.pem")
+    curl.setopt(pycurl.SSLKEYTYPE, "PEM")
+    curl.setopt(pycurl.SSLKEY, "/etc/kubernetes/ssl/apiserver-key.pem")
+    curl.setopt(pycurl.SSLCERTTYPE, "PEM")
+    curl.setopt(pycurl.SSLCERT, "/etc/kubernetes/ssl/apiserver.pem")
+    curl.setopt(curl.FOLLOWLOCATION, True)
+    buff = StringIO()
+    curl.setopt(pycurl.WRITEFUNCTION, buff.write)
+    curl.perform()
+    responseStr = buff.getvalue()
+    curl.close()
+    return responseStr
 
 
 
@@ -44,7 +44,7 @@ def read(data=None):
         vl = collectd.Values(type='gauge')
         vl.plugin = 'kubernetes'
         try:
-            rsset = json.loads(curl_get(os.environ['K8SAPI']+"/apis/extensions/v1beta1/replicasets"))
+            rsset = json.loads(curl_get(os.environ['K8SAPI']+"/apis/apps/v1/replicasets"))
 
             if "items" in rsset:
                 for rs in rsset["items"]:
@@ -104,7 +104,7 @@ def read(data=None):
                             vl.dispatch(values=[float(res)])
 
 
-            dpset = json.loads(curl_get(os.environ['K8SAPI']+"/apis/extensions/v1beta1/daemonsets"))
+            dpset = json.loads(curl_get(os.environ['K8SAPI']+"/apis/apps/v1/daemonsets"))
             if "items" in dpset:
                 for dp in dpset["items"]:
                     if "metadata" in dp and "name" in dp["metadata"] and "status" in dp:

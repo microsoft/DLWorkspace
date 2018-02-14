@@ -7,6 +7,8 @@ chmod 0777 /var/log/apache2
 #/usr/sbin/apache2ctl -D FOREGROUND
 echo "Apache Server Start ..... "
 apache2ctl start
+cd /RecogServer/RecogServer
+dotnet run --urls "http://*:1380"
 while true; do
 	sleep 1800
 	apache2ctl restart

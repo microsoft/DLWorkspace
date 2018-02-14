@@ -1,9 +1,12 @@
 kind: DaemonSet
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 metadata:
   name: freeflowrouter
   namespace: default
 spec:
+  selector:
+    matchLabels:
+      freeflowrouter-node: pod 
   template:
     metadata:
       name: freeflowrouter
@@ -14,7 +17,7 @@ spec:
       hostNetwork: true        
       containers:
       - name: freeflowrouter
-        image: mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/freeflow:0.16
+        image: {{cnf["dockers"]["container"]["freeflow"]["fullname"]}}
         securityContext:
           privileged: true
         volumeMounts:

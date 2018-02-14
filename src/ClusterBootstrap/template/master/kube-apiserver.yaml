@@ -28,7 +28,16 @@ spec:
     - --service-account-key-file=/etc/kubernetes/ssl/apiserver-key.pem
     - --runtime-config=extensions/v1beta1/networkpolicies=true
     - --anonymous-auth=false
-    - --basic-auth-file=/etc/kubernetes/basicauth    
+    - --basic-auth-file=/etc/kubernetes/basicauth
+    - --requestheader-client-ca-file=/etc/kubernetes/pki/ca.crt
+    - --requestheader-allowed-names=aggregator
+    - --requestheader-extra-headers-prefix=X-Remote-Extra-
+    - --requestheader-group-headers=X-Remote-Group
+    - --requestheader-username-headers=X-Remote-User
+    - --proxy-client-cert-file=/etc/kubernetes/pki/proxy-client.crt
+    - --proxy-client-key-file=/etc/kubernetes/pki/proxy-client.key
+    - --runtime-config=api/all=true
+    
 {% if "kubelogdir" in cnf %}
     - --log-dir={{cnf["kubelogdir"]}}/kubeapiserver
     - --logtostderr=false

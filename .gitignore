@@ -2,6 +2,8 @@
 **/config.yaml
 **/cluster.yaml
 **/azure_cluster_config.yaml
+**/gs_cluster_file.yaml
+**/aws_cluster_file.yaml
 **/pxe-coreos-kube.yml
 **/pxe-kubemaster.yml
 **/*.pem
@@ -34,11 +36,13 @@ src/WebUI/dotnet/WebPortal/dashboardConfig.json
 src/WebUI/dotnet/WebPortal/userconfig.json
 src/WebUI/dotnet/WebPortal/configAuth.json
 src/WebUI/dotnet/WebPortal/Master-Templates.json
+src/WebUI/dotnet/WebPortal/hosting.json
 **/wwwroot/*
 **/bin/Release/*
 **/bin/Debug/*
 **/obj/Release/*
 **/obj/Debug/*
+**/obj/*
 **/Properties/*
 **/node_modules/*
 **/bower_components/*
@@ -47,7 +51,9 @@ src/WebUI/dotnet/WebPortal/Master-Templates.json
 **/WebPortal/obj/*
 # SQLite database file
 *.db
-/.vs/DLWorkspace/v15/.suo
+**/.suo
+**/storage.ide
+
 /.vs/slnx.sqlite
 /.vs/ProjectSettings.json
 /.vs/VSWorkspaceState.json

@@ -2,6 +2,16 @@
 FROM ubuntu:16.04
 MAINTAINER Sanjeev Mehrotra <sanjeevm0@hotmail.com>
 
+RUN apt-get update; apt-get install -y --no-install-recommends apt-transport-https \
+        wget \
+        vim \
+        curl \
+        net-tools \
+        iptables \
+        apt-utils
+
 COPY ./hyperkube /hyperkube
 COPY ./kubelet /kubelet
 COPY ./kubectl /kubectl
+COPY ./kubegpucri /kubegpucri
+COPY ./kube-scheduler /kube-scheduler

@@ -1,4 +1,4 @@
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: cloud-collectd-node-agent
@@ -6,6 +6,9 @@ metadata:
   labels:
     app: cloud-ccollectd-node-agent
 spec:
+  selector:
+    matchLabels:
+      name: cloud-ccollectd-node-agent
   template:
     metadata:
       labels:
@@ -19,7 +22,7 @@ spec:
         - name: acrregkey
       containers:
       - name: cloud-ccollectd
-        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}collectd:{{cnf["dockertag"]}}
+        image: {{cnf["dockers"]["container"]["collectd"]["fullname"]}}
         imagePullPolicy: Always
         securityContext:
           privileged: true

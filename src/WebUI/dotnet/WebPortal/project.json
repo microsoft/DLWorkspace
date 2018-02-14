@@ -34,6 +34,7 @@
     "Microsoft.VisualStudio.Web.BrowserLink": "1.1.0",
     "Newtonsoft.Json": "10.0.2",
     "Serilog.Extensions.Logging.File": "1.0.1",
+    "Pomelo.EntityFrameworkCore.MySql": "1.1.2",
     "System.Private.DataContractSerialization": "4.3.0",
     "Microsoft.NETCore.App": {
       "type": "platform",

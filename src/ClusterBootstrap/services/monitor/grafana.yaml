@@ -1,9 +1,12 @@
 kind: DaemonSet
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 metadata:
   name: dlws-grafana
   namespace: kube-system
 spec:
+  selector:
+    matchLabels:
+      k8s-app: grafana
   template:
     metadata:
       labels:
@@ -15,11 +18,14 @@ spec:
       hostNetwork: true
       containers:
       - name: grafana
-        image: mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/grafana
+        image: {{cnf["dockers"]["container"]["grafana"]["fullname"]}}
         imagePullPolicy: Always
         volumeMounts:
         - mountPath: /etc/ssl/certs
           name: ca-certificates
+          readOnly: true
+        - mountPath: /etc/hostname-fqdn
+          name: hostname-fqdn
           readOnly: true
         env:
         - name: INFLUXDB_HOST
@@ -31,7 +37,7 @@ spec:
           # removing these env variables, setup auth for grafana, and expose the grafana
           # service using a LoadBalancer or a public IP.
         - name: GF_AUTH_BASIC_ENABLED
-          value: "false"
+          value: "true"
         - name: GF_AUTH_ANONYMOUS_ENABLED
           value: "true"
         - name: GF_AUTH_ANONYMOUS_ORG_ROLE
@@ -40,8 +46,12 @@ spec:
         - name: GF_SERVER_ROOT_URL
           # If you're only using the API Server proxy, set this value instead:
           #value: /api/v1/proxy/namespaces/kube-system/services/monitoring-grafana/
-          value: /
+          value: /grafana/
+          #value: /
       volumes:
       - name: ca-certificates
         hostPath:
           path: /etc/ssl/certs
+      - name: hostname-fqdn
+        hostPath:
+          path: /etc/hostname-fqdn

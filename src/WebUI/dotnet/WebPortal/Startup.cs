@@ -37,6 +37,8 @@ using App.Metrics.Configuration;
 using App.Metrics.Reporting.Interfaces;
 using Utils.Json;
 using System.Text;
+using MySql.Data.MySqlClient;
+
 
 namespace WindowsAuth
 {
@@ -149,6 +151,46 @@ namespace WindowsAuth
 
         }
 
+        public ClusterContext createDatabase(string dbName, Dictionary<string,object> clusterConfig, DLCluster clusterInfo )
+        {
+            var provider = "AzureSQL";
+            if (clusterConfig.ContainsKey("datasource"))
+                provider = clusterConfig["datasource"] as string; 
+            Console.WriteLine($"Provider=={provider}, config={clusterConfig}");
+            switch( provider )
+            {
+                case "AzureSQL":
+                    { 
+                        var connectionUsers = String.Format("Server={0};Database={1};User Id={2};Password={3};", // Trusted_Connection=True;MultipleActiveResultSets=true",
+                                    clusterInfo.SQLHostname,
+                                    dbName,
+                                    clusterInfo.SQLUsername,
+                                    clusterInfo.SQLPassword);
+                        var optionsBuilderUsers = new DbContextOptionsBuilder<ClusterContext>();
+                        optionsBuilderUsers.UseSqlServer(connectionUsers);
+                        var userDatabase = new ClusterContext(optionsBuilderUsers.Options);
+                        // userDatabase.Database.EnsureCreated();
+                        userDatabase.Database.Migrate();
+                        return userDatabase;
+                    }
+                default:
+                    { 
+                        var MySQLUsername = clusterConfig["MySQLUsername"] as string;
+                        var MySQLPassword = clusterConfig["MySQLPassword"] as string;
+                        var MySQLPort = clusterConfig["MySQLPort"] as string;
+                        var MySQLHostname = clusterConfig["MySQLHostname"] as string;
+                        var connectionUsers = $"Server={MySQLHostname};Port={MySQLPort};Uid={MySQLUsername};Password={MySQLPassword};Database={dbName}";
+                        Console.WriteLine($"MySQL connection string =={connectionUsers}");
+                        var optionsBuilderUsers = new DbContextOptionsBuilder<ClusterContext>();
+                        optionsBuilderUsers.UseMySql(connectionUsers);
+                        var userDatabase = new ClusterContext(optionsBuilderUsers.Options);
+                        userDatabase.Database.EnsureCreated();
+                        Console.WriteLine($"MySQL database {dbName} is created.");
+                        // userDatabase.Database.Migrate(); // Migrate not working for MySQL
+                        return userDatabase;
+                    }
+            }
+        }
 
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -177,7 +219,7 @@ namespace WindowsAuth
             }
             Clusters = new Dictionary<string, DLCluster>();
             Database = new Dictionary<string, ClusterContext>();
-            string defaultClusterName = null; 
+            string defaultClusterName = null;
             foreach (var pair in clusters)
             {
                 var clusterName = pair.Key;
@@ -245,7 +287,7 @@ namespace WindowsAuth
 
                 }
                 clusterInfo.Restapi = clusterConfig["Restapi"] as string;
-                clusterInfo.SQLDatabaseForUser = clusterConfig["SQLDatabaseForUser"] as string;
+                clusterInfo.SQLDatabaseForUser = (clusterConfig["SQLDatabaseForUser"] as string) + clusterInfo.ClusterId;
                 clusterInfo.SQLHostname = clusterConfig["SQLHostname"] as string;
                 clusterInfo.SQLPassword = clusterConfig["SQLPassword"] as string;
                 clusterInfo.SQLUsername = clusterConfig["SQLUsername"] as string;
@@ -306,7 +348,8 @@ namespace WindowsAuth
                 _logger.LogDebug("SQLPassword: {0}", clusterInfo.SQLPassword);
                 _logger.LogDebug("SQLUsername: {0}", clusterInfo.SQLUsername);
                 Clusters[clusterName] = clusterInfo;
-                var connectionUsers = String.Format("Server={0};Database={1}{2};User Id={3};Password={4}",
+                /*
+                var connectionUsers = String.Format("Server={0};Database={1}{2};User Id={3};Password={4};", // Trusted_Connection=True;MultipleActiveResultSets=true",
                     clusterInfo.SQLHostname,
                     clusterInfo.SQLDatabaseForUser,
                     clusterInfo.ClusterId,
@@ -315,17 +358,24 @@ namespace WindowsAuth
                 var optionsBuilderUsers = new DbContextOptionsBuilder<ClusterContext>();
                 optionsBuilderUsers.UseSqlServer(connectionUsers);
                 var userDatabase = new ClusterContext(optionsBuilderUsers.Options);
-                userDatabase.Database.EnsureCreated();
-                Database[clusterName] = userDatabase;
+                // userDatabase.Database.EnsureCreated();
+                userDatabase.Database.Migrate();
+                Database[clusterName] = userDatabase; */
+                Database[clusterName] = createDatabase(clusterInfo.SQLDatabaseForUser, clusterConfig, clusterInfo);
             }
 
             var templateDb = ConfigurationParser.GetConfiguration("MasterTemplates") as Dictionary<string, object>;
-            var templatesMaster = new TemplateDatabase();
-            templatesMaster.SQLDatabaseForTemplates = templateDb["SQLDatabaseForTemplates"] as string;
+            var SQLDatabaseForTemplates = templateDb["SQLDatabaseForTemplates"] as string;
+            DLCluster curInfo = new DLCluster();
+            curInfo.SQLDatabaseForUser = SQLDatabaseForTemplates;
+            curInfo.SQLHostname = templateDb["SQLHostname"] as string;
+            curInfo.SQLPassword = templateDb["SQLPassword"] as string;
+            curInfo.SQLUsername = templateDb["SQLUsername"] as string;
+            /*
             templatesMaster.SQLHostname = templateDb["SQLHostname"] as string;
             templatesMaster.SQLPassword = templateDb["SQLPassword"] as string;
             templatesMaster.SQLUsername = templateDb["SQLUsername"] as string;
-            var connectionTemplatesMaster = String.Format("Server={0};Database={1};User Id={2};Password={3}",
+            var connectionTemplatesMaster = String.Format("Server={0};Database={1};User Id={2};Password={3};", // Trusted_Connection=True;MultipleActiveResultSets=true",
                 templatesMaster.SQLHostname,
                 templatesMaster.SQLDatabaseForTemplates,
                 templatesMaster.SQLUsername,
@@ -333,7 +383,10 @@ namespace WindowsAuth
             var optionsBuilderTemplatesMaster = new DbContextOptionsBuilder<ClusterContext>();
             optionsBuilderTemplatesMaster.UseSqlServer(connectionTemplatesMaster);
             var templateMasterDatabase = new ClusterContext(optionsBuilderTemplatesMaster.Options);
-            var created = templateMasterDatabase.Database.EnsureCreated();
+            // var created = templateMasterDatabase.Database.EnsureCreated();
+            templateMasterDatabase.Database.Migrate(); */
+            var templateMasterDatabase = createDatabase(SQLDatabaseForTemplates, templateDb, curInfo);
+
             var entryArries = templateMasterDatabase.Template.Select( x => x.Template ).ToArray();
             var dic = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
             foreach (var entry in entryArries)
@@ -374,7 +427,13 @@ namespace WindowsAuth
                         if (!dic.ContainsKey(entry.Item1))
                         {
                             TemplateEntry entryAdd = new TemplateEntry(entry.Item1, null, entry.Item2, "job");
-                            MasterDatabase.Template.Add(entryAdd);
+                            try { 
+                                MasterDatabase.Template.Add(entryAdd);
+                                _logger.LogInformation($"Add {entry.Item1} to template.");
+                            } catch (Exception ex )
+                            {
+                                _logger.LogInformation($"Failed to add {entry.Item1}, already exist in template.");
+                            }
                         }
                     }
                     MasterDatabase.SaveChanges(); 

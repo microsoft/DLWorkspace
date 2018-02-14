@@ -29,6 +29,11 @@
         "SQLUsername": "{{cnf["sqlserver-username"]}}", 
         "SQLPassword": "{{cnf["sqlserver-password"]}}", 
         "SQLDatabaseForUser": "AuthorizeUser-", 
+        "MySQLHostname": "{{cnf["mysql_node"]}}", 
+        "MySQLPort": "{{cnf["mysql_port"]}}", 
+        "MySQLUsername": "{{cnf["mysql_username"]}}", 
+        "MySQLPassword": "{{cnf["mysql_password"]}}",     
+        "datasource": "{{cnf["datasource"]}}",        
         "mountdescription" : "{{cnf["mountdescription"]}}",
         "mountpoints" : "{{cnf["mountpoints"]}}", 
         "mounthomefolder" : "{{cnf["mounthomefolder"]}}",
@@ -42,6 +47,11 @@
     "SQLUsername": "{{cnf["sqlserver-username"]}}", 
     "SQLPassword": "{{cnf["sqlserver-password"]}}", 
     "SQLDatabaseForTemplates": "Templates-master", 
+    "MySQLHostname": "{{cnf["mysql_node"]}}", 
+    "MySQLPort": "{{cnf["mysql_port"]}}", 
+    "MySQLUsername": "{{cnf["mysql_username"]}}", 
+    "MySQLPassword": "{{cnf["mysql_password"]}}",     
+    "datasource": "{{cnf["datasource"]}}",
   },
 
 

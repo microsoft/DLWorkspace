@@ -2,6 +2,10 @@
 ./deploy/ssl/apiserver/ca-key.pem,/etc/kubernetes/ssl/ca-key.pem
 ./deploy/ssl/apiserver/apiserver.pem,/etc/kubernetes/ssl/apiserver.pem
 ./deploy/ssl/apiserver/apiserver-key.pem,/etc/kubernetes/ssl/apiserver-key.pem
+./deploy/ssl/aggregator/ca.crt,/etc/kubernetes/pki/ca.crt
+./deploy/ssl/aggregator/ca.key,/etc/kubernetes/pki/ca.key
+./deploy/ssl/aggregator/proxy-client.crt,/etc/kubernetes/pki/proxy-client.crt
+./deploy/ssl/aggregator/proxy-client.key,/etc/kubernetes/pki/proxy-client.key
 ./deploy/master/basicauth,/etc/kubernetes/basicauth
 ./deploy/master/worker-kubeconfig.yaml,/etc/kubernetes/worker-kubeconfig.yaml
 ./deploy/master/40-ExecStartPre-symlink.conf,/etc/systemd/system/flanneld.service.d/40-ExecStartPre-symlink.conf
@@ -17,3 +21,6 @@
 ./deploy/WebUI/appsettings.json,/etc/WebUI/appsettings.json
 ./deploy/RestfulAPI/config.yaml,/etc/RestfulAPI/config.yaml
 ./deploy/master/restapi-kubeconfig.yaml,/etc/kubernetes/restapi-kubeconfig.yaml
+./deploy/master/dns-kubeconfig.yaml,/etc/kubernetes/dns-kubeconfig.yaml
+./deploy/services/clusterroles/clusterrolebindings.yaml,/etc/kubernetes/clusterroles/clusterrolebindings.yaml
+./deploy/services/clusterroles/clusterroles.yaml,/etc/kubernetes/clusterroles/clusterroles.yaml

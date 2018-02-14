@@ -11,8 +11,8 @@ except Exception:
     ()
 
 def GetWorkPath(workpath):
-	workPath = "work/"+workpath
-	return workPath
+    workPath = "work/"+workpath
+    return workPath
 
 def GetStoragePath(jobpath, workpath, datapath):
     jobPath = "work/"+jobpath
