@@ -113,7 +113,7 @@ def extract_job_log(jobId,logPath,userId):
 
 
         if len(trimlogstr.strip()) > 0:
-            dataHandler.UpdateJobTextField(jobId,"jobLog",trimlogstr)
+            dataHandler.UpdateJobTextField(jobId,"jobLog",base64.b64encode(trimlogstr))
             with open(logPath, 'w') as f:
                 f.write(logStr)
             f.close()

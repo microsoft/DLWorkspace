@@ -19,6 +19,8 @@ import re
 from config import global_vars
 from MyLogger import MyLogger
 
+import copy
+
 logger = MyLogger()
 
 def LoadJobParams(jobParamsJsonStr):
@@ -238,6 +240,13 @@ def ApproveJob(jobId):
     dataHandler.Close()
     return ret
 
+def isBase64(s):
+    try:
+        if base64.b64encode(base64.b64decode(s)) == s:
+            return True
+    except Exception as e:
+        pass
+    return False
 
 def GetJobDetail(jobId):
     job = None
@@ -260,6 +269,11 @@ def GetJobDetail(jobId):
             job.pop("jobDescription",None)
         try:
             log = dataHandler.GetJobTextField(jobId,"jobLog")
+            try:
+                if isBase64(log):
+                    log = base64.b64decode(log)
+            except Exception:
+                pass                       
             if log is not None:
                 job["log"] = log
         except:
