@@ -383,6 +383,7 @@ default_config_parameters = {
     "k8scri-gitbranch" : "master",
     "kube_custom_cri" : False,
     "kube_custom_scheduler" : False,
+    "kubepresleep" : 60,
 
     "Authentications": {
         "Live-login-windows": {
