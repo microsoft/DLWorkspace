@@ -13,5 +13,5 @@ RUN apt-get update; apt-get install -y --no-install-recommends apt-transport-htt
 COPY ./hyperkube /hyperkube
 COPY ./kubelet /kubelet
 COPY ./kubectl /kubectl
-COPY ./kubegpucri /kubegpucri
+COPY ./crishim /crishim
 COPY ./kube-scheduler /kube-scheduler
