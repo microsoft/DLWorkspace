@@ -1030,6 +1030,12 @@ def deploy_ETCD():
     utils.render_template("./template/etcd/init_network.sh","./deploy/etcd/init_network.sh",config)
     utils.SSH_exec_script( config["ssh_cert"], etcd_server_user, etcd_servers[0], "./deploy/etcd/init_network.sh")
 
+def create_nfs_server():
+    etcd_servers = config["etcd_node"]
+    etcd_server_user = config["etcd_user"]
+    os.system( "mkdir -p ./deploy/scripts")
+    utils.render_template("./scripts/setup_nfs_server.sh","./deploy/scripts/setup_nfs_server.sh",config)
+    utils.SSH_exec_script( config["ssh_cert"], etcd_server_user, etcd_servers[0], "./deploy/scripts/setup_nfs_server.sh")
 
 def create_ISO():
     imagename = "./deploy/iso/dlworkspace-cluster-deploy-"+config["cluster_name"]+".iso"
@@ -1496,7 +1502,10 @@ def get_mount_fileshares(curNode = None):
                 curphysicalmountpoint = mountsharename
             else:
                 curphysicalmountpoint = os.path.join( physicalmountpoint, mountsharename )
-            v["curphysicalmountpoint"] = curphysicalmountpoint
+            if "curphysicalmountpoint" not in v:
+                v["curphysicalmountpoint"] = curphysicalmountpoint
+            else:
+                curphysicalmountpoint = v["curphysicalmountpoint"]
             bMount = False
             errorMsg = None
             if v["type"] == "azurefileshare":
@@ -1558,6 +1567,7 @@ def get_mount_fileshares(curNode = None):
                 allmountpoints[k]["mountpoints"] = mountpoints
         else:
             print "Error: fileshare %s with no type" %( k )
+    # print allmountpoints
     return allmountpoints, fstab
 
 def insert_fstab_section( node, secname, content):
@@ -2960,6 +2970,11 @@ def run_command( args, command, nargs, parser ):
     elif command == "deploy" and "clusterId" in config:
         deploy_ETCD_master(force=args.force)
 
+    elif command == "nfs-server":
+        if len(nargs) > 0:
+            if nargs[0] == "create":
+                create_nfs_server()
+
     elif command == "build":
         if len(nargs) <=0:
             init_deployment()
@@ -3474,6 +3489,7 @@ Command:
             arg=iso-coreos: build ISO image fore CoreOS deployment.
             arg=pxe-coreos: build PXE server for CoreOS deployment. 
             arg=pxe-ubuntu: build PXE server for Ubuntu deployment. [We use standard Ubuntu ISO for Ubuntu ISO deployment. ]
+  nfs-server create: Create NFS-server. 
   sshkey    install: [Ubuntu] install sshkey to Ubuntu cluster. 
   production [nodes] Deploy a production cluster, with tasks of:
             set hostname, deploy etcd/master nodes, deploy worker nodes, uncordon master nodes. 
