@@ -1,4 +1,4 @@
-default_config_parameters = {
+default_az_parameters = {
     "azure_cluster" : { 
         "infra_node_num": 1, 
         "worker_node_num": 2, 
@@ -7,23 +7,9 @@ default_config_parameters = {
         "worker_vm_size": "Standard_NC6",
         "vm_image" : "UbuntuLTS",
         "vm_storage_sku" : "Standard_LRS",        
-        "vnet_range" : "192.168.0.0/16",        
-        "default_admin_username" : "dlwsadmin",        
-        "file_share_name" : "files",
-        "storages" : ["journal"], 
-        "azure_location" : ["westus"], 
-        "journal": { # Journal storage 
-            "name": "yummyjournal", 
-            "sku": "Standard_GRS",
-            "containers" : {
-                "private" : {
-                    "public-access": "off", 
-                }, 
-                "journal" : {
-                    "public-access": "off", 
-                }, 
-            }, 
-        },
+
+        # "udp_port_ranges": ""
+        # Use file_share_name to create Azure file share
+        # "file_share_name" : "files",
     },
-    
 }

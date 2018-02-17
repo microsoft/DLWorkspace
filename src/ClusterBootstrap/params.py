@@ -531,12 +531,26 @@ default_config_parameters = {
         # This will be automatically populated by config_dockers, so you can refer to any container as:
         # config["docker"]["container"]["name"]
         "container": { }, 
-    }
+    },
+
+    "cloud_config": {
+        "vnet_range" : "192.168.0.0/16",        
+        "default_admin_username" : "dlwsadmin",  
+        "tcp_port_for_pods": "30000-32767",
+        "tcp_port_ranges": "80 443 30000-32767",
+        "dev_network" : {
+            "tcp_port_ranges": "22 1443 2379", 
+            # Need to white list dev machines to connect 
+            # "source_addresses_prefixes": [ "52.151.0.0/16"]
+        }
+    },
 }
 
 # These are super scripts
 scriptblocks = {
     "azure": [
+        "runscriptonall ./scripts/prepare_vm_disk.sh", 
+        "nfs-server start",
         "runscriptonall ./scripts/prepare_ubuntu.sh", 
         "-y deploy",
         "-y updateworker",
@@ -555,6 +569,8 @@ scriptblocks = {
         "kubernetes start nginx",
     ],
     "azure_uncordon": [
+        "runscriptonall ./scripts/prepare_vm_disk.sh",
+        "nfs-server start",
         "runscriptonall ./scripts/prepare_ubuntu.sh", 
         "-y deploy",
         "-y updateworker",
