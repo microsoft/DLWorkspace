@@ -8,6 +8,12 @@ metadata:
      jobName: {{ job["jobNameLabel"] }}
      jobId: {{job["jobId"]}}
      userName: {{ job["userNameLabel"] }}
+  {% if "annotations" in job %}
+  annotations:
+    {% for annotationKey,annotationVal in job["annotations"].items() %}
+      {{ annotationKey }}: {{ annotationVal }}
+    {% endfor %}
+  {% endif %}
 spec:
   {% if job["resourcegpu"]|int < 8  %}
   nodeSelector:

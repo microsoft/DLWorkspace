@@ -29,12 +29,13 @@ if __name__ == '__main__':
 
     # Get hash of branch
     sha = git_utils.github_hash("{{cnf["k8s-gitrepo"]}}", "{{cnf["k8s-gitbranch"]}}")
-    print "SHA of HEAD branch " + "{{cnf["k8s-gitbranch"]}}" + "is " + sha
     
-    # private repo, don't know how to get hash, use other sha for now
-    #shacri = git_utils.github_hash("{{cnf["k8scri-gitrepo"]}}", "{{cnf["k8scri-gitbranch"]}}")
-    shacri = str(uuid.uuid4())
-    print "SHA of HEAD branch for CRI " + "{{cnf["k8s-gitbranch"]}}" + "is " + shacri
+    # private repo, don't know how to get hash, use random sha for now to force rebuild
+    #shacri = str(uuid.uuid4())
+    shacri = git_utils.github_hash("{{cnf["k8scri-gitrepo"]}}", "{{cnf["k8scri-gitbranch"]}}")
+
+    print "SHA of HEAD branch " + "{{cnf["k8s-gitbranch"]}}" + "is " + sha
+    print "SHA of HEAD branch for CRI " + "{{cnf["k8scri-gitbranch"]}}" + "is " + shacri
 
     #os.chdir("./deploy")
     #dockerBld = "docker build --build-arg NOCACHE=$(date +%s) -t " + "{{cnf["k8s-bld"]}}"" + " ."
@@ -51,8 +52,8 @@ if __name__ == '__main__':
     DockerUtils.copy_from_docker_image("{{cnf["k8s-bld"]}}", "/kubelet", "../kubernetes/kubelet")
     print "Copy file kubectl"
     DockerUtils.copy_from_docker_image("{{cnf["k8s-bld"]}}", "/kubectl", "../kubernetes/kubectl")
-    print "Copy file kubegpucri"
-    DockerUtils.copy_from_docker_image("{{cnf["k8s-bld"]}}", "/kubegpucri", "../kubernetes/kubegpucri")
+    print "Copy file crishim"
+    DockerUtils.copy_from_docker_image("{{cnf["k8s-bld"]}}", "/crishim", "../kubernetes/crishim")
     print "Copy file kube-scheduler"
     DockerUtils.copy_from_docker_image("{{cnf["k8s-bld"]}}", "/kube-scheduler", "../kubernetes/kube-scheduler")
 

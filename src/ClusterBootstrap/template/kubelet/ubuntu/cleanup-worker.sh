@@ -10,5 +10,5 @@ sudo rm /etc/systemd/system/kubelet.service
 sudo rm /etc/systemd/system/kubecri.service
 sudo rm -r /etc/kubernetes
 sudo rm /opt/bin/kubelet
-sudo rm /opt/bin/kubegpucri
+sudo rm /opt/bin/crishim
 sudo rm -r /etc/kubernetes
