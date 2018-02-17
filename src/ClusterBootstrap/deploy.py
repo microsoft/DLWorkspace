@@ -2974,6 +2974,12 @@ def run_command( args, command, nargs, parser ):
         if len(nargs) > 0:
             if nargs[0] == "create":
                 create_nfs_server()
+            else:
+                print "Error: subcommand %s is not recognized for nfs-server. " % nargs[0] 
+                exit()
+        else:
+            print "Error: nfs-server need a subcommand (create) " % nargs[0] 
+            exit()
 
     elif command == "build":
         if len(nargs) <=0:
