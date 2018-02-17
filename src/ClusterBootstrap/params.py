@@ -551,7 +551,7 @@ default_config_parameters = {
 scriptblocks = {
     "azure": [
         "runscriptonall ./scripts/prepare_vm_disk.sh", 
-        "nfs-server start",
+        "nfs-server create",
         "runscriptonall ./scripts/prepare_ubuntu.sh", 
         "-y deploy",
         "-y updateworker",
@@ -571,7 +571,7 @@ scriptblocks = {
     ],
     "azure_uncordon": [
         "runscriptonall ./scripts/prepare_vm_disk.sh",
-        "nfs-server start",
+        "nfs-server create",
         "runscriptonall ./scripts/prepare_ubuntu.sh", 
         "-y deploy",
         "-y updateworker",
