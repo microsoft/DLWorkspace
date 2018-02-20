@@ -211,32 +211,36 @@ def SubmitRegularJob(job):
             if "kube_custom_scheduler" in config and config["kube_custom_scheduler"]:
                 container = {}
                 container["requests"] = {"alpha.gpu/numgpu" : jobParams["resourcegpu"]}
-                # add topology constraints here to test
-                # if (jobParams["resourcegpu"] >= 2):
-                #     # both cards in same inner group
-                #     container["requests"]["alpha/grpresource/gpugrp1/0/gpugrp0/0/gpu/0/cards"] = 1
-                #     container["requests"]["alpha/grpresource/gpugrp1/0/gpugrp0/0/gpu/1/cards"] = 1
-                # if (jobParams["resourcegpu"] >= 3):
-                #     container["requests"]["alpha/grpresource/gpugrp1/0/gpugrp0/1/gpu/2/cards"] = 1
-                # if (jobParams["resourcegpu"] >= 4):
-                #     container["requests"]["alpha/grpresource/gpugrp1/0/gpugrp0/1/gpu/3/cards"] = 1
-                # if (jobParams["resourcegpu"] >= 5):
-                #     container["requests"]["alpha/grpresource/gpugrp1/1/gpugrp0/2/gpu/4/cards"] = 1
-                # if (jobParams["resourcegpu"] >= 6):
-                #     container["requests"]["alpha/grpresource/gpugrp1/1/gpugrp0/2/gpu/5/cards"] = 1
-                # if (jobParams["resourcegpu"] >= 7):
-                #     container["requests"]["alpha/grpresource/gpugrp1/1/gpugrp0/3/gpu/6/cards"] = 1
-                # if (jobParams["resourcegpu"] >= 8):
-                #     container["requests"]["alpha/grpresource/gpugrp1/1/gpugrp0/3/gpu/7/cards"] = 1
                 podInfo = {}
                 podInfo["podname"] = jobParams["podName"]
+                if "useGPUTopology" in jobParams and jobParams["useGPUTopology"]:
+                    # add topology constraints explicitly - for testing
+                    # if (jobParams["resourcegpu"] >= 2):
+                    #     # both cards in same inner group
+                    #     container["requests"]["alpha/grpresource/gpugrp1/0/gpugrp0/0/gpu/0/cards"] = 1
+                    #     container["requests"]["alpha/grpresource/gpugrp1/0/gpugrp0/0/gpu/1/cards"] = 1
+                    # if (jobParams["resourcegpu"] >= 3):
+                    #     container["requests"]["alpha/grpresource/gpugrp1/0/gpugrp0/1/gpu/2/cards"] = 1
+                    # if (jobParams["resourcegpu"] >= 4):
+                    #     container["requests"]["alpha/grpresource/gpugrp1/0/gpugrp0/1/gpu/3/cards"] = 1
+                    # if (jobParams["resourcegpu"] >= 5):
+                    #     container["requests"]["alpha/grpresource/gpugrp1/1/gpugrp0/2/gpu/4/cards"] = 1
+                    # if (jobParams["resourcegpu"] >= 6):
+                    #     container["requests"]["alpha/grpresource/gpugrp1/1/gpugrp0/2/gpu/5/cards"] = 1
+                    # if (jobParams["resourcegpu"] >= 7):
+                    #     container["requests"]["alpha/grpresource/gpugrp1/1/gpugrp0/3/gpu/6/cards"] = 1
+                    # if (jobParams["resourcegpu"] >= 8):
+                    #     container["requests"]["alpha/grpresource/gpugrp1/1/gpugrp0/3/gpu/7/cards"] = 1
+                    podInfo["requests"] = {"alpha.gpu/gpu-generate-topology" : 1}
+                else:
+                    # for cases when desired topology is explictly given or not desired
+                    podInfo["requests"] = {"alpha.gpu/gpu-generate-topology" : 0}
                 podInfo["runningcontainer"] = {jobParams["podName"] : container}
-                podInfo["requests"] = {"alpha.gpu/gpu-generate-topology" : 1}
 
-                jobParams["annotations"] = {
-                    "pod.alpha/DeviceInformation" : "'" + json.dumps(podInfo) + "'"
-                }
-                jobParams["resourcegpu"] = 0
+                if "annotations" not in jobParams:
+                    jobParams["annotations"] = {}
+                jobParams["annotations"]["pod.alpha/DeviceInformation"] = "'" + json.dumps(podInfo) + "'"
+                jobParams["resourcegpu"] = 0 # gpu requests specified through annotation
 
             template = ENV.get_template(os.path.abspath(jobTemp))
             job_description = template.render(job=jobParams)
