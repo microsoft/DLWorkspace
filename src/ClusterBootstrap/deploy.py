@@ -2903,6 +2903,11 @@ def run_command( args, command, nargs, parser ):
     if os.path.exists("./deploy/clusterID.yml"):
         update_config()
 
+    # update docker image
+    if config["kube_custom_scheduler"] or config["kube_custom_cri"]:
+        config["kubernetes_docker_image"] = config["worker-dockerregistry"] + config["dockerprefix"] + "kubernetes:" + config["dockertag"]
+        #print "New docker image: {0}".format(config["kubernetes_docker_image"])
+
     # additional glusterfs launch parameter.
     config["launch-glusterfs-opt"] = args.glusterfs;
 
