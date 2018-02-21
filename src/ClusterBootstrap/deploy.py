@@ -253,6 +253,11 @@ def update_config():
     if ("mysql_node" not in config):
         config["mysql_node"] = None if len(get_node_lists_for_service("mysql"))==0 else get_node_lists_for_service("mysql")[0]
 
+    # update docker image
+    if config["kube_custom_scheduler"] or config["kube_custom_cri"]:
+        config["kubernetes_docker_image"] = config["worker-dockerregistry"] + config["dockerprefix"] + "kubernetes:" + config["dockertag"]
+        #print "New docker image: {0}".format(config["kubernetes_docker_image"])
+
 
 def add_ssh_key():
     keys = fetch_config(config, ["sshKeys"])
@@ -2902,11 +2907,6 @@ def run_command( args, command, nargs, parser ):
 
     if os.path.exists("./deploy/clusterID.yml"):
         update_config()
-
-    # update docker image
-    if config["kube_custom_scheduler"] or config["kube_custom_cri"]:
-        config["kubernetes_docker_image"] = config["worker-dockerregistry"] + config["dockerprefix"] + "kubernetes:" + config["dockertag"]
-        #print "New docker image: {0}".format(config["kubernetes_docker_image"])
 
     # additional glusterfs launch parameter.
     config["launch-glusterfs-opt"] = args.glusterfs;
