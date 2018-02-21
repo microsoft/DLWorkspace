@@ -540,7 +540,7 @@ default_config_parameters = {
         "tcp_port_for_pods": "30000-32767",
         "tcp_port_ranges": "80 443 30000-32767",
         "dev_network" : {
-            "tcp_port_ranges": "22 1443 2379", 
+            "tcp_port_ranges": "22 1443 2379 3306", 
             # Need to white list dev machines to connect 
             # "source_addresses_prefixes": [ "52.151.0.0/16"]
         }
