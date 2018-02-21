@@ -685,4 +685,8 @@ scriptblocks = {
         "bldwebui",
         "restartwebui",
     ],
+    "build_kube": [
+        "docker push gobld",
+        "docker push kubernetes",
+    ],
 }

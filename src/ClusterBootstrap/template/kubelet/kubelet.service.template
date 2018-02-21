@@ -5,6 +5,7 @@ Description=Kubelet
 #Requires=nvidia-driver.service 
 {% if cnf["kube_custom_cri"] %}
 After=kubecri.service
+PartOf=kubecri.service
 {% endif %}
 
 [Service]
