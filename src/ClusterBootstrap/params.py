@@ -377,9 +377,9 @@ default_config_parameters = {
                  ],
 
     "k8s-bld" : "k8s-temp-bld",
-    "k8s-gitrepo" : "sanjeevm0/kubernetes",
-    "k8s-gitbranch" : "vb1.7.5",
-    "k8scri-gitrepo" : "sanjeevm0/KubernetesGPU",
+    "k8s-gitrepo" : "kubernetes/kubernetes",
+    "k8s-gitbranch" : "v1.9.1",
+    "k8scri-gitrepo" : "Microsoft/KubeGPU",
     "k8scri-gitbranch" : "master",
     "kube_custom_cri" : False,
     "kube_custom_scheduler" : False,

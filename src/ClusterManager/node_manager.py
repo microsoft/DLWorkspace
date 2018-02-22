@@ -111,12 +111,16 @@ def get_cluster_status():
                 node_status["gpu_used"] = 0
                 node_status["InternalIP"] = "unknown"
                 node_status["pods"] = []
+                if "annotations" in node["metadata"]:
+                    if "node.alpha/DeviceInformation" in node["metadata"]["annotations"]:
+                        node_info = json.loads(node["metadata"]["annotations"]["node.alpha/DeviceInformation"])
+                        node_status["gpu_capacity"] = max(int(node_info["capacity"]["alpha.gpu/numgpu"]), node_status["gpu_capacity"])
+                        node_status["gpu_allocatable"] = max(int(node_info["allocatable"]["alpha.gpu/numgpu"]), node_status["gpu_allocatable"])
 
                 if "addresses" in node["status"]:
                     for addr in node["status"]["addresses"]:
                         if addr["type"] == "InternalIP":
                             node_status["InternalIP"]  = addr["address"] 
-
 
                 node_status["scheduled_service"] = []
                 for l,s in node_status["labels"].iteritems():
@@ -155,11 +159,26 @@ def get_cluster_status():
                         pod_name += " (gpu usage:" + str(gpuUsage) + "%)"
                         if gpuUsage <= 25:
                             pod_name += "!!!!!!"
+                    pod_info_cont = {}
+                    pod_info_initcont = {}
+                    if "annotations" in pod["metadata"]:
+                        if "pod.alpha/DeviceInformation" in pod["metadata"]["annotations"]:
+                            pod_info = json.loads(pod["metadata"]["annotations"]["pod.alpha/DeviceInformation"])
+                            if "runningcontainer" in pod_info:
+                                pod_info_cont = pod_info["runningcontainer"]
+                            if "initcontainer" in pod_info:
+                                pod_info_initcont = pod_info["initcontainer"]
                     if "containers" in pod["spec"] :
-                        for container in pod["spec"]["containers"]:                            
+                        for container in pod["spec"]["containers"]:
+                            containerGPUs = 0
                             if "resources" in container and "requests" in container["resources"] and gpuStr in container["resources"]["requests"]:
-                                gpus += int(container["resources"]["requests"][gpuStr])
-                                pod_name += " (gpu #:" + container["resources"]["requests"][gpuStr] + ")"
+                                containerGPUs = int(container["resources"]["requests"][gpuStr])
+                            if container["name"] in pod_info_cont:
+                                if "requests" in pod_info_cont[container["name"]] and "alpha.gpu/numgpu" in pod_info_cont[container["name"]]["requests"]:
+                                    containerGPUs = max(int(pod_info_cont[container["name"]]["requests"]["alpha.gpu/numgpu"]), containerGPUs)
+                            gpus += containerGPUs
+                            pod_name += " (gpu #:" + str(containerGPUs) + ")"
+
                     if node_name in nodes_status:
                         nodes_status[node_name]["gpu_used"] += gpus
                         nodes_status[node_name]["pods"].append(pod_name)
