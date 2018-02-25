@@ -631,6 +631,12 @@ scriptblocks = {
         "-y kubernetes labels",
         "mount",
     ],
+    "add_scaled_worker": [
+        "runscriptonscaleup ./scripts/prepare_ubuntu.sh",
+        "-y updatescaledworker",
+        "-y kubernetes labels",
+        "mount",
+    ],
     "redeploy": [
         "-y cleanworker",
         "-y --force deploy",
