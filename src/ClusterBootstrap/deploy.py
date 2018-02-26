@@ -530,6 +530,7 @@ def get_scaled_nodes_from_config():
         Nodes = []
         for nodename in config["machines"]:
             nodeInfo = config["machines"][nodename]
+            # TODO(harry): maybe change it to "latestScaled"?
             if "scaled" in nodeInfo and nodeInfo["scaled"]==True:
                 if len(nodename.split("."))<3:
                     Nodes.append(nodename+domain)
@@ -2669,8 +2670,6 @@ def get_service_yaml( use_service ):
 
 def kubernetes_label_node(cmdoptions, nodename, label):
     run_kubectl(["label nodes %s %s %s" % (cmdoptions, nodename, label)])
-    # TODO(harry): how to distinguish what cloud provider it is using.
-    run_kubectl(["patch node %s %s %s" % (nodename, "-p", '{"spec":{"providerID":"aztools://' + nodename + '"}}')])
 
 # Get the list of nodes for a particular service
 # 
@@ -2747,6 +2746,17 @@ def kubernetes_label_nodes( verb, servicelists, force ):
                 kubernetes_label_node(cmdoptions, nodename, label+"=inactive")
             elif verb == "remove":
                 kubernetes_label_node(cmdoptions, nodename, label+"-")
+
+def kubernetes_patch_nodes_provider (provider, scaledOnly):
+    nodes = []
+    if scaledOnly:
+        nodes = get_scaled_nodes(config["clusterId"])
+    else:
+        nodes = get_nodes(config["clusterId"])
+    for node in nodes:
+        nodename = kubernetes_get_node_name(node)
+        patch = '\'{"spec":{"providerID":"' + provider + '://' + nodename + '"}}\''
+        run_kubectl(["patch node %s %s %s" % (nodename, "-p", patch)])
 
 # Label kubernete nodes according to property of node (usually specified in config.yaml or cluster.yaml)
 # Certain property of node:
@@ -3435,7 +3445,16 @@ def run_command( args, command, nargs, parser ):
                     kubernetes_label_nodes("active", [], args.yes )
                 else:
                     parser.print_help()
-                    print "Error: kubernetes labels expect a verb which is either active, inactive or remove, but get: " + nargs[1]
+                    print "Error: kubernetes labels expect a verb which is either active, inactive or remove, but get: %s" % nargs[1]
+            elif nargs[0] == "patchprovider":
+                # TODO(harry): read a tag to decide which tools we are using, so we don't need nargs[1]
+                if len(nargs)>=2 and ( nargs[1] == "aztools" or nargs[1] == "gstools" or nargs[1] == "awstools" ):
+                    if len(nargs)==3:
+                        kubernetes_patch_nodes_provider(nargs[1], nargs[2])
+                    else:
+                        kubernetes_patch_nodes_provider(nargs[1], False)
+                else:
+                    print "Error: kubernetes patchprovider expect a verb which is either aztools, gstools or awstools."
             elif nargs[0] == "mark":
                 kubernetes_mark_nodes( nargs[1:], True)
             elif nargs[0] == "unmark":

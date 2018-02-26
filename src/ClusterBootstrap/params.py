@@ -556,6 +556,9 @@ scriptblocks = {
         "-y deploy",
         "-y updateworker",
         "-y kubernetes labels",
+        # TODO(harry): we cannot distinguish gce aws from azure, so add the same providerID
+        # This will not break current deployment.
+        "-y kubernetes patchprovider aztools"
         "webui",
         "docker push restfulapi",
         "docker push webui",
@@ -629,12 +632,14 @@ scriptblocks = {
         "runscriptonall ./scripts/prepare_ubuntu.sh",
         "-y updateworker",
         "-y kubernetes labels",
+        "-y kubernetes patchprovider aztools"
         "mount",
     ],
     "add_scaled_worker": [
         "runscriptonscaleup ./scripts/prepare_ubuntu.sh",
         "-y updatescaledworker",
         "-y kubernetes labels",
+        "-y kubernetes patchprovider aztools True"
         "mount",
     ],
     "redeploy": [
