@@ -2669,6 +2669,8 @@ def get_service_yaml( use_service ):
 
 def kubernetes_label_node(cmdoptions, nodename, label):
     run_kubectl(["label nodes %s %s %s" % (cmdoptions, nodename, label)])
+    # TODO(harry): how to distinguish what cloud provider it is using.
+    run_kubectl(["patch node %s %s %s" % (nodename, "-p", '{"spec":{"providerID":"aztools://' + nodename + '"}}')])
 
 # Get the list of nodes for a particular service
 # 
