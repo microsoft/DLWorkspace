@@ -1,53 +1,54 @@
-# Name of cluster
-cluster_name : <<Cluster_Name>>
-# Number of Etcd node
-etcd_node_num : 1
-# Kubernete API server authentication, 
-# basic_auth: <<password,username,uid>>
-# password: a secret password
-# username: a username
-# uid: a number which is uid for kubernete API server
-basic_auth :  <<password,username,uid>>
+cluster_name: <<name_of_cluster>>
 
-# SQL server (e.g., SQL Azure authentication information)
-sqlserver-hostname : tcp:<<servername>>.database.windows.net
-sqlserver-username : <<sql_username>>
-sqlserver-password : <<sql_password>>
-sqlserver-database : DLWorkspaceJobs
+azure_cluster:
+  # name_of_cluster should match cluster name used above.
+  <<name_of_cluster>>:
+    worker_node_num: 1
+    infra_vm_size : Standard_D3_v2
+    azure_location: eastus
 
-# the path of samba file server. 
-smbPath : '/tmp/'
+UserGroups:
+  DLWSAdmins:
+    # Preset emails that will be the administrator of the cluster. 
+    # Since we deploy Corp/Gmail authentication, please use either a @microsoft.com or a @gmail.com email
+    Allowed: [ <<email1>>, <<email2>>, <<email3>> ]
+    uid : "20000"
+    gid : "20001"
+  DLWSRegister:
+    # Gmail user can register and request access to the cluster. 
+    Allowed: [ "@gmail.com" ]
+    uid : "20001-29999"
+    gid : "20001"
 
-# --------- For Philly deployment, please turn on (uncomment) the following options. ---- 
-###Use cluster.yaml to locate nodes (instead of using the cluster report service)
-useclusterfile : true
+WebUIregisterGroups: [ "DLWSRegister"]
+WebUIauthorizedGroups: [ "DLWSAdmins" ]
+WebUIadminGroups: ["DLWSAdmins"]
 
-###use docker container to deploy ETCD service
-deploydockerETCD : true
+DeployAuthentications : ["Corp", "Gmail", "Live"]
 
-platform-scripts : ubuntu
+WinbindServers: []    
 
-# This assumes that the DLWorkspace is deployed in WestUS region of Azure.
-network:
-  domain: westus.cloudapp.azure.com
+webuiport: 3080
 
-# Machine list in Azure
-# You will need at least 1 infrastructure machine + 1 or more worker machine. 
-machines:
-  <<Machine1>>:
-    role: infrastructure
-  <<Machine2>>:
-    role: worker
+cloud_config:
+  dev_network:
+    source_addresses_prefixes:
+    # These are the dev box of the cluster, only the machine in the IP address below will have access to the cluster. 
+    - "73.109.29.0/24"
+    - "167.220.0.0/16"
+    - "131.107.0.0/16"
+    - "52.151.0.0/16"
+    - "52.168.0.0/16"
 
-# Azure deployment doesn't have winbind servers. 
-WinbindServers: [  ]
+# We use cloud monitoring, the following is the grafana/influxdb node that will be deployed to
+cloud_influxdb_node: jinlazure-infra01.westus2.cloudapp.azure.com
 
-# Please set up a Azure Data file 
-mountpoints:
-  rootshare:
-    type: azurefileshare
-    accountname: <<azure storage account name>>
-    filesharename: <<azure file share name>>
-    # Mount at root
-    mountpoints: ""
-    accesskey: <<access key for azure file share>>
+Dashboards:
+  influxDB:
+    servers: jinlazure-infra01.westus2.cloudapp.azure.com
+  grafana:
+    servers: jinlazure-infra01.westus2.cloudapp.azure.com  
+
+# My sql password.
+mysql_password: <<My_SQL_password>>
+datasource: MySQL
