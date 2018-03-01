@@ -3033,7 +3033,7 @@ def run_command( args, command, nargs, parser ):
 
     elif command == "deploy" and "clusterId" in config:
         deploy_ETCD_master(force=args.force)
-        utils.render_template("./template/kubeconfig.yaml.template", "deploy/kubeconfig.yaml", config)
+        utils.render_template("./template/kubeconfig/kubeconfig.yaml.template", "deploy/kubeconfig/kubeconfig.yaml", config)
 
     elif command == "nfs-server":
         if len(nargs) > 0:
