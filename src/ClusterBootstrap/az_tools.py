@@ -365,7 +365,7 @@ def useAzureFileshare():
     return "file_share_name" in config["azure_cluster"]
 
 def scale_up_vm():
-    delta = int(config["azure_cluster"]["last_scale_up_node_num"])
+    delta = int(config["azure_cluster"]["last_scaled_node_num"])
     workerLen = int(config["azure_cluster"]["worker_node_num"])
     for i in range(workerLen):
         if workerLen - i <= delta:
@@ -373,9 +373,18 @@ def scale_up_vm():
             print "creating VM %s..." % vmname
             create_vm(vmname, True)
 
-def scale_down_vm():
-    # TODO(harry): delta < 0
-    print "[WARNING] Scale Down is not supported in aztools, skip ..."
+def delete_vm(vmname):
+    cmd = """
+        az vm delete --resource-group %s \
+                 --name %s \
+                 --yes 
+        """ % (config["azure_cluster"]["resource_group_name"],
+               vmname)
+            
+    if verbose:
+        print(cmd)
+    output = utils.exec_cmd_local(cmd)
+    print (output)
 
 
 def gen_cluster_config(output_file_name, output_file=True):
@@ -427,10 +436,10 @@ def gen_cluster_config(output_file_name, output_file=True):
         vmname = "%s-infra%02d" % (config["azure_cluster"]["cluster_name"], i+1)
         cc["machines"][vmname]= {"role": "infrastructure", "private-ip": get_vm_ip(i, False)}
     workerLen = int(config["azure_cluster"]["worker_node_num"])
-    delta = int(config["azure_cluster"]["last_scale_up_node_num"])
+    delta = int(config["azure_cluster"]["last_scaled_node_num"])
     for i in range(workerLen):
         vmname = "%s-worker%02d" % (config["azure_cluster"]["cluster_name"], i+1)
-        if workerLen - i <= delta :
+        if delta > 0 and workerLen - i <= delta :
             cc["machines"][vmname]= {"role": "worker", "scaled": True, "private-ip": get_vm_ip(i, True)}
         else:
             cc["machines"][vmname]= {"role": "worker", "private-ip": get_vm_ip(i, True)}
@@ -474,7 +483,7 @@ def run_command( args, command, nargs, parser ):
         scale_up_vm()
 
     elif command =="scaledown":
-        scale_down_vm()
+        delete_vm(nargs[0])
 
     elif command == "delete":
         delete_cluster()
