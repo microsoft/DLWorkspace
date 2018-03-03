@@ -364,6 +364,20 @@ def useSqlAzure():
 def useAzureFileshare():
     return "file_share_name" in config["azure_cluster"]
 
+def scale_up_vm():
+    delta = int(config["azure_cluster"]["last_scale_up_node_num"])
+    workerLen = int(config["azure_cluster"]["worker_node_num"])
+    for i in range(workerLen):
+        if workerLen - i <= delta:
+            vmname = "%s-worker%02d" % (config["azure_cluster"]["cluster_name"], i+1)
+            print "creating VM %s..." % vmname
+            create_vm(vmname, True)
+
+def scale_down_vm():
+    # TODO(harry): delta < 0
+    print "[WARNING] Scale Down is not supported in aztools, skip ..."
+
+
 def gen_cluster_config(output_file_name, output_file=True):
     bSQLOnly = (config["azure_cluster"]["infra_node_num"]<=0)
     if useAzureFileshare():
@@ -412,9 +426,14 @@ def gen_cluster_config(output_file_name, output_file=True):
     for i in range(int(config["azure_cluster"]["infra_node_num"])):
         vmname = "%s-infra%02d" % (config["azure_cluster"]["cluster_name"], i+1)
         cc["machines"][vmname]= {"role": "infrastructure", "private-ip": get_vm_ip(i, False)}
-    for i in range(int(config["azure_cluster"]["worker_node_num"])):
+    workerLen = int(config["azure_cluster"]["worker_node_num"])
+    delta = int(config["azure_cluster"]["last_scale_up_node_num"])
+    for i in range(workerLen):
         vmname = "%s-worker%02d" % (config["azure_cluster"]["cluster_name"], i+1)
-        cc["machines"][vmname]= {"role": "worker", "private-ip": get_vm_ip(i, True)}
+        if workerLen - i <= delta :
+            cc["machines"][vmname]= {"role": "worker", "scaled": True, "private-ip": get_vm_ip(i, True)}
+        else:
+            cc["machines"][vmname]= {"role": "worker", "private-ip": get_vm_ip(i, True)}
     if not bSQLOnly:
         # Require explicit authorization setting. 
         # cc["WinbindServers"] = []
@@ -450,6 +469,12 @@ def delete_cluster():
 def run_command( args, command, nargs, parser ):
     if command =="create":
         create_cluster()
+
+    elif command =="scaleup":
+        scale_up_vm()
+
+    elif command =="scaledown":
+        scale_down_vm()
 
     elif command == "delete":
         delete_cluster()
