@@ -32,18 +32,11 @@ spec:
     metadata:
       labels:
         app: kubernetes-dashboard
-      # Comment the following annotation if Dashboard must not be deployed on master
-      annotations:
-        scheduler.alpha.kubernetes.io/tolerations: |
-          [
-            {
-              "key": "dedicated",
-              "operator": "Equal",
-              "value": "master",
-              "effect": "NoSchedule"
-            }
-          ]
     spec:
+      # Only run dashboard on master
+      nodeSelector:
+        infrastructure: active 
+      volumes:
       containers:
       - name: kubernetes-dashboard
         image: gcr.io/google_containers/kubernetes-dashboard-amd64:v1.5.1
@@ -62,6 +55,9 @@ spec:
             port: 9090
           initialDelaySeconds: 30
           timeoutSeconds: 30
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
 ---
 kind: Service
 apiVersion: v1

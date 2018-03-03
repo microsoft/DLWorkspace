@@ -66,6 +66,9 @@ spec:
       labels:
         k8s-app: kube-dns
     spec:
+      # Only run kube-dns on master
+      nodeSelector:
+        infrastructure: active 
       volumes:
       - name: kube-dns-config
         configMap:
