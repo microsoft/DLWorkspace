@@ -84,7 +84,7 @@ def render_template(template_file, target_file, config, verbose=False):
             print e
             pass
     
-def render_template_directory(template_dir, target_dir,config, verbose=False):
+def render_template_directory(template_dir, target_dir,config, verbose=False, exclude_dir=None):
     if target_dir in StaticVariable.rendered_target_directory:
         return
     else:
@@ -97,7 +97,22 @@ def render_template_directory(template_dir, target_dir,config, verbose=False):
             open( markfile, 'w').close()
         filenames = os.listdir(template_dir)
         for filename in filenames:
-            if os.path.isfile(os.path.join(template_dir, filename)):
+            if filename == "copy_dir":
+                fullname = os.path.join(template_dir, filename)
+                with open( fullname ) as f:
+                    content = f.readlines()
+                content = [x.strip() for x in content]
+                for copy_dir in content:
+                    fullname_copy_dir = os.path.join(template_dir, copy_dir)
+                    # print "To render via copy %s" % fullname_copy_dir
+                    # Allow target directory to be re-rendered
+                    StaticVariable.rendered_target_directory.pop(target_dir, None)
+                    render_template_directory(fullname_copy_dir, target_dir,config, verbose, exclude_dir=template_dir)
+            elif os.path.isfile(os.path.join(template_dir, filename)):
+                if exclude_dir is not None:
+                    check_file = os.path.join(exclude_dir, filename)
+                    if os.path.exists(check_file):
+                        continue
                 render_template(os.path.join(template_dir, filename), os.path.join(target_dir, filename),config, verbose)
             else:
                 srcdir = os.path.join(template_dir, filename) 
@@ -106,7 +121,11 @@ def render_template_directory(template_dir, target_dir,config, verbose=False):
                     os.system( "rm -rf %s" % dstdir )
                     os.system( "cp -r %s %s" %(srcdir, dstdir))
                 else:
-                    render_template_directory(srcdir, dstdir,config, verbose)
+                    if exclude_dir is None:
+                        render_template_directory(srcdir, dstdir,config, verbose)
+                    else:
+                        exdir = os.path.join(exclude_dir, filename)
+                        render_template_directory(srcdir, dstdir,config, verbose, exclude_dir=exdir)
 
 # Execute a remote SSH cmd with identity file (private SSH key), user, host
 def SSH_exec_cmd(identity_file, user,host,cmd,showCmd=True):
