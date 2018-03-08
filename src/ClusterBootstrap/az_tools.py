@@ -369,9 +369,7 @@ def scale_up_vm():
     workerLen = int(config["azure_cluster"]["worker_node_num"])
     for i in range(workerLen):
         if workerLen - i <= delta:
-            vmname = "%s-worker%02d" % (config["azure_cluster"]["cluster_name"], i+1)
-            print "creating VM %s..." % vmname
-            create_vm(vmname, True)
+            create_vm_param(i, True)
 
 def delete_vm(vmname):
     cmd = """
