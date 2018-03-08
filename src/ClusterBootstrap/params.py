@@ -87,6 +87,7 @@ default_config_parameters = {
         "pxelinux.0": True, 
         "main.html": True, 
         "uploadFile.html": True, 
+        "imagerecog.html": True,
         "collectd.graphite.conf.tpl": True,
         "collectd.influxdb.conf.tpl": True,
         "collectd.riemann.conf.tpl": True,
@@ -199,7 +200,7 @@ default_config_parameters = {
         "kibana": "etcd_node_1", 
         "mysql": "etcd_node_1", 
         "nginx": "all", 
-      },
+    },
 
     "kubemarks" : [ "rack", "sku" ],
 
@@ -519,6 +520,8 @@ default_config_parameters = {
             "collectd": { }, 
             "grafana": { }, 
             "tutorial-tensorflow": { }, 
+            "tutorial-tensorflow-cpu": { }, 
+            "tutorial-pytorch": { }, 
         },
         "external" : {
             # These dockers are to be built by additional add ons. 

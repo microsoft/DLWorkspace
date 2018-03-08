@@ -67,7 +67,7 @@ namespace RecogServer.Controllers
                             var label = "/tensorflow/tensorflow/examples/label_image/data/imagenet_slim_labels.txt";
 
                             var command = $"{recogprog} --graph {recoggraph} --image {imagename} --labels {label}";
-                            int nWait = Interlocked.Increment ( &RecogController.nWait);
+                            int nWait = Interlocked.Increment ( ref RecogController.nWait);
                             var thisResult = new JObject();
                             if ( nWait < RecogController.maxWait)
                             {
@@ -78,13 +78,13 @@ namespace RecogServer.Controllers
                                     thisResult["code"] = tuple.Item1;
                                     thisResult["output"] = tuple.Item2;
                                     thisResult["error"] = tuple.Item3;
-                                } catch (Exception ex)
+                                } catch (Exception )
                                 {}
                             } else 
                             {
                                 thisResult["error"] = $"Too many recognition items: {nWait}, not waiting. ";
                             }
-                            Interlocked.Decrement(&RecogController.nWait);
+                            Interlocked.Decrement(ref RecogController.nWait);
 
                             ret[filename] = thisResult;
                         }

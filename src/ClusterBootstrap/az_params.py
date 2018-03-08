@@ -7,7 +7,6 @@ default_az_parameters = {
         "worker_vm_size": "Standard_NC6",
         "vm_image" : "UbuntuLTS",
         "vm_storage_sku" : "Standard_LRS",        
-
         # "udp_port_ranges": ""
         # Use file_share_name to create Azure file share
         # "file_share_name" : "files",

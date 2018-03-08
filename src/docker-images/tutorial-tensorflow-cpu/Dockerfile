@@ -1,5 +1,5 @@
 #FROM ubuntu:16.04
-FROM tensorflow/tensorflow:1.4.0-rc1-devel-gpu-py3
+FROM tensorflow/tensorflow:1.6.0-devel-py3
 MAINTAINER Katherine Li <kml11@live.com>
 
 RUN umask 022
@@ -66,6 +66,8 @@ ENV APACHE_LOG_DIR /var/log/apache2
 
 
 
+
+
 RUN rm /etc/apache2/mods-enabled/mpm_*
 COPY mpm_prefork.conf /etc/apache2/mods-available/mpm_prefork.conf
 COPY 000-default.conf /etc/apache2/sites-available/000-default.conf
@@ -85,17 +87,18 @@ RUN pip3 install --upgrade --ignore-installed setuptools
 
 RUN git clone https://github.com/ppwwyyxx/tensorpack.git
 
+RUN mkdir -p tensorflow/examples/label_image/data
 RUN mkdir -p /var/log/apache2
 RUN chmod 0777 /var/log/apache2
 RUN chmod -R 0777 /root
 RUN chmod -R 0777 /tensorflow
 
 # RUN apt-get update -y && apt-get install ssh-askpass rssh molly-guard ufw monkeysphere python3-ndg-httpsclient -y
-RUN curl -L "https://storage.googleapis.com/download.tensorflow.org/models/inception_v3_2016_08_28_frozen.pb.tar.gz" | tar -C tensorflow/examples/label_image/data -xz
+RUN curl -L "https://storage.googleapis.com/download.tensorflow.org/models/inception_v3_2016_08_28_frozen.pb.tar.gz" | tar -C /tensorflow/tensorflow/examples/label_image/data -xz
 
 ENV LD_LIBRARY_PATH /usr/local/nvidia/lib64/
 
-EXPOSE 180 1443 1280
+EXPOSE 1380 180
 ADD RecogServer /RecogServer
 COPY wwwroot /var/www/html
 RUN chmod -R 755 /var/www/html/
