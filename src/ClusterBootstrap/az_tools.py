@@ -483,7 +483,11 @@ def gen_cluster_config(output_file_name, output_file=True):
         vmname = "%s-infra%02d" % (config["azure_cluster"]["cluster_name"], i+1)
         cc["machines"][vmname]= {"role": "infrastructure", "private-ip": get_vm_ip(i, False)}
     workerLen = int(config["azure_cluster"]["worker_node_num"])
-    delta = int(config["azure_cluster"]["last_scaled_node_num"])
+
+    delta = 0
+    if config["azure_cluster"].has_key("last_scaled_node_num"):
+        delta = int(config["azure_cluster"]["last_scaled_node_num"])
+    
     for i in range(workerLen):
         vmname = "%s-worker%02d" % (config["azure_cluster"]["cluster_name"], i+1)
         if delta > 0 and workerLen - i <= delta :
