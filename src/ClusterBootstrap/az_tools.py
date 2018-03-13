@@ -369,9 +369,7 @@ def scale_up_vm():
     workerLen = int(config["azure_cluster"]["worker_node_num"])
     for i in range(workerLen):
         if workerLen - i <= delta:
-            vmname = "%s-worker%02d" % (config["azure_cluster"]["cluster_name"], i+1)
-            print "creating VM %s..." % vmname
-            create_vm(vmname, True)
+            create_vm_param(i, True)
 
 def delete_vm(vmname):
     cmd = """
@@ -386,6 +384,55 @@ def delete_vm(vmname):
     output = utils.exec_cmd_local(cmd)
     print (output)
 
+def delete_nic(nicname):
+    cmd = """
+        az network nic delete --resource-group %s \
+                --name %s \
+        """ % (config["azure_cluster"]["resource_group_name"],
+               nicname)
+    if verbose:
+        print(cmd)
+    output = utils.exec_cmd_local(cmd)
+    print (output)
+
+def delete_public_ip(ip):
+    cmd = """
+        az network public-ip delete --resource-group %s \
+                 --name %s \
+        """ % (config["azure_cluster"]["resource_group_name"],
+               ip)
+            
+    if verbose:
+        print(cmd)
+    output = utils.exec_cmd_local(cmd)
+    print (output)
+
+
+def delete_disk(diskID):
+    cmd = """
+        az disk delete --resource-group %s \
+                 --name %s \
+                 --yes \
+        """ % (config["azure_cluster"]["resource_group_name"],
+               diskID)
+            
+    if verbose:
+        print(cmd)
+    output = utils.exec_cmd_local(cmd)
+    print (output)
+
+
+def get_disk_from_vm(vmname):
+    cmd = """
+        az vm show -g %s -n %s --query "storageProfile.osDisk.managedDisk.id" -o tsv \
+        """ % (config["azure_cluster"]["resource_group_name"],
+               vmname)
+            
+    if verbose:
+        print(cmd)
+    output = utils.exec_cmd_local(cmd)
+
+    return output.split("/")[-1].strip('\n')
 
 def gen_cluster_config(output_file_name, output_file=True):
     bSQLOnly = (config["azure_cluster"]["infra_node_num"]<=0)
@@ -436,7 +483,11 @@ def gen_cluster_config(output_file_name, output_file=True):
         vmname = "%s-infra%02d" % (config["azure_cluster"]["cluster_name"], i+1)
         cc["machines"][vmname]= {"role": "infrastructure", "private-ip": get_vm_ip(i, False)}
     workerLen = int(config["azure_cluster"]["worker_node_num"])
-    delta = int(config["azure_cluster"]["last_scaled_node_num"])
+
+    delta = 0
+    if config["azure_cluster"].has_key("last_scaled_node_num"):
+        delta = int(config["azure_cluster"]["last_scaled_node_num"])
+    
     for i in range(workerLen):
         vmname = "%s-worker%02d" % (config["azure_cluster"]["cluster_name"], i+1)
         if delta > 0 and workerLen - i <= delta :
@@ -483,7 +534,12 @@ def run_command( args, command, nargs, parser ):
         scale_up_vm()
 
     elif command =="scaledown":
-        delete_vm(nargs[0])
+        vmname = nargs[0]
+        diskID = get_disk_from_vm(vmname)
+        delete_vm(vmname)
+        delete_nic(vmname + "VMNic")
+        delete_public_ip(vmname + "PublicIP")
+        delete_disk(diskID)
 
     elif command == "delete":
         delete_cluster()
