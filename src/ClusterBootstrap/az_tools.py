@@ -362,7 +362,7 @@ def useSqlAzure():
         return True
 
 def useAzureFileshare():
-    return "file_share_name" in config["azure_cluster"]
+    return ("file_share_name" in config["azure_cluster"]) or ("isacs" in config and config["isacs"])
 
 def scale_up_vm():
     delta = int(config["azure_cluster"]["last_scaled_node_num"])

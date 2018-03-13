@@ -133,6 +133,21 @@ def acs_get_kube_nodes():
     else:
         return config["acs_nodes"]
 
+# wait for nodes to be up
+def acs_wait_for_kube():
+    numNodes = 0
+    expectedNodes = config["worker_node_num"] + config["master_node_num"]
+    while numNodes < expectedNodes:
+        binary = os.path.abspath('./deploy/bin/kubectl')
+        kubeconfig = os.path.abspath('./deploy/'+config["acskubeconfig"])
+        cmd = binary + ' -o=json --kubeconfig='+kubeconfig+' get nodes'    
+        nodeInfo = utils.subproc_runonce(cmd)
+        nodes = yaml.load(nodeInfo)
+        numNodes = len(nodes["items"])
+        if numNodes < expectedNodes:
+            print "Waiting for {0} kubernetes nodes to start up, currently have only {1} nodes".format(expectedNodes, numNodes)
+            time.sleep(5)
+
 # divide nodes into master / agent 
 def acs_set_nodes_info():
     if "acs_master_nodes" not in config or "acs_agent_nodes" not in config:
@@ -379,6 +394,8 @@ def acs_write_azconfig(configToWrite):
 
 def acs_init_azconfig():
     az_tools.config = az_tools.init_config()
+    az_tools.config["isacs"] = True
+    az_tools.config["azure_cluster"]["file_share_name"] = "files"
     az_tools.config["azure_cluster"]["cluster_name"] = config["cluster_name"]
     az_tools.config["azure_cluster"]["azure_location"] = config["cluster_location"]
     az_tools.config = az_tools.update_config(az_tools.config, False)
@@ -451,6 +468,8 @@ def acs_update_azconfig(gen_cluster_config):
     return acs_config
 
 def acs_deploy():
+    global config
+
     generate_key = not os.path.exists("./deploy/sshkey")
 
     cmd = "group create"
@@ -480,12 +499,16 @@ def acs_deploy():
     # Add rules for NSG
     acs_add_nsg_rules({"HTTPAllow" : 80, "RestfulAPIAllow" : 5000, "AllowKubernetesServicePorts" : "30000-32767"})
 
+    # Get kubectl binary / acs config
+    acs_get_config()
+
+    # Wait for nodes to start up
+    acs_wait_for_kube()
+
     # Create public IP / DNS
     acs_create_node_ips()
 
-    acs_get_config()
-
-    # Update machine names in config
+    # Update machine names in config / storage keys
     acs_update_azconfig(True)
 
 # Main / Globals
