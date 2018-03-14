@@ -636,13 +636,6 @@ Command:
         action="store", 
         default=None)
 
-
-
-    parser.add_argument("--worker_node_num", 
-        help = "Specify the number of worker nodes, default = " + str(config["azure_cluster"]["worker_node_num"]), 
-        action="store", 
-        default=None)
-
     parser.add_argument("--azure_location", 
         help = "Specify azure location, default = " + str(config["azure_cluster"]["azure_location"]), 
         action="store", 
@@ -731,8 +724,6 @@ Command:
     if (args.infra_node_num is not None):
         config["azure_cluster"]["infra_node_num"] = args.infra_node_num
 
-    if (args.worker_node_num is not None):
-        config["azure_cluster"]["worker_node_num"] = args.worker_node_num
     if (args.azure_location is not None):
         config["azure_cluster"]["azure_location"] = args.azure_location
     if (args.infra_vm_size is not None):
