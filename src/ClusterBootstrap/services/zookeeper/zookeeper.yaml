@@ -106,3 +106,8 @@ spec:
       - name: datadir
         hostPath:
           path: {{cnf["hdfsconfig"]["zks"]["data"]}}
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule            

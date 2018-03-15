@@ -60,3 +60,8 @@ spec:
       - name: etchosts
         hostPath:
           path: /dev/null
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule            

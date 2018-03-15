@@ -55,3 +55,8 @@ spec:
       - name: hostname-fqdn
         hostPath:
           path: /etc/hostname-fqdn
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule          

@@ -574,6 +574,7 @@ scriptblocks = {
         "kubernetes start webportal",
         "kubernetes start cloudmonitor",
         "kubernetes start nginx",
+        "kubernetes start custommetrics"
     ],
     "azure_uncordon": [
         "runscriptonall ./scripts/prepare_vm_disk.sh",
@@ -632,18 +633,20 @@ scriptblocks = {
     ],
     "add_worker": [
         "sshkey install",
+        "runscriptonall ./scripts/prepare_vm_disk.sh",
         "runscriptonall ./scripts/prepare_ubuntu.sh",
+        "mount",
         "-y updateworker",
         "-y kubernetes labels",
         "-y kubernetes patchprovider aztools"
-        "mount",
     ],
     "add_scaled_worker": [
+        "runscriptonall ./scripts/prepare_vm_disk.sh",
         "runscriptonscaleup ./scripts/prepare_ubuntu.sh",
+        "mount",
         "-y updatescaledworker",
         "-y kubernetes labels",
         "-y kubernetes patchprovider aztools True"
-        "mount",
     ],
     "redeploy": [
         "-y cleanworker",

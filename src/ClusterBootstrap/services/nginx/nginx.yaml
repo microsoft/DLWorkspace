@@ -62,4 +62,9 @@ spec:
           path: /etc/letsencrypt
       - name: letsencrypt-log
         hostPath:
-          path: /var/log/letsencrypt      
+          path: /var/log/letsencrypt    
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule              

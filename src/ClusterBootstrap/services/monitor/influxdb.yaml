@@ -27,7 +27,11 @@ spec:
       - name: influxdb
         hostPath:
           path: {{cnf["influxdb_data_path"]}}
-
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
 ---
 apiVersion: v1
 kind: Service

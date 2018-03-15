@@ -39,7 +39,18 @@ spec:
         volumeMounts:
         - name: mysql-storage
           mountPath: /var/lib/mysql
+        - name: mysql-log
+          mountPath: /var/log/mysql          
       volumes:
       - name: mysql-storage
         hostPath:
           path: {{cnf["mysql_data_path"]}}
+      - name: mysql-log
+        hostPath:
+          path: /var/log/mysql
+          
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule            
