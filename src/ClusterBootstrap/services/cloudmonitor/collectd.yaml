@@ -87,3 +87,8 @@ spec:
       - name: nvidia-driver
         hostPath:
           path: {{cnf["nvidia-driver-path"]}}
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule          

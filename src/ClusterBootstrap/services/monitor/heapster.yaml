@@ -31,5 +31,10 @@ spec:
         - /heapster
         - --source=kubernetes:https://{{cnf["api-server-ip"]}}:443  #this is using k8s endpoint, port should be 443 no matter what port is configed for external access. 
         - --sink=influxdb:http://{{cnf["influxdb_node"]}}:{{cnf["influxdb_port"]}}
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule        
 
 # TODO merge this with cloudmonitor/heapster

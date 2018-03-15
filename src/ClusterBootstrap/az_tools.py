@@ -371,6 +371,53 @@ def scale_up_vm():
         if workerLen - i <= delta:
             create_vm_param(i, True)
 
+def list_vm( bShow = True ):
+    cmd = """
+        az vm list --resource-group %s 
+        """ % (config["azure_cluster"]["resource_group_name"] )
+    if verbose:
+        print(cmd)
+    output = utils.exec_cmd_local(cmd)
+    allvm = json.loads(output)
+    vminfo = {}
+    for onevm in allvm:
+        vmname = onevm["name"]
+        print "VM ... %s" % vmname
+        cmd1 = """ az vm show -d -g %s -n %s""" % ( config["azure_cluster"]["resource_group_name"], vmname)
+        output1 = utils.exec_cmd_local(cmd1)
+        json1 = json.loads(output1)
+        vminfo[vmname] = json1
+        if bShow:
+            print json1
+    return vminfo
+
+def vm_interconnects():
+    vminfo = list_vm(False)
+    ports = []
+    for name, onevm in vminfo.iteritems():
+        ports.append( onevm["publicIps"]+"/32")
+    portinfo = " ".join( ports)
+    cmd = """
+        az network nsg rule create \
+            --resource-group %s \
+            --nsg-name %s \
+            --name tcpinterconnect \
+            --protocol tcp \
+            --priority 850 \
+            --destination-port-range %s \
+            --source-address-prefixes %s
+            --access allow
+        """ %( config["azure_cluster"]["resource_group_name"],
+               config["azure_cluster"]["nsg_name"], 
+               config["cloud_config"]["dev_network"]["tcp_port_ranges"], 
+               portinfo
+               )
+    if verbose:
+        print cmd
+    output = utils.exec_cmd_local(cmd)
+    print (output)    
+    
+
 def delete_vm(vmname):
     cmd = """
         az vm delete --resource-group %s \
@@ -529,9 +576,17 @@ def delete_cluster():
 def run_command( args, command, nargs, parser ):
     if command =="create":
         create_cluster()
+        vm_interconnects()
 
+    elif command =="list":
+        list_vm()
+
+    elif command == "interconnect":
+        vm_interconnects()
+        
     elif command =="scaleup":
         scale_up_vm()
+        vm_interconnects()
 
     elif command =="scaledown":
         vmname = nargs[0]
@@ -540,6 +595,7 @@ def run_command( args, command, nargs, parser ):
         delete_nic(vmname + "VMNic")
         delete_public_ip(vmname + "PublicIP")
         delete_disk(diskID)
+        vm_interconnects()
 
     elif command == "delete":
         delete_cluster()
@@ -564,6 +620,10 @@ Prerequest:
 Command:
   create Create an Azure VM cluster based on the parameters in config file. 
   delete Delete the Azure VM cluster. 
+  scaleup Scale up operation. 
+  scaledown shutdown a particular VM. 
+  list list VMs.
+  interconnect create network links among VMs
   genconfig Generate configuration files for Azure VM cluster. 
   ''') )
     parser.add_argument("--cluster_name", 
@@ -662,7 +722,7 @@ Command:
         if tmpconfig is not None and "cluster_name" in tmpconfig:
             config["azure_cluster"]["cluster_name"] = tmpconfig["cluster_name"]
             config["azure_cluster"]["datasource"] = tmpconfig["datasource"]
-        if tmpconfig is not None and "azure_cluster" in tmpconfig:
+        if tmpconfig is not None and "azure_cluster" in tmpconfig and config["azure_cluster"]["cluster_name"] in  tmpconfig["azure_cluster"]:
             merge_config( config["azure_cluster"], tmpconfig["azure_cluster"][config["azure_cluster"]["cluster_name"]], verbose )
             
     if (args.cluster_name is not None):
