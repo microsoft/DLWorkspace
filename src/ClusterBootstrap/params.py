@@ -30,8 +30,8 @@ default_config_parameters = {
     "discoverserver" : "4.2.2.1", 
     "homeininterval" : "600", 
     "dockerregistry" : "mlcloudreg.westus.cloudapp.azure.com:5000/",
-    "kubernetes_docker_image" : "mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/hyperkube:v1.9.0", 
-    "freeflow_route_docker_image" : "mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/freeflow:0.16", 
+    "kubernetes_docker_image" : "dlws/hyperkube:v1.9.0", 
+    "freeflow_route_docker_image" : "dlws/freeflow:0.16", 
     # There are two docker registries, one for infrastructure (used for pre-deployment)
     # and one for worker docker (pontentially in cluser)
     # A set of infrastructure-dockers 
@@ -42,7 +42,7 @@ default_config_parameters = {
     "etcd3port2" : "4001", # Etcd3port2 is established for legacy purpose. 
     "etcd3portserver" : "2380", # Server port for etcd
     "k8sAPIport" : "1443", # Server port for apiserver
-    "nvidiadriverdocker" : "mlcloudreg.westus.cloudapp.azure.com:5000/nvidia_driver:375.20",
+    "nvidiadriverdocker" : "dlws/nvidia_driver:375.20",
     "nvidiadriverversion" : "375.20",
     # Default port for WebUI, Restful API, 
     "webuiport" : "3080", # Port webUI will run upon, nginx will forward to this port. 
