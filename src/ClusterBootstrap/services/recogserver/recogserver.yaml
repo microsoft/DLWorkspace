@@ -35,7 +35,9 @@ spec:
         - mountPath: /var/log/webui
           name: webui-log         
         - mountPath: /etc/hostname-fqdn
-          name: hostname-fqdn         
+          name: hostname-fqdn     
+        - mountPath: /custom/model
+          name: custom-model                       
       volumes:
       - name: webui-log
         hostPath:
@@ -43,3 +45,11 @@ spec:
       - name: hostname-fqdn
         hostPath:
           path: /etc/hostname-fqdn   
+      - name: custom-model
+        hostPath:
+          path: /custom/model
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule             
