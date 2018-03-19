@@ -145,6 +145,7 @@ namespace RecogServer.Controllers
                                     thisResult["code"] = tuple.Item1;
                                     thisResult["output"] = tuple.Item2;
                                     thisResult["error"] = tuple.Item3;
+                                    _logger.LogInformation($"Image Recog, code=={tuple.Item1}, output=={tuple.Item2}, error = {tuple.Item3}");
                                 } catch (Exception )
                                 {}
                             } else 
@@ -227,6 +228,7 @@ namespace RecogServer.Controllers
                                         thisResult["code"] = tuple.Item1;
                                         thisResult["output"] = tuple.Item2;
                                         thisResult["error"] = tuple.Item3;
+                                        _logger.LogInformation($"Custom Recog, code=={tuple.Item1}, output=={tuple.Item2}, error = {tuple.Item3}");
                                     }
                                     catch (Exception)
                                     { }
