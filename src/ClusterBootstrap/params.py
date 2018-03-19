@@ -88,6 +88,7 @@ default_config_parameters = {
         "main.html": True, 
         "uploadFile.html": True, 
         "imagerecog.html": True,
+        "customrecog.html": True,
         "collectd.graphite.conf.tpl": True,
         "collectd.influxdb.conf.tpl": True,
         "collectd.riemann.conf.tpl": True,
