@@ -34,8 +34,8 @@ namespace WebUI.Utils
             var sbError = new StringBuilder();
 
             process.Exited += (s, ea) => tcs.SetResult(new Tuple<int, string, string>(process.ExitCode, sbOutput.ToString(), sbError.ToString()));
-            process.OutputDataReceived += (s, ea) => sbOutput.Append(ea.Data);
-            process.ErrorDataReceived += (s, ea) => sbError.Append(ea.Data);
+            process.OutputDataReceived += (s, ea) => { if (!String.IsNullOrEmpty(ea.Data)) { sbOutput.AppendLine(ea.Data); }; };
+            process.ErrorDataReceived += (s, ea) => { if (!String.IsNullOrEmpty(ea.Data)) { sbError.AppendLine(ea.Data); }; };
 
             bool started = process.Start();
             if (!started)
