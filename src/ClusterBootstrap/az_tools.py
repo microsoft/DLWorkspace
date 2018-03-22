@@ -289,7 +289,7 @@ def create_nsg():
             --protocol tcp \
             --priority 900 \
             --destination-port-range %s \
-            --source-address-prefixes %s
+            --source-address-prefixes %s \
             --access allow
         """ %( config["azure_cluster"]["resource_group_name"],
                config["azure_cluster"]["nsg_name"], 
@@ -405,7 +405,7 @@ def vm_interconnects():
             --protocol tcp \
             --priority 850 \
             --destination-port-range %s \
-            --source-address-prefixes %s
+            --source-address-prefixes %s \
             --access allow
         """ %( config["azure_cluster"]["resource_group_name"],
                config["azure_cluster"]["nsg_name"], 
