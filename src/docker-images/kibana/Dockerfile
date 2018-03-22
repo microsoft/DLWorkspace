@@ -15,7 +15,7 @@
 # A Dockerfile for creating a Kibana container that is designed
 # to work with Kubernetes logging.
 
-FROM gcr.io/google_containers/ubuntu-slim:0.4
+FROM dlws/ubuntu-slim:0.4
 
 MAINTAINER Mik Vyatskov "vmik@google.com"
 

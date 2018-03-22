@@ -17,6 +17,7 @@ ExecStart=/opt/bin/kubelet \
   --kubeconfig=/etc/kubernetes/worker-kubeconfig.yaml \
   --require-kubeconfig=true \
   --register-with-taints=node-role.kubernetes.io/master=:NoSchedule \
+  --pod-infra-container-image dlws/pause-amd64:3.0 \
   --container-runtime=docker \
   --allow-privileged=true \
   --feature-gates="Accelerators=true" \

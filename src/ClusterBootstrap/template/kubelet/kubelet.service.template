@@ -28,6 +28,7 @@ ExecStart=/opt/bin/kubelet \
   --feature-gates="Accelerators=true" \
   --allow-privileged=true \
   --pod-manifest-path=/etc/kubernetes/manifests \
+  --pod-infra-container-image dlws/pause-amd64:3.0 \
   --network-plugin=cni \
   --cluster_dns={{cnf["dns-server-ip"]}} \
   --docker-disable-shared-pid \
