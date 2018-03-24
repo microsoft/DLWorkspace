@@ -697,6 +697,9 @@ def run_command(args, command, nargs, parser):
         with open("deploy/scaler.yaml") as f:
             scaler_config = yaml.load(f)
 
+        print scaler_config
+
+        groupName = nargs[0]
         for vmSize, nodeGroup in scaler_config["node_groups"].items():
             if vmSize == groupName:
                 nodeGroup["worker_node_num"] = nodeGroup["worker_node_num"] - 1
@@ -706,7 +709,7 @@ def run_command(args, command, nargs, parser):
         with open("deploy/scaler.yaml", "w") as f:
             yaml.dump(scaler_config, f)
 
-        vmname = nargs[0]
+        vmname = nargs[1]
         diskID = get_disk_from_vm(vmname)
         delete_vm(vmname)
         delete_nic(vmname + "VMNic")
