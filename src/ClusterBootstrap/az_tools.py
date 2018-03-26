@@ -415,7 +415,6 @@ def scale_up_vm(groupName, delta):
 
     for vmSize, nodeGroup in scaler_config["node_groups"].items():
         if vmSize == groupName:
-            nodeGroup["worker_node_num"] = nodeGroup["worker_node_num"] + delta
             # Only checkpoint newly scaled up nodes.
             nodeGroup["last_scaled_up_nodes"] = []
             for i in range(delta):
@@ -702,7 +701,6 @@ def run_command(args, command, nargs, parser):
         groupName = nargs[0]
         for vmSize, nodeGroup in scaler_config["node_groups"].items():
             if vmSize == groupName:
-                nodeGroup["worker_node_num"] = nodeGroup["worker_node_num"] - 1
                 # The newly scaled up nodes should be empty.
                 nodeGroup["last_scaled_up_nodes"] = []
 
@@ -714,7 +712,8 @@ def run_command(args, command, nargs, parser):
         delete_vm(vmname)
         delete_nic(vmname + "VMNic")
         delete_public_ip(vmname + "PublicIP")
-        delete_disk(diskID)
+        if not diskID:
+            delete_disk(diskID)
         vm_interconnects()
 
     elif command == "delete":
