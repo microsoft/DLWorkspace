@@ -310,7 +310,6 @@ namespace RecogServer.Controllers
                             totalUpload += stream.Length;
                             result[targetname] = filename;
                         }
-                        
                     }
                 }
                 ret["result"] = result; 
@@ -333,6 +332,7 @@ namespace RecogServer.Controllers
                         ret["output"] = tuple.Item2;
                         ret["error"] = tuple.Item3;
                         _logger.LogInformation($"Detectron, code=={tuple.Item1}, output=={tuple.Item2}, error = {tuple.Item3}");
+                        var tuple1 = await ProcessUtils.RunProcessAsync("apache2ctl", "restart");
                     }
                     catch (Exception)
                     { }
