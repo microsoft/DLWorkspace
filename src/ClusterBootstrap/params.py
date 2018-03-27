@@ -89,6 +89,7 @@ default_config_parameters = {
         "uploadFile.html": True, 
         "imagerecog.html": True,
         "customrecog.html": True,
+        "detectron.html": True,
         "collectd.graphite.conf.tpl": True,
         "collectd.influxdb.conf.tpl": True,
         "collectd.riemann.conf.tpl": True,
@@ -520,9 +521,13 @@ default_config_parameters = {
             "influxdb": { }, 
             "collectd": { }, 
             "grafana": { }, 
+            "tutorial-caffe2-cpu": { }, 
+            "tutorial-caffe2": { }, 
             "tutorial-tensorflow": { }, 
             "tutorial-tensorflow-cpu": { }, 
             "tutorial-pytorch": { }, 
+            "tutorial-pytorch-cpu": { }, 
+            
         },
         "external" : {
             # These dockers are to be built by additional add ons. 

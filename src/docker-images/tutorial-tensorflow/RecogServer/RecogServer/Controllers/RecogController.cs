@@ -252,5 +252,105 @@ namespace RecogServer.Controllers
                 return Ok(new { error = ex.ToString(), result = ret });
             }
         }
+
+
+        [HttpPost]
+        public async Task<IActionResult> Detectron()
+        {
+            var forms = Request.Form;
+            var postdata = new JObject();
+            foreach (var key in forms.Keys)
+            {
+                forms.TryGetValue(key, out StringValues values);
+                if (!String.IsNullOrEmpty(values[0]))
+                {
+                    postdata[key] = values[0];
+                }
+            }
+            // _logger.LogInformation($"Recog image: {postdata}");
+
+            Int64 totalUpload = 0L;
+            var files = Request.Form.Files;
+            JObject ret = new JObject();
+
+            try
+            {
+                var foldername = Guid.NewGuid().ToString();
+                var imageFolder = Path.Combine("/var/www/html/image", foldername);
+                var outputFolder = Path.Combine("/var/www/html/output", foldername);
+                Directory.CreateDirectory(imageFolder);
+                Directory.CreateDirectory(outputFolder);
+
+                var ext = ".jpg";
+
+                var result = new JObject(); 
+
+                foreach (var file in files)
+                {
+                    if (file.Length > 0)
+                    {
+                        var filename = Path.Combine(imageFolder, file.Name);
+                        var targetname = Path.Combine("output", foldername, file.Name);
+
+                        var extused = Path.GetExtension(filename);
+                        if ( String.IsNullOrEmpty(extused))
+                        {
+                            extused = ".jpg";
+                            ext = ".jpg";
+                            filename += extused;
+                            targetname += extused + ".pdf";
+                        }
+                        else
+                        {
+                            targetname += ".pdf";
+                        }
+                        using (var stream = new FileStream(filename, FileMode.Create))
+                        {
+                            await file.CopyToAsync(stream);
+                            totalUpload += stream.Length;
+                            result[targetname] = filename;
+                        }
+                        
+                    }
+                }
+                ret["result"] = result; 
+                var ext1 = ext.Substring(1);
+                            
+                var recogprog = "/detectron/tools/infer_simple.py";
+                
+                var command = $"{recogprog}  --cfg /detectron/configs/12_2017_baselines/e2e_mask_rcnn_R-101-FPN_2x.yaml --output-dir {outputFolder} --image-ext {ext1} --wts /detectron/tools/model_final.pkl {imageFolder}";
+                int nWait = Interlocked.Increment(ref RecogController.nWait);
+
+                if (nWait < RecogController.maxWait)
+                {
+                    try
+                    {
+                        await sem.WaitAsync();
+                        _logger.LogInformation(command);
+                        var tuple = await ProcessUtils.RunProcessAsync("/usr/bin/python2", command);
+                        sem.Release();
+                        ret["code"] = tuple.Item1;
+                        ret["output"] = tuple.Item2;
+                        ret["error"] = tuple.Item3;
+                        _logger.LogInformation($"Detectron, code=={tuple.Item1}, output=={tuple.Item2}, error = {tuple.Item3}");
+                    }
+                    catch (Exception)
+                    { }
+                }
+                else
+                {
+                    ret["output"] = $"Too many recognition process running: {nWait}. Please wait and resubmit request.";
+                }
+                Interlocked.Decrement(ref RecogController.nWait);
+                            
+                return Ok(new { result = ret });
+            }
+            catch (Exception ex)
+            {
+                var errorLog = new { exception = ex.ToString() };
+                _logger.LogInformation("Detectron: {0}", errorLog);
+                return Ok(new { error = ex.ToString(), result = ret });
+            }
+        }
     }
 }
