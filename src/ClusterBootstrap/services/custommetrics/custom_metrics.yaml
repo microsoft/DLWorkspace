@@ -114,6 +114,11 @@ spec:
         - containerPort: 443
         securityContext:
           runAsUser: 0
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
 ---
 apiVersion: v1
 kind: Service
