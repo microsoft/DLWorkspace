@@ -1,7 +1,7 @@
 #!/bin/bash
 # Install python on CoreOS base image
 # Docker environment for development of DL workspace
-sudo apt-get update 
+sudo apt-get update -y
 sudo apt-get upgrade -y
 sudo apt-get install -y --no-install-recommends \
         apt-utils \

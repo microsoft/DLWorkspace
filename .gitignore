@@ -58,3 +58,5 @@ src/WebUI/dotnet/WebPortal/hosting.json
 /.vs/ProjectSettings.json
 /.vs/VSWorkspaceState.json
 /.vs/DLWorkspace/v15/.suo
+
+cluster-autoscaler

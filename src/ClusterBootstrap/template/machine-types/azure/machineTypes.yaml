@@ -1,0 +1,8 @@
+---
+Standard_NC6:
+  cpu: 6
+  memoryInMb: 56339
+  gpu: 1
+Standard_D3_v2:
+  cpu: 4
+  memoryInMb: 14339
