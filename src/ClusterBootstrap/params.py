@@ -587,7 +587,7 @@ scriptblocks = {
         "kubernetes start webportal",
         "kubernetes start cloudmonitor",
         "kubernetes start nginx",
-        "kubernetes start custommetrics"
+        "kubernetes start custommetrics",
         # TODO(harry): we cannot distinguish gce aws from azure, so add the same providerID
         # This will not break current deployment.
         "-y kubernetes patchprovider aztools"
