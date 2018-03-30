@@ -1,5 +1,5 @@
 sudo apt-get update
-sudo apt-get install nfs-kernel-server
+sudo apt-get install -y nfs-kernel-server
 
 sudo mkdir -p /mnt/share 
 sudo chown nobody:nogroup /mnt/share
