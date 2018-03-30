@@ -530,7 +530,6 @@ def get_scaled_nodes_from_config():
         Nodes = []
         for nodename in config["machines"]:
             nodeInfo = config["machines"][nodename]
-            # TODO(harry): maybe change it to "latestScaled"?
             if "scaled" in nodeInfo and nodeInfo["scaled"]==True:
                 if len(nodename.split("."))<3:
                     Nodes.append(nodename+domain)
