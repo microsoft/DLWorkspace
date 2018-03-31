@@ -327,7 +327,7 @@ def SubmitPSDistJob(job):
             nums = {"ps":int(jobParams["numps"]),"worker":int(jobParams["numpsworker"])}
             for role in ["ps","worker"]:
                 for i in range(nums[role]):
-                    distJobParam=copy.copy(jobParams)
+                    distJobParam=copy.deepcopy(jobParams)
                     distJobParam["distId"] = "%s%d" % (role,i)
                     distJobParam["distRole"] = role
 
