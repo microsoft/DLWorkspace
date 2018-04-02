@@ -1,0 +1,8 @@
+{
+  "name":"WebUI",
+  "type":"influxdb",
+  "url":"http://localhost:8086",
+  "access":"proxy",
+  "basicAuth":false,
+  "database":"WebUI"
+}
