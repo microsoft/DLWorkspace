@@ -15,6 +15,7 @@ ADD 		dashboard/app-metrics-web-monitoring.json /var/lib/grafana/data/dashboards
 
 ADD 		datasource/collectd.json /var/lib/grafana/data/ds/collectd.json
 ADD 		datasource/k8s.json /var/lib/grafana/data/ds/k8s.json
+ADD 		datasource/WebUI.json /var/lib/grafana/data/ds/WebUI.json
 
 ADD           init.sh /usr/bin/init.sh
 RUN           chmod +x /usr/bin/init.sh
