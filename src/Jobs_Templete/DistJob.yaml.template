@@ -21,7 +21,10 @@ spec:
   {% endif %} 
   {% if job["hostNetwork"] %}
   hostNetwork: true
-  {% endif %}  
+  {% endif %}
+  {% if job["hostIPC"] %}
+  hostIPC: true
+  {% endif %}   
   containers:
   - name: {{ job["jobId"] }}
     image: {{ job["image"] }}
