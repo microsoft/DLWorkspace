@@ -7,7 +7,7 @@ spec:
   hostNetwork: true
   containers:
   - name: kube-proxy
-    image: {{cnf["kubernetes_docker_image"]}}
+    image: {{cnf["dockers"]["container"]["hyperkube"]["fullname"]}}
     command:
     - /proxy
     - --master={{cnf["api_servers"]}}

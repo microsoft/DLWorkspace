@@ -29,20 +29,11 @@ default_config_parameters = {
     # that is pingable.
     "discoverserver": "4.2.2.1",
     "homeininterval": "600",
-    "dockerregistry": "mlcloudreg.westus.cloudapp.azure.com:5000/",
-    "kubernetes_docker_image": "dlws/hyperkube:v1.9.0",
-    "freeflow_route_docker_image": "dlws/freeflow:0.16",
-    # There are two docker registries, one for infrastructure (used for pre-deployment)
-    # and one for worker docker (pontentially in cluser)
-    # A set of infrastructure-dockers
-    "infrastructure-dockers": {"pxe": True, "pxe-ubuntu": True, },
-    "dockerprefix": "",
-    "dockertag": "latest",
+
     "etcd3port1": "2379",  # Etcd3port1 will be used by App to call Etcd
     "etcd3port2": "4001",  # Etcd3port2 is established for legacy purpose.
     "etcd3portserver": "2380",  # Server port for etcd
     "k8sAPIport": "1443",  # Server port for apiserver
-    "nvidiadriverdocker": "dlws/nvidia_driver:375.20",
     "nvidiadriverversion": "375.20",
     # Default port for WebUI, Restful API,
     # Port webUI will run upon, nginx will forward to this port.
@@ -69,7 +60,7 @@ default_config_parameters = {
     "systemdisk": "/dev/sda",
     "data-disk": "/dev/[sh]d[^a]",
     "partition-configuration": ["1"],
-    "heketi-docker": "heketi/heketi:dev",
+
 
     "render-exclude": {
         "GlusterFSUtils.pyc": True,
@@ -517,13 +508,23 @@ default_config_parameters = {
         },
     },
 
+    # There are two docker registries, one for infrastructure (used for pre-deployment)
+    # and one for worker docker (pontentially in cluser)
+    # A set of infrastructure-dockers
+    "infrastructure-dockers": {"pxe": True, "pxe-ubuntu": True, },
+    "dockerprefix": "",
+    "dockertag": "latest",
+
     # System dockers.
     # These dockers are agnostic of cluster, and can be built once and reused upon multiple clusters.
     # We will gradually migrate mroe and more docker in DLWorkspace to system
     # dockers
+    "heketi-docker": "heketi/heketi:dev",
+    "dockerregistry": "mlcloudreg.westus.cloudapp.azure.com:5000/",
     "dockers": {
         # Hub is docker.io/
-        "hub": "dlws/",
+        #"hub": "dlws/",
+        "hub": "registry.docker-cn.com/dlws/",
         "tag": "1.5",
         "system": {
             "nginx": {},
@@ -537,19 +538,27 @@ default_config_parameters = {
             "tutorial-tensorflow-cpu": {},
             "tutorial-pytorch": {},
             "tutorial-pytorch-cpu": {},
-
         },
         "external": {
             # These dockers are to be built by additional add ons.
-            "hyperkube": {},
-            "freeflow": {},
+            "hyperkube": {"fullname":"registry.docker-cn.com/dlws/hyperkube:v1.9.0"},
+            "freeflow": {"fullname":"registry.docker-cn.com/dlws/freeflow:0.16"},
+            "podinfra": {"fullname":"registry.docker-cn.com/dlws/pause-amd64:3.0"},
+            "nvidiadriver": {"fullname":"registry.docker-cn.com/dlws/nvidia_driver:375.20"},
+            "weave":{"fullname":"registry.docker-cn.com/dlws/weave:2.2.0"},
+            "weave-npc":{"fullname":"registry.docker-cn.com/dlws/weave-npc:2.2.0"},
+            "k8s-dashboard":{"fullname":"registry.docker-cn.com/dlws/kubernetes-dashboard-amd64:v1.5.1"},
+            "kube-dns":{"fullname":"registry.docker-cn.com/dlws/k8s-dns-kube-dns-amd64:1.14.8"},
+            "kube-dnsmasq":{"fullname":"registry.docker-cn.com/dlws/k8s-dns-dnsmasq-nanny-amd64:1.14.8"},
+            "kube-dns-sidecar":{"fullname":"registry.docker-cn.com/dlws/k8s-dns-sidecar-amd64:1.14.8"},
+            "heapster":{"fullname":"registry.docker-cn.com/dlws/heapster:v1.2.0"},            
         },
         "infrastructure": {
             "pxe-ubuntu": {},
             "pxe-coreos": {},
         },
         # This will be automatically populated by config_dockers, so you can refer to any container as:
-        # config["docker"]["container"]["name"]
+        # config["dockers"]["container"]["name"]
         "container": {},
     },
 

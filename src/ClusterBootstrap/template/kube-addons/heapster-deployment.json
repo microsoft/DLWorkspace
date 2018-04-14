@@ -36,7 +36,7 @@
                      "/heapster",
                      "--source=kubernetes.summary_api:''"
                   ],
-                  "image": "dlws/heapster:v1.2.0",
+                  "image": "{{cnf["dockers"]["container"]["heapster"]["fullname"]}}",
                   "name": "heapster",
                   "resources": {
                      "limits": {

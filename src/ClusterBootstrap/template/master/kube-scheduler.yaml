@@ -7,7 +7,7 @@ spec:
   hostNetwork: true
   containers:
   - name: kube-scheduler
-    image: {{cnf["kubernetes_docker_image"]}}
+    image: {{cnf["dockers"]["container"]["hyperkube"]["fullname"]}}
     command:
 {% if "kube_custom_scheduler" in cnf and cnf["kube_custom_scheduler"] %}
     - /kube-scheduler

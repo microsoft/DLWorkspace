@@ -156,7 +156,6 @@ def check_config(cnf):
     _check_config_items("etcd_endpoints",cnf)
     _check_config_items("ssh_cert",cnf)
     _check_config_items("pod_ip_range",cnf)
-    _check_config_items("kubernetes_docker_image",cnf)
     _check_config_items("service_cluster_ip_range",cnf)
     if not os.path.isfile(config["ssh_cert"]):
         raise Exception("ERROR: we cannot find ssh key file at %s. \n please run 'python build-pxe-coreos.py docker_image_name' to generate ssh key file and pxe server image." % config["ssh_cert"]) 
@@ -255,8 +254,11 @@ def update_config():
 
     # update docker image
     if config["kube_custom_scheduler"] or config["kube_custom_cri"]:
-        config["kubernetes_docker_image"] = config["worker-dockerregistry"] + config["dockerprefix"] + "kubernetes:" + config["dockertag"]
-        #print "New docker image: {0}".format(config["kubernetes_docker_image"])
+        if "container" not in config["dockers"]:
+            config["dockers"]["container"] = {}
+        if "hyperkube" not in config["dockers"]["container"]:
+            config["dockers"]["container"]["hyperkube"] = {}            
+        config["dockers"]["container"]["hyperkube"]["fullname"] = config["worker-dockerregistry"] + config["dockerprefix"] + "kubernetes:" + config["dockertag"]
 
 
 def add_ssh_key():
@@ -870,14 +872,14 @@ def get_kubectl_binary(force = False):
 def get_hyperkube_docker(force = False) :
     os.system("mkdir -p ./deploy/bin")
     if force or not os.path.exists("./deploy/bin/hyperkube"):
-        copy_from_docker_image(config['kubernetes_docker_image'], "/hyperkube", "./deploy/bin/hyperkube")
+        copy_from_docker_image(config["dockers"]["container"]["hyperkube"]["fullname"], "/hyperkube", "./deploy/bin/hyperkube")
     if force or not os.path.exists("./deploy/bin/kubelet"):
-        copy_from_docker_image(config['kubernetes_docker_image'], "/kubelet", "./deploy/bin/kubelet")
+        copy_from_docker_image(config["dockers"]["container"]["hyperkube"]["fullname"], "/kubelet", "./deploy/bin/kubelet")
     if force or not os.path.exists("./deploy/bin/kubectl"):
-        copy_from_docker_image(config['kubernetes_docker_image'], "/kubectl", "./deploy/bin/kubectl")		
+        copy_from_docker_image(config["dockers"]["container"]["hyperkube"]["fullname"], "/kubectl", "./deploy/bin/kubectl")		
     if config['kube_custom_cri']:
         if force or not os.path.exists("./deploy/bin/crishim"):
-            copy_from_docker_image(config['kubernetes_docker_image'], "/crishim", "./deploy/bin/crishim")
+            copy_from_docker_image(config["dockers"]["container"]["hyperkube"]["fullname"], "/crishim", "./deploy/bin/crishim")
 
 def deploy_masters(force = False):
     print "==============================================="
@@ -2502,7 +2504,7 @@ def set_freeflow_router(  ):
 
 
 def set_freeflow_router_on_node( node ):
-    docker_image = config["freeflow_route_docker_image"]
+    docker_image = config["dockers"]["container"]["freeflow"]["fullname"]
     docker_name = "freeflow"
     network = config["network"]["container-network-iprange"]
     #setup HOST_IP, iterate all the host IP, find the one in ip range {{network.Container-networking}}
@@ -2970,7 +2972,7 @@ def run_command( args, command, nargs, parser ):
     config["launch-glusterfs-opt"] = args.glusterfs;
 
     get_ssh_config()
-
+    configuration( config, verbose )
     if args.yes:
         global defanswer
         print "Use yes for default answer"
@@ -3046,6 +3048,7 @@ def run_command( args, command, nargs, parser ):
             exit()
 
     elif command == "build":
+        configuration( config, verbose )
         if len(nargs) <=0:
             init_deployment()
 #            response = raw_input_with_default("Create ISO file for deployment (y/n)?")
@@ -3295,7 +3298,8 @@ def run_command( args, command, nargs, parser ):
             gen_configs()
             update_reporting_service()
 
-    elif command == "display":
+    elif command == "display" or command == "clusterinfo":
+        configuration( config, verbose )
         check_master_ETCD_status()
 
     elif command == "webui":

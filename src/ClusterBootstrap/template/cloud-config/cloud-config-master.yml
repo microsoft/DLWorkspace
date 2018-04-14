@@ -31,7 +31,7 @@ coreos:
         Wants=docker.service 
         [Service]
 
-        Environment=IMG={{cnf["nvidiadriverdocker"]}} CNAME=nvidia-driver
+        Environment=IMG={{cnf["dockers"]["container"]["nvidiadriver"]["fullname"]}} CNAME=nvidia-driver
 
         RemainAfterExit=yes
         Restart=on-failure

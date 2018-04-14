@@ -256,10 +256,17 @@ def config_dockers(rootdir, dockerprefix, dockertag, verbose, config):
         # pxe-ubuntu and pxe-coreos is in template
         for dockername in config["dockers"]["external"]:
             usedockername = dockername.lower()
-            config["dockers"]["container"][dockername] = {
-                "fullname": system_docker_registry + usedockername + ":" + system_docker_tag, 
-                "name": usedockername + ":" + system_docker_tag,
-                }                
+            config["dockers"]["container"][dockername] = {}
+            if "fullname" in config["dockers"]["external"][dockername]:
+                config["dockers"]["container"][dockername]["fullname"] = config["dockers"]["external"][dockername]["fullname"]
+            else:
+                config["dockers"]["container"][dockername]["fullname"] = system_docker_registry + usedockername + ":" + system_docker_tag
+
+            if "name" in config["dockers"]["external"][dockername]:
+                config["dockers"]["container"][dockername]["name"] = config["dockers"]["external"][dockername]["name"]
+            else:
+                config["dockers"]["container"][dockername]["name"] = usedockername + ":" + system_docker_tag
+
         # print config["dockers"]
 
 def build_dockers(rootdir, dockerprefix, dockertag, nargs, config, verbose = False, nocache = False ):
