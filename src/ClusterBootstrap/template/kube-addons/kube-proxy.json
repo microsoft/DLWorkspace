@@ -60,7 +60,13 @@
                         "name":"lib-modules",
                         "readOnly":true
                      }
-                  ]
+                  ],
+                  "livenessProbe": {
+                     "httpGet": {
+                        "path": "/healthz",
+                        "port": 10256
+                     }
+                  }
                }
             ],
             "tolerations":[
