@@ -1,6 +1,9 @@
 #!/bin/bash
-sudo mv /var/log /mnt/log
-sudo ln -s /mnt/log /var/log
+sudo mv /var/log /var/log.bak
+sudo mkdir -p /mnt/log
+sudo rm -r /var/log ; sudo ln -s /mnt/log /var/log
+sudo mv /var/log.bak/* /mnt/log
+sudo rm -r /var/log.bak
 sudo mkdir -p /mnt/lib/docker 
 sudo mkdir -p /mnt/lib/mysql
 sudo mkdir -p /mnt/lib/influxdb
