@@ -523,8 +523,8 @@ default_config_parameters = {
     "dockerregistry": "mlcloudreg.westus.cloudapp.azure.com:5000/",
     "dockers": {
         # Hub is docker.io/
-        #"hub": "dlws/",
-        "hub": "registry.docker-cn.com/dlws/",
+        "hub": "dlws/",
+        #"hub": "registry.docker-cn.com/dlws/",
         "tag": "1.5",
         "system": {
             "nginx": {},
@@ -541,17 +541,17 @@ default_config_parameters = {
         },
         "external": {
             # These dockers are to be built by additional add ons.
-            "hyperkube": {"fullname":"registry.docker-cn.com/dlws/hyperkube:v1.9.0"},
-            "freeflow": {"fullname":"registry.docker-cn.com/dlws/freeflow:0.16"},
-            "podinfra": {"fullname":"registry.docker-cn.com/dlws/pause-amd64:3.0"},
-            "nvidiadriver": {"fullname":"registry.docker-cn.com/dlws/nvidia_driver:375.20"},
-            "weave":{"fullname":"registry.docker-cn.com/dlws/weave:2.2.0"},
-            "weave-npc":{"fullname":"registry.docker-cn.com/dlws/weave-npc:2.2.0"},
-            "k8s-dashboard":{"fullname":"registry.docker-cn.com/dlws/kubernetes-dashboard-amd64:v1.5.1"},
-            "kube-dns":{"fullname":"registry.docker-cn.com/dlws/k8s-dns-kube-dns-amd64:1.14.8"},
-            "kube-dnsmasq":{"fullname":"registry.docker-cn.com/dlws/k8s-dns-dnsmasq-nanny-amd64:1.14.8"},
-            "kube-dns-sidecar":{"fullname":"registry.docker-cn.com/dlws/k8s-dns-sidecar-amd64:1.14.8"},
-            "heapster":{"fullname":"registry.docker-cn.com/dlws/heapster:v1.2.0"},            
+            "hyperkube": {"fullname":"dlws/hyperkube:v1.9.0"},
+            "freeflow": {"fullname":"dlws/freeflow:0.16"},
+            "podinfra": {"fullname":"dlws/pause-amd64:3.0"},
+            "nvidiadriver": {"fullname":"dlws/nvidia_driver:375.20"},
+            "weave":{"fullname":"dlws/weave:2.2.0"},
+            "weave-npc":{"fullname":"dlws/weave-npc:2.2.0"},
+            "k8s-dashboard":{"fullname":"dlws/kubernetes-dashboard-amd64:v1.5.1"},
+            "kube-dns":{"fullname":"dlws/k8s-dns-kube-dns-amd64:1.14.8"},
+            "kube-dnsmasq":{"fullname":"dlws/k8s-dns-dnsmasq-nanny-amd64:1.14.8"},
+            "kube-dns-sidecar":{"fullname":"dlws/k8s-dns-sidecar-amd64:1.14.8"},
+            "heapster":{"fullname":"dlws/heapster:v1.2.0"},            
         },
         "infrastructure": {
             "pxe-ubuntu": {},
