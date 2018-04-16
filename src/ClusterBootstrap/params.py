@@ -552,6 +552,9 @@ default_config_parameters = {
             "kube-dnsmasq":{"fullname":"dlws/k8s-dns-dnsmasq-nanny-amd64:1.14.8"},
             "kube-dns-sidecar":{"fullname":"dlws/k8s-dns-sidecar-amd64:1.14.8"},
             "heapster":{"fullname":"dlws/heapster:v1.2.0"},            
+            "etcd":{"fullname":"dlws/etcd:3.1.10"},            
+            "mysql":{"fullname":"dlws/mysql:5.6"},            
+            "phpmyadmin":{"fullname":"dlws/phpmyadmin:4.7.6"},            
         },
         "infrastructure": {
             "pxe-ubuntu": {},
