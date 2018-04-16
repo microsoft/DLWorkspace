@@ -1,7 +1,7 @@
 [Service]
 ExecStart=/usr/bin/docker run -v /usr/share/ca-certificates/mozilla:/etc/ssl/certs -v /etc/etcd/ssl:/etc/etcd/ssl -v /var/etcd:/var/etcd -p {{cnf["etcd3port1"]}}:{{cnf["etcd3port1"]}} -p {{cnf["etcd3portserver"]}}:{{cnf["etcd3portserver"]}} \
   --net=host \
-  --name etcd3 dlws/etcd:3.1.10 /usr/local/bin/etcd \
+  --name etcd3 {{cnf["dockers"]["container"]["etcd"]["fullname"]}} /usr/local/bin/etcd \
   -name {{cnf["hostname"]}} \
   -advertise-client-urls https://{{cnf["etcd_node_ip"]}}:{{cnf["etcd3port1"]}} \
   -listen-client-urls https://0.0.0.0:{{cnf["etcd3port1"]}} \
