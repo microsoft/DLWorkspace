@@ -6,6 +6,7 @@
 #mv /tmp/test-etcd/etcd /opt/bin && \
 #mv /tmp/test-etcd/etcdctl /opt/bin 
 #rm -r /tmp/test-etcd
+docker rm -f etcd3
 systemctl daemon-reload
 systemctl start etcd3
 systemctl enable etcd3
