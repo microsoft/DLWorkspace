@@ -26,7 +26,7 @@ spec:
     spec:
       containers:
       - name: cloud-fluentd-es
-        image: dlws/fluentd-elasticsearch:v2.0.2
+        image: {{cnf["dockers"]["container"]["fluentd-elasticsearch"]["fullname"]}}
         env:
         - name: FLUENTD_ARGS
           value: --no-supervisor -q

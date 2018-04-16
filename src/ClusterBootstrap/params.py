@@ -551,10 +551,12 @@ default_config_parameters = {
             "kube-dns":{"fullname":"dlws/k8s-dns-kube-dns-amd64:1.14.8"},
             "kube-dnsmasq":{"fullname":"dlws/k8s-dns-dnsmasq-nanny-amd64:1.14.8"},
             "kube-dns-sidecar":{"fullname":"dlws/k8s-dns-sidecar-amd64:1.14.8"},
-            "heapster":{"fullname":"dlws/heapster:v1.2.0"},            
+            "heapster":{"fullname":"dlws/heapster-amd64:v1.4.0"},            
             "etcd":{"fullname":"dlws/etcd:3.1.10"},            
             "mysql":{"fullname":"dlws/mysql:5.6"},            
-            "phpmyadmin":{"fullname":"dlws/phpmyadmin:4.7.6"},            
+            "phpmyadmin":{"fullname":"dlws/phpmyadmin:4.7.6"},
+            "fluentd-elasticsearch":{"fullname":"dlws/fluentd-elasticsearch:v2.0.2"},            
+
         },
         "infrastructure": {
             "pxe-ubuntu": {},
