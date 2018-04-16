@@ -166,7 +166,7 @@ items:
                     fieldRef:
                       apiVersion: v1
                       fieldPath: spec.nodeName
-              image: 'mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/weave-kube:2.2.0'
+              image: '{{cnf["dockers"]["container"]["weave"]["fullname"]}}' 
               livenessProbe:
                 httpGet:
                   host: 127.0.0.1
@@ -201,7 +201,7 @@ items:
                     fieldRef:
                       apiVersion: v1
                       fieldPath: spec.nodeName
-              image: 'mlcloudreg.westus.cloudapp.azure.com:5000/dlworkspace/weave-npc:2.2.0'
+              image: '{{cnf["dockers"]["container"]["weave-npc"]["fullname"]}}'
               resources:
                 requests:
                   cpu: 10m

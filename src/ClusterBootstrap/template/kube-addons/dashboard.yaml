@@ -39,7 +39,7 @@ spec:
       volumes:
       containers:
       - name: kubernetes-dashboard
-        image: dlws/kubernetes-dashboard-amd64:v1.5.1
+        image: {{cnf["dockers"]["container"]["k8s-dashboard"]["fullname"]}}
         imagePullPolicy: Always
         ports:
         - containerPort: 9090
