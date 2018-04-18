@@ -834,6 +834,13 @@
                                                 </md-input-container>
 
                                                 <md-input-container class="md-block" flex="50">
+                                                    <label> Use Host IPC in container? </label>
+                                                    <md-switch class="md-primary" ng-model="current.hostIPC" md-no-asterisk>
+                                                    </md-switch>
+                                                </md-input-container>
+
+
+                                                <md-input-container class="md-block" flex="50">
                                                     <label>Container DNS Policy</label>
                                                     <md-select name="dnsPolicy" ng-model="current.dnsPolicy" required md-no-asterisk>
                                                         <md-option value="Default" selected>Default</md-option>

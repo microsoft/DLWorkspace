@@ -76,7 +76,7 @@ spec:
           optional: true
       containers:
       - name: kubedns
-        image: dlws/k8s-dns-kube-dns-amd64:1.14.8
+        image: {{cnf["dockers"]["container"]["kube-dns"]["fullname"]}}
         imagePullPolicy: IfNotPresent
         resources:
           # TODO: Set memory limits when we've profiled the container for large
@@ -128,7 +128,7 @@ spec:
         - name: kube-dns-config
           mountPath: /kube-dns-config
       - name: dnsmasq
-        image: dlws/k8s-dns-dnsmasq-nanny-amd64:1.14.8
+        image: {{cnf["dockers"]["container"]["kube-dnsmasq"]["fullname"]}}
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:
@@ -168,7 +168,7 @@ spec:
         - name: kube-dns-config
           mountPath: /etc/k8s/dns/dnsmasq-nanny
       - name: sidecar
-        image: dlws/k8s-dns-sidecar-amd64:1.14.8
+        image: {{cnf["dockers"]["container"]["kube-dns-sidecar"]["fullname"]}}
         imagePullPolicy: IfNotPresent
         livenessProbe:
           httpGet:

@@ -27,7 +27,7 @@ spec:
       serviceAccountName: heapster
       containers:
       - name: heapster
-        image: dlws/heapster-amd64:v1.4.0
+        image: {{cnf["dockers"]["container"]["heapster"]["fullname"]}}
         imagePullPolicy: IfNotPresent
         command:
         - /heapster

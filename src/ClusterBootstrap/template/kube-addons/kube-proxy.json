@@ -30,7 +30,7 @@
                      "proxy",
                      "--kubeconfig=/etc/kubernetes/worker-kubeconfig.yaml"
                   ],
-                  "image": "{{cnf["kubernetes_docker_image"]}}",
+                  "image": "{{cnf["dockers"]["container"]["hyperkube"]["fullname"]}}",
                   "name": "kube-proxy",
                   "resources": {
                      "requests": {
@@ -60,7 +60,13 @@
                         "name":"lib-modules",
                         "readOnly":true
                      }
-                  ]
+                  ],
+                  "livenessProbe": {
+                     "httpGet": {
+                        "path": "/healthz",
+                        "port": 10256
+                     }
+                  }
                }
             ],
             "tolerations":[

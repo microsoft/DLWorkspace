@@ -25,7 +25,7 @@ do
 
 			echo "Starting kubelet service"
 		    #wget -q -O "/opt/bin/kubelet" http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet
-			kubeid=$(docker create {{cnf["kubernetes_docker_image"]}})
+			kubeid=$(docker create {{cnf["dockers"]["container"]["hyperkube"]["fullname"]}})
 			docker cp $kubeid:/hyperkube /opt/bin/kubelet
 			docker rm -v $kubeid
 		    chmod +x /opt/bin/kubelet

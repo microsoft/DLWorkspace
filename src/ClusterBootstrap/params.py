@@ -29,20 +29,11 @@ default_config_parameters = {
     # that is pingable.
     "discoverserver": "4.2.2.1",
     "homeininterval": "600",
-    "dockerregistry": "mlcloudreg.westus.cloudapp.azure.com:5000/",
-    "kubernetes_docker_image": "dlws/hyperkube:v1.9.0",
-    "freeflow_route_docker_image": "dlws/freeflow:0.16",
-    # There are two docker registries, one for infrastructure (used for pre-deployment)
-    # and one for worker docker (pontentially in cluser)
-    # A set of infrastructure-dockers
-    "infrastructure-dockers": {"pxe": True, "pxe-ubuntu": True, },
-    "dockerprefix": "",
-    "dockertag": "latest",
+
     "etcd3port1": "2379",  # Etcd3port1 will be used by App to call Etcd
     "etcd3port2": "4001",  # Etcd3port2 is established for legacy purpose.
     "etcd3portserver": "2380",  # Server port for etcd
     "k8sAPIport": "1443",  # Server port for apiserver
-    "nvidiadriverdocker": "dlws/nvidia_driver:375.20",
     "nvidiadriverversion": "375.20",
     # Default port for WebUI, Restful API,
     # Port webUI will run upon, nginx will forward to this port.
@@ -69,7 +60,7 @@ default_config_parameters = {
     "systemdisk": "/dev/sda",
     "data-disk": "/dev/[sh]d[^a]",
     "partition-configuration": ["1"],
-    "heketi-docker": "heketi/heketi:dev",
+
 
     "render-exclude": {
         "GlusterFSUtils.pyc": True,
@@ -517,13 +508,23 @@ default_config_parameters = {
         },
     },
 
+    # There are two docker registries, one for infrastructure (used for pre-deployment)
+    # and one for worker docker (pontentially in cluser)
+    # A set of infrastructure-dockers
+    "infrastructure-dockers": {"pxe": True, "pxe-ubuntu": True, },
+    "dockerprefix": "",
+    "dockertag": "latest",
+
     # System dockers.
     # These dockers are agnostic of cluster, and can be built once and reused upon multiple clusters.
     # We will gradually migrate mroe and more docker in DLWorkspace to system
     # dockers
+    "heketi-docker": "heketi/heketi:dev",
+    "dockerregistry": "mlcloudreg.westus.cloudapp.azure.com:5000/",
     "dockers": {
         # Hub is docker.io/
         "hub": "dlws/",
+        #"hub": "registry.docker-cn.com/dlws/",
         "tag": "1.5",
         "system": {
             "nginx": {},
@@ -537,19 +538,32 @@ default_config_parameters = {
             "tutorial-tensorflow-cpu": {},
             "tutorial-pytorch": {},
             "tutorial-pytorch-cpu": {},
-
         },
         "external": {
             # These dockers are to be built by additional add ons.
-            "hyperkube": {},
-            "freeflow": {},
+            "hyperkube": {"fullname":"dlws/hyperkube:v1.9.0"},
+            "freeflow": {"fullname":"dlws/freeflow:0.16"},
+            "podinfra": {"fullname":"dlws/pause-amd64:3.0"},
+            "nvidiadriver": {"fullname":"dlws/nvidia_driver:375.20"},
+            "weave":{"fullname":"dlws/weave:2.2.0"},
+            "weave-npc":{"fullname":"dlws/weave-npc:2.2.0"},
+            "k8s-dashboard":{"fullname":"dlws/kubernetes-dashboard-amd64:v1.5.1"},
+            "kube-dns":{"fullname":"dlws/k8s-dns-kube-dns-amd64:1.14.8"},
+            "kube-dnsmasq":{"fullname":"dlws/k8s-dns-dnsmasq-nanny-amd64:1.14.8"},
+            "kube-dns-sidecar":{"fullname":"dlws/k8s-dns-sidecar-amd64:1.14.8"},
+            "heapster":{"fullname":"dlws/heapster-amd64:v1.4.0"},            
+            "etcd":{"fullname":"dlws/etcd:3.1.10"},            
+            "mysql":{"fullname":"dlws/mysql:5.6"},            
+            "phpmyadmin":{"fullname":"dlws/phpmyadmin:4.7.6"},
+            "fluentd-elasticsearch":{"fullname":"dlws/fluentd-elasticsearch:v2.0.2"},            
+
         },
         "infrastructure": {
             "pxe-ubuntu": {},
             "pxe-coreos": {},
         },
         # This will be automatically populated by config_dockers, so you can refer to any container as:
-        # config["docker"]["container"]["name"]
+        # config["dockers"]["container"]["name"]
         "container": {},
     },
 
@@ -557,7 +571,8 @@ default_config_parameters = {
         "vnet_range": "192.168.0.0/16",
         "default_admin_username": "dlwsadmin",
         "tcp_port_for_pods": "30000-32767",
-        "tcp_port_ranges": "80 443 30000-32767",
+        "tcp_port_ranges": "80 443 30000-32767 25826",
+        "udp_port_ranges": "25826",
         "dev_network": {
             "tcp_port_ranges": "22 1443 2379 3306 5000 8086",
             # Need to white list dev machines to connect
