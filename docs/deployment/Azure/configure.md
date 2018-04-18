@@ -50,4 +50,8 @@ Usually, a CPU VM will be used for infra_vm_size, and a GPU VM will be used for 
 az vm list-sizes --location westus2
 ```
 
+* Configure MySql as follows:
+
+datasource: MySQL
+mysql_password: <<mysql_password>>
 

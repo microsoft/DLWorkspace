@@ -22,6 +22,8 @@ spec:
         task: monitoring
         k8s-app: heapster
     spec:
+      nodeSelector:
+        infrastructure: active
       serviceAccountName: heapster
       containers:
       - name: heapster

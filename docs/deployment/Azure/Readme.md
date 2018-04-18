@@ -1,8 +1,8 @@
 # Deploy DL Workspace cluster on Azure. 
 
-This document describes the procedure to deploy DL Workspace cluster on Azure. We are still improving the deployment procedure on Azure. Please contact the authors if you have encounter deployment issue. 
+This document describes the procedure to deploy a DL Workspace cluster on Azure. With autoscale enabled DL Workspace, VM will be created (and released) on demand when you launch DL jobs ( e.g., TensorFlow, Pytorch, Caffe2), thus save your money in operation.
 
-Please note that the procedure below doesn't deploy HDFS/Spark on DLWorkspace cluster on Azure. So Spark job execution is not available on Azure Cluster. 
+Please note that the procedure below doesn't deploy HDFS/Spark on DLWorkspace cluster on Azure (Spark job execution is not available on Azure Cluster).
 
 1. Follow [this document](../../DevEnvironment/Readme.md) to setup the dev environment of DLWorkspace. Login to your Azure subscription on your dev machine via:
 
@@ -68,4 +68,5 @@ Please note that if you are not Microsoft user, you should remove the
 
 8. If you run into a deployment issue, please check [here](FAQ.md) first. 
 
+9. If you want to deploy a DLWorkspace cluster that can be autoscaled (i.e., automatically create/release VM when needed), please follow the following additional steps.
 

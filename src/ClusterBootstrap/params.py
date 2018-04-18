@@ -702,7 +702,7 @@ scriptblocks = {
         "webui",
         # If the daemonset is restarted too soon, before kill is successful, it
         # may not be able to be srated all.
-        "sleep 120",
+        # "sleep 120", sleep is no longer needed to kubernetes 1.9
         "kubernetes start jobmanager",
         "kubernetes start restfulapi",
         "kubernetes start webportal",
