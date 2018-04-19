@@ -538,6 +538,7 @@ default_config_parameters = {
             "tutorial-tensorflow-cpu": {},
             "tutorial-pytorch": {},
             "tutorial-pytorch-cpu": {},
+            "tutorial-mask-rcnn": {},
         },
         "external": {
             # These dockers are to be built by additional add ons.
