@@ -1,5 +1,5 @@
 #FROM ubuntu:16.04
-FROM tensorflow/tensorflow:1.4.0-rc1-devel-gpu-py3
+FROM tensorflow/tensorflow:1.8.0-rc0-devel-gpu-py3
 MAINTAINER Katherine Li <kml11@live.com>
 
 RUN umask 022
@@ -85,10 +85,13 @@ RUN pip3 install --upgrade --ignore-installed setuptools
 
 RUN git clone https://github.com/ppwwyyxx/tensorpack.git
 
+
 RUN mkdir -p /var/log/apache2
 RUN chmod 0777 /var/log/apache2
 RUN chmod -R 0777 /root
 RUN chmod -R 0777 /tensorflow
+
+
 
 # RUN apt-get update -y && apt-get install ssh-askpass rssh molly-guard ufw monkeysphere python3-ndg-httpsclient -y
 RUN curl -L "https://storage.googleapis.com/download.tensorflow.org/models/inception_v3_2016_08_28_frozen.pb.tar.gz" | tar -C /tensorflow/tensorflow/examples/label_image/data -xz
@@ -113,7 +116,13 @@ ENV DOTNET_CLI_TELEMETRY_OPTOUT 1
 # python /root/certificate-service/genkey-restapi.py && 
 
 # CMD /bin/bash -c "service apache2 start && sleep infinity"
-WORKDIR /tensorflow
+# Install Mask_RCNN
+RUN git clone https://github.com/matterport/Mask_RCNN.git
+RUN cd /root/Mask_RCNN; pip3 install -r requirements.txt; python3 setup.py install
+
+# Instal cocotool
+RUN git clone https://github.com/waleedka/coco.git
+RUN cd /root/coco/PythonAPI; make
 
 
 CMD /bin/bash -c /run.sh
