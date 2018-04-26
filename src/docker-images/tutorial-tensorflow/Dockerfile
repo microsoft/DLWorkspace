@@ -1,5 +1,5 @@
 #FROM ubuntu:16.04
-FROM tensorflow/tensorflow:1.4.0-rc1-devel-gpu-py3
+FROM tensorflow/tensorflow:1.7.0-devel-gpu-py3
 MAINTAINER Katherine Li <kml11@live.com>
 
 RUN umask 022
@@ -44,9 +44,10 @@ RUN pip3 install flask flask.restful
 RUN pip3 install bs4 requests 
 RUN pip3 install -U flask-cors
 RUN pip3 install opencv-python pandas
+RUN pip3 install keras 
 RUN pip3 install -U --no-cache-dir git+https://github.com/ppwwyyxx/tensorpack.git
 
-RUN apt-get update -y && apt-get install -y nodejs  
+RUN apt-get update -y && apt-get install -y nodejs python3-pydot 
 # RUN sudo npm install bower -g 
 
 # netcore 2.0

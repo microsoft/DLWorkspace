@@ -122,7 +122,8 @@ RUN cd /root/Mask_RCNN; pip3 install -r requirements.txt; python3 setup.py insta
 
 # Instal cocotool
 RUN git clone https://github.com/waleedka/coco.git
-RUN cd /root/coco/PythonAPI; make
+RUN cd /root/coco/PythonAPI; make; make install; python3 setup.py install
+RUN apt-get update -y && apt-get install -y libxrender1
 
 
 CMD /bin/bash -c /run.sh
