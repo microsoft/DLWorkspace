@@ -670,6 +670,7 @@ namespace WindowsAuth.Controllers
 
                     if (!String.IsNullOrEmpty(useServer))
                     {
+                        _logger.LogDebug($"Attempt to contact WinBind server {useServer} for membershhip");
                         var userID = await FindGroupMembershipByServer(useServer);
                         if (!Object.ReferenceEquals(userID, null))
                             lst.Add(userID);
@@ -736,6 +737,7 @@ namespace WindowsAuth.Controllers
                             _logger.LogInformation("Cluster Option {0} is {1}", i + 1, lstClusters[i]);
                         }
                     };
+                    _logger.LogInformation("Authentication information examined...");
                 }
                 else
                 {
@@ -758,7 +760,8 @@ namespace WindowsAuth.Controllers
                 ViewData["smbUserPassword"] = smbUserPassword;
                 var configString = Startup.DashboardConfig.ToString();
                 var configArray = ASCIIEncoding.ASCII.GetBytes(configString);
-                ViewData["Dashboard"] = Convert.ToBase64String(configArray) ; 
+                ViewData["Dashboard"] = Convert.ToBase64String(configArray) ;
+                _logger.LogInformation("Dash board prepared ...");
             }
             return View(vm);
         }
