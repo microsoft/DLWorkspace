@@ -52,7 +52,7 @@ az vm list-sizes --location westus2
 
 * Configure MySql as follows:
 
+```
 datasource: MySQL
-
 mysql_password: <<mysql_password>>
-
+```
