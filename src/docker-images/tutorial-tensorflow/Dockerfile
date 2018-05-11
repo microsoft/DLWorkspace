@@ -1,5 +1,5 @@
 #FROM ubuntu:16.04
-FROM tensorflow/tensorflow:1.7.0-devel-gpu-py3
+FROM tensorflow/tensorflow:1.8.0-devel-gpu-py3
 MAINTAINER Katherine Li <kml11@live.com>
 
 RUN umask 022
