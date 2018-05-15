@@ -115,6 +115,9 @@ ENV DOTNET_CLI_TELEMETRY_OPTOUT 1
 # Need to run privileged mode
 # python /root/certificate-service/genkey-restapi.py && 
 
+# Additional utility
+RUN mkdir /utils; cd /utils;  git clone --recurse-submodules git://github.com/DLWorkspace/DLWorkspace-Utils
+
 # CMD /bin/bash -c "service apache2 start && sleep infinity"
 WORKDIR /tensorflow
 

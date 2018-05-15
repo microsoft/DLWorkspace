@@ -1,5 +1,5 @@
 #FROM ubuntu:16.04
-FROM tensorflow/tensorflow:1.6.0-devel-py3
+FROM tensorflow/tensorflow:1.8.0-devel-py3
 MAINTAINER Katherine Li <kml11@live.com>
 
 RUN umask 022
@@ -44,9 +44,12 @@ RUN pip3 install flask flask.restful
 RUN pip3 install bs4 requests 
 RUN pip3 install -U flask-cors
 RUN pip3 install opencv-python pandas
+RUN pip3 install keras 
 RUN pip3 install -U --no-cache-dir git+https://github.com/ppwwyyxx/tensorpack.git
 
-RUN apt-get update -y && apt-get install -y nodejs  
+RUN apt-get update -y && apt-get install -y nodejs python3-pydot python3-skimage
+RUN pip3 install git+https://github.com/aleju/imgaug
+
 # RUN sudo npm install bower -g 
 
 # netcore 2.0
@@ -63,8 +66,6 @@ ENV APACHE_LOG_DIR /var/log/apache2
 
 #EXPOSE 80
 #EXPOSE 5000
-
-
 
 
 
@@ -87,7 +88,6 @@ RUN pip3 install --upgrade --ignore-installed setuptools
 
 RUN git clone https://github.com/ppwwyyxx/tensorpack.git
 
-RUN mkdir -p tensorflow/examples/label_image/data
 RUN mkdir -p /var/log/apache2
 RUN chmod 0777 /var/log/apache2
 RUN chmod -R 0777 /root
@@ -98,7 +98,7 @@ RUN curl -L "https://storage.googleapis.com/download.tensorflow.org/models/incep
 
 ENV LD_LIBRARY_PATH /usr/local/nvidia/lib64/
 
-EXPOSE 1380 180
+EXPOSE 180 1443 1280
 ADD RecogServer /RecogServer
 COPY wwwroot /var/www/html
 RUN chmod -R 755 /var/www/html/
@@ -114,6 +114,9 @@ ENV DOTNET_CLI_TELEMETRY_OPTOUT 1
 
 # Need to run privileged mode
 # python /root/certificate-service/genkey-restapi.py && 
+
+# Additional utility
+RUN mkdir /utils; cd /utils;  git clone --recurse-submodules git://github.com/DLWorkspace/DLWorkspace-Utils
 
 # CMD /bin/bash -c "service apache2 start && sleep infinity"
 WORKDIR /tensorflow
