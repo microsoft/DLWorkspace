@@ -1,6 +1,6 @@
 #FROM ubuntu:16.04
-FROM tensorflow/tensorflow:1.8.0-devel-gpu-py3
-MAINTAINER Katherine Li <kml11@live.com>
+FROM uber/horovod:0.13.0-tf1.8.0-torch0.4.0-py3.5
+MAINTAINER Jin Li <jinlmsft@hotmail.com>
 
 RUN umask 022
 RUN apt-get -y update && \
@@ -21,37 +21,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
         wget \
         vim \
-        python-dev \
-        python-numpy \
-        python-pip \
-        python-yaml \
         locales \
         curl \
-        apt-transport-https       
-
-
-RUN apt-get update -y && \
-    apt-get -y install apache2 libapache2-mod-wsgi-py3
-
-RUN git clone https://github.com/tensorflow/models
-
-RUN mkdir -p /var/www/html/
-
-RUN apt-get update -y && apt-get install -y python3-dev python3-pip python3-yaml python3-pycurl locales ssh-askpass
-RUN pip3 install --upgrade pip 
-RUN pip3 install setuptools 
-RUN pip3 install flask flask.restful 
-RUN pip3 install bs4 requests 
-RUN pip3 install -U flask-cors
-RUN pip3 install opencv-python pandas
-RUN pip3 install keras 
-RUN pip3 install -U --no-cache-dir git+https://github.com/ppwwyyxx/tensorpack.git
-
-
-RUN apt-get update -y && apt-get install -y nodejs python3-pydot python3-skimage
-RUN pip3 install git+https://github.com/aleju/imgaug
-
-# RUN sudo npm install bower -g 
+        apt-transport-https \
+        screen \
+        htop      
 
 # netcore 2.0
 RUN curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
@@ -60,6 +34,22 @@ RUN sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/microsoft
 RUN apt-get update
 RUN apt-get install -y dotnet-sdk-2.0.0
 RUN apt-get install -y aspnetcore-store-2.0.0
+RUN apt-get update -y && \
+    apt-get -y install apache2 libapache2-mod-wsgi-py3
+
+RUN mkdir -p /var/www/html/
+
+RUN apt-get update -y && apt-get install -y python3-pycurl locales ssh-askpass
+RUN pip install --upgrade pip 
+RUN pip install setuptools 
+RUN pip install flask flask.restful 
+RUN pip install bs4 requests 
+RUN pip install -U flask-cors
+RUN pip install opencv-python pandas jupyter
+
+RUN apt-get update -y && apt-get install -y nodejs  
+# RUN sudo npm install bower -g 
+
 
 ENV APACHE_RUN_USER www-data
 ENV APACHE_RUN_GROUP www-data
@@ -68,7 +58,9 @@ ENV APACHE_LOG_DIR /var/log/apache2
 #EXPOSE 80
 #EXPOSE 5000
 
+RUN chmod -R 755 /var/www/html/
 
+COPY wwwroot /var/www/html
 
 RUN rm /etc/apache2/mods-enabled/mpm_*
 COPY mpm_prefork.conf /etc/apache2/mods-available/mpm_prefork.conf
@@ -85,24 +77,17 @@ ADD run.sh /run.sh
 RUN chmod +x /run.sh
 
 RUN apt-get update -y && apt-get install -y openssh-server sudo
-RUN pip3 install --upgrade --ignore-installed setuptools 
-
-RUN git clone https://github.com/ppwwyyxx/tensorpack.git
 
 RUN mkdir -p /var/log/apache2
 RUN chmod 0777 /var/log/apache2
 RUN chmod -R 0777 /root
-RUN chmod -R 0777 /tensorflow
 
 # RUN apt-get update -y && apt-get install ssh-askpass rssh molly-guard ufw monkeysphere python3-ndg-httpsclient -y
-RUN curl -L "https://storage.googleapis.com/download.tensorflow.org/models/inception_v3_2016_08_28_frozen.pb.tar.gz" | tar -C /tensorflow/tensorflow/examples/label_image/data -xz
 
 ENV LD_LIBRARY_PATH /usr/local/nvidia/lib64/
 
-EXPOSE 180 1443 1280
+EXPOSE 1380 180
 ADD RecogServer /RecogServer
-COPY wwwroot /var/www/html
-RUN chmod -R 755 /var/www/html/
 
 #Telemetry
 #--------------
@@ -116,11 +101,6 @@ ENV DOTNET_CLI_TELEMETRY_OPTOUT 1
 # Need to run privileged mode
 # python /root/certificate-service/genkey-restapi.py && 
 
-# Additional utility
-RUN mkdir /utils; cd /utils;  git clone --recurse-submodules git://github.com/DLWorkspace/DLWorkspace-Utils
-
 # CMD /bin/bash -c "service apache2 start && sleep infinity"
-WORKDIR /tensorflow
-
 
 CMD /bin/bash -c /run.sh

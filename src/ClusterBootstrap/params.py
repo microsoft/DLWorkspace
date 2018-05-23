@@ -525,7 +525,7 @@ default_config_parameters = {
         # Hub is docker.io/
         "hub": "dlws/",
         #"hub": "registry.docker-cn.com/dlws/",
-        "tag": "1.5",
+        "tag": "1.6", # migrate docker to 1.6
         "system": {
             "nginx": {},
             "zookeeper": {},
@@ -539,6 +539,7 @@ default_config_parameters = {
             "tutorial-pytorch": {},
             "tutorial-pytorch-cpu": {},
             "tutorial-mask-rcnn": {},
+            "tutorial-horovod": {},
         },
         "external": {
             # These dockers are to be built by additional add ons.
