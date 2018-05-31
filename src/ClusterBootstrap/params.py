@@ -540,6 +540,7 @@ default_config_parameters = {
             "tutorial-pytorch-cpu": {},
             "tutorial-mask-rcnn": {},
             "tutorial-horovod": {},
+            "tutorial-dl": {},
         },
         "external": {
             # These dockers are to be built by additional add ons.
