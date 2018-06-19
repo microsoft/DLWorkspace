@@ -229,6 +229,16 @@ default_config_mapping = {
 def isInstallOnCoreOS():
     return config["platform-scripts"]!="ubuntu" and config["platform-scripts"]!="acs"
 
+def update_docker_image_config():
+    # update docker image
+    #print "Config:\n{0}\n".format(config)
+    if config["kube_custom_scheduler"] or config["kube_custom_cri"]:
+        if "container" not in config["dockers"]:
+            config["dockers"]["container"] = {}
+        if "hyperkube" not in config["dockers"]["container"]:
+            config["dockers"]["container"]["hyperkube"] = {}            
+        config["dockers"]["container"]["hyperkube"]["fullname"] = config["worker-dockerregistry"] + config["dockerprefix"] + "kubernetes:" + config["dockertag"]
+
 def update_config():
     apply_config_mapping(config, default_config_mapping)
     update_one_config(config, "coreosversion",["coreos","version"], basestring, coreosversion)
@@ -252,14 +262,7 @@ def update_config():
     if ("mysql_node" not in config):
         config["mysql_node"] = None if len(get_node_lists_for_service("mysql"))==0 else get_node_lists_for_service("mysql")[0]
 
-    # update docker image
-    if config["kube_custom_scheduler"] or config["kube_custom_cri"]:
-        if "container" not in config["dockers"]:
-            config["dockers"]["container"] = {}
-        if "hyperkube" not in config["dockers"]["container"]:
-            config["dockers"]["container"]["hyperkube"] = {}            
-        config["dockers"]["container"]["hyperkube"]["fullname"] = config["worker-dockerregistry"] + config["dockerprefix"] + "kubernetes:" + config["dockertag"]
-
+    update_docker_image_config()
 
 def add_ssh_key():
     keys = fetch_config(config, ["sshKeys"])
@@ -880,6 +883,8 @@ def get_hyperkube_docker(force = False) :
     if config['kube_custom_cri']:
         if force or not os.path.exists("./deploy/bin/crishim"):
             copy_from_docker_image(config["dockers"]["container"]["hyperkube"]["fullname"], "/crishim", "./deploy/bin/crishim")
+        if force or not os.path.exists("./deploy/bin/nvidiagpuplugin.so"):
+            copy_from_docker_image(config["dockers"]["container"]["hyperkube"]["fullname"], "/nvidiagpuplugin.so", "./deploy/bin/nvidiagpuplugin.so")
 
 def deploy_masters(force = False):
     print "==============================================="
@@ -2967,6 +2972,9 @@ def run_command( args, command, nargs, parser ):
 
     if os.path.exists("./deploy/clusterID.yml"):
         update_config()
+    else:
+        apply_config_mapping(config, default_config_mapping)
+        update_docker_image_config()
 
     # additional glusterfs launch parameter.
     config["launch-glusterfs-opt"] = args.glusterfs;

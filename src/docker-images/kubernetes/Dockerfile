@@ -15,3 +15,7 @@ COPY ./kubelet /kubelet
 COPY ./kubectl /kubectl
 COPY ./crishim /crishim
 COPY ./kube-scheduler /kube-scheduler
+COPY ./nvidiagpuplugin.so /nvidiagpuplugin.so
+RUN mkdir -p /schedulerplugins
+COPY ./gpuschedulerplugin.so /schedulerplugins/gpuschedulerplugin.so
+

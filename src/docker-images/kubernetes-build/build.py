@@ -56,6 +56,10 @@ if __name__ == '__main__':
     DockerUtils.copy_from_docker_image("{{cnf["k8s-bld"]}}", "/crishim", "../kubernetes/crishim")
     print "Copy file kube-scheduler"
     DockerUtils.copy_from_docker_image("{{cnf["k8s-bld"]}}", "/kube-scheduler", "../kubernetes/kube-scheduler")
+    print "Copy nvidiagpuplugin"
+    DockerUtils.copy_from_docker_image("{{cnf["k8s-bld"]}}", "/nvidiagpuplugin.so", "../kubernetes/nvidiagpuplugin.so")
+    print "Copy gpuschedulerplugin"
+    DockerUtils.copy_from_docker_image("{{cnf["k8s-bld"]}}", "/gpuschedulerplugin.so", "../kubernetes/gpuschedulerplugin.so")
 
     # os.chdir("../../kubernetes")
     # dockerBld = "docker build --no-cache -t " + config["k8s-pushto"] + " ."
