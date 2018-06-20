@@ -11,7 +11,7 @@ RUN mkdir -p /utils/glove; cd /utils/glove; \
 RUN cd /utils; git clone --recurse-submodules git://github.com/DLWorkspace/YAD2K
 RUN mkdir /utils/models; cd /utils/models; wget https://dlwsdata.blob.core.windows.net/models/yolo.h5
 # Additional utility
-RUN pip3 install music21 emoji faker Babel pydub
+RUN pip3 install music21 emoji faker Babel pydub dill
 RUN cd /utils; git clone --recurse-submodules https://github.com/DLWorkspace/nmt
 RUN mkdir /utils; cd /utils;  git clone --recurse-submodules git://github.com/DLWorkspace/deep-learning-coursera
 
