@@ -15,6 +15,16 @@ RUN pip3 install music21 emoji faker Babel pydub dill
 RUN cd /utils; git clone --recurse-submodules https://github.com/DLWorkspace/nmt
 RUN mkdir /utils; cd /utils;  git clone --recurse-submodules git://github.com/DLWorkspace/deep-learning-coursera
 
+# The following install Cython & Pycocotools 
+RUN pip3 install Cython
+RUN cd /utils && \
+    git clone https://github.com/pdollar/coco.git && \
+    cd /utils/coco/PythonAPI && \
+    make && \
+    make install && \
+    python3 setup.py install 
+
+
 # The following operation needs GPU to create yolo.h5, This currently only works for Yolo V2 (V1 and V3 have layers that can't be interpreted)
 # RUN cd /utils/YAD2K; \
 #    wget https://pjreddie.com/media/files/yolov2.weights; \

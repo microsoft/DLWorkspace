@@ -89,6 +89,21 @@ ENV LD_LIBRARY_PATH /usr/local/nvidia/lib64/
 EXPOSE 1380 180
 ADD RecogServer /RecogServer
 
+# Add Glove vectors 
+RUN apt-get update -y && apt-get install -y zip unzip  
+
+RUN mkdir -p /utils/glove; cd /utils/glove; \
+    wget http://nlp.stanford.edu/data/glove.6B.zip; \ 
+    unzip glove.6B.zip; \
+    rm glove.6B.zip glove.6B.?00d.txt 
+# Add Yolo models
+RUN cd /utils; git clone --recurse-submodules git://github.com/DLWorkspace/YAD2K
+RUN mkdir /utils/models; cd /utils/models; wget https://dlwsdata.blob.core.windows.net/models/yolo.h5
+# Additional utility
+RUN pip3 install music21 emoji faker Babel pydub dill
+RUN cd /utils; git clone --recurse-submodules https://github.com/DLWorkspace/nmt
+RUN mkdir /utils; cd /utils;  git clone --recurse-submodules git://github.com/DLWorkspace/deep-learning-coursera
+
 #Telemetry
 #--------------
 #The .NET Core tools collect usage data in order to improve your experience. The data is anonymous and does not include command-line arguments. The data is collected by Microsoft and shared with the community.
