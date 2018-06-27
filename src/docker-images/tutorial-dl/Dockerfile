@@ -24,6 +24,9 @@ RUN cd /utils && \
     make install && \
     python3 setup.py install 
 
+# Install mask RCNN
+RUN cd /utils && git clone https://github.com/matterport/Mask_RCNN
+
 
 # The following operation needs GPU to create yolo.h5, This currently only works for Yolo V2 (V1 and V3 have layers that can't be interpreted)
 # RUN cd /utils/YAD2K; \
