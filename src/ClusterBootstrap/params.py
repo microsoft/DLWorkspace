@@ -541,6 +541,7 @@ default_config_parameters = {
             "tutorial-mask-rcnn": {},
             "tutorial-horovod": {},
             "tutorial-dl": {},
+            "tutorial-nlp": {},
         },
         "external": {
             # These dockers are to be built by additional add ons.
