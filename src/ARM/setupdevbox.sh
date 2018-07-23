@@ -26,7 +26,8 @@ sudo apt-get install -y --no-install-recommends \
     docker-engine
 
 sudo gpasswd -a dlwsadmin docker
-newgrp docker
+# Run deploy.py commands requiring docker as separate script after adding to docker group so that new permissions take effect
+#newgrp docker
 
 sudo apt-get install -y --no-install-recommends python-yaml python-jinja2 python-setuptools python-tzlocal python-pycurl
 
@@ -40,13 +41,13 @@ git checkout ARMTemplate
 cd /home/dlwsadmin/dlworkspace/src/ClusterBootstrap
 
 #TODO - take in parameters from shell script and convert to config.yaml
-python ../src/ARM/createconfig.py genconfig --outfile /home/dlwsadmin/dlworkspace/src/ClusterBootstrap/config.yaml $@
+python ../ARM/createconfig.py genconfig --outfile /home/dlwsadmin/dlworkspace/src/ClusterBootstrap/config.yaml $@
 ./az_tools.py genconfig --noaz
 
 # Generate SSH keys
 ./deploy.py -y build
 
 # Copy ssh keys
-python ../src/ARM/createconfig.py sshkey $@
+python ../ARM/createconfig.py sshkey $@
 #cat deploy/sshkey/id_rsa.pub | /usr/bin/sshpass -p $pwd ssh dlwsadmin@sanjeevmk8s7-worker01.northcentralus.cloudapp.azure.com "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
 
