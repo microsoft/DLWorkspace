@@ -32,6 +32,7 @@ sudo gpasswd -a dlwsadmin docker
 sudo apt-get install -y --no-install-recommends python-yaml python-jinja2 python-setuptools python-tzlocal python-pycurl
 
 git clone http://github.com/Microsoft/DLWorkspace /home/dlwsadmin/dlworkspace
+cd /home/dlwsadmin/dlworkspace
 git fetch --all
 git checkout ARMTemplate
 
@@ -39,10 +40,10 @@ git checkout ARMTemplate
 #shift 1
 
 cd /home/dlwsadmin/dlworkspace/src/ClusterBootstrap
-
+pwd
 #TODO - take in parameters from shell script and convert to config.yaml
 ../ARM/createconfig.py genconfig --outfile /home/dlwsadmin/dlworkspace/src/ClusterBootstrap/config.yaml $@
-./az_tools.py genconfig --noaz
+./az_tools.py --noaz genconfig
 
 # Generate SSH keys
 ./deploy.py -y build

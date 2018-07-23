@@ -56,15 +56,16 @@ def add_misc():
     config["mysql_password"] = """M$ft2018"""
     config["webuiport"] = 3080
 
-def copy_ssh_key(machine):
-    cmd = """cat /home/dlwsadmin/dlworkspace/src/ClusterBootstrap/deploy/sshkey/id_rsa.pub | /usr/bin/sshpass -p %s ssh dlwsadmin@%s "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys" """ % args.password
+def copy_ssh_key(password, machine):
+    cmd = """cat /home/dlwsadmin/dlworkspace/src/ClusterBootstrap/deploy/sshkey/id_rsa.pub | /usr/bin/sshpass -p '%s' ssh dlwsadmin@%s "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys" """ % (password, machine)
     print cmd
     os.system(cmd)
 
 if __name__ == '__main__':
     config = {} # empty config
     parser = argparse.ArgumentParser('createconfig.py')
-    parser.add_argument("command - genconfig or sshkey")
+    parser.add_argument("command",
+			help="genconfig or sshkey")
     parser.add_argument("--outfile",
                         help="Configuration file output",
                         action="store")
@@ -93,7 +94,7 @@ if __name__ == '__main__':
         with open(args.outfile, 'w') as f:
             yaml.dump(config, f)
     elif args.command == "sshkey":
-        for i in range(0, args.infra_node_num):
-            copy_ssh_key("%s-infra%02d" % args.cluster_name, i)
-        for i in range(0, args.worker_node_num):
-            copy_ssh_key("%s-worker%02d", args.cluster_name, i)
+        for i in range(0, int(args.infra_node_num)):
+            copy_ssh_key(args.password, "%s-infra%02d" % (args.cluster_name, (i+1)))
+        for i in range(0, int(args.worker_node_num)):
+            copy_ssh_key(args.password, "%s-worker%02d" % (args.cluster_name, (i+1)))
