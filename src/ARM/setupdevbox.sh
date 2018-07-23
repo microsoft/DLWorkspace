@@ -31,18 +31,22 @@ newgrp docker
 sudo apt-get install -y --no-install-recommends python-yaml python-jinja2 python-setuptools python-tzlocal python-pycurl
 
 git clone http://github.com/Microsoft/DLWorkspace /home/dlwsadmin/dlworkspace
+git fetch --all
+git checkout ARMTemplate
 
-pwd = $1
-shift 1
-
-#TODO - take in parameters from shell script and convert to config.yaml
-python /home/dlwsadmin/dlworkspace/src/ARM/createconfig.py /home/dlwsadmin/dlworkspace/src/ClusterBootstrap/config.yaml $@
+#pwd = $1
+#shift 1
 
 cd /home/dlwsadmin/dlworkspace/src/ClusterBootstrap
+
+#TODO - take in parameters from shell script and convert to config.yaml
+python ../src/ARM/createconfig.py genconfig --outfile /home/dlwsadmin/dlworkspace/src/ClusterBootstrap/config.yaml $@
+./az_tools.py genconfig --noaz
 
 # Generate SSH keys
 ./deploy.py -y build
 
 # Copy ssh keys
-cat deploy/sshkey/id_rsa.pub | /usr/bin/sshpass -p $pwd ssh dlwsadmin@sanjeevmk8s7-worker01.northcentralus.cloudapp.azure.com "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
+python ../src/ARM/createconfig.py sshkey $@
+#cat deploy/sshkey/id_rsa.pub | /usr/bin/sshpass -p $pwd ssh dlwsadmin@sanjeevmk8s7-worker01.northcentralus.cloudapp.azure.com "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
 

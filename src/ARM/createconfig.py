@@ -1,6 +1,7 @@
 #!/usr/bin/python
 import argparse
 import yaml
+import os
 
 def add_dashboard():
     server_name = "{0}-infra01.{1}.cloudapp.azure.com".format(
@@ -55,10 +56,18 @@ def add_misc():
     config["mysql_password"] = """M$ft2018"""
     config["webuiport"] = 3080
 
+def copy_ssh_key(machine):
+    cmd = """cat /home/dlwsadmin/dlworkspace/src/ClusterBootstrap/deploy/sshkey/id_rsa.pub | /usr/bin/sshpass -p %s ssh dlwsadmin@%s "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys" """ % args.password
+    print cmd
+    os.system(cmd)
+
 if __name__ == '__main__':
     config = {} # empty config
     parser = argparse.ArgumentParser('createconfig.py')
-    parser.add_argument("outfile")
+    parser.add_argument("command - genconfig or sshkey")
+    parser.add_argument("--outfile",
+                        help="Configuration file output",
+                        action="store")
     parser.add_argument("--cluster_name",
                         help="Specify a cluster name",
                         action="store")
@@ -69,16 +78,22 @@ if __name__ == '__main__':
     parser.add_argument("--infra_vm_size")
     parser.add_argument("--worker_node_num")
     parser.add_argument("--infra_node_num")
+    parser.add_argument("--password")
     parser.add_argument("--users") # comma separated list
 
     args = parser.parse_args()
 
-    add_azure_cluster(args.cluster_name, args.cluster_location, args.worker_vm_size, args.infra_vm_size, args.worker_node_num, args.infra_node_num)
-    add_cloud_config()
-    add_dashboard()
-    add_misc()
-    add_deploy(args.users.split(','))
+    if args.command == "genconfig":
+        add_azure_cluster(args.cluster_name, args.cluster_location, args.worker_vm_size, args.infra_vm_size, args.worker_node_num, args.infra_node_num)
+        add_cloud_config()
+        add_dashboard()
+        add_misc()
+        add_deploy(args.users.split(','))
       
-    with open(args.outfile, 'w') as f:
-        yaml.dump(config, f)
-
+        with open(args.outfile, 'w') as f:
+            yaml.dump(config, f)
+    elif args.command == "sshkey":
+        for i in range(0, args.infra_node_num):
+            copy_ssh_key("%s-infra%02d" % args.cluster_name, i)
+        for i in range(0, args.worker_node_num):
+            copy_ssh_key("%s-worker%02d", args.cluster_name, i)
