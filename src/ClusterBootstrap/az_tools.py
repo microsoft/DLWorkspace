@@ -103,6 +103,46 @@ def update_config(config, genSSH=True):
 
     return config
 
+def create_vm_pwd(vmname, vm_ip, vm_size, use_private_ip, pwd):
+    auth = ""
+    if pwd is not None:
+        auth = """--authentication-type password --admin-password '%s' """ % pwd
+    else:
+        auth = """--authentication-type ssh --ssh-key-value "%s" """ % config["azure_cluster"]["sshkey"]
+    privateip = ""
+    if use_private_ip:
+        privateip = """--private-ip-address %s""" % vm_ip
+    cmd = """
+        az vm create --resource-group %s \
+                    --name %s \
+                    --image %s \
+                    %s \
+                    --public-ip-address-dns-name %s \
+                    --location %s \
+                    --size %s \
+                    --vnet-name %s \
+                    --subnet mySubnet \
+                    --nsg %s \
+                    --admin-username %s \
+                    --storage-sku %s \
+                    %s \
+        """ % (config["azure_cluster"]["resource_group_name"],
+                vmname,
+                config["azure_cluster"]["vm_image"],
+                privateip,
+                vmname,
+                config["azure_cluster"]["azure_location"],
+                vm_size,
+                config["azure_cluster"]["vnet_name"],
+                config["azure_cluster"]["nsg_name"],
+                config["cloud_config"]["default_admin_username"],
+                config["azure_cluster"]["vm_storage_sku"],
+                auth)
+
+    if verbose:
+        print(cmd)
+    output = utils.exec_cmd_local(cmd)
+    print(output)
 
 def create_vm(vmname, vm_ip, bIsWorker, vm_size):
     cmd = """
@@ -347,18 +387,20 @@ def delete_group():
     print(output)
 
 
-def get_vm_ip(i, bIsWorker):
+def get_vm_ip(i, bIsWorker, bIsDev):
     vnet_range = config["cloud_config"]["vnet_range"]
     vnet_ip = vnet_range.split("/")[0]
     vnet_ips = vnet_ip.split(".")
     if bIsWorker:
         return vnet_ips[0] + "." + vnet_ips[1] + "." + "1" + "." + str(i + 1)
+    elif bIsDev:
+        return vnet_ips[0] + "." + vnet_ips[1] + "." + "255" + "." + str(int(config["azure_cluster"]["infra_node_num"]) + 1)
     else:
         # 192.168.0 is reserved.
         return vnet_ips[0] + "." + vnet_ips[1] + "." + "255" + "." + str(i + 1)
 
 
-def create_cluster():
+def create_cluster(arm_vm_password=None):
     bSQLOnly = (config["azure_cluster"]["infra_node_num"] <= 0)
     print "creating resource group..."
     create_group()
@@ -376,22 +418,37 @@ def create_cluster():
         print "creating sql server and database..."
         create_sql()
 
+    if arm_vm_password is not None:
+        # dev box
+        create_vm_param(0, False, True, config["azure_cluster"]["infra_vm_size"],
+                        True, arm_vm_password)
     for i in range(int(config["azure_cluster"]["infra_node_num"])):
-        create_vm_param(i, False, config["azure_cluster"]["infra_vm_size"])
+        create_vm_param(i, False, False, config["azure_cluster"]["infra_vm_size"], 
+                        arm_vm_password is not None, arm_vm_password)
     for i in range(int(config["azure_cluster"]["worker_node_num"])):
-        create_vm_param(i, True, config["azure_cluster"]["worker_vm_size"])
+        create_vm_param(i, True, False, config["azure_cluster"]["worker_vm_size"], 
+                        arm_vm_password is not None, arm_vm_password)
 
 
-def create_vm_param(i, isWorker, vm_size):
+def create_vm_param(i, isWorker, isDev, vm_size, no_az=False, arm_vm_password=None):
     if isWorker:
-        vmname = "%s-worker-%s" % (config["azure_cluster"]
-                                   ["cluster_name"], random_str(6))
-    else:
+        if no_az:
+            vmname = "%s-worker%02d" % (config["azure_cluster"]
+                                        ["cluster_name"], i+1)
+        else:
+            vmname = "%s-worker-%s" % (config["azure_cluster"]
+                                       ["cluster_name"], random_str(6))
+    elif not isDev:
         vmname = "%s-infra%02d" % (config["azure_cluster"]
                                    ["cluster_name"], i + 1)
+    else:
+        vmname = "%s-dev" % (config["azure_cluster"]["cluster_name"])
     print "creating VM %s..." % vmname
-    vm_ip = get_vm_ip(i, isWorker)
-    create_vm(vmname, vm_ip, isWorker, vm_size)
+    vm_ip = get_vm_ip(i, isWorker, isDev)
+    if arm_vm_password is not None:
+        create_vm_pwd(vmname, vm_ip, vm_size, not isWorker, arm_vm_password)
+    else:
+        create_vm(vmname, vm_ip, isWorker, vm_size)
     return vmname
 
 
@@ -418,7 +475,7 @@ def scale_up_vm(groupName, delta):
             # Only checkpoint newly scaled up nodes.
             nodeGroup["last_scaled_up_nodes"] = []
             for i in range(delta):
-                vmName = create_vm_param(i, True, vmSize)
+                vmName = create_vm_param(i, True, False, vmSize)
                 nodeGroup["last_scaled_up_nodes"].append(vmName)
             break
 
@@ -541,8 +598,13 @@ def get_disk_from_vm(vmname):
     return output.split("/")[-1].strip('\n')
 
 
-def gen_cluster_config(output_file_name, output_file=True):
+def gen_cluster_config(output_file_name, output_file=True, no_az=False):
     bSQLOnly = (config["azure_cluster"]["infra_node_num"] <= 0)
+    if useAzureFileshare() and not no_az:
+        # theoretically it could be supported, but would require storage account to be created first in nested template and then
+        # https://docs.microsoft.com/en-us/azure/azure-resource-manager/resource-group-template-functions-resource#listkeys
+        # could be used to access storage keys - these could be assigned as variable which gets passed into main deployment template
+        raise Exception("Azure file share not currently supported with no_az")
     if useAzureFileshare():
         cmd = """
             az storage account show-connection-string \
@@ -595,10 +657,15 @@ def gen_cluster_config(output_file_name, output_file=True):
         vmname = "%s-infra%02d" % (config["azure_cluster"]
                                    ["cluster_name"], i + 1)
         cc["machines"][vmname] = {
-            "role": "infrastructure", "private-ip": get_vm_ip(i, False)}
+            "role": "infrastructure", "private-ip": get_vm_ip(i, False, False)}
 
     # Generate the workers in machines.
-    for vm in get_vm_list_by_grp():
+    vm_list = []
+    if not no_az:
+        vm_list = get_vm_list_by_grp()
+    else:
+        vm_list = get_vm_list_by_enum()
+    for vm in vm_list:
         vmname = vm["name"]
         if "-worker" in vmname:
             if isNewlyScaledMachine(vmname):
@@ -626,7 +693,7 @@ def gen_cluster_config(output_file_name, output_file=True):
                 cc["mountpoints"]["rootshare"]["accesskey"] = file_share_key
         else:
             cc["mountpoints"]["rootshare"]["type"] = "nfs"
-            cc["mountpoints"]["rootshare"]["server"] = get_vm_ip(0, False)
+            cc["mountpoints"]["rootshare"]["server"] = get_vm_ip(0, False, False)
             cc["mountpoints"]["rootshare"]["filesharename"] = "/mnt/share"
             cc["mountpoints"]["rootshare"][
                 "curphysicalmountpoint"] = "/mntdlws/nfs"
@@ -664,6 +731,16 @@ def get_vm_list_by_grp():
 
     return utils.json_loads_byteified(output)
 
+# simply enumerate to get vm list
+def get_vm_list_by_enum():
+    vm_list = []
+    for i in range(int(config["azure_cluster"]["worker_node_num"])):
+        vminfo = {}
+        vminfo["name"] = "%s-worker%02d" % (config["azure_cluster"]
+                                ["cluster_name"], i + 1)
+        vminfo["vmSize"] = config["azure_cluster"]["worker_vm_size"]
+        vm_list.append(vminfo)
+    return vm_list
 
 def random_str(length):
     return ''.join(random.choice(string.lowercase) for x in range(length))
@@ -679,7 +756,7 @@ def delete_cluster():
 
 def run_command(args, command, nargs, parser):
     if command == "create":
-        create_cluster()
+        create_cluster(args.arm_password)
         vm_interconnects()
 
     elif command == "list":
@@ -720,7 +797,7 @@ def run_command(args, command, nargs, parser):
         delete_cluster()
 
     elif command == "genconfig":
-        gen_cluster_config("cluster.yaml")
+        gen_cluster_config("cluster.yaml", no_az=args.noaz)
 
 if __name__ == '__main__':
     # the program always run at the current directory.
@@ -810,6 +887,18 @@ Command:
                         action="store_true"
                         )
 
+    parser.add_argument("--noaz",
+                        help="Dev node does not have access to azure portal, e.g. ARM template deployment",
+                        action="store_true",
+                        default=False,
+                        )
+
+    parser.add_argument("--arm_password",
+                        help="Password for VMs to simulate ARM template deployment",
+                        action="store",
+                        default=None
+                        )
+
     parser.add_argument("command",
                         help="See above for the list of valid command")
     parser.add_argument('nargs', nargs=argparse.REMAINDER,
@@ -821,6 +910,7 @@ Command:
 
     if args.verbose:
         verbose = args.verbose
+        print "{0}".format(args)
 
     # Cluster Config
     config_cluster = os.path.join(dirpath, "azure_cluster_config.yaml")

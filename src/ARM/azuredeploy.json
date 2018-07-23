@@ -1,0 +1,852 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "config": {
+            "defaultValue": null,
+            "type": "object"
+        }
+    },
+    "variables": {
+        "numdev": {
+            "type": "integer",
+            "value": 1
+        },
+        "numinfra": {
+            "type": "integer",
+            "value": "parameters('config')."
+        }
+    },
+    "resources": [
+        {
+            "comments": "Generalized from resource: '/subscriptions/a1bb027a-7533-41bb-8f13-9b7a80ec56db/resourceGroups/phdtestclusterResGrp/providers/Microsoft.Compute/virtualMachines/phdtestcluster-infra01'.",
+            "type": "Microsoft.Compute/virtualMachines",
+            "name": "[parameters('virtualMachines_phdtestcluster_infra01_name')]",
+            "apiVersion": "2017-12-01",
+            "location": "westus2",
+            "tags": {},
+            "scale": null,
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "Standard_D1_v2"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "Canonical",
+                        "offer": "UbuntuServer",
+                        "sku": "16.04-LTS",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "osType": "Linux",
+                        "name": "[concat(parameters('virtualMachines_phdtestcluster_infra01_name'),'_OsDisk_1_51e37e8cf0ac495a8816424d151175ba')]",
+                        "createOption": "FromImage",
+                        "caching": "ReadWrite",
+                        "managedDisk": {
+                            "storageAccountType": "Standard_LRS",
+                            "id": "[parameters('virtualMachines_phdtestcluster_infra01_id')]"
+                        },
+                        "diskSizeGB": 30
+                    },
+                    "dataDisks": []
+                },
+                "osProfile": {
+                    "computerName": "[parameters('virtualMachines_phdtestcluster_infra01_name')]",
+                    "adminUsername": "dlwsadmin",
+                    "linuxConfiguration": {
+                        "disablePasswordAuthentication": true,
+                        "ssh": {
+                            "publicKeys": [
+                                {
+                                    "path": "/home/dlwsadmin/.ssh/authorized_keys",
+                                    "keyData": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC7D0fcSFJUr7yaWsAianaQDwdxbN4f0u5v6d23tU/lSvAR7riiYrX0QT7ncG7ORGDU0bag0VQhrqjBWEvFDpY2iy8YIHHEElv7uJv+dj4jEpzdasv1pJv/ibEmVKupRGHfYB2acHl4Wp1kz9VYMOT0AQfM1ThzSNu3/1o8TByzbnYMMafRZayYrGp6ZOWVjEv0qd0/WYa7isl5mr+agmq7OzEb8cgOKauCmmhPRrI0G9tl10AQHiDmVN4TcuwWcEZAqC0BKItMiWcaw5mCuA23qqVIlarSTgak1hB6KZ/2Zq1m5wURBcnY0z224sps0A08lQc9QTU8HKoH9FvAHy44lpwZ5nF8KIyxBJ3gEZ0Qmq2LwlnUsQRJIE1AUlPy9fiJS/C7DJECpvNrxb8SuH2eFeITgdBswKduRoxaXD+ocBCROUQ9Nsy8G/nYk6Noh8D8pzv9+K1bMe3oygu2m3cOOezub4wiqn9qj5EATp1WpgW67O5fOoQLeDpzbXp4t1LNptkCwGJMIVz+BIjb1rlRpQYvmCVupjlUIuUbSs7IuokiPIxHs4V0DjDz5hFU0ILSFHroNpVGFZEIdjzUs574EKZocPI5b38NjkBhim4hHyoFj97Q9gpgitz4Y7O+h05W2EYW7QGKmRdVM7OkrMW8/kEv3Tek9JLaKJmvSmGqTw== phd@phd-virtualbox\n"
+                                }
+                            ]
+                        }
+                    },
+                    "secrets": []
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaces_phdtestcluster_infra01VMNic_name'))]"
+                        }
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaces_phdtestcluster_infra01VMNic_name'))]"
+            ]
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/a1bb027a-7533-41bb-8f13-9b7a80ec56db/resourceGroups/phdtestclusterResGrp/providers/Microsoft.Compute/virtualMachines/phdtestcluster-worker-efjpwt'.",
+            "type": "Microsoft.Compute/virtualMachines",
+            "name": "[parameters('virtualMachines_phdtestcluster_worker_efjpwt_name')]",
+            "apiVersion": "2017-12-01",
+            "location": "westus2",
+            "tags": {},
+            "scale": null,
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "Standard_D1_v2"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "Canonical",
+                        "offer": "UbuntuServer",
+                        "sku": "16.04-LTS",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "osType": "Linux",
+                        "name": "[concat(parameters('virtualMachines_phdtestcluster_worker_efjpwt_name'),'_OsDisk_1_f2085ebcd61c4cea90fdf8873e4d41e6')]",
+                        "createOption": "FromImage",
+                        "caching": "ReadWrite",
+                        "managedDisk": {
+                            "storageAccountType": "Standard_LRS",
+                            "id": "[parameters('virtualMachines_phdtestcluster_worker_efjpwt_id')]"
+                        },
+                        "diskSizeGB": 30
+                    },
+                    "dataDisks": []
+                },
+                "osProfile": {
+                    "computerName": "[parameters('virtualMachines_phdtestcluster_worker_efjpwt_name')]",
+                    "adminUsername": "dlwsadmin",
+                    "linuxConfiguration": {
+                        "disablePasswordAuthentication": true,
+                        "ssh": {
+                            "publicKeys": [
+                                {
+                                    "path": "/home/dlwsadmin/.ssh/authorized_keys",
+                                    "keyData": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC7D0fcSFJUr7yaWsAianaQDwdxbN4f0u5v6d23tU/lSvAR7riiYrX0QT7ncG7ORGDU0bag0VQhrqjBWEvFDpY2iy8YIHHEElv7uJv+dj4jEpzdasv1pJv/ibEmVKupRGHfYB2acHl4Wp1kz9VYMOT0AQfM1ThzSNu3/1o8TByzbnYMMafRZayYrGp6ZOWVjEv0qd0/WYa7isl5mr+agmq7OzEb8cgOKauCmmhPRrI0G9tl10AQHiDmVN4TcuwWcEZAqC0BKItMiWcaw5mCuA23qqVIlarSTgak1hB6KZ/2Zq1m5wURBcnY0z224sps0A08lQc9QTU8HKoH9FvAHy44lpwZ5nF8KIyxBJ3gEZ0Qmq2LwlnUsQRJIE1AUlPy9fiJS/C7DJECpvNrxb8SuH2eFeITgdBswKduRoxaXD+ocBCROUQ9Nsy8G/nYk6Noh8D8pzv9+K1bMe3oygu2m3cOOezub4wiqn9qj5EATp1WpgW67O5fOoQLeDpzbXp4t1LNptkCwGJMIVz+BIjb1rlRpQYvmCVupjlUIuUbSs7IuokiPIxHs4V0DjDz5hFU0ILSFHroNpVGFZEIdjzUs574EKZocPI5b38NjkBhim4hHyoFj97Q9gpgitz4Y7O+h05W2EYW7QGKmRdVM7OkrMW8/kEv3Tek9JLaKJmvSmGqTw== phd@phd-virtualbox\n"
+                                }
+                            ]
+                        }
+                    },
+                    "secrets": []
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaces_phdtestcluster_worker_efjpwtVMNic_name'))]"
+                        }
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaces_phdtestcluster_worker_efjpwtVMNic_name'))]"
+            ]
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/a1bb027a-7533-41bb-8f13-9b7a80ec56db/resourceGroups/phdtestclusterResGrp/providers/Microsoft.Compute/virtualMachines/phdtestcluster-worker-fijayi'.",
+            "type": "Microsoft.Compute/virtualMachines",
+            "name": "[parameters('virtualMachines_phdtestcluster_worker_fijayi_name')]",
+            "apiVersion": "2017-12-01",
+            "location": "westus2",
+            "tags": {},
+            "scale": null,
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "Standard_D1_v2"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "Canonical",
+                        "offer": "UbuntuServer",
+                        "sku": "16.04-LTS",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "osType": "Linux",
+                        "name": "[concat(parameters('virtualMachines_phdtestcluster_worker_fijayi_name'),'_OsDisk_1_d98f878f6a744196956fad9babbeae3b')]",
+                        "createOption": "FromImage",
+                        "caching": "ReadWrite",
+                        "managedDisk": {
+                            "storageAccountType": "Standard_LRS",
+                            "id": "[parameters('virtualMachines_phdtestcluster_worker_fijayi_id')]"
+                        },
+                        "diskSizeGB": 30
+                    },
+                    "dataDisks": []
+                },
+                "osProfile": {
+                    "computerName": "[parameters('virtualMachines_phdtestcluster_worker_fijayi_name')]",
+                    "adminUsername": "dlwsadmin",
+                    "linuxConfiguration": {
+                        "disablePasswordAuthentication": true,
+                        "ssh": {
+                            "publicKeys": [
+                                {
+                                    "path": "/home/dlwsadmin/.ssh/authorized_keys",
+                                    "keyData": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC7D0fcSFJUr7yaWsAianaQDwdxbN4f0u5v6d23tU/lSvAR7riiYrX0QT7ncG7ORGDU0bag0VQhrqjBWEvFDpY2iy8YIHHEElv7uJv+dj4jEpzdasv1pJv/ibEmVKupRGHfYB2acHl4Wp1kz9VYMOT0AQfM1ThzSNu3/1o8TByzbnYMMafRZayYrGp6ZOWVjEv0qd0/WYa7isl5mr+agmq7OzEb8cgOKauCmmhPRrI0G9tl10AQHiDmVN4TcuwWcEZAqC0BKItMiWcaw5mCuA23qqVIlarSTgak1hB6KZ/2Zq1m5wURBcnY0z224sps0A08lQc9QTU8HKoH9FvAHy44lpwZ5nF8KIyxBJ3gEZ0Qmq2LwlnUsQRJIE1AUlPy9fiJS/C7DJECpvNrxb8SuH2eFeITgdBswKduRoxaXD+ocBCROUQ9Nsy8G/nYk6Noh8D8pzv9+K1bMe3oygu2m3cOOezub4wiqn9qj5EATp1WpgW67O5fOoQLeDpzbXp4t1LNptkCwGJMIVz+BIjb1rlRpQYvmCVupjlUIuUbSs7IuokiPIxHs4V0DjDz5hFU0ILSFHroNpVGFZEIdjzUs574EKZocPI5b38NjkBhim4hHyoFj97Q9gpgitz4Y7O+h05W2EYW7QGKmRdVM7OkrMW8/kEv3Tek9JLaKJmvSmGqTw== phd@phd-virtualbox\n"
+                                }
+                            ]
+                        }
+                    },
+                    "secrets": []
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaces_phdtestcluster_worker_fijayiVMNic_name'))]"
+                        }
+                    ]
+                }
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkInterfaces', parameters('networkInterfaces_phdtestcluster_worker_fijayiVMNic_name'))]"
+            ]
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/a1bb027a-7533-41bb-8f13-9b7a80ec56db/resourceGroups/phdtestclusterResGrp/providers/Microsoft.Network/networkInterfaces/phdtestcluster-infra01VMNic'.",
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[parameters('networkInterfaces_phdtestcluster_infra01VMNic_name')]",
+            "apiVersion": "2018-02-01",
+            "location": "westus2",
+            "tags": {},
+            "scale": null,
+            "properties": {
+                "provisioningState": "Succeeded",
+                "resourceGuid": "8914baf6-49aa-474f-adef-a55431a808de",
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfigphdtestcluster-infra01",
+                        "etag": "W/\"9464c104-d02c-42d0-9bc5-bdfdeb2b274c\"",
+                        "properties": {
+                            "provisioningState": "Succeeded",
+                            "privateIPAddress": "192.168.255.1",
+                            "privateIPAllocationMethod": "Static",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_phdtestcluster_infra01PublicIP_name'))]"
+                            },
+                            "subnet": {
+                                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_phdtestcluster_VNet_name'), parameters('subnets_mySubnet_name'))]"
+                            },
+                            "primary": true,
+                            "privateIPAddressVersion": "IPv4"
+                        }
+                    }
+                ],
+                "dnsSettings": {
+                    "dnsServers": [],
+                    "appliedDnsServers": [],
+                    "internalDomainNameSuffix": "vv2npwofyhuehpxuh0dpemndgh.xx.internal.cloudapp.net"
+                },
+                "macAddress": "00-0D-3A-06-48-D9",
+                "enableAcceleratedNetworking": false,
+                "enableIPForwarding": false,
+                "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_phdtestcluster_nsg_name'))]"
+                },
+                "primary": true
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_phdtestcluster_infra01PublicIP_name'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_phdtestcluster_VNet_name'), parameters('subnets_mySubnet_name'))]",
+                "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_phdtestcluster_nsg_name'))]"
+            ]
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/a1bb027a-7533-41bb-8f13-9b7a80ec56db/resourceGroups/phdtestclusterResGrp/providers/Microsoft.Network/networkInterfaces/phdtestcluster-worker-efjpwtVMNic'.",
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[parameters('networkInterfaces_phdtestcluster_worker_efjpwtVMNic_name')]",
+            "apiVersion": "2018-02-01",
+            "location": "westus2",
+            "tags": {},
+            "scale": null,
+            "properties": {
+                "provisioningState": "Succeeded",
+                "resourceGuid": "f160c5db-3c6a-4dbb-8ede-3175a8c62289",
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfigphdtestcluster-worker-efjpwt",
+                        "etag": "W/\"33343e3b-b19f-4464-a2b5-e0539cb89727\"",
+                        "properties": {
+                            "provisioningState": "Succeeded",
+                            "privateIPAddress": "192.168.0.4",
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_phdtestcluster_worker_efjpwtPublicIP_name'))]"
+                            },
+                            "subnet": {
+                                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_phdtestcluster_VNet_name'), parameters('subnets_mySubnet_name'))]"
+                            },
+                            "primary": true,
+                            "privateIPAddressVersion": "IPv4"
+                        }
+                    }
+                ],
+                "dnsSettings": {
+                    "dnsServers": [],
+                    "appliedDnsServers": [],
+                    "internalDomainNameSuffix": "vv2npwofyhuehpxuh0dpemndgh.xx.internal.cloudapp.net"
+                },
+                "macAddress": "00-0D-3A-F9-50-78",
+                "enableAcceleratedNetworking": false,
+                "enableIPForwarding": false,
+                "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_phdtestcluster_nsg_name'))]"
+                },
+                "primary": true
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_phdtestcluster_worker_efjpwtPublicIP_name'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_phdtestcluster_VNet_name'), parameters('subnets_mySubnet_name'))]",
+                "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_phdtestcluster_nsg_name'))]"
+            ]
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/a1bb027a-7533-41bb-8f13-9b7a80ec56db/resourceGroups/phdtestclusterResGrp/providers/Microsoft.Network/networkInterfaces/phdtestcluster-worker-fijayiVMNic'.",
+            "type": "Microsoft.Network/networkInterfaces",
+            "name": "[parameters('networkInterfaces_phdtestcluster_worker_fijayiVMNic_name')]",
+            "apiVersion": "2018-02-01",
+            "location": "westus2",
+            "tags": {},
+            "scale": null,
+            "properties": {
+                "provisioningState": "Succeeded",
+                "resourceGuid": "26c357fb-2784-419b-ab3e-8df387d5e645",
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfigphdtestcluster-worker-fijayi",
+                        "etag": "W/\"a15f7ef3-34c4-4366-a6cc-7e3ee24cb7f7\"",
+                        "properties": {
+                            "provisioningState": "Succeeded",
+                            "privateIPAddress": "192.168.0.5",
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_phdtestcluster_worker_fijayiPublicIP_name'))]"
+                            },
+                            "subnet": {
+                                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_phdtestcluster_VNet_name'), parameters('subnets_mySubnet_name'))]"
+                            },
+                            "primary": true,
+                            "privateIPAddressVersion": "IPv4"
+                        }
+                    }
+                ],
+                "dnsSettings": {
+                    "dnsServers": [],
+                    "appliedDnsServers": [],
+                    "internalDomainNameSuffix": "vv2npwofyhuehpxuh0dpemndgh.xx.internal.cloudapp.net"
+                },
+                "macAddress": "00-0D-3A-F9-7F-92",
+                "enableAcceleratedNetworking": false,
+                "enableIPForwarding": false,
+                "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_phdtestcluster_nsg_name'))]"
+                },
+                "primary": true
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_phdtestcluster_worker_fijayiPublicIP_name'))]",
+                "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('virtualNetworks_phdtestcluster_VNet_name'), parameters('subnets_mySubnet_name'))]",
+                "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_phdtestcluster_nsg_name'))]"
+            ]
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/a1bb027a-7533-41bb-8f13-9b7a80ec56db/resourceGroups/phdtestclusterResGrp/providers/Microsoft.Network/networkSecurityGroups/phdtestcluster-nsg'.",
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "name": "[parameters('networkSecurityGroups_phdtestcluster_nsg_name')]",
+            "apiVersion": "2018-02-01",
+            "location": "westus2",
+            "scale": null,
+            "properties": {
+                "provisioningState": "Succeeded",
+                "resourceGuid": "73bf8a5e-f583-4845-8d50-ad9cbcf542dd",
+                "securityRules": [
+                    {
+                        "name": "allowalltcp",
+                        "etag": "W/\"8b0b1675-2e7e-4e09-bcd0-fc16beda9657\"",
+                        "properties": {
+                            "provisioningState": "Succeeded",
+                            "protocol": "TCP",
+                            "sourcePortRange": "*",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 1000,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [
+                                "80",
+                                "443",
+                                "30000-32767",
+                                "25826",
+                                "3080"
+                            ],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": [],
+                            "destinationPortRange": "[parameters('networkSecurityGroups_phdtestcluster_nsg_destinationPortRange')]"
+                        }
+                    },
+                    {
+                        "name": "allowalludp",
+                        "etag": "W/\"8b0b1675-2e7e-4e09-bcd0-fc16beda9657\"",
+                        "properties": {
+                            "provisioningState": "Succeeded",
+                            "protocol": "Udp",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "25826",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 1010,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    },
+                    {
+                        "name": "allowdevtcp",
+                        "etag": "W/\"8b0b1675-2e7e-4e09-bcd0-fc16beda9657\"",
+                        "properties": {
+                            "provisioningState": "Succeeded",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "sourceAddressPrefix": "",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 900,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [
+                                "22",
+                                "1443",
+                                "2379",
+                                "3306",
+                                "5000",
+                                "8086"
+                            ],
+                            "sourceAddressPrefixes": [
+                                "73.109.29.0/24",
+                                "167.220.0.0/16",
+                                "131.107.0.0/16",
+                                "52.151.11.0/24",
+                                "52.226.68.0/24"
+                            ],
+                            "destinationAddressPrefixes": [],
+                            "destinationPortRange": "[parameters('networkSecurityGroups_phdtestcluster_nsg_destinationPortRange_1')]"
+                        }
+                    },
+                    {
+                        "name": "tcpinterconnect",
+                        "etag": "W/\"8b0b1675-2e7e-4e09-bcd0-fc16beda9657\"",
+                        "properties": {
+                            "provisioningState": "Succeeded",
+                            "protocol": "Tcp",
+                            "sourcePortRange": "*",
+                            "sourceAddressPrefix": "",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 850,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [
+                                "22",
+                                "1443",
+                                "2379",
+                                "3306",
+                                "5000",
+                                "8086"
+                            ],
+                            "sourceAddressPrefixes": [
+                                "13.66.243.71/32",
+                                "13.77.158.224/32",
+                                "13.66.205.4/32"
+                            ],
+                            "destinationAddressPrefixes": [],
+                            "destinationPortRange": "[parameters('networkSecurityGroups_phdtestcluster_nsg_destinationPortRange_2')]"
+                        }
+                    }
+                ],
+                "defaultSecurityRules": [
+                    {
+                        "name": "AllowVnetInBound",
+                        "etag": "W/\"8b0b1675-2e7e-4e09-bcd0-fc16beda9657\"",
+                        "properties": {
+                            "provisioningState": "Succeeded",
+                            "description": "Allow inbound traffic from all VMs in VNET",
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "*",
+                            "sourceAddressPrefix": "VirtualNetwork",
+                            "destinationAddressPrefix": "VirtualNetwork",
+                            "access": "Allow",
+                            "priority": 65000,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    },
+                    {
+                        "name": "AllowAzureLoadBalancerInBound",
+                        "etag": "W/\"8b0b1675-2e7e-4e09-bcd0-fc16beda9657\"",
+                        "properties": {
+                            "provisioningState": "Succeeded",
+                            "description": "Allow inbound traffic from azure load balancer",
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "*",
+                            "sourceAddressPrefix": "AzureLoadBalancer",
+                            "destinationAddressPrefix": "*",
+                            "access": "Allow",
+                            "priority": 65001,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    },
+                    {
+                        "name": "DenyAllInBound",
+                        "etag": "W/\"8b0b1675-2e7e-4e09-bcd0-fc16beda9657\"",
+                        "properties": {
+                            "provisioningState": "Succeeded",
+                            "description": "Deny all inbound traffic",
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "*",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Deny",
+                            "priority": 65500,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    },
+                    {
+                        "name": "AllowVnetOutBound",
+                        "etag": "W/\"8b0b1675-2e7e-4e09-bcd0-fc16beda9657\"",
+                        "properties": {
+                            "provisioningState": "Succeeded",
+                            "description": "Allow outbound traffic from all VMs to all VMs in VNET",
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "*",
+                            "sourceAddressPrefix": "VirtualNetwork",
+                            "destinationAddressPrefix": "VirtualNetwork",
+                            "access": "Allow",
+                            "priority": 65000,
+                            "direction": "Outbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    },
+                    {
+                        "name": "AllowInternetOutBound",
+                        "etag": "W/\"8b0b1675-2e7e-4e09-bcd0-fc16beda9657\"",
+                        "properties": {
+                            "provisioningState": "Succeeded",
+                            "description": "Allow outbound traffic from all VMs to Internet",
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "*",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "Internet",
+                            "access": "Allow",
+                            "priority": 65001,
+                            "direction": "Outbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    },
+                    {
+                        "name": "DenyAllOutBound",
+                        "etag": "W/\"8b0b1675-2e7e-4e09-bcd0-fc16beda9657\"",
+                        "properties": {
+                            "provisioningState": "Succeeded",
+                            "description": "Deny all outbound traffic",
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "*",
+                            "sourceAddressPrefix": "*",
+                            "destinationAddressPrefix": "*",
+                            "access": "Deny",
+                            "priority": 65500,
+                            "direction": "Outbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    }
+                ]
+            },
+            "dependsOn": []
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/a1bb027a-7533-41bb-8f13-9b7a80ec56db/resourceGroups/phdtestclusterResGrp/providers/Microsoft.Network/publicIPAddresses/phdtestcluster-infra01PublicIP'.",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "sku": {
+                "name": "Basic",
+                "tier": "Regional"
+            },
+            "name": "[parameters('publicIPAddresses_phdtestcluster_infra01PublicIP_name')]",
+            "apiVersion": "2018-02-01",
+            "location": "westus2",
+            "tags": {},
+            "scale": null,
+            "properties": {
+                "provisioningState": "Succeeded",
+                "resourceGuid": "20591331-b57a-48bd-9a77-a67e239ea199",
+                "ipAddress": "13.66.243.71",
+                "publicIPAddressVersion": "IPv4",
+                "publicIPAllocationMethod": "Dynamic",
+                "idleTimeoutInMinutes": 4,
+                "dnsSettings": {
+                    "domainNameLabel": "phdtestcluster-infra01",
+                    "fqdn": "phdtestcluster-infra01.westus2.cloudapp.azure.com"
+                },
+                "ipTags": []
+            },
+            "dependsOn": []
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/a1bb027a-7533-41bb-8f13-9b7a80ec56db/resourceGroups/phdtestclusterResGrp/providers/Microsoft.Network/publicIPAddresses/phdtestcluster-worker-efjpwtPublicIP'.",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "sku": {
+                "name": "Basic",
+                "tier": "Regional"
+            },
+            "name": "[parameters('publicIPAddresses_phdtestcluster_worker_efjpwtPublicIP_name')]",
+            "apiVersion": "2018-02-01",
+            "location": "westus2",
+            "tags": {},
+            "scale": null,
+            "properties": {
+                "provisioningState": "Succeeded",
+                "resourceGuid": "dc7e36b2-2fd9-49b8-844b-31b95acce667",
+                "ipAddress": "13.77.158.224",
+                "publicIPAddressVersion": "IPv4",
+                "publicIPAllocationMethod": "Dynamic",
+                "idleTimeoutInMinutes": 4,
+                "dnsSettings": {
+                    "domainNameLabel": "phdtestcluster-worker-efjpwt",
+                    "fqdn": "phdtestcluster-worker-efjpwt.westus2.cloudapp.azure.com"
+                },
+                "ipTags": []
+            },
+            "dependsOn": []
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/a1bb027a-7533-41bb-8f13-9b7a80ec56db/resourceGroups/phdtestclusterResGrp/providers/Microsoft.Network/publicIPAddresses/phdtestcluster-worker-fijayiPublicIP'.",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "sku": {
+                "name": "Basic",
+                "tier": "Regional"
+            },
+            "name": "[parameters('publicIPAddresses_phdtestcluster_worker_fijayiPublicIP_name')]",
+            "apiVersion": "2018-02-01",
+            "location": "westus2",
+            "tags": {},
+            "scale": null,
+            "properties": {
+                "provisioningState": "Succeeded",
+                "resourceGuid": "6f585044-a61a-4675-92c1-32454150e2ea",
+                "ipAddress": "13.66.205.4",
+                "publicIPAddressVersion": "IPv4",
+                "publicIPAllocationMethod": "Dynamic",
+                "idleTimeoutInMinutes": 4,
+                "dnsSettings": {
+                    "domainNameLabel": "phdtestcluster-worker-fijayi",
+                    "fqdn": "phdtestcluster-worker-fijayi.westus2.cloudapp.azure.com"
+                },
+                "ipTags": []
+            },
+            "dependsOn": []
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/a1bb027a-7533-41bb-8f13-9b7a80ec56db/resourceGroups/phdtestclusterResGrp/providers/Microsoft.Network/virtualNetworks/phdtestcluster-VNet'.",
+            "type": "Microsoft.Network/virtualNetworks",
+            "name": "[parameters('virtualNetworks_phdtestcluster_VNet_name')]",
+            "apiVersion": "2018-02-01",
+            "location": "westus2",
+            "tags": {},
+            "scale": null,
+            "properties": {
+                "provisioningState": "Succeeded",
+                "resourceGuid": "d9d778ad-c1c5-43e8-bef4-3e86f231a337",
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "192.168.0.0/16"
+                    ]
+                },
+                "dhcpOptions": {
+                    "dnsServers": []
+                },
+                "subnets": [
+                    {
+                        "name": "mySubnet",
+                        "etag": "W/\"019506c5-fb01-4062-91c9-0c7e4c8ae847\"",
+                        "properties": {
+                            "provisioningState": "Succeeded",
+                            "addressPrefix": "192.168.0.0/16"
+                        }
+                    }
+                ],
+                "virtualNetworkPeerings": [],
+                "enableDdosProtection": false,
+                "enableVmProtection": false
+            },
+            "dependsOn": []
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/a1bb027a-7533-41bb-8f13-9b7a80ec56db/resourceGroups/phdtestclusterResGrp/providers/Microsoft.Network/networkSecurityGroups/phdtestcluster-nsg/securityRules/allowalltcp'.",
+            "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+            "name": "[concat(parameters('networkSecurityGroups_phdtestcluster_nsg_name'), '/', parameters('securityRules_allowalltcp_name'))]",
+            "apiVersion": "2018-02-01",
+            "scale": null,
+            "properties": {
+                "provisioningState": "Succeeded",
+                "protocol": "TCP",
+                "sourcePortRange": "*",
+                "sourceAddressPrefix": "*",
+                "destinationAddressPrefix": "*",
+                "access": "Allow",
+                "priority": 1000,
+                "direction": "Inbound",
+                "sourcePortRanges": [],
+                "destinationPortRanges": [
+                    "80",
+                    "443",
+                    "30000-32767",
+                    "25826",
+                    "3080"
+                ],
+                "sourceAddressPrefixes": [],
+                "destinationAddressPrefixes": [],
+                "destinationPortRange": "[parameters('securityRules_allowalltcp_destinationPortRange')]"
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_phdtestcluster_nsg_name'))]"
+            ]
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/a1bb027a-7533-41bb-8f13-9b7a80ec56db/resourceGroups/phdtestclusterResGrp/providers/Microsoft.Network/networkSecurityGroups/phdtestcluster-nsg/securityRules/allowalludp'.",
+            "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+            "name": "[concat(parameters('networkSecurityGroups_phdtestcluster_nsg_name'), '/', parameters('securityRules_allowalludp_name'))]",
+            "apiVersion": "2018-02-01",
+            "scale": null,
+            "properties": {
+                "provisioningState": "Succeeded",
+                "protocol": "Udp",
+                "sourcePortRange": "*",
+                "destinationPortRange": "25826",
+                "sourceAddressPrefix": "*",
+                "destinationAddressPrefix": "*",
+                "access": "Allow",
+                "priority": 1010,
+                "direction": "Inbound",
+                "sourcePortRanges": [],
+                "destinationPortRanges": [],
+                "sourceAddressPrefixes": [],
+                "destinationAddressPrefixes": []
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_phdtestcluster_nsg_name'))]"
+            ]
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/a1bb027a-7533-41bb-8f13-9b7a80ec56db/resourceGroups/phdtestclusterResGrp/providers/Microsoft.Network/networkSecurityGroups/phdtestcluster-nsg/securityRules/allowdevtcp'.",
+            "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+            "name": "[concat(parameters('networkSecurityGroups_phdtestcluster_nsg_name'), '/', parameters('securityRules_allowdevtcp_name'))]",
+            "apiVersion": "2018-02-01",
+            "scale": null,
+            "properties": {
+                "provisioningState": "Succeeded",
+                "protocol": "Tcp",
+                "sourcePortRange": "*",
+                "sourceAddressPrefix": "",
+                "destinationAddressPrefix": "*",
+                "access": "Allow",
+                "priority": 900,
+                "direction": "Inbound",
+                "sourcePortRanges": [],
+                "destinationPortRanges": [
+                    "22",
+                    "1443",
+                    "2379",
+                    "3306",
+                    "5000",
+                    "8086"
+                ],
+                "sourceAddressPrefixes": [
+                    "73.109.29.0/24",
+                    "167.220.0.0/16",
+                    "131.107.0.0/16",
+                    "52.151.11.0/24",
+                    "52.226.68.0/24"
+                ],
+                "destinationAddressPrefixes": [],
+                "destinationPortRange": "[parameters('securityRules_allowdevtcp_destinationPortRange')]"
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_phdtestcluster_nsg_name'))]"
+            ]
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/a1bb027a-7533-41bb-8f13-9b7a80ec56db/resourceGroups/phdtestclusterResGrp/providers/Microsoft.Network/networkSecurityGroups/phdtestcluster-nsg/securityRules/tcpinterconnect'.",
+            "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+            "name": "[concat(parameters('networkSecurityGroups_phdtestcluster_nsg_name'), '/', parameters('securityRules_tcpinterconnect_name'))]",
+            "apiVersion": "2018-02-01",
+            "scale": null,
+            "properties": {
+                "provisioningState": "Succeeded",
+                "protocol": "Tcp",
+                "sourcePortRange": "*",
+                "sourceAddressPrefix": "",
+                "destinationAddressPrefix": "*",
+                "access": "Allow",
+                "priority": 850,
+                "direction": "Inbound",
+                "sourcePortRanges": [],
+                "destinationPortRanges": [
+                    "22",
+                    "1443",
+                    "2379",
+                    "3306",
+                    "5000",
+                    "8086"
+                ],
+                "sourceAddressPrefixes": [
+                    "13.66.243.71/32",
+                    "13.77.158.224/32",
+                    "13.66.205.4/32"
+                ],
+                "destinationAddressPrefixes": [],
+                "destinationPortRange": "[parameters('securityRules_tcpinterconnect_destinationPortRange')]"
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroups_phdtestcluster_nsg_name'))]"
+            ]
+        },
+        {
+            "comments": "Generalized from resource: '/subscriptions/a1bb027a-7533-41bb-8f13-9b7a80ec56db/resourceGroups/phdtestclusterResGrp/providers/Microsoft.Network/virtualNetworks/phdtestcluster-VNet/subnets/mySubnet'.",
+            "type": "Microsoft.Network/virtualNetworks/subnets",
+            "name": "[concat(parameters('virtualNetworks_phdtestcluster_VNet_name'), '/', parameters('subnets_mySubnet_name'))]",
+            "apiVersion": "2018-02-01",
+            "scale": null,
+            "properties": {
+                "provisioningState": "Succeeded",
+                "addressPrefix": "192.168.0.0/16"
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('virtualNetworks_phdtestcluster_VNet_name'))]"
+            ]
+        }
+    ]
+}

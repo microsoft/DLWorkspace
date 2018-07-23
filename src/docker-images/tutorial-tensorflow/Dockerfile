@@ -48,7 +48,7 @@ RUN pip3 install keras
 RUN pip3 install -U --no-cache-dir git+https://github.com/ppwwyyxx/tensorpack.git
 
 
-RUN apt-get update -y && apt-get install -y nodejs python3-pydot python3-skimage
+RUN apt-get update -y && apt-get install -y nodejs python3-pydot python3-skimage python3-tk screen
 RUN pip3 install git+https://github.com/aleju/imgaug
 
 # RUN sudo npm install bower -g 
