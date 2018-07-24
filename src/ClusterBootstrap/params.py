@@ -545,6 +545,7 @@ default_config_parameters = {
             "tutorial-horovod": {},
             "tutorial-dl": {},
             "tutorial-nlp": {},
+            "tutorial-fastai": {},
         },
         "external": {
             # These dockers are to be built by additional add ons.
