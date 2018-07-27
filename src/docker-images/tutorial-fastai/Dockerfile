@@ -1,5 +1,5 @@
 #FROM ubuntu:16.04
-FROM pytorch/pytorch:v0.2
+FROM paperspace/fastai:cuda9_pytorchJL
 MAINTAINER Jin Li <jinlmsft@hotmail.com>
 
 RUN umask 022
@@ -37,13 +37,15 @@ RUN apt-get update -y && \
 
 RUN mkdir -p /var/www/html/
 
-RUN apt-get update -y && apt-get install -y python3-pycurl locales ssh-askpass
+RUN apt-get update -y && apt-get install -y python3-pycurl python3-pip python3-dev locales ssh-askpass
 RUN pip install --upgrade pip 
 RUN pip install setuptools 
 RUN pip install flask flask.restful 
 RUN pip install bs4 requests 
 RUN pip install -U flask-cors
-RUN pip install opencv-python pandas jupyter matplotlib
+RUN pip install opencv-python pandas jupyter
+RUN pip3 install spacy
+RUN python3 -m spacy download en
 
 RUN apt-get update -y && apt-get install -y nodejs  
 # RUN sudo npm install bower -g 
