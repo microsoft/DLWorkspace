@@ -40,6 +40,8 @@ RUN cd /utils && \
     cd /utils/data/trigger_word/XY_train && unzip X.zip && rm X.zip && \
     cd /utils/data/trigger_word/XY_dev && 7z x X_dev.7z && rm X_dev.7z 
 
+RUN pip3 install fastai
+
 RUN cd /utils;  git clone --recurse-submodules git://github.com/DLWorkspace/deep-learning-coursera
 
 # The following operation needs GPU to create yolo.h5, This currently only works for Yolo V2 (V1 and V3 have layers that can't be interpreted)
