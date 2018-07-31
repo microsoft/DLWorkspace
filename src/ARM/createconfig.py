@@ -57,7 +57,7 @@ def add_misc():
     config["webuiport"] = 3080
 
 def copy_ssh_key(password, machine):
-    cmd = """cat /home/dlwsadmin/dlworkspace/src/ClusterBootstrap/deploy/sshkey/id_rsa.pub | /usr/bin/sshpass -p '%s' ssh dlwsadmin@%s "mkdir -p /home/dlwsadmin/.ssh && cat >> /home/dlwsadmin/.ssh/authorized_keys" """ % (password, machine)
+    cmd = """cat /home/dlwsadmin/dlworkspace/src/ClusterBootstrap/deploy/sshkey/id_rsa.pub | /usr/bin/sshpass -p '%s' ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" dlwsadmin@%s "mkdir -p /home/dlwsadmin/.ssh && cat >> /home/dlwsadmin/.ssh/authorized_keys" """ % (password, machine)
     print cmd
     os.system(cmd)
 
