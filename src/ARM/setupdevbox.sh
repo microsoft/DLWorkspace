@@ -46,4 +46,6 @@ cd /home/dlwsadmin/dlworkspace/src/ClusterBootstrap
 # Copy ssh keys
 ../ARM/createconfig.py sshkey $@
 
+# change owner to dlwsadmin
+chown -R dlwsadmin /home/dlwsadmin/dlworkspace
 
