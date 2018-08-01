@@ -2,11 +2,11 @@
     "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "clusterName": {
+        "clusterNameDesired": {
             "type": "string",
             "defaultValue": "[resourceGroup().name]",
             "metadata": {
-                "description": "Name of cluster"
+                "description": "Name of cluster - should be lowercase, if it is not, a lowercase version will be used."
             }
         },
         "adminPassword": {
@@ -57,12 +57,13 @@
         }
     },
     "variables": {
+        "clusterName": "[toLower(parameters('clusterNameDesired'))]",
+        "clusterLocation": "[resourceGroup().location]",
         "adminUsername": "dlwsadmin",
         "standardStorageAccountType": "Standard_LRS",
         "imagePublisher": "Canonical",
         "imageOffer": "UbuntuServer",
         "ubuntuOSVersion": "16.04.0-LTS",
-        "clusterLocation": "[resourceGroup().location]",
         "virtualNetworkName": "[concat(resourceGroup().name, '-VNet')]",
         "subnetName": "VMSubnet",
         "addressPrefix": "192.168.0.0/16",
@@ -71,7 +72,7 @@
     "resources": [
         {
             "type": "Microsoft.Compute/virtualMachines",
-            "name": "[concat(parameters('clusterName'), '-dev')]",
+            "name": "[concat(variables('clusterName'), '-dev')]",
             "apiVersion": "2017-12-01",
             "location": "[variables('clusterLocation')]",
             "properties": {
@@ -94,7 +95,7 @@
                     }
                 },
                 "osProfile": {
-                    "computerName": "[concat(parameters('clusterName'), '-dev')]",
+                    "computerName": "[concat(variables('clusterName'), '-dev')]",
                     "adminUsername": "[variables('adminUsername')]",
                     "adminPassword": "[parameters('adminPassword')]",                    
                     "linuxConfiguration": {
@@ -104,22 +105,22 @@
                 "networkProfile": {
                     "networkInterfaces": [
                         {
-                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(parameters('clusterName'), '-dev', '-VMNic'))]"
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('clusterName'), '-dev', '-VMNic'))]"
                         }
                     ]
                 }
             },
             "dependsOn": [
-                "[resourceId('Microsoft.Network/networkInterfaces', concat(parameters('clusterName'), '-dev', '-VMNIC'))]"
+                "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('clusterName'), '-dev', '-VMNIC'))]"
             ]
         },
         {
             "apiVersion": "2017-12-01",
             "type": "Microsoft.Compute/virtualMachines/extensions",
-            "name": "[concat(parameters('clusterName'), '-dev', '/setupdevbox')]",
+            "name": "[concat(variables('clusterName'), '-dev', '/setupdevbox')]",
             "location": "[variables('clusterLocation')]",
             "dependsOn": [
-                "[resourceId('Microsoft.Compute/virtualMachines', concat(parameters('clusterName'), '-dev'))]"
+                "[resourceId('Microsoft.Compute/virtualMachines', concat(variables('clusterName'), '-dev'))]"
             ],
             "properties": {
                 "publisher": "Microsoft.Azure.Extensions",
@@ -133,13 +134,13 @@
                     "timestamp": 123434781
                 },
                 "protectedSettings": {
-                    "commandToExecute": "[concat('bash setupdevbox.sh ', ' --cluster_name ', parameters('clusterName'), ' --cluster_location ', variables('clusterLocation'), ' --worker_vm_size ', parameters('workerVMSize'), ' --infra_vm_size ', parameters('infraVMSize'), '  --worker_node_num ', parameters('numberOfWorkerVM'),  ' --infra_node_num ', parameters('numberOfInfraVM'), ' --password ', variables('singleQuote'), parameters('adminPassword'), variables('singleQuote'), ' --users ', variables('singleQuote'), parameters('dlwsAdmins'), variables('singleQuote'))]"
+                    "commandToExecute": "[concat('bash setupdevbox.sh ', ' --cluster_name ', variables('clusterName'), ' --cluster_location ', variables('clusterLocation'), ' --worker_vm_size ', parameters('workerVMSize'), ' --infra_vm_size ', parameters('infraVMSize'), '  --worker_node_num ', parameters('numberOfWorkerVM'),  ' --infra_node_num ', parameters('numberOfInfraVM'), ' --password ', variables('singleQuote'), parameters('adminPassword'), variables('singleQuote'), ' --users ', variables('singleQuote'), parameters('dlwsAdmins'), variables('singleQuote'))]"
                 }
             }
         },
         {
             "type": "Microsoft.Compute/virtualMachines",
-            "name": "[concat(parameters('clusterName'), '-infra0', copyIndex(1))]",
+            "name": "[concat(variables('clusterName'), '-infra0', copyIndex(1))]",
             "apiVersion": "2017-12-01",
             "location": "[variables('clusterLocation')]",
             "copy": {
@@ -166,7 +167,7 @@
                     }
                 },
                 "osProfile": {
-                    "computerName": "[concat(parameters('clusterName'), '-infra0', copyIndex(1))]",
+                    "computerName": "[concat(variables('clusterName'), '-infra0', copyIndex(1))]",
                     "adminUsername": "[variables('adminUsername')]",
                     "adminPassword": "[parameters('adminPassword')]",
                     "linuxConfiguration": {
@@ -176,18 +177,18 @@
                 "networkProfile": {
                     "networkInterfaces": [
                         {
-                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(parameters('clusterName'), '-infra0', copyIndex(1), '-VMNic'))]"
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('clusterName'), '-infra0', copyIndex(1), '-VMNic'))]"
                         }
                     ]
                 }
             },
             "dependsOn": [
-                "[resourceId('Microsoft.Network/networkInterfaces', concat(parameters('clusterName'), '-infra0', copyIndex(1), '-VMNic'))]"
+                "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('clusterName'), '-infra0', copyIndex(1), '-VMNic'))]"
             ]
         },
         {
             "type": "Microsoft.Compute/virtualMachines",
-            "name": "[concat(parameters('clusterName'), '-worker0', copyIndex(1))]",
+            "name": "[concat(variables('clusterName'), '-worker0', copyIndex(1))]",
             "apiVersion": "2017-12-01",
             "location": "[variables('clusterLocation')]",
             "copy": {
@@ -214,7 +215,7 @@
                     }
                 },
                 "osProfile": {
-                    "computerName": "[concat(parameters('clusterName'), '-worker0', copyIndex(1))]",
+                    "computerName": "[concat(variables('clusterName'), '-worker0', copyIndex(1))]",
                     "adminUsername": "[variables('adminUsername')]",
                     "adminPassword": "[parameters('adminPassword')]",
                     "linuxConfiguration": {
@@ -224,13 +225,13 @@
                 "networkProfile": {
                     "networkInterfaces": [
                         {
-                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(parameters('clusterName'), '-worker0', copyIndex(1), '-VMNic'))]"
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('clusterName'), '-worker0', copyIndex(1), '-VMNic'))]"
                         }
                     ]
                 }
             },
             "dependsOn": [
-                "[resourceId('Microsoft.Network/networkInterfaces', concat(parameters('clusterName'), '-worker0', copyIndex(1), '-VMNic'))]"
+                "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('clusterName'), '-worker0', copyIndex(1), '-VMNic'))]"
             ]
         },
         {
@@ -239,13 +240,13 @@
                 "name": "Basic",
                 "tier": "Regional"
             },
-            "name": "[concat(parameters('clusterName'), '-dev', '-PublicIP')]",
+            "name": "[concat(variables('clusterName'), '-dev', '-PublicIP')]",
             "apiVersion": "2018-02-01",
             "location": "[variables('clusterLocation')]",
             "properties": {
                 "publicIPAllocationMethod": "Dynamic",
                 "dnsSettings": {
-                    "domainNameLabel": "[toLower(concat(parameters('clusterName'), '-dev'))]"
+                    "domainNameLabel": "[toLower(concat(variables('clusterName'), '-dev'))]"
                 }
             }
         },
@@ -255,7 +256,7 @@
                 "name": "Basic",
                 "tier": "Regional"
             },
-            "name": "[concat(parameters('clusterName'), '-infra0', copyIndex(1), '-PublicIP')]",
+            "name": "[concat(variables('clusterName'), '-infra0', copyIndex(1), '-PublicIP')]",
             "apiVersion": "2018-02-01",
             "location": "[variables('clusterLocation')]",
             "copy": {
@@ -265,7 +266,7 @@
             "properties": {
                 "publicIPAllocationMethod": "Dynamic",
                 "dnsSettings": {
-                    "domainNameLabel": "[toLower(concat(parameters('clusterName'), '-infra0', copyIndex(1)))]"
+                    "domainNameLabel": "[toLower(concat(variables('clusterName'), '-infra0', copyIndex(1)))]"
                 }
             }
         },
@@ -275,7 +276,7 @@
                 "name": "Basic",
                 "tier": "Regional"
             },
-            "name": "[concat(parameters('clusterName'), '-worker0', copyIndex(1), '-PublicIP')]",
+            "name": "[concat(variables('clusterName'), '-worker0', copyIndex(1), '-PublicIP')]",
             "apiVersion": "2018-02-01",
             "location": "[variables('clusterLocation')]",
             "copy": {
@@ -285,23 +286,25 @@
             "properties": {
                 "publicIPAllocationMethod": "Dynamic",
                 "dnsSettings": {
-                    "domainNameLabel": "[toLower(concat(parameters('clusterName'), '-worker0', copyIndex(1)))]"
+                    "domainNameLabel": "[toLower(concat(variables('clusterName'), '-worker0', copyIndex(1)))]"
                 }
             }
         },
         {
             "type": "Microsoft.Network/networkInterfaces",
-            "name": "[concat(parameters('clusterName'), '-dev', '-VMNic')]",
+            "name": "[concat(variables('clusterName'), '-dev', '-VMNic')]",
             "apiVersion": "2018-02-01",
             "location": "[variables('clusterLocation')]",
             "properties": {
                 "ipConfigurations": [
                     {
-                        "name": "[concat(parameters('clusterName'), '-dev', '-IPConfig')]",
+                        "name": "[concat(variables('clusterName'), '-dev', '-IPConfig')]",
                         "properties": {
-                            "privateIPAllocationMethod": "Dynamic",
+                            "privateIPAddress": "[concat('192.168.255.', add(parameters('numberOfInfraVM'), 1))]",
+                            "privateIPAllocationMethod": "Static",
+                            "privateIPAddressVersion": "IPv4",
                             "publicIPAddress": {
-                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('clusterName'), '-dev', '-PublicIP'))]"
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat(variables('clusterName'), '-dev', '-PublicIP'))]"
                             },
                             "subnet": {
                                 "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), variables('subnetName'))]"
@@ -312,19 +315,19 @@
                 "enableAcceleratedNetworking": false,
                 "enableIPForwarding": false,
                 "networkSecurityGroup": {
-                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', concat(parameters('clusterName'), '-NSG'))]"
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', concat(variables('clusterName'), '-NSG'))]"
                 },
                 "primary": true
             },
             "dependsOn": [
-                "[resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('clusterName'), '-dev', '-PublicIP'))]",
+                "[resourceId('Microsoft.Network/publicIPAddresses', concat(variables('clusterName'), '-dev', '-PublicIP'))]",
                 "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]",
-                "[resourceId('Microsoft.Network/networkSecurityGroups', concat(parameters('clusterName'), '-NSG'))]"
+                "[resourceId('Microsoft.Network/networkSecurityGroups', concat(variables('clusterName'), '-NSG'))]"
             ]
         },
         {
             "type": "Microsoft.Network/networkInterfaces",
-            "name": "[concat(parameters('clusterName'), '-infra0', copyIndex(1), '-VMNic')]",
+            "name": "[concat(variables('clusterName'), '-infra0', copyIndex(1), '-VMNic')]",
             "apiVersion": "2018-02-01",
             "location": "[variables('clusterLocation')]",
             "copy": {
@@ -334,11 +337,13 @@
             "properties": {
                 "ipConfigurations": [
                     {
-                        "name": "[concat(parameters('clusterName'), '-infra0', copyIndex(1), '-IPConfig')]",
+                        "name": "[concat(variables('clusterName'), '-infra0', copyIndex(1), '-IPConfig')]",
                         "properties": {
-                            "privateIPAllocationMethod": "Dynamic",
+                            "privateIPAddress": "[concat('192.168.255.', copyIndex(1))]",
+                            "privateIPAllocationMethod": "Static",
+                            "privateIPAddressVersion": "IPv4",
                             "publicIPAddress": {
-                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('clusterName'), '-infra0', copyIndex(1), '-PublicIP'))]"
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat(variables('clusterName'), '-infra0', copyIndex(1), '-PublicIP'))]"
                             },
                             "subnet": {
                                 "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), variables('subnetName'))]"
@@ -349,19 +354,19 @@
                 "enableAcceleratedNetworking": false,
                 "enableIPForwarding": false,
                 "networkSecurityGroup": {
-                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', concat(parameters('clusterName'), '-NSG'))]"
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', concat(variables('clusterName'), '-NSG'))]"
                 },
                 "primary": true
             },
             "dependsOn": [
-                "[resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('clusterName'), '-infra0', copyIndex(1), '-PublicIP'))]",
+                "[resourceId('Microsoft.Network/publicIPAddresses', concat(variables('clusterName'), '-infra0', copyIndex(1), '-PublicIP'))]",
                 "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]",
-                "[resourceId('Microsoft.Network/networkSecurityGroups', concat(parameters('clusterName'), '-NSG'))]"
+                "[resourceId('Microsoft.Network/networkSecurityGroups', concat(variables('clusterName'), '-NSG'))]"
             ]
         },
         {
             "type": "Microsoft.Network/networkInterfaces",
-            "name": "[concat(parameters('clusterName'), '-worker0', copyIndex(1), '-VMNic')]",
+            "name": "[concat(variables('clusterName'), '-worker0', copyIndex(1), '-VMNic')]",
             "apiVersion": "2018-02-01",
             "location": "[variables('clusterLocation')]",
             "copy": {
@@ -371,11 +376,13 @@
             "properties": {
                 "ipConfigurations": [
                     {
-                        "name": "[concat(parameters('clusterName'), '-worker0', copyIndex(1), '-IPConfig')]",
+                        "name": "[concat(variables('clusterName'), '-worker0', copyIndex(1), '-IPConfig')]",
                         "properties": {
-                            "privateIPAllocationMethod": "Dynamic",
+                            "privateIPAddress": "[concat('192.168.1.', copyIndex(1))]",
+                            "privateIPAllocationMethod": "Static",
+                            "privateIPAddressVersion": "IPv4",
                             "publicIPAddress": {
-                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('clusterName'), '-worker0', copyIndex(1), '-PublicIP'))]"
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat(variables('clusterName'), '-worker0', copyIndex(1), '-PublicIP'))]"
                             },
                             "subnet": {
                                 "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), variables('subnetName'))]"
@@ -386,19 +393,19 @@
                 "enableAcceleratedNetworking": false,
                 "enableIPForwarding": false,
                 "networkSecurityGroup": {
-                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', concat(parameters('clusterName'), '-NSG'))]"
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', concat(variables('clusterName'), '-NSG'))]"
                 },
                 "primary": true
             },
             "dependsOn": [
-                "[resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('clusterName'), '-worker0', copyIndex(1), '-PublicIP'))]",
+                "[resourceId('Microsoft.Network/publicIPAddresses', concat(variables('clusterName'), '-worker0', copyIndex(1), '-PublicIP'))]",
                 "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]",
-                "[resourceId('Microsoft.Network/networkSecurityGroups', concat(parameters('clusterName'), '-NSG'))]"
+                "[resourceId('Microsoft.Network/networkSecurityGroups', concat(variables('clusterName'), '-NSG'))]"
             ]
         },
         {
             "type": "Microsoft.Network/networkSecurityGroups",
-            "name": "[concat(parameters('clusterName'), '-NSG')]",
+            "name": "[concat(variables('clusterName'), '-NSG')]",
             "apiVersion": "2018-02-01",
             "location": "[variables('clusterLocation')]",
             "properties": {
