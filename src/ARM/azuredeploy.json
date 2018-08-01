@@ -4,6 +4,7 @@
     "parameters": {
         "adminUsername": {
             "type": "string",
+            "defaultValue": "dlwsadmin",
             "metadata": {
               "description": "User name for the virtual machines."
             }
@@ -41,29 +42,41 @@
             "metadata": {
                 "description": "Size of the worker-VM. Use a GPU VM for worker-VM."
             }
+        },
+        "clusterName": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().name]",
+            "metadata": {
+                "description": "Name of cluster"
+            }
+        },
+        "dlwsAdmins": {
+            "type": "string",
+            "metadata": {
+                "description": "Comma separated list of users allowed to use DLWorkspace"
+            }
         }
     },
     "variables": {
         "standardStorageAccountType": "Standard_LRS",
-        "standardVMSize": "Standard_D1_v2",
         "imagePublisher": "Canonical",
         "imageOffer": "UbuntuServer",
         "ubuntuOSVersion": "16.04.0-LTS",
-        "clusterName": "[substring(resourceGroup().name, 0, sub(length(resourceGroup().name), 6))]",
         "clusterLocation": "[resourceGroup().location]",
-        "virtualNetworkName": "[concat(resourceGroup().name, '-vNet')]",
+        "virtualNetworkName": "[concat(resourceGroup().name, '-VNet')]",
         "subnetName": "VMSubnet",
-        "addressPrefix": "192.168.0.0/16"
+        "addressPrefix": "192.168.0.0/16",
+        "singleQuote": "'"
     },
     "resources": [
         {
             "type": "Microsoft.Compute/virtualMachines",
-            "name": "[concat(variables('clusterName'),'-dev')]",
+            "name": "[concat(parameters('clusterName'), '-dev')]",
             "apiVersion": "2017-12-01",
-            "location": "[resourceGroup().location]",
+            "location": "[variables('clusterLocation')]",
             "properties": {
                 "hardwareProfile": {
-                    "vmSize": "[variables('standardVMSize')]"
+                    "vmSize": "[parameters('infraVMSize')]"
                 },
                 "storageProfile": {
                     "imageReference": {
@@ -78,74 +91,57 @@
                         "managedDisk": {
                             "storageAccountType": "[variables('standardStorageAccountType')]"
                         }
-                    },
-                    "dataDisks": []
+                    }
                 },
                 "osProfile": {
-                    "computerName": "[concat(variables('clusterName'),'-dev')]",
+                    "computerName": "[concat(parameters('clusterName'), '-dev')]",
                     "adminUsername": "[parameters('adminUsername')]",
-                    "adminPassword": "[parameters('adminPassword')]",
-                    
+                    "adminPassword": "[parameters('adminPassword')]",                    
                     "linuxConfiguration": {
-                        "disablePasswordAuthentication": false,
-                        "ssh": {
-                            "publicKeys": [
-                                {
-                                    "path": "/home/dlwsadmin/.ssh/authorized_keys",                                    
-                                    "keyData": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCUuJmolEu7m1dSaCR0haU0FAXCh+vibIEvXxDUrx3JOnXRtDfxACkNEwx/zeBoyPFCSrrKZ63At3H9eiugQ9eEgWh4I4xPGm1IkFtkLuSVSJVJiC55lK4UzFYV4OSoLa128Dl3zzeHJ7gUwZimV4+sYnzJKzrNJ0hJgLhgf8HdsYT/itDes2WE4NlJTnoMyVTwOCE8ZXjgxOkCozmwT5GR3vGZercGmSs+Pw5ob9E+CxWZYfVehw2No4eLoHEeFdE+imj8TnNipW3Mo4FViTbf9z3TvhYn2uTrU29J2RQ8ud095StZDt7XNGb8PAN6b2jc2EAABn0OSSyP1/SrKnI5"
-                                }
-                            ]
-                        }
-                    },
-                    "secrets": []
+                        "disablePasswordAuthentication": false
+                    }
                 },
                 "networkProfile": {
                     "networkInterfaces": [
                         {
-                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('clusterName'),'-dev', '-NIC'))]"
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(parameters('clusterName'), '-dev', '-VMNic'))]"
                         }
                     ]
                 }
             },
-            "resources": [
-                {
-                    "apiVersion": "2017-12-01",
-                    "type": "extensions",
-                    "name": "setupdevbox",
-                    "location": "[resourceGroup().location]",
-                    "dependsOn": [
-                        "[concat('Microsoft.Compute/virtualMachines/', concat(variables('clusterName'),'-dev'))]"
-                    ],
-                    "tags": {
-                        "displayName": "config-app"
-                    },
-                    "properties": {
-                        "publisher": "Microsoft.Azure.Extensions",
-                        "type": "CustomScript",
-                        "typeHandlerVersion": "2.0",
-                        "autoUpgradeMinorVersion": true,
-                        "settings": {
-                        "fileUris": [
-                            "https://raw.githubusercontent.com/Microsoft/DLWorkspace/ARMTemplate/src/ARM/setupdevbox.sh"
-                        ],
-                        "timestamp": 123434234
-                        },
-                        "protectedSettings": {
-                        "commandToExecute": "[concat('bash setupdevbox.sh ','--cluster_name ', variables('clustername'),' ', '--cluster_location ', variables('clusterlocation'),' ', '--worker_vm_size ', parameters('workerVMSize'), ' ', '--infra_vm_size ', parameters('infraVMSize'), ' ', '--worker_node_num ', parameters('numberOfWorkerVM'), ' ', '--infra_node_num ', parameters('numberOfInfraVM'), ' ', '--password ', parameters('adminPassword'), ' ', '--users ', parameters('adminUsername'))]"
-                        }
-                    }
-                }
-                
-            ],
             "dependsOn": [
-                "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('clusterName'),'-dev', '-NIC'))]"
+                "[resourceId('Microsoft.Network/networkInterfaces', concat(parameters('clusterName'), '-dev', '-VMNIC'))]"
             ]
         },
         {
-            "type": "Microsoft.Compute/virtualMachines",
-            "name": "[concat(variables('clusterName'),'-infra0', copyIndex(1))]",
             "apiVersion": "2017-12-01",
-            "location": "[resourceGroup().location]",
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "name": "[concat(parameters('clusterName'), '-dev', '/setupdevbox')]",
+            "location": "[variables('clusterLocation')]",
+            "dependsOn": [
+                "[concat('Microsoft.Compute/virtualMachines/', concat(parameters('clusterName'), '-dev'))]"
+            ],
+            "properties": {
+                "publisher": "Microsoft.Azure.Extensions",
+                "type": "CustomScript",
+                "typeHandlerVersion": "2.0",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                    "fileUris": [
+                        "https://raw.githubusercontent.com/Microsoft/DLWorkspace/ARMTemplate/src/ARM/setupdevbox.sh"
+                    ],
+                    "timestamp": 123434234
+                },
+                "protectedSettings": {
+                    "commandToExecute": "[concat('bash setupdevbox.sh ', ' --cluster_name ', parameters('clusterName'), ' --cluster_location ', variables('clusterLocation'), ' --worker_vm_size ', parameters('workerVMSize'), ' --infra_vm_size ', parameters('infraVMSize'), '  --worker_node_num ', parameters('numberOfWorkerVM'),  ' --infra_node_num ', parameters('numberOfInfraVM'), ' --password ', variables('singleQuote'), parameters('adminPassword'), variables('singleQuote'), ' --users ', variables('singleQuote'), parameters('dlwsAdmins'), variables('singleQuote'))]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Compute/virtualMachines",
+            "name": "[concat(parameters('clusterName'), '-infra0', copyIndex(1))]",
+            "apiVersion": "2017-12-01",
+            "location": "[variables('clusterLocation')]",
             "copy": {
                 "name": "infraVMLoop",
                 "count": "[parameters('numberOfInfraVM')]"
@@ -167,43 +163,33 @@
                         "managedDisk": {
                             "storageAccountType": "[variables('standardStorageAccountType')]"
                         }
-                    },
-                    "dataDisks": []
+                    }
                 },
                 "osProfile": {
-                    "computerName": "[concat(variables('clusterName'),'-infra0', copyIndex(1))]",
+                    "computerName": "[concat(parameters('clusterName'), '-infra0', copyIndex(1))]",
                     "adminUsername": "[parameters('adminUsername')]",
                     "adminPassword": "[parameters('adminPassword')]",
                     "linuxConfiguration": {
-                        "disablePasswordAuthentication": false,
-                        "ssh": {
-                            "publicKeys": [
-                                {
-                                    "path": "/home/dlwsadmin/.ssh/authorized_keys",
-                                    "keyData": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCUuJmolEu7m1dSaCR0haU0FAXCh+vibIEvXxDUrx3JOnXRtDfxACkNEwx/zeBoyPFCSrrKZ63At3H9eiugQ9eEgWh4I4xPGm1IkFtkLuSVSJVJiC55lK4UzFYV4OSoLa128Dl3zzeHJ7gUwZimV4+sYnzJKzrNJ0hJgLhgf8HdsYT/itDes2WE4NlJTnoMyVTwOCE8ZXjgxOkCozmwT5GR3vGZercGmSs+Pw5ob9E+CxWZYfVehw2No4eLoHEeFdE+imj8TnNipW3Mo4FViTbf9z3TvhYn2uTrU29J2RQ8ud095StZDt7XNGb8PAN6b2jc2EAABn0OSSyP1/SrKnI5"
-                                }
-                            ]
-                        }
-                    },
-                    "secrets": []
+                        "disablePasswordAuthentication": false
+                    }
                 },
                 "networkProfile": {
                     "networkInterfaces": [
                         {
-                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('clusterName'),'-infra0', copyIndex(1), '-NIC'))]"
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(parameters('clusterName'), '-infra0', copyIndex(1), '-VMNic'))]"
                         }
                     ]
                 }
             },
             "dependsOn": [
-                "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('clusterName'),'-infra0', copyIndex(1), '-NIC'))]"
+                "[resourceId('Microsoft.Network/networkInterfaces', concat(parameters('clusterName'), '-infra0', copyIndex(1), '-VMNic'))]"
             ]
         },
         {
             "type": "Microsoft.Compute/virtualMachines",
-            "name": "[concat(variables('clusterName'),'-worker0', copyIndex(1))]",
+            "name": "[concat(parameters('clusterName'), '-worker0', copyIndex(1))]",
             "apiVersion": "2017-12-01",
-            "location": "[resourceGroup().location]",
+            "location": "[variables('clusterLocation')]",
             "copy": {
                 "name": "workerVMLoop",
                 "count": "[parameters('numberOfWorkerVM')]"
@@ -225,36 +211,26 @@
                         "managedDisk": {
                             "storageAccountType": "[variables('standardStorageAccountType')]"
                         }
-                    },
-                    "dataDisks": []
+                    }
                 },
                 "osProfile": {
-                    "computerName": "[concat(variables('clusterName'),'-worker0', copyIndex(1))]",
+                    "computerName": "[concat(parameters('clusterName'), '-worker0', copyIndex(1))]",
                     "adminUsername": "[parameters('adminUsername')]",
                     "adminPassword": "[parameters('adminPassword')]",
                     "linuxConfiguration": {
-                        "disablePasswordAuthentication": false,
-                        "ssh": {
-                            "publicKeys": [
-                                {
-                                    "path": "/home/dlwsadmin/.ssh/authorized_keys",
-                                    "keyData": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCUuJmolEu7m1dSaCR0haU0FAXCh+vibIEvXxDUrx3JOnXRtDfxACkNEwx/zeBoyPFCSrrKZ63At3H9eiugQ9eEgWh4I4xPGm1IkFtkLuSVSJVJiC55lK4UzFYV4OSoLa128Dl3zzeHJ7gUwZimV4+sYnzJKzrNJ0hJgLhgf8HdsYT/itDes2WE4NlJTnoMyVTwOCE8ZXjgxOkCozmwT5GR3vGZercGmSs+Pw5ob9E+CxWZYfVehw2No4eLoHEeFdE+imj8TnNipW3Mo4FViTbf9z3TvhYn2uTrU29J2RQ8ud095StZDt7XNGb8PAN6b2jc2EAABn0OSSyP1/SrKnI5"
-                                }
-                            ]
-                        }
-                    },
-                    "secrets": []
+                        "disablePasswordAuthentication": false
+                    }
                 },
                 "networkProfile": {
                     "networkInterfaces": [
                         {
-                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('clusterName'),'-worker0', copyIndex(1), '-NIC'))]"
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(parameters('clusterName'), '-worker0', copyIndex(1), '-VMNic'))]"
                         }
                     ]
                 }
             },
             "dependsOn": [
-                "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('clusterName'),'-worker0', copyIndex(1), '-NIC'))]"
+                "[resourceId('Microsoft.Network/networkInterfaces', concat(parameters('clusterName'), '-worker0', copyIndex(1), '-VMNic'))]"
             ]
         },
         {
@@ -263,13 +239,13 @@
                 "name": "Basic",
                 "tier": "Regional"
             },
-            "name": "[concat(variables('clusterName'),'-dev', '-PublicIP')]",
+            "name": "[concat(parameters('clusterName'), '-dev', '-PublicIP')]",
             "apiVersion": "2018-02-01",
-            "location": "[resourceGroup().location]",
+            "location": "[variables('clusterLocation')]",
             "properties": {
                 "publicIPAllocationMethod": "Dynamic",
                 "dnsSettings": {
-                    "domainNameLabel": "[toLower(concat(variables('clusterName'),'-dev'))]"
+                    "domainNameLabel": "[toLower(concat(parameters('clusterName'), '-dev'))]"
                 }
             }
         },
@@ -279,9 +255,9 @@
                 "name": "Basic",
                 "tier": "Regional"
             },
-            "name": "[concat(variables('clusterName'),'-infra0', copyIndex(1), '-PublicIP')]",
+            "name": "[concat(parameters('clusterName'), '-infra0', copyIndex(1), '-PublicIP')]",
             "apiVersion": "2018-02-01",
-            "location": "[resourceGroup().location]",
+            "location": "[variables('clusterLocation')]",
             "copy": {
                 "name": "infraVMPublicIPLoop",
                 "count": "[parameters('numberOfInfraVM')]"
@@ -289,7 +265,7 @@
             "properties": {
                 "publicIPAllocationMethod": "Dynamic",
                 "dnsSettings": {
-                    "domainNameLabel": "[toLower(concat(variables('clusterName'),'-infra0', copyIndex(1)))]"
+                    "domainNameLabel": "[toLower(concat(parameters('clusterName'), '-infra0', copyIndex(1)))]"
                 }
             }
         },
@@ -299,9 +275,9 @@
                 "name": "Basic",
                 "tier": "Regional"
             },
-            "name": "[concat(variables('clusterName'),'-worker0', copyIndex(1), '-PublicIP')]",
+            "name": "[concat(parameters('clusterName'), '-worker0', copyIndex(1), '-PublicIP')]",
             "apiVersion": "2018-02-01",
-            "location": "[resourceGroup().location]",
+            "location": "[variables('clusterLocation')]",
             "copy": {
                 "name": "workerVMPublicIPLoop",
                 "count": "[parameters('numberOfWorkerVM')]"
@@ -309,23 +285,23 @@
             "properties": {
                 "publicIPAllocationMethod": "Dynamic",
                 "dnsSettings": {
-                    "domainNameLabel": "[toLower(concat(variables('clusterName'),'-worker0', copyIndex(1)))]"
+                    "domainNameLabel": "[toLower(concat(parameters('clusterName'), '-worker0', copyIndex(1)))]"
                 }
             }
         },
         {
             "type": "Microsoft.Network/networkInterfaces",
-            "name": "[concat(variables('clusterName'),'-dev', '-NIC')]",
+            "name": "[concat(parameters('clusterName'), '-dev', '-VMNic')]",
             "apiVersion": "2018-02-01",
-            "location": "[resourceGroup().location]",
+            "location": "[variables('clusterLocation')]",
             "properties": {
                 "ipConfigurations": [
                     {
-                        "name": "[concat(variables('clusterName'),'-dev', '-IPConfig')]",
+                        "name": "[concat(parameters('clusterName'), '-dev', '-IPConfig')]",
                         "properties": {
                             "privateIPAllocationMethod": "Dynamic",
                             "publicIPAddress": {
-                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat(variables('clusterName'),'-dev', '-PublicIP'))]"
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('clusterName'), '-dev', '-PublicIP'))]"
                             },
                             "subnet": {
                                 "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), variables('subnetName'))]"
@@ -333,28 +309,24 @@
                         }
                     }
                 ],
-                "dnsSettings": {
-                    "dnsServers": [],
-                    "appliedDnsServers": []
-                },
                 "enableAcceleratedNetworking": false,
                 "enableIPForwarding": false,
                 "networkSecurityGroup": {
-                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', concat(variables('clusterName'), '-NSG'))]"
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', concat(parameters('clusterName'), '-NSG'))]"
                 },
                 "primary": true
             },
             "dependsOn": [
-                "[resourceId('Microsoft.Network/publicIPAddresses', concat(variables('clusterName'),'-dev', '-PublicIP'))]",
+                "[resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('clusterName'), '-dev', '-PublicIP'))]",
                 "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]",
-                "[resourceId('Microsoft.Network/networkSecurityGroups', concat(variables('clusterName'), '-NSG'))]"
+                "[resourceId('Microsoft.Network/networkSecurityGroups', concat(parameters('clusterName'), '-NSG'))]"
             ]
         },
         {
             "type": "Microsoft.Network/networkInterfaces",
-            "name": "[concat(variables('clusterName'),'-infra0', copyIndex(1), '-NIC')]",
+            "name": "[concat(parameters('clusterName'), '-infra0', copyIndex(1), '-VMNic')]",
             "apiVersion": "2018-02-01",
-            "location": "[resourceGroup().location]",
+            "location": "[variables('clusterLocation')]",
             "copy": {
                 "name": "infraVMNICLoop",
                 "count": "[parameters('numberOfInfraVM')]"
@@ -362,11 +334,11 @@
             "properties": {
                 "ipConfigurations": [
                     {
-                        "name": "[concat(variables('clusterName'),'-infra0', copyIndex(1), '-IPConfig')]",
+                        "name": "[concat(parameters('clusterName'), '-infra0', copyIndex(1), '-IPConfig')]",
                         "properties": {
                             "privateIPAllocationMethod": "Dynamic",
                             "publicIPAddress": {
-                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat(variables('clusterName'),'-infra0', copyIndex(1), '-PublicIP'))]"
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('clusterName'), '-infra0', copyIndex(1), '-PublicIP'))]"
                             },
                             "subnet": {
                                 "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), variables('subnetName'))]"
@@ -374,28 +346,24 @@
                         }
                     }
                 ],
-                "dnsSettings": {
-                    "dnsServers": [],
-                    "appliedDnsServers": []
-                },
                 "enableAcceleratedNetworking": false,
                 "enableIPForwarding": false,
                 "networkSecurityGroup": {
-                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', concat(variables('clusterName'), '-NSG'))]"
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', concat(parameters('clusterName'), '-NSG'))]"
                 },
                 "primary": true
             },
             "dependsOn": [
-                "[resourceId('Microsoft.Network/publicIPAddresses', concat(variables('clusterName'),'-infra0', copyIndex(1), '-PublicIP'))]",
+                "[resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('clusterName'), '-infra0', copyIndex(1), '-PublicIP'))]",
                 "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]",
-                "[resourceId('Microsoft.Network/networkSecurityGroups', concat(variables('clusterName'), '-NSG'))]"
+                "[resourceId('Microsoft.Network/networkSecurityGroups', concat(parameters('clusterName'), '-NSG'))]"
             ]
         },
         {
             "type": "Microsoft.Network/networkInterfaces",
-            "name": "[concat(variables('clusterName'),'-worker0', copyIndex(1), '-NIC')]",
+            "name": "[concat(parameters('clusterName'), '-worker0', copyIndex(1), '-VMNic')]",
             "apiVersion": "2018-02-01",
-            "location": "[resourceGroup().location]",
+            "location": "[variables('clusterLocation')]",
             "copy": {
                 "name": "workerVMNICLoop",
                 "count": "[parameters('numberOfWorkerVM')]"
@@ -403,11 +371,11 @@
             "properties": {
                 "ipConfigurations": [
                     {
-                        "name": "[concat(variables('clusterName'),'-worker0', copyIndex(1), '-IPConfig')]",
+                        "name": "[concat(parameters('clusterName'), '-worker0', copyIndex(1), '-IPConfig')]",
                         "properties": {
                             "privateIPAllocationMethod": "Dynamic",
                             "publicIPAddress": {
-                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat(variables('clusterName'),'-worker0', copyIndex(1), '-PublicIP'))]"
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('clusterName'), '-worker0', copyIndex(1), '-PublicIP'))]"
                             },
                             "subnet": {
                                 "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), variables('subnetName'))]"
@@ -415,155 +383,83 @@
                         }
                     }
                 ],
-                "dnsSettings": {
-                    "dnsServers": [],
-                    "appliedDnsServers": []
-                },
                 "enableAcceleratedNetworking": false,
                 "enableIPForwarding": false,
                 "networkSecurityGroup": {
-                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', concat(variables('clusterName'), '-NSG'))]"
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', concat(parameters('clusterName'), '-NSG'))]"
                 },
                 "primary": true
             },
             "dependsOn": [
-                "[resourceId('Microsoft.Network/publicIPAddresses', concat(variables('clusterName'),'-worker0', copyIndex(1), '-PublicIP'))]",
+                "[resourceId('Microsoft.Network/publicIPAddresses', concat(parameters('clusterName'), '-worker0', copyIndex(1), '-PublicIP'))]",
                 "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]",
-                "[resourceId('Microsoft.Network/networkSecurityGroups', concat(variables('clusterName'), '-NSG'))]"
+                "[resourceId('Microsoft.Network/networkSecurityGroups', concat(parameters('clusterName'), '-NSG'))]"
             ]
         },
         {
             "type": "Microsoft.Network/networkSecurityGroups",
-            "name": "[concat(variables('clusterName'), '-NSG')]",
+            "name": "[concat(parameters('clusterName'), '-NSG')]",
             "apiVersion": "2018-02-01",
-            "location": "[resourceGroup().location]",
+            "location": "[variables('clusterLocation')]",
             "properties": {
                 "securityRules": [
                     {
-                        "name": "default-allow-ssh",
+                        "name": "allowalltcp",
                         "properties": {
-                            "protocol": "Tcp",
-                            "sourcePortRange": "*",
-                            "destinationPortRange": "22",
-                            "sourceAddressPrefix": "*",
-                            "destinationAddressPrefix": "*",
+                            "protocol": "TCP",
                             "access": "Allow",
                             "priority": 1000,
                             "direction": "Inbound",
-                            "sourcePortRanges": [],
-                            "destinationPortRanges": [],
-                            "sourceAddressPrefixes": [],
-                            "destinationAddressPrefixes": []
-                        }
-                    }
-                ],
-                "defaultSecurityRules": [
-                    {
-                        "name": "AllowVnetInBound",
-                        "properties": {
-                            "description": "Allow inbound traffic from all VMs in VNET",
-                            "protocol": "*",
-                            "sourcePortRange": "*",
-                            "destinationPortRange": "*",
-                            "sourceAddressPrefix": "VirtualNetwork",
-                            "destinationAddressPrefix": "VirtualNetwork",
-                            "access": "Allow",
-                            "priority": 65000,
-                            "direction": "Inbound",
-                            "sourcePortRanges": [],
-                            "destinationPortRanges": [],
-                            "sourceAddressPrefixes": [],
-                            "destinationAddressPrefixes": []
-                        }
-                    },
-                    {
-                        "name": "AllowAzureLoadBalancerInBound",
-                        "properties": {
-                            "description": "Allow inbound traffic from azure load balancer",
-                            "protocol": "*",
-                            "sourcePortRange": "*",
-                            "destinationPortRange": "*",
-                            "sourceAddressPrefix": "AzureLoadBalancer",
-                            "destinationAddressPrefix": "*",
-                            "access": "Allow",
-                            "priority": 65001,
-                            "direction": "Inbound",
-                            "sourcePortRanges": [],
-                            "destinationPortRanges": [],
-                            "sourceAddressPrefixes": [],
-                            "destinationAddressPrefixes": []
-                        }
-                    },
-                    {
-                        "name": "DenyAllInBound",
-                        "properties": {
-                            "description": "Deny all inbound traffic",
-                            "protocol": "*",
-                            "sourcePortRange": "*",
-                            "destinationPortRange": "*",
                             "sourceAddressPrefix": "*",
+                            "sourcePortRange": "*",
                             "destinationAddressPrefix": "*",
-                            "access": "Deny",
-                            "priority": 65500,
+                            "destinationPortRanges": [
+                                "80",
+                                "443",
+                                "30000-32767",
+                                "25826",
+                                "3080"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "allowalludp",
+                        "properties": {
+                            "protocol": "Udp",
+                            "access": "Allow",
+                            "priority": 1010,
                             "direction": "Inbound",
-                            "sourcePortRanges": [],
-                            "destinationPortRanges": [],
-                            "sourceAddressPrefixes": [],
-                            "destinationAddressPrefixes": []
-                        }
-                    },
-                    {
-                        "name": "AllowVnetOutBound",
-                        "properties": {
-                            "description": "Allow outbound traffic from all VMs to all VMs in VNET",
-                            "protocol": "*",
-                            "sourcePortRange": "*",
-                            "destinationPortRange": "*",
-                            "sourceAddressPrefix": "VirtualNetwork",
-                            "destinationAddressPrefix": "VirtualNetwork",
-                            "access": "Allow",
-                            "priority": 65000,
-                            "direction": "Outbound",
-                            "sourcePortRanges": [],
-                            "destinationPortRanges": [],
-                            "sourceAddressPrefixes": [],
-                            "destinationAddressPrefixes": []
-                        }
-                    },
-                    {
-                        "name": "AllowInternetOutBound",
-                        "properties": {
-                            "description": "Allow outbound traffic from all VMs to Internet",
-                            "protocol": "*",
-                            "sourcePortRange": "*",
-                            "destinationPortRange": "*",
                             "sourceAddressPrefix": "*",
-                            "destinationAddressPrefix": "Internet",
-                            "access": "Allow",
-                            "priority": 65001,
-                            "direction": "Outbound",
-                            "sourcePortRanges": [],
-                            "destinationPortRanges": [],
-                            "sourceAddressPrefixes": [],
-                            "destinationAddressPrefixes": []
-                        }
-                    },
-                    {
-                        "name": "DenyAllOutBound",
-                        "properties": {
-                            "description": "Deny all outbound traffic",
-                            "protocol": "*",
                             "sourcePortRange": "*",
-                            "destinationPortRange": "*",
-                            "sourceAddressPrefix": "*",
                             "destinationAddressPrefix": "*",
-                            "access": "Deny",
-                            "priority": 65500,
-                            "direction": "Outbound",
-                            "sourcePortRanges": [],
-                            "destinationPortRanges": [],
-                            "sourceAddressPrefixes": [],
-                            "destinationAddressPrefixes": []
+                            "destinationPortRange": "25826"
+                        }
+                    },
+                    {
+                        "name": "allowdevtcp",
+                        "properties": {
+                            "protocol": "Tcp",
+                            "access": "Allow",
+                            "priority": 900,
+                            "direction": "Inbound",
+                            "sourceAddressPrefixes": [
+                                "192.16.0.0/16",
+                                "73.109.29.0/24",
+                                "167.220.0.0/16",
+                                "131.107.0.0/16",
+                                "52.151.11.0/24",
+                                "52.226.68.0/24"
+                            ],
+                            "sourcePortRange": "*",
+                            "destinationAddressPrefix": "*",
+                            "destinationPortRanges": [
+                                "22",
+                                "1443",
+                                "2379",
+                                "3306",
+                                "5000",
+                                "8086"
+                            ]
                         }
                     }
                 ]
@@ -573,7 +469,7 @@
             "type": "Microsoft.Network/virtualNetworks",
             "name": "[variables('virtualNetworkName')]",
             "apiVersion": "2018-02-01",
-            "location": "[resourceGroup().location]",
+            "location": "[variables('clusterLocation')]",
             "properties": {
                 "addressSpace": {
                     "addressPrefixes": ["[variables('addressPrefix')]"]
