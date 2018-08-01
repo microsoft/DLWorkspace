@@ -130,35 +130,10 @@
                     "fileUris": [
                         "https://raw.githubusercontent.com/Microsoft/DLWorkspace/ARMTemplate/src/ARM/setupdevbox.sh"
                     ],
-                    "timestamp": 123434234
+                    "timestamp": 123434781
                 },
                 "protectedSettings": {
                     "commandToExecute": "[concat('bash setupdevbox.sh ', ' --cluster_name ', parameters('clusterName'), ' --cluster_location ', variables('clusterLocation'), ' --worker_vm_size ', parameters('workerVMSize'), ' --infra_vm_size ', parameters('infraVMSize'), '  --worker_node_num ', parameters('numberOfWorkerVM'),  ' --infra_node_num ', parameters('numberOfInfraVM'), ' --password ', variables('singleQuote'), parameters('adminPassword'), variables('singleQuote'), ' --users ', variables('singleQuote'), parameters('dlwsAdmins'), variables('singleQuote'))]"
-                }
-            }
-        },
-        {
-            "apiVersion": "2017-12-01",
-            "type": "Microsoft.Compute/virtualMachines/extensions",
-            "name": "[concat(parameters('clusterName'), '-dev', '/deploycluster')]",
-            "location": "[variables('clusterLocation')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Compute/virtualMachines', concat(parameters('clusterName'), '-dev'))]",
-                "[resourceId('Microsoft.Compute/virtualMachines/extensions', concat(parameters('clusterName'), '-dev'), 'setupdevbox')]"
-            ],
-            "properties": {
-                "publisher": "Microsoft.Azure.Extensions",
-                "type": "CustomScript",
-                "typeHandlerVersion": "2.0",
-                "autoUpgradeMinorVersion": true,
-                "settings": {
-                    "fileUris": [
-                        "https://raw.githubusercontent.com/Microsoft/DLWorkspace/ARMTemplate/src/ARM/deploycluster.sh"
-                    ],
-                    "timestamp": 123434234
-                },
-                "protectedSettings": {
-                    "commandToExecute": "bash deploycluster.sh"
                 }
             }
         },

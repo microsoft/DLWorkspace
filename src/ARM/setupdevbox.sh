@@ -16,18 +16,16 @@ sudo apt-get install -y --no-install-recommends \
         sshpass
 
 # Install docker
-curl -fsSL https://yum.dockerproject.org/gpg | sudo apt-key add -
-sudo add-apt-repository \
-       "deb https://apt.dockerproject.org/repo/ \
-       ubuntu-$(lsb_release -cs) \
-       main"
-sudo apt-get update
-sudo apt-get install -y --no-install-recommends \
-    docker-engine
+which docker
+if [ $? -eq 0 ]
+then 
+docker --version
+## docker already installed
+else
+curl -q https://get.docker.com/ | sudo bash
+fi
 
-sudo gpasswd -a dlwsadmin docker
-# Run deploy.py commands requiring docker as separate script after adding to docker group so that new permissions take effect
-#newgrp docker
+sudo usermod -aG docker dlwsadmin
 
 sudo apt-get install -y --no-install-recommends python-yaml python-jinja2 python-setuptools python-tzlocal python-pycurl
 
@@ -48,4 +46,7 @@ cd /home/dlwsadmin/dlworkspace/src/ClusterBootstrap
 
 # change owner to dlwsadmin
 chown -R dlwsadmin /home/dlwsadmin/dlworkspace
+
+# run deploy script in docker group, using user dlwsadmin
+sudo -H -u dlwsadmin sg docker -c "bash /home/dlwsadmin/dlworkspace/src/ARM/deploycluster.sh"
 
