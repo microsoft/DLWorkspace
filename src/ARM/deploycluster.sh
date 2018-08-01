@@ -1,2 +1,2 @@
 cd /home/dlwsadmin/dlworkspace/src/ClusterBootstrap
-./deploy.py --verbose scriptblocks azure 
+sudo -H -u dlwsadmin python ./deploy.py --verbose scriptblocks azure
