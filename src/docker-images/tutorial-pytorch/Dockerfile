@@ -23,7 +23,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         vim \
         locales \
         curl \
-        apt-transport-https       
+        apt-transport-https \
+        screen
 
 # netcore 2.0
 RUN curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg

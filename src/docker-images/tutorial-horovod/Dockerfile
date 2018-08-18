@@ -45,7 +45,8 @@ RUN pip install setuptools
 RUN pip install flask flask.restful 
 RUN pip install bs4 requests 
 RUN pip install -U flask-cors
-RUN pip install opencv-python pandas jupyter
+RUN pip install opencv-python pandas jupyter matplotlib spacy sklearn scikit-image munch
+RUN python -m spacy download en
 
 RUN apt-get update -y && apt-get install -y nodejs  
 # RUN sudo npm install bower -g 
