@@ -38,13 +38,13 @@ RUN apt-get update -y && \
     apt-get -y install apache2 libapache2-mod-wsgi-py3
 
 RUN mkdir -p /var/www/html/
-RUN apt-get update -y && apt-get install -y python3-pycurl locales ssh-askpass  python3-tk screen libgtk2.0-dev
+RUN apt-get update -y && apt-get install -y python3-pycurl locales ssh-askpass  python3-tk screen
 RUN pip install --upgrade pip 
 RUN pip install setuptools 
 RUN pip install flask flask.restful 
 RUN pip install bs4 requests 
 RUN pip install -U flask-cors
-RUN pip install opencv-python pandas jupyter matplotlib spacy sklearn scikit-image munch imgaug
+RUN pip install pandas jupyter matplotlib spacy sklearn scikit-image munch imgaug
 RUN python -m spacy download en
 
 RUN apt-get update -y && apt-get install -y nodejs  
