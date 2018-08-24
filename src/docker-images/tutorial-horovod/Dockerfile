@@ -40,6 +40,7 @@ RUN apt-get update -y && \
 RUN mkdir -p /var/www/html/
 RUN apt-get update -y && apt-get install -y python3-pycurl locales ssh-askpass  python3-tk screen
 RUN pip install --upgrade pip 
+RUN pip uninstall -y keras ; pip install keras
 RUN pip install setuptools 
 RUN pip install flask flask.restful 
 RUN pip install bs4 requests 
