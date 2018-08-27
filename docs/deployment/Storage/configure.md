@@ -11,6 +11,7 @@ mountpoints:
     filesharename: <<fileshare_name>>
     mountpoints: ["mntpoint1","mntpoint2","mntpoint3"]
     
+deploymounts: ["mntpoint1", "mntpoint2", "mntpoint3" ]
 ```
 
 The configuration paramters are as follows:
@@ -31,6 +32,8 @@ The configuration paramters are as follows:
     * For each mountpoint, say mntpoint1, a symbolic link will be created:
         * /dlwsdata/mntpoint1 -> /mntdlws/<<fileshare_name>>/mntpoint1
     Note that we always create a directory within the shared file system, and symbolic link the consumed directory, e.g., /dlwsdata/mntpoint1 to the directory within the shared file system. This mechanism ensures that if the shared file system goes away, the consumed directory will fail (thus the related job will fails). We prefer this behavior compared with a fail silent behavior, in which the file may be written in local file system, and incorrectly placed. 
+
+* deploymounts: These mounts will be offered as a option to be mounted into the container. Please note that if a certain mount fails, the container will fails to launch. 
 
 Unless DL Workspace is deployed to a single node, it should always use a shared file system. At the minimum, the folder "jobfiles", "namenodeshare", "storage", "work" need to be placed on the shared file system. This facilitates the job execution and monitoring. For DL Workspace, if a particular share has an empty mountpoints:
 
