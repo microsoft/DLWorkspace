@@ -132,12 +132,14 @@
                     if (validmountlist.length > 0) {
                         for (var i in validmountlist) {
                             var onemount = validmountlist[i];
+                            var allshares = tolist(mountpoints[sharename].publicshare);
+                            /*
                             var publicshareinfo = tolist(mountpoints[sharename].publicshare)
                             allshares = [];
                             if ("all" in publicshareinfo)
                                 allshares = allshares.concat(tolist(publicshareinfo["all"]))
                             if (onemount in publicshareinfo)
-                                allshares = allshares.concat(tolist(publicshareinfo[onemount]))
+                                allshares = allshares.concat(tolist(publicshareinfo[onemount])) */
                             allshares.push(username);
                             for (var j in allshares) {
                                 var oneshare = allshares[j];
@@ -150,8 +152,9 @@
                                 if (shareType && mountdescription[shareType]) {
                                     description = mountdescription[shareType];
                                 }
-                                else
+                                else {
                                     description = "Generic Shared File System";
+                                };
                                 mounts = mounts.concat({ "containerPath": containerPath, "hostPath": hostPath, "description": description, "enabled": true });
                             };
                         };
@@ -234,7 +237,7 @@
             if (examinemounts == null)
                 examinemounts = [];
             $scope.current.mountpoints = []
-            for (var i = 0; i < $scope.mounts.length - 1; i++) {
+            for (var i = 0; i < $scope.mounts.length ; i++) {
                 var onemount = $scope.mounts[i];
                 var selected = $filter('filter')(examinemounts, { hostPath: onemount.hostPath });
                 if (selected.length <= 0) {
