@@ -1,4 +1,4 @@
-FROM mlcloudreg.westus.cloudapp.azure.com:5000/{{cnf["dockerprefix"]}}gobld:latest
+FROM {{cnf["dockers"]["container"]["gobld"]["fullname"]}}
 MAINTAINER Sanjeev Mehrotra <sanjeevm0@hotmail.com>
 
 # Get Kubernetes
