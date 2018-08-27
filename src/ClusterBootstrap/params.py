@@ -546,6 +546,8 @@ default_config_parameters = {
             "tutorial-dl": {},
             "tutorial-nlp": {},
             "tutorial-fastai": {},
+            "gobld": {}, 
+            "kubernetes": {}, 
         },
         "external": {
             # These dockers are to be built by additional add ons.
@@ -641,12 +643,9 @@ scriptblocks = {
     "ubuntu_uncordon": [
         "runscriptonall ./scripts/prepare_ubuntu.sh",
         "-y deploy",
-        "sleep 60",
         "-y updateworker",
-        "sleep 30",
         "-y kubernetes labels",
         "kubernetes uncordon",
-        "sleep 10",
         "mount",
         "webui",
         "docker push restfulapi",
@@ -693,6 +692,15 @@ scriptblocks = {
         "-y --force deploy",
         "-y updateworker",
         "-y kubernetes labels",
+        "nginx fqdn",
+        "nginx config",
+        "kubernetes start mysql",
+        "kubernetes start monitor",
+        "kubernetes start nginx",
+        "kubernetes start custommetrics",
+        # TODO(harry): we cannot distinguish gce aws from azure, so add the same providerID
+        # This will not break current deployment.
+        "-y kubernetes patchprovider aztools"
         "webui",
         "kubernetes start jobmanager",
         "kubernetes start restfulapi",
