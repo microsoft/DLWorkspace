@@ -11,5 +11,5 @@ sudo rm /etc/systemd/system/kubecri.service
 sudo rm -r /etc/kubernetes
 sudo rm /opt/bin/kubelet
 sudo rm /opt/bin/crishim
-sudo rm -r /usr/local/KubeGPU/devices
+sudo rm -r /usr/local/KubeExt/devices
 sudo rm -r /etc/kubernetes

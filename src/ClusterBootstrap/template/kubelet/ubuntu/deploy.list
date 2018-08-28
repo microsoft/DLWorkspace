@@ -6,7 +6,7 @@
 ./deploy/kubelet/kubelet.sh,/opt/kubelet.sh
 ./deploy/bin/kubelet,/opt/bin/kubelet
 {{'./deploy/bin/crishim,/opt/bin/crishim' if cnf["kube_custom_cri"]}}
-{{'./deploy/bin/nvidiagpuplugin.so,/usr/local/KubeGPU/devices/nvidiagpuplugin.so' if cnf["kube_custom_cri"]}}
+{{'./deploy/bin/nvidiagpuplugin.so,/usr/local/KubeExt/devices/nvidiagpuplugin.so' if cnf["kube_custom_cri"]}}
 ./deploy/ssl/ca/ca.pem,/etc/kubernetes/ssl/ca.pem
 ./deploy/ssl/kubelet/apiserver.pem,/etc/kubernetes/ssl/worker.pem
 ./deploy/ssl/kubelet/apiserver-key.pem,/etc/kubernetes/ssl/worker-key.pem
