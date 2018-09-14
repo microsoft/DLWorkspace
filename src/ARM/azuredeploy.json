@@ -15,6 +15,20 @@
               "description": "Password for the virtual machines ."
             }
         },
+        "dlwsAdmins": {
+            "type": "string",
+            "defaultValue": "",
+            "metadata": {
+                "description": "Comma separated list of users allowed to log into DLWorkspace webportal as administrator and manage the cluster"
+            }
+        },
+        "devSourceIP": {
+            "type": "array",
+            "defaultValue": [],
+            "metadata": {
+                "description": "Array of IP prefixes used by dev machines"
+            }
+        },
         "numberOfInfraVM": {
             "type": "int",
             "defaultValue": 1,
@@ -24,7 +38,7 @@
         },
         "infraVMSize": {
             "type": "string",
-            "defaultValue": "Standard_DS1_v2",
+            "defaultValue": "Standard_DS2_v2",
             "metadata": {
                 "description": "Size of the infra-VM. Use a CPU VM for infra-VM." 
             }
@@ -41,18 +55,6 @@
             "defaultValue": "Standard_NC6",
             "metadata": {
                 "description": "Size of the worker-VM. Use a GPU VM for worker-VM."
-            }
-        },
-        "dlwsAdmins": {
-            "type": "string",
-            "metadata": {
-                "description": "Comma separated list of users allowed to use DLWorkspace"
-            }
-        },
-        "devSourceIP": {
-            "type": "array",
-            "metadata": {
-                "description": "Array of IP prefixes used by dev machines"
             }
         }
     },
@@ -413,7 +415,7 @@
                     {
                         "name": "allowalltcp",
                         "properties": {
-                            "protocol": "TCP",
+                            "protocol": "Tcp",
                             "access": "Allow",
                             "priority": 1000,
                             "direction": "Inbound",
