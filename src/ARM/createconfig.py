@@ -90,7 +90,7 @@ if __name__ == '__main__':
         add_cloud_config()
         add_dashboard()
         add_misc()
-        add_deploy(args.users.split(','))
+        add_deploy([item.strip() for item in args.users.split(',')])
       
         with open(args.outfile, 'w') as f:
             yaml.dump(config, f)
