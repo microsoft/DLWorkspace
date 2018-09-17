@@ -25,28 +25,32 @@ else
 curl -q https://get.docker.com/ | sudo bash
 fi
 
-sudo usermod -aG docker dlwsadmin
+username=$1
+shift
+
+sudo usermod -aG docker $username
 
 sudo apt-get install -y --no-install-recommends python-yaml python-jinja2 python-setuptools python-tzlocal python-pycurl
 
-git clone http://github.com/Microsoft/DLWorkspace /home/dlwsadmin/dlworkspace
-cd /home/dlwsadmin/dlworkspace
+git clone http://github.com/Microsoft/DLWorkspace /home/$username/dlworkspace
+cd /home/$username/dlworkspace
 git fetch --all
 git checkout ARMTemplate
 
-cd /home/dlwsadmin/dlworkspace/src/ClusterBootstrap
-../ARM/createconfig.py genconfig --outfile /home/dlwsadmin/dlworkspace/src/ClusterBootstrap/config.yaml $@
-./az_tools.py --noaz genconfig
+# Create configuration files, config.yaml, and cluster.yaml
+cd /home/$username/dlworkspace/src/ClusterBootstrap
+../ARM/createconfig.py genconfig --outfile /home/$username/dlworkspace/src/ClusterBootstrap/config.yaml --admin_username $username $@
+./az_tools.py --default_admin_username $username --noaz genconfig
 
 # Generate SSH keys
 ./deploy.py -y build
 
 # Copy ssh keys
-../ARM/createconfig.py sshkey $@
+../ARM/createconfig.py sshkey --admin_username $username $@
 
-# change owner to dlwsadmin
-chown -R dlwsadmin /home/dlwsadmin/dlworkspace
+# change owner to $username
+chown -R $username /home/$username/dlworkspace
 
-# run deploy script in docker group, using user dlwsadmin
-sudo -H -u dlwsadmin sg docker -c "bash /home/dlwsadmin/dlworkspace/src/ARM/deploycluster.sh"
+# run deploy script in docker group, using user $username
+sudo -H -u $username sg docker -c "bash /home/$username/dlworkspace/src/ARM/deploycluster.sh $username"
 
