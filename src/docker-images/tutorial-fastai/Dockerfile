@@ -1,5 +1,5 @@
 #FROM ubuntu:16.04
-FROM uber/horovod:0.13.0-tf1.8.0-torch0.4.0-py3.5
+FROM paperspace/fastai:cuda9_pytorchJL
 MAINTAINER Jin Li <jinlmsft@hotmail.com>
 
 RUN umask 022
@@ -23,9 +23,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         vim \
         locales \
         curl \
-        apt-transport-https \
-        screen \
-        htop      
+        apt-transport-https       
 
 # netcore 2.0
 RUN curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
@@ -38,15 +36,16 @@ RUN apt-get update -y && \
     apt-get -y install apache2 libapache2-mod-wsgi-py3
 
 RUN mkdir -p /var/www/html/
-RUN apt-get update -y && apt-get install -y python3-pycurl locales ssh-askpass  python3-tk screen
+
+RUN apt-get update -y && apt-get install -y python3-pycurl python3-pip python3-dev locales ssh-askpass
 RUN pip install --upgrade pip 
-RUN pip uninstall -y keras ; pip install keras
 RUN pip install setuptools 
 RUN pip install flask flask.restful 
 RUN pip install bs4 requests 
 RUN pip install -U flask-cors
-RUN pip install pandas jupyter matplotlib spacy sklearn scikit-image munch imgaug
-RUN python -m spacy download en
+RUN pip install opencv-python pandas jupyter
+RUN pip3 install spacy
+RUN python3 -m spacy download en
 
 RUN apt-get update -y && apt-get install -y nodejs  
 # RUN sudo npm install bower -g 
@@ -89,9 +88,6 @@ ENV LD_LIBRARY_PATH /usr/local/nvidia/lib64/
 
 EXPOSE 1380 180
 ADD RecogServer /RecogServer
-
-# Add Glove vectors 
-RUN apt-get update -y && apt-get install -y zip unzip  
 
 #Telemetry
 #--------------

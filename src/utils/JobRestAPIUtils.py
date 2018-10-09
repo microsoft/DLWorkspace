@@ -153,7 +153,7 @@ def SubmitJob(jobParamsJsonStr):
         tensorboardParams["jobType"] = "visualization"
         tensorboardParams["cmd"] = "tensorboard --logdir " + tensorboardParams["logDir"] + " --host 0.0.0.0"
         tensorboardParams["image"] = jobParams["image"]
-        tensorboardParams["resourcegpu"] = "0"
+        tensorboardParams["resourcegpu"] = 0
 
         tensorboardParams["interactivePort"] = "6006"
 

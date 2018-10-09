@@ -23,7 +23,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         vim \
         locales \
         curl \
-        apt-transport-https       
+        apt-transport-https \
+        screen
 
 # netcore 2.0
 RUN curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > microsoft.gpg
@@ -43,7 +44,7 @@ RUN pip install setuptools
 RUN pip install flask flask.restful 
 RUN pip install bs4 requests 
 RUN pip install -U flask-cors
-RUN pip install opencv-python pandas jupyter
+RUN pip install opencv-python pandas jupyter matplotlib
 
 RUN apt-get update -y && apt-get install -y nodejs  
 # RUN sudo npm install bower -g 

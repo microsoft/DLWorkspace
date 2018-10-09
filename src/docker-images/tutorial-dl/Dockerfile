@@ -11,7 +11,7 @@ RUN mkdir -p /utils/glove; cd /utils/glove; \
 RUN cd /utils; git clone --recurse-submodules git://github.com/DLWorkspace/YAD2K
 RUN mkdir /utils/models; cd /utils/models; wget https://dlwsdata.blob.core.windows.net/models/yolo.h5
 # Additional utility
-RUN pip3 install music21 emoji faker Babel pydub dill
+RUN pip3 install music21 emoji faker Babel pydub dill imagehash
 RUN cd /utils; git clone --recurse-submodules https://github.com/DLWorkspace/nmt
 
 # The following install Cython & Pycocotools 
@@ -39,6 +39,8 @@ RUN cd /utils && \
     rm -rf deeplearning.ai && \
     cd /utils/data/trigger_word/XY_train && unzip X.zip && rm X.zip && \
     cd /utils/data/trigger_word/XY_dev && 7z x X_dev.7z && rm X_dev.7z 
+
+RUN pip3 install fastai
 
 RUN cd /utils;  git clone --recurse-submodules git://github.com/DLWorkspace/deep-learning-coursera
 

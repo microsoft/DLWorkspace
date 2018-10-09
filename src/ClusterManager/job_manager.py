@@ -210,7 +210,7 @@ def SubmitRegularJob(job):
 
             if "kube_custom_scheduler" in config and config["kube_custom_scheduler"]:
                 container = {}
-                container["requests"] = {"alpha.gpu/numgpu" : jobParams["resourcegpu"]}
+                container["requests"] = {"alpha.gpu/numgpu" : int(jobParams["resourcegpu"])}
                 podInfo = {}
                 podInfo["podname"] = jobParams["podName"]
                 if "useGPUTopology" in jobParams and jobParams["useGPUTopology"]:

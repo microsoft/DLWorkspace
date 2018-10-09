@@ -237,7 +237,7 @@ def update_docker_image_config():
             config["dockers"]["container"] = {}
         if "hyperkube" not in config["dockers"]["container"]:
             config["dockers"]["container"]["hyperkube"] = {}            
-        config["dockers"]["container"]["hyperkube"]["fullname"] = config["worker-dockerregistry"] + config["dockerprefix"] + "kubernetes:" + config["dockertag"]
+        # config["dockers"]["container"]["hyperkube"]["fullname"] = config["worker-dockerregistry"] + config["dockerprefix"] + "kubernetes:" + config["dockertag"]
 
 def update_config():
     apply_config_mapping(config, default_config_mapping)
@@ -886,6 +886,7 @@ def get_kubectl_binary(force = False):
 
 def get_hyperkube_docker(force = False) :
     os.system("mkdir -p ./deploy/bin")
+    print( "Use docker container %s" % config["dockers"]["container"]["hyperkube"]["fullname"])
     if force or not os.path.exists("./deploy/bin/hyperkube"):
         copy_from_docker_image(config["dockers"]["container"]["hyperkube"]["fullname"], "/hyperkube", "./deploy/bin/hyperkube")
     if force or not os.path.exists("./deploy/bin/kubelet"):
@@ -1302,6 +1303,7 @@ def deploy_webUI_on_node(ipAddress):
 
     # write into host, mounted into container
     utils.sudo_scp(config["ssh_cert"],"./deploy/WebUI/userconfig.json","/etc/WebUI/userconfig.json", sshUser, webUIIP )
+    utils.sudo_scp(config["ssh_cert"],"./deploy/WebUI/configAuth.json","/etc/WebUI/configAuth.json", sshUser, webUIIP )
 
     # write report configuration
     masternodes = get_ETCD_master_nodes(config["clusterId"])

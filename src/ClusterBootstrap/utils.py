@@ -53,7 +53,6 @@ def render_template(template_file, target_file, config, verbose=False):
         copyfile(template_file, target_file)
         if verbose:
             print "Copy tempalte " + template_file + " --> " + target_file
-
     elif ("render-by-line-ext" in config and file_extension in config["render-by-line-ext"]) or ("render-by-line" in config and basename in config["render-by-line"]):
         if verbose:
             print "Render template " + template_file + " --> " + target_file + " Line by Line .... "
