@@ -546,6 +546,7 @@ default_config_parameters = {
             "tutorial-dl": {},
             "tutorial-nlp": {},
             "tutorial-fastai": {},
+            "tutorial-imagenet18": {},
             "gobld": {}, 
             "kubernetes": {}, 
         },
