@@ -14,7 +14,7 @@ DL workspace cluster can be deployed to either public cloud (e.g., Azure), or to
 
 ## [Azure Container Service](ACS/Readme.md)
 ## [Azure Cluster](Azure/Readme.md)
-## [Azure Deployment using Azure Resource Management (ARM) templates](../../src/ARM/Readme.md)
+## [Azure Deployment using Azure Resource Management (ARM) templates](../../src/ARM/README.md)
 
 We give instruction on the deployment of DL Workspace to an on-prem cluster as well. Please note that because each on-prem cluster is different in hardware (and maybe software) configuration, the deployment procedure is more tricky. The basic deployment step is as follows. 
 
