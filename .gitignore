@@ -6,6 +6,7 @@
 **/aws_cluster_file.yaml
 **/pxe-coreos-kube.yml
 **/pxe-kubemaster.yml
+**/azuredeploy*.parameters.json
 **/*.pem
 **/id_rsa
 **/id_rsa.pub

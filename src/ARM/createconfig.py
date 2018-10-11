@@ -36,7 +36,7 @@ def add_deploy(users):
                 "DisplayName" : args.openid_name,
                 "Tenant" : args.openid_tenant,
                 "ClientId" : args.openid_clientid,
-                "ClientSecret" : args.opend_clientsecret
+                "ClientSecret" : args.openid_clientsecret
             }
         }
         if args.openid_name == "Google":

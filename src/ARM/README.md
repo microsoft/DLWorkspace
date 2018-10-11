@@ -2,18 +2,18 @@
 
 You may deploy DLWorkspace using ARM template by clicking on the following button ("Deploy to Azure"), or using the "az" command line tool with a parameter file. To generate a parameter file, you can create a JSON file using an editor, or click on the following button, and then click "Edit parameters". You can then download a parameter file to be used by the "az" tool.
 
-For now, please change \_artifactsLocation parameter to point to https://raw.githubusercontent.com/DLWorkspace/azure-quickstart-templates/master/dlworkspace-deployment/ (i.e. point to DLWorkspace/azure-quickstart-templates instead of Azure/azure-quickstart-templates)
-
 Also, you may change "Cluster Name Desired" to be the same as the resource group name if it is unique name (instead of using an arbitrarily generated cluster name).
+
+If a cluster name is not explictly specified, the name can be retrieved from the outputs of the template deployment.
 
 After deployment, the dev machine created will be available via SSH, and will be named "\<clustername>-dev.<clusterlocation>.cloudapp.azure.com".
 
 After deployment, the webportal will be available via http, and will be available at "http://\<clustername>-infra01.<clusterlocation>.cloudapp.azure.com".
 
-<a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FDLWorkspace%2Fazure-quickstart-templates%2Fmaster%2Fdlworkspace-deployment%2Fazuredeploy.json" target="_blank">
+<a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FDLWorkspace%2Fazure-quickstart-templates%2Fdl%2Fdlworkspace-deployment%2Fazuredeploy.json" target="_blank">
 <img src="https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/deploytoazure.png"/>
 </a>
-<a href="http://armviz.io/#/?load=https%3A%2F%2Fraw.githubusercontent.com%2FDLWorkspace%2Fazure-quickstart-templates%2Fmaster%2Fdlworkspace-deployment%2Fazuredeploy.json" target="_blank">
+<a href="http://armviz.io/#/?load=https%3A%2F%2Fraw.githubusercontent.com%2FDLWorkspace%2Fazure-quickstart-templates%2Fdl%2Fdlworkspace-deployment%2Fazuredeploy.json" target="_blank">
 <img src="https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/visualizebutton.png"/>
 </a>
 
