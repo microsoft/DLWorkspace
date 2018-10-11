@@ -502,10 +502,22 @@ def check_node_availability(ipAddress):
     #status = sock.connect_ex((ipAddress,22))
     return status == 0
 
+# check if on same domain
+def is_cur_on_same_domain():
+    if "network" in config and "domain" in config["network"]:
+        hostname = subprocess.check_output("hostname").strip()
+        output = subprocess.check_output("nslookup {0}.{1}".format(hostname, config["network"]["domain"]), shell=True)
+        if "name:" in output.lower():
+            return True
+    return False
+
 # Get domain of the node
 def get_domain():
     if "network" in config and "domain" in config["network"]:
-        domain = "."+config["network"]["domain"]
+        if is_cur_on_same_domain():
+            domain = ""
+        else:
+            domain = "."+config["network"]["domain"]
     else:
         domain = ""
     return domain
@@ -1291,6 +1303,7 @@ def deploy_webUI_on_node(ipAddress):
 
     # write into host, mounted into container
     utils.sudo_scp(config["ssh_cert"],"./deploy/WebUI/userconfig.json","/etc/WebUI/userconfig.json", sshUser, webUIIP )
+    utils.sudo_scp(config["ssh_cert"],"./deploy/WebUI/configAuth.json","/etc/WebUI/configAuth.json", sshUser, webUIIP )
 
     # write report configuration
     masternodes = get_ETCD_master_nodes(config["clusterId"])

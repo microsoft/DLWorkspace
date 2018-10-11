@@ -13,7 +13,7 @@ def add_dashboard():
     config["cloud_influxdb_node"] = server_name
 
 def add_deploy(users):
-    config["DeployAuthentications"] = ["Corp", "Gmail", "Live"]
+    config["DeployAuthentications"] = ["Corp"]
     config["UserGroups"] = {
         "DLWSAdmins" : {
             "Allowed" : users,
@@ -30,6 +30,27 @@ def add_deploy(users):
     config["WebUIauthorizedGroups"] = ["DLWSAdmins"]
     config["WebUIregisterGroups"] = ["DLWSRegister"]
     config["WinbindServers"] = []
+    if args.openid_name == "Google" or args.openid_name == "MSFT":
+        config["Authentications"] = {
+            args.openid_name :  {
+                "DisplayName" : args.openid_name,
+                "Tenant" : args.openid_tenant,
+                "ClientId" : args.openid_clientid,
+                "ClientSecret" : args.openid_clientsecret
+            }
+        }
+        if args.openid_name == "Google":
+            config["Authentications"][args.openid_name].update({
+                "AuthorityFormat" : "https://accounts.google.com",
+                "Scope" : "openid email",
+                "Domains" : ["gmail.com"]
+            })
+        if args.openid_name == "MSFT":
+            config["Authentications"][args.openid_name].update({
+                "AuthorityFormat" : "https://login.microsoftonline.com",
+                "Domains" : [ "live.com", "hotmail.com", "outlook.com" ]
+            })
+        config["DeployAuthentications"].append(args.openid_name)
 
 def add_azure_cluster(username, cluster_name, cluster_location, worker_vm_size, infra_vm_size, worker_node_num, infra_node_num):
     config["cluster_name"] = cluster_name
@@ -82,6 +103,10 @@ if __name__ == '__main__':
     parser.add_argument("--admin_username")
     parser.add_argument("--password")
     parser.add_argument("--users") # comma separated list
+    parser.add_argument("--openid_name")
+    parser.add_argument("--openid_tenant")
+    parser.add_argument("--openid_clientid")
+    parser.add_argument("--openid_clientsecret")
 
     args = parser.parse_args()
 
