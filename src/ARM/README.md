@@ -6,9 +6,9 @@ Also, you may change "Cluster Name Desired" to be the same as the resource group
 
 If a cluster name is not explictly specified, the name can be retrieved from the outputs of the template deployment.
 
-After deployment, the dev machine created will be available via SSH, and will be named "\<clustername>-dev.<clusterlocation>.cloudapp.azure.com".
+After deployment, the dev machine created will be available via SSH, and will be named "\<clustername>-dev.\<clusterlocation>.cloudapp.azure.com".
 
-After deployment, the webportal will be available via http, and will be available at "http://\<clustername>-infra01.<clusterlocation>.cloudapp.azure.com".
+After deployment, the webportal will be available via http, and will be available at "http://\<clustername>-infra01.\<clusterlocation>.cloudapp.azure.com".
 
 <a href="https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FDLWorkspace%2Fazure-quickstart-templates%2Fdl%2Fdlworkspace-deployment%2Fazuredeploy.json" target="_blank">
 <img src="https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/deploytoazure.png"/>

@@ -506,9 +506,12 @@ def check_node_availability(ipAddress):
 def is_cur_on_same_domain():
     if "network" in config and "domain" in config["network"]:
         hostname = subprocess.check_output("hostname").strip()
-        output = subprocess.check_output("nslookup {0}.{1}".format(hostname, config["network"]["domain"]), shell=True)
-        if "name:" in output.lower():
-            return True
+        try:
+            output = subprocess.check_output("nslookup {0}.{1}".format(hostname, config["network"]["domain"]), shell=True)
+            if "name:" in output.lower():
+                return True
+        except:
+            pass
     return False
 
 # Get domain of the node
