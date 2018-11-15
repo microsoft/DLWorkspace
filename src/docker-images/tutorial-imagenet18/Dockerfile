@@ -42,4 +42,5 @@ RUN CC="cc -mavx2" pip install -U --force-reinstall pillow-simd
 RUN pip install tensorboardX
 RUN pip install tqdm
 
-
+ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/nvidia/lib:/usr/local/nvidia/lib64"
+ENV PATH="${PATH}:/usr/local/nvidia/bin:/usr/local/cuda/bin"
