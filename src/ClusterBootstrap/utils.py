@@ -166,7 +166,7 @@ def sudo_scp (identity_file, source, target, user, host,changePermission=False, 
         cmd += " ; sudo chmod +x %s" % target
     if verbose:
         print cmd
-    SSH_exec_cmd(identity_file, user, host, cmd, False)
+    SSH_exec_cmd(identity_file, user, host, cmd, verbose)
 
 # Execute a remote SSH cmd with identity file (private SSH key), user, host
 # Return the output of the remote command to local
