@@ -103,3 +103,6 @@ if  lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VG
         NV_DRIVER=/opt/nvidia-driver/$NVIDIA_VERSION
         sudo ln -s $NV_DRIVER /opt/nvidia-driver/current
 fi
+
+# https://github.com/kubernetes/kubeadm/issues/610
+sudo swapoff -a
