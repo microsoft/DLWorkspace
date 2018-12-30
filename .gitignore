@@ -38,6 +38,7 @@ src/WebUI/dotnet/WebPortal/userconfig.json
 src/WebUI/dotnet/WebPortal/configAuth.json
 src/WebUI/dotnet/WebPortal/Master-Templates.json
 src/WebUI/dotnet/WebPortal/hosting.json
+**package-lock.json
 **/wwwroot/*
 **/bin/Release/*
 **/bin/Debug/*

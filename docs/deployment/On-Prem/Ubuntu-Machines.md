@@ -89,6 +89,11 @@ This document describes the procedure to deploy DL workspace cluster on a off-pr
 13. Partition hard drive, if necessary. Please refer to section [Partition](Repartiuion.md) for details. 
 
 14. Setup kubernetes
+  If setup in the cluster in China, we tried to use dlws/pause-amd64:3.0 as --pod-infra-container-image, however, for some reason, this doesn't work. Temporary, please do:
+  ```
+  ./deploy.py execonall docker pull dlws/pause-amd64:3.0
+  ./deploy.py execonall docker tag  dlws/pause-amd64:3.0 gcr.io/google_containers/pause-amd64:3.0
+  ```
   ```
   ./deploy.py -y deploy
   ./deploy.py -y updateworker
@@ -114,7 +119,13 @@ This document describes the procedure to deploy DL workspace cluster on a off-pr
   ./deploy.py webui
   ./deploy.py docker push restfulapi
   ./deploy.py docker push webui
+  ./deploy.py nginx fqdn
+  ./deploy.py nginx config
+  ./deploy.py kubernetes start mysql
   ./deploy.py kubernetes start jobmanager
   ./deploy.py kubernetes start restfulapi
   ./deploy.py kubernetes start webportal
+  ./deploy.py kubernetes start cloudmonitor
+  ./deploy.py kubernetes start nginx
+  ./deploy.py kubernetes start custommetrics
   ```
