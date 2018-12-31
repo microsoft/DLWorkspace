@@ -88,10 +88,18 @@ if  lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VG
 
         sudo rm -r /opt/nvidia-driver || true
 
-        # Install nvidia-docker and nvidia-docker-plugin
-        rm /tmp/nvidia-docker*.deb
-        wget -P /tmp https://github.com/NVIDIA/nvidia-docker/releases/download/v1.0.1/nvidia-docker_1.0.1-1_amd64.deb
-        sudo dpkg -i /tmp/nvidia-docker*.deb && rm /tmp/nvidia-docker*.deb
+        # Install nvidia-docker and nvidia-docker-plugin ( Upgrade to nvidia-docker2)
+        # rm /tmp/nvidia-docker*.deb
+        # wget -P /tmp https://github.com/NVIDIA/nvidia-docker/releases/download/v1.0.1/nvidia-docker_1.0.1-1_amd64.deb
+        # sudo dpkg -i /tmp/nvidia-docker*.deb && rm /tmp/nvidia-docker*.deb
+
+        curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
+        distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+        curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+        sudo apt-get update
+
+        sudo apt-get install -y nvidia-docker2
+        sudo pkill -SIGHUP dockerd
 
         # Test nvidia-smi
         sudo nvidia-docker run --rm dlws/cuda nvidia-smi
