@@ -8,8 +8,7 @@ This document describes the procedure to deploy DL workspace cluster on a off-pr
 ..* Install git, if not installed yet.
 ..* Find data partition, if any, use mkfs ext4 to make partition, and to prepare the partition for mount in fstab.
 ..* use ```sudo mount -a``` to remount.
-..* check DNS setting.
-..* many of TLS doesn't work
+..* check DNS setting, check if network is working. If shows TLS error message, network may not be stable. 
 
 2. [Run Once] Setup [development environment](../../DevEnvironment/Readme.md).  
 
@@ -85,6 +84,7 @@ This document describes the procedure to deploy DL workspace cluster on a off-pr
   ./deploy.py runscriptonall ./scripts/prepare_ubuntu.sh
   ./deploy.py execonall sudo usermod -aG docker core
   ```
+  Use nvidia-docker as default docker run time, as shown in 
 
 13. Partition hard drive, if necessary. Please refer to section [Partition](Repartiuion.md) for details. 
 

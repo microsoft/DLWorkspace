@@ -24,3 +24,4 @@
 ./deploy/bin/host-local,/opt/cni/bin/host-local
 ./deploy/bin/cnitool,/opt/cni/bin/cnitool
 ./deploy/bin/flannel,/opt/cni/bin/flannel
+./deploy/kubelet/daemon.json,/etc/docker/daemon.json
