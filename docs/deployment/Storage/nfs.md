@@ -17,6 +17,7 @@ The document describes the procedure to setup NFS server. We follow the procedur
   sudo lsblk -o Name,FSTYPE,UUID  
   # edit /etc/fstab, and add entry, which mounts a particular UUID storage device to the mount point. Last number is the fsck order.
   UUID=e2c91cb7-c97d-46f7-a51b-001a06a14e08 /mnt/dlwsdata   ext4    errors=remount-ro 0     2
+  # Comment any swap entry, as kubelet doesn't run with swap on
   # causes all filesystems mentioned in fstab (of the proper type and/or having or not having the proper options) to be mounted as indicated, except for those whose line contains the noauto keyword. 
   sudo mount -a
   ```
