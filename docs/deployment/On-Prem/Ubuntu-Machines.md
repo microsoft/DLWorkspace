@@ -84,7 +84,7 @@ This document describes the procedure to deploy DL workspace cluster on a off-pr
   ./deploy.py runscriptonall ./scripts/prepare_ubuntu.sh
   ./deploy.py execonall sudo usermod -aG docker core
   ```
-  Use nvidia-docker as default docker run time, as shown in 
+  Use nvidia-docker as default docker run time (included in kubelet startup)
 
 13. Partition hard drive, if necessary. Please refer to section [Partition](Repartiuion.md) for details. 
 
@@ -113,8 +113,12 @@ This document describes the procedure to deploy DL workspace cluster on a off-pr
   ```
   ./deploy.py mount
   ```
+19. Deploy nvidia-device plugin. 
+  ```
+  ./deploy.py kubectl create -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v1.9/nvidia-device-plugin.yml
+  ```
 
-19. Build and deploy jobmanager, restfulapi, and webportal. Mount storage.
+20. Build and deploy jobmanager, restfulapi, and webportal. Mount storage.
   ```
   ./deploy.py webui
   ./deploy.py docker push restfulapi

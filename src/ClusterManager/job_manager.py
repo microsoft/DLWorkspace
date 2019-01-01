@@ -148,9 +148,9 @@ def SubmitRegularJob(job):
         for onemount in jobParams["mountpoints"]:
             onemount["name"] = onemount["containerPath"].replace("/","")
 
-        mp = {"name":"nvidia-driver","containerPath":"/usr/local/nvidia","hostPath":nvidiaDriverPath, "enabled":True}
-        if CheckMountPoints(jobParams["mountpoints"],mp):
-            jobParams["mountpoints"].append(mp)
+        # mp = {"name":"nvidia-driver","containerPath":"/usr/local/nvidia","hostPath":nvidiaDriverPath, "enabled":True}
+        # if CheckMountPoints(jobParams["mountpoints"],mp):
+        #    jobParams["mountpoints"].append(mp)
 
         mp = {"name":"job","containerPath":"/job","hostPath":jobParams["hostjobPath"], "enabled":True}
         if CheckMountPoints(jobParams["mountpoints"],mp):
@@ -418,7 +418,7 @@ chmod +x /opt/run_dist_job.sh
                     if "mountpoints" not in distJobParam:
                         distJobParam["mountpoints"] = []
 
-                    distJobParam["mountpoints"].append({"name":"nvidia-driver","containerPath":"/usr/local/nvidia","hostPath":nvidiaDriverPath})
+                    # distJobParam["mountpoints"].append({"name":"nvidia-driver","containerPath":"/usr/local/nvidia","hostPath":nvidiaDriverPath})
                     distJobParam["mountpoints"].append({"name":"job","containerPath":"/job","hostPath":distJobParam["hostjobPath"]})
                     distJobParam["mountpoints"].append({"name":"work","containerPath":"/work","hostPath":distJobParam["hostworkPath"]})
                     distJobParam["mountpoints"].append({"name":"data","containerPath":"/data","hostPath":distJobParam["hostdataPath"]})

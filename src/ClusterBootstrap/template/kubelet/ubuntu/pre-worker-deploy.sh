@@ -1,5 +1,6 @@
 sudo systemctl stop kubelet
 sudo systemctl stop kubecri
+sudo systemctl restart docker
 sudo docker rm -f $(docker ps -a | grep 'k8s_kube\|k8s_POD' | awk '{print $1}')
 
 sudo mkdir -p /etc/kubernetes
