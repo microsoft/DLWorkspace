@@ -126,8 +126,11 @@ function generate-aggregator-certs {
 function setup-easyrsa {
   (set -x
     cd "${KUBE_TEMP}"
-    curl -L -O --connect-timeout 20 --retry 6 --retry-delay 2 https://storage.googleapis.com/kubernetes-release/easy-rsa/easy-rsa.tar.gz
-    tar xzf easy-rsa.tar.gz
+    # change away from using googleapis
+    curl -L -O --connect-timeout 20 --retry 6 --retry-delay 2 https://github.com/OpenVPN/easy-rsa/archive/v3.0.5.tar.gz
+    # tar to easy-rsa-v3.0.5
+    tar xzf v3.0.5.tar.gz
+    mv easy-rsa-3.0.5 easy-rsa-master
     mkdir easy-rsa-master/kubelet
     cp -r easy-rsa-master/easyrsa3/* easy-rsa-master/kubelet
     mkdir easy-rsa-master/aggregator

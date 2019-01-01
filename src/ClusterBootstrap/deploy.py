@@ -516,7 +516,7 @@ def is_cur_on_same_domain():
 
 # Get domain of the node
 def get_domain():
-    if "network" in config and "domain" in config["network"]:
+    if "network" in config and "domain" in config["network"] and len(config["network"]["domain"]) > 0 :
         if is_cur_on_same_domain():
             domain = ""
         else:
@@ -531,6 +531,7 @@ def get_nodes_from_config(machinerole):
         return []
     else:
         domain = get_domain()
+        # print ("Doamin = %s " % domain )
         Nodes = []
         for nodename in config["machines"]:
             nodeInfo = config["machines"][nodename]
@@ -3752,4 +3753,3 @@ Command:
             print "Error: Unknown scriptblocks " + nargs[0]
     else:
         run_command( args, command, nargs, parser)
-
