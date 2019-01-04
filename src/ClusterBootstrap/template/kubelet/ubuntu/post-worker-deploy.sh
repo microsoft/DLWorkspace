@@ -6,6 +6,7 @@ sudo chmod +x /opt/bin/kubelet
 sudo systemctl daemon-reload
 sudo systemctl stop kubelet
 sudo systemctl stop kubecri
+sudo systemctl restart docker
 {{'sudo systemctl start kubecri' if cnf["kube_custom_cri"]}}
 sudo systemctl start kubelet
 sudo systemctl start rpc-statd
