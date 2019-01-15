@@ -34,11 +34,10 @@ docker --version
 ## docker already installed
 else
 sudo apt-get remove docker docker-engine docker.io
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-sudo add-apt-repository \
-   "deb [arch=amd64] https://mirrors.tuna.tsinghua.edu.cn/docker-ce/linux/debian \
-   $(lsb_release -cs) \
-   stable"
+# curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+# use aliyun as repository
+curl -fsSL http://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg | sudo apt-key add -
+sudo add-apt-repository "deb [arch=amd64] http://mirrors.aliyun.com/docker-ce/linux/ubuntu $(lsb_release -cs) stable"
 sudo apt-get update
 # see https://github.com/NVIDIA/nvidia-docker/issues/643
 # during 1/14/2019 installation, docker-ce version needs to be pinned
