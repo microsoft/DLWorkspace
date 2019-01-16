@@ -105,6 +105,8 @@ This document describes the procedure to deploy DL workspace cluster on a off-pr
   ./deploy.py -y kubernetes uncordon
   ```
   Works now will be scheduled on the master node. If you stop here, you will have a fully functional kubernete cluster. Thus, part of DL Workspace setup can be considered automatic procedure to setup a kubernete cluster. You don't need shared file system or database for kubernete cluster operation. 
+
+  Please note that the current kubernetes deployment use certificate to bind to the hostname deployed. If you change the hostname of the kubernete master node, the cluster needs to be redeployed.
   
 15. [optional] Configure, setup and mount [GlusterFS](../Storage/GlusterFS.md)
 16. [Optional] Configure, setup and mount [HDFS](../Storage/hdfs.md)
@@ -126,11 +128,5 @@ This document describes the procedure to deploy DL workspace cluster on a off-pr
   ./deploy.py docker push webui
   ./deploy.py nginx fqdn
   ./deploy.py nginx config
-  ./deploy.py kubernetes start mysql
-  ./deploy.py kubernetes start jobmanager
-  ./deploy.py kubernetes start restfulapi
-  ./deploy.py kubernetes start webportal
-  ./deploy.py kubernetes start cloudmonitor
-  ./deploy.py kubernetes start nginx
-  ./deploy.py kubernetes start custommetrics
+  ./deploy.py kubernetes start mysql jobmanager restfulapi webportal monitor nginx custommetrics
   ```
