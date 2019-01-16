@@ -2,13 +2,13 @@
 
 This document describes the procedure to deploy DL workspace cluster on a off-prem Clusters (VM or actual machine) that is already been imaged with Ubuntu OS.
 
-1. On dev node, 
-..* Enable password-less sudo, with sudo visudo
-..* Generate ssh-key, and grant github access for the dev machine.
-..* Install git, if not installed yet.
-..* Find data partition, if any, use mkfs ext4 to make partition, and to prepare the partition for mount in fstab.
-..* use ```sudo mount -a``` to remount.
-..* check DNS setting, check if network is working. If shows TLS error message, network may not be stable. 
+1. On dev node (for simple cluster, the storage node can be used as dev node), 
+* Enable password-less sudo, with ```sudo visudo```
+* Generate ssh-key, and grant github access for the dev machine.
+* Install git, if not installed yet.
+* Find data partition, if any, use mkfs ext4 to make partition, and to prepare the partition for mount in fstab.
+* use ```sudo mount -a``` to remount.
+* check DNS setting, check if network is working. If shows TLS error message, network may not be stable. 
 
 2. [Run Once] Setup [development environment](../../DevEnvironment/Readme.md).  
 
@@ -94,6 +94,7 @@ This document describes the procedure to deploy DL workspace cluster on a off-pr
   ./deploy.py execonall docker pull dlws/pause-amd64:3.0
   ./deploy.py execonall docker tag  dlws/pause-amd64:3.0 gcr.io/google_containers/pause-amd64:3.0
   ```
+  On cloud (e.g., Azure), please make sure that the port specified in params.py, dev_network, udp_port_ranges and tcp_port_range are properly opened.
   ```
   ./deploy.py -y deploy
   ./deploy.py -y updateworker
