@@ -1706,6 +1706,8 @@ def fileshare_install():
     nodes = all_nodes
     for node in nodes:
         allmountpoints, fstab = get_mount_fileshares(node)
+        if verbose:
+            print( "All mountpoints on %s: %s" %(node, allmountpoints))
         remotecmd = ""
         if (config["isacs"]):
             # when started, ACS machines don't have PIP which is needed to install pyyaml
