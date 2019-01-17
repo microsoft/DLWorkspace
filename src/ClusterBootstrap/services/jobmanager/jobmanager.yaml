@@ -38,7 +38,9 @@ spec:
         - mountPath: {{cnf["storage-mount-path"]}}/jobfiles
           name: dlwsdatajobfiles
         - mountPath: /var/log/dlworkspace
-          name: log                                                    
+          name: log
+        - mountPath: /etc/resolv.conf
+          name: resolv                                                    
       volumes:
       - name: certs
         hostPath:
@@ -60,9 +62,14 @@ spec:
           path: {{cnf["storage-mount-path"]}}/jobfiles           
       - name: log
         hostPath:
-          path: /var/log/clustermanager   
+          path: /var/log/clustermanager
+      - name: resolv
+        hostPath:
+          path: /etc/resolv.conf        
+   
       tolerations:
       - key: CriticalAddonsOnly
         operator: Exists
       - key: node-role.kubernetes.io/master
-        effect: NoSchedule           
+        effect: NoSchedule   
+        
