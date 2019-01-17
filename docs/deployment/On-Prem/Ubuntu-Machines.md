@@ -121,6 +121,14 @@ This document describes the procedure to deploy DL workspace cluster on a off-pr
   ./deploy.py kubectl create -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v1.9/nvidia-device-plugin.yml
   ```
 
+20. If the machines is put on a subdomain without the DNS search being able to resolv the subdomain (e.g., when deploying on aliyun, using an external DNS mapping), please at the master node:
+
+* Modify /etc/resolvconf/resolv.conf.d/base, add entry "search <subdomain>"
+* run 
+```
+sudo resolvconf -u 
+```
+
 20. Build and deploy jobmanager, restfulapi, and webportal. Mount storage.
   ```
   ./deploy.py webui
