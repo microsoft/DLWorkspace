@@ -35,8 +35,13 @@ spec:
     volumeMounts:
     - mountPath: {{cnf["kubelogdir"]}}/kubescheduler
       name: logs
+    - mountPath: /etc/resolv.conf
+      name: resolv
   volumes:
   - hostPath:
       path: {{cnf["kubelogdir"]}}/kubescheduler
     name: logs
+  - name: resolv
+    hostPath:
+      path: /etc/resolv.conf
 {% endif %}

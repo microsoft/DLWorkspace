@@ -19,7 +19,12 @@ spec:
     - mountPath: /etc/ssl/certs
       name: ssl-certs-host
       readOnly: true
+    - mountPath: /etc/resolv.conf
+      name: resolv
   volumes:
   - hostPath:
       path: /usr/share/ca-certificates
     name: ssl-certs-host
+  - name: resolv
+    hostPath:
+      path: /etc/resolv.conf
