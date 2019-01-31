@@ -55,8 +55,10 @@ spec:
     {% endif %} 
     {% endif %}    
     volumeMounts:
+    {% if job["usefreeflow"] %}
     - mountPath: /freeflow
       name: freeflow    
+    {% endif %}   
     {% for mp in job["mountpoints"] %}
     - mountPath: {{ mp.containerPath }}
       name: {{ mp.name }}
@@ -70,10 +72,20 @@ spec:
       value: {{ job["familyToken"] }}
     - name: DLWS_REST_API
       value: {{ job["rest-api"] }}
+    - name: DLWS_JOB_ID
+      value: {{ job["jobId"] }}   
+    - name: DLWS_NUM_PS
+      value: "{{ job["numps"] }}"  
+    - name: DLWS_NUM_WORK
+      value: "{{ job["numworker"] }}"  
+    - name: DLWS_NUM_GPU_PER_WORKER
+      value: "{{ job["resourcegpu"] }}"                       
+    {% if job["usefreeflow"] %}
     - name: VNET_PREFIX
       value: {{ job["pod_ip_range"] }}
     - name: LD_PRELOAD
-      value: "/freeflow/libfsocket.so"            
+      value: "/freeflow/libfsocket.so"  
+    {% endif %}          
     - name: POD_NAME
       valueFrom:
         fieldRef:
@@ -89,9 +101,11 @@ spec:
 
   restartPolicy: Never
   volumes:
+  {% if job["usefreeflow"] %}
   - name: freeflow
     hostPath:
       path: /freeflow  
+  {% endif %}
   {% if not job["dnsPolicy"] %}
   - name: resolv
     hostPath:

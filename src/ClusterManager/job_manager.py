@@ -170,6 +170,10 @@ def SubmitRegularJob(job):
         if CheckMountPoints(jobParams["mountpoints"],mp):
             jobParams["mountpoints"].append(mp)            
 
+        for idx in range(len(jobParams["mountpoints"])):
+            if "name" not in jobParams["mountpoints"][idx]:
+                jobParams["mountpoints"][idx]["name"] = str(uuid.uuid4()).replace("-","")
+
 
         jobParams["pod_ip_range"] = config["pod_ip_range"]
         if "usefreeflow" in config:
@@ -382,10 +386,16 @@ def SubmitPSDistJob(job):
 #fi
 #"""
 
-
-                    launchCMD = """
+                    if role == "ps":
+                        launchCMD = """
 #!/bin/bash
 mkdir -p /opt
+cp -r /sshkey/.ssh /root
+chown -R root:root /root/.ssh
+echo export LD_PRELOAD=$LD_PRELOAD >> /etc/default/ssh
+echo export VNET_PREFIX=$VNET_PREFIX >> /etc/default/ssh
+service ssh restart
+
 echo "[DLWorkspace System]: Waiting for all containers are ready..."
 while [ ! -f /opt/run_dist_job ] || [ ! -f /opt/run_dist_job.sh ]; do
     sleep 3
@@ -394,12 +404,25 @@ echo "[DLWorkspace System]: All containers are ready, launching training job..."
 chmod +x /opt/run_dist_job.sh
 /opt/run_dist_job.sh
 """
+                    else:
+                        launchCMD = """
+#!/bin/bash
+mkdir -p /opt
+cp -r /sshkey/.ssh /root
+chown -R root:root /root/.ssh
+echo export LD_PRELOAD=$LD_PRELOAD >> /etc/default/ssh
+echo export VNET_PREFIX=$VNET_PREFIX >> /etc/default/ssh
+service ssh restart
+sleep infinity
+"""
 
-                    launchScriptPath = os.path.join(localJobPath,"launch-%s.sh" % distJobParam["jobId"])
+
+
+                    launchScriptPath = os.path.join(localJobPath,"launch-%s-%s%d.sh" % (distJobParam["jobId"],role,i))
                     with open(launchScriptPath, 'w') as f:
                         f.write(launchCMD)
                     f.close()        
-                    distJobParam["LaunchCMD"] = "[\"bash\", \"/job/launch-%s.sh\"]" % distJobParam["jobId"]
+                    distJobParam["LaunchCMD"] = "[\"bash\", \"/job/launch-%s-%s%d.sh\"]" % (distJobParam["jobId"],role,i)
 
 
 
@@ -422,11 +445,25 @@ chmod +x /opt/run_dist_job.sh
                     distJobParam["mountpoints"].append({"name":"job","containerPath":"/job","hostPath":distJobParam["hostjobPath"]})
                     distJobParam["mountpoints"].append({"name":"work","containerPath":"/work","hostPath":distJobParam["hostworkPath"]})
                     distJobParam["mountpoints"].append({"name":"data","containerPath":"/data","hostPath":distJobParam["hostdataPath"]})
+
+                    userAlias = getAlias(jobParams["userName"])
+                    distJobParam["mountpoints"].append({"name":"rootsshkey","containerPath":"/sshkey/.ssh","hostPath":os.path.join(config["storage-mount-path"], GetWorkPath(userAlias)+"/.ssh"), "readOnly":True, "enabled":True})
+
+
+                    for idx in range(len(distJobParam["mountpoints"])):
+                        if "name" not in distJobParam["mountpoints"][idx]:
+                            distJobParam["mountpoints"][idx]["name"] = str(uuid.uuid4()).replace("-","")
+
+
                     distJobParam["pod_ip_range"] = config["pod_ip_range"]
-                    if "usefreeflow" in config and config["usefreeflow"] == "True":
+                    if "usefreeflow" in config:
                         distJobParam["usefreeflow"] = config["usefreeflow"]
                     else:
                         distJobParam["usefreeflow"] = False
+
+                    distJobParam["numworker"] = int(jobParams["numpsworker"])
+                    distJobParam["numps"] = int(jobParams["numps"])
+
 
 
                     random.seed(datetime.datetime.now())
@@ -727,6 +764,8 @@ def launch_ps_dist_job(jobParams):
             ps_pod_ips = [pod["status"]["podIP"] for pod in psPodInfo["items"]]
             worker_pod_ips = [pod["status"]["podIP"] for pod in workerPodInfo["items"]]
 
+            worker_gpu_num = [pod["spec"]["containers"][0]["resources"]["requests"]["alpha.kubernetes.io/nvidia-gpu"] for pod in workerPodInfo["items"]]
+
             ps_num = len(psPodInfo["items"])
             worker_num = len(workerPodInfo["items"])
 
@@ -745,33 +784,88 @@ def launch_ps_dist_job(jobParams):
             ps_files = ["/tmp/" + str(uuid.uuid4()) for i in range(ps_num)]
             worker_files = ["/tmp/" + str(uuid.uuid4()) for i in range(worker_num)]
 
-            ps_cmd = ["%s --ps_hosts=%s --worker_hosts=%s --job_name=ps --task_index=%d 2>&1 | tee %s" % (jobParams["cmd"], ps_hosts,worker_hosts,i,ps_files[i]) for i in range(ps_num)]
-            worker_cmd = ["%s --ps_hosts=%s --worker_hosts=%s --job_name=worker --task_index=%d 2>&1 | tee %s" % (jobParams["cmd"], ps_hosts,worker_hosts,i,worker_files[i]) for i in range(worker_num)]
+            #ps_cmd = ["%s --ps_hosts=%s --worker_hosts=%s --job_name=ps --task_index=%d 2>&1 | tee %s" % (jobParams["cmd"], ps_hosts,worker_hosts,i,ps_files[i]) for i in range(ps_num)]
+            #worker_cmd = ["%s --ps_hosts=%s --worker_hosts=%s --job_name=worker --task_index=%d 2>&1 | tee %s" % (jobParams["cmd"], ps_hosts,worker_hosts,i,worker_files[i]) for i in range(worker_num)]
+
+            ps_cmd = ["%s 2>&1 | tee %s" % (jobParams["cmd"], ps_files[i]) for i in range(ps_num)]
+            worker_cmd = ["%s 2>&1 | tee %s" % (jobParams["cmd"], worker_files[i]) for i in range(worker_num)]
+
+
+            hostfilecontent = ""
+            for workerip,workergpu in zip(worker_pod_ips,worker_gpu_num):
+                hostfilecontent += "%s  slots=%s\n" %(workerip,workergpu)
 
 
             for i in range(ps_num):
                 os.system("mkdir -p %s" % ps_files[i])
-                ps_files[i] = os.path.join(ps_files[i],"run_dist_job.sh")
-                with open(ps_files[i], 'w') as f:
+                psfile = os.path.join(ps_files[i],"run_dist_job.sh")
+                with open(psfile, 'w') as f:
                     f.write(ps_cmd[i] + "\n")
                 f.close()        
                 if "userId" in jobParams:
-                    os.system("chown -R %s %s" % (jobParams["userId"], ps_files[i]))
-                remotecmd = "cp %s %s:/opt/run_dist_job.sh" % (ps_files[i],ps_pod_names[i])
+                    os.system("chown -R %s %s" % (jobParams["userId"], psfile))
+                remotecmd = "cp %s %s:/opt/run_dist_job.sh" % (psfile,ps_pod_names[i])
                 k8sUtils.kubectl_exec(remotecmd)
+
+
+                os.system("mkdir -p %s" % ps_files[i])
+                psfile = os.path.join(ps_files[i],"hostfile")
+                with open(psfile, 'w') as f:
+                    f.write(hostfilecontent + "\n")
+                f.close()        
+                if "userId" in jobParams:
+                    os.system("chown -R %s %s" % (jobParams["userId"], psfile))
+                remotecmd = "cp %s %s:/opt/hostfile" % (psfile,ps_pod_names[i])
+                k8sUtils.kubectl_exec(remotecmd)
+
+                os.system("mkdir -p %s" % ps_files[i])
+                psfile = os.path.join(ps_files[i],"taskindex")
+                with open(psfile, 'w') as f:
+                    f.write(str(i) + "\n")
+                f.close()        
+                if "userId" in jobParams:
+                    os.system("chown -R %s %s" % (jobParams["userId"], psfile))
+                remotecmd = "cp %s %s:/opt/taskindex" % (psfile,ps_pod_names[i])
+                k8sUtils.kubectl_exec(remotecmd)
+
+
                 k8sUtils.kubectl_exec("exec %s touch /opt/run_dist_job" % ps_pod_names[i])
 
 
             for i in range(worker_num):
                 os.system("mkdir -p %s" % worker_files[i])
-                worker_files[i] = os.path.join(worker_files[i],"run_dist_job.sh")
-                with open(worker_files[i], 'w') as f:
+                workerfile = os.path.join(worker_files[i],"run_dist_job.sh")
+                with open(workerfile, 'w') as f:
                     f.write(worker_cmd[i] + "\n")
                 f.close()    
                 if "userId" in jobParams:
-                    os.system("chown -R %s %s" % (jobParams["userId"], worker_files[i]))
-                remotecmd = "cp %s %s:/opt/run_dist_job.sh" % (worker_files[i],worker_pod_names[i])
+                    os.system("chown -R %s %s" % (jobParams["userId"], workerfile))
+                remotecmd = "cp %s %s:/opt/run_dist_job.sh" % (workerfile,worker_pod_names[i])
                 k8sUtils.kubectl_exec(remotecmd)
+
+
+                os.system("mkdir -p %s" % worker_files[i])
+                workerfile = os.path.join(worker_files[i],"hostfile")
+                with open(workerfile, 'w') as f:
+                    f.write(hostfilecontent + "\n")
+                f.close()    
+                if "userId" in jobParams:
+                    os.system("chown -R %s %s" % (jobParams["userId"], workerfile))
+                remotecmd = "cp %s %s:/opt/hostfile" % (workerfile,worker_pod_names[i])
+                k8sUtils.kubectl_exec(remotecmd)
+
+
+                os.system("mkdir -p %s" % worker_files[i])
+                workerfile = os.path.join(worker_files[i],"taskindex")
+                with open(workerfile, 'w') as f:
+                    f.write(str(i) + "\n")
+                f.close()    
+                if "userId" in jobParams:
+                    os.system("chown -R %s %s" % (jobParams["userId"], workerfile))
+                remotecmd = "cp %s %s:/opt/taskindex" % (workerfile,worker_pod_names[i])
+                k8sUtils.kubectl_exec(remotecmd)
+
+
                 k8sUtils.kubectl_exec("exec %s touch /opt/run_dist_job" % worker_pod_names[i])
 
             dataHandler = DataHandler()

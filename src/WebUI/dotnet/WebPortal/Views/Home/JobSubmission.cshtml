@@ -162,7 +162,7 @@
                 };
             };
             if (mounthomefolder) {
-                mounts.unshift({ "containerPath": "/home/" + username, "hostPath": "/dlwsdata/work/" + username, "description": homefolderDescription, "enabled": true });
+                mounts.unshift({"name":"homefolder", "containerPath": "/home/" + username, "hostPath": "/dlwsdata/work/" + username, "description": homefolderDescription, "enabled": true });
             }
             return mounts;
         };

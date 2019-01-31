@@ -553,7 +553,7 @@ default_config_parameters = {
         "external": {
             # These dockers are to be built by additional add ons.
             "hyperkube": {"fullname":"dlws/hyperkube:v1.9.0"},
-            "freeflow": {"fullname":"dlws/freeflow:0.16"},
+            "freeflow": {"fullname":"dlws/freeflow:0.18"},
             "podinfra": {"fullname":"dlws/pause-amd64:3.0"},
             "nvidiadriver": {"fullname":"dlws/nvidia_driver:375.20"},
             "weave":{"fullname":"dlws/weave:2.2.0"},
