@@ -10,8 +10,9 @@ metadata:
     userName: {{ job["userNameLabel"] }}    
 spec:
   #hostNetwork: true
-  {% if job["nodeSelector"]|length > 0 %}
   nodeSelector:
+    worker: active  
+  {% if job["nodeSelector"]|length > 0 %}
   {% for key, value in job["nodeSelector"].items() %}
     {{key}}: {{value}}
   {% endfor %}

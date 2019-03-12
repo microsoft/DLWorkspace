@@ -2770,6 +2770,27 @@ def kubernetes_label_nodes( verb, servicelists, force ):
             elif verb == "remove":
                 kubernetes_label_node(cmdoptions, nodename, label+"-")
 
+
+# Label kubernete nodes according to a service. 
+# A service (usually a Kubernete daemon service) can request to be run on:
+# all: all nodes
+# etcd_node: all etcd node
+# etcd_node_n: a particular etcd node
+# worker_node: all worker node
+# The kubernete node will be marked accordingly to facilitate the running of daemon service. 
+def kubernetes_label_vc():
+    nodes = get_nodes(config["clusterId"])
+    vc_config = fetch_config(config, ["vc_config"])
+    for vc_name, nodes in vc_config:
+        for node in nodes:
+            nodename = kubernetes_get_node_name(node)
+            if nodename in nodes or "*" in nodes:
+                kubernetes_label_node("--overwrite", nodename, vc_name+"=active")
+            else:
+                kubernetes_label_node("--overwrite", nodename, vc_name+"=inactive")
+
+
+
 def kubernetes_patch_nodes_provider (provider, scaledOnly):
     nodes = []
     if scaledOnly:
@@ -3490,6 +3511,8 @@ def run_command( args, command, nargs, parser ):
                 kubernetes_mark_nodes( nargs[1:], False)
             elif nargs[0] == "cordon" or nargs[0] == "uncordon":
                 run_kube_command_on_nodes(nargs)
+            elif nargs[0] == "labelvc":
+                kubernetes_label_vc(True)                
             else:
                 parser.print_help()
                 print "Error: Unknown kubernetes subcommand " + nargs[0]

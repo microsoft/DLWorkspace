@@ -590,6 +590,9 @@ default_config_parameters = {
             # "source_addresses_prefixes": [ "52.151.0.0/16"]
         }
     },
+    "vc_config":{
+        "VC-Default":["*"],
+    }
 }
 
 # These are super scripts

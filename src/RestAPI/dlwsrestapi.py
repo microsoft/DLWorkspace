@@ -77,7 +77,8 @@ class SubmitJob(Resource):
         parser.add_argument('familyToken')
         parser.add_argument('isParent')
         parser.add_argument('jobType')
-        
+        parser.add_argument('nodeSelector')
+
 
         parser.add_argument('jobtrainingtype')
         parser.add_argument('numps')
@@ -133,6 +134,10 @@ class SubmitJob(Resource):
             else:
                 # !! note: if userId is not provided, the container will be running as root. There shouldn't be any security concern since all the resources in docker container should be user's own property. Also, we plan to allow user to choose "run as root".   
                 params["userId"] = "0"
+
+            if args["nodeSelector"] is not None and len(args["nodeSelector"].strip()) > 0:
+                params["nodeSelector"] = {args["nodeSelector"]:"active"}
+
 
             if args["interactivePort"] is not None and len(args["interactivePort"].strip()) > 0:
                 params["interactivePort"] = args["interactivePort"]

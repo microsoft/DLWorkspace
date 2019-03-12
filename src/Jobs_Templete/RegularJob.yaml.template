@@ -15,8 +15,14 @@ metadata:
     {% endfor %}
   {% endif %}
 spec:
-  {% if job["resourcegpu"]|int < 8  %}
   nodeSelector:
+    worker: active
+  {% if job["nodeSelector"]|length > 0 %}
+  {% for key, value in job["nodeSelector"].items() %}
+    {{key}}: {{value}}
+  {% endfor %}
+  {% endif %}    
+  {% if job["resourcegpu"]|int < 8  %}
     FragmentGPUJob: active
   {% endif %}
   {% if job["dnsPolicy"] %}
