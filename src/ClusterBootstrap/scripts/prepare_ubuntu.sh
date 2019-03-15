@@ -33,7 +33,14 @@ then
 docker --version
 ## docker already installed
 else
-curl -q https://get.docker.com/ | sudo bash
+sudo apt-get remove docker docker-engine docker.io
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+sudo add-apt-repository \
+   "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+   $(lsb_release -cs) \
+   stable"
+sudo apt-get update
+sudo apt-get install -y docker-ce
 fi
 
 sudo pip install --upgrade pip
@@ -72,8 +79,10 @@ if  lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VG
  #       chmod +x /tmp/NVIDIA-Linux-x86_64-$NVIDIA_VERSION.run
  #       sudo bash /tmp/NVIDIA-Linux-x86_64-$NVIDIA_VERSION.run -a -s
 
+    sudo add-apt-repository -y ppa:graphics-drivers/ppa
 	sudo apt-get purge -y nvidia*
-	sudo apt-get install -y nvidia-384
+    sudo apt-get update
+	sudo apt-get install -y nvidia-410
 	
 
 
@@ -81,10 +90,18 @@ if  lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VG
 
         sudo rm -r /opt/nvidia-driver || true
 
-        # Install nvidia-docker and nvidia-docker-plugin
-        rm /tmp/nvidia-docker*.deb
-        wget -P /tmp https://github.com/NVIDIA/nvidia-docker/releases/download/v1.0.1/nvidia-docker_1.0.1-1_amd64.deb
-        sudo dpkg -i /tmp/nvidia-docker*.deb && rm /tmp/nvidia-docker*.deb
+        # Install nvidia-docker and nvidia-docker-plugin ( Upgrade to nvidia-docker2)
+        # rm /tmp/nvidia-docker*.deb
+        # wget -P /tmp https://github.com/NVIDIA/nvidia-docker/releases/download/v1.0.1/nvidia-docker_1.0.1-1_amd64.deb
+        # sudo dpkg -i /tmp/nvidia-docker*.deb && rm /tmp/nvidia-docker*.deb
+
+        curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
+        distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+        curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+        sudo apt-get update
+
+        sudo apt-get install -y nvidia-docker2
+        sudo pkill -SIGHUP dockerd
 
         # Test nvidia-smi
         sudo nvidia-docker run --rm dlws/cuda nvidia-smi
@@ -96,3 +113,6 @@ if  lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VG
         NV_DRIVER=/opt/nvidia-driver/$NVIDIA_VERSION
         sudo ln -s $NV_DRIVER /opt/nvidia-driver/current
 fi
+
+# https://github.com/kubernetes/kubeadm/issues/610
+sudo swapoff -a

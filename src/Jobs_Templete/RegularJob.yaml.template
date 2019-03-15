@@ -40,7 +40,7 @@ spec:
       {% endif %}
     resources:
       limits:
-        alpha.kubernetes.io/nvidia-gpu: {{ job["resourcegpu"] }}
+        nvidia.com/gpu: {{ job["resourcegpu"] }}
     {% if not job["cpurequest"] %}
       requests: 
         cpu: 1.0
