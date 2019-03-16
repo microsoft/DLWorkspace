@@ -88,7 +88,7 @@ def get_job_gpu_usage(jobId):
 
 def get_cluster_status():
     cluster_status={}
-    gpuStr = "alpha.kubernetes.io/nvidia-gpu"
+    gpuStr = "nvidia.com/gpu"
     try:
         output = k8sUtils.kubectl_exec(" get nodes -o yaml")
         nodeInfo = yaml.load(output)
