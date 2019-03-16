@@ -598,6 +598,7 @@ scriptblocks = {
         "runscriptonall ./scripts/prepare_vm_disk.sh",
         "nfs-server create",
         "runscriptonall ./scripts/prepare_ubuntu.sh",
+        "runscriptonall ./scripts/dns.sh",
         "-y deploy",
         "-y updateworker",
         "-y kubernetes labels",

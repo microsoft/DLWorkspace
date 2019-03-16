@@ -125,6 +125,7 @@ def create_vm_pwd(vmname, vm_ip, vm_size, use_private_ip, pwd):
                     --nsg %s \
                     --admin-username %s \
                     --storage-sku %s \
+                    --data-disk-sizes-gb 2047 \
                     %s \
         """ % (config["azure_cluster"]["resource_group_name"],
                 vmname,
@@ -159,6 +160,7 @@ def create_vm(vmname, vm_ip, bIsWorker, vm_size):
                  --nsg %s \
                  --admin-username %s \
                  --storage-sku %s \
+                 --data-disk-sizes-gb 2047 \
                  --ssh-key-value "%s"
         """ % (config["azure_cluster"]["resource_group_name"],
                vmname,
@@ -184,6 +186,7 @@ def create_vm(vmname, vm_ip, bIsWorker, vm_size):
                  --nsg %s \
                  --admin-username %s \
                  --storage-sku %s \
+                 --data-disk-sizes-gb 2047 \
                  --ssh-key-value "%s"
         """ % (config["azure_cluster"]["resource_group_name"],
                vmname,

@@ -591,7 +591,7 @@ def UpdateJobStatus(job):
 
     if job["jobStatus"] == "scheduling" and jobParams["jobtrainingtype"] == "PSDistJob":
         launch_ps_dist_job(jobParams)
-
+        return
 
     jobPath,workPath,dataPath = GetStoragePath(jobParams["jobPath"],jobParams["workPath"],jobParams["dataPath"])
     localJobPath = os.path.join(config["storage-mount-path"],jobPath)
@@ -752,144 +752,150 @@ class Kube_RemoteCMD_Thread(threading.Thread):
 
 
 def launch_ps_dist_job(jobParams):
-    jobId = jobParams["jobId"]
-    workerPodInfo = k8sUtils.GetPod("distRole=worker,run=" + jobId)
-    psPodInfo = k8sUtils.GetPod("distRole=ps,run=" + jobId)
-    if "items" in workerPodInfo and len(workerPodInfo["items"]) == int(jobParams["numpsworker"]) and "items" in psPodInfo and len(psPodInfo["items"]) == int(jobParams["numps"]):
-        podStatus = [k8sUtils.check_pod_status(pod) for pod in  workerPodInfo["items"] + psPodInfo["items"] ]
-        if all([status == "Running" for status in podStatus]):
-            ps_pod_names = [pod["metadata"]["name"] for pod in psPodInfo["items"]]
-            worker_pod_names = [pod["metadata"]["name"] for pod in workerPodInfo["items"]]
+    try:
+        jobId = jobParams["jobId"]
+        workerPodInfo = k8sUtils.GetPod("distRole=worker,run=" + jobId)
+        psPodInfo = k8sUtils.GetPod("distRole=ps,run=" + jobId)
+        if "items" in workerPodInfo and len(workerPodInfo["items"]) == int(jobParams["numpsworker"]) and "items" in psPodInfo and len(psPodInfo["items"]) == int(jobParams["numps"]):
+            podStatus = [k8sUtils.check_pod_status(pod) for pod in  workerPodInfo["items"] + psPodInfo["items"] ]
+            if all([status == "Running" for status in podStatus]):
+                ps_pod_names = [pod["metadata"]["name"] for pod in psPodInfo["items"]]
+                worker_pod_names = [pod["metadata"]["name"] for pod in workerPodInfo["items"]]
 
-            ps_pod_ips = [pod["status"]["podIP"] for pod in psPodInfo["items"]]
-            worker_pod_ips = [pod["status"]["podIP"] for pod in workerPodInfo["items"]]
+                ps_pod_ips = [pod["status"]["podIP"] for pod in psPodInfo["items"]]
+                worker_pod_ips = [pod["status"]["podIP"] for pod in workerPodInfo["items"]]
 
-            worker_gpu_num = [pod["spec"]["containers"][0]["resources"]["requests"]["alpha.kubernetes.io/nvidia-gpu"] for pod in workerPodInfo["items"]]
+                worker_gpu_num = [pod["spec"]["containers"][0]["resources"]["requests"]["nvidia.com/gpu"] for pod in workerPodInfo["items"]]
 
-            ps_num = len(psPodInfo["items"])
-            worker_num = len(workerPodInfo["items"])
+                ps_num = len(psPodInfo["items"])
+                worker_num = len(workerPodInfo["items"])
 
-            ps_ports = [int(item["metadata"]["labels"]["distPort"]) for item in psPodInfo["items"]]
-            worker_ports = [int(item["metadata"]["labels"]["distPort"]) for item in workerPodInfo["items"]]
+                ps_ports = [int(item["metadata"]["labels"]["distPort"]) for item in psPodInfo["items"]]
+                worker_ports = [int(item["metadata"]["labels"]["distPort"]) for item in workerPodInfo["items"]]
 
-            #port range: 30000~31000
-            #rndList = range(max(1000,ps_num + worker_num))
-            #random.shuffle(rndList)
-            #ps_ports = [rndList[i] + 30000 for i in range(ps_num)]
-            #worker_ports = [rndList[i + ps_num] + 30000 for i in range(worker_num)]
+                #port range: 30000~31000
+                #rndList = range(max(1000,ps_num + worker_num))
+                #random.shuffle(rndList)
+                #ps_ports = [rndList[i] + 30000 for i in range(ps_num)]
+                #worker_ports = [rndList[i + ps_num] + 30000 for i in range(worker_num)]
 
-            ps_hosts = ",".join(["%s:%s" % (ps_pod_ips[i],ps_ports[i]) for i in range(ps_num)])
-            worker_hosts = ",".join(["%s:%s" % (worker_pod_ips[i],worker_ports[i]) for i in range(worker_num)])
+                ps_hosts = ",".join(["%s:%s" % (ps_pod_ips[i],ps_ports[i]) for i in range(ps_num)])
+                worker_hosts = ",".join(["%s:%s" % (worker_pod_ips[i],worker_ports[i]) for i in range(worker_num)])
 
-            ps_files = ["/tmp/" + str(uuid.uuid4()) for i in range(ps_num)]
-            worker_files = ["/tmp/" + str(uuid.uuid4()) for i in range(worker_num)]
+                ps_files = ["/tmp/" + str(uuid.uuid4()) for i in range(ps_num)]
+                worker_files = ["/tmp/" + str(uuid.uuid4()) for i in range(worker_num)]
 
-            #ps_cmd = ["%s --ps_hosts=%s --worker_hosts=%s --job_name=ps --task_index=%d 2>&1 | tee %s" % (jobParams["cmd"], ps_hosts,worker_hosts,i,ps_files[i]) for i in range(ps_num)]
-            #worker_cmd = ["%s --ps_hosts=%s --worker_hosts=%s --job_name=worker --task_index=%d 2>&1 | tee %s" % (jobParams["cmd"], ps_hosts,worker_hosts,i,worker_files[i]) for i in range(worker_num)]
+                #ps_cmd = ["%s --ps_hosts=%s --worker_hosts=%s --job_name=ps --task_index=%d 2>&1 | tee %s" % (jobParams["cmd"], ps_hosts,worker_hosts,i,ps_files[i]) for i in range(ps_num)]
+                #worker_cmd = ["%s --ps_hosts=%s --worker_hosts=%s --job_name=worker --task_index=%d 2>&1 | tee %s" % (jobParams["cmd"], ps_hosts,worker_hosts,i,worker_files[i]) for i in range(worker_num)]
 
-            ps_cmd = ["%s 2>&1 | tee %s" % (jobParams["cmd"], ps_files[i]) for i in range(ps_num)]
-            worker_cmd = ["%s 2>&1 | tee %s" % (jobParams["cmd"], worker_files[i]) for i in range(worker_num)]
-
-
-            hostfilecontent = ""
-            for workerip,workergpu in zip(worker_pod_ips,worker_gpu_num):
-                hostfilecontent += "%s  slots=%s\n" %(workerip,workergpu)
+                ps_cmd = ["%s 2>&1 | tee %s" % (jobParams["cmd"], ps_files[i]) for i in range(ps_num)]
+                worker_cmd = ["%s 2>&1 | tee %s" % (jobParams["cmd"], worker_files[i]) for i in range(worker_num)]
 
 
-            for i in range(ps_num):
-                os.system("mkdir -p %s" % ps_files[i])
-                psfile = os.path.join(ps_files[i],"run_dist_job.sh")
-                with open(psfile, 'w') as f:
-                    f.write(ps_cmd[i] + "\n")
-                f.close()        
-                if "userId" in jobParams:
-                    os.system("chown -R %s %s" % (jobParams["userId"], psfile))
-                remotecmd = "cp %s %s:/opt/run_dist_job.sh" % (psfile,ps_pod_names[i])
-                k8sUtils.kubectl_exec(remotecmd)
+                hostfilecontent = ""
+                for workerip,workergpu in zip(worker_pod_ips,worker_gpu_num):
+                    hostfilecontent += "%s  slots=%s\n" %(workerip,workergpu)
+
+                error_flag = False
+                for i in range(ps_num):
+                    os.system("mkdir -p %s" % ps_files[i])
+                    psfile = os.path.join(ps_files[i],"run_dist_job.sh")
+                    with open(psfile, 'w') as f:
+                        f.write(ps_cmd[i] + "\n")
+                    f.close()        
+                    if "userId" in jobParams:
+                        os.system("chown -R %s %s" % (jobParams["userId"], psfile))
+                    remotecmd = "cp %s %s:/opt/run_dist_job.sh" % (psfile,ps_pod_names[i])
+                    k8sUtils.kubectl_exec(remotecmd)
 
 
-                os.system("mkdir -p %s" % ps_files[i])
-                psfile = os.path.join(ps_files[i],"hostfile")
-                with open(psfile, 'w') as f:
-                    f.write(hostfilecontent + "\n")
-                f.close()        
-                if "userId" in jobParams:
-                    os.system("chown -R %s %s" % (jobParams["userId"], psfile))
-                remotecmd = "cp %s %s:/opt/hostfile" % (psfile,ps_pod_names[i])
-                k8sUtils.kubectl_exec(remotecmd)
+                    os.system("mkdir -p %s" % ps_files[i])
+                    psfile = os.path.join(ps_files[i],"hostfile")
+                    with open(psfile, 'w') as f:
+                        f.write(hostfilecontent + "\n")
+                    f.close()        
+                    if "userId" in jobParams:
+                        os.system("chown -R %s %s" % (jobParams["userId"], psfile))
+                    remotecmd = "cp %s %s:/opt/hostfile" % (psfile,ps_pod_names[i])
+                    k8sUtils.kubectl_exec(remotecmd)
 
-                os.system("mkdir -p %s" % ps_files[i])
-                psfile = os.path.join(ps_files[i],"taskindex")
-                with open(psfile, 'w') as f:
-                    f.write(str(i) + "\n")
-                f.close()        
-                if "userId" in jobParams:
-                    os.system("chown -R %s %s" % (jobParams["userId"], psfile))
-                remotecmd = "cp %s %s:/opt/taskindex" % (psfile,ps_pod_names[i])
-                k8sUtils.kubectl_exec(remotecmd)
+                    os.system("mkdir -p %s" % ps_files[i])
+                    psfile = os.path.join(ps_files[i],"taskindex")
+                    with open(psfile, 'w') as f:
+                        f.write(str(i) + "\n")
+                    f.close()        
+                    if "userId" in jobParams:
+                        os.system("chown -R %s %s" % (jobParams["userId"], psfile))
+                    remotecmd = "cp %s %s:/opt/taskindex" % (psfile,ps_pod_names[i])
+                    k8sUtils.kubectl_exec(remotecmd)
 
+                    k8sUtils.kubectl_exec("exec %s touch /opt/run_dist_job" % ps_pod_names[i])
+                    output = k8sUtils.kubectl_exec("exec %s ls /opt/run_dist_job" % ps_pod_names[i])
+                    if (output == ""):
+                        error_flag = True   
 
-                k8sUtils.kubectl_exec("exec %s touch /opt/run_dist_job" % ps_pod_names[i])
-
-
-            for i in range(worker_num):
-                os.system("mkdir -p %s" % worker_files[i])
-                workerfile = os.path.join(worker_files[i],"run_dist_job.sh")
-                with open(workerfile, 'w') as f:
-                    f.write(worker_cmd[i] + "\n")
-                f.close()    
-                if "userId" in jobParams:
-                    os.system("chown -R %s %s" % (jobParams["userId"], workerfile))
-                remotecmd = "cp %s %s:/opt/run_dist_job.sh" % (workerfile,worker_pod_names[i])
-                k8sUtils.kubectl_exec(remotecmd)
-
-
-                os.system("mkdir -p %s" % worker_files[i])
-                workerfile = os.path.join(worker_files[i],"hostfile")
-                with open(workerfile, 'w') as f:
-                    f.write(hostfilecontent + "\n")
-                f.close()    
-                if "userId" in jobParams:
-                    os.system("chown -R %s %s" % (jobParams["userId"], workerfile))
-                remotecmd = "cp %s %s:/opt/hostfile" % (workerfile,worker_pod_names[i])
-                k8sUtils.kubectl_exec(remotecmd)
+                for i in range(worker_num):
+                    os.system("mkdir -p %s" % worker_files[i])
+                    workerfile = os.path.join(worker_files[i],"run_dist_job.sh")
+                    with open(workerfile, 'w') as f:
+                        f.write(worker_cmd[i] + "\n")
+                    f.close()    
+                    if "userId" in jobParams:
+                        os.system("chown -R %s %s" % (jobParams["userId"], workerfile))
+                    remotecmd = "cp %s %s:/opt/run_dist_job.sh" % (workerfile,worker_pod_names[i])
+                    k8sUtils.kubectl_exec(remotecmd)
 
 
-                os.system("mkdir -p %s" % worker_files[i])
-                workerfile = os.path.join(worker_files[i],"taskindex")
-                with open(workerfile, 'w') as f:
-                    f.write(str(i) + "\n")
-                f.close()    
-                if "userId" in jobParams:
-                    os.system("chown -R %s %s" % (jobParams["userId"], workerfile))
-                remotecmd = "cp %s %s:/opt/taskindex" % (workerfile,worker_pod_names[i])
-                k8sUtils.kubectl_exec(remotecmd)
+                    os.system("mkdir -p %s" % worker_files[i])
+                    workerfile = os.path.join(worker_files[i],"hostfile")
+                    with open(workerfile, 'w') as f:
+                        f.write(hostfilecontent + "\n")
+                    f.close()    
+                    if "userId" in jobParams:
+                        os.system("chown -R %s %s" % (jobParams["userId"], workerfile))
+                    remotecmd = "cp %s %s:/opt/hostfile" % (workerfile,worker_pod_names[i])
+                    k8sUtils.kubectl_exec(remotecmd)
 
 
-                k8sUtils.kubectl_exec("exec %s touch /opt/run_dist_job" % worker_pod_names[i])
-
-            dataHandler = DataHandler()
-            dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","running")
-
-            #ps_threads = [Kube_RemoteCMD_Thread(jobId,ps_pod_names[i],ps_cmd[i],ps_logfiles[i]) for i in range(ps_num)]
-            #worker_threads = [Kube_RemoteCMD_Thread(jobId,worker_pod_names[i],worker_cmd[i],worker_logfiles[i]) for i in range(worker_num)]
-            
-            #for t in ps_threads:
-            #    t.start()
-
-            #for t in worker_threads:
-            #    t.start()
+                    os.system("mkdir -p %s" % worker_files[i])
+                    workerfile = os.path.join(worker_files[i],"taskindex")
+                    with open(workerfile, 'w') as f:
+                        f.write(str(i) + "\n")
+                    f.close()    
+                    if "userId" in jobParams:
+                        os.system("chown -R %s %s" % (jobParams["userId"], workerfile))
+                    remotecmd = "cp %s %s:/opt/taskindex" % (workerfile,worker_pod_names[i])
+                    k8sUtils.kubectl_exec(remotecmd)
 
 
-            #while (True):
+                    k8sUtils.kubectl_exec("exec %s touch /opt/run_dist_job" % worker_pod_names[i])
+                    output = k8sUtils.kubectl_exec("exec %s ls /opt/run_dist_job" % worker_pod_names[i])
+                    if (output == ""):
+                        error_flag = True     
+                if not error_flag:
+                    dataHandler = DataHandler()
+                    dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","running")
+
+                #ps_threads = [Kube_RemoteCMD_Thread(jobId,ps_pod_names[i],ps_cmd[i],ps_logfiles[i]) for i in range(ps_num)]
+                #worker_threads = [Kube_RemoteCMD_Thread(jobId,worker_pod_names[i],worker_cmd[i],worker_logfiles[i]) for i in range(worker_num)]
+                
                 #for t in ps_threads:
-                #    print t.isAlive()
-                #time.sleep(5)
+                #    t.start()
 
-            #cmd = "test"
-            #thread.start_new_thread( run_dist_cmd_on_pod,
-            #(workerPodInfo["items"][0]["metadata"]["name"], cmd) )
+                #for t in worker_threads:
+                #    t.start()
 
+
+                #while (True):
+                    #for t in ps_threads:
+                    #    print t.isAlive()
+                    #time.sleep(5)
+
+                #cmd = "test"
+                #thread.start_new_thread( run_dist_cmd_on_pod,
+                #(workerPodInfo["items"][0]["metadata"]["name"], cmd) )
+    except Exception as e:
+        print e
 
 
 
