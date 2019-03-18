@@ -30,7 +30,7 @@ spec:
   {% endif %}  
   containers:
   - name: {{ job["podName"] }}
-    image: {{ job["image"] }}
+    image: {{ job["image"] }}    
     imagePullPolicy: Always
     command: {{ job["LaunchCMD"] }}
     securityContext:
@@ -97,7 +97,10 @@ spec:
     - name: {{ env.name }}
       value: "{{ env.value }}"    
     {% endfor %}
-   
+
+  imagePullSecrets:
+  - name: regcred     
+  
   restartPolicy: Never
   volumes:
   {% if not job["dnsPolicy"] %}

@@ -98,6 +98,9 @@ spec:
     - name: {{ env.name }}
       value: {{ env.value }}    
     {% endfor %}          
+  
+  imagePullSecrets:
+  - name: regcred  
 
   restartPolicy: Never
   volumes:
