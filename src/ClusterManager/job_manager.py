@@ -483,6 +483,25 @@ sleep infinity
 
                     distJobParams[role].append(distJobParam)
 
+
+                    if (role == "ps" and "interactivePort" in distJobParam and len(distJobParam["interactivePort"].strip()) > 0):
+                        ports = [p.strip() for p in re.split(",|;",distJobParam["interactivePort"]) if len(p.strip()) > 0 and p.strip().isdigit()]
+
+                        distJobParam["podName"] = distJobParam["jobId"]+"-"+distJobParam["distId"]
+
+                        for portNum in ports:
+                            distJobParam["serviceId"] = "interactive-" + distJobParam["podName"] + "-" + portNum
+                            distJobParam["port"] = portNum
+                            distJobParam["port-name"] = "interactive"
+                            distJobParam["port-type"] = "TCP"
+
+                            serviceTemplate = ENV.get_template(os.path.join(jobTempDir,"KubeSvc.yaml.template"))
+
+                            stemplate = ENV.get_template(serviceTemplate)
+                            interactiveMeta = stemplate.render(svc=distJobParam)
+                            jobDescriptionList.append(interactiveMeta)
+
+
             jobParams["jobDescriptionPath"] = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"] + ".yaml"
             jobDescription = "\n---\n".join(jobDescriptionList)
 

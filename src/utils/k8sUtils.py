@@ -131,7 +131,6 @@ def GetServiceAddress(jobId):
                 selector += ","
             selector += "{0}={1}".format(label, svc["spec"]["selector"][label])
             labelIndex += 1
-
         if selector is not None:
             podInfo = GetPod(selector)
             if podInfo is not None and "items" in podInfo:

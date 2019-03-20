@@ -4,6 +4,7 @@ metadata:
   name: {{ job["jobId"] }}-{{ job["distId"] }}
   labels: 
     run: {{ job["jobId"] }}
+    podName: {{ job["jobId"] }}-{{ job["distId"] }}
     jobName: {{ job["jobNameLabel"] }}
     distRole: {{ job["distRole"] }}
     distPort: "{{job["containerPort"]}}"
