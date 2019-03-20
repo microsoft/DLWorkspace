@@ -118,6 +118,8 @@ def SubmitRegularJob(job):
             launchScriptPath = os.path.join(localJobPath,"launch-%s.sh" % jobParams["jobId"])
             with open(launchScriptPath, 'w') as f:
                 f.write("#!/bin/bash -x\n")
+                f.write("mkdir /opt; \n")
+                f.write("echo 'localhost slots=%s' | tee -a /opt/hostfile; \n" % jobParams["resourcegpu"])
                 f.write(jobParams["cmd"] + "\n")
             f.close()    
             if "userId" in jobParams:

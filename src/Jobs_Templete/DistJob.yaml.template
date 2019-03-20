@@ -76,7 +76,7 @@ spec:
       value: {{ job["jobId"] }}   
     - name: DLWS_NUM_PS
       value: "{{ job["numps"] }}"  
-    - name: DLWS_NUM_WORK
+    - name: DLWS_NUM_WORKER
       value: "{{ job["numworker"] }}"  
     - name: DLWS_NUM_GPU_PER_WORKER
       value: "{{ job["resourcegpu"] }}"                       
