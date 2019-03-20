@@ -403,8 +403,10 @@ while [ ! -f /opt/run_dist_job ] || [ ! -f /opt/run_dist_job.sh ]; do
     sleep 3
 done
 echo "[DLWorkspace System]: All containers are ready, launching training job..."
+chown root /root/.ssh/config
 chmod +x /opt/run_dist_job.sh
 /opt/run_dist_job.sh
+touch /job/finish
 """
                     else:
                         launchCMD = """
@@ -414,8 +416,11 @@ cp -r /sshkey/.ssh /root
 chown -R root:root /root/.ssh
 echo export LD_PRELOAD=$LD_PRELOAD >> /etc/default/ssh
 echo export VNET_PREFIX=$VNET_PREFIX >> /etc/default/ssh
+chown root /root/.ssh/config
 service ssh restart
-sleep infinity
+while [ ! -f /job/finish ] ; do
+    sleep 3
+done
 """
 
 
@@ -809,13 +814,39 @@ def launch_ps_dist_job(jobParams):
                 #ps_cmd = ["%s --ps_hosts=%s --worker_hosts=%s --job_name=ps --task_index=%d 2>&1 | tee %s" % (jobParams["cmd"], ps_hosts,worker_hosts,i,ps_files[i]) for i in range(ps_num)]
                 #worker_cmd = ["%s --ps_hosts=%s --worker_hosts=%s --job_name=worker --task_index=%d 2>&1 | tee %s" % (jobParams["cmd"], ps_hosts,worker_hosts,i,worker_files[i]) for i in range(worker_num)]
 
+
+                ssh_config  = """
+Host %s
+  HostName %s
+  Port %s
+  User root
+  StrictHostKeyChecking no
+  UserKnownHostsFile /dev/null
+                """
+
+
                 ps_cmd = ["%s 2>&1 | tee %s" % (jobParams["cmd"], ps_files[i]) for i in range(ps_num)]
                 worker_cmd = ["%s 2>&1 | tee %s" % (jobParams["cmd"], worker_files[i]) for i in range(worker_num)]
 
 
+                #hostfilecontent = ""
+                #for workerip,workergpu in zip(worker_pod_ips,worker_gpu_num):
+                #    hostfilecontent += "%s  slots=%s\n" %(workerip,workergpu)
+
+
+
                 hostfilecontent = ""
-                for workerip,workergpu in zip(worker_pod_ips,worker_gpu_num):
-                    hostfilecontent += "%s  slots=%s\n" %(workerip,workergpu)
+                for i in range(len(worker_gpu_num)):
+                    hostfilecontent += "%s  slots=%s\n" %("worker-"+str(i),worker_gpu_num[i])
+
+
+                sshconfigstr = ""
+                for i in range(ps_num):
+                    sshconfigstr += (ssh_config %("master-"+str(i), ps_pod_ips[i] ,"22222") +"\n")
+
+                for i in range(worker_num):
+                    sshconfigstr += (ssh_config %("worker-"+str(i), worker_pod_ips[i] ,"22222") +"\n")
+
 
                 error_flag = False
                 for i in range(ps_num):
@@ -839,6 +870,22 @@ def launch_ps_dist_job(jobParams):
                         os.system("chown -R %s %s" % (jobParams["userId"], psfile))
                     remotecmd = "cp %s %s:/opt/hostfile" % (psfile,ps_pod_names[i])
                     k8sUtils.kubectl_exec(remotecmd)
+
+
+                    os.system("mkdir -p %s" % ps_files[i])
+                    psfile = os.path.join(ps_files[i],"config")
+                    with open(psfile, 'w') as f:
+                        f.write(sshconfigstr + "\n")
+                    f.close()        
+                    #if "userId" in jobParams:
+                    #    os.system("chown -R %s %s" % (jobParams["userId"], psfile))
+                    k8sUtils.kubectl_exec("exec %s mkdir -p /root/.ssh" % ps_pod_names[i])
+                    remotecmd = "cp %s %s:/root/.ssh/config" % (psfile,ps_pod_names[i])
+                    k8sUtils.kubectl_exec("exec %s chmod 600 /root/.ssh/config" % ps_pod_names[i])
+                    k8sUtils.kubectl_exec("exec %s chown root /root/.ssh/config" % ps_pod_names[i])                    
+                    k8sUtils.kubectl_exec(remotecmd)
+
+
 
                     os.system("mkdir -p %s" % ps_files[i])
                     psfile = os.path.join(ps_files[i],"taskindex")
@@ -875,6 +922,20 @@ def launch_ps_dist_job(jobParams):
                     if "userId" in jobParams:
                         os.system("chown -R %s %s" % (jobParams["userId"], workerfile))
                     remotecmd = "cp %s %s:/opt/hostfile" % (workerfile,worker_pod_names[i])
+                    k8sUtils.kubectl_exec(remotecmd)
+
+
+                    os.system("mkdir -p %s" % worker_files[i])
+                    psfile = os.path.join(worker_files[i],"config")
+                    with open(psfile, 'w') as f:
+                        f.write(sshconfigstr + "\n")
+                    f.close()        
+                    if "userId" in jobParams:
+                        os.system("chown -R %s %s" % (jobParams["userId"], psfile))
+                    k8sUtils.kubectl_exec("exec %s mkdir -p /root/.ssh" % worker_pod_names[i])
+                    remotecmd = "cp %s %s:/root/.ssh/config" % (psfile,worker_pod_names[i])
+                    k8sUtils.kubectl_exec("exec %s chmod 600 /root/.ssh/config" % worker_pod_names[i])
+                    k8sUtils.kubectl_exec("exec %s chown root /root/.ssh/config" % worker_pod_names[i])
                     k8sUtils.kubectl_exec(remotecmd)
 
 
