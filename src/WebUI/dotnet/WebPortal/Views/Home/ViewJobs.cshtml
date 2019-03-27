@@ -56,7 +56,12 @@
 
         tr.append("<td title='" + statusMsg + "'>" + job.jobStatus + "  <a href='#' onclick=\"layer.tips('" + statusMsg + "','#infoicon" + job.jobId + "', {tips: [2, '#3090C7']});\" > <i id=\"infoicon" + job.jobId +"\" class=\"layui-icon\">&#xe60b;</i></a>  </td>");
         //GPU
-        tr.append("<td>" + job.jobParams.resourcegpu + "</td>");
+        if (job.jobParams.numpsworker && job.jobParams.numpsworker > 0) {
+            tr.append("<td>" + job.jobParams.resourcegpu * job.jobParams.numpsworker+ "</td>");
+        }
+        else {
+            tr.append("<td>" + job.jobParams.resourcegpu + "</td>");
+        }
         //Username
         tr.append("<td>" + job.userName + "</td>");
         //Submited Time
