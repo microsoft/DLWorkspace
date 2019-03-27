@@ -328,6 +328,19 @@ def SubmitPSDistJob(job):
         assignedRack = None
         if len(config["racks"]) > 0:
             assignedRack = random.choice(config["racks"])
+
+        # in distributed job and host network is using, we will randomly assign a SSH port to each container.
+        ssh_ports = {}
+        if "hostNetwork" in jobParams and jobParams["hostNetwork"]:
+            ps_num = int(jobParams["numps"])
+            worker_num = int(jobParams["numpsworker"])
+            #port range: 30000~31000
+            rndList = range(max(1000,ps_num + worker_num))
+            random.shuffle(rndList)
+            ssh_ports["ps"] = [rndList[i] + 30000 for i in range(ps_num)]
+            ssh_ports["worker"] = [rndList[i + ps_num] + 30000 for i in range(worker_num)]
+
+
         if jobParams["jobtrainingtype"] == "PSDistJob":
             jobDescriptionList = []
             nums = {"ps":int(jobParams["numps"]),"worker":int(jobParams["numpsworker"])}
@@ -387,15 +400,28 @@ def SubmitPSDistJob(job):
 #    /opt/run_dist_job.sh
 #fi
 #"""
+                    if "hostNetwork" in jobParams and jobParams["hostNetwork"]:
+                        change_ssh_port_CMD = "cat /etc/ssh/sshd_config | grep -v 'Port\\ [0-9]*' > /tmp/sshd_config && echo 'Port "+str(ssh_ports[role][i])+"' | tee -a /tmp/sshd_config && sudo mv /tmp/sshd_config /etc/ssh/sshd_config ; "
+                    else:
+                        change_ssh_port_CMD = ""
 
                     if role == "ps":
                         launchCMD = """
 #!/bin/bash
 mkdir -p /opt
-cp -r /sshkey/.ssh /root
-chown -R root:root /root/.ssh
+mkdir -p /root/.ssh
+cp -r /sshkey/.ssh/id_rsa /root/.ssh
+cp -r /sshkey/.ssh/id_rsa.pub /root/.ssh
+cp -r /sshkey/.ssh/authorized_keys /root/.ssh
+chown root:root /root/.ssh
+chown root:root /root/.ssh/id_rsa
+chown root:root /root/.ssh/id_rsa.pub
+chown root:root /root/.ssh/authorized_keys
 echo export LD_PRELOAD=$LD_PRELOAD >> /etc/default/ssh
 echo export VNET_PREFIX=$VNET_PREFIX >> /etc/default/ssh
+
+%s
+
 service ssh restart
 
 echo "[DLWorkspace System]: Waiting for all containers are ready..."
@@ -403,25 +429,35 @@ while [ ! -f /opt/run_dist_job ] || [ ! -f /opt/run_dist_job.sh ]; do
     sleep 3
 done
 echo "[DLWorkspace System]: All containers are ready, launching training job..."
-chown root /root/.ssh/config
 chmod +x /opt/run_dist_job.sh
+sleep 10
+chown root:root /root/.ssh/config
 /opt/run_dist_job.sh
-touch /job/finish
-"""
+""" % change_ssh_port_CMD
                     else:
                         launchCMD = """
 #!/bin/bash
 mkdir -p /opt
-cp -r /sshkey/.ssh /root
-chown -R root:root /root/.ssh
+mkdir -p /root/.ssh
+cp -r /sshkey/.ssh/id_rsa /root/.ssh
+cp -r /sshkey/.ssh/id_rsa.pub /root/.ssh
+cp -r /sshkey/.ssh/authorized_keys /root/.ssh
+chown root:root /root/.ssh
+chown root:root /root/.ssh/id_rsa
+chown root:root /root/.ssh/id_rsa.pub
+chown root:root /root/.ssh/authorized_keys
 echo export LD_PRELOAD=$LD_PRELOAD >> /etc/default/ssh
 echo export VNET_PREFIX=$VNET_PREFIX >> /etc/default/ssh
-chown root /root/.ssh/config
+
+%s
+
 service ssh restart
-while [ ! -f /job/finish ] ; do
+while [ ! -f /opt/run_dist_job ] || [ ! -f /opt/run_dist_job.sh ]; do
     sleep 3
 done
-"""
+chown root:root /root/.ssh/config
+sleep infinity
+""" % change_ssh_port_CMD
 
 
 
@@ -474,8 +510,11 @@ done
 
 
                     random.seed(datetime.datetime.now())
-                    distJobParam["containerPort"] = int(random.random()*1000+3000)
-
+                    if "hostNetwork" in jobParams and jobParams["hostNetwork"]:
+                        distJobParam["containerPort"] = ssh_ports[role][i]
+                    else:
+                        distJobParam["containerPort"] = int(random.random()*1000+3000)
+                    
                     if assignedRack is not None:
                         if "nodeSelector" not in distJobParam:
                             distJobParam["nodeSelector"] = {}
@@ -642,7 +681,7 @@ def UpdateJobStatus(job):
         if job["jobStatus"] != "running":
             dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","running")
 
-        if "interactivePort" in jobParams:
+        if "interactivePort" in jobParams and ("hostNetwork" not in jobParams or not jobParams["hostNetwork"]):
             serviceAddress = k8sUtils.GetServiceAddress(job["jobId"])
             serviceAddress = base64.b64encode(json.dumps(serviceAddress))
             dataHandler.UpdateJobTextField(job["jobId"],"endpoints",serviceAddress)
@@ -782,6 +821,7 @@ def launch_ps_dist_job(jobParams):
         jobId = jobParams["jobId"]
         workerPodInfo = k8sUtils.GetPod("distRole=worker,run=" + jobId)
         psPodInfo = k8sUtils.GetPod("distRole=ps,run=" + jobId)
+        ssh_endpoints =[]
         if "items" in workerPodInfo and len(workerPodInfo["items"]) == int(jobParams["numpsworker"]) and "items" in psPodInfo and len(psPodInfo["items"]) == int(jobParams["numps"]):
             podStatus = [k8sUtils.check_pod_status(pod) for pod in  workerPodInfo["items"] + psPodInfo["items"] ]
             if all([status == "Running" for status in podStatus]):
@@ -808,11 +848,48 @@ def launch_ps_dist_job(jobParams):
                 ps_hosts = ",".join(["%s:%s" % (ps_pod_ips[i],ps_ports[i]) for i in range(ps_num)])
                 worker_hosts = ",".join(["%s:%s" % (worker_pod_ips[i],worker_ports[i]) for i in range(worker_num)])
 
+                ps_hostnames = [pod["spec"]["nodeName"] for pod in psPodInfo["items"]]
+                worker_hostnames = [pod["spec"]["nodeName"] for pod in workerPodInfo["items"]]
+
+                for h,ip,p in zip(ps_hostnames,ps_pod_ips,ps_ports):
+                    hostName = h
+                    if "." not in hostName and "domain" in config and (not config["domain"] is None) and len(config["domain"].strip()) >0:
+                        hostName += "."+config["domain"]
+                    ssh_endpoints.append(
+                        {
+                            "hostName":hostName,
+                            "hostIP":ip,
+                            "containerPort":22,
+                            "hostPort":p,
+                            "user":"root",
+                        }
+                        )
+
+
+                for h,ip,p in zip(worker_hostnames,worker_pod_ips,worker_ports):
+                    hostName = h
+                    if "." not in hostName and "domain" in config and (not config["domain"] is None) and len(config["domain"].strip()) >0:
+                        hostName += "."+config["domain"]
+                    ssh_endpoints.append(
+                        {
+                            "hostName":hostName,
+                            "hostIP":ip,
+                            "containerPort":22,
+                            "hostPort":p,
+                            "user":"root",
+                        }
+                        )
+                if "hostNetwork" in jobParams and jobParams["hostNetwork"]:
+                    dataHandler = DataHandler()
+                    serviceAddress = base64.b64encode(json.dumps(ssh_endpoints))
+                    dataHandler.UpdateJobTextField(jobParams["jobId"],"endpoints",serviceAddress)
+
                 ps_files = ["/tmp/" + str(uuid.uuid4()) for i in range(ps_num)]
                 worker_files = ["/tmp/" + str(uuid.uuid4()) for i in range(worker_num)]
 
                 #ps_cmd = ["%s --ps_hosts=%s --worker_hosts=%s --job_name=ps --task_index=%d 2>&1 | tee %s" % (jobParams["cmd"], ps_hosts,worker_hosts,i,ps_files[i]) for i in range(ps_num)]
                 #worker_cmd = ["%s --ps_hosts=%s --worker_hosts=%s --job_name=worker --task_index=%d 2>&1 | tee %s" % (jobParams["cmd"], ps_hosts,worker_hosts,i,worker_files[i]) for i in range(worker_num)]
+
 
 
                 ssh_config  = """
@@ -825,13 +902,11 @@ Host %s
                 """
 
 
+
                 ps_cmd = ["%s 2>&1 | tee %s" % (jobParams["cmd"], ps_files[i]) for i in range(ps_num)]
                 worker_cmd = ["%s 2>&1 | tee %s" % (jobParams["cmd"], worker_files[i]) for i in range(worker_num)]
 
 
-                #hostfilecontent = ""
-                #for workerip,workergpu in zip(worker_pod_ips,worker_gpu_num):
-                #    hostfilecontent += "%s  slots=%s\n" %(workerip,workergpu)
 
 
 
@@ -842,24 +917,20 @@ Host %s
 
                 sshconfigstr = ""
                 for i in range(ps_num):
-                    sshconfigstr += (ssh_config %("master-"+str(i), ps_pod_ips[i] ,"22222") +"\n")
+                    if "hostNetwork" in jobParams and jobParams["hostNetwork"]:
+                        sshconfigstr += (ssh_config %("master-"+str(i), ps_pod_ips[i] ,str(ps_ports[i])) +"\n")
+                    else:
+                        sshconfigstr += (ssh_config %("master-"+str(i), ps_pod_ips[i] ,str(22)) +"\n")
 
                 for i in range(worker_num):
-                    sshconfigstr += (ssh_config %("worker-"+str(i), worker_pod_ips[i] ,"22222") +"\n")
+                    if "hostNetwork" in jobParams and jobParams["hostNetwork"]:
+                        sshconfigstr += (ssh_config %("worker-"+str(i), worker_pod_ips[i] ,str(worker_ports[i])) +"\n")
+                    else:
+                        sshconfigstr += (ssh_config %("worker-"+str(i), worker_pod_ips[i] ,str(22)) +"\n")
 
 
                 error_flag = False
                 for i in range(ps_num):
-                    os.system("mkdir -p %s" % ps_files[i])
-                    psfile = os.path.join(ps_files[i],"run_dist_job.sh")
-                    with open(psfile, 'w') as f:
-                        f.write(ps_cmd[i] + "\n")
-                    f.close()        
-                    if "userId" in jobParams:
-                        os.system("chown -R %s %s" % (jobParams["userId"], psfile))
-                    remotecmd = "cp %s %s:/opt/run_dist_job.sh" % (psfile,ps_pod_names[i])
-                    k8sUtils.kubectl_exec(remotecmd)
-
 
                     os.system("mkdir -p %s" % ps_files[i])
                     psfile = os.path.join(ps_files[i],"hostfile")
@@ -879,11 +950,11 @@ Host %s
                     f.close()        
                     #if "userId" in jobParams:
                     #    os.system("chown -R %s %s" % (jobParams["userId"], psfile))
-                    k8sUtils.kubectl_exec("exec %s mkdir -p /root/.ssh" % ps_pod_names[i])
+                    k8sUtils.kubectl_exec("exec %s 'mkdir -p /root/.ssh'" % ps_pod_names[i])
                     remotecmd = "cp %s %s:/root/.ssh/config" % (psfile,ps_pod_names[i])
-                    k8sUtils.kubectl_exec("exec %s chmod 600 /root/.ssh/config" % ps_pod_names[i])
-                    k8sUtils.kubectl_exec("exec %s chown root /root/.ssh/config" % ps_pod_names[i])                    
                     k8sUtils.kubectl_exec(remotecmd)
+                    k8sUtils.kubectl_exec("exec %s 'chmod 400 /root/.ssh/config'" % ps_pod_names[i])
+                    k8sUtils.kubectl_exec("exec %s 'chown root:root /root/.ssh/config'" % ps_pod_names[i])                    
 
 
 
@@ -897,21 +968,10 @@ Host %s
                     remotecmd = "cp %s %s:/opt/taskindex" % (psfile,ps_pod_names[i])
                     k8sUtils.kubectl_exec(remotecmd)
 
-                    k8sUtils.kubectl_exec("exec %s touch /opt/run_dist_job" % ps_pod_names[i])
-                    output = k8sUtils.kubectl_exec("exec %s ls /opt/run_dist_job" % ps_pod_names[i])
-                    if (output == ""):
-                        error_flag = True   
+
+
 
                 for i in range(worker_num):
-                    os.system("mkdir -p %s" % worker_files[i])
-                    workerfile = os.path.join(worker_files[i],"run_dist_job.sh")
-                    with open(workerfile, 'w') as f:
-                        f.write(worker_cmd[i] + "\n")
-                    f.close()    
-                    if "userId" in jobParams:
-                        os.system("chown -R %s %s" % (jobParams["userId"], workerfile))
-                    remotecmd = "cp %s %s:/opt/run_dist_job.sh" % (workerfile,worker_pod_names[i])
-                    k8sUtils.kubectl_exec(remotecmd)
 
 
                     os.system("mkdir -p %s" % worker_files[i])
@@ -932,11 +992,11 @@ Host %s
                     f.close()        
                     if "userId" in jobParams:
                         os.system("chown -R %s %s" % (jobParams["userId"], psfile))
-                    k8sUtils.kubectl_exec("exec %s mkdir -p /root/.ssh" % worker_pod_names[i])
+                    k8sUtils.kubectl_exec("exec %s 'mkdir -p /root/.ssh'" % worker_pod_names[i])
                     remotecmd = "cp %s %s:/root/.ssh/config" % (psfile,worker_pod_names[i])
-                    k8sUtils.kubectl_exec("exec %s chmod 600 /root/.ssh/config" % worker_pod_names[i])
-                    k8sUtils.kubectl_exec("exec %s chown root /root/.ssh/config" % worker_pod_names[i])
                     k8sUtils.kubectl_exec(remotecmd)
+                    k8sUtils.kubectl_exec("exec %s 'chmod 400 /root/.ssh/config'" % worker_pod_names[i])
+                    k8sUtils.kubectl_exec("exec %s 'chown root:root /root/.ssh/config'" % worker_pod_names[i])
 
 
                     os.system("mkdir -p %s" % worker_files[i])
@@ -949,11 +1009,44 @@ Host %s
                     remotecmd = "cp %s %s:/opt/taskindex" % (workerfile,worker_pod_names[i])
                     k8sUtils.kubectl_exec(remotecmd)
 
-
+    
+                for i in range(worker_num):
+                    os.system("mkdir -p %s" % worker_files[i])
+                    workerfile = os.path.join(worker_files[i],"run_dist_job.sh")
+                    with open(workerfile, 'w') as f:
+                        f.write(worker_cmd[i] + "\n")
+                    f.close()    
+                    if "userId" in jobParams:
+                        os.system("chown -R %s %s" % (jobParams["userId"], workerfile))
+                    remotecmd = "cp %s %s:/opt/run_dist_job.sh" % (workerfile,worker_pod_names[i])
+                    k8sUtils.kubectl_exec(remotecmd)
+                                        
                     k8sUtils.kubectl_exec("exec %s touch /opt/run_dist_job" % worker_pod_names[i])
                     output = k8sUtils.kubectl_exec("exec %s ls /opt/run_dist_job" % worker_pod_names[i])
                     if (output == ""):
-                        error_flag = True     
+                        error_flag = True         
+
+
+                for i in range(ps_num):
+                    os.system("mkdir -p %s" % ps_files[i])
+                    psfile = os.path.join(ps_files[i],"run_dist_job.sh")
+                    with open(psfile, 'w') as f:
+                        f.write(ps_cmd[i] + "\n")
+                    f.close()        
+                    if "userId" in jobParams:
+                        os.system("chown -R %s %s" % (jobParams["userId"], psfile))
+                    remotecmd = "cp %s %s:/opt/run_dist_job.sh" % (psfile,ps_pod_names[i])
+                    k8sUtils.kubectl_exec(remotecmd)
+
+
+                    k8sUtils.kubectl_exec("exec %s touch /opt/run_dist_job" % ps_pod_names[i])
+                    output = k8sUtils.kubectl_exec("exec %s ls /opt/run_dist_job" % ps_pod_names[i])
+                    if (output == ""):
+                        error_flag = True   
+
+
+
+
                 if not error_flag:
                     dataHandler = DataHandler()
                     dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","running")
