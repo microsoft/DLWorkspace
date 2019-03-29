@@ -104,7 +104,7 @@ class DataHandler:
                 CREATE TABLE IF NOT EXISTS `%s`
                 (
                     `id`        INT   NOT NULL AUTO_INCREMENT,
-                    `status`         TEXT NOT NULL,
+                    `status`         LONGTEXT NOT NULL,
                     `time` DATETIME     DEFAULT CURRENT_TIMESTAMP NOT NULL,
                     PRIMARY KEY (`id`)
                 )
