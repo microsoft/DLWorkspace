@@ -44,7 +44,7 @@ class SQLConnManager:
             c.execute(sql)
             c.close()
             connected = True
-        except Exception, e:
+        except Exception as e:
             logger.error ("Exception: %s" % str(e) )
             connected = False
         return connected
@@ -58,12 +58,12 @@ class SQLConnManager:
                 logger.debug("current connection pool size %d" %(global_vars["sql_connections"].qsize()))
                 try:
                     conn = global_vars["sql_connections"].get(block = False)
-                except Exception, e:
+                except Exception as e:
                     logger.error ("Exception: %s" % str(e) )
                 if conn is not None:
                     logger.debug("Get a database connection from connection pool, current pool size %d: connection Id: %s" %(global_vars["sql_connections"].qsize(), str(conn)))                    
 
-        except Exception, e:
+        except Exception as e:
             logger.error ("Exception: %s" % str(e) )
         finally:
             if acquired:
@@ -74,7 +74,7 @@ class SQLConnManager:
         if conn is None and global_vars["sql_connection_num"] > 0:
             try:
                 conn = global_vars["sql_connections"].get(timeout = 1)
-            except Exception, e:
+            except Exception as e:
                 pass
 
         if conn is not None:
@@ -94,7 +94,7 @@ class SQLConnManager:
             acquired = global_vars["sql_lock"].acquire()
             try:
                 global_vars["sql_connection_num"] += 1
-            except Exception, e:
+            except Exception as e:
                 logger.error ("Exception: %s" % str(e) )
             finally:
                 if acquired:
@@ -129,7 +129,7 @@ class SQLConnManager:
                         conn.close()
                     except:
                         pass
-            except Exception, e:
+            except Exception as e:
                     logger.error ("Exception: %s" % str(e) )
             finally:
                 if not returnedConn:
@@ -154,6 +154,10 @@ class DataHandler:
         #print "Connecting to server ..."
         self.jobtablename = "jobs-%s" %  config["clusterId"]
         self.usertablename = "users-%s" %  config["clusterId"]
+        self.acltablename = "acl-%s" %  config["clusterId"]
+        self.identitytablename = "identity-%s" %  config["clusterId"]
+        self.vctablename = "vc-%s" %  config["clusterId"]
+        self.storagetablename = "storage-%s" %  config["clusterId"]
         self.clusterstatustablename = "clusterstatus-%s" %  config["clusterId"]
         self.commandtablename = "commands-%s" %  config["clusterId"]
 
@@ -191,11 +195,12 @@ class DataHandler:
                 CREATE TABLE [dbo].[%s]
                 (
                     [id]        INT          IDENTITY (1, 1) NOT NULL,
-                    [jobId] varchar(50)   NOT NULL,
+                    [jobId] varchar(50)   NOT NULL UNIQUE,
                     [familyToken] varchar(50)   NOT NULL,
                     [isParent] INT   NOT NULL,
                     [jobName]         varchar(max) NOT NULL,
                     [userName]         varchar(255) NOT NULL,
+                    [vcName]         varchar(255) NOT NULL,
                     [jobStatus]         varchar(255) NOT NULL DEFAULT 'unapproved',
                     [jobStatusDetail] varchar(max) NULL, 
                     [jobType]         varchar(max) NOT NULL,
@@ -278,24 +283,413 @@ class DataHandler:
             cursor.close()
 
 
+            sql = """
+            if not exists (select * from sysobjects where name='%s' and xtype='U')
+                CREATE TABLE [dbo].[%s]
+                (
+                    [id]                INT          IDENTITY (1, 1) NOT NULL,
+                    [storageType]       varchar(255) NOT NULL,
+                    [url]               varchar(255) NOT NULL,
+                    [metadata]          varchar(max) NOT NULL,
+                    [vcName]            varchar(255) NOT NULL,
+                    [defaultMountPath]  varchar(255) NOT NULL,
+                    [time]              DATETIME DEFAULT (getdate()) NOT NULL,
+                    PRIMARY KEY CLUSTERED ([id] ASC),
+                    CONSTRAINT vc_url UNIQUE (vcName,url),
+                    CONSTRAINT vc_mountPath UNIQUE (vcName,defaultMountPath)
+                )
+                """ % (self.storagetablename,self.storagetablename)
+
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+            self.conn.commit()
+            cursor.close()
+
+
+            sql = """
+            if not exists (select * from sysobjects where name='%s' and xtype='U')
+                CREATE TABLE [dbo].[%s]
+                (
+                    [id]         INT          IDENTITY (1, 1) NOT NULL,
+                    [vcName]     varchar(255) NOT NULL UNIQUE,
+                    [quota]      varchar(255) NOT NULL,
+                    [metadata]   varchar(max) NOT NULL,
+                    [time]       DATETIME     DEFAULT (getdate()) NOT NULL,
+                    PRIMARY KEY CLUSTERED ([id] ASC)
+                )
+                """ % (self.vctablename,self.vctablename)
+
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+            self.conn.commit()
+            cursor.close()
+
+
+            sql = """
+            if not exists (select * from sysobjects where name='%s' and xtype='U')
+                CREATE TABLE [dbo].[%s]
+                (
+                    [id]            INT          IDENTITY (1, 1) NOT NULL,
+                    [identityName]  varchar(255) NOT NULL UNIQUE,
+                    [identityId]    INT NOT NULL,
+                    [groups]        varchar(max) NOT NULL,
+                    [time]          DATETIME     DEFAULT (getdate()) NOT NULL,
+                    PRIMARY KEY CLUSTERED ([id] ASC)
+                )
+                """ % (self.identitytablename,self.identitytablename)
+
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+            self.conn.commit()
+            cursor.close()
+
+            
+            sql = """
+            if not exists (select * from sysobjects where name='%s' and xtype='U')
+                CREATE TABLE [dbo].[%s]
+                (
+                    [id]            INT          IDENTITY (1, 1) NOT NULL,
+                    [identityName]  varchar(255) NOT NULL,
+                    [identityId]    INT NOT NULL,
+                    [resource]      varchar(255) NOT NULL,
+                    [permissions]   INT  NOT NULL,
+                    [isDeny]        INT  NOT NULL,
+                    [time]          DATETIME     DEFAULT (getdate()) NOT NULL,
+                    PRIMARY KEY CLUSTERED ([id] ASC),
+                    CONSTRAINT identityName_resource UNIQUE (identityName,resource)
+                )
+                """ % (self.acltablename,self.acltablename)
+
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+            self.conn.commit()
+            cursor.close()
+
+
+    def AddStorage(self, vcName, url, storageType, metadata, defaultMountPath):
+        try:
+            start_time = timeit.default_timer()
+            sql = "INSERT INTO [%s] (storageType, url, metadata, vcName, defaultMountPath) VALUES (?,?,?,?,?)""" % self.storagetablename
+            cursor = self.conn.cursor()
+            cursor.execute(sql, (storageType, url, metadata, vcName, defaultMountPath))
+            self.conn.commit()
+            cursor.close()
+            elapsed = timeit.default_timer() - start_time
+            logger.info ("DataHandler: AddStorage to DB: url : %s, vcName: %s , time elapsed %f s" % (url, vcName, elapsed))
+            return True
+        except Exception as e:
+            logger.error('Exception: '+ str(e))
+            return False
+
+
+    def DeleteStorage(self, vcName, url):
+        try:
+            start_time = timeit.default_timer()
+            sql = "DELETE FROM [%s] WHERE [url] = '%s' and [vcName] = '%s'" % (self.storagetablename, url, vcName)
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+            self.conn.commit()
+            cursor.close()
+            elapsed = timeit.default_timer() - start_time
+            logger.info ("DataHandler: DeleteStorage: url:%s, vcName:%s, time elapsed %f s" % (url, vcName, elapsed))
+            return True
+        except Exception as e:
+            logger.error('Exception: '+ str(e))
+            return False
+
+
+    def ListStorages(self, vcName):
+        start_time = timeit.default_timer()
+        cursor = self.conn.cursor()
+        query = "SELECT [vcName],[url],[storageType],[metadata],[defaultMountPath] FROM [%s] WHERE [vcName] = '%s' " % (self.storagetablename, vcName)
+        ret = []
+        try:
+            cursor.execute(query)
+            for (vcName,url,storageType,metadata,defaultMountPath) in cursor:
+                record = {}
+                record["vcName"] = vcName
+                record["url"] = url
+                record["storageType"] = storageType
+                record["metadata"] = metadata
+                record["defaultMountPath"] = defaultMountPath
+                ret.append(record)
+        except Exception as e:
+            logger.error('Exception: '+ str(e))
+            pass
+        cursor.close()
+        elapsed = timeit.default_timer() - start_time
+        logger.info ("DataHandler: ListStorages time elapsed %f s" % (elapsed))
+        return ret 
+
+
+    def UpdateStorage(self, vcName, url, storageType, metadata, defaultMountPath):
+        try:
+            start_time = timeit.default_timer()
+            sql = """update [%s] set storageType = '%s', metadata = '%s', defaultMountPath = '%s' where [vcName] = '%s' and [url] = '%s' """ % (self.storagetablename, storageType, metadata, defaultMountPath, vcName, url)
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+            self.conn.commit()
+            cursor.close()
+            elapsed = timeit.default_timer() - start_time
+            logger.info ("DataHandler: UpdateStorage: vcName: %s, url: %s, time elapsed %f s" % (vcName, url, elapsed))
+            return True
+        except Exception as e:
+            logger.error('Exception: '+ str(e))
+            return False
+
+
+    def AddVC(self, vcName, quota, metadata):
+        try:
+            start_time = timeit.default_timer()
+            sql = """INSERT INTO [%s] (vcName, quota, metadata) VALUES (?,?,?)""" % self.vctablename
+            cursor = self.conn.cursor()
+            cursor.execute(sql, vcName, quota, metadata)
+            self.conn.commit()
+            cursor.close()
+            elapsed = timeit.default_timer() - start_time
+            logger.info ("DataHandler: AddVC to DB: vcName: %s , time elapsed %f s" % (vcName, elapsed))
+            return True
+        except Exception as e:
+            logger.error('Exception: '+ str(e))
+            return False
+
+
+    def ListVCs(self, vcName):
+        start_time = timeit.default_timer()
+        cursor = self.conn.cursor()
+        query = "SELECT [vcName],[quota],[metadata] FROM [%s]" % (self.vctablename)
+        ret = []
+        try:
+            cursor.execute(query)
+            for (vcName,quota,metadata) in cursor:
+                record = {}
+                record["vcName"] = vcName
+                record["quota"] = quota
+                record["metadata"] = metadata
+                ret.append(record)
+        except Exception as e:
+            logger.error('Exception: '+ str(e))
+            pass
+        cursor.close()
+        elapsed = timeit.default_timer() - start_time
+        logger.info ("DataHandler: ListVCs time elapsed %f s" % ( elapsed))
+        return ret   
+
+
+    def DeleteVC(self, vcName):
+        try:
+            start_time = timeit.default_timer()
+            sql = "DELETE FROM [%s] WHERE [vcName] = '%s'" % (self.vctablename, vcName)
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+            self.conn.commit()
+            cursor.close()
+            elapsed = timeit.default_timer() - start_time
+            logger.info ("DataHandler: DeleteVC: vcName: %s , time elapsed %f s" % (vcName, elapsed))
+            return True
+        except Exception as e:
+            logger.error('Exception: '+ str(e))
+            return False
+
+
+    def UpdateVC(self, vcName, quota, metadata):
+        try:
+            start_time = timeit.default_timer()
+            sql = """update [%s] set quota = '%s', metadata = '%s'  where [vcName] = '%s'""" % (self.vctablename, quota, metadata, vcName)
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+            self.conn.commit()
+            cursor.close()
+            elapsed = timeit.default_timer() - start_time
+            logger.info ("DataHandler: UpdateVC: vcName: %s , time elapsed %f s" % (vcName, elapsed))
+            return True
+        except Exception as e:
+            logger.error('Exception: '+ str(e))
+            return False
+
+
+    def GetIdentityInfo(self, identityName):
+        start_time = timeit.default_timer()
+        cursor = self.conn.cursor()
+        query = "SELECT [identityName],[identityId],[groups] FROM [%s] where [identityName] = '%s'" % (self.identitytablename, identityName)
+        ret = []
+        try:
+            cursor.execute(query)
+            for (identityName,identityId,groups) in cursor:
+                record = {}
+                record["identityName"] = identityName
+                record["identityId"] = identityId
+                record["groups"] = groups
+                ret.append(record)
+        except Exception as e:
+            logger.error('Exception: '+ str(e))
+            pass
+        cursor.close()
+        elapsed = timeit.default_timer() - start_time
+        logger.info ("DataHandler: GetIdentityInfo time elapsed %f s" % (elapsed))
+        return ret 
+
+
+    def UpdateIdentityInfo(self, identityName, identityId, groups):
+        try:
+            start_time = timeit.default_timer()
+            cursor = self.conn.cursor()
+            
+            if len(self.GetIdentityInfo(identityName)) == 0:
+                sql = """INSERT INTO [%s] (identityName,identityId,groups) VALUES (?,?,?)""" % self.identitytablename
+                cursor.execute(sql, identityName, identityId, groups)
+            else:
+                sql = """update [%s] set groups = '%s' where [identityName] = '%s' and [identityId] = '%s' """ % (self.identitytablename, groups, identityName, identityId)
+                cursor.execute(sql)
+            
+            self.conn.commit()
+            cursor.close()
+            elapsed = timeit.default_timer() - start_time
+            logger.info ("DataHandler: UpdateIdentityInfo %s to database , time elapsed %f s" % (identityName, elapsed))
+            return True
+        except Exception as e:
+            logger.error('Exception: '+ str(e))
+            return False
+
+
+    def GetAceCount(self, identityId, resource):
+        start_time = timeit.default_timer()
+        cursor = self.conn.cursor()
+        query = "SELECT count(ALL id) as c FROM [%s] where [identityId] = '%s' and [resource] = '%s'" % (self.acltablename,identityId, resource)
+        cursor.execute(query)
+        ret = 0
+        for c in cursor:
+            ret = c[0]
+        cursor.close()
+        elapsed = timeit.default_timer() - start_time
+        logger.info ("DataHandler: GetAceCount time elapsed %f s" % ( elapsed))
+        return ret 
+
+
+    def UpdateAce(self, identityName, identityId, resource, permissions, isDeny):
+        try:
+            start_time = timeit.default_timer()
+            cursor = self.conn.cursor()
+          
+            if self.GetAceCount(identityId, resource) == 0:
+                sql = """INSERT INTO [%s] (identityName,identityId,resource,permissions,isDeny) VALUES (?,?,?,?,?)""" % self.acltablename
+                cursor.execute(sql, identityName, identityId, resource, permissions, isDeny)
+            else:
+                sql = """update [%s] set permissions = '%s' where [identityId] = '%s' and [resource] = '%s' """ % (self.acltablename, permissions, identityId, resource)
+                cursor.execute(sql)
+            
+            self.conn.commit()
+            cursor.close()
+            elapsed = timeit.default_timer() - start_time
+            logger.info ("DataHandler: UpdateAce %s - %s to database , time elapsed %f s" % (identityName, resource, elapsed))
+            return True
+        except Exception as e:
+            logger.error('Exception: '+ str(e))
+            return False
+
+    
+    def DeleteResourceAcl(self, resource):
+        try:
+            start_time = timeit.default_timer()
+            cursor = self.conn.cursor()
+        
+            sql = "DELETE FROM [%s] WHERE [resource] = '%s'" % (self.acltablename, resource)
+            cursor = self.conn.cursor()
+            
+            self.conn.commit()
+            cursor.close()
+            elapsed = timeit.default_timer() - start_time
+            logger.info ("DataHandler: DeleteResourceAcl %s, time elapsed %f s" % (resource, elapsed))
+            return True
+        except Exception as e:
+            logger.error('Exception: '+ str(e))
+            return False
+
+
+    def DeleteAce(self, identityName, resource):
+        try:
+            start_time = timeit.default_timer()
+            cursor = self.conn.cursor()
+        
+            sql = "DELETE FROM [%s] WHERE [identityName] = '%s' and [resource] = '%s'" % (self.acltablename, identityName, resource)
+            cursor = self.conn.cursor()
+            
+            self.conn.commit()
+            cursor.close()
+            elapsed = timeit.default_timer() - start_time
+            logger.info ("DataHandler: DeleteAce %s : %s, time elapsed %f s" % (resource, identityName, elapsed))
+            return True
+        except Exception as e:
+            logger.error('Exception: '+ str(e))
+            return False
+
+
+    def GetAcl(self):
+        start_time = timeit.default_timer()
+        cursor = self.conn.cursor()
+        query = "SELECT [identityName],[identityId],[resource],[permissions],[isDeny] FROM [%s]" % (self.acltablename)
+        ret = []
+        try:
+            cursor.execute(query)
+            for (identityName,identityId,resource,permissions,isDeny) in cursor:
+                record = {}
+                record["identityName"] = identityName
+                record["identityId"] = identityId
+                record["resource"] = resource
+                record["permissions"] = permissions
+                record["isDeny"] = isDeny
+                ret.append(record)
+        except Exception as e:
+            logger.error('Exception: '+ str(e))
+            pass
+        cursor.close()
+        elapsed = timeit.default_timer() - start_time
+        logger.info ("DataHandler: GetAcl time elapsed %f s" % ( elapsed))
+        return ret   
+
+
+    def GetResourceAcl(self, resource):
+        start_time = timeit.default_timer()
+        cursor = self.conn.cursor()
+        query = "SELECT [identityName],[identityId],[resource],[permissions],[isDeny] FROM [%s] where [resource] = '%s'" % (self.acltablename, resource)
+        ret = []
+        try:
+            cursor.execute(query)
+            for (identityName,identityId,resource,permissions,isDeny) in cursor:
+                record = {}
+                record["identityName"] = identityName
+                record["identityId"] = identityId
+                record["resource"] = resource
+                record["permissions"] = permissions
+                record["isDeny"] = isDeny
+                ret.append(record)
+        except Exception as e:
+            logger.error('Exception: '+ str(e))
+            pass
+        cursor.close()
+        elapsed = timeit.default_timer() - start_time
+        logger.info ("DataHandler: GetResourceAcl time elapsed %f s" % ( elapsed))
+        return ret          
+
+
     def AddJob(self, jobParams):
         try:
             start_time = timeit.default_timer()
-            sql = """INSERT INTO [%s] (jobId, familyToken, isParent, jobName, userName, jobType,jobParams ) VALUES (?,?,?,?,?,?,?)""" % self.jobtablename
+            sql = """INSERT INTO [%s] (jobId, familyToken, isParent, jobName, userName, vcName, jobType,jobParams ) VALUES (?,?,?,?,?,?,?)""" % self.jobtablename
             cursor = self.conn.cursor()
             jobParam = base64.b64encode(json.dumps(jobParams))
-            cursor.execute(sql, jobParams["jobId"], jobParams["familyToken"], jobParams["isParent"], jobParams["jobName"], jobParams["userName"], jobParams["jobType"],jobParam)
+            cursor.execute(sql, jobParams["jobId"], jobParams["familyToken"], jobParams["isParent"], jobParams["jobName"], jobParams["userName"], jobParams["vcName"], jobParams["jobType"],jobParam)
             self.conn.commit()
             cursor.close()
             elapsed = timeit.default_timer() - start_time
             logger.info ("DataHandler: added job %s to database, time elapsed %f s" % (jobParams["jobId"],elapsed))
             return True
-        except Exception, e:
+        except Exception as e:
            logger.error('Exception: '+ str(e))
            return False
 
 
-    def GetJobList(self, userName, num = None, status = None, op = ("=","or")):
+    def GetJobList(self, userName, vcName, num = None, status = None, op = ("=","or")):
         start_time = timeit.default_timer()
         ret = []
         cursor = self.conn.cursor()
@@ -304,20 +698,16 @@ class DataHandler:
                 selectNum = ""
             else:
                 selectNum = " TOP %s " % str(num)
-            query = "SELECT %s [jobId],[jobName],[userName], [jobStatus], [jobStatusDetail], [jobType], [jobDescriptionPath], [jobDescription], [jobTime], [endpoints], [jobParams],[errorMsg] ,[jobMeta] FROM [%s]" % (selectNum, self.jobtablename)
+            query = "SELECT %s [jobId],[jobName],[userName], [vcName], [jobStatus], [jobStatusDetail], [jobType], [jobDescriptionPath], [jobDescription], [jobTime], [endpoints], [jobParams],[errorMsg] ,[jobMeta] FROM [%s] where [vcName] = '%s'" % (selectNum, self.jobtablename, vcName)
             if userName != "all":
-                query += " where [userName] = '%s'" % userName
-            else:
-                query += " where [id] > -1 "
+                query += " and [userName] = '%s'" % userName
             if status is not None:
                 if "," not in status:
                     query += " and [jobStatus] %s '%s'" % (op[0],status)
                 else:
                     status_list = [ " [jobStatus] %s '%s' " % (op[0],s) for s in status.split(',')]
                     status_statement = (" "+op[1]+" ").join(status_list)
-                    query += " and ( %s ) " % status_statement
-
-                        
+                    query += " and ( %s ) " % status_statement                       
 
             query += " order by [jobTime] Desc"
             start_time1 = timeit.default_timer()
@@ -327,11 +717,12 @@ class DataHandler:
             data = cursor.fetchall()
             elapsed2 = timeit.default_timer() - start_time2
             logger.info ("(fetchall time: %f)" % (elapsed2))
-            for (jobId,jobName,userName, jobStatus,jobStatusDetail, jobType, jobDescriptionPath, jobDescription, jobTime, endpoints, jobParams,errorMsg, jobMeta) in data:
+            for (jobId,jobName,userName, vcName,jobStatus,jobStatusDetail, jobType, jobDescriptionPath, jobDescription, jobTime, endpoints, jobParams,errorMsg, jobMeta) in data:
                 record = {}
                 record["jobId"] = jobId
                 record["jobName"] = jobName
                 record["userName"] = userName
+                record["vcName"] = vcName
                 record["jobStatus"] = jobStatus
                 record["jobStatusDetail"] = jobStatusDetail
                 record["jobType"] = jobType
@@ -343,7 +734,7 @@ class DataHandler:
                 record["errorMsg"] = errorMsg
                 record["jobMeta"] = jobMeta
                 ret.append(record)
-        except Exception, e:
+        except Exception as e:
             logger.error('Exception: '+ str(e))
             pass                
         cursor.close()
@@ -354,14 +745,14 @@ class DataHandler:
 
     def GetJob(self, **kwargs):
         start_time = timeit.default_timer()
-        valid_keys = ["jobId", "familyToken", "isParent", "jobName", "userName", "jobStatus", "jobType", "jobTime"]
+        valid_keys = ["jobId", "familyToken", "isParent", "jobName", "userName", "vcName", "jobStatus", "jobType", "jobTime"]
         if len(kwargs) != 1: return []
         key, expected = kwargs.popitem()
         if key not in valid_keys: 
             logger.error("DataHandler_GetJob: key is not in valid keys list...")
             return []
         cursor = self.conn.cursor()
-        query = "SELECT [jobId],[familyToken],[isParent],[jobName],[userName], [jobStatus], [jobStatusDetail], [jobType], [jobDescriptionPath], [jobDescription], [jobTime], [endpoints], [jobParams],[errorMsg] ,[jobMeta]  FROM [%s] where [%s] = '%s' " % (self.jobtablename,key,expected)
+        query = "SELECT [jobId],[familyToken],[isParent],[jobName],[userName],[vcName], [jobStatus], [jobStatusDetail], [jobType], [jobDescriptionPath], [jobDescription], [jobTime], [endpoints], [jobParams],[errorMsg] ,[jobMeta]  FROM [%s] where [%s] = '%s' " % (self.jobtablename,key,expected)
         cursor.execute(query)
         columns = [column[0] for column in cursor.description]
         ret = [dict(zip(columns, row)) for row in cursor.fetchall()]
@@ -382,7 +773,7 @@ class DataHandler:
             elapsed = timeit.default_timer() - start_time
             logger.info ("DataHandler: add command to database, jobId: %s , time elapsed %f s" % (jobId, elapsed))
             return True
-        except Exception, e:
+        except Exception as e:
             logger.error('Exception: '+ str(e))
             return False
 
@@ -416,7 +807,7 @@ class DataHandler:
             elapsed = timeit.default_timer() - start_time
             logger.info ("DataHandler: set command %s as finished , time elapsed %f s" % (commandId, elapsed))
             return True
-        except Exception, e:
+        except Exception as e:
             logger.error('Exception: '+ str(e))
             return False
 
@@ -451,7 +842,7 @@ class DataHandler:
             elapsed = timeit.default_timer() - start_time
             logger.info ("DataHandler: mark job %s to be killed in database, time elapsed %f s" % (jobId, elapsed))
             return True
-        except Exception, e:
+        except Exception as e:
             logger.error('Exception: '+ str(e))
             return False
 
@@ -467,7 +858,7 @@ class DataHandler:
             elapsed = timeit.default_timer() - start_time
             logger.info ("DataHandler: approved job %s , time elapsed %f s" % (jobId, elapsed))
             return True
-        except Exception, e:
+        except Exception as e:
             logger.error('Exception: '+ str(e))
             return False
 
@@ -475,14 +866,15 @@ class DataHandler:
     def GetPendingJobs(self):
         start_time = timeit.default_timer()
         cursor = self.conn.cursor()
-        query = "SELECT [jobId],[jobName],[userName], [jobStatus], [jobType], [jobDescriptionPath], [jobDescription], [jobTime], [endpoints], [jobParams],[errorMsg] ,[jobMeta] FROM [%s] where [jobStatus] <> 'error' and [jobStatus] <> 'failed' and [jobStatus] <> 'finished' and [jobStatus] <> 'killed' order by [jobTime] DESC" % (self.jobtablename)
+        query = "SELECT [jobId],[jobName],[userName], [vcName], [jobStatus], [jobType], [jobDescriptionPath], [jobDescription], [jobTime], [endpoints], [jobParams],[errorMsg] ,[jobMeta] FROM [%s] where [jobStatus] <> 'error' and [jobStatus] <> 'failed' and [jobStatus] <> 'finished' and [jobStatus] <> 'killed' order by [jobTime] DESC" % (self.jobtablename)
         cursor.execute(query)
         ret = []
-        for (jobId,jobName,userName, jobStatus, jobType, jobDescriptionPath, jobDescription, jobTime, endpoints, jobParams,errorMsg, jobMeta) in cursor:
+        for (jobId,jobName,userName, vcName, jobStatus, jobType, jobDescriptionPath, jobDescription, jobTime, endpoints, jobParams,errorMsg, jobMeta) in cursor:
             record = {}
             record["jobId"] = jobId
             record["jobName"] = jobName
             record["userName"] = userName
+            record["vcName"] = vcName
             record["jobStatus"] = jobStatus
             record["jobType"] = jobType
             record["jobDescriptionPath"] = jobDescriptionPath
@@ -510,7 +902,7 @@ class DataHandler:
             elapsed = timeit.default_timer() - start_time
             logger.info ("DataHandler: set job %s error status in database, time elapsed %f s" % (jobId, elapsed))
             return True
-        except Exception, e:
+        except Exception as e:
             logger.error('Exception: '+ str(e))
             return False        
 

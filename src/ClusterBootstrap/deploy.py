@@ -17,6 +17,7 @@ import random
 import glob
 import copy
 import numbers
+import requests
 
 from os.path import expanduser
 
@@ -3129,6 +3130,55 @@ def run_command( args, command, nargs, parser ):
             parser.print_help()
             print "Error: scan need one parameter with format x.x.x.x/n. "
             exit()
+
+    elif command == "admin":      
+        if len(nargs) >= 1:
+            if nargs[0] == "vc":
+                if len(nargs) >= 2:
+                    if nargs[1] == "add":
+                        url = "http://%s:%s/AddVC?vcName=%s&quota=%s&metadata=%s&userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2], nargs[3], nargs[4])
+                        response = requests.get(url)
+                        print(response)
+                    elif nargs[1] == "update":
+                        url = "http://%s:%s/UpdateVC?vcName=%s&quota=%s&metadata=%s&userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2], nargs[3], nargs[4])
+                        response = requests.get(url)
+                        print(response)
+                    elif nargs[1] == "delete":
+                        url = "http://%s:%s/DeleteVC?vcName=%s&userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2])
+                        response = requests.get(url)
+                        print(response)
+                    elif nargs[1] == "list":
+                        url = "http://%s:%s/ListVCs?userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"])
+                        response = requests.get(url)
+                        print(response.text)
+            elif nargs[0] == "storage":
+                if len(nargs) >= 2:
+                    if nargs[1] == "add":
+                        url = "http://%s:%s/AddStorage?vcName=%s&url=%s&storageType=%s&metadata=%s&defaultMountPath=%s&userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2], nargs[3], nargs[4], nargs[5], nargs[6])
+                        response = requests.get(url)
+                        print(response)
+                    elif nargs[1] == "update":
+                        url = "http://%s:%s/UpdateStorage?vcName=%s&url=%s&storageType=%s&metadata=%s&defaultMountPath=%s&userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2], nargs[3], nargs[4], nargs[5], nargs[6])
+                        response = requests.get(url)
+                        print(response)
+                    elif nargs[1] == "delete":
+                        url = "http://%s:%s/DeleteStorage?vcName=%s&url=%s&userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2], nargs[3])
+                        response = requests.get(url)
+                        print(response)
+                    elif nargs[1] == "list":
+                        url = "http://%s:%s/ListStorages?vcName=%s&userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2])
+                        response = requests.get(url)
+                        print(response.text)
+            elif nargs[0] == "acl":
+                if len(nargs) >= 2:
+                    if nargs[1] == "update":
+                        url = "http://%s:%s/UpdateAce?identityName=%s&resourceType=%s&resourceName=%s&permissions=%s&userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2], nargs[3], nargs[4], nargs[5])
+                        response = requests.get(url)
+                        print(response)
+                    elif nargs[1] == "get":
+                        url = "http://%s:%s/GetACL?userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"])
+                        response = requests.get(url)
+                        print(response)
 
 
     elif command == "updateworker":
