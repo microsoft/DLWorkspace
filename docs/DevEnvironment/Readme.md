@@ -4,7 +4,7 @@ You will need general knowledge of Linux administration to setup, admin and deve
 
 ## Running install_prerequisites.sh command.
 
-We assume that you are running in Ubuntu OS in x64 machine, and your account is in sudo group. You can run install_prerequisities.sh, the scripts will install all components (Docker, python, Azure CLI) needed by DL WOrkspace. 
+We assume that you are running in Ubuntu OS in x64 machine, and your account is in sudo group. You can run `install_prerequisities.sh`, the scripts will install all components (Docker, python, Azure CLI) needed by DL WOrkspace. 
 
 The setup operation of DLWorkspace should be executed at directory:
 
@@ -12,7 +12,7 @@ The setup operation of DLWorkspace should be executed at directory:
   cd src/ClusterBootstrap
   ```
   
-The 'src/ClusterBootstrap/deploy' folder contains important information to access the deployed DL workspace cluster (e.g., clusterID, access SSH key). Please do not remove the folder if you need to adminstrate your deployed cluster. 
+The `src/ClusterBootstrap/deploy` folder contains important information to access the deployed DL workspace cluster (e.g., clusterID, access SSH key). Please do not remove the folder if you need to administrate your deployed cluster. 
 
 ## Use development docker (in Linux/Unix environment) and mapped in the repo
 
