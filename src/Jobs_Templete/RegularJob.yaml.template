@@ -72,6 +72,8 @@ spec:
     - mountPath: /freeflow
       name: freeflow
     {% endif %}
+    - mountPath: /dev/shm
+      name: dshm    
     env:
     - name: FAMILY_TOKEN
       value: {{ job["familyToken"] }}
@@ -133,3 +135,6 @@ spec:
     hostPath:
       path: /freeflow
   {% endif %}
+  - name: dshm
+    emptyDir:
+      medium: Memory  

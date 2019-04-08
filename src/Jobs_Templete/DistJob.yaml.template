@@ -68,6 +68,8 @@ spec:
     - mountPath: /etc/resolv.conf
       name: resolv
     {% endif %}    
+    - mountPath: /dev/shm
+      name: dshm       
     env:
     - name: FAMILY_TOKEN
       value: {{ job["familyToken"] }}
@@ -128,3 +130,6 @@ spec:
       {% endif %}      
     {% endif %}      
   {% endfor %}
+  - name: dshm
+    emptyDir:
+      medium: Memory  

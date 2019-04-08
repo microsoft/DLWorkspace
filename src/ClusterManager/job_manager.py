@@ -681,10 +681,18 @@ def UpdateJobStatus(job):
         if job["jobStatus"] != "running":
             dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","running")
 
-        if "interactivePort" in jobParams and ("hostNetwork" not in jobParams or not jobParams["hostNetwork"]):
-            serviceAddress = k8sUtils.GetServiceAddress(job["jobId"])
-            serviceAddress = base64.b64encode(json.dumps(serviceAddress))
-            dataHandler.UpdateJobTextField(job["jobId"],"endpoints",serviceAddress)
+        if "interactivePort" in jobParams and jobParams["jobtrainingtype"] != "PSDistJob":
+            if "hostNetwork" not in jobParams or not jobParams["hostNetwork"]:
+                serviceAddress = k8sUtils.GetServiceAddress(job["jobId"])
+                serviceAddress = base64.b64encode(json.dumps(serviceAddress))
+                dataHandler.UpdateJobTextField(job["jobId"],"endpoints",serviceAddress)
+            else:
+                serviceAddress = k8sUtils.GetServiceAddress(job["jobId"])
+                for sidx in range(len(serviceAddress)):
+                    serviceAddress[sidx]["hostPort"] = serviceAddress[sidx]["containerPort"]
+                serviceAddress = base64.b64encode(json.dumps(serviceAddress))
+                dataHandler.UpdateJobTextField(job["jobId"],"endpoints",serviceAddress)
+
 
     elif result.strip() == "Failed":
         printlog("Job %s fails, cleaning..." % job["jobId"])
