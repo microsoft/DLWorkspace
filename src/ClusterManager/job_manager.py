@@ -913,30 +913,6 @@ def create_log( logdir = '/var/log/dlworkspace' ):
         logging.config.dictConfig(logging_config)
 
 
-'''
-unapproved -> (after approval) queued -> (after submission) scheduling  -> running ()
-queued
-scheduling
-running
-killing
-
-pausing/paused
-resuming -> queued (explicit action by user)
-
-pre-empting/pre-empted -> queued (implicit; probably we can directly move to queued when pre-empting)
-
-
-if there are queued jobs:
-    get all queued,scheduling,running jobs info
-    prioritize (rank) them (for each group)
-    find desired state for each job
-    find jobs with current and desired state differing
-    take_action(current->desired)  
-
-
-    group = vc+processingResourceType
-
-'''
 
 class ResourceInfo:
     def __init__(self, tag = "", res = {}):
