@@ -3196,10 +3196,7 @@ def run_command( args, command, nargs, parser ):
                         url = "http://%s:%s/ListJobs?vcName=%s&jobOwner=%s&num=%s&userName=Administrator" \
                             %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2], nargs[3], nargs[4])
                         response = requests.get(url)
-                        print(response.text)
-                    
-
-
+                        print(response.text)                 
 
     elif command == "updateworker":
         response = raw_input_with_default("Deploy Worker Nodes (y/n)?")

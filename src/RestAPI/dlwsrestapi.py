@@ -733,6 +733,7 @@ class AddVC(Resource):
         userName = args["userName"]
         ret = {}
         ret["result"] = JobRestAPIUtils.AddVC(userName, vcName, quota, metadata)
+
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
@@ -777,6 +778,7 @@ class UpdateVC(Resource):
         userName = args["userName"]
         ret = {}
         ret["result"] = JobRestAPIUtils.UpdateVC(userName, vcName, quota, metadata)
+
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
@@ -814,12 +816,14 @@ class AddStorage(Resource):
         parser.add_argument('storageType')
         parser.add_argument('url')
         parser.add_argument('metadata')
+
         parser.add_argument('defaultMountPath')
         parser.add_argument('userName')
         args = parser.parse_args()
         vcName = args["vcName"]
         storageType = args["storageType"]
         url = args["url"]
+
         metadata = args["metadata"]
         defaultMountPath = args["defaultMountPath"]
         userName = args["userName"]
@@ -864,6 +868,7 @@ class UpdateStorage(Resource):
         parser.add_argument('storageType')
         parser.add_argument('url')
         parser.add_argument('metadata')
+
         parser.add_argument('defaultMountPath')
         parser.add_argument('userName')
         args = parser.parse_args()
@@ -875,6 +880,7 @@ class UpdateStorage(Resource):
         userName = args["userName"]
         ret = {}
         ret["result"] = JobRestAPIUtils.UpdateStorage(userName, vcName, url, storageType, metadata, defaultMountPath)
+
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
