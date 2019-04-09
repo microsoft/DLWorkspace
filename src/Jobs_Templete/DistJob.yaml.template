@@ -7,7 +7,10 @@ metadata:
     jobName: {{ job["jobNameLabel"] }}
     distRole: {{ job["distRole"] }}
     distPort: "{{job["containerPort"]}}"
-    userName: {{ job["userNameLabel"] }}    
+    userName: {{ job["userNameLabel"] }}
+    vcName: {{ job["vcName"] }}
+    gpuType: {{ job["gpuType"] }}
+    preemptionAllowed: {{ job["preemptionAllowed"] }}   
 spec:
   #hostNetwork: true
   nodeSelector:

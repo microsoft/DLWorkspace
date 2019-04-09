@@ -7,6 +7,7 @@ from flask_restful import reqparse, abort, Api, Resource
 from flask import request, jsonify
 import base64
 import yaml
+import uuid
 
 import logging
 from logging.config import dictConfig
@@ -69,6 +70,7 @@ class SubmitJob(Resource):
     def get(self):
         parser.add_argument('jobName')
         parser.add_argument('resourcegpu')
+        parser.add_argument('gpuType')
         parser.add_argument('workPath')
         parser.add_argument('dataPath')
         parser.add_argument('jobPath')
@@ -78,6 +80,7 @@ class SubmitJob(Resource):
         parser.add_argument('interactivePort')
         parser.add_argument('userName')
         parser.add_argument('vcName')
+        parser.add_argument('preemptionAllowed')
         parser.add_argument('userId')
         parser.add_argument('runningasroot')
         parser.add_argument('containerUserId')
@@ -108,7 +111,9 @@ class SubmitJob(Resource):
         elif args["vcName"] is None or len(args["vcName"].strip()) == 0:
             ret["error"] = "vc name cannot be empty"
         elif args["resourcegpu"] is None or len(args["resourcegpu"].strip()) == 0:
-            ret["error"] = "Number of GPU cannot be empty"        
+            ret["error"] = "Number of GPU cannot be empty"
+        elif args["gpuType"] is None or len(args["gpuType"].strip()) == 0:
+            ret["error"] = "GPU Type cannot be empty"         
         elif args["dataPath"] is None or len(args["dataPath"].strip()) == 0:
             ret["error"] = "datapath cannot be empty"            
         elif args["image"] is None or len(args["image"].strip()) == 0:
@@ -119,11 +124,13 @@ class SubmitJob(Resource):
             params["jobName"] = args["jobName"]
             params["vcName"] = args["vcName"]
             params["resourcegpu"] = args["resourcegpu"]
+            params["gpuType"] = args["gpuType"]
             params["workPath"] = args["workPath"]
             params["dataPath"] = args["dataPath"]
             params["image"] = args["image"]
             params["cmd"] = args["cmd"]
             params["jobType"] = args["jobType"]
+            params["preemptionAllowed"] = args["preemptionAllowed"]
 
             params["jobtrainingtype"] = args["jobtrainingtype"]
 

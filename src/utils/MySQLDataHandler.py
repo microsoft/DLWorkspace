@@ -187,12 +187,14 @@ class DataHandler:
                 (
                     `id`        INT     NOT NULL AUTO_INCREMENT,
                     `vcName`    varchar(255) NOT NULL UNIQUE,
+                    `parent`    varchar(255) DEFAULT NULL,
                     `quota`     varchar(255) NOT NULL,
                     `metadata`  TEXT NOT NULL,
                     `time`      DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
-                    PRIMARY KEY (`id`)
+                    PRIMARY KEY (`id`),
+                    CONSTRAINT `hierarchy` FOREIGN KEY (`parent`) REFERENCES `%s` (`vcName`)
                 )
-                """ % (self.vctablename)
+                """ % (self.vctablename, self.vctablename)
 
             cursor = self.conn.cursor()
             cursor.execute(sql)
@@ -706,42 +708,10 @@ class DataHandler:
         return ret    
 
 
-    def KillJob(self,jobId):
-        try:
-            start_time = timeit.default_timer()
-            sql = """update `%s` set jobStatus = 'killing' where `jobId` = '%s' """ % (self.jobtablename,jobId)
-            cursor = self.conn.cursor()
-            cursor.execute(sql)
-            self.conn.commit()
-            cursor.close()
-            elapsed = timeit.default_timer() - start_time
-            logger.info ("DataHandler: mark job %s to be killed in database, time elapsed %f s" % (jobId, elapsed))
-            return True
-        except Exception as e:
-            logger.error('Exception: '+ str(e))
-            return False
-
-
-    def ApproveJob(self,jobId):
-        try:
-            start_time = timeit.default_timer()
-            sql = """update `%s` set jobStatus = 'queued' where `jobId` = '%s' """ % (self.jobtablename,jobId)
-            cursor = self.conn.cursor()
-            cursor.execute(sql)
-            self.conn.commit()
-            cursor.close()
-            elapsed = timeit.default_timer() - start_time
-            logger.info ("DataHandler: approved job %s , time elapsed %f s" % (jobId, elapsed))
-            return True
-        except Exception as e:
-            logger.error('Exception: '+ str(e))
-            return False
-
-
     def GetPendingJobs(self):
         start_time = timeit.default_timer()
         cursor = self.conn.cursor()
-        query = "SELECT `jobId`,`jobName`,`userName`, 'vcName', `jobStatus`, `jobType`, `jobDescriptionPath`, `jobDescription`, `jobTime`, `endpoints`, `jobParams`,`errorMsg` ,`jobMeta` FROM `%s` where `jobStatus` <> 'error' and `jobStatus` <> 'failed' and `jobStatus` <> 'finished' and `jobStatus` <> 'killed' order by `jobTime` DESC" % (self.jobtablename)
+        query = "SELECT `jobId`,`jobName`,`userName`, `vcName`, `jobStatus`, `jobType`, `jobDescriptionPath`, `jobDescription`, `jobTime`, `endpoints`, `jobParams`,`errorMsg` ,`jobMeta` FROM `%s` where `jobStatus` <> 'error' and `jobStatus` <> 'failed' and `jobStatus` <> 'finished' and `jobStatus` <> 'killed' order by `jobTime` DESC" % (self.jobtablename)
         cursor.execute(query)
         ret = []
         for (jobId,jobName,userName,vcName, jobStatus, jobType, jobDescriptionPath, jobDescription, jobTime, endpoints, jobParams,errorMsg, jobMeta) in cursor:
@@ -791,7 +761,7 @@ class DataHandler:
             self.conn.commit()
             cursor.close()
             elapsed = timeit.default_timer() - start_time
-            logger.info ("DataHandler: update job %s, field %s , time elapsed %f s" % (jobId, field, elapsed))
+            logger.info ("DataHandler: update job %s, field %s to %s, time elapsed %f s" % (jobId, field, value, elapsed))
             return True
         except Exception as e:
             logger.error('Exception: '+ str(e))

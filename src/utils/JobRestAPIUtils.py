@@ -33,6 +33,7 @@ def SubmitJob(jobParamsJsonStr):
     ret = {}
 
     jobParams = LoadJobParams(jobParamsJsonStr)
+    print(jobParams) #TODO
 
     if "jobName" not in jobParams or len(jobParams["jobName"].strip()) == 0:
         ret["error"] = "ERROR: Job name cannot be empty"
@@ -40,6 +41,9 @@ def SubmitJob(jobParamsJsonStr):
     if "vcName" not in jobParams or len(jobParams["vcName"].strip()) == 0:
         ret["error"] = "ERROR: VC name cannot be empty"
         return ret
+
+    if "preemptionAllowed" not in jobParams:
+        jobParams["preemptionAllowed"] = False
 
     if "jobId" not in jobParams or jobParams["jobId"] == "":
         #jobParams["jobId"] = jobParams["jobName"] + "-" + str(uuid.uuid4()) 
@@ -136,6 +140,8 @@ def SubmitJob(jobParamsJsonStr):
     jobParams["workPath"] = os.path.realpath(os.path.join("/",jobParams["workPath"]))[1:]
     jobParams["jobPath"] = os.path.realpath(os.path.join("/",jobParams["jobPath"]))[1:]
 
+    print(jobParams) #TODO
+
     dataHandler = DataHandler()
     if "logDir" in jobParams and len(jobParams["logDir"].strip()) > 0:
         tensorboardParams = jobParams.copy()
@@ -228,9 +234,9 @@ def KillJob(userName, jobId):
             if job["isParent"] == 1:
                 ret = True
                 for currJob in dataHandler.GetJob(familyToken=job["familyToken"]):
-                    ret = ret and dataHandler.KillJob(currJob["jobId"])
+                    ret = ret and dataHandler.UpdateJobTextField(currJob["jobId"],"jobStatus","killing")
             else:
-                ret = dataHandler.KillJob(jobId)
+                ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","killing")
     dataHandler.Close()
     return ret
 
@@ -252,7 +258,29 @@ def ApproveJob(userName, jobId):
     jobs =  dataHandler.GetJob(jobId=jobId)
     if len(jobs) == 1:
         if AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Admin):
-            ret = dataHandler.ApproveJob(jobId)
+            ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","queued")
+    dataHandler.Close()
+    return ret
+
+
+def ResumeJob(userName, jobId):
+    dataHandler = DataHandler()
+    ret = False
+    jobs =  dataHandler.GetJob(jobId=jobId)
+    if len(jobs) == 1:
+        if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
+            ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","queued")
+    dataHandler.Close()
+    return ret
+
+
+def PauseJob(userName, jobId):
+    dataHandler = DataHandler()
+    ret = False
+    jobs =  dataHandler.GetJob(jobId=jobId)
+    if len(jobs) == 1:
+        if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Admin):
+            ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","pausing")
     dataHandler.Close()
     return ret
 

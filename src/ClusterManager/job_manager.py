@@ -40,7 +40,7 @@ nvidiaDriverPath = config["nvidiaDriverPath"]
 
 
 def printlog(msg):
-    print "%s - %s" % (datetime.datetime.utcnow().strftime("%x %X"),msg)
+    print("%s - %s" % (datetime.datetime.utcnow().strftime("%x %X"),msg))
 
 def LoadJobParams(jobParamsJsonStr):
     return json.loads(jobParamsJsonStr)
@@ -49,7 +49,7 @@ def cmd_exec(cmdStr):
     try:
         output = subprocess.check_output(["bash","-c", cmdStr])
     except Exception as e:
-        print e
+        print(e)
         output = ""
     return output
 
@@ -246,6 +246,11 @@ def SubmitRegularJob(job):
                 jobParams["annotations"]["pod.alpha/DeviceInformation"] = "'" + json.dumps(podInfo) + "'"
                 jobParams["resourcegpu"] = 0 # gpu requests specified through annotation
 
+                if "gpuType" in jobParams:
+                    if "nodeSelector" not in jobParams:
+                        jobParams["nodeSelector"] = {}   
+                    jobParams["nodeSelector"]["gpuType"] = jobParams["gpuType"]
+
             template = ENV.get_template(os.path.abspath(jobTemp))
             job_description = template.render(job=jobParams)
             jobDescriptionList.append(job_description)
@@ -302,7 +307,7 @@ def SubmitRegularJob(job):
         jobMetaStr = base64.b64encode(json.dumps(jobMeta))
         dataHandler.UpdateJobTextField(jobParams["jobId"],"jobMeta",jobMetaStr)
     except Exception as e:
-        print e
+        print(e)
         ret["error"] = str(e)
         retries = dataHandler.AddandGetJobRetries(jobParams["jobId"])
         if retries >= 5:
@@ -474,6 +479,11 @@ sleep infinity
                             distJobParam["nodeSelector"] = {}
                         distJobParam["nodeSelector"]["rack"] = assignedRack
 
+                    if "gpuType" in distJobParam:
+                        if "nodeSelector" not in distJobParam:
+                            distJobParam["nodeSelector"] = {}   
+                        distJobParam["nodeSelector"]["gpuType"] = distJobParam["gpuType"]
+
                     template = ENV.get_template(os.path.abspath(jobTemp))
                     job_description = template.render(job=distJobParam)
 
@@ -520,7 +530,7 @@ sleep infinity
         jobMetaStr = base64.b64encode(json.dumps(jobMeta))
         dataHandler.UpdateJobTextField(jobParams["jobId"],"jobMeta",jobMetaStr)
     except Exception as e:
-        print e
+        print(e)
         ret["error"] = str(e)
         retries = dataHandler.AddandGetJobRetries(jobParams["jobId"])
         if retries >= 5:
@@ -529,7 +539,7 @@ sleep infinity
 
     return ret
 
-def KillJob(job):
+def KillJob(job, desiredState):
     dataHandler = DataHandler()
     result, detail = k8sUtils.GetJobStatus(job["jobId"])
     dataHandler.UpdateJobTextField(job["jobId"],"jobStatusDetail",base64.b64encode(json.dumps(detail)))
@@ -538,7 +548,7 @@ def KillJob(job):
         jobDescriptionPath = os.path.join(config["storage-mount-path"], job["jobDescriptionPath"])
         if os.path.isfile(jobDescriptionPath):
             if k8sUtils.kubectl_delete(jobDescriptionPath) == 0:
-                dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","killed")
+                dataHandler.UpdateJobTextField(job["jobId"],"jobStatus", desiredState)
                 return True
             else:
                 dataHandler.UpdateJobTextField(job["jobId"],"errorMsg","Cannot delete job from Kubernetes Cluster!")
@@ -561,7 +571,7 @@ def getAlias(username):
 
 def ApproveJob(job):
     dataHandler = DataHandler()
-    dataHandler.ApproveJob(job["jobId"])
+    dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "queued")
     dataHandler.Close()
     return True
 
@@ -735,7 +745,7 @@ def UpdateDistJobStatus(job):
 
 def run_dist_cmd_on_pod(podId, cmd, outputfile):
     remotecmd = "exec %s -- %s" % (podId,cmd)
-    print remotecmd
+    print(remotecmd)
     k8sUtils.kubectl_exec_output_to_file(remotecmd,outputfile)
 
 
@@ -903,6 +913,147 @@ def create_log( logdir = '/var/log/dlworkspace' ):
         logging.config.dictConfig(logging_config)
 
 
+'''
+unapproved -> (after approval) queued -> (after submission) scheduling  -> running ()
+queued
+scheduling
+running
+killing
+
+pausing/paused
+resuming -> queued (explicit action by user)
+
+pre-empting/pre-empted -> queued (implicit; probably we can directly move to queued when pre-empting)
+
+
+if there are queued jobs:
+    get all queued,scheduling,running jobs info
+    prioritize (rank) them (for each group)
+    find desired state for each job
+    find jobs with current and desired state differing
+    take_action(current->desired)  
+
+
+    group = vc+processingResourceType
+
+'''
+
+class ResourceInfo:
+    def __init__(self, tag = "", res = {}):
+        self.CategoryToCountMap = {}
+        self.BlockedCategories = set()
+        for key in res:
+            self.CategoryToCountMap[tag + "_" + key] = int(res[key])
+
+    @classmethod
+    def FromTypeAndCount(cls, tag, gpuType, gpucount):
+        resources = {}
+        resources[gpuType] = gpucount
+        return cls(tag, resources)
+
+    def Add(self, otherResourceInfo):
+        for key in otherResourceInfo.CategoryToCountMap:
+            if key not in self.CategoryToCountMap:
+                self.CategoryToCountMap[key] = 0
+            self.CategoryToCountMap[key] += otherResourceInfo.CategoryToCountMap[key]
+
+    def CanSatisfy(self, otherResourceInfo):  
+        for key in otherResourceInfo.CategoryToCountMap:
+            if (key in self.BlockedCategories) or (key not in self.CategoryToCountMap) or (self.CategoryToCountMap[key] < otherResourceInfo.CategoryToCountMap[key]):
+                return False
+        return True
+
+    def Subtract(self, otherResourceInfo):
+        for key in otherResourceInfo.CategoryToCountMap:
+            self.CategoryToCountMap[key] -= otherResourceInfo.CategoryToCountMap[key]
+
+    def BlockResourceCategory(self, resourceInfo):
+        for key in resourceInfo.CategoryToCountMap:
+            self.BlockedCategories.add(key)
+
+    def UnblockResourceCategory(self, resourceInfo):
+        for key in resourceInfo.CategoryToCountMap:
+            if key in self.BlockedCategories:
+                self.BlockedCategories.remove(key)
+
+    def TotalGPUs(self):
+        return sum(self.CategoryToCountMap.values()) #TODO : Modify when supporting CPUs too.
+
+
+
+def JobInfoSorter(elem):
+    return elem["sortKey"]
+
+
+def TakeJobActions(jobs):
+    dataHandler = DataHandler()
+    vcList = dataHandler.ListVCs()
+    dataHandler.Close()
+
+    localResInfo = ResourceInfo()
+    globalResInfo = ResourceInfo()
+
+    for vc in vcList:
+        localResInfo.Add(ResourceInfo(vc["vcName"], json.loads(vc["quota"])))
+        globalResInfo.Add(ResourceInfo("", json.loads(vc["quota"])))
+
+    jobsInfo = []
+    for job in jobs:
+        if job["jobStatus"] == "queued" or job["jobStatus"] == "scheduling" or job["jobStatus"] == "running":
+            singleJobInfo = {}
+            singleJobInfo["job"] = job
+            singleJobInfo["jobParams"] = json.loads(base64.b64decode(job["jobParams"]))
+            singleJobInfo["localResInfo"] = ResourceInfo.FromTypeAndCount(job["vcName"], singleJobInfo["jobParams"]["gpuType"], singleJobInfo["jobParams"]["resourcegpu"])
+            singleJobInfo["globalResInfo"] = ResourceInfo.FromTypeAndCount("", singleJobInfo["jobParams"]["gpuType"], singleJobInfo["jobParams"]["resourcegpu"])
+            singleJobInfo["sortKey"] = str(job["jobTime"])
+            if singleJobInfo["jobParams"]["preemptionAllowed"]:
+                singleJobInfo["sortKey"] = "1_" + singleJobInfo["sortKey"]
+            else:
+                singleJobInfo["sortKey"] = "0_" + singleJobInfo["sortKey"]
+            singleJobInfo["allowed"] = False
+            jobsInfo.append(singleJobInfo)
+
+    jobsInfo.sort(key=JobInfoSorter)
+
+    logging.info("TakeJobActions : local resources : %s" % (localResInfo.CategoryToCountMap))
+    logging.info("TakeJobActions : global resources : %s" % (globalResInfo.CategoryToCountMap))
+
+    for sji in jobsInfo:
+        logging.info("TakeJobActions : job : %s : %s" % (sji["jobParams"]["jobName"], sji["localResInfo"].CategoryToCountMap))
+        if sji["jobParams"]["preemptionAllowed"]:
+            localResInfo.UnblockResourceCategory(sji["localResInfo"])
+
+        if (localResInfo.CanSatisfy(sji["localResInfo"])):
+            localResInfo.Subtract(sji["localResInfo"])
+            globalResInfo.Subtract(sji["globalResInfo"])
+            sji["allowed"] = True
+            logging.info("TakeJobActions : local assignment : %s : %s" % (sji["jobParams"]["jobName"], sji["localResInfo"].CategoryToCountMap))
+        elif not sji["jobParams"]["preemptionAllowed"]:
+            localResInfo.BlockResourceCategory(sji["localResInfo"]) #FIFO scheduling
+
+    #logging.info("TakeJobActions : local resources : %s" % (localResInfo.CategoryToCountMap))
+    #logging.info("TakeJobActions : global resources : %s" % (globalResInfo.CategoryToCountMap))
+
+    for sji in jobsInfo:
+        if (sji["jobParams"]["preemptionAllowed"] and sji["allowed"] == False):
+            if globalResInfo.CanSatisfy(sji["globalResInfo"]):
+                logging.info("TakeJobActions : job : %s : %s" % (sji["jobParams"]["jobName"], sji["globalResInfo"].CategoryToCountMap))
+                # Strict FIFO policy not required for global (bonus) tokens since these jobs are anyway pre-emptible.
+                globalResInfo.Subtract(sji["globalResInfo"])
+                sji["allowed"] = True
+                logging.info("TakeJobActions : global assignment : %s : %s" % (sji["jobParams"]["jobName"], sji["globalResInfo"].CategoryToCountMap))
+
+    logging.info("TakeJobActions : global resources : %s" % (globalResInfo.CategoryToCountMap))
+           
+    for sji in jobsInfo:
+        if sji["job"]["jobStatus"] == "queued" and sji["allowed"] == True:
+            SubmitJob(sji["job"])
+        elif (sji["job"]["jobStatus"] == "scheduling" or sji["job"]["jobStatus"] == "running") and sji["allowed"] == False:
+            KillJob(sji["job"], "queued")
+
+    logging.info("TakeJobActions : job desired actions taken")
+
+
 def Run():
 
     while True:
@@ -911,29 +1062,33 @@ def Run():
             config["racks"] = k8sUtils.get_node_labels("rack")
             config["skus"] = k8sUtils.get_node_labels("sku")
         except Exception as e:
-            print e
+            logging.info(e)
 
         try:
             dataHandler = DataHandler()
             pendingJobs = dataHandler.GetPendingJobs()
-            printlog("updating status for %d jobs" % len(pendingJobs))
+            TakeJobActions(pendingJobs)
+            
+            pendingJobs = dataHandler.GetPendingJobs()
+            logging.info("Updating status for %d jobs" % len(pendingJobs))
             for job in pendingJobs:
                 try:
-                    print "Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"])
-                    if job["jobStatus"] == "queued":
-                        SubmitJob(job)
-                    elif job["jobStatus"] == "killing":
-                        KillJob(job)
+                    logging.info("Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"]))
+                    if job["jobStatus"] == "killing":
+                        KillJob(job, "killed")
+                    elif job["jobStatus"] == "pausing":
+                        KillJob(job, "paused")
                     elif job["jobStatus"] == "scheduling" or job["jobStatus"] == "running" :
                         UpdateJobStatus(job)
                     elif job["jobStatus"] == "unapproved" :
                         AutoApproveJob(job)
                 except Exception as e:
-                    print e
+                    logging.info(e)
         except Exception as e:
-            print e
+            logging.info(str(e))
 
-        time.sleep(1)
+        time.sleep(60)
+
 
 if __name__ == '__main__':
     Run()

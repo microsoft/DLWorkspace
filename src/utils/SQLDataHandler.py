@@ -312,12 +312,14 @@ class DataHandler:
                 (
                     [id]         INT          IDENTITY (1, 1) NOT NULL,
                     [vcName]     varchar(255) NOT NULL UNIQUE,
+                    [parent]     varchar(255) DEFAULT NULL,
                     [quota]      varchar(255) NOT NULL,
                     [metadata]   varchar(max) NOT NULL,
                     [time]       DATETIME     DEFAULT (getdate()) NOT NULL,
-                    PRIMARY KEY CLUSTERED ([id] ASC)
+                    PRIMARY KEY CLUSTERED ([id] ASC),
+                    FOREIGN KEY(parent) REFERENCES [dbo].[%s](vcName),
                 )
-                """ % (self.vctablename,self.vctablename)
+                """ % (self.vctablename,self.vctablename, self.vctablename)
 
             cursor = self.conn.cursor()
             cursor.execute(sql)
@@ -829,38 +831,6 @@ class DataHandler:
         elapsed = timeit.default_timer() - start_time
         logger.info ("DataHandler: get command list for job %s , time elapsed %f s" % (jobId, elapsed))
         return ret    
-
-
-    def KillJob(self,jobId):
-        try:
-            start_time = timeit.default_timer()
-            sql = """update [%s] set jobStatus = 'killing' where [jobId] = '%s' """ % (self.jobtablename,jobId)
-            cursor = self.conn.cursor()
-            cursor.execute(sql)
-            self.conn.commit()
-            cursor.close()
-            elapsed = timeit.default_timer() - start_time
-            logger.info ("DataHandler: mark job %s to be killed in database, time elapsed %f s" % (jobId, elapsed))
-            return True
-        except Exception as e:
-            logger.error('Exception: '+ str(e))
-            return False
-
-
-    def ApproveJob(self,jobId):
-        try:
-            start_time = timeit.default_timer()
-            sql = """update [%s] set jobStatus = 'queued' where [jobId] = '%s' """ % (self.jobtablename,jobId)
-            cursor = self.conn.cursor()
-            cursor.execute(sql)
-            self.conn.commit()
-            cursor.close()
-            elapsed = timeit.default_timer() - start_time
-            logger.info ("DataHandler: approved job %s , time elapsed %f s" % (jobId, elapsed))
-            return True
-        except Exception as e:
-            logger.error('Exception: '+ str(e))
-            return False
 
 
     def GetPendingJobs(self):
