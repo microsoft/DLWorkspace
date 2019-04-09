@@ -3140,7 +3140,8 @@ def run_command( args, command, nargs, parser ):
                         response = requests.get(url)
                         print(response)
                     elif nargs[1] == "update":
-                        url = "http://%s:%s/UpdateVC?vcName=%s&quota=%s&metadata=%s&userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2], nargs[3], nargs[4])
+                        url = "http://%s:%s/UpdateVC?vcName=%s&quota=%s&metadata=%s&userName=Administrator" \
+                            %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2], nargs[3], nargs[4])
                         response = requests.get(url)
                         print(response)
                     elif nargs[1] == "delete":
@@ -3175,10 +3176,29 @@ def run_command( args, command, nargs, parser ):
                         url = "http://%s:%s/UpdateAce?identityName=%s&resourceType=%s&resourceName=%s&permissions=%s&userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2], nargs[3], nargs[4], nargs[5])
                         response = requests.get(url)
                         print(response)
-                    elif nargs[1] == "get":
+                    elif nargs[1] == "list":
                         url = "http://%s:%s/GetACL?userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"])
                         response = requests.get(url)
-                        print(response)
+                        print(response.text)
+            elif nargs[0] == "job":
+                if len(nargs) >= 2:
+                    if nargs[1] == "add":
+                        url = "http://%s:%s/SubmitJob?jobName=%s&vcName=%s&resourcegpu=%s&gpuType=%s&dataPath=%s&workPath=%s&image=%s&jobType=%s&preemptionAllowed=%s&userName=Administrator" \
+                            %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2], nargs[3], nargs[4], nargs[5], nargs[6], nargs[7], nargs[8], nargs[9], nargs[10])
+                        response = requests.get(url)
+                        print(response.text)
+                    elif nargs[1] == "delete":
+                        url = "http://%s:%s/KillJob?jobId=%s&userName=Administrator" \
+                            %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2])
+                        response = requests.get(url)
+                        print(response.text)
+                    elif nargs[1] == "list":
+                        url = "http://%s:%s/ListJobs?vcName=%s&jobOwner=%s&num=%s&userName=Administrator" \
+                            %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2], nargs[3], nargs[4])
+                        response = requests.get(url)
+                        print(response.text)
+                    
+
 
 
     elif command == "updateworker":
