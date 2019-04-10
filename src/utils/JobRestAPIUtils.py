@@ -33,7 +33,6 @@ def SubmitJob(jobParamsJsonStr):
     ret = {}
 
     jobParams = LoadJobParams(jobParamsJsonStr)
-    print(jobParams) #TODO
 
     if "jobName" not in jobParams or len(jobParams["jobName"].strip()) == 0:
         ret["error"] = "ERROR: Job name cannot be empty"
@@ -139,8 +138,6 @@ def SubmitJob(jobParamsJsonStr):
     jobParams["dataPath"] = os.path.realpath(os.path.join("/",jobParams["dataPath"]))[1:]
     jobParams["workPath"] = os.path.realpath(os.path.join("/",jobParams["workPath"]))[1:]
     jobParams["jobPath"] = os.path.realpath(os.path.join("/",jobParams["jobPath"]))[1:]
-
-    print(jobParams) #TODO
 
     dataHandler = DataHandler()
     if "logDir" in jobParams and len(jobParams["logDir"].strip()) > 0:

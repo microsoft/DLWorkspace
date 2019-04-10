@@ -24,6 +24,7 @@ from DataHandler import DataHandler
 from node_manager import create_log
 from node_manager import get_cluster_status
 import base64
+from ResourceInfo import ResourceInfo
 
 import re
 
@@ -539,7 +540,7 @@ sleep infinity
 
     return ret
 
-def KillJob(job, desiredState):
+def KillJob(job, desiredState="killed"):
     dataHandler = DataHandler()
     result, detail = k8sUtils.GetJobStatus(job["jobId"])
     dataHandler.UpdateJobTextField(job["jobId"],"jobStatusDetail",base64.b64encode(json.dumps(detail)))
@@ -913,50 +914,6 @@ def create_log( logdir = '/var/log/dlworkspace' ):
         logging.config.dictConfig(logging_config)
 
 
-
-class ResourceInfo:
-    def __init__(self, tag = "", res = {}):
-        self.CategoryToCountMap = {}
-        self.BlockedCategories = set()
-        for key in res:
-            self.CategoryToCountMap[tag + "_" + key] = int(res[key])
-
-    @classmethod
-    def FromTypeAndCount(cls, tag, gpuType, gpucount):
-        resources = {}
-        resources[gpuType] = gpucount
-        return cls(tag, resources)
-
-    def Add(self, otherResourceInfo):
-        for key in otherResourceInfo.CategoryToCountMap:
-            if key not in self.CategoryToCountMap:
-                self.CategoryToCountMap[key] = 0
-            self.CategoryToCountMap[key] += otherResourceInfo.CategoryToCountMap[key]
-
-    def CanSatisfy(self, otherResourceInfo):  
-        for key in otherResourceInfo.CategoryToCountMap:
-            if (key in self.BlockedCategories) or (key not in self.CategoryToCountMap) or (self.CategoryToCountMap[key] < otherResourceInfo.CategoryToCountMap[key]):
-                return False
-        return True
-
-    def Subtract(self, otherResourceInfo):
-        for key in otherResourceInfo.CategoryToCountMap:
-            self.CategoryToCountMap[key] -= otherResourceInfo.CategoryToCountMap[key]
-
-    def BlockResourceCategory(self, resourceInfo):
-        for key in resourceInfo.CategoryToCountMap:
-            self.BlockedCategories.add(key)
-
-    def UnblockResourceCategory(self, resourceInfo):
-        for key in resourceInfo.CategoryToCountMap:
-            if key in self.BlockedCategories:
-                self.BlockedCategories.remove(key)
-
-    def TotalGPUs(self):
-        return sum(self.CategoryToCountMap.values()) #TODO : Modify when supporting CPUs too.
-
-
-
 def JobInfoSorter(elem):
     return elem["sortKey"]
 
@@ -1024,8 +981,10 @@ def TakeJobActions(jobs):
     for sji in jobsInfo:
         if sji["job"]["jobStatus"] == "queued" and sji["allowed"] == True:
             SubmitJob(sji["job"])
+            logging.info("TakeJobActions : submitting job : %s : %s" % (sji["jobParams"]["jobId"], sji["sortKey"]))
         elif (sji["job"]["jobStatus"] == "scheduling" or sji["job"]["jobStatus"] == "running") and sji["allowed"] == False:
             KillJob(sji["job"], "queued")
+            logging.info("TakeJobActions : pre-empting job : %s : %s" % (sji["jobParams"]["jobId"], sji["sortKey"]))
 
     logging.info("TakeJobActions : job desired actions taken")
 
@@ -1038,7 +997,7 @@ def Run():
             config["racks"] = k8sUtils.get_node_labels("rack")
             config["skus"] = k8sUtils.get_node_labels("sku")
         except Exception as e:
-            logging.info(e)
+            print(e)
 
         try:
             dataHandler = DataHandler()
@@ -1061,9 +1020,9 @@ def Run():
                 except Exception as e:
                     logging.info(e)
         except Exception as e:
-            logging.info(str(e))
+            print(str(e))
 
-        time.sleep(60)
+        time.sleep(1)
 
 
 if __name__ == '__main__':

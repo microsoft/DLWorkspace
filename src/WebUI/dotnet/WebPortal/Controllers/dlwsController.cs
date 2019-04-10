@@ -181,7 +181,7 @@ namespace WindowsAuth.Controllers
                 case "GetVCs":
                     url = restapi + "/ListVCs?userName=" + HttpContext.Session.GetString("Email");
                     break;
-                case "ListJobs":
+                case "ListJobs": //TODO:update vc name
                     url = restapi + "/ListJobs?vcName=vc1&jobOwner="+HttpContext.Session.GetString("Email") + "&userName=" + HttpContext.Session.GetString("Email");
                     if (HttpContext.Request.Query.ContainsKey("num"))
                     {
@@ -190,7 +190,7 @@ namespace WindowsAuth.Controllers
                     break;
                 case "ListAllJobs":
                     if (HttpContext.Session.GetString("isAdmin").Equals("true"))
-                    {
+                    { //TODO:update vc name
                         url = restapi + "/ListJobs?vcName=vc1&jobOwner=all&userName="+HttpContext.Session.GetString("Email");
                     }
                     break;
@@ -398,9 +398,13 @@ namespace WindowsAuth.Controllers
             jobObject["userName"] = HttpContext.Session.GetString("Email");
             jobObject["userId"] = uid;
             jobObject["jobType"] = "training";
-            jobObject["vcName"] = "vc1";
+
+            //TODO:update below params
+            jobObject["vcName"] = "vc1"; 
             jobObject["gpuType"] = "any";
             jobObject["preemptionAllowed"] = "False";
+            ///////////////////////
+
             var runningasroot = jobObject["runningasroot"];
             if (!(Object.ReferenceEquals(runningasroot, null)) && (runningasroot.ToString() == "1") || (runningasroot.ToString() == true.ToString()))
             {

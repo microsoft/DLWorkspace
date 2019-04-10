@@ -29,6 +29,7 @@ RUN update-locale LANG=en_US.UTF-8
 
 RUN pip install flask
 RUN pip install flask.restful
+RUN pip install requests
 
 RUN wget http://ccsdatarepo.westus.cloudapp.azure.com/data/tools/mysql-connector-python_2.1.7-1ubuntu16.04_all.deb -O /mysql-connector-python_2.1.7-1ubuntu16.04_all.deb
 RUN dpkg -i /mysql-connector-python_2.1.7-1ubuntu16.04_all.deb
