@@ -2772,24 +2772,14 @@ def kubernetes_label_nodes( verb, servicelists, force ):
                 kubernetes_label_node(cmdoptions, nodename, label+"-")
 
 
-# Label kubernete nodes according to a service. 
-# A service (usually a Kubernete daemon service) can request to be run on:
-# all: all nodes
-# etcd_node: all etcd node
-# etcd_node_n: a particular etcd node
-# worker_node: all worker node
-# The kubernete node will be marked accordingly to facilitate the running of daemon service. 
-def kubernetes_label_vc():
+# Label kubernete nodes with gpu types. 
+def kubernetes_label_GpuTypes():
     nodes = get_nodes(config["clusterId"])
-    vc_config = fetch_config(config, ["vc_config"])
-    for vc_name, nodes in vc_config:
+    gpuType_config = fetch_config(config, ["gpuType_config"])
+    for gpuType, nodes in gpuType_config:
         for node in nodes:
             nodename = kubernetes_get_node_name(node)
-            if nodename in nodes or "*" in nodes:
-                kubernetes_label_node("--overwrite", nodename, vc_name+"=active")
-            else:
-                kubernetes_label_node("--overwrite", nodename, vc_name+"=inactive")
-
+            kubernetes_label_node("--overwrite", nodename, "gpuType="+gpuType)
 
 
 def kubernetes_patch_nodes_provider (provider, scaledOnly):

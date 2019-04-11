@@ -2,6 +2,7 @@ from DataHandler import DataHandler
 from MyLogger import MyLogger
 import json
 import requests
+from config import config
 
 logger = MyLogger()
 
@@ -38,7 +39,6 @@ class AuthorizationManager:
     CLUSTER_ACL_PATH = "Cluster"
     ACL_DELIMITER = "/"
     TYPE_NAME_DELIMITER = ":"
-    WinBindUrl = "http://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName={0}" #TODO:read form config
 
     # Check if user has requested access (based on effective ACL) on the specified resource.
     @staticmethod
@@ -47,7 +47,7 @@ class AuthorizationManager:
         try:
             logger.info('HasAccess invoked!')             
             identities = []
-            identities.append(IdentityManager(AuthorizationManager.WinBindUrl).GetIdentityInfo(identityName)["groups"])
+            identities.append(AuthorizationManager.GetIdentityManager().GetIdentityInfo(identityName)["groups"])
 
             logger.info('initial resourceAclPath ' + resourceAclPath)
             #TODO: handle isDeny
@@ -87,7 +87,7 @@ class AuthorizationManager:
     def UpdateAce(identityName, resourceAclPath, permissions, isDeny):
         dataHandler = DataHandler() 
         try:                  
-            identityId = IdentityManager(AuthorizationManager.WinBindUrl).GetIdentityInfo(identityName)["uid"]
+            identityId = AuthorizationManager.GetIdentityManager().GetIdentityInfo(identityName)["uid"]
             if identityId == -1:
                 identityId = 0
             return dataHandler.UpdateAce(identityName, identityId, resourceAclPath, permissions, isDeny)
@@ -178,6 +178,14 @@ class AuthorizationManager:
             return AuthorizationManager.CLUSTER_ACL_PATH + AuthorizationManager.ACL_DELIMITER + ResourceType.reverse_mapping[resourceType] + AuthorizationManager.TYPE_NAME_DELIMITER + resourceIdentifier.strip(AuthorizationManager.ACL_DELIMITER)
         elif resourceType == ResourceType.Cluster:
             return AuthorizationManager.CLUSTER_ACL_PATH
+
+    
+    @staticmethod
+    def GetIdentityManager():
+        winBindServer = "http://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName={0}"
+        if "WinbindServers" in config:
+            winBindServer = config["WinbindServers"][0]
+        return IdentityManager(winBindServer)
 
 
 

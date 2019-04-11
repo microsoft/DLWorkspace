@@ -981,10 +981,10 @@ def TakeJobActions(jobs):
     for sji in jobsInfo:
         if sji["job"]["jobStatus"] == "queued" and sji["allowed"] == True:
             SubmitJob(sji["job"])
-            logging.info("TakeJobActions : submitting job : %s : %s" % (sji["jobParams"]["jobId"], sji["sortKey"]))
+            logging.info("TakeJobActions : submitting job : %s : %s : %s" % (sji["jobParams"]["jobName"], sji["jobParams"]["jobId"], sji["sortKey"]))
         elif (sji["job"]["jobStatus"] == "scheduling" or sji["job"]["jobStatus"] == "running") and sji["allowed"] == False:
             KillJob(sji["job"], "queued")
-            logging.info("TakeJobActions : pre-empting job : %s : %s" % (sji["jobParams"]["jobId"], sji["sortKey"]))
+            logging.info("TakeJobActions : pre-empting job : %s : %s : %s" % (sji["jobParams"]["jobName"], sji["jobParams"]["jobId"], sji["sortKey"]))
 
     logging.info("TakeJobActions : job desired actions taken")
 
