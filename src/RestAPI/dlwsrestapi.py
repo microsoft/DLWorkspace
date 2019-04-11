@@ -7,6 +7,7 @@ from flask_restful import reqparse, abort, Api, Resource
 from flask import request, jsonify
 import base64
 import yaml
+import uuid
 
 import logging
 from logging.config import dictConfig
@@ -14,6 +15,7 @@ from logging.config import dictConfig
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
 #from JobRestAPIUtils import SubmitDistJob, GetJobList, GetJobStatus, DeleteJob, GetTensorboard, GetServiceAddress, GetLog, GetJob
 import JobRestAPIUtils
+from authorization import ResourceType, Permission, AuthorizationManager
 from config import config
 from config import global_vars
 
@@ -28,8 +30,14 @@ app = Flask(__name__)
 api = Api(app)
 verbose = True
 logger.info( "------------------- Restful API started ------------------------------------- ")
-
 logger.info("%s" % config )
+
+if "initAdminAccess" not in global_vars or not global_vars["initAdminAccess"]:
+    logger.info("===========Init Admin Access===============")
+    global_vars["initAdminAccess"] = True
+    logger.info('setting admin access!')
+    AuthorizationManager.UpdateAce("Administrator", AuthorizationManager.GetResourceAclPath("", ResourceType.Cluster), Permission.Admin, False)
+    logger.info('admin access given!')    
 
 
 parser = reqparse.RequestParser()
@@ -62,6 +70,7 @@ class SubmitJob(Resource):
     def get(self):
         parser.add_argument('jobName')
         parser.add_argument('resourcegpu')
+        parser.add_argument('gpuType')
         parser.add_argument('workPath')
         parser.add_argument('dataPath')
         parser.add_argument('jobPath')
@@ -70,6 +79,8 @@ class SubmitJob(Resource):
         parser.add_argument('logDir')
         parser.add_argument('interactivePort')
         parser.add_argument('userName')
+        parser.add_argument('vcName')
+        parser.add_argument('preemptionAllowed')
         parser.add_argument('userId')
         parser.add_argument('runningasroot')
         parser.add_argument('containerUserId')
@@ -77,7 +88,8 @@ class SubmitJob(Resource):
         parser.add_argument('familyToken')
         parser.add_argument('isParent')
         parser.add_argument('jobType')
-        
+        parser.add_argument('nodeSelector')
+
 
         parser.add_argument('jobtrainingtype')
         parser.add_argument('numps')
@@ -96,8 +108,12 @@ class SubmitJob(Resource):
 
         if args["jobName"] is None or len(args["jobName"].strip()) == 0:
             ret["error"] = "job name cannot be empty"
+        elif args["vcName"] is None or len(args["vcName"].strip()) == 0:
+            ret["error"] = "vc name cannot be empty"
         elif args["resourcegpu"] is None or len(args["resourcegpu"].strip()) == 0:
-            ret["error"] = "Number of GPU cannot be empty"        
+            ret["error"] = "Number of GPU cannot be empty"
+        elif args["gpuType"] is None or len(args["gpuType"].strip()) == 0:
+            ret["error"] = "GPU Type cannot be empty"         
         elif args["dataPath"] is None or len(args["dataPath"].strip()) == 0:
             ret["error"] = "datapath cannot be empty"            
         elif args["image"] is None or len(args["image"].strip()) == 0:
@@ -106,12 +122,15 @@ class SubmitJob(Resource):
             ret["error"] = "jobType cannot be empty"        
         else:
             params["jobName"] = args["jobName"]
+            params["vcName"] = args["vcName"]
             params["resourcegpu"] = args["resourcegpu"]
+            params["gpuType"] = args["gpuType"]
             params["workPath"] = args["workPath"]
             params["dataPath"] = args["dataPath"]
             params["image"] = args["image"]
             params["cmd"] = args["cmd"]
             params["jobType"] = args["jobType"]
+            params["preemptionAllowed"] = args["preemptionAllowed"]
 
             params["jobtrainingtype"] = args["jobtrainingtype"]
 
@@ -133,6 +152,10 @@ class SubmitJob(Resource):
             else:
                 # !! note: if userId is not provided, the container will be running as root. There shouldn't be any security concern since all the resources in docker container should be user's own property. Also, we plan to allow user to choose "run as root".   
                 params["userId"] = "0"
+
+            if args["nodeSelector"] is not None and len(args["nodeSelector"].strip()) > 0:
+                params["nodeSelector"] = {args["nodeSelector"]:"active"}
+
 
             if args["interactivePort"] is not None and len(args["interactivePort"].strip()) > 0:
                 params["interactivePort"] = args["interactivePort"]
@@ -226,6 +249,8 @@ class SubmitJob(Resource):
 ##
 api.add_resource(SubmitJob, '/SubmitJob')
 
+
+
 class PostJob(Resource):
     def post(self):
         params = request.get_json(force=True)
@@ -260,6 +285,8 @@ class ListJobs(Resource):
     def get(self):
         parser.add_argument('userName')
         parser.add_argument('num')
+        parser.add_argument('vcName')
+        parser.add_argument('jobOwner')
         args = parser.parse_args()    
         num = None
         if args["num"] is not None:
@@ -267,10 +294,8 @@ class ListJobs(Resource):
                 num = int(args["num"])
             except:
                 pass
-        if args["userName"] is not None and len(args["userName"].strip()) > 0:
-            jobs = JobRestAPIUtils.GetJobList(args["userName"],num)
-        else:
-            jobs = []
+        jobs = JobRestAPIUtils.GetJobList(args["userName"], args["vcName"], args["jobOwner"], num)
+
         jobList = []
         queuedJobs = []
         runningJobs = []
@@ -305,7 +330,6 @@ class ListJobs(Resource):
             else:
                 finishedJobs.append(job)
 
-
         ret = {}
         ret["queuedJobs"] = queuedJobs
         ret["runningJobs"] = runningJobs
@@ -317,7 +341,6 @@ class ListJobs(Resource):
         resp.headers["dataType"] = "json"
 
         return resp
-
 ##
 ## Actually setup the Api resource routing here
 ##
@@ -328,9 +351,11 @@ api.add_resource(ListJobs, '/ListJobs')
 class KillJob(Resource):
     def get(self):
         parser.add_argument('jobId')
+        parser.add_argument('userName')
         args = parser.parse_args()    
         jobId = args["jobId"]
-        result = JobRestAPIUtils.KillJob(jobId)
+        userName = args["userName"]
+        result = JobRestAPIUtils.KillJob(userName, jobId)
         ret = {}
         if result:
             ret["result"] = "Success, the job is scheduled to be terminated."
@@ -341,7 +366,6 @@ class KillJob(Resource):
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
 
-
         return resp
 ##
 ## Actually setup the Api resource routing here
@@ -350,12 +374,92 @@ api.add_resource(KillJob, '/KillJob')
 
 
 
+class PauseJob(Resource):
+    def get(self):
+        parser.add_argument('jobId')
+        parser.add_argument('userName')
+        args = parser.parse_args()    
+        jobId = args["jobId"]
+        userName = args["userName"]
+        result = JobRestAPIUtils.PauseJob(userName, jobId)
+        ret = {}
+        if result:
+            ret["result"] = "Success, the job is scheduled to be paused."
+        else:
+            ret["result"] = "Cannot pause the job. Job ID:" + jobId
+
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(PauseJob, '/PauseJob')
+
+
+
+class ResumeJob(Resource):
+    def get(self):
+        parser.add_argument('jobId')
+        parser.add_argument('userName')
+        args = parser.parse_args()    
+        jobId = args["jobId"]
+        userName = args["userName"]
+        result = JobRestAPIUtils.ResumeJob(userName, jobId)
+        ret = {}
+        if result:
+            ret["result"] = "Success, the job is scheduled to be resumed."
+        else:
+            ret["result"] = "Cannot resume the job. Job ID:" + jobId
+
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(ResumeJob, '/ResumeJob')
+
+
+
+class CloneJob(Resource):
+    def get(self):
+        parser.add_argument('jobId')
+        parser.add_argument('userName')
+        args = parser.parse_args()    
+        jobId = args["jobId"]
+        userName = args["userName"]
+        result = JobRestAPIUtils.CloneJob(userName, jobId)
+        ret = {}
+        if result:
+            ret["result"] = "Success, the job is scheduled to be cloned."
+        else:
+            ret["result"] = "Cannot clone the job. Job ID:" + jobId
+
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(CloneJob, '/CloneJob')
+
+
+
 class ApproveJob(Resource):
     def get(self):
         parser.add_argument('jobId')
+        parser.add_argument('userName')
         args = parser.parse_args()    
         jobId = args["jobId"]
-        result = JobRestAPIUtils.ApproveJob(jobId)
+        userName = args["userName"]
+        result = JobRestAPIUtils.ApproveJob(userName, jobId)
         ret = {}
         if result:
             ret["result"] = "Success, the job has been approved."
@@ -365,7 +469,6 @@ class ApproveJob(Resource):
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
-
 
         return resp
 ##
@@ -378,9 +481,11 @@ api.add_resource(ApproveJob, '/ApproveJob')
 class GetCommands(Resource):
     def get(self):
         parser.add_argument('jobId')
+        parser.add_argument('userName')
         args = parser.parse_args()    
         jobId = args["jobId"]
-        commands = JobRestAPIUtils.GetCommands(jobId)        
+        userName = args["userName"]
+        commands = JobRestAPIUtils.GetCommands(userName, jobId)        
         resp = jsonify(commands)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
@@ -396,9 +501,11 @@ api.add_resource(GetCommands, '/GetCommands')
 class GetJobDetail(Resource):
     def get(self):
         parser.add_argument('jobId')
+        parser.add_argument('userName')
         args = parser.parse_args()    
         jobId = args["jobId"]
-        job = JobRestAPIUtils.GetJobDetail(jobId)
+        userName = args["userName"]
+        job = JobRestAPIUtils.GetJobDetail(userName, jobId)
         job["jobParams"] = json.loads(base64.b64decode(job["jobParams"]))
         if "endpoints" in job and job["endpoints"] is not None and (job["endpoints"].strip()) > 0:
             job["endpoints"] = json.loads(base64.b64decode(job["endpoints"]))    
@@ -423,6 +530,9 @@ api.add_resource(GetJobDetail, '/GetJobDetail')
 
 class GetClusterStatus(Resource):
     def get(self):
+        parser.add_argument('userName')
+        args = parser.parse_args()    
+        userName = args["userName"]
         cluster_status, last_updated_time = JobRestAPIUtils.GetClusterStatus()
         cluster_status["last_updated_time"] = last_updated_time
         resp = jsonify(cluster_status)
@@ -436,15 +546,36 @@ class GetClusterStatus(Resource):
 api.add_resource(GetClusterStatus, '/GetClusterStatus')
 
 
+class GetVCStatus(Resource): # Todo
+    def get(self):
+        parser.add_argument('vcName')
+        parser.add_argument('userName')
+        args = parser.parse_args()    
+        vcName = args["vcName"]
+        userName = args["userName"]
+        vc_status, last_updated_time = JobRestAPIUtils.GetVCStatus(userName, vcName)
+        vc_status["last_updated_time"] = last_updated_time
+        resp = jsonify(vc_status)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(GetVCStatus, '/GetVCStatus')
+
 
 class AddCommand(Resource):
     def get(self):
         parser.add_argument('jobId')
         parser.add_argument('command')
+        parser.add_argument('userName')
         args = parser.parse_args()    
+        userName = args["userName"]   
         jobId = args["jobId"]
         command = args["command"]
-        result = JobRestAPIUtils.AddCommand(jobId, command)
+        result = JobRestAPIUtils.AddCommand(userName, jobId, command)
         ret = {}
         if result:
             ret["result"] = "Success, the command is scheduled to be run."
@@ -483,7 +614,284 @@ class AddUser(Resource):
 api.add_resource(AddUser, '/AddUser')
 
 
+class UpdateAce(Resource):
+    def get(self):
+        parser.add_argument('userName')
+        parser.add_argument('identityName')
+        parser.add_argument('resourceType')
+        parser.add_argument('resourceName')
+        parser.add_argument('permissions')
+        args = parser.parse_args()
+        username = args["userName"]
+        identityName = str(args["identityName"])
+        resourceType = int(args["resourceType"])
+        resourceName = str(args["resourceName"])
+        permissions = int(args["permissions"])
+        ret = {}
+        ret["result"] = JobRestAPIUtils.UpdateAce(username, identityName, resourceType, resourceName, permissions)
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(UpdateAce, '/UpdateAce')
+
+
+class DeleteAce(Resource):
+    def get(self):
+        parser.add_argument('userName')
+        parser.add_argument('identityName')
+        parser.add_argument('resourceType')
+        parser.add_argument('resourceName')
+        args = parser.parse_args()
+        username = args["userName"]
+        identityName = str(args["identityName"])
+        resourceType = int(args["resourceType"])
+        resourceName = str(args["resourceName"])
+        ret = {}
+        ret["result"] = JobRestAPIUtils.DeleteAce(username, identityName, resourceType, resourceName)
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(DeleteAce, '/DeleteAce')
+
+
+class IsClusterAdmin(Resource):
+    def get(self):
+        parser.add_argument('userName')
+        args = parser.parse_args()
+        username = args["userName"]
+        ret = {}
+        ret["result"] = AuthorizationManager.IsClusterAdmin(username)
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(IsClusterAdmin, '/IsClusterAdmin')
+
+
+class GetACL(Resource):
+    def get(self):
+        parser.add_argument('userName')
+        args = parser.parse_args()
+        username = args["userName"]
+        ret = {}
+        ret["result"] = AuthorizationManager.GetAcl(username)
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(GetACL, '/GetACL')
+
+
+class ListVCs(Resource):
+    def get(self):
+        parser.add_argument('userName')
+        args = parser.parse_args()
+        userName = args["userName"]
+        ret = {}
+        ret["result"] = JobRestAPIUtils.ListVCs(userName)
+      
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(ListVCs, '/ListVCs')
+
+
+class AddVC(Resource):
+    def get(self):
+        parser.add_argument('vcName')
+        parser.add_argument('quota')
+        parser.add_argument('metadata')
+        parser.add_argument('userName')
+        args = parser.parse_args()
+        vcName = args["vcName"]
+        quota = args["quota"]
+        metadata = args["metadata"]
+        userName = args["userName"]
+        ret = {}
+        ret["result"] = JobRestAPIUtils.AddVC(userName, vcName, quota, metadata)
+
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(AddVC, '/AddVC')
+
+
+class DeleteVC(Resource):
+    def get(self):
+        parser.add_argument('vcName')
+        parser.add_argument('userName')
+        args = parser.parse_args()
+        vcName = args["vcName"]
+        userName = args["userName"]
+        ret = {}
+        ret["result"] = JobRestAPIUtils.DeleteVC(userName, vcName)
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(DeleteVC, '/DeleteVC')
+
+
+class UpdateVC(Resource):
+    def get(self):
+        parser.add_argument('vcName')
+        parser.add_argument('quota')
+        parser.add_argument('metadata')
+        parser.add_argument('userName')
+        args = parser.parse_args()
+        vcName = args["vcName"]
+        quota = args["quota"]
+        metadata = args["metadata"]
+        userName = args["userName"]
+        ret = {}
+        ret["result"] = JobRestAPIUtils.UpdateVC(userName, vcName, quota, metadata)
+
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(UpdateVC, '/UpdateVC')
+
+
+class ListStorages(Resource):
+    def get(self):
+        parser.add_argument('vcName')
+        parser.add_argument('userName')
+        args = parser.parse_args()
+        vcName = args["vcName"]
+        userName = args["userName"]
+        ret = {}
+        ret["result"] = JobRestAPIUtils.ListStorages(userName, vcName)
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(ListStorages, '/ListStorages')
+
+
+class AddStorage(Resource):
+    def get(self):
+        parser.add_argument('vcName')
+        parser.add_argument('storageType')
+        parser.add_argument('url')
+        parser.add_argument('metadata')
+
+        parser.add_argument('defaultMountPath')
+        parser.add_argument('userName')
+        args = parser.parse_args()
+        vcName = args["vcName"]
+        storageType = args["storageType"]
+        url = args["url"]
+
+        metadata = args["metadata"]
+        defaultMountPath = args["defaultMountPath"]
+        userName = args["userName"]
+        ret = {}
+        ret["result"] = JobRestAPIUtils.AddStorage(userName, vcName, url, storageType, metadata, defaultMountPath)
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(AddStorage, '/AddStorage')
+
+
+class DeleteStorage(Resource):
+    def get(self):
+        parser.add_argument('vcName')
+        parser.add_argument('userName')
+        parser.add_argument('url')
+        args = parser.parse_args()
+        vcName = args["vcName"]
+        userName = args["userName"]
+        url = args["url"]
+        ret = {}
+        ret["result"] = JobRestAPIUtils.DeleteStorage(userName, vcName, url)
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(DeleteStorage, '/DeleteStorage')
+
+
+class UpdateStorage(Resource):
+    def get(self):
+        parser.add_argument('vcName')
+        parser.add_argument('storageType')
+        parser.add_argument('url')
+        parser.add_argument('metadata')
+
+        parser.add_argument('defaultMountPath')
+        parser.add_argument('userName')
+        args = parser.parse_args()
+        vcName = args["vcName"]
+        storageType = args["storageType"]
+        url = args["url"]
+        metadata = args["metadata"]
+        defaultMountPath = args["defaultMountPath"]
+        userName = args["userName"]
+        ret = {}
+        ret["result"] = JobRestAPIUtils.UpdateStorage(userName, vcName, url, storageType, metadata, defaultMountPath)
+
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(UpdateStorage, '/UpdateStorage')
 
 
 if __name__ == '__main__':
     app.run(debug=False,host="0.0.0.0",threaded=True)
+    

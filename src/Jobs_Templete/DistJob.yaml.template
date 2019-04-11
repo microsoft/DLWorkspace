@@ -8,11 +8,15 @@ metadata:
     jobName: {{ job["jobNameLabel"] }}
     distRole: {{ job["distRole"] }}
     distPort: "{{job["containerPort"]}}"
-    userName: {{ job["userNameLabel"] }}    
+    userName: {{ job["userNameLabel"] }}
+    vcName: {{ job["vcName"] }}
+    gpuType: {{ job["gpuType"] }}
+    preemptionAllowed: {{ job["preemptionAllowed"] }}   
 spec:
   #hostNetwork: true
-  {% if job["nodeSelector"]|length > 0 %}
   nodeSelector:
+    worker: active  
+  {% if job["nodeSelector"]|length > 0 %}
   {% for key, value in job["nodeSelector"].items() %}
     {{key}}: {{value}}
   {% endfor %}

@@ -1,6 +1,7 @@
 FROM dlws/restfulapi:v1.4
 MAINTAINER Hongzhi Li <Hongzhi.Li@microsoft.com>
 
+
 COPY kubectl /usr/local/bin/kubectl
 RUN chmod +x /usr/local/bin/kubectl
 #COPY gittoken /root/.ssh/id_rsa
