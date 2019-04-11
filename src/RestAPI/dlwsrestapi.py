@@ -80,7 +80,6 @@ class SubmitJob(Resource):
         
 
         parser.add_argument('jobtrainingtype')
-        parser.add_argument('numps')
         parser.add_argument('numpsworker')
         parser.add_argument('nummpiworker')
 
@@ -116,7 +115,7 @@ class SubmitJob(Resource):
             params["jobtrainingtype"] = args["jobtrainingtype"]
 
             if args["jobtrainingtype"] == "PSDistJob":
-                params["numps"] = args["numps"]
+                params["numps"] = 1
                 params["numpsworker"] = args["numpsworker"]
 
             if args["jobtrainingtype"] == "MPIDistJob":
