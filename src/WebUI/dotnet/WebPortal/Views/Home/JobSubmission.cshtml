@@ -802,6 +802,16 @@
                                 </div>
 
                                 <div class="layui-colla-item">
+                                    <h2 class="layui-colla-title">Host Network</h2>
+                                    <div class="layui-colla-content">
+                                        <md-input-container class="md-block" flex="50">
+                                            <label> Use Host network in container? </label>
+                                            <md-switch class="md-primary" ng-model="current.hostNetwork" md-no-asterisk>
+                                            </md-switch>
+                                        </md-input-container>
+                                    </div>
+                                </div>
+                                <div class="layui-colla-item">
                                     <h2 class="layui-colla-title">GPU Topology</h2>
                                     <div class="layui-colla-content">
 
@@ -830,11 +840,7 @@
                                         <div ng-if="current.isPrivileged" class="form-group">
 
                                             <div layout="row">
-                                                <md-input-container class="md-block" flex="50">
-                                                    <label> Use Host network in container? </label>
-                                                    <md-switch class="md-primary" ng-model="current.hostNetwork" md-no-asterisk>
-                                                    </md-switch>
-                                                </md-input-container>
+
 
                                                 <md-input-container class="md-block" flex="50">
                                                     <label> Use Host IPC in container? </label>
@@ -873,8 +879,8 @@
 
                             </div>
 
-                        </div>
-                    </div>
+                                </div>
+                            </div>
 
                 </div>
 
