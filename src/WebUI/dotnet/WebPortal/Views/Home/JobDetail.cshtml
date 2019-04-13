@@ -395,10 +395,10 @@
 <div>
     <h2> Job analytics and monitoring:</h2>
     <h3> GPU Usage: </h3>
-    <iframe src="@Context.Request.Protocol://@Context.Request.Host/grafana/dashboard/db/jobgpuusage?orgId=1&var-namespace=default&var-host=@ViewData["jobid"]&var-core=All" width="100%" height="1000" frameborder="0"></iframe>
+    <iframe src="http://@Context.Request.Host:3000/dashboard/db/jobgpuusage?orgId=1&var-namespace=default&var-host=@ViewData["jobid"]&var-core=All" width="100%" height="1000" frameborder="0"></iframe>
     
     <h3> System Resource Usage:</h3>
-    <iframe src="@Context.Request.Protocol://@Context.Request.Host/grafana/dashboard/db/kubernetes-pods?orgId=1&var-namespace=default&var-podname=@ViewData["jobid"]" width="100%" height="1000" frameborder="0"></iframe>
+    <iframe src="http://@Context.Request.Host:3000/dashboard/db/kubernetes-pods?orgId=1&var-namespace=default&var-podname=@ViewData["jobid"]" width="100%" height="1000" frameborder="0"></iframe>
 </div>
 
 <style>

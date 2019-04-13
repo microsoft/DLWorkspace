@@ -120,7 +120,7 @@
 <table id="cluster_usage" class="table">
     <thead>
         <tr>
-            <th><iframe src="@Context.Request.Protocol://@Context.Request.Host/grafana/dashboard-solo/db/gpu?refresh=5m&orgId=1&panelId=113&var-datasource=collectd&from=@((DateTime.UtcNow.AddDays(-8).Ticks - 621355968000000000) / 10000)&to=@((DateTime.UtcNow.Ticks - 621355968000000000) / 10000)" width="100%" height="200" frameborder="0"></iframe></th>
+            <th><iframe src="http://@Context.Request.Host:3000/dashboard-solo/db/gpu?refresh=5m&orgId=1&panelId=113&var-datasource=collectd&from=@((DateTime.UtcNow.AddDays(-8).Ticks - 621355968000000000) / 10000)&to=@((DateTime.UtcNow.Ticks - 621355968000000000) / 10000)" width="100%" height="200" frameborder="0"></iframe></th>
             <!--
             <th><iframe src="http://@Context.Request.Host:3000/dashboard-solo/db/gpu?refresh=5m&orgId=1&panelId=75&var-datasource=collectd&from=@((DateTime.UtcNow.AddHours(-8).Ticks - 621355968000000000) / 10000)&to=@((DateTime.UtcNow.Ticks - 621355968000000000) / 10000)" width="100%" height="200" frameborder="0"></iframe></th>
             <th><iframe src="http://@Context.Request.Host:3000/dashboard-solo/db/gpu?refresh=5m&orgId=1&panelId=76&var-datasource=collectd&from=@((DateTime.UtcNow.AddHours(-8).Ticks - 621355968000000000) / 10000)&to=@((DateTime.UtcNow.Ticks - 621355968000000000) / 10000)" width="100%" height="200" frameborder="0"></iframe></th>
