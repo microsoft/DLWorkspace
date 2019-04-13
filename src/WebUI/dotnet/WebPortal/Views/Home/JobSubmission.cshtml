@@ -892,8 +892,75 @@
                                 </div>
 
 
+                                <div class="layui-colla-item">
+                                    <h2 class="layui-colla-title">HyperDrive Experiment</h2>
+                                    <div class="layui-colla-content">
 
 
+                                        <md-input-container class="md-block">
+                                            <label>Submit new HyperDrive experiment</label>
+                                            <md-switch class="md-primary" ng-model="current.hyperdrive" md-no-asterisk aria-label="Submit new HyperDrive experiment"></md-switch>
+                                        </md-input-container>
+
+
+                                        <div ng-if="current.hyperdrive" class="form-group">
+                                            <div layout="row">
+                                                <md-input-container class="md-block" flex="50">
+                                                    <label>HyperDrive experiment name</label>
+                                                    <input ng-model="current.hyperdrive_name" required md-no-asterisk>
+                                                </md-input-container>
+                                                <md-input-container class="md-block" flex="50">
+                                                    <label>HyperDrive experiment description</label>
+                                                    <input ng-model="current.hyperdrive_description" required md-no-asterisk>
+                                                </md-input-container>
+                                            </div>
+                                            <div layout="row">
+                                                <md-input-container class="md-block" flex="50">
+                                                    <label>Primary metric name</label>
+                                                    <input ng-model="current.hyperdrive_primaryMetricName" required md-no-asterisk>
+                                                </md-input-container>
+                                                <md-input-container class="md-block" flex="50">
+                                                    <label>Primary metric goal</label>
+                                                    <md-select ng-model="current.hyperdrive_primaryMetricGoal" required md-no-asterisk>
+                                                        <md-option value="maximize">maximize</md-option>
+                                                        <md-option value="minimize">minimize</md-option>
+                                                    </md-select>
+                                                </md-input-container>
+                                            </div>
+                                            <div layout="row">
+                                                <md-input-container class="md-block" flex="50">
+                                                    <label>Max Concurrent Jobs</label>
+                                                    <input type="number" ng-model="current.hyperdrive_maxConcurrentJobs" min="1" required md-no-asterisk>
+                                                </md-input-container>
+                                                <md-input-container class="md-block" flex="50">
+                                                    <label>Total nnumber of GPUs for all Concurrent Jobs</label>
+                                                    <input type="number" ng-value="current.hyperdrive_maxConcurrentJobs * 8" min="1" disabled md-no-asterisk>
+                                                </md-input-container>
+                                            </div>
+                                            <div layout="row">
+                                                <md-input-container class="md-block" flex="50">
+                                                    <label>Max Total Jobs</label>
+                                                    <input type="number" ng-model="current.hyperdrive_maxTotalJobs" min="1" required md-no-asterisk>
+                                                </md-input-container>
+                                                <md-input-container class="md-block" flex="50">
+                                                    <label>Max Duration Minutes</label>
+                                                    <input type="number" ng-model="current.hyperdrive_maxDurationMinutes" min="1" required md-no-asterisk>
+                                                </md-input-container>
+                                            </div>
+                                            <div layout="row">
+                                                <md-input-container class="md-block" flex="50">
+                                                    <label>Policy Config</label>
+                                                    <textarea ng-model="current.hyperdrive_policyConfig" rows="10"></textarea>
+                                                </md-input-container>
+                                                <md-input-container class="md-block" flex="50">
+                                                    <label>Generator Config</label>
+                                                    <textarea ng-model="current.hyperdrive_generatorConfig" rows="10"></textarea>
+                                                </md-input-container>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                </div>
 
                                 <div class="layui-colla-item">
                                     <h2 class="layui-colla-title">HyperParameter Turning</h2>
