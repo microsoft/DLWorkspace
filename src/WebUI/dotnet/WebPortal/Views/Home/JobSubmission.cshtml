@@ -636,6 +636,27 @@
             }
             $event.target.value = '';
         }
+
+        $scope.isJSONValid = function (str) {
+            try {
+                JSON.parse(str);
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        $scope.$watch("enableHyperdrive", function (enable) {
+            if (enable) {
+                $scope.current.hyperdrive = {
+                    primary_metric_config: {
+                        goal: "maximize"
+                    }
+                };
+            } else {
+                delete $scope.current.hyperdrive;
+            }
+        })
     });
 
 
@@ -899,7 +920,7 @@
 
                                         <md-input-container class="md-block">
                                             <label>Submit new HyperDrive experiment</label>
-                                            <md-switch class="md-primary" ng-model="current.hyperdrive" md-no-asterisk aria-label="Submit new HyperDrive experiment"></md-switch>
+                                            <md-switch class="md-primary" ng-model="enableHyperdrive" md-no-asterisk aria-label="Submit new HyperDrive experiment"></md-switch>
                                         </md-input-container>
 
 
@@ -907,21 +928,21 @@
                                             <div layout="row">
                                                 <md-input-container class="md-block" flex="50">
                                                     <label>HyperDrive experiment name</label>
-                                                    <input ng-model="current.hyperdrive_name" required md-no-asterisk>
+                                                    <input ng-model="current.hyperdrive.name" required md-no-asterisk>
                                                 </md-input-container>
                                                 <md-input-container class="md-block" flex="50">
                                                     <label>HyperDrive experiment description</label>
-                                                    <input ng-model="current.hyperdrive_description" required md-no-asterisk>
+                                                    <input ng-model="current.hyperdrive.description" required md-no-asterisk>
                                                 </md-input-container>
                                             </div>
                                             <div layout="row">
                                                 <md-input-container class="md-block" flex="50">
                                                     <label>Primary metric name</label>
-                                                    <input ng-model="current.hyperdrive_primaryMetricName" required md-no-asterisk>
+                                                    <input ng-model="current.hyperdrive.primary_metric_config.name" required md-no-asterisk>
                                                 </md-input-container>
                                                 <md-input-container class="md-block" flex="50">
                                                     <label>Primary metric goal</label>
-                                                    <md-select ng-model="current.hyperdrive_primaryMetricGoal" required md-no-asterisk>
+                                                    <md-select ng-model="current.hyperdrive.primary_metric_config.goal" required md-no-asterisk>
                                                         <md-option value="maximize">maximize</md-option>
                                                         <md-option value="minimize">minimize</md-option>
                                                     </md-select>
@@ -930,31 +951,34 @@
                                             <div layout="row">
                                                 <md-input-container class="md-block" flex="50">
                                                     <label>Max Concurrent Jobs</label>
-                                                    <input type="number" ng-model="current.hyperdrive_maxConcurrentJobs" min="1" required md-no-asterisk>
+                                                    <input type="number" ng-model="current.hyperdrive.max_concurrent_jobs" min="1" required md-no-asterisk>
                                                 </md-input-container>
                                                 <md-input-container class="md-block" flex="50">
                                                     <label>Total nnumber of GPUs for all Concurrent Jobs</label>
-                                                    <input type="number" ng-value="current.hyperdrive_maxConcurrentJobs * 8" min="1" disabled md-no-asterisk>
+                                                    <input type="number" ng-value="current.hyperdrive.max_concurrent_jobs * 8" min="1" disabled md-no-asterisk>
                                                 </md-input-container>
                                             </div>
                                             <div layout="row">
                                                 <md-input-container class="md-block" flex="50">
                                                     <label>Max Total Jobs</label>
-                                                    <input type="number" ng-model="current.hyperdrive_maxTotalJobs" min="1" required md-no-asterisk>
+                                                    <input type="number" ng-model="current.hyperdrive.max_total_jobs" min="1" required md-no-asterisk>
+                                                    <div></div>
                                                 </md-input-container>
                                                 <md-input-container class="md-block" flex="50">
                                                     <label>Max Duration Minutes</label>
-                                                    <input type="number" ng-model="current.hyperdrive_maxDurationMinutes" min="1" required md-no-asterisk>
+                                                    <input type="number" ng-model="current.hyperdrive.max_duration_minutes" min="1" required md-no-asterisk>
                                                 </md-input-container>
                                             </div>
                                             <div layout="row">
                                                 <md-input-container class="md-block" flex="50">
                                                     <label>Policy Config</label>
-                                                    <textarea ng-model="current.hyperdrive_policyConfig" rows="10"></textarea>
+                                                    <textarea ng-model="current.hyperdrive.policy_config" rows="10"></textarea>
+                                                    <span class="label label-danger" ng-if="!isJSONValid(current.hyperdrive.policy_config)">Invalid JSON</span>
                                                 </md-input-container>
                                                 <md-input-container class="md-block" flex="50">
                                                     <label>Generator Config</label>
-                                                    <textarea ng-model="current.hyperdrive_generatorConfig" rows="10"></textarea>
+                                                    <textarea ng-model="current.hyperdrive.generator_config" rows="10"></textarea>
+                                                    <span class="label label-danger" ng-if="!isJSONValid(current.hyperdrive.generator_config)">Invalid JSON</span>
                                                 </md-input-container>
                                             </div>
                                         </div>

@@ -564,14 +564,48 @@ namespace WindowsAuth.Controllers
             jobObject["familyToken"] = String.Format("{0:N}", familyToken);
             jobObject["isParent"] = 1; 
 
-
             using (var httpClient = new HttpClient())
             {
-                httpClient.BaseAddress = new Uri(restapi);
-                var response = await httpClient.PostAsync("/PostJob",
-                    new StringContent(jobObject.ToString(), System.Text.Encoding.UTF8, "application/json"));
-                var returnInfo = await response.Content.ReadAsStringAsync();
-                return Content(returnInfo);
+                if (jobObject["hyperdrive"] is JObject)
+                {
+                    httpClient.BaseAddress = new Uri("https://hyperdrive/api/v1.0");
+                    var hyperdriveObject = jobObject["hyperdrive"];
+                    jobObject.Remove("hyperdrive");
+
+                    // Platform fields
+                    hyperdriveObject["platform"] = "DLTS";
+                    hyperdriveObject["platform_config"] = jobObject;
+                    hyperdriveObject["platform_config"]["clusterId"] = cluster.ToString();
+                    hyperdriveObject["platform_config"]["teamId"] = team;
+
+
+                    // Retrieve userKey
+                    var userEmail = HttpContext.Session.GetString("Email");
+                    var currentCluster = HttpContext.Session.GetString("CurrentClusters");
+                    if (Startup.Database.ContainsKey(currentCluster))
+                    {
+                        var db = Startup.Database[currentCluster];
+                        var user = db.User.First(u => u.Email == userEmail);
+                        hyperdriveObject["user"] = userEmail;
+                        hyperdriveObject["platform_config"]["userKey"] = user.Password;
+                    }
+
+
+                    // Convert string field values into JObject
+                    hyperdriveObject["policy_config"] = JObject.Parse(hyperdriveObject.Value<string>("policy_config"));
+                    hyperdriveObject["generator_config"] = JObject.Parse(hyperdriveObject.Value<string>("generator_config"));
+
+                    var response = await httpClient.PostAsync("/experiments", new StringContent(hyperdriveObject.ToString(), System.Text.Encoding.UTF8, "application/json"));
+                    var returnInfo = await response.Content.ReadAsStringAsync();
+                    return Content(returnInfo);
+                }
+                else
+                {
+                    httpClient.BaseAddress = new Uri(restapi);
+                    var response = await httpClient.PostAsync("/PostJob", new StringContent(jobObject.ToString(), System.Text.Encoding.UTF8, "application/json"));
+                    var returnInfo = await response.Content.ReadAsStringAsync();
+                    return Content(returnInfo);
+                }
             }
         }
 
