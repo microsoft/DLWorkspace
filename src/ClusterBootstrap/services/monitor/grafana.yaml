@@ -1,35 +1,47 @@
-kind: DaemonSet
 apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: dlws-grafana
+  name: grafana
   namespace: kube-system
 spec:
+  replicas: 1
   selector:
     matchLabels:
-      k8s-app: grafana
+      app: grafana
   template:
     metadata:
       labels:
         task: monitoring
-        k8s-app: grafana
+        app: grafana
     spec:
       nodeSelector:
         grafana: active
       hostNetwork: true
+      hostPID: false
       containers:
       - name: grafana
-        image: {{cnf["dockers"]["container"]["grafana"]["fullname"]}}
+        image: xudifsd/grafana:latest
         imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+          protocol: TCP
         volumeMounts:
+        - mountPath: /grafana-configuration
+          name: grafana-confg-volume
         - mountPath: /etc/ssl/certs
           name: ca-certificates
           readOnly: true
         - mountPath: /etc/hostname-fqdn
           name: hostname-fqdn
           readOnly: true
+        resources:
+          limits:
+            memory: "256Mi"
         env:
-        - name: INFLUXDB_HOST
-          value: {{cnf["influxdb_node"]}}
+        - name : GRAFANA_URL
+          value: 'http://192.168.255.1:3000'
+        - name: GF_AUTH_ANONYMOUS_ENABLED
+          value: "true"
         - name: GF_SERVER_HTTP_PORT
           value: "3000"
           # The following env variables are required to make Grafana accessible via
@@ -49,6 +61,9 @@ spec:
           #value: /grafana/
           value: /
       volumes:
+      - name: grafana-confg-volume
+        configMap:
+          name: grafana-configuration
       - name: ca-certificates
         hostPath:
           path: /etc/ssl/certs

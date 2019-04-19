@@ -79,8 +79,10 @@ spec:
       value: {{ job["familyToken"] }}
     - name: DLWS_REST_API
       value: {{ job["rest-api"] }}
+    - name: DLWS_USER_NAME
+      value: {{ job["userNameLabel"] }}
     - name: DLWS_JOB_ID
-      value: {{ job["jobId"] }}   
+      value: {{ job["jobId"] }}
     - name: DLWS_NUM_PS
       value: "{{ job["numps"] }}"  
     - name: DLWS_NUM_WORKER
@@ -141,3 +143,6 @@ spec:
   - name: dshm
     emptyDir:
       medium: Memory  
+  - name: rdmadev
+    hostPath:
+      path: /dev/infiniband/uverbs1          

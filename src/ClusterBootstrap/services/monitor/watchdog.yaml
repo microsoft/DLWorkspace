@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: watchdog
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: watchdog
+      task: monitoring
+  template:
+    metadata:
+      annotations:
+        prometheus.io/path: /metrics
+        prometheus.io/port: '9101'
+        prometheus.io/scrape: 'true'
+      labels:
+        app: watchdog
+      name: watchdog
+    spec:
+      nodeSelector:
+        watchdog: active
+      containers:
+      - command:
+        - python
+        - /watchdog.py
+        - --interval
+        - '30'
+        - --port
+        - '9101'
+        - --ca
+        - /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        - --bearer
+        - /var/run/secrets/kubernetes.io/serviceaccount/token
+        - https://dltsp40-infra01.eastus.cloudapp.azure.com:1443
+        env:
+        - name: LOGGING_LEVEL
+          value: INFO
+        image: xudifsd/watchdog:latest
+        imagePullPolicy: Always
+        name: watchdog
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 9101
+          initialDelaySeconds: 3
+          periodSeconds: 30
+          timeoutSeconds: 10
+        resources:
+          limits:
+            memory: 256Mi
+      hostNetwork: true
+      imagePullSecrets:
+      - name: pai-secret
+      tolerations:
+      - key: node.kubernetes.io/memory-pressure
+        operator: Exists
+      - key: node.kubernetes.io/disk-pressure
+        operator: Exists
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule

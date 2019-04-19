@@ -12,6 +12,7 @@ spec:
       name: jobmanager
       labels:
         jobmanager-node: pod
+        app: jobmanager
     spec:
       {% if cnf["dnsPolicy"] %}    
       dnsPolicy: {{cnf["dnsPolicy"]}}
