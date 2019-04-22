@@ -19,7 +19,7 @@ spec:
       name: job-exporter
     spec:
       containers:
-      - image: xudifsd/job-exporter:latest
+      - image: openpai/job-exporter:dlws
         imagePullPolicy: Always
         livenessProbe: # in case job-exporter hangs
           httpGet:

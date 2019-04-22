@@ -8,7 +8,6 @@ spec:
   selector:
     matchLabels:
       app: watchdog
-      task: monitoring
   template:
     metadata:
       annotations:
@@ -17,6 +16,7 @@ spec:
         prometheus.io/scrape: 'true'
       labels:
         app: watchdog
+        task: monitoring
       name: watchdog
     spec:
       nodeSelector:
@@ -37,7 +37,7 @@ spec:
         env:
         - name: LOGGING_LEVEL
           value: INFO
-        image: xudifsd/watchdog:latest
+        image: openpai/watchdog:dlws
         imagePullPolicy: Always
         name: watchdog
         readinessProbe:

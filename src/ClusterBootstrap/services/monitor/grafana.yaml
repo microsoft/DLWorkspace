@@ -20,7 +20,7 @@ spec:
       hostPID: false
       containers:
       - name: grafana
-        image: xudifsd/grafana:latest
+        image: openpai/grafana:dlws
         imagePullPolicy: Always
         ports:
         - containerPort: 3000
