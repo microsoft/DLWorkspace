@@ -33,7 +33,7 @@ spec:
         - /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
         - --bearer
         - /var/run/secrets/kubernetes.io/serviceaccount/token
-        - https://dltsp40-infra01.eastus.cloudapp.azure.com:1443
+        - https://{{ cnf["api-server-ip"] }}:443
         env:
         - name: LOGGING_LEVEL
           value: INFO
