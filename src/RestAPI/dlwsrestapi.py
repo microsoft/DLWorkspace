@@ -420,6 +420,22 @@ class GetJobDetail(Resource):
 api.add_resource(GetJobDetail, '/GetJobDetail')
 
 
+class GetJobStatus(Resource):
+    def get(self):
+        parser.add_argument('jobId')
+        args = parser.parse_args()
+        jobId = args["jobId"]
+        job = JobRestAPIUtils.GetJobStatus(jobId)
+        resp = jsonify(job)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(GetJobStatus, '/GetJobStatus')
+
 
 class GetClusterStatus(Resource):
     def get(self):
