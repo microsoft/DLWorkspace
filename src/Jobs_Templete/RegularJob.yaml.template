@@ -84,9 +84,72 @@ spec:
     {% endif %}
     - mountPath: /dev/shm
       name: dshm    
+    - mountPath: /dev/infiniband/rdma_cm
+      name: rdma_cm
+    - mountPath: /dev/infiniband/uverbs0
+      name: ib_uverbs0
     - mountPath: /dev/infiniband/uverbs1
-      name: rdmauverbs1          
-
+      name: ib_uverbs1
+    - mountPath: /dev/infiniband/uverbs2
+      name: ib_uverbs2
+    - mountPath: /dev/infiniband/uverbs3
+      name: ib_uverbs3
+    - mountPath: /dev/infiniband/uverbs4
+      name: ib_uverbs4
+    - mountPath: /dev/infiniband/uverbs5
+      name: ib_uverbs5
+    - mountPath: /dev/infiniband/uverbs6
+      name: ib_uverbs6
+    - mountPath: /dev/infiniband/uverbs7
+      name: ib_uverbs7
+    - mountPath: /dev/infiniband/issm0
+      name: ib_issm0
+    - mountPath: /dev/infiniband/issm1
+      name: ib_issm1
+    - mountPath: /dev/infiniband/issm2
+      name: ib_issm2
+    - mountPath: /dev/infiniband/issm3
+      name: ib_issm3
+    - mountPath: /dev/infiniband/issm4
+      name: ib_issm4
+    - mountPath: /dev/infiniband/issm5
+      name: ib_issm5
+    - mountPath: /dev/infiniband/issm6
+      name: ib_issm6
+    - mountPath: /dev/infiniband/issm7
+      name: ib_issm7
+    - mountPath: /dev/infiniband/ucm0
+      name: ib_ucm0
+    - mountPath: /dev/infiniband/ucm1
+      name: ib_ucm1
+    - mountPath: /dev/infiniband/ucm2
+      name: ib_ucm2
+    - mountPath: /dev/infiniband/ucm3
+      name: ib_ucm3
+    - mountPath: /dev/infiniband/ucm4
+      name: ib_ucm4
+    - mountPath: /dev/infiniband/ucm5
+      name: ib_ucm5
+    - mountPath: /dev/infiniband/ucm6
+      name: ib_ucm6
+    - mountPath: /dev/infiniband/ucm7
+      name: ib_ucm7
+    - mountPath: /dev/infiniband/umad0
+      name: ib_umad0
+    - mountPath: /dev/infiniband/umad1
+      name: ib_umad1
+    - mountPath: /dev/infiniband/umad2
+      name: ib_umad2
+    - mountPath: /dev/infiniband/umad3
+      name: ib_umad3
+    - mountPath: /dev/infiniband/umad4
+      name: ib_umad4
+    - mountPath: /dev/infiniband/umad5
+      name: ib_umad5
+    - mountPath: /dev/infiniband/umad6
+      name: ib_umad6
+    - mountPath: /dev/infiniband/umad7
+      name: ib_umad7
 
     env:
     - name: FAMILY_TOKEN
@@ -152,6 +215,102 @@ spec:
   - name: dshm
     emptyDir:
       medium: Memory  
-  - name: rdmauverbs1
+  - name: rdma_cm
     hostPath:
-      path: /dev/infiniband/uverbs1          
+      path: /dev/infiniband/rdma_cm
+  - name: ib_uverbs0
+    hostPath:
+      path: /dev/infiniband/uverbs0
+  - name: ib_uverbs1
+    hostPath:
+      path: /dev/infiniband/uverbs1
+  - name: ib_uverbs2
+    hostPath:
+      path: /dev/infiniband/uverbs2
+  - name: ib_uverbs3
+    hostPath:
+      path: /dev/infiniband/uverbs3
+  - name: ib_uverbs4
+    hostPath:
+      path: /dev/infiniband/uverbs4
+  - name: ib_uverbs5
+    hostPath:
+      path: /dev/infiniband/uverbs5
+  - name: ib_uverbs6
+    hostPath:
+      path: /dev/infiniband/uverbs6
+  - name: ib_uverbs7
+    hostPath:
+      path: /dev/infiniband/uverbs7
+  - name: ib_issm0
+    hostPath:
+      path: /dev/infiniband/issm0
+  - name: ib_issm1
+    hostPath:
+      path: /dev/infiniband/issm1
+  - name: ib_issm2
+    hostPath:
+      path: /dev/infiniband/issm2
+  - name: ib_issm3
+    hostPath:
+      path: /dev/infiniband/issm3
+  - name: ib_issm4
+    hostPath:
+      path: /dev/infiniband/issm4
+  - name: ib_issm5
+    hostPath:
+      path: /dev/infiniband/issm5
+  - name: ib_issm6
+    hostPath:
+      path: /dev/infiniband/issm6
+  - name: ib_issm7
+    hostPath:
+      path: /dev/infiniband/issm7
+  - name: ib_ucm0
+    hostPath:
+      path: /dev/infiniband/ucm0
+  - name: ib_ucm1
+    hostPath:
+      path: /dev/infiniband/ucm1
+  - name: ib_ucm2
+    hostPath:
+      path: /dev/infiniband/ucm2
+  - name: ib_ucm3
+    hostPath:
+      path: /dev/infiniband/ucm3
+  - name: ib_ucm4
+    hostPath:
+      path: /dev/infiniband/ucm4
+  - name: ib_ucm5
+    hostPath:
+      path: /dev/infiniband/ucm5
+  - name: ib_ucm6
+    hostPath:
+      path: /dev/infiniband/ucm6
+  - name: ib_ucm7
+    hostPath:
+      path: /dev/infiniband/ucm7
+  - name: ib_umad0
+    hostPath:
+      path: /dev/infiniband/umad0
+  - name: ib_umad1
+    hostPath:
+      path: /dev/infiniband/umad1
+  - name: ib_umad2
+    hostPath:
+      path: /dev/infiniband/umad2
+  - name: ib_umad3
+    hostPath:
+      path: /dev/infiniband/umad3
+  - name: ib_umad4
+    hostPath:
+      path: /dev/infiniband/umad4
+  - name: ib_umad5
+    hostPath:
+      path: /dev/infiniband/umad5
+  - name: ib_umad6
+    hostPath:
+      path: /dev/infiniband/umad6
+  - name: ib_umad7
+    hostPath:
+      path: /dev/infiniband/umad7
