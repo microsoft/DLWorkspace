@@ -47,6 +47,10 @@ spec:
       {% if job["isPrivileged"] %}
       privileged: true
       {% endif %}
+      capabilities:
+        add:
+        - IPC_LOCK
+        - SYS_ADMIN      
     resources:
       limits:
         nvidia.com/gpu: {{ job["resourcegpu"] }}
@@ -83,6 +87,10 @@ spec:
     {% endif %}
     - mountPath: /dev/shm
       name: dshm    
+    - mountPath: /dev/infiniband/uverbs1
+      name: rdmauverbs1          
+
+
     env:
     - name: FAMILY_TOKEN
       value: {{ job["familyToken"] }}
@@ -147,3 +155,6 @@ spec:
   - name: dshm
     emptyDir:
       medium: Memory  
+  - name: rdmauverbs1
+    hostPath:
+      path: /dev/infiniband/uverbs1          
