@@ -1,0 +1,8 @@
+{
+  "name": "PM",
+  "url": "http://{{ prometheus_url }}/prometheus",
+  "basicAuth": false,
+  "access": "proxy",
+  "type": "prometheus",
+  "isDefault": true
+}
