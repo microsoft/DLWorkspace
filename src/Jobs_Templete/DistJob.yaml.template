@@ -32,10 +32,14 @@ spec:
     imagePullPolicy: Always
     command: {{ job["LaunchCMD"] }}
     #container port and host port should be same.
-    {% if job["isPrivileged"] %}
     securityContext:
+    {% if job["isPrivileged"] %}
       privileged: true
     {% endif %}    
+      capabilities:
+        add:
+        - IPC_LOCK
+        - SYS_ADMIN          
     ports:
     - containerPort: {{job["containerPort"]}}
       hostPort: {{job["containerPort"]}}      
@@ -70,6 +74,8 @@ spec:
     {% endif %}    
     - mountPath: /dev/shm
       name: dshm       
+    - mountPath: /dev/infiniband/uverbs1
+      name: rdmadev              
     env:
     - name: FAMILY_TOKEN
       value: {{ job["familyToken"] }}
@@ -133,3 +139,6 @@ spec:
   - name: dshm
     emptyDir:
       medium: Memory  
+  - name: rdmadev
+    hostPath:
+      path: /dev/infiniband/uverbs1          
