@@ -1,6 +1,6 @@
 {
   "name": "PM",
-  "url": "http://{{ prometheus_url }}/prometheus",
+  "url": "http://prometheus.kube-system:9091/prometheus",
   "basicAuth": false,
   "access": "proxy",
   "type": "prometheus",

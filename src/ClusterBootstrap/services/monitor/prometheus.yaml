@@ -83,3 +83,17 @@ spec:
         operator: "Exists"
       - key: node-role.kubernetes.io/master
         effect: NoSchedule
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: prometheus
+  namespace: kube-system
+spec:
+  selector:
+    app: prometheus
+  ports:
+    - protocol: TCP
+      port: 9091
+      targetPort: 9091
+  clusterIP: None
