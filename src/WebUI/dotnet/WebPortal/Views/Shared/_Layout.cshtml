@@ -82,7 +82,33 @@
         </footer>
     </div>
 
+    <script>
+        void function ($) {
+            // Teams Dropdown
+            var $teamsDropdown = $('#teams-dropdown');
+            if (!$teamsDropdown.length) return;
 
+            $.get({
+                url: '/api/dlws/GetVCs',
+                dataType: 'json'
+            }).then(function (data) {
+                if (data == null) return;
+                if (!$.isArray(data.result)) return;
+
+                var $teams = $.map(data.result, function (element) {
+                    var name = element.vcName;
+                    if (!name) return;
+
+                    // <li><a href="/?team=Team%20Name">Team Name</a></li>
+                    return $('<li>').append($('<a>', { href: '/?team=' + encodeURIComponent(name), text: name }));
+                });
+
+                if (!$teams.length) return;
+
+                $teamsDropdown.removeClass('hidden').find('.dropdown-menu').append($teams);
+            })
+        }(window.jQuery);
+    </script>
     @RenderSection("scripts", required: false)
 </body>
 </html>

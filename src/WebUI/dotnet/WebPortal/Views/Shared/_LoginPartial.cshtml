@@ -1,17 +1,14 @@
-﻿@using System.Security.Principal
-@using Microsoft.AspNetCore.Authentication.OpenIdConnect 
+﻿@using Microsoft.AspNetCore.Http;
+@using System.Security.Principal
+@using Microsoft.AspNetCore.Authentication.OpenIdConnect
 @using WindowsAuth
-
 
 @if (User.Identity.IsAuthenticated)
 {
     <ul class="nav navbar-nav navbar-right">
-        <li class="dropdown">
-          <a class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Relavence Team <span class="caret"></span></a>
-          <ul class="dropdown-menu">
-            <li><a href="#">Relavence Team</a></li>
-            <li><a href="#">Another Team</a></li>
-          </ul>
+        <li class="dropdown hidden" id="teams-dropdown">
+            <a class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">@Context.Session.GetString("Team") <span class="caret"></span></a>
+            <ul class="dropdown-menu"></ul>
         </li>
         <li><a asp-area="" asp-controller="Home" asp-action="AccountSettings">Hello, @ViewData["Username"]</a></li>
         <li>@Html.ActionLink("Log Out", "LogOff", "Account")</li>
@@ -21,12 +18,12 @@ else
 {
     <ul class="nav navbar-nav navbar-right">
         <li><a>Login by: </a></li>
-    @foreach (var pair in WindowsAuth.Startup.AuthenticationSchemes)
-    {
-    <li>
-         @Html.ActionLink(pair.Key + " Account", "Login", "Account", routeValues: new { scheme = pair.Key }, htmlAttributes: new { id = "loginLink" }) 
-        </li>
+        @foreach (var pair in WindowsAuth.Startup.AuthenticationSchemes)
+        {
+            <li>
+                @Html.ActionLink(pair.Key + " Account", "Login", "Account", routeValues: new { scheme = pair.Key }, htmlAttributes: new { id = "loginLink" })
+            </li>
         }
-    
+
     </ul>
 }
