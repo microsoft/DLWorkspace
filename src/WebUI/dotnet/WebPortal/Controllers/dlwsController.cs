@@ -440,6 +440,75 @@ namespace WindowsAuth.Controllers
             }
         }
 
+        // POST api/dlws/dataJob
+        [HttpPost("dataJob")]
+        public async Task<string> postDataJob(TemplateParams templateParams)
+        {
+            var ret = "invalid API call!";
+            var tuple = await processRestfulAPICommon();
+            var passwdLogin = tuple.Item1;
+            if (!String.IsNullOrEmpty(tuple.Item2))
+                return tuple.Item2;
+
+
+            if (!User.Identity.IsAuthenticated && !passwdLogin)
+            {
+                ret = "Unauthorized User, Please login!";
+                return ret;
+            }
+            var username = HttpContext.Session.GetString("Username");
+            ViewData["Username"] = username;
+            var uid = HttpContext.Session.GetString("uid");
+            var gid = HttpContext.Session.GetString("gid");
+            var restapi = HttpContext.Session.GetString("Restapi");
+            templateParams.Json = templateParams.Json.Replace("$$username$$", username).Replace("$$uid$$", uid).Replace("$$gid$$", gid);
+            var jobObject = JObject.Parse(templateParams.Json);
+            jobObject["userName"] = HttpContext.Session.GetString("Email");
+            jobObject["userId"] = uid;
+            //jobObject["jobType"] = "training";
+
+            ////TODO:update below params
+            //jobObject["vcName"] = "vc1";
+            //jobObject["gpuType"] = "any";
+            //jobObject["preemptionAllowed"] = "False";
+            /////////////////////////
+
+            //var runningasroot = jobObject["runningasroot"];
+            //if (!(Object.ReferenceEquals(runningasroot, null)) && (runningasroot.ToString() == "1") || (runningasroot.ToString() == true.ToString()))
+            //{
+            //    jobObject["containerUserId"] = "0";
+            //}
+            //else
+            //{
+            //    jobObject["containerUserId"] = uid;
+            //}
+
+            //// ToDo: Need to be included in a database, 
+            //var familyToken = Guid.NewGuid();
+            //var newKey = _familyModel.Families.TryAdd(familyToken, new FamilyModel.FamilyData
+            //{
+            //    ApiPath = HttpContext.Session.GetString("Restapi"),
+            //    Email = HttpContext.Session.GetString("Email"),
+            //    UID = HttpContext.Session.GetString("uid")
+            //});
+            //if (!newKey)
+            //{
+            //    ret = "Only 1 parent is allowed per family (maybe you tried to submit the same job on two threads?)";
+            //}
+            //jobObject["familyToken"] = String.Format("{0:N}", familyToken);
+            //jobObject["isParent"] = 1;
+
+
+            //using (var httpClient = new HttpClient())
+            //{
+            //    httpClient.BaseAddress = new Uri(restapi);
+            //    var response = await httpClient.PostAsync("/PostJob", new StringContent(jobObject.ToString(), System.Text.Encoding.UTF8, "application/json"));
+            //    var returnInfo = await response.Content.ReadAsStringAsync();
+            //    return returnInfo;
+            //}
+            return "";
+        }
+
         //Helper Methods
         private async Task<string> DownloadDatabase(HttpRequest httpContextRequest)
         {
