@@ -435,7 +435,9 @@ namespace WindowsAuth.Controllers
             using (var httpClient = new HttpClient())
             {
                 httpClient.BaseAddress = new Uri(restapi);
-                var response = await httpClient.PostAsync("/PostJob", new StringContent(jobObject.ToString(), System.Text.Encoding.UTF8, "application/json"));
+                var response = await httpClient.PostAsync(
+                    "/PostJob?vcName=" + HttpContext.Session.GetString("Team"),
+                    new StringContent(jobObject.ToString(), System.Text.Encoding.UTF8, "application/json"));
                 var returnInfo = await response.Content.ReadAsStringAsync();
                 return returnInfo;
             }
