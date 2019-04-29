@@ -74,8 +74,6 @@ spec:
     {% endif %}    
     - mountPath: /dev/shm
       name: dshm       
-    - mountPath: /dev/infiniband/uverbs1
-      name: rdmadev              
     env:
     - name: FAMILY_TOKEN
       value: {{ job["familyToken"] }}
@@ -88,7 +86,11 @@ spec:
     - name: DLWS_NUM_WORKER
       value: "{{ job["numworker"] }}"  
     - name: DLWS_NUM_GPU_PER_WORKER
-      value: "{{ job["resourcegpu"] }}"                       
+      value: "{{ job["resourcegpu"] }}"     
+    {% if job["resourcegpu"]|int < 1  %}
+    - name: NVIDIA_VISIBLE_DEVICES
+      value: ""      
+    {% endif %}                         
     {% if job["usefreeflow"] %}
     - name: VNET_PREFIX
       value: {{ job["pod_ip_range"] }}
@@ -139,6 +141,3 @@ spec:
   - name: dshm
     emptyDir:
       medium: Memory  
-  - name: rdmadev
-    hostPath:
-      path: /dev/infiniband/uverbs1          
