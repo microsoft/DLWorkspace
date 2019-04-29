@@ -325,6 +325,15 @@ def GetJobDetail(userName, jobId):
     dataHandler.Close()
     return job
 
+def GetJobStatus(jobId):
+    result = None
+    dataHandler = DataHandler()
+    jobs = dataHandler.GetJob(jobId=jobId)
+    if len(jobs) == 1:
+        key_list = ["jobStatus", "jobTime", "errorMsg"]
+        result = {key: jobs[0][key] for key in key_list}
+    dataHandler.Close()
+    return result
 
 def GetClusterStatus(): #todo : access check
     job = None

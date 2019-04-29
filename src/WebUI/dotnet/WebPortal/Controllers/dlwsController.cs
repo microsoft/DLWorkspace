@@ -212,6 +212,12 @@ namespace WindowsAuth.Controllers
                         url = restapi + "/GetJobDetail?jobId=" + HttpContext.Request.Query["jobId"] + "&userName=" + HttpContext.Session.GetString("Email");
                     }
                     break;
+                case "JobStatus":
+                    if (HttpContext.Request.Query.ContainsKey("jobId"))
+                    {
+                        url = restapi + "/GetJobStatus?jobId=" + HttpContext.Request.Query["jobId"];
+                    }
+                    break;
                 case "SubmitJob":
                     url = restapi + "/SubmitJob?";
                     foreach (var item in HttpContext.Request.Query)
