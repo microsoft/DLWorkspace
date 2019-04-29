@@ -87,8 +87,6 @@ spec:
     {% endif %}
     - mountPath: /dev/shm
       name: dshm    
-    - mountPath: /dev/infiniband/uverbs1
-      name: rdmauverbs1          
 
 
     env:
@@ -103,7 +101,11 @@ spec:
     - name: DLWS_NUM_WORKER
       value: "1"  
     - name: DLWS_NUM_GPU_PER_WORKER
-      value: "{{ job["resourcegpu"] }}"                   
+      value: "{{ job["resourcegpu"] }}"     
+    {% if job["resourcegpu"]|int < 1  %}
+    - name: NVIDIA_VISIBLE_DEVICES
+      value: ""      
+    {% endif %} 
     {% if job["usefreeflow"] %}
     - name: VNET_PREFIX
       value: {{ job["pod_ip_range"] }}
@@ -155,6 +157,3 @@ spec:
   - name: dshm
     emptyDir:
       medium: Memory  
-  - name: rdmauverbs1
-    hostPath:
-      path: /dev/infiniband/uverbs1          
