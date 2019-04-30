@@ -19,9 +19,9 @@ logger = MyLogger()
 class DataHandler:
     def __init__(self):
         start_time = timeit.default_timer()
-        
+
         self.CreateDatabase()
-        server = config["mysql"]["hostname"] 
+        server = config["mysql"]["hostname"]
         database = "DLWorkspaceCluster-%s" % config["clusterId"]
         username = config["mysql"]["username"]
         password = config["mysql"]["password"]
@@ -35,6 +35,7 @@ class DataHandler:
         self.usertablename = "users"
         self.clusterstatustablename = "clusterstatus"
         self.commandtablename = "commands"
+        self.endpointtablename = "endpoints"
 
         self.CreateTable()
         elapsed = timeit.default_timer() - start_time
@@ -47,13 +48,13 @@ class DataHandler:
             logger.info("===========init SQL database===============")
             global_vars["initSQLDB"] = True
 
-            server = config["mysql"]["hostname"] 
+            server = config["mysql"]["hostname"]
             database = "DLWorkspaceCluster-%s" % config["clusterId"]
             username = config["mysql"]["username"]
             password = config["mysql"]["password"]
 
             conn = mysql.connector.connect(user=username, password=password,
-                                          host=server)            
+                                          host=server)
             sql = " CREATE DATABASE IF NOT EXISTS `%s` DEFAULT CHARACTER SET 'utf8' " % (database)
             cursor = conn.cursor()
             cursor.execute(sql)
@@ -75,16 +76,16 @@ class DataHandler:
                     `jobName`         varchar(1024) NOT NULL,
                     `userName`         varchar(255) NOT NULL,
                     `jobStatus`         varchar(255) NOT NULL DEFAULT 'unapproved',
-                    `jobStatusDetail` LONGTEXT  NULL, 
+                    `jobStatusDetail` LONGTEXT  NULL,
                     `jobType`         varchar(255) NOT NULL,
                     `jobDescriptionPath`  TEXT NULL,
                     `jobDescription`  LONGTEXT  NULL,
                     `jobTime` DATETIME     DEFAULT CURRENT_TIMESTAMP NOT NULL,
-                    `endpoints` LONGTEXT  NULL, 
-                    `errorMsg` LONGTEXT  NULL, 
-                    `jobParams` LONGTEXT  NOT NULL, 
-                    `jobMeta` LONGTEXT  NULL, 
-                    `jobLog` LONGTEXT  NULL, 
+                    `endpoints` LONGTEXT  NULL,
+                    `errorMsg` LONGTEXT  NULL,
+                    `jobParams` LONGTEXT  NOT NULL,
+                    `jobMeta` LONGTEXT  NULL,
+                    `jobLog` LONGTEXT  NULL,
                     `retries`             int    NULL DEFAULT 0,
                     PRIMARY KEY (`id`),
                     INDEX (`userName`),
@@ -123,8 +124,8 @@ class DataHandler:
                     `jobId` varchar(50)   NOT NULL,
                     `status`         varchar(255) NOT NULL DEFAULT 'pending',
                     `time` DATETIME     DEFAULT CURRENT_TIMESTAMP NOT NULL,
-                    `command` TEXT NOT NULL, 
-                    `output` TEXT NULL, 
+                    `command` TEXT NOT NULL,
+                    `output` TEXT NULL,
                     PRIMARY KEY (`id`)
                 )
                 """ % (self.commandtablename)
@@ -145,6 +146,21 @@ class DataHandler:
                     PRIMARY KEY (`id`)
                 )
                 """ % (self.usertablename)
+
+            sql = """
+                CREATE TABLE IF NOT EXISTS  `%s`
+                (
+                    `id`            INT     NOT NULL AUTO_INCREMENT,
+                    `jobId`         varchar(255) NOT NULL,
+                    `name`          varchar(255) NOT NULL,
+                    `containerPort` INT,
+                    `hostName`      varchar(255),
+                    `hostIP`        varchar(255),
+                    `hostPort`      INT,
+                    `time`          DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                    PRIMARY KEY (`id`)
+                )
+                """ % (self.endpointtablename)
 
             cursor = self.conn.cursor()
             cursor.execute(sql)
@@ -187,7 +203,7 @@ class DataHandler:
                     status_statement = (" "+op[1]+" ").join(status_list)
                     query += " and ( %s ) " % status_statement
 
-                        
+
 
             query += " order by `jobTime` Desc"
 
@@ -219,7 +235,7 @@ class DataHandler:
                 ret.append(record)
         except Exception, e:
             logger.error('Exception: '+ str(e))
-            pass                
+            pass
         cursor.close()
         elapsed = timeit.default_timer() - start_time
         logger.info ("DataHandler: get job list for user %s , time elapsed %f s (SQL query time: %f)" % (userName, elapsed, elapsed1))
@@ -231,7 +247,7 @@ class DataHandler:
         valid_keys = ["jobId", "familyToken", "isParent", "jobName", "userName", "jobStatus", "jobType", "jobTime"]
         if len(kwargs) != 1: return []
         key, expected = kwargs.popitem()
-        if key not in valid_keys: 
+        if key not in valid_keys:
             logger.error("DataHandler_GetJob: key is not in valid keys list...")
             return []
         cursor = self.conn.cursor()
@@ -248,7 +264,7 @@ class DataHandler:
     def AddCommand(self,jobId,command):
         try:
             start_time = timeit.default_timer()
-            sql = "INSERT INTO `"+self.jobtablename+"` (jobId, command) VALUES (%s,%s)" 
+            sql = "INSERT INTO `"+self.jobtablename+"` (jobId, command) VALUES (%s,%s)"
             cursor = self.conn.cursor()
             cursor.execute(sql, (jobId, command))
             self.conn.commit()
@@ -276,7 +292,7 @@ class DataHandler:
         cursor.close()
         elapsed = timeit.default_timer() - start_time
         logger.info ("DataHandler: get pending command , time elapsed %f s" % (elapsed))
-        return ret    
+        return ret
 
 
     def FinishCommand(self,commandId):
@@ -311,7 +327,7 @@ class DataHandler:
         cursor.close()
         elapsed = timeit.default_timer() - start_time
         logger.info ("DataHandler: get command list for job %s , time elapsed %f s" % (jobId, elapsed))
-        return ret    
+        return ret
 
 
     def KillJob(self,jobId):
@@ -370,7 +386,7 @@ class DataHandler:
         cursor.close()
         elapsed = timeit.default_timer() - start_time
         logger.info ("DataHandler: get pending jobs , time elapsed %f s" % (elapsed))
-        return ret        
+        return ret
 
 
     def SetJobError(self,jobId,errorMsg):
@@ -386,7 +402,7 @@ class DataHandler:
             return True
         except Exception, e:
             logger.error('Exception: '+ str(e))
-            return False        
+            return False
 
 
     def UpdateJobTextField(self,jobId,field,value):
@@ -446,7 +462,7 @@ class DataHandler:
     def UpdateClusterStatus(self,clusterStatus):
         try:
             status = base64.b64encode(json.dumps(clusterStatus))
-            
+
             start_time = timeit.default_timer()
             sql = "INSERT INTO `%s` (status) VALUES ('%s')" % (self.clusterstatustablename,status)
             cursor = self.conn.cursor()
@@ -491,8 +507,8 @@ class DataHandler:
         cursor.close()
         elapsed = timeit.default_timer() - start_time
         logger.info ("DataHandler: get user count, time elapsed %f s" % ( elapsed))
-        return ret        
-    
+        return ret
+
     def AddUser(self, username,userId):
         try:
             start_time = timeit.default_timer()
@@ -538,7 +554,7 @@ class DataHandler:
             ret = c[0]
         cursor.close()
 
-        return ret        
+        return ret
 
     def GetALLJobsCount(self):
         cursor = self.conn.cursor()
@@ -549,14 +565,14 @@ class DataHandler:
             ret = c[0]
         cursor.close()
 
-        return ret    
+        return ret
 
     def __del__(self):
         logger.debug("********************** deleted a DataHandler instance *******************")
         self.Close()
 
     def Close(self):
-        ### !!! DataHandler is not threadsafe object, a same object cannot be used in multiple threads 
+        ### !!! DataHandler is not threadsafe object, a same object cannot be used in multiple threads
         try:
             self.conn.close()
         except Exception as e:
@@ -576,9 +592,9 @@ if __name__ == '__main__':
         jobParams["user-id"] = "hongzl"
         jobParams["job-meta-path"] = "/dlws/jobfiles/***"
         jobParams["job-meta"] = "ADSCASDcAE!EDASCASDFD"
-        
+
         dataHandler.AddJob(jobParams)
-    
+
 
     if CREATE_TABLE:
         dataHandler.CreateTable()
