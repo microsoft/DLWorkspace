@@ -568,7 +568,7 @@ namespace WindowsAuth.Controllers
             {
                 if (jobObject["hyperdrive"] is JObject)
                 {
-                    httpClient.BaseAddress = new Uri("http://hyperdrive/api/v1.0");
+                    httpClient.BaseAddress = new Uri("http://hyperdrive/api/v1.0/");
                     var hyperdriveObject = jobObject["hyperdrive"];
                     jobObject.Remove("hyperdrive");
 
@@ -595,7 +595,7 @@ namespace WindowsAuth.Controllers
                     hyperdriveObject["policy_config"] = JObject.Parse(hyperdriveObject.Value<string>("policy_config"));
                     hyperdriveObject["generator_config"] = JObject.Parse(hyperdriveObject.Value<string>("generator_config"));
                     
-                    var response = await httpClient.PostAsync("/experiments", new StringContent(hyperdriveObject.ToString(), System.Text.Encoding.UTF8, "application/json"));
+                    var response = await httpClient.PostAsync("experiments", new StringContent(hyperdriveObject.ToString(), System.Text.Encoding.UTF8, "application/json"));
                     var returnInfo = await response.Content.ReadAsStringAsync();
                     return Content(returnInfo);
                 }
