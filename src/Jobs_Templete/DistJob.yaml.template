@@ -87,7 +87,7 @@ spec:
       value: "{{ job["numworker"] }}"  
     - name: DLWS_NUM_GPU_PER_WORKER
       value: "{{ job["resourcegpu"] }}"     
-    {% if job["resourcegpu"]|int < 1  %}
+    {% if job["distRole"] =="ps" or not job["resourcegpu"] is defined or job["resourcegpu"]|int < 1  %}
     - name: NVIDIA_VISIBLE_DEVICES
       value: ""      
     {% endif %}                         
