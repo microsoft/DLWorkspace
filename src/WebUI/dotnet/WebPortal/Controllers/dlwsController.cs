@@ -181,8 +181,8 @@ namespace WindowsAuth.Controllers
                 case "GetVCs":
                     url = restapi + "/ListVCs?userName=" + HttpContext.Session.GetString("Email");
                     break;
-                case "ListJobs": //TODO:update vc name
-                    url = restapi + "/ListJobs?vcName=vc1&jobOwner="+HttpContext.Session.GetString("Email") + "&userName=" + HttpContext.Session.GetString("Email");
+                case "ListJobs":
+                    url = restapi + "/ListJobs?vcName="+HttpContext.Session.GetString("Team")+"&jobOwner="+HttpContext.Session.GetString("Email") + "&userName=" + HttpContext.Session.GetString("Email");
                     if (HttpContext.Request.Query.ContainsKey("num"))
                     {
                         url += "&num=" + HttpContext.Request.Query["num"];
@@ -190,8 +190,8 @@ namespace WindowsAuth.Controllers
                     break;
                 case "ListAllJobs":
                     if (HttpContext.Session.GetString("isAdmin").Equals("true"))
-                    { //TODO:update vc name
-                        url = restapi + "/ListJobs?vcName=vc1&jobOwner=all&userName="+HttpContext.Session.GetString("Email");
+                    {
+                        url = restapi + "/ListJobs?vcName=" + HttpContext.Session.GetString("Team") + "&jobOwner=all&userName=" + HttpContext.Session.GetString("Email");
                     }
                     break;
                 case "KillJob":
@@ -231,6 +231,7 @@ namespace WindowsAuth.Controllers
                     }
                     url += "userName=" + HttpContext.Session.GetString("Email") + "&";
                     url += "userId=" + HttpContext.Session.GetString("uid") + "&";
+                    url += "vcName=" + HttpContext.Session.GetString("Team") + "&";
                     if (HttpContext.Request.Query.ContainsKey("runningasroot") &&
                         HttpContext.Request.Query["runningasroot"] == "1")
                     {
@@ -440,7 +441,9 @@ namespace WindowsAuth.Controllers
             using (var httpClient = new HttpClient())
             {
                 httpClient.BaseAddress = new Uri(restapi);
-                var response = await httpClient.PostAsync("/PostJob", new StringContent(jobObject.ToString(), System.Text.Encoding.UTF8, "application/json"));
+                var response = await httpClient.PostAsync(
+                    "/PostJob?vcName=" + HttpContext.Session.GetString("Team"),
+                    new StringContent(jobObject.ToString(), System.Text.Encoding.UTF8, "application/json"));
                 var returnInfo = await response.Content.ReadAsStringAsync();
                 return returnInfo;
             }
