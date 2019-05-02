@@ -421,7 +421,7 @@ echo export LD_PRELOAD=$LD_PRELOAD >> /etc/default/ssh
 echo export VNET_PREFIX=$VNET_PREFIX >> /etc/default/ssh
 
 %s
-
+env | while read line; do if [[ $line != HOME=* ]] && [[ $line != INTERACTIVE* ]] ; then echo "$line" >> /etc/environment; fi; done
 service ssh restart
 
 echo "[DLWorkspace System]: Waiting for all containers are ready..."
@@ -450,7 +450,7 @@ echo export LD_PRELOAD=$LD_PRELOAD >> /etc/default/ssh
 echo export VNET_PREFIX=$VNET_PREFIX >> /etc/default/ssh
 
 %s
-
+env | while read line; do if [[ $line != HOME=* ]] && [[ $line != INTERACTIVE* ]] ; then echo "$line" >> /etc/environment; fi; done
 service ssh restart
 while [ ! -f /opt/run_dist_job ] || [ ! -f /opt/run_dist_job.sh ]; do
     sleep 3
