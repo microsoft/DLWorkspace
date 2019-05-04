@@ -25,12 +25,12 @@ class SQLConnManager:
     @staticmethod
     def Connect():
         server = config["database"]["hostname"] 
-        database = "DLWorkspaceCluster-%s" % config["clusterId"]
+        self.database = "DLWSCluster-%s" % config["clusterId"]
         username = config["database"]["username"]
         password = config["database"]["password"]
         # self.driver = '/usr/lib/x86_64-linux-gnu/libodbc.so'
         driver = '{ODBC Driver 13 for SQL Server}'
-        connstr = 'DRIVER='+driver+';PORT=1433;SERVER='+server+';PORT=1433;DATABASE='+database+';UID='+username+';PWD='+password
+        connstr = 'DRIVER='+driver+';PORT=1433;SERVER='+server+';PORT=1433;DATABASE='+self.database+';UID='+username+';PWD='+password
         #print "Try to connect with string: " + connstr
         conn = pyodbc.connect(connstr)
         return conn
@@ -153,7 +153,6 @@ class DataHandler:
         
         #print "Connecting to server ..."
         self.jobtablename = "jobs-%s" %  config["clusterId"]
-        self.usertablename = "users-%s" %  config["clusterId"]
         self.acltablename = "acl-%s" %  config["clusterId"]
         self.identitytablename = "identity-%s" %  config["clusterId"]
         self.vctablename = "vc-%s" %  config["clusterId"]
@@ -174,12 +173,11 @@ class DataHandler:
             server = config["database"]["hostname"] 
             username = config["database"]["username"]
             password = config["database"]["password"]
-            database = "DLWorkspaceCluster-%s" % config["clusterId"]
 
             driver = '{ODBC Driver 13 for SQL Server}'
             connstr = 'DRIVER='+driver+';PORT=1433;SERVER='+server+';PORT=1433;UID='+username+';PWD='+password
             conn = pyodbc.connect(connstr,autocommit=True)
-            sql = "if not exists (SELECT name FROM dbo.sysdatabases WHERE name = '%s') CREATE DATABASE [%s];" % (database, database)
+            sql = "if not exists (SELECT name FROM dbo.sysdatabases WHERE name = '%s') CREATE DATABASE [%s];" % (self.database, self.database)
             cursor = conn.cursor()
             cursor.execute(sql)
             cursor.close()
@@ -269,24 +267,6 @@ class DataHandler:
             if not exists (select * from sysobjects where name='%s' and xtype='U')
                 CREATE TABLE [dbo].[%s]
                 (
-                    [id]        INT          IDENTITY (1, 1) NOT NULL,
-                    [username]         varchar(255) NOT NULL,
-                    [userId]         varchar(255) NOT NULL,
-                    [time] DATETIME     DEFAULT (getdate()) NOT NULL,
-                    PRIMARY KEY CLUSTERED ([id] ASC)
-                )
-                """ % (self.usertablename,self.usertablename)
-
-            cursor = self.conn.cursor()
-            cursor.execute(sql)
-            self.conn.commit()
-            cursor.close()
-
-
-            sql = """
-            if not exists (select * from sysobjects where name='%s' and xtype='U')
-                CREATE TABLE [dbo].[%s]
-                (
                     [id]                INT          IDENTITY (1, 1) NOT NULL,
                     [storageType]       varchar(255) NOT NULL,
                     [url]               varchar(255) NOT NULL,
@@ -333,7 +313,8 @@ class DataHandler:
                 (
                     [id]            INT          IDENTITY (1, 1) NOT NULL,
                     [identityName]  varchar(255) NOT NULL UNIQUE,
-                    [identityId]    INT NOT NULL,
+                    [uid]           INT NOT NULL,
+                    [gid]           INT NOT NULL,
                     [groups]        varchar(max) NOT NULL,
                     [time]          DATETIME     DEFAULT (getdate()) NOT NULL,
                     PRIMARY KEY CLUSTERED ([id] ASC)
@@ -513,14 +494,15 @@ class DataHandler:
     def GetIdentityInfo(self, identityName):
         start_time = timeit.default_timer()
         cursor = self.conn.cursor()
-        query = "SELECT [identityName],[identityId],[groups] FROM [%s] where [identityName] = '%s'" % (self.identitytablename, identityName)
+        query = "SELECT [identityName],[uid],[gid],[groups] FROM [%s] where [identityName] = '%s'" % (self.identitytablename, identityName)
         ret = []
         try:
             cursor.execute(query)
-            for (identityName,identityId,groups) in cursor:
+            for (identityName,uid,gid,groups) in cursor:
                 record = {}
                 record["identityName"] = identityName
-                record["identityId"] = identityId
+                record["uid"] = uid
+                record["gid"] = gid
                 record["groups"] = groups
                 ret.append(record)
         except Exception as e:
@@ -532,16 +514,16 @@ class DataHandler:
         return ret 
 
 
-    def UpdateIdentityInfo(self, identityName, identityId, groups):
+    def UpdateIdentityInfo(self, identityName, uid, gid, groups):
         try:
             start_time = timeit.default_timer()
             cursor = self.conn.cursor()
             
             if len(self.GetIdentityInfo(identityName)) == 0:
-                sql = """INSERT INTO [%s] (identityName,identityId,groups) VALUES (?,?,?)""" % self.identitytablename
-                cursor.execute(sql, identityName, identityId, groups)
+                sql = """INSERT INTO [%s] (identityName,uid,gid,groups) VALUES (?,?,?,?)""" % self.identitytablename
+                cursor.execute(sql, identityName, uid, gid, groups)
             else:
-                sql = """update [%s] set groups = '%s' where [identityName] = '%s' and [identityId] = '%s' """ % (self.identitytablename, groups, identityName, identityId)
+                sql = """update [%s] set uid = '%s', gid = '%s', groups = '%s' where [identityName] = '%s' """ % (self.identitytablename, uid, gid, groups, identityName)
                 cursor.execute(sql)
             
             self.conn.commit()
@@ -967,53 +949,23 @@ class DataHandler:
         logger.info ("DataHandler: get cluster status , time elapsed %f s" % (elapsed))
         return ret, time
 
-    def GetUsersCount(self, username):
-        start_time = timeit.default_timer()
-        cursor = self.conn.cursor()
-        query = "SELECT count(ALL id) as c FROM [%s] where [username] = '%s' " % (self.usertablename,username)
-        cursor.execute(query)
-        ret = 0
-        for c in cursor:
-            ret = c[0]
-        cursor.close()
-        elapsed = timeit.default_timer() - start_time
-        logger.info ("DataHandler: get user count, time elapsed %f s" % ( elapsed))
-        return ret        
-    
-    def AddUser(self, username,userId):
-        try:
-            start_time = timeit.default_timer()
-            if self.GetUsersCount(username) == 0:
-                sql = """INSERT INTO [%s] (username,userId) VALUES (?,?)""" % self.usertablename
-                cursor = self.conn.cursor()
-                cursor.execute(sql, username,userId)
-                self.conn.commit()
-                cursor.close()
-            elapsed = timeit.default_timer() - start_time
-            logger.info ("DataHandler: add user %s to database , time elapsed %f s" % (username, elapsed))
-            return True
-        except Exception, e:
-            logger.error('Exception: '+ str(e))
-            return False
 
     def GetUsers(self):
         start_time = timeit.default_timer()
         cursor = self.conn.cursor()
-        query = "SELECT [username],[userId] FROM [%s]" % (self.usertablename)
+        query = "SELECT [identityName],[uid] FROM [%s]" % (self.identitytablename)
         ret = []
         try:
             cursor.execute(query)
-            for (username,userId) in cursor:
-                ret.append((username,userId))
-        except Exception, e:
+            for (identityName,uid) in cursor:
+                ret.append((identityName,uid))
+        except Exception as e:
             logger.error('Exception: '+ str(e))
             pass
         cursor.close()
         elapsed = timeit.default_timer() - start_time
         logger.info ("DataHandler: get users, time elapsed %f s" % ( elapsed))
         return ret
-
-
 
 
     def GetActiveJobsCount(self):

@@ -2,6 +2,7 @@ from DataHandler import DataHandler
 from MyLogger import MyLogger
 import json
 import requests
+import random
 from config import config
 
 logger = MyLogger()
@@ -14,23 +15,10 @@ def enum(*sequential, **named):
 
 Permission = enum(Unauthorized=0, User=1, Collaborator=3, Admin=7)
 ResourceType = enum(Cluster=1, VC=2, Job=3)
-'''
 
-import enum
-class Permission(enum.Enum):
-    Unauthorized = 0
-    User = 1
-    Collaborator=3
-    Admin = 7
-
-
-class ResourceType(enum.Enum):
-    Cluster = 1
-    NFS = 2
-    VC = 3
-    Job = 4
-    Template = 5
-'''
+INVALID_RANGE_START = 900000000
+INVALID_RANGE_END = 999999998
+INVALID_ID = 999999999
 
 
 class AuthorizationManager:
@@ -47,7 +35,7 @@ class AuthorizationManager:
         try:
             logger.info('HasAccess invoked!')             
             identities = []
-            identities.append(AuthorizationManager.GetIdentityManager().GetIdentityInfo(identityName)["groups"])
+            identities.append(IdentityManager.GetIdentityInfoFromDB(identityName)["groups"])
 
             logger.info('initial resourceAclPath ' + resourceAclPath)
             #TODO: handle isDeny
@@ -56,7 +44,7 @@ class AuthorizationManager:
                 acl = dataHandler.GetResourceAcl(resourceAclPath)
                 for ace in acl:
                     for identity in identities:
-                        if ace["identityId"] == identity or ace["identityName"] == identityName:
+                        if ace["identityName"] == identityName or (ace["identityId"] == identity  and (int(identity) < INVALID_RANGE_START or int(identity) > INVALID_RANGE_END)):
                             permissions = permissions & (~ace["permissions"])
                             if not permissions:
                                 logger.info('access : Yes')
@@ -86,11 +74,17 @@ class AuthorizationManager:
     @staticmethod
     def UpdateAce(identityName, resourceAclPath, permissions, isDeny):
         dataHandler = DataHandler() 
-        try:                  
-            identityId = AuthorizationManager.GetIdentityManager().GetIdentityInfo(identityName)["uid"]
-            if identityId == -1:
-                identityId = 0
-            return dataHandler.UpdateAce(identityName, identityId, resourceAclPath, permissions, isDeny)
+        try:
+            identityId = 0
+            if identityName.isdigit():
+                identityId = int(identityName)
+            else:               
+                identityId = IdentityManager.GetIdentityInfoFromDB(identityName)["uid"]
+                if identityId == INVALID_ID:
+                    info = IdentityManager.GetIdentityInfoFromAD(identityName)
+                    dataHandler.UpdateIdentityInfo(identityName, info["uid"], info["gid"], info["groups"])
+                    identityId = info["uid"]
+                return dataHandler.UpdateAce(identityName, identityId, resourceAclPath, permissions, isDeny)
 
         except Exception as e:
             logger.error('Exception: '+ str(e))
@@ -180,50 +174,48 @@ class AuthorizationManager:
             return AuthorizationManager.CLUSTER_ACL_PATH
 
     
+
+class IdentityManager:  
+
     @staticmethod
-    def GetIdentityManager():
-        winBindServer = "http://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName={0}"
+    def GetIdentityInfoFromAD(identityName):
+        winBindConfigured = False
+
         if "WinbindServers" in config:
-            winBindServer = config["WinbindServers"][0]
-        return IdentityManager(winBindServer)
-
-
-
-class IdentityManager:
-    serverUrl = ""
-    #TODO: do we need to cache?
-
-    def __init__(self, winbindServerUrl):
-        self.serverUrl = winbindServerUrl
-    
-
-    def GetIdentityInfo(self, identityName):
-        dataHandler = DataHandler()
-        try:           
-            # winbind (depending on configs) handles nested groups for userIds
-            response = requests.get(self.serverUrl.format(identityName))
-            info = json.loads(response.text)
-
-            dataHandler.UpdateIdentityInfo(identityName, info["uid"], info["groups"])
+            if not config["WinbindServers"]:
+                if not config["WinbindServers"][0]:
+                    try:
+                        winBindConfigured = True
+                        # winbind (depending on configs) handles nested groups for userIds
+                        response = requests.get(config["WinbindServers"][0].format(identityName))
+                        info = json.loads(response.text)
+                        return info
+                    except Exception as ex:
+                        logger.error('Exception: '+ str(ex))
+                        raise ex
+        if not winBindConfigured:
+            randomId = random.randrange(INVALID_RANGE_START, INVALID_RANGE_END)
+            info = {}
+            info["uid"] = randomId
+            info["gid"] = randomId
+            info["groups"] = [randomId]
 
             return info
-        except Exception as e:
-            logger.error('Exception: '+ str(e))
-            logger.warn("GetIdentityInfo from winbind failed for identity %s" % identityName)
 
-            info = {}
-            info["uid"] = -1
-            info["gid"] = -1
-            info["groups"] = [-1]
 
+    @staticmethod
+    def GetIdentityInfoFromDB(identityName):
+        dataHandler = DataHandler()
+        try:
             lst = dataHandler.GetIdentityInfo(identityName)
             if lst:
-                info["uid"] = lst[0][1]
-                info["gid"] = lst[0][1]
-                info["groups"] = lst[0][2]
+                return lst[0]
             else:
                 logger.warn("GetIdentityInfo : Identity %s not found in DB" % identityName)
-            return info
-
+                info = {}
+                info["uid"] = INVALID_ID
+                info["gid"] = INVALID_ID
+                info["groups"] = [INVALID_ID]
+                return info
         finally:
             dataHandler.Close()

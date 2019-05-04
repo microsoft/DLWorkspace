@@ -18,7 +18,7 @@ import re
 
 from config import global_vars
 from MyLogger import MyLogger
-from authorization import ResourceType, Permission, AuthorizationManager
+from authorization import ResourceType, Permission, AuthorizationManager, IdentityManager
 
 import copy
 
@@ -326,7 +326,7 @@ def GetJobDetail(userName, jobId):
     return job
 
 
-def GetClusterStatus(): #todo : access check
+def GetClusterStatus():
     job = None
     dataHandler = DataHandler()
     cluster_status,last_update_time =  dataHandler.GetClusterStatus()
@@ -334,11 +334,25 @@ def GetClusterStatus(): #todo : access check
     return cluster_status,last_update_time
 
 
-def AddUser(username,userId): # todo : access check?
-    ret = None
-    dataHandler = DataHandler()
-    ret =  dataHandler.AddUser(username,userId)
-    dataHandler.Close()
+def AddUser(username,uid,gid,groups):
+    ret = None   
+    needToUpdateDB = False
+    
+    if uid == 0:
+        info = IdentityManager.GetIdentityInfoFromDB(username)
+        if info["uid"] == authorization.INVALID_ID:
+            needToUpdateDB = True
+            info = IdentityManager.GetIdentityInfoFromAD(username) 
+        uid = info["uid"]
+        gid = info["gid"]
+        groups = info["groups"]
+    else:
+        needToUpdateDB = True
+
+    if needToUpdateDB:
+        dataHandler = DataHandler()
+        ret =  dataHandler.UpdateIdentityInfo(username,uid,gid,groups)
+        dataHandler.Close()
     return ret
 
 
