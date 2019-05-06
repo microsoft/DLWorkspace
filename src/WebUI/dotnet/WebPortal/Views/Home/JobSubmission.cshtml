@@ -562,19 +562,19 @@
                     </div>
 
                     <md-input-container class="md-block">
-                        <label> Number of GPUs </label>
+                        <label> Number of GPUs Per Worker</label>
                         <input ng-model="current.resourcegpu" required type="number" name="resourcegpu" step="1" min="0" max="8" md-no-asterisk>
                         <div ng-messages="jobApp.resourcegpu.$error" multiple>
                             <div ng-message="required">
-                                You have to let us know the number of gpus.
+                                You have to let us know the number of gpus per worker.
                             </div>
 
                             <div ng-message="min">
-                                You have to request at least 0 GPU.
+                                You have to request at least 0 GPU per worker.
                             </div>
 
                             <div ng-message="max">
-                                You can request at most 8 GPUs.
+                                You can request at most 8 GPUs per worker.
                             </div>
                         </div>
                     </md-input-container>

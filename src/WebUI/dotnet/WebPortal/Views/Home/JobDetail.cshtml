@@ -191,7 +191,7 @@
             jobDetailStr += "Container Ports: " + payload.jobParams.interactivePort + "\n";
             jobDetailStr += "Job Path: " + payload.jobParams.jobPath + "\n";
             jobDetailStr += "Job Type: " + payload.jobParams.jobType + "\n";
-            jobDetailStr += "GPU #: " + payload.jobParams.resourcegpu + "\n";
+            jobDetailStr += "GPU # Per Worker: " + payload.jobParams.resourcegpu + "\n";
             jobDetailStr += "Job Status: " + payload.jobStatus + "\n";
             jobDetailStr += "Job Submission Time: " + payload.jobTime + "\n";
             if (jobDetailDiv.innerHTML != jobDetailStr) {
