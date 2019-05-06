@@ -378,10 +378,10 @@ class DataHandler:
                 record["identityName"] = identityName
                 record["uid"] = uid
                 record["gid"] = gid
-                record["groups"] = groups
+                record["groups"] = json.loads(groups)
                 ret.append(record)
         except Exception as e:
-            logger.error('Exception: '+ str(e))
+            logger.error('GetIdentityInfo Exception: '+ str(e))
             pass
         cursor.close()
         elapsed = timeit.default_timer() - start_time
@@ -396,9 +396,9 @@ class DataHandler:
             
             if len(self.GetIdentityInfo(identityName)) == 0:
                 sql = "INSERT INTO `"+self.identitytablename+"` (identityName,uid,gid,groups) VALUES (%s,%s,%s,%s)"
-                cursor.execute(sql, (identityName, uid, gid, groups))
+                cursor.execute(sql, (identityName, uid, gid, json.dumps(groups)))
             else:
-                sql = """update `%s` set uid = '%s', gid = '%s', groups = '%s' where `identityName` = '%s' and `uid` = '%s' """ % (self.identitytablename, uid, gid, groups, identityName)
+                sql = """update `%s` set uid = '%s', gid = '%s', groups = '%s' where `identityName` = '%s' """ % (self.identitytablename, uid, gid, groups, identityName)
                 cursor.execute(sql)
             
             self.conn.commit()
@@ -407,7 +407,7 @@ class DataHandler:
             logger.info ("DataHandler: UpdateIdentityInfo %s to database , time elapsed %f s" % (identityName, elapsed))
             return True
         except Exception as e:
-            logger.error('Exception: '+ str(e))
+            logger.error('UpdateIdentityInfo Exception: '+ str(e))
             return False
 
 
@@ -443,6 +443,23 @@ class DataHandler:
             cursor.close()
             elapsed = timeit.default_timer() - start_time
             logger.info ("DataHandler: UpdateAce %s - %s to database , time elapsed %f s" % (identityName, resource, elapsed))
+            return True
+        except Exception as e:
+            logger.error('Exception: '+ str(e))
+            return False
+
+
+    def UpdateAclIdentityId(self, identityName, identityId):
+        try:
+            start_time = timeit.default_timer()
+            cursor = self.conn.cursor()
+            sql = """update `%s` set identityId = '%s' where `identityName` = '%s' """ % (self.acltablename, identityId, identityName)
+            cursor.execute(sql)
+            
+            self.conn.commit()
+            cursor.close()
+            elapsed = timeit.default_timer() - start_time
+            logger.info ("DataHandler: UpdateAclIdentityId %s - %s to database , time elapsed %f s" % (identityName, identityId, elapsed))
             return True
         except Exception as e:
             logger.error('Exception: '+ str(e))

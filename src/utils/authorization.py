@@ -33,9 +33,9 @@ class AuthorizationManager:
     def _HasAccess(identityName, resourceAclPath, permissions):
         dataHandler = DataHandler() 
         try:
-            logger.info('HasAccess invoked!')             
+            logger.debug('HasAccess invoked!')             
             identities = []
-            identities.append(IdentityManager.GetIdentityInfoFromDB(identityName)["groups"])
+            identities.extend(IdentityManager.GetIdentityInfoFromDB(identityName)["groups"])
 
             logger.info('initial resourceAclPath ' + resourceAclPath)
             #TODO: handle isDeny
@@ -44,6 +44,7 @@ class AuthorizationManager:
                 acl = dataHandler.GetResourceAcl(resourceAclPath)
                 for ace in acl:
                     for identity in identities:
+                        logger.debug('identity %s' % identity)
                         if ace["identityName"] == identityName or (ace["identityId"] == identity  and (int(identity) < INVALID_RANGE_START or int(identity) > INVALID_RANGE_END)):
                             permissions = permissions & (~ace["permissions"])
                             if not permissions:
@@ -84,7 +85,7 @@ class AuthorizationManager:
                     info = IdentityManager.GetIdentityInfoFromAD(identityName)
                     dataHandler.UpdateIdentityInfo(identityName, info["uid"], info["gid"], info["groups"])
                     identityId = info["uid"]
-                return dataHandler.UpdateAce(identityName, identityId, resourceAclPath, permissions, isDeny)
+            return dataHandler.UpdateAce(identityName, identityId, resourceAclPath, permissions, isDeny)
 
         except Exception as e:
             logger.error('Exception: '+ str(e))
@@ -182,12 +183,13 @@ class IdentityManager:
         winBindConfigured = False
 
         if "WinbindServers" in config:
-            if not config["WinbindServers"]:
+            if not config["WinbindServers"] and len(config["WinbindServers"]) > 0:
                 if not config["WinbindServers"][0]:
                     try:
                         winBindConfigured = True
+                        logger.info('Getting Identity Info From AD...')
                         # winbind (depending on configs) handles nested groups for userIds
-                        response = requests.get(config["WinbindServers"][0].format(identityName))
+                        response = requests.get(config["WinbindServers"][0].format(identityName))                       
                         info = json.loads(response.text)
                         return info
                     except Exception as ex:

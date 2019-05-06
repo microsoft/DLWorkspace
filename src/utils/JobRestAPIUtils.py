@@ -19,6 +19,7 @@ import re
 from config import global_vars
 from MyLogger import MyLogger
 from authorization import ResourceType, Permission, AuthorizationManager, IdentityManager
+import authorization
 
 import copy
 
@@ -337,7 +338,7 @@ def GetClusterStatus():
 def AddUser(username,uid,gid,groups):
     ret = None   
     needToUpdateDB = False
-    
+
     if uid == 0:
         info = IdentityManager.GetIdentityInfoFromDB(username)
         if info["uid"] == authorization.INVALID_ID:
@@ -352,6 +353,7 @@ def AddUser(username,uid,gid,groups):
     if needToUpdateDB:
         dataHandler = DataHandler()
         ret =  dataHandler.UpdateIdentityInfo(username,uid,gid,groups)
+        ret = ret & dataHandler.UpdateAclIdentityId(username,uid) 
         dataHandler.Close()
     return ret
 
