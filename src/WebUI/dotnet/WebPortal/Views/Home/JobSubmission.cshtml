@@ -75,6 +75,8 @@
             };
             if ($scope.current.runningasroot != "0" && $scope.current.runningasroot != "1")
                 $scope.current.runningasroot = "0";
+            if (!$scope.current.preemptionAllowed)
+                $scope.current.preemptionAllowed = "False";
 
             tobool($scope.current, "is_interactive", false);
             if ($scope.current.mountpoints == null) {
@@ -528,6 +530,14 @@
                                 <md-option ng-value="{{g.Value}}" ng-repeat="g in joblist">{{ g.Text }}</md-option>
                             </md-select>
                         </md-input-container>
+
+                        <md-input-container flex="50">
+                            <label>Job Type</label>
+                            <md-select name="jobtrainingtype" ng-model="current.jobtrainingtype" required md-no-asterisk>
+                                <md-option value="RegularJob" selected>Regular Job</md-option>
+                                <md-option value="PSDistJob">Distributed Job</md-option>
+                            </md-select>
+                        </md-input-container>
                     </div>
 
 
@@ -539,10 +549,10 @@
                         </md-input-container>
 
                         <md-input-container flex="50">
-                            <label>Job Type</label>
-                            <md-select name="jobtrainingtype" ng-model="current.jobtrainingtype" required md-no-asterisk>
-                                <md-option value="RegularJob" selected>Regular Job</md-option>
-                                <md-option value="PSDistJob">Distributed Job</md-option>
+                            <label> Job Priority </label>
+                            <md-select name="jobtrainingtype" ng-model="current.preemptionAllowed" required md-no-asterisk>
+                                <md-option value="False" selected>Not Preempable Job</md-option>
+                                <md-option value="True">Preempable Job</md-option>
                             </md-select>
                         </md-input-container>
                     </div>

@@ -409,7 +409,6 @@ namespace WindowsAuth.Controllers
             //TODO:update below params
             jobObject["vcName"] = HttpContext.Session.GetString("Team");
             jobObject["gpuType"] = "any";
-            jobObject["preemptionAllowed"] = "False";
             ///////////////////////
 
             var runningasroot = jobObject["runningasroot"];
