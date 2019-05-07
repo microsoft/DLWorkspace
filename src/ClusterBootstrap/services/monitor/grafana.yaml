@@ -24,7 +24,7 @@ spec:
         image: openpai/grafana:dlws
         imagePullPolicy: Always
         ports:
-        - containerPort: 3000
+        - containerPort: {{cnf["grafana"]["port"]}}
           protocol: TCP
         volumeMounts:
         - mountPath: /grafana-configuration
@@ -40,11 +40,11 @@ spec:
             memory: "256Mi"
         env:
         - name : GRAFANA_URL
-          value: 'http://127.0.0.1:3000' # for script to install dashboard only
+          value: 'http://127.0.0.1:{{cnf["grafana"]["port"]}}' # for script to install dashboard only
         - name: GF_AUTH_ANONYMOUS_ENABLED
           value: "true"
         - name: GF_SERVER_HTTP_PORT
-          value: "3000"
+          value: '{{cnf["grafana"]["port"]}}'
           # The following env variables are required to make Grafana accessible via
           # the kubernetes api-server proxy. On production clusters, we recommend
           # removing these env variables, setup auth for grafana, and expose the grafana

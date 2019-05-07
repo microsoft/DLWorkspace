@@ -19,6 +19,11 @@ default_config_parameters = {
     "influxdb_rpc_port": "8088",
     "influxdb_data_path": "/var/lib/influxdb",
 
+    "prometheus": { "port": 9091 },
+    "job-exporter": { "port": 9102 },
+    "watchdog": { "port": 9101 },
+    "grafana": { "port": 3000 },
+
     "mysql_port": "3306",
     "mysql_username": "root",
     "mysql_data_path": "/var/lib/mysql",

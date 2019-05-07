@@ -15,7 +15,7 @@ spec:
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/path: "/metrics"
-        prometheus.io/port: "9102"
+        prometheus.io/port: "{{cnf['job-exporter']['port']}}"
       name: job-exporter
     spec:
       containers:
@@ -24,7 +24,7 @@ spec:
         livenessProbe: # in case job-exporter hangs
           httpGet:
             path: '/healthz'
-            port: 9102
+            port: {{cnf['job-exporter']['port']}}
           initialDelaySeconds: 30
           periodSeconds: 30
           timeoutSeconds: 10
@@ -32,7 +32,7 @@ spec:
         - "python"
         - "/job_exporter/main.py"
         - "--port"
-        - "9102"
+        - "{{cnf['job-exporter']['port']}}"
         - "--interval"
         - "30"
         - "--interface"
@@ -62,8 +62,8 @@ spec:
           name: driver-path
         name: job-exporter
         ports:
-        - containerPort: 9102
-          hostPort: 9102
+        - containerPort: {{cnf['job-exporter']['port']}}
+          hostPort: {{cnf['job-exporter']['port']}}
           name: main
       volumes:
         - name: docker-socket

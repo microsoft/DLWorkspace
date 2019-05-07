@@ -12,7 +12,7 @@ spec:
     metadata:
       annotations:
         prometheus.io/path: /metrics
-        prometheus.io/port: '9101'
+        prometheus.io/port: '{{cnf["watchdog"]["port"]}}'
         prometheus.io/scrape: 'true'
       labels:
         app: watchdog
@@ -28,7 +28,7 @@ spec:
         - --interval
         - '30'
         - --port
-        - '9101'
+        - '{{cnf["watchdog"]["port"]}}'
         - --ca
         - /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
         - --bearer
@@ -43,7 +43,7 @@ spec:
         readinessProbe:
           httpGet:
             path: /healthz
-            port: 9101
+            port: {{cnf["watchdog"]["port"]}}
           initialDelaySeconds: 3
           periodSeconds: 30
           timeoutSeconds: 10

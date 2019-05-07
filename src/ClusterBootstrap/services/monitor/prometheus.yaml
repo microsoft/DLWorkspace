@@ -63,12 +63,13 @@ spec:
             memory: "256Mi"
         args:
           - '--config.file=/etc/prometheus/prometheus.yml'
-          - '--web.listen-address=0.0.0.0:9091'
+          - '--web.listen-address=0.0.0.0:{{cnf["prometheus"]["port"]}}'
+          - '--web.external-url=http://localhost:{{cnf["prometheus"]["port"]}}/prometheus/'
           - '--web.route-prefix=prometheus'
           - '--storage.tsdb.retention=31d'
         ports:
         - name: web
-          containerPort: 9091
+          containerPort: {{cnf["prometheus"]["port"]}}
         volumeMounts:
         - name: config-volume
           mountPath: /etc/prometheus
@@ -83,17 +84,3 @@ spec:
         operator: "Exists"
       - key: node-role.kubernetes.io/master
         effect: NoSchedule
----
-kind: Service
-apiVersion: v1
-metadata:
-  name: prometheus
-  namespace: kube-system
-spec:
-  selector:
-    app: prometheus
-  ports:
-    - protocol: TCP
-      port: 9091
-      targetPort: 9091
-  clusterIP: None
