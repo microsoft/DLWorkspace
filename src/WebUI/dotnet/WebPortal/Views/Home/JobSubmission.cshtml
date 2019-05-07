@@ -1,4 +1,6 @@
-﻿@{
+﻿@using Microsoft.AspNetCore.Http;
+
+@{
     ViewData["Title"] = "Submit Your Job";
 }
 
@@ -8,8 +10,6 @@
     a:link {
         color: #1F45FC
     }
-
-
 </style>
 
 
@@ -77,6 +77,8 @@
                 $scope.current.runningasroot = "0";
             if (!$scope.current.preemptionAllowed)
                 $scope.current.preemptionAllowed = "False";
+            if (!$scope.current.gpuType && $scope.gpus)
+                $scope.current.gpuType = Object.keys($scope.gpus)[0];
 
             tobool($scope.current, "is_interactive", false);
             if ($scope.current.mountpoints == null) {
@@ -211,7 +213,7 @@
                     var username = $scope.joblist[i].Username;
                     if ($scope.joblist[i].Database.trim() == "Master")
                         $scope.joblist[i].Text = name + "(master)";
-                    else 
+                    else
                         $scope.joblist[i].Text = name + "(" + username.trim().split('@@')[0] + ")";
                 }
 
@@ -221,6 +223,17 @@
             $scope.loadTemplate();
             //$log.log($scope.joblist);
         });
+        
+        $http.get("/api/dlws/GetVCs").then(function (response) {
+            var currentTeam = @Html.Raw(Json.Serialize(@Context.Session.GetString("Team")));
+            var teams = response.data.result;
+            if (!Array.isArray(teams)) return;
+            var team = teams.filter(function (team) { return team.vcName === currentTeam })[0];
+            if (!team) return;
+
+            $scope.gpus = JSON.parse(team.quota);
+            $scope.current.gpuType = Object.keys($scope.gpus)[0];
+        })
 
         $scope.loadTemplate = function () {
             $scope.curtemplate = $scope.joblist[$scope.curtemplateValue];
@@ -523,6 +536,21 @@
 
 
                 <div class="modal-body">
+                    <div layout="row">
+                        <md-input-container flex="50">
+                            <label> Cluster </label>
+                            <input required md-no-asterisk>
+                        </md-input-container>
+
+                        <md-input-container flex="50">
+                            <label> GPU type </label>
+                            <md-select name="jobtrainingtype" ng-model="current.gpuType" required md-no-asterisk>
+                                <md-option ng-value="name" ng-repeat="(name, count) in gpus">{{ name }} ({{ count }})</md-option>
+                            </md-select>
+                        </md-input-container>
+                    </div>
+
+
                     <div layout="row">
                         <md-input-container flex="50">
                             <label>Job template</label>

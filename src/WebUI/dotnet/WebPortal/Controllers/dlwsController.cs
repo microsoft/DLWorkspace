@@ -405,11 +405,7 @@ namespace WindowsAuth.Controllers
             jobObject["userName"] = HttpContext.Session.GetString("Email");
             jobObject["userId"] = uid;
             jobObject["jobType"] = "training";
-
-            //TODO:update below params
             jobObject["vcName"] = HttpContext.Session.GetString("Team");
-            jobObject["gpuType"] = "any";
-            ///////////////////////
 
             var runningasroot = jobObject["runningasroot"];
             if (!(Object.ReferenceEquals(runningasroot, null)) && (runningasroot.ToString() == "1") || (runningasroot.ToString() == true.ToString()))
