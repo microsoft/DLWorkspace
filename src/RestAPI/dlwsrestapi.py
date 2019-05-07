@@ -18,6 +18,7 @@ import JobRestAPIUtils
 from authorization import ResourceType, Permission, AuthorizationManager
 from config import config
 from config import global_vars
+import authorization
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 with open(os.path.join(dir_path, 'logging.yaml'), 'r') as f:
@@ -605,12 +606,12 @@ class AddUser(Resource):
         ret = {}
         userName = args["userName"]
         if args["uid"] is None or len(args["uid"].strip()) == 0:
-            uid = 0
+            uid = authorization.INVALID_ID
         else:
             uid = args["uid"]
 
         if args["gid"] is None or len(args["gid"].strip()) == 0:
-            gid = 0
+            gid = authorization.INVALID_ID
         else:
             gid = args["gid"]
 

@@ -339,7 +339,7 @@ def AddUser(username,uid,gid,groups):
     ret = None   
     needToUpdateDB = False
 
-    if uid == 0:
+    if uid == authorization.INVALID_ID:
         info = IdentityManager.GetIdentityInfoFromDB(username)
         if info["uid"] == authorization.INVALID_ID:
             needToUpdateDB = True
