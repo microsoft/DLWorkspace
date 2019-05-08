@@ -753,7 +753,6 @@ namespace WindowsAuth.Controllers
                 if (HttpContext.Session.GetString("isAuthorized") == "true")
                 {
                     ViewData["isAuthorized"] = true;
-                    _logger.LogInformation("Try to render SelectCluster");
                     var info = HttpContext.Session.GetString("CurrentClusters");
                     ViewData["CurrentCluster"] = info;
                     vm.CurrentCluster = info;
@@ -810,44 +809,6 @@ namespace WindowsAuth.Controllers
                 }
             }
             return View(vm);
-        }
-
-        public IActionResult SelectCluster()
-        {
-            var vm = new ClusterSelectViewModel();
-            _logger.LogInformation("Try to render SelectCluster");
-            var info = HttpContext.Session.GetString("CurrentClusters");
-            vm.CurrentCluster = HttpContext.Session.GetString("ClustersList");
-            var lstClusters = (String.IsNullOrEmpty(info) ? new List<string>() : JsonConvert.DeserializeObject<List<string>>(info));
-            vm.ClustersList = new List<SelectListItem>();
-            for (int i = 0; i < lstClusters.Count(); i++)
-            {
-                vm.ClustersList.Add(new SelectListItem
-                {
-                    Value = (i + 1).ToString(),
-                    Text = lstClusters[i]
-                });
-                _logger.LogInformation("Cluster Option {0} is {1}", i + 1, lstClusters[i]);
-            };
-            return View(vm);
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> SelectCluster(ClusterSelectViewModel model )
-        {
-            if ( ModelState.IsValid)
-            {
-                var clusterInfo = HttpContext.Session.GetString("AuthorizedClusters");
-                var authorizedClusters = JsonConvert.DeserializeObject<Dictionary<string, UserEntry>>(clusterInfo);
-                var useCluster = model.CurrentCluster;
-                if (authorizedClusters.ContainsKey(useCluster))
-                {
-                    HttpContext.Session.SetString("CurrentClusters", useCluster);
-                    await AddUser(authorizedClusters[useCluster], useCluster);
-                }
-            }
-            return RedirectToAction("Index", "Home");
         }
 
         public IActionResult JobSubmission()
