@@ -96,9 +96,12 @@
                 if (data == null) return;
                 if (!$.isArray(data.result)) return;
 
-                var $teams = $.map(data.result, function (element) {
+                var teams = data.result;
+                var $teams = $.map(teams, function (element) {
                     var name = element.vcName;
                     if (!name) return;
+                    // Hide FreeTier when other VCs exists
+                    if (name === 'FreeTier' && teams.length > 1) return;
 
                     // <li><a href="/?team=Team%20Name">Team Name</a></li>
                     return $('<li>').append($('<a>', { href: '/?team=' + encodeURIComponent(name), text: name }));

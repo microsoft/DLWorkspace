@@ -726,19 +726,21 @@ namespace WindowsAuth.Controllers
                         UserUnauthorized();
                         _logger.LogInformation("User {0} is not authorized for any cluster ... ", email);
                     }
-
-                    // Set Teams
-                    var teams = await GetTeams();
-                    if (teams.Length == 0)
-                    {
-                        // Mark user as unauthorized.
-                        UserUnauthorized();
-                        _logger.LogInformation("User {0} is not authorized for any virtual cluster ... ", email);
-                    }
                     else
                     {
-                        HttpContext.Session.SetString("Teams", JsonConvert.SerializeObject(teams));
-                        HttpContext.Session.SetString("Team", teams[0]);
+                        // Set Teams
+                        var teams = await GetTeams();
+                        if (teams.Length == 0)
+                        {
+                            // Mark user as unauthorized.
+                            UserUnauthorized();
+                            _logger.LogInformation("User {0} is not authorized for any virtual cluster ... ", email);
+                        }
+                        else
+                        {
+                            HttpContext.Session.SetString("Teams", JsonConvert.SerializeObject(teams));
+                            HttpContext.Session.SetString("Team", teams[0]);
+                        }
                     }
                 }
             }

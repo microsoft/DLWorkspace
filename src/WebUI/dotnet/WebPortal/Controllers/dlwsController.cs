@@ -405,12 +405,7 @@ namespace WindowsAuth.Controllers
             jobObject["userName"] = HttpContext.Session.GetString("Email");
             jobObject["userId"] = uid;
             jobObject["jobType"] = "training";
-
-            //TODO:update below params
-            jobObject["vcName"] = "vc1"; 
-            jobObject["gpuType"] = "any";
-            jobObject["preemptionAllowed"] = "False";
-            ///////////////////////
+            jobObject["vcName"] = HttpContext.Session.GetString("Team");
 
             var runningasroot = jobObject["runningasroot"];
             if (!(Object.ReferenceEquals(runningasroot, null)) && (runningasroot.ToString() == "1") || (runningasroot.ToString() == true.ToString()))
@@ -441,8 +436,7 @@ namespace WindowsAuth.Controllers
             using (var httpClient = new HttpClient())
             {
                 httpClient.BaseAddress = new Uri(restapi);
-                var response = await httpClient.PostAsync(
-                    "/PostJob?vcName=" + HttpContext.Session.GetString("Team"),
+                var response = await httpClient.PostAsync("/PostJob",
                     new StringContent(jobObject.ToString(), System.Text.Encoding.UTF8, "application/json"));
                 var returnInfo = await response.Content.ReadAsStringAsync();
                 return returnInfo;
