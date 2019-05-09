@@ -25,12 +25,12 @@ class SQLConnManager:
     @staticmethod
     def Connect():
         server = config["database"]["hostname"] 
-        self.database = "DLWSCluster-%s" % config["clusterId"]
+        database = "DLWSCluster-%s" % config["clusterId"]
         username = config["database"]["username"]
         password = config["database"]["password"]
         # self.driver = '/usr/lib/x86_64-linux-gnu/libodbc.so'
         driver = '{ODBC Driver 13 for SQL Server}'
-        connstr = 'DRIVER='+driver+';PORT=1433;SERVER='+server+';PORT=1433;DATABASE='+self.database+';UID='+username+';PWD='+password
+        connstr = 'DRIVER='+driver+';PORT=1433;SERVER='+server+';PORT=1433;DATABASE='+database+';UID='+username+';PWD='+password
         #print "Try to connect with string: " + connstr
         conn = pyodbc.connect(connstr)
         return conn
@@ -173,11 +173,12 @@ class DataHandler:
             server = config["database"]["hostname"] 
             username = config["database"]["username"]
             password = config["database"]["password"]
+            database = "DLWSCluster-%s" % config["clusterId"]
 
             driver = '{ODBC Driver 13 for SQL Server}'
             connstr = 'DRIVER='+driver+';PORT=1433;SERVER='+server+';PORT=1433;UID='+username+';PWD='+password
             conn = pyodbc.connect(connstr,autocommit=True)
-            sql = "if not exists (SELECT name FROM dbo.sysdatabases WHERE name = '%s') CREATE DATABASE [%s];" % (self.database, self.database)
+            sql = "if not exists (SELECT name FROM dbo.sysdatabases WHERE name = '%s') CREATE DATABASE [%s];" % (database, database)
             cursor = conn.cursor()
             cursor.execute(sql)
             cursor.close()
