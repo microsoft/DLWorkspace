@@ -723,6 +723,28 @@ class DataHandler:
             logger.exception("Query endpoints failed!")
             return {}
 
+    def UpdateEndpoint(self, endpoint):
+        try:
+            start_time = timeit.default_timer()
+            job_id = endpoint["jobId"]
+            job = self.GetJob(jobId=job_id)[0]
+            job_endpoints = self.load_json(job["endpoints"])
+
+            # update jobEndpoints
+            job_endpoints[endpoint["id"]] = endpoint
+
+            sql = "UPDATE jobs SET endpoints=%s where jobId=%s"
+            cursor = self.conn.cursor()
+            cursor.execute(sql, (json.dumps(job_endpoints), job_id))
+            self.conn.commit()
+            cursor.close()
+            elapsed = timeit.default_timer() - start_time
+            logger.info("DataHandler: update endpoints to database, endpointId: %s , time elapsed %f s" % (endpoint["id"], elapsed))
+            return True
+        except Exception as e:
+            logger.exception("Update endpoints failed!")
+            return False
+
     def GetPendingJobs(self):
         start_time = timeit.default_timer()
         cursor = self.conn.cursor()
