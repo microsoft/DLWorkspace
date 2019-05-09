@@ -18,6 +18,7 @@ import JobRestAPIUtils
 from authorization import ResourceType, Permission, AuthorizationManager
 from config import config
 from config import global_vars
+import authorization
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 with open(os.path.join(dir_path, 'logging.yaml'), 'r') as f:
@@ -613,12 +614,29 @@ api.add_resource(AddCommand, '/AddCommand')
 class AddUser(Resource):
     def get(self):
         parser.add_argument('userName')
-        parser.add_argument('userId')
+        parser.add_argument('uid')
+        parser.add_argument('gid')
+        parser.add_argument('groups')
         args = parser.parse_args()
-        username = args["userName"]
-        userId = args["userId"]
+
         ret = {}
-        ret["status"] = JobRestAPIUtils.AddUser(username,userId)
+        userName = args["userName"]
+        if args["uid"] is None or len(args["uid"].strip()) == 0:
+            uid = authorization.INVALID_ID
+        else:
+            uid = args["uid"]
+
+        if args["gid"] is None or len(args["gid"].strip()) == 0:
+            gid = authorization.INVALID_ID
+        else:
+            gid = args["gid"]
+
+        if args["groups"] is None or len(args["groups"].strip()) == 0:
+            groups = []
+        else:
+            groups = args["groups"]
+               
+        ret["status"] = JobRestAPIUtils.AddUser(userName, uid, gid, groups)
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
