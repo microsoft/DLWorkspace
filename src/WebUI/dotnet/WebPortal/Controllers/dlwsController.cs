@@ -62,9 +62,9 @@ namespace WindowsAuth.Controllers
         [HttpGet("GetMountPoints")]
         public async Task<IActionResult> GetMountPoints()
         {
-            var currentCluster = HttpContext.Session.GetString("CurrentClusters");
+            var cluster = HttpContext.Request.Query["cluster"];
             var currentUsername = HttpContext.Session.GetString("Username");
-            if (String.IsNullOrEmpty(currentCluster) || !Startup.Clusters.ContainsKey(currentCluster) )
+            if (String.IsNullOrEmpty(cluster) || !Startup.Clusters.ContainsKey(cluster) )
             {
                 return Json(new { mountdescription = "{}", mountpoints = "{}", username= currentUsername,
                                 mounthomefolder = false,
@@ -72,7 +72,7 @@ namespace WindowsAuth.Controllers
             }
             else
             {
-                var curCluster = Startup.Clusters[currentCluster];
+                var curCluster = Startup.Clusters[cluster];
                 return Json(new { mountdescription = curCluster.MountDescription,
                                     mountpoints = curCluster.MountPoints,
                                     username = currentUsername,

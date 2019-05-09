@@ -171,27 +171,30 @@
             return mounts;
         };
 
+        $scope.clusters = @Html.Raw(@Context.Session.GetString("AuthorizedClusters"));
         $scope.checkCurrent();
         $scope.currentTemplateValue = 0;
         $scope.lastTemplateValue = -1;
         $scope.adancedOption = false;
 
-        $scope.ready = $http.get('/api/dlws/GetMountPoints').then(function (response) {
-            var mpstring = response.data.mountpoints;
-            var mpdescription = response.data.mountdescription;
-            $scope.mountpoints = $scope.$eval(mpstring);
-            $scope.mountdescription = $scope.$eval(mpdescription);
-            $scope.username = response.data.username;
-            $scope.mounthomefolder = response.data.mounthomefolder;
-            $scope.deploymounts = $scope.$eval(response.data.deploymounts);
-            $scope.mounts = parseMounts($scope.mountpoints, $scope.mountdescription, $scope.username, $scope.mounthomefolder, $scope.deploymounts);
-            $scope.showMounts = false;
-            $scope.showEnv = false;
-            $scope.manageTemplate = false;
-            $scope.setMounts();
-            $scope.checkCurrent();
-            //$log.log($scope.mountpoints);
-            //$log.log($scope.mountdescription);
+        $scope.$watch('current.cluster', function (cluster) {
+            $http.get('/api/dlws/GetMountPoints', { params: { cluster: cluster } }).then(function (response) {
+                var mpstring = response.data.mountpoints;
+                var mpdescription = response.data.mountdescription;
+                $scope.mountpoints = $scope.$eval(mpstring);
+                $scope.mountdescription = $scope.$eval(mpdescription);
+                $scope.username = response.data.username;
+                $scope.mounthomefolder = response.data.mounthomefolder;
+                $scope.deploymounts = $scope.$eval(response.data.deploymounts);
+                $scope.mounts = parseMounts($scope.mountpoints, $scope.mountdescription, $scope.username, $scope.mounthomefolder, $scope.deploymounts);
+                $scope.showMounts = false;
+                $scope.showEnv = false;
+                $scope.manageTemplate = false;
+                $scope.setMounts();
+                $scope.checkCurrent();
+                //$log.log($scope.mountpoints);
+                //$log.log($scope.mountdescription);
+            });
         });
 
         $http.get("/api/dlws/GetTemplates?type=job").then(function (response) {
@@ -539,7 +542,9 @@
                     <div layout="row">
                         <md-input-container flex="50">
                             <label> Cluster </label>
-                            <input required md-no-asterisk>
+                            <md-select name="jobtrainingtype" ng-model="current.cluster" required md-no-asterisk>
+                                <md-option ng-value="name" ng-repeat="(name, count) in clusters">{{ name }}</md-option>
+                            </md-select>
                         </md-input-container>
 
                         <md-input-container flex="50">
