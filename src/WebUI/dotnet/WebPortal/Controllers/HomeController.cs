@@ -745,33 +745,11 @@ namespace WindowsAuth.Controllers
                 }
             }
 
-
-            var vm = new ClusterSelectViewModel();
-
             if (HttpContext.Session.Keys.Contains("isAuthorized"))
             {
                 if (HttpContext.Session.GetString("isAuthorized") == "true")
                 {
                     ViewData["isAuthorized"] = true;
-                    var info = HttpContext.Session.GetString("CurrentClusters");
-                    ViewData["CurrentCluster"] = info;
-                    vm.CurrentCluster = info;
-                    var lstClustersInfo = HttpContext.Session.GetString("ClustersList");
-                    var lstClusters = (String.IsNullOrEmpty(info) ? new List<string>() : JsonConvert.DeserializeObject<List<string>>(lstClustersInfo));
-                    vm.ClustersList = new List<SelectListItem>();
-                    for (int i = 0; i < lstClusters.Count(); i++)
-                    {
-                        if ( !String.IsNullOrEmpty(lstClusters[i]))
-                        {
-                            vm.ClustersList.Add(new SelectListItem
-                            {
-                                Value = lstClusters[i], // (i + 1).ToString(),
-                                Text = lstClusters[i]
-                            });
-                            _logger.LogInformation("Cluster Option {0} is {1}", i + 1, lstClusters[i]);
-                        }
-                    };
-                    _logger.LogInformation("Authentication information examined...");
                 }
                 else
                 {
@@ -808,7 +786,7 @@ namespace WindowsAuth.Controllers
                     _logger.LogInformation("{0} switch team to {1}", HttpContext.Session.GetString("Username"), team);
                 }
             }
-            return View(vm);
+            return View();
         }
 
         public IActionResult JobSubmission()

@@ -131,10 +131,4 @@ namespace WindowsAuth.models
         public virtual DbSet<UserEntry> User { get; set; }
         public virtual DbSet<TemplateEntry> Template { get; set; }
     }
-
-    public class ClusterSelectViewModel
-    {
-        public string CurrentCluster { get; set; }
-        public List<SelectListItem> ClustersList { get; set; }
-    }
 }
