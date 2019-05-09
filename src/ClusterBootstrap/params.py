@@ -19,6 +19,11 @@ default_config_parameters = {
     "influxdb_rpc_port": "8088",
     "influxdb_data_path": "/var/lib/influxdb",
 
+    "prometheus": { "port": 9091 },
+    "job-exporter": { "port": 9102 },
+    "watchdog": { "port": 9101 },
+    "grafana": { "port": 3000 },
+
     "mysql_port": "3306",
     "mysql_username": "root",
     "mysql_data_path": "/var/lib/mysql",
@@ -198,7 +203,8 @@ default_config_parameters = {
         "jobmanager": "etcd_node_1",
         "FragmentGPUJob": "all",
         "grafana": "etcd_node_1",
-        "influxdb": "etcd_node_1",
+        "prometheus": "etcd_node_1",
+        "watchdog": "etcd_node_1",
         "elasticsearch": "etcd_node_1",
         "kibana": "etcd_node_1",
         "mysql": "etcd_node_1",
