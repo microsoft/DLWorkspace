@@ -38,7 +38,7 @@ if "initAdminAccess" not in global_vars or not global_vars["initAdminAccess"]:
     global_vars["initAdminAccess"] = True
     logger.info('setting admin access!')
     AuthorizationManager.UpdateAce("Administrator", AuthorizationManager.GetResourceAclPath("", ResourceType.Cluster), Permission.Admin, False)
-    logger.info('admin access given!')    
+    logger.info('admin access given!')
 
 
 parser = reqparse.RequestParser()
@@ -54,7 +54,7 @@ def istrue(value):
 def tolist(value):
     if isinstance( value, basestring):
         if len(value)>0:
-            return [value] 
+            return [value]
         else:
             return []
     else:
@@ -85,7 +85,7 @@ class SubmitJob(Resource):
         parser.add_argument('userId')
         parser.add_argument('runningasroot')
         parser.add_argument('containerUserId')
-        
+
         parser.add_argument('familyToken')
         parser.add_argument('isParent')
         parser.add_argument('jobType')
@@ -114,13 +114,13 @@ class SubmitJob(Resource):
         elif args["resourcegpu"] is None or len(args["resourcegpu"].strip()) == 0:
             ret["error"] = "Number of GPU cannot be empty"
         elif args["gpuType"] is None or len(args["gpuType"].strip()) == 0:
-            ret["error"] = "GPU Type cannot be empty"         
+            ret["error"] = "GPU Type cannot be empty"
         elif args["dataPath"] is None or len(args["dataPath"].strip()) == 0:
-            ret["error"] = "datapath cannot be empty"            
+            ret["error"] = "datapath cannot be empty"
         elif args["image"] is None or len(args["image"].strip()) == 0:
-            ret["error"] = "docker image cannot be empty"            
+            ret["error"] = "docker image cannot be empty"
         elif args["jobType"] is None or len(args["jobType"].strip()) == 0:
-            ret["error"] = "jobType cannot be empty"        
+            ret["error"] = "jobType cannot be empty"
         else:
             params["jobName"] = args["jobName"]
             params["vcName"] = args["vcName"]
@@ -151,7 +151,7 @@ class SubmitJob(Resource):
             if args["userId"] is not None and len(args["userId"].strip()) > 0:
                 params["userId"] = args["userId"]
             else:
-                # !! note: if userId is not provided, the container will be running as root. There shouldn't be any security concern since all the resources in docker container should be user's own property. Also, we plan to allow user to choose "run as root".   
+                # !! note: if userId is not provided, the container will be running as root. There shouldn't be any security concern since all the resources in docker container should be user's own property. Also, we plan to allow user to choose "run as root".
                 params["userId"] = "0"
 
             if args["nodeSelector"] is not None and len(args["nodeSelector"].strip()) > 0:
@@ -179,12 +179,12 @@ class SubmitJob(Resource):
             else:
                 params["isParent"] = "1"
             params["mountpoints"] = []
-            addcmd = ""        
+            addcmd = ""
             if "mounthomefolder" in config and istrue(config["mounthomefolder"]) and "storage-mount-path" in config:
                 alias = getAlias(params["userName"])
                 params["mountpoints"].append({"name":"homeholder","containerPath":os.path.join("/home", alias),"hostPath":os.path.join(config["storage-mount-path"], "work", alias)})
             if "mountpoints" in config and "storage-mount-path" in config:
-                # see link_fileshares in deploy.py 
+                # see link_fileshares in deploy.py
                 for k, v in config["mountpoints"].iteritems():
                     if "mountpoints" in v:
                         for basename in tolist(v["mountpoints"]):
@@ -205,7 +205,7 @@ class SubmitJob(Resource):
                                     if v["type"]=="emptyDir":
                                         params["mountpoints"].append({"name":basealias+"-"+oneshare,
                                                                         "containerPath": containerPath,
-                                                                        "hostPath": "/emptydir", 
+                                                                        "hostPath": "/emptydir",
                                                                         "emptydir": "yes" })
                                     else:
                                         params["mountpoints"].append({"name":basealias+"-"+oneshare,
@@ -217,7 +217,7 @@ class SubmitJob(Resource):
                                         if not os.path.exists(hostPath):
                                             cmd = "sudo mkdir -m 0777 -p %s; " % hostPath
                                             os.system( cmd )
-                                            logger.info( cmd )                        
+                                            logger.info( cmd )
                                             if oneshare==alias:
                                                 cmd = "sudo chown %s:%s %s; " % (params["containerUserId"], "500000513", hostPath )
                                                 os.system(cmd )
@@ -232,7 +232,7 @@ class SubmitJob(Resource):
             if len(addcmd) > 0:
                 params["cmd"] = addcmd + params["cmd"]
             output = JobRestAPIUtils.SubmitJob(json.dumps(params))
-            
+
             if "jobId" in output:
                 ret["jobId"] = output["jobId"]
             else:
@@ -243,7 +243,7 @@ class SubmitJob(Resource):
 
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"        
+        resp.headers["dataType"] = "json"
         return resp
 ##
 ## Actually setup the Api resource routing here
@@ -261,7 +261,7 @@ class PostJob(Resource):
         ret = {}
         if True:
             output = JobRestAPIUtils.SubmitJob(json.dumps(params))
-            
+
             if "jobId" in output:
                 ret["jobId"] = output["jobId"]
             else:
@@ -272,7 +272,7 @@ class PostJob(Resource):
             logger.info("Submit job through restapi, output is %s, ret is %s" %(output, ret) )
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"        
+        resp.headers["dataType"] = "json"
         return resp
 ##
 ## Actually setup the Api resource routing here
@@ -288,7 +288,7 @@ class ListJobs(Resource):
         parser.add_argument('num')
         parser.add_argument('vcName')
         parser.add_argument('jobOwner')
-        args = parser.parse_args()    
+        args = parser.parse_args()
         num = None
         if args["num"] is not None:
             try:
@@ -353,7 +353,7 @@ class KillJob(Resource):
     def get(self):
         parser.add_argument('jobId')
         parser.add_argument('userName')
-        args = parser.parse_args()    
+        args = parser.parse_args()
         jobId = args["jobId"]
         userName = args["userName"]
         result = JobRestAPIUtils.KillJob(userName, jobId)
@@ -379,7 +379,7 @@ class PauseJob(Resource):
     def get(self):
         parser.add_argument('jobId')
         parser.add_argument('userName')
-        args = parser.parse_args()    
+        args = parser.parse_args()
         jobId = args["jobId"]
         userName = args["userName"]
         result = JobRestAPIUtils.PauseJob(userName, jobId)
@@ -405,7 +405,7 @@ class ResumeJob(Resource):
     def get(self):
         parser.add_argument('jobId')
         parser.add_argument('userName')
-        args = parser.parse_args()    
+        args = parser.parse_args()
         jobId = args["jobId"]
         userName = args["userName"]
         result = JobRestAPIUtils.ResumeJob(userName, jobId)
@@ -431,7 +431,7 @@ class CloneJob(Resource):
     def get(self):
         parser.add_argument('jobId')
         parser.add_argument('userName')
-        args = parser.parse_args()    
+        args = parser.parse_args()
         jobId = args["jobId"]
         userName = args["userName"]
         result = JobRestAPIUtils.CloneJob(userName, jobId)
@@ -457,7 +457,7 @@ class ApproveJob(Resource):
     def get(self):
         parser.add_argument('jobId')
         parser.add_argument('userName')
-        args = parser.parse_args()    
+        args = parser.parse_args()
         jobId = args["jobId"]
         userName = args["userName"]
         result = JobRestAPIUtils.ApproveJob(userName, jobId)
@@ -483,10 +483,10 @@ class GetCommands(Resource):
     def get(self):
         parser.add_argument('jobId')
         parser.add_argument('userName')
-        args = parser.parse_args()    
+        args = parser.parse_args()
         jobId = args["jobId"]
         userName = args["userName"]
-        commands = JobRestAPIUtils.GetCommands(userName, jobId)        
+        commands = JobRestAPIUtils.GetCommands(userName, jobId)
         resp = jsonify(commands)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
@@ -503,16 +503,16 @@ class GetJobDetail(Resource):
     def get(self):
         parser.add_argument('jobId')
         parser.add_argument('userName')
-        args = parser.parse_args()    
+        args = parser.parse_args()
         jobId = args["jobId"]
         userName = args["userName"]
         job = JobRestAPIUtils.GetJobDetail(userName, jobId)
         job["jobParams"] = json.loads(base64.b64decode(job["jobParams"]))
         if "endpoints" in job and job["endpoints"] is not None and (job["endpoints"].strip()) > 0:
-            job["endpoints"] = json.loads(base64.b64decode(job["endpoints"]))    
+            job["endpoints"] = json.loads(base64.b64decode(job["endpoints"]))
         if "jobStatusDetail" in job and job["jobStatusDetail"] is not None  and (job["jobStatusDetail"].strip()) > 0:
             try:
-                job["jobStatusDetail"] = Json.loads(base64.b64decode(job["jobStatusDetail"]))    
+                job["jobStatusDetail"] = Json.loads(base64.b64decode(job["jobStatusDetail"]))
             except Exception as e:
                 pass
         if "jobMeta" in job:
@@ -548,7 +548,7 @@ api.add_resource(GetJobStatus, '/GetJobStatus')
 class GetClusterStatus(Resource):
     def get(self):
         parser.add_argument('userName')
-        args = parser.parse_args()    
+        args = parser.parse_args()
         userName = args["userName"]
         cluster_status, last_updated_time = JobRestAPIUtils.GetClusterStatus()
         cluster_status["last_updated_time"] = last_updated_time
@@ -567,7 +567,7 @@ class GetVCStatus(Resource): # Todo
     def get(self):
         parser.add_argument('vcName')
         parser.add_argument('userName')
-        args = parser.parse_args()    
+        args = parser.parse_args()
         vcName = args["vcName"]
         userName = args["userName"]
         vc_status, last_updated_time = JobRestAPIUtils.GetVCStatus(userName, vcName)
@@ -588,8 +588,8 @@ class AddCommand(Resource):
         parser.add_argument('jobId')
         parser.add_argument('command')
         parser.add_argument('userName')
-        args = parser.parse_args()    
-        userName = args["userName"]   
+        args = parser.parse_args()
+        userName = args["userName"]
         jobId = args["jobId"]
         command = args["command"]
         result = JobRestAPIUtils.AddCommand(userName, jobId, command)
@@ -635,7 +635,7 @@ class AddUser(Resource):
             groups = []
         else:
             groups = args["groups"]
-               
+
         ret["status"] = JobRestAPIUtils.AddUser(userName, uid, gid, groups)
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
@@ -741,7 +741,7 @@ class ListVCs(Resource):
         userName = args["userName"]
         ret = {}
         ret["result"] = JobRestAPIUtils.ListVCs(userName)
-      
+
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
@@ -926,6 +926,51 @@ class UpdateStorage(Resource):
 api.add_resource(UpdateStorage, '/UpdateStorage')
 
 
+class Endpoint(Resource):
+    def get(self):
+        '''return job["endpoints"]: curl -X GET /endpoints?jobId='''
+        parser.add_argument('jobId')
+        args = parser.parse_args()
+        jobId = args["jobId"]
+        job = JobRestAPIUtils.GetJobDetail(jobId)
+
+        resp = jsonify(json.loads(job["endpoints"]))
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+        return resp
+
+    def post(self):
+        '''set job["endpoints"]: curl -X POST -H "Content-Type: application/json" /endpoints --data "endpoints in json"'''
+        content = request.get_json(silent=True)
+
+        # check required fields
+        mandatory_fields = ["id", "jobId", "podId", "username", "name", "endpointDescriptionPath"]
+        for _, item in content.items():
+            for mandatory_field in mandatory_fields:
+                if mandatory_field not in item:
+                    return ("Bad request, field missing: %s" % mandatory_field), 400
+                if item[mandatory_field] is None or len(item[mandatory_field]) == 0:
+                    return ("Bad request, field empty: %s" % mandatory_field), 400
+
+                if "hostNetwork" not in item:
+                    item["hostNetwork"] = False
+                item["status"] = "pending"
+
+        jobId = content.values()[0]["jobId"]
+        job = JobRestAPIUtils.GetJobDetail(jobId)
+        JobRestAPIUtils.update_job(jobId, "endpoints", json.dumps(content))
+
+        resp = jsonify(content)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+        return resp
+
+
+##
+## Actually setup the Endpoint resource routing here
+##
+api.add_resource(Endpoint, '/endpoints')
+
 if __name__ == '__main__':
     app.run(debug=False,host="0.0.0.0",threaded=True)
-    
+
