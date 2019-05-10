@@ -178,8 +178,11 @@ namespace WindowsAuth.Controllers
 
             switch (op)
             {
+                case "GetVCs":
+                    url = restapi + "/ListVCs?userName=" + HttpContext.Session.GetString("Email");
+                    break;
                 case "ListJobs":
-                    url = restapi + "/ListJobs?userName=" + HttpContext.Session.GetString("Email");
+                    url = restapi + "/ListJobs?vcName="+HttpContext.Session.GetString("Team")+"&jobOwner="+HttpContext.Session.GetString("Email") + "&userName=" + HttpContext.Session.GetString("Email");
                     if (HttpContext.Request.Query.ContainsKey("num"))
                     {
                         url += "&num=" + HttpContext.Request.Query["num"];
@@ -188,7 +191,7 @@ namespace WindowsAuth.Controllers
                 case "ListAllJobs":
                     if (HttpContext.Session.GetString("isAdmin").Equals("true"))
                     {
-                        url = restapi + "/ListJobs?userName=all";
+                        url = restapi + "/ListJobs?vcName=" + HttpContext.Session.GetString("Team") + "&jobOwner=all&userName=" + HttpContext.Session.GetString("Email");
                     }
                     break;
                 case "KillJob":
@@ -206,7 +209,13 @@ namespace WindowsAuth.Controllers
                 case "JobDetail":
                     if (HttpContext.Request.Query.ContainsKey("jobId"))
                     {
-                        url = restapi + "/GetJobDetail?jobId=" + HttpContext.Request.Query["jobId"];
+                        url = restapi + "/GetJobDetail?jobId=" + HttpContext.Request.Query["jobId"] + "&userName=" + HttpContext.Session.GetString("Email");
+                    }
+                    break;
+                case "JobStatus":
+                    if (HttpContext.Request.Query.ContainsKey("jobId"))
+                    {
+                        url = restapi + "/GetJobStatus?jobId=" + HttpContext.Request.Query["jobId"];
                     }
                     break;
                 case "SubmitJob":
@@ -222,6 +231,7 @@ namespace WindowsAuth.Controllers
                     }
                     url += "userName=" + HttpContext.Session.GetString("Email") + "&";
                     url += "userId=" + HttpContext.Session.GetString("uid") + "&";
+                    url += "vcName=" + HttpContext.Session.GetString("Team") + "&";
                     if (HttpContext.Request.Query.ContainsKey("runningasroot") &&
                         HttpContext.Request.Query["runningasroot"] == "1")
                     {
@@ -264,13 +274,14 @@ namespace WindowsAuth.Controllers
                 case "RunCommand":
                     if (HttpContext.Request.Query.ContainsKey("jobId") && HttpContext.Request.Query.ContainsKey("command"))
                     {
-                        url = restapi + "/AddCommand?jobId=" + HttpContext.Request.Query["jobId"] + "&command=" + HttpContext.Request.Query["command"];
+                        url = restapi + "/AddCommand?jobId=" + HttpContext.Request.Query["jobId"] + "&command=" + HttpContext.Request.Query["command"]
+                             + "&userName=" + HttpContext.Session.GetString("Email");
                     }
                     break;
                 case "GetCommands":
                     if (HttpContext.Request.Query.ContainsKey("jobId"))
                     {
-                        url = restapi + "/GetCommands?jobId=" + HttpContext.Request.Query["jobId"];
+                        url = restapi + "/GetCommands?jobId=" + HttpContext.Request.Query["jobId"] + "&userName=" + HttpContext.Session.GetString("Email");
                     }
                     break;
             }
@@ -394,6 +405,8 @@ namespace WindowsAuth.Controllers
             jobObject["userName"] = HttpContext.Session.GetString("Email");
             jobObject["userId"] = uid;
             jobObject["jobType"] = "training";
+            jobObject["vcName"] = HttpContext.Session.GetString("Team");
+
             var runningasroot = jobObject["runningasroot"];
             if (!(Object.ReferenceEquals(runningasroot, null)) && (runningasroot.ToString() == "1") || (runningasroot.ToString() == true.ToString()))
             {
@@ -423,7 +436,8 @@ namespace WindowsAuth.Controllers
             using (var httpClient = new HttpClient())
             {
                 httpClient.BaseAddress = new Uri(restapi);
-                var response = await httpClient.PostAsync("/PostJob", new StringContent(jobObject.ToString(), System.Text.Encoding.UTF8, "application/json"));
+                var response = await httpClient.PostAsync("/PostJob",
+                    new StringContent(jobObject.ToString(), System.Text.Encoding.UTF8, "application/json"));
                 var returnInfo = await response.Content.ReadAsStringAsync();
                 return returnInfo;
             }

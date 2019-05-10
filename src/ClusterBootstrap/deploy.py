@@ -17,6 +17,7 @@ import random
 import glob
 import copy
 import numbers
+import requests
 
 from os.path import expanduser
 
@@ -2771,6 +2772,17 @@ def kubernetes_label_nodes( verb, servicelists, force ):
             elif verb == "remove":
                 kubernetes_label_node(cmdoptions, nodename, label+"-")
 
+
+# Label kubernete nodes with gpu types. 
+def kubernetes_label_GpuTypes():
+    nodes = get_nodes(config["clusterId"])
+    gpuType_config = fetch_config(config, ["gpuType_config"])
+    for gpuType, nodes in gpuType_config:
+        for node in nodes:
+            nodename = kubernetes_get_node_name(node)
+            kubernetes_label_node("--overwrite", nodename, "gpuType="+gpuType)
+
+
 def kubernetes_patch_nodes_provider (provider, scaledOnly):
     nodes = []
     if scaledOnly:
@@ -3110,6 +3122,84 @@ def run_command( args, command, nargs, parser ):
             print "Error: scan need one parameter with format x.x.x.x/n. "
             exit()
 
+    elif command == "admin":      
+        if len(nargs) >= 1:
+            if nargs[0] == "vc":
+                if len(nargs) >= 2:
+                    if nargs[1] == "add":
+                        url = "http://%s:%s/AddVC?vcName=%s&quota=%s&metadata=%s&userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2], nargs[3], nargs[4])
+                        response = requests.get(url)
+                        print(response)
+                    elif nargs[1] == "update":
+                        url = "http://%s:%s/UpdateVC?vcName=%s&quota=%s&metadata=%s&userName=Administrator" \
+                            %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2], nargs[3], nargs[4])
+                        response = requests.get(url)
+                        print(response)
+                    elif nargs[1] == "delete":
+                        url = "http://%s:%s/DeleteVC?vcName=%s&userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2])
+                        response = requests.get(url)
+                        print(response)
+                    elif nargs[1] == "list":
+                        url = "http://%s:%s/ListVCs?userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"])
+                        response = requests.get(url)
+                        print(response.text)
+            elif nargs[0] == "storage":
+                if len(nargs) >= 2:
+                    if nargs[1] == "add":
+                        url = "http://%s:%s/AddStorage?vcName=%s&url=%s&storageType=%s&metadata=%s&defaultMountPath=%s&userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2], nargs[3], nargs[4], nargs[5], nargs[6])
+                        response = requests.get(url)
+                        print(response)
+                    elif nargs[1] == "update":
+                        url = "http://%s:%s/UpdateStorage?vcName=%s&url=%s&storageType=%s&metadata=%s&defaultMountPath=%s&userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2], nargs[3], nargs[4], nargs[5], nargs[6])
+                        response = requests.get(url)
+                        print(response)
+                    elif nargs[1] == "delete":
+                        url = "http://%s:%s/DeleteStorage?vcName=%s&url=%s&userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2], nargs[3])
+                        response = requests.get(url)
+                        print(response)
+                    elif nargs[1] == "list":
+                        url = "http://%s:%s/ListStorages?vcName=%s&userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2])
+                        response = requests.get(url)
+                        print(response.text)
+            elif nargs[0] == "acl":
+                if len(nargs) >= 2:
+                    if nargs[1] == "update":
+                        url = "http://%s:%s/UpdateAce?identityName=%s&resourceType=%s&resourceName=%s&permissions=%s&userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2], nargs[3], nargs[4], nargs[5])
+                        response = requests.get(url)
+                        print(response)
+                    elif nargs[1] == "list":
+                        url = "http://%s:%s/GetACL?userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"])
+                        response = requests.get(url)
+                        print(response.text)
+            elif nargs[0] == "job":
+                if len(nargs) >= 2:
+                    if nargs[1] == "add":
+                        url = "http://%s:%s/SubmitJob?jobName=%s&vcName=%s&resourcegpu=%s&gpuType=%s&dataPath=%s&workPath=%s&image=%s&jobType=%s&preemptionAllowed=%s&userName=Administrator" \
+                            %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2], nargs[3], nargs[4], nargs[5], nargs[6], nargs[7], nargs[8], nargs[9], nargs[10])
+                        response = requests.get(url)
+                        print(response.text)
+                    elif nargs[1] == "delete":
+                        url = "http://%s:%s/KillJob?jobId=%s&userName=Administrator" \
+                            %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2])
+                        response = requests.get(url)
+                        print(response.text)
+                    elif nargs[1] == "list":
+                        url = "http://%s:%s/ListJobs?vcName=%s&jobOwner=%s&num=%s&userName=Administrator" \
+                            %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2], nargs[3], nargs[4])
+                        response = requests.get(url)
+                        print(response.text) 
+            elif nargs[0] == "user":
+                if len(nargs) >= 2:
+                    if nargs[1] == "add":
+                        if len(nargs) <= 3:
+                            url = "http://%s:%s/AddUser?userName=%s" %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2])
+                            response = requests.get(url)
+                            print(response)
+                        else:
+                            url = "http://%s:%s/AddUser?userName=%s&uid=%s&gid=%s&groups=%s" %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2], nargs[3], nargs[4], nargs[5])
+                            response = requests.get(url)
+                            print(response)
+              
 
     elif command == "updateworker":
         response = raw_input_with_default("Deploy Worker Nodes (y/n)?")
@@ -3491,6 +3581,8 @@ def run_command( args, command, nargs, parser ):
                 kubernetes_mark_nodes( nargs[1:], False)
             elif nargs[0] == "cordon" or nargs[0] == "uncordon":
                 run_kube_command_on_nodes(nargs)
+            elif nargs[0] == "labelvc":
+                kubernetes_label_vc(True)                
             else:
                 parser.print_help()
                 print "Error: Unknown kubernetes subcommand " + nargs[0]

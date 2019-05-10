@@ -630,6 +630,25 @@ namespace WindowsAuth.Controllers
             return 0;
         }*/
 
+        private async Task<string[]> GetTeams()
+        {
+            var teams = new List<string>();
+            var restapi = HttpContext.Session.GetString("Restapi");
+            var url = restapi + "/ListVCs?userName=" + HttpContext.Session.GetString("Email");
+            using (var httpClient = new HttpClient())
+            {
+                var response = await httpClient.GetAsync(url);
+                var content = await response.Content.ReadAsStringAsync();
+                var jContent = JObject.Parse(content);
+                var jResult = jContent["result"] as JArray;
+                foreach (var jVC in jResult)
+                {
+                    teams.Add(jVC["vcName"].Value<string>());
+                }
+            }
+            return teams.ToArray();
+        }
+
 #region ASP Controllers
         public async Task<IActionResult> Index()
         {
@@ -707,6 +726,22 @@ namespace WindowsAuth.Controllers
                         UserUnauthorized();
                         _logger.LogInformation("User {0} is not authorized for any cluster ... ", email);
                     }
+                    else
+                    {
+                        // Set Teams
+                        var teams = await GetTeams();
+                        if (teams.Length == 0)
+                        {
+                            // Mark user as unauthorized.
+                            UserUnauthorized();
+                            _logger.LogInformation("User {0} is not authorized for any virtual cluster ... ", email);
+                        }
+                        else
+                        {
+                            HttpContext.Session.SetString("Teams", JsonConvert.SerializeObject(teams));
+                            HttpContext.Session.SetString("Team", teams[0]);
+                        }
+                    }
                 }
             }
 
@@ -762,6 +797,17 @@ namespace WindowsAuth.Controllers
                 var configArray = ASCIIEncoding.ASCII.GetBytes(configString);
                 ViewData["Dashboard"] = Convert.ToBase64String(configArray) ;
                 _logger.LogInformation("Dash board prepared ...");
+            }
+
+            if (HttpContext.Request.Query.ContainsKey("team"))
+            {
+                var team = HttpContext.Request.Query["Team"];
+                var teams = JsonConvert.DeserializeObject<string[]>(HttpContext.Session.GetString("Teams"));
+                if (Array.Exists(teams, t => t.Equals(team)))
+                {
+                    HttpContext.Session.SetString("Team", team);
+                    _logger.LogInformation("{0} switch team to {1}", HttpContext.Session.GetString("Username"), team);
+                }
             }
             return View(vm);
         }
@@ -830,7 +876,38 @@ namespace WindowsAuth.Controllers
             ViewData["mode"] = (HttpContext.Request.Query.ContainsKey("Mode") && HttpContext.Request.Query["Mode"] == "templates") ? "Templates" : "JobSubmission";
 
             ViewData["isAdmin"] = HttpContext.Session.GetString("isAdmin");
-            ViewData["cluster"] =  HttpContext.Session.GetString("CurrentClusters");
+            ViewData["cluster"] = HttpContext.Session.GetString("CurrentClusters");
+            AddViewData(message: "Your application description page.");
+            return View();
+        }
+
+        public IActionResult DataJob()
+        {
+            if (!User.Identity.IsAuthenticated)
+            {
+                return RedirectToAction("Index", "Home");
+            }
+
+            if (!HttpContext.Session.Keys.Contains("isAuthorized") || HttpContext.Session.GetString("isAuthorized") != "true")
+            {
+                return RedirectToAction("Index", "Home");
+            }
+
+            string workFolderAccessPoint = HttpContext.Session.GetString("WorkFolderAccessPoint");
+            string dataFolderAccessPoint = HttpContext.Session.GetString("DataFolderAccessPoint");
+
+            ViewData["workPath"] = workFolderAccessPoint + HttpContext.Session.GetString("Username") + "/";
+            ViewData["dataPath"] = dataFolderAccessPoint;
+
+            ViewData["uid"] = HttpContext.Session.GetString("uid");
+            ViewData["gid"] = HttpContext.Session.GetString("gid");
+
+            ViewData["username"] = HttpContext.Session.GetString("Username");
+
+            ViewData["mode"] = (HttpContext.Request.Query.ContainsKey("Mode") && HttpContext.Request.Query["Mode"] == "templates") ? "Templates" : "JobSubmission";
+
+            ViewData["isAdmin"] = HttpContext.Session.GetString("isAdmin");
+            ViewData["cluster"] = HttpContext.Session.GetString("CurrentClusters");
             AddViewData(message: "Your application description page.");
             return View();
         }

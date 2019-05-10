@@ -8,6 +8,9 @@ metadata:
      jobName: {{ job["jobNameLabel"] }}
      jobId: {{job["jobId"]}}
      userName: {{ job["userNameLabel"] }}
+     vcName: {{ job["vcName"] }}
+     gpuType: {{ job["gpuType"] }}
+     preemptionAllowed: {{ job["preemptionAllowed"] }}
   {% if "annotations" in job %}
   annotations:
     {% for annotationKey,annotationVal in job["annotations"].items() %}
@@ -15,8 +18,14 @@ metadata:
     {% endfor %}
   {% endif %}
 spec:
-  {% if job["resourcegpu"]|int < 8  %}
   nodeSelector:
+    worker: active
+  {% if job["nodeSelector"]|length > 0 %}
+  {% for key, value in job["nodeSelector"].items() %}
+    {{key}}: {{value}}
+  {% endfor %}
+  {% endif %}    
+  {% if job["resourcegpu"]|int < 8  %}
     FragmentGPUJob: active
   {% endif %}
   {% if job["dnsPolicy"] %}
@@ -72,6 +81,8 @@ spec:
     - mountPath: /freeflow
       name: freeflow
     {% endif %}
+    - mountPath: /dev/shm
+      name: dshm    
     env:
     - name: FAMILY_TOKEN
       value: {{ job["familyToken"] }}
@@ -133,3 +144,6 @@ spec:
     hostPath:
       path: /freeflow
   {% endif %}
+  - name: dshm
+    emptyDir:
+      medium: Memory  
