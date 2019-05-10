@@ -1,12 +1,13 @@
-﻿@{
+﻿@using Microsoft.AspNetCore.Http;
+@{
     ViewData["Title"] = "View Jobs";
 }
 
 
 <script type="text/javascript">
-    function KillJob(jobId) {
+    function KillJob(cluster, jobId) {
         $.ajax({
-            url: "/api/dlws/KillJob?jobId=" + jobId,
+            url: "/api/dlws/KillJob?cluster=" + cluster + "&jobId=" + jobId,
             dataType: 'json',
             timeout: 30000 //30 second timeout,
         }).done(
@@ -16,9 +17,9 @@
             });
     }
 
-    function ApproveJob(jobId) {
+    function ApproveJob(cluster, jobId) {
         $.ajax({
-            url: "/api/dlws/ApproveJob?jobId=" + jobId,
+            url: "/api/dlws/ApproveJob?cluster=" + cluster + "&jobId=" + jobId,
             dataType: 'json',
             timeout: 30000 //30 second timeout,
         }).done(
@@ -38,11 +39,13 @@
         return submitTimeStr
     }
 
-    function addJobRow(job, table, tableColumns) {
+    function addJobRow(cluster, job, table, tableColumns) {
         var tr
         tr = $('<tr/>');
+        //Cluster
+        tr.append("<td>" + cluster + "</td>");
         //Job ID
-        tr.append("<td> <a href='/Home/JobDetail/?jobId=" + job.jobId + "'>" + job.jobId + "</a></td>");
+        tr.append("<td> <a href='/Home/JobDetail/?cluster=" + cluster + "&jobId=" + job.jobId + "'>" + job.jobId + "</a></td>");
         //Job Name
         tr.append("<td>" + job.jobName + "</td>");
         //Status
@@ -90,12 +93,12 @@
         }
         //Kill it
         if (tableColumns.kill) {
-            tr.append("<td> <a href='#' class=\"Kill\" onclick=\"KillJob('" + job.jobId + "')\" > kill </a></td>");
+            tr.append("<td> <a href='#' class=\"Kill\" onclick=\"KillJob('" + cluster + "', '" + job.jobId + "')\" > kill </a></td>");
         }
         //Approval
         if (tableColumns.approval) {
             if (job.jobStatus == "unapproved") {
-                tr.append("<td> <a href='#' class=\"Admin\" onclick=\"ApproveJob('" + job.jobId + "')\" >approve</a></td>");
+                tr.append("<td> <a href='#' class=\"Admin\" onclick=\"ApproveJob('" + cluster + "', '" + job.jobId + "')\" >approve</a></td>");
             }
             else {
                 tr.append("<td><b class=\"Alias\" >NA</b></td>");
@@ -111,6 +114,7 @@
         var tr;
         tr = $('<tr/>');
 
+        tr.append("<th>Cluster</th>");
         tr.append("<th>Job ID</th>");
         tr.append("<th>Job Name</th>");
         tr.append("<th>Status</th>");
@@ -131,51 +135,66 @@
         table.append(thead);
     }
 
-    function buildJobTable(div, table, jobList, tableColumns) {
-        table.find("tr").remove();
-        table.find("thead").remove();
-        table.find("tbody").remove();
+    function buildJobTable(div, table, cluster, jobList, tableColumns) {
         if (jobList.length <= 0) {
             div.hide();
         }
         else {
             div.show()
-            buildTableHeader(table, tableColumns)
-            var tbody;
-            tbody = $('<tbody/>');
+            var tbody = table.find('tbody');
             for (var i = 0; i < jobList.length; i++) {
-                addJobRow(jobList[i], tbody, tableColumns);
+                addJobRow(cluster, jobList[i], tbody, tableColumns);
             }
             table.append(tbody);
         }
     }
 
-    function buildTables() {
-        var apiurl = "/api/dlws/ListJobs"
+    function initTable(table, tableColumns) {
+        table.find("tr").remove();
+        table.find("thead").remove();
+        table.find("tbody").remove();
+        buildTableHeader(table, tableColumns);
+        table.append('<tbody>');
+    }
 
-        if (!document.getElementById('chkArchivedJobs').checked) {
-            apiurl += "?num=20"
-        }
+    function buildTables() {debugger
+        var clusters = @Html.Raw(@Context.Session.GetString("AuthorizedClusters"));
 
-        if (showAll)
-        {
-            apiurl = "/api/dlws/ListAllJobs"
-        }
+        initTable($("#queued-job-table"), { submitTime: true, startTime: false, finishTime: false, kill: true, approval: showAll });
+        initTable($("#running-job-table"), { submitTime: true, startTime: true, finishTime: false, kill: true });
+        initTable($("#visualization-job-table"), { submitTime: false, startTime: true, finishTime: false, kill: true });
+        if (!showAll)
+            initTable($("#finished-job-table"), { submitTime: true, startTime: false, finishTime: true, kill: false });
 
-        $.ajax({
-            url: (apiurl),
-            dataType: 'json',
-            timeout: 15000
-        }).done(
-            function (json) {
+        $.each(clusters, function () {
+            var cluster = this;
+            var data = { cluster: cluster }
+            var apiurl = "/api/dlws/ListJobs"
 
-                buildJobTable($('#queued-job'), $("#queued-job-table"), json.queuedJobs, { submitTime: true, startTime: false, finishTime: false, kill: true, approval: showAll });
-                buildJobTable($('#running-job'), $("#running-job-table"), json.runningJobs, { submitTime: true, startTime: true, finishTime: false, kill: true });
-                buildJobTable($('#visualization-job'), $("#visualization-job-table"), json.visualizationJobs, { submitTime: false, startTime: true, finishTime: false, kill: true });
-                if (!showAll)
-                    buildJobTable($('#finished-job'), $("#finished-job-table"), json.finishedJobs, { submitTime: true, startTime: false, finishTime: true, kill: false });
+            if (!document.getElementById('chkArchivedJobs').checked) {
+                data.num = 20
+            }
 
-            });
+            if (showAll) {
+                apiurl = "/api/dlws/ListAllJobs"
+            }
+
+            $.ajax({
+                url: (apiurl),
+                data: data,
+                dataType: 'json',
+                timeout: 15000
+            }).done(
+                function (json) {
+
+                    buildJobTable($('#queued-job'), $("#queued-job-table"), cluster, json.queuedJobs, { submitTime: true, startTime: false, finishTime: false, kill: true, approval: showAll });
+                    buildJobTable($('#running-job'), $("#running-job-table"), cluster, json.runningJobs, { submitTime: true, startTime: true, finishTime: false, kill: true });
+                    buildJobTable($('#visualization-job'), $("#visualization-job-table"), cluster, json.visualizationJobs, { submitTime: false, startTime: true, finishTime: false, kill: true });
+                    if (!showAll)
+                        buildJobTable($('#finished-job'), $("#finished-job-table"), cluster, json.finishedJobs, { submitTime: true, startTime: false, finishTime: true, kill: false });
+
+                });
+        });
     }
 
 
@@ -225,47 +244,43 @@
 <br />
 <h1>View and Manage Jobs:</h1>
 
-@if(ViewData["isAdmin"].Equals("true"))
+@if (ViewData["isAdmin"].Equals("true"))
 {
     <div role="navigation">
         <a href="#" id="your-jobs-tab" role="tab" onclick="ChangeMode(false)"><b>View and Manage Your Jobs</b></a>
         <a href="#" id="all-jobs-tab" role="tab" onclick="ChangeMode(true)"><b>View and Manage All Jobs</b></a>
     </div>
-    <br/>
-    <br/>
-    <br/>
+    <br />
+    <br />
+    <br />
 }
 
 <div id="queued-job" hidden>
     <p> <b>Queued Jobs</b></p>
-    <table id="queued-job-table" class="table table-bordered table-condensed table-hover table-striped">
-    </table>
+    <table id="queued-job-table" class="table table-bordered table-condensed table-hover table-striped"></table>
 </div>
 
 <div id="running-job" hidden>
     <p> <b>Running Jobs</b></p>
-    <table id="running-job-table" class="table table-bordered table-condensed table-hover table-striped">
-    </table>
+    <table id="running-job-table" class="table table-bordered table-condensed table-hover table-striped"></table>
 </div>
 
 <div id="visualization-job" hidden>
     <p> <b>Visualization Jobs</b></p>
-    <table id="visualization-job-table" class="table table-bordered table-condensed table-hover table-striped">
-    </table>
+    <table id="visualization-job-table" class="table table-bordered table-condensed table-hover table-striped"></table>
 </div>
 
 <div id="finished-job" hidden>
     <p>
         <b>Finished Jobs</b>
         <div style="float:right">
-            <input type="checkbox" id="chkArchivedJobs" onclick="buildTables()"/>
+            <input type="checkbox" id="chkArchivedJobs" onclick="buildTables()" />
             <label>
                 Show all finsihed jobs.
             </label>
         </div>
     </p>
-    <table id="finished-job-table" class="table table-bordered table-condensed table-hover table-striped">
-    </table>
+    <table id="finished-job-table" class="table table-bordered table-condensed table-hover table-striped"></table>
 </div>
 
 <style>
@@ -312,5 +327,4 @@
         border-top-right-radius: 3px;
         border-bottom-right-radius: 3px;
     }
-
 </style>

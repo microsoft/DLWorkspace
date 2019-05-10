@@ -67,10 +67,6 @@ namespace WindowsAuth.Controllers
             HttpContext.Session.SetString("gid", "9999999");
             HttpContext.Session.SetString("isAdmin", "false");
             HttpContext.Session.SetString("isAuthorized", "false");
-            HttpContext.Session.SetString("Restapi", "");
-            HttpContext.Session.SetString("WorkFolderAccessPoint", "");
-            HttpContext.Session.SetString("DataFolderAccessPoint", "");
-
         }
 
         // Add user to the system, with a list of clusters that the user is authorized for
@@ -85,11 +81,6 @@ namespace WindowsAuth.Controllers
             HttpContext.Session.SetString("isAdmin", userEntry.isAdmin);
             HttpContext.Session.SetString("isAuthorized", userEntry.isAuthorized);
             var clusterInfo = Startup.Clusters[clusterName];
-            HttpContext.Session.SetString("Restapi", clusterInfo.Restapi);
-            HttpContext.Session.SetString("WorkFolderAccessPoint", clusterInfo.WorkFolderAccessPoint);
-            HttpContext.Session.SetString("DataFolderAccessPoint", clusterInfo.DataFolderAccessPoint);
-            HttpContext.Session.SetString("smbUsername", clusterInfo.smbUsername);
-            HttpContext.Session.SetString("smbUserPassword", clusterInfo.smbUserPassword);
 
 
             if (userEntry.isAuthorized == "true")
@@ -633,17 +624,22 @@ namespace WindowsAuth.Controllers
         private async Task<string[]> GetTeams()
         {
             var teams = new List<string>();
-            var restapi = HttpContext.Session.GetString("Restapi");
-            var url = restapi + "/ListVCs?userName=" + HttpContext.Session.GetString("Email");
-            using (var httpClient = new HttpClient())
+            var authorizedClusters = JsonConvert.DeserializeObject<List<string>>(HttpContext.Session.GetString("AuthorizedClusters"));
+
+            foreach (var cluster in authorizedClusters)
             {
-                var response = await httpClient.GetAsync(url);
-                var content = await response.Content.ReadAsStringAsync();
-                var jContent = JObject.Parse(content);
-                var jResult = jContent["result"] as JArray;
-                foreach (var jVC in jResult)
+                var restapi = Startup.Clusters[cluster].Restapi;
+                var url = restapi + "/ListVCs?userName=" + HttpContext.Session.GetString("Email");
+                using (var httpClient = new HttpClient())
                 {
-                    teams.Add(jVC["vcName"].Value<string>());
+                    var response = await httpClient.GetAsync(url);
+                    var content = await response.Content.ReadAsStringAsync();
+                    var jContent = JObject.Parse(content);
+                    var jResult = jContent["result"] as JArray;
+                    foreach (var jVC in jResult)
+                    {
+                        teams.Add(jVC["vcName"].Value<string>());
+                    }
                 }
             }
             return teams.ToArray();
@@ -716,7 +712,7 @@ namespace WindowsAuth.Controllers
                         }
                     }
                     // Store authorized clusters.
-                    HttpContext.Session.SetString("AuthorizedClusters", JsonConvert.SerializeObject(authorizationFinal));
+                    HttpContext.Session.SetString("AuthorizedClusters", JsonConvert.SerializeObject(authorizationFinal.Keys));
                     HttpContext.Session.SetString("CurrentClusters", useCluster);
                     var lstClusters = authorizedClusters.Keys.ToList<string>();
                     HttpContext.Session.SetString("ClustersList", JsonConvert.SerializeObject(lstClusters));
@@ -760,16 +756,7 @@ namespace WindowsAuth.Controllers
             if (User.Identity.IsAuthenticated)
             {
                 string username = HttpContext.Session.GetString("Username");
-                string workFolderAccessPoint = HttpContext.Session.GetString("WorkFolderAccessPoint");
-                string dataFolderAccessPoint = HttpContext.Session.GetString("DataFolderAccessPoint");
-                string smbUsername = HttpContext.Session.GetString("smbUsername");
-                string smbUserPassword = HttpContext.Session.GetString("smbUserPassword");
                 ViewData["Username"] = username;
-
-                ViewData["workPath"] = workFolderAccessPoint + username + "/";
-                ViewData["dataPath"] = dataFolderAccessPoint;
-                ViewData["smbUsername"] = smbUsername;
-                ViewData["smbUserPassword"] = smbUserPassword;
                 var configString = Startup.DashboardConfig.ToString();
                 var configArray = ASCIIEncoding.ASCII.GetBytes(configString);
                 ViewData["Dashboard"] = Convert.ToBase64String(configArray) ;
@@ -801,12 +788,6 @@ namespace WindowsAuth.Controllers
                 return RedirectToAction("Index", "Home");
             }
 
-            string workFolderAccessPoint = HttpContext.Session.GetString("WorkFolderAccessPoint");
-            string dataFolderAccessPoint = HttpContext.Session.GetString("DataFolderAccessPoint");
-
-            ViewData["workPath"] = workFolderAccessPoint + HttpContext.Session.GetString("Username") + "/";
-            ViewData["dataPath"] = dataFolderAccessPoint;
-
             ViewData["uid"] = HttpContext.Session.GetString("uid");
             ViewData["gid"] = HttpContext.Session.GetString("gid");
 
@@ -831,12 +812,6 @@ namespace WindowsAuth.Controllers
             {
                 return RedirectToAction("Index", "Home");
             }
-
-            string workFolderAccessPoint = HttpContext.Session.GetString("WorkFolderAccessPoint");
-            string dataFolderAccessPoint = HttpContext.Session.GetString("DataFolderAccessPoint");
-
-            ViewData["workPath"] = workFolderAccessPoint + HttpContext.Session.GetString("Username") + "/";
-            ViewData["dataPath"] = dataFolderAccessPoint;
 
             ViewData["uid"] = HttpContext.Session.GetString("uid");
             ViewData["gid"] = HttpContext.Session.GetString("gid");
@@ -881,8 +856,8 @@ namespace WindowsAuth.Controllers
                 return RedirectToAction("Index", "Home");
             }
             ViewData["jobid"] = HttpContext.Request.Query["jobId"];
-            string workFolderAccessPoint = HttpContext.Session.GetString("WorkFolderAccessPoint");
 
+            var workFolderAccessPoint = Startup.Clusters[HttpContext.Request.Query["cluster"]].WorkFolderAccessPoint;
 
             ViewData["workPath"] = (workFolderAccessPoint + HttpContext.Session.GetString("Username") + "/").Replace("file:", "").Replace("\\", "/");
             ViewData["jobPath"] = workFolderAccessPoint.Replace("file:", "").Replace("\\", "/");

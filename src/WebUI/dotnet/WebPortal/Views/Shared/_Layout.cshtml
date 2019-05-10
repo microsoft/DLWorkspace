@@ -89,27 +89,32 @@
             var $teamsDropdown = $('#teams-dropdown');
             if (!$teamsDropdown.length) return;
 
-            $.get({
-                url: '/api/dlws/GetVCs',
-                dataType: 'json'
-            }).then(function (data) {
-                if (data == null) return;
-                if (!$.isArray(data.result)) return;
+            var clusters = @Html.Raw(@Context.Session.GetString("AuthorizedClusters"));
 
-                var teams = data.result;
-                var $teams = $.map(teams, function (element) {
-                    var name = element.vcName;
-                    if (!name) return;
-                    // Hide FreeTier when other VCs exists
-                    if (name === 'FreeTier' && teams.length > 1) return;
+            $.each(clusters, function () {
+                $.get({
+                    url: '/api/dlws/GetVCs',
+                    data: { cluster: this },
+                    dataType: 'json'
+                }).then(function (data) {
+                    if (data == null) return;
+                    if (!$.isArray(data.result)) return;
 
-                    // <li><a href="/?team=Team%20Name">Team Name</a></li>
-                    return $('<li>').append($('<a>', { href: '/?team=' + encodeURIComponent(name), text: name }));
-                });
+                    var teams = data.result;
+                    var $teams = $.map(teams, function (element) {
+                        var name = element.vcName;
+                        if (!name) return;
+                        // Hide FreeTier when other VCs exists
+                        if (name === 'FreeTier' && teams.length > 1) return;
 
-                if (!$teams.length) return;
+                        // <li><a href="/?team=Team%20Name">Team Name</a></li>
+                        return $('<li>').append($('<a>', { href: '/?team=' + encodeURIComponent(name), text: name }));
+                    });
 
-                $teamsDropdown.removeClass('hidden').find('.dropdown-menu').append($teams);
+                    if (!$teams.length) return;
+
+                    $teamsDropdown.removeClass('hidden').find('.dropdown-menu').append($teams);
+                })
             })
         }(window.jQuery);
     </script>

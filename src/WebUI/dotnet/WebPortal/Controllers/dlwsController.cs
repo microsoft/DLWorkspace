@@ -139,9 +139,6 @@ namespace WindowsAuth.Controllers
                             HttpContext.Session.SetString("isAdmin", userEntry.isAdmin);
                             HttpContext.Session.SetString("isAuthorized", userEntry.isAuthorized);
                             var clusterInfo = Startup.Clusters[clusterName];
-                            HttpContext.Session.SetString("Restapi", clusterInfo.Restapi);
-                            HttpContext.Session.SetString("WorkFolderAccessPoint", clusterInfo.WorkFolderAccessPoint);
-                            HttpContext.Session.SetString("DataFolderAccessPoint", clusterInfo.DataFolderAccessPoint);
                             passwdLogin = userEntry.isAuthorized == "true";
                             bFindUser = true;
                         }
@@ -161,7 +158,7 @@ namespace WindowsAuth.Controllers
         public async Task<string> Get(string op)
         {
             var ret = "invalid API call!";
-            var url = "";
+            string url = "";
             var tuple = await processRestfulAPICommon();
             var passwdLogin = tuple.Item1;
             if (!String.IsNullOrEmpty(tuple.Item2))
@@ -175,7 +172,15 @@ namespace WindowsAuth.Controllers
             }
 
             ViewData["Username"] = HttpContext.Session.GetString("Username");
-            var restapi = HttpContext.Session.GetString("Restapi");
+
+            var cluster = HttpContext.Request.Query["cluster"];
+            var authorizedClusters = JsonConvert.DeserializeObject<List<string>>(HttpContext.Session.GetString("AuthorizedClusters"));
+            if (!authorizedClusters.Contains(cluster))
+            {
+                ret = "Invalid cluster";
+                return ret;
+            }
+            var restapi = Startup.Clusters[cluster].Restapi;
 
             switch (op)
             {
@@ -243,7 +248,7 @@ namespace WindowsAuth.Controllers
 
                     var newKey = _familyModel.Families.TryAdd(familyToken, new FamilyModel.FamilyData
                     {
-                        ApiPath = HttpContext.Session.GetString("Restapi"),
+                        ApiPath = restapi,
                         Email = HttpContext.Session.GetString("Email"),
                         UID = HttpContext.Session.GetString("uid")
                     });
@@ -396,11 +401,20 @@ namespace WindowsAuth.Controllers
                 ret = "Unauthorized User, Please login!";
                 return ret;
             }
+
+            var cluster = HttpContext.Request.Query["cluster"];
+            var authorizedClusters = JsonConvert.DeserializeObject<List<string>>(HttpContext.Session.GetString("AuthorizedClusters"));
+            if (!authorizedClusters.Contains(cluster))
+            {
+                ret = "Invalid cluster";
+                return ret;
+            }
+            var restapi = Startup.Clusters[cluster].Restapi;
+
             var username = HttpContext.Session.GetString("Username");
             ViewData["Username"] = username;
             var uid = HttpContext.Session.GetString("uid");
             var gid = HttpContext.Session.GetString("gid");
-            var restapi = HttpContext.Session.GetString("Restapi");
             templateParams.Json = templateParams.Json.Replace("$$username$$", username).Replace("$$uid$$", uid).Replace("$$gid$$", gid);
             var jobObject = JObject.Parse(templateParams.Json);
             jobObject["userName"] = HttpContext.Session.GetString("Email");
@@ -422,7 +436,7 @@ namespace WindowsAuth.Controllers
             var familyToken = Guid.NewGuid();
             var newKey = _familyModel.Families.TryAdd(familyToken, new FamilyModel.FamilyData
             {
-                ApiPath = HttpContext.Session.GetString("Restapi"),
+                ApiPath = restapi,
                 Email = HttpContext.Session.GetString("Email"),
                 UID = HttpContext.Session.GetString("uid")
             });

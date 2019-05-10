@@ -172,12 +172,13 @@
         };
 
         $scope.clusters = @Html.Raw(@Context.Session.GetString("AuthorizedClusters"));
+        $scope.cluster = $scope.clusters[0];
         $scope.checkCurrent();
         $scope.currentTemplateValue = 0;
         $scope.lastTemplateValue = -1;
         $scope.adancedOption = false;
 
-        $scope.$watch('current.cluster', function (cluster) {
+        $scope.$watch('cluster', function (cluster) {
             $http.get('/api/dlws/GetMountPoints', { params: { cluster: cluster } }).then(function (response) {
                 var mpstring = response.data.mountpoints;
                 var mpdescription = response.data.mountdescription;
@@ -195,48 +196,48 @@
                 //$log.log($scope.mountpoints);
                 //$log.log($scope.mountdescription);
             });
-        });
 
-        $http.get("/api/dlws/GetTemplates?type=job").then(function (response) {
-            $scope.joblist = response.data;
-            $log.log($scope.joblist);
-            for (var i = 0; i < $scope.joblist.length; i++) {
-                var name = $scope.joblist[i].Name;
-                var counter = 0;
-                for (var j = 0; j < $scope.joblist.length; j++) {
-                    if ($scope.joblist[j].Name == name)
-                    {
-                        counter = counter + 1;
+            $http.get("/api/dlws/GetTemplates?type=job", { params: { cluster: cluster } }).then(function (response) {
+                $scope.joblist = response.data;
+                $log.log($scope.joblist);
+                for (var i = 0; i < $scope.joblist.length; i++) {
+                    var name = $scope.joblist[i].Name;
+                    var counter = 0;
+                    for (var j = 0; j < $scope.joblist.length; j++) {
+                        if ($scope.joblist[j].Name == name)
+                        {
+                            counter = counter + 1;
+                        }
                     }
-                }
 
-                if (counter == 1)
-                    $scope.joblist[i].Text = name;
-                else {
-                    var username = $scope.joblist[i].Username;
-                    if ($scope.joblist[i].Database.trim() == "Master")
-                        $scope.joblist[i].Text = name + "(master)";
-                    else
-                        $scope.joblist[i].Text = name + "(" + username.trim().split('@@')[0] + ")";
-                }
+                    if (counter == 1)
+                        $scope.joblist[i].Text = name;
+                    else {
+                        var username = $scope.joblist[i].Username;
+                        if ($scope.joblist[i].Database.trim() == "Master")
+                            $scope.joblist[i].Text = name + "(master)";
+                        else
+                            $scope.joblist[i].Text = name + "(" + username.trim().split('@@')[0] + ")";
+                    }
 
-                $scope.joblist[i].Value = i;
-            }
-            $scope.curtemplateValue = 0;
-            $scope.loadTemplate();
-            //$log.log($scope.joblist);
-        });
+                    $scope.joblist[i].Value = i;
+                }
+                $scope.curtemplateValue = 0;
+                $scope.loadTemplate();
+                //$log.log($scope.joblist);
+            });
         
-        $http.get("/api/dlws/GetVCs").then(function (response) {
-            var currentTeam = @Html.Raw(Json.Serialize(@Context.Session.GetString("Team")));
-            var teams = response.data.result;
-            if (!Array.isArray(teams)) return;
-            var team = teams.filter(function (team) { return team.vcName === currentTeam })[0];
-            if (!team) return;
+            $http.get("/api/dlws/GetVCs", { params: { cluster: cluster } }).then(function (response) {
+                var currentTeam = '@Context.Session.GetString("Team")';
+                var teams = response.data.result;
+                if (!Array.isArray(teams)) return;
+                var team = teams.filter(function (team) { return team.vcName === currentTeam })[0];
+                if (!team) return;
 
-            $scope.gpus = JSON.parse(team.quota);
-            $scope.current.gpuType = Object.keys($scope.gpus)[0];
-        })
+                $scope.gpus = JSON.parse(team.quota);
+                $scope.current.gpuType = Object.keys($scope.gpus)[0];
+            })
+        });
 
         $scope.loadTemplate = function () {
             $scope.curtemplate = $scope.joblist[$scope.curtemplateValue];
@@ -380,7 +381,7 @@
 
         $scope.DownloadDatabase = function () {
             var loc = $scope.getDatabase();
-            var params = "location=" + loc + "&";
+            var params = "location=" + loc + "&cluster=" + $scope.cluster;
             var url = "/api/dlws/GetDatabase?" + params;
             $.ajax({ url: url, dataType: 'json', error: $scope.AlertAPIError, timeout: 10000 }).done($scope.DownloadFile);
         };
@@ -394,7 +395,7 @@
         };
 
         $scope.SaveTemplateAPI = function (params) {
-            var url = "/api/dlws/submit";
+            var url = "/api/dlws/submit?cluster=" + $scope.cluster;
             $.ajax({ url: url, method: 'POST', data: params, error: $scope.AlertAPIError, timeout: 10000 }).done();
         };
 
@@ -424,7 +425,7 @@
             params.Name = $scope.template.useTemplateName;
             params.Json = JSON.stringify($scope.current);
             params.Database = $scope.getDatabase();
-            var url = "/api/dlws/postJob";
+            var url = "/api/dlws/postJob?cluster=" + $scope.cluster;
             console.log(url);
             $.ajax({
                 url: url,
@@ -469,7 +470,7 @@
             }
             var loc = $scope.getDatabase();
             var params = "";
-            params = params + "name=" + templatename + "&" + "location=" + loc + "&";
+            params = params + "name=" + templatename + "&" + "location=" + loc + "&cluster=" + $scope.cluster;
             var url = "/api/dlws/DeleteTemplate?" + params;
             $.ajax({ url: url, dataType: 'json', error: $scope.AlertAPIError, timeout: 10000 }).done($scope.AlertAPIResult);
         }
@@ -543,7 +544,7 @@
                         <md-input-container flex="50">
                             <label> Cluster </label>
                             <md-select name="jobtrainingtype" ng-model="current.cluster" required md-no-asterisk>
-                                <md-option ng-value="name" ng-repeat="(name, count) in clusters">{{ name }}</md-option>
+                                <md-option ng-value="name" ng-repeat="name in clusters">{{ name }}</md-option>
                             </md-select>
                         </md-input-container>
 

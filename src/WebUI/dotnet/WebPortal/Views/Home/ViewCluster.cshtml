@@ -5,9 +5,10 @@
 
 
 <script>
+    var cluster = "@Context.Request.Query["cluster"]";
     function buildTable() {
         $.ajax({
-            url: "/api/dlws/GetClusterStatus",
+            url: "/api/dlws/GetClusterStatus?cluster=" + cluster,
             dataType: 'json',
             timeout: 10000 //10 second timeout,
         }).done(

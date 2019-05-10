@@ -79,9 +79,6 @@ namespace WindowsAuth.Controllers
                 HttpContext.Session.Remove("TenantID");
                 HttpContext.Session.Remove("uid");
                 HttpContext.Session.Remove("gid");
-                HttpContext.Session.Remove("Restapi");
-                HttpContext.Session.Remove("WorkFolderAccessPoint");
-                HttpContext.Session.Remove("DataFolderAccessPoint");
                 HttpContext.Session.Remove("AuthorizedClusters");
                 HttpContext.Session.Remove("CurrentClusters");
                 HttpContext.Session.Remove("Username");
