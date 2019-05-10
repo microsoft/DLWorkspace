@@ -36,12 +36,12 @@ def SubmitJob(jobParamsJsonStr):
     if "jobName" not in jobParams or len(jobParams["jobName"].strip()) == 0:
         ret["error"] = "ERROR: Job name cannot be empty"
         return ret
-    
+
 
     if "jobId" not in jobParams or jobParams["jobId"] == "":
-        #jobParams["jobId"] = jobParams["jobName"] + "-" + str(uuid.uuid4()) 
+        #jobParams["jobId"] = jobParams["jobName"] + "-" + str(uuid.uuid4())
         #jobParams["jobId"] = jobParams["jobName"] + "-" + str(time.time())
-        jobParams["jobId"] = str(uuid.uuid4()) 
+        jobParams["jobId"] = str(uuid.uuid4())
     #jobParams["jobId"] = jobParams["jobId"].replace("_","-").replace(".","-")
 
     if "resourcegpu" not in jobParams:
@@ -57,7 +57,7 @@ def SubmitJob(jobParamsJsonStr):
         jobParams["familyToken"] = str(uuid.uuid4())
     if "isParent" not in jobParams:
         jobParams["isParent"] = 1
-    
+
     userName = jobParams["userName"]
     if "@" in userName:
         userName = userName.split("@")[0].strip()
@@ -68,7 +68,7 @@ def SubmitJob(jobParamsJsonStr):
     if "cmd" not in jobParams:
         jobParams["cmd"] = ""
 
-    if "jobPath" in jobParams and len(jobParams["jobPath"].strip()) > 0: 
+    if "jobPath" in jobParams and len(jobParams["jobPath"].strip()) > 0:
         jobPath = jobParams["jobPath"]
         if ".." in jobParams["jobPath"]:
             ret["error"] = "ERROR: '..' cannot be used in job directory"
@@ -79,7 +79,7 @@ def SubmitJob(jobParamsJsonStr):
             return ret
 
         if jobParams["jobPath"].startswith("/") or jobParams["jobPath"].startswith("\\"):
-            ret["error"] = "ERROR: job directory should not start with '/' or '\\' " 
+            ret["error"] = "ERROR: job directory should not start with '/' or '\\' "
             return ret
 
         if not jobParams["jobPath"].startswith(userName):
@@ -89,7 +89,7 @@ def SubmitJob(jobParamsJsonStr):
         jobPath = userName+"/"+ "jobs/"+time.strftime("%y%m%d")+"/"+jobParams["jobId"]
         jobParams["jobPath"] = jobPath
 
-    if "workPath" not in jobParams or len(jobParams["workPath"].strip()) == 0: 
+    if "workPath" not in jobParams or len(jobParams["workPath"].strip()) == 0:
        jobParams["workPath"] = "."
 
     if ".." in jobParams["workPath"]:
@@ -101,13 +101,13 @@ def SubmitJob(jobParamsJsonStr):
         return ret
 
     if jobParams["workPath"].startswith("/") or jobParams["workPath"].startswith("\\"):
-        ret["error"] = "ERROR: work directory should not start with '/' or '\\' " 
+        ret["error"] = "ERROR: work directory should not start with '/' or '\\' "
         return ret
 
     if not jobParams["workPath"].startswith(userName):
         jobParams["workPath"] = os.path.join(userName,jobParams["workPath"])
 
-    if "dataPath" not in jobParams or len(jobParams["dataPath"].strip()) == 0: 
+    if "dataPath" not in jobParams or len(jobParams["dataPath"].strip()) == 0:
         jobParams["dataPath"] = "."
 
     if ".." in jobParams["dataPath"]:
@@ -119,7 +119,7 @@ def SubmitJob(jobParamsJsonStr):
         return ret
 
     if jobParams["dataPath"][0] == "/" or jobParams["dataPath"][0] == "\\":
-        ret["error"] = "ERROR: data directory should not start with '/' or '\\' " 
+        ret["error"] = "ERROR: data directory should not start with '/' or '\\' "
         return ret
 
     jobParams["dataPath"] = jobParams["dataPath"].replace("\\","/")
@@ -147,7 +147,7 @@ def SubmitJob(jobParamsJsonStr):
             #if not match is None:
             #    tensorboardParams["cmd"] = match.group(1) + "/worker0" + match.group(2)
 
-        tensorboardParams["jobId"] = str(uuid.uuid4()) 
+        tensorboardParams["jobId"] = str(uuid.uuid4())
         tensorboardParams["jobName"] = "tensorboard-"+jobParams["jobName"]
         tensorboardParams["jobPath"] = jobPath
         tensorboardParams["jobType"] = "visualization"
@@ -273,7 +273,7 @@ def GetJobDetail(jobId):
                 if isBase64(log):
                     log = base64.b64decode(log)
             except Exception:
-                pass                       
+                pass
             if log is not None:
                 job["log"] = log
         except:
@@ -306,6 +306,10 @@ def AddUser(username,userId):
     dataHandler.Close()
     return ret
 
+
+def update_job(jobId, field, value):
+    dataHandler = DataHandler()
+    dataHandler.UpdateJobTextField(jobId, field, value)
 
 if __name__ == '__main__':
     TEST_SUB_REG_JOB = False
