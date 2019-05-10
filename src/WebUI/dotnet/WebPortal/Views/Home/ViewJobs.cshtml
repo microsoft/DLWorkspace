@@ -136,17 +136,12 @@
     }
 
     function buildJobTable(div, table, cluster, jobList, tableColumns) {
-        if (jobList.length <= 0) {
-            div.hide();
+        div.show()
+        var tbody = table.find('tbody');
+        for (var i = 0; i < jobList.length; i++) {
+            addJobRow(cluster, jobList[i], tbody, tableColumns);
         }
-        else {
-            div.show()
-            var tbody = table.find('tbody');
-            for (var i = 0; i < jobList.length; i++) {
-                addJobRow(cluster, jobList[i], tbody, tableColumns);
-            }
-            table.append(tbody);
-        }
+        table.append(tbody);
     }
 
     function initTable(table, tableColumns) {
@@ -157,7 +152,7 @@
         table.append('<tbody>');
     }
 
-    function buildTables() {debugger
+    function buildTables() {
         var clusters = @Html.Raw(@Context.Session.GetString("AuthorizedClusters"));
 
         initTable($("#queued-job-table"), { submitTime: true, startTime: false, finishTime: false, kill: true, approval: showAll });
@@ -186,7 +181,6 @@
                 timeout: 15000
             }).done(
                 function (json) {
-
                     buildJobTable($('#queued-job'), $("#queued-job-table"), cluster, json.queuedJobs, { submitTime: true, startTime: false, finishTime: false, kill: true, approval: showAll });
                     buildJobTable($('#running-job'), $("#running-job-table"), cluster, json.runningJobs, { submitTime: true, startTime: true, finishTime: false, kill: true });
                     buildJobTable($('#visualization-job'), $("#visualization-job-table"), cluster, json.visualizationJobs, { submitTime: false, startTime: true, finishTime: false, kill: true });
