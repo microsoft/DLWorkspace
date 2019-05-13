@@ -1,12 +1,71 @@
-﻿@{
+﻿@using Microsoft.AspNetCore.Http;
+@{
     ViewData["Title"] = "Cluster Status";
 }
 
 
 
 <script>
-    var cluster = "@Context.Request.Query["cluster"]";
-    function buildTable() {
+    var clusters = @Html.Raw(@Context.Session.GetString("AuthorizedClusters"));
+    var clustersInfo = Object.create(null);
+    function buildTables() {
+        $.when.apply($, $.map(clusters, function (cluster) {
+            return $.ajax({
+                url: '/api/dlws/GetClusterStatus',
+                data: { cluster: cluster },
+                dataType: 'json',
+                timeout: 10000
+            }).catch(function () {
+                return;
+            });
+        })).then(function () {
+            var cluster = null
+            var args = [].slice.call(arguments);
+            $.each(clusters, function (index) {
+                if (Array.isArray(args[index])) {
+                    clustersInfo[this] = args[index][0];
+                    if (cluster == null) {
+                        cluster = this.valueOf()
+                    }
+                }
+            });
+
+
+            $("#cluster_status").find("tr:gt(0)").remove();
+            $.each(clustersInfo, function (name, json) {
+                var tr;
+                //Append each row to html table
+                tr = $('<tr/>');
+                tr.append(
+                    $("<td>").append(
+                        $("<div>", { "class": "radio" }).append(
+                            $("<label>").append(
+                                $("<input>", {
+                                    type: "radio",
+                                    name: "cluster",
+                                    value: name,
+                                    on: {
+                                        change: function () { buildTable($(this).val()) }
+                                    }
+                                }).prop("checked", cluster === name),
+                                name
+                            )
+                        )
+                    )
+                );
+                tr.append("<td>" + json.gpu_capacity + "</td>");
+                tr.append("<td>" + json.gpu_unschedulable + "</td>");
+                tr.append("<td>" + json.gpu_used + "</td>");
+                tr.append("<td>" + json.gpu_avaliable + "</td>");
+                tr.append("<td>" + json.AvaliableJobNum + "</td>");
+                tr.append("<td>" + json.TotalJobNum + "</td>");
+
+                $('#cluster_status').append(tr);
+            })
+            buildTable(cluster)
+        })
+    }
+    function buildTable(cluster) {
         $.ajax({
             url: "/api/dlws/GetClusterStatus?cluster=" + cluster,
             dataType: 'json',
@@ -54,20 +113,6 @@
                 }
 
 
-                $("#cluster_status").find("tr:gt(0)").remove();
-                var tr;
-                //Append each row to html table
-                tr = $('<tr/>');
-                tr.append("<td>" + json.gpu_capacity + "</td>");
-                tr.append("<td>" + json.gpu_unschedulable + "</td>");
-                tr.append("<td>" + json.gpu_used + "</td>");
-                tr.append("<td>" + json.gpu_avaliable + "</td>");
-                tr.append("<td>" + json.AvaliableJobNum + "</td>");
-                tr.append("<td>" + json.TotalJobNum + "</td>");
-
-                $('#cluster_status').append(tr);
-
-
 
                 $("#user_status").find("tr:gt(0)").remove();
                 var tr;
@@ -85,7 +130,7 @@
     }
 
     $(document).ready(function () {
-        buildTable();
+        buildTables();
         var refresh = setInterval(function () {
             buildTable();
         }, 5000);
@@ -103,6 +148,7 @@
 <table id="cluster_status" class="table table-bordered table-condensed table-hover table-striped">
     <thead>
         <tr>
+            <th>Name</th>
             <th>Total GPU</th>
             <th>Reserved GPU</th>
             <th>Used GPU</th>
@@ -123,10 +169,10 @@
         <tr>
             <th><iframe src="http://@Context.Request.Host:3000/dashboard-solo/db/gpu?refresh=5m&orgId=1&panelId=113&var-datasource=collectd&from=@((DateTime.UtcNow.AddDays(-8).Ticks - 621355968000000000) / 10000)&to=@((DateTime.UtcNow.Ticks - 621355968000000000) / 10000)" width="100%" height="200" frameborder="0"></iframe></th>
             <!--
-            <th><iframe src="http://@Context.Request.Host:3000/dashboard-solo/db/gpu?refresh=5m&orgId=1&panelId=75&var-datasource=collectd&from=@((DateTime.UtcNow.AddHours(-8).Ticks - 621355968000000000) / 10000)&to=@((DateTime.UtcNow.Ticks - 621355968000000000) / 10000)" width="100%" height="200" frameborder="0"></iframe></th>
-            <th><iframe src="http://@Context.Request.Host:3000/dashboard-solo/db/gpu?refresh=5m&orgId=1&panelId=76&var-datasource=collectd&from=@((DateTime.UtcNow.AddHours(-8).Ticks - 621355968000000000) / 10000)&to=@((DateTime.UtcNow.Ticks - 621355968000000000) / 10000)" width="100%" height="200" frameborder="0"></iframe></th>
-            <th><iframe src="http://@Context.Request.Host:3000/dashboard-solo/db/gpu?refresh=5m&orgId=1&panelId=77&var-datasource=collectd&from=@((DateTime.UtcNow.AddHours(-8).Ticks - 621355968000000000) / 10000)&to=@((DateTime.UtcNow.Ticks - 621355968000000000) / 10000)" width="100%" height="200" frameborder="0"></iframe></th>
-        -->
+                <th><iframe src="http://@Context.Request.Host:3000/dashboard-solo/db/gpu?refresh=5m&orgId=1&panelId=75&var-datasource=collectd&from=@((DateTime.UtcNow.AddHours(-8).Ticks - 621355968000000000) / 10000)&to=@((DateTime.UtcNow.Ticks - 621355968000000000) / 10000)" width="100%" height="200" frameborder="0"></iframe></th>
+                <th><iframe src="http://@Context.Request.Host:3000/dashboard-solo/db/gpu?refresh=5m&orgId=1&panelId=76&var-datasource=collectd&from=@((DateTime.UtcNow.AddHours(-8).Ticks - 621355968000000000) / 10000)&to=@((DateTime.UtcNow.Ticks - 621355968000000000) / 10000)" width="100%" height="200" frameborder="0"></iframe></th>
+                <th><iframe src="http://@Context.Request.Host:3000/dashboard-solo/db/gpu?refresh=5m&orgId=1&panelId=77&var-datasource=collectd&from=@((DateTime.UtcNow.AddHours(-8).Ticks - 621355968000000000) / 10000)&to=@((DateTime.UtcNow.Ticks - 621355968000000000) / 10000)" width="100%" height="200" frameborder="0"></iframe></th>
+            -->
         </tr>
     </thead>
     <tbody></tbody>
@@ -140,21 +186,21 @@
 </h1>
 
 
-    <table id="node_status" class="table table-bordered table-condensed table-hover table-striped">
-        <thead>
-            <tr>
-                <th>Node Name</th>
-                <th>Node IP</th>
-                <th>GPU Capacity</th>
-                <th>Used GPU</th>
-                <th>Avaliable GPU</th>
-                <th>Status</th>
-                <th>Services</th>
-                <th>Pods</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
+<table id="node_status" class="table table-bordered table-condensed table-hover table-striped">
+    <thead>
+        <tr>
+            <th>Node Name</th>
+            <th>Node IP</th>
+            <th>GPU Capacity</th>
+            <th>Used GPU</th>
+            <th>Avaliable GPU</th>
+            <th>Status</th>
+            <th>Services</th>
+            <th>Pods</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
 
 
 <h1>
