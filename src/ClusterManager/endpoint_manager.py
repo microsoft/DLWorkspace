@@ -70,7 +70,7 @@ spec:
   - name: {1}
     protocol: "TCP"
     targetPort: {2}
-    port: 8022
+    port: {2}
 """.format(jobId, name, targetPort, endpoint_id)
     print("endpointDescription: %s" % endpointDescription)
     return endpointDescription
