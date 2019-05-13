@@ -187,6 +187,9 @@ namespace WindowsAuth.Controllers
                 case "GetVCs":
                     url = restapi + "/ListVCs?userName=" + HttpContext.Session.GetString("Email");
                     break;
+                case "GetStorages":
+                    url = restapi + "/ListStorages?vcName=" + HttpContext.Session.GetString("Team") + "&userName=" + HttpContext.Session.GetString("Email");
+                    break;
                 case "ListJobs":
                     url = restapi + "/ListJobs?vcName="+HttpContext.Session.GetString("Team")+"&jobOwner="+HttpContext.Session.GetString("Email") + "&userName=" + HttpContext.Session.GetString("Email");
                     if (HttpContext.Request.Query.ContainsKey("num"))
