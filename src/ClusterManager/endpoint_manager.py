@@ -53,11 +53,11 @@ def getK8sEndpoint(endpointDescriptionPath):
     return k8sUtils.kubectl_exec("get -o json -f %s" % endpointDescriptionPath)
 
 
-def generateNodePortService(jobId, endpoint_id, name, targetPort):
+def generateNodePortService(job_id, pod_id, endpoint_id, name, target_port):
     endpointDescription = """kind: Service
 apiVersion: v1
 metadata:
-  name: {3}-{1}
+  name: endpoint-{2}-{3}
   labels:
     run: {0}
     jobId: {0}
@@ -65,19 +65,19 @@ metadata:
 spec:
   type: NodePort
   selector:
-    podName: {0}
+    podName: {1}
   ports:
-  - name: {1}
+  - name: {3}
     protocol: "TCP"
-    targetPort: {2}
-    port: {2}
-""".format(jobId, name, targetPort, endpoint_id)
+    targetPort: {4}
+    port: {4}
+""".format(job_id, pod_id, endpoint_id, name, target_port)
     print("endpointDescription: %s" % endpointDescription)
     return endpointDescription
 
 
-def createNodePort(endpoint, sshPort):
-    endpointDescription = generateNodePortService(endpoint["jobId"], endpoint["id"], endpoint["name"], sshPort)
+def createNodePort(endpoint):
+    endpointDescription = generateNodePortService(endpoint["jobId"], endpoint["podId"], endpoint["id"], endpoint["name"], endpoint["port"])
     endpointDescriptionPath = os.path.join(config["storage-mount-path"], endpoint["endpointDescriptionPath"])
     print("endpointDescriptionPath: %s" % endpointDescriptionPath)
     with open(endpointDescriptionPath, 'w') as f:
@@ -103,11 +103,12 @@ def startEndpoint(endpoint):
         ssh_port = setupSshServer(pod_id, endpoint["username"], endpoint["hostNetwork"])
     else:
         ssh_port = querySshPort(pod_id)
+    endpoint["port"] = ssh_port
 
     print("Ssh server is ready for pod: %s. Ssh listen on %s" % (pod_id, ssh_port))
 
-    # create NodePort for ssh
-    createNodePort(endpoint, ssh_port)
+    # create NodePort
+    createNodePort(endpoint)
 
 
 def Run():
