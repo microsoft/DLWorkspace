@@ -14,21 +14,21 @@ import random
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 
 
-def isSshServerReady(pod_id):
+def isSshServerReady(pod_name):
     bash_script = "sudo service ssh status"
-    output = k8sUtils.kubectl_exec("exec %s %s" % (pod_id, " -- " + bash_script))
+    output = k8sUtils.kubectl_exec("exec %s %s" % (pod_name, " -- " + bash_script))
     if output == "":
         return False
     return True
 
 
-def querySshPort(pod_id):
+def querySshPort(pod_name):
     bash_script = "grep ^Port /etc/ssh/sshd_config | cut -d' ' -f2"
-    ssh_port = k8sUtils.kubectl_exec("exec %s %s" % (pod_id, " -- " + bash_script))
+    ssh_port = k8sUtils.kubectl_exec("exec %s %s" % (pod_name, " -- " + bash_script))
     return int(ssh_port)
 
 
-def setupSshServer(pod_id, username, host_network=False):
+def setupSshServer(pod_name, username, host_network=False):
     '''Setup the ssh server in container, and return the listening port.'''
     bash_script = "sudo bash -c 'apt-get update && apt-get install -y openssh-server && cat /home/" + username + "/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && service ssh restart'"
 
@@ -42,9 +42,9 @@ def setupSshServer(pod_id, username, host_network=False):
 
     # TODO setup reasonable timeout
     # output = k8sUtils.kubectl_exec("exec %s %s" % (jobId, " -- " + bash_script), 1)
-    output = k8sUtils.kubectl_exec("exec %s %s" % (pod_id, " -- " + bash_script))
+    output = k8sUtils.kubectl_exec("exec %s %s" % (pod_name, " -- " + bash_script))
     if output == "":
-        raise Exception("Failed to setup ssh server in container. JobId: %s " % pod_id)
+        raise Exception("Failed to setup ssh server in container. JobId: %s " % pod_name)
     return ssh_port
 
 
@@ -53,7 +53,7 @@ def getK8sEndpoint(endpointDescriptionPath):
     return k8sUtils.kubectl_exec("get -o json -f %s" % endpointDescriptionPath)
 
 
-def generateNodePortService(job_id, pod_id, endpoint_id, name, target_port):
+def generateNodePortService(job_id, pod_name, endpoint_id, name, target_port):
     endpointDescription = """kind: Service
 apiVersion: v1
 metadata:
@@ -61,7 +61,7 @@ metadata:
   labels:
     run: {0}
     jobId: {0}
-    # podName: tutorial-pytorch
+    podName: {1}
 spec:
   type: NodePort
   selector:
@@ -71,13 +71,13 @@ spec:
     protocol: "TCP"
     targetPort: {4}
     port: {4}
-""".format(job_id, pod_id, endpoint_id, name, target_port)
+""".format(job_id, pod_name, endpoint_id, name, target_port)
     print("endpointDescription: %s" % endpointDescription)
     return endpointDescription
 
 
 def createNodePort(endpoint):
-    endpointDescription = generateNodePortService(endpoint["jobId"], endpoint["podId"], endpoint["id"], endpoint["name"], endpoint["port"])
+    endpointDescription = generateNodePortService(endpoint["jobId"], endpoint["podName"], endpoint["id"], endpoint["name"], endpoint["port"])
     endpointDescriptionPath = os.path.join(config["storage-mount-path"], endpoint["endpointDescriptionPath"])
     print("endpointDescriptionPath: %s" % endpointDescriptionPath)
     with open(endpointDescriptionPath, 'w') as f:
@@ -94,18 +94,18 @@ def startEndpoint(endpoint):
     # pending, running, stopped
     print("Starting endpoint: %s" % (endpoint))
 
-    # podId
-    pod_id = endpoint["podId"]
+    # podName
+    pod_name = endpoint["podName"]
 
     # setup ssh server only is the ssh server is not up
-    if not isSshServerReady(pod_id):
-        print("Ssh server is not ready for pod: %s. Setup ..." % pod_id)
-        ssh_port = setupSshServer(pod_id, endpoint["username"], endpoint["hostNetwork"])
+    if not isSshServerReady(pod_name):
+        print("Ssh server is not ready for pod: %s. Setup ..." % pod_name)
+        ssh_port = setupSshServer(pod_name, endpoint["username"], endpoint["hostNetwork"])
     else:
-        ssh_port = querySshPort(pod_id)
+        ssh_port = querySshPort(pod_name)
     endpoint["port"] = ssh_port
 
-    print("Ssh server is ready for pod: %s. Ssh listen on %s" % (pod_id, ssh_port))
+    print("Ssh server is ready for pod: %s. Ssh listen on %s" % (pod_name, ssh_port))
 
     # create NodePort
     createNodePort(endpoint)
