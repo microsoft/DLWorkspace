@@ -7,6 +7,10 @@ from flask_restful import reqparse, abort, Api, Resource
 from flask import request, jsonify
 import base64
 import yaml
+<<<<<<< HEAD
+=======
+import re
+>>>>>>> refine the /endpoints POST
 import uuid
 
 import logging
@@ -309,7 +313,7 @@ class ListJobs(Resource):
             job["jobParams"] = json.loads(base64.b64decode(job["jobParams"]))
 
             if "endpoints" in job and job["endpoints"] is not None  and (job["endpoints"].strip()) > 0:
-                job["endpoints"] = json.loads(base64.b64decode(job["endpoints"]))
+                job["endpoints"] = json.loads(job["endpoints"])
 
             if "jobStatusDetail" in job and job["jobStatusDetail"] is not None  and (job["jobStatusDetail"].strip()) > 0:
                 try:
@@ -509,7 +513,7 @@ class GetJobDetail(Resource):
         job = JobRestAPIUtils.GetJobDetail(userName, jobId)
         job["jobParams"] = json.loads(base64.b64decode(job["jobParams"]))
         if "endpoints" in job and job["endpoints"] is not None and (job["endpoints"].strip()) > 0:
-            job["endpoints"] = json.loads(base64.b64decode(job["endpoints"]))
+            job["endpoints"] = json.loads(job["endpoints"])
         if "jobStatusDetail" in job and job["jobStatusDetail"] is not None  and (job["jobStatusDetail"].strip()) > 0:
             try:
                 job["jobStatusDetail"] = Json.loads(base64.b64decode(job["jobStatusDetail"]))
@@ -925,6 +929,12 @@ class UpdateStorage(Resource):
 ##
 api.add_resource(UpdateStorage, '/UpdateStorage')
 
+def getAlias(username):
+    if "@" in username:
+        return username.split("@")[0].strip()
+    if "/" in username:
+        return username.split("/")[1].strip()
+    return username
 
 class Endpoint(Resource):
     def get(self):
@@ -940,27 +950,62 @@ class Endpoint(Resource):
         return resp
 
     def post(self):
-        '''set job["endpoints"]: curl -X POST -H "Content-Type: application/json" /endpoints --data "endpoints in json"'''
-        content = request.get_json(silent=True)
+        '''set job["endpoints"]: curl -X POST -H "Content-Type: application/json" /endpoints --data "{'jobId': ..., 'endpoints': ['ssh', 'ipython'] }"'''
+        params = request.get_json(silent=True)
+        job_id = params["jobId"]
+        requested_endpoints = params["endpoints"]
 
-        # check required fields
-        mandatory_fields = ["id", "jobId", "podId", "username", "name", "endpointDescriptionPath"]
-        for _, item in content.items():
-            for mandatory_field in mandatory_fields:
-                if mandatory_field not in item:
-                    return ("Bad request, field missing: %s" % mandatory_field), 400
-                if item[mandatory_field] is None or len(item[mandatory_field]) == 0:
-                    return ("Bad request, field empty: %s" % mandatory_field), 400
+        # get the job
+        job = JobRestAPIUtils.get_job(job_id)
 
-                if "hostNetwork" not in item:
-                    item["hostNetwork"] = False
-                item["status"] = "pending"
+        # get endpointDescriptionPath
+        # job["jobDescriptionPath"] = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"] + ".yaml"
+        endpoint_description_dir = re.search("(.*/)[^/\.]+.yaml", job["jobDescriptionPath"]).group(1)
 
-        jobId = content.values()[0]["jobId"]
-        job = JobRestAPIUtils.GetJobDetail(jobId)
-        JobRestAPIUtils.update_job(jobId, "endpoints", json.dumps(content))
+        # get pods
+        job_description = base64.b64decode(job["jobDescription"])
+        pod_names = [resource["metadata"]["name"] for resource in yaml.load_all(job_description) if resource['kind'] == 'Pod']
 
-        resp = jsonify(content)
+        # endpoints should be in ["ssh", "ipython"]
+        if any(elem not in ["ssh", "ipython"] for elem in requested_endpoints):
+            return ("Bad request, endpoints only allowed in [\"ssh\", \"ipython\"]: %s" % requested_endpoints), 400
+
+        # HostNetwork
+        job_params = json.loads(base64.b64decode(job["jobParams"]))
+        if "hostNetwork" in job_params and job_params["hostNetwork"] == True:
+            host_network = True
+        else:
+            host_network = False
+
+        # username
+        username = getAlias(job["userName"])
+
+        endpoints = {}
+
+        if "ssh" in requested_endpoints:
+            # setup ssh for each pod
+            for pod_name in pod_names:
+                id = str(uuid.uuid4())
+                endpoint = {
+                    "id": id,
+                    "jobId": job_id,
+                    "podName": pod_name,
+                    "username": username,
+                    "name": "ssh",
+                    "endpointDescriptionPath": os.path.join(endpoint_description_dir, "endpoint-" + id+"-ssh.yaml"),
+                    "status": "pending",
+                    "hostNetowrk": host_network
+                }
+                endpoints[id] = endpoint
+
+        # TODO
+        if 'ipython' in requested_endpoints:
+            # setup jupyter in master
+            pass
+
+        JobRestAPIUtils.update_job(job_id, "endpoints", json.dumps(endpoints))
+
+        resp = jsonify(endpoints)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
         return resp
