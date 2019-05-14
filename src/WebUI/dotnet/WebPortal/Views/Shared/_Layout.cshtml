@@ -89,7 +89,7 @@
             var $teamsDropdown = $('#teams-dropdown');
             if (!$teamsDropdown.length) return;
 
-            var clusters = @Html.Raw(@Context.Session.GetString("AuthorizedClusters"));
+            var clusters = @Html.Raw(@Context.Session.GetString("TeamClusters"));
 
             $.each(clusters, function () {
                 $.get({

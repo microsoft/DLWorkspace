@@ -623,7 +623,7 @@ namespace WindowsAuth.Controllers
 
         private async Task<string[]> GetTeams()
         {
-            var teams = new List<string>();
+            var teams = new HashSet<string>();
             var authorizedClusters = JsonConvert.DeserializeObject<List<string>>(HttpContext.Session.GetString("AuthorizedClusters"));
 
             foreach (var cluster in authorizedClusters)
@@ -645,7 +645,35 @@ namespace WindowsAuth.Controllers
             return teams.ToArray();
         }
 
-#region ASP Controllers
+        private async Task<string[]> GetTeamClusters(string team)
+        {
+            var clusters = new List<string>();
+            var authorizedClusters = JsonConvert.DeserializeObject<List<string>>(HttpContext.Session.GetString("AuthorizedClusters"));
+
+            foreach (var cluster in authorizedClusters)
+            {
+                var restapi = Startup.Clusters[cluster].Restapi;
+                var url = restapi + "/ListVCs?userName=" + HttpContext.Session.GetString("Email");
+                using (var httpClient = new HttpClient())
+                {
+                    var response = await httpClient.GetAsync(url);
+                    var content = await response.Content.ReadAsStringAsync();
+                    var jContent = JObject.Parse(content);
+                    var jResult = jContent["result"] as JArray;
+                    foreach (var jVC in jResult)
+                    {
+                        if (team == jVC["vcName"].Value<string>())
+                        {
+                            clusters.Add(cluster);
+                            break;
+                        }
+                    }
+                }
+            }
+            return clusters.ToArray();
+        }
+
+        #region ASP Controllers
         public async Task<IActionResult> Index()
         {
             if (User.Identity.IsAuthenticated && !HttpContext.Session.Keys.Contains("uid"))
@@ -736,6 +764,8 @@ namespace WindowsAuth.Controllers
                         {
                             HttpContext.Session.SetString("Teams", JsonConvert.SerializeObject(teams));
                             HttpContext.Session.SetString("Team", teams[0]);
+                            var clusters = await GetTeamClusters(teams[0]);
+                            HttpContext.Session.SetString("TeamClusters", JsonConvert.SerializeObject(clusters));
                         }
                     }
                 }
@@ -770,6 +800,8 @@ namespace WindowsAuth.Controllers
                 if (Array.Exists(teams, t => t.Equals(team)))
                 {
                     HttpContext.Session.SetString("Team", team);
+                    var clusters = await GetTeamClusters(team);
+                    HttpContext.Session.SetString("TeamClusters", JsonConvert.SerializeObject(clusters));
                     _logger.LogInformation("{0} switch team to {1}", HttpContext.Session.GetString("Username"), team);
                 }
             }

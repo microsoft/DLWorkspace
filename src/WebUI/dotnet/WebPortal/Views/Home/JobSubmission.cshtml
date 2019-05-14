@@ -171,7 +171,7 @@
             return mounts;
         };
 
-        $scope.clusters = @Html.Raw(@Context.Session.GetString("AuthorizedClusters"));
+        $scope.clusters = @Html.Raw(@Context.Session.GetString("TeamClusters"));
         $scope.cluster = $scope.clusters[0];
         $scope.checkCurrent();
         $scope.currentTemplateValue = 0;

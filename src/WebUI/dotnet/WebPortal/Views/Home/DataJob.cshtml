@@ -23,7 +23,7 @@
     app.controller('dataJobCtrl', function ($scope, $http, $httpParamSerializer) {
         $scope.busy = false;
         $scope.current = {};
-        $scope.clusters = @Html.Raw(@Context.Session.GetString("AuthorizedClusters"));
+        $scope.clusters = @Html.Raw(@Context.Session.GetString("TeamClusters"));
 
         $scope.submit = function () {
             $scope.busy = true;

@@ -6,7 +6,7 @@
 
 
 <script>
-    var clusters = @Html.Raw(@Context.Session.GetString("AuthorizedClusters"));
+    var clusters = @Html.Raw(@Context.Session.GetString("TeamClusters"));
     var clustersInfo = Object.create(null);
     function buildTables() {
         $.when.apply($, $.map(clusters, function (cluster) {
