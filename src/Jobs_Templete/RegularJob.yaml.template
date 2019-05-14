@@ -10,7 +10,7 @@ metadata:
      userName: {{ job["userNameLabel"] }}
      vcName: {{ job["vcName"] }}
      gpuType: {{ job["gpuType"] }}
-     preemptionAllowed: {{ job["preemptionAllowed"] }}
+     preemptionAllowed: "{{ job["preemptionAllowed"] }}"
   {% if "annotations" in job %}
   annotations:
     {% for annotationKey,annotationVal in job["annotations"].items() %}
