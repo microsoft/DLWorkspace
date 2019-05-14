@@ -262,6 +262,8 @@ def update_config():
         config["elasticsearch_node"] = config["webportal_node"]
     if ("mysql_node" not in config):
         config["mysql_node"] = None if len(get_node_lists_for_service("mysql"))==0 else get_node_lists_for_service("mysql")[0]
+    if ("host" not in config["prometheus"]):
+        config["prometheus"]["host"] = None if len(get_node_lists_for_service("prometheus"))==0 else get_node_lists_for_service("prometheus")[0]
 
     update_docker_image_config()
 

@@ -1,4 +1,5 @@
-influxdb.yaml
-collectd.yaml
+job-exporter.yaml
+watchdog.yaml
+prometheus.yaml
+grafana-config.yaml
 grafana.yaml
-heapster.yaml

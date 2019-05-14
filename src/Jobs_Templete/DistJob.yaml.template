@@ -36,10 +36,14 @@ spec:
     imagePullPolicy: Always
     command: {{ job["LaunchCMD"] }}
     #container port and host port should be same.
-    {% if job["isPrivileged"] %}
     securityContext:
+    {% if job["isPrivileged"] %}
       privileged: true
     {% endif %}    
+      capabilities:
+        add:
+        - IPC_LOCK
+        - SYS_ADMIN          
     ports:
     - containerPort: {{job["containerPort"]}}
       hostPort: {{job["containerPort"]}}      
@@ -79,14 +83,20 @@ spec:
       value: {{ job["familyToken"] }}
     - name: DLWS_REST_API
       value: {{ job["rest-api"] }}
+    - name: DLWS_USER_NAME
+      value: {{ job["userNameLabel"] }}
     - name: DLWS_JOB_ID
-      value: {{ job["jobId"] }}   
+      value: {{ job["jobId"] }}
     - name: DLWS_NUM_PS
       value: "{{ job["numps"] }}"  
     - name: DLWS_NUM_WORKER
       value: "{{ job["numworker"] }}"  
     - name: DLWS_NUM_GPU_PER_WORKER
-      value: "{{ job["resourcegpu"] }}"                       
+      value: "{{ job["resourcegpu"] }}"     
+    {% if job["distRole"] =="ps" or not job["resourcegpu"] is defined or job["resourcegpu"]|int < 1  %}
+    - name: NVIDIA_VISIBLE_DEVICES
+      value: ""      
+    {% endif %}                         
     {% if job["usefreeflow"] %}
     - name: VNET_PREFIX
       value: {{ job["pod_ip_range"] }}
@@ -137,3 +147,6 @@ spec:
   - name: dshm
     emptyDir:
       medium: Memory  
+  - name: rdmadev
+    hostPath:
+      path: /dev/infiniband/uverbs1          

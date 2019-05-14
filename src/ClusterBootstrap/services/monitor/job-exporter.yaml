@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: job-exporter
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: job-exporter
+  template:
+    metadata:
+      labels:
+        app: job-exporter
+        task: monitoring
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "{{cnf['job-exporter']['port']}}"
+      name: job-exporter
+    spec:
+      containers:
+      - image: openpai/job-exporter:dlws
+        imagePullPolicy: Always
+        livenessProbe: # in case job-exporter hangs
+          httpGet:
+            path: '/healthz'
+            port: {{cnf['job-exporter']['port']}}
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+        command:
+        - "python"
+        - "/job_exporter/main.py"
+        - "--port"
+        - "{{cnf['job-exporter']['port']}}"
+        - "--interval"
+        - "30"
+        - "--interface"
+        - "eth0"
+        resources:
+          limits:
+            memory: "512Mi"
+        securityContext:
+          privileged: true # this is required since job-exporter will call setns to other containers
+        env:
+        - name: HOST_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: LOGGING_LEVEL
+          value: INFO
+        - name: NV_DRIVER
+          value: /var/drivers/nvidia/current
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: all
+        volumeMounts:
+        - mountPath: /var/run/docker.sock
+          name: docker-socket
+        - mountPath: /dev
+          name: device-mount
+        - mountPath: /var/drivers/nvidia/current
+          name: driver-path
+        name: job-exporter
+        ports:
+        - containerPort: {{cnf['job-exporter']['port']}}
+          hostPort: {{cnf['job-exporter']['port']}}
+          name: main
+      volumes:
+        - name: docker-socket
+          hostPath:
+            path: /var/run/docker.sock
+        - name: device-mount
+          hostPath:
+            path: /dev
+        - name: driver-path
+          hostPath:
+            path: /var/drivers/nvidia/current
+      hostNetwork: true
+      hostPID: true # This is required since job-exporter should get list of pid in container
+      tolerations:
+      - key: node.kubernetes.io/memory-pressure
+        operator: "Exists"
+      - key: node.kubernetes.io/disk-pressure
+        operator: "Exists"

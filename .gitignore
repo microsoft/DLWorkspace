@@ -62,3 +62,4 @@ src/WebUI/dotnet/WebPortal/hosting.json
 /.vs/DLWorkspace/v15/.suo
 
 cluster-autoscaler
+src/ClusterBootstrap/services/monitor/grafana-config.yaml
