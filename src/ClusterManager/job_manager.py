@@ -251,27 +251,12 @@ def SubmitRegularJob(job):
 
                 if "gpuType" in jobParams:
                     if "nodeSelector" not in jobParams:
-                        jobParams["nodeSelector"] = {}   
+                        jobParams["nodeSelector"] = {}
                     jobParams["nodeSelector"]["gpuType"] = jobParams["gpuType"]
 
             template = ENV.get_template(os.path.abspath(jobTemp))
             job_description = template.render(job=jobParams)
             jobDescriptionList.append(job_description)
-
-            if ("interactivePort" in jobParams and len(jobParams["interactivePort"].strip()) > 0):
-                ports = [p.strip() for p in re.split(",|;",jobParams["interactivePort"]) if len(p.strip()) > 0 and p.strip().isdigit()]
-                for portNum in ports:
-                    jobParams["serviceId"] = "interactive-" + jobParams["podName"] + "-" + portNum
-                    jobParams["port"] = portNum
-                    jobParams["port-name"] = "interactive"
-                    jobParams["port-type"] = "TCP"
-
-                    serviceTemplate = ENV.get_template(os.path.join(jobTempDir,"KubeSvc.yaml.template"))
-
-                    stemplate = ENV.get_template(serviceTemplate)
-                    interactiveMeta = stemplate.render(svc=jobParams)
-                    jobDescriptionList.append(interactiveMeta)
-
 
         jobDescription = "\n---\n".join(jobDescriptionList)
 
@@ -528,7 +513,7 @@ sleep infinity
 
                     if "gpuType" in distJobParam:
                         if "nodeSelector" not in distJobParam:
-                            distJobParam["nodeSelector"] = {}   
+                            distJobParam["nodeSelector"] = {}
                         distJobParam["nodeSelector"]["gpuType"] = distJobParam["gpuType"]
 
                     template = ENV.get_template(os.path.abspath(jobTemp))
@@ -537,25 +522,6 @@ sleep infinity
                     jobDescriptionList.append(job_description)
 
                     distJobParams[role].append(distJobParam)
-
-
-                    if (role == "ps" and "interactivePort" in distJobParam and len(distJobParam["interactivePort"].strip()) > 0):
-                        ports = [p.strip() for p in re.split(",|;",distJobParam["interactivePort"]) if len(p.strip()) > 0 and p.strip().isdigit()]
-
-                        distJobParam["podName"] = distJobParam["jobId"]+"-"+distJobParam["distId"]
-
-                        for portNum in ports:
-                            distJobParam["serviceId"] = "interactive-" + distJobParam["podName"] + "-" + portNum
-                            distJobParam["port"] = portNum
-                            distJobParam["port-name"] = "interactive"
-                            distJobParam["port-type"] = "TCP"
-
-                            serviceTemplate = ENV.get_template(os.path.join(jobTempDir,"KubeSvc.yaml.template"))
-
-                            stemplate = ENV.get_template(serviceTemplate)
-                            interactiveMeta = stemplate.render(svc=distJobParam)
-                            jobDescriptionList.append(interactiveMeta)
-
 
             jobParams["jobDescriptionPath"] = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"] + ".yaml"
             jobDescription = "\n---\n".join(jobDescriptionList)
@@ -686,26 +652,12 @@ def UpdateJobStatus(job):
         joblog_manager.extract_job_log(job["jobId"],logPath,jobParams["userId"])
         dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","finished")
         if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
+            # TODO should remove the NodePort in the mean time
             k8sUtils.kubectl_delete(jobDescriptionPath)
 
     elif result.strip() == "Running":
         if job["jobStatus"] != "running":
             dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","running")
-
-        if "interactivePort" in jobParams and jobParams["jobtrainingtype"] != "PSDistJob":
-            if "hostNetwork" not in jobParams or not jobParams["hostNetwork"]:
-                serviceAddress = k8sUtils.GetServiceAddress(job["jobId"])
-                serviceAddress = base64.b64encode(json.dumps(serviceAddress))
-                # TODO remove the related logic
-                # dataHandler.UpdateJobTextField(job["jobId"],"endpoints",serviceAddress)
-            else:
-                serviceAddress = k8sUtils.GetServiceAddress(job["jobId"])
-                for sidx in range(len(serviceAddress)):
-                    serviceAddress[sidx]["hostPort"] = serviceAddress[sidx]["containerPort"]
-                serviceAddress = base64.b64encode(json.dumps(serviceAddress))
-                # TODO remove the related logic
-                # dataHandler.UpdateJobTextField(job["jobId"],"endpoints",serviceAddress)
-
 
     elif result.strip() == "Failed":
         printlog("Job %s fails, cleaning..." % job["jobId"])
@@ -782,11 +734,6 @@ def UpdateDistJobStatus(job):
                 joblog_manager.extract_job_log(job["jobId"],logPath,jobParams["userId"])
                 if job["jobStatus"] != "running":
                     dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","running")
-                if "interactivePort" in jobParams:
-                    serviceAddress = k8sUtils.GetServiceAddress(job["jobId"])
-                    serviceAddress = base64.b64encode(json.dumps(serviceAddress))
-                    # TODO remove the related logic
-                    # dataHandler.UpdateJobTextField(job["jobId"],"endpoints",serviceAddress)
 
             elif result.strip() == "Failed":
                 printlog("Job %s fails, cleaning..." % job["jobId"])
@@ -1170,7 +1117,7 @@ def TakeJobActions(jobs):
                 logging.info("TakeJobActions : global assignment : %s : %s" % (sji["jobParams"]["jobName"], sji["globalResInfo"].CategoryToCountMap))
 
     logging.info("TakeJobActions : global resources : %s" % (globalResInfo.CategoryToCountMap))
-           
+
     for sji in jobsInfo:
         if sji["job"]["jobStatus"] == "queued" and sji["allowed"] == True:
             SubmitJob(sji["job"])
@@ -1196,7 +1143,7 @@ def Run():
             dataHandler = DataHandler()
             pendingJobs = dataHandler.GetPendingJobs()
             TakeJobActions(pendingJobs)
-            
+
             pendingJobs = dataHandler.GetPendingJobs()
             logging.info("Updating status for %d jobs" % len(pendingJobs))
             for job in pendingJobs:
