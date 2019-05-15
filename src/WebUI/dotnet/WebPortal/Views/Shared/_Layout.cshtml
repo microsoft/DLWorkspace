@@ -91,6 +91,8 @@
 
             var clusters = @Html.Raw(@Context.Session.GetString("AuthorizedClusters"));
 
+            var nameSet = Object.create(null);
+
             $.each(clusters, function () {
                 $.get({
                     url: '/api/dlws/GetVCs',
@@ -99,8 +101,6 @@
                 }).then(function (data) {
                     if (data == null) return;
                     if (!$.isArray(data.result)) return;
-
-                    var nameSet = Object.create(null);
                     var teams = data.result;
                     var $teams = $.map(teams, function (element) {
                         var name = element.vcName;
