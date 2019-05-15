@@ -36,14 +36,10 @@ spec:
     imagePullPolicy: Always
     command: {{ job["LaunchCMD"] }}
     #container port and host port should be same.
-    securityContext:
     {% if job["isPrivileged"] %}
+    securityContext:
       privileged: true
     {% endif %}    
-      capabilities:
-        add:
-        - IPC_LOCK
-        - SYS_ADMIN          
     ports:
     - containerPort: {{job["containerPort"]}}
       hostPort: {{job["containerPort"]}}      
@@ -90,11 +86,7 @@ spec:
     - name: DLWS_NUM_WORKER
       value: "{{ job["numworker"] }}"  
     - name: DLWS_NUM_GPU_PER_WORKER
-      value: "{{ job["resourcegpu"] }}"     
-    {% if job["resourcegpu"]|int < 1  %}
-    - name: NVIDIA_VISIBLE_DEVICES
-      value: ""      
-    {% endif %}                         
+      value: "{{ job["resourcegpu"] }}"                       
     {% if job["usefreeflow"] %}
     - name: VNET_PREFIX
       value: {{ job["pod_ip_range"] }}
