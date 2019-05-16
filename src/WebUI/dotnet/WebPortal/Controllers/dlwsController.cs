@@ -10,6 +10,7 @@ using System.Runtime.Serialization;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
+using System.Net.Http.Headers;
 
 // For more information on enabling Web API for empty projects, visit http://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -370,7 +371,7 @@ namespace WindowsAuth.Controllers
             }
             return ret;
         }
-        
+
         // POST api/dlws/submit
         [HttpPost("submit")]
         public async Task<string> PostAsync(TemplateParams templateParams)
@@ -438,6 +439,23 @@ namespace WindowsAuth.Controllers
                 httpClient.BaseAddress = new Uri(restapi);
                 var response = await httpClient.PostAsync("/PostJob",
                     new StringContent(jobObject.ToString(), System.Text.Encoding.UTF8, "application/json"));
+                var returnInfo = await response.Content.ReadAsStringAsync();
+                return returnInfo;
+            }
+        }
+
+        // POST api/dlws/endpoints
+        [HttpPost("endpoints")]
+        public async Task<string> PostEndpoints()
+        {
+            var restapi = HttpContext.Session.GetString("Restapi");
+            using (var httpClient = new HttpClient())
+            {
+                httpClient.BaseAddress = new Uri(restapi);
+                var content = new StreamContent(HttpContext.Request.Body);
+                content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+                content.Headers.ContentLength = HttpContext.Request.ContentLength;
+                var response = await httpClient.PostAsync("/endpoints", content);
                 var returnInfo = await response.Content.ReadAsStringAsync();
                 return returnInfo;
             }
