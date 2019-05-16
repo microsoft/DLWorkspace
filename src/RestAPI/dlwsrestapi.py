@@ -992,7 +992,7 @@ class Endpoint(Resource):
                     "name": "ssh",
                     "endpointDescriptionPath": os.path.join(endpoint_description_dir, endpoint_id + ".yaml"),
                     "status": "pending",
-                    "hostNetowrk": host_network
+                    "hostNetwork": host_network
                 }
                 endpoints[endpoint_id] = endpoint
 
