@@ -588,18 +588,18 @@
                     <div layout="row" ng-if="current.jobtrainingtype=='PSDistJob'">
 
                         <md-input-container flex="50">
-                            <label> Number of MPI Masters </label>
-                            <input ng-model="current.numps" required type="number" step="1" min="0" md-no-asterisk>
-                        </md-input-container>
-
-                        <md-input-container flex="50">
                             <label> Number of Workers </label>
                             <input ng-model="current.numpsworker" required type="number" step="1" min="1" md-no-asterisk>
                         </md-input-container>
 
+                        <md-input-container flex="50">
+                            <label> Total number of GPUs </label>
+                            <input ng-value="current.numpsworker * 8" disabled type="number" md-no-asterisk>
+                        </md-input-container>
+
                     </div>
 
-                    <md-input-container class="md-block">
+                    <md-input-container class="md-block" ng-if="current.jobtrainingtype=='RegularJob'">
                         <label> Number of GPUs </label>
                         <input ng-model="current.resourcegpu" required type="number" name="resourcegpu" step="1" min="0" max="8" md-no-asterisk>
                         <div ng-messages="jobApp.resourcegpu.$error" multiple>
