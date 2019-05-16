@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: {{ job["jobId"] }}-{{ job["distId"] }}
-  labels: 
+  labels:
     run: {{ job["jobId"] }}
     podName: {{ job["jobId"] }}-{{ job["distId"] }}
     jobName: {{ job["jobNameLabel"] }}
@@ -11,25 +11,25 @@ metadata:
     userName: {{ job["userNameLabel"] }}
     vcName: {{ job["vcName"] }}
     gpuType: {{ job["gpuType"] }}
-    preemptionAllowed: "{{ job["preemptionAllowed"] }}"   
+    preemptionAllowed: "{{ job["preemptionAllowed"] }}"
 spec:
   #hostNetwork: true
   nodeSelector:
-    worker: active  
+    worker: active
   {% if job["nodeSelector"]|length > 0 %}
   {% for key, value in job["nodeSelector"].items() %}
     {{key}}: {{value}}
   {% endfor %}
   {% endif %}
   {% if job["dnsPolicy"] %}
-  dnsPolicy: {{ job["dnsPolicy" ]}} 
-  {% endif %} 
+  dnsPolicy: {{ job["dnsPolicy" ]}}
+  {% endif %}
   {% if job["hostNetwork"] %}
   hostNetwork: true
   {% endif %}
   {% if job["hostIPC"] %}
   hostIPC: true
-  {% endif %}   
+  {% endif %}
   containers:
   - name: {{ job["jobId"] }}
     image: {{ job["image"] }}
@@ -39,31 +39,31 @@ spec:
     {% if job["isPrivileged"] %}
     securityContext:
       privileged: true
-    {% endif %}    
+    {% endif %}
     ports:
     - containerPort: {{job["containerPort"]}}
-      hostPort: {{job["containerPort"]}}      
-    {% if job["distRole"] =="worker" %}  
+      hostPort: {{job["containerPort"]}}
+    {% if job["distRole"] =="worker" %}
     resources:
       limits:
         nvidia.com/gpu: {{ job["resourcegpu"] }}
     {% if not job["cpurequest"] %}
-      requests: 
+      requests:
         cpu: 1.0
-    {% else %}  
-      requests: 
-        cpu: job["cpurequest"]      
-    {% endif %}   
+    {% else %}
+      requests:
+        cpu: job["cpurequest"]
+    {% endif %}
     {% if job["memoryrequest"] %}
-      requests: 
-        memory: job["memoryrequest"]      
-    {% endif %} 
-    {% endif %}    
+      requests:
+        memory: job["memoryrequest"]
+    {% endif %}
+    {% endif %}
     volumeMounts:
     {% if job["usefreeflow"] %}
     - mountPath: /freeflow
-      name: freeflow    
-    {% endif %}   
+      name: freeflow
+    {% endif %}
     {% for mp in job["mountpoints"] %}
     - mountPath: {{ mp.containerPath }}
       name: {{ mp.name }}
@@ -71,28 +71,28 @@ spec:
     {% if not job["dnsPolicy"] %}
     - mountPath: /etc/resolv.conf
       name: resolv
-    {% endif %}    
+    {% endif %}
     - mountPath: /dev/shm
-      name: dshm       
+      name: dshm
     env:
     - name: FAMILY_TOKEN
       value: {{ job["familyToken"] }}
     - name: DLWS_REST_API
       value: {{ job["rest-api"] }}
     - name: DLWS_JOB_ID
-      value: {{ job["jobId"] }}   
+      value: {{ job["jobId"] }}
     - name: DLWS_NUM_PS
-      value: "{{ job["numps"] }}"  
+      value: "{{ job["numps"] }}"
     - name: DLWS_NUM_WORKER
-      value: "{{ job["numworker"] }}"  
+      value: "{{ job["numworker"] }}"
     - name: DLWS_NUM_GPU_PER_WORKER
-      value: "{{ job["resourcegpu"] }}"                       
+      value: "{{ job["resourcegpu"] }}"
     {% if job["usefreeflow"] %}
     - name: VNET_PREFIX
       value: {{ job["pod_ip_range"] }}
     - name: LD_PRELOAD
-      value: "/freeflow/libfsocket.so"  
-    {% endif %}          
+      value: "/freeflow/libfsocket.so"
+    {% endif %}
     - name: POD_NAME
       valueFrom:
         fieldRef:
@@ -100,28 +100,28 @@ spec:
     - name: POD_IP
       valueFrom:
         fieldRef:
-          fieldPath: status.podIP  
+          fieldPath: status.podIP
     {% for env in job["env"] %}
     - name: {{ env.name }}
-      value: {{ env.value }}    
-    {% endfor %}          
-  
+      value: {{ env.value }}
+    {% endfor %}
+
   imagePullSecrets:
-  - name: regcred  
+  - name: regcred
 
   restartPolicy: Never
   volumes:
   {% if job["usefreeflow"] %}
   - name: freeflow
     hostPath:
-      path: /freeflow  
+      path: /freeflow
   {% endif %}
   {% if not job["dnsPolicy"] %}
   - name: resolv
     hostPath:
       path: /etc/resolv.conf
   {% endif %}
-      
+
   {% for mp in job["mountpoints"] %}
   - name: {{ mp.name }}
     {% if mp.emptydir %}
@@ -131,9 +131,9 @@ spec:
       path: {{ mp.hostPath }}
       {% if mp.type %}
       type: {{ mp.type }}
-      {% endif %}      
-    {% endif %}      
+      {% endif %}
+    {% endif %}
   {% endfor %}
   - name: dshm
     emptyDir:
-      medium: Memory  
+      medium: Memory

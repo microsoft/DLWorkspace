@@ -2,15 +2,15 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: {{ job["podName"] }}
-  labels: 
-     run: {{ job["jobId"] }}
-     podName: {{ job["podName"] }}
-     jobName: {{ job["jobNameLabel"] }}
-     jobId: {{job["jobId"]}}
-     userName: {{ job["userNameLabel"] }}
-     vcName: {{ job["vcName"] }}
-     gpuType: {{ job["gpuType"] }}
-     preemptionAllowed: "{{ job["preemptionAllowed"] }}"
+  labels:
+    run: {{ job["jobId"] }}
+    podName: {{ job["podName"] }}
+    jobName: {{ job["jobNameLabel"] }}
+    jobId: {{job["jobId"]}}
+    userName: {{ job["userNameLabel"] }}
+    vcName: {{ job["vcName"] }}
+    gpuType: {{ job["gpuType"] }}
+    preemptionAllowed: "{{ job["preemptionAllowed"] }}"
   {% if "annotations" in job %}
   annotations:
     {% for annotationKey,annotationVal in job["annotations"].items() %}
@@ -24,22 +24,22 @@ spec:
   {% for key, value in job["nodeSelector"].items() %}
     {{key}}: {{value}}
   {% endfor %}
-  {% endif %}    
+  {% endif %}
   {% if job["resourcegpu"]|int < 8  %}
     FragmentGPUJob: active
   {% endif %}
   {% if job["dnsPolicy"] %}
-  dnsPolicy: {{ job["dnsPolicy" ]}} 
+  dnsPolicy: {{ job["dnsPolicy" ]}}
   {% endif %}
   {% if job["hostNetwork"] %}
   hostNetwork: true
   {% endif %}
   {% if job["hostIPC"] %}
   hostIPC: true
-  {% endif %}  
+  {% endif %}
   containers:
   - name: {{ job["podName"] }}
-    image: {{ job["image"] }}    
+    image: {{ job["image"] }}
     imagePullPolicy: Always
     command: {{ job["LaunchCMD"] }}
     securityContext:
@@ -51,17 +51,17 @@ spec:
       limits:
         nvidia.com/gpu: {{ job["resourcegpu"] }}
     {% if not job["cpurequest"] %}
-      requests: 
+      requests:
         cpu: 1.0
-    {% else %}  
-      requests: 
-        cpu: job["cpurequest"]      
+    {% else %}
+      requests:
+        cpu: job["cpurequest"]
     {% endif %}
     {% if job["memoryrequest"] %}
-      requests: 
-        memory: job["memoryrequest"]      
-    {% endif %} 
-        
+      requests:
+        memory: job["memoryrequest"]
+    {% endif %}
+
     volumeMounts:
     {% if not job["dnsPolicy"] %}
     - mountPath: /etc/resolv.conf
@@ -82,26 +82,26 @@ spec:
       name: freeflow
     {% endif %}
     - mountPath: /dev/shm
-      name: dshm    
+      name: dshm
     env:
     - name: FAMILY_TOKEN
       value: {{ job["familyToken"] }}
     - name: DLWS_REST_API
       value: {{ job["rest-api"] }}
     - name: JOB_ID
-      value: {{ job["jobId"] }}   
+      value: {{ job["jobId"] }}
     - name: DLWS_JOB_ID
-      value: {{ job["jobId"] }}   
+      value: {{ job["jobId"] }}
     - name: DLWS_NUM_WORKER
-      value: "1"  
+      value: "1"
     - name: DLWS_NUM_GPU_PER_WORKER
-      value: "{{ job["resourcegpu"] }}"                   
+      value: "{{ job["resourcegpu"] }}"
     {% if job["usefreeflow"] %}
     - name: VNET_PREFIX
       value: {{ job["pod_ip_range"] }}
     - name: LD_PRELOAD
       value: "/freeflow/libfsocket.so"
-    {% endif %}      
+    {% endif %}
     - name: POD_NAME
       valueFrom:
         fieldRef:
@@ -109,15 +109,15 @@ spec:
     - name: POD_IP
       valueFrom:
         fieldRef:
-          fieldPath: status.podIP  
+          fieldPath: status.podIP
     {% for env in job["env"] %}
     - name: {{ env.name }}
-      value: "{{ env.value }}"    
+      value: "{{ env.value }}"
     {% endfor %}
 
   imagePullSecrets:
-  - name: regcred     
-  
+  - name: regcred
+
   restartPolicy: Never
   volumes:
   {% if not job["dnsPolicy"] %}
@@ -146,4 +146,4 @@ spec:
   {% endif %}
   - name: dshm
     emptyDir:
-      medium: Memory  
+      medium: Memory
