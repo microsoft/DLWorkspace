@@ -2,6 +2,7 @@ from config import global_vars
 import logging
 from logging.config import dictConfig
 
+
 class MyLogger:
 
     def init(self):
@@ -12,29 +13,36 @@ class MyLogger:
         self.logger = None
         self.init()
 
-    def info(self,msg):
+    def info(self, msg):
         self.init()
         print msg
         if self.logger is not None:
             self.logger.info(msg)
 
-    def error(self,msg):
+    def error(self, msg):
         self.init()
         print msg
 
         if self.logger is not None:
             self.logger.error(msg)
 
-    def warn(self,msg):
+    def warn(self, msg):
         self.init()
         print msg
 
         if self.logger is not None:
             self.logger.warn(msg)
 
-    def debug(self,msg):
+    def debug(self, msg):
         self.init()
         print msg
 
         if self.logger is not None:
             self.logger.debug(msg)
+
+    def exception(self, msg):
+        self.init()
+        print msg
+
+        if self.logger is not None:
+            self.logger.exception(msg)
