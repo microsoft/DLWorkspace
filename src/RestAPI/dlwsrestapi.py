@@ -935,11 +935,13 @@ def getAlias(username):
 
 class Endpoint(Resource):
     def get(self):
-        '''return job["endpoints"]: curl -X GET /endpoints?jobId='''
+        '''return job["endpoints"]: curl -X GET /endpoints?jobId=...&userName=...'''
         parser.add_argument('jobId')
+        parser.add_argument('userName')
         args = parser.parse_args()
         jobId = args["jobId"]
-        job = JobRestAPIUtils.GetJobDetail(jobId)
+        username = args["userName"]
+        job = JobRestAPIUtils.GetJobDetail(username, jobId)
 
         resp = jsonify(json.loads(job["endpoints"]))
         resp.headers["Access-Control-Allow-Origin"] = "*"
