@@ -703,6 +703,8 @@ class DataHandler:
         return ret
 
     def load_json(self, raw_str):
+        if isinstance(raw_str, unicode):
+            raw_str = str(raw_str)
         try:
             return json.loads(raw_str)
         except:
@@ -723,7 +725,28 @@ class DataHandler:
             logger.info("DataHandler: get pending endpoints %d, time elapsed %f s" % (len(pendingEndpoints), elapsed))
             return pendingEndpoints
         except Exception as e:
-            logger.exception("Query endpoints failed!")
+            logger.exception("Query pending endpoints failed!")
+            return {}
+
+    def GetDeadEndpoints(self):
+        try:
+            start_time = timeit.default_timer()
+            cursor = self.conn.cursor()
+            # TODO we need job["lastUpdated"] for filtering
+            query = "SELECT `endpoints` FROM jobs WHERE `jobStatus` <> 'running' order by `jobTime` DESC"
+            cursor.execute(query)
+            dead_endpoints = {}
+            for [endpoints] in cursor:
+                endpoint_list = {k: v for k, v in self.load_json(endpoints).items() if v["status"] == "running"}
+                dead_endpoints.update(endpoint_list)
+            cursor.close()
+            elapsed = timeit.default_timer() - start_time
+            logger.info("DataHandler: get dead endpoints %d , time elapsed %f s" % (len(dead_endpoints), elapsed))
+            return dead_endpoints
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            logger.exception("Query dead endpoints failed!")
             return {}
 
     def UpdateEndpoint(self, endpoint):
@@ -772,8 +795,10 @@ class DataHandler:
             ret.append(record)
         cursor.close()
         elapsed = timeit.default_timer() - start_time
-        logger.info("DataHandler: get pending jobs , time elapsed %f s" % (elapsed))
+        logger.info("DataHandler: get pending jobs %d, time elapsed %f s" % (len(ret), elapsed))
         return ret
+
+
 
     def SetJobError(self, jobId, errorMsg):
         try:

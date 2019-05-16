@@ -562,6 +562,8 @@ sleep infinity
         jobMetaStr = base64.b64encode(json.dumps(jobMeta))
         dataHandler.UpdateJobTextField(jobParams["jobId"],"jobMeta",jobMetaStr)
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         print(e)
         ret["error"] = str(e)
         retries = dataHandler.AddandGetJobRetries(jobParams["jobId"])
@@ -652,7 +654,6 @@ def UpdateJobStatus(job):
         joblog_manager.extract_job_log(job["jobId"],logPath,jobParams["userId"])
         dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","finished")
         if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
-            # TODO should remove the NodePort in the mean time
             k8sUtils.kubectl_delete(jobDescriptionPath)
 
     elif result.strip() == "Running":
