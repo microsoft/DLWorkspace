@@ -57,7 +57,7 @@ def generateNodePortService(job_id, pod_name, endpoint_id, name, target_port):
     endpointDescription = """kind: Service
 apiVersion: v1
 metadata:
-  name: endpoint-{2}-{3}
+  name: {2}
   labels:
     run: {0}
     jobId: {0}

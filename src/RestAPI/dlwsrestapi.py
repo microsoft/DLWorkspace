@@ -983,18 +983,18 @@ class Endpoint(Resource):
         if "ssh" in requested_endpoints:
             # setup ssh for each pod
             for pod_name in pod_names:
-                id = str(uuid.uuid4())
+                endpoint_id = "endpoint-" + pod_name + "-ssh"
                 endpoint = {
-                    "id": id,
+                    "id": endpoint_id,
                     "jobId": job_id,
                     "podName": pod_name,
                     "username": username,
                     "name": "ssh",
-                    "endpointDescriptionPath": os.path.join(endpoint_description_dir, "endpoint-" + id+"-ssh.yaml"),
+                    "endpointDescriptionPath": os.path.join(endpoint_description_dir, endpoint_id + ".yaml"),
                     "status": "pending",
                     "hostNetowrk": host_network
                 }
-                endpoints[id] = endpoint
+                endpoints[endpoint_id] = endpoint
 
         # TODO
         if 'ipython' in requested_endpoints:
