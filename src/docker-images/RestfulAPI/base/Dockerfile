@@ -12,18 +12,18 @@ RUN apt-get update; apt-get install -y --no-install-recommends apt-transport-htt
         vim \
         python-dev \
         python-pip \
-        python-yaml \ 
+        python-yaml \
         locales \
         python-pycurl \
         bison \
         curl \
         nfs-common \
         apt-utils
-        
 
-RUN pip install --upgrade pip; 
 
-RUN pip install setuptools; 
+RUN pip install --upgrade pip;
+
+RUN pip install setuptools;
 RUN locale-gen en_US.UTF-8
 RUN update-locale LANG=en_US.UTF-8
 
@@ -48,8 +48,9 @@ RUN apt-get update; ACCEPT_EULA=Y apt-get install -y msodbcsql=13.1.4.0-1 unixod
 RUN pip install pyodbc
 RUN pip install tzlocal
 RUN apt-get update; apt-get install -y --no-install-recommends ssh apache2 libapache2-mod-wsgi sudo
-RUN usermod -a -G sudo www-data 
-RUN echo "\nwww-data ALL=(ALL) NOPASSWD:ALL\n" > /etc/sudoers 
+RUN usermod -a -G sudo www-data
+RUN echo "\nwww-data ALL=(ALL) NOPASSWD:ALL\n" > /etc/sudoers
 
-
+RUN pip install subprocess32
+RUN pip install requests
 
