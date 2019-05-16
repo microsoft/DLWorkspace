@@ -61,7 +61,7 @@ def set_user_directory():
             logging.info("Found a new user %s" %username)
             logging.info("Creating home directory %s for user %s" % (userpath, username))
             os.system("mkdir -p "+userpath)
-            os.system("chown -R "+userid+":"+"500000513 "+userpath)
+            os.system("chown -R "+str(userid)+":"+"500000513 "+userpath)
 
         sshkeypath = os.path.join(userpath,".ssh/id_rsa")
         pubkeypath = os.path.join(userpath,".ssh/id_rsa.pub")

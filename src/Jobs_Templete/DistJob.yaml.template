@@ -11,7 +11,7 @@ metadata:
     userName: {{ job["userNameLabel"] }}
     vcName: {{ job["vcName"] }}
     gpuType: {{ job["gpuType"] }}
-    preemptionAllowed: {{ job["preemptionAllowed"] }}   
+    preemptionAllowed: "{{ job["preemptionAllowed"] }}"   
 spec:
   #hostNetwork: true
   nodeSelector:

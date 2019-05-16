@@ -390,9 +390,12 @@ class DataHandler:
             start_time = timeit.default_timer()
             cursor = self.conn.cursor()
 
+            if (isinstance(groups, list)):
+                groups = json.dumps(groups)
+            
             if len(self.GetIdentityInfo(identityName)) == 0:
                 sql = "INSERT INTO `"+self.identitytablename+"` (identityName,uid,gid,groups) VALUES (%s,%s,%s,%s)"
-                cursor.execute(sql, (identityName, uid, gid, json.dumps(groups)))
+                cursor.execute(sql, (identityName, uid, gid, groups))
             else:
                 sql = """update `%s` set uid = '%s', gid = '%s', groups = '%s' where `identityName` = '%s' """ % (self.identitytablename, uid, gid, groups, identityName)
                 cursor.execute(sql)
