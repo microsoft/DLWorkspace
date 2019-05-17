@@ -110,6 +110,12 @@ spec:
       valueFrom:
         fieldRef:
           fieldPath: status.podIP
+    - name: DLWS_GID
+      value: "{{ job["gid"] }}"
+    - name: DLWS_UID
+      value: "{{ job["uid"] }}"
+    - name: DLWS_USER
+      value: "{{ job["user"] }}"
     {% for env in job["env"] %}
     - name: {{ env.name }}
       value: "{{ env.value }}"

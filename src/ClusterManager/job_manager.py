@@ -254,6 +254,13 @@ def SubmitRegularJob(job):
                         jobParams["nodeSelector"] = {}
                     jobParams["nodeSelector"]["gpuType"] = jobParams["gpuType"]
 
+            # inject gid, uid and user
+            # TODO it should return only one entry
+            user_info = dataHandler.GetIdentityInfo(jobParams["userName"])[0]
+            jobParams["gid"] = user_info["gid"]
+            jobParams["uid"] = user_info["uid"]
+            jobParams["user"] = userAlias
+
             template = ENV.get_template(os.path.abspath(jobTemp))
             job_description = template.render(job=jobParams)
             jobDescriptionList.append(job_description)
