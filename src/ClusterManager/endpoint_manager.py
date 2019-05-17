@@ -38,7 +38,7 @@ def start_ssh_server(pod_name, user_name, host_network=False):
     if host_network:
         ssh_port = random.randint(40001, 49999)
         # bash_script = "sed -i '/^Port 22/c Port "+str(ssh_port)+"' /etc/ssh/sshd_config && "+bash_script
-        bash_script = "sudo bash -c 'apt-get update && apt-get install -y openssh-server && sed -i \"s/^Port 22/c Port "+str(ssh_port)+"/\" /etc/ssh/sshd_config && cat /home/" + username + "/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && service ssh restart'"
+        bash_script = "sudo bash -c 'apt-get update && apt-get install -y openssh-server && sed -i \"s/^Port 22/c Port " + str(ssh_port) + "/\" /etc/ssh/sshd_config && cat /home/" + user_name + "/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && service ssh restart'"
 
     # TODO setup reasonable timeout
     # output = k8sUtils.kubectl_exec("exec %s %s" % (jobId, " -- " + bash_script), 1)
@@ -101,6 +101,17 @@ def setup_ssh_server(user_name, pod_name, host_network=False):
     print("Ssh server is ready for pod: %s. Ssh listen on %s" % (pod_name, ssh_port))
     return ssh_port
 
+
+def setup_jupyter_server(user_name, pod_name):
+
+    jupyter_port = random.randint(10001, 19999)
+    bash_script = "sudo bash -c 'apt-get update && apt-get install python-pip -y && python -m pip install --upgrade pip && python -m pip install jupyter && cd /home/" + user_name + " && `jupyter notebook --no-browser --ip=0.0.0.0 --NotebookApp.token= --port=" + str(jupyter_port) + " --allow-root &>/dev/null &`'"
+    output = k8sUtils.kubectl_exec("exec %s %s" % (pod_name, " -- " + bash_script))
+    if output == "":
+        raise Exception("Failed to start jupyter server in container. JobId: %s " % pod_name)
+    return jupyter_port
+
+
 def start_endpoint(endpoint):
     # pending, running, stopped
     print("Starting endpoint: %s" % (endpoint))
@@ -114,8 +125,7 @@ def start_endpoint(endpoint):
     if port_name == "ssh":
         port = setup_ssh_server(user_name, pod_name, host_network)
     else:
-        # TODO
-        port = 18888
+        port = setup_jupyter_server(user_name, pod_name)
 
     endpoint["port"] = port
 
@@ -184,6 +194,7 @@ def Run():
         # clean up endpoints for jobs which is NOT running
         cleanup_endpoints()
         time.sleep(1)
+
 
 if __name__ == '__main__':
     Run()
