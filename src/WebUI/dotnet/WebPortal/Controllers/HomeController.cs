@@ -67,6 +67,8 @@ namespace WindowsAuth.Controllers
             HttpContext.Session.SetString("gid", "9999999");
             HttpContext.Session.SetString("isAdmin", "false");
             HttpContext.Session.SetString("isAuthorized", "false");
+            HttpContext.Session.SetString("WorkFolderAccessPoint", "");
+            HttpContext.Session.SetString("DataFolderAccessPoint", "");
         }
 
         // Add user to the system, with a list of clusters that the user is authorized for
@@ -81,6 +83,10 @@ namespace WindowsAuth.Controllers
             HttpContext.Session.SetString("isAdmin", userEntry.isAdmin);
             HttpContext.Session.SetString("isAuthorized", userEntry.isAuthorized);
             var clusterInfo = Startup.Clusters[clusterName];
+            HttpContext.Session.SetString("WorkFolderAccessPoint", clusterInfo.WorkFolderAccessPoint);
+            HttpContext.Session.SetString("DataFolderAccessPoint", clusterInfo.DataFolderAccessPoint);
+            HttpContext.Session.SetString("smbUsername", clusterInfo.smbUsername);
+            HttpContext.Session.SetString("smbUserPassword", clusterInfo.smbUserPassword);
 
 
             if (userEntry.isAuthorized == "true")
@@ -786,16 +792,24 @@ namespace WindowsAuth.Controllers
             if (User.Identity.IsAuthenticated)
             {
                 string username = HttpContext.Session.GetString("Username");
+                string workFolderAccessPoint = HttpContext.Session.GetString("WorkFolderAccessPoint");
+                string dataFolderAccessPoint = HttpContext.Session.GetString("DataFolderAccessPoint");
+                string smbUsername = HttpContext.Session.GetString("smbUsername");
+                string smbUserPassword = HttpContext.Session.GetString("smbUserPassword");
                 ViewData["Username"] = username;
+                ViewData["workPath"] = workFolderAccessPoint + username + "/";
+                ViewData["dataPath"] = dataFolderAccessPoint;
+                ViewData["smbUsername"] = smbUsername;
+                ViewData["smbUserPassword"] = smbUserPassword;
                 var configString = Startup.DashboardConfig.ToString();
                 var configArray = ASCIIEncoding.ASCII.GetBytes(configString);
                 ViewData["Dashboard"] = Convert.ToBase64String(configArray) ;
                 _logger.LogInformation("Dash board prepared ...");
 
-                string[] authorizedClusters = JsonConvert.DeserializeObject<string[]>(HttpContext.Session.GetString("AuthorizedClusters"));
+                string[] clusters = JsonConvert.DeserializeObject<string[]>(HttpContext.Session.GetString("TeamClusters"));
                 var clusterStatusDashboards = new Dictionary<string, string>();
 
-                foreach (var cluster in authorizedClusters)
+                foreach (var cluster in clusters)
                 {
                     var dashboard = Startup.Clusters[cluster].Restapi.Replace(":5000", ":3000/dashboard/db/cluster-status?refresh=30s&orgId=1");
                     clusterStatusDashboards[cluster] = dashboard;
@@ -830,6 +844,12 @@ namespace WindowsAuth.Controllers
                 return RedirectToAction("Index", "Home");
             }
 
+            string workFolderAccessPoint = HttpContext.Session.GetString("WorkFolderAccessPoint");
+            string dataFolderAccessPoint = HttpContext.Session.GetString("DataFolderAccessPoint");
+ 
+            ViewData["workPath"] = workFolderAccessPoint + HttpContext.Session.GetString("Username") + "/";
+            ViewData["dataPath"] = dataFolderAccessPoint;
+
             ViewData["uid"] = HttpContext.Session.GetString("uid");
             ViewData["gid"] = HttpContext.Session.GetString("gid");
 
@@ -854,6 +874,12 @@ namespace WindowsAuth.Controllers
             {
                 return RedirectToAction("Index", "Home");
             }
+
+            string workFolderAccessPoint = HttpContext.Session.GetString("WorkFolderAccessPoint");
+            string dataFolderAccessPoint = HttpContext.Session.GetString("DataFolderAccessPoint");
+
+            ViewData["workPath"] = workFolderAccessPoint + HttpContext.Session.GetString("Username") + "/";
+            ViewData["dataPath"] = dataFolderAccessPoint;
 
             ViewData["uid"] = HttpContext.Session.GetString("uid");
             ViewData["gid"] = HttpContext.Session.GetString("gid");

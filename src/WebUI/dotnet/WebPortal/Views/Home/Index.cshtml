@@ -71,6 +71,10 @@ else
         <h2>Welcome to DLWorkspace, @ViewData["Username"] !</h2>
 
         <ul ng-app="indexApp" ng-controller="indexCtrl">
+            <li>Your Work Directory is: <a href="@ViewData["workPath"]">@ViewData["workPath"].ToString().Replace("file:", "").Replace("/", "\\") </a> </li>
+            <li>Your Data Directory is: <a href="@ViewData["dataPath"]">@ViewData["dataPath"].ToString().Replace("file:", "").Replace("/", "\\") </a></li>
+            <li>Your samba share username is: @ViewData["smbUsername"].ToString()</li>
+            <li>Your samba share password is: @ViewData["smbUserPassword"].ToString()</li>
             <li ng-repeat="(key, value) in dashboard">
                 <a href="{{value.url}}">
                     Dashboard: {{key}}

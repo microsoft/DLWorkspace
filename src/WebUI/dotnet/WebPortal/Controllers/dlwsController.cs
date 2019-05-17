@@ -139,6 +139,9 @@ namespace WindowsAuth.Controllers
                             HttpContext.Session.SetString("isAdmin", userEntry.isAdmin);
                             HttpContext.Session.SetString("isAuthorized", userEntry.isAuthorized);
                             var clusterInfo = Startup.Clusters[clusterName];
+                            HttpContext.Session.SetString("Restapi", clusterInfo.Restapi);
+                            HttpContext.Session.SetString("WorkFolderAccessPoint", clusterInfo.WorkFolderAccessPoint);
+                            HttpContext.Session.SetString("DataFolderAccessPoint", clusterInfo.DataFolderAccessPoint);
                             passwdLogin = userEntry.isAuthorized == "true";
                             bFindUser = true;
                         }
