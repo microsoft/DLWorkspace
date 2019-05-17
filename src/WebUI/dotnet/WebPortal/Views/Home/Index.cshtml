@@ -68,7 +68,7 @@ else
 @if (ViewData["isAuthorized"] != null && (bool)ViewData["isAuthorized"])
 {
     <div class="row">
-        <h2>Welcome to DLWorkspace, @ViewData["Username"] !</h2>
+        <h2>Welcome to Deep Learning Training System, @ViewData["Username"] !</h2>
 
         <ul ng-app="indexApp" ng-controller="indexCtrl">
             <li>Your Work Directory is: <a href="@ViewData["workPath"]">@ViewData["workPath"].ToString().Replace("file:", "").Replace("/", "\\") </a> </li>
