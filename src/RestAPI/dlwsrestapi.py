@@ -996,10 +996,21 @@ class Endpoint(Resource):
                 }
                 endpoints[endpoint_id] = endpoint
 
-        # TODO
+       # only open Jupyter on the master
         if 'ipython' in requested_endpoints:
-            # setup jupyter in master
-            pass
+            pod_name = pod_names[0]
+            endpoint_id = "endpoint-" + pod_name + "-ipython"
+            endpoint = {
+                "id": endpoint_id,
+                "jobId": job_id,
+                "podName": pod_name,
+                "username": username,
+                "name": "ipython",
+                "endpointDescriptionPath": os.path.join(endpoint_description_dir, endpoint_id + ".yaml"),
+                "status": "pending",
+                "hostNetwork": host_network
+            }
+            endpoints[endpoint_id] = endpoint
 
         JobRestAPIUtils.update_job(job_id, "endpoints", json.dumps(endpoints))
 
