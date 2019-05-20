@@ -63,6 +63,8 @@ spec:
     {% endif %}
 
     volumeMounts:
+    - name: "init-user-script"
+      mountPath: "/dlws/configmap"
     {% if not job["dnsPolicy"] %}
     - mountPath: /etc/resolv.conf
       name: resolv
@@ -126,6 +128,10 @@ spec:
 
   restartPolicy: Never
   volumes:
+  # TODO need to create the configmap during installation: kubectl create configmap init-user-script --from-file=init_user.sh
+  - name: "init-user-script"
+    configMap:
+      name: "init-user-script"
   {% if not job["dnsPolicy"] %}
   - name: resolv
     hostPath:
