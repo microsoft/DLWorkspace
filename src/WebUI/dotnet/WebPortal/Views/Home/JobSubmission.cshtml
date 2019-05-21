@@ -8,20 +8,104 @@
     a:link {
         color: #1F45FC
     }
+    md-icon.md-default-theme, md-icon, svg {
+        width: 60%;
+        height: 60%;
+    }
+ 
+    .dlSelect {
+        top: 170px !important;
+    }
+    
+    ::placeholder {
+        color: rgba(0,0,0,0.87) !important;
+        opacity: 1; /* Firefox */
+    }
 
+    :-ms-input-placeholder { /* Internet Explorer 10-11 */
+        color: rgba(0,0,0,0.87) !important;
+    }
 
+    ::-ms-input-placeholder { /* Microsoft Edge */
+        color: rgba(0,0,0,0.87) !important;
+    }
 </style>
 
 
 <script type="text/javascript">
-
+    $(function () {
+        $('[data-toggle="tooltip"]').tooltip({
+            container: 'body',
+            show: {
+                effect: "slideDown",
+                delay: 250
+            }
+            
+        })
+    })
     var app = angular.module('jobApp', ["xeditable", "ui.select", "ngMaterial", 'ngMessages']);
 
+   
     app.run(function (editableOptions) {
         editableOptions.theme = 'bs3';
     });
 
     app.controller('jobCtrl', function ($scope, $http, $log, $filter) {
+
+        var self = this;
+        self.isDisabled = false;
+        // list of `state` value/display objects
+        //self.states = loadAll();
+        self.querySearch = querySearch;
+
+
+
+        // ******************************
+        // Internal methods
+        // ******************************
+        /**
+         * Search for states... use $timeout to simulate
+         * remote dataservice call.
+         */
+        function querySearch(query) {
+            var tmpRes;
+
+            return $http.get("../mock/test.txt")
+                .then(function (response) {
+                    console.log(response.data);
+
+                    tmpRes = response.data.split("\n").map(function (docker) {
+                        return {
+                            value: docker.toLowerCase(),
+                            display: docker
+                        };
+                    });
+
+                    return tmpRes ? tmpRes.filter(createFilterFor(query)) : tmpRes;
+                })
+            /*var results = query ? self.states.filter(createFilterFor(query)) : self.states,
+                deferred;
+            if (self.simulateQuery) {
+                deferred = $q.defer();
+                $timeout(function () { deferred.resolve(results); }, Math.random() * 1000, false);
+                return deferred.promise;
+            } else {
+                return results;
+            }*/
+        }
+
+        /**
+         * Create filter function for a query string
+         */
+        function createFilterFor(query) {
+            var lowercaseQuery = angular.lowercase(query);
+            return function filterFn(docker) {
+                return (docker.value.match(lowercaseQuery));
+            };
+        }
+
+
+
         var tolist = function (info) {
             if (typeof info === 'string' || info instanceof String)
                 return [info];
@@ -30,6 +114,21 @@
             else
                 return [];
         };
+
+        //mock the number of server TODO
+        $scope.servers = new Array(Math.floor(Math.random() * 2) + 1).join().split(',').map(function (item, index) { return ++index; })
+       /* $scope.inputServers = function () {
+
+        }*/
+        //$scope.workers = ($scope.servers && $scope.servers.length > 1) ? [8] : new Array(8).join().split(',').map(function (item, index) { return ++index; })
+        $scope.changeListOnServer = function (numps) {
+            if (numps === 1) {
+                $scope.workers = new Array(8).join().split(',').map(function (item, index) { return ++index; });
+            } else {
+                $scope.workers = [8];
+            }
+        }
+
 
         var tobool = function (sec, property, defValue) {
             if (!(sec.hasOwnProperty(property))) {
@@ -249,8 +348,7 @@
             }
         };
 
-
-
+        
 
         $scope.showTemplate = function () {
             //$log.log($scope.curtemplateValue);
@@ -389,6 +487,11 @@
                 delete $scope.current.interactivePort;
                 console.log("deleted interactivePorts");
             }
+            if ($scope.numps === 1 && $scope.numpsworker < 8) {
+                $scope.current.isPrivileged = false;
+                $scope.current.hostNetwork = false;
+            }
+
         };
 
         $scope.SaveTemplate = function () {
@@ -403,6 +506,7 @@
         $scope.submitJob = function () {
             $scope.processCurrent();
             var params = {};
+
             params.Name = $scope.template.useTemplateName;
             params.Json = JSON.stringify($scope.current);
             params.Database = $scope.getDatabase();
@@ -501,6 +605,9 @@
                 $scope.current.dnsPolicy = "ClusterFirst";
             }
         };
+
+
+
     });
 
 
@@ -508,7 +615,7 @@
 </script>
 
 
-<div ng-app="jobApp" ng-controller="jobCtrl" layout="column" ng-cloak class="modal-dialog" role="document" style="width:60%;top:30px;bottom:30px;">
+<div ng-app="jobApp" ng-controller="jobCtrl as ctrl" layout="column" ng-cloak class="modal-dialog" role="document" style="width:60%;top:30px;bottom:30px;">
     <md-content layout-padding>
         <form name="jobSubmissionForm">
             <div class="modal-content">
@@ -523,8 +630,8 @@
                 <div class="modal-body">
                     <div layout="row">
                         <md-input-container flex="50">
-                            <label>Job template</label>
-                            <md-select name="curtemplateValue" ng-model="curtemplateValue"  ng-change="showTemplate()">
+                            <label style="pointer-events:auto">Job template <i style="font-size:10px" class="layui-icon" data-toggle="tooltip" title="Pre-defined templates for job submission" data-placement="right">&#xe702;</i></label>
+                            <md-select name="curtemplateValue" ng-model="curtemplateValue" ng-change="showTemplate()">
                                 <md-option ng-value="{{g.Value}}" ng-repeat="g in joblist">{{ g.Text }}</md-option>
                             </md-select>
                         </md-input-container>
@@ -532,64 +639,77 @@
 
 
                     <div layout="row">
-                        <md-input-container flex="50">
-                            <label> Job Name </label>
-                            <input ng-model="current.jobName" required md-no-asterisk>
+                        <md-input-container flex="100">
+                            <label style="pointer-events:auto"> Job Name <i class="layui-icon" style="font-size:10px" data-toggle="tooltip" title="Name for the current job" data-placement="right">&#xe702;</i> </label>
+                            <input ng-model="current.jobName" required md-no-asterisk placeholder="None">
                             <div class="hint" ng-if="showHints">Tell us the name of your job</div>
                         </md-input-container>
 
+                        <!-- <md-input-container flex="50">
+            <label>Job Type</label>
+            <md-select name="jobtrainingtype" ng-model="current.jobtrainingtype" required md-no-asterisk>
+                <md-option value="RegularJob" selected>Regular Job</md-option>
+                <md-option value="PSDistJob">Distributed Job</md-option>
+            </md-select>
+        </md-input-container> -->
+                    </div>
+
+                    <div layout="row">
+
                         <md-input-container flex="50">
-                            <label>Job Type</label>
-                            <md-select name="jobtrainingtype" ng-model="current.jobtrainingtype" required md-no-asterisk>
-                                <md-option value="RegularJob" selected>Regular Job</md-option>
-                                <md-option value="PSDistJob">Distributed Job</md-option>
+                            <label> Number Of Workers </label>
+                            <md-select name="current.numps" ng-model="current.numps" ng-change="changeListOnServer(current.numps)" >
+                                <md-option ng-value="{{server}}" ng-repeat="server in servers">{{ server }}</md-option>
                             </md-select>
                         </md-input-container>
-                    </div>
-
-                    <div layout="row" ng-if="current.jobtrainingtype=='PSDistJob'">
 
                         <md-input-container flex="50">
-                            <label> Number of MPI Masters </label>
-                            <input ng-model="current.numps" required type="number" step="1" min="0" md-no-asterisk>
-                        </md-input-container>
-
-                        <md-input-container flex="50">
-                            <label> Number of Workers </label>
-                            <input ng-model="current.numpsworker" required type="number" step="1" min="1" md-no-asterisk>
+                            <label> Number of GPUs Per Workers </label>
+                            <md-select name="current.numpsworker" ng-model="current.numpsworker" >
+                                <md-option ng-value="{{worker}}" ng-repeat="worker in workers">{{ worker }}</md-option>
+                            </md-select>
                         </md-input-container>
 
                     </div>
 
-                    <md-input-container class="md-block">
-                        <label> Number of GPUs Per Worker</label>
-                        <input ng-model="current.resourcegpu" required type="number" name="resourcegpu" step="1" min="0" max="8" md-no-asterisk>
-                        <div ng-messages="jobApp.resourcegpu.$error" multiple>
-                            <div ng-message="required">
-                                You have to let us know the number of gpus per worker.
-                            </div>
+                    <!-- <md-input-container class="md-block">
+        <label> Number of GPUs Per Worker</label>
+        <input ng-model="current.resourcegpu" required type="number" name="resourcegpu" step="1" min="0" max="8" md-no-asterisk>
+        <div ng-messages="jobApp.resourcegpu.$error" multiple>
+            <div ng-message="required">
+                You have to let us know the number of gpus per worker.
+            </div>
 
-                            <div ng-message="min">
-                                You have to request at least 0 GPU per worker.
-                            </div>
+            <div ng-message="min">
+                You have to request at least 0 GPU per worker.
+            </div>
 
-                            <div ng-message="max">
-                                You can request at most 8 GPUs per worker.
-                            </div>
-                        </div>
-                    </md-input-container>
+            <div ng-message="max">
+                You can request at most 8 GPUs per worker.
+            </div>
+        </div>
+    </md-input-container> -->
 
 
 
-                    <md-input-container class="md-block">
-                        <label> Docker Image </label>
-                        <input ng-model="current.image" required md-no-asterisk>
-                    </md-input-container>
+                    <md-autocomplete flex
+                                     ng-model="current.image"
+                                     md-selected-item="ctrl.selectedItem"
+                                     md-search-text="current.image"
+                                     md-items="item in ctrl.querySearch(current.image)"
+                                     md-item-text="item.value"
+                                     md-delay="200"
+                                     md-floating-label="Docker Image"
+                                     md-min-length="0"
+                                     md-require-match>
+                        <md-item-template>
+                            <span md-highlight-text="current.image" md-highlight-flags="i">{{item.display}}</span>
+                        </md-item-template>
+                        <md-not-found>
+                            <span style="color:red">No result matching "{{current.image}}" were found.</span>
+                        </md-not-found>
 
-                    <md-input-container class="md-block">
-                        <label>Command</label>
-                        <textarea ng-model="current.cmd" rows="10"></textarea>
-                    </md-input-container>
+                    </md-autocomplete>
 
 
                     <div layout="row">
@@ -806,7 +926,7 @@
                                     <div class="layui-colla-content">
                                         <md-input-container class="md-block" flex="50">
                                             <label> Use Host network in container? </label>
-                                            <md-switch class="md-primary" ng-model="current.hostNetwork" md-no-asterisk>
+                                            <md-switch class="md-primary" ng-disabled="current.numpsworker === 8 ? false : true" ng-model="current.hostNetwork" md-no-asterisk>
                                             </md-switch>
                                         </md-input-container>
                                     </div>
@@ -832,7 +952,7 @@
 
                                         <md-input-container class="md-block">
                                             <label> Launch privileged docker </label>
-                                            <md-switch class="md-primary" ng-model="current.isPrivileged" md-no-asterisk aria-label="isPrivileged">
+                                            <md-switch class="md-primary" ng-disabled="current.numpsworker === 8 ? false : true" ng-model="current.isPrivileged" md-no-asterisk aria-label="isPrivileged">
                                             </md-switch>
                                         </md-input-container>
 
@@ -951,6 +1071,8 @@
     layui.use(['element', 'layer'], function () {
         var element = layui.element;
         element.on('collapse(test)', function (data) {
+           
         });
     });
+
 </script>
