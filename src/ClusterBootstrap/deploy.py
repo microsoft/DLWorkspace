@@ -3173,6 +3173,10 @@ def run_command( args, command, nargs, parser ):
                         url = "http://%s:%s/GetACL?userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"])
                         response = requests.get(url)
                         print(response.text)
+                    elif nargs[1] == "delete":
+                        url = "http://%s:%s/DeleteAce?identityName=%s&resourceType=%s&resourceName=%s&userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"],nargs[2],nargs[3],nargs[4])
+                        response = requests.get(url)
+                        print(response.text)
             elif nargs[0] == "job":
                 if len(nargs) >= 2:
                     if nargs[1] == "add":
