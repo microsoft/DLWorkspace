@@ -13,9 +13,6 @@
         height: 60%;
     }
  
-    .dlSelect {
-        top: 170px !important;
-    }
     
     ::placeholder {
         color: rgba(0,0,0,0.87) !important;
@@ -27,7 +24,7 @@
     }
 
     ::-ms-input-placeholder { /* Microsoft Edge */
-        color: rgba(0,0,0,0.87) !important;
+        color: red;
     }
 </style>
 
@@ -653,364 +650,377 @@
             </md-select>
         </md-input-container> -->
                     </div>
+                        <div layout="row" style="margin-top:-40px;">
 
-                    <div layout="row">
+                            <md-input-container flex="50">
+                                <label> Number Of Workers </label>
+                                <md-select name="current.numps" ng-model="current.numps" ng-change="changeListOnServer(current.numps)">
+                                    <md-option ng-value="{{server}}" ng-repeat="server in servers">{{ server }}</md-option>
+                                </md-select>
+                            </md-input-container>
 
-                        <md-input-container flex="50">
-                            <label> Number Of Workers </label>
-                            <md-select name="current.numps" ng-model="current.numps" ng-change="changeListOnServer(current.numps)" >
-                                <md-option ng-value="{{server}}" ng-repeat="server in servers">{{ server }}</md-option>
-                            </md-select>
-                        </md-input-container>
+                            <md-input-container flex="50">
+                                <label> Number of GPUs Per Workers </label>
+                                <md-select name="current.numpsworker" ng-model="current.numpsworker">
+                                    <md-option ng-value="{{worker}}" ng-repeat="worker in workers">{{ worker }}</md-option>
+                                </md-select>
+                            </md-input-container>
 
-                        <md-input-container flex="50">
-                            <label> Number of GPUs Per Workers </label>
-                            <md-select name="current.numpsworker" ng-model="current.numpsworker" >
-                                <md-option ng-value="{{worker}}" ng-repeat="worker in workers">{{ worker }}</md-option>
-                            </md-select>
-                        </md-input-container>
+                        </div>
 
-                    </div>
-
-                    <!-- <md-input-container class="md-block">
-        <label> Number of GPUs Per Worker</label>
-        <input ng-model="current.resourcegpu" required type="number" name="resourcegpu" step="1" min="0" max="8" md-no-asterisk>
-        <div ng-messages="jobApp.resourcegpu.$error" multiple>
-            <div ng-message="required">
-                You have to let us know the number of gpus per worker.
-            </div>
-
-            <div ng-message="min">
-                You have to request at least 0 GPU per worker.
-            </div>
-
-            <div ng-message="max">
-                You can request at most 8 GPUs per worker.
-            </div>
-        </div>
-    </md-input-container> -->
-
-
-
-                    <md-autocomplete flex
-                                     ng-model="current.image"
-                                     md-selected-item="ctrl.selectedItem"
-                                     md-search-text="current.image"
-                                     md-items="item in ctrl.querySearch(current.image)"
-                                     md-item-text="item.value"
-                                     md-delay="200"
-                                     md-floating-label="Docker Image"
-                                     md-min-length="0"
-                                     md-require-match>
-                        <md-item-template>
-                            <span md-highlight-text="current.image" md-highlight-flags="i">{{item.display}}</span>
-                        </md-item-template>
-                        <md-not-found>
-                            <span style="color:red">No result matching "{{current.image}}" were found.</span>
-                        </md-not-found>
-
-                    </md-autocomplete>
-
-
-                    <div layout="row">
-                        <md-input-container class="md-block" flex="50">
-                            <md-switch name="is_interactive" ng-model="current.is_interactive" md-no-asterisk>
-                                Interactive Job
-                            </md-switch>
-                        </md-input-container>
-                        <md-input-container class="md-block" flex="50">
-                            <md-switch name="do_log" ng-model="current.do_log" md-no-asterisk>
-                                Enable Tensorboard
-                            </md-switch>
-                        </md-input-container>
-                        <md-input-container class="md-block">
-                            <md-switch name="runningasroot" ng-model="current.runningasroot" md-no-asterisk>
-                                Launch container as root user.
-                            </md-switch>
-                        </md-input-container>
-                    </div>
-                    <div ng-if="current.is_interactive" class="form-group">
-                        <md-input-container class="md-block">
-                            <label> Open ports for interactive job </label>
-                            <input ng-model="current.interactivePort" required md-no-asterisk>
-                        </md-input-container>
-                    </div>
-
-
-
-                    <div ng-if="current.do_log">
-                        <md-input-container class="md-block">
-                            <label> Tensorflow model path, used to enable tensorboard </label>
-                            <input ng-model="current.logDir" required md-no-asterisk>
-                        </md-input-container>
-                    </div>
-
-
-
+                        <!-- <md-input-container class="md-block">
+            <label> Number of GPUs Per Worker</label>
+            <input ng-model="current.resourcegpu" required type="number" name="resourcegpu" step="1" min="0" max="8" md-no-asterisk>
+            <div ng-messages="jobApp.resourcegpu.$error" multiple>
+                <div ng-message="required">
+                    You have to let us know the number of gpus per worker.
                 </div>
 
-                <div class="modal-body">
+                <div ng-message="min">
+                    You have to request at least 0 GPU per worker.
+                </div>
 
-                    <div class="layui-collapse">
+                <div ng-message="max">
+                    You can request at most 8 GPUs per worker.
+                </div>
+            </div>
+        </md-input-container> -->
+                        <!--   <md-autocomplete flex
+                         ng-model="current.image"
+                         md-selected-item="ctrl.selectedItem"
+                         md-search-text="current.image"
+                         md-items="item in ctrl.querySearch(current.image)"
+                         md-item-text="item.value"
+                         md-delay="200"
+                         md-floating-label="Docker Image"
+                         md-min-length="0"
+                         md-require-match>
+            <md-item-template>
+                <span md-highlight-text="current.image" md-highlight-flags="i">{{item.display}}</span>
+            </md-item-template>
+            <md-not-found>
+                <span style="color:red">No result matching "{{current.image}}" were found.</span>
+            </md-not-found>
 
-                        <div class="layui-colla-item">
-                            <h2 class="layui-colla-title">Advanced Options</h2>
-                            <div class="layui-colla-content">
+        </md-autocomplete> -->
 
-                                <div class="layui-colla-item">
-                                    <h2 class="layui-colla-title">Mount Directories</h2>
-                                    <div class="layui-colla-content">
-                                        <div>
-                                            <table class="layui-table" width="100%">
-                                                <thead>
-                                                <th>Path inside container</th>
-                                                <th>Path on host machine (or storage server)</th>
-                                                <th>Enable</th>
-                                                <th>Description</th>
-                                                </thead>
+                        <md-input-container class="md-block">
+
+                            <label style="pointer-events:auto"> Docker Image  <i class="layui-icon" style="font-size:10px" data-toggle="tooltip" title="Current job will start docker containers using this docker image" data-placement="right">&#xe702;</i> </label>
+
+                            <input ng-model="current.image" required md-no-asterisk placeholder="None">
+
+                        </md-input-container>
+
+
+
+                        <md-input-container class="md-block">
+
+                            <label>Command</label>
+
+                            <textarea ng-model="current.cmd" rows="10"></textarea>
+
+                        </md-input-container>
+
+                        <div layout="row">
+                            <md-input-container class="md-block" flex="50">
+                                <md-switch name="is_interactive" ng-model="current.is_interactive" md-no-asterisk>
+                                    Interactive Job
+                                </md-switch>
+                            </md-input-container>
+                            <md-input-container class="md-block" flex="50">
+                                <md-switch name="do_log" ng-model="current.do_log" md-no-asterisk>
+                                    Enable Tensorboard
+                                </md-switch>
+                            </md-input-container>
+                            <md-input-container class="md-block">
+                                <md-switch name="runningasroot" ng-model="current.runningasroot" md-no-asterisk>
+                                    Launch container as root user.
+                                </md-switch>
+                            </md-input-container>
+                        </div>
+                        <div ng-if="current.is_interactive" class="form-group">
+                            <md-input-container class="md-block">
+                                <label> Open ports for interactive job </label>
+                                <input ng-model="current.interactivePort" required md-no-asterisk>
+                            </md-input-container>
+                        </div>
+
+
+
+                        <div ng-if="current.do_log">
+                            <md-input-container class="md-block">
+                                <label> Tensorflow model path, used to enable tensorboard </label>
+                                <input ng-model="current.logDir" required md-no-asterisk>
+                            </md-input-container>
+                        </div>
+
+
+
+                    </div>
+
+                    <div class="modal-body">
+
+                        <div class="layui-collapse">
+
+                            <div class="layui-colla-item">
+                                <h2 class="layui-colla-title">Advanced Options</h2>
+                                <div class="layui-colla-content">
+
+                                    <div class="layui-colla-item">
+                                        <h2 class="layui-colla-title">Mount Directories</h2>
+                                        <div class="layui-colla-content">
+                                            <div>
+                                                <table class="layui-table" width="100%">
+                                                    <thead>
+                                                    <th>Path inside container</th>
+                                                    <th>Path on host machine (or storage server)</th>
+                                                    <th>Enable</th>
+                                                    <th>Description</th>
+                                                    </thead>
+                                                    <tbody>
+                                                        <tr>
+                                                            <td>/work </td>
+                                                            <td>
+                                                                <md-input-container class="md-block">
+                                                                    <label> Work Path </label>
+                                                                    <input ng-model="current.workPath" required md-no-asterisk>
+                                                                </md-input-container>
+                                                            </td>
+                                                            <td>
+                                                                <md-input-container class="md-block">
+                                                                    <md-switch class="md-primary" name="enableworkpath" aria-label="enableworkpath" ng-model="current.enableworkpath" md-no-asterisk ng-disabled="true">
+                                                                    </md-switch>
+                                                                </md-input-container>
+                                                            </td>
+                                                            <td>
+                                                                <a href='#' onclick="layer.alert('path relative to @ViewData["workPath"].ToString().Replace("file:", "").Replace("/", "\\\\")',{ icon: 1, btn: 'Ok', title: 'Info' });"> <i class="layui-icon">&#xe60b;</i></a>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td>/data </td>
+                                                            <td>
+                                                                <md-input-container class="md-block">
+                                                                    <label> Data Path </label>
+                                                                    <input ng-model="current.dataPath" required md-no-asterisk>
+                                                                </md-input-container>
+                                                            </td>
+                                                            <td>
+                                                                <md-input-container class="md-block">
+                                                                    <md-switch class="md-primary" name="enabledatapath" aria-label="enabledatapath" ng-model="current.enabledatapath" md-no-asterisk ng-disabled="true">
+                                                                    </md-switch>
+                                                                </md-input-container>
+                                                            </td>
+                                                            <td>
+                                                                <a href='#' onclick="layer.alert('path relative to @ViewData["dataPath"].ToString().Replace("file:", "").Replace("/", "\\\\")',{ icon: 1, btn: 'Ok', title: 'Info' });"> <i class="layui-icon">&#xe60b;</i></a>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td>/job </td>
+                                                            <td>
+                                                                <md-input-container class="md-block">
+                                                                    <label> Job Path </label>
+                                                                    <input ng-model="current.jobPath" md-no-asterisk>
+                                                                </md-input-container>
+                                                            </td>
+                                                            <td>
+                                                                <md-input-container class="md-block">
+                                                                    <md-switch class="md-primary" name="enablejobpath" aria-label="enablejobpath" ng-model="current.enablejobpath" md-no-asterisk ng-disabled="true">
+                                                                    </md-switch>
+                                                                </md-input-container>
+                                                            </td>
+                                                            <td>
+                                                                <a href='#' onclick="layer.alert('empty by default;',{ icon: 1, btn: 'Ok', title: 'Info' });"> <i class="layui-icon">&#xe60b;</i></a>
+                                                            </td>
+                                                        </tr>
+
+                                                        <tr ng-repeat="onemount in current.mountpoints">
+                                                            <td>
+                                                                <md-input-container class="md-block">
+                                                                    <label> Container Path </label>
+                                                                    <input ng-model="onemount.containerPath" md-no-asterisk>
+                                                                </md-input-container>
+
+                                                            </td>
+                                                            <td>
+                                                                {{onemount.hostPath}}
+                                                            </td>
+                                                            <td>
+                                                                <md-input-container class="md-block">
+                                                                    <md-switch class="md-primary" ng-model="onemount.enabled" md-no-asterisk>
+                                                                    </md-switch>
+                                                                </md-input-container>
+                                                            </td>
+                                                            <td>
+                                                                <a href='#' onclick="layer.alert('{{onemount.description}}',{ icon: 1, btn: 'Ok', title: 'Info' });"> <i class="layui-icon">&#xe60b;</i></a>
+                                                            </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+
+
+
+
+
+
+
+                                        </div>
+                                    </div>
+
+
+
+
+
+                                    <div class="layui-colla-item">
+                                        <h2 class="layui-colla-title">HyperParameter Turning</h2>
+                                        <div class="layui-colla-content">
+
+                                            <md-input-container class="md-block">
+                                                <label> HyperParameter Name </label>
+                                                <input ng-model="current.hyperparametername" required md-no-asterisk>
+                                            </md-input-container>
+                                            <md-input-container class="md-block">
+                                                <label> Start Value </label>
+                                                <input ng-model="current.hyperparameterstartvalue" required md-no-asterisk>
+                                            </md-input-container>
+                                            <md-input-container class="md-block">
+                                                <label> End Value </label>
+                                                <input ng-model="current.hyperparameterendvalue" required md-no-asterisk>
+                                            </md-input-container>
+                                            <md-input-container class="md-block">
+                                                <label> Step </label>
+                                                <input ng-model="current.hyperparameterstep" required md-no-asterisk>
+                                            </md-input-container>
+
+
+
+                                        </div>
+                                    </div>
+
+                                    <div class="layui-colla-item">
+                                        <h2 class="layui-colla-title">Environmet variables</h2>
+                                        <div class="layui-colla-content">
+                                            <table width="100%">
                                                 <tbody>
-                                                    <tr>
-                                                        <td>/work </td>
+                                                    <tr ng-repeat="oneenv in current.env">
                                                         <td>
                                                             <md-input-container class="md-block">
-                                                                <label> Work Path </label>
-                                                                <input ng-model="current.workPath" required md-no-asterisk>
+                                                                <label> Name of the Environment Variable </label>
+                                                                <input ng-model="oneenv.name" required md-no-asterisk>
                                                             </md-input-container>
                                                         </td>
                                                         <td>
                                                             <md-input-container class="md-block">
-                                                                <md-switch class="md-primary" name="enableworkpath" aria-label="enableworkpath" ng-model="current.enableworkpath" md-no-asterisk ng-disabled="true">
-                                                                </md-switch>
+                                                                <label> Value of the Environment Variable </label>
+                                                                <input ng-model="oneenv.value" required md-no-asterisk>
                                                             </md-input-container>
                                                         </td>
                                                         <td>
-                                                            <a href='#' onclick="layer.alert('path relative to @ViewData["workPath"].ToString().Replace("file:", "").Replace("/", "\\\\")',{ icon: 1, btn: 'Ok', title: 'Info' });"> <i class="layui-icon">&#xe60b;</i></a>
+                                                            <a class="fa fa-times fa-lg text-danger" ng-click="removeItem(current.env,$index)">
+                                                            </a>
                                                         </td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td>/data </td>
-                                                        <td>
-                                                            <md-input-container class="md-block">
-                                                                <label> Data Path </label>
-                                                                <input ng-model="current.dataPath" required md-no-asterisk>
-                                                            </md-input-container>
-                                                        </td>
-                                                        <td>
-                                                            <md-input-container class="md-block">
-                                                                <md-switch class="md-primary" name="enabledatapath" aria-label="enabledatapath" ng-model="current.enabledatapath" md-no-asterisk ng-disabled="true">
-                                                                </md-switch>
-                                                            </md-input-container>
-                                                        </td>
-                                                        <td>
-                                                            <a href='#' onclick="layer.alert('path relative to @ViewData["dataPath"].ToString().Replace("file:", "").Replace("/", "\\\\")',{ icon: 1, btn: 'Ok', title: 'Info' });"> <i class="layui-icon">&#xe60b;</i></a>
-                                                        </td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td>/job </td>
-                                                        <td>
-                                                            <md-input-container class="md-block">
-                                                                <label> Job Path </label>
-                                                                <input ng-model="current.jobPath" md-no-asterisk>
-                                                            </md-input-container>
-                                                        </td>
-                                                        <td>
-                                                            <md-input-container class="md-block">
-                                                                <md-switch class="md-primary" name="enablejobpath" aria-label="enablejobpath" ng-model="current.enablejobpath" md-no-asterisk ng-disabled="true">
-                                                                </md-switch>
-                                                            </md-input-container>
-                                                        </td>
-                                                        <td>
-                                                            <a href='#' onclick="layer.alert('empty by default;',{ icon: 1, btn: 'Ok', title: 'Info' });"> <i class="layui-icon">&#xe60b;</i></a>
-                                                        </td>
-                                                    </tr>
 
-                                                    <tr ng-repeat="onemount in current.mountpoints">
-                                                        <td>
-                                                            <md-input-container class="md-block">
-                                                                <label> Container Path </label>
-                                                                <input ng-model="onemount.containerPath" md-no-asterisk>
-                                                            </md-input-container>
-
-                                                        </td>
-                                                        <td>
-                                                            {{onemount.hostPath}}
-                                                        </td>
-                                                        <td>
-                                                            <md-input-container class="md-block">
-                                                                <md-switch class="md-primary" ng-model="onemount.enabled" md-no-asterisk>
-                                                                </md-switch>
-                                                            </md-input-container>
-                                                        </td>
-                                                        <td>
-                                                            <a href='#' onclick="layer.alert('{{onemount.description}}',{ icon: 1, btn: 'Ok', title: 'Info' });"> <i class="layui-icon">&#xe60b;</i></a>
-                                                        </td>
                                                     </tr>
                                                 </tbody>
                                             </table>
+                                            <button type="button" class="btn btn-info" ng-click="newEnvironment()">
+                                                <i class="layui-icon" style="font-size: 18px; color: #000000;">&#xe654;</i> Add Environment Variable
+                                            </button>
                                         </div>
-
-
-
-
-
-
-
-
                                     </div>
-                                </div>
 
-
-
-
-
-                                <div class="layui-colla-item">
-                                    <h2 class="layui-colla-title">HyperParameter Turning</h2>
-                                    <div class="layui-colla-content">
-
-                                        <md-input-container class="md-block">
-                                            <label> HyperParameter Name </label>
-                                            <input ng-model="current.hyperparametername" required md-no-asterisk>
-                                        </md-input-container>
-                                        <md-input-container class="md-block">
-                                            <label> Start Value </label>
-                                            <input ng-model="current.hyperparameterstartvalue" required md-no-asterisk>
-                                        </md-input-container>
-                                        <md-input-container class="md-block">
-                                            <label> End Value </label>
-                                            <input ng-model="current.hyperparameterendvalue" required md-no-asterisk>
-                                        </md-input-container>
-                                        <md-input-container class="md-block">
-                                            <label> Step </label>
-                                            <input ng-model="current.hyperparameterstep" required md-no-asterisk>
-                                        </md-input-container>
-
-
-
+                                    <div class="layui-colla-item">
+                                        <h2 class="layui-colla-title">Host Network</h2>
+                                        <div class="layui-colla-content">
+                                            <md-input-container class="md-block" flex="50">
+                                                <label> Use Host network in container? </label>
+                                                <md-switch class="md-primary" ng-disabled="current.numpsworker === 8 ? false : true" ng-model="current.hostNetwork" md-no-asterisk>
+                                                </md-switch>
+                                            </md-input-container>
+                                        </div>
                                     </div>
-                                </div>
+                                    <div class="layui-colla-item">
+                                        <h2 class="layui-colla-title">GPU Topology</h2>
+                                        <div class="layui-colla-content">
 
-                                <div class="layui-colla-item">
-                                    <h2 class="layui-colla-title">Environmet variables</h2>
-                                    <div class="layui-colla-content">
-                                        <table width="100%">
-                                            <tbody>
-                                                <tr ng-repeat="oneenv in current.env">
-                                                    <td>
-                                                        <md-input-container class="md-block">
-                                                            <label> Name of the Environment Variable </label>
-                                                            <input ng-model="oneenv.name" required md-no-asterisk>
-                                                        </md-input-container>
-                                                    </td>
-                                                    <td>
-                                                        <md-input-container class="md-block">
-                                                            <label> Value of the Environment Variable </label>
-                                                            <input ng-model="oneenv.value" required md-no-asterisk>
-                                                        </md-input-container>
-                                                    </td>
-                                                    <td>
-                                                        <a class="fa fa-times fa-lg text-danger" ng-click="removeItem(current.env,$index)">
-                                                        </a>
-                                                    </td>
 
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                        <button type="button" class="btn btn-info" ng-click="newEnvironment()">
-                                            <i class="layui-icon" style="font-size: 18px; color: #000000;">&#xe654;</i> Add Environment Variable
-                                        </button>
+                                            <md-input-container class="md-block">
+                                                <label> Request GPU topology </label>
+                                                <md-switch class="md-primary" ng-model="current.useGPUTopology" md-no-asterisk aria-label="useGPUTopology">
+                                                </md-switch>
+                                            </md-input-container>
+
+                                        </div>
                                     </div>
-                                </div>
 
-                                <div class="layui-colla-item">
-                                    <h2 class="layui-colla-title">Host Network</h2>
-                                    <div class="layui-colla-content">
-                                        <md-input-container class="md-block" flex="50">
-                                            <label> Use Host network in container? </label>
-                                            <md-switch class="md-primary" ng-disabled="current.numpsworker === 8 ? false : true" ng-model="current.hostNetwork" md-no-asterisk>
-                                            </md-switch>
-                                        </md-input-container>
-                                    </div>
-                                </div>
-                                <div class="layui-colla-item">
-                                    <h2 class="layui-colla-title">GPU Topology</h2>
-                                    <div class="layui-colla-content">
+                                    <div class="layui-colla-item">
+                                        <h2 class="layui-colla-title">Privileged Docker</h2>
+                                        <div class="layui-colla-content">
 
 
-                                        <md-input-container class="md-block">
-                                            <label> Request GPU topology </label>
-                                            <md-switch class="md-primary" ng-model="current.useGPUTopology" md-no-asterisk aria-label="useGPUTopology">
-                                            </md-switch>
-                                        </md-input-container>
-
-                                    </div>
-                                </div>
-
-                                <div class="layui-colla-item">
-                                    <h2 class="layui-colla-title">Privileged Docker</h2>
-                                    <div class="layui-colla-content">
+                                            <md-input-container class="md-block">
+                                                <label> Launch privileged docker </label>
+                                                <md-switch class="md-primary" ng-disabled="current.numpsworker === 8 ? false : true" ng-model="current.isPrivileged" md-no-asterisk aria-label="isPrivileged">
+                                                </md-switch>
+                                            </md-input-container>
 
 
-                                        <md-input-container class="md-block">
-                                            <label> Launch privileged docker </label>
-                                            <md-switch class="md-primary" ng-disabled="current.numpsworker === 8 ? false : true" ng-model="current.isPrivileged" md-no-asterisk aria-label="isPrivileged">
-                                            </md-switch>
-                                        </md-input-container>
+                                            <div ng-if="current.isPrivileged" class="form-group">
+
+                                                <div layout="row">
 
 
-                                        <div ng-if="current.isPrivileged" class="form-group">
-
-                                            <div layout="row">
-
-
-                                                <md-input-container class="md-block" flex="50">
-                                                    <label> Use Host IPC in container? </label>
-                                                    <md-switch class="md-primary" ng-model="current.hostIPC" md-no-asterisk>
-                                                    </md-switch>
-                                                </md-input-container>
+                                                    <md-input-container class="md-block" flex="50">
+                                                        <label> Use Host IPC in container? </label>
+                                                        <md-switch class="md-primary" ng-model="current.hostIPC" md-no-asterisk>
+                                                        </md-switch>
+                                                    </md-input-container>
 
 
-                                                <md-input-container class="md-block" flex="50">
-                                                    <label>Container DNS Policy</label>
-                                                    <md-select name="dnsPolicy" ng-model="current.dnsPolicy" required md-no-asterisk>
-                                                        <md-option value="Default" selected>Default</md-option>
-                                                        <md-option value="ClusterFirstWithHostNet">ClusterFirstWithHostNet</md-option>
-                                                        <md-option value="ClusterFirst">ClusterFirst</md-option>
-                                                    </md-select>
-                                                </md-input-container>
-                                            </div>
-                                            <div layout="row">
-                                                <md-input-container class="md-block" flex="50">
-                                                    <label> CPU Request </label>
-                                                    <input ng-model="current.cpurequest" required md-no-asterisk>
-                                                </md-input-container>
+                                                    <md-input-container class="md-block" flex="50">
+                                                        <label>Container DNS Policy</label>
+                                                        <md-select name="dnsPolicy" ng-model="current.dnsPolicy" required md-no-asterisk>
+                                                            <md-option value="Default" selected>Default</md-option>
+                                                            <md-option value="ClusterFirstWithHostNet">ClusterFirstWithHostNet</md-option>
+                                                            <md-option value="ClusterFirst">ClusterFirst</md-option>
+                                                        </md-select>
+                                                    </md-input-container>
+                                                </div>
+                                                <div layout="row">
+                                                    <md-input-container class="md-block" flex="50">
+                                                        <label> CPU Request </label>
+                                                        <input ng-model="current.cpurequest" required md-no-asterisk>
+                                                    </md-input-container>
 
 
-                                                <md-input-container class="md-block" flex="50">
-                                                    <label> Memory Request </label>
-                                                    <input ng-model="current.memoryrequest" required md-no-asterisk>
-                                                </md-input-container>
+                                                    <md-input-container class="md-block" flex="50">
+                                                        <label> Memory Request </label>
+                                                        <input ng-model="current.memoryrequest" required md-no-asterisk>
+                                                    </md-input-container>
+                                                </div>
+
                                             </div>
 
                                         </div>
-
                                     </div>
+
+
                                 </div>
 
-
                             </div>
+                        </div>
 
-                                </div>
-                            </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <a class="btn pull-right btn-primary" ng-click="submitJob()">
+                            Submit Job
+                        </a>
+                    </div>
 
                 </div>
-
-                <div class="modal-footer">
-                    <a class="btn pull-right btn-primary" ng-click="submitJob()">
-                        Submit Job
-                    </a>
-                </div>
-
-            </div>
 
 
 
