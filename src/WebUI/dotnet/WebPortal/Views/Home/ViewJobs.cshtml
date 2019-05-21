@@ -39,13 +39,13 @@
         return submitTimeStr
     }
 
-    function addJobRow(cluster, job, table, tableColumns) {
+    function addJobRow(job, table, tableColumns) {
         var tr
         tr = $('<tr/>');
         //Cluster
-        tr.append("<td>" + cluster + "</td>");
+        tr.append("<td>" + job.cluster + "</td>");
         //Job ID
-        tr.append("<td> <a href='/Home/JobDetail/?cluster=" + cluster + "&jobId=" + job.jobId + "'>" + job.jobId + "</a></td>");
+        tr.append("<td> <a href='/Home/JobDetail/?cluster=" + job.cluster + "&jobId=" + job.jobId + "'>" + job.jobId + "</a></td>");
         //Job Name
         tr.append("<td>" + job.jobName + "</td>");
         //Status
@@ -93,12 +93,12 @@
         }
         //Kill it
         if (tableColumns.kill) {
-            tr.append("<td> <a href='#' class=\"Kill\" onclick=\"KillJob('" + cluster + "', '" + job.jobId + "')\" > kill </a></td>");
+            tr.append("<td> <a href='#' class=\"Kill\" onclick=\"KillJob('" + job.cluster + "', '" + job.jobId + "')\" > kill </a></td>");
         }
         //Approval
         if (tableColumns.approval) {
             if (job.jobStatus == "unapproved") {
-                tr.append("<td> <a href='#' class=\"Admin\" onclick=\"ApproveJob('" + cluster + "', '" + job.jobId + "')\" >approve</a></td>");
+                tr.append("<td> <a href='#' class=\"Admin\" onclick=\"ApproveJob('" + job.cluster + "', '" + job.jobId + "')\" >approve</a></td>");
             }
             else {
                 tr.append("<td><b class=\"Alias\" >NA</b></td>");
@@ -135,11 +135,11 @@
         table.append(thead);
     }
 
-    function buildJobTable(div, table, cluster, jobList, tableColumns) {
+    function buildJobTable(div, table, jobList, tableColumns) {
         div.show()
         var tbody = table.find('tbody');
         for (var i = 0; i < jobList.length; i++) {
-            addJobRow(cluster, jobList[i], tbody, tableColumns);
+            addJobRow(jobList[i], tbody, tableColumns);
         }
         table.append(tbody);
     }
@@ -161,6 +161,62 @@
         if (!showAll)
             initTable($("#finished-job-table"), { submitTime: true, startTime: false, finishTime: true, kill: false });
 
+        $.when.apply($, $.map(clusters, function (cluster) {
+            var data = { cluster: cluster }
+            var apiurl = "/api/dlws/ListJobs"
+
+            if (!document.getElementById('chkArchivedJobs').checked) {
+                data.num = 20
+            }
+
+            if (showAll) {
+                apiurl = "/api/dlws/ListAllJobs"
+            }
+
+            return $.ajax({
+                url: apiurl,
+                data: data,
+                dataType: 'json',
+                timeout: 15000
+            }).then(function (data) {
+                return { cluster: cluster, data: data };
+            }, function () {
+                return undefined;
+            });
+        })).then(function () {
+            const mergedData = {
+                meta: {
+                    finishedJobs: 0,
+                    queuedJobs: 0,
+                    runningJobs: 0,
+                    visualizationJobs: 0
+                },
+                finishedJobs: [],
+                queuedJobs: [],
+                runningJobs: [],
+                visualizationJobs: []
+            };
+            $.each(arguments, function () {
+                const cluster = this.cluster;
+                const data = this.data;
+                $.each(['finishedJobs', 'queuedJobs', 'runningJobs', 'visualizationJobs'], function () {
+                    mergedData.meta[this] += data.meta[this];
+                    $.each(data[this], function () {
+                        this.cluster = cluster;
+                    })
+                    mergedData[this].push.apply(mergedData[this], data[this]);
+                })
+            });
+            return mergedData;
+        }).done(function (json) {
+            buildJobTable($('#queued-job'), $("#queued-job-table"), json.queuedJobs, { submitTime: true, startTime: false, finishTime: false, kill: true, approval: showAll });
+            buildJobTable($('#running-job'), $("#running-job-table"), json.runningJobs, { submitTime: true, startTime: true, finishTime: false, kill: true });
+            buildJobTable($('#visualization-job'), $("#visualization-job-table"), json.visualizationJobs, { submitTime: false, startTime: true, finishTime: false, kill: true });
+            if (!showAll)
+                buildJobTable($('#finished-job'), $("#finished-job-table"), json.finishedJobs, { submitTime: true, startTime: false, finishTime: true, kill: false });
+
+        });
+        /*
         $.each(clusters, function () {
             var cluster = this;
             var data = { cluster: cluster }
@@ -188,7 +244,7 @@
                         buildJobTable($('#finished-job'), $("#finished-job-table"), cluster, json.finishedJobs, { submitTime: true, startTime: false, finishTime: true, kill: false });
 
                 });
-        });
+        });*/
     }
 
 
