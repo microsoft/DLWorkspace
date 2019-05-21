@@ -136,30 +136,26 @@
     }
 
     function buildJobTable(div, table, jobList, tableColumns) {
-        div.show()
-        var tbody = table.find('tbody');
-        for (var i = 0; i < jobList.length; i++) {
-            addJobRow(jobList[i], tbody, tableColumns);
-        }
-        table.append(tbody);
-    }
-
-    function initTable(table, tableColumns) {
         table.find("tr").remove();
         table.find("thead").remove();
         table.find("tbody").remove();
-        buildTableHeader(table, tableColumns);
-        table.append('<tbody>');
+        if (jobList.length <= 0) {
+            div.hide();
+        }
+        else {
+            div.show()
+            buildTableHeader(table, tableColumns)
+            var tbody;
+            tbody = $('<tbody/>');
+            for (var i = 0; i < jobList.length; i++) {
+                addJobRow(jobList[i], tbody, tableColumns);
+            }
+            table.append(tbody);
+        }
     }
 
     function buildTables() {
         var clusters = @Html.Raw(@Context.Session.GetString("TeamClusters"));
-
-        initTable($("#queued-job-table"), { submitTime: true, startTime: false, finishTime: false, kill: true, approval: showAll });
-        initTable($("#running-job-table"), { submitTime: true, startTime: true, finishTime: false, kill: true });
-        initTable($("#visualization-job-table"), { submitTime: false, startTime: true, finishTime: false, kill: true });
-        if (!showAll)
-            initTable($("#finished-job-table"), { submitTime: true, startTime: false, finishTime: true, kill: false });
 
         $.when.apply($, $.map(clusters, function (cluster) {
             var data = { cluster: cluster }
@@ -216,35 +212,6 @@
                 buildJobTable($('#finished-job'), $("#finished-job-table"), json.finishedJobs, { submitTime: true, startTime: false, finishTime: true, kill: false });
 
         });
-        /*
-        $.each(clusters, function () {
-            var cluster = this;
-            var data = { cluster: cluster }
-            var apiurl = "/api/dlws/ListJobs"
-
-            if (!document.getElementById('chkArchivedJobs').checked) {
-                data.num = 20
-            }
-
-            if (showAll) {
-                apiurl = "/api/dlws/ListAllJobs"
-            }
-
-            $.ajax({
-                url: (apiurl),
-                data: data,
-                dataType: 'json',
-                timeout: 15000
-            }).done(
-                function (json) {
-                    buildJobTable($('#queued-job'), $("#queued-job-table"), cluster, json.queuedJobs, { submitTime: true, startTime: false, finishTime: false, kill: true, approval: showAll });
-                    buildJobTable($('#running-job'), $("#running-job-table"), cluster, json.runningJobs, { submitTime: true, startTime: true, finishTime: false, kill: true });
-                    buildJobTable($('#visualization-job'), $("#visualization-job-table"), cluster, json.visualizationJobs, { submitTime: false, startTime: true, finishTime: false, kill: true });
-                    if (!showAll)
-                        buildJobTable($('#finished-job'), $("#finished-job-table"), cluster, json.finishedJobs, { submitTime: true, startTime: false, finishTime: true, kill: false });
-
-                });
-        });*/
     }
 
 
