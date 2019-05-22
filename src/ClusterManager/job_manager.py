@@ -1072,7 +1072,7 @@ def TakeJobActions(jobs):
 
     jobsInfo = []
     for job in jobs:
-        if job["jobStatus"] == "queued" or job["jobStatus"] == "scheduling" or job["jobStatus"] == "running":           
+        if job["jobStatus"] == "queued" or job["jobStatus"] == "scheduling" or job["jobStatus"] == "running":
             singleJobInfo = {}
             singleJobInfo["job"] = job
             singleJobInfo["jobParams"] = json.loads(base64.b64decode(job["jobParams"]))
