@@ -121,7 +121,8 @@ def SubmitRegularJob(job):
                 f.write("#!/bin/bash -x\n")
                 f.write("mkdir /opt; \n")
                 f.write("echo 'localhost slots=%s' | tee -a /opt/hostfile; \n" % jobParams["resourcegpu"])
-                f.write(jobParams["cmd"] + "\n")
+                # TODO refine it later
+                f.write("bash /dlws/init_user.sh && runuser -l ${DLWS_USER_NAME} -c '%s'\n" % jobParams["cmd"])
             f.close()
             if "userId" in jobParams:
                 os.system("chown -R %s %s" % (jobParams["userId"], launchScriptPath))
@@ -460,6 +461,7 @@ sleep infinity
 
 
                     launchScriptPath = os.path.join(localJobPath,"launch-%s-%s%d.sh" % (distJobParam["jobId"],role,i))
+                    # TODO need to set up user for distribute jobs
                     with open(launchScriptPath, 'w') as f:
                         f.write(launchCMD)
                     f.close()
