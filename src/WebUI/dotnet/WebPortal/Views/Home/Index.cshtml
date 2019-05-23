@@ -1,5 +1,5 @@
 ﻿@using WindowsAuth.models;
-
+@using Microsoft.AspNetCore.Http;
 
 @{
     ViewData["Title"] = "Deep Learning Workspace - Web Portal";
@@ -12,57 +12,18 @@
     </script>
 }
 
-
-
-@if (ViewData.ContainsKey("clusterStatusDashboards"))
-{
-    <div id="dashboards" class="carousel slide" data-ride="carousel" data-interval="6000">
-        <ol class="carousel-indicators">
-            @for (int i = 0, l = ((Dictionary<string, string>)ViewData["clusterStatusDashboards"]).Count; i < l; i++)
-            {
-                <li data-target="#dashboards" data-slide-to="@i" @(i == 0 ? "class=active" : "")></li>
-            }
-        </ol>
-        <div class="carousel-inner" role="listbox">
-            @{var first = true; }
-            @foreach (var pair in ((Dictionary<string, string>)ViewData["clusterStatusDashboards"]))
-            {
-            <div class="item @(first ? "active" : "")">
-                @{ first = false; }
-                <div class="embed-responsive embed-responsive-16by9">
-                    <iframe class="embed-responsive-item" src="@pair.Value"></iframe>
-                </div>
-                    <div class="carousel-caption" role="option">
-                        <p>@pair.Key</p>
-                    </div>
-            </div>
-            }
-        </div>
-        <a class="left carousel-control" href="#dashboards" role="button" data-slide="prev">
-            <span class="glyphicon glyphicon-chevron-left" aria-hidden="true"></span>
-            <span class="sr-only">Previous</span>
-        </a>
-        <a class="right carousel-control" href="#dashboards" role="button" data-slide="next">
-            <span class="glyphicon glyphicon-chevron-right" aria-hidden="true"></span>
-            <span class="sr-only">Next</span>
-        </a>
-    </div>
-}
-else
-{
-    <div id="myCarousel" class="carousel slide" data-ride="carousel" data-interval="6000">
-        <div class="carousel-inner" role="listbox">
-            <div class="item active">
-                <img src="~/images/banner1.jpg" width="100%" alt="ASP.NET" class="img-responsive" />
-                <div class="carousel-caption" role="option">
-                    <p>
-                        Welcome to Deep Learning Workspace!
-                    </p>
-                </div>
+<div id="myCarousel" class="carousel slide" data-ride="carousel" data-interval="6000">
+    <div class="carousel-inner" role="listbox">
+        <div class="item active">
+            <img src="~/images/banner1.jpg" width="100%" alt="ASP.NET" class="img-responsive" />
+            <div class="carousel-caption" role="option">
+                <p>
+                    Welcome to Deep Learning Workspace!
+                </p>
             </div>
         </div>
     </div>
-}
+</div>
 
 
 @if (ViewData["isAuthorized"] != null && (bool)ViewData["isAuthorized"])
@@ -82,8 +43,23 @@ else
             </li>
         </ul>
     </div>
-
-
+    <div class="row">
+        <h2>Cluster Status:</h2>
+        <table id="cluster_status" class="table table-bordered table-condensed table-hover table-striped">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Total GPU</th>
+                    <th>Reserved GPU</th>
+                    <th>Used GPU</th>
+                    <th>Avaliable GPU</th>
+                    <th>Active Jobs</th>
+                    <th>Total Jobs</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
 }
 
 <script type="text/javascript">
@@ -124,6 +100,53 @@ else
         };
         $log.log($scope.dashboard);
     });
+
+    var clusters = @Html.Raw(@Context.Session.GetString("TeamClusters"));
+    var clustersInfo = Object.create(null);
+    function buildClusterTable() {
+        $.when.apply($, $.map(clusters, function (cluster) {
+            return $.ajax({
+                url: '/api/dlws/GetClusterStatus',
+                data: { cluster: cluster },
+                dataType: 'json',
+                timeout: 10000
+            }).then(function (data) {
+                return data;
+            }).catch (function () {
+                return;
+            });
+        })).then(function () {
+            var cluster = null
+            var args = [].slice.call(arguments);
+            $.each(clusters, function (index) {
+                if (args[index]) {
+                    clustersInfo[this] = args[index];
+                    if (cluster == null) {
+                        cluster = this.valueOf()
+                    }
+                }
+            });
+
+
+            $("#cluster_status").find("tr:gt(0)").remove();
+            $.each(clustersInfo, function (name, json) {
+                var tr;
+                //Append each row to html table
+                tr = $('<tr/>');
+                tr.append("<td>" + name + "</td>");
+                tr.append("<td>" + json.gpu_capacity + "</td>");
+                tr.append("<td>" + json.gpu_unschedulable + "</td>");
+                tr.append("<td>" + json.gpu_used + "</td>");
+                tr.append("<td>" + json.gpu_avaliable + "</td>");
+                tr.append("<td>" + json.AvaliableJobNum + "</td>");
+                tr.append("<td>" + json.TotalJobNum + "</td>");
+
+                $('#cluster_status').append(tr);
+            })
+        })
+    }
+
+    buildClusterTable();
 
 </script>
 

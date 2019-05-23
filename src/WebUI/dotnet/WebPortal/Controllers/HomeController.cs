@@ -805,16 +805,6 @@ namespace WindowsAuth.Controllers
                 var configArray = ASCIIEncoding.ASCII.GetBytes(configString);
                 ViewData["Dashboard"] = Convert.ToBase64String(configArray) ;
                 _logger.LogInformation("Dash board prepared ...");
-
-                string[] clusters = JsonConvert.DeserializeObject<string[]>(HttpContext.Session.GetString("TeamClusters"));
-                var clusterStatusDashboards = new Dictionary<string, string>();
-
-                foreach (var cluster in clusters)
-                {
-                    var dashboard = Startup.Clusters[cluster].Restapi.Replace(":5000", ":3000/dashboard/db/cluster-status?refresh=30s&orgId=1");
-                    clusterStatusDashboards[cluster] = dashboard;
-                    ViewData["clusterStatusDashboards"] = clusterStatusDashboards;
-                }
             }
 
             if (HttpContext.Request.Query.ContainsKey("team"))
