@@ -10,7 +10,11 @@ metadata:
     distPort: "{{job["containerPort"]}}"
     userName: {{ job["userNameLabel"] }}
     vcName: {{ job["vcName"] }}
+  {% if "gpuType" in job %}
+   {% if job["gpuType"]|length > 0 %}
     gpuType: {{ job["gpuType"] }}
+   {% endif %} 
+  {% endif %} 
     preemptionAllowed: "{{ job["preemptionAllowed"] }}"   
 spec:
   #hostNetwork: true
