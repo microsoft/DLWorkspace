@@ -64,7 +64,8 @@ spec:
 
     volumeMounts:
     - name: "init-user-script"
-      mountPath: "/dlws/configmap"
+      mountPath: /dlws/init_user.sh
+      subPath: init_user.sh
     {% if not job["dnsPolicy"] %}
     - mountPath: /etc/resolv.conf
       name: resolv
@@ -116,7 +117,7 @@ spec:
       value: "{{ job["gid"] }}"
     - name: DLWS_UID
       value: "{{ job["uid"] }}"
-    - name: DLWS_USER
+    - name: DLWS_USER_NAME
       value: "{{ job["user"] }}"
     {% for env in job["env"] %}
     - name: {{ env.name }}
