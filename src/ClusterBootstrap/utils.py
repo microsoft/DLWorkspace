@@ -99,6 +99,9 @@ def render_template_directory(template_dir, target_dir,config, verbose=False, ex
         if not os.path.exists( markfile ):
             # print "Write DO_NOT_WRITE"
             open( markfile, 'w').close()
+        if os.path.isfile(os.path.join(template_dir, "pre-render.sh")):
+            pre_reder = os.path.join(template_dir, "pre-render.sh")
+            os.system("sh " + pre_reder)
         filenames = os.listdir(template_dir)
         for filename in filenames:
             if filename == "copy_dir":

@@ -600,19 +600,19 @@
                     </div>
 
                     <md-input-container class="md-block" ng-if="current.jobtrainingtype=='RegularJob'">
-                        <label> Number of GPUs </label>
+                        <label> Number of GPUs  Per Worker</label>
                         <input ng-model="current.resourcegpu" required type="number" name="resourcegpu" step="1" min="0" max="8" md-no-asterisk>
                         <div ng-messages="jobApp.resourcegpu.$error" multiple>
                             <div ng-message="required">
-                                You have to let us know the number of gpus.
+                                You have to let us know the number of gpus per worker.
                             </div>
 
                             <div ng-message="min">
-                                You have to request at least 0 GPU.
+                                You have to request at least 0 GPU per worker.
                             </div>
 
                             <div ng-message="max">
-                                You can request at most 8 GPUs.
+                                You can request at most 8 GPUs per worker.
                             </div>
                         </div>
                     </md-input-container>
@@ -838,6 +838,16 @@
                                 </div>
 
                                 <div class="layui-colla-item">
+                                    <h2 class="layui-colla-title">Host Network</h2>
+                                    <div class="layui-colla-content">
+                                        <md-input-container class="md-block" flex="50">
+                                            <label> Use Host network in container? </label>
+                                            <md-switch class="md-primary" ng-model="current.hostNetwork" md-no-asterisk>
+                                            </md-switch>
+                                        </md-input-container>
+                                    </div>
+                                </div>
+                                <div class="layui-colla-item">
                                     <h2 class="layui-colla-title">GPU Topology</h2>
                                     <div class="layui-colla-content">
 
@@ -866,11 +876,7 @@
                                         <div ng-if="current.isPrivileged" class="form-group">
 
                                             <div layout="row">
-                                                <md-input-container class="md-block" flex="50">
-                                                    <label> Use Host network in container? </label>
-                                                    <md-switch class="md-primary" ng-model="current.hostNetwork" md-no-asterisk>
-                                                    </md-switch>
-                                                </md-input-container>
+
 
                                                 <md-input-container class="md-block" flex="50">
                                                     <label> Use Host IPC in container? </label>
@@ -909,8 +915,8 @@
 
                             </div>
 
-                        </div>
-                    </div>
+                                </div>
+                            </div>
 
                 </div>
 

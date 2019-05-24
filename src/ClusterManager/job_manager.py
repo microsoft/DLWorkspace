@@ -412,7 +412,7 @@ echo export LD_PRELOAD=$LD_PRELOAD >> /etc/default/ssh
 echo export VNET_PREFIX=$VNET_PREFIX >> /etc/default/ssh
 
 %s
-
+env | while read line; do if [[ $line != HOME=* ]] && [[ $line != INTERACTIVE* ]] ; then echo "$line" >> /etc/environment; fi; done
 service ssh restart
 
 echo "[DLWorkspace System]: Waiting for all containers are ready..."
@@ -441,7 +441,7 @@ echo export LD_PRELOAD=$LD_PRELOAD >> /etc/default/ssh
 echo export VNET_PREFIX=$VNET_PREFIX >> /etc/default/ssh
 
 %s
-
+env | while read line; do if [[ $line != HOME=* ]] && [[ $line != INTERACTIVE* ]] ; then echo "$line" >> /etc/environment; fi; done
 service ssh restart
 while [ ! -f /opt/run_dist_job ] || [ ! -f /opt/run_dist_job.sh ]; do
     sleep 3
@@ -1077,8 +1077,11 @@ def TakeJobActions(jobs):
             singleJobInfo = {}
             singleJobInfo["job"] = job
             singleJobInfo["jobParams"] = json.loads(base64.b64decode(job["jobParams"]))
-            singleJobInfo["localResInfo"] = ResourceInfo.FromTypeAndCount(job["vcName"], singleJobInfo["jobParams"]["gpuType"], singleJobInfo["jobParams"]["resourcegpu"])
-            singleJobInfo["globalResInfo"] = ResourceInfo.FromTypeAndCount("", singleJobInfo["jobParams"]["gpuType"], singleJobInfo["jobParams"]["resourcegpu"])
+            jobGpuType = "any"
+            if "gpuType" in singleJobInfo["jobParams"]:
+                jobGpuType = singleJobInfo["jobParams"]["gpuType"]
+            singleJobInfo["localResInfo"] = ResourceInfo.FromTypeAndCount(job["vcName"], jobGpuType, singleJobInfo["jobParams"]["resourcegpu"])
+            singleJobInfo["globalResInfo"] = ResourceInfo.FromTypeAndCount("", jobGpuType, singleJobInfo["jobParams"]["resourcegpu"])
             singleJobInfo["sortKey"] = str(job["jobTime"])
             if singleJobInfo["jobParams"]["preemptionAllowed"]:
                 singleJobInfo["sortKey"] = "1_" + singleJobInfo["sortKey"]
@@ -1093,7 +1096,7 @@ def TakeJobActions(jobs):
     logging.info("TakeJobActions : global resources : %s" % (globalResInfo.CategoryToCountMap))
 
     for sji in jobsInfo:
-        logging.info("TakeJobActions : job : %s : %s" % (sji["jobParams"]["jobName"], sji["localResInfo"].CategoryToCountMap))
+        logging.info("TakeJobActions : job : %s : %s : %s" % (sji["jobParams"]["jobName"], sji["localResInfo"].CategoryToCountMap, sji["sortKey"]))
         if sji["jobParams"]["preemptionAllowed"]:
             localResInfo.UnblockResourceCategory(sji["localResInfo"])
 
