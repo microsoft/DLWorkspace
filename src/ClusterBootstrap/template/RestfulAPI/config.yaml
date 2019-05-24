@@ -30,3 +30,4 @@ default-storage-folders : {{cnf["default-storage-folders"]}}
 webportal_node: {{cnf["webportal_node"]}}
 datasource : {{cnf["datasource"]}}
 kube_custom_scheduler: {{cnf["kube_custom_scheduler"]}}
+WinbindServers: {{cnf["WinbindServers"]}}

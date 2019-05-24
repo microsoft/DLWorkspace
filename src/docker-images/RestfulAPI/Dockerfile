@@ -1,4 +1,4 @@
-FROM dlws/restfulapi:v1.4
+FROM dlws/restfulapi:v1.5
 MAINTAINER Hongzhi Li <Hongzhi.Li@microsoft.com>
 
 COPY kubectl /usr/local/bin/kubectl

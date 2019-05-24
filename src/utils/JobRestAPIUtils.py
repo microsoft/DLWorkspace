@@ -18,6 +18,8 @@ import re
 
 from config import global_vars
 from MyLogger import MyLogger
+from authorization import ResourceType, Permission, AuthorizationManager, IdentityManager
+import authorization
 
 import copy
 
@@ -36,12 +38,17 @@ def SubmitJob(jobParamsJsonStr):
     if "jobName" not in jobParams or len(jobParams["jobName"].strip()) == 0:
         ret["error"] = "ERROR: Job name cannot be empty"
         return ret
-    
+    if "vcName" not in jobParams or len(jobParams["vcName"].strip()) == 0:
+        ret["error"] = "ERROR: VC name cannot be empty"
+        return ret
+
+    if "preemptionAllowed" not in jobParams:
+        jobParams["preemptionAllowed"] = False
 
     if "jobId" not in jobParams or jobParams["jobId"] == "":
-        #jobParams["jobId"] = jobParams["jobName"] + "-" + str(uuid.uuid4()) 
+        #jobParams["jobId"] = jobParams["jobName"] + "-" + str(uuid.uuid4())
         #jobParams["jobId"] = jobParams["jobName"] + "-" + str(time.time())
-        jobParams["jobId"] = str(uuid.uuid4()) 
+        jobParams["jobId"] = str(uuid.uuid4())
     #jobParams["jobId"] = jobParams["jobId"].replace("_","-").replace(".","-")
 
     if "resourcegpu" not in jobParams:
@@ -57,7 +64,7 @@ def SubmitJob(jobParamsJsonStr):
         jobParams["familyToken"] = str(uuid.uuid4())
     if "isParent" not in jobParams:
         jobParams["isParent"] = 1
-    
+
     userName = jobParams["userName"]
     if "@" in userName:
         userName = userName.split("@")[0].strip()
@@ -65,10 +72,14 @@ def SubmitJob(jobParamsJsonStr):
     if "/" in userName:
         userName = userName.split("/")[1].strip()
 
+    if not AuthorizationManager.HasAccess(jobParams["userName"], ResourceType.VC, jobParams["vcName"].strip(), Permission.User):
+        ret["error"] = "Access Denied!"
+        return ret
+
     if "cmd" not in jobParams:
         jobParams["cmd"] = ""
 
-    if "jobPath" in jobParams and len(jobParams["jobPath"].strip()) > 0: 
+    if "jobPath" in jobParams and len(jobParams["jobPath"].strip()) > 0:
         jobPath = jobParams["jobPath"]
         if ".." in jobParams["jobPath"]:
             ret["error"] = "ERROR: '..' cannot be used in job directory"
@@ -79,7 +90,7 @@ def SubmitJob(jobParamsJsonStr):
             return ret
 
         if jobParams["jobPath"].startswith("/") or jobParams["jobPath"].startswith("\\"):
-            ret["error"] = "ERROR: job directory should not start with '/' or '\\' " 
+            ret["error"] = "ERROR: job directory should not start with '/' or '\\' "
             return ret
 
         if not jobParams["jobPath"].startswith(userName):
@@ -89,7 +100,7 @@ def SubmitJob(jobParamsJsonStr):
         jobPath = userName+"/"+ "jobs/"+time.strftime("%y%m%d")+"/"+jobParams["jobId"]
         jobParams["jobPath"] = jobPath
 
-    if "workPath" not in jobParams or len(jobParams["workPath"].strip()) == 0: 
+    if "workPath" not in jobParams or len(jobParams["workPath"].strip()) == 0:
        jobParams["workPath"] = "."
 
     if ".." in jobParams["workPath"]:
@@ -101,13 +112,13 @@ def SubmitJob(jobParamsJsonStr):
         return ret
 
     if jobParams["workPath"].startswith("/") or jobParams["workPath"].startswith("\\"):
-        ret["error"] = "ERROR: work directory should not start with '/' or '\\' " 
+        ret["error"] = "ERROR: work directory should not start with '/' or '\\' "
         return ret
 
     if not jobParams["workPath"].startswith(userName):
         jobParams["workPath"] = os.path.join(userName,jobParams["workPath"])
 
-    if "dataPath" not in jobParams or len(jobParams["dataPath"].strip()) == 0: 
+    if "dataPath" not in jobParams or len(jobParams["dataPath"].strip()) == 0:
         jobParams["dataPath"] = "."
 
     if ".." in jobParams["dataPath"]:
@@ -119,7 +130,7 @@ def SubmitJob(jobParamsJsonStr):
         return ret
 
     if jobParams["dataPath"][0] == "/" or jobParams["dataPath"][0] == "\\":
-        ret["error"] = "ERROR: data directory should not start with '/' or '\\' " 
+        ret["error"] = "ERROR: data directory should not start with '/' or '\\' "
         return ret
 
     jobParams["dataPath"] = jobParams["dataPath"].replace("\\","/")
@@ -147,7 +158,7 @@ def SubmitJob(jobParamsJsonStr):
             #if not match is None:
             #    tensorboardParams["cmd"] = match.group(1) + "/worker0" + match.group(2)
 
-        tensorboardParams["jobId"] = str(uuid.uuid4()) 
+        tensorboardParams["jobId"] = str(uuid.uuid4())
         tensorboardParams["jobName"] = "tensorboard-"+jobParams["jobName"]
         tensorboardParams["jobPath"] = jobPath
         tensorboardParams["jobType"] = "visualization"
@@ -176,69 +187,101 @@ def SubmitJob(jobParamsJsonStr):
 
 
 
-def GetJobList(userName,num=None):
+def GetJobList(userName, vcName, jobOwner, num=None):
     try:
         dataHandler = DataHandler()
         jobs = []
+        hasAccessOnAllJobs = False
 
-        if userName != "all":
-            jobs = jobs + dataHandler.GetJobList(userName,None, "running,queued,scheduling,unapproved", ("=","or"))
-            jobs = jobs + dataHandler.GetJobList(userName,num, "running,queued,scheduling,unapproved", ("<>","and"))
+        if AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName, Permission.Collaborator):
+            hasAccessOnAllJobs = True
+
+        if jobOwner != "all" or not hasAccessOnAllJobs:
+            jobs = jobs + dataHandler.GetJobList(userName,vcName,None, "running,queued,scheduling,unapproved", ("=","or"))
+            jobs = jobs + dataHandler.GetJobList(userName,vcName,num, "running,queued,scheduling,unapproved", ("<>","and"))
         else:
-            jobs = dataHandler.GetJobList(userName,None, "error,failed,finished,killed", ("<>","and"))
+            jobs = dataHandler.GetJobList(jobOwner,vcName,None, "error,failed,finished,killed", ("<>","and"))
 
         for job in jobs:
             job.pop('jobMeta', None)
         dataHandler.Close()
         return jobs
-    except Exception, e:
+    except Exception as e:
         logger.error('Exception: '+ str(e))
         logger.warn("Fail to get job list for user %s, return empty list" % userName)
         return []
 
 
-def GetCommands(jobId):
+def GetCommands(userName, jobId):
+    commands = []
     dataHandler = DataHandler()
-    commands = dataHandler.GetCommands(jobId=jobId);
+    jobs = dataHandler.GetJob(jobId=jobId)
+    if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
+        commands = dataHandler.GetCommands(jobId=jobId)
     dataHandler.Close()
     return commands
 
 
-def KillJob(jobId):
-    ret = True
+def KillJob(userName, jobId):
+    ret = False
     dataHandler = DataHandler()
     jobs = dataHandler.GetJob(jobId=jobId)
     if len(jobs) == 1:
         job = jobs[0]
-        if job["isParent"] == 1:
-            for currJob in dataHandler.GetJob(familyToken=job["familyToken"]):
-                ret = ret and dataHandler.KillJob(currJob["jobId"])
-        else:
-            ret = dataHandler.KillJob(jobId)
-    else:
-        ret = False
+        if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin):
+            if job["isParent"] == 1:
+                ret = True
+                for currJob in dataHandler.GetJob(familyToken=job["familyToken"]):
+                    ret = ret and dataHandler.UpdateJobTextField(currJob["jobId"],"jobStatus","killing")
+            else:
+                ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","killing")
     dataHandler.Close()
     return ret
 
 
-def AddCommand(jobId,command):
+def AddCommand(userName, jobId,command):
     dataHandler = DataHandler()
     ret = False
     jobs =  dataHandler.GetJob(jobId=jobId)
     if len(jobs) == 1:
-        ret = dataHandler.AddCommand(jobId,command)
+        if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
+            ret = dataHandler.AddCommand(jobId,command)
     dataHandler.Close()
     return ret
 
 
-def ApproveJob(jobId):
+def ApproveJob(userName, jobId):
     dataHandler = DataHandler()
     ret = False
     jobs =  dataHandler.GetJob(jobId=jobId)
     if len(jobs) == 1:
-        ret = dataHandler.ApproveJob(jobId)
+        if AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Admin):
+            ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","queued")
     dataHandler.Close()
     return ret
+
+
+def ResumeJob(userName, jobId):
+    dataHandler = DataHandler()
+    ret = False
+    jobs =  dataHandler.GetJob(jobId=jobId)
+    if len(jobs) == 1:
+        if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
+            ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","queued")
+    dataHandler.Close()
+    return ret
+
+
+def PauseJob(userName, jobId):
+    dataHandler = DataHandler()
+    ret = False
+    jobs =  dataHandler.GetJob(jobId=jobId)
+    if len(jobs) == 1:
+        if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Admin):
+            ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","pausing")
+    dataHandler.Close()
+    return ret
+
 
 def isBase64(s):
     try:
@@ -248,36 +291,38 @@ def isBase64(s):
         pass
     return False
 
-def GetJobDetail(jobId):
+
+def GetJobDetail(userName, jobId):
     job = None
     dataHandler = DataHandler()
     jobs =  dataHandler.GetJob(jobId=jobId)
     if len(jobs) == 1:
-        job = jobs[0]
-        job["log"] = ""
-        #jobParams = json.loads(base64.b64decode(job["jobMeta"]))
-        #jobPath,workPath,dataPath = GetStoragePath(jobParams["jobPath"],jobParams["workPath"],jobParams["dataPath"])
-        #localJobPath = os.path.join(config["storage-mount-path"],jobPath)
-        #logPath = os.path.join(localJobPath,"joblog.txt")
-        #print logPath
-        #if os.path.isfile(logPath):
-        #    with open(logPath, 'r') as f:
-        #        log = f.read()
-        #        job["log"] = log
-        #    f.close()
-        if "jobDescription" in job:
-            job.pop("jobDescription",None)
-        try:
-            log = dataHandler.GetJobTextField(jobId,"jobLog")
+        if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
+            job = jobs[0]
+            job["log"] = ""
+            #jobParams = json.loads(base64.b64decode(job["jobMeta"]))
+            #jobPath,workPath,dataPath = GetStoragePath(jobParams["jobPath"],jobParams["workPath"],jobParams["dataPath"])
+            #localJobPath = os.path.join(config["storage-mount-path"],jobPath)
+            #logPath = os.path.join(localJobPath,"joblog.txt")
+            #print logPath
+            #if os.path.isfile(logPath):
+            #    with open(logPath, 'r') as f:
+            #        log = f.read()
+            #        job["log"] = log
+            #    f.close()
+            if "jobDescription" in job:
+                job.pop("jobDescription",None)
             try:
-                if isBase64(log):
-                    log = base64.b64decode(log)
-            except Exception:
-                pass                       
-            if log is not None:
-                job["log"] = log
-        except:
-            job["log"] = "fail-to-get-logs"
+                log = dataHandler.GetJobTextField(jobId,"jobLog")
+                try:
+                    if isBase64(log):
+                        log = base64.b64decode(log)
+                except Exception:
+                    pass
+                if log is not None:
+                    job["log"] = log
+            except:
+                job["log"] = "fail-to-get-logs"
     dataHandler.Close()
     return job
 
@@ -299,13 +344,145 @@ def GetClusterStatus():
     return cluster_status,last_update_time
 
 
-def AddUser(username,userId):
+def AddUser(username,uid,gid,groups):
+    ret = None
+    needToUpdateDB = False
+
+    if uid == authorization.INVALID_ID:
+        info = IdentityManager.GetIdentityInfoFromDB(username)
+        if info["uid"] == authorization.INVALID_ID:
+            needToUpdateDB = True
+            info = IdentityManager.GetIdentityInfoFromAD(username)
+        uid = info["uid"]
+        gid = info["gid"]
+        groups = info["groups"]
+    else:
+        needToUpdateDB = True
+
+    if needToUpdateDB:
+        dataHandler = DataHandler()
+        ret =  dataHandler.UpdateIdentityInfo(username,uid,gid,groups)
+        ret = ret & dataHandler.UpdateAclIdentityId(username,uid)
+        dataHandler.Close()
+    return ret
+
+
+def UpdateAce(userName, identityName, resourceType, resourceName, permissions):
+    ret = None
+    resourceAclPath = AuthorizationManager.GetResourceAclPath(resourceName, resourceType)
+    if AuthorizationManager.HasAccess(userName, resourceType, resourceName, Permission.Admin):
+        ret =  AuthorizationManager.UpdateAce(identityName, resourceAclPath, permissions, False)
+    else:
+        ret = "Access Denied!"
+    return ret
+
+
+def DeleteAce(userName, identityName, resourceType, resourceName):
+    ret = None
+    resourceAclPath = AuthorizationManager.GetResourceAclPath(resourceName, resourceType)
+    if AuthorizationManager.HasAccess(userName, resourceType, resourceName, Permission.Admin):
+        ret =  AuthorizationManager.DeleteAce(identityName, resourceAclPath)
+    else:
+        ret = "Access Denied!"
+    return ret
+
+
+def AddStorage(userName, vcName, url, storageType, metadata, defaultMountPath):
     ret = None
     dataHandler = DataHandler()
-    ret =  dataHandler.AddUser(username,userId)
+    if AuthorizationManager.IsClusterAdmin(userName):
+        ret =  dataHandler.AddStorage(vcName, url, storageType, metadata, defaultMountPath)
+    else:
+        ret = "Access Denied!"
     dataHandler.Close()
     return ret
 
+
+def ListStorages(userName, vcName):
+    ret = []
+    dataHandler = DataHandler()
+    if AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName, Permission.User):
+        ret = dataHandler.ListStorages(vcName)
+    dataHandler.Close()
+    return ret
+
+
+def DeleteStorage(userName, vcName, url):
+    ret = None
+    dataHandler = DataHandler()
+    if AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName, Permission.Admin):
+        ret =  dataHandler.DeleteStorage(vcName, url)
+    else:
+        ret = "Access Denied!"
+    dataHandler.Close()
+    return ret
+
+
+def UpdateStorage(userName, vcName, url, storageType, metadata, defaultMountPath):
+    ret = None
+    dataHandler = DataHandler()
+    if AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName, Permission.Admin):
+        ret =  dataHandler.UpdateStorage(vcName, url, storageType, metadata, defaultMountPath)
+    else:
+        ret = "Access Denied!"
+    dataHandler.Close()
+    return ret
+
+
+def AddVC(userName, vcName, quota, metadata):
+    ret = None
+    dataHandler = DataHandler()
+    if AuthorizationManager.IsClusterAdmin(userName):
+        ret =  dataHandler.AddVC(vcName, quota, metadata)
+    else:
+        ret = "Access Denied!"
+    dataHandler.Close()
+    return ret
+
+
+def ListVCs(userName):
+    ret = []
+    dataHandler = DataHandler()
+    vcList =  dataHandler.ListVCs()
+    for vc in vcList:
+        if AuthorizationManager.HasAccess(userName, ResourceType.VC, vc["vcName"], Permission.User):
+            # todo : get other info (resource consumption, quota etc.) about VC?
+            ret.append(vc)
+    # web portal (client) can filter out Default VC
+    dataHandler.Close()
+    return ret
+
+
+def DeleteVC(userName, vcName):
+    ret = None
+    dataHandler = DataHandler()
+    if AuthorizationManager.IsClusterAdmin(userName):
+        ret =  dataHandler.DeleteVC(vcName)
+    else:
+        ret = "Access Denied!"
+    dataHandler.Close()
+    return ret
+
+
+def UpdateVC(userName, vcName, quota, metadata):
+    ret = None
+    dataHandler = DataHandler()
+    if AuthorizationManager.IsClusterAdmin(userName):
+        ret =  dataHandler.UpdateVC(vcName, quota, metadata)
+    else:
+        ret = "Access Denied!"
+    dataHandler.Close()
+    return ret
+
+
+def get_job(job_id):
+    dataHandler = DataHandler()
+    return dataHandler.GetJob(jobId=job_id)[0]
+
+
+def update_job(job_id, field, value):
+    dataHandler = DataHandler()
+    dataHandler.UpdateJobTextField(job_id, field, value)
 
 if __name__ == '__main__':
     TEST_SUB_REG_JOB = False

@@ -8,6 +8,13 @@ metadata:
      jobName: {{ job["jobNameLabel"] }}
      jobId: {{job["jobId"]}}
      userName: {{ job["userNameLabel"] }}
+     vcName: {{ job["vcName"] }}
+   {% if "gpuType" in job %}
+    {% if job["gpuType"]|length > 0 %}
+     gpuType: {{ job["gpuType"] }}
+    {% endif %} 
+   {% endif %} 
+     preemptionAllowed: "{{ job["preemptionAllowed"] }}"
   {% if "annotations" in job %}
   annotations:
     {% for annotationKey,annotationVal in job["annotations"].items() %}
@@ -21,22 +28,22 @@ spec:
   {% for key, value in job["nodeSelector"].items() %}
     {{key}}: {{value}}
   {% endfor %}
-  {% endif %}    
+  {% endif %}
   {% if job["resourcegpu"]|int < 8  %}
     FragmentGPUJob: active
   {% endif %}
   {% if job["dnsPolicy"] %}
-  dnsPolicy: {{ job["dnsPolicy" ]}} 
+  dnsPolicy: {{ job["dnsPolicy" ]}}
   {% endif %}
   {% if job["hostNetwork"] %}
   hostNetwork: true
   {% endif %}
   {% if job["hostIPC"] %}
   hostIPC: true
-  {% endif %}  
+  {% endif %}
   containers:
   - name: {{ job["podName"] }}
-    image: {{ job["image"] }}    
+    image: {{ job["image"] }}
     imagePullPolicy: Always
     command: {{ job["LaunchCMD"] }}
     securityContext:
@@ -52,18 +59,21 @@ spec:
       limits:
         nvidia.com/gpu: {{ job["resourcegpu"] }}
     {% if not job["cpurequest"] %}
-      requests: 
+      requests:
         cpu: 1.0
-    {% else %}  
-      requests: 
-        cpu: job["cpurequest"]      
+    {% else %}
+      requests:
+        cpu: job["cpurequest"]
     {% endif %}
     {% if job["memoryrequest"] %}
-      requests: 
-        memory: job["memoryrequest"]      
-    {% endif %} 
-        
+      requests:
+        memory: job["memoryrequest"]
+    {% endif %}
+
     volumeMounts:
+    - name: "init-user-script"
+      mountPath: /dlws/init_user.sh
+      subPath: init_user.sh
     {% if not job["dnsPolicy"] %}
     - mountPath: /etc/resolv.conf
       name: resolv
@@ -84,8 +94,6 @@ spec:
     {% endif %}
     - mountPath: /dev/shm
       name: dshm    
-
-
     env:
     - name: FAMILY_TOKEN
       value: {{ job["familyToken"] }}
@@ -94,11 +102,11 @@ spec:
     - name: DLWS_USER_NAME
       value: {{ job["userNameLabel"] }}
     - name: JOB_ID
-      value: {{ job["jobId"] }}   
+      value: {{ job["jobId"] }}
     - name: DLWS_JOB_ID
-      value: {{ job["jobId"] }}   
+      value: {{ job["jobId"] }}
     - name: DLWS_NUM_WORKER
-      value: "1"  
+      value: "1"
     - name: DLWS_NUM_GPU_PER_WORKER
       value: "{{ job["resourcegpu"] }}"     
     {% if job["resourcegpu"]|int < 1  %}
@@ -110,7 +118,7 @@ spec:
       value: {{ job["pod_ip_range"] }}
     - name: LD_PRELOAD
       value: "/freeflow/libfsocket.so"
-    {% endif %}      
+    {% endif %}
     - name: POD_NAME
       valueFrom:
         fieldRef:
@@ -118,17 +126,27 @@ spec:
     - name: POD_IP
       valueFrom:
         fieldRef:
-          fieldPath: status.podIP  
+          fieldPath: status.podIP
+    - name: DLWS_GID
+      value: "{{ job["gid"] }}"
+    - name: DLWS_UID
+      value: "{{ job["uid"] }}"
+    - name: DLWS_USER_NAME
+      value: "{{ job["user"] }}"
     {% for env in job["env"] %}
     - name: {{ env.name }}
-      value: "{{ env.value }}"    
+      value: "{{ env.value }}"
     {% endfor %}
 
   imagePullSecrets:
-  - name: regcred     
-  
+  - name: regcred
+
   restartPolicy: Never
   volumes:
+  # TODO need to create the configmap during installation: kubectl create configmap init-user-script --from-file=init_user.sh
+  - name: "init-user-script"
+    configMap:
+      name: "init-user-script"
   {% if not job["dnsPolicy"] %}
   - name: resolv
     hostPath:

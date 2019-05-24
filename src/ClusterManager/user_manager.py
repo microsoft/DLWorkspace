@@ -61,7 +61,7 @@ def set_user_directory():
             logging.info("Found a new user %s" %username)
             logging.info("Creating home directory %s for user %s" % (userpath, username))
             os.system("mkdir -p "+userpath)
-            os.system("chown -R "+userid+":"+"500000513 "+userpath)
+            os.system("chown -R "+str(userid)+":"+"500000513 "+userpath)
 
         sshkeypath = os.path.join(userpath,".ssh/id_rsa")
         pubkeypath = os.path.join(userpath,".ssh/id_rsa.pub")
@@ -70,12 +70,12 @@ def set_user_directory():
             logging.info("Creating sshkey for user %s" % (username))
             os.system("mkdir -p "+os.path.dirname(sshkeypath))
             os.system("ssh-keygen -t rsa -b 4096 -f %s -P ''" % sshkeypath)
-            os.system("chown -R "+userid+":"+"500000513 "+userpath)
+            os.system("chown -R "+str(userid)+":"+"500000513 "+userpath)
             os.system("chmod 700 -R "+os.path.dirname(sshkeypath))
 
         if not os.path.exists(authorized_keyspath):
             logging.info("Creating authorized_keys for user %s" % (username))
-            os.system("chown -R "+userid+":"+"500000513 "+authorized_keyspath)
+            os.system("chown -R "+str(userid)+":"+"500000513 "+authorized_keyspath)
             os.system("cat "+pubkeypath+" >> "+authorized_keyspath)
             os.system("chmod 644 "+authorized_keyspath)
 
