@@ -262,6 +262,8 @@ def update_config():
         config["elasticsearch_node"] = config["webportal_node"]
     if ("mysql_node" not in config):
         config["mysql_node"] = None if len(get_node_lists_for_service("mysql"))==0 else get_node_lists_for_service("mysql")[0]
+    if ("host" not in config["prometheus"]):
+        config["prometheus"]["host"] = None if len(get_node_lists_for_service("prometheus"))==0 else get_node_lists_for_service("prometheus")[0]
 
     update_docker_image_config()
 
@@ -3169,6 +3171,10 @@ def run_command( args, command, nargs, parser ):
                         print(response)
                     elif nargs[1] == "list":
                         url = "http://%s:%s/GetACL?userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"])
+                        response = requests.get(url)
+                        print(response.text)
+                    elif nargs[1] == "delete":
+                        url = "http://%s:%s/DeleteAce?identityName=%s&resourceType=%s&resourceName=%s&userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"],nargs[2],nargs[3],nargs[4])
                         response = requests.get(url)
                         print(response.text)
             elif nargs[0] == "job":

@@ -9,7 +9,11 @@ metadata:
      jobId: {{job["jobId"]}}
      userName: {{ job["userNameLabel"] }}
      vcName: {{ job["vcName"] }}
+   {% if "gpuType" in job %}
+    {% if job["gpuType"]|length > 0 %}
      gpuType: {{ job["gpuType"] }}
+    {% endif %} 
+   {% endif %} 
      preemptionAllowed: "{{ job["preemptionAllowed"] }}"
   {% if "annotations" in job %}
   annotations:
@@ -47,6 +51,10 @@ spec:
       {% if job["isPrivileged"] %}
       privileged: true
       {% endif %}
+      capabilities:
+        add:
+        - IPC_LOCK
+        - SYS_ADMIN      
     resources:
       limits:
         nvidia.com/gpu: {{ job["resourcegpu"] }}
@@ -83,11 +91,15 @@ spec:
     {% endif %}
     - mountPath: /dev/shm
       name: dshm    
+
+
     env:
     - name: FAMILY_TOKEN
       value: {{ job["familyToken"] }}
     - name: DLWS_REST_API
       value: {{ job["rest-api"] }}
+    - name: DLWS_USER_NAME
+      value: {{ job["userNameLabel"] }}
     - name: JOB_ID
       value: {{ job["jobId"] }}   
     - name: DLWS_JOB_ID
@@ -95,7 +107,11 @@ spec:
     - name: DLWS_NUM_WORKER
       value: "1"  
     - name: DLWS_NUM_GPU_PER_WORKER
-      value: "{{ job["resourcegpu"] }}"                   
+      value: "{{ job["resourcegpu"] }}"     
+    {% if job["resourcegpu"]|int < 1  %}
+    - name: NVIDIA_VISIBLE_DEVICES
+      value: ""      
+    {% endif %} 
     {% if job["usefreeflow"] %}
     - name: VNET_PREFIX
       value: {{ job["pod_ip_range"] }}
@@ -147,3 +163,6 @@ spec:
   - name: dshm
     emptyDir:
       medium: Memory  
+  - name: rdmauverbs1
+    hostPath:
+      path: /dev/infiniband/uverbs1          

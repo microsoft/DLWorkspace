@@ -19,13 +19,15 @@ class ResourceInfo:
 
     def CanSatisfy(self, otherResourceInfo):  
         for key in otherResourceInfo.CategoryToCountMap:
-            if (key in self.BlockedCategories) or (key not in self.CategoryToCountMap) or (self.CategoryToCountMap[key] < otherResourceInfo.CategoryToCountMap[key]):
+            if (otherResourceInfo.CategoryToCountMap[key] > 0) and ((key in self.BlockedCategories) or (key not in self.CategoryToCountMap) \
+                or (self.CategoryToCountMap[key] < otherResourceInfo.CategoryToCountMap[key])):
                 return False
         return True
 
     def Subtract(self, otherResourceInfo):
         for key in otherResourceInfo.CategoryToCountMap:
-            self.CategoryToCountMap[key] -= otherResourceInfo.CategoryToCountMap[key]
+            if otherResourceInfo.CategoryToCountMap[key] > 0:
+                self.CategoryToCountMap[key] -= otherResourceInfo.CategoryToCountMap[key]
 
     def BlockResourceCategory(self, resourceInfo):
         for key in resourceInfo.CategoryToCountMap:
