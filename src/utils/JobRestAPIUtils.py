@@ -29,6 +29,30 @@ def LoadJobParams(jobParamsJsonStr):
     return json.loads(jobParamsJsonStr)
 
 
+def ToBool(value):
+    if isinstance(value, basestring):
+        value = str(value)
+        if str.isdigit(value):
+            ret = int(value)
+            if ret == 0:
+                return False
+            else:
+                return True
+        else:
+            if value.upper() == 'TRUE':
+                return True
+            elif value.upper() == 'FALSE':
+                return False
+            else:
+                raise ValueError
+    elif isinstance(value, int):
+        if value == 0:
+            return False
+        else:
+            return True
+    else:
+        return value
+
 
 def SubmitJob(jobParamsJsonStr):
     ret = {}
@@ -44,7 +68,9 @@ def SubmitJob(jobParamsJsonStr):
 
     if "preemptionAllowed" not in jobParams:
         jobParams["preemptionAllowed"] = False
-
+    else:
+        jobParams["preemptionAllowed"] = ToBool(jobParams["preemptionAllowed"])
+    
     if "jobId" not in jobParams or jobParams["jobId"] == "":
         #jobParams["jobId"] = jobParams["jobName"] + "-" + str(uuid.uuid4())
         #jobParams["jobId"] = jobParams["jobName"] + "-" + str(time.time())
