@@ -71,6 +71,9 @@ spec:
     {% endif %}
 
     volumeMounts:
+    - name: "init-user-script"
+      mountPath: /dlws/init_user.sh
+      subPath: init_user.sh
     {% if not job["dnsPolicy"] %}
     - mountPath: /etc/resolv.conf
       name: resolv
@@ -124,6 +127,12 @@ spec:
       valueFrom:
         fieldRef:
           fieldPath: status.podIP
+    - name: DLWS_GID
+      value: "{{ job["gid"] }}"
+    - name: DLWS_UID
+      value: "{{ job["uid"] }}"
+    - name: DLWS_USER_NAME
+      value: "{{ job["user"] }}"
     {% for env in job["env"] %}
     - name: {{ env.name }}
       value: "{{ env.value }}"
@@ -134,6 +143,10 @@ spec:
 
   restartPolicy: Never
   volumes:
+  # TODO need to create the configmap during installation: kubectl create configmap init-user-script --from-file=init_user.sh
+  - name: "init-user-script"
+    configMap:
+      name: "init-user-script"
   {% if not job["dnsPolicy"] %}
   - name: resolv
     hostPath:

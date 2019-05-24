@@ -121,7 +121,8 @@ def SubmitRegularJob(job):
                 f.write("#!/bin/bash -x\n")
                 f.write("mkdir /opt; \n")
                 f.write("echo 'localhost slots=%s' | tee -a /opt/hostfile; \n" % jobParams["resourcegpu"])
-                f.write(jobParams["cmd"] + "\n")
+                # TODO refine it later
+                f.write("bash /dlws/init_user.sh && runuser -l ${DLWS_USER_NAME} -c '%s'\n" % jobParams["cmd"])
             f.close()
             if "userId" in jobParams:
                 os.system("chown -R %s %s" % (jobParams["userId"], launchScriptPath))
@@ -253,6 +254,13 @@ def SubmitRegularJob(job):
                     if "nodeSelector" not in jobParams:
                         jobParams["nodeSelector"] = {}
                     jobParams["nodeSelector"]["gpuType"] = jobParams["gpuType"]
+
+            # inject gid, uid and user
+            # TODO it should return only one entry
+            user_info = dataHandler.GetIdentityInfo(jobParams["userName"])[0]
+            jobParams["gid"] = user_info["gid"]
+            jobParams["uid"] = user_info["uid"]
+            jobParams["user"] = userAlias
 
             template = ENV.get_template(os.path.abspath(jobTemp))
             job_description = template.render(job=jobParams)
@@ -453,6 +461,7 @@ sleep infinity
 
 
                     launchScriptPath = os.path.join(localJobPath,"launch-%s-%s%d.sh" % (distJobParam["jobId"],role,i))
+                    # TODO need to set up user for distribute jobs
                     with open(launchScriptPath, 'w') as f:
                         f.write(launchCMD)
                     f.close()
