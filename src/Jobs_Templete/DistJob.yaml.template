@@ -150,4 +150,4 @@ spec:
   {% endfor %}
   - name: dshm
     emptyDir:
-      medium: Memory
+      medium: Memory  

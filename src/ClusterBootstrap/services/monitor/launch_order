@@ -1,3 +1,4 @@
+node-exporter.yaml
 job-exporter.yaml
 watchdog.yaml
 prometheus.yaml

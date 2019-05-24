@@ -173,4 +173,4 @@ spec:
   {% endif %}
   - name: dshm
     emptyDir:
-      medium: Memory
+      medium: Memory  
