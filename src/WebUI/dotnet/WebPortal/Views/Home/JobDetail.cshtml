@@ -3,7 +3,8 @@
 *@
 
 <script>
-
+    var cluster = "@ViewData["cluster"]";
+    var clusterEndpoint = "@ViewData["clusterEndpoint"]";
     var elasticsearchHost = 'http://@Context.Request.Host:9200';
     var logPages;
     var logNum;
@@ -134,7 +135,7 @@
 
 
     function getCommands() {
-        $.ajax({ url: "/api/dlws/GetCommands?jobId=@ViewData["jobid"]", dataType: 'json', timeout: 10000, error: AlertAPIError }).done(
+        $.ajax({ url: "/api/dlws/GetCommands?cluster=" + cluster + "&jobId=@ViewData["jobid"]", dataType: 'json', timeout: 10000, error: AlertAPIError }).done(
             function (json) {
                 var commandsDiv = document.getElementById('commands-div');
                 if (json.length == 0) {
@@ -167,7 +168,7 @@
     }
 
     function buildTemplateList() {
-        $.ajax({ url: "/api/dlws/GetTemplates?type=command", dataType: 'json', timeout: 10000, error: AlertAPIError }).done(
+        $.ajax({ url: "/api/dlws/GetTemplates?cluster=" + cluster + "&type=command", dataType: 'json', timeout: 10000, error: AlertAPIError }).done(
             function (json) {
                 $('#templateselect').find("option").remove();
                 for (var i = 0; i < json.length; i++) {
@@ -217,7 +218,7 @@
             $.each(payload.endpoints, function (id, endpoint) {
                 var spec = endpoint.endpointDescription.spec;
                 if (endpoint.port == 22) {
-                    endpointsStr += "To access the container via SSH, use command: ssh -i " + endpoint.username + "/.ssh/id_rsa -p " + spec.ports[0].nodePort + " " + endpoint.username + "@@" + location.hostname + "\n";
+                    endpointsStr += "To access the container via SSH, use command: ssh -i " + endpoint.username + "/.ssh/id_rsa -p " + spec.ports[0].nodePort + " " + endpoint.username + "@@" + clusterEndpoint + "\n";
                 }
                 else {
                     var svcurl = "http://" + location.hostname + ":" + spec.ports[0].nodePort;
@@ -276,7 +277,7 @@
     }
 
     function GetDetail() {
-        var url = "/api/dlws/JobDetail?jobId=@ViewData["jobid"]";
+        var url = "/api/dlws/JobDetail?cluster=" + cluster + "&jobId=@ViewData["jobid"]";
         $.ajax({ url: url, dataType: 'json', timeout: 15000 }).done(DisplayDetail);
     }
 
@@ -308,7 +309,7 @@
 
     function RunCommand() {
         $("#run-cmd-btn").attr("disabled", true);
-        var url = "/api/dlws/RunCommand?jobId=@ViewData["jobid"]&";
+        var url = "/api/dlws/RunCommand?cluster=" + cluster + "&jobId=@ViewData["jobid"]&";
         url = url + "command=" + encodeURIComponent(document.getElementById("cmd-textbox").value);
         $.ajax({ url: url, dataType: 'json', timeout: 10000,  error: AlertAPIError }).done(AlertCommandResult);
     }
@@ -330,6 +331,7 @@
                     $http({
                         method: "POST",
                         url: "/api/dlws/endpoints",
+                        params: { cluster: cluster },
                         data: {
                             jobId: '@ViewData["jobid"]',
                             endpoints: ["ssh"]
