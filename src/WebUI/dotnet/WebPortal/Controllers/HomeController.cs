@@ -913,7 +913,10 @@ namespace WindowsAuth.Controllers
             {
                 return RedirectToAction("Index", "Home");
             }
+            var cluster = HttpContext.Request.Query["cluster"];
+            ViewData["cluster"] = cluster;
             ViewData["jobid"] = HttpContext.Request.Query["jobId"];
+            ViewData["clusterEndpoint"] = new Uri(Startup.Clusters[cluster].Restapi).Host;
 
             var workFolderAccessPoint = Startup.Clusters[HttpContext.Request.Query["cluster"]].WorkFolderAccessPoint;
 

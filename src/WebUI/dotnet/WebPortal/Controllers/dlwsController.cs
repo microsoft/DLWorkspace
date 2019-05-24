@@ -468,7 +468,13 @@ namespace WindowsAuth.Controllers
         [HttpPost("endpoints")]
         public async Task<string> PostEndpoints()
         {
-            var restapi = HttpContext.Session.GetString("Restapi");
+            var cluster = HttpContext.Request.Query["cluster"];
+            var authorizedClusters = JsonConvert.DeserializeObject<List<string>>(HttpContext.Session.GetString("AuthorizedClusters"));
+            if (!authorizedClusters.Contains(cluster))
+            {
+                return "Invalid cluster";
+            }
+            var restapi = Startup.Clusters[cluster].Restapi;
             using (var httpClient = new HttpClient())
             {
                 httpClient.BaseAddress = new Uri(restapi);
