@@ -564,7 +564,7 @@
                         <md-input-container flex="50">
                             <label> GPU type </label>
                             <md-select name="jobtrainingtype" ng-model="extras.gpuType" required md-no-asterisk>
-                                <md-option ng-value="name" ng-repeat="(name, count) in gpus">{{ name }} ({{ count }})</md-option>
+                                <md-option ng-value="name" ng-repeat="(name, count) in gpus">{{ name }} ({{ count }} available to use)</md-option>
                             </md-select>
                         </md-input-container>
                     </div>
