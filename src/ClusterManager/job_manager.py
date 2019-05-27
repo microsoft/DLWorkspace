@@ -724,6 +724,9 @@ Host %s
         print("override ssh client config: %s" % bash_script)
         k8sUtils.kubectl_exec("exec %s -- bash -c \'%s\'" % (pod_name, bash_script))
 
+    # execute user command
+    k8sUtils.kubectl_exec("exec %s -- runuser -l ${DLWS_USER_NAME} <<EOF %s \nEOF" % (pod_name, jobParams["cmd"]))
+
     # update job status
     dataHandler = DataHandler()
     dataHandler.UpdateJobTextField(job_id, "jobStatus", "running")
