@@ -72,7 +72,7 @@ namespace WindowsAuth.Controllers
         }
 
         // Add user to the system, with a list of clusters that the user is authorized for
-        private async Task<bool> AddUser(UserEntry userEntry, string clusterName)
+        private async Task<bool> AddUser(UserEntry userEntry, List<string> groups, string clusterName)
         {
             var email = userEntry.Alias;
             HttpContext.Session.SetString("Email", userEntry.Alias);
@@ -91,7 +91,11 @@ namespace WindowsAuth.Controllers
 
             if (userEntry.isAuthorized == "true")
             {
-                var url = clusterInfo.Restapi + "/AddUser?userName=" + HttpContext.Session.GetString("Email") + "&userId=" + userEntry.uid;
+                var url = clusterInfo.Restapi + "/AddUser?userName=" + HttpContext.Session.GetString("Email")
+                    + "&userId=" + userEntry.uid
+                    + "&uid=" + userEntry.uid
+                    + "&gid=" + userEntry.gid
+                    + "&groups=" + JsonConvert.SerializeObject(groups);
                 using (var httpClient1 = new HttpClient())
                 {
                     var response2 = await httpClient1.GetAsync(url);
@@ -740,7 +744,7 @@ namespace WindowsAuth.Controllers
                         foreach (var pair in authorizationFinal)
                         {
 
-                            await AddUser(pair.Value, pair.Key);
+                            await AddUser(pair.Value, lst.SelectMany(x => x.groups).ToList(), pair.Key);
                             useCluster = pair.Key;
                             _logger.LogInformation("User {0} is authorized for cluster {1}", email, pair.Key);
                         }
