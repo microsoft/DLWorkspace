@@ -88,7 +88,6 @@
         $scope.checkExtras = function () {
             if ($scope.extras == null) {
                 $scope.extras = {
-                    cluster: $scope.clusters[0],
                     gpuType: null,
                     preemptionAllowed: "False",
                 }
@@ -249,6 +248,14 @@
             })
             $scope.extras.gpuType = null;
         });
+
+        $scope.$watch('current.jobtrainingtype', function (value) {
+            if (value === 'PSDistJob') {
+                $scope.current.numps = 1;
+            } else {
+                delete $scope.current.numps;
+            }
+        })
 
         $scope.loadTemplate = function () {
             $scope.curtemplate = $scope.joblist[$scope.curtemplateValue];
@@ -613,14 +620,14 @@
 
                         <md-input-container flex="50">
                             <label> Total number of GPUs </label>
-                            <input ng-value="current.numpsworker * 8" disabled type="number" md-no-asterisk>
+                            <input ng-value="current.numpsworker * gpus[extras.gpuType]" disabled type="number" md-no-asterisk>
                         </md-input-container>
 
                     </div>
 
                     <md-input-container class="md-block" ng-if="current.jobtrainingtype=='RegularJob'">
                         <label> Number of GPUs  Per Worker</label>
-                        <input ng-model="current.resourcegpu" required type="number" name="resourcegpu" step="1" min="0" max="8" md-no-asterisk>
+                        <input ng-model="current.resourcegpu" required type="number" name="resourcegpu" step="1" min="0" max="{{gpus[extras.gpuType]}}" md-no-asterisk>
                         <div ng-messages="jobApp.resourcegpu.$error" multiple>
                             <div ng-message="required">
                                 You have to let us know the number of gpus per worker.
@@ -631,7 +638,7 @@
                             </div>
 
                             <div ng-message="max">
-                                You can request at most 8 GPUs per worker.
+                                You can request at most {{gpus[extras.gpuType]}} GPUs per worker.
                             </div>
                         </div>
                     </md-input-container>
