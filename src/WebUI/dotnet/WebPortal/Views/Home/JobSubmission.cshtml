@@ -65,16 +65,7 @@
                     enablejobpath: true,
                 };
             tobool($scope.current, "do_log", false);
-            if (!$scope.current.hasOwnProperty("runningasroot"))
-                $scope.current.runningasroot = "0";
-            if (typeof ($scope.current.runningasroot) == "boolean") {
-                if ($scope.current.runningasroot)
-                    $scope.current.runningasroot = "1";
-                else
-                    $scope.current.runningasroot = "0";
-            };
-            if ($scope.current.runningasroot != "0" && $scope.current.runningasroot != "1")
-                $scope.current.runningasroot = "0";
+            $scope.current.runningasroot = "1";
 
             tobool($scope.current, "is_interactive", false);
             if ($scope.current.mountpoints == null) {
@@ -658,11 +649,6 @@
                         <md-input-container class="md-block" flex="50">
                             <md-switch name="do_log" ng-model="current.do_log" md-no-asterisk>
                                 Enable Tensorboard
-                            </md-switch>
-                        </md-input-container>
-                        <md-input-container class="md-block">
-                            <md-switch name="runningasroot" ng-model="current.runningasroot" md-no-asterisk>
-                                Launch container as root user.
                             </md-switch>
                         </md-input-container>
                     </div>
