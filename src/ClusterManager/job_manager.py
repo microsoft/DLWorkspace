@@ -144,7 +144,6 @@ def SubmitRegularJob(job):
         jobParams["nvidiaDriverPath"] = nvidiaDriverPath
 
 
-        jobParams["userNameLabel"] = getAlias(jobParams["userName"])
         jobParams["rest-api"] = config["rest-api"]
 
         if "mountpoints" not in jobParams:
@@ -339,6 +338,7 @@ def SubmitPSDistJob(job):
             ssh_ports["ps"] = [rndList[i] + 30000 for i in range(ps_num)]
             ssh_ports["worker"] = [rndList[i + ps_num] + 30000 for i in range(worker_num)]
 
+        userAlias = getAlias(jobParams["userName"])
 
         if jobParams["jobtrainingtype"] == "PSDistJob":
             jobDescriptionList = []
@@ -468,9 +468,7 @@ sleep infinity
                     distJobParam["LaunchCMD"] = "[\"bash\", \"/job/launch-%s-%s%d.sh\"]" % (distJobParam["jobId"],role,i)
 
 
-
                     distJobParam["jobNameLabel"] = ''.join(e for e in distJobParam["jobName"] if e.isalnum())
-                    distJobParam["userNameLabel"] = getAlias(jobParams["userName"])
                     ENV = Environment(loader=FileSystemLoader("/"))
 
                     jobTempDir = os.path.join(config["root-path"],"Jobs_Templete")
@@ -489,7 +487,7 @@ sleep infinity
                     distJobParam["mountpoints"].append({"name":"work","containerPath":"/work","hostPath":distJobParam["hostworkPath"]})
                     distJobParam["mountpoints"].append({"name":"data","containerPath":"/data","hostPath":distJobParam["hostdataPath"]})
 
-                    userAlias = getAlias(jobParams["userName"])
+
                     distJobParam["mountpoints"].append({"name":"rootsshkey","containerPath":"/sshkey/.ssh","hostPath":os.path.join(config["storage-mount-path"], GetWorkPath(userAlias)+"/.ssh"), "readOnly":True, "enabled":True})
 
 
@@ -525,12 +523,20 @@ sleep infinity
                             distJobParam["nodeSelector"] = {}
                         distJobParam["nodeSelector"]["gpuType"] = distJobParam["gpuType"]
 
+                    # inject gid, uid and user
+                    # TODO it should return only one entry
+                    user_info = dataHandler.GetIdentityInfo(jobParams["userName"])[0]
+                    distJobParam["gid"] = user_info["gid"]
+                    distJobParam["uid"] = user_info["uid"]
+                    distJobParam["user"] = userAlias
+
                     template = ENV.get_template(os.path.abspath(jobTemp))
                     job_description = template.render(job=distJobParam)
 
                     jobDescriptionList.append(job_description)
 
                     distJobParams[role].append(distJobParam)
+
 
             jobParams["jobDescriptionPath"] = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"] + ".yaml"
             jobDescription = "\n---\n".join(jobDescriptionList)
