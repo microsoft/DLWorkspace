@@ -327,17 +327,6 @@ def SubmitPSDistJob(job):
         if len(config["racks"]) > 0:
             assignedRack = random.choice(config["racks"])
 
-        # in distributed job and host network is using, we will randomly assign a SSH port to each container.
-        ssh_ports = {}
-        if "hostNetwork" in jobParams and jobParams["hostNetwork"]:
-            ps_num = int(jobParams["numps"])
-            worker_num = int(jobParams["numpsworker"])
-            #port range: 30000~31000
-            rndList = range(max(1000,ps_num + worker_num))
-            random.shuffle(rndList)
-            ssh_ports["ps"] = [rndList[i] + 30000 for i in range(ps_num)]
-            ssh_ports["worker"] = [rndList[i + ps_num] + 30000 for i in range(worker_num)]
-
         userAlias = getAlias(jobParams["userName"])
 
         if jobParams["jobtrainingtype"] == "PSDistJob":
@@ -352,17 +341,13 @@ def SubmitPSDistJob(job):
                     if "jobPath" not in distJobParam or len(distJobParam["jobPath"].strip()) == 0:
                         dataHandler.SetJobError(distJobParam["jobId"],"ERROR: job-path does not exist")
                         return False
-
-                    distJobParam["distJobPath"] = os.path.join(distJobParam["jobPath"],distJobParam["distId"])
-
                     if "workPath" not in distJobParam or len(distJobParam["workPath"].strip()) == 0:
                         dataHandler.SetJobError(distJobParam["jobId"],"ERROR: work-path does not exist")
                         return False
-
                     if "dataPath" not in distJobParam or len(distJobParam["dataPath"].strip()) == 0:
                         dataHandler.SetJobError(distJobParam["jobId"],"ERROR: data-path does not exist")
                         return False
-
+                    distJobParam["distJobPath"] = os.path.join(distJobParam["jobPath"],distJobParam["distId"])
                     jobPath,workPath,dataPath = GetStoragePath(distJobParam["distJobPath"],distJobParam["workPath"],distJobParam["dataPath"])
 
                     localJobPath = os.path.join(config["storage-mount-path"],jobPath)
@@ -372,101 +357,11 @@ def SubmitPSDistJob(job):
                         else:
                             mkdirsAsUser(localJobPath,0)
 
-
-                    distJobParam["LaunchCMD"] = ""
+                    # TODO ???
                     if "cmd" not in distJobParam:
                         distJobParam["cmd"] = ""
 
-################One choice is that we only wait for certain time.
-#                    launchCMD = """
-##!/bin/bash
-#mkdir -p /opt
-#echo "[DLWorkspace System]: Waiting for all containers are ready..."
-## wait for at most 10 mins.
-#for i in {1..200}; do
-#    if [ ! -f /opt/run_dist_job ] || [ ! -f /opt/run_dist_job.sh ]; then
-#        sleep 3
-#    else
-#        break
-#    fi
-#done
-#if [ ! -f /opt/run_dist_job ] || [ ! -f /opt/run_dist_job.sh ]; then
-#    echo "[DLWorkspace System]: Waiting for containers: timeout! Restarting..."
-#    exit 1
-#else
-#    echo "[DLWorkspace System]: All containers are ready, launching training job..."
-#    chmod +x /opt/run_dist_job.sh
-#    /opt/run_dist_job.sh
-#fi
-#"""
-                    if "hostNetwork" in jobParams and jobParams["hostNetwork"]:
-                        change_ssh_port_CMD = "cat /etc/ssh/sshd_config | grep -v 'Port\\ [0-9]*' > /tmp/sshd_config && echo 'Port "+str(ssh_ports[role][i])+"' | tee -a /tmp/sshd_config && sudo mv /tmp/sshd_config /etc/ssh/sshd_config ; "
-                    else:
-                        change_ssh_port_CMD = ""
-
-                    if role == "ps":
-                        launchCMD = """
-#!/bin/bash
-mkdir -p /opt
-mkdir -p /root/.ssh
-cp -r /sshkey/.ssh/id_rsa /root/.ssh
-cp -r /sshkey/.ssh/id_rsa.pub /root/.ssh
-cp -r /sshkey/.ssh/authorized_keys /root/.ssh
-chown root:root /root/.ssh
-chown root:root /root/.ssh/id_rsa
-chown root:root /root/.ssh/id_rsa.pub
-chown root:root /root/.ssh/authorized_keys
-echo export LD_PRELOAD=$LD_PRELOAD >> /etc/default/ssh
-echo export VNET_PREFIX=$VNET_PREFIX >> /etc/default/ssh
-
-%s
-env | while read line; do if [[ $line != HOME=* ]] && [[ $line != INTERACTIVE* ]] ; then echo "$line" >> /etc/environment; fi; done
-service ssh restart
-
-echo "[DLWorkspace System]: Waiting for all containers are ready..."
-while [ ! -f /opt/run_dist_job ] || [ ! -f /opt/run_dist_job.sh ]; do
-    sleep 3
-done
-echo "[DLWorkspace System]: All containers are ready, launching training job..."
-chmod +x /opt/run_dist_job.sh
-sleep 10
-chown root:root /root/.ssh/config
-/opt/run_dist_job.sh
-""" % change_ssh_port_CMD
-                    else:
-                        launchCMD = """
-#!/bin/bash
-mkdir -p /opt
-mkdir -p /root/.ssh
-cp -r /sshkey/.ssh/id_rsa /root/.ssh
-cp -r /sshkey/.ssh/id_rsa.pub /root/.ssh
-cp -r /sshkey/.ssh/authorized_keys /root/.ssh
-chown root:root /root/.ssh
-chown root:root /root/.ssh/id_rsa
-chown root:root /root/.ssh/id_rsa.pub
-chown root:root /root/.ssh/authorized_keys
-echo export LD_PRELOAD=$LD_PRELOAD >> /etc/default/ssh
-echo export VNET_PREFIX=$VNET_PREFIX >> /etc/default/ssh
-
-%s
-env | while read line; do if [[ $line != HOME=* ]] && [[ $line != INTERACTIVE* ]] ; then echo "$line" >> /etc/environment; fi; done
-service ssh restart
-while [ ! -f /opt/run_dist_job ] || [ ! -f /opt/run_dist_job.sh ]; do
-    sleep 3
-done
-chown root:root /root/.ssh/config
-sleep infinity
-""" % change_ssh_port_CMD
-
-
-
-                    launchScriptPath = os.path.join(localJobPath,"launch-%s-%s%d.sh" % (distJobParam["jobId"],role,i))
-                    # TODO need to set up user for distribute jobs
-                    with open(launchScriptPath, 'w') as f:
-                        f.write(launchCMD)
-                    f.close()
-                    distJobParam["LaunchCMD"] = "[\"bash\", \"/job/launch-%s-%s%d.sh\"]" % (distJobParam["jobId"],role,i)
-
+                    distJobParam["LaunchCMD"] = '["bash", "-c", "bash /dlws/init_user.sh && runuser -l ${DLWS_USER_NAME} -c \'sleep infinity\'"]'
 
                     distJobParam["jobNameLabel"] = ''.join(e for e in distJobParam["jobName"] if e.isalnum())
                     ENV = Environment(loader=FileSystemLoader("/"))
