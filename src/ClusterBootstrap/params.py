@@ -80,6 +80,7 @@ default_config_parameters = {
         ".js": True,
         ".swf": True,
         ".gzip": True,
+        ".rules": True,
     },
     "render-by-copy": {
         # The following file will be copied (not rendered for configuration)
@@ -93,6 +94,7 @@ default_config_parameters = {
         "collectd.graphite.conf.tpl": True,
         "collectd.influxdb.conf.tpl": True,
         "collectd.riemann.conf.tpl": True,
+        "prometheus-alerting.yaml": True,
         # "nginx": True,
         "RecogServer": True,
         
