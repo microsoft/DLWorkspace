@@ -22,8 +22,15 @@
 
     app.controller('dataJobCtrl', function ($scope, $http, $httpParamSerializer) {
         $scope.busy = false;
-        $scope.current = {};
         $scope.clusters = @Html.Raw(@Context.Session.GetString("TeamClusters"));
+        $scope.current = {
+            cluster: $scope.clusters[0],
+            fromType: "nfs",
+        };
+
+        $scope.$watch('current.fromType', function (value) {
+            $scope.current.toType = value === 'nfs' ? 'adls' : 'nfs';
+        })
 
         $scope.submit = function () {
             $scope.busy = true;
@@ -141,16 +148,13 @@
                             <label>Copy Data From</label>
                             <md-select ng-model="current.fromType" required>
                                 <md-option value="nfs" selected>NFS</md-option>
-                                <md-option value="adls" ng-if="current.to !== 'adls'">ADLS</md-option>
+                                <md-option value="adls">ADLS</md-option>
                             </md-select>
                         </md-input-container>
 
                         <md-input-container flex="50">
                             <label>Copy Data To</label>
-                            <md-select ng-model="current.toType" required>
-                                <md-option value="nfs" selected>NFS</md-option>
-                                <md-option value="adls" ng-if="current.from !== 'adls'">ADLS</md-option>
-                            </md-select>
+                            <input ng-value="current.toType | uppercase" readonly>
                         </md-input-container>
                     </div>
 
