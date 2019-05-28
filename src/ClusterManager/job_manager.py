@@ -346,9 +346,9 @@ def SubmitPSDistJob(job):
                     if "workPath" not in distJobParam or len(distJobParam["workPath"].strip()) == 0:
                         dataHandler.SetJobError(distJobParam["jobId"],"ERROR: work-path does not exist")
                         return False
-                    if "dataPath" not in distJobParam or len(distJobParam["dataPath"].strip()) == 0:
-                        dataHandler.SetJobError(distJobParam["jobId"],"ERROR: data-path does not exist")
-                        return False
+                    #if "dataPath" not in distJobParam or len(distJobParam["dataPath"].strip()) == 0:
+                    #    dataHandler.SetJobError(distJobParam["jobId"],"ERROR: data-path does not exist")
+                    #    return False
                     distJobParam["distJobPath"] = os.path.join(distJobParam["jobPath"],distJobParam["distId"])
                     jobPath,workPath,dataPath = GetStoragePath(distJobParam["distJobPath"],distJobParam["workPath"],distJobParam["dataPath"])
 
