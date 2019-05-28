@@ -12,6 +12,8 @@ addgroup --force-badname --gid  ${DLWS_GID} domainusers
 adduser --force-badname --home /home/${DLWS_USER_NAME} --shell /bin/bash --uid ${DLWS_UID}  -gecos '' --gid ${DLWS_GID} --disabled-password ${DLWS_USER_NAME}
 usermod -p $(echo tryme2017 | openssl passwd -1 -stdin) ${DLWS_USER_NAME}
 chown -R ${DLWS_USER_NAME} /home/${DLWS_USER_NAME}/ || /bin/true
+chmod -R 600 /home/${DLWS_USER_NAME}/.ssh || /bin/true
+chmod 700 /home/${DLWS_USER_NAME}/.ssh || /bin/true
 
 # setup sudoers
 adduser $DLWS_USER_NAME sudo
