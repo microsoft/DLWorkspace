@@ -235,6 +235,7 @@
                 if (!team) return;
 
                 $scope.gpus = JSON.parse(team.quota);
+                $scope.gpumeta = JSON.parse(team.metadata);
                 $scope.checkExtras();
             })
             $scope.extras.gpuType = null;
@@ -611,14 +612,14 @@
 
                         <md-input-container flex="50">
                             <label> Total number of GPUs </label>
-                            <input ng-value="current.numpsworker * gpus[extras.gpuType]" disabled type="number" md-no-asterisk>
+                            <input ng-value="current.numpsworker * gpumeta[extras.gpuType]['num_gpu_per_node']" disabled type="number" md-no-asterisk>
                         </md-input-container>
 
                     </div>
 
                     <md-input-container class="md-block" ng-if="current.jobtrainingtype=='RegularJob'">
                         <label> Number of GPUs  Per Worker</label>
-                        <input ng-model="current.resourcegpu" required type="number" name="resourcegpu" step="1" min="0" max="{{gpus[extras.gpuType]}}" md-no-asterisk>
+                        <input ng-model="current.resourcegpu" required type="number" name="resourcegpu" step="1" min="0" max="{{gpumeta[extras.gpuType]['num_gpu_per_node']}}" md-no-asterisk>
                         <div ng-messages="jobApp.resourcegpu.$error" multiple>
                             <div ng-message="required">
                                 You have to let us know the number of gpus per worker.
@@ -629,7 +630,7 @@
                             </div>
 
                             <div ng-message="max">
-                                You can request at most {{gpus[extras.gpuType]}} GPUs per worker.
+                                You can request at most {{gpumeta[extras.gpuType]['num_gpu_per_node']}} GPUs per worker.
                             </div>
                         </div>
                     </md-input-container>
