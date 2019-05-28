@@ -91,6 +91,7 @@ class DataHandler:
                     `jobMeta` LONGTEXT  NULL,
                     `jobLog` LONGTEXT  NULL,
                     `retries`             int    NULL DEFAULT 0,
+                    `lastUpdated` DATETIME     DEFAULT CURRENT_TIMESTAMP NOT NULL,
                     PRIMARY KEY (`id`),
                     UNIQUE(`jobId`),
                     INDEX (`userName`),

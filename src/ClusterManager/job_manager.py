@@ -168,8 +168,8 @@ def SubmitRegularJob(job):
             jobParams["mountpoints"].append(mp)
 
         userAlias = getAlias(jobParams["userName"])
+        jobParams["homeFolderHostpath"] = os.path.join(config["storage-mount-path"], GetWorkPath(userAlias))
 
-        mp = {"name":"sshkey","containerPath":"/home/%s/.ssh" % userAlias,"hostPath":os.path.join(config["storage-mount-path"], GetWorkPath(userAlias)+"/.ssh"), "readOnly":True, "enabled":True}
         if CheckMountPoints(jobParams["mountpoints"],mp):
             jobParams["mountpoints"].append(mp)
 
@@ -328,6 +328,7 @@ def SubmitPSDistJob(job):
             assignedRack = random.choice(config["racks"])
 
         userAlias = getAlias(jobParams["userName"])
+        jobParams["homeFolderHostpath"] = os.path.join(config["storage-mount-path"], GetWorkPath(userAlias))
 
         if jobParams["jobtrainingtype"] == "PSDistJob":
             jobDescriptionList = []
@@ -382,10 +383,6 @@ def SubmitPSDistJob(job):
                     distJobParam["mountpoints"].append({"name":"job","containerPath":"/job","hostPath":distJobParam["hostjobPath"]})
                     distJobParam["mountpoints"].append({"name":"work","containerPath":"/work","hostPath":distJobParam["hostworkPath"]})
                     distJobParam["mountpoints"].append({"name":"data","containerPath":"/data","hostPath":distJobParam["hostdataPath"]})
-
-
-                    distJobParam["mountpoints"].append({"name":"rootsshkey","containerPath":"/sshkey/.ssh","hostPath":os.path.join(config["storage-mount-path"], GetWorkPath(userAlias)+"/.ssh"), "readOnly":True, "enabled":True})
-
 
                     for idx in range(len(distJobParam["mountpoints"])):
                         if "name" not in distJobParam["mountpoints"][idx]:
@@ -649,20 +646,20 @@ def query_ssh_port(pod_name):
     return int(ssh_port)
 
 # TODO remove duplicate code later
-def start_ssh_server(pod_name, user_name, ssh_port=22, host_network=False):
+def start_ssh_server(pod_name, user_name, host_network=False, ssh_port=22):
     '''Setup the ssh server in container, and return the listening port.'''
-    bash_script = "sudo bash -c 'apt-get update && apt-get install -y openssh-server && cd /home/" + user_name + " && mkdir -p ssh && chmod 700 ssh && cat .ssh/id_rsa.pub >> ssh/authorized_keys && chmod 600 ssh/authorized_keys && sed -i \"s/^[#]*AuthorizedKeysFile.*/AuthorizedKeysFile      %h\/ssh\/authorized_keys/\" /etc/ssh/sshd_config && service ssh restart'"
+    bash_script = "sudo bash -c 'apt-get update && apt-get install -y openssh-server && cd /home/" + user_name + " && (chown " + user_name + " -R .ssh; chmod 600 -R .ssh/*; chmod 700 .ssh; true) && service ssh restart'"
 
     # ssh_port = 22
 
     # modify the script for HostNewtork
     if host_network:
         # if the ssh_port is default value 22, randomly choose one
-        if ssh_port== 22:
+        if ssh_port == 22:
             ssh_port = random.randint(40001, 49999)
         # bash_script = "sed -i '/^Port 22/c Port "+str(ssh_port)+"' /etc/ssh/sshd_config && "+bash_script
         # TODO refine the script later
-        bash_script = "sudo bash -c 'apt-get update && apt-get install -y openssh-server && sed -i \"s/^Port 22/Port " + str(ssh_port) + "/\" /etc/ssh/sshd_config && cd /home/" + user_name + " && mkdir -p ssh && chmod 700 ssh && cat .ssh/id_rsa.pub >> ssh/authorized_keys && chmod 600 ssh/authorized_keys && sed -i \"s/^[#]*AuthorizedKeysFile.*/AuthorizedKeysFile      %h\/ssh\/authorized_keys/\" /etc/ssh/sshd_config && service ssh restart'"
+        bash_script = "sudo bash -c 'apt-get update && apt-get install -y openssh-server && sed -i \"s/^Port 22/Port " + str(ssh_port) + "/\" /etc/ssh/sshd_config && cd /home/" + user_name + " && (chown " + user_name + " -R .ssh; chmod 600 -R .ssh/*; chmod 700 .ssh; true) && service ssh restart'"
 
     # TODO setup reasonable timeout
     # output = k8sUtils.kubectl_exec("exec %s %s" % (jobId, " -- " + bash_script), 1)
@@ -695,7 +692,7 @@ def launch_ps_dist_job(jobParams):
         pod_name = pod["metadata"]["name"]
         dist_port = pod["metadata"]["labels"]["distPort"]
         # quit if can't setup ssh server
-        ssh_port = start_ssh_server(pod_name, user_name, dist_port, host_network)
+        ssh_port = start_ssh_server(pod_name, user_name, host_network, dist_port)
 
     # generate ssh config
     ssh_config = """
@@ -729,6 +726,7 @@ Host %s
 
     # execute user command
     k8sUtils.kubectl_exec("exec %s -- runuser -l ${DLWS_USER_NAME} <<EOF %s \nEOF" % (pod_name, jobParams["cmd"]))
+    k8sUtils.kubectl_exec("exec " + pod_name + " -- cd /home/" + user_name + "; chmod 600 -R .ssh; chmod 700 .ssh; chown -R " + user_name + " .ssh")
 
     # update job status
     dataHandler = DataHandler()

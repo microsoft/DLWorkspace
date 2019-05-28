@@ -28,18 +28,20 @@ def query_ssh_port(pod_name):
     return int(ssh_port)
 
 
-def start_ssh_server(pod_name, user_name, host_network=False):
+def start_ssh_server(pod_name, user_name, host_network=False, ssh_port=22):
     '''Setup the ssh server in container, and return the listening port.'''
-    bash_script = "sudo bash -c 'apt-get update && apt-get install -y openssh-server && cd /home/" + user_name + " && mkdir -p ssh && chmod 700 ssh && cat .ssh/id_rsa.pub >> ssh/authorized_keys && chmod 600 ssh/authorized_keys && sed -i \"s/^[#]*AuthorizedKeysFile.*/AuthorizedKeysFile      %h\/ssh\/authorized_keys/\" /etc/ssh/sshd_config && service ssh restart'"
+    bash_script = "sudo bash -c 'apt-get update && apt-get install -y openssh-server && cd /home/" + user_name + " && (chown " + user_name + " -R .ssh; chmod 600 -R .ssh/*; chmod 700 .ssh; true) && service ssh restart'"
 
-    ssh_port = 22
+    # ssh_port = 22
 
     # modify the script for HostNewtork
     if host_network:
-        ssh_port = random.randint(40001, 49999)
+        # if the ssh_port is default value 22, randomly choose one
+        if ssh_port == 22:
+            ssh_port = random.randint(40001, 49999)
         # bash_script = "sed -i '/^Port 22/c Port "+str(ssh_port)+"' /etc/ssh/sshd_config && "+bash_script
         # TODO refine the script later
-        bash_script = "sudo bash -c 'apt-get update && apt-get install -y openssh-server && sed -i \"s/^Port 22/Port " + str(ssh_port) + "/\" /etc/ssh/sshd_config && cd /home/" + user_name + " && mkdir -p ssh && chmod 700 ssh && cat .ssh/id_rsa.pub >> ssh/authorized_keys && chmod 600 ssh/authorized_keys && sed -i \"s/^[#]*AuthorizedKeysFile.*/AuthorizedKeysFile      %h\/ssh\/authorized_keys/\" /etc/ssh/sshd_config && service ssh restart'"
+        bash_script = "sudo bash -c 'apt-get update && apt-get install -y openssh-server && sed -i \"s/^Port 22/Port " + str(ssh_port) + "/\" /etc/ssh/sshd_config && cd /home/" + user_name + " && (chown " + user_name + " -R .ssh; chmod 600 -R .ssh/*; chmod 700 .ssh; true) && service ssh restart'"
 
     # TODO setup reasonable timeout
     # output = k8sUtils.kubectl_exec("exec %s %s" % (jobId, " -- " + bash_script), 1)
@@ -106,7 +108,7 @@ def setup_ssh_server(user_name, pod_name, host_network=False):
 def setup_jupyter_server(user_name, pod_name):
 
     jupyter_port = random.randint(10001, 19999)
-    bash_script = "sudo bash -c 'apt-get update && apt-get install python-pip -y && python -m pip install --upgrade pip && python -m pip install jupyter && cd /home/" + user_name + " && `jupyter notebook --no-browser --ip=0.0.0.0 --NotebookApp.token= --port=" + str(jupyter_port) + " --allow-root &>/dev/null &`'"
+    bash_script = "sudo bash -c 'apt-get update && apt-get install python-pip -y && python -m pip install --upgrade pip && python -m pip install jupyter && cd /home/" + user_name + " && runuser -l " + user_name + " -c \"jupyter notebook --no-browser --ip=0.0.0.0 --NotebookApp.token= --port=" + str(jupyter_port) + " &>/dev/null &\"'"
     output = k8sUtils.kubectl_exec("exec %s %s" % (pod_name, " -- " + bash_script))
     if output == "":
         raise Exception("Failed to start jupyter server in container. JobId: %s " % pod_name)
