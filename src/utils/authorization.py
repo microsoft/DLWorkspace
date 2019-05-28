@@ -45,7 +45,7 @@ class AuthorizationManager:
                 for ace in acl:
                     for identity in identities:
                         logger.debug('identity %s' % identity)
-                        if ace["identityName"] == identityName or (ace["identityId"] == identity  and (int(identity) < INVALID_RANGE_START or int(identity) > INVALID_RANGE_END)):
+                        if ace["identityName"] == identityName or (str(ace["identityId"]) == str(identity)  and (int(identity) < INVALID_RANGE_START or int(identity) > INVALID_RANGE_END)):
                             permissions = permissions & (~ace["permissions"])
                             if not permissions:
                                 logger.info('access : Yes')
