@@ -83,12 +83,28 @@ namespace WindowsAuth.Controllers
         }
 
 
+        // GET api/dlws/hostname
+        [HttpGet("hostname")]
+        public string GetHostname()
+        {
+
+            var cluster = HttpContext.Request.Query["cluster"];
+            var authorizedClusters = JsonConvert.DeserializeObject<List<string>>(HttpContext.Session.GetString("AuthorizedClusters"));
+            if (!authorizedClusters.Contains(cluster))
+            {
+                return "Invalid cluster";
+            }
+            var restapi = Startup.Clusters[cluster].Restapi;
+            return new Uri(restapi).Host;
+        }
+
+
         // GET api/dlws/GetLog
         [HttpGet("GetLog/{jobId}")]
         public async Task<string> GetLog(string jobId)
         {
 
-            string url = String.Format(@"http://"+ Request.Host + ":9200/_search?sort=time:asc&_source=log&size=100&q=kubernetes.pod_name:{0}",jobId);
+            string url = String.Format(@"http://" + Request.Host + ":9200/_search?sort=time:asc&_source=log&size=100&q=kubernetes.pod_name:{0}", jobId);
             string ret = "";
             using (var httpClient = new HttpClient())
             {
