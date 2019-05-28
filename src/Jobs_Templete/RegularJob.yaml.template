@@ -7,7 +7,7 @@ metadata:
      podName: {{ job["podName"] }}
      jobName: {{ job["jobNameLabel"] }}
      jobId: {{job["jobId"]}}
-     userName: {{ job["userNameLabel"] }}
+     userName: {{ job["user"] }}
      vcName: {{ job["vcName"] }}
    {% if "gpuType" in job %}
     {% if job["gpuType"]|length > 0 %}
