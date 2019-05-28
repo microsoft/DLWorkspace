@@ -87,7 +87,7 @@
                     if (json.node_status[i].unschedulable) {
                         tr.append("<td> Unschedulable </td > ");
                     }
-                    else 
+                    else
                     {
                         tr.append("<td> OK </td>");
                     }
@@ -127,7 +127,7 @@
                     $('#user_status').append(tr);
                 }
 
-               
+
             });
     }
 
@@ -183,6 +183,21 @@
 
 
 
+
+<h1>
+    User Status:
+</h1>
+
+<table id="user_status" class="table table-bordered table-condensed table-hover table-striped">
+    <thead>
+        <tr>
+            <th>User Name</th>
+            <th>Used GPU</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
 <h1>
     Node Status:
 </h1>
@@ -199,21 +214,6 @@
             <th>Status</th>
             <th>Services</th>
             <th>Pods</th>
-        </tr>
-    </thead>
-    <tbody></tbody>
-</table>
-
-
-<h1>
-    User Status:
-</h1>
-
-<table id="user_status" class="table table-bordered table-condensed table-hover table-striped">
-    <thead>
-        <tr>
-            <th>User Name</th>
-            <th>Used GPU</th>
         </tr>
     </thead>
     <tbody></tbody>
