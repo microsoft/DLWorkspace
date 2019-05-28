@@ -337,6 +337,7 @@ def SubmitPSDistJob(job):
                     distJobParam=copy.deepcopy(jobParams)
                     distJobParam["distId"] = "%s%d" % (role,i)
                     distJobParam["distRole"] = role
+                    distJobParam["distRoleIdx"] = i
 
                     if "jobPath" not in distJobParam or len(distJobParam["jobPath"].strip()) == 0:
                         dataHandler.SetJobError(distJobParam["jobId"],"ERROR: job-path does not exist")
@@ -710,12 +711,13 @@ Host %s
         pod_ip = pod["status"]["podIP"]
         dist_port = pod["metadata"]["labels"]["distPort"]
         role = pod["metadata"]["labels"]["distRole"]
+        role_idx = pod["metadata"]["labels"]["distRoleIdx"]
 
         # TODO hostNetwork
         if host_network:
-            sshconfigstr += (ssh_config % (role + "-"+str(idx), pod_ip, str(dist_port), user_name) + "\n")
+            sshconfigstr += (ssh_config % (role + "-"+str(role_idx), pod_ip, str(dist_port), user_name) + "\n")
         else:
-            sshconfigstr += (ssh_config % (role + "-"+str(idx), pod_ip, 22, user_name) + "\n")
+            sshconfigstr += (ssh_config % (role + "-"+str(role_idx), pod_ip, 22, user_name) + "\n")
 
     # config ssh client
     for [idx, pod] in enumerate(pods["items"]):
