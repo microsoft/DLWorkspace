@@ -7,15 +7,16 @@ metadata:
     podName: {{ job["jobId"] }}-{{ job["distId"] }}
     jobName: {{ job["jobNameLabel"] }}
     distRole: {{ job["distRole"] }}
+    distRoleIdx: "{{ job["distRoleIdx"] }}"
     distPort: "{{job["containerPort"]}}"
-    userName: {{ job["userNameLabel"] }}
+    userName: {{ job["user"] }}
     vcName: {{ job["vcName"] }}
   {% if "gpuType" in job %}
    {% if job["gpuType"]|length > 0 %}
     gpuType: {{ job["gpuType"] }}
-   {% endif %} 
-  {% endif %} 
-    preemptionAllowed: "{{ job["preemptionAllowed"] }}"   
+   {% endif %}
+  {% endif %}
+    preemptionAllowed: "{{ job["preemptionAllowed"] }}"
 spec:
   #hostNetwork: true
   nodeSelector:
@@ -43,11 +44,11 @@ spec:
     securityContext:
     {% if job["isPrivileged"] %}
       privileged: true
-    {% endif %}    
+    {% endif %}
       capabilities:
         add:
         - IPC_LOCK
-        - SYS_ADMIN          
+        - SYS_ADMIN
     ports:
     - containerPort: {{job["containerPort"]}}
       hostPort: {{job["containerPort"]}}
@@ -68,6 +69,9 @@ spec:
     {% endif %}
     {% endif %}
     volumeMounts:
+    - name: "init-user-script"
+      mountPath: /dlws/init_user.sh
+      subPath: init_user.sh
     {% if job["usefreeflow"] %}
     - mountPath: /freeflow
       name: freeflow
@@ -87,8 +91,6 @@ spec:
       value: {{ job["familyToken"] }}
     - name: DLWS_REST_API
       value: {{ job["rest-api"] }}
-    - name: DLWS_USER_NAME
-      value: {{ job["userNameLabel"] }}
     - name: DLWS_JOB_ID
       value: {{ job["jobId"] }}
     - name: DLWS_NUM_PS
@@ -96,11 +98,11 @@ spec:
     - name: DLWS_NUM_WORKER
       value: "{{ job["numworker"] }}"
     - name: DLWS_NUM_GPU_PER_WORKER
-      value: "{{ job["resourcegpu"] }}"     
+      value: "{{ job["resourcegpu"] }}"
     {% if job["distRole"] =="ps" or not job["resourcegpu"] is defined or job["resourcegpu"]|int < 1  %}
     - name: NVIDIA_VISIBLE_DEVICES
-      value: ""      
-    {% endif %}                         
+      value: ""
+    {% endif %}
     {% if job["usefreeflow"] %}
     - name: VNET_PREFIX
       value: {{ job["pod_ip_range"] }}
@@ -115,6 +117,12 @@ spec:
       valueFrom:
         fieldRef:
           fieldPath: status.podIP
+    - name: DLWS_GID
+      value: "{{ job["gid"] }}"
+    - name: DLWS_UID
+      value: "{{ job["uid"] }}"
+    - name: DLWS_USER_NAME
+      value: "{{ job["user"] }}"
     {% for env in job["env"] %}
     - name: {{ env.name }}
       value: {{ env.value }}
@@ -125,6 +133,9 @@ spec:
 
   restartPolicy: Never
   volumes:
+  - name: "init-user-script"
+    configMap:
+      name: "init-user-script"
   {% if job["usefreeflow"] %}
   - name: freeflow
     hostPath:
@@ -150,4 +161,4 @@ spec:
   {% endfor %}
   - name: dshm
     emptyDir:
-      medium: Memory  
+      medium: Memory
