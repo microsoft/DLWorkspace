@@ -168,8 +168,8 @@ def SubmitRegularJob(job):
             jobParams["mountpoints"].append(mp)
 
         userAlias = getAlias(jobParams["userName"])
+        jobParams["homeFolderHostpath"] = os.path.join(config["storage-mount-path"], GetWorkPath(userAlias))
 
-        mp = {"name":"sshkey","containerPath":"/home/%s/.ssh" % userAlias,"hostPath":os.path.join(config["storage-mount-path"], GetWorkPath(userAlias)+"/.ssh"), "readOnly":True, "enabled":True}
         if CheckMountPoints(jobParams["mountpoints"],mp):
             jobParams["mountpoints"].append(mp)
 
@@ -328,6 +328,7 @@ def SubmitPSDistJob(job):
             assignedRack = random.choice(config["racks"])
 
         userAlias = getAlias(jobParams["userName"])
+        jobParams["homeFolderHostpath"] = os.path.join(config["storage-mount-path"], GetWorkPath(userAlias))
 
         if jobParams["jobtrainingtype"] == "PSDistJob":
             jobDescriptionList = []
@@ -382,10 +383,6 @@ def SubmitPSDistJob(job):
                     distJobParam["mountpoints"].append({"name":"job","containerPath":"/job","hostPath":distJobParam["hostjobPath"]})
                     distJobParam["mountpoints"].append({"name":"work","containerPath":"/work","hostPath":distJobParam["hostworkPath"]})
                     distJobParam["mountpoints"].append({"name":"data","containerPath":"/data","hostPath":distJobParam["hostdataPath"]})
-
-
-                    distJobParam["mountpoints"].append({"name":"rootsshkey","containerPath":"/sshkey/.ssh","hostPath":os.path.join(config["storage-mount-path"], GetWorkPath(userAlias)+"/.ssh"), "readOnly":True, "enabled":True})
-
 
                     for idx in range(len(distJobParam["mountpoints"])):
                         if "name" not in distJobParam["mountpoints"][idx]:

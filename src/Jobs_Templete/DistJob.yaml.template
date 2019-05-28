@@ -72,6 +72,17 @@ spec:
     - name: "init-user-script"
       mountPath: /dlws/init_user.sh
       subPath: init_user.sh
+    - name: ssh-volume
+      mountPath: /home/{{ job["user"] }}/.ssh
+    - name: id-rsa-volume
+      mountPath: /home/{{ job["user"] }}/.ssh/id_rsa
+      readOnly: true
+    - name: id-rsa-pub-volume
+      mountPath: /home/{{ job["user"] }}/.ssh/id_rsa.pub
+      readOnly: true
+    - name: authorized-keys-volume
+      mountPath: /home/{{ job["user"] }}/.ssh/authorized_keys
+      readOnly: true
     {% if job["usefreeflow"] %}
     - mountPath: /freeflow
       name: freeflow
@@ -136,6 +147,17 @@ spec:
   - name: "init-user-script"
     configMap:
       name: "init-user-script"
+  - name: ssh-volume
+    emptyDir: {}
+  - name: id-rsa-volume
+    hostPath:
+      path: {{ job["homeFolderHostpath"] }}/.ssh/id_rsa
+  - name: id-rsa-pub-volume
+    hostPath:
+      path: {{ job["homeFolderHostpath"] }}/.ssh/id_rsa.pub
+  - name: authorized-keys-volume
+    hostPath:
+      path: {{ job["homeFolderHostpath"] }}/.ssh/authorized_keys
   {% if job["usefreeflow"] %}
   - name: freeflow
     hostPath:
