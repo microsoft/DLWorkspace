@@ -225,6 +225,10 @@ namespace WindowsAuth.Controllers
                     if (HttpContext.Session.GetString("isAdmin").Equals("true"))
                     {
                         url = restapi + "/ListJobs?vcName=" + HttpContext.Session.GetString("Team") + "&jobOwner=all&userName=" + HttpContext.Session.GetString("Email");
+                        if (HttpContext.Request.Query.ContainsKey("num"))
+                        {
+                            url += "&num=" + HttpContext.Request.Query["num"];
+                        }
                     }
                     break;
                 case "KillJob":
