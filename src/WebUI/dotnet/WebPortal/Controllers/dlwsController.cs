@@ -89,6 +89,11 @@ namespace WindowsAuth.Controllers
         {
 
             var cluster = HttpContext.Request.Query["cluster"];
+            var authorizedClustersJson = HttpContext.Session.GetString("AuthorizedClusters");
+            if (authorizedClustersJson == null)
+            {
+                return "Invalid user";
+            }
             var authorizedClusters = JsonConvert.DeserializeObject<List<string>>(HttpContext.Session.GetString("AuthorizedClusters"));
             if (!authorizedClusters.Contains(cluster))
             {
