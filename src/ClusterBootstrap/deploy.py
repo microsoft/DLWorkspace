@@ -2830,8 +2830,9 @@ def start_one_kube_service(fname):
         except Exception as e:
             pass
 
-    # recreate the configmap init-user-script each time
-    run_kubectl( ["create configmap init-user-script --from-file=../Jobs_Templete/init_user.sh -o yaml --dry-run | ./deploy/bin/kubectl apply -f -"] )
+    if fname == "./deploy/services/jobmanager/jobmanager.yaml":
+        # recreate the configmap init-user-script
+        run_kubectl( ["create configmap init-user-script --from-file=../Jobs_Templete/init_user.sh -o yaml --dry-run | ./deploy/bin/kubectl apply -f -"] )
 
     run_kubectl( ["create", "-f", fname ] )
 
