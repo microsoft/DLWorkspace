@@ -122,7 +122,7 @@ def SubmitRegularJob(job):
                 f.write("mkdir /opt; \n")
                 f.write("echo 'localhost slots=%s' | tee -a /opt/hostfile; \n" % jobParams["resourcegpu"])
                 # TODO refine it later
-                f.write("bash /dlws/init_user.sh && runuser -l ${DLWS_USER_NAME} -c '%s'\n" % jobParams["cmd"])
+                f.write("bash /dlws/init_user.sh &> /job/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c '%s'\n" % jobParams["cmd"])
             f.close()
             if "userId" in jobParams:
                 os.system("chown -R %s %s" % (jobParams["userId"], launchScriptPath))
@@ -363,7 +363,7 @@ def SubmitPSDistJob(job):
                     if "cmd" not in distJobParam:
                         distJobParam["cmd"] = ""
 
-                    distJobParam["LaunchCMD"] = '["bash", "-c", "bash /dlws/init_user.sh && runuser -l ${DLWS_USER_NAME} -c \'sleep infinity\'"]'
+                    distJobParam["LaunchCMD"] = '["bash", "-c", "bash /dlws/init_user.sh &> /job/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c \'sleep infinity\'"]'
 
                     distJobParam["jobNameLabel"] = ''.join(e for e in distJobParam["jobName"] if e.isalnum())
                     ENV = Environment(loader=FileSystemLoader("/"))
@@ -402,7 +402,7 @@ def SubmitPSDistJob(job):
 
                     random.seed(datetime.datetime.now())
                     if "hostNetwork" in jobParams and jobParams["hostNetwork"]:
-                        distJobParam["containerPort"] = random.randint(40001, 49999)
+                        distJobParam["containerPort"] = random.randint(3000, 32767)
                     else:
                         distJobParam["containerPort"] = int(random.random()*1000+3000)
 
@@ -656,7 +656,7 @@ def start_ssh_server(pod_name, user_name, host_network=False, ssh_port=22):
     if host_network:
         # if the ssh_port is default value 22, randomly choose one
         if ssh_port == 22:
-            ssh_port = random.randint(40001, 49999)
+            ssh_port = random.randint(30001, 32767)
         # bash_script = "sed -i '/^Port 22/c Port "+str(ssh_port)+"' /etc/ssh/sshd_config && "+bash_script
         # TODO refine the script later
         bash_script = "sudo bash -c 'apt-get update && apt-get install -y openssh-server && sed -i \"s/^Port 22/Port " + str(ssh_port) + "/\" /etc/ssh/sshd_config && cd /home/" + user_name + " && (chown " + user_name + " -R .ssh; chmod 600 -R .ssh/*; chmod 700 .ssh; true) && service ssh restart'"
@@ -719,14 +719,33 @@ Host %s
     # config ssh client
     for [idx, pod] in enumerate(pods["items"]):
         pod_name = pod["metadata"]["name"]
-        # TODO need to handle the config override problem
         bash_script = "cat > /home/" + user_name + "/.ssh/config <<EOF " + sshconfigstr + "\nEOF"
         print("override ssh client config: %s" % bash_script)
         k8sUtils.kubectl_exec("exec %s -- bash -c \'%s\'" % (pod_name, bash_script))
 
-    # execute user command
-    k8sUtils.kubectl_exec("exec %s -- runuser -l ${DLWS_USER_NAME} <<EOF %s \nEOF" % (pod_name, jobParams["cmd"]))
+    # fix ~/.ssh/ folder permission
     k8sUtils.kubectl_exec("exec " + pod_name + " -- cd /home/" + user_name + "; chmod 600 -R .ssh; chmod 700 .ssh; chown -R " + user_name + " .ssh")
+
+    # generate hostfile
+    hostfilecontent = ""
+    for [_, pod] in enumerate(pods["items"]):
+        role = pod["metadata"]["labels"]["distRole"]
+        if role == "ps":
+            continue
+        role_idx = pod["metadata"]["labels"]["distRoleIdx"]
+        worker_gpu_num = pod["spec"]["containers"][0]["resources"]["requests"]["nvidia.com/gpu"]
+        hostfilecontent += "%s  slots=%s\n" % ("worker-"+str(role_idx), worker_gpu_num)
+    tmp_hostfile = "/tmp/" + job_id + ".hostfile"
+    with open(tmp_hostfile, 'w') as f:
+        f.write(hostfilecontent + "\n")
+    # write the hostfile
+    for [idx, pod] in enumerate(pods["items"]):
+        pod_name = pod["metadata"]["name"]
+        remotecmd = "cp %s %s:/job/hostfile" % (tmp_hostfile, pod_name)
+        k8sUtils.kubectl_exec(remotecmd)
+
+    # execute user command
+    k8sUtils.kubectl_exec("exec %s -- bash -c 'runuser -l ${DLWS_USER_NAME} <<EOF_USER_SCRIPT %s \nEOF_USER_SCRIPT'" % (pod_name, jobParams["cmd"]))
 
     # update job status
     dataHandler = DataHandler()
