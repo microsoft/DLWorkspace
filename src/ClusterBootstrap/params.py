@@ -24,6 +24,13 @@ default_config_parameters = {
     "node-exporter": { "port": 9100 },
     "watchdog": { "port": 9101 },
     "grafana": { "port": 3000 },
+    "alert-manager": {
+        "port": 9093,
+        "configured": False
+        # If want to deploy with alert-manager, should config
+        # configured with True, and fill appropriate value to:
+        # smtp_url, smtp_from, smtp_auth_username, smtp_auth_password and receiver
+    },
 
     "mysql_port": "3306",
     "mysql_username": "root",
@@ -80,6 +87,8 @@ default_config_parameters = {
         ".js": True,
         ".swf": True,
         ".gzip": True,
+        ".rules": True,
+        ".tmpl": True,
     },
     "render-by-copy": {
         # The following file will be copied (not rendered for configuration)
@@ -93,6 +102,8 @@ default_config_parameters = {
         "collectd.graphite.conf.tpl": True,
         "collectd.influxdb.conf.tpl": True,
         "collectd.riemann.conf.tpl": True,
+        "prometheus-alerting.yaml": True,
+        "alert-templates.yaml": True,
         # "nginx": True,
         "RecogServer": True,
         
@@ -205,6 +216,7 @@ default_config_parameters = {
         "FragmentGPUJob": "all",
         "grafana": "etcd_node_1",
         "prometheus": "etcd_node_1",
+        "alert-manager": "etcd_node_1",
         "watchdog": "etcd_node_1",
         "elasticsearch": "etcd_node_1",
         "kibana": "etcd_node_1",
