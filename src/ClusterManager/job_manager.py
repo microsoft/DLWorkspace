@@ -122,7 +122,7 @@ def SubmitRegularJob(job):
                 f.write("mkdir /opt; \n")
                 f.write("echo 'localhost slots=%s' | tee -a /opt/hostfile; \n" % jobParams["resourcegpu"])
                 # TODO refine it later
-                f.write("bash /dlws/init_user.sh && runuser -l ${DLWS_USER_NAME} -c '%s'\n" % jobParams["cmd"])
+                f.write("bash /dlws/init_user.sh &> /job/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c '%s'\n" % jobParams["cmd"])
             f.close()
             if "userId" in jobParams:
                 os.system("chown -R %s %s" % (jobParams["userId"], launchScriptPath))
@@ -363,7 +363,7 @@ def SubmitPSDistJob(job):
                     if "cmd" not in distJobParam:
                         distJobParam["cmd"] = ""
 
-                    distJobParam["LaunchCMD"] = '["bash", "-c", "bash /dlws/init_user.sh && runuser -l ${DLWS_USER_NAME} -c \'sleep infinity\'"]'
+                    distJobParam["LaunchCMD"] = '["bash", "-c", "bash /dlws/init_user.sh &> /job/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c \'sleep infinity\'"]'
 
                     distJobParam["jobNameLabel"] = ''.join(e for e in distJobParam["jobName"] if e.isalnum())
                     ENV = Environment(loader=FileSystemLoader("/"))
