@@ -719,14 +719,33 @@ Host %s
     # config ssh client
     for [idx, pod] in enumerate(pods["items"]):
         pod_name = pod["metadata"]["name"]
-        # TODO need to handle the config override problem
         bash_script = "cat > /home/" + user_name + "/.ssh/config <<EOF " + sshconfigstr + "\nEOF"
         print("override ssh client config: %s" % bash_script)
         k8sUtils.kubectl_exec("exec %s -- bash -c \'%s\'" % (pod_name, bash_script))
 
-    # execute user command
-    k8sUtils.kubectl_exec("exec %s -- runuser -l ${DLWS_USER_NAME} <<EOF %s \nEOF" % (pod_name, jobParams["cmd"]))
+    # fix ~/.ssh/ folder permission
     k8sUtils.kubectl_exec("exec " + pod_name + " -- cd /home/" + user_name + "; chmod 600 -R .ssh; chmod 700 .ssh; chown -R " + user_name + " .ssh")
+
+    # generate hostfile
+    hostfilecontent = ""
+    for [_, pod] in enumerate(pods["items"]):
+        role = pod["metadata"]["labels"]["distRole"]
+        if role == "ps":
+            continue
+        role_idx = pod["metadata"]["labels"]["distRoleIdx"]
+        worker_gpu_num = pod["spec"]["containers"][0]["resources"]["requests"]["nvidia.com/gpu"]
+        hostfilecontent += "%s  slots=%s\n" % ("worker-"+str(role_idx), worker_gpu_num)
+    tmp_hostfile = "/tmp/" + job_id + ".hostfile"
+    with open(tmp_hostfile, 'w') as f:
+        f.write(hostfilecontent + "\n")
+    # write the hostfile
+    for [idx, pod] in enumerate(pods["items"]):
+        pod_name = pod["metadata"]["name"]
+        remotecmd = "cp %s %s:/job/hostfile" % (tmp_hostfile, pod_name)
+        k8sUtils.kubectl_exec(remotecmd)
+
+    # execute user command
+    k8sUtils.kubectl_exec("exec %s -- bash -c 'runuser -l ${DLWS_USER_NAME} <<EOF_USER_SCRIPT %s \nEOF_USER_SCRIPT'" % (pod_name, jobParams["cmd"]))
 
     # update job status
     dataHandler = DataHandler()
