@@ -222,7 +222,7 @@
             $.each(payload.endpoints, function (id, endpoint) {
                 var spec = endpoint.endpointDescription.spec;
                 if (endpoint.port == 22) {
-                    endpointsStr += "To access the container via SSH, use command: ssh -i @ViewData["workPath"].ssh/id_rsa -p " + spec.ports[0].nodePort + " " + endpoint.username + "@@" + clusterEndpoint + "\n";
+                    endpointsStr += "To access the container via SSH, use command: ssh -i "+"@ViewData["workPath"]"+".ssh/id_rsa -p " + spec.ports[0].nodePort + " " + endpoint.username + "@@" + clusterEndpoint + "\n";
                 }
                 else {
                     var svcurl = "http://" + location.hostname + ":" + spec.ports[0].nodePort;
