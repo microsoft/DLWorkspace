@@ -34,6 +34,25 @@ data:
         - source_labels: [__meta_kubernetes_pod_label_app]
           action: replace
           target_label: exporter_name
+    alerting:
+      alertmanagers:
+        - path_prefix: alert-manager
+          tls_config:
+            ca_file: '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
+          bearer_token_file: '/var/run/secrets/kubernetes.io/serviceaccount/token'
+          kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names: ["kube-system"]
+          relabel_configs:
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_alert]
+              regex: true
+              action: keep
+            - source_labels: [__meta_kubernetes_pod_host_ip, __meta_kubernetes_pod_annotation_prometheus_io_port]
+              regex: '([^;]+);(\d+)'
+              replacement: ${1}:${2}
+              action: replace
+              target_label: __address__
 ---
 apiVersion: apps/v1
 kind: Deployment
