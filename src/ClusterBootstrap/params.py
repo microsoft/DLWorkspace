@@ -88,6 +88,7 @@ default_config_parameters = {
         ".swf": True,
         ".gzip": True,
         ".rules": True,
+        ".tmpl": True,
     },
     "render-by-copy": {
         # The following file will be copied (not rendered for configuration)
@@ -102,6 +103,7 @@ default_config_parameters = {
         "collectd.influxdb.conf.tpl": True,
         "collectd.riemann.conf.tpl": True,
         "prometheus-alerting.yaml": True,
+        "alert-templates.yaml": True,
         # "nginx": True,
         "RecogServer": True,
         

@@ -28,7 +28,7 @@ spec:
         args:
           - '--config.file=/etc/alertmanager/config.yml'
           - '--storage.path=/alertmanager'
-          - '--web.external-url={{ cnf["api-server-ip"] }}/alert-manager/'
+          - '--web.external-url=http://localhost/alert-manager/'
           - '--web.route-prefix=alert-manager'
         ports:
         - name: alert-manager
@@ -38,10 +38,15 @@ spec:
           mountPath: /etc/alertmanager
         - name: storage
           mountPath: /alertmanager
+        - name: templates-volume
+          mountPath: /etc/alertmanager/template
       volumes:
       - name: config-volume
         configMap:
           name: alert-manager
+      - name: templates-volume
+        configMap:
+          name: alert-templates
       - name: storage
         emptyDir: {}
       tolerations:
@@ -68,6 +73,8 @@ data:
       smtp_from: {{ alert_info["smtp_from"] }}
       smtp_auth_username: {{ alert_info["smtp_auth_username"] }}
       smtp_auth_password: {{ alert_info["smtp_auth_password"] }}
+    templates:
+    - "/etc/alertmanager/template/*.tmpl"
     route:
       receiver: alert-email
       group_wait: 30s
@@ -77,6 +84,7 @@ data:
     - name: "alert-email"
       email_configs:
         - to: {{ alert_info["receiver"] }}
+          html: '{{ "{{" }} template "email.html" . {{ "}}" }}'
           headers:
             subject: '{{ cnf["cluster_name"] }}: {{ "{{" }} template "__subject" . {{ "}}" }}'
 {% endif %}
