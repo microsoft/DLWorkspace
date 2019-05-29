@@ -16,6 +16,7 @@ chmod -R 600 /home/${DLWS_USER_NAME}/.ssh || /bin/true
 chmod 700 /home/${DLWS_USER_NAME}/.ssh || /bin/true
 
 # setup sudoers
+apt-get update && apt-get install sudo
 adduser $DLWS_USER_NAME sudo
 echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
