@@ -39,6 +39,12 @@ namespace WindowsAuth.Controllers
         private readonly AppSettings _appSettings;
         private readonly ILogger _logger;
         private IAzureAdTokenService _tokenCache;
+        private string GetClusterHostname()
+        {
+            var cluster = HttpContext.Request.Query["cluster"];
+            var restapi = Startup.Clusters[cluster].Restapi;
+            return new Uri(restapi).Host;
+        }
 
         public HomeController(IOptions<AppSettings> appSettings, IAzureAdTokenService tokenCache, ILoggerFactory logger)
         {
@@ -926,6 +932,7 @@ namespace WindowsAuth.Controllers
 
             ViewData["workPath"] = (workFolderAccessPoint + HttpContext.Session.GetString("Username") + "/").Replace("file:", "").Replace("\\", "/");
             ViewData["jobPath"] = workFolderAccessPoint.Replace("file:", "").Replace("\\", "/");
+            ViewData["clusterHostname"] = GetClusterHostname();
             AddViewData(message: "View and Manage Your Jobs.");
             return View();
         }
