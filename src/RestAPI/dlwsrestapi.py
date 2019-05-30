@@ -932,6 +932,7 @@ def getAlias(username):
         return username.split("/")[1].strip()
     return username
 
+
 class Endpoint(Resource):
     def get(self):
         '''return job["endpoints"]: curl -X GET /endpoints?jobId=...&userName=...'''
@@ -942,7 +943,31 @@ class Endpoint(Resource):
         username = args["userName"]
         job = JobRestAPIUtils.GetJobDetail(username, jobId)
 
-        resp = jsonify(json.loads(job["endpoints"]))
+        rets = []
+        try:
+            endpoints = json.loads(job["endpoints"])
+        except:
+            endpoints = {}
+
+        for [_, endpoint] in endpoints.items():
+            ret = {
+                "name": endpoint["name"],
+                "username": endpoint["username"],
+                "status": endpoint["status"],
+                "hostNetwork": endpoint["hostNetwork"],
+                "podName": endpoint["podName"],
+            }
+            if endpoint["status"] == "running":
+                if endpoint["hostNetwork"]:
+                    port = int(endpoint["port"])
+                else:
+                    port = int(endpoint["endpointDescription"]["spec"]["ports"][0]["nodePort"])
+                ret["port"] = port
+                if "nodeName" in endpoint:
+                    ret["nodeName"] = endpoint["nodeName"]
+            rets.append(ret)
+
+        resp = jsonify(rets)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
         return resp
