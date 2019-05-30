@@ -8,6 +8,7 @@
 <script>
     var clusters = @Html.Raw(@Context.Session.GetString("TeamClusters"));
     var clustersInfo = Object.create(null);
+    var cluster = null;
     function buildTables() {
         $.when.apply($, $.map(clusters, function (cluster) {
             return $.ajax({
@@ -21,13 +22,12 @@
                 return;
             });
         })).then(function () {
-            var cluster = null
             var args = [].slice.call(arguments);
             $.each(clusters, function (index) {
                 if (args[index]) {
                     clustersInfo[this] = args[index];
                     if (cluster == null) {
-                        cluster = this.valueOf()
+                        buildTable(this.valueOf())
                     }
                 }
             });
@@ -64,10 +64,10 @@
 
                 $('#cluster_status').append(tr);
             })
-            buildTable(cluster)
         })
     }
-    function buildTable(cluster) {
+    function buildTable(c) {
+        cluster = c;
         $.ajax({
             url: "/api/dlws/hostname?cluster=" + cluster,
             dataType: "text"
