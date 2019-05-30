@@ -14,7 +14,7 @@ import random
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 
 
-def isSshServerReady(pod_name):
+def is_ssh_server_ready(pod_name):
     bash_script = "sudo service ssh status"
     output = k8sUtils.kubectl_exec("exec %s %s" % (pod_name, " -- " + bash_script))
     if output == "":
@@ -22,23 +22,26 @@ def isSshServerReady(pod_name):
     return True
 
 
-def querySshPort(pod_name):
+def query_ssh_port(pod_name):
     bash_script = "grep ^Port /etc/ssh/sshd_config | cut -d' ' -f2"
     ssh_port = k8sUtils.kubectl_exec("exec %s %s" % (pod_name, " -- " + bash_script))
     return int(ssh_port)
 
 
-def setupSshServer(pod_name, username, host_network=False):
+def start_ssh_server(pod_name, user_name, host_network=False, ssh_port=22):
     '''Setup the ssh server in container, and return the listening port.'''
-    bash_script = "sudo bash -c 'apt-get update && apt-get install -y openssh-server && cat /home/" + username + "/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && service ssh restart'"
+    bash_script = "sudo bash -c 'apt-get update && apt-get install -y openssh-server && cd /home/" + user_name + " && (chown " + user_name + " -R .ssh; chmod 600 -R .ssh/*; chmod 700 .ssh; true) && service ssh restart'"
 
-    ssh_port = 22
+    # ssh_port = 22
 
     # modify the script for HostNewtork
     if host_network:
-        ssh_port = random.randint(40001, 49999)
+        # if the ssh_port is default value 22, randomly choose one
+        if ssh_port == 22:
+            ssh_port = random.randint(30001, 32767)
         # bash_script = "sed -i '/^Port 22/c Port "+str(ssh_port)+"' /etc/ssh/sshd_config && "+bash_script
-        bash_script = "sudo bash -c 'apt-get update && apt-get install -y openssh-server && sed -i \"s/^Port 22/c Port "+str(ssh_port)+"/\" /etc/ssh/sshd_config && cat /home/" + username + "/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && service ssh restart'"
+        # TODO refine the script later
+        bash_script = "sudo bash -c 'apt-get update && apt-get install -y openssh-server && sed -i \"s/^Port 22/Port " + str(ssh_port) + "/\" /etc/ssh/sshd_config && cd /home/" + user_name + " && (chown " + user_name + " -R .ssh; chmod 600 -R .ssh/*; chmod 700 .ssh; true) && service ssh restart'"
 
     # TODO setup reasonable timeout
     # output = k8sUtils.kubectl_exec("exec %s %s" % (jobId, " -- " + bash_script), 1)
@@ -48,16 +51,16 @@ def setupSshServer(pod_name, username, host_network=False):
     return ssh_port
 
 
-def getK8sEndpoint(endpointDescriptionPath):
-    endpointDescriptionPath = os.path.join(config["storage-mount-path"], endpointDescriptionPath)
-    return k8sUtils.kubectl_exec("get -o json -f %s" % endpointDescriptionPath)
+def get_k8s_endpoint(endpoint_description_path):
+    endpoint_description_path = os.path.join(config["storage-mount-path"], endpoint_description_path)
+    return k8sUtils.kubectl_exec("get -o json -f %s" % endpoint_description_path)
 
 
-def generateNodePortService(job_id, pod_name, endpoint_id, name, target_port):
-    endpointDescription = """kind: Service
+def generate_node_port_service(job_id, pod_name, endpoint_id, name, target_port):
+    endpoint_description = """kind: Service
 apiVersion: v1
 metadata:
-  name: endpoint-{2}-{3}
+  name: {2}
   labels:
     run: {0}
     jobId: {0}
@@ -72,68 +75,131 @@ spec:
     targetPort: {4}
     port: {4}
 """.format(job_id, pod_name, endpoint_id, name, target_port)
-    print("endpointDescription: %s" % endpointDescription)
-    return endpointDescription
+    print("endpointDescription: %s" % endpoint_description)
+    return endpoint_description
 
 
-def createNodePort(endpoint):
-    endpointDescription = generateNodePortService(endpoint["jobId"], endpoint["podName"], endpoint["id"], endpoint["name"], endpoint["port"])
-    endpointDescriptionPath = os.path.join(config["storage-mount-path"], endpoint["endpointDescriptionPath"])
-    print("endpointDescriptionPath: %s" % endpointDescriptionPath)
-    with open(endpointDescriptionPath, 'w') as f:
-        f.write(endpointDescription)
+def create_node_port(endpoint):
+    endpoint_description = generate_node_port_service(endpoint["jobId"], endpoint["podName"], endpoint["id"], endpoint["name"], endpoint["port"])
+    endpoint_description_path = os.path.join(config["storage-mount-path"], endpoint["endpointDescriptionPath"])
+    print("endpointDescriptionPath: %s" % endpoint_description_path)
+    with open(endpoint_description_path, 'w') as f:
+        f.write(endpoint_description)
 
-    result = k8sUtils.kubectl_create(endpointDescriptionPath)
+    result = k8sUtils.kubectl_create(endpoint_description_path)
     if result == "":
         raise Exception("Failed to create NodePort for ssh. JobId: %s " % endpoint["jobId"])
 
     print("Submitted endpoint %s to k8s, returned with status %s" % (endpoint["jobId"], result))
 
 
-def startEndpoint(endpoint):
+def setup_ssh_server(user_name, pod_name, host_network=False):
+    '''Setup ssh server on pod and return the port'''
+    # setup ssh server only is the ssh server is not up
+    if not is_ssh_server_ready(pod_name):
+        print("Ssh server is not ready for pod: %s. Setup ..." % pod_name)
+        ssh_port = start_ssh_server(pod_name, user_name, host_network)
+    else:
+        ssh_port = query_ssh_port(pod_name)
+    print("Ssh server is ready for pod: %s. Ssh listen on %s" % (pod_name, ssh_port))
+    return ssh_port
+
+
+def setup_jupyter_server(user_name, pod_name):
+
+    jupyter_port = random.randint(30001, 32767)
+    bash_script = "sudo bash -c 'apt-get update && apt-get install python-pip -y && python -m pip install --upgrade pip && python -m pip install jupyter && cd /home/" + user_name + " && runuser -l " + user_name + " -c \"jupyter notebook --no-browser --ip=0.0.0.0 --NotebookApp.token= --port=" + str(jupyter_port) + " &>/dev/null &\"'"
+    output = k8sUtils.kubectl_exec("exec %s %s" % (pod_name, " -- " + bash_script))
+    if output == "":
+        raise Exception("Failed to start jupyter server in container. JobId: %s " % pod_name)
+    return jupyter_port
+
+
+def start_endpoint(endpoint):
     # pending, running, stopped
     print("Starting endpoint: %s" % (endpoint))
 
     # podName
     pod_name = endpoint["podName"]
+    user_name = endpoint["username"]
+    host_network = endpoint["hostNetwork"]
 
-    # setup ssh server only is the ssh server is not up
-    if not isSshServerReady(pod_name):
-        print("Ssh server is not ready for pod: %s. Setup ..." % pod_name)
-        ssh_port = setupSshServer(pod_name, endpoint["username"], endpoint["hostNetwork"])
+    port_name = endpoint["name"]
+    if port_name == "ssh":
+        port = setup_ssh_server(user_name, pod_name, host_network)
     else:
-        ssh_port = querySshPort(pod_name)
-    endpoint["port"] = ssh_port
+        port = setup_jupyter_server(user_name, pod_name)
 
-    print("Ssh server is ready for pod: %s. Ssh listen on %s" % (pod_name, ssh_port))
+    endpoint["port"] = port
 
     # create NodePort
-    createNodePort(endpoint)
+    create_node_port(endpoint)
+
+
+def start_endpoints():
+    try:
+        data_handler = DataHandler()
+        pending_endpoints = data_handler.GetPendingEndpoints()
+        for _, endpoint in pending_endpoints.items():
+            print("\n\n\n\n\n\n----------------Begin to start endpoint %s" % endpoint["id"])
+            output = get_k8s_endpoint(endpoint["endpointDescriptionPath"])
+            if(output != ""):
+                endpoint_description = json.loads(output)
+                endpoint["endpointDescription"] = endpoint_description
+                endpoint["status"] = "running"
+
+                pod = k8sUtils.GetPod("podName=" + endpoint["podName"])
+                if "items" in pod and len(pod["items"]) > 0:
+                    endpoint["nodeName"] = pod["items"][0]["spec"]["nodeName"]
+            else:
+                start_endpoint(endpoint)
+
+            endpoint["lastUpdated"] = datetime.datetime.now().isoformat()
+            data_handler.UpdateEndpoint(endpoint)
+    except Exception as e:
+        traceback.print_exc()
+    finally:
+        pass
+
+
+def cleanup_endpoints():
+    try:
+        data_handler = DataHandler()
+        dead_endpoints = data_handler.GetDeadEndpoints()
+        for endpoint_id, dead_endpoint in dead_endpoints.items():
+            print("\n\n\n\n\n\n----------------Begin to cleanup endpoint %s" % endpoint_id)
+            endpoint_description_path = os.path.join(config["storage-mount-path"], dead_endpoint["endpointDescriptionPath"])
+            still_running = get_k8s_endpoint(endpoint_description_path)
+            # empty mean not existing
+            if still_running == "":
+                print("Endpoint already gone %s" % endpoint_id)
+                status = "stopped"
+            else:
+                output = k8sUtils.kubectl_delete(endpoint_description_path)
+                # 0 for success
+                if output == 0:
+                    status = "stopped"
+                    print("Succeed cleanup endpoint %s" % endpoint_id)
+                else:
+                    print("Clean dead endpoint %s failed, endpoints: %s" % (endpoint_id, dead_endpoint))
+
+            dead_endpoint["status"] = status
+            dead_endpoint["lastUpdated"] = datetime.datetime.now().isoformat()
+            data_handler.UpdateEndpoint(dead_endpoint)
+    except Exception as e:
+        traceback.print_exc()
+    finally:
+        pass
 
 
 def Run():
     while True:
-        try:
-            dataHandler = DataHandler()
-            pendingEndpoints = dataHandler.GetPendingEndpoints()
-            for _, endpoint in pendingEndpoints.items():
-                print("\n\n\n\n\n\n----------------Begin to process endpoint %s" % endpoint["id"])
-                output = getK8sEndpoint(endpoint["endpointDescriptionPath"])
-                if(output != ""):
-                    endpointDescription = json.loads(output)
-                    endpoint["endpointDescription"] = endpointDescription
-                    endpoint["status"] = "running"
-                else:
-                    startEndpoint(endpoint)
+        # start endpoints
+        start_endpoints()
+        time.sleep(1)
 
-                endpoint["last_updated"] = datetime.datetime.now().isoformat()
-                dataHandler = DataHandler()
-                dataHandler.UpdateEndpoint(endpoint)
-        except Exception as e:
-            traceback.print_exc()
-        finally:
-            pass
-
+        # clean up endpoints for jobs which is NOT running
+        cleanup_endpoints()
         time.sleep(1)
 
 

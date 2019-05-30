@@ -1,4 +1,5 @@
-﻿@{
+﻿@using Microsoft.AspNetCore.Http;
+@{
     ViewData["Title"] = "Submit Data Job";
 }
 
@@ -8,12 +9,17 @@
     a:link {
         color: #1F45FC
     }
-
-
 </style>
 
 
 <script type="text/javascript">
+
+    function stripLead(string, lead) {
+        if (string.indexOf(lead) === 0) {
+            return string.slice(lead.length);
+        }
+        return string;
+    }
 
     var app = angular.module('dataJobApp', ["xeditable", "ui.select", "ngMaterial", 'ngMessages']);
 
@@ -23,35 +29,57 @@
 
     app.controller('dataJobCtrl', function ($scope, $http, $httpParamSerializer) {
         $scope.busy = false;
-        $scope.current = {};
+        $scope.clusters = @Html.Raw(@Context.Session.GetString("TeamClusters"));
+        $scope.current = {
+            cluster: $scope.clusters[0],
+        };
+
+        $scope.$watch('current.cluster', function () {
+            $scope.workPath = "";
+            $scope.dataPath = "";
+            $http.get("/api/dlws/GetMountPoints", {
+                params: { cluster: $scope.current.cluster }
+            }).then(function (response) {
+                $scope.workPath = response.data.workPath;
+                $scope.dataPath = response.data.dataPath;
+            });
+            $scope.onFromPathChange
+        });
 
         $scope.submit = function () {
             $scope.busy = true;
             $http.post("/api/dlws/postJob",
                 $httpParamSerializer({ Json: JSON.stringify(convert($scope.current)) }),
                 {
+                    params: { cluster: $scope.current.cluster },
                     headers: {
                         "Content-Type": "application/x-www-form-urlencoded"
                     }
                 }
             ).then(function (response) {
-                    $scope.busy = false;
-                    var data = response.data;
-                    if (data.jobId) {
-                        layer.alert("Job Submitted! <br> Job ID:" + data.jobId, {
-                            time: 0, icon: 6, btn: 'Ok', title: 'Job Submitted'
-                        });
-                    } else if (data.error) {
-                        layer.msg("Error: " + data.error);
-                        $("#submit").attr("disabled", false);
-                    } else {
-                        layer.msg("Unexpected error: " + data);
-                        $("#submit").attr("disabled", false);
-                    }
-                }, function () {
-                    $scope.busy = false;
-                    layer.alert("RestfulAPI error!", { icon: 5, btn: 'Ok', title: 'alert' })
-                });
+                $scope.busy = false;
+                var data = response.data;
+                if (data.jobId) {
+                    layer.alert("Job Submitted! <br> Job ID:" + data.jobId, {
+                        time: 0, icon: 6, btn: 'Ok', title: 'Job Submitted'
+                    });
+                } else if (data.error) {
+                    layer.msg("Error: " + data.error);
+                    $("#submit").attr("disabled", false);
+                } else {
+                    layer.msg("Unexpected error: " + data);
+                    $("#submit").attr("disabled", false);
+                }
+            }, function () {
+                $scope.busy = false;
+                layer.alert("RestfulAPI error!", { icon: 5, btn: 'Ok', title: 'alert' })
+            });
+        };
+    });
+
+    app.filter('pathify', function () {
+        return function (path) {
+            return path.replace(/^file:/, "").replace(/\//g, "\\");
         };
     });
 
@@ -88,14 +116,14 @@
         var job = {};
         job.jobName = "Data Job @@ " + new Date().toISOString();
         job.jobtrainingtype = "RegularJob";
-        job.resourcegpu = 1;
+        job.resourcegpu = 0;
         job.image = "indexserveregistry.azurecr.io/dlts-data-transfer-image";
         job.runningasroot = "1";
 
         job.cmd = [
-            "cd /data/DataUtils && ./copy_data.sh",
-            convertURI(dataJob.fromType, dataJob.fromFolder),
-            convertURI(dataJob.toType, dataJob.toFolder),
+            "cd /DataUtils && ./copy_data.sh",
+            convertURI("adls", dataJob.fromFolder),
+            convertURI("nfs", dataJob.toFolder),
             "False 33554432 4 8 2>/dev/null"
         ].join(" ");
 
@@ -105,7 +133,7 @@
 </script>
 
 
-<div ng-app="dataJobApp" ng-controller="dataJobCtrl" layout="column" ng-cloak class="modal-dialog" role="document" style="width:60%;top:30px;bottom:30px;">
+<div ng-app="dataJobApp" ng-controller="dataJobCtrl" layout="column" ng-cloak class="modal-dialog" role="document" style="width:60%;bottom:30px;">
     <md-content layout-padding>
         <form ng-submit="submit()">
             <div class="modal-content">
@@ -116,44 +144,28 @@
                 <div class="modal-body">
                     <div layout="row">
                         <md-input-container flex="50">
-                            <label>Your Work Directory</label>
-                            <input value="@ViewData["workPath"].ToString().Replace("file:", "").Replace("/", "\\\\")" readonly>
-                        </md-input-container>
-
-                        <md-input-container flex="50">
-                            <label>Your Data Directory</label>
-                            <input value="@ViewData["dataPath"].ToString().Replace("file:", "").Replace("/", "\\\\")" readonly>
+                            <label> Cluster </label>
+                            <md-select name="jobtrainingtype" ng-model="current.cluster" required md-no-asterisk>
+                                <md-option ng-value="name" ng-repeat="name in clusters">{{ name }}</md-option>
+                            </md-select>
                         </md-input-container>
                     </div>
 
-                    <div layout="row">
-                        <md-input-container flex="50">
-                            <label>Copy Data From</label>
-                            <md-select ng-model="current.fromType" required>
-                                <md-option value="nfs" selected>NFS</md-option>
-                                <md-option value="adls" ng-if="current.to !== 'adls'">ADLS</md-option>
-                            </md-select>
-                        </md-input-container>
-
-                        <md-input-container flex="50">
-                            <label>Copy Data To</label>
-                            <md-select ng-model="current.toType" required>
-                                <md-option value="nfs" selected>NFS</md-option>
-                                <md-option value="adls" ng-if="current.from !== 'adls'">ADLS</md-option>
-                            </md-select>
-                        </md-input-container>
+                    <div>
+                        <p>Your Work Directory is: <a ng-href="{{workPath}}">{{workPath | pathify }}</a></p>
+                        <p>Your Data Directory is: <a ng-href="{{dataPath}}">{{dataPath | pathify }}</a></p>
                     </div>
 
                     <div layout="row">
                         <md-input-container flex="100">
-                            <label>From Data Folder</label>
+                            <label>From Folder of Azure Data Lake Storage</label>
                             <input ng-model="current.fromFolder" required>
                         </md-input-container>
                     </div>
 
                     <div layout="row">
                         <md-input-container flex="100">
-                            <label>To Data Folder</label>
+                            <label>To NFS Data Folder</label>
                             <input ng-model="current.toFolder" required>
                         </md-input-container>
                     </div>

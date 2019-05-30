@@ -1,0 +1,90 @@
+{% if cnf["alert-manager"]["configured"] %}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alert-manager
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alert-manager
+  template:
+    metadata:
+      name: alert-manager
+      labels:
+        app: alert-manager
+      annotations:
+        prometheus.io/alert: "true"
+        prometheus.io/port: "{{ cnf['alert-manager']['port'] }}"
+    spec:
+      nodeSelector:
+        alert-manager: active
+      hostNetwork: true
+      containers:
+      - name: alert-manager
+        image: prom/alertmanager:v0.15.1
+        args:
+          - '--config.file=/etc/alertmanager/config.yml'
+          - '--storage.path=/alertmanager'
+          - '--web.external-url=http://localhost/alert-manager/'
+          - '--web.route-prefix=alert-manager'
+        ports:
+        - name: alert-manager
+          containerPort: {{ cnf["alert-manager"]["port"] }}
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/alertmanager
+        - name: storage
+          mountPath: /alertmanager
+        - name: templates-volume
+          mountPath: /etc/alertmanager/template
+      volumes:
+      - name: config-volume
+        configMap:
+          name: alert-manager
+      - name: templates-volume
+        configMap:
+          name: alert-templates
+      - name: storage
+        emptyDir: {}
+      tolerations:
+      - key: node.kubernetes.io/memory-pressure
+        operator: "Exists"
+      - key: node.kubernetes.io/disk-pressure
+        operator: "Exists"
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+---
+{% endif %}
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: alert-manager
+  namespace: kube-system
+data:
+  config.yml: |-
+{% if cnf["alert-manager"]["configured"] %}
+{% set alert_info = cnf["alert-manager"] %}
+    global:
+      resolve_timeout: 5m
+      smtp_smarthost: {{ alert_info["smtp_url"] }}
+      smtp_from: {{ alert_info["smtp_from"] }}
+      smtp_auth_username: {{ alert_info["smtp_auth_username"] }}
+      smtp_auth_password: {{ alert_info["smtp_auth_password"] }}
+    templates:
+    - "/etc/alertmanager/template/*.tmpl"
+    route:
+      receiver: alert-email
+      group_wait: 30s
+      group_interval: 5m
+      group_by: [alertname]
+    receivers:
+    - name: "alert-email"
+      email_configs:
+        - to: {{ alert_info["receiver"] }}
+          html: '{{ "{{" }} template "email.html" . {{ "}}" }}'
+          headers:
+            subject: '{{ cnf["cluster_name"] }}: {{ "{{" }} template "__subject" . {{ "}}" }}'
+{% endif %}

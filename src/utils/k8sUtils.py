@@ -355,6 +355,19 @@ def GetJobStatus(jobId):
     return output, detail
 
 
+def all_pod_ready(job_id):
+    pods = GetPod("run=" + job_id)
+    print("\n\n\n--------------------------------------------\n\n")
+    print("=======%s" % pods)
+    if pods is None:
+        return False
+    if "items" in pods:
+        pod_status = [check_pod_status(pod) for pod in pods["items"]]
+        if any([status != "Running" for status in pod_status]):
+            return False
+    return True
+
+
 def get_node_labels(key):
     url = "%s/api/v1/nodes" % (config["apiserver"])
     responseStr = curl_get(url)

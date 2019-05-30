@@ -932,6 +932,7 @@ def getAlias(username):
         return username.split("/")[1].strip()
     return username
 
+
 class Endpoint(Resource):
     def get(self):
         '''return job["endpoints"]: curl -X GET /endpoints?jobId=...&userName=...'''
@@ -942,7 +943,31 @@ class Endpoint(Resource):
         username = args["userName"]
         job = JobRestAPIUtils.GetJobDetail(username, jobId)
 
-        resp = jsonify(json.loads(job["endpoints"]))
+        rets = []
+        try:
+            endpoints = json.loads(job["endpoints"])
+        except:
+            endpoints = {}
+
+        for [_, endpoint] in endpoints.items():
+            ret = {
+                "name": endpoint["name"],
+                "username": endpoint["username"],
+                "status": endpoint["status"],
+                "hostNetwork": endpoint["hostNetwork"],
+                "podName": endpoint["podName"],
+            }
+            if endpoint["status"] == "running":
+                if endpoint["hostNetwork"]:
+                    port = int(endpoint["port"])
+                else:
+                    port = int(endpoint["endpointDescription"]["spec"]["ports"][0]["nodePort"])
+                ret["port"] = port
+                if "nodeName" in endpoint:
+                    ret["nodeName"] = endpoint["nodeName"]
+            rets.append(ret)
+
+        resp = jsonify(rets)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
         return resp
@@ -983,23 +1008,34 @@ class Endpoint(Resource):
         if "ssh" in requested_endpoints:
             # setup ssh for each pod
             for pod_name in pod_names:
-                id = str(uuid.uuid4())
+                endpoint_id = "endpoint-" + pod_name + "-ssh"
                 endpoint = {
-                    "id": id,
+                    "id": endpoint_id,
                     "jobId": job_id,
                     "podName": pod_name,
                     "username": username,
                     "name": "ssh",
-                    "endpointDescriptionPath": os.path.join(endpoint_description_dir, "endpoint-" + id+"-ssh.yaml"),
+                    "endpointDescriptionPath": os.path.join(endpoint_description_dir, endpoint_id + ".yaml"),
                     "status": "pending",
-                    "hostNetowrk": host_network
+                    "hostNetwork": host_network
                 }
-                endpoints[id] = endpoint
+                endpoints[endpoint_id] = endpoint
 
-        # TODO
+       # only open Jupyter on the master
         if 'ipython' in requested_endpoints:
-            # setup jupyter in master
-            pass
+            pod_name = pod_names[0]
+            endpoint_id = "endpoint-" + pod_name + "-ipython"
+            endpoint = {
+                "id": endpoint_id,
+                "jobId": job_id,
+                "podName": pod_name,
+                "username": username,
+                "name": "ipython",
+                "endpointDescriptionPath": os.path.join(endpoint_description_dir, endpoint_id + ".yaml"),
+                "status": "pending",
+                "hostNetwork": host_network
+            }
+            endpoints[endpoint_id] = endpoint
 
         JobRestAPIUtils.update_job(job_id, "endpoints", json.dumps(endpoints))
 

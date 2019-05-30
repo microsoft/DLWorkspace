@@ -65,20 +65,7 @@
                     enablejobpath: true,
                 };
             tobool($scope.current, "do_log", false);
-            if (!$scope.current.hasOwnProperty("runningasroot"))
-                $scope.current.runningasroot = "0";
-            if (typeof ($scope.current.runningasroot) == "boolean") {
-                if ($scope.current.runningasroot)
-                    $scope.current.runningasroot = "1";
-                else
-                    $scope.current.runningasroot = "0";
-            };
-            if ($scope.current.runningasroot != "0" && $scope.current.runningasroot != "1")
-                $scope.current.runningasroot = "0";
-            if (!$scope.current.preemptionAllowed)
-                $scope.current.preemptionAllowed = "False";
-            if (!$scope.current.gpuType && $scope.gpus)
-                $scope.current.gpuType = Object.keys($scope.gpus)[0];
+            $scope.current.runningasroot = "1";
 
             tobool($scope.current, "is_interactive", false);
             if ($scope.current.mountpoints == null) {
@@ -88,6 +75,18 @@
                 $scope.current.env = [];
             };
         };
+
+        $scope.checkExtras = function () {
+            if ($scope.extras == null) {
+                $scope.extras = {
+                    gpuType: null,
+                    preemptionAllowed: "False",
+                }
+            }
+            if ($scope.extras.gpuType == null && $scope.gpus != null) {
+                $scope.extras.gpuType = Object.keys($scope.gpus)[0];
+            }
+        }
 
         var parseMounts = function (mountpoints, mountdescription, username, mounthomefolder, deploymounts) {
             var mounts = [];
@@ -171,68 +170,83 @@
             return mounts;
         };
 
+        $scope.clusters = @Html.Raw(@Context.Session.GetString("TeamClusters"));
+        $scope.cluster = $scope.clusters[0];
         $scope.checkCurrent();
+        $scope.checkExtras();
         $scope.currentTemplateValue = 0;
         $scope.lastTemplateValue = -1;
         $scope.adancedOption = false;
 
-        $scope.ready = $http.get('/api/dlws/GetMountPoints').then(function (response) {
-            var mpstring = response.data.mountpoints;
-            var mpdescription = response.data.mountdescription;
-            $scope.mountpoints = $scope.$eval(mpstring);
-            $scope.mountdescription = $scope.$eval(mpdescription);
-            $scope.username = response.data.username;
-            $scope.mounthomefolder = response.data.mounthomefolder;
-            $scope.deploymounts = $scope.$eval(response.data.deploymounts);
-            $scope.mounts = parseMounts($scope.mountpoints, $scope.mountdescription, $scope.username, $scope.mounthomefolder, $scope.deploymounts);
-            $scope.showMounts = false;
-            $scope.showEnv = false;
-            $scope.manageTemplate = false;
-            $scope.setMounts();
-            $scope.checkCurrent();
-            //$log.log($scope.mountpoints);
-            //$log.log($scope.mountdescription);
-        });
+        $scope.$watch('cluster', function (cluster) {
+            $http.get('/api/dlws/GetMountPoints', { params: { cluster: cluster } }).then(function (response) {
+                var mpstring = response.data.mountpoints;
+                var mpdescription = response.data.mountdescription;
+                $scope.mountpoints = $scope.$eval(mpstring);
+                $scope.mountdescription = $scope.$eval(mpdescription);
+                $scope.username = response.data.username;
+                $scope.mounthomefolder = response.data.mounthomefolder;
+                $scope.deploymounts = $scope.$eval(response.data.deploymounts);
+                $scope.mounts = parseMounts($scope.mountpoints, $scope.mountdescription, $scope.username, $scope.mounthomefolder, $scope.deploymounts);
+                $scope.showMounts = false;
+                $scope.showEnv = false;
+                $scope.manageTemplate = false;
+                $scope.setMounts();
+                $scope.checkCurrent();
+                //$log.log($scope.mountpoints);
+                //$log.log($scope.mountdescription);
+            });
 
-        $http.get("/api/dlws/GetTemplates?type=job").then(function (response) {
-            $scope.joblist = response.data;
-            $log.log($scope.joblist);
-            for (var i = 0; i < $scope.joblist.length; i++) {
-                var name = $scope.joblist[i].Name;
-                var counter = 0;
-                for (var j = 0; j < $scope.joblist.length; j++) {
-                    if ($scope.joblist[j].Name == name)
-                    {
-                        counter = counter + 1;
+            $http.get("/api/dlws/GetTemplates?type=job", { params: { cluster: cluster } }).then(function (response) {
+                $scope.joblist = response.data;
+                $log.log($scope.joblist);
+                for (var i = 0; i < $scope.joblist.length; i++) {
+                    var name = $scope.joblist[i].Name;
+                    var counter = 0;
+                    for (var j = 0; j < $scope.joblist.length; j++) {
+                        if ($scope.joblist[j].Name == name)
+                        {
+                            counter = counter + 1;
+                        }
                     }
-                }
 
-                if (counter == 1)
-                    $scope.joblist[i].Text = name;
-                else {
-                    var username = $scope.joblist[i].Username;
-                    if ($scope.joblist[i].Database.trim() == "Master")
-                        $scope.joblist[i].Text = name + "(master)";
-                    else
-                        $scope.joblist[i].Text = name + "(" + username.trim().split('@@')[0] + ")";
-                }
+                    if (counter == 1)
+                        $scope.joblist[i].Text = name;
+                    else {
+                        var username = $scope.joblist[i].Username;
+                        if ($scope.joblist[i].Database.trim() == "Master")
+                            $scope.joblist[i].Text = name + "(master)";
+                        else
+                            $scope.joblist[i].Text = name + "(" + username.trim().split('@@')[0] + ")";
+                    }
 
-                $scope.joblist[i].Value = i;
-            }
-            $scope.curtemplateValue = 0;
-            $scope.loadTemplate();
-            //$log.log($scope.joblist);
-        });
+                    $scope.joblist[i].Value = i;
+                }
+                $scope.curtemplateValue = 0;
+                $scope.loadTemplate();
+                //$log.log($scope.joblist);
+            });
         
-        $http.get("/api/dlws/GetVCs").then(function (response) {
-            var currentTeam = @Html.Raw(Json.Serialize(@Context.Session.GetString("Team")));
-            var teams = response.data.result;
-            if (!Array.isArray(teams)) return;
-            var team = teams.filter(function (team) { return team.vcName === currentTeam })[0];
-            if (!team) return;
+            $http.get("/api/dlws/GetVCs", { params: { cluster: cluster } }).then(function (response) {
+                var currentTeam = '@Context.Session.GetString("Team")';
+                var teams = response.data.result;
+                if (!Array.isArray(teams)) return;
+                var team = teams.filter(function (team) { return team.vcName === currentTeam })[0];
+                if (!team) return;
 
-            $scope.gpus = JSON.parse(team.quota);
-            $scope.current.gpuType = Object.keys($scope.gpus)[0];
+                $scope.gpus = JSON.parse(team.quota);
+                $scope.gpumeta = JSON.parse(team.metadata);
+                $scope.checkExtras();
+            })
+            $scope.extras.gpuType = null;
+        });
+
+        $scope.$watch('current.jobtrainingtype', function (value) {
+            if (value === 'PSDistJob') {
+                $scope.current.numps = 1;
+            } else {
+                delete $scope.current.numps;
+            }
         })
 
         $scope.loadTemplate = function () {
@@ -377,7 +391,7 @@
 
         $scope.DownloadDatabase = function () {
             var loc = $scope.getDatabase();
-            var params = "location=" + loc + "&";
+            var params = "location=" + loc + "&cluster=" + $scope.cluster;
             var url = "/api/dlws/GetDatabase?" + params;
             $.ajax({ url: url, dataType: 'json', error: $scope.AlertAPIError, timeout: 10000 }).done($scope.DownloadFile);
         };
@@ -391,7 +405,7 @@
         };
 
         $scope.SaveTemplateAPI = function (params) {
-            var url = "/api/dlws/submit";
+            var url = "/api/dlws/submit?cluster=" + $scope.cluster;
             $.ajax({ url: url, method: 'POST', data: params, error: $scope.AlertAPIError, timeout: 10000 }).done();
         };
 
@@ -418,10 +432,12 @@
         $scope.submitJob = function () {
             $scope.processCurrent();
             var params = {};
+            var job = angular.extend({}, $scope.current, $scope.extras);
+
             params.Name = $scope.template.useTemplateName;
-            params.Json = JSON.stringify($scope.current);
+            params.Json = JSON.stringify(job);
             params.Database = $scope.getDatabase();
-            var url = "/api/dlws/postJob";
+            var url = "/api/dlws/postJob?cluster=" + $scope.cluster;
             console.log(url);
             $.ajax({
                 url: url,
@@ -466,7 +482,7 @@
             }
             var loc = $scope.getDatabase();
             var params = "";
-            params = params + "name=" + templatename + "&" + "location=" + loc + "&";
+            params = params + "name=" + templatename + "&" + "location=" + loc + "&cluster=" + $scope.cluster;
             var url = "/api/dlws/DeleteTemplate?" + params;
             $.ajax({ url: url, dataType: 'json', error: $scope.AlertAPIError, timeout: 10000 }).done($scope.AlertAPIResult);
         }
@@ -523,7 +539,7 @@
 </script>
 
 
-<div ng-app="jobApp" ng-controller="jobCtrl" layout="column" ng-cloak class="modal-dialog" role="document" style="width:60%;top:30px;bottom:30px;">
+<div ng-app="jobApp" ng-controller="jobCtrl" layout="column" ng-cloak class="modal-dialog" role="document" style="width:60%;bottom:30px;">
     <md-content layout-padding>
         <form name="jobSubmissionForm">
             <div class="modal-content">
@@ -539,13 +555,15 @@
                     <div layout="row">
                         <md-input-container flex="50">
                             <label> Cluster </label>
-                            <input required md-no-asterisk>
+                            <md-select name="jobtrainingtype" ng-model="cluster" required md-no-asterisk>
+                                <md-option ng-value="name" ng-repeat="name in clusters">{{ name }}</md-option>
+                            </md-select>
                         </md-input-container>
 
                         <md-input-container flex="50">
                             <label> GPU type </label>
-                            <md-select name="jobtrainingtype" ng-model="current.gpuType" required md-no-asterisk>
-                                <md-option ng-value="name" ng-repeat="(name, count) in gpus">{{ name }} ({{ count }})</md-option>
+                            <md-select name="jobtrainingtype" ng-model="extras.gpuType" required md-no-asterisk>
+                                <md-option ng-value="name" ng-repeat="(name, count) in gpus">{{ name }} ({{ count }} available to use)</md-option>
                             </md-select>
                         </md-input-container>
                     </div>
@@ -578,7 +596,7 @@
 
                         <md-input-container flex="50">
                             <label> Job Priority </label>
-                            <md-select name="jobtrainingtype" ng-model="current.preemptionAllowed" required md-no-asterisk>
+                            <md-select name="jobtrainingtype" ng-model="extras.preemptionAllowed" required md-no-asterisk>
                                 <md-option value="False" selected>Non-Preemptible Job</md-option>
                                 <md-option value="True">Preemptible Job</md-option>
                             </md-select>
@@ -594,25 +612,25 @@
 
                         <md-input-container flex="50">
                             <label> Total number of GPUs </label>
-                            <input ng-value="current.numpsworker * 8" disabled type="number" md-no-asterisk>
+                            <input ng-value="current.numpsworker * gpumeta[extras.gpuType]['num_gpu_per_node']" disabled type="number" md-no-asterisk>
                         </md-input-container>
 
                     </div>
 
                     <md-input-container class="md-block" ng-if="current.jobtrainingtype=='RegularJob'">
-                        <label> Number of GPUs </label>
-                        <input ng-model="current.resourcegpu" required type="number" name="resourcegpu" step="1" min="0" max="8" md-no-asterisk>
+                        <label> Number of GPUs  Per Worker</label>
+                        <input ng-model="current.resourcegpu" required type="number" name="resourcegpu" step="1" min="0" max="{{gpumeta[extras.gpuType]['num_gpu_per_node']}}" md-no-asterisk>
                         <div ng-messages="jobApp.resourcegpu.$error" multiple>
                             <div ng-message="required">
-                                You have to let us know the number of gpus.
+                                You have to let us know the number of gpus per worker.
                             </div>
 
                             <div ng-message="min">
-                                You have to request at least 0 GPU.
+                                You have to request at least 0 GPU per worker.
                             </div>
 
                             <div ng-message="max">
-                                You can request at most 8 GPUs.
+                                You can request at most {{gpumeta[extras.gpuType]['num_gpu_per_node']}} GPUs per worker.
                             </div>
                         </div>
                     </md-input-container>
@@ -639,11 +657,6 @@
                         <md-input-container class="md-block" flex="50">
                             <md-switch name="do_log" ng-model="current.do_log" md-no-asterisk>
                                 Enable Tensorboard
-                            </md-switch>
-                        </md-input-container>
-                        <md-input-container class="md-block">
-                            <md-switch name="runningasroot" ng-model="current.runningasroot" md-no-asterisk>
-                                Launch container as root user.
                             </md-switch>
                         </md-input-container>
                     </div>
@@ -700,7 +713,7 @@
                                                             </md-input-container>
                                                         </td>
                                                         <td>
-                                                            <a href='#' onclick="layer.alert('path relative to @ViewData["workPath"].ToString().Replace("file:", "").Replace("/", "\\\\")',{ icon: 1, btn: 'Ok', title: 'Info' });"> <i class="layui-icon">&#xe60b;</i></a>
+                                                            <a href='#' onclick="layer.alert('path relative to  @ViewData["workPath"].ToString().Replace("file:", "").Replace("/", "\\\\")',{ icon: 1, btn: 'Ok', title: 'Info' });"> <i class="layui-icon">&#xe60b;</i></a>
                                                         </td>
                                                     </tr>
                                                     <tr>
@@ -838,6 +851,16 @@
                                 </div>
 
                                 <div class="layui-colla-item">
+                                    <h2 class="layui-colla-title">Host Network</h2>
+                                    <div class="layui-colla-content">
+                                        <md-input-container class="md-block" flex="50">
+                                            <label> Use Host network in container? </label>
+                                            <md-switch class="md-primary" ng-model="current.hostNetwork" md-no-asterisk>
+                                            </md-switch>
+                                        </md-input-container>
+                                    </div>
+                                </div>
+                                <div class="layui-colla-item">
                                     <h2 class="layui-colla-title">GPU Topology</h2>
                                     <div class="layui-colla-content">
 
@@ -866,11 +889,7 @@
                                         <div ng-if="current.isPrivileged" class="form-group">
 
                                             <div layout="row">
-                                                <md-input-container class="md-block" flex="50">
-                                                    <label> Use Host network in container? </label>
-                                                    <md-switch class="md-primary" ng-model="current.hostNetwork" md-no-asterisk>
-                                                    </md-switch>
-                                                </md-input-container>
+
 
                                                 <md-input-container class="md-block" flex="50">
                                                     <label> Use Host IPC in container? </label>
@@ -909,8 +928,8 @@
 
                             </div>
 
-                        </div>
-                    </div>
+                                </div>
+                            </div>
 
                 </div>
 
