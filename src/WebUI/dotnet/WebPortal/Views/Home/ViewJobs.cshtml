@@ -24,7 +24,7 @@
             timeout: 30000 //30 second timeout,
         }).done(
             function (json) {
-                layer.alert(json.log, { btn: 'Ok', title: 'Info' })
+                layer.alert(json.result, { btn: 'Ok', title: 'Info' })
                 buildTables();
             });
     }
