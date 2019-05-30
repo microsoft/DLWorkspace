@@ -341,6 +341,20 @@
                     })
                 }
             })
+            $scope.$watch("ipython", function (value, oldValue) {
+                if (value === oldValue) { return; }
+                if (value) {
+                    $http({
+                        method: "POST",
+                        url: "/api/dlws/endpoints",
+                        params: { cluster: cluster },
+                        data: {
+                            jobId: '@ViewData["jobid"]',
+                            endpoints: ["ipython"]
+                        }
+                    })
+                }
+            })
         });
     }(angular.module("endpointSwitches", ["ngMaterial"]));
 </script>
@@ -360,6 +374,7 @@
 <!-- introduce angular.js just for md-switch in AngularJS Material -->
 <div ng-app="endpointSwitches" ng-controller="endpointSwitches">
     <md-switch ng-model="ssh" ng-disabled="ssh">SSH</md-switch>
+    <md-switch ng-model="ipython" ng-disabled="ipython">ipython</md-switch>
 </div>
 <h2> Job Console Output:</h2>
 <div id="logPanel" style="height: 500px;" readonly="" class="ng-binding grey-box scroll-box">
