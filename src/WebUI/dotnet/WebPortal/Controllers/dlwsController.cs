@@ -73,12 +73,15 @@ namespace WindowsAuth.Controllers
             else
             {
                 var curCluster = Startup.Clusters[cluster];
-                return Json(new { mountdescription = curCluster.MountDescription,
-                                    mountpoints = curCluster.MountPoints,
-                                    username = currentUsername,
-                                    mounthomefolder = curCluster.MountHomeFolder, 
-                                    deploymounts = curCluster.DeployMounts
-                                    });
+                return Json(new {
+                    mountdescription = curCluster.MountDescription,
+                    mountpoints = curCluster.MountPoints,
+                    username = currentUsername,
+                    mounthomefolder = curCluster.MountHomeFolder, 
+                    deploymounts = curCluster.DeployMounts,
+                    workPath = curCluster.WorkFolderAccessPoint + currentUsername + "/",
+                    dataPath = curCluster.DataFolderAccessPoint,
+                });
             }
         }
 
