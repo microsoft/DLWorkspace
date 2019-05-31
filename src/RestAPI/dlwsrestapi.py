@@ -20,6 +20,7 @@ from authorization import ResourceType, Permission, AuthorizationManager
 from config import config
 from config import global_vars
 import authorization
+from DataHandler import DataHandler
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 with open(os.path.join(dir_path, 'logging.yaml'), 'r') as f:
@@ -1037,7 +1038,9 @@ class Endpoint(Resource):
             }
             endpoints[endpoint_id] = endpoint
 
-        JobRestAPIUtils.update_job(job_id, "endpoints", json.dumps(endpoints))
+        data_handler = DataHandler()
+        for [_, endpoint] in endpoints.items():
+            data_handler.UpdateEndpoint(endpoint)
 
         resp = jsonify(endpoints)
         resp.headers["Access-Control-Allow-Origin"] = "*"
