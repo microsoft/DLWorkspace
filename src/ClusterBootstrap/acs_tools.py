@@ -1,4 +1,4 @@
-#!/usr/bin/python 
+#!/usr/bin/python
 # Tools to build ACS cluster
 
 import sys
@@ -140,7 +140,7 @@ def acs_wait_for_kube():
     while numNodes < expectedNodes:
         binary = os.path.abspath('./deploy/bin/kubectl')
         kubeconfig = os.path.abspath('./deploy/'+config["acskubeconfig"])
-        cmd = binary + ' -o=json --kubeconfig='+kubeconfig+' get nodes'    
+        cmd = binary + ' -o=json --kubeconfig='+kubeconfig+' get nodes'
         nodeInfo = utils.subproc_runonce(cmd)
         nodes = yaml.load(nodeInfo)
         numNodes = len(nodes["items"])
@@ -148,7 +148,7 @@ def acs_wait_for_kube():
             print "Waiting for {0} kubernetes nodes to start up, currently have only {1} nodes".format(expectedNodes, numNodes)
             time.sleep(5)
 
-# divide nodes into master / agent 
+# divide nodes into master / agent
 def acs_set_nodes_info():
     if "acs_master_nodes" not in config or "acs_agent_nodes" not in config:
         allnodes = acs_get_kube_nodes()
@@ -362,7 +362,7 @@ def acs_get_storage_key():
     cmd += " --account-name=%s" % config["mountpoints"]["rootshare"]["accountname"]
     cmd += " --resource-group=%s" % config["resource_group"]
     keys = az_cmd(cmd)
-    return keys[0]["value"] 
+    return keys[0]["value"]
 
 def acs_create_storage():
     # Create storage account
@@ -497,7 +497,7 @@ def acs_deploy():
     az_create_sql()
 
     # Add rules for NSG
-    acs_add_nsg_rules({"HTTPAllow" : 80, "RestfulAPIAllow" : 5000, "AllowKubernetesServicePorts" : "30000-32767"})
+    acs_add_nsg_rules({"HTTPAllow" : 80, "RestfulAPIAllow" : 5000, "AllowKubernetesServicePorts" : "30000-49999"})
 
     # Get kubectl binary / acs config
     acs_get_config()

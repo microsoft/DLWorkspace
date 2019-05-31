@@ -106,7 +106,7 @@ default_config_parameters = {
         "alert-templates.yaml": True,
         # "nginx": True,
         "RecogServer": True,
-        
+
         # This template will be rendered inside container, but not at build stage
         # "hdfs-site.xml.template": True,
     },
@@ -566,8 +566,8 @@ default_config_parameters = {
             "tutorial-nlp": {},
             "tutorial-fastai": {},
             "tutorial-imagenet18": {},
-            "gobld": {}, 
-            "kubernetes": {}, 
+            "gobld": {},
+            "kubernetes": {},
         },
         "external": {
             # These dockers are to be built by additional add ons.
@@ -581,11 +581,11 @@ default_config_parameters = {
             "kube-dns":{"fullname":"dlws/k8s-dns-kube-dns-amd64:1.14.8"},
             "kube-dnsmasq":{"fullname":"dlws/k8s-dns-dnsmasq-nanny-amd64:1.14.8"},
             "kube-dns-sidecar":{"fullname":"dlws/k8s-dns-sidecar-amd64:1.14.8"},
-            "heapster":{"fullname":"dlws/heapster-amd64:v1.4.0"},            
-            "etcd":{"fullname":"dlws/etcd:3.1.10"},            
-            "mysql":{"fullname":"dlws/mysql:5.6"},            
+            "heapster":{"fullname":"dlws/heapster-amd64:v1.4.0"},
+            "etcd":{"fullname":"dlws/etcd:3.1.10"},
+            "mysql":{"fullname":"dlws/mysql:5.6"},
             "phpmyadmin":{"fullname":"dlws/phpmyadmin:4.7.6"},
-            "fluentd-elasticsearch":{"fullname":"dlws/fluentd-elasticsearch:v2.0.2"},            
+            "fluentd-elasticsearch":{"fullname":"dlws/fluentd-elasticsearch:v2.0.2"},
 
         },
         "infrastructure": {
@@ -600,8 +600,8 @@ default_config_parameters = {
     "cloud_config": {
         "vnet_range": "192.168.0.0/16",
         "default_admin_username": "dlwsadmin",
-        "tcp_port_for_pods": "30000-32767",
-        "tcp_port_ranges": "80 443 30000-32767 25826",
+        "tcp_port_for_pods": "30000-49999",
+        "tcp_port_ranges": "80 443 30000-49999 25826",
         "udp_port_ranges": "25826",
         "dev_network": {
             "tcp_port_ranges": "22 1443 2379 3306 5000 8086",

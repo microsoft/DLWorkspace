@@ -7,7 +7,6 @@ from flask_restful import reqparse, abort, Api, Resource
 from flask import request, jsonify
 import base64
 import yaml
-import re
 import uuid
 
 import logging
@@ -20,6 +19,7 @@ from authorization import ResourceType, Permission, AuthorizationManager
 from config import config
 from config import global_vars
 import authorization
+from DataHandler import DataHandler
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 with open(os.path.join(dir_path, 'logging.yaml'), 'r') as f:
@@ -956,6 +956,7 @@ class Endpoint(Resource):
                 "status": endpoint["status"],
                 "hostNetwork": endpoint["hostNetwork"],
                 "podName": endpoint["podName"],
+                "domain": config["domain"],
             }
             if endpoint["status"] == "running":
                 if endpoint["hostNetwork"]:
@@ -980,14 +981,17 @@ class Endpoint(Resource):
 
         # get the job
         job = JobRestAPIUtils.get_job(job_id)
-
-        # get endpointDescriptionPath
-        # job["jobDescriptionPath"] = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"] + ".yaml"
-        endpoint_description_dir = re.search("(.*/)[^/\.]+.yaml", job["jobDescriptionPath"]).group(1)
+        job_params = json.loads(base64.b64decode(job["jobParams"]))
 
         # get pods
-        job_description = base64.b64decode(job["jobDescription"])
-        pod_names = [resource["metadata"]["name"] for resource in yaml.load_all(job_description) if resource['kind'] == 'Pod']
+        pod_names = []
+        if(job_params["jobtrainingtype"] == "RegularJob"):
+            pod_names.append(job_id)
+        else:
+            nums = {"ps": int(job_params["numps"]), "worker": int(job_params["numpsworker"])}
+            for role in ["ps", "worker"]:
+                for i in range(nums[role]):
+                    pod_names.append(job_id + "-" + role + str(i))
 
         # endpoints should be in ["ssh", "ipython"]
         if any(elem not in ["ssh", "ipython"] for elem in requested_endpoints):
@@ -1015,7 +1019,6 @@ class Endpoint(Resource):
                     "podName": pod_name,
                     "username": username,
                     "name": "ssh",
-                    "endpointDescriptionPath": os.path.join(endpoint_description_dir, endpoint_id + ".yaml"),
                     "status": "pending",
                     "hostNetwork": host_network
                 }
@@ -1031,13 +1034,14 @@ class Endpoint(Resource):
                 "podName": pod_name,
                 "username": username,
                 "name": "ipython",
-                "endpointDescriptionPath": os.path.join(endpoint_description_dir, endpoint_id + ".yaml"),
                 "status": "pending",
                 "hostNetwork": host_network
             }
             endpoints[endpoint_id] = endpoint
 
-        JobRestAPIUtils.update_job(job_id, "endpoints", json.dumps(endpoints))
+        data_handler = DataHandler()
+        for [_, endpoint] in endpoints.items():
+            data_handler.UpdateEndpoint(endpoint)
 
         resp = jsonify(endpoints)
         resp.headers["Access-Control-Allow-Origin"] = "*"
