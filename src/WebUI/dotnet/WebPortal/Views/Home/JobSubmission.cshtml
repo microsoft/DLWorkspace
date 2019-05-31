@@ -1,4 +1,4 @@
-@using Microsoft.AspNetCore.Http;
+﻿@using Microsoft.AspNetCore.Http;
 
 @{
     ViewData["Title"] = "Submit Your Job";
@@ -226,7 +226,7 @@
                 $scope.loadTemplate();
                 //$log.log($scope.joblist);
             });
-
+        
             $http.get("/api/dlws/GetVCs", { params: { cluster: cluster } }).then(function (response) {
                 var currentTeam = '@Context.Session.GetString("Team")';
                 var teams = response.data.result;
@@ -244,6 +244,7 @@
         $scope.$watch('current.jobtrainingtype', function (value) {
             if (value === 'PSDistJob') {
                 $scope.current.numps = 1;
+                $scope.current.resourcegpu = $scope.gpumeta[$scope.extras.gpuType]['num_gpu_per_node'];
             } else {
                 delete $scope.current.numps;
             }
@@ -448,24 +449,6 @@
                     $("#submit").attr("disabled", false);
                 },
                 timeout: 10000 //10 second timeout
-            }).then(function (resp) {
-                var payload = $scope.$eval(resp);
-                if (payload.jobId && ($scope.extras.ssh || $scope.extras.ipython)) {
-                    const endpoints = [];
-                    if ($scope.extras.ssh) { endpoints.push('ssh') }
-                    if ($scope.extras.ipython) { endpoints.push('ipython') }
-                    return $http({
-                        method: "POST",
-                        url: "/api/dlws/endpoints",
-                        params: { cluster: $scope.cluster },
-                        data: {
-                            jobId: payload.jobId,
-                            endpoints: endpoints
-                        }
-                    }).then(function () { return resp })
-                } else {
-                    return resp;
-                }
             }).done(
                 function (resp) {
                     payload = $scope.$eval(resp);
@@ -664,19 +647,6 @@
                         <label>Command</label>
                         <textarea ng-model="current.cmd" rows="10"></textarea>
                     </md-input-container>
-
-                    <div layout="row">
-                        <md-input-container class="md-block" flex="50">
-                            <md-switch ng-model="extras.ssh" md-no-asterisk>
-                                SSH
-                            </md-switch>
-                        </md-input-container>
-                        <md-input-container class="md-block" flex="50">
-                            <md-switch ng-model="extras.ipython" md-no-asterisk>
-                                iPython
-                            </md-switch>
-                        </md-input-container>
-                    </div>
 
 
                     <div layout="row">
@@ -959,8 +929,8 @@
 
                             </div>
 
-                        </div>
-                    </div>
+                                </div>
+                            </div>
 
                 </div>
 
