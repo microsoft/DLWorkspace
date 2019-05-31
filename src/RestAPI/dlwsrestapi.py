@@ -957,6 +957,7 @@ class Endpoint(Resource):
                 "status": endpoint["status"],
                 "hostNetwork": endpoint["hostNetwork"],
                 "podName": endpoint["podName"],
+                "domain": config["domain"],
             }
             if endpoint["status"] == "running":
                 if endpoint["hostNetwork"]:
