@@ -198,6 +198,12 @@ namespace WindowsAuth.Controllers
                 return ret;
             }
 
+            if (!HttpContext.Session.Keys.Contains("AuthorizedClusters"))
+            {
+                ret = "Unauthorized User, Please login!";
+                return ret;
+            }
+
             ViewData["Username"] = HttpContext.Session.GetString("Username");
 
             var cluster = HttpContext.Request.Query["cluster"];
@@ -322,6 +328,12 @@ namespace WindowsAuth.Controllers
                     if (HttpContext.Request.Query.ContainsKey("jobId"))
                     {
                         url = restapi + "/GetCommands?jobId=" + HttpContext.Request.Query["jobId"] + "&userName=" + HttpContext.Session.GetString("Email");
+                    }
+                    break;
+                case "GetEndpoints":
+                    if (HttpContext.Request.Query.ContainsKey("jobId"))
+                    {
+                        url = restapi + "/endpoints?jobId=" + HttpContext.Request.Query["jobId"] + "&userName=" + HttpContext.Session.GetString("Email");
                     }
                     break;
             }
