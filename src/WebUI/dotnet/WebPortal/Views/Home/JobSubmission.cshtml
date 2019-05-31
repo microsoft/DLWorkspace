@@ -1,4 +1,4 @@
-﻿@using Microsoft.AspNetCore.Http;
+@using Microsoft.AspNetCore.Http;
 
 @{
     ViewData["Title"] = "Submit Your Job";
@@ -226,7 +226,7 @@
                 $scope.loadTemplate();
                 //$log.log($scope.joblist);
             });
-        
+
             $http.get("/api/dlws/GetVCs", { params: { cluster: cluster } }).then(function (response) {
                 var currentTeam = '@Context.Session.GetString("Team")';
                 var teams = response.data.result;
@@ -959,8 +959,8 @@
 
                             </div>
 
-                                </div>
-                            </div>
+                        </div>
+                    </div>
 
                 </div>
 

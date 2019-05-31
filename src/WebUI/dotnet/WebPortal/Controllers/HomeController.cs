@@ -77,8 +77,7 @@ namespace WindowsAuth.Controllers
             HttpContext.Session.SetString("DataFolderAccessPoint", "");
         }
 
-        // Add user to the system, with a list of clusters that the user is authorized for
-        private async Task<bool> AddUser(UserEntry userEntry, List<string> groups, string clusterName)
+        private void AddUserToSession(UserEntry userEntry, string clusterName)
         {
             var email = userEntry.Alias;
             HttpContext.Session.SetString("Email", userEntry.Alias);
@@ -93,23 +92,25 @@ namespace WindowsAuth.Controllers
             HttpContext.Session.SetString("DataFolderAccessPoint", clusterInfo.DataFolderAccessPoint);
             HttpContext.Session.SetString("smbUsername", clusterInfo.smbUsername);
             HttpContext.Session.SetString("smbUserPassword", clusterInfo.smbUserPassword);
-
-
-            if (userEntry.isAuthorized == "true")
-            {
-                var url = clusterInfo.Restapi + "/AddUser?userName=" + HttpContext.Session.GetString("Email")
-                    + "&userId=" + userEntry.uid
-                    + "&uid=" + userEntry.uid
-                    + "&gid=" + userEntry.gid
-                    + "&groups=" + JsonConvert.SerializeObject(groups);
-                using (var httpClient1 = new HttpClient())
-                {
-                    var response2 = await httpClient1.GetAsync(url);
-                    var content1 = await response2.Content.ReadAsStringAsync();
-                }
-            }
+            
             _logger.LogInformation("User {0} log in, Uid {1}, Gid {2}, isAdmin {3}, isAuthorized {4}",
                                email, userEntry.uid, userEntry.gid, userEntry.isAdmin, userEntry.isAuthorized);
+        }
+
+        // Add user to the system, with a list of clusters that the user is authorized for
+        private async Task<bool> AddUser(UserID userID, List<string> groups, string clusterName)
+        {
+            var clusterInfo = Startup.Clusters[clusterName];
+            var url = clusterInfo.Restapi + "/AddUser?userName=" + HttpContext.Session.GetString("Email")
+                + "&userId=" + userID.uid
+                + "&uid=" + userID.uid
+                + "&gid=" + userID.gid
+                + "&groups=" + JsonConvert.SerializeObject(groups);
+            using (var httpClient1 = new HttpClient())
+            {
+                var response2 = await httpClient1.GetAsync(url);
+                var content1 = await response2.Content.ReadAsStringAsync();
+            }
             return true;
         }
         
@@ -735,23 +736,37 @@ namespace WindowsAuth.Controllers
                             lst.Add(userID);
                     }
                     _logger.LogDebug("User {0} group memberships {1}", email, string.Join(",", lst.SelectMany(x => x.groups).ToArray()));
+                    
+                    var groups = lst.SelectMany(x => x.groups).ToList();
+                    foreach (var userId in lst)
+                    {
+                        foreach (var pair in Startup.Clusters)
+                        {
+                            if (pair.Key != "")
+                            {
+                                await AddUser(userId, groups, pair.Key);
+                                _logger.LogInformation("User {0} is called add user to cluster {1}", email, pair.Key);
+                            }
+                        }
+                    }
 
                     var authorizedClusters = AuthenticateUserByGroupMembership(lst);
                     _logger.LogDebug("User {0} authorized clusters preDB {1}", email, string.Join(",", authorizedClusters.Keys.ToArray()));
+
                     var authorizationFinal = new Dictionary<string, UserEntry>();
                     var ret = await AuthenticateByDB(upn, tenantID, username, authorizedClusters, authorizationFinal);
                     _logger.LogDebug("User {0} authorized clusters afterDB {1}", email, string.Join(",", authorizationFinal.Keys.ToArray()));
 
                     // bRet = await AuthenticateByAAD(userObjectID, username, tenantID, upn, endpoint);
+
                     string useCluster = "";
 
                     if (authorizationFinal.Count() > 0)
                     {
                         foreach (var pair in authorizationFinal)
                         {
-
-                            await AddUser(pair.Value, lst.SelectMany(x => x.groups).ToList(), pair.Key);
                             useCluster = pair.Key;
+                            AddUserToSession(pair.Value, pair.Key);
                             _logger.LogInformation("User {0} is authorized for cluster {1}", email, pair.Key);
                         }
                     }
