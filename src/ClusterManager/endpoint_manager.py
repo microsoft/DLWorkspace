@@ -38,7 +38,7 @@ def start_ssh_server(pod_name, user_name, host_network=False, ssh_port=22):
     if host_network:
         # if the ssh_port is default value 22, randomly choose one
         if ssh_port == 22:
-            ssh_port = random.randint(30001, 32767)
+            ssh_port = random.randint(40000, 49999)
         # bash_script = "sed -i '/^Port 22/c Port "+str(ssh_port)+"' /etc/ssh/sshd_config && "+bash_script
         # TODO refine the script later
         bash_script = "sudo bash -c 'apt-get update && apt-get install -y openssh-server && sed -i \"s/^Port 22/Port " + str(ssh_port) + "/\" /etc/ssh/sshd_config && cd /home/" + user_name + " && (chown " + user_name + " -R .ssh; chmod 600 -R .ssh/*; chmod 700 .ssh; true) && service ssh restart'"
@@ -107,7 +107,7 @@ def setup_ssh_server(user_name, pod_name, host_network=False):
 
 def setup_jupyter_server(user_name, pod_name):
 
-    jupyter_port = random.randint(30001, 32767)
+    jupyter_port = random.randint(40000, 49999)
     bash_script = "sudo bash -c 'apt-get update && apt-get install python-pip -y && python -m pip install --upgrade pip && python -m pip install jupyter && cd /home/" + user_name + " && runuser -l " + user_name + " -c \"jupyter notebook --no-browser --ip=0.0.0.0 --NotebookApp.token= --port=" + str(jupyter_port) + " &>/dev/null &\"'"
     output = k8sUtils.kubectl_exec("exec %s %s" % (pod_name, " -- " + bash_script))
     if output == "":
