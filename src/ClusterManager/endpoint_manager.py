@@ -10,6 +10,7 @@ import copy
 import base64
 import traceback
 import random
+import re
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 
@@ -140,7 +141,17 @@ def start_endpoints():
     try:
         data_handler = DataHandler()
         pending_endpoints = data_handler.GetPendingEndpoints()
-        for _, endpoint in pending_endpoints.items():
+
+        for endpoint_id, endpoint in pending_endpoints.items():
+            job = data_handler.GetJob(jobId=endpoint["jobId"])[0]
+            if job["jobStatus"] != "running":
+                continue
+
+            # get endpointDescriptionPath
+            # job["jobDescriptionPath"] = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"] + ".yaml"
+            endpoint_description_dir = re.search("(.*/)[^/\.]+.yaml", job["jobDescriptionPath"]).group(1)
+            endpoint["endpointDescriptionPath"] = os.path.join(endpoint_description_dir, endpoint_id + ".yaml")
+
             print("\n\n\n\n\n\n----------------Begin to start endpoint %s" % endpoint["id"])
             output = get_k8s_endpoint(endpoint["endpointDescriptionPath"])
             if(output != ""):
