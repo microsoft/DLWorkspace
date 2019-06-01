@@ -363,7 +363,33 @@ def SubmitPSDistJob(job):
                     if "cmd" not in distJobParam:
                         distJobParam["cmd"] = ""
 
-                    distJobParam["LaunchCMD"] = '["bash", "-c", "bash /dlws/init_user.sh &> /job/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c \'sleep infinity\'"]'
+
+                    if role == "ps":
+                        launchCMD = """
+#!/bin/bash
+echo "[DLWorkspace System]: Waiting for all containers are ready..."
+while [ ! -f /opt/run_dist_job ]; do
+    sleep 3
+done
+echo "[DLWorkspace System]: All containers are ready, launching training job..."
+%s
+""" % distJobParam["cmd"]
+                    else:
+                        launchCMD = """
+sleep infinity
+"""
+
+
+                    launchScriptPath = os.path.join(localJobPath,"launch-%s-%s%d.sh" % (distJobParam["jobId"],role,i))
+                    # TODO need to set up user for distribute jobs
+                    with open(launchScriptPath, 'w') as f:
+                        f.write(launchCMD)
+                    f.close()
+
+                    
+                    launchScriptInContainer = "bash /job/launch-%s-%s%d.sh" % (distJobParam["jobId"],role,i)
+
+                    distJobParam["LaunchCMD"] = '["bash", "-c", "bash /dlws/init_user.sh &> /job/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c \'%s\'"]' % launchScriptInContainer
 
                     distJobParam["jobNameLabel"] = ''.join(e for e in distJobParam["jobName"] if e.isalnum())
                     ENV = Environment(loader=FileSystemLoader("/"))
@@ -744,8 +770,14 @@ Host %s
         remotecmd = "cp %s %s:/job/hostfile" % (tmp_hostfile, pod_name)
         k8sUtils.kubectl_exec(remotecmd)
 
+
+    for [idx, pod] in enumerate(pods["items"]):
+        pod_name = pod["metadata"]["name"]
+        k8sUtils.kubectl_exec("exec %s touch /opt/run_dist_job" % pod_name)
+
+
     # execute user command
-    k8sUtils.kubectl_exec("exec %s -- bash -c 'runuser -l ${DLWS_USER_NAME} <<EOF_USER_SCRIPT %s \nEOF_USER_SCRIPT'" % (pod_name, jobParams["cmd"]))
+    #k8sUtils.kubectl_exec("exec %s -- bash -c 'runuser -l ${DLWS_USER_NAME} <<EOF_USER_SCRIPT %s \nEOF_USER_SCRIPT'" % (pod_name, jobParams["cmd"]))
 
     # update job status
     dataHandler = DataHandler()
