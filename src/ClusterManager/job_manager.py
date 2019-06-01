@@ -363,7 +363,7 @@ def SubmitPSDistJob(job):
                     if "cmd" not in distJobParam:
                         distJobParam["cmd"] = ""
 
-
+#change ssh folder permission here because the setup permission script in launch_ps_job function may have race condition with init_user.sh script. results in no such user error
                     if role == "ps":
                         launchCMD = """
 #!/bin/bash
@@ -371,13 +371,33 @@ echo "[DLWorkspace System]: Waiting for all containers are ready..."
 while [ ! -f /opt/run_dist_job ]; do
     sleep 3
 done
+
+sudo chmod 600 -R /home/%s/.ssh &>/dev/null; 
+sudo chmod 700 /home/%s/.ssh &>/dev/null; 
+sudo chown -R %s /home/%s/.ssh &>/dev/null;
+
+sudo mkdir -p /root/.ssh  &>/dev/null ;
+sudo ln -s /home/%s/.ssh/config /root/.ssh/config  &>/dev/null;
+sudo mkdir -p /opt  &>/dev/null;
+sudo ln -s /job/hostfile /opt/hostfile &>/dev/null;
+
+sleep 10; 
 echo "[DLWorkspace System]: All containers are ready, launching training job..."
 %s
-""" % distJobParam["cmd"]
+""" % (userAlias,userAlias,userAlias,userAlias,userAlias, distJobParam["cmd"])
                     else:
                         launchCMD = """
+while [ ! -f /opt/run_dist_job ]; do
+    sleep 3
+done
+sudo chmod 600 -R /home/%s/.ssh &>/dev/null; 
+sudo chmod 700 /home/%s/.ssh &>/dev/null; 
+sudo chown -R %s /home/%s/.ssh  &>/dev/null;     
+sudo mkdir -p /root/.ssh  &>/dev/null;
+sudo ln -s /home/%s/.ssh/config /root/.ssh/config &>/dev/null;
+sudo mkdir -p /opt && sudo ln -s /job/hostfile /opt/hostfile  &>/dev/null;
 sleep infinity
-"""
+""" % (userAlias,userAlias,userAlias,userAlias,userAlias)
 
 
                     launchScriptPath = os.path.join(localJobPath,"launch-%s-%s%d.sh" % (distJobParam["jobId"],role,i))
@@ -747,10 +767,10 @@ Host %s
         pod_name = pod["metadata"]["name"]
         bash_script = "cat > /home/" + user_name + "/.ssh/config <<EOF " + sshconfigstr + "\nEOF"
         print("override ssh client config: %s" % bash_script)
-        k8sUtils.kubectl_exec("exec %s -- bash -c \'%s\'" % (pod_name, bash_script))
+        k8sUtils.kubectl_exec("exec %s -- bash -c \'%s\' ; chown -R %s /home/%s/.ssh/config" % (pod_name, bash_script,user_name,user_name))
 
-    # fix ~/.ssh/ folder permission
-    k8sUtils.kubectl_exec("exec " + pod_name + " -- cd /home/" + user_name + "; chmod 600 -R .ssh; chmod 700 .ssh; chown -R " + user_name + " .ssh")
+        # fix ~/.ssh/ folder permission
+        k8sUtils.kubectl_exec("exec %s -- chmod 600 -R /home/%s/.ssh; chmod 700 /home/%s/.ssh; chown -R %s /home/%s/.ssh/config" % (pod_name,user_name,user_name,user_name,user_name))
 
     # generate hostfile
     hostfilecontent = ""
