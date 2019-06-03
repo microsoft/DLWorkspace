@@ -178,15 +178,22 @@
             $('#endpoints').show();
 
             var endpointsStr = $.map(endpoints, function (endpoint) {
-                if (endpoint.status == "pending") return;
                 if (endpoint.name == "ssh") {
                     window.ngScope.$applyAsync('ssh = true');
-                    return "To access the container via SSH, use command: ssh -i " + "@ViewData["workPath"]" + ".ssh/id_rsa -p " + endpoint.port + " " + endpoint.username + "@@" + endpoint.nodeName + "." + endpoint.domain + "\n";
+                    if (endpoint.status == "running") {
+                        return "To access the container via SSH, use command: ssh -i " + "@ViewData["workPath"]" + ".ssh/id_rsa -p " + endpoint.port + " " + endpoint.username + "@@" + endpoint.nodeName + "." + endpoint.domain + "\n";
+                    } else {
+                        return;
+                    }
                 }
                 else {
                     window.ngScope.$applyAsync('ipython = true');
-                    var svcurl = "http://" + endpoint.nodeName + "." + endpoint.domain + ":" + endpoint.port + "/";
-                    return endpoint.name + " could be access via: <a href='" + svcurl + "' target='_blank'>" + svcurl + "</a>\n";
+                    if (endpoint.status == "running") {
+                        var svcurl = "http://" + endpoint.nodeName + "." + endpoint.domain + ":" + endpoint.port + "/";
+                        return endpoint.name + " could be access via: <a href='" + svcurl + "' target='_blank'>" + svcurl + "</a>\n";
+                    } else {
+                        return;
+                    }
                 }
             }).join("<br/>");
             var endpointsPanellDiv = document.getElementById('endpointsPanel');
