@@ -177,6 +177,10 @@
         }).then(function (endpoints) {
             $('#endpoints').show();
 
+            endpoints.sort(function (a, b) {
+                return String(a.podName).localeCompare(b.podName)
+            });
+
             var endpointsStr = $.map(endpoints, function (endpoint) {
                 if (endpoint.name == "ssh") {
                     window.ngScope.$applyAsync('ssh = true');
