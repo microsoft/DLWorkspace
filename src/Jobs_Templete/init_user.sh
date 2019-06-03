@@ -21,9 +21,13 @@ adduser $DLWS_USER_NAME sudo
 echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 # export envs
-env | while read line; do
-        if [[ $line != HOME=* ]] && [[ $line != INTERACTIVE* ]] && [[ $line != LS_COLORS* ]]  && [[ $line != PATH* ]] && [[ $line != PWD* ]]; then
-            echo "export $line" >> "${ENV_FILE}" ;
+# options '-e' for exported ENVs only
+compgen -e | while read line; do
+        if [[ $line != HOME* ]] && [[ $line != INTERACTIVE* ]] && [[ $line != LS_COLORS* ]]  && [[ $line != PATH* ]] && [[ $line != P7WD* ]]; then
+            # Since bash >= 4.4 we could use
+            # echo "export ${line}=${!line@Q}" >> "${ENV_FILE}" ;
+            # For compatible with bash < 4.4
+            printf "export ${line}=%q\n" "${!line}" >> "${ENV_FILE}" ;
         fi; done
 echo "export PATH=$PATH:\${PATH}" >> "${ENV_FILE}"
 echo "export LD_LIBRARY_PATH=/usr/local/nvidia/lib64/:\${LD_LIBRARY_PATH}" >> "${ENV_FILE}"
