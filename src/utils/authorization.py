@@ -4,6 +4,7 @@ import json
 import requests
 import random
 from config import config
+import timeit
 
 logger = MyLogger()
 
@@ -31,34 +32,33 @@ class AuthorizationManager:
     # Check if user has requested access (based on effective ACL) on the specified resource.
     @staticmethod
     def _HasAccess(identityName, resourceAclPath, permissions):
+        start_time = timeit.default_timer()
+        requestedAccess = '%s;%s;%s' % (str(identityName), resourceAclPath, str(permissions))
         dataHandler = DataHandler() 
-        try:
-            logger.debug('HasAccess invoked!')             
+        try:           
             identities = []
             identities.extend(IdentityManager.GetIdentityInfoFromDB(identityName)["groups"])
 
-            logger.info('initial resourceAclPath ' + resourceAclPath)
             #TODO: handle isDeny
             while resourceAclPath:
-                logger.info('resourceAclPath ' + resourceAclPath)
+                #logger.debug('resourceAclPath ' + resourceAclPath)
                 acl = dataHandler.GetResourceAcl(resourceAclPath)
                 for ace in acl:
                     for identity in identities:
-                        logger.debug('identity %s' % identity)
+                        #logger.debug('identity %s' % identity)
                         if ace["identityName"] == identityName or (str(ace["identityId"]) == str(identity)  and (int(identity) < INVALID_RANGE_START or int(identity) > INVALID_RANGE_END)):
                             permissions = permissions & (~ace["permissions"])
                             if not permissions:
-                                logger.info('access : Yes')
+                                logger.info('Yes for %s in time %s' % (requestedAccess, str(timeit.default_timer() - start_time)))
                                 return True
 
                 resourceAclPath = AuthorizationManager.__GetParentPath(resourceAclPath)
-            logger.info('access : No')
+            logger.info('No for %s in time %s' % (requestedAccess, str(timeit.default_timer() - start_time)))
             return False
 
         except Exception as e:
             logger.error('Exception: '+ str(e))
-            logger.warn("HasAccess failed for user %s" % identityName)
-            logger.info('access : No (exception)')
+            logger.warn('No (exception) for %s in time %s' % (requestedAccess, str(timeit.default_timer() - start_time)))
             return False
 
         finally:
