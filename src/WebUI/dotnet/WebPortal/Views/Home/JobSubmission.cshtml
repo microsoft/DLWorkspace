@@ -431,6 +431,8 @@
         };
 
         $scope.submitJob = function () {
+            if (!$scope.submittable()) return;
+            $scope.busy = true;
             $scope.processCurrent();
             var params = {};
             var job = angular.extend({}, $scope.current, $scope.extras);
@@ -446,7 +448,7 @@
                 data: params,
                 error: function (xhr, ajaxOptions, thrownError) {
                     layer.alert("RestfulAPI error!", { icon: 5, btn: 'Ok', title: 'alert' })
-                    $("#submit").attr("disabled", false);
+                    $scope.$apply('busy = false');
                 },
                 timeout: 10000 //10 second timeout
             }).then(function (resp) {
@@ -483,10 +485,10 @@
                         })
                     } else if (payload.error) {
                         layer.msg("Error: " + payload.error);
-                        $("#submit").attr("disabled", false);
+                        $scope.$apply('busy = false');
                     } else {
                         layer.msg("Unexpected error: " + payload);
-                        $("#submit").attr("disabled", false);
+                        $scope.$apply('busy = false');
                     };
 
                 });
@@ -551,6 +553,15 @@
                 $scope.current.dnsPolicy = "ClusterFirst";
             }
         };
+
+        $scope.submittable = function () {
+            if (!$scope.cluster) return false;
+            if (!$scope.extras.gpuType) return false;
+            if (!$scope.current.jobName) return false;
+            if (!$scope.current.image) return false;
+            if ($scope.busy) return false;
+            return true;
+        }
     });
 
 
@@ -966,7 +977,7 @@
                 </div>
 
                 <div class="modal-footer">
-                    <a class="btn pull-right btn-primary" ng-click="submitJob()">
+                    <a class="btn pull-right btn-primary" ng-click="submitJob()" ng-disabled="!submittable()">
                         Submit Job
                     </a>
                 </div>
