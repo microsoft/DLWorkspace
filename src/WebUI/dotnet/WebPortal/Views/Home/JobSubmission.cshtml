@@ -465,7 +465,18 @@
                             jobId: payload.jobId,
                             endpoints: endpoints
                         }
-                    }).then(function () { return resp })
+                    }).then(function () { return resp }, function () {
+                        layer.alert("RestfulAPI error in creating endpoints!\nGo to job details page and enable endpoints again please.", {
+                            icon: 5, btn: 'Ok', title: 'alert', success: function (layero) {
+                                var btn = layero.find('.layui-layer-btn');
+                                btn.find('.layui-layer-btn0').attr({
+                                    href: '/Home/ViewJobs'
+                                    , target: '_self'
+                                });
+                            }
+                        })
+                        $scope.$apply('busy = false');
+                    })
                 } else {
                     return resp;
                 }
