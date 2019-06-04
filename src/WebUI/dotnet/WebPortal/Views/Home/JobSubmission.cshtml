@@ -1,7 +1,7 @@
 @using Microsoft.AspNetCore.Http;
 
 @{
-    ViewData["Title"] = "Submit Training Job";
+    ViewData["Title"] = "Submit Your Job";
 }
 
 <link rel="stylesheet" href="~/layui/css/layui.css" media="all">
@@ -244,15 +244,8 @@
         $scope.$watch('current.jobtrainingtype', function (value) {
             if (value === 'PSDistJob') {
                 $scope.current.numps = 1;
-                $scope.current.resourcegpu = $scope.gpumeta[$scope.extras.gpuType]['num_gpu_per_node'];
             } else {
                 delete $scope.current.numps;
-            }
-        })
-
-        $scope.$watch('extras.gpuType', function () {
-            if ($scope.current.jobtrainingtype === 'PSDistJob') {
-                $scope.current.resourcegpu = $scope.gpumeta[$scope.extras.gpuType]['num_gpu_per_node'];
             }
         })
 
@@ -437,8 +430,6 @@
         };
 
         $scope.submitJob = function () {
-            if (!$scope.submittable()) return;
-            $scope.busy = true;
             $scope.processCurrent();
             var params = {};
             var job = angular.extend({}, $scope.current, $scope.extras);
@@ -454,7 +445,7 @@
                 data: params,
                 error: function (xhr, ajaxOptions, thrownError) {
                     layer.alert("RestfulAPI error!", { icon: 5, btn: 'Ok', title: 'alert' })
-                    $scope.$apply('busy = false');
+                    $("#submit").attr("disabled", false);
                 },
                 timeout: 10000 //10 second timeout
             }).then(function (resp) {
@@ -471,18 +462,7 @@
                             jobId: payload.jobId,
                             endpoints: endpoints
                         }
-                    }).then(function () { return resp }, function () {
-                        layer.alert("RestfulAPI error in creating endpoints!\nGo to job details page and enable endpoints again please.", {
-                            icon: 5, btn: 'Ok', title: 'alert', success: function (layero) {
-                                var btn = layero.find('.layui-layer-btn');
-                                btn.find('.layui-layer-btn0').attr({
-                                    href: '/Home/ViewJobs'
-                                    , target: '_self'
-                                });
-                            }
-                        })
-                        $scope.$apply('busy = false');
-                    })
+                    }).then(function () { return resp })
                 } else {
                     return resp;
                 }
@@ -502,10 +482,10 @@
                         })
                     } else if (payload.error) {
                         layer.msg("Error: " + payload.error);
-                        $scope.$apply('busy = false');
+                        $("#submit").attr("disabled", false);
                     } else {
                         layer.msg("Unexpected error: " + payload);
-                        $scope.$apply('busy = false');
+                        $("#submit").attr("disabled", false);
                     };
 
                 });
@@ -570,15 +550,6 @@
                 $scope.current.dnsPolicy = "ClusterFirst";
             }
         };
-
-        $scope.submittable = function () {
-            if (!$scope.cluster) return false;
-            if (!$scope.extras.gpuType) return false;
-            if (!$scope.current.jobName) return false;
-            if (!$scope.current.image) return false;
-            if ($scope.busy) return false;
-            return true;
-        }
     });
 
 
@@ -994,7 +965,7 @@
                 </div>
 
                 <div class="modal-footer">
-                    <a class="btn pull-right btn-primary" ng-click="submitJob()" ng-disabled="!submittable()">
+                    <a class="btn pull-right btn-primary" ng-click="submitJob()">
                         Submit Job
                     </a>
                 </div>

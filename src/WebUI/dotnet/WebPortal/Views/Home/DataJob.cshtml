@@ -61,13 +61,7 @@
                 var data = response.data;
                 if (data.jobId) {
                     layer.alert("Job Submitted! <br> Job ID:" + data.jobId, {
-                        time: 0, icon: 6, btn: 'Ok', title: 'Job Submitted', success: function (layero) {
-                            var btn = layero.find('.layui-layer-btn');
-                            btn.find('.layui-layer-btn0').attr({
-                                href: '/Home/ViewJobs'
-                                , target: '_self'
-                            });
-                        }
+                        time: 0, icon: 6, btn: 'Ok', title: 'Job Submitted'
                     });
                 } else if (data.error) {
                     layer.msg("Error: " + data.error);
