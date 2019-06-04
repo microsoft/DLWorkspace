@@ -250,6 +250,12 @@
             }
         })
 
+        $scope.$watch('extras.gpuType', function () {
+            if ($scope.current.jobtrainingtype === 'PSDistJob') {
+                $scope.current.resourcegpu = $scope.gpumeta[$scope.extras.gpuType]['num_gpu_per_node'];
+            }
+        })
+
         $scope.loadTemplate = function () {
             $scope.curtemplate = $scope.joblist[$scope.curtemplateValue];
             $scope.template = {};
