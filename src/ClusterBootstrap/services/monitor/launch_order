@@ -1,4 +1,9 @@
-influxdb.yaml
-collectd.yaml
+node-exporter.yaml
+job-exporter.yaml
+watchdog.yaml
+prometheus-alerting.yaml
+prometheus.yaml
+grafana-config.yaml
 grafana.yaml
-heapster.yaml
+alert-templates.yaml
+alert-manager.yaml

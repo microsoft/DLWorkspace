@@ -1,0 +1,8 @@
+{
+  "name": "PM",
+  "url": "http://{{cnf['prometheus']['host']}}:9091/prometheus",
+  "basicAuth": false,
+  "access": "proxy",
+  "type": "prometheus",
+  "isDefault": true
+}

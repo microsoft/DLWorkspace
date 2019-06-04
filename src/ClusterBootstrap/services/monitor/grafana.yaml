@@ -1,37 +1,50 @@
-kind: DaemonSet
 apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: dlws-grafana
+  name: grafana
   namespace: kube-system
 spec:
+  replicas: 1
   selector:
     matchLabels:
-      k8s-app: grafana
+      app: grafana
   template:
     metadata:
       labels:
         task: monitoring
-        k8s-app: grafana
+        app: grafana
     spec:
       nodeSelector:
         grafana: active
       hostNetwork: true
+      hostPID: false
+      dnsPolicy: ClusterFirstWithHostNet
       containers:
       - name: grafana
-        image: {{cnf["dockers"]["container"]["grafana"]["fullname"]}}
+        image: openpai/grafana:dlws
         imagePullPolicy: Always
+        ports:
+        - containerPort: {{cnf["grafana"]["port"]}}
+          protocol: TCP
         volumeMounts:
+        - mountPath: /grafana-configuration
+          name: grafana-confg-volume
         - mountPath: /etc/ssl/certs
           name: ca-certificates
           readOnly: true
         - mountPath: /etc/hostname-fqdn
           name: hostname-fqdn
           readOnly: true
+        resources:
+          limits:
+            memory: "256Mi"
         env:
-        - name: INFLUXDB_HOST
-          value: {{cnf["influxdb_node"]}}
+        - name : GRAFANA_URL
+          value: 'http://127.0.0.1:{{cnf["grafana"]["port"]}}' # for script to install dashboard only
+        - name: GF_AUTH_ANONYMOUS_ENABLED
+          value: "true"
         - name: GF_SERVER_HTTP_PORT
-          value: "3000"
+          value: '{{cnf["grafana"]["port"]}}'
           # The following env variables are required to make Grafana accessible via
           # the kubernetes api-server proxy. On production clusters, we recommend
           # removing these env variables, setup auth for grafana, and expose the grafana
@@ -46,9 +59,12 @@ spec:
         - name: GF_SERVER_ROOT_URL
           # If you're only using the API Server proxy, set this value instead:
           #value: /api/v1/proxy/namespaces/kube-system/services/monitoring-grafana/
-          value: /grafana/
-          #value: /
+          #value: /grafana/
+          value: /
       volumes:
+      - name: grafana-confg-volume
+        configMap:
+          name: grafana-configuration
       - name: ca-certificates
         hostPath:
           path: /etc/ssl/certs
@@ -59,4 +75,4 @@ spec:
       - key: CriticalAddonsOnly
         operator: Exists
       - key: node-role.kubernetes.io/master
-        effect: NoSchedule          
+        effect: NoSchedule

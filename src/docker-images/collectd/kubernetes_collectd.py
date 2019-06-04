@@ -150,8 +150,8 @@ def read(data=None):
                     if "spec" in item and "containers" in item["spec"]:
                         if "status" in item and "phase" in item["status"] and item["status"]["phase"] == "Running":
                             for container in item["spec"]["containers"]:
-                                if "resources" in container and "requests" in container["resources"] and "alpha.kubernetes.io/nvidia-gpu" in container["resources"]["requests"]:
-                                    used_gpus += int(container["resources"]["requests"]["alpha.kubernetes.io/nvidia-gpu"])
+                                if "resources" in container and "requests" in container["resources"] and "nvidia.com/gpu" in container["resources"]["requests"]:
+                                    used_gpus += int(container["resources"]["requests"]["nvidia.com/gpu"])
             vl = collectd.Values(type='gauge')
             vl.plugin = 'gpu'
             vl.plugin_instance = "usedgpu"
@@ -171,8 +171,8 @@ def read(data=None):
             nodes = json.loads( curl_get(os.environ['K8SAPI']+"/api/v1/nodes"))
             if "items" in nodes:
                 for item in nodes["items"]:
-                    if "status" in item and "capacity" in item["status"] and "alpha.kubernetes.io/nvidia-gpu" in item["status"]["capacity"]:
-                        total_gpus += int(item["status"]["capacity"]["alpha.kubernetes.io/nvidia-gpu"])
+                    if "status" in item and "capacity" in item["status"] and "nvidia.com/gpu" in item["status"]["capacity"]:
+                        total_gpus += int(item["status"]["capacity"]["nvidia.com/gpu"])
             vl = collectd.Values(type='gauge')
             vl.plugin = 'gpu'
             vl.plugin_instance = "totalgpu"

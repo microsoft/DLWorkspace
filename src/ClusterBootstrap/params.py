@@ -19,6 +19,19 @@ default_config_parameters = {
     "influxdb_rpc_port": "8088",
     "influxdb_data_path": "/var/lib/influxdb",
 
+    "prometheus": { "port": 9091 },
+    "job-exporter": { "port": 9102 },
+    "node-exporter": { "port": 9100 },
+    "watchdog": { "port": 9101 },
+    "grafana": { "port": 3000 },
+    "alert-manager": {
+        "port": 9093,
+        "configured": False
+        # If want to deploy with alert-manager, should config
+        # configured with True, and fill appropriate value to:
+        # smtp_url, smtp_from, smtp_auth_username, smtp_auth_password and receiver
+    },
+
     "mysql_port": "3306",
     "mysql_username": "root",
     "mysql_data_path": "/var/lib/mysql",
@@ -74,6 +87,8 @@ default_config_parameters = {
         ".js": True,
         ".swf": True,
         ".gzip": True,
+        ".rules": True,
+        ".tmpl": True,
     },
     "render-by-copy": {
         # The following file will be copied (not rendered for configuration)
@@ -87,9 +102,11 @@ default_config_parameters = {
         "collectd.graphite.conf.tpl": True,
         "collectd.influxdb.conf.tpl": True,
         "collectd.riemann.conf.tpl": True,
+        "prometheus-alerting.yaml": True,
+        "alert-templates.yaml": True,
         # "nginx": True,
         "RecogServer": True,
-        
+
         # This template will be rendered inside container, but not at build stage
         # "hdfs-site.xml.template": True,
     },
@@ -198,7 +215,9 @@ default_config_parameters = {
         "jobmanager": "etcd_node_1",
         "FragmentGPUJob": "all",
         "grafana": "etcd_node_1",
-        "influxdb": "etcd_node_1",
+        "prometheus": "etcd_node_1",
+        "alert-manager": "etcd_node_1",
+        "watchdog": "etcd_node_1",
         "elasticsearch": "etcd_node_1",
         "kibana": "etcd_node_1",
         "mysql": "etcd_node_1",
@@ -547,13 +566,13 @@ default_config_parameters = {
             "tutorial-nlp": {},
             "tutorial-fastai": {},
             "tutorial-imagenet18": {},
-            "gobld": {}, 
-            "kubernetes": {}, 
+            "gobld": {},
+            "kubernetes": {},
         },
         "external": {
             # These dockers are to be built by additional add ons.
             "hyperkube": {"fullname":"dlws/hyperkube:v1.9.0"},
-            "freeflow": {"fullname":"dlws/freeflow:0.16"},
+            "freeflow": {"fullname":"dlws/freeflow:0.18"},
             "podinfra": {"fullname":"dlws/pause-amd64:3.0"},
             "nvidiadriver": {"fullname":"dlws/nvidia_driver:375.20"},
             "weave":{"fullname":"dlws/weave:2.2.0"},
@@ -562,11 +581,11 @@ default_config_parameters = {
             "kube-dns":{"fullname":"dlws/k8s-dns-kube-dns-amd64:1.14.8"},
             "kube-dnsmasq":{"fullname":"dlws/k8s-dns-dnsmasq-nanny-amd64:1.14.8"},
             "kube-dns-sidecar":{"fullname":"dlws/k8s-dns-sidecar-amd64:1.14.8"},
-            "heapster":{"fullname":"dlws/heapster-amd64:v1.4.0"},            
-            "etcd":{"fullname":"dlws/etcd:3.1.10"},            
-            "mysql":{"fullname":"dlws/mysql:5.6"},            
+            "heapster":{"fullname":"dlws/heapster-amd64:v1.4.0"},
+            "etcd":{"fullname":"dlws/etcd:3.1.10"},
+            "mysql":{"fullname":"dlws/mysql:5.6"},
             "phpmyadmin":{"fullname":"dlws/phpmyadmin:4.7.6"},
-            "fluentd-elasticsearch":{"fullname":"dlws/fluentd-elasticsearch:v2.0.2"},            
+            "fluentd-elasticsearch":{"fullname":"dlws/fluentd-elasticsearch:v2.0.2"},
 
         },
         "infrastructure": {
@@ -581,8 +600,8 @@ default_config_parameters = {
     "cloud_config": {
         "vnet_range": "192.168.0.0/16",
         "default_admin_username": "dlwsadmin",
-        "tcp_port_for_pods": "30000-32767",
-        "tcp_port_ranges": "80 443 30000-32767 25826",
+        "tcp_port_for_pods": "30000-49999",
+        "tcp_port_ranges": "80 443 30000-49999 25826",
         "udp_port_ranges": "25826",
         "dev_network": {
             "tcp_port_ranges": "22 1443 2379 3306 5000 8086",
@@ -590,6 +609,9 @@ default_config_parameters = {
             # "source_addresses_prefixes": [ "52.151.0.0/16"]
         }
     },
+    "vc_config":{
+        "VC-Default":["*"],
+    }
 }
 
 # These are super scripts
@@ -598,6 +620,7 @@ scriptblocks = {
         "runscriptonall ./scripts/prepare_vm_disk.sh",
         "nfs-server create",
         "runscriptonall ./scripts/prepare_ubuntu.sh",
+        "runscriptonall ./scripts/dns.sh",
         "-y deploy",
         "-y updateworker",
         "-y kubernetes labels",

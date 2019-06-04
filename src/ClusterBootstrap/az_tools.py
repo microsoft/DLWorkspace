@@ -125,6 +125,7 @@ def create_vm_pwd(vmname, vm_ip, vm_size, use_private_ip, pwd):
                     --nsg %s \
                     --admin-username %s \
                     --storage-sku %s \
+                    --data-disk-sizes-gb 2047 \
                     %s \
         """ % (config["azure_cluster"]["resource_group_name"],
                 vmname,
@@ -159,6 +160,7 @@ def create_vm(vmname, vm_ip, bIsWorker, vm_size):
                  --nsg %s \
                  --admin-username %s \
                  --storage-sku %s \
+                 --data-disk-sizes-gb 2047 \
                  --ssh-key-value "%s"
         """ % (config["azure_cluster"]["resource_group_name"],
                vmname,
@@ -184,6 +186,7 @@ def create_vm(vmname, vm_ip, bIsWorker, vm_size):
                  --nsg %s \
                  --admin-username %s \
                  --storage-sku %s \
+                 --data-disk-sizes-gb 2047 \
                  --ssh-key-value "%s"
         """ % (config["azure_cluster"]["resource_group_name"],
                vmname,
@@ -423,10 +426,10 @@ def create_cluster(arm_vm_password=None):
         create_vm_param(0, False, True, config["azure_cluster"]["infra_vm_size"],
                         True, arm_vm_password)
     for i in range(int(config["azure_cluster"]["infra_node_num"])):
-        create_vm_param(i, False, False, config["azure_cluster"]["infra_vm_size"], 
+        create_vm_param(i, False, False, config["azure_cluster"]["infra_vm_size"],
                         arm_vm_password is not None, arm_vm_password)
     for i in range(int(config["azure_cluster"]["worker_node_num"])):
-        create_vm_param(i, True, False, config["azure_cluster"]["worker_vm_size"], 
+        create_vm_param(i, True, False, config["azure_cluster"]["worker_vm_size"],
                         arm_vm_password is not None, arm_vm_password)
 
 
@@ -694,7 +697,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
         else:
             cc["mountpoints"]["rootshare"]["type"] = "nfs"
             cc["mountpoints"]["rootshare"]["server"] = get_vm_ip(0, False, False)
-            cc["mountpoints"]["rootshare"]["filesharename"] = "/mnt/share"
+            cc["mountpoints"]["rootshare"]["filesharename"] = "/data/share"
             cc["mountpoints"]["rootshare"][
                 "curphysicalmountpoint"] = "/mntdlws/nfs"
             cc["mountpoints"]["rootshare"]["mountpoints"] = ""
@@ -814,13 +817,13 @@ Prerequest:
 * Create config.yaml according to instruction in docs/deployment/azure/configure.md.
 
 Command:
-  create Create an Azure VM cluster based on the parameters in config file. 
-  delete Delete the Azure VM cluster. 
-  scaleup Scale up operation. 
-  scaledown shutdown a particular VM. 
+  create Create an Azure VM cluster based on the parameters in config file.
+  delete Delete the Azure VM cluster.
+  scaleup Scale up operation.
+  scaledown shutdown a particular VM.
   list list VMs.
   interconnect create network links among VMs
-  genconfig Generate configuration files for Azure VM cluster. 
+  genconfig Generate configuration files for Azure VM cluster.
   ''') )
     parser.add_argument("--cluster_name",
                         help="Specify a cluster name",

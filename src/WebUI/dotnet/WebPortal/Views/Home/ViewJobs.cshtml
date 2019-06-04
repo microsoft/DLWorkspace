@@ -1,12 +1,13 @@
-﻿@{
+﻿@using Microsoft.AspNetCore.Http;
+@{
     ViewData["Title"] = "View Jobs";
 }
 
 
 <script type="text/javascript">
-    function KillJob(jobId) {
+    function KillJob(cluster, jobId) {
         $.ajax({
-            url: "/api/dlws/KillJob?jobId=" + jobId,
+            url: "/api/dlws/KillJob?cluster=" + cluster + "&jobId=" + jobId,
             dataType: 'json',
             timeout: 30000 //30 second timeout,
         }).done(
@@ -16,14 +17,14 @@
             });
     }
 
-    function ApproveJob(jobId) {
+    function ApproveJob(cluster, jobId) {
         $.ajax({
-            url: "/api/dlws/ApproveJob?jobId=" + jobId,
+            url: "/api/dlws/ApproveJob?cluster=" + cluster + "&jobId=" + jobId,
             dataType: 'json',
             timeout: 30000 //30 second timeout,
         }).done(
             function (json) {
-                layer.alert(json.log, { btn: 'Ok', title: 'Info' })
+                layer.alert(json.result, { btn: 'Ok', title: 'Info' })
                 buildTables();
             });
     }
@@ -41,8 +42,10 @@
     function addJobRow(job, table, tableColumns) {
         var tr
         tr = $('<tr/>');
+        //Cluster
+        tr.append("<td>" + job.cluster + "</td>");
         //Job ID
-        tr.append("<td> <a href='/Home/JobDetail/?jobId=" + job.jobId + "'>" + job.jobId + "</a></td>");
+        tr.append("<td> <a href='/Home/JobDetail/?cluster=" + job.cluster + "&jobId=" + job.jobId + "'>" + job.jobId + "</a></td>");
         //Job Name
         tr.append("<td>" + job.jobName + "</td>");
         //Status
@@ -56,7 +59,12 @@
 
         tr.append("<td title='" + statusMsg + "'>" + job.jobStatus + "  <a href='#' onclick=\"layer.tips('" + statusMsg + "','#infoicon" + job.jobId + "', {tips: [2, '#3090C7']});\" > <i id=\"infoicon" + job.jobId +"\" class=\"layui-icon\">&#xe60b;</i></a>  </td>");
         //GPU
-        tr.append("<td>" + job.jobParams.resourcegpu + "</td>");
+        if (job.jobParams.numpsworker && job.jobParams.numpsworker > 0 && job.jobParams.jobtrainingtype =="PSDistJob") {
+            tr.append("<td>" + job.jobParams.resourcegpu * job.jobParams.numpsworker+ "</td>");
+        }
+        else {
+            tr.append("<td>" + job.jobParams.resourcegpu + "</td>");
+        }
         //Username
         tr.append("<td>" + job.userName + "</td>");
         //Submited Time
@@ -85,12 +93,12 @@
         }
         //Kill it
         if (tableColumns.kill) {
-            tr.append("<td> <a href='#' class=\"Kill\" onclick=\"KillJob('" + job.jobId + "')\" > kill </a></td>");
+            tr.append("<td> <a href='#' class=\"Kill\" onclick=\"KillJob('" + job.cluster + "', '" + job.jobId + "')\" > kill </a></td>");
         }
         //Approval
         if (tableColumns.approval) {
             if (job.jobStatus == "unapproved") {
-                tr.append("<td> <a href='#' class=\"Admin\" onclick=\"ApproveJob('" + job.jobId + "')\" >approve</a></td>");
+                tr.append("<td> <a href='#' class=\"Admin\" onclick=\"ApproveJob('" + job.cluster + "', '" + job.jobId + "')\" >approve</a></td>");
             }
             else {
                 tr.append("<td><b class=\"Alias\" >NA</b></td>");
@@ -106,6 +114,7 @@
         var tr;
         tr = $('<tr/>');
 
+        tr.append("<th>Cluster</th>");
         tr.append("<th>Job ID</th>");
         tr.append("<th>Job Name</th>");
         tr.append("<th>Status</th>");
@@ -146,31 +155,64 @@
     }
 
     function buildTables() {
-        var apiurl = "/api/dlws/ListJobs"
+        var clusters = @Html.Raw(@Context.Session.GetString("TeamClusters"));
 
-        if (!document.getElementById('chkArchivedJobs').checked) {
-            apiurl += "?num=20"
-        }
+        $.when.apply($, $.map(clusters, function (cluster) {
+            var data = { cluster: cluster }
+            var apiurl = "/api/dlws/ListJobs"
 
-        if (showAll)
-        {
-            apiurl = "/api/dlws/ListAllJobs"
-        }
+            if (!document.getElementById('chkArchivedJobs').checked) {
+                data.num = 20
+            }
 
-        $.ajax({
-            url: (apiurl),
-            dataType: 'json',
-            timeout: 15000
-        }).done(
-            function (json) {
+            if (showAll) {
+                apiurl = "/api/dlws/ListAllJobs"
+                data.num = 100
+            }
 
-                buildJobTable($('#queued-job'), $("#queued-job-table"), json.queuedJobs, { submitTime: true, startTime: false, finishTime: false, kill: true, approval: showAll });
-                buildJobTable($('#running-job'), $("#running-job-table"), json.runningJobs, { submitTime: true, startTime: true, finishTime: false, kill: true });
-                buildJobTable($('#visualization-job'), $("#visualization-job-table"), json.visualizationJobs, { submitTime: false, startTime: true, finishTime: false, kill: true });
-                if (!showAll)
-                    buildJobTable($('#finished-job'), $("#finished-job-table"), json.finishedJobs, { submitTime: true, startTime: false, finishTime: true, kill: false });
-
+            return $.ajax({
+                url: apiurl,
+                data: data,
+                dataType: 'json',
+                timeout: 15000
+            }).then(function (data) {
+                return { cluster: cluster, data: data };
+            }, function () {
+                return undefined;
             });
+        })).then(function () {
+            const mergedData = {
+                meta: {
+                    finishedJobs: 0,
+                    queuedJobs: 0,
+                    runningJobs: 0,
+                    visualizationJobs: 0
+                },
+                finishedJobs: [],
+                queuedJobs: [],
+                runningJobs: [],
+                visualizationJobs: []
+            };
+            $.each(arguments, function () {
+                const cluster = this.cluster;
+                const data = this.data;
+                $.each(['finishedJobs', 'queuedJobs', 'runningJobs', 'visualizationJobs'], function () {
+                    mergedData.meta[this] += data.meta[this];
+                    $.each(data[this], function () {
+                        this.cluster = cluster;
+                    })
+                    mergedData[this].push.apply(mergedData[this], data[this]);
+                })
+            });
+            return mergedData;
+        }).done(function (json) {
+            buildJobTable($('#queued-job'), $("#queued-job-table"), json.queuedJobs, { submitTime: true, startTime: false, finishTime: false, kill: true, approval: showAll });
+            buildJobTable($('#running-job'), $("#running-job-table"), json.runningJobs, { submitTime: true, startTime: true, finishTime: false, kill: true });
+            buildJobTable($('#visualization-job'), $("#visualization-job-table"), json.visualizationJobs, { submitTime: false, startTime: true, finishTime: false, kill: true });
+            if (!showAll)
+                buildJobTable($('#finished-job'), $("#finished-job-table"), json.finishedJobs, { submitTime: true, startTime: false, finishTime: true, kill: false });
+
+        });
     }
 
 
@@ -215,52 +257,45 @@
 
 </script>
 
-<br />
-<br />
-<br />
 <h1>View and Manage Jobs:</h1>
 
-@if(ViewData["isAdmin"].Equals("true"))
+@if (ViewData["isAdmin"].Equals("true"))
 {
     <div role="navigation">
         <a href="#" id="your-jobs-tab" role="tab" onclick="ChangeMode(false)"><b>View and Manage Your Jobs</b></a>
         <a href="#" id="all-jobs-tab" role="tab" onclick="ChangeMode(true)"><b>View and Manage All Jobs</b></a>
     </div>
-    <br/>
-    <br/>
-    <br/>
+    <br />
+    <br />
+    <br />
 }
 
 <div id="queued-job" hidden>
     <p> <b>Queued Jobs</b></p>
-    <table id="queued-job-table" class="table table-bordered table-condensed table-hover table-striped">
-    </table>
+    <table id="queued-job-table" class="table table-bordered table-condensed table-hover table-striped"></table>
 </div>
 
 <div id="running-job" hidden>
     <p> <b>Running Jobs</b></p>
-    <table id="running-job-table" class="table table-bordered table-condensed table-hover table-striped">
-    </table>
+    <table id="running-job-table" class="table table-bordered table-condensed table-hover table-striped"></table>
 </div>
 
 <div id="visualization-job" hidden>
     <p> <b>Visualization Jobs</b></p>
-    <table id="visualization-job-table" class="table table-bordered table-condensed table-hover table-striped">
-    </table>
+    <table id="visualization-job-table" class="table table-bordered table-condensed table-hover table-striped"></table>
 </div>
 
 <div id="finished-job" hidden>
     <p>
         <b>Finished Jobs</b>
         <div style="float:right">
-            <input type="checkbox" id="chkArchivedJobs" onclick="buildTables()"/>
+            <input type="checkbox" id="chkArchivedJobs" onclick="buildTables()" />
             <label>
                 Show all finsihed jobs.
             </label>
         </div>
     </p>
-    <table id="finished-job-table" class="table table-bordered table-condensed table-hover table-striped">
-    </table>
+    <table id="finished-job-table" class="table table-bordered table-condensed table-hover table-striped"></table>
 </div>
 
 <style>
@@ -307,5 +342,4 @@
         border-top-right-radius: 3px;
         border-bottom-right-radius: 3px;
     }
-
 </style>

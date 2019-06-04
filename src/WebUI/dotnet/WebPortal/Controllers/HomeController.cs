@@ -39,6 +39,12 @@ namespace WindowsAuth.Controllers
         private readonly AppSettings _appSettings;
         private readonly ILogger _logger;
         private IAzureAdTokenService _tokenCache;
+        private string GetClusterHostname()
+        {
+            var cluster = HttpContext.Request.Query["cluster"];
+            var restapi = Startup.Clusters[cluster].Restapi;
+            return new Uri(restapi).Host;
+        }
 
         public HomeController(IOptions<AppSettings> appSettings, IAzureAdTokenService tokenCache, ILoggerFactory logger)
         {
@@ -67,14 +73,11 @@ namespace WindowsAuth.Controllers
             HttpContext.Session.SetString("gid", "9999999");
             HttpContext.Session.SetString("isAdmin", "false");
             HttpContext.Session.SetString("isAuthorized", "false");
-            HttpContext.Session.SetString("Restapi", "");
             HttpContext.Session.SetString("WorkFolderAccessPoint", "");
             HttpContext.Session.SetString("DataFolderAccessPoint", "");
-
         }
 
-        // Add user to the system, with a list of clusters that the user is authorized for
-        private async Task<bool> AddUser(UserEntry userEntry, string clusterName)
+        private void AddUserToSession(UserEntry userEntry, string clusterName)
         {
             var email = userEntry.Alias;
             HttpContext.Session.SetString("Email", userEntry.Alias);
@@ -85,24 +88,29 @@ namespace WindowsAuth.Controllers
             HttpContext.Session.SetString("isAdmin", userEntry.isAdmin);
             HttpContext.Session.SetString("isAuthorized", userEntry.isAuthorized);
             var clusterInfo = Startup.Clusters[clusterName];
-            HttpContext.Session.SetString("Restapi", clusterInfo.Restapi);
             HttpContext.Session.SetString("WorkFolderAccessPoint", clusterInfo.WorkFolderAccessPoint);
             HttpContext.Session.SetString("DataFolderAccessPoint", clusterInfo.DataFolderAccessPoint);
             HttpContext.Session.SetString("smbUsername", clusterInfo.smbUsername);
             HttpContext.Session.SetString("smbUserPassword", clusterInfo.smbUserPassword);
-
-
-            if (userEntry.isAuthorized == "true")
-            {
-                var url = clusterInfo.Restapi + "/AddUser?userName=" + HttpContext.Session.GetString("Email") + "&userId=" + userEntry.uid;
-                using (var httpClient1 = new HttpClient())
-                {
-                    var response2 = await httpClient1.GetAsync(url);
-                    var content1 = await response2.Content.ReadAsStringAsync();
-                }
-            }
+            
             _logger.LogInformation("User {0} log in, Uid {1}, Gid {2}, isAdmin {3}, isAuthorized {4}",
                                email, userEntry.uid, userEntry.gid, userEntry.isAdmin, userEntry.isAuthorized);
+        }
+
+        // Add user to the system, with a list of clusters that the user is authorized for
+        private async Task<bool> AddUser(UserID userID, List<string> groups, string clusterName)
+        {
+            var clusterInfo = Startup.Clusters[clusterName];
+            var url = clusterInfo.Restapi + "/AddUser?userName=" + HttpContext.Session.GetString("Email")
+                + "&userId=" + userID.uid
+                + "&uid=" + userID.uid
+                + "&gid=" + userID.gid
+                + "&groups=" + JsonConvert.SerializeObject(groups);
+            using (var httpClient1 = new HttpClient())
+            {
+                var response2 = await httpClient1.GetAsync(url);
+                var content1 = await response2.Content.ReadAsStringAsync();
+            }
             return true;
         }
         
@@ -630,7 +638,59 @@ namespace WindowsAuth.Controllers
             return 0;
         }*/
 
-#region ASP Controllers
+        private async Task<string[]> GetTeams()
+        {
+            var teams = new HashSet<string>();
+            var authorizedClusters = JsonConvert.DeserializeObject<List<string>>(HttpContext.Session.GetString("AuthorizedClusters"));
+
+            foreach (var cluster in authorizedClusters)
+            {
+                var restapi = Startup.Clusters[cluster].Restapi;
+                var url = restapi + "/ListVCs?userName=" + HttpContext.Session.GetString("Email");
+                using (var httpClient = new HttpClient())
+                {
+                    var response = await httpClient.GetAsync(url);
+                    var content = await response.Content.ReadAsStringAsync();
+                    var jContent = JObject.Parse(content);
+                    var jResult = jContent["result"] as JArray;
+                    foreach (var jVC in jResult)
+                    {
+                        teams.Add(jVC["vcName"].Value<string>());
+                    }
+                }
+            }
+            return teams.ToArray();
+        }
+
+        private async Task<string[]> GetTeamClusters(string team)
+        {
+            var clusters = new List<string>();
+            var authorizedClusters = JsonConvert.DeserializeObject<List<string>>(HttpContext.Session.GetString("AuthorizedClusters"));
+
+            foreach (var cluster in authorizedClusters)
+            {
+                var restapi = Startup.Clusters[cluster].Restapi;
+                var url = restapi + "/ListVCs?userName=" + HttpContext.Session.GetString("Email");
+                using (var httpClient = new HttpClient())
+                {
+                    var response = await httpClient.GetAsync(url);
+                    var content = await response.Content.ReadAsStringAsync();
+                    var jContent = JObject.Parse(content);
+                    var jResult = jContent["result"] as JArray;
+                    foreach (var jVC in jResult)
+                    {
+                        if (team == jVC["vcName"].Value<string>())
+                        {
+                            clusters.Add(cluster);
+                            break;
+                        }
+                    }
+                }
+            }
+            return clusters.ToArray();
+        }
+
+        #region ASP Controllers
         public async Task<IActionResult> Index()
         {
             if (User.Identity.IsAuthenticated && !HttpContext.Session.Keys.Contains("uid"))
@@ -676,28 +736,42 @@ namespace WindowsAuth.Controllers
                             lst.Add(userID);
                     }
                     _logger.LogDebug("User {0} group memberships {1}", email, string.Join(",", lst.SelectMany(x => x.groups).ToArray()));
+                    
+                    var groups = lst.SelectMany(x => x.groups).ToList();
+                    foreach (var userId in lst)
+                    {
+                        foreach (var pair in Startup.Clusters)
+                        {
+                            if (pair.Key != "")
+                            {
+                                await AddUser(userId, groups, pair.Key);
+                                _logger.LogInformation("User {0} is called add user to cluster {1}", email, pair.Key);
+                            }
+                        }
+                    }
 
                     var authorizedClusters = AuthenticateUserByGroupMembership(lst);
                     _logger.LogDebug("User {0} authorized clusters preDB {1}", email, string.Join(",", authorizedClusters.Keys.ToArray()));
+
                     var authorizationFinal = new Dictionary<string, UserEntry>();
                     var ret = await AuthenticateByDB(upn, tenantID, username, authorizedClusters, authorizationFinal);
                     _logger.LogDebug("User {0} authorized clusters afterDB {1}", email, string.Join(",", authorizationFinal.Keys.ToArray()));
 
                     // bRet = await AuthenticateByAAD(userObjectID, username, tenantID, upn, endpoint);
+
                     string useCluster = "";
 
                     if (authorizationFinal.Count() > 0)
                     {
                         foreach (var pair in authorizationFinal)
                         {
-
-                            await AddUser(pair.Value, pair.Key);
                             useCluster = pair.Key;
+                            AddUserToSession(pair.Value, pair.Key);
                             _logger.LogInformation("User {0} is authorized for cluster {1}", email, pair.Key);
                         }
                     }
                     // Store authorized clusters.
-                    HttpContext.Session.SetString("AuthorizedClusters", JsonConvert.SerializeObject(authorizationFinal));
+                    HttpContext.Session.SetString("AuthorizedClusters", JsonConvert.SerializeObject(authorizationFinal.Keys));
                     HttpContext.Session.SetString("CurrentClusters", useCluster);
                     var lstClusters = authorizedClusters.Keys.ToList<string>();
                     HttpContext.Session.SetString("ClustersList", JsonConvert.SerializeObject(lstClusters));
@@ -707,37 +781,32 @@ namespace WindowsAuth.Controllers
                         UserUnauthorized();
                         _logger.LogInformation("User {0} is not authorized for any cluster ... ", email);
                     }
+                    else
+                    {
+                        // Set Teams
+                        var teams = await GetTeams();
+                        if (teams.Length == 0)
+                        {
+                            // Mark user as unauthorized.
+                            UserUnauthorized();
+                            _logger.LogInformation("User {0} is not authorized for any virtual cluster ... ", email);
+                        }
+                        else
+                        {
+                            HttpContext.Session.SetString("Teams", JsonConvert.SerializeObject(teams));
+                            HttpContext.Session.SetString("Team", teams[0]);
+                            var clusters = await GetTeamClusters(teams[0]);
+                            HttpContext.Session.SetString("TeamClusters", JsonConvert.SerializeObject(clusters));
+                        }
+                    }
                 }
             }
-
-
-            var vm = new ClusterSelectViewModel();
 
             if (HttpContext.Session.Keys.Contains("isAuthorized"))
             {
                 if (HttpContext.Session.GetString("isAuthorized") == "true")
                 {
                     ViewData["isAuthorized"] = true;
-                    _logger.LogInformation("Try to render SelectCluster");
-                    var info = HttpContext.Session.GetString("CurrentClusters");
-                    ViewData["CurrentCluster"] = info;
-                    vm.CurrentCluster = info;
-                    var lstClustersInfo = HttpContext.Session.GetString("ClustersList");
-                    var lstClusters = (String.IsNullOrEmpty(info) ? new List<string>() : JsonConvert.DeserializeObject<List<string>>(lstClustersInfo));
-                    vm.ClustersList = new List<SelectListItem>();
-                    for (int i = 0; i < lstClusters.Count(); i++)
-                    {
-                        if ( !String.IsNullOrEmpty(lstClusters[i]))
-                        {
-                            vm.ClustersList.Add(new SelectListItem
-                            {
-                                Value = lstClusters[i], // (i + 1).ToString(),
-                                Text = lstClusters[i]
-                            });
-                            _logger.LogInformation("Cluster Option {0} is {1}", i + 1, lstClusters[i]);
-                        }
-                    };
-                    _logger.LogInformation("Authentication information examined...");
                 }
                 else
                 {
@@ -753,7 +822,6 @@ namespace WindowsAuth.Controllers
                 string smbUsername = HttpContext.Session.GetString("smbUsername");
                 string smbUserPassword = HttpContext.Session.GetString("smbUserPassword");
                 ViewData["Username"] = username;
-
                 ViewData["workPath"] = workFolderAccessPoint + username + "/";
                 ViewData["dataPath"] = dataFolderAccessPoint;
                 ViewData["smbUsername"] = smbUsername;
@@ -763,48 +831,54 @@ namespace WindowsAuth.Controllers
                 ViewData["Dashboard"] = Convert.ToBase64String(configArray) ;
                 _logger.LogInformation("Dash board prepared ...");
             }
-            return View(vm);
-        }
 
-        public IActionResult SelectCluster()
-        {
-            var vm = new ClusterSelectViewModel();
-            _logger.LogInformation("Try to render SelectCluster");
-            var info = HttpContext.Session.GetString("CurrentClusters");
-            vm.CurrentCluster = HttpContext.Session.GetString("ClustersList");
-            var lstClusters = (String.IsNullOrEmpty(info) ? new List<string>() : JsonConvert.DeserializeObject<List<string>>(info));
-            vm.ClustersList = new List<SelectListItem>();
-            for (int i = 0; i < lstClusters.Count(); i++)
+            if (HttpContext.Request.Query.ContainsKey("team"))
             {
-                vm.ClustersList.Add(new SelectListItem
+                var team = HttpContext.Request.Query["Team"];
+                var teams = JsonConvert.DeserializeObject<string[]>(HttpContext.Session.GetString("Teams"));
+                if (Array.Exists(teams, t => t.Equals(team)))
                 {
-                    Value = (i + 1).ToString(),
-                    Text = lstClusters[i]
-                });
-                _logger.LogInformation("Cluster Option {0} is {1}", i + 1, lstClusters[i]);
-            };
-            return View(vm);
-        }
-
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> SelectCluster(ClusterSelectViewModel model )
-        {
-            if ( ModelState.IsValid)
-            {
-                var clusterInfo = HttpContext.Session.GetString("AuthorizedClusters");
-                var authorizedClusters = JsonConvert.DeserializeObject<Dictionary<string, UserEntry>>(clusterInfo);
-                var useCluster = model.CurrentCluster;
-                if (authorizedClusters.ContainsKey(useCluster))
-                {
-                    HttpContext.Session.SetString("CurrentClusters", useCluster);
-                    await AddUser(authorizedClusters[useCluster], useCluster);
+                    HttpContext.Session.SetString("Team", team);
+                    var clusters = await GetTeamClusters(team);
+                    HttpContext.Session.SetString("TeamClusters", JsonConvert.SerializeObject(clusters));
+                    _logger.LogInformation("{0} switch team to {1}", HttpContext.Session.GetString("Username"), team);
                 }
             }
-            return RedirectToAction("Index", "Home");
+            return View();
         }
 
         public IActionResult JobSubmission()
+        {
+            if (!User.Identity.IsAuthenticated)
+            {
+                return RedirectToAction("Index", "Home");
+            }
+
+            if (!HttpContext.Session.Keys.Contains("isAuthorized") || HttpContext.Session.GetString("isAuthorized") != "true")
+            {
+                return RedirectToAction("Index", "Home");
+            }
+
+            string workFolderAccessPoint = HttpContext.Session.GetString("WorkFolderAccessPoint");
+            string dataFolderAccessPoint = HttpContext.Session.GetString("DataFolderAccessPoint");
+ 
+            ViewData["workPath"] = workFolderAccessPoint + HttpContext.Session.GetString("Username") + "/";
+            ViewData["dataPath"] = dataFolderAccessPoint;
+
+            ViewData["uid"] = HttpContext.Session.GetString("uid");
+            ViewData["gid"] = HttpContext.Session.GetString("gid");
+
+            ViewData["username"] = HttpContext.Session.GetString("Username");
+
+            ViewData["mode"] = (HttpContext.Request.Query.ContainsKey("Mode") && HttpContext.Request.Query["Mode"] == "templates") ? "Templates" : "JobSubmission";
+
+            ViewData["isAdmin"] = HttpContext.Session.GetString("isAdmin");
+            ViewData["cluster"] = HttpContext.Session.GetString("CurrentClusters");
+            AddViewData(message: "Your application description page.");
+            return View();
+        }
+
+        public IActionResult DataJob()
         {
             if (!User.Identity.IsAuthenticated)
             {
@@ -830,7 +904,7 @@ namespace WindowsAuth.Controllers
             ViewData["mode"] = (HttpContext.Request.Query.ContainsKey("Mode") && HttpContext.Request.Query["Mode"] == "templates") ? "Templates" : "JobSubmission";
 
             ViewData["isAdmin"] = HttpContext.Session.GetString("isAdmin");
-            ViewData["cluster"] =  HttpContext.Session.GetString("CurrentClusters");
+            ViewData["cluster"] = HttpContext.Session.GetString("CurrentClusters");
             AddViewData(message: "Your application description page.");
             return View();
         }
@@ -864,12 +938,16 @@ namespace WindowsAuth.Controllers
             {
                 return RedirectToAction("Index", "Home");
             }
+            var cluster = HttpContext.Request.Query["cluster"];
+            ViewData["cluster"] = cluster;
             ViewData["jobid"] = HttpContext.Request.Query["jobId"];
-            string workFolderAccessPoint = HttpContext.Session.GetString("WorkFolderAccessPoint");
+            ViewData["clusterEndpoint"] = new Uri(Startup.Clusters[cluster].Restapi).Host;
 
+            var workFolderAccessPoint = Startup.Clusters[HttpContext.Request.Query["cluster"]].WorkFolderAccessPoint;
 
             ViewData["workPath"] = (workFolderAccessPoint + HttpContext.Session.GetString("Username") + "/").Replace("file:", "").Replace("\\", "/");
             ViewData["jobPath"] = workFolderAccessPoint.Replace("file:", "").Replace("\\", "/");
+            ViewData["clusterHostname"] = GetClusterHostname();
             AddViewData(message: "View and Manage Your Jobs.");
             return View();
         }

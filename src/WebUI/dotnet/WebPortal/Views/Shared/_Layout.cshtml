@@ -5,7 +5,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - WebPortal</title>
+    <title>@ViewData["Title"] - WebPortal - Deep Learning Training Service</title>
     <link rel="stylesheet" href="~/layui/css/layui.css" media="all">
 
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
@@ -44,7 +44,7 @@
 
 
 </head>
-<body>
+<body style="padding-top: 50px">
     <div class="navbar navbar-inverse navbar-fixed-top">
         <div class="container">
             <div class="navbar-header">
@@ -60,11 +60,12 @@
                 <ul class="nav navbar-nav">
                     <li><a asp-area="" asp-controller="Home" asp-action="Index">Home</a></li>
                     <li><a asp-area="" asp-controller="Home" asp-action="JobSubmission">Submit New Job</a></li>
+                    <li><a asp-area="" asp-controller="Home" asp-action="DataJob">Submit Data Job</a></li>
                     <li><a asp-area="" asp-controller="Home" asp-action="ViewJobs">View and Manage Jobs</a></li>
                     <li><a asp-area="" asp-controller="Home" asp-action="ViewCluster">Cluster Status</a></li>
                     @if (Context.Session.GetString("isAdmin") == "true")
                     {
-                        <li><a asp-area="" asp-controller="Home" asp-action="ManageUser">Manage Users</a></li>      
+                        <li><a asp-area="" asp-controller="Home" asp-action="ManageUser">Manage Users</a></li>
                     }
                     <!--
                     <li><a href="/Home/JobSubmission/?Mode=templates">Templates</a></li>
@@ -78,11 +79,51 @@
         @RenderBody()
         <hr />
         <footer>
-            <p>&copy; 2017 - Deep Learning Workspace - WebPortal</p>
+            <p>&copy; 2017 - Deep Learning Training Service - WebPortal</p>
         </footer>
     </div>
 
+    @if (User.Identity.IsAuthenticated)
+    {
+        <script>
+            void function ($) {
+                // Teams Dropdown
+                var $teamsDropdown = $('#teams-dropdown');
+                if (!$teamsDropdown.length) return;
 
+                var clusters = @Html.Raw(@Context.Session.GetString("AuthorizedClusters"));
+
+                var nameSet = Object.create(null);
+
+                $.each(clusters, function () {
+                    $.get({
+                        url: '/api/dlws/GetVCs',
+                        data: { cluster: this },
+                        dataType: 'json'
+                    }).then(function (data) {
+                        if (data == null) return;
+                        if (!$.isArray(data.result)) return;
+                        var teams = data.result;
+                        var $teams = $.map(teams, function (element) {
+                            var name = element.vcName;
+                            if (!name || nameSet[name]) return;
+                            nameSet[name] = true;
+
+                            // Hide FreeTier when other VCs exists
+                            if (name === 'FreeTier' && teams.length > 1) return;
+
+                            // <li><a href="/?team=Team%20Name">Team Name</a></li>
+                            return $('<li>').append($('<a>', { href: '/?team=' + encodeURIComponent(name), text: name }));
+                        });
+
+                        if (!$teams.length) return;
+
+                        $teamsDropdown.removeClass('hidden').find('.dropdown-menu').append($teams);
+                    })
+                })
+            }(window.jQuery);
+        </script>
+    }
     @RenderSection("scripts", required: false)
 </body>
 </html>

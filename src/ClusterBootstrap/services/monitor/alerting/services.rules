@@ -1,0 +1,24 @@
+groups:
+    - name: services
+      rules:
+      - alert: ServicePodNotRunning
+        expr: pai_pod_count{phase!="running"} > 0
+        for: 10m
+        annotations:
+          summary: "{{$labels.name}} in {{$labels.host_ip}} not running detected"
+
+      - alert: ServicePodNotReady
+        expr: pai_pod_count{phase="running", ready="false"} > 0
+        for: 10m
+        labels:
+          type: pai_service
+        annotations:
+          summary: "{{$labels.name}} in {{$labels.host_ip}} not ready detected"
+
+      - alert: ServiceNotUp
+        expr: up != 1
+        for: 10m
+        labels:
+          type: pai_service
+        annotations:
+          summary: "{{$labels.pai_service_name}} in {{$labels.instance}} not up detected"
