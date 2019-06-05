@@ -178,7 +178,7 @@
                 </div>
 
                 <div class="modal-footer">
-                    <button type="submit" class="btn pull-right btn-primary">
+                    <button type="submit" class="btn pull-right btn-primary" ng-disabled="busy || !current.fromFolder || !current.toFolder">
                         Submit Job
                     </button>
                 </div>
