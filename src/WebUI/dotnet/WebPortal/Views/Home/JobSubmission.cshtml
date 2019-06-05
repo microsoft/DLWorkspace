@@ -459,10 +459,10 @@
                 timeout: 10000 //10 second timeout
             }).then(function (resp) {
                 var payload = $scope.$eval(resp);
-                if (payload.jobId && ($scope.extras.ssh || $scope.extras.ipython)) {
+                if (payload.jobId && ($scope.current.ssh || $scope.current.ipython)) {
                     const endpoints = [];
-                    if ($scope.extras.ssh) { endpoints.push('ssh') }
-                    if ($scope.extras.ipython) { endpoints.push('ipython') }
+                    if ($scope.current.ssh) { endpoints.push('ssh') }
+                    if ($scope.current.ipython) { endpoints.push('ipython') }
                     return $http({
                         method: "POST",
                         url: "/api/dlws/endpoints",
@@ -696,12 +696,12 @@
 
                     <div layout="row">
                         <md-input-container class="md-block" flex="50">
-                            <md-switch ng-model="extras.ssh" md-no-asterisk>
+                            <md-switch ng-model="current.ssh" md-no-asterisk>
                                 SSH
                             </md-switch>
                         </md-input-container>
                         <md-input-container class="md-block" flex="50">
-                            <md-switch ng-model="extras.ipython" md-no-asterisk>
+                            <md-switch ng-model="current.ipython" md-no-asterisk>
                                 iPython
                             </md-switch>
                         </md-input-container>
