@@ -3,7 +3,7 @@ class ResourceInfo:
         self.CategoryToCountMap = {}
         self.BlockedCategories = set()
         for key in res:
-            self.CategoryToCountMap[tag + "_" + key] = int(res[key])
+            self.CategoryToCountMap[tag + ("_" if tag else "") + key] = int(res[key])
 
     @classmethod
     def FromTypeAndCount(cls, tag, gpuType, gpucount):

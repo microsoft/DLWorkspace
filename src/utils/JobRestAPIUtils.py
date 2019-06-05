@@ -20,6 +20,8 @@ from config import global_vars
 from MyLogger import MyLogger
 from authorization import ResourceType, Permission, AuthorizationManager, IdentityManager
 import authorization
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../ClusterManager"))
+from ResourceInfo import ResourceInfo
 
 import copy
 
@@ -472,9 +474,29 @@ def ListVCs(userName):
     vcList =  dataHandler.ListVCs()
     for vc in vcList:
         if AuthorizationManager.HasAccess(userName, ResourceType.VC, vc["vcName"], Permission.User):
-            # todo : get other info (resource consumption, quota etc.) about VC?
             ret.append(vc)
     # web portal (client) can filter out Default VC
+    dataHandler.Close()
+    return ret
+
+
+def GetVC(userName, vcName):
+    ret = None
+    dataHandler = DataHandler()
+    vcList =  dataHandler.ListVCs()
+    for vc in vcList:
+        if vc["vcName"] == vcName and AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName, Permission.User):
+            totalResources = ResourceInfo("", json.loads(vc["quota"]))
+            consumedResources = ResourceInfo()
+            jobs = dataHandler.GetJobList("all",vcName,None, "running,scheduling", ("=","or"))
+            for job in jobs:
+                jobParam = json.loads(base64.b64decode(job["jobParams"]))
+                if "gpuType" in jobParam and not jobParam["preemptionAllowed"]:
+                    consumedResources.Add(ResourceInfo.FromTypeAndCount("", jobParam["gpuType"], jobParam["resourcegpu"]))
+            totalResources.Subtract(consumedResources)
+            vc["availableResources"] = totalResources.CategoryToCountMap
+            ret = vc
+            break
     dataHandler.Close()
     return ret
 
