@@ -12,8 +12,8 @@
     function buildTables() {
         $.when.apply($, $.map(clusters, function (cluster) {
             return $.ajax({
-                url: '/api/dlws/GetClusterStatus',
-                data: { cluster: cluster },
+                url: '/api/dlws/GetVCStatus',
+                data: { cluster: cluster, vcName: '@Context.Session.GetString("Team")' },
                 dataType: 'json',
                 timeout: 10000
             }).then(function (data) {
@@ -82,7 +82,8 @@
             }
         )
         $.ajax({
-            url: "/api/dlws/GetClusterStatus?cluster=" + cluster,
+            url: '/api/dlws/GetVCStatus',
+            data: { cluster: cluster, vcName: '@Context.Session.GetString("Team")' },
             dataType: 'json',
             timeout: 10000 //10 second timeout,
         }).done(
