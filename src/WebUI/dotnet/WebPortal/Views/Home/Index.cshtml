@@ -174,11 +174,13 @@ else
                 $("#cluster_storage").find("tr:gt(0)").remove();
                 $.each(clustersStorage, function (name, json) {
                     var tr;
+                    var workPath = filter(json.workPath);
+                    var dataPath = filter(json.dataPath);
                     //Append each row to html table
                     tr = $('<tr/>');
                     tr.append("<td>" + name + "</td>");
-                    tr.append("<td>" + "<a href='+ json.workPath +'>" + filter(json.workPath) + "</a>" + "</td>");
-                    tr.append("<td>" + "<a href='+ json.dataPath +'>" + filter(json.dataPath) + "</a>" + "</td>");
+                    tr.append("<td>" + "<a href=" + workPath +">" + filter(json.workPath) + "</a>" + "</td>");
+                    tr.append("<td>" + "<a href=" + dataPath +">" + filter(json.dataPath) + "</a>" + "</td>");
 
                     $('#cluster_storage').append(tr);
                 })
