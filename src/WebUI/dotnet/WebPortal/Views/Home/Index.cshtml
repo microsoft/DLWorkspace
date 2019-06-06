@@ -3,6 +3,7 @@
 
 @{
     ViewData["Title"] = "Home";
+ 
 }
 
 @if (ViewData["isAuthorized"] != null && !(bool)ViewData["isAuthorized"])
@@ -17,6 +18,7 @@
 {
     <div class="row">
         <h2>Welcome to Deep Learning Training Service, @ViewData["Username"] !</h2>
+        <span class="label label-default">Cluster Resource</span>
         <table id="cluster_status" class="table table-bordered table-condensed table-hover table-striped">
             <thead>
                 <tr>
@@ -26,7 +28,17 @@
                     <th>Used GPU</th>
                     <th>Avaliable GPU</th>
                     <th>Active Jobs</th>
-                    <th>Total Jobs</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <span class="label label-default">Cluster Storage</span>
+        <table id="cluster_storage" class="table table-bordered table-condensed table-hover table-striped">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Work Directory</th>
+                    <th>Data Directory</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -95,6 +107,7 @@ else
     <script>
         var clusters = @Html.Raw(@Context.Session.GetString("TeamClusters"));
         var clustersInfo = Object.create(null);
+        var clustersStorage = Object.create(null);
         function buildClusterTable() {
             $.when.apply($, $.map(clusters, function (cluster) {
                 return $.ajax({
@@ -131,15 +144,54 @@ else
                     tr.append("<td>" + json.gpu_used + "</td>");
                     tr.append("<td>" + json.gpu_avaliable + "</td>");
                     tr.append("<td>" + json.AvaliableJobNum + "</td>");
-                    tr.append("<td>" + json.TotalJobNum + "</td>");
 
                     $('#cluster_status').append(tr);
                 })
             })
         }
+        function buildStorageTable() {
+            $.when.apply($, $.map(clusters, function (cluster) {
+                return $.ajax({
+                    url: '/api/dlws/GetMountPoints',
+                    data: { cluster: cluster },
+                    dataType: 'json',
+                    timeout: 10000
+                }).then(function (data) {
+                    return data;
+                }).catch(function () {
+                    return;
+                });
+            })).then(function () {
+                var cluster = null
+                var args = [].slice.call(arguments);
+                $.each(clusters, function (index) {
+                    if (args[index]) {
+                        clustersStorage[this] = args[index];
+                        if (cluster == null) {
+                            cluster = this.valueOf()
+                        }
+                    }
+                });
 
+
+                $("#cluster_storage").find("tr:gt(0)").remove();
+                $.each(clustersStorage, function (name, json) {
+                    var tr;
+                    //Append each row to html table
+                    tr = $('<tr/>');
+                    tr.append("<td>" + name + "</td>");
+                    tr.append("<td>" + "<a href='+ json.workPath +'>"  + filter(json.workPath) + "</a>" + "</td>");
+                    tr.append("<td>" + "<a href='+ json.dataPath +'>" + filter(json.dataPath) + "</a>" + "</td>");
+                   
+                    $('#cluster_storage').append(tr);
+                })
+            })
+        }
+        function filter(path) {
+            return path.replace(/^file:/, "").replace(/\//g, "\\");
+        }
         buildClusterTable();
-
+        buildStorageTable();
     </script>
 }
 <!--
