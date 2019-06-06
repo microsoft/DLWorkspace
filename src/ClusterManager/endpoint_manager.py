@@ -168,6 +168,8 @@ def start_endpoints():
                 endpoint_description = json.loads(output)
                 endpoint["endpointDescription"] = endpoint_description
                 endpoint["status"] = "running"
+                if endpoint["hostNetwork"]:
+                    endpoint["port"] = endpoint_description["spec"]["ports"][0]["port"]
 
                 pod = k8sUtils.GetPod("podName=" + endpoint["podName"])
                 if "items" in pod and len(pod["items"]) > 0:

@@ -754,6 +754,28 @@ class ListVCs(Resource):
 api.add_resource(ListVCs, '/ListVCs')
 
 
+class GetVC(Resource):
+    def get(self):
+        parser.add_argument('userName')
+        parser.add_argument('vcName')
+        args = parser.parse_args()
+        userName = args["userName"]
+        vcName = args["vcName"]
+        ret = {}
+        ret["result"] = JobRestAPIUtils.GetVC(userName, vcName)
+
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(GetVC, '/GetVC')
+
+
 class AddVC(Resource):
     def get(self):
         parser.add_argument('vcName')

@@ -34,6 +34,10 @@ spec:
         - --bearer
         - /var/run/secrets/kubernetes.io/serviceaccount/token
         - https://{{ cnf["api-server-ip"] }}:443
+        {% if "vc_url" in cnf["watchdog"] %}
+        - --vc_url
+        - {{cnf["watchdog"]["vc_url"]}}
+        {% endif %}
         env:
         - name: LOGGING_LEVEL
           value: INFO
