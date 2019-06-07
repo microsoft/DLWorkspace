@@ -10,6 +10,7 @@ import datetime
 import yaml
 from jinja2 import Environment, FileSystemLoader, Template
 import base64
+from ResourceInfo import ResourceInfo
 
 import re
 
@@ -100,32 +101,39 @@ def get_cluster_status():
                 node_status    = {}
                 node_status["name"] = node["metadata"]["name"]
                 node_status["labels"] = node["metadata"]["labels"]
-                if (gpuStr in node["status"]["allocatable"]):
-                    node_status["gpu_allocatable"] = int(node["status"]["allocatable"][gpuStr])
-                else:
-                    node_status["gpu_allocatable"] = 0
-                if (gpuStr in node["status"]["capacity"]):
-                    node_status["gpu_capacity"] = int(node["status"]["capacity"][gpuStr])
-                else:
-                    node_status["gpu_capacity"] = 0
-                node_status["gpu_used"] = 0
-                node_status["InternalIP"] = "unknown"
-                node_status["pods"] = []
-                if "annotations" in node["metadata"]:
-                    if "node.alpha/DeviceInformation" in node["metadata"]["annotations"]:
-                        node_info = json.loads(node["metadata"]["annotations"]["node.alpha/DeviceInformation"])
-                        node_status["gpu_capacity"] = max(int(node_info["capacity"]["alpha.gpu/numgpu"]), node_status["gpu_capacity"])
-                        node_status["gpu_allocatable"] = max(int(node_info["allocatable"]["alpha.gpu/numgpu"]), node_status["gpu_allocatable"])
-
-                if "addresses" in node["status"]:
-                    for addr in node["status"]["addresses"]:
-                        if addr["type"] == "InternalIP":
-                            node_status["InternalIP"]  = addr["address"] 
+                node_status["gpuType"] = ""
 
                 node_status["scheduled_service"] = []
                 for l,s in node_status["labels"].iteritems():
                     if s == "active" and l != "all" and l != "default":
                         node_status["scheduled_service"].append(l)
+                    if l == "gpuType":
+                        node_status["scheduled_service"].append(s)
+                        node_status["gpuType"] = s
+
+                if (gpuStr in node["status"]["allocatable"]):
+                    node_status["gpu_allocatable"] = ResourceInfo({node_status["gpuType"]: int(node["status"]["allocatable"][gpuStr])}).ToSerializable()
+                else:
+                    node_status["gpu_allocatable"] = ResourceInfo().ToSerializable()
+                if (gpuStr in node["status"]["capacity"]):
+                    node_status["gpu_capacity"] = ResourceInfo({node_status["gpuType"] : int(node["status"]["capacity"][gpuStr])}).ToSerializable()
+                else:
+                    node_status["gpu_capacity"] = ResourceInfo().ToSerializable()
+                node_status["gpu_used"] = ResourceInfo().ToSerializable()
+                node_status["InternalIP"] = "unknown"
+                node_status["pods"] = []
+                if "annotations" in node["metadata"]:
+                    if "node.alpha/DeviceInformation" in node["metadata"]["annotations"]:
+                        node_info = json.loads(node["metadata"]["annotations"]["node.alpha/DeviceInformation"])
+                        if (int(node_info["capacity"]["alpha.gpu/numgpu"]) > ResourceInfo(node_status["gpu_capacity"]).TotalCount()):
+                            node_status["gpu_capacity"] = ResourceInfo({node_status["gpuType"]: int(node_info["capacity"]["alpha.gpu/numgpu"])}).ToSerializable()
+                        if (int(node_info["allocatable"]["alpha.gpu/numgpu"]) > ResourceInfo(node_status["gpu_allocatable"]).TotalCount()):
+                            node_status["gpu_allocatable"] = ResourceInfo({node_status["gpuType"] : int(node_info["allocatable"]["alpha.gpu/numgpu"])}).ToSerializable()
+
+                if "addresses" in node["status"]:
+                    for addr in node["status"]["addresses"]:
+                        if addr["type"] == "InternalIP":
+                            node_status["InternalIP"]  = addr["address"] 
 
                 if "unschedulable" in node["spec"] and node["spec"]["unschedulable"]:
                     node_status["unschedulable"] = True
@@ -137,9 +145,7 @@ def get_cluster_status():
                         if "type" in condi and condi["type"] == "Ready" and "status" in condi and condi["status"] == "Unknown":
                             node_status["unschedulable"] = True
 
-
                 nodes_status[node_status["name"]] = node_status
-
 
         output = k8sUtils.kubectl_exec(" get pods -o yaml")
         podsInfo = yaml.load(output)
@@ -180,56 +186,57 @@ def get_cluster_status():
                             pod_name += " (gpu #:" + str(containerGPUs) + ")"
 
                     if node_name in nodes_status:
-                        nodes_status[node_name]["gpu_used"] += gpus
+                        nodes_status[node_name]["gpu_used"] = ResourceInfo(nodes_status[node_name]["gpu_used"]).Add(ResourceInfo({nodes_status[node_name]["gpuType"] : gpus})).ToSerializable()
                         nodes_status[node_name]["pods"].append(pod_name)
 
-                if username is not None:
-                    if username not in user_status:
-                        user_status[username] = gpus
-                    else:
-                        user_status[username] += gpus
+                        if username is not None:
+                            if username not in user_status:
+                                user_status[username] = ResourceInfo({nodes_status[node_name]["gpuType"] : gpus})
+                            else:
+                                user_status[username].Add(ResourceInfo({nodes_status[node_name]["gpuType"] : gpus}))
 
-        gpu_avaliable    = 0
-        gpu_reserved    = 0
-        gpu_capacity = 0
-        gpu_unschedulable = 0
-        gpu_schedulable = 0
-        gpu_used = 0
-
+        gpu_avaliable    = ResourceInfo()
+        gpu_reserved    = ResourceInfo()
+        gpu_capacity = ResourceInfo()
+        gpu_unschedulable = ResourceInfo()
+        gpu_schedulable = ResourceInfo()
+        gpu_used = ResourceInfo()
 
         for node_name, node_status in nodes_status.iteritems():
             if node_status["unschedulable"]:
-                gpu_unschedulable += node_status["gpu_capacity"]
+                gpu_unschedulable.Add(ResourceInfo(node_status["gpu_capacity"]))
             else:
-                gpu_avaliable    += (node_status["gpu_allocatable"] - node_status["gpu_used"])
-                gpu_schedulable    += node_status["gpu_capacity"]
-                gpu_unschedulable += (node_status["gpu_capacity"] - node_status["gpu_allocatable"])
+                gpu_avaliable.Add(ResourceInfo.Difference(ResourceInfo(node_status["gpu_allocatable"]), ResourceInfo(node_status["gpu_used"])))
+                gpu_schedulable.Add(ResourceInfo(node_status["gpu_capacity"]))
+                gpu_unschedulable.Add(ResourceInfo.Difference(ResourceInfo(node_status["gpu_capacity"]), ResourceInfo(node_status["gpu_allocatable"])))
 
-            gpu_reserved += (node_status["gpu_capacity"] - node_status["gpu_allocatable"])
-            gpu_used +=node_status["gpu_used"]
-            gpu_capacity    += node_status["gpu_capacity"]
+            gpu_reserved.Add(ResourceInfo.Difference(ResourceInfo(node_status["gpu_capacity"]), ResourceInfo(node_status["gpu_allocatable"])))
+            gpu_used.Add(ResourceInfo(node_status["gpu_used"]))
+            gpu_capacity.Add(ResourceInfo(node_status["gpu_capacity"]))
 
         cluster_status["user_status"] = []
         for user_name, user_gpu in user_status.iteritems():
-            cluster_status["user_status"].append({"userName":user_name, "userGPU":user_gpu})
+            cluster_status["user_status"].append({"userName":user_name, "userGPU":user_gpu.ToSerializable()})
 
-        cluster_status["gpu_avaliable"] = gpu_avaliable
-        cluster_status["gpu_capacity"] = gpu_capacity
-        cluster_status["gpu_unschedulable"] = gpu_unschedulable
-        cluster_status["gpu_used"] = gpu_used
-        cluster_status["gpu_reserved"] = gpu_reserved
+        cluster_status["gpu_avaliable"] = gpu_avaliable.ToSerializable()
+        cluster_status["gpu_capacity"] = gpu_capacity.ToSerializable()
+        cluster_status["gpu_unschedulable"] = gpu_unschedulable.ToSerializable()
+        cluster_status["gpu_used"] = gpu_used.ToSerializable()
+        cluster_status["gpu_reserved"] = gpu_reserved.ToSerializable()
         cluster_status["node_status"] = [node_status for node_name, node_status in nodes_status.iteritems()] 
 
     except Exception as e:
-        print e
+        print(e)
+
     dataHandler = DataHandler()
     cluster_status["AvaliableJobNum"] = dataHandler.GetActiveJobsCount()
-    cluster_status["TotalJobNum"] = dataHandler.GetALLJobsCount()
+
     if "cluster_status" in config and check_cluster_status_change(config["cluster_status"],cluster_status):
         logging.info("updating the cluster status...")
         dataHandler.UpdateClusterStatus(cluster_status)
     else:
         logging.info("nothing changed in cluster, skipping the cluster status update...")
+
     config["cluster_status"] = copy.deepcopy(cluster_status)
     dataHandler.Close()
     return cluster_status

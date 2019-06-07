@@ -821,14 +821,21 @@ def JobInfoSorter(elem):
 def TakeJobActions(jobs):
     dataHandler = DataHandler()
     vcList = dataHandler.ListVCs()
+    clusterStatus, dummy = dataHandler.GetClusterStatus()
     dataHandler.Close()
 
+    globalTotalRes = ResourceInfo(clusterStatus["gpu_capacity"])
+    globalReservedRes = ResourceInfo(clusterStatus["gpu_reserved"])
+
     localResInfo = ResourceInfo()
-    globalResInfo = ResourceInfo()
+    globalResInfo = ResourceInfo.Difference(globalTotalRes, globalReservedRes)
 
     for vc in vcList:
-        localResInfo.Add(ResourceInfo(vc["vcName"], json.loads(vc["quota"])))
-        globalResInfo.Add(ResourceInfo("", json.loads(vc["quota"])))
+        vcTotalRes = ResourceInfo(json.loads(vc["quota"]), vc["vcName"])
+        clusterTotalRes = ResourceInfo(clusterStatus["gpu_capacity"], vc["vcName"])
+        clusterReservedRes = ResourceInfo(clusterStatus["gpu_reserved"], vc["vcName"])
+        vcReservedRes = clusterReservedRes.GetFraction(vcTotalRes, clusterTotalRes)
+        localResInfo.Add(ResourceInfo.Difference(vcTotalRes, vcReservedRes))
 
     jobsInfo = []
     for job in jobs:
@@ -839,8 +846,8 @@ def TakeJobActions(jobs):
             jobGpuType = "any"
             if "gpuType" in singleJobInfo["jobParams"]:
                 jobGpuType = singleJobInfo["jobParams"]["gpuType"]
-            singleJobInfo["localResInfo"] = ResourceInfo.FromTypeAndCount(job["vcName"], jobGpuType, singleJobInfo["jobParams"]["resourcegpu"])
-            singleJobInfo["globalResInfo"] = ResourceInfo.FromTypeAndCount("", jobGpuType, singleJobInfo["jobParams"]["resourcegpu"])
+            singleJobInfo["localResInfo"] = ResourceInfo({jobGpuType : singleJobInfo["jobParams"]["resourcegpu"]}, job["vcName"])
+            singleJobInfo["globalResInfo"] = ResourceInfo({jobGpuType : singleJobInfo["jobParams"]["resourcegpu"]})
             singleJobInfo["sortKey"] = str(job["jobTime"])
             if singleJobInfo["jobParams"]["preemptionAllowed"]:
                 singleJobInfo["sortKey"] = "1_" + singleJobInfo["sortKey"]
@@ -885,7 +892,7 @@ def TakeJobActions(jobs):
         if sji["job"]["jobStatus"] == "queued" and sji["allowed"] == True:
             SubmitJob(sji["job"])
             logging.info("TakeJobActions : submitting job : %s : %s : %s" % (sji["jobParams"]["jobName"], sji["jobParams"]["jobId"], sji["sortKey"]))
-        elif (sji["job"]["jobStatus"] == "scheduling" or sji["job"]["jobStatus"] == "running") and sji["allowed"] == False:
+        elif sji["jobParams"]["preemptionAllowed"] and (sji["job"]["jobStatus"] == "scheduling" or sji["job"]["jobStatus"] == "running") and sji["allowed"] == False:
             KillJob(sji["job"], "queued")
             logging.info("TakeJobActions : pre-empting job : %s : %s : %s" % (sji["jobParams"]["jobName"], sji["jobParams"]["jobId"], sji["sortKey"]))
 

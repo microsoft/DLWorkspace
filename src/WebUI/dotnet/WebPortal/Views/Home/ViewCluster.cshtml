@@ -9,11 +9,21 @@
     var clusters = @Html.Raw(@Context.Session.GetString("TeamClusters"));
     var clustersInfo = Object.create(null);
     var cluster = null;
+
+    function totalOf(value) {
+        if (typeof value === 'number') return value;
+        var total = 0;
+        $.each(value, function (key, value) {
+            total += value;
+        });
+        return total;
+    }
+
     function buildTables() {
         $.when.apply($, $.map(clusters, function (cluster) {
             return $.ajax({
-                url: '/api/dlws/GetClusterStatus',
-                data: { cluster: cluster },
+                url: '/api/dlws/GetVCStatus',
+                data: { cluster: cluster, vcName: '@Context.Session.GetString("Team")' },
                 dataType: 'json',
                 timeout: 10000
             }).then(function (data) {
@@ -55,12 +65,12 @@
                         )
                     )
                 );
-                tr.append("<td>" + json.gpu_capacity + "</td>");
-                tr.append("<td>" + json.gpu_unschedulable + "</td>");
-                tr.append("<td>" + json.gpu_used + "</td>");
-                tr.append("<td>" + json.gpu_avaliable + "</td>");
-                tr.append("<td>" + json.AvaliableJobNum + "</td>");
-                tr.append("<td>" + json.TotalJobNum + "</td>");
+                tr.append("<td>" + totalOf(json.gpu_capacity) + "</td>");
+                tr.append("<td>" + totalOf(json.gpu_unschedulable) + "</td>");
+                tr.append("<td>" + totalOf(json.gpu_used) + "</td>");
+                tr.append("<td>" + totalOf(json.gpu_avaliable) + "</td>");
+                tr.append("<td>" + totalOf(json.AvaliableJobNum) + "</td>");
+                tr.append("<td>" + totalOf(json.TotalJobNum) + "</td>");
 
                 $('#cluster_status').append(tr);
             })
@@ -82,7 +92,8 @@
             }
         )
         $.ajax({
-            url: "/api/dlws/GetClusterStatus?cluster=" + cluster,
+            url: '/api/dlws/GetVCStatus',
+            data: { cluster: cluster, vcName: '@Context.Session.GetString("Team")' },
             dataType: 'json',
             timeout: 10000 //10 second timeout,
         }).done(
@@ -135,7 +146,7 @@
                 for (var i = 0; i < json.user_status.length; i++) {
                     tr = $('<tr/>');
                     tr.append("<td>" + json.user_status[i].userName + "</td>");
-                    tr.append("<td>" + json.user_status[i].userGPU + "</td>");
+                    tr.append("<td>" + totalOf(json.user_status[i].userGPU) + "</td>");
 
                     $('#user_status').append(tr);
                 }
