@@ -500,10 +500,10 @@ def GetVC(userName, vcName):
                 username = job["userName"]
                 jobParam = json.loads(base64.b64decode(job["jobParams"]))
                 if "gpuType" in jobParam and not jobParam["preemptionAllowed"]:
-                    vcConsumedRes.Add(ResourceInfo({jobParam["gpuType"] : jobParam["resourcegpu"]}))
+                    vcConsumedRes.Add(ResourceInfo({jobParam["gpuType"] : GetJobTotalGpu(jobParam)}))
                     if username not in user_status:
                         user_status[username] = ResourceInfo()
-                    user_status[username].Add(ResourceInfo({jobParam["gpuType"] : jobParam["resourcegpu"]}))
+                    user_status[username].Add(ResourceInfo({jobParam["gpuType"] : GetJobTotalGpu(jobParam)}))
 
             vcReservedRes = clusterReservedRes.GetFraction(vcTotalRes, clusterTotalRes)
             vcAvailableRes = ResourceInfo.Difference(ResourceInfo.Difference(vcTotalRes, vcConsumedRes), vcReservedRes)
@@ -522,6 +522,13 @@ def GetVC(userName, vcName):
             break
     dataHandler.Close()
     return ret
+
+
+def GetJobTotalGpu(jobParams):
+    numWorkers = 1
+    if "numpsworker" in jobParams:
+        numWorkers = int(jobParams["numpsworker"])
+    return int(jobParams["resourcegpu"]) * numWorkers
 
 
 def DeleteVC(userName, vcName):

@@ -12,6 +12,7 @@ import copy
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
 
+from JobRestAPIUtils import GetJobTotalGpu
 from jobs_tensorboard import GenTensorboardMeta
 import k8sUtils
 import joblog_manager
@@ -564,12 +565,11 @@ def ApproveJob(job):
     return True
 
 
-
 def AutoApproveJob(job):
     cluster_status = get_cluster_status()
     jobUser = getAlias(job["userName"])
     jobParams = json.loads(base64.b64decode(job["jobParams"]))
-    jobGPU = int(jobParams["resourcegpu"])
+    jobGPU = GetJobTotalGpu(jobParams)
 
     currentGPU = 0
     for user in cluster_status["user_status"]:
@@ -846,8 +846,8 @@ def TakeJobActions(jobs):
             jobGpuType = "any"
             if "gpuType" in singleJobInfo["jobParams"]:
                 jobGpuType = singleJobInfo["jobParams"]["gpuType"]
-            singleJobInfo["localResInfo"] = ResourceInfo({jobGpuType : singleJobInfo["jobParams"]["resourcegpu"]}, job["vcName"])
-            singleJobInfo["globalResInfo"] = ResourceInfo({jobGpuType : singleJobInfo["jobParams"]["resourcegpu"]})
+            singleJobInfo["localResInfo"] = ResourceInfo({jobGpuType : GetJobTotalGpu(singleJobInfo["jobParams"])}, job["vcName"])
+            singleJobInfo["globalResInfo"] = ResourceInfo({jobGpuType : GetJobTotalGpu(singleJobInfo["jobParams"])})
             singleJobInfo["sortKey"] = str(job["jobTime"])
             if singleJobInfo["jobParams"]["preemptionAllowed"]:
                 singleJobInfo["sortKey"] = "1_" + singleJobInfo["sortKey"]
