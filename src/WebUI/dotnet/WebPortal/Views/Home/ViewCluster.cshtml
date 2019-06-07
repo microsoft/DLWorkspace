@@ -22,7 +22,7 @@
     function buildTables() {
         $.when.apply($, $.map(clusters, function (cluster) {
             return $.ajax({
-                url: '/api/dlws/GetVCStatus',
+                url: '/api/dlws/GetVC',
                 data: { cluster: cluster, vcName: '@Context.Session.GetString("Team")' },
                 dataType: 'json',
                 timeout: 10000
@@ -91,7 +91,7 @@
             }
         )
         $.ajax({
-            url: '/api/dlws/GetVCStatus',
+            url: '/api/dlws/GetVC',
             data: { cluster: cluster, vcName: '@Context.Session.GetString("Team")' },
             dataType: 'json',
             timeout: 10000 //10 second timeout,
