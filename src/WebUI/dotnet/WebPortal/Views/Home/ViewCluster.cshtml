@@ -60,7 +60,6 @@
                 tr.append("<td>" + json.gpu_used + "</td>");
                 tr.append("<td>" + json.gpu_avaliable + "</td>");
                 tr.append("<td>" + json.AvaliableJobNum + "</td>");
-                tr.append("<td>" + json.TotalJobNum + "</td>");
 
                 $('#cluster_status').append(tr);
             })
@@ -136,6 +135,7 @@
                     tr = $('<tr/>');
                     tr.append("<td>" + json.user_status[i].userName + "</td>");
                     tr.append("<td>" + json.user_status[i].userGPU + "</td>");
+                    tr.append("<td>" + json.user_status[i].userGPU + "</td>");
 
                     $('#user_status').append(tr);
                 }
@@ -165,7 +165,6 @@
             <th>Used GPU</th>
             <th>Avaliable GPU</th>
             <th>Active Jobs</th>
-            <th>Total Jobs</th>
         </tr>
     </thead>
     <tbody></tbody>
@@ -202,6 +201,7 @@
         <tr>
             <th>User Name</th>
             <th>Used GPU</th>
+            <th>Idle GPU</th>
         </tr>
     </thead>
     <tbody></tbody>
