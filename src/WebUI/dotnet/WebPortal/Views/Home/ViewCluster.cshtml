@@ -70,7 +70,6 @@
                 tr.append("<td>" + totalOf(json.gpu_used) + "</td>");
                 tr.append("<td>" + totalOf(json.gpu_avaliable) + "</td>");
                 tr.append("<td>" + totalOf(json.AvaliableJobNum) + "</td>");
-                tr.append("<td>" + totalOf(json.TotalJobNum) + "</td>");
 
                 $('#cluster_status').append(tr);
             })
@@ -102,12 +101,15 @@
                 var tr;
                 //Append each row to html table
                 for (var i = 0; i < json.node_status.length; i++) {
+                    var gpu_capacity = totalOf(json.node_status[i].gpu_capacity);
+                    var gpu_used = totalOf(json.node_status[i].gpu_used);
+                    var gpu_available = totalOf(json.node_status[i].gpu_allocatable) - totalOf(json.node_status[i].gpu_used);
                     tr = $('<tr/>');
                     tr.append("<td>" + json.node_status[i].name + "</td>");
                     tr.append("<td>" + json.node_status[i].InternalIP + "</td>");
-                    tr.append("<td>" + json.node_status[i].gpu_capacity + "</td>");
-                    tr.append("<td>" + json.node_status[i].gpu_used + "</td>");
-                    tr.append("<td>" + (json.node_status[i].gpu_allocatable - json.node_status[i].gpu_used) + "</td>");
+                    tr.append("<td>" + gpu_capacity + "</td>");
+                    tr.append("<td>" + gpu_used + "</td>");
+                    tr.append("<td>" + gpu_available  + "</td>");
                     if (json.node_status[i].unschedulable) {
                         tr.append("<td> Unschedulable </td > ");
                     }
@@ -174,9 +176,8 @@
             <th>Total GPU</th>
             <th>Reserved GPU</th>
             <th>Used GPU</th>
-            <th>Avaliable GPU</th>
+            <th>Available GPU</th>
             <th>Active Jobs</th>
-            <th>Total Jobs</th>
         </tr>
     </thead>
     <tbody></tbody>
@@ -230,7 +231,7 @@
             <th>Node IP</th>
             <th>GPU Capacity</th>
             <th>Used GPU</th>
-            <th>Avaliable GPU</th>
+            <th>Available GPU</th>
             <th>Status</th>
             <th>Services</th>
             <th>Pods</th>
