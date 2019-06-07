@@ -486,7 +486,7 @@ def GetVC(userName, vcName):
 
     clusterStatus, dummy = dataHandler.GetClusterStatus()
     clusterTotalRes = ResourceInfo(clusterStatus["gpu_capacity"])
-    clusterReservedRes = ResourceInfo(clusterStatus["gpu_reserved"])
+    clusterReservedRes = ResourceInfo(clusterStatus["gpu_unschedulable"])
 
     user_status = {}
 
@@ -510,7 +510,7 @@ def GetVC(userName, vcName):
 
             vc["gpu_capacity"] = vcTotalRes.ToSerializable()
             vc["gpu_used"] = vcConsumedRes.ToSerializable()
-            vc["gpu_reserved"] = vcReservedRes.ToSerializable()
+            vc["gpu_unschedulable"] = vcReservedRes.ToSerializable()
             vc["gpu_avaliable"] = vcAvailableRes.ToSerializable()
             vc["AvaliableJobNum"] = len(jobs)          
             vc["node_status"] = clusterStatus["node_status"]
