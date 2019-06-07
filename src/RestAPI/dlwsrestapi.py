@@ -741,8 +741,7 @@ class GetVC(Resource):
         args = parser.parse_args()
         userName = args["userName"]
         vcName = args["vcName"]
-        ret = {}
-        ret["result"] = JobRestAPIUtils.GetVC(userName, vcName)
+        ret = JobRestAPIUtils.GetVC(userName, vcName)
 
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
