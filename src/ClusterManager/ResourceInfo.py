@@ -28,7 +28,7 @@ class ResourceInfo:
         for key in self.CategoryToCountMap:
             if key in numeratorResInfo.CategoryToCountMap and key in denominatorResInfo.CategoryToCountMap:
                 fraction.Add(ResourceInfo({key : \
-                    int(math.ceil(self.CategoryToCountMap[key] * numeratorResInfo.CategoryToCountMap[key] / denominatorResInfo.CategoryToCountMap[key]))}))
+                    int(math.ceil(float(self.CategoryToCountMap[key]) * numeratorResInfo.CategoryToCountMap[key] / denominatorResInfo.CategoryToCountMap[key]))}))
         return fraction
 
     def Add(self, otherResourceInfo):
