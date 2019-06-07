@@ -309,7 +309,7 @@ def SubmitRegularJob(job):
         if retries >= 5:
             dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","error")
             dataHandler.UpdateJobTextField(jobParams["jobId"],"errorMsg","Cannot submit job!" + str(e))
-
+    dataHandler.Close()
     return ret
 
 
@@ -525,7 +525,7 @@ sleep infinity
         if retries >= 5:
             dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","error")
             dataHandler.UpdateJobTextField(jobParams["jobId"],"errorMsg","Cannot submit job!" + str(e))
-
+    dataHandler.Close()
     return ret
 
 def KillJob(job, desiredState="killed"):
@@ -545,6 +545,7 @@ def KillJob(job, desiredState="killed"):
         dataHandler.UpdateJobTextField(job["jobId"],"errorMsg","Cannot find job description file!")
 
     dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","error")
+    dataHandler.Close()
     return False
 
 
@@ -657,7 +658,7 @@ def UpdateJobStatus(job):
     if result.strip() != "Unknown" and job["jobId"] in UnusualJobs:
         del UnusualJobs[job["jobId"]]
 
-
+    dataHandler.Close()
 
 def run_dist_cmd_on_pod(podId, cmd, outputfile):
     remotecmd = "exec %s -- %s" % (podId,cmd)
@@ -802,7 +803,7 @@ Host %s
     # update job status
     dataHandler = DataHandler()
     dataHandler.UpdateJobTextField(job_id, "jobStatus", "running")
-
+    dataHandler.Close()
 
 def create_log( logdir = '/var/log/dlworkspace' ):
     if not os.path.exists( logdir ):
@@ -909,8 +910,9 @@ def Run():
         except Exception as e:
             print(e)
 
+        dataHandler = DataHandler()
         try:
-            dataHandler = DataHandler()
+            
             pendingJobs = dataHandler.GetPendingJobs()
             TakeJobActions(pendingJobs)
 
@@ -931,7 +933,7 @@ def Run():
                     logging.info(e)
         except Exception as e:
             print(str(e))
-
+        dataHandler.Close()
         time.sleep(1)
 
 
