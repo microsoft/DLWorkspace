@@ -481,20 +481,43 @@ def ListVCs(userName):
 
 
 def GetVC(userName, vcName):
-    ret = None
+    ret = None  
     dataHandler = DataHandler()
+
+    clusterStatus, dummy = dataHandler.GetClusterStatus()
+    clusterTotalRes = ResourceInfo(clusterStatus["gpu_capacity"])
+    clusterReservedRes = ResourceInfo(clusterStatus["gpu_reserved"])
+
+    user_status = {}
+
     vcList =  dataHandler.ListVCs()
     for vc in vcList:
         if vc["vcName"] == vcName and AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName, Permission.User):
-            totalResources = ResourceInfo("", json.loads(vc["quota"]))
-            consumedResources = ResourceInfo()
-            jobs = dataHandler.GetJobList("all",vcName,None, "running,scheduling", ("=","or"))
+            vcTotalRes = ResourceInfo(json.loads(vc["quota"]))
+            vcConsumedRes = ResourceInfo()
+            jobs = dataHandler.GetJobList("all",vcName,None, "running", ("=","or"))
             for job in jobs:
+                username = job["userName"]
                 jobParam = json.loads(base64.b64decode(job["jobParams"]))
                 if "gpuType" in jobParam and not jobParam["preemptionAllowed"]:
-                    consumedResources.Add(ResourceInfo.FromTypeAndCount("", jobParam["gpuType"], jobParam["resourcegpu"]))
-            totalResources.Subtract(consumedResources)
-            vc["availableResources"] = totalResources.CategoryToCountMap
+                    vcConsumedRes.Add(ResourceInfo({jobParam["gpuType"] : jobParam["resourcegpu"]}))
+                    if username not in user_status:
+                        user_status[username] = ResourceInfo()
+                    user_status[username].Add(ResourceInfo({jobParam["gpuType"] : jobParam["resourcegpu"]}))
+
+            vcReservedRes = clusterReservedRes.GetFraction(vcTotalRes, clusterTotalRes)
+            vcAvailableRes = ResourceInfo.Difference(ResourceInfo.Difference(vcTotalRes, vcConsumedRes), vcReservedRes)
+
+            vc["gpu_capacity"] = vcTotalRes.ToSerializable()
+            vc["gpu_used"] = vcConsumedRes.ToSerializable()
+            vc["gpu_reserved"] = vcReservedRes.ToSerializable()
+            vc["gpu_avaliable"] = vcAvailableRes.ToSerializable()
+            vc["AvaliableJobNum"] = len(jobs)          
+            vc["node_status"] = clusterStatus["node_status"]
+            vc["user_status"] = []
+            for user_name, user_gpu in user_status.iteritems():
+                vc["user_status"].append({"userName":user_name, "userGPU":user_gpu.ToSerializable()})
+
             ret = vc
             break
     dataHandler.Close()
