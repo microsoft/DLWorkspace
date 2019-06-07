@@ -825,7 +825,7 @@ def TakeJobActions(jobs):
     dataHandler.Close()
 
     globalTotalRes = ResourceInfo(clusterStatus["gpu_capacity"])
-    globalReservedRes = ResourceInfo(clusterStatus["gpu_reserved"])
+    globalReservedRes = ResourceInfo(clusterStatus["gpu_unschedulable"])
 
     localResInfo = ResourceInfo()
     globalResInfo = ResourceInfo.Difference(globalTotalRes, globalReservedRes)
@@ -833,7 +833,7 @@ def TakeJobActions(jobs):
     for vc in vcList:
         vcTotalRes = ResourceInfo(json.loads(vc["quota"]), vc["vcName"])
         clusterTotalRes = ResourceInfo(clusterStatus["gpu_capacity"], vc["vcName"])
-        clusterReservedRes = ResourceInfo(clusterStatus["gpu_reserved"], vc["vcName"])
+        clusterReservedRes = ResourceInfo(clusterStatus["gpu_unschedulable"], vc["vcName"])
         vcReservedRes = clusterReservedRes.GetFraction(vcTotalRes, clusterTotalRes)
         localResInfo.Add(ResourceInfo.Difference(vcTotalRes, vcReservedRes))
 
