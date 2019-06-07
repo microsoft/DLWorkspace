@@ -229,8 +229,8 @@
             
             var currentTeam = '@Context.Session.GetString("Team")';
             $http.get("/api/dlws/GetVC", { params: { cluster: cluster, vcName: currentTeam } }).then(function (response) {
-                var result = response.data.result;
-                var gpu_available = result.gpu_available || result.availableResources;
+                var result = response.data;
+                var gpu_available = result.gpu_available;
                 var quota = JSON.parse(result.quota);
 
                 $scope.gpus = {};
