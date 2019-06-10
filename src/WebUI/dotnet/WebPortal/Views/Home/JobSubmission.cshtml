@@ -237,7 +237,7 @@
                 angular.forEach(JSON.parse(result.metadata), function (value, key) {
                     var gpu = {
                         num_gpu_per_node: value.num_gpu_per_node,
-                        gpu_available: gpu_available[key],
+                        gpu_available: gpu_available[key] < 0 ? 0 : gpu_available[key],
                         quota: quota[key]
                     };
                     $scope.gpus[key] = gpu;
