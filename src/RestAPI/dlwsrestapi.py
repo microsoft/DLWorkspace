@@ -563,26 +563,6 @@ class GetClusterStatus(Resource):
 api.add_resource(GetClusterStatus, '/GetClusterStatus')
 
 
-class GetVCStatus(Resource): # Todo
-    def get(self):
-        parser.add_argument('vcName')
-        parser.add_argument('userName')
-        args = parser.parse_args()
-        vcName = args["vcName"]
-        userName = args["userName"]
-        vc_status, last_updated_time = JobRestAPIUtils.GetVCStatus(userName, vcName)
-        vc_status["last_updated_time"] = last_updated_time
-        resp = jsonify(vc_status)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
-##
-## Actually setup the Api resource routing here
-##
-api.add_resource(GetVCStatus, '/GetVCStatus')
-
-
 class AddCommand(Resource):
     def get(self):
         parser.add_argument('jobId')
@@ -761,8 +741,7 @@ class GetVC(Resource):
         args = parser.parse_args()
         userName = args["userName"]
         vcName = args["vcName"]
-        ret = {}
-        ret["result"] = JobRestAPIUtils.GetVC(userName, vcName)
+        ret = JobRestAPIUtils.GetVC(userName, vcName)
 
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"

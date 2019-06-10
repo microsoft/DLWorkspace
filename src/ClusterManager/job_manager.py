@@ -12,6 +12,7 @@ import copy
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
 
+from JobRestAPIUtils import GetJobTotalGpu
 from jobs_tensorboard import GenTensorboardMeta
 import k8sUtils
 import joblog_manager
@@ -308,7 +309,7 @@ def SubmitRegularJob(job):
         if retries >= 5:
             dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","error")
             dataHandler.UpdateJobTextField(jobParams["jobId"],"errorMsg","Cannot submit job!" + str(e))
-
+    dataHandler.Close()
     return ret
 
 
@@ -524,7 +525,7 @@ sleep infinity
         if retries >= 5:
             dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","error")
             dataHandler.UpdateJobTextField(jobParams["jobId"],"errorMsg","Cannot submit job!" + str(e))
-
+    dataHandler.Close()
     return ret
 
 def KillJob(job, desiredState="killed"):
@@ -544,6 +545,7 @@ def KillJob(job, desiredState="killed"):
         dataHandler.UpdateJobTextField(job["jobId"],"errorMsg","Cannot find job description file!")
 
     dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","error")
+    dataHandler.Close()
     return False
 
 
@@ -564,12 +566,11 @@ def ApproveJob(job):
     return True
 
 
-
 def AutoApproveJob(job):
     cluster_status = get_cluster_status()
     jobUser = getAlias(job["userName"])
     jobParams = json.loads(base64.b64decode(job["jobParams"]))
-    jobGPU = int(jobParams["resourcegpu"])
+    jobGPU = GetJobTotalGpu(jobParams)
 
     currentGPU = 0
     for user in cluster_status["user_status"]:
@@ -657,7 +658,7 @@ def UpdateJobStatus(job):
     if result.strip() != "Unknown" and job["jobId"] in UnusualJobs:
         del UnusualJobs[job["jobId"]]
 
-
+    dataHandler.Close()
 
 def run_dist_cmd_on_pod(podId, cmd, outputfile):
     remotecmd = "exec %s -- %s" % (podId,cmd)
@@ -802,7 +803,7 @@ Host %s
     # update job status
     dataHandler = DataHandler()
     dataHandler.UpdateJobTextField(job_id, "jobStatus", "running")
-
+    dataHandler.Close()
 
 def create_log( logdir = '/var/log/dlworkspace' ):
     if not os.path.exists( logdir ):
@@ -821,14 +822,21 @@ def JobInfoSorter(elem):
 def TakeJobActions(jobs):
     dataHandler = DataHandler()
     vcList = dataHandler.ListVCs()
+    clusterStatus, dummy = dataHandler.GetClusterStatus()
     dataHandler.Close()
 
+    globalTotalRes = ResourceInfo(clusterStatus["gpu_capacity"])
+    globalReservedRes = ResourceInfo(clusterStatus["gpu_unschedulable"])
+
     localResInfo = ResourceInfo()
-    globalResInfo = ResourceInfo()
+    globalResInfo = ResourceInfo.Difference(globalTotalRes, globalReservedRes)
 
     for vc in vcList:
-        localResInfo.Add(ResourceInfo(vc["vcName"], json.loads(vc["quota"])))
-        globalResInfo.Add(ResourceInfo("", json.loads(vc["quota"])))
+        vcTotalRes = ResourceInfo(json.loads(vc["quota"]), vc["vcName"])
+        clusterTotalRes = ResourceInfo(clusterStatus["gpu_capacity"], vc["vcName"])
+        clusterReservedRes = ResourceInfo(clusterStatus["gpu_unschedulable"], vc["vcName"])
+        vcReservedRes = clusterReservedRes.GetFraction(vcTotalRes, clusterTotalRes)
+        localResInfo.Add(ResourceInfo.Difference(vcTotalRes, vcReservedRes))
 
     jobsInfo = []
     for job in jobs:
@@ -839,8 +847,8 @@ def TakeJobActions(jobs):
             jobGpuType = "any"
             if "gpuType" in singleJobInfo["jobParams"]:
                 jobGpuType = singleJobInfo["jobParams"]["gpuType"]
-            singleJobInfo["localResInfo"] = ResourceInfo.FromTypeAndCount(job["vcName"], jobGpuType, singleJobInfo["jobParams"]["resourcegpu"])
-            singleJobInfo["globalResInfo"] = ResourceInfo.FromTypeAndCount("", jobGpuType, singleJobInfo["jobParams"]["resourcegpu"])
+            singleJobInfo["localResInfo"] = ResourceInfo({jobGpuType : GetJobTotalGpu(singleJobInfo["jobParams"])}, job["vcName"])
+            singleJobInfo["globalResInfo"] = ResourceInfo({jobGpuType : GetJobTotalGpu(singleJobInfo["jobParams"])})
             singleJobInfo["sortKey"] = str(job["jobTime"])
             if singleJobInfo["jobParams"]["preemptionAllowed"]:
                 singleJobInfo["sortKey"] = "1_" + singleJobInfo["sortKey"]
@@ -885,7 +893,7 @@ def TakeJobActions(jobs):
         if sji["job"]["jobStatus"] == "queued" and sji["allowed"] == True:
             SubmitJob(sji["job"])
             logging.info("TakeJobActions : submitting job : %s : %s : %s" % (sji["jobParams"]["jobName"], sji["jobParams"]["jobId"], sji["sortKey"]))
-        elif (sji["job"]["jobStatus"] == "scheduling" or sji["job"]["jobStatus"] == "running") and sji["allowed"] == False:
+        elif sji["jobParams"]["preemptionAllowed"] and (sji["job"]["jobStatus"] == "scheduling" or sji["job"]["jobStatus"] == "running") and sji["allowed"] == False:
             KillJob(sji["job"], "queued")
             logging.info("TakeJobActions : pre-empting job : %s : %s : %s" % (sji["jobParams"]["jobName"], sji["jobParams"]["jobId"], sji["sortKey"]))
 
@@ -902,8 +910,9 @@ def Run():
         except Exception as e:
             print(e)
 
+        dataHandler = DataHandler()
         try:
-            dataHandler = DataHandler()
+            
             pendingJobs = dataHandler.GetPendingJobs()
             TakeJobActions(pendingJobs)
 
@@ -924,7 +933,7 @@ def Run():
                     logging.info(e)
         except Exception as e:
             print(str(e))
-
+        dataHandler.Close()
         time.sleep(1)
 
 

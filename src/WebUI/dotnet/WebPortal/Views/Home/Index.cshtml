@@ -25,7 +25,7 @@
                     <th>Total GPU</th>
                     <th>Reserved GPU</th>
                     <th>Used GPU</th>
-                    <th>Avaliable GPU</th>
+                    <th>Available GPU</th>
                     <th>Active Jobs</th>
                 </tr>
             </thead>
@@ -107,11 +107,21 @@ else
         var clusters = @Html.Raw(@Context.Session.GetString("TeamClusters"));
         var clustersInfo = Object.create(null);
         var clustersStorage = Object.create(null);
+
+        function totalOf(value) {
+            if (typeof value === 'number') return value < 0 ? 0 : value;
+            var total = 0;
+            $.each(value, function (key, value) {
+                total += value;
+            });
+            return total < 0 ? 0 : total;
+        }
+
         function buildClusterTable() {
             $.when.apply($, $.map(clusters, function (cluster) {
                 return $.ajax({
-                    url: '/api/dlws/GetClusterStatus',
-                    data: { cluster: cluster },
+                    url: '/api/dlws/GetVC',
+                    data: { cluster: cluster, vcName: '@Context.Session.GetString("Team")' },
                     dataType: 'json',
                     timeout: 10000
                 }).then(function (data) {
@@ -138,11 +148,11 @@ else
                     //Append each row to html table
                     tr = $('<tr/>');
                     tr.append("<td>" + name + "</td>");
-                    tr.append("<td>" + json.gpu_capacity + "</td>");
-                    tr.append("<td>" + json.gpu_unschedulable + "</td>");
-                    tr.append("<td>" + json.gpu_used + "</td>");
-                    tr.append("<td>" + json.gpu_avaliable + "</td>");
-                    tr.append("<td>" + json.AvaliableJobNum + "</td>");
+                    tr.append("<td>" + totalOf(json.gpu_capacity) + "</td>");
+                    tr.append("<td>" + totalOf(json.gpu_unschedulable) + "</td>");
+                    tr.append("<td>" + totalOf(json.gpu_used) + "</td>");
+                    tr.append("<td>" + totalOf(json.gpu_avaliable) + "</td>");
+                    tr.append("<td>" + totalOf(json.AvaliableJobNum) + "</td>");
                     $('#cluster_status').append(tr);
                 })
             })
@@ -170,7 +180,7 @@ else
                         }
                     }
                 });
-                buildClusterTable();
+
                 $("#cluster_storage").find("tr:gt(0)").remove();
                 $.each(clustersStorage, function (name, json) {
                     var tr;

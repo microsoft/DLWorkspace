@@ -336,6 +336,12 @@ namespace WindowsAuth.Controllers
                         url = restapi + "/endpoints?jobId=" + HttpContext.Request.Query["jobId"] + "&userName=" + HttpContext.Session.GetString("Email");
                     }
                     break;
+                case "GetVC":
+                    if (HttpContext.Request.Query.ContainsKey("vcName"))
+                    {
+                        url = restapi + "/GetVC?userName=" + HttpContext.Session.GetString("Email") + "&vcName=" + HttpContext.Request.Query["vcName"];
+                    }
+                    break;
             }
 
             if (url != "")

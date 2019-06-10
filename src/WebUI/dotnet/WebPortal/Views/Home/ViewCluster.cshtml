@@ -9,11 +9,21 @@
     var clusters = @Html.Raw(@Context.Session.GetString("TeamClusters"));
     var clustersInfo = Object.create(null);
     var cluster = null;
+
+    function totalOf(value) {
+        if (typeof value === 'number') return value < 0 ? 0 : value;
+        var total = 0;
+        $.each(value, function (key, value) {
+            total += value;
+        });
+        return total < 0 ? 0 : total;
+    }
+
     function buildTables() {
         $.when.apply($, $.map(clusters, function (cluster) {
             return $.ajax({
-                url: '/api/dlws/GetClusterStatus',
-                data: { cluster: cluster },
+                url: '/api/dlws/GetVC',
+                data: { cluster: cluster, vcName: '@Context.Session.GetString("Team")' },
                 dataType: 'json',
                 timeout: 10000
             }).then(function (data) {
@@ -55,11 +65,11 @@
                         )
                     )
                 );
-                tr.append("<td>" + json.gpu_capacity + "</td>");
-                tr.append("<td>" + json.gpu_unschedulable + "</td>");
-                tr.append("<td>" + json.gpu_used + "</td>");
-                tr.append("<td>" + json.gpu_avaliable + "</td>");
-                tr.append("<td>" + json.AvaliableJobNum + "</td>");
+                tr.append("<td>" + totalOf(json.gpu_capacity) + "</td>");
+                tr.append("<td>" + totalOf(json.gpu_unschedulable) + "</td>");
+                tr.append("<td>" + totalOf(json.gpu_used) + "</td>");
+                tr.append("<td>" + totalOf(json.gpu_avaliable) + "</td>");
+                tr.append("<td>" + totalOf(json.AvaliableJobNum) + "</td>");
 
                 $('#cluster_status').append(tr);
             })
@@ -81,7 +91,8 @@
             }
         )
         $.ajax({
-            url: "/api/dlws/GetClusterStatus?cluster=" + cluster,
+            url: '/api/dlws/GetVC',
+            data: { cluster: cluster, vcName: '@Context.Session.GetString("Team")' },
             dataType: 'json',
             timeout: 10000 //10 second timeout,
         }).done(
@@ -90,12 +101,15 @@
                 var tr;
                 //Append each row to html table
                 for (var i = 0; i < json.node_status.length; i++) {
+                    var gpu_capacity = totalOf(json.node_status[i].gpu_capacity);
+                    var gpu_used = totalOf(json.node_status[i].gpu_used);
+                    var gpu_available = totalOf(json.node_status[i].gpu_allocatable) - totalOf(json.node_status[i].gpu_used);
                     tr = $('<tr/>');
                     tr.append("<td>" + json.node_status[i].name + "</td>");
                     tr.append("<td>" + json.node_status[i].InternalIP + "</td>");
-                    tr.append("<td>" + json.node_status[i].gpu_capacity + "</td>");
-                    tr.append("<td>" + json.node_status[i].gpu_used + "</td>");
-                    tr.append("<td>" + (json.node_status[i].gpu_allocatable - json.node_status[i].gpu_used) + "</td>");
+                    tr.append("<td>" + gpu_capacity + "</td>");
+                    tr.append("<td>" + gpu_used + "</td>");
+                    tr.append("<td>" + gpu_available  + "</td>");
                     if (json.node_status[i].unschedulable) {
                         tr.append("<td> Unschedulable </td > ");
                     }
@@ -134,7 +148,7 @@
                 for (var i = 0; i < json.user_status.length; i++) {
                     tr = $('<tr/>');
                     tr.append("<td>" + json.user_status[i].userName + "</td>");
-                    tr.append("<td>" + json.user_status[i].userGPU + "</td>");
+                    tr.append("<td>" + totalOf(json.user_status[i].userGPU) + "</td>");
 
                     $('#user_status').append(tr);
                 }
@@ -162,7 +176,7 @@
             <th>Total GPU</th>
             <th>Reserved GPU</th>
             <th>Used GPU</th>
-            <th>Avaliable GPU</th>
+            <th>Available GPU</th>
             <th>Active Jobs</th>
         </tr>
     </thead>
@@ -217,7 +231,7 @@
             <th>Node IP</th>
             <th>GPU Capacity</th>
             <th>Used GPU</th>
-            <th>Avaliable GPU</th>
+            <th>Available GPU</th>
             <th>Status</th>
             <th>Services</th>
             <th>Pods</th>

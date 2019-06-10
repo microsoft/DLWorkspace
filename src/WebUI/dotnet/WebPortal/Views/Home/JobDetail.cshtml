@@ -182,10 +182,21 @@
             });
 
             var endpointsStr = $.map(endpoints, function (endpoint) {
+                //console.log(endpoint.podName);
+                var task = "";
+
+                if (endpoint.podName) {
+                    task = endpoint.podName.split("-").pop();
+                }
+
+                if (task.indexOf("ps0") !== -1) {
+                    return "";
+                }
+                var taskInfo = task.indexOf("worker") === -1 ? "" : ", for " + task;
                 if (endpoint.name == "ssh") {
                     window.ngScope.$applyAsync('ssh = true');
                     if (endpoint.status == "running") {
-                        return "To access the container via SSH, use command: ssh -i " + "@ViewData["workPath"]" + ".ssh/id_rsa -p " + endpoint.port + " " + endpoint.username + "@@" + endpoint.nodeName + "." + endpoint.domain + "\n";
+                        return "To access the container via SSH" + taskInfo + ", use command: ssh -i " + "@ViewData["workPath"]" + ".ssh/id_rsa -p " + endpoint.port + " " + endpoint.username + "@@" + endpoint.nodeName + "." + endpoint.domain + "\n";
                     } else {
                         return;
                     }
