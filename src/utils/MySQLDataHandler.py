@@ -16,23 +16,12 @@ logger = MyLogger()
 
 
 class DataHandler:
+
+    _initialized = False
+
     def __init__(self):
         start_time = timeit.default_timer()
-
-        logger.info ("DataHandler::Init")
         self.database = "DLWSCluster-%s" % config["clusterId"]
-        server = config["mysql"]["hostname"]
-        username = config["mysql"]["username"]
-        password = config["mysql"]["password"]
-
-        self.CreateDatabase()
-
-        self.conn = mysql.connector.connect(user=username, password=password,
-                                      host=server,database=self.database)
-
-        logger.info ("Get database connection %s" % str(self.conn))
-
-        #print "Connecting to server ..."
         self.jobtablename = "jobs"
         self.identitytablename = "identity"
         self.acltablename = "acl"
@@ -40,8 +29,20 @@ class DataHandler:
         self.storagetablename = "storage"
         self.clusterstatustablename = "clusterstatus"
         self.commandtablename = "commands"
+        server = config["mysql"]["hostname"]
+        username = config["mysql"]["username"]
+        password = config["mysql"]["password"]
 
-        self.CreateTable()
+        self.conn = mysql.connector.connect(pool_name="mysqlpool", pool_size=30, 
+                                            user=username, password=password,
+                                            host=server,database=self.database)
+
+        if not DataHandler._initialized:
+            logger.info ("DataHandler::Init")                       
+            self.CreateDatabase()
+            self.CreateTable()          
+            DataHandler._initialized = True
+
         elapsed = timeit.default_timer() - start_time
         logger.info ("DataHandler initialization, time elapsed %f s" % elapsed)
 
@@ -572,7 +573,7 @@ class DataHandler:
         ret = []
         cursor = self.conn.cursor()
         try:
-            query = "SELECT `jobId`,`jobName`,`userName`, 'vcName', `jobStatus`, `jobStatusDetail`, `jobType`, `jobDescriptionPath`, `jobDescription`, `jobTime`, `endpoints`, `jobParams`,`errorMsg` ,`jobMeta` FROM `%s` where `vcName` = '%s'" % (self.jobtablename, vcName)
+            query = "SELECT `jobId`,`jobName`,`userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobDescriptionPath`, `jobDescription`, `jobTime`, `endpoints`, `jobParams`,`errorMsg` ,`jobMeta` FROM `%s` where `vcName` = '%s'" % (self.jobtablename, vcName)
             if userName != "all":
                 query += " and `userName` = '%s'" % userName
             if status is not None:
@@ -629,7 +630,7 @@ class DataHandler:
             logger.error("DataHandler_GetJob: key is not in valid keys list...")
             return []
         cursor = self.conn.cursor()
-        query = "SELECT `jobId`,`familyToken`,`isParent`,`jobName`,`userName`, 'vcName', `jobStatus`, `jobStatusDetail`, `jobType`, `jobDescriptionPath`, `jobDescription`, `jobTime`, `endpoints`, `jobParams`,`errorMsg` ,`jobMeta`  FROM `%s` where `%s` = '%s' " % (self.jobtablename,key,expected)
+        query = "SELECT `jobId`,`familyToken`,`isParent`,`jobName`,`userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobDescriptionPath`, `jobDescription`, `jobTime`, `endpoints`, `jobParams`,`errorMsg` ,`jobMeta`  FROM `%s` where `%s` = '%s' " % (self.jobtablename,key,expected)
         cursor.execute(query)
         columns = [column[0] for column in cursor.description]
         ret = [dict(zip(columns, row)) for row in cursor.fetchall()]

@@ -1,4 +1,4 @@
-from DataHandler import DataHandler
+from DataHandler import DataHandler, DataManager
 from MyLogger import MyLogger
 import json
 import requests
@@ -34,7 +34,6 @@ class AuthorizationManager:
     def _HasAccess(identityName, resourceAclPath, permissions):
         start_time = timeit.default_timer()
         requestedAccess = '%s;%s;%s' % (str(identityName), resourceAclPath, str(permissions))
-        dataHandler = DataHandler() 
         try:           
             identities = []
             identities.extend(IdentityManager.GetIdentityInfoFromDB(identityName)["groups"])
@@ -42,7 +41,7 @@ class AuthorizationManager:
             #TODO: handle isDeny
             while resourceAclPath:
                 #logger.debug('resourceAclPath ' + resourceAclPath)
-                acl = dataHandler.GetResourceAcl(resourceAclPath)
+                acl = DataManager.GetResourceAcl(resourceAclPath)
                 for ace in acl:
                     for identity in identities:
                         #logger.debug('identity %s' % identity)
@@ -60,9 +59,6 @@ class AuthorizationManager:
             logger.error('Exception: '+ str(e))
             logger.warn('No (exception) for %s in time %s' % (requestedAccess, str(timeit.default_timer() - start_time)))
             return False
-
-        finally:
-            dataHandler.Close()
 
 
     @staticmethod
@@ -207,17 +203,16 @@ class IdentityManager:
 
     @staticmethod
     def GetIdentityInfoFromDB(identityName):
-        dataHandler = DataHandler()
-        try:
-            lst = dataHandler.GetIdentityInfo(identityName)
-            if lst:
-                return lst[0]
-            else:
-                logger.warn("GetIdentityInfo : Identity %s not found in DB" % identityName)
-                info = {}
-                info["uid"] = INVALID_ID
-                info["gid"] = INVALID_ID
-                info["groups"] = [INVALID_ID]
-                return info
-        finally:
-            dataHandler.Close()
+        lst = DataManager.GetIdentityInfo(identityName)
+        if lst:
+            return lst[0]
+        else:
+            logger.warn("GetIdentityInfo : Identity %s not found in DB" % identityName)
+            info = {}
+            info["uid"] = INVALID_ID
+            info["gid"] = INVALID_ID
+            info["groups"] = [INVALID_ID]
+            
+            
+            
+            return info
