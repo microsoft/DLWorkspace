@@ -12,7 +12,7 @@ import copy
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
 
-from JobRestAPIUtils import GetJobTotalGpu, GetVC
+from JobRestAPIUtils import GetJobTotalGpu
 from jobs_tensorboard import GenTensorboardMeta
 import k8sUtils
 import joblog_manager
@@ -567,35 +567,22 @@ def ApproveJob(job):
 
 
 def AutoApproveJob(job):
-    # Get VC status
-    user_name = job["userName"]
-    vc_name = job["vcName"]
-    vc_status = GetVC(user_name, vc_name)
-    job_user = getAlias(user_name)
+    # TODO: All jobs are currently auto-approved. We need to allow
+    # configuring different policies for different VC.
+    ApproveJob(job)
+    return
 
-    # Get the GPU requirement for the current job
-    job_params = json.loads(base64.b64decode(job["jobParams"]))
-    job_gpu = GetJobTotalGpu(job_params)
+    cluster_status = get_cluster_status()
+    jobUser = getAlias(job["userName"])
+    jobParams = json.loads(base64.b64decode(job["jobParams"]))
+    jobGPU = GetJobTotalGpu(jobParams)
 
-    # Get the number of GPUs already used by the current user in this VC
-    used_gpu = 0
-    for user_status in vc_status["user_status"]:
-        if user_status["userName"] == job_user:
-            for gpu_type, gpu_count in user_status["userGPU"].iteritems():
-                used_gpu += int(gpu_count)
+    currentGPU = 0
+    for user in cluster_status["user_status"]:
+        if user["userName"] == jobUser:
+            currentGPU = int(user["userGPU"])
 
-    # TODO: Define maximum number of GPUs per user in a VC somewhere else
-    MAX_GPU_PER_USER_IN_VC = 4
-
-    # The job will be approved in any of the below cases:
-    # 1. If the user has not used any GPU in the VC.
-    # 2. If for the user, used GPU in the VC + the GPU requirement from the job
-    #    does not exceed MAX_GPU_PER_USER_IN_VC.
-    # 3. If the GPU requirement from the job is 0 (Data Job).
-    has_used_none = used_gpu == 0
-    has_quota = used_gpu + job_gpu <= MAX_GPU_PER_USER_IN_VC
-    is_cpu_job = job_gpu == 0
-    if has_used_none or has_quota or is_cpu_job:
+    if True or currentGPU == 0 or currentGPU + jobGPU <= 4:
         ApproveJob(job)
 
 
