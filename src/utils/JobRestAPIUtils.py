@@ -516,6 +516,8 @@ def GetVC(userName, vcName):
             vc["node_status"] = clusterStatus["node_status"]
             vc["user_status"] = []
             for user_name, user_gpu in user_status.iteritems():
+                # TODO: job_manager.getAlias should be put in a util file
+                user_name = user_name.split("@")[0].strip()
                 vc["user_status"].append({"userName":user_name, "userGPU":user_gpu.ToSerializable()})
 
             ret = vc
