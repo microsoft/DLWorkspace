@@ -12,7 +12,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../stor
 import yaml
 from jinja2 import Environment, FileSystemLoader, Template
 from config import config
-from DataHandler import DataHandler
+from DataHandler import DataHandler,DataManager
 import base64
 import re
 
@@ -20,6 +20,7 @@ from config import global_vars
 from MyLogger import MyLogger
 from authorization import ResourceType, Permission, AuthorizationManager, IdentityManager
 import authorization
+from cache import CacheManager
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../ClusterManager"))
 from ResourceInfo import ResourceInfo
 
@@ -211,6 +212,7 @@ def SubmitJob(jobParamsJsonStr):
 
 
     dataHandler.Close()
+    InvalidateJobListCache(jobParams["vcName"])
     return ret
 
 
@@ -225,10 +227,10 @@ def GetJobList(userName, vcName, jobOwner, num=None):
             hasAccessOnAllJobs = True
 
         if jobOwner != "all" or not hasAccessOnAllJobs:
-            jobs = jobs + dataHandler.GetJobList(userName,vcName,None, "running,queued,scheduling,unapproved", ("=","or"))
+            jobs = jobs + GetUserPendingJobs(userName, vcName)
             jobs = jobs + dataHandler.GetJobList(userName,vcName,num, "running,queued,scheduling,unapproved", ("<>","and"))
         else:
-            jobs = dataHandler.GetJobList(jobOwner,vcName,None, "error,failed,finished,killed", ("<>","and"))
+            jobs = GetUserPendingJobs(jobOwner, vcName)
 
         for job in jobs:
             job.pop('jobMeta', None)
@@ -238,6 +240,15 @@ def GetJobList(userName, vcName, jobOwner, num=None):
         logger.error('Exception: '+ str(e))
         logger.warn("Fail to get job list for user %s, return empty list" % userName)
         return []
+
+
+def GetUserPendingJobs(userName, vcName):
+    jobs = []
+    allJobs = DataManager.GetAllPendingJobs(vcName)
+    for job in allJobs:
+        if userName == "all" or userName == job["userName"]:
+            jobs.append(job)
+    return jobs
 
 
 def GetCommands(userName, jobId):
@@ -264,7 +275,13 @@ def KillJob(userName, jobId):
             else:
                 ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","killing")
     dataHandler.Close()
+    InvalidateJobListCache(jobs[0]["vcName"])
     return ret
+
+
+def InvalidateJobListCache(vcName):
+    CacheManager.Invalidate("GetAllPendingJobs", vcName)
+    DataManager.GetAllPendingJobs(vcName)
 
 
 def AddCommand(userName, jobId,command):
@@ -286,6 +303,7 @@ def ApproveJob(userName, jobId):
         if AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Admin):
             ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","queued")
     dataHandler.Close()
+    InvalidateJobListCache(jobs[0]["vcName"])
     return ret
 
 
@@ -365,10 +383,7 @@ def GetJobStatus(jobId):
     return result
 
 def GetClusterStatus():
-    job = None
-    dataHandler = DataHandler()
-    cluster_status,last_update_time =  dataHandler.GetClusterStatus()
-    dataHandler.Close()
+    cluster_status,last_update_time =  DataManager.GetClusterStatus()
     return cluster_status,last_update_time
 
 
@@ -470,40 +485,38 @@ def AddVC(userName, vcName, quota, metadata):
 
 def ListVCs(userName):
     ret = []
-    dataHandler = DataHandler()
-    vcList =  dataHandler.ListVCs()
+    vcList =  DataManager.ListVCs()
     for vc in vcList:
         if AuthorizationManager.HasAccess(userName, ResourceType.VC, vc["vcName"], Permission.User):
             ret.append(vc)
     # web portal (client) can filter out Default VC
-    dataHandler.Close()
     return ret
 
 
 def GetVC(userName, vcName):
     ret = None  
-    dataHandler = DataHandler()
 
-    clusterStatus, dummy = dataHandler.GetClusterStatus()
+    clusterStatus, dummy = DataManager.GetClusterStatus()
     clusterTotalRes = ResourceInfo(clusterStatus["gpu_capacity"])
     clusterReservedRes = ResourceInfo(clusterStatus["gpu_unschedulable"])
 
     user_status = {}
 
-    vcList =  dataHandler.ListVCs()
+    vcList =  DataManager.ListVCs()
     for vc in vcList:
         if vc["vcName"] == vcName and AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName, Permission.User):
             vcTotalRes = ResourceInfo(json.loads(vc["quota"]))
             vcConsumedRes = ResourceInfo()
-            jobs = dataHandler.GetJobList("all",vcName,None, "running", ("=","or"))
+            jobs = DataManager.GetAllPendingJobs(vcName)
             for job in jobs:
-                username = job["userName"]
-                jobParam = json.loads(base64.b64decode(job["jobParams"]))
-                if "gpuType" in jobParam and not jobParam["preemptionAllowed"]:
-                    vcConsumedRes.Add(ResourceInfo({jobParam["gpuType"] : GetJobTotalGpu(jobParam)}))
-                    if username not in user_status:
-                        user_status[username] = ResourceInfo()
-                    user_status[username].Add(ResourceInfo({jobParam["gpuType"] : GetJobTotalGpu(jobParam)}))
+                if job["jobStatus"] == "running":
+                    username = job["userName"]
+                    jobParam = json.loads(base64.b64decode(job["jobParams"]))
+                    if "gpuType" in jobParam and not jobParam["preemptionAllowed"]:
+                        vcConsumedRes.Add(ResourceInfo({jobParam["gpuType"] : GetJobTotalGpu(jobParam)}))
+                        if username not in user_status:
+                            user_status[username] = ResourceInfo()
+                        user_status[username].Add(ResourceInfo({jobParam["gpuType"] : GetJobTotalGpu(jobParam)}))
 
             vcReservedRes = clusterReservedRes.GetFraction(vcTotalRes, clusterTotalRes)
             vcAvailableRes = ResourceInfo.Difference(ResourceInfo.Difference(vcTotalRes, vcConsumedRes), vcReservedRes)
@@ -522,7 +535,6 @@ def GetVC(userName, vcName):
 
             ret = vc
             break
-    dataHandler.Close()
     return ret
 
 
