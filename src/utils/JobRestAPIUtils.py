@@ -275,7 +275,7 @@ def KillJob(userName, jobId):
             else:
                 ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","killing")
     dataHandler.Close()
-    InvalidateJobListCache(job["vcName"])
+    InvalidateJobListCache(jobs[0]["vcName"])
     return ret
 
 

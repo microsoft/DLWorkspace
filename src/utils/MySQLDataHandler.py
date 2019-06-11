@@ -573,7 +573,7 @@ class DataHandler:
         ret = []
         cursor = self.conn.cursor()
         try:
-            query = "SELECT `jobId`,`jobName`,`userName`, 'vcName', `jobStatus`, `jobStatusDetail`, `jobType`, `jobDescriptionPath`, `jobDescription`, `jobTime`, `endpoints`, `jobParams`,`errorMsg` ,`jobMeta` FROM `%s` where `vcName` = '%s'" % (self.jobtablename, vcName)
+            query = "SELECT `jobId`,`jobName`,`userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobDescriptionPath`, `jobDescription`, `jobTime`, `endpoints`, `jobParams`,`errorMsg` ,`jobMeta` FROM `%s` where `vcName` = '%s'" % (self.jobtablename, vcName)
             if userName != "all":
                 query += " and `userName` = '%s'" % userName
             if status is not None:
@@ -630,7 +630,7 @@ class DataHandler:
             logger.error("DataHandler_GetJob: key is not in valid keys list...")
             return []
         cursor = self.conn.cursor()
-        query = "SELECT `jobId`,`familyToken`,`isParent`,`jobName`,`userName`, 'vcName', `jobStatus`, `jobStatusDetail`, `jobType`, `jobDescriptionPath`, `jobDescription`, `jobTime`, `endpoints`, `jobParams`,`errorMsg` ,`jobMeta`  FROM `%s` where `%s` = '%s' " % (self.jobtablename,key,expected)
+        query = "SELECT `jobId`,`familyToken`,`isParent`,`jobName`,`userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobDescriptionPath`, `jobDescription`, `jobTime`, `endpoints`, `jobParams`,`errorMsg` ,`jobMeta`  FROM `%s` where `%s` = '%s' " % (self.jobtablename,key,expected)
         cursor.execute(query)
         columns = [column[0] for column in cursor.description]
         ret = [dict(zip(columns, row)) for row in cursor.fetchall()]

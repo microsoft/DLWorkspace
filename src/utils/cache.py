@@ -82,7 +82,7 @@ class CacheManager(object):
                     CacheManager.data[key] = [result, datetime.now() + timedelta(seconds=int(task[1]))]
                     print("Cache inserted " + key)
                 CacheManager.pendingTasks.remove(key)
-            time.sleep(1)
+            time.sleep(0.001)
 
 workerThread = threading.Thread(target=CacheManager._WorkerThreadFunc, args=())
 workerThread.daemon = True
