@@ -109,12 +109,12 @@ else
         var clustersStorage = Object.create(null);
 
         function totalOf(value) {
-            if (typeof value === 'number') return value;
+            if (typeof value === 'number') return value < 0 ? 0 : value;
             var total = 0;
             $.each(value, function (key, value) {
                 total += value;
             });
-            return total;
+            return total < 0 ? 0 : total;
         }
 
         function buildClusterTable() {
@@ -180,7 +180,7 @@ else
                         }
                     }
                 });
-                buildClusterTable();
+
                 $("#cluster_storage").find("tr:gt(0)").remove();
                 $.each(clustersStorage, function (name, json) {
                     var tr;

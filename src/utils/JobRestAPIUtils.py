@@ -555,12 +555,15 @@ def UpdateVC(userName, vcName, quota, metadata):
 
 def get_job(job_id):
     dataHandler = DataHandler()
-    return dataHandler.GetJob(jobId=job_id)[0]
+    ret = dataHandler.GetJob(jobId=job_id)[0]
+    dataHandler.Close()
+    return ret
 
 
 def update_job(job_id, field, value):
     dataHandler = DataHandler()
     dataHandler.UpdateJobTextField(job_id, field, value)
+    dataHandler.Close()
 
 if __name__ == '__main__':
     TEST_SUB_REG_JOB = False
