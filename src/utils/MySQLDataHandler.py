@@ -34,16 +34,16 @@ class DataHandler:
         password = config["mysql"]["password"]
 
         self.conn = mysql.connector.connect(user=username, password=password,
-                                            host=server, database=self.database)
+                                            host=server,database=self.database)
 
         if not DataHandler._initialized:
-            logger.info("DataHandler::Init")
+            logger.info ("DataHandler::Init")                       
             self.CreateDatabase()
-            self.CreateTable()
+            self.CreateTable()          
             DataHandler._initialized = True
 
         elapsed = timeit.default_timer() - start_time
-        logger.info("DataHandler initialization, time elapsed %f s" % elapsed)
+        logger.info ("DataHandler initialization, time elapsed %f s" % elapsed)
 
 
 
@@ -393,7 +393,7 @@ class DataHandler:
 
             if (isinstance(groups, list)):
                 groups = json.dumps(groups)
-
+            
             if len(self.GetIdentityInfo(identityName)) == 0:
                 sql = "INSERT INTO `"+self.identitytablename+"` (identityName,uid,gid,groups) VALUES (%s,%s,%s,%s)"
                 cursor.execute(sql, (identityName, uid, gid, groups))
