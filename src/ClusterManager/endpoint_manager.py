@@ -182,6 +182,7 @@ def start_endpoints():
     except Exception as e:
         traceback.print_exc()
     finally:
+        data_handler.Close()
         pass
 
 
@@ -212,6 +213,7 @@ def cleanup_endpoints():
     except Exception as e:
         traceback.print_exc()
     finally:
+        data_handler.Close()
         pass
 
 

@@ -567,18 +567,23 @@ def ApproveJob(job):
 
 
 def AutoApproveJob(job):
-    cluster_status = get_cluster_status()
-    jobUser = getAlias(job["userName"])
-    jobParams = json.loads(base64.b64decode(job["jobParams"]))
-    jobGPU = GetJobTotalGpu(jobParams)
+    # TODO: All jobs are currently auto-approved. We need to allow
+    # configuring different policies for different VC.
+    ApproveJob(job)
 
-    currentGPU = 0
-    for user in cluster_status["user_status"]:
-        if user["userName"] == jobUser:
-            currentGPU = int(user["userGPU"])
-
-    if True or currentGPU == 0 or currentGPU + jobGPU <= 4:
-        ApproveJob(job)
+    # This block is kept here for reference of the original code.
+    # cluster_status = get_cluster_status()
+    # jobUser = getAlias(job["userName"])
+    # jobParams = json.loads(base64.b64decode(job["jobParams"]))
+    # jobGPU = GetJobTotalGpu(jobParams)
+    #
+    # currentGPU = 0
+    # for user in cluster_status["user_status"]:
+    #     if user["userName"] == jobUser:
+    #         currentGPU = int(user["userGPU"])
+    #
+    # if True or currentGPU == 0 or currentGPU + jobGPU <= 4:
+    #     ApproveJob(job)
 
 
 UnusualJobs = {}
