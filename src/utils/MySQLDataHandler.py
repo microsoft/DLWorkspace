@@ -16,23 +16,12 @@ logger = MyLogger()
 
 
 class DataHandler:
+
+    _initialized = False
+
     def __init__(self):
         start_time = timeit.default_timer()
-
-        logger.info ("DataHandler::Init")
         self.database = "DLWSCluster-%s" % config["clusterId"]
-        server = config["mysql"]["hostname"]
-        username = config["mysql"]["username"]
-        password = config["mysql"]["password"]
-
-        self.CreateDatabase()
-
-        self.conn = mysql.connector.connect(user=username, password=password,
-                                      host=server,database=self.database)
-
-        logger.info ("Get database connection %s" % str(self.conn))
-
-        #print "Connecting to server ..."
         self.jobtablename = "jobs"
         self.identitytablename = "identity"
         self.acltablename = "acl"
@@ -40,8 +29,20 @@ class DataHandler:
         self.storagetablename = "storage"
         self.clusterstatustablename = "clusterstatus"
         self.commandtablename = "commands"
+        server = config["mysql"]["hostname"]
+        username = config["mysql"]["username"]
+        password = config["mysql"]["password"]
 
-        self.CreateTable()
+        self.conn = mysql.connector.connect(pool_name="mysqlpool", pool_size=30, 
+                                            user=username, password=password,
+                                            host=server,database=self.database)
+
+        if not DataHandler._initialized:
+            logger.info ("DataHandler::Init")                       
+            self.CreateDatabase()
+            self.CreateTable()          
+            DataHandler._initialized = True
+
         elapsed = timeit.default_timer() - start_time
         logger.info ("DataHandler initialization, time elapsed %f s" % elapsed)
 
