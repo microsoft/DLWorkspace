@@ -33,8 +33,7 @@ class DataHandler:
         username = config["mysql"]["username"]
         password = config["mysql"]["password"]
 
-        self.conn = mysql.connector.connect(pool_name="mysqlpool", pool_size=30, 
-                                            user=username, password=password,
+        self.conn = mysql.connector.connect(user=username, password=password,
                                             host=server,database=self.database)
 
         if not DataHandler._initialized:
