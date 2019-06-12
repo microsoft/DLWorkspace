@@ -189,7 +189,7 @@
                     task = endpoint.podName.split("-").pop();
                 }
 
-                if (task.indexOf("ps0") !== -1) {
+                if (task.indexOf("ps0") !== -1 && endpoint.name.indexOf("ssh") !== -1) {
                     return "";
                 }
                 var taskInfo = task.indexOf("worker") === -1 ? "" : ", for " + task;
