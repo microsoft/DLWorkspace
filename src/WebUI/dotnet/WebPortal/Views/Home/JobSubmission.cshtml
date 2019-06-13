@@ -226,6 +226,7 @@
                 $scope.loadTemplate();
                 //$log.log($scope.joblist);
             });
+            $scope.joblist = null;
             
             var currentTeam = '@Context.Session.GetString("Team")';
             $http.get("/api/dlws/GetVC", { params: { cluster: cluster, vcName: currentTeam } }).then(function (response) {
