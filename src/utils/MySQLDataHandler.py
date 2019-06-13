@@ -34,16 +34,16 @@ class DataHandler:
         password = config["mysql"]["password"]
 
         self.conn = mysql.connector.connect(user=username, password=password,
-                                            host=server,database=self.database)
+                                            host=server, database=self.database)
 
         if not DataHandler._initialized:
-            logger.info ("DataHandler::Init")                       
+            logger.info("DataHandler::Init")
             self.CreateDatabase()
             self.CreateTable()          
             DataHandler._initialized = True
 
         elapsed = timeit.default_timer() - start_time
-        logger.info ("DataHandler initialization, time elapsed %f s" % elapsed)
+        logger.info("DataHandler initialization, time elapsed %f s" % elapsed)
 
 
 

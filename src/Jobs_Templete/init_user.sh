@@ -23,7 +23,7 @@ echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 # export envs
 # options '-e' for exported ENVs only
 compgen -e | while read line; do
-        if [[ $line != HOME* ]] && [[ $line != INTERACTIVE* ]] && [[ $line != LS_COLORS* ]]  && [[ $line != PATH* ]] && [[ $line != P7WD* ]]; then
+        if [[ $line != HOME* ]] && [[ $line != INTERACTIVE* ]] && [[ $line != LS_COLORS* ]]  && [[ $line != PATH* ]] && [[ $line != PWD* ]]; then
             # Since bash >= 4.4 we could use
             # echo "export ${line}=${!line@Q}" >> "${ENV_FILE}" ;
             # For compatible with bash < 4.4
