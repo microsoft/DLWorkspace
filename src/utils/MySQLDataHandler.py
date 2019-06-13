@@ -18,7 +18,6 @@ logger = MyLogger()
 class DataHandler:
 
     _initialized = False
-    connpool = None
 
     def __init__(self):
         start_time = timeit.default_timer()
@@ -34,21 +33,17 @@ class DataHandler:
         username = config["mysql"]["username"]
         password = config["mysql"]["password"]
 
+        self.conn = mysql.connector.connect(user=username, password=password,
+                                            host=server, database=self.database)
+
         if not DataHandler._initialized:
-            logger.info ("DataHandler::Init")                       
+            logger.info("DataHandler::Init")
             self.CreateDatabase()
-            DataHandler.connpool = mysql.connector.connect(pool_name="mysqlpool", pool_size=30, 
-                                                            user=username, password=password,
-                                                            host=server,database=self.database)
             self.CreateTable()          
             DataHandler._initialized = True
 
-        self.conn = mysql.connector.connect(pool_name="mysqlpool", pool_size=30, 
-                                            user=username, password=password,
-                                            host=server,database=self.database)
-
         elapsed = timeit.default_timer() - start_time
-        logger.info ("DataHandler initialization, time elapsed %f s" % elapsed)
+        logger.info("DataHandler initialization, time elapsed %f s" % elapsed)
 
 
 
@@ -73,9 +68,6 @@ class DataHandler:
     def CreateTable(self):
         if "initSQLTable" not in global_vars or not global_vars["initSQLTable"]:
             logger.info("===========init SQL Tables ===============")
-            connection = mysql.connector.connect(pool_name="mysqlpool", pool_size=30, 
-                                           user=config["mysql"]["username"], password=config["mysql"]["password"],
-                                           host=config["mysql"]["hostname"],database=self.database)
             global_vars["initSQLTable"] = True
             sql = """
                 CREATE TABLE IF NOT EXISTS `%s`
@@ -109,9 +101,9 @@ class DataHandler:
                 );
                 """ % (self.jobtablename)
 
-            cursor = connection.cursor()
+            cursor = self.conn.cursor()
             cursor.execute(sql)
-            connection.commit()
+            self.conn.commit()
             cursor.close()
 
             sql = """
@@ -124,9 +116,9 @@ class DataHandler:
                 )
                 """ % (self.clusterstatustablename)
 
-            cursor = connection.cursor()
+            cursor = self.conn.cursor()
             cursor.execute(sql)
-            connection.commit()
+            self.conn.commit()
             cursor.close()
 
             sql = """
@@ -142,9 +134,9 @@ class DataHandler:
                 )
                 """ % (self.commandtablename)
 
-            cursor = connection.cursor()
+            cursor = self.conn.cursor()
             cursor.execute(sql)
-            connection.commit()
+            self.conn.commit()
             cursor.close()
 
             sql = """
@@ -163,9 +155,9 @@ class DataHandler:
                 )
                 """ % (self.storagetablename)
 
-            cursor = connection.cursor()
+            cursor = self.conn.cursor()
             cursor.execute(sql)
-            connection.commit()
+            self.conn.commit()
             cursor.close()
 
 
@@ -183,9 +175,9 @@ class DataHandler:
                 )
                 """ % (self.vctablename, self.vctablename)
 
-            cursor = connection.cursor()
+            cursor = self.conn.cursor()
             cursor.execute(sql)
-            connection.commit()
+            self.conn.commit()
             cursor.close()
 
 
@@ -202,9 +194,9 @@ class DataHandler:
                 )
                 """ % (self.identitytablename)
 
-            cursor = connection.cursor()
+            cursor = self.conn.cursor()
             cursor.execute(sql)
-            connection.commit()
+            self.conn.commit()
             cursor.close()
 
 
@@ -223,12 +215,12 @@ class DataHandler:
                 )
                 """ % (self.acltablename)
 
-            cursor = connection.cursor()
+            cursor = self.conn.cursor()
             cursor.execute(sql)
-            connection.commit()
+            self.conn.commit()
             cursor.close()
 
-            connection.close()
+            self.conn.close()
 
 
     def AddStorage(self, vcName, url, storageType, metadata, defaultMountPath):
