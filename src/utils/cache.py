@@ -74,15 +74,19 @@ class CacheManager(object):
     @staticmethod
     def _WorkerThreadFunc():
         while (True):
-            while not CacheManager.taskQueue.empty():
-                task = CacheManager.taskQueue.get()
-                key = CacheManager._GetKey(task[0].__name__, task[2])
-                if key not in CacheManager.data or CacheManager._Invalid(CacheManager.data[key]):
-                    result = task[0](*(task[2]))
-                    CacheManager.data[key] = [result, datetime.now() + timedelta(seconds=int(task[1]))]
-                    print("Cache inserted " + key)
-                CacheManager.pendingTasks.remove(key)
-            time.sleep(0.001)
+            try:
+                while not CacheManager.taskQueue.empty():
+                    task = CacheManager.taskQueue.get()
+                    key = CacheManager._GetKey(task[0].__name__, task[2])
+                    if key in CacheManager.pendingTasks:
+                        if key not in CacheManager.data or CacheManager._Invalid(CacheManager.data[key]):
+                            result = task[0](*(task[2]))
+                            CacheManager.data[key] = [result, datetime.now() + timedelta(seconds=int(task[1]))]
+                            print("Cache inserted " + key)                    
+                        CacheManager.pendingTasks.remove(key)
+                time.sleep(0.001)
+            except Exception as e:
+                print('cache exception: '+ str(e))
 
 workerThread = threading.Thread(target=CacheManager._WorkerThreadFunc, args=())
 workerThread.daemon = True
