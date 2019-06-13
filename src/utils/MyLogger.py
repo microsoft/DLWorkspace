@@ -1,6 +1,7 @@
 from config import global_vars
 import logging
 from logging.config import dictConfig
+import thread
 
 
 class MyLogger:
@@ -15,23 +16,26 @@ class MyLogger:
 
     def info(self, msg):
         self.init()
-        print msg
+        txt = str(thread.get_ident()) + " : "  + msg 
+        #print txt
         if self.logger is not None:
-            self.logger.info(msg)
+            self.logger.info(txt)
 
     def error(self, msg):
         self.init()
-        print msg
+        txt = str(thread.get_ident()) + " : "  + msg 
+        #print msg
 
         if self.logger is not None:
-            self.logger.error(msg)
+            self.logger.error(txt)
 
     def warn(self, msg):
         self.init()
-        print msg
+        txt = str(thread.get_ident()) + " : "  + msg 
+        #print msg
 
         if self.logger is not None:
-            self.logger.warn(msg)
+            self.logger.warn(txt)
 
     def debug(self, msg):
         self.init()
