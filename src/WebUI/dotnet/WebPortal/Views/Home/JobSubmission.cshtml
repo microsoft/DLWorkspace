@@ -226,6 +226,7 @@
                 $scope.loadTemplate();
                 //$log.log($scope.joblist);
             });
+            $scope.joblist = null;
             
             var currentTeam = '@Context.Session.GetString("Team")';
             $http.get("/api/dlws/GetVC", { params: { cluster: cluster, vcName: currentTeam } }).then(function (response) {
@@ -250,7 +251,7 @@
         $scope.$watch('current.jobtrainingtype', function (value) {
             if (value === 'PSDistJob') {
                 $scope.current.numps = 1;
-                $scope.current.resourcegpu = $scope.gpumeta[$scope.extras.gpuType]['num_gpu_per_node'];
+                $scope.current.resourcegpu = $scope.gpus[$scope.extras.gpuType]['num_gpu_per_node'];
             } else {
                 delete $scope.current.numps;
             }
@@ -258,7 +259,7 @@
 
         $scope.$watch('extras.gpuType', function () {
             if ($scope.current.jobtrainingtype === 'PSDistJob') {
-                $scope.current.resourcegpu = $scope.gpumeta[$scope.extras.gpuType]['num_gpu_per_node'];
+                $scope.current.resourcegpu = $scope.gpus[$scope.extras.gpuType]['num_gpu_per_node'];
             }
         })
 
@@ -629,10 +630,9 @@
                                 <md-option ng-value="{{g.Value}}" ng-repeat="g in joblist">{{ g.Text }}</md-option>
                             </md-select>
                         </md-input-container>
-
                         <md-input-container flex="50">
                             <label>Job Type</label>
-                            <md-select name="jobtrainingtype" ng-model="current.jobtrainingtype" required md-no-asterisk>
+                            <md-select name="jobtrainingtype" ng-model="current.jobtrainingtype" ng-disabled="curtemplateValue === 0 ? false : true" required md-no-asterisk>
                                 <md-option value="RegularJob" selected>Regular Job</md-option>
                                 <md-option value="PSDistJob">Distributed Job</md-option>
                             </md-select>
@@ -672,7 +672,7 @@
 
                     <md-input-container class="md-block" ng-if="current.jobtrainingtype=='RegularJob'">
                         <label> Number of GPUs  Per Worker</label>
-                        <input ng-model="current.resourcegpu" required type="number" name="resourcegpu" step="1" min="0" max="{{gpumeta[extras.gpuType]['num_gpu_per_node']}}" md-no-asterisk>
+                        <input ng-model="current.resourcegpu" required type="number" name="resourcegpu" step="1" min="0" max="{{gpus[extras.gpuType]['num_gpu_per_node']}}" md-no-asterisk>
                         <div ng-messages="jobApp.resourcegpu.$error" multiple>
                             <div ng-message="required">
                                 You have to let us know the number of gpus per worker.
@@ -921,7 +921,7 @@
                                     <div class="layui-colla-content">
                                         <md-input-container class="md-block" flex="50">
                                             <label> Use Host network in container? </label>
-                                            <md-switch class="md-primary" ng-model="current.hostNetwork" md-no-asterisk>
+                                            <md-switch class="md-primary" ng-model="current.hostNetwork" ng-disabled="current.jobtrainingtype.indexOf('Regular') !== -1 ? true : false" md-no-asterisk>
                                             </md-switch>
                                         </md-input-container>
                                     </div>
@@ -947,7 +947,7 @@
 
                                         <md-input-container class="md-block">
                                             <label> Launch privileged docker </label>
-                                            <md-switch class="md-primary" ng-model="current.isPrivileged" md-no-asterisk aria-label="isPrivileged">
+                                            <md-switch class="md-primary" ng-model="current.isPrivileged" ng-disabled="current.jobtrainingtype.indexOf('Regular') !== -1 ? true : false" md-no-asterisk aria-label="isPrivileged">
                                             </md-switch>
                                         </md-input-container>
 
