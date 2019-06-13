@@ -220,8 +220,6 @@ class DataHandler:
             self.conn.commit()
             cursor.close()
 
-            self.conn.close()
-
 
     def AddStorage(self, vcName, url, storageType, metadata, defaultMountPath):
         try:
