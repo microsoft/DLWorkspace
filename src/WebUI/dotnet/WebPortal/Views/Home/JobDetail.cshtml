@@ -8,7 +8,6 @@
 
 <script>
     var cluster = "@ViewData["cluster"]";
-    var clusterEndpoint = "@ViewData["clusterEndpoint"]";
     var elasticsearchHost = 'http://@Context.Request.Host:9200';
     var logPages;
     var logNum;
@@ -442,7 +441,7 @@
 
 <div>
     <h2> Job analytics and monitoring:</h2>
-    <iframe src="http://@ViewData["clusterHostname"]:3000/dashboard/db/job-status?var-job_name=@ViewData["jobid"]" width="100%" height="1000" frameborder="0"></iframe>
+    <iframe src="@ViewData["grafana"]/dashboard/db/job-status?var-job_name=@ViewData["jobid"]" width="100%" height="1000" frameborder="0"></iframe>
 </div>
 <style>
 
