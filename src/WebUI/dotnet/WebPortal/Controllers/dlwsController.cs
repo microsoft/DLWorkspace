@@ -86,9 +86,9 @@ namespace WindowsAuth.Controllers
         }
 
 
-        // GET api/dlws/hostname
-        [HttpGet("hostname")]
-        public string GetHostname()
+        // GET api/dlws/grafana
+        [HttpGet("grafana")]
+        public string GetGrafana()
         {
 
             var cluster = HttpContext.Request.Query["cluster"];
@@ -102,8 +102,7 @@ namespace WindowsAuth.Controllers
             {
                 return "Invalid cluster";
             }
-            var restapi = Startup.Clusters[cluster].Restapi;
-            return new Uri(restapi).Host;
+            return Startup.Clusters[cluster].Grafana;
         }
 
 

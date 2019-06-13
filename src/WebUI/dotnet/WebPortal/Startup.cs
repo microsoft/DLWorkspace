@@ -287,6 +287,7 @@ namespace WindowsAuth
 
                 }
                 clusterInfo.Restapi = clusterConfig["Restapi"] as string;
+                clusterInfo.Grafana = clusterConfig["Grafana"] as string;
                 clusterInfo.SQLDatabaseForUser = (clusterConfig["SQLDatabaseForUser"] as string) + clusterInfo.ClusterId;
                 clusterInfo.SQLHostname = clusterConfig["SQLHostname"] as string;
                 clusterInfo.SQLPassword = clusterConfig["SQLPassword"] as string;

@@ -32,6 +32,7 @@ namespace WindowsAuth.models
         public string ClusterName { get; set; }
         public string ClusterId { get; set; }
         public string Restapi { get; set; }
+        public string Grafana { get; set; }
         public string WorkFolderAccessPoint { get; set; }
         public string DataFolderAccessPoint { get; set; }
         public string smbUsername { get; set; }

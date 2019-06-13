@@ -941,13 +941,12 @@ namespace WindowsAuth.Controllers
             var cluster = HttpContext.Request.Query["cluster"];
             ViewData["cluster"] = cluster;
             ViewData["jobid"] = HttpContext.Request.Query["jobId"];
-            ViewData["clusterEndpoint"] = new Uri(Startup.Clusters[cluster].Restapi).Host;
 
             var workFolderAccessPoint = Startup.Clusters[HttpContext.Request.Query["cluster"]].WorkFolderAccessPoint;
 
             ViewData["workPath"] = (workFolderAccessPoint + HttpContext.Session.GetString("Username") + "/").Replace("file:", "").Replace("\\", "/");
             ViewData["jobPath"] = workFolderAccessPoint.Replace("file:", "").Replace("\\", "/");
-            ViewData["clusterHostname"] = GetClusterHostname();
+            ViewData["grafana"] = Startup.Clusters[cluster].Grafana;
             AddViewData(message: "View and Manage Your Jobs.");
             return View();
         }
