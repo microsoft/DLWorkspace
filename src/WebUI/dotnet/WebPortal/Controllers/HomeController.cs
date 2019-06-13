@@ -460,8 +460,8 @@ namespace WindowsAuth.Controllers
                 {
                     string password = Guid.NewGuid().ToString().Substring(0, 8);
                     UserEntry userEntry = new UserEntry(userID, email, email, password);
-                    await db.User.AddAsync(userEntry);
-                    await db.SaveChangesAsync();
+                    db.User.Add(userEntry);
+                    db.SaveChanges();
                     return userEntry;
                 }
                 else
