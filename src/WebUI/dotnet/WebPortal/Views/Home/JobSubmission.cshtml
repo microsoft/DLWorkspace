@@ -250,7 +250,7 @@
         $scope.$watch('current.jobtrainingtype', function (value) {
             if (value === 'PSDistJob') {
                 $scope.current.numps = 1;
-                $scope.current.resourcegpu = $scope.gpumeta[$scope.extras.gpuType]['num_gpu_per_node'];
+                $scope.current.resourcegpu = $scope.gpus[$scope.extras.gpuType]['num_gpu_per_node'];
             } else {
                 delete $scope.current.numps;
             }
@@ -258,7 +258,7 @@
 
         $scope.$watch('extras.gpuType', function () {
             if ($scope.current.jobtrainingtype === 'PSDistJob') {
-                $scope.current.resourcegpu = $scope.gpumeta[$scope.extras.gpuType]['num_gpu_per_node'];
+                $scope.current.resourcegpu = $scope.gpus[$scope.extras.gpuType]['num_gpu_per_node'];
             }
         })
 
@@ -672,7 +672,7 @@
 
                     <md-input-container class="md-block" ng-if="current.jobtrainingtype=='RegularJob'">
                         <label> Number of GPUs  Per Worker</label>
-                        <input ng-model="current.resourcegpu" required type="number" name="resourcegpu" step="1" min="0" max="{{gpumeta[extras.gpuType]['num_gpu_per_node']}}" md-no-asterisk>
+                        <input ng-model="current.resourcegpu" required type="number" name="resourcegpu" step="1" min="0" max="{{gpus[extras.gpuType]['num_gpu_per_node']}}" md-no-asterisk>
                         <div ng-messages="jobApp.resourcegpu.$error" multiple>
                             <div ng-message="required">
                                 You have to let us know the number of gpus per worker.
