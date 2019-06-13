@@ -10,7 +10,9 @@ import yaml
 import uuid
 
 import logging
+import timeit
 from logging.config import dictConfig
+import thread
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
 #from JobRestAPIUtils import SubmitDistJob, GetJobList, GetJobStatus, DeleteJob, GetTensorboard, GetServiceAddress, GetLog, GetJob
@@ -20,6 +22,11 @@ from config import config
 from config import global_vars
 import authorization
 from DataHandler import DataHandler
+
+import time
+import sys
+import traceback
+import threading
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 with open(os.path.join(dir_path, 'logging.yaml'), 'r') as f:
@@ -42,7 +49,28 @@ if "initAdminAccess" not in global_vars or not global_vars["initAdminAccess"]:
     logger.info('admin access given!')
 
 
-parser = reqparse.RequestParser()
+def _stacktraces():
+   code = []
+   for threadId, stack in sys._current_frames().items():
+       code.append("\n# ThreadID: %s" % threadId)
+       for filename, lineno, name, line in traceback.extract_stack(stack):
+           code.append('File: "%s", line %d, in %s' % (filename, lineno, name))
+           if line:
+               code.append("  %s" % (line.strip()))
+
+   for line in code:
+       print("_stacktrace: " + line)
+
+
+def _WorkerThreadFunc():
+   while True:
+       _stacktraces()
+       time.sleep(60)
+
+#workerThread = threading.Thread(target=_WorkerThreadFunc, args=())
+#workerThread.daemon = True
+#workerThread.start()
+
 
 def istrue(value):
     if isinstance(value, bool):
@@ -70,6 +98,7 @@ def getAlias(username):
 
 class SubmitJob(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('jobName')
         parser.add_argument('resourcegpu')
         parser.add_argument('gpuType')
@@ -284,6 +313,7 @@ api.add_resource(PostJob, '/PostJob')
 # shows a list of all todos, and lets you POST to add new tasks
 class ListJobs(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('userName')
         parser.add_argument('num')
         parser.add_argument('vcName')
@@ -351,6 +381,7 @@ api.add_resource(ListJobs, '/ListJobs')
 
 class KillJob(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('jobId')
         parser.add_argument('userName')
         args = parser.parse_args()
@@ -377,6 +408,7 @@ api.add_resource(KillJob, '/KillJob')
 
 class PauseJob(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('jobId')
         parser.add_argument('userName')
         args = parser.parse_args()
@@ -403,6 +435,7 @@ api.add_resource(PauseJob, '/PauseJob')
 
 class ResumeJob(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('jobId')
         parser.add_argument('userName')
         args = parser.parse_args()
@@ -429,6 +462,7 @@ api.add_resource(ResumeJob, '/ResumeJob')
 
 class CloneJob(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('jobId')
         parser.add_argument('userName')
         args = parser.parse_args()
@@ -455,6 +489,7 @@ api.add_resource(CloneJob, '/CloneJob')
 
 class ApproveJob(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('jobId')
         parser.add_argument('userName')
         args = parser.parse_args()
@@ -481,6 +516,7 @@ api.add_resource(ApproveJob, '/ApproveJob')
 
 class GetCommands(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('jobId')
         parser.add_argument('userName')
         args = parser.parse_args()
@@ -501,6 +537,7 @@ api.add_resource(GetCommands, '/GetCommands')
 
 class GetJobDetail(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('jobId')
         parser.add_argument('userName')
         args = parser.parse_args()
@@ -530,6 +567,7 @@ api.add_resource(GetJobDetail, '/GetJobDetail')
 
 class GetJobStatus(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('jobId')
         args = parser.parse_args()
         jobId = args["jobId"]
@@ -547,6 +585,7 @@ api.add_resource(GetJobStatus, '/GetJobStatus')
 
 class GetClusterStatus(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('userName')
         args = parser.parse_args()
         userName = args["userName"]
@@ -565,6 +604,7 @@ api.add_resource(GetClusterStatus, '/GetClusterStatus')
 
 class AddCommand(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('jobId')
         parser.add_argument('command')
         parser.add_argument('userName')
@@ -593,6 +633,7 @@ api.add_resource(AddCommand, '/AddCommand')
 
 class AddUser(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('userName')
         parser.add_argument('uid')
         parser.add_argument('gid')
@@ -630,6 +671,7 @@ api.add_resource(AddUser, '/AddUser')
 
 class UpdateAce(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('userName')
         parser.add_argument('identityName')
         parser.add_argument('resourceType')
@@ -656,6 +698,7 @@ api.add_resource(UpdateAce, '/UpdateAce')
 
 class DeleteAce(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('userName')
         parser.add_argument('identityName')
         parser.add_argument('resourceType')
@@ -680,6 +723,7 @@ api.add_resource(DeleteAce, '/DeleteAce')
 
 class IsClusterAdmin(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('userName')
         args = parser.parse_args()
         username = args["userName"]
@@ -698,6 +742,7 @@ api.add_resource(IsClusterAdmin, '/IsClusterAdmin')
 
 class GetACL(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('userName')
         args = parser.parse_args()
         username = args["userName"]
@@ -716,6 +761,7 @@ api.add_resource(GetACL, '/GetACL')
 
 class ListVCs(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('userName')
         args = parser.parse_args()
         userName = args["userName"]
@@ -736,6 +782,7 @@ api.add_resource(ListVCs, '/ListVCs')
 
 class GetVC(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('userName')
         parser.add_argument('vcName')
         args = parser.parse_args()
@@ -757,6 +804,7 @@ api.add_resource(GetVC, '/GetVC')
 
 class AddVC(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('vcName')
         parser.add_argument('quota')
         parser.add_argument('metadata')
@@ -782,6 +830,7 @@ api.add_resource(AddVC, '/AddVC')
 
 class DeleteVC(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('vcName')
         parser.add_argument('userName')
         args = parser.parse_args()
@@ -802,6 +851,7 @@ api.add_resource(DeleteVC, '/DeleteVC')
 
 class UpdateVC(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('vcName')
         parser.add_argument('quota')
         parser.add_argument('metadata')
@@ -827,6 +877,7 @@ api.add_resource(UpdateVC, '/UpdateVC')
 
 class ListStorages(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('vcName')
         parser.add_argument('userName')
         args = parser.parse_args()
@@ -847,6 +898,7 @@ api.add_resource(ListStorages, '/ListStorages')
 
 class AddStorage(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('vcName')
         parser.add_argument('storageType')
         parser.add_argument('url')
@@ -877,6 +929,7 @@ api.add_resource(AddStorage, '/AddStorage')
 
 class DeleteStorage(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('vcName')
         parser.add_argument('userName')
         parser.add_argument('url')
@@ -899,6 +952,7 @@ api.add_resource(DeleteStorage, '/DeleteStorage')
 
 class UpdateStorage(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('vcName')
         parser.add_argument('storageType')
         parser.add_argument('url')
@@ -937,6 +991,7 @@ def getAlias(username):
 class Endpoint(Resource):
     def get(self):
         '''return job["endpoints"]: curl -X GET /endpoints?jobId=...&userName=...'''
+        parser = reqparse.RequestParser()
         parser.add_argument('jobId')
         parser.add_argument('userName')
         args = parser.parse_args()
@@ -976,6 +1031,7 @@ class Endpoint(Resource):
 
     def post(self):
         '''set job["endpoints"]: curl -X POST -H "Content-Type: application/json" /endpoints --data "{'jobId': ..., 'endpoints': ['ssh', 'ipython'] }"'''
+        parser = reqparse.RequestParser()
         params = request.get_json(silent=True)
         job_id = params["jobId"]
         requested_endpoints = params["endpoints"]
