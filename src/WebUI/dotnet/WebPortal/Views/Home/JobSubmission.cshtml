@@ -629,10 +629,9 @@
                                 <md-option ng-value="{{g.Value}}" ng-repeat="g in joblist">{{ g.Text }}</md-option>
                             </md-select>
                         </md-input-container>
-
                         <md-input-container flex="50">
                             <label>Job Type</label>
-                            <md-select name="jobtrainingtype" ng-model="current.jobtrainingtype" required md-no-asterisk>
+                            <md-select name="jobtrainingtype" ng-model="current.jobtrainingtype" ng-disabled="curtemplateValue === 0 ? false : true" required md-no-asterisk>
                                 <md-option value="RegularJob" selected>Regular Job</md-option>
                                 <md-option value="PSDistJob">Distributed Job</md-option>
                             </md-select>
@@ -921,7 +920,7 @@
                                     <div class="layui-colla-content">
                                         <md-input-container class="md-block" flex="50">
                                             <label> Use Host network in container? </label>
-                                            <md-switch class="md-primary" ng-model="current.hostNetwork" md-no-asterisk>
+                                            <md-switch class="md-primary" ng-disabled=" joblist[curtemplateValue].Name.indexOf('DeepScale1.0-Regular')!== -1 || current.jobtrainingtype.indexOf('Regular') !== -1 ? true : false " ng-model="current.hostNetwork" md-no-asterisk>
                                             </md-switch>
                                         </md-input-container>
                                     </div>
@@ -947,7 +946,7 @@
 
                                         <md-input-container class="md-block">
                                             <label> Launch privileged docker </label>
-                                            <md-switch class="md-primary" ng-model="current.isPrivileged" md-no-asterisk aria-label="isPrivileged">
+                                            <md-switch class="md-primary" ng-model="current.isPrivileged" ng-disabled=" joblist[curtemplateValue].Name.indexOf('DeepScale1.0-Regular')!== -1 || current.jobtrainingtype.indexOf('Regular') !== -1 ? true : false " md-no-asterisk aria-label="isPrivileged">
                                             </md-switch>
                                         </md-input-container>
 
