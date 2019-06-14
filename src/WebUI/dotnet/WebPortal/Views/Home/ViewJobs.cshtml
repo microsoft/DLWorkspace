@@ -152,6 +152,7 @@
             }
             table.append(tbody);
         }
+        removeIcon();
     }
 
     function buildTables() {
@@ -211,10 +212,92 @@
             buildJobTable($('#visualization-job'), $("#visualization-job-table"), json.visualizationJobs, { submitTime: false, startTime: true, finishTime: false, kill: true });
             if (!showAll)
                 buildJobTable($('#finished-job'), $("#finished-job-table"), json.finishedJobs, { submitTime: true, startTime: false, finishTime: true, kill: false });
-
+            $("table tbody tr").hide()
+                .filter(":contains('" + (localStorage.getItem('keyword')) + "')").show();
+            if (typeof (Storage) !== "undefined") {
+                makeAllSortable();
+            }
         });
     }
 
+    function sortTable(table, col, reverse) {
+        var tb = table.tBodies[0], // use `<tbody>` to ignore `<thead>` and `<tfoot>` rows
+            tr = Array.prototype.slice.call(tb.rows, 0), // put rows into array
+            i;
+        reverse = -((+reverse) || -1);
+        tr = tr.sort(function (a, b) { // sort rows
+            var val1;
+            var val2;
+            if (a.cells[col] && b.cells[col]) {
+                 val1 = a.cells[col].textContent;
+                val2 = b.cells[col].textContent;
+                var res = isNaN(Date.parse(val1)) && isNaN(Date.parse(val2)) ? val1.trim().localeCompare(val2.trim()) : Date.parse(val1) - Date.parse(val2);
+                return reverse // `-1 *` if want opposite order
+                    * (res);
+            }
+        });
+        for (i = 0; i < tr.length; ++i) tb.appendChild(tr[i]); // append each row in order
+    }
+
+    function removeIcon() {
+        var previcons = document.querySelectorAll("i");
+        previcons.forEach(function (previcon) {
+            if (previcon.className.indexOf("glyphicon") !== -1) {
+                previcon.remove();
+            }
+        })
+    }
+
+    function makeSortable(table) {
+        var th = table.tHead, i;
+        th && (th = th.rows[0]) && (th = th.cells);
+        if (th) i = th.length;
+        else return; // if no `<thead>` then do nothing
+        while (--i >= 0) (function (i) {
+            var dir = 1;
+            var sorted = false;
+            if (th[i].innerHTML.indexOf("Kill Job") === -1 && th[i].innerHTML.indexOf("Approval") === -1 ) {
+                th[i].addEventListener('click', function () {
+                    removeIcon();
+                    sorted = !sorted;
+                    var tableId = th[i].closest('table').id;        
+                    var icon = document.createElement("i");
+                    dir = 1 - dir;
+                    localStorage.setItem("idx", i);
+                    localStorage.setItem("dir", dir);
+                    localStorage.setItem("tableId", tableId);
+                    localStorage.setItem("sorted", sorted);
+                    icon.className = localStorage.getItem("sorted").indexOf("true") !== -1 ? "glyphicon glyphicon-arrow-down" : "glyphicon glyphicon-arrow-up";
+                    th[i].appendChild(icon);
+                    sortTable(table, i, localStorage.getItem("dir"));
+                });
+            }
+        }(i));
+        var icon = document.createElement("i");
+        if (localStorage.getItem("sorted")) {
+            icon.className = localStorage.getItem("sorted").indexOf("true") !== -1 ? "glyphicon glyphicon-arrow-down" : "glyphicon glyphicon-arrow-up";
+        }    
+        var idx;
+        if (localStorage.getItem("idx")) {
+             idx = localStorage.getItem("idx");
+        }
+        if (localStorage.getItem('tableId')) {
+            var prevTableId = localStorage.getItem('tableId');
+            if (th[idx].closest('table').id.indexOf(prevTableId) !== -1) {
+                th[idx].appendChild(icon);
+            }
+        }
+        sortTable(table, idx, localStorage.getItem("dir"));
+    }
+
+    function makeAllSortable(parent) {
+        removeIcon();
+        parent = parent || document.body;
+        var t = parent.getElementsByTagName('table'), i = t.length;
+        while (--i >= 0) {            
+            makeSortable(t[i]);   
+        } 
+    }
 
     function refreshJobs()
     {
@@ -223,9 +306,25 @@
         }
     }
 
+    function searchKeyWord() {
+        $(function () {
+            $("#txtSearch").keyup(function () {
+                var keyWord = $(this).val();
+                if (typeof (Storage) !== "undefined") {
+                    localStorage.setItem("keyword",$(this).val());
+                }
+                $("table tbody tr").hide()
+                    .filter(":contains('" + (localStorage.getItem('keyword')) + "')").show();
+            }).keyup();
+        });
+    }
+
     $(document).ready(function () {
-        ChangeMode(false)
+        searchKeyWord();
+        ChangeMode(false);    
+        makeAllSortable();
         var refresh = setInterval(function () {
+            makeAllSortable();
             refreshJobs();
         }, 15000);
         $(document).tooltip({
@@ -268,6 +367,13 @@
     <br />
     <br />
     <br />
+    <div class="row">
+        <div class="col-xs-6 col-md-4">
+            <div class="input-group">
+                <input type="text" class="form-control" placeholder="Search" id="txtSearch" />
+            </div>
+        </div>
+    </div>
 }
 
 <div id="queued-job" hidden>
@@ -341,5 +447,9 @@
     .right-tab {
         border-top-right-radius: 3px;
         border-bottom-right-radius: 3px;
+    }
+
+    th {
+        white-space: nowrap;
     }
 </style>
