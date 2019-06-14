@@ -30,7 +30,7 @@
 
 
 <script>
-    var sorted = false;
+    var showAll = false;
 
     function DatetoStr(date) {
         var submitTimeStr = date.getFullYear() + "/" + (date.getMonth() + 1) + "/" + date.getDate() + " " + date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds();
@@ -107,13 +107,10 @@
     }
 
     function buildTableHeader(table, tableColumns) {
-        //removeIcon();
         var thead;
         thead = $('<thead/>');
         var tr;
         tr = $('<tr/>');
-
-
         tr.append("<th>Cluster</th>");
         tr.append("<th>Job ID</th>");
         tr.append("<th>Job Name</th>");
@@ -132,7 +129,6 @@
             tr.append("<th>Approval</th>");
         thead.append(tr);
         table.append(thead);
-
     }
 
 
@@ -208,11 +204,6 @@
             });
             return mergedData;
         }).done(function (json) {
-            var finishedJobs = json.finishedJobs;
-            var visualizationJobs = json.visualizationJobs;
-            var runningJobs = json.runningJobs;
-            var queuedJobs = json.queuedJobs;
-            console.log(json);
             buildJobTable($('#queued-job'), $("#queued-job-table"), json.queuedJobs, { submitTime: true, startTime: false, finishTime: false, kill: true, approval: showAll });
             buildJobTable($('#running-job'), $("#running-job-table"), json.runningJobs, { submitTime: true, startTime: true, finishTime: false, kill: true });
             buildJobTable($('#visualization-job'), $("#visualization-job-table"), json.visualizationJobs, { submitTime: false, startTime: true, finishTime: false, kill: true });
@@ -220,11 +211,10 @@
                 buildJobTable($('#finished-job'), $("#finished-job-table"), json.finishedJobs, { submitTime: true, startTime: false, finishTime: true, kill: false });  
             $("table tbody tr").hide()
                 .filter(":contains('" + (localStorage.getItem('keyword')) + "')").show();
-
-            makeAllSortable();
+            if (typeof (Storage) !== "undefined") {
+                makeAllSortable();
+            }
         });
-    
-   
     }
 
     function sortTable(table, col, reverse) {
@@ -233,14 +223,16 @@
             i;
         reverse = -((+reverse) || -1);
         tr = tr.sort(function (a, b) { // sort rows
-
-            var val1 = a.cells[col].textContent;
-            var val2 = b.cells[col].textContent;
-
-            var res = isNaN(Date.parse(val1)) && isNaN(Date.parse(val2)) ? a.cells[col].textContent.trim().localeCompare(b.cells[col].textContent.trim()) : Date.parse(val1) - Date.parse(val2);
-
-            return reverse // `-1 *` if want opposite order
-                * (res);
+            var val1;
+            var val2;
+            if (a.cells[col] && b.cells[col]) {
+                 val1 = a.cells[col].textContent;
+                val2 = b.cells[col].textContent;
+                var res = isNaN(Date.parse(val1)) && isNaN(Date.parse(val2)) ? val1.trim().localeCompare(val2.trim()) : Date.parse(val1) - Date.parse(val2);
+                return reverse // `-1 *` if want opposite order
+                    * (res);
+            }
+         
         });
         for (i = 0; i < tr.length; ++i) tb.appendChild(tr[i]); // append each row in order
     }
@@ -262,52 +254,54 @@
         else return; // if no `<thead>` then do nothing
         while (--i >= 0) (function (i) {
             var dir = 1;
+            var sorted = false;
             if (th[i].innerHTML.indexOf("Kill Job") === -1 && th[i].innerHTML.indexOf("Approval") === -1 ) {
                 th[i].addEventListener('click', function () {
                     removeIcon();
                     sorted = !sorted;
-                    var tableId = th[i].closest('table').id;
-                  
+                    var tableId = th[i].closest('table').id;        
                     var icon = document.createElement("i");
-                    icon.className = sorted ? "glyphicon glyphicon-arrow-down" : "glyphicon glyphicon-arrow-up";
+                    dir = 1 - dir;
                     localStorage.setItem("idx", i);
                     localStorage.setItem("dir", dir);
                     localStorage.setItem("tableId", tableId);
+                    localStorage.setItem("sorted", sorted);
+                    icon.className = localStorage.getItem("sorted").indexOf("true") !== -1 ? "glyphicon glyphicon-arrow-down" : "glyphicon glyphicon-arrow-up";
                     th[i].appendChild(icon);
-                    sortTable(table, i, (dir = 1 - dir))
+                    sortTable(table, i, localStorage.getItem("dir"));
                 });
             }
-    
         }(i));
         var icon = document.createElement("i");
-        icon.className = sorted ? "glyphicon glyphicon-arrow-down" : "glyphicon glyphicon-arrow-up";
-        var idx = localStorage.getItem("idx");
-        var dir = localStorage.getItem("dir");
-        if (localStorage.getItem('tableId').length > 0) {
+        if (localStorage.getItem("sorted")) {
+            icon.className = localStorage.getItem("sorted").indexOf("true") !== -1 ? "glyphicon glyphicon-arrow-down" : "glyphicon glyphicon-arrow-up";
+        }    
+        var idx;
+        if (localStorage.getItem("idx")) {
+             idx = localStorage.getItem("idx");
+        }
+        if (localStorage.getItem('tableId')) {
             var prevTableId = localStorage.getItem('tableId');
             if (th[idx].closest('table').id.indexOf(prevTableId) !== -1) {
                 th[idx].appendChild(icon);
             }
         }
-
-        sortTable(table, idx,  dir)
+        sortTable(table, idx, localStorage.getItem("dir"));
     }
 
     function makeAllSortable(parent) {
         removeIcon();
         parent = parent || document.body;
         var t = parent.getElementsByTagName('table'), i = t.length;
-        while (--i >= 0) makeSortable(t[i]);
+        while (--i >= 0) {            
+                makeSortable(t[i]);   
+        } 
     }
-
-
-
 
     function refreshJobs()
     {
         if (!document.getElementById('chkArchivedJobs').checked || showAll) {
             buildTables();
- 
         }
     }
 
@@ -325,12 +319,9 @@
     }
 
     $(document).ready(function () {
-        removeIcon();
         searchKeyWord();
         ChangeMode(false);    
         makeAllSortable();
-   
-
         var refresh = setInterval(function () {
             makeAllSortable();
             refreshJobs();
@@ -360,7 +351,6 @@
 
         yourJobsTab.addClass(all ? "inactive-tab" : "active-tab");
         allJobsTab.addClass(all ? "active-tab" : "inactive-tab");
-
     }
 
 </script>
