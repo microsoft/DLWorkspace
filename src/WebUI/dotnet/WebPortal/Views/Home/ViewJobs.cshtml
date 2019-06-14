@@ -2,6 +2,8 @@
 @{
     ViewData["Title"] = "View Jobs";
 }
+
+
 <script type="text/javascript">
     function KillJob(cluster, jobId) {
         $.ajax({
@@ -111,6 +113,7 @@
         thead = $('<thead/>');
         var tr;
         tr = $('<tr/>');
+
         tr.append("<th>Cluster</th>");
         tr.append("<th>Job ID</th>");
         tr.append("<th>Job Name</th>");
@@ -127,6 +130,7 @@
             tr.append("<th>Kill Job</th>");
         if (tableColumns.approval)
             tr.append("<th>Approval</th>");
+
         thead.append(tr);
         table.append(thead);
     }
@@ -207,7 +211,7 @@
             buildJobTable($('#running-job'), $("#running-job-table"), json.runningJobs, { submitTime: true, startTime: true, finishTime: false, kill: true });
             buildJobTable($('#visualization-job'), $("#visualization-job-table"), json.visualizationJobs, { submitTime: false, startTime: true, finishTime: false, kill: true });
             if (!showAll)
-                buildJobTable($('#finished-job'), $("#finished-job-table"), json.finishedJobs, { submitTime: true, startTime: false, finishTime: true, kill: false });  
+                buildJobTable($('#finished-job'), $("#finished-job-table"), json.finishedJobs, { submitTime: true, startTime: false, finishTime: true, kill: false });
             $("table tbody tr").hide()
                 .filter(":contains('" + (localStorage.getItem('keyword')) + "')").show();
             if (typeof (Storage) !== "undefined") {
@@ -231,7 +235,6 @@
                 return reverse // `-1 *` if want opposite order
                     * (res);
             }
-         
         });
         for (i = 0; i < tr.length; ++i) tb.appendChild(tr[i]); // append each row in order
     }
@@ -292,7 +295,7 @@
         parent = parent || document.body;
         var t = parent.getElementsByTagName('table'), i = t.length;
         while (--i >= 0) {            
-                makeSortable(t[i]);   
+            makeSortable(t[i]);   
         } 
     }
 
