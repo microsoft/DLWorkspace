@@ -150,7 +150,7 @@ def SubmitRegularJob(job):
         if "mountpoints" not in jobParams:
             jobParams["mountpoints"] = []
         for onemount in jobParams["mountpoints"]:
-            onemount["name"] = onemount["containerPath"].replace("/","")
+            onemount["name"] = onemount["containerPath"].replace("/","").lower()
 
         # mp = {"name":"nvidia-driver","containerPath":"/usr/local/nvidia","hostPath":nvidiaDriverPath, "enabled":True}
         # if CheckMountPoints(jobParams["mountpoints"],mp):
@@ -373,8 +373,8 @@ while [ ! -f /opt/run_dist_job ]; do
     sleep 3
 done
 
-sudo chmod 600 -R /home/%s/.ssh &>/dev/null; 
-sudo chmod 700 /home/%s/.ssh &>/dev/null; 
+sudo chmod 600 -R /home/%s/.ssh &>/dev/null;
+sudo chmod 700 /home/%s/.ssh &>/dev/null;
 sudo chown -R %s /home/%s/.ssh &>/dev/null;
 
 sudo mkdir -p /root/.ssh  &>/dev/null ;
@@ -382,7 +382,7 @@ sudo ln -s /home/%s/.ssh/config /root/.ssh/config  &>/dev/null;
 sudo mkdir -p /opt  &>/dev/null;
 sudo ln -s /job/hostfile /opt/hostfile &>/dev/null;
 
-sleep 10; 
+sleep 10;
 echo "[DLWorkspace System]: All containers are ready, launching training job..."
 %s
 """ % (userAlias,userAlias,userAlias,userAlias,userAlias, distJobParam["cmd"])
@@ -391,9 +391,9 @@ echo "[DLWorkspace System]: All containers are ready, launching training job..."
 while [ ! -f /opt/run_dist_job ]; do
     sleep 3
 done
-sudo chmod 600 -R /home/%s/.ssh &>/dev/null; 
-sudo chmod 700 /home/%s/.ssh &>/dev/null; 
-sudo chown -R %s /home/%s/.ssh  &>/dev/null;     
+sudo chmod 600 -R /home/%s/.ssh &>/dev/null;
+sudo chmod 700 /home/%s/.ssh &>/dev/null;
+sudo chown -R %s /home/%s/.ssh  &>/dev/null;
 sudo mkdir -p /root/.ssh  &>/dev/null;
 sudo ln -s /home/%s/.ssh/config /root/.ssh/config &>/dev/null;
 sudo mkdir -p /opt && sudo ln -s /job/hostfile /opt/hostfile  &>/dev/null;
@@ -407,7 +407,7 @@ sleep infinity
                         f.write(launchCMD)
                     f.close()
 
-                    
+
                     launchScriptInContainer = "bash /job/launch-%s-%s%d.sh" % (distJobParam["jobId"],role,i)
 
                     distJobParam["LaunchCMD"] = '["bash", "-c", "bash /dlws/init_user.sh &> /job/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c \'%s\'"]' % launchScriptInContainer
@@ -917,7 +917,7 @@ def Run():
 
         dataHandler = DataHandler()
         try:
-            
+
             pendingJobs = dataHandler.GetPendingJobs()
             TakeJobActions(pendingJobs)
 
