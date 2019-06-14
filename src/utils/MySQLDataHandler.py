@@ -17,7 +17,6 @@ logger = MyLogger()
 
 class DataHandler:
 
-    _initialized = False
 
     def __init__(self):
         start_time = timeit.default_timer()
@@ -33,14 +32,13 @@ class DataHandler:
         username = config["mysql"]["username"]
         password = config["mysql"]["password"]
 
+
+        self.CreateDatabase()
+        self.CreateTable()
+
         self.conn = mysql.connector.connect(user=username, password=password,
                                             host=server, database=self.database)
 
-        if not DataHandler._initialized:
-            logger.info("DataHandler::Init")
-            self.CreateDatabase()
-            self.CreateTable()          
-            DataHandler._initialized = True
 
         elapsed = timeit.default_timer() - start_time
         logger.info("DataHandler initialization, time elapsed %f s" % elapsed)
