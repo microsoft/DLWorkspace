@@ -262,7 +262,7 @@
         else return; // if no `<thead>` then do nothing
         while (--i >= 0) (function (i) {
             var dir = 1;
-            if (th[i].innerHTML.indexOf("Kill Job") === -1) {
+            if (th[i].innerHTML.indexOf("Kill Job") === -1 && th[i].innerHTML.indexOf("Approval") === -1 ) {
                 th[i].addEventListener('click', function () {
                     removeIcon();
                     sorted = !sorted;
