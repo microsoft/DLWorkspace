@@ -210,13 +210,19 @@
             buildJobTable($('#queued-job'), $("#queued-job-table"), json.queuedJobs, { submitTime: true, startTime: false, finishTime: false, kill: true, approval: showAll });
             buildJobTable($('#running-job'), $("#running-job-table"), json.runningJobs, { submitTime: true, startTime: true, finishTime: false, kill: true });
             buildJobTable($('#visualization-job'), $("#visualization-job-table"), json.visualizationJobs, { submitTime: false, startTime: true, finishTime: false, kill: true });
-            if (!showAll)
+            if (!showAll) {
                 buildJobTable($('#finished-job'), $("#finished-job-table"), json.finishedJobs, { submitTime: true, startTime: false, finishTime: true, kill: false });
-            $("table tbody tr").hide()
-                .filter(":contains('" + (localStorage.getItem('keyword')) + "')").show();
-            if (typeof (Storage) !== "undefined") {
-                makeAllSortable();
+                if (localStorage.getItem('keyword').length > 0) {
+                    $("table tbody tr").hide()
+                        .filter(":contains('" + (localStorage.getItem('keyword')) + "')").show();
+                }
             }
+            
+            if (localStorage.getItem('keyword').length > 0) {
+                $("table tbody tr").hide()
+                    .filter(":contains('" + (localStorage.getItem('keyword')) + "')").show();
+            }
+            makeAllSortable();
         });
     }
 
@@ -260,7 +266,7 @@
                 th[i].addEventListener('click', function () {
                     removeIcon();
                     sorted = !sorted;
-                    var tableId = th[i].closest('table').id;        
+                    var tableId = th[i].closest('table').id;
                     var icon = document.createElement("i");
                     dir = 1 - dir;
                     localStorage.setItem("idx", i);
@@ -276,7 +282,7 @@
         var icon = document.createElement("i");
         if (localStorage.getItem("sorted")) {
             icon.className = localStorage.getItem("sorted").indexOf("true") !== -1 ? "glyphicon glyphicon-arrow-down" : "glyphicon glyphicon-arrow-up";
-        }    
+        }
         var idx;
         if (localStorage.getItem("idx")) {
              idx = localStorage.getItem("idx");
@@ -294,15 +300,17 @@
         removeIcon();
         parent = parent || document.body;
         var t = parent.getElementsByTagName('table'), i = t.length;
-        while (--i >= 0) {            
-            makeSortable(t[i]);   
-        } 
+        while (--i >= 0) {
+            makeSortable(t[i]);
+        }
     }
 
     function refreshJobs()
     {
         if (!document.getElementById('chkArchivedJobs').checked || showAll) {
             buildTables();
+            $("table tbody tr").hide()
+                .filter(":contains('" + (localStorage.getItem('keyword')) + "')").show();
         }
     }
 
@@ -321,7 +329,7 @@
 
     $(document).ready(function () {
         searchKeyWord();
-        ChangeMode(false);    
+        ChangeMode(false);
         makeAllSortable();
         var refresh = setInterval(function () {
             makeAllSortable();
@@ -367,15 +375,16 @@
     <br />
     <br />
     <br />
-    <div class="row">
-        <div class="col-xs-6 col-md-4">
-            <div class="input-group">
-                <input type="text" class="form-control" placeholder="Search" id="txtSearch" />
-            </div>
-        </div>
-    </div>
 }
 
+
+<div class="row">
+    <div class="col-xs-6 col-md-4">
+        <div class="input-group">
+            <input type="text" class="form-control" placeholder="Search" id="txtSearch" />
+        </div>
+    </div>
+</div>
 <div id="queued-job" hidden>
     <p> <b>Queued Jobs</b></p>
     <table id="queued-job-table" class="table table-bordered table-condensed table-hover table-striped"></table>
