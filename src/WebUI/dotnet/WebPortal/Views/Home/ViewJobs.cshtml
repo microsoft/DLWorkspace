@@ -216,6 +216,7 @@
                     $("table tbody tr").hide()
                         .filter(":contains('" + (localStorage.getItem('keyword')) + "')").show();
                 }
+       
             }
             
             if (localStorage.getItem('keyword').length > 0) {
@@ -307,11 +308,16 @@
 
     function refreshJobs()
     {
+      
         if (!document.getElementById('chkArchivedJobs').checked || showAll) {
             buildTables();
             $("table tbody tr").hide()
                 .filter(":contains('" + (localStorage.getItem('keyword')) + "')").show();
         }
+    }
+
+    window.onload = function () {
+            localStorage.setItem("sorted", "");
     }
 
     function searchKeyWord() {
@@ -339,6 +345,8 @@
             track: true
         });
     });
+
+ 
 
     function ChangeMode(all) {
         showAll = all;
@@ -378,7 +386,7 @@
 }
 
 
-<div class="row">
+<div class="row" style="margin-bottom:20px;">
     <div class="col-xs-6 col-md-4">
         <div class="input-group">
             <input type="text" class="form-control" placeholder="Search" id="txtSearch" />
