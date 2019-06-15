@@ -33,11 +33,11 @@ class DataHandler:
         password = config["mysql"]["password"]
 
 
-        self.CreateDatabase()
-        self.CreateTable()
-
         self.conn = mysql.connector.connect(user=username, password=password,
                                             host=server, database=self.database)
+
+        self.CreateDatabase()
+        self.CreateTable()
 
 
         elapsed = timeit.default_timer() - start_time
