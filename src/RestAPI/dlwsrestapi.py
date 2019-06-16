@@ -1031,7 +1031,6 @@ class Endpoint(Resource):
 
     def post(self):
         '''set job["endpoints"]: curl -X POST -H "Content-Type: application/json" /endpoints --data "{'jobId': ..., 'endpoints': ['ssh', 'ipython'] }"'''
-        parser = reqparse.RequestParser()
         params = request.get_json(silent=True)
         job_id = params["jobId"]
         requested_endpoints = params["endpoints"]
@@ -1039,10 +1038,11 @@ class Endpoint(Resource):
         # get the job
         job = JobRestAPIUtils.get_job(job_id)
         job_params = json.loads(base64.b64decode(job["jobParams"]))
+        job_type = job_params["jobtrainingtype"]
 
         # get pods
         pod_names = []
-        if(job_params["jobtrainingtype"] == "RegularJob"):
+        if job_type == "RegularJob":
             pod_names.append(job_id)
         else:
             nums = {"ps": int(job_params["numps"]), "worker": int(job_params["numpsworker"])}
@@ -1055,7 +1055,6 @@ class Endpoint(Resource):
             return ("Bad request, endpoints only allowed in [\"ssh\", \"ipython\"]: %s" % requested_endpoints), 400
 
         # HostNetwork
-        job_params = json.loads(base64.b64decode(job["jobParams"]))
         if "hostNetwork" in job_params and job_params["hostNetwork"] == True:
             host_network = True
         else:
@@ -1066,10 +1065,26 @@ class Endpoint(Resource):
 
         endpoints = {}
 
+        def endpoint_exist(endpoint_id):
+            try:
+                curr_endpoints = json.loads(job["endpoints"])
+            except:
+                curr_endpoints = {}
+
+            if endpoint_id in curr_endpoints:
+                return True
+            return False
+
         if "ssh" in requested_endpoints:
             # setup ssh for each pod
             for pod_name in pod_names:
                 endpoint_id = "endpoint-" + pod_name + "-ssh"
+
+                if endpoint_exist(endpoint_id=endpoint_id):
+                    print("Endpoint {} exists. Skip.".format(endpoint_id))
+                    continue
+                print("Endpoint {} does not exist. Add.".format(endpoint_id))
+
                 endpoint = {
                     "id": endpoint_id,
                     "jobId": job_id,
@@ -1081,20 +1096,32 @@ class Endpoint(Resource):
                 }
                 endpoints[endpoint_id] = endpoint
 
-       # only open Jupyter on the master
+        # Only open Jupyter on the master
         if 'ipython' in requested_endpoints:
-            pod_name = pod_names[0]
+            if job_type == "RegularJob":
+                pod_name = pod_names[0]
+            else:
+                # For a distributed job, we set up jupyter on first worker node.
+                # PS node does not have GPU access.
+                # TODO: Simplify code logic after removing PS
+                pod_name = pod_names[1]
+
             endpoint_id = "endpoint-" + pod_name + "-ipython"
-            endpoint = {
-                "id": endpoint_id,
-                "jobId": job_id,
-                "podName": pod_name,
-                "username": username,
-                "name": "ipython",
-                "status": "pending",
-                "hostNetwork": host_network
-            }
-            endpoints[endpoint_id] = endpoint
+
+            if not endpoint_exist(endpoint_id=endpoint_id):
+                print("Endpoint {} does not exist. Add.".format(endpoint_id))
+                endpoint = {
+                    "id": endpoint_id,
+                    "jobId": job_id,
+                    "podName": pod_name,
+                    "username": username,
+                    "name": "ipython",
+                    "status": "pending",
+                    "hostNetwork": host_network
+                }
+                endpoints[endpoint_id] = endpoint
+            else:
+                print("Endpoint {} exists. Skip.".format(endpoint_id))
 
         data_handler = DataHandler()
         for [_, endpoint] in endpoints.items():
