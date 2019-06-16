@@ -283,7 +283,7 @@
         if (localStorage.getItem("sorted")) {
             icon.className = localStorage.getItem("sorted").indexOf("true") !== -1 ? "glyphicon glyphicon-arrow-down" : "glyphicon glyphicon-arrow-up";
         }
-        var idx;
+        var idx = 0;
         if (localStorage.getItem("idx")) {
              idx = localStorage.getItem("idx");
         }
@@ -329,6 +329,7 @@
 
     window.onload = function () {
         localStorage.setItem("sorted", "");
+        localStorage.setItem("idx","")
     }
 
     $(document).ready(function () {
