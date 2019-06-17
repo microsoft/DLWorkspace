@@ -715,13 +715,13 @@
 
 
                     <div layout="row">
-                        <md-input-container class="md-block" flex="50">
-                            <md-switch name="is_interactive" ng-model="current.is_interactive" md-no-asterisk>
-                                Interactive Job
+                        <md-input-container class="md-block" flex="50" ng-hide="true">
+                            <md-switch name="is_interactive" ng-model="current.is_interactive" ng-disabled="true" md-no-asterisk>
+                                Interactive Job  
                             </md-switch>
                         </md-input-container>
-                        <md-input-container class="md-block" flex="50">
-                            <md-switch name="do_log" ng-model="current.do_log" md-no-asterisk>
+                        <md-input-container class="md-block" flex="50" ng-hide="true">
+                            <md-switch name="do_log" ng-model="current.do_log" ng-disabled="true" md-no-asterisk>
                                 Enable Tensorboard
                             </md-switch>
                         </md-input-container>
