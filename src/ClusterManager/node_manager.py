@@ -67,7 +67,7 @@ def get_job_gpu_usage(jobId):
     try:
         hostaddress = config.get("prometheus_node", "127.0.0.1")
 
-        url = """http://"""+hostaddress+""":9091/prometheus/api/v1/query?query=avg%28avg_over_time%28task_gpu_percent%7Bjob_name%3D%22""" + jobId + """%22%7D%5B4h%5D%29%29+by+%28job_name%2C+instance%2C+username%29"""
+        url = """http://"""+hostaddress+""":9091/prometheus/api/v1/query?query=avg%28avg_over_time%28task_gpu_percent%7Bpod_name%3D%22""" + jobId + """%22%7D%5B4h%5D%29%29+by+%28pod_name%2C+instance%2C+username%29"""
 
         curl = pycurl.Curl()
         curl.setopt(pycurl.URL, url)
