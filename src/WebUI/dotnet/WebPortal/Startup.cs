@@ -484,6 +484,23 @@ namespace WindowsAuth
             
             // Configure the OWIN pipeline to use OpenID Connect auth.
             app.UseSession();
+
+            app.Use(async (context, next) =>
+            {
+                if (context.Request.Query.ContainsKey("team"))
+                {
+                    var team = context.Request.Query["Team"];
+                    var teams = JsonConvert.DeserializeObject<string[]>(context.Session.GetString("Teams"));
+                    if (Array.Exists(teams, t => t.Equals(team)))
+                    {
+                        context.Session.SetString("Team", team);
+                        var teamClusters = await Controllers.HomeController.GetTeamClusters(context, team);
+                        context.Session.SetString("TeamClusters", JsonConvert.SerializeObject(teamClusters));
+                        _logger.LogInformation("{0} switch team to {1}", context.Session.GetString("Username"), team);
+                    }
+                }
+                await next.Invoke();
+            });
             // Configure MVC routes
             app.UseMvc(routes =>
             {
