@@ -592,12 +592,15 @@ class AddCommand(Resource):
         userName = args["userName"]
         jobId = args["jobId"]
         command = args["command"]
-        result = JobRestAPIUtils.AddCommand(userName, jobId, command)
         ret = {}
-        if result:
-            ret["result"] = "Success, the command is scheduled to be run."
+        if command is None or len(command) == 0:
+            ret["result"] = "Cannot Run empty Command. Job ID:" + jobId
         else:
-            ret["result"] = "Cannot Run the Command. Job ID:" + jobId
+            result = JobRestAPIUtils.AddCommand(userName, jobId, command)
+            if result:
+                ret["result"] = "Success, the command is scheduled to be run."
+            else:
+                ret["result"] = "Cannot Run the Command. Job ID:" + jobId
 
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
