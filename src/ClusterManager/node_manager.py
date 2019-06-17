@@ -65,11 +65,9 @@ def check_cluster_status_change(o_cluster_status,cluster_status):
 
 def get_job_gpu_usage(jobId):
     try:
-        if "webportal_node" in config:
-            hostaddress = config["webportal_node"]
-        else:
-            hostaddress = "127.0.0.1"
-        url = """http://"""+hostaddress+""":8086/query?db=collectd&epoch=ms&q=SELECT+max%28%22value%22%29+FROM+%22jobcuda_value%22+WHERE+%28%22host%22+%3D~+%2F%5E"""+jobId+"""%24%2F+AND+%22type%22+%3D+%27percent%27+AND+%22type_instance%22+%3D+%27gpu_util%27+AND+%22instance%22+%3D~+%2F%5Egpu0%24%2F%29+AND+time+%3E%3D+now%28%29+-+480m+fill%28null%29%3B"""
+        hostaddress = config.get("prometheus_node", "127.0.0.1")
+
+        url = """http://"""+hostaddress+""":9091/prometheus/api/v1/query?query=avg%28avg_over_time%28task_gpu_percent%7Bjob_name%3D%22""" + jobId + """%22%7D%5B4h%5D%29%29+by+%28job_name%2C+instance%2C+username%29"""
 
         curl = pycurl.Curl()
         curl.setopt(pycurl.URL, url)
@@ -81,7 +79,7 @@ def get_job_gpu_usage(jobId):
         curl.perform()
         responseStr = buff.getvalue()
         curl.close()
-        gpuUsage = int(json.loads(responseStr)["results"][0]["series"][0]["values"][0][1])
+        gpuUsage = int(float(json.loads(responseStr)["data"]["result"][0]["value"][1]))
     except Exception as e:
         gpuUsage = None
 
