@@ -285,7 +285,8 @@
         }
         var idx = 0;
         if (localStorage.getItem("idx")) {
-             idx = localStorage.getItem("idx");
+            idx = localStorage.getItem("idx");
+            sortTable(table, idx, localStorage.getItem("dir"));
         }
         if (localStorage.getItem('tableId')) {
             var prevTableId = localStorage.getItem('tableId');
@@ -293,7 +294,6 @@
                 th[idx].appendChild(icon);
             }
         }
-        sortTable(table, idx, localStorage.getItem("dir"));
     }
 
     function makeAllSortable(parent) {
