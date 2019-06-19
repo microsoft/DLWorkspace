@@ -142,6 +142,8 @@ spec:
       value: "{{ job["uid"] }}"
     - name: DLWS_USER_NAME
       value: "{{ job["user"] }}"
+    - name: DLWS_USER_EMAIL
+      value: "{{ job["user_email"] }}"
     {% for env in job["env"] %}
     - name: {{ env.name }}
       value: "{{ env.value }}"
