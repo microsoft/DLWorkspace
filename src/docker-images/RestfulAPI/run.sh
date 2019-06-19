@@ -8,8 +8,8 @@ echo "Change permission on /var/log/apache2"
 
 #/usr/sbin/apache2ctl -D FOREGROUND
 apachectl start
-#sleep infinity
-while true; do
-	sleep 1800
-	apachectl restart
-done
+sleep infinity
+#while true; do
+#	sleep 1800
+#	apachectl restart
+#done
