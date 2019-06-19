@@ -169,6 +169,7 @@
                 }
             });
     }
+
     function getEndpoints() {
         $.ajax({
             url: "/api/dlws/GetEndpoints?cluster=@ViewData["cluster"]&jobId=@ViewData["jobid"]", dataType: 'json'
@@ -179,9 +180,9 @@
                 return String(a.podName).localeCompare(b.podName)
             });
 
-        var endpointsArr = $.map(endpoints, function (endpoint) {
+            var endpointsStr = $.map(endpoints, function (endpoint) {
+                //console.log(endpoint.podName);
                 var task = "";
-             
 
                 if (endpoint.podName) {
                     task = endpoint.podName.split("-").pop();
@@ -190,11 +191,11 @@
                 if (task.indexOf("ps0") !== -1 && endpoint.name.indexOf("ssh") !== -1) {
                     return "";
                 }
-                var taskInfo = task.indexOf("worker") === -1 ? "" : " " +task;
+                var taskInfo = task.indexOf("worker") === -1 ? "" : ", for " + task;
                 if (endpoint.name == "ssh") {
                     window.ngScope.$applyAsync('ssh = true');
                     if (endpoint.status == "running") {
-                        return  taskInfo + " SSH: <span onclick='copy(this)' onmouseover='copyIconShow(this)' onmouseout='copyIconHidden(this)'>ssh -i " + "@ViewData["workPath"]" + ".ssh/id_rsa -p " + endpoint.port + " " + endpoint.username + "@@" + endpoint.nodeName + "." + endpoint.domain + "</span>" +"\n";
+                        return "To access the container via SSH" + taskInfo + ", use command: ssh -i " + "@ViewData["workPath"]" + ".ssh/id_rsa -p " + endpoint.port + " " + endpoint.username + "@@" + endpoint.nodeName + "." + endpoint.domain + "\n";
                     } else {
                         return;
                     }
@@ -203,29 +204,12 @@
                     window.ngScope.$applyAsync('ipython = true');
                     if (endpoint.status == "running") {
                         var svcurl = "http://" + endpoint.nodeName + "." + endpoint.domain + ":" + endpoint.port + "/";
-                        return " "+endpoint.name + " could be access via: <a href='" + svcurl + "' target='_blank'>" + svcurl + "</a>\n";
+                        return endpoint.name + " could be access via: <a href='" + svcurl + "' target='_blank'>" + svcurl + "</a>\n";
                     } else {
                         return;
                     }
                 }
-            });           
-            var sshContent = "";
-            var otherContent = "";
-            var endPointName = "";
-            for (var i = 0; i < endpointsArr.length; i++) {
-                if (endpointsArr[i] === "") {
-                    continue;
-                } else if (endpointsArr[i].indexOf("ssh") !== -1) {
-                    sshContent += endpointsArr[i];
-                } else {
-                     endPointName = endpointsArr[i].split(" ")[0];
-                     otherContent += endpointsArr[i];
-                } 
-            }
-
-            otherContent = endPointName + otherContent;
-            var endpointsStr = sshContent + "<div style='height:10px;'></div>" + otherContent;
-
+            }).join("<br/>");
             var endpointsPanellDiv = document.getElementById('endpointsPanel');
             if (endpointsPanellDiv.innerHTML != endpointsStr) {
                 endpointsPanellDiv.innerHTML = endpointsStr;
@@ -332,34 +316,6 @@
         setInterval(RefreshDetail, 15000);
 
     });
-
-    function copy(self) {
-        var textarea = document.createElement("textarea");
-        textarea.textContent = self.innerHTML;
-        document.body.appendChild(textarea);
-        var selection = document.getSelection();
-        var range = document.createRange();
-        range.selectNode(textarea);
-        selection.removeAllRanges();
-        selection.addRange(range);
-        if (document.execCommand('copy')) {
-            $('.alert').html('copied!').addClass('alert-message').show().delay(1500).fadeOut();
-        }
-        selection.removeAllRanges();
-        document.body.removeChild(textarea);
-    }
-
-
-    function copyIconShow(self) {
-        self.style.background = "#b3b3b3";
-         $('.alert').html('copy to clipboard').addClass('alert-message').show();
-    }
-
-    function copyIconHidden(self) {
-        self.style.background = "";
-        $('.alert-message').delay(3000).fadeOut();
-    }
-
 </script>
 <script>
     function AlertCommandResult(payload) {
@@ -435,7 +391,6 @@
     <h4>(Links to access interactive/visualization interface)</h4>
     <div id="endpointsPanel" readonly="" class="ng-binding grey-box">
     </div>
-    <div class="alert"></div>
 </div>
 <!-- introduce angular.js just for md-switch in AngularJS Material -->
 <div ng-app="endpointSwitches" ng-controller="endpointSwitches">
@@ -511,29 +466,5 @@
         width: 100%;
         max-width: none;
     }
-
-    #endpointsPanel {
-        overflow-y:auto;
-    }
-
-    .alert {
-        display:none;
-        position:fixed;
-        top:50%;
-        left:50%;
-        min-width:300px;
-        max-width:600px;
-        transform: translate(-50%,-50%);
-        z-index:99999;
-        padding:15px;
-        border-radius:3px;
-    }
-    .alert-message{
-      background-color: #333; /* Black background color */
-      color: #fff; /* White text color */
-      text-align: center; /* Centered text */
-      font-size:15px;
-    }
-  
 </style>
 
