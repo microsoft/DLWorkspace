@@ -188,7 +188,6 @@
         var endpointsArr = $.map(endpoints, function (endpoint) {
                 var task = "";
 
-
                 if (endpoint.podName) {
                     task = endpoint.podName.split("-").pop();
                 }
@@ -197,7 +196,6 @@
                     return "";
                 }
                 var taskInfo = task.indexOf("worker") === -1 ? "" : " " +task;
-
                 if (endpoint.name == "ssh") {
                     window.ngScope.$applyAsync('ssh = true');
                     if (endpoint.status == "running") {
