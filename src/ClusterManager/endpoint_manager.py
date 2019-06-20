@@ -133,6 +133,8 @@ def start_endpoint(endpoint):
     elif port_name == "tensorboard":
         # TODO tensorboard
         endpoint["podPort"] = 49999
+    else:
+        endpoint["podPort"] = int(endpoint["podPort"])
 
     # create NodePort
     create_node_port(endpoint)

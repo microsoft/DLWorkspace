@@ -1013,12 +1013,13 @@ class Endpoint(Resource):
                 "status": endpoint["status"],
                 "hostNetwork": endpoint["hostNetwork"],
                 "podName": endpoint["podName"],
-                "podPort": endpoint["podPort"],
                 "domain": config["domain"],
             }
+            if "podPort" in endpoint:
+                ret["podPort"] = endpoint["podPort"]
             if endpoint["status"] == "running":
                 if endpoint["hostNetwork"]:
-                    port = int(endpoint["podPort"])
+                    port = int(endpoint["endpointDescription"]["spec"]["ports"][0]["port"])
                 else:
                     port = int(endpoint["endpointDescription"]["spec"]["ports"][0]["nodePort"])
                 ret["port"] = port
