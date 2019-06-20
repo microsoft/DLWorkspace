@@ -1054,13 +1054,13 @@ class Endpoint(Resource):
                     pod_names.append(job_id + "-" + role + str(i))
 
         interactive_ports = []
-        # endpoints should be ["ssh", "ipython", "tensorboard", {"name": "port name", "podPort": "port on pod in 50000-59999"}]
+        # endpoints should be ["ssh", "ipython", "tensorboard", {"name": "port name", "podPort": "port on pod in 40000-49999"}]
         for interactive_port in [ elem for elem in requested_endpoints if elem not in ["ssh", "ipython", "tensorboard"] ]:
             if any(required_field not in interactive_port for required_field in ["name", "podPort"]):
                 # if ["name", "port"] not in interactive_port:
                 return ("Bad request, interactive port should have \"name\" and \"podPort\"]: %s" % requested_endpoints), 400
-            if int(interactive_port["podPort"]) < 50000 or int(interactive_port["podPort"]) > 59999:
-                return ("Bad request, interactive podPort should in range 50000-59999: %s" % requested_endpoints), 400
+            if int(interactive_port["podPort"]) < 40000 or int(interactive_port["podPort"]) > 49999:
+                return ("Bad request, interactive podPort should in range 40000-49999: %s" % requested_endpoints), 400
             if len(interactive_port["name"]) > 16:
                 return ("Bad request, interactive port name length shoule be less than 16: %s" % requested_endpoints), 400
             interactive_ports.append(interactive_port)
