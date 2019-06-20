@@ -148,8 +148,8 @@ def is_user_ready(pod_name):
 
 def start_endpoints():
     try:
-        data_handler = DataHandler()
         try:
+            data_handler = DataHandler()
             pending_endpoints = data_handler.GetPendingEndpoints()
 
             for endpoint_id, endpoint in pending_endpoints.items():
@@ -166,13 +166,10 @@ def start_endpoints():
 
                 print("\n\n\n\n\n\n----------------Begin to start endpoint %s" % endpoint["id"])
                 output = get_k8s_endpoint(endpoint["endpointDescriptionPath"])
-                if (output != ""):
+                if(output != ""):
                     endpoint_description = json.loads(output)
                     endpoint["endpointDescription"] = endpoint_description
                     endpoint["status"] = "running"
-                    if endpoint["hostNetwork"]:
-                        endpoint["port"] = endpoint_description["spec"]["ports"][0]["port"]
-
                     pod = k8sUtils.GetPod("podName=" + endpoint["podName"])
                     if "items" in pod and len(pod["items"]) > 0:
                         endpoint["nodeName"] = pod["items"][0]["spec"]["nodeName"]
@@ -183,8 +180,6 @@ def start_endpoints():
                 data_handler.UpdateEndpoint(endpoint)
         except Exception as e:
             traceback.print_exc()
-        finally:
-            data_handler.Close()
     except Exception as e:
         traceback.print_exc()
 
