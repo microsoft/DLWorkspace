@@ -1057,10 +1057,12 @@ class Endpoint(Resource):
         # endpoints should be ["ssh", "ipython", "tensorboard", {"name": "port name", "podPort": "port on pod in 50000-59999"}]
         for interactive_port in [ elem for elem in requested_endpoints if elem not in ["ssh", "ipython", "tensorboard"] ]:
             if any(required_field not in interactive_port for required_field in ["name", "podPort"]):
-               # if ["name", "port"] not in interactive_port:
-               return ("Bad request, interactive port should have \"name\" and \"podPort\"]: %s" % requested_endpoints), 400
+                # if ["name", "port"] not in interactive_port:
+                return ("Bad request, interactive port should have \"name\" and \"podPort\"]: %s" % requested_endpoints), 400
             if int(interactive_port["podPort"]) < 50000 or int(interactive_port["podPort"]) > 59999:
-               return ("Bad request, interactive podPort should in range 50000-59999: %s" % requested_endpoints), 400
+                return ("Bad request, interactive podPort should in range 50000-59999: %s" % requested_endpoints), 400
+            if len(interactive_port["name"]) > 16:
+                return ("Bad request, interactive port name length shoule be less than 16: %s" % requested_endpoints), 400
             interactive_ports.append(interactive_port)
 
         # HostNetwork
@@ -1087,7 +1089,7 @@ class Endpoint(Resource):
         if "ssh" in requested_endpoints:
             # setup ssh for each pod
             for pod_name in pod_names:
-                endpoint_id = "endpoint-" + pod_name + "-ssh"
+                endpoint_id = "e-" + pod_name + "-ssh"
 
                 if endpoint_exist(endpoint_id=endpoint_id):
                     print("Endpoint {} exists. Skip.".format(endpoint_id))
@@ -1115,7 +1117,7 @@ class Endpoint(Resource):
                 # TODO: Simplify code logic after removing PS
                 pod_name = pod_names[1]
 
-            endpoint_id = "endpoint-" + pod_name + "-ipython"
+            endpoint_id = "e-" + job_id + "-ipython"
 
             if not endpoint_exist(endpoint_id=endpoint_id):
                 print("Endpoint {} does not exist. Add.".format(endpoint_id))
@@ -1142,7 +1144,7 @@ class Endpoint(Resource):
                 # TODO: Simplify code logic after removing PS
                 pod_name = pod_names[1]
 
-            endpoint_id = "endpoint-" + pod_name + "-tensorboard"
+            endpoint_id = "e-" + job_id + "-tensorboard"
 
             if not endpoint_exist(endpoint_id=endpoint_id):
                 print("Endpoint {} does not exist. Add.".format(endpoint_id))
@@ -1169,7 +1171,7 @@ class Endpoint(Resource):
                 # TODO: Simplify code logic after removing PS
                 pod_name = pod_names[1]
 
-            endpoint_id = "endpoint-" + pod_name + "-" + interactive_port["name"]
+            endpoint_id = "e-" + job_id + "-" + interactive_port["name"]
             if not endpoint_exist(endpoint_id=endpoint_id):
                 print("Endpoint {} does not exist. Add.".format(endpoint_id))
                 endpoint = {
