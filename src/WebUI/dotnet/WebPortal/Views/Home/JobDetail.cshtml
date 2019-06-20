@@ -169,7 +169,6 @@
                 }
             });
     }
-
     function getEndpoints() {
         $.ajax({
             url: "/api/dlws/GetEndpoints?cluster=@ViewData["cluster"]&jobId=@ViewData["jobid"]", dataType: 'json'
@@ -177,12 +176,13 @@
             $('#endpoints').show();
 
             endpoints.sort(function (a, b) {
+                //console.log(a.podName);
                 if (a.podName.indexOf("ps0") === -1 && a.podName.indexOf("ps0") === -1) {
                     var worker1 = a.podName.split("-").pop().replace("worker","");
                     var worker2 = b.podName.split("-").pop().replace("worker", "");
                     return parseInt(worker1) - parseInt(worker2);
                 }
-                return String(a.podName).localeCompare(b.podName);
+                return String(a.podName).localeCompare(b.podName)
             });
 
             var endpointsArr = $.map(endpoints, function (endpoint) {
@@ -199,7 +199,11 @@
                 if (endpoint.name == "ssh") {
                     window.ngScope.$applyAsync('ssh = true');
                     if (endpoint.status == "running") {
-                        return taskInfo + " SSH: <span onclick='copy(this)' onmouseover='copyIconShow(this)' onmouseout='copyIconHidden(this)'>ssh -i " + endpoint.username + ".ssh/id_rsa -p " + endpoint.port + " " + endpoint.username + "@@" + endpoint.nodeName + "." + endpoint.domain + "</span>" +"\n";
+                        var workPath = "@ViewData["workPath"]";
+                        var sessionUserName = "@ViewData["Username"]";
+                        var currentUserName = endpoint.username;
+                        workPath = workPath.replace(sessionUserName, currentUserName);
+                        return taskInfo + " SSH: <span onclick='copy(this)' onmouseover='copyIconShow(this)' onmouseout='copyIconHidden(this)'>ssh -i " + workPath + ".ssh/id_rsa -p " + endpoint.port + " " + endpoint.username + "@@" + endpoint.nodeName + "." + endpoint.domain + "</span>" + "\n";
                     } else {
                         return;
                     }
@@ -208,7 +212,7 @@
                     window.ngScope.$applyAsync('ipython = true');
                     if (endpoint.status == "running") {
                         var svcurl = "http://" + endpoint.nodeName + "." + endpoint.domain + ":" + endpoint.port + "/";
-                        return " " + endpoint.name + " could be access via: <a href='" + svcurl + "' target='_blank'>" + svcurl + "</a>\n";
+                        return " "+endpoint.name + " could be access via: <a href='" + svcurl + "' target='_blank'>" + svcurl + "</a>\n";
                     } else {
                         return;
                     }
@@ -362,7 +366,7 @@
 
     function copyIconHidden(self) {
         self.style.background = "";
-        $('.alert-message').delay(3000).fadeOut();
+        $('.alert-message').delay(1000).fadeOut();
     }
 
 </script>
