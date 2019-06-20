@@ -343,19 +343,15 @@
     });
 
     function copy(self) {
-        var textarea = document.createElement("textarea");
-        textarea.textContent = self.innerHTML;
-        document.body.appendChild(textarea);
-        var selection = document.getSelection();
-        var range = document.createRange();
-        range.selectNode(textarea);
-        selection.removeAllRanges();
-        selection.addRange(range);
+        var input = document.createElement("input");
+        document.body.appendChild(input);
+        input.setAttribute("value", self.innerHTML);
+        input.select();
         if (document.execCommand('copy')) {
+            document.execCommand('copy')
             $('.alert').html('copied!').addClass('alert-message').show().delay(1500).fadeOut();
         }
-        selection.removeAllRanges();
-        document.body.removeChild(textarea);
+        document.body.removeChild(input);
     }
 
 
