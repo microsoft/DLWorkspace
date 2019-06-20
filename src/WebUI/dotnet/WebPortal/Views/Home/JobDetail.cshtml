@@ -169,6 +169,7 @@
                 }
             });
     }
+
     function getEndpoints() {
         $.ajax({
             url: "/api/dlws/GetEndpoints?cluster=@ViewData["cluster"]&jobId=@ViewData["jobid"]", dataType: 'json'
@@ -176,16 +177,15 @@
             $('#endpoints').show();
 
             endpoints.sort(function (a, b) {
-                //console.log(a.podName);
                 if (a.podName.indexOf("ps0") === -1 && a.podName.indexOf("ps0") === -1) {
-                    var work1 = a.podName.split("-").pop().replace("worker","");
-                    var work2 = b.podName.split("-").pop().replace("worker", "");
-                    return parseInt(work1) - parseInt(work2);
+                    var worker1 = a.podName.split("-").pop().replace("worker","");
+                    var worker2 = b.podName.split("-").pop().replace("worker", "");
+                    return parseInt(worker1) - parseInt(worker2);
                 }
-                return String(a.podName).localeCompare(b.podName)
+                return String(a.podName).localeCompare(b.podName);
             });
 
-        var endpointsArr = $.map(endpoints, function (endpoint) {
+            var endpointsArr = $.map(endpoints, function (endpoint) {
                 var task = "";
 
                 if (endpoint.podName) {
@@ -195,11 +195,11 @@
                 if (task.indexOf("ps0") !== -1 && endpoint.name.indexOf("ssh") !== -1) {
                     return "";
                 }
-                var taskInfo = task.indexOf("worker") === -1 ? "" : " " +task;
+                var taskInfo = task.indexOf("worker") === -1 ? "" : " " + task;
                 if (endpoint.name == "ssh") {
                     window.ngScope.$applyAsync('ssh = true');
                     if (endpoint.status == "running") {
-                        return  taskInfo + " SSH: <span onclick='copy(this)' onmouseover='copyIconShow(this)' onmouseout='copyIconHidden(this)'>ssh -i " + endpoint.username + ".ssh/id_rsa -p " + endpoint.port + " " + endpoint.username + "@@" + endpoint.nodeName + "." + endpoint.domain + "</span>" +"\n";
+                        return taskInfo + " SSH: <span onclick='copy(this)' onmouseover='copyIconShow(this)' onmouseout='copyIconHidden(this)'>ssh -i " + endpoint.username + ".ssh/id_rsa -p " + endpoint.port + " " + endpoint.username + "@@" + endpoint.nodeName + "." + endpoint.domain + "</span>" +"\n";
                     } else {
                         return;
                     }
@@ -208,7 +208,7 @@
                     window.ngScope.$applyAsync('ipython = true');
                     if (endpoint.status == "running") {
                         var svcurl = "http://" + endpoint.nodeName + "." + endpoint.domain + ":" + endpoint.port + "/";
-                        return " "+endpoint.name + " could be access via: <a href='" + svcurl + "' target='_blank'>" + svcurl + "</a>\n";
+                        return " " + endpoint.name + " could be access via: <a href='" + svcurl + "' target='_blank'>" + svcurl + "</a>\n";
                     } else {
                         return;
                     }
