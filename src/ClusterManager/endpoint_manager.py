@@ -81,7 +81,7 @@ spec:
 
 
 def create_node_port(endpoint):
-    endpoint_description = generate_node_port_service(endpoint["jobId"], endpoint["podName"], endpoint["id"], endpoint["name"], endpoint["port"])
+    endpoint_description = generate_node_port_service(endpoint["jobId"], endpoint["podName"], endpoint["id"], endpoint["name"], endpoint["podPort"])
     endpoint_description_path = os.path.join(config["storage-mount-path"], endpoint["endpointDescriptionPath"])
     print("endpointDescriptionPath: %s" % endpoint_description_path)
     with open(endpoint_description_path, 'w') as f:
@@ -127,11 +127,12 @@ def start_endpoint(endpoint):
 
     port_name = endpoint["name"]
     if port_name == "ssh":
-        port = setup_ssh_server(user_name, pod_name, host_network)
-    else:
-        port = setup_jupyter_server(user_name, pod_name)
-
-    endpoint["port"] = port
+        endpoint["podPort"] = setup_ssh_server(user_name, pod_name, host_network)
+    elif port_name == "ipython":
+        endpoint["podPort"] = setup_jupyter_server(user_name, pod_name)
+    elif port_name == "tensorboard":
+        # TODO tensorboard
+        endpoint["podPort"] = 49999
 
     # create NodePort
     create_node_port(endpoint)
