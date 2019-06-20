@@ -199,7 +199,11 @@
                 if (endpoint.name == "ssh") {
                     window.ngScope.$applyAsync('ssh = true');
                     if (endpoint.status == "running") {
-                        return taskInfo + " SSH: <span onclick='copy(this)' onmouseover='copyIconShow(this)' onmouseout='copyIconHidden(this)'>ssh -i " + endpoint.username + ".ssh/id_rsa -p " + endpoint.port + " " + endpoint.username + "@@" + endpoint.nodeName + "." + endpoint.domain + "</span>" +"\n";
+                        var workPath = "@ViewData["workPath"]";
+                        var sessionUserName = "@ViewData["Username"]";
+                        var jobUserName = endpoint.username;
+                        workPath = workPath.replace(sessionUserName, jobUserName);
+                        return taskInfo + " SSH: <span onclick='copy(this)' onmouseover='copyIconShow(this)' onmouseout='copyIconHidden(this)'>ssh -i " + workPath + ".ssh/id_rsa -p " + endpoint.port + " " + jobUserName + "@@" + endpoint.nodeName + "." + endpoint.domain + "</span>" + "\n";
                     } else {
                         return;
                     }
