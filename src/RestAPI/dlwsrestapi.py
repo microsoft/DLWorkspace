@@ -1007,6 +1007,7 @@ class Endpoint(Resource):
 
         for [_, endpoint] in endpoints.items():
             ret = {
+                "id": endpoint["id"],
                 "name": endpoint["name"],
                 "username": endpoint["username"],
                 "status": endpoint["status"],
@@ -1014,6 +1015,8 @@ class Endpoint(Resource):
                 "podName": endpoint["podName"],
                 "domain": config["domain"],
             }
+            if "podPort" in endpoint:
+                ret["podPort"] = endpoint["podPort"]
             if endpoint["status"] == "running":
                 if endpoint["hostNetwork"]:
                     port = int(endpoint["port"])
@@ -1050,9 +1053,15 @@ class Endpoint(Resource):
                 for i in range(nums[role]):
                     pod_names.append(job_id + "-" + role + str(i))
 
-        # endpoints should be in ["ssh", "ipython"]
-        if any(elem not in ["ssh", "ipython"] for elem in requested_endpoints):
-            return ("Bad request, endpoints only allowed in [\"ssh\", \"ipython\"]: %s" % requested_endpoints), 400
+        interactive_ports = []
+        # endpoints should be ["ssh", "ipython", "tensorboard", {"name": "port name", "podPort": "port on pod in 50000-59999"}]
+        for interactive_port in [ elem for elem in requested_endpoints if elem not in ["ssh", "ipython", "tensorboard"] ]:
+            if any(required_field not in interactive_port for required_field in ["name", "podPort"]):
+               # if ["name", "port"] not in interactive_port:
+               return ("Bad request, interactive port should have \"name\" and \"podPort\"]: %s" % requested_endpoints), 400
+            if int(interactive_port["podPort"]) < 50000 or int(interactive_port["podPort"]) > 59999:
+               return ("Bad request, interactive podPort should in range 50000-59999: %s" % requested_endpoints), 400
+            interactive_ports.append(interactive_port)
 
         # HostNetwork
         if "hostNetwork" in job_params and job_params["hostNetwork"] == True:
@@ -1116,6 +1125,60 @@ class Endpoint(Resource):
                     "podName": pod_name,
                     "username": username,
                     "name": "ipython",
+                    "status": "pending",
+                    "hostNetwork": host_network
+                }
+                endpoints[endpoint_id] = endpoint
+            else:
+                print("Endpoint {} exists. Skip.".format(endpoint_id))
+
+        # Only open tensorboard on the master
+        if 'tensorboard' in requested_endpoints:
+            if job_type == "RegularJob":
+                pod_name = pod_names[0]
+            else:
+                # For a distributed job, we set up jupyter on first worker node.
+                # PS node does not have GPU access.
+                # TODO: Simplify code logic after removing PS
+                pod_name = pod_names[1]
+
+            endpoint_id = "endpoint-" + pod_name + "-tensorboard"
+
+            if not endpoint_exist(endpoint_id=endpoint_id):
+                print("Endpoint {} does not exist. Add.".format(endpoint_id))
+                endpoint = {
+                    "id": endpoint_id,
+                    "jobId": job_id,
+                    "podName": pod_name,
+                    "username": username,
+                    "name": "tensorboard",
+                    "status": "pending",
+                    "hostNetwork": host_network
+                }
+                endpoints[endpoint_id] = endpoint
+            else:
+                print("Endpoint {} exists. Skip.".format(endpoint_id))
+
+        # interactive port
+        for interactive_port in interactive_ports:
+            if job_type == "RegularJob":
+                pod_name = pod_names[0]
+            else:
+                # For a distributed job, we set up jupyter on first worker node.
+                # PS node does not have GPU access.
+                # TODO: Simplify code logic after removing PS
+                pod_name = pod_names[1]
+
+            endpoint_id = "endpoint-" + pod_name + "-" + interactive_port["name"]
+            if not endpoint_exist(endpoint_id=endpoint_id):
+                print("Endpoint {} does not exist. Add.".format(endpoint_id))
+                endpoint = {
+                    "id": endpoint_id,
+                    "jobId": job_id,
+                    "podName": pod_name,
+                    "username": username,
+                    "name": interactive_port["name"],
+                    "podPort": interactive_port["podPort"],
                     "status": "pending",
                     "hostNetwork": host_network
                 }
