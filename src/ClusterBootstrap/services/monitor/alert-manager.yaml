@@ -76,15 +76,17 @@ data:
     templates:
     - "/etc/alertmanager/template/*.tmpl"
     route:
+      repeat_interval: 24h
       receiver: alert-email
       group_wait: 30s
       group_interval: 5m
       group_by: [alertname]
-    routes:
-    - receiver: task_user
-      group_by: [alertname, user_email]
-      match_re:
-        type: user_alert
+      routes:
+      - receiver: task_user
+        repeat_interval: 4h
+        group_by: [alertname, user_email]
+        match_re:
+          type: user_alert
     receivers:
     - name: "alert-email"
       email_configs:
@@ -94,8 +96,10 @@ data:
             subject: '{{ cnf["cluster_name"] }}: {{ "{{" }} template "__subject" . {{ "}}" }}'
     - name: "task_user"
       email_configs:
-        - to: '{{ "{{" }} .GroupLabels.user_email {{ "}}" }}'
-          html: '{{ "{{" }} template "email.html" . {{ "}}" }}'
+        - to: '{{ "{{" }} .GroupLabels.user_email {{ "}}" }},{{ alert_info["receiver"] }}'
+          html: '{{ "{{" }} template "user_alert.html" . {{ "}}" }}'
           headers:
+            To: '{{ "{{" }} .GroupLabels.user_email {{ "}}" }}'
+            CC: '{{ alert_info["receiver"] }}'
             subject: '{{ cnf["cluster_name"] }}: {{ "{{" }} template "__subject" . {{ "}}" }}'
 {% endif %}
