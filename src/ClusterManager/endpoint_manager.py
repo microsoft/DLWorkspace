@@ -116,6 +116,15 @@ def setup_jupyter_server(user_name, pod_name):
     return jupyter_port
 
 
+def setup_tensorboard(user_name, pod_name):
+    tensorboard_port = random.randint(40000, 49999)
+    bash_script = "sudo bash -c 'export DEBIAN_FRONTEND=noninteractive; pip install tensorboard; runuser -l " + user_name + " -c \"nohup tensorboard --logdir=/job/logs --port=" + str(tensorboard_port) + " &>/dev/null &\"'"
+    output = k8sUtils.kubectl_exec("exec %s %s" % (pod_name, " -- " + bash_script))
+    if output == "":
+        raise Exception("Failed to start tensorboard in container. JobId: %s " % pod_name)
+    return tensorboard_port
+
+
 def start_endpoint(endpoint):
     # pending, running, stopped
     print("Starting endpoint: %s" % (endpoint))
@@ -131,8 +140,7 @@ def start_endpoint(endpoint):
     elif port_name == "ipython":
         endpoint["podPort"] = setup_jupyter_server(user_name, pod_name)
     elif port_name == "tensorboard":
-        # TODO tensorboard
-        endpoint["podPort"] = 49999
+        endpoint["podPort"] = setup_tensorboard(user_name, pod_name)
     else:
         endpoint["podPort"] = int(endpoint["podPort"])
 
