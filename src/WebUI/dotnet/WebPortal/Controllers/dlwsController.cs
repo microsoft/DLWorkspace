@@ -623,7 +623,6 @@ namespace WindowsAuth.Controllers
             inp = inp.Replace("\"work_path\"", "\"workPath\"");
             inp = inp.Replace("\"data_path\"", "\"dataPath\"");
             inp = inp.Replace("\"job_path\"", "\"jobPath\"");
-            inp = inp.Replace("\"log_path\"", "\"logDir\"");
             inp = inp.Replace("\"port\"", "\"interactivePort\"");
             inp = inp.Replace("\"run_as_root\"", "\"runningasroot\"");
             return inp; 

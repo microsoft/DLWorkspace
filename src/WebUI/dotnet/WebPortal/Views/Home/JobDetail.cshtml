@@ -209,7 +209,11 @@
                     }
                 }
                 else {
-                    window.ngScope.$applyAsync('ipython = true');
+                    if (endpoint.name === "ipython") {
+                        window.ngScope.$applyAsync('ipython = true');
+                    } else if (endpoint.name === "tensorboard") {
+                        window.ngScope.$applyAsync('tensorboard = true');
+                    }
                     if (endpoint.status == "running") {
                         var svcurl = "http://" + endpoint.nodeName + "." + endpoint.domain + ":" + endpoint.port + "/";
                         return " " + endpoint.name + " could be access via: <a href='" + svcurl + "' target='_blank'>" + svcurl + "</a>\n";
@@ -423,6 +427,20 @@
                     })
                 }
             })
+            $scope.$watch("tensorboard", function (value, oldValue) {
+                if (value === oldValue) { return; }
+                if (value) {
+                    $http({
+                        method: "POST",
+                        url: "/api/dlws/endpoints",
+                        params: { cluster: cluster },
+                        data: {
+                            jobId: '@ViewData["jobid"]',
+                            endpoints: ["tensorboard"]
+                        }
+                    })
+                }
+            })
 
             window.ngScope = $scope;
         });
@@ -445,7 +463,8 @@
 <!-- introduce angular.js just for md-switch in AngularJS Material -->
 <div ng-app="endpointSwitches" ng-controller="endpointSwitches">
     <md-switch ng-model="ssh" ng-disabled="ssh">SSH</md-switch>
-    <md-switch ng-model="ipython" ng-disabled="ipython">ipython</md-switch>
+    <md-switch ng-model="ipython" ng-disabled="ipython">iPython</md-switch>
+    <md-switch ng-model="tensorboard" ng-disabled="tensorboard">Tensorboard</md-switch>
 </div>
 <h2> Job Console Output:</h2>
 <div id="logPanel" style="height: 500px;" readonly="" class="ng-binding grey-box scroll-box">

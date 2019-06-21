@@ -728,7 +728,7 @@ namespace WindowsAuth.Controllers
                         }
                     }
 
-                    if (!String.IsNullOrEmpty(useServer))
+                 if (!String.IsNullOrEmpty(useServer))
                     {
                         _logger.LogDebug($"Attempt to contact WinBind server {useServer} for membershhip");
                         var userID = await FindGroupMembershipByServer(useServer);
