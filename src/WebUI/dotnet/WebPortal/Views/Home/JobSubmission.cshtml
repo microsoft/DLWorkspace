@@ -66,7 +66,9 @@
                 };
             $scope.current.runningasroot = "1";
 
-            tobool($scope.current, "is_interactive", false);
+            if ($scope.current.interactivePorts == null) {
+                $scope.current.interactivePorts = [];
+            }
             if ($scope.current.mountpoints == null) {
                 $scope.current.mountpoints = [];
             };
@@ -422,15 +424,7 @@
             $.ajax({ url: url, method: 'POST', data: params, error: $scope.AlertAPIError, timeout: 10000 }).done();
         };
 
-        $scope.processCurrent = function () {
-            if (!tobool($scope.current, "is_interactive", false)) {
-                delete $scope.current.interactivePort;
-                console.log("deleted interactivePorts");
-            }
-        };
-
         $scope.SaveTemplate = function () {
-            $scope.processCurrent();
             var params = {};
             params.Name = $scope.template.useTemplateName;
             params.Json = JSON.stringify($scope.current);
@@ -441,7 +435,6 @@
         $scope.submitJob = function () {
             if (!$scope.submittable()) return;
             $scope.busy = true;
-            $scope.processCurrent();
             var params = {};
             var job = angular.extend({}, $scope.current, $scope.extras);
 
@@ -464,12 +457,22 @@
                 if (payload.jobId && (
                     $scope.current.ssh ||
                     $scope.current.ipython ||
-                    $scope.current.tensorboard
+                    $scope.current.tensorboard ||
+                    $scope.current.interactivePorts.length > 0
                 )) {
                     const endpoints = [];
                     if ($scope.current.ssh) { endpoints.push('ssh') }
                     if ($scope.current.ipython) { endpoints.push('ipython') }
                     if ($scope.current.tensorboard) { endpoints.push('tensorboard') }
+                    if ($scope.current.interactivePorts.length > 0) {
+                        $scope.current.interactivePorts.forEach(function (item) {
+                            if (!item.number) { return; }
+                            endpoints.push({
+                                name: item.name || "port-" + item.number,
+                                podPort: item.number
+                            });
+                        })
+                    }
                     return $http({
                         method: "POST",
                         url: "/api/dlws/endpoints",
@@ -701,36 +704,35 @@
                     </md-input-container>
 
                     <div layout="row" layout-align="space-between">
-                        <md-input-container class="md-block" flex="30">
-                            <md-switch ng-model="current.ssh" md-no-asterisk>
-                                SSH
-                            </md-switch>
-                        </md-input-container>
-                        <md-input-container class="md-block" flex="30">
-                            <md-switch ng-model="current.ipython" md-no-asterisk>
-                                iPython
-                            </md-switch>
-                        </md-input-container>
-                        <md-input-container class="md-block" flex="30">
-                            <md-switch ng-model="current.tensorboard" md-no-asterisk>
-                                Tensorboard
-                            </md-switch>
-                        </md-input-container>
+                        <md-switch ng-model="current.ssh" md-no-asterisk flex="30">
+                            SSH
+                        </md-switch>
+                        <md-switch ng-model="current.ipython" md-no-asterisk flex="30">
+                            iPython
+                        </md-switch>
+                        <md-switch ng-model="current.tensorboard" md-no-asterisk flex="30">
+                            Tensorboard
+                        </md-switch>
                     </div>
 
+                    <div layout="row" ng-repeat="port in current.interactivePorts">
+                        <md-input-container flex>
+                            <label>Name</label>
+                            <input type="text" md-maxlength="16" ng-model="port.name">
+                        </md-input-container>
 
-                    <div layout="row">
-                        <md-input-container class="md-block" flex="50" ng-hide="true">
-                            <md-switch name="is_interactive" ng-model="current.is_interactive" ng-disabled="true" md-no-asterisk>
-                                Interactive Job  
-                            </md-switch>
+                        <md-input-container flex>
+                            <label>Number</label>
+                            <input type="number" min="40000" max="49999" ng-model="port.number" />
+                            <div class="md-errors-spacer">
+                                <div class="md-char-counter">40000 - 49999</div>
+                            </div>
                         </md-input-container>
+
+                        <md-button class="md-warn" ng-click="current.interactivePorts.splice($index, 1)">Remove</md-button>
                     </div>
-                    <div ng-if="current.is_interactive" class="form-group">
-                        <md-input-container class="md-block">
-                            <label> Open ports for interactive job </label>
-                            <input ng-model="current.interactivePort" required md-no-asterisk>
-                        </md-input-container>
+                    <div layout="row" layout-align="center">
+                        <md-button class="md-raised" ng-click="current.interactivePorts.push({})">Add interactive port</md-button>
                     </div>
 
                 </div>
