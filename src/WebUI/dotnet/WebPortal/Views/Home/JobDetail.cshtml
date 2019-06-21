@@ -284,6 +284,7 @@
             }
 
             document.getElementById('run-command').style.display = payload.jobStatus == "running" ? "block" : "none";
+            window.ngScope.$applyAsync(function (scope) { scope.status = payload.jobStatus });
             if (payload.jobStatus == "running") {
                 getCommands();
                 getEndpoints();
@@ -462,9 +463,9 @@
 </div>
 <!-- introduce angular.js just for md-switch in AngularJS Material -->
 <div ng-app="endpointSwitches" ng-controller="endpointSwitches">
-    <md-switch ng-model="ssh" ng-disabled="ssh">SSH</md-switch>
-    <md-switch ng-model="ipython" ng-disabled="ipython">iPython</md-switch>
-    <md-switch ng-model="tensorboard" ng-disabled="tensorboard">Tensorboard</md-switch>
+    <md-switch ng-model="ssh" ng-disabled="status !== 'running' || ssh">SSH</md-switch>
+    <md-switch ng-model="ipython" ng-disabled="status !== 'running' || ipython">iPython</md-switch>
+    <md-switch ng-model="tensorboard" ng-disabled="status !== 'running' || tensorboard">Tensorboard</md-switch>
 </div>
 <h2> Job Console Output:</h2>
 <div id="logPanel" style="height: 500px;" readonly="" class="ng-binding grey-box scroll-box">
