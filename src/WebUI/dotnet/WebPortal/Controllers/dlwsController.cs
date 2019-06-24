@@ -345,11 +345,26 @@ namespace WindowsAuth.Controllers
 
             if (url != "")
             {
-                using (var httpClient = new HttpClient())
+                int counter = 3;
+                while (counter > 0)
                 {
-                    var response1 = await httpClient.GetAsync(url);
-                    var content = await response1.Content.ReadAsStringAsync();
-                    ret = content;
+                    try
+                    {
+                        using (var httpClient = new HttpClient())
+                        {
+                            var response1 = await httpClient.GetAsync(url);
+                            var content = await response1.Content.ReadAsStringAsync();
+                            ret = content;
+                        }
+                        counter = 0;
+                    }
+                    catch (Exception e)
+                    {
+                        counter--;
+                        Console.WriteLine(e.Message);
+                        //TODO
+                        //should add logger here
+                    }
                 }
             }
             return ret;
