@@ -4,7 +4,7 @@
 @using WindowsAuth
 @using Newtonsoft.Json;
 
-@if (User.Identity.IsAuthenticated)
+@if (Context.Session.GetString("isAuthorized") == "true")
 {
     <ul class="nav navbar-nav navbar-right">
         <li class="dropdown" id="teams-dropdown">

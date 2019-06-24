@@ -836,11 +836,6 @@ namespace WindowsAuth.Controllers
 
         public IActionResult JobSubmission()
         {
-            if (!User.Identity.IsAuthenticated)
-            {
-                return RedirectToAction("Index", "Home");
-            }
-
             if (!HttpContext.Session.Keys.Contains("isAuthorized") || HttpContext.Session.GetString("isAuthorized") != "true")
             {
                 return RedirectToAction("Index", "Home");
@@ -867,11 +862,6 @@ namespace WindowsAuth.Controllers
 
         public IActionResult DataJob()
         {
-            if (!User.Identity.IsAuthenticated)
-            {
-                return RedirectToAction("Index", "Home");
-            }
-
             if (!HttpContext.Session.Keys.Contains("isAuthorized") || HttpContext.Session.GetString("isAuthorized") != "true")
             {
                 return RedirectToAction("Index", "Home");
@@ -898,11 +888,6 @@ namespace WindowsAuth.Controllers
 
         public IActionResult ViewJobs()
         {
-            if (!User.Identity.IsAuthenticated)
-            {
-                return RedirectToAction("Index", "Home");
-            }
-
             if (!HttpContext.Session.Keys.Contains("isAuthorized") || HttpContext.Session.GetString("isAuthorized") != "true")
             {
                 return RedirectToAction("Index", "Home");
@@ -917,10 +902,6 @@ namespace WindowsAuth.Controllers
 
         public IActionResult JobDetail()
         {
-            if (!User.Identity.IsAuthenticated)
-            {
-                return RedirectToAction("Index", "Home");
-            }
             if (!HttpContext.Session.Keys.Contains("isAuthorized") || HttpContext.Session.GetString("isAuthorized") != "true")
             {
                 return RedirectToAction("Index", "Home");
@@ -940,11 +921,6 @@ namespace WindowsAuth.Controllers
 
         public IActionResult ViewCluster()
         {
-            if (!User.Identity.IsAuthenticated)
-            {
-                // return RedirectToAction("Login", "Account", new { controller = "Account", action = "Login" });
-                return RedirectToAction("Index", "Home");
-            }
             if (!HttpContext.Session.Keys.Contains("isAuthorized") || HttpContext.Session.GetString("isAuthorized") != "true")
             {
                 return RedirectToAction("Index", "Home");
@@ -988,7 +964,7 @@ namespace WindowsAuth.Controllers
             var currentCluster = HttpContext.Session.GetString("CurrentClusters");
             if (Startup.Database.ContainsKey(currentCluster))
             {
-                if (!User.Identity.IsAuthenticated || HttpContext.Session.GetString("isAdmin").Equals("false") )
+                if (HttpContext.Session.GetString("isAuthorized") != "true")
                 {
                     return RedirectToAction("Index", "Home");
                 }
@@ -1030,7 +1006,7 @@ namespace WindowsAuth.Controllers
 
         public async Task<IActionResult> AccountSettings()
         {
-            if (!User.Identity.IsAuthenticated)
+            if (HttpContext.Session.GetString("isAuthorized") != "true")
             {
                 return RedirectToAction("Index", "Home");
             }

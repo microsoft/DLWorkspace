@@ -37,7 +37,7 @@ namespace WindowsAuth.Controllers
         [HttpGet("{scheme}")]
         public async Task Login(string scheme )
         {
-            if (HttpContext.User == null || !HttpContext.User.Identity.IsAuthenticated)
+            if (HttpContext.Session.GetString("isAuthorized") != "true")
             {
                 await HttpContext.Authentication.ChallengeAsync(scheme, new AuthenticationProperties { RedirectUri = "/" });
             }

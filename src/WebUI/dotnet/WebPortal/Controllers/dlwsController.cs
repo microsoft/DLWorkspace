@@ -191,7 +191,7 @@ namespace WindowsAuth.Controllers
                 return tuple.Item2;
 
 
-            if (!User.Identity.IsAuthenticated && !passwdLogin)
+            if (HttpContext.Session.GetString("isAuthorized") != "true" && !passwdLogin)
             {
                 ret = "Unauthorized User, Please login!";
                 return ret;
@@ -447,7 +447,7 @@ namespace WindowsAuth.Controllers
                 return tuple.Item2;
 
 
-            if (!User.Identity.IsAuthenticated && !passwdLogin)
+            if (HttpContext.Session.GetString("isAuthorized") != "true" && !passwdLogin)
             {
                 ret = "Unauthorized User, Please login!";
                 return ret;
