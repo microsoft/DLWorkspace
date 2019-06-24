@@ -915,30 +915,34 @@ def Run():
         except Exception as e:
             print(e)
 
-        dataHandler = DataHandler()
         try:
+            dataHandler = DataHandler()
+            try:
+                pendingJobs = dataHandler.GetPendingJobs()
+                TakeJobActions(pendingJobs)
 
-            pendingJobs = dataHandler.GetPendingJobs()
-            TakeJobActions(pendingJobs)
-
-            pendingJobs = dataHandler.GetPendingJobs()
-            logging.info("Updating status for %d jobs" % len(pendingJobs))
-            for job in pendingJobs:
-                try:
-                    logging.info("Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"]))
-                    if job["jobStatus"] == "killing":
-                        KillJob(job, "killed")
-                    elif job["jobStatus"] == "pausing":
-                        KillJob(job, "paused")
-                    elif job["jobStatus"] == "scheduling" or job["jobStatus"] == "running" :
-                        UpdateJobStatus(job)
-                    elif job["jobStatus"] == "unapproved" :
-                        AutoApproveJob(job)
-                except Exception as e:
-                    logging.info(e)
+                pendingJobs = dataHandler.GetPendingJobs()
+                logging.info("Updating status for %d jobs" % len(pendingJobs))
+                for job in pendingJobs:
+                    try:
+                        logging.info("Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"]))
+                        if job["jobStatus"] == "killing":
+                            KillJob(job, "killed")
+                        elif job["jobStatus"] == "pausing":
+                            KillJob(job, "paused")
+                        elif job["jobStatus"] == "scheduling" or job["jobStatus"] == "running":
+                            UpdateJobStatus(job)
+                        elif job["jobStatus"] == "unapproved":
+                            AutoApproveJob(job)
+                    except Exception as e:
+                        logging.info(e)
+            except Exception as e:
+                print(str(e))
+            finally:
+                dataHandler.Close()
         except Exception as e:
             print(str(e))
-        dataHandler.Close()
+
         time.sleep(1)
 
 
