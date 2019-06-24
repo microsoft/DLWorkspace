@@ -346,6 +346,7 @@ namespace WindowsAuth.Controllers
             if (url != "")
             {
                 int counter = 3;
+                bool success = false;
                 while (counter > 0)
                 {
                     try
@@ -357,6 +358,7 @@ namespace WindowsAuth.Controllers
                             ret = content;
                         }
                         counter = 0;
+                        success = true;
                     }
                     catch (Exception e)
                     {
@@ -364,6 +366,17 @@ namespace WindowsAuth.Controllers
                         Console.WriteLine(e.Message);
                         //TODO
                         //should add logger here
+                    }
+                }
+
+                // if not success, try it again and return the restfulapi error as before. 
+                if (!success)
+                {
+                    using (var httpClient = new HttpClient())
+                    {
+                        var response1 = await httpClient.GetAsync(url);
+                        var content = await response1.Content.ReadAsStringAsync();
+                        ret = content;
                     }
                 }
             }
