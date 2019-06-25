@@ -178,13 +178,19 @@
         }).then(function (endpoints) {
             $('#endpoints').show();
 
+            var order = { ssh: 0, ipython: 1, tensorboard: 2 };
+
             endpoints.sort(function (a, b) {
-                if (a.podName.indexOf("ps0") === -1 && a.podName.indexOf("ps0") === -1) {
-                    var worker1 = a.podName.split("-").pop().replace("worker","");
-                    var worker2 = b.podName.split("-").pop().replace("worker", "");
-                    return parseInt(worker1) - parseInt(worker2);
+                var orderA = order[a.name] || Infinity;
+                var orderB = order[b.name] || Infinity;
+
+                if (orderA !== orderB) { return orderA - orderB; }
+
+                if (isFinite(orderA)) {
+                    return a.nodeName.localeCompare(b.nodeName);
+                } else {
+                    return a.podPort - b.podPort;
                 }
-                return String(a.podName).localeCompare(b.podName);
             });
 
             var endpointsArr = $.map(endpoints, function (endpoint) {
@@ -218,13 +224,15 @@
                     }
                     if (endpoint.status == "running") {
                         var svcurl = "http://" + endpoint.nodeName + "." + endpoint.domain + ":" + endpoint.port + "/";
-                        return " " + endpoint.name + " could be access via: <a href='" + svcurl + "' target='_blank'>" + svcurl + "</a>\n";
+                        return " " + endpoint.name + ": <a href='" + svcurl + "' target='_blank'>" + svcurl + "</a>\n";
                     } else {
                         return;
                     }
                 }
             });
             var sshContent = "";
+            var ipythonContent = "";
+            var tensorboardContent = "";
             var otherContent = "";
             var endPointName = "";
             for (var i = 0; i < endpointsArr.length; i++) {
@@ -232,6 +240,10 @@
                     continue;
                 } else if (endpointsArr[i].indexOf("ssh") !== -1) {
                     sshContent += endpointsArr[i];
+                } else if (endpointsArr[i].indexOf("ipython") !== -1) {
+                    ipythonContent += endpointsArr[i];
+                } else if (endpointsArr[i].indexOf("tensorboard") !== -1) {
+                    tensorboardContent += endpointsArr[i];
                 } else {
                      endPointName = endpointsArr[i].split(" ")[0];
                      otherContent += endpointsArr[i];
@@ -239,7 +251,7 @@
             }
 
             otherContent = endPointName + otherContent;
-            var endpointsStr = sshContent + "<div style='height:10px;'></div>" + otherContent;
+            var endpointsStr = sshContent + "<div style='height:10px;'></div>" + ipythonContent + "<div style='height:10px;'></div>" + tensorboardContent + "<div style='height:10px;'></div>" + otherContent;
 
             var endpointsPanellDiv = document.getElementById('endpointsPanel');
             if (endpointsPanellDiv.innerHTML != endpointsStr) {
