@@ -465,11 +465,12 @@
                     if ($scope.current.ipython) { endpoints.push('ipython') }
                     if ($scope.current.tensorboard) { endpoints.push('tensorboard') }
                     if ($scope.current.interactivePorts.length > 0) {
-                        $scope.current.interactivePorts.forEach(function (item) {
-                            if (!item.number) { return; }
+                        $scope.current.interactivePorts.forEach(function (port) {
+                            if (typeof port !== 'number') { return; }
+                            if (port < 40000 || port > 49999) { return; }
                             endpoints.push({
-                                name: item.name || "port-" + item.number,
-                                podPort: item.number
+                                name: "port-" + port,
+                                podPort: port
                             });
                         })
                     }
@@ -586,8 +587,36 @@
             if (!$scope.extras.gpuType) return false;
             if (!$scope.current.jobName) return false;
             if (!$scope.current.image) return false;
+            if (!$scope.current.cmd || !String($scope.current.cmd).trim()) return false;
+            if (
+                $scope.current.jobtrainingtype === 'RegularJob' &&
+                typeof $scope.current.resourcegpu !== 'number'
+            ) return false;
+            if (
+                $scope.current.jobtrainingtype === 'PSDistJob' &&
+                typeof $scope.current.numpsworker !== 'number'
+            ) return false;
             if ($scope.busy) return false;
             return true;
+        }
+
+        $scope.addInteractivePort = function ($chip) {
+            var port = Number($chip)
+            if (isNaN(port)) return null;
+            if (port < 40000 || port > 49999) return null;
+
+            return port;
+        }
+
+        $scope.portBlur = function ($event) {
+            var port = $scope.addInteractivePort($event.target.value);
+            if (port === undefined) {
+                port = $event.target.value;
+            }
+            if (port !== null) {
+                $scope.current.interactivePorts.push(port);
+            }
+            $event.target.value = '';
         }
     });
 
@@ -703,6 +732,16 @@
                         <textarea ng-model="current.cmd" rows="10"></textarea>
                     </md-input-container>
 
+                    <label>
+                        Interactive Ports (40000 - 49999)
+                    </label>
+                    <md-chips ng-model="current.interactivePorts" md-transform-chip="addInteractivePort($chip)" md-separator-keys="[13, 32, 186, 188]">
+                        <md-chip-template>
+                            <span class="md-body-1">{{$chip}}</span>
+                        </md-chip-template>
+                        <input type="number" min="40000" max="49999" class="md-body-1" ng-blur="portBlur($event)">
+                    </md-chips>
+
                     <div layout="row" layout-align="space-between">
                         <md-switch ng-model="current.ssh" md-no-asterisk flex="30">
                             SSH
@@ -711,28 +750,8 @@
                             iPython
                         </md-switch>
                         <md-switch ng-model="current.tensorboard" md-no-asterisk flex="30">
-                            Tensorboard
+                            Tensorboard<br /><code>--logdir=/job/logs</code>
                         </md-switch>
-                    </div>
-
-                    <div layout="row" ng-repeat="port in current.interactivePorts">
-                        <md-input-container flex>
-                            <label>Name</label>
-                            <input type="text" md-maxlength="16" ng-model="port.name">
-                        </md-input-container>
-
-                        <md-input-container flex>
-                            <label>Number</label>
-                            <input type="number" min="40000" max="49999" ng-model="port.number" />
-                            <div class="md-errors-spacer">
-                                <div class="md-char-counter">40000 - 49999</div>
-                            </div>
-                        </md-input-container>
-
-                        <md-button class="md-warn" ng-click="current.interactivePorts.splice($index, 1)">Remove</md-button>
-                    </div>
-                    <div layout="row" layout-align="center">
-                        <md-button class="md-raised" ng-click="current.interactivePorts.push({})">Add interactive port</md-button>
                     </div>
 
                 </div>
