@@ -1,10 +1,10 @@
 groups:
     - name: idle-job
       rules:
-      - alert: low-gpu-usage
-        expr: avg(task_gpu_percent) by (pod_name, instance, user_email) == 0
+      - alert: zero-gpu-usage
+        expr: avg(task_gpu_percent) by (user_email, job_name) == 0
         for: 4h
         labels:
           type: user_alert
         annotations:
-          summary: "Your job {{$labels.pod_name}} in {{$labels.instance}} have not used gpu for 4 hours. Please kill the job if you do not need it anymore"
+          summary: "Your job {{$labels.job_name}} have not used gpu for 4 hours. Please kill the job if you do not need it anymore"
