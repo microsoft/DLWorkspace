@@ -687,13 +687,13 @@
 
 
                     <div layout="row">
-                        <md-input-container flex="50">
+                        <md-input-container flex="100">
                             <label> Job Name </label>
                             <input ng-model="current.jobName" required md-no-asterisk>
                             <div class="hint" ng-if="showHints">Tell us the name of your job</div>
                         </md-input-container>
 
-                        <md-input-container flex="50">
+                        <md-input-container flex="50" ng-hide="true">
                             <label> Job Priority </label>
                             <md-select name="jobtrainingtype" ng-model="extras.preemptionAllowed" required md-no-asterisk>
                                 <md-option value="False" selected>Non-Preemptible Job</md-option>
@@ -766,7 +766,7 @@
                         <md-switch ng-model="current.tensorboard" md-no-asterisk flex="60">
                             <div layout="row">
                                 <span>Tensorboard(logdir=/job/logs)</span>
-                                &nbsp;<i class="layui-icon" title="Tensorboard will listen on directory /job/logs inside docker container." data-toggle="tooltip" data-placement="right">&#xe60b;</i>
+                                &nb<i class="layui-icon" title="Tensorboard will listen on directory /job/logs inside docker container." data-toggle="tooltip" data-placement="right">&#xe60b;</i>
                             </div>
                         </md-switch>
                     </div>
