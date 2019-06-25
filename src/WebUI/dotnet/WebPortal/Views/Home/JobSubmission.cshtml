@@ -10,11 +10,25 @@
     a:link {
         color: #1F45FC
     }
+
+    code {
+        color: #000000;
+        background-color: #ffffff;
+    }
 </style>
 
 
 <script type="text/javascript">
+   $(function () {
+        $('[data-toggle="tooltip"]').tooltip({
+            container: 'body',
+            show: {
+                effect: "slideDown",
+                delay: 1000
+            }
 
+        })
+    })
     var app = angular.module('jobApp', ["xeditable", "ui.select", "ngMaterial", 'ngMessages']);
 
     app.run(function (editableOptions) {
@@ -228,7 +242,7 @@
                 //$log.log($scope.joblist);
             });
             $scope.joblist = null;
-            
+
             var currentTeam = '@Context.Session.GetString("Team")';
             $http.get("/api/dlws/GetVC", { params: { cluster: cluster, vcName: currentTeam } }).then(function (response) {
                 var result = response.data;
@@ -743,14 +757,17 @@
                     </md-chips>
 
                     <div layout="row" layout-align="space-between">
-                        <md-switch ng-model="current.ssh" md-no-asterisk flex="30">
+                        <md-switch ng-model="current.ssh" md-no-asterisk flex="60">
                             SSH
                         </md-switch>
-                        <md-switch ng-model="current.ipython" md-no-asterisk flex="30">
+                        <md-switch ng-model="current.ipython" md-no-asterisk flex="60">
                             iPython
                         </md-switch>
-                        <md-switch ng-model="current.tensorboard" md-no-asterisk flex="30">
-                            Tensorboard<br /><code>--logdir=/job/logs</code>
+                        <md-switch ng-model="current.tensorboard" md-no-asterisk flex="60">
+                            <div layout="row">
+                                <span>Tensorboard(logdir=/job/logs)</span>
+                                &nbsp;<i class="layui-icon" title="Tensorboard will listen on directory /job/logs inside docker container." data-toggle="tooltip" data-placement="right">&#xe60b;</i>
+                            </div>
                         </md-switch>
                     </div>
 
