@@ -57,7 +57,6 @@ class DataManager:
 
 
     @staticmethod
-    @fcache(TTLInSec=10)
     def GetAllPendingJobs(vcName):
         dataHandler = DataHandler()
         ret = None
