@@ -502,7 +502,12 @@ namespace WindowsAuth.Controllers
             jobObject["vcName"] = HttpContext.Session.GetString("Team");
 
             var runningasroot = jobObject["runningasroot"];
-            if (!(Object.ReferenceEquals(runningasroot, null)) && (runningasroot.ToString() == "1") || (runningasroot.ToString() == true.ToString()))
+            if (
+                !Object.ReferenceEquals(runningasroot, null) && (
+                    runningasroot.ToString() == "1" ||
+                    runningasroot.ToString() == true.ToString()
+                )
+            )
             {
                 jobObject["containerUserId"] = "0";
             }
