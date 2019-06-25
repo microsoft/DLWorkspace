@@ -345,11 +345,39 @@ namespace WindowsAuth.Controllers
 
             if (url != "")
             {
-                using (var httpClient = new HttpClient())
+                int counter = 3;
+                bool success = false;
+                while (counter > 0)
                 {
-                    var response1 = await httpClient.GetAsync(url);
-                    var content = await response1.Content.ReadAsStringAsync();
-                    ret = content;
+                    try
+                    {
+                        using (var httpClient = new HttpClient())
+                        {
+                            var response1 = await httpClient.GetAsync(url);
+                            var content = await response1.Content.ReadAsStringAsync();
+                            ret = content;
+                        }
+                        counter = 0;
+                        success = true;
+                    }
+                    catch (Exception e)
+                    {
+                        counter--;
+                        Console.WriteLine(e.Message);
+                        //TODO
+                        //should add logger here
+                    }
+                }
+
+                // if not success, try it again and return the restfulapi error as before. 
+                if (!success)
+                {
+                    using (var httpClient = new HttpClient())
+                    {
+                        var response1 = await httpClient.GetAsync(url);
+                        var content = await response1.Content.ReadAsStringAsync();
+                        ret = content;
+                    }
                 }
             }
             return ret;
@@ -623,7 +651,6 @@ namespace WindowsAuth.Controllers
             inp = inp.Replace("\"work_path\"", "\"workPath\"");
             inp = inp.Replace("\"data_path\"", "\"dataPath\"");
             inp = inp.Replace("\"job_path\"", "\"jobPath\"");
-            inp = inp.Replace("\"log_path\"", "\"logDir\"");
             inp = inp.Replace("\"port\"", "\"interactivePort\"");
             inp = inp.Replace("\"run_as_root\"", "\"runningasroot\"");
             return inp; 
