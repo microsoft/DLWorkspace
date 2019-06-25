@@ -178,13 +178,19 @@
         }).then(function (endpoints) {
             $('#endpoints').show();
 
+            var order = { ssh: 0, ipython: 1, tensorboard: 2 };
+
             endpoints.sort(function (a, b) {
-                if (a.podName.indexOf("ps0") === -1 && a.podName.indexOf("ps0") === -1) {
-                    var worker1 = a.podName.split("-").pop().replace("worker","");
-                    var worker2 = b.podName.split("-").pop().replace("worker", "");
-                    return parseInt(worker1) - parseInt(worker2);
+                var orderA = order[a.name] || Infinity;
+                var orderB = order[b.name] || Infinity;
+
+                if (orderA !== orderB) { return orderA - orderB; }
+
+                if (isFinite(orderA)) {
+                    return a.nodeName.localeCompare(b.nodeName);
+                } else {
+                    return a.podPort - b.podPort;
                 }
-                return String(a.podName).localeCompare(b.podName);
             });
 
             var endpointsArr = $.map(endpoints, function (endpoint) {
@@ -218,13 +224,15 @@
                     }
                     if (endpoint.status == "running") {
                         var svcurl = "http://" + endpoint.nodeName + "." + endpoint.domain + ":" + endpoint.port + "/";
-                        return " " + endpoint.name + " could be access via: <a href='" + svcurl + "' target='_blank'>" + svcurl + "</a>\n";
+                        return " " + endpoint.name + ": <a href='" + svcurl + "' target='_blank'>" + svcurl + "</a>\n";
                     } else {
                         return;
                     }
                 }
             });
             var sshContent = "";
+            var ipythonContent = "";
+            var tensorboardContent = "";
             var otherContent = "";
             var endPointName = "";
             for (var i = 0; i < endpointsArr.length; i++) {
@@ -232,6 +240,10 @@
                     continue;
                 } else if (endpointsArr[i].indexOf("ssh") !== -1) {
                     sshContent += endpointsArr[i];
+                } else if (endpointsArr[i].indexOf("ipython") !== -1) {
+                    ipythonContent += endpointsArr[i];
+                } else if (endpointsArr[i].indexOf("tensorboard") !== -1) {
+                    tensorboardContent += endpointsArr[i];
                 } else {
                      endPointName = endpointsArr[i].split(" ")[0];
                      otherContent += endpointsArr[i];
@@ -239,7 +251,7 @@
             }
 
             otherContent = endPointName + otherContent;
-            var endpointsStr = sshContent + "<div style='height:10px;'></div>" + otherContent;
+            var endpointsStr = sshContent + "<div style='height:10px;'></div>" + ipythonContent + "<div style='height:10px;'></div>" + tensorboardContent + "<div style='height:10px;'></div>" + otherContent;
 
             var endpointsPanellDiv = document.getElementById('endpointsPanel');
             if (endpointsPanellDiv.innerHTML != endpointsStr) {
@@ -444,32 +456,31 @@
                 }
             })
             $scope.addPort = function () {
-                if (!$scope.portNumber) { return; }
-                if (!$scope.portName) { $scope.portName = 'port-' + $scope.portNumber; }
-                $scope.adding = true;
+                $scope.addPortForm.$setSubmitted();
                 $http({
                     method: "POST",
                     url: "/api/dlws/endpoints",
                     params: { cluster: cluster },
                     data: {
                         jobId: '@ViewData["jobid"]',
-                        endpoints: [{ name: $scope.portName, podPort: $scope.portNumber }]
+                        endpoints: [{ name: 'port-' + $scope.port, podPort: $scope.port }]
                     }
                 }).then(function (response) {
                     if (typeof response.data === 'object') {
-                        delete $scope.portName;
-                        delete $scope.portNumber;
+                        delete $scope.port;
+                        $scope.addPortForm.$setPristine();
+                        $scope.addPortForm.$setUntouched();
                     } else {
                         layer.alert("Restful API Error: \n" + response.data, { icon: 5, btn: 'Ok', title: 'alert' });
                     }
                 }).finally(function () {
-                    $scope.adding = false;
+                    $scope.addPortForm.$submitted = false;
                 })
             }
 
             window.ngScope = $scope;
         });
-    }(angular.module("endpoints", ["ngMaterial"]));
+    }(angular.module("endpoints", ["ngMessages", "ngMaterial"]));
 </script>
 
 <h2> Job Details:</h2>
@@ -489,23 +500,22 @@
 <div ng-app="endpoints" ng-controller="endpoints">
     <md-switch ng-model="ssh" ng-disabled="status !== 'running' || ssh">SSH</md-switch>
     <md-switch ng-model="ipython" ng-disabled="status !== 'running' || ipython">iPython</md-switch>
-    <md-switch ng-model="tensorboard" ng-disabled="status !== 'running' || tensorboard">Tensorboard</md-switch>
-    <div layout="row">
+    <md-switch ng-model="tensorboard" ng-disabled="status !== 'running' || tensorboard">Tensorboard <code>--logdir=/job/logs</code></md-switch>
+    <form name="addPortForm" layout="row" ng-submit="addPort()">
         <md-input-container flex>
-            <label>Name</label>
-            <input type="text" md-maxlength="16" ng-disabled="status !== 'running' || adding" ng-model="portName">
-        </md-input-container>
-
-        <md-input-container flex>
-            <label>Port</label>
-            <input type="number" min="40000" max="49999" ng-disabled="status !== 'running' || adding" ng-model="portNumber" />
-            <div class="md-errors-spacer">
-                <div class="md-char-counter">40000 - 49999</div>
+            <label>New Interactive Port (40000-49999)</label>
+            <input name="port"
+                   type="number" min="40000" max="49999"
+                   ng-model="port"
+                   ng-disabled="status !== 'running' || addPortForm.$submitted" ng-required="true"/>
+            <div ng-messages="addPortForm.port.$error">
+                <div ng-message="required">Port is required.</div>
+                <div ng-message="min">Port should be &gt;= 40000</div>
+                <div ng-message="max">Port should be &lt;= 49999</div>
             </div>
         </md-input-container>
-
-        <md-button class="md-primary" ng-disabled="status !== 'running' || adding" ng-click="addPort()">Add Port</md-button>
-    </div>
+        <md-button type="submit" class="md-primary" ng-disabled="status !== 'running' || addPortForm.$submitted || addPortForm.$invalid">Add</md-button>
+    </form>
 </div>
 <h2> Job Console Output:</h2>
 <div id="logPanel" style="height: 500px;" readonly="" class="ng-binding grey-box scroll-box">
