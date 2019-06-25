@@ -586,6 +586,14 @@
             if (!$scope.extras.gpuType) return false;
             if (!$scope.current.jobName) return false;
             if (!$scope.current.image) return false;
+            if (
+                $scope.current.jobtrainingtype === 'RegularJob' &&
+                typeof $scope.current.resourcegpu !== 'number'
+            ) return false;
+            if (
+                $scope.current.jobtrainingtype === 'PSDistJob' &&
+                typeof $scope.current.numpsworker !== 'number'
+            ) return false;
             if ($scope.busy) return false;
             return true;
         }
