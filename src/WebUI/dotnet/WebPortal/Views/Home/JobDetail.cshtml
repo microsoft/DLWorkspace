@@ -172,13 +172,21 @@
             });
     }
 
+    function sortSSH(a,b) {
+        if (a.podName.indexOf("ps0") === -1 && b.podName.indexOf("ps0") === -1) {
+            var worker1 = a.podName.split("-").pop().replace("worker", "");
+            var worker2 = b.podName.split("-").pop().replace("worker", "");
+            return parseInt(worker1) - parseInt(worker2);
+        }
+    }
+
     function getEndpoints() {
         $.ajax({
             url: "/api/dlws/GetEndpoints?cluster=@ViewData["cluster"]&jobId=@ViewData["jobid"]", dataType: 'json'
         }).then(function (endpoints) {
             $('#endpoints').show();
 
-            var order = { ssh: 0, ipython: 1, tensorboard: 2 };
+            var order = { ssh: 1, ipython: 2, tensorboard: 3 };
 
             endpoints.sort(function (a, b) {
                 var orderA = order[a.name] || Infinity;
@@ -186,8 +194,12 @@
 
                 if (orderA !== orderB) { return orderA - orderB; }
 
-                if (isFinite(orderA)) {
-                    return a.nodeName.localeCompare(b.nodeName);
+                if (isFinite(orderA)) {     
+                    if (orderA === order["ssh"]) {
+                        return sortSSH(a, b);
+                    } else {
+                        return a.nodeName.localeCompare(b.nodeName);
+                    }
                 } else {
                     return a.podPort - b.podPort;
                 }
@@ -357,6 +369,16 @@
         GetDetail();
         buildTemplateList();
         setInterval(RefreshDetail, 15000);
+        $(function () {
+            $('[data-toggle="tooltip"]').tooltip({
+                container: 'body',
+                show: {
+                    effect: "slideDown",
+                    delay: 1000
+                }
+
+            })
+        })
 
     });
 
@@ -486,10 +508,10 @@
 <h2> Job Details:</h2>
 <div id="jobDetail" style="height: 230px;" readonly="" class="ng-binding grey-box scroll-box">
 </div>
-<h2> Job Folder: </h2>
+<h2 style="margin-top:20px;"> Job Folder: </h2>
 <div id="jobfolderPanel" style="height: 20px;" readonly="" class="ng-binding grey-box">
 </div>
-<div id="endpoints" hidden>
+<div id="endpoints" style="margin-top:20px;" hidden>
     <h2> Mapped Endpoints: </h2>
     <h4>(Links to access interactive/visualization interface)</h4>
     <div id="endpointsPanel" readonly="" class="ng-binding grey-box">
@@ -500,7 +522,7 @@
 <div ng-app="endpoints" ng-controller="endpoints">
     <md-switch ng-model="ssh" ng-disabled="status !== 'running' || ssh">SSH</md-switch>
     <md-switch ng-model="ipython" ng-disabled="status !== 'running' || ipython">iPython</md-switch>
-    <md-switch ng-model="tensorboard" ng-disabled="status !== 'running' || tensorboard">Tensorboard <code>--logdir=/job/logs</code></md-switch>
+    <md-switch ng-model="tensorboard" ng-disabled="status !== 'running' || tensorboard">Tensorboard <code>--logdir=/job/logs<i class="layui-icon" title="Tensorboard will listen on directory /job/logs inside docker container." data-toggle="tooltip" data-placement="right" style="vertical-align:sub">&#xe60b;</i></code></md-switch>
     <form name="addPortForm" layout="row" ng-submit="addPort()">
         <md-input-container flex>
             <label>New Interactive Port (40000-49999)</label>
@@ -609,5 +631,10 @@
         color: #fff; /* White text color */
         text-align: center; /* Centered text */
         font-size: 15px;
+    }
+
+    code {
+        color: #000000;
+        background-color: #ffffff;
     }
 </style>
