@@ -178,6 +178,7 @@
             var worker2 = b.podName.split("-").pop().replace("worker", "");
             return parseInt(worker1) - parseInt(worker2);
         }
+        return -1;
     }
 
     function getEndpoints() {
@@ -376,10 +377,8 @@
                     effect: "slideDown",
                     delay: 1000
                 }
-
             })
         })
-
     });
 
     function copy(self) {
@@ -522,7 +521,7 @@
 <div ng-app="endpoints" ng-controller="endpoints">
     <md-switch ng-model="ssh" ng-disabled="status !== 'running' || ssh">SSH</md-switch>
     <md-switch ng-model="ipython" ng-disabled="status !== 'running' || ipython">iPython</md-switch>
-    <md-switch ng-model="tensorboard" ng-disabled="status !== 'running' || tensorboard">Tensorboard <code>--logdir=/job/logs<i class="layui-icon" title="Tensorboard will listen on directory /job/logs inside docker container." data-toggle="tooltip" data-placement="right" style="vertical-align:sub">&#xe60b;</i></code></md-switch>
+    <md-switch ng-model="tensorboard" ng-disabled="status !== 'running' || tensorboard">Tensorboard <code>(logdir=/job/logs)&nbsp;<i class="layui-icon" title="Tensorboard will listen on directory /job/logs inside docker container." data-toggle="tooltip" data-placement="right" style="vertical-align:sub">&#xe60b;</i></code></md-switch>
     <form name="addPortForm" layout="row" ng-submit="addPort()">
         <md-input-container flex>
             <label>New Interactive Port (40000-49999)</label>
@@ -635,6 +634,6 @@
 
     code {
         color: #000000;
-        background-color: #ffffff;
+        background-color: inherit;
     }
 </style>
