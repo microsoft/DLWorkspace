@@ -81,7 +81,7 @@ spec:
 
 
 def create_node_port(endpoint):
-    endpoint_description = generate_node_port_service(endpoint["jobId"], endpoint["podName"], endpoint["id"], endpoint["name"], endpoint["port"])
+    endpoint_description = generate_node_port_service(endpoint["jobId"], endpoint["podName"], endpoint["id"], endpoint["name"], endpoint["podPort"])
     endpoint_description_path = os.path.join(config["storage-mount-path"], endpoint["endpointDescriptionPath"])
     print("endpointDescriptionPath: %s" % endpoint_description_path)
     with open(endpoint_description_path, 'w') as f:
@@ -116,6 +116,15 @@ def setup_jupyter_server(user_name, pod_name):
     return jupyter_port
 
 
+def setup_tensorboard(user_name, pod_name):
+    tensorboard_port = random.randint(40000, 49999)
+    bash_script = "sudo bash -c 'export DEBIAN_FRONTEND=noninteractive; pip install tensorboard; runuser -l " + user_name + " -c \"nohup tensorboard --logdir=/job/logs --port=" + str(tensorboard_port) + " &>/dev/null &\"'"
+    output = k8sUtils.kubectl_exec("exec %s %s" % (pod_name, " -- " + bash_script))
+    if output == "":
+        raise Exception("Failed to start tensorboard in container. JobId: %s " % pod_name)
+    return tensorboard_port
+
+
 def start_endpoint(endpoint):
     # pending, running, stopped
     print("Starting endpoint: %s" % (endpoint))
@@ -127,11 +136,13 @@ def start_endpoint(endpoint):
 
     port_name = endpoint["name"]
     if port_name == "ssh":
-        port = setup_ssh_server(user_name, pod_name, host_network)
+        endpoint["podPort"] = setup_ssh_server(user_name, pod_name, host_network)
+    elif port_name == "ipython":
+        endpoint["podPort"] = setup_jupyter_server(user_name, pod_name)
+    elif port_name == "tensorboard":
+        endpoint["podPort"] = setup_tensorboard(user_name, pod_name)
     else:
-        port = setup_jupyter_server(user_name, pod_name)
-
-    endpoint["port"] = port
+        endpoint["podPort"] = int(endpoint["podPort"])
 
     # create NodePort
     create_node_port(endpoint)
@@ -147,8 +158,8 @@ def is_user_ready(pod_name):
 
 def start_endpoints():
     try:
-        data_handler = DataHandler()
         try:
+            data_handler = DataHandler()
             pending_endpoints = data_handler.GetPendingEndpoints()
 
             for endpoint_id, endpoint in pending_endpoints.items():
@@ -165,13 +176,10 @@ def start_endpoints():
 
                 print("\n\n\n\n\n\n----------------Begin to start endpoint %s" % endpoint["id"])
                 output = get_k8s_endpoint(endpoint["endpointDescriptionPath"])
-                if (output != ""):
+                if(output != ""):
                     endpoint_description = json.loads(output)
                     endpoint["endpointDescription"] = endpoint_description
                     endpoint["status"] = "running"
-                    if endpoint["hostNetwork"]:
-                        endpoint["port"] = endpoint_description["spec"]["ports"][0]["port"]
-
                     pod = k8sUtils.GetPod("podName=" + endpoint["podName"])
                     if "items" in pod and len(pod["items"]) > 0:
                         endpoint["nodeName"] = pod["items"][0]["spec"]["nodeName"]
@@ -182,8 +190,6 @@ def start_endpoints():
                 data_handler.UpdateEndpoint(endpoint)
         except Exception as e:
             traceback.print_exc()
-        finally:
-            data_handler.Close()
     except Exception as e:
         traceback.print_exc()
 
