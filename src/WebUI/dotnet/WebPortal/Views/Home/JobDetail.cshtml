@@ -444,32 +444,31 @@
                 }
             })
             $scope.addPort = function () {
-                if (!$scope.portNumber) { return; }
-                if (!$scope.portName) { $scope.portName = 'port-' + $scope.portNumber; }
-                $scope.adding = true;
+                $scope.addPortForm.$setSubmitted();
                 $http({
                     method: "POST",
                     url: "/api/dlws/endpoints",
                     params: { cluster: cluster },
                     data: {
                         jobId: '@ViewData["jobid"]',
-                        endpoints: [{ name: $scope.portName, podPort: $scope.portNumber }]
+                        endpoints: [{ name: 'port-' + $scope.port, podPort: $scope.port }]
                     }
                 }).then(function (response) {
                     if (typeof response.data === 'object') {
-                        delete $scope.portName;
-                        delete $scope.portNumber;
+                        delete $scope.port;
+                        $scope.addPortForm.$setPristine();
+                        $scope.addPortForm.$setUntouched();
                     } else {
                         layer.alert("Restful API Error: \n" + response.data, { icon: 5, btn: 'Ok', title: 'alert' });
                     }
                 }).finally(function () {
-                    $scope.adding = false;
+                    $scope.addPortForm.$submitted = false;
                 })
             }
 
             window.ngScope = $scope;
         });
-    }(angular.module("endpoints", ["ngMaterial"]));
+    }(angular.module("endpoints", ["ngMessages", "ngMaterial"]));
 </script>
 
 <h2> Job Details:</h2>
@@ -489,23 +488,22 @@
 <div ng-app="endpoints" ng-controller="endpoints">
     <md-switch ng-model="ssh" ng-disabled="status !== 'running' || ssh">SSH</md-switch>
     <md-switch ng-model="ipython" ng-disabled="status !== 'running' || ipython">iPython</md-switch>
-    <md-switch ng-model="tensorboard" ng-disabled="status !== 'running' || tensorboard">Tensorboard</md-switch>
-    <div layout="row">
+    <md-switch ng-model="tensorboard" ng-disabled="status !== 'running' || tensorboard">Tensorboard <code>--logdir=/job/logs</code></md-switch>
+    <form name="addPortForm" layout="row" ng-submit="addPort()">
         <md-input-container flex>
-            <label>Name</label>
-            <input type="text" md-maxlength="16" ng-disabled="status !== 'running' || adding" ng-model="portName">
-        </md-input-container>
-
-        <md-input-container flex>
-            <label>Port</label>
-            <input type="number" min="40000" max="49999" ng-disabled="status !== 'running' || adding" ng-model="portNumber" />
-            <div class="md-errors-spacer">
-                <div class="md-char-counter">40000 - 49999</div>
+            <label>New Interactive Port (40000-49999)</label>
+            <input name="port"
+                   type="number" min="40000" max="49999"
+                   ng-model="port"
+                   ng-disabled="status !== 'running' || addPortForm.$submitted" ng-required="true"/>
+            <div ng-messages="addPortForm.port.$error">
+                <div ng-message="required">Port is required.</div>
+                <div ng-message="min">Port should be &gt;= 40000</div>
+                <div ng-message="max">Port should be &lt;= 49999</div>
             </div>
         </md-input-container>
-
-        <md-button class="md-primary" ng-disabled="status !== 'running' || adding" ng-click="addPort()">Add Port</md-button>
-    </div>
+        <md-button type="submit" class="md-primary" ng-disabled="status !== 'running' || addPortForm.$submitted || addPortForm.$invalid">Add</md-button>
+    </form>
 </div>
 <h2> Job Console Output:</h2>
 <div id="logPanel" style="height: 500px;" readonly="" class="ng-binding grey-box scroll-box">
