@@ -926,10 +926,14 @@ namespace WindowsAuth.Controllers
                 return RedirectToAction("Index", "Home");
             }
             var cluster = HttpContext.Request.Query["cluster"];
+            if (!Startup.Clusters.ContainsKey("cluster"))
+            {
+                return RedirectToAction("Index", "Home");
+            }
             ViewData["cluster"] = cluster;
             ViewData["jobid"] = HttpContext.Request.Query["jobId"];
 
-            var workFolderAccessPoint = Startup.Clusters[HttpContext.Request.Query["cluster"]].WorkFolderAccessPoint;
+            var workFolderAccessPoint = Startup.Clusters[cluster].WorkFolderAccessPoint;
 
             ViewData["workPath"] = (workFolderAccessPoint + HttpContext.Session.GetString("Username") + "/").Replace("file:", "").Replace("\\", "/");
             ViewData["jobPath"] = workFolderAccessPoint.Replace("file:", "").Replace("\\", "/");
