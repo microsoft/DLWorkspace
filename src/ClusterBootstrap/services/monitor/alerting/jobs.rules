@@ -2,9 +2,7 @@ groups:
     - name: idle-job
       rules:
       - alert: zero-gpu-usage
-        expr: avg(task_gpu_percent) by (user_email, job_name) == 0
+        expr: avg(task_gpu_percent) by (user_email, job_name, vc_name) == 0
         for: 4h
         labels:
           type: user_alert
-        annotations:
-          summary: "Your job {{$labels.job_name}} have not used gpu for 4 hours. Please kill the job if you do not need it anymore"

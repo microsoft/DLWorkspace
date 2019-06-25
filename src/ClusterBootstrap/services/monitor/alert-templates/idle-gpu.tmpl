@@ -1,4 +1,4 @@
-{{ define "user_alert.html" }}
+{{ define "idle_gpu.html" }}
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <!--
 Style and HTML derived from https://github.com/mailgun/transactional-email-templates
@@ -48,14 +48,11 @@ SOFTWARE.
                 {{ range .Alerts.Firing }}
                 <tr>
                   <td style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; margin: 0; padding: 0 0 20px;" valign="top">
-                    {{ if .Annotations.summary }}
-                        {{ .Annotations.summary }}
-                    {{ else }}
-                        <strong>Labels</strong><br/>
-                        {{ range .Labels.SortedPairs }}{{ .Name }} = {{ .Value }}<br/>{{ end }}
-                        {{ if gt (len .Annotations) 0 }}<strong>Annotations</strong><br/>{{ end }}
-                        {{ range .Annotations.SortedPairs }}{{ .Name }} = {{ .Value }}<br/>{{ end }}
-                    {{ end }}
+Your job
+<a href="http://dltshub.redmond.corp.microsoft.com/Home/JobDetail/?cluster={{.Labels.cluster}}&jobId={{.Labels.job_name}}">
+<strong>{{.Labels.job_name}}</strong>
+</a> from cluster '{{.Labels.cluster}}' VC '{{.Labels.vc_name}}' have been idle for too long.
+Please kill the job if you do not need it anymore.
                   </td>
                 </tr>
                 {{ end }}

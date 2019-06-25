@@ -84,22 +84,29 @@ data:
       routes:
       - receiver: task_user
         repeat_interval: 4h
-        group_by: [alertname, user_email]
+        group_by: [alertname, user_email, cluster]
         match_re:
           type: user_alert
+          alertname: "zero-gpu-usage"
     receivers:
     - name: "alert-email"
       email_configs:
         - to: {{ alert_info["receiver"] }}
           html: '{{ "{{" }} template "email.html" . {{ "}}" }}'
           headers:
-            subject: '{{ cnf["cluster_name"] }}: {{ "{{" }} template "__subject" . {{ "}}" }}'
+            subject: '{{ "{{" }} .GroupLabels.cluster {{ "}}" }}: {{ "{{" }} template "__subject" . {{ "}}" }}'
     - name: "task_user"
       email_configs:
+        {% if cnf["alert-manager"]["alert_users"] %}
+        - to: '{{ "{{" }} .GroupLabels.user_email {{ "}}" }},{{ alert_info["receiver"] }}'
+        {% else %}
         - to: '{{ alert_info["receiver"] }}'
-          html: '{{ "{{" }} template "user_alert.html" . {{ "}}" }}'
+        {% endif %}
+          html: '{{ "{{" }} template "idle_gpu.html" . {{ "}}" }}'
           headers:
-            #To: '{{ "{{" }} .GroupLabels.user_email {{ "}}" }}'
-            #CC: '{{ alert_info["receiver"] }}'
-            subject: '{{ cnf["cluster_name"] }}: {{ "{{" }} template "__subject" . {{ "}}" }}'
+            {% if cnf["alert-manager"]["alert_users"] %}
+            To: '{{ "{{" }} .GroupLabels.user_email {{ "}}" }}'
+            CC: '{{ alert_info["receiver"] }}'
+            {% endif %}
+            subject: '{{ "{{" }} .GroupLabels.cluster {{ "}}" }}: {{ "{{" }} template "__subject" . {{ "}}" }}'
 {% endif %}
