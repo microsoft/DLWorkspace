@@ -96,10 +96,10 @@ data:
             subject: '{{ cnf["cluster_name"] }}: {{ "{{" }} template "__subject" . {{ "}}" }}'
     - name: "task_user"
       email_configs:
-        - to: '{{ "{{" }} .GroupLabels.user_email {{ "}}" }},{{ alert_info["receiver"] }}'
+        - to: '{{ alert_info["receiver"] }}'
           html: '{{ "{{" }} template "user_alert.html" . {{ "}}" }}'
           headers:
-            To: '{{ "{{" }} .GroupLabels.user_email {{ "}}" }}'
-            CC: '{{ alert_info["receiver"] }}'
+            #To: '{{ "{{" }} .GroupLabels.user_email {{ "}}" }}'
+            #CC: '{{ alert_info["receiver"] }}'
             subject: '{{ cnf["cluster_name"] }}: {{ "{{" }} template "__subject" . {{ "}}" }}'
 {% endif %}
