@@ -6,6 +6,8 @@
     ViewData["Title"] = "Job";
 }
 
+<link rel="stylesheet" href="~/layui/css/layui.css" media="all">
+
 <script>
     var cluster = "@ViewData["cluster"]";
     var elasticsearchHost = 'http://@Context.Request.Host:9200';
@@ -209,7 +211,11 @@
                     }
                 }
                 else {
-                    window.ngScope.$applyAsync('ipython = true');
+                    if (endpoint.name === "ipython") {
+                        window.ngScope.$applyAsync('ipython = true');
+                    } else if (endpoint.name === "tensorboard") {
+                        window.ngScope.$applyAsync('tensorboard = true');
+                    }
                     if (endpoint.status == "running") {
                         var svcurl = "http://" + endpoint.nodeName + "." + endpoint.domain + ":" + endpoint.port + "/";
                         return " " + endpoint.name + " could be access via: <a href='" + svcurl + "' target='_blank'>" + svcurl + "</a>\n";
@@ -264,7 +270,6 @@
             jobDetailStr += "Command: " + payload.jobParams.cmd + "\n";
             jobDetailStr += "Data Path: " + payload.jobParams.dataPath + "\n";
             jobDetailStr += "Work Path: " + payload.jobParams.workPath + "\n";
-            jobDetailStr += "Container Ports: " + payload.jobParams.interactivePort + "\n";
             jobDetailStr += "Job Path: " + payload.jobParams.jobPath + "\n";
             jobDetailStr += "Job Type: " + payload.jobParams.jobType + "\n";
             jobDetailStr += "GPU # Per Worker: " + payload.jobParams.resourcegpu + "\n";
@@ -280,6 +285,7 @@
             }
 
             document.getElementById('run-command').style.display = payload.jobStatus == "running" ? "block" : "none";
+            window.ngScope.$applyAsync(function (scope) { scope.status = payload.jobStatus });
             if (payload.jobStatus == "running") {
                 getCommands();
                 getEndpoints();
@@ -394,7 +400,7 @@
 </script>
 <script>
     void function (app) {
-        app.controller("endpointSwitches", function ($scope, $http) {
+        app.controller("endpoints", function ($scope, $http) {
             $scope.$watch("ssh", function (value, oldValue) {
                 if (value === oldValue) { return; }
                 if (value) {
@@ -423,10 +429,47 @@
                     })
                 }
             })
+            $scope.$watch("tensorboard", function (value, oldValue) {
+                if (value === oldValue) { return; }
+                if (value) {
+                    $http({
+                        method: "POST",
+                        url: "/api/dlws/endpoints",
+                        params: { cluster: cluster },
+                        data: {
+                            jobId: '@ViewData["jobid"]',
+                            endpoints: ["tensorboard"]
+                        }
+                    })
+                }
+            })
+            $scope.addPort = function () {
+                if (!$scope.portNumber) { return; }
+                if (!$scope.portName) { $scope.portName = 'port-' + $scope.portNumber; }
+                $scope.adding = true;
+                $http({
+                    method: "POST",
+                    url: "/api/dlws/endpoints",
+                    params: { cluster: cluster },
+                    data: {
+                        jobId: '@ViewData["jobid"]',
+                        endpoints: [{ name: $scope.portName, podPort: $scope.portNumber }]
+                    }
+                }).then(function (response) {
+                    if (typeof response.data === 'object') {
+                        delete $scope.portName;
+                        delete $scope.portNumber;
+                    } else {
+                        layer.alert("Restful API Error: \n" + response.data, { icon: 5, btn: 'Ok', title: 'alert' });
+                    }
+                }).finally(function () {
+                    $scope.adding = false;
+                })
+            }
 
             window.ngScope = $scope;
         });
-    }(angular.module("endpointSwitches", ["ngMaterial"]));
+    }(angular.module("endpoints", ["ngMaterial"]));
 </script>
 
 <h2> Job Details:</h2>
@@ -443,9 +486,26 @@
     <div class="alert"></div>
 </div>
 <!-- introduce angular.js just for md-switch in AngularJS Material -->
-<div ng-app="endpointSwitches" ng-controller="endpointSwitches">
-    <md-switch ng-model="ssh" ng-disabled="ssh">SSH</md-switch>
-    <md-switch ng-model="ipython" ng-disabled="ipython">ipython</md-switch>
+<div ng-app="endpoints" ng-controller="endpoints">
+    <md-switch ng-model="ssh" ng-disabled="status !== 'running' || ssh">SSH</md-switch>
+    <md-switch ng-model="ipython" ng-disabled="status !== 'running' || ipython">iPython</md-switch>
+    <md-switch ng-model="tensorboard" ng-disabled="status !== 'running' || tensorboard">Tensorboard</md-switch>
+    <div layout="row">
+        <md-input-container flex>
+            <label>Name</label>
+            <input type="text" md-maxlength="16" ng-disabled="status !== 'running' || adding" ng-model="portName">
+        </md-input-container>
+
+        <md-input-container flex>
+            <label>Port</label>
+            <input type="number" min="40000" max="49999" ng-disabled="status !== 'running' || adding" ng-model="portNumber" />
+            <div class="md-errors-spacer">
+                <div class="md-char-counter">40000 - 49999</div>
+            </div>
+        </md-input-container>
+
+        <md-button class="md-primary" ng-disabled="status !== 'running' || adding" ng-click="addPort()">Add Port</md-button>
+    </div>
 </div>
 <h2> Job Console Output:</h2>
 <div id="logPanel" style="height: 500px;" readonly="" class="ng-binding grey-box scroll-box">
