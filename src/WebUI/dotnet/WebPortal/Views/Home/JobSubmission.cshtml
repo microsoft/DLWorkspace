@@ -587,6 +587,7 @@
             if (!$scope.extras.gpuType) return false;
             if (!$scope.current.jobName) return false;
             if (!$scope.current.image) return false;
+            if (!$scope.current.cmd || !String($scope.current.cmd).trim()) return false;
             if (
                 $scope.current.jobtrainingtype === 'RegularJob' &&
                 typeof $scope.current.resourcegpu !== 'number'
@@ -732,13 +733,13 @@
                     </md-input-container>
 
                     <label>
-                        Interactive Ports
+                        Interactive Ports (40000 - 49999)
                     </label>
                     <md-chips ng-model="current.interactivePorts" md-transform-chip="addInteractivePort($chip)" md-separator-keys="[13, 32, 186, 188]">
                         <md-chip-template>
                             <span class="md-body-1">{{$chip}}</span>
                         </md-chip-template>
-                        <input type="number" placeholder="40000 - 49999" min="40000" max="49999" class="md-body-1" ng-blur="portBlur($event)">
+                        <input type="number" min="40000" max="49999" class="md-body-1" ng-blur="portBlur($event)">
                     </md-chips>
 
                     <div layout="row" layout-align="space-between">
