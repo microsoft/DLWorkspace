@@ -214,6 +214,8 @@ def cleanup_endpoints():
                         status = "stopped"
                         print("Succeed cleanup endpoint %s" % endpoint_id)
                     else:
+                        # TODO will need to clean it up eventually
+                        status = "unkown"
                         print("Clean dead endpoint %s failed, endpoints: %s" % (endpoint_id, dead_endpoint))
 
                 dead_endpoint["status"] = status
