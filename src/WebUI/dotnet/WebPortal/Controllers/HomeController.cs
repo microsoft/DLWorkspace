@@ -926,7 +926,7 @@ namespace WindowsAuth.Controllers
                 return RedirectToAction("Index", "Home");
             }
             var cluster = HttpContext.Request.Query["cluster"];
-            if (!Startup.Clusters.ContainsKey("cluster"))
+            if (!Startup.Clusters.ContainsKey(cluster))
             {
                 return RedirectToAction("Index", "Home");
             }
