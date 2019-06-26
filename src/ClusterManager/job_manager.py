@@ -169,6 +169,7 @@ def SubmitRegularJob(job):
             jobParams["mountpoints"].append(mp)
 
         userAlias = getAlias(jobParams["userName"])
+        jobParams["user_email"] = jobParams["userName"]
         jobParams["homeFolderHostpath"] = os.path.join(config["storage-mount-path"], GetWorkPath(userAlias))
 
         if CheckMountPoints(jobParams["mountpoints"],mp):
@@ -329,6 +330,8 @@ def SubmitPSDistJob(job):
             assignedRack = random.choice(config["racks"])
 
         userAlias = getAlias(jobParams["userName"])
+        jobParams["user_email"] = jobParams["userName"]
+
         jobParams["homeFolderHostpath"] = os.path.join(config["storage-mount-path"], GetWorkPath(userAlias))
 
         if jobParams["jobtrainingtype"] == "PSDistJob":
