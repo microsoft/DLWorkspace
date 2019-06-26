@@ -173,11 +173,9 @@
     }
 
     function sortSSH(a, b) {
-        if (a.podName.indexOf("ps0") === -1 && b.podName.indexOf("ps0") === -1) {
-            var worker1 = a.podName.split("-").pop().replace("worker", "");
-            var worker2 = b.podName.split("-").pop().replace("worker", "");
-            return parseInt(worker1) - parseInt(worker2);
-        }
+        var worker1 = a.podName.split("-").pop().replace("worker", "");
+        var worker2 = b.podName.split("-").pop().replace("worker", "");
+        return parseInt(worker1) - parseInt(worker2);
     }
 
     function getEndpoints() {
@@ -187,6 +185,10 @@
             $('#endpoints').show();
 
             var order = { ssh: 1, ipython: 2, tensorboard: 3 };
+
+            endpoints = endpoints.filter(function (endpoint) {
+                return endpoint.podName.indexOf("ps0") === -1
+            });
 
             endpoints.sort(function (a, b) {
                 var orderA = order[a.name] || Infinity;
