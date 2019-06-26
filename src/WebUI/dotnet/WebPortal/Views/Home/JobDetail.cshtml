@@ -174,7 +174,6 @@
 
     function sortSSH(a, b) {
         if (a.podName.indexOf("ps0") === -1 && b.podName.indexOf("ps0") === -1) {
-            console.log("test!!")
             var worker1 = a.podName.split("-").pop().replace("worker", "");
             var worker2 = b.podName.split("-").pop().replace("worker", "");
             return parseInt(worker1) - parseInt(worker2);
