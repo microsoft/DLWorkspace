@@ -74,6 +74,7 @@ def CheckMountPoints(mplist, mp):
             ret = False
     return ret
 
+
 def SubmitRegularJob(job):
     ret = {}
     dataHandler = DataHandler()
@@ -81,43 +82,28 @@ def SubmitRegularJob(job):
     try:
         jobParams = json.loads(base64.b64decode(job["jobParams"]))
 
-        jobParams["pvc_job"] = "jobs-" + jobParams["jobId"]
-        jobParams["pvc_work"] = "work-" + jobParams["jobId"]
-        jobParams["pvc_data"] = "storage-" + jobParams["jobId"]
-
-
         if "jobPath" not in jobParams or len(jobParams["jobPath"].strip()) == 0:
-            dataHandler.SetJobError(jobParams["jobId"],"ERROR: job-path does not exist")
+            dataHandler.SetJobError(jobParams["jobId"], "ERROR: job-path does not exist")
             return False
 
         if "workPath" not in jobParams or len(jobParams["workPath"].strip()) == 0:
-            dataHandler.SetJobError(jobParams["jobId"],"ERROR: work-path does not exist")
+            dataHandler.SetJobError(jobParams["jobId"], "ERROR: work-path does not exist")
             return False
 
-        #if "dataPath" not in jobParams or len(jobParams["dataPath"].strip()) == 0:
-        #    dataHandler.SetJobError(jobParams["jobId"],"ERROR: data-path does not exist")
-        #    return False
+        jobPath, workPath, dataPath = GetStoragePath(jobParams["jobPath"], jobParams["workPath"], jobParams["dataPath"])
 
-
-        jobPath,workPath,dataPath = GetStoragePath(jobParams["jobPath"],jobParams["workPath"],jobParams["dataPath"])
-
-
-        localJobPath = os.path.join(config["storage-mount-path"],jobPath)
+        localJobPath = os.path.join(config["storage-mount-path"], jobPath)
 
         if not os.path.exists(localJobPath):
-            if "userId" in jobParams:
-                mkdirsAsUser(localJobPath,jobParams["userId"])
-                mkdirsAsUser(os.path.join(localJobPath,"models"),jobParams["userId"])
-            else:
-                mkdirsAsUser(localJobPath,"0")
-                mkdirsAsUser(os.path.join(localJobPath,"models"),"0")
+            mkdirsAsUser(localJobPath, jobParams["userId"])
+            mkdirsAsUser(os.path.join(localJobPath, "models"), jobParams["userId"])
 
         jobParams["LaunchCMD"] = ""
         if "cmd" not in jobParams:
             jobParams["cmd"] = ""
 
         if isinstance(jobParams["cmd"], basestring) and not jobParams["cmd"] == "":
-            launchScriptPath = os.path.join(localJobPath,"launch-%s.sh" % jobParams["jobId"])
+            launchScriptPath = os.path.join(localJobPath, "launch-%s.sh" % jobParams["jobId"])
             with open(launchScriptPath, 'w') as f:
                 f.write("#!/bin/bash -x\n")
                 f.write("mkdir /opt; \n")
@@ -129,14 +115,13 @@ def SubmitRegularJob(job):
                 os.system("chown -R %s %s" % (jobParams["userId"], launchScriptPath))
             jobParams["LaunchCMD"] = "[\"bash\", \"/job/launch-%s.sh\"]" % jobParams["jobId"]
 
-
         jobParams["jobDescriptionPath"] = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"] + ".yaml"
 
         jobParams["jobNameLabel"] = ''.join(e for e in jobParams["jobName"] if e.isalnum())
 
         ENV = Environment(loader=FileSystemLoader("/"))
 
-        jobTempDir = os.path.join(config["root-path"],"Jobs_Templete")
+        jobTempDir = os.path.join(config["root-path"], "Jobs_Templete")
         jobTemp = os.path.join(jobTempDir, "RegularJob.yaml.template")
 
         jobParams["hostjobPath"] = os.path.join(config["storage-mount-path"], jobPath)
@@ -144,41 +129,35 @@ def SubmitRegularJob(job):
         jobParams["hostdataPath"] = os.path.join(config["storage-mount-path"], dataPath)
         jobParams["nvidiaDriverPath"] = nvidiaDriverPath
 
-
         jobParams["rest-api"] = config["rest-api"]
 
         if "mountpoints" not in jobParams:
             jobParams["mountpoints"] = []
         for onemount in jobParams["mountpoints"]:
-            onemount["name"] = onemount["containerPath"].replace("/","").lower()
+            onemount["name"] = onemount["containerPath"].replace("/", "").lower()
 
-        # mp = {"name":"nvidia-driver","containerPath":"/usr/local/nvidia","hostPath":nvidiaDriverPath, "enabled":True}
-        # if CheckMountPoints(jobParams["mountpoints"],mp):
-        #    jobParams["mountpoints"].append(mp)
-
-        mp = {"name":"job","containerPath":"/job","hostPath":jobParams["hostjobPath"], "enabled":True}
-        if CheckMountPoints(jobParams["mountpoints"],mp):
+        mp = {"name": "job", "containerPath": "/job", "hostPath": jobParams["hostjobPath"], "enabled": True}
+        if CheckMountPoints(jobParams["mountpoints"], mp):
             jobParams["mountpoints"].append(mp)
 
-        mp = {"name":"work","containerPath":"/work","hostPath":jobParams["hostworkPath"], "enabled":True}
-        if CheckMountPoints(jobParams["mountpoints"],mp):
+        mp = {"name": "work", "containerPath": "/work", "hostPath": jobParams["hostworkPath"], "enabled": True}
+        if CheckMountPoints(jobParams["mountpoints"], mp):
             jobParams["mountpoints"].append(mp)
 
-        mp = {"name":"data","containerPath":"/data","hostPath":jobParams["hostdataPath"], "enabled":True}
-        if CheckMountPoints(jobParams["mountpoints"],mp):
+        mp = {"name": "data", "containerPath": "/data", "hostPath": jobParams["hostdataPath"], "enabled": True}
+        if CheckMountPoints(jobParams["mountpoints"], mp):
             jobParams["mountpoints"].append(mp)
 
         userAlias = getAlias(jobParams["userName"])
         jobParams["user_email"] = jobParams["userName"]
         jobParams["homeFolderHostpath"] = os.path.join(config["storage-mount-path"], GetWorkPath(userAlias))
 
-        if CheckMountPoints(jobParams["mountpoints"],mp):
+        if CheckMountPoints(jobParams["mountpoints"], mp):
             jobParams["mountpoints"].append(mp)
 
         for idx in range(len(jobParams["mountpoints"])):
             if "name" not in jobParams["mountpoints"][idx]:
-                jobParams["mountpoints"][idx]["name"] = str(uuid.uuid4()).replace("-","")
-
+                jobParams["mountpoints"][idx]["name"] = str(uuid.uuid4()).replace("-", "")
 
         jobParams["pod_ip_range"] = config["pod_ip_range"]
         if "usefreeflow" in config:
@@ -198,7 +177,7 @@ def SubmitRegularJob(job):
             while (i <= end):
                 pod = {}
                 pod["podName"] = jobParams["jobId"]+"-pod-"+str(c)
-                pod["envs"] = [{"name":jobParams["hyperparametername"],"value":i}]
+                pod["envs"] = [{"name": jobParams["hyperparametername"], "value":i}]
                 i += step
                 c += 1
                 pods.append(pod)
@@ -212,44 +191,26 @@ def SubmitRegularJob(job):
             jobParams["env"] = []
         jobParams["commonenv"] = copy.copy(jobParams["env"])
 
-
         for pod in pods:
             jobParams["podName"] = pod["podName"]
             jobParams["env"] = jobParams["commonenv"] + pod["envs"]
 
             if "kube_custom_scheduler" in config and config["kube_custom_scheduler"]:
                 container = {}
-                container["requests"] = {"alpha.gpu/numgpu" : int(jobParams["resourcegpu"])}
+                container["requests"] = {"alpha.gpu/numgpu": int(jobParams["resourcegpu"])}
                 podInfo = {}
                 podInfo["podname"] = jobParams["podName"]
                 if "useGPUTopology" in jobParams and jobParams["useGPUTopology"]:
-                    # add topology constraints explicitly - for testing
-                    # if (jobParams["resourcegpu"] >= 2):
-                    #     # both cards in same inner group
-                    #     container["requests"]["alpha/grpresource/gpugrp1/0/gpugrp0/0/gpu/0/cards"] = 1
-                    #     container["requests"]["alpha/grpresource/gpugrp1/0/gpugrp0/0/gpu/1/cards"] = 1
-                    # if (jobParams["resourcegpu"] >= 3):
-                    #     container["requests"]["alpha/grpresource/gpugrp1/0/gpugrp0/1/gpu/2/cards"] = 1
-                    # if (jobParams["resourcegpu"] >= 4):
-                    #     container["requests"]["alpha/grpresource/gpugrp1/0/gpugrp0/1/gpu/3/cards"] = 1
-                    # if (jobParams["resourcegpu"] >= 5):
-                    #     container["requests"]["alpha/grpresource/gpugrp1/1/gpugrp0/2/gpu/4/cards"] = 1
-                    # if (jobParams["resourcegpu"] >= 6):
-                    #     container["requests"]["alpha/grpresource/gpugrp1/1/gpugrp0/2/gpu/5/cards"] = 1
-                    # if (jobParams["resourcegpu"] >= 7):
-                    #     container["requests"]["alpha/grpresource/gpugrp1/1/gpugrp0/3/gpu/6/cards"] = 1
-                    # if (jobParams["resourcegpu"] >= 8):
-                    #     container["requests"]["alpha/grpresource/gpugrp1/1/gpugrp0/3/gpu/7/cards"] = 1
-                    podInfo["requests"] = {"alpha.gpu/gpu-generate-topology" : 1}
+                    podInfo["requests"] = {"alpha.gpu/gpu-generate-topology": 1}
                 else:
                     # for cases when desired topology is explictly given or not desired
-                    podInfo["requests"] = {"alpha.gpu/gpu-generate-topology" : 0}
-                podInfo["runningcontainer"] = {jobParams["podName"] : container}
+                    podInfo["requests"] = {"alpha.gpu/gpu-generate-topology": 0}
+                podInfo["runningcontainer"] = {jobParams["podName"]: container}
 
                 if "annotations" not in jobParams:
                     jobParams["annotations"] = {}
                 jobParams["annotations"]["pod.alpha/DeviceInformation"] = "'" + json.dumps(podInfo) + "'"
-                jobParams["resourcegpu"] = 0 # gpu requests specified through annotation
+                jobParams["resourcegpu"] = 0  # gpu requests specified through annotation
 
                 if "gpuType" in jobParams:
                     if "nodeSelector" not in jobParams:
@@ -279,20 +240,18 @@ def SubmitRegularJob(job):
             f.write(jobDescription)
 
         output = k8sUtils.kubectl_create(jobDescriptionPath)
-        logging.info("Submitted job %s to k8s, returned with status %s" %(job["jobId"], output))
+        logging.info("Submitted job %s to k8s, returned with status %s" % (job["jobId"], output))
 
         ret["output"] = output
 
         ret["jobId"] = jobParams["jobId"]
 
-
         if "userName" not in jobParams:
             jobParams["userName"] = ""
 
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","scheduling")
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobDescriptionPath",jobParams["jobDescriptionPath"])
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobDescription",base64.b64encode(jobDescription))
-
+        dataHandler.UpdateJobTextField(jobParams["jobId"], "jobStatus", "scheduling")
+        dataHandler.UpdateJobTextField(jobParams["jobId"], "jobDescriptionPath", jobParams["jobDescriptionPath"])
+        dataHandler.UpdateJobTextField(jobParams["jobId"], "jobDescription", base64.b64encode(jobDescription))
 
         jobMeta = {}
         jobMeta["jobDescriptionPath"] = jobParams["jobDescriptionPath"]
@@ -302,14 +261,14 @@ def SubmitRegularJob(job):
         jobMeta["LaunchCMD"] = jobParams["LaunchCMD"]
 
         jobMetaStr = base64.b64encode(json.dumps(jobMeta))
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobMeta",jobMetaStr)
+        dataHandler.UpdateJobTextField(jobParams["jobId"], "jobMeta", jobMetaStr)
     except Exception as e:
         print(e)
         ret["error"] = str(e)
         retries = dataHandler.AddandGetJobRetries(jobParams["jobId"])
         if retries >= 5:
-            dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","error")
-            dataHandler.UpdateJobTextField(jobParams["jobId"],"errorMsg","Cannot submit job!" + str(e))
+            dataHandler.UpdateJobTextField(jobParams["jobId"], "jobStatus", "error")
+            dataHandler.UpdateJobTextField(jobParams["jobId"], "errorMsg", "Cannot submit job!" + str(e))
     dataHandler.Close()
     return ret
 
