@@ -39,10 +39,6 @@ import logging.config
 from job import Job, JobSchema
 
 
-nvidiaDriverPath = config["nvidiaDriverPath"]
-
-
-
 def printlog(msg):
     print("%s - %s" % (datetime.datetime.utcnow().strftime("%x %X"),msg))
 
@@ -111,8 +107,6 @@ def SubmitRegularJob(job):
 
         jobTempDir = os.path.join(config["root-path"], "Jobs_Templete")
         jobTemp = os.path.join(jobTempDir, "RegularJob.yaml.template")
-
-        jobParams["nvidiaDriverPath"] = nvidiaDriverPath
 
         # TODO will need to move it out of jobParams
         jobParams["rest-api"] = config["rest-api"]
@@ -374,12 +368,10 @@ sleep infinity
                     distJobParam["hostjobPath"] = os.path.join(config["storage-mount-path"], jobPath)
                     distJobParam["hostworkPath"] = os.path.join(config["storage-mount-path"], workPath)
                     distJobParam["hostdataPath"] = os.path.join(config["storage-mount-path"], dataPath)
-                    distJobParam["nvidiaDriverPath"] = nvidiaDriverPath
 
                     if "mountpoints" not in distJobParam:
                         distJobParam["mountpoints"] = []
 
-                    # distJobParam["mountpoints"].append({"name":"nvidia-driver","containerPath":"/usr/local/nvidia","hostPath":nvidiaDriverPath})
                     distJobParam["mountpoints"].append({"name":"job","containerPath":"/job","hostPath":distJobParam["hostjobPath"]})
                     distJobParam["mountpoints"].append({"name":"work","containerPath":"/work","hostPath":distJobParam["hostworkPath"]})
                     distJobParam["mountpoints"].append({"name":"data","containerPath":"/data","hostPath":distJobParam["hostdataPath"]})
