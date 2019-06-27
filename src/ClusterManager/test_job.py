@@ -10,12 +10,11 @@ class TestJobSchema(unittest.TestCase):
         self.assertFalse(errors)
         self.assertEqual(job.job_id, "ce7dca49-28df-450a-a03b-51b9c2ecc69c")
 
-        job, _ = JobSchema().load({"jobId": "first_job"})
-        self.assertEqual(job.job_id, "first_job")
+        job, _ = JobSchema().load({"jobId": "first-job"})
+        self.assertEqual(job.job_id, "first-job")
 
     def test_job_id_schema(self):
-        # regex used for validation is '[a-z]([-a-z0-9]*[a-z0-9])?'
-        job, errors = JobSchema().load({"jobId": "8first_job"})
+        job, errors = JobSchema().load({"jobId": "first job"})
         self.assertTrue("jobId" in errors)
 
         job, errors = JobSchema().load({"jobId": "First_job"})
@@ -36,13 +35,13 @@ class TestJobSchema(unittest.TestCase):
 class TestJob(unittest.TestCase):
 
     def test_add_mountpoints_with_none(self):
-        job, errors = JobSchema().load({"jobId": "first_job"})
+        job, errors = JobSchema().load({"jobId": "first-job"})
         self.assertFalse(errors)
 
         job.add_mountpoints(None)
 
     def test_add_mountpoints_without_name(self):
-        job, errors = JobSchema().load({"jobId": "first_job"})
+        job, errors = JobSchema().load({"jobId": "first-job"})
         self.assertFalse(errors)
 
         # add one mountpoint without "name"
@@ -55,7 +54,7 @@ class TestJob(unittest.TestCase):
         self.assertEqual(1, len(job.mountpoints))
 
     def test_add_mountpoints(self):
-        job, errors = JobSchema().load({"jobId": "first_job"})
+        job, errors = JobSchema().load({"jobId": "first-job"})
         self.assertFalse(errors)
 
         # add one mountpoint

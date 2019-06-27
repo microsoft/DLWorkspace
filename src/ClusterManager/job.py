@@ -66,8 +66,11 @@ class JobSchema(Schema):
     job_id = fields.String(required=True,
                            # Correctly mappging the name
                            dump_to="jobId", load_from="jobId",
-                           # We use the id in k8s object, it should be a `DNS-1035 label`
-                           validate=validate.Regexp(r'[a-z]([-a-z0-9]*[a-z0-9])?', error="'{input}' does not match expected pattern {regex}."))
+                           # We use the id as "name" in k8s object.
+                           # By convention, the "names" of Kubernetes resources should be
+                           #  up to maximum length of 253 characters and consist of lower case
+                           # alphanumeric characters, -, and ., but certain resources have more specific restrictions.
+                           validate=validate.Regexp(r'^[a-z0-9]([-a-z0-9]*[a-z0-9])?$', 0, error="'{input}' does not match expected pattern {regex}."))
     mountpoints = fields.Dict(required=False)
 
     @post_load
