@@ -768,14 +768,12 @@
                             iPython
                         </md-switch>
                         <md-switch ng-model="current.tensorboard" md-no-asterisk flex="60">
-                            <div layout="row">
-                                <span>Tensorboard</span>
-                                <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
-                            </div>
+                            <span>Tensorboard</span>
+                            <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
                         </md-switch>
                     </div>
                     <div layout="row" layout-align="space-between">
-                        <p>
+                        <p style="font-size: small">
                             <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
                             Tensorboard will listen on directory <samp>~/tensorboard/${DLWS_JOB_ID}/logs</samp> inside docker container.
                         </p>
