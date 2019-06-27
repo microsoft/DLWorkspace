@@ -1,48 +1,62 @@
 import unittest
+import json
 from job import Job, JobSchema
+
+VALID_JOB_ATTRIBUTES = {
+    "jobId": "ce7dca49-28df-450a-a03b-51b9c2ecc69c",
+    "userName": "user@foo.com"
+}
 
 
 class TestJobSchema(unittest.TestCase):
+
     def test_loads(self):
-        job_json = '{"jobId": "ce7dca49-28df-450a-a03b-51b9c2ecc69c"}'
+        job_json = json.dumps(VALID_JOB_ATTRIBUTES)
 
         job, errors = JobSchema().loads(job_json)
         self.assertFalse(errors)
-        self.assertEqual(job.job_id, "ce7dca49-28df-450a-a03b-51b9c2ecc69c")
-
-        job, _ = JobSchema().load({"jobId": "first-job"})
-        self.assertEqual(job.job_id, "first-job")
+        self.assertEqual(job.job_id, VALID_JOB_ATTRIBUTES["jobId"])
+        self.assertEqual(job.email, VALID_JOB_ATTRIBUTES["userName"])
 
     def test_job_id_schema(self):
-        job, errors = JobSchema().load({"jobId": "first job"})
-        self.assertTrue("jobId" in errors)
-
-        job, errors = JobSchema().load({"jobId": "First_job"})
-        self.assertTrue("jobId" in errors)
-
-        job, errors = JobSchema().load({"jobId": "first-job"})
+        job, errors = JobSchema().load(VALID_JOB_ATTRIBUTES)
         self.assertFalse(errors)
 
+        # uppercase
+        attrs = VALID_JOB_ATTRIBUTES.copy()
+        attrs.update({"jobId": "First-job"})
+        job, errors = JobSchema().load(attrs)
+        self.assertTrue("jobId" in errors)
+
+        # space
+        attrs = VALID_JOB_ATTRIBUTES.copy()
+        attrs.update({"jobId": "first job"})
+        job, errors = JobSchema().load(attrs)
+        self.assertTrue("jobId" in errors)
+
     def test_dump(self):
-        job = Job(job_id="test_job")
+        job = Job(job_id="test-job", email="user@foo.com")
 
         result, errors = JobSchema().dump(job)
 
         self.assertFalse(errors)
-        self.assertEqual(result["jobId"], "test_job")
+        self.assertEqual(result["jobId"], "test-job")
+        self.assertEqual(result["userName"], "user@foo.com")
 
 
 class TestJob(unittest.TestCase):
 
-    def test_add_mountpoints_with_none(self):
-        job, errors = JobSchema().load({"jobId": "first-job"})
+    def create_a_job(self):
+        job, errors = JobSchema().load(VALID_JOB_ATTRIBUTES)
         self.assertFalse(errors)
+        return job
 
+    def test_add_mountpoints_with_none(self):
+        job = self.create_a_job()
         job.add_mountpoints(None)
 
     def test_add_mountpoints_without_name(self):
-        job, errors = JobSchema().load({"jobId": "first-job"})
-        self.assertFalse(errors)
+        job = self.create_a_job()
 
         # add one mountpoint without "name"
         mountpoint1 = {
@@ -54,8 +68,7 @@ class TestJob(unittest.TestCase):
         self.assertEqual(1, len(job.mountpoints))
 
     def test_add_mountpoints(self):
-        job, errors = JobSchema().load({"jobId": "first-job"})
-        self.assertFalse(errors)
+        job = self.create_a_job()
 
         # add one mountpoint
         mountpoint1 = {
@@ -100,4 +113,3 @@ class TestJob(unittest.TestCase):
         }]
         job.add_mountpoints(mountpoints)
         self.assertEqual(3, len(job.mountpoints))
-

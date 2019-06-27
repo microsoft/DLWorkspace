@@ -20,8 +20,9 @@ def create_log(logdir='.'):
 
 
 class Job:
-    def __init__(self, job_id, mountpoints=None):
+    def __init__(self, job_id, email, mountpoints=None):
         self.job_id = job_id
+        self.email = email
         self.mountpoints = mountpoints
 
     def add_mountpoints(self, mountpoint):
@@ -69,8 +70,11 @@ class JobSchema(Schema):
                            # We use the id as "name" in k8s object.
                            # By convention, the "names" of Kubernetes resources should be
                            #  up to maximum length of 253 characters and consist of lower case
-                           # alphanumeric characters, -, and ., but certain resources have more specific restrictions.
-                           validate=validate.Regexp(r'^[a-z0-9]([-a-z0-9]*[a-z0-9])?$', 0, error="'{input}' does not match expected pattern {regex}."))
+                           # alphanumeric characters, -, and .,
+                           # but certain resources have more specific restrictions.
+                           validate=validate.Regexp(r'^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+                                                    error="'{input}' does not match expected pattern {regex}."))
+    email = fields.Email(required=True, dump_to="userName", load_from="userName")
     mountpoints = fields.Dict(required=False)
 
     @post_load
