@@ -67,7 +67,7 @@ class JobSchema(Schema):
                            # Correctly mappging the name
                            dump_to="jobId", load_from="jobId",
                            # We use the id in k8s object, it should be a `DNS-1035 label`
-                           validate=validate.Regexp(r'[a-z]([-a-z0-9]*[a-z0-9])?', 0))
+                           validate=validate.Regexp(r'[a-z]([-a-z0-9]*[a-z0-9])?', error="'{input}' does not match expected pattern {regex}."))
     mountpoints = fields.Dict(required=False)
 
     @post_load

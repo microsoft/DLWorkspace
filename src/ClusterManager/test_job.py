@@ -16,10 +16,10 @@ class TestJobSchema(unittest.TestCase):
     def test_job_id_schema(self):
         # regex used for validation is '[a-z]([-a-z0-9]*[a-z0-9])?'
         job, errors = JobSchema().load({"jobId": "8first_job"})
-        self.assertEqual(errors, {'jobId': ['String does not match expected pattern.']})
+        self.assertTrue("jobId" in errors)
 
-        job, errors = JobSchema().load({"jobId": "8First_job"})
-        self.assertEqual(errors, {'jobId': ['String does not match expected pattern.']})
+        job, errors = JobSchema().load({"jobId": "First_job"})
+        self.assertTrue("jobId" in errors)
 
         job, errors = JobSchema().load({"jobId": "first-job"})
         self.assertFalse(errors)
