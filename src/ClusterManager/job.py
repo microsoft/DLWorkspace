@@ -6,7 +6,6 @@ from marshmallow import Schema, fields, pprint, post_load, validate
 import logging
 import logging.config
 
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 
 # TODO remove it latter
 def create_log(logdir='.'):
@@ -20,7 +19,13 @@ def create_log(logdir='.'):
 
 
 class Job:
-    def __init__(self, job_id, email, mountpoints=None):
+    def __init__(self, cluster, job_id, email, mountpoints=None):
+        """
+        job_id: an unique string for the job.
+        email: user's email.
+        cluster: cluster config.
+        """
+        self.cluster = cluster
         self.job_id = job_id
         self.email = email
         self.mountpoints = mountpoints
@@ -62,8 +67,15 @@ class Job:
 
         self.mountpoints.append(mountpoint)
 
+    def get_alias(self):
+        return self.email.split("@")[0].strip()
+
+    def get_homefolder_hostpath(self):
+        return os.path.join(self.cluster["storage-mount-path"], "work/", self.get_alias())
+
 
 class JobSchema(Schema):
+    cluster = fields.Dict(required=True)
     job_id = fields.String(required=True,
                            # Correctly mappging the name
                            dump_to="jobId", load_from="jobId",

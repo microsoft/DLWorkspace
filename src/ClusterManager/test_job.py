@@ -1,10 +1,17 @@
 import unittest
 import json
+import sys
+import os
 from job import Job, JobSchema
 
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
+from config import config
+
+
 VALID_JOB_ATTRIBUTES = {
+    "cluster": config,
     "jobId": "ce7dca49-28df-450a-a03b-51b9c2ecc69c",
-    "userName": "user@foo.com"
+    "userName": "user@foo.com",
 }
 
 
@@ -35,7 +42,11 @@ class TestJobSchema(unittest.TestCase):
         self.assertTrue("jobId" in errors)
 
     def test_dump(self):
-        job = Job(job_id="test-job", email="user@foo.com")
+        job = Job(
+            cluster=config,
+            job_id="test-job",
+            email="user@foo.com"
+        )
 
         result, errors = JobSchema().dump(job)
 
@@ -113,3 +124,7 @@ class TestJob(unittest.TestCase):
         }]
         job.add_mountpoints(mountpoints)
         self.assertEqual(3, len(job.mountpoints))
+
+    def test_get_homefolder_hostpath(self):
+        job = self.create_a_job()
+        self.assertEqual("/dlwsdata/work/user", job.get_homefolder_hostpath())
