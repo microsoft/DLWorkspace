@@ -2,6 +2,7 @@ import sys
 import os
 from datetime import date
 from marshmallow import Schema, fields, pprint, post_load, validate
+from jinja2 import Environment, FileSystemLoader, Template
 
 import logging
 import logging.config
@@ -120,6 +121,14 @@ class Job:
             f.write("bash /dlws/init_user.sh &> /job/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c '%s'\n" % user_script)
         os.system("sudo chown %s %s" % (user_id, launch_script_file))
         return file_name
+
+    def get_template(self):
+        """Return abosulutely path of job template file on the node."""
+        path = os.path.abspath(os.path.join(self.cluster["root-path"], "Jobs_Templete", "RegularJob.yaml.template"))
+        ENV = Environment(loader=FileSystemLoader("/"))
+        template = ENV.get_template(path)
+        assert(isinstance(template, Template))
+        return template
 
 
 class JobSchema(Schema):

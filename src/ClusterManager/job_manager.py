@@ -84,7 +84,15 @@ def SubmitRegularJob(job):
         assert(isinstance(job_object, Job))
 
         jobParams = json.loads(base64.b64decode(job["jobParams"]))
-        if any(required_field not in jobParams for required_field in ["jobPath", "workPath", "cmd", "userId", "resourcegpu"]):
+        if any(required_field not in jobParams for required_field in
+                [
+                    "jobtrainingtype",
+                    "jobPath",
+                    "workPath",
+                    "cmd",
+                    "userId",
+                    "resourcegpu",
+                ]):
             dataHandler.SetJobError(jobParams["jobId"], "ERROR: required fileds missing in jobParams.")
             return False
 
@@ -102,11 +110,6 @@ def SubmitRegularJob(job):
         jobParams["LaunchCMD"] = "[\"bash\", \"/job/%s\"]" % script_file
         jobParams["jobDescriptionPath"] = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"] + ".yaml"
         jobParams["jobNameLabel"] = ''.join(e for e in jobParams["jobName"] if e.isalnum())
-
-        ENV = Environment(loader=FileSystemLoader("/"))
-
-        jobTempDir = os.path.join(config["root-path"], "Jobs_Templete")
-        jobTemp = os.path.join(jobTempDir, "RegularJob.yaml.template")
 
         # TODO will need to move it out of jobParams
         jobParams["rest-api"] = config["rest-api"]
@@ -180,7 +183,7 @@ def SubmitRegularJob(job):
             jobParams["uid"] = user_info["uid"]
             jobParams["user"] = job_object.get_alias()
 
-            template = ENV.get_template(os.path.abspath(jobTemp))
+            template = job_object.get_template()
             job_description = template.render(job=jobParams)
             jobDescriptionList.append(job_description)
 

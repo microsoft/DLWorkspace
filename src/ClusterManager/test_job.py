@@ -162,3 +162,8 @@ class TestJob(unittest.TestCase):
 
         # "launch-%s.sh" % self.job_id
         self.assertEqual("launch-ce7dca49-28df-450a-a03b-51b9c2ecc69c.sh", script_file)
+
+    def test_get_template(self):
+        job = self.create_a_job()
+
+        self.assertIsNotNone(job.get_template())
