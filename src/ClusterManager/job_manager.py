@@ -35,6 +35,7 @@ import random
 
 import logging
 import logging.config
+from job import Job, JobSchema
 
 
 nvidiaDriverPath = config["nvidiaDriverPath"]
@@ -80,6 +81,10 @@ def SubmitRegularJob(job):
     dataHandler = DataHandler()
 
     try:
+        job_object, errors = JobSchema().load(job)
+        # TODO assert job_object is a Job
+        assert(isinstance(job_object, Job))
+
         jobParams = json.loads(base64.b64decode(job["jobParams"]))
 
         if "jobPath" not in jobParams or len(jobParams["jobPath"].strip()) == 0:
@@ -131,33 +136,23 @@ def SubmitRegularJob(job):
 
         jobParams["rest-api"] = config["rest-api"]
 
-        if "mountpoints" not in jobParams:
-            jobParams["mountpoints"] = []
-        for onemount in jobParams["mountpoints"]:
-            onemount["name"] = onemount["containerPath"].replace("/", "").lower()
+        if "mountpoints" in jobParams:
+            job_object.add_mountpoints(jobParams["mountpoints"])
 
         mp = {"name": "job", "containerPath": "/job", "hostPath": jobParams["hostjobPath"], "enabled": True}
-        if CheckMountPoints(jobParams["mountpoints"], mp):
-            jobParams["mountpoints"].append(mp)
+        job_object.add_mountpoints(mp)
 
         mp = {"name": "work", "containerPath": "/work", "hostPath": jobParams["hostworkPath"], "enabled": True}
-        if CheckMountPoints(jobParams["mountpoints"], mp):
-            jobParams["mountpoints"].append(mp)
+        job_object.add_mountpoints(mp)
 
         mp = {"name": "data", "containerPath": "/data", "hostPath": jobParams["hostdataPath"], "enabled": True}
-        if CheckMountPoints(jobParams["mountpoints"], mp):
-            jobParams["mountpoints"].append(mp)
+        job_object.add_mountpoints(mp)
+
+        jobParams["mountpoints"] = job_object.mountpoints
 
         userAlias = getAlias(jobParams["userName"])
         jobParams["user_email"] = jobParams["userName"]
         jobParams["homeFolderHostpath"] = os.path.join(config["storage-mount-path"], GetWorkPath(userAlias))
-
-        if CheckMountPoints(jobParams["mountpoints"], mp):
-            jobParams["mountpoints"].append(mp)
-
-        for idx in range(len(jobParams["mountpoints"])):
-            if "name" not in jobParams["mountpoints"][idx]:
-                jobParams["mountpoints"][idx]["name"] = str(uuid.uuid4()).replace("-", "")
 
         jobParams["pod_ip_range"] = config["pod_ip_range"]
         if "usefreeflow" in config:
@@ -265,10 +260,10 @@ def SubmitRegularJob(job):
     except Exception as e:
         print(e)
         ret["error"] = str(e)
-        retries = dataHandler.AddandGetJobRetries(jobParams["jobId"])
+        retries = dataHandler.AddandGetJobRetries(job["jobId"])
         if retries >= 5:
-            dataHandler.UpdateJobTextField(jobParams["jobId"], "jobStatus", "error")
-            dataHandler.UpdateJobTextField(jobParams["jobId"], "errorMsg", "Cannot submit job!" + str(e))
+            dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "error")
+            dataHandler.UpdateJobTextField(job["jobId"], "errorMsg", "Cannot submit job!" + str(e))
     dataHandler.Close()
     return ret
 
