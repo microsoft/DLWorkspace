@@ -88,7 +88,7 @@ def SubmitRegularJob(job):
         assert(isinstance(job_object, Job))
 
         jobParams = json.loads(base64.b64decode(job["jobParams"]))
-        if any(required_field not in jobParams for required_field in ["jobPath", "workPath", "cmd"]):
+        if any(required_field not in jobParams for required_field in ["jobPath", "workPath", "cmd", "userId", "resourcegpu"]):
             dataHandler.SetJobError(jobParams["jobId"], "ERROR: required fileds missing in jobParams.")
             return False
 
@@ -102,29 +102,9 @@ def SubmitRegularJob(job):
         job_object.add_mountpoints(job_object.data_path_mountpoint())
 
         localJobPath = job_object.get_job_path_hostpath()
-        if not os.path.exists(localJobPath):
-            mkdirsAsUser(localJobPath, jobParams["userId"])
-            mkdirsAsUser(os.path.join(localJobPath, "models"), jobParams["userId"])
-
-        jobParams["LaunchCMD"] = ""
-        if "cmd" not in jobParams:
-            jobParams["cmd"] = ""
-
-        if isinstance(jobParams["cmd"], basestring) and not jobParams["cmd"] == "":
-            launchScriptPath = os.path.join(localJobPath, "launch-%s.sh" % jobParams["jobId"])
-            with open(launchScriptPath, 'w') as f:
-                f.write("#!/bin/bash -x\n")
-                f.write("mkdir /opt; \n")
-                f.write("echo 'localhost slots=%s' | tee -a /opt/hostfile; \n" % jobParams["resourcegpu"])
-                # TODO refine it later
-                f.write("bash /dlws/init_user.sh &> /job/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c '%s'\n" % jobParams["cmd"])
-            f.close()
-            if "userId" in jobParams:
-                os.system("chown -R %s %s" % (jobParams["userId"], launchScriptPath))
-            jobParams["LaunchCMD"] = "[\"bash\", \"/job/launch-%s.sh\"]" % jobParams["jobId"]
-
+        script_file = job_object.generate_launch_script(localJobPath, jobParams["userId"], jobParams["resourcegpu"], jobParams["cmd"])
+        jobParams["LaunchCMD"] = "[\"bash\", \"/job/%s\"]" % script_file
         jobParams["jobDescriptionPath"] = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"] + ".yaml"
-
         jobParams["jobNameLabel"] = ''.join(e for e in jobParams["jobName"] if e.isalnum())
 
         ENV = Environment(loader=FileSystemLoader("/"))

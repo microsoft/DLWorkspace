@@ -6,6 +6,9 @@ from marshmallow import Schema, fields, pprint, post_load, validate
 import logging
 import logging.config
 
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
+from osUtils import mkdirsAsUser
+
 
 # TODO remove it latter
 def create_log(logdir='.'):
@@ -103,6 +106,20 @@ class Job:
         assert(self.data_path is not None)
         data_host_path = os.path.join(self.cluster["storage-mount-path"], "storage", self.data_path)
         return {"name": "data", "containerPath": "/data", "hostPath": data_host_path, "enabled": True}
+
+    def generate_launch_script(self, path_to_save, user_id, gpu_num, user_script):
+        if not os.path.exists(path_to_save):
+            mkdirsAsUser(path_to_save, user_id)
+
+        file_name = "launch-%s.sh" % self.job_id
+        launch_script_file = os.path.join(path_to_save, file_name)
+        with open(launch_script_file, 'w') as f:
+            f.write("#!/bin/bash -x\n")
+            f.write("mkdir /opt; \n")
+            f.write("echo 'localhost slots=%s' | tee -a /opt/hostfile; \n" % gpu_num)
+            f.write("bash /dlws/init_user.sh &> /job/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c '%s'\n" % user_script)
+        os.system("sudo chown %s %s" % (user_id, launch_script_file))
+        return file_name
 
 
 class JobSchema(Schema):
