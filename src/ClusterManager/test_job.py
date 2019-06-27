@@ -12,6 +12,7 @@ VALID_JOB_ATTRIBUTES = {
     "cluster": config,
     "jobId": "ce7dca49-28df-450a-a03b-51b9c2ecc69c",
     "userName": "user@foo.com",
+    "jobPath": "user_alias/jobs/date/job_id"
 }
 
 
@@ -128,3 +129,24 @@ class TestJob(unittest.TestCase):
     def test_get_homefolder_hostpath(self):
         job = self.create_a_job()
         self.assertEqual("/dlwsdata/work/user", job.get_homefolder_hostpath())
+
+    def test_get_job_path_hostpath(self):
+        job = self.create_a_job()
+        self.assertEqual("user_alias/jobs/date/job_id", job.job_path)
+        self.assertEqual("/dlwsdata/work/user_alias/jobs/date/job_id", job.get_job_path_hostpath())
+
+    def test_job_work_data_mountpoints(self):
+        job = self.create_a_job()
+
+        job.job_path = "user_alias/jobs/date/job_id"
+        job.work_path = "user_alias"
+        job.data_path = ""
+
+        self.assertEqual("/dlwsdata/work/user_alias/jobs/date/job_id", job.job_path_mountpoint()["hostPath"])
+        self.assertEqual("/dlwsdata/work/user_alias", job.work_path_mountpoint()["hostPath"])
+        self.assertEqual("/dlwsdata/storage/xx", job.data_path_mountpoint()["hostPath"])
+
+        job.add_mountpoints(job.job_path_mountpoint())
+        job.add_mountpoints(job.work_path_mountpoint())
+        job.add_mountpoints(job.data_path_mountpoint())
+        self.assertEquals(3, len(job.mountpoints()))

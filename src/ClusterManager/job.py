@@ -19,16 +19,29 @@ def create_log(logdir='.'):
 
 
 class Job:
-    def __init__(self, cluster, job_id, email, mountpoints=None):
+    def __init__(self,
+                 cluster,
+                 job_id,
+                 email,
+                 mountpoints=None,
+                 job_path="",
+                 work_path="",
+                 data_path="",
+                 ):
         """
         job_id: an unique string for the job.
         email: user's email.
         cluster: cluster config.
+        job_path: relative path, on shared storage, for example "user_alias/jobs/date/job_id".
+        work_path: relative path, on shared storage, for example "user_alias".
         """
         self.cluster = cluster
         self.job_id = job_id
         self.email = email
         self.mountpoints = mountpoints
+        self.job_path = job_path
+        self.work_path = work_path
+        self.data_path = data_path
 
     def add_mountpoints(self, mountpoint):
         '''
@@ -73,6 +86,24 @@ class Job:
     def get_homefolder_hostpath(self):
         return os.path.join(self.cluster["storage-mount-path"], "work/", self.get_alias())
 
+    def get_job_path_hostpath(self):
+        return os.path.join(self.cluster["storage-mount-path"], "work/", self.job_path)
+
+    def job_path_mountpoint(self):
+        assert(len(self.job_path) > 0)
+        job_host_path = os.path.join(self.cluster["storage-mount-path"], "work", self.job_path)
+        return {"name": "job", "containerPath": "/job", "hostPath": job_host_path, "enabled": True}
+
+    def work_path_mountpoint(self):
+        assert(len(self.work_path) > 0)
+        work_host_path = os.path.join(self.cluster["storage-mount-path"], "work", self.work_path)
+        return {"name": "work", "containerPath": "/work", "hostPath": work_host_path, "enabled": True}
+
+    def data_path_mountpoint(self):
+        assert(self.data_path is not None)
+        data_host_path = os.path.join(self.cluster["storage-mount-path"], "storage", self.data_path)
+        return {"name": "data", "containerPath": "/data", "hostPath": data_host_path, "enabled": True}
+
 
 class JobSchema(Schema):
     cluster = fields.Dict(required=True)
@@ -88,6 +119,9 @@ class JobSchema(Schema):
                                                     error="'{input}' does not match expected pattern {regex}."))
     email = fields.Email(required=True, dump_to="userName", load_from="userName")
     mountpoints = fields.Dict(required=False)
+    job_path = fields.String(required=False, dump_to="jobPath", load_from="jobPath")
+    work_path = fields.String(required=False, dump_to="workPath", load_from="workPath")
+    data_path = fields.String(required=False, dump_to="dataPath", load_from="dataPath")
 
     @post_load
     def make_user(self, data, **kwargs):
