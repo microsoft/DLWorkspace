@@ -769,10 +769,16 @@
                         </md-switch>
                         <md-switch ng-model="current.tensorboard" md-no-asterisk flex="60">
                             <div layout="row">
-                                <span>Tensorboard(logdir=/job/logs)</span>
-                                &nbsp;<i class="layui-icon" title="Tensorboard will listen on directory /job/logs inside docker container." data-toggle="tooltip" data-placement="right">&#xe60b;</i>
+                                <span>Tensorboard</span>
+                                <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
                             </div>
                         </md-switch>
+                    </div>
+                    <div layout="row" layout-align="space-between">
+                        <p>
+                            <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
+                            Tensorboard will listen on directory <samp>~/tensorboard/${DLWS_JOB_ID}/logs</samp> inside docker container.
+                        </p>
                     </div>
 
                 </div>
