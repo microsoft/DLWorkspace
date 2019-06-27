@@ -529,12 +529,12 @@
         </md-switch>
     </div>
     <div layout="row" layout-align="space-between">
-        <p>
+        <p style="font-size: small">
             <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
             Tensorboard will listen on directory <samp>~/tensorboard/${DLWS_JOB_ID}/logs</samp> inside docker container.
         </p>
     </div>
-    <form name="addPortForm" layout="row" ng-submit="addPort()">
+    <form name="addPortForm" layout="row" ng-submit="addPort()" style="margin-top: 20px">
         <md-input-container flex>
             <label>New Interactive Port (40000-49999)</label>
             <input name="port"
