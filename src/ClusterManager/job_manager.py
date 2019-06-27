@@ -7,6 +7,7 @@ import subprocess
 import sys
 import datetime
 import copy
+import traceback
 
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
@@ -81,24 +82,26 @@ def SubmitRegularJob(job):
     dataHandler = DataHandler()
 
     try:
+        job["cluster"] = config
         job_object, errors = JobSchema().load(job)
         # TODO assert job_object is a Job
         assert(isinstance(job_object, Job))
 
         jobParams = json.loads(base64.b64decode(job["jobParams"]))
-
-        if "jobPath" not in jobParams or len(jobParams["jobPath"].strip()) == 0:
-            dataHandler.SetJobError(jobParams["jobId"], "ERROR: job-path does not exist")
+        if any(required_field not in jobParams for required_field in ["jobPath", "workPath", "cmd"]):
+            dataHandler.SetJobError(jobParams["jobId"], "ERROR: required fileds missing in jobParams.")
             return False
 
-        if "workPath" not in jobParams or len(jobParams["workPath"].strip()) == 0:
-            dataHandler.SetJobError(jobParams["jobId"], "ERROR: work-path does not exist")
-            return False
+        job_object.job_path = jobParams["jobPath"]
+        job_object.work_path = jobParams["workPath"]
+        job_object.data_path = jobParams["dataPath"]
+        if "mountpoints" in jobParams:
+            job_object.add_mountpoints(jobParams["mountpoints"])
+        job_object.add_mountpoints(job_object.job_path_mountpoint())
+        job_object.add_mountpoints(job_object.work_path_mountpoint())
+        job_object.add_mountpoints(job_object.data_path_mountpoint())
 
-        jobPath, workPath, dataPath = GetStoragePath(jobParams["jobPath"], jobParams["workPath"], jobParams["dataPath"])
-
-        localJobPath = os.path.join(config["storage-mount-path"], jobPath)
-
+        localJobPath = job_object.get_job_path_hostpath()
         if not os.path.exists(localJobPath):
             mkdirsAsUser(localJobPath, jobParams["userId"])
             mkdirsAsUser(os.path.join(localJobPath, "models"), jobParams["userId"])
@@ -129,30 +132,14 @@ def SubmitRegularJob(job):
         jobTempDir = os.path.join(config["root-path"], "Jobs_Templete")
         jobTemp = os.path.join(jobTempDir, "RegularJob.yaml.template")
 
-        jobParams["hostjobPath"] = os.path.join(config["storage-mount-path"], jobPath)
-        jobParams["hostworkPath"] = os.path.join(config["storage-mount-path"], workPath)
-        jobParams["hostdataPath"] = os.path.join(config["storage-mount-path"], dataPath)
         jobParams["nvidiaDriverPath"] = nvidiaDriverPath
 
+        # TODO will need to move it out of jobParams
         jobParams["rest-api"] = config["rest-api"]
 
-        if "mountpoints" in jobParams:
-            job_object.add_mountpoints(jobParams["mountpoints"])
-
-        mp = {"name": "job", "containerPath": "/job", "hostPath": jobParams["hostjobPath"], "enabled": True}
-        job_object.add_mountpoints(mp)
-
-        mp = {"name": "work", "containerPath": "/work", "hostPath": jobParams["hostworkPath"], "enabled": True}
-        job_object.add_mountpoints(mp)
-
-        mp = {"name": "data", "containerPath": "/data", "hostPath": jobParams["hostdataPath"], "enabled": True}
-        job_object.add_mountpoints(mp)
-
         jobParams["mountpoints"] = job_object.mountpoints
-
-        userAlias = getAlias(jobParams["userName"])
         jobParams["user_email"] = jobParams["userName"]
-        jobParams["homeFolderHostpath"] = os.path.join(config["storage-mount-path"], GetWorkPath(userAlias))
+        jobParams["homeFolderHostpath"] = job_object.get_homefolder_hostpath()
 
         jobParams["pod_ip_range"] = config["pod_ip_range"]
         if "usefreeflow" in config:
@@ -171,7 +158,7 @@ def SubmitRegularJob(job):
             c = 0
             while (i <= end):
                 pod = {}
-                pod["podName"] = jobParams["jobId"]+"-pod-"+str(c)
+                pod["podName"] = jobParams["jobId"] + "-pod-" + str(c)
                 pod["envs"] = [{"name": jobParams["hyperparametername"], "value":i}]
                 i += step
                 c += 1
@@ -217,7 +204,7 @@ def SubmitRegularJob(job):
             user_info = dataHandler.GetIdentityInfo(jobParams["userName"])[0]
             jobParams["gid"] = user_info["gid"]
             jobParams["uid"] = user_info["uid"]
-            jobParams["user"] = userAlias
+            jobParams["user"] = job_object.get_alias()
 
             template = ENV.get_template(os.path.abspath(jobTemp))
             job_description = template.render(job=jobParams)
@@ -241,6 +228,7 @@ def SubmitRegularJob(job):
 
         ret["jobId"] = jobParams["jobId"]
 
+        # TODO why?
         if "userName" not in jobParams:
             jobParams["userName"] = ""
 
@@ -258,7 +246,9 @@ def SubmitRegularJob(job):
         jobMetaStr = base64.b64encode(json.dumps(jobMeta))
         dataHandler.UpdateJobTextField(jobParams["jobId"], "jobMeta", jobMetaStr)
     except Exception as e:
-        print(e)
+        logging.error("Submit job failed: %s" % job)
+        traceback.print_exc()
+        logging.error(e)
         ret["error"] = str(e)
         retries = dataHandler.AddandGetJobRetries(job["jobId"])
         if retries >= 5:
@@ -266,7 +256,6 @@ def SubmitRegularJob(job):
             dataHandler.UpdateJobTextField(job["jobId"], "errorMsg", "Cannot submit job!" + str(e))
     dataHandler.Close()
     return ret
-
 
 
 def SubmitPSDistJob(job):
@@ -533,6 +522,7 @@ def KillJob(job, desiredState="killed"):
     return False
 
 
+# TODO remove it latter
 def getAlias(username):
     if "@" in username:
         username = username.split("@")[0].strip()
