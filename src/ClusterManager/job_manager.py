@@ -125,24 +125,28 @@ def SubmitRegularJob(job):
         else:
             jobParams["usefreeflow"] = False
 
-        print ("Render Job: %s" % jobParams)
-        jobDescriptionList = []
+
+        # inject gid, uid and user
+        # TODO it should return only one entry
+        user_info = dataHandler.GetIdentityInfo(jobParams["userName"])[0]
+        jobParams["gid"] = user_info["gid"]
+        jobParams["uid"] = user_info["uid"]
+        jobParams["user"] = job_object.get_alias()
 
         pods = []
-        if "hyperparametername" in jobParams and "hyperparameterstartvalue" in jobParams and "hyperparameterendvalue" in jobParams and "hyperparameterstep" in jobParams:
-            i = int(jobParams["hyperparameterstartvalue"])
+        if all(hyper_parameter in jobParams for hyper_parameter in ["hyperparametername", "hyperparameterstartvalue", "hyperparameterendvalue", "hyperparameterstep"]):
+            env_name = jobParams["hyperparametername"]
+            start = int(jobParams["hyperparameterstartvalue"])
             end = int(jobParams["hyperparameterendvalue"])
             step = int(jobParams["hyperparameterstep"])
-            c = 0
-            while (i <= end):
-                pod = {}
-                pod["podName"] = jobParams["jobId"] + "-pod-" + str(c)
-                pod["envs"] = [{"name": jobParams["hyperparametername"], "value":i}]
-                i += step
-                c += 1
+
+            for idx, val in enumerate(range(start, end, step)):
+                pod = jobParams.copy()
+                pod["podName"] = "{0}-pod-{1}".format(jobParams["jobId"], idx)
+                pod["envs"] = [{"name": env_name, "value": val}]
                 pods.append(pod)
         else:
-                pod = {}
+                pod = jobParams.copy()
                 pod["podName"] = jobParams["jobId"]
                 pod["envs"] = []
                 pods.append(pod)
@@ -151,41 +155,43 @@ def SubmitRegularJob(job):
             jobParams["env"] = []
         jobParams["commonenv"] = copy.copy(jobParams["env"])
 
-        for pod in pods:
-            jobParams["podName"] = pod["podName"]
-            jobParams["env"] = jobParams["commonenv"] + pod["envs"]
+        print("Render Job: %s" % jobParams)
+        jobDescriptionList = []
 
+        for pod in pods:
             if "kube_custom_scheduler" in config and config["kube_custom_scheduler"]:
-                container = {}
-                container["requests"] = {"alpha.gpu/numgpu": int(jobParams["resourcegpu"])}
-                podInfo = {}
-                podInfo["podname"] = jobParams["podName"]
-                if "useGPUTopology" in jobParams and jobParams["useGPUTopology"]:
-                    podInfo["requests"] = {"alpha.gpu/gpu-generate-topology": 1}
+                if "useGPUTopology" in pod and pod["useGPUTopology"]:
+                    gpu_topology_flag = 1
                 else:
                     # for cases when desired topology is explictly given or not desired
-                    podInfo["requests"] = {"alpha.gpu/gpu-generate-topology": 0}
-                podInfo["runningcontainer"] = {jobParams["podName"]: container}
+                    gpu_topology_flag = 0
+                pod_name = pod["podName"]
+                request_gpu = int(pod["resourcegpu"])
 
-                if "annotations" not in jobParams:
-                    jobParams["annotations"] = {}
-                jobParams["annotations"]["pod.alpha/DeviceInformation"] = "'" + json.dumps(podInfo) + "'"
-                jobParams["resourcegpu"] = 0  # gpu requests specified through annotation
+                podInfo = {
+                    "podname": pod_name,
+                    "requests": {
+                        "alpha.gpu/gpu-generate-topology": gpu_topology_flag
+                    },
+                    "runningcontainer": {
+                        pod_name: {
+                            "requests": {"alpha.gpu/numgpu": request_gpu}
+                        },
+                    },
+                }
 
-                if "gpuType" in jobParams:
-                    if "nodeSelector" not in jobParams:
-                        jobParams["nodeSelector"] = {}
-                    jobParams["nodeSelector"]["gpuType"] = jobParams["gpuType"]
+                if "annotations" not in pod:
+                    pod["annotations"] = {}
+                pod["annotations"]["pod.alpha/DeviceInformation"] = "'" + json.dumps(podInfo) + "'"
+                pod["resourcegpu"] = 0  # gpu requests specified through annotation
 
-            # inject gid, uid and user
-            # TODO it should return only one entry
-            user_info = dataHandler.GetIdentityInfo(jobParams["userName"])[0]
-            jobParams["gid"] = user_info["gid"]
-            jobParams["uid"] = user_info["uid"]
-            jobParams["user"] = job_object.get_alias()
+                if "gpuType" in pod:
+                    if "nodeSelector" not in pod:
+                        pod["nodeSelector"] = {}
+                    pod["nodeSelector"]["gpuType"] = pod["gpuType"]
 
             template = job_object.get_template()
-            job_description = template.render(job=jobParams)
+            job_description = template.render(job=pod)
             jobDescriptionList.append(job_description)
 
         jobDescription = "\n---\n".join(jobDescriptionList)
