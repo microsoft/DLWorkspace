@@ -168,14 +168,14 @@ class TestJob(unittest.TestCase):
 
         self.assertIsNotNone(job.get_template())
 
-    def test_is_custom_scheduler_eanbled(self):
+    def test_is_custom_scheduler_enabled(self):
         job = self.create_a_job()
 
-        self.assertFalse(job.is_custom_scheduler_eanbled())
+        self.assertFalse(job.is_custom_scheduler_enabled())
 
         # TODO !!! notice, it would change all the 'cluster' settings
         job.cluster["kube_custom_scheduler"] = True
-        self.assertTrue(job.is_custom_scheduler_eanbled())
+        self.assertTrue(job.is_custom_scheduler_enabled())
 
     def test_get_rest_api_url(self):
         job = self.create_a_job()

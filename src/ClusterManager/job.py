@@ -31,6 +31,7 @@ class Job:
                  job_path="",
                  work_path="",
                  data_path="",
+                 params=None,
                  ):
         """
         job_id: an unique string for the job.
@@ -46,6 +47,7 @@ class Job:
         self.job_path = job_path
         self.work_path = work_path
         self.data_path = data_path
+        self.params = params
 
     def add_mountpoints(self, mountpoint):
         '''
@@ -130,12 +132,21 @@ class Job:
         assert(isinstance(template, Template))
         return template
 
-    def is_custom_scheduler_eanbled(self):
-        return "kube_custom_scheduler" in self.cluster and self.cluster["kube_custom_scheduler"]
+    def is_custom_scheduler_enabled(self):
+        return self._get_cluster_config("kube_custom_scheduler")
 
     def get_rest_api_url(self):
-        if "rest-api" in self.cluster:
-            return self.cluster["rest-api"]
+        return self._get_cluster_config("rest-api")
+
+    def get_pod_ip_range(self):
+        return self._get_cluster_config("pod_ip_range")
+
+    def is_user_flow_enabled(self):
+        return self._get_cluster_config("usefreeflow")
+
+    def _get_cluster_config(self, key):
+        if key in self.cluster:
+            return self.cluster[key]
         return None
 
 
@@ -156,6 +167,7 @@ class JobSchema(Schema):
     job_path = fields.String(required=False, dump_to="jobPath", load_from="jobPath")
     work_path = fields.String(required=False, dump_to="workPath", load_from="workPath")
     data_path = fields.String(required=False, dump_to="dataPath", load_from="dataPath")
+    params = fields.Dict(required=False)
 
     @post_load
     def make_user(self, data, **kwargs):
