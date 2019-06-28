@@ -130,10 +130,10 @@ class TestJob(unittest.TestCase):
         job = self.create_a_job()
         self.assertEqual("/dlwsdata/work/user", job.get_homefolder_hostpath())
 
-    def test_get_job_path_hostpath(self):
+    def test_get_local_job_path(self):
         job = self.create_a_job()
         self.assertEqual("user_alias/jobs/date/job_id", job.job_path)
-        self.assertEqual("/dlwsdata/work/user_alias/jobs/date/job_id", job.get_job_path_hostpath())
+        self.assertEqual("/dlwsdata/work/user_alias/jobs/date/job_id", job.get_local_job_path())
 
     def test_job_work_data_mountpoints(self):
         job = self.create_a_job()
@@ -167,3 +167,12 @@ class TestJob(unittest.TestCase):
         job = self.create_a_job()
 
         self.assertIsNotNone(job.get_template())
+
+    def test_is_custom_scheduler_eanbled(self):
+        job = self.create_a_job()
+
+        self.assertFalse(job.is_custom_scheduler_eanbled())
+
+        # TODO !!! notice, it would change all the 'cluster' settings
+        job.cluster["kube_custom_scheduler"] = True
+        self.assertTrue(job.is_custom_scheduler_eanbled())

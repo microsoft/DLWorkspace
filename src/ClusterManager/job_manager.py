@@ -94,7 +94,7 @@ def SubmitRegularJob(job):
                     "userId",
                     "resourcegpu",
                 ]):
-            dataHandler.SetJobError(jobParams["jobId"], "ERROR: required fileds missing in jobParams.")
+            dataHandler.SetJobError(job_object.job_id, "ERROR: required fileds missing in jobParams.")
             return False
 
         job_object.job_path = jobParams["jobPath"]
@@ -107,8 +107,8 @@ def SubmitRegularJob(job):
         job_object.add_mountpoints(job_object.work_path_mountpoint())
         job_object.add_mountpoints(job_object.data_path_mountpoint())
 
-        localJobPath = job_object.get_job_path_hostpath()
-        script_file = job_object.generate_launch_script(localJobPath, jobParams["userId"], jobParams["resourcegpu"], jobParams["cmd"])
+        local_job_path = job_object.get_local_job_path()
+        script_file = job_object.generate_launch_script(local_job_path, jobParams["userId"], jobParams["resourcegpu"], jobParams["cmd"])
         jobParams["LaunchCMD"] = "[\"bash\", \"/job/%s\"]" % script_file
         jobParams["jobNameLabel"] = ''.join(e for e in jobParams["jobName"] if e.isalnum())
 
@@ -141,23 +141,16 @@ def SubmitRegularJob(job):
 
             for idx, val in enumerate(range(start, end, step)):
                 pod = jobParams.copy()
-                pod["podName"] = "{0}-pod-{1}".format(jobParams["jobId"], idx)
+                pod["podName"] = "{0}-pod-{1}".format(job_object.job_id, idx)
                 pod["envs"] = [{"name": env_name, "value": val}]
                 pods.append(pod)
         else:
                 pod = jobParams.copy()
-                pod["podName"] = jobParams["jobId"]
+                pod["podName"] = job_object.job_id
                 pod["envs"] = []
                 pods.append(pod)
 
-        if "env" not in jobParams:
-            jobParams["env"] = []
-        jobParams["commonenv"] = copy.copy(jobParams["env"])
-
-        if "kube_custom_scheduler" in config and config["kube_custom_scheduler"]:
-            enable_custom_scheduler = True
-        else:
-            enable_custom_scheduler = False
+        enable_custom_scheduler = job_object.is_custom_scheduler_eanbled()
         pod_template = PodTemplate(job_object.get_template(), enable_custom_scheduler)
 
         print("Render Job: %s" % jobParams)
@@ -167,7 +160,7 @@ def SubmitRegularJob(job):
             job_description_list.append(job_description)
         job_description = "\n---\n".join(job_description_list)
 
-        job_description_path = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"] + ".yaml"
+        job_description_path = "jobfiles/" + time.strftime("%y%m%d") + "/" + job_object.job_id + "/" + job_object.job_id + ".yaml"
         local_jobDescriptionPath = os.path.realpath(os.path.join(config["storage-mount-path"], job_description_path))
 
         if os.path.isfile(local_jobDescriptionPath):
@@ -179,11 +172,11 @@ def SubmitRegularJob(job):
             f.write(job_description)
 
         output = k8sUtils.kubectl_create(local_jobDescriptionPath)
-        logging.info("Submitted job %s to k8s, returned with status %s" % (job["jobId"], output))
+        logging.info("Submitted job %s to k8s, returned with status %s" % (job_object.job_id, output))
 
         ret["output"] = output
 
-        ret["jobId"] = jobParams["jobId"]
+        ret["jobId"] = job_object.job_id
 
         dataHandler.UpdateJobTextField(jobParams["jobId"], "jobStatus", "scheduling")
         dataHandler.UpdateJobTextField(jobParams["jobId"], "jobDescriptionPath", job_description_path)
@@ -191,9 +184,8 @@ def SubmitRegularJob(job):
 
         jobMeta = {}
         jobMeta["jobDescriptionPath"] = job_description_path
-        jobMeta["jobPath"] = jobParams["jobPath"]
-        jobMeta["workPath"] = jobParams["workPath"]
-        jobMeta["jobPath"] = jobParams["jobPath"]
+        jobMeta["jobPath"] = job_object.job_path
+        jobMeta["workPath"] = job_object.work_path
         jobMeta["LaunchCMD"] = jobParams["LaunchCMD"]
 
         jobMetaStr = base64.b64encode(json.dumps(jobMeta))

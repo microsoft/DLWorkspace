@@ -90,7 +90,7 @@ class Job:
     def get_homefolder_hostpath(self):
         return os.path.join(self.cluster["storage-mount-path"], "work/", self.get_alias())
 
-    def get_job_path_hostpath(self):
+    def get_local_job_path(self):
         return os.path.join(self.cluster["storage-mount-path"], "work/", self.job_path)
 
     def job_path_mountpoint(self):
@@ -129,6 +129,9 @@ class Job:
         template = ENV.get_template(path)
         assert(isinstance(template, Template))
         return template
+
+    def is_custom_scheduler_eanbled(self):
+        return "kube_custom_scheduler" in self.cluster and self.cluster["kube_custom_scheduler"]
 
 
 class JobSchema(Schema):
