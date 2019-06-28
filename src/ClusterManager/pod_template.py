@@ -33,6 +33,7 @@ class PodTemplate():
             if "annotations" not in pod:
                 pod["annotations"] = {}
             pod["annotations"]["pod.alpha/DeviceInformation"] = "'" + json.dumps(podInfo) + "'"
+            # TODO it's not safe to update pod["resourcegpu"]
             pod["resourcegpu"] = 0  # gpu requests specified through annotation
 
         if "nodeSelector" not in pod:

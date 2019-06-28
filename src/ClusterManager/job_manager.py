@@ -88,11 +88,14 @@ def SubmitRegularJob(job):
         if any(required_field not in jobParams for required_field in
                 [
                     "jobtrainingtype",
+                    "jobName",
                     "jobPath",
                     "workPath",
+                    "dataPath",
                     "cmd",
                     "userId",
                     "resourcegpu",
+                    "userName",
                 ]):
             dataHandler.SetJobError(job_object.job_id, "ERROR: required fileds missing in jobParams.")
             return False
@@ -109,11 +112,7 @@ def SubmitRegularJob(job):
 
         local_job_path = job_object.get_local_job_path()
         script_file = job_object.generate_launch_script(local_job_path, jobParams["userId"], jobParams["resourcegpu"], jobParams["cmd"])
-        jobParams["LaunchCMD"] = "[\"bash\", \"/job/%s\"]" % script_file
-        jobParams["jobNameLabel"] = ''.join(e for e in jobParams["jobName"] if e.isalnum())
-
-        # TODO will need to move it out of jobParams
-        jobParams["rest-api"] = config["rest-api"]
+        luanch_cmd = "[\"bash\", \"/job/%s\"]" % script_file
 
         jobParams["mountpoints"] = job_object.mountpoints
         jobParams["user_email"] = jobParams["userName"]
@@ -132,6 +131,10 @@ def SubmitRegularJob(job):
         jobParams["uid"] = user_info["uid"]
         jobParams["user"] = job_object.get_alias()
 
+        # assign parameters to generate the pod yaml
+        jobParams["LaunchCMD"] = luanch_cmd
+        jobParams["jobNameLabel"] = ''.join(e for e in jobParams["jobName"] if e.isalnum())
+        jobParams["rest-api"] = job_object.get_rest_api_url()
         pods = []
         if all(hyper_parameter in jobParams for hyper_parameter in ["hyperparametername", "hyperparameterstartvalue", "hyperparameterendvalue", "hyperparameterstep"]):
             env_name = jobParams["hyperparametername"]
@@ -178,18 +181,18 @@ def SubmitRegularJob(job):
 
         ret["jobId"] = job_object.job_id
 
-        dataHandler.UpdateJobTextField(jobParams["jobId"], "jobStatus", "scheduling")
-        dataHandler.UpdateJobTextField(jobParams["jobId"], "jobDescriptionPath", job_description_path)
-        dataHandler.UpdateJobTextField(jobParams["jobId"], "jobDescription", base64.b64encode(job_description))
+        dataHandler.UpdateJobTextField(job_object.job_id, "jobStatus", "scheduling")
+        dataHandler.UpdateJobTextField(job_object.job_id, "jobDescriptionPath", job_description_path)
+        dataHandler.UpdateJobTextField(job_object.job_id, "jobDescription", base64.b64encode(job_description))
 
         jobMeta = {}
         jobMeta["jobDescriptionPath"] = job_description_path
         jobMeta["jobPath"] = job_object.job_path
         jobMeta["workPath"] = job_object.work_path
-        jobMeta["LaunchCMD"] = jobParams["LaunchCMD"]
+        jobMeta["LaunchCMD"] = luanch_cmd
 
         jobMetaStr = base64.b64encode(json.dumps(jobMeta))
-        dataHandler.UpdateJobTextField(jobParams["jobId"], "jobMeta", jobMetaStr)
+        dataHandler.UpdateJobTextField(job_object.job_id, "jobMeta", jobMetaStr)
     except Exception as e:
         logging.error("Submit job failed: %s" % job)
         traceback.print_exc()

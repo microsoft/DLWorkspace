@@ -12,7 +12,7 @@ VALID_JOB_ATTRIBUTES = {
     "cluster": config,
     "jobId": "ce7dca49-28df-450a-a03b-51b9c2ecc69c",
     "userName": "user@foo.com",
-    "jobPath": "user_alias/jobs/date/job_id"
+    "jobPath": "user_alias/jobs/date/job_id",
 }
 
 
@@ -176,3 +176,8 @@ class TestJob(unittest.TestCase):
         # TODO !!! notice, it would change all the 'cluster' settings
         job.cluster["kube_custom_scheduler"] = True
         self.assertTrue(job.is_custom_scheduler_eanbled())
+
+    def test_get_rest_api_url(self):
+        job = self.create_a_job()
+
+        self.assertEqual("http://faked.uri/", job.get_rest_api_url())

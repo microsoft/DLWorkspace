@@ -133,6 +133,11 @@ class Job:
     def is_custom_scheduler_eanbled(self):
         return "kube_custom_scheduler" in self.cluster and self.cluster["kube_custom_scheduler"]
 
+    def get_rest_api_url(self):
+        if "rest-api" in self.cluster:
+            return self.cluster["rest-api"]
+        return None
+
 
 class JobSchema(Schema):
     cluster = fields.Dict(required=True)
