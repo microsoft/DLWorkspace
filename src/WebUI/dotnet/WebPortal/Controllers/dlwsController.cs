@@ -44,6 +44,11 @@ namespace WindowsAuth.Controllers
             _familyModel = familyModel.Value;
         }
 
+        private bool IsSessionAvailable()
+        {
+            return HttpContext.Session.Keys.Contains("Username") && HttpContext.Session.Keys.Contains("AuthorizedClusters");
+        }
+
         // this function should be moved to a shared util-class
         private string ParseToUsername(string email)
         {
@@ -60,8 +65,10 @@ namespace WindowsAuth.Controllers
         }
 
         [HttpGet("GetMountPoints")]
-        public async Task<IActionResult> GetMountPoints()
+        public IActionResult GetMountPoints()
         {
+            if (!IsSessionAvailable()) { return Forbid(); }
+
             var cluster = HttpContext.Request.Query["cluster"];
             var currentUsername = HttpContext.Session.GetString("Username");
             if (String.IsNullOrEmpty(cluster) || !Startup.Clusters.ContainsKey(cluster) )
@@ -88,21 +95,17 @@ namespace WindowsAuth.Controllers
 
         // GET api/dlws/grafana
         [HttpGet("grafana")]
-        public string GetGrafana()
+        public IActionResult GetGrafana()
         {
+            if (!IsSessionAvailable()) { return Forbid(); }
 
             var cluster = HttpContext.Request.Query["cluster"];
-            var authorizedClustersJson = HttpContext.Session.GetString("AuthorizedClusters");
-            if (authorizedClustersJson == null)
-            {
-                return "Invalid user";
-            }
             var authorizedClusters = JsonConvert.DeserializeObject<List<string>>(HttpContext.Session.GetString("AuthorizedClusters"));
             if (!authorizedClusters.Contains(cluster))
             {
-                return "Invalid cluster";
+                return Content("Invalid cluster");
             }
-            return Startup.Clusters[cluster].Grafana;
+            return Content(Startup.Clusters[cluster].Grafana);
         }
 
 
@@ -181,26 +184,21 @@ namespace WindowsAuth.Controllers
 
         // GET api/dlws/op_str?params
         [HttpGet("{op}")]
-        public async Task<string> Get(string op)
+        public async Task<ActionResult> Get(string op)
         {
+            if (!IsSessionAvailable()) { return Forbid(); }
+
             var ret = "invalid API call!";
             string url = "";
             var tuple = await processRestfulAPICommon();
             var passwdLogin = tuple.Item1;
             if (!String.IsNullOrEmpty(tuple.Item2))
-                return tuple.Item2;
+                return Content(tuple.Item2);
 
 
             if (!User.Identity.IsAuthenticated && !passwdLogin)
             {
-                ret = "Unauthorized User, Please login!";
-                return ret;
-            }
-
-            if (!HttpContext.Session.Keys.Contains("AuthorizedClusters"))
-            {
-                ret = "Unauthorized User, Please login!";
-                return ret;
+                return Content("Unauthorized User, Please login!");
             }
 
             ViewData["Username"] = HttpContext.Session.GetString("Username");
@@ -209,8 +207,7 @@ namespace WindowsAuth.Controllers
             var authorizedClusters = JsonConvert.DeserializeObject<List<string>>(HttpContext.Session.GetString("AuthorizedClusters"));
             if (!authorizedClusters.Contains(cluster))
             {
-                ret = "Invalid cluster";
-                return ret;
+                return Content("Invalid cluster");
             }
             var restapi = Startup.Clusters[cluster].Restapi;
 
@@ -305,17 +302,15 @@ namespace WindowsAuth.Controllers
                     if (HttpContext.Request.Query.ContainsKey("name"))
                     {
                         var message = DeleteTemplateAsync(HttpContext.Request);
-                        return "{ \"message\" : \"" + await message + "\"}";
+                        return Content("{ \"message\" : \"" + await message + "\"}");
                     }
                     break;
                 case "GetTemplates":
                     var result = GetTemplatesAsync(HttpContext.Request.Query["type"]);
-                    return await result;
-                    break;
+                    return Content(await result);
                 case "GetDatabase":
                     var databaseJson = DownloadDatabase(HttpContext.Request);
-                    return await databaseJson;
-                    break;
+                    return Content(await databaseJson);
                 case "RunCommand":
                     if (HttpContext.Request.Query.ContainsKey("jobId") && HttpContext.Request.Query.ContainsKey("command"))
                     {
@@ -380,7 +375,7 @@ namespace WindowsAuth.Controllers
                     }
                 }
             }
-            return ret;
+            return Content(ret);
         }
 
         // GET api/dlws/child/op_str?params
@@ -466,19 +461,21 @@ namespace WindowsAuth.Controllers
 
         // POST api/dlws/submit
         [HttpPost("postJob")]
-        public async Task<string> postJob(TemplateParams templateParams)
+        public async Task<ActionResult> postJob(TemplateParams templateParams)
         {
+            if (!IsSessionAvailable()) { return Forbid(); }
+
             var ret = "invalid API call!";
             var tuple = await processRestfulAPICommon();
             var passwdLogin = tuple.Item1;
             if (!String.IsNullOrEmpty(tuple.Item2))
-                return tuple.Item2;
+                return Content(tuple.Item2);
 
 
             if (!User.Identity.IsAuthenticated && !passwdLogin)
             {
                 ret = "Unauthorized User, Please login!";
-                return ret;
+                return Content(ret);
             }
 
             var cluster = HttpContext.Request.Query["cluster"];
@@ -486,7 +483,7 @@ namespace WindowsAuth.Controllers
             if (!authorizedClusters.Contains(cluster))
             {
                 ret = "Invalid cluster";
-                return ret;
+                return Content(ret);
             }
             var restapi = Startup.Clusters[cluster].Restapi;
 
@@ -502,7 +499,12 @@ namespace WindowsAuth.Controllers
             jobObject["vcName"] = HttpContext.Session.GetString("Team");
 
             var runningasroot = jobObject["runningasroot"];
-            if (!(Object.ReferenceEquals(runningasroot, null)) && (runningasroot.ToString() == "1") || (runningasroot.ToString() == true.ToString()))
+            if (
+                !Object.ReferenceEquals(runningasroot, null) && (
+                    runningasroot.ToString() == "1" ||
+                    runningasroot.ToString() == true.ToString()
+                )
+            )
             {
                 jobObject["containerUserId"] = "0";
             }
@@ -533,19 +535,21 @@ namespace WindowsAuth.Controllers
                 var response = await httpClient.PostAsync("/PostJob",
                     new StringContent(jobObject.ToString(), System.Text.Encoding.UTF8, "application/json"));
                 var returnInfo = await response.Content.ReadAsStringAsync();
-                return returnInfo;
+                return Content(returnInfo);
             }
         }
 
         // POST api/dlws/endpoints
         [HttpPost("endpoints")]
-        public async Task<string> PostEndpoints()
+        public async Task<ActionResult> PostEndpoints()
         {
+            if (!IsSessionAvailable()) { return Forbid(); }
+
             var cluster = HttpContext.Request.Query["cluster"];
             var authorizedClusters = JsonConvert.DeserializeObject<List<string>>(HttpContext.Session.GetString("AuthorizedClusters"));
             if (!authorizedClusters.Contains(cluster))
             {
-                return "Invalid cluster";
+                return Content("Invalid cluster");
             }
             var restapi = Startup.Clusters[cluster].Restapi;
             using (var httpClient = new HttpClient())
@@ -556,7 +560,7 @@ namespace WindowsAuth.Controllers
                 content.Headers.ContentLength = HttpContext.Request.ContentLength;
                 var response = await httpClient.PostAsync("/endpoints", content);
                 var returnInfo = await response.Content.ReadAsStringAsync();
-                return returnInfo;
+                return Content(returnInfo);
             }
         }
 
