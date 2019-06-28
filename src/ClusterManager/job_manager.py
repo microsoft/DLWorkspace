@@ -37,6 +37,7 @@ import random
 import logging
 import logging.config
 from job import Job, JobSchema
+from pod_template import PodTemplate
 
 
 def printlog(msg):
@@ -125,7 +126,6 @@ def SubmitRegularJob(job):
         else:
             jobParams["usefreeflow"] = False
 
-
         # inject gid, uid and user
         # TODO it should return only one entry
         user_info = dataHandler.GetIdentityInfo(jobParams["userName"])[0]
@@ -155,46 +155,18 @@ def SubmitRegularJob(job):
             jobParams["env"] = []
         jobParams["commonenv"] = copy.copy(jobParams["env"])
 
+        if "kube_custom_scheduler" in config and config["kube_custom_scheduler"]:
+            enable_custom_scheduler = True
+        else:
+            enable_custom_scheduler = False
+        pod_template = PodTemplate(job_object.get_template(), enable_custom_scheduler)
+
         print("Render Job: %s" % jobParams)
-        jobDescriptionList = []
-
+        job_description_list = []
         for pod in pods:
-            if "kube_custom_scheduler" in config and config["kube_custom_scheduler"]:
-                if "useGPUTopology" in pod and pod["useGPUTopology"]:
-                    gpu_topology_flag = 1
-                else:
-                    # for cases when desired topology is explictly given or not desired
-                    gpu_topology_flag = 0
-                pod_name = pod["podName"]
-                request_gpu = int(pod["resourcegpu"])
-
-                podInfo = {
-                    "podname": pod_name,
-                    "requests": {
-                        "alpha.gpu/gpu-generate-topology": gpu_topology_flag
-                    },
-                    "runningcontainer": {
-                        pod_name: {
-                            "requests": {"alpha.gpu/numgpu": request_gpu}
-                        },
-                    },
-                }
-
-                if "annotations" not in pod:
-                    pod["annotations"] = {}
-                pod["annotations"]["pod.alpha/DeviceInformation"] = "'" + json.dumps(podInfo) + "'"
-                pod["resourcegpu"] = 0  # gpu requests specified through annotation
-
-                if "gpuType" in pod:
-                    if "nodeSelector" not in pod:
-                        pod["nodeSelector"] = {}
-                    pod["nodeSelector"]["gpuType"] = pod["gpuType"]
-
-            template = job_object.get_template()
-            job_description = template.render(job=pod)
-            jobDescriptionList.append(job_description)
-
-        jobDescription = "\n---\n".join(jobDescriptionList)
+            job_description = pod_template.generate_pod_yaml(pod)
+            job_description_list.append(job_description)
+        job_description = "\n---\n".join(job_description_list)
 
         jobDescriptionPath = os.path.join(config["storage-mount-path"], jobParams["jobDescriptionPath"])
         if not os.path.exists(os.path.dirname(os.path.realpath(jobDescriptionPath))):
@@ -203,7 +175,7 @@ def SubmitRegularJob(job):
             output = k8sUtils.kubectl_delete(jobDescriptionPath)
 
         with open(jobDescriptionPath, 'w') as f:
-            f.write(jobDescription)
+            f.write(job_description)
 
         output = k8sUtils.kubectl_create(jobDescriptionPath)
         logging.info("Submitted job %s to k8s, returned with status %s" % (job["jobId"], output))
@@ -218,7 +190,7 @@ def SubmitRegularJob(job):
 
         dataHandler.UpdateJobTextField(jobParams["jobId"], "jobStatus", "scheduling")
         dataHandler.UpdateJobTextField(jobParams["jobId"], "jobDescriptionPath", jobParams["jobDescriptionPath"])
-        dataHandler.UpdateJobTextField(jobParams["jobId"], "jobDescription", base64.b64encode(jobDescription))
+        dataHandler.UpdateJobTextField(jobParams["jobId"], "jobDescription", base64.b64encode(job_description))
 
         jobMeta = {}
         jobMeta["jobDescriptionPath"] = jobParams["jobDescriptionPath"]
