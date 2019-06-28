@@ -99,9 +99,10 @@ def SubmitRegularJob(job):
         job_object.job_path = jobParams["jobPath"]
         job_object.work_path = jobParams["workPath"]
         job_object.data_path = jobParams["dataPath"]
+        # TODO user's mountpoints first, but should after 'job_path'
+        job_object.add_mountpoints(job_object.job_path_mountpoint())
         if "mountpoints" in jobParams:
             job_object.add_mountpoints(jobParams["mountpoints"])
-        job_object.add_mountpoints(job_object.job_path_mountpoint())
         job_object.add_mountpoints(job_object.work_path_mountpoint())
         job_object.add_mountpoints(job_object.data_path_mountpoint())
 
