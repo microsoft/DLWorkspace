@@ -110,7 +110,6 @@ def SubmitRegularJob(job):
         localJobPath = job_object.get_job_path_hostpath()
         script_file = job_object.generate_launch_script(localJobPath, jobParams["userId"], jobParams["resourcegpu"], jobParams["cmd"])
         jobParams["LaunchCMD"] = "[\"bash\", \"/job/%s\"]" % script_file
-        jobParams["jobDescriptionPath"] = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"] + ".yaml"
         jobParams["jobNameLabel"] = ''.join(e for e in jobParams["jobName"] if e.isalnum())
 
         # TODO will need to move it out of jobParams
@@ -168,32 +167,30 @@ def SubmitRegularJob(job):
             job_description_list.append(job_description)
         job_description = "\n---\n".join(job_description_list)
 
-        jobDescriptionPath = os.path.join(config["storage-mount-path"], jobParams["jobDescriptionPath"])
-        if not os.path.exists(os.path.dirname(os.path.realpath(jobDescriptionPath))):
-            os.makedirs(os.path.dirname(os.path.realpath(jobDescriptionPath)))
-        if os.path.isfile(jobDescriptionPath):
-            output = k8sUtils.kubectl_delete(jobDescriptionPath)
+        job_description_path = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"] + ".yaml"
+        local_jobDescriptionPath = os.path.realpath(os.path.join(config["storage-mount-path"], job_description_path))
 
-        with open(jobDescriptionPath, 'w') as f:
+        if os.path.isfile(local_jobDescriptionPath):
+            output = k8sUtils.kubectl_delete(local_jobDescriptionPath)
+
+        if not os.path.exists(os.path.dirname(local_jobDescriptionPath)):
+            os.makedirs(os.path.dirname(os.path.realpath(local_jobDescriptionPath)))
+        with open(local_jobDescriptionPath, 'w') as f:
             f.write(job_description)
 
-        output = k8sUtils.kubectl_create(jobDescriptionPath)
+        output = k8sUtils.kubectl_create(local_jobDescriptionPath)
         logging.info("Submitted job %s to k8s, returned with status %s" % (job["jobId"], output))
 
         ret["output"] = output
 
         ret["jobId"] = jobParams["jobId"]
 
-        # TODO why?
-        if "userName" not in jobParams:
-            jobParams["userName"] = ""
-
         dataHandler.UpdateJobTextField(jobParams["jobId"], "jobStatus", "scheduling")
-        dataHandler.UpdateJobTextField(jobParams["jobId"], "jobDescriptionPath", jobParams["jobDescriptionPath"])
+        dataHandler.UpdateJobTextField(jobParams["jobId"], "jobDescriptionPath", job_description_path)
         dataHandler.UpdateJobTextField(jobParams["jobId"], "jobDescription", base64.b64encode(job_description))
 
         jobMeta = {}
-        jobMeta["jobDescriptionPath"] = jobParams["jobDescriptionPath"]
+        jobMeta["jobDescriptionPath"] = job_description_path
         jobMeta["jobPath"] = jobParams["jobPath"]
         jobMeta["workPath"] = jobParams["workPath"]
         jobMeta["jobPath"] = jobParams["jobPath"]
