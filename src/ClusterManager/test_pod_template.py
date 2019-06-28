@@ -93,3 +93,69 @@ class TestPodTemplate(unittest.TestCase):
         self.assertEqual(gpu_num, device_annotation["runningcontainer"][pod["podName"]]["requests"]["alpha.gpu/numgpu"])
         # enabled topology
         self.assertEqual(1, device_annotation["requests"]["alpha.gpu/gpu-generate-topology"])
+
+    def test_generate_job_description_missing_required_params(self):
+        enable_custom_scheduler = True
+        pod_template = PodTemplate(job.get_template(), enable_custom_scheduler)
+
+        job.params = {}
+        job_description, error = pod_template.generate_job_description(job)
+
+        self.assertIsNone(job_description)
+        self.assertTrue(error)
+        self.assertEqual("Missing required parameters!", error)
+
+    def test_generate_job_description(self):
+        enable_custom_scheduler = True
+        pod_template = PodTemplate(job.get_template(), enable_custom_scheduler)
+
+        job.params = {
+            "gid": "20000",
+            "uid": "20000",
+            "user": "user",
+            "mountpoints": [
+                {
+                    "description": "NFS (remote file share)",
+                    "enabled": True,
+                    "containerPath": "/home/user",
+                    "hostPath": "/dlwsdata/work/user",
+                    "name": "homefolder"
+                }
+            ],
+            "image": "indexserveregistry.azurecr.io/deepscale:1.0",
+            "userId": "20000",
+            "dataPath": "",
+            "jobId": "140782a0-7f6d-4039-9801-fd6294c7c88a",
+            "isParent": 1,
+            "jobType": "training",
+            "jobPath": "user/jobs/190627/140782a0-7f6d-4039-9801-fd6294c7c88a",
+            "containerUserId": "0",
+            "resourcegpu": 1,
+            "env": [
+            ],
+            "enabledatapath": True,
+            "runningasroot": True,
+            "interactivePorts": [
+
+            ],
+            "preemptionAllowed": False,
+            "jobtrainingtype": "RegularJob",
+            "do_log": False,
+            "is_interactive": False,
+            "familyToken": "72fc61265bcb4416b68b44c82d120b3b",
+            "enableworkpath": True,
+            "vcName": "vc1",
+            "userName": "user@foo.com",
+            "workPath": "user",
+            "cmd": "sleep infinity",
+            "jobName": "test-job",
+            "enablejobpath": True,
+            "gpuType": "P40",
+            "ssh": True
+        }
+
+        ret, error = pod_template.generate_job_description(job)
+
+        self.assertFalse(error)
+        self.assertTrue(dict, type(ret))
+        self.assertTrue(["job_description", "launch_cmd"])

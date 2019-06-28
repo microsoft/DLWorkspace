@@ -84,85 +84,24 @@ def SubmitRegularJob(job):
         # TODO assert job_object is a Job
         assert(isinstance(job_object, Job))
 
-        jobParams = json.loads(base64.b64decode(job["jobParams"]))
-        if any(required_field not in jobParams for required_field in
-                [
-                    "jobtrainingtype",
-                    "jobName",
-                    "jobPath",
-                    "workPath",
-                    "dataPath",
-                    "cmd",
-                    "userId",
-                    "resourcegpu",
-                    "userName",
-                ]):
-            dataHandler.SetJobError(job_object.job_id, "ERROR: required fileds missing in jobParams.")
-            return False
-
-        job_object.job_path = jobParams["jobPath"]
-        job_object.work_path = jobParams["workPath"]
-        job_object.data_path = jobParams["dataPath"]
-        # TODO user's mountpoints first, but should after 'job_path'
-        job_object.add_mountpoints(job_object.job_path_mountpoint())
-        if "mountpoints" in jobParams:
-            job_object.add_mountpoints(jobParams["mountpoints"])
-        job_object.add_mountpoints(job_object.work_path_mountpoint())
-        job_object.add_mountpoints(job_object.data_path_mountpoint())
-
-        local_job_path = job_object.get_local_job_path()
-        script_file = job_object.generate_launch_script(local_job_path, jobParams["userId"], jobParams["resourcegpu"], jobParams["cmd"])
-        luanch_cmd = "[\"bash\", \"/job/%s\"]" % script_file
-
-        jobParams["mountpoints"] = job_object.mountpoints
-        jobParams["user_email"] = jobParams["userName"]
-        jobParams["homeFolderHostpath"] = job_object.get_homefolder_hostpath()
-
-        jobParams["pod_ip_range"] = config["pod_ip_range"]
-        if "usefreeflow" in config:
-            jobParams["usefreeflow"] = config["usefreeflow"]
-        else:
-            jobParams["usefreeflow"] = False
+        job_object.params = json.loads(base64.b64decode(job["jobParams"]))
 
         # inject gid, uid and user
         # TODO it should return only one entry
-        user_info = dataHandler.GetIdentityInfo(jobParams["userName"])[0]
-        jobParams["gid"] = user_info["gid"]
-        jobParams["uid"] = user_info["uid"]
-        jobParams["user"] = job_object.get_alias()
+        user_info = dataHandler.GetIdentityInfo(job_object.params["userName"])[0]
+        job_object.params["gid"] = user_info["gid"]
+        job_object.params["uid"] = user_info["uid"]
+        job_object.params["user"] = job_object.get_alias()
 
-        # assign parameters to generate the pod yaml
-        jobParams["LaunchCMD"] = luanch_cmd
-        jobParams["jobNameLabel"] = ''.join(e for e in jobParams["jobName"] if e.isalnum())
-        jobParams["rest-api"] = job_object.get_rest_api_url()
-        pods = []
-        if all(hyper_parameter in jobParams for hyper_parameter in ["hyperparametername", "hyperparameterstartvalue", "hyperparameterendvalue", "hyperparameterstep"]):
-            env_name = jobParams["hyperparametername"]
-            start = int(jobParams["hyperparameterstartvalue"])
-            end = int(jobParams["hyperparameterendvalue"])
-            step = int(jobParams["hyperparameterstep"])
-
-            for idx, val in enumerate(range(start, end, step)):
-                pod = jobParams.copy()
-                pod["podName"] = "{0}-pod-{1}".format(job_object.job_id, idx)
-                pod["envs"] = [{"name": env_name, "value": val}]
-                pods.append(pod)
-        else:
-                pod = jobParams.copy()
-                pod["podName"] = job_object.job_id
-                pod["envs"] = []
-                pods.append(pod)
-
-        enable_custom_scheduler = job_object.is_custom_scheduler_eanbled()
+        enable_custom_scheduler = job_object.is_custom_scheduler_enabled()
         pod_template = PodTemplate(job_object.get_template(), enable_custom_scheduler)
+        ret, error = pod_template.generate_job_description(job_object)
+        if error:
+            dataHandler.SetJobError(job_object.job_id, "ERROR: %s" % error)
+            return False
 
-        print("Render Job: %s" % jobParams)
-        job_description_list = []
-        for pod in pods:
-            job_description = pod_template.generate_pod_yaml(pod)
-            job_description_list.append(job_description)
-        job_description = "\n---\n".join(job_description_list)
-
+        job_description = ret["job_description"]
+        luanch_cmd = ret["luanch_cmd"]
         job_description_path = "jobfiles/" + time.strftime("%y%m%d") + "/" + job_object.job_id + "/" + job_object.job_id + ".yaml"
         local_jobDescriptionPath = os.path.realpath(os.path.join(config["storage-mount-path"], job_description_path))
 
