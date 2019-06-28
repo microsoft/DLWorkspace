@@ -134,6 +134,14 @@ spec:
       value: "{{ job["uid"] }}"
     - name: DLWS_USER_NAME
       value: "{{ job["user"] }}"
+    - name: DLWS_USER_EMAIL
+      value: "{{ job["user_email"] }}"
+    - name: DLWS_VC_NAME
+      value: {{ job["vcName"] }}
+    - name: DLWS_ROLE_NAME
+      value: {{ job["distRole"] }}
+    - name: DLWS_ROLE_IDX
+      value: "{{ job["distRoleIdx"] }}"
     {% for env in job["env"] %}
     - name: {{ env.name }}
       value: {{ env.value }}

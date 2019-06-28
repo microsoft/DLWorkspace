@@ -127,9 +127,9 @@ namespace WindowsAuth
 
 
             // Add MVC services to the services container.
-            services.AddMvc( options => options.AddMetricsResourceFilter());
             services.AddDistributedMemoryCache(); // Adds a default in-memory implementation of IDistributedCache
-            services.AddSession();
+            services.AddSession( options => options.IdleTimeout = TimeSpan.FromDays(1) );
+            services.AddMvc(options => options.AddMetricsResourceFilter());
             //services.AddCors();
             services.Configure<AppSettings>(appSettings =>
             {

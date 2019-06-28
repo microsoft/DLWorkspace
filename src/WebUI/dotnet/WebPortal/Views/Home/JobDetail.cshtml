@@ -6,6 +6,8 @@
     ViewData["Title"] = "Job";
 }
 
+<link rel="stylesheet" href="~/layui/css/layui.css" media="all">
+
 <script>
     var cluster = "@ViewData["cluster"]";
     var elasticsearchHost = 'http://@Context.Request.Host:9200';
@@ -170,19 +172,39 @@
             });
     }
 
+    function sortSSH(a, b) {
+        var worker1 = a.podName.split("-").pop().replace("worker", "");
+        var worker2 = b.podName.split("-").pop().replace("worker", "");
+        return parseInt(worker1) - parseInt(worker2);
+    }
+
     function getEndpoints() {
         $.ajax({
             url: "/api/dlws/GetEndpoints?cluster=@ViewData["cluster"]&jobId=@ViewData["jobid"]", dataType: 'json'
         }).then(function (endpoints) {
             $('#endpoints').show();
 
+            var order = { ssh: 1, ipython: 2, tensorboard: 3 };
+
+            endpoints = endpoints.filter(function (endpoint) {
+                return endpoint.podName.indexOf("ps0") === -1
+            });
+
             endpoints.sort(function (a, b) {
-                if (a.podName.indexOf("ps0") === -1 && a.podName.indexOf("ps0") === -1) {
-                    var worker1 = a.podName.split("-").pop().replace("worker","");
-                    var worker2 = b.podName.split("-").pop().replace("worker", "");
-                    return parseInt(worker1) - parseInt(worker2);
+                var orderA = order[a.name] || Infinity;
+                var orderB = order[b.name] || Infinity;
+
+                if (orderA !== orderB) { return orderA - orderB; }
+
+                if (isFinite(orderA)) {     
+                    if (orderA === order["ssh"]) {
+                        return sortSSH(a, b);
+                    } else {
+                        return a.nodeName.localeCompare(b.nodeName);
+                    }
+                } else {
+                    return a.podPort - b.podPort;
                 }
-                return String(a.podName).localeCompare(b.podName);
             });
 
             var endpointsArr = $.map(endpoints, function (endpoint) {
@@ -209,16 +231,22 @@
                     }
                 }
                 else {
-                    window.ngScope.$applyAsync('ipython = true');
+                    if (endpoint.name === "ipython") {
+                        window.ngScope.$applyAsync('ipython = true');
+                    } else if (endpoint.name === "tensorboard") {
+                        window.ngScope.$applyAsync('tensorboard = true');
+                    }
                     if (endpoint.status == "running") {
                         var svcurl = "http://" + endpoint.nodeName + "." + endpoint.domain + ":" + endpoint.port + "/";
-                        return " " + endpoint.name + " could be access via: <a href='" + svcurl + "' target='_blank'>" + svcurl + "</a>\n";
+                        return " " + endpoint.name + ": <a href='" + svcurl + "' target='_blank'>" + svcurl + "</a>\n";
                     } else {
                         return;
                     }
                 }
             });
             var sshContent = "";
+            var ipythonContent = "";
+            var tensorboardContent = "";
             var otherContent = "";
             var endPointName = "";
             for (var i = 0; i < endpointsArr.length; i++) {
@@ -226,6 +254,10 @@
                     continue;
                 } else if (endpointsArr[i].indexOf("ssh") !== -1) {
                     sshContent += endpointsArr[i];
+                } else if (endpointsArr[i].indexOf("ipython") !== -1) {
+                    ipythonContent += endpointsArr[i];
+                } else if (endpointsArr[i].indexOf("tensorboard") !== -1) {
+                    tensorboardContent += endpointsArr[i];
                 } else {
                      endPointName = endpointsArr[i].split(" ")[0];
                      otherContent += endpointsArr[i];
@@ -233,7 +265,7 @@
             }
 
             otherContent = endPointName + otherContent;
-            var endpointsStr = sshContent + "<div style='height:10px;'></div>" + otherContent;
+            var endpointsStr = sshContent + "<div style='height:10px;'></div>" + ipythonContent + "<div style='height:10px;'></div>" + tensorboardContent + "<div style='height:10px;'></div>" + otherContent;
 
             var endpointsPanellDiv = document.getElementById('endpointsPanel');
             if (endpointsPanellDiv.innerHTML != endpointsStr) {
@@ -264,7 +296,6 @@
             jobDetailStr += "Command: " + payload.jobParams.cmd + "\n";
             jobDetailStr += "Data Path: " + payload.jobParams.dataPath + "\n";
             jobDetailStr += "Work Path: " + payload.jobParams.workPath + "\n";
-            jobDetailStr += "Container Ports: " + payload.jobParams.interactivePort + "\n";
             jobDetailStr += "Job Path: " + payload.jobParams.jobPath + "\n";
             jobDetailStr += "Job Type: " + payload.jobParams.jobType + "\n";
             jobDetailStr += "GPU # Per Worker: " + payload.jobParams.resourcegpu + "\n";
@@ -280,6 +311,7 @@
             }
 
             document.getElementById('run-command').style.display = payload.jobStatus == "running" ? "block" : "none";
+            window.ngScope.$applyAsync(function (scope) { scope.status = payload.jobStatus });
             if (payload.jobStatus == "running") {
                 getCommands();
                 getEndpoints();
@@ -339,7 +371,15 @@
         GetDetail();
         buildTemplateList();
         setInterval(RefreshDetail, 15000);
-
+        $(function () {
+            $('[data-toggle="tooltip"]').tooltip({
+                container: 'body',
+                show: {
+                    effect: "slideDown",
+                    delay: 1000
+                }
+            })
+        })
     });
 
     function copy(self) {
@@ -394,7 +434,7 @@
 </script>
 <script>
     void function (app) {
-        app.controller("endpointSwitches", function ($scope, $http) {
+        app.controller("endpoints", function ($scope, $http) {
             $scope.$watch("ssh", function (value, oldValue) {
                 if (value === oldValue) { return; }
                 if (value) {
@@ -423,19 +463,55 @@
                     })
                 }
             })
+            $scope.$watch("tensorboard", function (value, oldValue) {
+                if (value === oldValue) { return; }
+                if (value) {
+                    $http({
+                        method: "POST",
+                        url: "/api/dlws/endpoints",
+                        params: { cluster: cluster },
+                        data: {
+                            jobId: '@ViewData["jobid"]',
+                            endpoints: ["tensorboard"]
+                        }
+                    })
+                }
+            })
+            $scope.addPort = function () {
+                $scope.addPortForm.$setSubmitted();
+                $http({
+                    method: "POST",
+                    url: "/api/dlws/endpoints",
+                    params: { cluster: cluster },
+                    data: {
+                        jobId: '@ViewData["jobid"]',
+                        endpoints: [{ name: 'port-' + $scope.port, podPort: $scope.port }]
+                    }
+                }).then(function (response) {
+                    if (typeof response.data === 'object') {
+                        delete $scope.port;
+                        $scope.addPortForm.$setPristine();
+                        $scope.addPortForm.$setUntouched();
+                    } else {
+                        layer.alert("Restful API Error: \n" + response.data, { icon: 5, btn: 'Ok', title: 'alert' });
+                    }
+                }).finally(function () {
+                    $scope.addPortForm.$submitted = false;
+                })
+            }
 
             window.ngScope = $scope;
         });
-    }(angular.module("endpointSwitches", ["ngMaterial"]));
+    }(angular.module("endpoints", ["ngMessages", "ngMaterial"]));
 </script>
 
 <h2> Job Details:</h2>
 <div id="jobDetail" style="height: 230px;" readonly="" class="ng-binding grey-box scroll-box">
 </div>
-<h2> Job Folder: </h2>
+<h2 style="margin-top:20px;"> Job Folder: </h2>
 <div id="jobfolderPanel" style="height: 20px;" readonly="" class="ng-binding grey-box">
 </div>
-<div id="endpoints" hidden>
+<div id="endpoints" style="margin-top:20px;" hidden>
     <h2> Mapped Endpoints: </h2>
     <h4>(Links to access interactive/visualization interface)</h4>
     <div id="endpointsPanel" readonly="" class="ng-binding grey-box">
@@ -443,9 +519,36 @@
     <div class="alert"></div>
 </div>
 <!-- introduce angular.js just for md-switch in AngularJS Material -->
-<div ng-app="endpointSwitches" ng-controller="endpointSwitches">
-    <md-switch ng-model="ssh" ng-disabled="ssh">SSH</md-switch>
-    <md-switch ng-model="ipython" ng-disabled="ipython">ipython</md-switch>
+<div ng-app="endpoints" ng-controller="endpoints">
+    <div layout="row" layout-align="space-between">
+        <md-switch ng-model="ssh" ng-disabled="status !== 'running' || ssh" flex="60">SSH</md-switch>
+        <md-switch ng-model="ipython" ng-disabled="status !== 'running' || ipython" flex="60">iPython</md-switch>
+        <md-switch ng-model="tensorboard" ng-disabled="status !== 'running' || tensorboard" flex="60">
+            Tensorboard
+            <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
+        </md-switch>
+    </div>
+    <div layout="row" layout-align="space-between">
+        <p style="font-size: small">
+            <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
+            Tensorboard will listen on directory <samp>~/tensorboard/${DLWS_JOB_ID}/logs</samp> inside docker container.
+        </p>
+    </div>
+    <form name="addPortForm" layout="row" ng-submit="addPort()" style="margin-top: 20px">
+        <md-input-container flex>
+            <label>New Interactive Port (40000-49999)</label>
+            <input name="port"
+                   type="number" min="40000" max="49999"
+                   ng-model="port"
+                   ng-disabled="status !== 'running' || addPortForm.$submitted" ng-required="true" />
+            <div ng-messages="addPortForm.port.$error">
+                <div ng-message="required">Port is required.</div>
+                <div ng-message="min">Port should be &gt;= 40000</div>
+                <div ng-message="max">Port should be &lt;= 49999</div>
+            </div>
+        </md-input-container>
+        <md-button type="submit" class="md-primary" ng-disabled="status !== 'running' || addPortForm.$submitted || addPortForm.$invalid">Add</md-button>
+    </form>
 </div>
 <h2> Job Console Output:</h2>
 <div id="logPanel" style="height: 500px;" readonly="" class="ng-binding grey-box scroll-box">
@@ -539,5 +642,10 @@
         color: #fff; /* White text color */
         text-align: center; /* Centered text */
         font-size: 15px;
+    }
+
+    code {
+        color: #000000;
+        background-color: inherit;
     }
 </style>

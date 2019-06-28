@@ -26,7 +26,8 @@ default_config_parameters = {
     "grafana": { "port": 3000 },
     "alert-manager": {
         "port": 9093,
-        "configured": False
+        "configured": False,
+        "alert_users": False,
         # If want to deploy with alert-manager, should config
         # configured with True, and fill appropriate value to:
         # smtp_url, smtp_from, smtp_auth_username, smtp_auth_password and receiver

@@ -1,3 +1,9 @@
+{% if cnf["prometheus"]["cluster_name"] %}
+{% set cluster_name = cnf["prometheus"]["cluster_name"] %}
+{% else %}
+{% set cluster_name = cnf["cluster_name"] %}
+{% endif %}
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -5,6 +11,9 @@ metadata:
   namespace: kube-system
 data:
   prometheus.yml: |-
+    global:
+      external_labels:
+        cluster: {{ cluster_name }}
     rule_files:
       - "/etc/prometheus-alert/*.rules"
     scrape_configs:

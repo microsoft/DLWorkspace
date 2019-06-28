@@ -169,6 +169,7 @@ def SubmitRegularJob(job):
             jobParams["mountpoints"].append(mp)
 
         userAlias = getAlias(jobParams["userName"])
+        jobParams["user_email"] = jobParams["userName"]
         jobParams["homeFolderHostpath"] = os.path.join(config["storage-mount-path"], GetWorkPath(userAlias))
 
         if CheckMountPoints(jobParams["mountpoints"],mp):
@@ -329,6 +330,8 @@ def SubmitPSDistJob(job):
             assignedRack = random.choice(config["racks"])
 
         userAlias = getAlias(jobParams["userName"])
+        jobParams["user_email"] = jobParams["userName"]
+
         jobParams["homeFolderHostpath"] = os.path.join(config["storage-mount-path"], GetWorkPath(userAlias))
 
         if jobParams["jobtrainingtype"] == "PSDistJob":
@@ -382,10 +385,33 @@ sudo ln -s /home/%s/.ssh/config /root/.ssh/config  &>/dev/null;
 sudo mkdir -p /opt  &>/dev/null;
 sudo ln -s /job/hostfile /opt/hostfile &>/dev/null;
 
-sleep 10;
+JOB_DIR='/home/%s'
+WORKER_NUM=%s
+echo $JOB_DIR $WORKER_NUM
+
+all_workers_ready=false
+while [ "$all_workers_ready" != true ]
+do
+  # update it to false if any woker is not ready
+  all_workers_ready=true
+
+  for i in $(seq 0 $(( ${WORKER_NUM} - 1)) )
+  do
+    worker="worker${i}"
+    file="$JOB_DIR/${worker}/WORKER_READY"
+    #echo $file
+
+    if [ ! -f $file ]; then
+      echo "${worker} not ready!"
+      all_workers_ready=false
+      sleep 10
+    fi
+  done
+done
+
 echo "[DLWorkspace System]: All containers are ready, launching training job..."
 %s
-""" % (userAlias,userAlias,userAlias,userAlias,userAlias, distJobParam["cmd"])
+""" % (userAlias,userAlias,userAlias,userAlias,userAlias,distJobParam["jobPath"],jobParams["numpsworker"],distJobParam["cmd"])
                     else:
                         launchCMD = """
 while [ ! -f /opt/run_dist_job ]; do
@@ -397,6 +423,10 @@ sudo chown -R %s /home/%s/.ssh  &>/dev/null;
 sudo mkdir -p /root/.ssh  &>/dev/null;
 sudo ln -s /home/%s/.ssh/config /root/.ssh/config &>/dev/null;
 sudo mkdir -p /opt && sudo ln -s /job/hostfile /opt/hostfile  &>/dev/null;
+
+# TODO mark the worker as 'READY', better to change to '/pod/READY' later
+sudo touch /job/WORKER_READY
+
 sleep infinity
 """ % (userAlias,userAlias,userAlias,userAlias,userAlias)
 
@@ -915,30 +945,34 @@ def Run():
         except Exception as e:
             print(e)
 
-        dataHandler = DataHandler()
         try:
+            dataHandler = DataHandler()
+            try:
+                pendingJobs = dataHandler.GetPendingJobs()
+                TakeJobActions(pendingJobs)
 
-            pendingJobs = dataHandler.GetPendingJobs()
-            TakeJobActions(pendingJobs)
-
-            pendingJobs = dataHandler.GetPendingJobs()
-            logging.info("Updating status for %d jobs" % len(pendingJobs))
-            for job in pendingJobs:
-                try:
-                    logging.info("Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"]))
-                    if job["jobStatus"] == "killing":
-                        KillJob(job, "killed")
-                    elif job["jobStatus"] == "pausing":
-                        KillJob(job, "paused")
-                    elif job["jobStatus"] == "scheduling" or job["jobStatus"] == "running" :
-                        UpdateJobStatus(job)
-                    elif job["jobStatus"] == "unapproved" :
-                        AutoApproveJob(job)
-                except Exception as e:
-                    logging.info(e)
+                pendingJobs = dataHandler.GetPendingJobs()
+                logging.info("Updating status for %d jobs" % len(pendingJobs))
+                for job in pendingJobs:
+                    try:
+                        logging.info("Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"]))
+                        if job["jobStatus"] == "killing":
+                            KillJob(job, "killed")
+                        elif job["jobStatus"] == "pausing":
+                            KillJob(job, "paused")
+                        elif job["jobStatus"] == "scheduling" or job["jobStatus"] == "running":
+                            UpdateJobStatus(job)
+                        elif job["jobStatus"] == "unapproved":
+                            AutoApproveJob(job)
+                    except Exception as e:
+                        logging.info(e)
+            except Exception as e:
+                print(str(e))
+            finally:
+                dataHandler.Close()
         except Exception as e:
             print(str(e))
-        dataHandler.Close()
+
         time.sleep(1)
 
 
