@@ -12,6 +12,8 @@ using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 using System.Net.Http.Headers;
 
+using Microsoft.Extensions.Logging;
+
 // For more information on enabling Web API for empty projects, visit http://go.microsoft.com/fwlink/?LinkID=397860
 
 namespace WindowsAuth.Controllers
@@ -37,11 +39,13 @@ namespace WindowsAuth.Controllers
         
         private readonly AppSettings _appSettings;
         private readonly FamilyModel _familyModel;
+        private readonly ILogger _logger;
 
-        public dlwsController(IOptions<AppSettings> appSettings, IOptions<FamilyModel> familyModel)
+        public dlwsController(IOptions<AppSettings> appSettings, IOptions<FamilyModel> familyModel, ILoggerFactory logger)
         {
             _appSettings = appSettings.Value;
             _familyModel = familyModel.Value;
+            _logger = logger.CreateLogger("dlwsController");
         }
 
         // this function should be moved to a shared util-class
@@ -345,6 +349,7 @@ namespace WindowsAuth.Controllers
 
             if (url != "")
             {
+                _logger.LogInformation("API call {0}", url);
                 int counter = 3;
                 bool success = false;
                 while (counter > 0)
@@ -363,7 +368,7 @@ namespace WindowsAuth.Controllers
                     catch (Exception e)
                     {
                         counter--;
-                        Console.WriteLine(e.Message);
+                        _logger.LogInformation("API call fails {0},{1}", url, e.Message);
                         //TODO
                         //should add logger here
                     }
@@ -372,6 +377,7 @@ namespace WindowsAuth.Controllers
                 // if not success, try it again and return the restfulapi error as before. 
                 if (!success)
                 {
+
                     using (var httpClient = new HttpClient())
                     {
                         var response1 = await httpClient.GetAsync(url);
