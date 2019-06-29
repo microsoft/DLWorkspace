@@ -116,5 +116,4 @@ class PodTemplate():
         for pod in pods:
             job_description = pod_template.generate_pod_yaml(pod)
             job_description_list.append(job_description)
-        job_description = "\n---\n".join(job_description_list)
-        return {"job_description": job_description, "luanch_cmd": luanch_cmd}, None
+        return {"job_descriptions": job_description_list, "launch_cmd": luanch_cmd}, None

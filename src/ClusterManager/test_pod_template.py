@@ -158,4 +158,4 @@ class TestPodTemplate(unittest.TestCase):
 
         self.assertFalse(error)
         self.assertTrue(dict, type(ret))
-        self.assertTrue(["job_description", "launch_cmd"])
+        self.assertListEqual(["job_descriptions", "launch_cmd"], ret.keys())

@@ -100,8 +100,9 @@ def SubmitRegularJob(job):
             dataHandler.SetJobError(job_object.job_id, "ERROR: %s" % error)
             return False
 
-        job_description = ret["job_description"]
-        luanch_cmd = ret["luanch_cmd"]
+        job_description_list = ret["job_descriptions"]
+        job_description = "\n---\n".join(job_description_list)
+        launch_cmd = ret["launch_cmd"]
         job_description_path = "jobfiles/" + time.strftime("%y%m%d") + "/" + job_object.job_id + "/" + job_object.job_id + ".yaml"
         local_jobDescriptionPath = os.path.realpath(os.path.join(config["storage-mount-path"], job_description_path))
 
@@ -128,7 +129,7 @@ def SubmitRegularJob(job):
         jobMeta["jobDescriptionPath"] = job_description_path
         jobMeta["jobPath"] = job_object.job_path
         jobMeta["workPath"] = job_object.work_path
-        jobMeta["LaunchCMD"] = luanch_cmd
+        jobMeta["LaunchCMD"] = launch_cmd
 
         jobMetaStr = base64.b64encode(json.dumps(jobMeta))
         dataHandler.UpdateJobTextField(job_object.job_id, "jobMeta", jobMetaStr)
