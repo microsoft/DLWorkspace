@@ -9,7 +9,6 @@ else:
 
 class DataManager:
     @staticmethod
-    @fcache()
     def GetClusterStatus():
         dataHandler = DataHandler()
         ret = None
