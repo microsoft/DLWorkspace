@@ -128,7 +128,7 @@ namespace WindowsAuth
 
             // Add MVC services to the services container.
             services.AddDistributedMemoryCache(); // Adds a default in-memory implementation of IDistributedCache
-            services.AddSession( options => options.IdleTimeout = TimeSpan.FromDays(1) );
+            services.AddSession( options => options.IdleTimeout = TimeSpan.FromDays(14) );
             services.AddMvc(options => options.AddMetricsResourceFilter());
             //services.AddCors();
             services.Configure<AppSettings>(appSettings =>
@@ -455,6 +455,8 @@ namespace WindowsAuth
 
             // Configure the OWIN pipeline to use cookie auth.
             var cookieOpt = new CookieAuthenticationOptions();
+            cookieOpt.ExpireTimeSpan = TimeSpan.FromDays(14);
+            cookieOpt.SlidingExpiration = true;
             //cookieOpt.AutomaticAuthenticate = true;
             // cookieOpt.CookieName = "dlws-auth";
             //cookieOpt.CookieSecure = Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
@@ -487,7 +489,7 @@ namespace WindowsAuth
 
             app.Use(async (context, next) =>
             {
-                if (context.Request.Query.ContainsKey("team"))
+                if (context.Request.Query.ContainsKey("team") && context.Session.GetString("Teams") != null)
                 {
                     var team = context.Request.Query["Team"];
                     var teams = JsonConvert.DeserializeObject<string[]>(context.Session.GetString("Teams"));
