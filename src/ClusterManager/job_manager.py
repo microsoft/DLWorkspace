@@ -38,6 +38,7 @@ import logging
 import logging.config
 from job import Job, JobSchema
 from pod_template import PodTemplate
+from job_deployer import JobDeployer
 
 
 def printlog(msg):
@@ -103,21 +104,20 @@ def SubmitRegularJob(job):
         job_description_list = ret["job_descriptions"]
         job_description = "\n---\n".join(job_description_list)
         launch_cmd = ret["launch_cmd"]
+
         job_description_path = "jobfiles/" + time.strftime("%y%m%d") + "/" + job_object.job_id + "/" + job_object.job_id + ".yaml"
         local_jobDescriptionPath = os.path.realpath(os.path.join(config["storage-mount-path"], job_description_path))
-
-        if os.path.isfile(local_jobDescriptionPath):
-            output = k8sUtils.kubectl_delete(local_jobDescriptionPath)
-
         if not os.path.exists(os.path.dirname(local_jobDescriptionPath)):
             os.makedirs(os.path.dirname(os.path.realpath(local_jobDescriptionPath)))
         with open(local_jobDescriptionPath, 'w') as f:
             f.write(job_description)
 
-        output = k8sUtils.kubectl_create(local_jobDescriptionPath)
-        logging.info("Submitted job %s to k8s, returned with status %s" % (job_object.job_id, output))
-
-        ret["output"] = output
+        job_deployer = JobDeployer()
+        try:
+            ret["output"] = job_deployer.create_pods(job_description_list)
+        except Exception as e:
+            ret["output"] = "Error: %s" % e.message
+            logging.error(e, exc_info=True)
 
         ret["jobId"] = job_object.job_id
 
