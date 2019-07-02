@@ -57,7 +57,6 @@
                     }
                 }
             ).then(function (response) {
-                $scope.busy = false;
                 var data = response.data;
                 if (data.jobId) {
                     layer.alert("Job Submitted! <br> Job ID:" + data.jobId, {
@@ -76,9 +75,14 @@
                     layer.msg("Unexpected error: " + data);
                     $("#submit").attr("disabled", false);
                 }
-            }, function () {
+            }, function (response) {
+                var message = "RestfulAPI error!";
+                if (response.status === 400) {
+                    message = response.data;
+                }
+                layer.alert(message, { icon: 5, btn: 'Ok', title: 'alert' });
+            }).finally(function () {
                 $scope.busy = false;
-                layer.alert("RestfulAPI error!", { icon: 5, btn: 'Ok', title: 'alert' })
             });
         };
     });

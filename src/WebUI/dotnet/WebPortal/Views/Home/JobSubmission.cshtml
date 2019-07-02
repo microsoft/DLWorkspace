@@ -463,8 +463,8 @@
                 data: params,
                 error: function (xhr, ajaxOptions, thrownError) {
                     var message = "RestfulAPI error!";
-                    if (xhr.status === 403) {
-                        message = "Session timeout. Open a new window to sign in and retry the submission."
+                    if (xhr.status === 400) {
+                        message = xhr.responseText;
                     }
                     layer.alert(message, { icon: 5, btn: 'Ok', title: 'alert' })
                     $scope.$apply('busy = false');
