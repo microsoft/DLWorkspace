@@ -132,9 +132,7 @@ def SubmitRegularJob(job):
         jobMetaStr = base64.b64encode(json.dumps(jobMeta))
         dataHandler.UpdateJobTextField(job_object.job_id, "jobMeta", jobMetaStr)
     except Exception as e:
-        logging.error("Submit job failed: %s" % job)
-        traceback.print_exc()
-        logging.error(e)
+        logging.error("Submit job failed: %s" % job, exc_info=True)
         ret["error"] = str(e)
         retries = dataHandler.AddandGetJobRetries(job["jobId"])
         if retries >= 5:
