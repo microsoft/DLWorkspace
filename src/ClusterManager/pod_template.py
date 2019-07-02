@@ -1,4 +1,5 @@
 import json
+import yaml
 from jinja2 import Template
 from job import Job
 
@@ -8,7 +9,7 @@ class PodTemplate():
         self.template = template
         self.enable_custom_scheduler = enable_custom_scheduler
 
-    def generate_pod_yaml(self, pod):
+    def generate_pod(self, pod):
         assert(isinstance(self.template, Template))
         if self.enable_custom_scheduler:
             if "useGPUTopology" in pod and pod["useGPUTopology"]:
@@ -42,9 +43,10 @@ class PodTemplate():
         if "gpuType" in pod:
             pod["nodeSelector"]["gpuType"] = pod["gpuType"]
 
-        return self.template.render(job=pod)
+        pod_yaml = self.template.render(job=pod)
+        return yaml.load(pod_yaml)
 
-    def generate_job_description(self, job):
+    def generate_pods(self, job):
         """
         Return (job_description, errors)
         """
@@ -112,8 +114,8 @@ class PodTemplate():
         enable_custom_scheduler = job.is_custom_scheduler_enabled()
         pod_template = PodTemplate(job.get_template(), enable_custom_scheduler)
 
-        job_description_list = []
+        k8s_pods = []
         for pod in pods:
-            job_description = pod_template.generate_pod_yaml(pod)
-            job_description_list.append(job_description)
-        return {"job_descriptions": job_description_list, "launch_cmd": luanch_cmd}, None
+            k8s_pod = pod_template.generate_pod(pod)
+            k8s_pods.append(k8s_pod)
+        return k8s_pods, None

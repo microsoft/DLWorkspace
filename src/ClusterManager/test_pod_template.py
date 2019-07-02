@@ -27,8 +27,7 @@ class TestPodTemplate(unittest.TestCase):
         pod_template = PodTemplate(job.get_template(), enable_custom_scheduler)
 
         pod = {"resourcegpu": 2}
-        pod_yaml = pod_template.generate_pod_yaml(pod)
-        data = yaml.load(pod_yaml)
+        data = pod_template.generate_pod(pod)
 
         # not eanbled custom scheduler, set the resource limits: spec.containers[].resources.limits
         self.assertEqual(pod["resourcegpu"], data["spec"]["containers"][0]["resources"]["limits"]["nvidia.com/gpu"])
@@ -44,8 +43,7 @@ class TestPodTemplate(unittest.TestCase):
             "podName": "790a6b30-560f-44a4-a9f0-5d1458dcb0d1-pod-0",
             "resourcegpu": gpu_num,
         }
-        pod_yaml = pod_template.generate_pod_yaml(pod)
-        data = yaml.load(pod_yaml)
+        data = pod_template.generate_pod(pod)
 
         # eanbled custom scheduler would clear the resource limits: spec.containers[].resources.limits
         self.assertEqual(0, data["spec"]["containers"][0]["resources"]["limits"]["nvidia.com/gpu"])
@@ -67,8 +65,7 @@ class TestPodTemplate(unittest.TestCase):
             "resourcegpu": gpu_num,
             "useGPUTopology": True
         }
-        pod_yaml = pod_template.generate_pod_yaml(pod)
-        data = yaml.load(pod_yaml)
+        data = pod_template.generate_pod(pod)
 
         # eanbled custom scheduler, clear the resource limits: spec.containers[].resources.limits
         self.assertEqual(0, data["spec"]["containers"][0]["resources"]["limits"]["nvidia.com/gpu"])
@@ -94,18 +91,18 @@ class TestPodTemplate(unittest.TestCase):
         # enabled topology
         self.assertEqual(1, device_annotation["requests"]["alpha.gpu/gpu-generate-topology"])
 
-    def test_generate_job_description_missing_required_params(self):
+    def test_generate_pods_missing_required_params(self):
         enable_custom_scheduler = True
         pod_template = PodTemplate(job.get_template(), enable_custom_scheduler)
 
         job.params = {}
-        job_description, error = pod_template.generate_job_description(job)
+        job_description, error = pod_template.generate_pods(job)
 
         self.assertIsNone(job_description)
         self.assertTrue(error)
         self.assertEqual("Missing required parameters!", error)
 
-    def test_generate_job_description(self):
+    def test_generate_pods(self):
         enable_custom_scheduler = True
         pod_template = PodTemplate(job.get_template(), enable_custom_scheduler)
 
@@ -154,8 +151,10 @@ class TestPodTemplate(unittest.TestCase):
             "ssh": True
         }
 
-        ret, error = pod_template.generate_job_description(job)
+        pods, error = pod_template.generate_pods(job)
 
         self.assertFalse(error)
-        self.assertTrue(dict, type(ret))
-        self.assertListEqual(["job_descriptions", "launch_cmd"], ret.keys())
+        # generate list of pod yamls
+        self.assertTrue(list, type(pods))
+        self.assertEqual(1, len(pods))
+        self.assertIsNotNone(pods[0]["spec"]["containers"][0]["command"])
