@@ -147,52 +147,76 @@ def SubmitPSDistJob(job):
     dataHandler = DataHandler()
 
     try:
+        job["cluster"] = config
+        job_object, errors = JobSchema().load(job)
+        # TODO assert job_object is a Job
+        assert(isinstance(job_object, Job))
+
         jobParams = json.loads(base64.b64decode(job["jobParams"]))
+
+        job_object.params = json.loads(base64.b64decode(job["jobParams"]))
+
+        # TODO
         jobParams["rest-api"] = config["rest-api"]
+
         distJobParams = {}
         distJobParams["ps"] = []
         distJobParams["worker"] = []
+
+        # TODO
         assignedRack = None
         if len(config["racks"]) > 0:
             assignedRack = random.choice(config["racks"])
 
-        userAlias = getAlias(jobParams["userName"])
+        # inject gid, uid and user
+        # TODO it should return only one entry
+        user_info = dataHandler.GetIdentityInfo(job_object.params["userName"])[0]
+        jobParams["gid"] = user_info["gid"]
+        jobParams["uid"] = user_info["uid"]
+        jobParams["user"] = job_object.get_alias()
+
+        userAlias = job_object.get_alias()
         jobParams["user_email"] = jobParams["userName"]
 
-        jobParams["homeFolderHostpath"] = os.path.join(config["storage-mount-path"], GetWorkPath(userAlias))
+        job_object.job_path = jobParams["jobPath"]
+        jobParams["homeFolderHostpath"] = job_object.get_homefolder_hostpath()
+
+        if any(required_field not in jobParams for required_field in
+               [
+                   "jobtrainingtype",
+                   "jobName",
+                   "jobPath",
+                   "workPath",
+                   "dataPath",
+                   "cmd",
+                   "userId",
+                   "resourcegpu",
+                   "userName",
+               ]):
+            return None, "Missing required parameters!"
 
         if jobParams["jobtrainingtype"] == "PSDistJob":
             jobDescriptionList = []
-            nums = {"ps":int(jobParams["numps"]),"worker":int(jobParams["numpsworker"])}
-            for role in ["ps","worker"]:
+            nums = {"ps": int(jobParams["numps"]), "worker": int(jobParams["numpsworker"])}
+            for role in ["ps", "worker"]:
                 for i in range(nums[role]):
-                    distJobParam=copy.deepcopy(jobParams)
-                    distJobParam["distId"] = "%s%d" % (role,i)
+                    distJobParam = copy.deepcopy(jobParams)
+                    distJobParam["distId"] = "%s%d" % (role, i)
                     distJobParam["distRole"] = role
                     distJobParam["distRoleIdx"] = i
 
-                    if "jobPath" not in distJobParam or len(distJobParam["jobPath"].strip()) == 0:
-                        dataHandler.SetJobError(distJobParam["jobId"],"ERROR: job-path does not exist")
-                        return False
-                    if "workPath" not in distJobParam or len(distJobParam["workPath"].strip()) == 0:
-                        dataHandler.SetJobError(distJobParam["jobId"],"ERROR: work-path does not exist")
-                        return False
-                    #if "dataPath" not in distJobParam or len(distJobParam["dataPath"].strip()) == 0:
-                    #    dataHandler.SetJobError(distJobParam["jobId"],"ERROR: data-path does not exist")
-                    #    return False
-                    distJobParam["distJobPath"] = os.path.join(distJobParam["jobPath"],distJobParam["distId"])
-                    jobPath,workPath,dataPath = GetStoragePath(distJobParam["distJobPath"],distJobParam["workPath"],distJobParam["dataPath"])
+                    # TODO
+                    distJobParam["distJobPath"] = os.path.join(job_object.job_path, distJobParam["distId"])
+                    jobPath = "work/" + distJobParam["distJobPath"]
+                    workPath = "work/" + distJobParam["workPath"]
+                    dataPath = "storage/" + distJobParam["dataPath"]
 
-                    localJobPath = os.path.join(config["storage-mount-path"],jobPath)
+                    localJobPath = os.path.join(config["storage-mount-path"], jobPath)
                     if not os.path.exists(localJobPath):
                         if "userId" in distJobParam:
-                            mkdirsAsUser(localJobPath,distJobParam["userId"])
+                            mkdirsAsUser(localJobPath, distJobParam["userId"])
                         else:
-                            mkdirsAsUser(localJobPath,0)
-
-                    # TODO ???
-                    if "cmd" not in distJobParam:
-                        distJobParam["cmd"] = ""
+                            mkdirsAsUser(localJobPath, 0)
 
 #change ssh folder permission here because the setup permission script in launch_ps_job function may have race condition with init_user.sh script. results in no such user error
                     if role == "ps":
@@ -238,7 +262,7 @@ done
 
 echo "[DLWorkspace System]: All containers are ready, launching training job..."
 %s
-""" % (userAlias,userAlias,userAlias,userAlias,userAlias,distJobParam["jobPath"],jobParams["numpsworker"],distJobParam["cmd"])
+""" % (userAlias, userAlias, userAlias, userAlias, userAlias, distJobParam["jobPath"], jobParams["numpsworker"], distJobParam["cmd"])
                     else:
                         launchCMD = """
 while [ ! -f /opt/run_dist_job ]; do
@@ -255,24 +279,22 @@ sudo mkdir -p /opt && sudo ln -s /job/hostfile /opt/hostfile  &>/dev/null;
 sudo touch /job/WORKER_READY
 
 sleep infinity
-""" % (userAlias,userAlias,userAlias,userAlias,userAlias)
+""" % (userAlias, userAlias, userAlias, userAlias, userAlias)
 
-
-                    launchScriptPath = os.path.join(localJobPath,"launch-%s-%s%d.sh" % (distJobParam["jobId"],role,i))
+                    launchScriptPath = os.path.join(localJobPath, "launch-%s-%s%d.sh" % (distJobParam["jobId"], role, i))
                     # TODO need to set up user for distribute jobs
                     with open(launchScriptPath, 'w') as f:
                         f.write(launchCMD)
                     f.close()
 
-
-                    launchScriptInContainer = "bash /job/launch-%s-%s%d.sh" % (distJobParam["jobId"],role,i)
+                    launchScriptInContainer = "bash /job/launch-%s-%s%d.sh" % (distJobParam["jobId"], role, i)
 
                     distJobParam["LaunchCMD"] = '["bash", "-c", "bash /dlws/init_user.sh &> /job/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c \'%s\'"]' % launchScriptInContainer
 
                     distJobParam["jobNameLabel"] = ''.join(e for e in distJobParam["jobName"] if e.isalnum())
                     ENV = Environment(loader=FileSystemLoader("/"))
 
-                    jobTempDir = os.path.join(config["root-path"],"Jobs_Templete")
+                    jobTempDir = os.path.join(config["root-path"], "Jobs_Templete")
                     jobTemp = os.path.join(jobTempDir, "DistJob.yaml.template")
 
                     distJobParam["hostjobPath"] = os.path.join(config["storage-mount-path"], jobPath)
@@ -282,14 +304,13 @@ sleep infinity
                     if "mountpoints" not in distJobParam:
                         distJobParam["mountpoints"] = []
 
-                    distJobParam["mountpoints"].append({"name":"job","containerPath":"/job","hostPath":distJobParam["hostjobPath"]})
-                    distJobParam["mountpoints"].append({"name":"work","containerPath":"/work","hostPath":distJobParam["hostworkPath"]})
-                    distJobParam["mountpoints"].append({"name":"data","containerPath":"/data","hostPath":distJobParam["hostdataPath"]})
+                    distJobParam["mountpoints"].append({"name": "job", "containerPath": "/job", "hostPath": distJobParam["hostjobPath"]})
+                    distJobParam["mountpoints"].append({"name": "work", "containerPath": "/work", "hostPath": distJobParam["hostworkPath"]})
+                    distJobParam["mountpoints"].append({"name": "data", "containerPath": "/data", "hostPath": distJobParam["hostdataPath"]})
 
                     for idx in range(len(distJobParam["mountpoints"])):
                         if "name" not in distJobParam["mountpoints"][idx]:
-                            distJobParam["mountpoints"][idx]["name"] = str(uuid.uuid4()).replace("-","")
-
+                            distJobParam["mountpoints"][idx]["name"] = str(uuid.uuid4()).replace("-", "")
 
                     distJobParam["pod_ip_range"] = config["pod_ip_range"]
                     if "usefreeflow" in config:
@@ -300,13 +321,11 @@ sleep infinity
                     distJobParam["numworker"] = int(jobParams["numpsworker"])
                     distJobParam["numps"] = int(jobParams["numps"])
 
-
-
                     random.seed(datetime.datetime.now())
                     if "hostNetwork" in jobParams and jobParams["hostNetwork"]:
                         distJobParam["containerPort"] = random.randint(40000, 49999)
                     else:
-                        distJobParam["containerPort"] = int(random.random()*1000+3000)
+                        distJobParam["containerPort"] = int(random.random() * 1000 + 3000)
 
                     if assignedRack is not None:
                         if "nodeSelector" not in distJobParam:
@@ -318,13 +337,6 @@ sleep infinity
                             distJobParam["nodeSelector"] = {}
                         distJobParam["nodeSelector"]["gpuType"] = distJobParam["gpuType"]
 
-                    # inject gid, uid and user
-                    # TODO it should return only one entry
-                    user_info = dataHandler.GetIdentityInfo(jobParams["userName"])[0]
-                    distJobParam["gid"] = user_info["gid"]
-                    distJobParam["uid"] = user_info["uid"]
-                    distJobParam["user"] = userAlias
-
                     template = ENV.get_template(os.path.abspath(jobTemp))
                     job_description = template.render(job=distJobParam)
 
@@ -332,10 +344,8 @@ sleep infinity
 
                     distJobParams[role].append(distJobParam)
 
-
             jobParams["jobDescriptionPath"] = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"] + ".yaml"
             jobDescription = "\n---\n".join(jobDescriptionList)
-
 
         jobDescriptionPath = os.path.join(config["storage-mount-path"], jobParams["jobDescriptionPath"])
         if not os.path.exists(os.path.dirname(os.path.realpath(jobDescriptionPath))):
@@ -352,14 +362,12 @@ sleep infinity
 
         ret["jobId"] = jobParams["jobId"]
 
-
         if "userName" not in jobParams:
             jobParams["userName"] = ""
 
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","scheduling")
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobDescriptionPath",jobParams["jobDescriptionPath"])
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobDescription",base64.b64encode(jobDescription))
-
+        dataHandler.UpdateJobTextField(jobParams["jobId"], "jobStatus", "scheduling")
+        dataHandler.UpdateJobTextField(jobParams["jobId"], "jobDescriptionPath", jobParams["jobDescriptionPath"])
+        dataHandler.UpdateJobTextField(jobParams["jobId"], "jobDescription", base64.b64encode(jobDescription))
 
         jobMeta = {}
         jobMeta["jobDescriptionPath"] = jobParams["jobDescriptionPath"]
@@ -370,7 +378,7 @@ sleep infinity
         jobMeta["distJobParams"] = distJobParams
 
         jobMetaStr = base64.b64encode(json.dumps(jobMeta))
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobMeta",jobMetaStr)
+        dataHandler.UpdateJobTextField(jobParams["jobId"], "jobMeta", jobMetaStr)
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -378,10 +386,11 @@ sleep infinity
         ret["error"] = str(e)
         retries = dataHandler.AddandGetJobRetries(jobParams["jobId"])
         if retries >= 5:
-            dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","error")
-            dataHandler.UpdateJobTextField(jobParams["jobId"],"errorMsg","Cannot submit job!" + str(e))
+            dataHandler.UpdateJobTextField(jobParams["jobId"], "jobStatus", "error")
+            dataHandler.UpdateJobTextField(jobParams["jobId"], "errorMsg", "Cannot submit job!" + str(e))
     dataHandler.Close()
     return ret
+
 
 def KillJob(job, desiredState="killed"):
     dataHandler = DataHandler()
