@@ -26,7 +26,7 @@
 
             mObj = d.getElementsByTagName("body")[0].appendChild(d.createElement("div"));
             mObj.id = "modalContainer";
-            mObj.style.height = d.documentElement.scrollHeight + "px";
+            //mObj.style.height = d.documentElement.scrollHeight + "px";
 
             alertObj = mObj.appendChild(d.createElement("div"));
             alertObj.id = "alertBox";
@@ -71,7 +71,7 @@
         function removeCustomAlert() {
             document.getElementsByTagName("body")[0].removeChild(document.getElementById("modalContainer"));
         }
-        alert('You are not an authorized user to this cluster!');
+        alert('You are not the authorized user for this cluster, and please contact dltssupp@microsoft.com to get the access. ');
     </script>
 }
 
@@ -276,24 +276,20 @@ else
 	top:0px;
 	left:0px;
 	z-index:10000;
+    display:flex;
+    justify-content:center;
+    align-items:center;
  /* required by MSIE to prevent actions on lower z-index elements */
 }
 
 #alertBox {
 	position:relative;
-	width:300px;
+	width:400px;
 	min-height:100px;
-	margin-top:50px;
 	border:1px solid #666;
 	background-color:#fff;
 	background-repeat:no-repeat;
 	background-position:20px 30px;
-}
-
-#modalContainer > #alertBox {
-	position:fixed;
-    left:44%;
-    top:40%;
 }
 
 #alertBox h1 {
@@ -307,9 +303,8 @@ else
 
 #alertBox p {
   font: 1.1em verdana,arial;
-  height: 50px;
-  padding-left: 15px;
-  padding-top: 15px;
+  height: 60px;
+  padding:10px;
   text-align: center;
 }
 
@@ -327,6 +322,7 @@ else
 	background-color:#357EBD;
 	border-radius: 3px;
 	text-decoration:none;
+
 }
 </style>
 <!--
