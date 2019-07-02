@@ -38,9 +38,10 @@ class JobDeployer:
     def cleanup_pods(self, pods):
         for pod in pods:
             try:
-                self.delete_pod(pod["metadata"]["name"])
+                pod_name = pod["metadata"]["name"]
+                self.delete_pod(pod_name)
             except Exception as e:
-                logging.warning(e, exc_info=True)
+                logging.warning("Delete pod failed: %s!" % pod_name, exc_info=True)
 
     def create_pods(self, pods):
         # TODO instead of delete, we could check update existiong ones. During refactoring, keeping the old way.
@@ -50,5 +51,5 @@ class JobDeployer:
             self.create_pod(pod)
             pod_name = pod["metadata"]["name"]
             created.append(pod_name)
-            logging.info("Successfully created pod: %s" % pod_name)
+            logging.info("Create pod succeed: %s" % pod_name)
         return created
