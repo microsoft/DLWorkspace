@@ -446,7 +446,14 @@
                             jobId: '@ViewData["jobid"]',
                             endpoints: ["ssh"]
                         }
-                    })
+                    }).catch(function (response) {
+                        var message = "RestfulAPI error!";
+                        if (response.status === 400) {
+                            message = response.data;
+                        }
+                        layer.alert(message, { icon: 5, btn: 'Ok', title: 'alert' });
+                        $scope.ssh = false;
+                    });
                 }
             })
             $scope.$watch("ipython", function (value, oldValue) {
@@ -460,7 +467,14 @@
                             jobId: '@ViewData["jobid"]',
                             endpoints: ["ipython"]
                         }
-                    })
+                    }).catch(function (response) {
+                        var message = "RestfulAPI error!";
+                        if (response.status === 400) {
+                            message = response.data;
+                        }
+                        layer.alert(message, { icon: 5, btn: 'Ok', title: 'alert' });
+                        $scope.ipython = false;
+                    });
                 }
             })
             $scope.$watch("tensorboard", function (value, oldValue) {
@@ -474,7 +488,14 @@
                             jobId: '@ViewData["jobid"]',
                             endpoints: ["tensorboard"]
                         }
-                    })
+                    }).catch(function (response) {
+                        var message = "RestfulAPI error!";
+                        if (response.status === 400) {
+                            message = response.data;
+                        }
+                        layer.alert(message, { icon: 5, btn: 'Ok', title: 'alert' });
+                        $scope.tensorboard = false;
+                    });
                 }
             })
             $scope.addPort = function () {
@@ -495,9 +516,15 @@
                     } else {
                         layer.alert("Restful API Error: \n" + response.data, { icon: 5, btn: 'Ok', title: 'alert' });
                     }
+                }, function (response) {
+                    var message = "RestfulAPI error!";
+                    if (response.status === 400) {
+                        message = response.data;
+                    }
+                    layer.alert(message, { icon: 5, btn: 'Ok', title: 'alert' });
                 }).finally(function () {
                     $scope.addPortForm.$submitted = false;
-                })
+                });
             }
 
             window.ngScope = $scope;

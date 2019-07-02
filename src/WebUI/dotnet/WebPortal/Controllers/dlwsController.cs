@@ -71,7 +71,10 @@ namespace WindowsAuth.Controllers
         [HttpGet("GetMountPoints")]
         public IActionResult GetMountPoints()
         {
-            if (!IsSessionAvailable()) { return Forbid(); }
+            if (!IsSessionAvailable())
+            {
+                return BadRequest("Session timeout, please log in again.");
+            }
 
             var cluster = HttpContext.Request.Query["cluster"];
             var currentUsername = HttpContext.Session.GetString("Username");
@@ -101,13 +104,16 @@ namespace WindowsAuth.Controllers
         [HttpGet("grafana")]
         public IActionResult GetGrafana()
         {
-            if (!IsSessionAvailable()) { return Forbid(); }
+            if (!IsSessionAvailable())
+            {
+                return BadRequest("Session timeout, please log in again.");
+            }
 
             var cluster = HttpContext.Request.Query["cluster"];
             var authorizedClusters = JsonConvert.DeserializeObject<List<string>>(HttpContext.Session.GetString("AuthorizedClusters"));
             if (!authorizedClusters.Contains(cluster))
             {
-                return Content("Invalid cluster");
+                return BadRequest("Invalid cluster");
             }
             return Content(Startup.Clusters[cluster].Grafana);
         }
@@ -190,19 +196,22 @@ namespace WindowsAuth.Controllers
         [HttpGet("{op}")]
         public async Task<ActionResult> Get(string op)
         {
-            if (!IsSessionAvailable()) { return Forbid(); }
+            if (!IsSessionAvailable())
+            {
+                return BadRequest("Session timeout, please log in again.");
+            }
 
             var ret = "invalid API call!";
             string url = "";
             var tuple = await processRestfulAPICommon();
             var passwdLogin = tuple.Item1;
             if (!String.IsNullOrEmpty(tuple.Item2))
-                return Content(tuple.Item2);
+                return BadRequest(tuple.Item2);
 
 
             if (!User.Identity.IsAuthenticated && !passwdLogin)
             {
-                return Content("Unauthorized User, Please login!");
+                return BadRequest("Unauthorized User, Please login!");
             }
 
             ViewData["Username"] = HttpContext.Session.GetString("Username");
@@ -211,7 +220,7 @@ namespace WindowsAuth.Controllers
             var authorizedClusters = JsonConvert.DeserializeObject<List<string>>(HttpContext.Session.GetString("AuthorizedClusters"));
             if (!authorizedClusters.Contains(cluster))
             {
-                return Content("Invalid cluster");
+                return BadRequest("Invalid cluster");
             }
             var restapi = Startup.Clusters[cluster].Restapi;
 
@@ -469,9 +478,11 @@ namespace WindowsAuth.Controllers
         [HttpPost("postJob")]
         public async Task<ActionResult> postJob(TemplateParams templateParams)
         {
-            if (!IsSessionAvailable()) { return Forbid(); }
+            if (!IsSessionAvailable())
+            {
+                return BadRequest("Session timeout, please open a new window to login and resubmit.");
+            }
 
-            var ret = "invalid API call!";
             var tuple = await processRestfulAPICommon();
             var passwdLogin = tuple.Item1;
             if (!String.IsNullOrEmpty(tuple.Item2))
@@ -480,16 +491,14 @@ namespace WindowsAuth.Controllers
 
             if (!User.Identity.IsAuthenticated && !passwdLogin)
             {
-                ret = "Unauthorized User, Please login!";
-                return Content(ret);
+                return BadRequest("Unauthorized User, Please login!");
             }
 
             var cluster = HttpContext.Request.Query["cluster"];
             var authorizedClusters = JsonConvert.DeserializeObject<List<string>>(HttpContext.Session.GetString("AuthorizedClusters"));
             if (!authorizedClusters.Contains(cluster))
             {
-                ret = "Invalid cluster";
-                return Content(ret);
+                return BadRequest("Invalid cluster");
             }
             var restapi = Startup.Clusters[cluster].Restapi;
 
@@ -529,7 +538,7 @@ namespace WindowsAuth.Controllers
             });
             if (!newKey)
             {
-                ret = "Only 1 parent is allowed per family (maybe you tried to submit the same job on two threads?)";
+                return BadRequest("Only 1 parent is allowed per family (maybe you tried to submit the same job on two threads?)");
             }
             jobObject["familyToken"] = String.Format("{0:N}", familyToken);
             jobObject["isParent"] = 1; 
@@ -549,13 +558,16 @@ namespace WindowsAuth.Controllers
         [HttpPost("endpoints")]
         public async Task<ActionResult> PostEndpoints()
         {
-            if (!IsSessionAvailable()) { return Forbid(); }
+            if (!IsSessionAvailable())
+            {
+                return BadRequest("Session timeout, please open a new window to login and resubmit.");
+            }
 
             var cluster = HttpContext.Request.Query["cluster"];
             var authorizedClusters = JsonConvert.DeserializeObject<List<string>>(HttpContext.Session.GetString("AuthorizedClusters"));
             if (!authorizedClusters.Contains(cluster))
             {
-                return Content("Invalid cluster");
+                return BadRequest("Invalid cluster");
             }
             var restapi = Startup.Clusters[cluster].Restapi;
             using (var httpClient = new HttpClient())
