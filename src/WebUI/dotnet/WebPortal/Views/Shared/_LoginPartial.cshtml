@@ -8,18 +8,22 @@
 {
     <ul class="nav navbar-nav navbar-right">
 
-        @if (ViewData["isAuthorized"] != null && (bool)ViewData["isAuthorized"])
+        @if (Context.Session.GetString("Team") != null)
         {
-        <li class="dropdown" id="teams-dropdown">
-            <a class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">@Context.Session.GetString("Team") <span class="caret"></span></a>
-            <ul class="dropdown-menu">
-                @{ var teams = JsonConvert.DeserializeObject<string[]>(Context.Session.GetString("Teams")); }
-                @foreach (var team in teams)
-                {
-                    <li><a href="#">@team</a></li>
-                }
-            </ul>
-        </li>
+            try
+            {
+                <li class="dropdown" id="teams-dropdown">
+                    <a class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">@Context.Session.GetString("Team") <span class="caret"></span></a>
+                    <ul class="dropdown-menu">
+                        @{ var teams = JsonConvert.DeserializeObject<string[]>(Context.Session.GetString("Teams")); }
+                        @foreach (var team in teams)
+                        {
+                            <li><a href="#">@team</a></li>
+                        }
+                    </ul>
+                </li>
+            }
+            catch { /* ignored */ }
         }
 
         <li><a asp-area="" asp-controller="Home" asp-action="AccountSettings">Hello, @ViewData["Username"]</a></li>
@@ -30,12 +34,12 @@
             var querystring = location.search.replace(/^\?/, '');
             var queries = querystring.split('&');
             queries = queries.filter(function (query) {
-                return !/^\s*$/.test(query) && !/^team=/i.test(query);
+                return !/^\s*$/.test(query) && !/^current-team=/i.test(query);
             });
             if (queries.length > 0) {
-                querystring = '?' + queries.join('&') + '&team=';
+                querystring = '?' + queries.join('&') + '&current-team=';
             } else {
-                querystring = '?team='
+                querystring = '?current-team=';
             }
 
             $('#teams-dropdown .dropdown-menu a').each(function () {
