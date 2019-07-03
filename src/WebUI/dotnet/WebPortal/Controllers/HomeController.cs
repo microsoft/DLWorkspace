@@ -846,6 +846,18 @@ namespace WindowsAuth.Controllers
                 return RedirectToAction("Index", "Home");
             }
 
+            if (HttpContext.Session.Keys.Contains("isAuthorized"))
+            {
+                if (HttpContext.Session.GetString("isAuthorized") == "true")
+                {
+                    ViewData["isAuthorized"] = true;
+                }
+                else
+                {
+                    ViewData["isAuthorized"] = false;
+                }
+            }
+
             string workFolderAccessPoint = HttpContext.Session.GetString("WorkFolderAccessPoint");
             string dataFolderAccessPoint = HttpContext.Session.GetString("DataFolderAccessPoint");
  
@@ -876,6 +888,18 @@ namespace WindowsAuth.Controllers
             {
                 return RedirectToAction("Index", "Home");
             }
+            if (HttpContext.Session.Keys.Contains("isAuthorized"))
+            {
+                if (HttpContext.Session.GetString("isAuthorized") == "true")
+                {
+                    ViewData["isAuthorized"] = true;
+                }
+                else
+                {
+                    ViewData["isAuthorized"] = false;
+                }
+            }
+
 
             string workFolderAccessPoint = HttpContext.Session.GetString("WorkFolderAccessPoint");
             string dataFolderAccessPoint = HttpContext.Session.GetString("DataFolderAccessPoint");
@@ -902,7 +926,17 @@ namespace WindowsAuth.Controllers
             {
                 return RedirectToAction("Index", "Home");
             }
-
+            if (HttpContext.Session.Keys.Contains("isAuthorized"))
+            {
+                if (HttpContext.Session.GetString("isAuthorized") == "true")
+                {
+                    ViewData["isAuthorized"] = true;
+                }
+                else
+                {
+                    ViewData["isAuthorized"] = false;
+                }
+            }
             if (!HttpContext.Session.Keys.Contains("isAuthorized") || HttpContext.Session.GetString("isAuthorized") != "true")
             {
                 return RedirectToAction("Index", "Home");
@@ -925,6 +959,18 @@ namespace WindowsAuth.Controllers
             {
                 return RedirectToAction("Index", "Home");
             }
+            if (HttpContext.Session.Keys.Contains("isAuthorized"))
+            {
+                if (HttpContext.Session.GetString("isAuthorized") == "true")
+                {
+                    ViewData["isAuthorized"] = true;
+                }
+                else
+                {
+                    ViewData["isAuthorized"] = false;
+                }
+            }
+
             var cluster = HttpContext.Request.Query["cluster"];
             if (!Startup.Clusters.ContainsKey(cluster))
             {
@@ -949,6 +995,17 @@ namespace WindowsAuth.Controllers
                 // return RedirectToAction("Login", "Account", new { controller = "Account", action = "Login" });
                 return RedirectToAction("Index", "Home");
             }
+            if (HttpContext.Session.Keys.Contains("isAuthorized"))
+            {
+                if (HttpContext.Session.GetString("isAuthorized") == "true")
+                {
+                    ViewData["isAuthorized"] = true;
+                }
+                else
+                {
+                    ViewData["isAuthorized"] = false;
+                }
+            }
             if (!HttpContext.Session.Keys.Contains("isAuthorized") || HttpContext.Session.GetString("isAuthorized") != "true")
             {
                 return RedirectToAction("Index", "Home");
@@ -961,12 +1018,36 @@ namespace WindowsAuth.Controllers
 
         public IActionResult About()
         {
+            if (HttpContext.Session.Keys.Contains("isAuthorized"))
+            {
+                if (HttpContext.Session.GetString("isAuthorized") == "true")
+                {
+                    ViewData["isAuthorized"] = true;
+                }
+                else
+                {
+                    ViewData["isAuthorized"] = false;
+                }
+            }
+
             AddViewData(message: "Your application description page.");
             return View();
         }
 
         public IActionResult Contact()
         {
+            if (HttpContext.Session.Keys.Contains("isAuthorized"))
+            {
+                if (HttpContext.Session.GetString("isAuthorized") == "true")
+                {
+                    ViewData["isAuthorized"] = true;
+                }
+                else
+                {
+                    ViewData["isAuthorized"] = false;
+                }
+            }
+
             AddViewData(message: "Your contact page.");
             return View();
         }
