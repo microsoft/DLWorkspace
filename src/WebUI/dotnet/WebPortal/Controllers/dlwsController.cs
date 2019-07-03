@@ -144,7 +144,7 @@ namespace WindowsAuth.Controllers
         private async Task<Tuple<bool, string>> processRestfulAPICommon()
         {
             var passwdLogin = false;
-            if (HttpContext.Request.Query.ContainsKey("Email") && HttpContext.Request.Query.ContainsKey("Key"))
+            if (HttpContext.Request.Query.ContainsKey("Email") && HttpContext.Request.Query.ContainsKey("Key") && HttpContext.Request.Query.ContainsKey("Team"))
             {
 
                 var databases = Startup.Database;
@@ -152,7 +152,8 @@ namespace WindowsAuth.Controllers
                 var lst = new List<string>();
                 string email = HttpContext.Request.Query["Email"];
                 string password = HttpContext.Request.Query["Key"];
-                bool bFindUser = false; 
+                bool bFindUser = false;
+                var authorizedClusters = new HashSet<string>();
 
                 foreach (var pair in databases)
                 {
@@ -164,6 +165,7 @@ namespace WindowsAuth.Controllers
 
                     await priorEntrys.ForEachAsync(userEntry =>
                     {
+                        authorizedClusters.Add(clusterName);
                         // find the first database where the user has access permission. 
                         if (!passwdLogin)
                         {
@@ -183,6 +185,11 @@ namespace WindowsAuth.Controllers
                         }
                     }
                     );
+                }
+                if (passwdLogin)
+                {
+                    HttpContext.Session.SetString("AuthorizedClusters", JsonConvert.SerializeObject(authorizedClusters));
+                    HttpContext.Session.SetString("Team", HttpContext.Request.Query["Team"]);
                 }
                 if ( !bFindUser )
                 {
@@ -478,15 +485,15 @@ namespace WindowsAuth.Controllers
         [HttpPost("postJob")]
         public async Task<ActionResult> postJob(TemplateParams templateParams)
         {
-            if (!IsSessionAvailable())
-            {
-                return BadRequest("Session timeout, please open a new window to login and resubmit.");
-            }
-
             var tuple = await processRestfulAPICommon();
             var passwdLogin = tuple.Item1;
             if (!String.IsNullOrEmpty(tuple.Item2))
                 return Content(tuple.Item2);
+
+            if (!IsSessionAvailable() && !passwdLogin)
+            {
+                return BadRequest("Session timeout, please open a new window to login and resubmit.");
+            }
 
 
             if (!User.Identity.IsAuthenticated && !passwdLogin)
