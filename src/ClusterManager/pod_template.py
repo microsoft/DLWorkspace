@@ -5,7 +5,7 @@ from job import Job
 
 
 class PodTemplate():
-    def __init__(self, template, enable_custom_scheduler):
+    def __init__(self, template, enable_custom_scheduler=False):
         self.template = template
         self.enable_custom_scheduler = enable_custom_scheduler
 
