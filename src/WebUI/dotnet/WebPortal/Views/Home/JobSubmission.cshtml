@@ -10,11 +10,25 @@
     a:link {
         color: #1F45FC
     }
+
+    code {
+        color: #000000;
+        background-color: #ffffff;
+    }
 </style>
 
 
 <script type="text/javascript">
+   $(function () {
+        $('[data-toggle="tooltip"]').tooltip({
+            container: 'body',
+            show: {
+                effect: "slideDown",
+                delay: 1000
+            }
 
+        })
+    })
     var app = angular.module('jobApp', ["xeditable", "ui.select", "ngMaterial", 'ngMessages']);
 
     app.run(function (editableOptions) {
@@ -64,10 +78,11 @@
                     enabledatapath: true,
                     enablejobpath: true,
                 };
-            tobool($scope.current, "do_log", false);
             $scope.current.runningasroot = "1";
 
-            tobool($scope.current, "is_interactive", false);
+            if ($scope.current.interactivePorts == null) {
+                $scope.current.interactivePorts = [];
+            }
             if ($scope.current.mountpoints == null) {
                 $scope.current.mountpoints = [];
             };
@@ -226,16 +241,23 @@
                 $scope.loadTemplate();
                 //$log.log($scope.joblist);
             });
+            $scope.joblist = null;
 
-            $http.get("/api/dlws/GetVCs", { params: { cluster: cluster } }).then(function (response) {
-                var currentTeam = '@Context.Session.GetString("Team")';
-                var teams = response.data.result;
-                if (!Array.isArray(teams)) return;
-                var team = teams.filter(function (team) { return team.vcName === currentTeam })[0];
-                if (!team) return;
+            var currentTeam = '@Context.Session.GetString("Team")';
+            $http.get("/api/dlws/GetVC", { params: { cluster: cluster, vcName: currentTeam } }).then(function (response) {
+                var result = response.data;
+                var gpu_available = result.gpu_avaliable;
+                var quota = JSON.parse(result.quota);
 
-                $scope.gpus = JSON.parse(team.quota);
-                $scope.gpumeta = JSON.parse(team.metadata);
+                $scope.gpus = {};
+                angular.forEach(JSON.parse(result.metadata), function (value, key) {
+                    var gpu = {
+                        num_gpu_per_node: value.num_gpu_per_node,
+                        gpu_available: gpu_available[key] < 0 ? 0 : gpu_available[key],
+                        quota: quota[key]
+                    };
+                    $scope.gpus[key] = gpu;
+                });
                 $scope.checkExtras();
             })
             $scope.extras.gpuType = null;
@@ -244,7 +266,7 @@
         $scope.$watch('current.jobtrainingtype', function (value) {
             if (value === 'PSDistJob') {
                 $scope.current.numps = 1;
-                $scope.current.resourcegpu = $scope.gpumeta[$scope.extras.gpuType]['num_gpu_per_node'];
+                $scope.current.resourcegpu = $scope.gpus[$scope.extras.gpuType]['num_gpu_per_node'];
             } else {
                 delete $scope.current.numps;
             }
@@ -252,7 +274,7 @@
 
         $scope.$watch('extras.gpuType', function () {
             if ($scope.current.jobtrainingtype === 'PSDistJob') {
-                $scope.current.resourcegpu = $scope.gpumeta[$scope.extras.gpuType]['num_gpu_per_node'];
+                $scope.current.resourcegpu = $scope.gpus[$scope.extras.gpuType]['num_gpu_per_node'];
             }
         })
 
@@ -416,19 +438,7 @@
             $.ajax({ url: url, method: 'POST', data: params, error: $scope.AlertAPIError, timeout: 10000 }).done();
         };
 
-        $scope.processCurrent = function () {
-
-            if (!tobool($scope.current, "do_log", false)) {
-                delete $scope.current.logDir;
-            }
-            if (!tobool($scope.current, "is_interactive", false)) {
-                delete $scope.current.interactivePort;
-                console.log("deleted interactivePorts");
-            }
-        };
-
         $scope.SaveTemplate = function () {
-            $scope.processCurrent();
             var params = {};
             params.Name = $scope.template.useTemplateName;
             params.Json = JSON.stringify($scope.current);
@@ -439,7 +449,6 @@
         $scope.submitJob = function () {
             if (!$scope.submittable()) return;
             $scope.busy = true;
-            $scope.processCurrent();
             var params = {};
             var job = angular.extend({}, $scope.current, $scope.extras);
 
@@ -453,16 +462,36 @@
                 method: 'POST',
                 data: params,
                 error: function (xhr, ajaxOptions, thrownError) {
-                    layer.alert("RestfulAPI error!", { icon: 5, btn: 'Ok', title: 'alert' })
+                    var message = "RestfulAPI error!";
+                    if (xhr.status === 400) {
+                        message = xhr.responseText;
+                    }
+                    layer.alert(message, { icon: 5, btn: 'Ok', title: 'alert' })
                     $scope.$apply('busy = false');
                 },
                 timeout: 10000 //10 second timeout
             }).then(function (resp) {
                 var payload = $scope.$eval(resp);
-                if (payload.jobId && ($scope.extras.ssh || $scope.extras.ipython)) {
+                if (payload.jobId && (
+                    $scope.current.ssh ||
+                    $scope.current.ipython ||
+                    $scope.current.tensorboard ||
+                    $scope.current.interactivePorts.length > 0
+                )) {
                     const endpoints = [];
-                    if ($scope.extras.ssh) { endpoints.push('ssh') }
-                    if ($scope.extras.ipython) { endpoints.push('ipython') }
+                    if ($scope.current.ssh) { endpoints.push('ssh') }
+                    if ($scope.current.ipython) { endpoints.push('ipython') }
+                    if ($scope.current.tensorboard) { endpoints.push('tensorboard') }
+                    if ($scope.current.interactivePorts.length > 0) {
+                        $scope.current.interactivePorts.forEach(function (port) {
+                            if (typeof port !== 'number') { return; }
+                            if (port < 40000 || port > 49999) { return; }
+                            endpoints.push({
+                                name: "port-" + port,
+                                podPort: port
+                            });
+                        })
+                    }
                     return $http({
                         method: "POST",
                         url: "/api/dlws/endpoints",
@@ -576,8 +605,36 @@
             if (!$scope.extras.gpuType) return false;
             if (!$scope.current.jobName) return false;
             if (!$scope.current.image) return false;
+            if (!$scope.current.cmd || !String($scope.current.cmd).trim()) return false;
+            if (
+                $scope.current.jobtrainingtype === 'RegularJob' &&
+                typeof $scope.current.resourcegpu !== 'number'
+            ) return false;
+            if (
+                $scope.current.jobtrainingtype === 'PSDistJob' &&
+                typeof $scope.current.numpsworker !== 'number'
+            ) return false;
             if ($scope.busy) return false;
             return true;
+        }
+
+        $scope.addInteractivePort = function ($chip) {
+            var port = Number($chip)
+            if (isNaN(port)) return null;
+            if (port < 40000 || port > 49999) return null;
+
+            return port;
+        }
+
+        $scope.portBlur = function ($event) {
+            var port = $scope.addInteractivePort($event.target.value);
+            if (port === undefined) {
+                port = $event.target.value;
+            }
+            if (port !== null) {
+                $scope.current.interactivePorts.push(port);
+            }
+            $event.target.value = '';
         }
     });
 
@@ -608,9 +665,9 @@
                         </md-input-container>
 
                         <md-input-container flex="50">
-                            <label> GPU type </label>
+                            <label> GPU Type </label>
                             <md-select name="jobtrainingtype" ng-model="extras.gpuType" required md-no-asterisk>
-                                <md-option ng-value="name" ng-repeat="(name, count) in gpus">{{ name }} ({{ count }} available to use)</md-option>
+                                <md-option ng-value="name" ng-repeat="(name, gpu) in gpus">{{ name }} ({{ gpu.gpu_available }}/{{ gpu.quota }} to use)</md-option>
                             </md-select>
                         </md-input-container>
                     </div>
@@ -618,15 +675,14 @@
 
                     <div layout="row">
                         <md-input-container flex="50">
-                            <label>Job template</label>
+                            <label>Job Template</label>
                             <md-select name="curtemplateValue" ng-model="curtemplateValue" ng-change="showTemplate()">
                                 <md-option ng-value="{{g.Value}}" ng-repeat="g in joblist">{{ g.Text }}</md-option>
                             </md-select>
                         </md-input-container>
-
                         <md-input-container flex="50">
                             <label>Job Type</label>
-                            <md-select name="jobtrainingtype" ng-model="current.jobtrainingtype" required md-no-asterisk>
+                            <md-select name="jobtrainingtype" ng-model="current.jobtrainingtype" ng-disabled="curtemplateValue === 0 ? false : true" required md-no-asterisk>
                                 <md-option value="RegularJob" selected>Regular Job</md-option>
                                 <md-option value="PSDistJob">Distributed Job</md-option>
                             </md-select>
@@ -635,13 +691,13 @@
 
 
                     <div layout="row">
-                        <md-input-container flex="50">
+                        <md-input-container flex="100">
                             <label> Job Name </label>
                             <input ng-model="current.jobName" required md-no-asterisk>
                             <div class="hint" ng-if="showHints">Tell us the name of your job</div>
                         </md-input-container>
 
-                        <md-input-container flex="50">
+                        <md-input-container flex="50" ng-hide="true">
                             <label> Job Priority </label>
                             <md-select name="jobtrainingtype" ng-model="extras.preemptionAllowed" required md-no-asterisk>
                                 <md-option value="False" selected>Non-Preemptible Job</md-option>
@@ -653,20 +709,20 @@
                     <div layout="row" ng-if="current.jobtrainingtype=='PSDistJob'">
 
                         <md-input-container flex="50">
-                            <label> Number of Workers </label>
+                            <label> Number of Nodes </label>
                             <input ng-model="current.numpsworker" required type="number" step="1" min="1" md-no-asterisk>
                         </md-input-container>
 
                         <md-input-container flex="50">
-                            <label> Total number of GPUs </label>
-                            <input ng-value="current.numpsworker * gpumeta[extras.gpuType]['num_gpu_per_node']" disabled type="number" md-no-asterisk>
+                            <label> Total Number of GPUs </label>
+                            <input ng-value="current.numpsworker * gpus[extras.gpuType]['num_gpu_per_node']" disabled type="number" md-no-asterisk>
                         </md-input-container>
 
                     </div>
 
                     <md-input-container class="md-block" ng-if="current.jobtrainingtype=='RegularJob'">
-                        <label> Number of GPUs  Per Worker</label>
-                        <input ng-model="current.resourcegpu" required type="number" name="resourcegpu" step="1" min="0" max="{{gpumeta[extras.gpuType]['num_gpu_per_node']}}" md-no-asterisk>
+                        <label> Number of GPUs</label>
+                        <input ng-model="current.resourcegpu" required type="number" name="resourcegpu" step="1" min="0" max="{{gpus[extras.gpuType]['num_gpu_per_node']}}" md-no-asterisk>
                         <div ng-messages="jobApp.resourcegpu.$error" multiple>
                             <div ng-message="required">
                                 You have to let us know the number of gpus per worker.
@@ -677,7 +733,7 @@
                             </div>
 
                             <div ng-message="max">
-                                You can request at most {{gpumeta[extras.gpuType]['num_gpu_per_node']}} GPUs per worker.
+                                You can request at most {{gpus[extras.gpuType]['num_gpu_per_node']}} GPUs per worker.
                             </div>
                         </div>
                     </md-input-container>
@@ -694,46 +750,33 @@
                         <textarea ng-model="current.cmd" rows="10"></textarea>
                     </md-input-container>
 
-                    <div layout="row">
-                        <md-input-container class="md-block" flex="50">
-                            <md-switch ng-model="extras.ssh" md-no-asterisk>
-                                SSH
-                            </md-switch>
-                        </md-input-container>
-                        <md-input-container class="md-block" flex="50">
-                            <md-switch ng-model="extras.ipython" md-no-asterisk>
-                                iPython
-                            </md-switch>
-                        </md-input-container>
+                    <label>
+                        Interactive Ports (40000 - 49999)
+                    </label>
+                    <md-chips ng-model="current.interactivePorts" md-transform-chip="addInteractivePort($chip)" md-separator-keys="[13, 32, 186, 188]">
+                        <md-chip-template>
+                            <span class="md-body-1">{{$chip}}</span>
+                        </md-chip-template>
+                        <input type="number" min="40000" max="49999" class="md-body-1" ng-blur="portBlur($event)">
+                    </md-chips>
+
+                    <div layout="row" layout-align="space-between">
+                        <md-switch ng-model="current.ssh" md-no-asterisk flex="60">
+                            SSH
+                        </md-switch>
+                        <md-switch ng-model="current.ipython" md-no-asterisk flex="60">
+                            iPython
+                        </md-switch>
+                        <md-switch ng-model="current.tensorboard" md-no-asterisk flex="60">
+                            <span>Tensorboard</span>
+                            <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
+                        </md-switch>
                     </div>
-
-
-                    <div layout="row">
-                        <md-input-container class="md-block" flex="50">
-                            <md-switch name="is_interactive" ng-model="current.is_interactive" md-no-asterisk>
-                                Interactive Job
-                            </md-switch>
-                        </md-input-container>
-                        <md-input-container class="md-block" flex="50">
-                            <md-switch name="do_log" ng-model="current.do_log" md-no-asterisk>
-                                Enable Tensorboard
-                            </md-switch>
-                        </md-input-container>
-                    </div>
-                    <div ng-if="current.is_interactive" class="form-group">
-                        <md-input-container class="md-block">
-                            <label> Open ports for interactive job </label>
-                            <input ng-model="current.interactivePort" required md-no-asterisk>
-                        </md-input-container>
-                    </div>
-
-
-
-                    <div ng-if="current.do_log">
-                        <md-input-container class="md-block">
-                            <label> Tensorflow model path, used to enable tensorboard </label>
-                            <input ng-model="current.logDir" required md-no-asterisk>
-                        </md-input-container>
+                    <div layout="row" layout-align="space-between">
+                        <p style="font-size: small">
+                            <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
+                            Tensorboard will listen on directory <samp>~/tensorboard/${DLWS_JOB_ID}/logs</samp> inside docker container.
+                        </p>
                     </div>
 
                 </div>
@@ -915,7 +958,7 @@
                                     <div class="layui-colla-content">
                                         <md-input-container class="md-block" flex="50">
                                             <label> Use Host network in container? </label>
-                                            <md-switch class="md-primary" ng-model="current.hostNetwork" md-no-asterisk>
+                                            <md-switch class="md-primary" ng-model="current.hostNetwork" ng-disabled="current.jobtrainingtype.indexOf('Regular') !== -1 ? true : false" md-no-asterisk>
                                             </md-switch>
                                         </md-input-container>
                                     </div>
@@ -941,7 +984,7 @@
 
                                         <md-input-container class="md-block">
                                             <label> Launch privileged docker </label>
-                                            <md-switch class="md-primary" ng-model="current.isPrivileged" md-no-asterisk aria-label="isPrivileged">
+                                            <md-switch class="md-primary" ng-model="current.isPrivileged" ng-disabled="current.jobtrainingtype.indexOf('Regular') !== -1 ? true : false" md-no-asterisk aria-label="isPrivileged">
                                             </md-switch>
                                         </md-input-container>
 

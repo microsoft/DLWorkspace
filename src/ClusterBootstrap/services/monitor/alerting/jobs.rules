@@ -1,0 +1,8 @@
+groups:
+    - name: idle-job
+      rules:
+      - alert: zero-gpu-usage
+        expr: avg(task_gpu_percent) by (user_email, job_name, vc_name) == 0
+        for: 4h
+        labels:
+          type: user_alert

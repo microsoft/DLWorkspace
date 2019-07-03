@@ -57,7 +57,6 @@
                     }
                 }
             ).then(function (response) {
-                $scope.busy = false;
                 var data = response.data;
                 if (data.jobId) {
                     layer.alert("Job Submitted! <br> Job ID:" + data.jobId, {
@@ -76,9 +75,14 @@
                     layer.msg("Unexpected error: " + data);
                     $("#submit").attr("disabled", false);
                 }
-            }, function () {
+            }, function (response) {
+                var message = "RestfulAPI error!";
+                if (response.status === 400) {
+                    message = response.data;
+                }
+                layer.alert(message, { icon: 5, btn: 'Ok', title: 'alert' });
+            }).finally(function () {
                 $scope.busy = false;
-                layer.alert("RestfulAPI error!", { icon: 5, btn: 'Ok', title: 'alert' })
             });
         };
     });
@@ -158,11 +162,12 @@
                     </div>
 
                     <div>
-                        <p>Your Work Directory is: <a ng-href="{{workPath}}">{{workPath | pathify }}</a></p>
-                        <p>Your Data Directory is: <a ng-href="{{dataPath}}">{{dataPath | pathify }}</a></p>
+                        Your Work Directory is: <a ng-href="{{workPath}}">{{workPath | pathify }}</a>
+                        <br/><br/>
+                        Your Data Directory is: <a ng-href="{{dataPath}}">{{dataPath | pathify }}</a>
                     </div>
 
-                    <div layout="row">
+                    <div layout="row" style="margin-top:20px">
                         <md-input-container flex="100">
                             <label>From Folder of Azure Data Lake Storage</label>
                             <input ng-model="current.fromFolder" required>
@@ -178,7 +183,7 @@
                 </div>
 
                 <div class="modal-footer">
-                    <button type="submit" class="btn pull-right btn-primary">
+                    <button type="submit" class="btn pull-right btn-primary" ng-disabled="busy || !current.fromFolder || !current.toFolder">
                         Submit Job
                     </button>
                 </div>

@@ -447,7 +447,7 @@ namespace WindowsAuth.Controllers
             UserEntry ret = null;
             // Prior entry exists? 
             await priorEntrys.ForEachAsync(entry =>
-           {
+            {
                // We will not update existing entry in database. 
                // db.Entry(entry).CurrentValues.SetValues(userEntry);
                ret = entry;
@@ -460,8 +460,8 @@ namespace WindowsAuth.Controllers
                 {
                     string password = Guid.NewGuid().ToString().Substring(0, 8);
                     UserEntry userEntry = new UserEntry(userID, email, email, password);
-                    await db.User.AddAsync(userEntry);
-                    await db.SaveChangesAsync();
+                    db.User.Add(userEntry);
+                    db.SaveChanges();
                     return userEntry;
                 }
                 else
@@ -662,7 +662,7 @@ namespace WindowsAuth.Controllers
             return teams.ToArray();
         }
 
-        private async Task<string[]> GetTeamClusters(string team)
+        public static async Task<string[]> GetTeamClusters(HttpContext HttpContext, string team)
         {
             var clusters = new List<string>();
             var authorizedClusters = JsonConvert.DeserializeObject<List<string>>(HttpContext.Session.GetString("AuthorizedClusters"));
@@ -728,7 +728,7 @@ namespace WindowsAuth.Controllers
                         }
                     }
 
-                    if (!String.IsNullOrEmpty(useServer))
+                 if (!String.IsNullOrEmpty(useServer))
                     {
                         _logger.LogDebug($"Attempt to contact WinBind server {useServer} for membershhip");
                         var userID = await FindGroupMembershipByServer(useServer);
@@ -795,7 +795,7 @@ namespace WindowsAuth.Controllers
                         {
                             HttpContext.Session.SetString("Teams", JsonConvert.SerializeObject(teams));
                             HttpContext.Session.SetString("Team", teams[0]);
-                            var clusters = await GetTeamClusters(teams[0]);
+                            var clusters = await GetTeamClusters(HttpContext, teams[0]);
                             HttpContext.Session.SetString("TeamClusters", JsonConvert.SerializeObject(clusters));
                         }
                     }
@@ -830,19 +830,6 @@ namespace WindowsAuth.Controllers
                 var configArray = ASCIIEncoding.ASCII.GetBytes(configString);
                 ViewData["Dashboard"] = Convert.ToBase64String(configArray) ;
                 _logger.LogInformation("Dash board prepared ...");
-            }
-
-            if (HttpContext.Request.Query.ContainsKey("team"))
-            {
-                var team = HttpContext.Request.Query["Team"];
-                var teams = JsonConvert.DeserializeObject<string[]>(HttpContext.Session.GetString("Teams"));
-                if (Array.Exists(teams, t => t.Equals(team)))
-                {
-                    HttpContext.Session.SetString("Team", team);
-                    var clusters = await GetTeamClusters(team);
-                    HttpContext.Session.SetString("TeamClusters", JsonConvert.SerializeObject(clusters));
-                    _logger.LogInformation("{0} switch team to {1}", HttpContext.Session.GetString("Username"), team);
-                }
             }
             return View();
         }
@@ -939,15 +926,18 @@ namespace WindowsAuth.Controllers
                 return RedirectToAction("Index", "Home");
             }
             var cluster = HttpContext.Request.Query["cluster"];
+            if (!Startup.Clusters.ContainsKey(cluster))
+            {
+                return RedirectToAction("Index", "Home");
+            }
             ViewData["cluster"] = cluster;
             ViewData["jobid"] = HttpContext.Request.Query["jobId"];
-            ViewData["clusterEndpoint"] = new Uri(Startup.Clusters[cluster].Restapi).Host;
 
-            var workFolderAccessPoint = Startup.Clusters[HttpContext.Request.Query["cluster"]].WorkFolderAccessPoint;
+            var workFolderAccessPoint = Startup.Clusters[cluster].WorkFolderAccessPoint;
 
             ViewData["workPath"] = (workFolderAccessPoint + HttpContext.Session.GetString("Username") + "/").Replace("file:", "").Replace("\\", "/");
             ViewData["jobPath"] = workFolderAccessPoint.Replace("file:", "").Replace("\\", "/");
-            ViewData["clusterHostname"] = GetClusterHostname();
+            ViewData["grafana"] = Startup.Clusters[cluster].Grafana;
             AddViewData(message: "View and Manage Your Jobs.");
             return View();
         }

@@ -12,6 +12,7 @@ import copy
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
 
+from JobRestAPIUtils import GetJobTotalGpu
 from jobs_tensorboard import GenTensorboardMeta
 import k8sUtils
 import joblog_manager
@@ -149,7 +150,7 @@ def SubmitRegularJob(job):
         if "mountpoints" not in jobParams:
             jobParams["mountpoints"] = []
         for onemount in jobParams["mountpoints"]:
-            onemount["name"] = onemount["containerPath"].replace("/","")
+            onemount["name"] = onemount["containerPath"].replace("/","").lower()
 
         # mp = {"name":"nvidia-driver","containerPath":"/usr/local/nvidia","hostPath":nvidiaDriverPath, "enabled":True}
         # if CheckMountPoints(jobParams["mountpoints"],mp):
@@ -168,6 +169,7 @@ def SubmitRegularJob(job):
             jobParams["mountpoints"].append(mp)
 
         userAlias = getAlias(jobParams["userName"])
+        jobParams["user_email"] = jobParams["userName"]
         jobParams["homeFolderHostpath"] = os.path.join(config["storage-mount-path"], GetWorkPath(userAlias))
 
         if CheckMountPoints(jobParams["mountpoints"],mp):
@@ -308,7 +310,7 @@ def SubmitRegularJob(job):
         if retries >= 5:
             dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","error")
             dataHandler.UpdateJobTextField(jobParams["jobId"],"errorMsg","Cannot submit job!" + str(e))
-
+    dataHandler.Close()
     return ret
 
 
@@ -328,6 +330,8 @@ def SubmitPSDistJob(job):
             assignedRack = random.choice(config["racks"])
 
         userAlias = getAlias(jobParams["userName"])
+        jobParams["user_email"] = jobParams["userName"]
+
         jobParams["homeFolderHostpath"] = os.path.join(config["storage-mount-path"], GetWorkPath(userAlias))
 
         if jobParams["jobtrainingtype"] == "PSDistJob":
@@ -372,8 +376,8 @@ while [ ! -f /opt/run_dist_job ]; do
     sleep 3
 done
 
-sudo chmod 600 -R /home/%s/.ssh &>/dev/null; 
-sudo chmod 700 /home/%s/.ssh &>/dev/null; 
+sudo chmod 600 -R /home/%s/.ssh &>/dev/null;
+sudo chmod 700 /home/%s/.ssh &>/dev/null;
 sudo chown -R %s /home/%s/.ssh &>/dev/null;
 
 sudo mkdir -p /root/.ssh  &>/dev/null ;
@@ -381,21 +385,48 @@ sudo ln -s /home/%s/.ssh/config /root/.ssh/config  &>/dev/null;
 sudo mkdir -p /opt  &>/dev/null;
 sudo ln -s /job/hostfile /opt/hostfile &>/dev/null;
 
-sleep 10; 
+JOB_DIR='/home/%s'
+WORKER_NUM=%s
+echo $JOB_DIR $WORKER_NUM
+
+all_workers_ready=false
+while [ "$all_workers_ready" != true ]
+do
+  # update it to false if any woker is not ready
+  all_workers_ready=true
+
+  for i in $(seq 0 $(( ${WORKER_NUM} - 1)) )
+  do
+    worker="worker${i}"
+    file="$JOB_DIR/${worker}/WORKER_READY"
+    #echo $file
+
+    if [ ! -f $file ]; then
+      echo "${worker} not ready!"
+      all_workers_ready=false
+      sleep 10
+    fi
+  done
+done
+
 echo "[DLWorkspace System]: All containers are ready, launching training job..."
 %s
-""" % (userAlias,userAlias,userAlias,userAlias,userAlias, distJobParam["cmd"])
+""" % (userAlias,userAlias,userAlias,userAlias,userAlias,distJobParam["jobPath"],jobParams["numpsworker"],distJobParam["cmd"])
                     else:
                         launchCMD = """
 while [ ! -f /opt/run_dist_job ]; do
     sleep 3
 done
-sudo chmod 600 -R /home/%s/.ssh &>/dev/null; 
-sudo chmod 700 /home/%s/.ssh &>/dev/null; 
-sudo chown -R %s /home/%s/.ssh  &>/dev/null;     
+sudo chmod 600 -R /home/%s/.ssh &>/dev/null;
+sudo chmod 700 /home/%s/.ssh &>/dev/null;
+sudo chown -R %s /home/%s/.ssh  &>/dev/null;
 sudo mkdir -p /root/.ssh  &>/dev/null;
 sudo ln -s /home/%s/.ssh/config /root/.ssh/config &>/dev/null;
 sudo mkdir -p /opt && sudo ln -s /job/hostfile /opt/hostfile  &>/dev/null;
+
+# TODO mark the worker as 'READY', better to change to '/pod/READY' later
+sudo touch /job/WORKER_READY
+
 sleep infinity
 """ % (userAlias,userAlias,userAlias,userAlias,userAlias)
 
@@ -406,7 +437,7 @@ sleep infinity
                         f.write(launchCMD)
                     f.close()
 
-                    
+
                     launchScriptInContainer = "bash /job/launch-%s-%s%d.sh" % (distJobParam["jobId"],role,i)
 
                     distJobParam["LaunchCMD"] = '["bash", "-c", "bash /dlws/init_user.sh &> /job/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c \'%s\'"]' % launchScriptInContainer
@@ -524,7 +555,7 @@ sleep infinity
         if retries >= 5:
             dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","error")
             dataHandler.UpdateJobTextField(jobParams["jobId"],"errorMsg","Cannot submit job!" + str(e))
-
+    dataHandler.Close()
     return ret
 
 def KillJob(job, desiredState="killed"):
@@ -544,6 +575,7 @@ def KillJob(job, desiredState="killed"):
         dataHandler.UpdateJobTextField(job["jobId"],"errorMsg","Cannot find job description file!")
 
     dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","error")
+    dataHandler.Close()
     return False
 
 
@@ -564,20 +596,24 @@ def ApproveJob(job):
     return True
 
 
-
 def AutoApproveJob(job):
-    cluster_status = get_cluster_status()
-    jobUser = getAlias(job["userName"])
-    jobParams = json.loads(base64.b64decode(job["jobParams"]))
-    jobGPU = int(jobParams["resourcegpu"])
+    # TODO: All jobs are currently auto-approved. We need to allow
+    # configuring different policies for different VC.
+    ApproveJob(job)
 
-    currentGPU = 0
-    for user in cluster_status["user_status"]:
-        if user["userName"] == jobUser:
-            currentGPU = int(user["userGPU"])
-
-    if True or currentGPU == 0 or currentGPU + jobGPU <= 4:
-        ApproveJob(job)
+    # This block is kept here for reference of the original code.
+    # cluster_status = get_cluster_status()
+    # jobUser = getAlias(job["userName"])
+    # jobParams = json.loads(base64.b64decode(job["jobParams"]))
+    # jobGPU = GetJobTotalGpu(jobParams)
+    #
+    # currentGPU = 0
+    # for user in cluster_status["user_status"]:
+    #     if user["userName"] == jobUser:
+    #         currentGPU = int(user["userGPU"])
+    #
+    # if True or currentGPU == 0 or currentGPU + jobGPU <= 4:
+    #     ApproveJob(job)
 
 
 UnusualJobs = {}
@@ -657,7 +693,7 @@ def UpdateJobStatus(job):
     if result.strip() != "Unknown" and job["jobId"] in UnusualJobs:
         del UnusualJobs[job["jobId"]]
 
-
+    dataHandler.Close()
 
 def run_dist_cmd_on_pod(podId, cmd, outputfile):
     remotecmd = "exec %s -- %s" % (podId,cmd)
@@ -802,7 +838,7 @@ Host %s
     # update job status
     dataHandler = DataHandler()
     dataHandler.UpdateJobTextField(job_id, "jobStatus", "running")
-
+    dataHandler.Close()
 
 def create_log( logdir = '/var/log/dlworkspace' ):
     if not os.path.exists( logdir ):
@@ -821,14 +857,21 @@ def JobInfoSorter(elem):
 def TakeJobActions(jobs):
     dataHandler = DataHandler()
     vcList = dataHandler.ListVCs()
+    clusterStatus, dummy = dataHandler.GetClusterStatus()
     dataHandler.Close()
 
+    globalTotalRes = ResourceInfo(clusterStatus["gpu_capacity"])
+    globalReservedRes = ResourceInfo(clusterStatus["gpu_unschedulable"])
+
     localResInfo = ResourceInfo()
-    globalResInfo = ResourceInfo()
+    globalResInfo = ResourceInfo.Difference(globalTotalRes, globalReservedRes)
 
     for vc in vcList:
-        localResInfo.Add(ResourceInfo(vc["vcName"], json.loads(vc["quota"])))
-        globalResInfo.Add(ResourceInfo("", json.loads(vc["quota"])))
+        vcTotalRes = ResourceInfo(json.loads(vc["quota"]), vc["vcName"])
+        clusterTotalRes = ResourceInfo(clusterStatus["gpu_capacity"], vc["vcName"])
+        clusterReservedRes = ResourceInfo(clusterStatus["gpu_unschedulable"], vc["vcName"])
+        vcReservedRes = clusterReservedRes.GetFraction(vcTotalRes, clusterTotalRes)
+        localResInfo.Add(ResourceInfo.Difference(vcTotalRes, vcReservedRes))
 
     jobsInfo = []
     for job in jobs:
@@ -839,8 +882,8 @@ def TakeJobActions(jobs):
             jobGpuType = "any"
             if "gpuType" in singleJobInfo["jobParams"]:
                 jobGpuType = singleJobInfo["jobParams"]["gpuType"]
-            singleJobInfo["localResInfo"] = ResourceInfo.FromTypeAndCount(job["vcName"], jobGpuType, singleJobInfo["jobParams"]["resourcegpu"])
-            singleJobInfo["globalResInfo"] = ResourceInfo.FromTypeAndCount("", jobGpuType, singleJobInfo["jobParams"]["resourcegpu"])
+            singleJobInfo["localResInfo"] = ResourceInfo({jobGpuType : GetJobTotalGpu(singleJobInfo["jobParams"])}, job["vcName"])
+            singleJobInfo["globalResInfo"] = ResourceInfo({jobGpuType : GetJobTotalGpu(singleJobInfo["jobParams"])})
             singleJobInfo["sortKey"] = str(job["jobTime"])
             if singleJobInfo["jobParams"]["preemptionAllowed"]:
                 singleJobInfo["sortKey"] = "1_" + singleJobInfo["sortKey"]
@@ -885,7 +928,7 @@ def TakeJobActions(jobs):
         if sji["job"]["jobStatus"] == "queued" and sji["allowed"] == True:
             SubmitJob(sji["job"])
             logging.info("TakeJobActions : submitting job : %s : %s : %s" % (sji["jobParams"]["jobName"], sji["jobParams"]["jobId"], sji["sortKey"]))
-        elif (sji["job"]["jobStatus"] == "scheduling" or sji["job"]["jobStatus"] == "running") and sji["allowed"] == False:
+        elif sji["jobParams"]["preemptionAllowed"] and (sji["job"]["jobStatus"] == "scheduling" or sji["job"]["jobStatus"] == "running") and sji["allowed"] == False:
             KillJob(sji["job"], "queued")
             logging.info("TakeJobActions : pre-empting job : %s : %s : %s" % (sji["jobParams"]["jobName"], sji["jobParams"]["jobId"], sji["sortKey"]))
 
@@ -904,24 +947,29 @@ def Run():
 
         try:
             dataHandler = DataHandler()
-            pendingJobs = dataHandler.GetPendingJobs()
-            TakeJobActions(pendingJobs)
+            try:
+                pendingJobs = dataHandler.GetPendingJobs()
+                TakeJobActions(pendingJobs)
 
-            pendingJobs = dataHandler.GetPendingJobs()
-            logging.info("Updating status for %d jobs" % len(pendingJobs))
-            for job in pendingJobs:
-                try:
-                    logging.info("Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"]))
-                    if job["jobStatus"] == "killing":
-                        KillJob(job, "killed")
-                    elif job["jobStatus"] == "pausing":
-                        KillJob(job, "paused")
-                    elif job["jobStatus"] == "scheduling" or job["jobStatus"] == "running" :
-                        UpdateJobStatus(job)
-                    elif job["jobStatus"] == "unapproved" :
-                        AutoApproveJob(job)
-                except Exception as e:
-                    logging.info(e)
+                pendingJobs = dataHandler.GetPendingJobs()
+                logging.info("Updating status for %d jobs" % len(pendingJobs))
+                for job in pendingJobs:
+                    try:
+                        logging.info("Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"]))
+                        if job["jobStatus"] == "killing":
+                            KillJob(job, "killed")
+                        elif job["jobStatus"] == "pausing":
+                            KillJob(job, "paused")
+                        elif job["jobStatus"] == "scheduling" or job["jobStatus"] == "running":
+                            UpdateJobStatus(job)
+                        elif job["jobStatus"] == "unapproved":
+                            AutoApproveJob(job)
+                    except Exception as e:
+                        logging.info(e)
+            except Exception as e:
+                print(str(e))
+            finally:
+                dataHandler.Close()
         except Exception as e:
             print(str(e))
 

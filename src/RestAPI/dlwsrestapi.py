@@ -10,7 +10,9 @@ import yaml
 import uuid
 
 import logging
+import timeit
 from logging.config import dictConfig
+import thread
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
 #from JobRestAPIUtils import SubmitDistJob, GetJobList, GetJobStatus, DeleteJob, GetTensorboard, GetServiceAddress, GetLog, GetJob
@@ -20,6 +22,11 @@ from config import config
 from config import global_vars
 import authorization
 from DataHandler import DataHandler
+
+import time
+import sys
+import traceback
+import threading
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 with open(os.path.join(dir_path, 'logging.yaml'), 'r') as f:
@@ -42,7 +49,28 @@ if "initAdminAccess" not in global_vars or not global_vars["initAdminAccess"]:
     logger.info('admin access given!')
 
 
-parser = reqparse.RequestParser()
+def _stacktraces():
+   code = []
+   for threadId, stack in sys._current_frames().items():
+       code.append("\n# ThreadID: %s" % threadId)
+       for filename, lineno, name, line in traceback.extract_stack(stack):
+           code.append('File: "%s", line %d, in %s' % (filename, lineno, name))
+           if line:
+               code.append("  %s" % (line.strip()))
+
+   for line in code:
+       print("_stacktrace: " + line)
+
+
+def _WorkerThreadFunc():
+   while True:
+       _stacktraces()
+       time.sleep(60)
+
+#workerThread = threading.Thread(target=_WorkerThreadFunc, args=())
+#workerThread.daemon = True
+#workerThread.start()
+
 
 def istrue(value):
     if isinstance(value, bool):
@@ -70,6 +98,7 @@ def getAlias(username):
 
 class SubmitJob(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('jobName')
         parser.add_argument('resourcegpu')
         parser.add_argument('gpuType')
@@ -284,6 +313,7 @@ api.add_resource(PostJob, '/PostJob')
 # shows a list of all todos, and lets you POST to add new tasks
 class ListJobs(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('userName')
         parser.add_argument('num')
         parser.add_argument('vcName')
@@ -351,6 +381,7 @@ api.add_resource(ListJobs, '/ListJobs')
 
 class KillJob(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('jobId')
         parser.add_argument('userName')
         args = parser.parse_args()
@@ -377,6 +408,7 @@ api.add_resource(KillJob, '/KillJob')
 
 class PauseJob(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('jobId')
         parser.add_argument('userName')
         args = parser.parse_args()
@@ -403,6 +435,7 @@ api.add_resource(PauseJob, '/PauseJob')
 
 class ResumeJob(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('jobId')
         parser.add_argument('userName')
         args = parser.parse_args()
@@ -429,6 +462,7 @@ api.add_resource(ResumeJob, '/ResumeJob')
 
 class CloneJob(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('jobId')
         parser.add_argument('userName')
         args = parser.parse_args()
@@ -455,6 +489,7 @@ api.add_resource(CloneJob, '/CloneJob')
 
 class ApproveJob(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('jobId')
         parser.add_argument('userName')
         args = parser.parse_args()
@@ -481,6 +516,7 @@ api.add_resource(ApproveJob, '/ApproveJob')
 
 class GetCommands(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('jobId')
         parser.add_argument('userName')
         args = parser.parse_args()
@@ -501,6 +537,7 @@ api.add_resource(GetCommands, '/GetCommands')
 
 class GetJobDetail(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('jobId')
         parser.add_argument('userName')
         args = parser.parse_args()
@@ -530,6 +567,7 @@ api.add_resource(GetJobDetail, '/GetJobDetail')
 
 class GetJobStatus(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('jobId')
         args = parser.parse_args()
         jobId = args["jobId"]
@@ -547,6 +585,7 @@ api.add_resource(GetJobStatus, '/GetJobStatus')
 
 class GetClusterStatus(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('userName')
         args = parser.parse_args()
         userName = args["userName"]
@@ -563,28 +602,9 @@ class GetClusterStatus(Resource):
 api.add_resource(GetClusterStatus, '/GetClusterStatus')
 
 
-class GetVCStatus(Resource): # Todo
-    def get(self):
-        parser.add_argument('vcName')
-        parser.add_argument('userName')
-        args = parser.parse_args()
-        vcName = args["vcName"]
-        userName = args["userName"]
-        vc_status, last_updated_time = JobRestAPIUtils.GetVCStatus(userName, vcName)
-        vc_status["last_updated_time"] = last_updated_time
-        resp = jsonify(vc_status)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
-##
-## Actually setup the Api resource routing here
-##
-api.add_resource(GetVCStatus, '/GetVCStatus')
-
-
 class AddCommand(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('jobId')
         parser.add_argument('command')
         parser.add_argument('userName')
@@ -613,6 +633,7 @@ api.add_resource(AddCommand, '/AddCommand')
 
 class AddUser(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('userName')
         parser.add_argument('uid')
         parser.add_argument('gid')
@@ -650,6 +671,7 @@ api.add_resource(AddUser, '/AddUser')
 
 class UpdateAce(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('userName')
         parser.add_argument('identityName')
         parser.add_argument('resourceType')
@@ -676,6 +698,7 @@ api.add_resource(UpdateAce, '/UpdateAce')
 
 class DeleteAce(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('userName')
         parser.add_argument('identityName')
         parser.add_argument('resourceType')
@@ -700,6 +723,7 @@ api.add_resource(DeleteAce, '/DeleteAce')
 
 class IsClusterAdmin(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('userName')
         args = parser.parse_args()
         username = args["userName"]
@@ -718,6 +742,7 @@ api.add_resource(IsClusterAdmin, '/IsClusterAdmin')
 
 class GetACL(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('userName')
         args = parser.parse_args()
         username = args["userName"]
@@ -736,6 +761,7 @@ api.add_resource(GetACL, '/GetACL')
 
 class ListVCs(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('userName')
         args = parser.parse_args()
         userName = args["userName"]
@@ -754,8 +780,31 @@ class ListVCs(Resource):
 api.add_resource(ListVCs, '/ListVCs')
 
 
+class GetVC(Resource):
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('userName')
+        parser.add_argument('vcName')
+        args = parser.parse_args()
+        userName = args["userName"]
+        vcName = args["vcName"]
+        ret = JobRestAPIUtils.GetVC(userName, vcName)
+
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(GetVC, '/GetVC')
+
+
 class AddVC(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('vcName')
         parser.add_argument('quota')
         parser.add_argument('metadata')
@@ -781,6 +830,7 @@ api.add_resource(AddVC, '/AddVC')
 
 class DeleteVC(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('vcName')
         parser.add_argument('userName')
         args = parser.parse_args()
@@ -801,6 +851,7 @@ api.add_resource(DeleteVC, '/DeleteVC')
 
 class UpdateVC(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('vcName')
         parser.add_argument('quota')
         parser.add_argument('metadata')
@@ -826,6 +877,7 @@ api.add_resource(UpdateVC, '/UpdateVC')
 
 class ListStorages(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('vcName')
         parser.add_argument('userName')
         args = parser.parse_args()
@@ -846,6 +898,7 @@ api.add_resource(ListStorages, '/ListStorages')
 
 class AddStorage(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('vcName')
         parser.add_argument('storageType')
         parser.add_argument('url')
@@ -876,6 +929,7 @@ api.add_resource(AddStorage, '/AddStorage')
 
 class DeleteStorage(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('vcName')
         parser.add_argument('userName')
         parser.add_argument('url')
@@ -898,6 +952,7 @@ api.add_resource(DeleteStorage, '/DeleteStorage')
 
 class UpdateStorage(Resource):
     def get(self):
+        parser = reqparse.RequestParser()
         parser.add_argument('vcName')
         parser.add_argument('storageType')
         parser.add_argument('url')
@@ -936,6 +991,7 @@ def getAlias(username):
 class Endpoint(Resource):
     def get(self):
         '''return job["endpoints"]: curl -X GET /endpoints?jobId=...&userName=...'''
+        parser = reqparse.RequestParser()
         parser.add_argument('jobId')
         parser.add_argument('userName')
         args = parser.parse_args()
@@ -951,6 +1007,7 @@ class Endpoint(Resource):
 
         for [_, endpoint] in endpoints.items():
             ret = {
+                "id": endpoint["id"],
                 "name": endpoint["name"],
                 "username": endpoint["username"],
                 "status": endpoint["status"],
@@ -958,9 +1015,11 @@ class Endpoint(Resource):
                 "podName": endpoint["podName"],
                 "domain": config["domain"],
             }
+            if "podPort" in endpoint:
+                ret["podPort"] = endpoint["podPort"]
             if endpoint["status"] == "running":
                 if endpoint["hostNetwork"]:
-                    port = int(endpoint["port"])
+                    port = int(endpoint["endpointDescription"]["spec"]["ports"][0]["port"])
                 else:
                     port = int(endpoint["endpointDescription"]["spec"]["ports"][0]["nodePort"])
                 ret["port"] = port
@@ -982,10 +1041,11 @@ class Endpoint(Resource):
         # get the job
         job = JobRestAPIUtils.get_job(job_id)
         job_params = json.loads(base64.b64decode(job["jobParams"]))
+        job_type = job_params["jobtrainingtype"]
 
         # get pods
         pod_names = []
-        if(job_params["jobtrainingtype"] == "RegularJob"):
+        if job_type == "RegularJob":
             pod_names.append(job_id)
         else:
             nums = {"ps": int(job_params["numps"]), "worker": int(job_params["numpsworker"])}
@@ -993,12 +1053,19 @@ class Endpoint(Resource):
                 for i in range(nums[role]):
                     pod_names.append(job_id + "-" + role + str(i))
 
-        # endpoints should be in ["ssh", "ipython"]
-        if any(elem not in ["ssh", "ipython"] for elem in requested_endpoints):
-            return ("Bad request, endpoints only allowed in [\"ssh\", \"ipython\"]: %s" % requested_endpoints), 400
+        interactive_ports = []
+        # endpoints should be ["ssh", "ipython", "tensorboard", {"name": "port name", "podPort": "port on pod in 40000-49999"}]
+        for interactive_port in [ elem for elem in requested_endpoints if elem not in ["ssh", "ipython", "tensorboard"] ]:
+            if any(required_field not in interactive_port for required_field in ["name", "podPort"]):
+                # if ["name", "port"] not in interactive_port:
+                return ("Bad request, interactive port should have \"name\" and \"podPort\"]: %s" % requested_endpoints), 400
+            if int(interactive_port["podPort"]) < 40000 or int(interactive_port["podPort"]) > 49999:
+                return ("Bad request, interactive podPort should in range 40000-49999: %s" % requested_endpoints), 400
+            if len(interactive_port["name"]) > 16:
+                return ("Bad request, interactive port name length shoule be less than 16: %s" % requested_endpoints), 400
+            interactive_ports.append(interactive_port)
 
         # HostNetwork
-        job_params = json.loads(base64.b64decode(job["jobParams"]))
         if "hostNetwork" in job_params and job_params["hostNetwork"] == True:
             host_network = True
         else:
@@ -1009,10 +1076,26 @@ class Endpoint(Resource):
 
         endpoints = {}
 
+        def endpoint_exist(endpoint_id):
+            try:
+                curr_endpoints = json.loads(job["endpoints"])
+            except:
+                curr_endpoints = {}
+
+            if endpoint_id in curr_endpoints:
+                return True
+            return False
+
         if "ssh" in requested_endpoints:
             # setup ssh for each pod
             for pod_name in pod_names:
-                endpoint_id = "endpoint-" + pod_name + "-ssh"
+                endpoint_id = "e-" + pod_name + "-ssh"
+
+                if endpoint_exist(endpoint_id=endpoint_id):
+                    print("Endpoint {} exists. Skip.".format(endpoint_id))
+                    continue
+                print("Endpoint {} does not exist. Add.".format(endpoint_id))
+
                 endpoint = {
                     "id": endpoint_id,
                     "jobId": job_id,
@@ -1024,20 +1107,86 @@ class Endpoint(Resource):
                 }
                 endpoints[endpoint_id] = endpoint
 
-       # only open Jupyter on the master
+        # Only open Jupyter on the master
         if 'ipython' in requested_endpoints:
-            pod_name = pod_names[0]
-            endpoint_id = "endpoint-" + pod_name + "-ipython"
-            endpoint = {
-                "id": endpoint_id,
-                "jobId": job_id,
-                "podName": pod_name,
-                "username": username,
-                "name": "ipython",
-                "status": "pending",
-                "hostNetwork": host_network
-            }
-            endpoints[endpoint_id] = endpoint
+            if job_type == "RegularJob":
+                pod_name = pod_names[0]
+            else:
+                # For a distributed job, we set up jupyter on first worker node.
+                # PS node does not have GPU access.
+                # TODO: Simplify code logic after removing PS
+                pod_name = pod_names[1]
+
+            endpoint_id = "e-" + job_id + "-ipython"
+
+            if not endpoint_exist(endpoint_id=endpoint_id):
+                print("Endpoint {} does not exist. Add.".format(endpoint_id))
+                endpoint = {
+                    "id": endpoint_id,
+                    "jobId": job_id,
+                    "podName": pod_name,
+                    "username": username,
+                    "name": "ipython",
+                    "status": "pending",
+                    "hostNetwork": host_network
+                }
+                endpoints[endpoint_id] = endpoint
+            else:
+                print("Endpoint {} exists. Skip.".format(endpoint_id))
+
+        # Only open tensorboard on the master
+        if 'tensorboard' in requested_endpoints:
+            if job_type == "RegularJob":
+                pod_name = pod_names[0]
+            else:
+                # For a distributed job, we set up jupyter on first worker node.
+                # PS node does not have GPU access.
+                # TODO: Simplify code logic after removing PS
+                pod_name = pod_names[1]
+
+            endpoint_id = "e-" + job_id + "-tensorboard"
+
+            if not endpoint_exist(endpoint_id=endpoint_id):
+                print("Endpoint {} does not exist. Add.".format(endpoint_id))
+                endpoint = {
+                    "id": endpoint_id,
+                    "jobId": job_id,
+                    "podName": pod_name,
+                    "username": username,
+                    "name": "tensorboard",
+                    "status": "pending",
+                    "hostNetwork": host_network
+                }
+                endpoints[endpoint_id] = endpoint
+            else:
+                print("Endpoint {} exists. Skip.".format(endpoint_id))
+
+        # interactive port
+        for interactive_port in interactive_ports:
+            if job_type == "RegularJob":
+                pod_name = pod_names[0]
+            else:
+                # For a distributed job, we set up jupyter on first worker node.
+                # PS node does not have GPU access.
+                # TODO: Simplify code logic after removing PS
+                pod_name = pod_names[1]
+
+            endpoint_id = "e-" + job_id + "-" + interactive_port["name"]
+            if not endpoint_exist(endpoint_id=endpoint_id):
+                print("Endpoint {} does not exist. Add.".format(endpoint_id))
+                endpoint = {
+                    "id": endpoint_id,
+                    "jobId": job_id,
+                    "podName": pod_name,
+                    "username": username,
+                    "name": interactive_port["name"],
+                    "podPort": interactive_port["podPort"],
+                    "status": "pending",
+                    "hostNetwork": host_network
+                }
+                endpoints[endpoint_id] = endpoint
+            else:
+                print("Endpoint {} exists. Skip.".format(endpoint_id))
 
         data_handler = DataHandler()
         for [_, endpoint] in endpoints.items():
