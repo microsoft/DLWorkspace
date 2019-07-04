@@ -38,6 +38,7 @@ import logging
 import logging.config
 from job import Job, JobSchema
 from pod_template import PodTemplate
+from dist_pod_template import DistPodTemplate
 from job_deployer import JobDeployer
 
 
@@ -156,30 +157,12 @@ def SubmitPSDistJob(job):
 
         job_object.params = json.loads(base64.b64decode(job["jobParams"]))
 
-        # TODO
-        jobParams["rest-api"] = config["rest-api"]
-
-        distJobParams = {}
-        distJobParams["ps"] = []
-        distJobParams["worker"] = []
-
-        # TODO
-        assignedRack = None
-        if len(config["racks"]) > 0:
-            assignedRack = random.choice(config["racks"])
-
         # inject gid, uid and user
         # TODO it should return only one entry
         user_info = dataHandler.GetIdentityInfo(job_object.params["userName"])[0]
         jobParams["gid"] = user_info["gid"]
         jobParams["uid"] = user_info["uid"]
         jobParams["user"] = job_object.get_alias()
-
-        userAlias = job_object.get_alias()
-        jobParams["user_email"] = jobParams["userName"]
-
-        job_object.job_path = jobParams["jobPath"]
-        jobParams["homeFolderHostpath"] = job_object.get_homefolder_hostpath()
 
         if any(required_field not in jobParams for required_field in
                [
@@ -194,158 +177,113 @@ def SubmitPSDistJob(job):
                    "userName",
                ]):
             return None, "Missing required parameters!"
+        assert(jobParams["jobtrainingtype"] == "PSDistJob")
 
-        if jobParams["jobtrainingtype"] == "PSDistJob":
-            jobDescriptionList = []
-            nums = {"ps": int(jobParams["numps"]), "worker": int(jobParams["numpsworker"])}
-            for role in ["ps", "worker"]:
-                for i in range(nums[role]):
-                    distJobParam = copy.deepcopy(jobParams)
-                    distJobParam["distId"] = "%s%d" % (role, i)
-                    distJobParam["distRole"] = role
-                    distJobParam["distRoleIdx"] = i
+        jobParams["rest-api"] = job_object.get_rest_api_url()
+        assignedRack = job_object.get_rack()
 
-                    # TODO
-                    distJobParam["distJobPath"] = os.path.join(job_object.job_path, distJobParam["distId"])
-                    jobPath = "work/" + distJobParam["distJobPath"]
-                    workPath = "work/" + distJobParam["workPath"]
-                    dataPath = "storage/" + distJobParam["dataPath"]
+        distJobParams = {}
+        distJobParams["ps"] = []
+        distJobParams["worker"] = []
 
-                    localJobPath = os.path.join(config["storage-mount-path"], jobPath)
-                    if not os.path.exists(localJobPath):
-                        if "userId" in distJobParam:
-                            mkdirsAsUser(localJobPath, distJobParam["userId"])
-                        else:
-                            mkdirsAsUser(localJobPath, 0)
+        userAlias = job_object.get_alias()
+        jobParams["user_email"] = jobParams["userName"]
 
-#change ssh folder permission here because the setup permission script in launch_ps_job function may have race condition with init_user.sh script. results in no such user error
-                    if role == "ps":
-                        launchCMD = """
-#!/bin/bash
-echo "[DLWorkspace System]: Waiting for all containers are ready..."
-while [ ! -f /opt/run_dist_job ]; do
-    sleep 3
-done
+        job_object.job_path = jobParams["jobPath"]
+        jobParams["homeFolderHostpath"] = job_object.get_homefolder_hostpath()
 
-sudo chmod 600 -R /home/%s/.ssh &>/dev/null;
-sudo chmod 700 /home/%s/.ssh &>/dev/null;
-sudo chown -R %s /home/%s/.ssh &>/dev/null;
+        jobDescriptionList = []
+        nums = {"ps": int(jobParams["numps"]), "worker": int(jobParams["numpsworker"])}
+        for role in ["ps", "worker"]:
+            for i in range(nums[role]):
+                distJobParam = copy.deepcopy(jobParams)
+                distJobParam["distId"] = "%s%d" % (role, i)
+                distJobParam["distRole"] = role
+                distJobParam["distRoleIdx"] = i
 
-sudo mkdir -p /root/.ssh  &>/dev/null ;
-sudo ln -s /home/%s/.ssh/config /root/.ssh/config  &>/dev/null;
-sudo mkdir -p /opt  &>/dev/null;
-sudo ln -s /job/hostfile /opt/hostfile &>/dev/null;
+                # TODO
+                distJobParam["distJobPath"] = os.path.join(job_object.job_path, distJobParam["distId"])
+                jobPath = "work/" + distJobParam["distJobPath"]
+                workPath = "work/" + distJobParam["workPath"]
+                dataPath = "storage/" + distJobParam["dataPath"]
 
-JOB_DIR='/home/%s'
-WORKER_NUM=%s
-echo $JOB_DIR $WORKER_NUM
-
-all_workers_ready=false
-while [ "$all_workers_ready" != true ]
-do
-  # update it to false if any woker is not ready
-  all_workers_ready=true
-
-  for i in $(seq 0 $(( ${WORKER_NUM} - 1)) )
-  do
-    worker="worker${i}"
-    file="$JOB_DIR/${worker}/WORKER_READY"
-    #echo $file
-
-    if [ ! -f $file ]; then
-      echo "${worker} not ready!"
-      all_workers_ready=false
-      sleep 10
-    fi
-  done
-done
-
-echo "[DLWorkspace System]: All containers are ready, launching training job..."
-%s
-""" % (userAlias, userAlias, userAlias, userAlias, userAlias, distJobParam["jobPath"], jobParams["numpsworker"], distJobParam["cmd"])
+                localJobPath = os.path.join(config["storage-mount-path"], jobPath)
+                if not os.path.exists(localJobPath):
+                    if "userId" in distJobParam:
+                        mkdirsAsUser(localJobPath, distJobParam["userId"])
                     else:
-                        launchCMD = """
-while [ ! -f /opt/run_dist_job ]; do
-    sleep 3
-done
-sudo chmod 600 -R /home/%s/.ssh &>/dev/null;
-sudo chmod 700 /home/%s/.ssh &>/dev/null;
-sudo chown -R %s /home/%s/.ssh  &>/dev/null;
-sudo mkdir -p /root/.ssh  &>/dev/null;
-sudo ln -s /home/%s/.ssh/config /root/.ssh/config &>/dev/null;
-sudo mkdir -p /opt && sudo ln -s /job/hostfile /opt/hostfile  &>/dev/null;
+                        mkdirsAsUser(localJobPath, 0)
 
-# TODO mark the worker as 'READY', better to change to '/pod/READY' later
-sudo touch /job/WORKER_READY
+                job_path = distJobParam["jobPath"]
+                worker_num = distJobParam["numpsworker"]
+                cmd = distJobParam["cmd"]
+                launchCMD = DistPodTemplate.generate_launch_cmd(role, userAlias, job_path, worker_num, cmd)
 
-sleep infinity
-""" % (userAlias, userAlias, userAlias, userAlias, userAlias)
+                launchScriptPath = os.path.join(localJobPath, "launch-%s-%s%d.sh" % (distJobParam["jobId"], role, i))
+                # TODO need to set up user for distribute jobs
+                with open(launchScriptPath, 'w') as f:
+                    f.write(launchCMD)
+                f.close()
 
-                    launchScriptPath = os.path.join(localJobPath, "launch-%s-%s%d.sh" % (distJobParam["jobId"], role, i))
-                    # TODO need to set up user for distribute jobs
-                    with open(launchScriptPath, 'w') as f:
-                        f.write(launchCMD)
-                    f.close()
+                launchScriptInContainer = "bash /job/launch-%s-%s%d.sh" % (distJobParam["jobId"], role, i)
 
-                    launchScriptInContainer = "bash /job/launch-%s-%s%d.sh" % (distJobParam["jobId"], role, i)
+                distJobParam["LaunchCMD"] = '["bash", "-c", "bash /dlws/init_user.sh &> /job/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c \'%s\'"]' % launchScriptInContainer
 
-                    distJobParam["LaunchCMD"] = '["bash", "-c", "bash /dlws/init_user.sh &> /job/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c \'%s\'"]' % launchScriptInContainer
+                distJobParam["jobNameLabel"] = ''.join(e for e in distJobParam["jobName"] if e.isalnum())
+                ENV = Environment(loader=FileSystemLoader("/"))
 
-                    distJobParam["jobNameLabel"] = ''.join(e for e in distJobParam["jobName"] if e.isalnum())
-                    ENV = Environment(loader=FileSystemLoader("/"))
+                jobTempDir = os.path.join(config["root-path"], "Jobs_Templete")
+                jobTemp = os.path.join(jobTempDir, "DistJob.yaml.template")
 
-                    jobTempDir = os.path.join(config["root-path"], "Jobs_Templete")
-                    jobTemp = os.path.join(jobTempDir, "DistJob.yaml.template")
+                distJobParam["hostjobPath"] = os.path.join(config["storage-mount-path"], jobPath)
+                distJobParam["hostworkPath"] = os.path.join(config["storage-mount-path"], workPath)
+                distJobParam["hostdataPath"] = os.path.join(config["storage-mount-path"], dataPath)
 
-                    distJobParam["hostjobPath"] = os.path.join(config["storage-mount-path"], jobPath)
-                    distJobParam["hostworkPath"] = os.path.join(config["storage-mount-path"], workPath)
-                    distJobParam["hostdataPath"] = os.path.join(config["storage-mount-path"], dataPath)
+                if "mountpoints" not in distJobParam:
+                    distJobParam["mountpoints"] = []
 
-                    if "mountpoints" not in distJobParam:
-                        distJobParam["mountpoints"] = []
+                distJobParam["mountpoints"].append({"name": "job", "containerPath": "/job", "hostPath": distJobParam["hostjobPath"]})
+                distJobParam["mountpoints"].append({"name": "work", "containerPath": "/work", "hostPath": distJobParam["hostworkPath"]})
+                distJobParam["mountpoints"].append({"name": "data", "containerPath": "/data", "hostPath": distJobParam["hostdataPath"]})
 
-                    distJobParam["mountpoints"].append({"name": "job", "containerPath": "/job", "hostPath": distJobParam["hostjobPath"]})
-                    distJobParam["mountpoints"].append({"name": "work", "containerPath": "/work", "hostPath": distJobParam["hostworkPath"]})
-                    distJobParam["mountpoints"].append({"name": "data", "containerPath": "/data", "hostPath": distJobParam["hostdataPath"]})
+                for idx in range(len(distJobParam["mountpoints"])):
+                    if "name" not in distJobParam["mountpoints"][idx]:
+                        distJobParam["mountpoints"][idx]["name"] = str(uuid.uuid4()).replace("-", "")
 
-                    for idx in range(len(distJobParam["mountpoints"])):
-                        if "name" not in distJobParam["mountpoints"][idx]:
-                            distJobParam["mountpoints"][idx]["name"] = str(uuid.uuid4()).replace("-", "")
+                distJobParam["pod_ip_range"] = config["pod_ip_range"]
+                if "usefreeflow" in config:
+                    distJobParam["usefreeflow"] = config["usefreeflow"]
+                else:
+                    distJobParam["usefreeflow"] = False
 
-                    distJobParam["pod_ip_range"] = config["pod_ip_range"]
-                    if "usefreeflow" in config:
-                        distJobParam["usefreeflow"] = config["usefreeflow"]
-                    else:
-                        distJobParam["usefreeflow"] = False
+                distJobParam["numworker"] = int(jobParams["numpsworker"])
+                distJobParam["numps"] = int(jobParams["numps"])
 
-                    distJobParam["numworker"] = int(jobParams["numpsworker"])
-                    distJobParam["numps"] = int(jobParams["numps"])
+                random.seed(datetime.datetime.now())
+                if "hostNetwork" in jobParams and jobParams["hostNetwork"]:
+                    distJobParam["containerPort"] = random.randint(40000, 49999)
+                else:
+                    distJobParam["containerPort"] = int(random.random() * 1000 + 3000)
 
-                    random.seed(datetime.datetime.now())
-                    if "hostNetwork" in jobParams and jobParams["hostNetwork"]:
-                        distJobParam["containerPort"] = random.randint(40000, 49999)
-                    else:
-                        distJobParam["containerPort"] = int(random.random() * 1000 + 3000)
+                if assignedRack is not None:
+                    if "nodeSelector" not in distJobParam:
+                        distJobParam["nodeSelector"] = {}
+                    distJobParam["nodeSelector"]["rack"] = assignedRack
 
-                    if assignedRack is not None:
-                        if "nodeSelector" not in distJobParam:
-                            distJobParam["nodeSelector"] = {}
-                        distJobParam["nodeSelector"]["rack"] = assignedRack
+                if "gpuType" in distJobParam:
+                    if "nodeSelector" not in distJobParam:
+                        distJobParam["nodeSelector"] = {}
+                    distJobParam["nodeSelector"]["gpuType"] = distJobParam["gpuType"]
 
-                    if "gpuType" in distJobParam:
-                        if "nodeSelector" not in distJobParam:
-                            distJobParam["nodeSelector"] = {}
-                        distJobParam["nodeSelector"]["gpuType"] = distJobParam["gpuType"]
+                template = ENV.get_template(os.path.abspath(jobTemp))
+                job_description = template.render(job=distJobParam)
 
-                    template = ENV.get_template(os.path.abspath(jobTemp))
-                    job_description = template.render(job=distJobParam)
+                jobDescriptionList.append(job_description)
 
-                    jobDescriptionList.append(job_description)
+                distJobParams[role].append(distJobParam)
 
-                    distJobParams[role].append(distJobParam)
-
-            jobParams["jobDescriptionPath"] = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"] + ".yaml"
-            jobDescription = "\n---\n".join(jobDescriptionList)
+        jobParams["jobDescriptionPath"] = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"] + ".yaml"
+        jobDescription = "\n---\n".join(jobDescriptionList)
 
         jobDescriptionPath = os.path.join(config["storage-mount-path"], jobParams["jobDescriptionPath"])
         if not os.path.exists(os.path.dirname(os.path.realpath(jobDescriptionPath))):

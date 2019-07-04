@@ -1,5 +1,6 @@
 import sys
 import os
+import random
 from datetime import date
 from marshmallow import Schema, fields, pprint, post_load, validate
 from jinja2 import Environment, FileSystemLoader, Template
@@ -143,6 +144,13 @@ class Job:
 
     def is_user_flow_enabled(self):
         return self._get_cluster_config("usefreeflow")
+
+    def get_rack(self):
+        racks = self._get_cluster_config("racks")
+        if racks is None or len(racks) == 0:
+            return None
+        # TODO why random.choice?
+        return random.choice(racks)
 
     def _get_cluster_config(self, key):
         if key in self.cluster:

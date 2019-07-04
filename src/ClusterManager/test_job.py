@@ -181,3 +181,8 @@ class TestJob(unittest.TestCase):
         job = self.create_a_job()
 
         self.assertEqual("http://faked.uri/", job.get_rest_api_url())
+
+    def test_get_rack(self):
+        job = self.create_a_job()
+
+        self.assertEqual(None, job.get_rack())
