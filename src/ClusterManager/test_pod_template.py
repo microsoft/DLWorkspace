@@ -46,6 +46,30 @@ class TestPodTemplate(unittest.TestCase):
         # metadata.annotations["pod.alpha/DeviceInformation"] should be empty
         self.assertTrue(("annotations" not in data["metadata"]) or ("pod.alpha/DeviceInformation" not in data["metadata"]["annotations"]))
 
+    def test_generate_pod_with_envs(self):
+        enable_custom_scheduler = False
+        pod_template = PodTemplate(job.get_template(), enable_custom_scheduler)
+
+        pod = {
+            "gpuLimit": 2,
+            "envs": [{"name": "my_env_name", "value": "my_env_value"}],
+        }
+        data = pod_template.generate_pod(pod)
+
+        self.assertIn({"name": "my_env_name", "value": "my_env_value"}, data["spec"]["containers"][0]["env"])
+
+    def test_generate_pod_with_labels(self):
+        enable_custom_scheduler = False
+        pod_template = PodTemplate(job.get_template(), enable_custom_scheduler)
+
+        pod = {
+            "gpuLimit": 2,
+            "labels": [{"name": "my_label_name", "value": "my_label_value"}],
+        }
+        data = pod_template.generate_pod(pod)
+
+        self.assertEqual("my_label_value", data["metadata"]["labels"]["my_label_name"])
+
     def test_pod_template_with_custom_scheduler(self):
         enable_custom_scheduler = True
         pod_template = PodTemplate(job.get_template(), enable_custom_scheduler)

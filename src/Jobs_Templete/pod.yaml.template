@@ -150,8 +150,8 @@ spec:
     - name: DLWS_VC_NAME
       value: {{ job["vcName"] }}
     {% for env in job["envs"] %}
-    - name: {{ env.name }}
-      value: "{{ env.value }}"
+    - name: {{env.name}}
+      value: "{{env.value}}"
     {% endfor %}
 
   imagePullSecrets:
