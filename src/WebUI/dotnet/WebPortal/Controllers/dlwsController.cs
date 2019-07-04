@@ -161,12 +161,16 @@ namespace WindowsAuth.Controllers
                     var db = pair.Value;
 
 
-                    var priorEntrys = db.User.Where(b => b.Email == email).Where(b => b.Password == password).ToAsyncEnumerable();
+                    var priorEntrys = db.User.Where(b => b.Email == email).ToAsyncEnumerable();
 
                     await priorEntrys.ForEachAsync(userEntry =>
                     {
                         authorizedClusters.Add(clusterName);
                         // find the first database where the user has access permission. 
+                        if (!userEntry.Password.Equals(password))
+                        {
+                            return;
+                        }
                         if (!passwdLogin)
                         {
                             HttpContext.Session.SetString("Email", userEntry.Alias);
@@ -189,7 +193,10 @@ namespace WindowsAuth.Controllers
                 if (passwdLogin)
                 {
                     HttpContext.Session.SetString("AuthorizedClusters", JsonConvert.SerializeObject(authorizedClusters));
-                    HttpContext.Session.SetString("Team", HttpContext.Request.Query["Team"]);
+                    var team = HttpContext.Request.Query["Team"];
+                    HttpContext.Session.SetString("Team", team);
+                    var teamClusters = await HomeController.GetTeamClusters(HttpContext, team);
+                    HttpContext.Session.SetString("TeamClusters", JsonConvert.SerializeObject(teamClusters));
                 }
                 if ( !bFindUser )
                 {
@@ -509,6 +516,13 @@ namespace WindowsAuth.Controllers
             }
             var restapi = Startup.Clusters[cluster].Restapi;
 
+            var team = HttpContext.Session.GetString("Team");
+            var teamClusters = JsonConvert.DeserializeObject<List<string>>(HttpContext.Session.GetString("TeamClusters"));
+            if (!teamClusters.Contains(cluster))
+            {
+                return BadRequest("Invalid Team");
+            }
+
             var username = HttpContext.Session.GetString("Username");
             ViewData["Username"] = username;
             var uid = HttpContext.Session.GetString("uid");
@@ -518,7 +532,7 @@ namespace WindowsAuth.Controllers
             jobObject["userName"] = HttpContext.Session.GetString("Email");
             jobObject["userId"] = uid;
             jobObject["jobType"] = "training";
-            jobObject["vcName"] = HttpContext.Session.GetString("Team");
+            jobObject["vcName"] = team;
 
             var runningasroot = jobObject["runningasroot"];
             if (
