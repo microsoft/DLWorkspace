@@ -179,6 +179,7 @@ sleep infinity
                 pod["distId"] = "%s%d" % (role, idx)
                 pod["distRole"] = role
                 pod["distRoleIdx"] = idx
+                pod["podName"] = "{}-{}".format(pod["jobId"], pod["distId"])
 
                 # TODO refine later
                 dist_job_path = os.path.join(job.job_path, pod["distId"])
