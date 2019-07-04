@@ -45,38 +45,8 @@ from job_deployer import JobDeployer
 def printlog(msg):
     print("%s - %s" % (datetime.datetime.utcnow().strftime("%x %X"),msg))
 
-def LoadJobParams(jobParamsJsonStr):
-    return json.loads(jobParamsJsonStr)
-
-def cmd_exec(cmdStr):
-    try:
-        output = subprocess.check_output(["bash","-c", cmdStr])
-    except Exception as e:
-        print(e)
-        output = ""
-    return output
-
-
-
-
-
 
 def SubmitJob(job):
-    jobParams = json.loads(base64.b64decode(job["jobParams"]))
-    if jobParams["jobtrainingtype"] == "RegularJob":
-        SubmitRegularJob(job)
-    elif jobParams["jobtrainingtype"] == "PSDistJob":
-        SubmitPSDistJob(job)
-
-def CheckMountPoints(mplist, mp):
-    ret = True
-    for item in mplist:
-        if item["name"] == mp["name"] or item["containerPath"] == mp["containerPath"] or item["hostPath"] == mp["hostPath"]:
-            ret = False
-    return ret
-
-
-def SubmitRegularJob(job):
     ret = {}
     dataHandler = DataHandler()
 
@@ -96,7 +66,14 @@ def SubmitRegularJob(job):
         job_object.params["user"] = job_object.get_alias()
 
         enable_custom_scheduler = job_object.is_custom_scheduler_enabled()
-        pod_template = PodTemplate(job_object.get_template(), enable_custom_scheduler)
+        if job_object.params["jobtrainingtype"] == "RegularJob":
+            pod_template = PodTemplate(job_object.get_template(), enable_custom_scheduler)
+        elif job_object.params["jobtrainingtype"] == "PSDistJob":
+            pod_template = DistPodTemplate(job_object.get_dist_template())
+        else:
+            dataHandler.SetJobError(job_object.job_id, "ERROR: invalid jobtrainingtype: %s" % job_object.params["jobtrainingtype"])
+            return False
+
         pods, error = pod_template.generate_pods(job_object)
         if error:
             dataHandler.SetJobError(job_object.job_id, "ERROR: %s" % error)
@@ -134,74 +111,6 @@ def SubmitRegularJob(job):
         dataHandler.UpdateJobTextField(job_object.job_id, "jobMeta", jobMetaStr)
     except Exception as e:
         logging.error("Submit job failed: %s" % job, exc_info=True)
-        ret["error"] = str(e)
-        retries = dataHandler.AddandGetJobRetries(job["jobId"])
-        if retries >= 5:
-            dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "error")
-            dataHandler.UpdateJobTextField(job["jobId"], "errorMsg", "Cannot submit job!" + str(e))
-    dataHandler.Close()
-    return ret
-
-
-def SubmitPSDistJob(job):
-    ret = {}
-    dataHandler = DataHandler()
-
-    try:
-        job["cluster"] = config
-        job_object, errors = JobSchema().load(job)
-        # TODO assert job_object is a Job
-        assert(isinstance(job_object, Job))
-
-        job_object.params = json.loads(base64.b64decode(job["jobParams"]))
-
-        # inject gid, uid and user
-        # TODO it should return only one entry
-        user_info = dataHandler.GetIdentityInfo(job_object.params["userName"])[0]
-        job_object.params["gid"] = user_info["gid"]
-        job_object.params["uid"] = user_info["uid"]
-        job_object.params["user"] = job_object.get_alias()
-
-        dist_pod_template = DistPodTemplate(job_object.get_dist_template())
-        pods, error = dist_pod_template.generate_pods(job_object)
-        if error:
-            dataHandler.SetJobError(job_object.job_id, "ERROR: %s" % error)
-            return False
-
-        job_description = "\n---\n".join([yaml.dump(pod) for pod in pods])
-        job_description_path = "jobfiles/" + time.strftime("%y%m%d") + "/" + job_object.job_id + "/" + job_object.job_id + ".yaml"
-        local_jobDescriptionPath = os.path.realpath(os.path.join(config["storage-mount-path"], job_description_path))
-        if not os.path.exists(local_jobDescriptionPath):
-            os.makedirs(os.path.dirname(local_jobDescriptionPath))
-        with open(local_jobDescriptionPath, 'w') as f:
-            f.write(job_description)
-
-        job_deployer = JobDeployer()
-        try:
-            ret["output"] = job_deployer.create_pods(pods)
-        except Exception as e:
-            ret["output"] = "Error: %s" % e.message
-            logging.error(e, exc_info=True)
-
-        ret["jobId"] = job_object.job_id
-
-        dataHandler.UpdateJobTextField(job_object.job_id, "jobStatus", "scheduling")
-        dataHandler.UpdateJobTextField(job_object.job_id, "jobDescriptionPath", job_description_path)
-        dataHandler.UpdateJobTextField(job_object.job_id, "jobDescription", base64.b64encode(job_description))
-
-        jobMeta = {}
-        jobMeta["jobDescriptionPath"] = job_description_path
-        jobMeta["jobPath"] = job_object.job_path
-        jobMeta["workPath"] = job_object.work_path
-        # the command of the first container
-        jobMeta["LaunchCMD"] = pods[0]["spec"]["containers"][0]["command"]
-
-        jobMetaStr = base64.b64encode(json.dumps(jobMeta))
-        dataHandler.UpdateJobTextField(job_object.job_id, "jobMeta", jobMetaStr)
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        print(e)
         ret["error"] = str(e)
         retries = dataHandler.AddandGetJobRetries(job["jobId"])
         if retries >= 5:
@@ -348,23 +257,6 @@ def UpdateJobStatus(job):
         del UnusualJobs[job["jobId"]]
 
     dataHandler.Close()
-
-def run_dist_cmd_on_pod(podId, cmd, outputfile):
-    remotecmd = "exec %s -- %s" % (podId,cmd)
-    print(remotecmd)
-    k8sUtils.kubectl_exec_output_to_file(remotecmd,outputfile)
-
-
-
-class Kube_RemoteCMD_Thread(threading.Thread):
-    def __init__(self, jobId, podId, cmd, outputfile):
-        threading.Thread.__init__(self)
-        self.jobId = jobId
-        self.podId = podId
-        self.cmd = cmd
-        self.outputfile = outputfile
-    def run(self):
-        run_dist_cmd_on_pod(self.podId, self.cmd, self.outputfile)
 
 
 # TODO remove duplicate code later
