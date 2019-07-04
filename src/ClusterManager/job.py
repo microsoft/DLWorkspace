@@ -142,7 +142,7 @@ class Job:
     def get_pod_ip_range(self):
         return self._get_cluster_config("pod_ip_range")
 
-    def is_user_flow_enabled(self):
+    def is_freeflow_enabled(self):
         return self._get_cluster_config("usefreeflow")
 
     def get_rack(self):

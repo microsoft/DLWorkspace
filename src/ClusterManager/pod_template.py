@@ -87,7 +87,7 @@ class PodTemplate():
         params["homeFolderHostpath"] = job.get_homefolder_hostpath()
 
         params["pod_ip_range"] = job.get_pod_ip_range()
-        params["usefreeflow"] = job.is_user_flow_enabled()
+        params["usefreeflow"] = job.is_freeflow_enabled()
 
         # assign parameters to generate the pod yaml
         params["LaunchCMD"] = luanch_cmd
