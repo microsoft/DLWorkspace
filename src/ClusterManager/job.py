@@ -126,8 +126,17 @@ class Job:
         return file_name
 
     def get_template(self):
-        """Return abosulutely path of job template file on the node."""
+        """Return jinja template."""
         path = os.path.abspath(os.path.join(self.cluster["root-path"], "Jobs_Templete", "RegularJob.yaml.template"))
+        ENV = Environment(loader=FileSystemLoader("/"))
+        template = ENV.get_template(path)
+        assert(isinstance(template, Template))
+        return template
+
+    # TODO remove it later
+    def get_dist_template(self):
+        """Return jinja template."""
+        path = os.path.abspath(os.path.join(self.cluster["root-path"], "Jobs_Templete", "DistJob.yaml.template"))
         ENV = Environment(loader=FileSystemLoader("/"))
         template = ENV.get_template(path)
         assert(isinstance(template, Template))

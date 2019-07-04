@@ -1,7 +1,15 @@
+import os
+import sys
+import uuid
+import datetime
+import random
 import json
 import yaml
 from jinja2 import Template
 from job import Job
+
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
+from config import config
 
 
 class DistPodTemplate():
@@ -76,3 +84,75 @@ sudo touch /job/WORKER_READY
 sleep infinity
 """.format(user_alias)
         return launchCMD
+
+    def generate_pod(self, job, pod):
+        # TODO
+        distJobParam = pod
+
+        role = distJobParam["distRole"]
+        localJobPath = os.path.join(config["storage-mount-path"], "work/", distJobParam["distJobPath"])
+        userAlias = distJobParam["user"]
+        idx = distJobParam["distRoleIdx"]
+
+        job_path = distJobParam["jobPath"]
+        worker_num = distJobParam["numpsworker"]
+        cmd = distJobParam["cmd"]
+        launchCMD = DistPodTemplate.generate_launch_cmd(role, userAlias, job_path, worker_num, cmd)
+
+        launchScriptPath = os.path.join(localJobPath, "launch-%s-%s%d.sh" % (distJobParam["jobId"], role, idx))
+        # TODO need to set up user for distribute jobs
+        with open(launchScriptPath, 'w') as f:
+            f.write(launchCMD)
+        f.close()
+
+        launchScriptInContainer = "bash /job/launch-%s-%s%d.sh" % (distJobParam["jobId"], role, idx)
+
+        distJobParam["LaunchCMD"] = '["bash", "-c", "bash /dlws/init_user.sh &> /job/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c \'%s\'"]' % launchScriptInContainer
+
+        distJobParam["jobNameLabel"] = ''.join(e for e in distJobParam["jobName"] if e.isalnum())
+
+        jobPath = "work/" + distJobParam["distJobPath"]
+        workPath = "work/" + distJobParam["workPath"]
+        dataPath = "storage/" + distJobParam["dataPath"]
+
+        distJobParam["hostjobPath"] = os.path.join(config["storage-mount-path"], jobPath)
+        distJobParam["hostworkPath"] = os.path.join(config["storage-mount-path"], workPath)
+        distJobParam["hostdataPath"] = os.path.join(config["storage-mount-path"], dataPath)
+
+        if "mountpoints" not in distJobParam:
+            distJobParam["mountpoints"] = []
+
+        distJobParam["mountpoints"].append({"name": "job", "containerPath": "/job", "hostPath": distJobParam["hostjobPath"]})
+        distJobParam["mountpoints"].append({"name": "work", "containerPath": "/work", "hostPath": distJobParam["hostworkPath"]})
+        distJobParam["mountpoints"].append({"name": "data", "containerPath": "/data", "hostPath": distJobParam["hostdataPath"]})
+
+        for idx in range(len(distJobParam["mountpoints"])):
+            if "name" not in distJobParam["mountpoints"][idx]:
+                distJobParam["mountpoints"][idx]["name"] = str(uuid.uuid4()).replace("-", "")
+
+        distJobParam["pod_ip_range"] = job.get_pod_ip_range()
+        distJobParam["usefreeflow"] = job.is_freeflow_enabled()
+
+        distJobParam["numworker"] = int(distJobParam["numpsworker"])
+        distJobParam["numps"] = int(distJobParam["numps"])
+
+        random.seed(datetime.datetime.now())
+        if "hostNetwork" in distJobParam and distJobParam["hostNetwork"]:
+            distJobParam["sshPort"] = random.randint(40000, 49999)
+        else:
+            distJobParam["sshPort"] = int(random.random() * 1000 + 3000)
+
+        assignedRack = job.get_rack()
+        if assignedRack is not None:
+            if "nodeSelector" not in distJobParam:
+                distJobParam["nodeSelector"] = {}
+            distJobParam["nodeSelector"]["rack"] = assignedRack
+
+        if "gpuType" in distJobParam:
+            if "nodeSelector" not in distJobParam:
+                distJobParam["nodeSelector"] = {}
+            distJobParam["nodeSelector"]["gpuType"] = distJobParam["gpuType"]
+
+        job_description = self.template.render(job=distJobParam)
+
+        return job_description

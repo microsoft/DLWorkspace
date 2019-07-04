@@ -180,7 +180,7 @@ def SubmitPSDistJob(job):
         assert(jobParams["jobtrainingtype"] == "PSDistJob")
 
         jobParams["rest-api"] = job_object.get_rest_api_url()
-        assignedRack = job_object.get_rack()
+
 
         distJobParams = {}
         distJobParams["ps"] = []
@@ -195,12 +195,12 @@ def SubmitPSDistJob(job):
         jobDescriptionList = []
         nums = {"ps": int(jobParams["numps"]), "worker": int(jobParams["numpsworker"])}
         for role in ["ps", "worker"]:
-            for i in range(nums[role]):
+            for idx in range(nums[role]):
                 distJobParam = copy.deepcopy(jobParams)
 
-                distJobParam["distId"] = "%s%d" % (role, i)
+                distJobParam["distId"] = "%s%d" % (role, idx)
                 distJobParam["distRole"] = role
-                distJobParam["distRoleIdx"] = i
+                distJobParam["distRoleIdx"] = idx
 
                 # TODO
                 distJobParam["distJobPath"] = os.path.join(job_object.job_path, distJobParam["distId"])
@@ -211,70 +211,8 @@ def SubmitPSDistJob(job):
                     else:
                         mkdirsAsUser(localJobPath, 0)
 
-                job_path = distJobParam["jobPath"]
-                worker_num = distJobParam["numpsworker"]
-                cmd = distJobParam["cmd"]
-                launchCMD = DistPodTemplate.generate_launch_cmd(role, userAlias, job_path, worker_num, cmd)
-
-                launchScriptPath = os.path.join(localJobPath, "launch-%s-%s%d.sh" % (distJobParam["jobId"], role, i))
-                # TODO need to set up user for distribute jobs
-                with open(launchScriptPath, 'w') as f:
-                    f.write(launchCMD)
-                f.close()
-
-                launchScriptInContainer = "bash /job/launch-%s-%s%d.sh" % (distJobParam["jobId"], role, i)
-
-                distJobParam["LaunchCMD"] = '["bash", "-c", "bash /dlws/init_user.sh &> /job/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c \'%s\'"]' % launchScriptInContainer
-
-                distJobParam["jobNameLabel"] = ''.join(e for e in distJobParam["jobName"] if e.isalnum())
-                ENV = Environment(loader=FileSystemLoader("/"))
-
-                jobTempDir = os.path.join(config["root-path"], "Jobs_Templete")
-                jobTemp = os.path.join(jobTempDir, "DistJob.yaml.template")
-
-                jobPath = "work/" + distJobParam["distJobPath"]
-                workPath = "work/" + distJobParam["workPath"]
-                dataPath = "storage/" + distJobParam["dataPath"]
-
-                distJobParam["hostjobPath"] = os.path.join(config["storage-mount-path"], jobPath)
-                distJobParam["hostworkPath"] = os.path.join(config["storage-mount-path"], workPath)
-                distJobParam["hostdataPath"] = os.path.join(config["storage-mount-path"], dataPath)
-
-                if "mountpoints" not in distJobParam:
-                    distJobParam["mountpoints"] = []
-
-                distJobParam["mountpoints"].append({"name": "job", "containerPath": "/job", "hostPath": distJobParam["hostjobPath"]})
-                distJobParam["mountpoints"].append({"name": "work", "containerPath": "/work", "hostPath": distJobParam["hostworkPath"]})
-                distJobParam["mountpoints"].append({"name": "data", "containerPath": "/data", "hostPath": distJobParam["hostdataPath"]})
-
-                for idx in range(len(distJobParam["mountpoints"])):
-                    if "name" not in distJobParam["mountpoints"][idx]:
-                        distJobParam["mountpoints"][idx]["name"] = str(uuid.uuid4()).replace("-", "")
-
-                distJobParam["pod_ip_range"] = job_object.get_pod_ip_range()
-                distJobParam["usefreeflow"] = job_object.is_freeflow_enabled()
-
-                distJobParam["numworker"] = int(jobParams["numpsworker"])
-                distJobParam["numps"] = int(jobParams["numps"])
-
-                random.seed(datetime.datetime.now())
-                if "hostNetwork" in jobParams and jobParams["hostNetwork"]:
-                    distJobParam["sshPort"] = random.randint(40000, 49999)
-                else:
-                    distJobParam["sshPort"] = int(random.random() * 1000 + 3000)
-
-                if assignedRack is not None:
-                    if "nodeSelector" not in distJobParam:
-                        distJobParam["nodeSelector"] = {}
-                    distJobParam["nodeSelector"]["rack"] = assignedRack
-
-                if "gpuType" in distJobParam:
-                    if "nodeSelector" not in distJobParam:
-                        distJobParam["nodeSelector"] = {}
-                    distJobParam["nodeSelector"]["gpuType"] = distJobParam["gpuType"]
-
-                template = ENV.get_template(os.path.abspath(jobTemp))
-                job_description = template.render(job=distJobParam)
+                pod_template = DistPodTemplate(job_object.get_dist_template())
+                job_description = pod_template.generate_pod(job_object, distJobParam)
 
                 jobDescriptionList.append(job_description)
 
