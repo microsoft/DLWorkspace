@@ -4,12 +4,14 @@ import uuid
 import datetime
 import random
 import json
+import copy
 import yaml
 from jinja2 import Template
 from job import Job
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 from config import config
+from osUtils import mkdirsAsUser
 
 
 class DistPodTemplate():
@@ -156,3 +158,34 @@ sleep infinity
         job_description = self.template.render(job=distJobParam)
 
         return job_description
+
+    def generate_pods(self, job):
+        # TODO
+        jobParams = job.params
+
+        pods = []
+
+        nums = {"ps": int(jobParams["numps"]), "worker": int(jobParams["numpsworker"])}
+        for role in ["ps", "worker"]:
+            for idx in range(nums[role]):
+                distJobParam = copy.deepcopy(jobParams)
+
+                distJobParam["distId"] = "%s%d" % (role, idx)
+                distJobParam["distRole"] = role
+                distJobParam["distRoleIdx"] = idx
+
+                # TODO
+                distJobParam["distJobPath"] = os.path.join(job.job_path, distJobParam["distId"])
+                localJobPath = os.path.join(config["storage-mount-path"], "work/", distJobParam["distJobPath"])
+                if not os.path.exists(localJobPath):
+                    if "userId" in distJobParam:
+                        mkdirsAsUser(localJobPath, distJobParam["userId"])
+                    else:
+                        mkdirsAsUser(localJobPath, 0)
+
+                pod_template = DistPodTemplate(job.get_dist_template())
+                job_description = pod_template.generate_pod(job, distJobParam)
+
+                pods.append(job_description)
+
+        return pods

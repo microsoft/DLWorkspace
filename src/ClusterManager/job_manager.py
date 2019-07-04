@@ -155,7 +155,7 @@ def SubmitPSDistJob(job):
 
         jobParams = json.loads(base64.b64decode(job["jobParams"]))
 
-        job_object.params = json.loads(base64.b64decode(job["jobParams"]))
+        job_object.params = jobParams
 
         # inject gid, uid and user
         # TODO it should return only one entry
@@ -192,31 +192,8 @@ def SubmitPSDistJob(job):
         job_object.job_path = jobParams["jobPath"]
         jobParams["homeFolderHostpath"] = job_object.get_homefolder_hostpath()
 
-        jobDescriptionList = []
-        nums = {"ps": int(jobParams["numps"]), "worker": int(jobParams["numpsworker"])}
-        for role in ["ps", "worker"]:
-            for idx in range(nums[role]):
-                distJobParam = copy.deepcopy(jobParams)
-
-                distJobParam["distId"] = "%s%d" % (role, idx)
-                distJobParam["distRole"] = role
-                distJobParam["distRoleIdx"] = idx
-
-                # TODO
-                distJobParam["distJobPath"] = os.path.join(job_object.job_path, distJobParam["distId"])
-                localJobPath = os.path.join(config["storage-mount-path"], "work/", distJobParam["distJobPath"])
-                if not os.path.exists(localJobPath):
-                    if "userId" in distJobParam:
-                        mkdirsAsUser(localJobPath, distJobParam["userId"])
-                    else:
-                        mkdirsAsUser(localJobPath, 0)
-
-                pod_template = DistPodTemplate(job_object.get_dist_template())
-                job_description = pod_template.generate_pod(job_object, distJobParam)
-
-                jobDescriptionList.append(job_description)
-
-                distJobParams[role].append(distJobParam)
+        dist_pod_template = DistPodTemplate(job_object.get_dist_template())
+        jobDescriptionList = dist_pod_template.generate_pods(job_object)
 
         jobParams["jobDescriptionPath"] = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"] + ".yaml"
         jobDescription = "\n---\n".join(jobDescriptionList)
@@ -249,7 +226,7 @@ def SubmitPSDistJob(job):
         jobMeta["workPath"] = jobParams["workPath"]
         jobMeta["jobPath"] = jobParams["jobPath"]
         jobMeta["LaunchCMD"] = jobParams["cmd"]
-        jobMeta["distJobParams"] = distJobParams
+        jobMeta["distJobParams"] = jobDescriptionList
 
         jobMetaStr = base64.b64encode(json.dumps(jobMeta))
         dataHandler.UpdateJobTextField(jobParams["jobId"], "jobMeta", jobMetaStr)
