@@ -48,7 +48,7 @@ class PodTemplate():
 
     def generate_pods(self, job):
         """
-        Return (job_description, errors)
+        Return (pods, errors)
         """
 
         assert(isinstance(job, Job))
