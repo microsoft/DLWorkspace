@@ -57,7 +57,7 @@ class PodTemplate():
                 pod["annotations"] = {}
             pod["annotations"]["pod.alpha/DeviceInformation"] = "'" + json.dumps(podInfo) + "'"
             # TODO it's not safe to update pod["resourcegpu"]
-            pod["resourcegpu"] = 0  # gpu requests specified through annotation
+            pod["gpuLimit"] = 0  # gpu requests specified through annotation
 
         pod_yaml = self.template.render(job=pod)
         return yaml.full_load(pod_yaml)
@@ -129,6 +129,10 @@ class PodTemplate():
 
         k8s_pods = []
         for pod in pods:
+            pod["numps"] = 0
+            pod["numworker"] = 1
+            pod["fragmentGpuJob"] = True
+            pod["gpuLimit"] = pod["resourcegpu"]
             k8s_pod = self.generate_pod(pod)
             k8s_pods.append(k8s_pod)
         return k8s_pods, None

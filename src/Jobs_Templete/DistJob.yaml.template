@@ -10,9 +10,9 @@ metadata:
     userName: {{ job["user"] }}
     vcName: {{ job["vcName"] }}
 
-    distRole: {{ job["distRole"] }}
-    distRoleIdx: "{{ job["distRoleIdx"] }}"
-    sshPort: "{{job["sshPort"]}}"
+  {% for label in job["labels"] %}
+    {{label.name}}: "{{label.value}}"
+  {% endfor %}
 
   {% if "gpuType" in job %}
     {% if job["gpuType"]|length > 0 %}
@@ -20,6 +20,14 @@ metadata:
     {% endif %}
   {% endif %}
     preemptionAllowed: "{{ job["preemptionAllowed"] }}"
+
+  {% if "annotations" in job %}
+  annotations:
+    {% for annotationKey,annotationVal in job["annotations"].items() %}
+      {{ annotationKey }}: {{ annotationVal }}
+    {% endfor %}
+  {% endif %}
+
 spec:
   nodeSelector:
     worker: active
@@ -27,6 +35,9 @@ spec:
   {% for key, value in job["nodeSelector"].items() %}
     {{key}}: {{value}}
   {% endfor %}
+  {% endif %}
+  {% if job["fragmentGpuJob"] %}
+    FragmentGPUJob: active
   {% endif %}
   {% if job["dnsPolicy"] %}
   dnsPolicy: {{ job["dnsPolicy" ]}}
@@ -51,10 +62,9 @@ spec:
         add:
         - IPC_LOCK
         - SYS_ADMIN
-    {% if job["distRole"] =="worker" %}
     resources:
       limits:
-        nvidia.com/gpu: {{ job["resourcegpu"] }}
+        nvidia.com/gpu: {{ job["gpuLimit"] }}
     {% if not job["cpurequest"] %}
       requests:
         cpu: 1.0
@@ -65,7 +75,6 @@ spec:
     {% if job["memoryrequest"] %}
       requests:
         memory: job["memoryrequest"]
-    {% endif %}
     {% endif %}
     volumeMounts:
     - name: "init-user-script"
@@ -112,9 +121,7 @@ spec:
       value: "{{ job["numps"] }}"
     - name: DLWS_NUM_WORKER
       value: "{{ job["numworker"] }}"
-    - name: DLWS_NUM_GPU_PER_WORKER
-      value: "{{ job["resourcegpu"] }}"
-    {% if job["distRole"] =="ps" or not job["resourcegpu"] is defined or job["resourcegpu"]|int < 1  %}
+    {% if job["gpuLimit"]|int < 1  %}
     - name: NVIDIA_VISIBLE_DEVICES
       value: ""
     {% endif %}
@@ -142,11 +149,7 @@ spec:
       value: "{{ job["user_email"] }}"
     - name: DLWS_VC_NAME
       value: {{ job["vcName"] }}
-    - name: DLWS_ROLE_NAME
-      value: {{ job["distRole"] }}
-    - name: DLWS_ROLE_IDX
-      value: "{{ job["distRoleIdx"] }}"
-    {% for env in job["env"] %}
+    {% for env in job["envs"] %}
     - name: {{ env.name }}
       value: "{{ env.value }}"
     {% endfor %}

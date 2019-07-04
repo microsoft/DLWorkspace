@@ -110,12 +110,6 @@ sleep infinity
 
         pod["LaunchCMD"] = DistPodTemplate.generate_launch_script(dist_id, job_id, user_alias, job_path, worker_num, cmd)
 
-        random.seed(datetime.datetime.now())
-        if "hostNetwork" in pod and pod["hostNetwork"]:
-            pod["sshPort"] = random.randint(40000, 49999)
-        else:
-            pod["sshPort"] = int(random.random() * 1000 + 3000)
-
         pod_yaml = self.template.render(job=pod)
         return yaml.full_load(pod_yaml)
 
@@ -170,6 +164,10 @@ sleep infinity
         params["numworker"] = int(params["numpsworker"])
         params["numps"] = int(params["numps"])
 
+        if "envs" not in params:
+            params["envs"] = []
+        params["envs"].append({"name": "DLWS_NUM_GPU_PER_WORKER", "value": params["resourcegpu"]})
+
         pods = []
         nums = {"ps": int(params["numps"]), "worker": int(params["numpsworker"])}
         for role in ["ps", "worker"]:
@@ -195,6 +193,29 @@ sleep infinity
 
         k8s_pods = []
         for pod in pods:
+
+            random.seed(datetime.datetime.now())
+            if "hostNetwork" in pod and pod["hostNetwork"]:
+                pod["sshPort"] = random.randint(40000, 49999)
+            else:
+                pod["sshPort"] = int(random.random() * 1000 + 3000)
+
+            if (pod["distRole"] == "worker"):
+                pod["gpuLimit"] = pod["resourcegpu"]
+            else:
+                pod["gpuLimit"] = 0
+
+            if "envs" not in pod:
+                pod["envs"] = []
+            pod["envs"].append({"name": "DLWS_ROLE_NAME", "value": pod["distRole"]})
+            pod["envs"].append({"name": "DLWS_ROLE_IDX", "value": pod["distRoleIdx"]})
+
+            if "labels" not in pod:
+                pod["labels"] = []
+            pod["labels"].append({"name": "distRole", "value": pod["distRole"]})
+            pod["labels"].append({"name": "distRoleIdx", "value": pod["distRoleIdx"]})
+            pod["labels"].append({"name": "sshPort", "value": pod["sshPort"]})
+
             k8s_pod = self.generate_pod(pod)
             k8s_pods.append(k8s_pod)
 

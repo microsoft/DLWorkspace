@@ -9,6 +9,11 @@ metadata:
     jobId: {{ job["jobId"] }}
     userName: {{ job["user"] }}
     vcName: {{ job["vcName"] }}
+
+  {% for label in job["labels"] %}
+    {{label.name}}: "{{label.value}}"
+  {% endfor %}
+
   {% if "gpuType" in job %}
     {% if job["gpuType"]|length > 0 %}
     gpuType: {{ job["gpuType"] }}
@@ -31,7 +36,7 @@ spec:
     {{key}}: {{value}}
   {% endfor %}
   {% endif %}
-  {% if job["resourcegpu"]|int < 8  %}
+  {% if job["fragmentGpuJob"] %}
     FragmentGPUJob: active
   {% endif %}
   {% if job["dnsPolicy"] %}
@@ -59,7 +64,7 @@ spec:
         - SYS_ADMIN
     resources:
       limits:
-        nvidia.com/gpu: {{ job["resourcegpu"] }}
+        nvidia.com/gpu: {{ job["gpuLimit"] }}
     {% if not job["cpurequest"] %}
       requests:
         cpu: 1.0
@@ -112,11 +117,11 @@ spec:
       value: {{ job["rest-api"] }}
     - name: DLWS_JOB_ID
       value: {{ job["jobId"] }}
+    - name: DLWS_NUM_PS
+      value: "{{ job["numps"] }}"
     - name: DLWS_NUM_WORKER
-      value: "1"
-    - name: DLWS_NUM_GPU_PER_WORKER
-      value: "{{ job["resourcegpu"] }}"
-    {% if job["resourcegpu"]|int < 1  %}
+      value: "{{ job["numworker"] }}"
+    {% if job["gpuLimit"]|int < 1  %}
     - name: NVIDIA_VISIBLE_DEVICES
       value: ""
     {% endif %}
@@ -144,7 +149,7 @@ spec:
       value: "{{ job["user_email"] }}"
     - name: DLWS_VC_NAME
       value: {{ job["vcName"] }}
-    {% for env in job["env"] %}
+    {% for env in job["envs"] %}
     - name: {{ env.name }}
       value: "{{ env.value }}"
     {% endfor %}
