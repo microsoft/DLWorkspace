@@ -31,18 +31,18 @@ class TestPodTemplate(unittest.TestCase):
 
         script_file = PodTemplate.generate_launch_script(job_id, path_to_save, user_id, gpu_num, user_script)
 
-        # "launch-%s.sh" % self.job_id
-        self.assertEqual("launch-ce7dca49-28df-450a-a03b-51b9c2ecc69c.sh", script_file)
+        # return the container command
+        self.assertEqual('["bash", "/job/launch-ce7dca49-28df-450a-a03b-51b9c2ecc69c.sh"]', script_file)
 
     def test_pod_template_without_custer_scheduler(self):
         enable_custom_scheduler = False
         pod_template = PodTemplate(job.get_template(), enable_custom_scheduler)
 
-        pod = {"resourcegpu": 2}
+        pod = {"gpuLimit": 2}
         data = pod_template.generate_pod(pod)
 
         # not eanbled custom scheduler, set the resource limits: spec.containers[].resources.limits
-        self.assertEqual(pod["resourcegpu"], data["spec"]["containers"][0]["resources"]["limits"]["nvidia.com/gpu"])
+        self.assertEqual(pod["gpuLimit"], data["spec"]["containers"][0]["resources"]["limits"]["nvidia.com/gpu"])
         # metadata.annotations["pod.alpha/DeviceInformation"] should be empty
         self.assertTrue(("annotations" not in data["metadata"]) or ("pod.alpha/DeviceInformation" not in data["metadata"]["annotations"]))
 
@@ -53,7 +53,7 @@ class TestPodTemplate(unittest.TestCase):
         gpu_num = 2
         pod = {
             "podName": "790a6b30-560f-44a4-a9f0-5d1458dcb0d1-pod-0",
-            "resourcegpu": gpu_num,
+            "gpuLimit": gpu_num,
         }
         data = pod_template.generate_pod(pod)
 
@@ -74,7 +74,7 @@ class TestPodTemplate(unittest.TestCase):
         gpu_num = 2
         pod = {
             "podName": "790a6b30-560f-44a4-a9f0-5d1458dcb0d1-pod-0",
-            "resourcegpu": gpu_num,
+            "gpuLimit": gpu_num,
             "useGPUTopology": True
         }
         data = pod_template.generate_pod(pod)

@@ -69,7 +69,7 @@ def SubmitJob(job):
         if job_object.params["jobtrainingtype"] == "RegularJob":
             pod_template = PodTemplate(job_object.get_template(), enable_custom_scheduler)
         elif job_object.params["jobtrainingtype"] == "PSDistJob":
-            pod_template = DistPodTemplate(job_object.get_dist_template())
+            pod_template = DistPodTemplate(job_object.get_template())
         else:
             dataHandler.SetJobError(job_object.job_id, "ERROR: invalid jobtrainingtype: %s" % job_object.params["jobtrainingtype"])
             return False

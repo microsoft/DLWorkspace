@@ -39,7 +39,7 @@ class PodTemplate():
                 # for cases when desired topology is explictly given or not desired
                 gpu_topology_flag = 0
             pod_name = pod["podName"]
-            request_gpu = int(pod["resourcegpu"])
+            request_gpu = int(pod["gpuLimit"])
 
             podInfo = {
                 "podname": pod_name,
@@ -56,8 +56,8 @@ class PodTemplate():
             if "annotations" not in pod:
                 pod["annotations"] = {}
             pod["annotations"]["pod.alpha/DeviceInformation"] = "'" + json.dumps(podInfo) + "'"
-            # TODO it's not safe to update pod["resourcegpu"]
-            pod["gpuLimit"] = 0  # gpu requests specified through annotation
+            # gpu requests specified through annotation
+            pod["gpuLimit"] = 0
 
         pod_yaml = self.template.render(job=pod)
         return yaml.full_load(pod_yaml)
