@@ -155,13 +155,37 @@ sleep infinity
                 distJobParam["nodeSelector"] = {}
             distJobParam["nodeSelector"]["gpuType"] = distJobParam["gpuType"]
 
-        job_description = self.template.render(job=distJobParam)
+        pod_yaml = self.template.render(job=distJobParam)
 
-        return job_description
+        return yaml.load(pod_yaml)
 
     def generate_pods(self, job):
+        """
+        Return (pods, errors)
+        """
+
         # TODO
         jobParams = job.params
+
+        if any(required_field not in jobParams for required_field in
+               [
+                   "jobtrainingtype",
+                   "jobName",
+                   "jobPath",
+                   "workPath",
+                   "dataPath",
+                   "cmd",
+                   "userId",
+                   "resourcegpu",
+                   "userName",
+               ]):
+            return None, "Missing required parameters!"
+        assert(jobParams["jobtrainingtype"] == "PSDistJob")
+
+        jobParams["rest-api"] = job.get_rest_api_url()
+        jobParams["user_email"] = jobParams["userName"]
+        jobParams["homeFolderHostpath"] = job.get_homefolder_hostpath()
+        job.job_path = jobParams["jobPath"]
 
         pods = []
 
@@ -188,4 +212,4 @@ sleep infinity
 
                 pods.append(job_description)
 
-        return pods
+        return pods, None

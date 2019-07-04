@@ -153,92 +153,60 @@ def SubmitPSDistJob(job):
         # TODO assert job_object is a Job
         assert(isinstance(job_object, Job))
 
-        jobParams = json.loads(base64.b64decode(job["jobParams"]))
-
-        job_object.params = jobParams
+        job_object.params = json.loads(base64.b64decode(job["jobParams"]))
 
         # inject gid, uid and user
         # TODO it should return only one entry
         user_info = dataHandler.GetIdentityInfo(job_object.params["userName"])[0]
-        jobParams["gid"] = user_info["gid"]
-        jobParams["uid"] = user_info["uid"]
-        jobParams["user"] = job_object.get_alias()
-
-        if any(required_field not in jobParams for required_field in
-               [
-                   "jobtrainingtype",
-                   "jobName",
-                   "jobPath",
-                   "workPath",
-                   "dataPath",
-                   "cmd",
-                   "userId",
-                   "resourcegpu",
-                   "userName",
-               ]):
-            return None, "Missing required parameters!"
-        assert(jobParams["jobtrainingtype"] == "PSDistJob")
-
-        jobParams["rest-api"] = job_object.get_rest_api_url()
-
-
-        distJobParams = {}
-        distJobParams["ps"] = []
-        distJobParams["worker"] = []
-
-        userAlias = job_object.get_alias()
-        jobParams["user_email"] = jobParams["userName"]
-
-        job_object.job_path = jobParams["jobPath"]
-        jobParams["homeFolderHostpath"] = job_object.get_homefolder_hostpath()
+        job_object.params["gid"] = user_info["gid"]
+        job_object.params["uid"] = user_info["uid"]
+        job_object.params["user"] = job_object.get_alias()
 
         dist_pod_template = DistPodTemplate(job_object.get_dist_template())
-        jobDescriptionList = dist_pod_template.generate_pods(job_object)
+        pods, error = dist_pod_template.generate_pods(job_object)
+        if error:
+            dataHandler.SetJobError(job_object.job_id, "ERROR: %s" % error)
+            return False
 
-        jobParams["jobDescriptionPath"] = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"] + ".yaml"
-        jobDescription = "\n---\n".join(jobDescriptionList)
+        job_description = "\n---\n".join([yaml.dump(pod) for pod in pods])
+        job_description_path = "jobfiles/" + time.strftime("%y%m%d") + "/" + job_object.job_id + "/" + job_object.job_id + ".yaml"
+        local_jobDescriptionPath = os.path.realpath(os.path.join(config["storage-mount-path"], job_description_path))
+        if not os.path.exists(local_jobDescriptionPath):
+            os.makedirs(os.path.dirname(local_jobDescriptionPath))
+        with open(local_jobDescriptionPath, 'w') as f:
+            f.write(job_description)
 
-        jobDescriptionPath = os.path.join(config["storage-mount-path"], jobParams["jobDescriptionPath"])
-        if not os.path.exists(os.path.dirname(os.path.realpath(jobDescriptionPath))):
-            os.makedirs(os.path.dirname(os.path.realpath(jobDescriptionPath)))
-        if os.path.isfile(jobDescriptionPath):
-            output = k8sUtils.kubectl_delete(jobDescriptionPath)
+        job_deployer = JobDeployer()
+        try:
+            ret["output"] = job_deployer.create_pods(pods)
+        except Exception as e:
+            ret["output"] = "Error: %s" % e.message
+            logging.error(e, exc_info=True)
 
-        with open(jobDescriptionPath, 'w') as f:
-            f.write(jobDescription)
+        ret["jobId"] = job_object.job_id
 
-        output = k8sUtils.kubectl_create(jobDescriptionPath)
-
-        ret["output"] = output
-
-        ret["jobId"] = jobParams["jobId"]
-
-        if "userName" not in jobParams:
-            jobParams["userName"] = ""
-
-        dataHandler.UpdateJobTextField(jobParams["jobId"], "jobStatus", "scheduling")
-        dataHandler.UpdateJobTextField(jobParams["jobId"], "jobDescriptionPath", jobParams["jobDescriptionPath"])
-        dataHandler.UpdateJobTextField(jobParams["jobId"], "jobDescription", base64.b64encode(jobDescription))
+        dataHandler.UpdateJobTextField(job_object.job_id, "jobStatus", "scheduling")
+        dataHandler.UpdateJobTextField(job_object.job_id, "jobDescriptionPath", job_description_path)
+        dataHandler.UpdateJobTextField(job_object.job_id, "jobDescription", base64.b64encode(job_description))
 
         jobMeta = {}
-        jobMeta["jobDescriptionPath"] = jobParams["jobDescriptionPath"]
-        jobMeta["jobPath"] = jobParams["jobPath"]
-        jobMeta["workPath"] = jobParams["workPath"]
-        jobMeta["jobPath"] = jobParams["jobPath"]
-        jobMeta["LaunchCMD"] = jobParams["cmd"]
-        jobMeta["distJobParams"] = jobDescriptionList
+        jobMeta["jobDescriptionPath"] = job_description_path
+        jobMeta["jobPath"] = job_object.job_path
+        jobMeta["workPath"] = job_object.work_path
+        # the command of the first container
+        jobMeta["LaunchCMD"] = pods[0]["spec"]["containers"][0]["command"]
 
         jobMetaStr = base64.b64encode(json.dumps(jobMeta))
-        dataHandler.UpdateJobTextField(jobParams["jobId"], "jobMeta", jobMetaStr)
+        dataHandler.UpdateJobTextField(job_object.job_id, "jobMeta", jobMetaStr)
     except Exception as e:
         import traceback
         traceback.print_exc()
         print(e)
         ret["error"] = str(e)
-        retries = dataHandler.AddandGetJobRetries(jobParams["jobId"])
+        retries = dataHandler.AddandGetJobRetries(job["jobId"])
         if retries >= 5:
-            dataHandler.UpdateJobTextField(jobParams["jobId"], "jobStatus", "error")
-            dataHandler.UpdateJobTextField(jobParams["jobId"], "errorMsg", "Cannot submit job!" + str(e))
+            dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "error")
+            dataHandler.UpdateJobTextField(job["jobId"], "errorMsg", "Cannot submit job!" + str(e))
     dataHandler.Close()
     return ret
 
