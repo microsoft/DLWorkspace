@@ -99,6 +99,7 @@ def SubmitJob(job):
         dataHandler.UpdateJobTextField(job_object.job_id, "jobStatus", "scheduling")
         dataHandler.UpdateJobTextField(job_object.job_id, "jobDescriptionPath", job_description_path)
         dataHandler.UpdateJobTextField(job_object.job_id, "jobDescription", base64.b64encode(job_description))
+        dataHandler.UpdateJobTextField(job_object.job_id, "lastUpdated", datetime.datetime.now().isoformat())
 
         jobMeta = {}
         jobMeta["jobDescriptionPath"] = job_description_path
