@@ -8,7 +8,7 @@ metadata:
     jobName: {{ job["jobNameLabel"] }}
     distRole: {{ job["distRole"] }}
     distRoleIdx: "{{ job["distRoleIdx"] }}"
-    distPort: "{{job["containerPort"]}}"
+    sshPort: "{{job["sshPort"]}}"
     userName: {{ job["user"] }}
     vcName: {{ job["vcName"] }}
   {% if "gpuType" in job %}
@@ -50,8 +50,6 @@ spec:
         - IPC_LOCK
         - SYS_ADMIN
     ports:
-    - containerPort: {{job["containerPort"]}}
-      hostPort: {{job["containerPort"]}}
     {% if job["distRole"] =="worker" %}
     resources:
       limits:

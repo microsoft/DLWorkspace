@@ -197,17 +197,14 @@ def SubmitPSDistJob(job):
         for role in ["ps", "worker"]:
             for i in range(nums[role]):
                 distJobParam = copy.deepcopy(jobParams)
+
                 distJobParam["distId"] = "%s%d" % (role, i)
                 distJobParam["distRole"] = role
                 distJobParam["distRoleIdx"] = i
 
                 # TODO
                 distJobParam["distJobPath"] = os.path.join(job_object.job_path, distJobParam["distId"])
-                jobPath = "work/" + distJobParam["distJobPath"]
-                workPath = "work/" + distJobParam["workPath"]
-                dataPath = "storage/" + distJobParam["dataPath"]
-
-                localJobPath = os.path.join(config["storage-mount-path"], jobPath)
+                localJobPath = os.path.join(config["storage-mount-path"], "work/", distJobParam["distJobPath"])
                 if not os.path.exists(localJobPath):
                     if "userId" in distJobParam:
                         mkdirsAsUser(localJobPath, distJobParam["userId"])
@@ -235,6 +232,10 @@ def SubmitPSDistJob(job):
                 jobTempDir = os.path.join(config["root-path"], "Jobs_Templete")
                 jobTemp = os.path.join(jobTempDir, "DistJob.yaml.template")
 
+                jobPath = "work/" + distJobParam["distJobPath"]
+                workPath = "work/" + distJobParam["workPath"]
+                dataPath = "storage/" + distJobParam["dataPath"]
+
                 distJobParam["hostjobPath"] = os.path.join(config["storage-mount-path"], jobPath)
                 distJobParam["hostworkPath"] = os.path.join(config["storage-mount-path"], workPath)
                 distJobParam["hostdataPath"] = os.path.join(config["storage-mount-path"], dataPath)
@@ -250,20 +251,17 @@ def SubmitPSDistJob(job):
                     if "name" not in distJobParam["mountpoints"][idx]:
                         distJobParam["mountpoints"][idx]["name"] = str(uuid.uuid4()).replace("-", "")
 
-                distJobParam["pod_ip_range"] = config["pod_ip_range"]
-                if "usefreeflow" in config:
-                    distJobParam["usefreeflow"] = config["usefreeflow"]
-                else:
-                    distJobParam["usefreeflow"] = False
+                distJobParam["pod_ip_range"] = job_object.get_pod_ip_range()
+                distJobParam["usefreeflow"] = job_object.is_freeflow_enabled()
 
                 distJobParam["numworker"] = int(jobParams["numpsworker"])
                 distJobParam["numps"] = int(jobParams["numps"])
 
                 random.seed(datetime.datetime.now())
                 if "hostNetwork" in jobParams and jobParams["hostNetwork"]:
-                    distJobParam["containerPort"] = random.randint(40000, 49999)
+                    distJobParam["sshPort"] = random.randint(40000, 49999)
                 else:
-                    distJobParam["containerPort"] = int(random.random() * 1000 + 3000)
+                    distJobParam["sshPort"] = int(random.random() * 1000 + 3000)
 
                 if assignedRack is not None:
                     if "nodeSelector" not in distJobParam:
@@ -545,9 +543,9 @@ def launch_ps_dist_job(jobParams):
     # setup ssh server
     for [idx, pod] in enumerate(pods["items"]):
         pod_name = pod["metadata"]["name"]
-        dist_port = pod["metadata"]["labels"]["distPort"]
+        ssh_port = pod["metadata"]["labels"]["sshPort"]
         # quit if can't setup ssh server
-        ssh_port = start_ssh_server(pod_name, user_name, host_network, dist_port)
+        ssh_port = start_ssh_server(pod_name, user_name, host_network, ssh_port)
 
     # generate ssh config
     ssh_config = """
@@ -561,13 +559,13 @@ Host %s
     sshconfigstr = ""
     for [idx, pod] in enumerate(pods["items"]):
         pod_ip = pod["status"]["podIP"]
-        dist_port = pod["metadata"]["labels"]["distPort"]
+        ssh_port = pod["metadata"]["labels"]["sshPort"]
         role = pod["metadata"]["labels"]["distRole"]
         role_idx = pod["metadata"]["labels"]["distRoleIdx"]
 
         # TODO hostNetwork
         if host_network:
-            sshconfigstr += (ssh_config % (role + "-"+str(role_idx), pod_ip, str(dist_port), user_name) + "\n")
+            sshconfigstr += (ssh_config % (role + "-"+str(role_idx), pod_ip, str(ssh_port), user_name) + "\n")
         else:
             sshconfigstr += (ssh_config % (role + "-"+str(role_idx), pod_ip, 22, user_name) + "\n")
 
