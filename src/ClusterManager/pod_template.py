@@ -27,7 +27,8 @@ class PodTemplate():
             f.write("echo 'localhost slots=%s' | tee -a /opt/hostfile; \n" % gpu_num)
             f.write("bash /dlws/init_user.sh &> /job/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c '%s'\n" % user_script)
         os.system("sudo chown %s %s" % (user_id, launch_script_file))
-        return file_name
+        luanch_cmd = "[\"bash\", \"/job/%s\"]" % file_name
+        return luanch_cmd
 
     def generate_pod(self, pod):
         assert(isinstance(self.template, Template))
@@ -106,9 +107,7 @@ class PodTemplate():
             params["nodeSelector"]["gpuType"] = params["gpuType"]
 
         local_job_path = job.get_local_job_path()
-        script_file = PodTemplate.generate_launch_script(params["jobId"], local_job_path, params["userId"], params["resourcegpu"], params["cmd"])
-        luanch_cmd = "[\"bash\", \"/job/%s\"]" % script_file
-        params["LaunchCMD"] = luanch_cmd
+        params["LaunchCMD"] = PodTemplate.generate_launch_script(params["jobId"], local_job_path, params["userId"], params["resourcegpu"], params["cmd"])
 
         pods = []
         if all(hyper_parameter in params for hyper_parameter in ["hyperparametername", "hyperparameterstartvalue", "hyperparameterendvalue", "hyperparameterstep"]):
