@@ -20,12 +20,12 @@ class DistPodTemplate():
         self.enable_custom_scheduler = enable_custom_scheduler
 
     @staticmethod
-    def generate_launch_cmd(role, user_alias, job_path, worker_num, cmd):
+    def generate_launch_script(dist_id, job_id, user_alias, job_path, worker_num, cmd):
         # change ssh folder permission here because the setup permission
         #  script in launch_ps_job function may have race condition with init_user.sh script.
         # results in no such user error
-        if role == "ps":
-            launchCMD = """
+        if dist_id.startswith("ps"):
+            script = """
 #!/bin/bash
 echo "[DLWorkspace System]: Waiting for all containers are ready..."
 while [ ! -f /opt/run_dist_job ]; do
@@ -48,28 +48,28 @@ echo $JOB_DIR $WORKER_NUM
 all_workers_ready=false
 while [ "$all_workers_ready" != true ]
 do
-  # update it to false if any woker is not ready
-  all_workers_ready=true
+    # update it to false if any woker is not ready
+    all_workers_ready=true
 
-  for i in $(seq 0 $(( ${{WORKER_NUM}} - 1)) )
-  do
-    worker="worker${{i}}"
-    file="$JOB_DIR/${{worker}}/WORKER_READY"
-    #echo $file
+    for i in $(seq 0 $(( ${{WORKER_NUM}} - 1)) )
+    do
+        worker="worker${{i}}"
+        file="$JOB_DIR/${{worker}}/WORKER_READY"
+        #echo $file
 
-    if [ ! -f $file ]; then
-      echo "${{worker}} not ready!"
-      all_workers_ready=false
-      sleep 10
-    fi
-  done
+        if [ ! -f $file ]; then
+        echo "${{worker}} not ready!"
+        all_workers_ready=false
+        sleep 10
+        fi
+    done
 done
 
 echo "[DLWorkspace System]: All containers are ready, launching training job..."
 {3}
 """.format(user_alias, job_path, worker_num, cmd)
         else:
-            launchCMD = """
+            script = """
 while [ ! -f /opt/run_dist_job ]; do
     sleep 3
 done
@@ -85,89 +85,48 @@ sudo touch /job/WORKER_READY
 
 sleep infinity
 """.format(user_alias)
-        return launchCMD
 
-    def generate_pod(self, job, pod):
-        # TODO
-        distJobParam = pod
-
-        role = distJobParam["distRole"]
-        localJobPath = os.path.join(config["storage-mount-path"], "work/", distJobParam["distJobPath"])
-        userAlias = distJobParam["user"]
-        idx = distJobParam["distRoleIdx"]
-
-        job_path = distJobParam["jobPath"]
-        worker_num = distJobParam["numpsworker"]
-        cmd = distJobParam["cmd"]
-        launchCMD = DistPodTemplate.generate_launch_cmd(role, userAlias, job_path, worker_num, cmd)
-
-        launchScriptPath = os.path.join(localJobPath, "launch-%s-%s%d.sh" % (distJobParam["jobId"], role, idx))
-        # TODO need to set up user for distribute jobs
-        with open(launchScriptPath, 'w') as f:
-            f.write(launchCMD)
+        local_job_path = os.path.join(config["storage-mount-path"], "work/", job_path, dist_id)
+        file_name = "launch-%s-%s.sh" % (job_id, dist_id)
+        launch_script_file = os.path.join(local_job_path, file_name)
+        with open(launch_script_file, 'w') as f:
+            f.write(script)
         f.close()
 
-        launchScriptInContainer = "bash /job/launch-%s-%s%d.sh" % (distJobParam["jobId"], role, idx)
+        launchScriptInContainer = "bash /job/launch-%s-%s.sh" % (job_id, dist_id)
 
-        distJobParam["LaunchCMD"] = '["bash", "-c", "bash /dlws/init_user.sh &> /job/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c \'%s\'"]' % launchScriptInContainer
+        launchCMD = '["bash", "-c", "bash /dlws/init_user.sh &> /job/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c \'%s\'"]' % launchScriptInContainer
+        return launchCMD
 
-        distJobParam["jobNameLabel"] = ''.join(e for e in distJobParam["jobName"] if e.isalnum())
+    def generate_pod(self, pod):
+        assert(isinstance(self.template, Template))
 
-        jobPath = "work/" + distJobParam["distJobPath"]
-        workPath = "work/" + distJobParam["workPath"]
-        dataPath = "storage/" + distJobParam["dataPath"]
+        dist_id = pod["distId"]
+        job_id = pod["jobId"]
+        user_alias = pod["user"]
+        job_path = pod["jobPath"]
+        worker_num = pod["numpsworker"]
+        cmd = pod["cmd"]
 
-        distJobParam["hostjobPath"] = os.path.join(config["storage-mount-path"], jobPath)
-        distJobParam["hostworkPath"] = os.path.join(config["storage-mount-path"], workPath)
-        distJobParam["hostdataPath"] = os.path.join(config["storage-mount-path"], dataPath)
-
-        if "mountpoints" not in distJobParam:
-            distJobParam["mountpoints"] = []
-
-        distJobParam["mountpoints"].append({"name": "job", "containerPath": "/job", "hostPath": distJobParam["hostjobPath"]})
-        distJobParam["mountpoints"].append({"name": "work", "containerPath": "/work", "hostPath": distJobParam["hostworkPath"]})
-        distJobParam["mountpoints"].append({"name": "data", "containerPath": "/data", "hostPath": distJobParam["hostdataPath"]})
-
-        for idx in range(len(distJobParam["mountpoints"])):
-            if "name" not in distJobParam["mountpoints"][idx]:
-                distJobParam["mountpoints"][idx]["name"] = str(uuid.uuid4()).replace("-", "")
-
-        distJobParam["pod_ip_range"] = job.get_pod_ip_range()
-        distJobParam["usefreeflow"] = job.is_freeflow_enabled()
-
-        distJobParam["numworker"] = int(distJobParam["numpsworker"])
-        distJobParam["numps"] = int(distJobParam["numps"])
+        pod["LaunchCMD"] = DistPodTemplate.generate_launch_script(dist_id, job_id, user_alias, job_path, worker_num, cmd)
 
         random.seed(datetime.datetime.now())
-        if "hostNetwork" in distJobParam and distJobParam["hostNetwork"]:
-            distJobParam["sshPort"] = random.randint(40000, 49999)
+        if "hostNetwork" in pod and pod["hostNetwork"]:
+            pod["sshPort"] = random.randint(40000, 49999)
         else:
-            distJobParam["sshPort"] = int(random.random() * 1000 + 3000)
+            pod["sshPort"] = int(random.random() * 1000 + 3000)
 
-        assignedRack = job.get_rack()
-        if assignedRack is not None:
-            if "nodeSelector" not in distJobParam:
-                distJobParam["nodeSelector"] = {}
-            distJobParam["nodeSelector"]["rack"] = assignedRack
-
-        if "gpuType" in distJobParam:
-            if "nodeSelector" not in distJobParam:
-                distJobParam["nodeSelector"] = {}
-            distJobParam["nodeSelector"]["gpuType"] = distJobParam["gpuType"]
-
-        pod_yaml = self.template.render(job=distJobParam)
-
+        pod_yaml = self.template.render(job=pod)
         return yaml.load(pod_yaml)
 
     def generate_pods(self, job):
         """
         Return (pods, errors)
         """
+        assert(isinstance(job, Job))
+        params = job.params
 
-        # TODO
-        jobParams = job.params
-
-        if any(required_field not in jobParams for required_field in
+        if any(required_field not in params for required_field in
                [
                    "jobtrainingtype",
                    "jobName",
@@ -180,36 +139,62 @@ sleep infinity
                    "userName",
                ]):
             return None, "Missing required parameters!"
-        assert(jobParams["jobtrainingtype"] == "PSDistJob")
+        assert(params["jobtrainingtype"] == "PSDistJob")
 
-        jobParams["rest-api"] = job.get_rest_api_url()
-        jobParams["user_email"] = jobParams["userName"]
-        jobParams["homeFolderHostpath"] = job.get_homefolder_hostpath()
-        job.job_path = jobParams["jobPath"]
+        job.job_path = params["jobPath"]
+        job.work_path = params["workPath"]
+        job.data_path = params["dataPath"]
+        # TODO user's mountpoints first, but should after 'job_path'
+        job.add_mountpoints(job.job_path_mountpoint())
+        if "mountpoints" in params:
+            job.add_mountpoints(params["mountpoints"])
+        job.add_mountpoints(job.work_path_mountpoint())
+        job.add_mountpoints(job.data_path_mountpoint())
+        params["mountpoints"] = job.mountpoints
+
+        params["user_email"] = params["userName"]
+        params["homeFolderHostpath"] = job.get_homefolder_hostpath()
+        params["pod_ip_range"] = job.get_pod_ip_range()
+        params["usefreeflow"] = job.is_freeflow_enabled()
+        params["jobNameLabel"] = ''.join(e for e in params["jobName"] if e.isalnum())
+        params["rest-api"] = job.get_rest_api_url()
+
+        if "nodeSelector" not in params:
+            params["nodeSelector"] = {}
+        if "gpuType" in params:
+            params["nodeSelector"]["gpuType"] = params["gpuType"]
+        assignedRack = job.get_rack()
+        if assignedRack is not None:
+            params["nodeSelector"]["rack"] = assignedRack
+
+        params["numworker"] = int(params["numpsworker"])
+        params["numps"] = int(params["numps"])
 
         pods = []
-
-        nums = {"ps": int(jobParams["numps"]), "worker": int(jobParams["numpsworker"])}
+        nums = {"ps": int(params["numps"]), "worker": int(params["numpsworker"])}
         for role in ["ps", "worker"]:
             for idx in range(nums[role]):
-                distJobParam = copy.deepcopy(jobParams)
+                pod = copy.deepcopy(params)
 
-                distJobParam["distId"] = "%s%d" % (role, idx)
-                distJobParam["distRole"] = role
-                distJobParam["distRoleIdx"] = idx
+                pod["distId"] = "%s%d" % (role, idx)
+                pod["distRole"] = role
+                pod["distRoleIdx"] = idx
 
-                # TODO
-                distJobParam["distJobPath"] = os.path.join(job.job_path, distJobParam["distId"])
-                localJobPath = os.path.join(config["storage-mount-path"], "work/", distJobParam["distJobPath"])
-                if not os.path.exists(localJobPath):
-                    if "userId" in distJobParam:
-                        mkdirsAsUser(localJobPath, distJobParam["userId"])
-                    else:
-                        mkdirsAsUser(localJobPath, 0)
+                # TODO refine later
+                dist_job_path = os.path.join(job.job_path, pod["distId"])
+                for mp in pod["mountpoints"]:
+                    if mp["name"] == "job":
+                        mp["hostPath"] = mp["hostPath"] + "/" + pod["distId"]
 
-                pod_template = DistPodTemplate(job.get_dist_template())
-                job_description = pod_template.generate_pod(job, distJobParam)
+                local_job_path = os.path.join(config["storage-mount-path"], "work/", dist_job_path)
+                if not os.path.exists(local_job_path):
+                    mkdirsAsUser(local_job_path, pod["userId"])
 
-                pods.append(job_description)
+                pods.append(pod)
 
-        return pods, None
+        k8s_pods = []
+        for pod in pods:
+            k8s_pod = self.generate_pod(pod)
+            k8s_pods.append(k8s_pod)
+
+        return k8s_pods, None
