@@ -391,7 +391,7 @@ def create_log( logdir = '/var/log/dlworkspace' ):
     if not os.path.exists( logdir ):
         os.system("mkdir -p " + logdir )
     with open('logging.yaml') as f:
-        logging_config = yaml.load(f)
+        logging_config = yaml.full_load(f)
         f.close()
         logging_config["handlers"]["file"]["filename"] = logdir+"/jobmanager.log"
         logging.config.dictConfig(logging_config)

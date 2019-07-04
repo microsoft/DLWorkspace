@@ -60,7 +60,7 @@ class PodTemplate():
             pod["resourcegpu"] = 0  # gpu requests specified through annotation
 
         pod_yaml = self.template.render(job=pod)
-        return yaml.load(pod_yaml)
+        return yaml.full_load(pod_yaml)
 
     def generate_pods(self, job):
         """

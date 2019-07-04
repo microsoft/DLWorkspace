@@ -28,7 +28,7 @@ spec:
     - sleep
     - "1000000"
     """
-        body = yaml.load(raw_yaml)
+        body = yaml.full_load(raw_yaml)
 
         # with self.assertRaises(ApiException):
         job_deployer.create_pod(body)

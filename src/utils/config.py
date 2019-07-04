@@ -1,11 +1,11 @@
 import yaml
 import os
-from Queue import Queue 
+from Queue import Queue
 import threading
 
 try:
-    f = open(os.path.join(os.path.dirname(os.path.realpath(__file__)),"config.yaml"))
-    config = yaml.load(f)
+    f = open(os.path.join(os.path.dirname(os.path.realpath(__file__)), "config.yaml"))
+    config = yaml.full_load(f)
 except Exception:
     config = {}
     ()
