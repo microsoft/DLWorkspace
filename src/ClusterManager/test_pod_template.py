@@ -22,6 +22,18 @@ assert(not errors)
 
 class TestPodTemplate(unittest.TestCase):
 
+    def test_generate_launch_script(self):
+        job_id = "ce7dca49-28df-450a-a03b-51b9c2ecc69c"
+        path_to_save = "/tmp"
+        user_id = "20000"
+        gpu_num = 3
+        user_script = "sleep infinity"
+
+        script_file = PodTemplate.generate_launch_script(job_id, path_to_save, user_id, gpu_num, user_script)
+
+        # "launch-%s.sh" % self.job_id
+        self.assertEqual("launch-ce7dca49-28df-450a-a03b-51b9c2ecc69c.sh", script_file)
+
     def test_pod_template_without_custer_scheduler(self):
         enable_custom_scheduler = False
         pod_template = PodTemplate(job.get_template(), enable_custom_scheduler)

@@ -111,20 +111,6 @@ class Job:
         data_host_path = os.path.join(self.cluster["storage-mount-path"], "storage", self.data_path)
         return {"name": "data", "containerPath": "/data", "hostPath": data_host_path, "enabled": True}
 
-    def generate_launch_script(self, path_to_save, user_id, gpu_num, user_script):
-        if not os.path.exists(path_to_save):
-            mkdirsAsUser(path_to_save, user_id)
-
-        file_name = "launch-%s.sh" % self.job_id
-        launch_script_file = os.path.join(path_to_save, file_name)
-        with open(launch_script_file, 'w') as f:
-            f.write("#!/bin/bash -x\n")
-            f.write("mkdir /opt; \n")
-            f.write("echo 'localhost slots=%s' | tee -a /opt/hostfile; \n" % gpu_num)
-            f.write("bash /dlws/init_user.sh &> /job/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c '%s'\n" % user_script)
-        os.system("sudo chown %s %s" % (user_id, launch_script_file))
-        return file_name
-
     def get_template(self):
         """Return jinja template."""
         path = os.path.abspath(os.path.join(self.cluster["root-path"], "Jobs_Templete", "RegularJob.yaml.template"))

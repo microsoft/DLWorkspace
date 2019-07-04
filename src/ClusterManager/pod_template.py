@@ -1,13 +1,33 @@
+import os
+import sys
 import json
 import yaml
 from jinja2 import Template
 from job import Job
+
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
+from osUtils import mkdirsAsUser
 
 
 class PodTemplate():
     def __init__(self, template, enable_custom_scheduler=False):
         self.template = template
         self.enable_custom_scheduler = enable_custom_scheduler
+
+    @staticmethod
+    def generate_launch_script(job_id, path_to_save, user_id, gpu_num, user_script):
+        if not os.path.exists(path_to_save):
+            mkdirsAsUser(path_to_save, user_id)
+
+        file_name = "launch-%s.sh" % job_id
+        launch_script_file = os.path.join(path_to_save, file_name)
+        with open(launch_script_file, 'w') as f:
+            f.write("#!/bin/bash -x\n")
+            f.write("mkdir /opt; \n")
+            f.write("echo 'localhost slots=%s' | tee -a /opt/hostfile; \n" % gpu_num)
+            f.write("bash /dlws/init_user.sh &> /job/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c '%s'\n" % user_script)
+        os.system("sudo chown %s %s" % (user_id, launch_script_file))
+        return file_name
 
     def generate_pod(self, pod):
         assert(isinstance(self.template, Template))
@@ -37,11 +57,6 @@ class PodTemplate():
             pod["annotations"]["pod.alpha/DeviceInformation"] = "'" + json.dumps(podInfo) + "'"
             # TODO it's not safe to update pod["resourcegpu"]
             pod["resourcegpu"] = 0  # gpu requests specified through annotation
-
-        if "nodeSelector" not in pod:
-            pod["nodeSelector"] = {}
-        if "gpuType" in pod:
-            pod["nodeSelector"]["gpuType"] = pod["gpuType"]
 
         pod_yaml = self.template.render(job=pod)
         return yaml.load(pod_yaml)
@@ -76,23 +91,25 @@ class PodTemplate():
             job.add_mountpoints(params["mountpoints"])
         job.add_mountpoints(job.work_path_mountpoint())
         job.add_mountpoints(job.data_path_mountpoint())
-
         params["mountpoints"] = job.mountpoints
-
-        local_job_path = job.get_local_job_path()
-        script_file = job.generate_launch_script(local_job_path, params["userId"], params["resourcegpu"], params["cmd"])
-        luanch_cmd = "[\"bash\", \"/job/%s\"]" % script_file
 
         params["user_email"] = params["userName"]
         params["homeFolderHostpath"] = job.get_homefolder_hostpath()
-
         params["pod_ip_range"] = job.get_pod_ip_range()
         params["usefreeflow"] = job.is_freeflow_enabled()
-
-        # assign parameters to generate the pod yaml
-        params["LaunchCMD"] = luanch_cmd
         params["jobNameLabel"] = ''.join(e for e in params["jobName"] if e.isalnum())
         params["rest-api"] = job.get_rest_api_url()
+
+        if "nodeSelector" not in params:
+            params["nodeSelector"] = {}
+        if "gpuType" in params:
+            params["nodeSelector"]["gpuType"] = params["gpuType"]
+
+        local_job_path = job.get_local_job_path()
+        script_file = PodTemplate.generate_launch_script(params["jobId"], local_job_path, params["userId"], params["resourcegpu"], params["cmd"])
+        luanch_cmd = "[\"bash\", \"/job/%s\"]" % script_file
+        params["LaunchCMD"] = luanch_cmd
+
         pods = []
         if all(hyper_parameter in params for hyper_parameter in ["hyperparametername", "hyperparameterstartvalue", "hyperparameterendvalue", "hyperparameterstep"]):
             env_name = params["hyperparametername"]

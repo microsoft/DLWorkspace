@@ -151,18 +151,6 @@ class TestJob(unittest.TestCase):
         job.add_mountpoints(job.data_path_mountpoint())
         self.assertEquals(3, len(job.mountpoints))
 
-    def test_generate_launch_script(self):
-        job = self.create_a_job()
-
-        path_to_save = "/tmp"
-        user_id = "20000"
-        gpu_num = 3
-        user_script = "sleep infinity"
-        script_file = job.generate_launch_script(path_to_save, user_id, gpu_num, user_script)
-
-        # "launch-%s.sh" % self.job_id
-        self.assertEqual("launch-ce7dca49-28df-450a-a03b-51b9c2ecc69c.sh", script_file)
-
     def test_get_template(self):
         job = self.create_a_job()
 
