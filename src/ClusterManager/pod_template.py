@@ -128,11 +128,8 @@ class PodTemplate():
                 pod["envs"] = []
                 pods.append(pod)
 
-        enable_custom_scheduler = job.is_custom_scheduler_enabled()
-        pod_template = PodTemplate(job.get_template(), enable_custom_scheduler)
-
         k8s_pods = []
         for pod in pods:
-            k8s_pod = pod_template.generate_pod(pod)
+            k8s_pod = self.generate_pod(pod)
             k8s_pods.append(k8s_pod)
         return k8s_pods, None
