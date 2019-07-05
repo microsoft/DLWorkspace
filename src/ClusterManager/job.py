@@ -90,9 +90,9 @@ class Job:
     def get_alias(self):
         return self.email.split("@")[0].strip()
 
-    def get_hostpath(self, path_relate_to_workpath):
-        """return os.path.join(self.cluster["storage-mount-path"], "work", path_relate_to_workpath)"""
-        return os.path.join(self.cluster["storage-mount-path"], "work", path_relate_to_workpath)
+    def get_hostpath(self, *path_relate_to_workpath):
+        """return os.path.join(self.cluster["storage-mount-path"], "work", *path_relate_to_workpath)"""
+        return os.path.join(self.cluster["storage-mount-path"], "work", *path_relate_to_workpath)
 
     def get_homefolder_hostpath(self):
         return self.get_hostpath(self.get_alias())

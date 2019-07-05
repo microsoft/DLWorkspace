@@ -133,6 +133,11 @@ class PodTemplate():
             pod["numworker"] = 1
             pod["fragmentGpuJob"] = True
             pod["gpuLimit"] = pod["resourcegpu"]
+
+            # mount /pod
+            pod_path = job.get_hostpath(job.job_path, "master")
+            pod["mountpoints"].append({"name": "pod", "containerPath": "/pod", "hostPath": pod_path, "enabled": True})
+
             k8s_pod = self.generate_pod(pod)
             k8s_pods.append(k8s_pod)
         return k8s_pods, None
