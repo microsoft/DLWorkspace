@@ -103,11 +103,49 @@ sleep infinity
 
         dist_id = pod["distId"]
         job_id = pod["jobId"]
-        user_alias = pod["user"]
         job_path = pod["jobPath"]
+
+        pod["podName"] = "{}-{}".format(job_id, dist_id)
+
+        # TODO refine later
+        dist_job_path = os.path.join(job_path, dist_id)
+        for mp in pod["mountpoints"]:
+            if mp["name"] == "job":
+                mp["hostPath"] = mp["hostPath"] + "/" + dist_id
+
+        local_job_path = os.path.join(config["storage-mount-path"], "work/", dist_job_path)
+        if not os.path.exists(local_job_path):
+            mkdirsAsUser(local_job_path, pod["userId"])
+
+        random.seed(datetime.datetime.now())
+        if "hostNetwork" in pod and pod["hostNetwork"]:
+            pod["sshPort"] = random.randint(40000, 49999)
+        else:
+            pod["sshPort"] = int(random.random() * 1000 + 3000)
+
+        if (pod["distRole"] == "worker"):
+            pod["gpuLimit"] = pod["resourcegpu"]
+        else:
+            pod["gpuLimit"] = 0
+
+        if "envs" not in pod:
+            pod["envs"] = []
+        pod["envs"].append({"name": "DLWS_ROLE_NAME", "value": pod["distRole"]})
+        pod["envs"].append({"name": "DLWS_ROLE_IDX", "value": pod["distRoleIdx"]})
+
+        if "labels" not in pod:
+            pod["labels"] = []
+        pod["labels"].append({"name": "distRole", "value": pod["distRole"]})
+        pod["labels"].append({"name": "distRoleIdx", "value": pod["distRoleIdx"]})
+        pod["labels"].append({"name": "sshPort", "value": pod["sshPort"]})
+
+        # mount /pod
+        pod_path = os.path.join(config["storage-mount-path"], "work", job_path, dist_id)
+        pod["mountpoints"].append({"name": "pod", "containerPath": "/pod", "hostPath": pod_path, "enabled": True})
+
+        user_alias = pod["user"]
         worker_num = pod["numpsworker"]
         cmd = pod["cmd"]
-
         pod["LaunchCMD"] = DistPodTemplate.generate_launch_script(dist_id, job_id, user_alias, job_path, worker_num, cmd)
 
         pod_yaml = self.template.render(job=pod)
@@ -173,49 +211,13 @@ sleep infinity
         for role in ["ps", "worker"]:
             for idx in range(nums[role]):
                 pod = copy.deepcopy(params)
-
-                pod["distId"] = "%s%d" % (role, idx)
                 pod["distRole"] = role
                 pod["distRoleIdx"] = idx
-                pod["podName"] = "{}-{}".format(pod["jobId"], pod["distId"])
-
-                # TODO refine later
-                dist_job_path = os.path.join(job.job_path, pod["distId"])
-                for mp in pod["mountpoints"]:
-                    if mp["name"] == "job":
-                        mp["hostPath"] = mp["hostPath"] + "/" + pod["distId"]
-
-                local_job_path = os.path.join(config["storage-mount-path"], "work/", dist_job_path)
-                if not os.path.exists(local_job_path):
-                    mkdirsAsUser(local_job_path, pod["userId"])
-
+                pod["distId"] = "%s%d" % (role, idx)
                 pods.append(pod)
 
         k8s_pods = []
         for pod in pods:
-
-            random.seed(datetime.datetime.now())
-            if "hostNetwork" in pod and pod["hostNetwork"]:
-                pod["sshPort"] = random.randint(40000, 49999)
-            else:
-                pod["sshPort"] = int(random.random() * 1000 + 3000)
-
-            if (pod["distRole"] == "worker"):
-                pod["gpuLimit"] = pod["resourcegpu"]
-            else:
-                pod["gpuLimit"] = 0
-
-            if "envs" not in pod:
-                pod["envs"] = []
-            pod["envs"].append({"name": "DLWS_ROLE_NAME", "value": pod["distRole"]})
-            pod["envs"].append({"name": "DLWS_ROLE_IDX", "value": pod["distRoleIdx"]})
-
-            if "labels" not in pod:
-                pod["labels"] = []
-            pod["labels"].append({"name": "distRole", "value": pod["distRole"]})
-            pod["labels"].append({"name": "distRoleIdx", "value": pod["distRoleIdx"]})
-            pod["labels"].append({"name": "sshPort", "value": pod["sshPort"]})
-
             k8s_pod = self.generate_pod(pod)
             k8s_pods.append(k8s_pod)
 
