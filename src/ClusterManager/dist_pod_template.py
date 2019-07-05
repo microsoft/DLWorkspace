@@ -20,7 +20,7 @@ class DistPodTemplate():
         self.enable_custom_scheduler = enable_custom_scheduler
 
     @staticmethod
-    def generate_launch_script(dist_id, job_id, user_alias, job_path, worker_num, cmd):
+    def generate_launch_script(dist_id, job_id, user_id, user_alias, job_path, worker_num, cmd):
         # change ssh folder permission here because the setup permission
         #  script in launch_ps_job function may have race condition with init_user.sh script.
         # results in no such user error
@@ -81,21 +81,23 @@ sudo ln -s /home/{0}/.ssh/config /root/.ssh/config &>/dev/null;
 sudo mkdir -p /opt && sudo ln -s /job/hostfile /opt/hostfile  &>/dev/null;
 
 # TODO mark the worker as 'READY', better to change to '/pod/READY' later
-sudo touch /job/WORKER_READY
+sudo touch /pod/WORKER_READY
 
 sleep infinity
 """.format(user_alias)
 
-        local_job_path = os.path.join(config["storage-mount-path"], "work/", job_path, dist_id)
+        local_pod_path = os.path.join(config["storage-mount-path"], "work/", job_path, dist_id)
+        if not os.path.exists(local_pod_path):
+            mkdirsAsUser(local_pod_path, user_id)
         file_name = "launch-%s-%s.sh" % (job_id, dist_id)
-        launch_script_file = os.path.join(local_job_path, file_name)
+        launch_script_file = os.path.join(local_pod_path, file_name)
         with open(launch_script_file, 'w') as f:
             f.write(script)
         f.close()
 
-        launchScriptInContainer = "bash /job/launch-%s-%s.sh" % (job_id, dist_id)
+        launchScriptInContainer = "bash /pod/launch-%s-%s.sh" % (job_id, dist_id)
 
-        launchCMD = '["bash", "-c", "bash /dlws/init_user.sh &> /job/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c \'%s\'"]' % launchScriptInContainer
+        launchCMD = '["bash", "-c", "bash /dlws/init_user.sh &>> /pod/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c \'%s\'"]' % launchScriptInContainer
         return launchCMD
 
     def generate_pod(self, pod):
@@ -106,16 +108,6 @@ sleep infinity
         job_path = pod["jobPath"]
 
         pod["podName"] = "{}-{}".format(job_id, dist_id)
-
-        # TODO refine later
-        dist_job_path = os.path.join(job_path, dist_id)
-        for mp in pod["mountpoints"]:
-            if mp["name"] == "job":
-                mp["hostPath"] = mp["hostPath"] + "/" + dist_id
-
-        local_job_path = os.path.join(config["storage-mount-path"], "work/", dist_job_path)
-        if not os.path.exists(local_job_path):
-            mkdirsAsUser(local_job_path, pod["userId"])
 
         random.seed(datetime.datetime.now())
         if "hostNetwork" in pod and pod["hostNetwork"]:
@@ -139,14 +131,10 @@ sleep infinity
         pod["labels"].append({"name": "distRoleIdx", "value": pod["distRoleIdx"]})
         pod["labels"].append({"name": "sshPort", "value": pod["sshPort"]})
 
-        # mount /pod
-        pod_path = os.path.join(config["storage-mount-path"], "work", job_path, dist_id)
-        pod["mountpoints"].append({"name": "pod", "containerPath": "/pod", "hostPath": pod_path, "enabled": True})
-
         user_alias = pod["user"]
         worker_num = pod["numpsworker"]
         cmd = pod["cmd"]
-        pod["LaunchCMD"] = DistPodTemplate.generate_launch_script(dist_id, job_id, user_alias, job_path, worker_num, cmd)
+        pod["LaunchCMD"] = DistPodTemplate.generate_launch_script(dist_id, job_id, pod["userId"], user_alias, job_path, worker_num, cmd)
 
         pod_yaml = self.template.render(job=pod)
         return yaml.full_load(pod_yaml)
@@ -214,6 +202,10 @@ sleep infinity
                 pod["distRole"] = role
                 pod["distRoleIdx"] = idx
                 pod["distId"] = "%s%d" % (role, idx)
+                # mount /pod
+                local_pod_path = job.get_hostpath(job.job_path, pod["distId"])
+                pod["mountpoints"].append({"name": "pod", "containerPath": "/pod", "hostPath": local_pod_path, "enabled": True})
+
                 pods.append(pod)
 
         k8s_pods = []

@@ -25,9 +25,9 @@ class PodTemplate():
             f.write("#!/bin/bash -x\n")
             f.write("mkdir /opt; \n")
             f.write("echo 'localhost slots=%s' | tee -a /opt/hostfile; \n" % gpu_num)
-            f.write("bash /dlws/init_user.sh &> /job/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c '%s'\n" % user_script)
+            f.write("bash /dlws/init_user.sh &>> /pod/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c '%s'\n" % user_script)
         os.system("sudo chown %s %s" % (user_id, launch_script_file))
-        luanch_cmd = "[\"bash\", \"/job/%s\"]" % file_name
+        luanch_cmd = "[\"bash\", \"/pod/%s\"]" % file_name
         return luanch_cmd
 
     def generate_pod(self, pod):
@@ -106,8 +106,8 @@ class PodTemplate():
         if "gpuType" in params:
             params["nodeSelector"]["gpuType"] = params["gpuType"]
 
-        local_job_path = job.get_hostpath(job.job_path)
-        params["LaunchCMD"] = PodTemplate.generate_launch_script(params["jobId"], local_job_path, params["userId"], params["resourcegpu"], params["cmd"])
+        local_pod_path = job.get_hostpath(job.job_path, "master")
+        params["LaunchCMD"] = PodTemplate.generate_launch_script(params["jobId"], local_pod_path, params["userId"], params["resourcegpu"], params["cmd"])
 
         pods = []
         if all(hyper_parameter in params for hyper_parameter in ["hyperparametername", "hyperparameterstartvalue", "hyperparameterendvalue", "hyperparameterstep"]):
