@@ -130,10 +130,10 @@ class TestJob(unittest.TestCase):
         job = self.create_a_job()
         self.assertEqual("/dlwsdata/work/user", job.get_homefolder_hostpath())
 
-    def test_get_local_job_path(self):
+    def test_get_hostpath(self):
         job = self.create_a_job()
         self.assertEqual("user_alias/jobs/date/job_id", job.job_path)
-        self.assertEqual("/dlwsdata/work/user_alias/jobs/date/job_id", job.get_local_job_path())
+        self.assertEqual("/dlwsdata/work/user_alias/jobs/date/job_id", job.get_hostpath(job.job_path))
 
     def test_job_work_data_mountpoints(self):
         job = self.create_a_job()

@@ -90,20 +90,21 @@ class Job:
     def get_alias(self):
         return self.email.split("@")[0].strip()
 
-    def get_homefolder_hostpath(self):
-        return os.path.join(self.cluster["storage-mount-path"], "work/", self.get_alias())
+    def get_hostpath(self, path_relate_to_workpath):
+        """return os.path.join(self.cluster["storage-mount-path"], "work", path_relate_to_workpath)"""
+        return os.path.join(self.cluster["storage-mount-path"], "work", path_relate_to_workpath)
 
-    def get_local_job_path(self):
-        return os.path.join(self.cluster["storage-mount-path"], "work/", self.job_path)
+    def get_homefolder_hostpath(self):
+        return self.get_hostpath(self.get_alias())
 
     def job_path_mountpoint(self):
         assert(len(self.job_path) > 0)
-        job_host_path = os.path.join(self.cluster["storage-mount-path"], "work", self.job_path)
+        job_host_path = self.get_hostpath(self.job_path)
         return {"name": "job", "containerPath": "/job", "hostPath": job_host_path, "enabled": True}
 
     def work_path_mountpoint(self):
         assert(len(self.work_path) > 0)
-        work_host_path = os.path.join(self.cluster["storage-mount-path"], "work", self.work_path)
+        work_host_path = self.get_hostpath(self.work_path)
         return {"name": "work", "containerPath": "/work", "hostPath": work_host_path, "enabled": True}
 
     def data_path_mountpoint(self):
