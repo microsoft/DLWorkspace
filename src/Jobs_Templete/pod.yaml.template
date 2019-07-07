@@ -1,30 +1,43 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: {{ job["jobId"] }}-{{ job["distId"] }}
+  name: {{ job["podName"] }}
   labels:
     run: {{ job["jobId"] }}
-    podName: {{ job["jobId"] }}-{{ job["distId"] }}
+    podName: {{ job["podName"] }}
     jobName: {{ job["jobNameLabel"] }}
-    distRole: {{ job["distRole"] }}
-    distRoleIdx: "{{ job["distRoleIdx"] }}"
-    distPort: "{{job["containerPort"]}}"
+    jobId: {{ job["jobId"] }}
     userName: {{ job["user"] }}
     vcName: {{ job["vcName"] }}
+
+  {% for label in job["labels"] %}
+    {{label.name}}: "{{label.value}}"
+  {% endfor %}
+
   {% if "gpuType" in job %}
-   {% if job["gpuType"]|length > 0 %}
+    {% if job["gpuType"]|length > 0 %}
     gpuType: {{ job["gpuType"] }}
-   {% endif %}
+    {% endif %}
   {% endif %}
     preemptionAllowed: "{{ job["preemptionAllowed"] }}"
+
+  {% if "annotations" in job %}
+  annotations:
+    {% for annotationKey,annotationVal in job["annotations"].items() %}
+      {{ annotationKey }}: {{ annotationVal }}
+    {% endfor %}
+  {% endif %}
+
 spec:
-  #hostNetwork: true
   nodeSelector:
     worker: active
   {% if job["nodeSelector"]|length > 0 %}
   {% for key, value in job["nodeSelector"].items() %}
     {{key}}: {{value}}
   {% endfor %}
+  {% endif %}
+  {% if job["fragmentGpuJob"] %}
+    FragmentGPUJob: active
   {% endif %}
   {% if job["dnsPolicy"] %}
   dnsPolicy: {{ job["dnsPolicy" ]}}
@@ -36,12 +49,12 @@ spec:
   hostIPC: true
   {% endif %}
   containers:
-  - name: {{ job["jobId"] }}
+  - name: {{ job["podName"] }}
     image: {{ job["image"] }}
     imagePullPolicy: Always
     command: {{ job["LaunchCMD"] }}
-    #container port and host port should be same.
     securityContext:
+      runAsUser: {{ job["containerUserId"] }}
     {% if job["isPrivileged"] %}
       privileged: true
     {% endif %}
@@ -49,13 +62,9 @@ spec:
         add:
         - IPC_LOCK
         - SYS_ADMIN
-    ports:
-    - containerPort: {{job["containerPort"]}}
-      hostPort: {{job["containerPort"]}}
-    {% if job["distRole"] =="worker" %}
     resources:
       limits:
-        nvidia.com/gpu: {{ job["resourcegpu"] }}
+        nvidia.com/gpu: {{ job["gpuLimit"] }}
     {% if not job["cpurequest"] %}
       requests:
         cpu: 1.0
@@ -66,7 +75,6 @@ spec:
     {% if job["memoryrequest"] %}
       requests:
         memory: job["memoryrequest"]
-    {% endif %}
     {% endif %}
     volumeMounts:
     - name: "init-user-script"
@@ -83,17 +91,22 @@ spec:
     - name: authorized-keys-volume
       mountPath: /home/{{ job["user"] }}/.ssh/authorized_keys
       readOnly: true
-    {% if job["usefreeflow"] %}
-    - mountPath: /freeflow
-      name: freeflow
-    {% endif %}
-    {% for mp in job["mountpoints"] %}
-    - mountPath: {{ mp.containerPath }}
-      name: {{ mp.name }}
-    {% endfor %}
     {% if not job["dnsPolicy"] %}
     - mountPath: /etc/resolv.conf
       name: resolv
+    {% endif %}
+    {% for mp in job["mountpoints"] %}
+    {% if mp.enabled %}
+    - mountPath: {{ mp.containerPath }}
+      name: {{ mp.name }}
+      {% if mp.readOnly %}
+      readOnly: true
+      {% endif %}
+    {% endif %}
+    {% endfor %}
+    {% if job["usefreeflow"] %}
+    - mountPath: /freeflow
+      name: freeflow
     {% endif %}
     - mountPath: /dev/shm
       name: dshm
@@ -108,9 +121,7 @@ spec:
       value: "{{ job["numps"] }}"
     - name: DLWS_NUM_WORKER
       value: "{{ job["numworker"] }}"
-    - name: DLWS_NUM_GPU_PER_WORKER
-      value: "{{ job["resourcegpu"] }}"
-    {% if job["distRole"] =="ps" or not job["resourcegpu"] is defined or job["resourcegpu"]|int < 1  %}
+    {% if job["gpuLimit"]|int < 1  %}
     - name: NVIDIA_VISIBLE_DEVICES
       value: ""
     {% endif %}
@@ -138,13 +149,9 @@ spec:
       value: "{{ job["user_email"] }}"
     - name: DLWS_VC_NAME
       value: {{ job["vcName"] }}
-    - name: DLWS_ROLE_NAME
-      value: {{ job["distRole"] }}
-    - name: DLWS_ROLE_IDX
-      value: "{{ job["distRoleIdx"] }}"
-    {% for env in job["env"] %}
-    - name: {{ env.name }}
-      value: {{ env.value }}
+    {% for env in job["envs"] %}
+    - name: {{env.name}}
+      value: "{{env.value}}"
     {% endfor %}
 
   imagePullSecrets:
@@ -166,18 +173,13 @@ spec:
   - name: authorized-keys-volume
     hostPath:
       path: {{ job["homeFolderHostpath"] }}/.ssh/authorized_keys
-  {% if job["usefreeflow"] %}
-  - name: freeflow
-    hostPath:
-      path: /freeflow
-  {% endif %}
   {% if not job["dnsPolicy"] %}
   - name: resolv
     hostPath:
       path: /etc/resolv.conf
   {% endif %}
-
   {% for mp in job["mountpoints"] %}
+  {% if mp.enabled %}
   - name: {{ mp.name }}
     {% if mp.emptydir %}
     emptyDir: {}
@@ -188,7 +190,13 @@ spec:
       type: {{ mp.type }}
       {% endif %}
     {% endif %}
+  {% endif %}
   {% endfor %}
+  {% if job["usefreeflow"] %}
+  - name: freeflow
+    hostPath:
+      path: /freeflow
+  {% endif %}
   - name: dshm
     emptyDir:
       medium: Memory

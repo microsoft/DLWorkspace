@@ -7,6 +7,7 @@ import subprocess
 import sys
 import datetime
 import copy
+import traceback
 
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
@@ -35,528 +36,90 @@ import random
 
 import logging
 import logging.config
-
-
-nvidiaDriverPath = config["nvidiaDriverPath"]
-
+from job import Job, JobSchema
+from pod_template import PodTemplate
+from dist_pod_template import DistPodTemplate
+from job_deployer import JobDeployer
 
 
 def printlog(msg):
     print("%s - %s" % (datetime.datetime.utcnow().strftime("%x %X"),msg))
 
-def LoadJobParams(jobParamsJsonStr):
-    return json.loads(jobParamsJsonStr)
-
-def cmd_exec(cmdStr):
-    try:
-        output = subprocess.check_output(["bash","-c", cmdStr])
-    except Exception as e:
-        print(e)
-        output = ""
-    return output
-
-
-
-
-
 
 def SubmitJob(job):
-    jobParams = json.loads(base64.b64decode(job["jobParams"]))
-    if jobParams["jobtrainingtype"] == "RegularJob":
-        SubmitRegularJob(job)
-    elif jobParams["jobtrainingtype"] == "PSDistJob":
-        SubmitPSDistJob(job)
-
-def CheckMountPoints(mplist, mp):
-    ret = True
-    for item in mplist:
-        if item["name"] == mp["name"] or item["containerPath"] == mp["containerPath"] or item["hostPath"] == mp["hostPath"]:
-            ret = False
-    return ret
-
-def SubmitRegularJob(job):
     ret = {}
     dataHandler = DataHandler()
 
     try:
-        jobParams = json.loads(base64.b64decode(job["jobParams"]))
+        job["cluster"] = config
+        job_object, errors = JobSchema().load(job)
+        # TODO assert job_object is a Job
+        assert(isinstance(job_object, Job))
 
-        jobParams["pvc_job"] = "jobs-" + jobParams["jobId"]
-        jobParams["pvc_work"] = "work-" + jobParams["jobId"]
-        jobParams["pvc_data"] = "storage-" + jobParams["jobId"]
+        job_object.params = json.loads(base64.b64decode(job["jobParams"]))
 
+        # inject gid, uid and user
+        # TODO it should return only one entry
+        user_info = dataHandler.GetIdentityInfo(job_object.params["userName"])[0]
+        job_object.params["gid"] = user_info["gid"]
+        job_object.params["uid"] = user_info["uid"]
+        job_object.params["user"] = job_object.get_alias()
 
-        if "jobPath" not in jobParams or len(jobParams["jobPath"].strip()) == 0:
-            dataHandler.SetJobError(jobParams["jobId"],"ERROR: job-path does not exist")
+        enable_custom_scheduler = job_object.is_custom_scheduler_enabled()
+        if job_object.params["jobtrainingtype"] == "RegularJob":
+            pod_template = PodTemplate(job_object.get_template(), enable_custom_scheduler)
+        elif job_object.params["jobtrainingtype"] == "PSDistJob":
+            pod_template = DistPodTemplate(job_object.get_template())
+        else:
+            dataHandler.SetJobError(job_object.job_id, "ERROR: invalid jobtrainingtype: %s" % job_object.params["jobtrainingtype"])
             return False
 
-        if "workPath" not in jobParams or len(jobParams["workPath"].strip()) == 0:
-            dataHandler.SetJobError(jobParams["jobId"],"ERROR: work-path does not exist")
+        pods, error = pod_template.generate_pods(job_object)
+        if error:
+            dataHandler.SetJobError(job_object.job_id, "ERROR: %s" % error)
             return False
 
-        #if "dataPath" not in jobParams or len(jobParams["dataPath"].strip()) == 0:
-        #    dataHandler.SetJobError(jobParams["jobId"],"ERROR: data-path does not exist")
-        #    return False
+        job_description = "\n---\n".join([yaml.dump(pod) for pod in pods])
+        job_description_path = "jobfiles/" + time.strftime("%y%m%d") + "/" + job_object.job_id + "/" + job_object.job_id + ".yaml"
+        local_jobDescriptionPath = os.path.realpath(os.path.join(config["storage-mount-path"], job_description_path))
+        if not os.path.exists(os.path.dirname(local_jobDescriptionPath)):
+            os.makedirs(os.path.dirname(os.path.realpath(local_jobDescriptionPath)))
+        with open(local_jobDescriptionPath, 'w') as f:
+            f.write(job_description)
 
+        job_deployer = JobDeployer()
+        try:
+            ret["output"] = job_deployer.create_pods(pods)
+        except Exception as e:
+            ret["output"] = "Error: %s" % e.message
+            logging.error(e, exc_info=True)
 
-        jobPath,workPath,dataPath = GetStoragePath(jobParams["jobPath"],jobParams["workPath"],jobParams["dataPath"])
+        ret["jobId"] = job_object.job_id
 
-
-        localJobPath = os.path.join(config["storage-mount-path"],jobPath)
-
-        if not os.path.exists(localJobPath):
-            if "userId" in jobParams:
-                mkdirsAsUser(localJobPath,jobParams["userId"])
-                mkdirsAsUser(os.path.join(localJobPath,"models"),jobParams["userId"])
-            else:
-                mkdirsAsUser(localJobPath,"0")
-                mkdirsAsUser(os.path.join(localJobPath,"models"),"0")
-
-        jobParams["LaunchCMD"] = ""
-        if "cmd" not in jobParams:
-            jobParams["cmd"] = ""
-
-        if isinstance(jobParams["cmd"], basestring) and not jobParams["cmd"] == "":
-            launchScriptPath = os.path.join(localJobPath,"launch-%s.sh" % jobParams["jobId"])
-            with open(launchScriptPath, 'w') as f:
-                f.write("#!/bin/bash -x\n")
-                f.write("mkdir /opt; \n")
-                f.write("echo 'localhost slots=%s' | tee -a /opt/hostfile; \n" % jobParams["resourcegpu"])
-                # TODO refine it later
-                f.write("bash /dlws/init_user.sh &> /job/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c '%s'\n" % jobParams["cmd"])
-            f.close()
-            if "userId" in jobParams:
-                os.system("chown -R %s %s" % (jobParams["userId"], launchScriptPath))
-            jobParams["LaunchCMD"] = "[\"bash\", \"/job/launch-%s.sh\"]" % jobParams["jobId"]
-
-
-        jobParams["jobDescriptionPath"] = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"] + ".yaml"
-
-        jobParams["jobNameLabel"] = ''.join(e for e in jobParams["jobName"] if e.isalnum())
-
-        ENV = Environment(loader=FileSystemLoader("/"))
-
-        jobTempDir = os.path.join(config["root-path"],"Jobs_Templete")
-        jobTemp = os.path.join(jobTempDir, "RegularJob.yaml.template")
-
-        jobParams["hostjobPath"] = os.path.join(config["storage-mount-path"], jobPath)
-        jobParams["hostworkPath"] = os.path.join(config["storage-mount-path"], workPath)
-        jobParams["hostdataPath"] = os.path.join(config["storage-mount-path"], dataPath)
-        jobParams["nvidiaDriverPath"] = nvidiaDriverPath
-
-
-        jobParams["rest-api"] = config["rest-api"]
-
-        if "mountpoints" not in jobParams:
-            jobParams["mountpoints"] = []
-        for onemount in jobParams["mountpoints"]:
-            onemount["name"] = onemount["containerPath"].replace("/","").lower()
-
-        # mp = {"name":"nvidia-driver","containerPath":"/usr/local/nvidia","hostPath":nvidiaDriverPath, "enabled":True}
-        # if CheckMountPoints(jobParams["mountpoints"],mp):
-        #    jobParams["mountpoints"].append(mp)
-
-        mp = {"name":"job","containerPath":"/job","hostPath":jobParams["hostjobPath"], "enabled":True}
-        if CheckMountPoints(jobParams["mountpoints"],mp):
-            jobParams["mountpoints"].append(mp)
-
-        mp = {"name":"work","containerPath":"/work","hostPath":jobParams["hostworkPath"], "enabled":True}
-        if CheckMountPoints(jobParams["mountpoints"],mp):
-            jobParams["mountpoints"].append(mp)
-
-        mp = {"name":"data","containerPath":"/data","hostPath":jobParams["hostdataPath"], "enabled":True}
-        if CheckMountPoints(jobParams["mountpoints"],mp):
-            jobParams["mountpoints"].append(mp)
-
-        userAlias = getAlias(jobParams["userName"])
-        jobParams["user_email"] = jobParams["userName"]
-        jobParams["homeFolderHostpath"] = os.path.join(config["storage-mount-path"], GetWorkPath(userAlias))
-
-        if CheckMountPoints(jobParams["mountpoints"],mp):
-            jobParams["mountpoints"].append(mp)
-
-        for idx in range(len(jobParams["mountpoints"])):
-            if "name" not in jobParams["mountpoints"][idx]:
-                jobParams["mountpoints"][idx]["name"] = str(uuid.uuid4()).replace("-","")
-
-
-        jobParams["pod_ip_range"] = config["pod_ip_range"]
-        if "usefreeflow" in config:
-            jobParams["usefreeflow"] = config["usefreeflow"]
-        else:
-            jobParams["usefreeflow"] = False
-
-        print ("Render Job: %s" % jobParams)
-        jobDescriptionList = []
-
-        pods = []
-        if "hyperparametername" in jobParams and "hyperparameterstartvalue" in jobParams and "hyperparameterendvalue" in jobParams and "hyperparameterstep" in jobParams:
-            i = int(jobParams["hyperparameterstartvalue"])
-            end = int(jobParams["hyperparameterendvalue"])
-            step = int(jobParams["hyperparameterstep"])
-            c = 0
-            while (i <= end):
-                pod = {}
-                pod["podName"] = jobParams["jobId"]+"-pod-"+str(c)
-                pod["envs"] = [{"name":jobParams["hyperparametername"],"value":i}]
-                i += step
-                c += 1
-                pods.append(pod)
-        else:
-                pod = {}
-                pod["podName"] = jobParams["jobId"]
-                pod["envs"] = []
-                pods.append(pod)
-
-        if "env" not in jobParams:
-            jobParams["env"] = []
-        jobParams["commonenv"] = copy.copy(jobParams["env"])
-
-
-        for pod in pods:
-            jobParams["podName"] = pod["podName"]
-            jobParams["env"] = jobParams["commonenv"] + pod["envs"]
-
-            if "kube_custom_scheduler" in config and config["kube_custom_scheduler"]:
-                container = {}
-                container["requests"] = {"alpha.gpu/numgpu" : int(jobParams["resourcegpu"])}
-                podInfo = {}
-                podInfo["podname"] = jobParams["podName"]
-                if "useGPUTopology" in jobParams and jobParams["useGPUTopology"]:
-                    # add topology constraints explicitly - for testing
-                    # if (jobParams["resourcegpu"] >= 2):
-                    #     # both cards in same inner group
-                    #     container["requests"]["alpha/grpresource/gpugrp1/0/gpugrp0/0/gpu/0/cards"] = 1
-                    #     container["requests"]["alpha/grpresource/gpugrp1/0/gpugrp0/0/gpu/1/cards"] = 1
-                    # if (jobParams["resourcegpu"] >= 3):
-                    #     container["requests"]["alpha/grpresource/gpugrp1/0/gpugrp0/1/gpu/2/cards"] = 1
-                    # if (jobParams["resourcegpu"] >= 4):
-                    #     container["requests"]["alpha/grpresource/gpugrp1/0/gpugrp0/1/gpu/3/cards"] = 1
-                    # if (jobParams["resourcegpu"] >= 5):
-                    #     container["requests"]["alpha/grpresource/gpugrp1/1/gpugrp0/2/gpu/4/cards"] = 1
-                    # if (jobParams["resourcegpu"] >= 6):
-                    #     container["requests"]["alpha/grpresource/gpugrp1/1/gpugrp0/2/gpu/5/cards"] = 1
-                    # if (jobParams["resourcegpu"] >= 7):
-                    #     container["requests"]["alpha/grpresource/gpugrp1/1/gpugrp0/3/gpu/6/cards"] = 1
-                    # if (jobParams["resourcegpu"] >= 8):
-                    #     container["requests"]["alpha/grpresource/gpugrp1/1/gpugrp0/3/gpu/7/cards"] = 1
-                    podInfo["requests"] = {"alpha.gpu/gpu-generate-topology" : 1}
-                else:
-                    # for cases when desired topology is explictly given or not desired
-                    podInfo["requests"] = {"alpha.gpu/gpu-generate-topology" : 0}
-                podInfo["runningcontainer"] = {jobParams["podName"] : container}
-
-                if "annotations" not in jobParams:
-                    jobParams["annotations"] = {}
-                jobParams["annotations"]["pod.alpha/DeviceInformation"] = "'" + json.dumps(podInfo) + "'"
-                jobParams["resourcegpu"] = 0 # gpu requests specified through annotation
-
-                if "gpuType" in jobParams:
-                    if "nodeSelector" not in jobParams:
-                        jobParams["nodeSelector"] = {}
-                    jobParams["nodeSelector"]["gpuType"] = jobParams["gpuType"]
-
-            # inject gid, uid and user
-            # TODO it should return only one entry
-            user_info = dataHandler.GetIdentityInfo(jobParams["userName"])[0]
-            jobParams["gid"] = user_info["gid"]
-            jobParams["uid"] = user_info["uid"]
-            jobParams["user"] = userAlias
-
-            template = ENV.get_template(os.path.abspath(jobTemp))
-            job_description = template.render(job=jobParams)
-            jobDescriptionList.append(job_description)
-
-        jobDescription = "\n---\n".join(jobDescriptionList)
-
-        jobDescriptionPath = os.path.join(config["storage-mount-path"], jobParams["jobDescriptionPath"])
-        if not os.path.exists(os.path.dirname(os.path.realpath(jobDescriptionPath))):
-            os.makedirs(os.path.dirname(os.path.realpath(jobDescriptionPath)))
-        if os.path.isfile(jobDescriptionPath):
-            output = k8sUtils.kubectl_delete(jobDescriptionPath)
-
-        with open(jobDescriptionPath, 'w') as f:
-            f.write(jobDescription)
-
-        output = k8sUtils.kubectl_create(jobDescriptionPath)
-        logging.info("Submitted job %s to k8s, returned with status %s" %(job["jobId"], output))
-
-        ret["output"] = output
-
-        ret["jobId"] = jobParams["jobId"]
-
-
-        if "userName" not in jobParams:
-            jobParams["userName"] = ""
-
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","scheduling")
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobDescriptionPath",jobParams["jobDescriptionPath"])
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobDescription",base64.b64encode(jobDescription))
-
+        dataHandler.UpdateJobTextField(job_object.job_id, "jobStatus", "scheduling")
+        dataHandler.UpdateJobTextField(job_object.job_id, "jobDescriptionPath", job_description_path)
+        dataHandler.UpdateJobTextField(job_object.job_id, "jobDescription", base64.b64encode(job_description))
+        dataHandler.UpdateJobTextField(job_object.job_id, "lastUpdated", datetime.datetime.now().isoformat())
 
         jobMeta = {}
-        jobMeta["jobDescriptionPath"] = jobParams["jobDescriptionPath"]
-        jobMeta["jobPath"] = jobParams["jobPath"]
-        jobMeta["workPath"] = jobParams["workPath"]
-        jobMeta["jobPath"] = jobParams["jobPath"]
-        jobMeta["LaunchCMD"] = jobParams["LaunchCMD"]
+        jobMeta["jobDescriptionPath"] = job_description_path
+        jobMeta["jobPath"] = job_object.job_path
+        jobMeta["workPath"] = job_object.work_path
+        # the command of the first container
+        jobMeta["LaunchCMD"] = pods[0]["spec"]["containers"][0]["command"]
 
         jobMetaStr = base64.b64encode(json.dumps(jobMeta))
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobMeta",jobMetaStr)
+        dataHandler.UpdateJobTextField(job_object.job_id, "jobMeta", jobMetaStr)
     except Exception as e:
-        print(e)
+        logging.error("Submit job failed: %s" % job, exc_info=True)
         ret["error"] = str(e)
-        retries = dataHandler.AddandGetJobRetries(jobParams["jobId"])
+        retries = dataHandler.AddandGetJobRetries(job["jobId"])
         if retries >= 5:
-            dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","error")
-            dataHandler.UpdateJobTextField(jobParams["jobId"],"errorMsg","Cannot submit job!" + str(e))
+            dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "error")
+            dataHandler.UpdateJobTextField(job["jobId"], "errorMsg", "Cannot submit job!" + str(e))
     dataHandler.Close()
     return ret
 
-
-
-def SubmitPSDistJob(job):
-    ret = {}
-    dataHandler = DataHandler()
-
-    try:
-        jobParams = json.loads(base64.b64decode(job["jobParams"]))
-        jobParams["rest-api"] = config["rest-api"]
-        distJobParams = {}
-        distJobParams["ps"] = []
-        distJobParams["worker"] = []
-        assignedRack = None
-        if len(config["racks"]) > 0:
-            assignedRack = random.choice(config["racks"])
-
-        userAlias = getAlias(jobParams["userName"])
-        jobParams["user_email"] = jobParams["userName"]
-
-        jobParams["homeFolderHostpath"] = os.path.join(config["storage-mount-path"], GetWorkPath(userAlias))
-
-        if jobParams["jobtrainingtype"] == "PSDistJob":
-            jobDescriptionList = []
-            nums = {"ps":int(jobParams["numps"]),"worker":int(jobParams["numpsworker"])}
-            for role in ["ps","worker"]:
-                for i in range(nums[role]):
-                    distJobParam=copy.deepcopy(jobParams)
-                    distJobParam["distId"] = "%s%d" % (role,i)
-                    distJobParam["distRole"] = role
-                    distJobParam["distRoleIdx"] = i
-
-                    if "jobPath" not in distJobParam or len(distJobParam["jobPath"].strip()) == 0:
-                        dataHandler.SetJobError(distJobParam["jobId"],"ERROR: job-path does not exist")
-                        return False
-                    if "workPath" not in distJobParam or len(distJobParam["workPath"].strip()) == 0:
-                        dataHandler.SetJobError(distJobParam["jobId"],"ERROR: work-path does not exist")
-                        return False
-                    #if "dataPath" not in distJobParam or len(distJobParam["dataPath"].strip()) == 0:
-                    #    dataHandler.SetJobError(distJobParam["jobId"],"ERROR: data-path does not exist")
-                    #    return False
-                    distJobParam["distJobPath"] = os.path.join(distJobParam["jobPath"],distJobParam["distId"])
-                    jobPath,workPath,dataPath = GetStoragePath(distJobParam["distJobPath"],distJobParam["workPath"],distJobParam["dataPath"])
-
-                    localJobPath = os.path.join(config["storage-mount-path"],jobPath)
-                    if not os.path.exists(localJobPath):
-                        if "userId" in distJobParam:
-                            mkdirsAsUser(localJobPath,distJobParam["userId"])
-                        else:
-                            mkdirsAsUser(localJobPath,0)
-
-                    # TODO ???
-                    if "cmd" not in distJobParam:
-                        distJobParam["cmd"] = ""
-
-#change ssh folder permission here because the setup permission script in launch_ps_job function may have race condition with init_user.sh script. results in no such user error
-                    if role == "ps":
-                        launchCMD = """
-#!/bin/bash
-echo "[DLWorkspace System]: Waiting for all containers are ready..."
-while [ ! -f /opt/run_dist_job ]; do
-    sleep 3
-done
-
-sudo chmod 600 -R /home/%s/.ssh &>/dev/null;
-sudo chmod 700 /home/%s/.ssh &>/dev/null;
-sudo chown -R %s /home/%s/.ssh &>/dev/null;
-
-sudo mkdir -p /root/.ssh  &>/dev/null ;
-sudo ln -s /home/%s/.ssh/config /root/.ssh/config  &>/dev/null;
-sudo mkdir -p /opt  &>/dev/null;
-sudo ln -s /job/hostfile /opt/hostfile &>/dev/null;
-
-JOB_DIR='/home/%s'
-WORKER_NUM=%s
-echo $JOB_DIR $WORKER_NUM
-
-all_workers_ready=false
-while [ "$all_workers_ready" != true ]
-do
-  # update it to false if any woker is not ready
-  all_workers_ready=true
-
-  for i in $(seq 0 $(( ${WORKER_NUM} - 1)) )
-  do
-    worker="worker${i}"
-    file="$JOB_DIR/${worker}/WORKER_READY"
-    #echo $file
-
-    if [ ! -f $file ]; then
-      echo "${worker} not ready!"
-      all_workers_ready=false
-      sleep 10
-    fi
-  done
-done
-
-echo "[DLWorkspace System]: All containers are ready, launching training job..."
-%s
-""" % (userAlias,userAlias,userAlias,userAlias,userAlias,distJobParam["jobPath"],jobParams["numpsworker"],distJobParam["cmd"])
-                    else:
-                        launchCMD = """
-while [ ! -f /opt/run_dist_job ]; do
-    sleep 3
-done
-sudo chmod 600 -R /home/%s/.ssh &>/dev/null;
-sudo chmod 700 /home/%s/.ssh &>/dev/null;
-sudo chown -R %s /home/%s/.ssh  &>/dev/null;
-sudo mkdir -p /root/.ssh  &>/dev/null;
-sudo ln -s /home/%s/.ssh/config /root/.ssh/config &>/dev/null;
-sudo mkdir -p /opt && sudo ln -s /job/hostfile /opt/hostfile  &>/dev/null;
-
-# TODO mark the worker as 'READY', better to change to '/pod/READY' later
-sudo touch /job/WORKER_READY
-
-sleep infinity
-""" % (userAlias,userAlias,userAlias,userAlias,userAlias)
-
-
-                    launchScriptPath = os.path.join(localJobPath,"launch-%s-%s%d.sh" % (distJobParam["jobId"],role,i))
-                    # TODO need to set up user for distribute jobs
-                    with open(launchScriptPath, 'w') as f:
-                        f.write(launchCMD)
-                    f.close()
-
-
-                    launchScriptInContainer = "bash /job/launch-%s-%s%d.sh" % (distJobParam["jobId"],role,i)
-
-                    distJobParam["LaunchCMD"] = '["bash", "-c", "bash /dlws/init_user.sh &> /job/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c \'%s\'"]' % launchScriptInContainer
-
-                    distJobParam["jobNameLabel"] = ''.join(e for e in distJobParam["jobName"] if e.isalnum())
-                    ENV = Environment(loader=FileSystemLoader("/"))
-
-                    jobTempDir = os.path.join(config["root-path"],"Jobs_Templete")
-                    jobTemp = os.path.join(jobTempDir, "DistJob.yaml.template")
-
-                    distJobParam["hostjobPath"] = os.path.join(config["storage-mount-path"], jobPath)
-                    distJobParam["hostworkPath"] = os.path.join(config["storage-mount-path"], workPath)
-                    distJobParam["hostdataPath"] = os.path.join(config["storage-mount-path"], dataPath)
-                    distJobParam["nvidiaDriverPath"] = nvidiaDriverPath
-
-                    if "mountpoints" not in distJobParam:
-                        distJobParam["mountpoints"] = []
-
-                    # distJobParam["mountpoints"].append({"name":"nvidia-driver","containerPath":"/usr/local/nvidia","hostPath":nvidiaDriverPath})
-                    distJobParam["mountpoints"].append({"name":"job","containerPath":"/job","hostPath":distJobParam["hostjobPath"]})
-                    distJobParam["mountpoints"].append({"name":"work","containerPath":"/work","hostPath":distJobParam["hostworkPath"]})
-                    distJobParam["mountpoints"].append({"name":"data","containerPath":"/data","hostPath":distJobParam["hostdataPath"]})
-
-                    for idx in range(len(distJobParam["mountpoints"])):
-                        if "name" not in distJobParam["mountpoints"][idx]:
-                            distJobParam["mountpoints"][idx]["name"] = str(uuid.uuid4()).replace("-","")
-
-
-                    distJobParam["pod_ip_range"] = config["pod_ip_range"]
-                    if "usefreeflow" in config:
-                        distJobParam["usefreeflow"] = config["usefreeflow"]
-                    else:
-                        distJobParam["usefreeflow"] = False
-
-                    distJobParam["numworker"] = int(jobParams["numpsworker"])
-                    distJobParam["numps"] = int(jobParams["numps"])
-
-
-
-                    random.seed(datetime.datetime.now())
-                    if "hostNetwork" in jobParams and jobParams["hostNetwork"]:
-                        distJobParam["containerPort"] = random.randint(40000, 49999)
-                    else:
-                        distJobParam["containerPort"] = int(random.random()*1000+3000)
-
-                    if assignedRack is not None:
-                        if "nodeSelector" not in distJobParam:
-                            distJobParam["nodeSelector"] = {}
-                        distJobParam["nodeSelector"]["rack"] = assignedRack
-
-                    if "gpuType" in distJobParam:
-                        if "nodeSelector" not in distJobParam:
-                            distJobParam["nodeSelector"] = {}
-                        distJobParam["nodeSelector"]["gpuType"] = distJobParam["gpuType"]
-
-                    # inject gid, uid and user
-                    # TODO it should return only one entry
-                    user_info = dataHandler.GetIdentityInfo(jobParams["userName"])[0]
-                    distJobParam["gid"] = user_info["gid"]
-                    distJobParam["uid"] = user_info["uid"]
-                    distJobParam["user"] = userAlias
-
-                    template = ENV.get_template(os.path.abspath(jobTemp))
-                    job_description = template.render(job=distJobParam)
-
-                    jobDescriptionList.append(job_description)
-
-                    distJobParams[role].append(distJobParam)
-
-
-            jobParams["jobDescriptionPath"] = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"] + ".yaml"
-            jobDescription = "\n---\n".join(jobDescriptionList)
-
-
-        jobDescriptionPath = os.path.join(config["storage-mount-path"], jobParams["jobDescriptionPath"])
-        if not os.path.exists(os.path.dirname(os.path.realpath(jobDescriptionPath))):
-            os.makedirs(os.path.dirname(os.path.realpath(jobDescriptionPath)))
-        if os.path.isfile(jobDescriptionPath):
-            output = k8sUtils.kubectl_delete(jobDescriptionPath)
-
-        with open(jobDescriptionPath, 'w') as f:
-            f.write(jobDescription)
-
-        output = k8sUtils.kubectl_create(jobDescriptionPath)
-
-        ret["output"] = output
-
-        ret["jobId"] = jobParams["jobId"]
-
-
-        if "userName" not in jobParams:
-            jobParams["userName"] = ""
-
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","scheduling")
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobDescriptionPath",jobParams["jobDescriptionPath"])
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobDescription",base64.b64encode(jobDescription))
-
-
-        jobMeta = {}
-        jobMeta["jobDescriptionPath"] = jobParams["jobDescriptionPath"]
-        jobMeta["jobPath"] = jobParams["jobPath"]
-        jobMeta["workPath"] = jobParams["workPath"]
-        jobMeta["jobPath"] = jobParams["jobPath"]
-        jobMeta["LaunchCMD"] = jobParams["cmd"]
-        jobMeta["distJobParams"] = distJobParams
-
-        jobMetaStr = base64.b64encode(json.dumps(jobMeta))
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobMeta",jobMetaStr)
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        print(e)
-        ret["error"] = str(e)
-        retries = dataHandler.AddandGetJobRetries(jobParams["jobId"])
-        if retries >= 5:
-            dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","error")
-            dataHandler.UpdateJobTextField(jobParams["jobId"],"errorMsg","Cannot submit job!" + str(e))
-    dataHandler.Close()
-    return ret
 
 def KillJob(job, desiredState="killed"):
     dataHandler = DataHandler()
@@ -579,6 +142,7 @@ def KillJob(job, desiredState="killed"):
     return False
 
 
+# TODO remove it latter
 def getAlias(username):
     if "@" in username:
         username = username.split("@")[0].strip()
@@ -695,23 +259,6 @@ def UpdateJobStatus(job):
 
     dataHandler.Close()
 
-def run_dist_cmd_on_pod(podId, cmd, outputfile):
-    remotecmd = "exec %s -- %s" % (podId,cmd)
-    print(remotecmd)
-    k8sUtils.kubectl_exec_output_to_file(remotecmd,outputfile)
-
-
-
-class Kube_RemoteCMD_Thread(threading.Thread):
-    def __init__(self, jobId, podId, cmd, outputfile):
-        threading.Thread.__init__(self)
-        self.jobId = jobId
-        self.podId = podId
-        self.cmd = cmd
-        self.outputfile = outputfile
-    def run(self):
-        run_dist_cmd_on_pod(self.podId, self.cmd, self.outputfile)
-
 
 # TODO remove duplicate code later
 def is_ssh_server_ready(pod_name):
@@ -772,9 +319,9 @@ def launch_ps_dist_job(jobParams):
     # setup ssh server
     for [idx, pod] in enumerate(pods["items"]):
         pod_name = pod["metadata"]["name"]
-        dist_port = pod["metadata"]["labels"]["distPort"]
+        ssh_port = pod["metadata"]["labels"]["sshPort"]
         # quit if can't setup ssh server
-        ssh_port = start_ssh_server(pod_name, user_name, host_network, dist_port)
+        ssh_port = start_ssh_server(pod_name, user_name, host_network, ssh_port)
 
     # generate ssh config
     ssh_config = """
@@ -788,13 +335,13 @@ Host %s
     sshconfigstr = ""
     for [idx, pod] in enumerate(pods["items"]):
         pod_ip = pod["status"]["podIP"]
-        dist_port = pod["metadata"]["labels"]["distPort"]
+        ssh_port = pod["metadata"]["labels"]["sshPort"]
         role = pod["metadata"]["labels"]["distRole"]
         role_idx = pod["metadata"]["labels"]["distRoleIdx"]
 
         # TODO hostNetwork
         if host_network:
-            sshconfigstr += (ssh_config % (role + "-"+str(role_idx), pod_ip, str(dist_port), user_name) + "\n")
+            sshconfigstr += (ssh_config % (role + "-"+str(role_idx), pod_ip, str(ssh_port), user_name) + "\n")
         else:
             sshconfigstr += (ssh_config % (role + "-"+str(role_idx), pod_ip, 22, user_name) + "\n")
 
@@ -844,7 +391,7 @@ def create_log( logdir = '/var/log/dlworkspace' ):
     if not os.path.exists( logdir ):
         os.system("mkdir -p " + logdir )
     with open('logging.yaml') as f:
-        logging_config = yaml.load(f)
+        logging_config = yaml.full_load(f)
         f.close()
         logging_config["handlers"]["file"]["filename"] = logdir+"/jobmanager.log"
         logging.config.dictConfig(logging_config)
