@@ -47,3 +47,44 @@ spec:
         ]
 
         job_deployer.cleanup_pods(pods)
+
+    def test_get_pod_by_label(self):
+        job_deployer = self.create_job_deployer()
+        label_selector = "run=some_job_id"
+
+        pods = job_deployer.get_pods_by_label(label_selector)
+
+        self.assertEqual(0, len(pods))
+
+    def test_get_services_by_label(self):
+        job_deployer = self.create_job_deployer()
+        label_selector = "run=some_job_id"
+
+        services = job_deployer.get_services_by_label(label_selector)
+
+        self.assertEqual(0, len(services))
+
+    def test_create_endpoint(self):
+        job_deployer = self.create_job_deployer()
+        raw_yaml = """
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-service
+spec:
+  selector:
+    app: MyApp
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 9376
+    """
+        body = yaml.full_load(raw_yaml)
+
+        # with self.assertRaises(ApiException):
+        job_deployer.create_service(body)
+
+    def test_delete_service(self):
+        job_deployer = self.create_job_deployer()
+
+        job_deployer.delete_service("test-service")

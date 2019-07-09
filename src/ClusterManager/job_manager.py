@@ -86,7 +86,8 @@ def SubmitJob(job):
 
         job_deployer = JobDeployer()
         try:
-            ret["output"] = job_deployer.create_pods(pods)
+            pods = job_deployer.create_pods(pods)
+            ret["output"] = "Created pods: {}".format([pod.metedata.name for pod in pods])
         except Exception as e:
             ret["output"] = "Error: %s" % e.message
             logging.error(e, exc_info=True)
@@ -121,22 +122,21 @@ def SubmitJob(job):
 def KillJob(job, desiredState="killed"):
     dataHandler = DataHandler()
     result, detail = k8sUtils.GetJobStatus(job["jobId"])
-    dataHandler.UpdateJobTextField(job["jobId"],"jobStatusDetail",base64.b64encode(json.dumps(detail)))
-    logging.info("Killing job %s, with status %s, %s" %(job["jobId"], result,detail))
-    if "jobDescriptionPath" in job and job["jobDescriptionPath"] is not None:
-        jobDescriptionPath = os.path.join(config["storage-mount-path"], job["jobDescriptionPath"])
-        if os.path.isfile(jobDescriptionPath):
-            if k8sUtils.kubectl_delete(jobDescriptionPath) == 0:
-                dataHandler.UpdateJobTextField(job["jobId"],"jobStatus", desiredState)
-                return True
-            else:
-                dataHandler.UpdateJobTextField(job["jobId"],"errorMsg","Cannot delete job from Kubernetes Cluster!")
-    else:
-        dataHandler.UpdateJobTextField(job["jobId"],"errorMsg","Cannot find job description file!")
+    dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
+    logging.info("Killing job %s, with status %s, %s" % (job["jobId"], result, detail))
 
-    dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","error")
-    dataHandler.Close()
-    return False
+    job_deployer = JobDeployer()
+    errors = job_deployer.delete_job(job["jobId"])
+
+    if len(errors) == 0:
+        dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", desiredState)
+        dataHandler.Close()
+        return True
+    else:
+        dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "error")
+        dataHandler.Close()
+        logger.error("Kill job failed with errors: {}".format(errors))
+        return False
 
 
 # TODO remove it latter

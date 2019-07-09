@@ -2,6 +2,7 @@ import yaml
 import os
 import logging
 from kubernetes import client, config
+from kubernetes.client.rest import ApiException
 
 
 class JobDeployer:
@@ -29,27 +30,88 @@ class JobDeployer:
             pretty=self.pretty,
             body=client.V1DeleteOptions(),
             dry_run=dry_run,
-            #  grace_period_seconds=grace_period_seconds,
-            #  orphan_dependents=orphan_dependents,
-            #  propagation_policy=propagation_policy,
         )
-        pass
+        return api_response
+
+    def create_service(self, body, dry_run=None):
+        api_response = self.v1.create_namespaced_service(
+            namespace=self.namespace,
+            body=body,
+            pretty=self.pretty,
+            dry_run=dry_run,
+        )
+        return api_response
+
+    def delete_service(self, name, dry_run=None):
+        api_response = self.v1.delete_namespaced_service(
+            name=name,
+            namespace=self.namespace,
+            pretty=self.pretty,
+            body=client.V1DeleteOptions(),
+            dry_run=dry_run,
+        )
+        return api_response
 
     def cleanup_pods(self, pods):
+        errors = []
         for pod in pods:
             try:
                 pod_name = pod["metadata"]["name"]
                 self.delete_pod(pod_name)
             except Exception as e:
-                logging.warning("Delete pod failed: %s!" % pod_name, exc_info=True)
+                message = "Delete pod failed: {}".format(pod_name)
+                logging.warning(message, exc_info=True)
+                errors.append({"message": message, "exception": e})
+        return errors
+
+    def cleanup_services(self, services):
+        errors = []
+        for service in services:
+            try:
+                service_name = service["metadata"]["name"]
+                self.delete_service(service_name)
+            except ApiException as e:
+                message = "Delete service failed: {}".format(service_name)
+                logging.warning(message, exc_info=True)
+                errors.append({"message": message, "exception": e})
+        return errors
 
     def create_pods(self, pods):
         # TODO instead of delete, we could check update existiong ones. During refactoring, keeping the old way.
         self.cleanup_pods(pods)
         created = []
         for pod in pods:
-            self.create_pod(pod)
-            pod_name = pod["metadata"]["name"]
-            created.append(pod_name)
-            logging.info("Create pod succeed: %s" % pod_name)
+            created_pod = self.create_pod(pod)
+            created.append(created_pod)
+            logging.info("Create pod succeed: %s" % created_pod.metadata.name)
         return created
+
+    def get_pods_by_label(self, label_selector):
+        api_response = self.v1.list_namespaced_pod(
+            namespace=self.namespace,
+            pretty=self.pretty,
+            label_selector=label_selector,
+        )
+        return api_response.items
+
+    def get_services_by_label(self, label_selector):
+        api_response = self.v1.list_namespaced_service(
+            namespace=self.namespace,
+            pretty=self.pretty,
+            label_selector=label_selector,
+        )
+        return api_response.items
+
+    def delete_job(self, job_id):
+        label_selector = "run={}".format(job_id)
+
+        # query pods then delete
+        pods = self.get_pod_by_label(label_selector)
+        pod_errors = self.cleanup_pods(pods)
+
+        # query services then delete
+        services = self.get_service_by_label(label_selector)
+        service_errors = self.cleanup_services(services)
+
+        errors = pod_errors + service_errors
+        return errors
