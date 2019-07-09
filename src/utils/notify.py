@@ -56,7 +56,7 @@ class Notifier(object):
         self.alert_manager_url = None
         self.smtp_url = self.smtp_from = self.smtp_auth_name = self.smtp_auth_pass = None
 
-        if "notifier" in config:
+        if config is not None and "notifier" in config:
             notifier_config = config["notifier"]
 
             self.cluster = notifier_config.get("cluster")

@@ -18,6 +18,7 @@ from jobs_tensorboard import GenTensorboardMeta
 import k8sUtils
 import joblog_manager
 from osUtils import mkdirsAsUser
+import notify
 
 import yaml
 from jinja2 import Environment, FileSystemLoader, Template
@@ -179,7 +180,7 @@ def AutoApproveJob(job):
 
 UnusualJobs = {}
 
-def UpdateJobStatus(job):
+def UpdateJobStatus(job, notifier):
     dataHandler = DataHandler()
     jobParams = json.loads(base64.b64decode(job["jobParams"]))
 
@@ -225,6 +226,10 @@ def UpdateJobStatus(job):
 
     elif result.strip() == "Failed":
         logging.warning("Job %s fails, cleaning...", job["jobId"])
+
+        notifier.notify(notify.new_job_state_change_message(
+            job["userName"], job["jobId"], result.strip()))
+
         joblog_manager.extract_job_log(job["jobId"],logPath,jobParams["userId"])
         dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","failed")
         dataHandler.UpdateJobTextField(job["jobId"],"errorMsg",detail)
@@ -480,6 +485,8 @@ def TakeJobActions(jobs):
 
 
 def Run():
+    notifier = Notifier(config.get("job-manager"))
+    notifier.start()
 
     while True:
 
@@ -505,7 +512,7 @@ def Run():
                         elif job["jobStatus"] == "pausing":
                             KillJob(job, "paused")
                         elif job["jobStatus"] == "scheduling" or job["jobStatus"] == "running":
-                            UpdateJobStatus(job)
+                            UpdateJobStatus(job, notifier)
                         elif job["jobStatus"] == "unapproved":
                             AutoApproveJob(job)
                     except Exception as e:
