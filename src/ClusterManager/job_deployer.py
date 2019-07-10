@@ -3,6 +3,8 @@ import os
 import logging
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
+from kubernetes.stream import stream
+from kubernetes.stream.ws_client import ERROR_CHANNEL, STDERR_CHANNEL, STDOUT_CHANNEL
 
 
 class JobDeployer:
@@ -115,3 +117,30 @@ class JobDeployer:
 
         errors = pod_errors + service_errors
         return errors
+
+    def pod_exec(self, pod_name, exec_command):
+        logging.info("Exec on pod {}: {}".format(pod_name, exec_command))
+        client = stream(
+            self.v1.connect_get_namespaced_pod_exec,
+            name=pod_name,
+            namespace=self.namespace,
+            command=exec_command,
+            stderr=True,
+            stdin=False,
+            stdout=True,
+            tty=False,
+            _preload_content=False,
+        )
+
+        client.run_forever(timeout=60)
+        err = yaml.full_load(client.read_channel(ERROR_CHANNEL))
+        if err["status"] == "Success":
+            status_code = 0
+        else:
+            logging.warning("Exec on pod {} failed: {}".format(pod_name, err))
+            status_code = int(err["details"]["causes"][0]["message"])
+
+        output = client.read_channel(STDOUT_CHANNEL) + client.read_channel(STDERR_CHANNEL)
+
+        logging.info("Exec on pod {}, status: {}, output: {}".format(pod_name, status_code, output))
+        return [status_code, output]

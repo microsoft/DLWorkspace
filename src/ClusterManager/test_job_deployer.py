@@ -5,6 +5,15 @@ from kubernetes.client.rest import ApiException
 
 from job_deployer import JobDeployer
 
+import logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s",
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
+
 
 class TestJobDeployer(unittest.TestCase):
 
@@ -88,3 +97,22 @@ spec:
         job_deployer = self.create_job_deployer()
 
         job_deployer.delete_service("test-service")
+
+    def test_pod_exec(self):
+        job_deployer = self.create_job_deployer()
+        exec_command = [
+            '/bin/sh',
+            '-c',
+            'echo This message goes to stderr >&2 && echo This message goes to stdout'
+        ]
+
+        status_code, ouput = job_deployer.pod_exec("test-pod", exec_command)
+        self.assertEqual(0, status_code)
+
+        bad_command = [
+            '/bin/sh',
+            '-c',
+            'echo This message goes to stderr >&2 && xecho This message goes to stdout; exit 8'
+        ]
+        status_code, ouput = job_deployer.pod_exec("test-pod", bad_command)
+        self.assertEqual(8, status_code)
