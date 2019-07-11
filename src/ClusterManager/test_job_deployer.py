@@ -112,7 +112,15 @@ spec:
         bad_command = [
             '/bin/sh',
             '-c',
-            'echo This message goes to stderr >&2 && xecho This message goes to stdout; exit 8'
+            'echo This message goes to stderr >&2 && xecho This message goes to stdout; sleep 3; exit 8'
         ]
         status_code, ouput = job_deployer.pod_exec("test-pod", bad_command)
         self.assertEqual(8, status_code)
+
+        bad_command = [
+            '/bin/sh',
+            '-c',
+            'echo This message goes to stderr >&2 && xecho This message goes to stdout; sleep 3; exit 8'
+        ]
+        status_code, ouput = job_deployer.pod_exec("test-pod", bad_command, 1)
+        self.assertEqual(-1, status_code)
