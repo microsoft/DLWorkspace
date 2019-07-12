@@ -210,6 +210,7 @@ namespace WindowsAuth.Controllers
         [HttpGet("{op}")]
         public async Task<ActionResult> Get(string op)
         {
+            var tuple = await processRestfulAPICommon();
             if (!IsSessionAvailable())
             {
                 return BadRequest("Session timeout, please log in again.");
@@ -217,7 +218,6 @@ namespace WindowsAuth.Controllers
 
             var ret = "invalid API call!";
             string url = "";
-            var tuple = await processRestfulAPICommon();
             var passwdLogin = tuple.Item1;
             if (!String.IsNullOrEmpty(tuple.Item2))
                 return BadRequest(tuple.Item2);
