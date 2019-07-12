@@ -58,7 +58,7 @@ class JobDeployer:
         errors = []
         for pod in pods:
             try:
-                pod_name = pod["metadata"]["name"]
+                pod_name = pod.metadata.name
                 self.delete_pod(pod_name)
             except Exception as e:
                 message = "Delete pod failed: {}".format(pod_name)
@@ -70,7 +70,7 @@ class JobDeployer:
         errors = []
         for service in services:
             try:
-                service_name = service["metadata"]["name"]
+                service_name = service.metadata.name
                 self.delete_service(service_name)
             except ApiException as e:
                 message = "Delete service failed: {}".format(service_name)
@@ -108,11 +108,11 @@ class JobDeployer:
         label_selector = "run={}".format(job_id)
 
         # query pods then delete
-        pods = self.get_pod_by_label(label_selector)
+        pods = self.get_pods_by_label(label_selector)
         pod_errors = self.cleanup_pods(pods)
 
         # query services then delete
-        services = self.get_service_by_label(label_selector)
+        services = self.get_services_by_label(label_selector)
         service_errors = self.cleanup_services(services)
 
         errors = pod_errors + service_errors

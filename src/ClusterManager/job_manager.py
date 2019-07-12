@@ -137,7 +137,7 @@ def KillJob(job, desiredState="killed"):
         dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "error")
         dataHandler.UpdateJobTextField(job["jobId"], "lastUpdated", datetime.datetime.now().isoformat())
         dataHandler.Close()
-        logger.error("Kill job failed with errors: {}".format(errors))
+        logging.error("Kill job failed with errors: {}".format(errors))
         return False
 
 
