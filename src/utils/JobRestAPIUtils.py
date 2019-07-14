@@ -498,7 +498,7 @@ def GetVC(userName, vcName):
 
     clusterStatus, dummy = DataManager.GetClusterStatus()
     clusterTotalRes = ResourceInfo(clusterStatus["gpu_capacity"])
-    clusterReservedRes = ResourceInfo(clusterStatus["gpu_unschedulable"])
+    clusterReservedRes = ResourceInfo(clusterStatus["gpu_reserved"])
 
     user_status = {}
 
