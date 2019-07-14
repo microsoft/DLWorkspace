@@ -140,7 +140,7 @@ def get_cluster_status():
                     node_status["unschedulable"] = False
 
                 if "status" in node and "conditions" in node["status"]:
-                    for condi in node["status"]:
+                    for condi in node["status"]["conditions"]:
                         if "type" in condi and condi["type"] == "Ready" and "status" in condi and condi["status"] == "Unknown":
                             node_status["unschedulable"] = True
 
@@ -204,12 +204,13 @@ def get_cluster_status():
         for node_name, node_status in nodes_status.iteritems():
             if node_status["unschedulable"]:
                 gpu_unschedulable.Add(ResourceInfo(node_status["gpu_capacity"]))
+                gpu_reserved.Add(ResourceInfo.Difference(ResourceInfo(node_status["gpu_capacity"]), ResourceInfo(node_status["gpu_used"])))
             else:
                 gpu_avaliable.Add(ResourceInfo.Difference(ResourceInfo(node_status["gpu_allocatable"]), ResourceInfo(node_status["gpu_used"])))
                 gpu_schedulable.Add(ResourceInfo(node_status["gpu_capacity"]))
                 gpu_unschedulable.Add(ResourceInfo.Difference(ResourceInfo(node_status["gpu_capacity"]), ResourceInfo(node_status["gpu_allocatable"])))
+                gpu_reserved.Add(ResourceInfo.Difference(ResourceInfo(node_status["gpu_capacity"]), ResourceInfo(node_status["gpu_allocatable"])))
 
-            gpu_reserved.Add(ResourceInfo.Difference(ResourceInfo(node_status["gpu_capacity"]), ResourceInfo(node_status["gpu_allocatable"])))
             gpu_used.Add(ResourceInfo(node_status["gpu_used"]))
             gpu_capacity.Add(ResourceInfo(node_status["gpu_capacity"]))
 
