@@ -87,7 +87,7 @@ def SubmitJob(job):
         job_deployer = JobDeployer()
         try:
             pods = job_deployer.create_pods(pods)
-            ret["output"] = "Created pods: {}".format([pod.metedata.name for pod in pods])
+            ret["output"] = "Created pods: {}".format([pod.metadata.name for pod in pods])
         except Exception as e:
             ret["output"] = "Error: %s" % e.message
             logging.error(e, exc_info=True)
@@ -104,7 +104,7 @@ def SubmitJob(job):
         jobMeta["jobPath"] = job_object.job_path
         jobMeta["workPath"] = job_object.work_path
         # the command of the first container
-        jobMeta["LaunchCMD"] = pods[0]["spec"]["containers"][0]["command"]
+        jobMeta["LaunchCMD"] = pods[0].spec.containers[0].command
 
         jobMetaStr = base64.b64encode(json.dumps(jobMeta))
         dataHandler.UpdateJobTextField(job_object.job_id, "jobMeta", jobMetaStr)

@@ -54,11 +54,10 @@ class JobDeployer:
         )
         return api_response
 
-    def cleanup_pods(self, pods):
+    def cleanup_pods(self, pod_names):
         errors = []
-        for pod in pods:
+        for pod_name in pod_names:
             try:
-                pod_name = pod.metadata.name
                 self.delete_pod(pod_name)
             except Exception as e:
                 message = "Delete pod failed: {}".format(pod_name)
@@ -69,6 +68,7 @@ class JobDeployer:
     def cleanup_services(self, services):
         errors = []
         for service in services:
+            assert(isinstance(service, client.V1Service))
             try:
                 service_name = service.metadata.name
                 self.delete_service(service_name)
@@ -80,7 +80,8 @@ class JobDeployer:
 
     def create_pods(self, pods):
         # TODO instead of delete, we could check update existiong ones. During refactoring, keeping the old way.
-        self.cleanup_pods(pods)
+        pod_names = [pod["metadata"]["name"] for pod in pods]
+        self.cleanup_pods(pod_names)
         created = []
         for pod in pods:
             created_pod = self.create_pod(pod)
@@ -88,10 +89,11 @@ class JobDeployer:
             logging.info("Create pod succeed: %s" % created_pod.metadata.name)
         return created
 
-    def get_pods_by_label(self, label_selector):
+    def get_pods(self, field_selector="", label_selector=""):
         api_response = self.v1.list_namespaced_pod(
             namespace=self.namespace,
             pretty=self.pretty,
+            field_selector=field_selector,
             label_selector=label_selector,
         )
         return api_response.items
@@ -108,8 +110,9 @@ class JobDeployer:
         label_selector = "run={}".format(job_id)
 
         # query pods then delete
-        pods = self.get_pods_by_label(label_selector)
-        pod_errors = self.cleanup_pods(pods)
+        pods = self.get_pods(label_selector=label_selector)
+        pod_names = [pod.metadata.name for pod in pods]
+        pod_errors = self.cleanup_pods(pod_names)
 
         # query services then delete
         services = self.get_services_by_label(label_selector)
@@ -141,8 +144,8 @@ class JobDeployer:
         if err["status"] == "Success":
             status_code = 0
         else:
-            logging.warning("Exec on pod {} failed: {}".format(pod_name, err))
+            logging.warning("Exec on pod {} failed. cmd: {}, err: {}.".format(pod_name, exec_command, err))
             status_code = int(err["details"]["causes"][0]["message"])
         output = client.read_channel(STDOUT_CHANNEL) + client.read_channel(STDERR_CHANNEL)
-        logging.info("Exec on pod {}, status: {}, output: {}".format(pod_name, status_code, output))
+        logging.info("Exec on pod {}, status: {}, cmd: {}, output: {}".format(pod_name, status_code, exec_command, output))
         return [status_code, output]
