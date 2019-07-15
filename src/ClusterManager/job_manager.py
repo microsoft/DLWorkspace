@@ -42,9 +42,6 @@ from dist_pod_template import DistPodTemplate
 from job_deployer import JobDeployer
 
 
-def printlog(msg):
-    print("%s - %s" % (datetime.datetime.utcnow().strftime("%x %X"),msg))
-
 
 def SubmitJob(job):
     ret = {}
@@ -200,7 +197,7 @@ def UpdateJobStatus(job):
                 try:
                     launch_ps_dist_job(jobParams)
                 except Exception as e:
-                    print(e)
+                    logging.exception("launch ps distributed job failed")
             return
 
     jobPath,workPath,dataPath = GetStoragePath(jobParams["jobPath"],jobParams["workPath"],jobParams["dataPath"])
@@ -227,7 +224,7 @@ def UpdateJobStatus(job):
             dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","running")
 
     elif result.strip() == "Failed":
-        printlog("Job %s fails, cleaning..." % job["jobId"])
+        logging.warning("Job %s fails, cleaning...", job["jobId"])
         joblog_manager.extract_job_log(job["jobId"],logPath,jobParams["userId"])
         dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","failed")
         dataHandler.UpdateJobTextField(job["jobId"],"errorMsg",detail)
@@ -241,16 +238,16 @@ def UpdateJobStatus(job):
             del UnusualJobs[job["jobId"]]
             retries = dataHandler.AddandGetJobRetries(job["jobId"])
             if retries >= 5:
-                printlog("Job %s fails for more than 5 times, abort" % job["jobId"])
+                logging.warning("Job %s fails for more than 5 times, abort", job["jobId"])
                 dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","error")
                 dataHandler.UpdateJobTextField(job["jobId"],"errorMsg","cannot launch the job.")
                 if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
                     k8sUtils.kubectl_delete(jobDescriptionPath)
             else:
-                printlog("Job %s fails in Kubernetes, delete and re-submit the job. Retries %d" % (job["jobId"] , retries))
+                logging.warning("Job %s fails in Kubernetes, delete and re-submit the job. Retries %d", job["jobId"] , retries)
                 SubmitJob(job)
     elif result.strip() == "PendingHostPort":
-        printlog("Cannot find host ports for job :%s, re-launch the job with different host ports " % (job["jobId"]))
+        logging.warning("Cannot find host ports for job :%s, re-launch the job with different host ports ", job["jobId"])
 
         SubmitJob(job)
 
@@ -349,7 +346,7 @@ Host %s
     for [idx, pod] in enumerate(pods["items"]):
         pod_name = pod["metadata"]["name"]
         bash_script = "cat > /home/" + user_name + "/.ssh/config <<EOF " + sshconfigstr + "\nEOF"
-        print("override ssh client config: %s" % bash_script)
+        logging.info("override ssh client config: %s", bash_script)
         k8sUtils.kubectl_exec("exec %s -- bash -c \'%s\' ; chown -R %s /home/%s/.ssh/config" % (pod_name, bash_script,user_name,user_name))
 
         # fix ~/.ssh/ folder permission
@@ -490,7 +487,7 @@ def Run():
             config["racks"] = k8sUtils.get_node_labels("rack")
             config["skus"] = k8sUtils.get_node_labels("sku")
         except Exception as e:
-            print(e)
+            logging.exception("get node labels failed")
 
         try:
             dataHandler = DataHandler()
@@ -514,15 +511,17 @@ def Run():
                     except Exception as e:
                         logging.info(e)
             except Exception as e:
-                print(str(e))
+                logging.exception("process pending job failed")
             finally:
                 dataHandler.Close()
         except Exception as e:
-            print(str(e))
+            logging.exception("close data handler failed")
 
         time.sleep(1)
 
 
 if __name__ == '__main__':
+    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s',
+            level=logging.INFO)
     Run()
     #print k8sUtils.get_pod_events("d493d41c-45ea-4e85-8ca4-01c3533cd727")

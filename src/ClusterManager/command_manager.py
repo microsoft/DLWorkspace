@@ -8,7 +8,6 @@ import sys
 import datetime
 import copy
 
-
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
 
@@ -32,8 +31,8 @@ import threading
 import random
 
 import logging
-import logging.config
 
+logger = logging.getLogger(__name__)
 
 def RunCommand(command):
     dataHandler = DataHandler()
@@ -50,13 +49,15 @@ def Run():
             pendingCommands = dataHandler.GetPendingCommands()
             for command in pendingCommands:
                 try:
-                    print "Processing command: %s" % (command["id"])
+                    logger.info("Processing command: %s", command["id"])
                     RunCommand(command)
                 except Exception as e:
-                    print e
+                    logger.exception("run command failed")
         except Exception as e:
-            print e
+            logger.exception("getting command failed")
         time.sleep(1)
 
 if __name__ == '__main__':
+    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s',
+            level=logging.INFO)
     Run()

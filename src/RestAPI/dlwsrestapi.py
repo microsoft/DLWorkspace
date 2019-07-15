@@ -33,13 +33,12 @@ with open(os.path.join(dir_path, 'logging.yaml'), 'r') as f:
     logging_config = yaml.load(f)
     dictConfig(logging_config)
 logger = logging.getLogger('restfulapi')
-global_vars["logger"] = logger
 
 app = Flask(__name__)
 api = Api(app)
 verbose = True
 logger.info( "------------------- Restful API started ------------------------------------- ")
-logger.info("%s" % config )
+logger.info("%s", config)
 
 if "initAdminAccess" not in global_vars or not global_vars["initAdminAccess"]:
     logger.info("===========Init Admin Access===============")
@@ -255,9 +254,9 @@ class SubmitJob(Resource):
                                     if oneshare==alias:
                                         addcmd += "chown %s:%s %s ; " % ( params["userId"], "500000513", containerPath )
             if verbose and len(params["mountpoints"]) > 0:
-                logger.info("Mount path for job %s" % params )
+                logger.info("Mount path for job %s", params )
                 for mounts in params["mountpoints"]:
-                    logger.info( "Share %s, mount %s at %s" % (mounts["name"], mounts["hostPath"], mounts["containerPath"]) )
+                    logger.info( "Share %s, mount %s at %s", mounts["name"], mounts["hostPath"], mounts["containerPath"])
             if len(addcmd) > 0:
                 params["cmd"] = addcmd + params["cmd"]
             output = JobRestAPIUtils.SubmitJob(json.dumps(params))
@@ -285,8 +284,8 @@ class PostJob(Resource):
     def post(self):
         params = request.get_json(force=True)
         monitor = yaml.safe_dump(params, default_flow_style=False)
-        logger.info("Post Job" )
-        logger.info(monitor )
+        logger.info("Post Job")
+        logger.info(monitor)
         ret = {}
         if True:
             output = JobRestAPIUtils.SubmitJob(json.dumps(params))
@@ -298,7 +297,7 @@ class PostJob(Resource):
                     ret["error"] = "Cannot create job!" + output["error"]
                 else:
                     ret["error"] = "Cannot create job!"
-            logger.info("Submit job through restapi, output is %s, ret is %s" %(output, ret) )
+            logger.info("Submit job through restapi, output is %s, ret is %s", output, ret)
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
@@ -1095,9 +1094,9 @@ class Endpoint(Resource):
                 endpoint_id = "e-" + pod_name + "-ssh"
 
                 if endpoint_exist(endpoint_id=endpoint_id):
-                    print("Endpoint {} exists. Skip.".format(endpoint_id))
+                    logger.info("Endpoint %s exists. Skip.", endpoint_id)
                     continue
-                print("Endpoint {} does not exist. Add.".format(endpoint_id))
+                logger.info("Endpoint %s does not exist. Add.", endpoint_id)
 
                 endpoint = {
                     "id": endpoint_id,
@@ -1123,7 +1122,7 @@ class Endpoint(Resource):
             endpoint_id = "e-" + job_id + "-ipython"
 
             if not endpoint_exist(endpoint_id=endpoint_id):
-                print("Endpoint {} does not exist. Add.".format(endpoint_id))
+                logger.info("Endpoint %s does not exist. Add.", endpoint_id)
                 endpoint = {
                     "id": endpoint_id,
                     "jobId": job_id,
@@ -1135,7 +1134,7 @@ class Endpoint(Resource):
                 }
                 endpoints[endpoint_id] = endpoint
             else:
-                print("Endpoint {} exists. Skip.".format(endpoint_id))
+                logger.info("Endpoint {} exists. Skip.", endpoint_id)
 
         # Only open tensorboard on the master
         if 'tensorboard' in requested_endpoints:
@@ -1150,7 +1149,7 @@ class Endpoint(Resource):
             endpoint_id = "e-" + job_id + "-tensorboard"
 
             if not endpoint_exist(endpoint_id=endpoint_id):
-                print("Endpoint {} does not exist. Add.".format(endpoint_id))
+                logger.info("Endpoint %s does not exist. Add.", endpoint_id)
                 endpoint = {
                     "id": endpoint_id,
                     "jobId": job_id,
@@ -1162,7 +1161,7 @@ class Endpoint(Resource):
                 }
                 endpoints[endpoint_id] = endpoint
             else:
-                print("Endpoint {} exists. Skip.".format(endpoint_id))
+                logger.info("Endpoint %s exists. Skip.", endpoint_id)
 
         # interactive port
         for interactive_port in interactive_ports:
@@ -1176,7 +1175,7 @@ class Endpoint(Resource):
 
             endpoint_id = "e-" + job_id + "-" + interactive_port["name"]
             if not endpoint_exist(endpoint_id=endpoint_id):
-                print("Endpoint {} does not exist. Add.".format(endpoint_id))
+                logger.info("Endpoint %s does not exist. Add.", endpoint_id)
                 endpoint = {
                     "id": endpoint_id,
                     "jobId": job_id,
@@ -1189,7 +1188,7 @@ class Endpoint(Resource):
                 }
                 endpoints[endpoint_id] = endpoint
             else:
-                print("Endpoint {} exists. Skip.".format(endpoint_id))
+                logger.info("Endpoint %s exists. Skip.", endpoint_id)
 
         data_handler = DataHandler()
         for [_, endpoint] in endpoints.items():

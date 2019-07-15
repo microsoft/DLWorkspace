@@ -86,7 +86,7 @@ def Run():
         try:
             set_user_directory()
         except Exception as e:
-            print e
+            logging.exception("set user directory failed")
         time.sleep(1)
 
 
