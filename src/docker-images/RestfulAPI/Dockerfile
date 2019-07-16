@@ -27,4 +27,12 @@ ADD Jobs_Templete /DLWorkspace/src/Jobs_Templete
 ADD utils /DLWorkspace/src/utils
 ADD RestAPI /DLWorkspace/src/RestAPI
 ADD ClusterManager /DLWorkspace/src/ClusterManager
+
+# TODO refine later
+# install requirements
+RUN rm -rf /usr/lib/python2.7/dist-packages/yaml
+RUN rm -rf /usr/lib/python2.7/dist-packages/PyYAML-*
+RUN pip install -r /DLWorkspace/src/ClusterManager/requirements.txt
+
+
 CMD /run.sh
