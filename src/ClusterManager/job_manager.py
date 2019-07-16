@@ -80,7 +80,7 @@ def SubmitJob(job):
         job_description_path = "jobfiles/" + time.strftime("%y%m%d") + "/" + job_object.job_id + "/" + job_object.job_id + ".yaml"
         local_jobDescriptionPath = os.path.realpath(os.path.join(config["storage-mount-path"], job_description_path))
         if not os.path.exists(os.path.dirname(local_jobDescriptionPath)):
-            os.makedirs(os.path.dirname(os.path.realpath(local_jobDescriptionPath)))
+            os.makedirs(os.path.dirname(local_jobDescriptionPath))
         with open(local_jobDescriptionPath, 'w') as f:
             f.write(job_description)
 
@@ -308,78 +308,6 @@ def launch_ps_dist_job(jobParams):
     pod_status = [k8sUtils.check_pod_status(pod) for pod in pods["items"]]
     if any([status != "Running" for status in pod_status]):
         return
-
-    user_name = getAlias(jobParams["userName"])
-    if "hostNetwork" in jobParams and jobParams["hostNetwork"]:
-        host_network = True
-    else:
-        host_network = False
-
-    # setup ssh server
-    for [idx, pod] in enumerate(pods["items"]):
-        pod_name = pod["metadata"]["name"]
-        ssh_port = pod["metadata"]["labels"]["sshPort"]
-        # quit if can't setup ssh server
-        ssh_port = start_ssh_server(pod_name, user_name, host_network, ssh_port)
-
-    # generate ssh config
-    ssh_config = """
-Host %s
-  HostName %s
-  Port %s
-  User %s
-  StrictHostKeyChecking no
-  UserKnownHostsFile /dev/null
-                """
-    sshconfigstr = ""
-    for [idx, pod] in enumerate(pods["items"]):
-        pod_ip = pod["status"]["podIP"]
-        ssh_port = pod["metadata"]["labels"]["sshPort"]
-        role = pod["metadata"]["labels"]["distRole"]
-        role_idx = pod["metadata"]["labels"]["distRoleIdx"]
-
-        # TODO hostNetwork
-        if host_network:
-            sshconfigstr += (ssh_config % (role + "-"+str(role_idx), pod_ip, str(ssh_port), user_name) + "\n")
-        else:
-            sshconfigstr += (ssh_config % (role + "-"+str(role_idx), pod_ip, 22, user_name) + "\n")
-
-    # config ssh client
-    for [idx, pod] in enumerate(pods["items"]):
-        pod_name = pod["metadata"]["name"]
-        bash_script = "cat > /home/" + user_name + "/.ssh/config <<EOF " + sshconfigstr + "\nEOF"
-        logging.info("override ssh client config: %s", bash_script)
-        k8sUtils.kubectl_exec("exec %s -- bash -c \'%s\' ; chown -R %s /home/%s/.ssh/config" % (pod_name, bash_script,user_name,user_name))
-
-        # fix ~/.ssh/ folder permission
-        k8sUtils.kubectl_exec("exec %s -- chmod 600 -R /home/%s/.ssh; chmod 700 /home/%s/.ssh; chown -R %s /home/%s/.ssh/config" % (pod_name,user_name,user_name,user_name,user_name))
-
-    # generate hostfile
-    hostfilecontent = ""
-    for [_, pod] in enumerate(pods["items"]):
-        role = pod["metadata"]["labels"]["distRole"]
-        if role == "ps":
-            continue
-        role_idx = pod["metadata"]["labels"]["distRoleIdx"]
-        worker_gpu_num = pod["spec"]["containers"][0]["resources"]["requests"]["nvidia.com/gpu"]
-        hostfilecontent += "%s  slots=%s\n" % ("worker-"+str(role_idx), worker_gpu_num)
-    tmp_hostfile = "/tmp/" + job_id + ".hostfile"
-    with open(tmp_hostfile, 'w') as f:
-        f.write(hostfilecontent + "\n")
-    # write the hostfile
-    for [idx, pod] in enumerate(pods["items"]):
-        pod_name = pod["metadata"]["name"]
-        remotecmd = "cp %s %s:/job/hostfile" % (tmp_hostfile, pod_name)
-        k8sUtils.kubectl_exec(remotecmd)
-
-
-    for [idx, pod] in enumerate(pods["items"]):
-        pod_name = pod["metadata"]["name"]
-        k8sUtils.kubectl_exec("exec %s touch /opt/run_dist_job" % pod_name)
-
-
-    # execute user command
-    #k8sUtils.kubectl_exec("exec %s -- bash -c 'runuser -l ${DLWS_USER_NAME} <<EOF_USER_SCRIPT %s \nEOF_USER_SCRIPT'" % (pod_name, jobParams["cmd"]))
 
     # update job status
     dataHandler = DataHandler()

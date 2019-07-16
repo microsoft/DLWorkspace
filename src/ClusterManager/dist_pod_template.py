@@ -20,71 +20,10 @@ class DistPodTemplate():
         self.enable_custom_scheduler = enable_custom_scheduler
 
     @staticmethod
-    def generate_launch_script(dist_id, job_id, user_id, user_alias, job_path, worker_num, cmd):
+    def generate_launch_script(dist_id, user_id, job_path, cmd):
         # change ssh folder permission here because the setup permission
         #  script in launch_ps_job function may have race condition with init_user.sh script.
         # results in no such user error
-        if dist_id.startswith("ps"):
-            script = """
-#!/bin/bash
-echo "[DLWorkspace System]: Waiting for all containers are ready..."
-while [ ! -f /opt/run_dist_job ]; do
-    sleep 3
-done
-
-sudo chmod 600 -R /home/{0}/.ssh &>/dev/null;
-sudo chmod 700 /home/{0}/.ssh &>/dev/null;
-sudo chown -R {0} /home/{0}/.ssh &>/dev/null;
-
-sudo mkdir -p /root/.ssh  &>/dev/null ;
-sudo ln -s /home/{0}/.ssh/config /root/.ssh/config  &>/dev/null;
-sudo mkdir -p /opt  &>/dev/null;
-sudo ln -s /job/hostfile /opt/hostfile &>/dev/null;
-
-JOB_DIR='/home/{1}'
-WORKER_NUM={2}
-echo $JOB_DIR $WORKER_NUM
-
-all_workers_ready=false
-while [ "$all_workers_ready" != true ]
-do
-    # update it to false if any woker is not ready
-    all_workers_ready=true
-
-    for i in $(seq 0 $(( ${{WORKER_NUM}} - 1)) )
-    do
-        worker="worker${{i}}"
-        file="$JOB_DIR/${{worker}}/WORKER_READY"
-        #echo $file
-
-        if [ ! -f $file ]; then
-        echo "${{worker}} not ready!"
-        all_workers_ready=false
-        sleep 10
-        fi
-    done
-done
-
-echo "[DLWorkspace System]: All containers are ready, launching training job..."
-{3}
-""".format(user_alias, job_path, worker_num, cmd)
-        else:
-            script = """
-while [ ! -f /opt/run_dist_job ]; do
-    sleep 3
-done
-sudo chmod 600 -R /home/{0}/.ssh &>/dev/null;
-sudo chmod 700 /home/{0}/.ssh &>/dev/null;
-sudo chown -R {0} /home/{0}/.ssh  &>/dev/null;
-sudo mkdir -p /root/.ssh  &>/dev/null;
-sudo ln -s /home/{0}/.ssh/config /root/.ssh/config &>/dev/null;
-sudo mkdir -p /opt && sudo ln -s /job/hostfile /opt/hostfile  &>/dev/null;
-
-# TODO mark the worker as 'READY', better to change to '/pod/READY' later
-sudo touch /pod/WORKER_READY
-
-sleep infinity
-""".format(user_alias)
 
         local_pod_path = os.path.join(config["storage-mount-path"], "work/", job_path, dist_id)
         if not os.path.exists(local_pod_path):
@@ -95,10 +34,7 @@ sleep infinity
             f.write(cmd)
         f.close()
 
-        launchScriptInContainer = "bash /pod/launch-%s-%s.sh" % (job_id, dist_id)
-
         launchCMD = ["bash", "/pod/scripts/bootstrap.sh"]
-        # launchCMD = '["bash", "-c", "bash /dlws/init_user.sh &>> /pod/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c \'%s\'"]' % launchScriptInContainer
         return launchCMD
 
     def generate_pod(self, pod):
@@ -132,10 +68,8 @@ sleep infinity
         pod["labels"].append({"name": "distRoleIdx", "value": pod["distRoleIdx"]})
         pod["labels"].append({"name": "sshPort", "value": pod["sshPort"]})
 
-        user_alias = pod["user"]
-        worker_num = pod["numpsworker"]
         cmd = pod["cmd"]
-        pod["LaunchCMD"] = DistPodTemplate.generate_launch_script(dist_id, job_id, pod["userId"], user_alias, job_path, worker_num, cmd)
+        pod["LaunchCMD"] = DistPodTemplate.generate_launch_script(dist_id, pod["userId"], job_path, cmd)
 
         pod_yaml = self.template.render(job=pod)
         return yaml.full_load(pod_yaml)
