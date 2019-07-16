@@ -3,6 +3,7 @@ import pyodbc
 import json
 import base64
 import os
+import logging
 
 import timeit
 
@@ -11,9 +12,8 @@ import threading
 
 from config import config
 from config import global_vars
-from MyLogger import MyLogger
 
-logger = MyLogger()
+logger = logging.getLogger(__name__)
 
 ### set to a larger number if flask is running on multithreading
 sql_max_connect_num = 35

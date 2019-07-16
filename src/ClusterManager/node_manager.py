@@ -224,7 +224,7 @@ def get_cluster_status():
         cluster_status["node_status"] = [node_status for node_name, node_status in nodes_status.iteritems()] 
 
     except Exception as e:
-        print(e)
+        logging.exception("get cluster status")
 
     dataHandler = DataHandler()
     cluster_status["AvaliableJobNum"] = dataHandler.GetActiveJobsCount()
@@ -248,9 +248,10 @@ def Run():
         try:
             get_cluster_status()
         except Exception as e:
-            print e
-            logging.info(str(e))
+            logging.exception("get cluster status failed")
         time.sleep(30)
 
 if __name__ == '__main__':
+    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s',
+            level=logging.INFO)
     Run()
