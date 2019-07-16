@@ -60,6 +60,8 @@ class JobDeployer:
             try:
                 self.delete_pod(pod_name)
             except Exception as e:
+                if isinstance(e, ApiException) and 404 == e.status:
+                    return []
                 message = "Delete pod failed: {}".format(pod_name)
                 logging.warning(message, exc_info=True)
                 errors.append({"message": message, "exception": e})
