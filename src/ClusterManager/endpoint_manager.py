@@ -151,14 +151,6 @@ def start_endpoint(endpoint):
     create_node_port(endpoint)
 
 
-def is_user_ready(pod_name):
-    bash_script = "bash -c 'ls /dlws/USER_READY'"
-    output = k8sUtils.kubectl_exec("exec %s %s" % (pod_name, " -- " + bash_script))
-    if output == "":
-        return False
-    return True
-
-
 def start_endpoints():
     try:
         data_handler = DataHandler()
@@ -168,8 +160,6 @@ def start_endpoints():
             for endpoint_id, endpoint in pending_endpoints.items():
                 job = data_handler.GetJob(jobId=endpoint["jobId"])[0]
                 if job["jobStatus"] != "running":
-                    continue
-                if not is_user_ready(endpoint["podName"]):
                     continue
 
                 # get endpointDescriptionPath
