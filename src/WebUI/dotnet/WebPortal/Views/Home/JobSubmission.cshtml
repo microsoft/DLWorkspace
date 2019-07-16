@@ -256,6 +256,17 @@
                         gpu_available: gpu_available[key] < 0 ? 0 : gpu_available[key],
                         quota: quota[key]
                     };
+                    $scope.isLowPriority = value.low_priority === true ? true : false;
+                    if ($scope.isLowPriority) {
+                        var filteredJobList = [];
+                        $scope.joblist.forEach(function(job) {
+                            if (JSON.parse(job.Json).jobtrainingtype !== "PSDistJob") {
+                                filteredJobList.push(job);
+                            }
+                        });
+                        $scope.joblist = filteredJobList;
+                    }
+
                     $scope.gpus[key] = gpu;
                 });
                 $scope.checkExtras();
@@ -606,6 +617,9 @@
             if (!$scope.current.jobName) return false;
             if (!$scope.current.image) return false;
             if (!$scope.current.cmd || !String($scope.current.cmd).trim()) return false;
+            if ($scope.isLowPriority && $scope.current.jobtrainingtype == 'PSDistJob') {
+                return false;
+            }
             if (
                 $scope.current.jobtrainingtype === 'RegularJob' &&
                 typeof $scope.current.resourcegpu !== 'number'
@@ -681,10 +695,17 @@
                             </md-select>
                         </md-input-container>
                         <md-input-container flex="50">
-                            <label>Job Type</label>
-                            <md-select name="jobtrainingtype" ng-model="current.jobtrainingtype" ng-disabled="curtemplateValue === 0 ? false : true" required md-no-asterisk>
-                                <md-option value="RegularJob" selected>Regular Job</md-option>
-                                <md-option value="PSDistJob">Distributed Job</md-option>
+                            <label style="pointer-events:auto">Job Type  
+                                <i ng-hide="!isLowPriority"
+                                   class="layui-icon layui-icon-tips" 
+                                   data-toggle="tooltip" 
+                                   title="Low priority cluster does not support distributed jobs" 
+                                   data-placement="right"
+                                 ></i>
+                            </label>
+                            <md-select name="jobtrainingtype" ng-model="current.jobtrainingtype" ng-disabled="curtemplateValue === 0 && !isLowPriority ? false : true"  required md-no-asterisk>
+                                <md-option value="RegularJob" ng-selected="isLowPriority">Regular Job</md-option>
+                                <md-option value="PSDistJob" ng-disabled="isLowPriority ? true : false" ng-hide="isLowPriority ? true : false">Distributed Job</md-option>
                             </md-select>
                         </md-input-container>
                     </div>
