@@ -89,15 +89,16 @@ sleep infinity
         local_pod_path = os.path.join(config["storage-mount-path"], "work/", job_path, dist_id)
         if not os.path.exists(local_pod_path):
             mkdirsAsUser(local_pod_path, user_id)
-        file_name = "launch-%s-%s.sh" % (job_id, dist_id)
+        file_name = "job_command.sh"
         launch_script_file = os.path.join(local_pod_path, file_name)
         with open(launch_script_file, 'w') as f:
-            f.write(script)
+            f.write(cmd)
         f.close()
 
         launchScriptInContainer = "bash /pod/launch-%s-%s.sh" % (job_id, dist_id)
 
-        launchCMD = '["bash", "-c", "bash /dlws/init_user.sh &>> /pod/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c \'%s\'"]' % launchScriptInContainer
+        launchCMD = ["bash", "/pod/scripts/bootstrap.sh"]
+        # launchCMD = '["bash", "-c", "bash /dlws/init_user.sh &>> /pod/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c \'%s\'"]' % launchScriptInContainer
         return launchCMD
 
     def generate_pod(self, pod):
@@ -193,6 +194,10 @@ sleep infinity
         if "envs" not in params:
             params["envs"] = []
         params["envs"].append({"name": "DLWS_NUM_GPU_PER_WORKER", "value": params["resourcegpu"]})
+
+        if "hostNetwork" in params and params["hostNetwork"]:
+            params["envs"].append({"name": "DLWS_HOST_NETWORK", "value": "enable"})
+        params["envs"].append({"name": "DLWS_WORKER_NUM", "value": params["numworker"]})
 
         pods = []
         nums = {"ps": int(params["numps"]), "worker": int(params["numpsworker"])}

@@ -4,12 +4,12 @@ set -ex
 SCRIPT_DIR=/pod/scripts
 
 # Dir for saving running status
-PROC_DIR=/pod/running
+export PROC_DIR=/pod/running
 rm -rf ${PROC_DIR}
 mkdir -p ${PROC_DIR}
 
 # Dir for logs
-LOG_DIR=/pod/logs
+export LOG_DIR=/pod/logs
 rm -rf ${LOG_DIR}
 mkdir -p ${LOG_DIR}
 
@@ -18,15 +18,22 @@ PID_FILE=${PROC_DIR}/pid
 echo $$ > $PID_FILE
 
 # Setup container
-bash ${SCRIPT_DIR}/init_user.sh &>> ${LOG_DIR}/init_user.log
+bash ${SCRIPT_DIR}/init_user.sh &>> ${LOG_DIR}/bootstrap.log
 touch ${PROC_DIR}/CONTAINER_READY
 
 # Setup roles
-# TODO
+if [ "$DLWS_ROLE_NAME" = "worker" ] || [ "$DLWS_ROLE_NAME" = "ps" ];
+then
+    bash ${SCRIPT_DIR}/setup_sshd.sh &>> ${LOG_DIR}/bootstrap.log
+fi
 touch ${PROC_DIR}/ROLE_READY
 
 # Setup job
-# TODO
+# now only need to setup on "ps"
+if [ "$DLWS_ROLE_NAME" = "ps" ];
+then
+    bash ${SCRIPT_DIR}/setup_ssh_config.sh &>> ${LOG_DIR}/bootstrap.log
+fi
 touch ${PROC_DIR}/JOB_READY
 
 set +e
