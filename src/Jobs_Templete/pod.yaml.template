@@ -80,6 +80,9 @@ spec:
     - name: "init-user-script"
       mountPath: /dlws/init_user.sh
       subPath: init_user.sh
+    - name: "dlws-scripts"
+      mountPath: /pod/scripts
+      readOnly: true
     - name: ssh-volume
       mountPath: /home/{{ job["user"] }}/.ssh
     - name: id-rsa-volume
@@ -162,6 +165,9 @@ spec:
   - name: "init-user-script"
     configMap:
       name: "init-user-script"
+  - name: "dlws-scripts"
+    configMap:
+      name: "dlws-scripts"
   - name: ssh-volume
     emptyDir: {}
   - name: id-rsa-volume

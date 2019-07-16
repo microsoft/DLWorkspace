@@ -5,7 +5,7 @@ set -ex
 #export DLWS_GID=
 #export DLWS_UID=
 #export DLWS_USER_NAME=
-export ENV_FILE=/dlws/pod.env
+export ENV_FILE=/pod/pod.env
 
 # setup user and group, fix permissions
 addgroup --force-badname --gid  ${DLWS_GID} domainusers
@@ -38,6 +38,5 @@ if [ -f ${ENV_FILE} ]; then
 fi
 SCRIPT
 
-touch /dlws/USER_READY
 # any command should run as ${DLWS_USER_NAME}
 #runuser -l ${DLWS_USER_NAME} -c your_commands

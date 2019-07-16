@@ -19,15 +19,12 @@ class PodTemplate():
         if not os.path.exists(path_to_save):
             mkdirsAsUser(path_to_save, user_id)
 
-        file_name = "launch-%s.sh" % job_id
+        file_name = "job_command.sh"
         launch_script_file = os.path.join(path_to_save, file_name)
         with open(launch_script_file, 'w') as f:
-            f.write("#!/bin/bash -x\n")
-            f.write("mkdir /opt; \n")
-            f.write("echo 'localhost slots=%s' | tee -a /opt/hostfile; \n" % gpu_num)
-            f.write("bash /dlws/init_user.sh &>> /pod/init_user_script.log && runuser -l ${DLWS_USER_NAME} -c '%s'\n" % user_script)
+            f.write(user_script)
         os.system("sudo chown %s %s" % (user_id, launch_script_file))
-        luanch_cmd = "[\"bash\", \"/pod/%s\"]" % file_name
+        luanch_cmd = ["bash", "/pod/scripts/bootstrap.sh"]
         return luanch_cmd
 
     def generate_pod(self, pod):
