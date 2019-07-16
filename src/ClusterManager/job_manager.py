@@ -141,17 +141,6 @@ def KillJob(job, desiredState="killed"):
         return False
 
 
-# TODO remove it latter
-def getAlias(username):
-    if "@" in username:
-        username = username.split("@")[0].strip()
-
-    if "/" in username:
-        username = username.split("/")[1].strip()
-
-    return username
-
-
 def ApproveJob(job):
     dataHandler = DataHandler()
     dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "queued")
@@ -257,44 +246,6 @@ def UpdateJobStatus(job):
         del UnusualJobs[job["jobId"]]
 
     dataHandler.Close()
-
-
-# TODO remove duplicate code later
-def is_ssh_server_ready(pod_name):
-    bash_script = "sudo service ssh status"
-    output = k8sUtils.kubectl_exec("exec %s %s" % (pod_name, " -- " + bash_script))
-    if output == "":
-        return False
-    return True
-
-# TODO remove duplicate code later
-def query_ssh_port(pod_name):
-    bash_script = "grep ^Port /etc/ssh/sshd_config | cut -d' ' -f2"
-    ssh_port = k8sUtils.kubectl_exec("exec %s %s" % (pod_name, " -- " + bash_script))
-    return int(ssh_port)
-
-# TODO remove duplicate code later
-def start_ssh_server(pod_name, user_name, host_network=False, ssh_port=22):
-    '''Setup the ssh server in container, and return the listening port.'''
-    bash_script = "sudo bash -c 'apt-get update && apt-get install -y openssh-server && cd /home/" + user_name + " && (chown " + user_name + " -R .ssh; chmod 600 -R .ssh/*; chmod 700 .ssh; true) && service ssh restart'"
-
-    # ssh_port = 22
-
-    # modify the script for HostNewtork
-    if host_network:
-        # if the ssh_port is default value 22, randomly choose one
-        if ssh_port == 22:
-            ssh_port = random.randint(40000, 49999)
-        # bash_script = "sed -i '/^Port 22/c Port "+str(ssh_port)+"' /etc/ssh/sshd_config && "+bash_script
-        # TODO refine the script later
-        bash_script = "sudo bash -c 'apt-get update && apt-get install -y openssh-server && sed -i \"s/^Port 22/Port " + str(ssh_port) + "/\" /etc/ssh/sshd_config && cd /home/" + user_name + " && (chown " + user_name + " -R .ssh; chmod 600 -R .ssh/*; chmod 700 .ssh; true) && service ssh restart'"
-
-    # TODO setup reasonable timeout
-    # output = k8sUtils.kubectl_exec("exec %s %s" % (jobId, " -- " + bash_script), 1)
-    output = k8sUtils.kubectl_exec("exec %s %s" % (pod_name, " -- " + bash_script))
-    if output == "":
-        raise Exception("Failed to setup ssh server in container. JobId: %s " % pod_name)
-    return ssh_port
 
 
 def launch_ps_dist_job(jobParams):
