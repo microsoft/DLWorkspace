@@ -106,6 +106,10 @@ class PodTemplate():
         local_pod_path = job.get_hostpath(job.job_path, "master")
         params["LaunchCMD"] = PodTemplate.generate_launch_script(params["jobId"], local_pod_path, params["userId"], params["resourcegpu"], params["cmd"])
 
+        if "envs" not in params:
+            params["envs"] =[]
+        params["envs"].append({"name": "DLWS_ROLE_NAME", "value": "master"})
+
         pods = []
         if all(hyper_parameter in params for hyper_parameter in ["hyperparametername", "hyperparameterstartvalue", "hyperparameterendvalue", "hyperparameterstep"]):
             env_name = params["hyperparametername"]
@@ -116,13 +120,12 @@ class PodTemplate():
             for idx, val in enumerate(range(start, end, step)):
                 pod = params.copy()
                 pod["podName"] = "{0}-pod-{1}".format(job.job_id, idx)
-                pod["envs"] = [{"name": env_name, "value": val}]
+                pod["envs"].append({"name": env_name, "value": val})
                 pods.append(pod)
         else:
-                pod = params.copy()
-                pod["podName"] = job.job_id
-                pod["envs"] = []
-                pods.append(pod)
+            pod = params.copy()
+            pod["podName"] = job.job_id
+            pods.append(pod)
 
         k8s_pods = []
         for pod in pods:
