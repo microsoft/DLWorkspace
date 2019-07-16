@@ -40,6 +40,7 @@ from job import Job, JobSchema
 from pod_template import PodTemplate
 from dist_pod_template import DistPodTemplate
 from job_deployer import JobDeployer
+from job_role import JobRole
 
 
 
@@ -176,20 +177,20 @@ def UpdateJobStatus(job):
 
     if job["jobStatus"] == "scheduling" and jobParams["jobtrainingtype"] == "PSDistJob":
         # launch user command only all pods are ready
-        result, detail = k8sUtils.GetJobStatus(job["jobId"])
+        result = check_job_status(job["jobId"])
+        logging.info("++++++++ Job status: {} {}".format(job["jobId"], result))
         if result in ["Failed", "Succeeded"]:
             # TODO shoudn't be here, update status
             dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", result)
+        elif result in ["NotFound", "Pending", "Unknown"]:
+            # previously status is 'scheduling'
+            # TODO what to do
             pass
         else:
-            # previously status is 'scheduling', and now all pods are ready
-            # TODO check all pods are ready
-            if k8sUtils.all_pod_ready(job["jobId"]):
-                try:
-                    launch_ps_dist_job(jobParams)
-                except Exception as e:
-                    logging.exception("launch ps distributed job failed")
-            return
+            # Running
+            dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "running")
+        return
+
 
     jobPath,workPath,dataPath = GetStoragePath(jobParams["jobPath"],jobParams["workPath"],jobParams["dataPath"])
     localJobPath = os.path.join(config["storage-mount-path"],jobPath)
@@ -248,22 +249,34 @@ def UpdateJobStatus(job):
     dataHandler.Close()
 
 
-def launch_ps_dist_job(jobParams):
-    job_id = jobParams["jobId"]
-    pods = k8sUtils.GetPod("run=" + job_id)
+# TODO refine later
+def check_job_status(job_id):
+    job_deployer = JobDeployer()
+    job_roles = JobRole.get_job_roles(job_id)
 
-    # if any pod is not up, return
-    if "items" not in pods or len(pods["items"]) != (int(jobParams["numpsworker"]) + int(jobParams["numps"])):
-        return
-    # if any pod is not ready, return
-    pod_status = [k8sUtils.check_pod_status(pod) for pod in pods["items"]]
-    if any([status != "Running" for status in pod_status]):
-        return
+    # role status in ["NotFound", "Pending", "Running", "Succeeded", "Failed", "Unknown"]
+    # TODO ??? when ps/master role "Succeeded", return Succeeded
+    for job_role in job_roles:
+        if job_role.role_name not in ["master", "ps"]:
+            continue
+        if job_role.status() == "Succeeded":
+            logging.info("Job: {}, Succeeded!".format(job_id))
+            return "Succeeded"
 
-    # update job status
-    dataHandler = DataHandler()
-    dataHandler.UpdateJobTextField(job_id, "jobStatus", "running")
-    dataHandler.Close()
+    statuses = [job_role.status() for job_role in job_roles]
+    logging.info("Job: {}, status: {}".format(job_id, statuses))
+
+    if "Failed" in statuses:
+        return "Failed"
+    if "Unknown" in statuses:
+        return "Unknown"
+    if "NotFound" in statuses:
+        return "NotFound"
+    if "Pending" in statuses:
+        return "Pending"
+
+    return "Running"
+
 
 def create_log( logdir = '/var/log/dlworkspace' ):
     if not os.path.exists( logdir ):

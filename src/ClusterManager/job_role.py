@@ -2,9 +2,7 @@ from job_deployer import JobDeployer
 
 
 class JobRole:
-    # MARK_CONTAINER_READY_FILE = "/dlws/CONTAINER_READY"
-    # MARK_WORKER_READY_FILE = "/dlws/WORKER_READY"
-    MARK_JOB_READY_FILE = "/dlws/JOB_READY"
+    MARK_ROLE_READY_FILE = "/pod/running/ROLE_READY"
 
     @staticmethod
     def get_job_roles(job_id):
@@ -28,7 +26,7 @@ class JobRole:
 
     def status(self):
         """
-        Return role status.
+        Return role status in ["NotFound", "Pending", "Running", "Succeeded", "Failed", "Unknown"]
         It's slightly different from pod phase, when pod is running:
             CONTAINER_READY -> WORKER_READY -> JOB_READY (then the job finally in "Running" status.)
         """
@@ -44,7 +42,7 @@ class JobRole:
 
         # !!! Pod is runing, doesn't mean "Role" is ready and running.
         if(phase == "Running"):
-            if not self.isJobReady():
+            if not self.isRoleReady():
                 return "Pending"
 
         # TODO handle exit status
@@ -56,14 +54,5 @@ class JobRole:
         status_code, _ = deployer.pod_exec(self.pod_name, ["/bin/sh", "-c", "ls -lrt {}".format(file)])
         return status_code == 0
 
-    # def isUserReady(self):
-    #     return self.isFileExisting(JobRole.MARK_USER_READY_FILE)
-
-    # def isWorkerReady(self):
-    #     return self.isFileExisting(JobRole.MARK_WORKER_READY_FILE)
-
-    def isJobReady(self):
-        # only mark job ready on the "ps" or "master" pod
-        if(self.role_name not in ["ps", "master"]):
-            return False
-        return self.isFileExisting(JobRole.MARK_JOB_READY_FILE)
+    def isRoleReady(self):
+        return self.isFileExisting(JobRole.MARK_ROLE_READY_FILE)
