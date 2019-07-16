@@ -322,6 +322,7 @@
 
 
 
+
         $scope.showTemplate = function () {
             //$log.log($scope.curtemplateValue);
             var selected = $filter('filter')($scope.joblist, { Value: $scope.curtemplateValue });
@@ -362,6 +363,7 @@
 
                     if (!$scope.current.hasOwnProperty("jobtrainingtype"))
                         $scope.current.jobtrainingtype = "RegularJob";
+
 
                     $scope.current.enableworkpath = true;
                     $scope.current.enabledatapath = true;
