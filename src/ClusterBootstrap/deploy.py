@@ -2831,8 +2831,8 @@ def start_one_kube_service(fname):
             pass
 
     if fname == "./deploy/services/jobmanager/jobmanager.yaml":
-        # recreate the configmap init-user-script
-        run_kubectl( ["create configmap init-user-script --from-file=../Jobs_Templete/init_user.sh -o yaml --dry-run | ./deploy/bin/kubectl apply -f -"] )
+        # recreate the configmap dlws-scripts
+        run_kubectl( ["create configmap dlws-scripts --from-file=../Jobs_Templete/ -o yaml --dry-run | ./deploy/bin/kubectl apply -f -"] )
 
     run_kubectl( ["create", "-f", fname ] )
 

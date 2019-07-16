@@ -77,9 +77,6 @@ spec:
         memory: job["memoryrequest"]
     {% endif %}
     volumeMounts:
-    - name: "init-user-script"
-      mountPath: /dlws/init_user.sh
-      subPath: init_user.sh
     - name: "dlws-scripts"
       mountPath: /pod/scripts
       readOnly: true
@@ -162,9 +159,6 @@ spec:
 
   restartPolicy: Never
   volumes:
-  - name: "init-user-script"
-    configMap:
-      name: "init-user-script"
   - name: "dlws-scripts"
     configMap:
       name: "dlws-scripts"
