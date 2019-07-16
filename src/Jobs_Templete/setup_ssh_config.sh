@@ -26,7 +26,8 @@ done
 
 # setup ~/ssh_config
 SSH_CONFIG_FILE="/home/${DLWS_USER_NAME}/.ssh/config"
-echo > ${SSH_CONFIG_FILE}
+>${SSH_CONFIG_FILE}
+chown ${DLWS_USER_NAME} ${SSH_CONFIG_FILE}
 for role_dir in ${JOB_DIR}/*/ # list directories in the form "/JOB_DIR/role/"
 do
     role_dir=${role_dir%*/} # remove the trailing "/"
@@ -37,7 +38,7 @@ do
     host=$(basename ${role_dir})
     port=$(cat "${role_dir}/running/SSH_PORT")
     ip=$(cat "${role_dir}/running/POD_IP")
-    cat <<EOF >>${SSH_CONFIG_FILE}
+    cat >>${SSH_CONFIG_FILE} <<EOF
 
 Host ${host}
   HostName ${ip}
@@ -47,7 +48,25 @@ Host ${host}
   UserKnownHostsFile /dev/null
 
 EOF
-    chown ${DLWS_USER_NAME} ${SSH_CONFIG_FILE}
 
 done
 
+
+# generate /job/hostfile
+SLOT_FILE="/job/hostfile"
+>${SLOT_FILE}
+chown ${DLWS_USER_NAME} ${SLOT_FILE}
+for role_dir in ${JOB_DIR}/*/ # list directories in the form "/JOB_DIR/role/"
+do
+    role_dir=${role_dir%*/} # remove the trailing "/"
+    if [[ $role_dir == *logs ]] || [[ $role_dir == *ps* ]];
+    then
+        continue
+    fi
+    host=$(basename ${role_dir})
+    slots=${DLWS_NUM_GPU_PER_WORKER}
+    cat >>${SLOT_FILE} <<EOF
+${host} ${slots}
+EOF
+
+done
