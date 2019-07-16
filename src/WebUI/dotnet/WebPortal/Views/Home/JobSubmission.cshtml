@@ -15,6 +15,9 @@
         color: #000000;
         background-color: #ffffff;
     }
+    .md-title {
+        color:red;
+    }
 </style>
 
 
@@ -215,6 +218,7 @@
             $http.get("/api/dlws/GetTemplates?type=job", { params: { cluster: cluster } }).then(function (response) {
                 $scope.joblist = response.data;
                 $log.log($scope.joblist);
+
                 for (var i = 0; i < $scope.joblist.length; i++) {
                     var name = $scope.joblist[i].Name;
                     var counter = 0;
@@ -248,7 +252,6 @@
                 var result = response.data;
                 var gpu_available = result.gpu_avaliable;
                 var quota = JSON.parse(result.quota);
-
                 $scope.gpus = {};
                 angular.forEach(JSON.parse(result.metadata), function (value, key) {
                     var gpu = {
@@ -256,12 +259,25 @@
                         gpu_available: gpu_available[key] < 0 ? 0 : gpu_available[key],
                         quota: quota[key]
                     };
+                    $scope.isLowPriority = value.low_priority === true ? true : false;
+                    if ($scope.isLowPriority) {
+                        var filteredJobList = [];
+                        $scope.joblist.forEach(function(job) {
+                            if (JSON.parse(job.Json).jobtrainingtype !== "PSDistJob") {
+                                filteredJobList.push(job);
+                            }
+                        });
+                        $scope.joblist = filteredJobList;
+                    }
+
                     $scope.gpus[key] = gpu;
                 });
                 $scope.checkExtras();
             })
             $scope.extras.gpuType = null;
         });
+
+
 
         $scope.$watch('current.jobtrainingtype', function (value) {
             if (value === 'PSDistJob') {
@@ -307,9 +323,6 @@
             }
         };
 
-
-
-
         $scope.showTemplate = function () {
             //$log.log($scope.curtemplateValue);
             var selected = $filter('filter')($scope.joblist, { Value: $scope.curtemplateValue });
@@ -350,7 +363,6 @@
 
                     if (!$scope.current.hasOwnProperty("jobtrainingtype"))
                         $scope.current.jobtrainingtype = "RegularJob";
-
 
                     $scope.current.enableworkpath = true;
                     $scope.current.enabledatapath = true;
@@ -606,6 +618,9 @@
             if (!$scope.current.jobName) return false;
             if (!$scope.current.image) return false;
             if (!$scope.current.cmd || !String($scope.current.cmd).trim()) return false;
+            if ($scope.isLowPriority && $scope.current.jobtrainingtype == 'PSDistJob') {
+                return false;
+            }
             if (
                 $scope.current.jobtrainingtype === 'RegularJob' &&
                 typeof $scope.current.resourcegpu !== 'number'
@@ -636,6 +651,8 @@
             }
             $event.target.value = '';
         }
+
+
     });
 
 
@@ -681,10 +698,17 @@
                             </md-select>
                         </md-input-container>
                         <md-input-container flex="50">
-                            <label>Job Type</label>
-                            <md-select name="jobtrainingtype" ng-model="current.jobtrainingtype" ng-disabled="curtemplateValue === 0 ? false : true" required md-no-asterisk>
-                                <md-option value="RegularJob" selected>Regular Job</md-option>
-                                <md-option value="PSDistJob">Distributed Job</md-option>
+                            <label style="pointer-events:auto">Job Type  
+                                <i ng-hide="!isLowPriority"
+                                   class="layui-icon layui-icon-tips" 
+                                   data-toggle="tooltip" 
+                                   title="Low priority cluster does not support distributed jobs" 
+                                   data-placement="right"
+                                 ></i>
+                            </label>
+                            <md-select name="jobtrainingtype" ng-model="current.jobtrainingtype" ng-disabled="curtemplateValue === 0 && !isLowPriority ? false : true"  required md-no-asterisk>
+                                <md-option value="RegularJob" ng-selected="isLowPriority">Regular Job</md-option>
+                                <md-option value="PSDistJob" ng-disabled="isLowPriority ? true : false" ng-hide="isLowPriority ? true : false">Distributed Job</md-option>
                             </md-select>
                         </md-input-container>
                     </div>
