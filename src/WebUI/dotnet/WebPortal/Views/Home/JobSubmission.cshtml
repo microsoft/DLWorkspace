@@ -15,9 +15,6 @@
         color: #000000;
         background-color: #ffffff;
     }
-    .md-title {
-        color:red;
-    }
 </style>
 
 
@@ -218,7 +215,6 @@
             $http.get("/api/dlws/GetTemplates?type=job", { params: { cluster: cluster } }).then(function (response) {
                 $scope.joblist = response.data;
                 $log.log($scope.joblist);
-
                 for (var i = 0; i < $scope.joblist.length; i++) {
                     var name = $scope.joblist[i].Name;
                     var counter = 0;
@@ -252,6 +248,7 @@
                 var result = response.data;
                 var gpu_available = result.gpu_avaliable;
                 var quota = JSON.parse(result.quota);
+
                 $scope.gpus = {};
                 angular.forEach(JSON.parse(result.metadata), function (value, key) {
                     var gpu = {
@@ -322,6 +319,8 @@
                 }
             }
         };
+
+
 
         $scope.showTemplate = function () {
             //$log.log($scope.curtemplateValue);
@@ -651,8 +650,6 @@
             }
             $event.target.value = '';
         }
-
-
     });
 
 
