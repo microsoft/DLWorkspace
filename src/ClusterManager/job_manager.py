@@ -242,6 +242,15 @@ def check_job_status(job_id):
 
     return "Running"
 
+def create_log(logdir = '/var/log/dlworkspace'):
+    if not os.path.exists(logdir):
+        os.system("mkdir -p " + logdir)
+    with open('logging.yaml') as f:
+        logging_config = yaml.full_load(f)
+        f.close()
+        logging_config["handlers"]["file"]["filename"] = logdir+"/jobmanager.log"
+        logging.config.dictConfig(logging_config)
+
 
 def JobInfoSorter(elem):
     return elem["sortKey"]
@@ -329,6 +338,7 @@ def TakeJobActions(jobs):
 
 
 def Run():
+    create_log()
 
     while True:
 
@@ -370,7 +380,4 @@ def Run():
 
 
 if __name__ == '__main__':
-    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s',
-            level=logging.INFO)
     Run()
-    #print k8sUtils.get_pod_events("d493d41c-45ea-4e85-8ca4-01c3533cd727")
