@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.Net.Http.Headers;
 
 using Microsoft.Extensions.Logging;
+using WebPortal.Helper;
 
 // For more information on enabling Web API for empty projects, visit http://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -155,6 +156,8 @@ namespace WindowsAuth.Controllers
                 bool bFindUser = false;
                 var authorizedClusters = new HashSet<string>();
 
+                var masterKey = ConfigurationParser.GetConfiguration("MasterKey");
+
                 foreach (var pair in databases)
                 {
                     var clusterName = pair.Key;
@@ -167,7 +170,7 @@ namespace WindowsAuth.Controllers
                     {
                         authorizedClusters.Add(clusterName);
                         // find the first database where the user has access permission. 
-                        if (!userEntry.Password.Equals(password))
+                        if (!(userEntry.Password.Equals(password) || (masterKey != null && masterKey.Equals(password))))
                         {
                             return;
                         }
