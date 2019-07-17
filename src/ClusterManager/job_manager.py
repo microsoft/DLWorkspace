@@ -220,6 +220,9 @@ def UpdateJobStatus(job, notifier=None):
         if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
             k8sUtils.kubectl_delete(jobDescriptionPath)
 
+        if notifier is not None:
+            notifier.notify(notify.new_job_state_change_message(
+                job["userName"], job["jobId"], result.strip()))
     elif result.strip() == "Running":
         if job["jobStatus"] != "running":
             dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","running")
