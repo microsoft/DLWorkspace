@@ -43,7 +43,6 @@ from job_deployer import JobDeployer
 from job_role import JobRole
 
 
-
 def SubmitJob(job):
     ret = {}
     dataHandler = DataHandler()
@@ -171,59 +170,46 @@ def AutoApproveJob(job):
 
 UnusualJobs = {}
 
+
 def UpdateJobStatus(job):
+    assert(job["jobStatus"] == "scheduling" or job["jobStatus"] == "running")
+
     dataHandler = DataHandler()
     jobParams = json.loads(base64.b64decode(job["jobParams"]))
 
-    if job["jobStatus"] == "scheduling" and jobParams["jobtrainingtype"] == "PSDistJob":
-        # launch user command only all pods are ready
-        result = check_job_status(job["jobId"])
-        logging.info("++++++++ Job status: {} {}".format(job["jobId"], result))
-        if result in ["Failed", "Succeeded"]:
-            # TODO shoudn't be here, update status
-            dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", result)
-        elif result in ["NotFound", "Pending", "Unknown"]:
-            # previously status is 'scheduling'
-            # TODO what to do
-            pass
-        else:
-            # Running
-            dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "running")
-        return
+    result = check_job_status(job["jobId"])
+    logging.info("++++++++ Job status: {} {}".format(job["jobId"], result))
 
-
-    jobPath,workPath,dataPath = GetStoragePath(jobParams["jobPath"],jobParams["workPath"],jobParams["dataPath"])
-    localJobPath = os.path.join(config["storage-mount-path"],jobPath)
-    logPath = os.path.join(localJobPath,"logs/joblog.txt")
-
-
-    result, detail = k8sUtils.GetJobStatus(job["jobId"])
-    dataHandler.UpdateJobTextField(job["jobId"],"jobStatusDetail",base64.b64encode(json.dumps(detail)))
-
-    logging.info("job %s status: %s,%s" % (job["jobId"], result, json.dumps(detail)))
+    jobPath, workPath, dataPath = GetStoragePath(jobParams["jobPath"], jobParams["workPath"], jobParams["dataPath"])
+    localJobPath = os.path.join(config["storage-mount-path"], jobPath)
+    logPath = os.path.join(localJobPath, "logs/joblog.txt")
 
     jobDescriptionPath = os.path.join(config["storage-mount-path"], job["jobDescriptionPath"]) if "jobDescriptionPath" in job else None
     if "userId" not in jobParams:
-        jobParams["userId"]    = "0"
-    if result.strip() == "Succeeded":
-        joblog_manager.extract_job_log(job["jobId"],logPath,jobParams["userId"])
-        dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","finished")
+        jobParams["userId"] = "0"
+
+    if result == "Succeeded":
+        joblog_manager.extract_job_log(job["jobId"], logPath, jobParams["userId"])
+        dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "finished")
         if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
             k8sUtils.kubectl_delete(jobDescriptionPath)
 
-    elif result.strip() == "Running":
+    elif result == "Running":
         if job["jobStatus"] != "running":
-            dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","running")
+            started_at = datetime.datetime.now().isoformat()
+            detail = [{"startedAt": started_at, "message": "started at: {}".format(started_at)}]
+            dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
+            dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "running")
 
-    elif result.strip() == "Failed":
+    elif result == "Failed":
         logging.warning("Job %s fails, cleaning...", job["jobId"])
-        joblog_manager.extract_job_log(job["jobId"],logPath,jobParams["userId"])
-        dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","failed")
-        dataHandler.UpdateJobTextField(job["jobId"],"errorMsg",detail)
+        joblog_manager.extract_job_log(job["jobId"], logPath, jobParams["userId"])
+        dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "failed")
+        dataHandler.UpdateJobTextField(job["jobId"], "errorMsg", "pod failed")
         if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
             k8sUtils.kubectl_delete(jobDescriptionPath)
 
-    elif result.strip() == "Unknown":
+    elif result == "Unknown":
         if job["jobId"] not in UnusualJobs:
             UnusualJobs[job["jobId"]] = datetime.datetime.now()
         elif (datetime.datetime.now() - UnusualJobs[job["jobId"]]).seconds > 300:
@@ -231,12 +217,12 @@ def UpdateJobStatus(job):
             retries = dataHandler.AddandGetJobRetries(job["jobId"])
             if retries >= 5:
                 logging.warning("Job %s fails for more than 5 times, abort", job["jobId"])
-                dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","error")
-                dataHandler.UpdateJobTextField(job["jobId"],"errorMsg","cannot launch the job.")
+                dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "error")
+                dataHandler.UpdateJobTextField(job["jobId"], "errorMsg", "cannot launch the job.")
                 if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
                     k8sUtils.kubectl_delete(jobDescriptionPath)
             else:
-                logging.warning("Job %s fails in Kubernetes, delete and re-submit the job. Retries %d", job["jobId"] , retries)
+                logging.warning("Job %s fails in Kubernetes, delete and re-submit the job. Retries %d", job["jobId"], retries)
                 SubmitJob(job)
     elif result.strip() == "PendingHostPort":
         logging.warning("Cannot find host ports for job :%s, re-launch the job with different host ports ", job["jobId"])

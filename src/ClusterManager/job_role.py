@@ -45,8 +45,6 @@ class JobRole:
             if not self.isRoleReady():
                 return "Pending"
 
-        # TODO handle exit status
-
         return phase
 
     def isFileExisting(self, file):
