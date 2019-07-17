@@ -42,4 +42,7 @@ chmod +x /pod/job_command.sh
 runuser -l ${DLWS_USER_NAME} -c /pod/job_command.sh
 # Save exit code
 EXIT_CODE=$?
-echo  `date` ": $EXIT_CODE"  > ${PROC_DIR}/EXIT_CODE
+echo  `date` ": ${EXIT_CODE}"  > ${PROC_DIR}/EXIT_CODE
+
+# exit
+exit ${EXIT_CODE}
