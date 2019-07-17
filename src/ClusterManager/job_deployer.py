@@ -148,6 +148,6 @@ class JobDeployer:
         else:
             logging.warning("Exec on pod {} failed. cmd: {}, err: {}.".format(pod_name, exec_command, err))
             status_code = int(err["details"]["causes"][0]["message"])
-        output = client.read_channel(STDOUT_CHANNEL) + client.read_channel(STDERR_CHANNEL)
+        output = client.read_all()
         logging.info("Exec on pod {}, status: {}, cmd: {}, output: {}".format(pod_name, status_code, exec_command, output))
         return [status_code, output]
