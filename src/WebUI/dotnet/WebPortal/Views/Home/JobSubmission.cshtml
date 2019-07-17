@@ -189,11 +189,18 @@
         $scope.cluster = $scope.clusters[0];
         $scope.checkCurrent();
         $scope.checkExtras();
-        $scope.currentTemplateValue = 0;
+        $scope.curtemplateValue = 0;
         $scope.lastTemplateValue = -1;
         $scope.adancedOption = false;
 
-        $scope.$watch('cluster', function (cluster,oldValue) {
+        $scope.$watch('cluster', function (cluster, oldValue) {
+            if (cluster !== oldValue) {
+                $scope.current.jobName = "";
+                $scope.current.resourcegpu = 0;
+                $scope.current.image = "";
+                $scope.current.cmd = "";
+                $scope.current.jobtrainingtype = "RegularJob";
+            }
             $http.get('/api/dlws/GetMountPoints', { params: { cluster: cluster } }).then(function (response) {
                 var mpstring = response.data.mountpoints;
                 var mpdescription = response.data.mountdescription;
@@ -272,14 +279,7 @@
                 $scope.checkExtras();
             })
             $scope.extras.gpuType = null;
-            if (cluster !== oldValue) {
-                $scope.current.jobName = "";
-                $scope.current.resourcegpu = 0;
-                $scope.current.image = "";
-                $scope.current.cmd = "";
-                $scope.current.jobtrainingtype = "RegularJob";
 
-            }
         });
 
         $scope.$watch('current.jobtrainingtype', function (value, oldValue) {
@@ -713,7 +713,7 @@
                             </label>
                             <md-select name="jobtrainingtype" ng-model="current.jobtrainingtype" ng-disabled="curtemplateValue === 0 && !isLowPriority? false : true"  required md-no-asterisk>
                                 <md-option value="RegularJob" selected>Regular Job</md-option>
-                                <md-option value="PSDistJob">Distributed Job</md-option>
+                                <md-option value="PSDistJob" ng-selected="curtemplateValue !== 0 && !isLowPriority">Distributed Job</md-option>
                             </md-select>
                         </md-input-container>
                     </div>
