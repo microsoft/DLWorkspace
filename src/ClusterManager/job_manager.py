@@ -180,7 +180,7 @@ def AutoApproveJob(job):
 
 UnusualJobs = {}
 
-def UpdateJobStatus(job, notifier):
+def UpdateJobStatus(job, notifier=None):
     dataHandler = DataHandler()
     jobParams = json.loads(base64.b64decode(job["jobParams"]))
 
@@ -227,8 +227,9 @@ def UpdateJobStatus(job, notifier):
     elif result.strip() == "Failed":
         logging.warning("Job %s fails, cleaning...", job["jobId"])
 
-        notifier.notify(notify.new_job_state_change_message(
-            job["userName"], job["jobId"], result.strip()))
+        if notifier is not None:
+            notifier.notify(notify.new_job_state_change_message(
+                job["userName"], job["jobId"], result.strip()))
 
         joblog_manager.extract_job_log(job["jobId"],logPath,jobParams["userId"])
         dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","failed")
