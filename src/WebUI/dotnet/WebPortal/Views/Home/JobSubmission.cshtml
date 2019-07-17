@@ -193,7 +193,7 @@
         $scope.lastTemplateValue = -1;
         $scope.adancedOption = false;
 
-        $scope.$watch('cluster', function (cluster) {
+        $scope.$watch('cluster', function (cluster,oldValue) {
             $http.get('/api/dlws/GetMountPoints', { params: { cluster: cluster } }).then(function (response) {
                 var mpstring = response.data.mountpoints;
                 var mpdescription = response.data.mountdescription;
@@ -272,13 +272,22 @@
                 $scope.checkExtras();
             })
             $scope.extras.gpuType = null;
+            if (cluster !== oldValue) {
+                $scope.current.jobName = "";
+                $scope.current.resourcegpu = 0;
+                $scope.current.image = "";
+                $scope.current.cmd = "";
+                $scope.current.jobtrainingtype = "RegularJob";
+
+            }
         });
 
-        $scope.$watch('current.jobtrainingtype', function (value) {
+        $scope.$watch('current.jobtrainingtype', function (value, oldValue) {
             if (value === 'PSDistJob') {
                 $scope.current.numps = 1;
                 $scope.current.resourcegpu = $scope.gpus[$scope.extras.gpuType]['num_gpu_per_node'];
             } else {
+                $scope.changed = true;
                 delete $scope.current.numps;
             }
         })
@@ -703,9 +712,9 @@
                                    data-placement="right"
                                  ></i>
                             </label>
-                            <md-select name="jobtrainingtype" ng-model="current.jobtrainingtype" ng-disabled="curtemplateValue === 0 && !isLowPriority ? false : true"  required md-no-asterisk>
-                                <md-option value="RegularJob" ng-selected="isLowPriority">Regular Job</md-option>
-                                <md-option value="PSDistJob" ng-disabled="isLowPriority ? true : false" ng-hide="isLowPriority ? true : false">Distributed Job</md-option>
+                            <md-select name="jobtrainingtype" ng-model="current.jobtrainingtype" ng-disabled="curtemplateValue === 0 && !isLowPriority? false : true"  required md-no-asterisk>
+                                <md-option value="RegularJob" selected>Regular Job</md-option>
+                                <md-option value="PSDistJob">Distributed Job</md-option>
                             </md-select>
                         </md-input-container>
                     </div>
