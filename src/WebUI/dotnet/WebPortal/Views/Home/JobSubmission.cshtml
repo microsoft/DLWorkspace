@@ -287,7 +287,6 @@
                 $scope.current.numps = 1;
                 $scope.current.resourcegpu = $scope.gpus[$scope.extras.gpuType]['num_gpu_per_node'];
             } else {
-                $scope.changed = true;
                 delete $scope.current.numps;
             }
         })
