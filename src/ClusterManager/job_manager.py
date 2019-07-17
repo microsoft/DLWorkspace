@@ -23,7 +23,6 @@ import yaml
 from jinja2 import Environment, FileSystemLoader, Template
 from config import config, GetStoragePath, GetWorkPath
 from DataHandler import DataHandler
-from node_manager import create_log
 from node_manager import get_cluster_status
 import base64
 from ResourceInfo import ResourceInfo
@@ -148,26 +147,6 @@ def ApproveJob(job):
     return True
 
 
-def AutoApproveJob(job):
-    # TODO: All jobs are currently auto-approved. We need to allow
-    # configuring different policies for different VC.
-    ApproveJob(job)
-
-    # This block is kept here for reference of the original code.
-    # cluster_status = get_cluster_status()
-    # jobUser = getAlias(job["userName"])
-    # jobParams = json.loads(base64.b64decode(job["jobParams"]))
-    # jobGPU = GetJobTotalGpu(jobParams)
-    #
-    # currentGPU = 0
-    # for user in cluster_status["user_status"]:
-    #     if user["userName"] == jobUser:
-    #         currentGPU = int(user["userGPU"])
-    #
-    # if True or currentGPU == 0 or currentGPU + jobGPU <= 4:
-    #     ApproveJob(job)
-
-
 UnusualJobs = {}
 
 
@@ -262,16 +241,6 @@ def check_job_status(job_id):
         return "Pending"
 
     return "Running"
-
-
-def create_log( logdir = '/var/log/dlworkspace' ):
-    if not os.path.exists( logdir ):
-        os.system("mkdir -p " + logdir )
-    with open('logging.yaml') as f:
-        logging_config = yaml.full_load(f)
-        f.close()
-        logging_config["handlers"]["file"]["filename"] = logdir+"/jobmanager.log"
-        logging.config.dictConfig(logging_config)
 
 
 def JobInfoSorter(elem):
@@ -387,7 +356,7 @@ def Run():
                         elif job["jobStatus"] == "scheduling" or job["jobStatus"] == "running":
                             UpdateJobStatus(job)
                         elif job["jobStatus"] == "unapproved":
-                            AutoApproveJob(job)
+                            ApproveJob(job)
                     except Exception as e:
                         logging.info(e)
             except Exception as e:
