@@ -11,6 +11,7 @@
         var ALERT_TITLE = "Oops!";
         var ALERT_OK_BUTTON_TEXT = "Ok";
         var ALERT_EMAIL_BUTTON_TEXT = "Ask for Access";
+        var AddGroupLink = "@ViewData["AddGroupLink"]";
 
         if (document) {
             window.alert = function (txt) {
@@ -45,34 +46,23 @@
             btn.focus();
             btn.onclick = function () { removeCustomAlert(); return false; }
 
-            btn = alertObj.appendChild(d.createElement("a"));
-            btn.id = "closeBtn";
-            btn.appendChild(d.createTextNode(ALERT_EMAIL_BUTTON_TEXT));
-            btn.href = "#";
-            btn.focus();
-            btn.onclick = function () { sendMail(); return false; }
 
             alertObj.style.display = "block";
 
         }
 
-        function sendMail() {
-            var emailcontact = "dltssupp@microsoft.com";
-            var username = "@ViewData["Username"]";
-            var subject = "invite" + " " + username + " to the group";
-            var messagecontact = "Hi" + "%0D%0A" + "Can you help me adding to the group ?" + "%0D%0A" + "Best regards" + "%0D%0A"+ username;
-            window.open(
-                `mailto:${emailcontact}?subject=${subject}&body=${messagecontact}`
-            );
-            document.getElementsByTagName("body")[0].removeChild(document.getElementById("modalContainer"));
-        }
 
         function removeCustomAlert() {
+            removeCustomAlertInLink();
+            window.open(AddGroupLink,"_blank");
+        }
+
+        function removeCustomAlertInLink() {
             document.getElementsByTagName("body")[0].removeChild(document.getElementById("modalContainer"));
         }
-        alert("You are not the authorized user for this cluster, and please contact <a href='#' onclick='sendMail()'>dltssupp@microsoft.com</a> to get the access. ");
+        alert("You are not an authorized user for this cluster Please redirect to this <a href='"+AddGroupLink+"' onclick='removeCustomAlertInLink()' target='_blank'> link <a></a> ");
     </script>
-}
+            }
 
 
 @if (ViewData["isAuthorized"] != null && (bool)ViewData["isAuthorized"])
@@ -310,7 +300,7 @@ else
 #alertBox #closeBtn {
 	display:inline-block;
 	position:relative;
-	margin:15px 13%;
+	margin:15px 38%;
 	padding:7px;
 	border:0 none;
 	width:24%;
