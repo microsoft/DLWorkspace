@@ -18,6 +18,7 @@ from jobs_tensorboard import GenTensorboardMeta
 import k8sUtils
 import joblog_manager
 from osUtils import mkdirsAsUser
+import notify
 
 import yaml
 from jinja2 import Environment, FileSystemLoader, Template
@@ -149,10 +150,8 @@ def ApproveJob(job):
 
 UnusualJobs = {}
 
-
-def UpdateJobStatus(job):
+def UpdateJobStatus(job, notifier=None):
     assert(job["jobStatus"] == "scheduling" or job["jobStatus"] == "running")
-
     dataHandler = DataHandler()
     jobParams = json.loads(base64.b64decode(job["jobParams"]))
 
@@ -173,6 +172,10 @@ def UpdateJobStatus(job):
         if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
             k8sUtils.kubectl_delete(jobDescriptionPath)
 
+
+        if notifier is not None:
+            notifier.notify(notify.new_job_state_change_message(
+                job["userName"], job["jobId"], result.strip()))
     elif result == "Running":
         if job["jobStatus"] != "running":
             started_at = datetime.datetime.now().isoformat()
@@ -182,9 +185,15 @@ def UpdateJobStatus(job):
 
     elif result == "Failed":
         logging.warning("Job %s fails, cleaning...", job["jobId"])
+
+        if notifier is not None:
+            notifier.notify(notify.new_job_state_change_message(
+                job["userName"], job["jobId"], result.strip()))
+
         joblog_manager.extract_job_log(job["jobId"], logPath, jobParams["userId"])
         dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "failed")
         dataHandler.UpdateJobTextField(job["jobId"], "errorMsg", "pod failed")
+
         if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
             k8sUtils.kubectl_delete(jobDescriptionPath)
 
@@ -338,7 +347,10 @@ def TakeJobActions(jobs):
 
 
 def Run():
+    notifier = Notifier(config.get("job-manager"))
+    notifier.start()
     create_log()
+
 
     while True:
 
@@ -364,7 +376,7 @@ def Run():
                         elif job["jobStatus"] == "pausing":
                             KillJob(job, "paused")
                         elif job["jobStatus"] == "scheduling" or job["jobStatus"] == "running":
-                            UpdateJobStatus(job)
+                            UpdateJobStatus(job, notifier)
                         elif job["jobStatus"] == "unapproved":
                             ApproveJob(job)
                     except Exception as e:
