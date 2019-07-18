@@ -8,9 +8,8 @@
 @if (ViewData["isAuthorized"] != null && !(bool)ViewData["isAuthorized"])
 {
     <script>
-        var ALERT_TITLE = "Oops!";
-        var ALERT_OK_BUTTON_TEXT = "Ok";
-        var ALERT_EMAIL_BUTTON_TEXT = "Ask for Access";
+        var ALERT_TITLE = "Alert";
+        var ALERT_BUTTON_TEXT = "Join SG";
         var AddGroupLink = "@ViewData["AddGroupLink"]";
 
         if (document) {
@@ -35,13 +34,19 @@
 
             h1 = alertObj.appendChild(d.createElement("h1"));
             h1.appendChild(d.createTextNode(ALERT_TITLE));
+            closeBtn = alertObj.appendChild(d.createElement("button"));
+            closeBtn.innerHTML = "X";
+            closeBtn.style.float = "right";
+            closeBtn.style.color = "red";
+            closeBtn.onclick = function () { removeCustomAlertInLink(); return false;}
+            h1.append(closeBtn)
 
             msg = alertObj.appendChild(d.createElement("p"));
             msg.innerHTML = txt;
 
             btn = alertObj.appendChild(d.createElement("a"));
             btn.id = "closeBtn";
-            btn.appendChild(d.createTextNode(ALERT_OK_BUTTON_TEXT));
+            btn.appendChild(d.createTextNode(ALERT_BUTTON_TEXT));
             btn.href = "#";
             btn.focus();
             btn.onclick = function () { removeCustomAlert(); return false; }
@@ -60,7 +65,7 @@
         function removeCustomAlertInLink() {
             document.getElementsByTagName("body")[0].removeChild(document.getElementById("modalContainer"));
         }
-        alert("You are not an authorized user for this cluster Please redirect to this <a href='"+AddGroupLink+"' onclick='removeCustomAlertInLink()' target='_blank'> link <a></a> ");
+        alert("You are not an authorized user for this cluster. Please request to join a security group by following the button below.");
     </script>
             }
 
@@ -281,14 +286,13 @@ else
 	background-position:20px 30px;
 }
 
-#alertBox h1 {
-	margin:0;
-	font:bold 0.9em verdana,arial;
-	background-color:#3073BB;
-	color:#FFF;
-	border-bottom:1px solid #000;
-	padding:2px 0 2px 5px;
-}
+    #alertBox h1 {
+        margin: 0;
+        font: bold 0.9em verdana,arial;
+        background-color: #357EBD;
+        color: #FFF;
+        padding: 2px 0 3px 5px;
+    }
 
 #alertBox p {
   font: 1.1em verdana,arial;
