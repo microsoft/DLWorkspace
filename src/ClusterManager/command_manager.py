@@ -20,7 +20,6 @@ import yaml
 from jinja2 import Environment, FileSystemLoader, Template
 from config import config, GetStoragePath
 from DataHandler import DataHandler
-from node_manager import create_log
 from node_manager import get_cluster_status
 import base64
 
@@ -41,8 +40,17 @@ def RunCommand(command):
     dataHandler.Close()
     return True
 
+def create_log(logdir = '/var/log/dlworkspace'):
+    if not os.path.exists(logdir):
+        os.system("mkdir -p " + logdir)
+    with open('logging.yaml') as f:
+        logging_config = yaml.full_load(f)
+        f.close()
+        logging_config["handlers"]["file"]["filename"] = logdir+"/command_manager.log"
+        logging.config.dictConfig(logging_config)
 
 def Run():
+    create_log()
     while True:
         try:
             dataHandler = DataHandler()
@@ -58,6 +66,4 @@ def Run():
         time.sleep(1)
 
 if __name__ == '__main__':
-    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s',
-            level=logging.INFO)
     Run()

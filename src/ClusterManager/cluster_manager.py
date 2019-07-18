@@ -1,88 +1,51 @@
-import json
-import os
-import time
-import argparse
-import uuid
-import subprocess
-import sys
-import datetime
-
 import yaml
-from jinja2 import Environment, FileSystemLoader, Template
-import base64
-
-import re
-import random
-
-import textwrap
+import subprocess32
+import os
 import logging
 import logging.config
+import sys
 
-import job_manager
-import user_manager
-import node_manager
-import joblog_manager
-import command_manager
-import endpoint_manager
+logger = logging.getLogger(__name__)
 
-from multiprocessing import Process, Manager
-
-
-def create_log(logdir='/var/log/dlworkspace'):
+def create_log(logdir="/var/log/dlworkspace"):
     if not os.path.exists(logdir):
         os.system("mkdir -p " + logdir)
-    with open('logging.yaml') as f:
-        logging_config = yaml.full_load(f)
-        f.close()
-        logging_config["handlers"]["file"]["filename"] = logdir+"/clustermanager.log"
-        logging.config.dictConfig(logging_config)
+    with open("logging.yaml") as f:
+        logging_config = yaml.load(f)
+    logging_config["handlers"]["file"]["filename"] = logdir+"/clustermanager.log"
+    logging.config.dictConfig(logging_config)
 
 
 def Run():
     create_log()
 
-    logging.info("Starting job manager... ")
-    proc_job = Process(target=job_manager.Run)
-    proc_job.start()
+    cwd = os.path.dirname(__file__)
+    cmds = [
+            ["python", os.path.join(cwd, "job_manager.py")],
+            ["python", os.path.join(cwd, "user_manager.py")],
+            ["python", os.path.join(cwd, "node_manager.py")],
+            ["python", os.path.join(cwd, "joblog_manager.py")],
+            ["python", os.path.join(cwd, "command_manager.py")],
+            ["python", os.path.join(cwd, "endpoint_manager.py")],
+            ]
 
-    logging.info("Starting user manager... ")
-    proc_user = Process(target=user_manager.Run)
-    proc_user.start()
+    FNULL = open(os.devnull, "w")
 
-    logging.info("Starting node manager... ")
-    proc_node = Process(target=node_manager.Run)
-    proc_node.start()
+    childs = [None] * len(cmds)
 
-    logging.info("Starting joblogging manager... ")
-    proc_joblog = Process(target=joblog_manager.Run)
-    proc_joblog.start()
+    while True:
+        for i, cmd in enumerate(cmds):
+            child = childs[i]
+            if child is None or child.poll() is not None:
+                if child is not None:
+                    logger.info("%s is dead restart it", cmd)
+                try:
+                    childs[i] = subprocess32.Popen(cmd,
+                            stdin=FNULL, close_fds=True)
+                except Exception as e:
+                    logger.exception("caught exception when trying to start %s, ignore",
+                            cmd)
+        time.sleep(60)
 
-    logging.info("Starting command manager... ")
-    proc_command = Process(target=command_manager.Run)
-    proc_command.start()
-
-    logging.info("Starting endpoint manager... ")
-    proc_endpoint = Process(target=endpoint_manager.Run)
-    proc_endpoint.start()
-
-    proc_job.join()
-    proc_user.join()
-    proc_node.join()
-    proc_joblog.join()
-    proc_command.join()
-    proc_endpoint.join()
-    pass
-
-
-if __name__ == '__main__':
-
-    #parser = argparse.ArgumentParser( prog='cluster_manager.py',
-    #    formatter_class=argparse.RawDescriptionHelpFormatter,
-    #    description=textwrap.dedent('''\
- # ''') )
-    #parser.add_argument("help",
-    #    help = "Show the usage of this program" )
-
-    #args = parser.parse_args()
-
-    Run()
+if __name__ == "__main__":
+    sys.exit(Run())
