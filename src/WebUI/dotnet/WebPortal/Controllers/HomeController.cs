@@ -693,6 +693,7 @@ namespace WindowsAuth.Controllers
         #region ASP Controllers
         public async Task<IActionResult> Index()
         {
+            ViewData["AddGroupLink"] = ConfigurationParser.GetConfiguration("AddGroupLink");
             if (User.Identity.IsAuthenticated && !HttpContext.Session.Keys.Contains("uid"))
             {
                 string userObjectID = null;
