@@ -77,9 +77,9 @@ spec:
         memory: job["memoryrequest"]
     {% endif %}
     volumeMounts:
-    - name: "init-user-script"
-      mountPath: /dlws/init_user.sh
-      subPath: init_user.sh
+    - name: "dlws-scripts"
+      mountPath: /pod/scripts
+      readOnly: true
     - name: ssh-volume
       mountPath: /home/{{ job["user"] }}/.ssh
     - name: id-rsa-volume
@@ -159,9 +159,9 @@ spec:
 
   restartPolicy: Never
   volumes:
-  - name: "init-user-script"
+  - name: "dlws-scripts"
     configMap:
-      name: "init-user-script"
+      name: "dlws-scripts"
   - name: ssh-volume
     emptyDir: {}
   - name: id-rsa-volume

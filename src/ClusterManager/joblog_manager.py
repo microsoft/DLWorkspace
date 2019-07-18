@@ -34,9 +34,9 @@ from DataHandler import DataHandler
 
 logger = logging.getLogger(__name__)
 
-def create_log( logdir = '/var/log/dlworkspace' ):
+def create_log(logdir = '/var/log/dlworkspace'):
     if not os.path.exists( logdir ):
-        os.system("mkdir -p " + logdir )
+        os.system("mkdir -p " + logdir)
     with open('logging.yaml') as f:
         logging_config = yaml.load(f)
         f.close()
@@ -159,6 +159,4 @@ def Run():
         time.sleep(1)
 
 if __name__ == '__main__':
-    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s',
-            level=logging.INFO)
     Run()

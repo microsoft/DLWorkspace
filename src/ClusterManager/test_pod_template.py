@@ -32,7 +32,7 @@ class TestPodTemplate(unittest.TestCase):
         script_file = PodTemplate.generate_launch_script(job_id, path_to_save, user_id, gpu_num, user_script)
 
         # return the container command
-        self.assertEqual('["bash", "/pod/launch-ce7dca49-28df-450a-a03b-51b9c2ecc69c.sh"]', script_file)
+        self.assertListEqual(["bash", "/pod/scripts/bootstrap.sh"], script_file)
 
     def test_pod_template_without_custer_scheduler(self):
         enable_custom_scheduler = False

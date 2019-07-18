@@ -5,14 +5,13 @@ set -ex
 #export DLWS_GID=
 #export DLWS_UID=
 #export DLWS_USER_NAME=
-export ENV_FILE=/dlws/pod.env
+export ENV_FILE=/pod/pod.env
 
 # setup user and group, fix permissions
 addgroup --force-badname --gid  ${DLWS_GID} domainusers
 adduser --force-badname --home /home/${DLWS_USER_NAME} --shell /bin/bash --uid ${DLWS_UID}  -gecos '' --gid ${DLWS_GID} --disabled-password ${DLWS_USER_NAME}
 usermod -p $(echo tryme2017 | openssl passwd -1 -stdin) ${DLWS_USER_NAME}
-chown ${DLWS_USER_NAME} /home/${DLWS_USER_NAME}/ /home/${DLWS_USER_NAME}/.profile || /bin/true
-chmod -R 600 /home/${DLWS_USER_NAME}/.ssh || /bin/true
+chown ${DLWS_USER_NAME} /home/${DLWS_USER_NAME}/ /home/${DLWS_USER_NAME}/.profile /home/${DLWS_USER_NAME}/.ssh || /bin/true
 chmod 700 /home/${DLWS_USER_NAME}/.ssh || /bin/true
 
 # setup sudoers
@@ -38,6 +37,5 @@ if [ -f ${ENV_FILE} ]; then
 fi
 SCRIPT
 
-touch /dlws/USER_READY
 # any command should run as ${DLWS_USER_NAME}
 #runuser -l ${DLWS_USER_NAME} -c your_commands
