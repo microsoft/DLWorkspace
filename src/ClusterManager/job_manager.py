@@ -24,7 +24,6 @@ import yaml
 from jinja2 import Environment, FileSystemLoader, Template
 from config import config, GetStoragePath, GetWorkPath
 from DataHandler import DataHandler
-from node_manager import create_log
 from node_manager import get_cluster_status
 import base64
 from ResourceInfo import ResourceInfo
@@ -41,7 +40,7 @@ from job import Job, JobSchema
 from pod_template import PodTemplate
 from dist_pod_template import DistPodTemplate
 from job_deployer import JobDeployer
-
+from job_role import JobRole
 
 
 def SubmitJob(job):
@@ -81,13 +80,14 @@ def SubmitJob(job):
         job_description_path = "jobfiles/" + time.strftime("%y%m%d") + "/" + job_object.job_id + "/" + job_object.job_id + ".yaml"
         local_jobDescriptionPath = os.path.realpath(os.path.join(config["storage-mount-path"], job_description_path))
         if not os.path.exists(os.path.dirname(local_jobDescriptionPath)):
-            os.makedirs(os.path.dirname(os.path.realpath(local_jobDescriptionPath)))
+            os.makedirs(os.path.dirname(local_jobDescriptionPath))
         with open(local_jobDescriptionPath, 'w') as f:
             f.write(job_description)
 
         job_deployer = JobDeployer()
         try:
-            ret["output"] = job_deployer.create_pods(pods)
+            pods = job_deployer.create_pods(pods)
+            ret["output"] = "Created pods: {}".format([pod.metadata.name for pod in pods])
         except Exception as e:
             ret["output"] = "Error: %s" % e.message
             logging.error(e, exc_info=True)
@@ -104,7 +104,7 @@ def SubmitJob(job):
         jobMeta["jobPath"] = job_object.job_path
         jobMeta["workPath"] = job_object.work_path
         # the command of the first container
-        jobMeta["LaunchCMD"] = pods[0]["spec"]["containers"][0]["command"]
+        jobMeta["LaunchCMD"] = pods[0].spec.containers[0].command
 
         jobMetaStr = base64.b64encode(json.dumps(jobMeta))
         dataHandler.UpdateJobTextField(job_object.job_id, "jobMeta", jobMetaStr)
@@ -122,33 +122,23 @@ def SubmitJob(job):
 def KillJob(job, desiredState="killed"):
     dataHandler = DataHandler()
     result, detail = k8sUtils.GetJobStatus(job["jobId"])
-    dataHandler.UpdateJobTextField(job["jobId"],"jobStatusDetail",base64.b64encode(json.dumps(detail)))
-    logging.info("Killing job %s, with status %s, %s" %(job["jobId"], result,detail))
-    if "jobDescriptionPath" in job and job["jobDescriptionPath"] is not None:
-        jobDescriptionPath = os.path.join(config["storage-mount-path"], job["jobDescriptionPath"])
-        if os.path.isfile(jobDescriptionPath):
-            if k8sUtils.kubectl_delete(jobDescriptionPath) == 0:
-                dataHandler.UpdateJobTextField(job["jobId"],"jobStatus", desiredState)
-                return True
-            else:
-                dataHandler.UpdateJobTextField(job["jobId"],"errorMsg","Cannot delete job from Kubernetes Cluster!")
+    dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
+    logging.info("Killing job %s, with status %s, %s" % (job["jobId"], result, detail))
+
+    job_deployer = JobDeployer()
+    errors = job_deployer.delete_job(job["jobId"])
+
+    if len(errors) == 0:
+        dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", desiredState)
+        dataHandler.UpdateJobTextField(job["jobId"], "lastUpdated", datetime.datetime.now().isoformat())
+        dataHandler.Close()
+        return True
     else:
-        dataHandler.UpdateJobTextField(job["jobId"],"errorMsg","Cannot find job description file!")
-
-    dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","error")
-    dataHandler.Close()
-    return False
-
-
-# TODO remove it latter
-def getAlias(username):
-    if "@" in username:
-        username = username.split("@")[0].strip()
-
-    if "/" in username:
-        username = username.split("/")[1].strip()
-
-    return username
+        dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "error")
+        dataHandler.UpdateJobTextField(job["jobId"], "lastUpdated", datetime.datetime.now().isoformat())
+        dataHandler.Close()
+        logging.error("Kill job failed with errors: {}".format(errors))
+        return False
 
 
 def ApproveJob(job):
@@ -158,89 +148,56 @@ def ApproveJob(job):
     return True
 
 
-def AutoApproveJob(job):
-    # TODO: All jobs are currently auto-approved. We need to allow
-    # configuring different policies for different VC.
-    ApproveJob(job)
-
-    # This block is kept here for reference of the original code.
-    # cluster_status = get_cluster_status()
-    # jobUser = getAlias(job["userName"])
-    # jobParams = json.loads(base64.b64decode(job["jobParams"]))
-    # jobGPU = GetJobTotalGpu(jobParams)
-    #
-    # currentGPU = 0
-    # for user in cluster_status["user_status"]:
-    #     if user["userName"] == jobUser:
-    #         currentGPU = int(user["userGPU"])
-    #
-    # if True or currentGPU == 0 or currentGPU + jobGPU <= 4:
-    #     ApproveJob(job)
-
-
 UnusualJobs = {}
 
 def UpdateJobStatus(job, notifier=None):
+    assert(job["jobStatus"] == "scheduling" or job["jobStatus"] == "running")
     dataHandler = DataHandler()
     jobParams = json.loads(base64.b64decode(job["jobParams"]))
 
-    if job["jobStatus"] == "scheduling" and jobParams["jobtrainingtype"] == "PSDistJob":
-        # launch user command only all pods are ready
-        result, detail = k8sUtils.GetJobStatus(job["jobId"])
-        if result in ["Failed", "Succeeded"]:
-            # TODO shoudn't be here, update status
-            dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", result)
-            pass
-        else:
-            # previously status is 'scheduling', and now all pods are ready
-            # TODO check all pods are ready
-            if k8sUtils.all_pod_ready(job["jobId"]):
-                try:
-                    launch_ps_dist_job(jobParams)
-                except Exception as e:
-                    logging.exception("launch ps distributed job failed")
-            return
+    result = check_job_status(job["jobId"])
+    logging.info("++++++++ Job status: {} {}".format(job["jobId"], result))
 
-    jobPath,workPath,dataPath = GetStoragePath(jobParams["jobPath"],jobParams["workPath"],jobParams["dataPath"])
-    localJobPath = os.path.join(config["storage-mount-path"],jobPath)
-    logPath = os.path.join(localJobPath,"logs/joblog.txt")
-
-
-    result, detail = k8sUtils.GetJobStatus(job["jobId"])
-    dataHandler.UpdateJobTextField(job["jobId"],"jobStatusDetail",base64.b64encode(json.dumps(detail)))
-
-    logging.info("job %s status: %s,%s" % (job["jobId"], result, json.dumps(detail)))
+    jobPath, workPath, dataPath = GetStoragePath(jobParams["jobPath"], jobParams["workPath"], jobParams["dataPath"])
+    localJobPath = os.path.join(config["storage-mount-path"], jobPath)
+    logPath = os.path.join(localJobPath, "logs/joblog.txt")
 
     jobDescriptionPath = os.path.join(config["storage-mount-path"], job["jobDescriptionPath"]) if "jobDescriptionPath" in job else None
     if "userId" not in jobParams:
-        jobParams["userId"]    = "0"
-    if result.strip() == "Succeeded":
-        joblog_manager.extract_job_log(job["jobId"],logPath,jobParams["userId"])
-        dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","finished")
+        jobParams["userId"] = "0"
+
+    if result == "Succeeded":
+        joblog_manager.extract_job_log(job["jobId"], logPath, jobParams["userId"])
+        dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "finished")
         if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
             k8sUtils.kubectl_delete(jobDescriptionPath)
+
 
         if notifier is not None:
             notifier.notify(notify.new_job_state_change_message(
                 job["userName"], job["jobId"], result.strip()))
-    elif result.strip() == "Running":
+    elif result == "Running":
         if job["jobStatus"] != "running":
-            dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","running")
+            started_at = datetime.datetime.now().isoformat()
+            detail = [{"startedAt": started_at, "message": "started at: {}".format(started_at)}]
+            dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
+            dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "running")
 
-    elif result.strip() == "Failed":
+    elif result == "Failed":
         logging.warning("Job %s fails, cleaning...", job["jobId"])
 
         if notifier is not None:
             notifier.notify(notify.new_job_state_change_message(
                 job["userName"], job["jobId"], result.strip()))
 
-        joblog_manager.extract_job_log(job["jobId"],logPath,jobParams["userId"])
-        dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","failed")
-        dataHandler.UpdateJobTextField(job["jobId"],"errorMsg",detail)
+        joblog_manager.extract_job_log(job["jobId"], logPath, jobParams["userId"])
+        dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "failed")
+        dataHandler.UpdateJobTextField(job["jobId"], "errorMsg", "pod failed")
+
         if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
             k8sUtils.kubectl_delete(jobDescriptionPath)
 
-    elif result.strip() == "Unknown":
+    elif result == "Unknown":
         if job["jobId"] not in UnusualJobs:
             UnusualJobs[job["jobId"]] = datetime.datetime.now()
         elif (datetime.datetime.now() - UnusualJobs[job["jobId"]]).seconds > 300:
@@ -248,12 +205,12 @@ def UpdateJobStatus(job, notifier=None):
             retries = dataHandler.AddandGetJobRetries(job["jobId"])
             if retries >= 5:
                 logging.warning("Job %s fails for more than 5 times, abort", job["jobId"])
-                dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","error")
-                dataHandler.UpdateJobTextField(job["jobId"],"errorMsg","cannot launch the job.")
+                dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "error")
+                dataHandler.UpdateJobTextField(job["jobId"], "errorMsg", "cannot launch the job.")
                 if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
                     k8sUtils.kubectl_delete(jobDescriptionPath)
             else:
-                logging.warning("Job %s fails in Kubernetes, delete and re-submit the job. Retries %d", job["jobId"] , retries)
+                logging.warning("Job %s fails in Kubernetes, delete and re-submit the job. Retries %d", job["jobId"], retries)
                 SubmitJob(job)
     elif result.strip() == "PendingHostPort":
         logging.warning("Cannot find host ports for job :%s, re-launch the job with different host ports ", job["jobId"])
@@ -266,136 +223,37 @@ def UpdateJobStatus(job, notifier=None):
     dataHandler.Close()
 
 
-# TODO remove duplicate code later
-def is_ssh_server_ready(pod_name):
-    bash_script = "sudo service ssh status"
-    output = k8sUtils.kubectl_exec("exec %s %s" % (pod_name, " -- " + bash_script))
-    if output == "":
-        return False
-    return True
+# TODO refine later
+def check_job_status(job_id):
+    job_deployer = JobDeployer()
+    job_roles = JobRole.get_job_roles(job_id)
 
-# TODO remove duplicate code later
-def query_ssh_port(pod_name):
-    bash_script = "grep ^Port /etc/ssh/sshd_config | cut -d' ' -f2"
-    ssh_port = k8sUtils.kubectl_exec("exec %s %s" % (pod_name, " -- " + bash_script))
-    return int(ssh_port)
-
-# TODO remove duplicate code later
-def start_ssh_server(pod_name, user_name, host_network=False, ssh_port=22):
-    '''Setup the ssh server in container, and return the listening port.'''
-    bash_script = "sudo bash -c 'apt-get update && apt-get install -y openssh-server && cd /home/" + user_name + " && (chown " + user_name + " -R .ssh; chmod 600 -R .ssh/*; chmod 700 .ssh; true) && service ssh restart'"
-
-    # ssh_port = 22
-
-    # modify the script for HostNewtork
-    if host_network:
-        # if the ssh_port is default value 22, randomly choose one
-        if ssh_port == 22:
-            ssh_port = random.randint(40000, 49999)
-        # bash_script = "sed -i '/^Port 22/c Port "+str(ssh_port)+"' /etc/ssh/sshd_config && "+bash_script
-        # TODO refine the script later
-        bash_script = "sudo bash -c 'apt-get update && apt-get install -y openssh-server && sed -i \"s/^Port 22/Port " + str(ssh_port) + "/\" /etc/ssh/sshd_config && cd /home/" + user_name + " && (chown " + user_name + " -R .ssh; chmod 600 -R .ssh/*; chmod 700 .ssh; true) && service ssh restart'"
-
-    # TODO setup reasonable timeout
-    # output = k8sUtils.kubectl_exec("exec %s %s" % (jobId, " -- " + bash_script), 1)
-    output = k8sUtils.kubectl_exec("exec %s %s" % (pod_name, " -- " + bash_script))
-    if output == "":
-        raise Exception("Failed to setup ssh server in container. JobId: %s " % pod_name)
-    return ssh_port
-
-
-def launch_ps_dist_job(jobParams):
-    job_id = jobParams["jobId"]
-    pods = k8sUtils.GetPod("run=" + job_id)
-
-    # if any pod is not up, return
-    if "items" not in pods or len(pods["items"]) != (int(jobParams["numpsworker"]) + int(jobParams["numps"])):
-        return
-    # if any pod is not ready, return
-    pod_status = [k8sUtils.check_pod_status(pod) for pod in pods["items"]]
-    if any([status != "Running" for status in pod_status]):
-        return
-
-    user_name = getAlias(jobParams["userName"])
-    if "hostNetwork" in jobParams and jobParams["hostNetwork"]:
-        host_network = True
-    else:
-        host_network = False
-
-    # setup ssh server
-    for [idx, pod] in enumerate(pods["items"]):
-        pod_name = pod["metadata"]["name"]
-        ssh_port = pod["metadata"]["labels"]["sshPort"]
-        # quit if can't setup ssh server
-        ssh_port = start_ssh_server(pod_name, user_name, host_network, ssh_port)
-
-    # generate ssh config
-    ssh_config = """
-Host %s
-  HostName %s
-  Port %s
-  User %s
-  StrictHostKeyChecking no
-  UserKnownHostsFile /dev/null
-                """
-    sshconfigstr = ""
-    for [idx, pod] in enumerate(pods["items"]):
-        pod_ip = pod["status"]["podIP"]
-        ssh_port = pod["metadata"]["labels"]["sshPort"]
-        role = pod["metadata"]["labels"]["distRole"]
-        role_idx = pod["metadata"]["labels"]["distRoleIdx"]
-
-        # TODO hostNetwork
-        if host_network:
-            sshconfigstr += (ssh_config % (role + "-"+str(role_idx), pod_ip, str(ssh_port), user_name) + "\n")
-        else:
-            sshconfigstr += (ssh_config % (role + "-"+str(role_idx), pod_ip, 22, user_name) + "\n")
-
-    # config ssh client
-    for [idx, pod] in enumerate(pods["items"]):
-        pod_name = pod["metadata"]["name"]
-        bash_script = "cat > /home/" + user_name + "/.ssh/config <<EOF " + sshconfigstr + "\nEOF"
-        logging.info("override ssh client config: %s", bash_script)
-        k8sUtils.kubectl_exec("exec %s -- bash -c \'%s\' ; chown -R %s /home/%s/.ssh/config" % (pod_name, bash_script,user_name,user_name))
-
-        # fix ~/.ssh/ folder permission
-        k8sUtils.kubectl_exec("exec %s -- chmod 600 -R /home/%s/.ssh; chmod 700 /home/%s/.ssh; chown -R %s /home/%s/.ssh/config" % (pod_name,user_name,user_name,user_name,user_name))
-
-    # generate hostfile
-    hostfilecontent = ""
-    for [_, pod] in enumerate(pods["items"]):
-        role = pod["metadata"]["labels"]["distRole"]
-        if role == "ps":
+    # role status in ["NotFound", "Pending", "Running", "Succeeded", "Failed", "Unknown"]
+    # TODO ??? when ps/master role "Succeeded", return Succeeded
+    for job_role in job_roles:
+        if job_role.role_name not in ["master", "ps"]:
             continue
-        role_idx = pod["metadata"]["labels"]["distRoleIdx"]
-        worker_gpu_num = pod["spec"]["containers"][0]["resources"]["requests"]["nvidia.com/gpu"]
-        hostfilecontent += "%s  slots=%s\n" % ("worker-"+str(role_idx), worker_gpu_num)
-    tmp_hostfile = "/tmp/" + job_id + ".hostfile"
-    with open(tmp_hostfile, 'w') as f:
-        f.write(hostfilecontent + "\n")
-    # write the hostfile
-    for [idx, pod] in enumerate(pods["items"]):
-        pod_name = pod["metadata"]["name"]
-        remotecmd = "cp %s %s:/job/hostfile" % (tmp_hostfile, pod_name)
-        k8sUtils.kubectl_exec(remotecmd)
+        if job_role.status() == "Succeeded":
+            logging.info("Job: {}, Succeeded!".format(job_id))
+            return "Succeeded"
 
+    statuses = [job_role.status() for job_role in job_roles]
+    logging.info("Job: {}, status: {}".format(job_id, statuses))
 
-    for [idx, pod] in enumerate(pods["items"]):
-        pod_name = pod["metadata"]["name"]
-        k8sUtils.kubectl_exec("exec %s touch /opt/run_dist_job" % pod_name)
+    if "Failed" in statuses:
+        return "Failed"
+    if "Unknown" in statuses:
+        return "Unknown"
+    if "NotFound" in statuses:
+        return "NotFound"
+    if "Pending" in statuses:
+        return "Pending"
 
+    return "Running"
 
-    # execute user command
-    #k8sUtils.kubectl_exec("exec %s -- bash -c 'runuser -l ${DLWS_USER_NAME} <<EOF_USER_SCRIPT %s \nEOF_USER_SCRIPT'" % (pod_name, jobParams["cmd"]))
-
-    # update job status
-    dataHandler = DataHandler()
-    dataHandler.UpdateJobTextField(job_id, "jobStatus", "running")
-    dataHandler.Close()
-
-def create_log( logdir = '/var/log/dlworkspace' ):
-    if not os.path.exists( logdir ):
-        os.system("mkdir -p " + logdir )
+def create_log(logdir = '/var/log/dlworkspace'):
+    if not os.path.exists(logdir):
+        os.system("mkdir -p " + logdir)
     with open('logging.yaml') as f:
         logging_config = yaml.full_load(f)
         f.close()
@@ -491,6 +349,8 @@ def TakeJobActions(jobs):
 def Run():
     notifier = Notifier(config.get("job-manager"))
     notifier.start()
+    create_log()
+
 
     while True:
 
@@ -518,7 +378,7 @@ def Run():
                         elif job["jobStatus"] == "scheduling" or job["jobStatus"] == "running":
                             UpdateJobStatus(job, notifier)
                         elif job["jobStatus"] == "unapproved":
-                            AutoApproveJob(job)
+                            ApproveJob(job)
                     except Exception as e:
                         logging.info(e)
             except Exception as e:
@@ -532,7 +392,4 @@ def Run():
 
 
 if __name__ == '__main__':
-    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s',
-            level=logging.INFO)
     Run()
-    #print k8sUtils.get_pod_events("d493d41c-45ea-4e85-8ca4-01c3533cd727")
