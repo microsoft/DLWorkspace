@@ -190,6 +190,7 @@ def UpdateJobStatus(job):
 
     elif result == "Unknown":
         if job["jobId"] not in UnusualJobs:
+            logging.warning("!!! Job status ---Unknown---, job: {}".format(job["jobId"]))
             UnusualJobs[job["jobId"]] = datetime.datetime.now()
         elif (datetime.datetime.now() - UnusualJobs[job["jobId"]]).seconds > 300:
             del UnusualJobs[job["jobId"]]
