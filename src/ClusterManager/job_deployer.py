@@ -125,29 +125,33 @@ class JobDeployer:
 
     def pod_exec(self, pod_name, exec_command, timeout=60):
         """work as the command (with timeout): kubectl exec 'pod_name' 'exec_command'"""
-        logging.info("Exec on pod {}: {}".format(pod_name, exec_command))
-        client = stream(
-            self.v1.connect_get_namespaced_pod_exec,
-            name=pod_name,
-            namespace=self.namespace,
-            command=exec_command,
-            stderr=True,
-            stdin=False,
-            stdout=True,
-            tty=False,
-            _preload_content=False,
-        )
-        client.run_forever(timeout=timeout)
+        try:
+            logging.info("Exec on pod {}: {}".format(pod_name, exec_command))
+            client = stream(
+                self.v1.connect_get_namespaced_pod_exec,
+                name=pod_name,
+                namespace=self.namespace,
+                command=exec_command,
+                stderr=True,
+                stdin=False,
+                stdout=True,
+                tty=False,
+                _preload_content=False,
+            )
+            client.run_forever(timeout=timeout)
 
-        err = yaml.full_load(client.read_channel(ERROR_CHANNEL))
-        if err is None:
-            return [-1, "Timeout"]
+            err = yaml.full_load(client.read_channel(ERROR_CHANNEL))
+            if err is None:
+                return [-1, "Timeout"]
 
-        if err["status"] == "Success":
-            status_code = 0
-        else:
-            logging.warning("Exec on pod {} failed. cmd: {}, err: {}.".format(pod_name, exec_command, err))
-            status_code = int(err["details"]["causes"][0]["message"])
-        output = client.read_all()
-        logging.info("Exec on pod {}, status: {}, cmd: {}, output: {}".format(pod_name, status_code, exec_command, output))
-        return [status_code, output]
+            if err["status"] == "Success":
+                status_code = 0
+            else:
+                logging.debug("Exec on pod {} failed. cmd: {}, err: {}.".format(pod_name, exec_command, err))
+                status_code = int(err["details"]["causes"][0]["message"])
+            output = client.read_all()
+            logging.info("Exec on pod {}, status: {}, cmd: {}, output: {}".format(pod_name, status_code, exec_command, output))
+            return [status_code, output]
+        except ApiException as err:
+            logging.error("Exec on pod {} error. cmd: {}, err: {}.".format(pod_name, exec_command, err), exc_info=True)
+            return [-1, err.message]
