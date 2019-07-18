@@ -40,8 +40,17 @@ class JobRole:
         pod = pods[0]
         phase = pod.status.phase
 
-        # !!! Pod is runing, doesn't mean "Role" is ready and running.
+        # if container was restarted, return Error
+        if pod.status.container_statuses[0].restart_count > 0:
+            return "Error"
+
+        # !!! Pod is running, doesn't mean "Role" is ready and running.
         if(phase == "Running"):
+            # Found that phase won't turn into "Unkonwn" even when we get 'unknown' from kubectl
+            if pod.status.reason == "NodeLost":
+                return "Unknown"
+
+            # Check if the user command had been ran.
             if not self.isRoleReady():
                 return "Pending"
 
