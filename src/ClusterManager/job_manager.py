@@ -204,10 +204,6 @@ def UpdateJobStatus(job):
             else:
                 logging.warning("Job %s fails in Kubernetes, delete and re-submit the job. Retries %d", job["jobId"], retries)
                 SubmitJob(job)
-    elif result.strip() == "PendingHostPort":
-        logging.warning("Cannot find host ports for job :%s, re-launch the job with different host ports ", job["jobId"])
-
-        SubmitJob(job)
 
     if result.strip() != "Unknown" and job["jobId"] in UnusualJobs:
         del UnusualJobs[job["jobId"]]
