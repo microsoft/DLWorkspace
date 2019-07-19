@@ -713,7 +713,7 @@
                             </label>
                             <md-select name="jobtrainingtype" ng-model="current.jobtrainingtype" ng-disabled="curtemplateValue === 0 && !isLowPriority? false : true"  required md-no-asterisk>
                                 <md-option value="RegularJob" selected>Regular Job</md-option>
-                                <md-option value="PSDistJob" ng-selected="curtemplateValue !== 0 && !isLowPriority">Distributed Job</md-option>
+                                <md-option value="PSDistJob" ng-disabled="curtemplateValue === 0 && isLowPriority">Distributed Job</md-option>
                             </md-select>
                         </md-input-container>
                     </div>
