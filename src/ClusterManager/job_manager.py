@@ -217,7 +217,7 @@ def UpdateJobStatus(job):
                     k8sUtils.kubectl_delete(jobDescriptionPath)
             else:
                 logging.warning("Job %s fails in Kubernetes, delete and re-submit the job. Retries %d", job["jobId"], retries)
-                killJob(job, "queued")
+                KillJob(job["jobId"], "queued")
                 # SubmitJob(job)
 
     if result.strip() != "Unknown" and job["jobId"] in UnusualJobs:
