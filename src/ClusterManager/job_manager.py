@@ -132,31 +132,31 @@ def SubmitJob(job):
     return ret
 
 
-def KillJob(job, desiredState="killed"):
+def KillJob(job_id, desiredState="killed"):
     dataHandler = DataHandler()
-    result, detail = k8sUtils.GetJobStatus(job["jobId"])
-    dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
-    logging.info("Killing job %s, with status %s, %s" % (job["jobId"], result, detail))
+    result, detail = k8sUtils.GetJobStatus(job_id)
+    dataHandler.UpdateJobTextField(job_id, "jobStatusDetail", base64.b64encode(json.dumps(detail)))
+    logging.info("Killing job %s, with status %s, %s" % (job_id, result, detail))
 
     job_deployer = JobDeployer()
-    errors = job_deployer.delete_job(job["jobId"])
+    errors = job_deployer.delete_job(job_id)
 
     if len(errors) == 0:
-        dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", desiredState)
-        dataHandler.UpdateJobTextField(job["jobId"], "lastUpdated", datetime.datetime.now().isoformat())
+        dataHandler.UpdateJobTextField(job_id, "jobStatus", desiredState)
+        dataHandler.UpdateJobTextField(job_id, "lastUpdated", datetime.datetime.now().isoformat())
         dataHandler.Close()
         return True
     else:
-        dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "error")
-        dataHandler.UpdateJobTextField(job["jobId"], "lastUpdated", datetime.datetime.now().isoformat())
+        dataHandler.UpdateJobTextField(job_id, "jobStatus", "error")
+        dataHandler.UpdateJobTextField(job_id, "lastUpdated", datetime.datetime.now().isoformat())
         dataHandler.Close()
         logging.error("Kill job failed with errors: {}".format(errors))
         return False
 
 
-def ApproveJob(job):
+def ApproveJob(job_id):
     dataHandler = DataHandler()
-    dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "queued")
+    dataHandler.UpdateJobTextField(job_id, "jobStatus", "queued")
     dataHandler.Close()
     return True
 
@@ -344,7 +344,7 @@ def TakeJobActions(jobs):
                 SubmitJob(sji["job"])
                 logging.info("TakeJobActions : submitting job : %s : %s : %s" % (sji["jobParams"]["jobName"], sji["jobParams"]["jobId"], sji["sortKey"]))
             elif sji["jobParams"]["preemptionAllowed"] and (sji["job"]["jobStatus"] == "scheduling" or sji["job"]["jobStatus"] == "running") and sji["allowed"] == False:
-                KillJob(sji["job"], "queued")
+                KillJob(sji["job"]["jobId"], "queued")
                 logging.info("TakeJobActions : pre-empting job : %s : %s : %s" % (sji["jobParams"]["jobName"], sji["jobParams"]["jobId"], sji["sortKey"]))
         except Exception as e:
             logging.error("Process job failed {}".format(sji["job"]), exc_info=True)
@@ -375,13 +375,13 @@ def Run():
                     try:
                         logging.info("Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"]))
                         if job["jobStatus"] == "killing":
-                            KillJob(job, "killed")
+                            KillJob(job["jobId"], "killed")
                         elif job["jobStatus"] == "pausing":
-                            KillJob(job, "paused")
+                            KillJob(job["jobId"], "paused")
                         elif job["jobStatus"] == "scheduling" or job["jobStatus"] == "running":
                             UpdateJobStatus(job)
                         elif job["jobStatus"] == "unapproved":
-                            ApproveJob(job)
+                            ApproveJob(job["jobId"])
                     except Exception as e:
                         logging.info(e, exc_info=True)
             except Exception as e:
