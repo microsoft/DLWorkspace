@@ -206,6 +206,10 @@ def UpdateJobStatus(job):
         if job["jobId"] not in UnusualJobs:
             logging.warning("!!! Job status ---Unknown---, job: {}".format(job["jobId"]))
             UnusualJobs[job["jobId"]] = datetime.datetime.now()
+        # TODO
+        # 1) May need to reduce the timeout.
+        #     It takes minutes before pod turns into "Unkonw", we may don't need to wait here.
+        # 2) If node resume before we resubmit the job, the job will end in status 'failed'.
         elif (datetime.datetime.now() - UnusualJobs[job["jobId"]]).seconds > 300:
             del UnusualJobs[job["jobId"]]
             retries = dataHandler.AddandGetJobRetries(job["jobId"])
