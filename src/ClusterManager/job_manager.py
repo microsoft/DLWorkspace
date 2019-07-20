@@ -42,7 +42,21 @@ from job_deployer import JobDeployer
 from job_role import JobRole
 
 
+def all_pods_not_existing(job_id):
+    job_deployer = JobDeployer()
+    job_roles = JobRole.get_job_roles(job_id)
+    statuses = [job_role.status() for job_role in job_roles]
+    logging.info("Job: {}, status: {}".format(job_id, statuses))
+    return all([status == "NotFound" for status in statuses])
+
+
 def SubmitJob(job):
+    # check if existing any pod with label: run=job_id
+    assert("jobId" in job)
+    if not all_pods_not_existing(job["jobId"]):
+        logging.warning("Waiting until previously pods are cleaned up! Job {}".format(job["jobId"]))
+        return
+
     ret = {}
     dataHandler = DataHandler()
 
@@ -203,7 +217,8 @@ def UpdateJobStatus(job):
                     k8sUtils.kubectl_delete(jobDescriptionPath)
             else:
                 logging.warning("Job %s fails in Kubernetes, delete and re-submit the job. Retries %d", job["jobId"], retries)
-                SubmitJob(job)
+                killJob(job, "queued")
+                # SubmitJob(job)
 
     if result.strip() != "Unknown" and job["jobId"] in UnusualJobs:
         del UnusualJobs[job["jobId"]]
@@ -324,12 +339,15 @@ def TakeJobActions(jobs):
     logging.info("TakeJobActions : global resources : %s" % (globalResInfo.CategoryToCountMap))
 
     for sji in jobsInfo:
-        if sji["job"]["jobStatus"] == "queued" and sji["allowed"] == True:
-            SubmitJob(sji["job"])
-            logging.info("TakeJobActions : submitting job : %s : %s : %s" % (sji["jobParams"]["jobName"], sji["jobParams"]["jobId"], sji["sortKey"]))
-        elif sji["jobParams"]["preemptionAllowed"] and (sji["job"]["jobStatus"] == "scheduling" or sji["job"]["jobStatus"] == "running") and sji["allowed"] == False:
-            KillJob(sji["job"], "queued")
-            logging.info("TakeJobActions : pre-empting job : %s : %s : %s" % (sji["jobParams"]["jobName"], sji["jobParams"]["jobId"], sji["sortKey"]))
+        try:
+            if sji["job"]["jobStatus"] == "queued" and sji["allowed"] == True:
+                SubmitJob(sji["job"])
+                logging.info("TakeJobActions : submitting job : %s : %s : %s" % (sji["jobParams"]["jobName"], sji["jobParams"]["jobId"], sji["sortKey"]))
+            elif sji["jobParams"]["preemptionAllowed"] and (sji["job"]["jobStatus"] == "scheduling" or sji["job"]["jobStatus"] == "running") and sji["allowed"] == False:
+                KillJob(sji["job"], "queued")
+                logging.info("TakeJobActions : pre-empting job : %s : %s : %s" % (sji["jobParams"]["jobName"], sji["jobParams"]["jobId"], sji["sortKey"]))
+        except Exception as e:
+            logging.error("Process job failed {}".format(sji["job"]), exc_info=True)
 
     logging.info("TakeJobActions : job desired actions taken")
 
@@ -365,7 +383,7 @@ def Run():
                         elif job["jobStatus"] == "unapproved":
                             ApproveJob(job)
                     except Exception as e:
-                        logging.info(e)
+                        logging.info(e, exc_info=True)
             except Exception as e:
                 logging.exception("process pending job failed")
             finally:
