@@ -282,7 +282,7 @@
 
         });
 
-        $scope.$watch('current.jobtrainingtype', function (value, oldValue) {
+        $scope.$watch('current.jobtrainingtype', function (value) {
             if (value === 'PSDistJob') {
                 $scope.current.numps = 1;
                 $scope.current.resourcegpu = $scope.gpus[$scope.extras.gpuType]['num_gpu_per_node'];
@@ -334,16 +334,13 @@
             var selected = $filter('filter')($scope.joblist, { Value: $scope.curtemplateValue });
             var showName = "None";
             if ($scope.curtemplateValue > 0 && selected.length) {
-                if ($scope.lastTemplateValue && $scope.lastTemplateValue == $scope.curtemplateValue) {
-
+                if ($scope.lastTemplateValue && $scope.lastTemplateValue == $scope.curtemplateValue) { 
                 }
                 else {
-                    $scope.lastTemplateValue = $scope.curtemplateValue;
                     $scope.current = $scope.$eval(selected[0].Json);
                     $scope.loadTemplate();
                     $scope.setMounts();
                     $scope.checkCurrent();
-                    //console.log($scope.current);
 
                     if (!$scope.current.hasOwnProperty("runningasroot"))
                         $scope.current.runningasroot = false;
