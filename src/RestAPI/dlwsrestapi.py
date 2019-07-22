@@ -28,6 +28,10 @@ import sys
 import traceback
 import threading
 
+import prometheus_client
+
+CONTENT_TYPE_LATEST = str("text/plain; version=0.0.4; charset=utf-8")
+
 dir_path = os.path.dirname(os.path.realpath(__file__))
 with open(os.path.join(dir_path, 'logging.yaml'), 'r') as f:
     logging_config = yaml.load(f)
@@ -1204,6 +1208,10 @@ class Endpoint(Resource):
 ## Actually setup the Endpoint resource routing here
 ##
 api.add_resource(Endpoint, '/endpoints')
+
+@app.route("/metrics/")
+def metrics():
+    return Response(prometheus_client.generate_latest(), mimetype=CONTENT_TYPE_LATEST)
 
 if __name__ == '__main__':
     app.run(debug=False,host="0.0.0.0",threaded=True)
