@@ -9,7 +9,6 @@ import datetime
 import copy
 import traceback
 
-
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
 
@@ -40,6 +39,8 @@ from pod_template import PodTemplate
 from dist_pod_template import DistPodTemplate
 from job_deployer import JobDeployer
 from job_role import JobRole
+
+from cluster_manager import setup_exporter_thread
 
 
 def all_pods_not_existing(job_id):
@@ -360,7 +361,6 @@ def Run():
     create_log()
 
     while True:
-
         try:
             config["racks"] = k8sUtils.get_node_labels("rack")
             config["skus"] = k8sUtils.get_node_labels("sku")
@@ -399,4 +399,9 @@ def Run():
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", "-p", help="port of exporter", type=int, default=9200)
+    args = parser.parse_args()
+    setup_exporter_thread(args.port)
+
     Run()

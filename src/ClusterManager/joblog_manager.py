@@ -32,6 +32,8 @@ from osUtils import mkdirsAsUser
 from config import config, GetStoragePath
 from DataHandler import DataHandler
 
+from cluster_manager import setup_exporter_thread
+
 logger = logging.getLogger(__name__)
 
 def create_log(logdir = '/var/log/dlworkspace'):
@@ -159,4 +161,9 @@ def Run():
         time.sleep(1)
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", "-p", help="port of exporter", type=int, default=9203)
+    args = parser.parse_args()
+    setup_exporter_thread(args.port)
+
     Run()
