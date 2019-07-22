@@ -34,7 +34,7 @@ def record(fn):
         try:
             return fn(*args, **kwargs)
         finally:
-            elapsed += timeit.default_timer() - start
+            elapsed = timeit.default_timer() - start
             logger.info("DataHandler: %s, time elapsed %.2fs", fn.__name__, elapsed)
             data_handler_fn_histogram.labels(fn.__name__).observe(elapsed)
     return wrapped
