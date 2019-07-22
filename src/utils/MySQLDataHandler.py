@@ -55,7 +55,7 @@ class DataHandler(object):
         username = config["mysql"]["username"]
         password = config["mysql"]["password"]
 
-        with db_connect_histogram.time()
+        with db_connect_histogram.time():
             self.conn = mysql.connector.connect(user=username, password=password,
                                                 host=server, database=self.database)
 
