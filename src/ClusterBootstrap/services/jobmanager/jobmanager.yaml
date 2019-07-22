@@ -46,27 +46,27 @@ spec:
         ports:
         - containerPort: 9200
           hostPort: 9200
-          name: job_manager_exporter
+          name: job-mgr
           protocol: TCP
         - containerPort: 9201
           hostPort: 9201
-          name: user_manager_exporter
+          name: user-mgr
           protocol: TCP
         - containerPort: 9202
           hostPort: 9202
-          name: node_manager_exporter
+          name: node-mgr
           protocol: TCP
         - containerPort: 9203
           hostPort: 9203
-          name: joblog_manager_exporter
+          name: joblog-mgr
           protocol: TCP
         - containerPort: 9204
           hostPort: 9204
-          name: command_manager_exporter
+          name: cmd-mgr
           protocol: TCP
         - containerPort: 9205
           hostPort: 9205
-          name: endpoint_manager_exporter
+          name: endpoint-mgr
           protocol: TCP
         readinessProbe:
           failureThreshold: 3
