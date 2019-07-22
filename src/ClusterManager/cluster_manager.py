@@ -28,7 +28,7 @@ def exporter_thread(port):
     root.putChild(b"healthz", HealthResource())
     factory = Site(root)
     reactor.listenTCP(port, factory)
-    reactor.run()
+    reactor.run(installSignalHandlers=False)
 
 def setup_exporter_thread(port):
     t = threading.Thread(target=exporter_thread, args=(port,),
@@ -50,12 +50,12 @@ def Run(args):
 
     cwd = os.path.dirname(__file__)
     cmds = [
-        ["python", os.path.join(cwd, "job_manager.py"), args.j],
-        ["python", os.path.join(cwd, "user_manager.py"), args.u],
-        ["python", os.path.join(cwd, "node_manager.py"), args.n],
-        ["python", os.path.join(cwd, "joblog_manager.py"), args.l],
-        ["python", os.path.join(cwd, "command_manager.py"), args.c],
-        ["python", os.path.join(cwd, "endpoint_manager.py"), args.e],
+        ["python", os.path.join(cwd, "job_manager.py"), "--port", str(args.j)],
+        ["python", os.path.join(cwd, "user_manager.py"), "--port", str(args.u)],
+        ["python", os.path.join(cwd, "node_manager.py"), "--port", str(args.n)],
+        ["python", os.path.join(cwd, "joblog_manager.py"), "--port", str(args.l)],
+        ["python", os.path.join(cwd, "command_manager.py"), "--port", str(args.c)],
+        ["python", os.path.join(cwd, "endpoint_manager.py"), "--port", str(args.e)],
     ]
 
     FNULL = open(os.devnull, "w")
