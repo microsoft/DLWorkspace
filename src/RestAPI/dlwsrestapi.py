@@ -2,7 +2,7 @@ import sys
 import json
 import os
 
-from flask import Flask
+from flask import Flask, Response
 from flask_restful import reqparse, abort, Api, Resource
 from flask import request, jsonify
 import base64
@@ -1209,7 +1209,7 @@ class Endpoint(Resource):
 ##
 api.add_resource(Endpoint, '/endpoints')
 
-@app.route("/metrics/")
+@app.route("/metrics")
 def metrics():
     return Response(prometheus_client.generate_latest(), mimetype=CONTENT_TYPE_LATEST)
 
