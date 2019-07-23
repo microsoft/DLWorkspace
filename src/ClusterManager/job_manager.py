@@ -41,7 +41,7 @@ from dist_pod_template import DistPodTemplate
 from job_deployer import JobDeployer
 from job_role import JobRole
 
-from cluster_manager import setup_exporter_thread
+from cluster_manager import setup_exporter_thread, manager_iteration_histogram
 
 
 def all_pods_not_existing(job_id):
@@ -370,45 +370,50 @@ def TakeJobActions(jobs):
 
 
 def Run():
-    notifier = Notifier(config.get("job-manager"))
+    notifier = notify.Notifier(config.get("job-manager"))
     notifier.start()
     create_log()
 
 
     while True:
-        try:
-            config["racks"] = k8sUtils.get_node_labels("rack")
-            config["skus"] = k8sUtils.get_node_labels("sku")
-        except Exception as e:
-            logging.exception("get node labels failed")
+        with manager_iteration_histogram.labels("job_manager").time():
+            try:
+                config["racks"] = k8sUtils.get_node_labels("rack")
+                config["skus"] = k8sUtils.get_node_labels("sku")
+            except Exception as e:
+                logging.exception("get node labels failed")
 
-        try:
-            dataHandler = DataHandler()
             try:
                 pendingJobs = dataHandler.GetPendingJobs()
                 TakeJobActions(pendingJobs)
 
                 pendingJobs = dataHandler.GetPendingJobs()
-                logging.info("Updating status for %d jobs" % len(pendingJobs))
-                for job in pendingJobs:
-                    try:
-                        logging.info("Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"]))
-                        if job["jobStatus"] == "killing":
-                            KillJob(job["jobId"], "killed")
-                        elif job["jobStatus"] == "pausing":
-                            KillJob(job["jobId"], "paused")
-                        elif job["jobStatus"] == "scheduling" or job["jobStatus"] == "running":
-                            UpdateJobStatus(job, notifier)
-                        elif job["jobStatus"] == "unapproved":
-                            ApproveJob(job["jobId"])
-                    except Exception as e:
-                        logging.info(e, exc_info=True)
+                dataHandler = DataHandler()
+                try:
+                    pendingJobs = dataHandler.GetPendingJobs()
+                    TakeJobActions(pendingJobs)
+
+                    pendingJobs = dataHandler.GetPendingJobs()
+                    logging.info("Updating status for %d jobs" % len(pendingJobs))
+                    for job in pendingJobs:
+                        try:
+                            logging.info("Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"]))
+                            if job["jobStatus"] == "killing":
+                                KillJob(job["jobId"], "killed")
+                            elif job["jobStatus"] == "pausing":
+                                KillJob(job["jobId"], "paused")
+                            elif job["jobStatus"] == "scheduling" or job["jobStatus"] == "running":
+                                UpdateJobStatus(job, notifier)
+                            elif job["jobStatus"] == "unapproved":
+                                ApproveJob(job["jobId"])
+                        except Exception as e:
+                            logging.info(e, exc_info=True)
+                except Exception as e:
+                    logging.exception("process pending job failed")
+                finally:
+                    dataHandler.Close()
             except Exception as e:
-                logging.exception("process pending job failed")
-            finally:
-                dataHandler.Close()
-        except Exception as e:
-            logging.exception("close data handler failed")
+                logging.exception("close data handler failed")
 
         time.sleep(1)
 

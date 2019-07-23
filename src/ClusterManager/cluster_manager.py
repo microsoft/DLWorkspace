@@ -9,12 +9,18 @@ import argparse
 import threading
 
 from prometheus_client.twisted import MetricsResource
+from prometheus_client import Histogram
 
 from twisted.web.server import Site
 from twisted.web.resource import Resource
 from twisted.internet import reactor
 
 logger = logging.getLogger(__name__)
+
+manager_iteration_histogram = Histogram("manager_iteration_latency_seconds",
+        "latency for manager to iterate",
+        buckets=(2.5, 5.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, float("inf")),
+        labelnames=("name",))
 
 
 class HealthResource(Resource):
