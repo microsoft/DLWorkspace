@@ -33,6 +33,7 @@ class JobRole:
             CONTAINER_READY -> WORKER_READY -> JOB_READY (then the job finally in "Running" status.)
         """
         # pod-phase: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase
+        # node condition: https://kubernetes.io/docs/concepts/architecture/nodes/#condition
         deployer = JobDeployer()
         pods = deployer.get_pods(field_selector="metadata.name={}".format(self.pod_name))
         logging.debug("Pods: {}".format(pods))
