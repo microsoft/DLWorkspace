@@ -1,6 +1,7 @@
 import yaml
 import os
 import logging
+import logging.config
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream
@@ -98,6 +99,7 @@ class JobDeployer:
             field_selector=field_selector,
             label_selector=label_selector,
         )
+        logging.debug("Get pods: {}".format(api_response))
         return api_response.items
 
     def get_services_by_label(self, label_selector):

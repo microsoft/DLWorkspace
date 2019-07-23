@@ -1,3 +1,5 @@
+import logging
+import logging.config
 from job_deployer import JobDeployer
 
 
@@ -33,6 +35,7 @@ class JobRole:
         # pod-phase: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase
         deployer = JobDeployer()
         pods = deployer.get_pods(field_selector="metadata.name={}".format(self.pod_name))
+        logging.debug("Pods: {}".format(pods))
         if(len(pods) < 1):
             return "NotFound"
 

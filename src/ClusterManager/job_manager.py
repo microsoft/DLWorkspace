@@ -203,14 +203,14 @@ def UpdateJobStatus(job):
         if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
             k8sUtils.kubectl_delete(jobDescriptionPath)
 
-    elif result == "Unknown":
+    elif result == "Unknown" or result == "NotFound":
         if job["jobId"] not in UnusualJobs:
-            logging.warning("!!! Job status ---Unknown---, job: {}".format(job["jobId"]))
+            logging.warning("!!! Job status ---{}---, job: {}".format(result, job["jobId"]))
             UnusualJobs[job["jobId"]] = datetime.datetime.now()
         # TODO
         # 1) May need to reduce the timeout.
         #     It takes minutes before pod turns into "Unknown", we may don't need to wait so long.
-        # 2) If node resume before we resubmit the job, the job will end in status 'failed'.
+        # 2) If node resume before we resubmit the job, the job will end in status 'NotFound'.
         elif (datetime.datetime.now() - UnusualJobs[job["jobId"]]).seconds > 300:
             del UnusualJobs[job["jobId"]]
             retries = dataHandler.AddandGetJobRetries(job["jobId"])
@@ -225,7 +225,7 @@ def UpdateJobStatus(job):
                 KillJob(job["jobId"], "queued")
                 # SubmitJob(job)
 
-    if result.strip() != "Unknown" and job["jobId"] in UnusualJobs:
+    if result != "Unknown" and result != "NotFound" and job["jobId"] in UnusualJobs:
         del UnusualJobs[job["jobId"]]
 
     dataHandler.Close()
@@ -235,6 +235,9 @@ def UpdateJobStatus(job):
 def check_job_status(job_id):
     job_deployer = JobDeployer()
     job_roles = JobRole.get_job_roles(job_id)
+
+    if len(job_roles) < 1:
+        return "NotFound"
 
     # role status in ["NotFound", "Pending", "Running", "Succeeded", "Failed", "Unknown"]
     # TODO ??? when ps/master role "Succeeded", return Succeeded
