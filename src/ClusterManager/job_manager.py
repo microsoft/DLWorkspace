@@ -209,7 +209,7 @@ def UpdateJobStatus(job):
             UnusualJobs[job["jobId"]] = datetime.datetime.now()
         # TODO
         # 1) May need to reduce the timeout.
-        #     It takes minutes before pod turns into "Unkonw", we may don't need to wait here.
+        #     It takes minutes before pod turns into "Unknown", we may don't need to wait so long.
         # 2) If node resume before we resubmit the job, the job will end in status 'failed'.
         elif (datetime.datetime.now() - UnusualJobs[job["jobId"]]).seconds > 300:
             del UnusualJobs[job["jobId"]]
