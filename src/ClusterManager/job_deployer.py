@@ -2,11 +2,31 @@ import yaml
 import os
 import logging
 import logging.config
+import timeit
+
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream
 from kubernetes.stream.ws_client import ERROR_CHANNEL, STDERR_CHANNEL, STDOUT_CHANNEL
 
+from prometheus_client import Histogram
+
+job_deployer_fn_histogram = Histogram("job_deployer_fn_latency_seconds",
+        "latency for executing job deployer (seconds)",
+        buckets=(.05, .075, .1, .25, .5, .75, 1.0, 2.5, 5.0,
+            7.5, 10.0, 12.5, 15.0, 17.5, 20.0, float("inf")),
+        labelnames=("fn_name",))
+
+def record(fn):
+    @functools.wraps(fn)
+    def wrapped(*args, **kwargs):
+        start = timeit.default_timer()
+        try:
+            return fn(*args, **kwargs)
+        finally:
+            elapsed = timeit.default_timer() - start
+            job_deployer_fn_histogram.labels(fn.__name__).observe(elapsed)
+    return wrapped
 
 class JobDeployer:
 
@@ -17,6 +37,7 @@ class JobDeployer:
         self.namespace = "default"
         self.pretty = "pretty_example"
 
+    @record
     def create_pod(self, body, dry_run=None):
         api_response = self.v1.create_namespaced_pod(
             namespace=self.namespace,
@@ -26,6 +47,7 @@ class JobDeployer:
         )
         return api_response
 
+    @record
     def delete_pod(self, name, dry_run=None):
         api_response = self.v1.delete_namespaced_pod(
             name=name,
@@ -36,6 +58,7 @@ class JobDeployer:
         )
         return api_response
 
+    @record
     def create_service(self, body, dry_run=None):
         api_response = self.v1.create_namespaced_service(
             namespace=self.namespace,
@@ -45,6 +68,7 @@ class JobDeployer:
         )
         return api_response
 
+    @record
     def delete_service(self, name, dry_run=None):
         api_response = self.v1.delete_namespaced_service(
             name=name,
@@ -55,6 +79,7 @@ class JobDeployer:
         )
         return api_response
 
+    @record
     def cleanup_pods(self, pod_names):
         errors = []
         for pod_name in pod_names:
@@ -68,6 +93,7 @@ class JobDeployer:
                 errors.append({"message": message, "exception": e})
         return errors
 
+    @record
     def cleanup_services(self, services):
         errors = []
         for service in services:
@@ -81,6 +107,7 @@ class JobDeployer:
                 errors.append({"message": message, "exception": e})
         return errors
 
+    @record
     def create_pods(self, pods):
         # TODO instead of delete, we could check update existiong ones. During refactoring, keeping the old way.
         pod_names = [pod["metadata"]["name"] for pod in pods]
@@ -92,6 +119,7 @@ class JobDeployer:
             logging.info("Create pod succeed: %s" % created_pod.metadata.name)
         return created
 
+    @record
     def get_pods(self, field_selector="", label_selector=""):
         api_response = self.v1.list_namespaced_pod(
             namespace=self.namespace,
@@ -102,6 +130,7 @@ class JobDeployer:
         logging.debug("Get pods: {}".format(api_response))
         return api_response.items
 
+    @record
     def get_services_by_label(self, label_selector):
         api_response = self.v1.list_namespaced_service(
             namespace=self.namespace,
@@ -110,6 +139,7 @@ class JobDeployer:
         )
         return api_response.items
 
+    @record
     def delete_job(self, job_id):
         label_selector = "run={}".format(job_id)
 
@@ -125,6 +155,7 @@ class JobDeployer:
         errors = pod_errors + service_errors
         return errors
 
+    @record
     def pod_exec(self, pod_name, exec_command, timeout=60):
         """work as the command (with timeout): kubectl exec 'pod_name' 'exec_command'"""
         try:
