@@ -31,7 +31,7 @@ import random
 
 import logging
 
-from cluster_manager import setup_exporter_thread
+from cluster_manager import setup_exporter_thread, manager_iteration_histogram
 
 logger = logging.getLogger(__name__)
 
@@ -54,17 +54,18 @@ def create_log(logdir = '/var/log/dlworkspace'):
 def Run():
     create_log()
     while True:
-        try:
-            dataHandler = DataHandler()
-            pendingCommands = dataHandler.GetPendingCommands()
-            for command in pendingCommands:
-                try:
-                    logger.info("Processing command: %s", command["id"])
-                    RunCommand(command)
-                except Exception as e:
-                    logger.exception("run command failed")
-        except Exception as e:
-            logger.exception("getting command failed")
+        with manager_iteration_histogram.labels("command_manager").time():
+            try:
+                dataHandler = DataHandler()
+                pendingCommands = dataHandler.GetPendingCommands()
+                for command in pendingCommands:
+                    try:
+                        logger.info("Processing command: %s", command["id"])
+                        RunCommand(command)
+                    except Exception as e:
+                        logger.exception("run command failed")
+            except Exception as e:
+                logger.exception("getting command failed")
         time.sleep(1)
 
 if __name__ == '__main__':

@@ -39,7 +39,7 @@ import k8sUtils
 from config import config
 from DataHandler import DataHandler
 
-from cluster_manager import setup_exporter_thread
+from cluster_manager import setup_exporter_thread, manager_iteration_histogram
 
 
 def create_log(logdir = '/var/log/dlworkspace'):
@@ -246,10 +246,11 @@ def Run():
     logging.info("start to update nodes usage information ...")
     config["cluster_status"] = None
     while True:
-        try:
-            get_cluster_status()
-        except Exception as e:
-            logging.exception("get cluster status failed")
+        with manager_iteration_histogram.labels("node_manager").time():
+            try:
+                get_cluster_status()
+            except Exception as e:
+                logging.exception("get cluster status failed")
         time.sleep(30)
 
 if __name__ == '__main__':

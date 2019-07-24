@@ -32,7 +32,7 @@ from osUtils import mkdirsAsUser
 from config import config, GetStoragePath
 from DataHandler import DataHandler
 
-from cluster_manager import setup_exporter_thread
+from cluster_manager import setup_exporter_thread, manager_iteration_histogram
 
 logger = logging.getLogger(__name__)
 
@@ -154,10 +154,11 @@ def Run():
     logging.info("start to update job logs ...")
 
     while True:
-        try:
-            update_job_logs()
-        except Exception as e:
-            logger.exception("update job logs failed")
+        with manager_iteration_histogram.labels("joblog_manager").time():
+            try:
+                update_job_logs()
+            except Exception as e:
+                logger.exception("update job logs failed")
         time.sleep(1)
 
 if __name__ == '__main__':
