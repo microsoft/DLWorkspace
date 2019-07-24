@@ -263,7 +263,7 @@
                         gpu_available: gpu_available[key] < 0 ? 0 : gpu_available[key],
                         quota: quota[key]
                     };
-                    $scope.isLowPriority = value.low_priority === true ? true : false;
+                   /* $scope.isLowPriority = value.low_priority === true ? true : false;
                     if ($scope.isLowPriority) {
                         var filteredJobList = [];
                         $scope.joblist.forEach(function(job) {
@@ -272,7 +272,7 @@
                             }
                         });
                         $scope.joblist = filteredJobList;
-                    }
+                    }*/
 
                     $scope.gpus[key] = gpu;
                 });
@@ -701,16 +701,10 @@
                         </md-input-container>
                         <md-input-container flex="50">
                             <label style="pointer-events:auto">Job Type  
-                                <i ng-hide="!isLowPriority"
-                                   class="layui-icon layui-icon-tips" 
-                                   data-toggle="tooltip" 
-                                   title="Low priority cluster does not support distributed jobs" 
-                                   data-placement="right"
-                                 ></i>
                             </label>
-                            <md-select name="jobtrainingtype" ng-model="current.jobtrainingtype" ng-disabled="curtemplateValue === 0 && !isLowPriority? false : true"  required md-no-asterisk>
+                            <md-select name="jobtrainingtype" ng-model="current.jobtrainingtype" ng-disabled="curtemplateValue === 0 ? false : true"  required md-no-asterisk>
                                 <md-option value="RegularJob" selected>Regular Job</md-option>
-                                <md-option value="PSDistJob" ng-disabled="curtemplateValue === 0 && isLowPriority">Distributed Job</md-option>
+                                <md-option value="PSDistJob">Distributed Job</md-option>
                             </md-select>
                         </md-input-container>
                     </div>
