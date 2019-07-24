@@ -3,6 +3,7 @@ import os
 import logging
 import logging.config
 import timeit
+import functools
 
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
