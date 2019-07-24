@@ -374,7 +374,6 @@ def Run():
     notifier.start()
     create_log()
 
-
     while True:
         with manager_iteration_histogram.labels("job_manager").time():
             try:
@@ -384,10 +383,6 @@ def Run():
                 logging.exception("get node labels failed")
 
             try:
-                pendingJobs = dataHandler.GetPendingJobs()
-                TakeJobActions(pendingJobs)
-
-                pendingJobs = dataHandler.GetPendingJobs()
                 dataHandler = DataHandler()
                 try:
                     pendingJobs = dataHandler.GetPendingJobs()
