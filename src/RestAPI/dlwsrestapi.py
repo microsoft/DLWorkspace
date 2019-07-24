@@ -393,6 +393,8 @@ class KillJob(Resource):
         result = JobRestAPIUtils.KillJob(userName, jobId)
         ret = {}
         if result:
+            # NOTE "Success" prefix is used in reaper, please also update reaper code
+            # if need to change it.
             ret["result"] = "Success, the job is scheduled to be terminated."
         else:
             ret["result"] = "Cannot Kill the job. Job ID:" + jobId
