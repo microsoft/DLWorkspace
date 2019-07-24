@@ -29,12 +29,16 @@ def record(fn):
             job_deployer_fn_histogram.labels(fn.__name__).observe(elapsed)
     return wrapped
 
+
+# The config will be loaded from default location.
+config.load_kube_config()
+k8s_client = client.CoreV1Api()
+
+
 class JobDeployer:
 
     def __init__(self):
-        # The config will be loaded from default location.
-        config.load_kube_config()
-        self.v1 = client.CoreV1Api()
+        self.v1 = k8s_client
         self.namespace = "default"
         self.pretty = "pretty_example"
 
