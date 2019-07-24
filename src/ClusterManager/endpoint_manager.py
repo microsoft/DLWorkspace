@@ -14,7 +14,7 @@ import yaml
 import logging.config
 
 import argparse
-from cluster_manager import setup_exporter_thread
+from cluster_manager import setup_exporter_thread, manager_iteration_histogram
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 import k8sUtils
@@ -243,12 +243,13 @@ def Run():
     create_log()
 
     while True:
-        # start endpoints
-        start_endpoints()
-        time.sleep(1)
+        with manager_iteration_histogram.labels("endpoint_manager").time():
+            # start endpoints
+            start_endpoints()
+            time.sleep(1)
 
-        # clean up endpoints for jobs which is NOT running
-        cleanup_endpoints()
+            # clean up endpoints for jobs which is NOT running
+            cleanup_endpoints()
         time.sleep(1)
 
 if __name__ == '__main__':

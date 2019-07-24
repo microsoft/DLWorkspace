@@ -34,7 +34,7 @@ import k8sUtils
 from config import config
 from DataHandler import DataHandler
 
-from cluster_manager import setup_exporter_thread
+from cluster_manager import setup_exporter_thread, manager_iteration_histogram
 
 
 def create_log(logdir = '/var/log/dlworkspace'):
@@ -84,10 +84,11 @@ def Run():
     create_log()
     logging.info("start to update user directory...")
     while True:
-        try:
-            set_user_directory()
-        except Exception as e:
-            logging.exception("set user directory failed")
+        with manager_iteration_histogram.labels("user_manager").time():
+            try:
+                set_user_directory()
+            except Exception as e:
+                logging.exception("set user directory failed")
         time.sleep(1)
 
 
