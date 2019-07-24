@@ -31,6 +31,8 @@ import random
 
 import logging
 
+from cluster_manager import setup_exporter_thread
+
 logger = logging.getLogger(__name__)
 
 def RunCommand(command):
@@ -66,4 +68,9 @@ def Run():
         time.sleep(1)
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", "-p", help="port of exporter", type=int, default=9204)
+    args = parser.parse_args()
+    setup_exporter_thread(args.port)
+
     Run()

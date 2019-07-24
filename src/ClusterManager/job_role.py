@@ -1,3 +1,5 @@
+import logging
+import logging.config
 from job_deployer import JobDeployer
 
 
@@ -31,8 +33,10 @@ class JobRole:
             CONTAINER_READY -> WORKER_READY -> JOB_READY (then the job finally in "Running" status.)
         """
         # pod-phase: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase
+        # node condition: https://kubernetes.io/docs/concepts/architecture/nodes/#condition
         deployer = JobDeployer()
         pods = deployer.get_pods(field_selector="metadata.name={}".format(self.pod_name))
+        logging.debug("Pods: {}".format(pods))
         if(len(pods) < 1):
             return "NotFound"
 
@@ -40,8 +44,13 @@ class JobRole:
         pod = pods[0]
         phase = pod.status.phase
 
-        # !!! Pod is runing, doesn't mean "Role" is ready and running.
+        # !!! Pod is running, doesn't mean "Role" is ready and running.
         if(phase == "Running"):
+            # Found that phase won't turn into "Unkonwn" even when we get 'unknown' from kubectl
+            if pod.status.reason == "NodeLost":
+                return "Unknown"
+
+            # Check if the user command had been ran.
             if not self.isRoleReady():
                 return "Pending"
 

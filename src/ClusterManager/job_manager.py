@@ -9,7 +9,6 @@ import datetime
 import copy
 import traceback
 
-
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
 
@@ -42,8 +41,24 @@ from dist_pod_template import DistPodTemplate
 from job_deployer import JobDeployer
 from job_role import JobRole
 
+from cluster_manager import setup_exporter_thread
+
+
+def all_pods_not_existing(job_id):
+    job_deployer = JobDeployer()
+    job_roles = JobRole.get_job_roles(job_id)
+    statuses = [job_role.status() for job_role in job_roles]
+    logging.info("Job: {}, status: {}".format(job_id, statuses))
+    return all([status == "NotFound" for status in statuses])
+
 
 def SubmitJob(job):
+    # check if existing any pod with label: run=job_id
+    assert("jobId" in job)
+    if not all_pods_not_existing(job["jobId"]):
+        logging.warning("Waiting until previously pods are cleaned up! Job {}".format(job["jobId"]))
+        return
+
     ret = {}
     dataHandler = DataHandler()
 
@@ -119,31 +134,31 @@ def SubmitJob(job):
     return ret
 
 
-def KillJob(job, desiredState="killed"):
+def KillJob(job_id, desiredState="killed"):
     dataHandler = DataHandler()
-    result, detail = k8sUtils.GetJobStatus(job["jobId"])
-    dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
-    logging.info("Killing job %s, with status %s, %s" % (job["jobId"], result, detail))
+    result, detail = k8sUtils.GetJobStatus(job_id)
+    dataHandler.UpdateJobTextField(job_id, "jobStatusDetail", base64.b64encode(json.dumps(detail)))
+    logging.info("Killing job %s, with status %s, %s" % (job_id, result, detail))
 
     job_deployer = JobDeployer()
-    errors = job_deployer.delete_job(job["jobId"])
+    errors = job_deployer.delete_job(job_id)
 
     if len(errors) == 0:
-        dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", desiredState)
-        dataHandler.UpdateJobTextField(job["jobId"], "lastUpdated", datetime.datetime.now().isoformat())
+        dataHandler.UpdateJobTextField(job_id, "jobStatus", desiredState)
+        dataHandler.UpdateJobTextField(job_id, "lastUpdated", datetime.datetime.now().isoformat())
         dataHandler.Close()
         return True
     else:
-        dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "error")
-        dataHandler.UpdateJobTextField(job["jobId"], "lastUpdated", datetime.datetime.now().isoformat())
+        dataHandler.UpdateJobTextField(job_id, "jobStatus", "error")
+        dataHandler.UpdateJobTextField(job_id, "lastUpdated", datetime.datetime.now().isoformat())
         dataHandler.Close()
         logging.error("Kill job failed with errors: {}".format(errors))
         return False
 
 
-def ApproveJob(job):
+def ApproveJob(job_id):
     dataHandler = DataHandler()
-    dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "queued")
+    dataHandler.UpdateJobTextField(job_id, "jobStatus", "queued")
     dataHandler.Close()
     return True
 
@@ -197,9 +212,14 @@ def UpdateJobStatus(job, notifier=None):
         if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
             k8sUtils.kubectl_delete(jobDescriptionPath)
 
-    elif result == "Unknown":
+    elif result == "Unknown" or result == "NotFound":
         if job["jobId"] not in UnusualJobs:
+            logging.warning("!!! Job status ---{}---, job: {}".format(result, job["jobId"]))
             UnusualJobs[job["jobId"]] = datetime.datetime.now()
+        # TODO
+        # 1) May need to reduce the timeout.
+        #     It takes minutes before pod turns into "Unknown", we may don't need to wait so long.
+        # 2) If node resume before we resubmit the job, the job will end in status 'NotFound'.
         elif (datetime.datetime.now() - UnusualJobs[job["jobId"]]).seconds > 300:
             del UnusualJobs[job["jobId"]]
             retries = dataHandler.AddandGetJobRetries(job["jobId"])
@@ -211,13 +231,10 @@ def UpdateJobStatus(job, notifier=None):
                     k8sUtils.kubectl_delete(jobDescriptionPath)
             else:
                 logging.warning("Job %s fails in Kubernetes, delete and re-submit the job. Retries %d", job["jobId"], retries)
-                SubmitJob(job)
-    elif result.strip() == "PendingHostPort":
-        logging.warning("Cannot find host ports for job :%s, re-launch the job with different host ports ", job["jobId"])
+                KillJob(job["jobId"], "queued")
+                # SubmitJob(job)
 
-        SubmitJob(job)
-
-    if result.strip() != "Unknown" and job["jobId"] in UnusualJobs:
+    if result != "Unknown" and result != "NotFound" and job["jobId"] in UnusualJobs:
         del UnusualJobs[job["jobId"]]
 
     dataHandler.Close()
@@ -227,6 +244,9 @@ def UpdateJobStatus(job, notifier=None):
 def check_job_status(job_id):
     job_deployer = JobDeployer()
     job_roles = JobRole.get_job_roles(job_id)
+
+    if len(job_roles) < 1:
+        return "NotFound"
 
     # role status in ["NotFound", "Pending", "Running", "Succeeded", "Failed", "Unknown"]
     # TODO ??? when ps/master role "Succeeded", return Succeeded
@@ -336,12 +356,15 @@ def TakeJobActions(jobs):
     logging.info("TakeJobActions : global resources : %s" % (globalResInfo.CategoryToCountMap))
 
     for sji in jobsInfo:
-        if sji["job"]["jobStatus"] == "queued" and sji["allowed"] == True:
-            SubmitJob(sji["job"])
-            logging.info("TakeJobActions : submitting job : %s : %s : %s" % (sji["jobParams"]["jobName"], sji["jobParams"]["jobId"], sji["sortKey"]))
-        elif sji["jobParams"]["preemptionAllowed"] and (sji["job"]["jobStatus"] == "scheduling" or sji["job"]["jobStatus"] == "running") and sji["allowed"] == False:
-            KillJob(sji["job"], "queued")
-            logging.info("TakeJobActions : pre-empting job : %s : %s : %s" % (sji["jobParams"]["jobName"], sji["jobParams"]["jobId"], sji["sortKey"]))
+        try:
+            if sji["job"]["jobStatus"] == "queued" and sji["allowed"] == True:
+                SubmitJob(sji["job"])
+                logging.info("TakeJobActions : submitting job : %s : %s : %s" % (sji["jobParams"]["jobName"], sji["jobParams"]["jobId"], sji["sortKey"]))
+            elif sji["jobParams"]["preemptionAllowed"] and (sji["job"]["jobStatus"] == "scheduling" or sji["job"]["jobStatus"] == "running") and sji["allowed"] == False:
+                KillJob(sji["job"]["jobId"], "queued")
+                logging.info("TakeJobActions : pre-empting job : %s : %s : %s" % (sji["jobParams"]["jobName"], sji["jobParams"]["jobId"], sji["sortKey"]))
+        except Exception as e:
+            logging.error("Process job failed {}".format(sji["job"]), exc_info=True)
 
     logging.info("TakeJobActions : job desired actions taken")
 
@@ -353,7 +376,6 @@ def Run():
 
 
     while True:
-
         try:
             config["racks"] = k8sUtils.get_node_labels("rack")
             config["skus"] = k8sUtils.get_node_labels("sku")
@@ -372,15 +394,15 @@ def Run():
                     try:
                         logging.info("Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"]))
                         if job["jobStatus"] == "killing":
-                            KillJob(job, "killed")
+                            KillJob(job["jobId"], "killed")
                         elif job["jobStatus"] == "pausing":
-                            KillJob(job, "paused")
+                            KillJob(job["jobId"], "paused")
                         elif job["jobStatus"] == "scheduling" or job["jobStatus"] == "running":
                             UpdateJobStatus(job, notifier)
                         elif job["jobStatus"] == "unapproved":
-                            ApproveJob(job)
+                            ApproveJob(job["jobId"])
                     except Exception as e:
-                        logging.info(e)
+                        logging.info(e, exc_info=True)
             except Exception as e:
                 logging.exception("process pending job failed")
             finally:
@@ -392,4 +414,9 @@ def Run():
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", "-p", help="port of exporter", type=int, default=9200)
+    args = parser.parse_args()
+    setup_exporter_thread(args.port)
+
     Run()

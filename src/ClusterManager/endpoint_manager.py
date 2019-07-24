@@ -1,6 +1,4 @@
-from config import config, GetStoragePath, GetWorkPath
-import k8sUtils
-from DataHandler import DataHandler
+
 import json
 import os
 import time
@@ -12,8 +10,16 @@ import traceback
 import random
 import re
 import logging
+import yaml
+import logging.config
+
+import argparse
+from cluster_manager import setup_exporter_thread
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
+import k8sUtils
+from config import config, GetStoragePath, GetWorkPath
+from DataHandler import DataHandler
 
 logger = logging.getLogger(__name__)
 
@@ -246,4 +252,9 @@ def Run():
         time.sleep(1)
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", "-p", help="port of exporter", type=int, default=9205)
+    args = parser.parse_args()
+    setup_exporter_thread(args.port)
+
     Run()
