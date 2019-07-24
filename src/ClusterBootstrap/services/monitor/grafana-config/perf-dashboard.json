@@ -19,6 +19,7 @@
     "hideControls": false,
     "id": null,
     "links": [],
+    "refresh": "30s",
     "rows": [
       {
         "collapse": false,
@@ -30,7 +31,7 @@
             "dashLength": 10,
             "dashes": false,
             "datasource": null,
-            "fill": 1,
+            "fill": 0,
             "id": 1,
             "legend": {
               "avg": false,
@@ -51,12 +52,12 @@
             "renderer": "flot",
             "seriesOverrides": [],
             "spaceLength": 10,
-            "span": 12,
+            "span": 6,
             "stack": false,
             "steppedLine": false,
             "targets": [
               {
-                "expr": "histogram_quantile(0.9, sum(rate(datahandler_fn_latency_seconds_bucket[5m])) by (le, fn_name))",
+                "expr": "histogram_quantile(0.9, sum(rate(datahandler_fn_latency_seconds_bucket{scraped_from=~\"jobmanager.*\"}[5m])) by (le, fn_name))",
                 "format": "time_series",
                 "intervalFactor": 2,
                 "legendFormat": "{{'{{'}} fn_name {{'}}'}}",
@@ -66,7 +67,7 @@
             "thresholds": [],
             "timeFrom": null,
             "timeShift": null,
-            "title": "Datahandler 90th percentile latecy per function",
+            "title": "Datahandler 90th percentile latency per function from jobmanager",
             "tooltip": {
               "shared": true,
               "sort": 0,
@@ -98,19 +99,7 @@
                 "show": false
               }
             ]
-          }
-        ],
-        "repeat": null,
-        "repeatIteration": null,
-        "repeatRowId": null,
-        "showTitle": false,
-        "title": "Dashboard Row",
-        "titleSize": "h6"
-      },
-      {
-        "collapse": false,
-        "height": 250,
-        "panels": [
+          },
           {
             "aliasColors": {},
             "bars": false,
@@ -138,23 +127,110 @@
             "renderer": "flot",
             "seriesOverrides": [],
             "spaceLength": 10,
-            "span": 12,
+            "span": 6,
             "stack": false,
             "steppedLine": false,
             "targets": [
               {
-                "expr": "histogram_quantile(0.9, sum(rate(db_connect_latency_seconds_bucket[5m])) by (le))",
+                "expr": "histogram_quantile(0.9, sum(rate(datahandler_fn_latency_seconds_bucket{scraped_from=~\"restfulapi.*\"}[5m])) by (le, fn_name))",
                 "format": "time_series",
-                "hide": false,
                 "intervalFactor": 2,
-                "legendFormat": "Connection latency",
+                "legendFormat": "{{'{{'}} fn_name {{'}}'}}",
                 "refId": "A"
               }
             ],
             "thresholds": [],
             "timeFrom": null,
             "timeShift": null,
-            "title": "90th percentile DB connection latency",
+            "title": "Datahandler 90th percentile latency per function from restfulapi",
+            "tooltip": {
+              "shared": true,
+              "sort": 0,
+              "value_type": "individual"
+            },
+            "type": "graph",
+            "xaxis": {
+              "buckets": null,
+              "mode": "time",
+              "name": null,
+              "show": true,
+              "values": []
+            },
+            "yaxes": [
+              {
+                "format": "short",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": "0",
+                "show": true
+              },
+              {
+                "format": "short",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": true
+              }
+            ]
+          }
+        ],
+        "repeat": null,
+        "repeatIteration": null,
+        "repeatRowId": null,
+        "showTitle": false,
+        "title": "Dashboard Row",
+        "titleSize": "h6"
+      },
+      {
+        "collapse": false,
+        "height": 250,
+        "panels": [
+          {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "datasource": null,
+            "fill": 0,
+            "id": 3,
+            "legend": {
+              "avg": false,
+              "current": false,
+              "max": false,
+              "min": false,
+              "show": true,
+              "total": false,
+              "values": false
+            },
+            "lines": true,
+            "linewidth": 1,
+            "links": [],
+            "nullPointMode": "null",
+            "percentage": false,
+            "pointradius": 5,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [],
+            "spaceLength": 10,
+            "span": 6,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.9, sum(rate(db_connect_latency_seconds_bucket{scraped_from=~\"jobmanager.*\"}[5m])) by (le))",
+                "format": "time_series",
+                "hide": false,
+                "intervalFactor": 2,
+                "legendFormat": "Connection Latency",
+                "refId": "A"
+              }
+            ],
+            "thresholds": [],
+            "timeFrom": null,
+            "timeShift": null,
+            "title": "90th percentile DB connection latency from jobmanager",
             "tooltip": {
               "shared": true,
               "sort": 0,
@@ -183,7 +259,82 @@
                 "logBase": 1,
                 "max": null,
                 "min": null,
+                "show": false
+              }
+            ]
+          },
+          {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "datasource": null,
+            "fill": 0,
+            "id": 4,
+            "legend": {
+              "avg": false,
+              "current": false,
+              "max": false,
+              "min": false,
+              "show": true,
+              "total": false,
+              "values": false
+            },
+            "lines": true,
+            "linewidth": 1,
+            "links": [],
+            "nullPointMode": "null",
+            "percentage": false,
+            "pointradius": 5,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [],
+            "spaceLength": 10,
+            "span": 6,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.9, sum(rate(db_connect_latency_seconds_bucket{scraped_from=~\"restfulapi.*\"}[5m])) by (le))",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "Connection Latency",
+                "refId": "A"
+              }
+            ],
+            "thresholds": [],
+            "timeFrom": null,
+            "timeShift": null,
+            "title": "90th percentile DB connection latency from restfulapi",
+            "tooltip": {
+              "shared": true,
+              "sort": 0,
+              "value_type": "individual"
+            },
+            "type": "graph",
+            "xaxis": {
+              "buckets": null,
+              "mode": "time",
+              "name": null,
+              "show": true,
+              "values": []
+            },
+            "yaxes": [
+              {
+                "format": "s",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": "0",
                 "show": true
+              },
+              {
+                "format": "short",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": false
               }
             ]
           }
