@@ -17,7 +17,7 @@ sudo apt-get install -y --no-install-recommends \
 sudo apt-get install libcurl4-openssl-dev libssl-dev gcc libnss3-dev libgnutls28-dev
 sudo apt-get install -y python-subprocess32
 # Install docker
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+# curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
 
 # sudo add-apt-repository  "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" docker-ce
 sudo apt install docker.io
@@ -43,5 +43,6 @@ sudo echo "dockerd > /dev/null 2>&1 &" | cat >> /etc/bash.bashrc
 # SUBSCRIPTION_NAME="AI Platform GPU - Bing Training" 
 # for BING developers, remember to set correct subscription_name
 SUBSCRIPTION_NAME="Bing DLTS" 
+az login
 az account set --subscription "${SUBSCRIPTION_NAME}" 
 az account list | grep -A5 -B5 '"isDefault": true'
