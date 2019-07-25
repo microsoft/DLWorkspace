@@ -55,8 +55,13 @@ def all_pods_not_existing(job_id):
 def SubmitJob(job):
     # check if existing any pod with label: run=job_id
     assert("jobId" in job)
-    if not all_pods_not_existing(job["jobId"]):
-        logging.warning("Waiting until previously pods are cleaned up! Job {}".format(job["jobId"]))
+    job_id = job["jobId"]
+    if not all_pods_not_existing(job_id):
+        logging.warning("Waiting until previously pods are cleaned up! Job {}".format(job_id))
+        job_deployer = JobDeployer()
+        errors = job_deployer.delete_job(job_id, force=True)
+        if errors:
+            logging.warning("Force delete job {}: {}".format(job_id, errors))
         return
 
     ret = {}

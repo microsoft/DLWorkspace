@@ -150,13 +150,13 @@ class JobDeployer:
         return api_response.items
 
     @record
-    def delete_job(self, job_id):
+    def delete_job(self, job_id, force=False):
         label_selector = "run={}".format(job_id)
 
         # query pods then delete
         pods = self.get_pods(label_selector=label_selector)
         pod_names = [pod.metadata.name for pod in pods]
-        pod_errors = self.cleanup_pods(pod_names)
+        pod_errors = self.cleanup_pods(pod_names, force)
 
         # query services then delete
         services = self.get_services_by_label(label_selector)
