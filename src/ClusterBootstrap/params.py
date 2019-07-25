@@ -629,15 +629,15 @@ scriptblocks = {
         "webui",
         "docker push restfulapi",
         "docker push webui",
-        "nginx fqdn",
-        "nginx config",
+        # "nginx fqdn",
+        # "nginx config",
         "mount",
         "kubernetes start mysql",
         "kubernetes start jobmanager",
         "kubernetes start restfulapi",
         "kubernetes start webportal",
         "kubernetes start cloudmonitor",
-        "kubernetes start nginx",
+        # "kubernetes start nginx",
         "kubernetes start custommetrics",
         # TODO(harry): we cannot distinguish gce aws from azure, so add the same providerID
         # This will not break current deployment.
