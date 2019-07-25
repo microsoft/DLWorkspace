@@ -354,7 +354,7 @@ default_config_parameters = {
         "CCSAdmins": {
             # The match is in C# Regex Language, please refer to :
             # https://msdn.microsoft.com/en-us/library/az24scfc(v=vs.110).aspx
-            "Allowed": ["jinl@microsoft.com", "hongzl@microsoft.com", "sanjeevm@microsoft.com"],
+            "Allowed": ["jinl@microsoft.com", "hongzl@microsoft.com", "sanjeevm@microsoft.com","zhexu@microsoft.com"],
             "uid": "900000000-999999999",
             "gid": "508953967"
         },
@@ -382,7 +382,7 @@ default_config_parameters = {
     },
 
     "WebUIregisterGroups": ["MicrosoftUsers", "Live", "Gmail"],
-    "WebUIauthorizedGroups": [],  # [ "MicrosoftUsers", "Live", "Gmail" ],
+    "WebUIauthorizedGroups": ["MicrosoftUsers"],  # [ "MicrosoftUsers", "Live", "Gmail" ],
     "WebUIadminGroups": ["CCSAdmins"],
 
     # Selectively deploy (turn on) one or more authenticatin methods.
@@ -392,7 +392,7 @@ default_config_parameters = {
     "DeployAuthentications": ["Corp", "Live", "Gmail"],
     # You should remove WinBindServers if you will use
     # UserGroups for authentication.
-    "WinbindServers": ["http://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName={0}"],
+    # "WinbindServers": ["http://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName={0}"],
     "workFolderAccessPoint": "",
     "dataFolderAccessPoint": "",
 
