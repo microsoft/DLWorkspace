@@ -380,31 +380,31 @@ def Run():
 
             try:
                 dataHandler = DataHandler()
-                try:
-                    pendingJobs = dataHandler.GetPendingJobs()
-                    TakeJobActions(pendingJobs)
+                pendingJobs = dataHandler.GetPendingJobs()
+                TakeJobActions(pendingJobs)
 
-                    pendingJobs = dataHandler.GetPendingJobs()
-                    logging.info("Updating status for %d jobs" % len(pendingJobs))
-                    for job in pendingJobs:
-                        try:
-                            logging.info("Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"]))
-                            if job["jobStatus"] == "killing":
-                                KillJob(job["jobId"], "killed")
-                            elif job["jobStatus"] == "pausing":
-                                KillJob(job["jobId"], "paused")
-                            elif job["jobStatus"] == "scheduling" or job["jobStatus"] == "running":
-                                UpdateJobStatus(job, notifier)
-                            elif job["jobStatus"] == "unapproved":
-                                ApproveJob(job["jobId"])
-                        except Exception as e:
-                            logging.info(e, exc_info=True)
-                except Exception as e:
-                    logging.exception("process pending job failed")
-                finally:
-                    dataHandler.Close()
+                pendingJobs = dataHandler.GetPendingJobs()
+                logging.info("Updating status for %d jobs" % len(pendingJobs))
+                for job in pendingJobs:
+                    try:
+                        logging.info("Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"]))
+                        if job["jobStatus"] == "killing":
+                            KillJob(job["jobId"], "killed")
+                        elif job["jobStatus"] == "pausing":
+                            KillJob(job["jobId"], "paused")
+                        elif job["jobStatus"] == "scheduling" or job["jobStatus"] == "running":
+                            UpdateJobStatus(job, notifier)
+                        elif job["jobStatus"] == "unapproved":
+                            ApproveJob(job["jobId"])
+                    except Exception as e:
+                        logging.warning(e, exc_info=True)
             except Exception as e:
-                logging.exception("close data handler failed")
+                logging.warning("Process job failed!", exc_info=True)
+            finally:
+                try:
+                    dataHandler.Close()
+                except:
+                    pass
 
         time.sleep(1)
 
