@@ -225,7 +225,7 @@ def UpdateJobStatus(job, notifier=None):
         # 1) May need to reduce the timeout.
         #     It takes minutes before pod turns into "Unknown", we may don't need to wait so long.
         # 2) If node resume before we resubmit the job, the job will end in status 'NotFound'.
-        elif (datetime.datetime.now() - UnusualJobs[job["jobId"]]).seconds > 300:
+        elif (datetime.datetime.now() - UnusualJobs[job["jobId"]]).seconds > 30:
             del UnusualJobs[job["jobId"]]
 
             # TODO refine later
