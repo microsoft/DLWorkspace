@@ -232,9 +232,9 @@ def UpdateJobStatus(job, notifier=None):
             # before resubmit the job, reset the endpoints
             # update all endpoint to status 'pending', so it would restart when job is ready
             endpoints = dataHandler.GetJobEndpoints(job["jobId"])
-            for endpoint in endpoints:
+            for endpoint_id, endpoint in endpoints.items():
                 endpoint["status"] = "pending"
-                logging.info("Reset endpoint status to 'pending': {}".format(endpoint["id"]))
+                logging.info("Reset endpoint status to 'pending': {}".format(endpoint_id))
                 dataHandler.UpdateEndpoint(endpoint)
 
             logging.warning("Job {} fails in Kubernetes as {}, delete and re-submit.".format(job["jobId"], result))
