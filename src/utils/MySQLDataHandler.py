@@ -722,7 +722,7 @@ class DataHandler(object):
         try:
             cursor = self.conn.cursor()
             # TODO we need job["lastUpdated"] for filtering
-            query = "SELECT `endpoints` FROM jobs WHERE `jobStatus` <> 'running' order by `jobTime` DESC"
+            query = "SELECT `endpoints` FROM jobs WHERE `jobStatus` <> 'running' and `jobStatus` <> 'pending' and `jobStatus` <> 'queued' and `jobStatus` <> 'scheduling' order by `jobTime` DESC"
             cursor.execute(query)
             dead_endpoints = {}
             for [endpoints] in cursor:

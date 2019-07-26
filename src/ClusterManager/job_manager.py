@@ -234,6 +234,7 @@ def UpdateJobStatus(job, notifier=None):
             endpoints = dataHandler.GetJobEndpoints(job["jobId"])
             for endpoint in endpoints:
                 endpoint["status"] = "pending"
+                logging.info("Reset endpoint status to 'pending': {}".format(endpoint["id"]))
                 dataHandler.UpdateEndpoint(endpoint)
 
             logging.warning("Job {} fails in Kubernetes as {}, delete and re-submit.".format(job["jobId"], result))
