@@ -704,7 +704,7 @@ class DataHandler(object):
     @record
     def GetJobEndpoints(self, job_id):
         try:
-            jobs = self.GetJob(jobStatus="running", jobId=job_id)
+            jobs = self.GetJob(jobId=job_id)
 
             # [ {endpoint1:{},endpoint2:{}}, {endpoint3:{}, ... }, ... ]
             endpoints = map(lambda job: self.load_json(job["endpoints"]), jobs)
