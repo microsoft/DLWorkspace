@@ -146,7 +146,7 @@ def KillJob(job_id, desiredState="killed"):
     logging.info("Killing job %s, with status %s, %s" % (job_id, result, detail))
 
     job_deployer = JobDeployer()
-    errors = job_deployer.delete_job(job_id)
+    errors = job_deployer.delete_job(job_id, force=True)
 
     if len(errors) == 0:
         dataHandler.UpdateJobTextField(job_id, "jobStatus", desiredState)
