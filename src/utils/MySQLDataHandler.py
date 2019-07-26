@@ -393,7 +393,7 @@ class DataHandler(object):
 
             if (isinstance(groups, list)):
                 groups = json.dumps(groups)
-            
+
             if len(self.GetIdentityInfo(identityName)) == 0:
                 sql = "INSERT INTO `"+self.identitytablename+"` (identityName,uid,gid,groups) VALUES (%s,%s,%s,%s)"
                 cursor.execute(sql, (identityName, uid, gid, groups))
@@ -702,6 +702,22 @@ class DataHandler(object):
             return {}
 
     @record
+    def GetJobEndpoints(self, job_id):
+        try:
+            jobs = self.GetJob(jobStatus="running", jobId=job_id)
+
+            # [ {endpoint1:{},endpoint2:{}}, {endpoint3:{}, ... }, ... ]
+            endpoints = map(lambda job: self.load_json(job["endpoints"]), jobs)
+            # {endpoint1: {}, endpoint2: {}, ... }
+            # endpoint["status"] == "pending"
+            endpoints = {k: v for d in endpoints for k, v in d.items()}
+
+            return endpoints
+        except Exception as e:
+            logger.warning("Query job endpoints failed! Job {}".format(job_id), exc_info=True)
+            return {}
+
+    @record
     def GetDeadEndpoints(self):
         try:
             cursor = self.conn.cursor()
@@ -736,7 +752,7 @@ class DataHandler(object):
             cursor.close()
             return True
         except Exception as e:
-            logger.exception("Update endpoints failed!")
+            logger.exception("Update endpoints failed! Endpoints: {}".format(endpoint))
             return False
 
     @record

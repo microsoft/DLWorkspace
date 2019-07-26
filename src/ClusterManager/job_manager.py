@@ -227,6 +227,15 @@ def UpdateJobStatus(job, notifier=None):
         # 2) If node resume before we resubmit the job, the job will end in status 'NotFound'.
         elif (datetime.datetime.now() - UnusualJobs[job["jobId"]]).seconds > 300:
             del UnusualJobs[job["jobId"]]
+
+            # TODO refine later
+            # before resubmit the job, reset the endpoints
+            # update all endpoint to status 'pending', so it would restart when job is ready
+            endpoints = dataHandler.GetJobEndpoints(job["jobId"])
+            for endpoint in endpoints:
+                endpoint["status"] = "pending"
+                dataHandler.UpdateEndpoint(endpoint)
+
             logging.warning("Job {} fails in Kubernetes as {}, delete and re-submit.".format(job["jobId"], result))
             KillJob(job["jobId"], "queued")
 
