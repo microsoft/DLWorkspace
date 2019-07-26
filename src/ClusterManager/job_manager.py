@@ -227,17 +227,8 @@ def UpdateJobStatus(job, notifier=None):
         # 2) If node resume before we resubmit the job, the job will end in status 'NotFound'.
         elif (datetime.datetime.now() - UnusualJobs[job["jobId"]]).seconds > 300:
             del UnusualJobs[job["jobId"]]
-            retries = dataHandler.AddandGetJobRetries(job["jobId"])
-            if retries >= 5:
-                logging.warning("Job %s fails for more than 5 times, abort", job["jobId"])
-                dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "error")
-                dataHandler.UpdateJobTextField(job["jobId"], "errorMsg", "cannot launch the job.")
-                if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
-                    k8sUtils.kubectl_delete(jobDescriptionPath)
-            else:
-                logging.warning("Job %s fails in Kubernetes, delete and re-submit the job. Retries %d", job["jobId"], retries)
-                KillJob(job["jobId"], "queued")
-                # SubmitJob(job)
+            logging.warning("Job {} fails in Kubernetes as {}, delete and re-submit.".format(job["jobId"], result))
+            KillJob(job["jobId"], "queued")
 
     if result != "Unknown" and result != "NotFound" and job["jobId"] in UnusualJobs:
         del UnusualJobs[job["jobId"]]
