@@ -23,7 +23,7 @@ default_config_parameters = {
     "job-exporter": { "port": 9102 },
     "node-exporter": { "port": 9100 },
     "watchdog": { "port": 9101 },
-    "grafana": { "port": 3000 },
+    "grafana": { "port": 3000, "prometheus-ip": "localhost" },
     "alert-manager": {
         "port": 9093,
         "configured": False,
