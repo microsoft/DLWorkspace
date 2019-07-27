@@ -38,11 +38,3 @@ curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 sudo pip install setuptools && pip install pyyaml && pip install jinja2 && pip install requests && pip install tzlocal && pip install pycurl
 
 sudo echo "dockerd > /dev/null 2>&1 &" | cat >> /etc/bash.bashrc
-
-
-# SUBSCRIPTION_NAME="AI Platform GPU - Bing Training" 
-# for BING developers, remember to set correct subscription_name
-SUBSCRIPTION_NAME="Bing DLTS" 
-az login
-az account set --subscription "${SUBSCRIPTION_NAME}" 
-az account list | grep -A5 -B5 '"isDefault": true'
