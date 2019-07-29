@@ -1033,6 +1033,9 @@ class Endpoint(Resource):
                 ret["port"] = port
                 if "nodeName" in endpoint:
                     ret["nodeName"] = endpoint["nodeName"]
+                if "jupyterToken" in endpoint:
+                    ret["jupyterToken"] = endpoint["jupyterToken"]
+                    ret["url"] = "http://{}.{}:{}/?token={}".format(ret["nodeName"], ret["domain"], ret["port"], ret["jupyterToken"])
             rets.append(ret)
 
         resp = jsonify(rets)

@@ -7,6 +7,7 @@ import datetime
 import copy
 import base64
 import traceback
+import string
 import random
 import re
 import logging
@@ -115,10 +116,9 @@ def setup_ssh_server(user_name, pod_name, host_network=False):
     return ssh_port
 
 
-def setup_jupyter_server(user_name, pod_name):
-
+def setup_jupyter_server(user_name, pod_name, token):
     jupyter_port = random.randint(40000, 49999)
-    bash_script = "sudo bash -c 'export DEBIAN_FRONTEND=noninteractive; apt-get update && apt-get install -y python3-pip && python3 -m pip install --upgrade pip && python3 -m pip install jupyter && cd /home/" + user_name + " && runuser -l " + user_name + " -c \"jupyter notebook --no-browser --ip=0.0.0.0 --NotebookApp.token= --port=" + str(jupyter_port) + " &>/dev/null &\"'"
+    bash_script = "sudo bash -c 'export DEBIAN_FRONTEND=noninteractive; apt-get update && apt-get install -y python3-pip && python3 -m pip install --upgrade pip && python3 -m pip install jupyter && cd /home/" + user_name + " && runuser -l " + user_name + " -c \"jupyter notebook --no-browser --ip=0.0.0.0 --NotebookApp.token=" + token + " --port=" + str(jupyter_port) + " &>/dev/null &\"'"
     output = k8sUtils.kubectl_exec("exec %s %s" % (pod_name, " -- " + bash_script))
     if output == "":
         raise Exception("Failed to start jupyter server in container. JobId: %s " % pod_name)
@@ -147,7 +147,10 @@ def start_endpoint(endpoint):
     if port_name == "ssh":
         endpoint["podPort"] = setup_ssh_server(user_name, pod_name, host_network)
     elif port_name == "ipython":
-        endpoint["podPort"] = setup_jupyter_server(user_name, pod_name)
+        if "jupyterToken" not in endpoint:
+            lettersAndDigits = string.ascii_letters + string.digits
+            endpoint["jupyterToken"] = ''.join(random.choice(lettersAndDigits) for i in range(16))
+        endpoint["podPort"] = setup_jupyter_server(user_name, pod_name, endpoint["jupyterToken"])
     elif port_name == "tensorboard":
         endpoint["podPort"] = setup_tensorboard(user_name, pod_name)
     else:
