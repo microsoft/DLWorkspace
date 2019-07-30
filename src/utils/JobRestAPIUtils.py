@@ -17,7 +17,6 @@ import base64
 import re
 
 from config import global_vars
-from MyLogger import MyLogger
 from authorization import ResourceType, Permission, AuthorizationManager, IdentityManager
 import authorization
 from cache import CacheManager
@@ -25,8 +24,9 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../Clus
 from ResourceInfo import ResourceInfo
 
 import copy
+import logging
 
-logger = MyLogger()
+logger = logging.getLogger(__name__)
 
 def LoadJobParams(jobParamsJsonStr):
     return json.loads(jobParamsJsonStr)
@@ -237,8 +237,8 @@ def GetJobList(userName, vcName, jobOwner, num=None):
         dataHandler.Close()
         return jobs
     except Exception as e:
-        logger.error('Exception: '+ str(e))
-        logger.warn("Fail to get job list for user %s, return empty list" % userName)
+        logger.error('Exception: %s', str(e))
+        logger.warn("Fail to get job list for user %s, return empty list", userName)
         return []
 
 

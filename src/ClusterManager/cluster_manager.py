@@ -1,88 +1,94 @@
-import json
-import os
-import time
-import argparse
-import uuid
-import subprocess
-import sys
-import datetime
-
 import yaml
-from jinja2 import Environment, FileSystemLoader, Template
-import base64
-
-import re
-import random
-
-import textwrap
+import subprocess32
+import os
 import logging
 import logging.config
+import sys
+import time
+import argparse
+import threading
 
-import job_manager
-import user_manager
-import node_manager
-import joblog_manager
-import command_manager
-import endpoint_manager
+from prometheus_client.twisted import MetricsResource
+from prometheus_client import Histogram
 
-from multiprocessing import Process, Manager
+from twisted.web.server import Site
+from twisted.web.resource import Resource
+from twisted.internet import reactor
+
+logger = logging.getLogger(__name__)
+
+manager_iteration_histogram = Histogram("manager_iteration_latency_seconds",
+        "latency for manager to iterate",
+        buckets=(2.5, 5.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, float("inf")),
+        labelnames=("name",))
 
 
-def create_log(logdir='/var/log/dlworkspace'):
+class HealthResource(Resource):
+    def render_GET(self, request):
+        request.setHeader("Content-Type", "text/html; charset=utf-8")
+        return "<html>Ok</html>".encode("utf-8")
+
+def exporter_thread(port):
+    root = Resource()
+    root.putChild(b"metrics", MetricsResource())
+    root.putChild(b"healthz", HealthResource())
+    factory = Site(root)
+    reactor.listenTCP(port, factory)
+    reactor.run(installSignalHandlers=False)
+
+def setup_exporter_thread(port):
+    t = threading.Thread(target=exporter_thread, args=(port,),
+            name="exporter")
+    t.start()
+    return t
+
+def create_log(logdir="/var/log/dlworkspace"):
     if not os.path.exists(logdir):
         os.system("mkdir -p " + logdir)
-    with open('logging.yaml') as f:
+    with open("logging.yaml") as f:
         logging_config = yaml.load(f)
-        f.close()
-        logging_config["handlers"]["file"]["filename"] = logdir+"/clustermanager.log"
-        logging.config.dictConfig(logging_config)
+    logging_config["handlers"]["file"]["filename"] = logdir + "/clustermanager.log"
+    logging.config.dictConfig(logging_config)
 
 
-def Run():
+def Run(args):
     create_log()
 
-    logging.info("Starting job manager... ")
-    proc_job = Process(target=job_manager.Run)
-    proc_job.start()
+    cwd = os.path.dirname(__file__)
+    cmds = [
+        ["python", os.path.join(cwd, "job_manager.py"), "--port", str(args.j)],
+        ["python", os.path.join(cwd, "user_manager.py"), "--port", str(args.u)],
+        ["python", os.path.join(cwd, "node_manager.py"), "--port", str(args.n)],
+        ["python", os.path.join(cwd, "joblog_manager.py"), "--port", str(args.l)],
+        ["python", os.path.join(cwd, "command_manager.py"), "--port", str(args.c)],
+        ["python", os.path.join(cwd, "endpoint_manager.py"), "--port", str(args.e)],
+    ]
 
-    logging.info("Starting user manager... ")
-    proc_user = Process(target=user_manager.Run)
-    proc_user.start()
+    FNULL = open(os.devnull, "w")
 
-    logging.info("Starting node manager... ")
-    proc_node = Process(target=node_manager.Run)
-    proc_node.start()
+    childs = [None] * len(cmds)
 
-    logging.info("Starting joblogging manager... ")
-    proc_joblog = Process(target=joblog_manager.Run)
-    proc_joblog.start()
-
-    logging.info("Starting command manager... ")
-    proc_command = Process(target=command_manager.Run)
-    proc_command.start()
-
-    logging.info("Starting endpoint manager... ")
-    proc_endpoint = Process(target=endpoint_manager.Run)
-    proc_endpoint.start()
-
-    proc_job.join()
-    proc_user.join()
-    proc_node.join()
-    proc_joblog.join()
-    proc_command.join()
-    proc_endpoint.join()
-    pass
+    while True:
+        for i, cmd in enumerate(cmds):
+            child = childs[i]
+            if child is None or child.poll() is not None:
+                if child is not None:
+                    logger.info("%s is dead restart it", cmd)
+                try:
+                    childs[i] = subprocess32.Popen(cmd, stdin=FNULL, close_fds=True)
+                except Exception as e:
+                    logger.exception("caught exception when trying to start %s, ignore", cmd)
+        time.sleep(60)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-j", help="port of job_manager", type=int, default=9200)
+    parser.add_argument("-u", help="port of user_manager", type=int, default=9201)
+    parser.add_argument("-n", help="port of node_manager", type=int, default=9202)
+    parser.add_argument("-l", help="port of joblog_manager", type=int, default=9203)
+    parser.add_argument("-c", help="port of command_manager", type=int, default=9204)
+    parser.add_argument("-e", help="port of endpoint_manager", type=int, default=9205)
+    args = parser.parse_args()
 
-    #parser = argparse.ArgumentParser( prog='cluster_manager.py',
-    #    formatter_class=argparse.RawDescriptionHelpFormatter,
-    #    description=textwrap.dedent('''\
- # ''') )
-    #parser.add_argument("help",
-    #    help = "Show the usage of this program" )
-
-    #args = parser.parse_args()
-
-    Run()
+    sys.exit(Run(args))

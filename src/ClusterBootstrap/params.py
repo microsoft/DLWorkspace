@@ -31,6 +31,11 @@ default_config_parameters = {
         # If want to deploy with alert-manager, should config
         # configured with True, and fill appropriate value to:
         # smtp_url, smtp_from, smtp_auth_username, smtp_auth_password and receiver
+        "reaper": {
+            "dry-run": True,
+            "port": "9500",
+            "restful-url": "http://localhost:5000",
+        }
     },
 
     "mysql_port": "3306",

@@ -39,11 +39,12 @@ import k8sUtils
 from config import config
 from DataHandler import DataHandler
 
+from cluster_manager import setup_exporter_thread, manager_iteration_histogram
 
 
-def create_log( logdir = '/var/log/dlworkspace' ):
-    if not os.path.exists( logdir ):
-        os.system("mkdir -p " + logdir )
+def create_log(logdir = '/var/log/dlworkspace'):
+    if not os.path.exists(logdir):
+        os.system("mkdir -p " + logdir)
     with open('logging.yaml') as f:
         logging_config = yaml.load(f)
         f.close()
@@ -225,7 +226,7 @@ def get_cluster_status():
         cluster_status["node_status"] = [node_status for node_name, node_status in nodes_status.iteritems()] 
 
     except Exception as e:
-        print(e)
+        logging.exception("get cluster status")
 
     dataHandler = DataHandler()
     cluster_status["AvaliableJobNum"] = dataHandler.GetActiveJobsCount()
@@ -246,12 +247,17 @@ def Run():
     logging.info("start to update nodes usage information ...")
     config["cluster_status"] = None
     while True:
-        try:
-            get_cluster_status()
-        except Exception as e:
-            print e
-            logging.info(str(e))
+        with manager_iteration_histogram.labels("node_manager").time():
+            try:
+                get_cluster_status()
+            except Exception as e:
+                logging.exception("get cluster status failed")
         time.sleep(30)
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", "-p", help="port of exporter", type=int, default=9202)
+    args = parser.parse_args()
+    setup_exporter_thread(args.port)
+
     Run()

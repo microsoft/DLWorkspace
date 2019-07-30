@@ -1,11 +1,12 @@
 version: 1
+disable_existing_loggers: False
 formatters:
   simple:
-    format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format: '%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s'
 handlers:
   console:
     class: logging.StreamHandler
-    level: DEBUG
+    level: INFO
     formatter: simple
     stream: ext://sys.stdout
   file:
@@ -18,9 +19,9 @@ handlers:
     backupCount: 10
 loggers:
   basic:
-    level: DEBUG
+    level: INFO
     handlers: ['console','file']
     propagate: no
 root:
-  level: DEBUG
+  level: INFO
   handlers: ['console','file']
