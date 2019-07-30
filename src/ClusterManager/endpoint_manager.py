@@ -219,7 +219,9 @@ def cleanup_endpoints():
                         status = "unknown"
                         logger.info("Clean dead endpoint %s failed, endpoints: %s", endpoint_id, dead_endpoint)
 
-                dead_endpoint["status"] = status
+                # we are not changing status from "pending", "pending" endpoints are planed to setup later
+                if dead_endpoint["status"] != "pending":
+                    dead_endpoint["status"] = status
                 dead_endpoint["lastUpdated"] = datetime.datetime.now().isoformat()
                 data_handler.UpdateEndpoint(dead_endpoint)
         except Exception as e:

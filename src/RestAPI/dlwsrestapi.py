@@ -341,10 +341,10 @@ class ListJobs(Resource):
 
             job["jobParams"] = json.loads(base64.b64decode(job["jobParams"]))
 
-            if "endpoints" in job and job["endpoints"] is not None  and (job["endpoints"].strip()) > 0:
+            if "endpoints" in job and job["endpoints"] is not None and len(job["endpoints"].strip()) > 0:
                 job["endpoints"] = json.loads(job["endpoints"])
 
-            if "jobStatusDetail" in job and job["jobStatusDetail"] is not None  and (job["jobStatusDetail"].strip()) > 0:
+            if "jobStatusDetail" in job and job["jobStatusDetail"] is not None and len(job["jobStatusDetail"].strip()) > 0:
                 try:
                     s = job["jobStatusDetail"]
                     s = base64.b64decode(s)
@@ -393,6 +393,8 @@ class KillJob(Resource):
         result = JobRestAPIUtils.KillJob(userName, jobId)
         ret = {}
         if result:
+            # NOTE "Success" prefix is used in reaper, please also update reaper code
+            # if need to change it.
             ret["result"] = "Success, the job is scheduled to be terminated."
         else:
             ret["result"] = "Cannot Kill the job. Job ID:" + jobId
@@ -548,9 +550,9 @@ class GetJobDetail(Resource):
         userName = args["userName"]
         job = JobRestAPIUtils.GetJobDetail(userName, jobId)
         job["jobParams"] = json.loads(base64.b64decode(job["jobParams"]))
-        if "endpoints" in job and job["endpoints"] is not None and (job["endpoints"].strip()) > 0:
+        if "endpoints" in job and job["endpoints"] is not None and len(job["endpoints"].strip()) > 0:
             job["endpoints"] = json.loads(job["endpoints"])
-        if "jobStatusDetail" in job and job["jobStatusDetail"] is not None  and (job["jobStatusDetail"].strip()) > 0:
+        if "jobStatusDetail" in job and job["jobStatusDetail"] is not None and len(job["jobStatusDetail"].strip()) > 0:
             try:
                 job["jobStatusDetail"] = Json.loads(base64.b64decode(job["jobStatusDetail"]))
             except Exception as e:
@@ -1138,7 +1140,7 @@ class Endpoint(Resource):
                 }
                 endpoints[endpoint_id] = endpoint
             else:
-                logger.info("Endpoint {} exists. Skip.", endpoint_id)
+                logger.info("Endpoint %s exists. Skip.", endpoint_id)
 
         # Only open tensorboard on the master
         if 'tensorboard' in requested_endpoints:

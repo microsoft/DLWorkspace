@@ -55,8 +55,13 @@ def all_pods_not_existing(job_id):
 def SubmitJob(job):
     # check if existing any pod with label: run=job_id
     assert("jobId" in job)
-    if not all_pods_not_existing(job["jobId"]):
-        logging.warning("Waiting until previously pods are cleaned up! Job {}".format(job["jobId"]))
+    job_id = job["jobId"]
+    if not all_pods_not_existing(job_id):
+        logging.warning("Waiting until previously pods are cleaned up! Job {}".format(job_id))
+        job_deployer = JobDeployer()
+        errors = job_deployer.delete_job(job_id, force=True)
+        if errors:
+            logging.warning("Force delete job {}: {}".format(job_id, errors))
         return
 
     ret = {}
@@ -141,7 +146,7 @@ def KillJob(job_id, desiredState="killed"):
     logging.info("Killing job %s, with status %s, %s" % (job_id, result, detail))
 
     job_deployer = JobDeployer()
-    errors = job_deployer.delete_job(job_id)
+    errors = job_deployer.delete_job(job_id, force=True)
 
     if len(errors) == 0:
         dataHandler.UpdateJobTextField(job_id, "jobStatus", desiredState)
@@ -220,19 +225,20 @@ def UpdateJobStatus(job, notifier=None):
         # 1) May need to reduce the timeout.
         #     It takes minutes before pod turns into "Unknown", we may don't need to wait so long.
         # 2) If node resume before we resubmit the job, the job will end in status 'NotFound'.
-        elif (datetime.datetime.now() - UnusualJobs[job["jobId"]]).seconds > 300:
+        elif (datetime.datetime.now() - UnusualJobs[job["jobId"]]).seconds > 30:
             del UnusualJobs[job["jobId"]]
-            retries = dataHandler.AddandGetJobRetries(job["jobId"])
-            if retries >= 5:
-                logging.warning("Job %s fails for more than 5 times, abort", job["jobId"])
-                dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "error")
-                dataHandler.UpdateJobTextField(job["jobId"], "errorMsg", "cannot launch the job.")
-                if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
-                    k8sUtils.kubectl_delete(jobDescriptionPath)
-            else:
-                logging.warning("Job %s fails in Kubernetes, delete and re-submit the job. Retries %d", job["jobId"], retries)
-                KillJob(job["jobId"], "queued")
-                # SubmitJob(job)
+
+            # TODO refine later
+            # before resubmit the job, reset the endpoints
+            # update all endpoint to status 'pending', so it would restart when job is ready
+            endpoints = dataHandler.GetJobEndpoints(job["jobId"])
+            for endpoint_id, endpoint in endpoints.items():
+                endpoint["status"] = "pending"
+                logging.info("Reset endpoint status to 'pending': {}".format(endpoint_id))
+                dataHandler.UpdateEndpoint(endpoint)
+
+            logging.warning("Job {} fails in Kubernetes as {}, delete and re-submit.".format(job["jobId"], result))
+            KillJob(job["jobId"], "queued")
 
     if result != "Unknown" and result != "NotFound" and job["jobId"] in UnusualJobs:
         del UnusualJobs[job["jobId"]]
@@ -384,31 +390,31 @@ def Run():
 
             try:
                 dataHandler = DataHandler()
-                try:
-                    pendingJobs = dataHandler.GetPendingJobs()
-                    TakeJobActions(pendingJobs)
+                pendingJobs = dataHandler.GetPendingJobs()
+                TakeJobActions(pendingJobs)
 
-                    pendingJobs = dataHandler.GetPendingJobs()
-                    logging.info("Updating status for %d jobs" % len(pendingJobs))
-                    for job in pendingJobs:
-                        try:
-                            logging.info("Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"]))
-                            if job["jobStatus"] == "killing":
-                                KillJob(job["jobId"], "killed")
-                            elif job["jobStatus"] == "pausing":
-                                KillJob(job["jobId"], "paused")
-                            elif job["jobStatus"] == "scheduling" or job["jobStatus"] == "running":
-                                UpdateJobStatus(job, notifier)
-                            elif job["jobStatus"] == "unapproved":
-                                ApproveJob(job["jobId"])
-                        except Exception as e:
-                            logging.info(e, exc_info=True)
-                except Exception as e:
-                    logging.exception("process pending job failed")
-                finally:
-                    dataHandler.Close()
+                pendingJobs = dataHandler.GetPendingJobs()
+                logging.info("Updating status for %d jobs" % len(pendingJobs))
+                for job in pendingJobs:
+                    try:
+                        logging.info("Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"]))
+                        if job["jobStatus"] == "killing":
+                            KillJob(job["jobId"], "killed")
+                        elif job["jobStatus"] == "pausing":
+                            KillJob(job["jobId"], "paused")
+                        elif job["jobStatus"] == "scheduling" or job["jobStatus"] == "running":
+                            UpdateJobStatus(job, notifier)
+                        elif job["jobStatus"] == "unapproved":
+                            ApproveJob(job["jobId"])
+                    except Exception as e:
+                        logging.warning(e, exc_info=True)
             except Exception as e:
-                logging.exception("close data handler failed")
+                logging.warning("Process job failed!", exc_info=True)
+            finally:
+                try:
+                    dataHandler.Close()
+                except:
+                    pass
 
         time.sleep(1)
 

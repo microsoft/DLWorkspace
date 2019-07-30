@@ -29,12 +29,16 @@ def record(fn):
             job_deployer_fn_histogram.labels(fn.__name__).observe(elapsed)
     return wrapped
 
+
+# The config will be loaded from default location.
+config.load_kube_config()
+k8s_client = client.CoreV1Api()
+
+
 class JobDeployer:
 
     def __init__(self):
-        # The config will be loaded from default location.
-        config.load_kube_config()
-        self.v1 = client.CoreV1Api()
+        self.v1 = k8s_client
         self.namespace = "default"
         self.pretty = "pretty_example"
 
@@ -49,12 +53,16 @@ class JobDeployer:
         return api_response
 
     @record
-    def delete_pod(self, name, dry_run=None):
+    def delete_pod(self, name, grace_period_seconds=None, dry_run=None):
+        body = client.V1DeleteOptions()
+        body.grace_period_seconds = grace_period_seconds
+        body.dry_run = dry_run
         api_response = self.v1.delete_namespaced_pod(
             name=name,
             namespace=self.namespace,
             pretty=self.pretty,
-            body=client.V1DeleteOptions(),
+            body=body,
+            grace_period_seconds=grace_period_seconds,
             dry_run=dry_run,
         )
         return api_response
@@ -81,11 +89,12 @@ class JobDeployer:
         return api_response
 
     @record
-    def cleanup_pods(self, pod_names):
+    def cleanup_pods(self, pod_names, force=False):
         errors = []
+        grace_period_seconds = 0 if force else None
         for pod_name in pod_names:
             try:
-                self.delete_pod(pod_name)
+                self.delete_pod(pod_name, grace_period_seconds)
             except Exception as e:
                 if isinstance(e, ApiException) and 404 == e.status:
                     return []
@@ -141,13 +150,13 @@ class JobDeployer:
         return api_response.items
 
     @record
-    def delete_job(self, job_id):
+    def delete_job(self, job_id, force=False):
         label_selector = "run={}".format(job_id)
 
         # query pods then delete
         pods = self.get_pods(label_selector=label_selector)
         pod_names = [pod.metadata.name for pod in pods]
-        pod_errors = self.cleanup_pods(pod_names)
+        pod_errors = self.cleanup_pods(pod_names, force)
 
         # query services then delete
         services = self.get_services_by_label(label_selector)
