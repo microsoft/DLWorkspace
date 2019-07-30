@@ -286,8 +286,10 @@
             if (value === 'PSDistJob') {
                 $scope.current.numps = 1;
                 $scope.current.resourcegpu = $scope.gpus[$scope.extras.gpuType]['num_gpu_per_node'];
+                $scope.current.hostNetwork = true;
             } else {
                 delete $scope.current.numps;
+                $scope.current.hostNetwork = false;
             }
         })
 
@@ -914,7 +916,7 @@
 
 
 
-                                <div class="layui-colla-item">
+                                <div class="layui-colla-item" ng-hide="true">
                                     <h2 class="layui-colla-title">HyperParameter Turning</h2>
                                     <div class="layui-colla-content">
 
@@ -972,17 +974,17 @@
                                     </div>
                                 </div>
 
-                                <div class="layui-colla-item">
+                                <div class="layui-colla-item" ng-hide="true">
                                     <h2 class="layui-colla-title">Host Network</h2>
                                     <div class="layui-colla-content">
                                         <md-input-container class="md-block" flex="50">
                                             <label> Use Host network in container? </label>
-                                            <md-switch class="md-primary" ng-model="current.hostNetwork" ng-disabled="current.jobtrainingtype.indexOf('Regular') !== -1 ? true : false" md-no-asterisk>
+                                            <md-switch class="md-primary" ng-model="current.hostNetwork" ng-disabled="true"  md-no-asterisk>
                                             </md-switch>
                                         </md-input-container>
                                     </div>
                                 </div>
-                                <div class="layui-colla-item">
+                                <div class="layui-colla-item" ng-hide="true">
                                     <h2 class="layui-colla-title">GPU Topology</h2>
                                     <div class="layui-colla-content">
 
@@ -1091,7 +1093,7 @@
 
                     <div class="modal-footer">
                         <a ng-click="DeleteTemplate()" class="btn btn-success" href="#">Delete Template</a>
-                        <a ng-click="SaveTemplate()" class="btn btn-success" href="#">Save Template</a>
+                        <a ng-click="SaveTemplate()" class="btn btn-success" href="#" ng-disabled="template.useTemplateName === 'None' || !template.useTemplateName ? true : false">Save Template</a>
                     </div>
 
                 </div>
