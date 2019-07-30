@@ -24,8 +24,8 @@ do
     done
 done
 
-# setup ~/ssh_config
-SSH_CONFIG_FILE="/home/${DLWS_USER_NAME}/.ssh/config"
+# generate ~/ssh_config
+SSH_CONFIG_FILE="/job/ssh_config"
 >${SSH_CONFIG_FILE}
 chown ${DLWS_USER_NAME} ${SSH_CONFIG_FILE}
 for role_dir in ${JOB_DIR}/*/ # list directories in the form "/JOB_DIR/role/"
@@ -49,6 +49,19 @@ Host ${host}
 
 EOF
 
+done
+
+# copy ssh config to ~/.ssh/config
+for role_dir in ${JOB_DIR}/*/ # list directories in the form "/JOB_DIR/role/"
+do
+    role_dir=${role_dir%*/} # remove the trailing "/"
+    if [[ $role_dir == *logs ]];
+    then
+        continue
+    fi
+    cp ${SSH_CONFIG_FILE} /home/${DLWS_USER_NAME}/.ssh/config
+    chown ${DLWS_USER_NAME} /home/${DLWS_USER_NAME}/.ssh/config
+    chmod 600 /home/${DLWS_USER_NAME}/.ssh/config
 done
 
 
