@@ -12,7 +12,7 @@ do
 
     for i in $(seq 0 $(( ${DLWS_WORKER_NUM} - 1)) )
     do
-        worker="worker${i}"
+        worker="worker-${i}"
         file="${JOB_DIR}/${worker}/running/ROLE_READY"
         #echo $file
 
