@@ -1059,7 +1059,7 @@ class Endpoint(Resource):
             nums = {"ps": int(job_params["numps"]), "worker": int(job_params["numpsworker"])}
             for role in ["ps", "worker"]:
                 for i in range(nums[role]):
-                    pod_names.append(job_id + "-" + role + str(i))
+                    pod_names.append(job_id + "-" + role + "-" + str(i))
 
         interactive_ports = []
         # endpoints should be ["ssh", "ipython", "tensorboard", {"name": "port name", "podPort": "port on pod in 40000-49999"}]
