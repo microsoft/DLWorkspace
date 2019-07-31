@@ -164,29 +164,32 @@ def start_endpoints():
             pending_endpoints = data_handler.GetPendingEndpoints()
 
             for endpoint_id, endpoint in pending_endpoints.items():
-                job = data_handler.GetJob(jobId=endpoint["jobId"])[0]
-                if job["jobStatus"] != "running":
-                    continue
+                try:
+                    job = data_handler.GetJob(jobId=endpoint["jobId"])[0]
+                    if job["jobStatus"] != "running":
+                        continue
 
-                # get endpointDescriptionPath
-                # job["jobDescriptionPath"] = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"] + ".yaml"
-                endpoint_description_dir = re.search("(.*/)[^/\.]+.yaml", job["jobDescriptionPath"]).group(1)
-                endpoint["endpointDescriptionPath"] = os.path.join(endpoint_description_dir, endpoint_id + ".yaml")
+                    # get endpointDescriptionPath
+                    # job["jobDescriptionPath"] = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"] + ".yaml"
+                    endpoint_description_dir = re.search("(.*/)[^/\.]+.yaml", job["jobDescriptionPath"]).group(1)
+                    endpoint["endpointDescriptionPath"] = os.path.join(endpoint_description_dir, endpoint_id + ".yaml")
 
-                logger.info("\n\n\n\n\n\n----------------Begin to start endpoint %s", endpoint["id"])
-                output = get_k8s_endpoint(endpoint["endpointDescriptionPath"])
-                if(output != ""):
-                    endpoint_description = json.loads(output)
-                    endpoint["endpointDescription"] = endpoint_description
-                    endpoint["status"] = "running"
-                    pod = k8sUtils.GetPod("podName=" + endpoint["podName"])
-                    if "items" in pod and len(pod["items"]) > 0:
-                        endpoint["nodeName"] = pod["items"][0]["spec"]["nodeName"]
-                else:
-                    start_endpoint(endpoint)
+                    logger.info("\n\n\n\n\n\n----------------Begin to start endpoint %s", endpoint["id"])
+                    output = get_k8s_endpoint(endpoint["endpointDescriptionPath"])
+                    if(output != ""):
+                        endpoint_description = json.loads(output)
+                        endpoint["endpointDescription"] = endpoint_description
+                        endpoint["status"] = "running"
+                        pod = k8sUtils.GetPod("podName=" + endpoint["podName"])
+                        if "items" in pod and len(pod["items"]) > 0:
+                            endpoint["nodeName"] = pod["items"][0]["spec"]["nodeName"]
+                    else:
+                        start_endpoint(endpoint)
 
-                endpoint["lastUpdated"] = datetime.datetime.now().isoformat()
-                data_handler.UpdateEndpoint(endpoint)
+                    endpoint["lastUpdated"] = datetime.datetime.now().isoformat()
+                    data_handler.UpdateEndpoint(endpoint)
+                except Exception as e:
+                    logger.warning("Process endpoint failed {}".format(endpoint), exc_info=True)
         except Exception as e:
             logger.exception("start endpoint failed")
         finally:
@@ -201,29 +204,32 @@ def cleanup_endpoints():
         try:
             dead_endpoints = data_handler.GetDeadEndpoints()
             for endpoint_id, dead_endpoint in dead_endpoints.items():
-                logger.info("\n\n\n\n\n\n----------------Begin to cleanup endpoint %s", endpoint_id)
-                endpoint_description_path = os.path.join(config["storage-mount-path"], dead_endpoint["endpointDescriptionPath"])
-                still_running = get_k8s_endpoint(endpoint_description_path)
-                # empty mean not existing
-                if still_running == "":
-                    logger.info("Endpoint already gone %s", endpoint_id)
-                    status = "stopped"
-                else:
-                    output = k8sUtils.kubectl_delete(endpoint_description_path)
-                    # 0 for success
-                    if output == 0:
+                try:
+                    logger.info("\n\n\n\n\n\n----------------Begin to cleanup endpoint %s", endpoint_id)
+                    endpoint_description_path = os.path.join(config["storage-mount-path"], dead_endpoint["endpointDescriptionPath"])
+                    still_running = get_k8s_endpoint(endpoint_description_path)
+                    # empty mean not existing
+                    if still_running == "":
+                        logger.info("Endpoint already gone %s", endpoint_id)
                         status = "stopped"
-                        logger.info("Succeed cleanup endpoint %s", endpoint_id)
                     else:
-                        # TODO will need to clean it up eventually
-                        status = "unknown"
-                        logger.info("Clean dead endpoint %s failed, endpoints: %s", endpoint_id, dead_endpoint)
+                        output = k8sUtils.kubectl_delete(endpoint_description_path)
+                        # 0 for success
+                        if output == 0:
+                            status = "stopped"
+                            logger.info("Succeed cleanup endpoint %s", endpoint_id)
+                        else:
+                            # TODO will need to clean it up eventually
+                            status = "unknown"
+                            logger.info("Clean dead endpoint %s failed, endpoints: %s", endpoint_id, dead_endpoint)
 
-                # we are not changing status from "pending", "pending" endpoints are planed to setup later
-                if dead_endpoint["status"] != "pending":
-                    dead_endpoint["status"] = status
-                dead_endpoint["lastUpdated"] = datetime.datetime.now().isoformat()
-                data_handler.UpdateEndpoint(dead_endpoint)
+                    # we are not changing status from "pending", "pending" endpoints are planed to setup later
+                    if dead_endpoint["status"] != "pending":
+                        dead_endpoint["status"] = status
+                    dead_endpoint["lastUpdated"] = datetime.datetime.now().isoformat()
+                    data_handler.UpdateEndpoint(dead_endpoint)
+                except Exception as e:
+                    logger.warning("Clanup endpoint failed {}".format(dead_endpoint), exc_info=True)
         except Exception as e:
             logger.exception("cleanup endpoint failed")
         finally:
