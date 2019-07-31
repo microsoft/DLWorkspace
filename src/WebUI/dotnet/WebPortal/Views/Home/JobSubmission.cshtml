@@ -263,8 +263,8 @@
                         gpu_available: gpu_available[key] < 0 ? 0 : gpu_available[key],
                         quota: quota[key]
                     };
-                   /* $scope.isLowPriority = value.low_priority === true ? true : false;
-                    if ($scope.isLowPriority) {
+                    $scope.isLowPriority = value.low_priority === true ? true : false;
+                   /* if ($scope.isLowPriority) {
                         var filteredJobList = [];
                         $scope.joblist.forEach(function(job) {
                             if (JSON.parse(job.Json).jobtrainingtype !== "PSDistJob") {
@@ -714,15 +714,15 @@
 
 
                     <div layout="row">
-                        <md-input-container flex="100">
+                        <md-input-container flex="50">
                             <label> Job Name </label>
                             <input ng-model="current.jobName" required md-no-asterisk>
                             <div class="hint" ng-if="showHints">Tell us the name of your job</div>
                         </md-input-container>
 
-                        <md-input-container flex="50" ng-hide="true">
+                        <md-input-container flex="50">
                             <label> Job Priority </label>
-                            <md-select name="jobtrainingtype" ng-model="extras.preemptionAllowed" required md-no-asterisk>
+                            <md-select name="jobtrainingtype" ng-model="extras.preemptionAllowed" ng-disabled="isLowPriority ? true : false" md-no-asterisk>
                                 <md-option value="False" selected>Non-Preemptible Job</md-option>
                                 <md-option value="True">Preemptible Job</md-option>
                             </md-select>
