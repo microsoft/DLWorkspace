@@ -20,12 +20,12 @@ class DistPodTemplate():
         self.enable_custom_scheduler = enable_custom_scheduler
 
     @staticmethod
-    def generate_launch_script(dist_id, user_id, job_path, cmd):
+    def generate_launch_script(dist_role, dist_role_idx, user_id, job_path, cmd):
         # change ssh folder permission here because the setup permission
         #  script in launch_ps_job function may have race condition with init_user.sh script.
         # results in no such user error
 
-        local_pod_path = os.path.join(config["storage-mount-path"], "work/", job_path, dist_id)
+        local_pod_path = os.path.join(config["storage-mount-path"], "work/", job_path, "{}-{}".format(dist_role, dist_role_idx))
         if not os.path.exists(local_pod_path):
             mkdirsAsUser(local_pod_path, user_id)
         file_name = "job_command.sh"
@@ -69,7 +69,7 @@ class DistPodTemplate():
         pod["labels"].append({"name": "sshPort", "value": pod["sshPort"]})
 
         cmd = pod["cmd"]
-        pod["LaunchCMD"] = DistPodTemplate.generate_launch_script(dist_id, pod["userId"], job_path, cmd)
+        pod["LaunchCMD"] = DistPodTemplate.generate_launch_script(pod["distRole"], pod["distRoleIdx"], pod["userId"], job_path, cmd)
 
         pod_yaml = self.template.render(job=pod)
         return yaml.full_load(pod_yaml)
@@ -144,6 +144,7 @@ class DistPodTemplate():
                 # mount /pod
                 local_pod_path = job.get_hostpath(job.job_path, "%s-%d" % (role, idx))
                 pod["mountpoints"].append({"name": "pod", "containerPath": "/pod", "hostPath": local_pod_path, "enabled": True})
+
 
                 pods.append(pod)
 
