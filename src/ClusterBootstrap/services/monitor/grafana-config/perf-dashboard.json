@@ -106,7 +106,7 @@
             "dashLength": 10,
             "dashes": false,
             "datasource": null,
-            "fill": 1,
+            "fill": 0,
             "id": 2,
             "legend": {
               "avg": false,
@@ -158,7 +158,7 @@
             },
             "yaxes": [
               {
-                "format": "short",
+                "format": "s",
                 "label": null,
                 "logBase": 1,
                 "max": null,
