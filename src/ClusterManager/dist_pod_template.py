@@ -140,9 +140,9 @@ class DistPodTemplate():
                 pod = copy.deepcopy(params)
                 pod["distRole"] = role
                 pod["distRoleIdx"] = idx
-                pod["distId"] = "%s-%d" % (role, idx)
+                pod["distId"] = "%s%d" % (role, idx)
                 # mount /pod
-                local_pod_path = job.get_hostpath(job.job_path, pod["distId"])
+                local_pod_path = job.get_hostpath(job.job_path, "%s-%d" % (role, idx))
                 pod["mountpoints"].append({"name": "pod", "containerPath": "/pod", "hostPath": local_pod_path, "enabled": True})
 
                 pods.append(pod)
