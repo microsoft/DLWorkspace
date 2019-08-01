@@ -9,6 +9,7 @@ metadata:
     jobId: {{ job["jobId"] }}
     userName: {{ job["user"] }}
     vcName: {{ job["vcName"] }}
+    type: job
 
   {% for label in job["labels"] %}
     {{label.name}}: "{{label.value}}"
@@ -31,6 +32,76 @@ metadata:
 spec:
   nodeSelector:
     worker: active
+  affinity:
+    podAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 50
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: "type"
+              operator: In
+              values:
+              - "job"
+          topologyKey: "kubernetes.io/hostname"
+    {% if job["gpuLimit"]|int == 1 %}
+      - weight: 30
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: gpu-request
+              operator: In
+              values:
+              - "3"
+          topologyKey: "kubernetes.io/hostname"
+      - weight: 29
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: gpu-request
+              operator: In
+              values:
+              - "1"
+          topologyKey: "kubernetes.io/hostname"
+      - weight: 28
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: gpu-request
+              operator: In
+              values:
+              - "2"
+          topologyKey: "kubernetes.io/hostname"
+    {% elif job["gpuLimit"]|int == 2 %}
+      - weight: 30
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: gpu-request
+              operator: In
+              values:
+              - "2"
+          topologyKey: "kubernetes.io/hostname"
+      - weight: 29
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: gpu-request
+              operator: In
+              values:
+              - "1"
+          topologyKey: "kubernetes.io/hostname"
+    {% elif job["gpuLimit"]|int == 3 %}
+      - weight: 30
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: "gpu-request"
+              operator: In
+              values:
+              - "1"
+          topologyKey: "kubernetes.io/hostname"
+    {% endif %}
   {% if job["nodeSelector"]|length > 0 %}
   {% for key, value in job["nodeSelector"].items() %}
     {{key}}: {{value}}
