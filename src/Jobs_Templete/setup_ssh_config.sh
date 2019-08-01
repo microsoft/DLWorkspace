@@ -52,18 +52,13 @@ EOF
 done
 
 # copy ssh config to ~/.ssh/config
-for role_dir in ${JOB_DIR}/*/ # list directories in the form "/JOB_DIR/role/"
+cp ${SSH_CONFIG_FILE} /home/${DLWS_USER_NAME}/.ssh/config && chown ${DLWS_USER_NAME} /home/${DLWS_USER_NAME}/.ssh/config && chmod 600 /home/${DLWS_USER_NAME}/.ssh/config
+mkdir -p /root/.ssh && cp /home/${DLWS_USER_NAME}/.ssh/* /root/.ssh/ && chown root /root/.ssh/* && chmod 600 /root/.ssh/*
+for i in $(seq 0 $(( ${DLWS_NUM_WORKER} - 1 )));
 do
-    role_dir=${role_dir%*/} # remove the trailing "/"
-    if [[ $role_dir == *logs ]];
-    then
-        continue
-    fi
-    cp ${SSH_CONFIG_FILE} /home/${DLWS_USER_NAME}/.ssh/config
-    chown ${DLWS_USER_NAME} /home/${DLWS_USER_NAME}/.ssh/config
-    chmod 600 /home/${DLWS_USER_NAME}/.ssh/config
+    echo "Setup ssh config for woker-${i}"
+    ssh worker-${i} "cp ${SSH_CONFIG_FILE} /home/${DLWS_USER_NAME}/.ssh/config && chown ${DLWS_USER_NAME} /home/${DLWS_USER_NAME}/.ssh/config && chmod 600 /home/${DLWS_USER_NAME}/.ssh/config"
 done
-
 
 # generate /job/hostfile
 SLOT_FILE="/job/hostfile"
@@ -79,7 +74,7 @@ do
     host=$(basename ${role_dir})
     slots=${DLWS_NUM_GPU_PER_WORKER}
     cat >>${SLOT_FILE} <<EOF
-${host} ${slots}
+${host} slots=${slots}
 EOF
 
 done
