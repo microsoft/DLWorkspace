@@ -10,6 +10,7 @@ metadata:
     userName: {{ job["user"] }}
     vcName: {{ job["vcName"] }}
     type: job
+    'gpu-request': '{{ job["gpuLimit"]|int }}'
 
   {% for label in job["labels"] %}
     {{label.name}}: "{{label.value}}"
