@@ -26,14 +26,16 @@ if [ "$DLWS_ROLE_NAME" = "worker" ] || [ "$DLWS_ROLE_NAME" = "ps" ];
 then
     bash ${SCRIPT_DIR}/setup_sshd.sh &>> ${LOG_DIR}/bootstrap.log
 fi
-touch ${PROC_DIR}/ROLE_READY
 
-# Setup job
-# now only need to setup on "ps"
 if [ "$DLWS_ROLE_NAME" = "ps" ];
 then
     bash ${SCRIPT_DIR}/setup_ssh_config.sh &>> ${LOG_DIR}/bootstrap.log
 fi
+
+touch ${PROC_DIR}/ROLE_READY
+
+# Setup job
+# TODO
 touch ${PROC_DIR}/JOB_READY
 
 set +e
