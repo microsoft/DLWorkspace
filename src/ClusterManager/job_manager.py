@@ -68,6 +68,15 @@ def SubmitJob(job):
     dataHandler = DataHandler()
 
     try:
+        # TODO refine later
+        # before resubmit the job, reset the endpoints
+        # update all endpoint to status 'pending', so it would restart when job is ready
+        endpoints = dataHandler.GetJobEndpoints(job_id)
+        for endpoint_id, endpoint in endpoints.items():
+            endpoint["status"] = "pending"
+            logging.info("Reset endpoint status to 'pending': {}".format(endpoint_id))
+            dataHandler.UpdateEndpoint(endpoint)
+
         job["cluster"] = config
         job_object, errors = JobSchema().load(job)
         # TODO assert job_object is a Job
