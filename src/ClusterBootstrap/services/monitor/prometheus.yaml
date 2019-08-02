@@ -96,6 +96,7 @@ spec:
           - '--web.listen-address=0.0.0.0:{{cnf["prometheus"]["port"]}}'
           - '--web.external-url=http://localhost:{{cnf["prometheus"]["port"]}}/prometheus/'
           - '--web.route-prefix=prometheus'
+          - '--storage.tsdb.path=/prometheus-data'
           - '--storage.tsdb.retention=31d'
         ports:
         - name: web
@@ -105,6 +106,8 @@ spec:
           mountPath: /etc/prometheus
         - name: rules-volume
           mountPath: /etc/prometheus-alert
+        - name: prometheus-data
+          mountPath: /prometheus-data
       volumes:
       - name: config-volume
         configMap:
@@ -112,6 +115,9 @@ spec:
       - name: rules-volume
         configMap:
           name: prometheus-alert
+      - name: prometheus-data
+        hostPath:
+          path: /data/prometheus/data
       tolerations:
       - key: node.kubernetes.io/memory-pressure
         operator: "Exists"
