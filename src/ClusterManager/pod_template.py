@@ -109,6 +109,7 @@ class PodTemplate():
         if "envs" not in params:
             params["envs"] =[]
         params["envs"].append({"name": "DLWS_ROLE_NAME", "value": "master"})
+        params["envs"].append({"name": "DLWS_NUM_GPU_PER_WORKER", "value": params["resourcegpu"]})
 
         pods = []
         if all(hyper_parameter in params for hyper_parameter in ["hyperparametername", "hyperparameterstartvalue", "hyperparameterendvalue", "hyperparameterstep"]):
