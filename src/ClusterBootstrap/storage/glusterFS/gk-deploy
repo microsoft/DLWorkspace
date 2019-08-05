@@ -207,7 +207,7 @@ check_pods() {
       break
     fi
     sleep 2
-    pods=$(${CLI} get pod --no-headers --show-all --selector="${1}" 2>&1)
+    pods=$(${CLI} get pod --no-headers --selector="${1}" 2>&1)
     if [[ ${s} -ne 0 ]] && [[ ${VERBOSE} -eq 1 ]]; then
       podlines=$(echo "$pods" | wc -l)
       ((podlines+=1))
