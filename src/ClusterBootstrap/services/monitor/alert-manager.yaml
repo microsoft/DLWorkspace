@@ -103,7 +103,7 @@ data:
         repeat_interval: 4h
         group_by: [alertname, user_email, cluster]
         match_re:
-          type: user_alert
+          type: idle_gpu
           alertname: "zero-gpu-usage"
       - receiver: job_state_change_receiver
         group_by: [alertname, user_email, cluster, subject]
@@ -115,6 +115,12 @@ data:
         group_wait: 0s
         match_re:
           type: reaper
+      - receiver: kill_idle_job_email
+        group_by: [alertname, user_email, cluster]
+        group_wait: 0s
+        match_re:
+          type: kill_idle_job_email
+          alertname: "kill-idle-jobs-email"
     receivers:
     - name: "alert-email"
       email_configs:
@@ -150,7 +156,6 @@ data:
             CC: '{{ alert_info["receiver"] }}'
             {% endif %}
             subject: '{{ "{{" }} .GroupLabels.cluster {{ "}}" }}: {{ "{{" }} template "__subject" . {{ "}}" }}'
-{% endif %}
     - name: "reaper"
       {% if cnf["alert-manager"]["reaper"] %}
       webhook_configs:
@@ -158,4 +163,19 @@ data:
           url: 'http://localhost:{{ cnf["alert-manager"]["reaper"]["port"] }}/kill'
           http_config:
             bearer_token: 'shinigami'
+    - name: "kill_idle_job_email"
+      email_configs:
+        {% if cnf["alert-manager"]["alert_users"] %}
+        - to: '{{ "{{" }} .GroupLabels.user_email {{ "}}" }},{{ alert_info["receiver"] }}'
+        {% else %}
+        - to: '{{ alert_info["receiver"] }}'
+        {% endif %}
+          html: '{{ "{{" }} template "kill_idle.html" . {{ "}}" }}'
+          headers:
+            {% if cnf["alert-manager"]["alert_users"] %}
+            To: '{{ "{{" }} .GroupLabels.user_email {{ "}}" }}'
+            CC: '{{ alert_info["receiver"] }}'
+            {% endif %}
+            subject: '{{ "{{" }} .GroupLabels.cluster {{ "}}" }}: {{ "{{" }} template "__subject" . {{ "}}" }}'
       {% endif %}
+{% endif %}
