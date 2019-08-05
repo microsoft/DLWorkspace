@@ -22,12 +22,9 @@ bash ${SCRIPT_DIR}/init_user.sh &>> ${LOG_DIR}/bootstrap.log
 touch ${PROC_DIR}/CONTAINER_READY
 
 # Setup roles
-if [ "$DLWS_ROLE_NAME" = "worker" ] || [ "$DLWS_ROLE_NAME" = "ps" ];
-then
-    bash ${SCRIPT_DIR}/setup_sshd.sh &>> ${LOG_DIR}/bootstrap.log
-fi
+bash ${SCRIPT_DIR}/setup_sshd.sh &>> ${LOG_DIR}/bootstrap.log
 
-if [ "$DLWS_ROLE_NAME" = "ps" ];
+if [ "$DLWS_ROLE_NAME" = "master" ] || [ "$DLWS_ROLE_NAME" = "ps" ];
 then
     bash ${SCRIPT_DIR}/setup_ssh_config.sh &>> ${LOG_DIR}/bootstrap.log
 fi
