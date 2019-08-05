@@ -27,7 +27,6 @@ ExecStart=/opt/bin/kubelet \
   --enable-server=true \
   --register-node=true \
   --feature-gates="Accelerators=true,DevicePlugins=true,PodShareProcessNamespace=true" \
-  --allow-privileged=true \
   --pod-manifest-path=/etc/kubernetes/manifests \
   --pod-infra-container-image={{cnf["dockers"]["container"]["podinfra"]["fullname"]}} \
   --network-plugin=cni \

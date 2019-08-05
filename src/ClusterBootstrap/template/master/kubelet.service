@@ -20,7 +20,6 @@ ExecStart=/opt/bin/kubelet \
   --register-with-taints=node-role.kubernetes.io/master=:NoSchedule \
   --pod-infra-container-image={{cnf["dockers"]["container"]["podinfra"]["fullname"]}} \
   --container-runtime=docker \
-  --allow-privileged=true \
   --feature-gates="Accelerators=true,DevicePlugins=true,PodShareProcessNamespace=true" \
   --pod-manifest-path=/etc/kubernetes/manifests \
   --network-plugin=cni \
