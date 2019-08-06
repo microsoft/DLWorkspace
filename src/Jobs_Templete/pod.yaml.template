@@ -1,3 +1,9 @@
+{% if job["distRole"] %}
+{% set jobRole = job["distRole"] %}
+{% else %}
+{% set jobRole = "worker" %} # treat regular job's pod as worker role
+{% endif %}
+
 apiVersion: v1
 kind: Pod
 metadata:
@@ -7,6 +13,7 @@ metadata:
     podName: {{ job["podName"] }}
     jobName: {{ job["jobNameLabel"] }}
     jobId: {{ job["jobId"] }}
+    jobRole: {{ jobRole }}
     userName: {{ job["user"] }}
     vcName: {{ job["vcName"] }}
     type: job
@@ -44,6 +51,19 @@ spec:
               operator: In
               values:
               - "job"
+          topologyKey: "kubernetes.io/hostname"
+      - weight: 10 # try to put worker & ps in same node
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: "jobId"
+              operator: In
+              values:
+              - "{{ job["jobId"] }}"
+            - key: "jobRole"
+              operator: NotIn
+              values:
+              - "{{ jobRole }}"
           topologyKey: "kubernetes.io/hostname"
     {% if job["gpuLimit"]|int == 1 %}
       - weight: 30
