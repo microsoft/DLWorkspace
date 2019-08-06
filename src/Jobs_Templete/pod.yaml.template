@@ -41,21 +41,6 @@ spec:
   nodeSelector:
     worker: active
   affinity:
-    podAntiAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 60 # try to put worker or ps from same job to different nodes
-        podAffinityTerm:
-          labelSelector:
-            matchExpressions:
-            - key: "jobId"
-              operator: In
-              values:
-              - "{{ job["jobId"] }}"
-            - key: "jobRole"
-              operator: In
-              values:
-              - "{{ jobRole }}"
-          topologyKey: "kubernetes.io/hostname"
     podAffinity:
       preferredDuringSchedulingIgnoredDuringExecution:
       - weight: 50
