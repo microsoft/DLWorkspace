@@ -8,7 +8,7 @@ set -ex
 export ENV_FILE=/pod/pod.env
 
 # install required pkgs
-apt-get update && apt-get install sudo openssl
+apt-get update && apt-get install sudo openssl -y
 
 # setup user and group, fix permissions
 addgroup --force-badname --gid  ${DLWS_GID} domainusers
