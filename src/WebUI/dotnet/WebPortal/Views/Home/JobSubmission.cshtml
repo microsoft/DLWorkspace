@@ -626,9 +626,6 @@
             if (!$scope.current.jobName) return false;
             if (!$scope.current.image) return false;
             if (!$scope.current.cmd || !String($scope.current.cmd).trim()) return false;
-            if ($scope.isLowPriority && $scope.current.jobtrainingtype == 'PSDistJob') {
-                return false;
-            }
             if (
                 $scope.current.jobtrainingtype === 'RegularJob' &&
                 typeof $scope.current.resourcegpu !== 'number'
