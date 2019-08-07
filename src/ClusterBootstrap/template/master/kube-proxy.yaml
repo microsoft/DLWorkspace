@@ -10,7 +10,7 @@ spec:
     image:  {{cnf["dockers"]["container"]["hyperkube"]["fullname"]}}
     command:
     - /hyperkube      
-    - proxy
+    - kube-proxy
     - --master=http://127.0.0.1:8080
     - --proxy-mode=iptables
     securityContext:

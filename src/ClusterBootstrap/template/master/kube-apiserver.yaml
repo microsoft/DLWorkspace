@@ -10,7 +10,7 @@ spec:
     image: {{cnf["dockers"]["container"]["hyperkube"]["fullname"]}}
     command:
     - /hyperkube      
-    - apiserver
+    - kube-apiserver
     - --bind-address=0.0.0.0
     - --etcd-servers={{cnf["etcd_endpoints"]}}
     - --etcd-cafile=/etc/kubernetes/ssl/ca.pem
