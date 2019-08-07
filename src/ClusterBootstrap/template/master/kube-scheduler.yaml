@@ -13,7 +13,7 @@ spec:
     - /kube-scheduler
 {% else %}
     - /hyperkube      
-    - scheduler
+    - kube-scheduler
 {% endif %}
     - --master=http://127.0.0.1:8080
     - --leader-elect=true
