@@ -7,6 +7,9 @@ set -ex
 #export DLWS_USER_NAME=
 export ENV_FILE=/pod/pod.env
 
+# install required pkgs
+apt-get update && apt-get install sudo openssl
+
 # setup user and group, fix permissions
 addgroup --force-badname --gid  ${DLWS_GID} domainusers
 adduser --force-badname --home /home/${DLWS_USER_NAME} --shell /bin/bash --uid ${DLWS_UID}  -gecos '' --gid ${DLWS_GID} --disabled-password ${DLWS_USER_NAME}
@@ -15,7 +18,6 @@ chown ${DLWS_USER_NAME} /home/${DLWS_USER_NAME}/ /home/${DLWS_USER_NAME}/.profil
 chmod 700 /home/${DLWS_USER_NAME}/.ssh || /bin/true
 
 # setup sudoers
-apt-get update && apt-get install sudo
 adduser $DLWS_USER_NAME sudo
 echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
