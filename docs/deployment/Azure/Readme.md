@@ -25,10 +25,15 @@ az login
 az account set --subscription "${SUBSCRIPTION_NAME}" 
 az account list | grep -A5 -B5 '"isDefault": true'
 ```
+configure your location, should be the same as you specified in config.yaml file:
+```AZ_LOCATION="<your location>"```
+execute this command, log out(exit) and log in back
+```sudo usermod -aG docker zhe_ms```
 4. Initiate cluster and generate certificates and keys:
 ```
-sudo ./deploy.py -y build
+ ./deploy.py -y build
 ```
+
 5. Create Azure Cluster:
 ```
 sudo ./az_tools.py create
