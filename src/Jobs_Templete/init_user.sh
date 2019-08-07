@@ -8,6 +8,7 @@ set -ex
 export ENV_FILE=/pod/pod.env
 
 # install required pkgs
+export DEBIAN_FRONTEND=noninteractive
 apt-get update && apt-get install sudo openssl -y
 
 # setup user and group, fix permissions
