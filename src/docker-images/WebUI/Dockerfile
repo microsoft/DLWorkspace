@@ -1,19 +1,25 @@
-FROM ubuntu:16.04
+FROM ubuntu:18.04
 MAINTAINER Hongzhi Li <Hongzhi.Li@microsoft.com>
 
 
+RUN apt-get update && apt-get install -y gnupg2
 RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF
 RUN echo "deb http://download.mono-project.com/repo/debian wheezy main" | tee /etc/apt/sources.list.d/mono-xamarin.list
 RUN echo "deb http://download.mono-project.com/repo/debian wheezy-apache24-compat main" | tee -a /etc/apt/sources.list.d/mono-xamarin.list
 RUN apt-get update
 RUN apt-get install -y apt-transport-https
 
-RUN sh -c 'echo "deb [arch=amd64] https://apt-mo.trafficmanager.net/repos/dotnet-release/ xenial main" > /etc/apt/sources.list.d/dotnetdev.list'
+RUN sh -c 'echo Y | apt-get install --reinstall ca-certificates'
+# NO_PUBKEY EB3E94ADBE1229CF
+RUN apt-key adv --keyserver packages.microsoft.com --recv-keys EB3E94ADBE1229CF
+# NO_PUBKEY B02C46DF417A0893
+RUN apt-key adv --keyserver packages.microsoft.com --recv-keys 52E16F86FEE04B979B07E28DB02C46DF417A0893
+RUN sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/microsoft-ubuntu-bionic-prod bionic main" > /etc/apt/sources.list.d/dotnetdev.list'
 RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 417A0893
 RUN apt-get install -y apt-transport-https
 RUN apt-get update
-RUN apt-get install -y dotnet-dev-1.0.0-preview2.1-003177
-RUN apt-get install -y dotnet-dev-1.0.0-preview2-003156
+RUN sh -c 'echo Y | apt install dotnet-sdk-2.1'
+
 
 
 RUN apt-get update && apt-get install -y --no-install-recommends \

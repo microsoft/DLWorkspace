@@ -12,7 +12,8 @@ sudo apt-get install -y --no-install-recommends \
         mkisofs \
         apt-transport-https \
         openssh-client \
-        ca-certificates 
+        ca-certificates \
+        network-manager
 
 sudo apt-get install libcurl4-openssl-dev libssl-dev gcc libnss3-dev libgnutls28-dev
 sudo apt-get install -y python-subprocess32

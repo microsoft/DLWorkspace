@@ -1,5 +1,6 @@
 #!/bin/bash
-
+#TODO azure would use sdc, but this is only for azure's data disk. other services are not definitely /dev/sdc
+#for cases that we don't have data disks?
 printf "o\nn\np\n1\n\n\nw\n" | sudo fdisk /dev/sdc
 sudo mkfs.ext4 /dev/sdc1
 sleep 10
