@@ -39,3 +39,4 @@ curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 sudo pip install setuptools && pip install pyyaml && pip install jinja2 && pip install requests && pip install tzlocal && pip install pycurl
 
 sudo echo "dockerd > /dev/null 2>&1 &" | cat >> /etc/bash.bashrc
+./gene_loc_dns.sh
