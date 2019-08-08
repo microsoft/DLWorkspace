@@ -3672,11 +3672,11 @@ def run_command( args, command, nargs, parser ):
         upgrade_masters()
     elif command == "upgrade_workers":
         gen_configs()
-        upgrade_workers()
+        upgrade_workers(nargs)
     elif command == "upgrade":
         gen_configs()
         upgrade_masters()
-        upgrade_workers()
+        upgrade_workers(nargs)
     elif command in scriptblocks:
         run_script_blocks(args.verbose, scriptblocks[command])
     else:
@@ -3714,7 +3714,7 @@ def upgrade_worker_node(nodeIP):
 
     utils.SSH_exec_script(config["ssh_cert"],worker_ssh_user, nodeIP, "./deploy/kubelet/post-worker-upgrade.sh")
 
-def upgrade_workers(hypekube_url="gcr.io/google-containers/hyperkube:v1.15.2"):
+def upgrade_workers(nargs, hypekube_url="gcr.io/google-containers/hyperkube:v1.15.2"):
     config["dockers"]["external"]["hyperkube"]["fullname"] = hypekube_url
     config["dockers"]["container"]["hyperkube"]["fullname"] = hypekube_url
 
@@ -3730,7 +3730,8 @@ def upgrade_workers(hypekube_url="gcr.io/google-containers/hyperkube:v1.15.2"):
     workerNodes = get_worker_nodes(config["clusterId"], False)
     workerNodes = limit_nodes(workerNodes)
     for node in workerNodes:
-        upgrade_worker_node(node)
+        if in_list(node, nargs):
+            upgrade_worker_node(node)
 
     os.system("rm ./deploy/kubelet/options.env")
     os.system("rm ./deploy/kubelet/kubelet.service")
@@ -3899,6 +3900,9 @@ Command:
   listmac   display mac address of the cluster notes
   checkconfig   display config items
   rendertemplate template_file target_file
+  upgrade_masters Upgrade the master nodes.
+  upgrade_workers [nodes] Upgrade the worker nodes. If no additional node is specified, all nodes will be updated.
+  upgrade [nodes] Upgrade the cluster and nodes. If no additional node is specified, all nodes will be updated.
   ''') )
     parser.add_argument("-y", "--yes",
         help="Answer yes automatically for all prompt",
