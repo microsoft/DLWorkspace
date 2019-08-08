@@ -852,7 +852,6 @@ def clean_master():
 
         utils.SSH_exec_script(config["ssh_cert"],kubernetes_master_user, kubernetes_master, "./deploy/master/%s" % config["mastercleanupscript"])
 
-
 def deploy_master(kubernetes_master):
         print "==============================================="
         kubernetes_master_user = config["kubernetes_master_ssh_user"]
@@ -1210,7 +1209,6 @@ def update_scaled_worker_nodes( nargs ):
     os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' % config["api_servers"].replace("/","\\/"))
     os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/worker-kubeconfig.yaml.template > ./deploy/kubelet/worker-kubeconfig.yaml' % config["api_servers"].replace("/","\\/"))
 
-    #urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet", "./deploy/bin/kubelet")
     get_hyperkube_docker()
 
     workerNodes = get_worker_nodes(config["clusterId"], True)
@@ -3669,6 +3667,16 @@ def run_command( args, command, nargs, parser ):
         template_file = nargs[0]
         target_file = nargs[1]
         utils.render_template(template_file, target_file,config)
+    elif command == "upgrade_masters":
+        gen_configs()
+        upgrade_masters()
+    elif command == "upgrade_workers":
+        gen_configs()
+        upgrade_workers()
+    elif command == "upgrade":
+        gen_configs()
+        upgrade_masters()
+        upgrade_workers()
     elif command in scriptblocks:
         run_script_blocks(args.verbose, scriptblocks[command])
     else:
@@ -3690,6 +3698,113 @@ def run_script_blocks( verbose, script_collection ):
         print "Run command %s, args %s" % (command, nargs )
         args.verbose = verbose
         run_command( args, command, nargs, parser )
+
+def upgrade_worker_node(nodeIP):
+    print "==============================================="
+    print "upgrading worker node: %s ..."  % nodeIP
+
+    worker_ssh_user = config["admin_username"]
+    utils.SSH_exec_script(config["ssh_cert"],worker_ssh_user, nodeIP, "./deploy/kubelet/pre-worker-upgrade.sh")
+
+    with open("./deploy/kubelet/upgrade.list", "r") as f:
+        deploy_files = [s.split(",") for s in f.readlines() if len(s.split(",")) == 2]
+    for (source, target) in deploy_files:
+        if (os.path.isfile(source.strip()) or os.path.exists(source.strip())):
+            utils.sudo_scp(config["ssh_cert"],source.strip(),target.strip(),worker_ssh_user, nodeIP)
+
+    utils.SSH_exec_script(config["ssh_cert"],worker_ssh_user, nodeIP, "./deploy/kubelet/post-worker-upgrade.sh")
+
+def upgrade_workers(hypekube_url="gcr.io/google-containers/hyperkube:v1.15.2"):
+    config["dockers"]["external"]["hyperkube"]["fullname"] = hypekube_url
+    config["dockers"]["container"]["hyperkube"]["fullname"] = hypekube_url
+
+    utils.render_template_directory("./template/kubelet", "./deploy/kubelet", config)
+    write_nodelist_yaml()
+
+    os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' % config["etcd_endpoints"].replace("/","\\/"))
+    os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' % config["api_servers"].replace("/","\\/"))
+    os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/worker-kubeconfig.yaml.template > ./deploy/kubelet/worker-kubeconfig.yaml' % config["api_servers"].replace("/","\\/"))
+
+    get_hyperkube_docker()
+
+    workerNodes = get_worker_nodes(config["clusterId"], False)
+    workerNodes = limit_nodes(workerNodes)
+    for node in workerNodes:
+        upgrade_worker_node(node)
+
+    os.system("rm ./deploy/kubelet/options.env")
+    os.system("rm ./deploy/kubelet/kubelet.service")
+    os.system("rm ./deploy/kubelet/worker-kubeconfig.yaml")
+
+def upgrade_master(kubernetes_master):
+    print "==============================================="
+    kubernetes_master_user = config["kubernetes_master_ssh_user"]
+    print "starting kubernetes master on %s..." % kubernetes_master
+
+    config["master_ip"] = utils.getIP(kubernetes_master)
+    utils.render_template("./template/master/kube-apiserver.yaml","./deploy/master/kube-apiserver.yaml",config)
+    utils.render_template("./template/master/dns-kubeconfig.yaml","./deploy/master/dns-kubeconfig.yaml",config)
+    utils.render_template("./template/master/kubelet.service","./deploy/master/kubelet.service",config)
+    utils.render_template("./template/master/pre-upgrade.sh", "./deploy/master/pre-upgrade.sh", config)
+    utils.render_template("./template/master/post-upgrade.sh", "./deploy/master/post-upgrade.sh", config)
+
+    utils.SSH_exec_script(config["ssh_cert"],kubernetes_master_user, kubernetes_master, "./deploy/master/pre-upgrade.sh")
+
+    with open("./deploy/master/upgrade.list", "r") as f:
+        deploy_files = [s.split(",") for s in f.readlines() if len(s.split(",")) == 2]
+
+    for (source, target) in deploy_files:
+        if (os.path.isfile(source.strip()) or os.path.exists(source.strip())):
+            utils.sudo_scp(config["ssh_cert"],source.strip(),target.strip(),kubernetes_master_user,kubernetes_master, verbose=verbose)
+
+    utils.SSH_exec_script(config["ssh_cert"],kubernetes_master_user, kubernetes_master, "./deploy/master/post-upgrade.sh")
+
+def upgrade_masters(hypekube_url="gcr.io/google-containers/hyperkube:v1.15.2"):
+    config["dockers"]["external"]["hyperkube"]["fullname"] = hypekube_url
+    config["dockers"]["container"]["hyperkube"]["fullname"] = hypekube_url
+
+    kubernetes_masters = config["kubernetes_master_node"]
+    kubernetes_master_user = config["kubernetes_master_ssh_user"]
+
+    get_kubectl_binary(force=True)
+
+    utils.render_template_directory("./template/master", "./deploy/master",config)
+    utils.render_template_directory("./template/kube-addons", "./deploy/kube-addons",config)
+
+    for kubernetes_master in kubernetes_masters:
+        upgrade_master(kubernetes_master)
+    deploy_cmd = """
+        until curl -q http://127.0.0.1:8080/version/ ; do
+            sleep 5;
+            echo 'waiting for master...';
+        done;
+
+        until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/weave.yaml --validate=false ; do
+            sleep 5;
+            echo 'waiting for master...';
+        done ;
+
+        until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/dashboard.yaml --validate=false ; do
+            sleep 5;
+            echo 'waiting for master...';
+        done ;
+
+        until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/dns-addon.yml --validate=false ;  do
+            sleep 5;
+            echo 'waiting for master...';
+        done ;
+
+        until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/kube-proxy.json --validate=false ;  do
+            sleep 5;
+            echo 'waiting for master...';
+        done ;
+
+        until sudo /opt/bin/kubectl apply -f /etc/kubernetes/clusterroles/ ;  do
+            sleep 5;
+            echo 'waiting for master...';
+        done ;
+    """
+    utils.SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_masters[0], deploy_cmd , False)
 
 if __name__ == '__main__':
     # the program always run at the current directory.
