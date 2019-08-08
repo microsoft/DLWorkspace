@@ -577,7 +577,7 @@ default_config_parameters = {
         },
         "external": {
             # These dockers are to be built by additional add ons.
-            "hyperkube": {"fullname":"dlws/hyperkube:v1.9.0"},
+            "hyperkube": {"fullname":"gcr.io/google-containers/hyperkube:v1.15.2"},
             "freeflow": {"fullname":"dlws/freeflow:0.18"},
             "podinfra": {"fullname":"dlws/pause-amd64:3.0"},
             "nvidiadriver": {"fullname":"dlws/nvidia_driver:375.20"},
