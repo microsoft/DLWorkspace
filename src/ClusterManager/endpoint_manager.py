@@ -14,7 +14,7 @@ import yaml
 import logging.config
 
 import argparse
-from cluster_manager import setup_exporter_thread, manager_iteration_histogram
+from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 import k8sUtils
@@ -255,9 +255,12 @@ def create_log(logdir = '/var/log/dlworkspace'):
 
 
 def Run():
+    register_stack_trace_dump()
     create_log()
 
     while True:
+        update_file_modification_time("endpoint_manager")
+
         with manager_iteration_histogram.labels("endpoint_manager").time():
             # start endpoints
             start_endpoints()

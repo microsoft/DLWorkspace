@@ -41,7 +41,7 @@ from dist_pod_template import DistPodTemplate
 from job_deployer import JobDeployer
 from job_role import JobRole
 
-from cluster_manager import setup_exporter_thread, manager_iteration_histogram
+from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time
 
 
 def all_pods_not_existing(job_id):
@@ -409,11 +409,14 @@ def TakeJobActions(jobs):
 
 
 def Run():
+    register_stack_trace_dump()
     notifier = notify.Notifier(config.get("job-manager"))
     notifier.start()
     create_log()
 
     while True:
+        update_file_modification_time("job_manager")
+
         with manager_iteration_histogram.labels("job_manager").time():
             try:
                 config["racks"] = k8sUtils.get_node_labels("rack")
