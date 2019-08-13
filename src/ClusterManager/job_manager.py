@@ -320,28 +320,27 @@ def create_log(logdir = '/var/log/dlworkspace'):
         logging.config.dictConfig(logging_config)
 
 
-def JobInfoSorter(elem):
-    return elem["sortKey"]
-
-
 def TakeJobActions(jobs):
     dataHandler = DataHandler()
     vcList = dataHandler.ListVCs()
-    clusterStatus, dummy = dataHandler.GetClusterStatus()
+    clusterStatus, _ = dataHandler.GetClusterStatus()
     dataHandler.Close()
 
-    globalTotalRes = ResourceInfo(clusterStatus["gpu_capacity"])
-    globalReservedRes = ResourceInfo(clusterStatus["gpu_reserved"])
+    cluster_gpu_capacity = clusterStatus["gpu_capacity"]
+    cluster_gpu_reserved = clusterStatus["gpu_reserved"]
+    globalTotalRes = ResourceInfo(cluster_gpu_capacity)
+    globalReservedRes = ResourceInfo(cluster_gpu_reserved)
 
+    vc_resources = {}
     localResInfo = ResourceInfo()
     globalResInfo = ResourceInfo.Difference(globalTotalRes, globalReservedRes)
 
     for vc in vcList:
-        vcTotalRes = ResourceInfo(json.loads(vc["quota"]), vc["vcName"])
-        clusterTotalRes = ResourceInfo(clusterStatus["gpu_capacity"], vc["vcName"])
-        clusterReservedRes = ResourceInfo(clusterStatus["gpu_reserved"], vc["vcName"])
+        vcTotalRes = ResourceInfo(json.loads(vc["quota"]))
+        clusterTotalRes = ResourceInfo(clusterStatus["gpu_capacity"])
+        clusterReservedRes = ResourceInfo(clusterStatus["gpu_reserved"])
         vcReservedRes = clusterReservedRes.GetFraction(vcTotalRes, clusterTotalRes)
-        localResInfo.Add(ResourceInfo.Difference(vcTotalRes, vcReservedRes))
+        vc_resources[vc["vcName"]] = ResourceInfo.Difference(vcTotalRes, vcReservedRes)
 
     jobsInfo = []
     for job in jobs:
@@ -352,7 +351,6 @@ def TakeJobActions(jobs):
             jobGpuType = "any"
             if "gpuType" in singleJobInfo["jobParams"]:
                 jobGpuType = singleJobInfo["jobParams"]["gpuType"]
-            singleJobInfo["localResInfo"] = ResourceInfo({jobGpuType : GetJobTotalGpu(singleJobInfo["jobParams"])}, job["vcName"])
             singleJobInfo["globalResInfo"] = ResourceInfo({jobGpuType : GetJobTotalGpu(singleJobInfo["jobParams"])})
             singleJobInfo["sortKey"] = str(job["jobTime"])
             if singleJobInfo["jobParams"]["preemptionAllowed"]:
@@ -362,26 +360,26 @@ def TakeJobActions(jobs):
             singleJobInfo["allowed"] = False
             jobsInfo.append(singleJobInfo)
 
-    jobsInfo.sort(key=JobInfoSorter)
+    jobsInfo.sort(key=lambda x: x["sortKey"])
 
-    logging.info("TakeJobActions : local resources : %s" % (localResInfo.CategoryToCountMap))
+    logging.info("TakeJobActions : local resources : %s" % (vc_resources))
     logging.info("TakeJobActions : global resources : %s" % (globalResInfo.CategoryToCountMap))
 
     for sji in jobsInfo:
-        logging.info("TakeJobActions : job : %s : %s : %s" % (sji["jobParams"]["jobName"], sji["localResInfo"].CategoryToCountMap, sji["sortKey"]))
-        if sji["jobParams"]["preemptionAllowed"]:
-            localResInfo.UnblockResourceCategory(sji["localResInfo"])
+        logging.info("TakeJobActions : job : %s : %s : %s" % (sji["jobParams"]["jobName"], sji["globalResInfo"].CategoryToCountMap, sji["sortKey"]))
+        vc_name = sji["job"]["vcName"]
+        vc_resource = vc_resources[vc_name]
 
-        if (localResInfo.CanSatisfy(sji["localResInfo"])):
-            localResInfo.Subtract(sji["localResInfo"])
+        if sji["jobParams"]["preemptionAllowed"]:
+            vc_resource.UnblockResourceCategory(sji["globalResInfo"])
+
+        if (vc_resource.CanSatisfy(sji["globalResInfo"])):
+            vc_resource.Subtract(sji["globalResInfo"])
             globalResInfo.Subtract(sji["globalResInfo"])
             sji["allowed"] = True
-            logging.info("TakeJobActions : local assignment : %s : %s" % (sji["jobParams"]["jobName"], sji["localResInfo"].CategoryToCountMap))
+            logging.info("TakeJobActions : local assignment : %s : %s" % (sji["jobParams"]["jobName"], sji["globalResInfo"].CategoryToCountMap))
         elif not sji["jobParams"]["preemptionAllowed"]:
-            localResInfo.BlockResourceCategory(sji["localResInfo"]) #FIFO scheduling
-
-    #logging.info("TakeJobActions : local resources : %s" % (localResInfo.CategoryToCountMap))
-    #logging.info("TakeJobActions : global resources : %s" % (globalResInfo.CategoryToCountMap))
+            globalResInfo.BlockResourceCategory(sji["globalResInfo"]) #FIFO scheduling
 
     for sji in jobsInfo:
         if (sji["jobParams"]["preemptionAllowed"] and sji["allowed"] == False):

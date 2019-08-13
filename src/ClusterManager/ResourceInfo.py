@@ -1,11 +1,11 @@
 import math
 
 class ResourceInfo:
-    def __init__(self, res = {}, tag = ""):
+    def __init__(self, res={}):
         self.CategoryToCountMap = {}
-        self.BlockedCategories = set() #not included in serialized form
+        self.BlockedCategories = set()  # not included in serialized form
         for key in res:
-            self.CategoryToCountMap[tag + ("_" if tag else "") + key] = int(res[key])
+            self.CategoryToCountMap[key] = int(res[key])
 
     def ToSerializable(self):
         return self.CategoryToCountMap
@@ -38,7 +38,7 @@ class ResourceInfo:
             self.CategoryToCountMap[key] += otherResourceInfo.CategoryToCountMap[key]
         return self
 
-    def CanSatisfy(self, otherResourceInfo):  
+    def CanSatisfy(self, otherResourceInfo):
         for key in otherResourceInfo.CategoryToCountMap:
             if (otherResourceInfo.CategoryToCountMap[key] > 0) and ((key in self.BlockedCategories) or (key not in self.CategoryToCountMap) \
                 or (self.CategoryToCountMap[key] < otherResourceInfo.CategoryToCountMap[key])):
