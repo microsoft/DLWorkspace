@@ -355,7 +355,6 @@ def TakeJobActions(jobs):
             singleJobInfo["job"] = job
             job_params = json.loads(base64.b64decode(job["jobParams"]))
             singleJobInfo["preemptionAllowed"] = job_params["preemptionAllowed"]
-            singleJobInfo["jobName"] = job_params["jobName"]
             singleJobInfo["jobId"] = job_params["jobId"]
             jobGpuType = "any"
             if "gpuType" in job_params:
@@ -375,7 +374,7 @@ def TakeJobActions(jobs):
     logging.info("TakeJobActions : global resources : %s" % (globalResInfo.CategoryToCountMap))
 
     for sji in jobsInfo:
-        logging.info("TakeJobActions : job : %s : %s : %s" % (sji["jobName"], sji["globalResInfo"].CategoryToCountMap, sji["sortKey"]))
+        logging.info("TakeJobActions : job : %s : %s : %s" % (sji["jobId"], sji["globalResInfo"].CategoryToCountMap, sji["sortKey"]))
         vc_name = sji["job"]["vcName"]
         vc_resource = vc_resources[vc_name]
 
@@ -383,16 +382,16 @@ def TakeJobActions(jobs):
             vc_resource.Subtract(sji["globalResInfo"])
             globalResInfo.Subtract(sji["globalResInfo"])
             sji["allowed"] = True
-            logging.info("TakeJobActions : local assignment : %s : %s" % (sji["jobName"], sji["globalResInfo"].CategoryToCountMap))
+            logging.info("TakeJobActions : local assignment : %s : %s" % (sji["jobId"], sji["globalResInfo"].CategoryToCountMap))
 
     for sji in jobsInfo:
         if sji["preemptionAllowed"] and (sji["allowed"] is False):
             if globalResInfo.CanSatisfy(sji["globalResInfo"]):
-                logging.info("TakeJobActions : job : %s : %s" % (sji["jobName"], sji["globalResInfo"].CategoryToCountMap))
+                logging.info("TakeJobActions : job : %s : %s" % (sji["jobId"], sji["globalResInfo"].CategoryToCountMap))
                 # Strict FIFO policy not required for global (bonus) tokens since these jobs are anyway pre-emptible.
                 globalResInfo.Subtract(sji["globalResInfo"])
                 sji["allowed"] = True
-                logging.info("TakeJobActions : global assignment : %s : %s" % (sji["jobName"], sji["globalResInfo"].CategoryToCountMap))
+                logging.info("TakeJobActions : global assignment : %s : %s" % (sji["jobId"], sji["globalResInfo"].CategoryToCountMap))
 
     logging.info("TakeJobActions : global resources : %s" % (globalResInfo.CategoryToCountMap))
 
@@ -400,10 +399,10 @@ def TakeJobActions(jobs):
         try:
             if sji["job"]["jobStatus"] == "queued" and (sji["allowed"] is True):
                 SubmitJob(sji["job"])
-                logging.info("TakeJobActions : submitting job : %s : %s : %s" % (sji["jobName"], sji["jobId"], sji["sortKey"]))
+                logging.info("TakeJobActions : submitting job : %s : %s" % (sji["jobId"], sji["sortKey"]))
             elif sji["preemptionAllowed"] and (sji["job"]["jobStatus"] == "scheduling" or sji["job"]["jobStatus"] == "running") and (sji["allowed"] is False):
                 KillJob(sji["job"]["jobId"], "queued")
-                logging.info("TakeJobActions : pre-empting job : %s : %s : %s" % (sji["jobName"], sji["jobId"], sji["sortKey"]))
+                logging.info("TakeJobActions : pre-empting job : %s : %s" % (sji["jobId"], sji["sortKey"]))
         except Exception as e:
             logging.error("Process job failed {}".format(sji["job"]), exc_info=True)
 
