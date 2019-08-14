@@ -10,12 +10,6 @@ class ResourceInfo:
     def ToSerializable(self):
         return self.CategoryToCountMap
 
-    def TotalCount(self):
-        count = 0
-        for key in self.CategoryToCountMap:
-            count += self.CategoryToCountMap[key]
-        return count
-
     @staticmethod
     def Difference(resInfo1, resInfo2):
         diff = ResourceInfo()
