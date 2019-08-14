@@ -149,6 +149,9 @@ items:
         name: weave-net
       namespace: kube-system
     spec:
+      selector:
+        matchLabels:
+          name: weave-net
       template:
         metadata:
           labels:
