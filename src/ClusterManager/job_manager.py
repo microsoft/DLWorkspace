@@ -12,7 +12,6 @@ import traceback
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
 
-from JobRestAPIUtils import GetJobTotalGpu
 from jobs_tensorboard import GenTensorboardMeta
 import k8sUtils
 import joblog_manager
@@ -168,6 +167,13 @@ def KillJob(job_id, desiredState="killed"):
         dataHandler.Close()
         logging.error("Kill job failed with errors: {}".format(errors))
         return False
+
+
+def GetJobTotalGpu(jobParams):
+    numWorkers = 1
+    if "numpsworker" in jobParams:
+        numWorkers = int(jobParams["numpsworker"])
+    return int(jobParams["resourcegpu"]) * numWorkers
 
 
 def ApproveJob(job):
@@ -344,16 +350,19 @@ def TakeJobActions(jobs):
 
     jobsInfo = []
     for job in jobs:
-        if job["jobStatus"] == "queued" or job["jobStatus"] == "scheduling" or job["jobStatus"] == "running":
+        if job["jobStatus"] in ["queued", "scheduling", "running"]:
             singleJobInfo = {}
             singleJobInfo["job"] = job
-            singleJobInfo["jobParams"] = json.loads(base64.b64decode(job["jobParams"]))
+            job_params = json.loads(base64.b64decode(job["jobParams"]))
+            singleJobInfo["preemptionAllowed"] = job_params["preemptionAllowed"]
+            singleJobInfo["jobName"] = job_params["jobName"]
+            singleJobInfo["jobId"] = job_params["jobId"]
             jobGpuType = "any"
-            if "gpuType" in singleJobInfo["jobParams"]:
-                jobGpuType = singleJobInfo["jobParams"]["gpuType"]
-            singleJobInfo["globalResInfo"] = ResourceInfo({jobGpuType : GetJobTotalGpu(singleJobInfo["jobParams"])})
+            if "gpuType" in job_params:
+                jobGpuType = job_params["gpuType"]
+            singleJobInfo["globalResInfo"] = ResourceInfo({jobGpuType : GetJobTotalGpu(job_params)})
             singleJobInfo["sortKey"] = str(job["jobTime"])
-            if singleJobInfo["jobParams"]["preemptionAllowed"]:
+            if singleJobInfo["preemptionAllowed"]:
                 singleJobInfo["sortKey"] = "1_" + singleJobInfo["sortKey"]
             else:
                 singleJobInfo["sortKey"] = "0_" + singleJobInfo["sortKey"]
@@ -366,40 +375,40 @@ def TakeJobActions(jobs):
     logging.info("TakeJobActions : global resources : %s" % (globalResInfo.CategoryToCountMap))
 
     for sji in jobsInfo:
-        logging.info("TakeJobActions : job : %s : %s : %s" % (sji["jobParams"]["jobName"], sji["globalResInfo"].CategoryToCountMap, sji["sortKey"]))
+        logging.info("TakeJobActions : job : %s : %s : %s" % (sji["jobName"], sji["globalResInfo"].CategoryToCountMap, sji["sortKey"]))
         vc_name = sji["job"]["vcName"]
         vc_resource = vc_resources[vc_name]
 
-        if sji["jobParams"]["preemptionAllowed"]:
+        if sji["preemptionAllowed"]:
             vc_resource.UnblockResourceCategory(sji["globalResInfo"])
 
         if (vc_resource.CanSatisfy(sji["globalResInfo"])):
             vc_resource.Subtract(sji["globalResInfo"])
             globalResInfo.Subtract(sji["globalResInfo"])
             sji["allowed"] = True
-            logging.info("TakeJobActions : local assignment : %s : %s" % (sji["jobParams"]["jobName"], sji["globalResInfo"].CategoryToCountMap))
-        elif not sji["jobParams"]["preemptionAllowed"]:
+            logging.info("TakeJobActions : local assignment : %s : %s" % (sji["jobName"], sji["globalResInfo"].CategoryToCountMap))
+        elif not sji["preemptionAllowed"]:
             globalResInfo.BlockResourceCategory(sji["globalResInfo"]) #FIFO scheduling
 
     for sji in jobsInfo:
-        if (sji["jobParams"]["preemptionAllowed"] and sji["allowed"] == False):
+        if sji["preemptionAllowed"] and (sji["allowed"] is False):
             if globalResInfo.CanSatisfy(sji["globalResInfo"]):
-                logging.info("TakeJobActions : job : %s : %s" % (sji["jobParams"]["jobName"], sji["globalResInfo"].CategoryToCountMap))
+                logging.info("TakeJobActions : job : %s : %s" % (sji["jobName"], sji["globalResInfo"].CategoryToCountMap))
                 # Strict FIFO policy not required for global (bonus) tokens since these jobs are anyway pre-emptible.
                 globalResInfo.Subtract(sji["globalResInfo"])
                 sji["allowed"] = True
-                logging.info("TakeJobActions : global assignment : %s : %s" % (sji["jobParams"]["jobName"], sji["globalResInfo"].CategoryToCountMap))
+                logging.info("TakeJobActions : global assignment : %s : %s" % (sji["jobName"], sji["globalResInfo"].CategoryToCountMap))
 
     logging.info("TakeJobActions : global resources : %s" % (globalResInfo.CategoryToCountMap))
 
     for sji in jobsInfo:
         try:
-            if sji["job"]["jobStatus"] == "queued" and sji["allowed"] == True:
+            if sji["job"]["jobStatus"] == "queued" and (sji["allowed"] is True):
                 SubmitJob(sji["job"])
-                logging.info("TakeJobActions : submitting job : %s : %s : %s" % (sji["jobParams"]["jobName"], sji["jobParams"]["jobId"], sji["sortKey"]))
-            elif sji["jobParams"]["preemptionAllowed"] and (sji["job"]["jobStatus"] == "scheduling" or sji["job"]["jobStatus"] == "running") and sji["allowed"] == False:
+                logging.info("TakeJobActions : submitting job : %s : %s : %s" % (sji["jobName"], sji["jobId"], sji["sortKey"]))
+            elif sji["preemptionAllowed"] and (sji["job"]["jobStatus"] == "scheduling" or sji["job"]["jobStatus"] == "running") and (sji["allowed"] is False):
                 KillJob(sji["job"]["jobId"], "queued")
-                logging.info("TakeJobActions : pre-empting job : %s : %s : %s" % (sji["jobParams"]["jobName"], sji["jobParams"]["jobId"], sji["sortKey"]))
+                logging.info("TakeJobActions : pre-empting job : %s : %s : %s" % (sji["jobName"], sji["jobId"], sji["sortKey"]))
         except Exception as e:
             logging.error("Process job failed {}".format(sji["job"]), exc_info=True)
 
