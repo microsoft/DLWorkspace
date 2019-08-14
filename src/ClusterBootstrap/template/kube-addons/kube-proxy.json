@@ -27,7 +27,7 @@
                {
                   "command": [
                      "/hyperkube",
-                     "proxy",
+                     "kube-proxy",
                      "--kubeconfig=/etc/kubernetes/worker-kubeconfig.yaml"
                   ],
                   "image": "{{cnf["dockers"]["container"]["hyperkube"]["fullname"]}}",
