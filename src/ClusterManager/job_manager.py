@@ -379,16 +379,11 @@ def TakeJobActions(jobs):
         vc_name = sji["job"]["vcName"]
         vc_resource = vc_resources[vc_name]
 
-        if sji["preemptionAllowed"]:
-            vc_resource.UnblockResourceCategory(sji["globalResInfo"])
-
         if (vc_resource.CanSatisfy(sji["globalResInfo"])):
             vc_resource.Subtract(sji["globalResInfo"])
             globalResInfo.Subtract(sji["globalResInfo"])
             sji["allowed"] = True
             logging.info("TakeJobActions : local assignment : %s : %s" % (sji["jobName"], sji["globalResInfo"].CategoryToCountMap))
-        elif not sji["preemptionAllowed"]:
-            globalResInfo.BlockResourceCategory(sji["globalResInfo"]) #FIFO scheduling
 
     for sji in jobsInfo:
         if sji["preemptionAllowed"] and (sji["allowed"] is False):

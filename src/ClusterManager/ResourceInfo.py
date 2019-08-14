@@ -3,7 +3,6 @@ import math
 class ResourceInfo:
     def __init__(self, res={}):
         self.CategoryToCountMap = {}
-        self.BlockedCategories = set()  # not included in serialized form
         for key in res:
             self.CategoryToCountMap[key] = int(res[key])
 
@@ -34,8 +33,7 @@ class ResourceInfo:
 
     def CanSatisfy(self, otherResourceInfo):
         for key in otherResourceInfo.CategoryToCountMap:
-            if (otherResourceInfo.CategoryToCountMap[key] > 0) and ((key in self.BlockedCategories) or (key not in self.CategoryToCountMap) \
-                or (self.CategoryToCountMap[key] < otherResourceInfo.CategoryToCountMap[key])):
+            if (otherResourceInfo.CategoryToCountMap[key] > 0) and ((key not in self.CategoryToCountMap) or (self.CategoryToCountMap[key] < otherResourceInfo.CategoryToCountMap[key])):
                 return False
         return True
 
@@ -44,16 +42,3 @@ class ResourceInfo:
             if otherResourceInfo.CategoryToCountMap[key] > 0:
                 self.CategoryToCountMap[key] -= otherResourceInfo.CategoryToCountMap[key]
         return self
-
-    def BlockResourceCategory(self, resourceInfo):
-        for key in resourceInfo.CategoryToCountMap:
-            self.BlockedCategories.add(key)
-        return self
-
-    def UnblockResourceCategory(self, resourceInfo):
-        for key in resourceInfo.CategoryToCountMap:
-            if key in self.BlockedCategories:
-                self.BlockedCategories.remove(key)
-        return self
-
-
