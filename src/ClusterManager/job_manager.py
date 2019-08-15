@@ -326,6 +326,24 @@ def create_log(logdir = '/var/log/dlworkspace'):
         logging.config.dictConfig(logging_config)
 
 
+def get_priority_dict():
+    try:
+        dataHandler = DataHandler()
+        priority_dict = dataHandler.get_job_priority()
+        return priority_dict
+    except Exception as e:
+        logging.warning("Fetch job priority dict failed!", exc_info=True)
+        return {}
+    finally:
+        dataHandler.Close()
+
+
+def get_job_priority(priority_dict, job_id):
+    if job_id in priority_dict.keys():
+        return priority_dict[job_id]
+    return 65535
+
+
 def TakeJobActions(jobs):
     dataHandler = DataHandler()
     vcList = dataHandler.ListVCs()
@@ -340,6 +358,9 @@ def TakeJobActions(jobs):
     vc_resources = {}
     localResInfo = ResourceInfo()
     globalResInfo = ResourceInfo.Difference(globalTotalRes, globalReservedRes)
+
+    priority_dict = get_priority_dict()
+    logging.info("Job priority dict: {}".format(priority_dict))
 
     for vc in vcList:
         vcTotalRes = ResourceInfo(json.loads(vc["quota"]))
@@ -361,10 +382,11 @@ def TakeJobActions(jobs):
                 jobGpuType = job_params["gpuType"]
             singleJobInfo["globalResInfo"] = ResourceInfo({jobGpuType : GetJobTotalGpu(job_params)})
             singleJobInfo["sortKey"] = str(job["jobTime"])
+            priority = get_job_priority(priority_dict, singleJobInfo["jobId"])
             if singleJobInfo["preemptionAllowed"]:
-                singleJobInfo["sortKey"] = "1_" + singleJobInfo["sortKey"]
+                singleJobInfo["sortKey"] = "1_{:06d}_{}".format(priority, singleJobInfo["sortKey"])
             else:
-                singleJobInfo["sortKey"] = "0_" + singleJobInfo["sortKey"]
+                singleJobInfo["sortKey"] = "0_{:06d}_{}".format(priority, singleJobInfo["sortKey"])
             singleJobInfo["allowed"] = False
             jobsInfo.append(singleJobInfo)
 
