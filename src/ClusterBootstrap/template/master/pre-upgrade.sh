@@ -4,6 +4,7 @@ sudo mkdir -p /etc/kubernetes
 sudo mkdir -p /opt/addons
 sudo rm -r /etc/kubernetes
 sudo rm -r /opt/addons
+sudo rm -r /opt/cni
 sudo systemctl daemon-reload
 
 # pre deployment
@@ -13,6 +14,7 @@ sudo mkdir -p /etc/kubernetes/ssl/
 sudo mkdir -p /etc/kubernetes/pki/
 sudo mkdir -p /opt/addons
 sudo mkdir -p /opt/bin
+sudo mkdir -p /opt/cni/bin
 sudo chown -R $USER /etc/kubernetes
 sudo chown -R $USER /etc/flannel
 sudo chown -R $USER /opt/bin

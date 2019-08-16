@@ -10,10 +10,12 @@ sudo rm -r /etc/kubernetes
 sudo rm /opt/kubelet.sh
 sudo rm /opt/bin/kubelet
 sudo rm -r /etc/kubernetes
+sudo rm -rf /opt/cni
 
 sudo mkdir -p /etc/kubernetes
 sudo mkdir -p /etc/kubernetes/manifests
 sudo mkdir -p /etc/kubernetes/ssl/
 sudo mkdir -p /etc/ssl/etcd
 sudo mkdir -p /opt/bin
+sudo mkdir -p /opt/cni/bin
 {{'sudo mkdir -p '~cnf["kubeletlogdir"]~'/kubelet' if "kubeletlogdir" in cnf}}
