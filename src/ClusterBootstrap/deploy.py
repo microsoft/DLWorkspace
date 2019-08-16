@@ -876,18 +876,14 @@ def deploy_master(kubernetes_master):
 
 def get_cni_binary():
     os.system("mkdir -p ./deploy/bin")
-    urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/containernetworking/cni-amd64-v0.5.2.tgz", "./deploy/bin/cni-amd64-v0.5.2.tgz")
+    urllib.urlretrieve("https://xudifsd.org/cni-v0.7.1.tgz", "./deploy/bin/cni-v0.7.1.tgz") # TODO, change the source url
     if verbose:
         print "Extracting CNI binaries"
-    os.system("tar -zxvf ./deploy/bin/cni-amd64-v0.5.2.tgz -C ./deploy/bin")
+    os.system("tar -zxvf ./deploy/bin/cni-v0.7.1.tgz -C ./deploy/bin")
 
 
 def get_kubectl_binary(force = False):
     get_hyperkube_docker(force = force)
-    #os.system("mkdir -p ./deploy/bin")
-    urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet", "./deploy/bin/kubelet-old")
-    #urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubectl", "./deploy/bin/kubectl")
-    #os.system("chmod +x ./deploy/bin/*")
     get_cni_binary()
 
 def get_hyperkube_docker(force = False) :
