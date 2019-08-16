@@ -82,7 +82,7 @@ if  lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VG
     sudo add-apt-repository -y ppa:graphics-drivers/ppa
 	sudo apt-get purge -y nvidia*
     sudo apt-get update
-	sudo apt-get install -y nvidia-driver-415
+	sudo apt-get install -y nvidia-driver-430
 	
 
 

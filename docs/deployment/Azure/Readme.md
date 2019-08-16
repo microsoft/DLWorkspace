@@ -36,19 +36,19 @@ execute this command, log out(exit) and log in back
 
 5. Create Azure Cluster:
 ```
-sudo ./az_tools.py create
+./az_tools.py create
 ```
 
 6. Generate cluster config file:
 ```
-sudo ./az_tools.py genconfig 
+./az_tools.py genconfig 
 ```
 
 Please note that if you are not Microsoft user, you should remove the 
  
 7. Run Azure deployment script block:
   ```
-  sudo ./deploy.py --verbose scriptblocks azure 
+  ./deploy.py --verbose scriptblocks azure 
   ```
   After the script completes execution, you may still need to wait for a few minutes so that relevant docker images can be pulled to the target machine for execution. You can then access your cluster at:
   ```
