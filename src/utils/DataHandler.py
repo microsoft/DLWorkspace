@@ -65,3 +65,33 @@ class DataManager:
             dataHandler.Close()
         return ret
     
+
+    @staticmethod
+    def GetTemplates(scope):
+        dataHandler = DataHandler()
+        ret = None
+        try:
+            ret = dataHandler.GetTemplates(scope)
+        finally:
+            dataHandler.Close()
+        return ret
+
+    @staticmethod
+    def UpdateTemplate(name, scope, json):
+        dataHandler = DataHandler()
+        ret = None
+        try:
+            ret = dataHandler.UpdateTemplate(name, scope, json)
+        finally:
+            dataHandler.Close()
+        return ret
+
+    @staticmethod
+    def DeleteTemplate(name, scope):
+        dataHandler = DataHandler()
+        ret = None
+        try:
+            ret = dataHandler.DeleteTemplate(name, scope)
+        finally:
+            dataHandler.Close()
+        return ret

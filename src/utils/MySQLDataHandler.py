@@ -51,6 +51,7 @@ class DataHandler(object):
         self.storagetablename = "storage"
         self.clusterstatustablename = "clusterstatus"
         self.commandtablename = "commands"
+        self.templatetablename = "templates"
         server = config["mysql"]["hostname"]
         username = config["mysql"]["username"]
         password = config["mysql"]["password"]
@@ -234,6 +235,25 @@ class DataHandler(object):
                     CONSTRAINT identityName_resource UNIQUE(`identityName`,`resource`)
                 )
                 """ % (self.acltablename)
+
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+            self.conn.commit()
+            cursor.close()
+
+
+            sql = """
+                CREATE TABLE IF NOT EXISTS `%s`
+                (
+                    `id`    INT          NOT NULL AUTO_INCREMENT,
+                    `name`  VARCHAR(255) NOT NULL,
+                    `scope` VARCHAR(255) NOT NULL COMMENT '"master", "vc:vcname" or "user:username"',
+                    `json`  TEXT         NOT NULL,
+                    `time`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (`id`),
+                    CONSTRAINT name_scope UNIQUE(`name`, `scope`)
+                )
+                """ % (self.templatetablename)
 
             cursor = self.conn.cursor()
             cursor.execute(sql)
@@ -917,6 +937,48 @@ class DataHandler(object):
         cursor.close()
 
         return ret
+
+    @record
+    def GetTemplates(self, scope):
+        cursor = self.conn.cursor()
+        query = "SELECT `name`, `json` FROM `%s` WHERE `scope` = '%s'" % (self.templatetablename, scope)
+        cursor.execute(query)
+        ret = []
+        for name, json in cursor:
+            record = {}
+            record["name"] = name
+            record["json"] = json
+            ret.append(record)
+        self.conn.commit()
+        cursor.close()
+        return ret
+
+    @record
+    def UpdateTemplate(self, name, scope, json):
+        try:
+            cursor = self.conn.cursor()
+            query = "INSERT INTO `" + self.templatetablename + "`(`name`, `scope`, `json`) VALUES(%s, %s, %s) ON DUPLICATE KEY UPDATE `json` = %s"
+            cursor.execute(query, (name, scope, json, json))
+            self.conn.commit()
+            cursor.close()
+            return True
+        except Exception as e:
+            logger.error('Exception: %s', str(e))
+            return False
+
+    @record
+    def DeleteTemplate(self, name, scope):
+        try:
+            cursor = self.conn.cursor()
+            query = "DELETE FROM `" + self.templatetablename + "` WHERE `name` = %s and `scope` = %s"
+            cursor.execute(query, (name, scope))
+            self.conn.commit()
+            cursor.close()
+            return True
+        except Exception as e:
+            logger.error('Exception: %s', str(e))
+            return False
+
 
     def __del__(self):
         logger.debug("********************** deleted a DataHandler instance *******************")
