@@ -5,7 +5,7 @@ default_az_parameters = {
         "azure_location": "westus2",
         "infra_vm_size" : "Standard_D1_v2",
         "worker_vm_size": "Standard_NC6",
-        "vm_image" : "UbuntuLTS",
+        "vm_image" : "Canonical:UbuntuServer:18.04-LTS:18.04.201907221",
         "vm_storage_sku" : "Premium_LRS",        
         # "udp_port_ranges": ""
         # Use file_share_name to create Azure file share
