@@ -1306,6 +1306,31 @@ class Templates(Resource):
 api.add_resource(Templates, '/templates')
 
 
+class JobPriority(Resource):
+    def get(self):
+        job_priorites = JobRestAPIUtils.get_job_priorities()
+        resp = jsonify(job_priorites)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+        return resp
+
+    def post(self):
+        payload = request.get_json(silent=True)
+        success = JobRestAPIUtils.update_job_priorites(payload)
+        http_status = 200 if success else 400
+
+        job_priorites = JobRestAPIUtils.get_job_priorities()
+        resp = jsonify(job_priorites)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+        resp.status_code = http_status
+        return resp
+
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(JobPriority, '/jobs/priorites')
+
 @app.route("/metrics")
 def metrics():
     return Response(prometheus_client.generate_latest(), mimetype=CONTENT_TYPE_LATEST)

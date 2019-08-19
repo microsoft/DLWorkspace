@@ -1010,6 +1010,16 @@ class DataHandler(object):
 
         return priority_dict
 
+    @record
+    def update_job_priority(self, job_priorites):
+        cursor = self.conn.cursor()
+        for job_id, priority in job_priorites.items():
+            query = "INSERT INTO {0}(jobId, priority, time) VALUES('{1}', {2}, SYSDATE()) ON DUPLICATE KEY UPDATE jobId='{1}', priority='{2}' ".format(self.jobprioritytablename, job_id, priority)
+            cursor.execute(query)
+        self.conn.commit()
+        cursor.close()
+        return True
+
     def __del__(self):
         logger.debug("********************** deleted a DataHandler instance *******************")
         self.Close()

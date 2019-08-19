@@ -73,7 +73,7 @@ def SubmitJob(jobParamsJsonStr):
         jobParams["preemptionAllowed"] = False
     else:
         jobParams["preemptionAllowed"] = ToBool(jobParams["preemptionAllowed"])
-    
+
     if "jobId" not in jobParams or jobParams["jobId"] == "":
         #jobParams["jobId"] = jobParams["jobName"] + "-" + str(uuid.uuid4())
         #jobParams["jobId"] = jobParams["jobName"] + "-" + str(time.time())
@@ -495,7 +495,7 @@ def ListVCs(userName):
 
 
 def GetVC(userName, vcName):
-    ret = None  
+    ret = None
 
     clusterStatus, dummy = DataManager.GetClusterStatus()
     clusterTotalRes = ResourceInfo(clusterStatus["gpu_capacity"])
@@ -526,7 +526,7 @@ def GetVC(userName, vcName):
             vc["gpu_used"] = vcConsumedRes.ToSerializable()
             vc["gpu_unschedulable"] = vcReservedRes.ToSerializable()
             vc["gpu_avaliable"] = vcAvailableRes.ToSerializable()
-            vc["AvaliableJobNum"] = len(jobs)          
+            vc["AvaliableJobNum"] = len(jobs)
             vc["node_status"] = clusterStatus["node_status"]
             vc["user_status"] = []
             for user_name, user_gpu in user_status.iteritems():
@@ -579,6 +579,21 @@ def update_job(job_id, field, value):
     dataHandler = DataHandler()
     dataHandler.UpdateJobTextField(job_id, field, value)
     dataHandler.Close()
+
+
+def get_job_priorities():
+    dataHandler = DataHandler()
+    job_priorites = dataHandler.get_job_priority()
+    dataHandler.Close()
+    return job_priorites
+
+
+def update_job_priorites(job_priorites):
+    dataHandler = DataHandler()
+    success = dataHandler.update_job_priority(job_priorites)
+    dataHandler.Close()
+    return success
+
 
 if __name__ == '__main__':
     TEST_SUB_REG_JOB = False
