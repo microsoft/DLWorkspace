@@ -160,6 +160,7 @@ class DataHandler(object):
         self.storagetablename = "storage-%s" %  config["clusterId"]
         self.clusterstatustablename = "clusterstatus-%s" %  config["clusterId"]
         self.commandtablename = "commands-%s" %  config["clusterId"]
+        self.templatetablename = "templates"
 
         self.CreateTable()
         elapsed = timeit.default_timer() - start_time
@@ -342,6 +343,26 @@ class DataHandler(object):
                     CONSTRAINT identityName_resource UNIQUE (identityName,resource)
                 )
                 """ % (self.acltablename,self.acltablename)
+
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+            self.conn.commit()
+            cursor.close()
+
+
+            sql = """
+            if not exists (select * from sysobjects where name='%s' and xtype='U')
+                CREATE TABLE [dbo].[%s]
+                (
+                    [id]    INT          IDENTITY (1, 1) NOT NULL,
+                    [name]  VARCHAR(255) NOT NULL,
+                    [scope] VARCHAR(255) NOT NULL COMMENT '"master", "vc:vcname" or "user:username"',
+                    [json]  NTEXT        NOT NULL,
+                    [time]  DATETIME     DEFAULT (getdate()) NOT NULL,
+                    PRIMARY KEY CLUSTERED ([id] ASC),
+                    CONSTRAINT name_scope UNIQUE (name, scope)
+               )
+                """ % (self.templatetablename, self.templatetablename)
 
             cursor = self.conn.cursor()
             cursor.execute(sql)
@@ -934,6 +955,38 @@ class DataHandler(object):
     def Close(self):
         ### !!! DataHandler is not threadsafe object, a same object cannot be used in multiple threads 
         self.conn = SQLConnManager.ReturnConnection(self.conn)
+
+    @record
+    def GetTemplates(self, scope):
+        cursor = self.conn.cursor()
+        query = "SELECT [name], [json] FROM [%s] WHERE [scope] = '%s'" % (self.templatetablename, scope)
+        cursor.execute(query)
+        ret = []
+        for name, json in cursor:
+            record = {}
+            record["name"] = name
+            record["json"] = json
+            ret.append(record)
+        self.conn.commit()
+        cursor.close()
+        return ret
+
+    @record
+    def UpdateTemplate(self, name, scope, json):
+        raise NotImplementedError("It's hard to do UPSERT in SQL Server")
+
+    @record
+    def DeleteTemplate(self, name, scope):
+        try:
+            cursor = self.conn.cursor()
+            query = "DELETE FROM [" + self.templatetablename + "] WHERE [name] = '%s' and [scope] = '%s'"
+            cursor.execute(query, (name, scope))
+            self.conn.commit()
+            cursor.close()
+            return True
+        except Exception as e:
+            logger.error('Exception: %s', str(e))
+            return False
 
 if __name__ == '__main__':
     TEST_INSERT_JOB = False
