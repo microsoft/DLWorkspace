@@ -876,7 +876,8 @@ def deploy_master(kubernetes_master):
 
 def get_cni_binary():
     os.system("mkdir -p ./deploy/bin")
-    urllib.urlretrieve("https://xudifsd.org/cni-v0.7.1.tgz", "./deploy/bin/cni-v0.7.1.tgz") # TODO, change the source url. This tar file contains binary build from https://github.com/containernetworking/cni which used by weave
+    # This tar file contains binary build from https://github.com/containernetworking/cni which used by weave
+    urllib.urlretrieve("https://github.com/microsoft/DLWorkspace/releases/download/v1.2.0/cni-v0.7.1.tgz", "./deploy/bin/cni-v0.7.1.tgz")
     if verbose:
         print "Extracting CNI binaries"
     os.system("tar -zxvf ./deploy/bin/cni-v0.7.1.tgz -C ./deploy/bin")
