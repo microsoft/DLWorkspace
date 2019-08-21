@@ -1211,6 +1211,101 @@ class Endpoint(Resource):
 ##
 api.add_resource(Endpoint, '/endpoints')
 
+
+class Templates(Resource):
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('vcName', location="args")
+        parser.add_argument('userName', location="args")
+        args = parser.parse_args()
+        vcName = args["vcName"]
+        userName = args["userName"]
+
+        dataHandler = DataHandler()
+        ret = dataHandler.GetTemplates("master") or []
+        ret += dataHandler.GetTemplates("vc:" + vcName) or []
+        ret += dataHandler.GetTemplates("user:" + userName) or []
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('vcName', location="args")
+        parser.add_argument('userName', location="args")
+        parser.add_argument('database', location="args")
+        parser.add_argument('templateName', location="args")
+        args = parser.parse_args()
+        vcName = args["vcName"]
+        userName = args["userName"]
+        database = args["database"]
+        templateName = args["templateName"]
+
+        if database == 'master':
+            if AuthorizationManager.HasAccess(userName, ResourceType.Cluster, "", Permission.Admin):
+                scope = 'master'
+            else:
+                return 'access denied', 403;
+        elif database == 'vc':
+            if AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName, Permission.Admin):
+                scope = 'vc:' + vcName
+            else:
+                return 'access denied', 403;
+        else:
+            scope = 'user:' + userName
+        template_json = request.json
+
+        if template_json is None:
+            return jsonify(result=False, message="Invalid JSON")
+
+        dataHandler = DataHandler()
+        ret = {}
+        ret["result"] = dataHandler.UpdateTemplate(templateName, scope, json.dumps(template_json))
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+
+    def delete(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('vcName', location="args")
+        parser.add_argument('userName', location="args")
+        parser.add_argument('database', location="args")
+        parser.add_argument('templateName', location="args")
+        args = parser.parse_args()
+        vcName = args["vcName"]
+        userName = args["userName"]
+        database = args["database"]
+        templateName = args["templateName"]
+
+        if database == 'master':
+            if AuthorizationManager.HasAccess(userName, ResourceType.Cluster, "", Permission.Admin):
+                scope = 'master'
+            else:
+                return 'access denied', 403;
+        elif database == 'vc':
+            if AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName, Permission.Admin):
+                scope = 'vc:' + vcName
+            else:
+                return 'access denied', 403;
+        else:
+            scope = 'user:' + userName
+
+        dataHandler = DataHandler()
+        ret = {}
+        ret["result"] = dataHandler.DeleteTemplate(templateName, scope)
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+
+api.add_resource(Templates, '/templates')
+
+
 @app.route("/metrics")
 def metrics():
     return Response(prometheus_client.generate_latest(), mimetype=CONTENT_TYPE_LATEST)
