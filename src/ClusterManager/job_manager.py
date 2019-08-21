@@ -170,11 +170,35 @@ def KillJob(job_id, desiredState="killed"):
         return False
 
 
-def ApproveJob(job_id):
-    dataHandler = DataHandler()
-    dataHandler.UpdateJobTextField(job_id, "jobStatus", "queued")
-    dataHandler.Close()
-    return True
+def ApproveJob(job):
+    try:
+        job_id = job["jobId"]
+        vcName = job["vcName"]
+        jobParams = json.loads(base64.b64decode(job["jobParams"]))
+        total_gpus = GetJobTotalGpu(jobParams)
+
+        dataHandler = DataHandler()
+        vcList = dataHandler.ListVCs()
+        vc = None
+        for item in vcList:
+            if item["vcName"] == vcName:
+                vc = item
+                break
+        if vc is None:
+            logging.warning("Vc not exising! job {}, vc {}".format(job_id, vcName))
+            return False
+        metadata = json.loads(vc["metadata"])
+
+        if "user_quota" in metadata and int(metadata["user_quota"]) < total_gpus:
+            logging.info("Job {} excesses the user quota: {} > {}. Will need approve from admin.".format(job_id, total_gpus, metadata["user_quota"]))
+            return False
+        else:
+            dataHandler.UpdateJobTextField(job_id, "jobStatus", "queued")
+            return True
+    except Exception as e:
+        logging.warning(e, exc_info=True)
+    finally:
+        dataHandler.Close()
 
 
 UnusualJobs = {}
@@ -417,7 +441,7 @@ def Run():
                         elif job["jobStatus"] == "scheduling" or job["jobStatus"] == "running":
                             UpdateJobStatus(job, notifier)
                         elif job["jobStatus"] == "unapproved":
-                            ApproveJob(job["jobId"])
+                            ApproveJob(job)
                     except Exception as e:
                         logging.warning(e, exc_info=True)
             except Exception as e:
