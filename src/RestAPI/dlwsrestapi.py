@@ -1215,13 +1215,16 @@ api.add_resource(Endpoint, '/endpoints')
 class Templates(Resource):
     def get(self):
         parser = reqparse.RequestParser()
+        parser.add_argument('vcName', location="args")
         parser.add_argument('userName', location="args")
         args = parser.parse_args()
+        vcName = args["vcName"]
         userName = args["userName"]
 
         dataHandler = DataHandler()
-        ret = dataHandler.GetTemplates("master")
-        ret += dataHandler.GetTemplates("user:%s" % (userName,))
+        ret = dataHandler.GetTemplates("master") or []
+        ret += dataHandler.GetTemplates("vc:" + vcName) or []
+        ret += dataHandler.GetTemplates("user:" + userName) or []
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
@@ -1230,13 +1233,28 @@ class Templates(Resource):
 
     def post(self):
         parser = reqparse.RequestParser()
+        parser.add_argument('vcName', location="args")
         parser.add_argument('userName', location="args")
+        parser.add_argument('database', location="args")
         parser.add_argument('templateName', location="args")
         args = parser.parse_args()
+        vcName = args["vcName"]
         userName = args["userName"]
+        database = args["database"]
         templateName = args["templateName"]
 
-        scope = 'user:%s' % (userName,)
+        if database == 'master':
+            if AuthorizationManager.HasAccess(userName, ResourceType.Cluster, "", Permission.Admin):
+                scope = 'master'
+            else:
+                return 'access denied', 403;
+        elif database == 'vc':
+            if AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName, Permission.Admin):
+                scope = 'vc:' + vcName
+            else:
+                return 'access denied', 403;
+        else:
+            scope = 'user:' + userName
         template_json = request.json
 
         if template_json is None:
@@ -1253,13 +1271,28 @@ class Templates(Resource):
 
     def delete(self):
         parser = reqparse.RequestParser()
+        parser.add_argument('vcName', location="args")
         parser.add_argument('userName', location="args")
+        parser.add_argument('database', location="args")
         parser.add_argument('templateName', location="args")
         args = parser.parse_args()
+        vcName = args["vcName"]
         userName = args["userName"]
+        database = args["database"]
         templateName = args["templateName"]
 
-        scope = 'user:%s' % (userName,)
+        if database == 'master':
+            if AuthorizationManager.HasAccess(userName, ResourceType.Cluster, "", Permission.Admin):
+                scope = 'master'
+            else:
+                return 'access denied', 403;
+        elif database == 'vc':
+            if AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName, Permission.Admin):
+                scope = 'vc:' + vcName
+            else:
+                return 'access denied', 403;
+        else:
+            scope = 'user:' + userName
 
         dataHandler = DataHandler()
         ret = {}
