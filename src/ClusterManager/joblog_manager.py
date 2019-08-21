@@ -32,7 +32,7 @@ from osUtils import mkdirsAsUser
 from config import config, GetStoragePath
 from DataHandler import DataHandler
 
-from cluster_manager import setup_exporter_thread, manager_iteration_histogram
+from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time
 
 logger = logging.getLogger(__name__)
 
@@ -150,10 +150,13 @@ def update_job_logs():
 
 
 def Run():
+    register_stack_trace_dump()
     create_log()
     logging.info("start to update job logs ...")
 
     while True:
+        update_file_modification_time("joblog_manager")
+
         with manager_iteration_histogram.labels("joblog_manager").time():
             try:
                 update_job_logs()
