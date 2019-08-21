@@ -19,7 +19,7 @@ default_config_parameters = {
     "influxdb_rpc_port": "8088",
     "influxdb_data_path": "/var/lib/influxdb",
 
-    "prometheus": { "port": 9091 },
+    "prometheus": { "port": 9091, "reporter": {"port": 9092} },
     "job-exporter": { "port": 9102 },
     "node-exporter": { "port": 9100 },
     "watchdog": { "port": 9101 },
