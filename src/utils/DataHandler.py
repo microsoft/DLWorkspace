@@ -69,7 +69,7 @@ class DataManager:
     @staticmethod
     def GetTemplates(scope):
         dataHandler = DataHandler()
-        ret = None
+        ret = []
         try:
             ret = dataHandler.GetTemplates(scope)
         finally:

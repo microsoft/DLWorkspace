@@ -488,6 +488,7 @@ def ListVCs(userName):
     vcList =  DataManager.ListVCs()
     for vc in vcList:
         if AuthorizationManager.HasAccess(userName, ResourceType.VC, vc["vcName"], Permission.User):
+            vc['admin'] = AuthorizationManager.HasAccess(userName, ResourceType.VC, vc["vcName"], Permission.Admin)
             ret.append(vc)
     # web portal (client) can filter out Default VC
     return ret
