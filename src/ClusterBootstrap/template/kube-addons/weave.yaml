@@ -9,8 +9,8 @@ items:
         cloud.weave.works/launcher-info: |-
           {
             "original-request": {
-              "url": "/k8s/v1.8/net.yaml?k8s-version=1.9",
-              "date": "Tue Mar 06 2018 01:14:36 GMT+0000 (UTC)"
+              "url": "/k8s/v1.10/net.yaml?k8s-version=1.15",
+              "date": "Thu Aug 15 2019 05:48:37 GMT+0000 (UTC)"
             },
             "email-address": "support@weave.works"
           }
@@ -25,14 +25,13 @@ items:
         cloud.weave.works/launcher-info: |-
           {
             "original-request": {
-              "url": "/k8s/v1.8/net.yaml?k8s-version=1.9",
-              "date": "Tue Mar 06 2018 01:14:36 GMT+0000 (UTC)"
+              "url": "/k8s/v1.10/net.yaml?k8s-version=1.15",
+              "date": "Thu Aug 15 2019 05:48:37 GMT+0000 (UTC)"
             },
             "email-address": "support@weave.works"
           }
       labels:
         name: weave-net
-      namespace: kube-system
     rules:
       - apiGroups:
           - ''
@@ -52,6 +51,13 @@ items:
           - get
           - list
           - watch
+      - apiGroups:
+          - ''
+        resources:
+          - nodes/status
+        verbs:
+          - patch
+          - update
   - apiVersion: rbac.authorization.k8s.io/v1beta1
     kind: ClusterRoleBinding
     metadata:
@@ -60,14 +66,13 @@ items:
         cloud.weave.works/launcher-info: |-
           {
             "original-request": {
-              "url": "/k8s/v1.8/net.yaml?k8s-version=1.9",
-              "date": "Tue Mar 06 2018 01:14:36 GMT+0000 (UTC)"
+              "url": "/k8s/v1.10/net.yaml?k8s-version=1.15",
+              "date": "Thu Aug 15 2019 05:48:37 GMT+0000 (UTC)"
             },
             "email-address": "support@weave.works"
           }
       labels:
         name: weave-net
-      namespace: kube-system
     roleRef:
       kind: ClusterRole
       name: weave-net
@@ -84,8 +89,8 @@ items:
         cloud.weave.works/launcher-info: |-
           {
             "original-request": {
-              "url": "/k8s/v1.8/net.yaml?k8s-version=1.9",
-              "date": "Tue Mar 06 2018 01:14:36 GMT+0000 (UTC)"
+              "url": "/k8s/v1.10/net.yaml?k8s-version=1.15",
+              "date": "Thu Aug 15 2019 05:48:37 GMT+0000 (UTC)"
             },
             "email-address": "support@weave.works"
           }
@@ -116,8 +121,8 @@ items:
         cloud.weave.works/launcher-info: |-
           {
             "original-request": {
-              "url": "/k8s/v1.8/net.yaml?k8s-version=1.9",
-              "date": "Tue Mar 06 2018 01:14:36 GMT+0000 (UTC)"
+              "url": "/k8s/v1.10/net.yaml?k8s-version=1.15",
+              "date": "Thu Aug 15 2019 05:48:37 GMT+0000 (UTC)"
             },
             "email-address": "support@weave.works"
           }
@@ -132,7 +137,7 @@ items:
       - kind: ServiceAccount
         name: weave-net
         namespace: kube-system
-  - apiVersion: extensions/v1beta1
+  - apiVersion: apps/v1
     kind: DaemonSet
     metadata:
       name: weave-net
@@ -140,8 +145,8 @@ items:
         cloud.weave.works/launcher-info: |-
           {
             "original-request": {
-              "url": "/k8s/v1.8/net.yaml?k8s-version=1.9",
-              "date": "Tue Mar 06 2018 01:14:36 GMT+0000 (UTC)"
+              "url": "/k8s/v1.10/net.yaml?k8s-version=1.15",
+              "date": "Thu Aug 15 2019 05:48:37 GMT+0000 (UTC)"
             },
             "email-address": "support@weave.works"
           }
@@ -149,6 +154,10 @@ items:
         name: weave-net
       namespace: kube-system
     spec:
+      selector:
+        matchLabels:
+          name: weave-net
+      minReadySeconds: 5
       template:
         metadata:
           labels:
@@ -159,20 +168,17 @@ items:
               command:
                 - /home/weave/launch.sh
               env:
-                - name: IPALLOC_RANGE
-                  value: {{cnf["pod_ip_range"]}}
                 - name: HOSTNAME
                   valueFrom:
                     fieldRef:
                       apiVersion: v1
                       fieldPath: spec.nodeName
-              image: '{{cnf["dockers"]["container"]["weave"]["fullname"]}}' 
-              livenessProbe:
+              image: '{{cnf["dockers"]["container"]["weave"]["fullname"]}}'
+              readinessProbe:
                 httpGet:
                   host: 127.0.0.1
                   path: /status
                   port: 6784
-                initialDelaySeconds: 30
               resources:
                 requests:
                   cpu: 10m
@@ -194,7 +200,6 @@ items:
                 - name: xtables-lock
                   mountPath: /run/xtables.lock
             - name: weave-npc
-              args: []
               env:
                 - name: HOSTNAME
                   valueFrom:
@@ -241,5 +246,6 @@ items:
             - name: xtables-lock
               hostPath:
                 path: /run/xtables.lock
+                type: FileOrCreate
       updateStrategy:
         type: RollingUpdate

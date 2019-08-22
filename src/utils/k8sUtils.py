@@ -165,7 +165,7 @@ def GetServiceAddress(jobId):
 def GetPod(selector):
     podInfo = {}
     try:
-        output = kubectl_exec(" get pod -o yaml --show-all -l " + selector)
+        output = kubectl_exec(" get pod -o yaml -l " + selector)
         podInfo = yaml.load(output)
     except Exception as e:
         logger.exception("kubectl get pod")

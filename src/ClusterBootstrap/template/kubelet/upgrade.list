@@ -1,5 +1,3 @@
-./deploy/master/40-ExecStartPre-symlink.conf,/etc/systemd/system/flanneld.service.d/40-ExecStartPre-symlink.conf
-./deploy/master/40-flannel.conf,/etc/systemd/system/docker.service.d/40-flannel.conf
 ./deploy/kubelet/options.env,/etc/flannel/options.env
 ./deploy/kubelet/kubelet.service,/etc/systemd/system/kubelet.service
 ./deploy/kubelet/worker-kubeconfig.yaml,/etc/kubernetes/worker-kubeconfig.yaml
@@ -9,7 +7,18 @@
 ./deploy/ssl/ca/ca.pem,/etc/kubernetes/ssl/ca.pem
 ./deploy/ssl/kubelet/apiserver.pem,/etc/kubernetes/ssl/worker.pem
 ./deploy/ssl/kubelet/apiserver-key.pem,/etc/kubernetes/ssl/worker-key.pem
-./deploy/kubelet/report.sh,/opt/report.sh
-./deploy/kubelet/reportcluster.service,/etc/systemd/system/reportcluster.service
 ./deploy/kubelet/nodelist.yaml,/etc/kubernetes/nodes/nodelist.yaml
-./deploy/kubelet/daemon.json,/etc/docker/daemon.json
+./deploy/bin/macvlan,/opt/cni/bin/macvlan
+./deploy/bin/dhcp,/opt/cni/bin/dhcp
+./deploy/bin/loopback,/opt/cni/bin/loopback
+./deploy/bin/ptp,/opt/cni/bin/ptp
+./deploy/bin/ipvlan,/opt/cni/bin/ipvlan
+./deploy/bin/bridge,/opt/cni/bin/bridge
+./deploy/bin/tuning,/opt/cni/bin/tuning
+./deploy/bin/host-local,/opt/cni/bin/host-local
+./deploy/bin/flannel,/opt/cni/bin/flannel
+./deploy/bin/host-device,/opt/cni/bin/host-device
+./deploy/bin/portmap,/opt/cni/bin/portmap
+./deploy/bin/sample,/opt/cni/bin/sample
+./deploy/bin/vlan,/opt/cni/bin/vlan
+./deploy/kubelet/10-weave.conf,/etc/cni/net.d/10-weave.conf

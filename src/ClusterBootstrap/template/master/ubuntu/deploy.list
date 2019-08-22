@@ -19,6 +19,7 @@
 ./deploy/WebUI/appsettings.json,/etc/WebUI/appsettings.json
 ./deploy/RestfulAPI/config.yaml,/etc/RestfulAPI/config.yaml
 ./deploy/master/restapi-kubeconfig.yaml,/etc/kubernetes/restapi-kubeconfig.yaml
+./deploy/services/clusterroles/clusterrolebindings.yaml,/etc/kubernetes/clusterroles/clusterrolebindings.yaml
 ./deploy/bin/macvlan,/opt/cni/bin/macvlan
 ./deploy/bin/dhcp,/opt/cni/bin/dhcp
 ./deploy/bin/loopback,/opt/cni/bin/loopback
@@ -26,9 +27,11 @@
 ./deploy/bin/ipvlan,/opt/cni/bin/ipvlan
 ./deploy/bin/bridge,/opt/cni/bin/bridge
 ./deploy/bin/tuning,/opt/cni/bin/tuning
-./deploy/bin/noop,/opt/cni/bin/noop
 ./deploy/bin/host-local,/opt/cni/bin/host-local
-./deploy/bin/cnitool,/opt/cni/bin/cnitool
 ./deploy/bin/flannel,/opt/cni/bin/flannel
-./deploy/services/clusterroles/clusterrolebindings.yaml,/etc/kubernetes/clusterroles/clusterrolebindings.yaml
+./deploy/bin/host-device,/opt/cni/bin/host-device
+./deploy/bin/portmap,/opt/cni/bin/portmap
+./deploy/bin/sample,/opt/cni/bin/sample
+./deploy/bin/vlan,/opt/cni/bin/vlan
 ./deploy/services/clusterroles/clusterroles.yaml,/etc/kubernetes/clusterroles/clusterroles.yaml
+./deploy/kubelet/10-weave.conf,/etc/cni/net.d/10-weave.conf

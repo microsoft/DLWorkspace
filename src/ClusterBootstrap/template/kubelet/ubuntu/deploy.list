@@ -20,8 +20,11 @@
 ./deploy/bin/ipvlan,/opt/cni/bin/ipvlan
 ./deploy/bin/bridge,/opt/cni/bin/bridge
 ./deploy/bin/tuning,/opt/cni/bin/tuning
-./deploy/bin/noop,/opt/cni/bin/noop
 ./deploy/bin/host-local,/opt/cni/bin/host-local
-./deploy/bin/cnitool,/opt/cni/bin/cnitool
 ./deploy/bin/flannel,/opt/cni/bin/flannel
+./deploy/bin/host-device,/opt/cni/bin/host-device
+./deploy/bin/portmap,/opt/cni/bin/portmap
+./deploy/bin/sample,/opt/cni/bin/sample
+./deploy/bin/vlan,/opt/cni/bin/vlan
 ./deploy/kubelet/daemon.json,/etc/docker/daemon.json
+./deploy/kubelet/10-weave.conf,/etc/cni/net.d/10-weave.conf
