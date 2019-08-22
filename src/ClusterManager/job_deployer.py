@@ -43,48 +43,43 @@ class JobDeployer:
         self.pretty = "pretty_example"
 
     @record
-    def create_pod(self, body, dry_run=None):
+    def create_pod(self, body):
         api_response = self.v1.create_namespaced_pod(
             namespace=self.namespace,
             body=body,
             pretty=self.pretty,
-            dry_run=dry_run,
         )
         return api_response
 
     @record
-    def delete_pod(self, name, grace_period_seconds=None, dry_run=None):
+    def delete_pod(self, name, grace_period_seconds=None):
         body = client.V1DeleteOptions()
         body.grace_period_seconds = grace_period_seconds
-        body.dry_run = dry_run
         api_response = self.v1.delete_namespaced_pod(
             name=name,
             namespace=self.namespace,
             pretty=self.pretty,
             body=body,
             grace_period_seconds=grace_period_seconds,
-            dry_run=dry_run,
         )
         return api_response
 
     @record
-    def create_service(self, body, dry_run=None):
+    def create_service(self, body):
         api_response = self.v1.create_namespaced_service(
             namespace=self.namespace,
             body=body,
             pretty=self.pretty,
-            dry_run=dry_run,
         )
         return api_response
 
     @record
-    def delete_service(self, name, dry_run=None):
+    def delete_service(self, name):
         api_response = self.v1.delete_namespaced_service(
             name=name,
             namespace=self.namespace,
             pretty=self.pretty,
             body=client.V1DeleteOptions(),
-            dry_run=dry_run,
         )
         return api_response
 
