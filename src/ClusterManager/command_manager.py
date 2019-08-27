@@ -31,7 +31,7 @@ import random
 
 import logging
 
-from cluster_manager import setup_exporter_thread, manager_iteration_histogram
+from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time
 
 logger = logging.getLogger(__name__)
 
@@ -52,8 +52,12 @@ def create_log(logdir = '/var/log/dlworkspace'):
         logging.config.dictConfig(logging_config)
 
 def Run():
+    register_stack_trace_dump()
     create_log()
+
     while True:
+        update_file_modification_time("command_manager")
+
         with manager_iteration_histogram.labels("command_manager").time():
             try:
                 dataHandler = DataHandler()

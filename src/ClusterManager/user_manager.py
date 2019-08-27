@@ -34,7 +34,7 @@ import k8sUtils
 from config import config
 from DataHandler import DataHandler
 
-from cluster_manager import setup_exporter_thread, manager_iteration_histogram
+from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time
 
 
 def create_log(logdir = '/var/log/dlworkspace'):
@@ -81,9 +81,13 @@ def set_user_directory():
             os.system("chmod 644 "+authorized_keyspath)
 
 def Run():
+    register_stack_trace_dump()
     create_log()
     logging.info("start to update user directory...")
+
     while True:
+        update_file_modification_time("user_manager")
+
         with manager_iteration_histogram.labels("user_manager").time():
             try:
                 set_user_directory()
