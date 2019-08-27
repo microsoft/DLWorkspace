@@ -505,25 +505,10 @@ def check_node_availability(ipAddress):
     #status = sock.connect_ex((ipAddress,22))
     return status == 0
 
-# check if on same domain
-def is_cur_on_same_domain():
-    if "network" in config and "domain" in config["network"]:
-        hostname = subprocess.check_output("hostname").strip()
-        try:
-            output = subprocess.check_output("nslookup {0}.{1}".format(hostname, config["network"]["domain"]), shell=True)
-            if "name:" in output.lower():
-                return True
-        except:
-            pass
-    return False
-
 # Get domain of the node
 def get_domain():
     if "network" in config and "domain" in config["network"] and len(config["network"]["domain"]) > 0 :
-        if is_cur_on_same_domain():
-            domain = ""
-        else:
-            domain = "."+config["network"]["domain"]
+        domain = "."+config["network"]["domain"]
     else:
         domain = ""
     return domain
