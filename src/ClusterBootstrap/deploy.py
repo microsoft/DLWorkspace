@@ -2810,10 +2810,6 @@ def start_one_kube_service(fname):
         except Exception as e:
             pass
 
-    if fname == "./deploy/services/jobmanager/jobmanager.yaml":
-        # recreate the configmap dlws-scripts
-        run_kubectl( ["create configmap dlws-scripts --from-file=../Jobs_Templete/ -o yaml --dry-run | ./deploy/bin/kubectl apply -f -"] )
-
     run_kubectl( ["create", "-f", fname ] )
 
 def stop_one_kube_service(fname):
