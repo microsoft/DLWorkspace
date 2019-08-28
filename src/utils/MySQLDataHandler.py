@@ -52,6 +52,7 @@ class DataHandler(object):
         self.clusterstatustablename = "clusterstatus"
         self.commandtablename = "commands"
         self.templatetablename = "templates"
+        self.jobprioritytablename = "job_priorities"
         server = config["mysql"]["hostname"]
         username = config["mysql"]["username"]
         password = config["mysql"]["password"]
@@ -254,6 +255,24 @@ class DataHandler(object):
                     CONSTRAINT name_scope UNIQUE(`name`, `scope`)
                 )
                 """ % (self.templatetablename)
+
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+            self.conn.commit()
+            cursor.close()
+
+
+            sql = """
+                CREATE TABLE IF NOT EXISTS  `%s`
+                (
+                    `id`             INT     NOT NULL AUTO_INCREMENT,
+                    `jobId`   varchar(50)   NOT NULL,
+                    `priority`     INT NOT NULL,
+                    `time`           DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                    PRIMARY KEY (`id`),
+                    CONSTRAINT identityName_jobId UNIQUE(`jobId`)
+                )
+                """ % (self.jobprioritytablename)
 
             cursor = self.conn.cursor()
             cursor.execute(sql)
@@ -979,6 +998,27 @@ class DataHandler(object):
             logger.error('Exception: %s', str(e))
             return False
 
+    def get_job_priority(self):
+        cursor = self.conn.cursor()
+        query = "select jobId, priority from {} where jobId in (select jobId from {} where jobStatus in (\"queued\", \"scheduling\", \"running\"))".format(self.jobprioritytablename, self.jobtablename)
+        cursor.execute(query)
+        priority_dict = {}
+        for job_id, priority in cursor:
+            priority_dict[job_id] = priority
+        self.conn.commit()
+        cursor.close()
+
+        return priority_dict
+
+    @record
+    def update_job_priority(self, job_priorites):
+        cursor = self.conn.cursor()
+        for job_id, priority in job_priorites.items():
+            query = "INSERT INTO {0}(jobId, priority, time) VALUES('{1}', {2}, SYSDATE()) ON DUPLICATE KEY UPDATE jobId='{1}', priority='{2}' ".format(self.jobprioritytablename, job_id, priority)
+            cursor.execute(query)
+        self.conn.commit()
+        cursor.close()
+        return True
 
     def __del__(self):
         logger.debug("********************** deleted a DataHandler instance *******************")

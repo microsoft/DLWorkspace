@@ -12,7 +12,6 @@ import traceback
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
 
-from JobRestAPIUtils import GetJobTotalGpu
 from jobs_tensorboard import GenTensorboardMeta
 import k8sUtils
 import joblog_manager
@@ -170,6 +169,13 @@ def KillJob(job_id, desiredState="killed"):
         return False
 
 
+def GetJobTotalGpu(jobParams):
+    numWorkers = 1
+    if "numpsworker" in jobParams:
+        numWorkers = int(jobParams["numpsworker"])
+    return int(jobParams["resourcegpu"]) * numWorkers
+
+
 def ApproveJob(job):
     try:
         job_id = job["jobId"]
@@ -320,88 +326,105 @@ def create_log(logdir = '/var/log/dlworkspace'):
         logging.config.dictConfig(logging_config)
 
 
-def JobInfoSorter(elem):
-    return elem["sortKey"]
+def get_priority_dict():
+    try:
+        dataHandler = DataHandler()
+        priority_dict = dataHandler.get_job_priority()
+        return priority_dict
+    except Exception as e:
+        logging.warning("Fetch job priority dict failed!", exc_info=True)
+        return {}
+    finally:
+        dataHandler.Close()
+
+
+def get_job_priority(priority_dict, job_id):
+    if job_id in priority_dict.keys():
+        return priority_dict[job_id]
+    return 65535
 
 
 def TakeJobActions(jobs):
     dataHandler = DataHandler()
     vcList = dataHandler.ListVCs()
-    clusterStatus, dummy = dataHandler.GetClusterStatus()
+    clusterStatus, _ = dataHandler.GetClusterStatus()
     dataHandler.Close()
 
-    globalTotalRes = ResourceInfo(clusterStatus["gpu_capacity"])
-    globalReservedRes = ResourceInfo(clusterStatus["gpu_reserved"])
+    cluster_gpu_capacity = clusterStatus["gpu_capacity"]
+    cluster_gpu_reserved = clusterStatus["gpu_reserved"]
+    globalTotalRes = ResourceInfo(cluster_gpu_capacity)
+    globalReservedRes = ResourceInfo(cluster_gpu_reserved)
 
+    vc_resources = {}
     localResInfo = ResourceInfo()
     globalResInfo = ResourceInfo.Difference(globalTotalRes, globalReservedRes)
 
+    priority_dict = get_priority_dict()
+    logging.info("Job priority dict: {}".format(priority_dict))
+
     for vc in vcList:
-        vcTotalRes = ResourceInfo(json.loads(vc["quota"]), vc["vcName"])
-        clusterTotalRes = ResourceInfo(clusterStatus["gpu_capacity"], vc["vcName"])
-        clusterReservedRes = ResourceInfo(clusterStatus["gpu_reserved"], vc["vcName"])
+        vcTotalRes = ResourceInfo(json.loads(vc["quota"]))
+        clusterTotalRes = ResourceInfo(clusterStatus["gpu_capacity"])
+        clusterReservedRes = ResourceInfo(clusterStatus["gpu_reserved"])
         vcReservedRes = clusterReservedRes.GetFraction(vcTotalRes, clusterTotalRes)
-        localResInfo.Add(ResourceInfo.Difference(vcTotalRes, vcReservedRes))
+        vc_resources[vc["vcName"]] = ResourceInfo.Difference(vcTotalRes, vcReservedRes)
 
     jobsInfo = []
     for job in jobs:
-        if job["jobStatus"] == "queued" or job["jobStatus"] == "scheduling" or job["jobStatus"] == "running":
+        if job["jobStatus"] in ["queued", "scheduling", "running"]:
             singleJobInfo = {}
             singleJobInfo["job"] = job
-            singleJobInfo["jobParams"] = json.loads(base64.b64decode(job["jobParams"]))
+            job_params = json.loads(base64.b64decode(job["jobParams"]))
+            singleJobInfo["preemptionAllowed"] = job_params["preemptionAllowed"]
+            singleJobInfo["jobId"] = job_params["jobId"]
             jobGpuType = "any"
-            if "gpuType" in singleJobInfo["jobParams"]:
-                jobGpuType = singleJobInfo["jobParams"]["gpuType"]
-            singleJobInfo["localResInfo"] = ResourceInfo({jobGpuType : GetJobTotalGpu(singleJobInfo["jobParams"])}, job["vcName"])
-            singleJobInfo["globalResInfo"] = ResourceInfo({jobGpuType : GetJobTotalGpu(singleJobInfo["jobParams"])})
+            if "gpuType" in job_params:
+                jobGpuType = job_params["gpuType"]
+            singleJobInfo["globalResInfo"] = ResourceInfo({jobGpuType : GetJobTotalGpu(job_params)})
             singleJobInfo["sortKey"] = str(job["jobTime"])
-            if singleJobInfo["jobParams"]["preemptionAllowed"]:
-                singleJobInfo["sortKey"] = "1_" + singleJobInfo["sortKey"]
+            priority = get_job_priority(priority_dict, singleJobInfo["jobId"])
+            if singleJobInfo["preemptionAllowed"]:
+                singleJobInfo["sortKey"] = "1_{:06d}_{}".format(priority, singleJobInfo["sortKey"])
             else:
-                singleJobInfo["sortKey"] = "0_" + singleJobInfo["sortKey"]
+                singleJobInfo["sortKey"] = "0_{:06d}_{}".format(priority, singleJobInfo["sortKey"])
             singleJobInfo["allowed"] = False
             jobsInfo.append(singleJobInfo)
 
-    jobsInfo.sort(key=JobInfoSorter)
+    jobsInfo.sort(key=lambda x: x["sortKey"])
 
-    logging.info("TakeJobActions : local resources : %s" % (localResInfo.CategoryToCountMap))
+    logging.info("TakeJobActions : local resources : %s" % (vc_resources))
     logging.info("TakeJobActions : global resources : %s" % (globalResInfo.CategoryToCountMap))
 
     for sji in jobsInfo:
-        logging.info("TakeJobActions : job : %s : %s : %s" % (sji["jobParams"]["jobName"], sji["localResInfo"].CategoryToCountMap, sji["sortKey"]))
-        if sji["jobParams"]["preemptionAllowed"]:
-            localResInfo.UnblockResourceCategory(sji["localResInfo"])
+        logging.info("TakeJobActions : job : %s : %s : %s" % (sji["jobId"], sji["globalResInfo"].CategoryToCountMap, sji["sortKey"]))
+        vc_name = sji["job"]["vcName"]
+        vc_resource = vc_resources[vc_name]
 
-        if (localResInfo.CanSatisfy(sji["localResInfo"])):
-            localResInfo.Subtract(sji["localResInfo"])
+        if (vc_resource.CanSatisfy(sji["globalResInfo"])):
+            vc_resource.Subtract(sji["globalResInfo"])
             globalResInfo.Subtract(sji["globalResInfo"])
             sji["allowed"] = True
-            logging.info("TakeJobActions : local assignment : %s : %s" % (sji["jobParams"]["jobName"], sji["localResInfo"].CategoryToCountMap))
-        elif not sji["jobParams"]["preemptionAllowed"]:
-            localResInfo.BlockResourceCategory(sji["localResInfo"]) #FIFO scheduling
-
-    #logging.info("TakeJobActions : local resources : %s" % (localResInfo.CategoryToCountMap))
-    #logging.info("TakeJobActions : global resources : %s" % (globalResInfo.CategoryToCountMap))
+            logging.info("TakeJobActions : local assignment : %s : %s" % (sji["jobId"], sji["globalResInfo"].CategoryToCountMap))
 
     for sji in jobsInfo:
-        if (sji["jobParams"]["preemptionAllowed"] and sji["allowed"] == False):
+        if sji["preemptionAllowed"] and (sji["allowed"] is False):
             if globalResInfo.CanSatisfy(sji["globalResInfo"]):
-                logging.info("TakeJobActions : job : %s : %s" % (sji["jobParams"]["jobName"], sji["globalResInfo"].CategoryToCountMap))
+                logging.info("TakeJobActions : job : %s : %s" % (sji["jobId"], sji["globalResInfo"].CategoryToCountMap))
                 # Strict FIFO policy not required for global (bonus) tokens since these jobs are anyway pre-emptible.
                 globalResInfo.Subtract(sji["globalResInfo"])
                 sji["allowed"] = True
-                logging.info("TakeJobActions : global assignment : %s : %s" % (sji["jobParams"]["jobName"], sji["globalResInfo"].CategoryToCountMap))
+                logging.info("TakeJobActions : global assignment : %s : %s" % (sji["jobId"], sji["globalResInfo"].CategoryToCountMap))
 
     logging.info("TakeJobActions : global resources : %s" % (globalResInfo.CategoryToCountMap))
 
     for sji in jobsInfo:
         try:
-            if sji["job"]["jobStatus"] == "queued" and sji["allowed"] == True:
+            if sji["job"]["jobStatus"] == "queued" and (sji["allowed"] is True):
                 SubmitJob(sji["job"])
-                logging.info("TakeJobActions : submitting job : %s : %s : %s" % (sji["jobParams"]["jobName"], sji["jobParams"]["jobId"], sji["sortKey"]))
-            elif sji["jobParams"]["preemptionAllowed"] and (sji["job"]["jobStatus"] == "scheduling" or sji["job"]["jobStatus"] == "running") and sji["allowed"] == False:
+                logging.info("TakeJobActions : submitting job : %s : %s" % (sji["jobId"], sji["sortKey"]))
+            elif sji["preemptionAllowed"] and (sji["job"]["jobStatus"] == "scheduling" or sji["job"]["jobStatus"] == "running") and (sji["allowed"] is False):
                 KillJob(sji["job"]["jobId"], "queued")
-                logging.info("TakeJobActions : pre-empting job : %s : %s : %s" % (sji["jobParams"]["jobName"], sji["jobParams"]["jobId"], sji["sortKey"]))
+                logging.info("TakeJobActions : pre-empting job : %s : %s" % (sji["jobId"], sji["sortKey"]))
         except Exception as e:
             logging.error("Process job failed {}".format(sji["job"]), exc_info=True)
 
