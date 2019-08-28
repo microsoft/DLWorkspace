@@ -63,9 +63,9 @@ spec:
             values:
             - "worker"
         topologyKey: "kubernetes.io/hostname"
-      {% endif %}
+      {% else %}
       preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 50
+      - weight: 50 # For regular jobs, distributed jobs will consume all gpus in node
         podAffinityTerm:
           labelSelector:
             matchExpressions:
@@ -74,64 +74,27 @@ spec:
               values:
               - "job"
           topologyKey: "kubernetes.io/hostname"
-    {% if job["gpuLimit"]|int == 1 %}
-      - weight: 30
+      - weight: 100 # For distributed jobs, try to cluster pod of same job into one region
         podAffinityTerm:
           labelSelector:
             matchExpressions:
-            - key: gpu-request
+            - key: jobId
               operator: In
               values:
-              - "3"
-          topologyKey: "kubernetes.io/hostname"
-      - weight: 29
+              - "{{ job["jobId"] }}"
+          topologyKey: "failure-domain.beta.kubernetes.io/region"
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 50
         podAffinityTerm:
           labelSelector:
             matchExpressions:
-            - key: gpu-request
+            - key: jobId
               operator: In
               values:
-              - "1"
-          topologyKey: "kubernetes.io/hostname"
-      - weight: 28
-        podAffinityTerm:
-          labelSelector:
-            matchExpressions:
-            - key: gpu-request
-              operator: In
-              values:
-              - "2"
-          topologyKey: "kubernetes.io/hostname"
-    {% elif job["gpuLimit"]|int == 2 %}
-      - weight: 30
-        podAffinityTerm:
-          labelSelector:
-            matchExpressions:
-            - key: gpu-request
-              operator: In
-              values:
-              - "2"
-          topologyKey: "kubernetes.io/hostname"
-      - weight: 29
-        podAffinityTerm:
-          labelSelector:
-            matchExpressions:
-            - key: gpu-request
-              operator: In
-              values:
-              - "1"
-          topologyKey: "kubernetes.io/hostname"
-    {% elif job["gpuLimit"]|int == 3 %}
-      - weight: 30
-        podAffinityTerm:
-          labelSelector:
-            matchExpressions:
-            - key: "gpu-request"
-              operator: In
-              values:
-              - "1"
-          topologyKey: "kubernetes.io/hostname"
-    {% endif %}
+              - "{{ job["jobId"] }}"
+          topologyKey: "failure-domain.beta.kubernetes.io/zone"
+      {% endif %}
   {% if job["dnsPolicy"] %}
   dnsPolicy: {{ job["dnsPolicy" ]}}
   {% endif %}
