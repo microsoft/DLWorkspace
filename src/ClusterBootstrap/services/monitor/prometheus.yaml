@@ -79,6 +79,10 @@ spec:
       labels:
         task: monitoring
         app: prometheus
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: '{{cnf["prometheus"]["reporter"]["port"]}}'
     spec:
       nodeSelector:
         prometheus: active
@@ -115,6 +119,18 @@ spec:
           mountPath: /etc/prometheus-alert
         - name: prometheus-data
           mountPath: /prometheus-data
+      - name: gpu-reporter
+        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}gpu-reporter:{{cnf["dockertag"]}}
+        args:
+          - 'python'
+          - '/gpu-reporter/reporter.py'
+          - '--prometheus_url'
+          - 'http://localhost:{{cnf["prometheus"]["port"]}}'
+          - '--port'
+          - '{{cnf["prometheus"]["reporter"]["port"]}}'
+        ports:
+        - name: reporter
+          containerPort: {{cnf["prometheus"]["reporter"]["port"]}}
       volumes:
       - name: config-volume
         configMap:
