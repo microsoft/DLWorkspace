@@ -3,13 +3,13 @@ groups:
       rules:
       - alert: ServicePodNotRunning
         expr: pai_pod_count{phase!="running"} > 0
-        for: 10m
+        for: 30m
         annotations:
           summary: "{{$labels.name}} in {{$labels.host_ip}} not running detected"
 
       - alert: ServicePodNotReady
         expr: pai_pod_count{phase="running", ready="false"} > 0
-        for: 10m
+        for: 30m
         labels:
           type: pai_service
         annotations:
@@ -17,7 +17,7 @@ groups:
 
       - alert: ServiceNotUp
         expr: up != 1
-        for: 10m
+        for: 30m
         labels:
           type: pai_service
         annotations:
