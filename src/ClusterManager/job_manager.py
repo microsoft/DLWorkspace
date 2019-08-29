@@ -341,7 +341,7 @@ def get_priority_dict():
 def get_job_priority(priority_dict, job_id):
     if job_id in priority_dict.keys():
         return priority_dict[job_id]
-    return 65535
+    return 100
 
 
 def TakeJobActions(jobs):

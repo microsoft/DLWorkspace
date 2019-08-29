@@ -1329,7 +1329,7 @@ class JobPriority(Resource):
 ##
 ## Actually setup the Api resource routing here
 ##
-api.add_resource(JobPriority, '/jobs/priorites')
+api.add_resource(JobPriority, '/jobs/priorities')
 
 @app.route("/metrics")
 def metrics():
