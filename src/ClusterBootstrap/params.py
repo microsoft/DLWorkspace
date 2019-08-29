@@ -43,7 +43,7 @@ default_config_parameters = {
     "mysql_data_path": "/var/lib/mysql",
 
     "datasource": "AzureSQL",
-
+    "defalt_virtual_cluster_name": "platform",
     # Discover server is used to find IP address of the host, it need to be a well-known IP address
     # that is pingable.
     "discoverserver": "4.2.2.1",
@@ -359,7 +359,7 @@ default_config_parameters = {
         "CCSAdmins": {
             # The match is in C# Regex Language, please refer to :
             # https://msdn.microsoft.com/en-us/library/az24scfc(v=vs.110).aspx
-            "Allowed": ["jinl@microsoft.com", "hongzl@microsoft.com", "sanjeevm@microsoft.com"],
+            "Allowed": ["jinl@microsoft.com", "hongzl@microsoft.com", "sanjeevm@microsoft.com","zhexu@microsoft.com"],
             "uid": "900000000-999999999",
             "gid": "508953967"
         },
@@ -387,7 +387,7 @@ default_config_parameters = {
     },
 
     "WebUIregisterGroups": ["MicrosoftUsers", "Live", "Gmail"],
-    "WebUIauthorizedGroups": [],  # [ "MicrosoftUsers", "Live", "Gmail" ],
+    "WebUIauthorizedGroups": ["MicrosoftUsers"],  # [ "MicrosoftUsers", "Live", "Gmail" ],
     "WebUIadminGroups": ["CCSAdmins"],
 
     # Selectively deploy (turn on) one or more authenticatin methods.
@@ -397,7 +397,7 @@ default_config_parameters = {
     "DeployAuthentications": ["Corp", "Live", "Gmail"],
     # You should remove WinBindServers if you will use
     # UserGroups for authentication.
-    "WinbindServers": ["http://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName={0}"],
+    # "WinbindServers": ["http://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName={0}"],
     "workFolderAccessPoint": "",
     "dataFolderAccessPoint": "",
 
@@ -609,6 +609,11 @@ default_config_parameters = {
         "tcp_port_for_pods": "30000-49999",
         "tcp_port_ranges": "80 443 30000-49999 25826",
         "udp_port_ranges": "25826",
+        "inter_connect": {
+            "tcp_port_ranges": "22 1443 2379 3306 5000 8086 10250",
+            # Need to white list dev machines to connect
+            # "source_addresses_prefixes": [ "52.151.0.0/16"]
+        },
         "dev_network": {
             "tcp_port_ranges": "22 1443 2379 3306 5000 8086",
             # Need to white list dev machines to connect
@@ -634,15 +639,15 @@ scriptblocks = {
         "webui",
         "docker push restfulapi",
         "docker push webui",
-        "nginx fqdn",
-        "nginx config",
+        # "nginx fqdn",
+        # "nginx config",
         "mount",
         "kubernetes start mysql",
         "kubernetes start jobmanager",
         "kubernetes start restfulapi",
         "kubernetes start webportal",
         "kubernetes start cloudmonitor",
-        "kubernetes start nginx",
+        # "kubernetes start nginx",
         "kubernetes start custommetrics",
         # TODO(harry): we cannot distinguish gce aws from azure, so add the same providerID
         # This will not break current deployment.
