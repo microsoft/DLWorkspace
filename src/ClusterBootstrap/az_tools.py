@@ -307,7 +307,6 @@ def create_vnet():
 
 
 def create_nsg():
-    # print config["cloud_config"]["dev_network"]
     if "source_addresses_prefixes" in config["cloud_config"]["dev_network"]:
         source_addresses_prefixes = config["cloud_config"][
             "dev_network"]["source_addresses_prefixes"]
@@ -422,7 +421,7 @@ def create_cluster(arm_vm_password=None):
         create_sql()
 
     if arm_vm_password is not None:
-        # dev box
+        # dev box, used in extreme condition when there's only one public IP available, then would use dev in cluster to bridge-connect all of them
         create_vm_param(0, False, True, config["azure_cluster"]["infra_vm_size"],
                         True, arm_vm_password)
     for i in range(int(config["azure_cluster"]["infra_node_num"])):
@@ -431,7 +430,10 @@ def create_cluster(arm_vm_password=None):
     for i in range(int(config["azure_cluster"]["worker_node_num"])):
         create_vm_param(i, True, False, config["azure_cluster"]["worker_vm_size"],
                         arm_vm_password is not None, arm_vm_password)
-
+    # create nfs server if specified.
+    for i in range(int(config["azure_cluster"]["nfs_node_num"])):
+        create_vm_param(i, True, False, config["azure_cluster"]["worker_vm_size"],
+                        arm_vm_password is not None, arm_vm_password)
 
 def create_vm_param(i, isWorker, isDev, vm_size, no_az=False, arm_vm_password=None):
     if isWorker:
@@ -526,7 +528,7 @@ def vm_interconnects():
             --access allow
         """ % ( config["azure_cluster"]["resource_group_name"],
                 config["azure_cluster"]["nsg_name"],
-                config["cloud_config"]["dev_network"]["tcp_port_ranges"],
+                config["cloud_config"]["inter_connect"]["tcp_port_ranges"],
                 portinfo
                 )
     if verbose:
@@ -600,6 +602,19 @@ def get_disk_from_vm(vmname):
 
     return output.split("/")[-1].strip('\n')
 
+def AZvmsize2GPU(vmsize):
+    vmsz2GPU = {"Standard_NC6s_v2":"P100","Standard_NC12s_v2":"P100","Standard_NC24s_v2":"P100","Standard_NC24rs_v2":"P100",
+                "Standard_NC6s_v3":"V100","Standard_NC12s_v3":"V100","Standard_NC24s_v3":"V100","Standard_NC24rs_v3":"V100","Standard_ND40s_v2":"V100",
+                "Standard_ND6s":"P40","Standard_ND12s":"P40","Standard_ND24s":"P40","Standard_ND24rs":"P40",
+                "Standard_NV6":"M60","Standard_NV12":"M60","Standard_NV24":"M60","Standard_NV12s_v3":"M60","Standard_NV24s_v3":"M60","Standard_NV48s_v3":"M60"}
+    return vmsz2GPU.get(vmsize, "NULL")
+
+def AZvmsize2GPUcnt():
+    vmsz2GPU = {"Standard_NC6s_v2":"1","Standard_NC12s_v2":"2","Standard_NC24s_v2":"4","Standard_NC24rs_v2":"4",
+                "Standard_NC6s_v3":"1","Standard_NC12s_v3":"2","Standard_NC24s_v3":"4","Standard_NC24rs_v3":"4","Standard_ND40s_v2":"8",
+                "Standard_ND6s":"1","Standard_ND12s":"2","Standard_ND24s":"4","Standard_ND24rs":"4",
+                "Standard_NV6":"1","Standard_NV12":"2","Standard_NV24":"4","Standard_NV12s_v3":"1","Standard_NV24s_v3":"2","Standard_NV48s_v3":"4"}
+    return vmsz2GPU.get(vmsize, 0)
 
 def gen_cluster_config(output_file_name, output_file=True, no_az=False):
     bSQLOnly = (config["azure_cluster"]["infra_node_num"] <= 0)
@@ -674,11 +689,11 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
             if isNewlyScaledMachine(vmname):
                 cc["machines"][vmname] = {
                     "role": "worker", "scaled": True,
-                    "node-group": vm["vmSize"]}
+                    "node-group": vm["vmSize"],"gpu-type":AZvmsize2GPU(vm["vmSize"])}
             else:
                 cc["machines"][vmname] = {
                     "role": "worker",
-                    "node-group": vm["vmSize"]}
+                    "node-group": vm["vmSize"],"gpu-type":AZvmsize2GPU(vm["vmSize"])}
 
     if not bSQLOnly:
         # Require explicit authorization setting.
@@ -708,7 +723,6 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
             yaml.dump(cc, outfile, default_flow_style=False)
 
     return cc
-
 
 def isNewlyScaledMachine(vmName):
     scaler_config_file = os.path.join(dirpath, "deploy/scaler.yaml")

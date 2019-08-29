@@ -505,10 +505,25 @@ def check_node_availability(ipAddress):
     #status = sock.connect_ex((ipAddress,22))
     return status == 0
 
+# check if on same domain
+def is_cur_on_same_domain():
+    if "network" in config and "domain" in config["network"]:
+        hostname = subprocess.check_output("hostname").strip()
+        try:
+            output = subprocess.check_output("nslookup {0}.{1}".format(hostname, config["network"]["domain"]), shell=True)
+            if "name:" in output.lower():
+                return True
+        except:
+            pass
+    return False
+
 # Get domain of the node
 def get_domain():
     if "network" in config and "domain" in config["network"] and len(config["network"]["domain"]) > 0 :
-        domain = "."+config["network"]["domain"]
+        if is_cur_on_same_domain():
+            domain = ""
+        else:
+            domain = "."+config["network"]["domain"]
     else:
         domain = ""
     return domain
@@ -2413,6 +2428,11 @@ def exec_on_all_with_output(nodes, args, supressWarning = False):
         print "Node: " + node
         print output
 
+def exec_on_rand_master(args, supressWarning = False):
+    nodes = get_ETCD_master_nodes(config["clusterId"])
+    master_node = random.choice(nodes)
+    exec_on_all_with_output([master_node], args, supressWarning)
+
 # run a shell script on one remote node
 def run_script(node, args, sudo = False, supressWarning = False):
     if ".py" in args[0]:
@@ -2439,6 +2459,11 @@ def run_script(node, args, sudo = False, supressWarning = False):
 def run_script_on_all(nodes, args, sudo = False, supressWarning = False):
     for node in nodes:
         run_script( node, args, sudo = sudo, supressWarning = supressWarning)
+
+def run_script_on_rand_master(nargs, args):
+    nodes = get_ETCD_master_nodes(config["clusterId"])
+    master_node = random.choice(nodes)
+    run_script_on_all([master_node], nargs, sudo = args.sudo )
 
 def copy_to_all(nodes, src, dst):
     for node in nodes:
@@ -2755,14 +2780,11 @@ def kubernetes_label_nodes( verb, servicelists, force ):
                 kubernetes_label_node(cmdoptions, nodename, label+"-")
 
 
-# Label kubernete nodes with gpu types.
+# Label kubernete nodes with gpu types.skip for CPU workers
 def kubernetes_label_GpuTypes():
-    nodes = get_nodes(config["clusterId"])
-    gpuType_config = fetch_config(config, ["gpuType_config"])
-    for gpuType, nodes in gpuType_config:
-        for node in nodes:
-            nodename = kubernetes_get_node_name(node)
-            kubernetes_label_node("--overwrite", nodename, "gpuType="+gpuType)
+    for nodename,nodeInfo in config["machines"].items():
+        if nodeInfo["role"] == "worker" and nodeInfo["gpu-type"] != "NULL":
+            kubernetes_label_node("--overwrite", nodename, "gpuType="+nodeInfo["gpu-type"])
 
 
 def kubernetes_patch_nodes_provider (provider, scaledOnly):
@@ -2809,6 +2831,10 @@ def start_one_kube_service(fname):
             print service_yaml
         except Exception as e:
             pass
+
+    if fname == "./deploy/services/jobmanager/jobmanager.yaml":
+        # recreate the configmap dlws-scripts
+        run_kubectl( ["create configmap dlws-scripts --from-file=../Jobs_Templete/ -o yaml --dry-run | ./deploy/bin/kubectl apply -f -"] )
 
     run_kubectl( ["create", "-f", fname ] )
 
@@ -2907,6 +2933,23 @@ def run_docker_image( imagename, native = False, sudo = False ):
             os.system( "docker run --rm -ti " + matches[0] )
         else:
             run_docker( matches[0], prompt = imagename, dockerConfig = dockerConfig, sudo = sudo )
+
+def gen_dns_config_script():
+    dnsf = open("./scripts/dns.sh","w")
+    dnsf.write("sudo systemctl disable systemd-resolved.service\nsudo systemctl stop systemd-resolved\necho \"dns=default\" | sudo tee -a /etc/NetworkManager/NetworkManager.conf")
+    dnsf.write("sudo rm /etc/resolv.conf\necho \"nameserver 8.8.8.8\" | sudo tee -a /etc/resolv.conf\n")
+    dnsf.write("echo \"search {}.cloudapp.azure.com\" | sudo tee -a /etc/resolv.conf\n".format(config["azure_cluster"][config["cluster_name"]]["azure_location"]))
+    dnsf.write("sudo chattr -e /etc/resolv.conf\nsudo chattr +i /etc/resolv.conf\n")
+    dnsf.close()
+
+def gen_pass_secret_script():
+    psf= open("./scripts/pass_secret.sh","w")
+    cmds = []
+    for regi_name, regi_cred in config["registry_credential"].items():
+        psf.write("docker login {} -u {} -p {}\n".format(regi_name, regi_cred["username"], regi_cred["password"]))
+    psf.write("sudo ln -s /opt/bin/kubectl /usr/bin/kubectl\n")
+    psf.write("kubectl create secret generic regcred --from-file=.dockerconfigjson=/home/"+config["cloud_config"]["default_admin_username"]+"/.docker/config.json --type=kubernetes.io/dockerconfigjson --dry-run -o yaml | kubectl apply -f -\n")
+    psf.close()
 
 def run_command( args, command, nargs, parser ):
     # If necessary, show parsed arguments.
@@ -3087,6 +3130,11 @@ def run_command( args, command, nargs, parser ):
             parser.print_help()
             print "Error: build target %s is not recognized. " % nargs[0]
             exit()
+
+    elif command == "dnssetup":
+        os.system("./gene_loc_dns.sh")
+        nodes = get_nodes(config["clusterId"])
+        run_script_on_all(nodes, "./scripts/dns.sh", sudo = args.sudo )
 
     elif command == "sshkey":
         if len(nargs) >=1 and nargs[0] == "install":
@@ -3376,6 +3424,9 @@ def run_command( args, command, nargs, parser ):
         nodes = get_nodes(config["clusterId"])
         run_script_on_all(nodes, nargs, sudo = args.sudo )
 
+    elif command == "runscriptonrandmaster" and len(nargs)>=1:
+        run_script_on_rand_master(nargs, args)
+
     elif command == "runscriptonscaleup" and len(nargs)>=1:
         nodes = get_scaled_nodes(config["clusterId"])
         run_script_on_all(nodes, nargs, sudo = args.sudo )
@@ -3576,6 +3627,17 @@ def run_command( args, command, nargs, parser ):
             parser.print_help()
             print "Error: kubernetes need a subcommand."
             exit()
+
+    elif command == "gpulabel":
+        kubernetes_label_GpuTypes()
+
+    elif command == "gen_scripts":
+        # print(config["azure_cluster"].keys())
+        gen_dns_config_script()
+        gen_pass_secret_script()
+
+    elif command == "setconfigmap":
+        os.system('./deploy/bin/kubectl create configmap dlws-scripts --from-file=../Jobs_Templete -o yaml --dry-run | ./deploy.py kubectl apply -f -')
 
     elif command == "download":
         if len(nargs)>=1:
