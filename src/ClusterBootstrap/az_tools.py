@@ -609,7 +609,7 @@ def AZvmsize2GPU(vmsize):
                 "Standard_NV6":"M60","Standard_NV12":"M60","Standard_NV24":"M60","Standard_NV12s_v3":"M60","Standard_NV24s_v3":"M60","Standard_NV48s_v3":"M60"}
     return vmsz2GPU.get(vmsize, "NULL")
 
-def AZvmsize2GPUcnt():
+def AZvmsize2GPUcnt(vmsize):
     vmsz2GPU = {"Standard_NC6s_v2": 1,"Standard_NC12s_v2": 2,"Standard_NC24s_v2": 4,"Standard_NC24rs_v2": 4,
                 "Standard_NC6s_v3": 1,"Standard_NC12s_v3": 2,"Standard_NC24s_v3": 4,"Standard_NC24rs_v3": 4,"Standard_ND40s_v2": 8,
                 "Standard_ND6s": 1,"Standard_ND12s": 2,"Standard_ND24s": 4,"Standard_ND24rs": 4,

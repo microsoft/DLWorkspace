@@ -205,7 +205,7 @@ class DataHandler(object):
                     CONSTRAINT `hierarchy` FOREIGN KEY (`parent`) REFERENCES `%s` (`vcName`)
                 )
                 AS SELECT %s AS vcName, NULL AS parent, '{\"%s\":%s}' AS quota, '{\"%s\":{\"num_gpu_per_node\":%s}}' AS metadata;
-                """ % (self.vctablename, self.vctablename, config['defalt_virtual_cluster_name'], gpu_type, num_gpu_per_node*worker_cnt, gpu_type,num_gpu_per_node)
+                """ % (self.vctablename, self.vctablename, config['defalt_virtual_cluster_name'], gpu_type, n_gpu_pernode*worker_cnt, gpu_type,n_gpu_pernode)
 
             cursor = self.conn.cursor()
             cursor.execute(sql)
