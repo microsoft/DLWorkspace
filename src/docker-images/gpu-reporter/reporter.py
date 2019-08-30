@@ -17,6 +17,7 @@ import flask
 from flask import Flask
 from flask import request
 from flask import Response
+from flask_cors import CORS
 
 import prometheus_client
 from prometheus_client import Histogram
@@ -150,6 +151,7 @@ def refresher(prometheus_url, atomic_ref):
 
 def serve(prometheus_url, port):
     app = Flask(__name__)
+    CORS(app)
 
     atomic_ref = AtomicRef()
 
