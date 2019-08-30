@@ -631,10 +631,12 @@ scriptblocks = {
         "runscriptonall ./scripts/prepare_vm_disk.sh",
         "nfs-server create",
         "runscriptonall ./scripts/prepare_ubuntu.sh",
+        "gen_scripts",
         "runscriptonall ./scripts/dns.sh",
         "-y deploy",
         "-y updateworker",
         "-y kubernetes labels",
+        "-y gpulabel",
         "kubernetes start nvidia-device-plugin",
         "webui",
         "docker push restfulapi",
@@ -651,7 +653,9 @@ scriptblocks = {
         "kubernetes start custommetrics",
         # TODO(harry): we cannot distinguish gce aws from azure, so add the same providerID
         # This will not break current deployment.
-        "-y kubernetes patchprovider aztools"
+        "-y kubernetes patchprovider aztools",
+        "setconfigmap",
+        "--sudo runscriptonrandmaster ./scripts/pass_secret.sh",
     ],
     "azure_uncordon": [
         "runscriptonall ./scripts/prepare_vm_disk.sh",
