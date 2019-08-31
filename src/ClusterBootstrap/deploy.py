@@ -2946,9 +2946,9 @@ def gen_pass_secret_script():
     psf= open("./scripts/pass_secret.sh","w")
     cmds = []
     for regi_name, regi_cred in config["registry_credential"].items():
-        psf.write("docker login {} -u {} -p {}\n".format(regi_name, regi_cred["username"], regi_cred["password"]))
-    #psf.write("sudo ln -s /opt/bin/kubectl /usr/bin/kubectl\n")
-    psf.write("/opt/bin/kubectl create secret generic regcred --from-file=.dockerconfigjson=/home/"+config["cloud_config"]["default_admin_username"]+"/.docker/config.json --type=kubernetes.io/dockerconfigjson --dry-run -o yaml | kubectl apply -f -\n")
+        psf.write("docker login {} -u {} -p {}\n".format(regi_name, regi_cred["username"], regi_cred["password"]))    
+    psf.write("chown -R {}:{} /home/{}/.docker/\n".format(config["cloud_config"]["default_admin_username"],config["cloud_config"]["default_admin_username"],config["cloud_config"]["default_admin_username"]))
+    psf.write("/opt/bin/kubectl create secret generic regcred --from-file=.dockerconfigjson=/home/"+config["cloud_config"]["default_admin_username"]+"/.docker/config.json --type=kubernetes.io/dockerconfigjson --dry-run -o yaml | /opt/bin/kubectl apply -f -\n")
     psf.close()
 
 def run_command( args, command, nargs, parser ):

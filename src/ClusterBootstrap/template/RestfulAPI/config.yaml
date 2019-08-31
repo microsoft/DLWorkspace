@@ -31,3 +31,7 @@ webportal_node: {{cnf["webportal_node"]}}
 datasource : {{cnf["datasource"]}}
 kube_custom_scheduler: {{cnf["kube_custom_scheduler"]}}
 WinbindServers: {{cnf["WinbindServers"]}}
+azure_cluster :
+  worker_node_num : {{cnf["azure_cluster"][cnf["cluster_name"]]["worker_node_num"]}}
+  worker_vm_size : {{cnf["azure_cluster"][cnf["cluster_name"]]["worker_vm_size"]}}
+defalt_virtual_cluster_name: {{cnf["defalt_virtual_cluster_name"]}}
