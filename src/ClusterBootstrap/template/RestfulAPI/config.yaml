@@ -31,3 +31,16 @@ webportal_node: {{cnf["webportal_node"]}}
 datasource : {{cnf["datasource"]}}
 kube_custom_scheduler: {{cnf["kube_custom_scheduler"]}}
 WinbindServers: {{cnf["WinbindServers"]}}
+
+{% if cnf["job-manager"] %}
+job-manager:
+  {% if cnf["job-manager"]["notifier"] %}
+  notifier:
+    {% if cnf["job-manager"]["notifier"]["cluster"] %}
+    cluster: {{ cnf["job-manager"]["notifier"]["cluster"] }}
+    {% endif %}
+    {% if cnf["job-manager"]["notifier"]["alert-manager-url"] %}
+    alert-manager-url: {{ cnf["job-manager"]["notifier"]["alert-manager-url"] }}
+    {% endif %}
+  {% endif %}
+{% endif %}
