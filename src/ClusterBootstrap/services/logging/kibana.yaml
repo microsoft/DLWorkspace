@@ -1,43 +1,12 @@
-kind: DaemonSet
-apiVersion: apps/v1
-metadata:
-  name: kibana-logging
-  namespace: kube-system
-  labels:
-    k8s-app: kibana-logging
-    kubernetes.io/cluster-service: "true"
-    addonmanager.kubernetes.io/mode: Reconcile
-spec:
-  selector:
-    matchLabels:
-      k8s-app: kibana-logging
-  template:
-    metadata:
-      labels:
-        k8s-app: kibana-logging
-    spec:
-      hostNetwork: true
-      nodeSelector:
-        kibana: active
-      containers:
-      - name: kibana-logging
-        image: docker.elastic.co/kibana/kibana:5.6.2
-        resources:
-          # need more cpu upon initialization, therefore burstable class
-          limits:
-            cpu: 1000m
-          requests:
-            cpu: 100m
-        env:
-          - name: ELASTICSEARCH_URL
-            value: http://{{cnf["elasticsearch_node"]}}:9200
-          #- name: SERVER_BASEPATH
-            #value: /api/v1/proxy/namespaces/kube-system/services/kibana-logging
-          - name: XPACK_MONITORING_ENABLED
-            value: "false"
-          - name: XPACK_SECURITY_ENABLED
-            value: "false"
-        ports:
-        - containerPort: 5601
-          name: ui
-          protocol: TCP
+version: '2'
+services:
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.3.1
+    network_mode: "host"
+    environment:
+      SERVER_NAME: kibana.example.org
+      ELASTICSEARCH_HOSTS: http://elastic-0:9200
+      #    volumes:
+            #      - ./kibana.yml:/usr/share/kibana/config/kibana.yml
+    ports:
+      - 5601:5601
