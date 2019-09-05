@@ -181,7 +181,7 @@ def ApproveJob(job):
         job_id = job["jobId"]
         vcName = job["vcName"]
         jobParams = json.loads(base64.b64decode(job["jobParams"]))
-        total_gpus = GetJobTotalGpu(jobParams)
+        job_total_gpus = GetJobTotalGpu(jobParams)
 
         dataHandler = DataHandler()
         vcList = dataHandler.ListVCs()
@@ -195,12 +195,21 @@ def ApproveJob(job):
             return False
         metadata = json.loads(vc["metadata"])
 
-        if "user_quota" in metadata and int(metadata["user_quota"]) < total_gpus:
-            logging.info("Job {} excesses the user quota: {} > {}. Will need approve from admin.".format(job_id, total_gpus, metadata["user_quota"]))
-            return False
-        else:
-            dataHandler.UpdateJobTextField(job_id, "jobStatus", "queued")
-            return True
+        if "user_quota" in metadata:
+            user_running_jobs = dataHandler.GetJobList(job["userName"], vcName, status="running,queued,scheduling", op=("=", "or"))
+            running_gpus = 0
+            for running_job in user_running_jobs:
+                running_jobParams = json.loads(base64.b64decode(running_job["jobParams"]))
+                running_job_total_gpus = GetJobTotalGpu(running_jobParams)
+                running_gpus += running_job_total_gpus
+
+            logging.info("Job {} require {}, using {}, with user quote of {}.".format(job_id, job_total_gpus, running_gpus, metadata["user_quota"]))
+            if int(metadata["user_quota"]) < (running_gpus + job_total_gpus):
+                logging.info("Job {} excesses the user quota: {} + {} > {}. Will need approve from admin.".format(job_id, running_gpus, job_total_gpus, metadata["user_quota"]))
+                return False
+
+        dataHandler.UpdateJobTextField(job_id, "jobStatus", "queued")
+        return True
     except Exception as e:
         logging.warning(e, exc_info=True)
     finally:
