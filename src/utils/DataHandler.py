@@ -20,7 +20,6 @@ class DataManager:
 
 
     @staticmethod
-    @fcache()
     def ListVCs():
         dataHandler = DataHandler()
         ret = None
@@ -32,7 +31,6 @@ class DataManager:
 
     
     @staticmethod
-    @fcache()
     def GetResourceAcl(resourceAclPath):
         dataHandler = DataHandler()
         ret = None
@@ -44,7 +42,6 @@ class DataManager:
 
 
     @staticmethod
-    @fcache()
     def GetIdentityInfo(identityName):
         dataHandler = DataHandler()
         ret = None
