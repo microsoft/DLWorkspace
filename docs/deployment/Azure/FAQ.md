@@ -20,23 +20,23 @@ Please refer to [this](../knownissues/Readme.md) for more general deployment iss
 
 ## How do I know the node has been deployed?
 
-* you can log into the master node: ```./deploy.py connect master```
+* You can log into the master node: ```./deploy.py connect master```
 
 ## I could not build docker image/No such image/An image does not exist locally with the tag/The repository XXX does not have a Release file
 
-* check whether your docker is able to correctly resolve dns. First try on your devbox to ping a certain website, then do it in docker, such as `docker run -it busybox`,
+* Check whether your docker is able to correctly resolve dns. First try on your devbox to ping a certain website, then do it in docker, such as `docker run -it busybox`,
 	if the former setting can ping but not the later one, try to figure out whether your devbox need to visit public Internet via some private DNS. Then edit it in `/etc/docker/daemon.json` on your devbox. refer to [this article](https://medium.com/@faithfulanere/solved-docker-build-could-not-resolve-archive-ubuntu-com-apt-get-fails-to-install-anything-9ea4dfdcdcf2)
 	use `systemd-resolve --status` to get more info about DNS if it is not managed by network-manager
 
 ## I can connect master/infra node, but the UI is not working (cannot access from browser), how to debug?
 
-* login to the master node, and use ```docker ps | grep web``` to get the ID corresponding to Web UI, then use ```docker logs --follow <WebUI ID>``` to figure out what happened.
+* Login to the master node, and use ```docker ps | grep web``` to get the ID corresponding to Web UI, then use ```docker logs --follow <WebUI ID>``` to figure out what happened.
   a better way is to use ```sudo docker logs --tail 100 --follow $(sudo docker ps | grep webui | awk '{print $1}') ``` since the ID would change everytime the docker is restarted.
   Everytime after modifying /etc/WebUI/userconfig.json etc., remember to restart that docker image: ```docker rm -f <WebUI ID>```
 
 ## finished all deployment, but not able to connect to master node via ```./deploy.py connect master```, ssh denied even with ``` ssh -i deploy/sshkey/id_rsa core@<infra node url>```.  
 
-* need to change owner ```sudo chown -R <usr_name>:<usr_name> DLWorkspace/```, can check ownership using ```ls -l```
+* Need to change owner ```sudo chown -R <usr_name>:<usr_name> DLWorkspace/```, can check ownership using ```ls -l```
 
 ## I can't execute Spark job on Azure. 
 

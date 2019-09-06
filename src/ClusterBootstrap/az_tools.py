@@ -683,17 +683,21 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
         vm_list = get_vm_list_by_grp()
     else:
         vm_list = get_vm_list_by_enum()
+
+    sku_mapping_cnfn = "../utils/sku_mapping.yaml"
+    f = open(sku_mapping_cnfn)
+    sku_mapping = yaml.load(f)
     for vm in vm_list:
         vmname = vm["name"]
         if "-worker" in vmname:
             if isNewlyScaledMachine(vmname):
                 cc["machines"][vmname] = {
                     "role": "worker", "scaled": True,
-                    "node-group": vm["vmSize"],"gpu-type":AZvmsize2GPU(vm["vmSize"])}
+                    "node-group": vm["vmSize"],"gpu-type":sku_mapping[vm["vmSize"]]["gpu-type"]}
             else:
                 cc["machines"][vmname] = {
                     "role": "worker",
-                    "node-group": vm["vmSize"],"gpu-type":AZvmsize2GPU(vm["vmSize"])}
+                    "node-group": vm["vmSize"],"gpu-type":sku_mapping[vm["vmSize"]]["gpu-type"]}
 
     if not bSQLOnly:
         # Require explicit authorization setting.

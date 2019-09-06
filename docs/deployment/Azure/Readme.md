@@ -13,25 +13,25 @@ then use the devbox to deploy node on cloud.
 Workflow:
 1. Please [configure](configure.md) your azure cluster. Put config.yaml under src/ClusterBootstrap
 
-2. change directory to src/ClusterBootstrap on devbox, and install prerequisite packages:
+2. Change directory to src/ClusterBootstrap on devbox, and install prerequisite packages:
 ```
 cd src/ClusterBootstrap/ 
 sudo ./install_prerequisites.sh
 ```
-3. login to Azure, setup proper subscription and confirm
+3. Login to Azure, setup proper subscription and confirm
 ```
 SUBSCRIPTION_NAME="<subscription name>" 
 az login
 az account set --subscription "${SUBSCRIPTION_NAME}" 
 az account list | grep -A5 -B5 '"isDefault": true'
 ```
-configure your location, should be the same as you specified in config.yaml file:
+Configure your location, should be the same as you specified in config.yaml file:
 ```AZ_LOCATION="<your location>"```
-execute this command, log out(exit) and log in back
+Execute this command, log out(exit) and log in back
 ```sudo usermod -aG docker zhe_ms```
 4. Initiate cluster and generate certificates and keys:
 ```
- ./deploy.py -y build
+./deploy.py -y build
 ```
 
 5. Create Azure Cluster:
@@ -92,10 +92,10 @@ Please note that if you are not Microsoft user, you should remove the
   ```./deploy.py connect master```
   On master node(log in from devbox by ./deploy.py connect master), manually add ```"Grafana": "",``` to /etc/WebUI/userconfig.json, under "Restapi" entry.
   Restart the WebUI docker:
-  login to the master node, and use 
+  Login to the master node, and use
   ```docker ps | grep web``` 
   to get the ID corresponding to Web UI, then restart that docker image: 
   ```docker rm -f <WebUI ID>```
-  wait for minutes for it to restart (can follow by using ```docker logs --follow <WebUI ID>```) and visit the infra node from web browser.
+  Wait for minutes for it to restart (can follow by using ```docker logs --follow <WebUI ID>```) and visit the infra node from web browser.
 
-9. If you run into a deployment issue, please check [here](FAQ.md) first. 
+9. If you run into a deployment issue, please check [here](FAQ.md) first.

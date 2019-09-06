@@ -2935,21 +2935,10 @@ def run_docker_image( imagename, native = False, sudo = False ):
             run_docker( matches[0], prompt = imagename, dockerConfig = dockerConfig, sudo = sudo )
 
 def gen_dns_config_script():
-    dnsf = open("./scripts/dns.sh","w")
-    dnsf.write("sudo systemctl disable systemd-resolved.service\nsudo systemctl stop systemd-resolved\necho \"dns=default\" | sudo tee -a /etc/NetworkManager/NetworkManager.conf")
-    dnsf.write("sudo rm /etc/resolv.conf\necho \"nameserver 8.8.8.8\" | sudo tee -a /etc/resolv.conf\n")
-    dnsf.write("echo \"search {}.cloudapp.azure.com\" | sudo tee -a /etc/resolv.conf\n".format(config["azure_cluster"][config["cluster_name"]]["azure_location"]))
-    dnsf.write("sudo chattr -e /etc/resolv.conf\nsudo chattr +i /etc/resolv.conf\n")
-    dnsf.close()
+    utils.render_template("./template/dns/dns.sh.template", "deploy/kubeconfig/kubeconfig.yaml", config)
 
 def gen_pass_secret_script():
-    psf= open("./scripts/pass_secret.sh","w")
-    cmds = []
-    for regi_name, regi_cred in config["registry_credential"].items():
-        psf.write("docker login {} -u {} -p {}\n".format(regi_name, regi_cred["username"], regi_cred["password"]))    
-    psf.write("chown -R {}:{} /home/{}/.docker/\n".format(config["cloud_config"]["default_admin_username"],config["cloud_config"]["default_admin_username"],config["cloud_config"]["default_admin_username"]))
-    psf.write("/opt/bin/kubectl create secret generic regcred --from-file=.dockerconfigjson=/home/"+config["cloud_config"]["default_admin_username"]+"/.docker/config.json --type=kubernetes.io/dockerconfigjson --dry-run -o yaml | /opt/bin/kubectl apply -f -\n")
-    psf.close()
+    utils.render_template("./template/dns/pass.sh.template", "scripts/pass.sh", config)
 
 def run_command( args, command, nargs, parser ):
     # If necessary, show parsed arguments.
@@ -3631,7 +3620,7 @@ def run_command( args, command, nargs, parser ):
     elif command == "gpulabel":
         kubernetes_label_GpuTypes()
 
-    elif command == "gen_scripts":
+    elif command == "genscripts":
         # print(config["azure_cluster"].keys())
         gen_dns_config_script()
         gen_pass_secret_script()

@@ -13,23 +13,6 @@ from config import config
 from config import global_vars
 
 from prometheus_client import Histogram
-
-# sys.path.append("../ClusterBootstrap")
-
-# from az_tools import AZvmsize2GPU, AZvmsize2GPUcnt
-def AZvmsize2GPU(vmsize):
-    vmsz2GPU = {"Standard_NC6s_v2":"P100","Standard_NC12s_v2":"P100","Standard_NC24s_v2":"P100","Standard_NC24rs_v2":"P100",
-                "Standard_NC6s_v3":"V100","Standard_NC12s_v3":"V100","Standard_NC24s_v3":"V100","Standard_NC24rs_v3":"V100","Standard_ND40s_v2":"V100",
-                "Standard_ND6s":"P40","Standard_ND12s":"P40","Standard_ND24s":"P40","Standard_ND24rs":"P40",
-                "Standard_NV6":"M60","Standard_NV12":"M60","Standard_NV24":"M60","Standard_NV12s_v3":"M60","Standard_NV24s_v3":"M60","Standard_NV48s_v3":"M60"}
-    return vmsz2GPU.get(vmsize, "NULL")
-
-def AZvmsize2GPUcnt(vmsize):
-    vmsz2GPU = {"Standard_NC6s_v2": 1,"Standard_NC12s_v2": 2,"Standard_NC24s_v2": 4,"Standard_NC24rs_v2": 4,
-                "Standard_NC6s_v3": 1,"Standard_NC12s_v3": 2,"Standard_NC24s_v3": 4,"Standard_NC24rs_v3": 4,"Standard_ND40s_v2": 8,
-                "Standard_ND6s": 1,"Standard_ND12s": 2,"Standard_ND24s": 4,"Standard_ND24rs": 4,
-                "Standard_NV6": 1,"Standard_NV12": 2,"Standard_NV24": 4,"Standard_NV12s_v3": 1,"Standard_NV24s_v3": 2,"Standard_NV48s_v3": 4}
-    return vmsz2GPU.get(vmsize, 0)
     
 logger = logging.getLogger(__name__)
 
@@ -203,8 +186,11 @@ class DataHandler(object):
             # impossible since there's no way to do it with current config mechanism
 
             worker_cnt = int(config["azure_cluster"]["worker_node_num"])
-            n_gpu_pernode = AZvmsize2GPUcnt(config["azure_cluster"]["worker_vm_size"])
-            gpu_type = AZvmsize2GPU(config["azure_cluster"]["worker_vm_size"])
+            sku_mapping_cnfn = "./sku_mapping.yaml"
+            f = open(sku_mapping_cnfn)
+            sku_mapping = yaml.load(f)
+            n_gpu_pernode = sku_mapping[config["azure_cluster"]["worker_vm_size"]]["gpu-count"]
+            gpu_type = sku_mapping[config["azure_cluster"]["worker_vm_size"]]["gpu-type"]
             sql = """
                 CREATE TABLE IF NOT EXISTS  `%s`
                 (
