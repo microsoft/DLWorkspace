@@ -44,6 +44,8 @@ spec:
           #  value: "kubernetes"
           - name: FLUENT_UID
             value: "0"
+          - name: FLUENT_ELASTICSEARCH_LOGSTASH_PREFIX
+            value: "CHANGE THE PREFIX FOR DIFFERENT CLUSTER"
         resources:
           limits:
             memory: 200Mi
