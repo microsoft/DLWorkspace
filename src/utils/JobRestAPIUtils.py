@@ -310,10 +310,10 @@ def ApproveJob(userName, jobId):
 def ResumeJob(userName, jobId):
     dataHandler = DataHandler()
     ret = False
-    jobs =  dataHandler.GetJob(jobId=jobId)
+    jobs = dataHandler.GetJob(jobId=jobId)
     if len(jobs) == 1:
         if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
-            ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","queued")
+            ret = dataHandler.UpdateJobTextField(jobId, "jobStatus", "unapproved")
     dataHandler.Close()
     return ret
 
