@@ -621,6 +621,19 @@ def get_worker_nodes_from_config(clusterId):
     config["worker_node"] = Nodes
     return Nodes
 
+def get_nodes_by_role(role):
+    """
+    role: "infrastructure", "worker", or "nfs"
+    this function aims to deprecate get_worker_nodes_from_config and get_ETCD_master_nodes_from_config
+    """
+    Nodes = get_nodes_from_config(role)
+    if role == "infrastructure":
+        config["etcd_node"] = Nodes
+        config["kubernetes_master_node"] = Nodes
+    else:
+        config["{}_node".format(role)] = Nodes
+    return Nodes    
+
 def get_worker_nodes(clusterId, isScaledOnly):
     nodes = []
     if "worker_node" in config and len(config["worker_node"]) > 0:
@@ -628,7 +641,8 @@ def get_worker_nodes(clusterId, isScaledOnly):
     if "useclusterfile" not in config or not config["useclusterfile"]:
         nodes = get_worker_nodes_from_cluster_report(clusterId)
     else:
-        nodes = get_worker_nodes_from_config(clusterId)
+        print("from console")
+        nodes = get_nodes_by_role("worker") #get_worker_nodes_from_config(clusterId)
 
     if isScaledOnly:
         return get_scaled_nodes_from_config()
@@ -650,7 +664,7 @@ def limit_nodes(nodes):
         return nodes
 
 def get_nodes(clusterId):
-    nodes = get_ETCD_master_nodes(clusterId) + get_worker_nodes(clusterId, False)
+    nodes = get_ETCD_master_nodes(clusterId) + get_worker_nodes(clusterId, False) + get_nodes_by_role("nfs")
     nodes = limit_nodes(nodes)
     return nodes
 
@@ -666,10 +680,12 @@ def check_master_ETCD_status():
     print "Checking Available Nodes for Deployment..."
     get_ETCD_master_nodes(config["clusterId"])
     get_worker_nodes(config["clusterId"], False)
+    get_nodes_by_role("nfs")
     print "==============================================="
     print "Activate Master Node(s): %s\n %s \n" % (len(config["kubernetes_master_node"]),",".join(config["kubernetes_master_node"]))
     print "Activate ETCD Node(s):%s\n %s \n" % (len(config["etcd_node"]),",".join(config["etcd_node"]))
     print "Activate Worker Node(s):%s\n %s \n" % (len(config["worker_node"]),",".join(config["worker_node"]))
+    print "Activate NFS Node(s):%s\n %s \n" % (len(config["nfs_node"]),",".join(config["nfs_node"]))
 
 def clean_deployment():
     print "==============================================="
@@ -3061,15 +3077,15 @@ def run_command( args, command, nargs, parser ):
 
     elif command == "connect":
             check_master_ETCD_status()
-            if len(nargs) < 1 or nargs[0] == "master":
+            role2connect = nargs[0]
+            print(role2connect, config["ssh_cert"], config["admin_username"])
+            if len(nargs) < 1 or role2connect == "master":
                 nodes = config["kubernetes_master_node"]
-            elif nargs[0] == "etcd":
-                nodes = config["etcd_node"]
-            elif nargs[0] == "worker":
-                nodes = config["worker_node"]
+            elif role2connect in ["etcd","worker","nfs"]:
+                nodes = config["{}_node".format(role2connect)]
             else:
                 parser.print_help()
-                print "ERROR: must connect to either master, etcd or worker nodes"
+                print "ERROR: must connect to either master, etcd, nfs or worker nodes"
                 exit()
             if len(nodes) == 0:
                 parser.print_help()

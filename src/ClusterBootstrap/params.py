@@ -617,7 +617,14 @@ default_config_parameters = {
             "tcp_port_ranges": "22 1443 2379 3306 5000 8086",
             # Need to white list dev machines to connect
             # "source_addresses_prefixes": [ "52.151.0.0/16"]
-        }
+        },
+        "nfs_share": {
+            "source_ips": "104.44.112.0/24 131.107.0.0/16",
+        },
+        "nfs_ssh": {
+            "source_ips": "131.107.0.0/16 104.44.0.0/16",
+            "port": "22",
+        },
     },
     "vc_config":{
         "VC-Default":["*"],

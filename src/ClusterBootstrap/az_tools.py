@@ -76,6 +76,9 @@ def update_config(config, genSSH=True):
     config["azure_cluster"]["nsg_name"] = config[
         "azure_cluster"]["cluster_name"] + "-nsg"
 
+    if int(config["azure_cluster"]["nfs_node_num"]) > 0:
+        config["azure_cluster"]["nfs_nsg_name"] = config[
+        "azure_cluster"]["cluster_name"] + "-nfs-nsg"
     config["azure_cluster"]["sql_server_name"] = config[
         "azure_cluster"]["cluster_name"] + "sqlserver"
     config["azure_cluster"]["sql_admin_name"] = config[
@@ -145,7 +148,9 @@ def create_vm_pwd(vmname, vm_ip, vm_size, use_private_ip, pwd):
     output = utils.exec_cmd_local(cmd)
     print(output)
 
-def create_vm(vmname, vm_ip, bIsWorker, vm_size):
+def create_vm(vmname, vm_ip, role, vm_size):
+    specify_priv_IP = role in ["worker","nfs"]
+    nsg = "nfs_nsg_name" if role == "nfs" else "nsg_name"
     cmd = """
         az vm create --resource-group %s \
                  --name %s \
@@ -170,10 +175,10 @@ def create_vm(vmname, vm_ip, bIsWorker, vm_size):
                config["azure_cluster"]["azure_location"],
                vm_size,
                config["azure_cluster"]["vnet_name"],
-               config["azure_cluster"]["nsg_name"],
+               config["azure_cluster"][nsg],
                config["cloud_config"]["default_admin_username"],
                config["azure_cluster"]["vm_storage_sku"],
-               config["azure_cluster"]["sshkey"]) if not bIsWorker else """
+               config["azure_cluster"]["sshkey"]) if not specify_priv_IP else """
         az vm create --resource-group %s \
                  --name %s \
                  --image %s \
@@ -195,7 +200,7 @@ def create_vm(vmname, vm_ip, bIsWorker, vm_size):
                config["azure_cluster"]["azure_location"],
                vm_size,
                config["azure_cluster"]["vnet_name"],
-               config["azure_cluster"]["nsg_name"],
+               config["azure_cluster"][nsg],
                config["cloud_config"]["default_admin_username"],
                config["azure_cluster"]["vm_storage_sku"],
                config["azure_cluster"]["sshkey"])
@@ -367,13 +372,58 @@ def create_nsg():
             --name allowdevtcp \
             --protocol tcp \
             --priority 900 \
-            --destination-port-range %s \
+            --destination-port-ranges %s \
             --source-address-prefixes %s \
             --access allow
         """ % ( config["azure_cluster"]["resource_group_name"],
                 config["azure_cluster"]["nsg_name"],
                 config["cloud_config"]["dev_network"]["tcp_port_ranges"],
                 source_addresses_prefixes
+                )
+    output = utils.exec_cmd_local(cmd)
+    print(output)
+
+def create_nfs_nsg():
+    cmd = """
+        az network nsg create \
+            --resource-group %s \
+            --name %s
+        """ % ( config["azure_cluster"]["resource_group_name"],
+                config["azure_cluster"]["nfs_nsg_name"])
+    if verbose:
+        print(cmd)
+    output = utils.exec_cmd_local(cmd)
+    print(output)
+
+    cmd = """
+        az network nsg rule create \
+            --resource-group %s \
+            --nsg-name %s \
+            --name allow_ssh\
+            --priority 900 \
+            --destination-port-ranges %s \
+            --source-address-prefixes %s \
+            --access allow
+        """ % ( config["azure_cluster"]["resource_group_name"],
+                config["azure_cluster"]["nfs_nsg_name"],
+                config["cloud_config"]["nfs_ssh"]["port"],
+                " ".join(config["cloud_config"]["nfs_ssh"]["source_ips"]),
+                )
+    output = utils.exec_cmd_local(cmd)
+    print(output)
+
+    cmd = """
+        az network nsg rule create \
+            --resource-group %s \
+            --nsg-name %s \
+            --name allow_share \
+            --priority 1000 \
+            --source-address-prefixes %s \
+            --destination-port-ranges \'*\' \
+            --access allow
+        """ % ( config["azure_cluster"]["resource_group_name"],
+                config["azure_cluster"]["nfs_nsg_name"],
+                " ".join(config["cloud_config"]["nfs_share"]["source_ips"]),
                 )
     output = utils.exec_cmd_local(cmd)
     print(output)
@@ -389,13 +439,13 @@ def delete_group():
     print(output)
 
 
-def get_vm_ip(i, bIsWorker, bIsDev):
+def get_vm_ip(i, role):
     vnet_range = config["cloud_config"]["vnet_range"]
     vnet_ip = vnet_range.split("/")[0]
     vnet_ips = vnet_ip.split(".")
-    if bIsWorker:
+    if role in ["worker", "nfs"]:
         return vnet_ips[0] + "." + vnet_ips[1] + "." + "1" + "." + str(i + 1)
-    elif bIsDev:
+    elif role == "dev":
         return vnet_ips[0] + "." + vnet_ips[1] + "." + "255" + "." + str(int(config["azure_cluster"]["infra_node_num"]) + 1)
     else:
         # 192.168.0 is reserved.
@@ -416,44 +466,41 @@ def create_cluster(arm_vm_password=None):
         create_vnet()
         print "creating network security group..."
         create_nsg()
+        if int(config["azure_cluster"]["nfs_node_num"]) > 0:
+            create_nfs_nsg()
     if useSqlAzure():
         print "creating sql server and database..."
         create_sql()
 
     if arm_vm_password is not None:
         # dev box, used in extreme condition when there's only one public IP available, then would use dev in cluster to bridge-connect all of them
-        create_vm_param(0, False, True, config["azure_cluster"]["infra_vm_size"],
+        create_vm_param(0, "dev", config["azure_cluster"]["infra_vm_size"],
                         True, arm_vm_password)
     for i in range(int(config["azure_cluster"]["infra_node_num"])):
-        create_vm_param(i, False, False, config["azure_cluster"]["infra_vm_size"],
+        create_vm_param(i, "infra", config["azure_cluster"]["infra_vm_size"],
                         arm_vm_password is not None, arm_vm_password)
     for i in range(int(config["azure_cluster"]["worker_node_num"])):
-        create_vm_param(i, True, False, config["azure_cluster"]["worker_vm_size"],
+        create_vm_param(i, "worker", config["azure_cluster"]["worker_vm_size"],
                         arm_vm_password is not None, arm_vm_password)
     # create nfs server if specified.
     for i in range(int(config["azure_cluster"]["nfs_node_num"])):
-        create_vm_param(i, True, False, config["azure_cluster"]["worker_vm_size"],
+        create_vm_param(i, "nfs", config["azure_cluster"]["nfs_vm_size"],
                         arm_vm_password is not None, arm_vm_password)
 
-def create_vm_param(i, isWorker, isDev, vm_size, no_az=False, arm_vm_password=None):
-    if isWorker:
-        if no_az:
-            vmname = "%s-worker%02d" % (config["azure_cluster"]
-                                        ["cluster_name"], i+1)
-        else:
-            vmname = "%s-worker-%s" % (config["azure_cluster"]
-                                       ["cluster_name"], random_str(6))
-    elif not isDev:
+def create_vm_param(i, role, vm_size, no_az=False, arm_vm_password=None):
+    if role in ["worker","nfs"]:
+        vmname = "{}-{}".format(config["azure_cluster"]["cluster_name"], role) + ("{:02d}".format(i+1) if no_az else '-'+random_str(6))
+    elif role == "infra":
         vmname = "%s-infra%02d" % (config["azure_cluster"]
                                    ["cluster_name"], i + 1)
-    else:
+    elif role == "dev":
         vmname = "%s-dev" % (config["azure_cluster"]["cluster_name"])
     print "creating VM %s..." % vmname
-    vm_ip = get_vm_ip(i, isWorker, isDev)
+    vm_ip = get_vm_ip(i, role)
     if arm_vm_password is not None:
-        create_vm_pwd(vmname, vm_ip, vm_size, not isWorker, arm_vm_password)
+        create_vm_pwd(vmname, vm_ip, vm_size, not role in ["worker","nfs"], arm_vm_password)
     else:
-        create_vm(vmname, vm_ip, isWorker, vm_size)
+        create_vm(vmname, vm_ip, role, vm_size)
     return vmname
 
 
@@ -523,7 +570,7 @@ def vm_interconnects():
             --name tcpinterconnect \
             --protocol tcp \
             --priority 850 \
-            --destination-port-range %s \
+            --destination-port-ranges %s \
             --source-address-prefixes %s \
             --access allow
         """ % ( config["azure_cluster"]["resource_group_name"],
@@ -602,20 +649,6 @@ def get_disk_from_vm(vmname):
 
     return output.split("/")[-1].strip('\n')
 
-def AZvmsize2GPU(vmsize):
-    vmsz2GPU = {"Standard_NC6s_v2":"P100","Standard_NC12s_v2":"P100","Standard_NC24s_v2":"P100","Standard_NC24rs_v2":"P100",
-                "Standard_NC6s_v3":"V100","Standard_NC12s_v3":"V100","Standard_NC24s_v3":"V100","Standard_NC24rs_v3":"V100","Standard_ND40s_v2":"V100",
-                "Standard_ND6s":"P40","Standard_ND12s":"P40","Standard_ND24s":"P40","Standard_ND24rs":"P40",
-                "Standard_NV6":"M60","Standard_NV12":"M60","Standard_NV24":"M60","Standard_NV12s_v3":"M60","Standard_NV24s_v3":"M60","Standard_NV48s_v3":"M60"}
-    return vmsz2GPU.get(vmsize, "NULL")
-
-def AZvmsize2GPUcnt(vmsize):
-    vmsz2GPU = {"Standard_NC6s_v2": 1,"Standard_NC12s_v2": 2,"Standard_NC24s_v2": 4,"Standard_NC24rs_v2": 4,
-                "Standard_NC6s_v3": 1,"Standard_NC12s_v3": 2,"Standard_NC24s_v3": 4,"Standard_NC24rs_v3": 4,"Standard_ND40s_v2": 8,
-                "Standard_ND6s": 1,"Standard_ND12s": 2,"Standard_ND24s": 4,"Standard_ND24rs": 4,
-                "Standard_NV6": 1,"Standard_NV12": 2,"Standard_NV24": 4,"Standard_NV12s_v3": 1,"Standard_NV24s_v3": 2,"Standard_NV48s_v3": 4}
-    return vmsz2GPU.get(vmsize, 0)
-
 def gen_cluster_config(output_file_name, output_file=True, no_az=False):
     bSQLOnly = (config["azure_cluster"]["infra_node_num"] <= 0)
     if useAzureFileshare() and not no_az:
@@ -674,8 +707,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
     for i in range(int(config["azure_cluster"]["infra_node_num"])):
         vmname = "%s-infra%02d" % (config["azure_cluster"]
                                    ["cluster_name"], i + 1)
-        cc["machines"][vmname] = {
-            "role": "infrastructure", "private-ip": get_vm_ip(i, False, False)}
+        cc["machines"][vmname] = {"role": "infrastructure", "private-ip": get_vm_ip(i, "infra")}
 
     # Generate the workers in machines.
     vm_list = []
@@ -698,7 +730,12 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
                 cc["machines"][vmname] = {
                     "role": "worker",
                     "node-group": vm["vmSize"],"gpu-type":sku_mapping[vm["vmSize"]]["gpu-type"]}
-
+    for vm in vm_list:
+        vmname = vm["name"]
+        if "-nfs" in vmname:
+            cc["machines"][vmname] = {
+                "role": "nfs",
+                "node-group": vm["vmSize"]}
     if not bSQLOnly:
         # Require explicit authorization setting.
         # cc["WinbindServers"] = []
@@ -715,7 +752,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
                 cc["mountpoints"]["rootshare"]["accesskey"] = file_share_key
         else:
             cc["mountpoints"]["rootshare"]["type"] = "nfs"
-            cc["mountpoints"]["rootshare"]["server"] = get_vm_ip(0, False, False)
+            cc["mountpoints"]["rootshare"]["server"] = get_vm_ip(0, "sql")
             cc["mountpoints"]["rootshare"]["filesharename"] = "/data/share"
             cc["mountpoints"]["rootshare"][
                 "curphysicalmountpoint"] = "/mntdlws/nfs"
@@ -755,12 +792,12 @@ def get_vm_list_by_grp():
 # simply enumerate to get vm list
 def get_vm_list_by_enum():
     vm_list = []
-    for i in range(int(config["azure_cluster"]["worker_node_num"])):
-        vminfo = {}
-        vminfo["name"] = "%s-worker%02d" % (config["azure_cluster"]
-                                ["cluster_name"], i + 1)
-        vminfo["vmSize"] = config["azure_cluster"]["worker_vm_size"]
-        vm_list.append(vminfo)
+    for role in ["worker","nfs"]:
+        for i in range(int(config["azure_cluster"]["{}_node_num".format(role)])):
+            vminfo = {}
+            vminfo["name"] = "{}-{}{:02d}".format(config["azure_cluster"]["cluster_name"], role, i + 1)
+            vminfo["vmSize"] = config["azure_cluster"]["{}_vm_size".format(role)]
+            vm_list.append(vminfo)
     return vm_list
 
 def random_str(length):
