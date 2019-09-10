@@ -228,7 +228,7 @@ def GetJobList(userName, vcName, jobOwner, num=None):
 
         if jobOwner != "all" or not hasAccessOnAllJobs:
             jobs = jobs + GetUserPendingJobs(userName, vcName)
-            jobs = jobs + dataHandler.GetJobList(userName,vcName,num, "running,queued,scheduling,unapproved", ("<>","and"))
+            jobs = jobs + dataHandler.GetJobList(userName,vcName,num, "running,queued,scheduling,unapproved,pausing,paused", ("<>","and"))
         else:
             jobs = GetUserPendingJobs(jobOwner, vcName)
 

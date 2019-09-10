@@ -57,7 +57,7 @@ class DataManager:
         dataHandler = DataHandler()
         ret = None
         try:
-            ret = dataHandler.GetJobList("all",vcName,None, "running,queued,scheduling,unapproved", ("=","or"))
+            ret = dataHandler.GetJobList("all",vcName,None, "running,queued,scheduling,unapproved,pausing,paused", ("=","or"))
         finally:
             dataHandler.Close()
         return ret
