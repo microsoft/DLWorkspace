@@ -41,13 +41,13 @@ class JobRole:
             return "NotFound"
 
         assert(len(pods) == 1)
-        pod = pods[0]
-        phase = pod.status.phase
+        self.pod = pods[0]
+        phase = self.pod.status.phase
 
         # !!! Pod is running, doesn't mean "Role" is ready and running.
         if(phase == "Running"):
             # Found that phase won't turn into "Unkonwn" even when we get 'unknown' from kubectl
-            if pod.status.reason == "NodeLost":
+            if self.pod.status.reason == "NodeLost":
                 return "Unknown"
 
             # Check if the user command had been ran.
@@ -55,6 +55,10 @@ class JobRole:
                 return "Pending"
 
         return phase
+
+    # TODO should call after status(), or the self.pod would be None
+    def pod_details(self):
+        return self.pod
 
     def isFileExisting(self, file):
         deployer = JobDeployer()
