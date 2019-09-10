@@ -204,7 +204,7 @@ def ApproveJob(job):
                 running_gpus += running_job_total_gpus
 
             logging.info("Job {} require {}, using {}, with user quote of {}.".format(job_id, job_total_gpus, running_gpus, metadata["user_quota"]))
-            if int(metadata["user_quota"]) < (running_gpus + job_total_gpus):
+            if job_total_gpus > 0 and int(metadata["user_quota"]) < (running_gpus + job_total_gpus):
                 logging.info("Job {} excesses the user quota: {} + {} > {}. Will need approve from admin.".format(job_id, running_gpus, job_total_gpus, metadata["user_quota"]))
                 return False
 
