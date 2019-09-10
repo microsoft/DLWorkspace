@@ -184,6 +184,12 @@ def ApproveJob(job):
         job_total_gpus = GetJobTotalGpu(jobParams)
 
         dataHandler = DataHandler()
+
+        if "preemptionAllowed" in jobParams and jobParams["preemptionAllowed"] is True:
+            logging.info("Job {} preemptible, approve!".format(job_id))
+            dataHandler.UpdateJobTextField(job_id, "jobStatus", "queued")
+            return True
+
         vcList = dataHandler.ListVCs()
         vc = None
         for item in vcList:
