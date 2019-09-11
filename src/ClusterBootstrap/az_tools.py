@@ -716,8 +716,8 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
     else:
         vm_list = get_vm_list_by_enum()
 
-    vm_ips = get_vm_private_ip()
-    vm_ips = sorted(vm_ips, key = lambda x:x['name'])
+    vm_ip_names = get_vm_private_ip()
+    vm_ip_names = sorted(vm_ip_names, key = lambda x:x['name'])
     
     sku_mapping_cnfn = "../utils/sku_mapping.yaml"
     with open(sku_mapping_cnfn) as f:
@@ -743,8 +743,8 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
                 "node-group": vm["vmSize"]}
     
     # Dilemma : Before the servers got created, you don't know there name, cannot specify which server does a mountpoint config group belongs to
-    nfs_ips = [rec['privateIP'][0] for rec in vm_ips if "-nfs" in rec['name']]
-    print(nfs_ips)
+    nfs_ip_names = [rec for rec in vm_ip_names if "-nfs" in rec['name']]
+    # print(nfs_ips)
     if not bSQLOnly:
         # Require explicit authorization setting.
         # cc["WinbindServers"] = []
@@ -760,16 +760,18 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
             if file_share_key is not None:
                 cc["mountpoints"]["rootshare"]["accesskey"] = file_share_key
         else:
-            nfs_svr_cnt = min(len(nfs_ips), len(config["cloud_config"]["nfs_svr_setup"]))
-            if len(nfs_ips) < nfs_svr_cnt:
+            nfs_svr_cnt = min(len(nfs_ip_names), len(config["cloud_config"]["nfs_svr_setup"]))
+            if len(nfs_ip_names) < nfs_svr_cnt:
                 print("Warning: More NFS config than #. of server, only first {} taken".format(nfs_svr_cnt))
+            print(config["cloud_config"]["nfs_svr_setup"])
             for cnfid, nfscnf in enumerate(config["cloud_config"]["nfs_svr_setup"][:nfs_svr_cnt]):
-                # if "server" not in nfscnf:
-                #     nfscnf["server"] = nfs_ips[cnfid]
                 for mntname, mntcnf in nfscnf["mnt_point"].items():
+                    if mntname in cc["mountpoints"]:
+                        print("Warning, duplicated mountpoints item name, skipping")
                     cc["mountpoints"][mntname] = mntcnf
                     cc["mountpoints"][mntname]["type"] = "nfs"
-                    cc["mountpoints"][mntname]["server"] = nfs_ips[cnfid]
+                    cc["mountpoints"][mntname]["server"] = nfs_ip_names[cnfid]['privateIP'][0]
+                    cc["mountpoints"][mntname]["servername"] = nfs_ip_names[cnfid]['name']
                     
     if output_file:
         print yaml.dump(cc, default_flow_style=False)
@@ -837,6 +839,7 @@ def delete_cluster():
 
 def run_command(args, command, nargs, parser):
     if command == "create":
+        # print config["azure_cluster"]["infra_vm_size"]
         create_cluster(args.arm_password)
         vm_interconnects()
 
@@ -1002,7 +1005,9 @@ Command:
 
     config_file = os.path.join(dirpath, "config.yaml")
     if os.path.exists(config_file):
-        tmpconfig = yaml.load(open(config_file))
+        with open(config_file) as cf:
+            tmpconfig = yaml.load(cf)
+            assert tmpconfig["cluster_name"] in tmpconfig["azure_cluster"]
         merge_config(config, tmpconfig, verbose)
         if tmpconfig is not None and "cluster_name" in tmpconfig:
             config["azure_cluster"]["cluster_name"] = tmpconfig["cluster_name"]

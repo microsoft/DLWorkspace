@@ -58,7 +58,7 @@ coreosbaseurl = ""
 verbose = False
 nocache = False
 limitnodes = None
-
+allroles = {"infra", "infrastructure", "worker", "nfs", "sql"}
 
 
 # default search for all partitions of hdb, hdc, hdd, and sdb, sdc, sdd
@@ -530,6 +530,7 @@ def get_domain():
 
 # Get a list of nodes from cluster.yaml
 def get_nodes_from_config(machinerole):
+    machinerole = "infrastructure" if machinerole == "infra" else machinerole
     if "machines" not in config:
         return []
     else:
@@ -621,17 +622,19 @@ def get_worker_nodes_from_config(clusterId):
     config["worker_node"] = Nodes
     return Nodes
 
-def get_nodes_by_role(role):
+def get_nodes_by_roles(roles):
     """
     role: "infrastructure", "worker", or "nfs"
     this function aims to deprecate get_worker_nodes_from_config and get_ETCD_master_nodes_from_config
     """
-    Nodes = get_nodes_from_config(role)
-    if role == "infrastructure":
-        config["etcd_node"] = Nodes
-        config["kubernetes_master_node"] = Nodes
-    else:
-        config["{}_node".format(role)] = Nodes
+    Nodes = []
+    for role in roles:
+        Nodes += get_nodes_from_config(role)
+        if role == "infrastructure" or role == "infra":
+            config["etcd_node"] = Nodes
+            config["kubernetes_master_node"] = Nodes
+        else:
+            config["{}_node".format(role)] = Nodes
     return Nodes    
 
 def get_worker_nodes(clusterId, isScaledOnly):
@@ -642,7 +645,7 @@ def get_worker_nodes(clusterId, isScaledOnly):
         nodes = get_worker_nodes_from_cluster_report(clusterId)
     else:
         print("from console")
-        nodes = get_nodes_by_role("worker") #get_worker_nodes_from_config(clusterId)
+        nodes = get_nodes_by_roles(["worker"]) #get_worker_nodes_from_config(clusterId)
 
     if isScaledOnly:
         return get_scaled_nodes_from_config()
@@ -664,7 +667,7 @@ def limit_nodes(nodes):
         return nodes
 
 def get_nodes(clusterId):
-    nodes = get_ETCD_master_nodes(clusterId) + get_worker_nodes(clusterId, False) + get_nodes_by_role("nfs")
+    nodes = get_ETCD_master_nodes(clusterId) + get_worker_nodes(clusterId, False) + get_nodes_by_roles(["nfs"])
     nodes = limit_nodes(nodes)
     return nodes
 
@@ -680,7 +683,7 @@ def check_master_ETCD_status():
     print "Checking Available Nodes for Deployment..."
     get_ETCD_master_nodes(config["clusterId"])
     get_worker_nodes(config["clusterId"], False)
-    get_nodes_by_role("nfs")
+    get_nodes_by_roles(["nfs"])
     print "==============================================="
     print "Activate Master Node(s): %s\n %s \n" % (len(config["kubernetes_master_node"]),",".join(config["kubernetes_master_node"]))
     print "Activate ETCD Node(s):%s\n %s \n" % (len(config["etcd_node"]),",".join(config["etcd_node"]))
@@ -1109,12 +1112,13 @@ def create_nfs_server():
     """
     etcd_server_user = config["nfs_user"]
     nfs_servers = config["nfs_node"] if int(config["azure_cluster"][config["cluster_name"]]["nfs_node_num"]) > 0 else config["etcd_node"]
-    for serverID, nfs_cnf in config["cloud_config"]["nfs_svr_setup"].items():
+    for serverID, nfs_cnf in enumerate(config["cloud_config"]["nfs_svr_setup"]):
         nfs_cnf["cloud_config"] = {"vnet_range":config["cloud_config"]["vnet_range"], "samba_range": config["cloud_config"]["samba_range"]}
         nfs_server = nfs_servers[serverID]
         utils.render_template("./template/nfs/nfs_config.sh.template","./deploy/scripts/setup_nfs_server.sh",nfs_cnf)
-        os.system("cat ./deploy/scripts/setup_nfs_server.sh")
-        # utils.SSH_exec_script( config["ssh_cert"], etcd_server_user, nfs_server, "./deploy/scripts/setup_nfs_server.sh")
+        # os.system("cat ./deploy/scripts/setup_nfs_server.sh")
+        # print(nfs_server)
+        utils.SSH_exec_script( config["ssh_cert"], etcd_server_user, nfs_server, "./deploy/scripts/setup_nfs_server.sh")
 
 
 def create_ISO():
@@ -3436,7 +3440,21 @@ def run_command( args, command, nargs, parser ):
 
     elif command == "runscriptonall" and len(nargs)>=1:
         nodes = get_nodes(config["clusterId"])
+        # print(nodes)
         run_script_on_all(nodes, nargs, sudo = args.sudo )
+
+    elif command == "runscriptonroles":
+        assert len(nargs)>=1
+        nodeset, scripts_start = [], 0
+        for ni, arg in enumerate(nargs):
+            scripts_start = ni
+            if arg in allroles:
+                nodeset += arg,
+            else:
+                break
+        nodes = get_nodes_by_roles(nodeset)
+        # print(nodes)
+        run_script_on_all(nodes, nargs[scripts_start:], sudo = args.sudo )
 
     elif command == "runscriptonrandmaster" and len(nargs)>=1:
         run_script_on_rand_master(nargs, args)

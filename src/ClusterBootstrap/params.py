@@ -619,17 +619,17 @@ default_config_parameters = {
             # "source_addresses_prefixes": [ "52.151.0.0/16"]
         },
         "nfs_share": {
-            "source_ips": "104.44.112.0/24 131.107.0.0/16",
+            "source_ips": ["104.44.112.0/24", "131.107.0.0/16"],
         },
         "nfs_ssh": {
-            "source_ips": "131.107.0.0/16 104.44.0.0/16",
+            "source_ips": ["131.107.0.0/16", "104.44.0.0/16"],
             "port": "22",
         },
         "nfs_svr_setup": [
-        #     0:{
-        #     "vg_disks": {"dlts-data-lvm": "/dev/sdc"},
-        #     "logical_vol": {"dlts-data-lvm-vol1":{"volgrp":"dlts-data-lvm", "percentage":100, "mnt":"/infradata"}},
-        #     "mnt_point": {"rootshare":{"curphysicalmountpoint":"/mntdlws/infranfs","filesharename":"/infradata/share","mountpoints":"''"}}
+            # {
+            # "vg_disks": {"dlts-data-lvm": "/dev/sdc"},
+            # "logical_vol": {"dlts-data-lvm-vol1":{"volgrp":"dlts-data-lvm", "percentage":100, "mnt":"/infradata"}},
+            # "mnt_point": {"rootshare":{"curphysicalmountpoint":"/mntdlws/infranfs","filesharename":"/infradata/share","mountpoints":"''"}}}
         ],
         "samba_range": "104.44.112.0/24",
     },
@@ -641,7 +641,7 @@ default_config_parameters = {
 # These are super scripts
 scriptblocks = {
     "azure": [
-        "runscriptonall ./scripts/prepare_vm_disk.sh",
+        "runscriptonroles infra worker ./scripts/prepare_vm_disk.sh",
         "nfs-server create",
         "runscriptonall ./scripts/prepare_ubuntu.sh",
         "genscripts",
