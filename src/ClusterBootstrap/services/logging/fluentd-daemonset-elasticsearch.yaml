@@ -91,7 +91,7 @@ spec:
             value: "CHANGE THE PREFIX FOR DIFFERENT CLUSTER"
         resources:
           limits:
-            memory: 200Mi
+            memory: 1000Mi
           requests:
             cpu: 100m
             memory: 200Mi
