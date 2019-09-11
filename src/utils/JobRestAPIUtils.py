@@ -509,8 +509,10 @@ def GetVC(userName, vcName):
             vcTotalRes = ResourceInfo(json.loads(vc["quota"]))
             vcConsumedRes = ResourceInfo()
             jobs = DataManager.GetAllPendingJobs(vcName)
+            num_active_jobs = 0
             for job in jobs:
                 if job["jobStatus"] == "running":
+                    num_active_jobs += 1
                     username = job["userName"]
                     jobParam = json.loads(base64.b64decode(job["jobParams"]))
                     if "gpuType" in jobParam and not jobParam["preemptionAllowed"]:
@@ -526,7 +528,7 @@ def GetVC(userName, vcName):
             vc["gpu_used"] = vcConsumedRes.ToSerializable()
             vc["gpu_unschedulable"] = vcReservedRes.ToSerializable()
             vc["gpu_avaliable"] = vcAvailableRes.ToSerializable()
-            vc["AvaliableJobNum"] = len(jobs)
+            vc["AvaliableJobNum"] = num_active_jobs
             vc["node_status"] = clusterStatus["node_status"]
             vc["user_status"] = []
             for user_name, user_gpu in user_status.iteritems():
