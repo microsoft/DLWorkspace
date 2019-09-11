@@ -934,7 +934,7 @@ class DataHandler(object):
     @record
     def GetActiveJobsCount(self):
         cursor = self.conn.cursor()
-        query = "SELECT count(ALL id) as c FROM `%s` where `jobStatus` <> 'error' and `jobStatus` <> 'failed' and `jobStatus` <> 'finished' and `jobStatus` <> 'killed' " % (self.jobtablename)
+        query = "SELECT count(ALL id) as c FROM `%s` where `jobStatus` = 'running'" % (self.jobtablename)
         cursor.execute(query)
         ret = 0
         for c in cursor:
