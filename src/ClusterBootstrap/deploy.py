@@ -794,6 +794,7 @@ def gen_configs():
         config["ssh_cert"] = expand_path("./deploy/sshkey/id_rsa")
 
     config["etcd_user"] = config["admin_username"]
+    config["nfs_user"] = config["admin_username"]
     config["kubernetes_master_ssh_user"] = config["admin_username"]
 
     #config["api_servers"] = ",".join(["https://"+x for x in config["kubernetes_master_node"]])
@@ -825,6 +826,7 @@ def get_ssh_config():
     if "ssh_cert" in config:
         config["ssh_cert"] = expand_path(config["ssh_cert"])
     config["etcd_user"] = config["admin_username"]
+    config["nfs_user"] = config["admin_username"]
     config["kubernetes_master_ssh_user"] = config["admin_username"]
     add_ssh_key()
 
@@ -1102,11 +1104,18 @@ def deploy_ETCD():
     utils.SSH_exec_script( config["ssh_cert"], etcd_server_user, etcd_servers[0], "./deploy/etcd/init_network.sh")
 
 def create_nfs_server():
-    etcd_servers = config["etcd_node"]
-    etcd_server_user = config["etcd_user"]
-    os.system( "mkdir -p ./deploy/scripts")
-    utils.render_template("./scripts/setup_nfs_server.sh","./deploy/scripts/setup_nfs_server.sh",config)
-    utils.SSH_exec_script( config["ssh_cert"], etcd_server_user, etcd_servers[0], "./deploy/scripts/setup_nfs_server.sh")
+    """
+    we assume there's only 1 cluster.
+    """
+    etcd_server_user = config["nfs_user"]
+    nfs_servers = config["nfs_node"] if int(config["azure_cluster"][config["cluster_name"]]["nfs_node_num"]) > 0 else config["etcd_node"]
+    for serverID, nfs_cnf in config["cloud_config"]["nfs_svr_setup"].items():
+        nfs_cnf["cloud_config"] = {"vnet_range":config["cloud_config"]["vnet_range"], "samba_range": config["cloud_config"]["samba_range"]}
+        nfs_server = nfs_servers[serverID]
+        utils.render_template("./template/nfs/nfs_config.sh.template","./deploy/scripts/setup_nfs_server.sh",nfs_cnf)
+        os.system("cat ./deploy/scripts/setup_nfs_server.sh")
+        # utils.SSH_exec_script( config["ssh_cert"], etcd_server_user, nfs_server, "./deploy/scripts/setup_nfs_server.sh")
+
 
 def create_ISO():
     imagename = "./deploy/iso/dlworkspace-cluster-deploy-"+config["cluster_name"]+".iso"

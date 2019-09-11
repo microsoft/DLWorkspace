@@ -716,9 +716,13 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
     else:
         vm_list = get_vm_list_by_enum()
 
+    vm_ips = get_vm_private_ip()
+    vm_ips = sorted(vm_ips, key = lambda x:x['name'])
+    
     sku_mapping_cnfn = "../utils/sku_mapping.yaml"
-    f = open(sku_mapping_cnfn)
-    sku_mapping = yaml.load(f)
+    with open(sku_mapping_cnfn) as f:
+        sku_mapping = yaml.load(f)
+
     for vm in vm_list:
         vmname = vm["name"]
         if "-worker" in vmname:
@@ -730,12 +734,17 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
                 cc["machines"][vmname] = {
                     "role": "worker",
                     "node-group": vm["vmSize"],"gpu-type":sku_mapping[vm["vmSize"]]["gpu-type"]}
+    nfs_nodes = []
     for vm in vm_list:
         vmname = vm["name"]
         if "-nfs" in vmname:
             cc["machines"][vmname] = {
                 "role": "nfs",
                 "node-group": vm["vmSize"]}
+    
+    # Dilemma : Before the servers got created, you don't know there name, cannot specify which server does a mountpoint config group belongs to
+    nfs_ips = [rec['privateIP'][0] for rec in vm_ips if "-nfs" in rec['name']]
+    print(nfs_ips)
     if not bSQLOnly:
         # Require explicit authorization setting.
         # cc["WinbindServers"] = []
@@ -751,13 +760,17 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
             if file_share_key is not None:
                 cc["mountpoints"]["rootshare"]["accesskey"] = file_share_key
         else:
-            cc["mountpoints"]["rootshare"]["type"] = "nfs"
-            cc["mountpoints"]["rootshare"]["server"] = get_vm_ip(0, "sql")
-            cc["mountpoints"]["rootshare"]["filesharename"] = "/data/share"
-            cc["mountpoints"]["rootshare"][
-                "curphysicalmountpoint"] = "/mntdlws/nfs"
-            cc["mountpoints"]["rootshare"]["mountpoints"] = ""
-
+            nfs_svr_cnt = min(len(nfs_ips), len(config["cloud_config"]["nfs_svr_setup"]))
+            if len(nfs_ips) < nfs_svr_cnt:
+                print("Warning: More NFS config than #. of server, only first {} taken".format(nfs_svr_cnt))
+            for cnfid, nfscnf in enumerate(config["cloud_config"]["nfs_svr_setup"][:nfs_svr_cnt]):
+                # if "server" not in nfscnf:
+                #     nfscnf["server"] = nfs_ips[cnfid]
+                for mntname, mntcnf in nfscnf["mnt_point"].items():
+                    cc["mountpoints"][mntname] = mntcnf
+                    cc["mountpoints"][mntname]["type"] = "nfs"
+                    cc["mountpoints"][mntname]["server"] = nfs_ips[cnfid]
+                    
     if output_file:
         print yaml.dump(cc, default_flow_style=False)
         with open(output_file_name, 'w') as outfile:
@@ -787,6 +800,16 @@ def get_vm_list_by_grp():
         print(cmd)
     output = utils.exec_cmd_local(cmd)
 
+    return utils.json_loads_byteified(output)
+
+def get_vm_private_ip():
+    cmd = """
+        az vm list-ip-addresses -g %s --output json --query '[].{name:virtualMachine.name, privateIP:virtualMachine.network.privateIpAddresses}'
+
+        """ % (config["azure_cluster"]["resource_group_name"])
+    if verbose:
+        print(cmd)
+    output = utils.exec_cmd_local(cmd)
     return utils.json_loads_byteified(output)
 
 # simply enumerate to get vm list
