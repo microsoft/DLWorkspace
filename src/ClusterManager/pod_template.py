@@ -85,6 +85,7 @@ class PodTemplate():
         job.data_path = params["dataPath"]
         # TODO user's mountpoints first, but should after 'job_path'
         job.add_mountpoints(job.job_path_mountpoint())
+        job.add_mountpoints({"name": "home", "containerPath": "/home/{}".format(job.get_alias()), "hostPath": job.get_homefolder_hostpath(), "enabled": True})
         if "mountpoints" in params:
             job.add_mountpoints(params["mountpoints"])
         job.add_mountpoints(job.work_path_mountpoint())
