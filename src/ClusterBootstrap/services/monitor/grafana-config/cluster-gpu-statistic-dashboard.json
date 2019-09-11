@@ -19,7 +19,6 @@
     "hideControls": false,
     "id": null,
     "links": [],
-    "refresh": "30s",
     "rows": [
       {
         "collapse": false,
@@ -31,21 +30,21 @@
             "dashLength": 10,
             "dashes": false,
             "datasource": null,
-            "fill": 1,
+            "fill": 0,
             "id": 1,
             "legend": {
-              "avg": true,
-              "current": true,
-              "max": true,
-              "min": true,
+              "avg": false,
+              "current": false,
+              "max": false,
+              "min": false,
               "show": true,
               "total": false,
-              "values": true
+              "values": false
             },
             "lines": true,
             "linewidth": 1,
             "links": [],
-            "nullPointMode": "connected",
+            "nullPointMode": "null",
             "percentage": false,
             "pointradius": 5,
             "points": false,
@@ -57,18 +56,18 @@
             "steppedLine": false,
             "targets": [
               {
-                "expr": "(sum(k8s_node_gpu_total) - sum(k8s_node_gpu_available) - sum(k8s_node_gpu_reserved)) / sum(k8s_node_gpu_total) * 100",
+                "expr": "count (task_gpu_percent) by (username)",
                 "format": "time_series",
-                "instant": false,
+                "hide": false,
                 "intervalFactor": 2,
-                "legendFormat": "Allocation Rate",
+                "legendFormat": "{{ '{{' }} username {{ '}}' }}",
                 "refId": "A"
               }
             ],
             "thresholds": [],
             "timeFrom": null,
             "timeShift": null,
-            "title": "Cluster wide GPU allocation rate",
+            "title": "Per user allocation",
             "tooltip": {
               "shared": true,
               "sort": 0,
@@ -84,11 +83,11 @@
             },
             "yaxes": [
               {
-                "format": "percent",
+                "format": "short",
                 "label": null,
                 "logBase": 1,
                 "max": null,
-                "min": null,
+                "min": "0",
                 "show": true
               },
               {
@@ -119,21 +118,21 @@
             "dashLength": 10,
             "dashes": false,
             "datasource": null,
-            "fill": 1,
+            "fill": 0,
             "id": 2,
             "legend": {
-              "avg": true,
-              "current": true,
-              "max": true,
-              "min": true,
+              "avg": false,
+              "current": false,
+              "max": false,
+              "min": false,
               "show": true,
               "total": false,
-              "values": true
+              "values": false
             },
             "lines": true,
             "linewidth": 1,
             "links": [],
-            "nullPointMode": "connected",
+            "nullPointMode": "null",
             "percentage": false,
             "pointradius": 5,
             "points": false,
@@ -145,17 +144,220 @@
             "steppedLine": false,
             "targets": [
               {
-                "expr": "avg(task_gpu_percent)",
+                "expr": "count (task_gpu_percent) by (vc_name)",
+                "format": "time_series",
+                "hide": false,
+                "intervalFactor": 2,
+                "legendFormat": "{{ '{{' }} vc_name {{ '}}' }} allocation",
+                "refId": "A"
+              },
+              {
+                "expr": "count(task_gpu_percent)",
                 "format": "time_series",
                 "intervalFactor": 2,
-                "legendFormat": "Avg Util",
+                "legendFormat": "Cluster wide allocation",
+                "refId": "B"
+              },
+              {
+                "expr": "k8s_vc_gpu_total",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "{{ '{{' }} vc_name {{ '}}' }} quota",
+                "refId": "C"
+              },
+              {
+                "expr": "sum(k8s_vc_gpu_total)",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "Cluster wide quota",
+                "refId": "D"
+              }
+            ],
+            "thresholds": [],
+            "timeFrom": null,
+            "timeShift": null,
+            "title": "Per VC allocation & quota",
+            "tooltip": {
+              "shared": true,
+              "sort": 0,
+              "value_type": "individual"
+            },
+            "type": "graph",
+            "xaxis": {
+              "buckets": null,
+              "mode": "time",
+              "name": null,
+              "show": true,
+              "values": []
+            },
+            "yaxes": [
+              {
+                "format": "short",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": "0",
+                "show": true
+              },
+              {
+                "format": "short",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": false
+              }
+            ]
+          }
+        ],
+        "repeat": null,
+        "repeatIteration": null,
+        "repeatRowId": null,
+        "showTitle": false,
+        "title": "Dashboard Row",
+        "titleSize": "h6"
+      },
+      {
+        "collapse": false,
+        "height": 250,
+        "panels": [
+          {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "datasource": null,
+            "fill": 0,
+            "id": 3,
+            "legend": {
+              "avg": false,
+              "current": false,
+              "max": false,
+              "min": false,
+              "show": true,
+              "total": false,
+              "values": false
+            },
+            "lines": true,
+            "linewidth": 1,
+            "links": [],
+            "nullPointMode": "null",
+            "percentage": false,
+            "pointradius": 5,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [],
+            "spaceLength": 10,
+            "span": 12,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+              {
+                "expr": "count (task_gpu_percent) by (vc_name) / sum (k8s_vc_gpu_total) by (vc_name)",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "{{ '{{' }} vc_name {{ '}}' }}",
+                "refId": "A"
+              },
+              {
+                "expr": "count (task_gpu_percent) / sum (k8s_vc_gpu_total)",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "Cluster wide",
+                "refId": "B"
+              }
+            ],
+            "thresholds": [],
+            "timeFrom": null,
+            "timeShift": null,
+            "title": "Per VC allocation rate",
+            "tooltip": {
+              "shared": true,
+              "sort": 0,
+              "value_type": "individual"
+            },
+            "type": "graph",
+            "xaxis": {
+              "buckets": null,
+              "mode": "time",
+              "name": null,
+              "show": true,
+              "values": []
+            },
+            "yaxes": [
+              {
+                "format": "percentunit",
+                "label": null,
+                "logBase": 1,
+                "max": "1",
+                "min": "0",
+                "show": true
+              },
+              {
+                "format": "short",
+                "label": null,
+                "logBase": 1,
+                "max": null,
+                "min": null,
+                "show": false
+              }
+            ]
+          }
+        ],
+        "repeat": null,
+        "repeatIteration": null,
+        "repeatRowId": null,
+        "showTitle": false,
+        "title": "Dashboard Row",
+        "titleSize": "h6"
+      },
+      {
+        "collapse": false,
+        "height": 250,
+        "panels": [
+          {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "datasource": null,
+            "fill": 0,
+            "id": 4,
+            "legend": {
+              "avg": false,
+              "current": false,
+              "max": false,
+              "min": false,
+              "show": true,
+              "total": false,
+              "values": false
+            },
+            "lines": true,
+            "linewidth": 1,
+            "links": [],
+            "nullPointMode": "null",
+            "percentage": false,
+            "pointradius": 5,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [],
+            "spaceLength": 10,
+            "span": 12,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+              {
+                "expr": "avg (task_gpu_percent) by (username)",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "{{ '{{' }} username {{ '}}' }}",
                 "refId": "A"
               }
             ],
             "thresholds": [],
             "timeFrom": null,
             "timeShift": null,
-            "title": "Cluster wide avg util",
+            "title": "Per user GPU utils",
             "tooltip": {
               "shared": true,
               "sort": 0,
@@ -174,8 +376,102 @@
                 "format": "percent",
                 "label": null,
                 "logBase": 1,
+                "max": "100",
+                "min": "0",
+                "show": true
+              },
+              {
+                "format": "short",
+                "label": null,
+                "logBase": 1,
                 "max": null,
                 "min": null,
+                "show": false
+              }
+            ]
+          }
+        ],
+        "repeat": null,
+        "repeatIteration": null,
+        "repeatRowId": null,
+        "showTitle": false,
+        "title": "Dashboard Row",
+        "titleSize": "h6"
+      },
+      {
+        "collapse": false,
+        "height": 250,
+        "panels": [
+          {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "datasource": null,
+            "fill": 0,
+            "id": 5,
+            "legend": {
+              "avg": false,
+              "current": false,
+              "max": false,
+              "min": false,
+              "show": true,
+              "total": false,
+              "values": false
+            },
+            "lines": true,
+            "linewidth": 1,
+            "links": [],
+            "nullPointMode": "null",
+            "percentage": false,
+            "pointradius": 5,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [],
+            "spaceLength": 10,
+            "span": 12,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+              {
+                "expr": "avg (task_gpu_percent) by (vc_name)",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "{{ '{{' }} vc_name {{ '}}' }}",
+                "refId": "A"
+              },
+              {
+                "expr": "avg (task_gpu_percent)",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "Cluster wide",
+                "refId": "B"
+              }
+            ],
+            "thresholds": [],
+            "timeFrom": null,
+            "timeShift": null,
+            "title": "Per VC GPU utils",
+            "tooltip": {
+              "shared": true,
+              "sort": 0,
+              "value_type": "individual"
+            },
+            "type": "graph",
+            "xaxis": {
+              "buckets": null,
+              "mode": "time",
+              "name": null,
+              "show": true,
+              "values": []
+            },
+            "yaxes": [
+              {
+                "format": "percent",
+                "label": null,
+                "logBase": 1,
+                "max": "100",
+                "min": "0",
                 "show": true
               },
               {
@@ -204,7 +500,7 @@
       "list": []
     },
     "time": {
-      "from": "now/w",
+      "from": "now-6h",
       "to": "now"
     },
     "timepicker": {
