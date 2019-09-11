@@ -998,9 +998,10 @@ class DataHandler(object):
             logger.error('Exception: %s', str(e))
             return False
 
+    @record
     def get_job_priority(self):
         cursor = self.conn.cursor()
-        query = "select jobId, priority from {} where jobId in (select jobId from {} where jobStatus in (\"queued\", \"scheduling\", \"running\"))".format(self.jobprioritytablename, self.jobtablename)
+        query = "select jobId, priority from {} where jobId in (select jobId from {} where jobStatus in (\"queued\", \"scheduling\", \"running\", \"unapproved\", \"pausing\", \"paused\"))".format(self.jobprioritytablename, self.jobtablename)
         cursor.execute(query)
         priority_dict = {}
         for job_id, priority in cursor:
