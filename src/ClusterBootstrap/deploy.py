@@ -2967,7 +2967,7 @@ def gen_dns_config_script():
     utils.render_template("./template/dns/dns.sh.template", "deploy/kubeconfig/kubeconfig.yaml", config)
 
 def gen_pass_secret_script():
-    utils.render_template("./template/dns/pass.sh.template", "scripts/pass.sh", config)
+    utils.render_template("./template/secret/pass_secret.sh.template", "scripts/pass.sh", config)
 
 def run_command( args, command, nargs, parser ):
     # If necessary, show parsed arguments.

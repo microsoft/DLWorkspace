@@ -643,9 +643,9 @@ scriptblocks = {
     "azure": [
         "runscriptonroles infra worker ./scripts/prepare_vm_disk.sh",
         "nfs-server create",
-        "runscriptonall ./scripts/prepare_ubuntu.sh",
+        "runscriptonroles infra worker ./scripts/prepare_ubuntu.sh",
         "genscripts",
-        "runscriptonall ./scripts/dns.sh",
+        "runscriptonroles infra worker ./scripts/dns.sh",
         "-y deploy",
         "-y updateworker",
         "-y kubernetes labels",
