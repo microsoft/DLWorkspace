@@ -1,13 +1,19 @@
-{% for volgrp, disks in cnf["vg_disks"].items() %}  
+{% if "vg_disks" in cnf %}
+{% for volgrp, disks in cnf["vg_disks"].items() %}
 sudo vgcreate {{ volgrp }} {{disks}}
 {% endfor %}
-{% for lv, lv_param in cnf["logical_vol"].items() %}  
+{% endif %}
+
+{% if "logical_vol" in cnf %}
+{% for lv, lv_param in cnf["logical_vol"].items() %}
 sudo lvcreate -l {{lv_param["percentage"]}}%FREE -n {{lv}} {{lv_param["volgrp"]}}
 sudo mkfs.ext4 /dev/mapper/{{lv_param["volgrp"] | replace('-','--')}}-{{lv | replace('-','--')}}
 sudo mkdir -p {{lv_param["mnt"]}}
 sudo mount /dev/{{lv_param["volgrp"]}}/{{lv}} {{lv_param["mnt"]}}
 echo "UUID=$(sudo blkid | grep {{lv | replace('-','--')}} | sed -n 's/.*UUID=\"\(.*\)\" TYPE.*/\1/p')      /data   ext4   defaults,discard      0 0" | sudo tee -a /etc/fstab
 {% endfor %}
+{% endif %}
+
 # setup NFS service
 sudo apt-get update
 sudo apt-get install -y nfs-kernel-server

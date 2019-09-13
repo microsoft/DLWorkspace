@@ -319,8 +319,8 @@ def add_acs_config(command):
         config["WinbindServers"] = []
         config["etcd_node_num"] = config["master_node_num"]
         config["kube_addons"] = [] # no addons
-        config["mountpoints"]["rootshare"]["azstoragesku"] = config["azstoragesku"]
-        config["mountpoints"]["rootshare"]["azfilesharequota"] = config["azfilesharequota"]
+        # config["mountpoints"]["rootshare"]["azstoragesku"] = config["azstoragesku"]
+        # config["mountpoints"]["rootshare"]["azfilesharequota"] = config["azfilesharequota"]
         config["freeflow"] = True
         config["useclusterfile"] = True
 
@@ -517,7 +517,7 @@ def is_cur_on_same_domain():
             pass
     return False
 
-# Get domain of the node
+# Get domain of the node, assigned in add_acs_config (line config["network"]["domain"])
 def get_domain():
     if "network" in config and "domain" in config["network"] and len(config["network"]["domain"]) > 0 :
         if is_cur_on_same_domain():
@@ -535,7 +535,6 @@ def get_nodes_from_config(machinerole):
         return []
     else:
         domain = get_domain()
-        # print ("Doamin = %s " % domain )
         Nodes = []
         for nodename in config["machines"]:
             nodeInfo = config["machines"][nodename]
@@ -545,6 +544,9 @@ def get_nodes_from_config(machinerole):
                 else:
                     Nodes.append(nodename)
         return sorted(Nodes)
+
+def get_node_full_name(nodename):
+    return nodename + get_domain() if len(nodename.split("."))<3 else nodename
 
 # Get a list of scaled nodes from cluster.yaml
 def get_scaled_nodes_from_config():
@@ -667,7 +669,7 @@ def limit_nodes(nodes):
         return nodes
 
 def get_nodes(clusterId):
-    nodes = get_ETCD_master_nodes(clusterId) + get_worker_nodes(clusterId, False) + get_nodes_by_roles(["nfs"])
+    nodes = get_ETCD_master_nodes(clusterId) + get_worker_nodes(clusterId, False)
     nodes = limit_nodes(nodes)
     return nodes
 
@@ -1111,13 +1113,29 @@ def create_nfs_server():
     we assume there's only 1 cluster.
     """
     etcd_server_user = config["nfs_user"]
-    nfs_servers = config["nfs_node"] if int(config["azure_cluster"][config["cluster_name"]]["nfs_node_num"]) > 0 else config["etcd_node"]
-    for serverID, nfs_cnf in enumerate(config["cloud_config"]["nfs_svr_setup"]):
+    cluster_by_name = config["azure_cluster"][config["cluster_name"]]
+    nfs_servers = config["nfs_node"] if int(cluster_by_name["nfs_node_num"]) > 0 else config["etcd_node"]
+    # if we have suffixed server, then it must be external
+    named_nfs_suffix = set(cluster_by_name["nfs_suffixes"] if "nfs_suffixes" in cluster_by_name else [])
+    used_nfs_suffix = set([nfs_cnf["server_suffix"] for nfs_cnf in config["cloud_config"]["nfs_svr_setup"] if "server_suffix" in nfs_cnf])
+    assert (used_nfs_suffix - named_nfs_suffix) == set() and "suffix not in nfs_suffixes list!"
+    suffix2used_nfs = {suffix: get_node_full_name("{}-nfs-{}".format(config["cluster_name"], suffix)) for suffix in used_nfs_suffix}
+    # unused, either node without name suffix or those with suffix but not specified in any nfs_svr_setup item
+    unused_nfs = sorted([s for s in nfs_servers if s not in suffix2used_nfs.values()])
+    unused_ID_cnt = 0
+    # print(nfs_servers, suffix2used_nfs, unused_nfs)
+    
+
+    for nfs_cnf in config["cloud_config"]["nfs_svr_setup"]:
         nfs_cnf["cloud_config"] = {"vnet_range":config["cloud_config"]["vnet_range"], "samba_range": config["cloud_config"]["samba_range"]}
-        nfs_server = nfs_servers[serverID]
+        if "server_suffix" in nfs_cnf:
+            nfs_server = suffix2used_nfs[nfs_cnf["server_suffix"]]
+        else:
+            nfs_server = unused_nfs[unused_ID_cnt]
+            unused_ID_cnt += 1
         utils.render_template("./template/nfs/nfs_config.sh.template","./deploy/scripts/setup_nfs_server.sh",nfs_cnf)
         # os.system("cat ./deploy/scripts/setup_nfs_server.sh")
-        # print(nfs_server)
+        # print("------------------>nfs_server<------------------------"+nfs_server)
         utils.SSH_exec_script( config["ssh_cert"], etcd_server_user, nfs_server, "./deploy/scripts/setup_nfs_server.sh")
 
 
@@ -1574,7 +1592,9 @@ def get_mount_fileshares(curNode = None):
     physicalmountpoint = config["physical-mount-path"]
     storagemountpoint = config["storage-mount-path"]
     mountshares = {}
+    # print(config["mountpoints"])
     for k,v in config["mountpoints"].iteritems():
+        # print("<<<<<<<<<<<<<<<<<<<new mount points:", v)
         if "type" in v:
             if ("mountpoints" in v):
                 if isinstance( v["mountpoints"], basestring):
@@ -1586,14 +1606,15 @@ def get_mount_fileshares(curNode = None):
                     mountpoints = v["mountpoints"]
             else:
                 mountpoints = []
-
+            # print("-------------mount points---------------:", mountpoints, bHasDefaultMountPoints)
             if len(mountpoints)==0:
                 if bHasDefaultMountPoints:
                     errorMsg = "there are more than one default mount points in configuration. "
                     print "!!!Configuration Error!!! " + errorMsg
-                    raise ValueError(erorMsg)
+                    raise ValueError(errorMsg)
                 else:
                     bHasDefaultMountPoints = True
+                    print "default storage folders:", config["default-storage-folders"], "\n"
                     mountpoints = config["default-storage-folders"]
 
             mountsharename = v["mountsharename"] if "mountsharename" in v else v["filesharename"]
@@ -2967,7 +2988,7 @@ def gen_dns_config_script():
     utils.render_template("./template/dns/dns.sh.template", "deploy/kubeconfig/kubeconfig.yaml", config)
 
 def gen_pass_secret_script():
-    utils.render_template("./template/secret/pass_secret.sh.template", "scripts/pass.sh", config)
+    utils.render_template("./template/secret/pass_secret.sh.template", "scripts/pass_secret.sh", config)
 
 def run_command( args, command, nargs, parser ):
     # If necessary, show parsed arguments.
@@ -3020,7 +3041,6 @@ def run_command( args, command, nargs, parser ):
         f.close()
         if "clusterId" in tmp:
             config["clusterId"] = tmp["clusterId"]
-
     if "copy_sshtemp" in config and config["copy_sshtemp"]:
         if "ssh_origfile" not in config:
             config["ssh_origfile"] = config["ssh_cert"]
@@ -3038,20 +3058,16 @@ def run_command( args, command, nargs, parser ):
         else:
             print "SSH Key {0} not found using original".format(sshfile)
         #    exit()
-
     add_acs_config(command)
     if verbose and config["isacs"]:
         print "Using Azure Container Services"
-
     if os.path.exists("./deploy/clusterID.yml"):
         update_config()
     else:
         apply_config_mapping(config, default_config_mapping)
         update_docker_image_config()
-
     # additional glusterfs launch parameter.
     config["launch-glusterfs-opt"] = args.glusterfs;
-
     get_ssh_config()
     configuration( config, verbose )
     if args.yes:
@@ -3091,7 +3107,7 @@ def run_command( args, command, nargs, parser ):
     elif command == "connect":
             check_master_ETCD_status()
             role2connect = nargs[0]
-            print(role2connect, config["ssh_cert"], config["admin_username"])
+            # print(role2connect, config["ssh_cert"], config["admin_username"])
             if len(nargs) < 1 or role2connect == "master":
                 nodes = config["kubernetes_master_node"]
             elif role2connect in ["etcd","worker","nfs"]:
