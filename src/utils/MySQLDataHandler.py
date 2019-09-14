@@ -186,9 +186,7 @@ class DataHandler(object):
             # impossible since there's no way to do it with current config mechanism
 
             worker_cnt = int(config["azure_cluster"]["worker_node_num"])
-            sku_mapping_cnfn = "./sku_mapping.yaml"
-            f = open(sku_mapping_cnfn)
-            sku_mapping = yaml.load(f)
+            sku_mapping = config["sku_mapping"]
             n_gpu_pernode = sku_mapping[config["azure_cluster"]["worker_vm_size"]]["gpu-count"]
             gpu_type = sku_mapping[config["azure_cluster"]["worker_vm_size"]]["gpu-type"]
             sql = """

@@ -635,6 +635,27 @@ default_config_parameters = {
     },
     "vc_config":{
         "VC-Default":["*"],
+    },
+    "sku_mapping": {
+        "Standard_ND6s":{"gpu-type": "P40","gpu-count": 1}, 
+        "Standard_NV24": {"gpu-type": "M60", "gpu-count": 4},
+        "Standard_ND12s": {"gpu-type": "P40", "gpu-count": 2},
+        "Standard_ND24rs": {"gpu-type": "P40", "gpu-count": 4},
+        "Standard_NV12": {"gpu-type": "M60", "gpu-count": 2},
+        "Standard_NV48s_v3": {"gpu-type": "M60", "gpu-count": 4},
+        "Standard_ND40s_v2": {"gpu-type": "V100", "gpu-count": 8},
+        "Standard_NC6s_v3": {"gpu-type": "V100", "gpu-count": 1},
+        "Standard_NC6s_v2": {"gpu-type": "P100", "gpu-count": 1},
+        "Standard_ND24s": {"gpu-type": "P40", "gpu-count": 4},
+        "Standard_NV24s_v3": {"gpu-type": "M60", "gpu-count": 2},
+        "Standard_NV6": {"gpu-type": "M60", "gpu-count": 1},
+        "Standard_NV12s_v3": {"gpu-type": "M60", "gpu-count": 1},
+        "Standard_NC24s_v2": {"gpu-type": "P100", "gpu-count": 4},
+        "Standard_NC24s_v3": {"gpu-type": "V100", "gpu-count": 4},
+        "Standard_NC12s_v3": {"gpu-type": "V100", "gpu-count": 2},
+        "Standard_NC12s_v2": {"gpu-type": "P100", "gpu-count": 2},
+        "Standard_NC24rs_v3": {"gpu-type": "V100", "gpu-count": 4},
+        "Standard_NC24rs_v2": {"gpu-type": "P100", "gpu-count": 4},
     }
 }
 

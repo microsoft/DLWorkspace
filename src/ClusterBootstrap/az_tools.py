@@ -472,7 +472,7 @@ def get_vm_ip(i, role):
 
 def create_cluster(arm_vm_password=None):
     bSQLOnly = (config["azure_cluster"]["infra_node_num"] <= 0)
-    assert int(config["azure_cluster"]["nfs_node_num"]) >= len(config["azure_cluster"]["nfs_suffix"])
+    assert int(config["azure_cluster"]["nfs_node_num"]) >= len(config["azure_cluster"]["nfs_suffixes"])
     print "creating resource group..."
     create_group()
     if not bSQLOnly:
@@ -503,9 +503,9 @@ def create_cluster(arm_vm_password=None):
                         arm_vm_password is not None, arm_vm_password)
     # create nfs server if specified.
     for i in range(int(config["azure_cluster"]["nfs_node_num"])):
-        if i < len(config["azure_cluster"]["nfs_suffix"]):
+        if i < len(config["azure_cluster"]["nfs_suffixes"]):
             create_vm_role_suffix(i, "nfs", config["azure_cluster"]["nfs_vm_size"], 
-                config["azure_cluster"]["nfs_suffix"][i], arm_vm_password)
+                config["azure_cluster"]["nfs_suffixes"][i], arm_vm_password)
         else:
             create_vm_param(i, "nfs", config["azure_cluster"]["nfs_vm_size"],
                         arm_vm_password is not None, arm_vm_password)
@@ -751,9 +751,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
     vm_ip_names = get_vm_private_ip()
     vm_ip_names = sorted(vm_ip_names, key = lambda x:x['name'])
     
-    sku_mapping_cnfn = "../utils/sku_mapping.yaml"
-    with open(sku_mapping_cnfn) as f:
-        sku_mapping = yaml.load(f)
+    sku_mapping = config["sku_mapping"]
 
     for vm in vm_list:
         vmname = vm["name"]
