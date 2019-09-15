@@ -472,7 +472,7 @@ def get_vm_ip(i, role):
 
 def create_cluster(arm_vm_password=None):
     bSQLOnly = (config["azure_cluster"]["infra_node_num"] <= 0)
-    assert int(config["azure_cluster"]["nfs_node_num"]) >= len(config["azure_cluster"]["nfs_suffixes"])
+    assert int(config["azure_cluster"]["nfs_node_num"]) >= len(config["cloud_config"]["nfs_suffixes"])
     print "creating resource group..."
     create_group()
     if not bSQLOnly:

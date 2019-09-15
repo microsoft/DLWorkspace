@@ -625,11 +625,10 @@ default_config_parameters = {
             "source_ips": ["131.107.0.0/16", "104.44.0.0/16"],
             "port": "22",
         },
+        "nfs_suffixes":[],
         "nfs_svr_setup": [
-            # {
-            # "vg_disks": {"dlts-data-lvm": "/dev/sdc"},
-            # "logical_vol": {"dlts-data-lvm-vol1":{"volgrp":"dlts-data-lvm", "percentage":100, "mnt":"/infradata"}},
-            # "mnt_point": {"rootshare":{"curphysicalmountpoint":"/mntdlws/infranfs","filesharename":"/infradata/share","mountpoints":"''"}}}
+              {
+                "mnt_point": {"rootshare":{"curphysicalmountpoint":"/mntdlws/infranfs","filesharename":"/infradata/share","mountpoints":""}}}
         ],
         "samba_range": "104.44.112.0/24",
     },
