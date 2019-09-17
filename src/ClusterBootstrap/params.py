@@ -43,7 +43,7 @@ default_config_parameters = {
     "mysql_data_path": "/var/lib/mysql",
 
     "datasource": "AzureSQL",
-
+    "defalt_virtual_cluster_name": "platform",
     # Discover server is used to find IP address of the host, it need to be a well-known IP address
     # that is pingable.
     "discoverserver": "4.2.2.1",
@@ -359,7 +359,7 @@ default_config_parameters = {
         "CCSAdmins": {
             # The match is in C# Regex Language, please refer to :
             # https://msdn.microsoft.com/en-us/library/az24scfc(v=vs.110).aspx
-            "Allowed": ["jinl@microsoft.com", "hongzl@microsoft.com", "sanjeevm@microsoft.com"],
+            "Allowed": ["hongzl@microsoft.com", "anbhu@microsoft.com", "jachzh@microsoft.com","zhexu@microsoft.com","dixu@microsoft.com","qixcheng@microsoft.com","jingzhao@microsoft.com","hayua@microsoft.com"],
             "uid": "900000000-999999999",
             "gid": "508953967"
         },
@@ -397,7 +397,6 @@ default_config_parameters = {
     "DeployAuthentications": ["Corp", "Live", "Gmail"],
     # You should remove WinBindServers if you will use
     # UserGroups for authentication.
-    "WinbindServers": ["http://onenet40.redmond.corp.microsoft.com/domaininfo/GetUserId?userName={0}"],
     "workFolderAccessPoint": "",
     "dataFolderAccessPoint": "",
 
@@ -609,44 +608,87 @@ default_config_parameters = {
         "tcp_port_for_pods": "30000-49999",
         "tcp_port_ranges": "80 443 30000-49999 25826",
         "udp_port_ranges": "25826",
+        "inter_connect": {
+            "tcp_port_ranges": "22 1443 2379 3306 5000 8086 10250",
+            # Need to white list dev machines to connect
+            # "source_addresses_prefixes": [ "52.151.0.0/16"]
+        },
         "dev_network": {
             "tcp_port_ranges": "22 1443 2379 3306 5000 8086",
             # Need to white list dev machines to connect
             # "source_addresses_prefixes": [ "52.151.0.0/16"]
-        }
+        },
+        "nfs_share": {
+            "source_ips": ["104.44.112.0/24", "131.107.0.0/16"],
+        },
+        "nfs_ssh": {
+            "source_ips": ["131.107.0.0/16", "104.44.0.0/16"],
+            "port": "22",
+        },
+        "nfs_suffixes":[],
+        "nfs_svr_setup": [
+              {
+                "mnt_point": {"rootshare":{"curphysicalmountpoint":"/mntdlws/infranfs","filesharename":"/infradata/share","mountpoints":""}}}
+        ],
+        "samba_range": "104.44.112.0/24",
     },
     "vc_config":{
         "VC-Default":["*"],
+    },
+    "sku_mapping": {
+        "Standard_ND6s":{"gpu-type": "P40","gpu-count": 1}, 
+        "Standard_NV24": {"gpu-type": "M60", "gpu-count": 4},
+        "Standard_ND12s": {"gpu-type": "P40", "gpu-count": 2},
+        "Standard_ND24rs": {"gpu-type": "P40", "gpu-count": 4},
+        "Standard_NV12": {"gpu-type": "M60", "gpu-count": 2},
+        "Standard_NV48s_v3": {"gpu-type": "M60", "gpu-count": 4},
+        "Standard_ND40s_v2": {"gpu-type": "V100", "gpu-count": 8},
+        "Standard_NC6s_v3": {"gpu-type": "V100", "gpu-count": 1},
+        "Standard_NC6s_v2": {"gpu-type": "P100", "gpu-count": 1},
+        "Standard_ND24s": {"gpu-type": "P40", "gpu-count": 4},
+        "Standard_NV24s_v3": {"gpu-type": "M60", "gpu-count": 2},
+        "Standard_NV6": {"gpu-type": "M60", "gpu-count": 1},
+        "Standard_NV12s_v3": {"gpu-type": "M60", "gpu-count": 1},
+        "Standard_NC24s_v2": {"gpu-type": "P100", "gpu-count": 4},
+        "Standard_NC24s_v3": {"gpu-type": "V100", "gpu-count": 4},
+        "Standard_NC12s_v3": {"gpu-type": "V100", "gpu-count": 2},
+        "Standard_NC12s_v2": {"gpu-type": "P100", "gpu-count": 2},
+        "Standard_NC24rs_v3": {"gpu-type": "V100", "gpu-count": 4},
+        "Standard_NC24rs_v2": {"gpu-type": "P100", "gpu-count": 4},
     }
 }
 
 # These are super scripts
 scriptblocks = {
     "azure": [
-        "runscriptonall ./scripts/prepare_vm_disk.sh",
+        "runscriptonroles infra worker ./scripts/prepare_vm_disk.sh",
         "nfs-server create",
-        "runscriptonall ./scripts/prepare_ubuntu.sh",
-        "runscriptonall ./scripts/dns.sh",
+        "runscriptonroles infra worker ./scripts/prepare_ubuntu.sh",
+        "genscripts",
+        "runscriptonroles infra worker ./scripts/dns.sh",
         "-y deploy",
         "-y updateworker",
         "-y kubernetes labels",
+        "-y gpulabel",
         "kubernetes start nvidia-device-plugin",
         "webui",
         "docker push restfulapi",
         "docker push webui",
-        "nginx fqdn",
-        "nginx config",
+        # "nginx fqdn",
+        # "nginx config",
         "mount",
         "kubernetes start mysql",
         "kubernetes start jobmanager",
         "kubernetes start restfulapi",
         "kubernetes start webportal",
         "kubernetes start cloudmonitor",
-        "kubernetes start nginx",
+        # "kubernetes start nginx",
         "kubernetes start custommetrics",
         # TODO(harry): we cannot distinguish gce aws from azure, so add the same providerID
         # This will not break current deployment.
-        "-y kubernetes patchprovider aztools"
+        "-y kubernetes patchprovider aztools",
+        "setconfigmap",
+        "--sudo runscriptonrandmaster ./scripts/pass_secret.sh",
     ],
     "azure_uncordon": [
         "runscriptonall ./scripts/prepare_vm_disk.sh",

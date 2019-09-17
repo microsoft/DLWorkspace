@@ -4,20 +4,36 @@ This document describes the procedure to deploy a DL Workspace cluster on Azure.
 
 Please note that the procedure below doesn't deploy HDFS/Spark on DLWorkspace cluster on Azure (Spark job execution is not available on Azure Cluster).
 
-1. Follow [this document](../../DevEnvironment/Readme.md) to setup the dev environment of DLWorkspace. Login to your Azure subscription on your dev machine via:
+Prerequisite steps:
+First require the manager to add you into a subscription group., then either 
+1. go to that group from Azure Portal and add ubuntu server from resources, this virtual server is your devbox, or 
+2. if you have a physical machine, install ubuntu server system(18.04) on that and use it as your devbox
+then use the devbox to deploy node on cloud.
 
+Workflow:
+1. Please [configure](configure.md) your azure cluster. Put config.yaml under src/ClusterBootstrap
+
+2. Change directory to src/ClusterBootstrap on devbox, and install prerequisite packages:
 ```
+cd src/ClusterBootstrap/ 
+sudo ./install_prerequisites.sh
+```
+3. Login to Azure, setup proper subscription and confirm
+```
+SUBSCRIPTION_NAME="<subscription name>" 
 az login
+az account set --subscription "${SUBSCRIPTION_NAME}" 
+az account list | grep -A5 -B5 '"isDefault": true'
 ```
-
-2. Please [configure](configure.md) your azure cluster. 
-
-3. Set proper [authentication](../authentication/Readme.md).
-
-4. Initial cluster and generate certificates and keys:
+Configure your location, should be the same as you specified in config.yaml file:
+```AZ_LOCATION="<your location>"```
+Execute this command, log out(exit) and log in back
+```sudo usermod -aG docker zhe_ms```
+4. Initiate cluster and generate certificates and keys:
 ```
 ./deploy.py -y build
 ```
+
 5. Create Azure Cluster:
 ```
 ./az_tools.py create
@@ -40,9 +56,10 @@ Please note that if you are not Microsoft user, you should remove the
   ```
   where machine1 is your azure infrastructure node. (you may get the address by ./deploy.py display)
 
-  The script block execute the following command in sequences: (you do NOT need to run the following commands if you have run step 5)
-  1. Setup basic tools on the Ubuntu image. 
+  This command sequetially execute following steps:
+  1. Setup basic tools on VM and on the Ubuntu image. 
   ```
+  ./deploy.py runscriptonall ./scripts/prepare_vm_disk.sh
   ./deploy.py runscriptonall ./scripts/prepare_ubuntu.sh
   ```
 
@@ -57,16 +74,28 @@ Please note that if you are not Microsoft user, you should remove the
   ./deploy.py -y kubernetes labels
   ```
 
-  4. Build and deploy jobmanager, restfulapi, and webportal. Mount storage.
+  4. Start Nvidia device plugins:
   ```
+  ./deploy.py kubernetes start nvidia-device-plugin
+  ```
+
+  5. Build and deploy jobmanager, restfulapi, and webportal. Mount storage.
+  ```
+  ./deploy.py webui
   ./deploy.py docker push restfulapi
   ./deploy.py docker push webui
-  ./deploy.py webui
   ./deploy.py mount
   ./deploy.py kubernetes start jobmanager restfulapi webportal
   ```
 
-8. If you run into a deployment issue, please check [here](FAQ.md) first. 
+8.  Manually connect to the infrastructure/master node:
+  ```./deploy.py connect master```
+  On master node(log in from devbox by ./deploy.py connect master), manually add ```"Grafana": "",``` to /etc/WebUI/userconfig.json, under "Restapi" entry.
+  Restart the WebUI docker:
+  Login to the master node, and use
+  ```docker ps | grep web``` 
+  to get the ID corresponding to Web UI, then restart that docker image: 
+  ```docker rm -f <WebUI ID>```
+  Wait for minutes for it to restart (can follow by using ```docker logs --follow <WebUI ID>```) and visit the infra node from web browser.
 
-9. If you want to deploy a DLWorkspace cluster that can be autoscaled (i.e., automatically create/release VM when needed), please follow the following additional steps.
-
+9. If you run into a deployment issue, please check [here](FAQ.md) first.

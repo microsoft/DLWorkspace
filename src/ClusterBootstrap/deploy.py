@@ -58,7 +58,7 @@ coreosbaseurl = ""
 verbose = False
 nocache = False
 limitnodes = None
-
+allroles = {"infra", "infrastructure", "worker", "nfs", "sql"}
 
 
 # default search for all partitions of hdb, hdc, hdd, and sdb, sdc, sdd
@@ -319,8 +319,8 @@ def add_acs_config(command):
         config["WinbindServers"] = []
         config["etcd_node_num"] = config["master_node_num"]
         config["kube_addons"] = [] # no addons
-        config["mountpoints"]["rootshare"]["azstoragesku"] = config["azstoragesku"]
-        config["mountpoints"]["rootshare"]["azfilesharequota"] = config["azfilesharequota"]
+        # config["mountpoints"]["rootshare"]["azstoragesku"] = config["azstoragesku"]
+        # config["mountpoints"]["rootshare"]["azfilesharequota"] = config["azfilesharequota"]
         config["freeflow"] = True
         config["useclusterfile"] = True
 
@@ -505,21 +505,36 @@ def check_node_availability(ipAddress):
     #status = sock.connect_ex((ipAddress,22))
     return status == 0
 
-# Get domain of the node
+# check if on same domain
+def is_cur_on_same_domain():
+    if "network" in config and "domain" in config["network"]:
+        hostname = subprocess.check_output("hostname").strip()
+        try:
+            output = subprocess.check_output("nslookup {0}.{1}".format(hostname, config["network"]["domain"]), shell=True)
+            if "name:" in output.lower():
+                return True
+        except:
+            pass
+    return False
+
+# Get domain of the node, assigned in add_acs_config (line config["network"]["domain"])
 def get_domain():
     if "network" in config and "domain" in config["network"] and len(config["network"]["domain"]) > 0 :
-        domain = "."+config["network"]["domain"]
+        if is_cur_on_same_domain():
+            domain = ""
+        else:
+            domain = "."+config["network"]["domain"]
     else:
         domain = ""
     return domain
 
 # Get a list of nodes from cluster.yaml
 def get_nodes_from_config(machinerole):
+    machinerole = "infrastructure" if machinerole == "infra" else machinerole
     if "machines" not in config:
         return []
     else:
         domain = get_domain()
-        # print ("Doamin = %s " % domain )
         Nodes = []
         for nodename in config["machines"]:
             nodeInfo = config["machines"][nodename]
@@ -529,6 +544,9 @@ def get_nodes_from_config(machinerole):
                 else:
                     Nodes.append(nodename)
         return sorted(Nodes)
+
+def get_node_full_name(nodename):
+    return nodename + get_domain() if len(nodename.split("."))<3 else nodename
 
 # Get a list of scaled nodes from cluster.yaml
 def get_scaled_nodes_from_config():
@@ -606,6 +624,21 @@ def get_worker_nodes_from_config(clusterId):
     config["worker_node"] = Nodes
     return Nodes
 
+def get_nodes_by_roles(roles):
+    """
+    role: "infrastructure", "worker", or "nfs"
+    this function aims to deprecate get_worker_nodes_from_config and get_ETCD_master_nodes_from_config
+    """
+    Nodes = []
+    for role in roles:
+        Nodes += get_nodes_from_config(role)
+        if role == "infrastructure" or role == "infra":
+            config["etcd_node"] = Nodes
+            config["kubernetes_master_node"] = Nodes
+        else:
+            config["{}_node".format(role)] = Nodes
+    return Nodes    
+
 def get_worker_nodes(clusterId, isScaledOnly):
     nodes = []
     if "worker_node" in config and len(config["worker_node"]) > 0:
@@ -613,7 +646,8 @@ def get_worker_nodes(clusterId, isScaledOnly):
     if "useclusterfile" not in config or not config["useclusterfile"]:
         nodes = get_worker_nodes_from_cluster_report(clusterId)
     else:
-        nodes = get_worker_nodes_from_config(clusterId)
+        print("from console")
+        nodes = get_nodes_by_roles(["worker"]) #get_worker_nodes_from_config(clusterId)
 
     if isScaledOnly:
         return get_scaled_nodes_from_config()
@@ -651,10 +685,12 @@ def check_master_ETCD_status():
     print "Checking Available Nodes for Deployment..."
     get_ETCD_master_nodes(config["clusterId"])
     get_worker_nodes(config["clusterId"], False)
+    get_nodes_by_roles(["nfs"])
     print "==============================================="
     print "Activate Master Node(s): %s\n %s \n" % (len(config["kubernetes_master_node"]),",".join(config["kubernetes_master_node"]))
     print "Activate ETCD Node(s):%s\n %s \n" % (len(config["etcd_node"]),",".join(config["etcd_node"]))
     print "Activate Worker Node(s):%s\n %s \n" % (len(config["worker_node"]),",".join(config["worker_node"]))
+    print "Activate NFS Node(s):%s\n %s \n" % (len(config["nfs_node"]),",".join(config["nfs_node"]))
 
 def clean_deployment():
     print "==============================================="
@@ -763,6 +799,7 @@ def gen_configs():
         config["ssh_cert"] = expand_path("./deploy/sshkey/id_rsa")
 
     config["etcd_user"] = config["admin_username"]
+    config["nfs_user"] = config["admin_username"]
     config["kubernetes_master_ssh_user"] = config["admin_username"]
 
     #config["api_servers"] = ",".join(["https://"+x for x in config["kubernetes_master_node"]])
@@ -794,6 +831,7 @@ def get_ssh_config():
     if "ssh_cert" in config:
         config["ssh_cert"] = expand_path(config["ssh_cert"])
     config["etcd_user"] = config["admin_username"]
+    config["nfs_user"] = config["admin_username"]
     config["kubernetes_master_ssh_user"] = config["admin_username"]
     add_ssh_key()
 
@@ -1071,11 +1109,35 @@ def deploy_ETCD():
     utils.SSH_exec_script( config["ssh_cert"], etcd_server_user, etcd_servers[0], "./deploy/etcd/init_network.sh")
 
 def create_nfs_server():
-    etcd_servers = config["etcd_node"]
-    etcd_server_user = config["etcd_user"]
-    os.system( "mkdir -p ./deploy/scripts")
-    utils.render_template("./scripts/setup_nfs_server.sh","./deploy/scripts/setup_nfs_server.sh",config)
-    utils.SSH_exec_script( config["ssh_cert"], etcd_server_user, etcd_servers[0], "./deploy/scripts/setup_nfs_server.sh")
+    """
+    we assume there's only 1 cluster.
+    """
+    etcd_server_user = config["nfs_user"]
+    cluster_by_name = config["azure_cluster"][config["cluster_name"]]
+    nfs_servers = config["nfs_node"] if int(cluster_by_name["nfs_node_num"]) > 0 else config["etcd_node"]
+    # if we have suffixed server, then it must be external
+    named_nfs_suffix = set(cluster_by_name["nfs_suffixes"] if "nfs_suffixes" in cluster_by_name else [])
+    used_nfs_suffix = set([nfs_cnf["server_suffix"] for nfs_cnf in config["cloud_config"]["nfs_svr_setup"] if "server_suffix" in nfs_cnf])
+    assert (used_nfs_suffix - named_nfs_suffix) == set() and "suffix not in nfs_suffixes list!"
+    suffix2used_nfs = {suffix: get_node_full_name("{}-nfs-{}".format(config["cluster_name"], suffix)) for suffix in used_nfs_suffix}
+    # unused, either node without name suffix or those with suffix but not specified in any nfs_svr_setup item
+    unused_nfs = sorted([s for s in nfs_servers if s not in suffix2used_nfs.values()])
+    unused_ID_cnt = 0
+    # print(nfs_servers, suffix2used_nfs, unused_nfs)
+    
+
+    for nfs_cnf in config["cloud_config"]["nfs_svr_setup"]:
+        nfs_cnf["cloud_config"] = {"vnet_range":config["cloud_config"]["vnet_range"], "samba_range": config["cloud_config"]["samba_range"]}
+        if "server_suffix" in nfs_cnf:
+            nfs_server = suffix2used_nfs[nfs_cnf["server_suffix"]]
+        else:
+            nfs_server = unused_nfs[unused_ID_cnt]
+            unused_ID_cnt += 1
+        utils.render_template("./template/nfs/nfs_config.sh.template","./deploy/scripts/setup_nfs_server.sh",nfs_cnf)
+        # os.system("cat ./deploy/scripts/setup_nfs_server.sh")
+        # print("------------------>nfs_server<------------------------"+nfs_server)
+        utils.SSH_exec_script( config["ssh_cert"], etcd_server_user, nfs_server, "./deploy/scripts/setup_nfs_server.sh")
+
 
 def create_ISO():
     imagename = "./deploy/iso/dlworkspace-cluster-deploy-"+config["cluster_name"]+".iso"
@@ -1530,7 +1592,9 @@ def get_mount_fileshares(curNode = None):
     physicalmountpoint = config["physical-mount-path"]
     storagemountpoint = config["storage-mount-path"]
     mountshares = {}
+    # print(config["mountpoints"])
     for k,v in config["mountpoints"].iteritems():
+        # print("<<<<<<<<<<<<<<<<<<<new mount points:", v)
         if "type" in v:
             if ("mountpoints" in v):
                 if isinstance( v["mountpoints"], basestring):
@@ -1542,14 +1606,15 @@ def get_mount_fileshares(curNode = None):
                     mountpoints = v["mountpoints"]
             else:
                 mountpoints = []
-
+            # print("-------------mount points---------------:", mountpoints, bHasDefaultMountPoints)
             if len(mountpoints)==0:
                 if bHasDefaultMountPoints:
                     errorMsg = "there are more than one default mount points in configuration. "
                     print "!!!Configuration Error!!! " + errorMsg
-                    raise ValueError(erorMsg)
+                    raise ValueError(errorMsg)
                 else:
                     bHasDefaultMountPoints = True
+                    print "default storage folders:", config["default-storage-folders"], "\n"
                     mountpoints = config["default-storage-folders"]
 
             mountsharename = v["mountsharename"] if "mountsharename" in v else v["filesharename"]
@@ -2413,6 +2478,11 @@ def exec_on_all_with_output(nodes, args, supressWarning = False):
         print "Node: " + node
         print output
 
+def exec_on_rand_master(args, supressWarning = False):
+    nodes = get_ETCD_master_nodes(config["clusterId"])
+    master_node = random.choice(nodes)
+    exec_on_all_with_output([master_node], args, supressWarning)
+
 # run a shell script on one remote node
 def run_script(node, args, sudo = False, supressWarning = False):
     if ".py" in args[0]:
@@ -2439,6 +2509,11 @@ def run_script(node, args, sudo = False, supressWarning = False):
 def run_script_on_all(nodes, args, sudo = False, supressWarning = False):
     for node in nodes:
         run_script( node, args, sudo = sudo, supressWarning = supressWarning)
+
+def run_script_on_rand_master(nargs, args):
+    nodes = get_ETCD_master_nodes(config["clusterId"])
+    master_node = random.choice(nodes)
+    run_script_on_all([master_node], nargs, sudo = args.sudo )
 
 def copy_to_all(nodes, src, dst):
     for node in nodes:
@@ -2755,14 +2830,11 @@ def kubernetes_label_nodes( verb, servicelists, force ):
                 kubernetes_label_node(cmdoptions, nodename, label+"-")
 
 
-# Label kubernete nodes with gpu types.
+# Label kubernete nodes with gpu types.skip for CPU workers
 def kubernetes_label_GpuTypes():
-    nodes = get_nodes(config["clusterId"])
-    gpuType_config = fetch_config(config, ["gpuType_config"])
-    for gpuType, nodes in gpuType_config:
-        for node in nodes:
-            nodename = kubernetes_get_node_name(node)
-            kubernetes_label_node("--overwrite", nodename, "gpuType="+gpuType)
+    for nodename,nodeInfo in config["machines"].items():
+        if nodeInfo["role"] == "worker" and nodeInfo["gpu-type"] != "NULL":
+            kubernetes_label_node("--overwrite", nodename, "gpuType="+nodeInfo["gpu-type"])
 
 
 def kubernetes_patch_nodes_provider (provider, scaledOnly):
@@ -2809,6 +2881,10 @@ def start_one_kube_service(fname):
             print service_yaml
         except Exception as e:
             pass
+
+    if fname == "./deploy/services/jobmanager/jobmanager.yaml":
+        # recreate the configmap dlws-scripts
+        run_kubectl( ["create configmap dlws-scripts --from-file=../Jobs_Templete/ -o yaml --dry-run | ./deploy/bin/kubectl apply -f -"] )
 
     run_kubectl( ["create", "-f", fname ] )
 
@@ -2908,6 +2984,12 @@ def run_docker_image( imagename, native = False, sudo = False ):
         else:
             run_docker( matches[0], prompt = imagename, dockerConfig = dockerConfig, sudo = sudo )
 
+def gen_dns_config_script():
+    utils.render_template("./template/dns/dns.sh.template", "deploy/kubeconfig/kubeconfig.yaml", config)
+
+def gen_pass_secret_script():
+    utils.render_template("./template/secret/pass_secret.sh.template", "scripts/pass_secret.sh", config)
+
 def run_command( args, command, nargs, parser ):
     # If necessary, show parsed arguments.
     # print args
@@ -2959,7 +3041,6 @@ def run_command( args, command, nargs, parser ):
         f.close()
         if "clusterId" in tmp:
             config["clusterId"] = tmp["clusterId"]
-
     if "copy_sshtemp" in config and config["copy_sshtemp"]:
         if "ssh_origfile" not in config:
             config["ssh_origfile"] = config["ssh_cert"]
@@ -2977,20 +3058,16 @@ def run_command( args, command, nargs, parser ):
         else:
             print "SSH Key {0} not found using original".format(sshfile)
         #    exit()
-
     add_acs_config(command)
     if verbose and config["isacs"]:
         print "Using Azure Container Services"
-
     if os.path.exists("./deploy/clusterID.yml"):
         update_config()
     else:
         apply_config_mapping(config, default_config_mapping)
         update_docker_image_config()
-
     # additional glusterfs launch parameter.
     config["launch-glusterfs-opt"] = args.glusterfs;
-
     get_ssh_config()
     configuration( config, verbose )
     if args.yes:
@@ -3029,15 +3106,15 @@ def run_command( args, command, nargs, parser ):
 
     elif command == "connect":
             check_master_ETCD_status()
-            if len(nargs) < 1 or nargs[0] == "master":
+            role2connect = nargs[0]
+            # print(role2connect, config["ssh_cert"], config["admin_username"])
+            if len(nargs) < 1 or role2connect == "master":
                 nodes = config["kubernetes_master_node"]
-            elif nargs[0] == "etcd":
-                nodes = config["etcd_node"]
-            elif nargs[0] == "worker":
-                nodes = config["worker_node"]
+            elif role2connect in ["etcd","worker","nfs"]:
+                nodes = config["{}_node".format(role2connect)]
             else:
                 parser.print_help()
-                print "ERROR: must connect to either master, etcd or worker nodes"
+                print "ERROR: must connect to either master, etcd, nfs or worker nodes"
                 exit()
             if len(nodes) == 0:
                 parser.print_help()
@@ -3087,6 +3164,11 @@ def run_command( args, command, nargs, parser ):
             parser.print_help()
             print "Error: build target %s is not recognized. " % nargs[0]
             exit()
+
+    elif command == "dnssetup":
+        os.system("./gene_loc_dns.sh")
+        nodes = get_nodes(config["clusterId"])
+        run_script_on_all(nodes, "./scripts/dns.sh", sudo = args.sudo )
 
     elif command == "sshkey":
         if len(nargs) >=1 and nargs[0] == "install":
@@ -3374,7 +3456,24 @@ def run_command( args, command, nargs, parser ):
 
     elif command == "runscriptonall" and len(nargs)>=1:
         nodes = get_nodes(config["clusterId"])
+        # print(nodes)
         run_script_on_all(nodes, nargs, sudo = args.sudo )
+
+    elif command == "runscriptonroles":
+        assert len(nargs)>=1
+        nodeset, scripts_start = [], 0
+        for ni, arg in enumerate(nargs):
+            scripts_start = ni
+            if arg in allroles:
+                nodeset += arg,
+            else:
+                break
+        nodes = get_nodes_by_roles(nodeset)
+        # print(nodes)
+        run_script_on_all(nodes, nargs[scripts_start:], sudo = args.sudo )
+
+    elif command == "runscriptonrandmaster" and len(nargs)>=1:
+        run_script_on_rand_master(nargs, args)
 
     elif command == "runscriptonscaleup" and len(nargs)>=1:
         nodes = get_scaled_nodes(config["clusterId"])
@@ -3576,6 +3675,17 @@ def run_command( args, command, nargs, parser ):
             parser.print_help()
             print "Error: kubernetes need a subcommand."
             exit()
+
+    elif command == "gpulabel":
+        kubernetes_label_GpuTypes()
+
+    elif command == "genscripts":
+        # print(config["azure_cluster"].keys())
+        gen_dns_config_script()
+        gen_pass_secret_script()
+
+    elif command == "setconfigmap":
+        os.system('./deploy/bin/kubectl create configmap dlws-scripts --from-file=../Jobs_Templete -o yaml --dry-run | ./deploy.py kubectl apply -f -')
 
     elif command == "download":
         if len(nargs)>=1:

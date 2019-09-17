@@ -13,7 +13,7 @@ from config import config
 from config import global_vars
 
 from prometheus_client import Histogram
-
+    
 logger = logging.getLogger(__name__)
 
 data_handler_fn_histogram = Histogram("datahandler_fn_latency_seconds",
@@ -182,7 +182,13 @@ class DataHandler(object):
             self.conn.commit()
             cursor.close()
 
+            # when the VC has vm of same GPU type but different VMsizes, e.g., when VC has Standard_NC6s_v3 and Standard_NC12s_v3 both?
+            # impossible since there's no way to do it with current config mechanism
 
+            worker_cnt = int(config["azure_cluster"]["worker_node_num"])
+            sku_mapping = config["sku_mapping"]
+            n_gpu_pernode = sku_mapping[config["azure_cluster"]["worker_vm_size"]]["gpu-count"]
+            gpu_type = sku_mapping[config["azure_cluster"]["worker_vm_size"]]["gpu-type"]
             sql = """
                 CREATE TABLE IF NOT EXISTS  `%s`
                 (
@@ -195,7 +201,8 @@ class DataHandler(object):
                     PRIMARY KEY (`id`),
                     CONSTRAINT `hierarchy` FOREIGN KEY (`parent`) REFERENCES `%s` (`vcName`)
                 )
-                """ % (self.vctablename, self.vctablename)
+                AS SELECT \'%s\' AS vcName, NULL AS parent, '{\\\"%s\\\":%s}' AS quota, '{\\\"%s\\\":{\\\"num_gpu_per_node\\\":%s}}' AS metadata;
+                """ % (self.vctablename, self.vctablename, config['defalt_virtual_cluster_name'], gpu_type, n_gpu_pernode*worker_cnt, gpu_type,n_gpu_pernode)
 
             cursor = self.conn.cursor()
             cursor.execute(sql)
