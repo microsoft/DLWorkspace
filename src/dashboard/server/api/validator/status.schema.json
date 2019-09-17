@@ -1,0 +1,14 @@
+{
+  "type": "object",
+  "properties": {
+    "status": {
+      "enum": [
+        "approved",
+        "killing",
+        "pausing",
+        "queued"
+      ]
+    }
+  },
+  "required": ["status"]
+}

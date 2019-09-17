@@ -1,0 +1,4 @@
+{
+  "azureDataStorage": "adl://indexserveplatform-experiment-c09.azuredatalakestore.net/local/users/deepscale/data/qanet",
+  "nfsDataStorage": "/data/users/deepscale/data/qanet"
+}

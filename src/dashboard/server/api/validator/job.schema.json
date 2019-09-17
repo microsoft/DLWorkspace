@@ -1,0 +1,8 @@
+{
+  "type": "object",
+  "properties": {
+    "team": {
+      "type": "string"
+    }
+  }
+}
