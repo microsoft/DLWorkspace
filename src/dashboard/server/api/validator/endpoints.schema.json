@@ -1,0 +1,32 @@
+{
+  "type": "object",
+  "properties": {
+    "endpoints": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "podPort": {
+                "type": "number"
+              }
+            },
+            "required": ["name", "podPort"]
+          },
+          {
+            "enum": [
+              "ssh",
+              "ipython",
+              "tensorboard"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "required": ["endpoints"]
+}

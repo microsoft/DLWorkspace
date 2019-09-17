@@ -1,0 +1,282 @@
+import React, {useEffect, useState} from "react";
+import { Link } from "react-router-dom";
+import useFetch, { useGet } from "use-http/dist";
+import {
+  Avatar,
+  Button,
+  Card,
+  CardActions,
+  CardContent,
+  CardHeader, Dialog,
+  Divider,
+  IconButton,
+  InputAdornment,
+  Menu,
+  MenuItem, Snackbar, SnackbarContent,
+  TextField,
+  Tooltip
+} from "@material-ui/core";
+import { makeStyles, createStyles, useTheme, Theme } from "@material-ui/core/styles";
+import { MoreVert, FileCopyRounded} from "@material-ui/icons";
+
+import { Cell, PieChart, Pie, ResponsiveContainer } from "recharts";
+import UserContext from "../../contexts/User";
+import TeamsContext from '../../contexts/Teams';
+import {green, lightGreen,deepOrange} from "@material-ui/core/colors";
+import _ from 'lodash';
+import copy from 'clipboard-copy'
+const useStyles = makeStyles((theme: Theme) => createStyles({
+  avatar: {
+    backgroundColor: theme.palette.secondary.main,
+  },
+  cardHeaderContent: {
+    width: 0
+  },
+  textField: {
+    marginLeft: theme.spacing(1),
+    marginRight: theme.spacing(1),
+  },
+  chart: {
+    padding: 3,
+    backgroundColor: theme.palette.background.default,
+  },
+  dialogText: {
+    color:green[400]
+  },
+  success: {
+    backgroundColor: green[600],
+  },
+}));
+
+const ActionIconButton: React.FC<{cluster?: string}> = ({cluster}) => {
+  const [open, setOpen] = React.useState(false);
+  const iconButton = React.useRef<any>();
+  const onIconButtonClick = React.useCallback(() => setOpen(true), [setOpen]);
+  const onMenuClose = React.useCallback(() => setOpen(false), [setOpen]);
+  const onMenuItemClick = React.useCallback(() => setOpen(false), [setOpen]);
+
+  return (
+    <>
+      <IconButton ref={iconButton} onClick={onIconButtonClick}>
+        <MoreVert/>
+      </IconButton>
+      <Menu
+        anchorEl={iconButton.current}
+        anchorOrigin={{ horizontal: "right", vertical: "top" }}
+        transformOrigin={{ horizontal: "right", vertical: "top" }}
+        open={open}
+        onClose={onMenuClose}
+      >
+        <MenuItem component={Link} to={"/cluster-status"}>Cluster Status</MenuItem>
+        <MenuItem component={Link} to={`/jobs/${cluster}`}>View Jobs</MenuItem>
+        {/*<MenuItem onClick={onMenuItemClick}>Manage Users</MenuItem>*/}
+      </Menu>
+    </>
+  )
+};
+
+const Chart: React.FC<{
+  available: number;
+  used: number;
+  reserved: number;
+  isActive: boolean;
+
+}> = ({ available, used, reserved ,isActive}) => {
+  const theme = useTheme();
+  let data = [
+    { name: "Available", value: available, color: lightGreen[400] },
+    { name: "Used", value: used, color: theme.palette.grey[500] },
+    { name: "Reserved", value: reserved, color: deepOrange[400]},
+  ];
+  if (reserved === 0) {
+    data = data.filter((item)=>item.name !== 'Reserved')
+  }
+  return (
+    <ResponsiveContainer aspect={16 / 9}>
+      <PieChart>
+        <Pie
+          // hide={!isActive}
+          isAnimationActive={isActive}
+          data={data}
+          dataKey="value"
+          label={({ name, value }) => `${name} ${value}`}
+          labelLine={false}
+        >
+          { data.map(({ name, color }) => <Cell key={name} fill={color}/>) }
+        </Pie>
+      </PieChart>
+    </ResponsiveContainer>
+  )
+}
+
+export const DirectoryPathTextField: React.FC<{
+  label: string;
+  value: string;
+}> = ({ label, value }) => {
+  const styles = useStyles();
+  const input = React.useRef<HTMLInputElement>(null);
+  const [openCopyWarn, setOpenCopyWarn] = React.useState(false);
+  const handleWarnClose = () => {
+    setOpenCopyWarn(false);
+  }
+  const onMouseOver = React.useCallback(() => {
+    if (input.current) {
+      input.current.select();
+    }
+  }, [input])
+  const onFocus = React.useCallback(() => {
+    if (input.current) {
+      input.current.select();
+    }
+  },
+  [input]);
+  const handleCopy = React.useCallback(() => {
+    if (input.current) {
+      copy(input.current.innerHTML).then(()=>{
+        setOpenCopyWarn(true)
+      })
+
+    }
+  },[input])
+  return (
+    <>
+    <TextField
+      inputRef={input}
+      label={label}
+      value={value}
+      multiline
+      rows={2}
+      fullWidth
+      variant="outlined"
+      margin="dense"
+      InputProps={{
+        readOnly: true,
+        endAdornment: (
+          <InputAdornment position="end">
+            <Tooltip title="Copy" placement="right">
+              <IconButton>
+                <FileCopyRounded/>
+              </IconButton>
+            </Tooltip>
+          </InputAdornment>
+        )
+      }}
+      onMouseOver={onMouseOver}
+      onFocus={onFocus}
+      onClick={handleCopy}
+    />
+      <Snackbar
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        open={openCopyWarn}
+        autoHideDuration={500}
+        onClose={handleWarnClose}
+        ContentProps={{
+          'aria-describedby': 'message-id',
+        }}
+      >
+        <SnackbarContent
+          className={styles.success}
+          aria-describedby="client-snackbar"
+          message={<span id="message-id" >Successfully copied</span>}
+        />
+      </Snackbar>
+    </>
+  );
+}
+
+const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
+  const styles = useStyles();
+  const [activeJobs, setActiveJobs] = useState(0);
+  const [available, setAvailable] = useState(0);
+  const [used, setUsed] = useState(0);
+  const [reversed, setReserved] = useState(0);
+  const [workStorage, setWorkStorage ] = useState('');
+  const [dataStorage, setDataStorage] = useState('');
+  const [activate,setActivate] = useState(false);
+  const { email } = React.useContext(UserContext);
+  const {selectedTeam} = React.useContext(TeamsContext);
+  const options = {
+    onMount: true
+  }
+  const fetchDiretoryUrl = `api/clusters/${cluster}`;
+  const request = useFetch(fetchDiretoryUrl,options);
+  const fetchDirectories = async () => {
+    const data = await request.get('');
+    const name = typeof email === 'string' ?  email.split('@', 1)[0] : email;
+    setDataStorage(data.dataStorage);
+    setWorkStorage(`${data.workStorage}/${name}`);
+  }
+  const fetchClusterStatusUrl = `/api`;
+  const requestClusterStatus = useFetch(fetchClusterStatusUrl, options);
+  const fetchClusterStatus = async () => {
+    setActivate(false);
+    const data = await requestClusterStatus.get(`/teams/${selectedTeam}/clusters/${cluster}`);
+    return data;
+    // const availableGpu = !_.isEmpty(data['gpu_avaliable']) ? (Number)(Object.values(data['gpu_avaliable'])[0]) : 0;
+    // setAvailable(availableGpu);
+    // const usedGpu = !_.isEmpty(data['gpu_used']) ? (Number)(Object.values(data['gpu_used'])[0]) : 0;
+    // setUsed(usedGpu);
+    // const reversedGpu = !_.isEmpty(data['gpu_unschedulable']) ? (Number)(Object.values(data['gpu_unschedulable'])[0]) : 0;
+    // setReserved(reversedGpu);
+    // setActiveJobs((Number)(data['AvaliableJobNum']));
+    // setActivate(true);
+  }
+  useEffect(()=>{
+    fetchDirectories();
+    fetchClusterStatus().then((res)=>{
+      const availableGpu = !_.isEmpty(res['gpu_avaliable']) ? (Number)(Object.values(res['gpu_avaliable'])[0]) : 0;
+      setAvailable(availableGpu);
+      const usedGpu = !_.isEmpty(res['gpu_used']) ? (Number)(Object.values(res['gpu_used'])[0]) : 0;
+      setUsed(usedGpu);
+      const reversedGpu = !_.isEmpty(res['gpu_unschedulable']) ? (Number)(Object.values(res['gpu_unschedulable'])[0]) : 0;
+      setReserved(reversedGpu);
+      setActiveJobs((Number)(res['AvaliableJobNum']));
+      setActivate(true);
+    })
+  },[selectedTeam]);
+  return (
+    <Card>
+      <CardHeader
+        title={cluster}
+        titleTypographyProps={{
+          component: "h3",
+          variant: "body2",
+          noWrap: true
+        }}
+        subheader={` ${activeJobs} Active Jobs`}
+        action={<ActionIconButton cluster={cluster}/>}
+        classes={{ content: styles.cardHeaderContent }}
+      />
+      <CardContent className={styles.chart}>
+        <Chart available={available} used={used} reserved={reversed} isActive={activate} />
+      </CardContent>
+      <CardActions>
+        <Button component={Link}
+          to={{pathname: "/submission/training-cluster", state: { cluster } }}
+          size="small" color="secondary"
+        >
+          Submit Training Job
+        </Button>
+        <Button component={Link}
+          to={{pathname: "/submission/data", state: { cluster } }}
+          size="small" color="secondary"
+        >
+          Submit Data Job
+        </Button>
+      </CardActions>
+      <Divider/>
+      <CardContent>
+        <DirectoryPathTextField
+          label="Work Directory"
+          value={workStorage}
+        />
+        <DirectoryPathTextField
+          label="Data Directory"
+          value={dataStorage}
+        />
+      </CardContent>
+    </Card>
+  );
+};
+
+export default GPUCard;
