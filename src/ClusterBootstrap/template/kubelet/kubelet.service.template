@@ -22,6 +22,7 @@ ExecStartPre=/bin/bash -c 'if  lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA
 # 
 # https://kubernetes.io/docs/tasks/manage-gpus/scheduling-gpus/
 ExecStart=/opt/bin/kubelet \
+  --volume-plugin-dir=/etc/kubernetes/volumeplugins \
   --container-runtime={{'remote' if cnf["kube_custom_cri"] else 'docker'}} \
   --enable-server=true \
   --register-node=true \
