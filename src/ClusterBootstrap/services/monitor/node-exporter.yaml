@@ -41,8 +41,8 @@ spec:
           - '--no-collector.entropy'
 #- '--no-collector.filefd' Exposes file descriptor statistics from /proc/sys/fs/file-nr
 #- '--no-collector.filesystem' Exposes filesystem statistics, such as disk space used.
-          - '--no-collector.hwmon'
-          - '--no-collector.infiniband'
+#- '--no-collector.hwmon' Expose hardware monitoring and sensor data from /sys/class/hwmon/.
+#- '--no-collector.infiniband' Exposes network statistics specific to InfiniBand and Intel OmniPath configurations.
           - '--no-collector.ipvs'
 #- '--no-collector.loadavg' Exposes load average.
           - '--no-collector.mdadm'
@@ -52,7 +52,7 @@ spec:
           - '--no-collector.nfs'
           - '--no-collector.nfsd'
           - '--no-collector.sockstat'
-          - '--no-collector.stat'
+#- '--no-collector.stat' Exposes various statistics from /proc/stat. This includes boot time, forks and interrupts.
           - '--no-collector.time'
           - '--no-collector.timex'
 #- '--no-collector.uname'
