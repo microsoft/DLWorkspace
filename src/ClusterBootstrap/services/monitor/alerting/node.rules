@@ -42,3 +42,9 @@ groups:
         for: 10m
         annotations:
           summary: "{{$labels.cmd}} with pid {{$labels.pid}} in {{$labels.instance}} consume more than 1G of memory"
+
+      - alert: NFSHanging
+        expr: zombie_process_count{command="bash"} > 0
+        for: 10m
+        annotations:
+          summary: "User's job in {{$labels.instance}} is hanging in scheduling, will need to restart the node to recover"
