@@ -635,6 +635,7 @@ default_config_parameters = {
     "vc_config":{
         "VC-Default":["*"],
     },
+    "registry_credential":{},
     "sku_mapping": {
         "Standard_ND6s":{"gpu-type": "P40","gpu-count": 1}, 
         "Standard_NV24": {"gpu-type": "M60", "gpu-count": 4},
@@ -690,6 +691,7 @@ scriptblocks = {
         "-y kubernetes patchprovider aztools",
         "setconfigmap",
         "--sudo runscriptonrandmaster ./scripts/pass_secret.sh",
+        "runscriptonroles worker scripts/pre_download_images.sh",
     ],
     "azure_uncordon": [
         "runscriptonall ./scripts/prepare_vm_disk.sh",

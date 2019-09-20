@@ -523,7 +523,8 @@ def create_vm_param(i, role, vm_size, no_az=False, arm_vm_password=None):
     elif role == "infra":
         vmname = "%s-infra%02d" % (config["azure_cluster"]
                                    ["cluster_name"], i + 1)
-    elif role == "dev":
+    else:
+        role = "dev"
         vmname = "%s-dev" % (config["azure_cluster"]["cluster_name"])
     print "creating VM %s..." % vmname
     vm_ip = get_vm_ip(i, role)

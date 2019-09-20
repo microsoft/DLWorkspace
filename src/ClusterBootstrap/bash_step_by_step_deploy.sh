@@ -24,3 +24,4 @@
 ./deploy.py -y kubernetes patchprovider aztools
 ./deploy.py setconfigmap
 ./deploy.py --sudo runscriptonrandmaster ./scripts/pass_secret.sh
+./deploy.py runscriptonroles worker scripts/pre_download_images.sh
