@@ -98,7 +98,7 @@ const useStyles = makeStyles((theme: Theme) =>
       }
     },
     inputField: {
-      fontSize:'12px'
+      fontSize:'12px',
     }
   })
 );
@@ -106,13 +106,6 @@ const Jobs: React.FC = (props: any) => {
   const classes = useStyles();
   const [value, setValue] = React.useState(0);
   const [refresh, setRefresh] = React.useState(false);
-  const handleChange = (event: React.ChangeEvent<{}>, newValue: number) => {
-    setRefresh(false);
-    setTimeout(()=>{
-      setRefresh(true);
-    },1000);
-    setValue(newValue);
-  }
   useEffect(()=>{
     let mount = true;
     let timeout: any;
@@ -302,6 +295,7 @@ const Jobs: React.FC = (props: any) => {
     defaultValue={rowData.priority}
     onKeyPress={(event) => handlePriorityKeyPress(rowData, event)}
     fullWidth={true}
+    helperText={"priority should be 100 ~ 65535"}
     InputProps={{
       classes: {
         input: classes.inputField,
@@ -367,7 +361,7 @@ const Jobs: React.FC = (props: any) => {
     setCurrentCluster(event.target.value as string)
   }
   if (jobs && allJobs) {
-    console.log(allJobs)
+    console.log(jobs)
     return (
       <Fragment>
         <JobsOperationDialog handleClose={handleClose}
@@ -378,7 +372,7 @@ const Jobs: React.FC = (props: any) => {
           openApprove={openApprove}
           openPause={openPause} openResume={openResume} openUpdatePriority={openUpdatePriority} open={open}
         />
-        <DLTSTabs value={value} setValue={setValue} titles={JobsTitles}/>
+        <DLTSTabs value={value} setValue={setValue} titles={JobsTitles} setRefresh={setRefresh} />
         <DLTSTabPanel value={value} index={0}>
           <Container maxWidth={useCheckIsDesktop ? 'lg' : 'xs'} >
             <JobsSelectByCluster currentCluster={currentCluster} onClusterChange={onClusterChange} clusters={clusters}/>
@@ -665,7 +659,7 @@ const Jobs: React.FC = (props: any) => {
                 data={filterRunningJobs(allJobs)}
                 options={{
                   sorting: true,
-                  filtering: true,
+                  filtering: false,
                   paging: false,
                   actionsColumnIndex: -1,
                   headerStyle: {
@@ -719,7 +713,7 @@ const Jobs: React.FC = (props: any) => {
                 ]}
                 data={filterQueuedJobs(allJobs)}
                 options={{
-                  filtering: true,
+                  filtering: false,
                   paging: false,
                   actionsColumnIndex: -1,
                   headerStyle: {
@@ -784,7 +778,7 @@ const Jobs: React.FC = (props: any) => {
                 ]}
                 data={filterUnApprovedJobs(allJobs)}
                 options={{
-                  filtering: true,
+                  filtering: false,
                   paging: false,
                   actionsColumnIndex: -1,
                   headerStyle: {
@@ -846,7 +840,7 @@ const Jobs: React.FC = (props: any) => {
                 ]}
                 data={filterPauseJobs(allJobs)}
                 options={{
-                  filtering: true,
+                  filtering: false,
                   paging: false,
                   actionsColumnIndex: -1,
                   headerStyle: {
