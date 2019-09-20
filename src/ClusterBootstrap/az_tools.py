@@ -766,11 +766,11 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
             if isNewlyScaledMachine(vmname):
                 cc["machines"][vmname] = {
                     "role": "worker", "scaled": True,
-                    "node-group": vm["vmSize"],"gpu-type":sku_mapping[vm["vmSize"]]["gpu-type"]}
+                    "node-group": vm["vmSize"],"gpu-type":sku_mapping.get(vm["vmSize"],sku_mapping["default"])["gpu-type"]}
             else:
                 cc["machines"][vmname] = {
                     "role": "worker",
-                    "node-group": vm["vmSize"],"gpu-type":sku_mapping[vm["vmSize"]]["gpu-type"]}
+                    "node-group": vm["vmSize"],"gpu-type":sku_mapping.get(vm["vmSize"],sku_mapping["default"])["gpu-type"]}
     nfs_nodes = []
     for vm in vm_list:
         vmname = vm["name"]

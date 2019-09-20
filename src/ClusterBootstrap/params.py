@@ -655,6 +655,7 @@ default_config_parameters = {
         "Standard_NC12s_v2": {"gpu-type": "P100", "gpu-count": 2},
         "Standard_NC24rs_v3": {"gpu-type": "V100", "gpu-count": 4},
         "Standard_NC24rs_v2": {"gpu-type": "P100", "gpu-count": 4},
+        "default": {"gpu-type": "CPU", "gpu-count": 0},
     }
 }
 
