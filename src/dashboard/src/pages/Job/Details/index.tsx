@@ -71,7 +71,7 @@ const JobDetails: React.FC<Props> = ({ clusterId, jobId, job }) => {
   if (isReadOnly) {
     return (
       <Context.Provider value={{ jobId, clusterId, job, cluster }}>
-        <DLTSTabs value={value} setValue={setValue} titles={readOnlyJobDetailTitles} />
+        <DLTSTabs value={value} setValue={setValue} titles={readOnlyJobDetailTitles}  />
         <SwipeableViews
           axis={theme.direction === 'rtl' ? 'x-reverse' : 'x'}
           index={value}

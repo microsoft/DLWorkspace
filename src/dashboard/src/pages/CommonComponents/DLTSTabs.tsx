@@ -9,16 +9,17 @@ interface TabsProps {
   setShowIframe?: any;
   setValue: any;
   titles: string[];
+  setRefresh?: any;
 }
 
 export const DLTSTabs = (props: TabsProps) => {
-  const { children, value,setShowIframe,setValue,titles, ...other } = props;
+  const { children, value,setShowIframe,setValue,titles,setRefresh, ...other } = props;
   return (
     <Container maxWidth={useCheckIsDesktop ? 'lg' : 'xs'}  >
       <AppBar position="static" color="default">
         <Tabs
           value={value}
-          onChange={(event: React.ChangeEvent<{}>, value: number) => handleChangeTab(event,value,setValue,setShowIframe)}
+          onChange={(event: React.ChangeEvent<{}>, value: number) => handleChangeTab(event,value,setValue,setShowIframe,setRefresh)}
           indicatorColor="primary"
           textColor="primary"
           variant="fullWidth"
