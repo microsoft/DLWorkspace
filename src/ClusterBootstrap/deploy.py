@@ -2985,7 +2985,7 @@ def run_docker_image( imagename, native = False, sudo = False ):
             run_docker( matches[0], prompt = imagename, dockerConfig = dockerConfig, sudo = sudo )
 
 def gen_dns_config_script():
-    utils.render_template("./template/dns/dns.sh.template", "deploy/kubeconfig/kubeconfig.yaml", config)
+    utils.render_template("./template/dns/dns.sh.template", "scripts/dns.sh", config)
 
 def gen_pass_secret_script():
     utils.render_template("./template/secret/pass_secret.sh.template", "scripts/pass_secret.sh", config)
@@ -3464,7 +3464,7 @@ def run_command( args, command, nargs, parser ):
         nodeset, scripts_start = [], 0
         for ni, arg in enumerate(nargs):
             scripts_start = ni
-            if arg in allroles:
+            if arg in config["allroles"]:
                 nodeset += arg,
             else:
                 break
