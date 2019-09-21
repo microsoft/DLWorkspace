@@ -308,10 +308,10 @@ def get_pod_status(pod):
             if "message" in containerStatus["state"]["terminated"]:
                 ret += ":\n" + containerStatus["state"]["terminated"]["message"]
             podstatus["message"] = ret
-            if "finishedAt" in containerStatus["state"]["terminated"]:
+            if "finishedAt" in containerStatus["state"]["terminated"] and containerStatus["state"]["terminated"]["finishedAt"] is not None:
                 podstatus["finishedAt"] = localize_time(containerStatus["state"]["terminated"]["finishedAt"])
 
-            if "startedAt" in containerStatus["state"]["terminated"]:
+            if "startedAt" in containerStatus["state"]["terminated"] and containerStatus["state"]["terminated"]["startedAt"] is not None:
                 podstatus["startedAt"] = localize_time(containerStatus["state"]["terminated"]["startedAt"])
         elif "state" in containerStatus and "running" in containerStatus["state"] and "startedAt" in containerStatus["state"]["running"]:
             podstatus["message"] = "started at: " + localize_time(containerStatus["state"]["running"]["startedAt"])
