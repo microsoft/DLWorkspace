@@ -2990,6 +2990,9 @@ def gen_dns_config_script():
 def gen_pass_secret_script():
     utils.render_template("./template/secret/pass_secret.sh.template", "scripts/pass_secret.sh", config)
 
+def gen_warm_up_cluster_script():
+    utils.render_template("./template/warmup/pre_download_images.sh.template", "scripts/pre_download_images.sh", config)
+
 def run_command( args, command, nargs, parser ):
     # If necessary, show parsed arguments.
     # print args
@@ -3683,6 +3686,7 @@ def run_command( args, command, nargs, parser ):
         # print(config["azure_cluster"].keys())
         gen_dns_config_script()
         gen_pass_secret_script()
+        gen_warm_up_cluster_script()
 
     elif command == "setconfigmap":
         os.system('./deploy/bin/kubectl create configmap dlws-scripts --from-file=../Jobs_Templete -o yaml --dry-run | ./deploy.py kubectl apply -f -')

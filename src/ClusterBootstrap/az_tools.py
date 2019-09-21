@@ -530,7 +530,8 @@ def create_vm_param(i, role, vm_size, no_az=False, arm_vm_password=None):
     elif role == "infra":
         vmname = "%s-infra%02d" % (config["azure_cluster"]
                                    ["cluster_name"], i + 1)
-    elif role == "dev":
+    else:
+        role = "dev"
         vmname = "%s-dev" % (config["azure_cluster"]["cluster_name"])
     print "creating VM %s..." % vmname
     vm_ip = get_vm_ip(i, role)
@@ -789,11 +790,11 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
             if isNewlyScaledMachine(vmname):
                 cc["machines"][vmname] = {
                     "role": "worker", "scaled": True,
-                    "node-group": vm["vmSize"],"gpu-type":sku_mapping[vm["vmSize"]]["gpu-type"]}
+                    "node-group": vm["vmSize"],"gpu-type":sku_mapping.get(vm["vmSize"],sku_mapping["default"])["gpu-type"]}
             else:
                 cc["machines"][vmname] = {
                     "role": "worker",
-                    "node-group": vm["vmSize"],"gpu-type":sku_mapping[vm["vmSize"]]["gpu-type"]}
+                    "node-group": vm["vmSize"],"gpu-type":sku_mapping.get(vm["vmSize"],sku_mapping["default"])["gpu-type"]}
     nfs_nodes = []
     for vm in vm_list:
         vmname = vm["name"]

@@ -1,0 +1,8 @@
+{% for regi_name, regi_cred in cnf["registry_credential"].items() %}   
+{% if "pre_download_images" in regi_cred %}
+docker login {{ regi_name }} -u {{ regi_cred["username"] }} -p {{ regi_cred["password"] }}
+{% for img in regi_cred["pre_download_images"] %}
+docker pull {{img}}
+{% endfor %}
+{% endif%}
+{% endfor %}

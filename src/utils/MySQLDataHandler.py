@@ -187,8 +187,9 @@ class DataHandler(object):
 
             worker_cnt = int(config["azure_cluster"]["worker_node_num"])
             sku_mapping = config["sku_mapping"]
-            n_gpu_pernode = sku_mapping[config["azure_cluster"]["worker_vm_size"]]["gpu-count"]
-            gpu_type = sku_mapping[config["azure_cluster"]["worker_vm_size"]]["gpu-type"]
+            sku = sku_mapping.get(config["azure_cluster"]["worker_vm_size"],sku_mapping["default"])
+            n_gpu_pernode = sku["gpu-count"]
+            gpu_type = sku["gpu-type"]
             sql = """
                 CREATE TABLE IF NOT EXISTS  `%s`
                 (
