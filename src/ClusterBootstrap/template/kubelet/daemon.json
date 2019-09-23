@@ -1,3 +1,4 @@
+{% if cnf["azure_cluster"][cnf["cluster_name"]]["worker_vm_size"] in cnf["sku_mapping"] %}
 {
     "default-runtime": "nvidia",
     "runtimes": {
@@ -7,3 +8,7 @@
         }
     }
 }
+{% else %}
+{}
+{% endif %}
+
