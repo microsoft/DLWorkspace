@@ -880,7 +880,11 @@ def deploy_master(kubernetes_master):
         kubernetes_master_user = config["kubernetes_master_ssh_user"]
         print "starting kubernetes master on %s..." % kubernetes_master
 
-        config["master_ip"] = utils.getIP(kubernetes_master)
+        assert config["azure_cluster"][config["cluster_name"]]["priority"] in ["regular", "low"]
+        if config["azure_cluster"][config["cluster_name"]]["priority"] == "regular":
+            config["master_ip"] = utils.getIP(kubernetes_master) 
+        else:
+            config["master_ip"] = config["machines"][kubernetes_master.split(".")[0]]["private-ip"]
         utils.render_template("./template/master/kube-apiserver.yaml","./deploy/master/kube-apiserver.yaml",config)
         utils.render_template("./template/master/dns-kubeconfig.yaml","./deploy/master/dns-kubeconfig.yaml",config)
         utils.render_template("./template/master/kubelet.service","./deploy/master/kubelet.service",config)
@@ -3834,7 +3838,10 @@ def upgrade_master(kubernetes_master):
     kubernetes_master_user = config["kubernetes_master_ssh_user"]
     print "starting kubernetes master on %s..." % kubernetes_master
 
-    config["master_ip"] = utils.getIP(kubernetes_master)
+    if config["azure_cluster"][config["cluster_name"]]["priority"] == "regular":
+        config["master_ip"] = utils.getIP(kubernetes_master) 
+    else:
+        config["master_ip"] = config["machines"][kubernetes_master.split(".")[0]]["private-ip"]
     utils.render_template("./template/master/kube-apiserver.yaml","./deploy/master/kube-apiserver.yaml",config)
     utils.render_template("./template/master/dns-kubeconfig.yaml","./deploy/master/dns-kubeconfig.yaml",config)
     utils.render_template("./template/master/kubelet.service","./deploy/master/kubelet.service",config)
