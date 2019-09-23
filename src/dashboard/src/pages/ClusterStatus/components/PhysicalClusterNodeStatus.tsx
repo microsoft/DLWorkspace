@@ -6,12 +6,13 @@ import {
   TableBody,
   TableCell,
   TableHead,
-  TableRow, useTheme
+  TableRow, Typography, useTheme
 } from "@material-ui/core";
 import Iframe from "react-iframe";
 import useCheckIsDesktop from "../../../utlities/layoutUtlities";
 import {checkObjIsEmpty} from "../../../utlities/ObjUtlities";
 import ServicesChips from "./ServicesChips";
+import {red} from "@material-ui/core/colors";
 
 interface PhClusterNSType {
   nodeStatus: any;
@@ -48,7 +49,7 @@ export const PhysicalClusterNodeStatus = (props: PhClusterNSType) => {
         </TableHead>
         <TableBody>
           {
-            nodeStatus.map((ns: any, index: number) => {
+            nodeStatus.map((ns: any) => {
               const gpuCap = checkObjIsEmpty(ns['gpu_capacity']) ? 0 :  (Number)(Object.values(ns['gpu_capacity'])[0]);
               const gpuUsed = checkObjIsEmpty(ns['gpu_used']) ? 0 : (Number)(Object.values(ns['gpu_used'])[0]);
               const availableGPU = gpuCap - gpuUsed;
@@ -57,30 +58,38 @@ export const PhysicalClusterNodeStatus = (props: PhClusterNSType) => {
               for (let service of ns['scheduled_service']) {
                 services.push(`${service}`);
               }
-              let podStr = '';
-              for (let pod of ns['pods']) {
-                if (!pod.includes("!!!!!!")) {
-                  podStr += `<b>[${pod}]</b>`;
-                } else {
-                  pod = pod.replace("!!!!!!","");
-                  podStr += `<b  variant='h6' style="color:red">[${pod}]</b>`;
-                }
-                podStr += "<br/>";
-              }
               return  (
-                <TableRow key={index}>
-                  <TableCell key="ns['name']">{ns['name']}</TableCell>
-                  <TableCell key="ns['InternalIP']">{ns['InternalIP']}</TableCell>
-                  <TableCell key="gpuCap">{gpuCap}</TableCell>
-                  <TableCell key="gpuUsed">{gpuUsed}</TableCell>
-                  <TableCell key="availableGPU">{availableGPU}</TableCell>
-                  <TableCell key="status">{status}</TableCell>
-                  <TableCell key="services">
+                <TableRow key={ns['name']}>
+                  <TableCell>{ns['name']}</TableCell>
+                  <TableCell>{ns['InternalIP']}</TableCell>
+                  <TableCell>{gpuCap}</TableCell>
+                  <TableCell>{gpuUsed}</TableCell>
+                  <TableCell>{availableGPU}</TableCell>
+                  <TableCell>{status}</TableCell>
+                  <TableCell>
                     {
                       <ServicesChips services={services}/>
                     }
                   </TableCell>
-                  <TableCell key="podStr" dangerouslySetInnerHTML={{ __html: podStr }}></TableCell>
+                  <TableCell>
+                    {
+                      ns['pods'].map((pod: string)=>{
+                        if (!pod.includes("!!!!!!")) {
+                          return (
+                            <Typography variant="subtitle2" component="b" gutterBottom>
+                              {`[${pod}]`}
+                            </Typography>
+                          )
+                        } else {
+                          return (
+                            <Typography variant="subtitle2" component="b" style={{ color:red[400] }} gutterBottom>
+                              {`[${pod}]\n`}
+                            </Typography>
+                          )
+                        }
+                      })
+                    }
+                  </TableCell>
                 </TableRow>
               )
             })

@@ -42,8 +42,7 @@ export const TeamVirtualClusterStatus = (props: TeamVC) => {
                       checked={selectedValue === vcs['ClusterName']}
                       onChange={handleChange}
                       value={vcs['ClusterName']}
-                      name={vcs['ClusterName']}
-                      inputProps={{'aria-label': vcs['ClusterName']}} />
+                      name={vcs['ClusterName']}/>
                     {vcs['ClusterName']}
                   </TableCell>
                   <TableCell key={gpuCapacity}>

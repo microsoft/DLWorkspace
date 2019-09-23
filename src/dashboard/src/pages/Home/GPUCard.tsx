@@ -22,7 +22,7 @@ import { MoreVert, FileCopyRounded} from "@material-ui/icons";
 import { Cell, PieChart, Pie, ResponsiveContainer } from "recharts";
 import UserContext from "../../contexts/User";
 import TeamsContext from '../../contexts/Teams';
-import {green, lightGreen,deepOrange} from "@material-ui/core/colors";
+import {green, lightGreen, deepOrange, red} from "@material-ui/core/colors";
 import copy from 'clipboard-copy'
 import {checkObjIsEmpty} from "../../utlities/ObjUtlities";
 import {DLTSSnackbar} from "../CommonComponents/DLTSSnackbar";
@@ -47,6 +47,9 @@ const useStyles = makeStyles((theme: Theme) => createStyles({
   success: {
     backgroundColor: green[600],
   },
+  container: {
+
+  }
 }));
 
 const ActionIconButton: React.FC<{cluster?: string}> = ({cluster}) => {
@@ -90,8 +93,9 @@ const Chart: React.FC<{
   if (reserved === 0) {
     data = data.filter((item)=>item.name !== 'Reserved')
   }
+  const styles = useStyles();
   return (
-    <ResponsiveContainer aspect={16 / 9}>
+    <ResponsiveContainer aspect={16 / 9} height={200} width='100%' className={styles.container}>
       <PieChart>
         <Pie
           // hide={!isActive}
@@ -164,7 +168,7 @@ export const DirectoryPathTextField: React.FC<{
       onFocus={onFocus}
       onClick={handleCopy}
     />
-    <DLTSSnackbar message={"Successfully copied"} autoHideDuration={500} openApproveWarn={openCopyWarn} handleWarnClose={handleWarnClose} />
+    <DLTSSnackbar message={"Successfully copied"} autoHideDuration={500} open={openCopyWarn} handleWarnClose={handleWarnClose} />
     </>
   );
 }

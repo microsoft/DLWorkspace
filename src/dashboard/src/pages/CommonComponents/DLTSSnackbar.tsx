@@ -1,4 +1,4 @@
-import React, {Fragment} from "react";
+import React from "react";
 import {
   createStyles,
   makeStyles,
@@ -6,17 +6,13 @@ import {
   SnackbarContent,
   Theme
 } from "@material-ui/core";
-import {blue, green, red} from "@material-ui/core/colors";
+import {green} from "@material-ui/core/colors";
 
 
 interface SnackbarProps {
   children?: React.ReactNode;
   message: string;
-  openKillWarn?: boolean | false;
-  openPauseWarn?: boolean | false;
-  openResumeWarn?: boolean | false;
-  openUpatePriorityWarn?: boolean | false;
-  openApproveWarn?: boolean | false;
+  open: boolean | false;
   autoHideDuration?: number | 1000;
   handleWarnClose?: any;
 }
@@ -27,13 +23,10 @@ const useStyles = makeStyles((theme: Theme) =>
     },
   })
 );
-export const DLTSSnackbar = (props: SnackbarProps) => {
+export const DLTSSnackbar: React.FC<SnackbarProps> = (props: SnackbarProps) => {
   const classes = useStyles();
-  const { children,handleWarnClose,autoHideDuration,message,openKillWarn,openResumeWarn,openApproveWarn,openPauseWarn,openUpatePriorityWarn } = props;
-  let open = openKillWarn || openApproveWarn || openPauseWarn || openResumeWarn || openUpatePriorityWarn;
-  if (open === undefined) {
-    open = false;
-  }
+  let { children, handleWarnClose,autoHideDuration,message,open } = props;
+
   return (
     <>
       {

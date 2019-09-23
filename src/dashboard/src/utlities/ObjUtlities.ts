@@ -2,11 +2,7 @@ import _ from "lodash";
 import React from "react";
 
 export const checkObjIsEmpty = (obj: object) => {
-  for(let key in obj) {
-    if(obj.hasOwnProperty(key))
-      return false;
-  }
-  return true;
+  return _.keys(obj).length === 0;
 }
 
 export const mergeTwoObjsByKey = (objs: any[], otherObjs: any[] ,key: string) => {

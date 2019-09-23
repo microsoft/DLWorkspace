@@ -27,16 +27,15 @@ export const TeamVCUserStatus = (props: TeamUsr) => {
             {title: 'Past Month Booked GPU Hour', field: 'booked',type:'numeric'},
             {title: 'Past Month Idle GPU Hour', field: 'idle',type:'numeric'},
             {title: 'Past Month Idle GPU Hour %', field: 'idle',type:'numeric', render: (rowData: any) => <span style={{ color: Math.floor((rowData['idle'] / rowData['booked']) * 100) > 50 ? "red" : "black" }}>{Math.floor((rowData['idle'] / rowData['booked']) * 100)}</span>, customSort: (a: any, b: any) => {return Math.floor((a['idle'] / a['booked']) * 100) - Math.floor((b['idle'] / b['booked']) * 100)}}]} data={showCurrentUser ? userStatus.filter((uc: any)=>uc['usedGPU'] > 0) : userStatus}
-          options={{filtering: true, sorting: true, exportButton: true,exportFileName: 'Team_VC_User_Report'}}
+          options={{filtering: false,paging: false,sorting: true, exportButton: true,exportFileName: 'Team_VC_User_Report'}}
           components={{
             Toolbar: props => (
               <div>
                 <MTableToolbar {...props} />
-                <Tooltip title="Show Current User" aria-label="add">
+                <Tooltip title="Show Current User">
                   <Switch
                     checked={showCurrentUser}
                     onChange={handleSwitch}
-                    inputProps={{ 'aria-label': 'secondary checkbox' }}
                   />
                 </Tooltip>
               </div>

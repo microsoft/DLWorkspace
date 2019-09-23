@@ -32,8 +32,6 @@ export const DLTSDialog = (props: DialogProps) => {
       open={open}
       TransitionComponent={Transition}
       onClose={handleClose}
-      aria-labelledby="alert-dialog-title"
-      aria-describedby="alert-dialog-description"
     >
       <DialogTitle id="alert-dialog-title" style={titleStyle}>{title}</DialogTitle>
       <DialogContent>

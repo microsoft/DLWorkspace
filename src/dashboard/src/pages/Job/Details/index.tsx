@@ -17,15 +17,11 @@ import { useGet } from 'use-http';
 import UserContext from '../../../contexts/User';
 import Context from './Context';
 import Brief from './Brief';
-import RunCommand from './RunCommand';
 import Log from './Log';
 import Monitor from './Monitor';
 import Endpoints from './Endpoints';
 import { DLTSTabPanel } from '../../CommonComponents/DLTSTabPanel'
-import {a11yProps} from "../../CommonComponents/a11yProps";
 import SwipeableViews from "react-swipeable-views";
-import theme from "../../../contexts/MonospacedTheme";
-import {green} from "@material-ui/core/colors";
 import {DLTSTabs} from "../../CommonComponents/DLTSTabs";
 import {JobDetailTitles, readOnlyJobDetailTitles} from "../../../Constants/TabsContants";
 import {DLTSSnackbar} from "../../CommonComponents/DLTSSnackbar";
@@ -41,13 +37,6 @@ const JobDetails: React.FC<Props> = ({ clusterId, jobId, job }) => {
   const [value, setValue] = React.useState(0);
   const theme = useTheme();
   const[showIframe, setShowIframe] = useState(false);
-  const handleChangeTab = (event: React.ChangeEvent<{}>, newValue: number) => {
-    setShowIframe(false)
-    setTimeout(()=>{
-      setShowIframe(true);
-    },2000);
-    setValue(newValue);
-  }
   const handleChangeIndex = (index: number) => {
     setValue(index);
   }
@@ -113,8 +102,9 @@ const JobDetails: React.FC<Props> = ({ clusterId, jobId, job }) => {
           </DLTSTabPanel>
         </SwipeableViews>
         <DLTSSnackbar message={"Copied"}
-          openKillWarn={showOpen}
-          handleWarnClose={handleWarnClose}
+          open={showOpen}
+          handleWarnClose={()=>handleWarnClose}
+          autoHideDuration={1000}
         />
       </Context.Provider>
     );

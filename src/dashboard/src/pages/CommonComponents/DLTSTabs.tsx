@@ -2,7 +2,6 @@ import React from "react";
 import {AppBar, Container, Tabs, Tab} from "@material-ui/core";
 import useCheckIsDesktop from "../../utlities/layoutUtlities";
 import {handleChangeTab} from "../../utlities/interactionUtlties";
-import { a11yProps } from "./a11yProps";
 interface TabsProps {
   children?: React.ReactNode;
   value: any;
@@ -23,11 +22,10 @@ export const DLTSTabs = (props: TabsProps) => {
           indicatorColor="primary"
           textColor="primary"
           variant="fullWidth"
-          aria-label="full width tabs example"
           {...other}
         >
           { titles && titles.map((title, index)=>(
-            <Tab label={title} {...a11yProps(index)} />
+            <Tab label={title} />
           )) }
           {children}
         </Tabs>

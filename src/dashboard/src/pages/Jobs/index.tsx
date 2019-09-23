@@ -607,6 +607,13 @@ const Jobs: React.FC = (props: any) => {
                 {title:'Preemptible', field:'jobParams.preemptionAllowed',type:'boolean'},
                 {title:'Finished Time', field:'jobStatusDetail[0].finishedAt',type:'date',emptyValue:'unknown',
                   render: (rowData: any)=>renderDateTime(rowData,'finishedAt'),
+                },
+                {
+                  title: 'Started Time',
+                  field: 'jobStatusDetail[0].startedAt',
+                  type: 'date',
+                  emptyValue: 'unknown',
+                  render: (rowData: any)=>renderDateTime(rowData, 'startedAt')
                 }
               ]}
               data={filterFinishedJobs(jobs)}
@@ -876,12 +883,9 @@ const Jobs: React.FC = (props: any) => {
           </DLTSTabPanel> : <CircularProgress/>
         }
         <DLTSSnackbar message={message}
-          openKillWarn={openKillWarn}
-          openPauseWarn={openPauseWarn}
-          openResumeWarn={openResumeWarn}
-          openUpatePriorityWarn={openUpatePriorityWarn}
-          openApproveWarn={openApproveWarn}
-          handleWarnClose={handleWarnClose}
+          open = {openKillWarn || openApproveWarn || openPauseWarn || openResumeWarn || openUpatePriorityWarn}
+          handleWarnClose={()=>{handleWarnClose()}}
+          autoHideDuration={1000}
         />
       </Fragment>
     )

@@ -35,7 +35,6 @@ export const DLTSTabPanel = (props: TabPanelProps) => {
             </Container>
           </Paper>
         </Container>
-
       </Typography>
     </Container>
   )
