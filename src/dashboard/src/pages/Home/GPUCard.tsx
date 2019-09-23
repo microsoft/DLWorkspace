@@ -22,9 +22,10 @@ import { MoreVert, FileCopyRounded} from "@material-ui/icons";
 import { Cell, PieChart, Pie, ResponsiveContainer } from "recharts";
 import UserContext from "../../contexts/User";
 import TeamsContext from '../../contexts/Teams';
-import {green, lightGreen,deepOrange} from "@material-ui/core/colors";
-import _ from 'lodash';
+import {green, lightGreen, deepOrange, red} from "@material-ui/core/colors";
 import copy from 'clipboard-copy'
+import {checkObjIsEmpty} from "../../utlities/ObjUtlities";
+import {DLTSSnackbar} from "../CommonComponents/DLTSSnackbar";
 const useStyles = makeStyles((theme: Theme) => createStyles({
   avatar: {
     backgroundColor: theme.palette.secondary.main,
@@ -46,6 +47,9 @@ const useStyles = makeStyles((theme: Theme) => createStyles({
   success: {
     backgroundColor: green[600],
   },
+  container: {
+
+  }
 }));
 
 const ActionIconButton: React.FC<{cluster?: string}> = ({cluster}) => {
@@ -53,7 +57,6 @@ const ActionIconButton: React.FC<{cluster?: string}> = ({cluster}) => {
   const iconButton = React.useRef<any>();
   const onIconButtonClick = React.useCallback(() => setOpen(true), [setOpen]);
   const onMenuClose = React.useCallback(() => setOpen(false), [setOpen]);
-  const onMenuItemClick = React.useCallback(() => setOpen(false), [setOpen]);
 
   return (
     <>
@@ -69,7 +72,6 @@ const ActionIconButton: React.FC<{cluster?: string}> = ({cluster}) => {
       >
         <MenuItem component={Link} to={"/cluster-status"}>Cluster Status</MenuItem>
         <MenuItem component={Link} to={`/jobs/${cluster}`}>View Jobs</MenuItem>
-        {/*<MenuItem onClick={onMenuItemClick}>Manage Users</MenuItem>*/}
       </Menu>
     </>
   )
@@ -91,8 +93,9 @@ const Chart: React.FC<{
   if (reserved === 0) {
     data = data.filter((item)=>item.name !== 'Reserved')
   }
+  const styles = useStyles();
   return (
-    <ResponsiveContainer aspect={16 / 9}>
+    <ResponsiveContainer aspect={16 / 9} height={200} width='100%' className={styles.container}>
       <PieChart>
         <Pie
           // hide={!isActive}
@@ -165,21 +168,7 @@ export const DirectoryPathTextField: React.FC<{
       onFocus={onFocus}
       onClick={handleCopy}
     />
-      <Snackbar
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-        open={openCopyWarn}
-        autoHideDuration={500}
-        onClose={handleWarnClose}
-        ContentProps={{
-          'aria-describedby': 'message-id',
-        }}
-      >
-        <SnackbarContent
-          className={styles.success}
-          aria-describedby="client-snackbar"
-          message={<span id="message-id" >Successfully copied</span>}
-        />
-      </Snackbar>
+    <DLTSSnackbar message={"Successfully copied"} autoHideDuration={500} open={openCopyWarn} handleWarnClose={handleWarnClose} />
     </>
   );
 }
@@ -212,23 +201,15 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
     setActivate(false);
     const data = await requestClusterStatus.get(`/teams/${selectedTeam}/clusters/${cluster}`);
     return data;
-    // const availableGpu = !_.isEmpty(data['gpu_avaliable']) ? (Number)(Object.values(data['gpu_avaliable'])[0]) : 0;
-    // setAvailable(availableGpu);
-    // const usedGpu = !_.isEmpty(data['gpu_used']) ? (Number)(Object.values(data['gpu_used'])[0]) : 0;
-    // setUsed(usedGpu);
-    // const reversedGpu = !_.isEmpty(data['gpu_unschedulable']) ? (Number)(Object.values(data['gpu_unschedulable'])[0]) : 0;
-    // setReserved(reversedGpu);
-    // setActiveJobs((Number)(data['AvaliableJobNum']));
-    // setActivate(true);
   }
   useEffect(()=>{
     fetchDirectories();
     fetchClusterStatus().then((res)=>{
-      const availableGpu = !_.isEmpty(res['gpu_avaliable']) ? (Number)(Object.values(res['gpu_avaliable'])[0]) : 0;
+      const availableGpu = !checkObjIsEmpty(res['gpu_avaliable']) ? (Number)(Object.values(res['gpu_avaliable'])[0]) : 0;
       setAvailable(availableGpu);
-      const usedGpu = !_.isEmpty(res['gpu_used']) ? (Number)(Object.values(res['gpu_used'])[0]) : 0;
+      const usedGpu = !checkObjIsEmpty(res['gpu_used']) ? (Number)(Object.values(res['gpu_used'])[0]) : 0;
       setUsed(usedGpu);
-      const reversedGpu = !_.isEmpty(res['gpu_unschedulable']) ? (Number)(Object.values(res['gpu_unschedulable'])[0]) : 0;
+      const reversedGpu = !checkObjIsEmpty(res['gpu_unschedulable']) ? (Number)(Object.values(res['gpu_unschedulable'])[0]) : 0;
       setReserved(reversedGpu);
       setActiveJobs((Number)(res['AvaliableJobNum']));
       setActivate(true);

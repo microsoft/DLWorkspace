@@ -49,6 +49,7 @@ import Draggable from 'react-draggable'
 import {TransitionProps} from "@material-ui/core/transitions";
 import Slide from "@material-ui/core/Slide";
 import {green, grey, red} from "@material-ui/core/colors";
+import {DLTSDialog} from "../CommonComponents/DLTSDialog";
 
 interface EnvironmentVariable {
   name: string;
@@ -565,7 +566,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       },2000)
 
     }
-  }, [ history, postEndpointsData, selectedCluster,setOpen, open])
+  }, [history, postEndpointsData, selectedCluster, setOpen, open])
 
   React.useEffect(() => {
     if (postJobError) {
@@ -643,26 +644,41 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   return (
 
     <Container maxWidth={isDesktop ? 'lg' : 'xs'}>
-      <Dialog
-        open={showGPUFragmentation}
-        onClose={handleCloseGPUGramentation}
-        PaperComponent={PaperComponent}
-        aria-labelledby="alert-dialog-title"
-        aria-describedby="alert-dialog-description"
+      <DLTSDialog open={showGPUFragmentation}
+        message={null}
+        handleClose={handleCloseGPUGramentation}
+        handleConfirm={null} confirmBtnTxt={null} cancelBtnTxt={null}
+        title={"View Cluster GPU Status Per Node"}
+        titleStyle={{color:grey[400]}}
       >
-        <DialogTitle style={{ cursor: 'move' }} id="alert-dialog-title">{"View Cluster GPU Status Per Node"}</DialogTitle>
-        <DialogContent>
-          <DialogContentText id="alert-dialog-description">
-            <BarChart width={500} height={600} data={gpuFragmentation}>
-              <CartesianGrid strokeDasharray="10 10"/>
-              <XAxis dataKey={"metric['gpu_available']"} label={{value: 'Available gpu count', offset:0,position:'insideBottom'}}>
-              </XAxis>
-              <YAxis label={{value: 'Node count', angle: -90, position: 'insideLeft'}} />
-              <Bar dataKey="value[1]" fill="#8884d8" />
-            </BarChart>
-          </DialogContentText>
-        </DialogContent>
-      </Dialog>
+        <BarChart width={500} height={600} data={gpuFragmentation}>
+          <CartesianGrid strokeDasharray="10 10"/>
+          <XAxis dataKey={"metric['gpu_available']"} label={{value: 'Available gpu count', offset:0,position:'insideBottom'}}>
+          </XAxis>
+          <YAxis label={{value: 'Node count', angle: -90, position: 'insideLeft'}} />
+          <Bar dataKey="value[1]" fill="#8884d8" />
+        </BarChart>
+      </DLTSDialog>
+      {/*<Dialog*/}
+      {/*  open={showGPUFragmentation}*/}
+      {/*  onClose={handleCloseGPUGramentation}*/}
+      {/*  PaperComponent={PaperComponent}*/}
+      {/*  aria-labelledby="alert-dialog-title"*/}
+      {/*  aria-describedby="alert-dialog-description"*/}
+      {/*>*/}
+      {/*  <DialogTitle style={{ cursor: 'move' }} id="alert-dialog-title">{"View Cluster GPU Status Per Node"}</DialogTitle>*/}
+      {/*  <DialogContent>*/}
+      {/*    <DialogContentText id="alert-dialog-description">*/}
+      {/*      <BarChart width={500} height={600} data={gpuFragmentation}>*/}
+      {/*        <CartesianGrid strokeDasharray="10 10"/>*/}
+      {/*        <XAxis dataKey={"metric['gpu_available']"} label={{value: 'Available gpu count', offset:0,position:'insideBottom'}}>*/}
+      {/*        </XAxis>*/}
+      {/*        <YAxis label={{value: 'Node count', angle: -90, position: 'insideLeft'}} />*/}
+      {/*        <Bar dataKey="value[1]" fill="#8884d8" />*/}
+      {/*      </BarChart>*/}
+      {/*    </DialogContentText>*/}
+      {/*  </DialogContent>*/}
+      {/*</Dialog>*/}
       <form onSubmit={onSubmit}>
         <Card>
           <CardHeader title="Submit Training Job"/>

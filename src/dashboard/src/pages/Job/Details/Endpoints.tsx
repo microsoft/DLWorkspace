@@ -10,7 +10,7 @@ import {
   FormControlLabel,
   InputAdornment,
   IconButton,
-  TextField, Snackbar, SnackbarContent, Tooltip, SvgIcon, Link,
+  TextField, Tooltip, SvgIcon, Link,
 } from '@material-ui/core';
 import { Add, FileCopy } from '@material-ui/icons';
 
