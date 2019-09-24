@@ -865,7 +865,11 @@ def deploy_master(kubernetes_master):
         kubernetes_master_user = config["kubernetes_master_ssh_user"]
         print "starting kubernetes master on %s..." % kubernetes_master
 
-        config["master_ip"] = utils.getIP(kubernetes_master)
+        assert config["azure_cluster"][config["cluster_name"]]["priority"] in ["regular", "low"]
+        if config["azure_cluster"][config["cluster_name"]]["priority"] == "regular":
+            config["master_ip"] = utils.getIP(kubernetes_master) 
+        else:
+            config["master_ip"] = config["machines"][kubernetes_master.split(".")[0]]["private-ip"]
         utils.render_template("./template/master/kube-apiserver.yaml","./deploy/master/kube-apiserver.yaml",config)
         utils.render_template("./template/master/dns-kubeconfig.yaml","./deploy/master/dns-kubeconfig.yaml",config)
         utils.render_template("./template/master/kubelet.service","./deploy/master/kubelet.service",config)
@@ -2970,7 +2974,7 @@ def run_docker_image( imagename, native = False, sudo = False ):
             run_docker( matches[0], prompt = imagename, dockerConfig = dockerConfig, sudo = sudo )
 
 def gen_dns_config_script():
-    utils.render_template("./template/dns/dns.sh.template", "deploy/kubeconfig/kubeconfig.yaml", config)
+    utils.render_template("./template/dns/dns.sh.template", "scripts/dns.sh", config)
 
 def gen_pass_secret_script():
     utils.render_template("./template/secret/pass_secret.sh.template", "scripts/pass_secret.sh", config)
@@ -3452,7 +3456,7 @@ def run_command( args, command, nargs, parser ):
         nodeset, scripts_start = [], 0
         for ni, arg in enumerate(nargs):
             scripts_start = ni
-            if arg in allroles:
+            if arg in config["allroles"]:
                 nodeset += arg,
             else:
                 break
@@ -3819,7 +3823,10 @@ def upgrade_master(kubernetes_master):
     kubernetes_master_user = config["kubernetes_master_ssh_user"]
     print "starting kubernetes master on %s..." % kubernetes_master
 
-    config["master_ip"] = utils.getIP(kubernetes_master)
+    if config["azure_cluster"][config["cluster_name"]]["priority"] == "regular":
+        config["master_ip"] = utils.getIP(kubernetes_master) 
+    else:
+        config["master_ip"] = config["machines"][kubernetes_master.split(".")[0]]["private-ip"]
     utils.render_template("./template/master/kube-apiserver.yaml","./deploy/master/kube-apiserver.yaml",config)
     utils.render_template("./template/master/dns-kubeconfig.yaml","./deploy/master/dns-kubeconfig.yaml",config)
     utils.render_template("./template/master/kubelet.service","./deploy/master/kubelet.service",config)
