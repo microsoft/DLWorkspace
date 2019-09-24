@@ -81,8 +81,10 @@ const ClusterStatus: FC = () => {
     response['prometheus'] = prometheus;
     return response;
   }
+  const[globalPrometheusResp, setGlobalPrometheusResp] = React.useState(Array());
+  const[globalIds, setGlobalIds] = React.useState(Array());
   const fetchClusterStatus = () => {
-    setVcStatus([]);
+    //setVcStatus([]);
     if (clusters) {
       const params = new URLSearchParams({
         query:`count+(task_gpu_percent{vc_name="${selectedTeam}"}+==+0)+by+(username)`,
@@ -120,6 +122,7 @@ const ClusterStatus: FC = () => {
                 idleUser['userName'] = item['metric']['username'];
                 idleUser['idleGPU'] = item['value'][1];
                 prometheusResp.push(idleUser)
+                setGlobalPrometheusResp([...globalPrometheusResp, idleUser])
               }
             } else {
               for (let [key, value]  of Object.entries(res)) {
@@ -129,6 +132,7 @@ const ClusterStatus: FC = () => {
                 idleTmp['booked'] = Math.floor(arr['booked'] / 3600);
                 idleTmp['idle'] = Math.floor(arr['idle'] / 3600);
                 fetchIdes.push(idleTmp);
+                setGlobalIds([...globalIds,idleTmp])
               }
             }
             const merged = mergeTwoObjsByKey(fetchUsrs, prometheusResp,'userName');
@@ -179,16 +183,54 @@ const ClusterStatus: FC = () => {
       clearTimeout(timeout1)
     }
   },[clusters, selectedTeam])
+  const mergeUserStatus = (curUserStatus: any) => {
+    let fetchUsrs: any = []
+    for (let fetchedUser of curUserStatus) {
+      let tmpUser: any ={};
+      tmpUser['userName'] = fetchedUser['userName'];
+      tmpUser['usedGPU'] = (String)(Object.values(fetchedUser['userGPU'])[0]);
+      fetchUsrs.push(tmpUser)
+    }
+    const merged = mergeTwoObjsByKey(fetchUsrs, globalPrometheusResp,'userName');
+    let mergedUsers: any = _.values(merged);
+    mergedUsers.forEach((us: any)=>{
+      if (!us.hasOwnProperty('usedGPU')) {
+        us['usedGPU'] = "0";
+      }
+    })
+    const mergedTmp = mergeTwoObjsByKey(mergedUsers, globalIds, 'userName');
+    let mergedTmpUpdate: any = _.values(mergedTmp);
+    mergedTmpUpdate.forEach((mu: any)=>{
+      if (!mu.hasOwnProperty('usedGPU')) {
+        mu['usedGPU'] = "0";
+      }
+      if (!mu.hasOwnProperty('idleGPU')) {
+        mu['idleGPU'] = "0";
+      }
+      if (!mu.hasOwnProperty('booked')) {
+        mu['booked'] = "0";
+      }
+      if (!mu.hasOwnProperty('idle')) {
+        mu['idle'] = "0";
+      }
+    })
+    if (mergedTmpUpdate.length > 0) {
+      setUserStatus(mergedTmpUpdate)
+    }
+
+  }
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedValue(event.target.value);
+    console.log(vcStatus);
     const filteredVCStatus: any = vcStatus.filter((vc)=>vc['ClusterName'] === event.target.value);
-    setUserStatus((filteredVCStatus['user_status']));
-    setNodeStatus((filteredVCStatus['node_status']));
-    setIframeUrl((filteredVCStatus['GranaUrl']));
+    console.log(filteredVCStatus[0]['user_status']);
+    mergeUserStatus(filteredVCStatus[0]['user_status']);
+    setNodeStatus(filteredVCStatus[0]['node_status']);
+    setIframeUrl((filteredVCStatus[0]['GranaUrl']));
   }
   if (vcStatus){
     return (
-      <Fragment>
+      <>
         <DLTSTabs value={value} setShowIframe={setShowIframe} setValue={setValue} titles={ClusterStatusTitles} />
         <SwipeableViews
           axis={theme.direction === 'rtl' ? 'x-reverse' : 'x'}
@@ -212,7 +254,7 @@ const ClusterStatus: FC = () => {
             <PhysicalClusterNodeStatus nodeStatus={nodeStatus}/>
           </DLTSTabPanel>
         </SwipeableViews>
-      </Fragment>
+      </>
     )
   } else {
     return (

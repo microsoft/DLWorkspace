@@ -1,4 +1,4 @@
-import React from "react";
+import React, {CSSProperties} from "react";
 import {
   createStyles,
   makeStyles,
@@ -15,6 +15,7 @@ interface SnackbarProps {
   open: boolean | false;
   autoHideDuration?: number | 1000;
   handleWarnClose?: any;
+  style?: CSSProperties;
 }
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
@@ -25,8 +26,8 @@ const useStyles = makeStyles((theme: Theme) =>
 );
 export const DLTSSnackbar: React.FC<SnackbarProps> = (props: SnackbarProps) => {
   const classes = useStyles();
-  let { children, handleWarnClose,autoHideDuration,message,open } = props;
-
+  let { children, handleWarnClose,autoHideDuration,message,open,style } = props;
+  const ogStyle = {};
   return (
     <>
       {
@@ -41,6 +42,7 @@ export const DLTSSnackbar: React.FC<SnackbarProps> = (props: SnackbarProps) => {
         >
           <SnackbarContent
             className={classes.success}
+            style={style ? style : ogStyle}
             aria-describedby="client-snackbar"
             message={<span id="message-id" >{message}</span>}
           />

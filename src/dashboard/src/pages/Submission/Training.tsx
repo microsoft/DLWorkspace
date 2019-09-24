@@ -50,6 +50,11 @@ import {TransitionProps} from "@material-ui/core/transitions";
 import Slide from "@material-ui/core/Slide";
 import {green, grey, red} from "@material-ui/core/colors";
 import {DLTSDialog} from "../CommonComponents/DLTSDialog";
+import {
+  SUCCESSFULSUBMITTED,
+  SUCCESSFULTEMPLATEDELETE, SUCCESSFULTEMPLATEDSAVE
+} from "../../Constants/WarnConstants";
+import {DLTSSnackbar} from "../CommonComponents/DLTSSnackbar";
 
 interface EnvironmentVariable {
   name: string;
@@ -566,7 +571,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       },2000)
 
     }
-  }, [history, postEndpointsData, selectedCluster, setOpen, open])
+  }, [fetchPrometheus, history, postEndpointsData, selectedCluster])
 
   React.useEffect(() => {
     if (postJobError) {
@@ -610,37 +615,18 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   const showMessage = (open: boolean,showDeleteTemplate: boolean,showSaveTemplate: boolean) => {
     let message = '';
     if (open) {
-      message = 'Job Submission Successfully';
+      message = SUCCESSFULSUBMITTED;
     }
     if (showDeleteTemplate) {
-      message = 'Template Deleted';
+      message = SUCCESSFULTEMPLATEDELETE;
     }
     if (showSaveTemplate) {
-      message = 'Template Saved';
+      message = SUCCESSFULTEMPLATEDSAVE;
     }
     return message;
   }
 
-  const renderWarn = (open: boolean,showDeleteTemplate: boolean,showSaveTemplate: boolean) => {
-    return (
-      <Snackbar
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-        open={open || showSaveTemplate || showDeleteTemplate}
-        autoHideDuration={1000}
-        onClose={handleClose}
-        ContentProps={{
-          'aria-describedby': 'message-id',
-        }}
-      >
-        <SnackbarContent
-          style={{backgroundColor:showDeleteTemplate ? red[400] : green[400]}}
-          aria-describedby="client-snackbar"
-          message={<span id="message-id" >{showMessage(open,showDeleteTemplate,showSaveTemplate)}</span>}
-        />
-      </Snackbar>
-    )
-  }
-
+  const styleSnack={backgroundColor:showDeleteTemplate ? red[400] : green[400]};
   return (
 
     <Container maxWidth={isDesktop ? 'lg' : 'xs'}>
@@ -659,26 +645,6 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
           <Bar dataKey="value[1]" fill="#8884d8" />
         </BarChart>
       </DLTSDialog>
-      {/*<Dialog*/}
-      {/*  open={showGPUFragmentation}*/}
-      {/*  onClose={handleCloseGPUGramentation}*/}
-      {/*  PaperComponent={PaperComponent}*/}
-      {/*  aria-labelledby="alert-dialog-title"*/}
-      {/*  aria-describedby="alert-dialog-description"*/}
-      {/*>*/}
-      {/*  <DialogTitle style={{ cursor: 'move' }} id="alert-dialog-title">{"View Cluster GPU Status Per Node"}</DialogTitle>*/}
-      {/*  <DialogContent>*/}
-      {/*    <DialogContentText id="alert-dialog-description">*/}
-      {/*      <BarChart width={500} height={600} data={gpuFragmentation}>*/}
-      {/*        <CartesianGrid strokeDasharray="10 10"/>*/}
-      {/*        <XAxis dataKey={"metric['gpu_available']"} label={{value: 'Available gpu count', offset:0,position:'insideBottom'}}>*/}
-      {/*        </XAxis>*/}
-      {/*        <YAxis label={{value: 'Node count', angle: -90, position: 'insideLeft'}} />*/}
-      {/*        <Bar dataKey="value[1]" fill="#8884d8" />*/}
-      {/*      </BarChart>*/}
-      {/*    </DialogContentText>*/}
-      {/*  </DialogContent>*/}
-      {/*</Dialog>*/}
       <form onSubmit={onSubmit}>
         <Card>
           <CardHeader title="Submit Training Job"/>
@@ -691,6 +657,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
             >
               <Grid item xs={12} sm={6}>
                 <ClusterSelectField
+                  data-test="cluster-item"
                   fullWidth
                   cluster={selectedCluster}
                   onClusterChange={saveSelectedCluster}
@@ -1020,7 +987,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                 <Button type="button" color="secondary" onClick={onDeleteTemplateClick}>Delete</Button>
               </Grid>
             </CardContent>
-          </Collapse>
+          </Collapse>s
           <Divider/>
           <CardActions>
             <Grid item xs={12} container justify="space-between">
@@ -1028,12 +995,17 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                 <Button type="button" color="secondary"  onClick={onAdvancedClick}>Advanced</Button>
                 <Button type="button" color="secondary"  onClick={onDatabaseClick}>Database</Button>
               </Grid>
-              <Button type="submit" color="primary" variant="contained" disabled={!submittable || postJobLoading || postEndpointsLoading}>Submit</Button>
+              <Button type="submit" color="primary" variant="contained" disabled={!submittable || postJobLoading || postEndpointsLoading || open }>Submit</Button>
             </Grid>
           </CardActions>
         </Card>
       </form>
-      {renderWarn(open,showDeleteTemplate,showSaveTemplate)}
+      <DLTSSnackbar message={showMessage(open,showDeleteTemplate,showSaveTemplate)}
+        open={open || showSaveTemplate || showDeleteTemplate}
+        style={styleSnack}
+        handleWarnClose={handleClose}
+        autoHideDuration={1000}
+      />
     </Container>
   );
 });
