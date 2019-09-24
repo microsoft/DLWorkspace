@@ -1,5 +1,6 @@
 # These are the default configuration parameter
 default_config_parameters = {
+    "allroles": {"infra", "infrastructure", "worker", "nfs", "sql", "dev"},
     # Kubernetes setting
     "service_cluster_ip_range": "10.3.0.0/16",
     "pod_ip_range": "10.2.0.0/16",
@@ -635,6 +636,7 @@ default_config_parameters = {
     "vc_config":{
         "VC-Default":["*"],
     },
+    "registry_credential":{},
     "sku_mapping": {
         "Standard_ND6s":{"gpu-type": "P40","gpu-count": 1},
         "Standard_NV24": {"gpu-type": "M60", "gpu-count": 4},
@@ -655,6 +657,7 @@ default_config_parameters = {
         "Standard_NC12s_v2": {"gpu-type": "P100", "gpu-count": 2},
         "Standard_NC24rs_v3": {"gpu-type": "V100", "gpu-count": 4},
         "Standard_NC24rs_v2": {"gpu-type": "P100", "gpu-count": 4},
+        "default": {"gpu-type": "CPU", "gpu-count": 0},
     }
 }
 
@@ -671,24 +674,22 @@ scriptblocks = {
         "-y kubernetes labels",
         "-y gpulabel",
         "kubernetes start nvidia-device-plugin",
+        "kubernetes start flexvolume",
         "webui",
         "docker push restfulapi",
         "docker push webui",
-        # "nginx fqdn",
-        # "nginx config",
         "mount",
         "kubernetes start mysql",
         "kubernetes start jobmanager",
         "kubernetes start restfulapi",
         "kubernetes start webportal",
         "kubernetes start cloudmonitor",
-        # "kubernetes start nginx",
-        "kubernetes start custommetrics",
         # TODO(harry): we cannot distinguish gce aws from azure, so add the same providerID
         # This will not break current deployment.
         "-y kubernetes patchprovider aztools",
         "setconfigmap",
         "--sudo runscriptonrandmaster ./scripts/pass_secret.sh",
+        "runscriptonroles worker scripts/pre_download_images.sh",
     ],
     "azure_uncordon": [
         "runscriptonall ./scripts/prepare_vm_disk.sh",

@@ -505,25 +505,10 @@ def check_node_availability(ipAddress):
     #status = sock.connect_ex((ipAddress,22))
     return status == 0
 
-# check if on same domain
-def is_cur_on_same_domain():
-    if "network" in config and "domain" in config["network"]:
-        hostname = subprocess.check_output("hostname").strip()
-        try:
-            output = subprocess.check_output("nslookup {0}.{1}".format(hostname, config["network"]["domain"]), shell=True)
-            if "name:" in output.lower():
-                return True
-        except:
-            pass
-    return False
-
 # Get domain of the node, assigned in add_acs_config (line config["network"]["domain"])
 def get_domain():
     if "network" in config and "domain" in config["network"] and len(config["network"]["domain"]) > 0 :
-        if is_cur_on_same_domain():
-            domain = ""
-        else:
-            domain = "."+config["network"]["domain"]
+        domain = "."+config["network"]["domain"]
     else:
         domain = ""
     return domain
@@ -880,7 +865,11 @@ def deploy_master(kubernetes_master):
         kubernetes_master_user = config["kubernetes_master_ssh_user"]
         print "starting kubernetes master on %s..." % kubernetes_master
 
-        config["master_ip"] = utils.getIP(kubernetes_master)
+        assert config["azure_cluster"][config["cluster_name"]]["priority"] in ["regular", "low"]
+        if config["azure_cluster"][config["cluster_name"]]["priority"] == "regular":
+            config["master_ip"] = utils.getIP(kubernetes_master) 
+        else:
+            config["master_ip"] = config["machines"][kubernetes_master.split(".")[0]]["private-ip"]
         utils.render_template("./template/master/kube-apiserver.yaml","./deploy/master/kube-apiserver.yaml",config)
         utils.render_template("./template/master/dns-kubeconfig.yaml","./deploy/master/dns-kubeconfig.yaml",config)
         utils.render_template("./template/master/kubelet.service","./deploy/master/kubelet.service",config)
@@ -3027,10 +3016,13 @@ def run_docker_image( imagename, native = False, sudo = False ):
             run_docker( matches[0], prompt = imagename, dockerConfig = dockerConfig, sudo = sudo )
 
 def gen_dns_config_script():
-    utils.render_template("./template/dns/dns.sh.template", "deploy/kubeconfig/kubeconfig.yaml", config)
+    utils.render_template("./template/dns/dns.sh.template", "scripts/dns.sh", config)
 
 def gen_pass_secret_script():
     utils.render_template("./template/secret/pass_secret.sh.template", "scripts/pass_secret.sh", config)
+
+def gen_warm_up_cluster_script():
+    utils.render_template("./template/warmup/pre_download_images.sh.template", "scripts/pre_download_images.sh", config)
 
 def run_command( args, command, nargs, parser ):
     # If necessary, show parsed arguments.
@@ -3518,7 +3510,7 @@ def run_command( args, command, nargs, parser ):
         nodeset, scripts_start = [], 0
         for ni, arg in enumerate(nargs):
             scripts_start = ni
-            if arg in allroles:
+            if arg in config["allroles"]:
                 nodeset += arg,
             else:
                 break
@@ -3737,6 +3729,7 @@ def run_command( args, command, nargs, parser ):
         # print(config["azure_cluster"].keys())
         gen_dns_config_script()
         gen_pass_secret_script()
+        gen_warm_up_cluster_script()
 
     elif command == "setconfigmap":
         os.system('./deploy/bin/kubectl create configmap dlws-scripts --from-file=../Jobs_Templete -o yaml --dry-run | ./deploy.py kubectl apply -f -')
@@ -3884,7 +3877,10 @@ def upgrade_master(kubernetes_master):
     kubernetes_master_user = config["kubernetes_master_ssh_user"]
     print "starting kubernetes master on %s..." % kubernetes_master
 
-    config["master_ip"] = utils.getIP(kubernetes_master)
+    if config["azure_cluster"][config["cluster_name"]]["priority"] == "regular":
+        config["master_ip"] = utils.getIP(kubernetes_master) 
+    else:
+        config["master_ip"] = config["machines"][kubernetes_master.split(".")[0]]["private-ip"]
     utils.render_template("./template/master/kube-apiserver.yaml","./deploy/master/kube-apiserver.yaml",config)
     utils.render_template("./template/master/dns-kubeconfig.yaml","./deploy/master/dns-kubeconfig.yaml",config)
     utils.render_template("./template/master/kubelet.service","./deploy/master/kubelet.service",config)
