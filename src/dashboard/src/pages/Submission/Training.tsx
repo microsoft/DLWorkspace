@@ -723,7 +723,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                   onChange={onTemplateChange}
                 >
                   <MenuItem value={-1} divider>None (Apply a Template)</MenuItem>
-                  {Array.isArray(templates) && templates.sort((a,b)=>a.name.localeCompare(b.name).map(({ name, json }: any, index: number) => (
+                  {Array.isArray(templates) && templates.sort((a,b)=>a.name.localeCompare(b.name)).map(({ name, json }: any, index: number) => (
                     <MenuItem key={index} value={json}>{name}</MenuItem>
                   ))}
                 </TextField>
