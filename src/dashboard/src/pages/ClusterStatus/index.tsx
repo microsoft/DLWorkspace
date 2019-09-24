@@ -203,13 +203,13 @@ const ClusterStatus: FC = () => {
           </DLTSTabPanel>
           <DLTSTabPanel value={value} index={2} dir={theme.direction} title={ClusterUsagesTitles[0]}>
             <ClusterUsage showIframe={showIframe} iframeUrl={iframeUrlForPerVC}/>
-            <Typography component="h2" variant="h6" >
+            <Typography component="h2" variant="h6" style={{ marginLeft:'-10px' }}>
               {ClusterUsagesTitles[1]}
             </Typography>
             <ClusterUsage showIframe={showIframe} iframeUrl={iframeUrl}/>
           </DLTSTabPanel>
           <DLTSTabPanel value={value} index={3} dir={theme.direction} title={ClusterStatusTitles[value]}>
-            <PhysicalClusterNodeStatus nodeStatus={nodeStatus}/>*
+            <PhysicalClusterNodeStatus nodeStatus={nodeStatus}/>
           </DLTSTabPanel>
         </SwipeableViews>
       </Fragment>
