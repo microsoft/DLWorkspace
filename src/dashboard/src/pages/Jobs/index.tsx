@@ -1,42 +1,20 @@
 import React, {Fragment, useEffect, useRef, useState} from "react";
 import {
-  SnackbarContent,
-  Tabs,
-  Tab,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  Snackbar,
   Box,
   CircularProgress,
   TextField,
-  Grid,
   SvgIcon,
   Tooltip,
-  AppBar,
-  useTheme,
-  Chip,
-  Menu,
-  ListItem,
-  List,
   MenuItem,
-  ListItemText,
-  Select,
-  withStyles, InputBase, Container, FormControl, InputLabel, useMediaQuery
+  Container
 } from "@material-ui/core";
 import CheckCircleIcon from '@material-ui/icons/CheckCircle';
 import { makeStyles, Theme, createStyles } from "@material-ui/core/styles";
-import Slide from '@material-ui/core/Slide';
 import {red, grey, green, blue} from "@material-ui/core/colors";
-import { TabPanel } from '../CommonComponents/TabPanel'
+import { DLTSTabPanel } from '../CommonComponents/DLTSTabPanel'
 import {Link} from "react-router-dom";
-import { TransitionProps } from '@material-ui/core/transitions';
 import useFetch,{usePut} from "use-http/dist";
 import MaterialTable from 'material-table';
-import queryString from 'query-string';
 import useJobs from './useJobs';
 import _ from 'lodash';
 import ClusterContext from "../../contexts/Clusters";
@@ -44,14 +22,24 @@ import useJobsAll from "./useJobsAll";
 import IconButton from "@material-ui/core/IconButton";
 import DeleteIcon from '@material-ui/icons/Delete';
 import CheckIcon from '@material-ui/icons/CheckSharp';
-import theme from "../../contexts/MonospacedTheme";
+import useCheckIsDesktop from "../../utlities/layoutUtlities";
+import {DLTSTabs} from "../CommonComponents/DLTSTabs";
+import {JobsTitles} from "../../Constants/TabsContants";
+import {JobsOperationDialog} from "./components/JobsOperationDialog";
+import {DLTSSnackbar} from "../CommonComponents/DLTSSnackbar";
+import {
+  SUCCESSFULLYAPPROVED,
+  SUCCESSFULLYPAUSED,
+  SUCCESSFULLYRESUMED,
+  SUCCESSFULLYUPDATEDPRIORITY,
+  SUCESSFULKILLED
+} from "../../Constants/WarnConstants";
+import {convertToArrayByKey} from "../../utlities/ObjUtlities";
+import {JobsSelectByCluster} from "./components/JobsSelectByCluster";
 
 const variantIcon = {
   success: CheckCircleIcon,
 };
-const Transition = React.forwardRef<unknown, TransitionProps>(function Transition(props, ref) {
-  return <Slide direction="down" ref={ref} {...props} />;
-});
 interface Props {
   className?: string;
   message?: string;
@@ -59,12 +47,6 @@ interface Props {
   variant: keyof typeof variantIcon;
 }
 
-
-function a11yProps(index: any) {
-  return {
-    id: `simple-tab-${index}`
-  };
-}
 const { DateTime } = require('luxon');
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
@@ -115,11 +97,8 @@ const useStyles = makeStyles((theme: Theme) =>
         textDecoration: 'none'
       }
     },
-    success: {
-      backgroundColor: green[600],
-    },
     inputField: {
-      fontSize:'12px'
+      fontSize:'12px',
     }
   })
 );
@@ -127,13 +106,6 @@ const Jobs: React.FC = (props: any) => {
   const classes = useStyles();
   const [value, setValue] = React.useState(0);
   const [refresh, setRefresh] = React.useState(false);
-  const handleChange = (event: React.ChangeEvent<{}>, newValue: number) => {
-    setRefresh(false);
-    setTimeout(()=>{
-      setRefresh(true);
-    },1000);
-    setValue(newValue);
-  }
   useEffect(()=>{
     let mount = true;
     let timeout: any;
@@ -183,6 +155,7 @@ const Jobs: React.FC = (props: any) => {
   const [currentCluster, setCurrentCluster] = useState(props.match.params.cluster ? props.match.params.cluster : Array.isArray(_.map(clusters,'id') )?_.map(clusters,'id')[0] : '');
   const [jobs, error] = useJobs();
   const [allJobs, err] = useJobsAll();
+
   const filterJobsByCluster = (jobs: any, clusterName: string) => {
     if (clusterName === 'None' || clusterName === '') {
       return jobs;
@@ -190,7 +163,6 @@ const Jobs: React.FC = (props: any) => {
       return jobs.filter((job: any)=>job['cluster'] === clusterName)
     }
   }
-
   const filterFinishedJobs = (jobs: any) => {
     const filteredJobs = filterJobsByCluster(jobs, currentCluster);
     return filteredJobs.filter((job: any) => job['jobStatus'] !== 'running' &&
@@ -213,6 +185,7 @@ const Jobs: React.FC = (props: any) => {
     console.log(filteredJobs.filter((job: any)=>job['jobStatus'] === 'unapproved'))
     return filteredJobs.filter((job: any)=>job['jobStatus'] === 'unapproved');
   }
+
   const handleClose = () => {
     setOpen(false);
     setOpenApprove(false);
@@ -244,13 +217,15 @@ const Jobs: React.FC = (props: any) => {
     //};
   };
 
-  const handleConfirm = (openApprove: boolean) => {
+  const handleConfirm = () => {
     if (openApprove) {
       approveJob().then((res)=>{
         if (res) {
           setOpenApproveWarn(true);
           setOpenApprove(false);
-          setMessage('Successfully approved');
+          setMessage(SUCCESSFULLYAPPROVED);
+        } else {
+          alert("approve fail")
         }
       })
     } else if (openPause) {
@@ -258,7 +233,9 @@ const Jobs: React.FC = (props: any) => {
         if (res) {
           setOpenPauseWarn(true);
           setOpenPause(false);
-          setMessage('Successfully paused')
+          setMessage(SUCCESSFULLYPAUSED)
+        } else {
+          alert("pause fail")
         }
       })
     } else if (openResume) {
@@ -266,7 +243,9 @@ const Jobs: React.FC = (props: any) => {
         if (res) {
           setOpenResumeWarn(true)
           setOpenResume(false);
-          setMessage('Successfully resumed')
+          setMessage(SUCCESSFULLYRESUMED)
+        } else {
+          alert("resume fail")
         }
       })
     } else if (openUpdatePriority) {
@@ -275,7 +254,7 @@ const Jobs: React.FC = (props: any) => {
       const response = setPriority(`/clusters/${currentJob.cluster}/jobs/${currentJob.jobId}/priority`, body);
       if (response) {
         setUpdatePriorityWarn(true);
-        setMessage('Successfully updated priority')
+        setMessage(SUCCESSFULLYUPDATEDPRIORITY)
       } else {
         alert('Priority set failed');
       }
@@ -284,53 +263,13 @@ const Jobs: React.FC = (props: any) => {
         if (res) {
           setOpenKillWarn(true);
           setOpen(false)
-          setMessage('Successfully killed')
+          setMessage(SUCESSFULKILLED)
+        } else {
+          alert('kill fail')
         }
       })
     }
   }
-  const renderDialog = (job: any) => {
-    let message = '';
-    if (openApprove) {
-      message = `${job.jobId} will be approved soon`;
-    } else if (openPause) {
-      message = `${job.jobId} will be paused soon`;
-    } else if (openResume) {
-      message = `${job.jobId} will be resumed soon`;
-    } else if (open) {
-      message = `${job.jobId} will be killed soon`;
-    } else if (openUpdatePriority) {
-      message = `${job.jobId}'s priority will be updated soon`;
-    }
-    if (message === '') {
-      return null;
-    }
-    return (
-      <Dialog
-        open={open || openApprove || openPause || openResume || openUpdatePriority }
-        TransitionComponent={Transition}
-        onClose={handleClose}
-        aria-labelledby="alert-dialog-title"
-        aria-describedby="alert-dialog-description"
-      >
-        <DialogTitle id="alert-dialog-title" style={{ color:red[600] }}>{"Info"}</DialogTitle>
-        <DialogContent>
-          <DialogContentText id="alert-dialog-description" style={{color:grey[400]}}>
-            {message}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose} color="primary">
-            No
-          </Button>
-          <Button onClick={() => handleConfirm(openApprove)} color="secondary" autoFocus>
-            Yes
-          </Button>
-        </DialogActions>
-      </Dialog>
-    )
-  };
-
   const handlePause = (data: any) => {
     setCurrentJob({
       cluster:data['cluster'],
@@ -356,6 +295,7 @@ const Jobs: React.FC = (props: any) => {
     defaultValue={rowData.priority}
     onKeyPress={(event) => handlePriorityKeyPress(rowData, event)}
     fullWidth={true}
+    helperText={"priority should be 100 ~ 65535"}
     InputProps={{
       classes: {
         input: classes.inputField,
@@ -419,44 +359,23 @@ const Jobs: React.FC = (props: any) => {
 
   const onClusterChange = (event: React.ChangeEvent<{ value: unknown }>) => {
     setCurrentCluster(event.target.value as string)
-    const selectedCluster = event.target.value as string;
-
   }
-  const isDesktop = useMediaQuery(theme.breakpoints.up("sm"));
   if (jobs && allJobs) {
-    console.log(allJobs)
+    console.log(jobs)
     return (
-      <Container maxWidth={isDesktop ? 'lg' : 'xs'}>
-        {renderDialog(currentJob)}
-        <Container maxWidth={isDesktop ? 'lg' : 'xs'} >
-          <AppBar position="static" color="default">
-            <Tabs
-              variant="fullWidth"
-              value={value}
-              indicatorColor="primary"
-              onChange={handleChange}
-              aria-label="Jobs list tabs"
-            >
-              <Tab label="My Jobs" {...a11yProps(0)} />
-              <Tab label="All Jobs" {...a11yProps(1)} />
-            </Tabs>
-          </AppBar>
-        </Container>
-        <TabPanel value={value} index={0}>
-          <Container maxWidth={isDesktop ? 'lg' : 'xs'} >
-            <TextField
-              select
-              label="Choose Cluster"
-              fullWidth
-              variant="filled"
-              value={currentCluster===' ' ? Array.isArray(_.map(clusters,'id') )?_.map(clusters,'id')[0] : ' ' : currentCluster }
-              onChange={onClusterChange}
-            >
-              <MenuItem  value={-1} divider>{'None'}</MenuItem>
-              {Array.isArray(_.map(clusters,'id')) && _.map(clusters,'id').map((cluster: any, index: number) => (
-                <MenuItem key={index} value={cluster}>{cluster}</MenuItem>
-              ))}
-            </TextField>
+      <Fragment>
+        <JobsOperationDialog handleClose={handleClose}
+          titleStyle={{color:red[200]}}
+          title={"Info"}
+          handleConfirm={handleConfirm}
+          job={currentJob}
+          openApprove={openApprove}
+          openPause={openPause} openResume={openResume} openUpdatePriority={openUpdatePriority} open={open}
+        />
+        <DLTSTabs value={value} setValue={setValue} titles={JobsTitles} setRefresh={setRefresh} />
+        <DLTSTabPanel value={value} index={0}>
+          <Container maxWidth={useCheckIsDesktop ? 'lg' : 'xs'} >
+            <JobsSelectByCluster currentCluster={currentCluster} onClusterChange={onClusterChange} clusters={clusters}/>
             <MaterialTable
               title="Running Jobs"
               columns={[
@@ -688,6 +607,13 @@ const Jobs: React.FC = (props: any) => {
                 {title:'Preemptible', field:'jobParams.preemptionAllowed',type:'boolean'},
                 {title:'Finished Time', field:'jobStatusDetail[0].finishedAt',type:'date',emptyValue:'unknown',
                   render: (rowData: any)=>renderDateTime(rowData,'finishedAt'),
+                },
+                {
+                  title: 'Started Time',
+                  field: 'jobStatusDetail[0].startedAt',
+                  type: 'date',
+                  emptyValue: 'unknown',
+                  render: (rowData: any)=>renderDateTime(rowData, 'startedAt')
                 }
               ]}
               data={filterFinishedJobs(jobs)}
@@ -704,24 +630,12 @@ const Jobs: React.FC = (props: any) => {
 
             />
           </Container>
-        </TabPanel>
+        </DLTSTabPanel>
         {
           refresh ? allJobs && (Boolean)(_.map(clusters,"admin")[0]) &&
-          <TabPanel value={value}  index={1}>
+          <DLTSTabPanel value={value} index={1}>
             <Container maxWidth="lg" >
-              <TextField
-                select
-                label="Choose Cluster"
-                fullWidth
-                variant="filled"
-                value={currentCluster}
-                onChange={onClusterChange}
-              >
-                <MenuItem value={-1} divider>None</MenuItem>
-                {Array.isArray(_.map(clusters,'id')) && _.map(clusters,'id').map((cluster: any, index: number) => (
-                  <MenuItem key={index} value={cluster}>{cluster}</MenuItem>
-                ))}
-              </TextField>
+              <JobsSelectByCluster currentCluster={currentCluster} onClusterChange={onClusterChange} clusters={clusters}/>
               <MaterialTable
                 title="Running Jobs"
                 columns={[
@@ -752,7 +666,7 @@ const Jobs: React.FC = (props: any) => {
                 data={filterRunningJobs(allJobs)}
                 options={{
                   sorting: true,
-                  filtering: true,
+                  filtering: false,
                   paging: false,
                   actionsColumnIndex: -1,
                   headerStyle: {
@@ -806,7 +720,7 @@ const Jobs: React.FC = (props: any) => {
                 ]}
                 data={filterQueuedJobs(allJobs)}
                 options={{
-                  filtering: true,
+                  filtering: false,
                   paging: false,
                   actionsColumnIndex: -1,
                   headerStyle: {
@@ -871,7 +785,7 @@ const Jobs: React.FC = (props: any) => {
                 ]}
                 data={filterUnApprovedJobs(allJobs)}
                 options={{
-                  filtering: true,
+                  filtering: false,
                   paging: false,
                   actionsColumnIndex: -1,
                   headerStyle: {
@@ -933,7 +847,7 @@ const Jobs: React.FC = (props: any) => {
                 ]}
                 data={filterPauseJobs(allJobs)}
                 options={{
-                  filtering: true,
+                  filtering: false,
                   paging: false,
                   actionsColumnIndex: -1,
                   headerStyle: {
@@ -966,26 +880,14 @@ const Jobs: React.FC = (props: any) => {
                 }}
               />
             </Container>
-          </TabPanel> : <CircularProgress/>
+          </DLTSTabPanel> : <CircularProgress/>
         }
-        {
-          message !== '' && <Snackbar
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-            open={openKillWarn || openApproveWarn || openPauseWarn || openResumeWarn || openUpatePriorityWarn}
-            autoHideDuration={1000}
-            onClose={handleWarnClose}
-            ContentProps={{
-              'aria-describedby': 'message-id',
-            }}
-          >
-            <SnackbarContent
-              className={classes.success}
-              aria-describedby="client-snackbar"
-              message={<span id="message-id" >{message}</span>}
-            />
-          </Snackbar>
-        }
-      </Container>
+        <DLTSSnackbar message={message}
+          open = {openKillWarn || openApproveWarn || openPauseWarn || openResumeWarn || openUpatePriorityWarn}
+          handleWarnClose={()=>{handleWarnClose()}}
+          autoHideDuration={1000}
+        />
+      </Fragment>
     )
   }
   return (

@@ -151,7 +151,7 @@ def create_vm_pwd(vmname, vm_ip, vm_size, use_private_ip, pwd):
         print(output)
 
 def create_vm(vmname, vm_ip, role, vm_size):
-    specify_priv_IP = role in ["worker","nfs"]
+    specify_priv_IP = not role in ["worker","nfs"]
     nsg = "nfs_nsg_name" if role == "nfs" else "nsg_name"
     cmd = """
         az vm create --resource-group %s \
@@ -167,7 +167,7 @@ def create_vm(vmname, vm_ip, role, vm_size):
                  --nsg %s \
                  --admin-username %s \
                  --storage-sku %s \
-                 --data-disk-sizes-gb 2047 \
+                 --data-disk-sizes-gb %s \
                  --ssh-key-value "%s"
         """ % (config["azure_cluster"]["resource_group_name"],
                vmname,
@@ -180,7 +180,8 @@ def create_vm(vmname, vm_ip, role, vm_size):
                config["azure_cluster"][nsg],
                config["cloud_config"]["default_admin_username"],
                config["azure_cluster"]["vm_storage_sku"],
-               config["azure_cluster"]["sshkey"]) if not specify_priv_IP else """
+               config["azure_cluster"]["%s_local_storage_sz" % role],
+               config["azure_cluster"]["sshkey"]) if specify_priv_IP else """
         az vm create --resource-group %s \
                  --name %s \
                  --image %s \
@@ -193,7 +194,7 @@ def create_vm(vmname, vm_ip, role, vm_size):
                  --nsg %s \
                  --admin-username %s \
                  --storage-sku %s \
-                 --data-disk-sizes-gb 2047 \
+                 --data-disk-sizes-gb %s \
                  --ssh-key-value "%s"
         """ % (config["azure_cluster"]["resource_group_name"],
                vmname,
@@ -205,6 +206,7 @@ def create_vm(vmname, vm_ip, role, vm_size):
                config["azure_cluster"][nsg],
                config["cloud_config"]["default_admin_username"],
                config["azure_cluster"]["vm_storage_sku"],
+               config["azure_cluster"]["%s_local_storage_sz" % role],
                config["azure_cluster"]["sshkey"])
     # Try remove static IP
     #                 --public-ip-address-allocation static \
@@ -429,7 +431,7 @@ def create_nfs_nsg():
         """ % ( config["azure_cluster"]["resource_group_name"],
                 config["azure_cluster"]["nfs_nsg_name"],
                 config["cloud_config"]["nfs_ssh"]["port"],
-                " ".join(config["cloud_config"]["nfs_ssh"]["source_ips"] + source_addresses_prefixes),
+                " ".join(list(set(config["cloud_config"]["nfs_ssh"]["source_ips"] + source_addresses_prefixes))),
                 )
     if not no_execution:
         output = utils.exec_cmd_local(cmd)
@@ -505,9 +507,14 @@ def create_cluster(arm_vm_password=None):
     for i in range(int(config["azure_cluster"]["infra_node_num"])):
         create_vm_param(i, "infra", config["azure_cluster"]["infra_vm_size"],
                         arm_vm_password is not None, arm_vm_password)
-    for i in range(int(config["azure_cluster"]["worker_node_num"])):
-        create_vm_param(i, "worker", config["azure_cluster"]["worker_vm_size"],
-                        arm_vm_password is not None, arm_vm_password)
+    if config["azure_cluster"]["priority"] == "regular":
+        print("entering")
+        for i in range(int(config["azure_cluster"]["worker_node_num"])):
+            create_vm_param(i, "worker", config["azure_cluster"]["worker_vm_size"],
+                            arm_vm_password is not None, arm_vm_password)
+    elif config["azure_cluster"]["priority"] == "low":
+        utils.render_template("./template/vmss/vmss.sh.template", "scripts/vmss.sh",config)
+        utils.exec_cmd_local("chmod +x scripts/vmss.sh;./scripts/vmss.sh")
     # create nfs server if specified.
     for i in range(int(config["azure_cluster"]["nfs_node_num"])):
         if i < len(config["azure_cluster"]["nfs_suffixes"]):
@@ -690,6 +697,9 @@ def get_disk_from_vm(vmname):
     return output.split("/")[-1].strip('\n')
 
 def gen_cluster_config(output_file_name, output_file=True, no_az=False):
+    if config["azure_cluster"][config["cluster_name"]]["priority"] == "low":
+        utils.render_template("./template/dns/cname_and_private_ips.sh.template", "scripts/cname_and_ips.sh", config)    
+        utils.exec_cmd_local("chmod +x scripts/cname_and_ips.sh")
     bSQLOnly = (config["azure_cluster"]["infra_node_num"] <= 0)
     if useAzureFileshare() and not no_az:
         # theoretically it could be supported, but would require storage account to be created first in nested template and then
@@ -740,9 +750,10 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
     cc["deploydockerETCD"] = False
     cc["platform-scripts"] = "ubuntu"
     cc["basic_auth"] = "%s,admin,1000" % uuid.uuid4().hex[:16]
+    domain_mapping = {"regular":"%s.cloudapp.azure.com" % config["azure_cluster"]["azure_location"], "low":"redmond.corp.microsoft.com"}
     if not bSQLOnly:
-        cc["network"] = {"domain": "%s.cloudapp.azure.com" %
-                         config["azure_cluster"]["azure_location"]}
+        cc["network"] = {"domain": domain_mapping[config["azure_cluster"]["priority"]]}
+
     cc["machines"] = {}
     for i in range(int(config["azure_cluster"]["infra_node_num"])):
         vmname = "%s-infra%02d" % (config["azure_cluster"]
@@ -751,6 +762,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
 
     # Generate the workers in machines.
     vm_list = []
+
     if not no_az:
         vm_list = get_vm_list_by_grp()
     else:
@@ -761,9 +773,20 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
     
     sku_mapping = config["sku_mapping"]
 
-    for vm in vm_list:
-        vmname = vm["name"]
-        if "-worker" in vmname:
+    worker_machines = []
+    if config["azure_cluster"]["priority"] == "low":
+        with open("hostname_fqdn_map","r") as rf:
+            for l in rf:
+                worker_machines += l.split()[0],
+        for vmname in worker_machines:
+            cc["machines"][vmname] = {"role": "worker","node-group": config["azure_cluster"]["worker_vm_size"],
+                                        "gpu-type":sku_mapping[config["azure_cluster"]["worker_vm_size"]]["gpu-type"]}
+    elif config["azure_cluster"]["priority"] == "regular":
+        for vm in vm_list:
+            vmname = vm["name"]
+            if "-worker" in vmname:
+                worker_machines += vmName,
+        for vmname in worker_machines:          
             if isNewlyScaledMachine(vmname):
                 cc["machines"][vmname] = {
                     "role": "worker", "scaled": True,
@@ -823,6 +846,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
                     cc["mountpoints"][mntname]["type"] = "nfs"
                     cc["mountpoints"][mntname]["server"] = server_ip
                     cc["mountpoints"][mntname]["servername"] = server_name
+    print "\nPlease copy the commands in dns_add_commands and register the DNS records on http://servicebook/dns/self-service.html\n"
     if output_file:
         print yaml.dump(cc, default_flow_style=False)
         with open(output_file_name, 'w') as outfile:
