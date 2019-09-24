@@ -2,6 +2,8 @@
 
 set -x
 
+sudo systemctl disable unattended-upgrades
+
 # Remove kernel updates
 
 sed 's/"${distro_id}:${distro_codename}";/\/\/"${distro_id}:${distro_codename}";/g' /etc/apt/apt.conf.d/50unattended-upgrades | sed 's/"${distro_id}:${distro_codename}-security";/\/\/"${distro_id}:${distro_codename}-security";/g' | sed 's/"${distro_id}ESM:${distro_codename}";/\/\/"${distro_id}ESM:${distro_codename}";/g' > /tmp/50unattended-upgrades
