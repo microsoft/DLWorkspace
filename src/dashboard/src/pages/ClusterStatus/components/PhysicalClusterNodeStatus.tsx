@@ -77,7 +77,7 @@ export const PhysicalClusterNodeStatus = (props: PhClusterNSType) => {
                         if (!pod.includes("!!!!!!")) {
                           return (
                             <Typography variant="subtitle2" component="b" gutterBottom>
-                              {`[${pod}]`}
+                              {`[${ pod.replace("!!!!!!", "")}]`}
                             </Typography>
                           )
                         } else {
