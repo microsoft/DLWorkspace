@@ -38,11 +38,6 @@ import ClustersContext from '../../contexts/Clusters';
 import TeamsContext from "../../contexts/Teams";
 import theme, { Provider as MonospacedThemeProvider } from "../../contexts/MonospacedTheme";
 import useFetch, {useDelete} from "use-http/dist";
-import Dialog from '@material-ui/core/Dialog';
-import DialogContent from '@material-ui/core/DialogContent';
-import DialogContentText from '@material-ui/core/DialogContentText';
-import DialogTitle from '@material-ui/core/DialogTitle';
-import _ from 'lodash';
 import {BarChart, Bar, XAxis, YAxis, CartesianGrid}  from "recharts";
 import Paper, { PaperProps } from '@material-ui/core/Paper';
 import Draggable from 'react-draggable'
@@ -987,7 +982,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                 <Button type="button" color="secondary" onClick={onDeleteTemplateClick}>Delete</Button>
               </Grid>
             </CardContent>
-          </Collapse>s
+          </Collapse>
           <Divider/>
           <CardActions>
             <Grid item xs={12} container justify="space-between">

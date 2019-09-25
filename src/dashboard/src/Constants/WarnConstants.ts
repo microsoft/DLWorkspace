@@ -4,5 +4,5 @@ export const SUCCESSFULLYRESUMED = "Successfully resumed";
 export const SUCCESSFULLYUPDATEDPRIORITY = "Successfully updated priority";
 export const SUCESSFULKILLED = "Successfully killed";
 export const SUCCESSFULSUBMITTED = "Job submitted successfully";
-export const SUCCESSFULTEMPLATEDELETE = "Template Deleted";
-export const SUCCESSFULTEMPLATEDSAVE = "Template Saved";
+export const SUCCESSFULTEMPLATEDELETE = "Template deleted";
+export const SUCCESSFULTEMPLATEDSAVE = "Template saved";

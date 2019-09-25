@@ -43,7 +43,7 @@ export const PhysicalClusterNodeStatus = (props: PhClusterNSType) => {
             <TableCell>Used GPU</TableCell>
             <TableCell>Available GPU</TableCell>
             <TableCell>Status</TableCell>
-            <TableCell>Services</TableCell>
+            {/*<TableCell>Services</TableCell>*/}
             <TableCell>Pods</TableCell>
           </TableRow>
         </TableHead>
@@ -66,11 +66,11 @@ export const PhysicalClusterNodeStatus = (props: PhClusterNSType) => {
                   <TableCell>{gpuUsed}</TableCell>
                   <TableCell>{availableGPU}</TableCell>
                   <TableCell>{status}</TableCell>
-                  <TableCell>
-                    {
-                      <ServicesChips services={services}/>
-                    }
-                  </TableCell>
+                  {/*<TableCell>*/}
+                  {/*  {*/}
+                  {/*    <ServicesChips services={services}/>*/}
+                  {/*  }*/}
+                  {/*</TableCell>*/}
                   <TableCell>
                     {
                       ns['pods'].map((pod: string)=>{
@@ -82,9 +82,12 @@ export const PhysicalClusterNodeStatus = (props: PhClusterNSType) => {
                           )
                         } else {
                           return (
-                            <Typography variant="subtitle2" component="b" style={{ color:red[400] }} gutterBottom>
-                              {`[${pod.replace("!!!!!!", "")}]\n`}
-                            </Typography>
+                            <>
+                              <Typography variant="subtitle2" component="b" style={{ color:red[400] }} gutterBottom>
+                                {`[${pod.replace("!!!!!!", "")}]`}
+                              </Typography>
+                              <br/>
+                            </>
                           )
                         }
                       })

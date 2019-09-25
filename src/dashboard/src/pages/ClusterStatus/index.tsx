@@ -84,7 +84,6 @@ const ClusterStatus: FC = () => {
   const[globalPrometheusResp, setGlobalPrometheusResp] = React.useState(Array());
   const[globalIds, setGlobalIds] = React.useState(Array());
   const fetchClusterStatus = () => {
-    //setVcStatus([]);
     if (clusters) {
       const params = new URLSearchParams({
         query:`count+(task_gpu_percent{vc_name="${selectedTeam}"}+==+0)+by+(username)`,
@@ -135,7 +134,7 @@ const ClusterStatus: FC = () => {
                 setGlobalIds([...globalIds,idleTmp])
               }
             }
-            const merged = mergeTwoObjsByKey(fetchUsrs, prometheusResp,'userName');
+            const merged = mergeTwoObjsByKey(fetchUsrs, prometheusResp, 'userName');
             let mergedUsers: any = _.values(merged);
             mergedUsers.forEach((us: any)=>{
               if (!us.hasOwnProperty('usedGPU')) {
@@ -221,9 +220,7 @@ const ClusterStatus: FC = () => {
   }
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedValue(event.target.value);
-    console.log(vcStatus);
     const filteredVCStatus: any = vcStatus.filter((vc)=>vc['ClusterName'] === event.target.value);
-    console.log(filteredVCStatus[0]['user_status']);
     mergeUserStatus(filteredVCStatus[0]['user_status']);
     setNodeStatus(filteredVCStatus[0]['node_status']);
     setIframeUrl((filteredVCStatus[0]['GranaUrl']));
