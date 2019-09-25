@@ -1,19 +1,47 @@
 #!/bin/bash
 
+set -x
+
+sudo apt-get update
 sudo apt-get install -y build-essential python-setuptools libibverbs-dev bison flex ibverbs-utils net-tools gfortran python3-pip
+sudo apt-get install -y perftest infiniband-diags
 sudo python3 -m pip install --upgrade pip setuptools wheel
 
-wget https://github.com/Azure/WALinuxAgent/archive/v2.2.40.tar.gz
+sudo apt-get remove -y walinuxagent
+sudo apt-get -qq update
+sudo apt-get install walinuxagent
 
-tar -xvf v2.2.40.tar.gz
-cd WALinuxAgent-2.2.40
-sudo python3 setup.py install --register-service --force
+#wget https://github.com/Azure/WALinuxAgent/archive/v2.2.40.tar.gz
+
+#tar -xvf v2.2.40.tar.gz
+#cd WALinuxAgent-2.2.40
+#sudo python3 setup.py install --register-service --force
 
 sudo sed -i -e 's/# OS.EnableRDMA=y/OS.EnableRDMA=y/g' /etc/waagent.conf
 #sudo sed -i -e 's/# AutoUpdate.Enabled=y/AutoUpdate.Enabled=y/g' /etc/waagent.conf
 sudo systemctl restart walinuxagent.service
 
-# update memory limits
+# Set up IB devices
+sudo modprobe ib_ipoib
+sudo modprobe rdma_ucm
+sudo modprobe ib_umad
+
+a=$(grep "^ib_ipoib" /etc/modules)
+if [ -z $a ]; then
+    echo 'ib_ipoib' | sudo tee -a /etc/modules
+fi
+
+a=$(grep "^rdma_ucm" /etc/modules)
+if [ -z $a ]; then
+    echo 'rdma_ucm' | sudo tee -a /etc/modules
+fi
+
+a=$(grep "^ib_umad" /etc/modules)
+if [ -z $a ]; then
+    echo 'ib_umad' | sudo tee -a /etc/modules
+fi
+
+# Update memory limits
 touch /tmp/limits.conf
 cat > /tmp/limits.conf << EOF
 # /etc/security/limits.conf

@@ -68,8 +68,10 @@ def merge_config(config1, config2, verbose):
 
 
 def update_config(config, genSSH=True):
-    config["azure_cluster"]["resource_group_name"] = config[
-        "azure_cluster"]["cluster_name"] + "ResGrp"
+    if "resource_group_name" not in config["azure_cluster"]:
+        config["azure_cluster"]["resource_group_name"] = config[
+            "azure_cluster"]["cluster_name"] + "ResGrp"
+
     config["azure_cluster"]["vnet_name"] = config[
         "azure_cluster"]["cluster_name"] + "-VNet"
     config["azure_cluster"]["storage_account_name"] = config[
@@ -207,6 +209,43 @@ def create_vm(vmname, vm_ip, role, vm_size):
                config["azure_cluster"]["vm_storage_sku"],
                config["azure_cluster"]["%s_local_storage_sz" % role],
                config["azure_cluster"]["sshkey"])
+
+    # Support putting workers in a pre-created availability set
+    # TODO:
+    #   1. Merge with the above
+    #   2. Create an availability set for workers if absent
+    if role == "worker":
+        if "availability_set" in config["azure_cluster"]:
+            cmd = """
+                az vm create --resource-group %s \
+                         --name %s \
+                         --image %s \
+                         --generate-ssh-keys  \
+                         --public-ip-address-dns-name %s \
+                         --location %s \
+                         --size %s \
+                         --vnet-name %s \
+                         --subnet mySubnet \
+                         --nsg %s \
+                         --admin-username %s \
+                         --storage-sku %s \
+                         --data-disk-sizes-gb %s \
+                         --ssh-key-value "%s" \
+                         --availability-set "%s"
+            """ % (config["azure_cluster"]["resource_group_name"],
+                   vmname,
+                   config["azure_cluster"]["vm_image"],
+                   vmname,
+                   config["azure_cluster"]["azure_location"],
+                   vm_size,
+                   config["azure_cluster"]["vnet_name"],
+                   config["azure_cluster"][nsg],
+                   config["cloud_config"]["default_admin_username"],
+                   config["azure_cluster"]["vm_storage_sku"],
+                   config["azure_cluster"]["%s_local_storage_sz" % role],
+                   config["azure_cluster"]["sshkey"],
+                   config["azure_cluster"]["availability_set"])
+
     # Try remove static IP
     #                 --public-ip-address-allocation static \
     if verbose:
@@ -478,7 +517,7 @@ def get_vm_ip(i, role):
         return vnet_ips[0] + "." + vnet_ips[1] + "." + "255" + "." + str(i + 1)
 
 
-def create_cluster(arm_vm_password=None):
+def create_cluster(arm_vm_password=None, parallelism=1):
     bSQLOnly = (config["azure_cluster"]["infra_node_num"] <= 0)
     assert int(config["azure_cluster"]["nfs_node_num"]) >= len(config["cloud_config"]["nfs_suffixes"])
     print "creating resource group..."
@@ -505,32 +544,49 @@ def create_cluster(arm_vm_password=None):
     for i in range(int(config["azure_cluster"]["infra_node_num"])):
         create_vm_param(i, "infra", config["azure_cluster"]["infra_vm_size"],
                         arm_vm_password is not None, arm_vm_password)
+
     if config["azure_cluster"]["priority"] == "regular":
         print("entering")
-        for i in range(int(config["azure_cluster"]["worker_node_num"])):
-            create_vm_param(i, "worker", config["azure_cluster"]["worker_vm_size"],
-                            arm_vm_password is not None, arm_vm_password)
+        if parallelism > 1:
+            # TODO: Tolerate faults
+            from multiprocessing import Pool
+            args_list = [(i, "worker", config["azure_cluster"]["worker_vm_size"], arm_vm_password is not None, arm_vm_password)
+                         for i in range(int(config["azure_cluster"]["worker_node_num"]))]
+            pool = Pool(processes=parallelism)
+            pool.map(create_vm_param_wrapper, args_list)
+            pool.close()
+        else:
+            for i in range(int(config["azure_cluster"]["worker_node_num"])):
+                create_vm_param(i, "worker", config["azure_cluster"]["worker_vm_size"],
+                                arm_vm_password is not None, arm_vm_password)
     elif config["azure_cluster"]["priority"] == "low":
         utils.render_template("./template/vmss/vmss.sh.template", "scripts/vmss.sh",config)
         utils.exec_cmd_local("chmod +x scripts/vmss.sh;./scripts/vmss.sh")
+
     # create nfs server if specified.
     for i in range(int(config["azure_cluster"]["nfs_node_num"])):
         if i < len(config["azure_cluster"]["nfs_suffixes"]):
-            create_vm_role_suffix(i, "nfs", config["azure_cluster"]["nfs_vm_size"], 
+            create_vm_role_suffix(i, "nfs", config["azure_cluster"]["nfs_vm_size"],
                 config["azure_cluster"]["nfs_suffixes"][i], arm_vm_password)
         else:
             create_vm_param(i, "nfs", config["azure_cluster"]["nfs_vm_size"],
                         arm_vm_password is not None, arm_vm_password)
 
+def create_vm_param_wrapper(arg_tuple):
+    i, role, vm_size, no_az, arm_vm_password = arg_tuple
+    return create_vm_param(i, role, vm_size, no_az, arm_vm_password)
+
 def create_vm_param(i, role, vm_size, no_az=False, arm_vm_password=None):
     assert role in config["allroles"] and "invalid machine role, please select from {}".format(' '.join(config["allroles"]))
     if role in ["worker","nfs"]:
-        vmname = "{}-{}".format(config["azure_cluster"]["cluster_name"], role) + ("{:02d}".format(i+1) if no_az else '-'+random_str(6))
+        vmname = "{}-{}".format(config["azure_cluster"]["cluster_name"].lower(), role) + ("{:02d}".format(i+1) if no_az else '-'+random_str(6))
     elif role == "infra":
         vmname = "%s-infra%02d" % (config["azure_cluster"]
-                                   ["cluster_name"], i + 1)
-    elif role == "dev":
-        vmname = "%s-dev" % (config["azure_cluster"]["cluster_name"])
+                                   ["cluster_name"].lower(), i + 1)
+    else:
+        role = "dev"
+        vmname = "%s-dev" % (config["azure_cluster"]["cluster_name"].lower())
+
     print "creating VM %s..." % vmname
     vm_ip = get_vm_ip(i, role)
     if arm_vm_password is not None:
@@ -756,7 +812,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
     cc["machines"] = {}
     for i in range(int(config["azure_cluster"]["infra_node_num"])):
         vmname = "%s-infra%02d" % (config["azure_cluster"]
-                                   ["cluster_name"], i + 1)
+                                   ["cluster_name"].lower(), i + 1)
         cc["machines"][vmname] = {"role": "infrastructure", "private-ip": get_vm_ip(i, "infra")}
 
     # Generate the workers in machines.
@@ -769,7 +825,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
 
     vm_ip_names = get_vm_private_ip()
     vm_ip_names = sorted(vm_ip_names, key = lambda x:x['name'])
-    
+
     sku_mapping = config["sku_mapping"]
 
     worker_machines = []
@@ -801,7 +857,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
             cc["machines"][vmname] = {
                 "role": "nfs",
                 "node-group": vm["vmSize"]}
-    
+
     # Dilemma : Before the servers got created, you don't know there name, cannot specify which server does a mountpoint config group belongs to
     if int(config["azure_cluster"]["nfs_node_num"]) > 0:
         nfs_names2ip = {rec['name']:rec['privateIP'][0] for rec in vm_ip_names if "-nfs" in rec['name']}
@@ -913,7 +969,7 @@ def delete_cluster():
 def run_command(args, command, nargs, parser):
     if command == "create":
         # print config["azure_cluster"]["infra_vm_size"]
-        create_cluster(args.arm_password)
+        create_cluster(args.arm_password, args.parallelism)
         vm_interconnects()
 
     elif command == "list":
@@ -1055,6 +1111,10 @@ Command:
                         action="store",
                         default=None
                         )
+    parser.add_argument("--parallelism", "-p",
+                        help="Number of processes to create worker VMs. Default is 1.",
+                        type=int,
+                        default=1)
 
     parser.add_argument("command",
                         help="See above for the list of valid command")

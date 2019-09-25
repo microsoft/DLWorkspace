@@ -622,7 +622,7 @@ def get_nodes_by_roles(roles):
             config["kubernetes_master_node"] = Nodes
         else:
             config["{}_node".format(role)] = Nodes
-    return Nodes    
+    return Nodes
 
 def get_worker_nodes(clusterId, isScaledOnly):
     nodes = []
@@ -1113,7 +1113,7 @@ def create_nfs_server():
     unused_nfs = sorted([s for s in nfs_servers if s not in suffix2used_nfs.values()])
     unused_ID_cnt = 0
     # print(nfs_servers, suffix2used_nfs, unused_nfs)
-    
+
 
     for nfs_cnf in config["cloud_config"]["nfs_svr_setup"]:
         nfs_cnf["cloud_config"] = {"vnet_range":config["cloud_config"]["vnet_range"], "samba_range": config["cloud_config"]["samba_range"]}
@@ -1277,6 +1277,33 @@ def update_worker_nodes( nargs ):
 
     #if len(config["kubernetes_master_node"]) > 0:
         #utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], config["kubernetes_master_node"][0], "sudo /opt/bin/kubelet get nodes")
+
+
+def update_worker_nodes_in_parallel(nargs):
+    # TODO: Merge with update_worker_nodes
+    utils.render_template_directory("./template/kubelet", "./deploy/kubelet", config)
+    write_nodelist_yaml()
+
+    os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' % config["etcd_endpoints"].replace("/","\\/"))
+    os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' % config["api_servers"].replace("/","\\/"))
+    os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/worker-kubeconfig.yaml.template > ./deploy/kubelet/worker-kubeconfig.yaml' % config["api_servers"].replace("/","\\/"))
+
+    get_hyperkube_docker()
+
+    workerNodes = get_worker_nodes(config["clusterId"], False)
+    workerNodes = limit_nodes(workerNodes)
+    worker_nodes_to_update = [node for node in workerNodes if in_list(node, nargs)]
+
+    # TODO: Tolerate faults
+    from multiprocessing import Pool
+    pool = Pool(processes=len(worker_nodes_to_update))
+    pool.map(update_worker_node, worker_nodes_to_update)
+    pool.close()
+
+    os.system("rm ./deploy/kubelet/options.env")
+    os.system("rm ./deploy/kubelet/kubelet.service")
+    os.system("rm ./deploy/kubelet/worker-kubeconfig.yaml")
+
 
 def reset_worker_nodes():
     utils.render_template_directory("./template/kubelet", "./deploy/kubelet",config)
@@ -2494,10 +2521,25 @@ def run_script(node, args, sudo = False, supressWarning = False):
     utils.SSH_exec_cmd_with_directory(config["ssh_cert"], config["admin_username"], node, srcdir, fullcmd, supressWarning)
 
 
+def run_script_wrapper(arg_tuple):
+    node, args, sudo, supressWarning = arg_tuple
+    run_script(node, args, sudo, supressWarning)
+
+
 # run a shell script on all remote nodes
 def run_script_on_all(nodes, args, sudo = False, supressWarning = False):
     for node in nodes:
         run_script( node, args, sudo = sudo, supressWarning = supressWarning)
+
+def run_script_on_all_in_parallel(nodes, args, sudo=False, supressWarning=False):
+    args_list = [(node, args, sudo, supressWarning) for node in nodes]
+
+    # TODO: Tolerate faults
+    from multiprocessing import Pool
+    pool = Pool(processes=len(nodes))
+    pool.map(run_script_wrapper, args_list)
+    pool.close()
+
 
 def run_script_on_rand_master(nargs, args):
     nodes = get_ETCD_master_nodes(config["clusterId"])
@@ -3269,6 +3311,14 @@ def run_command( args, command, nargs, parser ):
             gen_configs()
             update_worker_nodes( nargs )
 
+    elif command == "updateworkerinparallel":
+        response = raw_input_with_default("Deploy Worker Nodes In Parallel (y/n)?")
+        if first_char(response) == "y":
+            #utils.render_template_directory("./template/kubelet", "./deploy/kubelet",config)
+            check_master_ETCD_status()
+            gen_configs()
+            update_worker_nodes_in_parallel(nargs)
+
     elif command == "updatescaledworker":
         response = raw_input_with_default("Deploy Scaled Worker Nodes (y/n)?")
         if first_char(response) == "y":
@@ -3450,6 +3500,10 @@ def run_command( args, command, nargs, parser ):
         nodes = get_nodes(config["clusterId"])
         # print(nodes)
         run_script_on_all(nodes, nargs, sudo = args.sudo )
+
+    elif command == "runscriptonallinparallel" and len(nargs)>=1:
+        nodes = get_nodes(config["clusterId"])
+        run_script_on_all_in_parallel(nodes, nargs, sudo=args.sudo)
 
     elif command == "runscriptonroles":
         assert len(nargs)>=1
