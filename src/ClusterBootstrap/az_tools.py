@@ -77,9 +77,8 @@ def update_config(config, genSSH=True):
     config["azure_cluster"]["nsg_name"] = config[
         "azure_cluster"]["cluster_name"] + "-nsg"
 
-    if int(config["azure_cluster"]["nfs_node_num"]) > 0:
-        config["azure_cluster"]["nfs_nsg_name"] = config[
-        "azure_cluster"]["cluster_name"] + "-nfs-nsg"
+    config["azure_cluster"]["nfs_nsg_name"] = config["azure_cluster"]["cluster_name"] + [
+            "","-nfs"][int(int(config["azure_cluster"]["nfs_node_num"]) > 0)] + "-nsg"
     config["azure_cluster"]["sql_server_name"] = config[
         "azure_cluster"]["cluster_name"] + "sqlserver"
     config["azure_cluster"]["sql_admin_name"] = config[
@@ -424,7 +423,7 @@ def create_nfs_nsg():
             --resource-group %s \
             --nsg-name %s \
             --name allow_ssh\
-            --priority 900 \
+            --priority 1200 \
             --destination-port-ranges %s \
             --source-address-prefixes %s \
             --access allow
@@ -442,7 +441,7 @@ def create_nfs_nsg():
             --resource-group %s \
             --nsg-name %s \
             --name allow_share \
-            --priority 1000 \
+            --priority 1300 \
             --source-address-prefixes %s \
             --destination-port-ranges \'*\' \
             --access allow
@@ -494,8 +493,7 @@ def create_cluster(arm_vm_password=None):
         create_vnet()
         print "creating network security group..."
         create_nsg()
-        if int(config["azure_cluster"]["nfs_node_num"]) > 0:
-            create_nfs_nsg()
+        create_nfs_nsg()
     if useSqlAzure():
         print "creating sql server and database..."
         create_sql()
@@ -525,13 +523,13 @@ def create_cluster(arm_vm_password=None):
                         arm_vm_password is not None, arm_vm_password)
 
 def create_vm_param(i, role, vm_size, no_az=False, arm_vm_password=None):
+    assert role in config["allroles"] and "invalid machine role, please select from {}".format(' '.join(config["allroles"]))
     if role in ["worker","nfs"]:
         vmname = "{}-{}".format(config["azure_cluster"]["cluster_name"], role) + ("{:02d}".format(i+1) if no_az else '-'+random_str(6))
     elif role == "infra":
         vmname = "%s-infra%02d" % (config["azure_cluster"]
                                    ["cluster_name"], i + 1)
-    else:
-        role = "dev"
+    elif role == "dev":
         vmname = "%s-dev" % (config["azure_cluster"]["cluster_name"])
     print "creating VM %s..." % vmname
     vm_ip = get_vm_ip(i, role)
@@ -542,6 +540,7 @@ def create_vm_param(i, role, vm_size, no_az=False, arm_vm_password=None):
     return vmname
 
 def create_vm_role_suffix(i, role, vm_size, suffix, arm_vm_password=None):
+    assert role in config["allroles"] and "invalid machine role, please select from {}".format(' '.join(config["allroles"]))
     vmname = "{}-{}-".format(config["azure_cluster"]["cluster_name"], role) + suffix
     print "creating VM %s..." % vmname
     vm_ip = get_vm_ip(i, role)
@@ -750,7 +749,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
     cc["deploydockerETCD"] = False
     cc["platform-scripts"] = "ubuntu"
     cc["basic_auth"] = "%s,admin,1000" % uuid.uuid4().hex[:16]
-    domain_mapping = {"regular":"%s.cloudapp.azure.com" % config["azure_cluster"]["azure_location"], "low":"redmond.corp.microsoft.com"}
+    domain_mapping = {"regular":"%s.cloudapp.azure.com" % config["azure_cluster"]["azure_location"], "low": config["domain_name"]}
     if not bSQLOnly:
         cc["network"] = {"domain": domain_mapping[config["azure_cluster"]["priority"]]}
 
@@ -1114,12 +1113,13 @@ Command:
         config["azure_cluster"]["file_share_name"] = args.file_share_name
 
     config = update_config(config)
+    print(config["azure_cluster"]["nfs_nsg_name"])
     # print (config)
 
-    with open(config_cluster, 'w') as outfile:
-        yaml.dump(config, outfile, default_flow_style=False)
+    # with open(config_cluster, 'w') as outfile:
+    #     yaml.dump(config, outfile, default_flow_style=False)
 
-    if "cluster_name" not in config["azure_cluster"] or config["azure_cluster"]["cluster_name"] is None:
-        print("Cluster Name cannot be empty")
-        exit()
-    run_command(args, command, nargs, parser)
+    # if "cluster_name" not in config["azure_cluster"] or config["azure_cluster"]["cluster_name"] is None:
+    #     print("Cluster Name cannot be empty")
+    #     exit()
+    # run_command(args, command, nargs, parser)
