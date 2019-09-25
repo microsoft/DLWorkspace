@@ -130,7 +130,7 @@ def create_vm_pwd(vmname, vm_ip, vm_size, use_private_ip, pwd):
                     --nsg %s \
                     --admin-username %s \
                     --storage-sku %s \
-                    --data-disk-sizes-gb 2047 \
+                    --data-disk-sizes-gb %s \
                     %s \
         """ % (config["azure_cluster"]["resource_group_name"],
                 vmname,
@@ -143,6 +143,7 @@ def create_vm_pwd(vmname, vm_ip, vm_size, use_private_ip, pwd):
                 config["azure_cluster"]["nsg_name"],
                 config["cloud_config"]["default_admin_username"],
                 config["azure_cluster"]["vm_storage_sku"],
+                config["azure_cluster"]["%s_local_storage_sz" % role],
                 auth)
 
     if verbose:
@@ -1173,13 +1174,12 @@ Command:
         config["azure_cluster"]["file_share_name"] = args.file_share_name
 
     config = update_config(config)
-    print(config["azure_cluster"]["nfs_nsg_name"])
-    # print (config)
+    print (config)
 
-    # with open(config_cluster, 'w') as outfile:
-    #     yaml.dump(config, outfile, default_flow_style=False)
+    with open(config_cluster, 'w') as outfile:
+        yaml.dump(config, outfile, default_flow_style=False)
 
-    # if "cluster_name" not in config["azure_cluster"] or config["azure_cluster"]["cluster_name"] is None:
-    #     print("Cluster Name cannot be empty")
-    #     exit()
-    # run_command(args, command, nargs, parser)
+    if "cluster_name" not in config["azure_cluster"] or config["azure_cluster"]["cluster_name"] is None:
+        print("Cluster Name cannot be empty")
+        exit()
+    run_command(args, command, nargs, parser)
