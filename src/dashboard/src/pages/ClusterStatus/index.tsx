@@ -150,8 +150,14 @@ const ClusterStatus: FC = () => {
               if (!mu.hasOwnProperty('idleGPU')) {
                 mu['idleGPU'] = "0";
               }
+              if (!mu.hasOwnProperty('booked')) {
+                mu['booked'] = "0";
+              }
+              if (!mu.hasOwnProperty('idle')) {
+                mu['idle'] = "0";
+              }
             })
-            if (mergedTmpUpdate.length > 0 && fetchIdes.length === mergedTmpUpdate.length) {
+            if (mergedTmpUpdate.length > 0) {
               setUserStatus(mergedTmpUpdate)
             }
           })
