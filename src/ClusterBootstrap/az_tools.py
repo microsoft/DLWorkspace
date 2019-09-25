@@ -130,7 +130,7 @@ def create_vm_pwd(vmname, vm_ip, vm_size, use_private_ip, pwd):
                     --nsg %s \
                     --admin-username %s \
                     --storage-sku %s \
-                    --data-disk-sizes-gb 1023 \
+                    --data-disk-sizes-gb 2047 \
                     %s \
         """ % (config["azure_cluster"]["resource_group_name"],
                 vmname,
