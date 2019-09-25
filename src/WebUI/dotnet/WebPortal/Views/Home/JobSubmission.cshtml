@@ -189,11 +189,18 @@
         $scope.cluster = $scope.clusters[0];
         $scope.checkCurrent();
         $scope.checkExtras();
-        $scope.currentTemplateValue = 0;
+        $scope.curtemplateValue = 0;
         $scope.lastTemplateValue = -1;
         $scope.adancedOption = false;
 
-        $scope.$watch('cluster', function (cluster) {
+        $scope.$watch('cluster', function (cluster, oldValue) {
+            if (cluster !== oldValue) {
+                $scope.current.jobName = "";
+                $scope.current.resourcegpu = 0;
+                $scope.current.image = "";
+                $scope.current.cmd = "";
+                $scope.current.jobtrainingtype = "RegularJob";
+            }
             $http.get('/api/dlws/GetMountPoints', { params: { cluster: cluster } }).then(function (response) {
                 var mpstring = response.data.mountpoints;
                 var mpdescription = response.data.mountdescription;
@@ -256,19 +263,35 @@
                         gpu_available: gpu_available[key] < 0 ? 0 : gpu_available[key],
                         quota: quota[key]
                     };
+                    $scope.isLowPriority = value.low_priority === true ? true : false;
+                   /* if ($scope.isLowPriority) {
+                        var filteredJobList = [];
+                        $scope.joblist.forEach(function(job) {
+                            if (JSON.parse(job.Json).jobtrainingtype !== "PSDistJob") {
+                                filteredJobList.push(job);
+                            }
+                        });
+                        $scope.joblist = filteredJobList;
+                    }*/
+
                     $scope.gpus[key] = gpu;
                 });
                 $scope.checkExtras();
             })
             $scope.extras.gpuType = null;
+
         });
 
         $scope.$watch('current.jobtrainingtype', function (value) {
             if (value === 'PSDistJob') {
                 $scope.current.numps = 1;
                 $scope.current.resourcegpu = $scope.gpus[$scope.extras.gpuType]['num_gpu_per_node'];
+                $scope.current.hostNetwork = true;
+                $scope.current.isPrivileged = true;
             } else {
                 delete $scope.current.numps;
+                $scope.current.hostNetwork = false;
+                $scope.current.isPrivileged = false;
             }
         })
 
@@ -315,16 +338,13 @@
             var selected = $filter('filter')($scope.joblist, { Value: $scope.curtemplateValue });
             var showName = "None";
             if ($scope.curtemplateValue > 0 && selected.length) {
-                if ($scope.lastTemplateValue && $scope.lastTemplateValue == $scope.curtemplateValue) {
-
+                if ($scope.lastTemplateValue && $scope.lastTemplateValue == $scope.curtemplateValue) { 
                 }
                 else {
-                    $scope.lastTemplateValue = $scope.curtemplateValue;
                     $scope.current = $scope.$eval(selected[0].Json);
                     $scope.loadTemplate();
                     $scope.setMounts();
                     $scope.checkCurrent();
-                    //console.log($scope.current);
 
                     if (!$scope.current.hasOwnProperty("runningasroot"))
                         $scope.current.runningasroot = false;
@@ -682,7 +702,7 @@
                         </md-input-container>
                         <md-input-container flex="50">
                             <label>Job Type</label>
-                            <md-select name="jobtrainingtype" ng-model="current.jobtrainingtype" ng-disabled="curtemplateValue === 0 ? false : true" required md-no-asterisk>
+                            <md-select name="jobtrainingtype" ng-model="current.jobtrainingtype" ng-disabled="curtemplateValue === 0 ? false : true"  required md-no-asterisk>
                                 <md-option value="RegularJob" selected>Regular Job</md-option>
                                 <md-option value="PSDistJob">Distributed Job</md-option>
                             </md-select>
@@ -691,15 +711,15 @@
 
 
                     <div layout="row">
-                        <md-input-container flex="100">
+                        <md-input-container flex="50">
                             <label> Job Name </label>
                             <input ng-model="current.jobName" required md-no-asterisk>
                             <div class="hint" ng-if="showHints">Tell us the name of your job</div>
                         </md-input-container>
 
-                        <md-input-container flex="50" ng-hide="true">
+                        <md-input-container flex="50">
                             <label> Job Priority </label>
-                            <md-select name="jobtrainingtype" ng-model="extras.preemptionAllowed" required md-no-asterisk>
+                            <md-select name="jobtrainingtype" ng-model="extras.preemptionAllowed" ng-disabled="isLowPriority ? true : false" md-no-asterisk>
                                 <md-option value="False" selected>Non-Preemptible Job</md-option>
                                 <md-option value="True">Preemptible Job</md-option>
                             </md-select>
@@ -895,7 +915,7 @@
 
 
 
-                                <div class="layui-colla-item">
+                                <div class="layui-colla-item" ng-hide="true">
                                     <h2 class="layui-colla-title">HyperParameter Turning</h2>
                                     <div class="layui-colla-content">
 
@@ -953,17 +973,17 @@
                                     </div>
                                 </div>
 
-                                <div class="layui-colla-item">
+                                <div class="layui-colla-item" ng-hide="true">
                                     <h2 class="layui-colla-title">Host Network</h2>
                                     <div class="layui-colla-content">
                                         <md-input-container class="md-block" flex="50">
                                             <label> Use Host network in container? </label>
-                                            <md-switch class="md-primary" ng-model="current.hostNetwork" ng-disabled="current.jobtrainingtype.indexOf('Regular') !== -1 ? true : false" md-no-asterisk>
+                                            <md-switch class="md-primary" ng-model="current.hostNetwork" ng-disabled="true" md-no-asterisk>
                                             </md-switch>
                                         </md-input-container>
                                     </div>
                                 </div>
-                                <div class="layui-colla-item">
+                                <div class="layui-colla-item" ng-hide="true">
                                     <h2 class="layui-colla-title">GPU Topology</h2>
                                     <div class="layui-colla-content">
 
@@ -976,15 +996,14 @@
 
                                     </div>
                                 </div>
-
-                                <div class="layui-colla-item">
+                                <div class="layui-colla-item" ng-hide="true">
                                     <h2 class="layui-colla-title">Privileged Docker</h2>
                                     <div class="layui-colla-content">
 
 
                                         <md-input-container class="md-block">
                                             <label> Launch privileged docker </label>
-                                            <md-switch class="md-primary" ng-model="current.isPrivileged" ng-disabled="current.jobtrainingtype.indexOf('Regular') !== -1 ? true : false" md-no-asterisk aria-label="isPrivileged">
+                                            <md-switch class="md-primary" ng-model="current.isPrivileged" md-no-asterisk aria-label="isPrivileged">
                                             </md-switch>
                                         </md-input-container>
 
@@ -1072,7 +1091,7 @@
 
                     <div class="modal-footer">
                         <a ng-click="DeleteTemplate()" class="btn btn-success" href="#">Delete Template</a>
-                        <a ng-click="SaveTemplate()" class="btn btn-success" href="#">Save Template</a>
+                        <a ng-click="SaveTemplate()" class="btn btn-success" href="#" ng-disabled="template.useTemplateName === 'None' || !template.useTemplateName ? true : false">Save Template</a>
                     </div>
 
                 </div>

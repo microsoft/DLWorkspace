@@ -1,26 +1,42 @@
+{% if job["distRole"] %}
+{% set jobRole = job["distRole"] %}
+{% else %}
+{% set jobRole = "worker" %} # treat regular job's pod as worker role
+{% endif %}
+
 apiVersion: v1
 kind: Pod
 metadata:
   name: {{ job["podName"] }}
   labels:
-     run: {{ job["jobId"] }}
-     podName: {{ job["podName"] }}
-     jobName: {{ job["jobNameLabel"] }}
-     jobId: {{job["jobId"]}}
-     userName: {{ job["user"] }}
-     vcName: {{ job["vcName"] }}
-   {% if "gpuType" in job %}
+    run: {{ job["jobId"] }}
+    podName: {{ job["podName"] }}
+    jobName: {{ job["jobNameLabel"] }}
+    jobId: {{ job["jobId"] }}
+    jobRole: {{ jobRole }}
+    userName: {{ job["user"] }}
+    vcName: {{ job["vcName"] }}
+    type: job
+    'gpu-request': '{{ job["gpuLimit"]|int }}'
+
+  {% for label in job["labels"] %}
+    {{label.name}}: "{{label.value}}"
+  {% endfor %}
+
+  {% if "gpuType" in job %}
     {% if job["gpuType"]|length > 0 %}
-     gpuType: {{ job["gpuType"] }}
+    gpuType: {{ job["gpuType"] }}
     {% endif %}
-   {% endif %}
-     preemptionAllowed: "{{ job["preemptionAllowed"] }}"
+  {% endif %}
+    preemptionAllowed: "{{ job["preemptionAllowed"] }}"
+
   {% if "annotations" in job %}
   annotations:
     {% for annotationKey,annotationVal in job["annotations"].items() %}
       {{ annotationKey }}: {{ annotationVal }}
     {% endfor %}
   {% endif %}
+
 spec:
   nodeSelector:
     worker: active
@@ -29,9 +45,93 @@ spec:
     {{key}}: {{value}}
   {% endfor %}
   {% endif %}
-  {% if job["resourcegpu"]|int < 8  %}
+  {% if job["fragmentGpuJob"] %}
     FragmentGPUJob: active
   {% endif %}
+  affinity:
+    podAffinity:
+      {% if jobRole == "ps" %}
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector: # try to put worker & ps in same node
+          matchExpressions:
+          - key: "jobId"
+            operator: In
+            values:
+            - "{{ job["jobId"] }}"
+          - key: "jobRole"
+            operator: In
+            values:
+            - "worker"
+        topologyKey: "kubernetes.io/hostname"
+      {% endif %}
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 50
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: "type"
+              operator: In
+              values:
+              - "job"
+          topologyKey: "kubernetes.io/hostname"
+    {% if job["gpuLimit"]|int == 1 %}
+      - weight: 30
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: gpu-request
+              operator: In
+              values:
+              - "3"
+          topologyKey: "kubernetes.io/hostname"
+      - weight: 29
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: gpu-request
+              operator: In
+              values:
+              - "1"
+          topologyKey: "kubernetes.io/hostname"
+      - weight: 28
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: gpu-request
+              operator: In
+              values:
+              - "2"
+          topologyKey: "kubernetes.io/hostname"
+    {% elif job["gpuLimit"]|int == 2 %}
+      - weight: 30
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: gpu-request
+              operator: In
+              values:
+              - "2"
+          topologyKey: "kubernetes.io/hostname"
+      - weight: 29
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: gpu-request
+              operator: In
+              values:
+              - "1"
+          topologyKey: "kubernetes.io/hostname"
+    {% elif job["gpuLimit"]|int == 3 %}
+      - weight: 30
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: "gpu-request"
+              operator: In
+              values:
+              - "1"
+          topologyKey: "kubernetes.io/hostname"
+    {% endif %}
   {% if job["dnsPolicy"] %}
   dnsPolicy: {{ job["dnsPolicy" ]}}
   {% endif %}
@@ -48,16 +148,16 @@ spec:
     command: {{ job["LaunchCMD"] }}
     securityContext:
       runAsUser: {{ job["containerUserId"] }}
-      {% if job["isPrivileged"] %}
+    {% if job["isPrivileged"] %}
       privileged: true
-      {% endif %}
+    {% endif %}
       capabilities:
         add:
         - IPC_LOCK
         - SYS_ADMIN
     resources:
       limits:
-        nvidia.com/gpu: {{ job["resourcegpu"] }}
+        nvidia.com/gpu: {{ job["gpuLimit"] }}
     {% if not job["cpurequest"] %}
       requests:
         cpu: 1.0
@@ -69,11 +169,10 @@ spec:
       requests:
         memory: job["memoryrequest"]
     {% endif %}
-
     volumeMounts:
-    - name: "init-user-script"
-      mountPath: /dlws/init_user.sh
-      subPath: init_user.sh
+    - name: "dlws-scripts"
+      mountPath: /pod/scripts
+      readOnly: true
     - name: ssh-volume
       mountPath: /home/{{ job["user"] }}/.ssh
     - name: id-rsa-volume
@@ -97,7 +196,6 @@ spec:
       readOnly: true
       {% endif %}
     {% endif %}
-
     {% endfor %}
     {% if job["usefreeflow"] %}
     - mountPath: /freeflow
@@ -110,15 +208,13 @@ spec:
       value: {{ job["familyToken"] }}
     - name: DLWS_REST_API
       value: {{ job["rest-api"] }}
-    - name: JOB_ID
-      value: {{ job["jobId"] }}
     - name: DLWS_JOB_ID
       value: {{ job["jobId"] }}
+    - name: DLWS_NUM_PS
+      value: "{{ job["numps"] }}"
     - name: DLWS_NUM_WORKER
-      value: "1"
-    - name: DLWS_NUM_GPU_PER_WORKER
-      value: "{{ job["resourcegpu"] }}"
-    {% if job["resourcegpu"]|int < 1  %}
+      value: "{{ job["numworker"] }}"
+    {% if job["gpuLimit"]|int < 1  %}
     - name: NVIDIA_VISIBLE_DEVICES
       value: ""
     {% endif %}
@@ -146,9 +242,9 @@ spec:
       value: "{{ job["user_email"] }}"
     - name: DLWS_VC_NAME
       value: {{ job["vcName"] }}
-    {% for env in job["env"] %}
-    - name: {{ env.name }}
-      value: "{{ env.value }}"
+    {% for env in job["envs"] %}
+    - name: {{env.name}}
+      value: "{{env.value}}"
     {% endfor %}
 
   imagePullSecrets:
@@ -156,10 +252,9 @@ spec:
 
   restartPolicy: Never
   volumes:
-  # TODO need to create the configmap during installation: kubectl create configmap init-user-script --from-file=init_user.sh
-  - name: "init-user-script"
+  - name: "dlws-scripts"
     configMap:
-      name: "init-user-script"
+      name: "dlws-scripts"
   - name: ssh-volume
     emptyDir: {}
   - name: id-rsa-volume

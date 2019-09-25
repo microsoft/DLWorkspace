@@ -1,88 +1,156 @@
-import json
-import os
-import time
-import argparse
-import uuid
-import subprocess
-import sys
-import datetime
-
 import yaml
-from jinja2 import Environment, FileSystemLoader, Template
-import base64
-
-import re
-import random
-
-import textwrap
+import subprocess32
+import os
 import logging
 import logging.config
+import sys
+import time
+import datetime
+import argparse
+import threading
+import traceback
+import signal
 
-import job_manager
-import user_manager
-import node_manager
-import joblog_manager
-import command_manager
-import endpoint_manager
+from prometheus_client.twisted import MetricsResource
+from prometheus_client import Histogram
 
-from multiprocessing import Process, Manager
+from twisted.web.server import Site
+from twisted.web.resource import Resource
+from twisted.internet import reactor
+
+logger = logging.getLogger(__name__)
+
+manager_iteration_histogram = Histogram("manager_iteration_latency_seconds",
+        "latency for manager to iterate",
+        buckets=(2.5, 5.0, 10.0, 20.0, 40.0, 80.0, 160.0, float("inf")),
+        labelnames=("name",))
 
 
-def create_log(logdir='/var/log/dlworkspace'):
+class HealthResource(Resource):
+    def render_GET(self, request):
+        request.setHeader("Content-Type", "text/html; charset=utf-8")
+        return "<html>Ok</html>".encode("utf-8")
+
+def exporter_thread(port):
+    root = Resource()
+    root.putChild(b"metrics", MetricsResource())
+    root.putChild(b"healthz", HealthResource())
+    factory = Site(root)
+    reactor.listenTCP(port, factory)
+    reactor.run(installSignalHandlers=False)
+
+def setup_exporter_thread(port):
+    t = threading.Thread(target=exporter_thread, args=(port,),
+            name="exporter")
+    t.start()
+    return t
+
+def create_log(logdir="/var/log/dlworkspace"):
     if not os.path.exists(logdir):
         os.system("mkdir -p " + logdir)
-    with open('logging.yaml') as f:
+    with open("logging.yaml") as f:
         logging_config = yaml.load(f)
+    logging_config["handlers"]["file"]["filename"] = logdir + "/clustermanager.log"
+    logging.config.dictConfig(logging_config)
+
+def dumpstacks(signal, frame):
+    id2name = dict([(th.ident, th.name) for th in threading.enumerate()])
+    code = []
+    for threadId, stack in sys._current_frames().items():
+        code.append("\n# Thread: %s(%d)" % (id2name.get(threadId,""), threadId))
+        for filename, lineno, name, line in traceback.extract_stack(stack):
+            code.append('File: "%s", line %d, in %s' % (filename, lineno, name))
+            if line:
+                code.append("  %s" % (line.strip()))
+    print "\n".join(code)
+    sys.stdout.flush()
+    sys.stderr.flush()
+
+def register_stack_trace_dump():
+    signal.signal(signal.SIGTRAP, dumpstacks)
+
+def update_file_modification_time(path):
+    if not os.path.isfile(path):
+        f = open(path, "w")
         f.close()
-        logging_config["handlers"]["file"]["filename"] = logdir+"/clustermanager.log"
-        logging.config.dictConfig(logging_config)
 
+    mod_time = time.mktime(datetime.datetime.now().timetuple())
+    os.utime(path, (mod_time, mod_time))
 
-def Run():
+def get_elapsed_seconds(path):
+    mtime = datetime.datetime.fromtimestamp(os.path.getmtime(path))
+    return (datetime.datetime.now() - mtime).seconds
+
+def Run(args):
+    register_stack_trace_dump()
     create_log()
 
-    logging.info("Starting job manager... ")
-    proc_job = Process(target=job_manager.Run)
-    proc_job.start()
+    cwd = os.path.dirname(__file__)
+    cmds = {
+        "job_manager":
+        ["python", os.path.join(cwd, "job_manager.py"), "--port", str(args.j)],
+        "user_manager":
+        ["python", os.path.join(cwd, "user_manager.py"), "--port", str(args.u)],
+        "node_manager":
+        ["python", os.path.join(cwd, "node_manager.py"), "--port", str(args.n)],
+        "joblog_manager":
+        ["python", os.path.join(cwd, "joblog_manager.py"), "--port", str(args.l)],
+        "command_manager":
+        ["python", os.path.join(cwd, "command_manager.py"), "--port", str(args.c)],
+        "endpoint_manager":
+        ["python", os.path.join(cwd, "endpoint_manager.py"), "--port", str(args.e)],
+    }
 
-    logging.info("Starting user manager... ")
-    proc_user = Process(target=user_manager.Run)
-    proc_user.start()
+    FNULL = open(os.devnull, "w")
 
-    logging.info("Starting node manager... ")
-    proc_node = Process(target=node_manager.Run)
-    proc_node.start()
+    childs = {}
 
-    logging.info("Starting joblogging manager... ")
-    proc_joblog = Process(target=joblog_manager.Run)
-    proc_joblog.start()
+    while True:
+        try:
+            work(cmds, childs, FNULL)
+        except Exception as e:
+            logger.exception("caught exception while doing work")
+        time.sleep(60)
 
-    logging.info("Starting command manager... ")
-    proc_command = Process(target=command_manager.Run)
-    proc_command.start()
+def work(cmds, childs, FNULL):
+    for key, cmd in cmds.items():
+        child = childs.get(key)
+        need_start = False
 
-    logging.info("Starting endpoint manager... ")
-    proc_endpoint = Process(target=endpoint_manager.Run)
-    proc_endpoint.start()
+        if child is None or child.poll() is not None:
+            if child is not None:
+                logger.info("%s is dead restart it", cmd)
+            need_start = True
+        else:
+            sec = get_elapsed_seconds(key)
+            if sec <= args.tictoc:
+                continue
+            logger.info("%s did not update file for %d seconds, restart it",
+                    key, sec)
+            child.send_signal(signal.SIGTRAP) # try to print their stacktrace
+            time.sleep(1)
+            child.kill()
+            sys.stdout.flush()
+            sys.stderr.flush()
+            need_start = True
 
-    proc_job.join()
-    proc_user.join()
-    proc_node.join()
-    proc_joblog.join()
-    proc_command.join()
-    proc_endpoint.join()
-    pass
+        if need_start:
+            update_file_modification_time(key)
+            try:
+                childs[key] = subprocess32.Popen(cmd, stdin=FNULL)
+            except Exception as e:
+                logger.exception("caught exception when trying to start %s, ignore", cmd)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--tictoc", help="how many seconds to wait until kill subprocess", type=int, default=600)
+    parser.add_argument("-j", help="port of job_manager", type=int, default=9200)
+    parser.add_argument("-u", help="port of user_manager", type=int, default=9201)
+    parser.add_argument("-n", help="port of node_manager", type=int, default=9202)
+    parser.add_argument("-l", help="port of joblog_manager", type=int, default=9203)
+    parser.add_argument("-c", help="port of command_manager", type=int, default=9204)
+    parser.add_argument("-e", help="port of endpoint_manager", type=int, default=9205)
+    args = parser.parse_args()
 
-    #parser = argparse.ArgumentParser( prog='cluster_manager.py',
-    #    formatter_class=argparse.RawDescriptionHelpFormatter,
-    #    description=textwrap.dedent('''\
- # ''') )
-    #parser.add_argument("help",
-    #    help = "Show the usage of this program" )
-
-    #args = parser.parse_args()
-
-    Run()
+    sys.exit(Run(args))

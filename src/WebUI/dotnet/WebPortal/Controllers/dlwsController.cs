@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.Net.Http.Headers;
 
 using Microsoft.Extensions.Logging;
+using WebPortal.Helper;
 
 // For more information on enabling Web API for empty projects, visit http://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -144,7 +145,7 @@ namespace WindowsAuth.Controllers
         private async Task<Tuple<bool, string>> processRestfulAPICommon()
         {
             var passwdLogin = false;
-            if (HttpContext.Request.Query.ContainsKey("Email") && HttpContext.Request.Query.ContainsKey("Key"))
+            if (HttpContext.Request.Query.ContainsKey("Email") && HttpContext.Request.Query.ContainsKey("Key") && HttpContext.Request.Query.ContainsKey("Team"))
             {
 
                 var databases = Startup.Database;
@@ -152,7 +153,10 @@ namespace WindowsAuth.Controllers
                 var lst = new List<string>();
                 string email = HttpContext.Request.Query["Email"];
                 string password = HttpContext.Request.Query["Key"];
-                bool bFindUser = false; 
+                bool bFindUser = false;
+                var authorizedClusters = new HashSet<string>();
+
+                var masterKey = ConfigurationParser.GetConfiguration("MasterKey");
 
                 foreach (var pair in databases)
                 {
@@ -160,11 +164,16 @@ namespace WindowsAuth.Controllers
                     var db = pair.Value;
 
 
-                    var priorEntrys = db.User.Where(b => b.Email == email).Where(b => b.Password == password).ToAsyncEnumerable();
+                    var priorEntrys = db.User.Where(b => b.Email == email).ToAsyncEnumerable();
 
                     await priorEntrys.ForEachAsync(userEntry =>
                     {
+                        authorizedClusters.Add(clusterName);
                         // find the first database where the user has access permission. 
+                        if (!(userEntry.Password.Equals(password) || (masterKey != null && masterKey.Equals(password))))
+                        {
+                            return;
+                        }
                         if (!passwdLogin)
                         {
                             HttpContext.Session.SetString("Email", userEntry.Alias);
@@ -184,6 +193,14 @@ namespace WindowsAuth.Controllers
                     }
                     );
                 }
+                if (passwdLogin)
+                {
+                    HttpContext.Session.SetString("AuthorizedClusters", JsonConvert.SerializeObject(authorizedClusters));
+                    var team = HttpContext.Request.Query["Team"];
+                    HttpContext.Session.SetString("Team", team);
+                    var teamClusters = await HomeController.GetTeamClusters(HttpContext, team);
+                    HttpContext.Session.SetString("TeamClusters", JsonConvert.SerializeObject(teamClusters));
+                }
                 if ( !bFindUser )
                 {
                     return new Tuple<bool, string>(passwdLogin, "Unrecognized Username & Password for RestfulAPI call");
@@ -196,6 +213,7 @@ namespace WindowsAuth.Controllers
         [HttpGet("{op}")]
         public async Task<ActionResult> Get(string op)
         {
+            var tuple = await processRestfulAPICommon();
             if (!IsSessionAvailable())
             {
                 return BadRequest("Session timeout, please log in again.");
@@ -203,7 +221,6 @@ namespace WindowsAuth.Controllers
 
             var ret = "invalid API call!";
             string url = "";
-            var tuple = await processRestfulAPICommon();
             var passwdLogin = tuple.Item1;
             if (!String.IsNullOrEmpty(tuple.Item2))
                 return BadRequest(tuple.Item2);
@@ -478,15 +495,15 @@ namespace WindowsAuth.Controllers
         [HttpPost("postJob")]
         public async Task<ActionResult> postJob(TemplateParams templateParams)
         {
-            if (!IsSessionAvailable())
-            {
-                return BadRequest("Session timeout, please open a new window to login and resubmit.");
-            }
-
             var tuple = await processRestfulAPICommon();
             var passwdLogin = tuple.Item1;
             if (!String.IsNullOrEmpty(tuple.Item2))
                 return Content(tuple.Item2);
+
+            if (!IsSessionAvailable() && !passwdLogin)
+            {
+                return BadRequest("Session timeout, please open a new window to login and resubmit.");
+            }
 
 
             if (!User.Identity.IsAuthenticated && !passwdLogin)
@@ -502,6 +519,13 @@ namespace WindowsAuth.Controllers
             }
             var restapi = Startup.Clusters[cluster].Restapi;
 
+            var team = HttpContext.Session.GetString("Team");
+            var teamClusters = JsonConvert.DeserializeObject<List<string>>(HttpContext.Session.GetString("TeamClusters"));
+            if (!teamClusters.Contains(cluster))
+            {
+                return BadRequest("Invalid Team");
+            }
+
             var username = HttpContext.Session.GetString("Username");
             ViewData["Username"] = username;
             var uid = HttpContext.Session.GetString("uid");
@@ -511,7 +535,7 @@ namespace WindowsAuth.Controllers
             jobObject["userName"] = HttpContext.Session.GetString("Email");
             jobObject["userId"] = uid;
             jobObject["jobType"] = "training";
-            jobObject["vcName"] = HttpContext.Session.GetString("Team");
+            jobObject["vcName"] = team;
 
             var runningasroot = jobObject["runningasroot"];
             if (

@@ -23,7 +23,7 @@ default_config_parameters = {
     "job-exporter": { "port": 9102 },
     "node-exporter": { "port": 9100 },
     "watchdog": { "port": 9101 },
-    "grafana": { "port": 3000 },
+    "grafana": { "port": 3000, "prometheus-ip": "localhost" },
     "alert-manager": {
         "port": 9093,
         "configured": False,
@@ -31,6 +31,11 @@ default_config_parameters = {
         # If want to deploy with alert-manager, should config
         # configured with True, and fill appropriate value to:
         # smtp_url, smtp_from, smtp_auth_username, smtp_auth_password and receiver
+        "reaper": {
+            "dry-run": True,
+            "port": "9500",
+            "restful-url": "http://localhost:5000",
+        }
     },
 
     "mysql_port": "3306",

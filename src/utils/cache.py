@@ -5,6 +5,9 @@ from datetime import timedelta
 import time
 import Queue
 import copy
+import logging
+
+logger = logging.getLogger(__name__)
 
 # decorator (with different TTL for each function)
 # No removal of entries (designed for small number of entries to be always kept in memory)
@@ -15,9 +18,9 @@ def fcache(TTLInSec=30):
         @wraps(func)
         def wrapped_function(*args, **kwargs):
             val = CacheManager.GetValue(func, TTLInSec, args)
-            if (None == val):               
+            if (None == val):
                 return func(*args)
-            return copy.deepcopy(val[0])           
+            return copy.deepcopy(val[0])
         return wrapped_function
     return fcache_decorator
 
@@ -34,7 +37,7 @@ class CacheManager(object):
         if key in CacheManager.data:
             val = CacheManager.data[key]
             CacheManager.data[key] = [val[0], datetime.now()]
-            print("Cache invalidated " + key)
+            logger.info("Cache invalidated %s", key)
 
     @staticmethod
     def GetValue(func, ttl, args):
@@ -42,21 +45,21 @@ class CacheManager(object):
         key = CacheManager._GetKey(func.__name__, args)
         needUpdate = False
         if key not in CacheManager.data:
-            print("Cache miss " + key)
+            logger.info("Cache miss %s", key)
             needUpdate = True
-        else:           
+        else:
             val = CacheManager.data[key]
-            print("Cache hit " + key + " " + str(val[1]) + " " + str(len(CacheManager.data)) + " " + str(CacheManager.taskQueue.qsize()))
+            logger.info("Cache hit %s %s %s %s", key, str(val[1]), str(len(CacheManager.data)), str(CacheManager.taskQueue.qsize()))
             if CacheManager._Invalid(val):
                 needUpdate = True
 
         if needUpdate and key not in CacheManager.pendingTasks:
             CacheManager.taskQueue.put((func, ttl, args))
             CacheManager.pendingTasks.add(key)
-        
+
         return val
 
-    
+
     @staticmethod
     def _GetKey(funcName, args):
         key = funcName
@@ -82,11 +85,11 @@ class CacheManager(object):
                         if key not in CacheManager.data or CacheManager._Invalid(CacheManager.data[key]):
                             result = task[0](*(task[2]))
                             CacheManager.data[key] = [result, datetime.now() + timedelta(seconds=int(task[1]))]
-                            print("Cache inserted " + key)                    
+                            logger.info("Cache inserted %s", key)
                         CacheManager.pendingTasks.remove(key)
                 time.sleep(0.001)
             except Exception as e:
-                print('cache exception: '+ str(e))
+                logger.warning('cache exception: %s', str(e))
 
 workerThread = threading.Thread(target=CacheManager._WorkerThreadFunc, args=())
 workerThread.daemon = True

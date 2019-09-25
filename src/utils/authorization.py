@@ -1,5 +1,5 @@
 from DataHandler import DataHandler, DataManager
-from MyLogger import MyLogger
+import logging
 import json
 import requests
 import random
@@ -7,7 +7,7 @@ from config import config
 import timeit
 from cache import fcache
 
-logger = MyLogger()
+logger = logging.getLogger(__name__)
 
 def enum(*sequential, **named):
     enums = dict(zip(sequential, range(len(sequential))), **named)

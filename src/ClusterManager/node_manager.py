@@ -39,11 +39,12 @@ import k8sUtils
 from config import config
 from DataHandler import DataHandler
 
+from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time
 
 
-def create_log( logdir = '/var/log/dlworkspace' ):
-    if not os.path.exists( logdir ):
-        os.system("mkdir -p " + logdir )
+def create_log(logdir = '/var/log/dlworkspace'):
+    if not os.path.exists(logdir):
+        os.system("mkdir -p " + logdir)
     with open('logging.yaml') as f:
         logging_config = yaml.load(f)
         f.close()
@@ -139,7 +140,7 @@ def get_cluster_status():
                     node_status["unschedulable"] = False
 
                 if "status" in node and "conditions" in node["status"]:
-                    for condi in node["status"]:
+                    for condi in node["status"]["conditions"]:
                         if "type" in condi and condi["type"] == "Ready" and "status" in condi and condi["status"] == "Unknown":
                             node_status["unschedulable"] = True
 
@@ -203,12 +204,13 @@ def get_cluster_status():
         for node_name, node_status in nodes_status.iteritems():
             if node_status["unschedulable"]:
                 gpu_unschedulable.Add(ResourceInfo(node_status["gpu_capacity"]))
+                gpu_reserved.Add(ResourceInfo.Difference(ResourceInfo(node_status["gpu_capacity"]), ResourceInfo(node_status["gpu_used"])))
             else:
                 gpu_avaliable.Add(ResourceInfo.Difference(ResourceInfo(node_status["gpu_allocatable"]), ResourceInfo(node_status["gpu_used"])))
                 gpu_schedulable.Add(ResourceInfo(node_status["gpu_capacity"]))
                 gpu_unschedulable.Add(ResourceInfo.Difference(ResourceInfo(node_status["gpu_capacity"]), ResourceInfo(node_status["gpu_allocatable"])))
+                gpu_reserved.Add(ResourceInfo.Difference(ResourceInfo(node_status["gpu_capacity"]), ResourceInfo(node_status["gpu_allocatable"])))
 
-            gpu_reserved.Add(ResourceInfo.Difference(ResourceInfo(node_status["gpu_capacity"]), ResourceInfo(node_status["gpu_allocatable"])))
             gpu_used.Add(ResourceInfo(node_status["gpu_used"]))
             gpu_capacity.Add(ResourceInfo(node_status["gpu_capacity"]))
 
@@ -224,7 +226,7 @@ def get_cluster_status():
         cluster_status["node_status"] = [node_status for node_name, node_status in nodes_status.iteritems()] 
 
     except Exception as e:
-        print(e)
+        logging.exception("get cluster status")
 
     dataHandler = DataHandler()
     cluster_status["AvaliableJobNum"] = dataHandler.GetActiveJobsCount()
@@ -241,16 +243,25 @@ def get_cluster_status():
 
 
 def Run():
+    register_stack_trace_dump()
     create_log()
     logging.info("start to update nodes usage information ...")
     config["cluster_status"] = None
+
     while True:
-        try:
-            get_cluster_status()
-        except Exception as e:
-            print e
-            logging.info(str(e))
+        update_file_modification_time("node_manager")
+
+        with manager_iteration_histogram.labels("node_manager").time():
+            try:
+                get_cluster_status()
+            except Exception as e:
+                logging.exception("get cluster status failed")
         time.sleep(30)
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", "-p", help="port of exporter", type=int, default=9202)
+    args = parser.parse_args()
+    setup_exporter_thread(args.port)
+
     Run()

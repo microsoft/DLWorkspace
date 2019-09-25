@@ -489,9 +489,9 @@ namespace WindowsAuth
 
             app.Use(async (context, next) =>
             {
-                if (context.Request.Query.ContainsKey("team") && context.Session.GetString("Teams") != null)
+                if (context.Request.Query.ContainsKey("current-team") && context.Session.GetString("Teams") != null)
                 {
-                    var team = context.Request.Query["Team"];
+                    var team = context.Request.Query["current-team"];
                     var teams = JsonConvert.DeserializeObject<string[]>(context.Session.GetString("Teams"));
                     if (Array.Exists(teams, t => t.Equals(team)))
                     {
