@@ -1174,8 +1174,7 @@ Command:
         config["azure_cluster"]["file_share_name"] = args.file_share_name
 
     config = update_config(config)
-    print(config["azure_cluster"]["nfs_nsg_name"])
-    # print (config)
+    print (config)
 
     with open(config_cluster, 'w') as outfile:
         yaml.dump(config, outfile, default_flow_style=False)
