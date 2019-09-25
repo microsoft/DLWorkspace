@@ -13,8 +13,6 @@ default_az_parameters = {
         "worker_local_storage_sz" : 1023,
         "nfs_local_storage_sz" : 1023,
         "priority": "regular",
-        # "udp_port_ranges": ""
-        # Use file_share_name to create Azure file share
-        # "file_share_name" : "files",
+        "nfs_suffixes":[],
     },
 }
