@@ -630,8 +630,8 @@ def scale_up_vm(groupName, delta):
             # Only checkpoint newly scaled up nodes.
             nodeGroup["last_scaled_up_nodes"] = []
             for i in range(delta):
-                vmName = create_vm_param(i, True, False, vmSize)
-                nodeGroup["last_scaled_up_nodes"].append(vmName)
+                vmname = create_vm_param(i, True, False, vmSize)
+                nodeGroup["last_scaled_up_nodes"].append(vmname)
             break
 
     with open("deploy/scaler.yaml", "w") as f:
@@ -753,7 +753,7 @@ def get_disk_from_vm(vmname):
     return output.split("/")[-1].strip('\n')
 
 def gen_cluster_config(output_file_name, output_file=True, no_az=False):
-    if config["azure_cluster"][config["cluster_name"]]["priority"] == "low":
+    if config["azure_cluster"]["priority"] == "low":
         utils.render_template("./template/dns/cname_and_private_ips.sh.template", "scripts/cname_and_ips.sh", config)    
         utils.exec_cmd_local("chmod +x scripts/cname_and_ips.sh")
     bSQLOnly = (config["azure_cluster"]["infra_node_num"] <= 0)
@@ -841,7 +841,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
         for vm in vm_list:
             vmname = vm["name"]
             if "-worker" in vmname:
-                worker_machines += vmName,
+                worker_machines += vmname,
         for vmname in worker_machines:          
             if isNewlyScaledMachine(vmname):
                 cc["machines"][vmname] = {
@@ -910,13 +910,13 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
 
     return cc
 
-def isNewlyScaledMachine(vmName):
+def isNewlyScaledMachine(vmname):
     scaler_config_file = os.path.join(dirpath, "deploy/scaler.yaml")
     if os.path.exists(scaler_config_file):
         scaler_config = yaml.load(open(scaler_config_file))
         for vmSize, nodeGroup in scaler_config["node_groups"].items():
             for nodeName in nodeGroup["last_scaled_up_nodes"]:
-                if nodeName == vmName:
+                if nodeName == vmname:
                     return True
     # If scaler.yaml is not found, then it should never be a scaled node.
     return False
