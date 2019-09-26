@@ -177,7 +177,7 @@ const ClusterStatus: FC = () => {
   }
 
   useEffect(()=>{
-    localStorage.clear()
+    localStorage.removeItem('selectedCluster')
     let mount = true;
     let timeout: any;
     let timeout1: any;
