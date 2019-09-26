@@ -93,6 +93,11 @@ const ClusterStatus: FC = () => {
       });
       const filterclusters = convertToArrayByKey(clusters, 'id');
       setSelectedValue(filterclusters[0]);
+      if (localStorage.getItem("selectedCluster")) {
+        setSelectedValue((String)(localStorage.getItem("selectedCluster")));
+      } else {
+        setSelectedValue(filterclusters[0]);
+      }
       let fetchs: any = [];
       filterclusters.forEach((cluster) => {
         fetchs.push(fetchVC(cluster));
@@ -172,6 +177,7 @@ const ClusterStatus: FC = () => {
   }
 
   useEffect(()=>{
+    localStorage.clear()
     let mount = true;
     let timeout: any;
     let timeout1: any;
@@ -226,6 +232,7 @@ const ClusterStatus: FC = () => {
   }
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedValue(event.target.value);
+    localStorage.setItem('selectedCluster', event.target.value);
     const filteredVCStatus: any = vcStatus.filter((vc)=>vc['ClusterName'] === event.target.value);
     mergeUserStatus(filteredVCStatus[0]['user_status']);
     setNodeStatus(filteredVCStatus[0]['node_status']);
