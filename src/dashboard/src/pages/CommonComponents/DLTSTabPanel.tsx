@@ -1,6 +1,6 @@
 import React from "react";
 import Typography from '@material-ui/core/Typography';
-import {Container, Paper, Toolbar} from "@material-ui/core";
+import {Container, Grid, Paper, Toolbar, useTheme} from "@material-ui/core";
 import useCheckIsDesktop from "../../utlities/layoutUtlities";
 
 interface TabPanelProps {
@@ -13,8 +13,10 @@ interface TabPanelProps {
 
 export const DLTSTabPanel = (props: TabPanelProps) => {
   const { children, value, index, title,...other } = props;
+  const theme = useTheme();
+  let direction = 'ltr';
   return (
-    <Container maxWidth={useCheckIsDesktop ? 'lg' : 'xs'}>
+    <Container maxWidth={useCheckIsDesktop ? 'xl' : 'lg'}>
       <Typography
         component="div"
         role="tabpanel"
@@ -23,19 +25,20 @@ export const DLTSTabPanel = (props: TabPanelProps) => {
         aria-labelledby={`full-width-tab-${index}`}
         {...other}
       >
-        <Container maxWidth={useCheckIsDesktop ? 'lg' : 'xs'}>
-          <Paper  style={{ display: useCheckIsDesktop ? 'block' : 'inline-block', marginTop: '10px', }}>
-            <Toolbar>
-              <Typography component="h2" variant="h6">
-                {title}
-              </Typography>
-            </Toolbar>
-            <Container maxWidth={'lg'}>
+        <Grid container alignItems={"center"}>
+          <Grid item xs={12}>
+            <Paper  style={{ marginTop: '10px', }}>
+              <Toolbar>
+                <Typography component="h2" variant="h6">
+                  {title}
+                </Typography>
+              </Toolbar>
               {children}
-            </Container>
-          </Paper>
-        </Container>
+            </Paper>
+          </Grid>
+        </Grid>
       </Typography>
+
     </Container>
   )
 }
