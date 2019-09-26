@@ -88,7 +88,7 @@ const useStyles = makeStyles((theme: Theme) =>
     },
     inputField: {
       fontSize:'12px',
-    }
+    },
   })
 );
 const Jobs: React.FC = (props: any) => {
@@ -302,11 +302,13 @@ const Jobs: React.FC = (props: any) => {
         defaultValue={rowData.priority}
         onKeyPress={(event) => handlePriorityKeyPress(rowData, event)}
         onChange={(event)=>handleChangePriority(rowData, event)}
-        fullWidth={true}
-        helperText={"1-1000"}
+        fullWidth={false}
+        style={{ width:'100p'}}
+        margin="dense"
         InputProps={{
           classes: {
             input: classes.inputField,
+
           },
         }}
       />)
@@ -375,12 +377,12 @@ const Jobs: React.FC = (props: any) => {
     return (
       <Fragment>
         <JobsOperationDialog handleClose={handleClose}
-          titleStyle={{color:red[200]}}
-          title={"Info"}
-          handleConfirm={handleConfirm}
-          job={currentJob}
-          openApprove={openApprove}
-          openPause={openPause} openResume={openResume} openUpdatePriority={openUpdatePriority} open={open}
+                             titleStyle={{color:red[200]}}
+                             title={"Info"}
+                             handleConfirm={handleConfirm}
+                             job={currentJob}
+                             openApprove={openApprove}
+                             openPause={openPause} openResume={openResume} openUpdatePriority={openUpdatePriority} open={open}
         />
         <DLTSTabs value={value} setValue={setValue} titles={JobsTitles} setRefresh={setRefresh} />
         <DLTSTabPanel value={value} index={0}>
@@ -393,8 +395,8 @@ const Jobs: React.FC = (props: any) => {
               {title: 'Job Name', field: 'jobName'},
               {title: 'Status', field: 'jobStatus'},
               {title:'GPU', field:'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric', customSort: (a: any, b: any) => {
-                return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
-              } },
+                  return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
+                } },
               {title: 'Priority', field: 'priority'},
               {title: 'Submitted Time', field: 'jobTime', type: 'date',render:(rowData: any)=>renderDateTime(rowData,"jobTime")},
               {
@@ -454,8 +456,8 @@ const Jobs: React.FC = (props: any) => {
               {title: 'Job Name', field: 'jobName'},
               {title: 'Status', field: 'jobStatus'},
               {title:'GPU', field:'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric', customSort: (a: any, b: any) => {
-                return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
-              } },
+                  return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
+                } },
               {title: 'Priority', field: 'priority'},
               {title: 'Submitted Time', field: 'jobTime', type: 'date', render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
               {
@@ -506,8 +508,8 @@ const Jobs: React.FC = (props: any) => {
               {title: 'Job Name', field: 'jobName'},
               {title: 'Status', field: 'jobStatus'},
               {title:'GPU', field:'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric', customSort: (a: any, b: any) => {
-                return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
-              }},
+                  return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
+                }},
               {title: 'Priority', field: 'priority'},
               {title: 'Submitted Time', field: 'jobTime', type: 'date',render: (rowData: any)=>renderDateTime(rowData, 'jobTime')},
               {
@@ -561,8 +563,8 @@ const Jobs: React.FC = (props: any) => {
               { title: 'Job Name', field: 'jobName'},
               {title:'Status', field:'jobStatus'},
               {title:'GPU', field:'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric', customSort: (a: any, b: any) => {
-                return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
-              } },
+                  return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
+                } },
               {title: 'Priority', field: 'priority'},
               {title: 'Submitted Time', field: 'jobTime', type: 'date',render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
               {title:'Preemptible', field:'jobParams.preemptionAllowed',type:'boolean'},
@@ -611,10 +613,10 @@ const Jobs: React.FC = (props: any) => {
               { title: 'Job Name', field: 'jobName'},
               {title:'Status', field:'jobStatus'},
               {title:'GPU', cellStyle: {
-                padding:'-10px'
-              },field:'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric', customSort: (a: any, b: any) => {
-                return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
-              } },
+                  padding:'-10px'
+                },field:'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric', customSort: (a: any, b: any) => {
+                  return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
+                } },
               {title:'Submitted Time', field:'jobTime',type:'date',render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
               {title:'Preemptible', field:'jobParams.preemptionAllowed',type:'boolean'},
               {title:'Finished Time', field:'jobStatusDetail[0].finishedAt',type:'date',emptyValue:'unknown',
@@ -644,7 +646,7 @@ const Jobs: React.FC = (props: any) => {
         {
           refresh ? allJobs && (Boolean)(_.map(clusters,"admin")[0]) &&
               <DLTSTabPanel value={value} index={1}>
-                <JobsSelectByCluster currentCluster={currentCluster} onClusterChange={onClusterChange} clusters={clusters}/>
+                  <JobsSelectByCluster currentCluster={currentCluster} onClusterChange={onClusterChange} clusters={clusters}/>
                 {/*/!*<Container maxWidth="lg" >*!/*/}
                 {/**/}
                 {filterRunningJobs(allJobs).length > 0 ? <MaterialTable
@@ -659,7 +661,7 @@ const Jobs: React.FC = (props: any) => {
                       }
                     },
                     {title: 'Username', field: 'userName', render:renderUserName},
-                    {title: 'Priority', field: 'priority', render:renderPrioritySet},
+                    {title: 'Priority(1-1000)', field: 'priority', render:renderPrioritySet},
                     {title: 'Submitted Time', field: 'jobTime', type: 'date',render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
                     {
                       title: 'Preemptible',
@@ -721,7 +723,7 @@ const Jobs: React.FC = (props: any) => {
                       }
                     },
                     {title: 'Username', field: 'userName',render:renderUserName},
-                    {title: 'Priority', field: 'priority', render:renderPrioritySet},
+                    {title: 'Priority(1-1000)', field: 'priority', render:renderPrioritySet},
                     {title: 'Submitted Time', field: 'jobTime', type: 'date',render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
                     {
                       title: 'Preemptible',
@@ -783,10 +785,10 @@ const Jobs: React.FC = (props: any) => {
                     {title: 'Job Name', field: 'jobName'},
                     {title: 'Status', field: 'jobStatus'},
                     {title:'GPU', field:'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric', customSort: (a: any, b: any) => {
-                      return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
-                    }},
+                        return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
+                      }},
                     {title: 'Username', field: 'userName', render:renderUserName},
-                    {title: 'Priority', field: 'priority', render:renderPrioritySet},
+                    {title: 'Priority(1-1000)', field: 'priority', render:renderPrioritySet},
                     {title: 'Submitted Time', field: 'jobTime', type: 'date',render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
                     {
                       title: 'Preemptible',
@@ -847,10 +849,10 @@ const Jobs: React.FC = (props: any) => {
                     { title: 'Job Name', field: 'jobName'},
                     {title:'Status', field:'jobStatus'},
                     {title:'GPU', field:'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric', customSort: (a: any, b: any) => {
-                      return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
-                    } },
+                        return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
+                      } },
                     {title:'Username', field:'userName', render:renderUserName},
-                    {title: 'Priority', field: 'priority'},
+                    {title: 'Priority(1-1000)', field: 'priority'},
                     {title: 'Submitted Time', field: 'jobTime', type: 'date',render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
                     {title:'Preemptible', field:'jobParams.preemptionAllowed',type:'boolean'},
                     {title:'Finished Time', field:'jobStatusDetail[0].finishedAt',type:'date',emptyValue:'unknown',
@@ -894,9 +896,9 @@ const Jobs: React.FC = (props: any) => {
               </DLTSTabPanel> : <CircularProgress/>
         }
         <DLTSSnackbar message={message}
-          open = {openKillWarn || openApproveWarn || openPauseWarn || openResumeWarn || openUpatePriorityWarn}
-          handleWarnClose={()=>{handleWarnClose()}}
-          autoHideDuration={1000}
+                      open = {openKillWarn || openApproveWarn || openPauseWarn || openResumeWarn || openUpatePriorityWarn}
+                      handleWarnClose={()=>{handleWarnClose()}}
+                      autoHideDuration={1000}
         />
       </Fragment>
     )
