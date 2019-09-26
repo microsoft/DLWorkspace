@@ -626,18 +626,20 @@ default_config_parameters = {
             "source_ips": ["104.44.112.0/24", "131.107.0.0/16"],
             "port": "22",
         },
-        "nfs_suffixes":[],
-        "nfs_svr_setup": [
-              {
-                "mnt_point": {"rootshare":{"curphysicalmountpoint":"/mntdlws/infranfs","filesharename":"/infradata/share","mountpoints":""}}}
-        ],
         "samba_range": "104.44.112.0/24",
     },
+    "nfs_node_num": 0,
+    "nfs_suffixes":[],
+    "nfs_svr_setup": [
+          {
+            "mnt_point": {"rootshare":{"curphysicalmountpoint":"/mntdlws/infranfs","filesharename":"/infradata/share","mountpoints":""}}}
+    ],
     "vc_config":{
         "VC-Default":["*"],
     },
     "registry_credential": {},
     "domain_name": "redmond.corp.microsoft.com",
+    "priority": "regular",
     "sku_mapping": {
         "Standard_ND6s":{"gpu-type": "P40","gpu-count": 1},
         "Standard_NV24": {"gpu-type": "M60", "gpu-count": 4},
