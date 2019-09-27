@@ -92,8 +92,8 @@ export const PhysicalClusterNodeStatus = (props: PhClusterNSType) => {
                         if (!pod.includes("!!!!!!")) {
                           return (
                             <>
-                              <Typography variant="subtitle2" component="p" gutterBottom>
-                                <strong>{`[${pod}]`}</strong>
+                              <Typography variant="subtitle2" component="span" gutterBottom>
+                                {`[${pod}]`}
                               </Typography>
                               <br/>
                             </>
@@ -101,8 +101,8 @@ export const PhysicalClusterNodeStatus = (props: PhClusterNSType) => {
                         } else {
                           return (
                             <>
-                              <Typography variant="subtitle2" component="p" style={{ color:red[400] }} gutterBottom>
-                                <strong>{`[${pod.replace("!!!!!!", "")}]`}</strong>
+                              <Typography variant="subtitle2" component="span" style={{ color:red[400] }} gutterBottom>
+                                {`[${pod.replace("!!!!!!", "")}]`}
                               </Typography>
                               <br/>
                             </>
