@@ -865,8 +865,8 @@ def deploy_master(kubernetes_master):
         kubernetes_master_user = config["kubernetes_master_ssh_user"]
         print "starting kubernetes master on %s..." % kubernetes_master
 
-        assert config["azure_cluster"][config["cluster_name"]]["priority"] in ["regular", "low"]
-        if config["azure_cluster"][config["cluster_name"]]["priority"] == "regular":
+        assert config["priority"] in ["regular", "low"]
+        if config["priority"] == "regular":
             config["master_ip"] = utils.getIP(kubernetes_master) 
         else:
             config["master_ip"] = config["machines"][kubernetes_master.split(".")[0]]["private-ip"]
@@ -1102,11 +1102,10 @@ def create_nfs_server():
     we assume there's only 1 cluster.
     """
     etcd_server_user = config["nfs_user"]
-    cluster_by_name = config["azure_cluster"][config["cluster_name"]]
-    nfs_servers = config["nfs_node"] if int(cluster_by_name["nfs_node_num"]) > 0 else config["etcd_node"]
+    nfs_servers = config["nfs_node"] if int(config["nfs_node_num"]) > 0 else config["etcd_node"]
     # if we have suffixed server, then it must be external
-    named_nfs_suffix = set(cluster_by_name["nfs_suffixes"] if "nfs_suffixes" in cluster_by_name else [])
-    used_nfs_suffix = set([nfs_cnf["server_suffix"] for nfs_cnf in config["cloud_config"]["nfs_svr_setup"] if "server_suffix" in nfs_cnf])
+    named_nfs_suffix = set(config["nfs_suffixes"])
+    used_nfs_suffix = set([nfs_cnf["server_suffix"] for nfs_cnf in config["nfs_svr_setup"] if "server_suffix" in nfs_cnf])
     assert (used_nfs_suffix - named_nfs_suffix) == set() and "suffix not in nfs_suffixes list!"
     suffix2used_nfs = {suffix: get_node_full_name("{}-nfs-{}".format(config["cluster_name"], suffix)) for suffix in used_nfs_suffix}
     # unused, either node without name suffix or those with suffix but not specified in any nfs_svr_setup item
@@ -1115,7 +1114,7 @@ def create_nfs_server():
     # print(nfs_servers, suffix2used_nfs, unused_nfs)
 
 
-    for nfs_cnf in config["cloud_config"]["nfs_svr_setup"]:
+    for nfs_cnf in config["nfs_svr_setup"]:
         nfs_cnf["cloud_config"] = {"vnet_range":config["cloud_config"]["vnet_range"], "samba_range": config["cloud_config"]["samba_range"]}
         if "server_suffix" in nfs_cnf:
             nfs_server = suffix2used_nfs[nfs_cnf["server_suffix"]]
@@ -3726,7 +3725,6 @@ def run_command( args, command, nargs, parser ):
         kubernetes_label_GpuTypes()
 
     elif command == "genscripts":
-        # print(config["azure_cluster"].keys())
         gen_dns_config_script()
         gen_pass_secret_script()
         gen_warm_up_cluster_script()
@@ -3877,7 +3875,8 @@ def upgrade_master(kubernetes_master):
     kubernetes_master_user = config["kubernetes_master_ssh_user"]
     print "starting kubernetes master on %s..." % kubernetes_master
 
-    if config["azure_cluster"][config["cluster_name"]]["priority"] == "regular":
+    assert config["priority"] in ["regular", "low"]
+    if config["priority"] == "regular":
         config["master_ip"] = utils.getIP(kubernetes_master) 
     else:
         config["master_ip"] = config["machines"][kubernetes_master.split(".")[0]]["private-ip"]
