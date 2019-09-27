@@ -85,21 +85,10 @@ const useStyles = makeStyles((theme: Theme) =>
     linkStyle:{
       textDecoration: 'none',
       color: blue[500],
-      textOverflow: 'ellipsis',
-      whiteSpace: 'nowrap',
-      display: 'inline-block',
-      width: '100px',
-      overflow: 'hidden',
-      '&:hover': {
-        height: 'auto',
-        wordBbreak:'break-all',
-        whiteSpace: 'pre-wrap',
-        textDecoration: 'none'
-      }
     },
     inputField: {
       fontSize:'12px',
-    }
+    },
   })
 );
 const Jobs: React.FC = (props: any) => {
@@ -166,7 +155,7 @@ const Jobs: React.FC = (props: any) => {
   const filterFinishedJobs = (jobs: any) => {
     const filteredJobs = filterJobsByCluster(jobs, currentCluster);
     return filteredJobs.filter((job: any) => job['jobStatus'] !== 'running' &&
-                                     job['jobStatus'] !== 'queued' && job['jobStatus'] !== 'unapproved' && job['jobStatus'] !== 'scheduling' &&job['jobStatus'] !== 'pausing' && job['jobStatus'] !== 'paused'  )
+      job['jobStatus'] !== 'queued' && job['jobStatus'] !== 'unapproved' && job['jobStatus'] !== 'scheduling' &&job['jobStatus'] !== 'pausing' && job['jobStatus'] !== 'paused'  )
   }
   const filterRunningJobs = (jobs: any) => {
     const filteredJobs = filterJobsByCluster(jobs, currentCluster);
@@ -182,7 +171,6 @@ const Jobs: React.FC = (props: any) => {
   }
   const filterUnApprovedJobs = (jobs: any) => {
     const filteredJobs = filterJobsByCluster(jobs, currentCluster);
-    console.log(filteredJobs.filter((job: any)=>job['jobStatus'] === 'unapproved'))
     return filteredJobs.filter((job: any)=>job['jobStatus'] === 'unapproved');
   }
 
@@ -203,10 +191,26 @@ const Jobs: React.FC = (props: any) => {
 
   const [message,setMessage] = useState('');
 
-
+  const[warn, setWarn] = useState(false)
+  const[currId, setCurrId] = useState(0);
+  const handleChangePriority = (rowData: any, event: any) => {
+    console.log(event.target.value)
+    if (event.target.value < 1 || event.target.value > 1000) {
+      setCurrId(event.target.id);
+      setWarn(true);
+    } else {
+      setWarn(false)
+    }
+  }
   const handlePriorityKeyPress = (rowData: any,event: React.KeyboardEvent) => {
     //return async () => {
+    //console.log('--->', event.target);
+    let inputValue = (event.target as HTMLInputElement).valueAsNumber;
+    if (inputValue < 1 || inputValue > 1000) {
+      return;
+    }
     if (event.key === 'Enter') {
+      setWarn(false)
       setCurrentJob({
         jobId: rowData['jobId'],
         cluster:rowData['cluster'],
@@ -287,21 +291,28 @@ const Jobs: React.FC = (props: any) => {
     setOpenResume(true);
   }
   const renderUserName = (rowData: any)=><span>{rowData['userName'].split("@").shift()}</span>
-  const renderPrioritySet = (rowData: any) => <TextField
-    key={rowData.jobId}
-    type="number"
-    label="Priority"
-    variant="filled"
-    defaultValue={rowData.priority}
-    onKeyPress={(event) => handlePriorityKeyPress(rowData, event)}
-    fullWidth={true}
-    helperText={"priority should be 100 ~ 65535"}
-    InputProps={{
-      classes: {
-        input: classes.inputField,
-      },
-    }}
-  />
+  const renderPrioritySet = (rowData: any) => {
+    return (
+      <TextField
+        error={warn && (currId == rowData.tableData.id)}
+        key={rowData.jobId}
+        type="number"
+        id={rowData.tableData.id}
+        defaultValue={rowData.priority}
+        onKeyPress={(event) => handlePriorityKeyPress(rowData, event)}
+        onChange={(event)=>handleChangePriority(rowData, event)}
+        fullWidth={false}
+        style={{ width:'100p'}}
+        margin="dense"
+        InputProps={{
+          classes: {
+            input: classes.inputField,
+
+          },
+        }}
+      />)
+  }
+
   const renderDateTime = (rowData: any,time?: string)=> {
     if (time === 'jobTime') {
       return (<span>{ DateTime.fromJSDate(new Date(Date.parse(rowData['jobTime']))).toFormat("yyyy/LL/dd HH:mm:ss")}</span>)
@@ -365,527 +376,855 @@ const Jobs: React.FC = (props: any) => {
     return (
       <Fragment>
         <JobsOperationDialog handleClose={handleClose}
-          titleStyle={{color:red[200]}}
-          title={"Info"}
-          handleConfirm={handleConfirm}
-          job={currentJob}
-          openApprove={openApprove}
-          openPause={openPause} openResume={openResume} openUpdatePriority={openUpdatePriority} open={open}
+                             titleStyle={{color:red[200]}}
+                             title={"Info"}
+                             handleConfirm={handleConfirm}
+                             job={currentJob}
+                             openApprove={openApprove}
+                             openPause={openPause} openResume={openResume} openUpdatePriority={openUpdatePriority} open={open}
         />
         <DLTSTabs value={value} setValue={setValue} titles={JobsTitles} setRefresh={setRefresh} />
         <DLTSTabPanel value={value} index={0}>
-          <Container maxWidth={useCheckIsDesktop ? 'lg' : 'xs'} >
-            <JobsSelectByCluster currentCluster={currentCluster} onClusterChange={onClusterChange} clusters={clusters}/>
-            <MaterialTable
-              title="Running Jobs"
-              columns={[
-                {title: 'JobId', field: 'jobId', render: rowData =>  <Link className={classes.linkStyle} to={`/job/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>  },
-                {title: 'Job Name', field: 'jobName'},
-                {title: 'Status', field: 'jobStatus'},
-                {title:'GPU', field:'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric', customSort: (a: any, b: any) => {
+          <JobsSelectByCluster currentCluster={currentCluster} onClusterChange={onClusterChange} clusters={clusters}/>
+          {filterRunningJobs(jobs).length > 0 ? <MaterialTable
+            title="Running Jobs"
+            columns={[
+              {title: 'JobId', field: 'jobId',cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                },render: rowData =>  <Link className={classes.linkStyle} to={`/job/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>  },
+              {title: 'Job Name', field: 'jobName',cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                }},
+              {title: 'Status', field: 'jobStatus',cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                }},
+              {title:'GPU', field:'jobParams.resourcegpu',cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                },render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric', customSort: (a: any, b: any) => {
                   return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
                 } },
-                {title: 'Priority', field: 'priority'},
-                {title: 'Submitted Time', field: 'jobTime', type: 'date',render:(rowData: any)=>renderDateTime(rowData,"jobTime")},
-                {
-                  title: 'Preemptible',
-                  field: 'jobParams.preemptionAllowed',
-                  type: 'boolean'
+              {title: 'Priority', field: 'priority',cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                }},
+              {title: 'Submitted Time', field: 'jobTime',cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                },type: 'date',render:(rowData: any)=>renderDateTime(rowData,"jobTime")},
+              {
+                title: 'Preemptible',
+                field: 'jobParams.preemptionAllowed',
+                cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
                 },
-                {
-                  title: 'Started Time',
-                  field: 'jobStatusDetail[0].startedAt',
-                  type: 'date',
-                  emptyValue: 'unknown',
-                  render: (rowData: any)=>renderDateTime(rowData, 'startedAt')
-                }
-              ]}
-              data={filterRunningJobs(jobs)}
-              options={{
-                filtering: false,
-                paging: false,
-                actionsColumnIndex: -1,
-                headerStyle: {
-                  backgroundColor: '#7583d1',
-                  color: '#fff',
-                  whiteSpace: 'nowrap'
+                type: 'boolean'
+              },
+              {
+                title: 'Started Time',
+                field: 'jobStatusDetail[0].startedAt',
+                type: 'date',
+                emptyValue: 'unknown',
+                cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
                 },
+                render: (rowData: any)=>renderDateTime(rowData, 'startedAt')
+              }
+            ]}
+            data={filterRunningJobs(jobs)}
+            options={{
+              filtering: false,
+              paging: false,
+              actionsColumnIndex: -1,
+              headerStyle: {
+                backgroundColor: '#7583d1',
+                color: '#fff',
+                whiteSpace: 'nowrap',
+                padding:'10',
+                textAlign: 'center',
+              },
 
-              }}
-              actions={[
-                {
-                  icon: 'kill',
-                  onClick: (event, rowData: any) => {
-                    setOpen(true);
-                    setCurrentJob({
-                      cluster:rowData['cluster'],
-                      jobId: rowData['jobId'],
-                      priority:currentJob.priority
-                    })
-                  }
-                },
-                {
-                  icon: 'Pause',
-                  onClick: (event, rowData: any)  => {
-                    console.log(rowData);
-                  }
+            }}
+            actions={[
+              {
+                icon: 'kill',
+                onClick: (event, rowData: any) => {
+                  setOpen(true);
+                  setCurrentJob({
+                    cluster:rowData['cluster'],
+                    jobId: rowData['jobId'],
+                    priority:currentJob.priority
+                  })
                 }
-              ]}
-              components={{
-                Action: (props: any) =>
-                  renderActions(props)
-                ,
-              }}
-            />
-            <MaterialTable
-              title="Queued  Jobs"
-              columns={[
-                {title: 'JobId', field: 'jobId', render: rowData =>  <Link className={classes.linkStyle} to={`/job/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>},
-                {title: 'Job Name', field: 'jobName'},
-                {title: 'Status', field: 'jobStatus'},
-                {title:'GPU', field:'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric', customSort: (a: any, b: any) => {
+              },
+              {
+                icon: 'Pause',
+                onClick: (event, rowData: any)  => {
+                  console.log(rowData);
+                }
+              }
+            ]}
+            components={{
+              Action: (props: any) =>
+                renderActions(props)
+              ,
+            }}
+          /> : null}
+          {filterQueuedJobs(jobs).length > 0 ? <MaterialTable
+            title="Queued  Jobs"
+            columns={[
+              {title: 'JobId', field: 'jobId',cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                },render: rowData =>  <Link className={classes.linkStyle} to={`/job/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>  },
+              {title: 'Job Name', field: 'jobName',cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                }},
+              {title: 'Status', field: 'jobStatus',cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                }},
+              {title:'GPU', field:'jobParams.resourcegpu',cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                },render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric', customSort: (a: any, b: any) => {
                   return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
                 } },
-                {title: 'Priority', field: 'priority'},
-                {title: 'Submitted Time', field: 'jobTime', type: 'date', render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
-                {
-                  title: 'Preemptible',
-                  field: 'jobParams.preemptionAllowed',
-                  type: 'boolean'
-                }
-              ]}
-              data={filterQueuedJobs(jobs)}
-              options={{
-                filtering: false,
-                paging: false,
-                actionsColumnIndex: -1,
-                headerStyle: {
-                  backgroundColor: '#7583d1',
-                  color: '#fff',
-                  whiteSpace: 'nowrap'
+              {title: 'Priority', field: 'priority',cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                }},
+              {title: 'Submitted Time', field: 'jobTime',cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                },type: 'date',render:(rowData: any)=>renderDateTime(rowData,"jobTime")},
+              {
+                title: 'Preemptible',
+                field: 'jobParams.preemptionAllowed',
+                cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
                 },
-              }}
-              actions={[
-                {
-                  icon: 'kill',
-                  onClick: (event, rowData: any) => {
-                    setOpen(true);
-                    setCurrentJob({
-                      cluster:rowData['cluster'],
-                      jobId: rowData['jobId'],
-                      priority:currentJob.priority
-                    })
-                  }
-                },
-                {
-                  icon: 'Pause',
-                  onClick: (event, rowData: any)  => {
-                    console.log(rowData);
-                  }
+                type: 'boolean'
+              },
+            ]}
+            data={filterQueuedJobs(jobs)}
+            options={{
+              filtering: false,
+              paging: false,
+              actionsColumnIndex: -1,
+              headerStyle: {
+                backgroundColor: '#7583d1',
+                color: '#fff',
+                whiteSpace: 'nowrap'
+              },
+            }}
+            actions={[
+              {
+                icon: 'kill',
+                onClick: (event, rowData: any) => {
+                  setOpen(true);
+                  setCurrentJob({
+                    cluster:rowData['cluster'],
+                    jobId: rowData['jobId'],
+                    priority:currentJob.priority
+                  })
                 }
-              ]}
-              components={{
-                Action:(props: any) => renderActions(props),
+              },
+              {
+                icon: 'Pause',
+                onClick: (event, rowData: any)  => {
+                  console.log(rowData);
+                }
+              }
+            ]}
+            components={{
+              Action:(props: any) => renderActions(props),
 
-              }}
-            />
-            <MaterialTable
-              title="Unapproved  Jobs"
-              columns={[
-                {title: 'JobId', field: 'jobId', render: rowData =>  <Link className={classes.linkStyle} to={`/job/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>},
-                {title: 'Job Name', field: 'jobName'},
-                {title: 'Status', field: 'jobStatus'},
-                {title:'GPU', field:'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric', customSort: (a: any, b: any) => {
+            }}
+          /> : null}
+          {filterUnApprovedJobs(jobs).length > 0 ? <MaterialTable
+            title="Unapproved  Jobs"
+            columns={[
+              {title: 'JobId', field: 'jobId',cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                }, render: rowData =>  <Link className={classes.linkStyle} to={`/job/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>},
+              {title: 'Job Name', field: 'jobName',cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                },},
+              {title: 'Status', field: 'jobStatus',cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                }},
+              {title:'GPU', field:'jobParams.resourcegpu',cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                }, render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric', customSort: (a: any, b: any) => {
                   return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
                 }},
-                {title: 'Priority', field: 'priority'},
-                {title: 'Submitted Time', field: 'jobTime', type: 'date',render: (rowData: any)=>renderDateTime(rowData, 'jobTime')},
-                {
-                  title: 'Preemptible',
-                  field: 'jobParams.preemptionAllowed',
-                  type: 'boolean'
+              {title: 'Priority', field: 'priority',cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                }},
+              {title: 'Submitted Time',cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                }, field: 'jobTime', type: 'date',render: (rowData: any)=>renderDateTime(rowData, 'jobTime')},
+              {
+                title: 'Preemptible',
+                field: 'jobParams.preemptionAllowed',
+                type: 'boolean',
+                cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
                 }
-              ]}
-              data={filterUnApprovedJobs(jobs)}
-              options={{
-                filtering: false,
-                paging: false,
-                actionsColumnIndex: -1,
-                headerStyle: {
-                  backgroundColor: '#7583d1',
-                  color: '#fff',
-                  whiteSpace: 'nowrap'
-                },
-                rowStyle: {
-                  width:'200',
+              }
+            ]}
+            data={filterUnApprovedJobs(jobs)}
+            options={{
+              filtering: false,
+              paging: false,
+              actionsColumnIndex: -1,
+              headerStyle: {
+                backgroundColor: '#7583d1',
+                color: '#fff',
+                whiteSpace: 'nowrap',
+                textAlign: 'center',
+                paddingLeft:'0',
+                paddingTop:'10',
+                paddingRight:'0',
+                paddingBottom:'10',
+              },
+              rowStyle: {
+                width:'200',
+              }
+            }}
+            actions={[
+              {
+                icon: 'kill',
+                onClick: (event, rowData: any) => {
+                  setOpen(true);
+                  setCurrentJob({
+                    cluster:rowData['cluster'],
+                    jobId: rowData['jobId'],
+                    priority:currentJob.priority
+                  })
                 }
-              }}
-              actions={[
-                {
-                  icon: 'kill',
-                  onClick: (event, rowData: any) => {
-                    setOpen(true);
-                    setCurrentJob({
-                      cluster:rowData['cluster'],
-                      jobId: rowData['jobId'],
-                      priority:currentJob.priority
-                    })
-                  }
-                },
-                {
-                  icon: 'Pause',
-                  onClick: (event, rowData: any)  => {
-                    console.log(rowData);
-                  }
+              },
+              {
+                icon: 'Pause',
+                onClick: (event, rowData: any)  => {
+                  console.log(rowData);
                 }
-              ]}
-              components={{
-                Action: (props: any) => renderActions(props),
+              }
+            ]}
+            components={{
+              Action: (props: any) => renderActions(props),
 
-              }}
-            />
-            <MaterialTable
-              title="Paused Jobs"
-              columns={[
-                { title: 'JobId', field: 'jobId', render: rowData =>  <Link className={classes.linkStyle} to={`/job/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
-                { title: 'Job Name', field: 'jobName'},
-                {title:'Status', field:'jobStatus'},
-                {title:'GPU', field:'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric', customSort: (a: any, b: any) => {
+            }}
+          /> : null}
+          {filterPauseJobs(jobs).length > 0 ? <MaterialTable
+            title="Paused Jobs"
+            columns={[
+              { title: 'JobId', field: 'jobId',cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                }, render: rowData =>  <Link className={classes.linkStyle} to={`/job/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
+              { title: 'Job Name', cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                },field: 'jobName'},
+              {title:'Status', field:'jobStatus', cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                },},
+              {title:'GPU',cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                }, field:'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric', customSort: (a: any, b: any) => {
                   return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
                 } },
-                {title: 'Priority', field: 'priority'},
-                {title: 'Submitted Time', field: 'jobTime', type: 'date',render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
-                {title:'Preemptible', field:'jobParams.preemptionAllowed',type:'boolean'},
-                {title:'Finished Time', field:'jobStatusDetail[0].finishedAt',type:'date',emptyValue:'unknown',
-                  render: (rowData: any)=>renderDateTime(rowData, 'finishedAt')}
-              ]}
-              data={filterPauseJobs(jobs)}
-              options={{
-                filtering: false,
-                paging: false,
-                actionsColumnIndex: -1,
-                headerStyle: {
-                  backgroundColor: '#7583d1',
-                  color: '#fff',
-                  whiteSpace: 'nowrap'
+              {title: 'Priority', cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                }, field: 'priority'},
+              {title: 'Submitted Time', cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                }, field: 'jobTime', type: 'date',render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
+              {title:'Preemptible', cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                },field:'jobParams.preemptionAllowed',type:'boolean'},
+              {title:'Finished Time',cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                }, field:'jobStatusDetail[0].finishedAt',type:'date',emptyValue:'unknown',
+                render: (rowData: any)=>renderDateTime(rowData, 'finishedAt')}
+            ]}
+            data={filterPauseJobs(jobs)}
+            options={{
+              filtering: false,
+              paging: false,
+              actionsColumnIndex: -1,
+              headerStyle: {
+                backgroundColor: '#7583d1',
+                color: '#fff',
+                whiteSpace: 'nowrap',
+                textAlign: 'center',
+                paddingLeft:'0',
+                paddingTop:'10',
+                paddingRight:'0',
+                paddingBottom:'10',
+              }
+            }}
+            actions={[
+              {
+                icon: 'kill',
+                onClick: (event, rowData: any) => {
+                  setOpen(true);
+                  setCurrentJob({
+                    cluster:rowData['cluster'],
+                    jobId: rowData['jobId'],
+                    priority:currentJob.priority
+                  })
                 }
-              }}
-              actions={[
-                {
-                  icon: 'kill',
-                  onClick: (event, rowData: any) => {
-                    setOpen(true);
-                    setCurrentJob({
-                      cluster:rowData['cluster'],
-                      jobId: rowData['jobId'],
-                      priority:currentJob.priority
-                    })
-                  }
+              },
+              {
+                icon: 'Pause',
+                onClick: (event, rowData: any)  => {
+                  console.log(rowData);
                 },
-                {
-                  icon: 'Pause',
-                  onClick: (event, rowData: any)  => {
-                    console.log(rowData);
-                  },
-                }
-              ]}
-              components={{
-                Action: (props: any) => renderActions(props) ,
+              }
+            ]}
+            components={{
+              Action: (props: any) => renderActions(props) ,
 
-              }}
-            />
-            <MaterialTable
-              title="Finished Jobs"
-              columns={[
-                { title: 'JobId', field: 'jobId', render: rowData =>  <Link className={classes.linkStyle} to={`/job/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
-                { title: 'Job Name', field: 'jobName'},
-                {title:'Status', field:'jobStatus'},
-                {title:'GPU', field:'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric', customSort: (a: any, b: any) => {
+            }}
+          /> : null}
+          {filterFinishedJobs(jobs).length > 0 ? <MaterialTable
+            title="Finished Jobs"
+            columns={[
+              { title: 'JobId', field: 'jobId',cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                },render: rowData =>  <Link className={classes.linkStyle} to={`/job/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
+              { title: 'Job Name', cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                },field: 'jobName'},
+              {title:'Status',cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                }, field:'jobStatus'},
+              {title:'GPU', cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                },field:'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric', customSort: (a: any, b: any) => {
                   return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
                 } },
-                {title:'Submitted Time', field:'jobTime',type:'date',render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
-                {title:'Preemptible', field:'jobParams.preemptionAllowed',type:'boolean'},
-                {title:'Finished Time', field:'jobStatusDetail[0].finishedAt',type:'date',emptyValue:'unknown',
-                  render: (rowData: any)=>renderDateTime(rowData,'finishedAt'),
+              {title:'Submitted Time',cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                }, field:'jobTime',type:'date',render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
+              {title:'Preemptible',cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                }, field:'jobParams.preemptionAllowed',type:'boolean'},
+              {title:'Finished Time',cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                }, field:'jobStatusDetail[0].finishedAt',type:'date',emptyValue:'unknown',
+                render: (rowData: any)=>renderDateTime(rowData,'finishedAt'),
+              },
+              {
+                title: 'Started Time',
+                field: 'jobStatusDetail[0].startedAt',
+                type: 'date',
+                emptyValue: 'unknown',
+                cellStyle: {
+                  textAlign:'center',
+                  flexDirection: 'row',
+                  padding:'0',
+                  whiteSpace:'nowrap'
                 },
-                {
-                  title: 'Started Time',
-                  field: 'jobStatusDetail[0].startedAt',
-                  type: 'date',
-                  emptyValue: 'unknown',
-                  render: (rowData: any)=>renderDateTime(rowData, 'startedAt')
-                }
-              ]}
-              data={filterFinishedJobs(jobs)}
-              options={{
-                filtering: false,
-                paging: false,
-                actionsColumnIndex: -1,
-                headerStyle: {
-                  backgroundColor: '#7583d1',
-                  color: '#fff',
-                  whiteSpace: 'nowrap'
-                }
-              }}
-
-            />
-          </Container>
+                render: (rowData: any)=>renderDateTime(rowData, 'startedAt')
+              }
+            ]}
+            data={filterFinishedJobs(jobs)}
+            options={{
+              filtering: false,
+              paging: false,
+              actionsColumnIndex: -1,
+              headerStyle: {
+                backgroundColor: '#7583d1',
+                color: '#fff',
+                whiteSpace: 'nowrap',
+                textAlign: 'center',
+                paddingLeft:'0',
+                paddingTop:'10',
+                paddingRight:'0',
+                paddingBottom:'10',
+              },
+            }}
+          /> : null}
         </DLTSTabPanel>
         {
           refresh ? allJobs && (Boolean)(_.map(clusters,"admin")[0]) &&
-          <DLTSTabPanel value={value} index={1}>
-            <Container maxWidth="lg" >
-              <JobsSelectByCluster currentCluster={currentCluster} onClusterChange={onClusterChange} clusters={clusters}/>
-              <MaterialTable
-                title="Running Jobs"
-                columns={[
-                  {title: 'JobId', field: 'jobId', render: rowData =>  <Link className={classes.linkStyle} to={`/job/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>},
-                  {title: 'Job Name', field: 'jobName'},
-                  {title: 'Status', field: 'jobStatus'},
-                  {title:'GPU', field:'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric',
-                    customSort: (a: any, b: any) => {
-                      return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
-                    }
-                  },
-                  {title: 'Username', field: 'userName', render:renderUserName},
-                  {title: 'Priority', field: 'priority', render:renderPrioritySet},
-                  {title: 'Submitted Time', field: 'jobTime', type: 'date',render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
-                  {
-                    title: 'Preemptible',
-                    field: 'jobParams.preemptionAllowed',
-                    type: 'boolean'
-                  },
-                  {
-                    title: 'Started Time',
-                    field: 'jobStatusDetail[0].startedAt',
-                    type: 'date',
-                    emptyValue: 'unknown',
-                    render: (rowData: any)=>renderDateTime(rowData,'startedAt')
-                  }
-                ]}
-                data={filterRunningJobs(allJobs)}
-                options={{
-                  sorting: true,
-                  filtering: false,
-                  paging: false,
-                  actionsColumnIndex: -1,
-                  headerStyle: {
-                    backgroundColor: '#7583d1',
-                    color: '#fff',
-                    whiteSpace: 'nowrap'
-                  }
-                }}
-                actions={[
-                  {
-                    icon: 'kill',
-                    onClick: (event, rowData: any) => {
-                      setOpen(true);
-                      setCurrentJob({
-                        cluster:rowData['cluster'],
-                        jobId: rowData['jobId'],
-                        priority:currentJob.priority
-                      })
-                    }
-                  },
-                  {
-                    icon: 'Pause',
-                    onClick: (event, rowData: any)  => {
-                      console.log(rowData);
-                    }
-                  }
-                ]}
-                components={{
-                  Action: (props: any)=>renderActions(props),
-                }}
-              />
-              <MaterialTable
-                title="Queued  Jobs"
-                columns={[
-                  {title: 'JobId', field: 'jobId', render: rowData =>  <Link  className={classes.linkStyle} to={`/job/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>},
-                  {title: 'Job Name', field: 'jobName'},
-                  {title: 'Status', field: 'jobStatus'},
-                  {title:'GPU', field:'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric',
-                    customSort: (a: any, b: any) => {
-                      return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
-                    }
-                  },
-                  {title: 'Username', field: 'userName',render:renderUserName},
-                  {title: 'Priority', field: 'priority', render:renderPrioritySet},
-                  {title: 'Submitted Time', field: 'jobTime', type: 'date',render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
-                  {
-                    title: 'Preemptible',
-                    field: 'jobParams.preemptionAllowed',
-                    type: 'boolean'
-                  }
-                ]}
-                data={filterQueuedJobs(allJobs)}
-                options={{
-                  filtering: false,
-                  paging: false,
-                  actionsColumnIndex: -1,
-                  headerStyle: {
-                    backgroundColor: '#7583d1',
-                    color: '#fff',
-                    whiteSpace: 'nowrap'
-                  }
-                }}
-                actions={[
-                  {
-                    icon: 'kill',
-                    onClick: (event, rowData: any) => {
-                      setOpen(true);
-                      setCurrentJob({
-                        cluster:rowData['cluster'],
-                        jobId: rowData['jobId'],
-                        priority:currentJob.priority
-                      })
-                    }
-                  },
-                  {
-                    icon: 'Approve',
-                    onClick: (event, rowData: any)  => {
-                      setOpenApprove(true);
-                      setCurrentJob({
-                        cluster:rowData['cluster'],
-                        jobId: rowData['jobId'],
-                        priority:currentJob.priority
-                      })
-                    }
-                  },
-                  {
-                    icon: 'Pause',
-                    onClick: (event, rowData: any)  => {
-                      console.log(rowData);
-                    }
-                  }
-                ]}
-                components={{
-                  Action: (props: any)=>renderActions(props),
-
-                }}
-
-              />
-              <MaterialTable
-                title="Unapproved  Jobs"
-                columns={[
-                  {title: 'JobId', field: 'jobId', render: rowData =>  <Link className={classes.linkStyle} to={`/job/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>},
-                  {title: 'Job Name', field: 'jobName'},
-                  {title: 'Status', field: 'jobStatus'},
-                  {title:'GPU', field:'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric', customSort: (a: any, b: any) => {
-                    return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
-                  }},
-                  {title: 'Username', field: 'userName', render:renderUserName},
-                  {title: 'Priority', field: 'priority', render:renderPrioritySet},
-                  {title: 'Submitted Time', field: 'jobTime', type: 'date',render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
-                  {
-                    title: 'Preemptible',
-                    field: 'jobParams.preemptionAllowed',
-                    type: 'boolean'
-                  }
-                ]}
-                data={filterUnApprovedJobs(allJobs)}
-                options={{
-                  filtering: false,
-                  paging: false,
-                  actionsColumnIndex: -1,
-                  headerStyle: {
-                    backgroundColor: '#7583d1',
-                    color: '#fff',
-                    whiteSpace: 'nowrap'
-                  }
-                }}
-                actions={[
-                  {
-                    icon: 'kill',
-                    onClick: (event, rowData: any) => {
-                      setOpen(true);
-                      setCurrentJob({
-                        cluster:rowData['cluster'],
-                        jobId: rowData['jobId'],
-                        priority:currentJob.priority
-                      })
-                    }
-                  },
-                  {
-                    icon: 'Approve',
-                    onClick: (event, rowData: any)  => {
-                      setOpenApprove(true);
-                      setCurrentJob({
-                        cluster:rowData['cluster'],
-                        jobId: rowData['jobId'],
-                        priority:currentJob.priority
-                      })
-                    }
-                  },
-                  {
-                    icon: 'Pause',
-                    onClick: (event, rowData: any)  => {
-                      console.log(rowData);
-                    }
-                  }
-                ]}
-                components={{
-                  Action: (props: any)=>renderActions(props),
-
-                }}
-              />
-              <MaterialTable
-                title="Paused Jobs"
-                columns={[
-                  { title: 'JobId', field: 'jobId', render: rowData =>  <Link className={classes.linkStyle} to={`/job/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
-                  { title: 'Job Name', field: 'jobName'},
-                  {title:'Status', field:'jobStatus'},
-                  {title:'GPU', field:'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric', customSort: (a: any, b: any) => {
-                    return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
-                  } },
-                  {title:'Username', field:'userName', render:renderUserName},
-                  {title: 'Priority', field: 'priority'},
-                  {title: 'Submitted Time', field: 'jobTime', type: 'date',render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
-                  {title:'Preemptible', field:'jobParams.preemptionAllowed',type:'boolean'},
-                  {title:'Finished Time', field:'jobStatusDetail[0].finishedAt',type:'date',emptyValue:'unknown',
-                    render: (rowData: any)=>renderDateTime(rowData, 'finishedAt')},
-                ]}
-                data={filterPauseJobs(allJobs)}
-                options={{
-                  filtering: false,
-                  paging: false,
-                  actionsColumnIndex: -1,
-                  headerStyle: {
-                    backgroundColor: '#7583d1',
-                    color: '#fff',
-                    whiteSpace: 'nowrap'
-                  }
-                }}
-                actions={[
-                  {
-                    icon: 'kill',
-                    onClick: (event, rowData: any) => {
-                      setOpen(true);
-                      setCurrentJob({
-                        cluster:rowData['cluster'],
-                        jobId: rowData['jobId'],
-                        priority:currentJob.priority
-                      })
-                    }
-                  },
-                  {
-                    icon: 'Pause',
-                    onClick: (event, rowData: any)  => {
+              <DLTSTabPanel value={value} index={1}>
+                  <JobsSelectByCluster currentCluster={currentCluster} onClusterChange={onClusterChange} clusters={clusters}/>
+                {filterRunningJobs(allJobs).length > 0 ? <MaterialTable
+                  title="Running Jobs"
+                  columns={[
+                    {title: 'JobId',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      }, field: 'jobId',render: rowData =>  <Link className={classes.linkStyle} to={`/job/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>},
+                    {title: 'Job Name',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      }, field: 'jobName'},
+                    {title: 'Status',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      }, field: 'jobStatus'},
+                    {title:'GPU', field:'jobParams.resourcegpu',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      }, render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric',
+                      customSort: (a: any, b: any) => {
+                        return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
+                      }
                     },
-                  }
-                ]}
-                components={{
-                  Action: (props: any)=>renderActions(props),
+                    {title: 'Username',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      }, field: 'userName', render:renderUserName},
+                    {title: 'Priority(1-1000)',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      },field: 'priority', render:renderPrioritySet},
+                    {title: 'Submitted Time',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      },field: 'jobTime', type: 'date',render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
+                    {
+                      title: 'Preemptible',
+                      field: 'jobParams.preemptionAllowed',
+                      type: 'boolean',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      },
 
-                }}
-              />
-            </Container>
-          </DLTSTabPanel> : <CircularProgress/>
+                    },
+                    {
+                      title: 'Started Time',
+                      field: 'jobStatusDetail[0].startedAt',
+                      type: 'date',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      },
+                      emptyValue: 'unknown',
+                      render: (rowData: any)=>renderDateTime(rowData,'startedAt')
+                    }
+                  ]}
+                  data={filterRunningJobs(allJobs)}
+                  options={{
+                    sorting: true,
+                    filtering: false,
+                    paging: false,
+                    actionsColumnIndex: -1,
+                    headerStyle: {
+                      backgroundColor: '#7583d1',
+                      color: '#fff',
+                      whiteSpace: 'nowrap',
+                      textAlign: 'center',
+                      paddingLeft:'0',
+                      paddingTop:'10',
+                      paddingRight:'0',
+                      paddingBottom:'10',
+                    }
+                  }}
+                  actions={[
+                    {
+                      icon: 'kill',
+                      onClick: (event, rowData: any) => {
+                        setOpen(true);
+                        setCurrentJob({
+                          cluster:rowData['cluster'],
+                          jobId: rowData['jobId'],
+                          priority:currentJob.priority
+                        })
+                      }
+                    },
+                    {
+                      icon: 'Pause',
+                      onClick: (event, rowData: any)  => {
+                        console.log(rowData);
+                      }
+                    }
+                  ]}
+                  components={{
+                    Action: (props: any)=>renderActions(props),
+                  }}
+                /> : null}
+                {filterQueuedJobs(allJobs).length > 0 ? <MaterialTable
+                  title="Queued  Jobs"
+                  columns={[
+                    {title: 'JobId', field: 'jobId',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      }, render: rowData =>  <Link  className={classes.linkStyle} to={`/job/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>},
+                    {title: 'Job Name',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      },field: 'jobName'},
+                    {title: 'Status',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      },field: 'jobStatus'},
+                    {title:'GPU',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      },field:'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric',
+                      customSort: (a: any, b: any) => {
+                        return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
+                      }
+                    },
+                    {title: 'Username',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      },field: 'userName',render:renderUserName},
+                    {title: 'Priority(1-1000)',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      },field: 'priority', render:renderPrioritySet},
+                    {title: 'Submitted Time',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      },field: 'jobTime', type: 'date',render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
+                    {
+                      title: 'Preemptible'
+                      ,cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      },
+                      field: 'jobParams.preemptionAllowed',
+                      type: 'boolean'
+                    }
+                  ]}
+                  data={filterQueuedJobs(allJobs)}
+                  options={{
+                    filtering: false,
+                    paging: false,
+                    actionsColumnIndex: -1,
+                    headerStyle: {
+                      backgroundColor: '#7583d1',
+                      color: '#fff',
+                      whiteSpace: 'nowrap',
+                      textAlign: 'center',
+                      paddingLeft:'0',
+                      paddingTop:'10',
+                      paddingRight:'0',
+                      paddingBottom:'10',
+                    }
+                  }}
+                  actions={[
+                    {
+                      icon: 'kill',
+                      onClick: (event, rowData: any) => {
+                        setOpen(true);
+                        setCurrentJob({
+                          cluster:rowData['cluster'],
+                          jobId: rowData['jobId'],
+                          priority:currentJob.priority
+                        })
+                      }
+                    },
+                    {
+                      icon: 'Approve',
+                      onClick: (event, rowData: any)  => {
+                        setOpenApprove(true);
+                        setCurrentJob({
+                          cluster:rowData['cluster'],
+                          jobId: rowData['jobId'],
+                          priority:currentJob.priority
+                        })
+                      }
+                    },
+                    {
+                      icon: 'Pause',
+                      onClick: (event, rowData: any)  => {
+                        console.log(rowData);
+                      }
+                    }
+                  ]}
+                  components={{
+                    Action: (props: any)=>renderActions(props),
+
+                  }}
+
+                /> : null}
+                {filterUnApprovedJobs(allJobs).length > 0 ? <MaterialTable
+                  title="Unapproved  Jobs"
+                  columns={[
+                    {title: 'JobId', field: 'jobId',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      },render: rowData =>  <Link className={classes.linkStyle} to={`/job/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>},
+                    {title: 'Job Name',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      }, field: 'jobName'},
+                    {title: 'Status',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      },field: 'jobStatus'},
+                    {title:'GPU',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      },field:'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric', customSort: (a: any, b: any) => {
+                        return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
+                      }},
+                    {title: 'Username',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      },field: 'userName', render:renderUserName},
+                    {title: 'Priority(1-1000)',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      },field: 'priority', render:renderPrioritySet},
+                    {title: 'Submitted Time',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      },field: 'jobTime', type: 'date',render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
+                    {
+                      title: 'Preemptible',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      },
+                      field: 'jobParams.preemptionAllowed',
+                      type: 'boolean'
+                    }
+                  ]}
+                  data={filterUnApprovedJobs(allJobs)}
+                  options={{
+                    filtering: false,
+                    paging: false,
+                    actionsColumnIndex: -1,
+                    headerStyle: {
+                      backgroundColor: '#7583d1',
+                      color: '#fff',
+                      whiteSpace: 'nowrap',
+                      textAlign: 'center',
+                      paddingLeft:'0',
+                      paddingTop:'10',
+                      paddingRight:'0',
+                      paddingBottom:'10',
+                    }
+                  }}
+                  actions={[
+                    {
+                      icon: 'kill',
+                      onClick: (event, rowData: any) => {
+                        setOpen(true);
+                        setCurrentJob({
+                          cluster:rowData['cluster'],
+                          jobId: rowData['jobId'],
+                          priority:currentJob.priority
+                        })
+                      }
+                    },
+                    {
+                      icon: 'Approve',
+                      onClick: (event, rowData: any)  => {
+                        setOpenApprove(true);
+                        setCurrentJob({
+                          cluster:rowData['cluster'],
+                          jobId: rowData['jobId'],
+                          priority:currentJob.priority
+                        })
+                      }
+                    },
+                    {
+                      icon: 'Pause',
+                      onClick: (event, rowData: any)  => {
+                        console.log(rowData);
+                      }
+                    }
+                  ]}
+                  components={{
+                    Action: (props: any)=>renderActions(props),
+
+                  }}
+                /> : null}
+                {filterPauseJobs(allJobs).length > 0  ? <MaterialTable
+                  title="Paused Jobs"
+                  columns={[
+                    { title: 'JobId',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      },field: 'jobId', render: rowData =>  <Link className={classes.linkStyle} to={`/job/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
+                    { title: 'Job Name',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      },field: 'jobName'},
+                    {title:'Status',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      },field:'jobStatus'},
+                    {title:'GPU',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      },field:'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric', customSort: (a: any, b: any) => {
+                        return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
+                      } },
+                    {title:'Username',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      },field:'userName', render:renderUserName},
+                    {title: 'Priority(1-1000)',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      },field: 'priority'},
+                    {title: 'Submitted Time',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      },field: 'jobTime', type: 'date',render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
+                    {title:'Preemptible',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      },field:'jobParams.preemptionAllowed',type:'boolean'},
+                    {title:'Finished Time',cellStyle: {
+                        textAlign:'center',
+                        flexDirection: 'row',
+                        padding:'0',
+                      },field:'jobStatusDetail[0].finishedAt',type:'date',emptyValue:'unknown',
+                      render: (rowData: any)=>renderDateTime(rowData, 'finishedAt')},
+                  ]}
+                  data={filterPauseJobs(allJobs)}
+                  options={{
+                    filtering: false,
+                    paging: false,
+                    actionsColumnIndex: -1,
+                    headerStyle: {
+                      backgroundColor: '#7583d1',
+                      color: '#fff',
+                      whiteSpace: 'nowrap',
+                      textAlign: 'center',
+                      paddingLeft:'0',
+                      paddingTop:'10',
+                      paddingRight:'0',
+                      paddingBottom:'10',
+                    }
+                  }}
+                  actions={[
+                    {
+                      icon: 'kill',
+                      onClick: (event, rowData: any) => {
+                        setOpen(true);
+                        setCurrentJob({
+                          cluster:rowData['cluster'],
+                          jobId: rowData['jobId'],
+                          priority:currentJob.priority
+                        })
+                      }
+                    },
+                    {
+                      icon: 'Pause',
+                      onClick: (event, rowData: any)  => {
+                      },
+                    }
+                  ]}
+                  components={{
+                    Action: (props: any)=>renderActions(props),
+
+                  }}
+                /> : null}
+              </DLTSTabPanel> : <CircularProgress/>
         }
         <DLTSSnackbar message={message}
-          open = {openKillWarn || openApproveWarn || openPauseWarn || openResumeWarn || openUpatePriorityWarn}
-          handleWarnClose={()=>{handleWarnClose()}}
-          autoHideDuration={1000}
+                      open = {openKillWarn || openApproveWarn || openPauseWarn || openResumeWarn || openUpatePriorityWarn}
+                      handleWarnClose={handleWarnClose}
+                      autoHideDuration={1000}
         />
       </Fragment>
     )

@@ -94,7 +94,7 @@ const Layout: React.FC<RouteComponentProps> = ({ location, history }) => {
 const App: React.FC<BootstrapProps> = (props) => (
   <Contexts {...props}>
     <CssBaseline/>
-    <Box display="flex" minHeight="100vh" minWidth="100vw" alignItems="stretch" justifyContent="stretch">
+    <Box display="flex" minHeight="100vh" maxWidth="100vw">
       <React.Suspense fallback={Loading}>
         <Switch>
           <Route exact path="/sign-in" component={SignIn}/>
