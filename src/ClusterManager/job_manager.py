@@ -8,6 +8,8 @@ import sys
 import datetime
 import copy
 import traceback
+import functools
+import timeit
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
@@ -32,6 +34,8 @@ import thread
 import threading
 import random
 
+from prometheus_client import Histogram
+
 import logging
 import logging.config
 from job import Job, JobSchema
@@ -42,6 +46,22 @@ from job_role import JobRole
 
 from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time
 
+jobmanager_fn_histogram = Histogram("jobmanager_fn_latency_seconds",
+        "latency for executing jobmanager function (seconds)",
+        buckets=(.05, .075, .1, .25, .5, .75, 1.0, 2.5, 5.0,
+            7.5, 10.0, 12.5, 15.0, 17.5, 20.0, float("inf")),
+        labelnames=("fn_name",))
+
+def record(fn):
+    @functools.wraps(fn)
+    def wrapped(*args, **kwargs):
+        start = timeit.default_timer()
+        try:
+            return fn(*args, **kwargs)
+        finally:
+            elapsed = timeit.default_timer() - start
+            jobmanager_fn_histogram.labels(fn.__name__).observe(elapsed)
+    return wrapped
 
 def all_pods_not_existing(job_id):
     job_deployer = JobDeployer()
@@ -51,6 +71,7 @@ def all_pods_not_existing(job_id):
     return all([status == "NotFound" for status in statuses])
 
 
+@record
 def SubmitJob(job):
     # check if existing any pod with label: run=job_id
     assert("jobId" in job)
@@ -186,6 +207,7 @@ def GetJobTotalGpu(jobParams):
     return int(jobParams["resourcegpu"]) * numWorkers
 
 
+@record
 def ApproveJob(job,dataHandlerOri = None):
     try:
         job_id = job["jobId"]
@@ -241,6 +263,7 @@ def ApproveJob(job,dataHandlerOri = None):
 
 UnusualJobs = {}
 
+@record
 def UpdateJobStatus(job, notifier=None,dataHandlerOri = None):
     assert(job["jobStatus"] == "scheduling" or job["jobStatus"] == "running")
     if dataHandlerOri is None:
@@ -384,6 +407,7 @@ def get_job_priority(priority_dict, job_id):
     return 100
 
 
+@record
 def TakeJobActions(jobs):
     dataHandler = DataHandler()
     vcList = dataHandler.ListVCs()
@@ -491,6 +515,14 @@ def TakeJobActions(jobs):
     logging.info("TakeJobActions : job desired actions taken")
 
 
+@record
+def kill_killing_job(job_id, dataHandlerOri=None):
+    KillJob(job_id, "killed", dataHandlerOri)
+
+@record
+def kill_pausing_job(job_id, dataHandlerOri=None):
+    KillJob(job_id, "paused", dataHandlerOri)
+
 def Run(updateblock=0):
     register_stack_trace_dump()
     notifier = notify.Notifier(config.get("job-manager"))
@@ -521,18 +553,17 @@ def Run(updateblock=0):
                         logging.info("Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"]))
                         if updateblock == 0 or updateblock == 2:
                             if job["jobStatus"] == "killing":
-                                KillJob(job["jobId"], "killed",dataHandlerOri = dataHandler)
+                                kill_killing_job(job["jobId"], dataHandlerOri=dataHandler)
                             elif job["jobStatus"] == "pausing":
-                                KillJob(job["jobId"], "paused",dataHandlerOri = dataHandler)
+                                kill_pausing_job(job["jobId"], dataHandlerOri=dataHandler)
                             elif job["jobStatus"] == "running":
-                                UpdateJobStatus(job, notifier,dataHandlerOri = dataHandler)   
+                                UpdateJobStatus(job, notifier,dataHandlerOri = dataHandler)
 
                         if updateblock == 0 or updateblock == 1:
                             if job["jobStatus"] == "scheduling":
                                 UpdateJobStatus(job, notifier,dataHandlerOri = dataHandler)
                             elif job["jobStatus"] == "unapproved":
                                 ApproveJob(job,dataHandlerOri = dataHandler)
-
                     except Exception as e:
                         logging.warning(e, exc_info=True)
             except Exception as e:
