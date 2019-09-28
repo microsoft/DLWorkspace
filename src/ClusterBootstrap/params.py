@@ -628,9 +628,8 @@ default_config_parameters = {
         },
         "samba_range": "104.44.112.0/24",
     },
-    "nfs_node_num": 0,
-    "nfs_suffixes":[],
-    "nfs_svr_setup": [
+
+    "nfs_mnt_setup": [
           {
             "mnt_point": {"rootshare":{"curphysicalmountpoint":"/mntdlws/infranfs","filesharename":"/infradata/share","mountpoints":""}}}
     ],

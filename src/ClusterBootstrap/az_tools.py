@@ -33,8 +33,8 @@ import utils
 from az_params import *
 from params import *
 
-verbose = False
-no_execution = False
+verbose = True
+no_execution = True
 
 # These are the default configuration parameter
 
@@ -80,7 +80,7 @@ def update_config(config, genSSH=True):
         "azure_cluster"]["cluster_name"] + "-nsg"
 
     config["azure_cluster"]["nfs_nsg_name"] = config["azure_cluster"]["cluster_name"] + [
-            "","-nfs"][int(int(config["nfs_node_num"]) > 0)] + "-nsg"
+            "","-nfs"][int(int(config["azure_cluster"]["nfs_node_num"]) > 0)] + "-nsg"
     config["azure_cluster"]["sql_server_name"] = config[
         "azure_cluster"]["cluster_name"] + "sqlserver"
     config["azure_cluster"]["sql_admin_name"] = config[
@@ -108,59 +108,37 @@ def update_config(config, genSSH=True):
 
     return config
 
-def create_vm_pwd(vmname, vm_ip, vm_size, use_private_ip, pwd):
-    auth = ""
+def create_vm(vmname, vm_ip, role, vm_size, pwd, vmcnf):
     if pwd is not None:
         auth = """--authentication-type password --admin-password '%s' """ % pwd
     else:
-        auth = """--authentication-type ssh --ssh-key-value "%s" """ % config["azure_cluster"]["sshkey"]
-    privateip = ""
-    if use_private_ip:
-        privateip = """--private-ip-address %s""" % vm_ip
-    cmd = """
-        az vm create --resource-group %s \
-                    --name %s \
-                    --image %s \
-                    %s \
-                    --public-ip-address-dns-name %s \
-                    --location %s \
-                    --size %s \
-                    --vnet-name %s \
-                    --subnet mySubnet \
-                    --nsg %s \
-                    --admin-username %s \
-                    --storage-sku %s \
-                    --data-disk-sizes-gb %s \
-                    %s \
-        """ % (config["azure_cluster"]["resource_group_name"],
-                vmname,
-                config["azure_cluster"]["vm_image"],
-                privateip,
-                vmname,
-                config["azure_cluster"]["azure_location"],
-                vm_size,
-                config["azure_cluster"]["vnet_name"],
-                config["azure_cluster"]["nsg_name"],
-                config["cloud_config"]["default_admin_username"],
-                config["azure_cluster"]["vm_storage_sku"],
-                config["azure_cluster"]["%s_local_storage_sz" % role],
-                auth)
+        auth = """--generate-ssh-keys --authentication-type ssh --ssh-key-value '%s' """ % config["azure_cluster"]["sshkey"]
 
-    if verbose:
-        print(cmd)
-    if not no_execution:
-        output = utils.exec_cmd_local(cmd)
-        print(output)
-
-def create_vm(vmname, vm_ip, role, vm_size):
-    specify_priv_IP = not role in ["worker","nfs"]
+    priv_IP = "--private-ip-address %s " % vm_ip if not role in ["worker","nfs"] else ""
     nsg = "nfs_nsg_name" if role == "nfs" else "nsg_name"
+    
+    availability_set = ""
+    if role == "worker" and "availability_set" in config["azure_cluster"]:
+        availability_set = "--availability-set '%s'" % config["azure_cluster"]["availability_set"]
+    if role in ["infra", "worker"]:		
+        storage = "--storage-sku {} --data-disk-sizes-gb {} ".format(config["azure_cluster"]["vm_local_storage_sku"],
+                config["azure_cluster"]["%s_local_storage_sz" % role])
+        # corner case: NFS on infra
+        if role == "infra" and config["azure_cluster"]["nfs_node_num"] <= 0:
+            storage += " " + " ".join([config["azure_cluster"]["nfs_data_disk_sz"]]*config["azure_cluster"]["nfs_data_disk_num"])
+    elif role == 'nfs':
+        if vmcnf is None:
+            nfs_dd_sz, nfs_dd_num = config["azure_cluster"]["nfs_data_disk_sz"], config["azure_cluster"]["nfs_data_disk_num"]
+            nfs_sku = config["azure_cluster"]["nfs_data_disk_sku"]
+        else:
+            nfs_dd_sz, nfs_dd_num, nfs_sku = vmcnf["data_disk_num"], vmcnf["data_disk_sz_gb"], vmcnf["data_disk_sku"]
+        storage = "--storage-sku {} --data-disk-sizes-gb {} ".format(nfs_sku,
+                " " + " ".join([nfs_dd_sz]*nfs_dd_num))
     cmd = """
-        az vm create --resource-group %s \
+            az vm create --resource-group %s \
                  --name %s \
                  --image %s \
-                 --generate-ssh-keys  \
-                 --private-ip-address %s \
+                 %s \
                  --public-ip-address-dns-name %s \
                  --location %s \
                  --size %s \
@@ -168,87 +146,25 @@ def create_vm(vmname, vm_ip, role, vm_size):
                  --subnet mySubnet \
                  --nsg %s \
                  --admin-username %s \
-                 --storage-sku %s \
-                 --data-disk-sizes-gb %s \
-                 --ssh-key-value "%s"
+                 %s \
+                 --ssh-key-value "%s" \
+                 %s \
+                 
         """ % (config["azure_cluster"]["resource_group_name"],
                vmname,
                config["azure_cluster"]["vm_image"],
-               vm_ip,
+               priv_IP,
                vmname,
                config["azure_cluster"]["azure_location"],
                vm_size,
                config["azure_cluster"]["vnet_name"],
                config["azure_cluster"][nsg],
                config["cloud_config"]["default_admin_username"],
-               config["azure_cluster"]["vm_storage_sku"],
-               config["azure_cluster"]["%s_local_storage_sz" % role],
-               config["azure_cluster"]["sshkey"]) if specify_priv_IP else """
-        az vm create --resource-group %s \
-                 --name %s \
-                 --image %s \
-                 --generate-ssh-keys  \
-                 --public-ip-address-dns-name %s \
-                 --location %s \
-                 --size %s \
-                 --vnet-name %s \
-                 --subnet mySubnet \
-                 --nsg %s \
-                 --admin-username %s \
-                 --storage-sku %s \
-                 --data-disk-sizes-gb %s \
-                 --ssh-key-value "%s"
-        """ % (config["azure_cluster"]["resource_group_name"],
-               vmname,
-               config["azure_cluster"]["vm_image"],
-               vmname,
-               config["azure_cluster"]["azure_location"],
-               vm_size,
-               config["azure_cluster"]["vnet_name"],
-               config["azure_cluster"][nsg],
-               config["cloud_config"]["default_admin_username"],
-               config["azure_cluster"]["vm_storage_sku"],
-               config["azure_cluster"]["%s_local_storage_sz" % role],
-               config["azure_cluster"]["sshkey"])
+               
+               config["azure_cluster"]["sshkey"], 
+               auth,
+               availability_set)
 
-    # Support putting workers in a pre-created availability set
-    # TODO:
-    #   1. Merge with the above
-    #   2. Create an availability set for workers if absent
-    if role == "worker":
-        if "availability_set" in config["azure_cluster"]:
-            cmd = """
-                az vm create --resource-group %s \
-                         --name %s \
-                         --image %s \
-                         --generate-ssh-keys  \
-                         --public-ip-address-dns-name %s \
-                         --location %s \
-                         --size %s \
-                         --vnet-name %s \
-                         --subnet mySubnet \
-                         --nsg %s \
-                         --admin-username %s \
-                         --storage-sku %s \
-                         --data-disk-sizes-gb %s \
-                         --ssh-key-value "%s" \
-                         --availability-set "%s"
-            """ % (config["azure_cluster"]["resource_group_name"],
-                   vmname,
-                   config["azure_cluster"]["vm_image"],
-                   vmname,
-                   config["azure_cluster"]["azure_location"],
-                   vm_size,
-                   config["azure_cluster"]["vnet_name"],
-                   config["azure_cluster"][nsg],
-                   config["cloud_config"]["default_admin_username"],
-                   config["azure_cluster"]["vm_storage_sku"],
-                   config["azure_cluster"]["%s_local_storage_sz" % role],
-                   config["azure_cluster"]["sshkey"],
-                   config["azure_cluster"]["availability_set"])
-
-    # Try remove static IP
-    #                 --public-ip-address-allocation static \
     if verbose:
         print(cmd)
     if not no_execution:
@@ -308,7 +224,7 @@ def create_storage_account():
             --resource-group %s \
             --location %s
         """ % (config["azure_cluster"]["storage_account_name"],
-               config["azure_cluster"]["vm_storage_sku"],
+               config["azure_cluster"]["vm_local_storage_sku"],
                config["azure_cluster"]["resource_group_name"],
                config["azure_cluster"]["azure_location"])
     if verbose:
@@ -445,7 +361,7 @@ def create_nfs_nsg():
     else:
         print "Please setup source_addresses_prefixes in config.yaml, otherwise, your cluster cannot be accessed"
         exit()
-    if int(config["nfs_node_num"]) > 0:
+    if int(config["azure_cluster"]["nfs_node_num"]) > 0:
         cmd = """
             az network nsg create \
                 --resource-group %s \
@@ -521,7 +437,7 @@ def get_vm_ip(i, role):
 
 def create_cluster(arm_vm_password=None, parallelism=1):
     bSQLOnly = (config["azure_cluster"]["infra_node_num"] <= 0)
-    assert int(config["nfs_node_num"]) >= len(config["nfs_suffixes"])
+    assert int(config["azure_cluster"]["nfs_node_num"]) >= len(config["azure_cluster"]["nfs_vm"])
     print "creating resource group..."
     create_group()
     if not bSQLOnly:
@@ -566,46 +482,37 @@ def create_cluster(arm_vm_password=None, parallelism=1):
         utils.exec_cmd_local("chmod +x scripts/vmss.sh;./scripts/vmss.sh")
 
     # create nfs server if specified.
-    for i in range(int(config["nfs_node_num"])):
-        if i < len(config["nfs_suffixes"]):
-            create_vm_role_suffix(i, "nfs", config["azure_cluster"]["nfs_vm_size"],
-                config["nfs_suffixes"][i], arm_vm_password)
-        else:
-            create_vm_param(i, "nfs", config["azure_cluster"]["nfs_vm_size"],
-                        arm_vm_password is not None, arm_vm_password)
+    for i in range(int(config["azure_cluster"]["nfs_node_num"])):
+            create_vm_param(i, "nfs", config["azure_cluster"]["nfs_vm_size"], False, config["nfs_suffixes"][i], 
+               arm_vm_password, config["azure_cluster"]["nfs_vm"][i] if i < len(config["azure_cluster"]["nfs_vm"]) else None )
 
 def create_vm_param_wrapper(arg_tuple):
     i, role, vm_size, no_az, arm_vm_password = arg_tuple
     return create_vm_param(i, role, vm_size, no_az, arm_vm_password)
 
-def create_vm_param(i, role, vm_size, no_az=False, arm_vm_password=None):
+def create_vm_param(i, role, vm_size, no_az=False, arm_vm_password=None, vmcnf = None):
     assert role in config["allroles"] and "invalid machine role, please select from {}".format(' '.join(config["allroles"]))
-    if role in ["worker","nfs"]:
+    if not vmcnf is None and "suffix" in vmcnf:
+        vmname = "{}-{}-".format(config["azure_cluster"]["cluster_name"], role) + suffix
+    elif role in ["worker","nfs"]:
         vmname = "{}-{}".format(config["azure_cluster"]["cluster_name"].lower(), role) + ("{:02d}".format(i+1) if no_az else '-'+random_str(6))
     elif role == "infra":
         vmname = "%s-infra%02d" % (config["azure_cluster"]
                                    ["cluster_name"].lower(), i + 1)
-    else:
-        role = "dev"
+    elif role == "dev":
         vmname = "%s-dev" % (config["azure_cluster"]["cluster_name"].lower())
 
     print "creating VM %s..." % vmname
     vm_ip = get_vm_ip(i, role)
-    if arm_vm_password is not None:
-        create_vm_pwd(vmname, vm_ip, vm_size, not role in ["worker","nfs"], arm_vm_password)
-    else:
-        create_vm(vmname, vm_ip, role, vm_size)
+    create_vm(vmname, vm_ip, role, vm_size, arm_vm_password, vmcnf)
     return vmname
 
-def create_vm_role_suffix(i, role, vm_size, suffix, arm_vm_password=None):
+def create_vm_role_suffix(i, role, vm_size, suffix, arm_vm_password=None, vmcnf = None):
     assert role in config["allroles"] and "invalid machine role, please select from {}".format(' '.join(config["allroles"]))
-    vmname = "{}-{}-".format(config["azure_cluster"]["cluster_name"], role) + suffix
+    
     print "creating VM %s..." % vmname
     vm_ip = get_vm_ip(i, role)
-    if arm_vm_password is not None:
-        create_vm_pwd(vmname, vm_ip, vm_size, not role in ["worker","nfs"], arm_vm_password)
-    else:
-        create_vm(vmname, vm_ip, role, vm_size)
+    create_vm(vmname, vm_ip, role, vm_size, arm_vm_password, vmcnf)
     return vmname
 
 def useSqlAzure():
@@ -861,7 +768,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
                 "node-group": vm["vmSize"]}
 
     # Dilemma : Before the servers got created, you don't know there name, cannot specify which server does a mountpoint config group belongs to
-    if int(config["nfs_node_num"]) > 0:
+    if int(config["azure_cluster"]["nfs_node_num"]) > 0:
         nfs_names2ip = {rec['name']:rec['privateIP'][0] for rec in vm_ip_names if "-nfs" in rec['name']}
     else:
         nfs_names2ip = {rec['name']:rec['privateIP'][0] for rec in vm_ip_names if "infra" in rec['name']}
@@ -880,22 +787,25 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
             if file_share_key is not None:
                 cc["mountpoints"]["rootshare"]["accesskey"] = file_share_key
         else:
-            named_nfs_suffix = set(config["nfs_suffixes"] if "nfs_suffixes" in config["azure_cluster"] else [])
-            used_nfs_suffix = set([nfs_cnf["server_suffix"] for nfs_cnf in config["nfs_svr_setup"] if "server_suffix" in nfs_cnf])
-            assert (used_nfs_suffix - named_nfs_suffix) == set() and "suffix not in nfs_suffixes list!"
+            nfs_vm_suffixes = {vm["suffix"]:vm["data_disk_mnt_path"] for vm in config["azure_cluster"]["nfs_vm"] if "suffix" in vm}
+            used_nfs_suffix = set([nfs_cnf["server_suffix"] for nfs_cnf in config["nfs_mnt_setup"] if "server_suffix" in nfs_cnf])
+            assert (used_nfs_suffix - nfs_vm_suffixes.keys()) == set() and "suffix not in nfs_suffixes list!"
             assert len(nfs_names2ip) >= len(config["nfs_svr_setup"]) and "More NFS config items than #. of NFS server"
             suffix2used_nfs = {suffix: "{}-nfs-{}".format(config["cluster_name"], suffix) for suffix in used_nfs_suffix}
             # unused, either node without name suffix or those with suffix but not specified in any nfs_svr_setup item
             unused_nfs = sorted([s for s in nfs_names2ip.keys() if s not in suffix2used_nfs.values()])
             unused_ID_cnt = 0
-            for nfs_cnf in config["nfs_svr_setup"]:
+            for nfs_cnf in config["nfs_mnt_setup"]:
                 if "server_suffix" in nfs_cnf:
                     server_name = suffix2used_nfs[nfs_cnf["server_suffix"]]
+                    mnt_parent_path = nfs_vm_suffixes[nfs_cnf["server_suffix"]]
                 else:
                     server_name = unused_nfs[unused_ID_cnt]
                     unused_ID_cnt += 1
+                    mnt_parent_path = config["azure_cluster"]["nfs_data_disk_path"]
                 server_ip = nfs_names2ip[server_name]
                 for mntname, mntcnf in nfs_cnf["mnt_point"].items():
+                    assert mntcnf["filesharename"].startswith(mnt_parent_path) and "Wrong filesharename! Parent directory doesn't exist!"
                     if mntname in cc["mountpoints"]:
                         print("Warning, duplicated mountpoints item name {}, skipping".format(mntname))
                         continue
@@ -1072,9 +982,9 @@ Command:
                         action="store",
                         default=None)
 
-    parser.add_argument("--vm_storage_sku",
+    parser.add_argument("--vm_local_storage_sku",
                         help="Specify the azure storage sku, default = " +
-                        config["azure_cluster"]["vm_storage_sku"],
+                        config["azure_cluster"]["vm_local_storage_sku"],
                         action="store",
                         default=None)
 
@@ -1165,8 +1075,8 @@ Command:
         config["azure_cluster"]["worker_vm_size"] = args.worker_vm_size
     if (args.vm_image is not None):
         config["azure_cluster"]["vm_image"] = args.vm_image
-    if (args.vm_storage_sku is not None):
-        config["azure_cluster"]["vm_storage_sku"] = args.vm_storage_sku
+    if (args.vm_local_storage_sku is not None):
+        config["azure_cluster"]["vm_local_storage_sku"] = args.vm_local_storage_sku
     if (args.vnet_range is not None):
         config["azure_cluster"]["vnet_range"] = args.vnet_range
     if (args.default_admin_username is not None):

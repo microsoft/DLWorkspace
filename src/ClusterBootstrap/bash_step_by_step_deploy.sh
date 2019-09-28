@@ -4,6 +4,7 @@
 ./deploy.py runscriptonroles infra worker ./scripts/prepare_vm_disk.sh
 ./deploy.py nfs-server create
 ./deploy.py runscriptonroles infra worker ./scripts/prepare_ubuntu.sh
+./deploy.py runscriptonall ./scripts/disable_kernel_auto_updates.sh
 ./deploy.py genscripts
 ./deploy.py runscriptonroles infra worker ./scripts/dns.sh
 ./deploy.py -y deploy
