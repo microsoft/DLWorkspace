@@ -566,7 +566,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       },2000)
 
     }
-  }, [fetchPrometheus, history, postEndpointsData, selectedCluster])
+  }, [history, postEndpointsData, selectedCluster])
 
   React.useEffect(() => {
     if (postJobError) {
