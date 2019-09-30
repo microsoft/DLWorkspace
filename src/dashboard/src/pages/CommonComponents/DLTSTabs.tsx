@@ -14,7 +14,7 @@ interface TabsProps {
 export const DLTSTabs = (props: TabsProps) => {
   const { children, value,setShowIframe,setValue,titles,setRefresh, ...other } = props;
   return (
-    <Container maxWidth={useCheckIsDesktop ? 'lg' : 'xs'}  >
+    <Container maxWidth={useCheckIsDesktop ? 'xl' : 'lg'}  >
       <AppBar position="static" color="default">
         <Tabs
           value={value}
