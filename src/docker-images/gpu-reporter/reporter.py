@@ -63,7 +63,7 @@ def walk_json_field_safe(obj, *fields):
         return None
 
 
-def request_with_error_handling(url, timeout=15):
+def request_with_error_handling(url, timeout=60):
     try:
         response = requests.get(url, allow_redirects=True, timeout=timeout)
         response.raise_for_status()
