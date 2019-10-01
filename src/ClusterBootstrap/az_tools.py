@@ -33,8 +33,8 @@ import utils
 from az_params import *
 from params import *
 
-verbose = True
-no_execution = True
+verbose = False
+no_execution = False
 
 # These are the default configuration parameter
 
@@ -125,15 +125,16 @@ def create_vm(vmname, vm_ip, role, vm_size, pwd, vmcnf):
                 config["azure_cluster"]["%s_local_storage_sz" % role])
         # corner case: NFS on infra
         if role == "infra" and config["azure_cluster"]["nfs_node_num"] <= 0:
-            storage += " " + " ".join([config["azure_cluster"]["nfs_data_disk_sz"]]*config["azure_cluster"]["nfs_data_disk_num"])
+            storage += " " + " ".join([str(config["azure_cluster"]["nfs_data_disk_sz"])]*config["azure_cluster"]["nfs_data_disk_num"])
     elif role == 'nfs':
         if vmcnf is None:
             nfs_dd_sz, nfs_dd_num = config["azure_cluster"]["nfs_data_disk_sz"], config["azure_cluster"]["nfs_data_disk_num"]
             nfs_sku = config["azure_cluster"]["nfs_data_disk_sku"]
         else:
-            nfs_dd_sz, nfs_dd_num, nfs_sku = vmcnf["data_disk_num"], vmcnf["data_disk_sz_gb"], vmcnf["data_disk_sku"]
+            nfs_dd_sz, nfs_dd_num, nfs_sku = vmcnf["data_disk_sz_gb"], vmcnf["data_disk_num"], vmcnf["data_disk_sku"]
         storage = "--storage-sku {} --data-disk-sizes-gb {} ".format(nfs_sku,
-                " " + " ".join([nfs_dd_sz]*nfs_dd_num))
+                " " + " ".join([str(nfs_dd_sz)]*nfs_dd_num))
+
     cmd = """
             az vm create --resource-group %s \
                  --name %s \
@@ -147,7 +148,7 @@ def create_vm(vmname, vm_ip, role, vm_size, pwd, vmcnf):
                  --nsg %s \
                  --admin-username %s \
                  %s \
-                 --ssh-key-value "%s" \
+                 %s \
                  %s \
                  
         """ % (config["azure_cluster"]["resource_group_name"],
@@ -160,8 +161,7 @@ def create_vm(vmname, vm_ip, role, vm_size, pwd, vmcnf):
                config["azure_cluster"]["vnet_name"],
                config["azure_cluster"][nsg],
                config["cloud_config"]["default_admin_username"],
-               
-               config["azure_cluster"]["sshkey"], 
+               storage,
                auth,
                availability_set)
 
@@ -483,7 +483,7 @@ def create_cluster(arm_vm_password=None, parallelism=1):
 
     # create nfs server if specified.
     for i in range(int(config["azure_cluster"]["nfs_node_num"])):
-            create_vm_param(i, "nfs", config["azure_cluster"]["nfs_vm_size"], False, config["nfs_suffixes"][i], 
+            create_vm_param(i, "nfs", config["azure_cluster"]["nfs_vm_size"], False,
                arm_vm_password, config["azure_cluster"]["nfs_vm"][i] if i < len(config["azure_cluster"]["nfs_vm"]) else None )
 
 def create_vm_param_wrapper(arg_tuple):
@@ -493,7 +493,7 @@ def create_vm_param_wrapper(arg_tuple):
 def create_vm_param(i, role, vm_size, no_az=False, arm_vm_password=None, vmcnf = None):
     assert role in config["allroles"] and "invalid machine role, please select from {}".format(' '.join(config["allroles"]))
     if not vmcnf is None and "suffix" in vmcnf:
-        vmname = "{}-{}-".format(config["azure_cluster"]["cluster_name"], role) + suffix
+        vmname = "{}-{}-".format(config["azure_cluster"]["cluster_name"], role) + vmcnf["suffix"]
     elif role in ["worker","nfs"]:
         vmname = "{}-{}".format(config["azure_cluster"]["cluster_name"].lower(), role) + ("{:02d}".format(i+1) if no_az else '-'+random_str(6))
     elif role == "infra":
@@ -664,6 +664,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
     if config["priority"] == "low":
         utils.render_template("./template/dns/cname_and_private_ips.sh.template", "scripts/cname_and_ips.sh", config)    
         utils.exec_cmd_local("chmod +x scripts/cname_and_ips.sh")
+        print "\nPlease copy the commands in dns_add_commands and register the DNS records on http://servicebook/dns/self-service.html\n"
     bSQLOnly = (config["azure_cluster"]["infra_node_num"] <= 0)
     if useAzureFileshare() and not no_az:
         # theoretically it could be supported, but would require storage account to be created first in nested template and then
@@ -767,15 +768,18 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
                 "role": "nfs",
                 "node-group": vm["vmSize"]}
 
-    # Dilemma : Before the servers got created, you don't know there name, cannot specify which server does a mountpoint config group belongs to
+    # Dilemma : Before the servers got created, you don't know their name, cannot specify which server does a mountpoint config group belongs to
     if int(config["azure_cluster"]["nfs_node_num"]) > 0:
         nfs_names2ip = {rec['name']:rec['privateIP'][0] for rec in vm_ip_names if "-nfs" in rec['name']}
     else:
         nfs_names2ip = {rec['name']:rec['privateIP'][0] for rec in vm_ip_names if "infra" in rec['name']}
     if not bSQLOnly:
-        # Require explicit authorization setting.
-        # cc["WinbindServers"] = []
-        # cc["WebUIauthorizedGroups"] = ['MicrosoftUsers']
+        cc["disk_mnt"] = {}
+        suffixed_name_2path = {"{}-nfs-{}".format(config["cluster_name"], vm["suffix"]):vm["data_disk_mnt_path"] for vm in config["azure_cluster"]["nfs_vm"] if "suffix" in vm}
+        for svr_name, svr_ip in nfs_names2ip.items():
+            pth = suffixed_name_2path.get(svr_name, config["azure_cluster"]["nfs_data_disk_path"])
+            role = "nfs" if "-nfs" in svr_name else "infra"
+            cc["disk_mnt"][svr_name] = {"path": pth, "role": role, "ip": svr_ip, "fileshares":[]}
         cc["mountpoints"] = {}
         if useAzureFileshare():
             cc["mountpoints"]["rootshare"]["type"] = "azurefileshare"
@@ -787,10 +791,10 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
             if file_share_key is not None:
                 cc["mountpoints"]["rootshare"]["accesskey"] = file_share_key
         else:
-            nfs_vm_suffixes = {vm["suffix"]:vm["data_disk_mnt_path"] for vm in config["azure_cluster"]["nfs_vm"] if "suffix" in vm}
+            nfs_vm_suffixes2dpath = {vm["suffix"]:vm["data_disk_mnt_path"] for vm in config["azure_cluster"]["nfs_vm"] if "suffix" in vm}
             used_nfs_suffix = set([nfs_cnf["server_suffix"] for nfs_cnf in config["nfs_mnt_setup"] if "server_suffix" in nfs_cnf])
-            assert (used_nfs_suffix - nfs_vm_suffixes.keys()) == set() and "suffix not in nfs_suffixes list!"
-            assert len(nfs_names2ip) >= len(config["nfs_svr_setup"]) and "More NFS config items than #. of NFS server"
+            assert (used_nfs_suffix - set(nfs_vm_suffixes2dpath.keys())) == set() and "suffix not in nfs_suffixes list!"
+            assert len(nfs_names2ip) >= len(config["azure_cluster"]["nfs_vm"]) and "More NFS config items than #. of NFS server"
             suffix2used_nfs = {suffix: "{}-nfs-{}".format(config["cluster_name"], suffix) for suffix in used_nfs_suffix}
             # unused, either node without name suffix or those with suffix but not specified in any nfs_svr_setup item
             unused_nfs = sorted([s for s in nfs_names2ip.keys() if s not in suffix2used_nfs.values()])
@@ -798,22 +802,25 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
             for nfs_cnf in config["nfs_mnt_setup"]:
                 if "server_suffix" in nfs_cnf:
                     server_name = suffix2used_nfs[nfs_cnf["server_suffix"]]
-                    mnt_parent_path = nfs_vm_suffixes[nfs_cnf["server_suffix"]]
+                    mnt_parent_path = nfs_vm_suffixes2dpath[nfs_cnf["server_suffix"]]
                 else:
                     server_name = unused_nfs[unused_ID_cnt]
                     unused_ID_cnt += 1
                     mnt_parent_path = config["azure_cluster"]["nfs_data_disk_path"]
                 server_ip = nfs_names2ip[server_name]
                 for mntname, mntcnf in nfs_cnf["mnt_point"].items():
-                    assert mntcnf["filesharename"].startswith(mnt_parent_path) and "Wrong filesharename! Parent directory doesn't exist!"
+                    if not mntcnf["filesharename"].startswith(mnt_parent_path):
+                        print "Error: Wrong filesharename {}! Mount path is {} !".format(mntcnf["filesharename"], mnt_parent_path)
+                        raise ValueError
                     if mntname in cc["mountpoints"]:
                         print("Warning, duplicated mountpoints item name {}, skipping".format(mntname))
                         continue
+                    cc["disk_mnt"][server_name]["fileshares"] += mntcnf["filesharename"],
                     cc["mountpoints"][mntname] = mntcnf
                     cc["mountpoints"][mntname]["type"] = "nfs"
                     cc["mountpoints"][mntname]["server"] = server_ip
                     cc["mountpoints"][mntname]["servername"] = server_name
-    print "\nPlease copy the commands in dns_add_commands and register the DNS records on http://servicebook/dns/self-service.html\n"
+    
     if output_file:
         print yaml.dump(cc, default_flow_style=False)
         with open(output_file_name, 'w') as outfile:
@@ -877,8 +884,21 @@ def delete_cluster():
     if response == "DELETE":
         delete_group()
 
+def check_subscription():
+    chkcmd ="az account list | grep -A5 -B5 '\"isDefault\": true'"
+    output = utils.exec_cmd_local(chkcmd)
+    if not config["azure_cluster"]["subscription"] in output:
+        setcmd = "az account set --subscription \"{}\"".format(config["azure_cluster"]["subscription"])
+        setout = utils.exec_cmd_local(setcmd)
+        print "Set your subscription to {}, please login.\nIf you want to specify another subscription, please configure azure_cluster.subscription".format(config["azure_cluster"]["subscription"])
+        utils.exec_cmd_local("az login")
+    assert config["azure_cluster"]["subscription"] in utils.exec_cmd_local(chkcmd)
 
 def run_command(args, command, nargs, parser):
+    if command == "genconfig":
+        gen_cluster_config("cluster.yaml", no_az=args.noaz)
+    else:
+        check_subscription()
     if command == "create":
         # print config["azure_cluster"]["infra_vm_size"]
         create_cluster(args.arm_password, args.parallelism)
@@ -920,9 +940,6 @@ def run_command(args, command, nargs, parser):
 
     elif command == "delete":
         delete_cluster()
-
-    elif command == "genconfig":
-        gen_cluster_config("cluster.yaml", no_az=args.noaz)
 
 if __name__ == '__main__':
     # the program always run at the current directory.
@@ -1086,7 +1103,7 @@ Command:
         config["azure_cluster"]["file_share_name"] = args.file_share_name
 
     config = update_config(config)
-    print (config)
+    # print (config)
 
     with open(config_cluster, 'w') as outfile:
         yaml.dump(config, outfile, default_flow_style=False)

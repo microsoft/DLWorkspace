@@ -1,8 +1,9 @@
 default_az_parameters = {
     "azure_cluster" : { 
+        "subscription": "Bing DLTS",
         "infra_node_num": 1, 
         "worker_node_num": 2, 
-        "nfs_node_num": 0,
+        "nfs_node_num": 1,
         "azure_location": "westus2",
         "infra_vm_size" : "Standard_D1_v2",
         "worker_vm_size": "Standard_NC6",

@@ -1,4 +1,4 @@
-#!/bin/bash 
+# !/bin/bash 
 sudo apt-get update 
 sudo apt-get install -y --no-install-recommends \
         apt-utils \
@@ -18,9 +18,9 @@ sudo apt-get install -y --no-install-recommends \
 sudo apt-get install libcurl4-openssl-dev libssl-dev gcc libnss3-dev libgnutls28-dev
 sudo apt-get install -y python-subprocess32
 # Install docker
-# curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
 
-# sudo add-apt-repository  "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" docker-ce
+sudo add-apt-repository  "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
 sudo apt install docker.io
 
 AZ_REPO=$(lsb_release -cs)
@@ -35,8 +35,9 @@ sudo apt-get update
 sudo apt-get install -y --no-install-recommends
 curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash 
 
-# pip install --upgrade pip
-sudo pip install setuptools && pip install pyyaml && pip install jinja2 && pip install requests && pip install tzlocal && pip install pycurl
+pip install --upgrade pip
+pip install setuptools && pip install pyyaml && pip install jinja2 && pip install requests && pip install tzlocal && pip install pycurl
 
 sudo echo "dockerd > /dev/null 2>&1 &" | cat >> /etc/bash.bashrc
-./gene_loc_dns.sh
+sudo usermod -aG docker $USER
+sudo shutdown -r
