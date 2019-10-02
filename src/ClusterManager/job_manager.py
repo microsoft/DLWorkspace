@@ -99,11 +99,13 @@ def SubmitJob(job):
             pod_template = PodTemplate(job_object.get_template(), enable_custom_scheduler)
         else:
             dataHandler.SetJobError(job_object.job_id, "ERROR: invalid jobtrainingtype: %s" % job_object.params["jobtrainingtype"])
+            dataHandler.Close()
             return False
 
         pods, error = pod_template.generate_pods(job_object)
         if error:
             dataHandler.SetJobError(job_object.job_id, "ERROR: %s" % error)
+            dataHandler.Close()
             return False
 
         job_description = "\n---\n".join([yaml.dump(pod) for pod in pods])
