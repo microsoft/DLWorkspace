@@ -30,7 +30,7 @@ export const TeamVirtualClusterStatus = (props: TeamVC) => {
       <TableBody>
         {
           vcStatus ? vcStatus.map(( vcs: any, index: number) => {
-            const gpuCapacity =  checkObjIsEmpty(Object.values(vcs['gpu_capacity'])) ? 0 : (Number)(sumValues(vcs['gpu_avaliable']));
+            const gpuCapacity =  checkObjIsEmpty(Object.values(vcs['gpu_capacity'])) ? 0 : (Number)(sumValues(vcs['gpu_capacity']));
             const gpuAvailable = checkObjIsEmpty (Object.values(vcs['gpu_avaliable'])) ? 0 : (Number)(sumValues(vcs['gpu_avaliable']));
             const gpuUnschedulable = checkObjIsEmpty(Object.values(vcs['gpu_unschedulable'])) ? 0 : (Number)(sumValues(vcs['gpu_unschedulable'])) ;
             const gpuUsed =  checkObjIsEmpty(Object.values(vcs['gpu_used'])) ? 0 :  (Number)(sumValues(vcs['gpu_used']));
