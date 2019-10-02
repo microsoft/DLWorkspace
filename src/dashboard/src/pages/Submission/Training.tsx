@@ -701,6 +701,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                 >
                   <MenuItem value="RegularJob">Regular Job</MenuItem>
                   <MenuItem value="PSDistJob">Distirbuted Job</MenuItem>
+                  <MenuItem value="InferenceJob">Inference Job</MenuItem>
                 </TextField>
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -716,11 +717,11 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                   <MenuItem value="true">YES</MenuItem>
                 </TextField>
               </Grid>
-              { type === 'RegularJob' && (
+              { (type === 'RegularJob' ||  type === 'InferenceJob') && (
                 <Grid item xs={12}>
                   <TextField
                     type="number"
-                    error={gpus > cluster.userQuota}
+                    error={gpus > (type === 'InferenceJob' ? Number.MAX_VALUE : gpusPerNode)}
                     label="Number of GPUs"
                     fullWidth
                     variant="filled"
@@ -729,7 +730,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                   />
                 </Grid>
               )}
-              { type === 'PSDistJob' && (
+              { type === 'PSDistJob'  && (
                 <Grid item xs={12} sm={6}>
                   <TextField
                     type="number"
