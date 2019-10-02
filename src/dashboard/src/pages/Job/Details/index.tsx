@@ -25,6 +25,7 @@ import SwipeableViews from "react-swipeable-views";
 import {DLTSTabs} from "../../CommonComponents/DLTSTabs";
 import {JobDetailTitles, readOnlyJobDetailTitles} from "../../../Constants/TabsContants";
 import {DLTSSnackbar} from "../../CommonComponents/DLTSSnackbar";
+import ClusterContext from "../../../contexts/Clusters";
 interface Props {
   clusterId: string;
   jobId: string;
@@ -40,7 +41,8 @@ const JobDetails: React.FC<Props> = ({ clusterId, jobId, job }) => {
   const handleChangeIndex = (index: number) => {
     setValue(index);
   }
-  const isReadOnly = (email !== job['userName']);
+  const { clusters } = React.useContext(ClusterContext);
+  const isReadOnly = clusters.filter((cluster) => cluster.id === clusterId)[0].admin || email === job['userName'];
   useEffect(()=>{
     let mount = true;
     let timeout: any;
@@ -57,7 +59,7 @@ const JobDetails: React.FC<Props> = ({ clusterId, jobId, job }) => {
   const handleWarnClose = () => {
     setshowOpen(false)
   }
-  if (isReadOnly) {
+  if (!isReadOnly) {
     return (
       <Context.Provider value={{ jobId, clusterId, job, cluster }}>
         <DLTSTabs value={value} setValue={setValue} titles={readOnlyJobDetailTitles}  />
@@ -98,7 +100,7 @@ const JobDetails: React.FC<Props> = ({ clusterId, jobId, job }) => {
             { showIframe ? cluster && <Container maxWidth={isDesktop ? 'lg' : 'xs'} ><Monitor/></Container> :  <CircularProgress/>}
           </DLTSTabPanel>
           <DLTSTabPanel value={value} index={3} dir={theme.direction}>
-            { job['log'] && <Box marginTop={2}><Log/></Box> }
+            { job['log'] && <Container maxWidth={isDesktop ? 'lg' : 'xs'} ><Log/></Container> }
           </DLTSTabPanel>
         </SwipeableViews>
         <DLTSSnackbar message={"Copied"}

@@ -4,7 +4,7 @@ import {
   TableHead,
   TableRow, TableCell, TableBody, Radio
 } from "@material-ui/core";
-import {checkObjIsEmpty} from "../../../utlities/ObjUtlities";
+import {checkObjIsEmpty, sumValues} from "../../../utlities/ObjUtlities";
 import { TeamVCTitles } from "../../../Constants/TabsContants";
 
 interface TeamVC {
@@ -21,8 +21,8 @@ export const TeamVirtualClusterStatus = (props: TeamVC) => {
       <TableHead>
         <TableRow>
           {
-            TeamVCTitles.map((teamVCTitle)=>(
-              <TableCell>{teamVCTitle}</TableCell>
+            TeamVCTitles.map((teamVCTitle, index)=>(
+              <TableCell key={index}>{teamVCTitle}</TableCell>
             ))
           }
         </TableRow>
@@ -30,10 +30,10 @@ export const TeamVirtualClusterStatus = (props: TeamVC) => {
       <TableBody>
         {
           vcStatus ? vcStatus.map(( vcs: any, index: number) => {
-            const gpuCapacity =  checkObjIsEmpty(Object.values(vcs['gpu_capacity'])) ? 0 : (String)(Object.values(vcs['gpu_capacity'])[0]);
-            const gpuAvailable = checkObjIsEmpty (Object.values(vcs['gpu_avaliable'])) ? 0 : (String)(Object.values(vcs['gpu_avaliable'])[0]);
-            const gpuUnschedulable = checkObjIsEmpty(Object.values(vcs['gpu_unschedulable'])) ? 0 : (String)(Object.values(vcs['gpu_unschedulable'])[0]);
-            const gpuUsed =  checkObjIsEmpty(Object.values(vcs['gpu_used'])) ? 0 : (String)(Object.values(vcs['gpu_used'])[0]);
+            const gpuCapacity =  checkObjIsEmpty(Object.values(vcs['gpu_capacity'])) ? 0 : (Number)(sumValues(vcs['gpu_capacity']));
+            const gpuAvailable = checkObjIsEmpty (Object.values(vcs['gpu_avaliable'])) ? 0 : (Number)(sumValues(vcs['gpu_avaliable']));
+            const gpuUnschedulable = checkObjIsEmpty(Object.values(vcs['gpu_unschedulable'])) ? 0 : (Number)(sumValues(vcs['gpu_unschedulable'])) ;
+            const gpuUsed =  checkObjIsEmpty(Object.values(vcs['gpu_used'])) ? 0 :  (Number)(sumValues(vcs['gpu_used']));
             return (
               <>
                 <TableRow key={index}>
