@@ -4,6 +4,8 @@ import json
 import yaml
 from jinja2 import Template
 from job import Job
+import copy 
+
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 from osUtils import mkdirsAsUser
@@ -104,8 +106,14 @@ class PodTemplate():
         if "gpuType" in params:
             params["nodeSelector"]["gpuType"] = params["gpuType"]
 
-        local_pod_path = job.get_hostpath(job.job_path, "master")
-        params["LaunchCMD"] = PodTemplate.generate_launch_script(params["jobId"], local_pod_path, params["userId"], params["resourcegpu"], params["cmd"])
+        # we need to make pod init. script more flexible, hacking here to avoid redeploy bootstrap script on all clusters 
+        if params["jobtrainingtype"] == "InferenceJob":
+            for idx in range(int(params["resourcegpu"])):
+                local_pod_path = job.get_hostpath(job.job_path, "logs/%d" % idx)
+                params["LaunchCMD"] = PodTemplate.generate_launch_script(params["jobId"], local_pod_path, params["userId"], params["resourcegpu"], params["cmd"])
+        else:
+            local_pod_path = job.get_hostpath(job.job_path, "master")
+            params["LaunchCMD"] = PodTemplate.generate_launch_script(params["jobId"], local_pod_path, params["userId"], params["resourcegpu"], params["cmd"])
 
         if "envs" not in params:
             params["envs"] =[]
@@ -120,25 +128,37 @@ class PodTemplate():
             step = int(params["hyperparameterstep"])
 
             for idx, val in enumerate(range(start, end, step)):
-                pod = params.copy()
+                pod = copy.deepcopy(params)
                 pod["podName"] = "{0}-pod-{1}".format(job.job_id, idx)
                 pod["envs"].append({"name": env_name, "value": val})
                 pods.append(pod)
+        elif params["jobtrainingtype"] == "InferenceJob":
+            for idx in range(int(params["resourcegpu"])):
+                pod = copy.deepcopy(params)
+                pod["podName"] = "{0}-pod-{1}".format(job.job_id, idx)
+                pod["envs"].append({"name": "DLTS_WORKER_RANK", "value": idx})
+                pod["gpuLimit"] = 1
+                pods.append(pod)                        
         else:
-            pod = params.copy()
+            pod = copy.deepcopy(params)
             pod["podName"] = job.job_id
             pods.append(pod)
 
         k8s_pods = []
-        for pod in pods:
+        for idx,pod in enumerate(pods):
             pod["numps"] = 0
             pod["numworker"] = 1
             pod["fragmentGpuJob"] = True
-            pod["gpuLimit"] = pod["resourcegpu"]
+            if "gpuLimit" not in pod:
+                pod["gpuLimit"] = pod["resourcegpu"]
 
-            # mount /pod
-            pod_path = job.get_hostpath(job.job_path, "master")
-            pod["mountpoints"].append({"name": "pod", "containerPath": "/pod", "hostPath": pod_path, "enabled": True})
+            if params["jobtrainingtype"] == "InferenceJob":
+                local_pod_path = job.get_hostpath(job.job_path, "logs/%d" % idx)
+                pod["mountpoints"].append({"name": "pod", "containerPath": "/pod", "hostPath": local_pod_path, "enabled": True})                
+            else:
+                # mount /pod
+                pod_path = job.get_hostpath(job.job_path, "master")
+                pod["mountpoints"].append({"name": "pod", "containerPath": "/pod", "hostPath": pod_path, "enabled": True})
 
             k8s_pod = self.generate_pod(pod)
             k8s_pods.append(k8s_pod)
