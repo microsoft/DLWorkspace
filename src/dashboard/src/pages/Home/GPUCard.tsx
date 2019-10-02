@@ -48,7 +48,7 @@ const useStyles = makeStyles((theme: Theme) => createStyles({
     backgroundColor: green[600],
   },
   container: {
-
+    fontSize:'10.5px'
   }
 }));
 

@@ -180,18 +180,13 @@ const ClusterStatus: FC = () => {
     localStorage.removeItem('selectedCluster')
     let mount = true;
     let timeout: any;
-    let timeout1: any;
     if (mount) {
       fetchClusterStatus()
       timeout = setTimeout(() => {fetchClusterStatus()},30000)
     }
-    timeout1 = setTimeout(()=>{
-      setShowIframe(true);
-    },2000);
     return () => {
       mount = false;
       clearTimeout(timeout)
-      clearTimeout(timeout1)
     }
   },[clusters, selectedTeam])
   const mergeUserStatus = (curUserStatus: any) => {
