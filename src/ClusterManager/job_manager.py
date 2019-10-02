@@ -95,6 +95,8 @@ def SubmitJob(job):
             pod_template = PodTemplate(job_object.get_template(), enable_custom_scheduler)
         elif job_object.params["jobtrainingtype"] == "PSDistJob":
             pod_template = DistPodTemplate(job_object.get_template())
+        elif job_object.params["jobtrainingtype"] == "InferenceJob":
+            pod_template = PodTemplate(job_object.get_template(), enable_custom_scheduler)
         else:
             dataHandler.SetJobError(job_object.job_id, "ERROR: invalid jobtrainingtype: %s" % job_object.params["jobtrainingtype"])
             return False
@@ -147,8 +149,12 @@ def SubmitJob(job):
     return ret
 
 
-def KillJob(job_id, desiredState="killed"):
-    dataHandler = DataHandler()
+def KillJob(job_id, desiredState="killed",dataHandlerOri = None):
+    if dataHandlerOri is None:
+        dataHandler = DataHandler()
+    else:
+        dataHandler = dataHandlerOri
+
     result, detail = k8sUtils.GetJobStatus(job_id)
     dataHandler.UpdateJobTextField(job_id, "jobStatusDetail", base64.b64encode(json.dumps(detail)))
     logging.info("Killing job %s, with status %s, %s" % (job_id, result, detail))
@@ -159,12 +165,14 @@ def KillJob(job_id, desiredState="killed"):
     if len(errors) == 0:
         dataHandler.UpdateJobTextField(job_id, "jobStatus", desiredState)
         dataHandler.UpdateJobTextField(job_id, "lastUpdated", datetime.datetime.now().isoformat())
-        dataHandler.Close()
+        if dataHandlerOri is None:
+            dataHandler.Close()
         return True
     else:
         dataHandler.UpdateJobTextField(job_id, "jobStatus", "error")
         dataHandler.UpdateJobTextField(job_id, "lastUpdated", datetime.datetime.now().isoformat())
-        dataHandler.Close()
+        if dataHandlerOri is None:
+            dataHandler.Close()
         logging.error("Kill job failed with errors: {}".format(errors))
         return False
 
@@ -176,14 +184,17 @@ def GetJobTotalGpu(jobParams):
     return int(jobParams["resourcegpu"]) * numWorkers
 
 
-def ApproveJob(job):
+def ApproveJob(job,dataHandlerOri = None):
     try:
         job_id = job["jobId"]
         vcName = job["vcName"]
         jobParams = json.loads(base64.b64decode(job["jobParams"]))
         job_total_gpus = GetJobTotalGpu(jobParams)
 
-        dataHandler = DataHandler()
+        if dataHandlerOri is None:
+            dataHandler = DataHandler()
+        else:
+            dataHandler = dataHandlerOri
 
         if "preemptionAllowed" in jobParams and jobParams["preemptionAllowed"] is True:
             logging.info("Job {} preemptible, approve!".format(job_id))
@@ -222,14 +233,18 @@ def ApproveJob(job):
     except Exception as e:
         logging.warning(e, exc_info=True)
     finally:
-        dataHandler.Close()
+        if dataHandlerOri is None:
+            dataHandler.Close()
 
 
 UnusualJobs = {}
 
-def UpdateJobStatus(job, notifier=None):
+def UpdateJobStatus(job, notifier=None,dataHandlerOri = None):
     assert(job["jobStatus"] == "scheduling" or job["jobStatus"] == "running")
-    dataHandler = DataHandler()
+    if dataHandlerOri is None:
+        dataHandler = DataHandler()
+    else:
+        dataHandler = dataHandlerOri
     jobParams = json.loads(base64.b64decode(job["jobParams"]))
 
     result = check_job_status(job["jobId"])
@@ -299,8 +314,8 @@ def UpdateJobStatus(job, notifier=None):
 
     if result != "Unknown" and result != "NotFound" and job["jobId"] in UnusualJobs:
         del UnusualJobs[job["jobId"]]
-
-    dataHandler.Close()
+    if dataHandlerOri is None:
+        dataHandler.Close()
 
 
 # TODO refine later
@@ -454,7 +469,7 @@ def TakeJobActions(jobs):
     logging.info("TakeJobActions : job desired actions taken")
 
 
-def Run():
+def Run(updateblock=0):
     register_stack_trace_dump()
     notifier = notify.Notifier(config.get("job-manager"))
     notifier.start()
@@ -472,22 +487,30 @@ def Run():
 
             try:
                 dataHandler = DataHandler()
-                pendingJobs = dataHandler.GetPendingJobs()
-                TakeJobActions(pendingJobs)
+
+                if updateblock == 0 or updateblock == 1:
+                    pendingJobs = dataHandler.GetPendingJobs()
+                    TakeJobActions(pendingJobs)
 
                 pendingJobs = dataHandler.GetPendingJobs()
                 logging.info("Updating status for %d jobs" % len(pendingJobs))
                 for job in pendingJobs:
                     try:
                         logging.info("Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"]))
-                        if job["jobStatus"] == "killing":
-                            KillJob(job["jobId"], "killed")
-                        elif job["jobStatus"] == "pausing":
-                            KillJob(job["jobId"], "paused")
-                        elif job["jobStatus"] == "scheduling" or job["jobStatus"] == "running":
-                            UpdateJobStatus(job, notifier)
-                        elif job["jobStatus"] == "unapproved":
-                            ApproveJob(job)
+                        if updateblock == 0 or updateblock == 2:
+                            if job["jobStatus"] == "killing":
+                                KillJob(job["jobId"], "killed",dataHandlerOri = dataHandler)
+                            elif job["jobStatus"] == "pausing":
+                                KillJob(job["jobId"], "paused",dataHandlerOri = dataHandler)
+                            elif job["jobStatus"] == "running":
+                                UpdateJobStatus(job, notifier,dataHandlerOri = dataHandler)   
+
+                        if updateblock == 0 or updateblock == 1:
+                            if job["jobStatus"] == "scheduling":
+                                UpdateJobStatus(job, notifier,dataHandlerOri = dataHandler)
+                            elif job["jobStatus"] == "unapproved":
+                                ApproveJob(job,dataHandlerOri = dataHandler)
+
                     except Exception as e:
                         logging.warning(e, exc_info=True)
             except Exception as e:
@@ -504,7 +527,9 @@ def Run():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", "-p", help="port of exporter", type=int, default=9200)
+    parser.add_argument("--updateblock", "-u", help="updateblock", type=int, default=0)
+
     args = parser.parse_args()
     setup_exporter_thread(args.port)
 
-    Run()
+    Run(args.updateblock)

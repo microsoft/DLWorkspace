@@ -124,6 +124,13 @@ class PodTemplate():
                 pod["podName"] = "{0}-pod-{1}".format(job.job_id, idx)
                 pod["envs"].append({"name": env_name, "value": val})
                 pods.append(pod)
+        elif params["jobtrainingtype"] == "inferencing":
+            for idx in range(int(params["gpuLimit"])):
+                pod = params.copy()
+                pod["podName"] = "{0}-pod-{1}".format(job.job_id, idx)
+                pod["envs"].append({"name": "DLTS_WORKER_RANK", "value": idx})
+                pod["gpuLimit"] = 1
+                pods.append(pod)                        
         else:
             pod = params.copy()
             pod["podName"] = job.job_id
