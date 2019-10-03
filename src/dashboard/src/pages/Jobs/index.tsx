@@ -147,7 +147,7 @@ const Jobs: React.FC = (props: any) => {
   const[isAdmin, setIsAdmin] = useState(clusters.filter((cluster) => cluster.id === currentCluster)[0].admin);
   const filterJobsByCluster = (jobs: any, clusterName: string) => {
     console.log(isAdmin);
-    if (clusterName === '-1' || clusterName === '') {
+    if (clusterName == '-1' || clusterName === '') {
       return Jobs;
     } else {
       return jobs.filter((job: any)=>job['cluster'] === clusterName)
@@ -373,7 +373,7 @@ const Jobs: React.FC = (props: any) => {
   const onClusterChange = (event: React.ChangeEvent<{ value: unknown }>) => {
     setCurrentCluster(event.target.value as string)
     let checkAdmin = false;
-    if (clusters.filter((cluster) => cluster.id === event.target.value as string)[0] !== undefined) {
+    if (clusters.filter((cluster) => cluster.id === event.target.value as string)[0] !== undefined ) {
       checkAdmin = clusters.filter((cluster) => cluster.id === event.target.value as string)[0].admin
     }
     setIsAdmin(checkAdmin);
