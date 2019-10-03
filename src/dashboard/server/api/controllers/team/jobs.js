@@ -10,14 +10,14 @@ const DEFAULT_PRIORITY = 100
 /** @type {import('koa').Middleware} */
 module.exports = async context => {
   const { teamId } = context.params
-  const offset = Number(context.query.offset) || 0
+  //const offset = Number(context.query.offset) || 0
   const limit = Number(context.query.limit) || 10
   const all = context.query.user === 'all'
 
   const getClusterJobs = async id => {
     const cluster = new Cluster(context, id)
     const [jobs, jobPriorities] = await Promise.all([
-      cluster.getJobs(teamId, all),
+      cluster.getJobs(teamId, all, limit),
       cluster.getJobsPriority().catch(() => Object.create(null)) // Ignore errors
     ])
 
@@ -45,5 +45,6 @@ module.exports = async context => {
     return jobBDate - jobADate
   })
 
-  context.body = jobs.slice(offset, offset + limit)
+  //context.body = jobs.slice(offset, offset + limit)
+  context.body = jobs
 }

@@ -165,8 +165,24 @@ const ClusterStatus: FC = () => {
               if (!mu.hasOwnProperty('idle')) {
                 mu['idle'] = "0";
               }
-            })
-            setUserStatus(_.values(mergeTwoObjsByKey(tmpMerged,prometheusResp,'userName')))
+            });
+            let finalUserStatus = _.values(mergeTwoObjsByKey(tmpMerged,prometheusResp,'userName'));
+            let totalRow: any = {};
+            totalRow['userName'] = 'Total';
+            totalRow['booked'] = 0;
+            totalRow['idle'] = 0;
+            totalRow['usedGPU'] = 0;
+            totalRow['idleGPU'] = 0;
+            for (let us of finalUserStatus) {
+              console.log(us);
+              totalRow['booked'] += us['booked'];
+              totalRow['idle'] += us['idle'];
+              totalRow['usedGPU'] += parseInt(us['usedGPU']);
+              totalRow['idleGPU'] += parseInt(us['idleGPU']);
+            }
+            finalUserStatus.push(totalRow);
+
+            setUserStatus(finalUserStatus)
 
           })
         })

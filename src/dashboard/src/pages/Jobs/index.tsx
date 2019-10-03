@@ -144,7 +144,7 @@ const Jobs: React.FC = (props: any) => {
   const [currentCluster, setCurrentCluster] = useState(props.match.params.cluster ? props.match.params.cluster : Array.isArray(_.map(clusters,'id') )?_.map(clusters,'id')[0] : '');
   const [jobs, error] = useJobs();
   const [allJobs, err] = useJobsAll();
-  const[isAdmin, setIsAdmin] = useState(false);
+  const[isAdmin, setIsAdmin] = useState(clusters.filter((cluster) => cluster.id === currentCluster)[0].admin);
   const filterJobsByCluster = (jobs: any, clusterName: string) => {
     console.log(isAdmin);
     if (clusterName === '-1' || clusterName === '') {
