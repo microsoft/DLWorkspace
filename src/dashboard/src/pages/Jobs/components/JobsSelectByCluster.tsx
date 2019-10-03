@@ -20,7 +20,6 @@ export const JobsSelectByCluster = (props: JobsSelectProps) => {
       value={currentCluster}
       onChange={onClusterChange}
     >
-      <MenuItem value={-1} divider>None</MenuItem>
       {Array.isArray(convertToArrayByKey(clusters,'id')) && convertToArrayByKey(clusters,'id').map((cluster: any, index: number) => (
         <MenuItem key={index} value={cluster}>{cluster}</MenuItem>
       ))}
