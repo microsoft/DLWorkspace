@@ -373,7 +373,7 @@ const Jobs: React.FC = (props: any) => {
   const onClusterChange = (event: React.ChangeEvent<{ value: unknown }>) => {
     setCurrentCluster(event.target.value as string)
     let checkAdmin = false;
-    if (clusters.filter((cluster) => cluster.id === event.target.value as string)[0] !== undefined ) {
+    if (clusters.filter((cluster) => cluster.id === event.target.value as string)[0] !== undefined) {
       checkAdmin = clusters.filter((cluster) => cluster.id === event.target.value as string)[0].admin
     }
     setIsAdmin(checkAdmin);
