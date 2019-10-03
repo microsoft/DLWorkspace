@@ -50,9 +50,9 @@ const ClusterStatus: FC = () => {
   const { selectedTeam } = React.useContext(TeamContext);
   const [selectedValue, setSelectedValue] = useState("");
   const [vcStatus, setVcStatus] = useState([]);
-  const [userStatus, setUserStatus] = useState([]);
+  const [userStatus, setUserStatus] = useState(Array());
   const [nodeStatus, setNodeStatus] = useState([]);
-  const[showIframe, setShowIframe] = useState(false);
+  const[showIframe, setShowIframe] = useState(true);
   const[iframeUrl,setIframeUrl] = React.useState('');
   const[iframeUrlForPerVC, setIframeUrlForPerVC] = React.useState('');
   const [showCurrentUser, setShowCurrentUser] = useState(true);
@@ -81,8 +81,8 @@ const ClusterStatus: FC = () => {
     response['prometheus'] = prometheus;
     return response;
   }
-  const[globalPrometheusResp, setGlobalPrometheusResp] = React.useState(Array());
-  const[globalIds, setGlobalIds] = React.useState(Array());
+  const[globalPrometheusResp, setGlobalPrometheusResp] = React.useState([]);
+  const[globalIds, setGlobalIds] = React.useState([]);
   const fetchClusterStatus = () => {
     if (clusters) {
       const params = new URLSearchParams({
@@ -96,7 +96,9 @@ const ClusterStatus: FC = () => {
       if (localStorage.getItem("selectedCluster")) {
         setSelectedValue((String)(localStorage.getItem("selectedCluster")));
       } else {
-        setSelectedValue(filterclusters[0]);
+        if (selectedValue === '') {
+          setSelectedValue(filterclusters[0]);
+        }
       }
       let fetchs: any = [];
       filterclusters.forEach((cluster) => {
@@ -104,29 +106,40 @@ const ClusterStatus: FC = () => {
       })
       Promise.all(fetchs).then((res: any) => {
         //init user status & node status when loading page
+        console.log(res)
+        let userfetchs: any = [];
+        console.log()
+        if (localStorage.getItem("selectedCluster") === null)  {
+          userfetchs = res[0];
+        } else {
+          console.log('test')
+          userfetchs = res.filter((vc: any) => vc['ClusterName'] === localStorage.getItem('selectedCluster'))[0];
+        }
+        console.log(userfetchs)
         let fetchUsrs: any = []
-        for (let fetchedUser of res[0]['user_status']) {
+        for (let fetchedUser of userfetchs['user_status'] ) {
           let tmpUser: any ={};
           tmpUser['userName'] = fetchedUser['userName'];
           tmpUser['usedGPU'] = (String)(Object.values(fetchedUser['userGPU'])[0]);
           fetchUsrs.push(tmpUser)
         }
+        console.log('--->', fetchUsrs)
 
         let fetchUsrsStatus = [];
-        fetchUsrsStatus.push(fetch(res[0]['idleGPUUrl']+paramsVc));
-        fetchUsrsStatus.push(fetch(decodeURIComponent(res[0]['getIdleGPUPerUserUrl']+params)));
+        fetchUsrsStatus.push(fetch(userfetchs['idleGPUUrl']+paramsVc));
+        fetchUsrsStatus.push(fetch(decodeURIComponent(userfetchs['getIdleGPUPerUserUrl']+params)));
+        let prometheusResp: any = [];
+        let fetchIdes: any = [];
         Promise.all(fetchUsrsStatus).then((responses: any) => {
           responses.forEach(async (response: any)=>{
             const res = await response.json();
-            let prometheusResp: any = [];
-            let fetchIdes: any = [];
+            console.log(res)
             if (res['data']) {
               for (let item of res['data']["result"]) {
                 let idleUser: any = {};
                 idleUser['userName'] = item['metric']['username'];
                 idleUser['idleGPU'] = item['value'][1];
                 prometheusResp.push(idleUser)
-                setGlobalPrometheusResp([...globalPrometheusResp, idleUser])
               }
             } else {
               for (let [key, value]  of Object.entries(res)) {
@@ -136,19 +149,10 @@ const ClusterStatus: FC = () => {
                 idleTmp['booked'] = Math.floor(arr['booked'] / 3600);
                 idleTmp['idle'] = Math.floor(arr['idle'] / 3600);
                 fetchIdes.push(idleTmp);
-                setGlobalIds([...globalIds,idleTmp])
               }
             }
-            const merged = mergeTwoObjsByKey(fetchUsrs, prometheusResp, 'userName');
-            let mergedUsers: any = _.values(merged);
-            mergedUsers.forEach((us: any)=>{
-              if (!us.hasOwnProperty('usedGPU')) {
-                us['usedGPU'] = "0";
-              }
-            })
-            const mergedTmp = mergeTwoObjsByKey(mergedUsers, fetchIdes, 'userName');
-            let mergedTmpUpdate: any = _.values(mergedTmp);
-            mergedTmpUpdate.forEach((mu: any)=>{
+            let tmpMerged = _.values(mergeTwoObjsByKey(fetchIdes,fetchUsrs,'userName'));
+            _.values(tmpMerged).forEach((mu: any)=>{
               if (!mu.hasOwnProperty('usedGPU')) {
                 mu['usedGPU'] = "0";
               }
@@ -161,16 +165,33 @@ const ClusterStatus: FC = () => {
               if (!mu.hasOwnProperty('idle')) {
                 mu['idle'] = "0";
               }
-            })
-            if (mergedTmpUpdate.length > 0) {
-              setUserStatus(mergedTmpUpdate)
+            });
+            let finalUserStatus = _.values(mergeTwoObjsByKey(tmpMerged,prometheusResp,'userName'));
+            let totalRow: any = {};
+            totalRow['userName'] = 'Total';
+            totalRow['booked'] = 0;
+            totalRow['idle'] = 0;
+            totalRow['usedGPU'] = 0;
+            totalRow['idleGPU'] = 0;
+            for (let us of finalUserStatus) {
+              console.log(us);
+              totalRow['booked'] += us['booked'];
+              totalRow['idle'] += us['idle'];
+              totalRow['usedGPU'] += parseInt(us['usedGPU']);
+              totalRow['idleGPU'] += parseInt(us['idleGPU']);
             }
+            finalUserStatus.push(totalRow);
+
+            setUserStatus(finalUserStatus)
+
           })
         })
 
-        setIframeUrl(res[0]['GranaUrl'] );
-        setNodeStatus(res[0]['node_status']);
-        setIframeUrlForPerVC(res[0]['GPUStatisticPerVC']);
+        setIframeUrl(userfetchs['GranaUrl'] );
+        console.log(userfetchs['GranaUrl'])
+        setNodeStatus(userfetchs['node_status']);
+        setIframeUrlForPerVC(userfetchs['GPUStatisticPerVC']);
+        console.log(userfetchs['GPUStatisticPerVC'])
         setVcStatus(res);
       })
     }
@@ -180,18 +201,14 @@ const ClusterStatus: FC = () => {
     localStorage.removeItem('selectedCluster')
     let mount = true;
     let timeout: any;
-    let timeout1: any;
     if (mount) {
       fetchClusterStatus()
       timeout = setTimeout(() => {fetchClusterStatus()},30000)
     }
-    timeout1 = setTimeout(()=>{
-      setShowIframe(true);
-    },2000);
+
     return () => {
       mount = false;
       clearTimeout(timeout)
-      clearTimeout(timeout1)
     }
   },[clusters, selectedTeam])
   const mergeUserStatus = (curUserStatus: any) => {
@@ -234,7 +251,8 @@ const ClusterStatus: FC = () => {
     setSelectedValue(event.target.value);
     localStorage.setItem('selectedCluster', event.target.value);
     const filteredVCStatus: any = vcStatus.filter((vc)=>vc['ClusterName'] === event.target.value);
-    mergeUserStatus(filteredVCStatus[0]['user_status']);
+    console.log(vcStatus)
+    fetchClusterStatus()
     setNodeStatus(filteredVCStatus[0]['node_status']);
     setIframeUrl((filteredVCStatus[0]['GranaUrl']));
   }
@@ -261,7 +279,7 @@ const ClusterStatus: FC = () => {
             <ClusterUsage showIframe={showIframe} iframeUrl={iframeUrl}/>
           </DLTSTabPanel>
           <DLTSTabPanel value={value} index={3} dir={theme.direction} title={ClusterStatusTitles[value]}>
-            <PhysicalClusterNodeStatus nodeStatus={nodeStatus}/>
+            <PhysicalClusterNodeStatus nodeStatus={  nodeStatus }/>
           </DLTSTabPanel>
         </SwipeableViews>
       </>

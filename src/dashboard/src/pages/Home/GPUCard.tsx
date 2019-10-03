@@ -24,7 +24,7 @@ import UserContext from "../../contexts/User";
 import TeamsContext from '../../contexts/Teams';
 import {green, lightGreen, deepOrange, red} from "@material-ui/core/colors";
 import copy from 'clipboard-copy'
-import {checkObjIsEmpty} from "../../utlities/ObjUtlities";
+import {checkObjIsEmpty, sumValues} from "../../utlities/ObjUtlities";
 import {DLTSSnackbar} from "../CommonComponents/DLTSSnackbar";
 const useStyles = makeStyles((theme: Theme) => createStyles({
   avatar: {
@@ -48,7 +48,8 @@ const useStyles = makeStyles((theme: Theme) => createStyles({
     backgroundColor: green[600],
   },
   container: {
-
+    fontSize:'10.5px',
+    paddingTop:'10px'
   }
 }));
 
@@ -95,7 +96,7 @@ const Chart: React.FC<{
   }
   const styles = useStyles();
   return (
-    <ResponsiveContainer aspect={16 / 9} height={200} width='100%' className={styles.container}>
+    <ResponsiveContainer aspect={16 / 11} height={300} width='100%' className={styles.container}>
       <PieChart>
         <Pie
           // hide={!isActive}
@@ -205,13 +206,13 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
   useEffect(()=>{
     fetchDirectories();
     fetchClusterStatus().then((res)=>{
-      const availableGpu = !checkObjIsEmpty(res['gpu_avaliable']) ? (Number)(Object.values(res['gpu_avaliable'])[0]) : 0;
+      const availableGpu = !checkObjIsEmpty(res['gpu_avaliable']) ? (Number)(sumValues(res['gpu_avaliable'])) : 0;
       setAvailable(availableGpu);
-      const usedGpu = !checkObjIsEmpty(res['gpu_used']) ? (Number)(Object.values(res['gpu_used'])[0]) : 0;
+      const usedGpu = !checkObjIsEmpty(res['gpu_used']) ? (Number)(sumValues(res['gpu_used'])) : 0;
       setUsed(usedGpu);
-      const reversedGpu = !checkObjIsEmpty(res['gpu_unschedulable']) ? (Number)(Object.values(res['gpu_unschedulable'])[0]) : 0;
+      const reversedGpu = !checkObjIsEmpty(res['gpu_unschedulable']) ? (Number)(sumValues(res['gpu_unschedulable'])) : 0;
       setReserved(reversedGpu);
-      setActiveJobs((Number)(res['AvaliableJobNum']));
+      setActiveJobs((Number)(sumValues(res['AvaliableJobNum'])));
       setActivate(true);
     })
   },[selectedTeam]);

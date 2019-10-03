@@ -30,12 +30,13 @@ class Cluster extends Service {
    * @param {boolean} all
    * @return {Promise<Array>}
    */
-  async getJobs (teamId, all) {
+  async getJobs (teamId, all, limit) {
     const { user } = this.context.state
     const params = new URLSearchParams({
       userName: user.email,
       vcName: teamId,
-      jobOwner: all ? 'all' : user.email
+      jobOwner: all ? 'all' : user.email,
+      num: limit
     })
     const response = await this.fetch('/ListJobs?' + params)
     this.context.assert(response.ok, 502)

@@ -705,6 +705,7 @@
                             <md-select name="jobtrainingtype" ng-model="current.jobtrainingtype" ng-disabled="curtemplateValue === 0 ? false : true"  required md-no-asterisk>
                                 <md-option value="RegularJob" selected>Regular Job</md-option>
                                 <md-option value="PSDistJob">Distributed Job</md-option>
+                                <md-option value="InferenceJob">Inference Job</md-option>
                             </md-select>
                         </md-input-container>
                     </div>
@@ -740,9 +741,9 @@
 
                     </div>
 
-                    <md-input-container class="md-block" ng-if="current.jobtrainingtype=='RegularJob'">
+                    <md-input-container class="md-block" ng-if="current.jobtrainingtype=='RegularJob' || current.jobtrainingtype=='InferenceJob'">
                         <label> Number of GPUs</label>
-                        <input ng-model="current.resourcegpu" required type="number" name="resourcegpu" step="1" min="0" max="{{gpus[extras.gpuType]['num_gpu_per_node']}}" md-no-asterisk>
+                        <input ng-model="current.resourcegpu" required type="number" name="resourcegpu" step="1" min="0" max="{{current.jobtrainingtype=='InferenceJob' ?  Number.MAX_VALUE : gpus[extras.gpuType]['num_gpu_per_node']}}" md-no-asterisk>
                         <div ng-messages="jobApp.resourcegpu.$error" multiple>
                             <div ng-message="required">
                                 You have to let us know the number of gpus per worker.

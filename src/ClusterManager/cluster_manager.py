@@ -87,8 +87,10 @@ def Run(args):
 
     cwd = os.path.dirname(__file__)
     cmds = {
-        "job_manager":
-        ["python", os.path.join(cwd, "job_manager.py"), "--port", str(args.j)],
+        "job_manager1":
+        ["python", os.path.join(cwd, "job_manager.py"), "--port", str(args.j1), "--updateblock", "1"],
+        "job_manager2":
+        ["python", os.path.join(cwd, "job_manager.py"), "--port", str(args.j2), "--updateblock", "2"],        
         "user_manager":
         ["python", os.path.join(cwd, "user_manager.py"), "--port", str(args.u)],
         "node_manager":
@@ -145,7 +147,8 @@ def work(cmds, childs, FNULL):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--tictoc", help="how many seconds to wait until kill subprocess", type=int, default=600)
-    parser.add_argument("-j", help="port of job_manager", type=int, default=9200)
+    parser.add_argument("-j1", help="port of job_manager", type=int, default=9200)
+    parser.add_argument("-j2", help="port of job_manager", type=int, default=9206)
     parser.add_argument("-u", help="port of user_manager", type=int, default=9201)
     parser.add_argument("-n", help="port of node_manager", type=int, default=9202)
     parser.add_argument("-l", help="port of joblog_manager", type=int, default=9203)
