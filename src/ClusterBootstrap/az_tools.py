@@ -132,6 +132,7 @@ def create_vm(vmname, vm_ip, role, vm_size, pwd, vmcnf):
             nfs_sku = config["azure_cluster"]["nfs_data_disk_sku"]
         else:
             nfs_dd_sz, nfs_dd_num, nfs_sku = vmcnf["data_disk_sz_gb"], vmcnf["data_disk_num"], vmcnf["data_disk_sku"]
+            vm_size = vmcnf["vm_size"] if "vm_size" in vmcnf else vm_size
         storage = "--storage-sku {} --data-disk-sizes-gb {} ".format(nfs_sku,
                 " " + " ".join([str(nfs_dd_sz)]*nfs_dd_num))
 
@@ -438,6 +439,7 @@ def get_vm_ip(i, role):
 def create_cluster(arm_vm_password=None, parallelism=1):
     bSQLOnly = (config["azure_cluster"]["infra_node_num"] <= 0)
     assert int(config["azure_cluster"]["nfs_node_num"]) >= len(config["azure_cluster"]["nfs_vm"])
+    assert "mysql_password" in config
     print "creating resource group..."
     create_group()
     if not bSQLOnly:
@@ -493,7 +495,7 @@ def create_vm_param_wrapper(arg_tuple):
 def create_vm_param(i, role, vm_size, no_az=False, arm_vm_password=None, vmcnf = None):
     assert role in config["allroles"] and "invalid machine role, please select from {}".format(' '.join(config["allroles"]))
     if not vmcnf is None and "suffix" in vmcnf:
-        vmname = "{}-{}-".format(config["azure_cluster"]["cluster_name"], role) + vmcnf["suffix"]
+        vmname = "{}-{}-".format(config["azure_cluster"]["cluster_name"].lower(), role) + vmcnf["suffix"]
     elif role in ["worker","nfs"]:
         vmname = "{}-{}".format(config["azure_cluster"]["cluster_name"].lower(), role) + ("{:02d}".format(i+1) if no_az else '-'+random_str(6))
     elif role == "infra":
@@ -774,12 +776,12 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
     else:
         nfs_names2ip = {rec['name']:rec['privateIP'][0] for rec in vm_ip_names if "infra" in rec['name']}
     if not bSQLOnly:
-        cc["disk_mnt"] = {}
+        cc["nfs_disk_mnt"] = {}
         suffixed_name_2path = {"{}-nfs-{}".format(config["cluster_name"], vm["suffix"]):vm["data_disk_mnt_path"] for vm in config["azure_cluster"]["nfs_vm"] if "suffix" in vm}
         for svr_name, svr_ip in nfs_names2ip.items():
             pth = suffixed_name_2path.get(svr_name, config["azure_cluster"]["nfs_data_disk_path"])
             role = "nfs" if "-nfs" in svr_name else "infra"
-            cc["disk_mnt"][svr_name] = {"path": pth, "role": role, "ip": svr_ip, "fileshares":[]}
+            cc["nfs_disk_mnt"][svr_name] = {"path": pth, "role": role, "ip": svr_ip, "fileshares":[]}
         cc["mountpoints"] = {}
         if useAzureFileshare():
             cc["mountpoints"]["rootshare"]["type"] = "azurefileshare"
@@ -815,7 +817,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
                     if mntname in cc["mountpoints"]:
                         print("Warning, duplicated mountpoints item name {}, skipping".format(mntname))
                         continue
-                    cc["disk_mnt"][server_name]["fileshares"] += mntcnf["filesharename"],
+                    cc["nfs_disk_mnt"][server_name]["fileshares"] += mntcnf["filesharename"],
                     cc["mountpoints"][mntname] = mntcnf
                     cc["mountpoints"][mntname]["type"] = "nfs"
                     cc["mountpoints"][mntname]["server"] = server_ip
