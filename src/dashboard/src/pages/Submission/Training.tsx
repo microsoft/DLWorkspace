@@ -544,7 +544,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     if (endpoints.length > 0) {
       postEndpoints(`/clusters/${selectedCluster}/jobs/${jobId.current}/endpoints`, { endpoints });
     } else {
-      history.push(`/job/${selectedCluster}/${jobId.current}`);
+      history.push(`/job/${selectedTeam}/${selectedCluster}/${jobId.current}`);
     }
   }, [postJobData, postEndpoints, ssh, ipython, tensorboard, interactivePorts, history, selectedCluster]);
   const fetchPrometheusUrl = `/api/clusters`;
@@ -562,7 +562,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     if (postEndpointsData) {
       setOpen(true);
       setTimeout(()=>{
-        history.push(`/job/${selectedCluster}/${jobId.current}`);
+        history.push(`/job/${selectedTeam}/${selectedCluster}/${jobId.current}`);
       },2000)
 
     }
