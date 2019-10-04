@@ -37,15 +37,15 @@ touch ${PROC_DIR}/JOB_READY
 
 set +e
 # Execute user's command for the job
-if [ "$DLWS_ROLE_NAME" = "master" ] || [ "$DLWS_ROLE_NAME" = "ps" ];
+if [ "$DLWS_ROLE_NAME" = "worker" ];
 then
+    runuser -l ${DLWS_USER_NAME} -c "sleep infinity"
+else
     chmod +x /pod/job_command.sh
     runuser -l ${DLWS_USER_NAME} -c /pod/job_command.sh
     # Save exit code
     EXIT_CODE=$?
     echo  `date` ": ${EXIT_CODE}"  > ${PROC_DIR}/EXIT_CODE
-else
-    runuser -l ${DLWS_USER_NAME} -c "sleep infinity"
 fi
 
 # exit
