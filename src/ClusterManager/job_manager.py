@@ -422,7 +422,11 @@ def TakeJobActions(jobs):
                 jobGpuType = job_params["gpuType"]
             singleJobInfo["globalResInfo"] = ResourceInfo({jobGpuType : GetJobTotalGpu(job_params)})
             singleJobInfo["sortKey"] = str(job["jobTime"])
-            priority = get_job_priority(priority_dict, singleJobInfo["jobId"])
+            reverse_priority = get_job_priority(priority_dict, singleJobInfo["jobId"])
+
+            # Larger priority value indicates higher priority
+            priority = 999999 - reverse_priority
+
             if singleJobInfo["preemptionAllowed"]:
                 singleJobInfo["sortKey"] = "1_{:06d}_{}".format(priority, singleJobInfo["sortKey"])
             else:
