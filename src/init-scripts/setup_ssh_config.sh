@@ -37,10 +37,15 @@ done
 
 # generate worker host list
 worker_host_list=""
-for i in $(seq 0 $(( ${DLWS_NUM_WORKER} - 1 )) )
-do
-    worker_host_list+="worker-${i} "
-done
+if [ "$DLWS_ROLE_NAME" = "master" ];
+then
+    worker_host_list="${DLWS_ROLE_NAME}"
+else
+    for i in $(seq 0 $(( ${DLWS_NUM_WORKER} - 1 )) )
+    do
+        worker_host_list+="worker-${i} "
+    done
+fi
 
 # generate host list
 host_list="${ps_host_list} ${worker_host_list}"
