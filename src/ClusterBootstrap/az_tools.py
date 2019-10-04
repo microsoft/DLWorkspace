@@ -109,6 +109,7 @@ def update_config(config, genSSH=True):
     return config
 
 def create_vm(vmname, vm_ip, role, vm_size, pwd, vmcnf):
+    vmname = vmname.lower()
     if pwd is not None:
         auth = """--authentication-type password --admin-password '%s' """ % pwd
     else:
@@ -495,14 +496,14 @@ def create_vm_param_wrapper(arg_tuple):
 def create_vm_param(i, role, vm_size, no_az=False, arm_vm_password=None, vmcnf = None):
     assert role in config["allroles"] and "invalid machine role, please select from {}".format(' '.join(config["allroles"]))
     if not vmcnf is None and "suffix" in vmcnf:
-        vmname = "{}-{}-".format(config["azure_cluster"]["cluster_name"].lower(), role) + vmcnf["suffix"]
+        vmname = "{}-{}-".format(config["azure_cluster"]["cluster_name"], role) + vmcnf["suffix"]
     elif role in ["worker","nfs"]:
-        vmname = "{}-{}".format(config["azure_cluster"]["cluster_name"].lower(), role) + ("{:02d}".format(i+1) if no_az else '-'+random_str(6))
+        vmname = "{}-{}".format(config["azure_cluster"]["cluster_name"], role) + ("{:02d}".format(i+1) if no_az else '-'+random_str(6))
     elif role == "infra":
         vmname = "%s-infra%02d" % (config["azure_cluster"]
-                                   ["cluster_name"].lower(), i + 1)
+                                   ["cluster_name"], i + 1)
     elif role == "dev":
-        vmname = "%s-dev" % (config["azure_cluster"]["cluster_name"].lower())
+        vmname = "%s-dev" % (config["azure_cluster"]["cluster_name"])
 
     print "creating VM %s..." % vmname
     vm_ip = get_vm_ip(i, role)
@@ -797,7 +798,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
             used_nfs_suffix = set([nfs_cnf["server_suffix"] for nfs_cnf in config["nfs_mnt_setup"] if "server_suffix" in nfs_cnf])
             assert (used_nfs_suffix - set(nfs_vm_suffixes2dpath.keys())) == set() and "suffix not in nfs_suffixes list!"
             assert len(nfs_names2ip) >= len(config["azure_cluster"]["nfs_vm"]) and "More NFS config items than #. of NFS server"
-            suffix2used_nfs = {suffix: "{}-nfs-{}".format(config["cluster_name"], suffix) for suffix in used_nfs_suffix}
+            suffix2used_nfs = {suffix: "{}-nfs-{}".format(config["cluster_name"], suffix).lower() for suffix in used_nfs_suffix}
             # unused, either node without name suffix or those with suffix but not specified in any nfs_svr_setup item
             unused_nfs = sorted([s for s in nfs_names2ip.keys() if s not in suffix2used_nfs.values()])
             unused_ID_cnt = 0
