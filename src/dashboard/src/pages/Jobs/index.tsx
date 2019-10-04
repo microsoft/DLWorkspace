@@ -949,12 +949,12 @@ const Jobs: React.FC = (props: any) => {
                   title="Queued  Jobs"
                   columns={[
                     {title: 'JobId', field: 'jobId',cellStyle: {
-                      textAlign:'center',
+                      textAlign:'left',
                       flexDirection: 'row',
-                      padding:'0',
+                      padding:'3',
                     }, render: rowData =>  <Link  className={classes.linkStyle} to={`/job/${selectedTeam}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>},
                     {title: 'Job Name',cellStyle: {
-                      textAlign:'center',
+                      textAlign:'left',
                       flexDirection: 'row',
                       padding:'0',
                     },field: 'jobName'},
@@ -1008,11 +1008,8 @@ const Jobs: React.FC = (props: any) => {
                       backgroundColor: '#7583d1',
                       color: '#fff',
                       whiteSpace: 'nowrap',
-                      textAlign: 'center',
-                      paddingLeft:'0',
-                      paddingTop:'10',
-                      paddingRight:'0',
-                      paddingBottom:'10',
+                      textAlign: 'left',
+                      padding:'5'
                     }
                   }}
                   actions={[
@@ -1212,7 +1209,7 @@ const Jobs: React.FC = (props: any) => {
                       color: '#fff',
                       whiteSpace: 'nowrap',
                       textAlign: 'left',
-                      padding:'4'
+                      padding:'5'
                     }
                   }}
                   actions={[
