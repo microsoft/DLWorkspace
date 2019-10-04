@@ -1,18 +1,17 @@
 import React, {useEffect, useState} from "react";
 import { Link } from "react-router-dom";
-import useFetch, { useGet } from "use-http/dist";
+import useFetch from "use-http/dist";
 import {
-  Avatar,
   Button,
   Card,
   CardActions,
   CardContent,
-  CardHeader, Dialog,
+  CardHeader,
   Divider,
   IconButton,
   InputAdornment,
   Menu,
-  MenuItem, Snackbar, SnackbarContent,
+  MenuItem,
   TextField,
   Tooltip
 } from "@material-ui/core";
@@ -22,7 +21,7 @@ import { MoreVert, FileCopyRounded} from "@material-ui/icons";
 import { Cell, PieChart, Pie, ResponsiveContainer } from "recharts";
 import UserContext from "../../contexts/User";
 import TeamsContext from '../../contexts/Teams';
-import {green, lightGreen, deepOrange, red} from "@material-ui/core/colors";
+import {green, lightGreen, deepOrange } from "@material-ui/core/colors";
 import copy from 'clipboard-copy'
 import {checkObjIsEmpty, sumValues} from "../../utlities/ObjUtlities";
 import {DLTSSnackbar} from "../CommonComponents/DLTSSnackbar";
@@ -117,7 +116,6 @@ export const DirectoryPathTextField: React.FC<{
   label: string;
   value: string;
 }> = ({ label, value }) => {
-  const styles = useStyles();
   const input = React.useRef<HTMLInputElement>(null);
   const [openCopyWarn, setOpenCopyWarn] = React.useState(false);
   const handleWarnClose = () => {

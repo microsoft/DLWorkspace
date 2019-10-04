@@ -92,7 +92,7 @@ const DataJob: React.FC = (props: any) => {
     if (event.target.name === 'nfsDataStorage') {
       setNFSDataStorage(event.target.value);
     }
-    if (nfsDataStorage.length > 0 && azureDataStorage.length > 0 || event.target.value.length > 0) {
+    if ((nfsDataStorage.length > 0 && azureDataStorage.length > 0) || event.target.value.length > 0) {
       setSubmittable(false)
     } else {
       setSubmittable(true)
@@ -165,11 +165,6 @@ const DataJob: React.FC = (props: any) => {
         setOpenDialog(true);
       }
     })
-  }
-  const onSubmit = () => {
-    if (!submittable){
-      postDataJob()
-    }
   }
 
   return (

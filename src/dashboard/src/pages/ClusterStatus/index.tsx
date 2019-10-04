@@ -1,8 +1,6 @@
-import React, {FC, Fragment, useEffect, useState} from "react";
+import React, {FC, useEffect, useState} from "react";
 import SwipeableViews from 'react-swipeable-views';
 import {
-  Paper,
-  Toolbar,
   Typography,
   Box,
   Theme,
@@ -29,21 +27,7 @@ import {TeamVCUserStatus} from "./components/TeamVCUserStatus";
 import {ClusterUsage} from "./components/ClusterUsage";
 import {PhysicalClusterNodeStatus} from "./components/PhysicalClusterNodeStatus";
 
-const useStyles = makeStyles((theme: Theme) => {
-  return createStyles({
-    root: {
-      backgroundColor: theme.palette.background.paper,
-      width: 500,
-    },
-    paperMargin: {
-      marginTop:'10px',
-    }
-
-  });
-});
-
 const ClusterStatus: FC = () => {
-  const styles = useStyles();
   const theme = useTheme();
   const [value, setValue] = React.useState(0);
   const {clusters} = React.useContext(ClusterContext);
@@ -81,8 +65,6 @@ const ClusterStatus: FC = () => {
     response['prometheus'] = prometheus;
     return response;
   }
-  const[globalPrometheusResp, setGlobalPrometheusResp] = React.useState([]);
-  const[globalIds, setGlobalIds] = React.useState([]);
   const fetchClusterStatus = () => {
     if (clusters) {
       const params = new URLSearchParams({
@@ -211,42 +193,6 @@ const ClusterStatus: FC = () => {
       clearTimeout(timeout)
     }
   },[clusters, selectedTeam])
-  const mergeUserStatus = (curUserStatus: any) => {
-    let fetchUsrs: any = []
-    for (let fetchedUser of curUserStatus) {
-      let tmpUser: any ={};
-      tmpUser['userName'] = fetchedUser['userName'];
-      tmpUser['usedGPU'] = (String)(Object.values(fetchedUser['userGPU'])[0]);
-      fetchUsrs.push(tmpUser)
-    }
-    const merged = mergeTwoObjsByKey(fetchUsrs, globalPrometheusResp,'userName');
-    let mergedUsers: any = _.values(merged);
-    mergedUsers.forEach((us: any)=>{
-      if (!us.hasOwnProperty('usedGPU')) {
-        us['usedGPU'] = "0";
-      }
-    })
-    const mergedTmp = mergeTwoObjsByKey(mergedUsers, globalIds, 'userName');
-    let mergedTmpUpdate: any = _.values(mergedTmp);
-    mergedTmpUpdate.forEach((mu: any)=>{
-      if (!mu.hasOwnProperty('usedGPU')) {
-        mu['usedGPU'] = "0";
-      }
-      if (!mu.hasOwnProperty('idleGPU')) {
-        mu['idleGPU'] = "0";
-      }
-      if (!mu.hasOwnProperty('booked')) {
-        mu['booked'] = "0";
-      }
-      if (!mu.hasOwnProperty('idle')) {
-        mu['idle'] = "0";
-      }
-    })
-    if (mergedTmpUpdate.length > 0) {
-      setUserStatus(mergedTmpUpdate)
-    }
-
-  }
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedValue(event.target.value);
     localStorage.setItem('selectedCluster', event.target.value);

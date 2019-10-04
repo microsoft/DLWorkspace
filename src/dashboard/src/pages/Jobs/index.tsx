@@ -1,16 +1,14 @@
-import React, {Fragment, useEffect, useRef, useState} from "react";
+import React, {Fragment, useEffect, useState} from "react";
 import {
   Box,
   CircularProgress,
   TextField,
   SvgIcon,
   Tooltip,
-  MenuItem,
-  Container
 } from "@material-ui/core";
 import CheckCircleIcon from '@material-ui/icons/CheckCircle';
 import { makeStyles, Theme, createStyles } from "@material-ui/core/styles";
-import {red, grey, green, blue} from "@material-ui/core/colors";
+import {red, green, blue} from "@material-ui/core/colors";
 import { DLTSTabPanel } from '../CommonComponents/DLTSTabPanel'
 import {Link} from "react-router-dom";
 import useFetch,{usePut} from "use-http/dist";
@@ -22,7 +20,6 @@ import useJobsAll from "./useJobsAll";
 import IconButton from "@material-ui/core/IconButton";
 import DeleteIcon from '@material-ui/icons/Delete';
 import CheckIcon from '@material-ui/icons/CheckSharp';
-import useCheckIsDesktop from "../../utlities/layoutUtlities";
 import {DLTSTabs} from "../CommonComponents/DLTSTabs";
 import {JobsTitles} from "../../Constants/TabsContants";
 import {JobsOperationDialog} from "./components/JobsOperationDialog";
@@ -34,7 +31,6 @@ import {
   SUCCESSFULLYUPDATEDPRIORITY,
   SUCESSFULKILLED
 } from "../../Constants/WarnConstants";
-import {convertToArrayByKey} from "../../utlities/ObjUtlities";
 import {JobsSelectByCluster} from "./components/JobsSelectByCluster";
 import TeamContext from "../../contexts/Teams";
 

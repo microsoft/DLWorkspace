@@ -1,4 +1,4 @@
-import React, {useCallback, useState} from "react";
+import React, {useState} from "react";
 
 import {
   Card,
@@ -22,7 +22,7 @@ import {
   TableBody,
   Switch,
   MenuItem,
-  SvgIcon, DialogActions, useMediaQuery, Snackbar, SnackbarContent
+  SvgIcon, useMediaQuery
 } from "@material-ui/core";
 import Tooltip from '@material-ui/core/Tooltip';
 import { makeStyles, createStyles } from "@material-ui/core/styles";
@@ -66,13 +66,7 @@ const useStyles = makeStyles(() =>
     }
   })
 );
-const PaperComponent = (props: PaperProps) => {
-  return (
-    <Draggable cancel={'[class*="MuiDialogContent-root"]'}>
-      <Paper {...props} />
-    </Draggable>
-  );
-}
+
 const sanitizePath = (path: string) => {
   path = join('/', path);
   path = join('.', path);
@@ -454,9 +448,6 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     if (!command.trim()) return false;
     return true;
   }, [gpuModel, selectedTeam, name, image, command]);
-  const Transition = React.forwardRef<unknown, TransitionProps>(function Transition(props, ref) {
-    return <Slide direction="down" ref={ref} {...props} />;
-  });
   const [open, setOpen] = React.useState(false);
   const onSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -504,6 +495,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     if (type === 'PSDistJob') {
       // Check GPU fragmentation
       let workersNeeded = workers;
+      console.log(gpuFragmentation)
       for (const { metric, value } of gpuFragmentation) {
         if (Number(metric['gpu_available']) >= gpusPerNode) {
           workersNeeded -= (Number(value[1]) || 0);
@@ -602,8 +594,6 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       setGpuFragmentation(sortededResult)
     })
   }, [prometheusUrl])
-
-  const styles = useStyles();
 
   const isDesktop = useMediaQuery(theme.breakpoints.up("sm"));
 

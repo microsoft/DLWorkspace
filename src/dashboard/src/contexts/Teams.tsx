@@ -7,7 +7,7 @@ import {
   DialogContentText,
   DialogTitle
 } from "@material-ui/core";
-import {Redirect, Switch} from "react-router";
+import {Redirect} from "react-router";
 import _ from "lodash";
 
 interface Context {
@@ -25,7 +25,7 @@ const Context = React.createContext<Context>({
 export default Context;
 export const Provider: React.FC = ({ children }) => {
   const fetchTeamsUrl = '/api/teams';
-  const [teams, setTeams] = useFetch(fetchTeamsUrl, { onMount: true });
+  const [teams] = useFetch(fetchTeamsUrl, { onMount: true });
   const [selectedTeam, setSelectedTeam] = React.useState<string>('');
   const saveSelectedTeam = (team: React.SetStateAction<string>) => {
     setSelectedTeam(team);

@@ -1,4 +1,4 @@
-import React, {useEffect, useContext, useCallback} from 'react';
+import React, {useCallback} from 'react';
 
 import {
   AppBar,
@@ -19,7 +19,7 @@ import {
   Dialog,
   Snackbar,
   SnackbarContent,
-  Breadcrumbs, Hidden
+  Hidden
 } from '@material-ui/core';
 import { createStyles, makeStyles, Theme } from '@material-ui/core/styles';
 import {
@@ -31,7 +31,6 @@ import {
 } from '@material-ui/icons';
 import CloseIcon from '@material-ui/icons/Close';
 import { TransitionProps } from '@material-ui/core/transitions';
-import clsx from 'clsx';
 import DrawerContext from './Drawer/Context';
 import UserContext from '../contexts/User';
 import TeamContext from '../contexts/Teams';
@@ -235,7 +234,7 @@ const Title: React.FC = () => {
 
 const DashboardAppBar: React.FC = () => {
   const styles = useStyles();
-  const { open } = React.useContext(DrawerContext);
+  //const { open } = React.useContext(DrawerContext);
   return (
     <AppBar
       component="aside"

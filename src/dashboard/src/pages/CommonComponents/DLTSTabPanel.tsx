@@ -13,8 +13,6 @@ interface TabPanelProps {
 
 export const DLTSTabPanel = (props: TabPanelProps) => {
   const { children, value, index, title,...other } = props;
-  const theme = useTheme();
-  let direction = 'ltr';
   return (
     <Container maxWidth={useCheckIsDesktop ? 'xl' : 'lg'}>
       <Typography

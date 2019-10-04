@@ -1,9 +1,9 @@
-import React, {useContext, useEffect, useState} from 'react';
+import React, {useContext} from 'react';
 
 import {
   Card,
   CardHeader,
-  CardMedia, CircularProgress,
+  CardMedia,
 } from '@material-ui/core';
 
 import Context from './Context';

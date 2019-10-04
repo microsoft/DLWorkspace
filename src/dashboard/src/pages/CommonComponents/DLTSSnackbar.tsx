@@ -10,7 +10,6 @@ import {green} from "@material-ui/core/colors";
 
 
 interface SnackbarProps {
-  children?: React.ReactNode;
   message: string;
   open: boolean | false;
   autoHideDuration?: number | 1000;
@@ -26,7 +25,7 @@ const useStyles = makeStyles((theme: Theme) =>
 );
 export const DLTSSnackbar: React.FC<SnackbarProps> = (props: SnackbarProps) => {
   const classes = useStyles();
-  let { children, handleWarnClose, autoHideDuration, message, open, style } = props;
+  let { handleWarnClose, autoHideDuration, message, open, style } = props;
   const ogStyle = {};
   return (
     <>

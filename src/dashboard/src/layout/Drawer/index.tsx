@@ -75,7 +75,6 @@ const DashboardDrawer: React.FC = () => {
   const { open, setOpen } = React.useContext(Context);
   const onClose = React.useCallback(() => setOpen(false), [setOpen]);
   const theme = useTheme();
-  const styles = useStyles();
   const isDesktop = useMediaQuery(theme.breakpoints.up("sm"));
   const variant = isDesktop ? "persistent" : "temporary";
 
