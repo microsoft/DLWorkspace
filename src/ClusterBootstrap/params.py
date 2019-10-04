@@ -42,7 +42,6 @@ default_config_parameters = {
     "mysql_port": "3306",
     "mysql_username": "root",
     "mysql_data_path": "/var/lib/mysql",
-    "mysql_password": "configureme",
 
     "datasource": "MySQL",
     "defalt_virtual_cluster_name": "platform",
