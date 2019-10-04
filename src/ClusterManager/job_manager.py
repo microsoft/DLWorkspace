@@ -421,16 +421,32 @@ def TakeJobActions(jobs):
             if "gpuType" in job_params:
                 jobGpuType = job_params["gpuType"]
             singleJobInfo["globalResInfo"] = ResourceInfo({jobGpuType : GetJobTotalGpu(job_params)})
-            singleJobInfo["sortKey"] = str(job["jobTime"])
-            reverse_priority = get_job_priority(priority_dict, singleJobInfo["jobId"])
 
-            # Larger priority value indicates higher priority
+            # Job lists will be sorted based on and in the order of below
+            # 1. non-preemptible precedes preemptible
+            # 2. running precedes scheduling, precedes queued
+            # 3. larger priority value precedes lower priority value
+            # 4. early job time precedes later job time
+
+            # Non-Preemptible jobs first
+            preemptible = 1 if singleJobInfo["preemptionAllowed"] else 0
+
+            # Job status
+            job_status = 0
+            if job["jobStatus"] == "scheduling":
+                job_status = 1
+            elif job["jobStatus"] == "queued":
+                job_status = 2
+
+            # Priority value
+            reverse_priority = get_job_priority(priority_dict, singleJobInfo["jobId"])
             priority = 999999 - reverse_priority
 
-            if singleJobInfo["preemptionAllowed"]:
-                singleJobInfo["sortKey"] = "1_{:06d}_{}".format(priority, singleJobInfo["sortKey"])
-            else:
-                singleJobInfo["sortKey"] = "0_{:06d}_{}".format(priority, singleJobInfo["sortKey"])
+            # Job time
+            job_time = str(job["jobTime"])
+
+            singleJobInfo["sortKey"] = "{}_{}_{:06d}_{}".format(preemptible, job_status, priority, job_time)
+
             singleJobInfo["allowed"] = False
             jobsInfo.append(singleJobInfo)
 
