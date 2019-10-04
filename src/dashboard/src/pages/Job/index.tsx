@@ -18,6 +18,7 @@ type Job = any;
 interface Params {
   clusterId: string;
   jobId: string;
+  team: string;
 }
 
 const ErrorDialog = withRouter(({ match, history }) => {
@@ -43,11 +44,11 @@ const ErrorDialog = withRouter(({ match, history }) => {
 });
 
 const Job: React.FC<RouteComponentProps<Params>> = ({ match }) => {
-  const { clusterId, jobId } = match.params;
+  const { clusterId, jobId,team } = match.params;
   const [job, error] = useJob(clusterId, jobId);
 
   if (error) return <ErrorDialog/>;
-  if (job) return <Details clusterId={clusterId} jobId={jobId} job={job}/>;
+  if (job) return <Details clusterId={clusterId} jobId={jobId} team={team} job={job}/>;
 
   return (
     <Box display="flex" justifyContent="center">
