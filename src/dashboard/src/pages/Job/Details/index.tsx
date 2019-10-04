@@ -107,8 +107,8 @@ const JobDetails: React.FC<Props> = ({ clusterId, jobId, job, team }) => {
         </SwipeableViews>
         <DLTSSnackbar message={"Copied"}
           open={showOpen}
-          handleWarnClose={()=>handleWarnClose}
-          autoHideDuration={1000}
+          handleWarnClose={handleWarnClose}
+          autoHideDuration={500}
         />
       </Context.Provider>
     );
