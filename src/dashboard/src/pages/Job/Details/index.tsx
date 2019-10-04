@@ -34,7 +34,7 @@ interface Props {
   job: any;
 }
 
-const JobDetails: React.FC<Props> = ({ clusterId, jobId, job,team }) => {
+const JobDetails: React.FC<Props> = ({ clusterId, jobId, job, team }) => {
   const { email } = React.useContext(UserContext);
   const [cluster] = useGet(`/api/clusters/${clusterId}`, { onMount: true });
   const [value, setValue] = React.useState(0);

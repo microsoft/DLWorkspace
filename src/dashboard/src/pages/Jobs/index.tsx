@@ -374,7 +374,7 @@ const Jobs: React.FC = (props: any) => {
   const onClusterChange = (event: React.ChangeEvent<{ value: unknown }>) => {
     setCurrentCluster(event.target.value as string)
     let checkAdmin = false;
-    if (clusters.filter((cluster) => cluster.id === event.target.value as string)[0] !== undefined ) {
+    if (clusters.filter((cluster) => cluster.id === event.target.value as string)[0] !== undefined) {
       checkAdmin = clusters.filter((cluster) => cluster.id === event.target.value as string)[0].admin
     }
     setIsAdmin(checkAdmin);
@@ -402,7 +402,7 @@ const Jobs: React.FC = (props: any) => {
                 textAlign:'left',
                 flexDirection: 'row',
                 padding:'3',
-              },render: rowData =>  <Link className={classes.linkStyle} to={`/job/${rowData.cluster}/${rowData.jobId}/${selectedTeam}`}>{rowData.jobId}</Link>  },
+              },render: rowData =>  <Link className={classes.linkStyle} to={`/job/${selectedTeam}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>  },
               {title: 'Job Name', field: 'jobName',cellStyle: {
                 textAlign:'left',
                 flexDirection: 'row',
@@ -499,7 +499,7 @@ const Jobs: React.FC = (props: any) => {
                 textAlign:'left',
                 flexDirection: 'row',
                 padding:'3',
-              },render: rowData =>  <Link className={classes.linkStyle} to={`/job/${rowData.cluster}/${rowData.jobId}/${selectedTeam}`}>{rowData.jobId}</Link>  },
+              },render: rowData =>  <Link className={classes.linkStyle} to={`/job/${selectedTeam}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>  },
               {title: 'Job Name', field: 'jobName',cellStyle: {
                 textAlign:'center',
                 flexDirection: 'row',
@@ -582,7 +582,7 @@ const Jobs: React.FC = (props: any) => {
                 textAlign:'center',
                 flexDirection: 'row',
                 padding:'0',
-              }, render: rowData =>  <Link className={classes.linkStyle} to={`/job/${rowData.cluster}/${rowData.jobId}/${selectedTeam}`}>{rowData.jobId}</Link>},
+              }, render: rowData =>  <Link className={classes.linkStyle} to={`/job/${selectedTeam}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>},
               {title: 'Job Name', field: 'jobName',cellStyle: {
                 textAlign:'center',
                 flexDirection: 'row',
@@ -668,7 +668,7 @@ const Jobs: React.FC = (props: any) => {
                 textAlign:'left',
                 flexDirection: 'row',
                 padding:'3',
-              }, render: rowData =>  <Link className={classes.linkStyle} to={`/job/${rowData.cluster}/${rowData.jobId}/${selectedTeam}`}>{rowData.jobId}</Link> },
+              }, render: rowData =>  <Link className={classes.linkStyle} to={`/job/${selectedTeam}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
               { title: 'Job Name', cellStyle: {
                 textAlign:'left',
                 flexDirection: 'row',
@@ -752,7 +752,7 @@ const Jobs: React.FC = (props: any) => {
                 textAlign:'left',
                 flexDirection: 'row',
                 padding:'3'
-              },render: rowData =>  <Link className={classes.linkStyle} to={`/job/${rowData.cluster}/${rowData.jobId}/${selectedTeam}`}>{rowData.jobId}</Link> },
+              },render: rowData =>  <Link className={classes.linkStyle} to={`/job/${selectedTeam}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
               { title: 'Job Name', cellStyle: {
                 textAlign:'left',
                 flexDirection: 'row',
@@ -827,7 +827,7 @@ const Jobs: React.FC = (props: any) => {
                       textAlign:'left',
                       flexDirection: 'row',
                       padding:'3',
-                    }, field: 'jobId',render: rowData =>  <Link className={classes.linkStyle} to={`/job/${rowData.cluster}/${rowData.jobId}/${selectedTeam}`}>{rowData.jobId}</Link>},
+                    }, field: 'jobId',render: rowData =>  <Link className={classes.linkStyle} to={`/job/${selectedTeam}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>},
                     {title: 'Job Name',cellStyle: {
                       textAlign:'left',
                       flexDirection: 'row',
@@ -928,7 +928,7 @@ const Jobs: React.FC = (props: any) => {
                       textAlign:'center',
                       flexDirection: 'row',
                       padding:'0',
-                    }, render: rowData =>  <Link  className={classes.linkStyle} to={`/job/${rowData.cluster}/${rowData.jobId}/${selectedTeam}`}>{rowData.jobId}</Link>},
+                    }, render: rowData =>  <Link  className={classes.linkStyle} to={`/job/${selectedTeam}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>},
                     {title: 'Job Name',cellStyle: {
                       textAlign:'center',
                       flexDirection: 'row',
@@ -1033,7 +1033,7 @@ const Jobs: React.FC = (props: any) => {
                       textAlign:'left',
                       flexDirection: 'row',
                       padding:'3',
-                    },render: rowData =>  <Link className={classes.linkStyle} to={`/job/${rowData.cluster}/${rowData.jobId}/${selectedTeam}`}>{rowData.jobId}</Link>},
+                    },render: rowData =>  <Link className={classes.linkStyle} to={`/job/${selectedTeam}/${rowData.cluster}/${rowData.jobId}/${selectedTeam}`}>{rowData.jobId}</Link>},
                     {title: 'Job Name',cellStyle: {
                       textAlign:'left',
                       flexDirection: 'row',
@@ -1131,7 +1131,7 @@ const Jobs: React.FC = (props: any) => {
                       textAlign:'left',
                       flexDirection: 'row',
                       padding:'3',
-                    },field: 'jobId', render: rowData =>  <Link className={classes.linkStyle} to={`/job/${rowData.cluster}/${rowData.jobId}/${selectedTeam}`}>{rowData.jobId}</Link> },
+                    },field: 'jobId', render: rowData =>  <Link className={classes.linkStyle} to={`/job/${selectedTeam}/${rowData.cluster}/${rowData.jobId}/${selectedTeam}`}>{rowData.jobId}</Link> },
                     { title: 'Job Name',cellStyle: {
                       textAlign:'center',
                       flexDirection: 'row',

@@ -80,7 +80,7 @@ const Layout: React.FC<RouteComponentProps> = ({ location, history }) => {
               <Route path="/submission" component={Submission}/>
               <Route path="/jobs/:cluster" component={Jobs}/>
               <Route path="/jobs" component={Jobs}/>
-              <Route path="/job/:clusterId/:jobId/:team" component={Job}/>
+              <Route path="/job/:team/:clusterId/:jobId" component={Job}/>
               <Route path="/cluster-status" component={ClusterStatus}/>
               <Redirect to="/"/>
             </Switch>
