@@ -325,6 +325,7 @@ const Jobs: React.FC = (props: any) => {
       return (<span>{ DateTime.fromJSDate(new Date(Date.parse(rowData['jobStatusDetail'][0]['finishedAt']))).toFormat("yyyy/LL/dd HH:mm:ss")}</span>)
     }
   }
+
   const renderActions = (props: any) => {
     if (props.action.icon === 'Pause' && (props.data.jobStatus === 'paused'||props.data.jobStatus === 'pausing')) {
       return (
@@ -379,6 +380,21 @@ const Jobs: React.FC = (props: any) => {
     }
     setIsAdmin(checkAdmin);
   }
+
+  const sortByJobTime = (a: any, b: any,time?: string) => {
+    if (time === 'jobTime') {
+      return isNaN(Date.parse(a['jobTime'])) && isNaN(Date.parse(b['jobTime'])) ? a['jobTime'].trim().localeCompare(b['jobTime'].trim()) :
+        Date.parse(a['jobTime']) - Date.parse(b['jobTime']);
+    } else if (time === 'startedAt') {
+      return isNaN(Date.parse(a['jobStatusDetail'][0]['startedAt'])) && isNaN(Date.parse(b['jobStatusDetail'][0]['startedAt'])) ? a['jobStatusDetail'][0]['startedAt'].trim().localeCompare(b['jobStatusDetail'][0]['startedAt'].trim()) :
+        Date.parse(a['jobStatusDetail'][0]['startedAt']) - Date.parse(b['jobStatusDetail'][0]['startedAt']);
+    } else if (time === 'finishedAt') {
+      return isNaN(Date.parse(a['jobStatusDetail'][0]['finishedAt'])) && isNaN(Date.parse(b['jobStatusDetail'][0]['finishedAt'])) ? a['jobStatusDetail'][0]['finishedAt'].trim().localeCompare(b['jobStatusDetail'][0]['finishedAt'].trim()) :
+        Date.parse(a['jobStatusDetail'][0]['finishedAt']) - Date.parse(b['jobStatusDetail'][0]['finishedAt']);
+    }
+    // return isNaN(Date.parse(a)) && isNaN(Date.parse(b)) ? a.trim().localeCompare(b.trim()) : Date.parse(val1) - Date.parse(val2)
+    // return Date.parse(a['jobTime']) - Date.parse(b['jobTime'])
+  }
   const { selectedTeam } = React.useContext(TeamContext);
   if (jobs && allJobs) {
     console.log(jobs)
@@ -429,7 +445,9 @@ const Jobs: React.FC = (props: any) => {
                 textAlign:'center',
                 flexDirection: 'row',
                 padding:'0',
-              },type: 'date',render:(rowData: any)=>renderDateTime(rowData,"jobTime")},
+              },type: 'date', customSort:(a,b) => sortByJobTime(a, b, "jobTime"),
+              render:(rowData: any)=>renderDateTime(rowData,"jobTime")
+              },
               {
                 title: 'Preemptible',
                 field: 'jobParams.preemptionAllowed',
@@ -450,6 +468,7 @@ const Jobs: React.FC = (props: any) => {
                   flexDirection: 'row',
                   padding:'3',
                 },
+                customSort: (a ,b) => sortByJobTime(a, b, 'startAt'),
                 render: (rowData: any)=>renderDateTime(rowData, 'startedAt')
               }
             ]}
@@ -526,7 +545,7 @@ const Jobs: React.FC = (props: any) => {
                 textAlign:'left',
                 flexDirection: 'row',
                 padding:'0',
-              },type: 'date',render:(rowData: any)=>renderDateTime(rowData,"jobTime")},
+              },type: 'date', customSort:(a,b) => sortByJobTime(a, b, "jobTime"),render:(rowData: any)=>renderDateTime(rowData,"jobTime")},
               {
                 title: 'Preemptible',
                 field: 'jobParams.preemptionAllowed',
@@ -609,7 +628,7 @@ const Jobs: React.FC = (props: any) => {
                 textAlign:'center',
                 flexDirection: 'row',
                 padding:'0',
-              }, field: 'jobTime', type: 'date',render: (rowData: any)=>renderDateTime(rowData, 'jobTime')},
+              }, field: 'jobTime',customSort:(a,b) => sortByJobTime(a, b, "jobTime"), type: 'date',render: (rowData: any)=>renderDateTime(rowData, 'jobTime')},
               {
                 title: 'Preemptible',
                 field: 'jobParams.preemptionAllowed',
@@ -695,7 +714,7 @@ const Jobs: React.FC = (props: any) => {
                 textAlign:'left',
                 flexDirection: 'row',
                 padding:'3',
-              }, field: 'jobTime', type: 'date',render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
+              }, field: 'jobTime', type: 'date', customSort:(a,b) => sortByJobTime(a, b, "jobTime"),render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
               {title:'Preemptible', cellStyle: {
                 textAlign:'center',
                 flexDirection: 'row',
@@ -705,7 +724,7 @@ const Jobs: React.FC = (props: any) => {
                 textAlign:'left',
                 flexDirection: 'row',
                 padding:'2',
-              }, field:'jobStatusDetail[0].finishedAt',type:'date',emptyValue:'unknown',
+              }, field:'jobStatusDetail[0].finishedAt',type:'date',emptyValue:'unknown', customSort:(a,b) => sortByJobTime(a, b, "finishedAt"),
               render: (rowData: any)=>renderDateTime(rowData, 'finishedAt')}
             ]}
             data={filterPauseJobs(jobs)}
@@ -774,7 +793,7 @@ const Jobs: React.FC = (props: any) => {
                 textAlign:'left',
                 flexDirection: 'row',
                 padding:'0',
-              }, field:'jobTime',type:'date',render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
+              }, field:'jobTime',type:'date',customSort:(a,b) => sortByJobTime(a, b, "jobTime") ,render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
               {title:'Preemptible',cellStyle: {
                 textAlign:'center',
                 flexDirection: 'row',
@@ -785,6 +804,7 @@ const Jobs: React.FC = (props: any) => {
                 flexDirection: 'row',
                 padding:'2',
               }, field:'jobStatusDetail[0].finishedAt',type:'date',emptyValue:'unknown',
+              customSort: (a, b) => sortByJobTime(a, b, "finishedAt"),
               render: (rowData: any)=>renderDateTime(rowData,'finishedAt'),
               },
               {
@@ -798,6 +818,7 @@ const Jobs: React.FC = (props: any) => {
                   padding:'5',
                   whiteSpace:'nowrap'
                 },
+                customSort: (a, b) => sortByJobTime(a, b, "startedAt"),
                 render: (rowData: any)=>renderDateTime(rowData, 'startedAt')
               }
             ]}
@@ -861,7 +882,9 @@ const Jobs: React.FC = (props: any) => {
                       textAlign:'center',
                       flexDirection: 'row',
                       padding:'0',
-                    },field: 'jobTime', type: 'date',render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
+                    },field: 'jobTime', type: 'date',
+                    customSort: (a,b) => sortByJobTime(a, b,'jobTime')
+                    ,render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
                     {
                       title: 'Preemptible',
                       field: 'jobParams.preemptionAllowed',
@@ -881,6 +904,7 @@ const Jobs: React.FC = (props: any) => {
                         padding:'0',
                       },
                       emptyValue: 'unknown',
+                      customSort: (a, b) => sortByJobTime(a, b, "startedAt"),
                       render: (rowData: any)=>renderDateTime(rowData,'startedAt')
                     }
                   ]}
@@ -962,7 +986,8 @@ const Jobs: React.FC = (props: any) => {
                       textAlign:'center',
                       flexDirection: 'row',
                       padding:'0',
-                    },field: 'jobTime', type: 'date',render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
+                    },field: 'jobTime', type: 'date', customSort: (a, b) => sortByJobTime(a, b, "jobTime")
+                    ,render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
                     {
                       title: 'Preemptible'
                       ,cellStyle: {
@@ -1065,7 +1090,7 @@ const Jobs: React.FC = (props: any) => {
                       textAlign:'center',
                       flexDirection: 'row',
                       padding:'0',
-                    },field: 'jobTime', type: 'date',render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
+                    },field: 'jobTime', type: 'date',customSort: (a, b) => sortByJobTime(a, b, "jobTime"),render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
                     {
                       title: 'Preemptible',cellStyle: {
                         textAlign:'center',
@@ -1163,7 +1188,7 @@ const Jobs: React.FC = (props: any) => {
                       textAlign:'left',
                       flexDirection: 'row',
                       padding:'2',
-                    },field: 'jobTime', type: 'date',render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
+                    },field: 'jobTime', type: 'date', customSort: (a, b) => sortByJobTime(a, b, "jobTime") ,render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
                     {title:'Preemptible',cellStyle: {
                       textAlign:'left',
                       flexDirection: 'row',
@@ -1174,6 +1199,7 @@ const Jobs: React.FC = (props: any) => {
                       flexDirection: 'row',
                       padding:'2',
                     },field:'jobStatusDetail[0].finishedAt',type:'date',emptyValue:'unknown',
+                    customSort: (a, b) => sortByJobTime(a, b, "finishedAt"),
                     render: (rowData: any)=>renderDateTime(rowData, 'finishedAt')},
                   ]}
                   data={filterPauseJobs(allJobs)}
