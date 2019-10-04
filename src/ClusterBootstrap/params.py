@@ -42,8 +42,9 @@ default_config_parameters = {
     "mysql_port": "3306",
     "mysql_username": "root",
     "mysql_data_path": "/var/lib/mysql",
+    "mysql_password": "configureme",
 
-    "datasource": "AzureSQL",
+    "datasource": "MySQL",
     "defalt_virtual_cluster_name": "platform",
     # Discover server is used to find IP address of the host, it need to be a well-known IP address
     # that is pingable.
@@ -619,18 +620,9 @@ default_config_parameters = {
             # Need to white list dev machines to connect
             # "source_addresses_prefixes": [ "52.151.0.0/16"]
         },
-        "nfs_share": {
-            "source_ips": ["104.44.112.0/24", "131.107.0.0/16"],
-        },
-        "nfs_ssh": {
-            "source_ips": ["104.44.112.0/24", "131.107.0.0/16"],
-            "port": "22",
-        },
-        "samba_range": "104.44.112.0/24",
     },
-    "nfs_node_num": 0,
-    "nfs_suffixes":[],
-    "nfs_svr_setup": [
+
+    "nfs_mnt_setup": [
           {
             "mnt_point": {"rootshare":{"curphysicalmountpoint":"/mntdlws/infranfs","filesharename":"/infradata/share","mountpoints":""}}}
     ],

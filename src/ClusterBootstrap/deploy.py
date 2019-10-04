@@ -1097,35 +1097,21 @@ def deploy_ETCD():
     utils.render_template("./template/etcd/init_network.sh","./deploy/etcd/init_network.sh",config)
     utils.SSH_exec_script( config["ssh_cert"], etcd_server_user, etcd_servers[0], "./deploy/etcd/init_network.sh")
 
-def create_nfs_server():
+def set_nfs_disk():
     """
     we assume there's only 1 cluster.
     """
     etcd_server_user = config["nfs_user"]
-    nfs_servers = config["nfs_node"] if int(config["nfs_node_num"]) > 0 else config["etcd_node"]
-    # if we have suffixed server, then it must be external
-    named_nfs_suffix = set(config["nfs_suffixes"])
-    used_nfs_suffix = set([nfs_cnf["server_suffix"] for nfs_cnf in config["nfs_svr_setup"] if "server_suffix" in nfs_cnf])
-    assert (used_nfs_suffix - named_nfs_suffix) == set() and "suffix not in nfs_suffixes list!"
-    suffix2used_nfs = {suffix: get_node_full_name("{}-nfs-{}".format(config["cluster_name"], suffix)) for suffix in used_nfs_suffix}
-    # unused, either node without name suffix or those with suffix but not specified in any nfs_svr_setup item
-    unused_nfs = sorted([s for s in nfs_servers if s not in suffix2used_nfs.values()])
-    unused_ID_cnt = 0
-    # print(nfs_servers, suffix2used_nfs, unused_nfs)
-
-
-    for nfs_cnf in config["nfs_svr_setup"]:
+    nfs_servers = config["nfs_node"] if len(config["nfs_node"]) > 0 else config["etcd_node"]
+    machine_name_2_full = {nm.split('.')[0]:nm for nm in nfs_servers}
+    for srvr_nm, nfs_cnf in config["nfs_disk_mnt"].items():
         nfs_cnf["cloud_config"] = {"vnet_range":config["cloud_config"]["vnet_range"], "samba_range": config["cloud_config"]["samba_range"]}
-        if "server_suffix" in nfs_cnf:
-            nfs_server = suffix2used_nfs[nfs_cnf["server_suffix"]]
-        else:
-            nfs_server = unused_nfs[unused_ID_cnt]
-            unused_ID_cnt += 1
+        nfs_server = machine_name_2_full[srvr_nm]
+        # print nfs_cnf, nfs_server
         utils.render_template("./template/nfs/nfs_config.sh.template","./deploy/scripts/setup_nfs_server.sh",nfs_cnf)
         # os.system("cat ./deploy/scripts/setup_nfs_server.sh")
         # print("------------------>nfs_server<------------------------"+nfs_server)
         utils.SSH_exec_script( config["ssh_cert"], etcd_server_user, nfs_server, "./deploy/scripts/setup_nfs_server.sh")
-
 
 def create_ISO():
     imagename = "./deploy/iso/dlworkspace-cluster-deploy-"+config["cluster_name"]+".iso"
@@ -3169,7 +3155,7 @@ def run_command( args, command, nargs, parser ):
     elif command == "nfs-server":
         if len(nargs) > 0:
             if nargs[0] == "create":
-                create_nfs_server()
+                set_nfs_disk()
             else:
                 print "Error: subcommand %s is not recognized for nfs-server. " % nargs[0]
                 exit()
