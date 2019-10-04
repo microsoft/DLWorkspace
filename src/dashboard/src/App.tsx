@@ -16,7 +16,6 @@ import AppBar from "./layout/AppBar";
 import Content from "./layout/Content";
 import Drawer from "./layout/Drawer";
 import { Provider as DrawerProvider } from "./layout/Drawer/Context";
-import Training from "./pages/Submission/Training";
 
 const Home = React.lazy(() => import('./pages/Home'));
 const SignIn = React.lazy(() => import('./pages/SignIn'));

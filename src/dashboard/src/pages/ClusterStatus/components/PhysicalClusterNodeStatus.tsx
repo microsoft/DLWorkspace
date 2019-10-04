@@ -1,17 +1,15 @@
 import React from "react";
 import {
-  CircularProgress, createMuiTheme, Grid,
-  MuiThemeProvider, Paper, SvgIcon,
+  createMuiTheme,
+  MuiThemeProvider, SvgIcon,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableRow, Typography, useTheme
 } from "@material-ui/core";
-import Iframe from "react-iframe";
 import useCheckIsDesktop from "../../../utlities/layoutUtlities";
 import {checkObjIsEmpty, sumValues} from "../../../utlities/ObjUtlities";
-import ServicesChips from "./ServicesChips";
 import {red} from "@material-ui/core/colors";
 import Tooltip from "@material-ui/core/Tooltip";
 import IconButton from "@material-ui/core/IconButton";

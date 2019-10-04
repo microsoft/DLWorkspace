@@ -6,7 +6,7 @@ import {
   DialogContentText,
   DialogTitle
 } from "@material-ui/core";
-import {grey, red} from "@material-ui/core/colors";
+import {grey} from "@material-ui/core/colors";
 import {TransitionProps} from "@material-ui/core/transitions";
 import Slide from "@material-ui/core/Slide";
 

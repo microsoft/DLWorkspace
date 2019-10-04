@@ -10,7 +10,7 @@ import {
   FormControlLabel,
   InputAdornment,
   IconButton,
-  TextField, Tooltip, SvgIcon, Link,
+  TextField, Tooltip, Link,
 } from '@material-ui/core';
 import { Add, FileCopy } from '@material-ui/icons';
 
@@ -18,7 +18,6 @@ import useFetch from 'use-http';
 
 import Context from './Context';
 import copy from "clipboard-copy";
-import {green} from "@material-ui/core/colors";
 
 interface ListProps {
   endpoints: any[];

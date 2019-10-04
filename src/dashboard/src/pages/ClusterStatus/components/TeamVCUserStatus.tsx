@@ -1,11 +1,9 @@
 import React from "react";
 import {
-  Container,
   Tooltip,
   Switch,
   CircularProgress
 } from "@material-ui/core";
-import useCheckIsDesktop from "../../../utlities/layoutUtlities";
 import MaterialTable, {MTableToolbar} from "material-table";
 
 interface TeamUsr {
