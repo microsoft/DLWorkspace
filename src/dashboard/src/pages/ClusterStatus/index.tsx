@@ -269,7 +269,7 @@ const ClusterStatus: FC = () => {
             <TeamVirtualClusterStatus vcStatus={vcStatus} selectedValue={selectedValue} handleChange={handleChange}/>
           </DLTSTabPanel>
           <DLTSTabPanel value={value} index={1} dir={theme.direction} title={ClusterStatusTitles[value]}>
-            <TeamVCUserStatus userStatus={userStatus} showCurrentUser={showCurrentUser} handleSwitch={handleSwitch}/>
+            <TeamVCUserStatus userStatus={userStatus} currentCluster={selectedValue} showCurrentUser={showCurrentUser} handleSwitch={handleSwitch}/>
           </DLTSTabPanel>
           <DLTSTabPanel value={value} index={2} dir={theme.direction} title={ClusterUsagesTitles[0]}>
             <ClusterUsage showIframe={showIframe} iframeUrl={iframeUrlForPerVC}/>
