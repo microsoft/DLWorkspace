@@ -7,6 +7,7 @@ import ClustersContext from "../../../contexts/Clusters";
 import TeamsContext from "../../../contexts/Teams";
 import useFetch from "use-http/dist";
 import _ from "lodash";
+import {sumValues} from "../../../utlities/ObjUtlities";
 
 interface ClusterSelectFieldProps {
   cluster: string | undefined;
@@ -48,8 +49,8 @@ const ClusterSelectField: React.FC<ClusterSelectFieldProps & BaseTextFieldProps>
       if (!isEmpty(res)) {
         clusterName = (String)(Object.keys(res['gpu_capacity'])[0])
       }
-      const gpuCapacity =  isEmpty(res) ? 0 : (String)(Object.values(res['gpu_capacity'])[0]);
-      const gpuAvailable =  isEmpty(res) ? 0 : (String)(Object.values(res['gpu_avaliable'])[0]);
+      const gpuCapacity =  isEmpty(res) ? 0 : (String)(sumValues(res['gpu_capacity']));
+      const gpuAvailable =  isEmpty(res) ? 0 : (String)(sumValues(res['gpu_avaliable']));
       setHelperText(`${clusterName} (${gpuAvailable} / ${gpuCapacity} to use)`);
     })
     if (selectedCluster) {
