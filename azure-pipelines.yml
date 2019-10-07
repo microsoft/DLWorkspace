@@ -1,0 +1,38 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+
+pool:
+  name: 'DLTS-Platform'
+
+# container: ubuntu:18.04
+
+variables: { SUBSCRIPTION_NAME: "'Bing DLTS'" }
+
+steps:
+- script: |
+    cd src/ClusterBootstrap/
+    sudo ./install_prerequisites.sh
+    az account set --subscription $(SUBSCRIPTION_NAME)
+    az account list | grep -A5 -B5 '"isDefault": true'
+  displayName: 'Install prerequisites'
+
+- script: |
+    cd src/ClusterBootstrap/
+    cp /mnt/_work/dlts_ci_config.yaml config.yaml
+    ./bash_step_by_step_deploy.sh
+  displayName: 'Deploy DLWorkspace'
+
+- script: |
+    echo TODO: verify the cluster is ready!
+  displayName: 'Verify deployment'
+
+- script: |
+    echo TODO: RUN functional tests!
+  displayName: 'Functional tests'
+
+- script: |
+    echo TODO: cleanup the deployment!
+  displayName: 'Cleanup'

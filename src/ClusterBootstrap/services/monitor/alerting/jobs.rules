@@ -6,13 +6,3 @@ groups:
         for: 4h
         labels:
           type: idle_gpu
-      - alert: kill-idle-jobs-email
-        expr: avg(task_gpu_percent) by (user_email, job_name, vc_name) == 0
-        for: 8h
-        labels:
-          type: kill_idle_job_email
-      - alert: kill-idle-jobs
-        expr: avg(task_gpu_percent) by (user_email, job_name, vc_name) == 0
-        for: 8h
-        labels:
-          type: reaper

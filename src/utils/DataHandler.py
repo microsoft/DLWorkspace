@@ -20,7 +20,6 @@ class DataManager:
 
 
     @staticmethod
-    @fcache()
     def ListVCs():
         dataHandler = DataHandler()
         ret = None
@@ -32,7 +31,6 @@ class DataManager:
 
     
     @staticmethod
-    @fcache()
     def GetResourceAcl(resourceAclPath):
         dataHandler = DataHandler()
         ret = None
@@ -44,7 +42,6 @@ class DataManager:
 
 
     @staticmethod
-    @fcache()
     def GetIdentityInfo(identityName):
         dataHandler = DataHandler()
         ret = None
@@ -60,8 +57,38 @@ class DataManager:
         dataHandler = DataHandler()
         ret = None
         try:
-            ret = dataHandler.GetJobList("all",vcName,None, "running,queued,scheduling,unapproved", ("=","or"))
+            ret = dataHandler.GetJobList("all",vcName,None, "running,queued,scheduling,unapproved,pausing,paused", ("=","or"))
         finally:
             dataHandler.Close()
         return ret
     
+
+    @staticmethod
+    def GetTemplates(scope):
+        dataHandler = DataHandler()
+        ret = []
+        try:
+            ret = dataHandler.GetTemplates(scope)
+        finally:
+            dataHandler.Close()
+        return ret
+
+    @staticmethod
+    def UpdateTemplate(name, scope, json):
+        dataHandler = DataHandler()
+        ret = None
+        try:
+            ret = dataHandler.UpdateTemplate(name, scope, json)
+        finally:
+            dataHandler.Close()
+        return ret
+
+    @staticmethod
+    def DeleteTemplate(name, scope):
+        dataHandler = DataHandler()
+        ret = None
+        try:
+            ret = dataHandler.DeleteTemplate(name, scope)
+        finally:
+            dataHandler.Close()
+        return ret

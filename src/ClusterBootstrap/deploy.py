@@ -58,7 +58,7 @@ coreosbaseurl = ""
 verbose = False
 nocache = False
 limitnodes = None
-
+allroles = {"infra", "infrastructure", "worker", "nfs", "sql"}
 
 
 # default search for all partitions of hdb, hdc, hdd, and sdb, sdc, sdd
@@ -319,8 +319,8 @@ def add_acs_config(command):
         config["WinbindServers"] = []
         config["etcd_node_num"] = config["master_node_num"]
         config["kube_addons"] = [] # no addons
-        config["mountpoints"]["rootshare"]["azstoragesku"] = config["azstoragesku"]
-        config["mountpoints"]["rootshare"]["azfilesharequota"] = config["azfilesharequota"]
+        # config["mountpoints"]["rootshare"]["azstoragesku"] = config["azstoragesku"]
+        # config["mountpoints"]["rootshare"]["azfilesharequota"] = config["azfilesharequota"]
         config["freeflow"] = True
         config["useclusterfile"] = True
 
@@ -505,36 +505,21 @@ def check_node_availability(ipAddress):
     #status = sock.connect_ex((ipAddress,22))
     return status == 0
 
-# check if on same domain
-def is_cur_on_same_domain():
-    if "network" in config and "domain" in config["network"]:
-        hostname = subprocess.check_output("hostname").strip()
-        try:
-            output = subprocess.check_output("nslookup {0}.{1}".format(hostname, config["network"]["domain"]), shell=True)
-            if "name:" in output.lower():
-                return True
-        except:
-            pass
-    return False
-
-# Get domain of the node
+# Get domain of the node, assigned in add_acs_config (line config["network"]["domain"])
 def get_domain():
     if "network" in config and "domain" in config["network"] and len(config["network"]["domain"]) > 0 :
-        if is_cur_on_same_domain():
-            domain = ""
-        else:
-            domain = "."+config["network"]["domain"]
+        domain = "."+config["network"]["domain"]
     else:
         domain = ""
     return domain
 
 # Get a list of nodes from cluster.yaml
 def get_nodes_from_config(machinerole):
+    machinerole = "infrastructure" if machinerole == "infra" else machinerole
     if "machines" not in config:
         return []
     else:
         domain = get_domain()
-        # print ("Doamin = %s " % domain )
         Nodes = []
         for nodename in config["machines"]:
             nodeInfo = config["machines"][nodename]
@@ -544,6 +529,9 @@ def get_nodes_from_config(machinerole):
                 else:
                     Nodes.append(nodename)
         return sorted(Nodes)
+
+def get_node_full_name(nodename):
+    return nodename + get_domain() if len(nodename.split("."))<3 else nodename
 
 # Get a list of scaled nodes from cluster.yaml
 def get_scaled_nodes_from_config():
@@ -621,6 +609,21 @@ def get_worker_nodes_from_config(clusterId):
     config["worker_node"] = Nodes
     return Nodes
 
+def get_nodes_by_roles(roles):
+    """
+    role: "infrastructure", "worker", or "nfs"
+    this function aims to deprecate get_worker_nodes_from_config and get_ETCD_master_nodes_from_config
+    """
+    Nodes = []
+    for role in roles:
+        Nodes += get_nodes_from_config(role)
+        if role == "infrastructure" or role == "infra":
+            config["etcd_node"] = Nodes
+            config["kubernetes_master_node"] = Nodes
+        else:
+            config["{}_node".format(role)] = Nodes
+    return Nodes
+
 def get_worker_nodes(clusterId, isScaledOnly):
     nodes = []
     if "worker_node" in config and len(config["worker_node"]) > 0:
@@ -628,7 +631,8 @@ def get_worker_nodes(clusterId, isScaledOnly):
     if "useclusterfile" not in config or not config["useclusterfile"]:
         nodes = get_worker_nodes_from_cluster_report(clusterId)
     else:
-        nodes = get_worker_nodes_from_config(clusterId)
+        print("from console")
+        nodes = get_nodes_by_roles(["worker"]) #get_worker_nodes_from_config(clusterId)
 
     if isScaledOnly:
         return get_scaled_nodes_from_config()
@@ -666,10 +670,12 @@ def check_master_ETCD_status():
     print "Checking Available Nodes for Deployment..."
     get_ETCD_master_nodes(config["clusterId"])
     get_worker_nodes(config["clusterId"], False)
+    get_nodes_by_roles(["nfs"])
     print "==============================================="
     print "Activate Master Node(s): %s\n %s \n" % (len(config["kubernetes_master_node"]),",".join(config["kubernetes_master_node"]))
     print "Activate ETCD Node(s):%s\n %s \n" % (len(config["etcd_node"]),",".join(config["etcd_node"]))
     print "Activate Worker Node(s):%s\n %s \n" % (len(config["worker_node"]),",".join(config["worker_node"]))
+    print "Activate NFS Node(s):%s\n %s \n" % (len(config["nfs_node"]),",".join(config["nfs_node"]))
 
 def clean_deployment():
     print "==============================================="
@@ -778,6 +784,7 @@ def gen_configs():
         config["ssh_cert"] = expand_path("./deploy/sshkey/id_rsa")
 
     config["etcd_user"] = config["admin_username"]
+    config["nfs_user"] = config["admin_username"]
     config["kubernetes_master_ssh_user"] = config["admin_username"]
 
     #config["api_servers"] = ",".join(["https://"+x for x in config["kubernetes_master_node"]])
@@ -809,6 +816,7 @@ def get_ssh_config():
     if "ssh_cert" in config:
         config["ssh_cert"] = expand_path(config["ssh_cert"])
     config["etcd_user"] = config["admin_username"]
+    config["nfs_user"] = config["admin_username"]
     config["kubernetes_master_ssh_user"] = config["admin_username"]
     add_ssh_key()
 
@@ -852,13 +860,16 @@ def clean_master():
 
         utils.SSH_exec_script(config["ssh_cert"],kubernetes_master_user, kubernetes_master, "./deploy/master/%s" % config["mastercleanupscript"])
 
-
 def deploy_master(kubernetes_master):
         print "==============================================="
         kubernetes_master_user = config["kubernetes_master_ssh_user"]
         print "starting kubernetes master on %s..." % kubernetes_master
 
-        config["master_ip"] = utils.getIP(kubernetes_master)
+        assert config["priority"] in ["regular", "low"]
+        if config["priority"] == "regular":
+            config["master_ip"] = utils.getIP(kubernetes_master) 
+        else:
+            config["master_ip"] = config["machines"][kubernetes_master.split(".")[0]]["private-ip"]
         utils.render_template("./template/master/kube-apiserver.yaml","./deploy/master/kube-apiserver.yaml",config)
         utils.render_template("./template/master/dns-kubeconfig.yaml","./deploy/master/dns-kubeconfig.yaml",config)
         utils.render_template("./template/master/kubelet.service","./deploy/master/kubelet.service",config)
@@ -877,18 +888,15 @@ def deploy_master(kubernetes_master):
 
 def get_cni_binary():
     os.system("mkdir -p ./deploy/bin")
-    urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/containernetworking/cni-amd64-v0.5.2.tgz", "./deploy/bin/cni-amd64-v0.5.2.tgz")
+    # This tar file contains binary build from https://github.com/containernetworking/cni which used by weave
+    urllib.urlretrieve("https://github.com/microsoft/DLWorkspace/releases/download/v1.2.0/cni-v0.7.1.tgz", "./deploy/bin/cni-v0.7.1.tgz")
     if verbose:
         print "Extracting CNI binaries"
-    os.system("tar -zxvf ./deploy/bin/cni-amd64-v0.5.2.tgz -C ./deploy/bin")
+    os.system("tar -zxvf ./deploy/bin/cni-v0.7.1.tgz -C ./deploy/bin")
 
 
 def get_kubectl_binary(force = False):
     get_hyperkube_docker(force = force)
-    #os.system("mkdir -p ./deploy/bin")
-    urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet", "./deploy/bin/kubelet-old")
-    #urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubectl", "./deploy/bin/kubectl")
-    #os.system("chmod +x ./deploy/bin/*")
     get_cni_binary()
 
 def get_hyperkube_docker(force = False) :
@@ -1089,12 +1097,21 @@ def deploy_ETCD():
     utils.render_template("./template/etcd/init_network.sh","./deploy/etcd/init_network.sh",config)
     utils.SSH_exec_script( config["ssh_cert"], etcd_server_user, etcd_servers[0], "./deploy/etcd/init_network.sh")
 
-def create_nfs_server():
-    etcd_servers = config["etcd_node"]
-    etcd_server_user = config["etcd_user"]
-    os.system( "mkdir -p ./deploy/scripts")
-    utils.render_template("./scripts/setup_nfs_server.sh","./deploy/scripts/setup_nfs_server.sh",config)
-    utils.SSH_exec_script( config["ssh_cert"], etcd_server_user, etcd_servers[0], "./deploy/scripts/setup_nfs_server.sh")
+def set_nfs_disk():
+    """
+    we assume there's only 1 cluster.
+    """
+    etcd_server_user = config["nfs_user"]
+    nfs_servers = config["nfs_node"] if len(config["nfs_node"]) > 0 else config["etcd_node"]
+    machine_name_2_full = {nm.split('.')[0]:nm for nm in nfs_servers}
+    for srvr_nm, nfs_cnf in config["nfs_disk_mnt"].items():
+        nfs_cnf["cloud_config"] = {"vnet_range":config["cloud_config"]["vnet_range"], "samba_range": config["cloud_config"]["samba_range"]}
+        nfs_server = machine_name_2_full[srvr_nm]
+        # print nfs_cnf, nfs_server
+        utils.render_template("./template/nfs/nfs_config.sh.template","./deploy/scripts/setup_nfs_server.sh",nfs_cnf)
+        # os.system("cat ./deploy/scripts/setup_nfs_server.sh")
+        # print("------------------>nfs_server<------------------------"+nfs_server)
+        utils.SSH_exec_script( config["ssh_cert"], etcd_server_user, nfs_server, "./deploy/scripts/setup_nfs_server.sh")
 
 def create_ISO():
     imagename = "./deploy/iso/dlworkspace-cluster-deploy-"+config["cluster_name"]+".iso"
@@ -1210,7 +1227,6 @@ def update_scaled_worker_nodes( nargs ):
     os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' % config["api_servers"].replace("/","\\/"))
     os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/worker-kubeconfig.yaml.template > ./deploy/kubelet/worker-kubeconfig.yaml' % config["api_servers"].replace("/","\\/"))
 
-    #urllib.urlretrieve ("http://ccsdatarepo.westus.cloudapp.azure.com/data/kube/kubelet/kubelet", "./deploy/bin/kubelet")
     get_hyperkube_docker()
 
     workerNodes = get_worker_nodes(config["clusterId"], True)
@@ -1246,6 +1262,33 @@ def update_worker_nodes( nargs ):
 
     #if len(config["kubernetes_master_node"]) > 0:
         #utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], config["kubernetes_master_node"][0], "sudo /opt/bin/kubelet get nodes")
+
+
+def update_worker_nodes_in_parallel(nargs):
+    # TODO: Merge with update_worker_nodes
+    utils.render_template_directory("./template/kubelet", "./deploy/kubelet", config)
+    write_nodelist_yaml()
+
+    os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' % config["etcd_endpoints"].replace("/","\\/"))
+    os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' % config["api_servers"].replace("/","\\/"))
+    os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/worker-kubeconfig.yaml.template > ./deploy/kubelet/worker-kubeconfig.yaml' % config["api_servers"].replace("/","\\/"))
+
+    get_hyperkube_docker()
+
+    workerNodes = get_worker_nodes(config["clusterId"], False)
+    workerNodes = limit_nodes(workerNodes)
+    worker_nodes_to_update = [node for node in workerNodes if in_list(node, nargs)]
+
+    # TODO: Tolerate faults
+    from multiprocessing import Pool
+    pool = Pool(processes=len(worker_nodes_to_update))
+    pool.map(update_worker_node, worker_nodes_to_update)
+    pool.close()
+
+    os.system("rm ./deploy/kubelet/options.env")
+    os.system("rm ./deploy/kubelet/kubelet.service")
+    os.system("rm ./deploy/kubelet/worker-kubeconfig.yaml")
+
 
 def reset_worker_nodes():
     utils.render_template_directory("./template/kubelet", "./deploy/kubelet",config)
@@ -1550,7 +1593,9 @@ def get_mount_fileshares(curNode = None):
     physicalmountpoint = config["physical-mount-path"]
     storagemountpoint = config["storage-mount-path"]
     mountshares = {}
+    # print(config["mountpoints"])
     for k,v in config["mountpoints"].iteritems():
+        # print("<<<<<<<<<<<<<<<<<<<new mount points:", v)
         if "type" in v:
             if ("mountpoints" in v):
                 if isinstance( v["mountpoints"], basestring):
@@ -1562,14 +1607,15 @@ def get_mount_fileshares(curNode = None):
                     mountpoints = v["mountpoints"]
             else:
                 mountpoints = []
-
+            # print("-------------mount points---------------:", mountpoints, bHasDefaultMountPoints)
             if len(mountpoints)==0:
                 if bHasDefaultMountPoints:
                     errorMsg = "there are more than one default mount points in configuration. "
                     print "!!!Configuration Error!!! " + errorMsg
-                    raise ValueError(erorMsg)
+                    raise ValueError(errorMsg)
                 else:
                     bHasDefaultMountPoints = True
+                    print "default storage folders:", config["default-storage-folders"], "\n"
                     mountpoints = config["default-storage-folders"]
 
             mountsharename = v["mountsharename"] if "mountsharename" in v else v["filesharename"]
@@ -2433,6 +2479,11 @@ def exec_on_all_with_output(nodes, args, supressWarning = False):
         print "Node: " + node
         print output
 
+def exec_on_rand_master(args, supressWarning = False):
+    nodes = get_ETCD_master_nodes(config["clusterId"])
+    master_node = random.choice(nodes)
+    exec_on_all_with_output([master_node], args, supressWarning)
+
 # run a shell script on one remote node
 def run_script(node, args, sudo = False, supressWarning = False):
     if ".py" in args[0]:
@@ -2455,10 +2506,30 @@ def run_script(node, args, sudo = False, supressWarning = False):
     utils.SSH_exec_cmd_with_directory(config["ssh_cert"], config["admin_username"], node, srcdir, fullcmd, supressWarning)
 
 
+def run_script_wrapper(arg_tuple):
+    node, args, sudo, supressWarning = arg_tuple
+    run_script(node, args, sudo, supressWarning)
+
+
 # run a shell script on all remote nodes
 def run_script_on_all(nodes, args, sudo = False, supressWarning = False):
     for node in nodes:
         run_script( node, args, sudo = sudo, supressWarning = supressWarning)
+
+def run_script_on_all_in_parallel(nodes, args, sudo=False, supressWarning=False):
+    args_list = [(node, args, sudo, supressWarning) for node in nodes]
+
+    # TODO: Tolerate faults
+    from multiprocessing import Pool
+    pool = Pool(processes=len(nodes))
+    pool.map(run_script_wrapper, args_list)
+    pool.close()
+
+
+def run_script_on_rand_master(nargs, args):
+    nodes = get_ETCD_master_nodes(config["clusterId"])
+    master_node = random.choice(nodes)
+    run_script_on_all([master_node], nargs, sudo = args.sudo )
 
 def copy_to_all(nodes, src, dst):
     for node in nodes:
@@ -2775,14 +2846,11 @@ def kubernetes_label_nodes( verb, servicelists, force ):
                 kubernetes_label_node(cmdoptions, nodename, label+"-")
 
 
-# Label kubernete nodes with gpu types.
+# Label kubernete nodes with gpu types.skip for CPU workers
 def kubernetes_label_GpuTypes():
-    nodes = get_nodes(config["clusterId"])
-    gpuType_config = fetch_config(config, ["gpuType_config"])
-    for gpuType, nodes in gpuType_config:
-        for node in nodes:
-            nodename = kubernetes_get_node_name(node)
-            kubernetes_label_node("--overwrite", nodename, "gpuType="+gpuType)
+    for nodename,nodeInfo in config["machines"].items():
+        if nodeInfo["role"] == "worker" and nodeInfo["gpu-type"] != "NULL":
+            kubernetes_label_node("--overwrite", nodename, "gpuType="+nodeInfo["gpu-type"])
 
 
 def kubernetes_patch_nodes_provider (provider, scaledOnly):
@@ -2932,6 +3000,15 @@ def run_docker_image( imagename, native = False, sudo = False ):
         else:
             run_docker( matches[0], prompt = imagename, dockerConfig = dockerConfig, sudo = sudo )
 
+def gen_dns_config_script():
+    utils.render_template("./template/dns/dns.sh.template", "scripts/dns.sh", config)
+
+def gen_pass_secret_script():
+    utils.render_template("./template/secret/pass_secret.sh.template", "scripts/pass_secret.sh", config)
+
+def gen_warm_up_cluster_script():
+    utils.render_template("./template/warmup/pre_download_images.sh.template", "scripts/pre_download_images.sh", config)
+
 def run_command( args, command, nargs, parser ):
     # If necessary, show parsed arguments.
     # print args
@@ -2983,7 +3060,6 @@ def run_command( args, command, nargs, parser ):
         f.close()
         if "clusterId" in tmp:
             config["clusterId"] = tmp["clusterId"]
-
     if "copy_sshtemp" in config and config["copy_sshtemp"]:
         if "ssh_origfile" not in config:
             config["ssh_origfile"] = config["ssh_cert"]
@@ -3001,20 +3077,16 @@ def run_command( args, command, nargs, parser ):
         else:
             print "SSH Key {0} not found using original".format(sshfile)
         #    exit()
-
     add_acs_config(command)
     if verbose and config["isacs"]:
         print "Using Azure Container Services"
-
     if os.path.exists("./deploy/clusterID.yml"):
         update_config()
     else:
         apply_config_mapping(config, default_config_mapping)
         update_docker_image_config()
-
     # additional glusterfs launch parameter.
     config["launch-glusterfs-opt"] = args.glusterfs;
-
     get_ssh_config()
     configuration( config, verbose )
     if args.yes:
@@ -3053,15 +3125,15 @@ def run_command( args, command, nargs, parser ):
 
     elif command == "connect":
             check_master_ETCD_status()
-            if len(nargs) < 1 or nargs[0] == "master":
+            role2connect = nargs[0]
+            # print(role2connect, config["ssh_cert"], config["admin_username"])
+            if len(nargs) < 1 or role2connect == "master":
                 nodes = config["kubernetes_master_node"]
-            elif nargs[0] == "etcd":
-                nodes = config["etcd_node"]
-            elif nargs[0] == "worker":
-                nodes = config["worker_node"]
+            elif role2connect in ["etcd","worker","nfs"]:
+                nodes = config["{}_node".format(role2connect)]
             else:
                 parser.print_help()
-                print "ERROR: must connect to either master, etcd or worker nodes"
+                print "ERROR: must connect to either master, etcd, nfs or worker nodes"
                 exit()
             if len(nodes) == 0:
                 parser.print_help()
@@ -3083,7 +3155,7 @@ def run_command( args, command, nargs, parser ):
     elif command == "nfs-server":
         if len(nargs) > 0:
             if nargs[0] == "create":
-                create_nfs_server()
+                set_nfs_disk()
             else:
                 print "Error: subcommand %s is not recognized for nfs-server. " % nargs[0]
                 exit()
@@ -3111,6 +3183,11 @@ def run_command( args, command, nargs, parser ):
             parser.print_help()
             print "Error: build target %s is not recognized. " % nargs[0]
             exit()
+
+    elif command == "dnssetup":
+        os.system("./gene_loc_dns.sh")
+        nodes = get_nodes(config["clusterId"])
+        run_script_on_all(nodes, "./scripts/dns.sh", sudo = args.sudo )
 
     elif command == "sshkey":
         if len(nargs) >=1 and nargs[0] == "install":
@@ -3218,6 +3295,14 @@ def run_command( args, command, nargs, parser ):
             check_master_ETCD_status()
             gen_configs()
             update_worker_nodes( nargs )
+
+    elif command == "updateworkerinparallel":
+        response = raw_input_with_default("Deploy Worker Nodes In Parallel (y/n)?")
+        if first_char(response) == "y":
+            #utils.render_template_directory("./template/kubelet", "./deploy/kubelet",config)
+            check_master_ETCD_status()
+            gen_configs()
+            update_worker_nodes_in_parallel(nargs)
 
     elif command == "updatescaledworker":
         response = raw_input_with_default("Deploy Scaled Worker Nodes (y/n)?")
@@ -3398,7 +3483,28 @@ def run_command( args, command, nargs, parser ):
 
     elif command == "runscriptonall" and len(nargs)>=1:
         nodes = get_nodes(config["clusterId"])
+        # print(nodes)
         run_script_on_all(nodes, nargs, sudo = args.sudo )
+
+    elif command == "runscriptonallinparallel" and len(nargs)>=1:
+        nodes = get_nodes(config["clusterId"])
+        run_script_on_all_in_parallel(nodes, nargs, sudo=args.sudo)
+
+    elif command == "runscriptonroles":
+        assert len(nargs)>=1
+        nodeset, scripts_start = [], 0
+        for ni, arg in enumerate(nargs):
+            scripts_start = ni
+            if arg in config["allroles"]:
+                nodeset += arg,
+            else:
+                break
+        nodes = get_nodes_by_roles(nodeset)
+        # print(nodes)
+        run_script_on_all(nodes, nargs[scripts_start:], sudo = args.sudo )
+
+    elif command == "runscriptonrandmaster" and len(nargs)>=1:
+        run_script_on_rand_master(nargs, args)
 
     elif command == "runscriptonscaleup" and len(nargs)>=1:
         nodes = get_scaled_nodes(config["clusterId"])
@@ -3601,6 +3707,17 @@ def run_command( args, command, nargs, parser ):
             print "Error: kubernetes need a subcommand."
             exit()
 
+    elif command == "gpulabel":
+        kubernetes_label_GpuTypes()
+
+    elif command == "genscripts":
+        gen_dns_config_script()
+        gen_pass_secret_script()
+        gen_warm_up_cluster_script()
+
+    elif command == "setconfigmap":
+        os.system('./deploy/bin/kubectl create configmap dlws-scripts --from-file=../Jobs_Templete -o yaml --dry-run | ./deploy.py kubectl apply -f -')
+
     elif command == "download":
         if len(nargs)>=1:
             if nargs[0] == "kubectl" or nargs[0] == "kubelet":
@@ -3669,6 +3786,16 @@ def run_command( args, command, nargs, parser ):
         template_file = nargs[0]
         target_file = nargs[1]
         utils.render_template(template_file, target_file,config)
+    elif command == "upgrade_masters":
+        gen_configs()
+        upgrade_masters()
+    elif command == "upgrade_workers":
+        gen_configs()
+        upgrade_workers(nargs)
+    elif command == "upgrade":
+        gen_configs()
+        upgrade_masters()
+        upgrade_workers(nargs)
     elif command in scriptblocks:
         run_script_blocks(args.verbose, scriptblocks[command])
     else:
@@ -3690,6 +3817,118 @@ def run_script_blocks( verbose, script_collection ):
         print "Run command %s, args %s" % (command, nargs )
         args.verbose = verbose
         run_command( args, command, nargs, parser )
+
+def upgrade_worker_node(nodeIP):
+    print "==============================================="
+    print "upgrading worker node: %s ..."  % nodeIP
+
+    worker_ssh_user = config["admin_username"]
+    utils.SSH_exec_script(config["ssh_cert"],worker_ssh_user, nodeIP, "./deploy/kubelet/pre-worker-upgrade.sh")
+
+    with open("./deploy/kubelet/upgrade.list", "r") as f:
+        deploy_files = [s.split(",") for s in f.readlines() if len(s.split(",")) == 2]
+    for (source, target) in deploy_files:
+        if (os.path.isfile(source.strip()) or os.path.exists(source.strip())):
+            utils.sudo_scp(config["ssh_cert"],source.strip(),target.strip(),worker_ssh_user, nodeIP)
+
+    utils.SSH_exec_script(config["ssh_cert"],worker_ssh_user, nodeIP, "./deploy/kubelet/post-worker-upgrade.sh")
+
+def upgrade_workers(nargs, hypekube_url="gcr.io/google-containers/hyperkube:v1.15.2"):
+    config["dockers"]["external"]["hyperkube"]["fullname"] = hypekube_url
+    config["dockers"]["container"]["hyperkube"]["fullname"] = hypekube_url
+
+    utils.render_template_directory("./template/kubelet", "./deploy/kubelet", config)
+    write_nodelist_yaml()
+
+    os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' % config["etcd_endpoints"].replace("/","\\/"))
+    os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' % config["api_servers"].replace("/","\\/"))
+    os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/worker-kubeconfig.yaml.template > ./deploy/kubelet/worker-kubeconfig.yaml' % config["api_servers"].replace("/","\\/"))
+
+    get_hyperkube_docker()
+
+    workerNodes = get_worker_nodes(config["clusterId"], False)
+    workerNodes = limit_nodes(workerNodes)
+    for node in workerNodes:
+        if in_list(node, nargs):
+            upgrade_worker_node(node)
+
+    os.system("rm ./deploy/kubelet/options.env")
+    os.system("rm ./deploy/kubelet/kubelet.service")
+    os.system("rm ./deploy/kubelet/worker-kubeconfig.yaml")
+
+def upgrade_master(kubernetes_master):
+    print "==============================================="
+    kubernetes_master_user = config["kubernetes_master_ssh_user"]
+    print "starting kubernetes master on %s..." % kubernetes_master
+
+    assert config["priority"] in ["regular", "low"]
+    if config["priority"] == "regular":
+        config["master_ip"] = utils.getIP(kubernetes_master) 
+    else:
+        config["master_ip"] = config["machines"][kubernetes_master.split(".")[0]]["private-ip"]
+    utils.render_template("./template/master/kube-apiserver.yaml","./deploy/master/kube-apiserver.yaml",config)
+    utils.render_template("./template/master/dns-kubeconfig.yaml","./deploy/master/dns-kubeconfig.yaml",config)
+    utils.render_template("./template/master/kubelet.service","./deploy/master/kubelet.service",config)
+    utils.render_template("./template/master/pre-upgrade.sh", "./deploy/master/pre-upgrade.sh", config)
+    utils.render_template("./template/master/post-upgrade.sh", "./deploy/master/post-upgrade.sh", config)
+
+    utils.SSH_exec_script(config["ssh_cert"],kubernetes_master_user, kubernetes_master, "./deploy/master/pre-upgrade.sh")
+
+    with open("./deploy/master/upgrade.list", "r") as f:
+        deploy_files = [s.split(",") for s in f.readlines() if len(s.split(",")) == 2]
+
+    for (source, target) in deploy_files:
+        if (os.path.isfile(source.strip()) or os.path.exists(source.strip())):
+            utils.sudo_scp(config["ssh_cert"],source.strip(),target.strip(),kubernetes_master_user,kubernetes_master, verbose=verbose)
+
+    utils.SSH_exec_script(config["ssh_cert"],kubernetes_master_user, kubernetes_master, "./deploy/master/post-upgrade.sh")
+
+def upgrade_masters(hypekube_url="gcr.io/google-containers/hyperkube:v1.15.2"):
+    config["dockers"]["external"]["hyperkube"]["fullname"] = hypekube_url
+    config["dockers"]["container"]["hyperkube"]["fullname"] = hypekube_url
+
+    kubernetes_masters = config["kubernetes_master_node"]
+    kubernetes_master_user = config["kubernetes_master_ssh_user"]
+
+    get_kubectl_binary(force=True)
+
+    utils.render_template_directory("./template/master", "./deploy/master",config)
+    utils.render_template_directory("./template/kube-addons", "./deploy/kube-addons",config)
+
+    for kubernetes_master in kubernetes_masters:
+        upgrade_master(kubernetes_master)
+    deploy_cmd = """
+        until curl -q http://127.0.0.1:8080/version/ ; do
+            sleep 5;
+            echo 'waiting for master...';
+        done;
+
+        until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/weave.yaml --validate=false ; do
+            sleep 5;
+            echo 'waiting for master...';
+        done ;
+
+        until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/dashboard.yaml --validate=false ; do
+            sleep 5;
+            echo 'waiting for master...';
+        done ;
+
+        until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/dns-addon.yml --validate=false ;  do
+            sleep 5;
+            echo 'waiting for master...';
+        done ;
+
+        until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/kube-proxy.json --validate=false ;  do
+            sleep 5;
+            echo 'waiting for master...';
+        done ;
+
+        until sudo /opt/bin/kubectl apply -f /etc/kubernetes/clusterroles/ ;  do
+            sleep 5;
+            echo 'waiting for master...';
+        done ;
+    """
+    utils.SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_masters[0], deploy_cmd , False)
 
 if __name__ == '__main__':
     # the program always run at the current directory.
@@ -3784,6 +4023,9 @@ Command:
   listmac   display mac address of the cluster notes
   checkconfig   display config items
   rendertemplate template_file target_file
+  upgrade_masters Upgrade the master nodes.
+  upgrade_workers [nodes] Upgrade the worker nodes. If no additional node is specified, all nodes will be updated.
+  upgrade [nodes] Upgrade the cluster and nodes. If no additional node is specified, all nodes will be updated.
   ''') )
     parser.add_argument("-y", "--yes",
         help="Answer yes automatically for all prompt",

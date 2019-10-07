@@ -73,7 +73,7 @@ def SubmitJob(jobParamsJsonStr):
         jobParams["preemptionAllowed"] = False
     else:
         jobParams["preemptionAllowed"] = ToBool(jobParams["preemptionAllowed"])
-    
+
     if "jobId" not in jobParams or jobParams["jobId"] == "":
         #jobParams["jobId"] = jobParams["jobName"] + "-" + str(uuid.uuid4())
         #jobParams["jobId"] = jobParams["jobName"] + "-" + str(time.time())
@@ -228,7 +228,7 @@ def GetJobList(userName, vcName, jobOwner, num=None):
 
         if jobOwner != "all" or not hasAccessOnAllJobs:
             jobs = jobs + GetUserPendingJobs(userName, vcName)
-            jobs = jobs + dataHandler.GetJobList(userName,vcName,num, "running,queued,scheduling,unapproved", ("<>","and"))
+            jobs = jobs + dataHandler.GetJobList(userName,vcName,num, "running,queued,scheduling,unapproved,pausing,paused", ("<>","and"))
         else:
             jobs = GetUserPendingJobs(jobOwner, vcName)
 
@@ -310,10 +310,10 @@ def ApproveJob(userName, jobId):
 def ResumeJob(userName, jobId):
     dataHandler = DataHandler()
     ret = False
-    jobs =  dataHandler.GetJob(jobId=jobId)
+    jobs = dataHandler.GetJob(jobId=jobId)
     if len(jobs) == 1:
         if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
-            ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","queued")
+            ret = dataHandler.UpdateJobTextField(jobId, "jobStatus", "unapproved")
     dataHandler.Close()
     return ret
 
@@ -488,13 +488,14 @@ def ListVCs(userName):
     vcList =  DataManager.ListVCs()
     for vc in vcList:
         if AuthorizationManager.HasAccess(userName, ResourceType.VC, vc["vcName"], Permission.User):
+            vc['admin'] = AuthorizationManager.HasAccess(userName, ResourceType.VC, vc["vcName"], Permission.Admin)
             ret.append(vc)
     # web portal (client) can filter out Default VC
     return ret
 
 
 def GetVC(userName, vcName):
-    ret = None  
+    ret = None
 
     clusterStatus, dummy = DataManager.GetClusterStatus()
     clusterTotalRes = ResourceInfo(clusterStatus["gpu_capacity"])
@@ -508,8 +509,10 @@ def GetVC(userName, vcName):
             vcTotalRes = ResourceInfo(json.loads(vc["quota"]))
             vcConsumedRes = ResourceInfo()
             jobs = DataManager.GetAllPendingJobs(vcName)
+            num_active_jobs = 0
             for job in jobs:
                 if job["jobStatus"] == "running":
+                    num_active_jobs += 1
                     username = job["userName"]
                     jobParam = json.loads(base64.b64decode(job["jobParams"]))
                     if "gpuType" in jobParam and not jobParam["preemptionAllowed"]:
@@ -525,7 +528,7 @@ def GetVC(userName, vcName):
             vc["gpu_used"] = vcConsumedRes.ToSerializable()
             vc["gpu_unschedulable"] = vcReservedRes.ToSerializable()
             vc["gpu_avaliable"] = vcAvailableRes.ToSerializable()
-            vc["AvaliableJobNum"] = len(jobs)          
+            vc["AvaliableJobNum"] = num_active_jobs
             vc["node_status"] = clusterStatus["node_status"]
             vc["user_status"] = []
             for user_name, user_gpu in user_status.iteritems():
@@ -578,6 +581,21 @@ def update_job(job_id, field, value):
     dataHandler = DataHandler()
     dataHandler.UpdateJobTextField(job_id, field, value)
     dataHandler.Close()
+
+
+def get_job_priorities():
+    dataHandler = DataHandler()
+    job_priorites = dataHandler.get_job_priority()
+    dataHandler.Close()
+    return job_priorites
+
+
+def update_job_priorites(job_priorites):
+    dataHandler = DataHandler()
+    success = dataHandler.update_job_priority(job_priorites)
+    dataHandler.Close()
+    return success
+
 
 if __name__ == '__main__':
     TEST_SUB_REG_JOB = False

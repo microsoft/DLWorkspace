@@ -21,7 +21,10 @@ import k8sUtils
 from config import config, GetStoragePath, GetWorkPath
 from DataHandler import DataHandler
 
+from job_deployer import JobDeployer
+
 logger = logging.getLogger(__name__)
+deployer = JobDeployer()
 
 
 def is_ssh_server_ready(pod_name):
@@ -34,8 +37,12 @@ def is_ssh_server_ready(pod_name):
 
 def query_ssh_port(pod_name):
     bash_script = "grep ^Port /etc/ssh/sshd_config | cut -d' ' -f2"
-    ssh_port = k8sUtils.kubectl_exec("exec %s %s" % (pod_name, " -- " + bash_script))
-    return int(ssh_port)
+    status_code, output = deployer.pod_exec(pod_name, ["/bin/bash", "-c", bash_script])
+    if status_code != 0:
+        raise RuntimeError("Query ssh port failed: {}".format(pod_name))
+    if not output:
+        return 22
+    return int(output)
 
 
 def start_ssh_server(pod_name, user_name, host_network=False, ssh_port=22):
@@ -51,7 +58,7 @@ def start_ssh_server(pod_name, user_name, host_network=False, ssh_port=22):
             ssh_port = random.randint(40000, 49999)
         # bash_script = "sed -i '/^Port 22/c Port "+str(ssh_port)+"' /etc/ssh/sshd_config && "+bash_script
         # TODO refine the script later
-        bash_script = "sudo bash -c 'apt-get update && apt-get install -y openssh-server && sed -i \"s/^Port 22/Port " + str(ssh_port) + "/\" /etc/ssh/sshd_config && cd /home/" + user_name + " && (chown " + user_name + " -R .ssh; chmod 600 -R .ssh/*; chmod 700 .ssh; true) && service ssh restart'"
+        bash_script = "sudo bash -c 'apt-get update && apt-get install -y openssh-server && sed -i \"s/^Port/#&/\" /etc/ssh/sshd_config && echo \"Port " + str(ssh_port) + "\" >> /etc/ssh/sshd_config && cd /home/" + user_name + " && (chown " + user_name + " -R .ssh; chmod 600 -R .ssh/*; chmod 700 .ssh; true) && service ssh restart'"
 
     # TODO setup reasonable timeout
     # output = k8sUtils.kubectl_exec("exec %s %s" % (jobId, " -- " + bash_script), 1)

@@ -13,7 +13,7 @@ from config import config
 from config import global_vars
 
 from prometheus_client import Histogram
-
+    
 logger = logging.getLogger(__name__)
 
 data_handler_fn_histogram = Histogram("datahandler_fn_latency_seconds",
@@ -51,6 +51,8 @@ class DataHandler(object):
         self.storagetablename = "storage"
         self.clusterstatustablename = "clusterstatus"
         self.commandtablename = "commands"
+        self.templatetablename = "templates"
+        self.jobprioritytablename = "job_priorities"
         server = config["mysql"]["hostname"]
         username = config["mysql"]["username"]
         password = config["mysql"]["password"]
@@ -180,7 +182,14 @@ class DataHandler(object):
             self.conn.commit()
             cursor.close()
 
+            # when the VC has vm of same GPU type but different VMsizes, e.g., when VC has Standard_NC6s_v3 and Standard_NC12s_v3 both?
+            # impossible since there's no way to do it with current config mechanism
 
+            worker_cnt = int(config["azure_cluster"]["worker_node_num"])
+            sku_mapping = config["sku_mapping"]
+            sku = sku_mapping.get(config["azure_cluster"]["worker_vm_size"],sku_mapping["default"])
+            n_gpu_pernode = sku["gpu-count"]
+            gpu_type = sku["gpu-type"]
             sql = """
                 CREATE TABLE IF NOT EXISTS  `%s`
                 (
@@ -193,7 +202,8 @@ class DataHandler(object):
                     PRIMARY KEY (`id`),
                     CONSTRAINT `hierarchy` FOREIGN KEY (`parent`) REFERENCES `%s` (`vcName`)
                 )
-                """ % (self.vctablename, self.vctablename)
+                AS SELECT \'%s\' AS vcName, NULL AS parent, '{\\\"%s\\\":%s}' AS quota, '{\\\"%s\\\":{\\\"num_gpu_per_node\\\":%s}}' AS metadata;
+                """ % (self.vctablename, self.vctablename, config['defalt_virtual_cluster_name'], gpu_type, n_gpu_pernode*worker_cnt, gpu_type,n_gpu_pernode)
 
             cursor = self.conn.cursor()
             cursor.execute(sql)
@@ -234,6 +244,43 @@ class DataHandler(object):
                     CONSTRAINT identityName_resource UNIQUE(`identityName`,`resource`)
                 )
                 """ % (self.acltablename)
+
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+            self.conn.commit()
+            cursor.close()
+
+
+            sql = """
+                CREATE TABLE IF NOT EXISTS `%s`
+                (
+                    `id`    INT          NOT NULL AUTO_INCREMENT,
+                    `name`  VARCHAR(255) NOT NULL,
+                    `scope` VARCHAR(255) NOT NULL COMMENT '"master", "vc:vcname" or "user:username"',
+                    `json`  TEXT         NOT NULL,
+                    `time`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (`id`),
+                    CONSTRAINT name_scope UNIQUE(`name`, `scope`)
+                )
+                """ % (self.templatetablename)
+
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+            self.conn.commit()
+            cursor.close()
+
+
+            sql = """
+                CREATE TABLE IF NOT EXISTS  `%s`
+                (
+                    `id`             INT     NOT NULL AUTO_INCREMENT,
+                    `jobId`   varchar(50)   NOT NULL,
+                    `priority`     INT NOT NULL,
+                    `time`           DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                    PRIMARY KEY (`id`),
+                    CONSTRAINT identityName_jobId UNIQUE(`jobId`)
+                )
+                """ % (self.jobprioritytablename)
 
             cursor = self.conn.cursor()
             cursor.execute(sql)
@@ -895,7 +942,7 @@ class DataHandler(object):
     @record
     def GetActiveJobsCount(self):
         cursor = self.conn.cursor()
-        query = "SELECT count(ALL id) as c FROM `%s` where `jobStatus` <> 'error' and `jobStatus` <> 'failed' and `jobStatus` <> 'finished' and `jobStatus` <> 'killed' " % (self.jobtablename)
+        query = "SELECT count(ALL id) as c FROM `%s` where `jobStatus` = 'running'" % (self.jobtablename)
         cursor.execute(query)
         ret = 0
         for c in cursor:
@@ -917,6 +964,70 @@ class DataHandler(object):
         cursor.close()
 
         return ret
+
+    @record
+    def GetTemplates(self, scope):
+        cursor = self.conn.cursor()
+        query = "SELECT `name`, `json` FROM `%s` WHERE `scope` = '%s'" % (self.templatetablename, scope)
+        cursor.execute(query)
+        ret = []
+        for name, json in cursor:
+            record = {}
+            record["name"] = name
+            record["json"] = json
+            ret.append(record)
+        self.conn.commit()
+        cursor.close()
+        return ret
+
+    @record
+    def UpdateTemplate(self, name, scope, json):
+        try:
+            cursor = self.conn.cursor()
+            query = "INSERT INTO `" + self.templatetablename + "`(`name`, `scope`, `json`) VALUES(%s, %s, %s) ON DUPLICATE KEY UPDATE `json` = %s"
+            cursor.execute(query, (name, scope, json, json))
+            self.conn.commit()
+            cursor.close()
+            return True
+        except Exception as e:
+            logger.error('Exception: %s', str(e))
+            return False
+
+    @record
+    def DeleteTemplate(self, name, scope):
+        try:
+            cursor = self.conn.cursor()
+            query = "DELETE FROM `" + self.templatetablename + "` WHERE `name` = %s and `scope` = %s"
+            cursor.execute(query, (name, scope))
+            self.conn.commit()
+            cursor.close()
+            return True
+        except Exception as e:
+            logger.error('Exception: %s', str(e))
+            return False
+
+    @record
+    def get_job_priority(self):
+        cursor = self.conn.cursor()
+        query = "select jobId, priority from {} where jobId in (select jobId from {} where jobStatus in (\"queued\", \"scheduling\", \"running\", \"unapproved\", \"pausing\", \"paused\"))".format(self.jobprioritytablename, self.jobtablename)
+        cursor.execute(query)
+        priority_dict = {}
+        for job_id, priority in cursor:
+            priority_dict[job_id] = priority
+        self.conn.commit()
+        cursor.close()
+
+        return priority_dict
+
+    @record
+    def update_job_priority(self, job_priorites):
+        cursor = self.conn.cursor()
+        for job_id, priority in job_priorites.items():
+            query = "INSERT INTO {0}(jobId, priority, time) VALUES('{1}', {2}, SYSDATE()) ON DUPLICATE KEY UPDATE jobId='{1}', priority='{2}' ".format(self.jobprioritytablename, job_id, priority)
+            cursor.execute(query)
+        self.conn.commit()
+        cursor.close()
+        return True
 
     def __del__(self):
         logger.debug("********************** deleted a DataHandler instance *******************")

@@ -179,12 +179,15 @@ def mount_fileshare(verbose=True):
     for k,v in allmountpoints.iteritems():
         if "curphysicalmountpoint" in v and istrue(v, "autoshare", True):
             physicalmountpoint = v["curphysicalmountpoint"] 
+            # gives mounted information only, would not write anything or carry out mount action
             output = pipe_with_output("mount", "grep %s" % v["curphysicalmountpoint"], verbose=False)
             umounts = []
             existmounts = []
             for line in output.splitlines():
                 words = line.split()
-                if len(words)>3 and words[1]=="on":
+                # pitfall: words[2] might be prefix of v["curphysicalmountpoint"], then a mount point would be missed
+                # so we should check whether they are equal, if so, we know the specified path on NFS node was previously mounted to infra/worker.
+                if len(words)>3 and words[1]=="on" and words[2] == v["curphysicalmountpoint"]:
                     if verbose:
                         logging.debug( "%s on %s" % (words[0], words[2]) )
                     # check if mount point exists, automatic create directory if non exist

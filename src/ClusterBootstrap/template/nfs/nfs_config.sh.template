@@ -1,0 +1,34 @@
+sudo parted -l 2>&1 >/dev/null | awk -F': ' '{print $2}' > unlabeled_disk_file
+# Partition
+for disk in `cat unlabeled_disk_file`; do printf "n\n1\n\n\n8e00\nw\nY\n" | sudo gdisk ${disk}; done
+# Create PV
+for disk in `cat unlabeled_disk_file`; do sudo pvcreate ${disk}; done
+# Create vg
+pv_list=$(cat unlabeled_disk_file | awk '{printf("%s1\n", $1)}')
+sudo vgcreate dlts-data-lvm ${pv_list}
+sudo lvcreate -l 100%FREE -n dlts-data-lvm-vol1 dlts-data-lvm
+sudo mkfs.ext4 /dev/mapper/dlts--data--lvm-dlts--data--lvm--vol1
+echo "UUID=$(sudo blkid | grep dlts | sed -n 's/.*UUID=\"\(.*\)\" TYPE.*/\1/p')     {{cnf["path"]}}   ext4   defaults,discard      0 0" | sudo tee -a /etc/fstab
+sudo mkdir -p {{cnf["path"]}}
+sudo mount {{cnf["path"]}}
+
+# setup NFS service
+sudo apt-get update
+sudo apt-get install -y nfs-kernel-server
+
+{% for fileshare in cnf["fileshares"] %}
+sudo mkdir -p {{ fileshare }}
+sudo chmod -R 777 {{ fileshare }}
+sudo chown nobody:nogroup {{fileshare}}
+echo "{{ fileshare }} {{cnf["cloud_config"]["vnet_range"]}}(rw,sync,no_subtree_check,no_root_squash)" | sudo tee -a /etc/exports
+echo "{{ fileshare }} {{cnf["cloud_config"]["samba_range"]}}(rw,fsid=1,nohide,insecure,sync,no_subtree_check,no_root_squash)" | sudo tee -a /etc/exports
+{% endfor %}
+
+# Get number of CPU
+num_cores=$(grep -c ^processor /proc/cpuinfo)
+num_nfsd=$((${num_cores} * 2))
+sudo sed -i "s/RPCNFSDCOUNT=8/RPCNFSDCOUNT=${num_nfsd}/" /etc/default/nfs-kernel-server
+grep RPCNFSDCOUNT /etc/default/nfs-kernel-server
+
+sudo systemctl restart nfs-kernel-server.service
+sudo exportfs -a

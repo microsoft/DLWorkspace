@@ -31,6 +31,11 @@ from StringIO import StringIO
 
 logger = logging.getLogger(__name__)
 
+def localize_time(date):
+    if type(date) == str:
+        date = datetime.strptime(date, "%Y-%m-%dT%H:%M:%SZ")
+    return pytz.utc.localize(date).isoformat()
+
 def curl_get(url):
     curl = pycurl.Curl()
     curl.setopt(pycurl.URL, url)
@@ -165,7 +170,7 @@ def GetServiceAddress(jobId):
 def GetPod(selector):
     podInfo = {}
     try:
-        output = kubectl_exec(" get pod -o yaml --show-all -l " + selector)
+        output = kubectl_exec(" get pod -o yaml -l " + selector)
         podInfo = yaml.load(output)
     except Exception as e:
         logger.exception("kubectl get pod")
@@ -303,15 +308,15 @@ def get_pod_status(pod):
             if "message" in containerStatus["state"]["terminated"]:
                 ret += ":\n" + containerStatus["state"]["terminated"]["message"]
             podstatus["message"] = ret
-            if "finishedAt" in containerStatus["state"]["terminated"]:
-                podstatus["finishedAt"] = pytz.utc.localize(containerStatus["state"]["terminated"]["finishedAt"]).isoformat()
+            if "finishedAt" in containerStatus["state"]["terminated"] and containerStatus["state"]["terminated"]["finishedAt"] is not None:
+                podstatus["finishedAt"] = localize_time(containerStatus["state"]["terminated"]["finishedAt"])
 
-            if "startedAt" in containerStatus["state"]["terminated"]:
-                podstatus["startedAt"] = pytz.utc.localize(containerStatus["state"]["terminated"]["startedAt"]).isoformat()
+            if "startedAt" in containerStatus["state"]["terminated"] and containerStatus["state"]["terminated"]["startedAt"] is not None:
+                podstatus["startedAt"] = localize_time(containerStatus["state"]["terminated"]["startedAt"])
         elif "state" in containerStatus and "running" in containerStatus["state"] and "startedAt" in containerStatus["state"]["running"]:
-            podstatus["message"] = "started at: " + pytz.utc.localize(containerStatus["state"]["running"]["startedAt"]).isoformat()
+            podstatus["message"] = "started at: " + localize_time(containerStatus["state"]["running"]["startedAt"])
             if "startedAt" in containerStatus["state"]["running"]:
-                podstatus["startedAt"] = pytz.utc.localize(containerStatus["state"]["running"]["startedAt"]).isoformat()
+                podstatus["startedAt"] = localize_time(containerStatus["state"]["running"]["startedAt"])
 
         if "finishedAt" not in podstatus:
             podstatus["finishedAt"] = datetime.now(get_localzone()).isoformat()

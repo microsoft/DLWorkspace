@@ -21,6 +21,7 @@
         "RegisterGroups": {{cnf["WebUIregisterGroups"]}},
         "ClusterId": "{{cnf["clusterId"]}}",
         "Restapi": "{{cnf["restapi"]}}",
+	"Grafana": "",
         "WorkFolderAccessPoint": "{{cnf["workFolderAccessPoint"]}}",
         "DataFolderAccessPoint": "{{cnf["dataFolderAccessPoint"]}}", 
         "smbUsername":"{{cnf["smbUsername"]}}", 
