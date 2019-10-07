@@ -968,7 +968,7 @@ def deploy_masters(force = False):
             sleep 5;
             echo 'waiting for master...';
         done ;
-
+        sudo ln -s /opt/bin/kubectl /usr/bin/;
     """
     utils.SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_masters[0], deploycmd , False)
 
@@ -2827,7 +2827,7 @@ def kubernetes_label_nodes( verb, servicelists, force ):
         for service in servicelists:
             if (not service in labels) and "default" in labels:
                 labels[service] = labels["default"]
-    # print servicelists
+    print servicelists
     for label in servicelists:
         nodes = get_node_lists_for_service(label)
         if verbose:
