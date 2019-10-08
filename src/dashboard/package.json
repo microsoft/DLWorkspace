@@ -49,6 +49,7 @@
     "@types/koa-pino-logger": "^2.1.5",
     "@types/koa-router": "^7.0.42",
     "@types/lodash": "^4.14.136",
+    "@types/mocha": "^5.2.7",
     "@types/node": "^12.0.8",
     "@types/node-fetch": "^2.3.7",
     "@types/react": "^16.8.19",
@@ -56,22 +57,27 @@
     "@types/react-router-dom": "^4.3.3",
     "@types/react-swipeable-views": "^0.13.0",
     "@types/recharts": "^1.1.16",
+    "@types/should": "^13.0.0",
     "@types/uuid": "^3.4.5",
+    "axiosist": "^0.7.0",
     "eslint": "^5.16.0",
     "eslint-config-standard": "^12.0.0",
     "eslint-plugin-import": "^2.18.2",
     "eslint-plugin-node": "^9.1.0",
     "eslint-plugin-promise": "^4.2.1",
     "eslint-plugin-standard": "^4.0.0",
+    "mocha": "^6.2.1",
     "nodemon": "^1.19.1",
     "react-scripts": "^3.0.1",
+    "should": "^13.2.3",
     "typescript": "^3.5.2"
   },
   "scripts": {
     "start": "node server",
     "frontend": "react-scripts start",
     "build": "react-scripts build",
-    "backend": "nodemon server"
+    "backend": "nodemon server",
+    "test:backend": "mocha --require should server/test"
   },
   "eslintConfig": {
     "extends": "eslint:recommended"
