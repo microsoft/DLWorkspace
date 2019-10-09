@@ -65,6 +65,9 @@ default_config_parameters = {
     # the path of where dfs/nfs is source linked and consumed on each node,
     # default /dlwsdata
     "storage-mount-path": "/dlwsdata",
+    # the path where dlts vc storages are linked and consumed on each node.
+    # TODO: merge with storage-mount-path when dlts vc migration completes.
+    "dltsdata-storage-mount-path": "/dltsdata",
     # the path of where filesystem is actually mounted /dlwsdata
     "physical-mount-path": "/mntdlws",
     # the path of where local device is mounted.
@@ -661,6 +664,8 @@ scriptblocks = {
         "runscriptonroles infra worker ./scripts/prepare_vm_disk.sh",
         "nfs-server create",
         "runscriptonroles infra worker ./scripts/prepare_ubuntu.sh",
+        "runscriptonroles infra worker ./scripts/disable_kernel_auto_updates.sh",
+        "runscriptonroles infra worker ./scripts/docker_network_gc_setup.sh",
         "genscripts",
         "runscriptonroles infra worker ./scripts/dns.sh",
         "-y deploy",
@@ -668,7 +673,6 @@ scriptblocks = {
         "-y kubernetes labels",
         "-y gpulabel",
         "kubernetes start nvidia-device-plugin",
-        "kubernetes start flexvolume",
         "webui",
         "docker push restfulapi",
         "docker push webui",
@@ -677,11 +681,6 @@ scriptblocks = {
         "kubernetes start jobmanager",
         "kubernetes start restfulapi",
         "kubernetes start webportal",
-        "kubernetes start cloudmonitor",
-        # TODO(harry): we cannot distinguish gce aws from azure, so add the same providerID
-        # This will not break current deployment.
-        "-y kubernetes patchprovider aztools",
-        "setconfigmap",
         "--sudo runscriptonrandmaster ./scripts/pass_secret.sh",
         "runscriptonroles worker scripts/pre_download_images.sh",
     ],

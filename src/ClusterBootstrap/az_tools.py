@@ -799,11 +799,15 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
             assert (used_nfs_suffix - set(nfs_vm_suffixes2dpath.keys())) == set() and "suffix not in nfs_suffixes list!"
             assert len(nfs_names2ip) >= len(config["azure_cluster"]["nfs_vm"]) and "More NFS config items than #. of NFS server"
             suffix2used_nfs = {suffix: "{}-nfs-{}".format(config["cluster_name"], suffix).lower() for suffix in used_nfs_suffix}
+            fullynamed_nfs = set([nfs_cnf["server_name"] for nfs_cnf in config["nfs_mnt_setup"] if "server_name" in nfs_cnf])
             # unused, either node without name suffix or those with suffix but not specified in any nfs_svr_setup item
-            unused_nfs = sorted([s for s in nfs_names2ip.keys() if s not in suffix2used_nfs.values()])
+            unused_nfs = sorted([s for s in nfs_names2ip.keys() if s not in suffix2used_nfs.values() and s not in fullynamed_nfs])
             unused_ID_cnt = 0
             for nfs_cnf in config["nfs_mnt_setup"]:
-                if "server_suffix" in nfs_cnf:
+                if "server_name" in nfs_cnf:
+                    server_name = nfs_cnf["server_name"]
+                    mnt_parent_path = None
+                elif "server_suffix" in nfs_cnf:
                     server_name = suffix2used_nfs[nfs_cnf["server_suffix"]]
                     mnt_parent_path = nfs_vm_suffixes2dpath[nfs_cnf["server_suffix"]]
                 else:
@@ -812,7 +816,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
                     mnt_parent_path = config["azure_cluster"]["nfs_data_disk_path"]
                 server_ip = nfs_names2ip[server_name]
                 for mntname, mntcnf in nfs_cnf["mnt_point"].items():
-                    if not mntcnf["filesharename"].startswith(mnt_parent_path):
+                    if not (mnt_parent_path is None or mntcnf["filesharename"].startswith(mnt_parent_path)):
                         print "Error: Wrong filesharename {}! Mount path is {} !".format(mntcnf["filesharename"], mnt_parent_path)
                         raise ValueError
                     if mntname in cc["mountpoints"]:
