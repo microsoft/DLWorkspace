@@ -49,5 +49,6 @@ steps:
   displayName: 'Functional tests'
 
 - script: |
-    echo TODO: cleanup the deployment!
+    RESOURCEGRP=$(grep cluster_name cluster.yaml|awk '{print $2}')ResGrp
+    az group delete --name $RESOURCEGRP --yes
   displayName: 'Cleanup'
