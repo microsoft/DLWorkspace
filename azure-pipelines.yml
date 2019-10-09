@@ -16,31 +16,32 @@ steps:
 - script: |
     cd src/ClusterBootstrap/
     az account set --subscription $(SUBSCRIPTION_NAME)
-  displayName: 'Install prerequisites'
+  displayName: 'Set Subscription'
 
 - script: |
-    cd src/ContinuousIntegration/
+    cd src/ClusterBootstrap/scripts
     ./set_config.sh
-    cd ../ClusterBootstrap/
+    cd ..
     ./bash_step_by_step_deploy.sh
   displayName: 'Deploy DLWorkspace'
 
 - script: |
-    cd src/ContinuousIntegration/
+    cd src/ClusterBootstrap/
+    USER=$(grep -B3 admin_username cluster.yaml | awk '{print $2}')
+    cd scripts
+    ./timed_check.sh 5 30 ./pscp_role.sh worker check_machine.sh /home/${USER}
+    ./timed_check.sh 5 30 ./pssh_role.sh worker \"bash check_machine.sh\"
 
-    ./pscp_role.sh worker check_machine.sh /home/core
-    ./pssh_role.sh worker "bash check_machine.sh"
+    ./timed_check.sh 5 30 ./check_node_ready.sh infra
+    ./timed_check.sh 5 30 ./pscp_role.sh infra check_docker_ready.sh /home/${USER}
+    ./timed_check.sh 5 30 ./pssh_role.sh infra \"bash ./check_docker_ready.sh infra\"
 
-    ./check_node_ready.sh infra
-    ./pscp_role.sh infra check_docker_ready.sh /home/core
-    ./pssh_role.sh infra "bash ./check_docker_ready.sh infra"
+    ./timed_check.sh 5 30 ./check_node_ready.sh worker
+    ./timed_check.sh 5 30 ./pscp_role.sh worker check_docker_ready.sh /home/${USER}
+    ./timed_check.sh 5 30 ./pssh_role.sh worker \"bash ./check_docker_ready.sh worker\"
 
-    ./check_node_ready.sh worker
-    ./pscp_role.sh worker check_docker_ready.sh /home/core
-    ./pssh_role.sh worker "bash ./check_docker_ready.sh worker"
-
-    ./pssh_role.sh worker "bash ./check_docker_ready.sh postlbl"
-    ./pssh_role.sh infra "bash check_docker_ready.sh services"
+    ./timed_check.sh 5 30 ./pssh_role.sh worker \"bash ./check_docker_ready.sh postlbl\"
+    ./timed_check.sh 10 30 ./pssh_role.sh infra \"bash check_docker_ready.sh services\"
   displayName: 'Verify deployment'
 
 - script: |
