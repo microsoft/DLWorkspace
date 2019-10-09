@@ -48,8 +48,8 @@ from cluster_manager import setup_exporter_thread, manager_iteration_histogram, 
 
 jobmanager_fn_histogram = Histogram("jobmanager_fn_latency_seconds",
         "latency for executing jobmanager function (seconds)",
-        buckets=(.05, .075, .1, .25, .5, .75, 1.0, 2.5, 5.0,
-            7.5, 10.0, 12.5, 15.0, 17.5, 20.0, float("inf")),
+        buckets=(.1, 2.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 50.0,
+            float("inf")),
         labelnames=("fn_name",))
 
 def record(fn):
