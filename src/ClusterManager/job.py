@@ -112,6 +112,26 @@ class Job:
         data_host_path = os.path.join(self.cluster["storage-mount-path"], "storage", self.data_path)
         return {"name": "data", "containerPath": "/data", "hostPath": data_host_path, "enabled": True}
 
+    def vc_storage_mountpoints(self):
+        vc_name = self.params["vcName"]
+        dltsdata_vc_path = os.path.join(self.cluster["dltsdata-storage-mount-path"], vc_name)
+        if not os.path.isdir(dltsdata_vc_path):
+            return None
+
+        vc_mountpoints = []
+        for storage in os.listdir(dltsdata_vc_path):
+            vc_mountpoint = {
+                "name": ("%s-%s" % (vc_name, storage)).lower(),
+                "containerPath": storage,
+                "hostPath": os.path.join(dltsdata_vc_path, storage),
+                "enabled": True}
+            vc_mountpoints.append(vc_mountpoint)
+
+        print("==vcName: ", vc_name)
+        print(vc_mountpoints)
+
+        return vc_mountpoints
+
     def get_template(self):
         """Return jinja template."""
         path = os.path.abspath(os.path.join(self.cluster["root-path"], "Jobs_Templete", "pod.yaml.template"))

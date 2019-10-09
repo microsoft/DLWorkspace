@@ -1947,12 +1947,18 @@ def link_fileshares(allmountpoints, bForce=False):
                                 remotecmd += "sudo chmod ugo+rwx %s; " %dirname
                     for basename in v["mountpoints"]:
                         dirname = os.path.join(v["curphysicalmountpoint"], basename )
-                        linkdir = os.path.join(config["storage-mount-path"], basename )
+                        storage_mount_path = config["storage-mount-path"]
+
+                        if ("vc" in v) and (v["vc"] != ""):
+                            storage_mount_path = os.path.join(config["dltsdata-storage-mount-path"], v["vc"])
+                            remotecmd += "sudo mkdir -p %s; " % storage_mount_path
+
+                        linkdir = os.path.join(storage_mount_path, basename )
                         remotecmd += "if [ ! -e %s ]; then sudo ln -s %s %s; fi; " % (linkdir, dirname, linkdir)
             # following node need not make the directory
             if len(remotecmd)>0:
                 utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
-    ()
+
 
 def deploy_webUI():
     masterIP = config["kubernetes_master_node"][0]
@@ -3562,6 +3568,10 @@ def run_command( args, command, nargs, parser ):
             all_nodes = get_nodes(config["clusterId"])
             allmountpoints, fstab = get_mount_fileshares()
             link_fileshares(allmountpoints, args.force)
+        elif nargs[0] == "dltsdata":
+            fileshare_install()
+            allmountpoints = mount_fileshares_by_service(True)
+            link_fileshares(allmountpoints, bForce=args.force, dltsdata=True)
         else:
             parser.print_help()
             print "Error: mount subcommand %s is not recognized " % nargs[0]
