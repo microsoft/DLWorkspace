@@ -10,7 +10,7 @@ pool:
 
 # container: ubuntu:18.04
 
-variables: { SUBSCRIPTION_NAME: "'Bing DLTS'" }
+variables: { SUBSCRIPTION_NAME: "'Bing DLTS'", CONFIG_TYPE: "cpu" }
 
 steps:
 - script: |
@@ -20,7 +20,7 @@ steps:
 
 - script: |
     cd src/ClusterBootstrap/scripts
-    ./set_config.sh
+    ./set_config.sh $CONFIG_TYPE
     cd ..
     ./bash_step_by_step_deploy.sh
   displayName: 'Deploy DLWorkspace'
