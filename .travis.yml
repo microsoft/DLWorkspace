@@ -1,4 +1,12 @@
-language: ruby
-rvm: 
-- 2.1
-script: "cd docs && bundle install && bundle exec jekyll build"
+matrix:
+  include:
+  - language: ruby
+    rvm: 
+    - 2.1
+    script: "cd docs && bundle install && bundle exec jekyll build"
+  - language: node_js
+    node_js: lts/*
+    script:
+    - cd src/dashboard
+    - yarn
+    - yarn coverage:backend
