@@ -1,0 +1,13 @@
+sign: DashboardSign
+
+winbind: http://winbind
+masterToken: DashboardMasterToken
+
+activeDirectory:
+  tenant: 00000000-0000-0000-0000-000000000000
+  clientId: 00000000-0000-0000-0000-000000000000
+  clientSecret: DashboardActiveDirectoryClientSecret
+
+clusters:
+  Universe:
+    restfulapi: http://universe
