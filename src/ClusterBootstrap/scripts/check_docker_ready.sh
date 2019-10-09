@@ -12,22 +12,26 @@ dockerps=`docker ps --format '{{.Names}}'`
 if [ $stage == "infra" ]; then
 	for i in "${infra[@]}"; do
 		if [[ ! $dockerps =~ $i ]]; then
+			echo "$i not found"
 			exit 1
 		fi
 	done
 elif [ $stage == "worker" ]; then
 	for i in "${worker[@]}"; do
 		if [[ ! $dockerps =~ $i ]]; then
+			echo "$i not found"
 			exit 1
 		fi
 	done
 elif [ $stage == "postlbl" ]; then
 	if [[ ! $dockerps =~ $postlbl ]]; then
+		echo "$postlbl not found"
 		exit 1
 	fi
 elif [ $stage == "services" ]; then
 	for i in "${services[@]}"; do
 		if [[ ! $dockerps =~ $i ]]; then
+			echo "$i not found"
 			exit 1
 		fi
 	done

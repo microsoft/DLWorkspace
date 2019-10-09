@@ -285,7 +285,7 @@ def create_nsg():
         source_addresses_prefixes = config["cloud_config"][
             "dev_network"]["source_addresses_prefixes"]
         if isinstance(source_addresses_prefixes, list):
-            source_addresses_prefixes = " ".join(source_addresses_prefixes)
+            source_addresses_prefixes = " ".join(list(set(source_addresses_prefixes)))
     else:
         print "Please setup source_addresses_prefixes in config.yaml, otherwise, your cluster cannot be accessed"
         exit()
