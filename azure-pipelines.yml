@@ -49,6 +49,7 @@ steps:
   displayName: 'Functional tests'
 
 - script: |
+    cd src/ClusterBootstrap/
     RESOURCEGRP=$(grep cluster_name cluster.yaml|awk '{print $2}')ResGrp
     az group delete --name $RESOURCEGRP --yes
   displayName: 'Cleanup'
