@@ -5,6 +5,7 @@ module.exports = {
     'should'
   ],
   spec: [
+    resolve(__dirname, 'test/.setup.js'),
     resolve(__dirname, 'test/**/*.js')
   ]
 }
