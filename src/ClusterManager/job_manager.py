@@ -71,6 +71,45 @@ def all_pods_not_existing(job_id):
     return all([status == "NotFound" for status in statuses])
 
 
+def get_job_status_detail(job):
+    if "jobStatusDetail" not in job:
+        return None
+
+    job_status_detail = job["jobStatusDetail"]
+    if job_status_detail is None:
+        return job_status_detail
+
+    if not isinstance(job_status_detail, list):
+        job_status_detail = base64.b64decode(job_status_detail)
+        job_status_detail = json.loads(job_status_detail)
+    return job_status_detail
+
+
+def job_status_detail_with_finished_time(job_status_detail):
+    # This method is called when a job succeeds/fails/is killed/has an error
+
+    # job_status_detail must be None or a list
+    if (job_status_detail is not None) and (not isinstance(job_status_detail, list)):
+        return job_status_detail
+
+    # Force adding an item for empty detail
+    if (job_status_detail is None) or (len(job_status_detail) == 0):
+        job_status_detail = [{}]
+
+    finished_at = k8sUtils.localize_time(datetime.datetime.now())
+    new_job_status_detail = []
+    # Override finishedAt for all pods if absent
+    for pod_status_detail in job_status_detail:
+        # Mark started time the same as finished time for a fast finishing job
+        if "startedAt" not in pod_status_detail:
+            pod_status_detail["startedAt"] = finished_at
+
+        if "finishedAt" not in pod_status_detail:
+            pod_status_detail["finishedAt"] = finished_at
+        new_job_status_detail.append(pod_status_detail)
+    return new_job_status_detail
+
+
 @record
 def SubmitJob(job):
     # check if existing any pod with label: run=job_id
@@ -168,17 +207,23 @@ def SubmitJob(job):
         if retries >= 5:
             dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "error")
             dataHandler.UpdateJobTextField(job["jobId"], "errorMsg", "Cannot submit job!" + str(e))
+
+            detail = get_job_status_detail(job)
+            detail = job_status_detail_with_finished_time(detail)
+            dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
+
     dataHandler.Close()
     return ret
 
 
-def KillJob(job_id, desiredState="killed",dataHandlerOri = None):
+def KillJob(job_id, desiredState="killed", dataHandlerOri=None):
     if dataHandlerOri is None:
         dataHandler = DataHandler()
     else:
         dataHandler = dataHandlerOri
 
     result, detail = k8sUtils.GetJobStatus(job_id)
+    detail = job_status_detail_with_finished_time(detail)
     dataHandler.UpdateJobTextField(job_id, "jobStatusDetail", base64.b64encode(json.dumps(detail)))
     logging.info("Killing job %s, with status %s, %s" % (job_id, result, detail))
 
@@ -208,7 +253,7 @@ def GetJobTotalGpu(jobParams):
 
 
 @record
-def ApproveJob(job,dataHandlerOri = None):
+def ApproveJob(job, dataHandlerOri=None):
     try:
         job_id = job["jobId"]
         vcName = job["vcName"]
@@ -264,7 +309,7 @@ def ApproveJob(job,dataHandlerOri = None):
 UnusualJobs = {}
 
 @record
-def UpdateJobStatus(job, notifier=None,dataHandlerOri = None):
+def UpdateJobStatus(job, notifier=None, dataHandlerOri=None):
     assert(job["jobStatus"] == "scheduling" or job["jobStatus"] == "running")
     if dataHandlerOri is None:
         dataHandler = DataHandler()
@@ -286,6 +331,12 @@ def UpdateJobStatus(job, notifier=None,dataHandlerOri = None):
     if result == "Succeeded":
         joblog_manager.extract_job_log(job["jobId"], logPath, jobParams["userId"])
         dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "finished")
+
+        # TODO: Refactor
+        detail = get_job_status_detail(job)
+        detail = job_status_detail_with_finished_time(detail)
+        dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
+
         if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
             k8sUtils.kubectl_delete(jobDescriptionPath)
 
@@ -295,7 +346,7 @@ def UpdateJobStatus(job, notifier=None,dataHandlerOri = None):
                 job["userName"], job["jobId"], result.strip()))
     elif result == "Running":
         if job["jobStatus"] != "running":
-            started_at = datetime.datetime.now().isoformat()
+            started_at = k8sUtils.localize_time(datetime.datetime.now())
             detail = [{"startedAt": started_at, "message": "started at: {}".format(started_at)}]
             dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
             dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "running")
@@ -310,6 +361,11 @@ def UpdateJobStatus(job, notifier=None,dataHandlerOri = None):
         joblog_manager.extract_job_log(job["jobId"], logPath, jobParams["userId"])
         dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "failed")
         dataHandler.UpdateJobTextField(job["jobId"], "errorMsg", "pod failed")
+
+        # TODO: Refactor
+        detail = get_job_status_detail(job)
+        detail = job_status_detail_with_finished_time(detail)
+        dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
 
         if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
             k8sUtils.kubectl_delete(jobDescriptionPath)
