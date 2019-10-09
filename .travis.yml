@@ -9,4 +9,4 @@ matrix:
     script:
     - cd src/dashboard
     - yarn
-    - yarn coverage:backend
+    - npm run coverage:backend

@@ -79,7 +79,7 @@
     "build": "react-scripts build",
     "backend": "nodemon server",
     "test:backend": "mocha --config server/.mocharc.js",
-    "coverage:backend": "nyc --nycrc-path server/.nycrc.js yarn test:backend",
+    "coverage:backend": "nyc --nycrc-path server/.nycrc.js npm run test:backend",
     "report:backend": "nyc --nycrc-path server/.nycrc.js report --reporter html"
   },
   "eslintConfig": {
