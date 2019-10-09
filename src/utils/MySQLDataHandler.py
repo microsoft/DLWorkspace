@@ -13,7 +13,7 @@ from config import config
 from config import global_vars
 
 from prometheus_client import Histogram
-    
+
 logger = logging.getLogger(__name__)
 
 data_handler_fn_histogram = Histogram("datahandler_fn_latency_seconds",
