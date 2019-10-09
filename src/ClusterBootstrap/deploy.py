@@ -1953,7 +1953,7 @@ def link_fileshares(allmountpoints, bForce=False):
                             storage_mount_path = os.path.join(config["dltsdata-storage-mount-path"], v["vc"])
                             remotecmd += "sudo mkdir -p %s; " % storage_mount_path
 
-                        linkdir = os.path.join(storage_mount_path, basename )
+                        linkdir = os.path.join(storage_mount_path, basename)
                         remotecmd += "if [ ! -e %s ]; then sudo ln -s %s %s; fi; " % (linkdir, dirname, linkdir)
             # following node need not make the directory
             if len(remotecmd)>0:

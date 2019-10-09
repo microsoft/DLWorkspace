@@ -127,9 +127,6 @@ class Job:
                 "enabled": True}
             vc_mountpoints.append(vc_mountpoint)
 
-        print("==vcName: ", vc_name)
-        print(vc_mountpoints)
-
         return vc_mountpoints
 
     def get_template(self):
