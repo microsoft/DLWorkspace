@@ -68,6 +68,7 @@
     "eslint-plugin-standard": "^4.0.0",
     "mocha": "^6.2.1",
     "nodemon": "^1.19.1",
+    "nyc": "^14.1.1",
     "react-scripts": "^3.0.1",
     "should": "^13.2.3",
     "typescript": "^3.5.2"
@@ -77,7 +78,9 @@
     "frontend": "react-scripts start",
     "build": "react-scripts build",
     "backend": "nodemon server",
-    "test:backend": "mocha --require should server/test"
+    "test:backend": "mocha --config server/.mocharc.js",
+    "coverage:backend": "nyc --nycrc-path server/.nycrc.js yarn test:backend",
+    "report:backend": "nyc --nycrc-path server/.nycrc.js report --reporter html"
   },
   "eslintConfig": {
     "extends": "eslint:recommended"

@@ -1,5 +1,3 @@
-/* eslint-env mocha */
-
 const axiosist = require('axiosist')
 
 const api = require('../api').callback()
