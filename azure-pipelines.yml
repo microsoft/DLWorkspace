@@ -30,7 +30,7 @@ steps:
     USER=$(grep -B3 admin_username cluster.yaml | awk '{print $2}')
     cd scripts
     ./timed_check.sh 5 30 ./pscp_role.sh worker check_machine.sh /home/${USER}
-    ./timed_check.sh 5 30 ./pssh_role.sh worker \"bash check_machine.sh\"
+    ./timed_check.sh 5 30 ./pssh_role.sh worker \"bash check_machine.sh $CONFIG_TYPE\"
 
     ./timed_check.sh 5 30 ./check_node_ready.sh infra
     ./timed_check.sh 5 30 ./pscp_role.sh infra check_docker_ready.sh /home/${USER}
