@@ -128,15 +128,18 @@ def get_scheduling_job_details(details):
         if "status" in detail:
             status = detail["status"]
             if "phase" in status:
-                pod_detail["podPhase"] = status["phase"]
-            if "conditions" in status and len(status["conditions"]) > 0:
-                conditions = status["conditions"]
-                conditions = sorted(conditions, key=lambda i: i["last_transition_time"])
-                latest_condition = conditions[-1]
-                if "type" in latest_condition:
-                    pod_detail["podType"] = latest_condition["type"]
-                if "message" in latest_condition:
-                    pod_detail["message"] = latest_condition["message"]
+                pod_phase = status["phase"]
+                pod_detail["podPhase"] = pod_phase
+                if pod_phase == "Pending":
+                    message = {}
+                    if "conditions" in status:
+                        conditions = status["conditions"]
+                        for condition in conditions:
+                            condition["last_transition_time"] = str(condition["last_transition_time"])
+                        message["conditions"] = conditions
+                    if "container_statuses" in status:
+                        message["containerStatuses"] = status["container_statuses"]
+                    pod_detail["message"] = message
 
         pod_details.append(pod_detail)
 
