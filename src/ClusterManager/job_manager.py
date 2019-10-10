@@ -92,11 +92,11 @@ def SubmitJob(job):
 
         enable_custom_scheduler = job_object.is_custom_scheduler_enabled()
         if job_object.params["jobtrainingtype"] == "RegularJob":
-            pod_template = PodTemplate(job_object.get_template(), enable_custom_scheduler)
+            pod_template = PodTemplate(job_object.get_template(), enable_custom_scheduler=enable_custom_scheduler)
         elif job_object.params["jobtrainingtype"] == "PSDistJob":
             pod_template = DistPodTemplate(job_object.get_template())
         elif job_object.params["jobtrainingtype"] == "InferenceJob":
-            pod_template = PodTemplate(job_object.get_template(), enable_custom_scheduler)
+            pod_template = PodTemplate(job_object.get_template(),deployment_template=job_object.get_deployment_template(), enable_custom_scheduler=False)
         else:
             dataHandler.SetJobError(job_object.job_id, "ERROR: invalid jobtrainingtype: %s" % job_object.params["jobtrainingtype"])
             dataHandler.Close()
