@@ -245,8 +245,7 @@ def SubmitJob(job):
             dataHandler.UpdateJobTextField(job["jobId"], "errorMsg", "Cannot submit job!" + str(e))
 
             detail = get_job_status_detail(job)
-            detail = job_status_detail_with_finished_time(
-                detail, "error", "Server error in job submission")
+            detail = job_status_detail_with_finished_time(detail, "error", "Server error in job submission")
             dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
 
     dataHandler.Close()
@@ -335,10 +334,7 @@ def ApproveJob(job, dataHandlerOri=None):
             logging.info("Job {} require {}, used quota (exclude preemptible GPUs) {}, with user quota of {}.".format(job_id, job_total_gpus, running_gpus, metadata["user_quota"]))
             if job_total_gpus > 0 and int(metadata["user_quota"]) < (running_gpus + job_total_gpus):
                 logging.info("Job {} excesses the user quota: {} + {} > {}. Will need approve from admin.".format(job_id, running_gpus, job_total_gpus, metadata["user_quota"]))
-                detail = [{"message": "exceeds the user quota in VC: {} (used) "
-                                      "+ {} (requested) > {} (user quota). "
-                                      "Will need admin approval.".format(
-                    running_gpus, job_total_gpus, metadata["user_quota"])}]
+                detail = [{"message": "exceeds the user quota in VC: {} (used) + {} (requested) > {} (user quota). Will need admin approval.".format(running_gpus, job_total_gpus, metadata["user_quota"])}]
                 dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
                 return False
 
