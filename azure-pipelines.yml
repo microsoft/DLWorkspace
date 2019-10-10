@@ -10,7 +10,7 @@ pool:
 
 # container: ubuntu:18.04
 
-variables: { SUBSCRIPTION_NAME: "'Bing DLTS'", CONFIG_TYPE: "cpu" }
+variables: { SUBSCRIPTION_NAME: "'Bing DLTS'"}
 
 steps:
 - script: |
@@ -20,6 +20,7 @@ steps:
 
 - script: |
     cd src/ClusterBootstrap/scripts
+    CONFIG_TYPE="${CONFIG_TYPE:-cpu}"
     ./set_config.sh $CONFIG_TYPE
     cd ..
     ./bash_step_by_step_deploy.sh
@@ -28,6 +29,7 @@ steps:
 - script: |
     cd src/ClusterBootstrap/
     USER=$(grep -B3 admin_username cluster.yaml | awk '{print $2}')
+    CONFIG_TYPE="${CONFIG_TYPE:-cpu}"
     cd scripts
     ./timed_check.sh 5 30 ./pscp_role.sh worker check_machine.sh /home/${USER}
     ./timed_check.sh 5 30 ./pssh_role.sh worker \"bash check_machine.sh $CONFIG_TYPE\"
