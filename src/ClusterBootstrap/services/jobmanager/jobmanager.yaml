@@ -41,6 +41,10 @@ spec:
           name: dlwsdatadata 
         - mountPath: {{cnf["storage-mount-path"]}}/jobfiles
           name: dlwsdatajobfiles
+        - mountPath: {{cnf["dltsdata-storage-mount-path"]}}
+          name: dltsdata
+        - mountPath: {{cnf["folder_auto_share"]}}
+          name: folderautoshare
         - mountPath: /var/log/dlworkspace
           name: log
         ports:
@@ -95,6 +99,12 @@ spec:
       - name: dlwsdatajobfiles
         hostPath:
           path: {{cnf["storage-mount-path"]}}/jobfiles           
+      - name: dltsdata
+        hostPath:
+          path: {{cnf["dltsdata-storage-mount-path"]}}
+      - name: folderautoshare
+        hostPath:
+          path: {{cnf["folder_auto_share"]}}
       - name: log
         hostPath:
           path: /var/log/clustermanager   

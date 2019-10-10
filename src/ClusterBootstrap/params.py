@@ -65,6 +65,9 @@ default_config_parameters = {
     # the path of where dfs/nfs is source linked and consumed on each node,
     # default /dlwsdata
     "storage-mount-path": "/dlwsdata",
+    # the path where dlts vc storages are linked and consumed on each node.
+    # TODO: merge with storage-mount-path when dlts vc migration completes.
+    "dltsdata-storage-mount-path": "/dltsdata",
     # the path of where filesystem is actually mounted /dlwsdata
     "physical-mount-path": "/mntdlws",
     # the path of where local device is mounted.
