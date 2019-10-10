@@ -6,6 +6,6 @@
 /** @type {import('koa').Middleware<State>} */
 module.exports = (context) => {
   const { user } = context.state
-  context.type = 'javascript'
+  context.type = 'js'
   context.body = `bootstrap(${JSON.stringify(user)})`
 }
