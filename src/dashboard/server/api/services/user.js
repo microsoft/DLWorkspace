@@ -82,7 +82,9 @@ class User extends Service {
 
   get token () {
     if (this._token == null) {
-      this._token = User.generateToken(this.email)
+      Object.defineProperty(this, '_token', {
+        value: User.generateToken(this.email)
+      })
     }
     return this._token
   }
