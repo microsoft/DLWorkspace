@@ -2,6 +2,7 @@ import logging
 import logging.config
 from job_deployer import JobDeployer
 
+log = logging.getLogger(__name__)
 
 class JobRole:
     MARK_ROLE_READY_FILE = "/pod/running/ROLE_READY"
@@ -66,4 +67,11 @@ class JobRole:
         return status_code == 0
 
     def isRoleReady(self):
+        for container in self.pod.spec.containers:
+            if container.name == self.pod_name and container.readiness_probe is not None:
+                for status in self.pod.status.container_statuses:
+                    if status.name == self.pod_name:
+                        log.info("pod %s have readiness_probe result", self.pod_name)
+                        return status.ready
+        # no readiness_probe defined, fallback to old way
         return self.isFileExisting(JobRole.MARK_ROLE_READY_FILE)

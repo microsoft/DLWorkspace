@@ -109,6 +109,11 @@ spec:
     image: {{ job["image"] }}
     imagePullPolicy: Always
     command: {{ job["LaunchCMD"] }}
+    readinessProbe:
+      exec:
+        command: ["ls", "/pod/running/ROLE_READY"]
+      initialDelaySeconds: 3
+      periodSeconds: 30
     securityContext:
       runAsUser: {{ job["containerUserId"] }}
     {% if job["isPrivileged"] %}
