@@ -61,12 +61,14 @@ describe('GET /authenticate', () => {
   })
 })
 
-describe('GET /authenticate/logout', async () => {
-  const response = await axiosist(api).get('/authenticate/logout', {
-    maxRedirects: 0
+describe('GET /authenticate/logout', () => {
+  it('should bring user to log out page in active directory', async () => {
+    const response = await axiosist(api).get('/authenticate/logout', {
+      maxRedirects: 0
+    })
+    response.status.should.equal(302)
+    const { location } = response.headers
+    location.should.be.a.String()
+      .and.match(/\b00000000-0000-0000-0000-000000000000\b/)
   })
-  response.status.should.equal(302)
-  const { location } = response.headers
-  location.should.be.a.String()
-    .and.match(/\b00000000-0000-0000-0000-000000000000\b/)
 })
