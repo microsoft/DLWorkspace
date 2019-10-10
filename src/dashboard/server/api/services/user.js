@@ -113,7 +113,6 @@ class User extends Service {
    * @return {string}
    */
   toCookie () {
-    console.log('token is ', this.token)
     return jwt.sign({
       email: this.email,
       uid: this.uid,
