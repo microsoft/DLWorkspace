@@ -21,6 +21,7 @@ steps:
 - script: |
     cd src/ClusterBootstrap/scripts
     CONFIG_TYPE="${CONFIG_TYPE:-cpu}"
+    echo $CONFIG_TYPE
     ./set_config.sh $CONFIG_TYPE
     cd ..
     ./bash_step_by_step_deploy.sh
@@ -30,20 +31,11 @@ steps:
     cd src/ClusterBootstrap/
     USER=$(grep -B3 admin_username cluster.yaml | awk '{print $2}')
     CONFIG_TYPE="${CONFIG_TYPE:-cpu}"
+    WAITMIN="${WAITMIN:-5}"
+    POLLSEC="${POLLSEC:-30}"
+    echo $CONFIG_TYPE $WAITMIN $POLLSEC
     cd scripts
-    ./timed_check.sh 5 30 ./pscp_role.sh worker check_machine.sh /home/${USER}
-    ./timed_check.sh 5 30 ./pssh_role.sh worker \"bash check_machine.sh $CONFIG_TYPE\"
-
-    ./timed_check.sh 5 30 ./check_node_ready.sh infra
-    ./timed_check.sh 5 30 ./pscp_role.sh infra check_docker_ready.sh /home/${USER}
-    ./timed_check.sh 5 30 ./pssh_role.sh infra \"bash ./check_docker_ready.sh infra\"
-
-    ./timed_check.sh 5 30 ./check_node_ready.sh worker
-    ./timed_check.sh 5 30 ./pscp_role.sh worker check_docker_ready.sh /home/${USER}
-    ./timed_check.sh 5 30 ./pssh_role.sh worker \"bash ./check_docker_ready.sh worker\"
-
-    ./timed_check.sh 5 30 ./pssh_role.sh worker \"bash ./check_docker_ready.sh postlbl\"
-    ./timed_check.sh 10 30 ./pssh_role.sh infra \"bash check_docker_ready.sh services\"
+    ./verify_deployment.sh $USER $CONFIG_TYPE $WAITMIN $POLLSEC
   displayName: 'Verify deployment'
 
 - script: |
