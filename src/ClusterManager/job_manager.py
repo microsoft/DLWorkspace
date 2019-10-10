@@ -366,7 +366,6 @@ def check_job_status(job_id):
     details = []
     for job_role in job_roles:
         details.append(job_role.pod_details().to_dict())
-    logging.info("Job {}, details: {}".format(job_id, details))
 
     if "Failed" in statuses:
         return "Failed"
