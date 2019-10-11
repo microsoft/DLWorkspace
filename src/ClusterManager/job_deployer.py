@@ -32,19 +32,20 @@ def record(fn):
 
 # The config will be loaded from default location.
 config.load_kube_config()
-k8s_client = client.CoreV1Api()
-
+k8s_CoreAPI = client.CoreV1Api()
+k8s_AppsAPI = client.AppsV1Api()
 
 class JobDeployer:
 
     def __init__(self):
-        self.v1 = k8s_client
+        self.k8s_CoreAPI = k8s_CoreAPI
+        self.k8s_AppsAPI = k8s_AppsAPI
         self.namespace = "default"
         self.pretty = "pretty_example"
 
     @record
     def create_pod(self, body):
-        api_response = self.v1.create_namespaced_pod(
+        api_response = self.k8s_CoreAPI.create_namespaced_pod(
             namespace=self.namespace,
             body=body,
             pretty=self.pretty,
@@ -55,7 +56,7 @@ class JobDeployer:
     def delete_pod(self, name, grace_period_seconds=None):
         body = client.V1DeleteOptions()
         body.grace_period_seconds = grace_period_seconds
-        api_response = self.v1.delete_namespaced_pod(
+        api_response = self.k8s_CoreAPI.delete_namespaced_pod(
             name=name,
             namespace=self.namespace,
             pretty=self.pretty,
@@ -64,9 +65,35 @@ class JobDeployer:
         )
         return api_response
 
+
+    @record
+    def create_deployment(self, body):
+        api_response = self.k8s_AppsAPI.create_namespaced_deployment(
+            namespace=self.namespace,
+            body=body,
+            pretty=self.pretty,
+        )
+        return api_response
+
+    @record
+    def delete_deployment(self, name, grace_period_seconds=None):
+        body = client.V1DeleteOptions()
+        body.grace_period_seconds = grace_period_seconds
+        api_response = self.k8s_AppsAPI.delete_namespaced_deployment(
+            name=name,
+            namespace=self.namespace,
+            pretty=self.pretty,
+            body=body,
+            grace_period_seconds=grace_period_seconds,
+        )
+        return api_response
+
+
+
+
     @record
     def create_service(self, body):
-        api_response = self.v1.create_namespaced_service(
+        api_response = self.k8s_CoreAPI.create_namespaced_service(
             namespace=self.namespace,
             body=body,
             pretty=self.pretty,
@@ -75,7 +102,7 @@ class JobDeployer:
 
     @record
     def delete_service(self, name):
-        api_response = self.v1.delete_namespaced_service(
+        api_response = self.k8s_CoreAPI.delete_namespaced_service(
             name=name,
             namespace=self.namespace,
             pretty=self.pretty,
@@ -113,20 +140,52 @@ class JobDeployer:
         return errors
 
     @record
+    def cleanup_deployment(self, deployment_names, force=False):
+        errors = []
+        grace_period_seconds = 0 if force else None
+        for deployment_name in deployment_names:
+            try:
+                self.delete_deployment(deployment_name, grace_period_seconds)
+            except Exception as e:
+                if isinstance(e, ApiException) and 404 == e.status:
+                    return []
+                message = "Delete pod failed: {}".format(deployment_name)
+                logging.warning(message, exc_info=True)
+                errors.append({"message": message, "exception": e})
+        return errors
+
+
+    @record
     def create_pods(self, pods):
         # TODO instead of delete, we could check update existiong ones. During refactoring, keeping the old way.
-        pod_names = [pod["metadata"]["name"] for pod in pods]
+        pod_names = [pod["metadata"]["name"] for pod in pods if pod["kind"] == "Pod"]
         self.cleanup_pods(pod_names)
+        deployment_names = [pod["metadata"]["name"] for pod in pods if pod["kind"] == "Deployment"]
+        self.cleanup_deployment(pod_names)        
         created = []
         for pod in pods:
-            created_pod = self.create_pod(pod)
+            if pod["kind"] == "Pod":
+                created_pod = self.create_pod(pod)
+            elif pod["kind"] == "Deployment":
+                created_pod = self.create_deployment(pod)
             created.append(created_pod)
             logging.info("Create pod succeed: %s" % created_pod.metadata.name)
         return created
 
     @record
     def get_pods(self, field_selector="", label_selector=""):
-        api_response = self.v1.list_namespaced_pod(
+        api_response = self.k8s_CoreAPI.list_namespaced_pod(
+            namespace=self.namespace,
+            pretty=self.pretty,
+            field_selector=field_selector,
+            label_selector=label_selector,
+        )
+        logging.debug("Get pods: {}".format(api_response))
+        return api_response.items
+
+    @record
+    def get_deployments(self, field_selector="", label_selector=""):
+        api_response = self.k8s_AppsAPI.list_namespaced_deployment(
             namespace=self.namespace,
             pretty=self.pretty,
             field_selector=field_selector,
@@ -137,7 +196,7 @@ class JobDeployer:
 
     @record
     def get_services_by_label(self, label_selector):
-        api_response = self.v1.list_namespaced_service(
+        api_response = self.k8s_CoreAPI.list_namespaced_service(
             namespace=self.namespace,
             pretty=self.pretty,
             label_selector=label_selector,
@@ -152,12 +211,18 @@ class JobDeployer:
         pods = self.get_pods(label_selector=label_selector)
         pod_names = [pod.metadata.name for pod in pods]
         pod_errors = self.cleanup_pods(pod_names, force)
-
+        logging.info("deleting pods %s" % ",".join(pod_names))
         # query services then delete
         services = self.get_services_by_label(label_selector)
         service_errors = self.cleanup_services(services)
 
-        errors = pod_errors + service_errors
+        deployments = self.get_deployments(label_selector=label_selector)
+        deployment_names = [deployment.metadata.name for deployment in deployments]
+        deployment_errors = self.cleanup_deployment(deployment_names, force)
+
+        logging.info("deleting deployments %s" % ",".join(deployment_names))
+
+        errors = pod_errors + service_errors + deployment_errors
         return errors
 
     @record
@@ -166,7 +231,7 @@ class JobDeployer:
         try:
             logging.info("Exec on pod {}: {}".format(pod_name, exec_command))
             client = stream(
-                self.v1.connect_get_namespaced_pod_exec,
+                self.k8s_CoreAPI.connect_get_namespaced_pod_exec,
                 name=pod_name,
                 namespace=self.namespace,
                 command=exec_command,

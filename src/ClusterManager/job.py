@@ -137,6 +137,14 @@ class Job:
         assert(isinstance(template, Template))
         return template
 
+    def get_deployment_template(self):
+        """Return jinja template."""
+        path = os.path.abspath(os.path.join(self.cluster["root-path"], "Jobs_Templete", "deployment.yaml.template"))
+        ENV = Environment(loader=FileSystemLoader("/"))
+        template = ENV.get_template(path)
+        assert(isinstance(template, Template))
+        return template
+
     def is_custom_scheduler_enabled(self):
         return self._get_cluster_config("kube_custom_scheduler")
 

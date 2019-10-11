@@ -188,11 +188,11 @@ def SubmitJob(job):
 
         enable_custom_scheduler = job_object.is_custom_scheduler_enabled()
         if job_object.params["jobtrainingtype"] == "RegularJob":
-            pod_template = PodTemplate(job_object.get_template(), enable_custom_scheduler)
+            pod_template = PodTemplate(job_object.get_template(), enable_custom_scheduler=enable_custom_scheduler)
         elif job_object.params["jobtrainingtype"] == "PSDistJob":
             pod_template = DistPodTemplate(job_object.get_template())
         elif job_object.params["jobtrainingtype"] == "InferenceJob":
-            pod_template = PodTemplate(job_object.get_template(), enable_custom_scheduler)
+            pod_template = PodTemplate(job_object.get_template(),deployment_template=job_object.get_deployment_template(), enable_custom_scheduler=False)
         else:
             dataHandler.SetJobError(job_object.job_id, "ERROR: invalid jobtrainingtype: %s" % job_object.params["jobtrainingtype"])
             dataHandler.Close()
@@ -307,6 +307,8 @@ def ApproveJob(job, dataHandlerOri=None):
             detail = [{"message": "waiting for available preemptible resource."}]
             dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
             dataHandler.UpdateJobTextField(job_id, "jobStatus", "queued")
+            if dataHandlerOri is None:
+                dataHandler.Close()            
             return True
 
         vcList = dataHandler.ListVCs()
@@ -317,6 +319,8 @@ def ApproveJob(job, dataHandlerOri=None):
                 break
         if vc is None:
             logging.warning("Vc not exising! job {}, vc {}".format(job_id, vcName))
+            if dataHandlerOri is None:
+                dataHandler.Close()            
             return False
         metadata = json.loads(vc["metadata"])
 
@@ -336,11 +340,15 @@ def ApproveJob(job, dataHandlerOri=None):
                 logging.info("Job {} excesses the user quota: {} + {} > {}. Will need approve from admin.".format(job_id, running_gpus, job_total_gpus, metadata["user_quota"]))
                 detail = [{"message": "exceeds the user quota in VC: {} (used) + {} (requested) > {} (user quota). Will need admin approval.".format(running_gpus, job_total_gpus, metadata["user_quota"])}]
                 dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
+                if dataHandlerOri is None:
+                    dataHandler.Close()                
                 return False
 
         detail = [{"message": "waiting for available resource."}]
         dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
         dataHandler.UpdateJobTextField(job_id, "jobStatus", "queued")
+        if dataHandlerOri is None:
+            dataHandler.Close()        
         return True
     except Exception as e:
         logging.warning(e, exc_info=True)
