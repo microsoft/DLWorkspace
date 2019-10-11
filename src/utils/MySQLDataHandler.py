@@ -806,16 +806,17 @@ class DataHandler(object):
     @record
     def GetPendingJobs(self):
         cursor = self.conn.cursor()
-        query = "SELECT `jobId`,`jobName`,`userName`, `vcName`, `jobStatus`, `jobType`, `jobDescriptionPath`, `jobDescription`, `jobTime`, `endpoints`, `jobParams`,`errorMsg` ,`jobMeta` FROM `%s` where `jobStatus` <> 'error' and `jobStatus` <> 'failed' and `jobStatus` <> 'finished' and `jobStatus` <> 'killed' order by `jobTime` DESC" % (self.jobtablename)
+        query = "SELECT `jobId`,`jobName`,`userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobDescriptionPath`, `jobDescription`, `jobTime`, `endpoints`, `jobParams`,`errorMsg` ,`jobMeta` FROM `%s` where `jobStatus` <> 'error' and `jobStatus` <> 'failed' and `jobStatus` <> 'finished' and `jobStatus` <> 'killed' order by `jobTime` DESC" % (self.jobtablename)
         cursor.execute(query)
         ret = []
-        for (jobId,jobName,userName,vcName, jobStatus, jobType, jobDescriptionPath, jobDescription, jobTime, endpoints, jobParams,errorMsg, jobMeta) in cursor:
+        for (jobId,jobName,userName,vcName, jobStatus, jobStatusDetail, jobType, jobDescriptionPath, jobDescription, jobTime, endpoints, jobParams,errorMsg, jobMeta) in cursor:
             record = {}
             record["jobId"] = jobId
             record["jobName"] = jobName
             record["userName"] = userName
             record["vcName"] = vcName
             record["jobStatus"] = jobStatus
+            record["jobStatusDetail"] = jobStatusDetail
             record["jobType"] = jobType
             record["jobDescriptionPath"] = jobDescriptionPath
             record["jobDescription"] = jobDescription
