@@ -71,6 +71,81 @@ def all_pods_not_existing(job_id):
     return all([status == "NotFound" for status in statuses])
 
 
+def get_job_status_detail(job):
+    if "jobStatusDetail" not in job:
+        return None
+
+    job_status_detail = job["jobStatusDetail"]
+    if job_status_detail is None:
+        return job_status_detail
+
+    if not isinstance(job_status_detail, list):
+        job_status_detail = base64.b64decode(job_status_detail)
+        job_status_detail = json.loads(job_status_detail)
+    return job_status_detail
+
+
+def job_status_detail_with_finished_time(job_status_detail, status, msg=""):
+    # This method is called when a job succeeds/fails/is killed/has an error
+
+    # job_status_detail must be None or a list
+    if (job_status_detail is not None) and (not isinstance(job_status_detail, list)):
+        return job_status_detail
+
+    # Force adding an item for empty detail
+    if (job_status_detail is None) or (len(job_status_detail) == 0):
+        job_status_detail = [{}]
+
+    finished_at = k8sUtils.localize_time(datetime.datetime.now())
+    new_job_status_detail = []
+    # Override finishedAt for all pods if absent
+    for pod_status_detail in job_status_detail:
+        # Mark started time the same as finished time for a fast finishing job
+        if "startedAt" not in pod_status_detail:
+            pod_status_detail["startedAt"] = finished_at
+
+        if "finishedAt" not in pod_status_detail:
+            pod_status_detail["finishedAt"] = finished_at
+
+        pod_status_detail["message"] = "{} at {}. {}".format(status, finished_at, msg)
+        new_job_status_detail.append(pod_status_detail)
+
+    return new_job_status_detail
+
+
+def get_scheduling_job_details(details):
+    pod_details = []
+    for detail in details:
+        # Users are mostly interested in
+        # 1. Pod name
+        # 2. Pod phase
+        # 3. Message indicating why it's pending
+        pod_detail = {}
+        if "metadata" in detail and "labels" in detail["metadata"] and \
+                "podName" in detail["metadata"]["labels"]:
+            pod_detail["podName"] = detail["metadata"]["labels"]["podName"]
+
+        if "status" in detail:
+            status = detail["status"]
+            if "phase" in status:
+                pod_phase = status["phase"]
+                pod_detail["podPhase"] = pod_phase
+                if pod_phase == "Pending":
+                    message = {}
+                    if "conditions" in status:
+                        conditions = status["conditions"]
+                        for condition in conditions:
+                            condition["last_transition_time"] = str(condition["last_transition_time"])
+                        message["conditions"] = conditions
+                    if "container_statuses" in status:
+                        message["containerStatuses"] = status["container_statuses"]
+                    pod_detail["message"] = message
+
+        pod_details.append(pod_detail)
+
+    return pod_details
+
+
 @record
 def SubmitJob(job):
     # check if existing any pod with label: run=job_id
@@ -168,17 +243,24 @@ def SubmitJob(job):
         if retries >= 5:
             dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "error")
             dataHandler.UpdateJobTextField(job["jobId"], "errorMsg", "Cannot submit job!" + str(e))
+
+            detail = get_job_status_detail(job)
+            detail = job_status_detail_with_finished_time(detail, "error", "Server error in job submission")
+            dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
+
     dataHandler.Close()
     return ret
 
 
-def KillJob(job_id, desiredState="killed",dataHandlerOri = None):
+def KillJob(job_id, desiredState="killed", dataHandlerOri=None):
     if dataHandlerOri is None:
         dataHandler = DataHandler()
     else:
         dataHandler = dataHandlerOri
 
+    # TODO: Use JobDeployer?
     result, detail = k8sUtils.GetJobStatus(job_id)
+    detail = job_status_detail_with_finished_time(detail, desiredState)
     dataHandler.UpdateJobTextField(job_id, "jobStatusDetail", base64.b64encode(json.dumps(detail)))
     logging.info("Killing job %s, with status %s, %s" % (job_id, result, detail))
 
@@ -192,7 +274,7 @@ def KillJob(job_id, desiredState="killed",dataHandlerOri = None):
             dataHandler.Close()
         return True
     else:
-        dataHandler.UpdateJobTextField(job_id, "jobStatus", "error")
+        dataHandler.UpdateJobTextField(job_id, "jobStatus", "error", "{}".format(errors))
         dataHandler.UpdateJobTextField(job_id, "lastUpdated", datetime.datetime.now().isoformat())
         if dataHandlerOri is None:
             dataHandler.Close()
@@ -208,7 +290,7 @@ def GetJobTotalGpu(jobParams):
 
 
 @record
-def ApproveJob(job,dataHandlerOri = None):
+def ApproveJob(job, dataHandlerOri=None):
     try:
         job_id = job["jobId"]
         vcName = job["vcName"]
@@ -222,6 +304,8 @@ def ApproveJob(job,dataHandlerOri = None):
 
         if "preemptionAllowed" in jobParams and jobParams["preemptionAllowed"] is True:
             logging.info("Job {} preemptible, approve!".format(job_id))
+            detail = [{"message": "waiting for available preemptible resource."}]
+            dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
             dataHandler.UpdateJobTextField(job_id, "jobStatus", "queued")
             return True
 
@@ -250,8 +334,12 @@ def ApproveJob(job,dataHandlerOri = None):
             logging.info("Job {} require {}, used quota (exclude preemptible GPUs) {}, with user quota of {}.".format(job_id, job_total_gpus, running_gpus, metadata["user_quota"]))
             if job_total_gpus > 0 and int(metadata["user_quota"]) < (running_gpus + job_total_gpus):
                 logging.info("Job {} excesses the user quota: {} + {} > {}. Will need approve from admin.".format(job_id, running_gpus, job_total_gpus, metadata["user_quota"]))
+                detail = [{"message": "exceeds the user quota in VC: {} (used) + {} (requested) > {} (user quota). Will need admin approval.".format(running_gpus, job_total_gpus, metadata["user_quota"])}]
+                dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
                 return False
 
+        detail = [{"message": "waiting for available resource."}]
+        dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
         dataHandler.UpdateJobTextField(job_id, "jobStatus", "queued")
         return True
     except Exception as e:
@@ -264,7 +352,7 @@ def ApproveJob(job,dataHandlerOri = None):
 UnusualJobs = {}
 
 @record
-def UpdateJobStatus(job, notifier=None,dataHandlerOri = None):
+def UpdateJobStatus(job, notifier=None, dataHandlerOri=None):
     assert(job["jobStatus"] == "scheduling" or job["jobStatus"] == "running")
     if dataHandlerOri is None:
         dataHandler = DataHandler()
@@ -272,7 +360,7 @@ def UpdateJobStatus(job, notifier=None,dataHandlerOri = None):
         dataHandler = dataHandlerOri
     jobParams = json.loads(base64.b64decode(job["jobParams"]))
 
-    result = check_job_status(job["jobId"])
+    result, details = check_job_status(job["jobId"])
     logging.info("++++++++ Job status: {} {}".format(job["jobId"], result))
 
     jobPath, workPath, dataPath = GetStoragePath(jobParams["jobPath"], jobParams["workPath"], jobParams["dataPath"])
@@ -285,17 +373,22 @@ def UpdateJobStatus(job, notifier=None,dataHandlerOri = None):
 
     if result == "Succeeded":
         joblog_manager.extract_job_log(job["jobId"], logPath, jobParams["userId"])
+
+        # TODO: Refactor
+        detail = get_job_status_detail(job)
+        detail = job_status_detail_with_finished_time(detail, "finished")
+        dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
         dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "finished")
+
         if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
             k8sUtils.kubectl_delete(jobDescriptionPath)
-
 
         if notifier is not None:
             notifier.notify(notify.new_job_state_change_message(
                 job["userName"], job["jobId"], result.strip()))
     elif result == "Running":
         if job["jobStatus"] != "running":
-            started_at = datetime.datetime.now().isoformat()
+            started_at = k8sUtils.localize_time(datetime.datetime.now())
             detail = [{"startedAt": started_at, "message": "started at: {}".format(started_at)}]
             dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
             dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "running")
@@ -308,6 +401,11 @@ def UpdateJobStatus(job, notifier=None,dataHandlerOri = None):
                 job["userName"], job["jobId"], result.strip()))
 
         joblog_manager.extract_job_log(job["jobId"], logPath, jobParams["userId"])
+
+        # TODO: Refactor
+        detail = get_job_status_detail(job)
+        detail = job_status_detail_with_finished_time(detail, "failed")
+        dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
         dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "failed")
         dataHandler.UpdateJobTextField(job["jobId"], "errorMsg", "pod failed")
 
@@ -336,6 +434,10 @@ def UpdateJobStatus(job, notifier=None,dataHandlerOri = None):
 
             logging.warning("Job {} fails in Kubernetes as {}, delete and re-submit.".format(job["jobId"], result))
             KillJob(job["jobId"], "queued")
+
+    elif result == "Pending":
+        detail = get_scheduling_job_details(details)
+        dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
 
     if result != "Unknown" and result != "NotFound" and job["jobId"] in UnusualJobs:
         del UnusualJobs[job["jobId"]]
@@ -366,18 +468,20 @@ def check_job_status(job_id):
     details = []
     for job_role in job_roles:
         details.append(job_role.pod_details().to_dict())
-    logging.info("Job {}, details: {}".format(job_id, details))
+
+    job_status = "Running"
 
     if "Failed" in statuses:
-        return "Failed"
+        job_status = "Failed"
     if "Unknown" in statuses:
-        return "Unknown"
+        job_status = "Unknown"
     if "NotFound" in statuses:
-        return "NotFound"
+        job_status = "NotFound"
     if "Pending" in statuses:
-        return "Pending"
+        job_status = "Pending"
 
-    return "Running"
+    return job_status, details
+
 
 def create_log(logdir = '/var/log/dlworkspace'):
     if not os.path.exists(logdir):

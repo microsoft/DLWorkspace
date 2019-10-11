@@ -333,6 +333,7 @@ def GetJobStatus(jobId):
 
     if podInfo is None:
         output = "kubectlERR"
+        detail = []
     elif "items" in podInfo:
         podStatus = [check_pod_status(pod) for pod in podInfo["items"]]
         #detail = "=====================\n=====================\n=====================\n".join([yaml.dump(pod["status"], default_flow_style=False) for pod in podInfo["items"] if "status" in podInfo["items"]])

@@ -52,7 +52,14 @@ def extract_job_log(jobId,logPath,userId):
         dataHandler = DataHandler()
 
         logs = k8sUtils.GetLog(jobId)
-    
+
+        # Do not overwrite existing logs with empty log
+        # DLTS bootstrap will generate logs for all containers.
+        # If one container has empty log, skip writing.
+        for log in logs:
+            if "containerLog" in log and log["containerLog"] == "":
+                return
+
         jobLogDir = os.path.dirname(logPath)
         if not os.path.exists(jobLogDir):
             mkdirsAsUser(jobLogDir,userId)
