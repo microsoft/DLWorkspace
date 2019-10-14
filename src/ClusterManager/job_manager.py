@@ -642,7 +642,10 @@ def Run(updateblock=0):
     create_log()
 
     while True:
-        update_file_modification_time("job_manager")
+        if updateblock == 0:
+            update_file_modification_time("job_manager")
+        else:
+            update_file_modification_time("job_manager" + str(updateblock))
 
         with manager_iteration_histogram.labels("job_manager").time():
             try:
