@@ -21,7 +21,7 @@ import k8sUtils
 from config import config, GetStoragePath, GetWorkPath
 from DataHandler import DataHandler
 
-from job_deployer import JobDeployer
+from job_launcher import JobDeployer
 
 logger = logging.getLogger(__name__)
 deployer = JobDeployer()

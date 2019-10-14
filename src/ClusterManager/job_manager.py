@@ -2,26 +2,19 @@ import json
 import os
 import time
 import argparse
-import uuid
-import subprocess
 import sys
 import datetime
-import copy
-import traceback
 import functools
 import timeit
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
 
-from jobs_tensorboard import GenTensorboardMeta
 import k8sUtils
 import joblog_manager
-from osUtils import mkdirsAsUser
 import notify
 
 import yaml
-from jinja2 import Environment, FileSystemLoader, Template
 from config import config, GetStoragePath, GetWorkPath
 from DataHandler import DataHandler
 from node_manager import get_cluster_status
@@ -30,19 +23,12 @@ from ResourceInfo import ResourceInfo
 
 import re
 
-import thread
-import threading
-import random
-
 from prometheus_client import Histogram
 
 import logging
 import logging.config
 from job import Job, JobSchema
-from pod_template import PodTemplate
-from dist_pod_template import DistPodTemplate
-from job_deployer import JobDeployer
-from job_role import JobRole
+from job_launcher import JobDeployer, JobRole, PythonLauncher
 
 from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time
 
@@ -62,55 +48,6 @@ def record(fn):
             elapsed = timeit.default_timer() - start
             jobmanager_fn_histogram.labels(fn.__name__).observe(elapsed)
     return wrapped
-
-def all_pods_not_existing(job_id):
-    job_deployer = JobDeployer()
-    job_roles = JobRole.get_job_roles(job_id)
-    statuses = [job_role.status() for job_role in job_roles]
-    logging.info("Job: {}, status: {}".format(job_id, statuses))
-    return all([status == "NotFound" for status in statuses])
-
-
-def get_job_status_detail(job):
-    if "jobStatusDetail" not in job:
-        return None
-
-    job_status_detail = job["jobStatusDetail"]
-    if job_status_detail is None:
-        return job_status_detail
-
-    if not isinstance(job_status_detail, list):
-        job_status_detail = base64.b64decode(job_status_detail)
-        job_status_detail = json.loads(job_status_detail)
-    return job_status_detail
-
-
-def job_status_detail_with_finished_time(job_status_detail, status, msg=""):
-    # This method is called when a job succeeds/fails/is killed/has an error
-
-    # job_status_detail must be None or a list
-    if (job_status_detail is not None) and (not isinstance(job_status_detail, list)):
-        return job_status_detail
-
-    # Force adding an item for empty detail
-    if (job_status_detail is None) or (len(job_status_detail) == 0):
-        job_status_detail = [{}]
-
-    finished_at = k8sUtils.localize_time(datetime.datetime.now())
-    new_job_status_detail = []
-    # Override finishedAt for all pods if absent
-    for pod_status_detail in job_status_detail:
-        # Mark started time the same as finished time for a fast finishing job
-        if "startedAt" not in pod_status_detail:
-            pod_status_detail["startedAt"] = finished_at
-
-        if "finishedAt" not in pod_status_detail:
-            pod_status_detail["finishedAt"] = finished_at
-
-        pod_status_detail["message"] = "{} at {}. {}".format(status, finished_at, msg)
-        new_job_status_detail.append(pod_status_detail)
-
-    return new_job_status_detail
 
 
 def get_scheduling_job_details(details):
@@ -146,142 +83,6 @@ def get_scheduling_job_details(details):
     return pod_details
 
 
-@record
-def SubmitJob(job):
-    # check if existing any pod with label: run=job_id
-    assert("jobId" in job)
-    job_id = job["jobId"]
-    if not all_pods_not_existing(job_id):
-        logging.warning("Waiting until previously pods are cleaned up! Job {}".format(job_id))
-        job_deployer = JobDeployer()
-        errors = job_deployer.delete_job(job_id, force=True)
-        if errors:
-            logging.warning("Force delete job {}: {}".format(job_id, errors))
-        return
-
-    ret = {}
-    dataHandler = DataHandler()
-
-    try:
-        # TODO refine later
-        # before resubmit the job, reset the endpoints
-        # update all endpoint to status 'pending', so it would restart when job is ready
-        endpoints = dataHandler.GetJobEndpoints(job_id)
-        for endpoint_id, endpoint in endpoints.items():
-            endpoint["status"] = "pending"
-            logging.info("Reset endpoint status to 'pending': {}".format(endpoint_id))
-            dataHandler.UpdateEndpoint(endpoint)
-
-        job["cluster"] = config
-        job_object, errors = JobSchema().load(job)
-        # TODO assert job_object is a Job
-        assert(isinstance(job_object, Job))
-
-        job_object.params = json.loads(base64.b64decode(job["jobParams"]))
-
-        # inject gid, uid and user
-        # TODO it should return only one entry
-        user_info = dataHandler.GetIdentityInfo(job_object.params["userName"])[0]
-        job_object.params["gid"] = user_info["gid"]
-        job_object.params["uid"] = user_info["uid"]
-        job_object.params["user"] = job_object.get_alias()
-
-        enable_custom_scheduler = job_object.is_custom_scheduler_enabled()
-        if job_object.params["jobtrainingtype"] == "RegularJob":
-            pod_template = PodTemplate(job_object.get_template(), enable_custom_scheduler=enable_custom_scheduler)
-        elif job_object.params["jobtrainingtype"] == "PSDistJob":
-            pod_template = DistPodTemplate(job_object.get_template())
-        elif job_object.params["jobtrainingtype"] == "InferenceJob":
-            pod_template = PodTemplate(job_object.get_template(),deployment_template=job_object.get_deployment_template(), enable_custom_scheduler=False)
-        else:
-            dataHandler.SetJobError(job_object.job_id, "ERROR: invalid jobtrainingtype: %s" % job_object.params["jobtrainingtype"])
-            dataHandler.Close()
-            return False
-
-        pods, error = pod_template.generate_pods(job_object)
-        if error:
-            dataHandler.SetJobError(job_object.job_id, "ERROR: %s" % error)
-            dataHandler.Close()
-            return False
-
-        job_description = "\n---\n".join([yaml.dump(pod) for pod in pods])
-        job_description_path = "jobfiles/" + time.strftime("%y%m%d") + "/" + job_object.job_id + "/" + job_object.job_id + ".yaml"
-        local_jobDescriptionPath = os.path.realpath(os.path.join(config["storage-mount-path"], job_description_path))
-        if not os.path.exists(os.path.dirname(local_jobDescriptionPath)):
-            os.makedirs(os.path.dirname(local_jobDescriptionPath))
-        with open(local_jobDescriptionPath, 'w') as f:
-            f.write(job_description)
-
-        job_deployer = JobDeployer()
-        try:
-            pods = job_deployer.create_pods(pods)
-            ret["output"] = "Created pods: {}".format([pod.metadata.name for pod in pods])
-        except Exception as e:
-            ret["output"] = "Error: %s" % e.message
-            logging.error(e, exc_info=True)
-
-        ret["jobId"] = job_object.job_id
-
-        dataHandler.UpdateJobTextField(job_object.job_id, "jobStatus", "scheduling")
-        dataHandler.UpdateJobTextField(job_object.job_id, "jobDescriptionPath", job_description_path)
-        dataHandler.UpdateJobTextField(job_object.job_id, "jobDescription", base64.b64encode(job_description))
-        dataHandler.UpdateJobTextField(job_object.job_id, "lastUpdated", datetime.datetime.now().isoformat())
-
-        jobMeta = {}
-        jobMeta["jobDescriptionPath"] = job_description_path
-        jobMeta["jobPath"] = job_object.job_path
-        jobMeta["workPath"] = job_object.work_path
-        # the command of the first container
-        jobMeta["LaunchCMD"] = pods[0].spec.containers[0].command
-
-        jobMetaStr = base64.b64encode(json.dumps(jobMeta))
-        dataHandler.UpdateJobTextField(job_object.job_id, "jobMeta", jobMetaStr)
-    except Exception as e:
-        logging.error("Submit job failed: %s" % job, exc_info=True)
-        ret["error"] = str(e)
-        retries = dataHandler.AddandGetJobRetries(job["jobId"])
-        if retries >= 5:
-            dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "error")
-            dataHandler.UpdateJobTextField(job["jobId"], "errorMsg", "Cannot submit job!" + str(e))
-
-            detail = get_job_status_detail(job)
-            detail = job_status_detail_with_finished_time(detail, "error", "Server error in job submission")
-            dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
-
-    dataHandler.Close()
-    return ret
-
-
-def KillJob(job_id, desiredState="killed", dataHandlerOri=None):
-    if dataHandlerOri is None:
-        dataHandler = DataHandler()
-    else:
-        dataHandler = dataHandlerOri
-
-    # TODO: Use JobDeployer?
-    result, detail = k8sUtils.GetJobStatus(job_id)
-    detail = job_status_detail_with_finished_time(detail, desiredState)
-    dataHandler.UpdateJobTextField(job_id, "jobStatusDetail", base64.b64encode(json.dumps(detail)))
-    logging.info("Killing job %s, with status %s, %s" % (job_id, result, detail))
-
-    job_deployer = JobDeployer()
-    errors = job_deployer.delete_job(job_id, force=True)
-
-    if len(errors) == 0:
-        dataHandler.UpdateJobTextField(job_id, "jobStatus", desiredState)
-        dataHandler.UpdateJobTextField(job_id, "lastUpdated", datetime.datetime.now().isoformat())
-        if dataHandlerOri is None:
-            dataHandler.Close()
-        return True
-    else:
-        dataHandler.UpdateJobTextField(job_id, "jobStatus", "error", "{}".format(errors))
-        dataHandler.UpdateJobTextField(job_id, "lastUpdated", datetime.datetime.now().isoformat())
-        if dataHandlerOri is None:
-            dataHandler.Close()
-        logging.error("Kill job failed with errors: {}".format(errors))
-        return False
-
-
 def GetJobTotalGpu(jobParams):
     numWorkers = 1
     if "numpsworker" in jobParams:
@@ -308,7 +109,7 @@ def ApproveJob(job, dataHandlerOri=None):
             dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
             dataHandler.UpdateJobTextField(job_id, "jobStatus", "queued")
             if dataHandlerOri is None:
-                dataHandler.Close()            
+                dataHandler.Close()
             return True
 
         vcList = dataHandler.ListVCs()
@@ -320,7 +121,7 @@ def ApproveJob(job, dataHandlerOri=None):
         if vc is None:
             logging.warning("Vc not exising! job {}, vc {}".format(job_id, vcName))
             if dataHandlerOri is None:
-                dataHandler.Close()            
+                dataHandler.Close()
             return False
         metadata = json.loads(vc["metadata"])
 
@@ -341,14 +142,14 @@ def ApproveJob(job, dataHandlerOri=None):
                 detail = [{"message": "exceeds the user quota in VC: {} (used) + {} (requested) > {} (user quota). Will need admin approval.".format(running_gpus, job_total_gpus, metadata["user_quota"])}]
                 dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
                 if dataHandlerOri is None:
-                    dataHandler.Close()                
+                    dataHandler.Close()
                 return False
 
         detail = [{"message": "waiting for available resource."}]
         dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
         dataHandler.UpdateJobTextField(job_id, "jobStatus", "queued")
         if dataHandlerOri is None:
-            dataHandler.Close()        
+            dataHandler.Close()
         return True
     except Exception as e:
         logging.warning(e, exc_info=True)
@@ -520,7 +321,7 @@ def get_job_priority(priority_dict, job_id):
 
 
 @record
-def TakeJobActions(jobs):
+def TakeJobActions(launcher, jobs):
     dataHandler = DataHandler()
     vcList = dataHandler.ListVCs()
     clusterStatus, _ = dataHandler.GetClusterStatus()
@@ -616,10 +417,10 @@ def TakeJobActions(jobs):
     for sji in jobsInfo:
         try:
             if sji["job"]["jobStatus"] == "queued" and (sji["allowed"] is True):
-                SubmitJob(sji["job"])
+                launcher.submit_job(sji["job"])
                 logging.info("TakeJobActions : submitting job : %s : %s" % (sji["jobId"], sji["sortKey"]))
             elif sji["preemptionAllowed"] and (sji["job"]["jobStatus"] == "scheduling" or sji["job"]["jobStatus"] == "running") and (sji["allowed"] is False):
-                KillJob(sji["job"]["jobId"], "queued")
+                launcher.kill_job(sji["job"]["jobId"], "queued")
                 logging.info("TakeJobActions : pre-empting job : %s : %s" % (sji["jobId"], sji["sortKey"]))
         except Exception as e:
             logging.error("Process job failed {}".format(sji["job"]), exc_info=True)
@@ -627,19 +428,14 @@ def TakeJobActions(jobs):
     logging.info("TakeJobActions : job desired actions taken")
 
 
-@record
-def kill_killing_job(job_id, dataHandlerOri=None):
-    KillJob(job_id, "killed", dataHandlerOri)
-
-@record
-def kill_pausing_job(job_id, dataHandlerOri=None):
-    KillJob(job_id, "paused", dataHandlerOri)
-
 def Run(updateblock=0):
     register_stack_trace_dump()
     notifier = notify.Notifier(config.get("job-manager"))
     notifier.start()
     create_log()
+
+    launcher = PythonLauncher()
+    launcher.start()
 
     while True:
         update_file_modification_time("job_manager")
@@ -656,7 +452,7 @@ def Run(updateblock=0):
 
                 if updateblock == 0 or updateblock == 1:
                     pendingJobs = dataHandler.GetPendingJobs()
-                    TakeJobActions(pendingJobs)
+                    TakeJobActions(launcher, pendingJobs)
 
                 pendingJobs = dataHandler.GetPendingJobs()
                 logging.info("Updating status for %d jobs" % len(pendingJobs))
@@ -665,9 +461,9 @@ def Run(updateblock=0):
                         logging.info("Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"]))
                         if updateblock == 0 or updateblock == 2:
                             if job["jobStatus"] == "killing":
-                                kill_killing_job(job["jobId"], dataHandlerOri=dataHandler)
+                                launcher.kill_job(job["jobId"], "killed", dataHandlerOri=dataHandler)
                             elif job["jobStatus"] == "pausing":
-                                kill_pausing_job(job["jobId"], dataHandlerOri=dataHandler)
+                                launcher.kill_job(job["jobId"], "paused", dataHandlerOri=dataHandler)
                             elif job["jobStatus"] == "running":
                                 UpdateJobStatus(job, notifier,dataHandlerOri = dataHandler)
 
