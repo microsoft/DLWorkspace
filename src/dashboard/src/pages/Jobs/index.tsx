@@ -11,7 +11,7 @@ import { makeStyles, Theme, createStyles } from "@material-ui/core/styles";
 import {red, green, blue} from "@material-ui/core/colors";
 import { DLTSTabPanel } from '../CommonComponents/DLTSTabPanel'
 import {Link} from "react-router-dom";
-import useFetch,{usePut} from "use-http/dist";
+import useFetch from "use-http";
 import MaterialTable from 'material-table';
 import useJobs from './useJobs';
 import _ from 'lodash';
@@ -137,7 +137,7 @@ const Jobs: React.FC = (props: any) => {
     const data = await requestDelete.put(`${currentJob.cluster}/jobs/${currentJob.jobId}/status/`,body);
     return data;
   }
-  const { put: setPriority } = usePut('/api');
+  const { put: setPriority } = useFetch('/api');
   const [currentCluster, setCurrentCluster] = useState(props.match.params.cluster ? props.match.params.cluster : Array.isArray(_.map(clusters,'id') )?_.map(clusters,'id')[0] : '');
   const [jobs, error] = useJobs();
   const [allJobs, err] = useJobsAll();

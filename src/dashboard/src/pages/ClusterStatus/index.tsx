@@ -12,7 +12,7 @@ import {
 import { DLTSTabPanel } from '../CommonComponents/DLTSTabPanel'
 import TeamContext from "../../contexts/Teams";
 import ClusterContext from '../../contexts/Clusters';
-import useFetch from "use-http/dist";
+import useFetch from "use-http";
 
 import _ from "lodash";
 import { mergeTwoObjsByKey, convertToArrayByKey } from '../../utlities/ObjUtlities';
@@ -49,8 +49,8 @@ const ClusterStatus: FC = () => {
   const fetchVcStatusUrl = `/api`;
   const fetchiGrafanaUrl = `/api/clusters`;
 
-  const request = useFetch(fetchVcStatusUrl,options);
-  const requestGrafana = useFetch(fetchiGrafanaUrl, options);
+  const [request] = useFetch(fetchVcStatusUrl,options);
+  const [requestGrafana] = useFetch(fetchiGrafanaUrl, options);
   const fetchVC = async (cluster: string) => {
     const response = await request.get(`/teams/${selectedTeam}/clusters/${cluster}`);
     const {grafana, prometheus} = await requestGrafana.get(`/${cluster}`);

@@ -7,7 +7,7 @@ import {
 } from '@material-ui/core';
 import {DirectionsRun} from '@material-ui/icons';
 
-import { useFetch } from 'use-http';
+import useFetch from 'use-http';
 
 import Context from './Context';
 
@@ -23,7 +23,7 @@ const RunCommand: React.FC = () => {
 
   const runCommand = useCallback(() => {
     post({ command })
-  }, [post, command]);
+  }, [command]);
 
   return (
     <TextField

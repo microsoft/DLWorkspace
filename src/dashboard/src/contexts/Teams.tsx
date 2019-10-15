@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import useFetch from "use-http/dist";
+import useFetch from "use-http";
 import {
   Box, Button,
   Dialog, DialogActions,
@@ -25,7 +25,7 @@ const Context = React.createContext<Context>({
 export default Context;
 export const Provider: React.FC = ({ children }) => {
   const fetchTeamsUrl = '/api/teams';
-  const [teams] = useFetch(fetchTeamsUrl, { onMount: true });
+  const { data: teams } = useFetch(fetchTeamsUrl, { onMount: true });
   const [selectedTeam, setSelectedTeam] = React.useState<string>('');
   const saveSelectedTeam = (team: React.SetStateAction<string>) => {
     setSelectedTeam(team);

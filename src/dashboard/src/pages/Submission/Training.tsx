@@ -29,7 +29,7 @@ import { makeStyles, createStyles } from "@material-ui/core/styles";
 import { Info, Delete, Add } from "@material-ui/icons";
 import { withRouter } from "react-router";
 import IconButton from '@material-ui/core/IconButton';
-import { useGet, usePost, usePut } from "use-http";
+import useFetch from "use-http";
 import { join } from 'path';
 
 import ClusterSelectField from "./components/ClusterSelectField";
@@ -37,7 +37,6 @@ import UserContext from "../../contexts/User";
 import ClustersContext from '../../contexts/Clusters';
 import TeamsContext from "../../contexts/Teams";
 import theme, { Provider as MonospacedThemeProvider } from "../../contexts/MonospacedTheme";
-import useFetch, {useDelete} from "use-http/dist";
 import {BarChart, Bar, XAxis, YAxis, CartesianGrid}  from "recharts";
 import Paper, { PaperProps } from '@material-ui/core/Paper';
 import Draggable from 'react-draggable'
@@ -106,10 +105,13 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     return cluster.gpus[gpuModel].perNode;
   }, [cluster, gpuModel]);
 
-  const [templates, templatesLoading, templatesError, getTemplates] = useGet('/api');
+  const {
+    data: templates,
+    get: getTemplates,
+  } = useFetch('/api');
   React.useEffect(() => {
     getTemplates(`/teams/${selectedTeam}/templates`);
-  }, [getTemplates, selectedTeam]);
+  }, [selectedTeam]);
 
   const [type, setType] = React.useState("RegularJob");
   const onTypeChange = React.useCallback(
@@ -305,8 +307,10 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     },
     [setSaveTemplateDatabase]
   );
-  const { put: saveTemplate } = usePut('/api')
-  const {delete: deleteTemplate} = useDelete('/api');
+  const {
+    put: saveTemplate,
+    delete: deleteTemplate,
+  } = useFetch('/api');
   const onSaveTemplateClick = async () => {
     try {
       const template = {
@@ -358,7 +362,6 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       };
       const url = `/teams/${selectedTeam}/templates/${saveTemplateName}?database=${saveTemplateDatabase}`;
       await deleteTemplate(url);
-      console.log(await deleteTemplate(url,template))
       setShowDeleteTemplate(true)
     } catch (error) {
       alert('Failed to delete the template, check console (F12) for technical details.')
@@ -427,18 +430,18 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     []
   );
 
-  const [
-    postJobData,
-    postJobLoading,
-    postJobError,
-    postJob
-  ] = usePost('/api');
-  const [
-    postEndpointsData,
-    postEndpointsLoading,
-    postEndpointsError,
-    postEndpoints
-  ] = usePost('/api');
+  const {
+    data: postJobData,
+    loading: postJobLoading,
+    error: postJobError,
+    post: postJob,
+  } = useFetch('/api');
+  const {
+    data: postEndpointsData,
+    loading: postEndpointsLoading,
+    error: postEndpointsError,
+    post: postEndpoints,
+  } = useFetch('/api');
 
   const submittable = React.useMemo(() => {
     if (!gpuModel) return false;
@@ -538,7 +541,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     } else {
       history.push(`/job/${selectedTeam}/${selectedCluster}/${jobId.current}`);
     }
-  }, [postJobData, postEndpoints, ssh, ipython, tensorboard, interactivePorts, history, selectedCluster]);
+  }, [postJobData, ssh, ipython, tensorboard, interactivePorts, history, selectedCluster]);
   const fetchPrometheusUrl = `/api/clusters`;
   const request = useFetch(fetchPrometheusUrl);
   const fetchPrometheus = async () => {

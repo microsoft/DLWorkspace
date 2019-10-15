@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from "react";
 import { Link } from "react-router-dom";
-import useFetch from "use-http/dist";
+import useFetch from "use-http";
 import {
   Button,
   Card,
@@ -183,11 +183,8 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
   const [activate,setActivate] = useState(false);
   const { email } = React.useContext(UserContext);
   const {selectedTeam} = React.useContext(TeamsContext);
-  const options = {
-    onMount: true
-  }
   const fetchDiretoryUrl = `api/clusters/${cluster}`;
-  const request = useFetch(fetchDiretoryUrl,options);
+  const request = useFetch(fetchDiretoryUrl);
   const fetchDirectories = async () => {
     const data = await request.get('');
     const name = typeof email === 'string' ?  email.split('@', 1)[0] : email;
@@ -195,7 +192,7 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
     setWorkStorage(`${data.workStorage}/${name}`);
   }
   const fetchClusterStatusUrl = `/api`;
-  const requestClusterStatus = useFetch(fetchClusterStatusUrl, options);
+  const requestClusterStatus = useFetch(fetchClusterStatusUrl);
   const fetchClusterStatus = async () => {
     setActivate(false);
     const data = await requestClusterStatus.get(`/teams/${selectedTeam}/clusters/${cluster}`);

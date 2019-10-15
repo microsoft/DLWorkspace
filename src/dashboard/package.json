@@ -35,7 +35,7 @@
     "recharts": "^1.6.2",
     "typeface-roboto": "^0.0.54",
     "typeface-roboto-mono": "^0.0.54",
-    "use-http": "^0.1.79",
+    "use-http": "^0.1.91",
     "uuid": "^3.3.2"
   },
   "devDependencies": {
