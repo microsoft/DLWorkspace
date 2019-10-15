@@ -13,6 +13,7 @@
 ./deploy.py -y kubernetes labels
 ./deploy.py -y gpulabel
 ./deploy.py kubernetes start nvidia-device-plugin
+./deploy.py kubernetes start flexvolume
 ./deploy.py webui
 ./deploy.py docker push restfulapi
 ./deploy.py docker push webui

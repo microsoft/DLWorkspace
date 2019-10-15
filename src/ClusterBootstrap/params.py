@@ -673,6 +673,7 @@ scriptblocks = {
         "-y kubernetes labels",
         "-y gpulabel",
         "kubernetes start nvidia-device-plugin",
+        "kubernetes start flexvolume",
         "webui",
         "docker push restfulapi",
         "docker push webui",
