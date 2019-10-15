@@ -99,6 +99,7 @@ default_config_parameters = {
         ".gzip": True,
         ".rules": True,
         ".tmpl": True,
+        ".py": True,
     },
     "render-by-copy": {
         # The following file will be copied (not rendered for configuration)
