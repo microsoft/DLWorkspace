@@ -81,7 +81,7 @@ class Job:
 
         # skip dulicate entry
         for item in self.mountpoints:
-            if item["name"] == mountpoint["name"] or item["containerPath"] == mountpoint["containerPath"] or item["hostPath"] == mountpoint["hostPath"]:
+            if item["name"] == mountpoint["name"] or item["containerPath"] == mountpoint["containerPath"]:
                 logging.warn("Duplciate mountpoint: %s" % mountpoint)
                 return
 
