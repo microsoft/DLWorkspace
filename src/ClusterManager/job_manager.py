@@ -32,6 +32,9 @@ from job_launcher import JobDeployer, JobRole, PythonLauncher
 
 from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time
 
+from job_launcher import get_job_status_detail, job_status_detail_with_finished_time
+
+
 jobmanager_fn_histogram = Histogram("jobmanager_fn_latency_seconds",
         "latency for executing jobmanager function (seconds)",
         buckets=(.1, 2.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 50.0,
@@ -161,7 +164,7 @@ def ApproveJob(job, dataHandlerOri=None):
 UnusualJobs = {}
 
 @record
-def UpdateJobStatus(job, notifier=None, dataHandlerOri=None):
+def UpdateJobStatus(launcher, job, notifier=None, dataHandlerOri=None):
     assert(job["jobStatus"] == "scheduling" or job["jobStatus"] == "running")
     if dataHandlerOri is None:
         dataHandler = DataHandler()
@@ -242,7 +245,7 @@ def UpdateJobStatus(job, notifier=None, dataHandlerOri=None):
                 dataHandler.UpdateEndpoint(endpoint)
 
             logging.warning("Job {} fails in Kubernetes as {}, delete and re-submit.".format(job["jobId"], result))
-            KillJob(job["jobId"], "queued")
+            launcher.kill_job(job["jobId"], "queued")
 
     elif result == "Pending":
         detail = get_scheduling_job_details(details)
@@ -269,7 +272,7 @@ def check_job_status(job_id):
             continue
         if job_role.status() == "Succeeded":
             logging.info("Job: {}, Succeeded!".format(job_id))
-            return "Succeeded"
+            return "Succeeded", []
 
     statuses = [job_role.status() for job_role in job_roles]
     logging.info("Job: {}, status: {}".format(job_id, statuses))
@@ -468,11 +471,11 @@ def Run(updateblock=0):
                             elif job["jobStatus"] == "pausing":
                                 launcher.kill_job(job["jobId"], "paused", dataHandlerOri=dataHandler)
                             elif job["jobStatus"] == "running":
-                                UpdateJobStatus(job, notifier,dataHandlerOri = dataHandler)
+                                UpdateJobStatus(launcher, job, notifier, dataHandlerOri=dataHandler)
 
                         if updateblock == 0 or updateblock == 1:
                             if job["jobStatus"] == "scheduling":
-                                UpdateJobStatus(job, notifier,dataHandlerOri = dataHandler)
+                                UpdateJobStatus(launcher, job, notifier, dataHandlerOri=dataHandler)
                             elif job["jobStatus"] == "unapproved":
                                 ApproveJob(job,dataHandlerOri = dataHandler)
                     except Exception as e:

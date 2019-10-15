@@ -5,7 +5,7 @@ set -ex
 #export DLWS_GID=
 #export DLWS_UID=
 #export DLWS_USER_NAME=
-export ENV_FILE=/pod/pod.env
+export ENV_FILE=/pod.env
 
 # install required pkgs
 export DEBIAN_FRONTEND=noninteractive
