@@ -30,8 +30,8 @@ describe('GET /authenticate', () => {
       })
 
     const mock = sinon.mock(User.prototype)
-    mock.expects('fillIdFromWinbind').once().returns(Promise.resolve())
-    mock.expects('addUserToCluster').once().returns(Promise.resolve())
+    mock.expects('fillIdFromWinbind').once().resolves()
+    mock.expects('addUserToCluster').once().resolves()
 
     const response = await axiosist(api).get('/authenticate', {
       params: {
