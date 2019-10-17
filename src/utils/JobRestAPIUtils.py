@@ -68,6 +68,8 @@ def SubmitJob(jobParamsJsonStr):
     if "vcName" not in jobParams or len(jobParams["vcName"].strip()) == 0:
         ret["error"] = "ERROR: VC name cannot be empty"
         return ret
+    if "userId" not in jobParams or len(jobParams["userId"].strip()) == 0:
+        jobParams["userId"] = GetUser(jobParams["userName"])["uid"]
 
     if "preemptionAllowed" not in jobParams:
         jobParams["preemptionAllowed"] = False
@@ -408,6 +410,10 @@ def AddUser(username,uid,gid,groups):
         ret = ret & dataHandler.UpdateAclIdentityId(username,uid)
         dataHandler.Close()
     return ret
+
+
+def GetUser(username):
+    return IdentityManager.GetIdentityInfoFromDB(username)
 
 
 def UpdateAce(userName, identityName, resourceType, resourceName, permissions):
