@@ -129,6 +129,7 @@ class SubmitJob(Resource):
         parser.add_argument('numpsworker')
         parser.add_argument('nummpiworker')
 
+        parser.add_argument('jobPriority')
 
         args = parser.parse_args()
 
@@ -210,6 +211,10 @@ class SubmitJob(Resource):
                 params["isParent"] = args["isParent"]
             else:
                 params["isParent"] = "1"
+                
+            if args["jobPriority"] is not None and len(args["jobPriority"].strip()) > 0:
+                params["jobPriority"] = args["jobPriority"]
+
             params["mountpoints"] = []
             addcmd = ""
             if "mounthomefolder" in config and istrue(config["mounthomefolder"]) and "storage-mount-path" in config:

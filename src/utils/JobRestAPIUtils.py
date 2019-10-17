@@ -206,8 +206,13 @@ def SubmitJob(jobParamsJsonStr):
     if "error" not in ret:
         if dataHandler.AddJob(jobParams):
             ret["jobId"] = jobParams["jobId"]
+            if "jobPriority" in jobParams:
+                job_priorites = {jobParams["jobId"]:jobParams["jobPriority"]}
+                update_job_priorites(job_priorites)
         else:
             ret["error"] = "Cannot schedule job. Cannot add job into database."
+
+
 
 
 
