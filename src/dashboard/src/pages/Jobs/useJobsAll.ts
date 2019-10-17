@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import useFetch from "use-http";
 import TeamContext from "../../contexts/Teams";
+import {useTimeoutFn} from "react-use";
 type Jobs = object;
 type useJobsAll = [Jobs | undefined, Error | undefined];
 
@@ -12,16 +13,18 @@ const useJobsAll = (openKillWarn?: boolean,openApproveWan?: boolean): useJobsAll
     limit:'100'
   });
   const { data, error, get } = useFetch<Jobs>('/api');
-
+  const [isReady, reset, cancel] = useTimeoutFn(() => {
+    get(`/teams/${selectedTeam}/jobs?${params}`);
+  }, 3000);
   useEffect(() => {
     if (data == null) return;
     setJobsAll(data);
 
-    const timeout = setTimeout(() => {
-      get(`/teams/${selectedTeam}/jobs?${params}`);
-    }, 3000);
+    if (isReady()) {
+      reset();
+    }
     return () => {
-      clearTimeout(timeout);
+      cancel()
     }
   }, [data]);
 

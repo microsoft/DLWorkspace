@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import useFetch from "use-http";
+import {useTimeoutFn} from "react-use";
 
 type Job = object;
 type UseJob = [Job | undefined, Error | undefined];
@@ -10,16 +11,19 @@ const useJob = (clusterId: string, jobId: string): UseJob => {
     url: `/api/clusters/${clusterId}/jobs/${jobId}`,
     onMount: true
   });
-
+  const [isReady, reset, cancel] = useTimeoutFn(get, 1000);
   useEffect(() => {
     if (data === undefined) return;
 
     setJob(data);
 
-    const timeout = setTimeout(get, 1000)
-    return () => {
-      clearTimeout(timeout);
+    if (isReady()) {
+      reset();
     }
+    return () => {
+      cancel()
+    }
+
   }, [data]);
 
   if (job !== undefined) {

@@ -4,7 +4,7 @@ import {
   CircularProgress,
   TextField,
   SvgIcon,
-  Tooltip,
+  Tooltip, MuiThemeProvider, createMuiTheme,
 } from "@material-ui/core";
 import CheckCircleIcon from '@material-ui/icons/CheckCircle';
 import { makeStyles, Theme, createStyles } from "@material-ui/core/styles";
@@ -19,6 +19,7 @@ import ClusterContext from "../../contexts/Clusters";
 import useJobsAll from "./useJobsAll";
 import IconButton from "@material-ui/core/IconButton";
 import DeleteIcon from '@material-ui/icons/Delete';
+import ReactJson from "react-json-view";
 import CheckIcon from '@material-ui/icons/CheckSharp';
 import {DLTSTabs} from "../CommonComponents/DLTSTabs";
 import {JobsTitles} from "../../Constants/TabsContants";
@@ -33,6 +34,8 @@ import {
 } from "../../Constants/WarnConstants";
 import {JobsSelectByCluster} from "./components/JobsSelectByCluster";
 import TeamContext from "../../contexts/Teams";
+import {toLocalTime} from "../../utlities/ObjUtlities";
+import {useTimeoutFn} from "react-use";
 
 const variantIcon = {
   success: CheckCircleIcon,
@@ -44,7 +47,6 @@ interface Props {
   variant: keyof typeof variantIcon;
 }
 
-const { DateTime } = require('luxon');
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     root: {
@@ -92,17 +94,17 @@ const Jobs: React.FC = (props: any) => {
   const classes = useStyles();
   const [value, setValue] = React.useState(0);
   const [refresh, setRefresh] = React.useState(false);
+  const [isReady, reset, cancel] = useTimeoutFn(() => {
+    setRefresh(true);
+  }, 1000);
   useEffect(()=>{
-    let mount = true;
-    let timeout: any;
-    timeout = setTimeout(()=>{
-      setRefresh(true);
-    },1000);
-    return () => {
-      mount = false;
-      clearTimeout(timeout)
+    if (isReady()) {
+      reset();
     }
-  },[])
+    return () => {
+      cancel()
+    }
+  },[cancel, isReady, reset])
   const[open, setOpen] = React.useState(false);
   const[openApprove, setOpenApprove] = React.useState(false);
   const[openPause, setOpenPause] = React.useState(false);
@@ -314,11 +316,11 @@ const Jobs: React.FC = (props: any) => {
 
   const renderDateTime = (rowData: any,time?: string)=> {
     if (time === 'jobTime') {
-      return (<span>{ DateTime.fromJSDate(new Date(Date.parse(rowData['jobTime']))).toFormat("yyyy/LL/dd HH:mm:ss")}</span>)
+      return (<span>{ toLocalTime(rowData['jobTime']) }</span>)
     } else if (time === 'startedAt') {
-      return (<span>{ DateTime.fromJSDate(new Date(Date.parse(rowData['jobStatusDetail'][0]['startedAt']))).toFormat("yyyy/LL/dd HH:mm:ss")}</span>)
+      return (<span>{ toLocalTime(rowData['jobStatusDetail'][0]['startedAt'])}</span>)
     } else if (time === 'finishedAt') {
-      return (<span>{ DateTime.fromJSDate(new Date(Date.parse(rowData['jobStatusDetail'][0]['finishedAt']))).toFormat("yyyy/LL/dd HH:mm:ss")}</span>)
+      return (<span>{ toLocalTime(rowData['jobStatusDetail'][0]['finishedAt'])}</span>)
     }
   }
 
@@ -391,6 +393,67 @@ const Jobs: React.FC = (props: any) => {
     // return isNaN(Date.parse(a)) && isNaN(Date.parse(b)) ? a.trim().localeCompare(b.trim()) : Date.parse(val1) - Date.parse(val2)
     // return Date.parse(a['jobTime']) - Date.parse(b['jobTime'])
   }
+  const theme = createMuiTheme({
+    overrides: {
+      MuiTooltip: {
+        tooltip: {
+          fontSize: "1.0em",
+          overflow:"auto",
+          backgroundColor:"rgb(29, 31, 33)"
+        }
+      }
+    }
+  });
+  const renderJobStatus = (rowData: any) => {
+    let message = "unknown";
+    let schedulingMessage = {};
+    if (rowData.jobStatusDetail && rowData.jobStatusDetail.length > 0 && rowData.jobStatusDetail[0].message) {
+      let tmp = rowData.jobStatusDetail[0].message;
+      let dateType = /(\d{4})([\/-])/;
+      let date = ""
+      let text = "";
+      if (dateType.test(tmp)){
+        let datePart = tmp.split(" ")[2];
+        let lastIndex = tmp.indexOf(datePart);
+        text = (tmp.substring(0, lastIndex))
+        date = tmp.substring(lastIndex).substring(0, datePart.length - 1)
+        if (new Date(date).toString().indexOf('Invalid') !== -1) {
+          date = date.concat("0");
+        }
+        message = text.concat(toLocalTime(date));
+      } else {
+        message = rowData.jobStatusDetail[0].message;
+      }
+      for (let item of rowData.jobStatusDetail) {
+        if (item.hasOwnProperty("message")) {
+          schedulingMessage = item["message"];
+        }
+      }
+
+    }
+
+    return (
+      <>
+        <MuiThemeProvider theme={theme}>
+          <Tooltip  leaveTouchDelay={36000}interactive = {true} title={rowData['jobStatus'] != 'scheduling' ? `${message}` :
+            <React.Fragment>
+              {
+                <ReactJson src={schedulingMessage} theme={"tomorrow"} displayObjectSize={false}/>
+              }
+            </React.Fragment>
+          }  placement="top">
+            <IconButton edge={"start"} size="small" >
+              <SvgIcon>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"/><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+              </SvgIcon>
+            </IconButton>
+          </Tooltip>
+        </MuiThemeProvider>
+        <span>{`${rowData['jobStatus']}`}</span>
+      </>
+    )
+  }
+
   const { selectedTeam } = React.useContext(TeamContext);
   if (jobs && allJobs) {
     console.log(jobs)
@@ -421,10 +484,11 @@ const Jobs: React.FC = (props: any) => {
                 padding:'5',
               }},
               {title: 'Status', field: 'jobStatus',cellStyle: {
-                textAlign:'left',
+                textAlign:'justify',
                 flexDirection: 'row',
+                whiteSpace: 'nowrap',
                 padding:'5',
-              }},
+              },render: (rowData: any) => renderJobStatus(rowData)},
               {title:'GPU', field:'jobParams.resourcegpu',cellStyle: {
                 textAlign:'center',
                 flexDirection: 'row',
@@ -521,10 +585,11 @@ const Jobs: React.FC = (props: any) => {
                 padding:'0',
               }},
               {title: 'Status', field: 'jobStatus',cellStyle: {
-                textAlign:'center',
+                textAlign:'justify',
                 flexDirection: 'row',
+                whiteSpace: 'nowrap',
                 padding:'0',
-              }},
+              },render: (rowData: any) => renderJobStatus(rowData)},
               {title:'GPU', field:'jobParams.resourcegpu',cellStyle: {
                 textAlign:'center',
                 flexDirection: 'row',
@@ -604,10 +669,11 @@ const Jobs: React.FC = (props: any) => {
                 padding:'0',
               },},
               {title: 'Status', field: 'jobStatus',cellStyle: {
-                textAlign:'center',
+                textAlign:'justify',
                 flexDirection: 'row',
                 padding:'0',
-              }},
+                whiteSpace: 'nowrap',
+              }, render: (rowData: any) => renderJobStatus(rowData)},
               {title:'GPU', field:'jobParams.resourcegpu',cellStyle: {
                 textAlign:'center',
                 flexDirection: 'row',
@@ -690,10 +756,11 @@ const Jobs: React.FC = (props: any) => {
                 padding:'5',
               },field: 'jobName'},
               {title:'Status', field:'jobStatus', cellStyle: {
-                textAlign:'left',
+                textAlign:'justify',
                 flexDirection: 'row',
                 padding:'5',
-              },},
+                whiteSpace: 'nowrap'
+              },render: (rowData: any) => renderJobStatus(rowData)},
               {title:'GPU',cellStyle: {
                 textAlign:'left',
                 flexDirection: 'row',
@@ -774,12 +841,13 @@ const Jobs: React.FC = (props: any) => {
                 padding:'5'
               },field: 'jobName'},
               {title:'Status',cellStyle: {
-                textAlign:'left',
+                textAlign:'justify',
+                whiteSpace:'nowrap',
                 flexDirection: 'row',
-                padding:'5',
-              }, field:'jobStatus'},
+                padding:'0',
+              },headerStyle:{padding:'0',textAlign:'center'},field:'jobStatus',render: (rowData: any) => renderJobStatus(rowData)},
               {title:'GPU', cellStyle: {
-                textAlign:'left',
+                textAlign:'center',
                 flexDirection: 'row',
                 padding:'0',
               },field:'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' ||  rowData['jobParams']['jobtrainingtype'] === 'InferenceJob'  || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric', customSort: (a: any, b: any) => {
@@ -795,14 +863,6 @@ const Jobs: React.FC = (props: any) => {
                 flexDirection: 'row',
                 padding:'3',
               }, field:'jobParams.preemptionAllowed',type:'boolean'},
-              {title:'Finished Time',cellStyle: {
-                textAlign:'left',
-                flexDirection: 'row',
-                padding:'2',
-              }, field:'jobStatusDetail[0].finishedAt',type:'date',emptyValue:'unknown',
-              customSort: (a, b) => sortByJobTime(a, b, "finishedAt"),
-              render: (rowData: any)=>renderDateTime(rowData,'finishedAt'),
-              },
               {
                 title: 'Started Time',
                 field: 'jobStatusDetail[0].startedAt',
@@ -816,7 +876,15 @@ const Jobs: React.FC = (props: any) => {
                 },
                 customSort: (a, b) => sortByJobTime(a, b, "startedAt"),
                 render: (rowData: any)=>renderDateTime(rowData, 'startedAt')
-              }
+              },
+              {title:'Finished Time',cellStyle: {
+                textAlign:'left',
+                flexDirection: 'row',
+                padding:'2',
+              }, field:'jobStatusDetail[0].finishedAt',type:'date',emptyValue:'unknown',
+              customSort: (a, b) => sortByJobTime(a, b, "finishedAt"),
+              render: (rowData: any)=>renderDateTime(rowData,'finishedAt'),
+              },
             ]}
             data={filterFinishedJobs(jobs)}
             options={{
@@ -827,8 +895,8 @@ const Jobs: React.FC = (props: any) => {
                 backgroundColor: '#7583d1',
                 color: '#fff',
                 whiteSpace: 'nowrap',
-                textAlign: 'left',
-                padding:'5'
+                textAlign: 'center',
+                padding:'3'
               },
             }}
           /> : null}
@@ -851,10 +919,11 @@ const Jobs: React.FC = (props: any) => {
                       padding:'0',
                     }, field: 'jobName'},
                     {title: 'Status',cellStyle: {
-                      textAlign:'left',
+                      textAlign:'justify',
+                      whiteSpace: 'nowrap',
                       flexDirection: 'row',
                       padding:'2',
-                    }, field: 'jobStatus'},
+                    }, field: 'jobStatus',render:(rowData: any) => renderJobStatus(rowData)},
                     {title:'GPU', field:'jobParams.resourcegpu',cellStyle: {
                       textAlign:'center',
                       flexDirection: 'row',
@@ -955,10 +1024,11 @@ const Jobs: React.FC = (props: any) => {
                       padding:'0',
                     },field: 'jobName'},
                     {title: 'Status',cellStyle: {
-                      textAlign:'center',
+                      textAlign:'justify',
+                      whiteSpace: 'nowrap',
                       flexDirection: 'row',
                       padding:'0',
-                    },field: 'jobStatus'},
+                    },field: 'jobStatus', render: (rowData: any) => renderJobStatus(rowData)},
                     {title:'GPU',cellStyle: {
                       textAlign:'center',
                       flexDirection: 'row',
@@ -1058,10 +1128,11 @@ const Jobs: React.FC = (props: any) => {
                       padding:'0',
                     }, field: 'jobName'},
                     {title: 'Status',cellStyle: {
-                      textAlign:'left',
+                      textAlign:'justify',
+                      whiteSpace: 'nowrap',
                       flexDirection: 'row',
                       padding:'0',
-                    },field: 'jobStatus'},
+                    },field: 'jobStatus',render: (rowData: any) => renderJobStatus(rowData)},
                     {title:'GPU',cellStyle: {
                       textAlign:'center',
                       flexDirection: 'row',
@@ -1156,10 +1227,11 @@ const Jobs: React.FC = (props: any) => {
                       padding:'0',
                     },field: 'jobName'},
                     {title:'Status',cellStyle: {
-                      textAlign:'left',
+                      textAlign:'justify',
+                      whiteSpace: 'nowrap',
                       flexDirection: 'row',
-                      padding:'2',
-                    },field:'jobStatus'},
+                      padding:'2'
+                    },field:'jobStatus',render: (rowData: any) => renderJobStatus(rowData)},
                     {title:'GPU',cellStyle: {
                       textAlign:'right',
                       flexDirection: 'row',

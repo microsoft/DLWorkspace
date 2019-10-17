@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import useFetch from "use-http";
 import TeamContext from "../../contexts/Teams";
+import { useTimeoutFn  } from 'react-use';
 
 type Jobs = object;
 type UseJob = [Jobs | undefined, Error | undefined];
@@ -11,14 +12,17 @@ const useJobs = (): UseJob => {
   const params = new URLSearchParams({
     limit:'20'
   });
+  const [isReady, reset, cancel] = useTimeoutFn(() => {
+    get(`/teams/${selectedTeam}/jobs?${params}`);
+  }, 3000);
   useEffect(() => {
     if (data == null) return;
     setJobs(data);
-    const timeout = setTimeout(() => {
-      get(`/teams/${selectedTeam}/jobs?${params}`);
-    }, 3000);
+    if (isReady()) {
+      reset();
+    }
     return () => {
-      clearTimeout(timeout);
+      cancel()
     }
   }, [data, selectedTeam]);
 
