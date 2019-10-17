@@ -48,6 +48,7 @@ spec:
   {% if job["fragmentGpuJob"] %}
     FragmentGPUJob: active
   {% endif %}
+  {% if job["gpuLimit"]|int != 0 or jobRole == "ps" %}
   affinity:
     podAffinity:
       {% if jobRole == "ps" %}
@@ -95,6 +96,7 @@ spec:
               - "{{ job["jobId"] }}"
           topologyKey: "failure-domain.beta.kubernetes.io/zone"
       {% endif %}
+  {% endif %}
   {% if job["dnsPolicy"] %}
   dnsPolicy: {{ job["dnsPolicy" ]}}
   {% endif %}
