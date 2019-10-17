@@ -424,14 +424,15 @@ const Jobs: React.FC = (props: any) => {
       } else {
         message = rowData.jobStatusDetail[0].message;
       }
+
+    }
+    if (rowData['jobStatus'] === 'scheduling' && rowData.jobStatusDetail && rowData.jobStatusDetail.length > 0  ) {
       for (let item of rowData.jobStatusDetail) {
         if (item.hasOwnProperty("message")) {
           schedulingMessage = item["message"];
         }
       }
-
     }
-
     return (
       <>
         <MuiThemeProvider theme={theme}>
