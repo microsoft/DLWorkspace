@@ -531,7 +531,7 @@ def GetVC(userName, vcName):
                         user_status[username].Add(ResourceInfo({jobParam["gpuType"] : GetJobTotalGpu(jobParam)}))
 
             vcReservedRes = clusterReservedRes.GetFraction(vc_quota, vc_quota_sum)
-            vcAvailableRes = ResourceInfo.Difference(ResourceInfo.Difference(vc_quota, vcConsumedRes), vcReservedRes)
+            vcAvailableRes = ResourceInfo.Difference(ResourceInfo.Difference(vcTotalRes, vcConsumedRes), vcReservedRes)
 
             vc["gpu_capacity"] = vcTotalRes.ToSerializable()
             vc["gpu_used"] = vcConsumedRes.ToSerializable()
