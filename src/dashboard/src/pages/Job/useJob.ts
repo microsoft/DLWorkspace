@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { useGet } from "use-http";
+import useFetch from "use-http";
 
 type Job = object;
 type UseJob = [Job | undefined, Error | undefined];
 
 const useJob = (clusterId: string, jobId: string): UseJob => {
   const [job, setJob] = useState<Job>();
-  const { data, error, get } = useGet<Job>({
+  const { data, error, get } = useFetch<Job>({
     url: `/api/clusters/${clusterId}/jobs/${jobId}`,
     onMount: true
   });
@@ -20,7 +20,7 @@ const useJob = (clusterId: string, jobId: string): UseJob => {
     return () => {
       clearTimeout(timeout);
     }
-  }, [data, get]);
+  }, [data]);
 
   if (job !== undefined) {
     return [job, undefined];

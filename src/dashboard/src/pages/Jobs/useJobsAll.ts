@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useGet } from "use-http";
+import useFetch from "use-http";
 import TeamContext from "../../contexts/Teams";
 type Jobs = object;
 type useJobsAll = [Jobs | undefined, Error | undefined];
@@ -11,7 +11,7 @@ const useJobsAll = (openKillWarn?: boolean,openApproveWan?: boolean): useJobsAll
     user:'all',
     limit:'100'
   });
-  const { data, error, get } = useGet<Jobs>('/api');
+  const { data, error, get } = useFetch<Jobs>('/api');
 
   useEffect(() => {
     if (data == null) return;
@@ -28,7 +28,7 @@ const useJobsAll = (openKillWarn?: boolean,openApproveWan?: boolean): useJobsAll
   useEffect(() => {
     setJobsAll(undefined);
     get(`/teams/${selectedTeam}/jobs?${params}`);
-  }, [selectedTeam, get]);
+  }, [selectedTeam]);
 
 
   if (jobsAll !== undefined) {

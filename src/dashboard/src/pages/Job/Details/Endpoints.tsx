@@ -222,7 +222,7 @@ const Endpoints: React.FC<EndpointsProps> = ({setOpen}) => {
     refreshTimeout.current = null;
     await get();
     refreshTimeout.current = setTimeout(refreshFunction, 1000);
-  }, [get]);
+  }, []);
 
   useEffect(() => {
     refreshFunction();

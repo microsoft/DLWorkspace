@@ -12,7 +12,7 @@ import {
   CircularProgress,
   useMediaQuery, Snackbar, SnackbarContent,
 } from '@material-ui/core';
-import { useGet } from 'use-http';
+import useFetch from 'use-http';
 
 import UserContext from '../../../contexts/User';
 import Context from './Context';
@@ -36,7 +36,7 @@ interface Props {
 
 const JobDetails: React.FC<Props> = ({ clusterId, jobId, job, team }) => {
   const { email } = React.useContext(UserContext);
-  const [cluster] = useGet(`/api/clusters/${clusterId}`, { onMount: true });
+  const { data: cluster } = useFetch(`/api/clusters/${clusterId}`, { onMount: true });
   const [value, setValue] = React.useState(0);
   const theme = useTheme();
   const[showIframe, setShowIframe] = useState(false);
