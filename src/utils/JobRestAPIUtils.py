@@ -504,9 +504,18 @@ def GetVC(userName, vcName):
     user_status = {}
 
     vcList =  DataManager.ListVCs()
+
+    vc_quota_sum = ResourceInfo()
+
+    for vc in vcList:
+        vc_quota_sum.Add(ResourceInfo(json.loads(vc["quota"])))
+
     for vc in vcList:
         if vc["vcName"] == vcName and AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName, Permission.User):
-            vcTotalRes = ResourceInfo(json.loads(vc["quota"]))
+            vc_quota = ResourceInfo(json.loads(vc["quota"]))
+
+            vcTotalRes = clusterTotalRes.GetFraction(vc_quota, vc_quota_sum)
+
             vcConsumedRes = ResourceInfo()
             jobs = DataManager.GetAllPendingJobs(vcName)
             num_active_jobs = 0
@@ -521,8 +530,8 @@ def GetVC(userName, vcName):
                             user_status[username] = ResourceInfo()
                         user_status[username].Add(ResourceInfo({jobParam["gpuType"] : GetJobTotalGpu(jobParam)}))
 
-            vcReservedRes = clusterReservedRes.GetFraction(vcTotalRes, clusterTotalRes)
-            vcAvailableRes = ResourceInfo.Difference(ResourceInfo.Difference(vcTotalRes, vcConsumedRes), vcReservedRes)
+            vcReservedRes = clusterReservedRes.GetFraction(vc_quota, vc_quota_sum)
+            vcAvailableRes = ResourceInfo.Difference(ResourceInfo.Difference(vc_quota, vcConsumedRes), vcReservedRes)
 
             vc["gpu_capacity"] = vcTotalRes.ToSerializable()
             vc["gpu_used"] = vcConsumedRes.ToSerializable()
