@@ -4,7 +4,7 @@ import TeamContext from "../../contexts/Teams";
 type Jobs = object;
 type useJobsAll = [Jobs | undefined, Error | undefined];
 
-const useJobsAll = (openKillWarn?: boolean,openApproveWan?: boolean): useJobsAll => {
+const useJobsAll = (): useJobsAll => {
   const [jobsAll, setJobsAll] = useState<Jobs>();
   const { selectedTeam } = React.useContext(TeamContext);
   const params = new URLSearchParams({
