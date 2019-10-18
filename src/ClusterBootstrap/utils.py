@@ -79,7 +79,8 @@ def render_template(template_file, target_file, config, verbose=False):
             template = ENV_local.get_template(os.path.abspath(template_file))
             content = template.render(cnf=config)
             target_dir = os.path.dirname(target_file)
-            os.system("mkdir -p {0}".format(target_dir))
+            if target_dir != '':
+                os.system("mkdir -p {0}".format(target_dir))
             with open(target_file, 'w') as f:
                 f.write(content)
             f.close()
