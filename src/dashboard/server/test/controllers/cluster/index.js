@@ -1,17 +1,19 @@
 const axiosist = require('axiosist')
 const sinon = require('sinon')
-const User = require('../api/services/user')
-const api = require('../api').callback()
+const User = require('../../../api/services/user')
+const api = require('../../../api').callback()
+
+const userParams = {
+  email: 'dlts@example.com',
+  token: User.generateToken('dlts@example.com').toString('hex')
+}
 
 describe('GET /clusters/:clusterId', () => {
   it('should response cluster config', async () => {
     sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/clusters/Universe', {
-      params: {
-        email: 'dlts@example.com',
-        token: User.generateToken('dlts@example.com').toString('hex')
-      }
+      params: userParams
     })
     response.data.should.have.property('restfulapi', 'http://universe')
   })
@@ -20,10 +22,7 @@ describe('GET /clusters/:clusterId', () => {
     sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/clusters/NewCluster', {
-      params: {
-        email: 'dlts@example.com',
-        token: User.generateToken('dlts@example.com').toString('hex')
-      }
+      params: userParams
     })
     response.status.should.equal(404)
   })
