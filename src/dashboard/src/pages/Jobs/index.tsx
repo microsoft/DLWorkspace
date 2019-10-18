@@ -228,9 +228,7 @@ const Jobs: React.FC = (props: any) => {
     if (openApprove) {
       approveJob().then((res)=>{
         if (res) {
-          setTimeout(()=>{
-            setOpenApproveWarn(true);
-          },3000);
+          setOpenApproveWarn(true);
           setOpenApprove(false);
           setMessage(SUCCESSFULLYAPPROVED);
         } else {
@@ -240,9 +238,7 @@ const Jobs: React.FC = (props: any) => {
     } else if (openPause) {
       pauseJob().then((res)=>{
         if (res) {
-          setTimeout(()=>{
-            setOpenPauseWarn(true);
-          },3000);
+          setOpenPauseWarn(true);
           setOpenPause(false);
           setMessage(SUCCESSFULLYPAUSED);
         } else {
@@ -252,9 +248,7 @@ const Jobs: React.FC = (props: any) => {
     } else if (openResume) {
       resumeJob().then((res)=>{
         if (res) {
-          setTimeout(()=>{
-            setOpenResumeWarn(true)
-          },3000);
+          setOpenResumeWarn(true)
           setOpenResume(false);
           setMessage(SUCCESSFULLYRESUMED);
         } else {
@@ -266,9 +260,7 @@ const Jobs: React.FC = (props: any) => {
       const body = { "priority": currentJob.priority};
       const response = setPriority(`/clusters/${currentJob.cluster}/jobs/${currentJob.jobId}/priority`, body);
       if (response) {
-        setTimeout(()=>{
-          setUpdatePriorityWarn(true)
-        },3000);
+        setUpdatePriorityWarn(true)
         setMessage(SUCCESSFULLYUPDATEDPRIORITY);
       } else {
         alert('Priority set failed');
@@ -276,9 +268,7 @@ const Jobs: React.FC = (props: any) => {
     } else {
       killJob().then((res)=> {
         if (res) {
-          setTimeout(()=>{
-            setOpenKillWarn(true);
-          },3000);
+          setOpenKillWarn(true);
           setOpen(false)
           setMessage(SUCESSFULKILLED);
         } else {
