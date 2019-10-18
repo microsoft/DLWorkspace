@@ -453,7 +453,8 @@ const Jobs: React.FC = (props: any) => {
           <Tooltip interactive = {true} title={rowData['jobStatus'] != 'scheduling' ? `${message}` :
             <React.Fragment>
               {
-                <ReactJson src={schedulingMessage} theme={"tomorrow"} displayObjectSize={false}/>
+                typeof schedulingMessage === 'string' ? <span>{schedulingMessage}</span> :
+                  <ReactJson src={schedulingMessage} theme={"tomorrow"} displayObjectSize={false}/>
               }
             </React.Fragment>
           }  placement="top">
