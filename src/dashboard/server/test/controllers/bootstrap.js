@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken')
 const should = require('should')
 const touge = require('tough-cookie')
 
-const api = require('../api').callback()
+const api = require('../../api').callback()
 
 /**
  * @param {string} code
