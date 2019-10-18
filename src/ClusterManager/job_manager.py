@@ -179,7 +179,9 @@ def UpdateJobStatus(launcher, job, notifier=None, dataHandlerOri=None):
     localJobPath = os.path.join(config["storage-mount-path"], jobPath)
     logPath = os.path.join(localJobPath, "logs/joblog.txt")
 
-    jobDescriptionPath = os.path.join(config["storage-mount-path"], job["jobDescriptionPath"]) if "jobDescriptionPath" in job else None
+    jobDescriptionPath = None
+    if "jobDescriptionPath" in job and job["jobDescriptionPath"] is not None:
+        jobDescriptionPath = os.path.join(config["storage-mount-path"], job["jobDescriptionPath"])
     if "userId" not in jobParams:
         jobParams["userId"] = "0"
 
