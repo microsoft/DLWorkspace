@@ -13760,7 +13760,7 @@ url@^0.11.0:
     punycode "1.3.2"
     querystring "0.2.0"
 
-use-http@^0.1.91:
+use-http@0.1.91:
   version "0.1.91"
   resolved "https://registry.yarnpkg.com/use-http/-/use-http-0.1.91.tgz#cac5600f727cfdcd3751a734dcfa9ba4840b0d54"
   integrity sha512-PG2KfM8f233P2/P3epglAqPZKVSMacbLPKiRtWIdoH2eNQXHHSSWrRX+9oMr7npdGGBmwwEJylhVrR7NKuUvHQ==
