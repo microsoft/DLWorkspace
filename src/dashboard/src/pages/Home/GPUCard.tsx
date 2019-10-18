@@ -47,8 +47,8 @@ const useStyles = makeStyles((theme: Theme) => createStyles({
     backgroundColor: green[600],
   },
   container: {
-    fontSize:'10.5px',
-    paddingTop:'10px'
+    fontSize:'10px',
+    paddingTop:'0px'
   }
 }));
 
@@ -88,14 +88,14 @@ const Chart: React.FC<{
   let data = [
     { name: "Available", value: available, color: lightGreen[400] },
     { name: "Used", value: used, color: theme.palette.grey[500] },
-    { name: "Reserved", value: reserved, color: deepOrange[400]},
+    { name: "Unschedulable", value: reserved, color: deepOrange[400]},
   ];
   if (reserved === 0) {
     data = data.filter((item)=>item.name !== 'Reserved')
   }
   const styles = useStyles();
   return (
-    <ResponsiveContainer aspect={16 / 11} height={300} width='100%' className={styles.container}>
+    <ResponsiveContainer aspect={16 / 10} height={350} width='100%' className={styles.container}>
       <PieChart>
         <Pie
           // hide={!isActive}

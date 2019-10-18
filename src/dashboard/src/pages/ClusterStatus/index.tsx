@@ -49,8 +49,8 @@ const ClusterStatus: FC = () => {
   const fetchVcStatusUrl = `/api`;
   const fetchiGrafanaUrl = `/api/clusters`;
 
-  const [request] = useFetch(fetchVcStatusUrl,options);
-  const [requestGrafana] = useFetch(fetchiGrafanaUrl, options);
+  const request = useFetch(fetchVcStatusUrl,options);
+  const requestGrafana = useFetch(fetchiGrafanaUrl, options);
   const fetchVC = async (cluster: string) => {
     const response = await request.get(`/teams/${selectedTeam}/clusters/${cluster}`);
     const {grafana, prometheus} = await requestGrafana.get(`/${cluster}`);
@@ -241,4 +241,3 @@ const ClusterStatus: FC = () => {
 }
 
 export default ClusterStatus;
-

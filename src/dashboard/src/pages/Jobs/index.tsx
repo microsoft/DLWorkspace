@@ -4,7 +4,7 @@ import {
   CircularProgress,
   TextField,
   SvgIcon,
-  Tooltip, MuiThemeProvider, createMuiTheme,
+  Tooltip, createMuiTheme, MuiThemeProvider,
 } from "@material-ui/core";
 import CheckCircleIcon from '@material-ui/icons/CheckCircle';
 import { makeStyles, Theme, createStyles } from "@material-ui/core/styles";
@@ -19,7 +19,6 @@ import ClusterContext from "../../contexts/Clusters";
 import useJobsAll from "./useJobsAll";
 import IconButton from "@material-ui/core/IconButton";
 import DeleteIcon from '@material-ui/icons/Delete';
-import ReactJson from "react-json-view";
 import CheckIcon from '@material-ui/icons/CheckSharp';
 import {DLTSTabs} from "../CommonComponents/DLTSTabs";
 import {JobsTitles} from "../../Constants/TabsContants";
@@ -35,7 +34,8 @@ import {
 import {JobsSelectByCluster} from "./components/JobsSelectByCluster";
 import TeamContext from "../../contexts/Teams";
 import {toLocalTime} from "../../utlities/ObjUtlities";
-import {useTimeoutFn} from "react-use";
+import ReactJson from "react-json-view";
+import TablePagination from "@material-ui/core/TablePagination";
 
 const variantIcon = {
   success: CheckCircleIcon,
@@ -47,6 +47,7 @@ interface Props {
   variant: keyof typeof variantIcon;
 }
 
+const { DateTime } = require('luxon');
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     root: {
@@ -94,17 +95,17 @@ const Jobs: React.FC = (props: any) => {
   const classes = useStyles();
   const [value, setValue] = React.useState(0);
   const [refresh, setRefresh] = React.useState(false);
-  const [isReady, reset, cancel] = useTimeoutFn(() => {
-    setRefresh(true);
-  }, 1000);
   useEffect(()=>{
-    if (isReady()) {
-      reset();
-    }
+    let mount = true;
+    let timeout: any;
+    timeout = setTimeout(()=>{
+      setRefresh(true);
+    },1000);
     return () => {
-      cancel()
+      mount = false;
+      clearTimeout(timeout)
     }
-  },[cancel, isReady, reset])
+  },[])
   const[open, setOpen] = React.useState(false);
   const[openApprove, setOpenApprove] = React.useState(false);
   const[openPause, setOpenPause] = React.useState(false);
@@ -141,8 +142,8 @@ const Jobs: React.FC = (props: any) => {
   }
   const { put: setPriority } = useFetch('/api');
   const [currentCluster, setCurrentCluster] = useState(props.match.params.cluster ? props.match.params.cluster : Array.isArray(_.map(clusters,'id') )?_.map(clusters,'id')[0] : '');
-  const [jobs, error] = useJobs();
-  const [allJobs, err] = useJobsAll();
+  let [jobs, error] = useJobs();
+  let [allJobs, err] = useJobsAll();
   const[isAdmin, setIsAdmin] = useState(clusters.filter((cluster) => cluster.id === currentCluster)[0].admin);
   const filterJobsByCluster = (jobs: any, clusterName: string) => {
     console.log(isAdmin);
@@ -221,11 +222,14 @@ const Jobs: React.FC = (props: any) => {
     //};
   };
 
+
   const handleConfirm = () => {
     if (openApprove) {
       approveJob().then((res)=>{
         if (res) {
-          setOpenApproveWarn(true);
+          setTimeout(()=>{
+            setOpenApproveWarn(true);
+          },3000);
           setOpenApprove(false);
           setMessage(SUCCESSFULLYAPPROVED);
         } else {
@@ -235,9 +239,11 @@ const Jobs: React.FC = (props: any) => {
     } else if (openPause) {
       pauseJob().then((res)=>{
         if (res) {
-          setOpenPauseWarn(true);
+          setTimeout(()=>{
+            setOpenPauseWarn(true);
+          },3000);
           setOpenPause(false);
-          setMessage(SUCCESSFULLYPAUSED)
+          setMessage(SUCCESSFULLYPAUSED);
         } else {
           alert("pause fail")
         }
@@ -245,9 +251,11 @@ const Jobs: React.FC = (props: any) => {
     } else if (openResume) {
       resumeJob().then((res)=>{
         if (res) {
-          setOpenResumeWarn(true)
+          setTimeout(()=>{
+            setOpenResumeWarn(true)
+          },3000);
           setOpenResume(false);
-          setMessage(SUCCESSFULLYRESUMED)
+          setMessage(SUCCESSFULLYRESUMED);
         } else {
           alert("resume fail")
         }
@@ -257,17 +265,21 @@ const Jobs: React.FC = (props: any) => {
       const body = { "priority": currentJob.priority};
       const response = setPriority(`/clusters/${currentJob.cluster}/jobs/${currentJob.jobId}/priority`, body);
       if (response) {
-        setUpdatePriorityWarn(true);
-        setMessage(SUCCESSFULLYUPDATEDPRIORITY)
+        setTimeout(()=>{
+          setUpdatePriorityWarn(true)
+        },3000);
+        setMessage(SUCCESSFULLYUPDATEDPRIORITY);
       } else {
         alert('Priority set failed');
       }
     } else {
       killJob().then((res)=> {
         if (res) {
-          setOpenKillWarn(true);
+          setTimeout(()=>{
+            setOpenKillWarn(true);
+          },3000);
           setOpen(false)
-          setMessage(SUCESSFULKILLED)
+          setMessage(SUCESSFULKILLED);
         } else {
           alert('kill fail')
         }
@@ -316,11 +328,11 @@ const Jobs: React.FC = (props: any) => {
 
   const renderDateTime = (rowData: any,time?: string)=> {
     if (time === 'jobTime') {
-      return (<span>{ toLocalTime(rowData['jobTime']) }</span>)
+      return (<span>{ DateTime.fromJSDate(new Date(Date.parse(rowData['jobTime']))).toFormat("yyyy/LL/dd HH:mm:ss")}</span>)
     } else if (time === 'startedAt') {
-      return (<span>{ toLocalTime(rowData['jobStatusDetail'][0]['startedAt'])}</span>)
+      return (<span>{ DateTime.fromJSDate(new Date(Date.parse(rowData['jobStatusDetail'][0]['startedAt']))).toFormat("yyyy/LL/dd HH:mm:ss")}</span>)
     } else if (time === 'finishedAt') {
-      return (<span>{ toLocalTime(rowData['jobStatusDetail'][0]['finishedAt'])}</span>)
+      return (<span>{ DateTime.fromJSDate(new Date(Date.parse(rowData['jobStatusDetail'][0]['finishedAt']))).toFormat("yyyy/LL/dd HH:mm:ss")}</span>)
     }
   }
 
@@ -404,6 +416,8 @@ const Jobs: React.FC = (props: any) => {
       }
     }
   });
+
+
   const renderJobStatus = (rowData: any) => {
     let message = "unknown";
     let schedulingMessage = {};
@@ -424,7 +438,6 @@ const Jobs: React.FC = (props: any) => {
       } else {
         message = rowData.jobStatusDetail[0].message;
       }
-
     }
     if (rowData['jobStatus'] === 'scheduling' && rowData.jobStatusDetail && rowData.jobStatusDetail.length > 0  ) {
       for (let item of rowData.jobStatusDetail) {
@@ -434,9 +447,9 @@ const Jobs: React.FC = (props: any) => {
       }
     }
     return (
-      <>
+      <React.Fragment>
         <MuiThemeProvider theme={theme}>
-          <Tooltip  leaveTouchDelay={36000}interactive = {true} title={rowData['jobStatus'] != 'scheduling' ? `${message}` :
+          <Tooltip interactive = {true} title={rowData['jobStatus'] != 'scheduling' ? `${message}` :
             <React.Fragment>
               {
                 <ReactJson src={schedulingMessage} theme={"tomorrow"} displayObjectSize={false}/>
@@ -451,10 +464,9 @@ const Jobs: React.FC = (props: any) => {
           </Tooltip>
         </MuiThemeProvider>
         <span>{`${rowData['jobStatus']}`}</span>
-      </>
+      </React.Fragment>
     )
   }
-
   const { selectedTeam } = React.useContext(TeamContext);
   if (jobs && allJobs) {
     console.log(jobs)
@@ -535,8 +547,10 @@ const Jobs: React.FC = (props: any) => {
             ]}
             data={filterRunningJobs(jobs)}
             options={{
-              filtering: false,
-              paging: false,
+              paging: true,
+              pageSizeOptions:[10],
+              pageSize:10,
+              filtering:false,
               actionsColumnIndex: -1,
               headerStyle: {
                 backgroundColor: '#7583d1',
@@ -622,7 +636,9 @@ const Jobs: React.FC = (props: any) => {
             data={filterQueuedJobs(jobs)}
             options={{
               filtering: false,
-              paging: false,
+              paging: true,
+              pageSizeOptions:[10],
+              pageSize:10,
               actionsColumnIndex: -1,
               headerStyle: {
                 backgroundColor: '#7583d1',
@@ -706,8 +722,10 @@ const Jobs: React.FC = (props: any) => {
             data={filterUnApprovedJobs(jobs)}
             options={{
               filtering: false,
-              paging: false,
+              paging: true,
               actionsColumnIndex: -1,
+              pageSizeOptions:[10],
+              pageSize:10,
               headerStyle: {
                 backgroundColor: '#7583d1',
                 color: '#fff',
@@ -794,7 +812,9 @@ const Jobs: React.FC = (props: any) => {
             data={filterPauseJobs(jobs)}
             options={{
               filtering: false,
-              paging: false,
+              paging: true,
+              pageSizeOptions:[10],
+              pageSize:10,
               actionsColumnIndex: -1,
               headerStyle: {
                 backgroundColor: '#7583d1',
@@ -890,7 +910,9 @@ const Jobs: React.FC = (props: any) => {
             data={filterFinishedJobs(jobs)}
             options={{
               filtering: false,
-              paging: false,
+              paging: true,
+              pageSizeOptions:[10],
+              pageSize:10,
               actionsColumnIndex: -1,
               headerStyle: {
                 backgroundColor: '#7583d1',
@@ -978,7 +1000,9 @@ const Jobs: React.FC = (props: any) => {
                   options={{
                     sorting: true,
                     filtering: false,
-                    paging: false,
+                    paging: true,
+                    pageSizeOptions:[10],
+                    pageSize:10,
                     actionsColumnIndex: -1,
                     headerStyle: {
                       backgroundColor: '#7583d1',
@@ -1069,7 +1093,9 @@ const Jobs: React.FC = (props: any) => {
                   data={filterQueuedJobs(allJobs)}
                   options={{
                     filtering: false,
-                    paging: false,
+                    paging: true,
+                    pageSizeOptions:[10],
+                    pageSize:10,
                     actionsColumnIndex: -1,
                     headerStyle: {
                       backgroundColor: '#7583d1',
@@ -1169,7 +1195,9 @@ const Jobs: React.FC = (props: any) => {
                   data={filterUnApprovedJobs(allJobs)}
                   options={{
                     filtering: false,
-                    paging: false,
+                    paging: true,
+                    pageSizeOptions:[10],
+                    pageSize:10,
                     actionsColumnIndex: -1,
                     headerStyle: {
                       backgroundColor: '#7583d1',
@@ -1271,7 +1299,9 @@ const Jobs: React.FC = (props: any) => {
                   data={filterPauseJobs(allJobs)}
                   options={{
                     filtering: false,
-                    paging: false,
+                    paging: true,
+                    pageSizeOptions:[10],
+                    pageSize:10,
                     actionsColumnIndex: -1,
                     headerStyle: {
                       backgroundColor: '#7583d1',
@@ -1304,12 +1334,87 @@ const Jobs: React.FC = (props: any) => {
 
                   }}
                 /> : null}
+                {filterFinishedJobs(allJobs).length > 0 ? <MaterialTable
+                  title="Finished Jobs"
+                  columns={[
+                    { title: 'JobId', field: 'jobId',cellStyle: {
+                      textAlign:'left',
+                      flexDirection: 'row',
+                      padding:'3'
+                    },render: rowData =>  <Link className={classes.linkStyle} to={`/job/${selectedTeam}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link> },
+                    { title: 'Job Name', cellStyle: {
+                      textAlign:'left',
+                      flexDirection: 'row',
+                      padding:'5'
+                    },field: 'jobName'},
+                    {title:'Status',cellStyle: {
+                      textAlign:'justify',
+                      whiteSpace:'nowrap',
+                      flexDirection: 'row',
+                      padding:'0',
+                    },headerStyle:{padding:'0',textAlign:'center'},field:'jobStatus',render: (rowData: any) => renderJobStatus(rowData)},
+                    {title:'GPU', cellStyle: {
+                      textAlign:'center',
+                      flexDirection: 'row',
+                      padding:'0',
+                    },field:'jobParams.resourcegpu', render: (rowData: any) => <span>{ rowData['jobParams']['jobtrainingtype'] === 'RegularJob' ||  rowData['jobParams']['jobtrainingtype'] === 'InferenceJob'  || !rowData['jobParams'].hasOwnProperty('jobtrainingtype')  ? (Number)(rowData.jobParams.resourcegpu) :  (Number)(rowData.jobParams.resourcegpu * rowData.jobParams.numpsworker)  }</span>, type: 'numeric', customSort: (a: any, b: any) => {
+                      return a.jobParams.resourcegpu - b.jobParams.resourcegpu || a.jobParams.resourcegpu * a.jobParams.numpsworker - b.jobParams.resourcegpu * b.jobParams.numpsworker
+                    } },
+                    {title:'Submitted Time',cellStyle: {
+                      textAlign:'left',
+                      flexDirection: 'row',
+                      padding:'0',
+                    }, field:'jobTime',type:'date',customSort:(a,b) => sortByJobTime(a, b, "jobTime") ,render: (rowData: any)=>renderDateTime(rowData,'jobTime')},
+                    {title:'Preemptible',cellStyle: {
+                      textAlign:'center',
+                      flexDirection: 'row',
+                      padding:'3',
+                    }, field:'jobParams.preemptionAllowed',type:'boolean'},
+                    {
+                      title: 'Started Time',
+                      field: 'jobStatusDetail[0].startedAt',
+                      type: 'date',
+                      emptyValue: 'unknown',
+                      cellStyle: {
+                        textAlign:'left',
+                        flexDirection: 'row',
+                        padding:'5',
+                        whiteSpace:'nowrap'
+                      },
+                      customSort: (a, b) => sortByJobTime(a, b, "startedAt"),
+                      render: (rowData: any)=>renderDateTime(rowData, 'startedAt')
+                    },
+                    {title:'Finished Time',cellStyle: {
+                      textAlign:'left',
+                      flexDirection: 'row',
+                      padding:'2',
+                    }, field:'jobStatusDetail[0].finishedAt',type:'date',emptyValue:'unknown',
+                    customSort: (a, b) => sortByJobTime(a, b, "finishedAt"),
+                    render: (rowData: any)=>renderDateTime(rowData,'finishedAt'),
+                    },
+                  ]}
+                  data={filterFinishedJobs(allJobs)}
+                  options={{
+                    filtering: false,
+                    paging: true,
+                    pageSizeOptions:[10],
+                    pageSize:10,
+                    actionsColumnIndex: -1,
+                    headerStyle: {
+                      backgroundColor: '#7583d1',
+                      color: '#fff',
+                      whiteSpace: 'nowrap',
+                      textAlign: 'center',
+                      padding:'3'
+                    },
+                  }}
+                /> : null}
               </DLTSTabPanel> : <CircularProgress/>
         }
         <DLTSSnackbar message={message}
           open = {openKillWarn || openApproveWarn || openPauseWarn || openResumeWarn || openUpatePriorityWarn}
           handleWarnClose={handleWarnClose}
-          autoHideDuration={1000}
+          autoHideDuration={2000}
         />
       </Fragment>
     )
@@ -1321,4 +1426,3 @@ const Jobs: React.FC = (props: any) => {
   )
 };
 export default Jobs;
-
