@@ -4,7 +4,7 @@ import TeamContext from "../../contexts/Teams";
 type Jobs = object;
 type useJobsAll = [Jobs | undefined, Error | undefined];
 
-const useJobsAll = (): useJobsAll => {
+const useJobsAll = (openKillWarn?: boolean,openApproveWan?: boolean): useJobsAll => {
   const [jobsAll, setJobsAll] = useState<Jobs>();
   const { selectedTeam } = React.useContext(TeamContext);
   const params = new URLSearchParams({
@@ -19,7 +19,7 @@ const useJobsAll = (): useJobsAll => {
 
     const timeout = setTimeout(() => {
       get(`/teams/${selectedTeam}/jobs?${params}`);
-    }, 15000);
+    }, 3000);
     return () => {
       clearTimeout(timeout);
     }
@@ -28,7 +28,7 @@ const useJobsAll = (): useJobsAll => {
   useEffect(() => {
     setJobsAll(undefined);
     get(`/teams/${selectedTeam}/jobs?${params}`);
-  }, [selectedTeam, get]);
+  }, [selectedTeam]);
 
 
   if (jobsAll !== undefined) {

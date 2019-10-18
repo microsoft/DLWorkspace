@@ -16,7 +16,7 @@ const useJobs = (): UseJob => {
     setJobs(data);
     const timeout = setTimeout(() => {
       get(`/teams/${selectedTeam}/jobs?${params}`);
-    }, 15000);
+    }, 3000);
     return () => {
       clearTimeout(timeout);
     }
