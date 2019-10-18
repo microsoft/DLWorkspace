@@ -1,6 +1,6 @@
 const axiosist = require('axiosist')
 
-const api = require('../api').callback()
+const api = require('../../api').callback()
 
 describe('GET /', () => {
   it('should returns version of the API', async () => {
