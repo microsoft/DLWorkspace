@@ -5,7 +5,6 @@ import requests
 import random
 from config import config
 import timeit
-from cache import fcache
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +31,6 @@ class AuthorizationManager:
 
     # Check if user has requested access (based on effective ACL) on the specified resource.
     @staticmethod
-    @fcache(TTLInSec=300)
     def _HasAccess(identityName, resourceAclPath, permissions):
         start_time = timeit.default_timer()
         requestedAccess = '%s;%s;%s' % (str(identityName), resourceAclPath, str(permissions))
