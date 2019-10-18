@@ -48,7 +48,6 @@ const useStyles = makeStyles((theme: Theme) => createStyles({
   },
   container: {
     fontSize:'10px',
-    paddingTop:'0px'
   }
 }));
 
@@ -95,9 +94,10 @@ const Chart: React.FC<{
   }
   const styles = useStyles();
   return (
-    <ResponsiveContainer aspect={16 / 10} height={350} width='100%' className={styles.container}>
+    <ResponsiveContainer width="100%" height={250} aspect={16/9}>
       <PieChart>
         <Pie
+          style={{ fontSize:'11px' }}
           // hide={!isActive}
           isAnimationActive={isActive}
           data={data}
