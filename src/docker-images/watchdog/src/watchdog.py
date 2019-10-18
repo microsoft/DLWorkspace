@@ -31,6 +31,7 @@ import gc
 import re
 import collections
 import datetime
+import math
 
 import yaml
 import prometheus_client
@@ -105,6 +106,10 @@ service_response_counter = Counter("service_response_code",
 
 def gen_k8s_vc_gpu_total():
     return GaugeMetricFamily("k8s_vc_gpu_total", "gpu total in vc",
+            labels=["vc_name", "gpu_type"])
+
+def gen_k8s_vc_gpu_unschedulable():
+    return GaugeMetricFamily("k8s_vc_gpu_unschedulable", "gpu unschedulable in vc",
             labels=["vc_name", "gpu_type"])
 
 def gen_k8s_vc_gpu_available():
@@ -381,7 +386,7 @@ def collect_k8s_component(api_server_scheme, api_server_ip, api_server_port, ca_
 
 def parse_node_item(node, pai_node_gauge,
         node_gpu_avail, node_gpu_total, node_gpu_allocatable,
-        pods_info):
+        pods_info, cluster_gpu_info):
 
     ip = None
 
@@ -422,6 +427,7 @@ def parse_node_item(node, pai_node_gauge,
         gpu_capacity = int(walk_json_field_safe(status, "capacity", "nvidia.com/gpu") or 0)
         gpu_allocatable = int(walk_json_field_safe(status, "allocatable", "nvidia.com/gpu") or 0)
         node_gpu_total.add_metric([ip], gpu_capacity)
+        cluster_gpu_info.capacity += gpu_capacity
 
         # Because k8s api's node api do not record how much resource left for
         # allocation, so we have to compute it ourselves.
@@ -432,8 +438,12 @@ def parse_node_item(node, pai_node_gauge,
                 used_gpu += pod.gpu
 
         if walk_json_field_safe(node, "spec", "unschedulable") != True and ready == "true":
-            node_gpu_avail.add_metric([ip], max(0, gpu_allocatable - used_gpu))
+            available = max(0, gpu_allocatable - used_gpu)
+            node_gpu_avail.add_metric([ip], available)
             node_gpu_allocatable.add_metric([ip], gpu_allocatable)
+
+            cluster_gpu_info.available += available
+            cluster_gpu_info.allocatable += gpu_allocatable
         else:
             node_gpu_avail.add_metric([ip], 0)
             node_gpu_allocatable.add_metric([ip], 0)
@@ -449,7 +459,7 @@ def parse_node_item(node, pai_node_gauge,
     pai_node_gauge.add_metric([ip, disk_pressure, memory_pressure, out_of_disk, ready, unschedulable], 1)
 
 
-def process_nodes_status(nodes_object, pods_info):
+def process_nodes_status(nodes_object, pods_info, cluster_gpu_info):
     pai_node_gauge = gen_pai_node_gauge()
     node_gpu_avail = gen_k8s_node_gpu_available()
     node_gpu_allocatable = gen_k8s_node_gpu_allocatable()
@@ -464,7 +474,8 @@ def process_nodes_status(nodes_object, pods_info):
                 node_gpu_avail,
                 node_gpu_total,
                 node_gpu_allocatable,
-                pods_info)
+                pods_info,
+                cluster_gpu_info)
 
     list(map(_map_fn, nodes_object["items"]))
 
@@ -507,69 +518,123 @@ class VcUsage(object):
         self.map[vc][gpu_type][0] += count
         self.map[vc][gpu_type][1] += count
 
+# Let Qi to be quota admin set to each VC, and R to be unschedulable GPU in cluster,
+# Ui to be used GPU in cluster and A to be available GPU in cluster, so to compute
+# what real quota and available GPUs is for each VC is computed using following
+# formula:
+# Qi' = Qi - R * (Qi / sum(Qi))
+# Qi'' = max(Qi' - Ui, 0)
+# Ai = A * (Qi'' / sum(Qi''))
+# To display:
+# * total gpu: Qi
+# * used gpu: Ui
+# * available gpu: Ai
+# * unschedulable gpu: Qi - Ui - Ai
+def process_vc_info(vc_quota_url, vc_usage, cluster_gpu_info):
+    try:
+        vc_info = query_vc_quota_info(vc_quota_url)
+        return gen_vc_metrics(vc_info, vc_usage, cluster_gpu_info)
+    except Exception as e:
+        error_counter.labels(type="vc_quota_query").inc()
+        logger.exception("failed to query vc info")
+        return []
 
-def process_vc_info(vc_info, vc_usage, vc_total_gauge, vc_avail_gauge,
-    vc_preemptive_avail_gauge):
-    for vc_name, gpu_info in vc_info.items():
-        for gpu_type, total in gpu_info.items():
-            vc_total_gauge.add_metric([vc_name, gpu_type], total)
+def gen_vc_metrics(vc_info, vc_usage, cluster_gpu_info):
+    vc_total_gauge = gen_k8s_vc_gpu_total()
+    vc_avail_gauge = gen_k8s_vc_gpu_available()
+    vc_unschedulable_gauge = gen_k8s_vc_gpu_unschedulable()
+    vc_preemptive_avail_gauge = gen_k8s_vc_gpu_preemptive_available()
 
-            if vc_name not in vc_usage.map or gpu_type not in vc_usage.map[vc_name]:
-                # no job running in this vc or using this gpu type
-                vc_avail_gauge.add_metric([vc_name, gpu_type], total)
-                vc_preemptive_avail_gauge.add_metric([vc_name, gpu_type], total)
+    try:
+        vc_quota_sum = 0
 
-    for vc_name, vc_usage_info in vc_usage.map.items():
-        for gpu_type, vc_used in vc_usage_info.items():
-            if vc_name not in vc_info:
-                logger.warning("ignore used gpu in %s, but vc quota do not have this vc, possible due to job template error", vc_name)
-                continue
+        for vc_name, gpu_info in vc_info.items():
+            for gpu_type, total in gpu_info.items():
+                vc_total_gauge.add_metric([vc_name, gpu_type], total)
+                vc_quota_sum += total
 
-            if gpu_type not in vc_info[vc_name]:
-                logger.warning("ignore used gpu %s in %s, but vc quota do not have this gpu_type", gpu_type, vc_name)
-                continue
+        gpu_unallocatable = cluster_gpu_info.capacity - cluster_gpu_info.allocatable
 
-            total = vc_info[vc_name][gpu_type]
-            total_used, non_preemptable_used = vc_used
-            vc_avail_gauge.add_metric([vc_name, gpu_type], total - total_used)
-            vc_preemptive_avail_gauge.add_metric([vc_name, gpu_type],
-                    total - non_preemptable_used)
+        # key is vc_name, value is a map with key to be gpu_type and value to be real
+        # quota
+        ratio = collections.defaultdict(lambda : {})
+
+        for vc_name, gpu_info in vc_info.items():
+            for gpu_type, quota in gpu_info.items():
+                vc_quota = quota - math.ceil(gpu_unallocatable * quota / vc_quota_sum)
+                used = vc_usage.map[vc_name][gpu_type][0]
+
+                ratio[vc_name][gpu_type] = max(vc_quota - used, 0)
+
+        ratio_sum = 0
+        for vc_name, gpu_info in ratio.items():
+            for gpu_type, cur_ratio in gpu_info.items():
+                ratio_sum += cur_ratio
+
+        for vc_name, gpu_info in ratio.items():
+            for gpu_type, cur_ratio in gpu_info.items():
+                if vc_name not in vc_usage.map or gpu_type not in vc_usage.map[vc_name]:
+                    labels = [vc_name, gpu_type]
+                    # no job running in this vc or using this gpu type
+                    available = math.floor(cluster_gpu_info.available * cur_ratio / ratio_sum)
+                    quota = vc_info[vc_name][gpu_type]
+                    vc_avail_gauge.add_metric(labels, available)
+                    vc_preemptive_avail_gauge.add_metric(labels, available)
+                    vc_unschedulable_gauge.add_metric(labels, quota - available)
+
+        for vc_name, vc_usage_info in vc_usage.map.items():
+            for gpu_type, vc_used in vc_usage_info.items():
+                if vc_name not in vc_info:
+                    logger.warning("ignore used gpu in %s, but vc quota do not have this vc, possible due to job template error", vc_name)
+                    continue
+
+                if gpu_type not in vc_info[vc_name]:
+                    logger.warning("ignore used gpu %s in %s, but vc quota do not have this gpu_type", gpu_type, vc_name)
+                    continue
+
+                labels = [vc_name, gpu_type]
+
+                cur_ratio = ratio[vc_name][gpu_type]
+                quota = vc_info[vc_name][gpu_type]
+                available = math.floor(cluster_gpu_info.available * cur_ratio / ratio_sum)
+                total_used, non_preemptable_used = vc_used
+                vc_avail_gauge.add_metric(labels, available)
+                vc_preemptive_avail_gauge.add_metric(labels,
+                        available + (total_used - non_preemptable_used))
+                vc_unschedulable_gauge.add_metric(labels, quota - total_used - available)
+    except Exception as e:
+        error_counter.labels(type="vc_quota").inc()
+        logger.exception("failed to process vc info")
+
+    return [vc_total_gauge, vc_avail_gauge, vc_preemptive_avail_gauge,
+            vc_unschedulable_gauge]
 
 
-def process_pods(k8s_api_addr, ca_path, headers, pods_info, service_endpoints, vc_quota_url):
+def process_pods(k8s_api_addr, ca_path, headers, pods_info, service_endpoints, vc_usage):
     list_pods_url = "{}/api/v1/pods".format(k8s_api_addr)
 
     pai_pod_gauge = gen_pai_pod_gauge()
     pai_container_gauge = gen_pai_container_gauge()
 
-    vc_total = gen_k8s_vc_gpu_total()
-    vc_avail = gen_k8s_vc_gpu_available()
-    vc_preemptive_avail = gen_k8s_vc_gpu_preemptive_available()
-
-    vc_usage = VcUsage()
-
     try:
-        vc_info = query_vc_quota_info(vc_quota_url)
-
         pods_object = request_with_histogram(list_pods_url, list_pods_histogram,
                 ca_path, headers)
         process_pods_status(pods_object, pai_pod_gauge, pai_container_gauge,
                 pods_info, service_endpoints, vc_usage)
-        process_vc_info(vc_info, vc_usage, vc_total, vc_avail, vc_preemptive_avail)
     except Exception as e:
         error_counter.labels(type="parse").inc()
         logger.exception("failed to process pods")
 
-    return [pai_pod_gauge, pai_container_gauge, vc_total, vc_avail, vc_preemptive_avail]
+    return [pai_pod_gauge, pai_container_gauge]
 
 
-def process_nodes(k8s_api_addr, ca_path, headers, pods_info):
+def process_nodes(k8s_api_addr, ca_path, headers, pods_info, cluster_gpu_info):
     list_nodes_url = "{}/api/v1/nodes/".format(k8s_api_addr)
 
     nodes_object = request_with_histogram(list_nodes_url, list_nodes_histogram,
             ca_path, headers)
 
-    return process_nodes_status(nodes_object, pods_info)
+    return process_nodes_status(nodes_object, pods_info, cluster_gpu_info)
 
 
 def load_machine_list(configFilePath):
@@ -683,6 +748,13 @@ def requestor(args, services_ref):
         time.sleep(max(10, float(args.interval) / 3))
 
 
+class ClusterGPUInfo(object):
+    def __init__(self):
+        self.capacity = 0
+        self.available = 0
+        self.allocatable = 0
+
+
 def loop(args, services_ref, result_ref):
     address = args.k8s_api
     parse_result = urllib.parse.urlparse(address)
@@ -714,12 +786,18 @@ def loop(args, services_ref, result_ref):
 
             service_endpoints = []
 
+            vc_usage = VcUsage()
+
             result.extend(process_pods(address, ca_path, headers, pods_info,
-                service_endpoints, vc_quota_url))
+                service_endpoints, vc_usage))
 
             services_ref.set(service_endpoints, datetime.datetime.now())
 
-            result.extend(process_nodes(address, ca_path, headers, pods_info))
+            cluster_gpu_info = ClusterGPUInfo()
+
+            result.extend(process_nodes(address, ca_path, headers, pods_info, cluster_gpu_info))
+
+            result.extend(process_vc_info(vc_quota_url, vc_usage, cluster_gpu_info))
 
             result.extend(collect_k8s_component(api_server_scheme, api_server_ip, api_server_port, ca_path, headers))
         except Exception as e:

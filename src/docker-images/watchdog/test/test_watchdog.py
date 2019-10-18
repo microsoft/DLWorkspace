@@ -76,7 +76,7 @@ class TestJobExporter(unittest.TestCase):
     def test_process_nodes_status(self):
         obj = json.loads(self.get_data_test_input("data/nodes_list.json"))
 
-        gauges = watchdog.process_nodes_status(obj, {})
+        gauges = watchdog.process_nodes_status(obj, {}, watchdog.ClusterGPUInfo())
 
         self.assertTrue(len(gauges) == 4)
 
@@ -122,7 +122,7 @@ class TestJobExporter(unittest.TestCase):
 
         pod_info = collections.defaultdict(lambda : [])
         pod_info["192.168.255.1"].append(watchdog.PodInfo("job1", 2))
-        gauges = watchdog.process_nodes_status(obj, pod_info)
+        gauges = watchdog.process_nodes_status(obj, pod_info, watchdog.ClusterGPUInfo())
 
         self.assertTrue(len(gauges) == 4)
 
@@ -147,7 +147,7 @@ class TestJobExporter(unittest.TestCase):
 
         pod_info = collections.defaultdict(lambda : [])
         pod_info["192.168.255.1"].append(watchdog.PodInfo("job1", 2))
-        gauges = watchdog.process_nodes_status(obj, pod_info)
+        gauges = watchdog.process_nodes_status(obj, pod_info, watchdog.ClusterGPUInfo())
 
         self.assertTrue(len(gauges) == 4)
 
@@ -186,10 +186,6 @@ class TestJobExporter(unittest.TestCase):
         self.assertEqual(target, quota_info)
 
     def test_process_vc_info(self):
-        vc_total = watchdog.gen_k8s_vc_gpu_total()
-        vc_avail = watchdog.gen_k8s_vc_gpu_available()
-        vc_preemptive_avail = watchdog.gen_k8s_vc_gpu_preemptive_available()
-
         vc_info = {
                 "default": {"P40": 10, "P80": 10},
                 "platform": {"P40": 10},
@@ -199,12 +195,17 @@ class TestJobExporter(unittest.TestCase):
         vc_usage = watchdog.VcUsage()
 
         vc_usage.add_preemptable_used("default", "P40", 8)
-        vc_usage.add_preemptable_used("default", "P80", 5)
-        vc_usage.add_used("default", "P40", 10)
+        vc_usage.add_preemptable_used("default", "P80", 2)
+        vc_usage.add_used("default", "P40", 2)
 
         vc_usage.add_used("platform", "P40", 3)
 
-        watchdog.process_vc_info(vc_info, vc_usage, vc_total, vc_avail, vc_preemptive_avail)
+        cluster_gpu_info = watchdog.ClusterGPUInfo()
+        cluster_gpu_info.capacity = 34
+        cluster_gpu_info.available = 19
+        cluster_gpu_info.allocatable = 34
+        vc_total, vc_avail, vc_preemptive_avail, vc_unschedulable_gauge = \
+                watchdog.gen_vc_metrics(vc_info, vc_usage, cluster_gpu_info)
 
         self.assertEqual(4, len(vc_total.samples))
         for sample in vc_total.samples:
@@ -213,7 +214,7 @@ class TestJobExporter(unittest.TestCase):
             self.assertEqual(vc_info[vc_name][gpu_type], sample.value)
 
         target_vc_avail = {
-                "default": {"P40": -8, "P80": 5},
+                "default": {"P40": 0, "P80": 8},
                 "platform": {"P40": 7},
                 "relevance": {"P80": 4}
                 }
@@ -223,10 +224,10 @@ class TestJobExporter(unittest.TestCase):
             vc_name = sample.labels["vc_name"]
             gpu_type = sample.labels["gpu_type"]
             self.assertEqual(target_vc_avail[vc_name][gpu_type],
-                    sample.value, "vc " + vc_name)
+                    sample.value, "vc " + vc_name + ", gpu " + gpu_type)
 
         target_vc_preemptive_avail = {
-                "default": {"P40": 0, "P80": 10},
+                "default": {"P40": 8, "P80": 10},
                 "platform": {"P40": 7},
                 "relevance": {"P80": 4}
                 }
@@ -236,6 +237,81 @@ class TestJobExporter(unittest.TestCase):
             vc_name = sample.labels["vc_name"]
             gpu_type = sample.labels["gpu_type"]
             self.assertEqual(target_vc_preemptive_avail[vc_name][gpu_type],
+                    sample.value, "vc " + vc_name)
+
+        target_vc_unschedulable = {
+                "default": {"P40": 0, "P80": 0},
+                "platform": {"P40": 0},
+                "relevance": {"P80": 0}
+                }
+        for sample in vc_unschedulable_gauge.samples:
+            vc_name = sample.labels["vc_name"]
+            gpu_type = sample.labels["gpu_type"]
+            self.assertEqual(target_vc_unschedulable[vc_name][gpu_type],
+                    sample.value, "vc " + vc_name)
+
+    def test_gpu_accounting(self):
+        vc_info = {
+                "A": {"P40": 40},
+                "B": {"P40": 40},
+                "C": {"P40": 40}
+                }
+
+        vc_usage = watchdog.VcUsage()
+
+        vc_usage.add_used("A", "P40", 40)
+        vc_usage.add_used("B", "P40", 31)
+        vc_usage.add_used("C", "P40", 0)
+
+        cluster_gpu_info = watchdog.ClusterGPUInfo()
+        cluster_gpu_info.capacity = 120
+        cluster_gpu_info.available = 29
+        cluster_gpu_info.allocatable = 100
+        vc_total, vc_avail, vc_preemptive_avail, vc_unschedulable_gauge = \
+                watchdog.gen_vc_metrics(vc_info, vc_usage, cluster_gpu_info)
+
+        self.assertEqual(3, len(vc_total.samples))
+        for sample in vc_total.samples:
+            vc_name = sample.labels["vc_name"]
+            gpu_type = sample.labels["gpu_type"]
+            self.assertEqual(vc_info[vc_name][gpu_type], sample.value)
+
+        target_vc_avail = {
+                "A": {"P40": 0},
+                "B": {"P40": 1},
+                "C": {"P40": 27}
+                }
+
+        self.assertEqual(3, len(vc_avail.samples))
+        for sample in vc_avail.samples:
+            vc_name = sample.labels["vc_name"]
+            gpu_type = sample.labels["gpu_type"]
+            self.assertEqual(target_vc_avail[vc_name][gpu_type],
+                    sample.value, "vc " + vc_name + ", gpu " + gpu_type)
+
+        target_vc_preemptive_avail = {
+                "A": {"P40": 0},
+                "B": {"P40": 1},
+                "C": {"P40": 27}
+                }
+
+        self.assertEqual(3, len(vc_preemptive_avail.samples))
+        for sample in vc_preemptive_avail.samples:
+            vc_name = sample.labels["vc_name"]
+            gpu_type = sample.labels["gpu_type"]
+            self.assertEqual(target_vc_preemptive_avail[vc_name][gpu_type],
+                    sample.value, "vc " + vc_name)
+
+        target_vc_unschedulable = {
+                "A": {"P40": 0},
+                "B": {"P40": 8},
+                "C": {"P40": 13}
+                }
+        self.assertEqual(3, len(vc_unschedulable_gauge.samples))
+        for sample in vc_unschedulable_gauge.samples:
+            vc_name = sample.labels["vc_name"]
+            gpu_type = sample.labels["gpu_type"]
+            self.assertEqual(target_vc_unschedulable[vc_name][gpu_type],
                     sample.value, "vc " + vc_name)
 
     def test_process_pods_with_vc_usage(self):
