@@ -7,7 +7,7 @@ import {
   DialogContentText,
   DialogTitle
 } from "@material-ui/core";
-import {Redirect} from "react-router";
+
 import _ from "lodash";
 
 interface Context {
@@ -23,7 +23,10 @@ const Context = React.createContext<Context>({
 });
 
 export default Context;
-export const Provider: React.FC = ({ children }) => {
+interface ProviderProps {
+  addGroupLink: string;
+}
+export const Provider: React.FC<ProviderProps> = ({addGroupLink, children }) => {
   const fetchTeamsUrl = '/api/teams';
   const { data: teams } = useFetch(fetchTeamsUrl, { onMount: true });
   const [selectedTeam, setSelectedTeam] = React.useState<string>('');
@@ -38,31 +41,25 @@ export const Provider: React.FC = ({ children }) => {
     } else {
       setSelectedTeam(_.map(teams, 'id')[0]);
     }
-    // if (typeof(Storage) !== "undefined" && localStorage.getItem('team') === undefined) {
-    //   setSelectedTeam(_.map(teams, 'id')[0]);
-    //   localStorage.setItem('team',_.map(teams, 'id')[0])
-    // }
   },[teams])
-  const EmptyTeam: React.FC = () => {
+  const EmptyTeam: React.FC<ProviderProps> = () => {
     const onClick = () => {
-      return (
-        <Redirect to="/"/>
-      )
+      window.open(addGroupLink,"_blank");
     }
     return (
       <Box display="flex">
         <Dialog open>
-          <DialogTitle>
+          <DialogTitle style={{ color: 'red' }}>
             {"warning"}
           </DialogTitle>
           <DialogContent>
             <DialogContentText>
-              {"Your name is number empty team"}
+              {"You are not an authorized user for this cluster. Please request to join a security group by following the button below."}
             </DialogContentText>
           </DialogContent>
           <DialogActions>
             <Button onClick={onClick} color="primary">
-              Back
+              JOIN SG
             </Button>
           </DialogActions>
         </Dialog>
@@ -70,10 +67,12 @@ export const Provider: React.FC = ({ children }) => {
     )
   };
   if (teams !== undefined && teams.length === 0) {
+    console.log(addGroupLink)
     return (
+
       <Context.Provider
-        value={{ teams, selectedTeam, saveSelectedTeam }}
-        children={EmptyTeam}
+        value={{ teams, selectedTeam ,saveSelectedTeam }}
+        children={<EmptyTeam addGroupLink={addGroupLink}/>}
       />
     )
   }

@@ -541,7 +541,7 @@ const Jobs: React.FC = (props: any) => {
             options={{
               paging: true,
               pageSizeOptions:[10],
-              pageSize:10,
+              pageSize:filterRunningJobs(jobs).length < 10 ? 5 : 10,
               filtering:false,
               actionsColumnIndex: -1,
               headerStyle: {
@@ -630,7 +630,7 @@ const Jobs: React.FC = (props: any) => {
               filtering: false,
               paging: true,
               pageSizeOptions:[10],
-              pageSize:10,
+              pageSize:filterQueuedJobs(jobs).length < 10 ? 5 : 10,
               actionsColumnIndex: -1,
               headerStyle: {
                 backgroundColor: '#7583d1',
@@ -717,7 +717,7 @@ const Jobs: React.FC = (props: any) => {
               paging: true,
               actionsColumnIndex: -1,
               pageSizeOptions:[10],
-              pageSize:10,
+              pageSize:filterUnApprovedJobs(jobs).length < 10 ? 5 : 10,
               headerStyle: {
                 backgroundColor: '#7583d1',
                 color: '#fff',
@@ -806,7 +806,7 @@ const Jobs: React.FC = (props: any) => {
               filtering: false,
               paging: true,
               pageSizeOptions:[10],
-              pageSize:10,
+              pageSize:filterPauseJobs(jobs).length < 10 ? 5 : 10,
               actionsColumnIndex: -1,
               headerStyle: {
                 backgroundColor: '#7583d1',
@@ -904,7 +904,7 @@ const Jobs: React.FC = (props: any) => {
               filtering: false,
               paging: true,
               pageSizeOptions:[10],
-              pageSize:10,
+              pageSize:filterFinishedJobs(jobs).length < 10 ? 5 : 10,
               actionsColumnIndex: -1,
               headerStyle: {
                 backgroundColor: '#7583d1',
@@ -994,7 +994,7 @@ const Jobs: React.FC = (props: any) => {
                     filtering: false,
                     paging: true,
                     pageSizeOptions:[10],
-                    pageSize:10,
+                    pageSize:filterRunningJobs(allJobs).length < 10 ? 5 : 10,
                     actionsColumnIndex: -1,
                     headerStyle: {
                       backgroundColor: '#7583d1',
@@ -1087,7 +1087,7 @@ const Jobs: React.FC = (props: any) => {
                     filtering: false,
                     paging: true,
                     pageSizeOptions:[10],
-                    pageSize:10,
+                    pageSize:filterQueuedJobs(allJobs).length < 10 ? 5 : 10,
                     actionsColumnIndex: -1,
                     headerStyle: {
                       backgroundColor: '#7583d1',
@@ -1189,7 +1189,7 @@ const Jobs: React.FC = (props: any) => {
                     filtering: false,
                     paging: true,
                     pageSizeOptions:[10],
-                    pageSize:10,
+                    pageSize:filterUnApprovedJobs(allJobs).length < 10 ? 5 : 10,
                     actionsColumnIndex: -1,
                     headerStyle: {
                       backgroundColor: '#7583d1',
@@ -1293,7 +1293,7 @@ const Jobs: React.FC = (props: any) => {
                     filtering: false,
                     paging: true,
                     pageSizeOptions:[10],
-                    pageSize:10,
+                    pageSize:filterPauseJobs(allJobs).length < 10 ? 5 : 10,
                     actionsColumnIndex: -1,
                     headerStyle: {
                       backgroundColor: '#7583d1',
@@ -1390,7 +1390,7 @@ const Jobs: React.FC = (props: any) => {
                     filtering: false,
                     paging: true,
                     pageSizeOptions:[10],
-                    pageSize:10,
+                    pageSize:filterFinishedJobs(allJobs).length < 10 ? 5 : 10,
                     actionsColumnIndex: -1,
                     headerStyle: {
                       backgroundColor: '#7583d1',
