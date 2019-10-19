@@ -539,7 +539,7 @@ const Jobs: React.FC = (props: any) => {
             ]}
             data={filterRunningJobs(jobs)}
             options={{
-              paging: true,
+              paging: filterRunningJobs(jobs).length >= 10,
               pageSizeOptions:[10],
               pageSize:filterRunningJobs(jobs).length < 10 ? 5 : 10,
               filtering:false,
@@ -628,7 +628,7 @@ const Jobs: React.FC = (props: any) => {
             data={filterQueuedJobs(jobs)}
             options={{
               filtering: false,
-              paging: true,
+              paging: filterQueuedJobs(jobs).length >= 10,
               pageSizeOptions:[10],
               pageSize:filterQueuedJobs(jobs).length < 10 ? 5 : 10,
               actionsColumnIndex: -1,
@@ -714,7 +714,7 @@ const Jobs: React.FC = (props: any) => {
             data={filterUnApprovedJobs(jobs)}
             options={{
               filtering: false,
-              paging: true,
+              paging: filterUnApprovedJobs(jobs).length >= 10,
               actionsColumnIndex: -1,
               pageSizeOptions:[10],
               pageSize:filterUnApprovedJobs(jobs).length < 10 ? 5 : 10,
@@ -804,7 +804,7 @@ const Jobs: React.FC = (props: any) => {
             data={filterPauseJobs(jobs)}
             options={{
               filtering: false,
-              paging: true,
+              paging: filterPauseJobs(jobs).length >= 10,
               pageSizeOptions:[10],
               pageSize:filterPauseJobs(jobs).length < 10 ? 5 : 10,
               actionsColumnIndex: -1,
@@ -902,7 +902,7 @@ const Jobs: React.FC = (props: any) => {
             data={filterFinishedJobs(jobs)}
             options={{
               filtering: false,
-              paging: true,
+              paging: filterFinishedJobs(jobs).length >= 10,
               pageSizeOptions:[10],
               pageSize:filterFinishedJobs(jobs).length < 10 ? 5 : 10,
               actionsColumnIndex: -1,
@@ -992,7 +992,7 @@ const Jobs: React.FC = (props: any) => {
                   options={{
                     sorting: true,
                     filtering: false,
-                    paging: true,
+                    paging: filterRunningJobs(allJobs).length >= 10,
                     pageSizeOptions:[10],
                     pageSize:filterRunningJobs(allJobs).length < 10 ? 5 : 10,
                     actionsColumnIndex: -1,
@@ -1085,7 +1085,7 @@ const Jobs: React.FC = (props: any) => {
                   data={filterQueuedJobs(allJobs)}
                   options={{
                     filtering: false,
-                    paging: true,
+                    paging: filterQueuedJobs(allJobs).length >= 10,
                     pageSizeOptions:[10],
                     pageSize:filterQueuedJobs(allJobs).length < 10 ? 5 : 10,
                     actionsColumnIndex: -1,
@@ -1187,7 +1187,7 @@ const Jobs: React.FC = (props: any) => {
                   data={filterUnApprovedJobs(allJobs)}
                   options={{
                     filtering: false,
-                    paging: true,
+                    paging: filterUnApprovedJobs(allJobs).length >= 10,
                     pageSizeOptions:[10],
                     pageSize:filterUnApprovedJobs(allJobs).length < 10 ? 5 : 10,
                     actionsColumnIndex: -1,
@@ -1291,7 +1291,7 @@ const Jobs: React.FC = (props: any) => {
                   data={filterPauseJobs(allJobs)}
                   options={{
                     filtering: false,
-                    paging: true,
+                    paging: filterPauseJobs(allJobs).length >= 10,
                     pageSizeOptions:[10],
                     pageSize:filterPauseJobs(allJobs).length < 10 ? 5 : 10,
                     actionsColumnIndex: -1,
@@ -1388,7 +1388,7 @@ const Jobs: React.FC = (props: any) => {
                   data={filterFinishedJobs(allJobs)}
                   options={{
                     filtering: false,
-                    paging: true,
+                    paging: filterFinishedJobs(allJobs).length >= 10,
                     pageSizeOptions:[10],
                     pageSize:filterFinishedJobs(allJobs).length < 10 ? 5 : 10,
                     actionsColumnIndex: -1,
