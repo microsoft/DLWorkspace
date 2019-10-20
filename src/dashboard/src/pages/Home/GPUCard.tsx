@@ -151,7 +151,7 @@ const Chart: React.FC<{
             activeIndex={activeIndex}
             activeShape={renderActiveShape}
             data={data}
-            cx={200}
+            cx={230}
             // cy={200}
             innerRadius={60}
             outerRadius={80}
