@@ -11,3 +11,5 @@ activeDirectory:
 clusters:
   Universe:
     restfulapi: http://universe
+  Targaryen:
+    restfulapi: http://targaryen
