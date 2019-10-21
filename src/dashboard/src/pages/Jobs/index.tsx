@@ -33,7 +33,7 @@ import {
 } from "../../Constants/WarnConstants";
 import {JobsSelectByCluster} from "./components/JobsSelectByCluster";
 import TeamContext from "../../contexts/Teams";
-import {toLocalTime} from "../../utlities/ObjUtlities";
+import {checkObjIsEmpty, toLocalTime} from "../../utlities/ObjUtlities";
 import ReactJson from "react-json-view";
 import TablePagination from "@material-ui/core/TablePagination";
 
@@ -147,7 +147,6 @@ const Jobs: React.FC = (props: any) => {
 
   const[isAdmin, setIsAdmin] = useState(clusters.filter((cluster) => cluster.id === currentCluster)[0].admin);
   const filterJobsByCluster = (jobs: any, clusterName: string) => {
-    console.log(isAdmin);
     if (clusterName == '-1' || clusterName === '') {
       return Jobs;
     } else {
@@ -296,25 +295,28 @@ const Jobs: React.FC = (props: any) => {
   const renderUserName = (rowData: any)=><span>{rowData['userName'].split("@").shift()}</span>
   const renderPrioritySet = (rowData: any) => {
     return (
-      <TextField
-        error={warn && (currId == rowData.tableData.id)}
-        disabled={!isAdmin}
-        key={rowData['jobId']}
-        type="number"
-        id={rowData.tableData.id}
-        defaultValue={rowData.priority}
-        onKeyPress={(event) => handlePriorityKeyPress(rowData, event)}
-        onChange={(event)=>handleChangePriority(rowData, event)}
-        fullWidth={false}
-        style={{ width:'100p'}}
-        margin="dense"
-        InputProps={{
-          classes: {
-            input: classes.inputField,
+      <>
+        <TextField
+          error={warn && (currId == rowData.tableData.id)}
+          disabled={!isAdmin}
+          key={rowData['jobId']}
+          type="number"
+          id={rowData.tableData.id}
+          defaultValue={rowData.priority}
+          onKeyPress={(event) => handlePriorityKeyPress(rowData, event)}
+          onChange={(event)=>handleChangePriority(rowData, event)}
+          fullWidth={false}
+          style={{ width:'100p'}}
+          margin="dense"
+          InputProps={{
+            classes: {
+              input: classes.inputField,
 
-          },
-        }}
-      />)
+            },
+          }}
+        />
+      </>
+    )
   }
 
   const renderDateTime = (rowData: any,time?: string)=> {
@@ -460,8 +462,10 @@ const Jobs: React.FC = (props: any) => {
     )
   }
   const { selectedTeam } = React.useContext(TeamContext);
+  const generatePageSize = (jobs: any) => {
+    return jobs.length < 10 ? jobs.length : 10;
+  }
   if (jobs && allJobs) {
-    console.log(jobs)
     return (
       <Fragment>
         <JobsOperationDialog handleClose={handleClose}
@@ -539,9 +543,9 @@ const Jobs: React.FC = (props: any) => {
             ]}
             data={filterRunningJobs(jobs)}
             options={{
-              paging: filterRunningJobs(jobs).length >= 10,
+              paging: true,
               pageSizeOptions:[10],
-              pageSize:filterRunningJobs(jobs).length < 10 ? 5 : 10,
+              pageSize:generatePageSize(filterRunningJobs(jobs)),
               filtering:false,
               actionsColumnIndex: -1,
               headerStyle: {
@@ -627,10 +631,10 @@ const Jobs: React.FC = (props: any) => {
             ]}
             data={filterQueuedJobs(jobs)}
             options={{
-              filtering: false,
-              paging: filterQueuedJobs(jobs).length >= 10,
+              filtering: true,
+              paging: false,
               pageSizeOptions:[10],
-              pageSize:filterQueuedJobs(jobs).length < 10 ? 5 : 10,
+              pageSize:generatePageSize(filterQueuedJobs(jobs)),
               actionsColumnIndex: -1,
               headerStyle: {
                 backgroundColor: '#7583d1',
@@ -714,10 +718,10 @@ const Jobs: React.FC = (props: any) => {
             data={filterUnApprovedJobs(jobs)}
             options={{
               filtering: false,
-              paging: filterUnApprovedJobs(jobs).length >= 10,
+              paging: true,
               actionsColumnIndex: -1,
               pageSizeOptions:[10],
-              pageSize:filterUnApprovedJobs(jobs).length < 10 ? 5 : 10,
+              pageSize:generatePageSize(filterUnApprovedJobs(jobs)),
               headerStyle: {
                 backgroundColor: '#7583d1',
                 color: '#fff',
@@ -804,9 +808,9 @@ const Jobs: React.FC = (props: any) => {
             data={filterPauseJobs(jobs)}
             options={{
               filtering: false,
-              paging: filterPauseJobs(jobs).length >= 10,
+              paging: true,
               pageSizeOptions:[10],
-              pageSize:filterPauseJobs(jobs).length < 10 ? 5 : 10,
+              pageSize:generatePageSize(filterPauseJobs(jobs)),
               actionsColumnIndex: -1,
               headerStyle: {
                 backgroundColor: '#7583d1',
@@ -902,9 +906,9 @@ const Jobs: React.FC = (props: any) => {
             data={filterFinishedJobs(jobs)}
             options={{
               filtering: false,
-              paging: filterFinishedJobs(jobs).length >= 10,
+              paging: true,
               pageSizeOptions:[10],
-              pageSize:filterFinishedJobs(jobs).length < 10 ? 5 : 10,
+              pageSize: generatePageSize(filterFinishedJobs(jobs)),
               actionsColumnIndex: -1,
               headerStyle: {
                 backgroundColor: '#7583d1',
@@ -990,11 +994,9 @@ const Jobs: React.FC = (props: any) => {
                   ]}
                   data={filterRunningJobs(allJobs)}
                   options={{
-                    sorting: true,
-                    filtering: false,
-                    paging: filterRunningJobs(allJobs).length >= 10,
+                    paging: true,
                     pageSizeOptions:[10],
-                    pageSize:filterRunningJobs(allJobs).length < 10 ? 5 : 10,
+                    pageSize:generatePageSize(filterRunningJobs(allJobs)),
                     actionsColumnIndex: -1,
                     headerStyle: {
                       backgroundColor: '#7583d1',
@@ -1085,9 +1087,9 @@ const Jobs: React.FC = (props: any) => {
                   data={filterQueuedJobs(allJobs)}
                   options={{
                     filtering: false,
-                    paging: filterQueuedJobs(allJobs).length >= 10,
+                    paging: true,
                     pageSizeOptions:[10],
-                    pageSize:filterQueuedJobs(allJobs).length < 10 ? 5 : 10,
+                    pageSize:generatePageSize(filterQueuedJobs(allJobs)),
                     actionsColumnIndex: -1,
                     headerStyle: {
                       backgroundColor: '#7583d1',
@@ -1187,9 +1189,9 @@ const Jobs: React.FC = (props: any) => {
                   data={filterUnApprovedJobs(allJobs)}
                   options={{
                     filtering: false,
-                    paging: filterUnApprovedJobs(allJobs).length >= 10,
+                    paging: true,
                     pageSizeOptions:[10],
-                    pageSize:filterUnApprovedJobs(allJobs).length < 10 ? 5 : 10,
+                    pageSize:generatePageSize(filterUnApprovedJobs(allJobs)),
                     actionsColumnIndex: -1,
                     headerStyle: {
                       backgroundColor: '#7583d1',
@@ -1291,9 +1293,9 @@ const Jobs: React.FC = (props: any) => {
                   data={filterPauseJobs(allJobs)}
                   options={{
                     filtering: false,
-                    paging: filterPauseJobs(allJobs).length >= 10,
+                    paging: true,
                     pageSizeOptions:[10],
-                    pageSize:filterPauseJobs(allJobs).length < 10 ? 5 : 10,
+                    pageSize:generatePageSize(filterPauseJobs(allJobs)),
                     actionsColumnIndex: -1,
                     headerStyle: {
                       backgroundColor: '#7583d1',
@@ -1388,9 +1390,9 @@ const Jobs: React.FC = (props: any) => {
                   data={filterFinishedJobs(allJobs)}
                   options={{
                     filtering: false,
-                    paging: filterFinishedJobs(allJobs).length >= 10,
+                    paging: true,
                     pageSizeOptions:[10],
-                    pageSize:filterFinishedJobs(allJobs).length < 10 ? 5 : 10,
+                    pageSize:generatePageSize(filterFinishedJobs(allJobs)),
                     actionsColumnIndex: -1,
                     headerStyle: {
                       backgroundColor: '#7583d1',
