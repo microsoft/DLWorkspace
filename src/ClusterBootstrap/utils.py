@@ -400,7 +400,10 @@ def setup_backup_dir(pname):
     deploy_backup_dir = "./deploy_backup"
     backup_dir = os.path.join(deploy_backup_dir, "backup")
 
-    assert os.path.abspath(pname) != os.path.abspath(backup_dir)
+    pname_par = os.path.abspath(os.path.join(os.path.abspath(pname), os.pardir))
+    backup_dir_par = os.path.abspath(os.path.join(os.path.abspath(backup_dir), os.pardir))
+
+    assert pname_par != backup_dir_par
 
     if os.path.islink(backup_dir):
         os.system("rm %s" % backup_dir)
