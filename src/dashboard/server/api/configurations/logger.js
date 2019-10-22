@@ -8,6 +8,7 @@ module.exports = (app) => {
   const enabled = app.env !== 'test'
   const prettyPrint = app.env === 'development'
   const middleware = logger({ enabled, prettyPrint })
+  app.silent = !enabled
 
   // Log the config
   middleware.logger.info(config.util.toObject(), 'App config')
