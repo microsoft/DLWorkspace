@@ -511,19 +511,19 @@ def ListVCs(userName):
 def GetVC(userName, vcName):
     ret = None
 
-    cluster_status, _ = DataManager.GetClusterStatus()
+    data_handler = DataHandler()
+
+    cluster_status, _ = data_handler.GetClusterStatus()
     cluster_total = cluster_status["gpu_capacity"]
     cluster_available = cluster_status["gpu_avaliable"]
     cluster_unschedulable = cluster_status["gpu_unschedulable"]
 
     user_status = collections.defaultdict(lambda : ResourceInfo())
 
-    vc_list =  DataManager.ListVCs()
+    vc_list =  data_handler.ListVCs()
     vc_info = {}
     vc_usage = collections.defaultdict(lambda :
             collections.defaultdict(lambda : 0))
-
-    data_handler = DataHandler()
 
     for vc in vc_list:
         vc_info[vc["vcName"]] = json.loads(vc["quota"])
