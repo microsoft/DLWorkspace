@@ -32,6 +32,7 @@ interface BootstrapProps {
   familyName?: string;
   givenName?: string;
   _token?: any;
+  addGroupLink: string;
 }
 
 const Loading = (
@@ -40,10 +41,10 @@ const Loading = (
   </Box>
 );
 
-const Contexts: React.FC<BootstrapProps> = ({ email, uid, familyName, givenName,_token ,children }) => (
+const Contexts: React.FC<BootstrapProps> = ({ email, uid, familyName, givenName,_token ,addGroupLink,children }) => (
   <BrowserRouter>
     <UserProvider email={email} uid={uid} familyName={familyName} givenName={givenName} token={_token} >
-      <TeamProvider>
+      <TeamProvider addGroupLink={addGroupLink}>
         <ClustersProvider>
           <ThemeProvider theme={theme}>
             {children}

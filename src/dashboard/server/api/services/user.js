@@ -10,6 +10,7 @@ const Cluster = require('./cluster')
 const sign = config.get('sign')
 const winbind = config.get('winbind')
 const masterToken = config.get('masterToken')
+const addGroupLink = config.get('AddGroupLink')
 const clusterIds = Object.keys(config.get('clusters'))
 
 class User extends Service {
@@ -30,6 +31,7 @@ class User extends Service {
   static fromIdToken (context, idToken) {
     const user = new User(context, idToken['upn'])
     user.givenName = idToken['given_name']
+    user.addGroupLink = addGroupLink
     user.familyName = idToken['family_name']
     return user
   }
@@ -57,6 +59,7 @@ class User extends Service {
     const payload = jwt.verify(token, sign)
     const user = new User(context, payload['email'])
     user.givenName = payload['givenName']
+    user.addGroupLink = addGroupLink
     user.familyName = payload['familyName']
     user.uid = payload['uid']
     user.gid = payload['gid']
@@ -82,7 +85,6 @@ class User extends Service {
 
     this.uid = data['uid']
     this.gid = data['gid']
-
     return data
   }
 
@@ -107,7 +109,8 @@ class User extends Service {
       uid: this.uid,
       gid: this.gid,
       familyName: this.familyName,
-      givenName: this.givenName
+      givenName: this.givenName,
+      addGroupLink: addGroupLink
     }, sign)
   }
 }

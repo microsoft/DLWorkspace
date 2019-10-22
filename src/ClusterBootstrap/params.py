@@ -665,6 +665,8 @@ scriptblocks = {
         "runscriptonroles infra worker ./scripts/prepare_vm_disk.sh",
         "nfs-server create",
         "runscriptonroles infra worker ./scripts/prepare_ubuntu.sh",
+        "runscriptonroles infra worker ./scripts/disable_kernel_auto_updates.sh",
+        "runscriptonroles infra worker ./scripts/docker_network_gc_setup.sh",
         "genscripts",
         "runscriptonroles infra worker ./scripts/dns.sh",
         "-y deploy",
@@ -681,11 +683,6 @@ scriptblocks = {
         "kubernetes start jobmanager",
         "kubernetes start restfulapi",
         "kubernetes start webportal",
-        "kubernetes start cloudmonitor",
-        # TODO(harry): we cannot distinguish gce aws from azure, so add the same providerID
-        # This will not break current deployment.
-        "-y kubernetes patchprovider aztools",
-        "setconfigmap",
         "--sudo runscriptonrandmaster ./scripts/pass_secret.sh",
         "runscriptonroles worker scripts/pre_download_images.sh",
     ],

@@ -15,7 +15,7 @@ const Log: React.FC = () => {
     <Card>
       <CardHeader title="Console Output"/>
       <CardContent>
-        <Typography component='pre' style={{ width:"1632px" }}>{job['log']}</Typography>
+        <Typography component='pre' style={{overflow:'auto'}}>{job['log']}</Typography>
       </CardContent>
     </Card>
   );

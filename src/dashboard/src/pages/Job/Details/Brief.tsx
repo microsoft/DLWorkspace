@@ -21,6 +21,7 @@ const Brief: React.FC = () => {
         <ListItem><ListItemText primary="Docker Image" secondary={job['jobParams']['image']}/></ListItem>
         <ListItem>
           <ListItemText
+            style={{ overflow: 'auto' }}
             primary="Command"
             secondary={job['jobParams']['cmd']}
             secondaryTypographyProps={{ component: 'pre' }}

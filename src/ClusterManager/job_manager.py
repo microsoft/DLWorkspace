@@ -179,7 +179,9 @@ def UpdateJobStatus(launcher, job, notifier=None, dataHandlerOri=None):
     localJobPath = os.path.join(config["storage-mount-path"], jobPath)
     logPath = os.path.join(localJobPath, "logs/joblog.txt")
 
-    jobDescriptionPath = os.path.join(config["storage-mount-path"], job["jobDescriptionPath"]) if "jobDescriptionPath" in job else None
+    jobDescriptionPath = None
+    if "jobDescriptionPath" in job and job["jobDescriptionPath"] is not None:
+        jobDescriptionPath = os.path.join(config["storage-mount-path"], job["jobDescriptionPath"])
     if "userId" not in jobParams:
         jobParams["userId"] = "0"
 
@@ -280,6 +282,7 @@ def check_job_status(job_id):
     details = []
     for job_role in job_roles:
         details.append(job_role.pod_details().to_dict())
+    logging.info("Job {}, details: {}".format(job_id, details))
 
     job_status = "Running"
 
