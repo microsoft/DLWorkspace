@@ -5,6 +5,8 @@ import argparse
 import uuid
 import subprocess
 import sys
+import collections
+
 from jobs_tensorboard import GenTensorboardMeta
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
@@ -22,6 +24,7 @@ import authorization
 from cache import CacheManager
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../ClusterManager"))
 from ResourceInfo import ResourceInfo
+import quota
 
 import copy
 import logging
@@ -508,48 +511,54 @@ def ListVCs(userName):
 def GetVC(userName, vcName):
     ret = None
 
-    clusterStatus, dummy = DataManager.GetClusterStatus()
-    clusterTotalRes = ResourceInfo(clusterStatus["gpu_capacity"])
-    clusterReservedRes = ResourceInfo(clusterStatus["gpu_reserved"])
+    cluster_status, _ = DataManager.GetClusterStatus()
+    cluster_total = cluster_status["gpu_capacity"]
+    cluster_available = cluster_status["gpu_avaliable"]
+    cluster_unschedulable = cluster_status["gpu_unschedulable"]
 
-    user_status = {}
+    user_status = collections.defaultdict(lambda : ResourceInfo())
 
-    vcList =  DataManager.ListVCs()
+    vc_list =  DataManager.ListVCs()
+    vc_info = {}
+    vc_usage = collections.defaultdict(lambda :
+            collections.defaultdict(lambda : 0))
 
-    vc_quota_sum = ResourceInfo()
+    data_handler = DataHandler()
 
-    for vc in vcList:
-        vc_quota_sum.Add(ResourceInfo(json.loads(vc["quota"])))
+    for vc in vc_list:
+        vc_info[vc["vcName"]] = json.loads(vc["quota"])
 
-    for vc in vcList:
+    active_job_list = data_handler.GetActiveJobList()
+    for job in active_job_list:
+        jobParam = json.loads(base64.b64decode(job["jobParams"]))
+        if "gpuType" in jobParam:
+            vc_usage[job["vcName"]][jobParam["gpuType"]] += GetJobTotalGpu(jobParam)
+
+    result = quota.calculate_vc_gpu_counts(cluster_total, cluster_available,
+            cluster_unschedulable, vc_info, vc_usage)
+
+    vc_total, vc_used, vc_available, vc_unschedulable = result
+
+    for vc in vc_list:
         if vc["vcName"] == vcName and AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName, Permission.User):
-            vc_quota = ResourceInfo(json.loads(vc["quota"]))
 
-            vcTotalRes = clusterTotalRes.GetFraction(vc_quota, vc_quota_sum)
-
-            vcConsumedRes = ResourceInfo()
-            jobs = DataManager.GetAllPendingJobs(vcName)
             num_active_jobs = 0
-            for job in jobs:
-                if job["jobStatus"] == "running":
+            for job in active_job_list:
+                if job["vcName"] == vcName and job["jobStatus"] == "running":
                     num_active_jobs += 1
                     username = job["userName"]
                     jobParam = json.loads(base64.b64decode(job["jobParams"]))
                     if "gpuType" in jobParam and not jobParam["preemptionAllowed"]:
-                        vcConsumedRes.Add(ResourceInfo({jobParam["gpuType"] : GetJobTotalGpu(jobParam)}))
                         if username not in user_status:
                             user_status[username] = ResourceInfo()
                         user_status[username].Add(ResourceInfo({jobParam["gpuType"] : GetJobTotalGpu(jobParam)}))
 
-            vcReservedRes = clusterReservedRes.GetFraction(vc_quota, vc_quota_sum)
-            vcAvailableRes = ResourceInfo.Difference(ResourceInfo.Difference(vcTotalRes, vcConsumedRes), vcReservedRes)
-
-            vc["gpu_capacity"] = vcTotalRes.ToSerializable()
-            vc["gpu_used"] = vcConsumedRes.ToSerializable()
-            vc["gpu_unschedulable"] = vcReservedRes.ToSerializable()
-            vc["gpu_avaliable"] = vcAvailableRes.ToSerializable()
+            vc["gpu_capacity"] = vc_total[vcName]
+            vc["gpu_used"] = vc_used[vcName]
+            vc["gpu_unschedulable"] = vc_unschedulable[vcName]
+            vc["gpu_avaliable"] = vc_available[vcName]
             vc["AvaliableJobNum"] = num_active_jobs
-            vc["node_status"] = clusterStatus["node_status"]
+            vc["node_status"] = cluster_status["node_status"]
             vc["user_status"] = []
             for user_name, user_gpu in user_status.iteritems():
                 # TODO: job_manager.getAlias should be put in a util file
