@@ -34,6 +34,7 @@ export const TeamVirtualClusterStatus = (props: TeamVC) => {
             const gpuAvailable = checkObjIsEmpty (Object.values(vcs['gpu_avaliable'])) ? 0 : (Number)(sumValues(vcs['gpu_avaliable']));
             const gpuUnschedulable = checkObjIsEmpty(Object.values(vcs['gpu_unschedulable'])) ? 0 : (Number)(sumValues(vcs['gpu_unschedulable'])) ;
             const gpuUsed =  checkObjIsEmpty(Object.values(vcs['gpu_used'])) ? 0 :  (Number)(sumValues(vcs['gpu_used']));
+            const activeJobs = Number(sumValues(vcs['AvaliableJobNum'])) || 0;
             return (
               <>
                 <TableRow key={index}>
@@ -58,7 +59,7 @@ export const TeamVirtualClusterStatus = (props: TeamVC) => {
                     {gpuAvailable}
                   </TableCell>
                   <TableCell key={vcs['AvaliableJobNum']}>
-                    {vcs['AvaliableJobNum']}
+                    {activeJobs}
                   </TableCell>
                 </TableRow>
               </>

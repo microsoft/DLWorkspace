@@ -18,7 +18,7 @@ import {
 import { makeStyles, createStyles, useTheme, Theme } from "@material-ui/core/styles";
 import { MoreVert, FileCopyRounded} from "@material-ui/icons";
 
-import { Cell, PieChart, Pie, ResponsiveContainer } from "recharts";
+import {Cell, PieChart, Pie, ResponsiveContainer,Sector} from "recharts";
 import UserContext from "../../contexts/User";
 import TeamsContext from '../../contexts/Teams';
 import {green, lightGreen, deepOrange } from "@material-ui/core/colors";
@@ -47,8 +47,7 @@ const useStyles = makeStyles((theme: Theme) => createStyles({
     backgroundColor: green[600],
   },
   container: {
-    fontSize:'10.5px',
-    paddingTop:'10px'
+    margin: '0 auto',
   }
 }));
 
@@ -88,27 +87,80 @@ const Chart: React.FC<{
   let data = [
     { name: "Available", value: available, color: lightGreen[400] },
     { name: "Used", value: used, color: theme.palette.grey[500] },
-    { name: "Reserved", value: reserved, color: deepOrange[400]},
+    { name: "Unschedulable", value: reserved, color: deepOrange[400]},
   ];
   if (reserved === 0) {
     data = data.filter((item)=>item.name !== 'Reserved')
   }
   const styles = useStyles();
+  const renderActiveShape = (props: any) => {
+    const RADIAN = Math.PI / 180;
+    const { cx, cy, midAngle, innerRadius, outerRadius, startAngle, endAngle,
+      fill, payload, percent, value } = props;
+    const sin = Math.sin(-RADIAN * midAngle);
+    const cos = Math.cos(-RADIAN * midAngle);
+    const sx = cx + (outerRadius + 10) * cos;
+    const sy = cy + (outerRadius + 10) * sin;
+    const mx = cx + (outerRadius + 20) * cos;
+    const my = cy + (outerRadius + 20) * sin;
+    const ex = mx + (cos >= 0 ? 1 : -1) * 8;
+    const ey = my;
+    const textAnchor = cos >= 0 ? 'start' : 'end';
+
+    return (
+      <g>
+        <text x={cx} y={cy} dy={8} textAnchor="middle" fill={fill}>{payload.name}</text>
+        <Sector
+          cx={cx}
+          cy={cy}
+          innerRadius={innerRadius}
+          outerRadius={outerRadius}
+          startAngle={startAngle}
+          endAngle={endAngle}
+          fill={fill}
+        />
+        <Sector
+          cx={cx}
+          cy={cy}
+          startAngle={startAngle}
+          endAngle={endAngle}
+          innerRadius={outerRadius + 6}
+          outerRadius={outerRadius + 10}
+          fill={fill}
+        />
+        <text x={ex + (cos >= 0 ? 1 : -1) * 12} y={ey} textAnchor={textAnchor} fill="#333">{`${value}`}</text>
+        <text x={ex + (cos >= 0 ? 1 : -1) * 12} y={ey} dy={18} textAnchor={textAnchor} fill="#999">
+          {`(${(Math.round(percent * 100))}%)`}
+        </text>
+      </g>
+    );
+  };
+  const[activeIndex, setActiveIndex] = useState(0);
+  const onPieEnter = (data: any, index: number) => {
+    setActiveIndex(index)
+  }
   return (
-    <ResponsiveContainer aspect={16 / 11} height={300} width='100%' className={styles.container}>
-      <PieChart>
-        <Pie
-          // hide={!isActive}
-          isAnimationActive={isActive}
-          data={data}
-          dataKey="value"
-          label={({ name, value }) => `${name} ${value}`}
-          labelLine={false}
-        >
-          { data.map(({ name, color }) => <Cell key={name} fill={color}/>) }
-        </Pie>
-      </PieChart>
-    </ResponsiveContainer>
+    <>
+      <ResponsiveContainer aspect={8 / 8} width='100%' height='100%'>
+        <PieChart>
+          <Pie
+            dataKey="value"
+            isAnimationActive={isActive}
+            activeIndex={activeIndex}
+            activeShape={renderActiveShape}
+            data={data}
+            cx={170}
+            cy={165}
+            innerRadius={60}
+            outerRadius={80}
+            fill="#8884d8"
+            onMouseEnter={onPieEnter}
+          >
+            { data.map(({ name, color }) => <Cell key={name} fill={color}/>) }
+          </Pie>
+        </PieChart>
+      </ResponsiveContainer>
+    </>
   )
 }
 
@@ -142,32 +194,32 @@ export const DirectoryPathTextField: React.FC<{
   },[input])
   return (
     <>
-    <TextField
-      inputRef={input}
-      label={label}
-      value={value}
-      multiline
-      rows={2}
-      fullWidth
-      variant="outlined"
-      margin="dense"
-      InputProps={{
-        readOnly: true,
-        endAdornment: (
-          <InputAdornment position="end">
-            <Tooltip title="Copy" placement="right">
-              <IconButton>
-                <FileCopyRounded/>
-              </IconButton>
-            </Tooltip>
-          </InputAdornment>
-        )
-      }}
-      onMouseOver={onMouseOver}
-      onFocus={onFocus}
-      onClick={handleCopy}
-    />
-    <DLTSSnackbar message={"Successfully copied"} autoHideDuration={500} open={openCopyWarn} handleWarnClose={handleWarnClose} />
+      <TextField
+        inputRef={input}
+        label={label}
+        value={value}
+        multiline
+        rows={2}
+        fullWidth
+        variant="outlined"
+        margin="dense"
+        InputProps={{
+          readOnly: true,
+          endAdornment: (
+            <InputAdornment position="end">
+              <Tooltip title="Copy" placement="right">
+                <IconButton>
+                  <FileCopyRounded/>
+                </IconButton>
+              </Tooltip>
+            </InputAdornment>
+          )
+        }}
+        onMouseOver={onMouseOver}
+        onFocus={onFocus}
+        onClick={handleCopy}
+      />
+      <DLTSSnackbar message={"Successfully copied"} autoHideDuration={500} open={openCopyWarn} handleWarnClose={handleWarnClose} />
     </>
   );
 }

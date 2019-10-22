@@ -1,5 +1,4 @@
 const User = require('../services/user')
-
 /**
  * @param {boolean} force
  * @return {import('koa').Middleware}
@@ -9,12 +8,14 @@ module.exports = (forceAuthenticated = true) => async (context, next) => {
     const { email, token } = context.query
     const user = context.state.user = User.fromToken(context, email, token)
     await user.fillIdFromWinbind()
+    await user.addGroupLink
     context.log.info(user, 'Authenticated by token')
   } else if (context.cookies.get('token')) {
     try {
       const token = context.cookies.get('token')
       const user = context.state.user = User.fromCookie(context, token)
       await user.token
+      await user.addGroupLink
       context.log.info(user, 'Authenticated by cookie')
     } catch (error) {
       context.log.error(error, 'Error in cookie authentication')

@@ -12,7 +12,7 @@ const Home: React.FC = () => {
     <>
       <Box display="flex" flexWrap="wrap" paddingTop={5}>
         {clusters && _.map(clusters,'id').map((cluster) => (
-          <Box key={cluster} maxWidth={360} padding={1}>
+          <Box key={cluster} maxWidth={360}  padding={1}>
             <GPUCard cluster={cluster}/>
           </Box>
         ))}
