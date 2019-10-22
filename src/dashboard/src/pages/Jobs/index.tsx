@@ -94,13 +94,15 @@ const useStyles = makeStyles((theme: Theme) =>
 const Jobs: React.FC = (props: any) => {
   const classes = useStyles();
   const [value, setValue] = React.useState(0);
-  const [refresh, setRefresh] = React.useState(false);
+  const [refresh, setRefresh] = React.useState(window.navigator.userAgent.indexOf('Edge') == -1);
   useEffect(()=>{
     let mount = true;
     let timeout: any;
-    timeout = setTimeout(()=>{
-      setRefresh(true);
-    },1000);
+    if (window.navigator.userAgent.indexOf('Edge') != -1) {
+      timeout = setTimeout(()=>{
+        setRefresh(true);
+      },1000);
+    }
     return () => {
       mount = false;
       clearTimeout(timeout)
