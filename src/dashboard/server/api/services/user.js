@@ -8,7 +8,7 @@ const Service = require('./service')
 const Cluster = require('./cluster')
 
 const sign = config.get('sign')
-const winbind = config.get('winbind')
+const winbind = config.has('winbind') ? config.get('winbind') : undefined
 const masterToken = config.get('masterToken')
 const addGroupLink = config.get('AddGroupLink')
 const clusterIds = Object.keys(config.get('clusters'))
@@ -76,6 +76,11 @@ class User extends Service {
   }
 
   async fillIdFromWinbind () {
+    if (winbind == null) {
+      this.context.log.warn('No winbind server, user will have no uid / gid, and will not sync user info to any cluster.')
+      return null
+    }
+
     const params = new URLSearchParams({ userName: this.email })
     const url = `${winbind}/domaininfo/GetUserId?${params}`
     this.context.log.info({ url }, 'Winbind request')
@@ -89,6 +94,8 @@ class User extends Service {
   }
 
   async addUserToCluster (data) {
+    if (data == null) return
+
     // Fix groups format
     if (Array.isArray(data['groups'])) {
       data['groups'] = JSON.stringify(data['groups'].map(e => String(e)))
