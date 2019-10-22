@@ -631,7 +631,7 @@ const Jobs: React.FC = (props: any) => {
             ]}
             data={filterQueuedJobs(jobs)}
             options={{
-              filtering: true,
+              filtering: false,
               paging: false,
               pageSizeOptions:[10],
               pageSize:generatePageSize(filterQueuedJobs(jobs)),
