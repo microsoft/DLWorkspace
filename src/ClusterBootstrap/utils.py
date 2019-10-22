@@ -397,13 +397,12 @@ def gen_SSH_key(regenerate_key):
 
 
 def setup_backup_dir(pname):
-    deploy_backup_dir = "./deploy_backup"
+    deploy_backup_dir = os.path.abspath("./deploy_backup")
     backup_dir = os.path.join(deploy_backup_dir, "backup")
-
     pname = os.path.abspath(pname)
 
     pname_par = os.path.abspath(os.path.join(pname, os.pardir))
-    backup_dir_par = os.path.abspath(os.path.join(os.path.abspath(backup_dir), os.pardir))
+    backup_dir_par = os.path.abspath(os.path.join(backup_dir, os.pardir))
 
     assert pname_par != backup_dir_par
 
