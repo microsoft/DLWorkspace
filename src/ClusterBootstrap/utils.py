@@ -395,6 +395,22 @@ def gen_SSH_key(regenerate_key):
             f.write("clusterId : %s" % clusterID)
         f.close()
 
+
+def setup_backup_dir(pname):
+    deploy_backup_dir = "./deploy_backup"
+    backup_dir = os.path.join(deploy_backup_dir, "deploy")
+
+    if os.path.islink(backup_dir):
+        os.system("rm %s" % backup_dir)
+    else:
+        os.system("rm -rf %s" % backup_dir)
+
+    os.system("mkdir -p %s" % deploy_backup_dir)
+    os.system("ln -s %s %s" % (pname, backup_dir))
+
+    return backup_dir
+
+
 def execute_backup_and_encrypt(clusterName, fname, key):
     clusterID = get_cluster_ID_from_file()
     backupdir = "./deploy_backup/backup" 
@@ -410,10 +426,25 @@ def execute_backup_and_encrypt(clusterName, fname, key):
         os.system("openssl enc -aes-256-cbc -k %s -in %s.tar.gz -out %s.tar.gz.enc" % (key, fname, fname) )
         os.system("rm %s.tar.gz" % fname )
     os.system("rm -rf ./deploy_backup/backup")
-        
+
+
+def execute_backup_to_dir(pname):
+    os.system("mkdir -p %s" % pname)
+
+    backup_dir = setup_backup_dir(pname)
+
+    os.system("mkdir -p %s/clusterID" % backup_dir)
+    os.system("cp -r ./*.yaml %s" % backup_dir)
+    os.system("cp -r ./deploy/sshkey %s/sshkey" % backup_dir)
+    os.system("cp -r ./deploy/ssl %s/ssl" % backup_dir)
+    os.system("cp -r ./deploy/clusterID.yml %s/clusterID/" % backup_dir)
+    if os.path.exists("./deploy/acs_kubeclusterconfig"):
+        os.system("cp -r ./deploy/acs_kubeclusterconfig %s/" % backup_dir)
+
+
 def execute_restore_and_decrypt(fname, key):
     clusterID = get_cluster_ID_from_file()
-    backupdir = "./deploy_backup/backup" 
+    backupdir = "./deploy_backup/backup"
     os.system("mkdir -p %s" % backupdir)
     cleanup_command = ""
     if fname.endswith(".enc"):
@@ -436,6 +467,22 @@ def execute_restore_and_decrypt(fname, key):
     cleanup_command += "rm -rf ./deploy_backup/backup"
     os.system(cleanup_command)
 
+
+def execute_restore_from_dir(pname):
+    backup_dir = setup_backup_dir(pname)
+
+    os.system("rm ./*.yaml")
+    os.system("cp -v %s/*.yaml ." % backup_dir)
+    os.system("mkdir -p ./deploy/sshkey")
+    os.system("mkdir -p ./deploy/ssl" )
+    os.system("cp -r %s/sshkey/* ./deploy/sshkey" % backup_dir)
+    if os.path.exists("%s/ssl/kubelet" % backup_dir):
+        os.system("cp -r %s/ssl/* ./deploy/ssl" % backup_dir)
+    os.system("cp %s/clusterID/*.yml ./deploy/" % backup_dir)
+    if os.path.exists("%s/acs_kubeclusterconfig" % backup_dir):
+        os.system("cp -r %s/acs_kubeclusterconfig ./deploy/" % backup_dir)
+
+
 def backup_keys(clusterName, nargs=[] ):
     if len(nargs)<=0:
         clusterID = get_cluster_ID_from_file()
@@ -449,7 +496,14 @@ def backup_keys(clusterName, nargs=[] ):
             key = nargs[1]
         
     execute_backup_and_encrypt( clusterName, fname, key )
-    
+
+
+def backup_keys_to_dir(nargs):
+    assert len(nargs) > 0
+    pname = nargs[0]
+    execute_backup_to_dir(pname)
+
+
 def restore_keys( nargs ):
     if len(nargs)<=0:
         list_of_files = glob.glob("./deploy_backup/config*")
@@ -462,6 +516,12 @@ def restore_keys( nargs ):
         else:
             key = nargs[1]
     execute_restore_and_decrypt( fname, key )
+
+
+def restore_keys_from_dir(nargs):
+    assert len(nargs) > 0
+    pname = nargs[0]
+    execute_restore_from_dir(pname)
 
 
 def getIP(dnsname):

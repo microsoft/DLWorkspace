@@ -3042,6 +3042,9 @@ def run_command( args, command, nargs, parser ):
         utils.restore_keys(nargs)
         # Stop parsing additional command
         exit()
+    elif command == "restorefromdir":
+        utils.restore_keys_from_dir(nargs)
+        exit()
 
     # Cluster Config
     config_cluster = os.path.join(dirpath,"cluster.yaml")
@@ -3145,13 +3148,20 @@ def run_command( args, command, nargs, parser ):
                 parser.print_help()
                 print "ERROR: cannot find any node of the type to connect to"
                 exit()
+
             num = 0
+            nodename = None
             if len(nargs) >= 2:
-                num = int(nargs[1])
-                if num < 0 or num >= len(nodes):
-                    num = 0
-            nodename = nodes[num]
-            utils.SSH_connect( config["ssh_cert"], config["admin_username"], nodename)
+                try:
+                    num = int(nargs[1])
+                    if num < 0 or num >= len(nodes):
+                        num = 0
+                except ValueError:
+                    nodename = get_node_full_name(nargs[1])
+
+            if nodename is None:
+                nodename = nodes[num]
+            utils.SSH_connect(config["ssh_cert"], config["admin_username"], nodename)
             exit()
 
     elif command == "deploy" and "clusterId" in config:
@@ -3757,6 +3767,9 @@ def run_command( args, command, nargs, parser ):
     elif command == "backup":
         utils.backup_keys(config["cluster_name"], nargs)
 
+    elif command == "backuptodir":
+        utils.backup_keys_to_dir(nargs)
+
     elif command == "nginx":
         if len(nargs)>=1:
             configuration( config, verbose )
@@ -4003,8 +4016,12 @@ Command:
             kubelet: download kubelet/kubectl.
   backup    [fname] [key] Backup configuration & encrypt, fname is the backup file without surfix.
             If key exists, the backup file will be encrypted.
+  backuptodir    [pname] Backup configuration to a directory pname. Directory will be created
+                 if absent, and symlinked to ./deploy_backup/backup.
   restore   [fname] [key] Decrypt & restore configuration, fname is the backup file with surfix.
             If the backup file is encrypted, a key needs to be provided to decrypt the configuration.
+  restorefromdir [pname] Restore configuration from a directory pname. The directory will be symlinked
+                 to ./deploy_backup/backup for restoration.
   etcd      [args] manage etcd server.
             check: check ETCD service.
   kubernetes [args] manage kubelet services on the cluster.
