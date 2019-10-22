@@ -101,9 +101,9 @@ const Chart: React.FC<{
     const cos = Math.cos(-RADIAN * midAngle);
     const sx = cx + (outerRadius + 10) * cos;
     const sy = cy + (outerRadius + 10) * sin;
-    const mx = cx + (outerRadius + 30) * cos;
-    const my = cy + (outerRadius + 30) * sin;
-    const ex = mx + (cos >= 0 ? 1 : -1) * 22;
+    const mx = cx + (outerRadius + 20) * cos;
+    const my = cy + (outerRadius + 20) * sin;
+    const ex = mx + (cos >= 0 ? 1 : -1) * 8;
     const ey = my;
     const textAnchor = cos >= 0 ? 'start' : 'end';
 
@@ -128,11 +128,9 @@ const Chart: React.FC<{
           outerRadius={outerRadius + 10}
           fill={fill}
         />
-        <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={fill} fill="none"/>
-        <circle cx={ex} cy={ey} r={2} fill={fill} stroke="none"/>
         <text x={ex + (cos >= 0 ? 1 : -1) * 12} y={ey} textAnchor={textAnchor} fill="#333">{`${value}`}</text>
         <text x={ex + (cos >= 0 ? 1 : -1) * 12} y={ey} dy={18} textAnchor={textAnchor} fill="#999">
-          {`(${(percent * 100).toFixed(2)}%)`}
+          {`(${(Math.round(percent * 100))}%)`}
         </text>
       </g>
     );
@@ -143,7 +141,7 @@ const Chart: React.FC<{
   }
   return (
     <>
-      <ResponsiveContainer  aspect={16/10} height={300} width='100%'>
+      <ResponsiveContainer aspect={8 / 8} width='100%' height='100%'>
         <PieChart>
           <Pie
             dataKey="value"
@@ -151,8 +149,8 @@ const Chart: React.FC<{
             activeIndex={activeIndex}
             activeShape={renderActiveShape}
             data={data}
-            cx={210}
-            // cy={200}
+            cx={170}
+            cy={165}
             innerRadius={60}
             outerRadius={80}
             fill="#8884d8"
