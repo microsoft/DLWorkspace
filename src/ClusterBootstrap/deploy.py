@@ -889,15 +889,22 @@ def deploy_master(kubernetes_master):
 def get_cni_binary():
     os.system("mkdir -p ./deploy/bin")
     # This tar file contains binary build from https://github.com/containernetworking/cni which used by weave
-    urllib.urlretrieve("https://github.com/microsoft/DLWorkspace/releases/download/v1.2.0/cni-v0.7.1.tgz", "./deploy/bin/cni-v0.7.1.tgz")
+    #urllib.urlretrieve("https://github.com/microsoft/DLWorkspace/releases/download/v1.2.0/cni-v0.7.1.tgz", "./deploy/bin/cni-v0.7.1.tgz")
+    copy_from_docker_image(config["dockers"]["container"]["binstore"]["fullname"], "/data/cni/cni-v0.7.1.tgz", "./deploy/bin/cni-v0.7.1.tgz")
     if verbose:
         print "Extracting CNI binaries"
     os.system("tar -zxvf ./deploy/bin/cni-v0.7.1.tgz -C ./deploy/bin")
 
 
+def get_other_binary():
+    os.system("mkdir -p ./deploy/bin/other/easy-rsa/")
+    copy_from_docker_image(config["dockers"]["container"]["binstore"]["fullname"], "/data/easy-rsa/v3.0.5.tar.gz", "./deploy/bin/other/easy-rsa/v3.0.5.tar.gz")
+    copy_from_docker_image(config["dockers"]["container"]["binstore"]["fullname"], "/data/cfssl/linux/cfssl", "./deploy/bin/other/cfssl")
+    copy_from_docker_image(config["dockers"]["container"]["binstore"]["fullname"], "/data/cfssl/linux/cfssljson", "./deploy/bin/other/cfssljson")    
 def get_kubectl_binary(force = False):
     get_hyperkube_docker(force = force)
     get_cni_binary()
+    get_other_binary()
 
 def get_hyperkube_docker(force = False) :
     os.system("mkdir -p ./deploy/bin")
@@ -1323,6 +1330,7 @@ def deploy_restful_API_on_node(ipAddress):
     if config["isacs"]:
         # copy needed keys
         utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP, "sudo mkdir -p /etc/kubernetes/ssl")
+        utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP, "sudo chown -R %s /etc/kubernetes" % config["admin_username"])
         utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP, "sudo cp /etc/kubernetes/certs/client.crt /etc/kubernetes/ssl/apiserver.pem")
         utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP, "sudo cp /etc/kubernetes/certs/client.key /etc/kubernetes/ssl/apiserver-key.pem")
         utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP, "sudo cp /etc/kubernetes/certs/ca.crt /etc/kubernetes/ssl/ca.pem")
@@ -2638,13 +2646,13 @@ def deploy_ETCD_master(force = False):
                 gen_master_certificates()
                 deploy_masters(force)
 
-            response = raw_input_with_default("Allow Workers to register (y/n)?")
-            if first_char(response) == "y":
+            #response = raw_input_with_default("Allow Workers to register (y/n)?")
+            #if first_char(response) == "y":
 
-                urllib.urlretrieve (config["homeinserver"]+"/SetClusterInfo?clusterId=%s&key=etcd_endpoints&value=%s" %  (config["clusterId"],config["etcd_endpoints"]))
-                urllib.urlretrieve (config["homeinserver"]+"/SetClusterInfo?clusterId=%s&key=api_server&value=%s" % (config["clusterId"],config["api_servers"]))
-                return True
-            return False
+            #    urllib.urlretrieve (config["homeinserver"]+"/SetClusterInfo?clusterId=%s&key=etcd_endpoints&value=%s" %  (config["clusterId"],config["etcd_endpoints"]))
+            #    urllib.urlretrieve (config["homeinserver"]+"/SetClusterInfo?clusterId=%s&key=api_server&value=%s" % (config["clusterId"],config["api_servers"]))
+            #    return True
+            #return False
 
 #            response = raw_input_with_default("Create ISO file for deployment (y/n)?")
 #            if first_char(response) == "y":
@@ -2653,7 +2661,7 @@ def deploy_ETCD_master(force = False):
 #            response = raw_input_with_default("Create PXE docker image for deployment (y/n)?")
 #            if first_char(response) == "y":
 #                create_PXE()
-
+            return True
         else:
             print "Cannot deploy cluster since there are insufficient number of etcd server or master server. \n To continue deploy the cluster we need at least %d etcd server(s)" % (int(config["etcd_node_num"]))
             return False

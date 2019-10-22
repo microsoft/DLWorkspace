@@ -596,6 +596,7 @@ default_config_parameters = {
             "mysql":{"fullname":"dlws/mysql:5.6"},
             "phpmyadmin":{"fullname":"dlws/phpmyadmin:4.7.6"},
             "fluentd-elasticsearch":{"fullname":"dlws/fluentd-elasticsearch:v2.0.2"},
+            "binstore":{"fullname":"dlws/binstore:v1.0"},
 
         },
         "infrastructure": {
