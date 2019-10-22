@@ -28,33 +28,6 @@ posTeamData['Targaryen'] = {
   }]
 }
 
-// team data for the first wrong format negative case
-const negTeamData1 = Object.create(null)
-
-negTeamData1['Universe'] = {
-  result: [{
-    vcName: 'Universe',
-    admin: 'AdminUniverse',
-    metadata: 'wrong format',
-    quota: 'wrong format'
-  }]
-}
-
-negTeamData1['Targaryen'] = {
-  result: [{
-    vcName: 'Targaryen',
-    admin: 'AdminTargaryen',
-    metadata: 'wrong format',
-    quota: 'wrong format'
-  }]
-}
-
-// team data for the second empty team case
-const negTeamData2 = Object.create(null)
-
-negTeamData2['Universe'] = {result: {}}
-negTeamData2['Targaryen'] = {result: {}}
-
 const userParams = {
   email: 'dlts@example.com',
   token: User.generateToken('dlts@example.com').toString('hex')
@@ -85,9 +58,19 @@ describe('GET /teams', () => {
 
   it('[N-01]: should return empty gpus info with incorrect metadata or quota format', async () => {
     for(let key in clusterConfig) {
+      // team data for the wrong format negative case
+      const negTeamData = {
+        result: [{
+          vcName: key,
+          admin: `Admin${key}`,
+          metadata: 'wrong format',
+          quota: 'wrong format'
+        }]
+      }
+
       nock(clusterConfig[key]['restfulapi'])
         .get('/ListVCs?' + fetchParams)
-        .reply(200, negTeamData1[key])
+        .reply(200, negTeamData)
     }
     sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
@@ -103,9 +86,14 @@ describe('GET /teams', () => {
 
   it('[N-02]: response data should be empty when there is a server error', async () => {
     for(let key in clusterConfig) {
+      // team data for the empty data case
+      const negTeamData = {
+        result: {}
+      }
+
       nock(clusterConfig[key]['restfulapi'])
         .get('/ListVCs?' + fetchParams)
-        .reply(200, negTeamData2[key])
+        .reply(500, negTeamData)
     }
     sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
