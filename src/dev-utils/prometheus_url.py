@@ -31,7 +31,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Generate prometheus api url for dev")
     parser.add_argument("query", help="query to prometheus")
-    parser.add_argument("--prometheus_url", "-p", default="http://dltseastusv100lowpriority-infra01.eastus.cloudapp.azure.com:9091",
+    parser.add_argument("--prometheus_url", "-p", default="http://127.0.0.1:9091",
             help="Prometheus url, eg: http://127.0.0.1:9091")
 
     now = datetime.datetime.now()
