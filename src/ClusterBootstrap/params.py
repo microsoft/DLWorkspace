@@ -829,4 +829,6 @@ scriptblocks = {
         "docker push gobld",
         "docker push kubernetes",
     ],
+
+    "infiniband_mounts": []
 }

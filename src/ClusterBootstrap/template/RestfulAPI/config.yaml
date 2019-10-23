@@ -50,3 +50,5 @@ job-manager:
     {% endif %}
   {% endif %}
 {% endif %}
+
+infiniband_mounts: {{cnf["infiniband_mounts"]}}
