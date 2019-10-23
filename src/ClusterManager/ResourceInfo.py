@@ -42,3 +42,6 @@ class ResourceInfo:
             if otherResourceInfo.CategoryToCountMap[key] > 0:
                 self.CategoryToCountMap[key] -= otherResourceInfo.CategoryToCountMap[key]
         return self
+
+    def __repr__(self):
+        return str(self.CategoryToCountMap)

@@ -30,11 +30,11 @@ handlers:
 
 loggers:
     unittest_module:
-        level: INFO
+        level: DEBUG
         handler: [console]
         propagate: no
 
 
 root:
-    level: INFO
+    level: DEBUG
     handlers: [console]

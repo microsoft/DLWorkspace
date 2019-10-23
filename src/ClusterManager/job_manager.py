@@ -6,6 +6,7 @@ import sys
 import datetime
 import functools
 import timeit
+import collections
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
@@ -20,8 +21,7 @@ from DataHandler import DataHandler
 from node_manager import get_cluster_status
 import base64
 from ResourceInfo import ResourceInfo
-
-import re
+import quota
 
 from prometheus_client import Histogram
 
@@ -328,29 +328,48 @@ def get_job_priority(priority_dict, job_id):
 
 @record
 def TakeJobActions(launcher, jobs):
-    dataHandler = DataHandler()
-    vcList = dataHandler.ListVCs()
-    clusterStatus, _ = dataHandler.GetClusterStatus()
-    dataHandler.Close()
+    data_handler = DataHandler()
 
-    cluster_gpu_capacity = clusterStatus["gpu_capacity"]
-    cluster_gpu_reserved = clusterStatus["gpu_reserved"]
-    globalTotalRes = ResourceInfo(cluster_gpu_capacity)
-    globalReservedRes = ResourceInfo(cluster_gpu_reserved)
+    vc_list = data_handler.ListVCs()
+    cluster_status, _ = data_handler.GetClusterStatus()
+    cluster_total = cluster_status["gpu_capacity"]
+    cluster_available = cluster_status["gpu_avaliable"]
+    cluster_reserved = cluster_status["gpu_reserved"]
+
+    vc_info = {}
+    vc_usage = collections.defaultdict(lambda :
+            collections.defaultdict(lambda : 0))
+
+    for vc in vc_list:
+        vc_info[vc["vcName"]] = json.loads(vc["quota"])
+
+    active_job_list = data_handler.GetActiveJobList()
+    for job in active_job_list:
+        jobParam = json.loads(base64.b64decode(job["jobParams"]))
+        if "gpuType" in jobParam:
+            vc_usage[job["vcName"]][jobParam["gpuType"]] += GetJobTotalGpu(jobParam)
+
+    result = quota.calculate_vc_gpu_counts(cluster_total, cluster_available,
+            cluster_reserved, vc_info, vc_usage)
+    vc_total, vc_used, vc_available, vc_unschedulable = result
+
+    cluster_gpu_capacity = cluster_status["gpu_capacity"]
+    cluster_gpu_unschedulable = cluster_status["gpu_unschedulable"]
+    global_total = ResourceInfo(cluster_gpu_capacity)
+    global_unschedulable = ResourceInfo(cluster_gpu_unschedulable)
 
     vc_resources = {}
-    localResInfo = ResourceInfo()
-    globalResInfo = ResourceInfo.Difference(globalTotalRes, globalReservedRes)
+    globalResInfo = ResourceInfo.Difference(global_total, global_unschedulable)
 
     priority_dict = get_priority_dict()
     logging.info("Job priority dict: {}".format(priority_dict))
 
-    for vc in vcList:
-        vcTotalRes = ResourceInfo(json.loads(vc["quota"]))
-        clusterTotalRes = ResourceInfo(clusterStatus["gpu_capacity"])
-        clusterReservedRes = ResourceInfo(clusterStatus["gpu_reserved"])
-        vcReservedRes = clusterReservedRes.GetFraction(vcTotalRes, clusterTotalRes)
-        vc_resources[vc["vcName"]] = ResourceInfo.Difference(vcTotalRes, vcReservedRes)
+    for vc in vc_list:
+        vc_name = vc["vcName"]
+        vc_schedulable = {}
+        for gpu_type, total in vc_total[vc_name].items():
+            vc_schedulable[gpu_type] = total - vc_unschedulable[vc_name][gpu_type]
+        vc_resources[vc_name] = ResourceInfo(vc_schedulable)
 
     jobsInfo = []
     for job in jobs:
