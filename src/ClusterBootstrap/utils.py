@@ -169,7 +169,7 @@ def sudo_scp (identity_file, source, target, user, host,changePermission=False, 
     if changePermission:
         cmd += " ; sudo chmod +x %s" % target
     # Force converting to dos format
-    cmd += " ; command -v dos2unix || sudo apt-get update && sudo apt-get install -y dos2unix; sudo dos2unix %s" % target
+    cmd += " ; sudo dos2unix %s" % target
     if verbose:
         print cmd
     SSH_exec_cmd(identity_file, user, host, cmd, verbose)
