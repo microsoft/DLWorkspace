@@ -835,7 +835,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
                         continue
 
                     if server_name not in fullynamed_nfs:
-                        cc["nfs_disk_mnt"][server_name]["fileshares"] += mntcnf["filesharename"]
+                        cc["nfs_disk_mnt"][server_name]["fileshares"] += mntcnf["filesharename"],
                     cc["mountpoints"][mntname] = mntcnf
                     cc["mountpoints"][mntname]["type"] = "nfs"
                     cc["mountpoints"][mntname]["server"] = server_ip
