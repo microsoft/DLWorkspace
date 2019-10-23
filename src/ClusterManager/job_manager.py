@@ -334,7 +334,7 @@ def TakeJobActions(launcher, jobs):
     cluster_status, _ = data_handler.GetClusterStatus()
     cluster_total = cluster_status["gpu_capacity"]
     cluster_available = cluster_status["gpu_avaliable"]
-    cluster_unschedulable = cluster_status["gpu_unschedulable"]
+    cluster_reserved = cluster_status["gpu_reserved"]
 
     vc_info = {}
     vc_usage = collections.defaultdict(lambda :
@@ -350,7 +350,7 @@ def TakeJobActions(launcher, jobs):
             vc_usage[job["vcName"]][jobParam["gpuType"]] += GetJobTotalGpu(jobParam)
 
     result = quota.calculate_vc_gpu_counts(cluster_total, cluster_available,
-            cluster_unschedulable, vc_info, vc_usage)
+            cluster_reserved, vc_info, vc_usage)
     vc_total, vc_used, vc_available, vc_unschedulable = result
 
     cluster_gpu_capacity = cluster_status["gpu_capacity"]
@@ -366,10 +366,10 @@ def TakeJobActions(launcher, jobs):
 
     for vc in vc_list:
         vc_name = vc["vcName"]
-        vc_allocable = {}
+        vc_schedulable = {}
         for gpu_type, total in vc_total[vc_name].items():
-            vc_allocable[gpu_type] = total - vc_unschedulable[vc_name][gpu_type]
-        vc_resources[vc_name] = ResourceInfo(vc_allocable)
+            vc_schedulable[gpu_type] = total - vc_unschedulable[vc_name][gpu_type]
+        vc_resources[vc_name] = ResourceInfo(vc_schedulable)
 
     jobsInfo = []
     for job in jobs:

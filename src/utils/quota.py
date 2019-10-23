@@ -43,7 +43,10 @@ def calculate_vc_gpu_counts(cluster_total, cluster_available, cluster_unschedula
 
     for vc_name, gpu_info in vc_info.items():
         for gpu_type, quota in gpu_info.items():
-            unschedulable = float(cluster_unschedulable.get(gpu_type, 0)) * quota / vc_quota_sum
+            if vc_quota_sum == 0:
+                unschedulable = 0
+            else:
+                unschedulable = float(cluster_unschedulable.get(gpu_type, 0)) * quota / vc_quota_sum
             vc_quota = quota - int(math.ceil(unschedulable))
 
             used = vc_usage.get(vc_name, {}).get(gpu_type, 0)
@@ -61,7 +64,10 @@ def calculate_vc_gpu_counts(cluster_total, cluster_available, cluster_unschedula
         for gpu_type, cur_ratio in gpu_info.items():
             if vc_usage.get(vc_name, {}).get(gpu_type, 0) == 0:
                 # no job running in this vc.
-                available = int(math.floor(cluster_available.get(gpu_type, 0) * cur_ratio / ratio_sum))
+                if ratio_sum == 0:
+                    available = 0
+                else:
+                    available = int(math.floor(cluster_available.get(gpu_type, 0) * cur_ratio / ratio_sum))
                 quota = vc_info[vc_name][gpu_type]
 
                 vc_used[vc_name][gpu_type] = 0
@@ -80,7 +86,10 @@ def calculate_vc_gpu_counts(cluster_total, cluster_available, cluster_unschedula
 
             cur_ratio = ratio[vc_name][gpu_type]
             quota = vc_info[vc_name][gpu_type]
-            available = math.floor(cluster_available.get(gpu_type, 0) * cur_ratio / ratio_sum)
+            if ratio_sum == 0:
+                available = 0
+            else:
+                available = int(math.floor(cluster_available.get(gpu_type, 0) * cur_ratio / ratio_sum))
             vc_used[vc_name][gpu_type] = vc_usage
             vc_available[vc_name][gpu_type] = available
             vc_unschedulable[vc_name][gpu_type] = quota - vc_usage - available

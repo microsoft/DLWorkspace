@@ -446,7 +446,7 @@ def parse_node_item(node, pai_node_gauge,
             cluster_gpu_info.allocatable += gpu_allocatable
         else:
             node_gpu_avail.add_metric([ip], 0)
-            node_gpu_allocatable.add_metric([ip], 0)
+            node_gpu_allocatable.add_metric([ip], used_gpu)
     else:
         logger.warning("unexpected structure of node %s: %s", ip, json.dumps(node))
 
@@ -561,7 +561,10 @@ def gen_vc_metrics(vc_info, vc_usage, cluster_gpu_info):
 
         for vc_name, gpu_info in vc_info.items():
             for gpu_type, quota in gpu_info.items():
-                vc_quota = quota - math.ceil(gpu_unallocatable * quota / vc_quota_sum)
+                if vc_quota_sum == 0:
+                    vc_quota = 0
+                else:
+                    vc_quota = int(quota - math.ceil(gpu_unallocatable * quota / vc_quota_sum))
                 used = vc_usage.map[vc_name][gpu_type][0]
 
                 ratio[vc_name][gpu_type] = max(vc_quota - used, 0)
@@ -576,7 +579,10 @@ def gen_vc_metrics(vc_info, vc_usage, cluster_gpu_info):
                 if vc_name not in vc_usage.map or gpu_type not in vc_usage.map[vc_name]:
                     labels = [vc_name, gpu_type]
                     # no job running in this vc or using this gpu type
-                    available = math.floor(cluster_gpu_info.available * cur_ratio / ratio_sum)
+                    if ratio_sum == 0:
+                        available = 0
+                    else:
+                        available = int(math.floor(cluster_gpu_info.available * cur_ratio / ratio_sum))
                     quota = vc_info[vc_name][gpu_type]
                     vc_avail_gauge.add_metric(labels, available)
                     vc_preemptive_avail_gauge.add_metric(labels, available)
@@ -596,7 +602,10 @@ def gen_vc_metrics(vc_info, vc_usage, cluster_gpu_info):
 
                 cur_ratio = ratio[vc_name][gpu_type]
                 quota = vc_info[vc_name][gpu_type]
-                available = math.floor(cluster_gpu_info.available * cur_ratio / ratio_sum)
+                if ratio_sum == 0:
+                    available = 0
+                else:
+                    available = int(math.floor(cluster_gpu_info.available * cur_ratio / ratio_sum))
                 total_used, non_preemptable_used = vc_used
                 vc_avail_gauge.add_metric(labels, available)
                 vc_preemptive_avail_gauge.add_metric(labels,

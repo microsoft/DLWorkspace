@@ -516,7 +516,7 @@ def GetVC(userName, vcName):
     cluster_status, _ = data_handler.GetClusterStatus()
     cluster_total = cluster_status["gpu_capacity"]
     cluster_available = cluster_status["gpu_avaliable"]
-    cluster_unschedulable = cluster_status["gpu_unschedulable"]
+    cluster_reserved = cluster_status["gpu_reserved"]
 
     user_status = collections.defaultdict(lambda : ResourceInfo())
 
@@ -535,7 +535,7 @@ def GetVC(userName, vcName):
             vc_usage[job["vcName"]][jobParam["gpuType"]] += GetJobTotalGpu(jobParam)
 
     result = quota.calculate_vc_gpu_counts(cluster_total, cluster_available,
-            cluster_unschedulable, vc_info, vc_usage)
+            cluster_reserved, vc_info, vc_usage)
 
     vc_total, vc_used, vc_available, vc_unschedulable = result
 

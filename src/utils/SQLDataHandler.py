@@ -712,6 +712,30 @@ class DataHandler(object):
         return ret
 
     @record
+    def GetActiveJobList(self):
+        ret = []
+        cursor = self.conn.cursor()
+        try:
+            query = "SELECT [jobId], [userName], [vcName], [jobParams], [jobStatus] FROM [%s] WHERE [jobStatus] = 'scheduling' OR [jobStatus] = 'running'" % (self.jobtablename)
+
+            cursor.execute(query)
+            data = cursor.fetchall()
+
+            for (jobId,userName,vcName,jobParams,jobStatus) in data:
+                record = {}
+                record["jobId"] = jobId
+                record["userName"] = userName
+                record["vcName"] = vcName
+                record["jobParams"] = jobParams
+                record["jobStatus"] = jobStatus
+                ret.append(record)
+        except Exception as e:
+            logger.error('Exception: %s', str(e))
+        self.conn.commit()
+        cursor.close()
+        return ret
+
+    @record
     def GetJob(self, **kwargs):
         valid_keys = ["jobId", "familyToken", "isParent", "jobName", "userName", "vcName", "jobStatus", "jobType", "jobTime"]
         if len(kwargs) != 1: return []
