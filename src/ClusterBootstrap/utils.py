@@ -168,6 +168,8 @@ def sudo_scp (identity_file, source, target, user, host,changePermission=False, 
         cmd = "sudo mkdir -p %s ; sudo rm -r %s/*; sudo mv ~/%s/* %s; sudo rm -rf ~/%s" % (target, target, tmp, target, tmp)
     if changePermission:
         cmd += " ; sudo chmod +x %s" % target
+    # Force converting to dos format
+    cmd += " ; command -v dos2unix || sudo apt-get update && sudo apt-get install -y dos2unix; sudo dos2unix %s" % target
     if verbose:
         print cmd
     SSH_exec_cmd(identity_file, user, host, cmd, verbose)
