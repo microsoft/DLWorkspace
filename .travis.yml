@@ -6,7 +6,7 @@ matrix:
     script: "cd docs && bundle install && bundle exec jekyll build"
   - language: node_js
     node_js: lts/*
-    script:
-    - cd src/dashboard
-    - yarn
-    - npm run coverage:backend
+    before_install: cd src/dashboard
+    install: yarn --frozen-lockfile
+    script: npm run coverage:backend
+    after_success: npx nyc report --reporter=text-lcov | npx coveralls
