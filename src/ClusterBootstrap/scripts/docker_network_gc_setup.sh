@@ -9,9 +9,9 @@ grep -xF "net.ipv4.neigh.default.gc_interval = 3600" /tmp/sysctl.conf || echo "n
 grep -xF "net.ipv4.neigh.default.gc_stale_time = 3600" /tmp/sysctl.conf || echo "net.ipv4.neigh.default.gc_stale_time = 3600" | sudo tee -a  /tmp/sysctl.conf
 
 # Setup DNS threshold for arp
-grep -xF "net.ipv4.neigh.default.gc_thresh3 = 8192" /tmp/sysctl.conf || echo "net.ipv4.neigh.default.gc_thresh3 = 4096" | sudo tee -a /tmp/sysctl.conf
-grep -xF "net.ipv4.neigh.default.gc_thresh2 = 2048" /tmp/sysctl.conf || echo "net.ipv4.neigh.default.gc_thresh2 = 2048" | sudo tee -a /tmp/sysctl.conf
-grep -xF "net.ipv4.neigh.default.gc_thresh1 = 1024" /tmp/sysctl.conf || echo "net.ipv4.neigh.default.gc_thresh1 = 1024" | sudo tee -a /tmp/sysctl.conf
+grep -xF "net.ipv4.neigh.default.gc_thresh3 = 8192" /tmp/sysctl.conf || echo "net.ipv4.neigh.default.gc_thresh3 = 8192" | sudo tee -a /tmp/sysctl.conf
+grep -xF "net.ipv4.neigh.default.gc_thresh2 = 4096" /tmp/sysctl.conf || echo "net.ipv4.neigh.default.gc_thresh2 = 4096" | sudo tee -a /tmp/sysctl.conf
+grep -xF "net.ipv4.neigh.default.gc_thresh1 = 2048" /tmp/sysctl.conf || echo "net.ipv4.neigh.default.gc_thresh1 = 2048" | sudo tee -a /tmp/sysctl.conf
 
 sudo cp /tmp/sysctl.conf /etc/sysctl.conf
 
