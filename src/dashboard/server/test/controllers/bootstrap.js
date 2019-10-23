@@ -24,7 +24,8 @@ describe('GET /bootstrap.js', () => {
     })
     response.headers['content-type'].should.startWith('application/javascript')
     const content = JSON.parse(trimBootstrap(response.data))
-    should(content).be.deepEqual(user)
+    should(content).be.have.properties(user)
+      .and.have.property('addGroupLink', 'http://add-group/')
   })
 
   it('should response undefined if unauthenticated', async () => {
