@@ -634,7 +634,6 @@ default_config_parameters = {
         "VC-Default":["*"],
     },
     "registry_credential": {},
-    "domain_name": "redmond.corp.microsoft.com",
     "priority": "regular",
     "sku_mapping": {
         "Standard_ND6s":{"gpu-type": "P40","gpu-count": 1},

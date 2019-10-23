@@ -745,7 +745,20 @@ def gen_ETCD_certificates():
     utils.render_template_directory("./template/ssl", "./deploy/ssl",config)
     os.system("cd ./deploy/ssl && bash ./gencerts_etcd.sh")
 
-
+def gen_platform_wise_config():
+    azdefault = {'network_domain':"config['network']['domain']", 
+        'worker_node_num':"config['azure_cluster'][config['cluster_name']]['worker_node_num']", 
+        'gpu_count_per_node':'config["sku_mapping"].get(config["azure_cluster"][config["cluster_name"]]["worker_vm_size"],config["sku_mapping"]["default"]["gpu-count"])',
+        'gpu_type':'config["sku_mapping"].get(config["azure_cluster"][config["cluster_name"]]["worker_vm_size"],config["sku_mapping"]["default"]["gpu-type"])'}
+    platform_crit = {'azure_cluster':azdefault}
+    for ky, val in platform_crit.items():
+        if ky in config:
+            default_dict = val
+    need_val = ['network_domain', 'worker_node_num', 'gpu_count_per_node', 'gpu_type']
+    for ky in need_val:
+        config[ky] = config.get(ky, eval(default_dict[ky]))
+        # print(config[ky])
+    utils.render_template("./template/RestfulAPI/config.yaml","./deploy/RestfulAPI/config.yaml",config)
 
 def gen_configs():
     print "==============================================="
@@ -803,6 +816,7 @@ def gen_configs():
     add_ssh_key()
 
     check_config(config)
+    gen_platform_wise_config()
 
     utils.render_template_directory("./template/etcd", "./deploy/etcd",config)
     utils.render_template_directory("./template/master", "./deploy/master",config)
@@ -3739,6 +3753,7 @@ def run_command( args, command, nargs, parser ):
         kubernetes_label_GpuTypes()
 
     elif command == "genscripts":
+        gen_platform_wise_config()
         gen_dns_config_script()
         gen_pass_secret_script()
         gen_warm_up_cluster_script()
