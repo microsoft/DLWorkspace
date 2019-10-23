@@ -844,6 +844,7 @@ def gen_configs():
     add_ssh_key()
 
     check_config(config)
+    gen_platform_wise_config()
 
     utils.render_template_directory("./template/etcd", "./deploy/etcd",config)
     utils.render_template_directory("./template/master", "./deploy/master",config)
@@ -3777,6 +3778,7 @@ def run_command( args, command, nargs, parser ):
         kubernetes_label_GpuTypes()
 
     elif command == "genscripts":
+        gen_platform_wise_config()
         gen_dns_config_script()
         gen_pass_secret_script()
         gen_warm_up_cluster_script()
