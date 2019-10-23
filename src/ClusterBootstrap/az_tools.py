@@ -800,6 +800,17 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
             assert len(nfs_names2ip) >= len(config["azure_cluster"]["nfs_vm"]) and "More NFS config items than #. of NFS server"
             suffix2used_nfs = {suffix: "{}-nfs-{}".format(config["cluster_name"], suffix).lower() for suffix in used_nfs_suffix}
             fullynamed_nfs = set([nfs_cnf["server_name"] for nfs_cnf in config["nfs_mnt_setup"] if "server_name" in nfs_cnf])
+
+            # add private IP for fully named NFS to nfs_names2ip map
+            for nfs_vm in fullynamed_nfs:
+                nfs_vm_ip = None
+                for vm_ip_name in vm_ip_names:
+                    if vm_ip_name["name"] == nfs_vm:
+                        nfs_vm_ip = vm_ip_name["privateIP"][0]
+                        break
+                assert nfs_vm_ip is not None, "Fully named NFS %s doesn't exist!" % nfs_vm
+                nfs_names2ip[nfs_vm] = nfs_vm_ip
+
             # unused, either node without name suffix or those with suffix but not specified in any nfs_svr_setup item
             unused_nfs = sorted([s for s in nfs_names2ip.keys() if s not in suffix2used_nfs.values() and s not in fullynamed_nfs])
             unused_ID_cnt = 0
@@ -822,7 +833,9 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
                     if mntname in cc["mountpoints"]:
                         print("Warning, duplicated mountpoints item name {}, skipping".format(mntname))
                         continue
-                    cc["nfs_disk_mnt"][server_name]["fileshares"] += mntcnf["filesharename"],
+
+                    if server_name not in fullynamed_nfs:
+                        cc["nfs_disk_mnt"][server_name]["fileshares"] += mntcnf["filesharename"]
                     cc["mountpoints"][mntname] = mntcnf
                     cc["mountpoints"][mntname]["type"] = "nfs"
                     cc["mountpoints"][mntname]["server"] = server_ip
