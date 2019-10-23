@@ -30,7 +30,8 @@ yes | sudo apt-get install -y --no-install-recommends \
         ca-certificates \
         vim \
         sudo \
-        nfs-common
+        nfs-common \
+        dos2unix
         
 
 yes | sudo apt-get install -y bison curl parted

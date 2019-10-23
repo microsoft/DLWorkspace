@@ -3600,10 +3600,6 @@ def run_command( args, command, nargs, parser ):
             all_nodes = get_nodes(config["clusterId"])
             allmountpoints, fstab = get_mount_fileshares()
             link_fileshares(allmountpoints, args.force)
-        elif nargs[0] == "dltsdata":
-            fileshare_install()
-            allmountpoints = mount_fileshares_by_service(True)
-            link_fileshares(allmountpoints, bForce=args.force, dltsdata=True)
         else:
             parser.print_help()
             print "Error: mount subcommand %s is not recognized " % nargs[0]
