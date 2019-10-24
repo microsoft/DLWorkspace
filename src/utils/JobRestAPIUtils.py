@@ -212,7 +212,17 @@ def SubmitJob(jobParamsJsonStr):
         if dataHandler.AddJob(jobParams):
             ret["jobId"] = jobParams["jobId"]
             if "jobPriority" in jobParams:
-                job_priorites = {jobParams["jobId"]:jobParams["jobPriority"]}
+                priorityValue = 100
+                try:
+                    priorityValue = int(jobParams["jobPriority"])
+                except Exception as e:
+                    pass
+                if priorityValue > 200:
+                    priorityValue = 200
+                elif priorityValue < 100:
+                    priorityValue = 100
+
+                job_priorites = {jobParams["jobId"]:priorityValue}
                 update_job_priorites(job_priorites)
         else:
             ret["error"] = "Cannot schedule job. Cannot add job into database."
