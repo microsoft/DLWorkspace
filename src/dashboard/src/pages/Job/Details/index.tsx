@@ -107,7 +107,7 @@ const JobDetails: React.FC<Props> = ({ clusterId, jobId, job, team }) => {
             <Container maxWidth={isDesktop ? 'lg' : 'xs'} ><Brief/></Container>
           </DLTSTabPanel>
           <DLTSTabPanel value={value} index={1} dir={theme.direction}>
-            { refresh ? (job['jobStatus'] !== 'pausing' && job['jobStatus'] !== 'paused') &&  <Container maxWidth={isDesktop ? 'lg' : 'xs'} ><Endpoints setOpen={setshowOpen}/></Container> :  <CircularProgress/>}
+            { refresh ? (job['jobStatus'] !== 'pausing' && job['jobStatus'] !== 'paused') &&  <Container maxWidth={isDesktop ? 'lg' : 'xs'} ><Endpoints setOpen={setshowOpen} status={job['jobStatus']}/></Container> :  <CircularProgress/>}
           </DLTSTabPanel>
           <DLTSTabPanel value={value} index={2} dir={theme.direction}>
             { showIframe ? cluster && <Container maxWidth={isDesktop ? 'lg' : 'xs'} ><Monitor/></Container> :  <CircularProgress/>}
