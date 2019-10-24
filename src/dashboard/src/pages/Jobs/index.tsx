@@ -36,6 +36,7 @@ import TeamContext from "../../contexts/Teams";
 import {checkObjIsEmpty, toLocalTime} from "../../utlities/ObjUtlities";
 import ReactJson from "react-json-view";
 import TablePagination from "@material-ui/core/TablePagination";
+import {checkFinishedJob} from "../../utlities/interactionUtlties";
 
 const variantIcon = {
   success: CheckCircleIcon,
@@ -157,8 +158,7 @@ const Jobs: React.FC = (props: any) => {
   }
   const filterFinishedJobs = (jobs: any) => {
     const filteredJobs = filterJobsByCluster(jobs, currentCluster);
-    return filteredJobs.filter((job: any) => job['jobStatus'] !== 'running' &&
-      job['jobStatus'] !== 'queued' && job['jobStatus'] !== 'unapproved' && job['jobStatus'] !== 'scheduling' &&job['jobStatus'] !== 'pausing' && job['jobStatus'] !== 'paused'  )
+    return filteredJobs.filter((job: any) => checkFinishedJob(job['jobStatus']))
   }
   const filterRunningJobs = (jobs: any) => {
     const filteredJobs = filterJobsByCluster(jobs, currentCluster);
