@@ -608,8 +608,7 @@ def gen_vc_metrics(vc_info, vc_usage, cluster_gpu_info):
                     available = int(math.floor(cluster_gpu_info.available * cur_ratio / ratio_sum))
                 total_used, non_preemptable_used = vc_used
                 vc_avail_gauge.add_metric(labels, available)
-                vc_preemptive_avail_gauge.add_metric(labels,
-                        available + (total_used - non_preemptable_used))
+                vc_preemptive_avail_gauge.add_metric(labels, cluster_gpu_info.available)
                 vc_unschedulable_gauge.add_metric(labels, max(0, quota - total_used - available))
     except Exception as e:
         error_counter.labels(type="vc_quota").inc()
