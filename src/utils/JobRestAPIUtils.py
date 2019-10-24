@@ -531,7 +531,7 @@ def GetVC(userName, vcName):
     active_job_list = data_handler.GetActiveJobList()
     for job in active_job_list:
         jobParam = json.loads(base64.b64decode(job["jobParams"]))
-        if "gpuType" in jobParam:
+        if "gpuType" in jobParam and not jobParam["preemptionAllowed"]:
             vc_usage[job["vcName"]][jobParam["gpuType"]] += GetJobTotalGpu(jobParam)
 
     result = quota.calculate_vc_gpu_counts(cluster_total, cluster_available,

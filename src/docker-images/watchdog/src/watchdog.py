@@ -565,7 +565,7 @@ def gen_vc_metrics(vc_info, vc_usage, cluster_gpu_info):
                     vc_quota = 0
                 else:
                     vc_quota = int(quota - math.ceil(gpu_unallocatable * quota / vc_quota_sum))
-                used = vc_usage.map[vc_name][gpu_type][0]
+                used = vc_usage.map[vc_name][gpu_type][1]
 
                 ratio[vc_name][gpu_type] = max(vc_quota - used, 0)
 
@@ -586,7 +586,7 @@ def gen_vc_metrics(vc_info, vc_usage, cluster_gpu_info):
                     quota = vc_info[vc_name][gpu_type]
                     vc_avail_gauge.add_metric(labels, available)
                     vc_preemptive_avail_gauge.add_metric(labels, available)
-                    vc_unschedulable_gauge.add_metric(labels, quota - available)
+                    vc_unschedulable_gauge.add_metric(labels, max(0, quota - available))
 
         for vc_name, vc_usage_info in vc_usage.map.items():
             for gpu_type, vc_used in vc_usage_info.items():
@@ -610,7 +610,7 @@ def gen_vc_metrics(vc_info, vc_usage, cluster_gpu_info):
                 vc_avail_gauge.add_metric(labels, available)
                 vc_preemptive_avail_gauge.add_metric(labels,
                         available + (total_used - non_preemptable_used))
-                vc_unschedulable_gauge.add_metric(labels, quota - total_used - available)
+                vc_unschedulable_gauge.add_metric(labels, max(0, quota - total_used - available))
     except Exception as e:
         error_counter.labels(type="vc_quota").inc()
         logger.exception("failed to process vc info")
