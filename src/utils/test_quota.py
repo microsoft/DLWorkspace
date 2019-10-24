@@ -97,7 +97,7 @@ class TestQuota(unittest.TestCase):
         self.assertEqual(target_vc_available, vc_available)
 
         target_vc_unschedulable = {
-                "A": {"P40": -10},
+                "A": {"P40": 0},
                 "B": {"P40": 10},
                 }
 
@@ -144,7 +144,7 @@ class TestQuota(unittest.TestCase):
         self.assertEqual(target_vc_available, vc_available)
 
         target_vc_unschedulable = {
-                "platform": {"P40": -9},
+                "platform": {"P40": 0},
                 "relevance": {"P40": 6},
                 "quantus": {"P40": 1},
                 "AU": {"P40": 3},
