@@ -26,6 +26,7 @@ ExecStart=/opt/bin/kubelet \
   --container-runtime={{'remote' if cnf["kube_custom_cri"] else 'docker'}} \
   --enable-server=true \
   --register-node=true \
+  --fail-swap-on=false \
   --feature-gates="DevicePlugins=true,PodShareProcessNamespace=true" \
   --pod-manifest-path=/etc/kubernetes/manifests \
   --pod-infra-container-image={{cnf["dockers"]["container"]["podinfra"]["fullname"]}} \
