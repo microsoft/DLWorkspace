@@ -162,7 +162,7 @@ class TestJobExporter(unittest.TestCase):
         self.assertEqual(4, gauges[2].samples[0].value)
         self.assertEqual("k8s_node_gpu_allocatable", gauges[3].name)
         self.assertEqual(1, len(gauges[3].samples))
-        self.assertEqual(0, gauges[3].samples[0].value)
+        self.assertEqual(2, gauges[3].samples[0].value)
 
         for gauge in gauges:
             self.assertTrue(len(gauge.samples) > 0)
@@ -202,7 +202,7 @@ class TestJobExporter(unittest.TestCase):
 
         cluster_gpu_info = watchdog.ClusterGPUInfo()
         cluster_gpu_info.capacity = 34
-        cluster_gpu_info.available = 19
+        cluster_gpu_info.available = 29
         cluster_gpu_info.allocatable = 34
         vc_total, vc_avail, vc_preemptive_avail, vc_unschedulable_gauge = \
                 watchdog.gen_vc_metrics(vc_info, vc_usage, cluster_gpu_info)
@@ -214,7 +214,7 @@ class TestJobExporter(unittest.TestCase):
             self.assertEqual(vc_info[vc_name][gpu_type], sample.value)
 
         target_vc_avail = {
-                "default": {"P40": 0, "P80": 8},
+                "default": {"P40": 8, "P80": 10},
                 "platform": {"P40": 7},
                 "relevance": {"P80": 4}
                 }
@@ -227,7 +227,7 @@ class TestJobExporter(unittest.TestCase):
                     sample.value, "vc " + vc_name + ", gpu " + gpu_type)
 
         target_vc_preemptive_avail = {
-                "default": {"P40": 8, "P80": 10},
+                "default": {"P40": 16, "P80": 12},
                 "platform": {"P40": 7},
                 "relevance": {"P80": 4}
                 }
@@ -248,7 +248,7 @@ class TestJobExporter(unittest.TestCase):
             vc_name = sample.labels["vc_name"]
             gpu_type = sample.labels["gpu_type"]
             self.assertEqual(target_vc_unschedulable[vc_name][gpu_type],
-                    sample.value, "vc " + vc_name)
+                    sample.value, "vc " + vc_name + ", gpu " + gpu_type)
 
     def test_gpu_accounting(self):
         vc_info = {

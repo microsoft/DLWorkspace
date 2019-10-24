@@ -72,12 +72,12 @@ class Job:
         if isinstance(mountpoint, list):
             for m in mountpoint:
                 self.add_mountpoints(m)
-                return
+            return
 
         # only allow alphanumeric in "name"
         if "name" not in mountpoint or mountpoint["name"] == "":
             mountpoint["name"] = mountpoint["containerPath"]
-        mountpoint["name"] = ''.join(c for c in mountpoint["name"] if c.isalnum())
+        mountpoint["name"] = ''.join(c for c in mountpoint["name"] if c.isalnum() or c == "-")
 
         # skip dulicate entry
         for item in self.mountpoints:
@@ -129,6 +129,22 @@ class Job:
 
         return vc_mountpoints
 
+    def infiniband_mountpoints(self):
+        infiniband_mounts = self.get_infiniband_mounts()
+        if not isinstance(infiniband_mounts, list):
+            return None
+
+        ib_mountpoints = []
+        for infiniband_mount in infiniband_mounts:
+            ib_mountpoint = {
+                "name": infiniband_mount["name"].lower(),
+                "containerPath": infiniband_mount["containerPath"],
+                "hostPath": infiniband_mount["hostPath"],
+                "enabled": True}
+            ib_mountpoints.append(ib_mountpoint)
+
+        return ib_mountpoints
+
     def get_template(self):
         """Return jinja template."""
         path = os.path.abspath(os.path.join(self.cluster["root-path"], "Jobs_Templete", "pod.yaml.template"))
@@ -163,6 +179,9 @@ class Job:
             return None
         # TODO why random.choice?
         return random.choice(racks)
+
+    def get_infiniband_mounts(self):
+        return self._get_cluster_config("infiniband_mounts")
 
     def _get_cluster_config(self, key):
         if key in self.cluster:

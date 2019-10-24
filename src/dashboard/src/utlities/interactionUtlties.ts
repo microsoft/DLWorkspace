@@ -22,3 +22,6 @@ export const handleChangeTab = (event: React.ChangeEvent<{}>, newValue: number,s
 export const handleChangeIndex = (index: number, setValue: any) => {
   setValue(index);
 }
+export const checkFinishedJob = (jobStatus: string) => {
+  return jobStatus!== 'running' && jobStatus !== 'queued' && jobStatus !== 'unapproved' && jobStatus !== 'scheduling' && jobStatus !== 'pausing' && jobStatus !== 'paused'
+}

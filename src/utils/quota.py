@@ -72,7 +72,7 @@ def calculate_vc_gpu_counts(cluster_total, cluster_available, cluster_unschedula
 
                 vc_used[vc_name][gpu_type] = 0
                 vc_available[vc_name][gpu_type] = available
-                vc_unschedulable[vc_name][gpu_type] = quota - available
+                vc_unschedulable[vc_name][gpu_type] = max(0, quota - available)
 
     for vc_name, vc_usage_info in vc_usage.items():
         for gpu_type, vc_usage in vc_usage_info.items():
@@ -92,7 +92,7 @@ def calculate_vc_gpu_counts(cluster_total, cluster_available, cluster_unschedula
                 available = int(math.floor(cluster_available.get(gpu_type, 0) * cur_ratio / ratio_sum))
             vc_used[vc_name][gpu_type] = vc_usage
             vc_available[vc_name][gpu_type] = available
-            vc_unschedulable[vc_name][gpu_type] = quota - vc_usage - available
+            vc_unschedulable[vc_name][gpu_type] = max(0, quota - vc_usage - available)
 
     logger.debug("vc_total %s, vc_used %s, vc_available %s, vc_unschedulable %s",
             vc_total, vc_used, vc_available, vc_unschedulable)
