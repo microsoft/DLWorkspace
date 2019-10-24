@@ -524,6 +524,8 @@ def GetVC(userName, vcName):
     vc_info = {}
     vc_usage = collections.defaultdict(lambda :
             collections.defaultdict(lambda : 0))
+    vc_preemptable_usage = collections.defaultdict(lambda :
+            collections.defaultdict(lambda : 0))
 
     for vc in vc_list:
         vc_info[vc["vcName"]] = json.loads(vc["quota"])
@@ -531,8 +533,11 @@ def GetVC(userName, vcName):
     active_job_list = data_handler.GetActiveJobList()
     for job in active_job_list:
         jobParam = json.loads(base64.b64decode(job["jobParams"]))
-        if "gpuType" in jobParam and not jobParam["preemptionAllowed"]:
-            vc_usage[job["vcName"]][jobParam["gpuType"]] += GetJobTotalGpu(jobParam)
+        if "gpuType" in jobParam:
+            if not jobParam["preemptionAllowed"]:
+                vc_usage[job["vcName"]][jobParam["gpuType"]] += GetJobTotalGpu(jobParam)
+            else:
+                vc_preemptable_usage[job["vcName"]][jobParam["gpuType"]] += GetJobTotalGpu(jobParam)
 
     result = quota.calculate_vc_gpu_counts(cluster_total, cluster_available,
             cluster_reserved, vc_info, vc_usage)
@@ -555,6 +560,7 @@ def GetVC(userName, vcName):
 
             vc["gpu_capacity"] = vc_total[vcName]
             vc["gpu_used"] = vc_used[vcName]
+            vc["gpu_preemptable_used"] = vc_preemptable_usage[vcName]
             vc["gpu_unschedulable"] = vc_unschedulable[vcName]
             vc["gpu_avaliable"] = vc_available[vcName]
             vc["AvaliableJobNum"] = num_active_jobs
