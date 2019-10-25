@@ -747,7 +747,32 @@ def gen_ETCD_certificates():
     utils.render_template_directory("./template/ssl", "./deploy/ssl",config)
     os.system("cd ./deploy/ssl && bash ./gencerts_etcd.sh")
 
+def load_az_params_as_default():
+    from az_params import default_az_parameters
+    # need az_params default, in case we don't have the key in config.yaml
+    default_cfg = { k: v for k, v in default_az_parameters.items() }
+    azure_cluster_cfg = { k: v for k, v in config["azure_cluster"].items() } if "azure_cluster" in config else {}
+    merge_config(config["azure_cluster"], default_cfg["azure_cluster"])
+    merge_config(config["azure_cluster"], azure_cluster_cfg)
+    print config["azure_cluster"], config["network_domain"]
 
+def gen_platform_wise_config():
+    azdefault = { 'network_domain':"config['network']['domain']", 
+        'worker_node_num':"config['azure_cluster']['worker_node_num']", 
+        'gpu_count_per_node':'config["sku_mapping"].get(config["azure_cluster"]["worker_vm_size"],config["sku_mapping"]["default"])["gpu-count"]',
+        'gpu_type':'config["sku_mapping"].get(config["azure_cluster"]["worker_vm_size"],config["sku_mapping"]["default"])["gpu-type"]' }
+    platform_dict = { 'azure_cluster': azdefault }
+    platform_func = { 'azure_cluster': load_az_params_as_default }
+    platform_type = list(set(platform_dict.keys()) & set(config.keys()))
+    assert len(platform_type) == 1 and "platform type should be unique!"
+    platform_type = platform_type[0]
+    default_dict, default_func = platform_dict[platform_type], platform_func[platform_type]
+    default_func()
+    need_val = ['network_domain', 'worker_node_num', 'gpu_count_per_node', 'gpu_type']
+    for ky in need_val:
+        if ky not in config:
+            config[ky] = eval(default_dict[ky])
+    utils.render_template("./template/RestfulAPI/config.yaml","./deploy/RestfulAPI/config.yaml",config)
 
 def gen_configs():
     print "==============================================="
