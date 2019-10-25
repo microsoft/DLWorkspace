@@ -152,6 +152,11 @@ def get_cluster_status():
         podsInfo = yaml.load(output)
         if "items" in podsInfo:
             for pod in podsInfo["items"]:
+                if "status" in pod and "phase" in pod["status"]:
+                    phase = pod["status"]["phase"]
+                    if phase == "Succeeded" or phase == "Failed":
+                        continue
+
                 gpus = 0
                 preemptable_gpus = 0
                 username = None
