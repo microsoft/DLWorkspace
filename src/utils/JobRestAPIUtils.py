@@ -529,6 +529,7 @@ def GetVC(userName, vcName):
     cluster_reserved = cluster_status["gpu_reserved"]
 
     user_status = collections.defaultdict(lambda : ResourceInfo())
+    user_status_preemptable = collections.defaultdict(lambda : ResourceInfo())
 
     vc_list =  data_handler.ListVCs()
     vc_info = {}
@@ -563,10 +564,15 @@ def GetVC(userName, vcName):
                     num_active_jobs += 1
                     username = job["userName"]
                     jobParam = json.loads(base64.b64decode(job["jobParams"]))
-                    if "gpuType" in jobParam and not jobParam["preemptionAllowed"]:
-                        if username not in user_status:
-                            user_status[username] = ResourceInfo()
-                        user_status[username].Add(ResourceInfo({jobParam["gpuType"] : GetJobTotalGpu(jobParam)}))
+                    if "gpuType" in jobParam:
+                        if not jobParam["preemptionAllowed"]:
+                            if username not in user_status:
+                                user_status[username] = ResourceInfo()
+                            user_status[username].Add(ResourceInfo({jobParam["gpuType"] : GetJobTotalGpu(jobParam)}))
+                        else:
+                            if username not in user_status_preemptable:
+                                user_status_preemptable[username] = ResourceInfo()
+                            user_status_preemptable[username].Add(ResourceInfo({jobParam["gpuType"] : GetJobTotalGpu(jobParam)}))
 
             vc["gpu_capacity"] = vc_total[vcName]
             vc["gpu_used"] = vc_used[vcName]
@@ -580,6 +586,11 @@ def GetVC(userName, vcName):
                 # TODO: job_manager.getAlias should be put in a util file
                 user_name = user_name.split("@")[0].strip()
                 vc["user_status"].append({"userName":user_name, "userGPU":user_gpu.ToSerializable()})
+
+            vc["user_status_preemptable"] = []
+            for user_name, user_gpu in user_status_preemptable.iteritems():
+                user_name = user_name.split("@")[0].strip()
+                vc["user_status_preemptable"].append({"userName": user_name, "userGPU": user_gpu.ToSerializable()})
 
             ret = vc
             break
