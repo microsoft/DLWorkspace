@@ -489,6 +489,26 @@ def create_cluster(arm_vm_password=None, parallelism=1):
             create_vm_param(i, "nfs", config["azure_cluster"]["nfs_vm_size"], False,
                arm_vm_password, config["azure_cluster"]["nfs_vm"][i] if i < len(config["azure_cluster"]["nfs_vm"]) else None )
 
+def add_workers(arm_vm_password=None, parallelism=1):
+    # assert config["priority"] == "regular" and "vmss cloudinit not supported yet"
+    if config["priority"] == "regular":
+        print("entering")
+        if parallelism > 1:
+            # TODO: Tolerate faults
+            from multiprocessing import Pool
+            args_list = [(i, "worker", config["azure_cluster"]["worker_vm_size"], arm_vm_password is not None, arm_vm_password)
+                         for i in range(int(config["azure_cluster"]["worker_node_num"]))]
+            pool = Pool(processes=parallelism)
+            pool.map(create_vm_param_wrapper, args_list)
+            pool.close()
+        else:
+            for i in range(int(config["azure_cluster"]["worker_node_num"])):
+                create_vm_param(i, "worker", config["azure_cluster"]["worker_vm_size"],
+                    arm_vm_password is not None, arm_vm_password)
+    elif config["priority"] == "low":
+        utils.render_template("./template/vmss/vmss.sh.template", "scripts/vmss.sh",config)
+        utils.exec_cmd_local("chmod +x scripts/vmss.sh;./scripts/vmss.sh")
+
 def create_vm_param_wrapper(arg_tuple):
     i, role, vm_size, no_az, arm_vm_password = arg_tuple
     return create_vm_param(i, role, vm_size, no_az, arm_vm_password)
@@ -666,7 +686,7 @@ def get_disk_from_vm(vmname):
 def gen_cluster_config(output_file_name, output_file=True, no_az=False):
     if config["priority"] == "low":
         utils.render_template("./template/dns/cname_and_private_ips.sh.template", "scripts/cname_and_ips.sh", config)    
-        utils.exec_cmd_local("chmod +x scripts/cname_and_ips.sh")
+        utils.exec_cmd_local("chmod +x scripts/cname_and_ips.sh;bash scripts/cname_and_ips.sh")
         print "\nPlease copy the commands in dns_add_commands and register the DNS records on http://servicebook/dns/self-service.html\n"
     bSQLOnly = (config["azure_cluster"]["infra_node_num"] <= 0)
     if useAzureFileshare() and not no_az:
@@ -924,6 +944,10 @@ def run_command(args, command, nargs, parser):
         create_cluster(args.arm_password, args.parallelism)
         vm_interconnects()
 
+    elif command == "addworkers":
+        # add_workers(args.arm_password, args.parallelism)
+        utils.render_template("./template/dns/cname_and_private_ips.sh.template", "scripts/cname_and_ips.sh", config)    
+        utils.exec_cmd_local("chmod +x scripts/cname_and_ips.sh;")
     elif command == "list":
         list_vm()
 

@@ -1,0 +1,40 @@
+# try to use immediately connectable IP/dns name, since the DNS records take time to broadcast. For workers, the Azure DNS name in fqdns_sorted is preferred, for infra, they have fixed public IPs
+
+# sort the worker machine names, append their <redmond-renamed DNS name, Azure DNS name> pairs to dns_add_commands
+
+az vmss list-instance-public-ips --name {{cnf["cluster_name"]}}-worker --resource-group {{cnf["cluster_name"]}}ResGrp | grep "fqdn" | awk '{print $2}' | sed 's/[",]//g' > fqdns
+first_line=$(head -n 1 fqdns)
+cat fqdns | cut -d'.' -f1 | cut -d'm' -f2 | sort -n | awk '{printf("vm%s.%s\n", $1, DOMAIN_SUFFIX)}' DOMAIN_SUFFIX=$(echo ${first_line#*.}) > fqdns_sorted
+# get host name (string, like lowpr68f3000000) of each worker node
+rm -rf hostnames && for fqdn in `cat fqdns_sorted`; do ssh -oStrictHostKeyChecking=no -i ./deploy/sshkey/id_rsa core@${fqdn} hostname >> hostnames; done
+paste -d' ' hostnames fqdns_sorted > hostname_fqdn_map
+cat hostname_fqdn_map | awk '{ printf("add %s.{{cnf["domain_name"]}} CNAME %s DLTSPAdmin\n", $1, $2) }' > dns_add_commands
+
+# get infra machine names and public ips, append their <redmond-renamed DNS name, ip> pairs to dns_add_commands
+
+# use [?contains(virtualMachine.name,'infra')] in query if want only infra
+# but since we can not ping redmond domain name when /etc/resolv.conf is 8.8.8.8, we need to add both infra and nfs DNS to hosts
+az vm list-ip-addresses -g {{cnf["cluster_name"]}}ResGrp --query "[].{Name:virtualMachine.name,pubIP:virtualMachine.network.publicIpAddresses[0].ipAddress, privIP:virtualMachine.network.privateIpAddresses[0]}" -o table | tail -n +3 > infra_ips
+cat infra_ips | awk '{ printf("add %s.{{cnf["domain_name"]}} A %s DLTSPAdmin\n", $1, $2) }' >> dns_add_commands
+
+# ADD HOSTS to all nodes
+
+# get private IP of worker nodes
+# this would not work: cannot guarantee order:az vmss nic list -g lowpriResGrp --vmss-name lowpri-worker --query [].{ip:ipConfigurations[0].privateIpAddress} -o tsv > private_ips
+
+rm -rf private_ips && for fqdn in `cat fqdns_sorted`; do ssh -oStrictHostKeyChecking=no -i ./deploy/sshkey/id_rsa core@${fqdn} hostname -I | awk '{print $1}' >> private_ips;done
+# add worker <private IP, fullname, machine name> triplets
+paste -d' ' private_ips hostnames > worksheet_hosts
+rm -rf  hosts && cat worksheet_hosts | awk '{ printf("%s %s.{{cnf["domain_name"]}} %s\n", $1, $2, $2) }' > hosts
+# add infra <private IP, fullname, machine name> triplets
+cat infra_ips | awk '{ printf("%s %s.{{cnf["domain_name"]}} %s\n", $3, $1, $1) }' >> hosts
+# set hosts file on workers
+workernum=$(wc -l < fqdns_sorted)
+parallel-scp -t 0 -p $workernum -h fqdns_sorted  -x "-oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i ./deploy/sshkey/id_rsa" -l {{cnf["admin_username"]}} hosts /home/{{cnf["admin_username"]}}
+parallel-ssh -o pssh-log/stdout -e pssh-log/stderr -t 0 -p $workernum -h fqdns_sorted -x "-oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i deploy/sshkey/id_rsa" -l {{cnf["admin_username"]}} "sudo chmod 666 /etc/hosts && cat /home/{{cnf["admin_username"]}}/hosts >> /etc/hosts && sudo chmod 644 /etc/hosts"
+
+# set hosts file on infras
+infranum=$(wc -l < infra_ips)
+cat infra_ips | awk '{print $2}' > infra_ipv4
+parallel-scp -t 0 -p $infranum -h infra_ipv4  -x "-oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i ./deploy/sshkey/id_rsa" -l {{cnf["admin_username"]}} hosts /home/{{cnf["admin_username"]}}
+parallel-ssh -o pssh-log/stdout -e pssh-log/stderr -t 0 -p $infranum -h infra_ipv4 -x "-oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i deploy/sshkey/id_rsa" -l {{cnf["admin_username"]}} "sudo chmod 666 /etc/hosts && cat /home/{{cnf["admin_username"]}}/hosts >> /etc/hosts && sudo chmod 644 /etc/hosts"
