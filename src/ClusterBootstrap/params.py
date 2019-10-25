@@ -671,7 +671,7 @@ scriptblocks = {
         "genscripts",
         "runscriptonroles infra worker ./scripts/dns.sh",
         "-y deploy",
-        "-y updateworker",
+        "-y updateworkerinparallel",
         "-y kubernetes labels",
         "-y gpulabel",
         "kubernetes start nvidia-device-plugin",

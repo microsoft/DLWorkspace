@@ -9,7 +9,7 @@
 ./deploy.py genscripts
 ./deploy.py runscriptonroles infra worker ./scripts/dns.sh
 ./deploy.py -y deploy
-./deploy.py -y updateworker
+./deploy.py -y updateworkerinparallel
 ./deploy.py -y kubernetes labels
 ./deploy.py -y gpulabel
 ./deploy.py kubernetes start nvidia-device-plugin

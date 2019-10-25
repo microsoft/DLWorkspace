@@ -754,7 +754,7 @@ def load_az_params_as_default():
     azure_cluster_cfg = { k: v for k, v in config["azure_cluster"].items() } if "azure_cluster" in config else {}
     merge_config(config["azure_cluster"], default_cfg["azure_cluster"])
     merge_config(config["azure_cluster"], azure_cluster_cfg)
-    print config["azure_cluster"], config["network_domain"]
+    # print config["azure_cluster"], config["network_domain"]
 
 def gen_platform_wise_config():
     azdefault = { 'network_domain':"config['network']['domain']", 
@@ -772,7 +772,6 @@ def gen_platform_wise_config():
     for ky in need_val:
         if ky not in config:
             config[ky] = eval(default_dict[ky])
-    utils.render_template("./template/RestfulAPI/config.yaml","./deploy/RestfulAPI/config.yaml",config)
 
 def gen_configs():
     print "==============================================="
@@ -3552,7 +3551,7 @@ def run_command( args, command, nargs, parser ):
                 break
         nodes = get_nodes_by_roles(nodeset)
         # print(nodes)
-        run_script_on_all(nodes, nargs[scripts_start:], sudo = args.sudo )
+        run_script_on_all_in_parallel(nodes, nargs[scripts_start:], sudo = args.sudo )
 
     elif command == "runscriptonrandmaster" and len(nargs)>=1:
         run_script_on_rand_master(nargs, args)
