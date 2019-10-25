@@ -945,9 +945,7 @@ def run_command(args, command, nargs, parser):
         vm_interconnects()
 
     elif command == "addworkers":
-        # add_workers(args.arm_password, args.parallelism)
-        utils.render_template("./template/dns/cname_and_private_ips.sh.template", "scripts/cname_and_ips.sh", config)    
-        utils.exec_cmd_local("chmod +x scripts/cname_and_ips.sh;")
+        add_workers(args.arm_password, args.parallelism)
     elif command == "list":
         list_vm()
 
