@@ -1089,15 +1089,15 @@ Command:
     if os.path.exists(config_file):
         with open(config_file) as cf:
             tmpconfig = yaml.load(cf)
-            assert tmpconfig["cluster_name"] in tmpconfig["azure_cluster"]
+            # assert tmpconfig["cluster_name"] in tmpconfig["azure_cluster"]
         merge_config(config, tmpconfig, verbose)
         if tmpconfig is not None and "cluster_name" in tmpconfig:
             config["azure_cluster"]["cluster_name"] = tmpconfig["cluster_name"]
         if tmpconfig is not None and "datasource" in tmpconfig:
             config["azure_cluster"]["datasource"] = tmpconfig["datasource"]
-    if tmpconfig is not None and "azure_cluster" in tmpconfig and config["azure_cluster"]["cluster_name"] in tmpconfig["azure_cluster"]:
-        merge_config(config["azure_cluster"], tmpconfig["azure_cluster"][
-                     config["azure_cluster"]["cluster_name"]], verbose)
+    # if tmpconfig is not None and "azure_cluster" in tmpconfig and config["azure_cluster"]["cluster_name"] in tmpconfig["azure_cluster"]:
+    #     merge_config(config["azure_cluster"], tmpconfig["azure_cluster"][
+    #                  config["azure_cluster"]["cluster_name"]], verbose)
     if (args.cluster_name is not None):
         config["azure_cluster"]["cluster_name"] = args.cluster_name
 
