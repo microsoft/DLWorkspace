@@ -97,12 +97,37 @@ const ClusterStatus: FC = () => {
           console.log('test')
           userfetchs = res.filter((vc: any) => vc['ClusterName'] === localStorage.getItem('selectedCluster'))[0];
         }
-        console.log(userfetchs)
+        console.log('----> user',userfetchs)
+        const newuserStatusPreemptable: any = [];
+        if (userfetchs['user_status_preemptable']) {
+          userfetchs['user_status_preemptable'].map( (item: any) => {
+            newuserStatusPreemptable.push(
+              _.mapKeys( item, ( value, key ) => {
+                let newKey = key;
+                if( key === 'userGPU' ) {
+                  newKey = 'preemptableGPU';
+                }
+                return newKey;
+              })
+            )
+          });
+        }
+        let tmpMergedUsers = _.values(mergeTwoObjsByKey(userfetchs['user_status'],newuserStatusPreemptable,'userName'));
         let fetchUsrs: any = []
-        for (let fetchedUser of userfetchs['user_status'] ) {
+        for (let fetchedUser of tmpMergedUsers ) {
           let tmpUser: any ={};
           tmpUser['userName'] = fetchedUser['userName'];
-          tmpUser['usedGPU'] = (String)(Object.values(fetchedUser['userGPU'])[0]);
+          if (fetchedUser['userGPU']) {
+            tmpUser['usedGPU'] = (String)(Object.values(fetchedUser['userGPU'])[0]);
+          } else {
+            tmpUser['usedGPU'] = 0;
+          }
+
+          if (fetchedUser['preemptableGPU']) {
+            tmpUser['preemptableGPU'] = Object.values(fetchedUser['preemptableGPU'])[0]
+          } else {
+            tmpUser['preemptableGPU'] = 0;
+          }
           fetchUsrs.push(tmpUser)
         }
         console.log('--->', fetchUsrs)
@@ -157,10 +182,11 @@ const ClusterStatus: FC = () => {
             totalRow['idleGPU'] = 0;
             for (let us of finalUserStatus) {
               console.log(us);
-              totalRow['booked'] += us['booked'];
-              totalRow['idle'] += us['idle'];
+              totalRow['booked'] += parseInt(us['booked']);
+              totalRow['idle'] += parseInt(us['idle']);
               totalRow['usedGPU'] += parseInt(us['usedGPU']);
               totalRow['idleGPU'] += parseInt(us['idleGPU']);
+              totalRow['preemptableGPU'] += parseInt(us['preemptableGPU']);
             }
             finalUserStatus.push(totalRow);
 

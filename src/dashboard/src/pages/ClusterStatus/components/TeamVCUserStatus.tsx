@@ -23,6 +23,7 @@ export const TeamVCUserStatus = (props: TeamUsr) => {
             title=""
             columns={[{title: 'Username', field: 'userName'},
               {title: 'Currently Allocated GPU', field: 'usedGPU',type:'numeric'},
+              {title: 'Currently Allocated Preemptible GPU', field: 'preemptableGPU',type:'numeric'},
               {title: 'Currently Idle GPU', field: 'idleGPU',type:'numeric'},
             ]}
             data={showCurrentUser ? userStatus.filter((uc: any)=>uc['usedGPU'] > 0 && uc['userName'] !== 'Total') : userStatus}
@@ -53,6 +54,7 @@ export const TeamVCUserStatus = (props: TeamUsr) => {
           title=""
           columns={[{title: 'Username', field: 'userName'},
             {title: 'Currently Allocated GPU', field: 'usedGPU',type:'numeric'},
+            {title: 'Currently Allocated Preemptible GPU', field: 'preemptableGPU',type:'numeric', render: (rowData: any) => <span>{rowData['preemptableGPU'] ? rowData['preemptableGPU'] : '-'}</span>},
             {title: 'Currently Idle GPU', field: 'idleGPU',type:'numeric'},
             {title: 'Past Month Booked GPU Hour', field: 'booked',type:'numeric'},
             {title: 'Past Month Idle GPU Hour', field: 'idle',type:'numeric'},

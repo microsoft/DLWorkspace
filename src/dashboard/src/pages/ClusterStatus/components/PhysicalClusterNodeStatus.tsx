@@ -2,12 +2,7 @@ import React from "react";
 import {
   CircularProgress,
   createMuiTheme,
-  MuiThemeProvider, SvgIcon, Switch,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow, Typography, useTheme
+  MuiThemeProvider, SvgIcon,Typography, useTheme
 } from "@material-ui/core";
 import useCheckIsDesktop from "../../../utlities/layoutUtlities";
 import {checkObjIsEmpty, sumValues} from "../../../utlities/ObjUtlities";
