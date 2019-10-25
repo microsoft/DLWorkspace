@@ -94,6 +94,7 @@ def get_cluster_status():
         nodeInfo = yaml.load(output)
         nodes_status = {}
         user_status = {}
+        user_status_preemptable = {}
 
         if "items" in nodeInfo:
             for node in nodeInfo["items"]:
@@ -119,6 +120,7 @@ def get_cluster_status():
                 else:
                     node_status["gpu_capacity"] = ResourceInfo().ToSerializable()
                 node_status["gpu_used"] = ResourceInfo().ToSerializable()
+                node_status["gpu_preemptable_used"] = ResourceInfo().ToSerializable()
                 node_status["InternalIP"] = "unknown"
                 node_status["pods"] = []
                 if "annotations" in node["metadata"]:
@@ -132,7 +134,7 @@ def get_cluster_status():
                 if "addresses" in node["status"]:
                     for addr in node["status"]["addresses"]:
                         if addr["type"] == "InternalIP":
-                            node_status["InternalIP"]  = addr["address"] 
+                            node_status["InternalIP"]  = addr["address"]
 
                 if "unschedulable" in node["spec"] and node["spec"]["unschedulable"]:
                     node_status["unschedulable"] = True
@@ -151,9 +153,14 @@ def get_cluster_status():
         if "items" in podsInfo:
             for pod in podsInfo["items"]:
                 gpus = 0
+                preemptable_gpus = 0
                 username = None
+                preemption_allowed = False
                 if "metadata" in pod and "labels" in pod["metadata"] and "userName" in pod["metadata"]["labels"]:
                     username = pod["metadata"]["labels"]["userName"]
+                if "metadata" in pod and "labels" in pod["metadata"] and "preemptionAllowed" in pod["metadata"]["labels"]:
+                    if pod["metadata"]["labels"]["preemptionAllowed"] == "True":
+                        preemption_allowed = True
                 if "spec" in pod and "nodeName" in pod["spec"]:
                     node_name = pod["spec"]["nodeName"]
                     pod_name = pod["metadata"]["name"]
@@ -181,18 +188,30 @@ def get_cluster_status():
                             if container["name"] in pod_info_cont:
                                 if "requests" in pod_info_cont[container["name"]] and "alpha.gpu/numgpu" in pod_info_cont[container["name"]]["requests"]:
                                     containerGPUs = max(int(pod_info_cont[container["name"]]["requests"]["alpha.gpu/numgpu"]), containerGPUs)
-                            gpus += containerGPUs
+                            if preemption_allowed:
+                                preemptable_gpus += containerGPUs
+                            else:
+                                gpus += containerGPUs
                             pod_name += " (gpu #:" + str(containerGPUs) + ")"
 
                     if node_name in nodes_status:
                         nodes_status[node_name]["gpu_used"] = ResourceInfo(nodes_status[node_name]["gpu_used"]).Add(ResourceInfo({nodes_status[node_name]["gpuType"] : gpus})).ToSerializable()
+
+                        # TODO: Refactor together with gpu_used logic
+                        node_gpu_preemptable_used = ResourceInfo(nodes_status[node_name]["gpu_preemptable_used"])
+                        gpu_type = nodes_status[node_name]["gpuType"]
+                        pod_gpu_preemptable_used = ResourceInfo({gpu_type: preemptable_gpus})
+                        nodes_status[node_name]["gpu_preemptable_used"] = node_gpu_preemptable_used.Add(pod_gpu_preemptable_used).ToSerializable()
+
                         nodes_status[node_name]["pods"].append(pod_name)
 
                         if username is not None:
                             if username not in user_status:
-                                user_status[username] = ResourceInfo({nodes_status[node_name]["gpuType"] : gpus})
+                                user_status[username] = ResourceInfo({gpu_type: gpus})
+                                user_status_preemptable[username] = ResourceInfo({gpu_type: preemptable_gpus})
                             else:
-                                user_status[username].Add(ResourceInfo({nodes_status[node_name]["gpuType"] : gpus}))
+                                user_status[username].Add(ResourceInfo({gpu_type: gpus}))
+                                user_status_preemptable[username].Add(ResourceInfo({gpu_type: preemptable_gpus}))
 
         gpu_avaliable    = ResourceInfo()
         gpu_reserved    = ResourceInfo()
@@ -216,12 +235,16 @@ def get_cluster_status():
         for user_name, user_gpu in user_status.iteritems():
             cluster_status["user_status"].append({"userName":user_name, "userGPU":user_gpu.ToSerializable()})
 
+        cluster_status["user_status_preemptable"] = []
+        for user_name, user_gpu in user_status_preemptable.iteritems():
+            cluster_status["user_status_preemptable"].append({"userName": user_name, "userGPU": user_gpu.ToSerializable()})
+
         cluster_status["gpu_avaliable"] = gpu_avaliable.ToSerializable()
         cluster_status["gpu_capacity"] = gpu_capacity.ToSerializable()
         cluster_status["gpu_unschedulable"] = gpu_unschedulable.ToSerializable()
         cluster_status["gpu_used"] = gpu_used.ToSerializable()
         cluster_status["gpu_reserved"] = gpu_reserved.ToSerializable()
-        cluster_status["node_status"] = [node_status for node_name, node_status in nodes_status.iteritems()] 
+        cluster_status["node_status"] = [node_status for node_name, node_status in nodes_status.iteritems()]
 
     except Exception as e:
         logging.exception("get cluster status")
