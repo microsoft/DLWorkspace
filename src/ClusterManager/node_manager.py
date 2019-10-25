@@ -23,6 +23,8 @@ import logging
 import logging.config
 import copy
 
+logger = logging.getLogger(__name__)
+
 import pycurl
 from StringIO import StringIO
 
@@ -200,6 +202,7 @@ def get_cluster_status():
                             pod_name += " (gpu #:" + str(containerGPUs) + ")"
 
                     if node_name in nodes_status:
+                        # NOTE gpu_used may include those unallocatable gpus
                         nodes_status[node_name]["gpu_used"] = ResourceInfo(nodes_status[node_name]["gpu_used"]).Add(ResourceInfo({nodes_status[node_name]["gpuType"] : gpus})).ToSerializable()
 
                         # TODO: Refactor together with gpu_used logic
@@ -229,7 +232,8 @@ def get_cluster_status():
                 gpu_unschedulable.Add(ResourceInfo(node_status["gpu_capacity"]))
                 gpu_reserved.Add(ResourceInfo.Difference(ResourceInfo(node_status["gpu_capacity"]), ResourceInfo(node_status["gpu_used"])))
             else:
-                gpu_avaliable.Add(ResourceInfo.Difference(ResourceInfo(node_status["gpu_allocatable"]), ResourceInfo(node_status["gpu_used"])))
+                # gpu_used may larger than allocatable: used one GPU that has uncorrectable errors
+                gpu_avaliable.Add(ResourceInfo.DifferenceMinZero(ResourceInfo(node_status["gpu_allocatable"]), ResourceInfo(node_status["gpu_used"])))
                 gpu_unschedulable.Add(ResourceInfo.Difference(ResourceInfo(node_status["gpu_capacity"]), ResourceInfo(node_status["gpu_allocatable"])))
                 gpu_reserved.Add(ResourceInfo.Difference(ResourceInfo(node_status["gpu_capacity"]), ResourceInfo(node_status["gpu_allocatable"])))
 
@@ -244,6 +248,13 @@ def get_cluster_status():
         for user_name, user_gpu in user_status_preemptable.iteritems():
             cluster_status["user_status_preemptable"].append({"userName": user_name, "userGPU": user_gpu.ToSerializable()})
 
+        logger.info("gpu_capacity %s, gpu_avaliable %s, gpu_unschedulable %s, gpu_used %s",
+                gpu_capacity.ToSerializable(),
+                gpu_avaliable.ToSerializable(),
+                gpu_unschedulable.ToSerializable(),
+                gpu_used.ToSerializable(),
+                )
+
         cluster_status["gpu_avaliable"] = gpu_avaliable.ToSerializable()
         cluster_status["gpu_capacity"] = gpu_capacity.ToSerializable()
         cluster_status["gpu_unschedulable"] = gpu_unschedulable.ToSerializable()
@@ -252,16 +263,16 @@ def get_cluster_status():
         cluster_status["node_status"] = [node_status for node_name, node_status in nodes_status.iteritems()]
 
     except Exception as e:
-        logging.exception("get cluster status")
+        logger.exception("get cluster status")
 
     dataHandler = DataHandler()
     cluster_status["AvaliableJobNum"] = dataHandler.GetActiveJobsCount()
 
     if "cluster_status" in config and check_cluster_status_change(config["cluster_status"],cluster_status):
-        logging.info("updating the cluster status...")
+        logger.info("updating the cluster status...")
         dataHandler.UpdateClusterStatus(cluster_status)
     else:
-        logging.info("nothing changed in cluster, skipping the cluster status update...")
+        logger.info("nothing changed in cluster, skipping the cluster status update...")
 
     config["cluster_status"] = copy.deepcopy(cluster_status)
     dataHandler.Close()
@@ -271,7 +282,7 @@ def get_cluster_status():
 def Run():
     register_stack_trace_dump()
     create_log()
-    logging.info("start to update nodes usage information ...")
+    logger.info("start to update nodes usage information ...")
     config["cluster_status"] = None
 
     while True:
@@ -281,7 +292,7 @@ def Run():
             try:
                 get_cluster_status()
             except Exception as e:
-                logging.exception("get cluster status failed")
+                logger.exception("get cluster status failed")
         time.sleep(30)
 
 if __name__ == '__main__':

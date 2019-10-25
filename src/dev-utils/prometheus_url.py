@@ -5,8 +5,6 @@ import argparse
 import logging
 import datetime
 
-import requests
-
 logger = logging.getLogger(__name__)
 
 
