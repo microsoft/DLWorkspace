@@ -422,7 +422,7 @@ def TakeJobActions(launcher, jobs):
         vc_name = sji["job"]["vcName"]
         vc_resource = vc_resources[vc_name]
 
-        if (vc_resource.CanSatisfy(sji["globalResInfo"])):
+        if (not sji["preemptionAllowed"]) and (vc_resource.CanSatisfy(sji["globalResInfo"])):
             vc_resource.Subtract(sji["globalResInfo"])
             globalResInfo.Subtract(sji["globalResInfo"])
             sji["allowed"] = True
