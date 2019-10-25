@@ -66,7 +66,7 @@ export const TeamVirtualClusterStatus = (props: TeamVC) => {
             {title: 'Total GPU', field: '', render:(rowData: any)=>renderData(rowData['gpu_capacity']),customSort:(a, b) => sumValues(a['gpu_capacity']) - sumValues(b['gpu_capacity'])},
             {title: 'Unschedulable GPU', field: '', render:(rowData: any)=>renderData(rowData['gpu_unschedulable']), customSort:(a, b) => sumValues(a['gpu_unschedulable']) - sumValues(b['gpu_unschedulable'])},
             {title: 'Used GPU', field: '', render:(rowData: any)=>renderData(rowData['gpu_used']),customSort: (a, b) => sumValues(a['gpu_used']) - sumValues(b['gpu_used'])},
-            {title: 'Preemptable Used GPU', field: '', render:(rowData: any)=>renderData(rowData['gpu_preemptable_used']), customSort: (a, b) => !a || !b ? -1 : sumValues(a['gpu_preemptable_used']) - sumValues(b['gpu_preemptable_used'])},
+            {title: 'Preemptible Used GPU', field: '', render:(rowData: any)=>renderData(rowData['gpu_preemptable_used']), customSort: (a, b) => !a || !b ? -1 : sumValues(a['gpu_preemptable_used']) - sumValues(b['gpu_preemptable_used'])},
             {title: 'Available GPU', field: '', render:(rowData: any)=>renderData(rowData['gpu_avaliable']),customSort: (a, b) => sumValues(a['gpu_avaliable']) - sumValues(b['gpu_avaliable'])},
             {title: 'Active Jobs', field: '', render:(rowData: any)=><span>{ Number(sumValues(rowData['AvaliableJobNum'])) || 0}</span>, customSort: (a, b) => sumValues(a['AvaliableJobNum']) - sumValues(b['AvaliableJobNum'])}
           ]}
