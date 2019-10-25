@@ -67,6 +67,11 @@ const NavigationList: React.FC = () => {
       <LinkListItem to="/cluster-status">
         <ListItemText>Cluster Status</ListItemText>
       </LinkListItem>
+      <ListItem button>
+        <ListItemText>
+          <a href={"https://aka.ms/dltsuserwiki_v2"} target="_blank" style={{ textDecoration:'none' }}>DLTS Wiki</a>
+        </ListItemText>
+      </ListItem>
     </List>
   );
 };
