@@ -19,6 +19,7 @@ export const filterByEventValue = (objs: any, key: string ,event: React.ChangeEv
 }
 
 export const sumValues= (obj: any) => {
+  if (!obj) return 0;
   if (typeof obj === 'number') return obj < 0 ? 0 : obj;
   let total = 0;
   total = _.sum(Object.values(obj))

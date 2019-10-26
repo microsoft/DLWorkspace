@@ -1410,7 +1410,7 @@ const Jobs: React.FC = (props: any) => {
         <DLTSSnackbar message={message}
           open = {openKillWarn || openApproveWarn || openPauseWarn || openResumeWarn || openUpatePriorityWarn}
           handleWarnClose={handleWarnClose}
-          autoHideDuration={2000}
+          autoHideDuration={1000}
         />
       </Fragment>
     )
