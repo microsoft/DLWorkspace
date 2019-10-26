@@ -744,8 +744,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
 
     cc["machines"] = {}
     for i in range(int(config["azure_cluster"]["infra_node_num"])):
-        vmname = "%s-infra%02d" % (config["azure_cluster"]
-                                   ["cluster_name"].lower(), i + 1)
+        vmname = "{}-infra{:02d}".format(config["azure_cluster"]["cluster_name"], i + 1).lower()
         cc["machines"][vmname] = {"role": "infrastructure", "private-ip": get_vm_ip(i, "infra")}
 
     # Generate the workers in machines.
@@ -767,7 +766,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
             for l in rf:
                 worker_machines += l.split()[0],
         for vmname in worker_machines:
-            cc["machines"][vmname] = {"role": "worker","node-group": config["azure_cluster"]["worker_vm_size"],
+            cc["machines"][vmname.lower()] = {"role": "worker","node-group": config["azure_cluster"]["worker_vm_size"],
                                         "gpu-type":sku_mapping[config["azure_cluster"]["worker_vm_size"]]["gpu-type"]}
     elif config["priority"] == "regular":
         for vm in vm_list:
@@ -776,18 +775,18 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
                 worker_machines += vmname,
         for vmname in worker_machines:          
             if isNewlyScaledMachine(vmname):
-                cc["machines"][vmname] = {
+                cc["machines"][vmname.lower()] = {
                     "role": "worker", "scaled": True,
                     "node-group": vm["vmSize"],"gpu-type":sku_mapping.get(vm["vmSize"],sku_mapping["default"])["gpu-type"]}
             else:
-                cc["machines"][vmname] = {
+                cc["machines"][vmname.lower()] = {
                     "role": "worker",
                     "node-group": vm["vmSize"],"gpu-type":sku_mapping.get(vm["vmSize"],sku_mapping["default"])["gpu-type"]}
     nfs_nodes = []
     for vm in vm_list:
         vmname = vm["name"]
         if "-nfs" in vmname:
-            cc["machines"][vmname] = {
+            cc["machines"][vmname.lower()] = {
                 "role": "nfs",
                 "node-group": vm["vmSize"]}
 
