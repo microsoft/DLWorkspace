@@ -9,6 +9,7 @@ module.exports = (forceAuthenticated = true) => async (context, next) => {
     const user = context.state.user = User.fromToken(context, email, token)
     await user.fillIdFromWinbind()
     await user.addGroupLink
+    await user.WikiLink
     context.log.info(user, 'Authenticated by token')
   } else if (context.cookies.get('token')) {
     try {
@@ -16,6 +17,7 @@ module.exports = (forceAuthenticated = true) => async (context, next) => {
       const user = context.state.user = User.fromCookie(context, token)
       await user.token
       await user.addGroupLink
+      await user.WikiLink
       context.log.info(user, 'Authenticated by cookie')
     } catch (error) {
       context.log.error(error, 'Error in cookie authentication')
