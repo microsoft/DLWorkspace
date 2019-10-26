@@ -14,19 +14,22 @@ interface Context {
   teams: any;
   selectedTeam: any;
   saveSelectedTeam(team: React.SetStateAction<string>): void;
+  WikiLink: string;
 }
 
 const Context = React.createContext<Context>({
   teams: [],
   selectedTeam: '',
-  saveSelectedTeam: function(team: React.SetStateAction<string>) {}
+  saveSelectedTeam: function(team: React.SetStateAction<string>) {},
+  WikiLink: '',
 });
 
 export default Context;
 interface ProviderProps {
   addGroupLink: string;
+  WikiLink: string;
 }
-export const Provider: React.FC<ProviderProps> = ({addGroupLink, children }) => {
+export const Provider: React.FC<ProviderProps> = ({addGroupLink,WikiLink ,children }) => {
   const fetchTeamsUrl = '/api/teams';
   const { data: teams } = useFetch(fetchTeamsUrl, { onMount: true });
   const [selectedTeam, setSelectedTeam] = React.useState<string>('');
@@ -36,6 +39,7 @@ export const Provider: React.FC<ProviderProps> = ({addGroupLink, children }) => 
     window.location.reload()
   };
   useEffect(()=> {
+    console.log("--------------->", WikiLink)
     if (localStorage.getItem('team')) {
       setSelectedTeam((String)(localStorage.getItem('team')))
     } else {
@@ -68,17 +72,18 @@ export const Provider: React.FC<ProviderProps> = ({addGroupLink, children }) => 
   };
   if (teams !== undefined && teams.length === 0) {
     console.log(addGroupLink)
+    console.log(WikiLink)
     return (
 
       <Context.Provider
-        value={{ teams, selectedTeam ,saveSelectedTeam }}
-        children={<EmptyTeam addGroupLink={addGroupLink}/>}
+        value={{ teams, selectedTeam ,saveSelectedTeam,WikiLink }}
+        children={<EmptyTeam addGroupLink={addGroupLink} WikiLink={WikiLink}/>}
       />
     )
   }
   return (
     <Context.Provider
-      value={{ teams, selectedTeam, saveSelectedTeam }}
+      value={{ teams, selectedTeam, saveSelectedTeam,WikiLink }}
       children={children}
     />
   );
