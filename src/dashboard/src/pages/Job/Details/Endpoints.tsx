@@ -226,7 +226,7 @@ const Endpoints: React.FC<EndpointsProps> = ({setOpen, status}) => {
   const refreshFunction: TimerHandler = useCallback(async () => {
     refreshTimeout.current = null;
     await get();
-    refreshTimeout.current = setTimeout(refreshFunction, 1000);
+    refreshTimeout.current = setTimeout(refreshFunction, 5000);
   }, []);
 
   useEffect(() => {
