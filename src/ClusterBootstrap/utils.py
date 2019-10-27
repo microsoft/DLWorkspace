@@ -351,15 +351,12 @@ def SSH_exec_script( identity_file, user, host, script, supressWarning = False, 
 
 
 def get_ETCD_discovery_URL(size):
-        if size == 1:
-            output = "we don't use discovery url for 1 node etcd"
-        else:
-            try:
-                output = urllib.urlopen("https://discovery.etcd.io/new?size=%d" % size ).read()
-                if not "https://discovery.etcd.io" in output:
-                    raise Exception("ERROR: we cannot get etcd discovery url from 'https://discovery.etcd.io/new?size=%d', got message %s" % (size,output))
-            except Exception as e:
-                raise Exception("ERROR: we cannot get etcd discovery url from 'https://discovery.etcd.io/new?size=%d'" % size)
+        try:
+            output = urllib.urlopen("https://discovery.etcd.io/new?size=%d" % size ).read()
+            if not "https://discovery.etcd.io" in output:
+                raise Exception("ERROR: we cannot get etcd discovery url from 'https://discovery.etcd.io/new?size=%d', got message %s" % (size,output)) 
+        except Exception as e:
+            raise Exception("ERROR: we cannot get etcd discovery url from 'https://discovery.etcd.io/new?size=%d'" % size) 
         return output
 
 
