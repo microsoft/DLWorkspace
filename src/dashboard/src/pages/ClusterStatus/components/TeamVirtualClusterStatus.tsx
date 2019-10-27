@@ -55,7 +55,7 @@ export const TeamVirtualClusterStatus = (props: TeamVC) => {
   return (
     <MuiThemeProvider theme={useCheckIsDesktop ? theme : tableTheme}>
       {
-        vcStatus ?  <MaterialTable
+        vcStatus.length > 0 ?  <MaterialTable
           title=""
           columns={[
             {title: 'Name', field: 'ClusterName', render:(rowData: any)=><div><Radio
@@ -71,7 +71,7 @@ export const TeamVirtualClusterStatus = (props: TeamVC) => {
             {title: 'Active Jobs', field: '', render:(rowData: any)=><span>{ Number(sumValues(rowData['AvaliableJobNum'])) || 0}</span>, customSort: (a, b) => sumValues(a['AvaliableJobNum']) - sumValues(b['AvaliableJobNum'])}
           ]}
           data={vcStatus}
-          options={{filtering: false,paging: true, pageSizeOptions:[10],sorting: true}}
+          options={{filtering: false,paging: true, pageSize: vcStatus.length < 10 ? vcStatus.length  : 10 ,pageSizeOptions:[10],sorting: true}}
         /> :
           <CircularProgress/>
       }

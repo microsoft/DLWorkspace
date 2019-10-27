@@ -11,7 +11,7 @@ const useJob = (clusterId: string, jobId: string): UseJob => {
     url: `/api/clusters/${clusterId}/jobs/${jobId}`,
     onMount: true
   });
-  const [isReady, reset, cancel] = useTimeoutFn(get, 1000);
+  const [isReady, reset, cancel] = useTimeoutFn(get, 15000);
   useEffect(() => {
     if (data === undefined) return;
 
