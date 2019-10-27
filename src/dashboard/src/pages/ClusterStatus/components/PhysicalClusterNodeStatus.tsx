@@ -40,7 +40,7 @@ export const PhysicalClusterNodeStatus = (props: PhClusterNSType) => {
             {title: 'Node IP', field: 'InternalIP'},
             {title: 'GPU', field: 'gpu_capacity', render: (rowData: any) => <span>{checkObjIsEmpty(rowData['gpu_capacity']) ? 0 :  (Number)(sumValues(rowData['gpu_capacity']))}</span>, customSort: (a: any, b: any) => { return sumValues(a['gpu_capacity']) - sumValues(b['gpu_capacity'])}  },
             {title: 'Used', field: '', render: (rowData: any) => <span>{checkObjIsEmpty(rowData['gpu_used']) ? 0 :  (Number)(sumValues(rowData['gpu_used']))}</span>, customSort: (a: any, b: any) => { return sumValues(a['gpu_used']) - sumValues(b['gpu_used'])}},
-            {title: 'Preemptible Used', field: '', render: (rowData: any) => <span>{checkObjIsEmpty(rowData['gpu_preemptable_used']) ? 0 :  (Number)(sumValues(rowData['gpu_preemptable_used']))}</span>, customSort: (a: any, b: any) => { return sumValues(a['gpu_preemptable_used']) - sumValues(b['gpu_used'])}},
+            {title: 'Preemptible Used', field: '', render: (rowData: any) => <span>{checkObjIsEmpty(rowData['gpu_preemptable_used']) ? 0 :  (Number)(sumValues(rowData['gpu_preemptable_used']))}</span>, customSort: (a: any, b: any) => { return sumValues(a['gpu_preemptable_used']) - sumValues(b['gpu_preemptable_used'])}},
             {title: 'Available', field: '', render: (rowData: any) => <span>{(Number)(sumValues(rowData['gpu_allocatable'])) - (Number)(sumValues(rowData['gpu_used']))}</span>, customSort: (a: any, b: any) => { return ((Number)(sumValues(a['gpu_allocatable'])) - (Number)(sumValues(a['gpu_used']))) - (sumValues(b['gpu_allocatable']) - (Number)(sumValues(b['gpu_used'])) )} },
             {title: 'Status', field: '', render: (rowData: any) => <>
                  <Tooltip title={rowData['unschedulable'] ? "unschedulable" : "ok"}>
@@ -50,7 +50,7 @@ export const PhysicalClusterNodeStatus = (props: PhClusterNSType) => {
                      </SvgIcon>
                    </IconButton>
                  </Tooltip>
-              </>},
+              </>, customSort:(a: any, b: any) => a['unschedulable'] - b['unschedulable']},
             {title: 'Pods', field: '', render: (rowData: any) => <>
                 {
                   rowData['pods'].map((pod: string)=>{
