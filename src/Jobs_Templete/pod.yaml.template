@@ -11,7 +11,6 @@ metadata:
   labels:
     run: {{ job["jobId"] }}
     podName: {{ job["podName"] }}
-    jobName: {{ job["jobNameLabel"] }}
     jobId: {{ job["jobId"] }}
     jobRole: {{ jobRole }}
     userName: {{ job["user"] }}
@@ -111,11 +110,6 @@ spec:
     image: {{ job["image"] }}
     imagePullPolicy: Always
     command: {{ job["LaunchCMD"] }}
-    readinessProbe:
-      exec:
-        command: ["ls", "/pod/running/ROLE_READY"]
-      initialDelaySeconds: 3
-      periodSeconds: 30
     securityContext:
       runAsUser: {{ job["containerUserId"] }}
     {% if job["isPrivileged"] %}
@@ -173,6 +167,15 @@ spec:
     {% endif %}
     - mountPath: /dev/shm
       name: dshm
+    - mountPath: /dev/infiniband/rdma_cm
+      name: rdma-cm
+    - mountPath: /dev/infiniband/uverbs0
+      name: ib-uverbs0
+    - mountPath: /dev/infiniband/issm0
+      name: ib-issm0
+    - mountPath: /dev/infiniband/umad0
+      name: ib-umad0
+
     env:
     - name: FAMILY_TOKEN
       value: {{ job["familyToken"] }}
@@ -263,3 +266,15 @@ spec:
   - name: dshm
     emptyDir:
       medium: Memory
+  - name: rdma-cm
+    hostPath:
+      path: /dev/infiniband/rdma_cm
+  - name: ib-uverbs0
+    hostPath:
+      path: /dev/infiniband/uverbs0
+  - name: ib-issm0
+    hostPath:
+      path: /dev/infiniband/issm0
+  - name: ib-umad0
+    hostPath:
+      path: /dev/infiniband/umad0
