@@ -36,21 +36,21 @@ def get_restful_data(args):
         url = urllib.parse.urljoin(args.rest_url, "/GetVC") + "?" + query
         body = requests.get(url).json()
         result[vc_name] = {
-                "total": body["gpu_capacity"]["P40"],
-                "available": body["gpu_avaliable"]["P40"],
-                "unschedulable": body["gpu_unschedulable"]["P40"],
+                "total": body["gpu_capacity"].get("P40") or body["gpu_capacity"].get("V100"),
+                "available": body["gpu_avaliable"].get("P40") or body["gpu_avaliable"].get("V100"),
+                "unschedulable": body["gpu_unschedulable"].get("P40") or body["gpu_unschedulable"].get("V100"),
                 }
 
         if len(node_result) == 0:
             for node in body["node_status"]:
                 node_result[node["InternalIP"]] = {}
-                node_result[node["InternalIP"]]["total"] = walk_json_field_safe(node, "gpu_capacity", "P40") or 0
+                node_result[node["InternalIP"]]["total"] = walk_json_field_safe(node, "gpu_capacity", "P40") or walk_json_field_safe(node, "gpu_capacity", "V100") or 0
                 if node["unschedulable"]:
                     node_result[node["InternalIP"]]["allocatable"] = 0
                 else:
-                    node_result[node["InternalIP"]]["allocatable"] = walk_json_field_safe(node, "gpu_allocatable", "P40") or 0
-                node_result[node["InternalIP"]]["used"] = walk_json_field_safe(node, "gpu_used", "P40") or 0
-                node_result[node["InternalIP"]]["preemtable_used"] = walk_json_field_safe(node, "gpu_preemptable_used", "P40") or 0
+                    node_result[node["InternalIP"]]["allocatable"] = walk_json_field_safe(node, "gpu_allocatable", "P40") or walk_json_field_safe(node, "gpu_allocatable", "V100") or 0
+                node_result[node["InternalIP"]]["used"] = walk_json_field_safe(node, "gpu_used", "P40") or walk_json_field_safe(node, "gpu_used", "V100") or 0
+                node_result[node["InternalIP"]]["preemtable_used"] = walk_json_field_safe(node, "gpu_preemptable_used", "P40") or walk_json_field_safe(node, "gpu_preemptable_used", "V100") or 0
     return result, node_result
 
 def get_prometheus_data(args):
