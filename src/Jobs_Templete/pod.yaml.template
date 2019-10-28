@@ -11,7 +11,6 @@ metadata:
   labels:
     run: {{ job["jobId"] }}
     podName: {{ job["podName"] }}
-    jobName: {{ job["jobNameLabel"] }}
     jobId: {{ job["jobId"] }}
     jobRole: {{ jobRole }}
     userName: {{ job["user"] }}
