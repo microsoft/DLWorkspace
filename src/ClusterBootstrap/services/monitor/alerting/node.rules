@@ -48,3 +48,11 @@ groups:
         for: 10m
         annotations:
           summary: "User's job in {{$labels.instance}} is hanging in scheduling, will need to restart the node to recover"
+
+    - name: nfs-rules
+      rules:
+      - alert: NFSUsage
+        expr: avg (node_filesystem_free_bytes{fstype="nfs4"} / node_filesystem_size_bytes * 100) by (device, mountpoint) <= 10
+        for: 30m
+        annotations:
+          summary: "Free space in {{$labels.device}} from {{$labels.mountpoint}} is less than 10% (current value is: {{ $value }})"
