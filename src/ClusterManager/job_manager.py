@@ -265,7 +265,7 @@ def check_job_status(job_id):
     job_roles = JobRole.get_job_roles(job_id)
 
     if len(job_roles) < 1:
-        return "NotFound"
+        return "NotFound", []
 
     # role status in ["NotFound", "Pending", "Running", "Succeeded", "Failed", "Unknown"]
     # TODO ??? when ps/master role "Succeeded", return Succeeded
