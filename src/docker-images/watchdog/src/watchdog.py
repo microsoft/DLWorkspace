@@ -96,6 +96,11 @@ def gen_k8s_node_gpu_available():
     return GaugeMetricFamily("k8s_node_gpu_available", "gpu available on k8s node",
             labels=["host_ip"])
 
+def gen_k8s_node_preemptable_gpu_available():
+    return GaugeMetricFamily("k8s_node_preemptable_gpu_available",
+            "gpu available on k8s node for preemptable job",
+            labels=["host_ip"])
+
 service_response_histogram = Histogram("service_response_latency_seconds",
             "response latency of each service",
             labelnames=("service_name", "service_ip"),
@@ -216,12 +221,13 @@ def catch_exception(fn, msg, default, *args, **kwargs):
         return default
 
 class PodInfo(object):
-    def __init__(self, name, gpu):
+    def __init__(self, name, preemptable, gpu):
         self.name = name
+        self.preemptable = preemptable
         self.gpu = gpu
 
     def __repr__(self):
-        return "%s: %s" % (self.name, self.gpu)
+        return "%s, %s: %s" % (self.name, self.preemptable, self.gpu)
 
 def process_service_endpoints(service_name, host_ip, annotations, service_endpoints):
     annotation_ns = "monitor.watchdog"
@@ -259,6 +265,9 @@ def parse_pod_item(pod, pai_pod_gauge, pai_container_gauge, pods_info, service_e
     pod_name = pod["metadata"]["name"]
     namespace = walk_json_field_safe(pod, "metadata", "namespace") or "default"
     host_ip = walk_json_field_safe(pod, "status", "hostIP") or "unscheduled"
+    preemptable_str = walk_json_field_safe(pod, "metadata", "labels", "preemptionAllowed") or False
+    preemptable = preemptable_str == "True" or preemptable_str == "true"
+    using_gpu = True
 
     used_gpu = 0
     containers = walk_json_field_safe(pod, "spec", "containers")
@@ -269,17 +278,19 @@ def parse_pod_item(pod, pai_pod_gauge, pai_container_gauge, pods_info, service_e
             limit_gpu = int(walk_json_field_safe(container, "resources", "limits",
                     "nvidia.com/gpu") or 0)
             used_gpu += max(req_gpu, limit_gpu)
-    pods_info[host_ip].append(PodInfo(pod_name, used_gpu))
+            phase = walk_json_field_safe(pod, "status", "phase")
+            if phase == "Succeeded" or phase == "Failed":
+                using_gpu = False
 
     vc = walk_json_field_safe(pod, "metadata", "labels", "vcName")
-    preemptable = walk_json_field_safe(pod, "metadata", "labels", "preemptionAllowed")
 
-    if vc is not None and preemptable is not None:
+    if vc is not None and preemptable is not None and using_gpu:
+        pods_info[host_ip].append(PodInfo(pod_name, preemptable, used_gpu))
         gpu_type = walk_json_field_safe(pod, "metadata", "labels", "gpuType")
         if gpu_type is None:
             gpu_type = ""
 
-        if preemptable == "True" or preemptable == "true":
+        if preemptable:
             vc_usage.add_preemptable_used(vc, gpu_type, used_gpu)
         else:
             vc_usage.add_used(vc, gpu_type, used_gpu)
@@ -385,8 +396,8 @@ def collect_k8s_component(api_server_scheme, api_server_ip, api_server_port, ca_
 
 
 def parse_node_item(node, pai_node_gauge,
-        node_gpu_avail, node_gpu_total, node_gpu_allocatable,
-        pods_info, cluster_gpu_info):
+        node_gpu_avail, node_gpu_preemptable_avail, node_gpu_total,
+        node_gpu_allocatable, pods_info, cluster_gpu_info):
 
     ip = None
 
@@ -432,21 +443,29 @@ def parse_node_item(node, pai_node_gauge,
         # Because k8s api's node api do not record how much resource left for
         # allocation, so we have to compute it ourselves.
         used_gpu = 0
+        preemptable_used_gpu = 0
 
         if pods_info.get(ip) is not None:
             for pod in pods_info[ip]:
-                used_gpu += pod.gpu
+                if pod.preemptable:
+                    preemptable_used_gpu += pod.gpu
+                else:
+                    used_gpu += pod.gpu
 
         if walk_json_field_safe(node, "spec", "unschedulable") != True and ready == "true":
             available = max(0, gpu_allocatable - used_gpu)
+            preemptable_available = max(0, gpu_allocatable - used_gpu - preemptable_used_gpu)
             node_gpu_avail.add_metric([ip], available)
+            node_gpu_preemptable_avail.add_metric([ip], preemptable_available)
             node_gpu_allocatable.add_metric([ip], gpu_allocatable)
 
             cluster_gpu_info.available += available
+            cluster_gpu_info.preemptable_available += preemptable_available
             cluster_gpu_info.allocatable += gpu_allocatable
         else:
             node_gpu_avail.add_metric([ip], 0)
-            node_gpu_allocatable.add_metric([ip], used_gpu)
+            node_gpu_preemptable_avail.add_metric([ip], 0)
+            node_gpu_allocatable.add_metric([ip], 0)
     else:
         logger.warning("unexpected structure of node %s: %s", ip, json.dumps(node))
 
@@ -462,6 +481,7 @@ def parse_node_item(node, pai_node_gauge,
 def process_nodes_status(nodes_object, pods_info, cluster_gpu_info):
     pai_node_gauge = gen_pai_node_gauge()
     node_gpu_avail = gen_k8s_node_gpu_available()
+    node_gpu_preemptable_avail = gen_k8s_node_preemptable_gpu_available()
     node_gpu_allocatable = gen_k8s_node_gpu_allocatable()
     node_gpu_total = gen_k8s_node_gpu_total()
 
@@ -472,6 +492,7 @@ def process_nodes_status(nodes_object, pods_info, cluster_gpu_info):
                 item,
                 pai_node_gauge,
                 node_gpu_avail,
+                node_gpu_preemptable_avail,
                 node_gpu_total,
                 node_gpu_allocatable,
                 pods_info,
@@ -480,7 +501,8 @@ def process_nodes_status(nodes_object, pods_info, cluster_gpu_info):
     list(map(_map_fn, nodes_object["items"]))
 
     return [pai_node_gauge,
-            node_gpu_avail, node_gpu_total, node_gpu_allocatable]
+            node_gpu_avail, node_gpu_preemptable_avail,
+            node_gpu_total, node_gpu_allocatable]
 
 
 def process_vc_quota(vc_object):
@@ -518,6 +540,9 @@ class VcUsage(object):
         self.map[vc][gpu_type][0] += count
         self.map[vc][gpu_type][1] += count
 
+    def __repr__(self):
+        return str(self.map)
+
 # Let Qi to be quota admin set to each VC, and R to be unschedulable GPU in cluster,
 # Ui to be used GPU in cluster and A to be available GPU in cluster, so to compute
 # what real quota and available GPUs is for each VC is computed using following
@@ -540,6 +565,9 @@ def process_vc_info(vc_quota_url, vc_usage, cluster_gpu_info):
         return []
 
 def gen_vc_metrics(vc_info, vc_usage, cluster_gpu_info):
+    logger.info("vc_info %s, vc_usage %s, cluster_gpu_info %s",
+            vc_info, vc_usage, cluster_gpu_info)
+
     vc_total_gauge = gen_k8s_vc_gpu_total()
     vc_avail_gauge = gen_k8s_vc_gpu_available()
     vc_unschedulable_gauge = gen_k8s_vc_gpu_unschedulable()
@@ -564,7 +592,7 @@ def gen_vc_metrics(vc_info, vc_usage, cluster_gpu_info):
                 if vc_quota_sum == 0:
                     vc_quota = 0
                 else:
-                    vc_quota = int(quota - math.ceil(gpu_unallocatable * quota / vc_quota_sum))
+                    vc_quota = quota - int(math.ceil(gpu_unallocatable * quota / vc_quota_sum))
                 used = vc_usage.map[vc_name][gpu_type][1]
 
                 ratio[vc_name][gpu_type] = max(vc_quota - used, 0)
@@ -609,7 +637,7 @@ def gen_vc_metrics(vc_info, vc_usage, cluster_gpu_info):
                 total_used, non_preemptable_used = vc_used
                 vc_avail_gauge.add_metric(labels, available)
                 vc_preemptive_avail_gauge.add_metric(labels, cluster_gpu_info.available)
-                vc_unschedulable_gauge.add_metric(labels, max(0, quota - total_used - available))
+                vc_unschedulable_gauge.add_metric(labels, max(0, quota - non_preemptable_used - available))
     except Exception as e:
         error_counter.labels(type="vc_quota").inc()
         logger.exception("failed to process vc info")
@@ -760,7 +788,16 @@ class ClusterGPUInfo(object):
     def __init__(self):
         self.capacity = 0
         self.available = 0
+        self.preemptable_available = 0 # gpu available for preemptable job
         self.allocatable = 0
+
+    def __repr__(self):
+        return "capacity: %d, available: %d, preemptable_available %s, allocatable %d" % (
+                self.capacity,
+                self.available,
+                self.preemptable_available,
+                self.allocatable,
+                )
 
 
 def loop(args, services_ref, result_ref):

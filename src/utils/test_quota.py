@@ -152,6 +152,51 @@ class TestQuota(unittest.TestCase):
 
         self.assertEqual(target_vc_unschedulable, vc_unschedulable)
 
+    def test_gpu_accounting_real_case2(self):
+        vc_info = {
+                "quantus": {"P40": 150},
+                "relevance2": {"P40": 234},
+                "relevance2-inf": {"P40": 40},
+                }
+
+        vc_usage = {
+                "quantus": {"P40": 125},
+                "relevance2": {"P40": 231},
+                "relevance2-inf": {"P40": 0},
+                }
+
+        cluster_total = {"P40": 424}
+        cluster_available = {"P40": 68}
+        cluster_unschedulable = {"P40": 1}
+
+        result = quota.calculate_vc_gpu_counts(
+                cluster_total,
+                cluster_available,
+                cluster_unschedulable,
+                vc_info,
+                vc_usage)
+
+        vc_total, vc_used, vc_available, vc_unschedulable = result
+
+        self.assertEqual(vc_info, vc_total)
+        self.assertEqual(vc_usage, vc_used)
+
+        target_vc_available = {
+                "quantus": {"P40": 25},
+                "relevance2": {"P40": 2},
+                "relevance2-inf": {"P40": 40},
+                }
+
+        self.assertEqual(target_vc_available, vc_available)
+
+        target_vc_unschedulable = {
+                "quantus": {"P40": 0},
+                "relevance2": {"P40": 1},
+                "relevance2-inf": {"P40": 0},
+                }
+
+        self.assertEqual(target_vc_unschedulable, vc_unschedulable)
+
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s',
             level=logging.INFO)
