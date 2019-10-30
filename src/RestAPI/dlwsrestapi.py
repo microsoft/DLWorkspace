@@ -1015,7 +1015,7 @@ class Endpoint(Resource):
         rets = []
 
         vc_admin = AuthorizationManager.HasAccess(username, ResourceType.VC, job["vcName"], Permission.Admin)
-        if job["userName"] == username and vc_admin:
+        if job["userName"] == username or vc_admin:
             try:
                 endpoints = json.loads(job["endpoints"])
             except:
@@ -1065,8 +1065,10 @@ class Endpoint(Resource):
         job = JobRestAPIUtils.get_job(job_id)
 
         vc_admin = AuthorizationManager.HasAccess(username, ResourceType.VC, job["vcName"], Permission.Admin)
-        if job["userName"] != username or (not vc_admin):
-            return "You are not authorized to enable endpoint for this job", 403
+        if job["userName"] != username and (not vc_admin):
+            msg = "You are not authorized to enable endpoint for job %s" % job_id
+            logger.error(msg)
+            return msg, 403
 
         job_params = json.loads(base64.b64decode(job["jobParams"]))
         job_type = job_params["jobtrainingtype"]
