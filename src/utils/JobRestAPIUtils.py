@@ -223,7 +223,7 @@ def SubmitJob(jobParamsJsonStr):
                     priorityValue = 100
 
                 job_priorites = {jobParams["jobId"]:priorityValue}
-                update_job_priorites(job_priorites)
+                update_job_priorites(userName, job_priorites)
         else:
             ret["error"] = "Cannot schedule job. Cannot add job into database."
 
@@ -646,11 +646,38 @@ def get_job_priorities():
     return job_priorites
 
 
-def update_job_priorites(job_priorites):
-    dataHandler = DataHandler()
-    success = dataHandler.update_job_priority(job_priorites)
-    dataHandler.Close()
-    return success
+def update_job_priorites(username, job_priorities):
+    data_handler = None
+    try:
+        data_handler = DataHandler()
+
+        # Only job owner and VC admin can update job priority.
+        # Fail job priority update if there is one unauthorized items.
+        for job_id, priority in job_priorities.items():
+            jobs = data_handler.GetJob(jobId=job_id)
+            if len(jobs) == 0:
+                logger.warn("Update priority %s for non-existent job %s" %
+                            (priority, job_id))
+                continue
+
+            if len(jobs) > 1:
+                logger.warn("Multiple job entries found that matches job %s. "
+                            "Most likely a platform bug." % job_id)
+
+            job = jobs[0]
+            vc_admin = AuthorizationManager.HasAccess(username, ResourceType.VC, job["vcName"], Permission.Admin)
+            if job["userName"] != username and (not vc_admin):
+                return False
+
+        ret_code = data_handler.update_job_priority(job_priorities)
+        return ret_code
+
+    except Exception as e:
+        logger.error("Exception when updating job priorities: %s" % e)
+
+    finally:
+        if data_handler is not None:
+            data_handler.Close()
 
 
 if __name__ == '__main__':

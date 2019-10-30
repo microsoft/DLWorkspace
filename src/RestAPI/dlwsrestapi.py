@@ -1013,33 +1013,38 @@ class Endpoint(Resource):
         job = JobRestAPIUtils.GetJobDetail(username, jobId)
 
         rets = []
-        try:
-            endpoints = json.loads(job["endpoints"])
-        except:
-            endpoints = {}
 
-        for [_, endpoint] in endpoints.items():
-            ret = {
-                "id": endpoint["id"],
-                "name": endpoint["name"],
-                "username": endpoint["username"],
-                "status": endpoint["status"],
-                "hostNetwork": endpoint["hostNetwork"],
-                "podName": endpoint["podName"],
-                "domain": config["domain"],
-            }
-            if "podPort" in endpoint:
-                ret["podPort"] = endpoint["podPort"]
-            if endpoint["status"] == "running":
-                if endpoint["hostNetwork"]:
-                    port = int(endpoint["endpointDescription"]["spec"]["ports"][0]["port"])
-                else:
-                    port = int(endpoint["endpointDescription"]["spec"]["ports"][0]["nodePort"])
-                ret["port"] = port
-                if "nodeName" in endpoint:
-                    ret["nodeName"] = endpoint["nodeName"]
-            rets.append(ret)
+        vc_admin = AuthorizationManager.HasAccess(username, ResourceType.VC, job["vcName"], Permission.Admin)
+        if job["userName"] == username and vc_admin:
+            try:
+                endpoints = json.loads(job["endpoints"])
+            except:
+                endpoints = {}
 
+            for [_, endpoint] in endpoints.items():
+                ret = {
+                    "id": endpoint["id"],
+                    "name": endpoint["name"],
+                    "username": endpoint["username"],
+                    "status": endpoint["status"],
+                    "hostNetwork": endpoint["hostNetwork"],
+                    "podName": endpoint["podName"],
+                    "domain": config["domain"],
+                }
+                if "podPort" in endpoint:
+                    ret["podPort"] = endpoint["podPort"]
+                if endpoint["status"] == "running":
+                    if endpoint["hostNetwork"]:
+                        port = int(endpoint["endpointDescription"]["spec"]["ports"][0]["port"])
+                    else:
+                        port = int(endpoint["endpointDescription"]["spec"]["ports"][0]["nodePort"])
+                    ret["port"] = port
+                    if "nodeName" in endpoint:
+                        ret["nodeName"] = endpoint["nodeName"]
+                rets.append(ret)
+
+        # TODO: return 403 error code
+        # Return empty list for now to keep backward compatibility with old portal.
         resp = jsonify(rets)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
@@ -1047,12 +1052,22 @@ class Endpoint(Resource):
 
     def post(self):
         '''set job["endpoints"]: curl -X POST -H "Content-Type: application/json" /endpoints --data "{'jobId': ..., 'endpoints': ['ssh', 'ipython'] }"'''
+        parser = reqparse.RequestParser()
+        parser.add_argument('userName')
+        args = parser.parse_args()
+        username = args["userName"]
+
         params = request.get_json(silent=True)
         job_id = params["jobId"]
         requested_endpoints = params["endpoints"]
 
         # get the job
         job = JobRestAPIUtils.get_job(job_id)
+
+        vc_admin = AuthorizationManager.HasAccess(username, ResourceType.VC, job["vcName"], Permission.Admin)
+        if job["userName"] != username or (not vc_admin):
+            return "You are not authorized to enable endpoint for this job", 403
+
         job_params = json.loads(base64.b64decode(job["jobParams"]))
         job_type = job_params["jobtrainingtype"]
 
@@ -1230,6 +1245,7 @@ class Templates(Resource):
         ret = dataHandler.GetTemplates("master") or []
         ret += dataHandler.GetTemplates("vc:" + vcName) or []
         ret += dataHandler.GetTemplates("user:" + userName) or []
+        dataHandler.Close()
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
@@ -1302,6 +1318,7 @@ class Templates(Resource):
         dataHandler = DataHandler()
         ret = {}
         ret["result"] = dataHandler.DeleteTemplate(templateName, scope)
+        dataHandler.Close()
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
@@ -1320,12 +1337,17 @@ class JobPriority(Resource):
         return resp
 
     def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('userName', location="args")
+        args = parser.parse_args()
+        username = args["userName"]
+
         payload = request.get_json(silent=True)
-        success = JobRestAPIUtils.update_job_priorites(payload)
+        success = JobRestAPIUtils.update_job_priorites(username, payload)
         http_status = 200 if success else 400
 
-        job_priorites = JobRestAPIUtils.get_job_priorities()
-        resp = jsonify(job_priorites)
+        job_priorities = JobRestAPIUtils.get_job_priorities()
+        resp = jsonify(job_priorities)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
         resp.status_code = http_status
