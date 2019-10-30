@@ -265,7 +265,7 @@ def check_job_status(job_id):
     job_roles = JobRole.get_job_roles(job_id)
 
     if len(job_roles) < 1:
-        return "NotFound"
+        return "NotFound", []
 
     # role status in ["NotFound", "Pending", "Running", "Succeeded", "Failed", "Unknown"]
     # TODO ??? when ps/master role "Succeeded", return Succeeded
@@ -453,7 +453,7 @@ def TakeJobActions(launcher, jobs):
     logging.info("TakeJobActions : job desired actions taken")
 
 
-def Run(updateblock=0):
+def Run():
     register_stack_trace_dump()
     notifier = notify.Notifier(config.get("job-manager"))
     notifier.start()
@@ -463,10 +463,7 @@ def Run(updateblock=0):
     launcher.start()
 
     while True:
-        if updateblock == 0:
-            update_file_modification_time("job_manager")
-        else:
-            update_file_modification_time("job_manager" + str(updateblock))
+        update_file_modification_time("job_manager")
 
         with manager_iteration_histogram.labels("job_manager").time():
             try:
@@ -478,28 +475,24 @@ def Run(updateblock=0):
             try:
                 dataHandler = DataHandler()
 
-                if updateblock == 0 or updateblock == 1:
-                    pendingJobs = dataHandler.GetPendingJobs()
-                    TakeJobActions(launcher, pendingJobs)
+                pendingJobs = dataHandler.GetPendingJobs()
+                TakeJobActions(launcher, pendingJobs)
 
                 pendingJobs = dataHandler.GetPendingJobs()
                 logging.info("Updating status for %d jobs" % len(pendingJobs))
                 for job in pendingJobs:
                     try:
                         logging.info("Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"]))
-                        if updateblock == 0 or updateblock == 2:
-                            if job["jobStatus"] == "killing":
-                                launcher.kill_job(job["jobId"], "killed", dataHandlerOri=dataHandler)
-                            elif job["jobStatus"] == "pausing":
-                                launcher.kill_job(job["jobId"], "paused", dataHandlerOri=dataHandler)
-                            elif job["jobStatus"] == "running":
-                                UpdateJobStatus(launcher, job, notifier, dataHandlerOri=dataHandler)
-
-                        if updateblock == 0 or updateblock == 1:
-                            if job["jobStatus"] == "scheduling":
-                                UpdateJobStatus(launcher, job, notifier, dataHandlerOri=dataHandler)
-                            elif job["jobStatus"] == "unapproved":
-                                ApproveJob(job,dataHandlerOri = dataHandler)
+                        if job["jobStatus"] == "killing":
+                            launcher.kill_job(job["jobId"], "killed")
+                        elif job["jobStatus"] == "pausing":
+                            launcher.kill_job(job["jobId"], "paused")
+                        elif job["jobStatus"] == "running":
+                            UpdateJobStatus(launcher, job, notifier, dataHandlerOri=dataHandler)
+                        elif job["jobStatus"] == "scheduling":
+                            UpdateJobStatus(launcher, job, notifier, dataHandlerOri=dataHandler)
+                        elif job["jobStatus"] == "unapproved":
+                            ApproveJob(job,dataHandlerOri = dataHandler)
                     except Exception as e:
                         logging.warning(e, exc_info=True)
             except Exception as e:
@@ -516,9 +509,8 @@ def Run(updateblock=0):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", "-p", help="port of exporter", type=int, default=9200)
-    parser.add_argument("--updateblock", "-u", help="updateblock", type=int, default=0)
 
     args = parser.parse_args()
     setup_exporter_thread(args.port)
 
-    Run(args.updateblock)
+    Run()

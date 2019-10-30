@@ -87,10 +87,8 @@ def Run(args):
 
     cwd = os.path.dirname(__file__)
     cmds = {
-        "job_manager1":
-        ["python", os.path.join(cwd, "job_manager.py"), "--port", str(args.j1), "--updateblock", "1"],
-        "job_manager2":
-        ["python", os.path.join(cwd, "job_manager.py"), "--port", str(args.j2), "--updateblock", "2"],        
+        "job_manager":
+        ["python", os.path.join(cwd, "job_manager.py"), "--port", str(args.j1)],
         "user_manager":
         ["python", os.path.join(cwd, "user_manager.py"), "--port", str(args.u)],
         "node_manager":

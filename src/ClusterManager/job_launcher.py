@@ -10,6 +10,7 @@ import functools
 import time
 import datetime
 import base64
+import multiprocessing
 
 from kubernetes import client, config as k8s_config
 from kubernetes.client.rest import ApiException
@@ -25,7 +26,7 @@ from pod_template import PodTemplate
 from dist_pod_template import DistPodTemplate
 from config import config
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 job_deployer_fn_histogram = Histogram("job_deployer_fn_latency_seconds",
         "latency for executing job deployer (seconds)",
@@ -133,7 +134,7 @@ class JobDeployer:
                 if isinstance(e, ApiException) and 404 == e.status:
                     return []
                 message = "Delete pod failed: {}".format(pod_name)
-                logging.warning(message, exc_info=True)
+                logger.warning(message, exc_info=True)
                 errors.append({"message": message, "exception": e})
         return errors
 
@@ -147,7 +148,7 @@ class JobDeployer:
                 self._delete_service(service_name)
             except ApiException as e:
                 message = "Delete service failed: {}".format(service_name)
-                logging.warning(message, exc_info=True)
+                logger.warning(message, exc_info=True)
                 errors.append({"message": message, "exception": e})
         return errors
 
@@ -162,7 +163,7 @@ class JobDeployer:
                 if isinstance(e, ApiException) and 404 == e.status:
                     return []
                 message = "Delete pod failed: {}".format(deployment_name)
-                logging.warning(message, exc_info=True)
+                logger.warning(message, exc_info=True)
                 errors.append({"message": message, "exception": e})
         return errors
 
@@ -180,7 +181,7 @@ class JobDeployer:
             elif pod["kind"] == "Deployment":
                 created_pod = self._create_deployment(pod)
             created.append(created_pod)
-            logging.info("Create pod succeed: %s" % created_pod.metadata.name)
+            logger.info("Create pod succeed: %s" % created_pod.metadata.name)
         return created
 
     @record
@@ -191,7 +192,7 @@ class JobDeployer:
             field_selector=field_selector,
             label_selector=label_selector,
         )
-        logging.debug("Get pods: {}".format(api_response))
+        logger.debug("Get pods: {}".format(api_response))
         return api_response.items
 
     @record
@@ -202,7 +203,7 @@ class JobDeployer:
             field_selector=field_selector,
             label_selector=label_selector,
         )
-        logging.debug("Get pods: {}".format(api_response))
+        logger.debug("Get pods: {}".format(api_response))
         return api_response.items
 
     @record
@@ -222,7 +223,7 @@ class JobDeployer:
         pods = self.get_pods(label_selector=label_selector)
         pod_names = [pod.metadata.name for pod in pods]
         pod_errors = self._cleanup_pods(pod_names, force)
-        logging.info("deleting pods %s" % ",".join(pod_names))
+        logger.info("deleting pods %s" % ",".join(pod_names))
         # query services then delete
         services = self._get_services_by_label(label_selector)
         service_errors = self._cleanup_services(services)
@@ -231,7 +232,7 @@ class JobDeployer:
         deployment_names = [deployment.metadata.name for deployment in deployments]
         deployment_errors = self._cleanup_deployment(deployment_names, force)
 
-        logging.info("deleting deployments %s" % ",".join(deployment_names))
+        logger.info("deleting deployments %s" % ",".join(deployment_names))
 
         errors = pod_errors + service_errors + deployment_errors
         return errors
@@ -240,7 +241,7 @@ class JobDeployer:
     def pod_exec(self, pod_name, exec_command, timeout=60):
         """work as the command (with timeout): kubectl exec 'pod_name' 'exec_command'"""
         try:
-            logging.info("Exec on pod {}: {}".format(pod_name, exec_command))
+            logger.info("Exec on pod {}: {}".format(pod_name, exec_command))
             client = stream(
                 self.k8s_CoreAPI.connect_get_namespaced_pod_exec,
                 name=pod_name,
@@ -261,13 +262,13 @@ class JobDeployer:
             if err["status"] == "Success":
                 status_code = 0
             else:
-                logging.debug("Exec on pod {} failed. cmd: {}, err: {}.".format(pod_name, exec_command, err))
+                logger.debug("Exec on pod {} failed. cmd: {}, err: {}.".format(pod_name, exec_command, err))
                 status_code = int(err["details"]["causes"][0]["message"])
             output = client.read_all()
-            logging.info("Exec on pod {}, status: {}, cmd: {}, output: {}".format(pod_name, status_code, exec_command, output))
+            logger.info("Exec on pod {}, status: {}, cmd: {}, output: {}".format(pod_name, status_code, exec_command, output))
             return [status_code, output]
         except ApiException as err:
-            logging.error("Exec on pod {} error. cmd: {}, err: {}.".format(pod_name, exec_command, err), exc_info=True)
+            logger.error("Exec on pod {} error. cmd: {}, err: {}.".format(pod_name, exec_command, err), exc_info=True)
             return [-1, err.message]
 
 
@@ -304,7 +305,7 @@ class JobRole:
         # node condition: https://kubernetes.io/docs/concepts/architecture/nodes/#condition
         deployer = JobDeployer()
         pods = deployer.get_pods(field_selector="metadata.name={}".format(self.pod_name))
-        logging.debug("Pods: {}".format(pods))
+        logger.debug("Pods: {}".format(pods))
         if(len(pods) < 1):
             return "NotFound"
 
@@ -338,7 +339,7 @@ class JobRole:
             if container.name == self.pod_name and container.readiness_probe is not None:
                 for status in self.pod.status.container_statuses:
                     if status.name == self.pod_name:
-                        log.info("pod %s have readiness_probe result", self.pod_name)
+                        logger.info("pod %s have readiness_probe result", self.pod_name)
                         return status.ready
         # no readiness_probe defined, fallback to old way
         return self.isFileExisting(JobRole.MARK_ROLE_READY_FILE)
@@ -405,10 +406,17 @@ def job_status_detail_with_finished_time(job_status_detail, status, msg=""):
 
 class PythonLauncher(Launcher):
     def __init__(self):
-        pass
+        self.process = None
+        self.queue = None
+        # items in queue should be tuple of 3 elements: (function name, args, kwargs)
 
     def start(self):
-        pass
+        if self.process is None:
+            self.queue = multiprocessing.Queue()
+
+            self.process = multiprocessing.Process(target=self.run,
+                    args=(self.queue,), name="launcher")
+            self.process.start()
 
     def get_job_status_detail(self, job_id):
         pass
@@ -417,19 +425,22 @@ class PythonLauncher(Launcher):
         job_deployer = JobDeployer()
         job_roles = JobRole.get_job_roles(job_id)
         statuses = [job_role.status() for job_role in job_roles]
-        logging.info("Job: {}, status: {}".format(job_id, statuses))
+        logger.info("Job: {}, status: {}".format(job_id, statuses))
         return all([status == "NotFound" for status in statuses])
 
     def submit_job(self, job):
+        self.queue.put(("submit_job", (job,), {}))
+
+    def submit_job_impl(self, job):
         # check if existing any pod with label: run=job_id
         assert("jobId" in job)
         job_id = job["jobId"]
         if not self._all_pods_not_existing(job_id):
-            logging.warning("Waiting until previously pods are cleaned up! Job {}".format(job_id))
+            logger.warning("Waiting until previously pods are cleaned up! Job {}".format(job_id))
             job_deployer = JobDeployer()
             errors = job_deployer.delete_job(job_id, force=True)
             if errors:
-                logging.warning("Force delete job {}: {}".format(job_id, errors))
+                logger.warning("Force delete job {}: {}".format(job_id, errors))
             return
 
         ret = {}
@@ -442,7 +453,7 @@ class PythonLauncher(Launcher):
             endpoints = dataHandler.GetJobEndpoints(job_id)
             for endpoint_id, endpoint in endpoints.items():
                 endpoint["status"] = "pending"
-                logging.info("Reset endpoint status to 'pending': {}".format(endpoint_id))
+                logger.info("Reset endpoint status to 'pending': {}".format(endpoint_id))
                 dataHandler.UpdateEndpoint(endpoint)
 
             job["cluster"] = config
@@ -491,7 +502,7 @@ class PythonLauncher(Launcher):
                 ret["output"] = "Created pods: {}".format([pod.metadata.name for pod in pods])
             except Exception as e:
                 ret["output"] = "Error: %s" % e.message
-                logging.error(e, exc_info=True)
+                logger.error(e, exc_info=True)
 
             ret["jobId"] = job_object.job_id
 
@@ -510,7 +521,7 @@ class PythonLauncher(Launcher):
             jobMetaStr = base64.b64encode(json.dumps(jobMeta))
             dataHandler.UpdateJobTextField(job_object.job_id, "jobMeta", jobMetaStr)
         except Exception as e:
-            logging.error("Submit job failed: %s" % job, exc_info=True)
+            logger.error("Submit job failed: %s" % job, exc_info=True)
             ret["error"] = str(e)
             retries = dataHandler.AddandGetJobRetries(job["jobId"])
             if retries >= 5:
@@ -524,7 +535,10 @@ class PythonLauncher(Launcher):
         dataHandler.Close()
         return ret
 
-    def kill_job(self, job_id, desired_state="killed", dataHandlerOri=None):
+    def kill_job(self, job_id, desired_state="killed"):
+        self.queue.put(("kill_job", (job_id,), {"desired_state": desired_state}))
+
+    def kill_job_impl(self, job_id, desired_state="killed", dataHandlerOri=None):
         if dataHandlerOri is None:
             dataHandler = DataHandler()
         else:
@@ -534,7 +548,7 @@ class PythonLauncher(Launcher):
         result, detail = k8sUtils.GetJobStatus(job_id)
         detail = job_status_detail_with_finished_time(detail, desired_state)
         dataHandler.UpdateJobTextField(job_id, "jobStatusDetail", base64.b64encode(json.dumps(detail)))
-        logging.info("Killing job %s, with status %s, %s" % (job_id, result, detail))
+        logger.info("Killing job %s, with status %s, %s" % (job_id, result, detail))
 
         job_deployer = JobDeployer()
         errors = job_deployer.delete_job(job_id, force=True)
@@ -550,5 +564,18 @@ class PythonLauncher(Launcher):
             dataHandler.UpdateJobTextField(job_id, "lastUpdated", datetime.datetime.now().isoformat())
             if dataHandlerOri is None:
                 dataHandler.Close()
-            logging.error("Kill job failed with errors: {}".format(errors))
+            logger.error("Kill job failed with errors: {}".format(errors))
             return False
+
+    def run(self, queue):
+        # TODO matain a data_handler so do not need to init it every time
+        while True:
+            func_name, args, kwargs = queue.get(True)
+
+            if func_name == "submit_job":
+                self.submit_job_impl(*args, **kwargs)
+            elif func_name == "kill_job":
+                self.kill_job_impl(*args, **kwargs)
+            else:
+                logger.error("unknown func_name %s, with args %s %s",
+                        func_name, args, kwargs)
