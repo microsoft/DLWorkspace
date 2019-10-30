@@ -1348,7 +1348,16 @@ class JobPriority(Resource):
         success = JobRestAPIUtils.update_job_priorites(username, payload)
         http_status = 200 if success else 400
 
-        job_priorities = JobRestAPIUtils.get_job_priorities()
+        all_job_priorities = JobRestAPIUtils.get_job_priorities()
+
+        # Only return job_priorities affected in the POST request
+        job_priorities = {}
+        for job_id, _ in payload.items():
+            if job_id in all_job_priorities:
+                job_priorities[job_id] = all_job_priorities[job_id]
+            else:
+                job_priorities[job_id] = JobRestAPIUtils.DEFAULT_JOB_PRIORITY
+
         resp = jsonify(job_priorities)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
