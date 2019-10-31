@@ -34,12 +34,12 @@ const testJobs = {
   runjob: {
     jobId: 'runjob',
     priority: 3,
-    jobTime: 18876
+    jobTime: null
   },
   visjob: {
     jobId: 'visjob',
     priority: 4,
-    jobTime: 18877
+    jobTime: null
   }
 }
 
