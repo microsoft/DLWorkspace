@@ -1201,7 +1201,7 @@ class Endpoint(Resource):
                 # TODO: Simplify code logic after removing PS
                 pod_name = pod_names[1]
 
-            endpoint_id = "e-" + job_id + "-port-" + interactive_port["podPort"]
+            endpoint_id = "e-" + job_id + "-port-" + str(interactive_port["podPort"])
             if not endpoint_exist(endpoint_id=endpoint_id):
                 logger.info("Endpoint %s does not exist. Add.", endpoint_id)
                 endpoint = {
