@@ -110,7 +110,7 @@ const Jobs: React.FC = (props: any) => {
   const [currentJob, setCurrentJob] = React.useState({jobId:'',cluster:'',priority: 100});
   const deleteUrl = `/api/clusters/`;
   const requestDelete =  useFetch(deleteUrl);
-  useEffect(()=>{
+  useEffect(() => {
     let mount = true;
     let timeout: any;
     if (window.navigator.userAgent.indexOf('Edge') != -1) {
@@ -122,7 +122,7 @@ const Jobs: React.FC = (props: any) => {
       mount = false;
       clearTimeout(timeout)
     }
-  },[])
+  }, [])
   const killJob = async () => {
     const body = {"status":"killing"};
     const data = await requestDelete.put(`${currentJob.cluster}/jobs/${currentJob.jobId}/status/`,body);
