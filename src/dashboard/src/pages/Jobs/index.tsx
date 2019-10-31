@@ -96,19 +96,6 @@ const Jobs: React.FC = (props: any) => {
   const classes = useStyles();
   const [value, setValue] = React.useState(0);
   const [refresh, setRefresh] = React.useState(window.navigator.userAgent.indexOf('Edge') == -1);
-  useEffect(()=>{
-    let mount = true;
-    let timeout: any;
-    if (window.navigator.userAgent.indexOf('Edge') != -1) {
-      timeout = setTimeout(()=>{
-        setRefresh(true);
-      },1000);
-    }
-    return () => {
-      mount = false;
-      clearTimeout(timeout)
-    }
-  },[])
   const[open, setOpen] = React.useState(false);
   const[openApprove, setOpenApprove] = React.useState(false);
   const[openPause, setOpenPause] = React.useState(false);
@@ -123,6 +110,19 @@ const Jobs: React.FC = (props: any) => {
   const [currentJob, setCurrentJob] = React.useState({jobId:'',cluster:'',priority: 100});
   const deleteUrl = `/api/clusters/`;
   const requestDelete =  useFetch(deleteUrl);
+  useEffect(() => {
+    let mount = true;
+    let timeout: any;
+    if (window.navigator.userAgent.indexOf('Edge') != -1) {
+      timeout = setTimeout(()=>{
+        setRefresh(true);
+      }, 1000);
+    }
+    return () => {
+      mount = false;
+      clearTimeout(timeout)
+    }
+  }, [])
   const killJob = async () => {
     const body = {"status":"killing"};
     const data = await requestDelete.put(`${currentJob.cluster}/jobs/${currentJob.jobId}/status/`,body);
@@ -303,7 +303,7 @@ const Jobs: React.FC = (props: any) => {
           disabled={!isAdmin}
           key={rowData['jobId']}
           type="number"
-          id={rowData.tableData.id}
+          id={rowData.tableData.id.toString()}
           defaultValue={rowData.priority}
           onKeyPress={(event) => handlePriorityKeyPress(rowData, event)}
           onChange={(event)=>handleChangePriority(rowData, event)}
