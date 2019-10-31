@@ -9,10 +9,14 @@ const userParams = {
   token: User.generateToken('dlts@example.com').toString('hex')
 }
 
+const setPriorityParams = new URLSearchParams({
+  userName: userParams.email
+})
+
 describe('PUT /clusters/:clusterId/jobs/:jobId/priority', () => {
   it('should return OK if priority set successfully', async () => {
     nock('http://universe')
-      .post('/jobs/priorities', {['testjob']: /[0-9]+/})
+      .post('/jobs/priorities?' + setPriorityParams, {['testjob']: /[0-9]+/})
       .reply(200, {
         message: 'priority set successfully'
       })
@@ -27,7 +31,7 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/priority', () => {
 
   it('should return 502 Bad Gateway error if priority setting failed', async () => {
     nock('http://universe')
-      .post('/jobs/priorities', {['testjob']: /[0-9]+/})
+      .post('/jobs/priorities?' + setPriorityParams, {['testjob']: /[0-9]+/})
       .reply(500)
     sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
