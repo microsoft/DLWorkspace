@@ -44,7 +44,7 @@ const testJobs = {
 }
 
 describe('GET /teams/:teamId/jobs', () => {
-  it('[P-01] should return jobs info in the team', async () => {
+  it('[P-01] should return jobs info in the team with user as all', async () => {
     for(let key in clusterConfig) {
       // nock for getJobs()
       nock(clusterConfig[key]['restfulapi'])
@@ -73,7 +73,42 @@ describe('GET /teams/:teamId/jobs', () => {
     response.data.length.should.equal(8)
   })
 
+  it('[P-02] should return jobs info in the team with specific user', async () => {
+    for(let key in clusterConfig) {
+      // change the jobOwner in getJobs params
+      getJobsParams.set('jobOwner', userParams.email)
+
+      // nock for getJobs()
+      nock(clusterConfig[key]['restfulapi'])
+        .get('/ListJobs?' + getJobsParams)
+        .reply(200, {
+          finishedJobs: testJobs['donejob'],
+          queuedJobs: testJobs['queuedjob'],
+          runningJobs: testJobs['runjob'],
+          visualizationJobs: testJobs['visjob']
+        })
+      // nock for getJobPriority()
+      nock(clusterConfig[key]['restfulapi'])
+        .get('/jobs/priorities')
+        .reply(200, {
+          donejob: 0,
+          queuedjob: 1,
+          runjob: 2
+        })
+    }
+    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
+
+    const response = await axiosist(api).get('/teams/testteam/jobs',
+      {params: userParams})
+
+    response.status.should.equal(200)
+    response.data.length.should.equal(8)
+  })
+
   it('[N-01] should return empty data if getJobs failed', async () => {
+    // change back the jobOwner in getJobs params
+    getJobsParams.set('jobOwner', 'all')
+
     for(let key in clusterConfig) {
       // nock for getJobs()
       nock(clusterConfig[key]['restfulapi'])
