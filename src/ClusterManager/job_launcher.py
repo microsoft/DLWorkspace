@@ -17,7 +17,7 @@ from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream
 from kubernetes.stream.ws_client import ERROR_CHANNEL, STDERR_CHANNEL, STDOUT_CHANNEL
 
-from prometheus_client import Histogram
+from prometheus_client import Histogram, Gauge
 
 import k8sUtils
 from DataHandler import DataHandler
@@ -33,6 +33,9 @@ job_deployer_fn_histogram = Histogram("job_deployer_fn_latency_seconds",
         buckets=(.05, .075, .1, .25, .5, .75, 1.0, 2.5, 5.0,
             7.5, 10.0, 12.5, 15.0, 17.5, 20.0, float("inf")),
         labelnames=("fn_name",))
+
+launcher_queue_size_gauge = Gauge("job_launcher_queue_size",
+        "size of queue between the job_manager & job_launcher")
 
 # The config will be loaded from default location.
 k8s_config.load_kube_config()
@@ -432,6 +435,7 @@ class PythonLauncher(Launcher):
         return all([status == "NotFound" for status in statuses])
 
     def submit_job(self, job):
+        launcher_queue_size_gauge.set(self.queue.qsize())
         self.queue.put(("submit_job", (job,), {}))
 
     def submit_job_impl(self, job):
@@ -539,6 +543,7 @@ class PythonLauncher(Launcher):
         return ret
 
     def kill_job(self, job_id, desired_state="killed"):
+        launcher_queue_size_gauge.set(self.queue.qsize())
         self.queue.put(("kill_job", (job_id,), {"desired_state": desired_state}))
 
     def kill_job_impl(self, job_id, desired_state="killed", dataHandlerOri=None):
