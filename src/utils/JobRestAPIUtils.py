@@ -247,7 +247,7 @@ def SubmitJob(jobParamsJsonStr):
                 priority = adjust_job_priority(priority, permission)
 
                 job_priorities = {jobParams["jobId"]: priority}
-                update_job_priorites(userName, job_priorities)
+                update_job_priorites(jobParams["userName"], job_priorities)
         else:
             ret["error"] = "Cannot schedule job. Cannot add job into database."
 
