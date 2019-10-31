@@ -157,8 +157,12 @@ class Cluster extends Service {
    * @return {Promise}
    */
   async setJobPriorty (jobId, priority) {
+    const { user } = this.context.state
+    const params = new URLSearchParams({
+      userName: user.email
+    })
     const body = { [jobId]: priority }
-    const response = await this.fetch('/jobs/priorities', {
+    const response = await this.fetch('/jobs/priorities?' + params, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
@@ -265,8 +269,12 @@ class Cluster extends Service {
    * @returns {Promise<string>}
    */
   async addEndpoint (jobId, endpoints) {
+    const { user } = this.context.state
+    const params = new URLSearchParams({
+      userName: user.email
+    })
     const body = { jobId, endpoints }
-    const response = await this.fetch('/endpoints', {
+    const response = await this.fetch('/endpoints?' + params, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
