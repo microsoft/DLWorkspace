@@ -405,18 +405,21 @@ def job_status_detail_with_finished_time(job_status_detail, status, msg=""):
 
 
 class PythonLauncher(Launcher):
-    def __init__(self):
-        self.process = None
+    def __init__(self, pool_size=3):
+        self.processes = []
         self.queue = None
+        self.pool_size = pool_size
         # items in queue should be tuple of 3 elements: (function name, args, kwargs)
 
     def start(self):
-        if self.process is None:
+        if len(self.processes) == 0:
             self.queue = multiprocessing.Queue()
 
-            self.process = multiprocessing.Process(target=self.run,
-                    args=(self.queue,), name="launcher")
-            self.process.start()
+            for i in range(self.pool_size):
+                p = multiprocessing.Process(target=self.run,
+                        args=(self.queue,), name="py-launcher-" + str(i))
+                self.processes.append(p)
+                p.start()
 
     def get_job_status_detail(self, job_id):
         pass
