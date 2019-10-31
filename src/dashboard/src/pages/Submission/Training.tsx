@@ -37,7 +37,7 @@ import UserContext from "../../contexts/User";
 import ClustersContext from '../../contexts/Clusters';
 import TeamsContext from "../../contexts/Teams";
 import theme, { Provider as MonospacedThemeProvider } from "../../contexts/MonospacedTheme";
-import {BarChart, Bar, XAxis, YAxis, CartesianGrid}  from "recharts";
+import {BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList} from "recharts";
 import Paper, { PaperProps } from '@material-ui/core/Paper';
 import Draggable from 'react-draggable'
 import {TransitionProps} from "@material-ui/core/transitions";
@@ -129,16 +129,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     [setPreemptible]
   );
 
-  const [gpus, setGpus] = React.useState(0);
-  const onGpusChange = React.useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      let value = event.target.valueAsNumber || 0;
-      if (value < 0) { value = 0; }
-      if (value > 0) { value = 26; }
-      setGpus(event.target.valueAsNumber);
-    },
-    [setGpus]
-  );
+
 
   const [workers, setWorkers] = React.useState(0);
   const onWorkersChange = React.useCallback(
@@ -311,6 +302,18 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     put: saveTemplate,
     delete: deleteTemplate,
   } = useFetch('/api');
+  const [gpus, setGpus] = React.useState(0);
+  const submittable = React.useMemo(() => {
+    if (!gpuModel) return false;
+    if (!selectedTeam) return false;
+    if (!name) return false;
+    if (!image) return false;
+    if (!command.trim()) return false;
+    if (type === 'RegularJob' && gpus > gpusPerNode) return false;
+    if (/^\d+$/.test(name)) return false;
+
+    return true;
+  }, [gpuModel, selectedTeam, name, image, command, type, gpus, gpusPerNode]);
   const onSaveTemplateClick = async () => {
     try {
       const template = {
@@ -443,14 +446,23 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     post: postEndpoints,
   } = useFetch('/api');
 
-  const submittable = React.useMemo(() => {
-    if (!gpuModel) return false;
-    if (!selectedTeam) return false;
-    if (!name) return false;
-    if (!image) return false;
-    if (!command.trim()) return false;
-    return true;
-  }, [gpuModel, selectedTeam, name, image, command]);
+
+
+  const [enableSubmit, setEnableSubmit] = React.useState(submittable);
+
+  const onGpusChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      let value = event.target.valueAsNumber || 0;
+      if (value < 0) { value = 0; }
+      if (value > 0) { value = 26; }
+      setGpus(event.target.valueAsNumber);
+      setEnableSubmit(false)
+      if (type === 'RegularJob' && event.target.valueAsNumber > gpusPerNode)  {
+        setEnableSubmit(true);
+      }
+    },
+    [gpusPerNode, type]
+  );
   const [open, setOpen] = React.useState(false);
   const onSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -541,7 +553,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     } else {
       history.push(`/job/${selectedTeam}/${selectedCluster}/${jobId.current}`);
     }
-  }, [postJobData, ssh, ipython, tensorboard, interactivePorts, history, selectedCluster]);
+  }, [postJobData, ssh, ipython, tensorboard, interactivePorts, history, selectedCluster, postEndpoints, selectedTeam]);
   const fetchPrometheusUrl = `/api/clusters`;
   const request = useFetch(fetchPrometheusUrl);
   const fetchPrometheus = async () => {
@@ -561,7 +573,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       },2000)
 
     }
-  }, [history, postEndpointsData, selectedCluster])
+  }, [history, postEndpointsData, selectedCluster, selectedTeam])
 
   React.useEffect(() => {
     if (postJobError) {
@@ -613,7 +625,19 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     }
     return message;
   }
+  const renderCustomizedLabel = (props: any) => {
+    const { x, y, width, height, value } = props;
+    const radius = 10;
 
+    return (
+      <g>
+        <circle cx={x + width / 2} cy={y - radius} r={radius} fill="#fff" />
+        <text x={x + width / 2} y={y - radius} fill="#000" textAnchor="middle" dominantBaseline="middle">
+          {value}
+        </text>
+      </g>
+    );
+  };
   const styleSnack={backgroundColor:showDeleteTemplate ? red[400] : green[400]};
   return (
 
@@ -625,12 +649,14 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
         title={"View Cluster GPU Status Per Node"}
         titleStyle={{color:grey[400]}}
       >
-        <BarChart width={500} height={600} data={gpuFragmentation}>
+        <BarChart width={500} height={700} data={gpuFragmentation}  margin={{top: 20}}>
           <CartesianGrid strokeDasharray="10 10"/>
           <XAxis dataKey={"metric['gpu_available']"} label={{value: 'Available gpu count', offset:0,position:'insideBottom'}}>
           </XAxis>
           <YAxis label={{value: 'Node count', angle: -90, position: 'insideLeft'}} />
-          <Bar dataKey="value[1]" fill="#8884d8" />
+          <Bar dataKey="value[1]" fill="#8884d8" >
+            <LabelList dataKey="value[1]" content={renderCustomizedLabel} />
+          </Bar>
         </BarChart>
       </DLTSDialog>
       <form onSubmit={onSubmit}>
@@ -664,6 +690,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                   fullWidth
                   variant="filled"
                   value={name}
+                  error={/^\d+$/.test(name)}
                   onChange={onNameChange}
                 />
               </Grid>
@@ -753,6 +780,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                   fullWidth
                   variant="filled"
                   value={image}
+                  error={!image}
                   onChange={onImageChange}
                 />
               </Grid>
@@ -984,7 +1012,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                 <Button type="button" color="secondary"  onClick={onAdvancedClick}>Advanced</Button>
                 <Button type="button" color="secondary"  onClick={onDatabaseClick}>Database</Button>
               </Grid>
-              <Button type="submit" color="primary" variant="contained" disabled={!submittable || postJobLoading || postEndpointsLoading || open }>Submit</Button>
+              <Button type="submit" color="primary" variant="contained" disabled={!submittable || enableSubmit || postJobLoading || postEndpointsLoading || open }>Submit</Button>
             </Grid>
           </CardActions>
         </Card>

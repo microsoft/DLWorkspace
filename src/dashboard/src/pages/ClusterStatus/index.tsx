@@ -65,8 +65,8 @@ const ClusterStatus: FC = () => {
     response['prometheus'] = prometheus;
     return response;
   }
-  const fetchClusterStatus = () => {
-    if (clusters) {
+  const fetchClusterStatus = (mount: boolean) => {
+    if (clusters && mount) {
       const params = new URLSearchParams({
         query:`count+(task_gpu_percent{vc_name="${selectedTeam}"}+==+0)+by+(username)`,
       });
@@ -172,6 +172,9 @@ const ClusterStatus: FC = () => {
               if (!mu.hasOwnProperty('idle')) {
                 mu['idle'] = "0";
               }
+              if (!mu.hasOwnProperty('preemptableGPU')) {
+                mu['preemptableGPU'] = 0;
+              }
             });
             let finalUserStatus = _.values(mergeTwoObjsByKey(tmpMerged,prometheusResp,'userName'));
             let totalRow: any = {};
@@ -180,13 +183,14 @@ const ClusterStatus: FC = () => {
             totalRow['idle'] = 0;
             totalRow['usedGPU'] = 0;
             totalRow['idleGPU'] = 0;
+            totalRow['preemptableGPU'] = 0;
             for (let us of finalUserStatus) {
-              console.log(us);
+              console.log(us['preemptableGPU']);
               totalRow['booked'] += parseInt(us['booked']);
               totalRow['idle'] += parseInt(us['idle']);
               totalRow['usedGPU'] += parseInt(us['usedGPU']);
               totalRow['idleGPU'] += parseInt(us['idleGPU']);
-              totalRow['preemptableGPU'] += parseInt(us['preemptableGPU']);
+              totalRow['preemptableGPU'] += us['preemptableGPU'];
             }
             finalUserStatus.push(totalRow);
 
@@ -210,8 +214,8 @@ const ClusterStatus: FC = () => {
     let mount = true;
     let timeout: any;
     if (mount) {
-      fetchClusterStatus()
-      timeout = setTimeout(() => {fetchClusterStatus()},30000)
+      fetchClusterStatus(mount)
+      timeout = setTimeout(() => {fetchClusterStatus(mount)},30000)
     }
 
     return () => {
@@ -219,12 +223,12 @@ const ClusterStatus: FC = () => {
       clearTimeout(timeout)
     }
   },[clusters, selectedTeam])
-  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>, mount: boolean) => {
     setSelectedValue(event.target.value);
     localStorage.setItem('selectedCluster', event.target.value);
     const filteredVCStatus: any = vcStatus.filter((vc)=>vc['ClusterName'] === event.target.value);
     console.log(vcStatus)
-    fetchClusterStatus()
+    fetchClusterStatus(mount)
     setNodeStatus(filteredVCStatus[0]['node_status']);
     setIframeUrl((filteredVCStatus[0]['GranaUrl']));
   }
@@ -238,7 +242,7 @@ const ClusterStatus: FC = () => {
           onChangeIndex={(value) => handleChangeIndex(value, setValue)}
         >
           <DLTSTabPanel value={value} index={0} dir={theme.direction} title={ClusterStatusTitles[value]}>
-            <TeamVirtualClusterStatus vcStatus={vcStatus} selectedValue={selectedValue} handleChange={handleChange}/>
+            <TeamVirtualClusterStatus vcStatus={vcStatus} selectedValue={selectedValue} handleChange={(event: React.ChangeEvent<HTMLInputElement>) => handleChange(event, true)}/>
           </DLTSTabPanel>
           <DLTSTabPanel value={value} index={1} dir={theme.direction} title={ClusterStatusTitles[value]}>
             <TeamVCUserStatus userStatus={userStatus} currentCluster={selectedValue} showCurrentUser={showCurrentUser} handleSwitch={handleSwitch}/>
