@@ -1,30 +1,52 @@
 import React, {useEffect, useState} from "react";
 import { Link } from "react-router-dom";
 import useFetch from "use-http";
+import Table from '@material-ui/core/Table';
+import TableBody from '@material-ui/core/TableBody';
+import TableCell from '@material-ui/core/TableCell';
+import TableRow from '@material-ui/core/TableRow';
+import LinearProgress from "@material-ui/core/LinearProgress";
 import {
+  Box,
   Button,
   Card,
   CardActions,
   CardContent,
-  CardHeader,
+  CardHeader, createMuiTheme,
   Divider,
   IconButton,
   InputAdornment,
   Menu,
-  MenuItem,
+  MenuItem, MuiThemeProvider,
   TextField,
-  Tooltip
+  Tooltip, Typography, withStyles
 } from "@material-ui/core";
-import { makeStyles, createStyles, useTheme, Theme } from "@material-ui/core/styles";
+import {
+  makeStyles,
+  createStyles,
+  useTheme,
+  Theme,
+  lighten
+} from "@material-ui/core/styles";
 import { MoreVert, FileCopyRounded} from "@material-ui/icons";
 
 import {Cell, PieChart, Pie, ResponsiveContainer,Sector} from "recharts";
 import UserContext from "../../contexts/User";
 import TeamsContext from '../../contexts/Teams';
-import {green, lightGreen, deepOrange } from "@material-ui/core/colors";
+import {
+  green,
+  lightGreen,
+  deepOrange,
+  red,
+  yellow
+} from "@material-ui/core/colors";
 import copy from 'clipboard-copy'
 import {checkObjIsEmpty, sumValues} from "../../utlities/ObjUtlities";
 import {DLTSSnackbar} from "../CommonComponents/DLTSSnackbar";
+
+import _ from "lodash";
+import {type} from "os";
+import useCheckIsDesktop from "../../utlities/layoutUtlities";
 const useStyles = makeStyles((theme: Theme) => createStyles({
   avatar: {
     backgroundColor: theme.palette.secondary.main,
@@ -48,6 +70,14 @@ const useStyles = makeStyles((theme: Theme) => createStyles({
   },
   container: {
     margin: '0 auto',
+  },
+  tableTitle: {
+    display: "flex",
+    justifyContent: "center"
+  },
+  tableInfo: {
+    justifyContent: "space-between",
+    display: "flex"
   }
 }));
 
@@ -242,6 +272,7 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
     const name = typeof email === 'string' ?  email.split('@', 1)[0] : email;
     setDataStorage(data.dataStorage);
     setWorkStorage(`${data.workStorage}/${name}`);
+    return data;
   }
   const fetchClusterStatusUrl = `/api`;
   const requestClusterStatus = useFetch(fetchClusterStatusUrl);
@@ -250,9 +281,71 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
     const data = await requestClusterStatus.get(`/teams/${selectedTeam}/clusters/${cluster}`);
     return data;
   }
+  const [nfsStorage, setNfsStorage] = useState([]);
   useEffect(()=>{
-    fetchDirectories();
-    fetchClusterStatus().then((res)=>{
+    fetchDirectories().then((res) => {
+      let fetchStorage = [];
+      let freeBytesSubPath = '/prometheus/api/v1/query?query=node_filesystem_free_bytes%7Bfstype%3D%27nfs4%27%7D';
+      let sizeBytesSubPath = '/prometheus/api/v1/query?query=node_filesystem_size_bytes%7Bfstype%3D%27nfs4%27%7D';
+      fetchStorage.push(fetch(`${res['prometheus']}${freeBytesSubPath}`));
+      fetchStorage.push(fetch(`${res['prometheus']}${sizeBytesSubPath}`));
+      let storageRes: any = [];
+      let tmpStorage: any = [];
+      Promise.all(fetchStorage).then((responses) => {
+        responses.forEach(async (response: any) => {
+          const res = await response.json();
+          if (res['data']) {
+            for (let item of res['data']["result"]) {
+              let tmp = {} as any;
+              if (item['metric']['__name__'] == "node_filesystem_size_bytes") {
+                let mountpointName = item['metric']['mountpoint']
+                let val = Math.floor(item['value'][1] / (Math.pow(10, 9)))
+                tmp['mountpointName'] = mountpointName;
+                tmp['total'] = val;
+              }
+              let tmpUsed = {} as any;
+              //node_filesystem_free_bytes
+              if (item['metric']['__name__'] == "node_filesystem_free_bytes") {
+                let mountpointName = item['metric']['mountpoint']
+                let val = Math.floor(item['value'][1] / (Math.pow(10, 9)))
+                tmpUsed['mountpointName'] = mountpointName;
+                tmpUsed['Free'] = val;
+              }
+              tmpStorage.push(tmp)
+              tmpStorage.push(tmpUsed)
+            }
+          }
+          //({ mountpointName: key, users: value })
+          storageRes = tmpStorage.filter((store: any) => !checkObjIsEmpty(store));
+          let finalStorageRes: any = [];
+          if (storageRes && storageRes.length > 0) {
+            finalStorageRes = _.chain(storageRes).groupBy('mountpointName').map((value, key) => {
+              let tmpTotal: any = value.filter((item: any) => item.hasOwnProperty('total'));
+              let tmpFree: any = value.filter((item: any) => item.hasOwnProperty('Free'));
+              let total = 0;
+              let used = 0;
+              if (typeof tmpTotal[0] !== "undefined" && typeof  tmpFree[0] !== "undefined") {
+                total = tmpTotal[0]["total"];
+                used = tmpTotal[0]["total"] - tmpFree[0]["Free"]
+              }
+              return {
+                mountpointName: key, total:total, used: used
+              }
+            }).value();
+          }
+          finalStorageRes.forEach((item: any,i: number) => {
+            if(item["mountpointName"].indexOf("dlws/nfs") !== -1){
+              finalStorageRes.splice(i, 1);
+              finalStorageRes.unshift(item);
+            }
+          });
+          setNfsStorage(finalStorageRes.filter((store: any) => {
+            return store['mountpointName'].indexOf(selectedTeam) !== -1 || store['mountpointName'].indexOf("dlws/nfs") !== -1;
+          }));
+        });
+      });
+    });
+    fetchClusterStatus().then((res) => {
       const availableGpu = !checkObjIsEmpty(res['gpu_avaliable']) ? (Number)(sumValues(res['gpu_avaliable'])) : 0;
       setAvailable(availableGpu);
       const usedGpu = !checkObjIsEmpty(res['gpu_used']) ? (Number)(sumValues(res['gpu_used'])) : 0;
@@ -263,6 +356,50 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
       setActivate(true);
     })
   },[selectedTeam]);
+  const tableTheme = createMuiTheme({
+    overrides: {
+      MuiTableCell: {
+        root: {
+          paddingTop: 10,
+          paddingBottom: 10,
+          paddingLeft:2,
+          paddingRight:5,
+        }
+      }
+    }
+  });
+  const BorderLinearProgress = withStyles({
+    root: {
+      height: 10,
+      backgroundColor: lighten('#363636', 0.5),
+    },
+    bar: {
+      borderRadius: 20,
+      backgroundColor: green[400],
+    },
+  })(LinearProgress);
+  const GenernalLinerProgress = withStyles({
+    root: {
+      height: 10,
+      backgroundColor: lighten('#363636', 0.5),
+    },
+    bar: {
+      borderRadius: 20,
+      backgroundColor: yellow[800],
+    },
+  })(LinearProgress);
+  const FullBorderLinearProgress = withStyles({
+    root: {
+      height: 10,
+      backgroundColor: lighten('#363636', 0.5),
+    },
+    bar: {
+      borderRadius: 20,
+      backgroundColor: red[400],
+    },
+  })(LinearProgress);
+  const theme = useTheme();
+
   return (
     <Card>
       <CardHeader
@@ -278,6 +415,41 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
       />
       <CardContent className={styles.chart}>
         <Chart available={available} used={used} reserved={reversed} isActive={activate} />
+        <Divider />
+        <Typography  variant="h6" id="tableTitle" className={styles.tableTitle}>
+          {"Storage (GB)"}
+        </Typography>
+        <Box minHeight={100} style={{ overflow: 'auto' }}>
+          <MuiThemeProvider theme={tableTheme}>
+            <Table>
+              <TableBody>
+                {
+                  nfsStorage.map((nfs: any, index: number) => {
+                    let nfsMountNames = nfs['mountpointName'].split("/");
+                    let mounName = "";
+                    if (nfs['mountpointName'].indexOf("dlws") !== -1) {
+                      mounName = "/data";
+                    } else {
+                      nfsMountNames.splice(0, nfsMountNames.length - 1);
+                      mounName = "/" + nfsMountNames.join('/');
+                    }
+                    let value = nfs['total'] == 0 ? 0 : (nfs['used'] / nfs['total']) * 100;
+                    return (
+                      <TableRow key={index}>
+                        <TableCell>
+                          {
+                            value < 80 ? <BorderLinearProgress value={value} variant={"determinate"}/> : value >= 80 && value < 90 ? <GenernalLinerProgress value={value} variant={"determinate"}/> : <FullBorderLinearProgress value={value} variant={"determinate"}/>
+                          }
+                          <div className={styles.tableInfo}><span>{`${mounName}`}</span><span>{`(${nfs['used']}/${nfs['total']}) ${Math.floor(value)}% used`}</span></div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
+                }
+              </TableBody>
+            </Table>
+          </MuiThemeProvider>
+        </Box>
       </CardContent>
       <CardActions>
         <Button component={Link}
