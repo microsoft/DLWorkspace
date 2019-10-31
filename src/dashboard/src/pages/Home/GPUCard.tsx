@@ -416,7 +416,7 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
         <Chart available={available} used={used} reserved={reversed} isActive={activate} />
         <Divider />
         <Typography  variant="h6" id="tableTitle" className={styles.tableTitle}>
-          {"Storage"}
+          {"Storage (GB)"}
         </Typography>
         <Box minHeight={100} style={{ overflow: 'auto' }}>
           <MuiThemeProvider theme={tableTheme}>
