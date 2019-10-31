@@ -309,7 +309,7 @@ def KillJob(userName, jobId):
     ret = False
     dataHandler = DataHandler()
     jobs = dataHandler.GetJob(jobId=jobId)
-    if len(jobs) == 1:
+    if len(jobs) == 1 and jobs[0]["jobStatus"] in ["unapproved", "queued", "scheduling", "running", "paused", "pausing"]:
         job = jobs[0]
         if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin):
             if job["isParent"] == 1:
@@ -343,7 +343,7 @@ def ApproveJob(userName, jobId):
     dataHandler = DataHandler()
     ret = False
     jobs =  dataHandler.GetJob(jobId=jobId)
-    if len(jobs) == 1:
+    if len(jobs) == 1 and jobs[0]["jobStatus"] == "unapproved":
         if AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Admin):
             ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","queued")
     dataHandler.Close()
@@ -355,7 +355,7 @@ def ResumeJob(userName, jobId):
     dataHandler = DataHandler()
     ret = False
     jobs = dataHandler.GetJob(jobId=jobId)
-    if len(jobs) == 1:
+    if len(jobs) == 1 and jobs[0]["jobStatus"] == "paused":
         if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
             ret = dataHandler.UpdateJobTextField(jobId, "jobStatus", "unapproved")
     dataHandler.Close()
@@ -366,7 +366,7 @@ def PauseJob(userName, jobId):
     dataHandler = DataHandler()
     ret = False
     jobs =  dataHandler.GetJob(jobId=jobId)
-    if len(jobs) == 1:
+    if len(jobs) == 1 and jobs[0]["jobStatus"] in ["unapproved", "queued", "scheduling", "running"]:
         if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Admin):
             ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","pausing")
     dataHandler.Close()
@@ -651,10 +651,18 @@ def UpdateVC(userName, vcName, quota, metadata):
 
 
 def get_job(job_id):
-    dataHandler = DataHandler()
-    ret = dataHandler.GetJob(jobId=job_id)[0]
-    dataHandler.Close()
-    return ret
+    data_handler = None
+    try:
+        data_handler = DataHandler()
+        jobs = data_handler.GetJob(jobId=job_id)
+        if len(jobs) == 1:
+            return jobs[0]
+    except Exception as e:
+        logger.error("Exception in get_job: %s" % str(e))
+    finally:
+        if data_handler is not None:
+            data_handler.Close()
+    return None
 
 
 def update_job(job_id, field, value):
