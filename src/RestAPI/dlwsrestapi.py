@@ -1063,6 +1063,10 @@ class Endpoint(Resource):
 
         # get the job
         job = JobRestAPIUtils.get_job(job_id)
+        if job is None:
+            msg = "Job %s cannot be found in database" % job_id
+            logger.error(msg)
+            return msg, 404
 
         vc_admin = AuthorizationManager.HasAccess(username, ResourceType.VC, job["vcName"], Permission.Admin)
         if job["userName"] != username and (not vc_admin):
