@@ -56,7 +56,7 @@ describe('POST /clusters/:clusterId/jobs/:jobId/commands', () => {
 })
 
 describe('POST /clusters/:clusterId/jobs/:jobId/endpoints', () => {
-  it('should return 201 when endpoints are added successfully', async () => {
+  it('should return 200 when endpoints are added successfully', async () => {
     nock('http://universe')
       .post('/endpoints')
       .reply(200, {
