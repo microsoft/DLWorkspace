@@ -16,6 +16,10 @@ const addCommandParams = new URLSearchParams({
   command: 'testcommand'
 })
 
+const addEndpointsParams = new URLSearchParams({
+  userName: userParams.email
+})
+
 const testEndpoints = {
   endpoints: [{
       name: 'testname',
@@ -58,7 +62,7 @@ describe('POST /clusters/:clusterId/jobs/:jobId/commands', () => {
 describe('POST /clusters/:clusterId/jobs/:jobId/endpoints', () => {
   it('should return 200 when endpoints are added successfully', async () => {
     nock('http://universe')
-      .post('/endpoints')
+      .post('/endpoints?' + addEndpointsParams)
       .reply(200, {
         message: 'endpoints adding succeeded'
       })
@@ -73,7 +77,7 @@ describe('POST /clusters/:clusterId/jobs/:jobId/endpoints', () => {
 
   it('should return 502 Bad Gateway Error if endpoints adding failed', async () => {
     nock('http://universe')
-      .post('/endpoints')
+      .post('/endpoints?' + addEndpointsParams)
       .reply(500)
     sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
