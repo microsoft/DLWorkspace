@@ -570,7 +570,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       setOpen(true);
       setTimeout(()=>{
         history.push(`/job/${selectedTeam}/${selectedCluster}/${jobId.current}`);
-      },2000)
+      }, 2000)
 
     }
   }, [history, postEndpointsData, selectedCluster, selectedTeam])

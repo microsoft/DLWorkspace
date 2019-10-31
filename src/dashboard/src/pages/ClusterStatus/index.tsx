@@ -173,7 +173,7 @@ const ClusterStatus: FC = () => {
                 mu['idle'] = "0";
               }
               if (!mu.hasOwnProperty('preemptableGPU')) {
-                mu['preemptableGPU'] = 0;
+                mu['preemptableGPU'] = "0";
               }
             });
             let finalUserStatus = _.values(mergeTwoObjsByKey(tmpMerged,prometheusResp,'userName'));
@@ -190,7 +190,7 @@ const ClusterStatus: FC = () => {
               totalRow['idle'] += parseInt(us['idle']);
               totalRow['usedGPU'] += parseInt(us['usedGPU']);
               totalRow['idleGPU'] += parseInt(us['idleGPU']);
-              totalRow['preemptableGPU'] += us['preemptableGPU'];
+              totalRow['preemptableGPU'] += parseInt(us['preemptableGPU']);
             }
             finalUserStatus.push(totalRow);
 
@@ -215,7 +215,7 @@ const ClusterStatus: FC = () => {
     let timeout: any;
     if (mount) {
       fetchClusterStatus(mount)
-      timeout = setTimeout(() => {fetchClusterStatus(mount)},30000)
+      timeout = setTimeout(() => {fetchClusterStatus(mount)}, 30000)
     }
 
     return () => {

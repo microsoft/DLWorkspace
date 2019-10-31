@@ -77,7 +77,7 @@ const useStyles = makeStyles((theme: Theme) => createStyles({
   },
   tableInfo: {
     justifyContent: "space-between",
-    display:"flex"
+    display: "flex"
   }
 }));
 
@@ -285,12 +285,14 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
   useEffect(()=>{
     fetchDirectories().then((res) => {
       let fetchStorage = [];
-      fetchStorage.push(fetch(`${res['prometheus']}/prometheus/api/v1/query?query=node_filesystem_free_bytes%7Bfstype%3D%27nfs4%27%7D`));
-      fetchStorage.push(fetch(`${res['prometheus']}/prometheus/api/v1/query?query=node_filesystem_size_bytes%7Bfstype%3D%27nfs4%27%7D`));
+      let freeBytesSubPath = '/prometheus/api/v1/query?query=node_filesystem_free_bytes%7Bfstype%3D%27nfs4%27%7D';
+      let sizeBytesSubPath = '/prometheus/api/v1/query?query=node_filesystem_size_bytes%7Bfstype%3D%27nfs4%27%7D';
+      fetchStorage.push(fetch(`${res['prometheus']}${freeBytesSubPath}`));
+      fetchStorage.push(fetch(`${res['prometheus']}${sizeBytesSubPath}`));
       let storageRes: any = [];
       let tmpStorage: any = [];
-      Promise.all(fetchStorage).then((responses)=>{
-        responses.forEach(async (response: any)=>{
+      Promise.all(fetchStorage).then((responses) => {
+        responses.forEach(async (response: any) => {
           const res = await response.json();
           if (res['data']) {
             for (let item of res['data']["result"]) {
@@ -309,7 +311,6 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
                 tmpUsed['mountpointName'] = mountpointName;
                 tmpUsed['Free'] = val;
               }
-
               tmpStorage.push(tmp)
               tmpStorage.push(tmpUsed)
             }
@@ -328,7 +329,7 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
                 used = tmpTotal[0]["total"] - tmpFree[0]["Free"]
               }
               return {
-                mountpointName: key, total:total,Used: used
+                mountpointName: key, total:total, used: used
               }
             }).value();
           }
@@ -338,13 +339,13 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
               finalStorageRes.unshift(item);
             }
           });
-          setNfsStorage( finalStorageRes.filter((store: any) => {
-            return store['mountpointName'].indexOf(selectedTeam) !== -1 || store['mountpointName'].indexOf("dlws/nfs") !== -1 ;
+          setNfsStorage(finalStorageRes.filter((store: any) => {
+            return store['mountpointName'].indexOf(selectedTeam) !== -1 || store['mountpointName'].indexOf("dlws/nfs") !== -1;
           }));
         });
       });
     });
-    fetchClusterStatus().then((res)=>{
+    fetchClusterStatus().then((res) => {
       const availableGpu = !checkObjIsEmpty(res['gpu_avaliable']) ? (Number)(sumValues(res['gpu_avaliable'])) : 0;
       setAvailable(availableGpu);
       const usedGpu = !checkObjIsEmpty(res['gpu_used']) ? (Number)(sumValues(res['gpu_used'])) : 0;
@@ -424,22 +425,22 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
               <TableBody>
                 {
                   nfsStorage.map((nfs: any, index: number) => {
-                    let nfsMountNames = nfs['mountpointName'].split("/")
+                    let nfsMountNames = nfs['mountpointName'].split("/");
                     let mounName = "";
                     if (nfs['mountpointName'].indexOf("dlws") !== -1) {
                       mounName = "/data";
                     } else {
-                      nfsMountNames.splice(0,nfsMountNames.length - 1);
-                      mounName = "/" + nfsMountNames.join('/')
+                      nfsMountNames.splice(0, nfsMountNames.length - 1);
+                      mounName = "/" + nfsMountNames.join('/');
                     }
-                    let value = nfs['total'] == 0 ? 0 : (nfs['Used'] / nfs['total']) * 100;
+                    let value = nfs['total'] == 0 ? 0 : (nfs['used'] / nfs['total']) * 100;
                     return (
                       <TableRow key={index}>
                         <TableCell>
                           {
                             value < 80 ? <BorderLinearProgress value={value} variant={"determinate"}/> : value >= 80 && value < 90 ? <GenernalLinerProgress value={value} variant={"determinate"}/> : <FullBorderLinearProgress value={value} variant={"determinate"}/>
                           }
-                          <div className={styles.tableInfo}><span>{`${mounName}`}</span><span>{`(${nfs['Used']}/${nfs['total']}) ${Math.floor(value)}% used`}</span></div>
+                          <div className={styles.tableInfo}><span>{`${mounName}`}</span><span>{`(${nfs['used']}/${nfs['total']}) ${Math.floor(value)}% used`}</span></div>
                         </TableCell>
                       </TableRow>
                     )
