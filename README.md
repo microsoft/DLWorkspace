@@ -1,3 +1,6 @@
+[![Build Status](https://travis-ci.org/microsoft/DLWorkspace.svg?branch=dltsdev)](https://travis-ci.org/microsoft/DLWorkspace)
+[![Coverage Status](https://coveralls.io/repos/github/microsoft/DLWorkspace/badge.svg?branch=dltsdev)](https://coveralls.io/github/microsoft/DLWorkspace?branch=master)
+
 # [](#header-1)[Project Overview](docs/index.md)
 
 Deep Learning Workspace (DLWorkspace) is an open source toolkit that allows AI scientists to spin up an AI cluster in turn-key fashion (either in a public cloud such as Azure, or in an on-perm cluster). It has been used in daily production for Microsoft internal groups (e.g., Microsoft Cognitive Service, SwiftKey, Bing Relevance, etc...).
