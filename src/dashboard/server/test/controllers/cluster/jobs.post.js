@@ -19,12 +19,18 @@ describe('POST /clusters/:clusterid/jobs', () => {
     sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).post('/clusters/Universe/jobs',
-      {team: 'test'}, {params: userParams})
+      { team: 'test' }, { params: userParams })
 
     response.status.should.equal(200)
     response.data.should.have.property('message', 'job adding succeeded')
   })
+  it('should response returning if job schema contains vcName', async () => {
+    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
+    const response = await axiosist(api).post('/clusters/Universe/jobs',
+      { vcName: 'test' }, { params: userParams })
+    response.status.should.equal(200)
+  })
   it('should response 400 Bad Request if job schema is invalid', async () => {
     sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
