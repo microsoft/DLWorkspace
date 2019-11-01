@@ -376,6 +376,7 @@ def TakeJobActions(launcher, jobs):
         if job["jobStatus"] in ["queued", "scheduling", "running"]:
             singleJobInfo = {}
             singleJobInfo["job"] = job
+            singleJobInfo["type"] = job["jobtrainingtype"]
             job_params = json.loads(base64.b64decode(job["jobParams"]))
             singleJobInfo["preemptionAllowed"] = job_params["preemptionAllowed"]
             singleJobInfo["jobId"] = job_params["jobId"]
@@ -418,11 +419,17 @@ def TakeJobActions(launcher, jobs):
     logging.info("TakeJobActions : global resources : %s" % (globalResInfo.CategoryToCountMap))
 
     for sji in jobsInfo:
+        # Allow all inference jobs and don't count them in resource info
+        if sji["type"] == "InferenceJob":
+            sji["allowed"] = True
+            logging.info("TakeJobActions : inference job : %s : %s : %s" % (sji["jobId"], sji["globalResInfo"].CategoryToCountMap, sji["sortKey"]))
+
+    for sji in jobsInfo:
         logging.info("TakeJobActions : job : %s : %s : %s" % (sji["jobId"], sji["globalResInfo"].CategoryToCountMap, sji["sortKey"]))
         vc_name = sji["job"]["vcName"]
         vc_resource = vc_resources[vc_name]
 
-        if (not sji["preemptionAllowed"]) and (vc_resource.CanSatisfy(sji["globalResInfo"])):
+        if (not sji["preemptionAllowed"]) and (vc_resource.CanSatisfy(sji["globalResInfo"])) and (sji["allowed"] is False):
             vc_resource.Subtract(sji["globalResInfo"])
             globalResInfo.Subtract(sji["globalResInfo"])
             sji["allowed"] = True
