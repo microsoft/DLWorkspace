@@ -109,6 +109,7 @@ TeamMenu = () => {
         variant="outlined"
         color="inherit"
         onClick={onButtonClick}
+        style={{ textTransform: 'none' }}
       >
         <Group className={styles.leftIcon} />
         {selectedTeam}
@@ -125,7 +126,7 @@ TeamMenu = () => {
             ) : (
               <Group className={styles.leftIcon} />
             )}
-            <Typography variant="button">{team}</Typography>
+            <Typography>{team}</Typography>
           </MenuItem>
         ))}
       </Menu>
