@@ -122,7 +122,7 @@ class Job:
         for storage in os.listdir(dltsdata_vc_path):
             vc_mountpoint = {
                 "name": ("%s-%s" % (vc_name, storage)).lower(),
-                "containerPath": storage,
+                "containerPath": "/" + storage,
                 "hostPath": os.path.join(dltsdata_vc_path, storage),
                 "enabled": True}
             vc_mountpoints.append(vc_mountpoint)
