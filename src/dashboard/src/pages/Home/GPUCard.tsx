@@ -339,6 +339,10 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
               finalStorageRes.unshift(item);
             }
           });
+          console.log(finalStorageRes)
+          finalStorageRes = finalStorageRes.filter((item: any) => {
+            return !(item["mountpointName"].indexOf("dlts") === -1 && item["mountpointName"].indexOf("dlws/nfs") === -1);
+          })
           setNfsStorage(finalStorageRes.filter((store: any) => {
             return store['mountpointName'].indexOf(selectedTeam) !== -1 || store['mountpointName'].indexOf("dlws/nfs") !== -1;
           }));
@@ -419,7 +423,7 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
         <Typography  variant="h6" id="tableTitle" className={styles.tableTitle}>
           {"Storage (GB)"}
         </Typography>
-        <Box minHeight={100} style={{ overflow: 'auto' }}>
+        <Box maxHeight={105} minHeight={100} style={{ overflow: 'auto' }}>
           <MuiThemeProvider theme={tableTheme}>
             <Table>
               <TableBody>
