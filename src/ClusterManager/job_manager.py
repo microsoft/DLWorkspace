@@ -327,9 +327,7 @@ def get_job_priority(priority_dict, job_id):
 
 
 @record
-def TakeJobActions(launcher, jobs):
-    data_handler = DataHandler()
-
+def TakeJobActions(launcher, jobs, data_handler):
     vc_list = data_handler.ListVCs()
     cluster_status, _ = data_handler.GetClusterStatus()
     cluster_total = cluster_status["gpu_capacity"]
@@ -476,7 +474,7 @@ def Run():
                 dataHandler = DataHandler()
 
                 pendingJobs = dataHandler.GetPendingJobs()
-                TakeJobActions(launcher, pendingJobs)
+                TakeJobActions(launcher, pendingJobs, dataHandler)
 
                 pendingJobs = dataHandler.GetPendingJobs()
                 logging.info("Updating status for %d jobs" % len(pendingJobs))
@@ -487,9 +485,7 @@ def Run():
                             launcher.kill_job(job["jobId"], "killed")
                         elif job["jobStatus"] == "pausing":
                             launcher.kill_job(job["jobId"], "paused")
-                        elif job["jobStatus"] == "running":
-                            UpdateJobStatus(launcher, job, notifier, dataHandlerOri=dataHandler)
-                        elif job["jobStatus"] == "scheduling":
+                        elif job["jobStatus"] in {"running", "scheduling"}:
                             UpdateJobStatus(launcher, job, notifier, dataHandlerOri=dataHandler)
                         elif job["jobStatus"] == "unapproved":
                             ApproveJob(job,dataHandlerOri = dataHandler)
