@@ -10,6 +10,7 @@ const router = require('./router')
 app.use(router.routes())
 app.use(router.allowedMethods())
 
+/* istanbul ignore if */
 if (require.main === module) {
   app.listen(process.env.PORT || 3000, process.env.HOST)
 }

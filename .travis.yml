@@ -1,4 +1,12 @@
-language: ruby
-rvm: 
-- 2.1
-script: "cd docs && bundle install && bundle exec jekyll build"
+matrix:
+  include:
+  - language: ruby
+    rvm: 
+    - 2.1
+    script: "cd docs && bundle install && bundle exec jekyll build"
+  - language: node_js
+    node_js: lts/*
+    before_install: cd src/dashboard
+    install: yarn --frozen-lockfile
+    script: npm run coverage:backend
+    after_success: npx nyc --nycrc-path server/.nycrc.js report --reporter=text-lcov | npx coveralls

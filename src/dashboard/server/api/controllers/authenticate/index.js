@@ -13,7 +13,7 @@ const OAUTH2_URL = `https://login.microsoftonline.com/${activeDirectoryConfig.te
  * @return {string}
  */
 const getUriWithoutQuery = context => {
-  const originalUrl = context.req.originalUrl || context.request.originalUrl || ''
+  const originalUrl = context.req.originalUrl || context.request.originalUrl
   return (context.origin + originalUrl).split('?')[0]
 }
 

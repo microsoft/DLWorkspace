@@ -2,6 +2,9 @@ const Router = require('koa-router')
 
 const router = module.exports = new Router()
 
+router.get('/',
+  require('./controllers'))
+
 router.get('/bootstrap.js',
   require('./middlewares/user')(false),
   require('./controllers/bootstrap'))
