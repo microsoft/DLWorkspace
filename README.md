@@ -1,5 +1,5 @@
-[![Build Status](https://travis-ci.org/microsoft/DLWorkspace.svg?branch=dltsdev)](https://travis-ci.org/microsoft/DLWorkspace)
-[![Coverage Status](https://coveralls.io/repos/github/microsoft/DLWorkspace/badge.svg?branch=dltsdev)](https://coveralls.io/github/microsoft/DLWorkspace?branch=master)
+[![Build Status](https://travis-ci.org/microsoft/DLWorkspace.svg?branch=dltsdev)](https://travis-ci.org/microsoft/DLWorkspace?branch=dltsdev)
+[![Coverage Status](https://coveralls.io/repos/github/microsoft/DLWorkspace/badge.svg?branch=dltsdev)](https://coveralls.io/github/microsoft/DLWorkspace?branch=dltsdev)
 
 # [](#header-1)[Project Overview](docs/index.md)
 
