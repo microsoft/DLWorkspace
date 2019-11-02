@@ -131,7 +131,7 @@ class Job:
                 logging.warn("Ignore invalid mount %s" % mount)
                 continue
             vc_mount = {
-                "name": name,
+                "name": name.lower(),
                 "containerPath": container_path,
                 "hostPath": host_path,
                 "enabled": True
