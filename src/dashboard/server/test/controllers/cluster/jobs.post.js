@@ -24,6 +24,20 @@ describe('POST /clusters/:clusterid/jobs', () => {
     response.status.should.equal(200)
     response.data.should.have.property('message', 'job adding succeeded')
   })
+  it('should response returning messages if job POST succeeded', async () => {
+    nock('http://universe')
+      .post('/PostJob')
+      .reply(200, {
+        message: 'job adding succeeded'
+      })
+    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
+
+    const response = await axiosist(api).post('/clusters/Universe/jobs',
+      { team: null }, { params: userParams })
+
+    response.status.should.equal(200)
+    response.data.should.have.property('message', 'job adding succeeded')
+  })
   it('should response 400 Bad Request if job schema is invalid', async () => {
     sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
