@@ -29,6 +29,7 @@ import quota
 import copy
 import logging
 from cachetools import cached, TTLCache
+from threading import Lock
 
 
 DEFAULT_JOB_PRIORITY = 100
@@ -532,7 +533,7 @@ def AddVC(userName, vcName, quota, metadata):
     return ret
 
 
-@cached(cache=TTLCache(maxsize=81920, ttl=300))
+@cached(cache=TTLCache(maxsize=10240, ttl=1800), lock=Lock())
 def ListVCs(userName):
     ret = []
     vcList =  DataManager.ListVCs()
