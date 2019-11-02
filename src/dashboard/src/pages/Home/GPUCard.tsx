@@ -423,7 +423,7 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
         <Typography  variant="h6" id="tableTitle" className={styles.tableTitle}>
           {"Storage (GB)"}
         </Typography>
-        <Box maxHeight={105} minHeight={100} style={{ overflow: 'auto' }}>
+        <Box height={102} style={{ overflow: 'auto' }}>
           <MuiThemeProvider theme={tableTheme}>
             <Table>
               <TableBody>
