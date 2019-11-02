@@ -128,6 +128,7 @@ class Job:
             if vc is None or vc != vc_name:
                 continue
             if name is None or host_path is None or container_path is None:
+                logging.warn("Ignore invalid mount %s" % mount)
                 continue
             vc_mount = {
                 "name": name,
