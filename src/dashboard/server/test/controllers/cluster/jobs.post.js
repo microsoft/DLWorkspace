@@ -33,7 +33,7 @@ describe('POST /clusters/:clusterid/jobs', () => {
     sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).post('/clusters/Universe/jobs',
-      { team: null }, { params: userParams })
+      { vcName: 'test', team: null }, { params: userParams })
 
     response.status.should.equal(200)
     response.data.should.have.property('message', 'job adding succeeded')
