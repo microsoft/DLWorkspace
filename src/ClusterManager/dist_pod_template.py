@@ -106,6 +106,7 @@ class DistPodTemplate():
             job.add_mountpoints(params["mountpoints"])
         job.add_mountpoints(job.work_path_mountpoint())
         job.add_mountpoints(job.data_path_mountpoint())
+        job.add_mountpoints(job.vc_custom_storage_mountpoints())
         job.add_mountpoints(job.vc_storage_mountpoints())
         job.add_mountpoints(job.infiniband_mountpoints())
         params["mountpoints"] = job.mountpoints
