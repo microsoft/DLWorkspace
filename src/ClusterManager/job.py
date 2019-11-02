@@ -79,10 +79,11 @@ class Job:
             mountpoint["name"] = mountpoint["containerPath"]
         mountpoint["name"] = ''.join(c for c in mountpoint["name"] if c.isalnum() or c == "-")
 
-        # skip dulicate entry
+        # skip duplicate entry
+        # NOTE: mountPath "/data" is the same as "data" in k8s
         for item in self.mountpoints:
-            if item["name"] == mountpoint["name"] or item["containerPath"] == mountpoint["containerPath"]:
-                logging.warn("Duplciate mountpoint: %s" % mountpoint)
+            if item["name"] == mountpoint["name"] or item["containerPath"].strip("/") == mountpoint["containerPath"].strip("/"):
+                logging.warn("Current mountpoint: %s is a duplicate of mountpoint: %s" % (mountpoint, item))
                 return
 
         self.mountpoints.append(mountpoint)
@@ -111,6 +112,33 @@ class Job:
         assert(self.data_path is not None)
         data_host_path = os.path.join(self.cluster["storage-mount-path"], "storage", self.data_path)
         return {"name": "data", "containerPath": "/data", "hostPath": data_host_path, "enabled": True}
+
+    def vc_custom_storage_mountpoints(self):
+        vc_name = self.params["vcName"]
+        custom_mounts = self.get_custom_mounts()
+        if not isinstance(custom_mounts, list):
+            return None
+
+        vc_custom_mounts = []
+        for mount in custom_mounts:
+            name = mount.get("name")
+            container_path = mount.get("containerPath")
+            host_path = mount.get("hostPath")
+            vc = mount.get("vc")
+            if vc is None or vc != vc_name:
+                continue
+            if name is None or host_path is None or container_path is None:
+                logging.warn("Ignore invalid mount %s" % mount)
+                continue
+            vc_mount = {
+                "name": name,
+                "containerPath": container_path,
+                "hostPath": host_path,
+                "enabled": True
+            }
+            vc_custom_mounts.append(vc_mount)
+
+        return vc_custom_mounts
 
     def vc_storage_mountpoints(self):
         vc_name = self.params["vcName"]
@@ -179,6 +207,9 @@ class Job:
             return None
         # TODO why random.choice?
         return random.choice(racks)
+
+    def get_custom_mounts(self):
+        return self._get_cluster_config("custom_mounts")
 
     def get_infiniband_mounts(self):
         return self._get_cluster_config("infiniband_mounts")
