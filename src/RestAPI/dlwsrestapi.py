@@ -1225,6 +1225,7 @@ class Endpoint(Resource):
         data_handler = DataHandler()
         for [_, endpoint] in endpoints.items():
             data_handler.UpdateEndpoint(endpoint)
+        data_handler.Close()
 
         resp = jsonify(endpoints)
         resp.headers["Access-Control-Allow-Origin"] = "*"
@@ -1290,6 +1291,7 @@ class Templates(Resource):
         dataHandler = DataHandler()
         ret = {}
         ret["result"] = dataHandler.UpdateTemplate(templateName, scope, json.dumps(template_json))
+        dataHandler.Close()
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
