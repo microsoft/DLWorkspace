@@ -22,7 +22,7 @@
     <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="1.1.0" />
     <PackageReference Include="Newtonsoft.Json" Version="9.0.1" />
     <PackageReference Include="System.Data.SqlClient" Version="4.3.0" />
-    <PackageReference Include="YamlDotNet" Version="4.1.0" />
+    <PackageReference Include="YamlDotNet" Version="5.0.0" />
   </ItemGroup>
   <ItemGroup>
     <DotNetCliToolReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Tools" Version="1.0.0" />
