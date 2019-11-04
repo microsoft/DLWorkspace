@@ -42,7 +42,14 @@ jobmanager_fn_histogram = Histogram("jobmanager_fn_latency_seconds",
         labelnames=("fn_name",))
 
 job_state_change_histogram = Histogram("job_state_change_latency_seconds",
-        "latency for job to change state(seconds)",
+        """latency for job to change state(seconds).
+        Possible value for current_state is approved/scheduling/running.
+        It means how much time it takes for a job change state from previous state
+        to current state. The order of state:
+        created -> approved -> scheduling -> running.
+        For example, approved current_state means how much time it takes for a job
+        to change state from created to approved, running current_state means how
+        long it takes from scheduling to running.""",
         buckets=(1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0, 1024.0,
             float("inf")),
         labelnames=("current_state",))
