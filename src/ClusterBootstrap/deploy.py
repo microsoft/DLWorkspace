@@ -58,7 +58,7 @@ coreosbaseurl = ""
 verbose = False
 nocache = False
 limitnodes = None
-allroles = {"infra", "infrastructure", "worker", "nfs", "sql"}
+allroles = {"infra", "infrastructure", "worker", "nfs", "sql", "samba"}
 
 
 # default search for all partitions of hdb, hdc, hdd, and sdb, sdc, sdd
