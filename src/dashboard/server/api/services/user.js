@@ -61,6 +61,7 @@ class User extends Service {
   static fromCookie (context, token) {
     const payload = jwt.verify(token, sign)
     const user = new User(context, payload['email'])
+    user.password = this.generateToken(user.email)
     user.givenName = payload['givenName']
     user.addGroupLink = addGroupLink
     user.WikiLink = WikiLink
@@ -128,6 +129,7 @@ class User extends Service {
       email: this.email,
       uid: this.uid,
       gid: this.gid,
+      _token: this.token,
       familyName: this.familyName,
       givenName: this.givenName,
       addGroupLink: addGroupLink,
