@@ -22,11 +22,25 @@ spec:
   replicas: {{ job["deployment_replicas"] }}
   selector:
     matchLabels:
+      jobId: {{ job["jobId"] }}
       worker: active
   template:
     metadata:
       labels:
+        jobId: {{ job["jobId"] }}
         worker: active
+    affinity:
+      podAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+              - key: jobId
+                operator: In
+                values:
+                - {{ job["jobId"] }}
+            topologyKey: kubernetes.io/hostname
     spec:
       containers:
       - name: {{ job["podName"] }}-deployment
