@@ -42,7 +42,14 @@ jobmanager_fn_histogram = Histogram("jobmanager_fn_latency_seconds",
         labelnames=("fn_name",))
 
 job_state_change_histogram = Histogram("job_state_change_latency_seconds",
-        "latency for job to change state(seconds)",
+        """latency for job to change state(seconds).
+        Possible value for current_state is approved/scheduling/running.
+        It means how much time it takes for a job change state from previous state
+        to current state. The order of state:
+        created -> approved -> scheduling -> running.
+        For example, approved current_state means how much time it takes for a job
+        to change state from created to approved, running current_state means how
+        long it takes from scheduling to running.""",
         buckets=(1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0, 1024.0,
             float("inf")),
         labelnames=("current_state",))
@@ -52,6 +59,7 @@ class JobTimeRecord(object):
         self.create_time = None
         self.approve_time = None
         self.submit_time = None
+        self.running_time = None
 
 
 class LRUDefatulDict(object):
@@ -112,17 +120,22 @@ def update_job_state_latency(job_id, state, event_time=None):
     if event_time is None:
         event_time = datetime.datetime.utcnow()
 
-    if state == "create":
+    if state == "created":
         job_time_recorder[job_id].create_time = event_time
-    elif state == "approve":
+    elif state == "approved":
         job_time_recorder[job_id].approve_time = event_time
         if job_time_recorder[job_id].create_time is not None:
             elapsed = (event_time - job_time_recorder[job_id].create_time).seconds
             job_state_change_histogram.labels(state).observe(elapsed)
-    elif state == "submit":
+    elif state == "scheduling":
         job_time_recorder[job_id].submit_time = event_time
         if job_time_recorder[job_id].approve_time is not None:
             elapsed = (event_time - job_time_recorder[job_id].approve_time).seconds
+            job_state_change_histogram.labels(state).observe(elapsed)
+    elif state == "running":
+        job_time_recorder[job_id].running_time = event_time
+        if job_time_recorder[job_id].submit_time is not None:
+            elapsed = (event_time - job_time_recorder[job_id].submit_time).seconds
             job_state_change_histogram.labels(state).observe(elapsed)
 
 def record(fn):
@@ -183,7 +196,7 @@ def ApproveJob(job, dataHandlerOri=None):
         job_id = job["jobId"]
         vcName = job["vcName"]
 
-        update_job_state_latency(job_id, "create", event_time=job["jobTime"])
+        update_job_state_latency(job_id, "created", event_time=job["jobTime"])
 
         jobParams = json.loads(base64.b64decode(job["jobParams"]))
         job_total_gpus = GetJobTotalGpu(jobParams)
@@ -198,7 +211,7 @@ def ApproveJob(job, dataHandlerOri=None):
             detail = [{"message": "waiting for available preemptible resource."}]
             dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
             dataHandler.UpdateJobTextField(job_id, "jobStatus", "queued")
-            update_job_state_latency(job_id, "approve")
+            update_job_state_latency(job_id, "approved")
             if dataHandlerOri is None:
                 dataHandler.Close()
             return True
@@ -239,7 +252,7 @@ def ApproveJob(job, dataHandlerOri=None):
         detail = [{"message": "waiting for available resource."}]
         dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
         dataHandler.UpdateJobTextField(job_id, "jobStatus", "queued")
-        update_job_state_latency(job_id, "approve")
+        update_job_state_latency(job_id, "approved")
         if dataHandlerOri is None:
             dataHandler.Close()
         return True
@@ -290,6 +303,7 @@ def UpdateJobStatus(launcher, job, notifier=None, dataHandlerOri=None):
             notifier.notify(notify.new_job_state_change_message(
                 job["userName"], job["jobId"], result.strip()))
     elif result == "Running":
+        update_job_state_latency(job["jobId"], "running")
         if job["jobStatus"] != "running":
             started_at = k8sUtils.localize_time(datetime.datetime.now())
             detail = [{"startedAt": started_at, "message": "started at: {}".format(started_at)}]
@@ -532,7 +546,7 @@ def TakeJobActions(launcher, jobs):
         try:
             if sji["job"]["jobStatus"] == "queued" and (sji["allowed"] is True):
                 launcher.submit_job(sji["job"])
-                update_job_state_latency(sji["jobId"], "submit")
+                update_job_state_latency(sji["jobId"], "scheduling")
                 logging.info("TakeJobActions : submitting job : %s : %s" % (sji["jobId"], sji["sortKey"]))
             elif sji["preemptionAllowed"] and (sji["job"]["jobStatus"] == "scheduling" or sji["job"]["jobStatus"] == "running") and (sji["allowed"] is False):
                 launcher.kill_job(sji["job"]["jobId"], "queued")
