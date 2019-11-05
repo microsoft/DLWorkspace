@@ -121,19 +121,23 @@ def update_job_state_latency(job_id, state, event_time=None):
         event_time = datetime.datetime.utcnow()
 
     if state == "created":
-        job_time_recorder[job_id].create_time = event_time
+        if job_time_recorder[job_id].create_time is None:
+            job_time_recorder[job_id].create_time = event_time
     elif state == "approved":
-        job_time_recorder[job_id].approve_time = event_time
+        if job_time_recorder[job_id].approve_time is None:
+            job_time_recorder[job_id].approve_time = event_time
         if job_time_recorder[job_id].create_time is not None:
             elapsed = (event_time - job_time_recorder[job_id].create_time).seconds
             job_state_change_histogram.labels(state).observe(elapsed)
     elif state == "scheduling":
-        job_time_recorder[job_id].submit_time = event_time
+        if job_time_recorder[job_id].submit_time is None:
+            job_time_recorder[job_id].submit_time = event_time
         if job_time_recorder[job_id].approve_time is not None:
             elapsed = (event_time - job_time_recorder[job_id].approve_time).seconds
             job_state_change_histogram.labels(state).observe(elapsed)
     elif state == "running":
-        job_time_recorder[job_id].running_time = event_time
+        if job_time_recorder[job_id].running_time is None:
+            job_time_recorder[job_id].running_time = event_time
         if job_time_recorder[job_id].submit_time is not None:
             elapsed = (event_time - job_time_recorder[job_id].submit_time).seconds
             job_state_change_histogram.labels(state).observe(elapsed)
