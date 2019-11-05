@@ -443,9 +443,7 @@ def get_job_priority(priority_dict, job_id):
 
 
 @record
-def TakeJobActions(redis_conn, launcher, jobs):
-    data_handler = DataHandler()
-
+def TakeJobActions(data_handler, redis_conn, launcher, jobs):
     vc_list = data_handler.ListVCs()
     cluster_status, _ = data_handler.GetClusterStatus()
     cluster_total = cluster_status["gpu_capacity"]
@@ -569,13 +567,12 @@ def TakeJobActions(redis_conn, launcher, jobs):
 
     logging.info("TakeJobActions : job desired actions taken")
 
-
-def Run(redis_port, updateblock=0):
+def Run(redis_port, target_status):
     register_stack_trace_dump()
+    create_log()
 
     notifier = notify.Notifier(config.get("job-manager"))
     notifier.start()
-    create_log()
 
     launcher = PythonLauncher()
     launcher.start()
@@ -583,13 +580,12 @@ def Run(redis_port, updateblock=0):
     redis_conn = redis.StrictRedis(host="localhost",
             port=redis_port, db=0)
 
-    while True:
-        if updateblock == 0:
-            update_file_modification_time("job_manager")
-        else:
-            update_file_modification_time("job_manager" + str(updateblock))
+    process_name = "job_manager_" + target_status
 
-        with manager_iteration_histogram.labels("job_manager").time():
+    while True:
+        update_file_modification_time(process_name)
+
+        with manager_iteration_histogram.labels(process_name).time():
             try:
                 config["racks"] = k8sUtils.get_node_labels("rack")
                 config["skus"] = k8sUtils.get_node_labels("sku")
@@ -599,30 +595,31 @@ def Run(redis_port, updateblock=0):
             try:
                 dataHandler = DataHandler()
 
-                if updateblock == 0 or updateblock == 1:
-                    pendingJobs = dataHandler.GetPendingJobs()
-                    TakeJobActions(redis_conn, launcher, pendingJobs)
+                if target_status == "queued":
+                    jobs = dataHandler.GetJobList("all", "all", num=None,
+                            status="queued,scheduling,running")
+                    TakeJobActions(dataHandler, redis_conn, launcher, jobs)
+                else:
+                    jobs = dataHandler.GetJobList("all", "all", num=None,
+                            status=target_status)
+                    logging.info("Updating status for %d %s jobs",
+                            len(jobs), target_status)
 
-                pendingJobs = dataHandler.GetPendingJobs()
-                logging.info("Updating status for %d jobs" % len(pendingJobs))
-                for job in pendingJobs:
-                    try:
+                    for job in jobs:
                         logging.info("Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"]))
-                        if updateblock == 0 or updateblock == 2:
-                            if job["jobStatus"] == "killing":
-                                launcher.kill_job(job["jobId"], "killed", dataHandlerOri=dataHandler)
-                            elif job["jobStatus"] == "pausing":
-                                launcher.kill_job(job["jobId"], "paused", dataHandlerOri=dataHandler)
-                            elif job["jobStatus"] == "running":
-                                UpdateJobStatus(redis_conn, launcher, job, notifier, dataHandlerOri=dataHandler)
-
-                        if updateblock == 0 or updateblock == 1:
-                            if job["jobStatus"] == "scheduling":
-                                UpdateJobStatus(redis_conn, launcher, job, notifier, dataHandlerOri=dataHandler)
-                            elif job["jobStatus"] == "unapproved":
-                                ApproveJob(redis_conn, job, dataHandlerOri=dataHandler)
-                    except Exception as e:
-                        logging.warning(e, exc_info=True)
+                        if job["jobStatus"] == "killing":
+                            launcher.kill_job(job["jobId"], "killed", dataHandlerOri=dataHandler)
+                        elif job["jobStatus"] == "pausing":
+                            launcher.kill_job(job["jobId"], "paused", dataHandlerOri=dataHandler)
+                        elif job["jobStatus"] == "running":
+                            UpdateJobStatus(redis_conn, launcher, job, notifier, dataHandlerOri=dataHandler)
+                        elif job["jobStatus"] == "scheduling":
+                            UpdateJobStatus(redis_conn, launcher, job, notifier, dataHandlerOri=dataHandler)
+                        elif job["jobStatus"] == "unapproved":
+                            ApproveJob(redis_conn, job, dataHandlerOri=dataHandler)
+                        else:
+                            logging.error("unknown job status %s for job %s",
+                                    job["jobStatus"], job["jobId"])
             except Exception as e:
                 logging.warning("Process job failed!", exc_info=True)
             finally:
@@ -638,9 +635,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--redis_port", "-r", help="port of redis", type=int, default=9300)
     parser.add_argument("--port", "-p", help="port of exporter", type=int, default=9200)
-    parser.add_argument("--updateblock", "-u", help="updateblock", type=int, default=0)
+    parser.add_argument("--status", "-s", help="target status to update, queued is a special status", type=str, default="queued")
 
     args = parser.parse_args()
     setup_exporter_thread(args.port)
 
-    Run(args.redis_port, args.updateblock)
+    Run(args.redis_port, args.status)

@@ -72,6 +72,18 @@ spec:
           hostPort: 9205
           name: endpoint-mgr
           protocol: TCP
+        - containerPort: 9206
+          hostPort: 9206
+          name: job-mgr2
+          protocol: TCP
+        - containerPort: 9207
+          hostPort: 9207
+          name: job-mgr3
+          protocol: TCP
+        - containerPort: 9208
+          hostPort: 9208
+          name: job-mgr4
+          protocol: TCP
         readinessProbe:
           failureThreshold: 3
           initialDelaySeconds: 3
