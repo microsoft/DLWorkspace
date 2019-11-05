@@ -377,6 +377,7 @@ def create_nfs_nsg():
             print(output)
 
     print type(config["cloud_config"]["nfs_ssh"]["source_ips"]), config["cloud_config"]["nfs_ssh"]["source_ips"],type(source_addresses_prefixes), source_addresses_prefixes
+    merged_ip = utils.keep_widest_subnet(config["cloud_config"]["nfs_ssh"]["source_ips"] + source_addresses_prefixes)
     cmd = """
         az network nsg rule create \
             --resource-group %s \
@@ -389,8 +390,10 @@ def create_nfs_nsg():
         """ % ( config["azure_cluster"]["resource_group_name"],
                 config["azure_cluster"]["nfs_nsg_name"],
                 config["cloud_config"]["nfs_ssh"]["port"],
-                " ".join(list(set(config["cloud_config"]["nfs_ssh"]["source_ips"] + source_addresses_prefixes))),
+                " ".join(merged_ip),
                 )
+    if verbose:
+        print(cmd)
     if not no_execution:
         output = utils.exec_cmd_local(cmd)
         print(output)
@@ -945,6 +948,7 @@ def run_command(args, command, nargs, parser):
 
     elif command == "addworkers":
         add_workers(args.arm_password, args.parallelism)
+        vm_interconnects()
     elif command == "list":
         list_vm()
 

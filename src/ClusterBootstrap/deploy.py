@@ -513,7 +513,7 @@ def get_domain():
         domain = ""
     return domain
 
-# Get a list of nodes from cluster.yaml
+# Get a list of nodes DNS from cluster.yaml
 def get_nodes_from_config(machinerole):
     machinerole = "infrastructure" if machinerole == "infra" else machinerole
     if "machines" not in config:
@@ -572,6 +572,12 @@ def get_ETCD_master_nodes_from_cluster_portal(clusterId):
 
 def get_ETCD_master_nodes_from_config(clusterId):
     Nodes = get_nodes_from_config("infrastructure")
+    if int(config["etcd_node_num"]) == 1:
+        for nodename in config["machines"]:
+            nodeInfo = config["machines"][nodename]
+            if "role" in nodeInfo and nodeInfo["role"]=="infrastructure":
+                config["etcd_private_ip"] = nodeInfo["private-ip"]
+                break
     config["etcd_node"] = Nodes
     config["kubernetes_master_node"] = Nodes
     return Nodes
@@ -984,32 +990,32 @@ def deploy_masters(force = False):
     deploycmd = """
         until curl -q http://127.0.0.1:8080/version/ ; do
             sleep 5;
-            echo 'waiting for master...';
+            echo 'waiting for master kubernetes service...';
         done;
 
         until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/weave.yaml --validate=false ; do
             sleep 5;
-            echo 'waiting for master...';
+            echo 'waiting for master kube-addons weave...';
         done ;
 
         until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/dashboard.yaml --validate=false ; do
             sleep 5;
-            echo 'waiting for master...';
+            echo 'waiting for master kube-addons dashboard...';
         done ;
 
         until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/dns-addon.yml --validate=false ;  do
             sleep 5;
-            echo 'waiting for master...';
+            echo 'waiting for master kube-addons dns-addon...';
         done ;
 
         until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/kube-proxy.json --validate=false ;  do
             sleep 5;
-            echo 'waiting for master...';
+            echo 'waiting for master kube-addons kube-proxy.json...';
         done ;
 
         until sudo /opt/bin/kubectl create -f /etc/kubernetes/clusterroles/ ;  do
             sleep 5;
-            echo 'waiting for master...';
+            echo 'waiting for master kubernetes clusterroles...';
         done ;
         sudo ln -s /opt/bin/kubectl /usr/bin/;
     """
@@ -1081,7 +1087,7 @@ def deploy_ETCD_docker():
 
 
 def deploy_ETCD():
-
+    # this condition would not be satisfied at least when deploying new clusters
     if "deploydockerETCD" in config and config["deploydockerETCD"]:
         deploy_ETCD_docker()
         return
@@ -3965,32 +3971,32 @@ def upgrade_masters(hypekube_url="gcr.io/google-containers/hyperkube:v1.15.2"):
     deploy_cmd = """
         until curl -q http://127.0.0.1:8080/version/ ; do
             sleep 5;
-            echo 'waiting for master...';
+            echo 'waiting for master kubernetes service...';
         done;
 
         until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/weave.yaml --validate=false ; do
             sleep 5;
-            echo 'waiting for master...';
+            echo 'waiting for master kube-addons weave...';
         done ;
 
         until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/dashboard.yaml --validate=false ; do
             sleep 5;
-            echo 'waiting for master...';
+            echo 'waiting for master kube-addons dashboard...';
         done ;
 
         until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/dns-addon.yml --validate=false ;  do
             sleep 5;
-            echo 'waiting for master...';
+            echo 'waiting for master kube-addons dns-addon...';
         done ;
 
         until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/kube-proxy.json --validate=false ;  do
             sleep 5;
-            echo 'waiting for master...';
+            echo 'waiting for master kube-addons kube-proxy...';
         done ;
 
         until sudo /opt/bin/kubectl apply -f /etc/kubernetes/clusterroles/ ;  do
             sleep 5;
-            echo 'waiting for master...';
+            echo 'waiting for master kubernetes clusterroles...';
         done ;
     """
     utils.SSH_exec_cmd(config["ssh_cert"], kubernetes_master_user, kubernetes_masters[0], deploy_cmd , False)
