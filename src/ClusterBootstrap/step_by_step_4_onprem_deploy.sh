@@ -1,7 +1,3 @@
-./deploy.py -y build
-./az_tools.py create
-./az_tools.py genconfig
-./deploy.py runscriptonroles infra worker ./scripts/prepare_vm_disk.sh
 ./deploy.py nfs-server create
 ./deploy.py runscriptonroles infra worker ./scripts/prepare_ubuntu.sh
 ./deploy.py runscriptonroles infra worker ./scripts/disable_kernel_auto_updates.sh

@@ -705,8 +705,8 @@ def GetCertificateProperty():
             masterdns.append(value)
 
     config["apiserver_ssl_dns"] = "\n".join(["DNS."+str(i+5)+" = "+dns for i,dns in enumerate(masterdns)])
-    config["apiserver_ssl_ip"] = "IP.1 = "+config["api-server-ip"]+"\nIP.2 = 127.0.0.1\n"+ "\n".join(["IP."+str(i+3)+" = "+ip for i,ip in enumerate(masterips)])
-
+    config["apiserver_ssl_ip"] = "\n".join(["IP.{} = {}".format(i, sslip) for i, sslip in enumerate([config["api-server-ip"]] + config["ssl_localhost_ips"] + masterips)])
+    # config["apiserver_ssl_ip"] = "IP.1 = "+config["api-server-ip"]+"\nIP.2 = 127.0.0.1\n"+ "\n".join(["IP."+str(i+3)+" = "+ip for i,ip in enumerate(masterips)])
 
     # kube-apiserver aggregator use easyrsa to generate crt files, we need to generate a group of master names for it.
     # It does not care if it's a DNS name or IP.
@@ -725,7 +725,8 @@ def GetCertificateProperty():
             etcddns.append(value)
 
     config["etcd_ssl_dns"] = "\n".join(["DNS."+str(i+5)+" = "+dns for i,dns in enumerate(etcddns)])
-    config["etcd_ssl_ip"] = "IP.1 = 127.0.0.1\n" + "\n".join(["IP."+str(i+2)+" = "+ip for i,ip in enumerate(etcdips)])
+    config["etcd_ssl_ip"] = "\n".join(["IP.{} = {}".format(i, sslip) for i, sslip in enumerate(config["ssl_localhost_ips"] + etcdips)])
+    # config["etcd_ssl_ip"] = "IP.1 = 127.0.0.1\n" + "\n".join(["IP."+str(i+2)+" = "+ip for i,ip in enumerate(etcdips)])
 
 def gen_worker_certificates():
 
@@ -756,17 +757,25 @@ def load_az_params_as_default():
     merge_config(config["azure_cluster"], azure_cluster_cfg)
     # print config["azure_cluster"], config["network_domain"]
 
+def on_premise_params():
+    print("Warning: remember to set parameters:\ngpu_count_per_node, gpu_type, worker_node_num\n when using on premise machine!")
+
+def load_platform_type():
+    platform_type = list(set(config.keys()) & set(config["supported_platform"]))
+    assert len(platform_type) == 1 and "platform type should be specified explicitly and unique!"
+    platform_type = platform_type[0]
+    config["platform_type"] = platform_type
+
 def gen_platform_wise_config():
+    load_platform_type()
     azdefault = { 'network_domain':"config['network']['domain']", 
         'worker_node_num':"config['azure_cluster']['worker_node_num']", 
         'gpu_count_per_node':'config["sku_mapping"].get(config["azure_cluster"]["worker_vm_size"],config["sku_mapping"]["default"])["gpu-count"]',
         'gpu_type':'config["sku_mapping"].get(config["azure_cluster"]["worker_vm_size"],config["sku_mapping"]["default"])["gpu-type"]' }
-    platform_dict = { 'azure_cluster': azdefault }
-    platform_func = { 'azure_cluster': load_az_params_as_default }
-    platform_type = list(set(platform_dict.keys()) & set(config.keys()))
-    assert len(platform_type) == 1 and "platform type should be unique!"
-    platform_type = platform_type[0]
-    default_dict, default_func = platform_dict[platform_type], platform_func[platform_type]
+    on_premise_default = {'network_domain':"config['network']['domain']"}
+    platform_dict = { 'azure_cluster': azdefault, 'onpremise': on_premise_default }
+    platform_func = { 'azure_cluster': load_az_params_as_default, 'onpremise': on_premise_params } 
+    default_dict, default_func = platform_dict[config["platform_type"]], platform_func[config["platform_type"]]
     default_func()
     need_val = ['network_domain', 'worker_node_num', 'gpu_count_per_node', 'gpu_type']
     for ky in need_val:
@@ -1134,17 +1143,18 @@ def set_nfs_disk():
     """
     we assume there's only 1 cluster.
     """
+    load_platform_type()
     etcd_server_user = config["nfs_user"]
     nfs_servers = config["nfs_node"] if len(config["nfs_node"]) > 0 else config["etcd_node"]
     machine_name_2_full = {nm.split('.')[0]:nm for nm in nfs_servers}
     for srvr_nm, nfs_cnf in config["nfs_disk_mnt"].items():
-        nfs_cnf["cloud_config"] = {"vnet_range":config["cloud_config"]["vnet_range"], "samba_range": config["cloud_config"]["samba_range"]}
+        nfs_cnf["nfs_client_CIDR_ranges"] = config["nfs_client_CIDR"]["node_range"]+config["nfs_client_CIDR"]["samba_range"]
+        nfs_cnf["platform_type"] = config["platform_type"]
         nfs_server = machine_name_2_full[srvr_nm]
-        # print nfs_cnf, nfs_server
-        utils.render_template("./template/nfs/nfs_config.sh.template","./deploy/scripts/setup_nfs_server.sh",nfs_cnf)
-        # os.system("cat ./deploy/scripts/setup_nfs_server.sh")
+        utils.render_template("./template/nfs/nfs_config.sh.template","./scripts/setup_nfs_server.sh",nfs_cnf)
+        # os.system("cat ./scripts/setup_nfs_server.sh")
         # print("------------------>nfs_server<------------------------"+nfs_server)
-        utils.SSH_exec_script( config["ssh_cert"], etcd_server_user, nfs_server, "./deploy/scripts/setup_nfs_server.sh")
+        utils.SSH_exec_script( config["ssh_cert"], etcd_server_user, nfs_server, "./scripts/setup_nfs_server.sh")
 
 def create_ISO():
     imagename = "./deploy/iso/dlworkspace-cluster-deploy-"+config["cluster_name"]+".iso"
@@ -2889,7 +2899,7 @@ def kubernetes_label_nodes( verb, servicelists, force ):
 # Label kubernete nodes with gpu types.skip for CPU workers
 def kubernetes_label_GpuTypes():
     for nodename,nodeInfo in config["machines"].items():
-        if nodeInfo["role"] == "worker" and nodeInfo["gpu-type"] != "NULL":
+        if nodeInfo["role"] == "worker":
             kubernetes_label_node("--overwrite", nodename, "gpuType="+nodeInfo["gpu-type"])
 
 
