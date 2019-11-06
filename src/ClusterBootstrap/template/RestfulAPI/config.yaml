@@ -53,3 +53,9 @@ job-manager:
 
 infiniband_mounts: {{cnf["infiniband_mounts"]}}
 custom_mounts: {{cnf["custom_mounts"]}}
+
+enable_cpuworker: {{cnf["enable_cpuworker"]}}
+default_cpurequest: {{cnf["default_cpurequest"]}}
+default_cpulimit: {{cnf["default_cpulimit"]}}
+default_memoryrequest: {{cnf["default_memoryrequest"]}}
+default_memorylimit: {{cnf["default_memorylimit"]}}
