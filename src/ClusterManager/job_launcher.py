@@ -272,7 +272,7 @@ class JobDeployer:
             return [-1, err.message]
 
 
-class JobRole:
+class JobRole(object):
     MARK_ROLE_READY_FILE = "/pod/running/ROLE_READY"
 
     @staticmethod
@@ -287,15 +287,17 @@ class JobRole:
                 role = pod.metadata.labels["distRole"]
             else:
                 role = "master"
-            job_role = JobRole(role, pod_name)
+            job_role = JobRole(role, pod_name, pod)
             job_roles.append(job_role)
         return job_roles
 
-    def __init__(self, role_name, pod_name):
+    def __init__(self, role_name, pod_name, pod):
         self.role_name = role_name
         self.pod_name = pod_name
+        self.pod = pod
 
-    def status(self):
+    # will query api server if refresh is True
+    def status(self, refresh=False):
         """
         Return role status in ["NotFound", "Pending", "Running", "Succeeded", "Failed", "Unknown"]
         It's slightly different from pod phase, when pod is running:
@@ -303,14 +305,16 @@ class JobRole:
         """
         # pod-phase: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase
         # node condition: https://kubernetes.io/docs/concepts/architecture/nodes/#condition
-        deployer = JobDeployer()
-        pods = deployer.get_pods(field_selector="metadata.name={}".format(self.pod_name))
-        logging.debug("Pods: {}".format(pods))
-        if(len(pods) < 1):
-            return "NotFound"
+        if refresh:
+            deployer = JobDeployer()
+            pods = deployer.get_pods(field_selector="metadata.name={}".format(self.pod_name))
+            logging.debug("Pods: {}".format(pods))
+            if(len(pods) < 1):
+                return "NotFound"
 
-        assert(len(pods) == 1)
-        self.pod = pods[0]
+            assert(len(pods) == 1)
+            self.pod = pods[0]
+
         phase = self.pod.status.phase
 
         # !!! Pod is running, doesn't mean "Role" is ready and running.
@@ -320,21 +324,20 @@ class JobRole:
                 return "Unknown"
 
             # Check if the user command had been ran.
-            if not self.isRoleReady():
+            if not self._is_role_ready():
                 return "Pending"
 
         return phase
 
-    # TODO should call after status(), or the self.pod would be None
     def pod_details(self):
         return self.pod
 
-    def isFileExisting(self, file):
+    def _is_file_exist(self, file):
         deployer = JobDeployer()
         status_code, _ = deployer.pod_exec(self.pod_name, ["/bin/sh", "-c", "ls -lrt {}".format(file)])
         return status_code == 0
 
-    def isRoleReady(self):
+    def _is_role_ready(self):
         for container in self.pod.spec.containers:
             if container.name == self.pod_name and container.readiness_probe is not None:
                 for status in self.pod.status.container_statuses:
@@ -342,7 +345,7 @@ class JobRole:
                         log.info("pod %s have readiness_probe result", self.pod_name)
                         return status.ready
         # no readiness_probe defined, fallback to old way
-        return self.isFileExisting(JobRole.MARK_ROLE_READY_FILE)
+        return self._is_file_exist(JobRole.MARK_ROLE_READY_FILE)
 
 
 # Interface class for managing life time of job
