@@ -593,6 +593,8 @@ def Run(redis_port, target_status):
                 logging.exception("get node labels failed")
 
             try:
+                launcher.wait_tasks_done() # wait for tasks from previous batch done
+
                 dataHandler = DataHandler()
 
                 if target_status == "queued":
@@ -608,9 +610,9 @@ def Run(redis_port, target_status):
                     for job in jobs:
                         logging.info("Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"]))
                         if job["jobStatus"] == "killing":
-                            launcher.kill_job(job["jobId"], "killed", dataHandlerOri=dataHandler)
+                            launcher.kill_job(job["jobId"], "killed")
                         elif job["jobStatus"] == "pausing":
-                            launcher.kill_job(job["jobId"], "paused", dataHandlerOri=dataHandler)
+                            launcher.kill_job(job["jobId"], "paused")
                         elif job["jobStatus"] == "running":
                             UpdateJobStatus(redis_conn, launcher, job, notifier, dataHandlerOri=dataHandler)
                         elif job["jobStatus"] == "scheduling":

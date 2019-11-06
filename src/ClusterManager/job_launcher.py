@@ -10,6 +10,7 @@ import functools
 import time
 import datetime
 import base64
+import multiprocessing
 
 from kubernetes import client, config as k8s_config
 from kubernetes.client.rest import ApiException
@@ -352,9 +353,6 @@ class Launcher(object):
     def start(self):
         pass
 
-    def get_job_status_detail(self, job_id):
-        pass
-
     def submit_job(self, job_desc):
         pass
 
@@ -404,14 +402,24 @@ def job_status_detail_with_finished_time(job_status_detail, status, msg=""):
 
 
 class PythonLauncher(Launcher):
-    def __init__(self):
-        pass
+    def __init__(self, pool_size=3):
+        self.processes = []
+        self.queue = None
+        self.pool_size = pool_size
+        # items in queue should be tuple of 3 elements: (function name, args, kwargs)
 
     def start(self):
-        pass
+        if len(self.processes) == 0:
+            self.queue = multiprocessing.JoinableQueue()
 
-    def get_job_status_detail(self, job_id):
-        pass
+            for i in range(self.pool_size):
+                p = multiprocessing.Process(target=self.run,
+                        args=(self.queue,), name="py-launcher-" + str(i))
+                self.processes.append(p)
+                p.start()
+
+    def wait_tasks_done(self):
+        self.queue.join()
 
     def _all_pods_not_existing(self, job_id):
         job_deployer = JobDeployer()
@@ -421,6 +429,9 @@ class PythonLauncher(Launcher):
         return all([status == "NotFound" for status in statuses])
 
     def submit_job(self, job):
+        self.queue.put(("submit_job", (job,), {}))
+
+    def submit_job_impl(self, job):
         # check if existing any pod with label: run=job_id
         assert("jobId" in job)
         job_id = job["jobId"]
@@ -524,7 +535,10 @@ class PythonLauncher(Launcher):
         dataHandler.Close()
         return ret
 
-    def kill_job(self, job_id, desired_state="killed", dataHandlerOri=None):
+    def kill_job(self, job_id, desired_state="killed"):
+        self.queue.put(("kill_job", (job_id,), {"desired_state": desired_state}))
+
+    def kill_job_impl(self, job_id, desired_state="killed", dataHandlerOri=None):
         if dataHandlerOri is None:
             dataHandler = DataHandler()
         else:
@@ -552,3 +566,21 @@ class PythonLauncher(Launcher):
                 dataHandler.Close()
             logging.error("Kill job failed with errors: {}".format(errors))
             return False
+
+    def run(self, queue):
+        # TODO maintain a data_handler so do not need to init it every time
+        while True:
+            func_name, args, kwargs = queue.get(True)
+
+            try:
+                if func_name == "submit_job":
+                    self.submit_job_impl(*args, **kwargs)
+                elif func_name == "kill_job":
+                    self.kill_job_impl(*args, **kwargs)
+                else:
+                    logger.error("unknown func_name %s, with args %s %s",
+                            func_name, args, kwargs)
+            except Exception:
+                logging.exception("processing job failed")
+            finally:
+                queue.task_done()
