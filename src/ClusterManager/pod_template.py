@@ -116,6 +116,18 @@ class PodTemplate():
         if "gpuType" in params:
             params["nodeSelector"]["gpuType"] = params["gpuType"]
 
+        # CPU job should be assigned to CPU node if there is any available in the cluster
+        config = job.cluster
+        if config.get("enable_cpuworker", False) and int(params["resourcegpu"]) == 0:
+            params["nodeSelector"]["cpuworker"] = "active"
+            if "cpurequest" not in params and "default_cpurequest" in config:
+                params["cpurequest"] = config["default_cpurequest"]
+            if "cpulimits" not in params and "default_cpulimit" in config:
+                params["cpulimit"] = config["default_cpulimit"]
+            if "memoryrequest" not in params and "default_memoryrequest" in config:
+                params["memoryrequest"] = config["default_memoryrequest"]
+            if "memorylimits" not in params and "default_memorylimit" in config:
+                params["memorylimit"] = config["default_memorylimit"]
 
         local_pod_path = job.get_hostpath(job.job_path, "master")
         params["LaunchCMD"] = PodTemplate.generate_launch_script(params["jobId"], local_pod_path, params["userId"], params["resourcegpu"], params["cmd"])

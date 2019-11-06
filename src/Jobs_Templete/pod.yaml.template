@@ -134,9 +134,17 @@ spec:
       requests:
         cpu: job["cpurequest"]
     {% endif %}
+    {% if job["cpulimit"] %}
+      limits:
+        cpu: job["cpulimit"]
+    {% endif %}
     {% if job["memoryrequest"] %}
       requests:
         memory: job["memoryrequest"]
+    {% endif %}
+    {% if job["memorylimit"] %}
+      limits:
+        memory: job["memorylimit"]
     {% endif %}
     volumeMounts:
     - name: "dlws-scripts"
