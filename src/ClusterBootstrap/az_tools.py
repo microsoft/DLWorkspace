@@ -741,7 +741,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
     cc["deploydockerETCD"] = False
     cc["platform-scripts"] = "ubuntu"
     cc["basic_auth"] = "%s,admin,1000" % uuid.uuid4().hex[:16]
-    domain_mapping = {"regular":"%s.cloudapp.azure.com" % config["azure_cluster"]["azure_location"], "low": "redmond.corp.microsoft.com"}
+    domain_mapping = {"regular":"%s.cloudapp.azure.com" % config["azure_cluster"]["azure_location"], "low": config["domain_name"]}
     if not bSQLOnly:
         cc["network"] = {"domain": domain_mapping[config["priority"]]}
 

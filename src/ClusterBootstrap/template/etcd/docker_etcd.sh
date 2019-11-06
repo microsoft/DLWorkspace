@@ -10,9 +10,9 @@ docker run -d -v /usr/share/ca-certificates/:/etc/ssl/certs -v /var/etcd:/var/et
  -initial-cluster-state new \
  -initial-cluster-token {{cnf["clusterId"]}} \
  -advertise-client-urls https://{{cnf["etcd_private_ip"]}}:{{cnf["etcd3port1"]}} \
- -listen-client-urls https://{{cnf["etcd_private_ip"]}}:{{cnf["etcd3port1"]}},https://127.0.0.1:{{cnf["etcd3port1"]}} \
+ -listen-client-urls https://0.0.0.0:{{cnf["etcd3port1"]}} \
  -initial-advertise-peer-urls https://{{cnf["etcd_private_ip"]}}:{{cnf["etcd3portserver"]}} \
- -listen-peer-urls https://{{cnf["etcd_private_ip"]}}:{{cnf["etcd3portserver"]}} \
+ -listen-peer-urls https://0.0.0.0:{{cnf["etcd3portserver"]}} \
  {% else %}-advertise-client-urls https://{{cnf["etcd_node_ip"]}}:{{cnf["etcd3port1"]}} \
  -listen-client-urls https://0.0.0.0:{{cnf["etcd3port1"]}} \
  -initial-advertise-peer-urls https://{{cnf["etcd_node_ip"]}}:{{cnf["etcd3portserver"]}} \

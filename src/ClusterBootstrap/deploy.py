@@ -576,6 +576,7 @@ def get_ETCD_master_nodes_from_config(clusterId):
         for nodename in config["machines"]:
             nodeInfo = config["machines"][nodename]
             if "role" in nodeInfo and nodeInfo["role"]=="infrastructure":
+                assert "private-ip" in nodeInfo and "private IP of the infrastructure node is not provided!"
                 config["etcd_private_ip"] = nodeInfo["private-ip"]
                 break
     config["etcd_node"] = Nodes
