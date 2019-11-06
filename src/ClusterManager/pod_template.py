@@ -126,13 +126,13 @@ class PodTemplate():
 
         if enable_cpuworker and int(params["resourcegpu"]) == 0:
             params["nodeSelector"]["cpuworker"] = "active"
-            if "cpurequest" not in params and default_cpurequest:
+            if "cpurequest" not in params and default_cpurequest is not None:
                 params["cpurequest"] = default_cpurequest
-            if "cpulimit" not in params and default_cpulimit:
+            if "cpulimit" not in params and default_cpulimit is not None:
                 params["cpulimit"] = default_cpulimit
-            if "memoryrequest" not in params and default_memoryrequest:
+            if "memoryrequest" not in params and default_memoryrequest is not None:
                 params["memoryrequest"] = default_memoryrequest
-            if "memorylimit" not in params and default_memorylimit:
+            if "memorylimit" not in params and default_memorylimit is not None:
                 params["memorylimit"] = default_memorylimit
 
         local_pod_path = job.get_hostpath(job.job_path, "master")
