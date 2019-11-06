@@ -127,7 +127,7 @@ def update_job_state_latency(redis_conn, job_id, state, event_time=None):
         if job_status.approve_time is None:
             changed = True
             job_status.approve_time = event_time
-        if job_status.create_time is not None:
+        if changed and job_status.create_time is not None:
             changed = True
             elapsed = (event_time - job_status.create_time).seconds
             job_state_change_histogram.labels(state).observe(elapsed)
@@ -135,7 +135,7 @@ def update_job_state_latency(redis_conn, job_id, state, event_time=None):
         if job_status.submit_time is None:
             changed = True
             job_status.submit_time = event_time
-        if job_status.approve_time is not None:
+        if changed and job_status.approve_time is not None:
             changed = True
             elapsed = (event_time - job_status.approve_time).seconds
             job_state_change_histogram.labels(state).observe(elapsed)
@@ -143,7 +143,9 @@ def update_job_state_latency(redis_conn, job_id, state, event_time=None):
         if job_status.running_time is None:
             changed = True
             job_status.running_time = event_time
-        if job_status.submit_time is not None:
+        # because UpdateJobStatus will call update_job_state_latency
+        # multiple times, so here need to avoid override metric
+        if changed and job_status.submit_time is not None:
             changed = True
             elapsed = (event_time - job_status.submit_time).seconds
             job_state_change_histogram.labels(state).observe(elapsed)
