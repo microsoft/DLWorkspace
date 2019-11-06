@@ -127,25 +127,21 @@ spec:
     resources:
       limits:
         nvidia.com/gpu: {{ job["gpuLimit"] }}
-    {% if not job["cpurequest"] %}
+      {% if job["cpulimit"] %}
+        cpu: {{ job["cpulimit"]  }}
+      {% endif %}
+      {% if job["memorylimit"] %}
+        memory: {{ job["memorylimit"] }}
+      {% endif %}
       requests:
+      {% if not job["cpurequest"] %}
         cpu: 1.0
-    {% else %}
-      requests:
-        cpu: job["cpurequest"]
-    {% endif %}
-    {% if job["cpulimit"] %}
-      limits:
-        cpu: job["cpulimit"]
-    {% endif %}
-    {% if job["memoryrequest"] %}
-      requests:
-        memory: job["memoryrequest"]
-    {% endif %}
-    {% if job["memorylimit"] %}
-      limits:
-        memory: job["memorylimit"]
-    {% endif %}
+      {% else %}
+        cpu: {{ job["cpurequest"] }}
+      {% endif %}
+      {% if job["memoryrequest"] %}
+        memory: {{ job["memoryrequest"] }}
+      {% endif %}
     volumeMounts:
     - name: "dlws-scripts"
       mountPath: /pod/scripts
