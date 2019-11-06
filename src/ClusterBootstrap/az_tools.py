@@ -45,8 +45,6 @@ def init_config():
         config[k] = v
     for k, v in default_az_parameters.iteritems():
         config[k] = v
-    # print config
-    # exit()
     return config
 
 
@@ -493,7 +491,6 @@ def create_cluster(arm_vm_password=None, parallelism=1):
                arm_vm_password, config["azure_cluster"]["nfs_vm"][i] if i < len(config["azure_cluster"]["nfs_vm"]) else None )
 
 def add_workers(arm_vm_password=None, parallelism=1):
-    # assert config["priority"] == "regular" and "vmss cloudinit not supported yet"
     if config["priority"] == "regular":
         print("entering")
         if parallelism > 1:
@@ -942,7 +939,6 @@ def run_command(args, command, nargs, parser):
     else:
         check_subscription()
     if command == "create":
-        # print config["azure_cluster"]["infra_vm_size"]
         create_cluster(args.arm_password, args.parallelism)
         vm_interconnects()
 
@@ -989,7 +985,6 @@ def run_command(args, command, nargs, parser):
 if __name__ == '__main__':
     # the program always run at the current directory.
     dirpath = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
-    # print "Directory: " + dirpath
     os.chdir(dirpath)
     config = init_config()
     parser = argparse.ArgumentParser(prog='az_utils.py',
@@ -1114,15 +1109,11 @@ Command:
     if os.path.exists(config_file):
         with open(config_file) as cf:
             tmpconfig = yaml.load(cf)
-            # assert tmpconfig["cluster_name"] in tmpconfig["azure_cluster"]
         merge_config(config, tmpconfig, verbose)
         if tmpconfig is not None and "cluster_name" in tmpconfig:
             config["azure_cluster"]["cluster_name"] = tmpconfig["cluster_name"]
         if tmpconfig is not None and "datasource" in tmpconfig:
             config["azure_cluster"]["datasource"] = tmpconfig["datasource"]
-    # if tmpconfig is not None and "azure_cluster" in tmpconfig and config["azure_cluster"]["cluster_name"] in tmpconfig["azure_cluster"]:
-    #     merge_config(config["azure_cluster"], tmpconfig["azure_cluster"][
-    #                  config["azure_cluster"]["cluster_name"]], verbose)
     if (args.cluster_name is not None):
         config["azure_cluster"]["cluster_name"] = args.cluster_name
 
@@ -1148,7 +1139,6 @@ Command:
         config["azure_cluster"]["file_share_name"] = args.file_share_name
 
     config = update_config(config)
-    # print (config)
 
     with open(config_cluster, 'w') as outfile:
         yaml.dump(config, outfile, default_flow_style=False)
