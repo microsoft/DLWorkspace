@@ -2,8 +2,7 @@
 # [Rule Module Name] : [Rule Class Name]
 rules:
   Rules.ecc_rule : ECCRule
-  Rules.test_rule : TestRule
-
+  
 # time to sleep between rule execution
 wait_time: 10
 
