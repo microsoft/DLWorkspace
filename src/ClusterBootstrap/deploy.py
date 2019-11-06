@@ -869,7 +869,7 @@ def deploy_master(kubernetes_master):
 
         assert config["priority"] in ["regular", "low"]
         if config["priority"] == "regular":
-            config["master_ip"] = utils.getIP(kubernetes_master) 
+            config["master_ip"] = utils.getIP(kubernetes_master)
         else:
             config["master_ip"] = config["machines"][kubernetes_master.split(".")[0]]["private-ip"]
         utils.render_template("./template/master/kube-apiserver.yaml","./deploy/master/kube-apiserver.yaml",config)
@@ -902,7 +902,7 @@ def get_other_binary():
     os.system("mkdir -p ./deploy/bin/other/easy-rsa/")
     copy_from_docker_image(config["dockers"]["container"]["binstore"]["fullname"], "/data/easy-rsa/v3.0.5.tar.gz", "./deploy/bin/other/easy-rsa/v3.0.5.tar.gz")
     copy_from_docker_image(config["dockers"]["container"]["binstore"]["fullname"], "/data/cfssl/linux/cfssl", "./deploy/bin/other/cfssl")
-    copy_from_docker_image(config["dockers"]["container"]["binstore"]["fullname"], "/data/cfssl/linux/cfssljson", "./deploy/bin/other/cfssljson")    
+    copy_from_docker_image(config["dockers"]["container"]["binstore"]["fullname"], "/data/cfssl/linux/cfssljson", "./deploy/bin/other/cfssljson")
 def get_kubectl_binary(force = False):
     get_hyperkube_docker(force = force)
     get_cni_binary()
@@ -2869,6 +2869,14 @@ def kubernetes_label_GpuTypes():
             kubernetes_label_node("--overwrite", nodename, "gpuType="+nodeInfo["gpu-type"])
 
 
+# Label kubernetes nodes with custom node labels defined for each node under "custom_node_labels"
+def kubernetes_label_custom_node_labels():
+    for nodename, nodeinfo in config["machines"].items():
+        if "custom_node_labels" in nodeinfo:
+            for nodelabel in nodeinfo["custom_node_labels"]:
+                kubernetes_label_node("--overwrite", nodename, nodelabel)
+
+
 def kubernetes_patch_nodes_provider (provider, scaledOnly):
     nodes = []
     if scaledOnly:
@@ -3736,6 +3744,9 @@ def run_command( args, command, nargs, parser ):
     elif command == "gpulabel":
         kubernetes_label_GpuTypes()
 
+    elif command == "customlabel":
+        kubernetes_label_custom_node_labels()
+
     elif command == "genscripts":
         gen_dns_config_script()
         gen_pass_secret_script()
@@ -3892,7 +3903,7 @@ def upgrade_master(kubernetes_master):
 
     assert config["priority"] in ["regular", "low"]
     if config["priority"] == "regular":
-        config["master_ip"] = utils.getIP(kubernetes_master) 
+        config["master_ip"] = utils.getIP(kubernetes_master)
     else:
         config["master_ip"] = config["machines"][kubernetes_master.split(".")[0]]["private-ip"]
     utils.render_template("./template/master/kube-apiserver.yaml","./deploy/master/kube-apiserver.yaml",config)
@@ -4059,6 +4070,7 @@ Command:
   upgrade_masters Upgrade the master nodes.
   upgrade_workers [nodes] Upgrade the worker nodes. If no additional node is specified, all nodes will be updated.
   upgrade [nodes] Upgrade the cluster and nodes. If no additional node is specified, all nodes will be updated.
+  customlabel Label nodes with custom defined node labels under custom_node_labels
   ''') )
     parser.add_argument("-y", "--yes",
         help="Answer yes automatically for all prompt",
