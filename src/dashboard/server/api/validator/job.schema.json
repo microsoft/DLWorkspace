@@ -4,5 +4,6 @@
     "team": {
       "type": "string"
     }
-  }
+  },
+  "required": ["team"]
 }

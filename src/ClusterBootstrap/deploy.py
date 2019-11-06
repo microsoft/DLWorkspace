@@ -58,7 +58,7 @@ coreosbaseurl = ""
 verbose = False
 nocache = False
 limitnodes = None
-allroles = {"infra", "infrastructure", "worker", "nfs", "sql"}
+allroles = {"infra", "infrastructure", "worker", "nfs", "sql", "samba"}
 
 
 # default search for all partitions of hdb, hdc, hdd, and sdb, sdc, sdd
@@ -671,11 +671,13 @@ def check_master_ETCD_status():
     get_ETCD_master_nodes(config["clusterId"])
     get_worker_nodes(config["clusterId"], False)
     get_nodes_by_roles(["nfs"])
+    get_nodes_by_roles(["samba"])
     print "==============================================="
     print "Activate Master Node(s): %s\n %s \n" % (len(config["kubernetes_master_node"]),",".join(config["kubernetes_master_node"]))
     print "Activate ETCD Node(s):%s\n %s \n" % (len(config["etcd_node"]),",".join(config["etcd_node"]))
     print "Activate Worker Node(s):%s\n %s \n" % (len(config["worker_node"]),",".join(config["worker_node"]))
     print "Activate NFS Node(s):%s\n %s \n" % (len(config["nfs_node"]),",".join(config["nfs_node"]))
+    print "Activate Samba Node(s):%s\n %s \n" % (len(config["samba_node"]), ",".join(config["samba_node"]))
 
 def clean_deployment():
     print "==============================================="
@@ -3146,7 +3148,7 @@ def run_command( args, command, nargs, parser ):
             # print(role2connect, config["ssh_cert"], config["admin_username"])
             if len(nargs) < 1 or role2connect == "master":
                 nodes = config["kubernetes_master_node"]
-            elif role2connect in ["etcd","worker","nfs"]:
+            elif role2connect in ["etcd", "worker", "nfs", "samba"]:
                 nodes = config["{}_node".format(role2connect)]
             else:
                 parser.print_help()

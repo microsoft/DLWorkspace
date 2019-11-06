@@ -40,7 +40,8 @@ class User extends Service {
 
   /**
    * @param {import('koa').Context} context
-   * @param {object} idToken
+   * @param {string} email
+   * @param {string} token
    * @return {User}
    */
   static fromToken (context, email, token) {
@@ -60,6 +61,7 @@ class User extends Service {
   static fromCookie (context, token) {
     const payload = jwt.verify(token, sign)
     const user = new User(context, payload['email'])
+    user.password = this.generateToken(user.email)
     user.givenName = payload['givenName']
     user.addGroupLink = addGroupLink
     user.WikiLink = WikiLink
@@ -69,11 +71,21 @@ class User extends Service {
     return user
   }
 
+  /**
+   * @param {string} email
+   * @return {Buffer}
+   */
+  static generateToken (email) {
+    const hash = createHash('md5')
+    hash.update(`${email}:${masterToken}`)
+    return hash.digest()
+  }
+
   get token () {
     if (this._token == null) {
-      const hash = createHash('md5')
-      hash.update(`${this.email}:${masterToken}`)
-      this._token = hash.digest()
+      Object.defineProperty(this, '_token', {
+        value: User.generateToken(this.email)
+      })
     }
     return this._token
   }
@@ -113,11 +125,11 @@ class User extends Service {
    * @return {string}
    */
   toCookie () {
-    console.log('token is ', this.token)
     return jwt.sign({
       email: this.email,
       uid: this.uid,
       gid: this.gid,
+      _token: this.token,
       familyName: this.familyName,
       givenName: this.givenName,
       addGroupLink: addGroupLink,

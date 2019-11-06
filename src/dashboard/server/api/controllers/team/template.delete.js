@@ -11,7 +11,6 @@ module.exports = async context => {
 
   const deleteClusterTemplate = async id => {
     const cluster = new Cluster(context, id)
-    console.log('----> exe!!!')
     return cluster.deleteTemplate(database, teamId, templateName)
   }
 

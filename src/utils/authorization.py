@@ -29,9 +29,10 @@ INVALID_INFO = {
 }
 
 
-DEFAULT_EXPIRATION = 5 * 60
+DEFAULT_EXPIRATION = 30 * 60
 
 
+# TODO: Replace with TTLCache in cachetools after refactoring
 class SimpleCache(object):
     def __init__(self, expiration=DEFAULT_EXPIRATION):
         self.expiration = expiration

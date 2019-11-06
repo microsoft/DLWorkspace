@@ -28,8 +28,32 @@ import quota
 
 import copy
 import logging
+from cachetools import cached, TTLCache
+from threading import Lock
+
+
+DEFAULT_JOB_PRIORITY = 100
+USER_JOB_PRIORITY_RANGE = (100, 200)
+ADMIN_JOB_PRIORITY_RANGE = (1, 1000)
+
 
 logger = logging.getLogger(__name__)
+
+
+def adjust_job_priority(priority, permission):
+    priority_range = (DEFAULT_JOB_PRIORITY, DEFAULT_JOB_PRIORITY)
+    if permission == Permission.User:
+        priority_range = USER_JOB_PRIORITY_RANGE
+    elif permission == Permission.Admin:
+        priority_range = ADMIN_JOB_PRIORITY_RANGE
+
+    if priority > priority_range[1]:
+        priority = priority_range[1]
+    elif priority < priority_range[0]:
+        priority = priority_range[0]
+
+    return priority
+
 
 def LoadJobParams(jobParamsJsonStr):
     return json.loads(jobParamsJsonStr)
@@ -212,18 +236,20 @@ def SubmitJob(jobParamsJsonStr):
         if dataHandler.AddJob(jobParams):
             ret["jobId"] = jobParams["jobId"]
             if "jobPriority" in jobParams:
-                priorityValue = 100
+                priority = DEFAULT_JOB_PRIORITY
                 try:
-                    priorityValue = int(jobParams["jobPriority"])
+                    priority = int(jobParams["jobPriority"])
                 except Exception as e:
                     pass
-                if priorityValue > 200:
-                    priorityValue = 200
-                elif priorityValue < 100:
-                    priorityValue = 100
 
-                job_priorites = {jobParams["jobId"]:priorityValue}
-                update_job_priorites(job_priorites)
+                permission = Permission.User
+                if AuthorizationManager.HasAccess(jobParams["userName"], ResourceType.VC, jobParams["vcName"].strip(), Permission.Admin):
+                    permission = Permission.Admin
+
+                priority = adjust_job_priority(priority, permission)
+
+                job_priorities = {jobParams["jobId"]: priority}
+                update_job_priorites(jobParams["userName"], job_priorities)
         else:
             ret["error"] = "Cannot schedule job. Cannot add job into database."
 
@@ -285,7 +311,7 @@ def KillJob(userName, jobId):
     ret = False
     dataHandler = DataHandler()
     jobs = dataHandler.GetJob(jobId=jobId)
-    if len(jobs) == 1:
+    if len(jobs) == 1 and jobs[0]["jobStatus"] in ["unapproved", "queued", "scheduling", "running", "paused", "pausing"]:
         job = jobs[0]
         if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin):
             if job["isParent"] == 1:
@@ -319,7 +345,7 @@ def ApproveJob(userName, jobId):
     dataHandler = DataHandler()
     ret = False
     jobs =  dataHandler.GetJob(jobId=jobId)
-    if len(jobs) == 1:
+    if len(jobs) == 1 and jobs[0]["jobStatus"] == "unapproved":
         if AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Admin):
             ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","queued")
     dataHandler.Close()
@@ -331,7 +357,7 @@ def ResumeJob(userName, jobId):
     dataHandler = DataHandler()
     ret = False
     jobs = dataHandler.GetJob(jobId=jobId)
-    if len(jobs) == 1:
+    if len(jobs) == 1 and jobs[0]["jobStatus"] == "paused":
         if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
             ret = dataHandler.UpdateJobTextField(jobId, "jobStatus", "unapproved")
     dataHandler.Close()
@@ -342,7 +368,7 @@ def PauseJob(userName, jobId):
     dataHandler = DataHandler()
     ret = False
     jobs =  dataHandler.GetJob(jobId=jobId)
-    if len(jobs) == 1:
+    if len(jobs) == 1 and jobs[0]["jobStatus"] in ["unapproved", "queued", "scheduling", "running"]:
         if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Admin):
             ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","pausing")
     dataHandler.Close()
@@ -507,6 +533,7 @@ def AddVC(userName, vcName, quota, metadata):
     return ret
 
 
+@cached(cache=TTLCache(maxsize=10240, ttl=1800), lock=Lock())
 def ListVCs(userName):
     ret = []
     vcList =  DataManager.ListVCs()
@@ -627,10 +654,18 @@ def UpdateVC(userName, vcName, quota, metadata):
 
 
 def get_job(job_id):
-    dataHandler = DataHandler()
-    ret = dataHandler.GetJob(jobId=job_id)[0]
-    dataHandler.Close()
-    return ret
+    data_handler = None
+    try:
+        data_handler = DataHandler()
+        jobs = data_handler.GetJob(jobId=job_id)
+        if len(jobs) == 1:
+            return jobs[0]
+    except Exception as e:
+        logger.error("Exception in get_job: %s" % str(e))
+    finally:
+        if data_handler is not None:
+            data_handler.Close()
+    return None
 
 
 def update_job(job_id, field, value):
@@ -646,11 +681,43 @@ def get_job_priorities():
     return job_priorites
 
 
-def update_job_priorites(job_priorites):
-    dataHandler = DataHandler()
-    success = dataHandler.update_job_priority(job_priorites)
-    dataHandler.Close()
-    return success
+def update_job_priorites(username, job_priorities):
+    data_handler = None
+    try:
+        data_handler = DataHandler()
+
+        # Only job owner and VC admin can update job priority.
+        # Fail job priority update if there is one unauthorized items.
+        for job_id in job_priorities:
+            priority = job_priorities[job_id]
+            jobs = data_handler.GetJob(jobId=job_id)
+            if len(jobs) == 0:
+                logger.warn("Update priority %s for non-existent job %s" %
+                            (priority, job_id))
+                continue
+
+            if len(jobs) > 1:
+                logger.warn("Multiple job entries found that matches job %s. "
+                            "Most likely a platform bug." % job_id)
+
+            job = jobs[0]
+            vc_admin = AuthorizationManager.HasAccess(username, ResourceType.VC, job["vcName"], Permission.Admin)
+            if job["userName"] != username and (not vc_admin):
+                return False
+
+            # Adjust priority based on permission
+            permission = Permission.Admin if vc_admin else Permission.User
+            job_priorities[job_id] = adjust_job_priority(priority, permission)
+
+        ret_code = data_handler.update_job_priority(job_priorities)
+        return ret_code
+
+    except Exception as e:
+        logger.error("Exception when updating job priorities: %s" % e)
+
+    finally:
+        if data_handler is not None:
+            data_handler.Close()
 
 
 if __name__ == '__main__':
