@@ -687,7 +687,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
     if config["priority"] == "low":
         utils.render_template("./template/dns/cname_and_private_ips.sh.template", "scripts/cname_and_ips.sh", config)    
         utils.exec_cmd_local("chmod +x scripts/cname_and_ips.sh; bash scripts/cname_and_ips.sh")
-        print "\nPlease copy the commands in dns_add_commands and register the DNS records on http://servicebook/dns/self-service.html\n"
+        print "\nPlease copy the commands in dns_add_commands and register the DNS records \n"
     bSQLOnly = (config["azure_cluster"]["infra_node_num"] <= 0)
     if useAzureFileshare() and not no_az:
         # theoretically it could be supported, but would require storage account to be created first in nested template and then
@@ -738,7 +738,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
     cc["deploydockerETCD"] = False
     cc["platform-scripts"] = "ubuntu"
     cc["basic_auth"] = "%s,admin,1000" % uuid.uuid4().hex[:16]
-    domain_mapping = {"regular":"%s.cloudapp.azure.com" % config["azure_cluster"]["azure_location"], "low": config["domain_name"]}
+    domain_mapping = {"regular":"%s.cloudapp.azure.com" % config["azure_cluster"]["azure_location"], "low": config.get("domain_name",config["azure_cluster"]["default_low_priority_domain"])}
     if not bSQLOnly:
         cc["network"] = {"domain": domain_mapping[config["priority"]]}
 

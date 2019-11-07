@@ -24,7 +24,7 @@ steps:
     echo $CONFIG_TYPE
     ./set_config.sh $CONFIG_TYPE
     cd ..
-    ./bash_step_by_step_deploy.sh
+    ./step_by_step.sh azure
   displayName: 'Deploy DLWorkspace'
 
 - script: |
