@@ -22,7 +22,10 @@ sudo apt-get install -y nfs-kernel-server
 sudo mkdir -p {{ fileshare }}
 sudo chmod -R 777 {{ fileshare }}
 sudo chown nobody:nogroup {{fileshare}}
-{% for range in cnf["nfs_client_CIDR_ranges"] %}
+{% for range in cnf["nfs_client_CIDR"]["node_range"] %}
+echo "{{ fileshare }} {{range}}(rw,sync,no_subtree_check,no_root_squash)" | sudo tee -a /etc/exports
+{% endfor %}
+{% for range in cnf["nfs_client_CIDR"]["samba_range"] %}
 echo "{{ fileshare }} {{range}}(rw,fsid=1,nohide,insecure,sync,no_subtree_check,no_root_squash)" | sudo tee -a /etc/exports
 {% endfor %}
 {% endfor %}

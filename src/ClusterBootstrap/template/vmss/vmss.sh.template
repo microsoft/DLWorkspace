@@ -19,5 +19,5 @@ az vmss create \
     --instance-count {{cnf["azure_cluster"]["worker_node_num"]}} \
     --priority {{cnf["priority"]}} \
     --disable-overprovision \
-    --eviction-policy Deallocate \
-    --single-placement-group false
+    --eviction-policy {{cnf["azure_cluster"]["eviction_policy"]}} \
+    --single-placement-group {{cnf["azure_cluster"]["single_placement_group"]}}

@@ -634,28 +634,32 @@ def mask_num(valid_bit):
 def remain_num(valid_bit):
     return int('0'*valid_bit+'1'*(32 - valid_bit), 2)
 
+def check_covered_by_ipvals(ipvals, masked2check):
+    for wider_ipval in ipvals:
+        if wider_ipval == masked2check:
+            return True
+    return False
+
+def check_covered_by_wider_ips(mask2ip, ipval2check, mask4ipval):
+    for msk in mask2ip.keys():
+        # wider mask range
+        if msk < mask4ipval:
+            this_masked = ipval2check & mask_num(msk)
+            if check_covered_by_ipvals(mask2ip[msk], this_masked):
+                return True
+    return False
+
 def keep_widest_subnet(ips):
     res = set()
     mask2ip = {}
-    ips = sorted(ips, key = lambda x: x[-2:])
+    ips = sorted(ips, key = lambda x: int(x[-2:]))
     for ip in ips:
         ipv4, mask = ip.split("/")
         mask = int(mask)
         ipval = ip2int(ipv4)
         remnmsk = remain_num(mask)
         assert (remnmsk & ipval == 0), "invalid ip/mask {}!".format(ip)
-        covered_by_wider_mask = False
-        for msk in mask2ip.keys():
-            # wider mask range
-            if msk < mask:
-                this_masked = ipval & mask_num(msk)
-                for wider_ipval in mask2ip[msk]:
-                    if wider_ipval == this_masked:
-                        covered_by_wider_mask = True
-                        break
-                if covered_by_wider_mask:
-                    break
-        if covered_by_wider_mask:
+        if check_covered_by_wider_ips(mask2ip, ipval, mask):
             continue
         if mask not in mask2ip:
             mask2ip[mask] = set()

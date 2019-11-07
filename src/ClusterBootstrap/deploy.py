@@ -1153,7 +1153,7 @@ def set_nfs_disk():
     nfs_servers = config["nfs_node"] if len(config["nfs_node"]) > 0 else config["etcd_node"]
     machine_name_2_full = {nm.split('.')[0]:nm for nm in nfs_servers}
     for srvr_nm, nfs_cnf in config["nfs_disk_mnt"].items():
-        nfs_cnf["nfs_client_CIDR_ranges"] = config["nfs_client_CIDR"]["node_range"]+config["nfs_client_CIDR"]["samba_range"]
+        nfs_cnf["nfs_client_CIDR"] = config["nfs_client_CIDR"]
         nfs_cnf["platform_type"] = config["platform_type"]
         nfs_server = machine_name_2_full[srvr_nm]
         utils.render_template("./template/nfs/nfs_config.sh.template","./scripts/setup_nfs_server.sh",nfs_cnf)
