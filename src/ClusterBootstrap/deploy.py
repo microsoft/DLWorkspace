@@ -1156,7 +1156,7 @@ def set_nfs_disk():
         nfs_cnf["nfs_client_CIDR"] = config["nfs_client_CIDR"]
         nfs_cnf["platform_type"] = config["platform_type"]
         nfs_server = machine_name_2_full[srvr_nm]
-        utils.render_template("./template/nfs/nfs_config.sh.template","./scripts/setup_nfs_server.sh",nfs_cnf)
+        utils.render_template("./template/nfs/nfs_config.sh.template", "./scripts/setup_nfs_server.sh", nfs_cnf)
         utils.SSH_exec_script( config["ssh_cert"], etcd_server_user, nfs_server, "./scripts/setup_nfs_server.sh")
 
 def create_ISO():

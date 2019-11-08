@@ -467,23 +467,7 @@ def create_cluster(arm_vm_password=None, parallelism=1):
         create_vm_param(i, "infra", config["azure_cluster"]["infra_vm_size"],
                         arm_vm_password is not None, arm_vm_password)
 
-    if config["priority"] == "regular":
-        print("entering")
-        if parallelism > 1:
-            # TODO: Tolerate faults
-            from multiprocessing import Pool
-            args_list = [(i, "worker", config["azure_cluster"]["worker_vm_size"], arm_vm_password is not None, arm_vm_password)
-                         for i in range(int(config["azure_cluster"]["worker_node_num"]))]
-            pool = Pool(processes=parallelism)
-            pool.map(create_vm_param_wrapper, args_list)
-            pool.close()
-        else:
-            for i in range(int(config["azure_cluster"]["worker_node_num"])):
-                create_vm_param(i, "worker", config["azure_cluster"]["worker_vm_size"],
-                                arm_vm_password is not None, arm_vm_password)
-    elif config["priority"] == "low":
-        utils.render_template("./template/vmss/vmss.sh.template", "scripts/vmss.sh",config)
-        utils.exec_cmd_local("chmod +x scripts/vmss.sh;./scripts/vmss.sh")
+    add_workers(arm_vm_password, parallelism)
 
     # create nfs server if specified.
     for i in range(int(config["azure_cluster"]["nfs_node_num"])):
@@ -492,7 +476,6 @@ def create_cluster(arm_vm_password=None, parallelism=1):
 
 def add_workers(arm_vm_password=None, parallelism=1):
     if config["priority"] == "regular":
-        print("entering")
         if parallelism > 1:
             # TODO: Tolerate faults
             from multiprocessing import Pool
@@ -507,7 +490,7 @@ def add_workers(arm_vm_password=None, parallelism=1):
                     arm_vm_password is not None, arm_vm_password)
     elif config["priority"] == "low":
         utils.render_template("./template/vmss/vmss.sh.template", "scripts/vmss.sh",config)
-        utils.exec_cmd_local("chmod +x scripts/vmss.sh;./scripts/vmss.sh")
+        utils.exec_cmd_local("chmod +x scripts/vmss.sh; ./scripts/vmss.sh")
 
 def create_vm_param_wrapper(arg_tuple):
     i, role, vm_size, no_az, arm_vm_password = arg_tuple
