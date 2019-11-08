@@ -1,0 +1,23 @@
+az vmss create \
+    --resource-group {{cnf["cluster_name"]}}ResGrp \
+    --name {{cnf["cluster_name"].lower()}}-worker \
+    --image {{cnf["azure_cluster"]["vm_image"]}} \
+    --generate-ssh-keys \
+    --public-ip-address-dns-name {{cnf["cluster_name"].lower()}}-worker \
+    --public-ip-per-vm \
+    --public-ip-address-allocation static \
+    --vm-domain-name {{cnf["cluster_name"].lower()}} \
+    --vm-sku {{cnf["azure_cluster"]["worker_vm_size"]}} \
+    --vnet-name {{cnf["cluster_name"]}}-VNet \
+    --subnet mySubnet \
+    --nsg {{cnf["cluster_name"]}}-nsg \
+    --admin-username {{cnf["admin_username"]}} \
+    --storage-sku Premium_LRS \
+    --data-disk-sizes-gb {{cnf["azure_cluster"]["worker_local_storage_sz"]}} \
+    --data-disk-caching ReadWrite \
+    --ssh-key-values ./deploy/sshkey/id_rsa.pub \
+    --instance-count {{cnf["azure_cluster"]["worker_node_num"]}} \
+    --priority {{cnf["priority"]}} \
+    --disable-overprovision \
+    --eviction-policy {{cnf["azure_cluster"]["eviction_policy"]}} \
+    --single-placement-group {{cnf["azure_cluster"]["single_placement_group"]}}

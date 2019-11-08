@@ -1,9 +1,12 @@
 # These are the default configuration parameter
 default_config_parameters = {
+    "supported_platform": ["azure_cluster", "onpremise"],
     "allroles": {"infra", "infrastructure", "worker", "nfs", "sql", "dev"},
     # Kubernetes setting
     "service_cluster_ip_range": "10.3.0.0/16",
     "pod_ip_range": "10.2.0.0/16",
+    "ssl_localhost_ips": [ "127.0.0.1", "127.0.1.1" ],
+    "dns_server": {"azure_cluster": '8.8.8.8', 'onpremise':'10.50.10.50'},
     # Home in server, to aide Kubernete setup
     "homeinserver": "http://dlws-clusterportal.westus.cloudapp.azure.com:5000",
     "cloud_influxdb_node": "dlws-influxdb.westus.cloudapp.azure.com",
@@ -626,6 +629,11 @@ default_config_parameters = {
         },
     },
 
+    "nfs_client_CIDR": {
+        "node_range": ["192.168.0.0/16"],
+        "samba_range": [],
+    },
+
     "nfs_mnt_setup": [
           {
             "mnt_point": {"rootshare":{"curphysicalmountpoint":"/mntdlws/infranfs","filesharename":"/infradata/share","mountpoints":""}}}
@@ -634,7 +642,6 @@ default_config_parameters = {
         "VC-Default":["*"],
     },
     "registry_credential": {},
-    "domain_name": "redmond.corp.microsoft.com",
     "priority": "regular",
     "sku_mapping": {
         "Standard_ND6s":{"gpu-type": "P40","gpu-count": 1},
@@ -671,7 +678,7 @@ scriptblocks = {
         "genscripts",
         "runscriptonroles infra worker ./scripts/dns.sh",
         "-y deploy",
-        "-y updateworker",
+        "-y updateworkerinparallel",
         "-y kubernetes labels",
         "-y gpulabel",
         "kubernetes start nvidia-device-plugin",
