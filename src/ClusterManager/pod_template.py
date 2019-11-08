@@ -12,10 +12,11 @@ from osUtils import mkdirsAsUser
 
 
 class PodTemplate():
-    def __init__(self, template, deployment_template=None, enable_custom_scheduler=False):
+    def __init__(self, template, deployment_template=None, enable_custom_scheduler=False, secret_template=None):
         self.template = template
         self.deployment_template = deployment_template
         self.enable_custom_scheduler = enable_custom_scheduler
+        self.secret_template = secret_template
 
     @staticmethod
     def generate_launch_script(job_id, path_to_save, user_id, gpu_num, user_script):
@@ -123,6 +124,8 @@ class PodTemplate():
         if "envs" not in params:
             params["envs"] =[]
 
+        job.add_plugins(job.get_plugins())
+        params["plugins"] = job.plugins
 
         pods = []
         if all(hyper_parameter in params for hyper_parameter in ["hyperparametername", "hyperparameterstartvalue", "hyperparameterendvalue", "hyperparameterstep"]):
@@ -186,4 +189,17 @@ class PodTemplate():
             k8s_deployment = self.generate_deployment(pod)
             k8s_pods.append(k8s_deployment)
 
+        #add plugin secret config
+        if params["plugins"] is not None:
+            plugins = params["plugins"]
+            if plugins["blobfuse"] is not None:
+                self.secret_template = job.get_secret_template()
+                k8s_secret = self.generate_secret(plugins["blobfuse"])
+                k8s_pods.append(k8s_secret)
+
         return k8s_pods, None
+
+    def generate_secret(self, p):
+        assert(isinstance(self.template, Template))
+        secret_yaml = self.secret_template.render(plugin=p)
+        return yaml.full_load(secret_yaml)

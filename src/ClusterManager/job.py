@@ -7,6 +7,8 @@ from jinja2 import Environment, FileSystemLoader, Template
 
 import logging
 import logging.config
+import uuid
+import base64
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 from osUtils import mkdirsAsUser
@@ -33,6 +35,7 @@ class Job:
                  work_path="",
                  data_path="",
                  params=None,
+                 plugins=None,
                  ):
         """
         job_id: an unique string for the job.
@@ -49,6 +52,7 @@ class Job:
         self.work_path = work_path
         self.data_path = data_path
         self.params = params
+        self.plugins = plugins
 
     def add_mountpoints(self, mountpoint):
         '''
@@ -87,6 +91,9 @@ class Job:
                 return
 
         self.mountpoints.append(mountpoint)
+
+    def add_plugins(self, plugins):
+        self.plugins = plugins
 
     def get_alias(self):
         return self.email.split("@")[0].strip()
@@ -189,6 +196,14 @@ class Job:
         assert(isinstance(template, Template))
         return template
 
+    def get_secret_template(self):
+        """Return jinja template."""
+        path = os.path.abspath(os.path.join(self.cluster["root-path"], "Jobs_Templete", "secret.yaml.template"))
+        ENV = Environment(loader=FileSystemLoader("/"))
+        template = ENV.get_template(path)
+        assert(isinstance(template, Template))
+        return template
+
     def is_custom_scheduler_enabled(self):
         return self._get_cluster_config("kube_custom_scheduler")
 
@@ -219,6 +234,35 @@ class Job:
             return self.cluster[key]
         return None
 
+    #only add blobfuse since we only support one plugin right now
+    def get_plugins(self):
+        '''
+        Plugin example:
+            "blobfuse": {
+                "enabled":true,
+                "name":"blobfuse",
+                "accountName":"YWRtaW4=",
+                "accountKey":"MWYyZDFlMmU2N2Rm",
+                "containerName":"blobContainer",
+                "mountPath":"/data",
+                "secreds":"bb9cd821-711c-40fd-bb6f-e5dbc1b772a7"
+                }
+        '''
+        if "plugins" not in self.params.keys():
+            return
+        plugins = self.params["plugins"]
+
+        ret = {}
+        if plugins["blobfuse"] is not None:
+            blobfuse = plugins["blobfuse"]
+            blobfuse["enabled"] = True
+            blobfuse["name"] = "blobfuse"
+            blobfuse["secreds"] = str(uuid.uuid4())
+            blobfuse["accountName"] = base64.b64encode(blobfuse["accountName"])
+            blobfuse["accountKey"] = base64.b64encode(blobfuse["accountKey"])
+            ret["blobfuse"] = blobfuse
+
+        return ret
 
 class JobSchema(Schema):
     cluster = fields.Dict(required=True)

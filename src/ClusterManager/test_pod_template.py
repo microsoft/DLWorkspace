@@ -194,3 +194,18 @@ class TestPodTemplate(unittest.TestCase):
         self.assertTrue(list, type(pods))
         self.assertEqual(1, len(pods))
         self.assertIsNotNone(pods[0]["spec"]["containers"][0]["command"])
+
+        job.params["plugins"] = {
+            "blobfuse": {
+                "accountName": "abc",
+                "accountKey": "password",
+                "containerName": "test",
+                "mountPath": "/blobdata"
+            }
+        }
+
+        pods, error = pod_template.generate_pods(job)
+
+        self.assertFalse(error)
+        self.assertEqual(2, len(pods))
+        self.assertEqual("Secret", pods[1]["kind"])
