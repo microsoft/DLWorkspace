@@ -45,13 +45,16 @@ def get_ECC_error_data(ecc_url):
     
     if data:
         ecc_metrics = data['data']['result']
-        logging.info('ECC error metrics from prometheus ' + json.dumps(ecc_metrics, indent=4))
+        logging.info('ECC error metrics from prometheus: ' + json.dumps(ecc_metrics))
 
         return ecc_metrics
 
 
 
 class ECCRule(Rule):
+
+    def __init__(self):
+        self.ecc_hostnames = []
 
     def check_status(self):
         try:
@@ -60,11 +63,8 @@ class ECCRule(Rule):
                        
             address_map = get_node_address_info()
 
-            ecc_url = config['ecc_prometheus_url']
+            ecc_url = config['prometheus_url'] + config['rules']['ecc_rule']['ecc_error_url']
             ecc_metrics = get_ECC_error_data(ecc_url)
-    
-            global ecc_hostnames
-            ecc_hostnames = []
     
             if (ecc_metrics):
                 for m in ecc_metrics:
@@ -78,6 +78,8 @@ class ECCRule(Rule):
                 logging.debug('No uncorrectable ECC metrics found.')
                 return False
 
+
+
         except Exception as e:
             logging.exception('Error checking status for ECCRule')
             #TODO: send email alert, raise exception?
@@ -88,7 +90,7 @@ class ECCRule(Rule):
                 success = util.cordon_node(node)
 
                 if (success != 0):
-                    logging.warning('Unscheduling of nodes not successful')
+                    logging.warning('Unscheduling of node ' + node + ' not successful')
 
         except Exception as e:
             logging.exception('Error taking action for ECCRule')
