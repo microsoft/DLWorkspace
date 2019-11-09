@@ -351,13 +351,16 @@ def SSH_exec_script( identity_file, user, host, script, supressWarning = False, 
 
 
 def get_ETCD_discovery_URL(size):
+    if size == 1:
+            output = "we don't use discovery url for 1 node etcd"
+    else:
         try:
             output = urllib.urlopen("https://discovery.etcd.io/new?size=%d" % size ).read()
             if not "https://discovery.etcd.io" in output:
                 raise Exception("ERROR: we cannot get etcd discovery url from 'https://discovery.etcd.io/new?size=%d', got message %s" % (size,output)) 
         except Exception as e:
             raise Exception("ERROR: we cannot get etcd discovery url from 'https://discovery.etcd.io/new?size=%d'" % size) 
-        return output
+    return output
 
 
 def get_cluster_ID_from_file():
@@ -622,3 +625,44 @@ def mergeDict(configDst, configSrc, bOverwrite):
         elif isinstance(configSrc[entry], dict) and isinstance(configDst[entry], dict):
             mergeDict(configDst[entry], configSrc[entry], bOverwrite)
 
+def ip2int(addr):
+    return struct.unpack("!I", socket.inet_aton(addr))[0]
+
+def mask_num(valid_bit):
+    return int('1'*valid_bit+'0'*(32 - valid_bit), 2)
+
+def remain_num(valid_bit):
+    return int('0'*valid_bit+'1'*(32 - valid_bit), 2)
+
+def check_covered_by_ipvals(ipvals, masked2check):
+    for wider_ipval in ipvals:
+        if wider_ipval == masked2check:
+            return True
+    return False
+
+def check_covered_by_wider_ips(mask2ip, ipval2check, mask4ipval):
+    for msk in mask2ip.keys():
+        # wider mask range
+        if msk < mask4ipval:
+            this_masked = ipval2check & mask_num(msk)
+            if check_covered_by_ipvals(mask2ip[msk], this_masked):
+                return True
+    return False
+
+def keep_widest_subnet(ips):
+    res = set()
+    mask2ip = {}
+    ips = sorted(ips, key = lambda x: int(x[-2:]))
+    for ip in ips:
+        ipv4, mask = ip.split("/")
+        mask = int(mask)
+        ipval = ip2int(ipv4)
+        remnmsk = remain_num(mask)
+        assert (remnmsk & ipval == 0), "invalid ip/mask {}!".format(ip)
+        if check_covered_by_wider_ips(mask2ip, ipval, mask):
+            continue
+        if mask not in mask2ip:
+            mask2ip[mask] = set()
+        mask2ip[mask].add(ipval)
+        res.add(ip)
+    return list(res)

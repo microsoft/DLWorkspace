@@ -4,7 +4,7 @@ import json
 import yaml
 from jinja2 import Template
 from job import Job
-import copy 
+import copy
 
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
@@ -116,6 +116,24 @@ class PodTemplate():
         if "gpuType" in params:
             params["nodeSelector"]["gpuType"] = params["gpuType"]
 
+        # CPU job should be assigned to CPU node if there is any available in the cluster
+        config = job.cluster
+        enable_cpuworker = config.get("enable_cpuworker", False)
+        default_cpurequest = config.get("default_cpurequest")
+        default_cpulimit = config.get("default_cpulimit")
+        default_memoryrequest = config.get("default_memoryrequest")
+        default_memorylimit = config.get("default_memorylimit")
+
+        if enable_cpuworker and int(params["resourcegpu"]) == 0:
+            params["nodeSelector"]["cpuworker"] = "active"
+            if "cpurequest" not in params and default_cpurequest is not None:
+                params["cpurequest"] = default_cpurequest
+            if "cpulimit" not in params and default_cpulimit is not None:
+                params["cpulimit"] = default_cpulimit
+            if "memoryrequest" not in params and default_memoryrequest is not None:
+                params["memoryrequest"] = default_memoryrequest
+            if "memorylimit" not in params and default_memorylimit is not None:
+                params["memorylimit"] = default_memorylimit
 
         local_pod_path = job.get_hostpath(job.job_path, "master")
         params["LaunchCMD"] = PodTemplate.generate_launch_script(params["jobId"], local_pod_path, params["userId"], params["resourcegpu"], params["cmd"])
@@ -134,14 +152,14 @@ class PodTemplate():
             for idx, val in enumerate(range(start, end, step)):
                 pod = copy.deepcopy(params)
                 params["envs"].append({"name": "DLWS_ROLE_NAME", "value": "master"})
-                params["envs"].append({"name": "DLWS_NUM_GPU_PER_WORKER", "value": params["resourcegpu"]})                
+                params["envs"].append({"name": "DLWS_NUM_GPU_PER_WORKER", "value": params["resourcegpu"]})
                 pod["podName"] = "{0}-pod-{1}".format(job.job_id, idx)
                 pod["envs"].append({"name": env_name, "value": val})
                 pods.append(pod)
         else:
             pod = copy.deepcopy(params)
             pod["envs"].append({"name": "DLWS_ROLE_NAME", "value": "master"})
-            pod["envs"].append({"name": "DLWS_NUM_GPU_PER_WORKER", "value": params["resourcegpu"]})            
+            pod["envs"].append({"name": "DLWS_NUM_GPU_PER_WORKER", "value": params["resourcegpu"]})
             pod["podName"] = job.job_id
             pods.append(pod)
 
@@ -153,18 +171,18 @@ class PodTemplate():
             pod["fragmentGpuJob"] = True
             if "gpuLimit" not in pod:
                 pod["gpuLimit"] = pod["resourcegpu"]
-            
+
 
             if params["jobtrainingtype"] == "InferenceJob":
                 pod["gpuLimit"] = 0
- 
+
             # mount /pod
             pod_path = job.get_hostpath(job.job_path, "master")
             pod["mountpoints"].append({"name": "pod", "containerPath": "/pod", "hostPath": pod_path, "enabled": True})
 
             k8s_pod = self.generate_pod(pod)
             k8s_pods.append(k8s_pod)
-            
+
         if params["jobtrainingtype"] == "InferenceJob":
             pod = copy.deepcopy(params)
             pod["numps"] = 0
@@ -174,12 +192,12 @@ class PodTemplate():
                 pod["gpuLimit"] = pod["resourcegpu"]
 
             pod["envs"].append({"name": "DLWS_ROLE_NAME", "value": "inferenceworker"})
-            pod["envs"].append({"name": "DLWS_NUM_GPU_PER_WORKER", "value": 1})  
+            pod["envs"].append({"name": "DLWS_NUM_GPU_PER_WORKER", "value": 1})
 
             pod_path = job.get_hostpath(job.job_path, "master")
             pod["mountpoints"].append({"name": "pod", "containerPath": "/pod", "hostPath": pod_path, "enabled": True})
 
-            
+
             pod["podName"] = job.job_id
             pod["deployment_replicas"] = params["resourcegpu"]
             pod["gpu_per_pod"] = 1

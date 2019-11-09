@@ -3,7 +3,7 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 trigger:
-- citest
+- dltsdev
 
 pool:
   name: 'DLTS-Platform'
@@ -24,7 +24,7 @@ steps:
     echo $CONFIG_TYPE
     ./set_config.sh $CONFIG_TYPE
     cd ..
-    ./bash_step_by_step_deploy.sh
+    ./step_by_step.sh azure
   displayName: 'Deploy DLWorkspace'
 
 - script: |
