@@ -8,7 +8,14 @@ DLTS dashboard is using [config](https://npmjs.com/package/config) to maintain c
 
 The configuration schema (with description) is maintained in [config.schema.json](./server/api/validator/config.schema.json).
 
-## Local development
+## Environment Variables
+
+- `HOST` the host of server listening, default `::` (IPv6) or `0.0.0.0` (IPv4).
+- `PORT` the port of server listening, default `3000`.
+- `SSL_KEY` the SSL/TLS private key file for HTTPS / HTTP2 support.
+- `SSL_CERT` the SSL/TLS certificate file for HTTPS / HTTP2 support.
+
+## Local Development
 
 1. Install [Node.js](https://nodejs.org/), version 10 is recommended.
 2. Install [Yarn](https://yarnpkg.com/) for package maintaince.
