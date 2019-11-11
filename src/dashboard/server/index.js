@@ -8,7 +8,7 @@ app.use(require('./frontend'))
 
 if (require.main === module) {
   const http = require('http')
-  const https = require('https')
+  const http2 = require('http2')
   const fs = require('fs')
 
   const {
@@ -19,7 +19,8 @@ if (require.main === module) {
   } = process.env
 
   const server = SSL_KEY && SSL_CERT
-    ? https.createServer({
+    ? http2.createSecureServer({
+      allowHTTP1: true,
       key: fs.readFileSync(SSL_KEY),
       cert: fs.readFileSync(SSL_CERT)
     })
