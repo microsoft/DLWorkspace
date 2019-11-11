@@ -14,14 +14,14 @@ if (require.main === module) {
   const {
     HOST,
     PORT = 3000,
-    TLS_KEY,
-    TLS_CERT
+    SSL_KEY,
+    SSL_CERT
   } = process.env
 
-  const server = TLS_KEY && TLS_CERT
+  const server = SSL_KEY && SSL_CERT
     ? https.createServer({
-      key: fs.readFileSync(TLS_KEY),
-      cert: fs.readFileSync(TLS_CERT)
+      key: fs.readFileSync(SSL_KEY),
+      cert: fs.readFileSync(SSL_CERT)
     })
     : http.createServer()
 
