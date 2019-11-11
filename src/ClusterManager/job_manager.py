@@ -416,13 +416,13 @@ def check_job_status(job_id):
     return job_status, details
 
 
-def create_log(logdir = '/var/log/dlworkspace'):
+def create_log(logdir="/var/log/dlworkspace", process_name="jobmanager"):
     if not os.path.exists(logdir):
         os.system("mkdir -p " + logdir)
     with open('logging.yaml') as f:
         logging_config = yaml.full_load(f)
         f.close()
-        logging_config["handlers"]["file"]["filename"] = logdir+"/jobmanager.log"
+        logging_config["handlers"]["file"]["filename"] = "%s/%s.log" % (logdir, process_name)
         logging.config.dictConfig(logging_config)
 
 
@@ -571,7 +571,9 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
 
 def Run(redis_port, target_status):
     register_stack_trace_dump()
-    create_log()
+    process_name = "job_manager_" + target_status
+
+    create_log(process_name=process_name)
 
     notifier = notify.Notifier(config.get("job-manager"))
     notifier.start()
@@ -581,8 +583,6 @@ def Run(redis_port, target_status):
 
     redis_conn = redis.StrictRedis(host="localhost",
             port=redis_port, db=0)
-
-    process_name = "job_manager_" + target_status
 
     while True:
         update_file_modification_time(process_name)
