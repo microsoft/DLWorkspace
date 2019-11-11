@@ -600,7 +600,7 @@ namespace WindowsAuth.Controllers
                 var content = new StreamContent(HttpContext.Request.Body);
                 content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
                 content.Headers.ContentLength = HttpContext.Request.ContentLength;
-                var response = await httpClient.PostAsync("/endpoints", content);
+                var response = await httpClient.PostAsync("/endpoints?userName=" + HttpContext.Session.GetString("Email"), content);
                 var returnInfo = await response.Content.ReadAsStringAsync();
                 return Content(returnInfo);
             }
