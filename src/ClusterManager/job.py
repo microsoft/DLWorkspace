@@ -238,30 +238,40 @@ class Job:
     def get_plugins(self):
         '''
         Plugin example:
-            "blobfuse": {
-                "enabled":true,
-                "name":"blobfuse",
-                "accountName":"YWRtaW4=",
-                "accountKey":"MWYyZDFlMmU2N2Rm",
-                "containerName":"blobContainer",
-                "mountPath":"/data",
-                "secreds":"bb9cd821-711c-40fd-bb6f-e5dbc1b772a7"
-                }
+            "blobfuse":
+                [{
+                    "enabled":true,
+                    "name":"blobfuse1",
+                    "accountName":"YWRtaW4=",
+                    "accountKey":"MWYyZDFlMmU2N2Rm",
+                    "containerName":"blobContainer1",
+                    "mountPath":"/usr/blobfuse/data1",
+                    "secreds":"bb9cd821-711c-40fd-bb6f-e5dbc1b772a7"
+                },
+                {
+                    "enabled":true,
+                    "name":"blobfuse2",
+                    "accountName":"YWJj",
+                    "accountKey":"cGFzc3dvcmQ=",
+                    "containerName":"blobContainer2",
+                    "mountPath":"/usr/blobfuse/data2",
+                    "secreds":"d92af1e8-c251-4280-974c-0cc38f4288a7"
+                }]
         '''
         if "plugins" not in self.params.keys():
-            return
+            return None
         plugins = self.params["plugins"]
 
         ret = {}
-        if plugins["blobfuse"] is not None:
-            blobfuse = plugins["blobfuse"]
-            blobfuse["enabled"] = True
-            blobfuse["name"] = "blobfuse"
-            blobfuse["secreds"] = str(uuid.uuid4())
-            blobfuse["accountName"] = base64.b64encode(blobfuse["accountName"])
-            blobfuse["accountKey"] = base64.b64encode(blobfuse["accountKey"])
-            ret["blobfuse"] = blobfuse
-
+        ret["blobfuse"] = []
+        if "blobfuse" in plugins.keys() and plugins["blobfuse"] is not None:
+            for bf in plugins["blobfuse"]:
+                bf["enabled"] = True
+                bf["name"] = "blobfuse"
+                bf["secreds"] = str(uuid.uuid4())
+                bf["accountName"] = base64.b64encode(bf["accountName"])
+                bf["accountKey"] = base64.b64encode(bf["accountKey"])
+                ret["blobfuse"].append(bf)
         return ret
 
 class JobSchema(Schema):

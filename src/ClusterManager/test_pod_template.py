@@ -196,12 +196,20 @@ class TestPodTemplate(unittest.TestCase):
         self.assertIsNotNone(pods[0]["spec"]["containers"][0]["command"])
 
         job.params["plugins"] = {
-            "blobfuse": {
-                "accountName": "abc",
-                "accountKey": "password",
-                "containerName": "test",
-                "mountPath": "/blobdata"
-            }
+            "blobfuse": [
+                {
+                    "accountName": "abc",
+                    "accountKey": "password",
+                    "containerName": "test1",
+                    "mountPath": "/blobdata1"
+                },
+                {
+                    "accountName": "abc",
+                    "accountKey": "password",
+                    "containerName": "test2",
+                    "mountPath": "/blobdata2"
+                }
+            ]
         }
 
         pods, error = pod_template.generate_pods(job)

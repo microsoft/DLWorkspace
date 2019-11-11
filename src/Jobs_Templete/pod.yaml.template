@@ -175,10 +175,12 @@ spec:
     {% if "plugins" in job %}
       {% if job["plugins"] %}
         {% if "blobfuse" in job["plugins"] %}
-          {% if job["plugins"]["blobfuse"].enabled %}
-          - name: {{ job["plugins"]["blobfuse"].name }}
-          mountPath: {{ job["plugins"]["blobfuse"].mountPath }}
-          {% endif %}
+          {% for bf in job["plugins"][blobfuse] %}
+            {% if bf.enabled %}
+            - name: {{ bf.name }}
+            mountPath: {{ bf.mountPath }}
+            {% endif %}
+          {% endfor %}
         {% endif %}
       {% endif %}
     {% endif %}
@@ -273,17 +275,21 @@ spec:
     emptyDir:
       medium: Memory
   {% if "plugins" in job %}
-  {% if "blobfuse" in job["plugins"] %}
-  {% if job["plugins"]["blobfuse"].enabled %}
-  - name: {{ job["plugins"]["blobfuse"].name }}
+    {% if job["plugins"] %}
+      {% if "blobfuse" in job["plugins"] %}
+        {% for bf in job["plugins"]["blobfuse"] %}
+          {% if bf.enabled %}
+  - name: {{ bf.name }}
     flexVolume:
       driver: "azure/blobfuse"
       readOnly: false
       secretRef:
-        name: {{ job["plugins"]["blobfuse"].secreds }}
+        name: {{ bf.secreds }}
       options:
-        containers: {{ job["plugins"]["blobfuse"].containerName }}
+        containers: {{ bf.containerName }}
         mountoptions: "--file-cache-timeout-in-seconds=120"
-  {% endif %}
-  {% endif %}
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+    {% endif %}
   {% endif %}

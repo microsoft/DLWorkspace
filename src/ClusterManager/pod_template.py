@@ -101,8 +101,8 @@ class PodTemplate():
             job.add_mountpoints(params["mountpoints"])
         job.add_mountpoints(job.work_path_mountpoint())
         job.add_mountpoints(job.data_path_mountpoint())
-        job.add_mountpoints(job.vc_custom_storage_mountpoints())
-        job.add_mountpoints(job.vc_storage_mountpoints())
+        #job.add_mountpoints(job.vc_custom_storage_mountpoints())
+        #job.add_mountpoints(job.vc_storage_mountpoints())
         params["mountpoints"] = job.mountpoints
 
         params["user_email"] = params["userName"]
@@ -119,7 +119,7 @@ class PodTemplate():
 
 
         local_pod_path = job.get_hostpath(job.job_path, "master")
-        params["LaunchCMD"] = PodTemplate.generate_launch_script(params["jobId"], local_pod_path, params["userId"], params["resourcegpu"], params["cmd"])
+        #params["LaunchCMD"] = PodTemplate.generate_launch_script(params["jobId"], local_pod_path, params["userId"], params["resourcegpu"], params["cmd"])
 
         if "envs" not in params:
             params["envs"] =[]
@@ -192,7 +192,7 @@ class PodTemplate():
         #add plugin secret config
         if params["plugins"] is not None:
             plugins = params["plugins"]
-            if plugins["blobfuse"] is not None:
+            if plugins["blobfuse"]:
                 self.secret_template = job.get_secret_template()
                 k8s_secret = self.generate_secret(plugins["blobfuse"])
                 k8s_pods.append(k8s_secret)
