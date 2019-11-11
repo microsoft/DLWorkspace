@@ -37,7 +37,7 @@ default_config_parameters = {
     "nvidiadriverversion": "375.20",
     # Default port for WebUI, Restful API,
     # Port webUI will run upon, nginx will forward to this port.
-    "webuiport": "3080",
+    "webuiport": "80",
     "restfulapiport": "5000",
     "restfulapi": "restfulapi",
     "ssh_cert": "./deploy/sshkey/id_rsa",
@@ -611,12 +611,12 @@ scriptblocks = {
         "kubernetes start jobmanager",
         "kubernetes start restfulapi",
         "kubernetes start webportal",
-        "kubernetes start cloudmonitor",
-        "kubernetes start nginx",
-        "kubernetes start custommetrics",
+        #"kubernetes start cloudmonitor",
+        #"kubernetes start nginx",
+        #"kubernetes start custommetrics",
         # TODO(harry): we cannot distinguish gce aws from azure, so add the same providerID
         # This will not break current deployment.
-        "-y kubernetes patchprovider aztools"
+        #"-y kubernetes patchprovider aztools"
     ],
     "azure_uncordon": [
         "runscriptonall ./scripts/prepare_vm_disk.sh",

@@ -75,7 +75,7 @@ def add_cloud_config():
 def add_misc():
     config["datasource"] = "MySQL"
     config["mysql_password"] = """M$ft2018"""
-    config["webuiport"] = 3080
+    config["webuiport"] = 80
 
 def copy_ssh_key(username, password, machine):
     cmd = """cat /home/%s/dlworkspace/src/ClusterBootstrap/deploy/sshkey/id_rsa.pub | /usr/bin/sshpass -p '%s' ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" %s@%s "mkdir -p /home/%s/.ssh && cat >> /home/%s/.ssh/authorized_keys" """ % (username, password, username, machine, username, username)
