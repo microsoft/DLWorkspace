@@ -322,6 +322,11 @@ class Job:
             return e1["name"] == e2["name"] or \
                     e1["mountPath"] == e2["mountPath"]
 
+        tmppath_prefix = None
+        local_fast_storage = self.get_local_fast_storage_mount()
+        if local_fast_storage is not None and "containerPath" in local_fast_storage:
+            tmppath_prefix = local_fast_storage["containerPath"].rstrip("/")
+
         blobfuse = []
         for i, bf in enumerate(plugins):
             account_name = bf.get("accountName")
@@ -349,6 +354,9 @@ class Job:
             bf["containerName"] = container_name
             bf["mountPath"] = mount_path
             bf["jobId"] = self.job_id
+
+            if tmppath_prefix is not None:
+                bf["tmppath"] = tmppath_prefix
 
             # TODO: Deduplicate blobfuse plugins
             blobfuse = dedup_add(bf, blobfuse, identical)
