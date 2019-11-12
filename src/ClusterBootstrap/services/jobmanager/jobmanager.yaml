@@ -98,7 +98,7 @@ spec:
         ports:
         - containerPort: 9300
           hostPort: 9300
-          name: redis-port
+          name: prom-ign-redis
           protocol: TCP
       volumes:
       - name: certs
