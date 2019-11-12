@@ -26,7 +26,7 @@ from pod_template import PodTemplate
 from dist_pod_template import DistPodTemplate
 from config import config
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 job_deployer_fn_histogram = Histogram("job_deployer_fn_latency_seconds",
         "latency for executing job deployer (seconds)",
@@ -223,7 +223,7 @@ class JobDeployer:
     @record
     def create_secrets(self, secrets):
         # Clean up secrets first
-        secret_names = [secret["metadata"]["name"] for secret in secrets if pod["kind"] == "Secret"]
+        secret_names = [secret["metadata"]["name"] for secret in secrets if secret["kind"] == "Secret"]
         self._cleanup_secrets(secret_names)
 
         created = []
@@ -408,7 +408,7 @@ class JobRole(object):
             if container.name == self.pod_name and container.readiness_probe is not None:
                 for status in self.pod.status.container_statuses:
                     if status.name == self.pod_name:
-                        log.info("pod %s have readiness_probe result", self.pod_name)
+                        logger.info("pod %s have readiness_probe result", self.pod_name)
                         return status.ready
         # no readiness_probe defined, fallback to old way
         return self._is_file_exist(JobRole.MARK_ROLE_READY_FILE)
@@ -576,8 +576,9 @@ class PythonLauncher(Launcher):
             job_deployer = JobDeployer()
             try:
                 secrets = job_deployer.create_secrets(secrets)
+                ret["output"] = "Created secrets: {}. ".format([secret.metadata.name for secret in secrets])
                 pods = job_deployer.create_pods(pods)
-                ret["output"] = "Created pods: {}".format([pod.metadata.name for pod in pods])
+                ret["output"] += "Created pods: {}".format([pod.metadata.name for pod in pods])
             except Exception as e:
                 ret["output"] = "Error: %s" % e.message
                 logging.error(e, exc_info=True)
