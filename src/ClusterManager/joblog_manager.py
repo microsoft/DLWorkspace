@@ -51,7 +51,7 @@ def extract_job_log(jobId,logPath,userId):
     try:
         dataHandler = DataHandler()
 
-        logs = k8sUtils.GetLog(jobId)
+        logs = k8sUtils.GetLog(jobId, tail=3000)
 
         # Do not overwrite existing logs with empty log
         # DLTS bootstrap will generate logs for all containers.
