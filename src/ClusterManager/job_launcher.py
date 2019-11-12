@@ -10,6 +10,7 @@ import functools
 import time
 import datetime
 import base64
+import multiprocessing
 
 from kubernetes import client, config as k8s_config
 from kubernetes.client.rest import ApiException
@@ -337,7 +338,7 @@ class JobDeployer:
             return [-1, err.message]
 
 
-class JobRole:
+class JobRole(object):
     MARK_ROLE_READY_FILE = "/pod/running/ROLE_READY"
 
     @staticmethod
@@ -352,15 +353,17 @@ class JobRole:
                 role = pod.metadata.labels["distRole"]
             else:
                 role = "master"
-            job_role = JobRole(role, pod_name)
+            job_role = JobRole(role, pod_name, pod)
             job_roles.append(job_role)
         return job_roles
 
-    def __init__(self, role_name, pod_name):
+    def __init__(self, role_name, pod_name, pod):
         self.role_name = role_name
         self.pod_name = pod_name
+        self.pod = pod
 
-    def status(self):
+    # will query api server if refresh is True
+    def status(self, refresh=False):
         """
         Return role status in ["NotFound", "Pending", "Running", "Succeeded", "Failed", "Unknown"]
         It's slightly different from pod phase, when pod is running:
@@ -368,14 +371,16 @@ class JobRole:
         """
         # pod-phase: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase
         # node condition: https://kubernetes.io/docs/concepts/architecture/nodes/#condition
-        deployer = JobDeployer()
-        pods = deployer.get_pods(field_selector="metadata.name={}".format(self.pod_name))
-        logging.debug("Pods: {}".format(pods))
-        if(len(pods) < 1):
-            return "NotFound"
+        if refresh:
+            deployer = JobDeployer()
+            pods = deployer.get_pods(field_selector="metadata.name={}".format(self.pod_name))
+            logging.debug("Pods: {}".format(pods))
+            if(len(pods) < 1):
+                return "NotFound"
 
-        assert(len(pods) == 1)
-        self.pod = pods[0]
+            assert(len(pods) == 1)
+            self.pod = pods[0]
+
         phase = self.pod.status.phase
 
         # !!! Pod is running, doesn't mean "Role" is ready and running.
@@ -385,21 +390,20 @@ class JobRole:
                 return "Unknown"
 
             # Check if the user command had been ran.
-            if not self.isRoleReady():
+            if not self._is_role_ready():
                 return "Pending"
 
         return phase
 
-    # TODO should call after status(), or the self.pod would be None
     def pod_details(self):
         return self.pod
 
-    def isFileExisting(self, file):
+    def _is_file_exist(self, file):
         deployer = JobDeployer()
         status_code, _ = deployer.pod_exec(self.pod_name, ["/bin/sh", "-c", "ls -lrt {}".format(file)])
         return status_code == 0
 
-    def isRoleReady(self):
+    def _is_role_ready(self):
         for container in self.pod.spec.containers:
             if container.name == self.pod_name and container.readiness_probe is not None:
                 for status in self.pod.status.container_statuses:
@@ -407,7 +411,7 @@ class JobRole:
                         log.info("pod %s have readiness_probe result", self.pod_name)
                         return status.ready
         # no readiness_probe defined, fallback to old way
-        return self.isFileExisting(JobRole.MARK_ROLE_READY_FILE)
+        return self._is_file_exist(JobRole.MARK_ROLE_READY_FILE)
 
 
 # Interface class for managing life time of job
@@ -416,9 +420,6 @@ class Launcher(object):
         pass
 
     def start(self):
-        pass
-
-    def get_job_status_detail(self, job_id):
         pass
 
     def submit_job(self, job_desc):
@@ -470,14 +471,24 @@ def job_status_detail_with_finished_time(job_status_detail, status, msg=""):
 
 
 class PythonLauncher(Launcher):
-    def __init__(self):
-        pass
+    def __init__(self, pool_size=3):
+        self.processes = []
+        self.queue = None
+        self.pool_size = pool_size
+        # items in queue should be tuple of 3 elements: (function name, args, kwargs)
 
     def start(self):
-        pass
+        if len(self.processes) == 0:
+            self.queue = multiprocessing.JoinableQueue()
 
-    def get_job_status_detail(self, job_id):
-        pass
+            for i in range(self.pool_size):
+                p = multiprocessing.Process(target=self.run,
+                        args=(self.queue,), name="py-launcher-" + str(i))
+                self.processes.append(p)
+                p.start()
+
+    def wait_tasks_done(self):
+        self.queue.join()
 
     def _all_pods_not_existing(self, job_id):
         job_deployer = JobDeployer()
@@ -487,6 +498,9 @@ class PythonLauncher(Launcher):
         return all([status == "NotFound" for status in statuses])
 
     def submit_job(self, job):
+        self.queue.put(("submit_job", (job,), {}))
+
+    def submit_job_impl(self, job):
         # check if existing any pod with label: run=job_id
         assert("jobId" in job)
         job_id = job["jobId"]
@@ -599,7 +613,10 @@ class PythonLauncher(Launcher):
         dataHandler.Close()
         return ret
 
-    def kill_job(self, job_id, desired_state="killed", dataHandlerOri=None):
+    def kill_job(self, job_id, desired_state="killed"):
+        self.queue.put(("kill_job", (job_id,), {"desired_state": desired_state}))
+
+    def kill_job_impl(self, job_id, desired_state="killed", dataHandlerOri=None):
         if dataHandlerOri is None:
             dataHandler = DataHandler()
         else:
@@ -627,3 +644,21 @@ class PythonLauncher(Launcher):
                 dataHandler.Close()
             logging.error("Kill job failed with errors: {}".format(errors))
             return False
+
+    def run(self, queue):
+        # TODO maintain a data_handler so do not need to init it every time
+        while True:
+            func_name, args, kwargs = queue.get(True)
+
+            try:
+                if func_name == "submit_job":
+                    self.submit_job_impl(*args, **kwargs)
+                elif func_name == "kill_job":
+                    self.kill_job_impl(*args, **kwargs)
+                else:
+                    logger.error("unknown func_name %s, with args %s %s",
+                            func_name, args, kwargs)
+            except Exception:
+                logging.exception("processing job failed")
+            finally:
+                queue.task_done()

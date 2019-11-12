@@ -3,6 +3,8 @@ set -ex
 
 SCRIPT_DIR=/pod/scripts
 
+echo bootstrap starts at `date` &>> ${LOG_DIR}/bootstrap.log
+
 if [ "$DLWS_ROLE_NAME" != "inferenceworker" ];
 then
 	# Dir for saving running status
@@ -44,6 +46,8 @@ then
 	# TODO
 	touch ${PROC_DIR}/JOB_READY
 fi
+
+echo bootstrap ends at `date` &>> ${LOG_DIR}/bootstrap.log
 
 set +e
 # Execute user's command for the job

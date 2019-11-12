@@ -72,6 +72,18 @@ spec:
           hostPort: 9205
           name: endpoint-mgr
           protocol: TCP
+        - containerPort: 9206
+          hostPort: 9206
+          name: job-mgr2
+          protocol: TCP
+        - containerPort: 9207
+          hostPort: 9207
+          name: job-mgr3
+          protocol: TCP
+        - containerPort: 9208
+          hostPort: 9208
+          name: job-mgr4
+          protocol: TCP
         readinessProbe:
           failureThreshold: 3
           initialDelaySeconds: 3
@@ -80,6 +92,14 @@ spec:
           tcpSocket:
             port: 9200
           timeoutSeconds: 10
+      - name: redis
+        image: redis:5.0.6-alpine
+        command: ["redis-server", "--port", "9300", "--maxmemory", "100mb", "--maxmemory-policy", "allkeys-lru"]
+        ports:
+        - containerPort: 9300
+          hostPort: 9300
+          name: redis-port
+          protocol: TCP
       volumes:
       - name: certs
         hostPath:
