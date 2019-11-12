@@ -178,7 +178,7 @@ class DistPodTemplate():
 
         # Create secret config for each plugins
         k8s_secrets = []
-        for plugin, config in plugins:
+        for plugin, config in plugins.items():
             if plugin == "blobfuse" and isinstance(plugins["blobfuse"], list):
                 for bf in plugins["blobfuse"]:
                     k8s_secret = self.generate_secret(bf)

@@ -224,6 +224,7 @@ class JobDeployer:
     def create_secrets(self, secrets):
         # Clean up secrets first
         secret_names = [secret["metadata"]["name"] for secret in secrets if secret["kind"] == "Secret"]
+        logging.info("Trying to delete secrets %s" % secret_names)
         self._cleanup_secrets(secret_names)
 
         created = []
@@ -558,7 +559,6 @@ class PythonLauncher(Launcher):
                 dataHandler.Close()
                 return False
 
-            secrets = pod_template.generate_secrets()
             pods, error = pod_template.generate_pods(job_object)
             if error:
                 dataHandler.SetJobError(job_object.job_id, "ERROR: %s" % error)
@@ -572,6 +572,8 @@ class PythonLauncher(Launcher):
                 os.makedirs(os.path.dirname(local_jobDescriptionPath))
             with open(local_jobDescriptionPath, 'w') as f:
                 f.write(job_description)
+
+            secrets = pod_template.generate_secrets(job_object)
 
             job_deployer = JobDeployer()
             try:

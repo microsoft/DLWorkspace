@@ -287,7 +287,7 @@ spec:
       secretRef:
         name: {{ bf.secreds }}
       options:
-        containers: {{ bf.containerName }}
+        container: {{ bf.containerName }}
         mountoptions: "--file-cache-timeout-in-seconds=120"
         {% endif %}
       {% endfor %}
