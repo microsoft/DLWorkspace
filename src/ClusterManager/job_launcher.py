@@ -541,7 +541,7 @@ class PythonLauncher(Launcher):
             job_object.params["user"] = job_object.get_alias()
 
             enable_custom_scheduler = job_object.is_custom_scheduler_enabled()
-            secret_template = job_object.get_secret_template()
+            secret_template = job_object.get_blobfuse_secret_template()
             if job_object.params["jobtrainingtype"] == "RegularJob":
                 pod_template = PodTemplate(job_object.get_template(),
                                            enable_custom_scheduler=enable_custom_scheduler,

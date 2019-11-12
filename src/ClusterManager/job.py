@@ -1,20 +1,18 @@
 import sys
 import os
 import random
-from datetime import date
-from marshmallow import Schema, fields, pprint, post_load, validate
+from marshmallow import Schema, fields, post_load, validate
 from jinja2 import Environment, FileSystemLoader, Template
 
 import logging
 import logging.config
-import uuid
 import base64
+import yaml
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
-from osUtils import mkdirsAsUser
 
 
-# TODO remove it latter
+# TODO remove it later
 def create_log(logdir='.'):
     if not os.path.exists(logdir):
         os.system("mkdir -p " + logdir)
@@ -23,6 +21,22 @@ def create_log(logdir='.'):
         f.close()
         logging_config["handlers"]["file"]["filename"] = logdir + "/jobmanager.log"
         logging.config.dictConfig(logging_config)
+
+
+def invalid_entry(s):
+    return s is None or \
+           s == "" or \
+           s.lower() == "null" or \
+           s.lower() == "none"
+
+
+def dedup_add(item, entries, identical):
+    assert isinstance(entries, list)
+    for entry in entries:
+        if identical(item, entry):
+            return entries
+    entries.append(item)
+    return entries
 
 
 class Job:
@@ -181,27 +195,23 @@ class Job:
         return ib_mountpoints
 
     def get_template(self):
-        """Return jinja template."""
-        path = os.path.abspath(os.path.join(self.cluster["root-path"], "Jobs_Templete", "pod.yaml.template"))
-        ENV = Environment(loader=FileSystemLoader("/"))
-        template = ENV.get_template(path)
-        assert(isinstance(template, Template))
-        return template
+        """Returns pod template."""
+        return self._get_template("pod.yaml.template")
 
     def get_deployment_template(self):
-        """Return jinja template."""
-        path = os.path.abspath(os.path.join(self.cluster["root-path"], "Jobs_Templete", "deployment.yaml.template"))
-        ENV = Environment(loader=FileSystemLoader("/"))
-        template = ENV.get_template(path)
-        assert(isinstance(template, Template))
-        return template
+        """Returns deployment template."""
+        return self._get_template("deployment.yaml.template")
 
-    def get_secret_template(self):
-        """Return jinja template."""
-        path = os.path.abspath(os.path.join(self.cluster["root-path"], "Jobs_Templete", "secret.yaml.template"))
-        ENV = Environment(loader=FileSystemLoader("/"))
-        template = ENV.get_template(path)
-        assert(isinstance(template, Template))
+    def get_blobfuse_secret_template(self):
+        """Returns azure blobfuse secret template."""
+        return self._get_template("blobfuse_secret.yaml.template")
+
+    def _get_template(self, template_name):
+        """Returns template instance based on template_name."""
+        path = os.path.abspath(os.path.join(self.cluster["root-path"], "Jobs_Templete", template_name))
+        env = Environment(loader=FileSystemLoader("/"))
+        template = env.get_template(path)
+        assert (isinstance(template, Template))
         return template
 
     def is_custom_scheduler_enabled(self):
@@ -235,72 +245,89 @@ class Job:
         return None
 
     def get_plugins(self):
-        """Return a list of plugins.
+        """Returns a dictionary of plugin list.
 
-        Currently only Azure blobfuse plugin is supported.
+        NOTE: Currently only Azure blobfuse is supported.
 
-        Plugins example:
-            "blobfuse":
-                [{
-                    "enabled":true,
-                    "name":"blobfuse1",
-                    "accountName":"YWRtaW4=",
-                    "accountKey":"MWYyZDFlMmU2N2Rm",
-                    "containerName":"blobContainer1",
-                    "mountPath":"/usr/blobfuse/data1",
-                    "secreds":"bb9cd821-711c-40fd-bb6f-e5dbc1b772a7"
-                },
-                {
-                    "enabled":true,
-                    "name":"blobfuse2",
-                    "accountName":"YWJj",
-                    "accountKey":"cGFzc3dvcmQ=",
-                    "containerName":"blobContainer2",
-                    "mountPath":"/usr/blobfuse/data2",
-                    "secreds":"d92af1e8-c251-4280-974c-0cc38f4288a7"
-                }]
+        Returns:
+            A dictionary of plugin list.
+            Empty dictionary if there is no plugin.
+
+        Examples:
+            {
+                "blobfuse":
+                    [{
+                        "enabled": True,
+                        "name": "blobfuse0",
+                        "accountName": "YWRtaW4=",
+                        "accountKey": "MWYyZDFlMmU2N2Rm",
+                        "containerName": "blobContainer0",
+                        "mountPath": "/mnt/blobfuse/data0",
+                        "secreds": "bb9cd821-711c-40fd-bb6f-e5dbc1b772a7-blobfuse-0-secreds"
+                     },
+                     {
+                        "enabled": True,
+                        "name": "blobfuse1",
+                        "accountName":"YWJj",
+                        "accountKey":"cGFzc3dvcmQ=",
+                        "containerName":"blobContainer1",
+                        "mountPath":"/mnt/blobfuse/data1",
+                        "secreds":"bb9cd821-711c-40fd-bb6f-e5dbc1b772a7-blobfuse-1-secreds"
+                     }],
+                "some-other-plugin": [...]
+            }
         """
         if "plugins" not in self.params:
-            return None
+            return {}
 
         plugins = self.params["plugins"]
         if plugins is None:
-            return None
+            return {}
 
-        def invalid_str(s):
-            return s is None or s == "" or s.lower() == "null"
-
-        # TODO: Make plugin a inheritable class
         ret = {}
         for plugin, config in plugins.items():
             if plugin == "blobfuse" and isinstance(plugins["blobfuse"], list):
-                blobfuse = []
-                for i, bf in enumerate(plugins["blobfuse"]):
-                    account_name = bf.get("accountName")
-                    account_key = bf.get("accountKey")
-                    container_name = bf.get("containerName")
-                    mount_path = bf.get("mountPath")
-
-                    # Ignore blobfuse with incomplete configurations
-                    if invalid_str(account_name) or invalid_str(account_key) \
-                            or invalid_str(container_name) or invalid_str(mount_path):
-                        continue
-
-                    name = bf.get("name")
-                    if name is None:
-                        name = "%s-blobfuse-%d" % (self.job_id, i)
-
-                    bf["enabled"] = True
-                    bf["name"] = name
-                    bf["secreds"] = "%s-blobfuse-%d-secreds" % (self.job_id, i)
-                    bf["accountName"] = base64.b64encode(account_name)
-                    bf["accountKey"] = base64.b64encode(account_key)
-                    bf["jobId"] = self.job_id
-
-                    # TODO: Deduplicate blobfuse plugins
-                    blobfuse.append(bf)
+                blobfuse = self.get_blobfuse_plugins(plugins["blobfuse"])
                 ret["blobfuse"] = blobfuse
         return ret
+
+    def get_blobfuse_plugins(self, plugins):
+        """Constructs and returns a list of blobfuse plugins."""
+
+        def identical(e1, e2):
+            return e1["name"] == e2["name"] or e1["mountPath"]
+
+        blobfuse = []
+        for i, bf in enumerate(plugins):
+            account_name = bf.get("accountName")
+            account_key = bf.get("accountKey")
+            container_name = bf.get("containerName")
+            mount_path = bf.get("mountPath")
+
+            # Ignore Azure blobfuse with incomplete configurations
+            if invalid_entry(account_name) or \
+                    invalid_entry(account_key) or \
+                    invalid_entry(container_name) or \
+                    invalid_entry(mount_path):
+                continue
+
+            name = bf.get("name")
+            if name is None:
+                name = "%s-blobfuse-%d" % (self.job_id, i)
+
+            # Reassign everything for clarity
+            bf["enabled"] = True
+            bf["name"] = name
+            bf["secreds"] = "%s-blobfuse-%d-secreds" % (self.job_id, i)
+            bf["accountName"] = base64.b64encode(account_name)
+            bf["accountKey"] = base64.b64encode(account_key)
+            bf["containerName"] = container_name
+            bf["mountPath"] = mount_path
+            bf["jobId"] = self.job_id
+
+            # TODO: Deduplicate blobfuse plugins
+            blobfuse = dedup_add(bf, blobfuse, identical)
+        return blobfuse
 
 
 class JobSchema(Schema):
