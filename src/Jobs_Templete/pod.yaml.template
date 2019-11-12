@@ -288,6 +288,9 @@ spec:
         name: {{ bf.secreds }}
       options:
         container: {{ bf.containerName }}
+        {% if bf["tmppath"] %}
+        tmppath: {{ bf["tmppath"] }}/{{ job["podName"] }}
+        {% endif %}
         mountoptions: "--file-cache-timeout-in-seconds=120"
         {% endif %}
       {% endfor %}

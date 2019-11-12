@@ -169,6 +169,9 @@ class DistPodTemplate():
         assert (isinstance(job, Job))
         params = job.params
 
+        if params is None:
+            return []
+
         if "plugins" not in params:
             return []
 

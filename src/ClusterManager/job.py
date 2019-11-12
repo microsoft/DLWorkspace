@@ -194,6 +194,24 @@ class Job:
 
         return ib_mountpoints
 
+    def local_fast_storage_mountpoint(self):
+        mount = self.get_local_fast_storage_mount()
+
+        name = mount.get("name")
+        container_path = mount.get("containerPath")
+        host_path = mount.get("hostPath")
+        if name is None or host_path is None or container_path is None:
+            logging.warn("Ignore invalid mount %s" % mount)
+            return None
+
+        return {
+            "name": name.lower(),
+            "containerPath": container_path,
+            "hostPath": host_path,
+            "enabled": True
+        }
+
+
     def get_template(self):
         """Returns pod template."""
         return self._get_template("pod.yaml.template")
@@ -238,6 +256,9 @@ class Job:
 
     def get_infiniband_mounts(self):
         return self._get_cluster_config("infiniband_mounts")
+
+    def get_local_fast_storage_mount(self):
+        return self._get_cluster_config("local_fast_storage")
 
     def _get_cluster_config(self, key):
         if key in self.cluster:
