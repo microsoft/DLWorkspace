@@ -35,7 +35,7 @@ class Job:
                  work_path="",
                  data_path="",
                  params=None,
-                 plugins=None,
+                 plugins=None
                  ):
         """
         job_id: an unique string for the job.
@@ -234,10 +234,12 @@ class Job:
             return self.cluster[key]
         return None
 
-    #only add blobfuse since we only support one plugin right now
     def get_plugins(self):
-        '''
-        Plugin example:
+        """Return a list of plugins.
+
+        Currently only Azure blobfuse plugin is supported.
+
+        Plugins example:
             "blobfuse":
                 [{
                     "enabled":true,
@@ -257,22 +259,46 @@ class Job:
                     "mountPath":"/usr/blobfuse/data2",
                     "secreds":"d92af1e8-c251-4280-974c-0cc38f4288a7"
                 }]
-        '''
-        if "plugins" not in self.params.keys():
+        """
+        if "plugins" not in self.params:
             return None
-        plugins = self.params["plugins"]
 
+        plugins = self.params["plugins"]
+        if plugins is None:
+            return None
+
+        # TODO: Make plugin a inheritable class
         ret = {}
-        ret["blobfuse"] = []
-        if "blobfuse" in plugins.keys() and plugins["blobfuse"] is not None:
-            for bf in plugins["blobfuse"]:
-                bf["enabled"] = True
-                bf["name"] = "blobfuse"
-                bf["secreds"] = str(uuid.uuid4())
-                bf["accountName"] = base64.b64encode(bf["accountName"])
-                bf["accountKey"] = base64.b64encode(bf["accountKey"])
-                ret["blobfuse"].append(bf)
+        for plugin, config in plugins.items():
+            if plugin == "blobfuse" and isinstance(plugins["blobfuse"], list):
+                blobfuse = []
+                for i, bf in enumerate(plugins["blobfuse"]):
+                    account_name = bf.get("accountName")
+                    account_key = bf.get("accountKey")
+                    container_name = bf.get("containerName")
+                    mount_path = bf.get("mountPath")
+
+                    # Ignore blobfuse with incomplete configurations
+                    if account_name is None or account_key is None \
+                            or container_name is None or mount_path is None:
+                        continue
+
+                    name = bf.get("name")
+                    if name is None:
+                        name = "%s-blobfuse-%d" % (self.job_id, i)
+
+                    bf["enabled"] = True
+                    bf["name"] = name
+                    bf["secreds"] = "%s-blobfuse-%d-secreds" % (self.job_id, i)
+                    bf["accountName"] = base64.b64encode(account_name)
+                    bf["accountKey"] = base64.b64encode(account_key)
+                    bf["jobId"] = self.job_id
+
+                    # TODO: Deduplicate blobfuse plugins
+                    blobfuse.append(bf)
+                ret["blobfuse"] = blobfuse
         return ret
+
 
 class JobSchema(Schema):
     cluster = fields.Dict(required=True)
@@ -292,6 +318,7 @@ class JobSchema(Schema):
     work_path = fields.String(required=False, dump_to="workPath", load_from="workPath")
     data_path = fields.String(required=False, dump_to="dataPath", load_from="dataPath")
     params = fields.Dict(required=False)
+    plugins = fields.Dict(required=False)
 
     @post_load
     def make_user(self, data, **kwargs):

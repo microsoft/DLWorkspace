@@ -15,9 +15,10 @@ from osUtils import mkdirsAsUser
 
 
 class DistPodTemplate():
-    def __init__(self, template, enable_custom_scheduler=False):
+    def __init__(self, template, enable_custom_scheduler=False, secret_template=None):
         self.template = template
         self.enable_custom_scheduler = enable_custom_scheduler
+        self.secret_template = secret_template
 
     @staticmethod
     def generate_launch_script(dist_role, dist_role_idx, user_id, job_path, cmd):
@@ -152,9 +153,40 @@ class DistPodTemplate():
 
                 pods.append(pod)
 
+        job.add_plugins(job.get_plugins())
+        params["plugins"] = job.plugins
+
         k8s_pods = []
         for pod in pods:
             k8s_pod = self.generate_pod(pod)
             k8s_pods.append(k8s_pod)
 
         return k8s_pods, None
+
+    # TODO: Merge with pod_template.py
+    def generate_secrets(self, job):
+        """generate_plugin_secrets must be called after generate_pods"""
+        assert (isinstance(job, Job))
+        params = job.params
+
+        if "plugin" not in params:
+            return []
+
+        plugins = params["plugins"]
+        if not isinstance(plugins, dict):
+            return []
+
+        # Create secret config for each plugins
+        k8s_secrets = []
+        for plugin, config in plugins:
+            if plugin == "blobfuse" and isinstance(plugins["blobfuse"], list):
+                for bf in plugins["blobfuse"]:
+                    k8s_secret = self.generate_secret(bf)
+                    k8s_secrets.append(k8s_secret)
+        return k8s_secrets
+
+    def generate_secret(self, plugin):
+        assert self.secret_template is not None
+        assert isinstance(self.template, Template)
+        secret_yaml = self.secret_template.render(plugin=plugin)
+        return yaml.full_load(secret_yaml)

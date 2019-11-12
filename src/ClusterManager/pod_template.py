@@ -101,8 +101,8 @@ class PodTemplate():
             job.add_mountpoints(params["mountpoints"])
         job.add_mountpoints(job.work_path_mountpoint())
         job.add_mountpoints(job.data_path_mountpoint())
-        #job.add_mountpoints(job.vc_custom_storage_mountpoints())
-        #job.add_mountpoints(job.vc_storage_mountpoints())
+        job.add_mountpoints(job.vc_custom_storage_mountpoints())
+        job.add_mountpoints(job.vc_storage_mountpoints())
         params["mountpoints"] = job.mountpoints
 
         params["user_email"] = params["userName"]
@@ -119,7 +119,7 @@ class PodTemplate():
 
 
         local_pod_path = job.get_hostpath(job.job_path, "master")
-        #params["LaunchCMD"] = PodTemplate.generate_launch_script(params["jobId"], local_pod_path, params["userId"], params["resourcegpu"], params["cmd"])
+        params["LaunchCMD"] = PodTemplate.generate_launch_script(params["jobId"], local_pod_path, params["userId"], params["resourcegpu"], params["cmd"])
 
         if "envs" not in params:
             params["envs"] =[]
@@ -189,17 +189,31 @@ class PodTemplate():
             k8s_deployment = self.generate_deployment(pod)
             k8s_pods.append(k8s_deployment)
 
-        #add plugin secret config
-        if params["plugins"] is not None:
-            plugins = params["plugins"]
-            if plugins["blobfuse"]:
-                self.secret_template = job.get_secret_template()
-                k8s_secret = self.generate_secret(plugins["blobfuse"])
-                k8s_pods.append(k8s_secret)
-
         return k8s_pods, None
 
-    def generate_secret(self, p):
-        assert(isinstance(self.template, Template))
-        secret_yaml = self.secret_template.render(plugin=p)
+    def generate_secrets(self, job):
+        """generate_plugin_secrets must be called after generate_pods"""
+        assert (isinstance(job, Job))
+        params = job.params
+
+        if "plugin" not in params:
+            return []
+
+        plugins = params["plugins"]
+        if not isinstance(plugins, dict):
+            return []
+
+        # Create secret config for each plugins
+        k8s_secrets = []
+        for plugin, config in plugins:
+            if plugin == "blobfuse" and isinstance(plugins["blobfuse"], list):
+                for bf in plugins["blobfuse"]:
+                    k8s_secret = self.generate_secret(bf)
+                    k8s_secrets.append(k8s_secret)
+        return k8s_secrets
+
+    def generate_secret(self, plugin):
+        assert self.secret_template is not None
+        assert isinstance(self.template, Template)
+        secret_yaml = self.secret_template.render(plugin=plugin)
         return yaml.full_load(secret_yaml)
