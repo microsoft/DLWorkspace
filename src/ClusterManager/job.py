@@ -277,11 +277,14 @@ class Job:
                 "some-other-plugin": [...]
             }
         """
+        if self.params is None:
+            return {}
+
         if "plugins" not in self.params:
             return {}
 
         plugins = self.params["plugins"]
-        if plugins is None:
+        if plugins is None or not isinstance(plugins, dict):
             return {}
 
         ret = {}
@@ -295,7 +298,8 @@ class Job:
         """Constructs and returns a list of blobfuse plugins."""
 
         def identical(e1, e2):
-            return e1["name"] == e2["name"] or e1["mountPath"]
+            return e1["name"] == e2["name"] or \
+                    e1["mountPath"] == e2["mountPath"]
 
         blobfuse = []
         for i, bf in enumerate(plugins):
