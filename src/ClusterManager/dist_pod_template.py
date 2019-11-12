@@ -138,6 +138,9 @@ class DistPodTemplate():
             params["envs"].append({"name": "DLWS_HOST_NETWORK", "value": "enable"})
         params["envs"].append({"name": "DLWS_WORKER_NUM", "value": params["numworker"]})
 
+        job.add_plugins(job.get_plugins())
+        params["plugins"] = job.plugins
+
         pods = []
         nums = {"ps": int(params["numps"]), "worker": int(params["numpsworker"])}
         for role in ["ps", "worker"]:
@@ -152,9 +155,6 @@ class DistPodTemplate():
 
 
                 pods.append(pod)
-
-        job.add_plugins(job.get_plugins())
-        params["plugins"] = job.plugins
 
         k8s_pods = []
         for pod in pods:
