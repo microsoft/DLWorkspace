@@ -910,7 +910,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                     <TableCell align="center">
                       <Switch
                         value={enableJobPath}
-                        checked={enableDataPath}
+                        checked={enableJobPath}
                         onChange={onEnableJobPathChange}
                       />
                     </TableCell>
