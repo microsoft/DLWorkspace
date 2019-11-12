@@ -613,6 +613,14 @@ class PythonLauncher(Launcher):
                 detail = job_status_detail_with_finished_time(detail, "error", "Server error in job submission")
                 dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
 
+                # Try to clean up the job
+                try:
+                    job_deployer = JobDeployer()
+                    job_deployer.delete_job(job_id, force=True)
+                    logging.info("Cleaning up job %s succeeded after %d retries of job submission" % (job["jobId"], retries))
+                except:
+                    logging.warning("Cleaning up job %s failed after %d retries of job submission" % (job["jobId"], retries))
+
         dataHandler.Close()
         return ret
 

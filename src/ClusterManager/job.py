@@ -267,6 +267,9 @@ class Job:
         if plugins is None:
             return None
 
+        def invalid_str(s):
+            return s is None or s == "" or s.lower() == "null"
+
         # TODO: Make plugin a inheritable class
         ret = {}
         for plugin, config in plugins.items():
@@ -279,8 +282,8 @@ class Job:
                     mount_path = bf.get("mountPath")
 
                     # Ignore blobfuse with incomplete configurations
-                    if account_name is None or account_key is None \
-                            or container_name is None or mount_path is None:
+                    if invalid_str(account_name) or invalid_str(account_key) \
+                            or invalid_str(container_name) or invalid_str(mount_path):
                         continue
 
                     name = bf.get("name")
