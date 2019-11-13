@@ -744,6 +744,7 @@ def gen_master_certificates():
 
     utils.render_template_directory("./template/ssl", "./deploy/ssl",config)
     os.system("cd ./deploy/ssl && bash ./gencerts_master.sh")
+    get_other_binary()
     os.system("cd ./deploy/ssl && bash ./gencerts_aggregator.sh")
 
 
@@ -941,6 +942,7 @@ def get_other_binary():
     copy_from_docker_image(config["dockers"]["container"]["binstore"]["fullname"], "/data/easy-rsa/v3.0.5.tar.gz", "./deploy/bin/other/easy-rsa/v3.0.5.tar.gz")
     copy_from_docker_image(config["dockers"]["container"]["binstore"]["fullname"], "/data/cfssl/linux/cfssl", "./deploy/bin/other/cfssl")
     copy_from_docker_image(config["dockers"]["container"]["binstore"]["fullname"], "/data/cfssl/linux/cfssljson", "./deploy/bin/other/cfssljson")
+
 def get_kubectl_binary(force = False):
     get_hyperkube_docker(force = force)
     get_cni_binary()
