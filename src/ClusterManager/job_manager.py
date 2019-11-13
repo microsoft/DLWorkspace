@@ -31,16 +31,10 @@ import logging.config
 from job import Job, JobSchema
 from job_launcher import JobDeployer, JobRole, PythonLauncher
 
-from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time
+from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time, record
 
 from job_launcher import get_job_status_detail, job_status_detail_with_finished_time
 
-
-jobmanager_fn_histogram = Histogram("jobmanager_fn_latency_seconds",
-        "latency for executing jobmanager function (seconds)",
-        buckets=(.1, 2.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 50.0,
-            float("inf")),
-        labelnames=("fn_name",))
 
 job_state_change_histogram = Histogram("job_state_change_latency_seconds",
         """latency for job to change state(seconds).
@@ -152,17 +146,6 @@ def update_job_state_latency(redis_conn, job_id, state, event_time=None):
 
     if changed:
         set_job_status(redis_conn, job_id, job_status)
-
-def record(fn):
-    @functools.wraps(fn)
-    def wrapped(*args, **kwargs):
-        start = timeit.default_timer()
-        try:
-            return fn(*args, **kwargs)
-        finally:
-            elapsed = timeit.default_timer() - start
-            jobmanager_fn_histogram.labels(fn.__name__).observe(elapsed)
-    return wrapped
 
 
 def get_scheduling_job_details(details):
