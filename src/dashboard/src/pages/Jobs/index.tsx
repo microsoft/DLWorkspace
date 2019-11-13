@@ -593,7 +593,7 @@ const Jobs: React.FC = (props: any) => {
                 padding:'3',
               },render: rowData =>  <Link className={classes.linkStyle} to={`/job/${selectedTeam}/${rowData.cluster}/${rowData.jobId}`}>{rowData.jobId}</Link>  },
               {title: 'Job Name', field: 'jobName',cellStyle: {
-                textAlign:'center',
+                textAlign:'left',
                 flexDirection: 'row',
                 padding:'0',
               }},
@@ -1247,7 +1247,7 @@ const Jobs: React.FC = (props: any) => {
                       padding:'3',
                     },field: 'jobId', render: rowData =>  <Link className={classes.linkStyle} to={`/job/${selectedTeam}/${rowData.cluster}/${rowData.jobId}/${selectedTeam}`}>{rowData.jobId}</Link> },
                     { title: 'Job Name',cellStyle: {
-                      textAlign:'center',
+                      textAlign:'left',
                       flexDirection: 'row',
                       padding:'0',
                     },field: 'jobName'},
