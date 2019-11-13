@@ -375,6 +375,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       const url = `/teams/${selectedTeam}/templates/${saveTemplateName}?database=${saveTemplateDatabase}`;
       await saveTemplate(url, template);
       setSaveTemplate(true)
+      window.location.reload()
     } catch (error) {
       alert('Failed to save the template, check console (F12) for technical details.')
       console.error(error);
@@ -413,6 +414,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       const url = `/teams/${selectedTeam}/templates/${saveTemplateName}?database=${saveTemplateDatabase}`;
       await deleteTemplate(url);
       setShowDeleteTemplate(true)
+      window.location.reload()
     } catch (error) {
       alert('Failed to delete the template, check console (F12) for technical details.')
       console.error(error);
