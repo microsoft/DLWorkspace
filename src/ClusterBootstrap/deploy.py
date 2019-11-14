@@ -1274,6 +1274,96 @@ def update_scaled_worker_nodes( nargs ):
     os.system("rm ./deploy/kubelet/kubelet.service")
     os.system("rm ./deploy/kubelet/worker-kubeconfig.yaml")
 
+def default_node_type4kubernetes_services():
+    servicedic = get_all_services()
+    nodetype4service = fetch_config(config, ["kubelabels"])
+    # print "labels\n", nodetype4service
+    if "default" in nodetype4service:
+        for service, servicefile in servicedic.iteritems():
+            servicename = get_service_name(servicefile)
+            if servicename is None or service in nodetype4service or servicename in nodetype4service:
+                continue
+            nodetype4service[servicename] = nodetype4service["default"]
+    return nodetype4service
+
+def service4nodetype(nodetypes, nodetype4service):
+    """not including 'all'. if you want it, add it explicitly, e.g., ['worker', 'all']"""
+    servicelist = []
+    for nodetype in nodetypes:
+        for service, type4svc in nodetype4service.items():
+          if type4svc == nodetype:
+            servicelist += service,
+    return servicelist
+
+def render_kubelet_service_by_node_type(nodetype, nodetype4service={}):
+    """since this is for cloud init, we only consider the case where we want to label the service as active, and
+    we don't consider the overwriting case
+    nodetypes should be a kind of nodetype, e.g., 'worker', 
+    nodetype4service is a dict if specified to overwrite the default dict"""
+    temp_keys = ['labels']
+    for ky in temp_keys:
+        config.pop(ky, None)
+    if nodetype in ['worker', 'etcd']:
+        nodetype += '_node'
+    assert (nodetype in ['worker_node', 'etcd_node'] or (nodetype[:10] == 'etcd_node_' and nodetype[10:].isdigit()))  and \
+    'invalid nodetype'
+    nd_type4svc = default_node_type4kubernetes_services()
+    # overwrite if specified
+    for svc in nodetype4service:
+        nd_type4svc[svc] = nodetype4service[svc]
+    # tried to get rid of this but failed. this doesn't work: https://docs.ansible.com/ansible/latest/user_guide/playbooks_filters.html#regular-expression-filters
+    config['labels'] = ["{}=active".format(svc) for svc in service4nodetype([nodetype, 'all'], nd_type4svc)]
+    utils.render_template("template/cloud-config/cloudinit.kubelet.service.template", 
+        "./deploy/cloud-config/{}.kubelet.service".format(nodetype), config)
+    for ky in temp_keys:
+        config.pop(ky)
+    
+def render_mount_script():
+    fileshare_install('scripts/fileshare_install.sh')
+    allmountpoints = mount_fileshares_by_service(True, 'scripts/mnt_fs_svc.sh')
+    link_fileshares(allmountpoints, False, 'scripts/lnk_fs.sh')
+
+def render_and_pack_worker_cloud_init_files():
+    role = 'worker'
+    os.system('rm -rf worker_cld_init; mkdir -p worker_cld_init')
+    utils.render_template_directory("./template/kubelet", "./deploy/kubelet", config)
+    utils.render_template("template/cloud-config/cloud_init_worker.txt.template", "./scripts/cloud_init_worker.txt", config)
+    config['role'] = role
+    utils.render_template("template/cloud-config/cloudinit.upgrade.list", 
+        "./deploy/cloud-config/cloudinit.{}.upgrade.list".format(role), config)
+    render_kubelet_service_by_node_type('worker_node')
+    # write_nodelist_yaml() TODO verify whether this step is necessary
+    os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"'
+        % config["etcd_endpoints"].replace("/","\\/"))
+    # os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' % config["api_servers"].replace("/","\\/"))
+    os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/worker-kubeconfig.yaml.template > ./deploy/kubelet/worker-kubeconfig.yaml' 
+        % config["api_servers"].replace("/","\\/"))
+    get_hyperkube_docker()
+    render_mount_script()
+    with open("./deploy/cloud-config/cloudinit.{}.upgrade.list".format(role),"r") as f:
+        deploy_files = [s.split(",") for s in f.readlines() if len(s.split(",")) == 2]
+    with open("worker_cld_init/filemap", "w") as wf:
+        for (source, target) in deploy_files:
+            src_strip, tgt_strip = source.strip(), target.strip()
+            if os.path.exists(src_strip):
+                fbn = os.path.basename(src_strip)
+                os.system('cp {} worker_cld_init/{}'.format(src_strip, fbn))
+                wf.write("{},{}\n".format(fbn, tgt_strip))
+
+    files2cp = [ "./deploy/kubelet/%s" % config["preworkerdeploymentscript"], "./deploy/kubelet/%s" % config["postworkerdeploymentscript"], 
+                "./scripts/cloud_init_worker.sh", "./scripts/mkdir_and_cp.sh", "./scripts/prepare_vm_disk.sh", "./scripts/prepare_ubuntu.sh", 
+                "./scripts/disable_kernel_auto_updates.sh", "./scripts/docker_network_gc_setup.sh", "./scripts/dns.sh", 
+                "scripts/fileshare_install.sh", "scripts/mnt_fs_svc.sh", "scripts/lnk_fs.sh"]
+    for fn in files2cp:
+        os.system('cp {} worker_cld_init/{}'.format(fn, os.path.basename(fn)))
+
+    os.system("tar -cvf worker_cld_init.tar worker_cld_init;")
+
+    # TODO we want to upload to infra node, use a service in a container to serve workers requesting this package.
+    os.system("rm ./deploy/kubelet/options.env")
+    # os.system("rm ./deploy/kubelet/kubelet.service")
+    os.system("rm ./deploy/kubelet/worker-kubeconfig.yaml")
+
 def update_worker_nodes( nargs ):
     utils.render_template_directory("./template/kubelet", "./deploy/kubelet",config)
     write_nodelist_yaml()
@@ -1630,7 +1720,6 @@ def get_mount_fileshares(curNode = None):
                     raise ValueError(errorMsg)
                 else:
                     bHasDefaultMountPoints = True
-                    print "default storage folders:", config["default-storage-folders"], "\n"
                     mountpoints = config["default-storage-folders"]
 
             mountsharename = v["mountsharename"] if "mountsharename" in v else v["filesharename"]
@@ -1764,7 +1853,7 @@ def remove_fstab_section( node, secname):
                 f.close()
             utils.sudo_scp( config["ssh_cert"], "./deploy/etc/fstab", "/etc/fstab", config["admin_username"], node)
 
-def fileshare_install():
+def fileshare_install(mount_command_file=''):
     all_nodes = get_nodes(config["clusterId"])
     nodes = all_nodes
     for node in nodes:
@@ -1819,7 +1908,12 @@ def fileshare_install():
                             remotecmd += "sudo apt-get install -y default-jre; "
                             remotecmd += "sudo apt-get install -y --allow-unauthenticated hadoop-hdfs-fuse; "
         if len(remotecmd)>0:
-            utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
+            if mount_command_file == '':
+                utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
+            else:
+                with open(mount_command_file, 'w') as wf:
+                    wf.write(remotecmd)
+                break
 
 def config_fqdn():
     all_nodes = get_nodes(config["clusterId"])
@@ -1840,30 +1934,34 @@ def config_nginx():
     # run_kubectl( ["delete", "configmap", "nginxconfigmap"] )
     # run_kubectl( ["create", "configmap", "nginxconfigmap", "--from-file=%s/default.conf" % target_dir ] )
 
-def mount_fileshares_by_service(perform_mount=True):
+def mount_fileshares_by_service(perform_mount=True, mount_command_file=''):
     all_nodes = get_nodes(config["clusterId"])
     if perform_mount:
         nodes = all_nodes
         for node in nodes:
             allmountpoints, fstab = get_mount_fileshares(node)
-            remotecmd = ""
+            remotecmd = "sudo mkdir -p %s; " % config["folder_auto_share"] #''
             remotecmd += "sudo mkdir -p %s; " % config["storage-mount-path"]
             remotecmd += "sudo mkdir -p %s; " % config["physical-mount-path"]
             mountconfig = { }
             mountconfig["mountpoints"] = allmountpoints
             mountconfig["storage-mount-path"] = config["storage-mount-path"]
+            mountconfig["dltsdata-storage-mount-path"] = config["dltsdata-storage-mount-path"]
             mountconfig["physical-mount-path"] = config["physical-mount-path"]
             for k,v in allmountpoints.iteritems():
                 if "curphysicalmountpoint" in v:
                     remotecmd += "sudo mkdir -p %s; " % v["curphysicalmountpoint"]
-            utils.SSH_exec_cmd( config["ssh_cert"], config["admin_username"], node, "sudo mkdir -p %s; " % config["folder_auto_share"] )
+            # utils.SSH_exec_cmd( config["ssh_cert"], config["admin_username"], node, "sudo mkdir -p %s; " % config["folder_auto_share"])
             utils.render_template_directory("./template/storage/auto_share", "./deploy/storage/auto_share", config)
             with open("./deploy/storage/auto_share/mounting.yaml",'w') as datafile:
                 yaml.dump(mountconfig, datafile, default_flow_style=False)
             remotecmd += "sudo systemctl stop auto_share.timer; "
-            # remotecmd += "sudo systemctl stop auto_share.service; "
-            if len(remotecmd)>0:
-                utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
+            if len(remotecmd)>0:                
+                if mount_command_file == '':
+                    utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
+                else:
+                    with open(mount_command_file, 'w') as wf:
+                        wf.write(remotecmd)
             remotecmd = ""
             utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.timer","/etc/systemd/system/auto_share.timer", config["admin_username"], node )
             utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.target","/etc/systemd/system/auto_share.target", config["admin_username"], node )
@@ -1878,12 +1976,17 @@ def mount_fileshares_by_service(perform_mount=True):
                 remotecmd += "sudo sed -i 's/\/usr\/bin/\/opt\/bin/g' %s; " % os.path.join(config["folder_auto_share"], "auto_share.py")
             remotecmd += "sudo " + os.path.join(config["folder_auto_share"], "auto_share.py") + "; " # run it once now
             remotecmd += "sudo systemctl daemon-reload; "
-            remotecmd += "sudo rm /opt/auto_share/lock; "
+            # remotecmd += "sudo rm /opt/auto_share/lock; "
             remotecmd += "sudo systemctl enable auto_share.timer; "
             remotecmd += "sudo systemctl restart auto_share.timer; "
             # remotecmd += "sudo systemctl stop auto_share.service; "
-            if len(remotecmd)>0:
-                utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
+            if len(remotecmd)>0:                
+                if mount_command_file == '':
+                    utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
+                else:
+                    with open(mount_command_file, 'w') as wf:
+                        wf.write(remotecmd)
+                        break
             # We no longer recommend to insert fstabl into /etc/fstab file, instead,
             # we recommend to use service to start auto mount if needed
             # insert_fstab_section( node, "DLWS", fstab )
@@ -1925,14 +2028,15 @@ def del_fileshare_links():
         remotecmd += "sudo mkdir -p %s; " % config["storage-mount-path"]
         exec_rmt_cmd(node, remotecmd)
 
-def link_fileshares(allmountpoints, bForce=False):
+def link_fileshares(allmountpoints, bForce=False, mount_command_file=''):
     all_nodes = get_nodes(config["clusterId"])
     if True:
         nodes = all_nodes
         firstdirs = {}
-        for k,v in allmountpoints.iteritems():
-            if "mountpoints" in v:
-                firstdirs[v["curphysicalmountpoint"]] = True
+        #from executing remotely to execute on individual machines
+        # for k,v in allmountpoints.iteritems():
+        #     if "mountpoints" in v:
+        #         firstdirs[v["curphysicalmountpoint"]] = True
         for node in nodes:
             remotecmd = ""
             if bForce:
@@ -1944,14 +2048,17 @@ def link_fileshares(allmountpoints, bForce=False):
                 remotecmd += "sudo rm -r %s; " % config["storage-mount-path"]
                 remotecmd += "sudo mkdir -p %s; " % config["storage-mount-path"]
 
-            output = utils.SSH_exec_cmd_with_output(config["ssh_cert"], config["admin_username"], node, "sudo mount" )
+            if mount_command_file == '':
+                output = utils.SSH_exec_cmd_with_output(config["ssh_cert"], config["admin_username"], node, "sudo mount")
+            else:
+                remotecmd += "sudo mount;"
             for k,v in allmountpoints.iteritems():
                 if "mountpoints" in v and v["type"]!="emptyDir":
-                    if output.find(v["curphysicalmountpoint"])<0:
+                    if mount_command_file == '' and output.find(v["curphysicalmountpoint"]) < 0:
                         print "!!!Warning!!! %s has not been mounted at %s " % (k, v["curphysicalmountpoint"])
                     else:
-                        if ( firstdirs[v["curphysicalmountpoint"]]):
-                            firstdirs[v["curphysicalmountpoint"]] = True
+                        # if ( firstdirs[v["curphysicalmountpoint"]]):
+                        #     firstdirs[v["curphysicalmountpoint"]] = True
                             for basename in v["mountpoints"]:
                                 dirname = os.path.join(v["curphysicalmountpoint"], basename )
                                 remotecmd += "sudo mkdir -p %s; " % dirname
@@ -1968,8 +2075,12 @@ def link_fileshares(allmountpoints, bForce=False):
                         remotecmd += "if [ ! -e %s ]; then sudo ln -s %s %s; fi; " % (linkdir, dirname, linkdir)
             # following node need not make the directory
             if len(remotecmd)>0:
-                utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
-
+                if mount_command_file == '':
+                    utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
+                else:
+                    with open(mount_command_file, 'w') as wf:
+                        wf.write(remotecmd)
+                    break
 
 def deploy_webUI():
     masterIP = config["kubernetes_master_node"][0]
@@ -2791,13 +2902,17 @@ def get_node_lists_for_service(service):
 # etcd_node_n: a particular etcd node
 # worker_node: all worker node
 # The kubernete node will be marked accordingly to facilitate the running of daemon service.
+
 def kubernetes_label_nodes( verb, servicelists, force ):
     servicedic = get_all_services()
+    print "servicedic\n", servicedic
     get_nodes(config["clusterId"])
     labels = fetch_config(config, ["kubelabels"])
+    print "labels\n", labels
     for service, serviceinfo in servicedic.iteritems():
         servicename = get_service_name(servicedic[service])
         if (not service in labels) and (not servicename in labels) and "default" in labels and (not servicename is None):
+            print "not in: {},{}\n".format(service, serviceinfo)
             labels[servicename] = labels["default"]
     if len(servicelists)==0:
         servicelists = labels
@@ -3268,7 +3383,10 @@ def run_command( args, command, nargs, parser ):
                             url = "http://%s:%s/AddUser?userName=%s&uid=%s&gid=%s&groups=%s" %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2], nargs[3], nargs[4], nargs[5])
                             response = requests.get(url)
                             print(response)
-
+    
+    elif command == "packcloudinit":
+        gen_configs()
+        render_and_pack_worker_cloud_init_files()
 
     elif command == "updateworker":
         response = raw_input_with_default("Deploy Worker Nodes (y/n)?")
@@ -3523,7 +3641,9 @@ def run_command( args, command, nargs, parser ):
         if len(nargs)<=0:
             fileshare_install()
             allmountpoints = mount_fileshares_by_service(True)
-            link_fileshares(allmountpoints, args.force)
+            if args.force:
+                print "forced to re-link fileshares"
+                link_fileshares(allmountpoints, args.force)
         elif nargs[0]=="install":
             fileshare_install()
         elif nargs[0]=="start":
@@ -3769,6 +3889,8 @@ def run_command( args, command, nargs, parser ):
         template_file = nargs[0]
         target_file = nargs[1]
         utils.render_template(template_file, target_file,config)
+    elif command == "rendercloud":
+        render_kubelet_service_by_node_type('worker_node', nodetype4service={})
     elif command == "upgrade_masters":
         gen_configs()
         upgrade_masters()

@@ -119,6 +119,13 @@ def create_vm(vmname, vm_ip, role, vm_size, pwd, vmcnf):
     availability_set = ""
     if role == "worker" and "availability_set" in config["azure_cluster"]:
         availability_set = "--availability-set '%s'" % config["azure_cluster"]["availability_set"]
+    
+    cloud_init = ""
+    if "cloud_init_%s" % role in config:
+        # if not os.path.exists("scripts/cloud_init_%s.sh" % role):
+        assert os.path.exists(config["cloud_init_%s" % role])
+        cloud_init = "--custom-data {}".format(config["cloud_init_%s" % role])
+
     if role in ["infra", "worker"]:		
         storage = "--storage-sku {} --data-disk-sizes-gb {} ".format(config["azure_cluster"]["vm_local_storage_sku"],
                 config["azure_cluster"]["%s_local_storage_sz" % role])
@@ -150,6 +157,7 @@ def create_vm(vmname, vm_ip, role, vm_size, pwd, vmcnf):
                  %s \
                  %s \
                  %s \
+                 %s \
                  
         """ % (config["azure_cluster"]["resource_group_name"],
                vmname,
@@ -161,6 +169,7 @@ def create_vm(vmname, vm_ip, role, vm_size, pwd, vmcnf):
                config["azure_cluster"]["vnet_name"],
                config["azure_cluster"][nsg],
                config["cloud_config"]["default_admin_username"],
+               cloud_init,
                storage,
                auth,
                availability_set)

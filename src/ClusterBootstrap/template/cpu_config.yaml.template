@@ -1,0 +1,93 @@
+cluster_name: {{cnf["cluster_name"]}}
+
+azure_cluster:
+  # name_of_cluster should match cluster name used above.
+    infra_node_num: 1
+    infra_vm_size : Standard_B2s
+    azure_location: eastus
+    worker_node_num: 1
+    nfs_node_num: 1
+    nfs_data_disk_sz : 31
+    nfs_data_disk_num: 2
+    worker_vm_size: Standard_B2s
+    nfs_vm_size: Standard_B2s
+    nfs_local_storage_sz: 1023
+    vm_image: Canonical:UbuntuServer:18.04-LTS:18.04.201910030
+    nfs_vm:
+    - suffix: toad
+      data_disk_num: 2
+      data_disk_sz_gb: 31
+      data_disk_sku: Premium_LRS
+      data_disk_mnt_path: /data
+
+datasource: MySQL    
+mysql_password: msqpwd
+WinbindServers: []
+
+priority: regular
+nfs_client_CIDR:
+  node_range:
+    - "192.168.0.0/16"
+  samba_range:
+    - "104.44.112.0/24"
+
+nfs_mnt_setup:
+  - server_suffix: toad
+    mnt_point:
+      firstshare:
+        curphysicalmountpoint: /mntdlws/nfs
+        filesharename: /data/share
+        mountpoints: ''
+
+WebUIregisterGroups:
+- MicrosoftUsers
+
+WebUIauthorizedGroups : []
+WebUIadminGroups : ["CCSAdmins"]
+WebUIregisterGroups: [ "MicrosoftUsers" ]
+
+DeployAuthentications : ["Corp"]
+
+webuiport: 80
+
+cloud_config:
+  default_admin_username: core
+  dev_network:
+    source_addresses_prefixes:
+    # These are the dev box of the cluster, only the machine in the IP address below will have access to the cluster.
+    - "{{cnf["devbox_ip"]}}/32"
+  nfs_share:
+    source_ips: 
+      - "104.44.112.0/24"
+      - "131.107.0.0/16"
+  nfs_ssh:
+    source_ips: 
+      - "104.44.112.0/24"
+      - "131.107.0.0/16"
+    port: "22"
+
+alert-manager:
+  configured: True
+  alert_users: False # True if we want to send out alert email to users, default False
+  smtp_url: "smtp.office365.com:587"
+  smtp_from: dlts-bot@microsoft.com
+  smtp_auth_username: dlts-bot@microsoft.com
+  smtp_auth_password: "L+-dD*+7PR5g3e%u"
+  receiver: DLTSDRI@microsoft.com
+
+  reaper:
+    dry-run: True # change to False if we want to kill idle job
+    restful-url: http://localhost:5000
+
+prometheus:
+  cluster_name: {{cnf["cluster_name"]}} # will be used in link to job detail page
+
+#workFolderAccessPoint: file://nfsnsgsamba.redmond.corp.microsoft.com/
+#dataFolderAccessPoint: file://nfsnsgsamba.redmond.corp.microsoft.com/data/
+registry_credential:
+  indexserveregistry.azurecr.io:
+    username: IndexserveRegistry
+    password: q++++/a8+/+Ar=K/+bHs+JId81yvSwSc
+  phillyregistry.azurecr.io:
+    username: de3067b5-cbca-4141-a5bf-7aac8ce52992
+    password: DKZgrbw28wCQnBEbBWj3c1mRxXt5G0WK5QK/9CDrUS0=
