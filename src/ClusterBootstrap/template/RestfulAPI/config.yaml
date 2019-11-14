@@ -59,4 +59,6 @@ default_cpulimit: {{cnf["default_cpulimit"]}}
 default_memoryrequest: {{cnf["default_memoryrequest"]}}
 default_memorylimit: {{cnf["default_memorylimit"]}}
 
+enable_blobfuse: {{cnf["enable_blobfuse"]}}
+
 local_fast_storage: {{cnf["local_fast_storage"]}}

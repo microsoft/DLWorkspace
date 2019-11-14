@@ -242,6 +242,9 @@ class Job:
     def get_local_fast_storage(self):
         return self._get_cluster_config("local_fast_storage")
 
+    def get_enable_blobfuse(self):
+        return self._get_cluster_config("enable_blobfuse")
+
     def _get_cluster_config(self, key):
         if key in self.cluster:
             return self.cluster[key]
@@ -299,6 +302,10 @@ class Job:
 
     def get_blobfuse_plugins(self, plugins):
         """Constructs and returns a list of blobfuse plugins."""
+
+        enable_blobfuse = self.get_enable_blobfuse()
+        if enable_blobfuse is None or enable_blobfuse is False:
+            return []
 
         def identical(e1, e2):
             return e1["name"] == e2["name"] or \
