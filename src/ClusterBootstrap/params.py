@@ -839,5 +839,6 @@ scriptblocks = {
 
     "infiniband_mounts": [],
     "custom_mounts": [],
-    "enable_cpuworker": False
+    "enable_cpuworker": False,
+    "enable_blobfuse": False
 }
