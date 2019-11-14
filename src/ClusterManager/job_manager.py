@@ -311,8 +311,12 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
         dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
         dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "finished")
 
-        if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
-            k8sUtils.kubectl_delete(jobDescriptionPath)
+        # Retain the old code for reference
+        # if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
+        #     k8sUtils.kubectl_delete(jobDescriptionPath)
+
+        job_deployer = JobDeployer()
+        job_deployer.delete_job(job["jobId"], force=True)
 
         if notifier is not None:
             notifier.notify(notify.new_job_state_change_message(
@@ -341,8 +345,12 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
         dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "failed")
         dataHandler.UpdateJobTextField(job["jobId"], "errorMsg", "pod failed")
 
-        if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
-            k8sUtils.kubectl_delete(jobDescriptionPath)
+        # Retain the old code for reference
+        # if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
+        #     k8sUtils.kubectl_delete(jobDescriptionPath)
+
+        job_deployer = JobDeployer()
+        job_deployer.delete_job(job["jobId"], force=True)
 
     elif result == "Unknown" or result == "NotFound":
         if job["jobId"] not in UnusualJobs:

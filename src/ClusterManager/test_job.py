@@ -3,6 +3,7 @@ import json
 import sys
 import os
 from job import Job, JobSchema
+from job import invalid_entry, dedup_add
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 from config import config
@@ -87,7 +88,7 @@ class TestJob(unittest.TestCase):
             "enabled": True,
             "containerPath": "/home/username",
             "hostPath": "/dlwsdata/work/username",
-            "name": "homefolder"
+            "name": "homefolder-test"
         }
         job.add_mountpoints(mountpoint1)
         self.assertEqual(1, len(job.mountpoints))
@@ -96,12 +97,12 @@ class TestJob(unittest.TestCase):
         job.add_mountpoints(mountpoint1)
         self.assertEqual(1, len(job.mountpoints))
 
-        # name would be normalized, only allow alphanumeric, so it would be a duplicate
+        # name would be normalized, only allow alphanumeric and "-", so it would be a duplicate
         mountpoint1a = {
             "enabled": True,
             "containerPath": "/home/path",
             "hostPath": "/dlwsdata/work/path",
-            "name": "homefolder-"
+            "name": "homefolder-t_est"
         }
         job.add_mountpoints(mountpoint1a)
         self.assertEqual(1, len(job.mountpoints))
@@ -153,8 +154,15 @@ class TestJob(unittest.TestCase):
 
     def test_get_template(self):
         job = self.create_a_job()
-
         self.assertIsNotNone(job.get_template())
+
+    def test_get_deployment_template(self):
+        job = self.create_a_job()
+        self.assertIsNotNone(job.get_deployment_template())
+
+    def test_get_blobfuse_secret_template(self):
+        job = self.create_a_job()
+        self.assertIsNotNone(job.get_blobfuse_secret_template())
 
     def test_is_custom_scheduler_enabled(self):
         job = self.create_a_job()
@@ -174,3 +182,104 @@ class TestJob(unittest.TestCase):
         job = self.create_a_job()
 
         self.assertEqual(None, job.get_rack())
+
+    def test_get_plugins(self):
+        self.maxDiff = None
+
+        job = self.create_a_job()
+
+        # Test when params is None
+        self.assertEqual({}, job.get_plugins())
+
+        # Test when params doesn't have plugins
+        job.params = {}
+        self.assertEqual({}, job.get_plugins())
+
+        # Test when plugins is None
+        job.params = {"plugins": None}
+        self.assertEqual({}, job.get_plugins())
+
+        # Test when plugins does not contain blobfuse.
+        # We only consider blobfuse now.
+        job.params = {"plugins": {"plugin1": [{"userName": "user"}]}}
+        self.assertEqual({}, job.get_plugins())
+
+        # Test when plugins have blobfuse but incomplete config
+        job.params = {
+            "plugins": {
+                "blobfuse": [
+                    {
+                        "accountName": "YWRtaW4=",
+                        "accountKey": "MWYyZDFlMmU2N2Rm"
+                    }
+                ]
+            }
+        }
+        self.assertEqual({"blobfuse": []}, job.get_plugins())
+
+        # Test when plugins contain valid blobfuse items
+        job.params = {
+            "plugins": {
+                "blobfuse": [
+                    {
+                        "accountName": "YWRtaW4=",
+                        "accountKey": "MWYyZDFlMmU2N2Rm",
+                        "containerName": "blobContainer0",
+                        "mountPath": "/mnt/blobfuse/data0"
+                    },
+                    {
+                        "accountName": "YWJj",
+                        "accountKey": "cGFzc3dvcmQ=",
+                        "containerName": "blobContainer1",
+                        "mountPath": "/mnt/blobfuse/data1"
+                    }
+                ]
+            }
+        }
+
+        expected_plugins = {
+            "blobfuse": [
+                {
+                    "accountName": "WVdSdGFXND0=",
+                    "accountKey": "TVdZeVpERmxNbVUyTjJSbQ==",
+                    "containerName": "blobContainer0",
+                    "mountPath": "/mnt/blobfuse/data0",
+                    "enabled": True,
+                    "name": u"ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-0",
+                    "secreds": u"ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-0-secreds",
+                    "jobId": u"ce7dca49-28df-450a-a03b-51b9c2ecc69c"
+                },
+                {
+                    "accountName":"WVdKag==",
+                    "accountKey":"Y0dGemMzZHZjbVE9",
+                    "containerName":"blobContainer1",
+                    "mountPath":"/mnt/blobfuse/data1",
+                    "enabled": True,
+                    "name": u"ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-1",
+                    "secreds": u"ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-1-secreds",
+                    "jobId": u"ce7dca49-28df-450a-a03b-51b9c2ecc69c"
+                }
+            ]
+        }
+        self.assertEqual(expected_plugins, job.get_plugins())
+
+
+class TestJobUtil(unittest.TestCase):
+    def test_invalid_entry(self):
+        self.assertTrue(invalid_entry(None))
+        self.assertTrue(invalid_entry(""))
+        self.assertTrue(invalid_entry("Null"))
+        self.assertTrue(invalid_entry("None"))
+        self.assertFalse(invalid_entry("platform"))
+
+    def test_dedup_add(self):
+        def identical(e1, e2):
+            return e1["name"] == e2["name"]
+
+        item = {"name": "item1"}
+        entries1 = [{"name": "item2"}, {"name": "item1"}]
+        self.assertEqual(entries1, dedup_add(item, entries1, identical))
+
+        entries2 = [{"name": "item2"}]
+        self.assertEqual(entries1, dedup_add(item, entries2, identical))
+
