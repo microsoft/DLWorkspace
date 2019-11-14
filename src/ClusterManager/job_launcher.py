@@ -26,31 +26,14 @@ from pod_template import PodTemplate
 from dist_pod_template import DistPodTemplate
 from config import config
 
-logger = logging.getLogger(__name__)
+from cluster_manager import record
 
-job_deployer_fn_histogram = Histogram("job_deployer_fn_latency_seconds",
-        "latency for executing job deployer (seconds)",
-        buckets=(.05, .075, .1, .25, .5, .75, 1.0, 2.5, 5.0,
-            7.5, 10.0, 12.5, 15.0, 17.5, 20.0, float("inf")),
-        labelnames=("fn_name",))
+logger = logging.getLogger(__name__)
 
 # The config will be loaded from default location.
 k8s_config.load_kube_config()
 k8s_CoreAPI = client.CoreV1Api()
 k8s_AppsAPI = client.AppsV1Api()
-
-
-def record(fn):
-    @functools.wraps(fn)
-    def wrapped(*args, **kwargs):
-        start = timeit.default_timer()
-        try:
-            return fn(*args, **kwargs)
-        finally:
-            elapsed = timeit.default_timer() - start
-            job_deployer_fn_histogram.labels(fn.__name__).observe(elapsed)
-    return wrapped
-
 
 class JobDeployer:
     def __init__(self):

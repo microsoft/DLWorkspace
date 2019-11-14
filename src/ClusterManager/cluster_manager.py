@@ -10,6 +10,8 @@ import argparse
 import threading
 import traceback
 import signal
+import timeit
+import functools
 
 from prometheus_client.twisted import MetricsResource
 from prometheus_client import Histogram
@@ -25,6 +27,22 @@ manager_iteration_histogram = Histogram("manager_iteration_latency_seconds",
         buckets=(2.5, 5.0, 10.0, 20.0, 40.0, 80.0, 160.0, float("inf")),
         labelnames=("name",))
 
+fn_histogram = Histogram("manager_fn_latency_seconds",
+        "latency for executing *manager's function (seconds)",
+        buckets=(1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0, 1024.0,
+            float("inf")),
+        labelnames=("file_name", "fn_name"))
+
+def record(fn):
+    @functools.wraps(fn)
+    def wrapped(*args, **kwargs):
+        start = timeit.default_timer()
+        try:
+            return fn(*args, **kwargs)
+        finally:
+            elapsed = timeit.default_timer() - start
+            fn_histogram.labels(os.path.basename(sys.argv[0]), fn.__name__).observe(elapsed)
+    return wrapped
 
 class HealthResource(Resource):
     def render_GET(self, request):
