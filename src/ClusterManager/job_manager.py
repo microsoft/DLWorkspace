@@ -397,11 +397,11 @@ def check_job_status(job_id):
 
     if "Failed" in statuses:
         job_status = "Failed"
-    if "Unknown" in statuses:
+    elif "Unknown" in statuses:
         job_status = "Unknown"
-    if "NotFound" in statuses:
+    elif "NotFound" in statuses:
         job_status = "NotFound"
-    if "Pending" in statuses:
+    elif "Pending" in statuses:
         job_status = "Pending"
 
     return job_status, details
