@@ -9,7 +9,6 @@ PartOf=kubecri.service
 {% endif %}
 
 [Service]
-# Environment="KUBELET_EXTRA_ARGS=--node-labels=role=worker"
 TimeoutSec=60min
 ExecStartPre=/bin/bash -c 'mkdir -p /etc/kubernetes/manifests'
 ExecStartPre=/bin/bash -c 'mkdir -p /var/log/containers'
@@ -32,7 +31,6 @@ ExecStart=/opt/bin/kubelet \
   --pod-manifest-path=/etc/kubernetes/manifests \
   --pod-infra-container-image={{cnf["dockers"]["container"]["podinfra"]["fullname"]}} \
   --network-plugin=cni \
-  --node-labels=role=worker \
   --cluster_dns={{cnf["dns-server-ip"]}} \
   --cluster_domain=cluster.local \
   --tls-cert-file=/etc/kubernetes/ssl/worker.pem \
@@ -44,5 +42,6 @@ ExecStart=/opt/bin/kubelet \
 #ExecStop=-/usr/bin/rkt stop --uuid-file=/var/run/kubelet-pod.uuid
 Restart=always
 RestartSec=10
+
 [Install]
 WantedBy=multi-user.target
