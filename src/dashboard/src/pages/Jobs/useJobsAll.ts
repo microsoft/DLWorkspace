@@ -11,7 +11,8 @@ const useJobsAll = (openKillWarn?: boolean,openApproveWan?: boolean): useJobsAll
     user:'all',
     limit:'100'
   });
-  const { data, error, get } = useFetch<Jobs>('/api');
+  const resp = useFetch<Jobs>('/api');
+  const { data, error, get } = resp;
 
   useEffect(() => {
     if (data == null) return;
@@ -22,12 +23,18 @@ const useJobsAll = (openKillWarn?: boolean,openApproveWan?: boolean): useJobsAll
     }, 3000);
     return () => {
       clearTimeout(timeout);
+      setJobsAll([])
+      resp.abort()
     }
   }, [data]);
 
   useEffect(() => {
     setJobsAll(undefined);
     get(`/teams/${selectedTeam}/jobs?${params}`);
+    return () => {
+      setJobsAll([])
+      resp.abort()
+    }
   }, [selectedTeam]);
 
 
