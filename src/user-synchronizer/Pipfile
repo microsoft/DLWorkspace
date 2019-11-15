@@ -1,0 +1,19 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[packages]
+dataset = "*"
+oauthlib = "*"
+requests = "*"
+requests-oauthlib = "*"
+
+[dev-packages]
+flake8 = "*"
+
+[requires]
+python_version = "3.5"
+
+[scripts]
+start = "python ."
