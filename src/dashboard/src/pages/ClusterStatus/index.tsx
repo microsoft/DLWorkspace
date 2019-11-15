@@ -53,7 +53,11 @@ const ClusterStatus: FC = () => {
   const requestGrafana = useFetch(fetchiGrafanaUrl, options);
   const fetchVC = async (cluster: string) => {
     const response = await request.get(`/teams/${selectedTeam}/clusters/${cluster}`);
-    const {grafana, prometheus} = await requestGrafana.get(`/${cluster}`);
+    const responseUrls = await requestGrafana.get(`/${cluster}`);
+    if (!response || !responseUrls) {
+      return;
+    }
+    const {grafana, prometheus} = responseUrls;
     const idleGPUUrl = prometheus.replace("9091","9092");
     const getIdleGPUPerUser = `${prometheus}/prometheus/api/v1/query?`;
 
@@ -84,8 +88,13 @@ const ClusterStatus: FC = () => {
       }
       let fetchs: any = [];
       filterclusters.forEach((cluster) => {
-        fetchs.push(fetchVC(cluster));
+        if (fetchVC(cluster)) {
+          fetchs.push(fetchVC(cluster));
+        }
       })
+      if (fetchs.some((fc: any)=> typeof fc === 'undefined' || !fc)) {
+        return;
+      }
       Promise.all(fetchs).then((res: any) => {
         //init user status & node status when loading page
         console.log(res)
@@ -219,6 +228,10 @@ const ClusterStatus: FC = () => {
     }
 
     return () => {
+      setVcStatus([])
+      setUserStatus([])
+      request.abort();
+      requestGrafana.abort();
       mount = false;
       clearTimeout(timeout)
     }
