@@ -2,9 +2,10 @@ import os
 import sys
 import argparse
 import logging
-import time
 
-from datetime import datetime
+from datetime import datetime, timedelta
+
+DATETIME_FMT = "%Y/%m/%d %H:%M:%S"
 
 
 class PathNode(object):
@@ -31,7 +32,7 @@ class PathNode(object):
                 self.path,
                 self.size,
                 self.subtree_size,
-                self.atime.strftime("%Y/%m/%d %H:%M:%S"))
+                self.atime.strftime(DATETIME_FMT))
 
 
 def create_node(node_path):
@@ -108,26 +109,46 @@ def find_overweight_nodes(root, threshold):
     if root.subtree_size <= threshold:
         return []
 
-    overweight_children = []
+    overweight_nodes = []
 
     if root.subtree_size > threshold:
-        overweight_children.append(root)
+        overweight_nodes.append(root)
 
     for child in root.children:
-        overweight_children += find_overweight_nodes(child, threshold)
+        overweight_nodes += find_overweight_nodes(child, threshold)
 
-    return overweight_children
+    return overweight_nodes
+
+
+def find_expired_nodes(root, expiry):
+    if root is None:
+        return []
+
+    expired_nodes = []
+
+    if root.atime < expiry:
+        expired_nodes.append(root)
+
+    for child in root.children:
+        expired_nodes += find_expired_nodes(child, expiry)
+
+    return expired_nodes
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--path", default=".", type=str)
     parser.add_argument("--threshold", default=4096, type=int,
-                        help="Path with size greater than the threshold is considered overweight")
+                        help="Path with size greater than the threshold is "
+                             "considered overweight")
+    parser.add_argument("--expiry", default=31, type=int,
+                        help="Expiry is the number of days before a path is "
+                             "considered expired")
 
     args, _ = parser.parse_known_args()
     path = args.path
     threshold = args.threshold
+    expiry = datetime.now() - timedelta(days=args.expiry)
 
     logging.info("Creating tree rooted at %s starts." % path)
     root = create_tree(path)
@@ -140,6 +161,12 @@ def main():
     logging.info("Overweight (> %d) paths are:" % threshold)
     for node in overweight_nodes:
         logging.info("%16d  %s" % (node.subtree_size, node.path))
+
+    expired_nodes = find_expired_nodes(root, expiry)
+    logging.info("Expired (access time < %s) paths are:" %
+                 expiry.strftime(DATETIME_FMT))
+    for node in expired_nodes:
+        logging.info("%s  %s" % (node.atime.strftime(DATETIME_FMT), node.path))
 
 
 if __name__ == "__main__":

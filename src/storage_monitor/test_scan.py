@@ -4,7 +4,7 @@ Tests for methods in scan.py
 import shutil
 import platform
 
-from scan import *
+from .scan import *
 from unittest import TestCase
 
 
@@ -38,13 +38,13 @@ class TestScan(TestCase):
         self.file1_len = 10240
 
         with open(self.file2_1, "wb") as f:
-            f.write("a" * self.file2_1_len)
+            f.write(b"a" * self.file2_1_len)
 
         with open(self.file2_2, "wb") as f:
-            f.write("a" * self.file2_2_len)
+            f.write(b"a" * self.file2_2_len)
 
         with open(self.file1, "wb") as f:
-            f.write("a" * self.file1_len)
+            f.write(b"a" * self.file1_len)
 
     def tearDown(self):
         try:
@@ -136,5 +136,17 @@ class TestScan(TestCase):
     def test_find_overweight_nodes(self):
         test_dir = create_tree(self.test_dir)
         overweight_nodes = find_overweight_nodes(test_dir, 10000)
+        self.assertEqual(2, len(overweight_nodes))
         self.assertIn(test_dir, overweight_nodes)
         self.assertIn(test_dir.children[2], overweight_nodes)
+
+    def test_find_expired_nodes(self):
+        test_dir = create_tree(self.test_dir)
+        expiry = datetime.now() - timedelta(days=1)
+
+        file2_1 = test_dir.children[1].children[0]
+        file2_1.atime = expiry - timedelta(days=1)
+
+        expired_nodes = find_expired_nodes(test_dir, expiry)
+        self.assertEqual(1, len(expired_nodes))
+        self.assertIn(file2_1, expired_nodes)
