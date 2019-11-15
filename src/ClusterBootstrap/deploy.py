@@ -1321,12 +1321,13 @@ def render_kubelet_service_by_node_type(nodetype, nodetype4service={}):
         config.pop(ky)
     
 def render_mount_script():
-    fileshare_install('scripts/fileshare_install.sh')
-    allmountpoints = mount_fileshares_by_service(True, 'scripts/mnt_fs_svc.sh')
-    link_fileshares(allmountpoints, False, 'scripts/lnk_fs.sh')
+    os.system('rm -f deploy/cloud-config/fileshare_install.sh')
+    os.system('rm -f deploy/cloud-config/mnt_fs_svc.sh')
+    fileshare_install('deploy/cloud-config/fileshare_install.sh')
+    allmountpoints = mount_fileshares_by_service(True, 'deploy/cloud-config/mnt_fs_svc.sh')
 
 def render_and_pack_worker_cloud_init_files():
-    role = 'worker'
+    role = 'worker_node'
     os.system('rm -rf worker_cld_init; mkdir -p worker_cld_init')
     utils.render_template_directory("./template/kubelet", "./deploy/kubelet", config)
     utils.render_template("template/cloud-config/cloud_init_worker.txt.template", "./scripts/cloud_init_worker.txt", config)
@@ -1355,7 +1356,7 @@ def render_and_pack_worker_cloud_init_files():
     files2cp = [ "./deploy/kubelet/%s" % config["preworkerdeploymentscript"], "./deploy/kubelet/%s" % config["postworkerdeploymentscript"], 
                 "./scripts/cloud_init_worker.sh", "./scripts/mkdir_and_cp.sh", "./scripts/prepare_vm_disk.sh", "./scripts/prepare_ubuntu.sh", 
                 "./scripts/disable_kernel_auto_updates.sh", "./scripts/docker_network_gc_setup.sh", "./scripts/dns.sh", 
-                "scripts/fileshare_install.sh", "scripts/mnt_fs_svc.sh", "scripts/lnk_fs.sh"]
+                "deploy/cloud-config/fileshare_install.sh", "deploy/cloud-config/mnt_fs_svc.sh", "scripts/lnk_fs.sh"]
     for fn in files2cp:
         os.system('cp {} worker_cld_init/{}'.format(fn, os.path.basename(fn)))
 
@@ -1961,10 +1962,8 @@ def mount_fileshares_by_service(perform_mount=True, mount_command_file=''):
             if len(remotecmd)>0:                
                 if mount_command_file == '':
                     utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
-                else:
-                    with open(mount_command_file, 'w') as wf:
-                        wf.write(remotecmd)
-            remotecmd = ""
+                    remotecmd = ""
+            # copy the files & binaries to remote nodes
             utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.timer","/etc/systemd/system/auto_share.timer", config["admin_username"], node )
             utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.target","/etc/systemd/system/auto_share.target", config["admin_username"], node )
             utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.service","/etc/systemd/system/auto_share.service", config["admin_username"], node )
