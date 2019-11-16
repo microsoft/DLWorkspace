@@ -144,9 +144,27 @@ class TestScan(TestCase):
         test_dir = create_tree(self.test_dir)
         expiry = datetime.now() - timedelta(days=1)
 
+        file1 = test_dir.children[2]
+        file1.atime = file1.subtree_atime = expiry - timedelta(days=2)
+
+        dir2 = test_dir.children[1]
+        dir2.atime = dir2.subtree_atime = expiry - timedelta(days=2)
+
         file2_1 = test_dir.children[1].children[0]
-        file2_1.atime = expiry - timedelta(days=1)
+        file2_1.atime = file2_1.subtree_atime = expiry - timedelta(days=1)
+
+        file2_2 = test_dir.children[1].children[1]
+        file2_2.atime = file2_2.subtree_atime = expiry - timedelta(days=3)
 
         expired_nodes = find_expired_nodes(test_dir, expiry)
-        self.assertEqual(1, len(expired_nodes))
+
+        self.assertEqual(4, len(expired_nodes))
+        self.assertIn(file1, expired_nodes)
+        self.assertEqual(file1.subtree_atime, expiry - timedelta(days=2))
+        self.assertIn(dir2, expired_nodes)
+        self.assertEqual(dir2.subtree_atime, expiry - timedelta(days=1))
         self.assertIn(file2_1, expired_nodes)
+        self.assertEqual(file2_1.subtree_atime, expiry - timedelta(days=1))
+        self.assertIn(file2_2, expired_nodes)
+        self.assertEqual(file2_2.subtree_atime, expiry - timedelta(days=3))
+

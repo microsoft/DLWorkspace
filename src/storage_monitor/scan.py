@@ -6,6 +6,9 @@ import logging
 from datetime import datetime, timedelta
 
 DATETIME_FMT = "%Y/%m/%d %H:%M:%S"
+K = 1.0 * 2 ** 3
+M = 1.0 * 2 ** 6
+G = 1.0 * 2 ** 9
 
 
 class PathNode(object):
@@ -20,6 +23,7 @@ class PathNode(object):
         self.size = size
         self.subtree_size = size
         self.atime = atime
+        self.subtree_atime = atime
         self.children = []
         if isinstance(children, list):
             self.children = children
@@ -27,12 +31,13 @@ class PathNode(object):
 
     def __str__(self):
         path_type = "Directory" if self.isdir else "File"
-        return "%s %s: size %d, subtree_size %d, atime %s" % \
+        return "%s %s: size %d, subtree_size %d, atime %s, subtree_atime %s" % \
                (path_type,
                 self.path,
                 self.size,
                 self.subtree_size,
-                self.atime.strftime(DATETIME_FMT))
+                self.atime.strftime(DATETIME_FMT),
+                self.subtree_atime.strftime(DATETIME_FMT))
 
 
 def create_node(node_path):
@@ -54,7 +59,7 @@ def create_tree(root):
     try:
         pathnames = os.listdir(root)
     except Exception as e:
-        logging.warn("Ignore path %s due to exception %s" % (root, e))
+        logging.warning("Ignore path %s due to exception %s" % (root, e))
         return None
 
     root_node = create_node(root)
@@ -76,6 +81,8 @@ def create_tree(root):
         if child_dir_node is not None:
             root_node.children.append(child_dir_node)
             root_node.subtree_size += child_dir_node.subtree_size
+            if child_dir_node.subtree_atime > root_node.subtree_atime:
+                root_node.subtree_atime = child_dir_node.subtree_atime
             root_node.num_subtree_nodes += child_dir_node.num_subtree_nodes
 
     for pathname in nondirs:
@@ -83,6 +90,8 @@ def create_tree(root):
         path_node = create_node(child_file)
         root_node.children.append(path_node)
         root_node.subtree_size += path_node.subtree_size
+        if path_node.subtree_atime > root_node.subtree_atime:
+            root_node.subtree_atime = path_node.subtree_atime
         root_node.num_subtree_nodes += path_node.num_subtree_nodes
 
     return root_node
@@ -126,7 +135,7 @@ def find_expired_nodes(root, expiry):
 
     expired_nodes = []
 
-    if root.atime < expiry:
+    if root.subtree_atime < expiry:
         expired_nodes.append(root)
 
     for child in root.children:
@@ -139,8 +148,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--path", default=".", type=str)
     parser.add_argument("--threshold", default=4096, type=int,
-                        help="Path with size greater than the threshold is "
-                             "considered overweight")
+                        help="Path with size greater than the threshold "
+                             "(in bytes) is considered overweight")
     parser.add_argument("--expiry", default=31, type=int,
                         help="Expiry is the number of days before a path is "
                              "considered expired")
@@ -160,13 +169,16 @@ def main():
     overweight_nodes = find_overweight_nodes(root, threshold)
     logging.info("Overweight (> %d) paths are:" % threshold)
     for node in overweight_nodes:
-        logging.info("%16d  %s" % (node.subtree_size, node.path))
+        logging.info("%16.2dG  %s" % (node.subtree_size / G, node.path))
 
     expired_nodes = find_expired_nodes(root, expiry)
     logging.info("Expired (access time < %s) paths are:" %
                  expiry.strftime(DATETIME_FMT))
     for node in expired_nodes:
-        logging.info("%s  %s" % (node.atime.strftime(DATETIME_FMT), node.path))
+        logging.info("%s %16.2dG %s" %
+                     (node.subtree_atime.strftime(DATETIME_FMT),
+                      node.subtree_size / G,
+                      node.path))
 
 
 if __name__ == "__main__":
