@@ -6,9 +6,9 @@ import logging
 from datetime import datetime, timedelta
 
 DATETIME_FMT = "%Y/%m/%d %H:%M:%S"
-K = 1.0 * 2 ** 3
-M = 1.0 * 2 ** 6
-G = 1.0 * 2 ** 9
+K = 1.0 * 2 ** 10
+M = 1.0 * 2 ** 20
+G = 1.0 * 2 ** 30
 
 
 class PathNode(object):

@@ -3,9 +3,11 @@ Tests for methods in scan.py
 """
 import shutil
 import platform
+import time
 
 from .scan import *
 from unittest import TestCase
+from unittest.mock import patch
 
 
 SYSTEM = platform.system()
@@ -13,14 +15,51 @@ WINDOWS = "Windows"
 LINUX = "Linux"
 
 EMPTY_DIR_SIZE = 4096 if SYSTEM is LINUX else 0
+DAY = 86400
+
+TEST_DIR = "test_dir"
+DIR1 = os.path.join(TEST_DIR, "dir1")
+DIR2 = os.path.join(TEST_DIR, "dir2")
+FILE2_1 = os.path.join(DIR2, "file2_1")
+FILE2_2 = os.path.join(DIR2, "file2_2")
+FILE1 = os.path.join(TEST_DIR, "file1")
+
+
+class DummyNodeStat:
+    def __init__(self):
+        self.st_size = 0
+        self.st_atime = time.time()
+
+
+def stat_side_effect(value):
+    node = DummyNodeStat()
+
+    if value == TEST_DIR:
+        node.st_size = EMPTY_DIR_SIZE
+    elif value == DIR1:
+        node.st_size = EMPTY_DIR_SIZE
+    elif value == DIR2:
+        node.st_size = EMPTY_DIR_SIZE
+        node.st_atime -= 3 * DAY
+    elif value == FILE2_1:
+        node.st_size = 8100
+        node.st_atime -= 2 * DAY
+    elif value == FILE2_2:
+        node.st_size = 500
+        node.st_atime -= 4 * DAY
+    elif value == FILE1:
+        node.st_size = 10240
+        node.st_atime -= 3 * DAY
+
+    return node
 
 
 class TestScan(TestCase):
 
     def setUp(self):
-        self.test_dir = "test_dir"
-        self.dir1 = os.path.join(self.test_dir, "dir1")
-        self.dir2 = os.path.join(self.test_dir, "dir2")
+        self.test_dir = TEST_DIR
+        self.dir1 = DIR1
+        self.dir2 = DIR2
 
         if os.path.exists(self.test_dir):
             self.tearDown()
@@ -29,9 +68,9 @@ class TestScan(TestCase):
         os.mkdir(self.dir1)
         os.mkdir(self.dir2)
 
-        self.file2_1 = os.path.join(self.dir2, "file2_1")
-        self.file2_2 = os.path.join(self.dir2, "file2_2")
-        self.file1 = os.path.join(self.test_dir, "file1")
+        self.file2_1 = FILE2_1
+        self.file2_2 = FILE2_2
+        self.file1 = FILE1
 
         self.file2_1_len = 8100
         self.file2_2_len = 500
@@ -140,31 +179,24 @@ class TestScan(TestCase):
         self.assertIn(test_dir, overweight_nodes)
         self.assertIn(test_dir.children[2], overweight_nodes)
 
-    def test_find_expired_nodes(self):
+    @patch("os.stat")
+    def test_find_expired_nodes(self, mock_stat):
+        mock_stat.side_effect = stat_side_effect
+
         test_dir = create_tree(self.test_dir)
+
         expiry = datetime.now() - timedelta(days=1)
 
         file1 = test_dir.children[2]
-        file1.atime = file1.subtree_atime = expiry - timedelta(days=2)
-
         dir2 = test_dir.children[1]
-        dir2.atime = dir2.subtree_atime = expiry - timedelta(days=2)
-
         file2_1 = test_dir.children[1].children[0]
-        file2_1.atime = file2_1.subtree_atime = expiry - timedelta(days=1)
-
         file2_2 = test_dir.children[1].children[1]
-        file2_2.atime = file2_2.subtree_atime = expiry - timedelta(days=3)
 
         expired_nodes = find_expired_nodes(test_dir, expiry)
 
         self.assertEqual(4, len(expired_nodes))
         self.assertIn(file1, expired_nodes)
-        self.assertEqual(file1.subtree_atime, expiry - timedelta(days=2))
         self.assertIn(dir2, expired_nodes)
-        self.assertEqual(dir2.subtree_atime, expiry - timedelta(days=1))
         self.assertIn(file2_1, expired_nodes)
-        self.assertEqual(file2_1.subtree_atime, expiry - timedelta(days=1))
         self.assertIn(file2_2, expired_nodes)
-        self.assertEqual(file2_2.subtree_atime, expiry - timedelta(days=3))
 
