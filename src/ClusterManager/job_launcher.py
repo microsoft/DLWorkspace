@@ -26,31 +26,14 @@ from pod_template import PodTemplate
 from dist_pod_template import DistPodTemplate
 from config import config
 
-log = logging.getLogger(__name__)
+from cluster_manager import record
 
-job_deployer_fn_histogram = Histogram("job_deployer_fn_latency_seconds",
-        "latency for executing job deployer (seconds)",
-        buckets=(.05, .075, .1, .25, .5, .75, 1.0, 2.5, 5.0,
-            7.5, 10.0, 12.5, 15.0, 17.5, 20.0, float("inf")),
-        labelnames=("fn_name",))
+logger = logging.getLogger(__name__)
 
 # The config will be loaded from default location.
 k8s_config.load_kube_config()
 k8s_CoreAPI = client.CoreV1Api()
 k8s_AppsAPI = client.AppsV1Api()
-
-
-def record(fn):
-    @functools.wraps(fn)
-    def wrapped(*args, **kwargs):
-        start = timeit.default_timer()
-        try:
-            return fn(*args, **kwargs)
-        finally:
-            elapsed = timeit.default_timer() - start
-            job_deployer_fn_histogram.labels(fn.__name__).observe(elapsed)
-    return wrapped
-
 
 class JobDeployer:
     def __init__(self):
@@ -80,7 +63,6 @@ class JobDeployer:
             grace_period_seconds=grace_period_seconds,
         )
         return api_response
-
 
     @record
     def _create_deployment(self, body):
@@ -120,6 +102,28 @@ class JobDeployer:
             namespace=self.namespace,
             pretty=self.pretty,
             body=client.V1DeleteOptions(),
+        )
+        return api_response
+
+    @record
+    def _create_secret(self, body):
+        api_response = self.k8s_CoreAPI.create_namespaced_secret(
+            namespace=self.namespace,
+            body=body,
+            pretty=self.pretty,
+        )
+        return api_response
+
+    @record
+    def _delete_secret(self, name, grace_period_seconds=None):
+        body = client.V1DeleteOptions()
+        body.grace_period_seconds = grace_period_seconds
+        api_response = self.k8s_CoreAPI.delete_namespaced_secret(
+            name=name,
+            namespace=self.namespace,
+            pretty=self.pretty,
+            body=body,
+            grace_period_seconds=grace_period_seconds
         )
         return api_response
 
@@ -168,6 +172,21 @@ class JobDeployer:
         return errors
 
     @record
+    def _cleanup_secrets(self, secret_names, force=False):
+        errors = []
+        grace_period_seconds = 0 if force else None
+        for secret_name in secret_names:
+            try:
+                self._delete_secret(secret_name, grace_period_seconds)
+            except Exception as e:
+                if isinstance(e, ApiException) and 404 == e.status:
+                    return []
+                message = "Deleting secret failed: {}".format(secret_name)
+                logging.warning(message, exc_info=True)
+                errors.append({"message": message, "exception": e})
+        return errors
+
+    @record
     def create_pods(self, pods):
         # TODO instead of delete, we could check update existiong ones. During refactoring, keeping the old way.
         pod_names = [pod["metadata"]["name"] for pod in pods if pod["kind"] == "Pod"]
@@ -182,6 +201,20 @@ class JobDeployer:
                 created_pod = self._create_deployment(pod)
             created.append(created_pod)
             logging.info("Create pod succeed: %s" % created_pod.metadata.name)
+        return created
+
+    @record
+    def create_secrets(self, secrets):
+        # Clean up secrets first
+        secret_names = [secret["metadata"]["name"] for secret in secrets if secret["kind"] == "Secret"]
+        logging.info("Trying to delete secrets %s" % secret_names)
+        self._cleanup_secrets(secret_names)
+
+        created = []
+        for secret in secrets:
+            created_secret = self._create_secret(secret)
+            created.append(created_secret)
+            logging.info("Creating secret succeeded: %s" % created_secret.metadata.name)
         return created
 
     @record
@@ -216,6 +249,17 @@ class JobDeployer:
         return api_response.items
 
     @record
+    def get_secrets(self, field_selector="", label_selector=""):
+        api_response = self.k8s_CoreAPI.list_namespaced_secret(
+            namespace=self.namespace,
+            pretty=self.pretty,
+            field_selector=field_selector,
+            label_selector=label_selector,
+        )
+        logging.debug("Get secrets: {}".format(api_response))
+        return api_response.items
+
+    @record
     def delete_job(self, job_id, force=False):
         label_selector = "run={}".format(job_id)
 
@@ -234,7 +278,13 @@ class JobDeployer:
 
         logging.info("deleting deployments %s" % ",".join(deployment_names))
 
-        errors = pod_errors + service_errors + deployment_errors
+        # query and delete secrets
+        secrets = self.get_secrets(label_selector=label_selector)
+        secret_names = [secret.metadata.name for secret in secrets]
+        secret_errors = self._cleanup_secrets(secret_names, force)
+        logging.info("deleting secrets %s" % ",".join(secret_names))
+
+        errors = pod_errors + service_errors + deployment_errors + secret_errors
         return errors
 
     @record
@@ -342,7 +392,7 @@ class JobRole(object):
             if container.name == self.pod_name and container.readiness_probe is not None:
                 for status in self.pod.status.container_statuses:
                     if status.name == self.pod_name:
-                        log.info("pod %s have readiness_probe result", self.pod_name)
+                        logger.info("pod %s have readiness_probe result", self.pod_name)
                         return status.ready
         # no readiness_probe defined, fallback to old way
         return self._is_file_exist(JobRole.MARK_ROLE_READY_FILE)
@@ -474,12 +524,19 @@ class PythonLauncher(Launcher):
             job_object.params["user"] = job_object.get_alias()
 
             enable_custom_scheduler = job_object.is_custom_scheduler_enabled()
+            secret_template = job_object.get_blobfuse_secret_template()
             if job_object.params["jobtrainingtype"] == "RegularJob":
-                pod_template = PodTemplate(job_object.get_template(), enable_custom_scheduler=enable_custom_scheduler)
+                pod_template = PodTemplate(job_object.get_template(),
+                                           enable_custom_scheduler=enable_custom_scheduler,
+                                           secret_template=secret_template)
             elif job_object.params["jobtrainingtype"] == "PSDistJob":
-                pod_template = DistPodTemplate(job_object.get_template())
+                pod_template = DistPodTemplate(job_object.get_template(),
+                                               secret_template=secret_template)
             elif job_object.params["jobtrainingtype"] == "InferenceJob":
-                pod_template = PodTemplate(job_object.get_template(),deployment_template=job_object.get_deployment_template(), enable_custom_scheduler=False)
+                pod_template = PodTemplate(job_object.get_template(),
+                                           deployment_template=job_object.get_deployment_template(),
+                                           enable_custom_scheduler=False,
+                                           secret_template=secret_template)
             else:
                 dataHandler.SetJobError(job_object.job_id, "ERROR: invalid jobtrainingtype: %s" % job_object.params["jobtrainingtype"])
                 dataHandler.Close()
@@ -499,10 +556,14 @@ class PythonLauncher(Launcher):
             with open(local_jobDescriptionPath, 'w') as f:
                 f.write(job_description)
 
+            secrets = pod_template.generate_secrets(job_object)
+
             job_deployer = JobDeployer()
             try:
+                secrets = job_deployer.create_secrets(secrets)
+                ret["output"] = "Created secrets: {}. ".format([secret.metadata.name for secret in secrets])
                 pods = job_deployer.create_pods(pods)
-                ret["output"] = "Created pods: {}".format([pod.metadata.name for pod in pods])
+                ret["output"] += "Created pods: {}".format([pod.metadata.name for pod in pods])
             except Exception as e:
                 ret["output"] = "Error: %s" % e.message
                 logging.error(e, exc_info=True)
@@ -534,6 +595,14 @@ class PythonLauncher(Launcher):
                 detail = get_job_status_detail(job)
                 detail = job_status_detail_with_finished_time(detail, "error", "Server error in job submission")
                 dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
+
+                # Try to clean up the job
+                try:
+                    job_deployer = JobDeployer()
+                    job_deployer.delete_job(job_id, force=True)
+                    logging.info("Cleaning up job %s succeeded after %d retries of job submission" % (job["jobId"], retries))
+                except:
+                    logging.warning("Cleaning up job %s failed after %d retries of job submission" % (job["jobId"], retries))
 
         dataHandler.Close()
         return ret

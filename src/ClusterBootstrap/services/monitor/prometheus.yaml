@@ -37,6 +37,9 @@ data:
           replacement: ${1}:${2}
           action: replace
           target_label: __address__
+        - source_labels: [__meta_kubernetes_pod_container_port_name]
+          regex: 'prom-ign-.*'
+          action: drop
         - source_labels: [__meta_kubernetes_pod_name]
           action: replace
           target_label: scraped_from
