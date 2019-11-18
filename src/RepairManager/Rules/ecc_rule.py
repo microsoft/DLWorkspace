@@ -9,7 +9,7 @@ import util
 import logging
 
 def get_node_address_info():
-    config.load_kube_config()
+    config.load_kube_config(config_file='/etc/kubernetes/restapi-kubeconfig.yaml')
     api_instance = client.CoreV1Api()
 
     service_account_list = api_instance.list_node()

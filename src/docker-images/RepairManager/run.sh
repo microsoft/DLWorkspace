@@ -1,3 +1,4 @@
 #!/bin/bash
 
-sleep infinity
+cd /DLWorkspace/src/RepairManager/
+python3 main.py
