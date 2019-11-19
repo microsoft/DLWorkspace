@@ -227,6 +227,7 @@ default_config_parameters = {
         "webportal": "etcd_node_1",
         "restfulapi": "etcd_node_1",
         "jobmanager": "etcd_node_1",
+        "repairmanager": "etcd_node_1",
         "FragmentGPUJob": "all",
         "grafana": "etcd_node_1",
         "prometheus": "etcd_node_1",

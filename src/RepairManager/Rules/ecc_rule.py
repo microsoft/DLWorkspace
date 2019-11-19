@@ -63,7 +63,7 @@ class ECCRule(Rule):
                        
             address_map = get_node_address_info()
 
-            ecc_url = config['prometheus_url'] + config['rules']['ecc_rule']['ecc_error_url']
+            ecc_url = os.environ['PROMETHEUS_HOST'] + config['rules']['ecc_rule']['ecc_error_url']
             ecc_metrics = get_ECC_error_data(ecc_url)
     
             if (ecc_metrics):
