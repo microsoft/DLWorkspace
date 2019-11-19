@@ -52,7 +52,8 @@ def extract_job_log(jobId,logPath,userId):
     try:
         dataHandler = DataHandler()
 
-        logs = k8sUtils.GetLog(jobId, tail=3000)
+        # TODO: Replace joblog manager with elastic search
+        logs = k8sUtils.GetLog(jobId, tail=None)
 
         # Do not overwrite existing logs with empty log
         # DLTS bootstrap will generate logs for all containers.
