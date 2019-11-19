@@ -32,7 +32,7 @@ spec:
         env:
           # Use secret in real usage
         - name: MYSQL_ROOT_PASSWORD
-          value: {{cnf["mysql_password"]}}
+          value: "{{cnf["mysql_password"]}}"
         ports:
         - containerPort: {{cnf["mysql_port"]}}
           name: mysql
