@@ -621,12 +621,13 @@ def get_nodes_by_roles(roles):
     """
     Nodes = []
     for role in roles:
-        Nodes += get_nodes_from_config(role)
+        tmp_nodes = get_nodes_from_config(role)
         if role == "infrastructure" or role == "infra":
-            config["etcd_node"] = Nodes
-            config["kubernetes_master_node"] = Nodes
+            config["etcd_node"] = tmp_nodes
+            config["kubernetes_master_node"] = tmp_nodes
         else:
-            config["{}_node".format(role)] = Nodes
+            config["{}_node".format(role)] = tmp_nodes
+        Nodes += tmp_nodes
     return Nodes
 
 def get_worker_nodes(clusterId, isScaledOnly):
