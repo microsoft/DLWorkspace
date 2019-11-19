@@ -30,7 +30,7 @@ function setup_sshd {
     if [ "$DLWS_HOST_NETWORK" = "enable" ];
     then
         SSH_PORT=$(( $RANDOM % 10000 + 40000 ))
-        sed -i "s/^Port 22/Port ${SSH_PORT}/" /etc/ssh/sshd_config || exit 1
+        sed -i -E "s/^#?Port 22/Port ${SSH_PORT}/" /etc/ssh/sshd_config || exit 1
     else
         SSH_PORT=22
     fi
