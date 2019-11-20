@@ -1,5 +1,6 @@
 import logging
 import time
+import os
 
 from path_tree import PathTree
 from path_node import DATETIME_FMT, G, DAY
@@ -53,12 +54,22 @@ class StorageManager(object):
             if "path" not in scan_point:
                 self.logger.warning("path does not exist in %s. continue." %
                                     scan_point)
+                continue
+
             if "overweight_threshold" not in scan_point:
                 self.logger.warning("overweight_threshold does not exist in "
                                     "%s. continue" % scan_point)
+                continue
+
             if "expiry_days" not in scan_point:
                 self.logger.warning("expiry_days does not exist in %s. "
                                     "continue." % scan_point)
+                continue
+
+            if os.path.exists(scan_point["path"]):
+                self.logger.warning("%s does not exist in file system. "
+                                    "continue." % scan_point)
+                continue
 
             scan_point["now"] = self.last_now
 

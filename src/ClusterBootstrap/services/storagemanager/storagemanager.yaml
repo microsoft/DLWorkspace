@@ -30,46 +30,29 @@ spec:
         - mountPath: /StorageManager
           name: storagemanager-config
         - mountPath: /var/log/storagemanager
-          name: log
-        ports:
-        - containerPort: 5000
-          hostPort: 5000
-          name: main
-        {% if False %}
-        {% for volume in cnf["mountpoints"] %}
-        {% if cnf["mountpoints"][volume]["mountpoints"] is string and cnf["mountpoints"][volume]["mountpoints"]!="" %}
-        - mountPath: {{cnf["storage-mount-path"]}}/{{cnf["mountpoints"][volume]["mountpoints"]}}
-          name: {{cnf["mountpoints"][volume]["mountpoints"]}}
-        {% else %}
-        {% for mp in cnf["mountpoints"][volume]["mountpoints"] %}
-        - mountPath: {{cnf["storage-mount-path"]}}/{{mp}}
-          name: {{mp}}
-        {% endfor %}
-        {% endif %}
-        {% endfor %}
-        {% endif %}
+          name: storagemanager-log
+        - mountPath: {{cnf["storage-mount-path"]}}/work
+          name: dlwsdatawork
+        - mountPath: {{cnf["storage-mount-path"]}}/storage
+          name: dlwsdatadata
+        - mountPath: {{cnf["dltsdata-storage-mount-path"]}}
+          name: dltsdata
       volumes:
       - name: storagemanager-config
         hostPath:
           path: /etc/StorageManager
-      - name: log
+      - name: storagemanager-log
         hostPath:
           path: /var/log/storagemanager
-      {% if False %}
-      {% for volume in cnf["mountpoints"] %}
-      {% if cnf["mountpoints"][volume]["mountpoints"] is string and cnf["mountpoints"][volume]["mountpoints"]!="" %}
-      - name: {{cnf["mountpoints"][volume]["mountpoints"]}}
+      - name: dlwsdatawork
         hostPath:
-          path: {{cnf["storage-mount-path"]}}/{{cnf["mountpoints"][volume]["mountpoints"]}}
-      {% else %}
-      {% for mp in cnf["mountpoints"][volume]["mountpoints"] %}
-      - name: {{mp}}
+          path: {{cnf["storage-mount-path"]}}/work
+      - name: dlwsdatadata
         hostPath:
-          path: {{cnf["storage-mount-path"]}}/{{mp}}
-      {% endfor %}
-      {% endif %}
-      {% endfor %}
-      {% endif %}
+          path: {{cnf["storage-mount-path"]}}/storage
+      - name: dltsdaat
+        hostPath:
+          path: {{cnf["dltsdata-storage-mount-path"]}}
       tolerations:
       - key: CriticalAddonsOnly
         operator: Exists

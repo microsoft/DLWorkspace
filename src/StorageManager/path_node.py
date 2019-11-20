@@ -4,11 +4,21 @@ from datetime import datetime
 
 
 DATETIME_FMT = "%Y/%m/%d %H:%M:%S"
-K = 1.0 * 2 ** 10
-M = 1.0 * 2 ** 20
-G = 1.0 * 2 ** 30
+K = 2 ** 10
+M = 2 ** 20
+G = 2 ** 30
 
 DAY = 86400
+
+
+def bytes2human_readable(value):
+    if value // G > 0:
+        return "%dG" % (value // G)
+    if value // M > 0:
+        return "%dM" % (value // M)
+    if value // K > 0:
+        return "%dK" % (value // K)
+    return "%d" % value
 
 
 class PathNode(object):
@@ -57,9 +67,9 @@ class PathNode(object):
 
     def __str__(self):
         """Returns PathNode string in format atime,size,owner,path."""
-        node_info = "%s,%dG,%s,%s" % (
+        node_info = "%s,%s,%s,%s" % (
             self.subtree_atime.strftime(DATETIME_FMT),
-            self.subtree_size / G,
+            bytes2human_readable(self.subtree_size),
             self.owner,
             self.path)
         return node_info

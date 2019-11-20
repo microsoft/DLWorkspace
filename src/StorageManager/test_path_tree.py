@@ -68,7 +68,8 @@ class TestPathTree(TestCase):
         config = {
             "path": "dummy",
             "overweight_threshold": 1000,
-            "expiry_days": 1
+            "expiry_days": 1,
+            "now": 1574203167
         }
         tree = PathTree(config)
         tree.create_tree()
@@ -91,7 +92,8 @@ class TestPathTree(TestCase):
         config = {
             "path": TEST_DIR,
             "overweight_threshold": 1000,
-            "expiry_days": 1
+            "expiry_days": 1,
+            "now": 1574203167
         }
         tree = PathTree(config)
         tree.create_tree()
@@ -218,7 +220,8 @@ class TestPathTree(TestCase):
         config = {
             "path": TEST_DIR,
             "overweight_threshold": 10000,
-            "expiry_days": 1
+            "expiry_days": 1,
+            "now": 1574203167
         }
         tree = PathTree(config)
         tree.create_tree()
@@ -229,7 +232,6 @@ class TestPathTree(TestCase):
         self.assertIn(test_dir, overweight_nodes)
         self.assertIn(test_dir.children[2], overweight_nodes)
 
-    @patch("datetime.now")
     @patch("os.listdir")
     @patch("os.path.islink")
     @patch("os.path.isdir")
@@ -238,18 +240,17 @@ class TestPathTree(TestCase):
                                 mock_stat,
                                 mock_isdir,
                                 mock_islink,
-                                mock_listdir,
-                                mock_now):
+                                mock_listdir):
         mock_stat.side_effect = stat_side_effect
         mock_isdir.side_effect = isdir_side_effect
         mock_islink.return_value = False
         mock_listdir.side_effect = listdir_side_effect
-        mock_now.return_value = 1574203167
 
         config = {
             "path": TEST_DIR,
             "overweight_threshold": 10000,
-            "expiry_days": 1
+            "expiry_days": 1,
+            "now": 1574203167
         }
         tree = PathTree(config)
         tree.create_tree()

@@ -49,7 +49,8 @@ class PathTree(object):
         return self._find_expired_nodes(self.root, self.expiry)
 
     def _create_tree(self, root):
-        if os.path.islink(root):
+        if root != self.path and os.path.islink(root):
+            # Allow root to be a link
             return None
 
         try:
