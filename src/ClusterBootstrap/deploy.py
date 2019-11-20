@@ -616,7 +616,7 @@ def get_worker_nodes_from_config(clusterId):
 
 def get_nodes_by_roles(roles):
     """
-    role: "infrastructure", "worker", or "nfs"
+    role: "infrastructure", "worker", "nfs", "utility", etc.
     this function aims to deprecate get_worker_nodes_from_config and get_ETCD_master_nodes_from_config
     """
     Nodes = []
@@ -854,6 +854,7 @@ def gen_configs():
     utils.render_template_directory("./template/web-docker", "./deploy/web-docker",config)
     utils.render_template_directory("./template/kube-addons", "./deploy/kube-addons",config)
     utils.render_template_directory("./template/RestfulAPI", "./deploy/RestfulAPI",config)
+    utils.render_template_directory("./template/StorageManager", "./deploy/StorageManager", config)
 
 def get_ssh_config():
     if "ssh_cert" not in config and os.path.isfile("./deploy/sshkey/id_rsa"):
