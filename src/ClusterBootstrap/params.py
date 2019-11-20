@@ -617,7 +617,8 @@ default_config_parameters = {
         "default_admin_username": "dlwsadmin",
         "tcp_port_for_pods": "30000-49999",
         "tcp_port_ranges": "80 443 30000-49999 25826 3000 22222 9091 9092",
-        "udp_port_ranges": "25826",
+        # There is no udp port requirement for now
+        #"udp_port_ranges": "25826",
         "inter_connect": {
             "tcp_port_ranges": "22 1443 2379 3306 5000 8086 10250",
             # Need to white list dev machines to connect

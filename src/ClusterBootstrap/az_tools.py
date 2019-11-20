@@ -279,6 +279,9 @@ def create_vnet():
 
 
 def create_nsg():
+    source_addresses_prefixes = "*"
+    restricted_source_address_prefixes = "*"
+
     if "source_addresses_prefixes" in config["cloud_config"]["dev_network"]:
         source_addresses_prefixes = config["cloud_config"][
             "dev_network"]["source_addresses_prefixes"]
@@ -287,6 +290,12 @@ def create_nsg():
     else:
         print "Please setup source_addresses_prefixes in config.yaml, otherwise, your cluster cannot be accessed"
         exit()
+
+    if "restricted_source_address_prefixes" in config["cloud_config"]:
+        restricted_source_address_prefixes = config["cloud_config"]["restricted_source_address_prefixes"]
+        if isinstance(restricted_source_address_prefixes, list):
+            restricted_source_address_prefixes = " ".join(list(set(restricted_source_address_prefixes)))
+
     cmd = """
         az network nsg create \
             --resource-group %s \
@@ -308,10 +317,12 @@ def create_nsg():
                 --protocol tcp \
                 --priority 1000 \
                 --destination-port-ranges %s \
+                --source-address-prefixes %s \
                 --access allow
             """ % ( config["azure_cluster"]["resource_group_name"],
                     config["azure_cluster"]["nsg_name"],
-                    config["cloud_config"]["tcp_port_ranges"]
+                    config["cloud_config"]["tcp_port_ranges"],
+                    restricted_source_address_prefixes
                     )
         if not no_execution:
             output = utils.exec_cmd_local(cmd)
@@ -326,10 +337,12 @@ def create_nsg():
                 --protocol udp \
                 --priority 1010 \
                 --destination-port-ranges %s \
+                --source-address-prefixes %s \
                 --access allow
             """ % ( config["azure_cluster"]["resource_group_name"],
                     config["azure_cluster"]["nsg_name"],
-                    config["cloud_config"]["udp_port_ranges"]
+                    config["cloud_config"]["udp_port_ranges"],
+                    restricted_source_address_prefixes
                     )
         if not no_execution:
             output = utils.exec_cmd_local(cmd)
