@@ -119,7 +119,7 @@ def create_vm(vmname, vm_ip, role, vm_size, pwd, vmcnf):
     availability_set = ""
     if role == "worker" and "availability_set" in config["azure_cluster"]:
         availability_set = "--availability-set '%s'" % config["azure_cluster"]["availability_set"]
-    if role in ["infra", "worker"]:		
+    if role in ["infra", "worker", "utility"]:
         storage = "--storage-sku {} --data-disk-sizes-gb {} ".format(config["azure_cluster"]["vm_local_storage_sku"],
                 config["azure_cluster"]["%s_local_storage_sz" % role])
         # corner case: NFS on infra
@@ -474,6 +474,12 @@ def create_cluster(arm_vm_password=None, parallelism=1):
             create_vm_param(i, "nfs", config["azure_cluster"]["nfs_vm_size"], False,
                arm_vm_password, config["azure_cluster"]["nfs_vm"][i] if i < len(config["azure_cluster"]["nfs_vm"]) else None )
 
+    # create utility servers if specified
+    for i in range(int(config["azure_cluster"]["utility_node_num"])):
+        create_vm_param(i, "utility", config["azure_cluster"]["utility_vm_size"],
+                        arm_vm_password is not None, arm_vm_password)
+
+
 def add_workers(arm_vm_password=None, parallelism=1):
     if config["priority"] == "regular":
         if parallelism > 1:
@@ -507,6 +513,9 @@ def create_vm_param(i, role, vm_size, no_az=False, arm_vm_password=None, vmcnf =
                                    ["cluster_name"], i + 1)
     elif role == "dev":
         vmname = "%s-dev" % (config["azure_cluster"]["cluster_name"])
+
+    elif role == "utility":
+        vmname = "%s-utility%02d" % (config["azure_cluster"]["cluster_name"], i + 1)
 
     print "creating VM %s..." % vmname
     vm_ip = get_vm_ip(i, role)
