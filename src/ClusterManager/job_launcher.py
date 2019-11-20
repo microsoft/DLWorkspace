@@ -532,7 +532,7 @@ class PythonLauncher(Launcher):
 
             if "envs" not in job_object.params:
                 job_object.params["envs"] =[]
-                job_object.params["envs"].append({"name": "DLTS_JOB_TOKEN", "value": job_object.params["job_token"]})              
+            job_object.params["envs"].append({"name": "DLTS_JOB_TOKEN", "value": job_object.params["job_token"]})              
 
 
             enable_custom_scheduler = job_object.is_custom_scheduler_enabled()
