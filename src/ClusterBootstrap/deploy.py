@@ -2790,6 +2790,8 @@ def get_node_lists_for_service(service):
         nodetype = labels[service] if service in labels else labels["default"]
         if nodetype == "worker_node":
             nodes = config["worker_node"]
+        elif nodetype == "utility_node":
+            nodes = config["utility_node"]
         elif nodetype == "etcd_node":
             nodes = config["etcd_node"]
         elif nodetype.find( "etcd_node_" )>=0:
