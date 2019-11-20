@@ -17,7 +17,7 @@ class StorageManager(object):
     """
     def __init__(self, config):
         self.logger = logging.getLogger()
-        self.config = config["storage_monitor"]
+        self.config = config
         self.execution_interval_days = self.config["execution_interval_days"]
         self.last_now = None
         self.scan_points = self.config["scan_points"]

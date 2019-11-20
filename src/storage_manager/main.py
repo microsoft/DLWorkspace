@@ -28,11 +28,17 @@ def register_stack_trace_dump():
 
 
 def main():
-    sm = StorageManager(config)
-    try:
-        sm.run()
-    except Exception as e:
-        logger.error("StorageManager.run failed with exception %s" % str(e))
+    while True:
+        sm_config = config.get("storage_monitor", None)
+        if sm_config is None or sm_config.get("enabled", False) is False:
+            logger.info("storage_monitor is not enabled.")
+            sys.exit(0)
+
+        sm = StorageManager(sm_config)
+        try:
+            sm.run()
+        except Exception as e:
+            logger.error("StorageManager.run failed with exception %s" % str(e))
 
 
 if __name__ == "__main__":
