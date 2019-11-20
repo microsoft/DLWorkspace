@@ -34,11 +34,12 @@ import k8sUtils
 from config import config
 from DataHandler import DataHandler
 
+from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time
 
 
-def create_log( logdir = '/var/log/dlworkspace' ):
-    if not os.path.exists( logdir ):
-        os.system("mkdir -p " + logdir )
+def create_log(logdir = '/var/log/dlworkspace'):
+    if not os.path.exists(logdir):
+        os.system("mkdir -p " + logdir)
     with open('logging.yaml') as f:
         logging_config = yaml.load(f)
         f.close()
@@ -61,7 +62,7 @@ def set_user_directory():
             logging.info("Found a new user %s" %username)
             logging.info("Creating home directory %s for user %s" % (userpath, username))
             os.system("mkdir -p "+userpath)
-            os.system("chown -R "+userid+":"+"500000513 "+userpath)
+            os.system("chown -R "+str(userid)+":"+"500000513 "+userpath)
 
         sshkeypath = os.path.join(userpath,".ssh/id_rsa")
         pubkeypath = os.path.join(userpath,".ssh/id_rsa.pub")
@@ -70,25 +71,35 @@ def set_user_directory():
             logging.info("Creating sshkey for user %s" % (username))
             os.system("mkdir -p "+os.path.dirname(sshkeypath))
             os.system("ssh-keygen -t rsa -b 4096 -f %s -P ''" % sshkeypath)
-            os.system("chown -R "+userid+":"+"500000513 "+userpath)
+            os.system("chown -R "+str(userid)+":"+"500000513 "+userpath)
             os.system("chmod 700 -R "+os.path.dirname(sshkeypath))
 
         if not os.path.exists(authorized_keyspath):
             logging.info("Creating authorized_keys for user %s" % (username))
-            os.system("chown -R "+userid+":"+"500000513 "+authorized_keyspath)
+            os.system("chown -R "+str(userid)+":"+"500000513 "+authorized_keyspath)
             os.system("cat "+pubkeypath+" >> "+authorized_keyspath)
             os.system("chmod 644 "+authorized_keyspath)
 
 def Run():
+    register_stack_trace_dump()
     create_log()
     logging.info("start to update user directory...")
+
     while True:
-        try:
-            set_user_directory()
-        except Exception as e:
-            print e
+        update_file_modification_time("user_manager")
+
+        with manager_iteration_histogram.labels("user_manager").time():
+            try:
+                set_user_directory()
+            except Exception as e:
+                logging.exception("set user directory failed")
         time.sleep(1)
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", "-p", help="port of exporter", type=int, default=9201)
+    args = parser.parse_args()
+    setup_exporter_thread(args.port)
+
     Run()

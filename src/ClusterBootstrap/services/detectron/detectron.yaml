@@ -25,7 +25,7 @@ spec:
         image: {{cnf["dockers"]["container"]["tutorial-caffe2"]["fullname"]}}
         resources:
           limits:
-            alpha.kubernetes.io/nvidia-gpu: 1
+            nvidia.com/gpu: 1
         imagePullPolicy: Always   
         command: ["/run.sh"]
         livenessProbe:

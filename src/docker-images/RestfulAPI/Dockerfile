@@ -1,4 +1,4 @@
-FROM dlws/restfulapi:v1.4
+FROM dlws/restfulapi:v1.5
 MAINTAINER Hongzhi Li <Hongzhi.Li@microsoft.com>
 
 COPY kubectl /usr/local/bin/kubectl
@@ -23,8 +23,17 @@ RUN chmod +x /pullsrc.sh
 COPY run.sh /
 RUN chmod +x /run.sh
 
+COPY ClusterManager/requirements.txt /
+# TODO refine later
+# install requirements
+RUN rm -rf /usr/lib/python2.7/dist-packages/yaml
+RUN rm -rf /usr/lib/python2.7/dist-packages/PyYAML-*
+RUN pip install -r /requirements.txt
+
 ADD Jobs_Templete /DLWorkspace/src/Jobs_Templete
 ADD utils /DLWorkspace/src/utils
 ADD RestAPI /DLWorkspace/src/RestAPI
 ADD ClusterManager /DLWorkspace/src/ClusterManager
+
+
 CMD /run.sh

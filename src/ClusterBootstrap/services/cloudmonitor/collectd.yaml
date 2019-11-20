@@ -57,8 +57,8 @@ spec:
           readOnly: true
         - name: run
           mountPath: /var/run/docker.sock
-        - name: nvidia-driver
-          mountPath: /usr/local/nvidia
+        #- name: nvidia-driver
+        #  mountPath: /usr/local/nvidia
       volumes:
       #- name: collectd-config
       #  configMap:
@@ -84,9 +84,9 @@ spec:
       - name: run
         hostPath:
           path: /var/run/docker.sock
-      - name: nvidia-driver
-        hostPath:
-          path: {{cnf["nvidia-driver-path"]}}
+      #- name: nvidia-driver
+      #  hostPath:
+      #    path: {{cnf["nvidia-driver-path"]}}
       tolerations:
       - key: CriticalAddonsOnly
         operator: Exists

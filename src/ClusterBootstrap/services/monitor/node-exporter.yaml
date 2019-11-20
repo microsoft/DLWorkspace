@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: node-exporter
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: node-exporter
+  template:
+    metadata:
+      labels:
+        app: node-exporter
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "{{ cnf['node-exporter']['port'] }}"
+      name: node-exporter
+    spec:
+      containers:
+      - image: prom/node-exporter:v0.16.0
+        imagePullPolicy: Always
+        readinessProbe:
+          tcpSocket:
+            port: {{ cnf["node-exporter"]["port"] }}
+          initialDelaySeconds: 3
+          periodSeconds: 30
+          timeoutSeconds: 10
+        resources:
+          limits:
+            memory: "128Mi"
+        name: node-exporter
+        args:
+          - '--no-collector.arp'
+          - '--no-collector.bcache'
+          - '--no-collector.bonding'
+          - '--no-collector.conntrack'
+#- '--no-collector.cpu' Exposes CPU statistics.
+#- '--no-collector.diskstats' Exposes disk I/O statistics.
+          - '--no-collector.edac'
+          - '--no-collector.entropy'
+#- '--no-collector.filefd' Exposes file descriptor statistics from /proc/sys/fs/file-nr
+#- '--no-collector.filesystem' Exposes filesystem statistics, such as disk space used.
+#- '--no-collector.hwmon' Expose hardware monitoring and sensor data from /sys/class/hwmon/.
+#- '--no-collector.infiniband' Exposes network statistics specific to InfiniBand and Intel OmniPath configurations.
+          - '--no-collector.ipvs'
+#- '--no-collector.loadavg' Exposes load average.
+          - '--no-collector.mdadm'
+#- '--no-collector.meminfo' Exposes memory statistics.
+#- '--no-collector.netdev' Exposes network interface statistics such as bytes transferred.
+#- '--no-collector.netstat' Exposes network statistics from /proc/net/netstat. This is the same information as netstat -s.
+          - '--no-collector.nfs'
+          - '--no-collector.nfsd'
+          - '--no-collector.sockstat'
+#- '--no-collector.stat' Exposes various statistics from /proc/stat. This includes boot time, forks and interrupts.
+          - '--no-collector.time'
+          - '--no-collector.timex'
+#- '--no-collector.uname'
+          - '--no-collector.vmstat'
+          - '--no-collector.wifi'
+          - '--no-collector.xfs'
+          - '--no-collector.zfs'
+        ports:
+        - containerPort: {{ cnf["node-exporter"]["port"] }}
+          hostPort: {{ cnf["node-exporter"]["port"] }}
+          name: scrape
+        volumeMounts:
+        - name: host-root
+          mountPath: /host-root/
+          readOnly: true
+      volumes:
+      - name: host-root
+        hostPath:
+          path: /
+      hostNetwork: true
+      tolerations:
+      - key: node.kubernetes.io/memory-pressure
+        operator: "Exists"
+      - key: node.kubernetes.io/disk-pressure
+        operator: "Exists"
+      - key: node-role.kubernetes.io/master
+        operator: "Exists"

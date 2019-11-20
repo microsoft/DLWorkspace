@@ -1,9 +1,18 @@
 #!/bin/bash
+
+set -x
+
+# https://unix.stackexchange.com/questions/146283/how-to-prevent-prompt-that-ask-to-restart-services-when-installing-libpq-dev
+export DEBIAN_FRONTEND=noninteractive
+
+sudo killall apt-get
+sudo killall dpkg
+sudo dpkg --configure -a
+
 # Install python on CoreOS base image
 # Docker environment for development of DL workspace
 sudo apt-get update -y
-sudo apt-get upgrade -y
-sudo apt-get install -y --no-install-recommends \
+yes | sudo apt-get install -y --no-install-recommends \
         apt-utils \
         software-properties-common \
         build-essential \
@@ -21,10 +30,11 @@ sudo apt-get install -y --no-install-recommends \
         ca-certificates \
         vim \
         sudo \
-        nfs-common
+        nfs-common \
+        dos2unix
         
 
-sudo apt-get install -y bison curl parted
+yes | sudo apt-get install -y bison curl parted
 
 # Install docker
 which docker
@@ -33,10 +43,17 @@ then
 docker --version
 ## docker already installed
 else
-curl -q https://get.docker.com/ | sudo bash
+sudo apt-get remove docker docker-engine docker.io
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+sudo add-apt-repository \
+   "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+   $(lsb_release -cs) \
+   stable"
+sudo apt-get update
+yes | sudo apt-get install -y docker-ce
 fi
 
-sudo pip install --upgrade pip
+yes | sudo pip install --upgrade pip
 # pip doesn't install python for root account, causing issues. 
 # sudo pip install setuptools
 # sudo pip install pyyaml jinja2 argparse
@@ -72,19 +89,52 @@ if  lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VG
  #       chmod +x /tmp/NVIDIA-Linux-x86_64-$NVIDIA_VERSION.run
  #       sudo bash /tmp/NVIDIA-Linux-x86_64-$NVIDIA_VERSION.run -a -s
 
-	sudo apt-get purge -y nvidia*
-	sudo apt-get install -y nvidia-384
-	
+    sudo systemctl stop kubelet
 
+    echo kill all containers so we could remove old nvidia drivers
+    timeout 10 docker kill $(docker ps -a -q)
 
-        sudo apt install -y nvidia-modprobe
+    lsmod | grep -qE "^nvidia" &&
+        {
+            echo ======== NVIDIA driver is running, uninstall it =========
+            DEP_MODS=`lsmod | tr -s " " | grep -E "^nvidia" | cut -f 4 -d " "`
+            for mod in ${DEP_MODS//,/ }
+            do
+                sudo rmmod $mod ||
+                    {
+                        echo "The driver $mod is still in use, can't unload it."
+                        exit 1
+                    }
+            done
+            sudo rmmod nvidia ||
+                {
+                    echo "The driver nvidia is still in use, can't unload it."
+                    exit 1
+                }
+        }
+
+    sudo add-apt-repository -y ppa:graphics-drivers/ppa
+
+    sudo apt-get purge -y nvidia*
+    sudo apt-get update
+    yes | sudo apt-get install -y nvidia-driver-430
+
+        yes | sudo apt install -y nvidia-modprobe
 
         sudo rm -r /opt/nvidia-driver || true
 
-        # Install nvidia-docker and nvidia-docker-plugin
-        rm /tmp/nvidia-docker*.deb
-        wget -P /tmp https://github.com/NVIDIA/nvidia-docker/releases/download/v1.0.1/nvidia-docker_1.0.1-1_amd64.deb
-        sudo dpkg -i /tmp/nvidia-docker*.deb && rm /tmp/nvidia-docker*.deb
+        # Install nvidia-docker and nvidia-docker-plugin ( Upgrade to nvidia-docker2)
+        # rm /tmp/nvidia-docker*.deb
+        # wget -P /tmp https://github.com/NVIDIA/nvidia-docker/releases/download/v1.0.1/nvidia-docker_1.0.1-1_amd64.deb
+        # sudo dpkg -i /tmp/nvidia-docker*.deb && rm /tmp/nvidia-docker*.deb
+
+        curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
+        distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+        curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+        sudo apt-get update
+
+        yes | sudo apt-get install -y nvidia-docker2
+        sudo pkill -SIGHUP dockerd
 
         # Test nvidia-smi
         sudo nvidia-docker run --rm dlws/cuda nvidia-smi
@@ -96,3 +146,6 @@ if  lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VG
         NV_DRIVER=/opt/nvidia-driver/$NVIDIA_VERSION
         sudo ln -s $NV_DRIVER /opt/nvidia-driver/current
 fi
+
+# https://github.com/kubernetes/kubeadm/issues/610
+sudo swapoff -a

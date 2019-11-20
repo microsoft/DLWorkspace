@@ -1,13 +1,98 @@
-﻿@{
+﻿@using Microsoft.AspNetCore.Http;
+@{
     ViewData["Title"] = "Cluster Status";
 }
 
 
 
 <script>
-    function buildTable() {
+    var clusters = @Html.Raw(@Context.Session.GetString("TeamClusters"));
+    var clustersInfo = Object.create(null);
+    var cluster = null;
+
+    function totalOf(value) {
+        if (typeof value === 'number') return value < 0 ? 0 : value;
+        var total = 0;
+        $.each(value, function (key, value) {
+            total += value;
+        });
+        return total < 0 ? 0 : total;
+    }
+
+    function buildTables() {
+        $.when.apply($, $.map(clusters, function (cluster) {
+            return $.ajax({
+                url: '/api/dlws/GetVC',
+                data: { cluster: cluster, vcName: '@Context.Session.GetString("Team")' },
+                dataType: 'json',
+                timeout: 10000
+            }).then(function (data) {
+                return data;
+            }).catch (function () {
+                return;
+            });
+        })).then(function () {
+            var args = [].slice.call(arguments);
+            $.each(clusters, function (index) {
+                if (args[index]) {
+                    clustersInfo[this] = args[index];
+                    if (cluster == null) {
+                        buildTable(this.valueOf())
+                    }
+                }
+            });
+
+
+            $("#cluster_status").find("tr:gt(0)").remove();
+            $.each(clustersInfo, function (name, json) {
+                var tr;
+                //Append each row to html table
+                tr = $('<tr/>');
+                tr.append(
+                    $("<td>").append(
+                        $("<div>", { "class": "radio" }).append(
+                            $("<label>").append(
+                                $("<input>", {
+                                    type: "radio",
+                                    name: "cluster",
+                                    value: name,
+                                    on: {
+                                        change: function () { buildTable($(this).val()) }
+                                    }
+                                }).prop("checked", cluster === name),
+                                name
+                            )
+                        )
+                    )
+                );
+                tr.append("<td>" + totalOf(json.gpu_capacity) + "</td>");
+                tr.append("<td>" + totalOf(json.gpu_unschedulable) + "</td>");
+                tr.append("<td>" + totalOf(json.gpu_used) + "</td>");
+                tr.append("<td>" + totalOf(json.gpu_avaliable) + "</td>");
+                tr.append("<td>" + totalOf(json.AvaliableJobNum) + "</td>");
+
+                $('#cluster_status').append(tr);
+            })
+        })
+    }
+    function buildTable(c) {
+        cluster = c;
         $.ajax({
-            url: "/api/dlws/GetClusterStatus",
+            url: "/api/dlws/grafana?cluster=" + cluster,
+            dataType: "text"
+        }).done(
+            function (hostname) {
+                var dataSrc = $('#usage-dashboard').data('src');
+                var currentSrc = $('#usage-dashboard').attr('src');
+                var src = hostname + dataSrc;
+                if (src !== currentSrc) {
+                    $('#usage-dashboard').attr('src', src);
+                }
+            }
+        )
+        $.ajax({
+            url: '/api/dlws/GetVC',
+            data: { cluster: cluster, vcName: '@Context.Session.GetString("Team")' },
             dataType: 'json',
             timeout: 10000 //10 second timeout,
         }).done(
@@ -16,16 +101,19 @@
                 var tr;
                 //Append each row to html table
                 for (var i = 0; i < json.node_status.length; i++) {
+                    var gpu_capacity = totalOf(json.node_status[i].gpu_capacity);
+                    var gpu_used = totalOf(json.node_status[i].gpu_used);
+                    var gpu_available = totalOf(json.node_status[i].gpu_allocatable) - totalOf(json.node_status[i].gpu_used);
                     tr = $('<tr/>');
                     tr.append("<td>" + json.node_status[i].name + "</td>");
                     tr.append("<td>" + json.node_status[i].InternalIP + "</td>");
-                    tr.append("<td>" + json.node_status[i].gpu_capacity + "</td>");
-                    tr.append("<td>" + json.node_status[i].gpu_used + "</td>");
-                    tr.append("<td>" + (json.node_status[i].gpu_allocatable - json.node_status[i].gpu_used) + "</td>");
+                    tr.append("<td>" + gpu_capacity + "</td>");
+                    tr.append("<td>" + gpu_used + "</td>");
+                    tr.append("<td>" + gpu_available  + "</td>");
                     if (json.node_status[i].unschedulable) {
                         tr.append("<td> Unschedulable </td > ");
                     }
-                    else 
+                    else
                     {
                         tr.append("<td> OK </td>");
                     }
@@ -53,20 +141,6 @@
                 }
 
 
-                $("#cluster_status").find("tr:gt(0)").remove();
-                var tr;
-                //Append each row to html table
-                tr = $('<tr/>');
-                tr.append("<td>" + json.gpu_capacity + "</td>");
-                tr.append("<td>" + json.gpu_unschedulable + "</td>");
-                tr.append("<td>" + json.gpu_used + "</td>");
-                tr.append("<td>" + json.gpu_avaliable + "</td>");
-                tr.append("<td>" + json.AvaliableJobNum + "</td>");
-                tr.append("<td>" + json.TotalJobNum + "</td>");
-
-                $('#cluster_status').append(tr);
-
-
 
                 $("#user_status").find("tr:gt(0)").remove();
                 var tr;
@@ -74,90 +148,43 @@
                 for (var i = 0; i < json.user_status.length; i++) {
                     tr = $('<tr/>');
                     tr.append("<td>" + json.user_status[i].userName + "</td>");
-                    tr.append("<td>" + json.user_status[i].userGPU + "</td>");
+                    tr.append("<td>" + totalOf(json.user_status[i].userGPU) + "</td>");
 
                     $('#user_status').append(tr);
                 }
 
-               
+
             });
     }
 
     $(document).ready(function () {
-        buildTable();
+        buildTables();
         var refresh = setInterval(function () {
-            buildTable();
+            buildTables();
         }, 5000);
     });
 
 </script>
 
-
-<br />
-<br />
-<br />
-<h1>Cluster Status:</h1>
+<h1>Team Virtual Cluster Status:</h1>
 
 
 <table id="cluster_status" class="table table-bordered table-condensed table-hover table-striped">
     <thead>
         <tr>
+            <th>Name</th>
             <th>Total GPU</th>
             <th>Reserved GPU</th>
             <th>Used GPU</th>
-            <th>Avaliable GPU</th>
+            <th>Available GPU</th>
             <th>Active Jobs</th>
-            <th>Total Jobs</th>
         </tr>
     </thead>
     <tbody></tbody>
 </table>
 
-
-<h1>Cluster Usage:</h1>
-
-
-<table id="cluster_usage" class="table">
-    <thead>
-        <tr>
-            <th><iframe src="@Context.Request.Protocol://@Context.Request.Host/grafana/dashboard-solo/db/gpu?refresh=5m&orgId=1&panelId=113&var-datasource=collectd&from=@((DateTime.UtcNow.AddDays(-8).Ticks - 621355968000000000) / 10000)&to=@((DateTime.UtcNow.Ticks - 621355968000000000) / 10000)" width="100%" height="200" frameborder="0"></iframe></th>
-            <!--
-            <th><iframe src="http://@Context.Request.Host:3000/dashboard-solo/db/gpu?refresh=5m&orgId=1&panelId=75&var-datasource=collectd&from=@((DateTime.UtcNow.AddHours(-8).Ticks - 621355968000000000) / 10000)&to=@((DateTime.UtcNow.Ticks - 621355968000000000) / 10000)" width="100%" height="200" frameborder="0"></iframe></th>
-            <th><iframe src="http://@Context.Request.Host:3000/dashboard-solo/db/gpu?refresh=5m&orgId=1&panelId=76&var-datasource=collectd&from=@((DateTime.UtcNow.AddHours(-8).Ticks - 621355968000000000) / 10000)&to=@((DateTime.UtcNow.Ticks - 621355968000000000) / 10000)" width="100%" height="200" frameborder="0"></iframe></th>
-            <th><iframe src="http://@Context.Request.Host:3000/dashboard-solo/db/gpu?refresh=5m&orgId=1&panelId=77&var-datasource=collectd&from=@((DateTime.UtcNow.AddHours(-8).Ticks - 621355968000000000) / 10000)&to=@((DateTime.UtcNow.Ticks - 621355968000000000) / 10000)" width="100%" height="200" frameborder="0"></iframe></th>
-        -->
-        </tr>
-    </thead>
-    <tbody></tbody>
-</table>
-
-
-
-
 <h1>
-    Node Status:
-</h1>
-
-
-    <table id="node_status" class="table table-bordered table-condensed table-hover table-striped">
-        <thead>
-            <tr>
-                <th>Node Name</th>
-                <th>Node IP</th>
-                <th>GPU Capacity</th>
-                <th>Used GPU</th>
-                <th>Avaliable GPU</th>
-                <th>Status</th>
-                <th>Services</th>
-                <th>Pods</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
-
-
-<h1>
-    User Status:
+    Team VC User Status: 
 </h1>
 
 <table id="user_status" class="table table-bordered table-condensed table-hover table-striped">
@@ -165,6 +192,51 @@
         <tr>
             <th>User Name</th>
             <th>Used GPU</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+
+<h1>Physical Cluster Usage:</h1>
+
+
+<table id="cluster_usage" class="table">
+    <thead>
+        <tr>
+            <th><iframe id="usage-dashboard" data-src="/dashboard/db/gpu-usage" width="100%" height="400" frameborder="0"></iframe></th>
+            <!--
+                <th><iframe src="http://@Context.Request.Host:3000/dashboard-solo/db/gpu?refresh=5m&orgId=1&panelId=75&var-datasource=collectd&from=@((DateTime.UtcNow.AddHours(-8).Ticks - 621355968000000000) / 10000)&to=@((DateTime.UtcNow.Ticks - 621355968000000000) / 10000)" width="100%" height="200" frameborder="0"></iframe></th>
+                <th><iframe src="http://@Context.Request.Host:3000/dashboard-solo/db/gpu?refresh=5m&orgId=1&panelId=76&var-datasource=collectd&from=@((DateTime.UtcNow.AddHours(-8).Ticks - 621355968000000000) / 10000)&to=@((DateTime.UtcNow.Ticks - 621355968000000000) / 10000)" width="100%" height="200" frameborder="0"></iframe></th>
+                <th><iframe src="http://@Context.Request.Host:3000/dashboard-solo/db/gpu?refresh=5m&orgId=1&panelId=77&var-datasource=collectd&from=@((DateTime.UtcNow.AddHours(-8).Ticks - 621355968000000000) / 10000)&to=@((DateTime.UtcNow.Ticks - 621355968000000000) / 10000)" width="100%" height="200" frameborder="0"></iframe></th>
+            -->
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+
+
+
+
+
+
+<h1>
+    Physical Cluster Node Status:
+</h1>
+
+
+<table id="node_status" class="table table-bordered table-condensed table-hover table-striped">
+    <thead>
+        <tr>
+            <th>Node Name</th>
+            <th>Node IP</th>
+            <th>GPU Capacity</th>
+            <th>Used GPU</th>
+            <th>Available GPU</th>
+            <th>Status</th>
+            <th>Services</th>
+            <th>Pods</th>
         </tr>
     </thead>
     <tbody></tbody>

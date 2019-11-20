@@ -30,8 +30,10 @@ function kube::util::ensure-cfssl {
     kernel=$(uname -s)
     case "${kernel}" in
       Linux)
-        curl --retry 10 -L -o cfssl https://pkg.cfssl.org/R1.2/cfssl_linux-amd64
-        curl --retry 10 -L -o cfssljson https://pkg.cfssl.org/R1.2/cfssljson_linux-amd64
+        #curl --retry 10 -L -o cfssl https://pkg.cfssl.org/R1.2/cfssl_linux-amd64
+        #curl --retry 10 -L -o cfssljson https://pkg.cfssl.org/R1.2/cfssljson_linux-amd64
+        cp ${DEPLOY_PATH}/../bin/other/cfssl .
+        cp ${DEPLOY_PATH}/../bin/other/cfssljson .
         ;;
       Darwin)
         curl --retry 10 -L -o cfssl https://pkg.cfssl.org/R1.2/cfssl_darwin-amd64
@@ -126,8 +128,13 @@ function generate-aggregator-certs {
 function setup-easyrsa {
   (set -x
     cd "${KUBE_TEMP}"
-    curl -L -O --connect-timeout 20 --retry 6 --retry-delay 2 https://storage.googleapis.com/kubernetes-release/easy-rsa/easy-rsa.tar.gz
-    tar xzf easy-rsa.tar.gz
+    # change away from using googleapis
+    #curl -L -O --connect-timeout 20 --retry 6 --retry-delay 2 https://github.com/OpenVPN/easy-rsa/archive/v3.0.5.tar.gz
+    # tar to easy-rsa-v3.0.5
+    # this file is copied from docker image binstore, codes in deploy.py::get_other_binary()
+    cp ${DEPLOY_PATH}/../bin/other/easy-rsa/v3.0.5.tar.gz .
+    tar xzf v3.0.5.tar.gz
+    mv easy-rsa-3.0.5 easy-rsa-master
     mkdir easy-rsa-master/kubelet
     cp -r easy-rsa-master/easyrsa3/* easy-rsa-master/kubelet
     mkdir easy-rsa-master/aggregator
@@ -172,7 +179,7 @@ function create-aggregator-certs {
 
 
 # Main function of this script.
-
+export DEPLOY_PATH=$(pwd)
 export KUBE_TEMP=$(mktemp --tmpdir=/tmp -d -t kubernetes.XXXXXX)
 export AGGREGATOR_MASTER_NAME=aggregator
 # DEST_AGGREGATOR_CERT_DIR is ./deploy/aggregator

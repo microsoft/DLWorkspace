@@ -1,0 +1,153 @@
+{% if cnf["prometheus"]["cluster_name"] %}
+{% set cluster_name = cnf["prometheus"]["cluster_name"] %}
+{% else %}
+{% set cluster_name = cnf["cluster_name"] %}
+{% endif %}
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-configmap
+  namespace: kube-system
+data:
+  prometheus.yml: |-
+    global:
+      external_labels:
+        cluster: {{ cluster_name }}
+    rule_files:
+      - "/etc/prometheus-alert/*.rules"
+    scrape_configs:
+    - job_name: 'serivce_exporter'
+      scrape_interval: '30s'
+      kubernetes_sd_configs:
+      - role: pod
+      tls_config:
+        ca_file: '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
+      bearer_token_file: '/var/run/secrets/kubernetes.io/serviceaccount/token'
+      relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+          regex: true
+          action: keep
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+          regex: (.+)
+          action: replace
+          target_label: __metrics_path__
+        - source_labels: [__meta_kubernetes_pod_host_ip, __meta_kubernetes_pod_annotation_prometheus_io_port]
+          regex: '([^;]+);(\d+)'
+          replacement: ${1}:${2}
+          action: replace
+          target_label: __address__
+        - source_labels: [__meta_kubernetes_pod_container_port_name]
+          regex: 'prom-ign-.*'
+          action: drop
+        - source_labels: [__meta_kubernetes_pod_name]
+          action: replace
+          target_label: scraped_from
+        - source_labels: [__meta_kubernetes_pod_label_app]
+          action: replace
+          target_label: exporter_name
+    alerting:
+      alertmanagers:
+        - path_prefix: alert-manager
+          tls_config:
+            ca_file: '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
+          bearer_token_file: '/var/run/secrets/kubernetes.io/serviceaccount/token'
+          kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names: ["kube-system"]
+          relabel_configs:
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_alert]
+              regex: true
+              action: keep
+            - source_labels: [__meta_kubernetes_pod_host_ip, __meta_kubernetes_pod_annotation_prometheus_io_port]
+              regex: '([^;]+);(\d+)'
+              replacement: ${1}:${2}
+              action: replace
+              target_label: __address__
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-deployment
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      name: prometheus
+      labels:
+        task: monitoring
+        app: prometheus
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: '{{cnf["prometheus"]["reporter"]["port"]}}'
+    spec:
+      nodeSelector:
+        prometheus: active
+      hostNetwork: true
+      initContainers:
+      - name: init
+        image: bash:4
+        volumeMounts:
+        - name: prometheus-data
+          mountPath: /prometheus-data
+        command: ["chmod", "777", "/prometheus-data"] # newly create dir have permission 755, which makes prometheus container unable to write
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.1.0
+        resources:
+          limits:
+            memory: "10Gi"
+          requests:
+            memory: "256Mi"
+        args:
+          - '--config.file=/etc/prometheus/prometheus.yml'
+          - '--web.listen-address=0.0.0.0:{{cnf["prometheus"]["port"]}}'
+          - '--web.external-url=http://localhost:{{cnf["prometheus"]["port"]}}/prometheus/'
+          - '--web.route-prefix=prometheus'
+          - '--storage.tsdb.path=/prometheus-data'
+          - '--storage.tsdb.retention=31d'
+        ports:
+        - name: web
+          containerPort: {{cnf["prometheus"]["port"]}}
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/prometheus
+        - name: rules-volume
+          mountPath: /etc/prometheus-alert
+        - name: prometheus-data
+          mountPath: /prometheus-data
+      - name: gpu-reporter
+        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}gpu-reporter:{{cnf["dockertag"]}}
+        args:
+          - 'python'
+          - '/gpu-reporter/reporter.py'
+          - '--prometheus_url'
+          - 'http://localhost:{{cnf["prometheus"]["port"]}}'
+          - '--port'
+          - '{{cnf["prometheus"]["reporter"]["port"]}}'
+        ports:
+        - name: reporter
+          containerPort: {{cnf["prometheus"]["reporter"]["port"]}}
+      volumes:
+      - name: config-volume
+        configMap:
+          name: prometheus-configmap
+      - name: rules-volume
+        configMap:
+          name: prometheus-alert
+      - name: prometheus-data
+        hostPath:
+          path: /data/prometheus/data
+      tolerations:
+      - key: node.kubernetes.io/memory-pressure
+        operator: "Exists"
+      - key: node.kubernetes.io/disk-pressure
+        operator: "Exists"
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule

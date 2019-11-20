@@ -127,9 +127,9 @@ namespace WindowsAuth
 
 
             // Add MVC services to the services container.
-            services.AddMvc( options => options.AddMetricsResourceFilter());
             services.AddDistributedMemoryCache(); // Adds a default in-memory implementation of IDistributedCache
-            services.AddSession();
+            services.AddSession( options => options.IdleTimeout = TimeSpan.FromDays(14) );
+            services.AddMvc(options => options.AddMetricsResourceFilter());
             //services.AddCors();
             services.Configure<AppSettings>(appSettings =>
             {
@@ -287,6 +287,7 @@ namespace WindowsAuth
 
                 }
                 clusterInfo.Restapi = clusterConfig["Restapi"] as string;
+                clusterInfo.Grafana = clusterConfig["Grafana"] as string;
                 clusterInfo.SQLDatabaseForUser = (clusterConfig["SQLDatabaseForUser"] as string) + clusterInfo.ClusterId;
                 clusterInfo.SQLHostname = clusterConfig["SQLHostname"] as string;
                 clusterInfo.SQLPassword = clusterConfig["SQLPassword"] as string;
@@ -454,6 +455,8 @@ namespace WindowsAuth
 
             // Configure the OWIN pipeline to use cookie auth.
             var cookieOpt = new CookieAuthenticationOptions();
+            cookieOpt.ExpireTimeSpan = TimeSpan.FromDays(14);
+            cookieOpt.SlidingExpiration = true;
             //cookieOpt.AutomaticAuthenticate = true;
             // cookieOpt.CookieName = "dlws-auth";
             //cookieOpt.CookieSecure = Microsoft.AspNetCore.Http.CookieSecurePolicy.Always;
@@ -483,6 +486,23 @@ namespace WindowsAuth
             
             // Configure the OWIN pipeline to use OpenID Connect auth.
             app.UseSession();
+
+            app.Use(async (context, next) =>
+            {
+                if (context.Request.Query.ContainsKey("current-team") && context.Session.GetString("Teams") != null)
+                {
+                    var team = context.Request.Query["current-team"];
+                    var teams = JsonConvert.DeserializeObject<string[]>(context.Session.GetString("Teams"));
+                    if (Array.Exists(teams, t => t.Equals(team)))
+                    {
+                        context.Session.SetString("Team", team);
+                        var teamClusters = await Controllers.HomeController.GetTeamClusters(context, team);
+                        context.Session.SetString("TeamClusters", JsonConvert.SerializeObject(teamClusters));
+                        _logger.LogInformation("{0} switch team to {1}", context.Session.GetString("Username"), team);
+                    }
+                }
+                await next.Invoke();
+            });
             // Configure MVC routes
             app.UseMvc(routes =>
             {

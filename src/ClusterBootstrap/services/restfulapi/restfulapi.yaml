@@ -4,7 +4,7 @@ metadata:
   name: restfulapi
   namespace: default
   labels:
-     run: dlwsrestfulapi  
+     run: dlwsrestfulapi
 spec:
   selector:
     matchLabels:
@@ -14,13 +14,18 @@ spec:
       name: restfulapi
       labels:
         restfulapi-node: pod
+        app: restfulapi
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "5000"
     spec:
-      {% if cnf["dnsPolicy"] %}    
+      {% if cnf["dnsPolicy"] %}
       dnsPolicy: {{cnf["dnsPolicy"]}}
       {% endif %}
       nodeSelector:
         restfulapi: active
-      hostNetwork: true        
+      hostNetwork: true
       containers:
       - name: restfulapi
         image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}{{cnf["restfulapi"]}}:{{cnf["dockertag"]}}
@@ -30,6 +35,10 @@ spec:
           name: apiconfig
         - mountPath: /var/log/apache2
           name: log
+        ports:
+        - containerPort: 5000
+          hostPort: 5000
+          name: main
         {% if False %}
         {% for volume in cnf["mountpoints"] %}
         {% if cnf["mountpoints"][volume]["mountpoints"] is string and cnf["mountpoints"][volume]["mountpoints"]!="" %}
@@ -41,7 +50,7 @@ spec:
           name: {{mp}}
         {% endfor %}
         {% endif %}
-        {% endfor %}          
+        {% endfor %}
         {% endif %}
       volumes:
       - name: apiconfig
@@ -59,14 +68,14 @@ spec:
       {% else %}
       {% for mp in cnf["mountpoints"][volume]["mountpoints"] %}
       - name: {{mp}}
-        hostPath: 
+        hostPath:
           path: {{cnf["storage-mount-path"]}}/{{mp}}
       {% endfor %}
       {% endif %}
-      {% endfor %}          
+      {% endfor %}
       {% endif %}
       tolerations:
       - key: CriticalAddonsOnly
         operator: Exists
       - key: node-role.kubernetes.io/master
-        effect: NoSchedule        
+        effect: NoSchedule

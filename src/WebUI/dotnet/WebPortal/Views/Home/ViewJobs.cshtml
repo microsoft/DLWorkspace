@@ -1,12 +1,13 @@
-﻿@{
+﻿@using Microsoft.AspNetCore.Http;
+@{
     ViewData["Title"] = "View Jobs";
 }
 
 
 <script type="text/javascript">
-    function KillJob(jobId) {
+    function KillJob(cluster, jobId) {
         $.ajax({
-            url: "/api/dlws/KillJob?jobId=" + jobId,
+            url: "/api/dlws/KillJob?cluster=" + cluster + "&jobId=" + jobId,
             dataType: 'json',
             timeout: 30000 //30 second timeout,
         }).done(
@@ -16,14 +17,14 @@
             });
     }
 
-    function ApproveJob(jobId) {
+    function ApproveJob(cluster, jobId) {
         $.ajax({
-            url: "/api/dlws/ApproveJob?jobId=" + jobId,
+            url: "/api/dlws/ApproveJob?cluster=" + cluster + "&jobId=" + jobId,
             dataType: 'json',
             timeout: 30000 //30 second timeout,
         }).done(
             function (json) {
-                layer.alert(json.log, { btn: 'Ok', title: 'Info' })
+                layer.alert(json.result, { btn: 'Ok', title: 'Info' })
                 buildTables();
             });
     }
@@ -41,8 +42,10 @@
     function addJobRow(job, table, tableColumns) {
         var tr
         tr = $('<tr/>');
+        //Cluster
+        tr.append("<td>" + job.cluster + "</td>");
         //Job ID
-        tr.append("<td> <a href='/Home/JobDetail/?jobId=" + job.jobId + "'>" + job.jobId + "</a></td>");
+        tr.append("<td> <a href='/Home/JobDetail/?cluster=" + job.cluster + "&jobId=" + job.jobId + "'>" + job.jobId + "</a></td>");
         //Job Name
         tr.append("<td>" + job.jobName + "</td>");
         //Status
@@ -56,7 +59,12 @@
 
         tr.append("<td title='" + statusMsg + "'>" + job.jobStatus + "  <a href='#' onclick=\"layer.tips('" + statusMsg + "','#infoicon" + job.jobId + "', {tips: [2, '#3090C7']});\" > <i id=\"infoicon" + job.jobId +"\" class=\"layui-icon\">&#xe60b;</i></a>  </td>");
         //GPU
-        tr.append("<td>" + job.jobParams.resourcegpu + "</td>");
+        if (job.jobParams.numpsworker && job.jobParams.numpsworker > 0 && job.jobParams.jobtrainingtype =="PSDistJob") {
+            tr.append("<td>" + job.jobParams.resourcegpu * job.jobParams.numpsworker+ "</td>");
+        }
+        else {
+            tr.append("<td>" + job.jobParams.resourcegpu + "</td>");
+        }
         //Username
         tr.append("<td>" + job.userName + "</td>");
         //Submited Time
@@ -85,12 +93,12 @@
         }
         //Kill it
         if (tableColumns.kill) {
-            tr.append("<td> <a href='#' class=\"Kill\" onclick=\"KillJob('" + job.jobId + "')\" > kill </a></td>");
+            tr.append("<td> <a href='#' class=\"Kill\" onclick=\"KillJob('" + job.cluster + "', '" + job.jobId + "')\" > kill </a></td>");
         }
         //Approval
         if (tableColumns.approval) {
             if (job.jobStatus == "unapproved") {
-                tr.append("<td> <a href='#' class=\"Admin\" onclick=\"ApproveJob('" + job.jobId + "')\" >approve</a></td>");
+                tr.append("<td> <a href='#' class=\"Admin\" onclick=\"ApproveJob('" + job.cluster + "', '" + job.jobId + "')\" >approve</a></td>");
             }
             else {
                 tr.append("<td><b class=\"Alias\" >NA</b></td>");
@@ -106,6 +114,7 @@
         var tr;
         tr = $('<tr/>');
 
+        tr.append("<th>Cluster</th>");
         tr.append("<th>Job ID</th>");
         tr.append("<th>Job Name</th>");
         tr.append("<th>Status</th>");
@@ -143,47 +152,192 @@
             }
             table.append(tbody);
         }
+        removeIcon();
     }
 
     function buildTables() {
-        var apiurl = "/api/dlws/ListJobs"
+        var clusters = @Html.Raw(@Context.Session.GetString("TeamClusters"));
 
-        if (!document.getElementById('chkArchivedJobs').checked) {
-            apiurl += "?num=20"
-        }
+        $.when.apply($, $.map(clusters, function (cluster) {
+            var data = { cluster: cluster }
+            var apiurl = "/api/dlws/ListJobs"
 
-        if (showAll)
-        {
-            apiurl = "/api/dlws/ListAllJobs"
-        }
+            if (!document.getElementById('chkArchivedJobs').checked) {
+                data.num = 20
+            }
 
-        $.ajax({
-            url: (apiurl),
-            dataType: 'json',
-            timeout: 15000
-        }).done(
-            function (json) {
+            if (showAll) {
+                apiurl = "/api/dlws/ListAllJobs"
+                data.num = 100
+            }
 
-                buildJobTable($('#queued-job'), $("#queued-job-table"), json.queuedJobs, { submitTime: true, startTime: false, finishTime: false, kill: true, approval: showAll });
-                buildJobTable($('#running-job'), $("#running-job-table"), json.runningJobs, { submitTime: true, startTime: true, finishTime: false, kill: true });
-                buildJobTable($('#visualization-job'), $("#visualization-job-table"), json.visualizationJobs, { submitTime: false, startTime: true, finishTime: false, kill: true });
-                if (!showAll)
-                    buildJobTable($('#finished-job'), $("#finished-job-table"), json.finishedJobs, { submitTime: true, startTime: false, finishTime: true, kill: false });
-
+            return $.ajax({
+                url: apiurl,
+                data: data,
+                dataType: 'json',
+                timeout: 15000
+            }).then(function (data) {
+                return { cluster: cluster, data: data };
+            }, function () {
+                return undefined;
             });
+        })).then(function () {
+            const mergedData = {
+                meta: {
+                    finishedJobs: 0,
+                    queuedJobs: 0,
+                    runningJobs: 0,
+                    visualizationJobs: 0
+                },
+                finishedJobs: [],
+                queuedJobs: [],
+                runningJobs: [],
+                visualizationJobs: []
+            };
+            $.each(arguments, function () {
+                const cluster = this.cluster;
+                const data = this.data;
+                $.each(['finishedJobs', 'queuedJobs', 'runningJobs', 'visualizationJobs'], function () {
+                    mergedData.meta[this] += data.meta[this];
+                    $.each(data[this], function () {
+                        this.cluster = cluster;
+                    })
+                    mergedData[this].push.apply(mergedData[this], data[this]);
+                })
+            });
+            return mergedData;
+        }).done(function (json) {
+            buildJobTable($('#queued-job'), $("#queued-job-table"), json.queuedJobs, { submitTime: true, startTime: false, finishTime: false, kill: true, approval: showAll });
+            buildJobTable($('#running-job'), $("#running-job-table"), json.runningJobs, { submitTime: true, startTime: true, finishTime: false, kill: true });
+            buildJobTable($('#visualization-job'), $("#visualization-job-table"), json.visualizationJobs, { submitTime: false, startTime: true, finishTime: false, kill: true });
+            if (!showAll) {
+                buildJobTable($('#finished-job'), $("#finished-job-table"), json.finishedJobs, { submitTime: true, startTime: false, finishTime: true, kill: false });
+                if (localStorage.getItem('keyword').length > 0) {
+                    $("table tbody tr").hide()
+                        .filter(":contains('" + (localStorage.getItem('keyword')) + "')").show();
+                }
+            }
+            
+            if (localStorage.getItem('keyword').length > 0) {
+                $("table tbody tr").hide()
+                    .filter(":contains('" + (localStorage.getItem('keyword')) + "')").show();
+            }
+            makeAllSortable();
+        });
     }
 
+    function sortTable(table, col, reverse) {
+        var tb = table.tBodies[0], // use `<tbody>` to ignore `<thead>` and `<tfoot>` rows
+            tr = Array.prototype.slice.call(tb.rows, 0), // put rows into array
+            i;
+        reverse = -((+reverse) || -1);
+        tr = tr.sort(function (a, b) { // sort rows
+            var val1;
+            var val2;
+            if (a.cells[col] && b.cells[col]) {
+                 val1 = a.cells[col].textContent;
+                val2 = b.cells[col].textContent;
+                var res = isNaN(Date.parse(val1)) && isNaN(Date.parse(val2)) ? val1.trim().localeCompare(val2.trim()) : Date.parse(val1) - Date.parse(val2);
+                return reverse // `-1 *` if want opposite order
+                    * (res);
+            }
+        });
+        for (i = 0; i < tr.length; ++i) tb.appendChild(tr[i]); // append each row in order
+    }
+
+    function removeIcon() {
+        var previcons = document.querySelectorAll("i");
+        previcons.forEach(function (previcon) {
+            if (previcon.className.indexOf("glyphicon") !== -1) {
+                previcon.remove();
+            }
+        })
+    }
+
+    function makeSortable(table) {
+        var th = table.tHead, i;
+        th && (th = th.rows[0]) && (th = th.cells);
+        if (th) i = th.length;
+        else return; // if no `<thead>` then do nothing
+        while (--i >= 0) (function (i) {
+            var dir = 1;
+            var sorted = false;
+            if (th[i].innerHTML.indexOf("Kill Job") === -1 && th[i].innerHTML.indexOf("Approval") === -1 ) {
+                th[i].addEventListener('click', function () {
+                    removeIcon();
+                    sorted = !sorted;
+                    var tableId = th[i].closest('table').id;
+                    var icon = document.createElement("i");
+                    dir = 1 - dir;
+                    localStorage.setItem("idx", i);
+                    localStorage.setItem("dir", dir);
+                    localStorage.setItem("tableId", tableId);
+                    localStorage.setItem("sorted", sorted);
+                    icon.className = localStorage.getItem("sorted").indexOf("true") !== -1 ? "glyphicon glyphicon-arrow-down" : "glyphicon glyphicon-arrow-up";
+                    th[i].appendChild(icon);
+                    sortTable(table, i, localStorage.getItem("dir"));
+                });
+            }
+        }(i));
+        var icon = document.createElement("i");
+        if (localStorage.getItem("sorted")) {
+            icon.className = localStorage.getItem("sorted").indexOf("true") !== -1 ? "glyphicon glyphicon-arrow-down" : "glyphicon glyphicon-arrow-up";
+        }
+        var idx = 0;
+        if (localStorage.getItem("idx")) {
+            idx = localStorage.getItem("idx");
+            sortTable(table, idx, localStorage.getItem("dir"));
+        }
+        if (localStorage.getItem('tableId')) {
+            var prevTableId = localStorage.getItem('tableId');
+            if (th[idx].closest('table').id.indexOf(prevTableId) !== -1) {
+                th[idx].appendChild(icon);
+            }
+        }
+    }
+
+    function makeAllSortable(parent) {
+        removeIcon();
+        parent = parent || document.body;
+        var t = parent.getElementsByTagName('table'), i = t.length;
+        while (--i >= 0) {
+            makeSortable(t[i]);
+        }
+    }
 
     function refreshJobs()
     {
         if (!document.getElementById('chkArchivedJobs').checked || showAll) {
             buildTables();
+            $("table tbody tr").hide()
+                .filter(":contains('" + (localStorage.getItem('keyword')) + "')").show();
         }
     }
 
+    function searchKeyWord() {
+        $(function () {
+            $("#txtSearch").keyup(function () {
+                var keyWord = $(this).val();
+                if (typeof (Storage) !== "undefined") {
+                    localStorage.setItem("keyword",$(this).val());
+                }
+                $("table tbody tr").hide()
+                    .filter(":contains('" + (localStorage.getItem('keyword')) + "')").show();
+            }).keyup();
+        });
+    }
+
+    window.onload = function () {
+        localStorage.setItem("sorted", "");
+        localStorage.setItem("idx","")
+    }
+
     $(document).ready(function () {
-        ChangeMode(false)
+        searchKeyWord();
+        ChangeMode(false);
+        makeAllSortable();
         var refresh = setInterval(function () {
+            makeAllSortable();
             refreshJobs();
         }, 15000);
         $(document).tooltip({
@@ -215,52 +369,53 @@
 
 </script>
 
-<br />
-<br />
-<br />
 <h1>View and Manage Jobs:</h1>
 
-@if(ViewData["isAdmin"].Equals("true"))
+@if (ViewData["isAdmin"].Equals("true"))
 {
     <div role="navigation">
         <a href="#" id="your-jobs-tab" role="tab" onclick="ChangeMode(false)"><b>View and Manage Your Jobs</b></a>
         <a href="#" id="all-jobs-tab" role="tab" onclick="ChangeMode(true)"><b>View and Manage All Jobs</b></a>
     </div>
-    <br/>
-    <br/>
-    <br/>
+    <br />
+    <br />
+    <br />
 }
 
+
+<div class="row" style="margin-bottom:20px">
+    <div class="col-xs-6 col-md-4">
+        <div class="input-group">
+            <input type="text" class="form-control" placeholder="Search" id="txtSearch" />
+        </div>
+    </div>
+</div>
 <div id="queued-job" hidden>
     <p> <b>Queued Jobs</b></p>
-    <table id="queued-job-table" class="table table-bordered table-condensed table-hover table-striped">
-    </table>
+    <table id="queued-job-table" class="table table-bordered table-condensed table-hover table-striped"></table>
 </div>
 
 <div id="running-job" hidden>
     <p> <b>Running Jobs</b></p>
-    <table id="running-job-table" class="table table-bordered table-condensed table-hover table-striped">
-    </table>
+    <table id="running-job-table" class="table table-bordered table-condensed table-hover table-striped"></table>
 </div>
 
 <div id="visualization-job" hidden>
     <p> <b>Visualization Jobs</b></p>
-    <table id="visualization-job-table" class="table table-bordered table-condensed table-hover table-striped">
-    </table>
+    <table id="visualization-job-table" class="table table-bordered table-condensed table-hover table-striped"></table>
 </div>
 
 <div id="finished-job" hidden>
     <p>
         <b>Finished Jobs</b>
         <div style="float:right">
-            <input type="checkbox" id="chkArchivedJobs" onclick="buildTables()"/>
+            <input type="checkbox" id="chkArchivedJobs" onclick="buildTables()" />
             <label>
                 Show all finsihed jobs.
             </label>
         </div>
     </p>
-    <table id="finished-job-table" class="table table-bordered table-condensed table-hover table-striped">
-    </table>
+    <table id="finished-job-table" class="table table-bordered table-condensed table-hover table-striped"></table>
 </div>
 
 <style>
@@ -308,4 +463,7 @@
         border-bottom-right-radius: 3px;
     }
 
+    th {
+        white-space: nowrap;
+    }
 </style>

@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: watchdog
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: watchdog
+  template:
+    metadata:
+      annotations:
+        prometheus.io/path: /metrics
+        prometheus.io/port: '{{cnf["watchdog"]["port"]}}'
+        prometheus.io/scrape: 'true'
+      labels:
+        app: watchdog
+        task: monitoring
+      name: watchdog
+    spec:
+      nodeSelector:
+        watchdog: active
+      containers:
+      - command:
+        - python
+        - /watchdog.py
+        - --interval
+        - '30'
+        - --port
+        - '{{cnf["watchdog"]["port"]}}'
+        - --ca
+        - /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        - --bearer
+        - /var/run/secrets/kubernetes.io/serviceaccount/token
+        - https://{{ cnf["api-server-ip"] }}:443
+        {% if "vc_url" in cnf["watchdog"] %}
+        - --vc_url
+        - {{cnf["watchdog"]["vc_url"]}}
+        {% endif %}
+        env:
+        - name: LOGGING_LEVEL
+          value: INFO
+        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}watchdog:{{cnf["dockertag"]}}
+        imagePullPolicy: Always
+        name: watchdog
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: {{cnf["watchdog"]["port"]}}
+          initialDelaySeconds: 3
+          periodSeconds: 30
+          timeoutSeconds: 10
+        resources:
+          limits:
+            memory: 256Mi
+      hostNetwork: true
+      imagePullSecrets:
+      - name: pai-secret
+      tolerations:
+      - key: node.kubernetes.io/memory-pressure
+        operator: Exists
+      - key: node.kubernetes.io/disk-pressure
+        operator: Exists
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule

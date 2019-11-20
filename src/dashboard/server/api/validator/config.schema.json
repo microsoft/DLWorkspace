@@ -1,0 +1,66 @@
+{
+  "title": "Config",
+  "type": "object",
+  "required": ["clusters"],
+  "properties": {
+    "sign": {
+      "description": "Sign key for JWT",
+      "type": "string"
+    },
+    "winbind": {
+      "title": "WinBind server for get user's id info",
+      "description": "Will call /domaininfo/GetUserId with userName query to get the user's id info",
+      "type": "string"
+    },
+    "masterToken": {
+      "title": "Access token of all users",
+      "type": "string"
+    },
+    "activeDirectory": {
+      "title": "Configurations of Azure Active Directory",
+      "type": "object",
+      "properties": {
+        "tenant": {
+          "type": "string"
+        },
+        "clientId": {
+          "type": "string"
+        },
+        "clientSecret": {
+          "type": "string"
+        }
+      }
+    },
+    "clusters": {
+      "type": "object",
+      "patternProperties": {
+        "[\\w-+]": {
+          "type": "object",
+          "required": ["restfulapi"],
+          "properties": {
+            "restfulapi": {
+              "title": "RestfulAPI endpoint of the cluster",
+              "description": "Exclude the tailing slash",
+              "type": "string"
+            },
+            "grafana": {
+              "title": "Grafana endpoint of the cluster",
+              "description": "Exclude the tailing slash",
+              "type": "string"
+            },
+            "workStorage": {
+              "title": "Samba endpoint of the cluster's work directory",
+              "description": "Starting with file://, exclude the tailing slash",
+              "type": "string"
+            },
+            "dataStorage": {
+              "title": "Samba endpoint of the cluster's data directory",
+              "description": "Starting with file://, exclude the tailing slash",
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

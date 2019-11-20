@@ -1,0 +1,181 @@
+{% if cnf["alert-manager"]["configured"] %}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alert-manager
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alert-manager
+  template:
+    metadata:
+      name: alert-manager
+      labels:
+        app: alert-manager
+      annotations:
+        prometheus.io/alert: "true"
+        prometheus.io/port: "{{ cnf['alert-manager']['port'] }}"
+    spec:
+      nodeSelector:
+        alert-manager: active
+      hostNetwork: true
+      containers:
+      - name: alert-manager
+        image: prom/alertmanager:v0.18.0
+        args:
+          - '--config.file=/etc/alertmanager/config.yml'
+          - '--storage.path=/alertmanager'
+          - '--web.external-url=http://localhost/alert-manager/'
+          - '--web.route-prefix=alert-manager'
+        ports:
+        - name: alert-manager
+          containerPort: {{ cnf["alert-manager"]["port"] }}
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/alertmanager
+        - name: storage
+          mountPath: /alertmanager
+        - name: templates-volume
+          mountPath: /etc/alertmanager/template
+      {% if cnf["alert-manager"]["reaper"] %}
+      - name: reaper
+        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}reaper:{{cnf["dockertag"]}}
+        command:
+          - 'python'
+          - '/reaper/main.py'
+          - '--port'
+          - '{{ cnf["alert-manager"]["reaper"]["port"] }}'
+          - '--restful_url'
+          - '{{ cnf["alert-manager"]["reaper"]["restful-url"] }}'
+          {% if cnf["alert-manager"]["reaper"]["dry-run"] %}
+          - '--dry_run'
+          {% endif %}
+        ports:
+        - name: alert-manager
+          containerPort: {{ cnf["alert-manager"]["reaper"]["port"] }}
+      {% endif %}
+      volumes:
+      - name: config-volume
+        configMap:
+          name: alert-manager
+      - name: templates-volume
+        configMap:
+          name: alert-templates
+      - name: storage
+        emptyDir: {}
+      tolerations:
+      - key: node.kubernetes.io/memory-pressure
+        operator: "Exists"
+      - key: node.kubernetes.io/disk-pressure
+        operator: "Exists"
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+---
+{% endif %}
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: alert-manager
+  namespace: kube-system
+data:
+  config.yml: |-
+{% if cnf["alert-manager"]["configured"] %}
+{% set alert_info = cnf["alert-manager"] %}
+    global:
+      resolve_timeout: 5m
+      smtp_smarthost: {{ alert_info["smtp_url"] }}
+      smtp_from: {{ alert_info["smtp_from"] }}
+      smtp_auth_username: {{ alert_info["smtp_auth_username"] }}
+      smtp_auth_password: {{ alert_info["smtp_auth_password"] }}
+    templates:
+    - "/etc/alertmanager/template/*.tmpl"
+    route:
+      repeat_interval: 24h
+      receiver: alert-email
+      group_wait: 30s
+      group_interval: 5m
+      group_by: [alertname, cluster]
+      routes:
+      - receiver: idle_gpu_receiver
+        repeat_interval: 4h
+        group_by: [alertname, user_email, cluster]
+        match_re:
+          type: idle_gpu
+          alertname: "zero-gpu-usage"
+      - receiver: job_state_change_receiver
+        group_by: [alertname, user_email, cluster, subject]
+        match_re:
+          type: user_alert
+          alertname: "job-state-changed"
+      - receiver: reaper
+        group_by: [alertname, user_email, job_name]
+        group_wait: 0s
+        match_re:
+          type: reaper
+      - receiver: kill_idle_job_email
+        group_by: [alertname, user_email, cluster]
+        group_wait: 0s
+        match_re:
+          type: kill_idle_job_email
+          alertname: "kill-idle-jobs-email"
+    receivers:
+    - name: "alert-email"
+      email_configs:
+        - to: {{ alert_info["receiver"] }}
+          html: '{{ "{{" }} template "email.html" . {{ "}}" }}'
+          headers:
+            subject: '{{ "{{" }} .GroupLabels.cluster {{ "}}" }}: {{ "{{" }} template "__subject" . {{ "}}" }}'
+    - name: "idle_gpu_receiver"
+      email_configs:
+        {% if cnf["alert-manager"]["alert_users"] %}
+        - to: '{{ "{{" }} .GroupLabels.user_email {{ "}}" }},{{ alert_info["receiver"] }}'
+        {% else %}
+        - to: '{{ alert_info["receiver"] }}'
+        {% endif %}
+          html: '{{ "{{" }} template "idle_gpu.html" . {{ "}}" }}'
+          headers:
+            {% if cnf["alert-manager"]["alert_users"] %}
+            To: '{{ "{{" }} .GroupLabels.user_email {{ "}}" }}'
+            CC: '{{ alert_info["receiver"] }}'
+            {% endif %}
+            subject: '{{ "{{" }} .GroupLabels.cluster {{ "}}" }}: {{ "{{" }} template "__subject" . {{ "}}" }}'
+    - name: "job_state_change_receiver"
+      email_configs:
+        {% if cnf["alert-manager"]["alert_users"] %}
+        - to: '{{ "{{" }} .GroupLabels.user_email {{ "}}" }},{{ alert_info["receiver"] }}'
+        {% else %}
+        - to: '{{ alert_info["receiver"] }}'
+        {% endif %}
+          html: '{{ "{{" }} template "job_state.html" . {{ "}}" }}'
+          headers:
+            {% if cnf["alert-manager"]["alert_users"] %}
+            To: '{{ "{{" }} .GroupLabels.user_email {{ "}}" }}'
+            CC: '{{ alert_info["receiver"] }}'
+            {% endif %}
+            subject: '{{ "{{" }} .GroupLabels.cluster {{ "}}" }}: {{ "{{" }} template "__subject" . {{ "}}" }}'
+    - name: "reaper"
+      {% if cnf["alert-manager"]["reaper"] %}
+      webhook_configs:
+        - send_resolved: False
+          url: 'http://localhost:{{ cnf["alert-manager"]["reaper"]["port"] }}/kill'
+          http_config:
+            bearer_token: 'shinigami'
+    - name: "kill_idle_job_email"
+      email_configs:
+        {% if cnf["alert-manager"]["alert_users"] %}
+        - to: '{{ "{{" }} .GroupLabels.user_email {{ "}}" }},{{ alert_info["receiver"] }}'
+        {% else %}
+        - to: '{{ alert_info["receiver"] }}'
+        {% endif %}
+          html: '{{ "{{" }} template "kill_idle.html" . {{ "}}" }}'
+          headers:
+            {% if cnf["alert-manager"]["alert_users"] %}
+            To: '{{ "{{" }} .GroupLabels.user_email {{ "}}" }}'
+            CC: '{{ alert_info["receiver"] }}'
+            {% endif %}
+            subject: '{{ "{{" }} .GroupLabels.cluster {{ "}}" }}: {{ "{{" }} template "__subject" . {{ "}}" }}'
+      {% endif %}
+{% endif %}

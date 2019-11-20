@@ -2,845 +2,637 @@ import json
 import os
 import time
 import argparse
-import uuid
-import subprocess
 import sys
 import datetime
-import copy
-
+import functools
+import timeit
+import collections
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
 
-from jobs_tensorboard import GenTensorboardMeta
 import k8sUtils
 import joblog_manager
-from osUtils import mkdirsAsUser
+import notify
 
 import yaml
-from jinja2 import Environment, FileSystemLoader, Template
 from config import config, GetStoragePath, GetWorkPath
 from DataHandler import DataHandler
-from node_manager import create_log
 from node_manager import get_cluster_status
 import base64
+from ResourceInfo import ResourceInfo
+import quota
 
-import re
-
-import thread
-import threading
-import random
+from prometheus_client import Histogram
+import redis
 
 import logging
 import logging.config
+from job import Job, JobSchema
+from job_launcher import JobDeployer, JobRole, PythonLauncher
+
+from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time, record
+
+from job_launcher import get_job_status_detail, job_status_detail_with_finished_time
 
 
-nvidiaDriverPath = config["nvidiaDriverPath"]
+job_state_change_histogram = Histogram("job_state_change_latency_seconds",
+        """latency for job to change state(seconds).
+        Possible value for current_state is approved/scheduling/running.
+        It means how much time it takes for a job change state from previous state
+        to current state. The order of state:
+        created -> approved -> scheduling -> running.
+        For example, approved current_state means how much time it takes for a job
+        to change state from created to approved, running current_state means how
+        long it takes from scheduling to running.""",
+        buckets=(1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0, 1024.0,
+            float("inf")),
+        labelnames=("current_state",))
 
+class JobTimeRecord(object):
+    def __init__(self, create_time=None, approve_time=None,
+            submit_time=None, running_time=None):
+        self.create_time = create_time
+        self.approve_time = approve_time
+        self.submit_time = submit_time
+        self.running_time = running_time
 
+    @staticmethod
+    def parse_time(t):
+        if t is None:
+            return None
+        return datetime.datetime.fromtimestamp(t)
 
-def printlog(msg):
-    print "%s - %s" % (datetime.datetime.utcnow().strftime("%x %X"),msg)
+    @staticmethod
+    def to_timestamp(t):
+        if t is None:
+            return None
+        return time.mktime(t.timetuple())
 
-def LoadJobParams(jobParamsJsonStr):
-    return json.loads(jobParamsJsonStr)
+    @staticmethod
+    def parse(m):
+        c_time = JobTimeRecord.parse_time(m.get("create_time"))
+        a_time = JobTimeRecord.parse_time(m.get("approve_time"))
+        s_time = JobTimeRecord.parse_time(m.get("submit_time"))
+        r_time = JobTimeRecord.parse_time(m.get("running_time"))
+        return JobTimeRecord(c_time, a_time, s_time, r_time)
 
-def cmd_exec(cmdStr):
+    def to_map(self):
+        return {
+                "create_time": JobTimeRecord.to_timestamp(self.create_time),
+                "approve_time": JobTimeRecord.to_timestamp(self.approve_time),
+                "submit_time": JobTimeRecord.to_timestamp(self.submit_time),
+                "running_time": JobTimeRecord.to_timestamp(self.running_time),
+                }
+
+def to_job_status_key(job_id):
+    return "job_status_" + job_id
+
+def load_job_status(redis_conn, job_id):
     try:
-        output = subprocess.check_output(["bash","-c", cmdStr])
-    except Exception as e:
-        print e
-        output = ""
-    return output
+        val = redis_conn.get(to_job_status_key(job_id))
+        if val is not None:
+            return JobTimeRecord.parse(json.loads(val))
+    except Exception:
+        logging.exception("load job status failed")
+    return JobTimeRecord()
 
-
-
-
-
-
-def SubmitJob(job):
-    jobParams = json.loads(base64.b64decode(job["jobParams"]))
-    if jobParams["jobtrainingtype"] == "RegularJob":
-        SubmitRegularJob(job)
-    elif jobParams["jobtrainingtype"] == "PSDistJob":
-        SubmitPSDistJob(job)
-
-def CheckMountPoints(mplist, mp):
-    ret = True
-    for item in mplist:
-        if item["name"] == mp["name"] or item["containerPath"] == mp["containerPath"] or item["hostPath"] == mp["hostPath"]:
-            ret = False
-    return ret
-
-def SubmitRegularJob(job):
-    ret = {}
-    dataHandler = DataHandler()
-
+def set_job_status(redis_conn, job_id, job_status):
     try:
+        val = json.dumps(job_status.to_map())
+        redis_conn.set(to_job_status_key(job_id), val)
+    except Exception:
+        logging.exception("set job status failed")
+
+# If previous state has no record, which means the job_manager get restarted
+# or previous entry is expired, we ignore this entry.
+def update_job_state_latency(redis_conn, job_id, state, event_time=None):
+    if event_time is None:
+        event_time = datetime.datetime.utcnow()
+
+    job_status = load_job_status(redis_conn, job_id)
+    changed = False
+
+    if state == "created":
+        if job_status.create_time is None:
+            changed = True
+            job_status.create_time = event_time
+    elif state == "approved":
+        if job_status.approve_time is None:
+            changed = True
+            job_status.approve_time = event_time
+        if changed and job_status.create_time is not None:
+            changed = True
+            elapsed = (event_time - job_status.create_time).seconds
+            job_state_change_histogram.labels(state).observe(elapsed)
+    elif state == "scheduling":
+        if job_status.submit_time is None:
+            changed = True
+            job_status.submit_time = event_time
+        if changed and job_status.approve_time is not None:
+            changed = True
+            elapsed = (event_time - job_status.approve_time).seconds
+            job_state_change_histogram.labels(state).observe(elapsed)
+    elif state == "running":
+        if job_status.running_time is None:
+            changed = True
+            job_status.running_time = event_time
+        # because UpdateJobStatus will call update_job_state_latency
+        # multiple times, so here need to avoid override metric
+        if changed and job_status.submit_time is not None:
+            changed = True
+            elapsed = (event_time - job_status.submit_time).seconds
+            job_state_change_histogram.labels(state).observe(elapsed)
+
+    if changed:
+        set_job_status(redis_conn, job_id, job_status)
+
+
+def get_scheduling_job_details(details):
+    pod_details = []
+    for detail in details:
+        # Users are mostly interested in
+        # 1. Pod name
+        # 2. Pod phase
+        # 3. Message indicating why it's pending
+        pod_detail = {}
+        if "metadata" in detail and "labels" in detail["metadata"] and \
+                "podName" in detail["metadata"]["labels"]:
+            pod_detail["podName"] = detail["metadata"]["labels"]["podName"]
+
+        if "status" in detail:
+            status = detail["status"]
+            if "phase" in status:
+                pod_phase = status["phase"]
+                pod_detail["podPhase"] = pod_phase
+                if pod_phase == "Pending":
+                    message = {}
+                    if "conditions" in status:
+                        conditions = status["conditions"]
+                        for condition in conditions:
+                            condition["last_transition_time"] = str(condition["last_transition_time"])
+                        message["conditions"] = conditions
+                    if "container_statuses" in status:
+                        message["containerStatuses"] = status["container_statuses"]
+                    pod_detail["message"] = message
+
+        pod_details.append(pod_detail)
+
+    return pod_details
+
+
+def GetJobTotalGpu(jobParams):
+    numWorkers = 1
+    if "numpsworker" in jobParams:
+        numWorkers = int(jobParams["numpsworker"])
+    return int(jobParams["resourcegpu"]) * numWorkers
+
+
+@record
+def ApproveJob(redis_conn, job, dataHandlerOri=None):
+    try:
+        job_id = job["jobId"]
+        vcName = job["vcName"]
+
+        update_job_state_latency(redis_conn, job_id, "created", event_time=job["jobTime"])
+
         jobParams = json.loads(base64.b64decode(job["jobParams"]))
+        job_total_gpus = GetJobTotalGpu(jobParams)
 
-        jobParams["pvc_job"] = "jobs-" + jobParams["jobId"]
-        jobParams["pvc_work"] = "work-" + jobParams["jobId"]
-        jobParams["pvc_data"] = "storage-" + jobParams["jobId"]
-
-
-        if "jobPath" not in jobParams or len(jobParams["jobPath"].strip()) == 0: 
-            dataHandler.SetJobError(jobParams["jobId"],"ERROR: job-path does not exist")
-            return False
-
-        if "workPath" not in jobParams or len(jobParams["workPath"].strip()) == 0: 
-            dataHandler.SetJobError(jobParams["jobId"],"ERROR: work-path does not exist")
-            return False
-
-        #if "dataPath" not in jobParams or len(jobParams["dataPath"].strip()) == 0: 
-        #    dataHandler.SetJobError(jobParams["jobId"],"ERROR: data-path does not exist")
-        #    return False
-
-
-        jobPath,workPath,dataPath = GetStoragePath(jobParams["jobPath"],jobParams["workPath"],jobParams["dataPath"])
-
-
-        localJobPath = os.path.join(config["storage-mount-path"],jobPath)
-
-        if not os.path.exists(localJobPath):
-            if "userId" in jobParams:
-                mkdirsAsUser(localJobPath,jobParams["userId"])
-                mkdirsAsUser(os.path.join(localJobPath,"models"),jobParams["userId"])
-            else:
-                mkdirsAsUser(localJobPath,"0")
-                mkdirsAsUser(os.path.join(localJobPath,"models"),"0")
-
-        jobParams["LaunchCMD"] = ""
-        if "cmd" not in jobParams:
-            jobParams["cmd"] = ""
-            
-        if isinstance(jobParams["cmd"], basestring) and not jobParams["cmd"] == "":
-            launchScriptPath = os.path.join(localJobPath,"launch-%s.sh" % jobParams["jobId"])
-            with open(launchScriptPath, 'w') as f:
-                f.write("#!/bin/bash -x\n")
-                f.write(jobParams["cmd"] + "\n")
-            f.close()    
-            if "userId" in jobParams:
-                os.system("chown -R %s %s" % (jobParams["userId"], launchScriptPath))
-            jobParams["LaunchCMD"] = "[\"bash\", \"/job/launch-%s.sh\"]" % jobParams["jobId"]
-
-
-        jobParams["jobDescriptionPath"] = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"] + ".yaml"
-
-        jobParams["jobNameLabel"] = ''.join(e for e in jobParams["jobName"] if e.isalnum())
-
-        ENV = Environment(loader=FileSystemLoader("/"))
-
-        jobTempDir = os.path.join(config["root-path"],"Jobs_Templete")
-        jobTemp = os.path.join(jobTempDir, "RegularJob.yaml.template")
-
-        jobParams["hostjobPath"] = os.path.join(config["storage-mount-path"], jobPath)
-        jobParams["hostworkPath"] = os.path.join(config["storage-mount-path"], workPath)
-        jobParams["hostdataPath"] = os.path.join(config["storage-mount-path"], dataPath)
-        jobParams["nvidiaDriverPath"] = nvidiaDriverPath
-
-
-        jobParams["userNameLabel"] = getAlias(jobParams["userName"])
-        jobParams["rest-api"] = config["rest-api"]
-
-        if "mountpoints" not in jobParams:
-            jobParams["mountpoints"] = []
-        for onemount in jobParams["mountpoints"]:
-            onemount["name"] = onemount["containerPath"].replace("/","")
-
-        mp = {"name":"nvidia-driver","containerPath":"/usr/local/nvidia","hostPath":nvidiaDriverPath, "enabled":True}
-        if CheckMountPoints(jobParams["mountpoints"],mp):
-            jobParams["mountpoints"].append(mp)
-
-        mp = {"name":"job","containerPath":"/job","hostPath":jobParams["hostjobPath"], "enabled":True}
-        if CheckMountPoints(jobParams["mountpoints"],mp):
-            jobParams["mountpoints"].append(mp)
-
-        mp = {"name":"work","containerPath":"/work","hostPath":jobParams["hostworkPath"], "enabled":True}
-        if CheckMountPoints(jobParams["mountpoints"],mp):
-            jobParams["mountpoints"].append(mp)
-
-        mp = {"name":"data","containerPath":"/data","hostPath":jobParams["hostdataPath"], "enabled":True}
-        if CheckMountPoints(jobParams["mountpoints"],mp):
-            jobParams["mountpoints"].append(mp)                        
-
-        userAlias = getAlias(jobParams["userName"])
-
-        mp = {"name":"sshkey","containerPath":"/home/%s/.ssh" % userAlias,"hostPath":os.path.join(config["storage-mount-path"], GetWorkPath(userAlias)+"/.ssh"), "readOnly":True, "enabled":True}
-        if CheckMountPoints(jobParams["mountpoints"],mp):
-            jobParams["mountpoints"].append(mp)            
-
-
-        jobParams["pod_ip_range"] = config["pod_ip_range"]
-        if "usefreeflow" in config:
-            jobParams["usefreeflow"] = config["usefreeflow"]
+        if dataHandlerOri is None:
+            dataHandler = DataHandler()
         else:
-            jobParams["usefreeflow"] = False
+            dataHandler = dataHandlerOri
 
-        print ("Render Job: %s" % jobParams)
-        jobDescriptionList = []
+        if "preemptionAllowed" in jobParams and jobParams["preemptionAllowed"] is True:
+            logging.info("Job {} preemptible, approve!".format(job_id))
+            detail = [{"message": "waiting for available preemptible resource."}]
+            dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
+            dataHandler.UpdateJobTextField(job_id, "jobStatus", "queued")
+            update_job_state_latency(redis_conn, job_id, "approved")
+            if dataHandlerOri is None:
+                dataHandler.Close()
+            return True
 
-        pods = []
-        if "hyperparametername" in jobParams and "hyperparameterstartvalue" in jobParams and "hyperparameterendvalue" in jobParams and "hyperparameterstep" in jobParams:
-            i = int(jobParams["hyperparameterstartvalue"])
-            end = int(jobParams["hyperparameterendvalue"])
-            step = int(jobParams["hyperparameterstep"])
-            c = 0
-            while (i <= end):
-                pod = {}
-                pod["podName"] = jobParams["jobId"]+"-pod-"+str(c)
-                pod["envs"] = [{"name":jobParams["hyperparametername"],"value":i}]
-                i += step
-                c += 1 
-                pods.append(pod)
-        else:
-                pod = {}
-                pod["podName"] = jobParams["jobId"]
-                pod["envs"] = []
-                pods.append(pod)
+        vcList = dataHandler.ListVCs()
+        vc = None
+        for item in vcList:
+            if item["vcName"] == vcName:
+                vc = item
+                break
+        if vc is None:
+            logging.warning("Vc not exising! job {}, vc {}".format(job_id, vcName))
+            if dataHandlerOri is None:
+                dataHandler.Close()
+            return False
+        metadata = json.loads(vc["metadata"])
 
-        if "env" not in jobParams:
-            jobParams["env"] = []
-        jobParams["commonenv"] = copy.copy(jobParams["env"])
+        if "user_quota" in metadata:
+            user_running_jobs = dataHandler.GetJobList(job["userName"], vcName, status="running,queued,scheduling", op=("=", "or"))
+            running_gpus = 0
+            for running_job in user_running_jobs:
+                running_jobParams = json.loads(base64.b64decode(running_job["jobParams"]))
+                # ignore preemptible GPUs
+                if "preemptionAllowed" in running_jobParams and running_jobParams["preemptionAllowed"] is True:
+                    continue
+                running_job_total_gpus = GetJobTotalGpu(running_jobParams)
+                running_gpus += running_job_total_gpus
 
+            logging.info("Job {} require {}, used quota (exclude preemptible GPUs) {}, with user quota of {}.".format(job_id, job_total_gpus, running_gpus, metadata["user_quota"]))
+            if job_total_gpus > 0 and int(metadata["user_quota"]) < (running_gpus + job_total_gpus):
+                logging.info("Job {} excesses the user quota: {} + {} > {}. Will need approve from admin.".format(job_id, running_gpus, job_total_gpus, metadata["user_quota"]))
+                detail = [{"message": "exceeds the user quota in VC: {} (used) + {} (requested) > {} (user quota). Will need admin approval.".format(running_gpus, job_total_gpus, metadata["user_quota"])}]
+                dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
+                if dataHandlerOri is None:
+                    dataHandler.Close()
+                return False
 
-        for pod in pods:
-            jobParams["podName"] = pod["podName"]
-            jobParams["env"] = jobParams["commonenv"] + pod["envs"]
-
-            if "kube_custom_scheduler" in config and config["kube_custom_scheduler"]:
-                container = {}
-                container["requests"] = {"alpha.gpu/numgpu" : int(jobParams["resourcegpu"])}
-                podInfo = {}
-                podInfo["podname"] = jobParams["podName"]
-                if "useGPUTopology" in jobParams and jobParams["useGPUTopology"]:
-                    # add topology constraints explicitly - for testing
-                    # if (jobParams["resourcegpu"] >= 2):
-                    #     # both cards in same inner group
-                    #     container["requests"]["alpha/grpresource/gpugrp1/0/gpugrp0/0/gpu/0/cards"] = 1
-                    #     container["requests"]["alpha/grpresource/gpugrp1/0/gpugrp0/0/gpu/1/cards"] = 1
-                    # if (jobParams["resourcegpu"] >= 3):
-                    #     container["requests"]["alpha/grpresource/gpugrp1/0/gpugrp0/1/gpu/2/cards"] = 1
-                    # if (jobParams["resourcegpu"] >= 4):
-                    #     container["requests"]["alpha/grpresource/gpugrp1/0/gpugrp0/1/gpu/3/cards"] = 1
-                    # if (jobParams["resourcegpu"] >= 5):
-                    #     container["requests"]["alpha/grpresource/gpugrp1/1/gpugrp0/2/gpu/4/cards"] = 1
-                    # if (jobParams["resourcegpu"] >= 6):
-                    #     container["requests"]["alpha/grpresource/gpugrp1/1/gpugrp0/2/gpu/5/cards"] = 1
-                    # if (jobParams["resourcegpu"] >= 7):
-                    #     container["requests"]["alpha/grpresource/gpugrp1/1/gpugrp0/3/gpu/6/cards"] = 1
-                    # if (jobParams["resourcegpu"] >= 8):
-                    #     container["requests"]["alpha/grpresource/gpugrp1/1/gpugrp0/3/gpu/7/cards"] = 1
-                    podInfo["requests"] = {"alpha.gpu/gpu-generate-topology" : 1}
-                else:
-                    # for cases when desired topology is explictly given or not desired
-                    podInfo["requests"] = {"alpha.gpu/gpu-generate-topology" : 0}
-                podInfo["runningcontainer"] = {jobParams["podName"] : container}
-
-                if "annotations" not in jobParams:
-                    jobParams["annotations"] = {}
-                jobParams["annotations"]["pod.alpha/DeviceInformation"] = "'" + json.dumps(podInfo) + "'"
-                jobParams["resourcegpu"] = 0 # gpu requests specified through annotation
-
-            template = ENV.get_template(os.path.abspath(jobTemp))
-            job_description = template.render(job=jobParams)
-            jobDescriptionList.append(job_description)
-
-            if ("interactivePort" in jobParams and len(jobParams["interactivePort"].strip()) > 0):
-                ports = [p.strip() for p in re.split(",|;",jobParams["interactivePort"]) if len(p.strip()) > 0 and p.strip().isdigit()]
-                for portNum in ports:
-                    jobParams["serviceId"] = "interactive-" + jobParams["podName"] + "-" + portNum
-                    jobParams["port"] = portNum
-                    jobParams["port-name"] = "interactive"
-                    jobParams["port-type"] = "TCP"
-
-                    serviceTemplate = ENV.get_template(os.path.join(jobTempDir,"KubeSvc.yaml.template"))
-
-                    stemplate = ENV.get_template(serviceTemplate)
-                    interactiveMeta = stemplate.render(svc=jobParams)
-                    jobDescriptionList.append(interactiveMeta)
-
-
-        jobDescription = "\n---\n".join(jobDescriptionList)
-
-        jobDescriptionPath = os.path.join(config["storage-mount-path"], jobParams["jobDescriptionPath"])
-        if not os.path.exists(os.path.dirname(os.path.realpath(jobDescriptionPath))):
-            os.makedirs(os.path.dirname(os.path.realpath(jobDescriptionPath)))
-        if os.path.isfile(jobDescriptionPath):
-            output = k8sUtils.kubectl_delete(jobDescriptionPath) 
-
-        with open(jobDescriptionPath, 'w') as f:
-            f.write(jobDescription)
-
-        output = k8sUtils.kubectl_create(jobDescriptionPath)    
-        logging.info("Submitted job %s to k8s, returned with status %s" %(job["jobId"], output))
-
-        ret["output"] = output
-        
-        ret["jobId"] = jobParams["jobId"]
-
-
-        if "userName" not in jobParams:
-            jobParams["userName"] = ""
-
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","scheduling")
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobDescriptionPath",jobParams["jobDescriptionPath"])
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobDescription",base64.b64encode(jobDescription))
-
-
-        jobMeta = {}
-        jobMeta["jobDescriptionPath"] = jobParams["jobDescriptionPath"]
-        jobMeta["jobPath"] = jobParams["jobPath"]
-        jobMeta["workPath"] = jobParams["workPath"]
-        jobMeta["jobPath"] = jobParams["jobPath"]
-        jobMeta["LaunchCMD"] = jobParams["LaunchCMD"]
-
-        jobMetaStr = base64.b64encode(json.dumps(jobMeta))
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobMeta",jobMetaStr)
+        detail = [{"message": "waiting for available resource."}]
+        dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
+        dataHandler.UpdateJobTextField(job_id, "jobStatus", "queued")
+        update_job_state_latency(redis_conn, job_id, "approved")
+        if dataHandlerOri is None:
+            dataHandler.Close()
+        return True
     except Exception as e:
-        print e
-        ret["error"] = str(e)
-        retries = dataHandler.AddandGetJobRetries(jobParams["jobId"])
-        if retries >= 5:
-            dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","error")
-            dataHandler.UpdateJobTextField(jobParams["jobId"],"errorMsg","Cannot submit job!" + str(e))
-
-    return ret
-
-
-
-def SubmitPSDistJob(job):
-    ret = {}
-    dataHandler = DataHandler()
-
-    try:
-        jobParams = json.loads(base64.b64decode(job["jobParams"]))
-        jobParams["rest-api"] = config["rest-api"]
-        distJobParams = {}
-        distJobParams["ps"] = []
-        distJobParams["worker"] = []
-        assignedRack = None
-        if len(config["racks"]) > 0:
-            assignedRack = random.choice(config["racks"])
-        if jobParams["jobtrainingtype"] == "PSDistJob":
-            jobDescriptionList = []
-            nums = {"ps":int(jobParams["numps"]),"worker":int(jobParams["numpsworker"])}
-            for role in ["ps","worker"]:
-                for i in range(nums[role]):
-                    distJobParam=copy.deepcopy(jobParams)
-                    distJobParam["distId"] = "%s%d" % (role,i)
-                    distJobParam["distRole"] = role
-
-                    if "jobPath" not in distJobParam or len(distJobParam["jobPath"].strip()) == 0: 
-                        dataHandler.SetJobError(distJobParam["jobId"],"ERROR: job-path does not exist")
-                        return False
-
-                    distJobParam["distJobPath"] = os.path.join(distJobParam["jobPath"],distJobParam["distId"])
-
-                    if "workPath" not in distJobParam or len(distJobParam["workPath"].strip()) == 0: 
-                        dataHandler.SetJobError(distJobParam["jobId"],"ERROR: work-path does not exist")
-                        return False
-
-                    if "dataPath" not in distJobParam or len(distJobParam["dataPath"].strip()) == 0: 
-                        dataHandler.SetJobError(distJobParam["jobId"],"ERROR: data-path does not exist")
-                        return False
-
-                    jobPath,workPath,dataPath = GetStoragePath(distJobParam["distJobPath"],distJobParam["workPath"],distJobParam["dataPath"])
-
-                    localJobPath = os.path.join(config["storage-mount-path"],jobPath)
-                    if not os.path.exists(localJobPath):
-                        if "userId" in distJobParam:
-                            mkdirsAsUser(localJobPath,distJobParam["userId"])
-                        else:
-                            mkdirsAsUser(localJobPath,0)
-
-
-                    distJobParam["LaunchCMD"] = ""
-                    if "cmd" not in distJobParam:
-                        distJobParam["cmd"] = ""
-
-################One choice is that we only wait for certain time.            
-#                    launchCMD = """
-##!/bin/bash
-#mkdir -p /opt
-#echo "[DLWorkspace System]: Waiting for all containers are ready..."
-## wait for at most 10 mins. 
-#for i in {1..200}; do
-#    if [ ! -f /opt/run_dist_job ] || [ ! -f /opt/run_dist_job.sh ]; then
-#        sleep 3
-#    else
-#        break
-#    fi
-#done
-#if [ ! -f /opt/run_dist_job ] || [ ! -f /opt/run_dist_job.sh ]; then
-#    echo "[DLWorkspace System]: Waiting for containers: timeout! Restarting..."
-#    exit 1
-#else
-#    echo "[DLWorkspace System]: All containers are ready, launching training job..."
-#    chmod +x /opt/run_dist_job.sh
-#    /opt/run_dist_job.sh
-#fi
-#"""
-
-
-                    launchCMD = """
-#!/bin/bash
-mkdir -p /opt
-echo "[DLWorkspace System]: Waiting for all containers are ready..."
-while [ ! -f /opt/run_dist_job ] || [ ! -f /opt/run_dist_job.sh ]; do
-    sleep 3
-done
-echo "[DLWorkspace System]: All containers are ready, launching training job..."
-chmod +x /opt/run_dist_job.sh
-/opt/run_dist_job.sh
-"""
-
-                    launchScriptPath = os.path.join(localJobPath,"launch-%s.sh" % distJobParam["jobId"])
-                    with open(launchScriptPath, 'w') as f:
-                        f.write(launchCMD)
-                    f.close()        
-                    distJobParam["LaunchCMD"] = "[\"bash\", \"/job/launch-%s.sh\"]" % distJobParam["jobId"]
-
-
-
-                    distJobParam["jobNameLabel"] = ''.join(e for e in distJobParam["jobName"] if e.isalnum())
-                    distJobParam["userNameLabel"] = getAlias(jobParams["userName"])
-                    ENV = Environment(loader=FileSystemLoader("/"))
-
-                    jobTempDir = os.path.join(config["root-path"],"Jobs_Templete")
-                    jobTemp = os.path.join(jobTempDir, "DistJob.yaml.template")
-
-                    distJobParam["hostjobPath"] = os.path.join(config["storage-mount-path"], jobPath)
-                    distJobParam["hostworkPath"] = os.path.join(config["storage-mount-path"], workPath)
-                    distJobParam["hostdataPath"] = os.path.join(config["storage-mount-path"], dataPath)
-                    distJobParam["nvidiaDriverPath"] = nvidiaDriverPath
-
-                    if "mountpoints" not in distJobParam:
-                        distJobParam["mountpoints"] = []
-
-                    distJobParam["mountpoints"].append({"name":"nvidia-driver","containerPath":"/usr/local/nvidia","hostPath":nvidiaDriverPath})
-                    distJobParam["mountpoints"].append({"name":"job","containerPath":"/job","hostPath":distJobParam["hostjobPath"]})
-                    distJobParam["mountpoints"].append({"name":"work","containerPath":"/work","hostPath":distJobParam["hostworkPath"]})
-                    distJobParam["mountpoints"].append({"name":"data","containerPath":"/data","hostPath":distJobParam["hostdataPath"]})
-                    distJobParam["pod_ip_range"] = config["pod_ip_range"]
-                    if "usefreeflow" in config and config["usefreeflow"] == "True":
-                        distJobParam["usefreeflow"] = config["usefreeflow"]
-                    else:
-                        distJobParam["usefreeflow"] = False
-
-
-                    random.seed(datetime.datetime.now())
-                    distJobParam["containerPort"] = int(random.random()*1000+3000)
-
-                    if assignedRack is not None:
-                        if "nodeSelector" not in distJobParam:
-                            distJobParam["nodeSelector"] = {}
-                        distJobParam["nodeSelector"]["rack"] = assignedRack
-
-                    template = ENV.get_template(os.path.abspath(jobTemp))
-                    job_description = template.render(job=distJobParam)
-
-                    jobDescriptionList.append(job_description)
-
-                    distJobParams[role].append(distJobParam)
-
-            jobParams["jobDescriptionPath"] = "jobfiles/" + time.strftime("%y%m%d") + "/" + jobParams["jobId"] + "/" + jobParams["jobId"] + ".yaml"
-            jobDescription = "\n---\n".join(jobDescriptionList)
-
-
-        jobDescriptionPath = os.path.join(config["storage-mount-path"], jobParams["jobDescriptionPath"])
-        if not os.path.exists(os.path.dirname(os.path.realpath(jobDescriptionPath))):
-            os.makedirs(os.path.dirname(os.path.realpath(jobDescriptionPath)))
-        if os.path.isfile(jobDescriptionPath):
-            output = k8sUtils.kubectl_delete(jobDescriptionPath) 
-
-        with open(jobDescriptionPath, 'w') as f:
-            f.write(jobDescription)
-
-        output = k8sUtils.kubectl_create(jobDescriptionPath)    
-
-        ret["output"] = output
-        
-        ret["jobId"] = jobParams["jobId"]
-
-
-        if "userName" not in jobParams:
-            jobParams["userName"] = ""
-
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","scheduling")
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobDescriptionPath",jobParams["jobDescriptionPath"])
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobDescription",base64.b64encode(jobDescription))
-
-
-        jobMeta = {}
-        jobMeta["jobDescriptionPath"] = jobParams["jobDescriptionPath"]
-        jobMeta["jobPath"] = jobParams["jobPath"]
-        jobMeta["workPath"] = jobParams["workPath"]
-        jobMeta["jobPath"] = jobParams["jobPath"]
-        jobMeta["LaunchCMD"] = jobParams["LaunchCMD"]
-        jobMeta["distJobParams"] = distJobParams
-
-        jobMetaStr = base64.b64encode(json.dumps(jobMeta))
-        dataHandler.UpdateJobTextField(jobParams["jobId"],"jobMeta",jobMetaStr)
-    except Exception as e:
-        print e
-        ret["error"] = str(e)
-        retries = dataHandler.AddandGetJobRetries(jobParams["jobId"])
-        if retries >= 5:
-            dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","error")
-            dataHandler.UpdateJobTextField(jobParams["jobId"],"errorMsg","Cannot submit job!" + str(e))
-
-    return ret
-
-def KillJob(job):
-    dataHandler = DataHandler()
-    result, detail = k8sUtils.GetJobStatus(job["jobId"])
-    dataHandler.UpdateJobTextField(job["jobId"],"jobStatusDetail",base64.b64encode(json.dumps(detail)))
-    logging.info("Killing job %s, with status %s, %s" %(job["jobId"], result,detail))
-    if "jobDescriptionPath" in job and job["jobDescriptionPath"] is not None:
-        jobDescriptionPath = os.path.join(config["storage-mount-path"], job["jobDescriptionPath"])
-        if os.path.isfile(jobDescriptionPath):
-            if k8sUtils.kubectl_delete(jobDescriptionPath) == 0:
-                dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","killed")
-                return True
-            else:
-                dataHandler.UpdateJobTextField(job["jobId"],"errorMsg","Cannot delete job from Kubernetes Cluster!")
-    else:
-        dataHandler.UpdateJobTextField(job["jobId"],"errorMsg","Cannot find job description file!")
-
-    dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","error")
-    return False
-
-
-def getAlias(username):
-    if "@" in username:
-        username = username.split("@")[0].strip()
-
-    if "/" in username:
-        username = username.split("/")[1].strip()
-
-    return username
-
-
-def ApproveJob(job):
-    dataHandler = DataHandler()
-    dataHandler.ApproveJob(job["jobId"])
-    dataHandler.Close()
-    return True
-
-
-
-def AutoApproveJob(job):
-    cluster_status = get_cluster_status()
-    jobUser = getAlias(job["userName"])
-    jobParams = json.loads(base64.b64decode(job["jobParams"]))
-    jobGPU = int(jobParams["resourcegpu"])
-
-    currentGPU = 0
-    for user in cluster_status["user_status"]:
-        if user["userName"] == jobUser:
-            currentGPU = int(user["userGPU"])
-
-    if currentGPU == 0 or currentGPU + jobGPU <= 4:
-        ApproveJob(job)
+        logging.warning(e, exc_info=True)
+    finally:
+        if dataHandlerOri is None:
+            dataHandler.Close()
 
 
 UnusualJobs = {}
 
-def UpdateJobStatus(job):
-    dataHandler = DataHandler()
+@record
+def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=None):
+    assert(job["jobStatus"] == "scheduling" or job["jobStatus"] == "running")
+    if dataHandlerOri is None:
+        dataHandler = DataHandler()
+    else:
+        dataHandler = dataHandlerOri
     jobParams = json.loads(base64.b64decode(job["jobParams"]))
 
+    result, details = check_job_status(job["jobId"])
+    logging.info("++++++++ Job status: {} {}".format(job["jobId"], result))
 
-    if job["jobStatus"] == "scheduling" and jobParams["jobtrainingtype"] == "PSDistJob":
-        launch_ps_dist_job(jobParams)
+    jobPath, workPath, dataPath = GetStoragePath(jobParams["jobPath"], jobParams["workPath"], jobParams["dataPath"])
+    localJobPath = os.path.join(config["storage-mount-path"], jobPath)
+    logPath = os.path.join(localJobPath, "logs/joblog.txt")
 
-
-    jobPath,workPath,dataPath = GetStoragePath(jobParams["jobPath"],jobParams["workPath"],jobParams["dataPath"])
-    localJobPath = os.path.join(config["storage-mount-path"],jobPath)
-    logPath = os.path.join(localJobPath,"logs/joblog.txt")
-    
-
-    result, detail = k8sUtils.GetJobStatus(job["jobId"])
-    dataHandler.UpdateJobTextField(job["jobId"],"jobStatusDetail",base64.b64encode(json.dumps(detail)))
-
-    logging.info("job %s status: %s,%s" % (job["jobId"], result, json.dumps(detail)))
-    
-    jobDescriptionPath = os.path.join(config["storage-mount-path"], job["jobDescriptionPath"]) if "jobDescriptionPath" in job else None
+    jobDescriptionPath = None
+    if "jobDescriptionPath" in job and job["jobDescriptionPath"] is not None:
+        jobDescriptionPath = os.path.join(config["storage-mount-path"], job["jobDescriptionPath"])
     if "userId" not in jobParams:
-        jobParams["userId"]    = "0"
-    if result.strip() == "Succeeded":
-        joblog_manager.extract_job_log(job["jobId"],logPath,jobParams["userId"])
-        dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","finished")
-        if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
-            k8sUtils.kubectl_delete(jobDescriptionPath) 
+        jobParams["userId"] = "0"
 
-    elif result.strip() == "Running":
+    if result == "Succeeded":
+        joblog_manager.extract_job_log(job["jobId"], logPath, jobParams["userId"])
+
+        # TODO: Refactor
+        detail = get_job_status_detail(job)
+        detail = job_status_detail_with_finished_time(detail, "finished")
+        dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
+        dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "finished")
+
+        # Retain the old code for reference
+        # if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
+        #     k8sUtils.kubectl_delete(jobDescriptionPath)
+
+        job_deployer = JobDeployer()
+        job_deployer.delete_job(job["jobId"], force=True)
+
+        if notifier is not None:
+            notifier.notify(notify.new_job_state_change_message(
+                job["userName"], job["jobId"], result.strip()))
+    elif result == "Running":
+        update_job_state_latency(redis_conn, job["jobId"], "running")
         if job["jobStatus"] != "running":
-            dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","running")
+            started_at = k8sUtils.localize_time(datetime.datetime.now())
+            detail = [{"startedAt": started_at, "message": "started at: {}".format(started_at)}]
+            dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
+            dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "running")
 
-        if "interactivePort" in jobParams:
-            serviceAddress = k8sUtils.GetServiceAddress(job["jobId"])
-            serviceAddress = base64.b64encode(json.dumps(serviceAddress))
-            dataHandler.UpdateJobTextField(job["jobId"],"endpoints",serviceAddress)
+    elif result == "Failed":
+        logging.warning("Job %s fails, cleaning...", job["jobId"])
 
-    elif result.strip() == "Failed":
-        printlog("Job %s fails, cleaning..." % job["jobId"])
-        joblog_manager.extract_job_log(job["jobId"],logPath,jobParams["userId"])
-        dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","failed")
-        dataHandler.UpdateJobTextField(job["jobId"],"errorMsg",detail)
-        if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
-            k8sUtils.kubectl_delete(jobDescriptionPath) 
+        if notifier is not None:
+            notifier.notify(notify.new_job_state_change_message(
+                job["userName"], job["jobId"], result.strip()))
 
-    elif result.strip() == "Unknown":
+        joblog_manager.extract_job_log(job["jobId"], logPath, jobParams["userId"])
+
+        # TODO: Refactor
+        detail = get_job_status_detail(job)
+        detail = job_status_detail_with_finished_time(detail, "failed")
+        dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
+        dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "failed")
+        dataHandler.UpdateJobTextField(job["jobId"], "errorMsg", "pod failed")
+
+        # Retain the old code for reference
+        # if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
+        #     k8sUtils.kubectl_delete(jobDescriptionPath)
+
+        job_deployer = JobDeployer()
+        job_deployer.delete_job(job["jobId"], force=True)
+
+    elif result == "Unknown" or result == "NotFound":
         if job["jobId"] not in UnusualJobs:
+            logging.warning("!!! Job status ---{}---, job: {}".format(result, job["jobId"]))
             UnusualJobs[job["jobId"]] = datetime.datetime.now()
-        elif (datetime.datetime.now() - UnusualJobs[job["jobId"]]).seconds > 300:
+        # TODO
+        # 1) May need to reduce the timeout.
+        #     It takes minutes before pod turns into "Unknown", we may don't need to wait so long.
+        # 2) If node resume before we resubmit the job, the job will end in status 'NotFound'.
+        elif (datetime.datetime.now() - UnusualJobs[job["jobId"]]).seconds > 30:
             del UnusualJobs[job["jobId"]]
-            retries = dataHandler.AddandGetJobRetries(job["jobId"])
-            if retries >= 5:
-                printlog("Job %s fails for more than 5 times, abort" % job["jobId"])
-                dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","error")
-                dataHandler.UpdateJobTextField(job["jobId"],"errorMsg","cannot launch the job.")
-                if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
-                    k8sUtils.kubectl_delete(jobDescriptionPath)                 
-            else:
-                printlog("Job %s fails in Kubernetes, delete and re-submit the job. Retries %d" % (job["jobId"] , retries))
-                SubmitJob(job)
-    elif result.strip() == "PendingHostPort":
-        printlog("Cannot find host ports for job :%s, re-launch the job with different host ports " % (job["jobId"]))
-    
-        SubmitJob(job)
 
-    if result.strip() != "Unknown" and job["jobId"] in UnusualJobs:
+            # TODO refine later
+            # before resubmit the job, reset the endpoints
+            # update all endpoint to status 'pending', so it would restart when job is ready
+            endpoints = dataHandler.GetJobEndpoints(job["jobId"])
+            for endpoint_id, endpoint in endpoints.items():
+                endpoint["status"] = "pending"
+                logging.info("Reset endpoint status to 'pending': {}".format(endpoint_id))
+                dataHandler.UpdateEndpoint(endpoint)
+
+            logging.warning("Job {} fails in Kubernetes as {}, delete and re-submit.".format(job["jobId"], result))
+            launcher.kill_job(job["jobId"], "queued")
+
+    elif result == "Pending":
+        detail = get_scheduling_job_details(details)
+        dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
+
+    if result != "Unknown" and result != "NotFound" and job["jobId"] in UnusualJobs:
         del UnusualJobs[job["jobId"]]
-
-def UpdateDistJobStatus(job):
-    dataHandler = DataHandler()
-    jobParams = json.loads(base64.b64decode(job["jobParams"]))
-
-    if "userId" not in jobParams:
-        jobParams["userId"]    = "0"
-
-    jobPath,workPath,dataPath = GetStoragePath(jobParams["jobPath"],jobParams["workPath"],jobParams["dataPath"])
-    localJobPath = os.path.join(config["storage-mount-path"],jobPath)
-    logPath = os.path.join(localJobPath,"logs/joblog.txt")
-    
-
-    result, detail = k8sUtils.GetJobStatus(job["jobId"])
-    dataHandler.UpdateJobTextField(job["jobId"],"jobStatusDetail",base64.b64encode(detail))
-
-    logging.info("job %s status: %s,%s" % (job["jobId"], result, json.dumps(detail)))
-    
-    jobDescriptionPath = os.path.join(config["storage-mount-path"], job["jobDescriptionPath"]) if "jobDescriptionPath" in job else None
+    if dataHandlerOri is None:
+        dataHandler.Close()
 
 
-    jobId = jobParams["jobId"]
-    workerPodInfo = k8sUtils.GetPod("distRole=worker,run=" + jobId)
-    psPodInfo = k8sUtils.GetPod("distRole=ps,run=" + jobId)
-    if "items" in workerPodInfo and len(workerPodInfo["items"]) == int(jobParams["numpsworker"]) and "items" in psPodInfo and len(psPodInfo["items"]) == int(jobParams["numps"]):
-        if job["jobStatus"] == "scheduling" :
-            launch_ps_dist_job(jobParams)
-        if job["jobStatus"] == "running":
-            result, detail = GetDistJobStatus(job["jobId"])
-            dataHandler.UpdateJobTextField(job["jobId"],"jobStatusDetail",base64.b64encode(detail))
+# TODO refine later
+def check_job_status(job_id):
+    job_deployer = JobDeployer()
+    job_roles = JobRole.get_job_roles(job_id)
 
-            printlog("job %s status: %s" % (job["jobId"], result))
-    
-            jobDescriptionPath = os.path.join(config["storage-mount-path"], job["jobDescriptionPath"]) if "jobDescriptionPath" in job else None
+    if len(job_roles) < 1:
+        return "NotFound", []
 
-            if result.strip() == "Succeeded":
-                joblog_manager.extract_job_log(job["jobId"],logPath,jobParams["userId"])
-                dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","finished")
-                if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
-                    k8sUtils.kubectl_delete(jobDescriptionPath) 
+    # role status in ["NotFound", "Pending", "Running", "Succeeded", "Failed", "Unknown"]
+    # TODO ??? when ps/master role "Succeeded", return Succeeded
+    for job_role in job_roles:
+        if job_role.role_name not in ["master", "ps"]:
+            continue
+        if job_role.status() == "Succeeded":
+            logging.info("Job: {}, Succeeded!".format(job_id))
+            return "Succeeded", []
 
-            elif result.strip() == "Running":
-                joblog_manager.extract_job_log(job["jobId"],logPath,jobParams["userId"])
-                if job["jobStatus"] != "running":
-                    dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","running")
-                if "interactivePort" in jobParams:
-                    serviceAddress = k8sUtils.GetServiceAddress(job["jobId"])
-                    serviceAddress = base64.b64encode(json.dumps(serviceAddress))
-                    dataHandler.UpdateJobTextField(job["jobId"],"endpoints",serviceAddress)
+    statuses = [job_role.status() for job_role in job_roles]
+    logging.info("Job: {}, status: {}".format(job_id, statuses))
 
-            elif result.strip() == "Failed":
-                printlog("Job %s fails, cleaning..." % job["jobId"])
-                joblog_manager.extract_job_log(job["jobId"],logPath,jobParams["userId"])
-                dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","failed")
-                dataHandler.UpdateJobTextField(job["jobId"],"errorMsg",detail)
-                if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
-                    k8sUtils.kubectl_delete(jobDescriptionPath) 
+    details = []
+    for job_role in job_roles:
+        details.append(job_role.pod_details().to_dict())
+    logging.info("Job {}, details: {}".format(job_id, details))
 
-            elif result.strip() == "Unknown":
-                if job["jobId"] not in UnusualJobs:
-                    UnusualJobs[job["jobId"]] = datetime.datetime.now()
-                elif (datetime.datetime.now() - UnusualJobs[job["jobId"]]).seconds > 300:
-                    del UnusualJobs[job["jobId"]]
-                    retries = dataHandler.AddandGetJobRetries(job["jobId"])
-                    if retries >= 5:
-                        printlog("Job %s fails for more than 5 times, abort" % job["jobId"])
-                        dataHandler.UpdateJobTextField(job["jobId"],"jobStatus","error")
-                        dataHandler.UpdateJobTextField(job["jobId"],"errorMsg","cannot launch the job.")
-                        if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
-                            k8sUtils.kubectl_delete(jobDescriptionPath)                 
-                    else:
-                        printlog("Job %s fails in Kubernetes, delete and re-submit the job. Retries %d" % (job["jobId"] , retries))
-                        SubmitJob(job)
+    job_status = "Running"
 
-            if result.strip() != "Unknown" and job["jobId"] in UnusualJobs:
-                del UnusualJobs[job["jobId"]]
+    if "Failed" in statuses:
+        job_status = "Failed"
+    elif "Unknown" in statuses:
+        job_status = "Unknown"
+    elif "NotFound" in statuses:
+        job_status = "NotFound"
+    elif "Pending" in statuses:
+        job_status = "Pending"
 
-    pass
+    return job_status, details
 
 
-
-
-def run_dist_cmd_on_pod(podId, cmd, outputfile):
-    remotecmd = "exec %s -- %s" % (podId,cmd)
-    print remotecmd
-    k8sUtils.kubectl_exec_output_to_file(remotecmd,outputfile)
-
-
-
-class Kube_RemoteCMD_Thread(threading.Thread):
-    def __init__(self, jobId, podId, cmd, outputfile):
-        threading.Thread.__init__(self)
-        self.jobId = jobId
-        self.podId = podId
-        self.cmd = cmd
-        self.outputfile = outputfile
-    def run(self):
-        run_dist_cmd_on_pod(self.podId, self.cmd, self.outputfile)
-
-
-def launch_ps_dist_job(jobParams):
-    jobId = jobParams["jobId"]
-    workerPodInfo = k8sUtils.GetPod("distRole=worker,run=" + jobId)
-    psPodInfo = k8sUtils.GetPod("distRole=ps,run=" + jobId)
-    if "items" in workerPodInfo and len(workerPodInfo["items"]) == int(jobParams["numpsworker"]) and "items" in psPodInfo and len(psPodInfo["items"]) == int(jobParams["numps"]):
-        podStatus = [k8sUtils.check_pod_status(pod) for pod in  workerPodInfo["items"] + psPodInfo["items"] ]
-        if all([status == "Running" for status in podStatus]):
-            ps_pod_names = [pod["metadata"]["name"] for pod in psPodInfo["items"]]
-            worker_pod_names = [pod["metadata"]["name"] for pod in workerPodInfo["items"]]
-
-            ps_pod_ips = [pod["status"]["podIP"] for pod in psPodInfo["items"]]
-            worker_pod_ips = [pod["status"]["podIP"] for pod in workerPodInfo["items"]]
-
-            ps_num = len(psPodInfo["items"])
-            worker_num = len(workerPodInfo["items"])
-
-            ps_ports = [int(item["metadata"]["labels"]["distPort"]) for item in psPodInfo["items"]]
-            worker_ports = [int(item["metadata"]["labels"]["distPort"]) for item in workerPodInfo["items"]]
-
-            #port range: 30000~31000
-            #rndList = range(max(1000,ps_num + worker_num))
-            #random.shuffle(rndList)
-            #ps_ports = [rndList[i] + 30000 for i in range(ps_num)]
-            #worker_ports = [rndList[i + ps_num] + 30000 for i in range(worker_num)]
-
-            ps_hosts = ",".join(["%s:%s" % (ps_pod_ips[i],ps_ports[i]) for i in range(ps_num)])
-            worker_hosts = ",".join(["%s:%s" % (worker_pod_ips[i],worker_ports[i]) for i in range(worker_num)])
-
-            ps_files = ["/tmp/" + str(uuid.uuid4()) for i in range(ps_num)]
-            worker_files = ["/tmp/" + str(uuid.uuid4()) for i in range(worker_num)]
-
-            ps_cmd = ["%s --ps_hosts=%s --worker_hosts=%s --job_name=ps --task_index=%d 2>&1 | tee %s" % (jobParams["cmd"], ps_hosts,worker_hosts,i,ps_files[i]) for i in range(ps_num)]
-            worker_cmd = ["%s --ps_hosts=%s --worker_hosts=%s --job_name=worker --task_index=%d 2>&1 | tee %s" % (jobParams["cmd"], ps_hosts,worker_hosts,i,worker_files[i]) for i in range(worker_num)]
-
-
-            for i in range(ps_num):
-                os.system("mkdir -p %s" % ps_files[i])
-                ps_files[i] = os.path.join(ps_files[i],"run_dist_job.sh")
-                with open(ps_files[i], 'w') as f:
-                    f.write(ps_cmd[i] + "\n")
-                f.close()        
-                if "userId" in jobParams:
-                    os.system("chown -R %s %s" % (jobParams["userId"], ps_files[i]))
-                remotecmd = "cp %s %s:/opt/run_dist_job.sh" % (ps_files[i],ps_pod_names[i])
-                k8sUtils.kubectl_exec(remotecmd)
-                k8sUtils.kubectl_exec("exec %s touch /opt/run_dist_job" % ps_pod_names[i])
-
-
-            for i in range(worker_num):
-                os.system("mkdir -p %s" % worker_files[i])
-                worker_files[i] = os.path.join(worker_files[i],"run_dist_job.sh")
-                with open(worker_files[i], 'w') as f:
-                    f.write(worker_cmd[i] + "\n")
-                f.close()    
-                if "userId" in jobParams:
-                    os.system("chown -R %s %s" % (jobParams["userId"], worker_files[i]))
-                remotecmd = "cp %s %s:/opt/run_dist_job.sh" % (worker_files[i],worker_pod_names[i])
-                k8sUtils.kubectl_exec(remotecmd)
-                k8sUtils.kubectl_exec("exec %s touch /opt/run_dist_job" % worker_pod_names[i])
-
-            dataHandler = DataHandler()
-            dataHandler.UpdateJobTextField(jobParams["jobId"],"jobStatus","running")
-
-            #ps_threads = [Kube_RemoteCMD_Thread(jobId,ps_pod_names[i],ps_cmd[i],ps_logfiles[i]) for i in range(ps_num)]
-            #worker_threads = [Kube_RemoteCMD_Thread(jobId,worker_pod_names[i],worker_cmd[i],worker_logfiles[i]) for i in range(worker_num)]
-            
-            #for t in ps_threads:
-            #    t.start()
-
-            #for t in worker_threads:
-            #    t.start()
-
-
-            #while (True):
-                #for t in ps_threads:
-                #    print t.isAlive()
-                #time.sleep(5)
-
-            #cmd = "test"
-            #thread.start_new_thread( run_dist_cmd_on_pod,
-            #(workerPodInfo["items"][0]["metadata"]["name"], cmd) )
-
-
-
-
-def create_log( logdir = '/var/log/dlworkspace' ):
-    if not os.path.exists( logdir ):
-        os.system("mkdir -p " + logdir )
+def create_log(logdir="/var/log/dlworkspace", process_name="jobmanager"):
+    if not os.path.exists(logdir):
+        os.system("mkdir -p " + logdir)
     with open('logging.yaml') as f:
-        logging_config = yaml.load(f)
+        logging_config = yaml.full_load(f)
         f.close()
-        logging_config["handlers"]["file"]["filename"] = logdir+"/jobmanager.log"
+        logging_config["handlers"]["file"]["filename"] = "%s/%s.log" % (logdir, process_name)
         logging.config.dictConfig(logging_config)
 
 
-def Run():
+def get_priority_dict():
+    try:
+        dataHandler = DataHandler()
+        priority_dict = dataHandler.get_job_priority()
+        return priority_dict
+    except Exception as e:
+        logging.warning("Fetch job priority dict failed!", exc_info=True)
+        return {}
+    finally:
+        dataHandler.Close()
+
+
+def get_job_priority(priority_dict, job_id):
+    if job_id in priority_dict.keys():
+        return priority_dict[job_id]
+    return 100
+
+
+@record
+def TakeJobActions(data_handler, redis_conn, launcher, jobs):
+    vc_list = data_handler.ListVCs()
+    cluster_status, _ = data_handler.GetClusterStatus()
+    cluster_total = cluster_status["gpu_capacity"]
+    cluster_available = cluster_status["gpu_avaliable"]
+    cluster_reserved = cluster_status["gpu_reserved"]
+
+    vc_info = {}
+    vc_usage = collections.defaultdict(lambda :
+            collections.defaultdict(lambda : 0))
+
+    for vc in vc_list:
+        vc_info[vc["vcName"]] = json.loads(vc["quota"])
+
+    active_job_list = data_handler.GetActiveJobList()
+    for job in active_job_list:
+        jobParam = json.loads(base64.b64decode(job["jobParams"]))
+        if "gpuType" in jobParam:
+            vc_usage[job["vcName"]][jobParam["gpuType"]] += GetJobTotalGpu(jobParam)
+
+    result = quota.calculate_vc_gpu_counts(cluster_total, cluster_available,
+            cluster_reserved, vc_info, vc_usage)
+    vc_total, vc_used, vc_available, vc_unschedulable = result
+
+    cluster_gpu_capacity = cluster_status["gpu_capacity"]
+    cluster_gpu_unschedulable = cluster_status["gpu_unschedulable"]
+    global_total = ResourceInfo(cluster_gpu_capacity)
+    global_unschedulable = ResourceInfo(cluster_gpu_unschedulable)
+
+    vc_resources = {}
+    globalResInfo = ResourceInfo.Difference(global_total, global_unschedulable)
+
+    priority_dict = get_priority_dict()
+    logging.info("Job priority dict: {}".format(priority_dict))
+
+    for vc in vc_list:
+        vc_name = vc["vcName"]
+        vc_schedulable = {}
+        for gpu_type, total in vc_total[vc_name].items():
+            vc_schedulable[gpu_type] = total - vc_unschedulable[vc_name][gpu_type]
+        vc_resources[vc_name] = ResourceInfo(vc_schedulable)
+
+    jobsInfo = []
+    for job in jobs:
+        if job["jobStatus"] in ["queued", "scheduling", "running"]:
+            singleJobInfo = {}
+            singleJobInfo["job"] = job
+            job_params = json.loads(base64.b64decode(job["jobParams"]))
+            singleJobInfo["preemptionAllowed"] = job_params["preemptionAllowed"]
+            singleJobInfo["jobId"] = job_params["jobId"]
+            jobGpuType = "any"
+            if "gpuType" in job_params:
+                jobGpuType = job_params["gpuType"]
+            singleJobInfo["globalResInfo"] = ResourceInfo({jobGpuType : GetJobTotalGpu(job_params)})
+
+            # Job lists will be sorted based on and in the order of below
+            # 1. non-preemptible precedes preemptible
+            # 2. running precedes scheduling, precedes queued
+            # 3. larger priority value precedes lower priority value
+            # 4. early job time precedes later job time
+
+            # Non-Preemptible jobs first
+            preemptible = 1 if singleJobInfo["preemptionAllowed"] else 0
+
+            # Job status
+            job_status = 0
+            if job["jobStatus"] == "scheduling":
+                job_status = 1
+            elif job["jobStatus"] == "queued":
+                job_status = 2
+
+            # Priority value
+            reverse_priority = get_job_priority(priority_dict, singleJobInfo["jobId"])
+            priority = 999999 - reverse_priority
+
+            # Job time
+            job_time = str(job["jobTime"])
+
+            singleJobInfo["sortKey"] = "{}_{}_{:06d}_{}".format(preemptible, job_status, priority, job_time)
+
+            singleJobInfo["allowed"] = False
+            jobsInfo.append(singleJobInfo)
+
+    jobsInfo.sort(key=lambda x: x["sortKey"])
+
+    logging.info("TakeJobActions : local resources : %s" % (vc_resources))
+    logging.info("TakeJobActions : global resources : %s" % (globalResInfo.CategoryToCountMap))
+
+    for sji in jobsInfo:
+        logging.info("TakeJobActions : job : %s : %s : %s" % (sji["jobId"], sji["globalResInfo"].CategoryToCountMap, sji["sortKey"]))
+        vc_name = sji["job"]["vcName"]
+        vc_resource = vc_resources[vc_name]
+
+        if (not sji["preemptionAllowed"]) and (vc_resource.CanSatisfy(sji["globalResInfo"])):
+            vc_resource.Subtract(sji["globalResInfo"])
+            globalResInfo.Subtract(sji["globalResInfo"])
+            sji["allowed"] = True
+            logging.info("TakeJobActions : local assignment : %s : %s" % (sji["jobId"], sji["globalResInfo"].CategoryToCountMap))
+
+    for sji in jobsInfo:
+        if sji["preemptionAllowed"] and (sji["allowed"] is False):
+            if globalResInfo.CanSatisfy(sji["globalResInfo"]):
+                logging.info("TakeJobActions : job : %s : %s" % (sji["jobId"], sji["globalResInfo"].CategoryToCountMap))
+                # Strict FIFO policy not required for global (bonus) tokens since these jobs are anyway pre-emptible.
+                globalResInfo.Subtract(sji["globalResInfo"])
+                sji["allowed"] = True
+                logging.info("TakeJobActions : global assignment : %s : %s" % (sji["jobId"], sji["globalResInfo"].CategoryToCountMap))
+
+    logging.info("TakeJobActions : global resources : %s" % (globalResInfo.CategoryToCountMap))
+
+    for sji in jobsInfo:
+        try:
+            if sji["job"]["jobStatus"] == "queued" and (sji["allowed"] is True):
+                launcher.submit_job(sji["job"])
+                update_job_state_latency(redis_conn, sji["jobId"], "scheduling")
+                logging.info("TakeJobActions : submitting job : %s : %s" % (sji["jobId"], sji["sortKey"]))
+            elif sji["preemptionAllowed"] and (sji["job"]["jobStatus"] == "scheduling" or sji["job"]["jobStatus"] == "running") and (sji["allowed"] is False):
+                launcher.kill_job(sji["job"]["jobId"], "queued")
+                logging.info("TakeJobActions : pre-empting job : %s : %s" % (sji["jobId"], sji["sortKey"]))
+        except Exception as e:
+            logging.error("Process job failed {}".format(sji["job"]), exc_info=True)
+
+    logging.info("TakeJobActions : job desired actions taken")
+
+def Run(redis_port, target_status):
+    register_stack_trace_dump()
+    process_name = "job_manager_" + target_status
+
+    create_log(process_name=process_name)
+
+    notifier = notify.Notifier(config.get("job-manager"))
+    notifier.start()
+
+    launcher = PythonLauncher()
+    launcher.start()
+
+    redis_conn = redis.StrictRedis(host="localhost",
+            port=redis_port, db=0)
 
     while True:
+        update_file_modification_time(process_name)
 
-        try:
-            config["racks"] = k8sUtils.get_node_labels("rack")
-            config["skus"] = k8sUtils.get_node_labels("sku")
-        except Exception as e:
-            print e
+        with manager_iteration_histogram.labels(process_name).time():
+            try:
+                config["racks"] = k8sUtils.get_node_labels("rack")
+                config["skus"] = k8sUtils.get_node_labels("sku")
+            except Exception as e:
+                logging.exception("get node labels failed")
 
-        try:
-            dataHandler = DataHandler()
-            pendingJobs = dataHandler.GetPendingJobs()
-            printlog("updating status for %d jobs" % len(pendingJobs))
-            for job in pendingJobs:
+            try:
+                launcher.wait_tasks_done() # wait for tasks from previous batch done
+
+                dataHandler = DataHandler()
+
+                if target_status == "queued":
+                    jobs = dataHandler.GetJobList("all", "all", num=None,
+                            status="queued,scheduling,running")
+                    TakeJobActions(dataHandler, redis_conn, launcher, jobs)
+                else:
+                    jobs = dataHandler.GetJobList("all", "all", num=None,
+                            status=target_status)
+                    logging.info("Updating status for %d %s jobs",
+                            len(jobs), target_status)
+
+                    for job in jobs:
+                        logging.info("Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"]))
+                        if job["jobStatus"] == "killing":
+                            launcher.kill_job(job["jobId"], "killed")
+                        elif job["jobStatus"] == "pausing":
+                            launcher.kill_job(job["jobId"], "paused")
+                        elif job["jobStatus"] == "running":
+                            UpdateJobStatus(redis_conn, launcher, job, notifier, dataHandlerOri=dataHandler)
+                        elif job["jobStatus"] == "scheduling":
+                            UpdateJobStatus(redis_conn, launcher, job, notifier, dataHandlerOri=dataHandler)
+                        elif job["jobStatus"] == "unapproved":
+                            ApproveJob(redis_conn, job, dataHandlerOri=dataHandler)
+                        else:
+                            logging.error("unknown job status %s for job %s",
+                                    job["jobStatus"], job["jobId"])
+            except Exception as e:
+                logging.warning("Process job failed!", exc_info=True)
+            finally:
                 try:
-                    print "Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"])
-                    if job["jobStatus"] == "queued":
-                        SubmitJob(job)
-                    elif job["jobStatus"] == "killing":
-                        KillJob(job)
-                    elif job["jobStatus"] == "scheduling" or job["jobStatus"] == "running" :
-                        UpdateJobStatus(job)
-                    elif job["jobStatus"] == "unapproved" :
-                        AutoApproveJob(job)
-                except Exception as e:
-                    print e
-        except Exception as e:
-            print e
+                    dataHandler.Close()
+                except:
+                    pass
 
         time.sleep(1)
 
+
 if __name__ == '__main__':
-    Run()
-    #print k8sUtils.get_pod_events("d493d41c-45ea-4e85-8ca4-01c3533cd727")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--redis_port", "-r", help="port of redis", type=int, default=9300)
+    parser.add_argument("--port", "-p", help="port of exporter", type=int, default=9200)
+    parser.add_argument("--status", "-s", help="target status to update, queued is a special status", type=str, default="queued")
+
+    args = parser.parse_args()
+    setup_exporter_thread(args.port)
+
+    Run(args.redis_port, args.status)

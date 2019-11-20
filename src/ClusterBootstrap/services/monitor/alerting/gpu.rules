@@ -1,0 +1,32 @@
+groups:
+    - name: gpu_related
+      rules:
+      - alert: NvidiaSmiLatencyTooLarge
+        expr: histogram_quantile(0.95, sum(rate(cmd_nvidia_smi_latency_seconds_bucket[5m])) by (le, instance)) > 40
+        for: 30m
+        annotations:
+          summary: "95th nvidia-smi call latency is larger than 40s in {{$labels.instance}}, should check the gpu status manually"
+
+      - alert: NvidiaSmiEccError
+        expr: nvidiasmi_ecc_error_count{type="volatile_double"} > 0
+        for: 30m
+        annotations:
+          summary: "nvidia card from {{$labels.instance}} minor number {{$labels.minor_number}} has {{$labels.type}} ecc error, count {{$value}}"
+
+      - alert: NvidiaMemoryLeak
+        expr: nvidiasmi_memory_leak_count > 0
+        for: 30m
+        annotations:
+          summary: "found nvidia memory leak from {{$labels.instance}} minor number {{$labels.minor_number}}"
+
+      - alert: NvidiaZombieProcess
+        expr: zombie_process_count{command="nvidia-smi"} > 0
+        for: 30m
+        annotations:
+          summary: "found nvidia zombie process in {{$labels.instance}}"
+
+      - alert: NvidiaRetiredPage
+        expr: sum (nvidiasmi_retired_page_count) by (instance, minor_number) > 60
+        for: 30m
+        annotations:
+          summary: "gpu retired page from {{$labels.instance}} {{$labels.minor_number}} exceed threshold, may need to replace this gpu"

@@ -10,7 +10,7 @@ spec:
     image: {{cnf["dockers"]["container"]["hyperkube"]["fullname"]}}
     command:
     - /hyperkube      
-    - apiserver
+    - kube-apiserver
     - --bind-address=0.0.0.0
     - --etcd-servers={{cnf["etcd_endpoints"]}}
     - --etcd-cafile=/etc/kubernetes/ssl/ca.pem
@@ -20,8 +20,8 @@ spec:
     - --service-cluster-ip-range={{cnf["service_cluster_ip_range"]}}
     - --secure-port={{cnf["k8sAPIport"]}}
     - --advertise-address={{cnf["master_ip"]}} 
-    - --admission-control=NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,ResourceQuota
-    #- --admission-control=NamespaceLifecycle,LimitRanger,SecurityContextDeny,ServiceAccount,ResourceQuota
+    - --enable-admission-plugins=NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,ResourceQuota
+    #- --enable-admission-plugins=NamespaceLifecycle,LimitRanger,SecurityContextDeny,ServiceAccount,ResourceQuota
     - --tls-cert-file=/etc/kubernetes/ssl/apiserver.pem
     - --tls-private-key-file=/etc/kubernetes/ssl/apiserver-key.pem
     - --client-ca-file=/etc/kubernetes/ssl/ca.pem

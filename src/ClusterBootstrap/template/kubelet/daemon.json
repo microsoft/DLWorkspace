@@ -1,0 +1,13 @@
+{% if cnf["gpu_type"] != "None" %}
+{
+    "default-runtime": "nvidia",
+    "runtimes": {
+        "nvidia": {
+            "path": "nvidia-container-runtime",
+            "runtimeArgs": []
+        }
+    }
+}
+{% else %}
+{}
+{% endif %}

@@ -2,8 +2,14 @@
     For more information on enabling MVC for empty projects, visit http://go.microsoft.com/fwlink/?LinkID=397860
 *@
 
-<script>
+@{
+    ViewData["Title"] = "Job";
+}
 
+<link rel="stylesheet" href="~/layui/css/layui.css" media="all">
+
+<script>
+    var cluster = "@ViewData["cluster"]";
     var elasticsearchHost = 'http://@Context.Request.Host:9200';
     var logPages;
     var logNum;
@@ -108,7 +114,7 @@
                                 }
                             });
                         }
-                        else 
+                        else
                         {
                             if (payload.log) {
                                 //console.log(payload.jobId);
@@ -134,7 +140,7 @@
 
 
     function getCommands() {
-        $.ajax({ url: "/api/dlws/GetCommands?jobId=@ViewData["jobid"]", dataType: 'json', timeout: 10000, error: AlertAPIError }).done(
+        $.ajax({ url: "/api/dlws/GetCommands?cluster=" + cluster + "&jobId=@ViewData["jobid"]", dataType: 'json', timeout: 10000, error: AlertAPIError }).done(
             function (json) {
                 var commandsDiv = document.getElementById('commands-div');
                 if (json.length == 0) {
@@ -166,8 +172,110 @@
             });
     }
 
+    function sortSSH(a, b) {
+        var worker1 = a.podName.split("-").pop().replace("worker", "");
+        var worker2 = b.podName.split("-").pop().replace("worker", "");
+        return parseInt(worker1) - parseInt(worker2);
+    }
+
+    function getEndpoints() {
+        $.ajax({
+            url: "/api/dlws/GetEndpoints?cluster=@ViewData["cluster"]&jobId=@ViewData["jobid"]", dataType: 'json'
+        }).then(function (endpoints) {
+            $('#endpoints').show();
+
+            var order = { ssh: 1, ipython: 2, tensorboard: 3 };
+
+            endpoints = endpoints.filter(function (endpoint) {
+                return endpoint.podName.indexOf("ps0") === -1
+            });
+
+            endpoints.sort(function (a, b) {
+                var orderA = order[a.name] || Infinity;
+                var orderB = order[b.name] || Infinity;
+
+                if (orderA !== orderB) { return orderA - orderB; }
+
+                if (isFinite(orderA)) {     
+                    if (orderA === order["ssh"]) {
+                        return sortSSH(a, b);
+                    } else {
+                        return a.nodeName.localeCompare(b.nodeName);
+                    }
+                } else {
+                    return a.podPort - b.podPort;
+                }
+            });
+
+            var endpointsArr = $.map(endpoints, function (endpoint) {
+                var task = "";
+
+                if (endpoint.podName) {
+                    task = endpoint.podName.split("-").pop();
+                }
+
+                if (task.indexOf("ps0") !== -1 && endpoint.name.indexOf("ssh") !== -1) {
+                    return "";
+                }
+                var taskInfo = task.indexOf("worker") === -1 ? "" : " " + task;
+                if (endpoint.name == "ssh") {
+                    window.ngScope.$applyAsync('ssh = true');
+                    if (endpoint.status == "running") {
+                        var workPath = "@ViewData["workPath"]";
+                        var sessionUserName = "@ViewData["Username"]";
+                        var jobUserName = endpoint.username;
+                        workPath = workPath.replace(sessionUserName, jobUserName);
+                        return taskInfo + " SSH: <span onclick='copy(this)' onmouseover='copyIconShow(this)' onmouseout='copyIconHidden(this)'>ssh -i " + workPath + ".ssh/id_rsa -p " + endpoint.port + " " + jobUserName + "@@" + endpoint.nodeName + "." + endpoint.domain + "</span>" + "\n";
+                    } else {
+                        return;
+                    }
+                }
+                else {
+                    if (endpoint.name === "ipython") {
+                        window.ngScope.$applyAsync('ipython = true');
+                    } else if (endpoint.name === "tensorboard") {
+                        window.ngScope.$applyAsync('tensorboard = true');
+                    }
+                    if (endpoint.status == "running") {
+                        var svcurl = "http://" + endpoint.nodeName + "." + endpoint.domain + ":" + endpoint.port + "/";
+                        return " " + endpoint.name + ": <a href='" + svcurl + "' target='_blank'>" + svcurl + "</a>\n";
+                    } else {
+                        return;
+                    }
+                }
+            });
+            var sshContent = "";
+            var ipythonContent = "";
+            var tensorboardContent = "";
+            var otherContent = "";
+            var endPointName = "";
+            for (var i = 0; i < endpointsArr.length; i++) {
+                if (endpointsArr[i] === "") {
+                    continue;
+                } else if (endpointsArr[i].indexOf("ssh") !== -1) {
+                    sshContent += endpointsArr[i];
+                } else if (endpointsArr[i].indexOf("ipython") !== -1) {
+                    ipythonContent += endpointsArr[i];
+                } else if (endpointsArr[i].indexOf("tensorboard") !== -1) {
+                    tensorboardContent += endpointsArr[i];
+                } else {
+                     endPointName = endpointsArr[i].split(" ")[0];
+                     otherContent += endpointsArr[i];
+                }
+            }
+
+            otherContent = endPointName + otherContent;
+            var endpointsStr = sshContent + "<div style='height:10px;'></div>" + ipythonContent + "<div style='height:10px;'></div>" + tensorboardContent + "<div style='height:10px;'></div>" + otherContent;
+
+            var endpointsPanellDiv = document.getElementById('endpointsPanel');
+            if (endpointsPanellDiv.innerHTML != endpointsStr) {
+                endpointsPanellDiv.innerHTML = endpointsStr;
+            }
+        })
+    }
+
     function buildTemplateList() {
-        $.ajax({ url: "/api/dlws/GetTemplates?type=command", dataType: 'json', timeout: 10000, error: AlertAPIError }).done(
+        $.ajax({ url: "/api/dlws/GetTemplates?cluster=" + cluster + "&type=command", dataType: 'json', timeout: 10000, error: AlertAPIError }).done(
             function (json) {
                 $('#templateselect').find("option").remove();
                 for (var i = 0; i < json.length; i++) {
@@ -188,10 +296,9 @@
             jobDetailStr += "Command: " + payload.jobParams.cmd + "\n";
             jobDetailStr += "Data Path: " + payload.jobParams.dataPath + "\n";
             jobDetailStr += "Work Path: " + payload.jobParams.workPath + "\n";
-            jobDetailStr += "Container Ports: " + payload.jobParams.interactivePort + "\n";
             jobDetailStr += "Job Path: " + payload.jobParams.jobPath + "\n";
             jobDetailStr += "Job Type: " + payload.jobParams.jobType + "\n";
-            jobDetailStr += "GPU #: " + payload.jobParams.resourcegpu + "\n";
+            jobDetailStr += "GPU # Per Worker: " + payload.jobParams.resourcegpu + "\n";
             jobDetailStr += "Job Status: " + payload.jobStatus + "\n";
             jobDetailStr += "Job Submission Time: " + payload.jobTime + "\n";
             if (jobDetailDiv.innerHTML != jobDetailStr) {
@@ -204,35 +311,11 @@
             }
 
             document.getElementById('run-command').style.display = payload.jobStatus == "running" ? "block" : "none";
+            window.ngScope.$applyAsync(function (scope) { scope.status = payload.jobStatus });
             if (payload.jobStatus == "running") {
                 getCommands();
+                getEndpoints();
             }
-        }
-
-        if (payload.endpoints)
-        {
-            $('#endpoints').show();
-
-            var endpointsStr = "";
-            for (var i = 0; i < payload.endpoints.length; i++) {
-
-                if (payload.endpoints[i].containerPort == 22) {
-                    endpointsStr += "To access the container via SSH, use command: ssh -i @ViewData["workPath"]" + ".ssh/id_rsa -p " + payload.endpoints[i].hostPort + " @ViewData["Username"]" + "@@" + payload.endpoints[i].hostName + "\n";
-                }
-                else {
-                    var svcurl = "http://" + payload.endpoints[i].hostName + ":" + payload.endpoints[i].hostPort;
-                    endpointsStr += "Container Port: " + payload.endpoints[i].containerPort + " is mapped to public ip: <a href='" + svcurl + "' target='_blank'> " + svcurl + "</a>  \n";
-                }
-            }
-            var endpointsPanellDiv = document.getElementById('endpointsPanel');
-            if (endpointsPanellDiv.innerHTML != endpointsStr) {
-                endpointsPanellDiv.innerHTML = endpointsStr;
-                var height = payload.endpoints.length * 15;
-                endpointsPanellDiv.style.height = height + "px";
-            }
-        }
-        else {
-            $('#endpoints').hide();
         }
 
 
@@ -274,7 +357,7 @@
     }
 
     function GetDetail() {
-        var url = "/api/dlws/JobDetail?jobId=@ViewData["jobid"]";
+        var url = "/api/dlws/JobDetail?cluster=" + cluster + "&jobId=@ViewData["jobid"]";
         $.ajax({ url: url, dataType: 'json', timeout: 15000 }).done(DisplayDetail);
     }
 
@@ -288,12 +371,43 @@
         GetDetail();
         buildTemplateList();
         setInterval(RefreshDetail, 15000);
-
+        $(function () {
+            $('[data-toggle="tooltip"]').tooltip({
+                container: 'body',
+                show: {
+                    effect: "slideDown",
+                    delay: 1000
+                }
+            })
+        })
     });
-</script>
 
+    function copy(self) {
+        var input = document.createElement("input");
+        document.body.appendChild(input);
+        input.setAttribute("value", self.innerHTML);
+        input.select();
+        if (document.execCommand('copy')) {
+            document.execCommand('copy')
+            $('.alert').html('copied!').addClass('alert-message').show().delay(1500).fadeOut();
+        }
+        document.body.removeChild(input);
+    }
+
+
+    function copyIconShow(self) {
+        self.style.background = "#b3b3b3";
+         $('.alert').html('copy to clipboard').addClass('alert-message').show();
+    }
+
+    function copyIconHidden(self) {
+        self.style.background = "";
+        $('.alert-message').delay(1000).fadeOut();
+    }
+
+</script>
 <script>
-    function AlertCommandResult(payload) {       
+    function AlertCommandResult(payload) {
         alert(payload.result);
         $("#run-cmd-btn").attr("disabled", false);
     }
@@ -303,12 +417,12 @@
         console.log("Restful API Error: \n" + JSON.stringify(thrownError));
         $("#run-cmd-btn").attr("disabled", false);
     }
-    
+
     function RunCommand() {
         $("#run-cmd-btn").attr("disabled", true);
-        var url = "/api/dlws/RunCommand?jobId=@ViewData["jobid"]&";
+        var url = "/api/dlws/RunCommand?cluster=" + cluster + "&jobId=@ViewData["jobid"]&";
         url = url + "command=" + encodeURIComponent(document.getElementById("cmd-textbox").value);
-        $.ajax({ url: url, dataType: 'json', timeout: 10000,  error: AlertAPIError }).done(AlertCommandResult);       
+        $.ajax({ url: url, dataType: 'json', timeout: 10000,  error: AlertAPIError }).done(AlertCommandResult);
     }
 
     function UseTemplate(tempValue) {
@@ -316,46 +430,168 @@
         var cmdString = (temp.cmd) ? temp.cmd : "";
         document.getElementById("cmd-textbox").value = cmdString;
     }
-    
+
 </script>
+<script>
+    void function (app) {
+        app.controller("endpoints", function ($scope, $http) {
+            $scope.$watch("ssh", function (value, oldValue) {
+                if (value === oldValue) { return; }
+                if (value) {
+                    $http({
+                        method: "POST",
+                        url: "/api/dlws/endpoints",
+                        params: { cluster: cluster },
+                        data: {
+                            jobId: '@ViewData["jobid"]',
+                            endpoints: ["ssh"]
+                        }
+                    }).catch(function (response) {
+                        var message = "RestfulAPI error!";
+                        if (response.status === 400) {
+                            message = response.data;
+                        }
+                        layer.alert(message, { icon: 5, btn: 'Ok', title: 'alert' });
+                        $scope.ssh = false;
+                    });
+                }
+            })
+            $scope.$watch("ipython", function (value, oldValue) {
+                if (value === oldValue) { return; }
+                if (value) {
+                    $http({
+                        method: "POST",
+                        url: "/api/dlws/endpoints",
+                        params: { cluster: cluster },
+                        data: {
+                            jobId: '@ViewData["jobid"]',
+                            endpoints: ["ipython"]
+                        }
+                    }).catch(function (response) {
+                        var message = "RestfulAPI error!";
+                        if (response.status === 400) {
+                            message = response.data;
+                        }
+                        layer.alert(message, { icon: 5, btn: 'Ok', title: 'alert' });
+                        $scope.ipython = false;
+                    });
+                }
+            })
+            $scope.$watch("tensorboard", function (value, oldValue) {
+                if (value === oldValue) { return; }
+                if (value) {
+                    $http({
+                        method: "POST",
+                        url: "/api/dlws/endpoints",
+                        params: { cluster: cluster },
+                        data: {
+                            jobId: '@ViewData["jobid"]',
+                            endpoints: ["tensorboard"]
+                        }
+                    }).catch(function (response) {
+                        var message = "RestfulAPI error!";
+                        if (response.status === 400) {
+                            message = response.data;
+                        }
+                        layer.alert(message, { icon: 5, btn: 'Ok', title: 'alert' });
+                        $scope.tensorboard = false;
+                    });
+                }
+            })
+            $scope.addPort = function () {
+                $scope.addPortForm.$setSubmitted();
+                $http({
+                    method: "POST",
+                    url: "/api/dlws/endpoints",
+                    params: { cluster: cluster },
+                    data: {
+                        jobId: '@ViewData["jobid"]',
+                        endpoints: [{ name: 'port-' + $scope.port, podPort: $scope.port }]
+                    }
+                }).then(function (response) {
+                    if (typeof response.data === 'object') {
+                        delete $scope.port;
+                        $scope.addPortForm.$setPristine();
+                        $scope.addPortForm.$setUntouched();
+                    } else {
+                        layer.alert("Restful API Error: \n" + response.data, { icon: 5, btn: 'Ok', title: 'alert' });
+                    }
+                }, function (response) {
+                    var message = "RestfulAPI error!";
+                    if (response.status === 400) {
+                        message = response.data;
+                    }
+                    layer.alert(message, { icon: 5, btn: 'Ok', title: 'alert' });
+                }).finally(function () {
+                    $scope.addPortForm.$submitted = false;
+                });
+            }
 
-
-
-
+            window.ngScope = $scope;
+        });
+    }(angular.module("endpoints", ["ngMessages", "ngMaterial"]));
+</script>
 
 <h2> Job Details:</h2>
 <div id="jobDetail" style="height: 230px;" readonly="" class="ng-binding grey-box scroll-box">
 </div>
-
-<h2> Job Folder: </h2>
-<div id="jobfolderPanel" style="height: 20px;" readonly="" class="ng-binding grey-box">    
+<h2 style="margin-top:20px;"> Job Folder: </h2>
+<div id="jobfolderPanel" style="height: 20px;" readonly="" class="ng-binding grey-box">
 </div>
-
-<div id="endpoints" hidden>
+<div id="endpoints" style="margin-top:20px;" hidden>
     <h2> Mapped Endpoints: </h2>
     <h4>(Links to access interactive/visualization interface)</h4>
-    <div id="endpointsPanel" style="height: 100px;" readonly="" class="ng-binding grey-box">
+    <div id="endpointsPanel" readonly="" class="ng-binding grey-box">
     </div>
+    <div class="alert"></div>
 </div>
-
+<!-- introduce angular.js just for md-switch in AngularJS Material -->
+<div ng-app="endpoints" ng-controller="endpoints">
+    <div layout="row" layout-align="space-between">
+        <md-switch ng-model="ssh" ng-disabled="status !== 'running' || ssh" flex="60">SSH</md-switch>
+        <md-switch ng-model="ipython" ng-disabled="status !== 'running' || ipython" flex="60">iPython</md-switch>
+        <md-switch ng-model="tensorboard" ng-disabled="status !== 'running' || tensorboard" flex="60">
+            Tensorboard
+            <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
+        </md-switch>
+    </div>
+    <div layout="row" layout-align="space-between">
+        <p style="font-size: small">
+            <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
+            Tensorboard will listen on directory <samp>~/tensorboard/${DLWS_JOB_ID}/logs</samp> inside docker container.
+        </p>
+    </div>
+    <form name="addPortForm" layout="row" ng-submit="addPort()" style="margin-top: 20px">
+        <md-input-container flex>
+            <label>New Interactive Port (40000-49999)</label>
+            <input name="port"
+                   type="number" min="40000" max="49999"
+                   ng-model="port"
+                   ng-disabled="status !== 'running' || addPortForm.$submitted" ng-required="true" />
+            <div ng-messages="addPortForm.port.$error">
+                <div ng-message="required">Port is required.</div>
+                <div ng-message="min">Port should be &gt;= 40000</div>
+                <div ng-message="max">Port should be &lt;= 49999</div>
+            </div>
+        </md-input-container>
+        <md-button type="submit" class="md-primary" ng-disabled="status !== 'running' || addPortForm.$submitted || addPortForm.$invalid">Add</md-button>
+    </form>
+</div>
 <h2> Job Console Output:</h2>
 <div id="logPanel" style="height: 500px;" readonly="" class="ng-binding grey-box scroll-box">
 </div>
 <div id="logautopager" style="float:right"></div>
-
 
 <div>
     <input type="checkbox" id="chkRefresh" checked="checked" onclick="RefreshDetail()" />
     <label>
         Auto-Refresh Job Logs (Refresh-Rate 5 Seconds)
     </label>
-
-    <input type="checkbox" id="chkTimestamp" checked="checked" onclick="RefreshDetail()"/>
+    <input type="checkbox" id="chkTimestamp" checked="checked" onclick="RefreshDetail()" />
     <label>
         Show timestamp in job logs
     </label>
 </div>
-
 
 <div id="run-command" style="display: none">
     <h2> Run Command:</h2>
@@ -365,9 +601,8 @@
         <textarea class="form-control cmd-textbox" style="height: 10em; display: block" id="cmd-textbox"></textarea>
         <button class="btn btn-success" style="position: absolute; bottom: 10px; right: 10px" onclick="RunCommand()" id="run-cmd-btn">Run</button>
     </div>
-
     <div id="commands-div" style="display:none">
-        <br/>
+        <br />
         <h4>Commands</h4>
         <table class="table table-bordered table-condensed table-hover table-striped">
             <thead>
@@ -377,26 +612,19 @@
                     <th>Status</th>
                 </tr>
             </thead>
-            <tbody  id="command-table" ></tbody>
+            <tbody id="command-table"></tbody>
         </table>
     </div>
 </div>
-
 <br />
-
-
 
 
 <div>
     <h2> Job analytics and monitoring:</h2>
-    <h3> GPU Usage: </h3>
-    <iframe src="@Context.Request.Protocol://@Context.Request.Host/grafana/dashboard/db/jobgpuusage?orgId=1&var-namespace=default&var-host=@ViewData["jobid"]&var-core=All" width="100%" height="1000" frameborder="0"></iframe>
-    
-    <h3> System Resource Usage:</h3>
-    <iframe src="@Context.Request.Protocol://@Context.Request.Host/grafana/dashboard/db/kubernetes-pods?orgId=1&var-namespace=default&var-podname=@ViewData["jobid"]" width="100%" height="1000" frameborder="0"></iframe>
+    <iframe src="@ViewData["grafana"]/dashboard/db/job-status?var-job_name=@ViewData["jobid"]" width="100%" height="1000" frameborder="0"></iframe>
 </div>
-
 <style>
+
     .grey-box {
         background-color: #eee;
         white-space: pre;
@@ -417,8 +645,34 @@
     .cmd-textbox {
         width: 100%;
         max-width: none;
+    }
 
+    #endpointsPanel {
+        overflow-y: auto;
+    }
+
+    .alert {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        min-width: 300px;
+        max-width: 600px;
+        transform: translate(-50%,-50%);
+        z-index: 99999;
+        padding: 15px;
+        border-radius: 3px;
+    }
+
+    .alert-message {
+        background-color: #333; /* Black background color */
+        color: #fff; /* White text color */
+        text-align: center; /* Centered text */
+        font-size: 15px;
+    }
+
+    code {
+        color: #000000;
+        background-color: inherit;
     }
 </style>
-
-

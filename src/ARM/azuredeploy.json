@@ -20,7 +20,7 @@
             "type": "string",
             "metadata": {
                 "description": "Username on machines."
-            }            
+            }
         },
         "adminPassword": {
             "type": "securestring",
@@ -52,7 +52,7 @@
             "type": "string",
             "defaultValue": "Standard_DS2_v2",
             "metadata": {
-                "description": "Size of the infra-VM. Use a CPU VM for infra-VM." 
+                "description": "Size of the infra-VM. Use a CPU VM for infra-VM."
             }
         },
         "numberOfWorkerVM": {
@@ -101,7 +101,7 @@
             "metadata": {
                 "description": "Client Secret of the web application registered with the authentication provider."
             }
-        },        
+        },
         "_artifactsLocation": {
             "type": "string",
             "metadata": {
@@ -467,9 +467,10 @@
                             "destinationPortRanges": [
                                 "80",
                                 "443",
-                                "30000-32767",
+                                "30000-39999",
                                 "25826",
-                                "3080"
+                                "3080",
+                                "40000-49999"
                             ]
                         }
                     },

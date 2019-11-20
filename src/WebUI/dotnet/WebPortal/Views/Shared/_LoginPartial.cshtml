@@ -1,25 +1,64 @@
-﻿@using System.Security.Principal
-@using Microsoft.AspNetCore.Authentication.OpenIdConnect 
+﻿@using Microsoft.AspNetCore.Http;
+@using System.Security.Principal
+@using Microsoft.AspNetCore.Authentication.OpenIdConnect
 @using WindowsAuth
-
+@using Newtonsoft.Json;
 
 @if (User.Identity.IsAuthenticated)
 {
     <ul class="nav navbar-nav navbar-right">
+
+        @if (Context.Session.GetString("Team") != null)
+        {
+            try
+            {
+                <li class="dropdown" id="teams-dropdown">
+                    <a class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">@Context.Session.GetString("Team") <span class="caret"></span></a>
+                    <ul class="dropdown-menu">
+                        @{ var teams = JsonConvert.DeserializeObject<string[]>(Context.Session.GetString("Teams")); }
+                        @foreach (var team in teams)
+                        {
+                            <li><a href="#">@team</a></li>
+                        }
+                    </ul>
+                </li>
+            }
+            catch { /* ignored */ }
+        }
+
         <li><a asp-area="" asp-controller="Home" asp-action="AccountSettings">Hello, @ViewData["Username"]</a></li>
         <li>@Html.ActionLink("Log Out", "LogOff", "Account")</li>
     </ul>
+    <script>
+        void function ($, location) {
+            var querystring = location.search.replace(/^\?/, '');
+            var queries = querystring.split('&');
+            queries = queries.filter(function (query) {
+                return !/^\s*$/.test(query) && !/^current-team=/i.test(query);
+            });
+            if (queries.length > 0) {
+                querystring = '?' + queries.join('&') + '&current-team=';
+            } else {
+                querystring = '?current-team=';
+            }
+
+            $('#teams-dropdown .dropdown-menu a').each(function () {
+                var $this = $(this);
+                $this.attr('href', querystring + encodeURIComponent($this.text()));
+            })
+        } (window.jQuery, window.location)
+    </script>
 }
 else
 {
     <ul class="nav navbar-nav navbar-right">
         <li><a>Login by: </a></li>
-    @foreach (var pair in WindowsAuth.Startup.AuthenticationSchemes)
-    {
-    <li>
-         @Html.ActionLink(pair.Key + " Account", "Login", "Account", routeValues: new { scheme = pair.Key }, htmlAttributes: new { id = "loginLink" }) 
-        </li>
+        @foreach (var pair in WindowsAuth.Startup.AuthenticationSchemes)
+        {
+            <li>
+                @Html.ActionLink(pair.Key + " Account", "Login", "Account", routeValues: new { scheme = pair.Key }, htmlAttributes: new { id = "loginLink" })
+            </li>
         }
-    
+
     </ul>
 }

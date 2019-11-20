@@ -12,6 +12,10 @@ spec:
       name: jobmanager
       labels:
         jobmanager-node: pod
+        app: jobmanager
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
     spec:
       {% if cnf["dnsPolicy"] %}    
       dnsPolicy: {{cnf["dnsPolicy"]}}
@@ -37,8 +41,65 @@ spec:
           name: dlwsdatadata 
         - mountPath: {{cnf["storage-mount-path"]}}/jobfiles
           name: dlwsdatajobfiles
+        - mountPath: {{cnf["dltsdata-storage-mount-path"]}}
+          name: dltsdata
+        - mountPath: {{cnf["folder_auto_share"]}}
+          name: folderautoshare
         - mountPath: /var/log/dlworkspace
-          name: log                                                    
+          name: log
+        ports:
+        - containerPort: 9200
+          hostPort: 9200
+          name: job-mgr
+          protocol: TCP
+        - containerPort: 9201
+          hostPort: 9201
+          name: user-mgr
+          protocol: TCP
+        - containerPort: 9202
+          hostPort: 9202
+          name: node-mgr
+          protocol: TCP
+        - containerPort: 9203
+          hostPort: 9203
+          name: joblog-mgr
+          protocol: TCP
+        - containerPort: 9204
+          hostPort: 9204
+          name: cmd-mgr
+          protocol: TCP
+        - containerPort: 9205
+          hostPort: 9205
+          name: endpoint-mgr
+          protocol: TCP
+        - containerPort: 9206
+          hostPort: 9206
+          name: job-mgr2
+          protocol: TCP
+        - containerPort: 9207
+          hostPort: 9207
+          name: job-mgr3
+          protocol: TCP
+        - containerPort: 9208
+          hostPort: 9208
+          name: job-mgr4
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          initialDelaySeconds: 3
+          periodSeconds: 30
+          successThreshold: 1
+          tcpSocket:
+            port: 9200
+          timeoutSeconds: 10
+      - name: redis
+        image: redis:5.0.6-alpine
+        command: ["redis-server", "--port", "9300", "--maxmemory", "100mb", "--maxmemory-policy", "allkeys-lru"]
+        ports:
+        - containerPort: 9300
+          hostPort: 9300
+          name: prom-ign-redis
+          protocol: TCP
       volumes:
       - name: certs
         hostPath:
@@ -58,6 +119,12 @@ spec:
       - name: dlwsdatajobfiles
         hostPath:
           path: {{cnf["storage-mount-path"]}}/jobfiles           
+      - name: dltsdata
+        hostPath:
+          path: {{cnf["dltsdata-storage-mount-path"]}}
+      - name: folderautoshare
+        hostPath:
+          path: {{cnf["folder_auto_share"]}}
       - name: log
         hostPath:
           path: /var/log/clustermanager   
