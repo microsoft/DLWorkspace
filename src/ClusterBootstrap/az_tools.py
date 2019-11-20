@@ -113,7 +113,7 @@ def create_vm(vmname, vm_ip, role, vm_size, pwd, vmcnf):
     else:
         auth = """--generate-ssh-keys --authentication-type ssh --ssh-key-value '%s' """ % config["azure_cluster"]["sshkey"]
 
-    priv_IP = "--private-ip-address %s " % vm_ip if not role in ["worker","nfs"] else ""
+    priv_IP = "--private-ip-address %s " % vm_ip if not role in ["worker", "nfs", "utility"] else ""
     nsg = "nfs_nsg_name" if role == "nfs" else "nsg_name"
     
     availability_set = ""
@@ -279,8 +279,8 @@ def create_vnet():
 
 
 def create_nsg():
-    source_addresses_prefixes = "*"
-    restricted_source_address_prefixes = "*"
+    source_addresses_prefixes = "'*'"
+    restricted_source_address_prefixes = "'*'"
 
     if "source_addresses_prefixes" in config["cloud_config"]["dev_network"]:
         source_addresses_prefixes = config["cloud_config"][
