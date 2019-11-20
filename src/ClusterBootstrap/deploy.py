@@ -1333,6 +1333,30 @@ def reset_worker_nodes():
         reset_worker_node(node)
 
 
+def update_utility_nodes(nargs):
+    """Internally use update_worker_node.
+
+    TODO: Should be covered by update_role_nodes in deploy.py V2
+    """
+    utils.render_template_directory("./template/kubelet", "./deploy/kubelet", config)
+    write_nodelist_yaml()
+
+    os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' % config["etcd_endpoints"].replace("/","\\/"))
+    os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' % config["api_servers"].replace("/","\\/"))
+    os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/worker-kubeconfig.yaml.template > ./deploy/kubelet/worker-kubeconfig.yaml' % config["api_servers"].replace("/","\\/"))
+
+    get_hyperkube_docker()
+
+    utility_nodes = get_nodes_by_roles(["utility"])
+    utility_nodes = limit_nodes(utility_nodes)
+    for node in utility_nodes:
+        if in_list(node, nargs):
+            update_worker_node(node)
+
+    os.system("rm ./deploy/kubelet/options.env")
+    os.system("rm ./deploy/kubelet/kubelet.service")
+    os.system("rm ./deploy/kubelet/worker-kubeconfig.yaml")
+
 
 def create_MYSQL_for_WebUI():
     #todo: create a mysql database, and set "mysql-hostname", "mysql-username", "mysql-password", "mysql-database"
@@ -3313,6 +3337,13 @@ def run_command( args, command, nargs, parser ):
             check_master_ETCD_status()
             gen_configs()
             reset_worker_nodes()
+
+    elif command == "updateutility":
+        response = raw_input_with_default("Deploy Utility Node(s) (y/n)?")
+        if first_char(response) == "y":
+            check_master_ETCD_status()
+            gen_configs()
+            update_utility_nodes(nargs)
 
     elif command == "listmac":
         nodes = get_nodes(config["clusterId"])
