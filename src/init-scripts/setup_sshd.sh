@@ -35,7 +35,7 @@ function setup_sshd {
     echo "${SSH_PORT}" > ${PROC_DIR}/SSH_PORT
     echo "${POD_IP}" > ${PROC_DIR}/POD_IP
 
-    time service ssh restart || exit 1
+    time /etc/init.d/ssh restart || exit 1
 }
 
 retry setup_sshd

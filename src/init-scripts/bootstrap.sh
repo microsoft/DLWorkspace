@@ -1,7 +1,7 @@
 #! /bin/bash
 set -ex
 
-sh /dlts-runtime/ssh_build/install.sh
+sh -x /dlts-runtime/ssh_build/install.sh
 
 SCRIPT_DIR=/pod/scripts
 
