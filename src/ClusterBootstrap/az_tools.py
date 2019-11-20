@@ -435,6 +435,7 @@ def delete_group():
 
 
 def get_vm_ip(i, role):
+    """the ip generated for worker / nfs not used for vm creation TODO delete?"""
     vnet_range = config["cloud_config"]["vnet_range"]
     vnet_ip = vnet_range.split("/")[0]
     vnet_ips = vnet_ip.split(".")
@@ -747,7 +748,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
     cc["deploydockerETCD"] = False
     cc["platform-scripts"] = "ubuntu"
     cc["basic_auth"] = "%s,admin,1000" % uuid.uuid4().hex[:16]
-    domain_mapping = {"regular":"%s.cloudapp.azure.com" % config["azure_cluster"]["azure_location"], "low": config.get("domain_name",config["azure_cluster"]["default_low_priority_domain"])}
+    domain_mapping = {"regular":"%s.cloudapp.azure.com" % config["azure_cluster"]["azure_location"], "low": config.get("network_domain",config["azure_cluster"]["default_low_priority_domain"])}
     if not bSQLOnly:
         cc["network"] = {"domain": domain_mapping[config["priority"]]}
 

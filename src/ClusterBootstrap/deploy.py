@@ -284,82 +284,6 @@ def create_cluster_id():
         config["clusterId"] = utils.get_cluster_ID_from_file()
         print "Cluster ID is " + config["clusterId"]
 
-def add_acs_config(command):
-    if (command=="kubectl" and os.path.exists("./deploy/"+config["acskubeconfig"])):
-        # optimize for faster execution
-        config["isacs"] = True
-    elif (command=="acs" or os.path.exists("./deploy/"+config["acskubeconfig"])):
-        config["isacs"] = True
-        create_cluster_id()
-
-        #print "Config:{0}".format(config)
-        #print "Dockerprefix:{0}".format(config["dockerprefix"])
-
-        # Set ACS params to match
-        acs_tools.config = config
-        acs_tools.verbose = verbose
-
-        config["master_dns_name"] = config["cluster_name"]
-
-        # Use az tools to generate default config params and overwrite if they don't exist
-        configAzure = acs_tools.acs_update_azconfig(False)
-        if verbose:
-            print "AzureConfig:\n{0}".format(configAzure)
-        utils.mergeDict(config, configAzure, True) # ovewrites defaults with Azure defaults
-        if verbose:
-            print "Config:\n{0}".format(config)
-
-        if ("resource_group" in config and "acs_resource_group" in config):
-            config["resource_group_set"] = True
-            az_tools.config["azure_cluster"]["resource_group_name"] = config["resource_group"]
-
-        config["resource_group"] = az_tools.config["azure_cluster"]["resource_group_name"]
-        config["platform-scripts"] = "acs"
-        config["WinbindServers"] = []
-        config["etcd_node_num"] = config["master_node_num"]
-        config["kube_addons"] = [] # no addons
-        # config["mountpoints"]["rootshare"]["azstoragesku"] = config["azstoragesku"]
-        # config["mountpoints"]["rootshare"]["azfilesharequota"] = config["azfilesharequota"]
-        config["freeflow"] = True
-        config["useclusterfile"] = True
-
-        if ("azure-sqlservername" in config) and (not "sqlserver-hostname" in config):
-            config["sqlserver-hostname"] = ("tcp:%s.database.windows.net" % config["azure-sqlservername"])
-        else:
-            # find name for SQL Azure
-            match = re.match('tcp:(.*)\.database\.windows\.net', config["sqlserver-hostname"])
-            config["azure-sqlservername"] = match.group(1)
-
-        # Some locations put VMs in child resource groups
-        acs_tools.acs_set_resource_grp(False)
-
-        # check for GPU sku
-        match = re.match('.*\_N.*', config["acsagentsize"])
-        if not match is None:
-            config["acs_isgpu"] = True
-        else:
-            config["acs_isgpu"] = False
-
-        # Add users -- hacky going into CCSAdmins group!!
-        if "webui_admins" in config:
-            for name in config["webui_admins"]:
-                if not name in config["UserGroups"]["CCSAdmins"]["Allowed"]:
-                    config["UserGroups"]["CCSAdmins"]["Allowed"].append(name)
-
-        # domain name
-        config["network"] = {}
-        config["network"]["domain"] = "{0}.cloudapp.azure.com".format(config["cluster_location"])
-
-        try:
-            if not ("accesskey" in config["mountpoints"]["rootshare"]):
-                azureKey = acs_get_storage_key()
-                #print "ACS Storage Key: " + azureKey
-                config["mountpoints"]["rootshare"]["accesskey"] = azureKey
-        except:
-            ()
-
-        if verbose:
-            print "Config:{0}".format(config)
 
 # Render scripts for kubenete nodes
 def add_kubelet_config():
@@ -775,13 +699,16 @@ def gen_platform_wise_config():
     azdefault = { 'network_domain':"config['network']['domain']", 
         'worker_node_num':"config['azure_cluster']['worker_node_num']", 
         'gpu_count_per_node':'config["sku_mapping"].get(config["azure_cluster"]["worker_vm_size"],config["sku_mapping"]["default"])["gpu-count"]',
-        'gpu_type':'config["sku_mapping"].get(config["azure_cluster"]["worker_vm_size"],config["sku_mapping"]["default"])["gpu-type"]' }
+        'gpu_type':'config["sku_mapping"].get(config["azure_cluster"]["worker_vm_size"],config["sku_mapping"]["default"])["gpu-type"]',
+        'etcd_node_num': "config['azure_cluster']['infra_node_num']" }
     on_premise_default = {'network_domain':"config['network']['domain']"}
     platform_dict = { 'azure_cluster': azdefault, 'onpremise': on_premise_default }
     platform_func = { 'azure_cluster': load_az_params_as_default, 'onpremise': on_premise_params } 
     default_dict, default_func = platform_dict[config["platform_type"]], platform_func[config["platform_type"]]
     default_func()
     need_val = ['network_domain', 'worker_node_num', 'gpu_count_per_node', 'gpu_type']
+    config['etcd_node_num'] = config.get('etcd_node_num')
+
     for ky in need_val:
         if ky not in config:
             config[ky] = eval(default_dict[ky])
@@ -3145,6 +3072,7 @@ def run_command( args, command, nargs, parser ):
     f = open(config_file)
     merge_config(config, yaml.load(f))
     f.close()
+    gen_platform_wise_config()
     if os.path.exists("./deploy/clusterID.yml"):
         f = open("./deploy/clusterID.yml")
         tmp = yaml.load(f)
@@ -3167,8 +3095,7 @@ def run_command( args, command, nargs, parser ):
             config["ssh_cert"] = sshtempfile
         else:
             print "SSH Key {0} not found using original".format(sshfile)
-        #    exit()
-    add_acs_config(command)
+
     if verbose and config["isacs"]:
         print "Using Azure Container Services"
     if os.path.exists("./deploy/clusterID.yml"):
