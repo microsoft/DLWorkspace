@@ -3115,7 +3115,7 @@ def run_command( args, command, nargs, parser ):
             role2connect = nargs[0]
             if len(nargs) < 1 or role2connect == "master":
                 nodes = config["kubernetes_master_node"]
-            elif role2connect in ["etcd", "worker", "nfs", "samba"]:
+            elif role2connect in ["etcd", "worker", "nfs", "samba", "utility"]:
                 nodes = config["{}_node".format(role2connect)]
             else:
                 parser.print_help()
@@ -3522,6 +3522,7 @@ def run_command( args, command, nargs, parser ):
             update_reporting_service()
 
     elif command == "display" or command == "clusterinfo":
+        configuration( config, verbose )
         configuration( config, verbose )
         check_master_ETCD_status()
 
