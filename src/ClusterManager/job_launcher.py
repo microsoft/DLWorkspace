@@ -11,6 +11,7 @@ import time
 import datetime
 import base64
 import multiprocessing
+import hashlib
 
 from kubernetes import client, config as k8s_config
 from kubernetes.client.rest import ApiException
@@ -522,6 +523,17 @@ class PythonLauncher(Launcher):
             job_object.params["gid"] = user_info["gid"]
             job_object.params["uid"] = user_info["uid"]
             job_object.params["user"] = job_object.get_alias()
+
+            if "job_token" not in job_object.params:
+                if "user_sign_token" in config and "userName" in job_object.params:
+                    job_object.params["job_token"] = hashlib.md5(job_object.params["userName"]+":"+config["user_sign_token"]).hexdigest()
+                else:
+                    job_object.params["job_token"] = "tryme2017"
+
+            if "envs" not in job_object.params:
+                job_object.params["envs"] =[]
+                job_object.params["envs"].append({"name": "DLTS_JOB_TOKEN", "value": job_object.params["job_token"]})              
+
 
             enable_custom_scheduler = job_object.is_custom_scheduler_enabled()
             secret_template = job_object.get_blobfuse_secret_template()
