@@ -677,13 +677,15 @@ def check_master_ETCD_status():
     get_ETCD_master_nodes(config["clusterId"])
     get_worker_nodes(config["clusterId"], False)
     get_nodes_by_roles(["nfs"])
+    get_nodes_by_roles(["utility"])
     get_nodes_by_roles(["samba"])
     print "==============================================="
-    print "Activate Master Node(s): %s\n %s \n" % (len(config["kubernetes_master_node"]),",".join(config["kubernetes_master_node"]))
-    print "Activate ETCD Node(s):%s\n %s \n" % (len(config["etcd_node"]),",".join(config["etcd_node"]))
-    print "Activate Worker Node(s):%s\n %s \n" % (len(config["worker_node"]),",".join(config["worker_node"]))
-    print "Activate NFS Node(s):%s\n %s \n" % (len(config["nfs_node"]),",".join(config["nfs_node"]))
-    print "Activate Samba Node(s):%s\n %s \n" % (len(config["samba_node"]), ",".join(config["samba_node"]))
+    print "Active Master Node(s): %s\n %s \n" % (len(config["kubernetes_master_node"]),",".join(config["kubernetes_master_node"]))
+    print "Active ETCD Node(s):%s\n %s \n" % (len(config["etcd_node"]),",".join(config["etcd_node"]))
+    print "Active Worker Node(s):%s\n %s \n" % (len(config["worker_node"]),",".join(config["worker_node"]))
+    print "Active NFS Node(s):%s\n %s \n" % (len(config["nfs_node"]),",".join(config["nfs_node"]))
+    print "Active Utility Node(s):%s\n %s \n" % (len(config["utility_node"]),",".join(config["utility_node"]))
+    print "Active Samba Node(s):%s\n %s \n" % (len(config["samba_node"]), ",".join(config["samba_node"]))
 
 def clean_deployment():
     print "==============================================="
