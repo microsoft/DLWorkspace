@@ -279,9 +279,6 @@ def create_vnet():
 
 
 def create_nsg():
-    source_addresses_prefixes = "'*'"
-    restricted_source_address_prefixes = "'*'"
-
     if "source_addresses_prefixes" in config["cloud_config"]["dev_network"]:
         source_addresses_prefixes = config["cloud_config"][
             "dev_network"]["source_addresses_prefixes"]
@@ -291,6 +288,7 @@ def create_nsg():
         print "Please setup source_addresses_prefixes in config.yaml, otherwise, your cluster cannot be accessed"
         exit()
 
+    restricted_source_address_prefixes = "'*'"
     if "restricted_source_address_prefixes" in config["cloud_config"]:
         restricted_source_address_prefixes = config["cloud_config"]["restricted_source_address_prefixes"]
         if isinstance(restricted_source_address_prefixes, list):
