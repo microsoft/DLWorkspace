@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from unittest import TestCase
 from mock import patch
 from path_tree import PathTree
+from path_node import DAY
 from testcase_utils import DummyNodeStat
 
 

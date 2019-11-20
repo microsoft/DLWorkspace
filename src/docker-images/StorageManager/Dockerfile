@@ -1,7 +1,7 @@
 FROM dlws/restfulapi:v1.5
 
 ADD utils /DLWorkspace/src/utils
-ADD RestAPI /DLWorkspace/src/storage_monitor
+ADD StorageManager /DLWorkspace/src/StorageManager
 
 COPY run.sh /
 RUN chmod +x /run.sh

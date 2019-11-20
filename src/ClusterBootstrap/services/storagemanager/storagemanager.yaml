@@ -1,0 +1,77 @@
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: storagemanager
+  namespace: default
+  labels:
+     run: storagemanager
+spec:
+  selector:
+    matchLabels:
+      storagemanager-node: pod
+  template:
+    metadata:
+      name: storagemanager
+      labels:
+        storagemanager-node: pod
+        app: storagemanager
+    spec:
+      {% if cnf["dnsPolicy"] %}
+      dnsPolicy: {{cnf["dnsPolicy"]}}
+      {% endif %}
+      nodeSelector:
+        storagemanager: active
+      hostNetwork: true
+      containers:
+      - name: storagemanager
+        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}{{cnf["storagemanager"]}}:{{cnf["dockertag"]}}
+        imagePullPolicy: Always
+        volumeMounts:
+        - mountPath: /StorageManager
+          name: storagemanager-config
+        - mountPath: /var/log/storagemanager
+          name: log
+        ports:
+        - containerPort: 5000
+          hostPort: 5000
+          name: main
+        {% if False %}
+        {% for volume in cnf["mountpoints"] %}
+        {% if cnf["mountpoints"][volume]["mountpoints"] is string and cnf["mountpoints"][volume]["mountpoints"]!="" %}
+        - mountPath: {{cnf["storage-mount-path"]}}/{{cnf["mountpoints"][volume]["mountpoints"]}}
+          name: {{cnf["mountpoints"][volume]["mountpoints"]}}
+        {% else %}
+        {% for mp in cnf["mountpoints"][volume]["mountpoints"] %}
+        - mountPath: {{cnf["storage-mount-path"]}}/{{mp}}
+          name: {{mp}}
+        {% endfor %}
+        {% endif %}
+        {% endfor %}
+        {% endif %}
+      volumes:
+      - name: storagemanager-config
+        hostPath:
+          path: /etc/StorageManager
+      - name: log
+        hostPath:
+          path: /var/log/storagemanager
+      {% if False %}
+      {% for volume in cnf["mountpoints"] %}
+      {% if cnf["mountpoints"][volume]["mountpoints"] is string and cnf["mountpoints"][volume]["mountpoints"]!="" %}
+      - name: {{cnf["mountpoints"][volume]["mountpoints"]}}
+        hostPath:
+          path: {{cnf["storage-mount-path"]}}/{{cnf["mountpoints"][volume]["mountpoints"]}}
+      {% else %}
+      {% for mp in cnf["mountpoints"][volume]["mountpoints"] %}
+      - name: {{mp}}
+        hostPath:
+          path: {{cnf["storage-mount-path"]}}/{{mp}}
+      {% endfor %}
+      {% endif %}
+      {% endfor %}
+      {% endif %}
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule

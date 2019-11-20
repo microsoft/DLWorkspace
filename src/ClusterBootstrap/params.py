@@ -236,7 +236,7 @@ default_config_parameters = {
         "kibana": "etcd_node_1",
         "mysql": "etcd_node_1",
         "nginx": "all",
-        "storage-monitor": "utility_node"
+        "storagemanager": "utility_node"
     },
 
     "kubemarks": ["rack", "sku"],
