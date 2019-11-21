@@ -1,1 +1,1 @@
-cp -a ../../../../user-sychnorizer/* ./
+cp -a ../../../../user-synchronizer/* ./
