@@ -30,7 +30,7 @@ class TestPathNode(TestCase):
 
         node = PathNode(NODE_PATH)
         self.assertEqual(NODE_PATH, node.path)
-        self.assertEqual(True, node.isdir)
+        self.assertTrue(node.isdir)
         self.assertEqual(NODE_SIZE, node.size)
         self.assertEqual(NODE_SIZE, node.subtree_size)
         self.assertEqual(datetime(2019, 11, 19, 14, 39, 27), node.atime)
@@ -40,6 +40,12 @@ class TestPathNode(TestCase):
         self.assertEqual("", node.owner)
         self.assertEqual([], node.children)
         self.assertEqual(1, node.num_subtree_nodes)
+        self.assertEqual(0, node.num_subtree_files)
+
+        mock_isdir.return_value = False
+        node = PathNode(NODE_PATH)
+        self.assertFalse(node.isdir)
+        self.assertEqual(1, node.num_subtree_files)
 
         uid_user = {NODE_UID: USER_NAME}
         node = PathNode(NODE_PATH, uid_user)

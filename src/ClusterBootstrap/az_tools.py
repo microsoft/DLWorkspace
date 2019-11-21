@@ -113,13 +113,13 @@ def create_vm(vmname, vm_ip, role, vm_size, pwd, vmcnf):
     else:
         auth = """--generate-ssh-keys --authentication-type ssh --ssh-key-value '%s' """ % config["azure_cluster"]["sshkey"]
 
-    priv_IP = "--private-ip-address %s " % vm_ip if not role in ["worker", "nfs", "utility"] else ""
+    priv_IP = "--private-ip-address %s " % vm_ip if not role in ["worker","nfs"] else ""
     nsg = "nfs_nsg_name" if role == "nfs" else "nsg_name"
     
     availability_set = ""
     if role == "worker" and "availability_set" in config["azure_cluster"]:
         availability_set = "--availability-set '%s'" % config["azure_cluster"]["availability_set"]
-    if role in ["infra", "worker", "utility"]:
+    if role in ["infra", "worker"]:
         storage = "--storage-sku {} --data-disk-sizes-gb {} ".format(config["azure_cluster"]["vm_local_storage_sku"],
                 config["azure_cluster"]["%s_local_storage_sz" % role])
         # corner case: NFS on infra
@@ -485,12 +485,6 @@ def create_cluster(arm_vm_password=None, parallelism=1):
             create_vm_param(i, "nfs", config["azure_cluster"]["nfs_vm_size"], False,
                arm_vm_password, config["azure_cluster"]["nfs_vm"][i] if i < len(config["azure_cluster"]["nfs_vm"]) else None )
 
-    # create utility servers if specified
-    for i in range(int(config["azure_cluster"]["utility_node_num"])):
-        create_vm_param(i, "utility", config["azure_cluster"]["utility_vm_size"],
-                        arm_vm_password is not None, arm_vm_password)
-
-
 def add_workers(arm_vm_password=None, parallelism=1):
     if config["priority"] == "regular":
         if parallelism > 1:
@@ -524,9 +518,6 @@ def create_vm_param(i, role, vm_size, no_az=False, arm_vm_password=None, vmcnf =
                                    ["cluster_name"], i + 1)
     elif role == "dev":
         vmname = "%s-dev" % (config["azure_cluster"]["cluster_name"])
-
-    elif role == "utility":
-        vmname = "%s-utility%02d" % (config["azure_cluster"]["cluster_name"], i + 1)
 
     print "creating VM %s..." % vmname
     vm_ip = get_vm_ip(i, role)
@@ -793,15 +784,6 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
             cc["machines"][vmname.lower()] = {
                 "role": "nfs",
                 "node-group": vm["vmSize"]}
-
-    # Get utility VMs
-    for vm in vm_list:
-        vmname = vm["name"]
-        if "-utility" in vmname:
-            cc["machines"][vmname.lower()] = {
-                "role": "utility",
-                "node-group": vm["vmSize"]
-            }
 
     # Dilemma : Before the servers got created, you don't know their name, cannot specify which server does a mountpoint config group belongs to
     if int(config["azure_cluster"]["nfs_node_num"]) > 0:

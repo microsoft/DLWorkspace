@@ -62,6 +62,7 @@ class PathNode(object):
             self.owner = uid_user.get(self.uid, "")
 
         self.num_subtree_nodes = 1
+        self.num_subtree_files = 0 if self.isdir else 1
 
         self.children = []
 

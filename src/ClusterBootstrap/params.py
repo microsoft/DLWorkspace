@@ -1,7 +1,7 @@
 # These are the default configuration parameter
 default_config_parameters = {
     "supported_platform": ["azure_cluster", "onpremise"],
-    "allroles": {"infra", "infrastructure", "worker", "nfs", "sql", "dev", "utility"},
+    "allroles": {"infra", "infrastructure", "worker", "nfs", "sql", "dev"},
     # Kubernetes setting
     "service_cluster_ip_range": "10.3.0.0/16",
     "pod_ip_range": "10.2.0.0/16",
@@ -238,7 +238,7 @@ default_config_parameters = {
         "kibana": "etcd_node_1",
         "mysql": "etcd_node_1",
         "nginx": "all",
-        "storagemanager": "utility_node"
+        "storagemanager": "nfs_node"
     },
 
     "kubemarks": ["rack", "sku"],

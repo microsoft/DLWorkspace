@@ -58,7 +58,7 @@ coreosbaseurl = ""
 verbose = False
 nocache = False
 limitnodes = None
-allroles = {"infra", "infrastructure", "worker", "nfs", "sql", "samba", "utility"}
+allroles = {"infra", "infrastructure", "worker", "nfs", "sql", "samba"}
 
 
 # default search for all partitions of hdb, hdc, hdd, and sdb, sdc, sdd
@@ -616,7 +616,7 @@ def get_worker_nodes_from_config(clusterId):
 
 def get_nodes_by_roles(roles):
     """
-    role: "infrastructure", "worker", "nfs", "utility", etc.
+    role: "infrastructure", "worker", or "nfs"
     this function aims to deprecate get_worker_nodes_from_config and get_ETCD_master_nodes_from_config
     """
     Nodes = []
@@ -661,7 +661,7 @@ def limit_nodes(nodes):
 
 def get_nodes(clusterId):
     nodes = get_ETCD_master_nodes(clusterId) + get_worker_nodes(clusterId, False) + \
-            get_nodes_by_roles(["utility"])
+            get_nodes_by_roles(["nfs"])
     nodes = limit_nodes(nodes)
     return nodes
 
@@ -678,15 +678,13 @@ def check_master_ETCD_status():
     get_ETCD_master_nodes(config["clusterId"])
     get_worker_nodes(config["clusterId"], False)
     get_nodes_by_roles(["nfs"])
-    get_nodes_by_roles(["utility"])
     get_nodes_by_roles(["samba"])
     print "==============================================="
-    print "Active Master Node(s): %s\n %s \n" % (len(config["kubernetes_master_node"]),",".join(config["kubernetes_master_node"]))
-    print "Active ETCD Node(s):%s\n %s \n" % (len(config["etcd_node"]),",".join(config["etcd_node"]))
-    print "Active Worker Node(s):%s\n %s \n" % (len(config["worker_node"]),",".join(config["worker_node"]))
-    print "Active NFS Node(s):%s\n %s \n" % (len(config["nfs_node"]),",".join(config["nfs_node"]))
-    print "Active Utility Node(s):%s\n %s \n" % (len(config["utility_node"]),",".join(config["utility_node"]))
-    print "Active Samba Node(s):%s\n %s \n" % (len(config["samba_node"]), ",".join(config["samba_node"]))
+    print "Activate Master Node(s): %s\n %s \n" % (len(config["kubernetes_master_node"]),",".join(config["kubernetes_master_node"]))
+    print "Activate ETCD Node(s):%s\n %s \n" % (len(config["etcd_node"]),",".join(config["etcd_node"]))
+    print "Activate Worker Node(s):%s\n %s \n" % (len(config["worker_node"]),",".join(config["worker_node"]))
+    print "Activate NFS Node(s):%s\n %s \n" % (len(config["nfs_node"]),",".join(config["nfs_node"]))
+    print "Activate Samba Node(s):%s\n %s \n" % (len(config["samba_node"]), ",".join(config["samba_node"]))
 
 def clean_deployment():
     print "==============================================="
@@ -1334,7 +1332,7 @@ def reset_worker_nodes():
         reset_worker_node(node)
 
 
-def update_utility_nodes(nargs):
+def update_nfs_nodes(nargs):
     """Internally use update_worker_node.
 
     TODO: Should be covered by update_role_nodes in deploy.py V2
@@ -1353,9 +1351,9 @@ def update_utility_nodes(nargs):
 
     get_hyperkube_docker()
 
-    utility_nodes = get_nodes_by_roles(["utility"])
-    utility_nodes = limit_nodes(utility_nodes)
-    for node in utility_nodes:
+    nfs_nodes = get_nodes_by_roles(["nfs"])
+    nfs_nodes = limit_nodes(nfs_nodes)
+    for node in nfs_nodes:
         if in_list(node, nargs):
             update_worker_node(node)
 
@@ -2012,11 +2010,11 @@ def deploy_webUI():
     deploy_webUI_on_node(masterIP)
 
 
-def deploy_utility_configs():
+def deploy_nfs_config():
     utils.render_template_directory("./template/StorageManager", "./deploy/StorageManager", config)
 
-    utility_nodes = get_nodes_by_roles(["utility"])
-    for node in utility_nodes:
+    nfs_nodes = get_nodes_by_roles(["nfs"])
+    for node in nfs_nodes:
         utils.sudo_scp(config["ssh_cert"], "./deploy/StorageManager/config.yaml", "/etc/StorageManager/config.yaml", config["admin_username"], node)
 
 
@@ -2804,8 +2802,8 @@ def get_node_lists_for_service(service):
         nodetype = labels[service] if service in labels else labels["default"]
         if nodetype == "worker_node":
             nodes = config["worker_node"]
-        elif nodetype == "utility_node":
-            nodes = config["utility_node"]
+        elif nodetype == "nfs_node":
+            nodes = config["nfs_node"]
         elif nodetype == "etcd_node":
             nodes = config["etcd_node"]
         elif nodetype.find( "etcd_node_" )>=0:
@@ -3157,7 +3155,7 @@ def run_command( args, command, nargs, parser ):
             role2connect = nargs[0]
             if len(nargs) < 1 or role2connect == "master":
                 nodes = config["kubernetes_master_node"]
-            elif role2connect in ["etcd", "worker", "nfs", "samba", "utility"]:
+            elif role2connect in ["etcd", "worker", "nfs", "samba"]:
                 nodes = config["{}_node".format(role2connect)]
             else:
                 parser.print_help()
@@ -3354,15 +3352,15 @@ def run_command( args, command, nargs, parser ):
             gen_configs()
             reset_worker_nodes()
 
-    elif command == "updateutility":
+    elif command == "updatenfs":
         response = raw_input_with_default("Deploy Utility Node(s) (y/n)?")
         if first_char(response) == "y":
             check_master_ETCD_status()
             gen_configs()
-            update_utility_nodes(nargs)
+            update_nfs_nodes(nargs)
 
-    elif command == "deployutilityconfig":
-        deploy_utility_configs()
+    elif command == "deploynfsconfig":
+        deploy_nfs_config()
 
     elif command == "listmac":
         nodes = get_nodes(config["clusterId"])

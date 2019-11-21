@@ -19,10 +19,13 @@ class StorageManager(object):
     def __init__(self, config):
         self.logger = logging.getLogger()
         self.config = config
-        self.execution_interval_days = self.config["execution_interval_days"]
+        self.execution_interval_days = self.config.get("execution_interval_days", 1)
         self.last_now = None
-        self.scan_points = self.config["scan_points"]
+        self.scan_points = self.config.get("scan_points", [])
         assert isinstance(self.scan_points, list)
+
+        self.overweight_threshold = self.config.get("overweight_threshold", 10 * G)
+        self.expiry_days = self.config.get("expiry_days", 1)
 
         self.logger.info("execution_interval_days: %d" %
                          self.config["execution_interval_days"])
@@ -49,7 +52,6 @@ class StorageManager(object):
 
     def scan(self):
         """Scans each scan_point and finds overweight and expired nodes."""
-        tree = None
         for scan_point in self.scan_points:
             if "path" not in scan_point:
                 self.logger.warning("path does not exist in %s. continue." %
@@ -57,14 +59,16 @@ class StorageManager(object):
                 continue
 
             if "overweight_threshold" not in scan_point:
-                self.logger.warning("overweight_threshold does not exist in "
-                                    "%s. continue" % scan_point)
-                continue
+                self.logger.info("overweight_threshold does not exist in "
+                                 "%s. Using parent overweight_threshold %d." %
+                                 (scan_point, self.overweight_threshold))
+                scan_point["overweight_threshold"] = self.overweight_threshold
 
             if "expiry_days" not in scan_point:
-                self.logger.warning("expiry_days does not exist in %s. "
-                                    "continue." % scan_point)
-                continue
+                self.logger.info("expiry_days does not exist in %s. "
+                                 "Using parent expiry_days %d." %
+                                 (scan_point, self.expiry_days))
+                scan_point["expiry_days"] = self.expiry_days
 
             if not os.path.exists(scan_point["path"]):
                 self.logger.warning("%s does not exist in file system. "
@@ -75,22 +79,30 @@ class StorageManager(object):
 
             self.logger.info("Scanning scan_point %s" % scan_point)
 
-            del tree
             tree = PathTree(scan_point)
-            tree.create_tree()
+            tree.walk()
 
             root = tree.root
-            self.logger.info("Total number of paths found: %d" %
-                             root.num_subtree_nodes)
+            if root is not None:
+                self.logger.info("Total number of paths under %s found: %d" %
+                                 (tree.path, root.num_subtree_nodes))
+            else:
+                self.logger.warning("Tree root for path %s is None." % tree.path)
 
-            overweight_nodes = tree.find_overweight_nodes()
-            self.logger.info("Overweight (> %d) paths are:" %
+            overweight_nodes = tree.overweight_boundary_nodes
+            self.logger.info("Overweight (> %d) boundary paths are:" %
                              tree.overweight_threshold)
             for node in overweight_nodes:
                 self.logger.info(node)
+            self.logger.info("")
 
-            expired_nodes = tree.find_expired_nodes()
-            self.logger.info("Expired (access time < %s) paths are:" %
+            self.logger.info("Expired (access time < %s) boundary paths are:" %
                              tree.expiry.strftime(DATETIME_FMT))
-            for node in expired_nodes:
+            for node in tree.expired_boundary_nodes:
                 self.logger.info(node)
+            self.logger.info("")
+
+            self.logger.info("Emtpy boundary paths are:")
+            for node in tree.empty_boundary_nodes:
+                self.logger.info(node)
+            self.logger.info("")
