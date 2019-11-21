@@ -31,16 +31,8 @@ spec:
           name: storagemanager-config
         - mountPath: /var/log/storagemanager
           name: storagemanager-log
-        {% if cnf["storage_monitor"] %}
-          {% if cnf["storage_monitor"]["scan_points"] %}
-            {% for sp in cnf["storage_monitor"]["scan_points"] %}
-              {% if sp["name"] and sp["path"] and sp["hostPath"] %}
-        - mountPath: {{sp["path"]}}
-          name: {{sp["name"]}}
-              {% endif %}
-            {% endfor %}
-          {% endif %}
-        {% endif %}
+        - mountPath: /data/share
+          name: data-share
       volumes:
       - name: storagemanager-config
         hostPath:
@@ -48,17 +40,9 @@ spec:
       - name: storagemanager-log
         hostPath:
           path: /var/log/storagemanager
-      {% if cnf["storage_monitor"] %}
-        {% if cnf["storage_monitor"]["scan_points"] %}
-          {% for sp in cnf["storage_monitor"]["scan_points"] %}
-            {% if sp["name"] and sp["path"] and sp["hostPath"]%}
-      - name: {{sp["name"]}}
+      - name: data-share
         hostPath:
-          path: {{sp["hostPath"]}}
-            {% endif %}
-          {% endfor %}
-        {% endif %}
-      {% endif %}
+          path: /data/share
       tolerations:
       - key: CriticalAddonsOnly
         operator: Exists
