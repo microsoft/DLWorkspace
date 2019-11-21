@@ -66,7 +66,7 @@ class StorageManager(object):
                                     "continue." % scan_point)
                 continue
 
-            if os.path.exists(scan_point["path"]):
+            if not os.path.exists(scan_point["path"]):
                 self.logger.warning("%s does not exist in file system. "
                                     "continue." % scan_point)
                 continue
@@ -77,14 +77,15 @@ class StorageManager(object):
 
             del tree
             tree = PathTree(scan_point)
+            tree.create()
 
             root = tree.root
             self.logger.info("Total number of paths found: %d" %
                              root.num_subtree_nodes)
 
             overweight_nodes = tree.find_overweight_nodes()
-            self.logger.info("Overweight (> %dG) paths are:" %
-                             tree.overweight_threshold / G)
+            self.logger.info("Overweight (> %d) paths are:" %
+                             tree.overweight_threshold)
             for node in overweight_nodes:
                 self.logger.info(node)
 

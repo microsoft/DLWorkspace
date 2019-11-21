@@ -7,7 +7,6 @@ import logging
 
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
-from scan import *
 from config import config
 from logging.config import dictConfig
 from DataHandler import DataHandler
@@ -18,7 +17,7 @@ LOGGING_FILE = "logging.yaml"
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 with open(os.path.join(dir_path, LOGGING_FILE), "r") as f:
-    logging_config = yaml.load(f)
+    logging_config = yaml.safe_load(f)
     dictConfig(logging_config)
 logger = logging.getLogger(__name__)
 
