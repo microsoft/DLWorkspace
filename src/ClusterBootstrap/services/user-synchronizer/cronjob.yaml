@@ -1,0 +1,35 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: user-synchronizer-cronjob
+spec:
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      name: user-synchronizer-job
+    spec:
+      template:
+        metadata:
+          name: user-synchronizer-pod
+        spec:
+          containers:
+          - name: user-synchronizer
+            image: '{{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}user-synchronizer:{{cnf["dockertag"]}}'
+            imagePullPolicy: Always
+            env:
+            - name: TENANT_ID
+              value: '{{cnf["user-synchronizer"]["tenant_id"]}}'
+            - name: CLIENT_ID
+              value: '{{cnf["user-synchronizer"]["client_id"]}}'
+            - name: CLIENT_SECRET
+              value: '{{cnf["user-synchronizer"]["client_secret"]}}'
+            - name: WINBIND_URL
+              value: '{{cnf["user-synchronizer"]["winbind_url"]}}'
+            - name: DATABASE_URL
+              value: 'mysql://{{cnf["mysql_username"]}}:{{cnf["mysql_password"]}}@{{cnf["mysql_node"]}}:{{cnf["mysql_port"]}}/DLWSCluster-{{cnf["clusterId"]}}'
+            - name: GROUPS_ID
+              value: '{{cnf["user-synchronizer"]["groups_id"]}}'
+          nodeSelector:
+            user-synchronizer: active
+          restartPolicy: Never
+  schedule: '0 * * * *'
