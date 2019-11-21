@@ -623,7 +623,7 @@ def nfs_allow_master():
         az network nsg rule create \
             --resource-group %s \
             --nsg-name %s \
-            --name tcpinterconnect \
+            --name nfs_allow_master \
             --protocol tcp \
             --priority 1400 \
             --destination-port-ranges %s \
