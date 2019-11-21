@@ -77,7 +77,7 @@ class StorageManager(object):
 
             del tree
             tree = PathTree(scan_point)
-            tree.create()
+            tree.create_tree()
 
             root = tree.root
             self.logger.info("Total number of paths found: %d" %
