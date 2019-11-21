@@ -291,7 +291,11 @@ spec:
         {% if bf["tmppath"] %}
         tmppath: {{ bf["tmppath"] }}/{{ job["podName"] }}
         {% endif %}
+        {% if bf["mountOptions"] %}
+        mountoptions: {{ bf["mountOptions"] }}
+        {% else %}
         mountoptions: "--file-cache-timeout-in-seconds=120"
+        {% endif %}
         {% endif %}
       {% endfor %}
     {% endif %}
