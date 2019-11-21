@@ -199,6 +199,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   const [accountKey, setAccountKey] = React.useState("");
   const [containerName, setContainerName] = React.useState("");
   const [mountPath, setMountPath] = React.useState("");
+  const [mountOptions, setMoutOptions] = React.useState("--file-cache-timeout-in-seconds=120");
   const onAccountNameChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       setAccountName(event.target.value);
@@ -223,7 +224,12 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     },
     [setMountPath]
   )
-
+  const onMountOptionsChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setMoutOptions(event.target.value);
+    },
+    [setMoutOptions]
+  )
   const [workPath, setWorkPath] = React.useState("");
   const onWorkPathChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -352,6 +358,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       blobfuseObj['accountKey'] = accountKey || '';
       blobfuseObj['containerName'] = containerName || '';
       blobfuseObj['mountPath'] = mountPath || '';
+      blobfuseObj['mountOptions'] = mountOptions;
       plugins['blobfuse'].push(blobfuseObj);
       const template = {
         name,
@@ -531,6 +538,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     blobfuseObj['accountKey'] = accountKey || '';
     blobfuseObj['containerName'] = containerName || '';
     blobfuseObj['mountPath'] = mountPath || '';
+    blobfuseObj['mountOptions'] = mountOptions;
     plugins['blobfuse'].push(blobfuseObj);
 
     const job: any = {
@@ -948,6 +956,15 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                     value={mountPath}
                     onChange={onMountPathChange}
                     label="Mount Path"
+                    fullWidth
+                    variant="filled"
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    value={mountOptions}
+                    onChange={onMountOptionsChange}
+                    label="Mount Options"
                     fullWidth
                     variant="filled"
                   />
