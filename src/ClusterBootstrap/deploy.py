@@ -854,7 +854,6 @@ def gen_configs():
     utils.render_template_directory("./template/web-docker", "./deploy/web-docker",config)
     utils.render_template_directory("./template/kube-addons", "./deploy/kube-addons",config)
     utils.render_template_directory("./template/RestfulAPI", "./deploy/RestfulAPI",config)
-    utils.render_template_directory("./template/StorageManager", "./deploy/StorageManager", config)
 
 def get_ssh_config():
     if "ssh_cert" not in config and os.path.isfile("./deploy/sshkey/id_rsa"):
@@ -2006,6 +2005,14 @@ def deploy_webUI():
     masterIP = config["kubernetes_master_node"][0]
     deploy_restful_API_on_node(masterIP)
     deploy_webUI_on_node(masterIP)
+
+
+def deploy_utility_configs():
+    utils.render_template_directory("./template/StorageManager", "./deploy/StorageManager", config)
+
+    utility_nodes = get_nodes_by_roles(["utility"])
+    for node in utility_nodes:
+        utils.sudo_scp(config["ssh_cert"], "./deploy/StorageManager/config.yaml", "/etc/StorageManager/config.yaml", config["admin_username"], node)
 
 
 def label_webUI(nodename):
@@ -3348,6 +3355,9 @@ def run_command( args, command, nargs, parser ):
             check_master_ETCD_status()
             gen_configs()
             update_utility_nodes(nargs)
+
+    elif command == "deployutilityconfig":
+        deploy_utility_configs()
 
     elif command == "listmac":
         nodes = get_nodes(config["clusterId"])

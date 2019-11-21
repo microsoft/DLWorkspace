@@ -1,0 +1,7 @@
+mysql :
+  hostname : {{cnf["mysql_node"]}}
+  port : {{cnf["mysql_port"]}}
+  username : {{cnf["mysql_username"]}}
+  password : {{cnf["mysql_password"]}}
+
+storage_monitor: {{cnf["storage_monitor"]}}
