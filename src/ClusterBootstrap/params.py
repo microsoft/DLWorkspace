@@ -631,6 +631,9 @@ default_config_parameters = {
             # Need to white list dev machines to connect
             # "source_addresses_prefixes": [ "52.151.0.0/16"]
         },
+        "nfs_allow_master": {
+            "tcp_port_ranges": "10250",
+        },
     },
 
     "nfs_client_CIDR": {
