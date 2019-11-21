@@ -2011,11 +2011,12 @@ def deploy_webUI():
 
 
 def deploy_nfs_config():
-    utils.render_template_directory("./template/StorageManager", "./deploy/StorageManager", config)
-
     nfs_nodes = get_nodes_by_roles(["nfs"])
     for node in nfs_nodes:
+        config["cur_nfs_node"] = node
+        utils.render_template_directory("./template/StorageManager", "./deploy/StorageManager", config)
         utils.sudo_scp(config["ssh_cert"], "./deploy/StorageManager/config.yaml", "/etc/StorageManager/config.yaml", config["admin_username"], node)
+        del config["cur_nfs_node"]
 
 
 def label_webUI(nodename):

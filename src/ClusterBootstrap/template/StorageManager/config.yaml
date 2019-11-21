@@ -4,4 +4,6 @@ mysql :
   username : {{cnf["mysql_username"]}}
   password : {{cnf["mysql_password"]}}
 
-storage_monitor: {{cnf["storage_monitor"]}}
+{% if cnf["storage_monitor"] and cnf["storage_monitor"]["cur_nfs_node"] %}
+storage_monitor: {{cnf["storage_monitor"]["cur_nfs_node"]}}
+{% endif %}

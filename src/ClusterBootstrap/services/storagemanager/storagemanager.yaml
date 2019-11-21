@@ -34,7 +34,7 @@ spec:
         {% if cnf["storage_monitor"] %}
           {% if cnf["storage_monitor"]["scan_points"] %}
             {% for sp in cnf["storage_monitor"]["scan_points"] %}
-              {% if sp["path"] and sp["name"] %}
+              {% if sp["name"] and sp["path"] and sp["hostPath"] %}
         - mountPath: {{sp["path"]}}
           name: {{sp["name"]}}
               {% endif %}
@@ -51,10 +51,10 @@ spec:
       {% if cnf["storage_monitor"] %}
         {% if cnf["storage_monitor"]["scan_points"] %}
           {% for sp in cnf["storage_monitor"]["scan_points"] %}
-            {% if sp["path"] and sp["name"] %}
+            {% if sp["name"] and sp["path"] and sp["hostPath"]%}
       - name: {{sp["name"]}}
         hostPath:
-          path: {{sp["path"]}}
+          path: {{sp["hostPath"]}}
             {% endif %}
           {% endfor %}
         {% endif %}
