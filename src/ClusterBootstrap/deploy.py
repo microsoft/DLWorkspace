@@ -1339,7 +1339,12 @@ def update_utility_nodes(nargs):
 
     TODO: Should be covered by update_role_nodes in deploy.py V2
     """
+    # This is to temporarily replace gpu_type with None to disallow nvidia runtime config to appear in /etc/docker/daemon.json
+    prev_gpu_type = config["gpu_type"]
+    config["gpu_type"] = "None"
     utils.render_template_directory("./template/kubelet", "./deploy/kubelet", config)
+    config["gpu_type"] = prev_gpu_type
+
     write_nodelist_yaml()
 
     os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' % config["etcd_endpoints"].replace("/","\\/"))
