@@ -50,7 +50,7 @@ spec:
       - name: dlwsdatadata
         hostPath:
           path: {{cnf["storage-mount-path"]}}/storage
-      - name: dltsdaat
+      - name: dltsdata
         hostPath:
           path: {{cnf["dltsdata-storage-mount-path"]}}
       tolerations:
