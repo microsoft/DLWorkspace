@@ -63,6 +63,8 @@ default_config_parameters = {
     "webuiport": "3080",
     "restfulapiport": "5000",
     "restfulapi": "restfulapi",
+    # StorageManager mapping
+    "storagemanager": "storagemanager",
     "ssh_cert": "./deploy/sshkey/id_rsa",
     "admin_username": "core",
     # the path of where dfs/nfs is source linked and consumed on each node,
