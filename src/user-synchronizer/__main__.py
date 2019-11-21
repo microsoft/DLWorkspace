@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 from json import dumps
 from logging import getLogger, FileHandler, StreamHandler
 from os import environ
@@ -39,46 +42,62 @@ token = oauth.fetch_token(token_url,
                           scope=scope)
 logger.info('Token: {}'.format(token))
 
-# Synchronize
-url_template = 'https://graph.microsoft.com/v1.0/groups/{}/members'
+# Configure database
 database = connect(database_url)
 table = database['identity']
+
+
+def get_members(group_id):
+    ''' Get members of the group_id '''
+    url_template = 'https://graph.microsoft.com/v1.0/groups/{}/members'
+    url = url_template.format(group_id)
+    while url is not None:
+        members_response = oauth.get(url)
+        members_response.raise_for_status()
+        members_response_json = members_response.json()
+        members = members_response_json['value']
+        logger.info('Fetched {} mambers from group {}'.format(
+            len(members), group_id))
+        yield from members
+        url = members_response_json.get('@odata.nextLink')
+
+
+def get_identity(userName):
+    ''' Get identity info of the member '''
+    params = {'userName': userName}
+    winbind_response = get(winbind_url, params=params)
+    winbind_response.raise_for_status()
+    winbind_response_json = winbind_response.json()
+    logger.info('Fetched {} from winbind'.format(userName))
+    return winbind_response_json
+
+
+def sync_database(userName, identity):
+    uid = int(identity['uid'])
+    gid = int(identity['gid'])
+    groups = dumps(identity['groups'], separators=(',', ':'))
+    row = {
+        'identityName': userName,
+        'uid': uid,
+        'gid': gid,
+        'groups': groups,
+    }
+    table.upsert(row, keys=['identityName'])
+
+
 for group_id in groups_id:
     try:
-        # Get members in the group
-        url = url_template.format(group_id)
-        groups_response = oauth.get(url)
-        groups_response.raise_for_status()
-        members = groups_response.json()['value']
-        logger.info('Fetch {} members in group {}'.format(
-            len(members), group_id
-        ))
-
-        for member in members:
+        for member in get_members(group_id):
             try:
-                if 'mail' not in member:
-                    logger.warn('Member has no mail: {}'.format(member))
-                    continue
-                mail = member['mail']
+                userName = member['userPrincipalName']
+                identity = get_identity(userName)
+                sync_database(userName, identity)
 
-                # Get identity info of the member.
-                params = {'userName': mail}
-                winbind_response = get(winbind_url, params=params)
-                identity = winbind_response.json()
-                logger.info('Finish fetch {} from winbind'.format(mail))
-
-                # Update identity in database
-                row = {
-                    'identityName': mail,
-                    'uid': int(identity['uid']),
-                    'gid': int(identity['gid']),
-                    'groups': dumps(identity['groups']),
-                }
-                table.upsert(row, keys=['identityName'])
-                logger.info('Finish sync member {}'.format(mail))
+                logger.info('Finished sync member {} with uid {}'.format(
+                    userName, identity['uid']))
             except Exception:
                 logger.exception('Exception in member {}'.format(member))
 
-        logger.info('Finish group {}'.format(group_id))
+        logger.info('Finished group {}'.format(group_id))
     except Exception:
         logger.exception('Exception in group {}'.format(group_id))
