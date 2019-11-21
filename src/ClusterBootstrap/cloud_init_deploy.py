@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import os
 import sys
+import uuid
 import yaml
 import utils
 import argparse
@@ -10,13 +11,13 @@ sys.path.append("../utils")
 from ConfigUtils import *
 from DockerUtils import push_one_docker, build_dockers, push_dockers, run_docker, find_dockers, build_docker_fullname, copy_from_docker_image, configuration
 
-def generate_ip_from_cluster(cluster_ip_range, index ):
+def generate_ip_from_cluster(cluster_ip_range, index):
 	slash_pos = cluster_ip_range.find("/")
 	ips = cluster_ip_range if slash_pos < 0 else cluster_ip_range[:slash_pos]
 	ips3 = ips[:ips.rfind(".")]
 	return ips3 + "." + str(index)
 
-def generate_trusted_domains(network_config, start_idx ):
+def generate_trusted_domains(network_config, start_idx):
 	ret = ""
 	domain = fetch_dictionary(network_config, ["domain"])
 	if not (domain is None):
@@ -30,11 +31,12 @@ def generate_trusted_domains(network_config, start_idx ):
 			start_idx +=1
 	return ret
 
-def get_platform_script_directory( target ):
+def get_platform_script_directory(target):
 	targetdir = target+"/"
 	if target is None or target=="default":
 		targetdir = "./"
 	return targetdir
+
 default_config_mapping = {
 	"dockerprefix": (["cluster_name"], lambda x:x.lower()+"/"),
 	"infrastructure-dockerregistry": (["dockerregistry"], lambda x:x),#keep
@@ -114,7 +116,6 @@ def add_ssh_key(config):
 	return config
 
 def get_ssh_config(config):
-	# print(len(config.keys()))
 	if "ssh_cert" not in config and os.path.isfile("./deploy/sshkey/id_rsa"):
 		config["ssh_cert"] = "./deploy/sshkey/id_rsa"
 	if "ssh_cert" in config:
@@ -126,11 +127,11 @@ def get_ssh_config(config):
 	return config
 
 def get_domain(config):
-    if "network" in config and "domain" in config["network"] and len(config["network"]["domain"]) > 0 :
-        domain = "."+config["network"]["domain"]
-    else:
-        domain = ""
-    return domain
+	if "network" in config and "domain" in config["network"] and len(config["network"]["domain"]) > 0 :
+		domain = "."+config["network"]["domain"]
+	else:
+		domain = ""
+	return domain
 
 def get_nodes_from_config(machinerole, config):
 	if "machines" not in config:
@@ -138,9 +139,8 @@ def get_nodes_from_config(machinerole, config):
 	else:
 		domain = get_domain(config)
 		Nodes = []
-		for nodename in config["machines"]:
-			nodeInfo = config["machines"][nodename]
-			if "role" in nodeInfo and nodeInfo["role"]==machinerole:
+		for nodename, nodeInfo in config["machines"].items():
+			if "role" in nodeInfo and machinerole in nodeInfo["role"]:
 				if len(nodename.split("."))<3:
 					Nodes.append(nodename+domain)
 				else:
@@ -153,12 +153,12 @@ def load_node_list_by_role_from_config(config, roles):
 		role = "infra" if role == "infrastructure" else role
 		temp_nodes = []
 		temp_nodes = get_nodes_from_config(role, config)
-		if role == "infra":
-			config["etcd_node"] = temp_nodes
-			config["kubernetes_master_node"] = temp_nodes
+		# if role == "infra":
+		# 	config["etcd_node"] = temp_nodes
+		# 	config["kubernetes_master_node"] = temp_nodes
 		config["{}_node".format(role)] = temp_nodes
 		Nodes += temp_nodes
-	return Nodes
+	return Nodes, config
 
 # Get the list of nodes for a particular service	
 def get_node_lists_for_service(service, config):
@@ -191,7 +191,7 @@ def get_node_lists_for_service(service, config):
 				nodes.append(node)
 	return nodes
 
-def update_config(config):
+def load_default_config(config):
 	apply_config_mapping(config, default_config_mapping)
 	config["webportal_node"] = None if len(get_node_lists_for_service("webportal", config))==0 \
 								else get_node_lists_for_service("webportal", config)[0]
@@ -206,7 +206,34 @@ def update_config(config):
 	    config["prometheus"]["host"] = None if len(get_node_lists_for_service("prometheus", config))==0 \
 	    								else get_node_lists_for_service("prometheus", config)[0]
 	config = update_docker_image_config(config)
+
+	config["api_servers"] = "https://"+config["kubernetes_master_node"][0]+":"+str(config["k8sAPIport"])
+	config["etcd_endpoints"] = ",".join(["https://"+x+":"+config["etcd3port1"] for x in config["etcd_node"]])
+
+	if os.path.isfile(config["ssh_cert"]+".pub"):
+		with open(config["ssh_cert"]+".pub") as f:
+			config["sshkey"] = f.read()
 	return config
+
+def create_cluster_id(overwrite = False):
+	ID = load_cluster_ID()
+	if ID is None or overwrite:
+		clusterId = {}
+		clusterId["clusterId"] = str(uuid.uuid4())
+		with open('./deploy/clusterID.yml', 'w') as f:
+			yaml.dump(clusterId, f)
+		print("Cluster ID generated: " + clusterId["clusterId"])
+	else:
+		with open('./deploy/clusterID.yml', 'r') as f:
+		    ID = yaml.load(f)['clusterId']
+		print('Cluster ID file exists -- ./deploy/clusterID.yml:\n{}'.format(ID))
+
+def load_cluster_ID():
+	if (not os.path.exists('./deploy/clusterID.yml')):
+		return None
+	with open('./deploy/clusterID.yml', 'r') as f:
+	    ID = yaml.load(f).get('clusterId', None)
+	    return ID
 
 def load_config(args):
 	config = init_config(default_config_parameters)
@@ -214,7 +241,7 @@ def load_config(args):
 		utils.verbose = True
 		print("Args = {0}".format(args))
 
-	# we care about "action to apply this time", so we don't load cluster.yaml, which reflect the accumualted status
+	# deploy new cluster or load info of an existing cluster? specify the yaml file to specify explicitly
 	for cnf_fn in args.config:
 		config_file = os.path.join(dirpath, cnf_fn)
 		if not os.path.exists(config_file):
@@ -224,31 +251,98 @@ def load_config(args):
 		with open(config_file) as cf:
 			merge_config(config, yaml.safe_load(cf))
 
-	load_node_list_by_role_from_config(config, ['infra', 'worker', 'nfs'])
+	load_node_list_by_role_from_config(config, ['infra', 'worker', 'nfs', 'etcd', 'kubernetes_master'])
 	config = gen_platform_wise_config(config)
 
-	if os.path.exists("./deploy/clusterID.yml"):
-		f = open("./deploy/clusterID.yml")
-		tmp = yaml.load(f)
-		f.close()
-		if "clusterId" in tmp:
-			config["clusterId"] = tmp["clusterId"]
-		config = update_config(config)
+	clusterID = load_cluster_ID()
+	if not clusterID is None:
+		config["clusterId"] = clusterID
+		config = load_default_config(config)
 	else:
+		# this branch seems useless, try to delete it and test
 		apply_config_mapping(config, default_config_mapping)
 		config = update_docker_image_config(config)
 
 	config = get_ssh_config(config)
 	configuration( config, args.verbose )
-
 	if args.verbose:
 		print("deploy " + command + " " + (" ".join(args.nargs)))
 		print("PlatformScripts = {0}".format(config["platform-scripts"]))
 
 	return config
 
+def render_for_infra():
+    gen_new_key = True
+    regenerate_key = False
+    clusterID = load_cluster_ID()
+    if not clusterID is None:
+        response = raw_input_with_default("There is a cluster (ID:%s) deployment in './deploy', do you want to keep the existing ssh key and CA certificates (y/n)?" % clusterID)
+        if first_char(response) == "n":
+            # Backup old cluster
+            utils.backup_keys(config["cluster_name"])
+            regenerate_key = True
+        else:
+            gen_new_key = False
+    else:
+        create_cluster_id()
+    if gen_new_key:
+        utils.gen_SSH_key(regenerate_key)
+        gen_CA_certificates()
+        gen_worker_certificates()
+        utils.backup_keys(config["cluster_name"])
+
+    add_kubelet_config()
+
+    os.system( "mkdir -p ./deploy/cloud-config/")
+    os.system( "mkdir -p ./deploy/iso-creator/")
+
+    template_file = "./template/cloud-config/cloud-config-master.yml"
+    target_file = "./deploy/cloud-config/cloud-config-master.yml"
+    config["role"] = "master"
+    utils.render_template(template_file, target_file,config)
+
+    template_file = "./template/cloud-config/cloud-config-etcd.yml"
+    target_file = "./deploy/cloud-config/cloud-config-etcd.yml"
+
+    config["role"] = "etcd"
+    utils.render_template(template_file, target_file,config)
+
+
+    template_file = "./template/iso-creator/mkimg.sh.template"
+    target_file = "./deploy/iso-creator/mkimg.sh"
+    utils.render_template( template_file, target_file ,config)
+
+    with open("./deploy/ssl/ca/ca.pem", 'r') as f:
+        content = f.read()
+    config["ca.pem"] = base64.b64encode(content)
+
+    with open("./deploy/ssl/kubelet/apiserver.pem", 'r') as f:
+        content = f.read()
+    config["apiserver.pem"] = base64.b64encode(content)
+    config["worker.pem"] = base64.b64encode(content)
+
+    with open("./deploy/ssl/kubelet/apiserver-key.pem", 'r') as f:
+        content = f.read()
+    config["apiserver-key.pem"] = base64.b64encode(content)
+    config["worker-key.pem"] = base64.b64encode(content)
+
+    add_additional_cloud_config()
+    add_kubelet_config()
+    template_file = "./template/cloud-config/cloud-config-worker.yml"
+    target_file = "./deploy/cloud-config/cloud-config-worker.yml"
+    utils.render_template( template_file, target_file ,config)
+
 def run_command(args, command, parser):
-	config = load_config(args)
+	if command == "loadconfig":
+		config = load_config(args)
+		with open("todeploy.yaml", "w") as wf:
+			yaml.dump(config, wf)
+	if command == "clusterID":
+		create_cluster_id(args.force)
+	if command == "test":
+		config = load_config(args)
+		render_for_infra()
+
 
 if __name__ == '__main__':
 	# the program always run at the current directory.
