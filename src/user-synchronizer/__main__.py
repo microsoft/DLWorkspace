@@ -85,6 +85,8 @@ def sync_database(userName, identity):
     table.upsert(row, keys=['identityName'])
 
 
+first_exception = None
+
 for group_id in groups_id:
     try:
         for member in get_members(group_id):
@@ -95,9 +97,17 @@ for group_id in groups_id:
 
                 logger.info('Finished sync member {} with uid {}'.format(
                     userName, identity['uid']))
-            except Exception:
+            except Exception as exception:
+                if first_exception is None:
+                    first_exception = exception
                 logger.exception('Exception in member {}'.format(member))
 
         logger.info('Finished group {}'.format(group_id))
-    except Exception:
+    except Exception as exception:
+        if first_exception is None:
+            first_exception = exception
         logger.exception('Exception in group {}'.format(group_id))
+
+if first_exception is not None:
+    logger.error('Raise the exception outside to mark the program as failed')
+    raise first_exception
