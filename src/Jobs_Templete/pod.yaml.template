@@ -127,17 +127,21 @@ spec:
     resources:
       limits:
         nvidia.com/gpu: {{ job["gpuLimit"] }}
-    {% if not job["cpurequest"] %}
+      {% if job["cpulimit"] %}
+        cpu: {{ job["cpulimit"]  }}
+      {% endif %}
+      {% if job["memorylimit"] %}
+        memory: {{ job["memorylimit"] }}
+      {% endif %}
       requests:
+      {% if not job["cpurequest"] %}
         cpu: 1.0
-    {% else %}
-      requests:
-        cpu: job["cpurequest"]
-    {% endif %}
-    {% if job["memoryrequest"] %}
-      requests:
-        memory: job["memoryrequest"]
-    {% endif %}
+      {% else %}
+        cpu: {{ job["cpurequest"] }}
+      {% endif %}
+      {% if job["memoryrequest"] %}
+        memory: {{ job["memoryrequest"] }}
+      {% endif %}
     volumeMounts:
     - name: "dlws-scripts"
       mountPath: /pod/scripts
@@ -172,6 +176,16 @@ spec:
     {% endif %}
     - mountPath: /dev/shm
       name: dshm
+    {% if job["plugins"] %}
+      {% if job["plugins"]["blobfuse"] %}
+        {% for bf in job["plugins"]["blobfuse"] %}
+          {% if bf.enabled %}
+    - name: {{ bf.name }}
+      mountPath: {{ bf.mountPath }}
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+    {% endif %}
     env:
     - name: FAMILY_TOKEN
       value: {{ job["familyToken"] }}
@@ -262,3 +276,23 @@ spec:
   - name: dshm
     emptyDir:
       medium: Memory
+  {% if job["plugins"] %}
+    {% if job["plugins"]["blobfuse"] %}
+      {% for bf in job["plugins"]["blobfuse"] %}
+        {% if bf.enabled %}
+  - name: {{ bf.name }}
+    flexVolume:
+      driver: "azure/blobfuse"
+      readOnly: false
+      secretRef:
+        name: {{ bf.secreds }}
+      options:
+        container: {{ bf.containerName }}
+        {% if bf["tmppath"] %}
+        tmppath: {{ bf["tmppath"] }}/{{ job["podName"] }}
+        {% endif %}
+        mountoptions: "--file-cache-timeout-in-seconds=120"
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+  {% endif %}

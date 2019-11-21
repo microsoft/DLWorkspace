@@ -49,6 +49,7 @@ import {
   SUCCESSFULTEMPLATEDELETE, SUCCESSFULTEMPLATEDSAVE
 } from "../../Constants/WarnConstants";
 import {DLTSSnackbar} from "../CommonComponents/DLTSSnackbar";
+import _ from "lodash";
 
 interface EnvironmentVariable {
   name: string;
@@ -194,6 +195,34 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   const onAdvancedClick = () => {
     setAdvanced(!advanced);
   }
+  const [accountName, setAccountName] = React.useState("");
+  const [accountKey, setAccountKey] = React.useState("");
+  const [containerName, setContainerName] = React.useState("");
+  const [mountPath, setMountPath] = React.useState("");
+  const onAccountNameChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setAccountName(event.target.value);
+    },
+    [setAccountName]
+  )
+  const onAccountKeyChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setAccountKey(event.target.value);
+    },
+    [setAccountKey]
+  )
+  const onContainerNameChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setContainerName(event.target.value);
+    },
+    [setContainerName]
+  )
+  const onMountPathChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setMountPath(event.target.value);
+    },
+    [setMountPath]
+  )
 
   const [workPath, setWorkPath] = React.useState("");
   const onWorkPathChange = React.useCallback(
@@ -278,7 +307,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   // const onDatabaseClick = React.useCallback(() => {
   //   setDatabase(true);
   // }, []);
-  const onDatabaseClick = () => {
+  const onTemplateClick = () => {
     setDatabase(!database);
   }
 
@@ -316,6 +345,14 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   }, [gpuModel, selectedTeam, name, image, command, type, gpus, gpusPerNode]);
   const onSaveTemplateClick = async () => {
     try {
+      let plugins: any = {};
+      plugins['blobfuse'] = [];
+      let blobfuseObj: any = new Object();
+      blobfuseObj['accountName'] = accountName || '';
+      blobfuseObj['accountKey'] = accountKey || '';
+      blobfuseObj['containerName'] = containerName || '';
+      blobfuseObj['mountPath'] = mountPath || '';
+      plugins['blobfuse'].push(blobfuseObj);
       const template = {
         name,
         type,
@@ -333,10 +370,12 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
         ssh,
         ipython,
         tensorboard,
+        plugins
       };
       const url = `/teams/${selectedTeam}/templates/${saveTemplateName}?database=${saveTemplateDatabase}`;
       await saveTemplate(url, template);
       setSaveTemplate(true)
+      window.location.reload()
     } catch (error) {
       alert('Failed to save the template, check console (F12) for technical details.')
       console.error(error);
@@ -345,6 +384,14 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   const [showDeleteTemplate, setShowDeleteTemplate] = useState(false)
   const onDeleteTemplateClick = async () => {
     try {
+      let plugins: any = {};
+      plugins['blobfuse'] = [];
+      let blobfuseObj: any = new Object();
+      blobfuseObj['accountName'] = accountName || '';
+      blobfuseObj['accountKey'] = accountKey || '';
+      blobfuseObj['containerName'] = containerName || '';
+      blobfuseObj['mountPath'] = mountPath || '';
+      plugins['blobfuse'].push(blobfuseObj);
       const template = {
         name,
         type,
@@ -362,10 +409,12 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
         ssh,
         ipython,
         tensorboard,
+        plugins,
       };
       const url = `/teams/${selectedTeam}/templates/${saveTemplateName}?database=${saveTemplateDatabase}`;
       await deleteTemplate(url);
       setShowDeleteTemplate(true)
+      window.location.reload()
     } catch (error) {
       alert('Failed to delete the template, check console (F12) for technical details.')
       console.error(error);
@@ -410,6 +459,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
           ssh,
           ipython,
           tensorboard,
+          plugins
         } = JSON.parse(event.target.value as string);
         console.log('jobpath', jobPath)
         if (name !== undefined) setName(name);
@@ -428,6 +478,13 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
         if (ssh !== undefined) setSsh(ssh);
         if (ipython !== undefined) setIpython(ipython);
         if (tensorboard !== undefined) setTensorboard(tensorboard);
+        if (plugins !== undefined && plugins.hasOwnProperty("blobfuse") && Array.isArray(plugins['blobfuse'])) {
+          let blobfuseObj = plugins['blobfuse'][0];
+          setAccountName(blobfuseObj['accountName']);
+          setAccountKey(blobfuseObj['accountKey']);
+          setContainerName(blobfuseObj['containerName']);
+          setMountPath(blobfuseObj['mountPath']);
+        }
       }
     },
     []
@@ -467,6 +524,14 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   const onSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!submittable) return;
+    let plugins: any = {};
+    plugins['blobfuse'] = [];
+    let blobfuseObj: any = new Object();
+    blobfuseObj['accountName'] = accountName || '';
+    blobfuseObj['accountKey'] = accountKey || '';
+    blobfuseObj['containerName'] = containerName || '';
+    blobfuseObj['mountPath'] = mountPath || '';
+    plugins['blobfuse'].push(blobfuseObj);
 
     const job: any = {
       userName: email,
@@ -487,10 +552,10 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       jobPath: jobPath || '',
       enablejobpath: enableJobPath,
       env: environmentVariables,
-      hostNetwork : type === 'PSDistJob' ? true : false,
-      isPrivileged : type === 'PSDistJob' ? true : false,
+      hostNetwork : type === 'PSDistJob',
+      isPrivileged : type === 'PSDistJob',
+      plugins: plugins,
     };
-
     let totalGpus = gpus;
     if (type === 'PSDistJob') {
       job.numps = 1;
@@ -843,6 +908,53 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
           <Collapse in={advanced}>
             <Divider/>
             <CardContent>
+              <Typography component="div" variant="h6" >Azure Blob</Typography>
+              <Typography component="div" variant="caption" color={"textSecondary"}>Fill in all fields for Azure blob to take effect.</Typography>
+              <Grid
+                container
+                wrap="wrap"
+                spacing={1}
+                align-items-xs-baseline
+              >
+                <Grid item xs={12}>
+                  <TextField
+                    value={accountName}
+                    onChange={onAccountNameChange}
+                    label="Account Name"
+                    fullWidth
+                    variant="filled"
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    value={accountKey}
+                    onChange={onAccountKeyChange}
+                    label="Account Key"
+                    fullWidth
+                    variant="filled"
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    value={containerName}
+                    onChange={onContainerNameChange}
+                    label="Container Name"
+                    fullWidth
+                    variant="filled"
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    value={mountPath}
+                    onChange={onMountPathChange}
+                    label="Mount Path"
+                    fullWidth
+                    variant="filled"
+                  />
+                </Grid>
+              </Grid>
+            </CardContent>
+            <CardContent>
               <Typography component="span" variant="h6">Mount Directories</Typography>
               <Table size="small">
                 <TableHead>
@@ -871,8 +983,6 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                         checked={enableWorkPath}
                         onChange={onEnableWorkPathChange}
                       />
-                    </TableCell>
-                    <TableCell align="center">
                     </TableCell>
                   </TableRow>
                   <TableRow>
@@ -910,7 +1020,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                     <TableCell align="center">
                       <Switch
                         value={enableJobPath}
-                        checked={enableDataPath}
+                        checked={enableJobPath}
                         onChange={onEnableJobPathChange}
                       />
                     </TableCell>
@@ -976,7 +1086,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
           <Collapse in={database}>
             <Divider/>
             <CardContent>
-              <Typography component="span" variant="h6">Database Management</Typography>
+              <Typography component="span" variant="h6">Template Management</Typography>
               <Grid container wrap="wrap" spacing={1}>
                 <Grid item xs={12} sm={6}>
                   <TextField
@@ -989,7 +1099,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                 </Grid>
                 <Grid item xs>
                   <TextField
-                    label="Database"
+                    label="Scope"
                     select
                     fullWidth
                     variant="filled"
@@ -1010,7 +1120,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
             <Grid item xs={12} container justify="space-between">
               <Grid item xs container>
                 <Button type="button" color="secondary"  onClick={onAdvancedClick}>Advanced</Button>
-                <Button type="button" color="secondary"  onClick={onDatabaseClick}>Database</Button>
+                <Button type="button" color="secondary"  onClick={onTemplateClick}>Template</Button>
               </Grid>
               <Button type="submit" color="primary" variant="contained" disabled={!submittable || enableSubmit || postJobLoading || postEndpointsLoading || open }>Submit</Button>
             </Grid>

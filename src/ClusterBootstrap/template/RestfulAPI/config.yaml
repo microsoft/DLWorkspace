@@ -1,13 +1,13 @@
 database :
   hostname : {{cnf["sqlserver-hostname"]}}
   username : {{cnf["sqlserver-username"]}}
-  password : {{cnf["sqlserver-password"]}}
+  password : "{{cnf["sqlserver-password"]}}"
   database : {{cnf["sqlserver-database"]}}
 mysql :
   hostname : {{cnf["mysql_node"]}}
   port : {{cnf["mysql_port"]}}
   username : {{cnf["mysql_username"]}}
-  password : {{cnf["mysql_password"]}}
+  password : "{{cnf["mysql_password"]}}"
 kubelet-path : /usr/local/bin/kubectl
 storage-mount-path : {{cnf["storage-mount-path"]}}
 dltsdata-storage-mount-path : {{cnf["dltsdata-storage-mount-path"]}}
@@ -52,3 +52,13 @@ job-manager:
 
 infiniband_mounts: {{cnf["infiniband_mounts"]}}
 custom_mounts: {{cnf["custom_mounts"]}}
+
+enable_cpuworker: {{cnf["enable_cpuworker"]}}
+default_cpurequest: {{cnf["default_cpurequest"]}}
+default_cpulimit: {{cnf["default_cpulimit"]}}
+default_memoryrequest: {{cnf["default_memoryrequest"]}}
+default_memorylimit: {{cnf["default_memorylimit"]}}
+
+enable_blobfuse: {{cnf["enable_blobfuse"]}}
+
+local_fast_storage: {{cnf["local_fast_storage"]}}

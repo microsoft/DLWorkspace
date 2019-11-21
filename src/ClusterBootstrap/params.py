@@ -1,7 +1,7 @@
 # These are the default configuration parameter
 default_config_parameters = {
     "supported_platform": ["azure_cluster", "onpremise"],
-    "allroles": {"infra", "infrastructure", "worker", "nfs", "sql", "dev"},
+    "allroles": {"infra", "infrastructure", "worker", "nfs", "sql", "dev", "etcd", "kubernetes_master"},
     # Kubernetes setting
     "service_cluster_ip_range": "10.3.0.0/16",
     "pod_ip_range": "10.2.0.0/16",
@@ -664,7 +664,11 @@ default_config_parameters = {
         "Standard_NC24rs_v3": {"gpu-type": "V100", "gpu-count": 4},
         "Standard_NC24rs_v2": {"gpu-type": "P100", "gpu-count": 4},
         "default": {"gpu-type": "None", "gpu-count": 0},
-    }
+    },
+    "infiniband_mounts": [],
+    "custom_mounts": [],
+    "enable_cpuworker": False,
+    "enable_blobfuse": False
 }
 
 # These are super scripts
@@ -835,8 +839,5 @@ scriptblocks = {
     "build_kube": [
         "docker push gobld",
         "docker push kubernetes",
-    ],
-
-    "infiniband_mounts": [],
-    "custom_mounts": []
+    ]
 }

@@ -603,9 +603,13 @@ class DataHandler(object):
         ret = []
         cursor = self.conn.cursor()
         try:
-            query = "SELECT `jobId`,`jobName`,`userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobDescriptionPath`, `jobDescription`, `jobTime`, `endpoints`, `jobParams`,`errorMsg` ,`jobMeta` FROM `%s` where `vcName` = '%s'" % (self.jobtablename, vcName)
+            query = "SELECT `jobId`,`jobName`,`userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobDescriptionPath`, `jobDescription`, `jobTime`, `endpoints`, `jobParams`,`errorMsg` ,`jobMeta` FROM `%s` where 1" % (self.jobtablename)
             if userName != "all":
                 query += " and `userName` = '%s'" % userName
+
+            if vcName != "all":
+                query += " and `vcName` = '%s'" % vcName
+
             if status is not None:
                 if "," not in status:
                     query += " and `jobStatus` %s '%s'" % (op[0], status)

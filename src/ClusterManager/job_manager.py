@@ -24,22 +24,17 @@ from ResourceInfo import ResourceInfo
 import quota
 
 from prometheus_client import Histogram
+import redis
 
 import logging
 import logging.config
 from job import Job, JobSchema
 from job_launcher import JobDeployer, JobRole, PythonLauncher
 
-from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time
+from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time, record
 
 from job_launcher import get_job_status_detail, job_status_detail_with_finished_time
 
-
-jobmanager_fn_histogram = Histogram("jobmanager_fn_latency_seconds",
-        "latency for executing jobmanager function (seconds)",
-        buckets=(.1, 2.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 50.0,
-            float("inf")),
-        labelnames=("fn_name",))
 
 job_state_change_histogram = Histogram("job_state_change_latency_seconds",
         """latency for job to change state(seconds).
@@ -55,103 +50,102 @@ job_state_change_histogram = Histogram("job_state_change_latency_seconds",
         labelnames=("current_state",))
 
 class JobTimeRecord(object):
-    def __init__(self):
-        self.create_time = None
-        self.approve_time = None
-        self.submit_time = None
-        self.running_time = None
+    def __init__(self, create_time=None, approve_time=None,
+            submit_time=None, running_time=None):
+        self.create_time = create_time
+        self.approve_time = approve_time
+        self.submit_time = submit_time
+        self.running_time = running_time
 
+    @staticmethod
+    def parse_time(t):
+        if t is None:
+            return None
+        return datetime.datetime.fromtimestamp(t)
 
-class LRUDefatulDict(object):
-    class Node(object):
-        def __init__(self, key, val, next=None, prev=None):
-            self.key = key
-            self.val = val
-            self.next = next
-            self.prev = prev
+    @staticmethod
+    def to_timestamp(t):
+        if t is None:
+            return None
+        return time.mktime(t.timetuple())
 
-    def __init__(self, cap, factory):
-        assert cap > 0
-        self.m = {}
-        self.head = self.tail = None
-        self.cap = cap
-        self.factory = factory
+    @staticmethod
+    def parse(m):
+        c_time = JobTimeRecord.parse_time(m.get("create_time"))
+        a_time = JobTimeRecord.parse_time(m.get("approve_time"))
+        s_time = JobTimeRecord.parse_time(m.get("submit_time"))
+        r_time = JobTimeRecord.parse_time(m.get("running_time"))
+        return JobTimeRecord(c_time, a_time, s_time, r_time)
 
-    def __getitem__(self, key):
-        return self._get(key)
+    def to_map(self):
+        return {
+                "create_time": JobTimeRecord.to_timestamp(self.create_time),
+                "approve_time": JobTimeRecord.to_timestamp(self.approve_time),
+                "submit_time": JobTimeRecord.to_timestamp(self.submit_time),
+                "running_time": JobTimeRecord.to_timestamp(self.running_time),
+                }
 
-    def _get(self, key):
-        if self.m.get(key) is None:
-            self._put(key, self.factory())
+def to_job_status_key(job_id):
+    return "job_status_" + job_id
 
-        return self.m[key].val
+def load_job_status(redis_conn, job_id):
+    try:
+        val = redis_conn.get(to_job_status_key(job_id))
+        if val is not None:
+            return JobTimeRecord.parse(json.loads(val))
+    except Exception:
+        logging.exception("load job status failed")
+    return JobTimeRecord()
 
-    def _put(self, key, value):
-        if self.m.get(key) is not None:
-            node = self.m[key]
-            if node == self.head:
-                node.val = value
-            else:
-                node.prev.next = node.next
-                if node.next is not None:
-                    node.next.prev = node.prev
-                node.prev = None
-                node.next = self.head
-                self.head.prev = node
-                self.head = node
-        else:
-            self.head = LRUDefatulDict.Node(key, value, self.head, None)
-            if self.tail is None:
-                self.tail = self.head
-            else:
-                self.head.next.prev = self.head
-            self.m[key] = self.head
-            if len(self.m) > self.cap:
-                self.m.pop(self.tail.key)
-                self.tail = self.tail.prev
-                self.tail.next = None
-
-# pure memory data structure
-job_time_recorder = LRUDefatulDict(500, lambda : JobTimeRecord())
+def set_job_status(redis_conn, job_id, job_status):
+    try:
+        val = json.dumps(job_status.to_map())
+        redis_conn.set(to_job_status_key(job_id), val)
+    except Exception:
+        logging.exception("set job status failed")
 
 # If previous state has no record, which means the job_manager get restarted
 # or previous entry is expired, we ignore this entry.
-def update_job_state_latency(job_id, state, event_time=None):
+def update_job_state_latency(redis_conn, job_id, state, event_time=None):
     if event_time is None:
         event_time = datetime.datetime.utcnow()
 
+    job_status = load_job_status(redis_conn, job_id)
+    changed = False
+
     if state == "created":
-        if job_time_recorder[job_id].create_time is None:
-            job_time_recorder[job_id].create_time = event_time
+        if job_status.create_time is None:
+            changed = True
+            job_status.create_time = event_time
     elif state == "approved":
-        if job_time_recorder[job_id].approve_time is None:
-            job_time_recorder[job_id].approve_time = event_time
-        if job_time_recorder[job_id].create_time is not None:
-            elapsed = (event_time - job_time_recorder[job_id].create_time).seconds
+        if job_status.approve_time is None:
+            changed = True
+            job_status.approve_time = event_time
+        if changed and job_status.create_time is not None:
+            changed = True
+            elapsed = (event_time - job_status.create_time).seconds
             job_state_change_histogram.labels(state).observe(elapsed)
     elif state == "scheduling":
-        if job_time_recorder[job_id].submit_time is None:
-            job_time_recorder[job_id].submit_time = event_time
-        if job_time_recorder[job_id].approve_time is not None:
-            elapsed = (event_time - job_time_recorder[job_id].approve_time).seconds
+        if job_status.submit_time is None:
+            changed = True
+            job_status.submit_time = event_time
+        if changed and job_status.approve_time is not None:
+            changed = True
+            elapsed = (event_time - job_status.approve_time).seconds
             job_state_change_histogram.labels(state).observe(elapsed)
     elif state == "running":
-        if job_time_recorder[job_id].running_time is None:
-            job_time_recorder[job_id].running_time = event_time
-        if job_time_recorder[job_id].submit_time is not None:
-            elapsed = (event_time - job_time_recorder[job_id].submit_time).seconds
+        if job_status.running_time is None:
+            changed = True
+            job_status.running_time = event_time
+        # because UpdateJobStatus will call update_job_state_latency
+        # multiple times, so here need to avoid override metric
+        if changed and job_status.submit_time is not None:
+            changed = True
+            elapsed = (event_time - job_status.submit_time).seconds
             job_state_change_histogram.labels(state).observe(elapsed)
 
-def record(fn):
-    @functools.wraps(fn)
-    def wrapped(*args, **kwargs):
-        start = timeit.default_timer()
-        try:
-            return fn(*args, **kwargs)
-        finally:
-            elapsed = timeit.default_timer() - start
-            jobmanager_fn_histogram.labels(fn.__name__).observe(elapsed)
-    return wrapped
+    if changed:
+        set_job_status(redis_conn, job_id, job_status)
 
 
 def get_scheduling_job_details(details):
@@ -195,12 +189,12 @@ def GetJobTotalGpu(jobParams):
 
 
 @record
-def ApproveJob(job, dataHandlerOri=None):
+def ApproveJob(redis_conn, job, dataHandlerOri=None):
     try:
         job_id = job["jobId"]
         vcName = job["vcName"]
 
-        update_job_state_latency(job_id, "created", event_time=job["jobTime"])
+        update_job_state_latency(redis_conn, job_id, "created", event_time=job["jobTime"])
 
         jobParams = json.loads(base64.b64decode(job["jobParams"]))
         job_total_gpus = GetJobTotalGpu(jobParams)
@@ -215,7 +209,7 @@ def ApproveJob(job, dataHandlerOri=None):
             detail = [{"message": "waiting for available preemptible resource."}]
             dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
             dataHandler.UpdateJobTextField(job_id, "jobStatus", "queued")
-            update_job_state_latency(job_id, "approved")
+            update_job_state_latency(redis_conn, job_id, "approved")
             if dataHandlerOri is None:
                 dataHandler.Close()
             return True
@@ -256,7 +250,7 @@ def ApproveJob(job, dataHandlerOri=None):
         detail = [{"message": "waiting for available resource."}]
         dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
         dataHandler.UpdateJobTextField(job_id, "jobStatus", "queued")
-        update_job_state_latency(job_id, "approved")
+        update_job_state_latency(redis_conn, job_id, "approved")
         if dataHandlerOri is None:
             dataHandler.Close()
         return True
@@ -270,7 +264,7 @@ def ApproveJob(job, dataHandlerOri=None):
 UnusualJobs = {}
 
 @record
-def UpdateJobStatus(launcher, job, notifier=None, dataHandlerOri=None):
+def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=None):
     assert(job["jobStatus"] == "scheduling" or job["jobStatus"] == "running")
     if dataHandlerOri is None:
         dataHandler = DataHandler()
@@ -300,14 +294,18 @@ def UpdateJobStatus(launcher, job, notifier=None, dataHandlerOri=None):
         dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
         dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "finished")
 
-        if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
-            k8sUtils.kubectl_delete(jobDescriptionPath)
+        # Retain the old code for reference
+        # if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
+        #     k8sUtils.kubectl_delete(jobDescriptionPath)
+
+        job_deployer = JobDeployer()
+        job_deployer.delete_job(job["jobId"], force=True)
 
         if notifier is not None:
             notifier.notify(notify.new_job_state_change_message(
                 job["userName"], job["jobId"], result.strip()))
     elif result == "Running":
-        update_job_state_latency(job["jobId"], "running")
+        update_job_state_latency(redis_conn, job["jobId"], "running")
         if job["jobStatus"] != "running":
             started_at = k8sUtils.localize_time(datetime.datetime.now())
             detail = [{"startedAt": started_at, "message": "started at: {}".format(started_at)}]
@@ -330,8 +328,12 @@ def UpdateJobStatus(launcher, job, notifier=None, dataHandlerOri=None):
         dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "failed")
         dataHandler.UpdateJobTextField(job["jobId"], "errorMsg", "pod failed")
 
-        if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
-            k8sUtils.kubectl_delete(jobDescriptionPath)
+        # Retain the old code for reference
+        # if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
+        #     k8sUtils.kubectl_delete(jobDescriptionPath)
+
+        job_deployer = JobDeployer()
+        job_deployer.delete_job(job["jobId"], force=True)
 
     elif result == "Unknown" or result == "NotFound":
         if job["jobId"] not in UnusualJobs:
@@ -395,23 +397,23 @@ def check_job_status(job_id):
 
     if "Failed" in statuses:
         job_status = "Failed"
-    if "Unknown" in statuses:
+    elif "Unknown" in statuses:
         job_status = "Unknown"
-    if "NotFound" in statuses:
+    elif "NotFound" in statuses:
         job_status = "NotFound"
-    if "Pending" in statuses:
+    elif "Pending" in statuses:
         job_status = "Pending"
 
     return job_status, details
 
 
-def create_log(logdir = '/var/log/dlworkspace'):
+def create_log(logdir="/var/log/dlworkspace", process_name="jobmanager"):
     if not os.path.exists(logdir):
         os.system("mkdir -p " + logdir)
     with open('logging.yaml') as f:
         logging_config = yaml.full_load(f)
         f.close()
-        logging_config["handlers"]["file"]["filename"] = logdir+"/jobmanager.log"
+        logging_config["handlers"]["file"]["filename"] = "%s/%s.log" % (logdir, process_name)
         logging.config.dictConfig(logging_config)
 
 
@@ -434,9 +436,7 @@ def get_job_priority(priority_dict, job_id):
 
 
 @record
-def TakeJobActions(launcher, jobs):
-    data_handler = DataHandler()
-
+def TakeJobActions(data_handler, redis_conn, launcher, jobs):
     vc_list = data_handler.ListVCs()
     cluster_status, _ = data_handler.GetClusterStatus()
     cluster_total = cluster_status["gpu_capacity"]
@@ -550,7 +550,7 @@ def TakeJobActions(launcher, jobs):
         try:
             if sji["job"]["jobStatus"] == "queued" and (sji["allowed"] is True):
                 launcher.submit_job(sji["job"])
-                update_job_state_latency(sji["jobId"], "scheduling")
+                update_job_state_latency(redis_conn, sji["jobId"], "scheduling")
                 logging.info("TakeJobActions : submitting job : %s : %s" % (sji["jobId"], sji["sortKey"]))
             elif sji["preemptionAllowed"] and (sji["job"]["jobStatus"] == "scheduling" or sji["job"]["jobStatus"] == "running") and (sji["allowed"] is False):
                 launcher.kill_job(sji["job"]["jobId"], "queued")
@@ -560,23 +560,25 @@ def TakeJobActions(launcher, jobs):
 
     logging.info("TakeJobActions : job desired actions taken")
 
-
-def Run(updateblock=0):
+def Run(redis_port, target_status):
     register_stack_trace_dump()
+    process_name = "job_manager_" + target_status
+
+    create_log(process_name=process_name)
+
     notifier = notify.Notifier(config.get("job-manager"))
     notifier.start()
-    create_log()
 
     launcher = PythonLauncher()
     launcher.start()
 
-    while True:
-        if updateblock == 0:
-            update_file_modification_time("job_manager")
-        else:
-            update_file_modification_time("job_manager" + str(updateblock))
+    redis_conn = redis.StrictRedis(host="localhost",
+            port=redis_port, db=0)
 
-        with manager_iteration_histogram.labels("job_manager").time():
+    while True:
+        update_file_modification_time(process_name)
+
+        with manager_iteration_histogram.labels(process_name).time():
             try:
                 config["racks"] = k8sUtils.get_node_labels("rack")
                 config["skus"] = k8sUtils.get_node_labels("sku")
@@ -584,32 +586,35 @@ def Run(updateblock=0):
                 logging.exception("get node labels failed")
 
             try:
+                launcher.wait_tasks_done() # wait for tasks from previous batch done
+
                 dataHandler = DataHandler()
 
-                if updateblock == 0 or updateblock == 1:
-                    pendingJobs = dataHandler.GetPendingJobs()
-                    TakeJobActions(launcher, pendingJobs)
+                if target_status == "queued":
+                    jobs = dataHandler.GetJobList("all", "all", num=None,
+                            status="queued,scheduling,running")
+                    TakeJobActions(dataHandler, redis_conn, launcher, jobs)
+                else:
+                    jobs = dataHandler.GetJobList("all", "all", num=None,
+                            status=target_status)
+                    logging.info("Updating status for %d %s jobs",
+                            len(jobs), target_status)
 
-                pendingJobs = dataHandler.GetPendingJobs()
-                logging.info("Updating status for %d jobs" % len(pendingJobs))
-                for job in pendingJobs:
-                    try:
+                    for job in jobs:
                         logging.info("Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"]))
-                        if updateblock == 0 or updateblock == 2:
-                            if job["jobStatus"] == "killing":
-                                launcher.kill_job(job["jobId"], "killed", dataHandlerOri=dataHandler)
-                            elif job["jobStatus"] == "pausing":
-                                launcher.kill_job(job["jobId"], "paused", dataHandlerOri=dataHandler)
-                            elif job["jobStatus"] == "running":
-                                UpdateJobStatus(launcher, job, notifier, dataHandlerOri=dataHandler)
-
-                        if updateblock == 0 or updateblock == 1:
-                            if job["jobStatus"] == "scheduling":
-                                UpdateJobStatus(launcher, job, notifier, dataHandlerOri=dataHandler)
-                            elif job["jobStatus"] == "unapproved":
-                                ApproveJob(job,dataHandlerOri = dataHandler)
-                    except Exception as e:
-                        logging.warning(e, exc_info=True)
+                        if job["jobStatus"] == "killing":
+                            launcher.kill_job(job["jobId"], "killed")
+                        elif job["jobStatus"] == "pausing":
+                            launcher.kill_job(job["jobId"], "paused")
+                        elif job["jobStatus"] == "running":
+                            UpdateJobStatus(redis_conn, launcher, job, notifier, dataHandlerOri=dataHandler)
+                        elif job["jobStatus"] == "scheduling":
+                            UpdateJobStatus(redis_conn, launcher, job, notifier, dataHandlerOri=dataHandler)
+                        elif job["jobStatus"] == "unapproved":
+                            ApproveJob(redis_conn, job, dataHandlerOri=dataHandler)
+                        else:
+                            logging.error("unknown job status %s for job %s",
+                                    job["jobStatus"], job["jobId"])
             except Exception as e:
                 logging.warning("Process job failed!", exc_info=True)
             finally:
@@ -623,10 +628,11 @@ def Run(updateblock=0):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument("--redis_port", "-r", help="port of redis", type=int, default=9300)
     parser.add_argument("--port", "-p", help="port of exporter", type=int, default=9200)
-    parser.add_argument("--updateblock", "-u", help="updateblock", type=int, default=0)
+    parser.add_argument("--status", "-s", help="target status to update, queued is a special status", type=str, default="queued")
 
     args = parser.parse_args()
     setup_exporter_thread(args.port)
 
-    Run(args.updateblock)
+    Run(args.redis_port, args.status)

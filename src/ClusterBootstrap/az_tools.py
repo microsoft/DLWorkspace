@@ -477,8 +477,15 @@ def create_cluster(arm_vm_password=None, parallelism=1):
         create_vm_param(i, "infra", config["azure_cluster"]["infra_vm_size"],
                         arm_vm_password is not None, arm_vm_password)
 
+    add_workers(arm_vm_password, parallelism)
+
+    # create nfs server if specified.
+    for i in range(int(config["azure_cluster"]["nfs_node_num"])):
+            create_vm_param(i, "nfs", config["azure_cluster"]["nfs_vm_size"], False,
+               arm_vm_password, config["azure_cluster"]["nfs_vm"][i] if i < len(config["azure_cluster"]["nfs_vm"]) else None )
+
+def add_workers(arm_vm_password=None, parallelism=1):
     if config["priority"] == "regular":
-        print("entering")
         if parallelism > 1:
             # TODO: Tolerate faults
             from multiprocessing import Pool
@@ -490,15 +497,10 @@ def create_cluster(arm_vm_password=None, parallelism=1):
         else:
             for i in range(int(config["azure_cluster"]["worker_node_num"])):
                 create_vm_param(i, "worker", config["azure_cluster"]["worker_vm_size"],
-                                arm_vm_password is not None, arm_vm_password)
+                    arm_vm_password is not None, arm_vm_password)
     elif config["priority"] == "low":
         utils.render_template("./template/vmss/vmss.sh.template", "scripts/vmss.sh",config)
-        utils.exec_cmd_local("chmod +x scripts/vmss.sh;./scripts/vmss.sh")
-
-    # create nfs server if specified.
-    for i in range(int(config["azure_cluster"]["nfs_node_num"])):
-            create_vm_param(i, "nfs", config["azure_cluster"]["nfs_vm_size"], False,
-               arm_vm_password, config["azure_cluster"]["nfs_vm"][i] if i < len(config["azure_cluster"]["nfs_vm"]) else None )
+        utils.exec_cmd_local("chmod +x scripts/vmss.sh; ./scripts/vmss.sh")
 
 def add_workers(arm_vm_password=None, parallelism=1):
     if config["priority"] == "regular":
