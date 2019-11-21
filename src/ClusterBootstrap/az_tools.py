@@ -619,25 +619,32 @@ def nfs_allow_master():
         if "-infra" in name:
             source_address_prefixes.append(onevm["publicIps"] + "/32")
     source_address_prefixes = " ".join(source_address_prefixes)
-    cmd = """
-        az network nsg rule create \
-            --resource-group %s \
-            --nsg-name %s \
-            --name nfs_allow_master \
-            --protocol tcp \
-            --priority 1400 \
-            --destination-port-ranges %s \
-            --source-address-prefixes %s \
-            --access allow
-        """ % (config["azure_cluster"]["resource_group_name"],
-               config["azure_cluster"]["nfs_nsg_name"],
-               config["cloud_config"]["nfs_allow_master"]["tcp_port_ranges"],
-               source_address_prefixes
-               )
-    if verbose:
-        print cmd
-    output = utils.exec_cmd_local(cmd)
-    print(output)
+
+    nsg_names = [config["azure_cluster"]["nfs_nsg_name"]]
+    if "custom_nfs_nsg_names" in config["azure_cluster"]:
+        if isinstance(config["azure_cluster"]["legacy_nsg_names"]):
+            for nsg_name in config["azure_cluster"]["legacy_nsg_names"]:
+                nsg_names.append(nsg_name)
+
+    for nsg_name in nsg_names:
+        cmd = """
+                az network nsg rule create \
+                    --resource-group %s \
+                    --nsg-name %s \
+                    --name nfs_allow_master \
+                    --protocol tcp \
+                    --priority 1400 \
+                    --destination-port-ranges %s \
+                    --source-address-prefixes %s \
+                    --access allow
+                """ % (config["azure_cluster"]["resource_group_name"],
+                       nsg_name,
+                       config["cloud_config"]["nfs_allow_master"]["tcp_port_ranges"],
+                       source_address_prefixes)
+        if verbose:
+            print cmd
+        output = utils.exec_cmd_local(cmd)
+        print(output)
 
 
 def delete_vm(vmname):
