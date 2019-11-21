@@ -622,7 +622,7 @@ def nfs_allow_master():
 
     nsg_names = [config["azure_cluster"]["nfs_nsg_name"]]
     if "custom_nfs_nsg_names" in config["azure_cluster"]:
-        if isinstance(config["azure_cluster"]["custom_nfs_nsg_names"]):
+        if isinstance(config["azure_cluster"]["custom_nfs_nsg_names"], list):
             for nsg_name in config["azure_cluster"]["custom_nfs_nsg_names"]:
                 nsg_names.append(nsg_name)
 
