@@ -2013,6 +2013,7 @@ def deploy_webUI():
 def deploy_nfs_config():
     nfs_nodes = get_nodes_by_roles(["nfs"])
     for node in nfs_nodes:
+        utils.clean_rendered_target_directory()
         config["cur_nfs_node"] = node.split(".")[0]
         utils.render_template_directory("./template/StorageManager", "./deploy/StorageManager", config)
         utils.sudo_scp(config["ssh_cert"], "./deploy/StorageManager/config.yaml", "/etc/StorageManager/config.yaml", config["admin_username"], node)
