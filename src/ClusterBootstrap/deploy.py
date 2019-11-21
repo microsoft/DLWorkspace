@@ -660,8 +660,7 @@ def limit_nodes(nodes):
         return nodes
 
 def get_nodes(clusterId):
-    nodes = get_ETCD_master_nodes(clusterId) + get_worker_nodes(clusterId, False) + \
-            get_nodes_by_roles(["nfs"])
+    nodes = get_ETCD_master_nodes(clusterId) + get_worker_nodes(clusterId, False)
     nodes = limit_nodes(nodes)
     return nodes
 
