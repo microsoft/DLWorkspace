@@ -31,12 +31,16 @@ spec:
           name: storagemanager-config
         - mountPath: /var/log/storagemanager
           name: storagemanager-log
-        - mountPath: {{cnf["storage-mount-path"]}}/work
-          name: dlwsdatawork
-        - mountPath: {{cnf["storage-mount-path"]}}/storage
-          name: dlwsdatadata
-        - mountPath: {{cnf["dltsdata-storage-mount-path"]}}
-          name: dltsdata
+        {% if cnf["storage_monitor"] %}
+          {% if cnf["storage_monitor"]["scan_points"] %}
+            {% for sp in cnf["storage_monitor"]["scan_points"] %}
+              {% if sp["path"] and sp["name"] %}
+        - mountPath: {{sp["path"]}}
+          name: {{sp["name"]}}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+        {% endif %}
       volumes:
       - name: storagemanager-config
         hostPath:
@@ -44,15 +48,17 @@ spec:
       - name: storagemanager-log
         hostPath:
           path: /var/log/storagemanager
-      - name: dlwsdatawork
+      {% if cnf["storage_monitor"] %}
+        {% if cnf["storage_monitor"]["scan_points"] %}
+          {% for sp in cnf["storage_monitor"]["scan_points"] %}
+            {% if sp["path"] and sp["name"] %}
+      - name: {{sp["name"]}}
         hostPath:
-          path: {{cnf["storage-mount-path"]}}/work
-      - name: dlwsdatadata
-        hostPath:
-          path: {{cnf["storage-mount-path"]}}/storage
-      - name: dltsdata
-        hostPath:
-          path: {{cnf["dltsdata-storage-mount-path"]}}
+          path: {{sp["path"]}}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+      {% endif %}
       tolerations:
       - key: CriticalAddonsOnly
         operator: Exists
