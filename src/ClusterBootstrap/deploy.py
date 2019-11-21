@@ -3354,7 +3354,7 @@ def run_command( args, command, nargs, parser ):
             reset_worker_nodes()
 
     elif command == "updatenfs":
-        response = raw_input_with_default("Deploy Utility Node(s) (y/n)?")
+        response = raw_input_with_default("Deploy NFS Node(s) (y/n)?")
         if first_char(response) == "y":
             check_master_ETCD_status()
             gen_configs()
