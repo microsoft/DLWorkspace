@@ -355,6 +355,9 @@ def init_deployment():
     else:
         create_cluster_id()
     if gen_new_key:
+        os.system("mkdir -p ./deploy/cloud-config")
+        os.system("rm -r ./deploy/cloud-config")
+        os.system("mkdir -p ./deploy/cloud-config")
         utils.gen_SSH_key(regenerate_key)
         gen_CA_certificates()
         gen_worker_certificates()

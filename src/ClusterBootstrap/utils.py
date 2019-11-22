@@ -378,29 +378,15 @@ def get_cluster_ID_from_file():
 def gen_SSH_key(regenerate_key):
         print ("===============================================")
         print ("generating ssh key...")
-        os.system("mkdir -p ./deploy/sshkey")
-        os.system("mkdir -p ./deploy/cloud-config")
-        os.system("mkdir -p ./deploy/kubelet")
         if regenerate_key:
-            os.system("rm -r ./deploy/sshkey || true")
+            os.system("rm -rf ./deploy/sshkey || true")
         
         os.system("mkdir -p ./deploy/sshkey")
-
         if not os.path.exists("./deploy/sshkey/id_rsa"):
             os.system("ssh-keygen -t rsa -b 4096 -f ./deploy/sshkey/id_rsa -P ''")
 
-        os.system("rm -r ./deploy/cloud-config")
-        os.system("mkdir -p ./deploy/cloud-config")
-
-        os.system("rm -r ./deploy/kubelet")
+        os.system("rm -rf ./deploy/kubelet")
         os.system("mkdir -p ./deploy/kubelet")
-
-
-        clusterID = str(uuid.uuid4()) 
-        with open("./deploy/clusterID.yml", 'w') as f:
-            f.write("clusterId : %s" % clusterID)
-        f.close()
-
 
 def setup_backup_dir(pname):
     deploy_backup_dir = os.path.abspath("./deploy_backup")

@@ -188,9 +188,9 @@ def config_dockers_use_tag( rootdir, config, verbose):
         docker_tag = config["dockers"]["tag"]
         docker_list = get_docker_list(rootdir, "", "", None, verbose )
         # Populate system dockers 
-        for assemblename, tuple in docker_list.iteritems():
+        for assemblename, tupl in docker_list.iteritems():
             # print assemblename
-            dockername, deploydir = tuple
+            dockername, deploydir = tupl
             usedockername = docker_registry + "/" + docker_prefix + ":" + dockername + "-" + docker_tag
             usedockername = usedockername.lower()
             if "container" not in config["dockers"]:
@@ -219,9 +219,9 @@ def config_dockers(rootdir, dockerprefix, dockertag, verbose, config):
         system_docker_dic = config["dockers"]["system"]
         docker_list = get_docker_list(rootdir, dockerprefix, dockertag, None, verbose )
         # Populate system dockers 
-        for assemblename, tuple in docker_list.items():
+        for assemblename, tupl in docker_list.items():
             # print assemblename
-            dockername, deploydir = tuple
+            dockername, deploydir = tupl
             if dockername in system_docker_dic:
                 # system docker 
                 tag = system_docker_dic[dockername]["tag"] if "tag" in system_docker_dic[dockername] else system_docker_tag
@@ -273,8 +273,8 @@ def build_dockers(rootdir, dockerprefix, dockertag, nargs, config, verbose = Fal
     configuration(config, verbose)
     docker_list = get_docker_list(rootdir, dockerprefix, dockertag, nargs, verbose ); 
     # print rootdir
-    for _, tuple in docker_list.iteritems():
-        dockername, _ = tuple
+    for _, tupl in docker_list.iteritems():
+        dockername, _ = tupl
         build_docker_with_config( dockername, config, verbose, nocache = nocache )
 
 def build_one_docker(dirname, dockerprefix, dockertag, basename, config, verbose = False, nocache = False):
@@ -289,8 +289,8 @@ def push_one_docker(dirname, dockerprefix, tag, basename, config, verbose = Fals
 def push_dockers(rootdir, dockerprefix, dockertag, nargs, config, verbose = False, nocache = False ):
     configuration(config, verbose)
     docker_list = get_docker_list(rootdir, dockerprefix, dockertag, nargs, verbose ); 
-    for _, tuple in docker_list.iteritems():
-        dockername, _ = tuple
+    for _, tupl in docker_list.iteritems():
+        dockername, _ = tupl
         build_docker_with_config( dockername, config, verbose, nocache = nocache )
         push_docker_with_config( dockername, config, verbose, nocache = nocache )
 
