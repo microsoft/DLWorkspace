@@ -289,7 +289,6 @@ Automatically monitor and mount file share.
     args = parser.parse_args()
     start_logging()
     logging.debug( "Run as user %s" % getpass.getuser() )
-    lockfile = os.path.join(dir_path, "lock")
     try:
         mount_fileshare()
         link_fileshare()
