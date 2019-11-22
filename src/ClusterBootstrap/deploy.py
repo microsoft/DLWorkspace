@@ -2842,6 +2842,83 @@ def kubernetes_label_custom_node_labels():
                 kubernetes_label_node("--overwrite", nodename, nodelabel)
 
 
+def populate_machine_sku(machine_info):
+    """Potentially adds sku for and returns the modified machine_info.
+
+    Args:
+        machine_info: A dictionary containing machine information.
+
+    Returns:
+        Modified machine_info
+    """
+    if "sku" not in machine_info and "node-group" in machine_info:
+        machine_info["sku"] = machine_info["node-group"]
+    return machine_info
+
+
+def get_machines_by_roles(roles, cnf):
+    """Get machines from cnf that has role in roles.
+
+    Args:
+        roles: A comma separated string or a list of roles.
+        cnf: Configuration dictionary containing machines.
+
+    Returns:
+        A dictionary of machines that has role in roles.
+    """
+    if roles == "all":
+        roles = cnf.get("allroles", [])
+
+    if isinstance(roles, str):
+        roles = [role.strip() for role in roles.split(",")]
+
+    machines = cnf.get("machines", {})
+
+    machines_by_roles = {}
+    for machine_name, machine_info in machines.items():
+        machine_info = populate_machine_sku(machine_info)
+        if "role" in machine_info and machine_info["role"] in roles:
+            machines_by_roles[machine_name] = machine_info
+
+    return machines_by_roles
+
+
+def get_sku_meta(cnf):
+    """Get SKU meta information from cnf.
+
+    Args:
+        cnf: Configuration dictionary containing machines.
+
+    Returns:
+
+    """
+    return cnf.get("sku_meta", {})
+
+
+# Label kubernetes nodes with cpuworker=active
+def kubernetes_label_cpuworker():
+    label = "cpuworker=active"
+    sku_meta = get_sku_meta(config)
+    workers = get_machines_by_roles("worker", config)
+
+    for machine_name, machine_info in workers:
+        if "sku" in machine_info and machine_info["sku"] in sku_meta:
+            sku = machine_info["sku"]
+            if "gpu" not in sku_meta[sku]:
+                kubernetes_label_node("--overwrite", machine_name, label)
+
+
+# Label kubernetes nodes with sku=<sku_value>
+def kubernetes_label_sku():
+    sku_meta = get_sku_meta(config)
+    machines = get_machines_by_roles("all", config)
+
+    for machine_name, machine_info in machines:
+        if "sku" in machine_info and machine_info["sku"] in sku_meta:
+            sku = machine_info["sku"]
+            kubernetes_label_node("--overwrite", machine_name, "sku=%s" % sku)
+
+
 def kubernetes_patch_nodes_provider (provider, scaledOnly):
     nodes = []
     if scaledOnly:
@@ -3702,6 +3779,12 @@ def run_command( args, command, nargs, parser ):
 
     elif command == "customlabel":
         kubernetes_label_custom_node_labels()
+
+    elif command == "labelcpuworker":
+        kubernetes_label_cpuworker()
+
+    elif command == "labelsku":
+        kubernetes_label_sku()
 
     elif command == "genscripts":
         gen_platform_wise_config()
