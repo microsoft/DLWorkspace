@@ -118,8 +118,6 @@ class PodTemplate():
         if "gpuType" in params:
             params["nodeSelector"]["gpuType"] = params["gpuType"]
 
-        # CPU job should be assigned to CPU node if it's enabled and
-        # there is any available in the cluster
         params = enable_cpu_config(params=params, config=job.cluster)
 
         local_pod_path = job.get_hostpath(job.job_path, "master")

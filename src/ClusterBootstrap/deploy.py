@@ -2834,14 +2834,6 @@ def kubernetes_label_GpuTypes():
             kubernetes_label_node("--overwrite", nodename, "gpuType="+nodeInfo["gpu-type"])
 
 
-# Label kubernetes nodes with custom node labels defined for each node under "custom_node_labels"
-def kubernetes_label_custom_node_labels():
-    for nodename, nodeinfo in config["machines"].items():
-        if "custom_node_labels" in nodeinfo:
-            for nodelabel in nodeinfo["custom_node_labels"]:
-                kubernetes_label_node("--overwrite", nodename, nodelabel)
-
-
 def populate_machine_sku(machine_info):
     """Potentially adds sku for and returns the modified machine_info.
 
@@ -3776,9 +3768,6 @@ def run_command( args, command, nargs, parser ):
 
     elif command == "gpulabel":
         kubernetes_label_GpuTypes()
-
-    elif command == "customlabel":
-        kubernetes_label_custom_node_labels()
 
     elif command == "labelcpuworker":
         kubernetes_label_cpuworker()

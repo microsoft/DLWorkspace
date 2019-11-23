@@ -677,7 +677,7 @@ default_config_parameters = {
     "default_cpu_sku": "Standard_D2s_v3",
 
     # SKU meta defines different types of resources for each SKU
-    # and their allowed usage ratio.
+    # and their allowed usage ratio by user applications.
     "sku_meta": {
         "default": {
             "cpu_ratio": 0.8,
