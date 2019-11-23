@@ -667,13 +667,14 @@ default_config_parameters = {
     },
     "infiniband_mounts": [],
     "custom_mounts": [],
-    "enable_cpuworker": False,
     "enable_blobfuse": False,
+
+    "enable_cpuworker": False,
 
     # The complementary of system reserved resource can be used for
     # user applications. They can be overridden by configuration in
     # each SKU
-    "system_reserved": {
+    "user_allowed": {
         "cpu": {
             "ratio": 0.05
         },
@@ -686,15 +687,11 @@ default_config_parameters = {
         "Standard_D2s_v3": {
             "cpu": {
                 "value": 2,
-                "system_reserved": {
-                    "ratio": 0.02
-                }
+                "ratio": 0.02
             },
             "memory": {
                 "value": 8,
-                "system_reserved": {
-                    "ratio": 0.1
-                }
+                "ratio": 0.1
             }
         },
         "Standard_ND24rs": {

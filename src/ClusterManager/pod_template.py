@@ -9,6 +9,7 @@ import copy
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 from osUtils import mkdirsAsUser
+from pod_template_utils import enable_cpu_config
 
 
 class PodTemplate():
@@ -117,24 +118,9 @@ class PodTemplate():
         if "gpuType" in params:
             params["nodeSelector"]["gpuType"] = params["gpuType"]
 
-        # CPU job should be assigned to CPU node if there is any available in the cluster
-        config = job.cluster
-        enable_cpuworker = config.get("enable_cpuworker", False)
-        default_cpurequest = config.get("default_cpurequest")
-        default_cpulimit = config.get("default_cpulimit")
-        default_memoryrequest = config.get("default_memoryrequest")
-        default_memorylimit = config.get("default_memorylimit")
-
-        if enable_cpuworker and int(params["resourcegpu"]) == 0:
-            params["nodeSelector"]["cpuworker"] = "active"
-            if "cpurequest" not in params and default_cpurequest is not None:
-                params["cpurequest"] = default_cpurequest
-            if "cpulimit" not in params and default_cpulimit is not None:
-                params["cpulimit"] = default_cpulimit
-            if "memoryrequest" not in params and default_memoryrequest is not None:
-                params["memoryrequest"] = default_memoryrequest
-            if "memorylimit" not in params and default_memorylimit is not None:
-                params["memorylimit"] = default_memorylimit
+        # CPU job should be assigned to CPU node if it's enabled and
+        # there is any available in the cluster
+        params = enable_cpu_config(params=params, config=job.cluster)
 
         local_pod_path = job.get_hostpath(job.job_path, "master")
         params["LaunchCMD"] = PodTemplate.generate_launch_script(params["jobId"], local_pod_path, params["userId"], params["resourcegpu"], params["cmd"])

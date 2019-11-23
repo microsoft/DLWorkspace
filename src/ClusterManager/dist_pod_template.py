@@ -12,6 +12,7 @@ from job import Job
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 from config import config
 from osUtils import mkdirsAsUser
+from pod_template_utils import enable_cpu_config
 
 
 class DistPodTemplate():
@@ -149,6 +150,7 @@ class DistPodTemplate():
                 pod["distRole"] = role
                 pod["distRoleIdx"] = idx
                 pod["distId"] = "%s%d" % (role, idx)
+                pod = enable_cpu_config(params=params, config=job.cluster)
                 # mount /pod
                 local_pod_path = job.get_hostpath(job.job_path, "%s-%d" % (role, idx))
                 pod["mountpoints"].append({"name": "pod", "containerPath": "/pod", "hostPath": local_pod_path, "enabled": True})

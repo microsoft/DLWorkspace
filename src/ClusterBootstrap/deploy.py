@@ -2901,7 +2901,7 @@ def kubernetes_label_cpuworker():
     sku_meta = get_sku_meta(config)
     workers = get_machines_by_roles("worker", config)
 
-    for machine_name, machine_info in workers:
+    for machine_name, machine_info in workers.items():
         if "sku" in machine_info and machine_info["sku"] in sku_meta:
             sku = machine_info["sku"]
             if "gpu" not in sku_meta[sku]:
@@ -2913,7 +2913,7 @@ def kubernetes_label_sku():
     sku_meta = get_sku_meta(config)
     machines = get_machines_by_roles("all", config)
 
-    for machine_name, machine_info in machines:
+    for machine_name, machine_info in machines.items():
         if "sku" in machine_info and machine_info["sku"] in sku_meta:
             sku = machine_info["sku"]
             kubernetes_label_node("--overwrite", machine_name, "sku=%s" % sku)
