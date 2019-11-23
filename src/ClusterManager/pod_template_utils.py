@@ -100,10 +100,10 @@ def enable_cpu_config(params, config):
                                              sku_info["cpu"]["ratio"])
             default_cpu_limit = cpu_format(sku_info["cpu"]["value"],
                                            sku_info["cpu"]["ratio"])
-            default_memory_request = cpu_format(sku_info["memory"]["value"],
-                                                sku_info["memory"]["ratio"])
-            default_memory_limit = cpu_format(sku_info["memory"]["value"],
-                                              sku_info["memory"]["ratio"])
+            default_memory_request = memory_format(sku_info["memory"]["value"],
+                                                   sku_info["memory"]["ratio"])
+            default_memory_limit = memory_format(sku_info["memory"]["value"],
+                                                 sku_info["memory"]["ratio"])
     else:
         default_cpu_request = cpu_format(config.get("default_cpurequest"))
         default_cpu_limit = cpu_format(config.get("default_cpulimit"))

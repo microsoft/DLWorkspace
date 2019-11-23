@@ -676,36 +676,20 @@ default_config_parameters = {
     # each SKU
     "user_allowed": {
         "cpu": {
-            "ratio": 0.05
+            "ratio": 0.9
         },
         "memory": {
-            "ratio": 0.1
+            "ratio": 0.9
         }
     },
     # SKU meta defines CPU, memory, GPU, GPU memory, etc. for each SKU
     "sku_meta": {
         "Standard_D2s_v3": {
             "cpu": {
-                "value": 2,
-                "ratio": 0.02
+                "value": 2
             },
             "memory": {
-                "value": 8,
-                "ratio": 0.1
-            }
-        },
-        "Standard_ND24rs": {
-            "cpu": {
-                "value": 24
-            },
-            "memory": {
-                "value": 448
-            },
-            "gpu": {
-                "value": 4
-            },
-            "gpu_memory": {
-                "value": 22
+                "value": 8
             }
         }
     }

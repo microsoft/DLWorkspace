@@ -150,7 +150,7 @@ class DistPodTemplate():
                 pod["distRole"] = role
                 pod["distRoleIdx"] = idx
                 pod["distId"] = "%s%d" % (role, idx)
-                pod = enable_cpu_config(params=params, config=job.cluster)
+                pod = enable_cpu_config(params=pod, config=job.cluster)
                 # mount /pod
                 local_pod_path = job.get_hostpath(job.job_path, "%s-%d" % (role, idx))
                 pod["mountpoints"].append({"name": "pod", "containerPath": "/pod", "hostPath": local_pod_path, "enabled": True})
