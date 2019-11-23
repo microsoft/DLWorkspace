@@ -20,7 +20,7 @@ import TeamsContext from "../../contexts/Teams";
 import {Link} from "react-router-dom";
 import Slide from "@material-ui/core/Slide";
 import {green} from "@material-ui/core/colors";
-import useFetch from "use-http/dist";
+import useFetch from "use-http";
 import formats from '../../Configuration/foldFormat.json';
 const useStyles = makeStyles(() =>
   createStyles({
@@ -235,7 +235,7 @@ const DataJob: React.FC = (props: any) => {
           </DialogContentText>
           <DialogActions>
             <Button component={Link}
-              to={ `/job/${selectedCluster}/${currentJobId}` }
+              to={ `/job/${selectedTeam}/${selectedCluster}/${currentJobId}` }
               color="secondary"
             >
                   ok

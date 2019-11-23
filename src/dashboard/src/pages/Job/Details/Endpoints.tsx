@@ -18,6 +18,7 @@ import useFetch from 'use-http';
 
 import Context from './Context';
 import copy from "clipboard-copy";
+import {checkFinishedJob} from "../../../utlities/interactionUtlties";
 
 interface ListProps {
   endpoints: any[];
@@ -125,9 +126,10 @@ const List: React.FC<ListProps> = ({ endpoints, setOpen }) => {
 interface ControllerProps {
   endpoints: any[];
   post(data: any): Promise<any>;
+  status: string;
 }
 
-const Controller: React.FC<ControllerProps> = ({ endpoints, post }) => {
+const Controller: React.FC<ControllerProps> = ({ endpoints, post, status }) => {
   const [sshEnabled, setSshEnabled] = useState(false);
   const [ipythonEnabled, setIpythonEnabled] = useState(false);
   const [tensorboardEnabled, setTensorboardEnabled] = useState(false);
@@ -162,6 +164,7 @@ const Controller: React.FC<ControllerProps> = ({ endpoints, post }) => {
   }, [post, interactivePort]);
 
   useEffect(() => {
+    console.log(status)
     if (Array.isArray(endpoints)) {
       endpoints.forEach(({ name }) => {
         if (name === 'ssh') setSshEnabled(true);
@@ -175,15 +178,15 @@ const Controller: React.FC<ControllerProps> = ({ endpoints, post }) => {
     <CardContent>
       <FormGroup row>
         <FormControlLabel
-          control={<Switch checked={sshEnabled} disabled={sshEnabled} onChange={onSshChange}/>}
+          control={<Switch checked={sshEnabled} disabled={sshEnabled || checkFinishedJob(status)} onChange={onSshChange}/>}
           label="SSH"
         />
         <FormControlLabel
-          control={<Switch checked={ipythonEnabled} disabled={ipythonEnabled} onChange={onIpythonChange}/>}
+          control={<Switch checked={ipythonEnabled} disabled={ipythonEnabled || checkFinishedJob(status)} onChange={onIpythonChange}/>}
           label="iPython"
         />
         <FormControlLabel
-          control={<Switch checked={tensorboardEnabled} disabled={tensorboardEnabled} onChange={onTensorboardChange}/>}
+          control={<Switch checked={tensorboardEnabled} disabled={tensorboardEnabled || checkFinishedJob(status)} onChange={onTensorboardChange}/>}
           label="Tensorboard (will listen on directory ~/tensorboard/<DLWS_JOB_ID>/logs inside docker container.)"
         />
       </FormGroup>
@@ -197,6 +200,7 @@ const Controller: React.FC<ControllerProps> = ({ endpoints, post }) => {
         value={interactivePort}
         onSubmit={submitInteractivePort}
         onChange={onInteractivePortChange}
+        disabled={checkFinishedJob(status)}
         InputProps={{
           endAdornment: (
             <InputAdornment position="end">
@@ -212,8 +216,9 @@ const Controller: React.FC<ControllerProps> = ({ endpoints, post }) => {
 };
 interface EndpointsProps {
   setOpen: any;
+  status: string;
 }
-const Endpoints: React.FC<EndpointsProps> = ({setOpen}) => {
+const Endpoints: React.FC<EndpointsProps> = ({setOpen, status}) => {
   const { clusterId, jobId } = useContext(Context);
   const { data, get, post } = useFetch(`/api/clusters/${clusterId}/jobs/${jobId}/endpoints`, { onMount: true });
 
@@ -221,8 +226,8 @@ const Endpoints: React.FC<EndpointsProps> = ({setOpen}) => {
   const refreshFunction: TimerHandler = useCallback(async () => {
     refreshTimeout.current = null;
     await get();
-    refreshTimeout.current = setTimeout(refreshFunction, 1000);
-  }, [get]);
+    refreshTimeout.current = setTimeout(refreshFunction, 5000);
+  }, []);
 
   useEffect(() => {
     refreshFunction();
@@ -241,7 +246,7 @@ const Endpoints: React.FC<EndpointsProps> = ({setOpen}) => {
         subheader="Links to access interactive/visualization interface"
       />
       { Array.isArray(data) && data.length > 0 && <List endpoints={data} setOpen={setOpen}/> }
-      <Controller endpoints={data} post={post} />
+      <Controller endpoints={data} post={post} status={status} />
     </Card>
     </>
   );

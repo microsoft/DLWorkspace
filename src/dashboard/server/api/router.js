@@ -2,6 +2,9 @@ const Router = require('koa-router')
 
 const router = module.exports = new Router()
 
+router.get('/',
+  require('./controllers'))
+
 router.get('/bootstrap.js',
   require('./middlewares/user')(false),
   require('./controllers/bootstrap'))
@@ -75,3 +78,6 @@ router.put('/teams/:teamId/templates/:templateName',
 router.delete('/teams/:teamId/templates/:templateName',
   require('./middlewares/user')(),
   require('./controllers/team/template.delete'))
+
+router.get('/error.gif',
+  require('./controllers/error'))

@@ -5,7 +5,7 @@ import { BaseTextFieldProps } from "@material-ui/core/TextField";
 
 import ClustersContext from "../../../contexts/Clusters";
 import TeamsContext from "../../../contexts/Teams";
-import useFetch from "use-http/dist";
+import useFetch from "use-http";
 import _ from "lodash";
 import {sumValues} from "../../../utlities/ObjUtlities";
 
@@ -22,9 +22,7 @@ const ClusterSelectField: React.FC<ClusterSelectFieldProps & BaseTextFieldProps>
   const fetchVcStatusUrl = `/api`;
   const[helperText, setHelperText] = React.useState('');
 
-  const request = useFetch(fetchVcStatusUrl,{
-    onMount: true
-  });
+  const request = useFetch(fetchVcStatusUrl);
   const fetchVC = async () => {
     const response = await request.get(`/teams/${selectedTeam}/clusters/${selectedCluster}`);
     return response;

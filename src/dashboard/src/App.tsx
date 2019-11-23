@@ -31,7 +31,9 @@ interface BootstrapProps {
   uid?: string;
   familyName?: string;
   givenName?: string;
-  _token?: any;
+  password?: any;
+  addGroupLink: string;
+  WikiLink: string;
 }
 
 const Loading = (
@@ -40,19 +42,21 @@ const Loading = (
   </Box>
 );
 
-const Contexts: React.FC<BootstrapProps> = ({ email, uid, familyName, givenName,_token ,children }) => (
-  <BrowserRouter>
-    <UserProvider email={email} uid={uid} familyName={familyName} givenName={givenName} token={_token} >
-      <TeamProvider>
-        <ClustersProvider>
-          <ThemeProvider theme={theme}>
-            {children}
-          </ThemeProvider>
-        </ClustersProvider>
-      </TeamProvider>
-    </UserProvider>
-  </BrowserRouter>
-);
+const Contexts: React.FC<BootstrapProps> = ({ email, uid, familyName, givenName,password ,WikiLink,addGroupLink,children }) => {
+  return (
+    <BrowserRouter>
+      <UserProvider email={email} uid={uid} familyName={familyName} givenName={givenName} token={password} >
+        <TeamProvider addGroupLink={addGroupLink} WikiLink={WikiLink}>
+          <ClustersProvider>
+            <ThemeProvider theme={theme}>
+              {children}
+            </ThemeProvider>
+          </ClustersProvider>
+        </TeamProvider>
+      </UserProvider>
+    </BrowserRouter>
+  );
+}
 
 const Layout: React.FC<RouteComponentProps> = ({ location, history }) => {
   const { email } = React.useContext(UserContext);

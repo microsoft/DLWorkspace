@@ -29,7 +29,7 @@ import { makeStyles, createStyles } from "@material-ui/core/styles";
 import { Info, Delete, Add } from "@material-ui/icons";
 import { withRouter } from "react-router";
 import IconButton from '@material-ui/core/IconButton';
-import { useGet, usePost, usePut } from "use-http";
+import useFetch from "use-http";
 import { join } from 'path';
 
 import ClusterSelectField from "./components/ClusterSelectField";
@@ -37,8 +37,7 @@ import UserContext from "../../contexts/User";
 import ClustersContext from '../../contexts/Clusters';
 import TeamsContext from "../../contexts/Teams";
 import theme, { Provider as MonospacedThemeProvider } from "../../contexts/MonospacedTheme";
-import useFetch, {useDelete} from "use-http/dist";
-import {BarChart, Bar, XAxis, YAxis, CartesianGrid}  from "recharts";
+import {BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList} from "recharts";
 import Paper, { PaperProps } from '@material-ui/core/Paper';
 import Draggable from 'react-draggable'
 import {TransitionProps} from "@material-ui/core/transitions";
@@ -50,6 +49,7 @@ import {
   SUCCESSFULTEMPLATEDELETE, SUCCESSFULTEMPLATEDSAVE
 } from "../../Constants/WarnConstants";
 import {DLTSSnackbar} from "../CommonComponents/DLTSSnackbar";
+import _ from "lodash";
 
 interface EnvironmentVariable {
   name: string;
@@ -106,10 +106,13 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     return cluster.gpus[gpuModel].perNode;
   }, [cluster, gpuModel]);
 
-  const [templates, templatesLoading, templatesError, getTemplates] = useGet('/api');
+  const {
+    data: templates,
+    get: getTemplates,
+  } = useFetch('/api');
   React.useEffect(() => {
     getTemplates(`/teams/${selectedTeam}/templates`);
-  }, [getTemplates, selectedTeam]);
+  }, [selectedTeam]);
 
   const [type, setType] = React.useState("RegularJob");
   const onTypeChange = React.useCallback(
@@ -127,16 +130,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     [setPreemptible]
   );
 
-  const [gpus, setGpus] = React.useState(0);
-  const onGpusChange = React.useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      let value = event.target.valueAsNumber || 0;
-      if (value < 0) { value = 0; }
-      if (value > 0) { value = 26; }
-      setGpus(event.target.valueAsNumber);
-    },
-    [setGpus]
-  );
+
 
   const [workers, setWorkers] = React.useState(0);
   const onWorkersChange = React.useCallback(
@@ -201,7 +195,41 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   const onAdvancedClick = () => {
     setAdvanced(!advanced);
   }
-
+  const [accountName, setAccountName] = React.useState("");
+  const [accountKey, setAccountKey] = React.useState("");
+  const [containerName, setContainerName] = React.useState("");
+  const [mountPath, setMountPath] = React.useState("");
+  const [mountOptions, setMoutOptions] = React.useState("--file-cache-timeout-in-seconds=120");
+  const onAccountNameChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setAccountName(event.target.value);
+    },
+    [setAccountName]
+  )
+  const onAccountKeyChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setAccountKey(event.target.value);
+    },
+    [setAccountKey]
+  )
+  const onContainerNameChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setContainerName(event.target.value);
+    },
+    [setContainerName]
+  )
+  const onMountPathChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setMountPath(event.target.value);
+    },
+    [setMountPath]
+  )
+  const onMountOptionsChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setMoutOptions(event.target.value);
+    },
+    [setMoutOptions]
+  )
   const [workPath, setWorkPath] = React.useState("");
   const onWorkPathChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -285,7 +313,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   // const onDatabaseClick = React.useCallback(() => {
   //   setDatabase(true);
   // }, []);
-  const onDatabaseClick = () => {
+  const onTemplateClick = () => {
     setDatabase(!database);
   }
 
@@ -305,10 +333,33 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     },
     [setSaveTemplateDatabase]
   );
-  const { put: saveTemplate } = usePut('/api')
-  const {delete: deleteTemplate} = useDelete('/api');
+  const {
+    put: saveTemplate,
+    delete: deleteTemplate,
+  } = useFetch('/api');
+  const [gpus, setGpus] = React.useState(0);
+  const submittable = React.useMemo(() => {
+    if (!gpuModel) return false;
+    if (!selectedTeam) return false;
+    if (!name) return false;
+    if (!image) return false;
+    if (!command.trim()) return false;
+    if (type === 'RegularJob' && gpus > gpusPerNode) return false;
+    if (/^\d+$/.test(name)) return false;
+
+    return true;
+  }, [gpuModel, selectedTeam, name, image, command, type, gpus, gpusPerNode]);
   const onSaveTemplateClick = async () => {
     try {
+      let plugins: any = {};
+      plugins['blobfuse'] = [];
+      let blobfuseObj: any = new Object();
+      blobfuseObj['accountName'] = accountName || '';
+      blobfuseObj['accountKey'] = accountKey || '';
+      blobfuseObj['containerName'] = containerName || '';
+      blobfuseObj['mountPath'] = mountPath || '';
+      blobfuseObj['mountOptions'] = mountOptions;
+      plugins['blobfuse'].push(blobfuseObj);
       const template = {
         name,
         type,
@@ -326,10 +377,12 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
         ssh,
         ipython,
         tensorboard,
+        plugins
       };
       const url = `/teams/${selectedTeam}/templates/${saveTemplateName}?database=${saveTemplateDatabase}`;
       await saveTemplate(url, template);
       setSaveTemplate(true)
+      window.location.reload()
     } catch (error) {
       alert('Failed to save the template, check console (F12) for technical details.')
       console.error(error);
@@ -338,6 +391,14 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   const [showDeleteTemplate, setShowDeleteTemplate] = useState(false)
   const onDeleteTemplateClick = async () => {
     try {
+      let plugins: any = {};
+      plugins['blobfuse'] = [];
+      let blobfuseObj: any = new Object();
+      blobfuseObj['accountName'] = accountName || '';
+      blobfuseObj['accountKey'] = accountKey || '';
+      blobfuseObj['containerName'] = containerName || '';
+      blobfuseObj['mountPath'] = mountPath || '';
+      plugins['blobfuse'].push(blobfuseObj);
       const template = {
         name,
         type,
@@ -355,11 +416,12 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
         ssh,
         ipython,
         tensorboard,
+        plugins,
       };
       const url = `/teams/${selectedTeam}/templates/${saveTemplateName}?database=${saveTemplateDatabase}`;
       await deleteTemplate(url);
-      console.log(await deleteTemplate(url,template))
       setShowDeleteTemplate(true)
+      window.location.reload()
     } catch (error) {
       alert('Failed to delete the template, check console (F12) for technical details.')
       console.error(error);
@@ -404,6 +466,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
           ssh,
           ipython,
           tensorboard,
+          plugins
         } = JSON.parse(event.target.value as string);
         console.log('jobpath', jobPath)
         if (name !== undefined) setName(name);
@@ -422,36 +485,61 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
         if (ssh !== undefined) setSsh(ssh);
         if (ipython !== undefined) setIpython(ipython);
         if (tensorboard !== undefined) setTensorboard(tensorboard);
+        if (plugins !== undefined && plugins.hasOwnProperty("blobfuse") && Array.isArray(plugins['blobfuse'])) {
+          let blobfuseObj = plugins['blobfuse'][0];
+          setAccountName(blobfuseObj['accountName']);
+          setAccountKey(blobfuseObj['accountKey']);
+          setContainerName(blobfuseObj['containerName']);
+          setMountPath(blobfuseObj['mountPath']);
+        }
       }
     },
     []
   );
 
-  const [
-    postJobData,
-    postJobLoading,
-    postJobError,
-    postJob
-  ] = usePost('/api');
-  const [
-    postEndpointsData,
-    postEndpointsLoading,
-    postEndpointsError,
-    postEndpoints
-  ] = usePost('/api');
+  const {
+    data: postJobData,
+    loading: postJobLoading,
+    error: postJobError,
+    post: postJob,
+  } = useFetch('/api');
+  const {
+    data: postEndpointsData,
+    loading: postEndpointsLoading,
+    error: postEndpointsError,
+    post: postEndpoints,
+  } = useFetch('/api');
 
-  const submittable = React.useMemo(() => {
-    if (!gpuModel) return false;
-    if (!selectedTeam) return false;
-    if (!name) return false;
-    if (!image) return false;
-    if (!command.trim()) return false;
-    return true;
-  }, [gpuModel, selectedTeam, name, image, command]);
+
+
+  const [enableSubmit, setEnableSubmit] = React.useState(submittable);
+
+  const onGpusChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      let value = event.target.valueAsNumber || 0;
+      if (value < 0) { value = 0; }
+      if (value > 0) { value = 26; }
+      setGpus(event.target.valueAsNumber);
+      setEnableSubmit(false)
+      if (type === 'RegularJob' && event.target.valueAsNumber > gpusPerNode)  {
+        setEnableSubmit(true);
+      }
+    },
+    [gpusPerNode, type]
+  );
   const [open, setOpen] = React.useState(false);
   const onSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     if (!submittable) return;
+    let plugins: any = {};
+    plugins['blobfuse'] = [];
+    let blobfuseObj: any = new Object();
+    blobfuseObj['accountName'] = accountName || '';
+    blobfuseObj['accountKey'] = accountKey || '';
+    blobfuseObj['containerName'] = containerName || '';
+    blobfuseObj['mountPath'] = mountPath || '';
+    blobfuseObj['mountOptions'] = mountOptions;
+    plugins['blobfuse'].push(blobfuseObj);
 
     const job: any = {
       userName: email,
@@ -472,10 +560,10 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       jobPath: jobPath || '',
       enablejobpath: enableJobPath,
       env: environmentVariables,
-      hostNetwork : type === 'PSDistJob' ? true : false,
-      isPrivileged : type === 'PSDistJob' ? true : false,
+      hostNetwork : type === 'PSDistJob',
+      isPrivileged : type === 'PSDistJob',
+      plugins: plugins,
     };
-
     let totalGpus = gpus;
     if (type === 'PSDistJob') {
       job.numps = 1;
@@ -538,7 +626,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     } else {
       history.push(`/job/${selectedTeam}/${selectedCluster}/${jobId.current}`);
     }
-  }, [postJobData, postEndpoints, ssh, ipython, tensorboard, interactivePorts, history, selectedCluster]);
+  }, [postJobData, ssh, ipython, tensorboard, interactivePorts, history, selectedCluster, postEndpoints, selectedTeam]);
   const fetchPrometheusUrl = `/api/clusters`;
   const request = useFetch(fetchPrometheusUrl);
   const fetchPrometheus = async () => {
@@ -555,10 +643,10 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       setOpen(true);
       setTimeout(()=>{
         history.push(`/job/${selectedTeam}/${selectedCluster}/${jobId.current}`);
-      },2000)
+      }, 2000)
 
     }
-  }, [history, postEndpointsData, selectedCluster])
+  }, [history, postEndpointsData, selectedCluster, selectedTeam])
 
   React.useEffect(() => {
     if (postJobError) {
@@ -610,7 +698,19 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     }
     return message;
   }
+  const renderCustomizedLabel = (props: any) => {
+    const { x, y, width, height, value } = props;
+    const radius = 10;
 
+    return (
+      <g>
+        <circle cx={x + width / 2} cy={y - radius} r={radius} fill="#fff" />
+        <text x={x + width / 2} y={y - radius} fill="#000" textAnchor="middle" dominantBaseline="middle">
+          {value}
+        </text>
+      </g>
+    );
+  };
   const styleSnack={backgroundColor:showDeleteTemplate ? red[400] : green[400]};
   return (
 
@@ -622,12 +722,14 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
         title={"View Cluster GPU Status Per Node"}
         titleStyle={{color:grey[400]}}
       >
-        <BarChart width={500} height={600} data={gpuFragmentation}>
+        <BarChart width={500} height={700} data={gpuFragmentation}  margin={{top: 20}}>
           <CartesianGrid strokeDasharray="10 10"/>
           <XAxis dataKey={"metric['gpu_available']"} label={{value: 'Available gpu count', offset:0,position:'insideBottom'}}>
           </XAxis>
           <YAxis label={{value: 'Node count', angle: -90, position: 'insideLeft'}} />
-          <Bar dataKey="value[1]" fill="#8884d8" />
+          <Bar dataKey="value[1]" fill="#8884d8" >
+            <LabelList dataKey="value[1]" content={renderCustomizedLabel} />
+          </Bar>
         </BarChart>
       </DLTSDialog>
       <form onSubmit={onSubmit}>
@@ -661,6 +763,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                   fullWidth
                   variant="filled"
                   value={name}
+                  error={/^\d+$/.test(name)}
                   onChange={onNameChange}
                 />
               </Grid>
@@ -750,6 +853,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                   fullWidth
                   variant="filled"
                   value={image}
+                  error={!image}
                   onChange={onImageChange}
                 />
               </Grid>
@@ -812,6 +916,62 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
           <Collapse in={advanced}>
             <Divider/>
             <CardContent>
+              <Typography component="div" variant="h6" >Azure Blob</Typography>
+              <Typography component="div" variant="caption" color={"textSecondary"}>Fill in all fields for Azure blob to take effect.</Typography>
+              <Grid
+                container
+                wrap="wrap"
+                spacing={1}
+                align-items-xs-baseline
+              >
+                <Grid item xs={12}>
+                  <TextField
+                    value={accountName}
+                    onChange={onAccountNameChange}
+                    label="Account Name"
+                    fullWidth
+                    variant="filled"
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    value={accountKey}
+                    onChange={onAccountKeyChange}
+                    label="Account Key"
+                    fullWidth
+                    variant="filled"
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    value={containerName}
+                    onChange={onContainerNameChange}
+                    label="Container Name"
+                    fullWidth
+                    variant="filled"
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    value={mountPath}
+                    onChange={onMountPathChange}
+                    label="Mount Path"
+                    fullWidth
+                    variant="filled"
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    value={mountOptions}
+                    onChange={onMountOptionsChange}
+                    label="Mount Options"
+                    fullWidth
+                    variant="filled"
+                  />
+                </Grid>
+              </Grid>
+            </CardContent>
+            <CardContent>
               <Typography component="span" variant="h6">Mount Directories</Typography>
               <Table size="small">
                 <TableHead>
@@ -840,8 +1000,6 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                         checked={enableWorkPath}
                         onChange={onEnableWorkPathChange}
                       />
-                    </TableCell>
-                    <TableCell align="center">
                     </TableCell>
                   </TableRow>
                   <TableRow>
@@ -879,7 +1037,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                     <TableCell align="center">
                       <Switch
                         value={enableJobPath}
-                        checked={enableDataPath}
+                        checked={enableJobPath}
                         onChange={onEnableJobPathChange}
                       />
                     </TableCell>
@@ -945,7 +1103,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
           <Collapse in={database}>
             <Divider/>
             <CardContent>
-              <Typography component="span" variant="h6">Database Management</Typography>
+              <Typography component="span" variant="h6">Template Management</Typography>
               <Grid container wrap="wrap" spacing={1}>
                 <Grid item xs={12} sm={6}>
                   <TextField
@@ -958,7 +1116,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                 </Grid>
                 <Grid item xs>
                   <TextField
-                    label="Database"
+                    label="Scope"
                     select
                     fullWidth
                     variant="filled"
@@ -979,9 +1137,9 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
             <Grid item xs={12} container justify="space-between">
               <Grid item xs container>
                 <Button type="button" color="secondary"  onClick={onAdvancedClick}>Advanced</Button>
-                <Button type="button" color="secondary"  onClick={onDatabaseClick}>Database</Button>
+                <Button type="button" color="secondary"  onClick={onTemplateClick}>Template</Button>
               </Grid>
-              <Button type="submit" color="primary" variant="contained" disabled={!submittable || postJobLoading || postEndpointsLoading || open }>Submit</Button>
+              <Button type="submit" color="primary" variant="contained" disabled={!submittable || enableSubmit || postJobLoading || postEndpointsLoading || open }>Submit</Button>
             </Grid>
           </CardActions>
         </Card>

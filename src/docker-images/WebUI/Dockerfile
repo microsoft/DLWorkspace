@@ -12,7 +12,7 @@ RUN echo "deb http://download.mono-project.com/repo/debian wheezy main" | tee /e
 
 RUN echo "deb http://download.mono-project.com/repo/debian wheezy-apache24-compat main" | tee -a /etc/apt/sources.list.d/mono-xamarin.list
 
-RUN apt-get update
+RUN apt-get update --fix-missing
 
 RUN apt-get install -y apt-transport-https
 

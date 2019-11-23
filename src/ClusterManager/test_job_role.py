@@ -1,5 +1,5 @@
 import unittest
-from job_role import JobRole
+from job_launcher import JobRole
 
 
 class TestJobRole(unittest.TestCase):

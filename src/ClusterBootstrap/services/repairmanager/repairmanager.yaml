@@ -1,0 +1,88 @@
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: repairmanager
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      repairmanager-node: pod
+  template:
+    metadata:
+      name: repairmanager
+      labels:
+        repairmanager-node: pod
+        app: repairmanager
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+    spec:
+      {% if cnf["dnsPolicy"] %}    
+      dnsPolicy: {{cnf["dnsPolicy"]}}
+      {% endif %}
+      hostNetwork: true    
+      nodeSelector:
+        repairmanager: active
+      containers:
+      - name: repairmanager
+        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}{{cnf["repairmanager"]}}:{{cnf["dockertag"]}}
+        command: ["/run.sh"]
+        imagePullPolicy: Always
+        env:
+        - name: PROMETHEUS_HOST
+          value: {{cnf["prometheus"]["host"]}}        
+        volumeMounts:
+        - mountPath: /etc/kubernetes/ssl
+          name: certs
+        - mountPath: /etc/kubernetes/restapi-kubeconfig.yaml
+          name: kubeconfig
+        - mountPath: {{cnf["storage-mount-path"]}}/work
+          name: dlwsdatawork
+        - mountPath: {{cnf["storage-mount-path"]}}/storage
+          name: dlwsdatadata 
+        - mountPath: {{cnf["storage-mount-path"]}}/jobfiles
+          name: dlwsdatajobfiles
+        - mountPath: {{cnf["dltsdata-storage-mount-path"]}}
+          name: dltsdata
+        - mountPath: {{cnf["folder_auto_share"]}}
+          name: folderautoshare
+        - mountPath: /var/log/dlworkspace
+          name: log
+        readinessProbe:
+          failureThreshold: 3
+          initialDelaySeconds: 3
+          periodSeconds: 30
+          successThreshold: 1
+          tcpSocket:
+            port: 9200
+          timeoutSeconds: 10
+      volumes:
+      - name: certs
+        hostPath:
+          path: /etc/kubernetes/ssl
+      - name: kubeconfig
+        hostPath:
+          path: /etc/kubernetes/restapi-kubeconfig.yaml
+      - name: dlwsdatawork
+        hostPath:
+          path: {{cnf["storage-mount-path"]}}/work 
+      - name: dlwsdatadata
+        hostPath:
+          path: {{cnf["storage-mount-path"]}}/storage
+      - name: dlwsdatajobfiles
+        hostPath:
+          path: {{cnf["storage-mount-path"]}}/jobfiles           
+      - name: dltsdata
+        hostPath:
+          path: {{cnf["dltsdata-storage-mount-path"]}}
+      - name: folderautoshare
+        hostPath:
+          path: {{cnf["folder_auto_share"]}}
+      - name: log
+        hostPath:
+          path: /var/log/clustermanager   
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule           

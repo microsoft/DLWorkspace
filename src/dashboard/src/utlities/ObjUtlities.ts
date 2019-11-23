@@ -1,6 +1,6 @@
 import _ from "lodash";
 import React from "react";
-
+const { DateTime } = require('luxon');
 export const checkObjIsEmpty = (obj: object) => {
   return _.keys(obj).length === 0;
 }
@@ -19,11 +19,23 @@ export const filterByEventValue = (objs: any, key: string ,event: React.ChangeEv
 }
 
 export const sumValues= (obj: any) => {
+  if (!obj) return 0;
   if (typeof obj === 'number') return obj < 0 ? 0 : obj;
   let total = 0;
   total = _.sum(Object.values(obj))
   return total < 0 ? 0 : total;
 }
+
+export const toLocalTime = (data: any) => {
+  if (!data) {
+    return ""
+  }
+  if (new Date(data).toString().indexOf('Invalid') !== -1) {
+    data = data.concat("0");
+  }
+  return DateTime.fromJSDate(new Date(Date.parse(data))).toFormat("yyyy/LL/dd HH:mm:ss")
+}
+
 
 
 

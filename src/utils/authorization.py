@@ -4,8 +4,8 @@ import json
 import requests
 import random
 from config import config
-import timeit
-from cache import fcache
+import time
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +22,52 @@ INVALID_RANGE_START = 900000000
 INVALID_RANGE_END = 999999998
 INVALID_ID = 999999999
 
+INVALID_INFO = {
+    "uid": INVALID_ID,
+    "gid": INVALID_ID,
+    "groups": [INVALID_ID]
+}
+
+
+DEFAULT_EXPIRATION = 30 * 60
+
+
+# TODO: Replace with TTLCache in cachetools after refactoring
+class SimpleCache(object):
+    def __init__(self, expiration=DEFAULT_EXPIRATION):
+        self.expiration = expiration
+        self.lock = threading.Lock()
+        self.cache = dict()
+
+    def get(self, key):
+        with self.lock:
+            if key in self.cache:
+                value, timestamp = self.cache[key]
+                if time.time() - timestamp <= self.expiration:
+                    return value
+            return None
+
+    def add(self, key, value):
+        with self.lock:
+            self.cache[key] = (value, time.time())
+
+
+resource_acl_cache = SimpleCache()
+
+
+def get_identity_info_from_db(data_handler, identity_name):
+    try:
+        info_list = data_handler.GetIdentityInfo(identity_name)
+        if len(info_list) > 0:
+            return info_list[0]
+        else:
+            logger.warn("Identity name %s not found in DB" % identity_name)
+            return INVALID_INFO
+    except Exception as e:
+        logger.error("Failed to get identity info for %s from DB: %s" % (identity_name, e))
+
+    return INVALID_INFO
+
 
 class AuthorizationManager:
     #TODO : Add Cache to aovid frequent DB calls
@@ -32,35 +78,56 @@ class AuthorizationManager:
 
     # Check if user has requested access (based on effective ACL) on the specified resource.
     @staticmethod
-    @fcache(TTLInSec=300)
-    def _HasAccess(identityName, resourceAclPath, permissions):
-        start_time = timeit.default_timer()
-        requestedAccess = '%s;%s;%s' % (str(identityName), resourceAclPath, str(permissions))
-        try:           
+    def _HasAccess(identity_name, resource_acl_path, permissions):
+        start_time = time.time()
+        requested_access = "%s;%s;%s" % (str(identity_name), resource_acl_path, str(permissions))
+
+        value = resource_acl_cache.get(requested_access)
+        if value is not None:
+            logger.info('[cached] Yes for %s in time %s' % (requested_access, time.time() - start_time))
+            return value
+
+        data_handler = None
+        try:
+            data_handler = DataHandler()
+
             identities = []
-            identities.extend(IdentityManager.GetIdentityInfoFromDB(identityName)["groups"])
+            try:
+                identities = get_identity_info_from_db(data_handler, identity_name)["groups"]
+                identities = map(lambda x: int(x), identities)
+            except Exception as e:
+                logger.warn("Failed to get identities list: %s" % e)
+                identities = []
 
             #TODO: handle isDeny
-            while resourceAclPath:
-                #logger.debug('resourceAclPath ' + resourceAclPath)
-                acl = DataManager.GetResourceAcl(resourceAclPath)
-                for ace in acl:
-                    for identity in identities:
-                        #logger.debug('identity %s' % identity)
-                        if ace["identityName"] == identityName or (str(ace["identityId"]) == str(identity)  and (int(identity) < INVALID_RANGE_START or int(identity) > INVALID_RANGE_END)):
-                            permissions = permissions & (~ace["permissions"])
-                            if not permissions:
-                                logger.info('Yes for %s in time %s' % (requestedAccess, str(timeit.default_timer() - start_time)))
-                                return True
+            while resource_acl_path:
+                acl = data_handler.GetResourceAcl(resource_acl_path)
 
-                resourceAclPath = AuthorizationManager.__GetParentPath(resourceAclPath)
-            logger.info('No for %s in time %s' % (requestedAccess, str(timeit.default_timer() - start_time)))
+                for ace in acl:
+                    ace_id = int(ace["identityId"])
+                    id_in_identities = ace_id in identities
+                    id_in_range = ace_id < INVALID_RANGE_START or ace_id > INVALID_RANGE_END
+                    if ace["identityName"] == identity_name or (id_in_identities and id_in_range):
+                        permissions = permissions & (~ace["permissions"])
+                        if not permissions:
+                            logger.info('Yes for %s in time %s' % (requested_access, time.time() - start_time))
+                            resource_acl_cache.add(requested_access, True)
+                            return True
+
+                resource_acl_path = AuthorizationManager.__GetParentPath(resource_acl_path)
+
+            logger.info("No for %s in time %s" % (requested_access, time.time() - start_time))
+            resource_acl_cache.add(requested_access, False)
             return False
 
         except Exception as e:
-            logger.error('Exception: '+ str(e))
-            logger.warn('No (exception) for %s in time %s' % (requestedAccess, str(timeit.default_timer() - start_time)))
+            logger.error("Exception: %s" % e)
+            logger.warn("No (exception) for %s in time %s" % (requested_access, time.time() - start_time))
             return False
+
+        finally:
+            if data_handler is not None:
+                data_handler.Close()
 
 
     @staticmethod

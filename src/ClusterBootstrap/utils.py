@@ -79,7 +79,8 @@ def render_template(template_file, target_file, config, verbose=False):
             template = ENV_local.get_template(os.path.abspath(template_file))
             content = template.render(cnf=config)
             target_dir = os.path.dirname(target_file)
-            os.system("mkdir -p {0}".format(target_dir))
+            if target_dir != '':
+                os.system("mkdir -p {0}".format(target_dir))
             with open(target_file, 'w') as f:
                 f.write(content)
             f.close()
@@ -167,6 +168,8 @@ def sudo_scp (identity_file, source, target, user, host,changePermission=False, 
         cmd = "sudo mkdir -p %s ; sudo rm -r %s/*; sudo mv ~/%s/* %s; sudo rm -rf ~/%s" % (target, target, tmp, target, tmp)
     if changePermission:
         cmd += " ; sudo chmod +x %s" % target
+    # Force converting to dos format
+    cmd += " ; sudo dos2unix %s" % target
     if verbose:
         print cmd
     SSH_exec_cmd(identity_file, user, host, cmd, verbose)
@@ -348,13 +351,16 @@ def SSH_exec_script( identity_file, user, host, script, supressWarning = False, 
 
 
 def get_ETCD_discovery_URL(size):
+    if size == 1:
+            output = "we don't use discovery url for 1 node etcd"
+    else:
         try:
             output = urllib.urlopen("https://discovery.etcd.io/new?size=%d" % size ).read()
             if not "https://discovery.etcd.io" in output:
                 raise Exception("ERROR: we cannot get etcd discovery url from 'https://discovery.etcd.io/new?size=%d', got message %s" % (size,output)) 
         except Exception as e:
             raise Exception("ERROR: we cannot get etcd discovery url from 'https://discovery.etcd.io/new?size=%d'" % size) 
-        return output
+    return output
 
 
 def get_cluster_ID_from_file():
@@ -394,6 +400,28 @@ def gen_SSH_key(regenerate_key):
             f.write("clusterId : %s" % clusterID)
         f.close()
 
+
+def setup_backup_dir(pname):
+    deploy_backup_dir = os.path.abspath("./deploy_backup")
+    backup_dir = os.path.join(deploy_backup_dir, "backup")
+    pname = os.path.abspath(pname)
+
+    pname_par = os.path.abspath(os.path.join(pname, os.pardir))
+    backup_dir_par = os.path.abspath(os.path.join(backup_dir, os.pardir))
+
+    assert pname_par != backup_dir_par
+
+    if os.path.islink(backup_dir):
+        os.system("rm %s" % backup_dir)
+    else:
+        os.system("rm -rf %s" % backup_dir)
+
+    os.system("mkdir -p %s" % deploy_backup_dir)
+    os.system("ln -s %s %s" % (pname, backup_dir))
+
+    return backup_dir
+
+
 def execute_backup_and_encrypt(clusterName, fname, key):
     clusterID = get_cluster_ID_from_file()
     backupdir = "./deploy_backup/backup" 
@@ -409,10 +437,25 @@ def execute_backup_and_encrypt(clusterName, fname, key):
         os.system("openssl enc -aes-256-cbc -k %s -in %s.tar.gz -out %s.tar.gz.enc" % (key, fname, fname) )
         os.system("rm %s.tar.gz" % fname )
     os.system("rm -rf ./deploy_backup/backup")
-        
+
+
+def execute_backup_to_dir(pname):
+    os.system("mkdir -p %s" % pname)
+
+    backup_dir = setup_backup_dir(pname)
+
+    os.system("mkdir -p %s/clusterID" % backup_dir)
+    os.system("cp -r ./*.yaml %s" % backup_dir)
+    os.system("cp -r ./deploy/sshkey %s" % backup_dir)
+    os.system("cp -r ./deploy/ssl %s" % backup_dir)
+    os.system("cp -r ./deploy/clusterID.yml %s/clusterID/" % backup_dir)
+    if os.path.exists("./deploy/acs_kubeclusterconfig"):
+        os.system("cp -r ./deploy/acs_kubeclusterconfig %s/" % backup_dir)
+
+
 def execute_restore_and_decrypt(fname, key):
     clusterID = get_cluster_ID_from_file()
-    backupdir = "./deploy_backup/backup" 
+    backupdir = "./deploy_backup/backup"
     os.system("mkdir -p %s" % backupdir)
     cleanup_command = ""
     if fname.endswith(".enc"):
@@ -435,6 +478,24 @@ def execute_restore_and_decrypt(fname, key):
     cleanup_command += "rm -rf ./deploy_backup/backup"
     os.system(cleanup_command)
 
+
+def execute_restore_from_dir(pname):
+    backup_dir = setup_backup_dir(pname)
+
+    os.system("rm ./*.yaml")
+    os.system("cp -v %s/*.yaml ." % backup_dir)
+    os.system("mkdir -p ./deploy/sshkey")
+    os.system("mkdir -p ./deploy/ssl" )
+    os.system("cp -r %s/sshkey/* ./deploy/sshkey" % backup_dir)
+    # Make ssh for the current user work
+    os.system("chmod 700 ./deploy/sshkey/id_rsa")
+    if os.path.exists("%s/ssl/kubelet" % backup_dir):
+        os.system("cp -r %s/ssl/* ./deploy/ssl" % backup_dir)
+    os.system("cp %s/clusterID/*.yml ./deploy/" % backup_dir)
+    if os.path.exists("%s/acs_kubeclusterconfig" % backup_dir):
+        os.system("cp -r %s/acs_kubeclusterconfig ./deploy/" % backup_dir)
+
+
 def backup_keys(clusterName, nargs=[] ):
     if len(nargs)<=0:
         clusterID = get_cluster_ID_from_file()
@@ -448,7 +509,14 @@ def backup_keys(clusterName, nargs=[] ):
             key = nargs[1]
         
     execute_backup_and_encrypt( clusterName, fname, key )
-    
+
+
+def backup_keys_to_dir(nargs):
+    assert len(nargs) > 0
+    pname = nargs[0]
+    execute_backup_to_dir(pname)
+
+
 def restore_keys( nargs ):
     if len(nargs)<=0:
         list_of_files = glob.glob("./deploy_backup/config*")
@@ -461,6 +529,12 @@ def restore_keys( nargs ):
         else:
             key = nargs[1]
     execute_restore_and_decrypt( fname, key )
+
+
+def restore_keys_from_dir(nargs):
+    assert len(nargs) > 0
+    pname = nargs[0]
+    execute_restore_from_dir(pname)
 
 
 def getIP(dnsname):
@@ -551,3 +625,44 @@ def mergeDict(configDst, configSrc, bOverwrite):
         elif isinstance(configSrc[entry], dict) and isinstance(configDst[entry], dict):
             mergeDict(configDst[entry], configSrc[entry], bOverwrite)
 
+def ip2int(addr):
+    return struct.unpack("!I", socket.inet_aton(addr))[0]
+
+def mask_num(valid_bit):
+    return int('1'*valid_bit+'0'*(32 - valid_bit), 2)
+
+def remain_num(valid_bit):
+    return int('0'*valid_bit+'1'*(32 - valid_bit), 2)
+
+def check_covered_by_ipvals(ipvals, masked2check):
+    for wider_ipval in ipvals:
+        if wider_ipval == masked2check:
+            return True
+    return False
+
+def check_covered_by_wider_ips(mask2ip, ipval2check, mask4ipval):
+    for msk in mask2ip.keys():
+        # wider mask range
+        if msk < mask4ipval:
+            this_masked = ipval2check & mask_num(msk)
+            if check_covered_by_ipvals(mask2ip[msk], this_masked):
+                return True
+    return False
+
+def keep_widest_subnet(ips):
+    res = set()
+    mask2ip = {}
+    ips = sorted(ips, key = lambda x: int(x[-2:]))
+    for ip in ips:
+        ipv4, mask = ip.split("/")
+        mask = int(mask)
+        ipval = ip2int(ipv4)
+        remnmsk = remain_num(mask)
+        assert (remnmsk & ipval == 0), "invalid ip/mask {}!".format(ip)
+        if check_covered_by_wider_ips(mask2ip, ipval, mask):
+            continue
+        if mask not in mask2ip:
+            mask2ip[mask] = set()
+        mask2ip[mask].add(ipval)
+        res.add(ip)
+    return list(res)

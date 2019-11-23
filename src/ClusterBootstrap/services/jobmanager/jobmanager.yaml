@@ -41,6 +41,10 @@ spec:
           name: dlwsdatadata 
         - mountPath: {{cnf["storage-mount-path"]}}/jobfiles
           name: dlwsdatajobfiles
+        - mountPath: {{cnf["dltsdata-storage-mount-path"]}}
+          name: dltsdata
+        - mountPath: {{cnf["folder_auto_share"]}}
+          name: folderautoshare
         - mountPath: /var/log/dlworkspace
           name: log
         ports:
@@ -68,6 +72,18 @@ spec:
           hostPort: 9205
           name: endpoint-mgr
           protocol: TCP
+        - containerPort: 9206
+          hostPort: 9206
+          name: job-mgr2
+          protocol: TCP
+        - containerPort: 9207
+          hostPort: 9207
+          name: job-mgr3
+          protocol: TCP
+        - containerPort: 9208
+          hostPort: 9208
+          name: job-mgr4
+          protocol: TCP
         readinessProbe:
           failureThreshold: 3
           initialDelaySeconds: 3
@@ -76,6 +92,14 @@ spec:
           tcpSocket:
             port: 9200
           timeoutSeconds: 10
+      - name: redis
+        image: redis:5.0.6-alpine
+        command: ["redis-server", "--port", "9300", "--maxmemory", "100mb", "--maxmemory-policy", "allkeys-lru"]
+        ports:
+        - containerPort: 9300
+          hostPort: 9300
+          name: prom-ign-redis
+          protocol: TCP
       volumes:
       - name: certs
         hostPath:
@@ -95,6 +119,12 @@ spec:
       - name: dlwsdatajobfiles
         hostPath:
           path: {{cnf["storage-mount-path"]}}/jobfiles           
+      - name: dltsdata
+        hostPath:
+          path: {{cnf["dltsdata-storage-mount-path"]}}
+      - name: folderautoshare
+        hostPath:
+          path: {{cnf["folder_auto_share"]}}
       - name: log
         hostPath:
           path: /var/log/clustermanager   

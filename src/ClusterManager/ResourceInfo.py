@@ -16,6 +16,13 @@ class ResourceInfo:
         diff.Subtract(resInfo2)
         return diff
 
+    @staticmethod
+    def DifferenceMinZero(resInfo1, resInfo2):
+        diff = ResourceInfo()
+        diff.Add(resInfo1)
+        diff.SubtractMinZero(resInfo2)
+        return diff
+
     def GetFraction(self, numeratorResInfo, denominatorResInfo):
         fraction = ResourceInfo()
         for key in self.CategoryToCountMap:
@@ -42,3 +49,14 @@ class ResourceInfo:
             if otherResourceInfo.CategoryToCountMap[key] > 0:
                 self.CategoryToCountMap[key] -= otherResourceInfo.CategoryToCountMap[key]
         return self
+
+    def SubtractMinZero(self, otherResourceInfo):
+        for key in otherResourceInfo.CategoryToCountMap:
+            if otherResourceInfo.CategoryToCountMap[key] > 0:
+                self.CategoryToCountMap[key] -= otherResourceInfo.CategoryToCountMap[key]
+            if key in self.CategoryToCountMap and self.CategoryToCountMap[key] < 0:
+                self.CategoryToCountMap[key] = 0
+        return self
+
+    def __repr__(self):
+        return str(self.CategoryToCountMap)

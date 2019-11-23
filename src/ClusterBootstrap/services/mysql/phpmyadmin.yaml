@@ -31,7 +31,7 @@ spec:
         env:
           # Use secret in real usage
         - name: MYSQL_ROOT_PASSWORD
-          value: {{cnf["mysql_password"]}}
+          value: "{{cnf["mysql_password"]}}"
         - name: PMA_HOST
           value: {{cnf["mysql_node"]}}   
         - name: PMA_PORT

@@ -178,7 +178,7 @@ def GetPod(selector):
     return podInfo
 
 
-def GetLog(jobId):
+def GetLog(jobId, tail=None):
     # assume our job only one container per pod.
 
     selector = "run=" + jobId
@@ -194,7 +194,10 @@ def GetLog(jobId):
                 if "status" in item and "containerStatuses" in item["status"] and "containerID" in item["status"]["containerStatuses"][0]:
                     containerID = item["status"]["containerStatuses"][0]["containerID"].replace("docker://", "")
                     log["containerID"] = containerID
-                    log["containerLog"] = kubectl_exec(" logs " + log["podName"])
+                    if tail is not None:
+                        log["containerLog"] = kubectl_exec(" logs %s --tail=%s" % (log["podName"], str(tail)))
+                    else:
+                        log["containerLog"] = kubectl_exec(" logs " + log["podName"])
                     logs.append(log)
     return logs
 
@@ -333,6 +336,7 @@ def GetJobStatus(jobId):
 
     if podInfo is None:
         output = "kubectlERR"
+        detail = []
     elif "items" in podInfo:
         podStatus = [check_pod_status(pod) for pod in podInfo["items"]]
         #detail = "=====================\n=====================\n=====================\n".join([yaml.dump(pod["status"], default_flow_style=False) for pod in podInfo["items"] if "status" in podInfo["items"]])

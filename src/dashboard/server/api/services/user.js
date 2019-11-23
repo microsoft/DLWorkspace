@@ -8,8 +8,10 @@ const Service = require('./service')
 const Cluster = require('./cluster')
 
 const sign = config.get('sign')
-const winbind = config.get('winbind')
+const winbind = config.has('winbind') ? config.get('winbind') : undefined
 const masterToken = config.get('masterToken')
+const addGroupLink = config.get('AddGroupLink')
+const WikiLink = config.get('WikiLink')
 const clusterIds = Object.keys(config.get('clusters'))
 
 class User extends Service {
@@ -30,13 +32,16 @@ class User extends Service {
   static fromIdToken (context, idToken) {
     const user = new User(context, idToken['upn'])
     user.givenName = idToken['given_name']
+    user.addGroupLink = addGroupLink
     user.familyName = idToken['family_name']
+    user.WikiLink = WikiLink
     return user
   }
 
   /**
    * @param {import('koa').Context} context
-   * @param {object} idToken
+   * @param {string} email
+   * @param {string} token
    * @return {User}
    */
   static fromToken (context, email, token) {
@@ -56,23 +61,41 @@ class User extends Service {
   static fromCookie (context, token) {
     const payload = jwt.verify(token, sign)
     const user = new User(context, payload['email'])
+    user.password = this.generateToken(user.email)
     user.givenName = payload['givenName']
+    user.addGroupLink = addGroupLink
+    user.WikiLink = WikiLink
     user.familyName = payload['familyName']
     user.uid = payload['uid']
     user.gid = payload['gid']
     return user
   }
 
+  /**
+   * @param {string} email
+   * @return {Buffer}
+   */
+  static generateToken (email) {
+    const hash = createHash('md5')
+    hash.update(`${email}:${masterToken}`)
+    return hash.digest()
+  }
+
   get token () {
     if (this._token == null) {
-      const hash = createHash('md5')
-      hash.update(`${this.email}:${masterToken}`)
-      this._token = hash.digest()
+      Object.defineProperty(this, '_token', {
+        value: User.generateToken(this.email)
+      })
     }
     return this._token
   }
 
   async fillIdFromWinbind () {
+    if (winbind == null) {
+      this.context.log.warn('No winbind server, user will have no uid / gid, and will not sync user info to any cluster.')
+      return null
+    }
+
     const params = new URLSearchParams({ userName: this.email })
     const url = `${winbind}/domaininfo/GetUserId?${params}`
     this.context.log.info({ url }, 'Winbind request')
@@ -82,11 +105,12 @@ class User extends Service {
 
     this.uid = data['uid']
     this.gid = data['gid']
-
     return data
   }
 
   async addUserToCluster (data) {
+    if (data == null) return
+
     // Fix groups format
     if (Array.isArray(data['groups'])) {
       data['groups'] = JSON.stringify(data['groups'].map(e => String(e)))
@@ -101,13 +125,15 @@ class User extends Service {
    * @return {string}
    */
   toCookie () {
-    console.log('token is ', this.token)
     return jwt.sign({
       email: this.email,
       uid: this.uid,
       gid: this.gid,
+      _token: this.token,
       familyName: this.familyName,
-      givenName: this.givenName
+      givenName: this.givenName,
+      addGroupLink: addGroupLink,
+      WikiLink: WikiLink
     }, sign)
   }
 }

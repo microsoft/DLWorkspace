@@ -12,7 +12,7 @@ class Service {
    * @param {import('koa').ParameterizedContext<State>} context
    */
   constructor (context) {
-    this.context = context
+    Object.defineProperty(this, 'context', { value: context })
   }
 }
 

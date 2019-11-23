@@ -31,10 +31,11 @@ import random
 
 import logging
 
-from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time
+from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time, record
 
 logger = logging.getLogger(__name__)
 
+@record
 def RunCommand(command):
     dataHandler = DataHandler()
     k8sUtils.kubectl_exec("exec %s %s" % (command["jobId"], command["command"]))

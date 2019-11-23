@@ -1,18 +1,18 @@
 import sys
 import os
 import random
-from datetime import date
-from marshmallow import Schema, fields, pprint, post_load, validate
+from marshmallow import Schema, fields, post_load, validate
 from jinja2 import Environment, FileSystemLoader, Template
 
 import logging
 import logging.config
+import base64
+import yaml
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
-from osUtils import mkdirsAsUser
 
 
-# TODO remove it latter
+# TODO remove it later
 def create_log(logdir='.'):
     if not os.path.exists(logdir):
         os.system("mkdir -p " + logdir)
@@ -21,6 +21,22 @@ def create_log(logdir='.'):
         f.close()
         logging_config["handlers"]["file"]["filename"] = logdir + "/jobmanager.log"
         logging.config.dictConfig(logging_config)
+
+
+def invalid_entry(s):
+    return s is None or \
+           s == "" or \
+           s.lower() == "null" or \
+           s.lower() == "none"
+
+
+def dedup_add(item, entries, identical):
+    assert isinstance(entries, list)
+    for entry in entries:
+        if identical(item, entry):
+            return entries
+    entries.append(item)
+    return entries
 
 
 class Job:
@@ -33,6 +49,7 @@ class Job:
                  work_path="",
                  data_path="",
                  params=None,
+                 plugins=None
                  ):
         """
         job_id: an unique string for the job.
@@ -49,6 +66,7 @@ class Job:
         self.work_path = work_path
         self.data_path = data_path
         self.params = params
+        self.plugins = plugins
 
     def add_mountpoints(self, mountpoint):
         '''
@@ -72,20 +90,24 @@ class Job:
         if isinstance(mountpoint, list):
             for m in mountpoint:
                 self.add_mountpoints(m)
-                return
+            return
 
         # only allow alphanumeric in "name"
         if "name" not in mountpoint or mountpoint["name"] == "":
             mountpoint["name"] = mountpoint["containerPath"]
-        mountpoint["name"] = ''.join(c for c in mountpoint["name"] if c.isalnum())
+        mountpoint["name"] = ''.join(c for c in mountpoint["name"] if c.isalnum() or c == "-")
 
-        # skip dulicate entry
+        # skip duplicate entry
+        # NOTE: mountPath "/data" is the same as "data" in k8s
         for item in self.mountpoints:
-            if item["name"] == mountpoint["name"] or item["containerPath"] == mountpoint["containerPath"] or item["hostPath"] == mountpoint["hostPath"]:
-                logging.warn("Duplciate mountpoint: %s" % mountpoint)
+            if item["name"] == mountpoint["name"] or item["containerPath"].strip("/") == mountpoint["containerPath"].strip("/"):
+                logging.warn("Current mountpoint: %s is a duplicate of mountpoint: %s" % (mountpoint, item))
                 return
 
         self.mountpoints.append(mountpoint)
+
+    def add_plugins(self, plugins):
+        self.plugins = plugins
 
     def get_alias(self):
         return self.email.split("@")[0].strip()
@@ -112,12 +134,84 @@ class Job:
         data_host_path = os.path.join(self.cluster["storage-mount-path"], "storage", self.data_path)
         return {"name": "data", "containerPath": "/data", "hostPath": data_host_path, "enabled": True}
 
+    def vc_custom_storage_mountpoints(self):
+        vc_name = self.params["vcName"]
+        custom_mounts = self.get_custom_mounts()
+        if not isinstance(custom_mounts, list):
+            return None
+
+        vc_custom_mounts = []
+        for mount in custom_mounts:
+            name = mount.get("name")
+            container_path = mount.get("containerPath")
+            host_path = mount.get("hostPath")
+            vc = mount.get("vc")
+            if vc is None or vc != vc_name:
+                continue
+            if name is None or host_path is None or container_path is None:
+                logging.warn("Ignore invalid mount %s" % mount)
+                continue
+            vc_mount = {
+                "name": name.lower(),
+                "containerPath": container_path,
+                "hostPath": host_path,
+                "enabled": True
+            }
+            vc_custom_mounts.append(vc_mount)
+
+        return vc_custom_mounts
+
+    def vc_storage_mountpoints(self):
+        vc_name = self.params["vcName"]
+        dltsdata_vc_path = os.path.join(self.cluster["dltsdata-storage-mount-path"], vc_name)
+        if not os.path.isdir(dltsdata_vc_path):
+            return None
+
+        vc_mountpoints = []
+        for storage in os.listdir(dltsdata_vc_path):
+            vc_mountpoint = {
+                "name": ("%s-%s" % (vc_name, storage)).lower(),
+                "containerPath": "/" + storage,
+                "hostPath": os.path.join(dltsdata_vc_path, storage),
+                "enabled": True}
+            vc_mountpoints.append(vc_mountpoint)
+
+        return vc_mountpoints
+
+    def infiniband_mountpoints(self):
+        infiniband_mounts = self.get_infiniband_mounts()
+        if not isinstance(infiniband_mounts, list):
+            return None
+
+        ib_mountpoints = []
+        for infiniband_mount in infiniband_mounts:
+            ib_mountpoint = {
+                "name": infiniband_mount["name"].lower(),
+                "containerPath": infiniband_mount["containerPath"],
+                "hostPath": infiniband_mount["hostPath"],
+                "enabled": True}
+            ib_mountpoints.append(ib_mountpoint)
+
+        return ib_mountpoints
+
     def get_template(self):
-        """Return jinja template."""
-        path = os.path.abspath(os.path.join(self.cluster["root-path"], "Jobs_Templete", "pod.yaml.template"))
-        ENV = Environment(loader=FileSystemLoader("/"))
-        template = ENV.get_template(path)
-        assert(isinstance(template, Template))
+        """Returns pod template."""
+        return self._get_template("pod.yaml.template")
+
+    def get_deployment_template(self):
+        """Returns deployment template."""
+        return self._get_template("deployment.yaml.template")
+
+    def get_blobfuse_secret_template(self):
+        """Returns azure blobfuse secret template."""
+        return self._get_template("blobfuse_secret.yaml.template")
+
+    def _get_template(self, template_name):
+        """Returns template instance based on template_name."""
+        path = os.path.abspath(os.path.join(self.cluster["root-path"], "Jobs_Templete", template_name))
+        env = Environment(loader=FileSystemLoader("/"))
+        template = env.get_template(path)
+        assert (isinstance(template, Template))
         return template
 
     def is_custom_scheduler_enabled(self):
@@ -139,10 +233,123 @@ class Job:
         # TODO why random.choice?
         return random.choice(racks)
 
+    def get_custom_mounts(self):
+        return self._get_cluster_config("custom_mounts")
+
+    def get_infiniband_mounts(self):
+        return self._get_cluster_config("infiniband_mounts")
+
+    def get_local_fast_storage(self):
+        return self._get_cluster_config("local_fast_storage")
+
+    def get_enable_blobfuse(self):
+        return self._get_cluster_config("enable_blobfuse")
+
     def _get_cluster_config(self, key):
         if key in self.cluster:
             return self.cluster[key]
         return None
+
+    def get_plugins(self):
+        """Returns a dictionary of plugin list.
+
+        NOTE: Currently only Azure blobfuse is supported.
+
+        Returns:
+            A dictionary of plugin list.
+            Empty dictionary if there is no plugin.
+
+        Examples:
+            {
+                "blobfuse":
+                    [{
+                        "enabled": True,
+                        "name": "blobfuse0",
+                        "accountName": "YWRtaW4=",
+                        "accountKey": "MWYyZDFlMmU2N2Rm",
+                        "containerName": "blobContainer0",
+                        "mountPath": "/mnt/blobfuse/data0",
+                        "secreds": "bb9cd821-711c-40fd-bb6f-e5dbc1b772a7-blobfuse-0-secreds"
+                     },
+                     {
+                        "enabled": True,
+                        "name": "blobfuse1",
+                        "accountName":"YWJj",
+                        "accountKey":"cGFzc3dvcmQ=",
+                        "containerName":"blobContainer1",
+                        "mountPath":"/mnt/blobfuse/data1",
+                        "secreds":"bb9cd821-711c-40fd-bb6f-e5dbc1b772a7-blobfuse-1-secreds"
+                     }],
+                "some-other-plugin": [...]
+            }
+        """
+        if self.params is None:
+            return {}
+
+        if "plugins" not in self.params:
+            return {}
+
+        plugins = self.params["plugins"]
+        if plugins is None or not isinstance(plugins, dict):
+            return {}
+
+        ret = {}
+        for plugin, config in plugins.items():
+            if plugin == "blobfuse" and isinstance(plugins["blobfuse"], list):
+                blobfuse = self.get_blobfuse_plugins(plugins["blobfuse"])
+                ret["blobfuse"] = blobfuse
+        return ret
+
+    def get_blobfuse_plugins(self, plugins):
+        """Constructs and returns a list of blobfuse plugins."""
+
+        enable_blobfuse = self.get_enable_blobfuse()
+        if enable_blobfuse is None or enable_blobfuse is False:
+            return []
+
+        def identical(e1, e2):
+            return e1["name"] == e2["name"] or \
+                    e1["mountPath"] == e2["mountPath"]
+
+        tmppath = None
+        local_fast_storage = self.get_local_fast_storage()
+        if local_fast_storage is not None and local_fast_storage != "":
+            tmppath = local_fast_storage.rstrip("/")
+
+        blobfuse = []
+        for i, bf in enumerate(plugins):
+            account_name = bf.get("accountName")
+            account_key = bf.get("accountKey")
+            container_name = bf.get("containerName")
+            mount_path = bf.get("mountPath")
+
+            # Ignore Azure blobfuse with incomplete configurations
+            if invalid_entry(account_name) or \
+                    invalid_entry(account_key) or \
+                    invalid_entry(container_name) or \
+                    invalid_entry(mount_path):
+                continue
+
+            name = bf.get("name")
+            if name is None:
+                name = "%s-blobfuse-%d" % (self.job_id, i)
+
+            # Reassign everything for clarity
+            bf["enabled"] = True
+            bf["name"] = name
+            bf["secreds"] = "%s-blobfuse-%d-secreds" % (self.job_id, i)
+            bf["accountName"] = base64.b64encode(account_name)
+            bf["accountKey"] = base64.b64encode(account_key)
+            bf["containerName"] = container_name
+            bf["mountPath"] = mount_path
+            bf["jobId"] = self.job_id
+
+            if tmppath is not None:
+                bf["tmppath"] = tmppath
+
+            # TODO: Deduplicate blobfuse plugins
+            blobfuse = dedup_add(bf, blobfuse, identical)
+        return blobfuse
 
 
 class JobSchema(Schema):
@@ -163,6 +370,7 @@ class JobSchema(Schema):
     work_path = fields.String(required=False, dump_to="workPath", load_from="workPath")
     data_path = fields.String(required=False, dump_to="dataPath", load_from="dataPath")
     params = fields.Dict(required=False)
+    plugins = fields.Dict(required=False)
 
     @post_load
     def make_user(self, data, **kwargs):

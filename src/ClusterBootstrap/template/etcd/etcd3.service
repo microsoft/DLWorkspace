@@ -3,12 +3,19 @@ ExecStart=/usr/bin/docker run -v /usr/share/ca-certificates/mozilla:/etc/ssl/cer
   --net=host \
   --name etcd3 {{cnf["dockers"]["container"]["etcd"]["fullname"]}} /usr/local/bin/etcd \
   -name {{cnf["hostname"]}} \
-  -advertise-client-urls https://{{cnf["etcd_node_ip"]}}:{{cnf["etcd3port1"]}} \
+  {% if cnf["etcd_node_num"] == 1 %}-initial-cluster {{cnf["hostname"]}}=https://{{cnf["etcd_private_ip"]}}:{{cnf["etcd3portserver"]}} \
+  -initial-cluster-state new \
+  -initial-cluster-token {{cnf["clusterId"]}} \
+  -advertise-client-urls https://{{cnf["etcd_private_ip"]}}:{{cnf["etcd3port1"]}} \
+  -listen-client-urls https://0.0.0.0:{{cnf["etcd3port1"]}} \
+  -initial-advertise-peer-urls https://{{cnf["etcd_private_ip"]}}:{{cnf["etcd3portserver"]}} \
+  -listen-peer-urls https://0.0.0.0:{{cnf["etcd3portserver"]}} \
+  {% else %}-advertise-client-urls https://{{cnf["etcd_node_ip"]}}:{{cnf["etcd3port1"]}} \
   -listen-client-urls https://0.0.0.0:{{cnf["etcd3port1"]}} \
   -initial-advertise-peer-urls https://{{cnf["etcd_node_ip"]}}:{{cnf["etcd3portserver"]}} \
   -listen-peer-urls https://0.0.0.0:{{cnf["etcd3portserver"]}} \
   -discovery {{cnf["discovery_url"]}} \
-  -data-dir /var/etcd/data \
+  {% endif %}-data-dir /var/etcd/data \
   -client-cert-auth \
   -trusted-ca-file=/etc/etcd/ssl/ca.pem \
   -cert-file=/etc/etcd/ssl/etcd.pem \

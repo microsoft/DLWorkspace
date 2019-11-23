@@ -2,31 +2,40 @@
 # Start with a minimal pipeline that you can customize to build and deploy your code.
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
-
+trigger:
+- dltsdev
 
 pool:
   name: 'DLTS-Platform'
 
 # container: ubuntu:18.04
 
-variables: { SUBSCRIPTION_NAME: "'Bing DLTS'" }
+variables: { SUBSCRIPTION_NAME: "'Bing DLTS'"}
 
 steps:
 - script: |
     cd src/ClusterBootstrap/
-    sudo ./install_prerequisites.sh
     az account set --subscription $(SUBSCRIPTION_NAME)
-    az account list | grep -A5 -B5 '"isDefault": true'
-  displayName: 'Install prerequisites'
+  displayName: 'Set Subscription'
 
 - script: |
-    cd src/ClusterBootstrap/
-    cp /mnt/_work/dlts_ci_config.yaml config.yaml
-    ./bash_step_by_step_deploy.sh
+    cd src/ClusterBootstrap/scripts
+    CONFIG_TYPE="${CONFIG_TYPE:-cpu}"
+    echo $CONFIG_TYPE
+    ./set_config.sh $CONFIG_TYPE
+    cd ..
+    ./step_by_step.sh azure
   displayName: 'Deploy DLWorkspace'
 
 - script: |
-    echo TODO: verify the cluster is ready!
+    cd src/ClusterBootstrap/
+    USER=$(grep -B3 admin_username cluster.yaml | awk '{print $2}')
+    CONFIG_TYPE="${CONFIG_TYPE:-cpu}"
+    WAITMIN="${WAITMIN:-5}"
+    POLLSEC="${POLLSEC:-30}"
+    echo $CONFIG_TYPE $WAITMIN $POLLSEC
+    cd scripts
+    ./verify_deployment.sh $USER $CONFIG_TYPE $WAITMIN $POLLSEC
   displayName: 'Verify deployment'
 
 - script: |
@@ -34,5 +43,7 @@ steps:
   displayName: 'Functional tests'
 
 - script: |
-    echo TODO: cleanup the deployment!
+    cd src/ClusterBootstrap/
+    RESOURCEGRP=$(grep cluster_name cluster.yaml|awk '{print $2}')ResGrp
+    az group delete --name $RESOURCEGRP --yes
   displayName: 'Cleanup'

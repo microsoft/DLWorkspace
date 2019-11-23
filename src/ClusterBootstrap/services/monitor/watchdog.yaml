@@ -41,7 +41,7 @@ spec:
         env:
         - name: LOGGING_LEVEL
           value: INFO
-        image: openpai/watchdog:dlws
+        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}watchdog:{{cnf["dockertag"]}}
         imagePullPolicy: Always
         name: watchdog
         readinessProbe:
