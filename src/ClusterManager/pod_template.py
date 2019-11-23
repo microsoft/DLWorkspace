@@ -118,7 +118,7 @@ class PodTemplate():
         if "gpuType" in params:
             params["nodeSelector"]["gpuType"] = params["gpuType"]
 
-        params = enable_cpu_config(params=params, config=job.cluster)
+        params = enable_cpu_config(params, job.cluster)
 
         local_pod_path = job.get_hostpath(job.job_path, "master")
         params["LaunchCMD"] = PodTemplate.generate_launch_script(params["jobId"], local_pod_path, params["userId"], params["resourcegpu"], params["cmd"])
