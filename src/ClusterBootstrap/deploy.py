@@ -4098,7 +4098,8 @@ Command:
   upgrade_masters Upgrade the master nodes.
   upgrade_workers [nodes] Upgrade the worker nodes. If no additional node is specified, all nodes will be updated.
   upgrade [nodes] Upgrade the cluster and nodes. If no additional node is specified, all nodes will be updated.
-  customlabel Label nodes with custom defined node labels under custom_node_labels
+  labelcpuworker Label CPU nodes with "worker" role with cpuworker=active if their SKU is defined in sku_meta.
+  labelsku       Label nodes with sku=<sku_value> if their SKU is defined in sku_meta.
   ''') )
     parser.add_argument("-y", "--yes",
         help="Answer yes automatically for all prompt",
