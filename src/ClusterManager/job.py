@@ -1,6 +1,7 @@
 import sys
 import os
 import random
+import re
 from marshmallow import Schema, fields, post_load, validate
 from jinja2 import Environment, FileSystemLoader, Template
 
@@ -353,7 +354,8 @@ class Job:
             if tmppath is not None:
                 bf["tmppath"] = tmppath
 
-            if not invalid_entry(mount_options):
+            pattern = re.compile("^--file-cache-timeout-in-seconds=[0-9]+$")
+            if not invalid_entry(mount_options) and pattern.match(mount_options) is not None:
                 bf["mountOptions"] = mount_options
 
             # TODO: Deduplicate blobfuse plugins
