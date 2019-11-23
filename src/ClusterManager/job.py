@@ -353,7 +353,7 @@ class Job:
             if tmppath is not None:
                 bf["tmppath"] = tmppath
 
-            if mount_options is not None:
+            if not invalid_entry(mount_options):
                 bf["mountOptions"] = mount_options
 
             # TODO: Deduplicate blobfuse plugins
