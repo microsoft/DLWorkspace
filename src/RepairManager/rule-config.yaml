@@ -8,6 +8,3 @@ rules:
 # time to sleep between rule execution
 wait_time: 10
 
-# prometheus
-prometheus_url: 'http://localhost:9091/prometheus'
-
