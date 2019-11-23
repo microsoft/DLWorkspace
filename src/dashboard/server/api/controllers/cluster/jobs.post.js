@@ -3,13 +3,16 @@ const uuid = require('uuid')
 /**
  * @typedef {Object} State
  * @property {import('../../services/cluster')} cluster
+ * @property {import('../../services/user')} user
  */
 
 /** @type {import('koa').Middleware<State>} */
 module.exports = async context => {
-  const { cluster } = context.state
+  const { cluster, user } = context.state
 
   const job = Object.assign({}, context.request.body)
+
+  job['userName'] = user.email
   job['familyToken'] = uuid()
   job['isParent'] = 1
 
