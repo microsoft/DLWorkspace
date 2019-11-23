@@ -40,23 +40,19 @@ def get_sku_info(sku, config):
     for key in ["cpu", "memory"]:
         if key not in sku_info:
             return None
-        if "value" not in sku_info[key]:
-            return None
 
-    user_allowed = config.get("user_allowed", {})
+    # default sku_info must contain ratio info
+    default_sku_info = sku_meta.get("default", None)
+    if default_sku_info is None:
+        default_sku_info = {}
 
-    if "cpu" not in user_allowed:
-        user_allowed["cpu"] = {}
-    if "ratio" not in user_allowed["cpu"]:
-        user_allowed["cpu"]["ratio"] = 0.05
-    if "memory" not in user_allowed:
-        user_allowed["memory"] = {}
-    if "ratio" not in user_allowed["memory"]:
-        user_allowed["memory"]["ratio"] = 0.1
+    for key in ["cpu_ratio", "memory_ratio"]:
+        if key not in default_sku_info:
+            default_sku_info[key] = 0.8
 
-    for key in ["cpu", "memory"]:
-        if "ratio" not in sku_info[key]:
-            sku_info[key]["ratio"] = user_allowed[key]["ratio"]
+    for key in ["cpu_ratio", "memory_ratio"]:
+        if key not in sku_info:
+            sku_info[key] = default_sku_info[key]
 
     return sku_info
 

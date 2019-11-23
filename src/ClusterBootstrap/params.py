@@ -669,28 +669,25 @@ default_config_parameters = {
     "custom_mounts": [],
     "enable_blobfuse": False,
 
+    # To use CPU nodes,
+    # 1. CPU nodes must have node label cpuworker=active
+    # 2. enable_cpuworker is set to True
+    # 3. default_cpu_sku is set to a valid value that exists in sku_meta
     "enable_cpuworker": False,
+    "default_cpu_sku": "Standard_D2s_v3",
 
-    # The complementary of system reserved resource can be used for
-    # user applications. They can be overridden by configuration in
-    # each SKU
-    "user_allowed": {
-        "cpu": {
-            "ratio": 0.9
-        },
-        "memory": {
-            "ratio": 0.9
-        }
-    },
-    # SKU meta defines CPU, memory, GPU, GPU memory, etc. for each SKU
+    # SKU meta defines different types of resources for each SKU
+    # and their allowed usage ratio.
     "sku_meta": {
+        "default": {
+            "cpu_ratio": 0.8,
+            "memory_ratio": 0.8
+        },
         "Standard_D2s_v3": {
-            "cpu": {
-                "value": 2
-            },
-            "memory": {
-                "value": 8
-            }
+            "cpu": 2,
+            "cpu_ratio": 0.9,
+            "memory": 8,
+            "memory_ratio": 0.9
         }
     }
 }

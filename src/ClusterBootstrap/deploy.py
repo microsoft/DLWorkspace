@@ -2890,13 +2890,13 @@ def get_sku_meta(cnf):
         cnf: Configuration dictionary containing machines.
 
     Returns:
-
+        SKU meta dictionary from configuration.
     """
     return cnf.get("sku_meta", {})
 
 
-# Label kubernetes nodes with cpuworker=active
 def kubernetes_label_cpuworker():
+    """Label kubernetes nodes with cpuworker=active."""
     label = "cpuworker=active"
     sku_meta = get_sku_meta(config)
     workers = get_machines_by_roles("worker", config)
@@ -2908,8 +2908,8 @@ def kubernetes_label_cpuworker():
                 kubernetes_label_node("--overwrite", machine_name, label)
 
 
-# Label kubernetes nodes with sku=<sku_value>
 def kubernetes_label_sku():
+    """Label kubernetes nodes with sku=<sku_value>"""
     sku_meta = get_sku_meta(config)
     machines = get_machines_by_roles("all", config)
 
