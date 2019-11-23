@@ -124,14 +124,14 @@ def enable_cpu_config(pod, config):
         sku = pod["nodeSelector"].get("sku", None)
         sku_info = get_sku_info(sku=sku, config=config)
         if sku_info is not None:
-            default_cpu_request = cpu_format(sku_info["cpu"]["value"],
-                                             sku_info["cpu"]["ratio"])
-            default_cpu_limit = cpu_format(sku_info["cpu"]["value"],
-                                           sku_info["cpu"]["ratio"])
-            default_mem_request = mem_format(sku_info["memory"]["value"],
-                                             sku_info["memory"]["ratio"])
-            default_mem_limit = mem_format(sku_info["memory"]["value"],
-                                           sku_info["memory"]["ratio"])
+            default_cpu_request = cpu_format(sku_info["cpu"],
+                                             sku_info["cpu_ratio"])
+            default_cpu_limit = cpu_format(sku_info["cpu"],
+                                           sku_info["cpu_ratio"])
+            default_mem_request = mem_format(sku_info["memory"],
+                                             sku_info["memory_ratio"])
+            default_mem_limit = mem_format(sku_info["memory"],
+                                           sku_info["memory_ratio"])
     else:
         default_cpu_request = cpu_format(config.get("default_cpurequest"))
         default_cpu_limit = cpu_format(config.get("default_cpulimit"))
