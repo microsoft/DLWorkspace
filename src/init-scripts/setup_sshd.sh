@@ -34,6 +34,8 @@ function setup_sshd {
     else
         SSH_PORT=22
     fi
+    echo "AllowUsers ${DLWS_USER_NAME} root" | tee -a /etc/ssh/sshd_config > /dev/null
+    echo "AllowGroups dltsadmin" | tee -a /etc/ssh/sshd_config > /dev/null
     echo "${SSH_PORT}" > ${PROC_DIR}/SSH_PORT
     echo "${POD_IP}" > ${PROC_DIR}/POD_IP
 
