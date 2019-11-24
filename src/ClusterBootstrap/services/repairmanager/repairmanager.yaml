@@ -1,18 +1,18 @@
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
-  name: jobmanager
+  name: repairmanager
   namespace: default
 spec:
   selector:
     matchLabels:
-      jobmanager-node: pod
+      repairmanager-node: pod
   template:
     metadata:
-      name: jobmanager
+      name: repairmanager
       labels:
-        jobmanager-node: pod
-        app: jobmanager
+        repairmanager-node: pod
+        app: repairmanager
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/path: "/metrics"
@@ -22,19 +22,20 @@ spec:
       {% endif %}
       hostNetwork: true    
       nodeSelector:
-        jobmanager: active
+        repairmanager: active
       containers:
-      - name: jobmanager
-        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}{{cnf["restfulapi"]}}:{{cnf["dockertag"]}}
-        command: ["/runScheduler.sh"]
+      - name: repairmanager
+        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}{{cnf["repairmanager"]}}:{{cnf["dockertag"]}}
+        command: ["/run.sh"]
         imagePullPolicy: Always
+        env:
+        - name: PROMETHEUS_HOST
+          value: {{cnf["prometheus"]["host"]}}        
         volumeMounts:
         - mountPath: /etc/kubernetes/ssl
           name: certs
-        - mountPath: /root/.kube/config 
+        - mountPath: /etc/kubernetes/restapi-kubeconfig.yaml
           name: kubeconfig
-        - mountPath: /RestfulAPI 
-          name: restfulapiconfig
         - mountPath: {{cnf["storage-mount-path"]}}/work
           name: dlwsdatawork
         - mountPath: {{cnf["storage-mount-path"]}}/storage
@@ -47,43 +48,6 @@ spec:
           name: folderautoshare
         - mountPath: /var/log/dlworkspace
           name: log
-        ports:
-        - containerPort: 9200
-          hostPort: 9200
-          name: job-mgr
-          protocol: TCP
-        - containerPort: 9201
-          hostPort: 9201
-          name: user-mgr
-          protocol: TCP
-        - containerPort: 9202
-          hostPort: 9202
-          name: node-mgr
-          protocol: TCP
-        - containerPort: 9203
-          hostPort: 9203
-          name: joblog-mgr
-          protocol: TCP
-        - containerPort: 9204
-          hostPort: 9204
-          name: cmd-mgr
-          protocol: TCP
-        - containerPort: 9205
-          hostPort: 9205
-          name: endpoint-mgr
-          protocol: TCP
-        - containerPort: 9206
-          hostPort: 9206
-          name: job-mgr2
-          protocol: TCP
-        - containerPort: 9207
-          hostPort: 9207
-          name: job-mgr3
-          protocol: TCP
-        - containerPort: 9208
-          hostPort: 9208
-          name: job-mgr4
-          protocol: TCP
         readinessProbe:
           failureThreshold: 3
           initialDelaySeconds: 3
@@ -92,14 +56,6 @@ spec:
           tcpSocket:
             port: 9200
           timeoutSeconds: 10
-      - name: redis
-        image: redis:5.0.6-alpine
-        command: ["redis-server", "--port", "9300", "--maxmemory", "100mb", "--maxmemory-policy", "allkeys-lru"]
-        ports:
-        - containerPort: 9300
-          hostPort: 9300
-          name: prom-ign-redis
-          protocol: TCP
       volumes:
       - name: certs
         hostPath:
@@ -107,9 +63,6 @@ spec:
       - name: kubeconfig
         hostPath:
           path: /etc/kubernetes/restapi-kubeconfig.yaml
-      - name: restfulapiconfig
-        hostPath:
-          path: /etc/RestfulAPI
       - name: dlwsdatawork
         hostPath:
           path: {{cnf["storage-mount-path"]}}/work 

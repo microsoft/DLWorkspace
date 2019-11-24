@@ -10,6 +10,8 @@ import argparse
 import threading
 import traceback
 import signal
+import timeit
+import functools
 
 from prometheus_client.twisted import MetricsResource
 from prometheus_client import Histogram
@@ -25,6 +27,22 @@ manager_iteration_histogram = Histogram("manager_iteration_latency_seconds",
         buckets=(2.5, 5.0, 10.0, 20.0, 40.0, 80.0, 160.0, float("inf")),
         labelnames=("name",))
 
+fn_histogram = Histogram("manager_fn_latency_seconds",
+        "latency for executing *manager's function (seconds)",
+        buckets=(1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0, 1024.0,
+            float("inf")),
+        labelnames=("file_name", "fn_name"))
+
+def record(fn):
+    @functools.wraps(fn)
+    def wrapped(*args, **kwargs):
+        start = timeit.default_timer()
+        try:
+            return fn(*args, **kwargs)
+        finally:
+            elapsed = timeit.default_timer() - start
+            fn_histogram.labels(os.path.basename(sys.argv[0]), fn.__name__).observe(elapsed)
+    return wrapped
 
 class HealthResource(Resource):
     def render_GET(self, request):
@@ -87,10 +105,18 @@ def Run(args):
 
     cwd = os.path.dirname(__file__)
     cmds = {
-        "job_manager1":
-        ["python", os.path.join(cwd, "job_manager.py"), "--port", str(args.j1), "--updateblock", "1"],
-        "job_manager2":
-        ["python", os.path.join(cwd, "job_manager.py"), "--port", str(args.j2), "--updateblock", "2"],        
+        "job_manager_killing,pausing,unapproved":
+        ["python", os.path.join(cwd, "job_manager.py"), "--port", str(args.j1),
+            "--status", "killing,pausing,unapproved"],
+        "job_manager_running":
+        ["python", os.path.join(cwd, "job_manager.py"), "--port", str(args.j2),
+            "--status", "running"],
+        "job_manager_scheduling":
+        ["python", os.path.join(cwd, "job_manager.py"), "--port", str(args.j3),
+            "--status", "scheduling"],
+        "job_manager_queued":
+        ["python", os.path.join(cwd, "job_manager.py"), "--port", str(args.j4),
+            "--status", "queued"],
         "user_manager":
         ["python", os.path.join(cwd, "user_manager.py"), "--port", str(args.u)],
         "node_manager":
@@ -149,6 +175,8 @@ if __name__ == "__main__":
     parser.add_argument("--tictoc", help="how many seconds to wait until kill subprocess", type=int, default=600)
     parser.add_argument("-j1", help="port of job_manager", type=int, default=9200)
     parser.add_argument("-j2", help="port of job_manager", type=int, default=9206)
+    parser.add_argument("-j3", help="port of job_manager", type=int, default=9207)
+    parser.add_argument("-j4", help="port of job_manager", type=int, default=9208)
     parser.add_argument("-u", help="port of user_manager", type=int, default=9201)
     parser.add_argument("-n", help="port of node_manager", type=int, default=9202)
     parser.add_argument("-l", help="port of joblog_manager", type=int, default=9203)

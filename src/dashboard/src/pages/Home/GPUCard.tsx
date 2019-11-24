@@ -285,9 +285,9 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
   useEffect(()=>{
     fetchDirectories().then((res) => {
       let fetchStorage = [];
-      let freeBytesSubPath = '/prometheus/api/v1/query?query=node_filesystem_free_bytes%7Bfstype%3D%27nfs4%27%7D';
+      let availBytesSubPath = '/prometheus/api/v1/query?query=node_filesystem_avail_bytes%7Bfstype%3D%27nfs4%27%7D';
       let sizeBytesSubPath = '/prometheus/api/v1/query?query=node_filesystem_size_bytes%7Bfstype%3D%27nfs4%27%7D';
-      fetchStorage.push(fetch(`${res['prometheus']}${freeBytesSubPath}`));
+      fetchStorage.push(fetch(`${res['prometheus']}${availBytesSubPath}`));
       fetchStorage.push(fetch(`${res['prometheus']}${sizeBytesSubPath}`));
       let storageRes: any = [];
       let tmpStorage: any = [];
@@ -303,16 +303,16 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
                 tmp['mountpointName'] = mountpointName;
                 tmp['total'] = val;
               }
-              let tmpUsed = {} as any;
-              //node_filesystem_free_bytes
-              if (item['metric']['__name__'] == "node_filesystem_free_bytes") {
+              let tmpAvail = {} as any;
+              //node_filesystem_avail_bytes
+              if (item['metric']['__name__'] == "node_filesystem_avail_bytes") {
                 let mountpointName = item['metric']['mountpoint']
                 let val = Math.floor(item['value'][1] / (Math.pow(10, 9)))
-                tmpUsed['mountpointName'] = mountpointName;
-                tmpUsed['Free'] = val;
+                tmpAvail['mountpointName'] = mountpointName;
+                tmpAvail['Avail'] = val;
               }
               tmpStorage.push(tmp)
-              tmpStorage.push(tmpUsed)
+              tmpStorage.push(tmpAvail)
             }
           }
           //({ mountpointName: key, users: value })
@@ -321,12 +321,12 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
           if (storageRes && storageRes.length > 0) {
             finalStorageRes = _.chain(storageRes).groupBy('mountpointName').map((value, key) => {
               let tmpTotal: any = value.filter((item: any) => item.hasOwnProperty('total'));
-              let tmpFree: any = value.filter((item: any) => item.hasOwnProperty('Free'));
+              let tmpAvail: any = value.filter((item: any) => item.hasOwnProperty('Avail'));
               let total = 0;
               let used = 0;
-              if (typeof tmpTotal[0] !== "undefined" && typeof  tmpFree[0] !== "undefined") {
+              if (typeof tmpTotal[0] !== "undefined" && typeof  tmpAvail[0] !== "undefined") {
                 total = tmpTotal[0]["total"];
-                used = tmpTotal[0]["total"] - tmpFree[0]["Free"]
+                used = tmpTotal[0]["total"] - tmpAvail[0]["Avail"]
               }
               return {
                 mountpointName: key, total:total, used: used

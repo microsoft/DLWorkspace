@@ -1,0 +1,28 @@
+---
+version: 1
+disable_existing_loggers: False
+formatters:
+  simple:
+    format: '%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s'
+handlers:
+  console:
+    class: logging.StreamHandler
+    level: DEBUG
+    formatter: simple
+    stream: ext://sys.stdout
+  file:
+    class : logging.handlers.RotatingFileHandler
+    formatter: simple
+    filename: repairmanager.log
+    # roll over at 10MB
+    maxBytes: 10240000
+    # At most 10 logging files
+    backupCount: 10
+loggers:
+  basic:
+    level: DEBUG
+    handlers: ['console','file']
+    propagate: no
+root:
+  level: DEBUG
+  handlers: ['console','file']

@@ -185,11 +185,10 @@ class DataHandler(object):
             # when the VC has vm of same GPU type but different VMsizes, e.g., when VC has Standard_NC6s_v3 and Standard_NC12s_v3 both?
             # impossible since there's no way to do it with current config mechanism
 
-            worker_cnt = int(config["azure_cluster"]["worker_node_num"])
-            sku_mapping = config["sku_mapping"]
-            sku = sku_mapping.get(config["azure_cluster"]["worker_vm_size"],sku_mapping["default"])
-            n_gpu_pernode = sku["gpu-count"]
-            gpu_type = sku["gpu-type"]
+            gpu_count_per_node = config["gpu_count_per_node"]
+            worker_node_num = config["worker_node_num"]
+            gpu_type = config["gpu_type"]
+
             sql = """
                 CREATE TABLE IF NOT EXISTS  `%s`
                 (
@@ -203,7 +202,7 @@ class DataHandler(object):
                     CONSTRAINT `hierarchy` FOREIGN KEY (`parent`) REFERENCES `%s` (`vcName`)
                 )
                 AS SELECT \'%s\' AS vcName, NULL AS parent, '{\\\"%s\\\":%s}' AS quota, '{\\\"%s\\\":{\\\"num_gpu_per_node\\\":%s}}' AS metadata;
-                """ % (self.vctablename, self.vctablename, config['defalt_virtual_cluster_name'], gpu_type, n_gpu_pernode*worker_cnt, gpu_type,n_gpu_pernode)
+                """ % (self.vctablename, self.vctablename, config['defalt_virtual_cluster_name'], gpu_type, gpu_count_per_node*worker_node_num, gpu_type,gpu_count_per_node)
 
             cursor = self.conn.cursor()
             cursor.execute(sql)
@@ -604,9 +603,13 @@ class DataHandler(object):
         ret = []
         cursor = self.conn.cursor()
         try:
-            query = "SELECT `jobId`,`jobName`,`userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobDescriptionPath`, `jobDescription`, `jobTime`, `endpoints`, `jobParams`,`errorMsg` ,`jobMeta` FROM `%s` where `vcName` = '%s'" % (self.jobtablename, vcName)
+            query = "SELECT `jobId`,`jobName`,`userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobDescriptionPath`, `jobDescription`, `jobTime`, `endpoints`, `jobParams`,`errorMsg` ,`jobMeta` FROM `%s` where 1" % (self.jobtablename)
             if userName != "all":
                 query += " and `userName` = '%s'" % userName
+
+            if vcName != "all":
+                query += " and `vcName` = '%s'" % vcName
+
             if status is not None:
                 if "," not in status:
                     query += " and `jobStatus` %s '%s'" % (op[0], status)

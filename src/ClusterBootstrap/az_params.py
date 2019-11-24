@@ -17,5 +17,8 @@ default_az_parameters = {
         "nfs_data_disk_num": 1,
         "nfs_data_disk_path": '/data',
         "nfs_vm": [],
+        "eviction_policy": "Deallocate",
+        "single_placement_group": "false",
+        "default_low_priority_domain": "redmond.corp.microsoft.com",
     },
 }

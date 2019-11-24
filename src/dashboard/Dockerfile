@@ -1,7 +1,9 @@
-FROM node:dubnium
+FROM node:erbium
 
 RUN mkdir /usr/src/app
 WORKDIR /usr/src/app
+
+ENV NODE_OPTIONS --max-http-header-size=65536
 
 COPY package.json yarn.lock ./
 RUN yarn --frozen-lockfile
