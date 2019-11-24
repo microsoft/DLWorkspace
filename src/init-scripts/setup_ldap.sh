@@ -21,9 +21,23 @@ echo "binddn ${LDAP_READ_ONLY_USER}" | sudo tee -a /etc/ldap.conf > /dev/null
 echo "bindpw ${LDAP_READ_ONLY_PASSWORD}" | sudo tee -a /etc/ldap.conf > /dev/null
 echo "session required pam_mkhomedir.so umask=0022 skel=/etc/skel" | sudo tee -a /etc/pam.d/common-session > /dev/null
 
+echo "auth    required    pam_access.so" | sudo tee -a /etc/pam.d/common-auth > /dev/null
+
+echo "+ : ${DLWS_USER_NAME} : ALL" | sudo tee -a /etc/security/access.conf > /dev/null
+echo "+ : (dltsadmin) : LOCAL" | sudo tee -a /etc/security/access.conf > /dev/null
+echo "+ : (dltsadmin) : ALL" | sudo tee -a /etc/security/access.conf > /dev/null
+echo "- : ALL : ALL" | sudo tee -a /etc/security/access.conf > /dev/null
+
+
+
+
+
 sudo sed -i -E 's/^passwd.*/& ldap/' /etc/nsswitch.conf
 sudo sed -i -E 's/^group.*/& ldap/' /etc/nsswitch.conf
 sudo sed -i -E 's/^shadow.*/& ldap/' /etc/nsswitch.conf
+
+
+
 {% else %}
 echo "No LDAP....."
 {% endif %}
