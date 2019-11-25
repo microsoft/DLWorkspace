@@ -64,7 +64,7 @@ class Cluster extends Service {
     const response = await this.fetch('/GetJobDetail?' + params)
     this.context.assert(response.ok, 502)
     const job = await response.json()
-    this.context.log.info({ job }, 'Got job')
+    this.context.log.info('Got job %s', job['jobName'])
     return job
   }
 
@@ -147,7 +147,7 @@ class Cluster extends Service {
     const response = await this.fetch('/jobs/priorities')
     this.context.assert(response.ok, 502)
     const data = await response.json()
-    this.context.log.info({ data }, 'Got job priorities')
+    this.context.log.info('Got priority of %d jobs', Object.keys(data).length)
     return data
   }
 
@@ -168,7 +168,7 @@ class Cluster extends Service {
       body: JSON.stringify(body)
     })
     const text = await response.text()
-    this.context.log.info({ text }, 'Set priority %d for job "%s"', priority, jobId)
+    this.context.log.info({ text }, 'Set priority %d of job "%s"', priority, jobId)
     this.context.assert(response.ok, 502)
     return text
   }
@@ -202,7 +202,6 @@ class Cluster extends Service {
     const response = await this.fetch('/GetVC?' + params)
     this.context.assert(response.ok, 502)
     const data = await response.json()
-    this.context.log.info(data, 'Got VC')
     this.context.assert(data != null, 404, 'Team is not found')
     return data
   }
