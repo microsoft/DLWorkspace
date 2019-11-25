@@ -113,10 +113,25 @@ spec:
     - mountPath: /dlts-runtime
       name: dlts-runtime
     command:
-    - cp
-    - -r
-    - /ssh_build
-    - /dlts-runtime
+    - sh
+    - /dlts-init/init.sh
+    env:
+    - name: LOGGING_LEVEL
+      value: DEBUG
+    - name: DLWS_JOB_ID
+      value: {{ job["jobId"] }}
+    - name: DLWS_NUM_PS
+      value: "{{ job["numps"] }}"
+    - name: DLWS_NUM_WORKER
+      value: "{{ job["numworker"] }}"
+    - name: POD_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.name
+    - name: POD_IP
+      valueFrom:
+        fieldRef:
+          fieldPath: status.podIP
   containers:
   - name: {{ job["podName"] }}
     image: {{ job["image"] }}
