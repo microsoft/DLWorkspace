@@ -560,6 +560,12 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
             elif sji["preemptionAllowed"] and (sji["job"]["jobStatus"] == "scheduling" or sji["job"]["jobStatus"] == "running") and (sji["allowed"] is False):
                 launcher.kill_job(sji["job"]["jobId"], "queued")
                 logging.info("TakeJobActions : pre-empting job : %s : %s" % (sji["jobId"], sji["sortKey"]))
+            elif sji["job"]["jobStatus"] == "queued" and sji["allowed"] is False:
+                vc_name = sji["job"]["vcName"]
+                available_resource = vc_resources[vc_name]
+                requested_resource = sji["globalResInfo"]
+                detail = [{"message": "waiting for available resource. requested: %s. available: %s" % (available_resource, requested_resource)}]
+                data_handler.UpdateJobTextField(sji["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
         except Exception as e:
             logging.error("Process job failed {}".format(sji["job"]), exc_info=True)
 
