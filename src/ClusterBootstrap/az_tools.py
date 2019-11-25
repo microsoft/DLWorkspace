@@ -119,7 +119,6 @@ def create_vm(vmname, vm_ip, role, vm_size, pwd, vmcnf):
     availability_set = ""
     if role == "worker" and "availability_set" in config["azure_cluster"]:
         availability_set = "--availability-set '%s'" % config["azure_cluster"]["availability_set"]
-    
     cloud_init = ""
     if "cloud_init_%s" % role in config:
         # if not os.path.exists("scripts/cloud_init_%s.sh" % role):
@@ -296,6 +295,13 @@ def create_nsg():
     else:
         print "Please setup source_addresses_prefixes in config.yaml, otherwise, your cluster cannot be accessed"
         exit()
+
+    restricted_source_address_prefixes = "'*'"
+    if "restricted_source_address_prefixes" in config["cloud_config"]:
+        restricted_source_address_prefixes = config["cloud_config"]["restricted_source_address_prefixes"]
+        if isinstance(restricted_source_address_prefixes, list):
+            restricted_source_address_prefixes = " ".join(list(set(restricted_source_address_prefixes)))
+
     cmd = """
         az network nsg create \
             --resource-group %s \
@@ -317,10 +323,12 @@ def create_nsg():
                 --protocol tcp \
                 --priority 1000 \
                 --destination-port-ranges %s \
+                --source-address-prefixes %s \
                 --access allow
             """ % ( config["azure_cluster"]["resource_group_name"],
                     config["azure_cluster"]["nsg_name"],
-                    config["cloud_config"]["tcp_port_ranges"]
+                    config["cloud_config"]["tcp_port_ranges"],
+                    restricted_source_address_prefixes
                     )
         if not no_execution:
             output = utils.exec_cmd_local(cmd)
@@ -335,10 +343,12 @@ def create_nsg():
                 --protocol udp \
                 --priority 1010 \
                 --destination-port-ranges %s \
+                --source-address-prefixes %s \
                 --access allow
             """ % ( config["azure_cluster"]["resource_group_name"],
                     config["azure_cluster"]["nsg_name"],
-                    config["cloud_config"]["udp_port_ranges"]
+                    config["cloud_config"]["udp_port_ranges"],
+                    restricted_source_address_prefixes
                     )
         if not no_execution:
             output = utils.exec_cmd_local(cmd)
@@ -611,6 +621,41 @@ def vm_interconnects():
     print(output)
 
 
+def nfs_allow_master():
+    vminfo = list_vm(False)
+    source_address_prefixes = []
+    for name, onevm in vminfo.iteritems():
+        if "-infra" in name:
+            source_address_prefixes.append(onevm["publicIps"] + "/32")
+    source_address_prefixes = " ".join(source_address_prefixes)
+
+    nsg_names = [config["azure_cluster"]["nfs_nsg_name"]]
+    if "custom_nfs_nsg_names" in config["azure_cluster"]:
+        if isinstance(config["azure_cluster"]["custom_nfs_nsg_names"], list):
+            for nsg_name in config["azure_cluster"]["custom_nfs_nsg_names"]:
+                nsg_names.append(nsg_name)
+
+    for nsg_name in nsg_names:
+        cmd = """
+                az network nsg rule create \
+                    --resource-group %s \
+                    --nsg-name %s \
+                    --name nfs_allow_master \
+                    --protocol tcp \
+                    --priority 1400 \
+                    --destination-port-ranges %s \
+                    --source-address-prefixes %s \
+                    --access allow
+                """ % (config["azure_cluster"]["resource_group_name"],
+                       nsg_name,
+                       config["cloud_config"]["nfs_allow_master"]["tcp_port_ranges"],
+                       source_address_prefixes)
+        if verbose:
+            print cmd
+        output = utils.exec_cmd_local(cmd)
+        print(output)
+
+
 def delete_vm(vmname):
     cmd = """
         az vm delete --resource-group %s \
@@ -767,8 +812,9 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
         for vm in vm_list:
             vmname = vm["name"]
             if "-worker" in vmname:
-                worker_machines += vmname,
-        for vmname in worker_machines:          
+                worker_machines.append(vm),
+        for vm in worker_machines:
+            vmname = vm["name"]
             if isNewlyScaledMachine(vmname):
                 cc["machines"][vmname.lower()] = {
                     "role": "worker", "scaled": True,
@@ -976,6 +1022,9 @@ def run_command(args, command, nargs, parser):
 
     elif command == "delete":
         delete_cluster()
+
+    elif command == "nfsallowmaster":
+        nfs_allow_master()
 
 if __name__ == '__main__':
     # the program always run at the current directory.

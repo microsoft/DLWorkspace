@@ -1,5 +1,5 @@
 default_az_parameters = {
-    "azure_cluster" : { 
+    "azure_cluster" : {
         "subscription": "Bing DLTS",
         "infra_node_num": 1, 
         "worker_node_num": 2, 

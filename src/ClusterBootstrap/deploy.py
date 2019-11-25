@@ -1408,6 +1408,35 @@ def reset_worker_nodes():
         reset_worker_node(node)
 
 
+def update_nfs_nodes(nargs):
+    """Internally use update_worker_node.
+
+    TODO: Should be covered by update_role_nodes in deploy.py V2
+    """
+    # This is to temporarily replace gpu_type with None to disallow nvidia runtime config to appear in /etc/docker/daemon.json
+    prev_gpu_type = config["gpu_type"]
+    config["gpu_type"] = "None"
+    utils.render_template_directory("./template/kubelet", "./deploy/kubelet", config)
+    config["gpu_type"] = prev_gpu_type
+
+    write_nodelist_yaml()
+
+    os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' % config["etcd_endpoints"].replace("/","\\/"))
+    os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' % config["api_servers"].replace("/","\\/"))
+    os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/worker-kubeconfig.yaml.template > ./deploy/kubelet/worker-kubeconfig.yaml' % config["api_servers"].replace("/","\\/"))
+
+    get_hyperkube_docker()
+
+    nfs_nodes = get_nodes_by_roles(["nfs"])
+    nfs_nodes = limit_nodes(nfs_nodes)
+    for node in nfs_nodes:
+        if in_list(node, nargs):
+            update_worker_node(node)
+
+    os.system("rm ./deploy/kubelet/options.env")
+    os.system("rm ./deploy/kubelet/kubelet.service")
+    os.system("rm ./deploy/kubelet/worker-kubeconfig.yaml")
+
 
 def create_MYSQL_for_WebUI():
     #todo: create a mysql database, and set "mysql-hostname", "mysql-username", "mysql-password", "mysql-database"
@@ -2061,6 +2090,16 @@ def deploy_webUI():
     masterIP = config["kubernetes_master_node"][0]
     deploy_restful_API_on_node(masterIP)
     deploy_webUI_on_node(masterIP)
+
+
+def deploy_nfs_config():
+    nfs_nodes = get_nodes_by_roles(["nfs"])
+    for node in nfs_nodes:
+        utils.clean_rendered_target_directory()
+        config["cur_nfs_node"] = node.split(".")[0]
+        utils.render_template_directory("./template/StorageManager", "./deploy/StorageManager", config)
+        utils.sudo_scp(config["ssh_cert"], "./deploy/StorageManager/config.yaml", "/etc/StorageManager/config.yaml", config["admin_username"], node)
+        del config["cur_nfs_node"]
 
 
 def label_webUI(nodename):
@@ -2827,6 +2866,8 @@ def get_node_lists_for_service(service):
         nodetype = labels[service] if service in labels else labels["default"]
         if nodetype == "worker_node":
             nodes = config["worker_node"]
+        elif nodetype == "nfs_node":
+            nodes = config["nfs_node"]
         elif nodetype == "etcd_node":
             nodes = config["etcd_node"]
         elif nodetype.find( "etcd_node_" )>=0:
@@ -3370,6 +3411,16 @@ def run_command( args, command, nargs, parser ):
             gen_configs()
             reset_worker_nodes()
 
+    elif command == "updatenfs":
+        response = raw_input_with_default("Deploy NFS Node(s) (y/n)?")
+        if first_char(response) == "y":
+            check_master_ETCD_status()
+            gen_configs()
+            update_nfs_nodes(nargs)
+
+    elif command == "deploynfsconfig":
+        deploy_nfs_config()
+
     elif command == "listmac":
         nodes = get_nodes(config["clusterId"])
         for node in nodes:
@@ -3579,6 +3630,7 @@ def run_command( args, command, nargs, parser ):
             update_reporting_service()
 
     elif command == "display" or command == "clusterinfo":
+        configuration( config, verbose )
         configuration( config, verbose )
         check_master_ETCD_status()
 
