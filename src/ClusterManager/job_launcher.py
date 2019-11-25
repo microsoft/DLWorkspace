@@ -390,6 +390,13 @@ class JobRole(object):
 
         return phase
 
+    def pod_restricted_details(self):
+        detail = dict()
+        detail["node_name"] = self.pod.spec.node_name
+        detail["host_ip"] = self.pod.status.host_ip
+        detail["pod_ip"] = self.pod.status.pod_ip
+        return detail
+
     def pod_details(self):
         return self.pod
 

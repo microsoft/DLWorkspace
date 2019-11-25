@@ -391,7 +391,12 @@ def check_job_status(job_id):
     details = []
     for job_role in job_roles:
         details.append(job_role.pod_details().to_dict())
-    logging.info("Job {}, details: {}".format(job_id, details))
+    logging.debug("Job {}, details: {}".format(job_id, details))
+
+    restricted_details = [
+        job_role.pod_restricted_details() for job_role in job_roles
+    ]
+    logging.info("Job: {}, restricted details: {}".format(job_id, restricted_details))
 
     job_status = "Running"
 
