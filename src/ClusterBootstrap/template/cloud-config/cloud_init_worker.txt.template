@@ -1,0 +1,11 @@
+#cloud-config
+runcmd:
+ - echo $USER
+ - curl -fsSL https://get.docker.com -o get-docker.sh; sh get-docker.sh
+ - docker pull {{cnf["dockerregistry"]}}{{cnf["cluster_name"]}}/cloudinit
+ - docker create -ti --name bootpack {{cnf["dockerregistry"]}}{{cnf["cluster_name"]}}/cloudinit bash
+ - docker cp bootpack:/usr/worker_cld_init.tar ./
+ - tar -xvf worker_cld_init.tar
+ - cd worker_cld_init
+ - bash ./cloud_init_worker.sh
+output: {all: '| tee -a /home/core/cloud-init-output.log'}
