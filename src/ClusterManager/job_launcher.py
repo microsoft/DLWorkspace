@@ -360,7 +360,7 @@ class JobRole(object):
             deployer = JobDeployer()
             pods = deployer.get_pods(field_selector="metadata.name={}".format(self.pod_name))
             logging.debug("Pods: {}".format(pods))
-            if(len(pods) < 1):
+            if len(pods) < 1:
                 return "NotFound"
 
             assert(len(pods) == 1)
@@ -369,9 +369,19 @@ class JobRole(object):
         phase = self.pod.status.phase
 
         # !!! Pod is running, doesn't mean "Role" is ready and running.
-        if(phase == "Running"):
+        if phase == "Running":
             # Found that phase won't turn into "Unkonwn" even when we get 'unknown' from kubectl
             if self.pod.status.reason == "NodeLost":
+                return "Unknown"
+
+            # Starting from v1.13, TaintBasedEvictions are enabled by default. NodeLost no longer
+            # exists. Use deletionTimstamp to signal node lost.
+            # See below for details:
+            # https://github.com/kubernetes/kubernetes/issues/72226
+            # https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+            if self.pod.metadata.deletion_timestamp is not None:
+                logger.info("pod %s has deletion_timestamp %s. Marking pod as Unknown." %
+                            (self.pod_name, self.pod.metadata.deletion_timestamp))
                 return "Unknown"
 
             # Check if the user command had been ran.
