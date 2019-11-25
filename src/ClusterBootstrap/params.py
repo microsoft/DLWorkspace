@@ -1,7 +1,7 @@
 # These are the default configuration parameter
 default_config_parameters = {
     "supported_platform": ["azure_cluster", "onpremise"],
-    "allroles": {"infra", "infrastructure", "worker", "nfs", "sql", "dev"},
+    "allroles": {"infra", "infrastructure", "worker", "nfs", "sql", "dev", "etcd", "kubernetes_master"},
     # Kubernetes setting
     "service_cluster_ip_range": "10.3.0.0/16",
     "pod_ip_range": "10.2.0.0/16",
@@ -65,6 +65,7 @@ default_config_parameters = {
     "restfulapi": "restfulapi",
     # StorageManager mapping
     "storagemanager": "storagemanager",
+    "repairmanager": "repairmanager",
     "ssh_cert": "./deploy/sshkey/id_rsa",
     "admin_username": "core",
     # the path of where dfs/nfs is source linked and consumed on each node,
@@ -229,6 +230,7 @@ default_config_parameters = {
         "webportal": "etcd_node_1",
         "restfulapi": "etcd_node_1",
         "jobmanager": "etcd_node_1",
+        "repairmanager": "etcd_node_1",
         "FragmentGPUJob": "all",
         "grafana": "etcd_node_1",
         "prometheus": "etcd_node_1",

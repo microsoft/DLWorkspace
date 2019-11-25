@@ -27,7 +27,6 @@ try:
                 rule_config = yaml.safe_load(rule_file)
 
             rules = rule_config['rules']
-            wait_time = rule_config['wait_time']
     
         except Exception as e:
                 logger.exception('Error loading modules/rule config')
@@ -47,7 +46,7 @@ try:
                 if rule.check_status():
                     rule.take_action()
 
-                time.sleep(wait_time)
+                time.sleep(rule_config['wait_time'])
 
             except Exception as e:
                 logger.exception('Error executing ' + class_name + ' from module ' +  module_name)

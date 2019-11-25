@@ -1,6 +1,8 @@
 const axiosist = require('axiosist')
 const sinon = require('sinon')
 const nock = require('nock')
+const _ = require('lodash')
+
 const User = require('../../../api/services/user')
 const api = require('../../../api').callback()
 
@@ -44,5 +46,18 @@ describe('POST /clusters/:clusterid/jobs', () => {
     const response = await axiosist(api).post('/clusters/Universe/jobs',
       {}, {params: userParams})
     response.status.should.equal(400)
+  })
+
+  it('should forcely set userName as current user in the submitted job', async () => {
+    nock('http://universe')
+      .post('/PostJob', _.matches({ userName: 'dlts@example.com' }))
+      .reply(200, {
+        message: 'job adding succeeded'
+      })
+    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves()
+
+    const response = await axiosist(api).post('/clusters/Universe/jobs',
+      { vcName: 'test', userName: 'foo' }, { params: userParams })
+    response.status.should.equal(200)
   })
 })
