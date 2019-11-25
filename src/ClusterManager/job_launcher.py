@@ -535,7 +535,7 @@ class PythonLauncher(Launcher):
             job_object.params["user"] = job_object.get_alias()
 
             if "job_token" not in job_object.params:
-                if "user_sign_token" in config and "user_sign_token" is not None and "userName" in job_object.params:
+                if "user_sign_token" in config and config["user_sign_token"] is not None and "userName" in job_object.params:
                     job_object.params["job_token"] = hashlib.md5(job_object.params["userName"]+":"+config["user_sign_token"]).hexdigest()
                 else:
                     job_object.params["job_token"] = "tryme2017"
