@@ -28,7 +28,7 @@ deployer = JobDeployer()
 
 
 def is_ssh_server_ready(pod_name):
-    bash_script = "sudo service ssh status"
+    bash_script = "service ssh status"
     output = k8sUtils.kubectl_exec("exec %s %s" % (pod_name, " -- " + bash_script))
     if output == "":
         return False
@@ -47,7 +47,7 @@ def query_ssh_port(pod_name):
 
 def start_ssh_server(pod_name, user_name, host_network=False, ssh_port=22):
     '''Setup the ssh server in container, and return the listening port.'''
-    bash_script = "sudo bash -c 'apt-get update && apt-get install -y openssh-server && cd /home/" + user_name + " && (chown " + user_name + " -R .ssh; chmod 600 -R .ssh/*; chmod 700 .ssh; true) && service ssh restart'"
+    bash_script = "bash -c 'apt-get update && apt-get install -y openssh-server && cd /home/" + user_name + " && (chown " + user_name + " -R .ssh; chmod 600 -R .ssh/*; chmod 700 .ssh; true) && service ssh restart'"
 
     # ssh_port = 22
 
@@ -58,7 +58,7 @@ def start_ssh_server(pod_name, user_name, host_network=False, ssh_port=22):
             ssh_port = random.randint(40000, 49999)
         # bash_script = "sed -i '/^Port 22/c Port "+str(ssh_port)+"' /etc/ssh/sshd_config && "+bash_script
         # TODO refine the script later
-        bash_script = "sudo bash -c 'apt-get update && apt-get install -y openssh-server && sed -i \"s/^Port/#&/\" /etc/ssh/sshd_config && echo \"Port " + str(ssh_port) + "\" >> /etc/ssh/sshd_config && cd /home/" + user_name + " && (chown " + user_name + " -R .ssh; chmod 600 -R .ssh/*; chmod 700 .ssh; true) && service ssh restart'"
+        bash_script = "bash -c 'apt-get update && apt-get install -y openssh-server && sed -i \"s/^Port/#&/\" /etc/ssh/sshd_config && echo \"Port " + str(ssh_port) + "\" >> /etc/ssh/sshd_config && cd /home/" + user_name + " && (chown " + user_name + " -R .ssh; chmod 600 -R .ssh/*; chmod 700 .ssh; true) && service ssh restart'"
 
     # TODO setup reasonable timeout
     # output = k8sUtils.kubectl_exec("exec %s %s" % (jobId, " -- " + bash_script), 1)
@@ -125,7 +125,7 @@ def setup_ssh_server(user_name, pod_name, host_network=False):
 def setup_jupyter_server(user_name, pod_name):
 
     jupyter_port = random.randint(40000, 49999)
-    bash_script = "sudo bash -c 'export DEBIAN_FRONTEND=noninteractive; apt-get update && apt-get install -y python3-pip && python3 -m pip install --upgrade pip && python3 -m pip install jupyter && cd /home/" + user_name + " && runuser -l " + user_name + " -c \"jupyter notebook --no-browser --ip=0.0.0.0 --NotebookApp.token= --port=" + str(jupyter_port) + " &>/dev/null &\"'"
+    bash_script = "bash -c 'export DEBIAN_FRONTEND=noninteractive; apt-get update && apt-get install -y python3-pip && python3 -m pip install --upgrade pip && python3 -m pip install jupyter && cd /home/" + user_name + " && runuser -l " + user_name + " -c \"jupyter notebook --no-browser --ip=0.0.0.0 --NotebookApp.token= --port=" + str(jupyter_port) + " &>/dev/null &\"'"
     output = k8sUtils.kubectl_exec("exec %s %s" % (pod_name, " -- " + bash_script))
     if output == "":
         raise Exception("Failed to start jupyter server in container. JobId: %s " % pod_name)
@@ -134,7 +134,7 @@ def setup_jupyter_server(user_name, pod_name):
 
 def setup_tensorboard(user_name, pod_name):
     tensorboard_port = random.randint(40000, 49999)
-    bash_script = "sudo bash -c 'export DEBIAN_FRONTEND=noninteractive; pip install tensorboard; runuser -l " + user_name + " -c \"mkdir -p ~/tensorboard/\${DLWS_JOB_ID}/logs; nohup tensorboard --logdir=~/tensorboard/\${DLWS_JOB_ID}/logs --port=" + str(tensorboard_port) + " &>/dev/null &\"'"
+    bash_script = "bash -c 'export DEBIAN_FRONTEND=noninteractive; pip install tensorboard; runuser -l " + user_name + " -c \"mkdir -p ~/tensorboard/\${DLWS_JOB_ID}/logs; nohup tensorboard --logdir=~/tensorboard/\${DLWS_JOB_ID}/logs --port=" + str(tensorboard_port) + " &>/dev/null &\"'"
     output = k8sUtils.kubectl_exec("exec %s %s" % (pod_name, " -- " + bash_script))
     if output == "":
         raise Exception("Failed to start tensorboard in container. JobId: %s " % pod_name)
