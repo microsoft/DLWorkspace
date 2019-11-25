@@ -236,6 +236,34 @@ def mount_fileshare(verbose=True):
     if nMounts > 0:
         time.sleep(1)
 
+def link_fileshare():
+    with open("mounting.yaml", 'r') as datafile:
+        config = yaml.load(datafile)
+        datafile.close()
+#    print config
+    allmountpoints = config["mountpoints"]
+    (retcode, output, err) = exec_with_output("sudo mount")
+    for k,v in allmountpoints.iteritems():
+        if "mountpoints" in v and v["type"]!="emptyDir":
+            if output.find(v["curphysicalmountpoint"]) < 0:
+                logging.debug("!!!Warning!!! %s has not been mounted at %s " % (k, v["curphysicalmountpoint"]))
+                logging.debug(output)
+            else:
+                for basename in v["mountpoints"]:
+                    dirname = os.path.join(v["curphysicalmountpoint"], basename )
+                    exec_wo_output("sudo mkdir -p %s; " % dirname)
+                    exec_wo_output("sudo chmod ugo+rwx %s; " % dirname)
+            for basename in v["mountpoints"]:
+                dirname = os.path.join(v["curphysicalmountpoint"], basename )
+                storage_mount_path = config["storage-mount-path"]
+
+                if ("vc" in v) and (v["vc"] != ""):
+                    storage_mount_path = os.path.join(config["dltsdata-storage-mount-path"], v["vc"])
+                    exec_wo_output("sudo mkdir -p %s; " % storage_mount_path)
+
+                linkdir = os.path.join(storage_mount_path, basename)
+                exec_wo_output("if [ ! -e %s ]; then sudo ln -s %s %s; fi; " % (linkdir, dirname, linkdir))    
+
 def start_logging( logdir = '/var/log/auto_share' ):
     if not os.path.exists( logdir ):
         os.system("mkdir -p " + logdir )
@@ -261,20 +289,12 @@ Automatically monitor and mount file share.
     args = parser.parse_args()
     start_logging()
     logging.debug( "Run as user %s" % getpass.getuser() )
-    lockfile = os.path.join(dir_path, "lock")
     try:
-        lockfd = os.open( lockfile, os.O_CREAT | os.O_WRONLY | os.O_EXCL )
-        try:
-            mount_fileshare()
-        except:
-            logging.debug( "Exception when mounting files... "  )    
-        else:
-            logging.debug( "Examined all mounting points... "  )    
-        os.close( lockfd )
-        os.remove( lockfile )
-        logging.debug( "Remove lock ... " )
-    except OSError:
-        logging.debug( "Lock file %s exist, another autho_share still running? Do nothing. " %lockfile )    
-    
+        mount_fileshare()
+        link_fileshare()
+    except:
+        logging.debug( "Exception when mounting files... "  )    
+    else:
+        logging.debug( "Examined all mounting points... "  )    
     logging.debug( "End auto_share ... " )
 
