@@ -64,4 +64,4 @@ enable_blobfuse: {{cnf["enable_blobfuse"]}}
 local_fast_storage: {{cnf["local_fast_storage"]}}
 user_sign_token: {{cnf["user_sign_token"]}}
 
-enable_custom_image_secrets: {{cnf["enable_custom_image_secrets"]}}
+enable_custom_registry_secrets: {{cnf["enable_custom_registry_secrets"]}}

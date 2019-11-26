@@ -251,8 +251,8 @@ class Job:
     def get_enable_blobfuse(self):
         return self._get_cluster_config("enable_blobfuse")
 
-    def get_enable_custom_image_secrets(self):
-        return self._get_cluster_config("enable_custom_image_secrets")
+    def get_enable_custom_registry_secrets(self):
+        return self._get_cluster_config("enable_custom_registry_secrets")
 
     def _get_cluster_config(self, key):
         if key in self.cluster:
@@ -376,9 +376,9 @@ class Job:
     def get_image_pull_secret_plugins(self, plugins):
         """Constructs and returns a list of imagePullSecrets plugins."""
 
-        enable_custom_image_secrets = self.get_enable_custom_image_secrets()
-        if enable_custom_image_secrets is None or \
-                enable_custom_image_secrets is False:
+        enable_custom_registry_secrets = self.get_enable_custom_registry_secrets()
+        if enable_custom_registry_secrets is None or \
+                enable_custom_registry_secrets is False:
             return []
 
         image_pull_secrets = []

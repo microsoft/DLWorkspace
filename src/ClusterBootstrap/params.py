@@ -678,7 +678,7 @@ default_config_parameters = {
     "custom_mounts": [],
     "enable_cpuworker": False,
     "enable_blobfuse": False,
-    "enable_custom_image_secrets": False
+    "enable_custom_registry_secrets": False
 }
 
 # These are super scripts
