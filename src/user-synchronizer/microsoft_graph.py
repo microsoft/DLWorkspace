@@ -28,7 +28,6 @@ logger.info('Token: {}'.format(token))
 def _iter_objects(url):
     while url is not None:
         response = oauth.get(url)
-        response = oauth.get(url)
         response.raise_for_status()
         response_json = response.json()
         objects = response_json['value']

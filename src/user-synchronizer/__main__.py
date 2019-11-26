@@ -52,9 +52,6 @@ def update_identity(user_name, identity):
     logger.info('Updated {} to cluster'.format(user_name))
 
 
-failed = False
-
-
 for group_identity in iter_group_identities():
     try:
         group_mail = group_identity['identityName']
@@ -70,18 +67,10 @@ for group_identity in iter_group_identities():
                         identity = get_identity(user_name)
                         update_identity(user_name, identity)
                     except Exception:
-                        failed = True
-                        logger.exception('Exception in iter_group_members({})'.format(group_id))
+                        logger.exception('Exception in member {}'.format(member))
 
             except Exception:
-                failed = True
-                logger.exception(
-                    'Exception in iter_groups({})'.format(group_mail))
+                logger.exception('Exception in processing group {}'.format(group))
 
     except Exception:
-        failed = True
-        logger.exception('Exception in iter_group_identities()')
-
-
-if failed:
-    raise Exception('Exception raised during execution')
+        logger.exception('Exception in processing group identity {}'.format(group_identity))
