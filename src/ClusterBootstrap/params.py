@@ -677,7 +677,8 @@ default_config_parameters = {
     "infiniband_mounts": [],
     "custom_mounts": [],
     "enable_cpuworker": False,
-    "enable_blobfuse": False
+    "enable_blobfuse": False,
+    "enable_custom_image_secrets": False
 }
 
 # These are super scripts

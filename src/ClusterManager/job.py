@@ -379,7 +379,7 @@ class Job:
         enable_custom_image_secrets = self.get_enable_custom_image_secrets()
         if enable_custom_image_secrets is None or \
                 enable_custom_image_secrets is False:
-            return None
+            return []
 
         image_pull_secrets = []
         for i, image_pull in enumerate(plugins):
