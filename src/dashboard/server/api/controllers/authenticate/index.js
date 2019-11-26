@@ -67,8 +67,6 @@ module.exports = async context => {
     context.log.info(idToken, 'Id token')
 
     const user = User.fromIdToken(context, idToken)
-    const data = await user.fillIdFromWinbind()
-    user.addUserToCluster(data)
 
     context.cookies.set('token', user.toCookieToken())
 

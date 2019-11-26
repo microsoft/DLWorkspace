@@ -1,5 +1,4 @@
 const axiosist = require('axiosist')
-const sinon = require('sinon')
 const nock = require('nock')
 const _ = require('lodash')
 
@@ -18,7 +17,6 @@ describe('POST /clusters/:clusterid/jobs', () => {
       .reply(200, {
         message: 'job adding succeeded'
       })
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).post('/clusters/Universe/jobs',
       { vcName: 'test' }, { params: userParams })
@@ -32,7 +30,6 @@ describe('POST /clusters/:clusterid/jobs', () => {
       .reply(200, {
         message: 'job adding succeeded'
       })
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).post('/clusters/Universe/jobs',
       { vcName: 'test', team: null }, { params: userParams })
@@ -41,7 +38,6 @@ describe('POST /clusters/:clusterid/jobs', () => {
     response.data.should.have.property('message', 'job adding succeeded')
   })
   it('should response 400 Bad Request if job schema is invalid', async () => {
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).post('/clusters/Universe/jobs',
       {}, {params: userParams})
@@ -54,7 +50,6 @@ describe('POST /clusters/:clusterid/jobs', () => {
       .reply(200, {
         message: 'job adding succeeded'
       })
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves()
 
     const response = await axiosist(api).post('/clusters/Universe/jobs',
       { vcName: 'test', userName: 'foo' }, { params: userParams })

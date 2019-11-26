@@ -1,5 +1,4 @@
 const axiosist = require('axiosist')
-const sinon = require('sinon')
 const nock = require('nock')
 const User = require('../../../../api/services/user')
 const api = require('../../../../api').callback()
@@ -20,7 +19,6 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/priority', () => {
       .reply(200, {
         message: 'priority set successfully'
       })
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).put('/clusters/Universe/jobs/testjob/priority',
     {priority: 0}, {params: userParams})
@@ -33,7 +31,6 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/priority', () => {
     nock('http://universe')
       .post('/jobs/priorities?' + setPriorityParams, {['testjob']: /[0-9]+/})
       .reply(500)
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).put('/clusters/Universe/jobs/testjob/priority',
     {priority: 0}, {params: userParams})

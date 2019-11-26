@@ -1,5 +1,4 @@
 const axiosist = require('axiosist')
-const sinon = require('sinon')
 const nock = require('nock')
 const User = require('../../../../api/services/user')
 const api = require('../../../../api').callback()
@@ -37,7 +36,6 @@ describe('POST /clusters/:clusterId/jobs/:jobId/commands', () => {
       .reply(200, {
         message: 'command adding succeeded'
       })
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).post('/clusters/Universe/jobs/testjob/commands',
     {command: 'testcommand'}, {params: userParams})
@@ -50,7 +48,6 @@ describe('POST /clusters/:clusterId/jobs/:jobId/commands', () => {
     nock('http://universe')
       .get('/AddCommand?' + addCommandParams)
       .reply(500)
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).post('/clusters/Universe/jobs/testjob/commands',
     {command: 'testcommand'}, {params: userParams})
@@ -66,7 +63,6 @@ describe('POST /clusters/:clusterId/jobs/:jobId/endpoints', () => {
       .reply(200, {
         message: 'endpoints adding succeeded'
       })
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).post('/clusters/Universe/jobs/testjob/endpoints',
     testEndpoints, {params: userParams})
@@ -79,7 +75,6 @@ describe('POST /clusters/:clusterId/jobs/:jobId/endpoints', () => {
     nock('http://universe')
       .post('/endpoints?' + addEndpointsParams)
       .reply(500)
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).post('/clusters/Universe/jobs/testjob/endpoints',
     testEndpoints, {params: userParams})

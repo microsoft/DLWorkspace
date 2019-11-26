@@ -1,5 +1,4 @@
 const axiosist = require('axiosist')
-const sinon = require('sinon')
 const nock = require('nock')
 const User = require('../../../../api/services/user')
 const api = require('../../../../api').callback()
@@ -21,7 +20,6 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/status', () => {
       .reply(200, {
         message: 'status approved set successfully'
       })
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).put('/clusters/Universe/jobs/testjob/status',
     {status: 'approved'}, {params: userParams})
@@ -36,7 +34,6 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/status', () => {
       .reply(200, {
         message: 'status killing set successfully'
       })
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).put('/clusters/Universe/jobs/testjob/status',
     {status: 'killing'}, {params: userParams})
@@ -51,7 +48,6 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/status', () => {
       .reply(200, {
         message: 'status pausing set successfully'
       })
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).put('/clusters/Universe/jobs/testjob/status',
     {status: 'pausing'}, {params: userParams})
@@ -67,7 +63,6 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/status', () => {
       .reply(200, {
         message: 'status queued set successfully'
       })
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).put('/clusters/Universe/jobs/testjob/status',
     {status: 'queued'}, {params: userParams})
@@ -80,7 +75,6 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/status', () => {
     nock('http://universe')
       .get('/ApproveJob?' + setStatusParams)
       .reply(500)
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).put('/clusters/Universe/jobs/testjob/status',
     {status: 'approved'}, {params: userParams})
@@ -92,7 +86,6 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/status', () => {
     nock('http://universe')
       .get('/KillJob?' + setStatusParams)
       .reply(500)
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).put('/clusters/Universe/jobs/testjob/status',
     {status: 'killing'}, {params: userParams})
@@ -104,7 +97,6 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/status', () => {
     nock('http://universe')
       .get('/PauseJob?' + setStatusParams)
       .reply(500)
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).put('/clusters/Universe/jobs/testjob/status',
     {status: 'pausing'}, {params: userParams})
@@ -116,7 +108,6 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/status', () => {
     nock('http://universe')
       .get('/ResumeJob?' + setStatusParams)
       .reply(500)
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).put('/clusters/Universe/jobs/testjob/status',
     {status: 'queued'}, {params: userParams})
@@ -125,7 +116,6 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/status', () => {
   })
 
   it('[N-05] should return 400 Invalid status when status is invalid', async () => {
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).put('/clusters/Universe/jobs/testjob/status',
     {status: 'invalid'}, {params: userParams})

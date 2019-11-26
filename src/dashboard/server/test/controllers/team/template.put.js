@@ -1,5 +1,4 @@
 const axiosist = require('axiosist')
-const sinon = require('sinon')
 const nock = require('nock')
 const config = require('config')
 const api = require('../../../api').callback()
@@ -30,7 +29,6 @@ describe('PUT /teams/:teamId/templates/:templateName', () => {
           message: 'template updated successfully'
         })
     }
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api)
       .put('/teams/testteam/templates/newtemplate', null, {
@@ -46,7 +44,6 @@ describe('PUT /teams/:teamId/templates/:templateName', () => {
         .post('/templates?' + updateTemplateParams)
         .reply(500)
     }
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api)
       .put('/teams/testteam/templates/newtemplate', null, {

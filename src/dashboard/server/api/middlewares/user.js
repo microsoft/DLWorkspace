@@ -12,7 +12,6 @@ module.exports = (forceAuthenticated = true) => async (context, next) => {
 
     if (password) {
       const user = context.state.user = User.fromPassword(context, email, password)
-      await user.fillIdFromWinbind()
       context.log.debug(user, 'Authenticated by password')
     }
   } else if (context.cookies.get('token')) {
