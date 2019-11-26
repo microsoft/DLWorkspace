@@ -2,6 +2,7 @@ import sys
 import os
 import random
 import re
+import json
 from marshmallow import Schema, fields, post_load, validate
 from jinja2 import Environment, FileSystemLoader, Template
 
@@ -207,6 +208,10 @@ class Job:
         """Returns azure blobfuse secret template."""
         return self._get_template("blobfuse_secret.yaml.template")
 
+    def get_image_pull_secret_template(self):
+        """Returns image pull secret template."""
+        return self._get_template("image_pull_secret.yaml.template")
+
     def _get_template(self, template_name):
         """Returns template instance based on template_name."""
         path = os.path.abspath(os.path.join(self.cluster["root-path"], "Jobs_Templete", template_name))
@@ -245,6 +250,9 @@ class Job:
 
     def get_enable_blobfuse(self):
         return self._get_cluster_config("enable_blobfuse")
+
+    def get_enable_custom_image_secrets(self):
+        return self._get_cluster_config("enable_custom_image_secrets")
 
     def _get_cluster_config(self, key):
         if key in self.cluster:
@@ -299,10 +307,13 @@ class Job:
             return {}
 
         ret = {}
-        for plugin, config in plugins.items():
-            if plugin == "blobfuse" and isinstance(plugins["blobfuse"], list):
-                blobfuse = self.get_blobfuse_plugins(plugins["blobfuse"])
+        for plugin, plugin_config in plugins.items():
+            if plugin == "blobfuse" and isinstance(plugin_config, list):
+                blobfuse = self.get_blobfuse_plugins(plugin_config)
                 ret["blobfuse"] = blobfuse
+            elif plugin == "imagePull" and isinstance(plugin_config, list):
+                image_pulls = self.get_image_pull_secret_plugins(plugin_config)
+                ret["imagePull"] = image_pulls
         return ret
 
     def get_blobfuse_plugins(self, plugins):
@@ -361,6 +372,47 @@ class Job:
             # TODO: Deduplicate blobfuse plugins
             blobfuse = dedup_add(bf, blobfuse, identical)
         return blobfuse
+
+    def get_image_pull_secret_plugins(self, plugins):
+        """Constructs and returns a list of imagePullSecrets plugins."""
+
+        enable_custom_image_secrets = self.get_enable_custom_image_secrets()
+        if enable_custom_image_secrets is None or \
+                enable_custom_image_secrets is False:
+            return None
+
+        image_pull_secrets = []
+        for i, image_pull in enumerate(plugins):
+            registry = image_pull.get("registry")
+            username = image_pull.get("username")
+            password = image_pull.get("password")
+
+            if invalid_entry(registry) or \
+                    invalid_entry(username) or \
+                    invalid_entry(password):
+                continue
+
+            auth = base64.b64encode("%s:%s" % (username, password))
+
+            auths = {
+                "auths": {
+                    registry: {
+                        "auth": auth
+                    }
+                }
+            }
+
+            dockerconfigjson = base64.b64encode(json.dumps(auths))
+
+            secret = {
+                "enabled": True,
+                "name": "%s-imagePull-%d-secreds" % (self.job_id, i),
+                "dockerconfigjson": dockerconfigjson,
+                "jobId": self.job_id
+            }
+            image_pull_secrets.append(secret)
+
+        return image_pull_secrets
 
 
 class JobSchema(Schema):

@@ -15,10 +15,10 @@ from osUtils import mkdirsAsUser
 
 
 class DistPodTemplate():
-    def __init__(self, template, enable_custom_scheduler=False, secret_template=None):
+    def __init__(self, template, enable_custom_scheduler=False, secret_templates=None):
         self.template = template
         self.enable_custom_scheduler = enable_custom_scheduler
-        self.secret_template = secret_template
+        self.secret_templates = secret_templates
 
     @staticmethod
     def generate_launch_script(dist_role, dist_role_idx, user_id, job_path, cmd):
@@ -181,15 +181,32 @@ class DistPodTemplate():
 
         # Create secret config for each plugins
         k8s_secrets = []
-        for plugin, config in plugins.items():
-            if plugin == "blobfuse" and isinstance(plugins["blobfuse"], list):
-                for bf in plugins["blobfuse"]:
-                    k8s_secret = self.generate_secret(bf)
+        for plugin, plugin_config in plugins.items():
+            if plugin == "blobfuse" and isinstance(plugin_config, list):
+                for bf in plugin_config:
+                    k8s_secret = self.generate_blobfuse_secret(bf)
+                    k8s_secrets.append(k8s_secret)
+            elif plugin == "imagePull" and isinstance(plugin_config, list):
+                for image_pull in plugin_config:
+                    k8s_secret = self.generate_image_pull_secret(image_pull)
                     k8s_secrets.append(k8s_secret)
         return k8s_secrets
 
-    def generate_secret(self, plugin):
-        assert self.secret_template is not None
-        assert isinstance(self.template, Template)
-        secret_yaml = self.secret_template.render(plugin=plugin)
+    def generate_blobfuse_secret(self, plugin):
+        assert self.secret_templates is not None
+        assert "blobfuse" in self.secret_templates
+        secret_template = self.secret_templates["blobfuse"]
+        assert isinstance(secret_template, Template)
+
+        secret_yaml = secret_template.render(plugin=plugin)
         return yaml.full_load(secret_yaml)
+
+    def generate_image_pull_secret(self, plugin):
+        assert self.secret_templates is not None
+        assert "imagePull" in self.secret_templates
+        secret_template = self.secret_templates["imagePull"]
+        assert isinstance(secret_template, Template)
+
+        secret_yaml = secret_template.render(plugin=plugin)
+        return yaml.full_load(secret_yaml)
+
