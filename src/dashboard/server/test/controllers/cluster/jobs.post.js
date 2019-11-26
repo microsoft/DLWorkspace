@@ -38,9 +38,8 @@ describe('POST /clusters/:clusterid/jobs', () => {
     response.data.should.have.property('message', 'job adding succeeded')
   })
   it('should response 400 Bad Request if job schema is invalid', async () => {
-
     const response = await axiosist(api).post('/clusters/Universe/jobs',
-      {}, {params: userParams})
+      {}, { params: userParams })
     response.status.should.equal(400)
   })
 

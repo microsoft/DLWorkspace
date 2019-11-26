@@ -22,7 +22,7 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/status', () => {
       })
 
     const response = await axiosist(api).put('/clusters/Universe/jobs/testjob/status',
-    {status: 'approved'}, {params: userParams})
+      { status: 'approved' }, { params: userParams })
 
     response.status.should.equal(200)
     response.data.should.have.property('message', 'status approved set successfully')
@@ -36,7 +36,7 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/status', () => {
       })
 
     const response = await axiosist(api).put('/clusters/Universe/jobs/testjob/status',
-    {status: 'killing'}, {params: userParams})
+      { status: 'killing' }, { params: userParams })
 
     response.status.should.equal(200)
     response.data.should.have.property('message', 'status killing set successfully')
@@ -50,7 +50,7 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/status', () => {
       })
 
     const response = await axiosist(api).put('/clusters/Universe/jobs/testjob/status',
-    {status: 'pausing'}, {params: userParams})
+      { status: 'pausing' }, { params: userParams })
 
     response.status.should.equal(200)
     response.data.should.have.property('message', 'status pausing set successfully')
@@ -65,7 +65,7 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/status', () => {
       })
 
     const response = await axiosist(api).put('/clusters/Universe/jobs/testjob/status',
-    {status: 'queued'}, {params: userParams})
+      { status: 'queued' }, { params: userParams })
 
     response.status.should.equal(200)
     response.data.should.have.property('message', 'status queued set successfully')
@@ -77,10 +77,10 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/status', () => {
       .reply(500)
 
     const response = await axiosist(api).put('/clusters/Universe/jobs/testjob/status',
-    {status: 'approved'}, {params: userParams})
+      { status: 'approved' }, { params: userParams })
 
     response.status.should.equal(500)
-    })
+  })
 
   it('[N-02] should return response status if killing set failed', async () => {
     nock('http://universe')
@@ -88,7 +88,7 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/status', () => {
       .reply(500)
 
     const response = await axiosist(api).put('/clusters/Universe/jobs/testjob/status',
-    {status: 'killing'}, {params: userParams})
+      { status: 'killing' }, { params: userParams })
 
     response.status.should.equal(500)
   })
@@ -99,7 +99,7 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/status', () => {
       .reply(500)
 
     const response = await axiosist(api).put('/clusters/Universe/jobs/testjob/status',
-    {status: 'pausing'}, {params: userParams})
+      { status: 'pausing' }, { params: userParams })
 
     response.status.should.equal(500)
   })
@@ -110,15 +110,14 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/status', () => {
       .reply(500)
 
     const response = await axiosist(api).put('/clusters/Universe/jobs/testjob/status',
-    {status: 'queued'}, {params: userParams})
+      { status: 'queued' }, { params: userParams })
 
     response.status.should.equal(500)
   })
 
   it('[N-05] should return 400 Invalid status when status is invalid', async () => {
-
     const response = await axiosist(api).put('/clusters/Universe/jobs/testjob/status',
-    {status: 'invalid'}, {params: userParams})
+      { status: 'invalid' }, { params: userParams })
 
     response.status.should.equal(400)
   })
