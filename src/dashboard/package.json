@@ -58,7 +58,6 @@
     "@types/react-swipeable-views": "^0.13.0",
     "@types/recharts": "^1.1.16",
     "@types/should": "^13.0.0",
-    "@types/sinon": "^7.5.0",
     "@types/tough-cookie": "^2.3.5",
     "@types/uuid": "^3.4.5",
     "axiosist": "^0.7.0",
@@ -74,7 +73,6 @@
     "nyc": "^14.1.1",
     "react-scripts": "^3.0.1",
     "should": "^13.2.3",
-    "sinon": "^7.5.0",
     "tough-cookie": "^3.0.1",
     "typescript": "^3.5.2"
   },
@@ -83,6 +81,7 @@
     "frontend": "react-scripts start",
     "build": "react-scripts build",
     "backend": "nodemon server",
+    "lint:backend": "eslint server",
     "test:backend": "mocha --config server/.mocharc.js",
     "coverage:backend": "nyc --nycrc-path server/.nycrc.js npm run test:backend",
     "report:backend": "nyc --nycrc-path server/.nycrc.js report --reporter html"

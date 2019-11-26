@@ -1,11 +1,9 @@
 const axiosist = require('axiosist')
 const nock = require('nock')
 const jwt = require('jsonwebtoken')
-const sinon = require('sinon')
 const touge = require('tough-cookie')
 
 const api = require('../api').callback()
-const User = require('../api/services/user')
 
 describe('GET /authenticate', () => {
   it('should redirect the user to login page.', async () => {
@@ -28,10 +26,6 @@ describe('GET /authenticate', () => {
       .reply(200, {
         id_token: jwt.sign({ upn: email }, 'fake sign')
       })
-
-    const mock = sinon.mock(User.prototype)
-    mock.expects('fillIdFromWinbind').once().resolves()
-    mock.expects('addUserToCluster').once().resolves()
 
     const response = await axiosist(api).get('/authenticate', {
       params: {
