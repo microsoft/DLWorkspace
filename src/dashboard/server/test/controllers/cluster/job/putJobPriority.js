@@ -15,13 +15,13 @@ const setPriorityParams = new URLSearchParams({
 describe('PUT /clusters/:clusterId/jobs/:jobId/priority', () => {
   it('should return OK if priority set successfully', async () => {
     nock('http://universe')
-      .post('/jobs/priorities?' + setPriorityParams, {['testjob']: /[0-9]+/})
+      .post('/jobs/priorities?' + setPriorityParams, { 'testjob': /[0-9]+/ })
       .reply(200, {
         message: 'priority set successfully'
       })
 
     const response = await axiosist(api).put('/clusters/Universe/jobs/testjob/priority',
-    {priority: 0}, {params: userParams})
+      { priority: 0 }, { params: userParams })
 
     response.status.should.equal(200)
     response.data.should.have.property('message', 'priority set successfully')
@@ -29,11 +29,11 @@ describe('PUT /clusters/:clusterId/jobs/:jobId/priority', () => {
 
   it('should return 502 Bad Gateway error if priority setting failed', async () => {
     nock('http://universe')
-      .post('/jobs/priorities?' + setPriorityParams, {['testjob']: /[0-9]+/})
+      .post('/jobs/priorities?' + setPriorityParams, { 'testjob': /[0-9]+/ })
       .reply(500)
 
     const response = await axiosist(api).put('/clusters/Universe/jobs/testjob/priority',
-    {priority: 0}, {params: userParams})
+      { priority: 0 }, { params: userParams })
 
     response.status.should.equal(502)
   })

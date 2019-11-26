@@ -21,12 +21,12 @@ const addEndpointsParams = new URLSearchParams({
 
 const testEndpoints = {
   endpoints: [{
-      name: 'testname',
-      podPort: 0
-    }, {
-      name: 'testname2',
-      podPort: 1
-    }]
+    name: 'testname',
+    podPort: 0
+  }, {
+    name: 'testname2',
+    podPort: 1
+  }]
 }
 
 describe('POST /clusters/:clusterId/jobs/:jobId/commands', () => {
@@ -38,7 +38,7 @@ describe('POST /clusters/:clusterId/jobs/:jobId/commands', () => {
       })
 
     const response = await axiosist(api).post('/clusters/Universe/jobs/testjob/commands',
-    {command: 'testcommand'}, {params: userParams})
+      { command: 'testcommand' }, { params: userParams })
 
     response.status.should.equal(201)
     response.data.should.have.property('message', 'command adding succeeded')
@@ -50,7 +50,7 @@ describe('POST /clusters/:clusterId/jobs/:jobId/commands', () => {
       .reply(500)
 
     const response = await axiosist(api).post('/clusters/Universe/jobs/testjob/commands',
-    {command: 'testcommand'}, {params: userParams})
+      { command: 'testcommand' }, { params: userParams })
 
     response.status.should.equal(502)
   })
@@ -65,7 +65,7 @@ describe('POST /clusters/:clusterId/jobs/:jobId/endpoints', () => {
       })
 
     const response = await axiosist(api).post('/clusters/Universe/jobs/testjob/endpoints',
-    testEndpoints, {params: userParams})
+      testEndpoints, { params: userParams })
 
     response.status.should.equal(200)
     response.data.should.have.property('message', 'endpoints adding succeeded')
@@ -77,7 +77,7 @@ describe('POST /clusters/:clusterId/jobs/:jobId/endpoints', () => {
       .reply(500)
 
     const response = await axiosist(api).post('/clusters/Universe/jobs/testjob/endpoints',
-    testEndpoints, {params: userParams})
+      testEndpoints, { params: userParams })
 
     response.status.should.equal(502)
   })
