@@ -220,6 +220,22 @@ class AuthorizationManager:
 
 
     @staticmethod
+    def GetAllAcl():
+        dataHandler = DataHandler()
+        try:           
+            acl = dataHandler.GetAcl()
+            return acl
+
+        except Exception as e:
+            logger.error('Exception: '+ str(e))
+            logger.warn("Fail to get ACL for user %s, return empty list" % userName)
+            return []
+
+        finally:
+            dataHandler.Close()
+
+
+    @staticmethod
     def IsClusterAdmin(userName):
         return AuthorizationManager._HasAccess(userName, AuthorizationManager.CLUSTER_ACL_PATH, Permission.Admin)
 
