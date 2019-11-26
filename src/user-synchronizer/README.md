@@ -17,8 +17,7 @@ It uses environment variables to configure the behavior of the service:
 - `TENANT_ID`: Required, tenant id of Azure Active Directory
 - `CLIENT_ID`: Required, application (client) id of the Azure Active Directory app.
 - `CLIENT_SECRET`: Required, client secret of the Azure Active Directory app.
-- `GROUPS_ID`: Required, id list of the groups, seperated by comma (`,`). 
-- `WINBIND_URL`: Required, url of the winbind server, for example `http://example.com/domaininfo/GetUserId`
-- `DATABASE_URL`: Required, [SQLAlchemy engine URL](https://docs.sqlalchemy.org/en/13/core/engines.html#sqlalchemy.create_engine) of the database.
+- `WINBIND_URL`: Required, url of the winbind server, for example `http://example.com`
+- `RESTFULAPI_URL`: Required, url of the restfulapi service, for example `http://restfulapi.com`
 
 `.env` is supported if you are using pipenv virtualenv mode.

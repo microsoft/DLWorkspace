@@ -4,11 +4,9 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [packages]
-dataset = "*"
 oauthlib = "*"
 requests = "*"
 requests-oauthlib = "*"
-mysqlclient = "*"
 
 [dev-packages]
 flake8 = "*"
