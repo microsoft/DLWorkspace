@@ -1,6 +1,5 @@
 const axiosist = require('axiosist')
 const config = require('config')
-const sinon = require('sinon')
 const nock = require('nock')
 const api = require('../../api').callback()
 const User = require('../../api/services/user')
@@ -44,7 +43,6 @@ describe('GET /teams', () => {
         .get('/ListVCs?' + fetchParams)
         .reply(200, posTeamData[key])
     }
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/teams', {
       params: userParams
@@ -72,7 +70,6 @@ describe('GET /teams', () => {
         .get('/ListVCs?' + fetchParams)
         .reply(200, negTeamData)
     }
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/teams', {
       params: userParams
@@ -95,7 +92,6 @@ describe('GET /teams', () => {
         .get('/ListVCs?' + fetchParams)
         .reply(500, negTeamData)
     }
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/teams', {
       params: userParams

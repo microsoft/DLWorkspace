@@ -1,5 +1,4 @@
 const axiosist = require('axiosist')
-const sinon = require('sinon')
 const nock = require('nock')
 const config = require('config')
 const api = require('../../../api').callback()
@@ -28,7 +27,6 @@ describe('GET /teams/:teamId/templates', () => {
           name: key
         })
     }
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/teams/testteam/templates', {
       params: userParams
@@ -45,7 +43,6 @@ describe('GET /teams/:teamId/templates', () => {
         .get('/templates?' + getTemplatesParams)
         .reply(500)
     }
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/teams/testteam/templates', {
       params: userParams

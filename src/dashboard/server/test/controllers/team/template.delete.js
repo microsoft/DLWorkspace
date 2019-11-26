@@ -1,5 +1,4 @@
 const axiosist = require('axiosist')
-const sinon = require('sinon')
 const nock = require('nock')
 const config = require('config')
 const api = require('../../../api').callback()
@@ -30,7 +29,6 @@ describe('DELETE /teams/:teamId/templates/:templateName', () => {
           message: 'template deleted successfully'
         })
     }
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).delete('/teams/testteam/templates/newtemplate', {
       params: userParams
@@ -45,7 +43,6 @@ describe('DELETE /teams/:teamId/templates/:templateName', () => {
         .delete('/templates?' + deleteTemplateParams)
         .reply(500)
     }
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).delete('/teams/testteam/templates/newtemplate', {
       params: userParams
