@@ -25,9 +25,9 @@ token = oauth.fetch_token(token_url, client_id=client_id, client_secret=client_s
 logger.info('Token: {}'.format(token))
 
 
-def _iter_objects(url):
+def _iter_objects(url, params=None):
     while url is not None:
-        response = oauth.get(url)
+        response = oauth.get(url, params=params)
         response.raise_for_status()
         response_json = response.json()
         objects = response_json['value']
@@ -37,17 +37,25 @@ def _iter_objects(url):
         yield from objects
 
         url = response_json.get('@odata.nextLink')
+        params = None  # next urls contains params
 
 
-def iter_groups(group_mail):
-    ''' Iterate group objects from Azure Active Directory '''
+def iter_groups(group_mail, fields):
+    ''' Iterate group objects '''
     url_template = "https://graph.microsoft.com/v1.0/groups?$filter=mail+eq+'{}'"
     url = url_template.format(group_mail)
-    yield from _iter_objects(url)
+    yield from _iter_objects(url, params={"$select": ','.join(fields)})
 
 
-def iter_group_members(group_id):
-    ''' Iterate member objects from  '''
+def iter_group_members(group_id, fields):
+    ''' Iterate member objects '''
     url_template = 'https://graph.microsoft.com/v1.0/groups/{}/members'
     url = url_template.format(group_id)
-    yield from _iter_objects(url)
+    yield from _iter_objects(url, params={"$select": ','.join(fields)})
+
+
+def iter_user_member_of(user_id, fields):
+    ''' Iterate group objects of a user '''
+    url_template = 'https://graph.microsoft.com/v1.0/users/{}/memberOf'
+    url = url_template.format(user_id)
+    yield from _iter_objects(url, params={"$select": ','.join(fields)})
