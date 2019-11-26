@@ -2,112 +2,86 @@
 # Licensed under the MIT License.
 
 from json import dumps
-from logging import getLogger, FileHandler, StreamHandler
 from os import environ
-from sys import stdout
 
-from dataset import connect
-from oauthlib.oauth2 import BackendApplicationClient
 from requests import get
-from requests_oauthlib import OAuth2Session
+
+from logger import logger
+from microsoft_graph import iter_groups, iter_group_members
 
 # Read environment variables
-log_level = environ.get('LOG_LEVEL', 'INFO')
-log_file = environ.get('LOG_FILE')
-tenant_id = environ['TENANT_ID']
-client_id = environ['CLIENT_ID']
-client_secret = environ['CLIENT_SECRET']
-groups_id = environ['GROUPS_ID'].split(',')
 winbind_url = environ['WINBIND_URL']
-database_url = environ['DATABASE_URL']
-
-# Configure logger
-logger = getLogger(__name__)
-logger.setLevel(log_level)
-logger.addHandler(StreamHandler(stdout))
-if log_file is not None:
-    logger.addHandler(FileHandler(log_file))
-
-# Initialize oauth session
-client = BackendApplicationClient(client_id)
-oauth = OAuth2Session(client=client)
-
-# Fetch token
-token_url_template = 'https://login.microsoftonline.com/{}/oauth2/v2.0/token'
-token_url = token_url_template.format(tenant_id)
-scope = ['https://graph.microsoft.com/.default']
-token = oauth.fetch_token(token_url,
-                          client_id=client_id,
-                          client_secret=client_secret,
-                          scope=scope)
-logger.info('Token: {}'.format(token))
-
-# Configure database
-database = connect(database_url)
-table = database['identity']
+restfulapi_url = environ['RESTFULAPI_URL']
 
 
-def get_members(group_id):
-    ''' Get members of the group_id '''
-    url_template = 'https://graph.microsoft.com/v1.0/groups/{}/members'
-    url = url_template.format(group_id)
-    while url is not None:
-        members_response = oauth.get(url)
-        members_response.raise_for_status()
-        members_response_json = members_response.json()
-        members = members_response_json['value']
-        logger.info('Fetched {} mambers from group {}'.format(
-            len(members), group_id))
-        yield from members
-        url = members_response_json.get('@odata.nextLink')
+def iter_group_identities():
+    ''' Iterate group identities from RestfulAPI '''
+    response = get(restfulapi_url + '/GetAllACL')
+    response.raise_for_status()
+    response_json = response.json()
+    result = response_json['result']
+
+    logger.info('Fetched {} group identities'.format(len(result)))
+
+    yield from result
 
 
-def get_identity(userName):
+def get_identity(user_name):
     ''' Get identity info of the member '''
-    params = {'userName': userName}
-    winbind_response = get(winbind_url, params=params)
-    winbind_response.raise_for_status()
-    winbind_response_json = winbind_response.json()
-    logger.info('Fetched {} from winbind'.format(userName))
-    return winbind_response_json
+    params = {'userName': user_name}
+    response = get(winbind_url + '/domaininfo/GetUserId', params=params)
+    response.raise_for_status()
+    response_json = response.json()
+
+    logger.info('Fetched {} from winbind'.format(user_name))
+
+    return response_json
 
 
-def sync_database(userName, identity):
-    uid = int(identity['uid'])
-    gid = int(identity['gid'])
-    groups = dumps(identity['groups'], separators=(',', ':'))
-    row = {
-        'identityName': userName,
-        'uid': uid,
-        'gid': gid,
-        'groups': groups,
+def update_identity(user_name, identity):
+    ''' Update identity info to the cluster '''
+    params = {
+        'userName': user_name,
+        'uid': int(identity['uid']),
+        'gid': int(identity['gid']),
+        'groups': dumps(identity['groups'], separators=(',', ':')),
     }
-    table.upsert(row, keys=['identityName'])
+    response = get(restfulapi_url + '/AddUser', params=params)
+    response.raise_for_status()
+
+    logger.info('Updated {} to cluster'.format(user_name))
 
 
-first_exception = None
+failed = False
 
-for group_id in groups_id:
+
+for group_identity in iter_group_identities():
     try:
-        for member in get_members(group_id):
+        group_mail = group_identity['identityName']
+
+        for group in iter_groups(group_mail):
             try:
-                userName = member['userPrincipalName']
-                identity = get_identity(userName)
-                sync_database(userName, identity)
+                group_id = group['id']
 
-                logger.info('Finished sync member {} with uid {}'.format(
-                    userName, identity['uid']))
-            except Exception as exception:
-                if first_exception is None:
-                    first_exception = exception
-                logger.exception('Exception in member {}'.format(member))
+                for member in iter_group_members(group_id):
+                    try:
+                        user_name = member['userPrincipalName']
 
-        logger.info('Finished group {}'.format(group_id))
-    except Exception as exception:
-        if first_exception is None:
-            first_exception = exception
-        logger.exception('Exception in group {}'.format(group_id))
+                        identity = get_identity(user_name)
+                        update_identity(user_name, identity)
+                    except Exception:
+                        failed = True
+                        logger.exception('Exception in iter_group_members({})'.format(group_id))
 
-if first_exception is not None:
-    logger.error('Raise the exception outside to mark the program as failed')
-    raise first_exception
+            except Exception:
+                failed = True
+                logger.exception(
+                    'Exception in iter_groups({})'.format(group_mail))
+
+    except Exception:
+        failed = True
+        logger.exception('Exception in iter_group_identities()')
+
+
+if failed:
+    raise Exception('Exception raised during execution')
