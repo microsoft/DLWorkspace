@@ -6,24 +6,27 @@ import os
 import time
 import yaml
 import util
+import k8s_util
 import logging
 
-def get_node_address_info():
+def list_node():
     config.load_kube_config(config_file='/etc/kubernetes/restapi-kubeconfig.yaml')
     api_instance = client.CoreV1Api()
 
-    service_account_list = api_instance.list_node()
+    return api_instance.list_node()
 
+
+def get_node_address_info(node_info):
     # map InternalIP to Hostname
     address_map = {}
     
-    if (service_account_list):
+    if node_info:
 
-        for account in service_account_list.items:
+        for node in node_info.items:
             internal_ip = None
             hostname = None
 
-            for address in account.status.addresses:
+            for address in node.status.addresses:
                 if address.type == 'InternalIP':
                     internal_ip = address.address
 
@@ -55,43 +58,51 @@ class ECCRule(Rule):
 
     def __init__(self):
         self.ecc_hostnames = []
+        self.config = self.load_config()
+        self.node_info = {}
+
+    def load_config(self):
+        with open('rule-config.yaml', 'r') as rule_file:
+            return yaml.safe_load(rule_file)
 
     def check_status(self):
-        try:
-            with open('rule-config.yaml', 'r') as rule_config:
-                config = yaml.safe_load(rule_config)
-                       
-            address_map = get_node_address_info()
+        # save node_info to reduce the number of API calls
+        self.node_info = list_node()
+        address_map = get_node_address_info(self.node_info)
 
-            ecc_url = os.environ['PROMETHEUS_HOST'] + config['rules']['ecc_rule']['ecc_error_url']
-            ecc_metrics = get_ECC_error_data(ecc_url)
-    
-            if (ecc_metrics):
-                for m in ecc_metrics:
-                    offending_node_ip = m['metric']['instance'].split(':')[0]
-                    ecc_hostnames.append(address_map[offending_node_ip])
+        ecc_url = os.environ['PROMETHEUS_HOST'] + self.config['rules']['ecc_rule']['ecc_error_url']
+        ecc_metrics = get_ECC_error_data(ecc_url)
 
-                logging.info('Uncorrectable ECC metrics found: ' + ecc_hostnames)
-                return True
-                
-            else:
-                logging.debug('No uncorrectable ECC metrics found.')
-                return False
+        if ecc_metrics:
+            for m in ecc_metrics:
+                offending_node_ip = m['metric']['instance'].split(':')[0]
+                self.ecc_hostnames.append(address_map[offending_node_ip])
 
+            logging.info(f'Uncorrectable ECC metrics found: {self.ecc_hostnames}')
+            return True
+            
+        else:
+            logging.debug('No uncorrectable ECC metrics found.')
+            return False
 
-
-        except Exception as e:
-            logging.exception('Error checking status for ECCRule')
-            #TODO: send email alert, raise exception?
-        
     def take_action(self):
-        try:
-            for node in ecc_hostnames:
-                success = util.cordon_node(node)
+        body = 'ECC Error found on the following nodes:\n'
+        all_nodes_already_unscheduled = True
 
-                if (success != 0):
-                    logging.warning('Unscheduling of node ' + node + ' not successful')
+        for node_name in self.ecc_hostnames:
 
-        except Exception as e:
-            logging.exception('Error taking action for ECCRule')
-            #TODO: send email alert, rasie exception?
+            if not k8s_util.is_node_unschedulable(self.node_info, node_name):
+                all_nodes_already_unscheduled = False
+                success = k8s_util.cordon_node(node_name)
+
+                if success != 0:
+                    logging.warning(f'Unscheduling of node {node_name} not successful')
+                    body += f'{node_name}: Failed to mark as unschedulable\n'
+                else:
+                    body += f'{node_name}: Successfully marked as unschedulable\n'
+
+        if not all_nodes_already_unscheduled:
+            alert_info = self.config['email_alerts']
+            subject = 'Repair Manager Alert [ECC ERROR]'
+            util.smtp_send_email(**alert_info, subject=subject, body=body)
+

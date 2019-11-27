@@ -1,6 +1,7 @@
 import sys
 import os
 import random
+import re
 from marshmallow import Schema, fields, post_load, validate
 from jinja2 import Environment, FileSystemLoader, Template
 
@@ -269,7 +270,9 @@ class Job:
                         "accountKey": "MWYyZDFlMmU2N2Rm",
                         "containerName": "blobContainer0",
                         "mountPath": "/mnt/blobfuse/data0",
-                        "secreds": "bb9cd821-711c-40fd-bb6f-e5dbc1b772a7-blobfuse-0-secreds"
+                        "secreds": "bb9cd821-711c-40fd-bb6f-e5dbc1b772a7-blobfuse-0-secreds",
+                        "mountoptions": (optional),
+                        "tmppath": system-defined (optional)
                      },
                      {
                         "enabled": True,
@@ -278,7 +281,9 @@ class Job:
                         "accountKey":"cGFzc3dvcmQ=",
                         "containerName":"blobContainer1",
                         "mountPath":"/mnt/blobfuse/data1",
-                        "secreds":"bb9cd821-711c-40fd-bb6f-e5dbc1b772a7-blobfuse-1-secreds"
+                        "secreds":"bb9cd821-711c-40fd-bb6f-e5dbc1b772a7-blobfuse-1-secreds",
+                        "mountoptions": (optional),
+                        "tmppath": system-defined (optional)
                      }],
                 "some-other-plugin": [...]
             }
@@ -317,11 +322,12 @@ class Job:
             tmppath = local_fast_storage.rstrip("/")
 
         blobfuse = []
-        for i, bf in enumerate(plugins):
-            account_name = bf.get("accountName")
-            account_key = bf.get("accountKey")
-            container_name = bf.get("containerName")
-            mount_path = bf.get("mountPath")
+        for i, p_bf in enumerate(plugins):
+            account_name = p_bf.get("accountName")
+            account_key = p_bf.get("accountKey")
+            container_name = p_bf.get("containerName")
+            mount_path = p_bf.get("mountPath")
+            mount_options = p_bf.get("mountOptions")
 
             # Ignore Azure blobfuse with incomplete configurations
             if invalid_entry(account_name) or \
@@ -330,11 +336,12 @@ class Job:
                     invalid_entry(mount_path):
                 continue
 
-            name = bf.get("name")
+            name = p_bf.get("name")
             if name is None:
                 name = "%s-blobfuse-%d" % (self.job_id, i)
 
             # Reassign everything for clarity
+            bf = dict()
             bf["enabled"] = True
             bf["name"] = name
             bf["secreds"] = "%s-blobfuse-%d-secreds" % (self.job_id, i)
@@ -346,6 +353,10 @@ class Job:
 
             if tmppath is not None:
                 bf["tmppath"] = tmppath
+
+            pattern = re.compile("^--file-cache-timeout-in-seconds=[0-9]+$")
+            if not invalid_entry(mount_options) and pattern.match(mount_options) is not None:
+                bf["mountOptions"] = mount_options
 
             # TODO: Deduplicate blobfuse plugins
             blobfuse = dedup_add(bf, blobfuse, identical)

@@ -1,7 +1,7 @@
 # These are the default configuration parameter
 default_config_parameters = {
     "supported_platform": ["azure_cluster", "onpremise"],
-    "allroles": {"infra", "infrastructure", "worker", "nfs", "sql", "dev"},
+    "allroles": {"infra", "infrastructure", "worker", "nfs", "sql", "dev", "etcd", "kubernetes_master"},
     # Kubernetes setting
     "service_cluster_ip_range": "10.3.0.0/16",
     "pod_ip_range": "10.2.0.0/16",
@@ -63,6 +63,8 @@ default_config_parameters = {
     "webuiport": "3080",
     "restfulapiport": "5000",
     "restfulapi": "restfulapi",
+    # StorageManager mapping
+    "storagemanager": "storagemanager",
     "repairmanager": "repairmanager",
     "ssh_cert": "./deploy/sshkey/id_rsa",
     "admin_username": "core",
@@ -238,6 +240,7 @@ default_config_parameters = {
         "kibana": "etcd_node_1",
         "mysql": "etcd_node_1",
         "nginx": "all",
+        "storagemanager": "nfs_node"
     },
 
     "kubemarks": ["rack", "sku"],
@@ -618,7 +621,8 @@ default_config_parameters = {
         "default_admin_username": "dlwsadmin",
         "tcp_port_for_pods": "30000-49999",
         "tcp_port_ranges": "80 443 30000-49999 25826 3000 22222 9091 9092",
-        "udp_port_ranges": "25826",
+        # There is no udp port requirement for now
+        #"udp_port_ranges": "25826",
         "inter_connect": {
             "tcp_port_ranges": "22 1443 2379 3306 5000 8086 10250",
             # Need to white list dev machines to connect
@@ -628,6 +632,9 @@ default_config_parameters = {
             "tcp_port_ranges": "22 1443 2379 3306 5000 8086 10250 10255 22222",
             # Need to white list dev machines to connect
             # "source_addresses_prefixes": [ "52.151.0.0/16"]
+        },
+        "nfs_allow_master": {
+            "tcp_port_ranges": "10250",
         },
     },
 

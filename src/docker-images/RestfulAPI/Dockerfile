@@ -29,6 +29,8 @@ COPY ClusterManager/requirements.txt /
 RUN rm -rf /usr/lib/python2.7/dist-packages/yaml
 RUN rm -rf /usr/lib/python2.7/dist-packages/PyYAML-*
 RUN pip install -r /requirements.txt
+RUN pip install MySQL-python
+RUN pip install DBUtils
 
 ADD Jobs_Templete /DLWorkspace/src/Jobs_Templete
 ADD utils /DLWorkspace/src/utils
