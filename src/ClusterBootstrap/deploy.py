@@ -1499,6 +1499,11 @@ def deploy_webUI_on_node(ipAddress):
     if ( "servers" not in config["Dashboards"]["grafana"]):
         config["Dashboards"]["grafana"]["servers"] = masternodes[0]
 
+    config["grafana_endpoint"] = "http://%s:%s" % (config["Dashboards"]["grafana"]["servers"], config["Dashboards"]["grafana"]["port"])
+    config["prometheus_endpoint"] = "http://%s:%s" % (config["prometheus"]["host"], config["prometheus"]["port"])
+
+    
+
     reportConfig = config["Dashboards"]
     reportConfig["kuberneteAPI"] = {}
     reportConfig["kuberneteAPI"]["port"] = config["k8sAPIport"]
@@ -1520,6 +1525,8 @@ def deploy_webUI_on_node(ipAddress):
     utils.render_template_directory("./template/RestfulAPI", "./deploy/RestfulAPI",config)
     utils.sudo_scp(config["ssh_cert"],"./deploy/RestfulAPI/config.yaml","/etc/RestfulAPI/config.yaml", sshUser, webUIIP )
 
+    utils.render_template_directory("./template/dashboard", "./deploy/dashboard",config)
+    utils.sudo_scp(config["ssh_cert"],"./deploy/dashboard/production.yaml","/etc/dashboard/production.yaml", sshUser, webUIIP )
 
     print "==============================================="
     print "Web UI is running at: http://%s:%s" % (webUIIP,str(config["webuiport"]))
