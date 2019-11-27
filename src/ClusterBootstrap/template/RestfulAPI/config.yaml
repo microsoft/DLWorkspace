@@ -62,4 +62,4 @@ default_memorylimit: {{cnf["default_memorylimit"]}}
 enable_blobfuse: {{cnf["enable_blobfuse"]}}
 
 local_fast_storage: {{cnf["local_fast_storage"]}}
-user_sign_token: {{cnf["user_sign_token"]}}
+master_token: {{cnf["master_token"]}}
