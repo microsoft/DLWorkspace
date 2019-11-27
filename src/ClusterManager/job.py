@@ -406,7 +406,7 @@ class Job:
 
             secret = {
                 "enabled": True,
-                "name": "%s-imagePull-%d-secreds" % (self.job_id, i),
+                "name": "%s-imagepull-%d-secreds" % (self.job_id, i),
                 "dockerconfigjson": dockerconfigjson,
                 "jobId": self.job_id
             }
