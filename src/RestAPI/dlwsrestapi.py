@@ -772,6 +772,21 @@ class GetACL(Resource):
 api.add_resource(GetACL, '/GetACL')
 
 
+class GetAllACL(Resource):
+    def get(self):
+        ret = {}
+        ret["result"] = AuthorizationManager.GetAllAcl()
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(GetAllACL, '/GetAllACL')
+
+
 class ListVCs(Resource):
     def get(self):
         parser = reqparse.RequestParser()
