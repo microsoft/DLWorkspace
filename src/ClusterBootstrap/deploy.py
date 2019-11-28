@@ -2829,7 +2829,7 @@ def get_all_services():
                 with open( yamlname ) as f:
                     content = f.read()
                     f.close()
-                    if content.find( "Deployment" )>=0 or content.find( "DaemonSet" )>=0 or content.find("ReplicaSet")>=0:
+                    if content.find( "Deployment" )>=0 or content.find( "DaemonSet" )>=0 or content.find("ReplicaSet")>=0 or content.find("CronJob")>=0:
                         # Only add service if it is a daemonset.
                         servicedic[service] = yamlname
     return servicedic
