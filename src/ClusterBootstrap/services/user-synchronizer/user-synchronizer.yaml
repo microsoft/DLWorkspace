@@ -23,10 +23,17 @@ spec:
               value: '{{cnf["activeDirectory"]["clientId"]}}'
             - name: CLIENT_SECRET
               value: '{{cnf["activeDirectory"]["clientSecret"]}}'
-            - name: WINBIND_URL
-              value: '{{cnf["WinbindServers"]}}'
             - name: RESTFULAPI_URL
               value: '{{cnf["restapi"]}}'
+            - name: DOMAIN_OFFSET_FILE
+              value: /etc/domain-offset/domain_offset.yaml
+            volumeMounts:
+            - name: domain-offset
+              mountPath: /etc/domain-offset
+          volumes:
+          - name: domain-offset
+            configMap:
+              name: domain-offset
           nodeSelector:
             user-synchronizer: active
           restartPolicy: Never
