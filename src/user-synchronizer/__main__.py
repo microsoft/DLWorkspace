@@ -17,7 +17,7 @@ domain_offset_file = environ.get('DOMAIN_OFFSET_FILE', None)
 # Initialize domain offset map
 domain_offset = {}
 try:
-    domain_offset_file_stream = open(domain_offset_file, 'r')
+    with open(domain_offset_file, 'r') as domain_offset_file_stream:
     domain_offset = safe_load(domain_offset_file_stream)
 except Exception:
     logger.exception('Failed to read domain offset file')
@@ -41,10 +41,10 @@ def iter_group_identities():
     yield from result
 
 
-def get_identity(user_id, onPremisesDomainName, onPremisesSecurityIdentifier):
+def get_identity(user_id, on_premises_domain_name, on_premises_security_identifier):
     ''' Get identity info of the member '''
-    uid = add_domain_offset(onPremisesDomainName, onPremisesSecurityIdentifier)
-    gid = add_domain_offset(onPremisesDomainName, '513')
+    uid = add_domain_offset(on_premises_domain_name, on_premises_security_identifier)
+    gid = add_domain_offset(on_premises_domain_name, '513')
 
     groups = []
     for group in iter_user_member_of(user_id, [
