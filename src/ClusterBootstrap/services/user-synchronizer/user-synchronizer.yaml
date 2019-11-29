@@ -18,11 +18,11 @@ spec:
             imagePullPolicy: Always
             env:
             - name: TENANT_ID
-              value: '{{cnf["activeDirectory"]["tenant_id"]}}'
+              value: '{{cnf["activeDirectory"]["tenant"]}}'
             - name: CLIENT_ID
-              value: '{{cnf["activeDirectory"]["client_id"]}}'
+              value: '{{cnf["activeDirectory"]["clientId"]}}'
             - name: CLIENT_SECRET
-              value: '{{cnf["activeDirectory"]["client_secret"]}}'
+              value: '{{cnf["activeDirectory"]["clientSecret"]}}'
             - name: WINBIND_URL
               value: '{{cnf["WinbindServers"]}}'
             - name: RESTFULAPI_URL
