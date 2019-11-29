@@ -17,3 +17,4 @@ python_version = "3.5"
 
 [scripts]
 start = "python ."
+lint = "flake8 ."
