@@ -199,7 +199,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   const [accountKey, setAccountKey] = React.useState("");
   const [containerName, setContainerName] = React.useState("");
   const [mountPath, setMountPath] = React.useState("");
-  const [mountOptions, setMoutOptions] = React.useState("--file-cache-timeout-in-seconds=120");
+  const [mountOptions, setMountOptions] = React.useState("--file-cache-timeout-in-seconds=120");
   const onAccountNameChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       setAccountName(event.target.value);
@@ -226,9 +226,9 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   )
   const onMountOptionsChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      setMoutOptions(event.target.value);
+      setMountOptions(event.target.value);
     },
-    [setMoutOptions]
+    [setMountOptions]
   )
   const [workPath, setWorkPath] = React.useState("");
   const onWorkPathChange = React.useCallback(
@@ -237,7 +237,27 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     },
     [setWorkPath]
   )
-
+  const [dockerRegistry, setDockerRegistry] = React.useState("");
+  const [dockerUsername, setDockerUsername] = React.useState("");
+  const [dockerPassword, setDockerPassword] = React.useState("");
+  const onDockerRegistryChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setDockerRegistry(event.target.value)
+    },
+    [setDockerRegistry]
+  )
+  const onDockerUsernameChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setDockerUsername(event.target.value)
+    },
+    [setDockerUsername]
+  )
+  const onDockerPasswordChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setDockerPassword(event.target.value)
+    },
+    [setDockerPassword]
+  )
   const [enableWorkPath, setEnableWorkPath] = React.useState(true);
   const onEnableWorkPathChange = React.useCallback(
     (event: unknown, checked: boolean) => {
@@ -353,6 +373,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     try {
       let plugins: any = {};
       plugins['blobfuse'] = [];
+
       let blobfuseObj: any = new Object();
       blobfuseObj['accountName'] = accountName || '';
       blobfuseObj['accountKey'] = accountKey || '';
@@ -360,6 +381,14 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       blobfuseObj['mountPath'] = mountPath || '';
       blobfuseObj['mountOptions'] = mountOptions;
       plugins['blobfuse'].push(blobfuseObj);
+
+      plugins['imagePull'] = [];
+      let imagePullObj: any = new Object();
+      imagePullObj['registry'] = dockerRegistry
+      imagePullObj['username'] = dockerUsername
+      imagePullObj['password'] = dockerPassword
+      plugins['imagePull'].push(imagePullObj)
+
       const template = {
         name,
         type,
@@ -399,6 +428,12 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       blobfuseObj['containerName'] = containerName || '';
       blobfuseObj['mountPath'] = mountPath || '';
       plugins['blobfuse'].push(blobfuseObj);
+      plugins['imagePull'] = [];
+      let imagePullObj: any = new Object();
+      imagePullObj['registry'] = dockerRegistry
+      imagePullObj['username'] = dockerUsername
+      imagePullObj['password'] = dockerPassword
+      plugins['imagePull'].push(imagePullObj)
       const template = {
         name,
         type,
@@ -468,7 +503,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
           tensorboard,
           plugins
         } = JSON.parse(event.target.value as string);
-        console.log('jobpath', jobPath)
+        console.log('jobpath', plugins)
         if (name !== undefined) setName(name);
         if (type !== undefined) setType(type);
         if (gpus !== undefined) setGpus(gpus);
@@ -485,12 +520,32 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
         if (ssh !== undefined) setSsh(ssh);
         if (ipython !== undefined) setIpython(ipython);
         if (tensorboard !== undefined) setTensorboard(tensorboard);
-        if (plugins !== undefined && plugins.hasOwnProperty("blobfuse") && Array.isArray(plugins['blobfuse'])) {
-          let blobfuseObj = plugins['blobfuse'][0];
-          setAccountName(blobfuseObj['accountName']);
-          setAccountKey(blobfuseObj['accountKey']);
-          setContainerName(blobfuseObj['containerName']);
-          setMountPath(blobfuseObj['mountPath']);
+        if (plugins === undefined) {
+          setAccountName("");
+          setAccountKey("");
+          setContainerName("");
+          setMountPath("");
+          setMountOptions("--file-cache-timeout-in-seconds=120");
+          setDockerRegistry("")
+          setDockerUsername("")
+          setDockerPassword("")
+        }
+        if (plugins !== undefined) {
+          if (plugins.hasOwnProperty("blobfuse") && Array.isArray(plugins['blobfuse'])) {
+            let blobfuseObj = plugins['blobfuse'][0];
+            setAccountName(blobfuseObj['accountName']);
+            setAccountKey(blobfuseObj['accountKey']);
+            setContainerName(blobfuseObj['containerName']);
+            setMountPath(blobfuseObj['mountPath']);
+            setMountOptions(blobfuseObj['mountOptions']);
+          }
+
+          if (plugins.hasOwnProperty('imagePull') && Array.isArray(plugins['imagePull'])) {
+            let imagePullObj = plugins['imagePull'][0];
+            setDockerRegistry(imagePullObj['registry'])
+            setDockerUsername(imagePullObj['username'])
+            setDockerPassword(imagePullObj['password'])
+          }
         }
       }
     },
@@ -540,7 +595,12 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     blobfuseObj['mountPath'] = mountPath || '';
     blobfuseObj['mountOptions'] = mountOptions;
     plugins['blobfuse'].push(blobfuseObj);
-
+    plugins['imagePull'] = [];
+    let imagePullObj: any = new Object();
+    imagePullObj['registry'] = dockerRegistry
+    imagePullObj['username'] = dockerUsername
+    imagePullObj['password'] = dockerPassword
+    plugins['imagePull'].push(imagePullObj)
     const job: any = {
       userName: email,
       userId: uid,
@@ -917,7 +977,6 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
             <Divider/>
             <CardContent>
               <Typography component="div" variant="h6" >Azure Blob</Typography>
-              <Typography component="div" variant="caption" color={"textSecondary"}>Fill in all fields for Azure blob to take effect.</Typography>
               <Grid
                 container
                 wrap="wrap"
@@ -965,6 +1024,43 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                     value={mountOptions}
                     onChange={onMountOptionsChange}
                     label="Mount Options"
+                    fullWidth
+                    variant="filled"
+                  />
+                </Grid>
+              </Grid>
+            </CardContent>
+            <CardContent>
+              <Typography component="div" variant="h6" >Custom Docker Registry</Typography>
+              <Grid
+                container
+                wrap="wrap"
+                spacing={1}
+                align-items-xs-baseline
+              >
+                <Grid item xs={12}>
+                  <TextField
+                    value={dockerRegistry}
+                    onChange={onDockerRegistryChange}
+                    label="Registry"
+                    fullWidth
+                    variant="filled"
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    value={dockerUsername}
+                    onChange={onDockerUsernameChange}
+                    label="Username"
+                    fullWidth
+                    variant="filled"
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    value={dockerPassword}
+                    onChange={onDockerPasswordChange}
+                    label="Password"
                     fullWidth
                     variant="filled"
                   />
