@@ -30,7 +30,7 @@ spec:
             cpu: 100m
         env:
           - name: ELASTICSEARCH_URL
-            value: http://{{cnf["elasticsearch_node"]}}:9200
+            value: http://{{cnf["elasticsearch_node"]}}:{{cnf["elasticsearch_db_port"]}}
           #- name: SERVER_BASEPATH
             #value: /api/v1/proxy/namespaces/kube-system/services/kibana-logging
           - name: XPACK_MONITORING_ENABLED
@@ -41,3 +41,6 @@ spec:
         - containerPort: 5601
           name: ui
           protocol: TCP
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule

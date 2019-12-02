@@ -1,21 +1,21 @@
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
-  name: fluentd-es-v2.0.2
+  name: fluentd
   namespace: kube-system
   labels:
-    k8s-app: fluentd-es
+    k8s-app: fluentd
     version: v2.0.2
     kubernetes.io/cluster-service: "true"
     addonmanager.kubernetes.io/mode: Reconcile
 spec:
   selector:
     matchLabels:
-      k8s-app: fluentd-es
+      k8s-app: fluentd
   template:
     metadata:
       labels:
-        k8s-app: fluentd-es
+        k8s-app: fluentd
         kubernetes.io/cluster-service: "true"
         version: v2.0.2
       # This annotation ensures that fluentd does not get evicted if the node
@@ -25,8 +25,8 @@ spec:
         scheduler.alpha.kubernetes.io/critical-pod: ''
     spec:
       containers:
-      - name: fluentd-es
-        image: {{cnf["dockers"]["container"]["fluentd-elasticsearch"]["fullname"]}}
+      - name: fluentd
+        image: quay.io/fluent/fluentd-kubernetes-daemonset
         env:
         - name: FLUENTD_ARGS
           value: --no-supervisor -q
@@ -61,4 +61,4 @@ spec:
           path: /usr/lib64
       - name: config-volume
         configMap:
-          name: fluentd-es-config-v0.1.0
+          name: fluentd-config-v0.1.0
