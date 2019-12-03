@@ -2,15 +2,21 @@ apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
   name: user-synchronizer-cronjob
+  labels:
+    app: user-synchronizer
 spec:
   concurrencyPolicy: Forbid
   jobTemplate:
     metadata:
       name: user-synchronizer-job
+      labels:
+        app: user-synchronizer
     spec:
       template:
         metadata:
           name: user-synchronizer-pod
+          labels:
+            app: user-synchronizer
         spec:
           containers:
           - name: user-synchronizer
