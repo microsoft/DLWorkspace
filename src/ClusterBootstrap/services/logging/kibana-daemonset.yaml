@@ -1,5 +1,5 @@
-kind: DaemonSet
 apiVersion: apps/v1
+kind: DaemonSet
 metadata:
   name: kibana-logging
   namespace: kube-system
@@ -21,22 +21,16 @@ spec:
         kibana: active
       containers:
       - name: kibana-logging
-        image: docker.elastic.co/kibana/kibana:5.6.2
+        image: docker.elastic.co/kibana/kibana:6.8.5
+        env:
+          - name: ELASTICSEARCH_HOSTS
+            value: http://{{cnf["elasticsearch_node"]}}:19200
         resources:
           # need more cpu upon initialization, therefore burstable class
           limits:
             cpu: 1000m
           requests:
             cpu: 100m
-        env:
-          - name: ELASTICSEARCH_URL
-            value: http://{{cnf["elasticsearch_node"]}}:{{cnf["elasticsearch_db_port"]}}
-          #- name: SERVER_BASEPATH
-            #value: /api/v1/proxy/namespaces/kube-system/services/kibana-logging
-          - name: XPACK_MONITORING_ENABLED
-            value: "false"
-          - name: XPACK_SECURITY_ENABLED
-            value: "false"
         ports:
         - containerPort: 5601
           name: ui
