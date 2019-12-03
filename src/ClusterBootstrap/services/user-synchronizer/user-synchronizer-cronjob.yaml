@@ -24,7 +24,7 @@ spec:
             - name: CLIENT_SECRET
               value: '{{cnf["activeDirectory"]["clientSecret"]}}'
             - name: RESTFULAPI_URL
-              value: '{{cnf["restapi"]}}'
+              value: 'http://{{cnf["kubernetes_master_node"][0]}}:{{cnf["restfulapiport"]}}'
             - name: DOMAIN_OFFSET_FILE
               value: /etc/domain-offset/domain_offset.yaml
             volumeMounts:
