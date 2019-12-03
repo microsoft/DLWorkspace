@@ -246,6 +246,9 @@ class Job:
     def get_enable_blobfuse(self):
         return self._get_cluster_config("enable_blobfuse")
 
+    def get_nccl_ib_disable(self):
+        return self._get_cluster_config("nccl_ib_disable")
+
     def _get_cluster_config(self, key):
         if key in self.cluster:
             return self.cluster[key]

@@ -65,3 +65,5 @@ enable_blobfuse: {{cnf["enable_blobfuse"]}}
 
 local_fast_storage: {{cnf["local_fast_storage"]}}
 master_token: {{cnf["master_token"]}}
+
+nccl_ib_disable: {{cnf["nccl_ib_disable"]}}

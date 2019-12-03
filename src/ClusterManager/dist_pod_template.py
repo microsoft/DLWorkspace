@@ -143,6 +143,11 @@ class DistPodTemplate():
         job.add_plugins(job.get_plugins())
         params["plugins"] = job.plugins
 
+        # Set NCCL_IB_DISABLE=1 if specified
+        nccl_ib_disable = job.get_nccl_ib_disable()
+        if nccl_ib_disable is not None and nccl_ib_disable is True:
+            params["nccl_ib_disable"] = True
+
         pods = []
         nums = {"ps": int(params["numps"]), "worker": int(params["numpsworker"])}
         for role in ["ps", "worker"]:
