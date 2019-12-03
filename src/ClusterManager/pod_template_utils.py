@@ -89,6 +89,20 @@ def enable_cpu_config(pod, config):
     Returns:
         Potentially modified pod.
     """
+    # Ignore if cpuworker is not enabled
+    enable_cpuworker = config.get("enable_cpuworker", False)
+    if enable_cpuworker is False:
+        return pod
+
+    # Only works for 0-GPU job
+    if "resourcegpu" not in pod or int(pod["resourcegpu"]) != 0:
+        return pod
+
+    # When cpuworker is enabled, CPU job should have gpuType=None
+    if "nodeSelector" not in pod:
+        pod["nodeSelector"] = {}
+    pod["nodeSelector"]["gpuType"] = "None"
+
     job_training_type = pod.get("jobtrainingtype", None)
     dist_role = pod.get("distRole", None)
 
@@ -96,18 +110,7 @@ def enable_cpu_config(pod, config):
     if dist_role == "ps":
         return pod
 
-    # Ignore if cpuworker is not enabled
-    enable_cpuworker = config.get("enable_cpuworker", False)
-    if enable_cpuworker is False:
-        return pod
-
-    # Only works for 0-GPU pod
-    if "resourcegpu" not in pod or int(pod["resourcegpu"]) != 0:
-        return pod
-
     # Add node selector cpuworker=active
-    if "nodeSelector" not in pod:
-        pod["nodeSelector"] = {}
     pod["nodeSelector"]["cpuworker"] = "active"
 
     # Add node selector sku=<sku_value>
