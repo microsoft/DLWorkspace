@@ -4230,8 +4230,10 @@ Command:
   upgrade_workers [nodes] Upgrade the worker nodes. If no additional node is specified, all nodes will be updated.
   upgrade [nodes] Upgrade the cluster and nodes. If no additional node is specified, all nodes will be updated.
   labelcpuworker Label CPU nodes with "worker" role with cpuworker=active if their SKU is defined in sku_meta.
-  labelsku       Label nodes with sku=<sku_value> if their SKU is defined in sku_meta. In order to run distributed
+  labelsku       Label nodes with "sku=<sku_value>" if their SKU is defined in sku_meta. In order to run distributed
                  CPU jobs, ./deploy.py labelcpuworker must be executed as well.
+  labelvc        Label nodes with "vc=<vc_value>" if vc is defined in machine's property in machines sections in config.
+                 Default to "vc=default".
   ''') )
     parser.add_argument("-y", "--yes",
         help="Answer yes automatically for all prompt",
