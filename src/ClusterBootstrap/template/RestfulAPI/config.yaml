@@ -67,3 +67,4 @@ local_fast_storage: {{cnf["local_fast_storage"]}}
 enable_custom_registry_secrets: {{cnf["enable_custom_registry_secrets"]}}
 master_token: {{cnf["master_token"]}}
 nccl_ib_disable: {{cnf["nccl_ib_disable"]}}
+vc_node_hard_assignment: {{cnf["vc_node_hard_assignment"]}}
