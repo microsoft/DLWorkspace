@@ -9,9 +9,12 @@ def cpu_format(cpu, ratio=1.0):
     Returns:
         Formatted string of cpu cycle if cpu is valid, None otherwise.
     """
-    if cpu is None:
+    try:
+        cpu = float(cpu)
+    except:
         return None
-    return "%dm" % int(ratio * cpu * 1000)
+    else:
+        return "%dm" % int(ratio * cpu * 1000)
 
 
 def mem_format(memory, ratio=1.0):
@@ -24,9 +27,12 @@ def mem_format(memory, ratio=1.0):
     Returns:
         Formatted string of memory size if memory is valid, None otherwise.
     """
-    if memory is None:
+    try:
+        memory = float(memory)
+    except:
         return None
-    return "%dM" % int(ratio * memory * 1024)
+    else:
+        return "%dM" % int(ratio * memory * 1024)
 
 
 def get_sku_info(sku, config):
