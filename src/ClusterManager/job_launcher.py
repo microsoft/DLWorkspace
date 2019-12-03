@@ -360,7 +360,7 @@ class JobRole(object):
             deployer = JobDeployer()
             pods = deployer.get_pods(field_selector="metadata.name={}".format(self.pod_name))
             logging.debug("Pods: {}".format(pods))
-            if(len(pods) < 1):
+            if len(pods) < 1:
                 return "NotFound"
 
             assert(len(pods) == 1)
@@ -369,9 +369,19 @@ class JobRole(object):
         phase = self.pod.status.phase
 
         # !!! Pod is running, doesn't mean "Role" is ready and running.
-        if(phase == "Running"):
+        if phase == "Running":
             # Found that phase won't turn into "Unkonwn" even when we get 'unknown' from kubectl
             if self.pod.status.reason == "NodeLost":
+                return "Unknown"
+
+            # Starting from v1.13, TaintBasedEvictions are enabled by default. NodeLost no longer
+            # exists. Use deletionTimstamp to signal node lost.
+            # See below for details:
+            # https://github.com/kubernetes/kubernetes/issues/72226
+            # https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+            if self.pod.metadata.deletion_timestamp is not None:
+                logger.info("pod %s has deletion_timestamp %s. Marking pod as Unknown." %
+                            (self.pod_name, self.pod.metadata.deletion_timestamp))
                 return "Unknown"
 
             # Check if the user command had been ran.
@@ -379,6 +389,14 @@ class JobRole(object):
                 return "Pending"
 
         return phase
+
+    def pod_restricted_details(self):
+        detail = {
+            "node_name": self.pod.spec.node_name,
+            "host_ip": self.pod.status.host_ip,
+            "pod_ip": self.pod.status.pod_ip
+        }
+        return detail
 
     def pod_details(self):
         return self.pod
@@ -525,8 +543,8 @@ class PythonLauncher(Launcher):
             job_object.params["user"] = job_object.get_alias()
 
             if "job_token" not in job_object.params:
-                if "user_sign_token" in config and "userName" in job_object.params:
-                    job_object.params["job_token"] = hashlib.md5(job_object.params["userName"]+":"+config["user_sign_token"]).hexdigest()
+                if "master_token" in config and config["master_token"] is not None and "userName" in job_object.params:
+                    job_object.params["job_token"] = hashlib.md5(job_object.params["userName"]+":"+config["master_token"]).hexdigest()
                 else:
                     job_object.params["job_token"] = "tryme2017"
 

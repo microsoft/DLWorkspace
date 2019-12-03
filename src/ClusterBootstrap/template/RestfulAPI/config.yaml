@@ -58,10 +58,12 @@ default_cpurequest: {{cnf["default_cpurequest"]}}
 default_cpulimit: {{cnf["default_cpulimit"]}}
 default_memoryrequest: {{cnf["default_memoryrequest"]}}
 default_memorylimit: {{cnf["default_memorylimit"]}}
+default_cpu_sku: {{cnf["default_cpu_sku"]}}
+sku_meta: {{cnf["sku_meta"]}}
 
 enable_blobfuse: {{cnf["enable_blobfuse"]}}
 
 local_fast_storage: {{cnf["local_fast_storage"]}}
-user_sign_token: {{cnf["user_sign_token"]}}
-
 enable_custom_registry_secrets: {{cnf["enable_custom_registry_secrets"]}}
+master_token: {{cnf["master_token"]}}
+nccl_ib_disable: {{cnf["nccl_ib_disable"]}}

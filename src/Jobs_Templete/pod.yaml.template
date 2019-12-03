@@ -105,6 +105,18 @@ spec:
   {% if job["hostIPC"] %}
   hostIPC: true
   {% endif %}
+  initContainers:
+  - name: init
+    imagePullPolicy: Always
+    image: {{ job["init-container"] }}
+    volumeMounts:
+    - mountPath: /dlts-runtime
+      name: dlts-runtime
+    command:
+    - cp
+    - -r
+    - /ssh_build
+    - /dlts-runtime
   containers:
   - name: {{ job["podName"] }}
     image: {{ job["image"] }}
@@ -143,6 +155,8 @@ spec:
         memory: {{ job["memoryrequest"] }}
       {% endif %}
     volumeMounts:
+    - mountPath: /dlts-runtime
+      name: dlts-runtime
     - name: "dlws-scripts"
       mountPath: /pod/scripts
       readOnly: true
@@ -229,6 +243,10 @@ spec:
     - name: {{env.name}}
       value: "{{env.value}}"
     {% endfor %}
+    {% if job["nccl_ib_disable"] %}
+    - name: NCCL_IB_DISABLE
+      value: "1"
+    {% endif %}
 
   imagePullSecrets:
   {% if job["plugins"] %}
@@ -258,6 +276,8 @@ spec:
   - name: authorized-keys-volume
     hostPath:
       path: {{ job["homeFolderHostpath"] }}/.ssh/authorized_keys
+  - name: dlts-runtime
+    emptyDir: {}
   {% if not job["dnsPolicy"] %}
   - name: resolv
     hostPath:

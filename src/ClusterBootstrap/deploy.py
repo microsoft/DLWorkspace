@@ -1499,6 +1499,11 @@ def deploy_webUI_on_node(ipAddress):
     if ( "servers" not in config["Dashboards"]["grafana"]):
         config["Dashboards"]["grafana"]["servers"] = masternodes[0]
 
+    config["grafana_endpoint"] = "http://%s:%s" % (config["Dashboards"]["grafana"]["servers"], config["Dashboards"]["grafana"]["port"])
+    config["prometheus_endpoint"] = "http://%s:%s" % (config["prometheus"]["host"], config["prometheus"]["port"])
+
+    
+
     reportConfig = config["Dashboards"]
     reportConfig["kuberneteAPI"] = {}
     reportConfig["kuberneteAPI"]["port"] = config["k8sAPIport"]
@@ -1520,6 +1525,8 @@ def deploy_webUI_on_node(ipAddress):
     utils.render_template_directory("./template/RestfulAPI", "./deploy/RestfulAPI",config)
     utils.sudo_scp(config["ssh_cert"],"./deploy/RestfulAPI/config.yaml","/etc/RestfulAPI/config.yaml", sshUser, webUIIP )
 
+    utils.render_template_directory("./template/dashboard", "./deploy/dashboard",config)
+    utils.sudo_scp(config["ssh_cert"],"./deploy/dashboard/production.yaml","/etc/dashboard/production.yaml", sshUser, webUIIP )
 
     print "==============================================="
     print "Web UI is running at: http://%s:%s" % (webUIIP,str(config["webuiport"]))
@@ -2822,7 +2829,7 @@ def get_all_services():
                 with open( yamlname ) as f:
                     content = f.read()
                     f.close()
-                    if content.find( "Deployment" )>=0 or content.find( "DaemonSet" )>=0 or content.find("ReplicaSet")>=0:
+                    if content.find( "Deployment" )>=0 or content.find( "DaemonSet" )>=0 or content.find("ReplicaSet")>=0 or content.find("CronJob")>=0:
                         # Only add service if it is a daemonset.
                         servicedic[service] = yamlname
     return servicedic
@@ -2942,12 +2949,81 @@ def kubernetes_label_GpuTypes():
             kubernetes_label_node("--overwrite", nodename, "gpuType="+nodeInfo["gpu-type"])
 
 
-# Label kubernetes nodes with custom node labels defined for each node under "custom_node_labels"
-def kubernetes_label_custom_node_labels():
-    for nodename, nodeinfo in config["machines"].items():
-        if "custom_node_labels" in nodeinfo:
-            for nodelabel in nodeinfo["custom_node_labels"]:
-                kubernetes_label_node("--overwrite", nodename, nodelabel)
+def populate_machine_sku(machine_info):
+    """Potentially adds sku for and returns the modified machine_info.
+
+    Args:
+        machine_info: A dictionary containing machine information.
+
+    Returns:
+        Modified machine_info
+    """
+    if "sku" not in machine_info and "node-group" in machine_info:
+        machine_info["sku"] = machine_info["node-group"]
+    return machine_info
+
+
+def get_machines_by_roles(roles, cnf):
+    """Get machines from cnf that has role in roles.
+
+    Args:
+        roles: A comma separated string or a list of roles.
+        cnf: Configuration dictionary containing machines.
+
+    Returns:
+        A dictionary of machines that has role in roles.
+    """
+    if roles == "all":
+        roles = cnf.get("allroles", [])
+
+    if isinstance(roles, str):
+        roles = [role.strip() for role in roles.split(",")]
+
+    machines = cnf.get("machines", {})
+
+    machines_by_roles = {}
+    for machine_name, machine_info in machines.items():
+        machine_info = populate_machine_sku(machine_info)
+        if "role" in machine_info and machine_info["role"] in roles:
+            machines_by_roles[machine_name] = machine_info
+
+    return machines_by_roles
+
+
+def get_sku_meta(cnf):
+    """Get SKU meta information from cnf.
+
+    Args:
+        cnf: Configuration dictionary containing machines.
+
+    Returns:
+        SKU meta dictionary from configuration.
+    """
+    return cnf.get("sku_meta", {})
+
+
+def kubernetes_label_cpuworker():
+    """Label kubernetes nodes with cpuworker=active."""
+    label = "cpuworker=active"
+    sku_meta = get_sku_meta(config)
+    workers = get_machines_by_roles("worker", config)
+
+    for machine_name, machine_info in workers.items():
+        if "sku" in machine_info and machine_info["sku"] in sku_meta:
+            sku = machine_info["sku"]
+            if "gpu" not in sku_meta[sku]:
+                kubernetes_label_node("--overwrite", machine_name, label)
+
+
+def kubernetes_label_sku():
+    """Label kubernetes nodes with sku=<sku_value>"""
+    sku_meta = get_sku_meta(config)
+    machines = get_machines_by_roles("all", config)
+
+    for machine_name, machine_info in machines.items():
+        if "sku" in machine_info and machine_info["sku"] in sku_meta:
+            sku = machine_info["sku"]
+            kubernetes_label_node("--overwrite", machine_name, "sku=%s" % sku)
 
 
 def kubernetes_patch_nodes_provider (provider, scaledOnly):
@@ -3810,8 +3886,11 @@ def run_command( args, command, nargs, parser ):
     elif command == "gpulabel":
         kubernetes_label_GpuTypes()
 
-    elif command == "customlabel":
-        kubernetes_label_custom_node_labels()
+    elif command == "labelcpuworker":
+        kubernetes_label_cpuworker()
+
+    elif command == "labelsku":
+        kubernetes_label_sku()
 
     elif command == "genscripts":
         gen_platform_wise_config()
@@ -4136,7 +4215,8 @@ Command:
   upgrade_masters Upgrade the master nodes.
   upgrade_workers [nodes] Upgrade the worker nodes. If no additional node is specified, all nodes will be updated.
   upgrade [nodes] Upgrade the cluster and nodes. If no additional node is specified, all nodes will be updated.
-  customlabel Label nodes with custom defined node labels under custom_node_labels
+  labelcpuworker Label CPU nodes with "worker" role with cpuworker=active if their SKU is defined in sku_meta.
+  labelsku       Label nodes with sku=<sku_value> if their SKU is defined in sku_meta.
   ''') )
     parser.add_argument("-y", "--yes",
         help="Answer yes automatically for all prompt",

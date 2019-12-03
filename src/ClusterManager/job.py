@@ -253,6 +253,8 @@ class Job:
 
     def get_enable_custom_registry_secrets(self):
         return self._get_cluster_config("enable_custom_registry_secrets")
+    def get_nccl_ib_disable(self):
+        return self._get_cluster_config("nccl_ib_disable")
 
     def _get_cluster_config(self, key):
         if key in self.cluster:

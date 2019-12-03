@@ -12,6 +12,7 @@ from job import Job
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 from config import config
 from osUtils import mkdirsAsUser
+from pod_template_utils import enable_cpu_config
 
 
 class DistPodTemplate():
@@ -111,6 +112,7 @@ class DistPodTemplate():
         job.add_mountpoints(job.vc_storage_mountpoints())
         job.add_mountpoints(job.infiniband_mountpoints())
         params["mountpoints"] = job.mountpoints
+        params["init-container"] = os.environ["INIT_CONTAINER_IMAGE"]
 
         params["user_email"] = params["userName"]
         params["homeFolderHostpath"] = job.get_homefolder_hostpath()
@@ -141,6 +143,11 @@ class DistPodTemplate():
         job.add_plugins(job.get_plugins())
         params["plugins"] = job.plugins
 
+        # Set NCCL_IB_DISABLE=1 if specified
+        nccl_ib_disable = job.get_nccl_ib_disable()
+        if nccl_ib_disable is not None and nccl_ib_disable is True:
+            params["nccl_ib_disable"] = True
+
         pods = []
         nums = {"ps": int(params["numps"]), "worker": int(params["numpsworker"])}
         for role in ["ps", "worker"]:
@@ -149,6 +156,7 @@ class DistPodTemplate():
                 pod["distRole"] = role
                 pod["distRoleIdx"] = idx
                 pod["distId"] = "%s%d" % (role, idx)
+                pod = enable_cpu_config(pod, job.cluster)
                 # mount /pod
                 local_pod_path = job.get_hostpath(job.job_path, "%s-%d" % (role, idx))
                 pod["mountpoints"].append({"name": "pod", "containerPath": "/pod", "hostPath": local_pod_path, "enabled": True})

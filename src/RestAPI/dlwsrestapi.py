@@ -559,7 +559,7 @@ class GetJobDetail(Resource):
             job["endpoints"] = json.loads(job["endpoints"])
         if "jobStatusDetail" in job and job["jobStatusDetail"] is not None and len(job["jobStatusDetail"].strip()) > 0:
             try:
-                job["jobStatusDetail"] = Json.loads(base64.b64decode(job["jobStatusDetail"]))
+                job["jobStatusDetail"] = json.loads(base64.b64decode(job["jobStatusDetail"]))
             except Exception as e:
                 pass
         if "jobMeta" in job:
@@ -770,6 +770,21 @@ class GetACL(Resource):
 ## Actually setup the Api resource routing here
 ##
 api.add_resource(GetACL, '/GetACL')
+
+
+class GetAllACL(Resource):
+    def get(self):
+        ret = {}
+        ret["result"] = AuthorizationManager.GetAllAcl()
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(GetAllACL, '/GetAllACL')
 
 
 class ListVCs(Resource):

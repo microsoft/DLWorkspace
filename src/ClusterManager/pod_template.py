@@ -9,6 +9,7 @@ import copy
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 from osUtils import mkdirsAsUser
+from pod_template_utils import enable_cpu_config
 
 
 class PodTemplate():
@@ -117,24 +118,7 @@ class PodTemplate():
         if "gpuType" in params:
             params["nodeSelector"]["gpuType"] = params["gpuType"]
 
-        # CPU job should be assigned to CPU node if there is any available in the cluster
-        config = job.cluster
-        enable_cpuworker = config.get("enable_cpuworker", False)
-        default_cpurequest = config.get("default_cpurequest")
-        default_cpulimit = config.get("default_cpulimit")
-        default_memoryrequest = config.get("default_memoryrequest")
-        default_memorylimit = config.get("default_memorylimit")
-
-        if enable_cpuworker and int(params["resourcegpu"]) == 0:
-            params["nodeSelector"]["cpuworker"] = "active"
-            if "cpurequest" not in params and default_cpurequest is not None:
-                params["cpurequest"] = default_cpurequest
-            if "cpulimit" not in params and default_cpulimit is not None:
-                params["cpulimit"] = default_cpulimit
-            if "memoryrequest" not in params and default_memoryrequest is not None:
-                params["memoryrequest"] = default_memoryrequest
-            if "memorylimit" not in params and default_memorylimit is not None:
-                params["memorylimit"] = default_memorylimit
+        params = enable_cpu_config(params, job.cluster)
 
         local_pod_path = job.get_hostpath(job.job_path, "master")
         params["LaunchCMD"] = PodTemplate.generate_launch_script(params["jobId"], local_pod_path, params["userId"], params["resourcegpu"], params["cmd"])
@@ -144,6 +128,11 @@ class PodTemplate():
 
         job.add_plugins(job.get_plugins())
         params["plugins"] = job.plugins
+
+        # Set NCCL_IB_DISABLE=1 if specified
+        nccl_ib_disable = job.get_nccl_ib_disable()
+        if nccl_ib_disable is not None and nccl_ib_disable is True:
+            params["nccl_ib_disable"] = True
 
         pods = []
         if all(hyper_parameter in params for hyper_parameter in ["hyperparametername", "hyperparameterstartvalue", "hyperparameterendvalue", "hyperparameterstep"]):
@@ -182,6 +171,7 @@ class PodTemplate():
             # mount /pod
             pod_path = job.get_hostpath(job.job_path, "master")
             pod["mountpoints"].append({"name": "pod", "containerPath": "/pod", "hostPath": pod_path, "enabled": True})
+            pod["init-container"] = os.environ["INIT_CONTAINER_IMAGE"]
 
             k8s_pod = self.generate_pod(pod)
             k8s_pods.append(k8s_pod)

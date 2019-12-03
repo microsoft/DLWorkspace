@@ -1,0 +1,64 @@
+{% if false %}
+apiVersion: v1
+kind: Service
+metadata:
+  name: dashboard
+  namespace: default
+spec:
+  ports:
+  - port: {{cnf["webuiport"]}}
+  selector:
+    app: dashboard
+---
+{% endif %}
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: dashboard
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      dashboard-node: pod
+  template:
+    metadata:
+      name: dashboard
+      labels:
+        app: dashboard
+        dashboard-node: pod
+    spec:
+      {% if cnf["dnsPolicy"] %}    
+      dnsPolicy: {{cnf["dnsPolicy"]}}
+      {% endif %}
+      nodeSelector:
+        webportal: active
+      {% if true %}  
+      hostNetwork: true
+      {% endif %}
+      containers:
+      - name: dashboard
+        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}dashboard:{{cnf["dockertag"]}}
+        imagePullPolicy: Always
+        {% if false %}
+        ports:
+          - name: dashboard
+            containerPort: 80
+        {% endif %}
+        imagePullPolicy: Always
+        volumeMounts:
+        - mountPath: /usr/src/app/config
+          name: dashboardconfig
+        - mountPath: /var/log/dashboard
+          name: dashboardlog
+      volumes:
+      - name: dashboardconfig
+        hostPath:
+          path: /etc/dashboard
+      - name: dashboardlog
+        hostPath:
+          path: /var/log/dashboard
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule            
