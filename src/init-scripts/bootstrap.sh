@@ -1,6 +1,8 @@
 #! /bin/bash
 set -ex
 
+sh -x /dlts-runtime/ssh_build/install.sh
+
 SCRIPT_DIR=/pod/scripts
 
 echo bootstrap starts at `date` &>> ${LOG_DIR}/bootstrap.log

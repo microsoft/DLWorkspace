@@ -111,6 +111,7 @@ class DistPodTemplate():
         job.add_mountpoints(job.vc_storage_mountpoints())
         job.add_mountpoints(job.infiniband_mountpoints())
         params["mountpoints"] = job.mountpoints
+        params["init-container"] = os.environ["INIT_CONTAINER_IMAGE"]
 
         params["user_email"] = params["userName"]
         params["homeFolderHostpath"] = job.get_homefolder_hostpath()

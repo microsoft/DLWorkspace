@@ -1,0 +1,1 @@
+SSHD_OPTS="-f /etc/ssh/sshd_config -h /etc/ssh/ssh_host_rsa_key"

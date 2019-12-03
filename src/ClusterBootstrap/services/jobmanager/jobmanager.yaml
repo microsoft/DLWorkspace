@@ -28,6 +28,9 @@ spec:
         image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}{{cnf["restfulapi"]}}:{{cnf["dockertag"]}}
         command: ["/runScheduler.sh"]
         imagePullPolicy: Always
+        env:
+        - name: INIT_CONTAINER_IMAGE
+          value: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}init-container:{{cnf["dockertag"]}}
         volumeMounts:
         - mountPath: /etc/kubernetes/ssl
           name: certs
