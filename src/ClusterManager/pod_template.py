@@ -116,7 +116,10 @@ class PodTemplate():
         if "nodeSelector" not in params:
             params["nodeSelector"] = {}
         if "gpuType" in params:
-            params["nodeSelector"]["gpuType"] = params["gpuType"]
+            if params["resourcegpu"] == 0:
+                params["nodeSelector"]["gpuType"] = "None"
+            else:
+                params["nodeSelector"]["gpuType"] = params["gpuType"]
 
         # Set up VC dedicated node usage
         vc_node_hard_assignment = job.get_vc_node_hard_assignment()
