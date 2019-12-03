@@ -240,7 +240,8 @@ default_config_parameters = {
         "kibana": "etcd_node_1",
         "mysql": "etcd_node_1",
         "nginx": "all",
-        "storagemanager": "nfs_node"
+        "storagemanager": "nfs_node",
+        "user-synchronizer": "etcd_node_1",
     },
 
     "kubemarks": ["rack", "sku"],
