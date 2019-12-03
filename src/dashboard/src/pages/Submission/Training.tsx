@@ -230,7 +230,13 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     },
     [setMountOptions]
   )
-
+  const [workPath, setWorkPath] = React.useState("");
+  const onWorkPathChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setWorkPath(event.target.value);
+    },
+    [setWorkPath]
+  )
   const [dockerRegistry, setDockerRegistry] = React.useState("");
   const [dockerUsername, setDockerUsername] = React.useState("");
   const [dockerPassword, setDockerPassword] = React.useState("");
@@ -252,15 +258,6 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     },
     [setDockerPassword]
   )
-
-  const [workPath, setWorkPath] = React.useState("");
-  const onWorkPathChange = React.useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      setWorkPath(event.target.value);
-    },
-    [setWorkPath]
-  )
-
   const [enableWorkPath, setEnableWorkPath] = React.useState(true);
   const onEnableWorkPathChange = React.useCallback(
     (event: unknown, checked: boolean) => {
@@ -377,7 +374,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       let plugins: any = {};
       plugins['blobfuse'] = [];
 
-      let blobfuseObj: any = new Object();
+      let blobfuseObj: any = {};
       blobfuseObj['accountName'] = accountName || '';
       blobfuseObj['accountKey'] = accountKey || '';
       blobfuseObj['containerName'] = containerName || '';
@@ -386,7 +383,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       plugins['blobfuse'].push(blobfuseObj);
 
       plugins['imagePull'] = [];
-      let imagePullObj: any = new Object();
+      let imagePullObj: any = {};
       imagePullObj['registry'] = dockerRegistry
       imagePullObj['username'] = dockerUsername
       imagePullObj['password'] = dockerPassword
@@ -425,22 +422,18 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     try {
       let plugins: any = {};
       plugins['blobfuse'] = [];
-
-      let blobfuseObj: any = new Object();
+      let blobfuseObj: any = {};
       blobfuseObj['accountName'] = accountName || '';
       blobfuseObj['accountKey'] = accountKey || '';
       blobfuseObj['containerName'] = containerName || '';
       blobfuseObj['mountPath'] = mountPath || '';
-      blobfuseObj['mountOptions'] = mountOptions;
       plugins['blobfuse'].push(blobfuseObj);
-
       plugins['imagePull'] = [];
-      let imagePullObj: any = new Object();
+      let imagePullObj: any = {};
       imagePullObj['registry'] = dockerRegistry
       imagePullObj['username'] = dockerUsername
       imagePullObj['password'] = dockerPassword
       plugins['imagePull'].push(imagePullObj)
-
       const template = {
         name,
         type,
@@ -510,7 +503,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
           tensorboard,
           plugins
         } = JSON.parse(event.target.value as string);
-        console.log('jobpath', jobPath)
+        console.log('jobpath', plugins)
         if (name !== undefined) setName(name);
         if (type !== undefined) setType(type);
         if (gpus !== undefined) setGpus(gpus);
@@ -527,6 +520,16 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
         if (ssh !== undefined) setSsh(ssh);
         if (ipython !== undefined) setIpython(ipython);
         if (tensorboard !== undefined) setTensorboard(tensorboard);
+        if (plugins === undefined) {
+          setAccountName("");
+          setAccountKey("");
+          setContainerName("");
+          setMountPath("");
+          setMountOptions("--file-cache-timeout-in-seconds=120");
+          setDockerRegistry("")
+          setDockerUsername("")
+          setDockerPassword("")
+        }
         if (plugins !== undefined) {
           if (plugins.hasOwnProperty("blobfuse") && Array.isArray(plugins['blobfuse'])) {
             let blobfuseObj = plugins['blobfuse'][0];
@@ -584,23 +587,20 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     event.preventDefault();
     if (!submittable) return;
     let plugins: any = {};
-
     plugins['blobfuse'] = [];
-    let blobfuseObj: any = new Object();
+    let blobfuseObj: any = {};
     blobfuseObj['accountName'] = accountName || '';
     blobfuseObj['accountKey'] = accountKey || '';
     blobfuseObj['containerName'] = containerName || '';
     blobfuseObj['mountPath'] = mountPath || '';
     blobfuseObj['mountOptions'] = mountOptions;
     plugins['blobfuse'].push(blobfuseObj);
-
     plugins['imagePull'] = [];
-    let imagePullObj: any = new Object();
+    let imagePullObj: any = {};
     imagePullObj['registry'] = dockerRegistry
     imagePullObj['username'] = dockerUsername
     imagePullObj['password'] = dockerPassword
     plugins['imagePull'].push(imagePullObj)
-
     const job: any = {
       userName: email,
       userId: uid,
