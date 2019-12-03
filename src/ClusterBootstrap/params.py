@@ -684,6 +684,8 @@ default_config_parameters = {
     # 2. enable_cpuworker is set to True
     # 3. default_cpu_sku is set to a valid value that exists in sku_meta
     "enable_cpuworker": False,
+    "enable_blobfuse": False,
+    "enable_custom_registry_secrets": False
     "default_cpu_sku": "Standard_D2s_v3",
 
     # SKU meta defines different types of resources for each SKU

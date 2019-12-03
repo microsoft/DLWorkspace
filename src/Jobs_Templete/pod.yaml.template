@@ -249,6 +249,15 @@ spec:
     {% endif %}
 
   imagePullSecrets:
+  {% if job["plugins"] %}
+    {% if job["plugins"]["imagePull"] %}
+      {% for secret in job["plugins"]["imagePull"] %}
+        {% if secret.enabled %}
+  - name: {{ secret.name }}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+  {% endif %}
   - name: regcred
 
   restartPolicy: Never

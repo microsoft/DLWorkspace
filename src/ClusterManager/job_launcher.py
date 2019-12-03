@@ -552,21 +552,25 @@ class PythonLauncher(Launcher):
                 job_object.params["envs"] =[]
             job_object.params["envs"].append({"name": "DLTS_JOB_TOKEN", "value": job_object.params["job_token"]})              
 
-
             enable_custom_scheduler = job_object.is_custom_scheduler_enabled()
-            secret_template = job_object.get_blobfuse_secret_template()
+            blobfuse_secret_template = job_object.get_blobfuse_secret_template()
+            image_pull_secret_template = job_object.get_image_pull_secret_template()
+            secret_templates = {
+                "blobfuse": blobfuse_secret_template,
+                "imagePull": image_pull_secret_template
+            }
             if job_object.params["jobtrainingtype"] == "RegularJob":
                 pod_template = PodTemplate(job_object.get_template(),
                                            enable_custom_scheduler=enable_custom_scheduler,
-                                           secret_template=secret_template)
+                                           secret_templates=secret_templates)
             elif job_object.params["jobtrainingtype"] == "PSDistJob":
                 pod_template = DistPodTemplate(job_object.get_template(),
-                                               secret_template=secret_template)
+                                               secret_templates=secret_templates)
             elif job_object.params["jobtrainingtype"] == "InferenceJob":
                 pod_template = PodTemplate(job_object.get_template(),
                                            deployment_template=job_object.get_deployment_template(),
                                            enable_custom_scheduler=False,
-                                           secret_template=secret_template)
+                                           secret_templates=secret_templates)
             else:
                 dataHandler.SetJobError(job_object.job_id, "ERROR: invalid jobtrainingtype: %s" % job_object.params["jobtrainingtype"])
                 dataHandler.Close()
