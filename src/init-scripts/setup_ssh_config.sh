@@ -1,5 +1,5 @@
 #! /bin/bash
-set -ex
+set -x
 
 # generate ps host list
 ps_host_list=""
@@ -71,5 +71,31 @@ then
         cat >>${SLOT_FILE} <<EOF
 ${host} slots=${slots}
 EOF
+    done
+fi
+
+# make sure worker have sshd up and running
+if [ "$DLWS_ROLE_NAME" = "ps" ];
+then
+    for host in ${host_list}
+    do
+        succ=false
+        for i in `seq 1 100` ; do
+            echo "testing $host"
+            ssh $host "echo 1"
+            echo "done testing $host"
+            rtn=$?
+            if [ "$rtn" -eq "0" ] ; then
+                succ=true
+                echo "$host has done sshd setup"
+                break
+            else
+                echo "$host has not done sshd setup wait 1s"
+                sleep 1
+            fi
+        done
+        if [ "$succ" = "false" ] ; then
+            exit 1
+        fi
     done
 fi
