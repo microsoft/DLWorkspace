@@ -3031,9 +3031,10 @@ def kubernetes_label_vc():
     machines = get_machines_by_roles("all", config)
 
     for machine_name, machine_info in machines.items():
+        vc = "default"
         if "vc" in machine_info and machine_info["vc"] is not None:
             vc = machine_info["vc"]
-            kubernetes_label_node("--overwrite", machine_name, "vc=%s" % vc)
+        kubernetes_label_node("--overwrite", machine_name, "vc=%s" % vc)
 
 
 def kubernetes_patch_nodes_provider (provider, scaledOnly):

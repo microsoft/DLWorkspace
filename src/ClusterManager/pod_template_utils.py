@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python
 def cpu_format(cpu, ratio=1.0):
     """Convert number of cpu to cpu cycle.
 
@@ -89,13 +89,20 @@ def enable_cpu_config(pod, config):
     Returns:
         Potentially modified pod.
     """
-    # Only works for 0-GPU pod
-    if "resourcegpu" not in pod or int(pod["resourcegpu"]) != 0:
+    job_training_type = pod.get("jobtrainingtype", None)
+    dist_role = pod.get("distRole", None)
+
+    # No special config for ps pod. It is always co-located with a worker
+    if dist_role == "ps":
         return pod
 
     # Ignore if cpuworker is not enabled
     enable_cpuworker = config.get("enable_cpuworker", False)
     if enable_cpuworker is False:
+        return pod
+
+    # Only works for 0-GPU pod
+    if "resourcegpu" not in pod or int(pod["resourcegpu"]) != 0:
         return pod
 
     # Add node selector cpuworker=active
@@ -104,7 +111,6 @@ def enable_cpu_config(pod, config):
     pod["nodeSelector"]["cpuworker"] = "active"
 
     # Add node selector sku=<sku_value>
-    job_training_type = pod.get("jobtrainingtype", None)
     default_cpu_sku = config.get("default_cpu_sku", None)
     if "sku" in pod:
         pod["nodeSelector"]["sku"] = pod["sku"]
@@ -121,7 +127,7 @@ def enable_cpu_config(pod, config):
     default_mem_request = None
     default_mem_limit = None
 
-    if job_training_type == "PSDistJob" and pod["distRole"] == "worker":
+    if job_training_type == "PSDistJob" and dist_role == "worker":
         full_node = True
     else:
         full_node = False
@@ -130,14 +136,11 @@ def enable_cpu_config(pod, config):
         sku = pod["nodeSelector"].get("sku", None)
         sku_info = get_sku_info(sku=sku, config=config)
         if sku_info is not None:
+            # Do not restrict the limit for full node worker
             default_cpu_request = cpu_format(sku_info["cpu"],
                                              sku_info["cpu_ratio"])
-            default_cpu_limit = cpu_format(sku_info["cpu"],
-                                           sku_info["cpu_ratio"])
             default_mem_request = mem_format(sku_info["memory"],
                                              sku_info["memory_ratio"])
-            default_mem_limit = mem_format(sku_info["memory"],
-                                           sku_info["memory_ratio"])
     else:
         default_cpu_request = cpu_format(config.get("default_cpurequest"))
         default_cpu_limit = cpu_format(config.get("default_cpulimit"))
