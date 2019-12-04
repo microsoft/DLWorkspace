@@ -2,12 +2,13 @@ import smtplib
 import logging
 import yaml
 import datetime
+from cachetools import TTLCache
 
 class EmailHandler():
 
     def __init__(self):
         self.config=self.load_config()
-        self.monitor_alerts = {}
+        self.alert_cache=TTLCache(maxsize=1000, ttl=self.config['alert_wait_seconds'])
 
     def load_config(self):
         with open('./config/email-config.yaml', 'r') as file:
@@ -30,23 +31,8 @@ class EmailHandler():
             logging.exception('SMTP error occurred: ' + str(e))
 
     def handle_email_alert(self, subject, body):
-        time_now = datetime.datetime.now()
 
-        # to avoid email clutter, send email based on configured alert wait time
-        for alert in self.monitor_alerts:
-            time_start = self.monitor_alerts[alert]
-            time_delta = datetime.timedelta(hours=self.config['alert_wait_time'])
-            wait_time_reached = time_now - time_start > time_delta
-
-            if wait_time_reached:
-
-                if alert == body:
-                    self.send(subject, body)
-                    self.monitor_alerts[alert] = datetime.datetime.now()
-
-                else:
-                    self.monitor_alerts.pop(alert)
-
-        if body not in self.monitor_alerts:
+        # to avoid email spam, send email based on configured alert wait time
+        if body not in self.alert_cache:
             self.send(subject, body)
-            self.monitor_alerts[body] = datetime.datetime.now()  
+            self.alert_cache[body] = 1  

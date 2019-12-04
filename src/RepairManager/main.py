@@ -44,7 +44,7 @@ def Run():
                     class_name = rules[r_key]['class_name']
                     r_module = sys.modules[module_name]
                     r_class = getattr(r_module, class_name)
-                    rule = r_class()
+                    rule = r_class(alert)
 
                     logger.debug(f'Executing {class_name} from module {module_name}')
 

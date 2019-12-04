@@ -5,4 +5,4 @@ sender: {{cnf['repair-manager']['alert']['sender']}}
 receiver: {{cnf['repair-manager']['alert']['receiver']}}
 
 # time to wait before resending email alert for exceptions (hours)
-alert_wait_time: {{cnf['repair-manager']['alert']['alert_wait_time']}}
+alert_wait_seconds: {{cnf['repair-manager']['alert']['alert_wait_seconds']}}

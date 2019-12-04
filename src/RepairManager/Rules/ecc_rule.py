@@ -8,8 +8,6 @@ import time
 import yaml
 import logging
 
-alert = email.EmailHandler()
-
 def get_node_address_info(node_info):
     # map InternalIP to Hostname
     address_map = {}
@@ -37,13 +35,9 @@ def get_node_address_info(node_info):
 
 def get_ECC_error_data(ecc_url):
 
-    response = requests.get(ecc_url)        
+    response = requests.get(ecc_url)
     data = json.loads(response.text)
 
-    # use mock data
-    #file_object = open('./mock-data/ecc.json', 'r')
-    #data = json.load(file_object)
-    
     if data:
         ecc_metrics = data['data']['result']
         logging.info('ECC error metrics from prometheus: ' + json.dumps(ecc_metrics))
@@ -54,10 +48,11 @@ def get_ECC_error_data(ecc_url):
 
 class ECCRule(Rule):
 
-    def __init__(self):
+    def __init__(self, alert):
         self.config = self.load_rule_config()
         self.ecc_hostnames = []
         self.node_info = {}
+        self.alert = alert
 
     def load_rule_config(self):
         with open('./config/rule-config.yaml', 'r') as file:
@@ -79,19 +74,16 @@ class ECCRule(Rule):
 
             logging.info(f'Uncorrectable ECC metrics found: {self.ecc_hostnames}')
             return True
-            
         else:
             logging.debug('No uncorrectable ECC metrics found.')
             return False
 
     def take_action(self):
         body = 'ECC Error found on the following nodes:\n'
-        all_nodes_already_unscheduled = True
 
         for node_name in self.ecc_hostnames:
 
             if not k8s_util.is_node_unschedulable(self.node_info, node_name):
-                all_nodes_already_unscheduled = False
                 success = k8s_util.cordon_node(node_name)
 
                 if success != 0:
@@ -101,5 +93,5 @@ class ECCRule(Rule):
                     body += f'{node_name}: Successfully marked as unschedulable\n'
 
         subject = 'Repair Manager Alert [ECC ERROR]'
-        alert.handle_email_alert(subject, body)
+        self.alert.handle_email_alert(subject, body)
 
