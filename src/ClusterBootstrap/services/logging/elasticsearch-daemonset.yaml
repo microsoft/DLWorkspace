@@ -24,9 +24,9 @@ spec:
         image: docker.elastic.co/elasticsearch/elasticsearch:6.8.5
         env:
         - name: "http.port"
-          value: '19200'
+          value: '{{cnf["elasticsearch"]["port"]["http"]}}'
         - name: "transport.port"
-          value: '19300'
+          value: '{{cnf["elasticsearch"]["port"]["transport"]}}'
         resources:
           # need more cpu upon initialization, therefore burstable class
           limits:
@@ -34,10 +34,10 @@ spec:
           requests:
             cpu: 100m
         ports:
-        - containerPort: 19200
+        - containerPort: {{cnf["elasticsearch"]["port"]["http"]}}
           name: http
           protocol: TCP
-        - containerPort: 19300
+        - containerPort: {{cnf["elasticsearch"]["port"]["transport"]}}
           name: transport
           protocol: TCP
         # volumeMounts:

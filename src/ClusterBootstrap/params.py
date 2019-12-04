@@ -15,8 +15,12 @@ default_config_parameters = {
     "cloud_elasticsearch_node": "dlws-influxdb.westus.cloudapp.azure.com",
     "cloud_elasticsearch_port": "9200",
 
-    "elasticsearch_db_port": "10200",
-    "elasticsearch_tp_port": "10300",
+    "elasticsearch": {
+        "port": {
+            "http": 19200,
+            "transport": 19300,
+        },
+    },
 
     "influxdb_port": "8086",
     "influxdb_tp_port": "25826",

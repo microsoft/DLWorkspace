@@ -25,7 +25,7 @@ spec:
         - name: FLUENT_ELASTICSEARCH_HOST
           value: '{{cnf["elasticsearch_node"]}}'
         - name: FLUENT_ELASTICSEARCH_PORT
-          value: '19200'
+          value: '{{cnf["elasticsearch"]["port"]["http"]}}'
         - name: FLUENT_ELASTICSEARCH_SCHEME
           value: "http"
         resources:
