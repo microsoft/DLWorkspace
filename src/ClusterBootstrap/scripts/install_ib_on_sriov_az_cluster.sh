@@ -2,6 +2,12 @@
 
 set -x
 
+export DEBIAN_FRONTEND=noninteractive
+
+# Remove kvp file for ND (network direct) - the older mechanism for InfiniBand before SR-IOV retrofit
+sudo rm -rf /var/lib/hyperv/.kvp_pool_0
+sudo systemctl restart hv-kvp-daemon.service
+
 sudo apt-get update
 sudo apt-get install -y build-essential python-setuptools libibverbs-dev bison flex ibverbs-utils net-tools gfortran python3-pip
 sudo apt-get install -y perftest infiniband-diags
