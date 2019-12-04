@@ -7,12 +7,15 @@ WORKDIR /ssh_build
 COPY build-openssh-static.sh /ssh_build
 RUN sh build-openssh-static.sh
 
-#FROM python:3.8.0-alpine3.10
-FROM ubuntu:16.04
+FROM python:3.8.0-alpine3.10
 
-WORKDIR /ssh_build
+WORKDIR /dlts-init
+COPY requirements.txt /dlts-init
 
-COPY --from=builder /ssh_build/root /ssh_build
-COPY init.d /ssh_build/init.d
-COPY default /ssh_build/default
-COPY install.sh /ssh_build
+RUN pip3 install -r /dlts-init/requirements.txt
+
+COPY --from=builder /ssh_build/root /dlts-init/ssh_build
+
+COPY install.sh init.sh /dlts-init/
+COPY ssh_config /dlts-init/ssh_config
+COPY runtime /dlts-init/runtime

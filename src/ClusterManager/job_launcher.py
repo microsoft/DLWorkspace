@@ -66,6 +66,36 @@ class JobDeployer:
         return api_response
 
     @record
+    def _cleanup_pods_with_labels(self, label_selector):
+        errors = []
+        try:
+            self.k8s_CoreAPI.delete_collection_namespaced_pod(
+                self.namespace,
+                pretty=self.pretty,
+                label_selector=label_selector,
+                )
+        except ApiException as e:
+            message = "Delete pods failed: {}".format(label_selector)
+            logging.warning(message, exc_info=True)
+            errors.append({"message": message, "exception": e})
+        return errors
+
+    @record
+    def _cleanup_configmap(self, label_selector):
+        errors = []
+        try:
+            api_response = self.k8s_CoreAPI.delete_collection_namespaced_config_map(
+                self.namespace,
+                pretty=self.pretty,
+                label_selector=label_selector,
+                )
+        except ApiException as e:
+            message = "Delete configmap failed: {}".format(label_selector)
+            logging.warning(message, exc_info=True)
+            errors.append({"message": message, "exception": e})
+        return errors
+
+    @record
     def _create_deployment(self, body):
         api_response = self.k8s_AppsAPI.create_namespaced_deployment(
             namespace=self.namespace,
@@ -265,10 +295,8 @@ class JobDeployer:
         label_selector = "run={}".format(job_id)
 
         # query pods then delete
-        pods = self.get_pods(label_selector=label_selector)
-        pod_names = [pod.metadata.name for pod in pods]
-        pod_errors = self._cleanup_pods(pod_names, force)
-        logging.info("deleting pods %s" % ",".join(pod_names))
+        pod_errors = self._cleanup_pods_with_labels(label_selector)
+        logging.info("deleting pods %s" % label_selector)
         # query services then delete
         services = self._get_services_by_label(label_selector)
         service_errors = self._cleanup_services(services)
@@ -285,7 +313,10 @@ class JobDeployer:
         secret_errors = self._cleanup_secrets(secret_names, force)
         logging.info("deleting secrets %s" % ",".join(secret_names))
 
-        errors = pod_errors + service_errors + deployment_errors + secret_errors
+        configmap_errors = self._cleanup_configmap(label_selector)
+
+        errors = pod_errors + service_errors + deployment_errors + secret_errors + \
+                configmap_errors
         return errors
 
     @record

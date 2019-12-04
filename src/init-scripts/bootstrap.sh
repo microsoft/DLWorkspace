@@ -1,7 +1,8 @@
 #! /bin/bash
 set -ex
 
-sh -x /dlts-runtime/ssh_build/install.sh
+. /dlts-runtime/env/init.env
+sh -x /dlts-runtime/install.sh
 
 SCRIPT_DIR=/pod/scripts
 
@@ -35,13 +36,9 @@ fi
 # Setup roles
 bash ${SCRIPT_DIR}/setup_sshd.sh &>> ${LOG_DIR}/bootstrap.log
 
-if [ "$DLWS_ROLE_NAME" = "master" ] || [ "$DLWS_ROLE_NAME" = "ps" ];
-then
-    bash ${SCRIPT_DIR}/setup_ssh_config.sh &>> ${LOG_DIR}/bootstrap.log
-fi
-
 if [ "$DLWS_ROLE_NAME" != "inferenceworker" ];
 then
+    bash ${SCRIPT_DIR}/setup_ssh_config.sh &>> ${LOG_DIR}/bootstrap.log
 	touch ${PROC_DIR}/ROLE_READY
 
 	# Setup job
