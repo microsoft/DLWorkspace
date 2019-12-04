@@ -1,0 +1,38 @@
+{
+    "status": "success",
+    "data": {
+        "resultType": "vector",
+        "result": [
+            {
+                "metric": {
+                    "minor_number": "0",
+                    "exporter_name": "job-exporter",
+                    "scraped_from": "job-exporter-abcde",
+                    "instance": "192.168.0.5:9102",
+                    "job": "serivce_exporter",
+                    "__name__": "nvidiasmi_ecc_error_count",
+                    "type": "volatile_double"
+                },
+                "value": [
+                    1572393294.659,
+                    "2"
+                ]
+            },
+            {
+                "metric": {
+                    "minor_number": "1",
+                    "exporter_name": "job-exporter",
+                    "scraped_from": "job-exporter-fghij",
+                    "instance": "192.168.0.4:9102",
+                    "job": "serivce_exporter",
+                    "__name__": "nvidiasmi_ecc_error_count",
+                    "type": "volatile_double"
+                },
+                "value": [
+                    1572393294.659,
+                    "1"
+                ]
+            }
+        ]
+            }
+}
