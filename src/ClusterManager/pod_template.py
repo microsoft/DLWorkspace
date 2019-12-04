@@ -118,6 +118,18 @@ class PodTemplate():
         if "gpuType" in params:
             params["nodeSelector"]["gpuType"] = params["gpuType"]
 
+        # Set up VC dedicated node usage
+        vc_node_hard_assignment = job.get_vc_node_hard_assignment()
+        if isinstance(vc_node_hard_assignment, dict):
+            vc = params["vcName"]
+            # Only consider GPU jobs
+            if vc in vc_node_hard_assignment and \
+                    vc_node_hard_assignment[vc] is True and \
+                    params["resourcegpu"] > 0:
+                params["nodeSelector"]["vc"] = vc
+            else:
+                params["nodeSelector"]["vc"] = "default"
+
         params = enable_cpu_config(params, job.cluster)
 
         local_pod_path = job.get_hostpath(job.job_path, "master")

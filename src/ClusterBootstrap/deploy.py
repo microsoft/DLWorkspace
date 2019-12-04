@@ -3026,6 +3026,17 @@ def kubernetes_label_sku():
             kubernetes_label_node("--overwrite", machine_name, "sku=%s" % sku)
 
 
+def kubernetes_label_vc():
+    """Label kubernetes nodes with vc=<vc_value>"""
+    machines = get_machines_by_roles("all", config)
+
+    for machine_name, machine_info in machines.items():
+        vc = "default"
+        if "vc" in machine_info and machine_info["vc"] is not None:
+            vc = machine_info["vc"]
+        kubernetes_label_node("--overwrite", machine_name, "vc=%s" % vc)
+
+
 def kubernetes_patch_nodes_provider (provider, scaledOnly):
     nodes = []
     if scaledOnly:
@@ -3892,6 +3903,9 @@ def run_command( args, command, nargs, parser ):
     elif command == "labelsku":
         kubernetes_label_sku()
 
+    elif command == "labelvc":
+        kubernetes_label_vc()
+
     elif command == "genscripts":
         gen_platform_wise_config()
         gen_dns_config_script()
@@ -4216,7 +4230,10 @@ Command:
   upgrade_workers [nodes] Upgrade the worker nodes. If no additional node is specified, all nodes will be updated.
   upgrade [nodes] Upgrade the cluster and nodes. If no additional node is specified, all nodes will be updated.
   labelcpuworker Label CPU nodes with "worker" role with cpuworker=active if their SKU is defined in sku_meta.
-  labelsku       Label nodes with sku=<sku_value> if their SKU is defined in sku_meta.
+  labelsku       Label nodes with "sku=<sku_value>" if their SKU is defined in sku_meta. In order to run distributed
+                 CPU jobs, ./deploy.py labelcpuworker must be executed as well.
+  labelvc        Label nodes with "vc=<vc_value>" if vc is defined in machine's property in machines sections in config.
+                 Default to "vc=default".
   ''') )
     parser.add_argument("-y", "--yes",
         help="Answer yes automatically for all prompt",
