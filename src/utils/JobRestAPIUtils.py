@@ -6,6 +6,7 @@ import uuid
 import subprocess
 import sys
 import collections
+import requests
 
 from jobs_tensorboard import GenTensorboardMeta
 
@@ -405,6 +406,36 @@ def GetJobStatus(jobId):
         result = {key: jobs[0][key] for key in key_list}
     dataHandler.Close()
     return result
+
+
+def GetJobLog(jobId, cursor=None, size=100):
+    try:
+        request_json = {
+            "query": {
+                "match_phrase": {
+                    "kubernetes.labels.jobId": jobId
+                }
+            },
+            "sort": ["@timestamp"],
+            "size": size,
+            "_source": "log"
+        }
+        if cursor is not None:
+            request_json['search_after'] = [cursor]
+        response = requests.get(config['elasticsearch'] + '/logstash-*/_search', json=request_json)
+        response_json = response.json()
+        documents = response_json["hits"]["hits"]
+        log = ''.join(document["_source"]["log"] for document in documents)
+
+        next_cursor = None
+        if len(documents) > 0:
+            tail = documents[-1]["sort"][0]
+
+        return (log, tail)
+    except Exception:
+        logger.exception("Request elasticsearch failed")
+        return ("", cursor)
+
 
 def GetClusterStatus():
     cluster_status,last_update_time =  DataManager.GetClusterStatus()

@@ -575,6 +575,27 @@ class GetJobDetail(Resource):
 api.add_resource(GetJobDetail, '/GetJobDetail')
 
 
+class GetJobLog(Resource):
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('jobId', required=True)
+        parser.add_argument('cursor', type=int)
+        args = parser.parse_args()
+        jobId = args["jobId"]
+        cursor = args["cursor"]
+        (log, next_cursor) = JobRestAPIUtils.GetJobLog(jobId, cursor)
+
+        headers = None
+        if next_cursor is not None:
+            headers = {"X-Cursor": next_cursor}
+        # Return plain text for smaller size
+        return Response(log, mimetype="text/plain", headers=headers)
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(GetJobLog, '/GetJobLog')
+
+
 class GetJobStatus(Resource):
     def get(self):
         parser = reqparse.RequestParser()
