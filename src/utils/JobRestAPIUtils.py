@@ -391,30 +391,8 @@ def GetJobDetail(userName, jobId):
     if len(jobs) == 1:
         if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
             job = jobs[0]
-            job["log"] = ""
-            #jobParams = json.loads(base64.b64decode(job["jobMeta"]))
-            #jobPath,workPath,dataPath = GetStoragePath(jobParams["jobPath"],jobParams["workPath"],jobParams["dataPath"])
-            #localJobPath = os.path.join(config["storage-mount-path"],jobPath)
-            #logPath = os.path.join(localJobPath,"joblog.txt")
-            #print logPath
-            #if os.path.isfile(logPath):
-            #    with open(logPath, 'r') as f:
-            #        log = f.read()
-            #        job["log"] = log
-            #    f.close()
             if "jobDescription" in job:
                 job.pop("jobDescription",None)
-            try:
-                log = dataHandler.GetJobTextField(jobId,"jobLog")
-                try:
-                    if isBase64(log):
-                        log = base64.b64decode(log)
-                except Exception:
-                    pass
-                if log is not None:
-                    job["log"] = log
-            except:
-                job["log"] = "fail-to-get-logs"
     dataHandler.Close()
     return job
 

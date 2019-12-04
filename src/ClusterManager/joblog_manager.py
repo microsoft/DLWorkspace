@@ -66,7 +66,6 @@ def extract_job_log(jobId,logPath,userId):
         if not os.path.exists(jobLogDir):
             mkdirsAsUser(jobLogDir,userId)
         logStr = ""
-        trimlogstr = ""
 
 
         for log in logs:
@@ -85,33 +84,6 @@ def extract_job_log(jobId,logPath,userId):
                 logStr += "=========================================================\n"
                 logStr += "\n\n\n"
 
-
-                trimlogstr += "=========================================================\n"
-                trimlogstr += "=========================================================\n"
-                trimlogstr += "=========================================================\n"
-                trimlogstr += "        logs from pod: %s\n" % log["podName"]
-                trimlogstr += "=========================================================\n"
-                trimlogstr += "=========================================================\n"
-                trimlogstr += "=========================================================\n"
-                logLines = log["containerLog"].split('\n')
-                if (len(logLines) < 3000):
-                    trimlogstr += log["containerLog"]
-                    trimlogstr += "\n\n\n"
-                    trimlogstr += "=========================================================\n"
-                    trimlogstr += "        end of logs from pod: %s\n" % log["podName"] 
-                    trimlogstr += "=========================================================\n"
-                    trimlogstr += "\n\n\n"
-                else:
-                    trimlogstr += "\n".join(logLines[-2000:])
-                    trimlogstr += "\n\n\n"
-                    trimlogstr += "=========================================================\n"
-                    trimlogstr += "        end of logs from pod: %s\n" % log["podName"] 
-                    trimlogstr += "        Note: the log is too long to display in the webpage.\n"
-                    trimlogstr += "        Only the last 2000 lines are shown here.\n"
-                    trimlogstr += "        Please check the log file (in Job Folder) for the full logs.\n"
-                    trimlogstr += "=========================================================\n"
-                    trimlogstr += "\n\n\n"
-
                 try:
                     containerLogPath = os.path.join(jobLogDir,"log-container-" + log["containerID"] + ".txt")
                     with open(containerLogPath, 'w') as f:
@@ -122,11 +94,9 @@ def extract_job_log(jobId,logPath,userId):
                     logger.exception("write container log failed")
 
 
-        if len(trimlogstr.strip()) > 0:
-            dataHandler.UpdateJobTextField(jobId,"jobLog",base64.b64encode(trimlogstr))
+        if len(logStr.strip()) > 0:
             with open(logPath, 'w') as f:
                 f.write(logStr)
-            f.close()
             os.system("chown -R %s %s" % (userId, logPath))
 
     except Exception as e:
