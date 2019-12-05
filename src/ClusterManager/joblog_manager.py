@@ -31,6 +31,7 @@ import k8sUtils
 from osUtils import mkdirsAsUser
 from config import config, GetStoragePath
 from DataHandler import DataHandler
+from JobLogUtils import GetJobLog
 
 from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time, record
 
@@ -52,52 +53,29 @@ def extract_job_log(jobId,logPath,userId):
     try:
         dataHandler = DataHandler()
 
-        # TODO: Replace joblog manager with elastic search
-        logs = k8sUtils.GetLog(jobId, tail=None)
-
-        # Do not overwrite existing logs with empty log
-        # DLTS bootstrap will generate logs for all containers.
-        # If one container has empty log, skip writing.
-        for log in logs:
-            if "containerLog" in log and log["containerLog"] == "":
-                return
+        old_cursor_text = dataHandler.GetJobTextField(jobId, "jobLog")
+        if old_cursor_text is not None and old_cursor_text.startswith("$$cursor: "):
+            old_cursor = old_cursor_text[10:]
+        else:
+            old_cursor = None
+        (log, new_cursor) = GetJobLog(jobId, cursor=old_cursor)
 
         jobLogDir = os.path.dirname(logPath)
         if not os.path.exists(jobLogDir):
             mkdirsAsUser(jobLogDir,userId)
-        logStr = ""
 
+        for (podName, log_text) in log.items():
+            try:
+                podLogPath = os.path.join(jobLogDir, "log-pod-" + podName + ".txt")
+                with open(podLogPath, 'a') as f:
+                    f.write(log_text)
+                os.system("chown -R %s %s" % (userId, podLogPath))
+            except Exception as e:
+                logger.exception("write container log failed")
 
-        for log in logs:
-            if "podName" in log and "containerID" in log and "containerLog" in log:
-                logStr += "=========================================================\n"
-                logStr += "=========================================================\n"
-                logStr += "=========================================================\n"
-                logStr += "        logs from pod: %s\n" % log["podName"]
-                logStr += "=========================================================\n"
-                logStr += "=========================================================\n"
-                logStr += "=========================================================\n"
-                logStr += log["containerLog"]
-                logStr += "\n\n\n"
-                logStr += "=========================================================\n"
-                logStr += "        end of logs from pod: %s\n" % log["podName"] 
-                logStr += "=========================================================\n"
-                logStr += "\n\n\n"
-
-                try:
-                    containerLogPath = os.path.join(jobLogDir,"log-container-" + log["containerID"] + ".txt")
-                    with open(containerLogPath, 'w') as f:
-                        f.write(log["containerLog"])
-                    f.close()
-                    os.system("chown -R %s %s" % (userId, containerLogPath))
-                except Exception as e:
-                    logger.exception("write container log failed")
-
-
-        if len(logStr.strip()) > 0:
-            with open(logPath, 'w') as f:
-                f.write(logStr)
-            os.system("chown -R %s %s" % (userId, logPath))
+        logging.info("cursor of job %s: %s" % (jobId, new_cursor))
+        if new_cursor is not None:
+            dataHandler.UpdateJobTextField(jobId, "jobLog", "$$cursor: %d" % (new_cursor,))
 
     except Exception as e:
         logging.error(e)
