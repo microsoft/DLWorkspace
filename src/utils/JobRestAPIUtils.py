@@ -32,6 +32,8 @@ import logging
 from cachetools import cached, TTLCache
 from threading import Lock
 
+from JobLogUtils import GetJobLog as UtilsGetJobLog
+
 
 DEFAULT_JOB_PRIORITY = 100
 USER_JOB_PRIORITY_RANGE = (100, 200)
@@ -409,32 +411,11 @@ def GetJobStatus(jobId):
 
 
 def GetJobLog(jobId, cursor=None, size=100):
-    try:
-        request_json = {
-            "query": {
-                "match_phrase": {
-                    "kubernetes.labels.jobId": jobId
-                }
-            },
-            "sort": ["@timestamp"],
-            "size": size,
-            "_source": "log"
-        }
-        if cursor is not None:
-            request_json['search_after'] = [cursor]
-        response = requests.get(config['elasticsearch'] + '/logstash-*/_search', json=request_json)
-        response_json = response.json()
-        documents = response_json["hits"]["hits"]
-        log = ''.join(document["_source"]["log"] for document in documents)
-
-        next_cursor = None
-        if len(documents) > 0:
-            tail = documents[-1]["sort"][0]
-
-        return (log, tail)
-    except Exception:
-        logger.exception("Request elasticsearch failed")
-        return ("", cursor)
+    (pod_logs, cursor) = UtilsGetJobLog(jobId, cursor, size)
+    return {
+        "log": pod_logs,
+        "cursor": cursor,
+    }
 
 
 def GetClusterStatus():

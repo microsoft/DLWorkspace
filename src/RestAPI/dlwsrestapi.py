@@ -583,13 +583,7 @@ class GetJobLog(Resource):
         args = parser.parse_args()
         jobId = args["jobId"]
         cursor = args["cursor"]
-        (log, next_cursor) = JobRestAPIUtils.GetJobLog(jobId, cursor)
-
-        headers = None
-        if next_cursor is not None:
-            headers = {"X-Cursor": next_cursor}
-        # Return plain text for smaller size
-        return Response(log, mimetype="text/plain", headers=headers)
+        return JobRestAPIUtils.GetJobLog(jobId, cursor)
 ##
 ## Actually setup the Api resource routing here
 ##
