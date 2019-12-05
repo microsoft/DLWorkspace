@@ -1,4 +1,5 @@
-import React, { useCallback, useContext, useState, useEffect, useRef } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import useFetch from 'use-http';
 
 import {
   Card,
@@ -11,50 +12,82 @@ import Context from './Context';
 
 const Log: React.FC = () => {
   const { clusterId, jobId } = useContext(Context);
-  const [log, setLog] = useState("");
-  const [cursor, setCursor] = useState<string>();
-  const timeout = useRef<any>();
-  const mounted = useRef(false);
 
-  const request = useCallback(async () => {
-    const url = new URL(`/api/clusters/${clusterId}/jobs/${jobId}/log`, window.location.href);
+  const [log, setLog] = useState<{ [podName: string]: string }>({});
+  const [cursor, setCursor] = useState<string | null>(null);
+  useEffect(() => {
+    setLog({});
+    setCursor(null);
+  }, [clusterId, jobId])
+
+  const { data, error, get } = useFetch('/api');
+  const getMore = useCallback(() => {
+    let url = `/clusters/${clusterId}/jobs/${jobId}/log`;
     if (cursor != null) {
-      url.searchParams.set('cursor', cursor);
+      url += `?cursor=${cursor}`;
     }
-    const response = await fetch(url.toString())
-    if (!response.ok && mounted.current) {
-      timeout.current = setTimeout(request, 1000)
-      return;
-    }
-
-    const text = await response.text();
-    setLog(log + text);
-
-    const link = response.headers.get('link');
-    if (link != null) {
-      const match = link.match(/\?cursor=(.+?)(?:&|>|$)/);
-      if (match != null) {
-        setCursor(match[1]);
-      }
-    }
+    get(url);
   }, [clusterId, jobId, cursor]);
+  useEffect(() => { getMore(); }, [getMore]);
 
   useEffect(() => {
-    mounted.current = true;
-    request();
-    return () => {
-      mounted.current = false;
-      if (timeout.current) {
+    if (data != null) {
+      const { log: nextLog, cursor } = data;
+      const newLog = Object.assign(Object.create(null), log)
+      for (const podName of Object.keys(nextLog)) {
+        newLog[podName] = (newLog[podName] || "") + nextLog[podName]
+      }
+      setLog(newLog);
+      setCursor(cursor);
+    }
+  }, [data])
+
+  const logText = useMemo(() => {
+    const logText: string[] = [];
+    const podNames = Object.keys(log).sort()
+    for (const podName of podNames) {
+      logText.push(`
+=========================================================
+=========================================================
+=========================================================
+        logs from pod: ${podName}
+=========================================================
+=========================================================
+=========================================================
+${log[podName]}
+=========================================================
+        end of logs from pod: ${podName}
+=========================================================
+
+
+`);
+    }
+    return logText.join("");
+  }, [log]);
+
+  const timeout = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => {
+    if (error != null) {
+      if (timeout.current != null) {
+        console.warn('timeout.current is still set');
         clearTimeout(timeout.current);
       }
+      timeout.current = setTimeout(getMore, 1000);
     }
-  }, [clusterId, jobId, cursor]);
+
+    return () => {
+      if (timeout.current != null) {
+        clearTimeout(timeout.current);
+        timeout.current = undefined;
+      }
+    };
+  }, [error, getMore]);
 
   return (
     <Card>
       <CardHeader title="Console Output"/>
       <CardContent>
-        <Typography component='pre' style={{overflow:'auto'}}>{log}</Typography>
+        <Typography component='pre' style={{overflow:'auto'}}>{logText}</Typography>
       </CardContent>
     </Card>
   );

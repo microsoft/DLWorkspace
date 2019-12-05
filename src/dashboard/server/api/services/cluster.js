@@ -184,14 +184,9 @@ class Cluster extends Service {
       params.set('cursor', cursor)
     }
     const response = await this.fetch('/GetJobLog?' + params)
-    const log = await response.text()
-    this.context.assert(log, 404)
-    const xCursor = Number(response.headers.get('X-Cursor'))
-    const result = { log }
-    if (xCursor) {
-      result.cursor = xCursor
-    }
-    return result
+    const { log, cursor: nextCursor } = await response.json()
+    this.context.assert(Object.keys(log).length > 0, 404)
+    return { log, cursor: nextCursor }
   }
 
   /**
