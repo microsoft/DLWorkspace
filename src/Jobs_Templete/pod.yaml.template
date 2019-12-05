@@ -105,6 +105,33 @@ spec:
   {% if job["hostIPC"] %}
   hostIPC: true
   {% endif %}
+  initContainers:
+  - name: init
+    imagePullPolicy: Always
+    image: {{ job["init-container"] }}
+    volumeMounts:
+    - mountPath: /dlts-runtime
+      name: dlts-runtime
+    command:
+    - sh
+    - /dlts-init/init.sh
+    env:
+    - name: LOGGING_LEVEL
+      value: DEBUG
+    - name: DLWS_JOB_ID
+      value: {{ job["jobId"] }}
+    - name: DLWS_NUM_PS
+      value: "{{ job["numps"] }}"
+    - name: DLWS_NUM_WORKER
+      value: "{{ job["numworker"] }}"
+    - name: POD_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.name
+    - name: POD_IP
+      valueFrom:
+        fieldRef:
+          fieldPath: status.podIP
   containers:
   - name: {{ job["podName"] }}
     image: {{ job["image"] }}
@@ -143,6 +170,8 @@ spec:
         memory: {{ job["memoryrequest"] }}
       {% endif %}
     volumeMounts:
+    - mountPath: /dlts-runtime
+      name: dlts-runtime
     - name: "dlws-scripts"
       mountPath: /pod/scripts
       readOnly: true
@@ -229,8 +258,21 @@ spec:
     - name: {{env.name}}
       value: "{{env.value}}"
     {% endfor %}
+    {% if job["nccl_ib_disable"] %}
+    - name: NCCL_IB_DISABLE
+      value: "1"
+    {% endif %}
 
   imagePullSecrets:
+  {% if job["plugins"] %}
+    {% if job["plugins"]["imagePull"] %}
+      {% for secret in job["plugins"]["imagePull"] %}
+        {% if secret.enabled %}
+  - name: {{ secret.name }}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+  {% endif %}
   - name: regcred
 
   restartPolicy: Never
@@ -249,6 +291,8 @@ spec:
   - name: authorized-keys-volume
     hostPath:
       path: {{ job["homeFolderHostpath"] }}/.ssh/authorized_keys
+  - name: dlts-runtime
+    emptyDir: {}
   {% if not job["dnsPolicy"] %}
   - name: resolv
     hostPath:

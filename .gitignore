@@ -70,3 +70,6 @@ src/ClusterBootstrap/services/monitor/alert-templates.yaml
 src/ClusterBootstrap/services/jobmanager/dlws-scripts.yaml
 src/ClusterBootstrap/services/monitor/alerting/kill-idle.rules
 src/ClusterBootstrap/template/*config.yaml.template
+
+.idea
+venv

@@ -66,6 +66,36 @@ class JobDeployer:
         return api_response
 
     @record
+    def _cleanup_pods_with_labels(self, label_selector):
+        errors = []
+        try:
+            self.k8s_CoreAPI.delete_collection_namespaced_pod(
+                self.namespace,
+                pretty=self.pretty,
+                label_selector=label_selector,
+                )
+        except ApiException as e:
+            message = "Delete pods failed: {}".format(label_selector)
+            logging.warning(message, exc_info=True)
+            errors.append({"message": message, "exception": e})
+        return errors
+
+    @record
+    def _cleanup_configmap(self, label_selector):
+        errors = []
+        try:
+            api_response = self.k8s_CoreAPI.delete_collection_namespaced_config_map(
+                self.namespace,
+                pretty=self.pretty,
+                label_selector=label_selector,
+                )
+        except ApiException as e:
+            message = "Delete configmap failed: {}".format(label_selector)
+            logging.warning(message, exc_info=True)
+            errors.append({"message": message, "exception": e})
+        return errors
+
+    @record
     def _create_deployment(self, body):
         api_response = self.k8s_AppsAPI.create_namespaced_deployment(
             namespace=self.namespace,
@@ -265,10 +295,8 @@ class JobDeployer:
         label_selector = "run={}".format(job_id)
 
         # query pods then delete
-        pods = self.get_pods(label_selector=label_selector)
-        pod_names = [pod.metadata.name for pod in pods]
-        pod_errors = self._cleanup_pods(pod_names, force)
-        logging.info("deleting pods %s" % ",".join(pod_names))
+        pod_errors = self._cleanup_pods_with_labels(label_selector)
+        logging.info("deleting pods %s" % label_selector)
         # query services then delete
         services = self._get_services_by_label(label_selector)
         service_errors = self._cleanup_services(services)
@@ -285,7 +313,10 @@ class JobDeployer:
         secret_errors = self._cleanup_secrets(secret_names, force)
         logging.info("deleting secrets %s" % ",".join(secret_names))
 
-        errors = pod_errors + service_errors + deployment_errors + secret_errors
+        configmap_errors = self._cleanup_configmap(label_selector)
+
+        errors = pod_errors + service_errors + deployment_errors + secret_errors + \
+                configmap_errors
         return errors
 
     @record
@@ -543,8 +574,8 @@ class PythonLauncher(Launcher):
             job_object.params["user"] = job_object.get_alias()
 
             if "job_token" not in job_object.params:
-                if "user_sign_token" in config and config["user_sign_token"] is not None and "userName" in job_object.params:
-                    job_object.params["job_token"] = hashlib.md5(job_object.params["userName"]+":"+config["user_sign_token"]).hexdigest()
+                if "master_token" in config and config["master_token"] is not None and "userName" in job_object.params:
+                    job_object.params["job_token"] = hashlib.md5(job_object.params["userName"]+":"+config["master_token"]).hexdigest()
                 else:
                     job_object.params["job_token"] = "tryme2017"
 
@@ -552,21 +583,25 @@ class PythonLauncher(Launcher):
                 job_object.params["envs"] =[]
             job_object.params["envs"].append({"name": "DLTS_JOB_TOKEN", "value": job_object.params["job_token"]})              
 
-
             enable_custom_scheduler = job_object.is_custom_scheduler_enabled()
-            secret_template = job_object.get_blobfuse_secret_template()
+            blobfuse_secret_template = job_object.get_blobfuse_secret_template()
+            image_pull_secret_template = job_object.get_image_pull_secret_template()
+            secret_templates = {
+                "blobfuse": blobfuse_secret_template,
+                "imagePull": image_pull_secret_template
+            }
             if job_object.params["jobtrainingtype"] == "RegularJob":
                 pod_template = PodTemplate(job_object.get_template(),
                                            enable_custom_scheduler=enable_custom_scheduler,
-                                           secret_template=secret_template)
+                                           secret_templates=secret_templates)
             elif job_object.params["jobtrainingtype"] == "PSDistJob":
                 pod_template = DistPodTemplate(job_object.get_template(),
-                                               secret_template=secret_template)
+                                               secret_templates=secret_templates)
             elif job_object.params["jobtrainingtype"] == "InferenceJob":
                 pod_template = PodTemplate(job_object.get_template(),
                                            deployment_template=job_object.get_deployment_template(),
                                            enable_custom_scheduler=False,
-                                           secret_template=secret_template)
+                                           secret_templates=secret_templates)
             else:
                 dataHandler.SetJobError(job_object.job_id, "ERROR: invalid jobtrainingtype: %s" % job_object.params["jobtrainingtype"])
                 dataHandler.Close()

@@ -559,7 +559,7 @@ class GetJobDetail(Resource):
             job["endpoints"] = json.loads(job["endpoints"])
         if "jobStatusDetail" in job and job["jobStatusDetail"] is not None and len(job["jobStatusDetail"].strip()) > 0:
             try:
-                job["jobStatusDetail"] = Json.loads(base64.b64decode(job["jobStatusDetail"]))
+                job["jobStatusDetail"] = json.loads(base64.b64decode(job["jobStatusDetail"]))
             except Exception as e:
                 pass
         if "jobMeta" in job:
