@@ -5,5 +5,5 @@ rules:
     class_name : ECCRule
     ecc_error_url: '/api/v1/query?query=nvidiasmi_ecc_error_count%7Btype%3D%22volatile_double%22%7D%3E0'
 
-# time to sleep between rule execution
-rule_wait_time: 2
+# time to sleep between rule execution (seconds)
+rule_wait_time: 10

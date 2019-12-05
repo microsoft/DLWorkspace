@@ -79,7 +79,7 @@ class ECCRule(Rule):
             return False
 
     def take_action(self):
-        body = 'ECC Error found on the following nodes:\n'
+        status = {}
 
         for node_name in self.ecc_hostnames:
 
@@ -88,10 +88,16 @@ class ECCRule(Rule):
 
                 if success != 0:
                     logging.warning(f'Unscheduling of node {node_name} not successful')
-                    body += f'{node_name}: Failed to mark as unschedulable\n'
+                    status[node_name] = 'Failed to mark as unschedulable'
                 else:
-                    body += f'{node_name}: Successfully marked as unschedulable\n'
+                    status[node_name] = 'Successfully marked as unschedulable'
+
+            else:
+                status[node_name] = 'Previously marked as unschedulable'
+
+        body = 'Uncorrectable ECC Error found on the following nodes:\n'
+        for node_name in status:
+            body += f'{node_name} -> \t{status[node_name]}\n'
 
         subject = 'Repair Manager Alert [ECC ERROR]'
         self.alert.handle_email_alert(subject, body)
-
