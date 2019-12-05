@@ -59,14 +59,13 @@ const ClusterStatus: FC = () => {
     }
     const {grafana, prometheus} = responseUrls;
     const idleGPUUrl = prometheus.replace("9091","9092");
-    const getIdleGPUPerUser = `${prometheus}/prometheus/api/v1/query?`;
+    const getIdleGPUPerUser = `${grafana}/api/datasources/proxy/1/api/v1/query?`;
 
     response['getIdleGPUPerUserUrl'] = getIdleGPUPerUser;
     response['idleGPUUrl'] = `${idleGPUUrl}/gpu_idle?`;
     response['ClusterName'] = cluster;
     response['GranaUrl'] = `${grafana}/dashboard/db/gpu-usage?refresh=30s&orgId=1&_=${Date.now()}`;
     response['GPUStatisticPerVC'] = `${grafana}/dashboard/db/per-vc-gpu-statistic?var-vc_name=${selectedTeam}&_=${Date.now()}`;
-    response['prometheus'] = prometheus;
     return response;
   }
   const fetchClusterStatus = (mount: boolean) => {

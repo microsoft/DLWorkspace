@@ -285,10 +285,10 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
   useEffect(()=>{
     fetchDirectories().then((res) => {
       let fetchStorage = [];
-      let availBytesSubPath = '/prometheus/api/v1/query?query=node_filesystem_avail_bytes%7Bfstype%3D%27nfs4%27%7D';
-      let sizeBytesSubPath = '/prometheus/api/v1/query?query=node_filesystem_size_bytes%7Bfstype%3D%27nfs4%27%7D';
-      fetchStorage.push(fetch(`${res['prometheus']}${availBytesSubPath}`));
-      fetchStorage.push(fetch(`${res['prometheus']}${sizeBytesSubPath}`));
+      let availBytesSubPath = '/api/datasources/proxy/1/api/v1/query?query=node_filesystem_avail_bytes%7Bfstype%3D%27nfs4%27%7D';
+      let sizeBytesSubPath = '/api/datasources/proxy/1/api/v1/query?query=node_filesystem_size_bytes%7Bfstype%3D%27nfs4%27%7D';
+      fetchStorage.push(fetch(`${res['grafana']}${availBytesSubPath}`));
+      fetchStorage.push(fetch(`${res['grafana']}${sizeBytesSubPath}`));
       let storageRes: any = [];
       let tmpStorage: any = [];
       Promise.all(fetchStorage).then((responses) => {
