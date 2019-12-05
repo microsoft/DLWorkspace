@@ -1,7 +1,6 @@
 const axiosist = require('axiosist')
 const sinon = require('sinon')
 const nock = require('nock')
-const Link = require('http-link-header')
 const User = require('../../../../api/services/user')
 const api = require('../../../../api').callback()
 
@@ -14,7 +13,10 @@ describe('GET /clusters/:clusterId/jobs/:jobId/log', () => {
   it('should return job log', async () => {
     nock('http://universe')
       .get('/GetJobLog?' + new URLSearchParams({ jobId: 'testjob' }))
-      .reply(200, 'log', { 'X-Cursor': '9876543210' })
+      .reply(200, {
+        log: { "pod": "log" },
+        cursor: 0123456789
+      })
     sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/clusters/Universe/jobs/testjob/log', {
@@ -22,14 +24,19 @@ describe('GET /clusters/:clusterId/jobs/:jobId/log', () => {
     })
 
     response.status.should.equal(200)
-    response.data.should.equal('log')
-    response.headers.should.have.property('link')
+    response.data.should.deepEqual({
+      log: { "pod": "log" },
+      cursor: 0123456789
+    })
   })
 
   it('should return job log with cursor', async () => {
     nock('http://universe')
       .get('/GetJobLog?' + new URLSearchParams({ jobId: 'testjob', cursor: '1234567890' }))
-      .reply(200, 'log', { 'X-Cursor': '9876543210' })
+      .reply(200, {
+        log: { "pod": "log" },
+        cursor: 9876543210
+      })
     sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/clusters/Universe/jobs/testjob/log', {
@@ -39,14 +46,19 @@ describe('GET /clusters/:clusterId/jobs/:jobId/log', () => {
     })
 
     response.status.should.equal(200)
-    response.data.should.equal('log')
-    response.headers.should.have.property('link')
+    response.data.should.deepEqual({
+      log: { "pod": "log" },
+      cursor: 9876543210
+    })
   })
 
   it('should return 404 when there is no (more) log', async () => {
     nock('http://universe')
     .get('/GetJobLog?' + new URLSearchParams({ jobId: 'testjob' }))
-    .reply(200, '')
+    .reply(200, {
+      log: {},
+      cursor: null
+    })
     sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/clusters/Universe/jobs/testjob/log', {
