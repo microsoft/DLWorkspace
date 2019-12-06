@@ -2905,6 +2905,8 @@ def get_node_lists_for_service(service):
         nodetype = labels[service] if service in labels else labels["default"]
         if nodetype == "worker_node":
             nodes = config["worker_node"]
+        elif nodetype == "mysql_node":
+            nodes = config["mysql_node"]
         elif nodetype == "nfs_node":
             nodes = config["nfs_node"]
         elif nodetype == "etcd_node":
