@@ -37,7 +37,7 @@ spec:
         - name: MYSQL_ROOT_PASSWORD
           value: "{{cnf["mysql_password"]}}"
         - name: PMA_HOST
-          value: {{cnf["mysql_node"]}}
+          value: {{cnf["mysql_node"][0]}}
         - name: PMA_PORT
           value: "{{cnf["mysql_port"]}}"                   
         ports:
