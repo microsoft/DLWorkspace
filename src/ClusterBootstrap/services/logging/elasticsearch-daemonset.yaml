@@ -15,12 +15,16 @@ spec:
     metadata:
       labels:
         k8s-app: elasticsearch-logging
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/path: '/metrics'
+        prometheus.io/port: '{{cnf["elasticsearch"]["port"]["exporter"]}}'
     spec:
       hostNetwork: true
       nodeSelector:
         elasticsearch: active
       containers:
-      - name: elasticsearch-logging
+      - name: elasticsearch
         image: docker.elastic.co/elasticsearch/elasticsearch:6.8.5
         env:
         - name: "http.port"
@@ -43,11 +47,24 @@ spec:
         volumeMounts:
         - name: elasticsearch-logging
           mountPath: /data
+      - name: elasticsearch-exporter
+        image: justwatch/elasticsearch_exporter:1.1.0
+        args:
+        - '--es.uri=http://localhost:{{cnf["elasticsearch"]["port"]["http"]}}'
+        - '--web.listen-address=:{{cnf["elasticsearch"]["port"]["exporter"]}}'
+        resources:
+          limits:
+            cpu: 1000m
+          requests:
+            cpu: 100m
+        ports:
+        - containerPort: {{cnf["elasticsearch"]["port"]["exporter"]}}
+          name: web
+          protocol: TCP
       volumes:
       - name: elasticsearch-logging
         hostPath:
           path: /dlwsdata/storage/sys/elasticsearch
-        emptyDir: {}
       tolerations:
       - key: node-role.kubernetes.io/master
         effect: NoSchedule
