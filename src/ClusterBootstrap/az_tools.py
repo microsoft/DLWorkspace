@@ -125,7 +125,7 @@ def create_vm(vmname, vm_ip, role, vm_size, pwd, vmcnf):
         assert os.path.exists(config["cloud_init_%s" % role])
         cloud_init = "--custom-data {}".format(config["cloud_init_%s" % role])
 
-    if role in ["infra", "worker"]:		
+    if role in ["infra", "worker", "mysql"]:
         storage = "--storage-sku {} --data-disk-sizes-gb {} ".format(config["azure_cluster"]["vm_local_storage_sku"],
                 config["azure_cluster"]["%s_local_storage_sz" % role])
         # corner case: NFS on infra
@@ -489,6 +489,11 @@ def create_cluster(arm_vm_password=None, parallelism=1):
 
     add_workers(arm_vm_password, parallelism)
 
+    # create mysql if specified
+    for i in range(int(config["azure_cluster"]["mysql_node_num"])):
+        create_vm_param(i, "mysql", config["azure_cluster"]["mysql_vm_size"],
+                        arm_vm_password is not None, arm_vm_password)
+
     # create nfs server if specified.
     for i in range(int(config["azure_cluster"]["nfs_node_num"])):
             create_vm_param(i, "nfs", config["azure_cluster"]["nfs_vm_size"], False,
@@ -525,6 +530,8 @@ def create_vm_param(i, role, vm_size, no_az=False, arm_vm_password=None, vmcnf =
     elif role == "infra":
         vmname = "%s-infra%02d" % (config["azure_cluster"]
                                    ["cluster_name"], i + 1)
+    elif role == "mysql":
+        vmname = "%s-mysql%02d" % (config["azure_cluster"]["cluster_name"], i + 1)
     elif role == "dev":
         vmname = "%s-dev" % (config["azure_cluster"]["cluster_name"])
 
