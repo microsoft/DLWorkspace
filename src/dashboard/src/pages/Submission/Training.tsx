@@ -1021,7 +1021,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                 </Grid>
                 <Grid item xs={12}>
                   <TextField
-                    defaultValue={mountOptions}
+                    value={mountOptions}
                     onChange={onMountOptionsChange}
                     label="Mount Options"
                     fullWidth
