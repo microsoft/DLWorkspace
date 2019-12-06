@@ -1440,6 +1440,36 @@ def update_nfs_nodes(nargs):
     os.system("rm ./deploy/kubelet/worker-kubeconfig.yaml")
 
 
+def update_mysql_nodes(nargs):
+    """Internally use update_worker_node.
+
+    TODO: Should be covered by update_role_nodes in deploy.py V2
+    """
+    # This is to temporarily replace gpu_type with None to disallow nvidia runtime config to appear in /etc/docker/daemon.json
+    prev_gpu_type = config["gpu_type"]
+    config["gpu_type"] = "None"
+    utils.render_template_directory("./template/kubelet", "./deploy/kubelet", config)
+    config["gpu_type"] = prev_gpu_type
+
+    write_nodelist_yaml()
+
+    os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' % config["etcd_endpoints"].replace("/", "\\/"))
+    os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' % config["api_servers"].replace("/", "\\/"))
+    os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/worker-kubeconfig.yaml.template > ./deploy/kubelet/worker-kubeconfig.yaml' % config["api_servers"].replace("/", "\\/"))
+
+    get_hyperkube_docker()
+
+    mysql_nodes = get_nodes_by_roles(["mysql"])
+    mysql_nodes = limit_nodes(mysql_nodes)
+    for node in mysql_nodes:
+        if in_list(node, nargs):
+            update_worker_node(node)
+
+    os.system("rm ./deploy/kubelet/options.env")
+    os.system("rm ./deploy/kubelet/kubelet.service")
+    os.system("rm ./deploy/kubelet/worker-kubeconfig.yaml")
+
+
 def create_MYSQL_for_WebUI():
     #todo: create a mysql database, and set "mysql-hostname", "mysql-username", "mysql-password", "mysql-database"
     pass
@@ -3499,6 +3529,13 @@ def run_command( args, command, nargs, parser ):
             check_master_ETCD_status()
             gen_configs()
             reset_worker_nodes()
+
+    elif command == "updatemysql":
+        response = raw_input_with_default("Deploy MySQL Node(s) (y/n)?")
+        if first_char(response) == "y":
+            check_master_ETCD_status()
+            gen_configs()
+            update_mysql_nodes(nargs)
 
     elif command == "updatenfs":
         response = raw_input_with_default("Deploy NFS Node(s) (y/n)?")
