@@ -113,7 +113,7 @@ def create_vm(vmname, vm_ip, role, vm_size, pwd, vmcnf):
     else:
         auth = """--generate-ssh-keys --authentication-type ssh --ssh-key-value '%s' """ % config["azure_cluster"]["sshkey"]
 
-    priv_IP = "--private-ip-address %s " % vm_ip if not role in ["worker","nfs"] else ""
+    priv_IP = "--private-ip-address %s " % vm_ip if not role in ["worker", "mysql", "nfs"] else ""
     nsg = "nfs_nsg_name" if role == "nfs" else "nsg_name"
     
     availability_set = ""
