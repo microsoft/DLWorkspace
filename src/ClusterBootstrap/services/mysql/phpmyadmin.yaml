@@ -24,7 +24,11 @@ spec:
         app: phpmyadmin
     spec:
       nodeSelector:
+      {% if cnf["azure_cluster"]["mysql_node_num"]|int > 0 %}
+        mysql-server: active
+      {% else %}
         mysql: active
+      {% endif %}
       containers:
       - image: {{cnf["dockers"]["container"]["phpmyadmin"]["fullname"]}}
         name: phpmyadmin
@@ -33,7 +37,7 @@ spec:
         - name: MYSQL_ROOT_PASSWORD
           value: "{{cnf["mysql_password"]}}"
         - name: PMA_HOST
-          value: {{cnf["mysql_node"]}}   
+          value: {{cnf["mysql_node"]}}
         - name: PMA_PORT
           value: "{{cnf["mysql_port"]}}"                   
         ports:

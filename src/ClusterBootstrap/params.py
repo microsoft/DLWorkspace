@@ -239,6 +239,7 @@ default_config_parameters = {
         "elasticsearch": "etcd_node_1",
         "kibana": "etcd_node_1",
         "mysql": "etcd_node_1",
+        "mysql-server": "mysql_node",
         "nginx": "all",
         "storagemanager": "nfs_node",
         "user-synchronizer": "etcd_node_1",
