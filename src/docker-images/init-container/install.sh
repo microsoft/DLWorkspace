@@ -2,6 +2,7 @@ cwd=`dirname $0`
 
 mkdir -p /etc/ssh
 cp $cwd/ssh_build/etc/* /etc/ssh
+cp $cwd/ssh_config/sshd/sshd_config /etc/ssh/sshd_config
 
 cp $cwd/ssh_config/init.d/* /etc/init.d
 cp $cwd/ssh_config/default/* /etc/default

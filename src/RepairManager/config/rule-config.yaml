@@ -9,3 +9,4 @@ rules:
 rule_wait_time: 10
 
 cluster_name: {{cnf['repair-manager']['cluster_name']}}
+
