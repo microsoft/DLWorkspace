@@ -133,13 +133,15 @@ const ClusterStatus: FC = () => {
 
         let prometheusResp: any = [];
         let fetchIdes: any = [];
-        for (let [key, value]  of Object.entries(userfetchs['gpu_idle'])) {
-          let idleTmp: any = {}
-          idleTmp['userName'] = key;
-          let arr: any = value;
-          idleTmp['booked'] = Math.floor(arr['booked'] / 3600);
-          idleTmp['idle'] = Math.floor(arr['idle'] / 3600);
-          fetchIdes.push(idleTmp);
+        if (userfetchs['gpu_idle'] != null) {
+          for (let [key, value] of Object.entries(userfetchs['gpu_idle'])) {
+            let idleTmp: any = {}
+            idleTmp['userName'] = key;
+            let arr: any = value;
+            idleTmp['booked'] = Math.floor(arr['booked'] / 3600);
+            idleTmp['idle'] = Math.floor(arr['idle'] / 3600);
+            fetchIdes.push(idleTmp);
+          }
         }
         fetch(userfetchs['getIdleGPUPerUserUrl']+params).then(async (response: any) => {
           const res = await response.json();
