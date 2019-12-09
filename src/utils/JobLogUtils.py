@@ -1,4 +1,7 @@
 import requests
+import logging
+
+logger = logging.getLogger(__name__)
 
 from config import config
 
@@ -31,7 +34,7 @@ def GetJobLog(jobId, cursor=None, size=None):
                 else:
                     pod_logs[pod_name] = log
             except Exception:
-                logger.exception("Failed to parse elasticsearch document: {}".format(document))
+                logging.exception("Failed to parse elasticsearch document: {}".format(document))
 
         next_cursor = None
         if len(documents) > 0:
