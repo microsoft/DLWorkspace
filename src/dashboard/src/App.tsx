@@ -28,7 +28,6 @@ const theme = createMuiTheme();
 
 interface BootstrapProps {
   email?: string;
-  uid?: string;
   familyName?: string;
   givenName?: string;
   password?: any;
@@ -42,10 +41,10 @@ const Loading = (
   </Box>
 );
 
-const Contexts: React.FC<BootstrapProps> = ({ email, uid, familyName, givenName,password ,WikiLink,addGroupLink,children }) => {
+const Contexts: React.FC<BootstrapProps> = ({ email, familyName, givenName,password ,WikiLink,addGroupLink,children }) => {
   return (
     <BrowserRouter>
-      <UserProvider email={email} uid={uid} familyName={familyName} givenName={givenName} token={password} >
+      <UserProvider email={email} familyName={familyName} givenName={givenName} token={password} >
         <TeamProvider addGroupLink={addGroupLink} WikiLink={WikiLink}>
           <ClustersProvider>
             <ThemeProvider theme={theme}>
