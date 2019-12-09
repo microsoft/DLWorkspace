@@ -410,11 +410,19 @@ def GetJobStatus(jobId):
     return result
 
 
-def GetJobLog(jobId, cursor=None, size=100):
-    (pod_logs, cursor) = UtilsGetJobLog(jobId, cursor, size)
+def GetJobLog(userName, jobId, cursor=None, size=100):
+    dataHandler = DataHandler()
+    jobs =  dataHandler.GetJob(jobId=jobId)
+    if len(jobs) == 1:
+        if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
+            (pod_logs, cursor) = UtilsGetJobLog(jobId, cursor, size)
+            return {
+                "log": pod_logs,
+                "cursor": cursor,
+            }
     return {
-        "log": pod_logs,
-        "cursor": cursor,
+        "log": {},
+        "cursor": None,
     }
 
 
