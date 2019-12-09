@@ -82,22 +82,12 @@ class ECCRule(Rule):
         status = {}
 
         for node_name in self.ecc_hostnames:
+            output = k8s_util.cordon_node(node_name, dry_run=True)
+            status[node_name] = output
 
-            if not k8s_util.is_node_unschedulable(self.node_info, node_name):
-                success = k8s_util.cordon_node(node_name)
-
-                if success != 0:
-                    logging.warning(f'Unscheduling of node {node_name} not successful')
-                    status[node_name] = 'Failed to mark as unschedulable'
-                else:
-                    status[node_name] = 'Successfully marked as unschedulable'
-
-            else:
-                status[node_name] = 'Previously marked as unschedulable'
-
-        body = 'Uncorrectable ECC Error found on the following nodes:\n'
+        body = f'Uncorrectable ECC Error found in {self.config["cluster_name"]} cluster on the following nodes:\n'
         for node_name in status:
-            body += f'{node_name} -> \t{status[node_name]}\n'
+            body += f'{node_name}:\t{status[node_name]}\n\n'
 
-        subject = 'Repair Manager Alert [ECC ERROR]'
+        subject = f'Repair Manager Alert [ECC ERROR] [{self.config["cluster_name"]}]'
         self.alert.handle_email_alert(subject, body)
