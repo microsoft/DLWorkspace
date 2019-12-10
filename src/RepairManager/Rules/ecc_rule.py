@@ -85,9 +85,9 @@ class ECCRule(Rule):
             output = k8s_util.cordon_node(node_name, dry_run=True)
             status[node_name] = output
 
-        body = f'Uncorrectable ECC Error found in {self.config["cluster_name"]} cluster on the following nodes:\n'
+        body = f'Uncorrectable ECC Error found in {self.config["cluster_name"]} cluster on the following nodes:\n\n'
         for node_name in status:
-            body += f'{node_name}:\t{status[node_name]}\n\n'
+            body += f'{node_name}:\t{status[node_name]}\n'
 
         subject = f'Repair Manager Alert [ECC ERROR] [{self.config["cluster_name"]}]'
         self.alert.handle_email_alert(subject, body)
