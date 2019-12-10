@@ -10,12 +10,11 @@ def cordon_node(node_name, dry_run=True):
 
     try:
         output = subprocess.check_output(args, stderr=subprocess.STDOUT)
-        output_decoded = output.decode()
-        logging.info(output_decoded)
-        return output_decoded
-    except Exception as e:
+        logging.info(output.decode())
+        return output.decode()
+    except subprocess.CalledProcessError as e:
         logging.exception(f'Exception attempting to cordon node {node_name}')
-        return str(e)
+        return e.output.decode()
 
 
 def is_node_unschedulable(node_info, node_name):
