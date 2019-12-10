@@ -1,3 +1,3 @@
-elasticsearch-daemonset.yaml
-kibana-daemonset.yaml
-fluentd-daemonset.yaml
+elasticsearch.yaml
+kibana.yaml
+fluentd.yaml
