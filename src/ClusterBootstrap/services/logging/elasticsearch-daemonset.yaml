@@ -50,7 +50,7 @@ spec:
       - name: elasticsearch-exporter
         image: justwatch/elasticsearch_exporter:1.1.0
         args:
-        - '--es.uri=http://localhost:{{cnf["elasticsearch"]["port"]["http"]}}'
+        - '--es.uri=http://127.0.0.1:{{cnf["elasticsearch"]["port"]["http"]}}'
         - '--web.listen-address=:{{cnf["elasticsearch"]["port"]["exporter"]}}'
         resources:
           limits:
