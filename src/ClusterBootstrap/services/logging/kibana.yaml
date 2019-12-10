@@ -1,26 +1,26 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: kibana-logging
+  name: kibana
   namespace: kube-system
   labels:
-    k8s-app: kibana-logging
+    k8s-app: kibana
     kubernetes.io/cluster-service: "true"
     addonmanager.kubernetes.io/mode: Reconcile
 spec:
   selector:
     matchLabels:
-      k8s-app: kibana-logging
+      k8s-app: kibana
   template:
     metadata:
       labels:
-        k8s-app: kibana-logging
+        k8s-app: kibana
     spec:
       hostNetwork: true
       nodeSelector:
         kibana: active
       containers:
-      - name: kibana-logging
+      - name: kibana
         image: docker.elastic.co/kibana/kibana:6.8.5
         env:
           - name: ELASTICSEARCH_HOSTS

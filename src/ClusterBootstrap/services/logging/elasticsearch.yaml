@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: elasticsearch-logging
+  name: elasticsearch
   namespace: kube-system
   labels:
-    k8s-app: elasticsearch-logging
+    k8s-app: elasticsearch
     kubernetes.io/cluster-service: "true"
     addonmanager.kubernetes.io/mode: Reconcile
 spec:
   selector:
     matchLabels:
-      k8s-app: elasticsearch-logging
+      k8s-app: elasticsearch
   template:
     metadata:
       labels:
-        k8s-app: elasticsearch-logging
+        k8s-app: elasticsearch
       annotations:
         prometheus.io/scrape: 'true'
         prometheus.io/path: '/metrics'
@@ -45,7 +45,7 @@ spec:
           name: transport
           protocol: TCP
         volumeMounts:
-        - name: elasticsearch-logging
+        - name: elasticsearch
           mountPath: /data
       - name: elasticsearch-exporter
         image: justwatch/elasticsearch_exporter:1.1.0
@@ -62,7 +62,7 @@ spec:
           name: web
           protocol: TCP
       volumes:
-      - name: elasticsearch-logging
+      - name: elasticsearch
         hostPath:
           path: /dlwsdata/storage/sys/elasticsearch
       tolerations:
