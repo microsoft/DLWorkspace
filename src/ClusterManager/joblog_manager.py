@@ -130,7 +130,7 @@ def extract_job_log(jobId,logPath,userId):
             os.system("chown -R %s %s" % (userId, logPath))
 
     except Exception as e:
-        logging.error(e)
+        logger.error(e)
 
 
 
@@ -142,7 +142,7 @@ def update_job_logs():
             for job in pendingJobs:
                 try:
                     if job["jobStatus"] == "running" :
-                        logging.info("updating job logs for job %s" % job["jobId"])
+                        logger.info("updating job logs for job %s" % job["jobId"])
                         jobParams = json.loads(base64.b64decode(job["jobParams"]))
                         jobPath,workPath,dataPath = GetStoragePath(jobParams["jobPath"],jobParams["workPath"],jobParams["dataPath"])
                         localJobPath = os.path.join(config["storage-mount-path"],jobPath)
@@ -150,9 +150,9 @@ def update_job_logs():
 
                         extract_job_log(job["jobId"],logPath,jobParams["userId"])
                 except Exception as e:
-                    logging.error(e)
+                    logger.exception("handling logs from %s", job["jobId"])
         except Exception as e:
-            logging.error(e)
+            logger.exception("get pending jobs failed")
 
         time.sleep(1)
 
@@ -161,7 +161,7 @@ def update_job_logs():
 def Run():
     register_stack_trace_dump()
     create_log()
-    logging.info("start to update job logs ...")
+    logger.info("start to update job logs ...")
 
     while True:
         update_file_modification_time("joblog_manager")

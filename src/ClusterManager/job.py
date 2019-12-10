@@ -13,17 +13,7 @@ import yaml
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 
-
-# TODO remove it later
-def create_log(logdir='.'):
-    if not os.path.exists(logdir):
-        os.system("mkdir -p " + logdir)
-    with open('logging.yaml') as f:
-        logging_config = yaml.full_load(f)
-        f.close()
-        logging_config["handlers"]["file"]["filename"] = logdir + "/jobmanager.log"
-        logging.config.dictConfig(logging_config)
-
+logger = logging.getLogger(__name__)
 
 def invalid_entry(s):
     return s is None or \
@@ -103,7 +93,7 @@ class Job:
         # NOTE: mountPath "/data" is the same as "data" in k8s
         for item in self.mountpoints:
             if item["name"] == mountpoint["name"] or item["containerPath"].strip("/") == mountpoint["containerPath"].strip("/"):
-                logging.warn("Current mountpoint: %s is a duplicate of mountpoint: %s" % (mountpoint, item))
+                logger.warn("Current mountpoint: %s is a duplicate of mountpoint: %s" % (mountpoint, item))
                 return
 
         self.mountpoints.append(mountpoint)
@@ -151,7 +141,7 @@ class Job:
             if vc is None or vc != vc_name:
                 continue
             if name is None or host_path is None or container_path is None:
-                logging.warn("Ignore invalid mount %s" % mount)
+                logger.warn("Ignore invalid mount %s" % mount)
                 continue
             vc_mount = {
                 "name": name.lower(),
