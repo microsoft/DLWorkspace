@@ -19,7 +19,8 @@ default_config_parameters = {
         "port": {
             "http": 19200,
             "transport": 19300,
-            "exporter": 19114,
+            "exporter": 9114,
+            "kibana": 5601,
         },
     },
 
