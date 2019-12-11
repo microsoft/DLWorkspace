@@ -35,14 +35,20 @@ def get_node_address_info(node_info):
 
 def get_ECC_error_data(ecc_url):
 
-    response = requests.get(ecc_url)
-    data = json.loads(response.text)
+    try:
+        response = requests.get(ecc_url)
+        if response:
+            data = json.loads(response.text)
 
-    if data:
-        ecc_metrics = data['data']['result']
-        logging.info('ECC error metrics from prometheus: ' + json.dumps(ecc_metrics))
+            if data:
+                ecc_metrics = data['data']['result']
+                logging.info('ECC error metrics from prometheus: ' + json.dumps(ecc_metrics))
+                return ecc_metrics
+        else:
+            logging.warning(f'No response from {ecc_url} found.')
 
-        return ecc_metrics
+    except Exception:
+        logging.exception(f'Error retrieving data from {ecc_url}')
 
 
 
