@@ -179,7 +179,11 @@ class Cluster extends Service {
    * @return {Promise<{log: string, cursor: number}>}
    */
   async getJobLog (jobId, cursor) {
-    const params = new URLSearchParams({ jobId })
+    const { user } = this.context.state
+    const params = new URLSearchParams({
+      jobId,
+      userName: user.email
+    })
     if (cursor !== undefined) {
       params.set('cursor', cursor)
     }
