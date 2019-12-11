@@ -113,7 +113,7 @@ def create_vm(vmname, vm_ip, role, vm_size, pwd, vmcnf):
     else:
         auth = """--generate-ssh-keys --authentication-type ssh --ssh-key-value '%s' """ % config["azure_cluster"]["sshkey"]
 
-    priv_IP = "--private-ip-address %s " % vm_ip if not role in ["worker","nfs"] else ""
+    priv_IP = "--private-ip-address %s " % vm_ip if not role in ["worker","elasticsearch","nfs"] else ""
     nsg = "nfs_nsg_name" if role == "nfs" else "nsg_name"
     
     availability_set = ""
@@ -125,7 +125,7 @@ def create_vm(vmname, vm_ip, role, vm_size, pwd, vmcnf):
         assert os.path.exists(config["cloud_init_%s" % role])
         cloud_init = "--custom-data {}".format(config["cloud_init_%s" % role])
 
-    if role in ["infra", "worker"]:		
+    if role in ["infra", "worker", "elasticsearch"]:		
         storage = "--storage-sku {} --data-disk-sizes-gb {} ".format(config["azure_cluster"]["vm_local_storage_sku"],
                 config["azure_cluster"]["%s_local_storage_sz" % role])
         # corner case: NFS on infra
@@ -489,6 +489,12 @@ def create_cluster(arm_vm_password=None, parallelism=1):
 
     add_workers(arm_vm_password, parallelism)
 
+    # create elasticsearch server if specified.
+    print("elasticsearch_node_num " + str(config["azure_cluster"]["elasticsearch_node_num"]))
+    for i in range(int(config["azure_cluster"]["elasticsearch_node_num"])):
+            create_vm_param(i, "elasticsearch", config["azure_cluster"]["elasticsearch_vm_size"],
+                            arm_vm_password is not None, arm_vm_password)
+
     # create nfs server if specified.
     for i in range(int(config["azure_cluster"]["nfs_node_num"])):
             create_vm_param(i, "nfs", config["azure_cluster"]["nfs_vm_size"], False,
@@ -525,6 +531,9 @@ def create_vm_param(i, role, vm_size, no_az=False, arm_vm_password=None, vmcnf =
     elif role == "infra":
         vmname = "%s-infra%02d" % (config["azure_cluster"]
                                    ["cluster_name"], i + 1)
+    elif role == "elasticsearch":
+        vmname = "%s-elasticsearch%02d" % (config["azure_cluster"]
+                                           ["cluster_name"], i + 1)
     elif role == "dev":
         vmname = "%s-dev" % (config["azure_cluster"]["cluster_name"])
 
@@ -823,6 +832,15 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
                 cc["machines"][vmname.lower()] = {
                     "role": "worker",
                     "node-group": vm["vmSize"],"gpu-type":sku_mapping.get(vm["vmSize"],sku_mapping["default"])["gpu-type"]}
+
+    # Add elasticsearch nodes
+    for vm in vm_list:
+        vmname = vm["name"]
+        if "-elasticsearch" in vmname:
+            cc["machines"][vmname.lower()] = {
+                "role": "elasticsearch",
+                "node-group": vm["vmSize"]}
+
     nfs_nodes = []
     for vm in vm_list:
         vmname = vm["name"]

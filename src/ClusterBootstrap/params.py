@@ -1,7 +1,7 @@
 # These are the default configuration parameter
 default_config_parameters = {
     "supported_platform": ["azure_cluster", "onpremise"],
-    "allroles": {"infra", "infrastructure", "worker", "nfs", "sql", "dev", "etcd", "kubernetes_master"},
+    "allroles": {"infra", "infrastructure", "worker", "nfs", "sql", "dev", "etcd", "kubernetes_master", "elasticsearch"},
     # Kubernetes setting
     "service_cluster_ip_range": "10.3.0.0/16",
     "pod_ip_range": "10.2.0.0/16",
@@ -17,8 +17,8 @@ default_config_parameters = {
 
     "elasticsearch": {
         "port": {
-            "http": 19200,
-            "transport": 19300,
+            "http": 9200,
+            "transport": 9300,
             "exporter": 9114,
             "kibana": 5601,
         },
@@ -242,7 +242,7 @@ default_config_parameters = {
         "prometheus": "etcd_node_1",
         "alert-manager": "etcd_node_1",
         "watchdog": "etcd_node_1",
-        "elasticsearch": "etcd_node_1",
+        "elasticsearch": "elasticsearch_node",
         "kibana": "etcd_node_1",
         "mysql": "etcd_node_1",
         "nginx": "all",
@@ -631,12 +631,12 @@ default_config_parameters = {
         # There is no udp port requirement for now
         #"udp_port_ranges": "25826",
         "inter_connect": {
-            "tcp_port_ranges": "22 1443 2379 3306 5000 8086 10250",
+            "tcp_port_ranges": "22 1443 2379 3306 5000 8086 9114 9200 9300 10250",
             # Need to white list dev machines to connect
             # "source_addresses_prefixes": [ "52.151.0.0/16"]
         },
         "dev_network": {
-            "tcp_port_ranges": "22 1443 2379 3306 5000 8086 10250 10255 22222",
+            "tcp_port_ranges": "22 1443 2379 3306 5000 8086 5601 10250 10255 22222",
             # Need to white list dev machines to connect
             # "source_addresses_prefixes": [ "52.151.0.0/16"]
         },

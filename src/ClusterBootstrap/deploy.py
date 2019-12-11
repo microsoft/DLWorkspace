@@ -58,7 +58,7 @@ coreosbaseurl = ""
 verbose = False
 nocache = False
 limitnodes = None
-allroles = {"infra", "infrastructure", "worker", "nfs", "sql", "samba"}
+allroles = {"infra", "infrastructure", "worker", "nfs", "sql", "samba", "elasticsearch"}
 
 
 # default search for all partitions of hdb, hdc, hdd, and sdb, sdc, sdd
@@ -258,7 +258,7 @@ def update_config():
     if ("influxdb_node" not in config):
         config["influxdb_node"] = config["webportal_node"]
     if ("elasticsearch_node" not in config):
-        config["elasticsearch_node"] = config["webportal_node"]
+        config["elasticsearch_node"] = None if len(get_node_lists_for_service("elasticsearch"))==0 else get_node_lists_for_service("elasticsearch")[0]
     if ("mysql_node" not in config):
         config["mysql_node"] = None if len(get_node_lists_for_service("mysql"))==0 else get_node_lists_for_service("mysql")[0]
     if ("host" not in config["prometheus"]):
@@ -679,12 +679,14 @@ def check_master_ETCD_status():
     print "Checking Available Nodes for Deployment..."
     get_ETCD_master_nodes(config["clusterId"])
     get_worker_nodes(config["clusterId"], False)
+    get_nodes_by_roles(["elasticsearch"])
     get_nodes_by_roles(["nfs"])
     get_nodes_by_roles(["samba"])
     print "==============================================="
     print "Activate Master Node(s): %s\n %s \n" % (len(config["kubernetes_master_node"]),",".join(config["kubernetes_master_node"]))
     print "Activate ETCD Node(s):%s\n %s \n" % (len(config["etcd_node"]),",".join(config["etcd_node"]))
     print "Activate Worker Node(s):%s\n %s \n" % (len(config["worker_node"]),",".join(config["worker_node"]))
+    print "Activate Elasticsearch Node(s):%s\n %s \n" % (len(config["elasticsearch_node"]), ",".join(config["elasticsearch_node"]))
     print "Activate NFS Node(s):%s\n %s \n" % (len(config["nfs_node"]),",".join(config["nfs_node"]))
     print "Activate Samba Node(s):%s\n %s \n" % (len(config["samba_node"]), ",".join(config["samba_node"]))
 
@@ -1436,6 +1438,36 @@ def update_nfs_nodes(nargs):
     os.system("rm ./deploy/kubelet/options.env")
     os.system("rm ./deploy/kubelet/kubelet.service")
     os.system("rm ./deploy/kubelet/worker-kubeconfig.yaml")
+
+
+def update_elasticsearch_nodes(nargs):
+    """Internally use update_worker_node.
+    TODO: Should be covered by update_role_nodes in deploy.py V2
+    """
+    # This is to temporarily replace gpu_type with None to disallow nvidia runtime config to appear in /etc/docker/daemon.json
+    prev_gpu_type = config["gpu_type"]
+    config["gpu_type"] = "None"
+    utils.render_template_directory("./template/kubelet", "./deploy/kubelet", config)
+    config["gpu_type"] = prev_gpu_type
+
+    write_nodelist_yaml()
+
+    os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' % config["etcd_endpoints"].replace("/", "\\/"))
+    os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' % config["api_servers"].replace("/", "\\/"))
+    os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/worker-kubeconfig.yaml.template > ./deploy/kubelet/worker-kubeconfig.yaml' % config["api_servers"].replace("/", "\\/"))
+
+    get_hyperkube_docker()
+
+    elasticsearch_nodes = get_nodes_by_roles(["elasticsearch"])
+    elasticsearch_nodes = limit_nodes(elasticsearch_nodes)
+    for node in elasticsearch_nodes:
+        if in_list(node, nargs):
+            update_worker_node(node)
+
+    os.system("rm ./deploy/kubelet/options.env")
+    os.system("rm ./deploy/kubelet/kubelet.service")
+    os.system("rm ./deploy/kubelet/worker-kubeconfig.yaml")
+
 
 
 def create_MYSQL_for_WebUI():
@@ -2873,6 +2905,8 @@ def get_node_lists_for_service(service):
         nodetype = labels[service] if service in labels else labels["default"]
         if nodetype == "worker_node":
             nodes = config["worker_node"]
+        elif nodetype == "elasticsearch_node":
+            nodes = config["elasticsearch_node"]
         elif nodetype == "nfs_node":
             nodes = config["nfs_node"]
         elif nodetype == "etcd_node":
@@ -3307,7 +3341,7 @@ def run_command( args, command, nargs, parser ):
             role2connect = nargs[0]
             if len(nargs) < 1 or role2connect == "master":
                 nodes = config["kubernetes_master_node"]
-            elif role2connect in ["etcd", "worker", "nfs", "samba"]:
+            elif role2connect in ["etcd", "worker", "elasticsearch", "nfs", "samba"]:
                 nodes = config["{}_node".format(role2connect)]
             else:
                 parser.print_help()
@@ -3497,6 +3531,13 @@ def run_command( args, command, nargs, parser ):
             check_master_ETCD_status()
             gen_configs()
             reset_worker_nodes()
+
+    elif command == "updateelasticsearch":
+        response = raw_input_with_default("Deploy Elasticsearch Node(s) (y/n)?")
+        if first_char(response) == "y":
+            check_master_ETCD_status()
+            gen_configs()
+            update_elasticsearch_nodes(nargs)
 
     elif command == "updatenfs":
         response = raw_input_with_default("Deploy NFS Node(s) (y/n)?")
