@@ -24,7 +24,7 @@ spec:
         image: docker.elastic.co/kibana/kibana:6.8.5
         env:
           - name: ELASTICSEARCH_HOSTS
-            value: 'http://{{cnf["elasticsearch_node"]}}:{{cnf["elasticsearch"]["port"]["http"]}}'
+            value: "http://$(ELASTICSEARCH_SERVICE_HOST):$(ELASTICSEARCH_SERVICE_PORT)"
           - name: SERVER_PORT
             value: '{{cnf["elasticsearch"]["port"]["kibana"]}}'
         resources:

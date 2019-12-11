@@ -68,4 +68,4 @@ enable_custom_registry_secrets: {{cnf["enable_custom_registry_secrets"]}}
 master_token: {{cnf["master_token"]}}
 nccl_ib_disable: {{cnf["nccl_ib_disable"]}}
 vc_node_hard_assignment: {{cnf["vc_node_hard_assignment"]}}
-elasticsearch: 'http://{{cnf["elasticsearch_node"]}}:{{cnf["elasticsearch"]["port"]["http"]}}'
+elasticsearch: 'http://{{cnf["elasticsearch_node"][0]}}:{{cnf["elasticsearch"]["port"]["http"]}}'

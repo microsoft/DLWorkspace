@@ -36,6 +36,16 @@ spec:
       - name: elasticsearch
         image: docker.elastic.co/elasticsearch/elasticsearch:6.8.5
         env:
+        - name: "node.name"
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: "discovery.zen.ping.unicast.hosts"
+          value: '
+            {%- for elasticsearch_node in cnf["elasticsearch_node"] -%}
+            {{elasticsearch_node}}{{"," if not loop.last}}
+            {%- endfor -%}
+          '
         - name: "http.port"
           value: '{{cnf["elasticsearch"]["port"]["http"]}}'
         - name: "transport.port"
@@ -77,3 +87,21 @@ spec:
       tolerations:
       - key: node-role.kubernetes.io/master
         effect: NoSchedule
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: kube-system
+  labels:
+    k8s-app: elasticsearch
+    addonmanager.kubernetes.io/mode: Reconcile
+spec:
+  selector:
+    k8s-app: elasticsearch
+  ports:
+  - name: http
+    port: {{cnf["elasticsearch"]["port"]["http"]}}
+    targetPort: {{cnf["elasticsearch"]["port"]["http"]}}
