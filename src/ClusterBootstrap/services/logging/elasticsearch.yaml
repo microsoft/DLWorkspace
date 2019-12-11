@@ -73,7 +73,7 @@ spec:
       volumes:
       - name: elasticsearch
         hostPath:
-          path: /dlwsdata/storage/sys/elasticsearch
+          path: /data/elasticsearch
       tolerations:
       - key: node-role.kubernetes.io/master
         effect: NoSchedule
