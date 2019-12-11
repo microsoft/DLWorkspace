@@ -16,6 +16,10 @@ spec:
       labels:
         k8s-app: fluentd
         kubernetes.io/cluster-service: "true"
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/path: '/metrics'
+        prometheus.io/port: '{{cnf["fluentd"]["port"]}}'
     spec:
       hostNetwork: true
       containers:
@@ -28,12 +32,18 @@ spec:
           value: '$(ELASTICSEARCH_SERVICE_HOST)'
         - name: FLUENT_ELASTICSEARCH_PORT
           value: '$(ELASTICSEARCH_SERVICE_PORT)'
+        - name: FLUENTD_PROMETHEUS_PORT
+          value: '{{cnf["fluentd"]["port"]}}'
         resources:
           limits:
             memory: 200Mi
           requests:
             cpu: 100m
             memory: 200Mi
+        ports:
+        - containerPort: {{cnf["fluentd"]["port"]}}
+          name: http
+          protocol: TCP
         volumeMounts:
         - name: varlog
           mountPath: /var/log

@@ -24,6 +24,10 @@ default_config_parameters = {
         },
     },
 
+    "fluentd": {
+        "port": 24231,
+    },
+
     "influxdb_port": "8086",
     "influxdb_tp_port": "25826",
     "influxdb_rpc_port": "8088",
