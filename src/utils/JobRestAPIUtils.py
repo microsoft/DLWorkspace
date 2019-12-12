@@ -42,6 +42,7 @@ ADMIN_JOB_PRIORITY_RANGE = (1, 1000)
 
 logger = logging.getLogger(__name__)
 
+elasticsearch_deployed = len(config.get('elasticsearch', [])) > 0
 
 def adjust_job_priority(priority, permission):
     priority_range = (DEFAULT_JOB_PRIORITY, DEFAULT_JOB_PRIORITY)
@@ -415,24 +416,40 @@ def GetJobLog(userName, jobId, cursor=None, size=100):
     jobs =  dataHandler.GetJob(jobId=jobId)
     if len(jobs) == 1:
         if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
-            (logs, cursor) = UtilsGetJobLog(jobId, cursor, size)
+            if elasticsearch_deployed:
+                (logs, cursor) = UtilsGetJobLog(jobId, cursor, size)
 
-            pod_logs = {}
-            for log in logs:
+                pod_logs = {}
+                for log in logs:
+                    try:
+                        pod_name = log["_source"]["kubernetes"]["pod_name"]
+                        log = log["_source"]["log"]
+                        if pod_name in pod_logs:
+                            pod_logs[pod_name] += log
+                        else:
+                            pod_logs[pod_name] = log
+                    except Exception:
+                        logging.exception("Failed to parse elasticsearch log: {}".format(log))
+
+                return {
+                    "log": pod_logs,
+                    "cursor": cursor,
+                }
+            else:
                 try:
-                    pod_name = log["_source"]["kubernetes"]["pod_name"]
-                    log = log["_source"]["log"]
-                    if pod_name in pod_logs:
-                        pod_logs[pod_name] += log
-                    else:
-                        pod_logs[pod_name] = log
-                except Exception:
-                    logging.exception("Failed to parse elasticsearch log: {}".format(log))
-
-            return {
-                "log": pod_logs,
-                "cursor": cursor,
-            }
+                    log = dataHandler.GetJobTextField(jobId,"jobLog")
+                    try:
+                        if isBase64(log):
+                            log = base64.b64decode(log)
+                    except Exception:
+                        pass
+                    if log is not None:
+                        return {
+                            "log": log,
+                            "cursor": None,
+                        }
+                except:
+                    pass
     return {
         "log": {},
         "cursor": None,

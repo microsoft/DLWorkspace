@@ -5,14 +5,13 @@ logger = logging.getLogger(__name__)
 
 from config import config
 
-elasticsearch = Elasticsearch(
-    config['elasticsearch'],
-    sniff_on_start=True,
-    sniff_on_connection_fail=True,
-)
-
 def GetJobLog(jobId, cursor=None, size=None):
     try:
+        elasticsearch = Elasticsearch(
+            config['elasticsearch'],
+            sniff_on_start=True,
+            sniff_on_connection_fail=True,
+        )
         request_json = {
             "query": {
                 "match_phrase": {

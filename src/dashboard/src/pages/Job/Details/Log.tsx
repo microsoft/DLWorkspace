@@ -13,7 +13,7 @@ import Context from './Context';
 const Log: React.FC = () => {
   const { clusterId, jobId } = useContext(Context);
 
-  const [log, setLog] = useState<{ [podName: string]: string }>({});
+  const [log, setLog] = useState<{ [podName: string]: string } | string>({});
   const [cursor, setCursor] = useState<string | null>(null);
   useEffect(() => {
     setLog({});
@@ -33,6 +33,11 @@ const Log: React.FC = () => {
   useEffect(() => {
     if (data != null) {
       const { log: nextLog, cursor } = data;
+      if (typeof nextLog == 'string') {
+        setLog(nextLog);
+        setCursor(cursor);
+        return;
+      }
       const newLog = Object.assign(Object.create(null), log)
       for (const podName of Object.keys(nextLog)) {
         newLog[podName] = (newLog[podName] || "") + nextLog[podName]
@@ -43,6 +48,9 @@ const Log: React.FC = () => {
   }, [data])
 
   const logText = useMemo(() => {
+    if (typeof log == 'string') {
+      return log;
+    }
     const logText: string[] = [];
     const podNames = Object.keys(log).sort()
     for (const podName of podNames) {
