@@ -58,18 +58,30 @@ def extract_job_log(jobId,logPath,userId):
             old_cursor = old_cursor_text[10:]
         else:
             old_cursor = None
-        (log, new_cursor) = GetJobLog(jobId, cursor=old_cursor)
+        (logs, new_cursor) = GetJobLog(jobId, cursor=old_cursor)
+
+        container_logs = {}
+        for log in logs:
+            try:
+                container_id = log["_source"]["docker"]["container_id"]
+                log_text = log["_source"]["log"]
+                if container_id in container_logs:
+                    container_logs[container_id] += log_text
+                else:
+                    container_logs[container_id] = log_text
+            except Exception:
+                logging.exception("Failed to parse elasticsearch log: {}".format(log))
 
         jobLogDir = os.path.dirname(logPath)
         if not os.path.exists(jobLogDir):
             mkdirsAsUser(jobLogDir,userId)
 
-        for (podName, log_text) in log.items():
+        for (container_id, log_text) in container_logs.items():
             try:
-                podLogPath = os.path.join(jobLogDir, "log-pod-" + podName + ".txt")
-                with open(podLogPath, 'a') as f:
+                containerLogPath = os.path.join(jobLogDir, "log-conatainer-" + container_id + ".txt")
+                with open(containerLogPath, 'a') as f:
                     f.write(log_text)
-                os.system("chown -R %s %s" % (userId, podLogPath))
+                os.system("chown -R %s %s" % (userId, containerLogPath))
             except Exception as e:
                 logger.exception("write container log failed")
 
