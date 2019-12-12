@@ -1,9 +1,15 @@
-import requests
+from elasticsearch import Elasticsearch
 import logging
 
 logger = logging.getLogger(__name__)
 
 from config import config
+
+elasticsearch = Elasticsearch(
+    config['elasticsearch'],
+    sniff_on_start=True,
+    sniff_on_connection_fail=True,
+)
 
 def GetJobLog(jobId, cursor=None, size=None):
     try:
@@ -20,8 +26,7 @@ def GetJobLog(jobId, cursor=None, size=None):
             request_json['search_after'] = [cursor]
         if size is not None:
             request_json['size'] = size
-        response = requests.get(config['elasticsearch'] + '/logstash-*/_search', json=request_json)
-        response_json = response.json()
+        response_json = elasticsearch.search(index="logstash-*", body=request_json)
         documents = response_json["hits"]["hits"]
 
         pod_logs = {}
