@@ -12,7 +12,8 @@ const userParams = {
 describe('GET /clusters/:clusterId/jobs/:jobId/log', () => {
   it('should return job log', async () => {
     nock('http://universe')
-      .get('/GetJobLog?' + new URLSearchParams({ jobId: 'testjob' }))
+      .get('/GetJobLog')
+      .query({ jobId: 'testjob', userName: 'dlts@example.com' })
       .reply(200, {
         log: { "pod": "log" },
         cursor: 0123456789
@@ -32,7 +33,8 @@ describe('GET /clusters/:clusterId/jobs/:jobId/log', () => {
 
   it('should return job log with cursor', async () => {
     nock('http://universe')
-      .get('/GetJobLog?' + new URLSearchParams({ jobId: 'testjob', cursor: '1234567890' }))
+      .get('/GetJobLog')
+      .query({ jobId: 'testjob', cursor: '1234567890', userName: 'dlts@example.com' })
       .reply(200, {
         log: { "pod": "log" },
         cursor: 9876543210
@@ -54,7 +56,8 @@ describe('GET /clusters/:clusterId/jobs/:jobId/log', () => {
 
   it('should return 404 when there is no (more) log', async () => {
     nock('http://universe')
-    .get('/GetJobLog?' + new URLSearchParams({ jobId: 'testjob' }))
+    .get('/GetJobLog')
+    .query({ jobId: 'testjob', userName: 'dlts@example.com' })
     .reply(200, {
       log: {},
       cursor: null
