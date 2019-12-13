@@ -10,8 +10,6 @@ const Cluster = require('./cluster')
 const sign = config.get('sign')
 const winbind = config.has('winbind') ? config.get('winbind') : undefined
 const masterToken = config.get('masterToken')
-const addGroupLink = config.get('AddGroupLink')
-const WikiLink = config.get('WikiLink')
 const clusterIds = Object.keys(config.get('clusters'))
 
 class User extends Service {
@@ -32,9 +30,7 @@ class User extends Service {
   static fromIdToken (context, idToken) {
     const user = new User(context, idToken['upn'])
     user.givenName = idToken['given_name']
-    user.addGroupLink = addGroupLink
     user.familyName = idToken['family_name']
-    user.WikiLink = WikiLink
     return user
   }
 
@@ -63,8 +59,6 @@ class User extends Service {
     const user = new User(context, payload['email'])
     user.password = this.generateToken(user.email)
     user.givenName = payload['givenName']
-    user.addGroupLink = addGroupLink
-    user.WikiLink = WikiLink
     user.familyName = payload['familyName']
     user.uid = payload['uid']
     user.gid = payload['gid']
@@ -131,9 +125,7 @@ class User extends Service {
       gid: this.gid,
       _token: this.token,
       familyName: this.familyName,
-      givenName: this.givenName,
-      addGroupLink: addGroupLink,
-      WikiLink: WikiLink
+      givenName: this.givenName
     }, sign)
   }
 }
