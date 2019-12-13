@@ -1,6 +1,8 @@
 sign: {{cnf["master_token"]}}
 
-winbind: {{cnf["WinbindServers"]}}
+{% if cnf["WinbindServers"][0] %}
+winbind: {{cnf["WinbindServers"][0]}}
+{% endif %}
 masterToken: {{cnf["master_token"]}}
 
 AddGroupLink: https://dlts.azurewebsites.net/v2/htmlfiles/Overview/VirtualClusters.html
