@@ -344,6 +344,9 @@ const GPUCard: React.FC<{ cluster: string }> = ({ cluster }) => {
             return !(item["mountpointName"].indexOf("dlts") === -1 && item["mountpointName"].indexOf("dlws/nfs") === -1);
           })
           setNfsStorage(finalStorageRes.filter((store: any) => {
+            if (selectedTeam === 'MMBellevue' && store['mountpointName'].indexOf('/mntdlws/nfs') !== -1) {
+              return null;
+            }
             return store['mountpointName'].indexOf(selectedTeam) !== -1 || store['mountpointName'].indexOf("dlws/nfs") !== -1;
           }));
         });
