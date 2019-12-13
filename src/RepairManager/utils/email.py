@@ -15,14 +15,14 @@ class EmailHandler():
             return yaml.safe_load(file)
 
     def send(self, subject, body):
-        message = "From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s" % (self.config['sender'], self.config['receiver'], subject, body)
+        message = f"From: {self.config['sender']}\r\nTo: {';'.join(self.config['receiver'])}\r\nSubject: {subject}\r\n\r\n{body}"
 
         try:
             with smtplib.SMTP(self.config['smtp_url']) as server:
                 server.starttls()
                 server.login(self.config['login'], self.config['password'])
                 server.sendmail(self.config['sender'], self.config['receiver'], message)
-                logging.info('Email Sent')
+                logging.info(f"Email sent to {', '.join(self.config['receiver'])}")
         except smtplib.SMTPAuthenticationError:
             logging.warning('The server didn\'t accept the user\\password combination.')
         except smtplib.SMTPServerDisconnected:
