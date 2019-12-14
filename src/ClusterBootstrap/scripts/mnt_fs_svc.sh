@@ -1,0 +1,10 @@
+sudo mkdir -p /opt/auto_share; 
+sudo mkdir -p /dlwsdata; 
+sudo mkdir -p /mntdlws; 
+sudo mkdir -p /mntdlws/nfs; 
+sudo systemctl stop auto_share.timer; 
+sudo chmod +x /opt/auto_share/auto_share.py; 
+sudo /opt/auto_share/auto_share.py; 
+sudo systemctl daemon-reload; 
+sudo systemctl enable auto_share.timer; 
+sudo systemctl restart auto_share.timer; 

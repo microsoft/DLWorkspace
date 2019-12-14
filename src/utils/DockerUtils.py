@@ -157,8 +157,6 @@ def build_docker_fullname( config, dockername, verbose = False ):
         return ( worker_docker_registry + dockerprefix + dockername + ":" + dockertag ).lower(), ( dockerprefix + dockername + ":" + dockertag ).lower()
   
 def get_docker_list(rootdir, dockerprefix, dockertag, nargs, verbose = False ):
-    # print rootdir
-    # print nargs
     docker_list = {}
     if not (nargs is None) and len(nargs)>0:
         nargs = [x.lower() for x in nargs]
@@ -291,9 +289,10 @@ def push_dockers(rootdir, dockerprefix, dockertag, nargs, config, verbose = Fals
 
 
 def copy_from_docker_image(image, srcFile, dstFile):
-    id = subprocess.check_output(['docker', 'create', image]).decode("utf-8")
-    id = id.strip()
-    copyCmd = "docker cp --follow-link=true " + id + ":" + srcFile + " " + dstFile
-    #print copyCmd
+    pid = subprocess.check_output(['docker', 'create', image])
+    pid = pid.strip()
+    if sys.version_info >= (3, 0):
+        pid = str(pid, 'utf-8')
+    copyCmd = "docker cp --follow-link=true " + pid + ":" + srcFile + " " + dstFile
     os.system(copyCmd)
-    os.system("docker rm -v " + id)
+    os.system("docker rm -v " + pid)
