@@ -27,6 +27,7 @@ fi
 
 # Setup container
 bash ${SCRIPT_DIR}/init_user.sh &>> ${LOG_DIR}/bootstrap.log
+bash ${SCRIPT_DIR}/setup_ldap.sh &>> ${LOG_DIR}/bootstrap.log
 
 if [ "$DLWS_ROLE_NAME" != "inferenceworker" ];
 then

@@ -19,7 +19,8 @@ chmod 700 /home/${DLWS_USER_NAME}/.ssh || /bin/true
 
 # setup sudoers
 adduser $DLWS_USER_NAME sudo
-echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+echo '%sudo ALL=(ALL) NOPASSWD:ALL, !/bin/su' >> /etc/sudoers
+echo '%dltsadmin ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 # export envs
 # options '-e' for exported ENVs only
