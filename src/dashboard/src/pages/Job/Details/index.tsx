@@ -57,7 +57,7 @@ const JobDetails: React.FC<Props> = ({ clusterId, jobId, job, team }) => {
     setRefresh(true);
     setShowIframe(true)
   }, 2000);
-  const isReadOnly = teams.filter((item: any)=>item["id"] === team)[0]["clusters"].filter((cluster: any) => cluster.id === clusterId)[0].admin || email === job['userName'];
+  const isReadOnly = !(teams.filter((item: any)=>item["id"] === team)[0]["clusters"].filter((cluster: any) => cluster.id === clusterId)[0].admin || email === job['userName']);
   useEffect(()=>{
     if (isReady()) {
       reset();
@@ -72,17 +72,17 @@ const JobDetails: React.FC<Props> = ({ clusterId, jobId, job, team }) => {
     setshowOpen(false)
   }
 
-  if (!isReadOnly) {
+  if (isReadOnly) {
     return (
       <Context.Provider value={{ jobId, clusterId, job, cluster }}>
-        <DLTSTabs value={value} setValue={setValue} titles={readOnlyJobDetailTitles} setRefresh={setRefresh}  />
+        <DLTSTabs value={value} setValue={setValue} titles={readOnlyJobDetailTitles} setRefresh={setRefresh} />
         <SwipeableViews
           axis={theme.direction === 'rtl' ? 'x-reverse' : 'x'}
           index={value}
           onChangeIndex={handleChangeIndex}
         >
           <DLTSTabPanel value={value} index={0} dir={theme.direction}>
-            <Container maxWidth={isDesktop ? 'lg' : 'xs'} ><Brief/></Container>
+            <Container maxWidth={isDesktop ? 'lg' : 'xs'} ><Brief readonly/></Container>
           </DLTSTabPanel>
           <DLTSTabPanel value={value} index={1} dir={theme.direction}>
             { refresh ? cluster && <Container maxWidth={isDesktop ? 'lg' : 'xs'} ><Monitor/></Container> : <CircularProgress/>}
