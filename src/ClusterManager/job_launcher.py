@@ -218,6 +218,21 @@ class JobDeployer:
         return errors
 
     @record
+    def _cleanup_secrets_with_labels(self, label_selector):
+        errors = []
+        try:
+            self.k8s_CoreAPI.delete_collection_namespaced_secret(
+                self.namespace,
+                pretty=self.pretty,
+                label_selector=label_selector
+            )
+        except ApiException as e:
+            message = "Delete secrets failed: {}".format(label_selector)
+            logging.warning(message, exc_info=True)
+            errors.append({"message": message, "exception": e})
+        return errors
+
+    @record
     def create_pods(self, pods):
         # TODO instead of delete, we could check update existiong ones. During refactoring, keeping the old way.
         pod_names = [pod["metadata"]["name"] for pod in pods if pod["kind"] == "Pod"]
@@ -308,10 +323,8 @@ class JobDeployer:
         logging.info("deleting deployments %s" % ",".join(deployment_names))
 
         # query and delete secrets
-        secrets = self.get_secrets(label_selector=label_selector)
-        secret_names = [secret.metadata.name for secret in secrets]
-        secret_errors = self._cleanup_secrets(secret_names, force)
-        logging.info("deleting secrets %s" % ",".join(secret_names))
+        secret_errors = self._cleanup_secrets_with_labels(label_selector)
+        logging.info("deleting secrets for %s" % label_selector)
 
         configmap_errors = self._cleanup_configmap(label_selector)
 
