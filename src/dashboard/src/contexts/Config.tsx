@@ -3,6 +3,7 @@ import React from 'react';
 interface Context {
   addGroup?: string;
   wiki?: string;
+  support?: string;
 }
 
 const Context = React.createContext<Context>({});

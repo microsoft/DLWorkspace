@@ -174,6 +174,26 @@ class Cluster extends Service {
   }
 
   /**
+   * @param {string} jobId
+   * @param {string?} cursor
+   * @return {Promise<{log: string, cursor: number}>}
+   */
+  async getJobLog (jobId, cursor) {
+    const { user } = this.context.state
+    const params = new URLSearchParams({
+      jobId,
+      userName: user.email
+    })
+    if (cursor !== undefined) {
+      params.set('cursor', cursor)
+    }
+    const response = await this.fetch('/GetJobLog?' + params)
+    const { log, cursor: nextCursor } = await response.json()
+    this.context.assert(Object.keys(log).length > 0, 404)
+    return { log, cursor: nextCursor }
+  }
+
+  /**
    * @return {Promise<Array>}
    */
   async getTeams () {
