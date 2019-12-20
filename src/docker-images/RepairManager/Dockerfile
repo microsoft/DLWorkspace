@@ -9,6 +9,7 @@ RUN pip3 install wheel
 RUN pip3 install setuptools
 RUN pip3 install requests
 RUN pip3 install cachetools
+RUN pip3 install tabulate
 
 COPY kubectl /usr/local/bin/kubectl
 RUN chmod +x /usr/local/bin/kubectl
