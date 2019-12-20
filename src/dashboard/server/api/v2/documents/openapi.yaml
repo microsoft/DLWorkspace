@@ -1,0 +1,34 @@
+openapi: 3.0.0
+
+info:
+  version: 3.0.0
+  title: DLTS API
+
+servers:
+  - url: /api/v2
+
+paths:
+  /:
+    get:
+      summary: Get API info
+      responses:
+        '200':
+          description: OK
+  /openapi.yaml:
+    get:
+      summary: Get API document
+      responses:
+        '200':
+          description: OK
+  /clusters/:clusterId/teams/:teamId/jobs:
+    get:
+      summary: Get jobs of spefied cluster & team
+      responses:
+        '200':
+          description: OK
+  /clusters/:clusterId/jobs/:jobId:
+    get:
+      summary: Get spefied job
+      responses:
+        '200':
+          description: OK
