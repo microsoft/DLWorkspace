@@ -40,6 +40,7 @@ ADMIN_JOB_PRIORITY_RANGE = (1, 1000)
 
 logger = logging.getLogger(__name__)
 
+pendingStatus = "running,queued,scheduling,unapproved,pausing,paused"
 
 def adjust_job_priority(priority, permission):
     priority_range = (DEFAULT_JOB_PRIORITY, DEFAULT_JOB_PRIORITY)
@@ -288,6 +289,27 @@ def GetJobList(userName, vcName, jobOwner, num=None):
         logger.warn("Fail to get job list for user %s, return empty list", userName)
         return []
 
+def GetJobListV2(userName, vcName, jobOwner, num=None):
+    jobs = {}
+    dataHandler = None
+    try:
+        dataHandler = DataHandler()
+
+        hasAccessOnAllJobs = False
+        if jobOwner == "all":
+            hasAccessOnAllJobs = AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName, Permission.Collaborator)
+
+        # if user needs to access all jobs, and has been authorized, he could get all pending jobs; otherwise, he could get his own jobs with all status
+        if hasAccessOnAllJobs:
+            jobs = dataHandler.GetJobListV2("all", vcName, num, pendingStatus, ("=","or"))
+        else:
+            jobs = dataHandler.GetJobListV2(userName, vcName, num)
+    except Exception as e:
+        logger.error('get job list V2 Exception: user: %s, ex: %s', userName, str(e))
+    finally:
+        if dataHandler is not None:
+            dataHandler.Close()
+    return jobs
 
 def GetUserPendingJobs(userName, vcName):
     jobs = []
@@ -301,7 +323,7 @@ def GetUserPendingJobs(userName, vcName):
 def GetCommands(userName, jobId):
     commands = []
     dataHandler = DataHandler()
-    jobs = dataHandler.GetJob(jobId=jobId)
+    jobs = dataHandler.GetJobV2(jobId=jobId)
     if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
         commands = dataHandler.GetCommands(jobId=jobId)
     dataHandler.Close()
@@ -311,8 +333,8 @@ def GetCommands(userName, jobId):
 def KillJob(userName, jobId):
     ret = False
     dataHandler = DataHandler()
-    jobs = dataHandler.GetJob(jobId=jobId)
-    if len(jobs) == 1 and jobs[0]["jobStatus"] in ["unapproved", "queued", "scheduling", "running", "paused", "pausing"]:
+    jobs = dataHandler.GetJobV2(jobId=jobId)
+    if len(jobs) == 1 and jobs[0]["jobStatus"] in pendingStatus.split(","):
         job = jobs[0]
         if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin):
             if job["isParent"] == 1:
@@ -334,7 +356,7 @@ def InvalidateJobListCache(vcName):
 def AddCommand(userName, jobId,command):
     dataHandler = DataHandler()
     ret = False
-    jobs =  dataHandler.GetJob(jobId=jobId)
+    jobs =  dataHandler.GetJobV2(jobId=jobId)
     if len(jobs) == 1:
         if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
             ret = dataHandler.AddCommand(jobId,command)
@@ -345,7 +367,7 @@ def AddCommand(userName, jobId,command):
 def ApproveJob(userName, jobId):
     dataHandler = DataHandler()
     ret = False
-    jobs =  dataHandler.GetJob(jobId=jobId)
+    jobs =  dataHandler.GetJobV2(jobId=jobId)
     if len(jobs) == 1 and jobs[0]["jobStatus"] == "unapproved":
         if AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Admin):
             ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","queued")
@@ -357,7 +379,7 @@ def ApproveJob(userName, jobId):
 def ResumeJob(userName, jobId):
     dataHandler = DataHandler()
     ret = False
-    jobs = dataHandler.GetJob(jobId=jobId)
+    jobs = dataHandler.GetJobV2(jobId=jobId)
     if len(jobs) == 1 and jobs[0]["jobStatus"] == "paused":
         if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
             ret = dataHandler.UpdateJobTextField(jobId, "jobStatus", "unapproved")
@@ -368,7 +390,7 @@ def ResumeJob(userName, jobId):
 def PauseJob(userName, jobId):
     dataHandler = DataHandler()
     ret = False
-    jobs =  dataHandler.GetJob(jobId=jobId)
+    jobs =  dataHandler.GetJobV2(jobId=jobId)
     if len(jobs) == 1 and jobs[0]["jobStatus"] in ["unapproved", "queued", "scheduling", "running"]:
         if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Admin):
             ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","pausing")
@@ -419,10 +441,26 @@ def GetJobDetail(userName, jobId):
     dataHandler.Close()
     return job
 
+def GetJobDetailV2(userName, jobId):
+    job = {}
+    dataHandler = None
+    try:
+        dataHandler = DataHandler()
+        jobs = dataHandler.GetJobV2(jobId)
+        if len(jobs) == 1:
+            if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
+                job = jobs[0]
+    except Exception as e:
+        logger.error("get job detail v2 exception for user: %s, jobId: %s, exception: %s", userName, jobId, str(e))
+    finally:
+        if dataHandler is not None:
+            dataHandler.Close()
+    return job
+
 def GetJobStatus(jobId):
     result = None
     dataHandler = DataHandler()
-    jobs = dataHandler.GetJob(jobId=jobId)
+    jobs = dataHandler.GetJobV2(jobId=jobId)
     if len(jobs) == 1:
         key_list = ["jobStatus", "jobTime", "errorMsg"]
         result = {key: jobs[0][key] for key in key_list}
@@ -700,7 +738,7 @@ def update_job_priorites(username, job_priorities):
         # Fail job priority update if there is one unauthorized items.
         for job_id in job_priorities:
             priority = job_priorities[job_id]
-            jobs = data_handler.GetJob(jobId=job_id)
+            jobs = data_handler.GetJobV2(jobId=job_id)
             if len(jobs) == 0:
                 logger.warn("Update priority %s for non-existent job %s" %
                             (priority, job_id))

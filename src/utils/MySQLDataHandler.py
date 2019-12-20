@@ -293,7 +293,7 @@ class DataHandler(object):
             cursor.close()
             return True
         except Exception as e:
-            logger.error('Exception: %s', str(e))
+            logger.error('AddStorage Exception: %s', str(e))
             return False
 
     @record
@@ -306,7 +306,7 @@ class DataHandler(object):
             cursor.close()
             return True
         except Exception as e:
-            logger.error('Exception: %s', str(e))
+            logger.error('DeleteStorage Exception: %s', str(e))
             return False
 
     @record
@@ -325,7 +325,7 @@ class DataHandler(object):
                 record["defaultMountPath"] = defaultMountPath
                 ret.append(record)
         except Exception as e:
-            logger.error('Exception: %s', str(e))
+            logger.error('ListStorages Exception: %s', str(e))
             pass
         self.conn.commit()
         cursor.close()
@@ -356,7 +356,7 @@ class DataHandler(object):
             cursor.close()
             return True
         except Exception as e:
-            logger.error('Exception: %s', str(e))
+            logger.error('AddVC Exception: %s', str(e))
             return False
 
 
@@ -391,7 +391,7 @@ class DataHandler(object):
             cursor.close()
             return True
         except Exception as e:
-            logger.error('Exception: %s', str(e))
+            logger.error('DeleteVC Exception: %s', str(e))
             return False
 
 
@@ -531,7 +531,7 @@ class DataHandler(object):
             cursor.close()
             return True
         except Exception as e:
-            logger.error('Exception: %s', str(e))
+            logger.error('DeleteAce Exception: %s', str(e))
             return False
 
 
@@ -647,6 +647,70 @@ class DataHandler(object):
         return ret
 
     @record
+    def GetJobListV2(self, userName, vcName, num = None, status = None, op = ("=","or")):
+        ret = {}
+        ret["queuedJobs"] = []
+        ret["runningJobs"] = []
+        ret["finishedJobs"] = []
+        ret["visualizationJobs"] = []
+
+        cursor = None
+        try:
+            cursor = self.conn.cursor()
+
+            query = ""
+            if userName == "all":
+                query = "SELECT {}.jobId, jobName, userName, vcName, jobStatus, jobStatusDetail, jobType, jobTime, jobParams, priority FROM {} left join {} on {}.jobId = {}.jobId where 1".format(self.jobtablename, self.jobtablename, self.jobprioritytablename, self.jobtablename, self.jobprioritytablename)
+            else:
+                query = "SELECT jobId, jobName, userName, vcName, jobStatus, jobStatusDetail, jobType, jobTime, jobParams FROM {} where userName = '{}'".format(self.jobtablename, userName)
+
+            if vcName != "all":
+                query += " and vcName = '%s'" % vcName
+
+            if status is not None:
+                if "," not in status:
+                    query += " and jobStatus %s '%s'" % (op[0], status)
+                else:
+                    status_list = [" jobStatus %s '%s' " % (op[0], s) for s in status.split(',')]
+                    status_statement = (" "+op[1]+" ").join(status_list)
+                    query += " and ( %s ) " % status_statement
+
+            query += " order by jobTime Desc"
+
+            if num is not None:
+                query += " limit %s " % str(num)
+
+            cursor.execute(query)
+
+            columns = [column[0] for column in cursor.description]
+            data = cursor.fetchall()
+            for item in data:
+                record = dict(zip(columns, item))
+                if record["jobStatusDetail"] is not None:
+                    record["jobStatusDetail"] = self.load_json(base64.b64decode(record["jobStatusDetail"]))
+                if record["jobParams"] is not None:
+                    record["jobParams"] = self.load_json(base64.b64decode(record["jobParams"]))
+
+                if record["jobStatus"] == "running":
+                    if record["jobType"] == "training":
+                        ret["runningJobs"].append(record)
+                    elif record["jobType"] == "visualization":
+                        ret["visualizationJobs"].append(record)
+                elif record["jobStatus"] == "queued" or record["jobStatus"] == "scheduling" or record["jobStatus"] == "unapproved":
+                    ret["queuedJobs"].append(record)
+                else:
+                    ret["finishedJobs"].append(record)
+            self.conn.commit()
+        except Exception as e:
+            logger.error('GetJobListV2 Exception: %s', str(e))
+        finally:
+            if cursor is not None:
+                cursor.close()
+
+        ret["meta"] = {"queuedJobs": len(ret["queuedJobs"]),"runningJobs": len(ret["runningJobs"]),"finishedJobs": len(ret["finishedJobs"]),"visualizationJobs": len(ret["visualizationJobs"])}
+        return ret
+
+    @record
     def GetActiveJobList(self):
         ret = []
         cursor = self.conn.cursor()
@@ -665,7 +729,7 @@ class DataHandler(object):
                 record["jobStatus"] = jobStatus
                 ret.append(record)
         except Exception as e:
-            logger.error('Exception: %s', str(e))
+            logger.error('GetActiveJobList Exception: %s', str(e))
         self.conn.commit()
         cursor.close()
         return ret
@@ -682,9 +746,35 @@ class DataHandler(object):
         query = "SELECT `jobId`,`familyToken`,`isParent`,`jobName`,`userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobDescriptionPath`, `jobDescription`, `jobTime`, `endpoints`, `jobParams`,`errorMsg` ,`jobMeta`  FROM `%s` where `%s` = '%s' " % (self.jobtablename,key,expected)
         cursor.execute(query)
         columns = [column[0] for column in cursor.description]
-        ret = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        ret = [dict(zip(columns, row)) for row in curosr.fetchall()]
         self.conn.commit()
         cursor.close()
+        return ret
+
+    @record
+    def GetJobV2(self, jobId):
+        ret = []
+        cursor = None
+        try:
+            cursor = self.conn.cursor()
+            query = "SELECT `jobId`, `jobName`, `userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobTime`, `jobParams`  FROM `%s` where `jobId` = '%s' " % (self.jobtablename, jobId)
+            cursor.execute(query)
+
+            columns = [column[0] for column in cursor.description]
+            data = cursor.fetchall()
+            for item in data:
+                record = dict(zip(columns, item))
+                if record["jobStatusDetail"] is not None:
+                    record["jobStatusDetail"] = self.load_json(base64.b64decode(record["jobStatusDetail"]))
+                if record["jobParams"] is not None:
+                    record["jobParams"] = self.load_json(base64.b64decode(record["jobParams"]))
+                ret.append(record)
+            self.conn.commit()
+        except Exception as e:
+            logger.error('GetJobV2 Exception: %s', str(e))
+        finally:
+            if cursor is not None:
+                cursor.close()
         return ret
 
     @record
@@ -747,6 +837,8 @@ class DataHandler(object):
         return ret
 
     def load_json(self, raw_str):
+        if raw_str is None:
+            return {}
         if isinstance(raw_str, unicode):
             raw_str = str(raw_str)
         try:
@@ -756,35 +848,49 @@ class DataHandler(object):
 
     @record
     def GetPendingEndpoints(self):
+        cursor = None
+        ret = {}
         try:
-            jobs = self.GetJob(jobStatus="running")
+            cursor = self.conn.cursor()
+            query = "SELECT `endpoints` from `%s` where `jobStatus` = '%s' and `endpoints` is not null" % (self.jobtablename, "running")
+            cursor.execute(query)
+            jobs = cursor.fetchall()
+            self.conn.commit()
 
             # [ {endpoint1:{},endpoint2:{}}, {endpoint3:{}, ... }, ... ]
-            endpoints = map(lambda job: self.load_json(job["endpoints"]), jobs)
+            endpoints = map(lambda job: self.load_json(job[0]), jobs)
             # {endpoint1: {}, endpoint2: {}, ... }
             # endpoint["status"] == "pending"
-            pendingEndpoints = {k: v for d in endpoints for k, v in d.items() if v["status"] == "pending"}
-
-            return pendingEndpoints
+            ret = {k: v for d in endpoints for k, v in d.items() if v["status"] == "pending"}
         except Exception as e:
             logger.exception("Query pending endpoints failed!")
-            return {}
+        finally:
+            if cursor is not None:
+                cursor.close()
+        return ret
 
     @record
     def GetJobEndpoints(self, job_id):
+        cursor = None
+        ret = {}
         try:
-            jobs = self.GetJob(jobId=job_id)
+            cursor = self.conn.cursor()
+            query = "SELECT `endpoints` from `%s` where `jobId` = '%s'" % (self.jobtablename, job_id)
+            cursor.execute(query)
+            jobs = cursor.fetchall()
+            self.conn.commit()
 
             # [ {endpoint1:{},endpoint2:{}}, {endpoint3:{}, ... }, ... ]
-            endpoints = map(lambda job: self.load_json(job["endpoints"]), jobs)
+            endpoints = map(lambda job: self.load_json(job[0]), jobs)
             # {endpoint1: {}, endpoint2: {}, ... }
             # endpoint["status"] == "pending"
-            endpoints = {k: v for d in endpoints for k, v in d.items()}
-
-            return endpoints
+            ret = {k: v for d in endpoints for k, v in d.items()}
         except Exception as e:
             logger.warning("Query job endpoints failed! Job {}".format(job_id), exc_info=True)
-            return {}
+        finally:
+            if cursor is not None:
+                cursor.close()
+        return ret
 
     @record
     def GetDeadEndpoints(self):
@@ -807,9 +913,7 @@ class DataHandler(object):
     @record
     def UpdateEndpoint(self, endpoint):
         try:
-            job_id = endpoint["jobId"]
-            job = self.GetJob(jobId=job_id)[0]
-            job_endpoints = self.load_json(job["endpoints"])
+            job_endpoints = self.GetJobEndpoints(endpoint["jobId"])
 
             # update jobEndpoints
             job_endpoints[endpoint["id"]] = endpoint
@@ -879,6 +983,31 @@ class DataHandler(object):
             return False
 
     @record
+    def UpdateJobTextFields(self, jobId, fields):
+        cursor = None
+        ret = False
+        if not isinstance(fields, dict) or not fields:
+            return ret
+
+        try:
+            sql = "update `%s` set" % (self.jobtablename)
+            for field, value in fields.items():
+                sql += " `%s` = '%s'," % (field, value)
+            sql = sql[:-1]
+            sql += " where `jobId` = '%s'" % (jobId)
+
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+            self.conn.commit()
+            ret = True
+        except Exception as e:
+            logger.error('updateJobTextFields Exception: %s, ex: %s', fields, str(e))
+        finally:
+            if cursor is not None:
+                cursor.close()
+        return ret
+
+    @record
     def GetJobTextField(self, jobId, field):
         cursor = self.conn.cursor()
         query = "SELECT `jobId`, `%s` FROM `%s` where `jobId` = '%s' " % (field, self.jobtablename, jobId)
@@ -940,7 +1069,7 @@ class DataHandler(object):
                 ret = json.loads(base64.b64decode(value))
                 time = t
         except Exception as e:
-            logger.error('Exception: %s', str(e))
+            logger.error('GetClusterStatus Exception: %s', str(e))
         self.conn.commit()
         cursor.close()
         return ret, time

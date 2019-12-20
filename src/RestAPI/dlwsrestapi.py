@@ -121,6 +121,11 @@ def remove_creds(job):
             i_p.pop("username", None)
             i_p.pop("password", None)
 
+def generateResponse(result):
+    resp = jsonify(result)
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    resp.headers["dataType"] = "json"
+    return resp
 
 class SubmitJob(Resource):
     def get(self):
@@ -404,13 +409,35 @@ class ListJobs(Resource):
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
-
         return resp
 ##
 ## Actually setup the Api resource routing here
 ##
 api.add_resource(ListJobs, '/ListJobs')
 
+# shows a list of all todos, and lets you POST to add new tasks
+class ListJobsV2(Resource):
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('userName')
+        parser.add_argument('num')
+        parser.add_argument('vcName')
+        parser.add_argument('jobOwner')
+        args = parser.parse_args()
+        num = None
+        if args["num"] is not None:
+            try:
+                num = int(args["num"])
+            except:
+                pass
+
+        jobs = JobRestAPIUtils.GetJobListV2(args["userName"], args["vcName"], args["jobOwner"], num)
+        resp = generateResponse(jobs)
+        return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(ListJobsV2, '/ListJobsV2')
 
 
 class KillJob(Resource):
@@ -603,6 +630,23 @@ class GetJobDetail(Resource):
 ## Actually setup the Api resource routing here
 ##
 api.add_resource(GetJobDetail, '/GetJobDetail')
+
+
+class GetJobDetailV2(Resource):
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('jobId')
+        parser.add_argument('userName')
+        args = parser.parse_args()
+        jobId = args["jobId"]
+        userName = args["userName"]
+        job = JobRestAPIUtils.GetJobDetailV2(userName, jobId)
+        resp = generateResponse(job)
+        return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(GetJobDetailV2, '/GetJobDetailV2')
 
 
 class GetJobStatus(Resource):
