@@ -35,6 +35,8 @@ from cluster_manager import setup_exporter_thread, manager_iteration_histogram, 
 
 from job_launcher import get_job_status_detail, job_status_detail_with_finished_time
 
+logger = logging.getLogger(__name__)
+
 
 job_state_change_histogram = Histogram("job_state_change_latency_seconds",
         """latency for job to change state(seconds).
@@ -94,7 +96,7 @@ def load_job_status(redis_conn, job_id):
         if val is not None:
             return JobTimeRecord.parse(json.loads(val))
     except Exception:
-        logging.exception("load job status failed")
+        logger.exception("load job status failed")
     return JobTimeRecord()
 
 def set_job_status(redis_conn, job_id, job_status):
@@ -102,7 +104,7 @@ def set_job_status(redis_conn, job_id, job_status):
         val = json.dumps(job_status.to_map())
         redis_conn.set(to_job_status_key(job_id), val)
     except Exception:
-        logging.exception("set job status failed")
+        logger.exception("set job status failed")
 
 # If previous state has no record, which means the job_manager get restarted
 # or previous entry is expired, we ignore this entry.
@@ -205,7 +207,7 @@ def ApproveJob(redis_conn, job, dataHandlerOri=None):
             dataHandler = dataHandlerOri
 
         if "preemptionAllowed" in jobParams and jobParams["preemptionAllowed"] is True:
-            logging.info("Job {} preemptible, approve!".format(job_id))
+            logger.info("Job {} preemptible, approve!".format(job_id))
             detail = [{"message": "waiting for available preemptible resource."}]
             dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
             dataHandler.UpdateJobTextField(job_id, "jobStatus", "queued")
@@ -221,7 +223,7 @@ def ApproveJob(redis_conn, job, dataHandlerOri=None):
                 vc = item
                 break
         if vc is None:
-            logging.warning("Vc not exising! job {}, vc {}".format(job_id, vcName))
+            logger.warning("Vc not exising! job {}, vc {}".format(job_id, vcName))
             if dataHandlerOri is None:
                 dataHandler.Close()
             return False
@@ -238,9 +240,9 @@ def ApproveJob(redis_conn, job, dataHandlerOri=None):
                 running_job_total_gpus = GetJobTotalGpu(running_jobParams)
                 running_gpus += running_job_total_gpus
 
-            logging.info("Job {} require {}, used quota (exclude preemptible GPUs) {}, with user quota of {}.".format(job_id, job_total_gpus, running_gpus, metadata["user_quota"]))
+            logger.info("Job {} require {}, used quota (exclude preemptible GPUs) {}, with user quota of {}.".format(job_id, job_total_gpus, running_gpus, metadata["user_quota"]))
             if job_total_gpus > 0 and int(metadata["user_quota"]) < (running_gpus + job_total_gpus):
-                logging.info("Job {} excesses the user quota: {} + {} > {}. Will need approve from admin.".format(job_id, running_gpus, job_total_gpus, metadata["user_quota"]))
+                logger.info("Job {} excesses the user quota: {} + {} > {}. Will need approve from admin.".format(job_id, running_gpus, job_total_gpus, metadata["user_quota"]))
                 detail = [{"message": "exceeds the user quota in VC: {} (used) + {} (requested) > {} (user quota). Will need admin approval.".format(running_gpus, job_total_gpus, metadata["user_quota"])}]
                 dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
                 if dataHandlerOri is None:
@@ -255,7 +257,7 @@ def ApproveJob(redis_conn, job, dataHandlerOri=None):
             dataHandler.Close()
         return True
     except Exception as e:
-        logging.warning(e, exc_info=True)
+        logger.warning(e, exc_info=True)
     finally:
         if dataHandlerOri is None:
             dataHandler.Close()
@@ -273,7 +275,7 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
     jobParams = json.loads(base64.b64decode(job["jobParams"]))
 
     result, details = check_job_status(job["jobId"])
-    logging.info("++++++++ Job status: {} {}".format(job["jobId"], result))
+    logger.info("++++++++ Job status: {} {}".format(job["jobId"], result))
 
     jobPath, workPath, dataPath = GetStoragePath(jobParams["jobPath"], jobParams["workPath"], jobParams["dataPath"])
     localJobPath = os.path.join(config["storage-mount-path"], jobPath)
@@ -313,7 +315,7 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
             dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "running")
 
     elif result == "Failed":
-        logging.warning("Job %s fails, cleaning...", job["jobId"])
+        logger.warning("Job %s fails, cleaning...", job["jobId"])
 
         if notifier is not None:
             notifier.notify(notify.new_job_state_change_message(
@@ -337,7 +339,7 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
 
     elif result == "Unknown" or result == "NotFound":
         if job["jobId"] not in UnusualJobs:
-            logging.warning("!!! Job status ---{}---, job: {}".format(result, job["jobId"]))
+            logger.warning("!!! Job status ---{}---, job: {}".format(result, job["jobId"]))
             UnusualJobs[job["jobId"]] = datetime.datetime.now()
         # TODO
         # 1) May need to reduce the timeout.
@@ -352,10 +354,10 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
             endpoints = dataHandler.GetJobEndpoints(job["jobId"])
             for endpoint_id, endpoint in endpoints.items():
                 endpoint["status"] = "pending"
-                logging.info("Reset endpoint status to 'pending': {}".format(endpoint_id))
+                logger.info("Reset endpoint status to 'pending': {}".format(endpoint_id))
                 dataHandler.UpdateEndpoint(endpoint)
 
-            logging.warning("Job {} fails in Kubernetes as {}, delete and re-submit.".format(job["jobId"], result))
+            logger.warning("Job {} fails in Kubernetes as {}, delete and re-submit.".format(job["jobId"], result))
             launcher.kill_job(job["jobId"], "queued")
 
     elif result == "Pending":
@@ -382,21 +384,21 @@ def check_job_status(job_id):
         if job_role.role_name not in ["master", "ps"]:
             continue
         if job_role.status() == "Succeeded":
-            logging.info("Job: {}, Succeeded!".format(job_id))
+            logger.info("Job: {}, Succeeded!".format(job_id))
             return "Succeeded", []
 
     statuses = [job_role.status() for job_role in job_roles]
-    logging.info("Job: {}, status: {}".format(job_id, statuses))
+    logger.info("Job: {}, status: {}".format(job_id, statuses))
 
     details = []
     for job_role in job_roles:
         details.append(job_role.pod_details().to_dict())
-    logging.debug("Job {}, details: {}".format(job_id, details))
+    logger.debug("Job {}, details: {}".format(job_id, details))
 
     restricted_details = [
         job_role.pod_restricted_details() for job_role in job_roles
     ]
-    logging.info("Job: {}, restricted details: {}".format(job_id, restricted_details))
+    logger.info("Job: {}, restricted details: {}".format(job_id, restricted_details))
 
     job_status = "Running"
 
@@ -428,7 +430,7 @@ def get_priority_dict():
         priority_dict = dataHandler.get_job_priority()
         return priority_dict
     except Exception as e:
-        logging.warning("Fetch job priority dict failed!", exc_info=True)
+        logger.warning("Fetch job priority dict failed!", exc_info=True)
         return {}
     finally:
         dataHandler.Close()
@@ -474,7 +476,7 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
     globalResInfo = ResourceInfo.Difference(global_total, global_unschedulable)
 
     priority_dict = get_priority_dict()
-    logging.info("Job priority dict: {}".format(priority_dict))
+    logger.info("Job priority dict: {}".format(priority_dict))
 
     for vc in vc_list:
         vc_name = vc["vcName"]
@@ -526,11 +528,11 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
 
     jobsInfo.sort(key=lambda x: x["sortKey"])
 
-    logging.info("TakeJobActions : local resources : %s" % (vc_resources))
-    logging.info("TakeJobActions : global resources : %s" % (globalResInfo.CategoryToCountMap))
+    logger.info("TakeJobActions : local resources : %s" % (vc_resources))
+    logger.info("TakeJobActions : global resources : %s" % (globalResInfo.CategoryToCountMap))
 
     for sji in jobsInfo:
-        logging.info("TakeJobActions : job : %s : %s : %s" % (sji["jobId"], sji["globalResInfo"].CategoryToCountMap, sji["sortKey"]))
+        logger.info("TakeJobActions : job : %s : %s : %s" % (sji["jobId"], sji["globalResInfo"].CategoryToCountMap, sji["sortKey"]))
         vc_name = sji["job"]["vcName"]
         vc_resource = vc_resources[vc_name]
 
@@ -538,28 +540,28 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
             vc_resource.Subtract(sji["globalResInfo"])
             globalResInfo.Subtract(sji["globalResInfo"])
             sji["allowed"] = True
-            logging.info("TakeJobActions : local assignment : %s : %s" % (sji["jobId"], sji["globalResInfo"].CategoryToCountMap))
+            logger.info("TakeJobActions : local assignment : %s : %s" % (sji["jobId"], sji["globalResInfo"].CategoryToCountMap))
 
     for sji in jobsInfo:
         if sji["preemptionAllowed"] and (sji["allowed"] is False):
             if globalResInfo.CanSatisfy(sji["globalResInfo"]):
-                logging.info("TakeJobActions : job : %s : %s" % (sji["jobId"], sji["globalResInfo"].CategoryToCountMap))
+                logger.info("TakeJobActions : job : %s : %s" % (sji["jobId"], sji["globalResInfo"].CategoryToCountMap))
                 # Strict FIFO policy not required for global (bonus) tokens since these jobs are anyway pre-emptible.
                 globalResInfo.Subtract(sji["globalResInfo"])
                 sji["allowed"] = True
-                logging.info("TakeJobActions : global assignment : %s : %s" % (sji["jobId"], sji["globalResInfo"].CategoryToCountMap))
+                logger.info("TakeJobActions : global assignment : %s : %s" % (sji["jobId"], sji["globalResInfo"].CategoryToCountMap))
 
-    logging.info("TakeJobActions : global resources : %s" % (globalResInfo.CategoryToCountMap))
+    logger.info("TakeJobActions : global resources : %s" % (globalResInfo.CategoryToCountMap))
 
     for sji in jobsInfo:
         try:
             if sji["job"]["jobStatus"] == "queued" and (sji["allowed"] is True):
                 launcher.submit_job(sji["job"])
                 update_job_state_latency(redis_conn, sji["jobId"], "scheduling")
-                logging.info("TakeJobActions : submitting job : %s : %s" % (sji["jobId"], sji["sortKey"]))
+                logger.info("TakeJobActions : submitting job : %s : %s" % (sji["jobId"], sji["sortKey"]))
             elif sji["preemptionAllowed"] and (sji["job"]["jobStatus"] == "scheduling" or sji["job"]["jobStatus"] == "running") and (sji["allowed"] is False):
                 launcher.kill_job(sji["job"]["jobId"], "queued")
-                logging.info("TakeJobActions : pre-empting job : %s : %s" % (sji["jobId"], sji["sortKey"]))
+                logger.info("TakeJobActions : pre-empting job : %s : %s" % (sji["jobId"], sji["sortKey"]))
             elif sji["job"]["jobStatus"] == "queued" and sji["allowed"] is False:
                 vc_name = sji["job"]["vcName"]
                 available_resource = vc_resources[vc_name]
@@ -567,9 +569,9 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
                 detail = [{"message": "waiting for available resource. requested: %s. available: %s" % (requested_resource, available_resource)}]
                 data_handler.UpdateJobTextField(sji["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
         except Exception as e:
-            logging.error("Process job failed {}".format(sji["job"]), exc_info=True)
+            logger.error("Process job failed {}".format(sji["job"]), exc_info=True)
 
-    logging.info("TakeJobActions : job desired actions taken")
+    logger.info("TakeJobActions : job desired actions taken")
 
 def Run(redis_port, target_status):
     register_stack_trace_dump()
@@ -594,7 +596,7 @@ def Run(redis_port, target_status):
                 config["racks"] = k8sUtils.get_node_labels("rack")
                 config["skus"] = k8sUtils.get_node_labels("sku")
             except Exception as e:
-                logging.exception("get node labels failed")
+                logger.exception("get node labels failed")
 
             try:
                 launcher.wait_tasks_done() # wait for tasks from previous batch done
@@ -608,11 +610,11 @@ def Run(redis_port, target_status):
                 else:
                     jobs = dataHandler.GetJobList("all", "all", num=None,
                             status=target_status)
-                    logging.info("Updating status for %d %s jobs",
+                    logger.info("Updating status for %d %s jobs",
                             len(jobs), target_status)
 
                     for job in jobs:
-                        logging.info("Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"]))
+                        logger.info("Processing job: %s, status: %s" % (job["jobId"], job["jobStatus"]))
                         if job["jobStatus"] == "killing":
                             launcher.kill_job(job["jobId"], "killed")
                         elif job["jobStatus"] == "pausing":
@@ -624,10 +626,10 @@ def Run(redis_port, target_status):
                         elif job["jobStatus"] == "unapproved":
                             ApproveJob(redis_conn, job, dataHandlerOri=dataHandler)
                         else:
-                            logging.error("unknown job status %s for job %s",
+                            logger.error("unknown job status %s for job %s",
                                     job["jobStatus"], job["jobId"])
             except Exception as e:
-                logging.warning("Process job failed!", exc_info=True)
+                logger.warning("Process job failed!", exc_info=True)
             finally:
                 try:
                     dataHandler.Close()

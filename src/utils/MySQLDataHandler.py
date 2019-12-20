@@ -35,7 +35,6 @@ def record(fn):
             return fn(*args, **kwargs)
         finally:
             elapsed = timeit.default_timer() - start
-            logger.info("DataHandler: %s, time elapsed %.2fs", fn.__name__, elapsed)
             data_handler_fn_histogram.labels(fn.__name__).observe(elapsed)
     return wrapped
 
@@ -65,9 +64,7 @@ class DataHandler(object):
 
         self.CreateTable()
 
-
         elapsed = timeit.default_timer() - start_time
-        logger.info("DataHandler initialization, time elapsed %f s", elapsed)
 
     def CreateDatabase(self):
         if "initSQLDB" not in global_vars or not global_vars["initSQLDB"]:
@@ -625,10 +622,7 @@ class DataHandler(object):
 
             cursor.execute(query)
 
-            fetch_start_time = timeit.default_timer()
             data = cursor.fetchall()
-            fetch_elapsed = timeit.default_timer() - fetch_start_time
-            logger.info("(fetchall time: %f)", fetch_elapsed)
             for (jobId,jobName,userName, vcName, jobStatus,jobStatusDetail, jobType, jobDescriptionPath, jobDescription, jobTime, endpoints, jobParams,errorMsg, jobMeta) in data:
                 record = {}
                 record["jobId"] = jobId
