@@ -11,7 +11,7 @@ module.exports = (forceAuthenticated = true) => async (context, next) => {
     await user.password
     await user.addGroupLink
     await user.WikiLink
-    context.log.info(user, 'Authenticated by token')
+    context.log.debug(user, 'Authenticated by token')
   } else if (context.cookies.get('token')) {
     try {
       const token = context.cookies.get('token')
@@ -19,7 +19,7 @@ module.exports = (forceAuthenticated = true) => async (context, next) => {
       await user.password
       await user.addGroupLink
       await user.WikiLink
-      context.log.info(user, 'Authenticated by cookie')
+      context.log.debug(user, 'Authenticated by cookie')
     } catch (error) {
       context.log.error(error, 'Error in cookie authentication')
     }
