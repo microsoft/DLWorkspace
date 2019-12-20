@@ -1,6 +1,7 @@
 from Rules.rules_abc import Rule
 from kubernetes import client, config
 from utils import k8s_util, email
+from tabulate import tabulate
 import requests
 import json
 import os
@@ -27,23 +28,42 @@ def get_node_address_info(node_info):
             
                 address_map[internal_ip] = hostname
 
-    logging.debug('node address map: %s ' %  address_map)
+    logging.debug(f'node address map: {address_map}')
 
     return address_map
 
 
 
 def get_ECC_error_data(ecc_url):
+    try:
+        response = requests.get(ecc_url)
+        if response:
+            data = json.loads(response.text)
 
-    response = requests.get(ecc_url)
-    data = json.loads(response.text)
+            if data:
+                ecc_metrics = data['data']['result']
+                logging.info('ECC error metrics from prometheus: ' + json.dumps(ecc_metrics))
+                return ecc_metrics
+        else:
+            logging.warning(f'No response from {ecc_url} found.')
 
-    if data:
-        ecc_metrics = data['data']['result']
-        logging.info('ECC error metrics from prometheus: ' + json.dumps(ecc_metrics))
+    except:
+        logging.exception(f'Error retrieving data from {ecc_url}')
 
-        return ecc_metrics
+def get_job_info_from_nodes(nodes):
+    pods = k8s_util.list_pod_for_all_namespaces()
 
+    jobs = {}
+    for pod in pods.items:
+        if pod.metadata and pod.metadata.labels:
+            if 'jobId' in pod.metadata.labels and 'userName' in pod.metadata.labels:
+                if pod.spec.node_name in nodes:
+                    jobs[pod.metadata.labels['jobId']] = {
+                    'userName': pod.metadata.labels['userName'],
+                    'nodeName': pod.spec.node_name,
+                    'vcName': pod.metadata.labels['vcName']
+                    }
+    return jobs
 
 
 class ECCRule(Rule):
@@ -79,25 +99,25 @@ class ECCRule(Rule):
             return False
 
     def take_action(self):
-        status = {}
-
+        status = []
         for node_name in self.ecc_hostnames:
+            output = k8s_util.cordon_node(node_name, dry_run=True)
+            status.append([node_name, output])
 
-            if not k8s_util.is_node_unschedulable(self.node_info, node_name):
-                success = k8s_util.cordon_node(node_name)
+        subject = f'Repair Manager Alert [ECC ERROR] [{self.config["cluster_name"]}]'
+        body = f'<h3>Uncorrectable ECC Error found in {self.config["cluster_name"]} cluster on the following nodes:</h1>'
+        body += tabulate(status, headers=['node name', 'action status'], tablefmt="html").replace('<table>','<table border="1">')
 
-                if success != 0:
-                    logging.warning(f'Unscheduling of node {node_name} not successful')
-                    status[node_name] = 'Failed to mark as unschedulable'
-                else:
-                    status[node_name] = 'Successfully marked as unschedulable'
+        body += f'<h3>Impacted Jobs and Job Owners</h3>'
+        job_owners = []
+        job_info = []
+        jobs = get_job_info_from_nodes(self.ecc_hostnames)
+        for jobId in jobs:
+            job_owners.append(jobs[jobId]['userName'] + '@microsoft.com')
+            job_info.append([jobId, jobs[jobId]['userName'], jobs[jobId]['nodeName'], jobs[jobId]['vcName']])
+        body += tabulate(job_info, headers=['job id', 'job owner', 'node name', 'vc name' ], tablefmt="html").replace('<table>','<table border="1">')
 
-            else:
-                status[node_name] = 'Previously marked as unschedulable'
-
-        body = 'Uncorrectable ECC Error found on the following nodes:\n'
-        for node_name in status:
-            body += f'{node_name} -> \t{status[node_name]}\n'
-
-        subject = 'Repair Manager Alert [ECC ERROR]'
-        self.alert.handle_email_alert(subject, body)
+        if self.config['rules']['ecc_rule']['alert_job_owners']:
+            self.alert.handle_email_alert(subject, body, additional_recipients=job_owners)
+        else:
+            self.alert.handle_email_alert(subject, body)
