@@ -360,7 +360,8 @@ class Job:
 
             if root_tmppath is not None:
                 # Make tmppath unique for each blobfuse mount
-                bf["tmppath"] = os.path.join(root_tmppath, name)
+                bf["root_tmppath"] = root_tmppath
+                bf["tmppath"] = name
 
             # Also support a list of strings
             if isinstance(mount_options, list):
