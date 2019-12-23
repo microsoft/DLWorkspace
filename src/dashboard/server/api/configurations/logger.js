@@ -12,7 +12,7 @@ module.exports = (app) => {
   }[app.env]
   const prettyPrint = app.env === 'development'
   const middleware = logger({ level, prettyPrint })
-  app.silent = app.env !== 'test'
+  app.silent = app.env === 'test'
 
   // Log the config
   middleware.logger.info(config.util.toObject(), 'App config')
