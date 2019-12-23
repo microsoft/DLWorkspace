@@ -362,10 +362,11 @@ class Job:
                 # Make tmppath unique for each blobfuse mount
                 bf["tmppath"] = os.path.join(root_tmppath, name)
 
+            # Also support a list of strings
+            if isinstance(mount_options, list):
+                mount_options = " ".join(mount_options)
+
             if not invalid_entry(mount_options):
-                # Also support a list of strings
-                if isinstance(mount_options, list):
-                    mount_options = " ".join(mount_options)
                 bf["mountOptions"] = mount_options
 
             # TODO: Deduplicate blobfuse plugins
