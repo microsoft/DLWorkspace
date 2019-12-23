@@ -24,7 +24,7 @@ spec:
         app: mysql
     spec:
       nodeSelector:
-      {% if cnf["azure_cluster"]["mysql_node_num"]|int > 0 %}
+      {% if cnf["mysqlserver_node"])|length > 0 %}
         mysql-server: active
       {% else %}
         mysql: active

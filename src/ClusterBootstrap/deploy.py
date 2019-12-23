@@ -58,7 +58,7 @@ coreosbaseurl = ""
 verbose = False
 nocache = False
 limitnodes = None
-allroles = {"infra", "infrastructure", "worker", "nfs", "sql", "samba", "mysql"}
+allroles = {"infra", "infrastructure", "worker", "nfs", "sql", "samba", "mysqlserver"}
 
 
 # default search for all partitions of hdb, hdc, hdd, and sdb, sdc, sdd
@@ -261,8 +261,6 @@ def update_config():
         config["elasticsearch_node"] = config["webportal_node"]
     if ("mysql_node" not in config):
         config["mysql_node"] = None if len(get_node_lists_for_service("mysql"))==0 else get_node_lists_for_service("mysql")[0]
-    else:
-        config["mysql_node"] = None if len(config["mysql_node"]) == 0 else config["mysql_node"][0]
     if ("host" not in config["prometheus"]):
         config["prometheus"]["host"] = None if len(get_node_lists_for_service("prometheus"))==0 else get_node_lists_for_service("prometheus")[0]
 
@@ -681,14 +679,14 @@ def check_master_ETCD_status():
     print "Checking Available Nodes for Deployment..."
     get_ETCD_master_nodes(config["clusterId"])
     get_worker_nodes(config["clusterId"], False)
-    get_nodes_by_roles(["mysql"])
+    get_nodes_by_roles(["mysqlserver"])
     get_nodes_by_roles(["nfs"])
     get_nodes_by_roles(["samba"])
     print "==============================================="
     print "Activate Master Node(s): %s\n %s \n" % (len(config["kubernetes_master_node"]),",".join(config["kubernetes_master_node"]))
     print "Activate ETCD Node(s):%s\n %s \n" % (len(config["etcd_node"]),",".join(config["etcd_node"]))
     print "Activate Worker Node(s):%s\n %s \n" % (len(config["worker_node"]),",".join(config["worker_node"]))
-    print "Activate MySQL Node(s):%s\n %s \n" % (len(config["mysql_node"]), ",".join(config["mysql_node"]))
+    print "Activate MySQLServer Node(s):%s\n %s \n" % (len(config["mysqlserver_node"]), ",".join(config["mysqlserver_node"]))
     print "Activate NFS Node(s):%s\n %s \n" % (len(config["nfs_node"]),",".join(config["nfs_node"]))
     print "Activate Samba Node(s):%s\n %s \n" % (len(config["samba_node"]), ",".join(config["samba_node"]))
 
@@ -1442,7 +1440,7 @@ def update_nfs_nodes(nargs):
     os.system("rm ./deploy/kubelet/worker-kubeconfig.yaml")
 
 
-def update_mysql_nodes(nargs):
+def update_mysqlserver_nodes(nargs):
     """Internally use update_worker_node.
 
     TODO: Should be covered by update_role_nodes in deploy.py V2
@@ -1461,9 +1459,9 @@ def update_mysql_nodes(nargs):
 
     get_hyperkube_docker()
 
-    mysql_nodes = get_nodes_by_roles(["mysql"])
-    mysql_nodes = limit_nodes(mysql_nodes)
-    for node in mysql_nodes:
+    mysqlserver_nodes = get_nodes_by_roles(["mysql"])
+    mysqlserver_nodes = limit_nodes(mysqlserver_nodes)
+    for node in mysqlserver_nodes:
         if in_list(node, nargs):
             update_worker_node(node)
 
@@ -2907,8 +2905,8 @@ def get_node_lists_for_service(service):
         nodetype = labels[service] if service in labels else labels["default"]
         if nodetype == "worker_node":
             nodes = config["worker_node"]
-        elif nodetype == "mysql_node":
-            nodes = config["mysql_node"]
+        elif nodetype == "mysqlserver_node":
+            nodes = config["mysqlserver_node"]
         elif nodetype == "nfs_node":
             nodes = config["nfs_node"]
         elif nodetype == "etcd_node":
@@ -3343,7 +3341,7 @@ def run_command( args, command, nargs, parser ):
             role2connect = nargs[0]
             if len(nargs) < 1 or role2connect == "master":
                 nodes = config["kubernetes_master_node"]
-            elif role2connect in ["etcd", "worker", "nfs", "samba", "mysql"]:
+            elif role2connect in ["etcd", "worker", "nfs", "samba", "mysqlserver"]:
                 nodes = config["{}_node".format(role2connect)]
             else:
                 parser.print_help()
@@ -3534,12 +3532,12 @@ def run_command( args, command, nargs, parser ):
             gen_configs()
             reset_worker_nodes()
 
-    elif command == "updatemysql":
-        response = raw_input_with_default("Deploy MySQL Node(s) (y/n)?")
+    elif command == "updatemysqlserver":
+        response = raw_input_with_default("Deploy MySQLServer Node(s) (y/n)?")
         if first_char(response) == "y":
             check_master_ETCD_status()
             gen_configs()
-            update_mysql_nodes(nargs)
+            update_mysqlserver_nodes(nargs)
 
     elif command == "updatenfs":
         response = raw_input_with_default("Deploy NFS Node(s) (y/n)?")
