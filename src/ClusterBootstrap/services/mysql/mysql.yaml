@@ -24,7 +24,11 @@ spec:
         app: mysql
     spec:
       nodeSelector:
+      {% if cnf["mysqlserver_node"]|length > 0 %}
+        mysql-server: active
+      {% else %}
         mysql: active
+      {% endif %}
       hostNetwork: true    
       containers:
       - image: {{cnf["dockers"]["container"]["mysql"]["fullname"]}}

@@ -1,18 +1,42 @@
-import React, { useContext } from 'react';
+import React, { useCallback, useContext } from 'react';
 import {
+  Button,
   Card,
   List,
   ListItem,
   ListItemText,
 } from '@material-ui/core';
+import useFetch from 'use-http';
 
 import Context from './Context';
 import DoneIcon from "@material-ui/icons/Done";
 import ClearIcon from "@material-ui/icons/Clear";
 import {green, red} from "@material-ui/core/colors";
 
-const Brief: React.FC = () => {
-  const { cluster, job } = useContext(Context);
+interface BriefProps {
+  readonly?: boolean;
+}
+
+const Brief: React.FC<BriefProps> = ({ readonly = false }) => {
+  const { cluster, job, clusterId, jobId } = useContext(Context);
+
+  const isKillable = useCallback((status: string) => (
+    status === 'running' ||
+    status === 'scheduling' ||
+    status === 'queued' ||
+    status === 'unapproved' ||
+    status === 'pausing' ||
+    status === 'paused'
+  ), []);
+
+  const api = useFetch('/api');
+
+  const kill = useCallback(async () => {
+    await api.put(`/clusters/${clusterId}/jobs/${jobId}/status`, {"status":"killing"});
+  }, [clusterId, jobId]);
+
+  const isKillDisplay = !readonly && isKillable(job['jobStatus']);
+
   return (
     <Card>
       <List>
@@ -56,7 +80,12 @@ const Brief: React.FC = () => {
         {
           job['jobParams']['jobtrainingtype'] === 'RegularJob' && <ListItem><ListItemText primary="Number of GPUS" secondary={job['jobParams']['resourcegpu']}/></ListItem>
         }
-        <ListItem><ListItemText primary="Job Status" secondary={job['jobStatus']}/></ListItem>
+        <ListItem><ListItemText primary="Job Status" secondary={
+          <>
+            {job['jobStatus']}
+            {isKillDisplay && <Button color="secondary" onClick={kill}>Kill</Button>}
+          </>
+        }/></ListItem>
         <ListItem><ListItemText primary="Job Submission Time" secondary={job['jobTime']}/></ListItem>
       </List>
     </Card>

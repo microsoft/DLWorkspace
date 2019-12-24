@@ -9,9 +9,9 @@ const api = require('../../api').callback()
  * @param {string} code
  * @returns {string}
  */
-const trimBootstrap = (code) => {
-  const match = code.match(/^bootstrap\((.*)\)$/)
-  return match[1]
+const getBootstrapArgument = (code) => {
+  const bootstrap = argument => argument
+  return new Function('bootstrap', `return ${code}`)(bootstrap)
 }
 
 describe('GET /bootstrap.js', () => {
@@ -23,16 +23,17 @@ describe('GET /bootstrap.js', () => {
       headers: { 'Cookie': cookie.cookieString() }
     })
     response.headers['content-type'].should.startWith('application/javascript')
-    const content = JSON.parse(trimBootstrap(response.data))
-    should(content).be.have.properties(user)
-      .and.have.property('addGroupLink', 'http://add-group/')
+    const arg = getBootstrapArgument(response.data)
+    arg.config.should.have.property('key', 'value')
+    arg.user.should.have.properties(user)
   })
 
   it('should response undefined if unauthenticated', async () => {
     const response = await axiosist(api).get('/bootstrap.js')
     response.headers['content-type'].should.startWith('application/javascript')
-    const content = trimBootstrap(response.data)
-    should(content).be.equal('undefined')
+    const arg = getBootstrapArgument(response.data)
+    arg.config.should.have.property('key', 'value')
+    arg.should.not.have.property('user')
   })
 
   it('should response undefined if token is invalid', async () => {
@@ -43,7 +44,8 @@ describe('GET /bootstrap.js', () => {
       headers: { 'Cookie': cookie.cookieString() }
     })
     response.headers['content-type'].should.startWith('application/javascript')
-    const content = trimBootstrap(response.data)
-    should(content).be.equal('undefined')
+    const arg = getBootstrapArgument(response.data)
+    arg.config.should.have.property('key', 'value')
+    arg.should.not.have.property('user')
   })
 })

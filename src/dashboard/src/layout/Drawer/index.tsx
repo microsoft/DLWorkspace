@@ -15,7 +15,7 @@ import {
 } from "@material-ui/core/styles";
 import { makeStyles, createStyles } from "@material-ui/core/styles";
 import Context from "./Context";
-import TeamContext from "../../contexts/Teams";
+import ConfigContext from "../../contexts/Config";
 
 const useStyles = makeStyles((theme: Theme) => createStyles({
   title: {
@@ -54,7 +54,7 @@ const LinkListItem = withRouter<LinkProps & RouteComponentProps>(({ location, to
 
 const NavigationList: React.FC = () => {
   const styles = useStyles();
-  const { WikiLink } = React.useContext(TeamContext);
+  const { wiki } = React.useContext(ConfigContext);
   return (
     <List component="nav" className={styles.drawerHeader}>
       <LinkListItem to="/submission/training">
@@ -71,7 +71,7 @@ const NavigationList: React.FC = () => {
       </LinkListItem>
       <ListItem button>
         <ListItemText>
-          <a href={WikiLink} target="_blank" style={{ textDecoration:'none' }}>DLTS Wiki</a>
+          <a href={wiki} target="_blank" style={{ textDecoration:'none' }}>DLTS Wiki</a>
         </ListItemText>
       </ListItem>
     </List>

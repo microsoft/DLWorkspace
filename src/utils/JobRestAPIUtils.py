@@ -18,6 +18,7 @@ from config import config
 from DataHandler import DataHandler,DataManager
 import base64
 import re
+import requests
 
 from config import global_vars
 from authorization import ResourceType, Permission, AuthorizationManager, IdentityManager
@@ -646,6 +647,15 @@ def GetVC(userName, vcName):
             for user_name, user_gpu in user_status_preemptable.iteritems():
                 user_name = user_name.split("@")[0].strip()
                 vc["user_status_preemptable"].append({"userName": user_name, "userGPU": user_gpu.ToSerializable()})
+
+            try:
+                gpu_idle_url = config["gpu_reporter"] + '/gpu_idle'
+                gpu_idle_params = {"vc": vcName}
+                gpu_idle_response = requests.get(gpu_idle_url, params=gpu_idle_params)
+                gpu_idle_json = gpu_idle_response.json()
+                vc["gpu_idle"] = gpu_idle_json
+            except Exception:
+                logger.exception("Failed to fetch gpu_idle from gpu-exporter")
 
             ret = vc
             break

@@ -8,6 +8,7 @@ import 'typeface-roboto-mono';
 import { Box, CssBaseline, createMuiTheme, CircularProgress } from '@material-ui/core';
 import { ThemeProvider } from "@material-ui/styles";
 
+import ConfigContext, { Provider as ConfigProvider } from "./contexts/Config";
 import UserContext, { Provider as UserProvider } from "./contexts/User";
 import { Provider as ClustersProvider } from "./contexts/Clusters";
 import { Provider as TeamProvider } from './contexts/Teams';
@@ -27,13 +28,8 @@ const ClusterStatus = React.lazy( () => import('./pages/ClusterStatus'));
 const theme = createMuiTheme();
 
 interface BootstrapProps {
-  email?: string;
-  uid?: string;
-  familyName?: string;
-  givenName?: string;
-  password?: any;
-  addGroupLink: string;
-  WikiLink: string;
+  config: ConfigContext;
+  user: UserContext;
 }
 
 const Loading = (
@@ -42,18 +38,20 @@ const Loading = (
   </Box>
 );
 
-const Contexts: React.FC<BootstrapProps> = ({ email, uid, familyName, givenName,password ,WikiLink,addGroupLink,children }) => {
+const Contexts: React.FC<BootstrapProps> = ({ config, user, children }) => {
   return (
     <BrowserRouter>
-      <UserProvider email={email} uid={uid} familyName={familyName} givenName={givenName} token={password} >
-        <TeamProvider addGroupLink={addGroupLink} WikiLink={WikiLink}>
-          <ClustersProvider>
-            <ThemeProvider theme={theme}>
-              {children}
-            </ThemeProvider>
-          </ClustersProvider>
-        </TeamProvider>
-      </UserProvider>
+      <ConfigProvider {...config}>
+        <UserProvider {...user}>
+          <TeamProvider>
+            <ClustersProvider>
+              <ThemeProvider theme={theme}>
+                {children}
+              </ThemeProvider>
+            </ClustersProvider>
+          </TeamProvider>
+        </UserProvider>
+      </ConfigProvider>
     </BrowserRouter>
   );
 }

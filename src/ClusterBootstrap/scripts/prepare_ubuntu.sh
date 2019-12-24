@@ -149,3 +149,11 @@ fi
 
 # https://github.com/kubernetes/kubeadm/issues/610
 sudo swapoff -a
+
+# Install azure blobfuse
+sudo rm -f packages-microsoft-prod.deb
+wget https://packages.microsoft.com/config/ubuntu/16.04/packages-microsoft-prod.deb
+sudo dpkg -i packages-microsoft-prod.deb
+sudo apt-get update
+sudo apt-get install -y blobfuse fuse jq
+sudo rm -f packages-microsoft-prod.deb
