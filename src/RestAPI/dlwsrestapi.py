@@ -99,6 +99,29 @@ def getAlias(username):
         username = username.split("/")[1].strip()
     return username
 
+
+def remove_creds(job):
+    job_params = job.get("jobParams", None)
+    if job_params is None:
+        return
+
+    plugins = job_params.get("plugins", None)
+    if plugins is None or not isinstance(plugins, dict):
+        return
+
+    blobfuse = plugins.get("blobfuse", None)
+    if blobfuse is not None and isinstance(blobfuse, list):
+        for bf in blobfuse:
+            bf.pop("accountName", None)
+            bf.pop("accountKey", None)
+
+    image_pull = plugins.get("imagePull", None)
+    if image_pull is not None and isinstance(image_pull, list):
+        for i_p in image_pull:
+            i_p.pop("username", None)
+            i_p.pop("password", None)
+
+
 class SubmitJob(Resource):
     def get(self):
         parser = reqparse.RequestParser()
@@ -359,6 +382,9 @@ class ListJobs(Resource):
                     job["jobStatusDetail"] = s
                     pass
 
+            # Remove credentials
+            remove_creds(job)
+
             if job["jobStatus"] == "running":
                 if job["jobType"] == "training":
                     runningJobs.append(job)
@@ -564,6 +590,10 @@ class GetJobDetail(Resource):
                 pass
         if "jobMeta" in job:
             job.pop("jobMeta",None)
+
+        # Remove credentials
+        remove_creds(job)
+
         resp = jsonify(job)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
