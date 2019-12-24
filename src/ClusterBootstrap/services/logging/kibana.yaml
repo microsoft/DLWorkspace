@@ -21,7 +21,7 @@ spec:
         kibana: active
       containers:
       - name: kibana
-        image: docker.elastic.co/kibana/kibana:6.8.5
+        image: '{{cnf["dockers"]["container"]["kibana"]["fullname"]}}'
         env:
           - name: ELASTICSEARCH_HOSTS
             value: "http://$(ELASTICSEARCH_SERVICE_HOST):$(ELASTICSEARCH_SERVICE_PORT)"

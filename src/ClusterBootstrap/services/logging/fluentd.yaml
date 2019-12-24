@@ -24,7 +24,7 @@ spec:
       hostNetwork: true
       containers:
       - name: fluentd
-        image: fluent/fluentd-kubernetes-daemonset:v1.7.4-debian-elasticsearch6-1.1
+        image: '{{cnf["dockers"]["container"]["fluentd-kubernetes-daemonset"]["fullname"]}}'
         env:
         - name: FLUENT_ELASTICSEARCH_SCHEME
           value: "http"
