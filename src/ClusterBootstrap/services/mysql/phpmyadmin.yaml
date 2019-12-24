@@ -26,7 +26,7 @@ spec:
         app: phpmyadmin
     spec:
       nodeSelector:
-      {% if cnf["mysqlserver_node"])|length > 0 %}
+      {% if cnf["mysqlserver_node"]|length > 0 %}
         mysql-server: active
       {% else %}
         mysql: active
@@ -39,7 +39,7 @@ spec:
         - name: MYSQL_ROOT_PASSWORD
           value: "{{cnf["mysql_password"]}}"
         - name: PMA_HOST
-        {% if cnf["mysqlserver_node"])|length > 0 %}
+        {% if cnf["mysqlserver_node"]|length > 0 %}
           value: {{cnf["mysqlserver_node"][0]}}
         {% else %}
           value: {{cnf["mysql_node"]}}
