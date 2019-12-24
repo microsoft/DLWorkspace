@@ -332,8 +332,8 @@ spec:
         name: {{ bf.secreds }}
       options:
         container: {{ bf.containerName }}
-        {% if bf["tmppath"] %}
-        tmppath: {{ bf["tmppath"] }}/{{ job["podName"] }}
+        {% if bf["root_tmppath"] and bf["tmppath"] %}
+        tmppath: {{ bf["root_tmppath"] }}/{{ job["jobId"] }}/{{ job["podName"] }}/{{ bf["tmppath"] }}
         {% endif %}
         {% if bf["mountOptions"] %}
         mountoptions: {{ bf["mountOptions"] }}

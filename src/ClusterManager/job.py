@@ -323,10 +323,10 @@ class Job:
             return e1["name"] == e2["name"] or \
                     e1["mountPath"] == e2["mountPath"]
 
-        tmppath = None
+        root_tmppath = None
         local_fast_storage = self.get_local_fast_storage()
         if local_fast_storage is not None and local_fast_storage != "":
-            tmppath = local_fast_storage.rstrip("/")
+            root_tmppath = local_fast_storage.rstrip("/")
 
         blobfuse = []
         for i, p_bf in enumerate(plugins):
@@ -358,11 +358,16 @@ class Job:
             bf["mountPath"] = mount_path
             bf["jobId"] = self.job_id
 
-            if tmppath is not None:
-                bf["tmppath"] = tmppath
+            if root_tmppath is not None:
+                # Make tmppath unique for each blobfuse mount
+                bf["root_tmppath"] = root_tmppath
+                bf["tmppath"] = name
 
-            pattern = re.compile("^--file-cache-timeout-in-seconds=[0-9]+$")
-            if not invalid_entry(mount_options) and pattern.match(mount_options) is not None:
+            # Also support a list of strings
+            if isinstance(mount_options, list):
+                mount_options = " ".join(mount_options)
+
+            if not invalid_entry(mount_options):
                 bf["mountOptions"] = mount_options
 
             # TODO: Deduplicate blobfuse plugins

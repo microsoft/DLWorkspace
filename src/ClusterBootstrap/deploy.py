@@ -58,7 +58,7 @@ coreosbaseurl = ""
 verbose = False
 nocache = False
 limitnodes = None
-allroles = {"infra", "infrastructure", "worker", "nfs", "sql", "samba", "mysql"}
+allroles = {"infra", "infrastructure", "worker", "nfs", "sql", "samba", "mysqlserver"}
 
 
 # default search for all partitions of hdb, hdc, hdd, and sdb, sdc, sdd
@@ -679,14 +679,14 @@ def check_master_ETCD_status():
     print "Checking Available Nodes for Deployment..."
     get_ETCD_master_nodes(config["clusterId"])
     get_worker_nodes(config["clusterId"], False)
-    get_nodes_by_roles(["mysql"])
+    get_nodes_by_roles(["mysqlserver"])
     get_nodes_by_roles(["nfs"])
     get_nodes_by_roles(["samba"])
     print "==============================================="
     print "Activate Master Node(s): %s\n %s \n" % (len(config["kubernetes_master_node"]),",".join(config["kubernetes_master_node"]))
     print "Activate ETCD Node(s):%s\n %s \n" % (len(config["etcd_node"]),",".join(config["etcd_node"]))
     print "Activate Worker Node(s):%s\n %s \n" % (len(config["worker_node"]),",".join(config["worker_node"]))
-    print "Activate MySQL Node(s):%s\n %s \n" % (len(config["mysql_node"]), ",".join(config["mysql_node"]))
+    print "Activate MySQLServer Node(s):%s\n %s \n" % (len(config["mysqlserver_node"]), ",".join(config["mysqlserver_node"]))
     print "Activate NFS Node(s):%s\n %s \n" % (len(config["nfs_node"]),",".join(config["nfs_node"]))
     print "Activate Samba Node(s):%s\n %s \n" % (len(config["samba_node"]), ",".join(config["samba_node"]))
 
@@ -776,14 +776,14 @@ def load_platform_type():
 
 def gen_platform_wise_config():
     load_platform_type()
-    azdefault = { 'network_domain':"config['network']['domain']", 
-        'worker_node_num':"config['azure_cluster']['worker_node_num']", 
+    azdefault = { 'network_domain':"config['network']['domain']",
+        'worker_node_num':"config['azure_cluster']['worker_node_num']",
         'gpu_count_per_node':'config["sku_mapping"].get(config["azure_cluster"]["worker_vm_size"],config["sku_mapping"]["default"])["gpu-count"]',
         'gpu_type':'config["sku_mapping"].get(config["azure_cluster"]["worker_vm_size"],config["sku_mapping"]["default"])["gpu-type"]',
         'etcd_node_num': "config['azure_cluster']['infra_node_num']" }
     on_premise_default = {'network_domain':"config['network']['domain']"}
     platform_dict = { 'azure_cluster': azdefault, 'onpremise': on_premise_default }
-    platform_func = { 'azure_cluster': load_az_params_as_default, 'onpremise': on_premise_params } 
+    platform_func = { 'azure_cluster': load_az_params_as_default, 'onpremise': on_premise_params }
     default_dict, default_func = platform_dict[config["platform_type"]], platform_func[config["platform_type"]]
     default_func()
     need_val = ['network_domain', 'worker_node_num', 'gpu_count_per_node', 'gpu_type']
@@ -1291,7 +1291,7 @@ def service4nodetype(nodetypes, nodetype4service):
 def render_kubelet_service_by_node_type(nodetype, nodetype4service={}):
     """since this is for cloud init, we only consider the case where we want to label the service as active, and
     we don't consider the overwriting case
-    nodetypes should be a kind of nodetype, e.g., 'worker', 
+    nodetypes should be a kind of nodetype, e.g., 'worker',
     nodetype4service is a dict if specified to overwrite the default dict"""
     temp_keys = ['labels']
     for ky in temp_keys:
@@ -1306,11 +1306,11 @@ def render_kubelet_service_by_node_type(nodetype, nodetype4service={}):
         nd_type4svc[svc] = nodetype4service[svc]
     # tried to get rid of this but failed. this doesn't work: https://docs.ansible.com/ansible/latest/user_guide/playbooks_filters.html#regular-expression-filters
     config['labels'] = ["{}=active".format(svc) for svc in service4nodetype([nodetype, 'all'], nd_type4svc)]
-    utils.render_template("template/cloud-config/cloudinit.kubelet.service.template", 
+    utils.render_template("template/cloud-config/cloudinit.kubelet.service.template",
         "./deploy/cloud-config/{}.kubelet.service".format(nodetype), config)
     for ky in temp_keys:
         config.pop(ky)
-    
+
 def render_mount_script():
     os.system('rm -f deploy/cloud-config/fileshare_install.sh')
     os.system('rm -f deploy/cloud-config/mnt_fs_svc.sh')
@@ -1323,13 +1323,13 @@ def render_and_pack_worker_cloud_init_files():
     utils.render_template_directory("./template/kubelet", "./deploy/kubelet", config)
     utils.render_template("template/cloud-config/cloud_init_worker.txt.template", "./scripts/cloud_init_worker.txt", config)
     config['role'] = role
-    utils.render_template("template/cloud-config/cloudinit.upgrade.list", 
+    utils.render_template("template/cloud-config/cloudinit.upgrade.list",
         "./deploy/cloud-config/cloudinit.{}.upgrade.list".format(role), config)
     render_kubelet_service_by_node_type('worker_node')
     # write_nodelist_yaml() TODO verify whether this step is necessary
     os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"'
         % config["etcd_endpoints"].replace("/","\\/"))
-    os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/worker-kubeconfig.yaml.template > ./deploy/kubelet/worker-kubeconfig.yaml' 
+    os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/worker-kubeconfig.yaml.template > ./deploy/kubelet/worker-kubeconfig.yaml'
         % config["api_servers"].replace("/","\\/"))
     get_hyperkube_docker()
     render_mount_script()
@@ -1343,9 +1343,9 @@ def render_and_pack_worker_cloud_init_files():
                 os.system('cp {} worker_cld_init/{}'.format(src_strip, fbn))
                 wf.write("{},{}\n".format(fbn, tgt_strip))
 
-    files2cp = [ "./deploy/kubelet/%s" % config["preworkerdeploymentscript"], "./deploy/kubelet/%s" % config["postworkerdeploymentscript"], 
-                "./scripts/cloud_init_worker.sh", "./scripts/mkdir_and_cp.sh", "./scripts/prepare_vm_disk.sh", "./scripts/prepare_ubuntu.sh", 
-                "./scripts/disable_kernel_auto_updates.sh", "./scripts/docker_network_gc_setup.sh", "./scripts/dns.sh", 
+    files2cp = [ "./deploy/kubelet/%s" % config["preworkerdeploymentscript"], "./deploy/kubelet/%s" % config["postworkerdeploymentscript"],
+                "./scripts/cloud_init_worker.sh", "./scripts/mkdir_and_cp.sh", "./scripts/prepare_vm_disk.sh", "./scripts/prepare_ubuntu.sh",
+                "./scripts/disable_kernel_auto_updates.sh", "./scripts/docker_network_gc_setup.sh", "./scripts/dns.sh",
                 "deploy/cloud-config/fileshare_install.sh", "deploy/cloud-config/mnt_fs_svc.sh", "scripts/lnk_fs.sh"]
     for fn in files2cp:
         os.system('cp {} worker_cld_init/{}'.format(fn, os.path.basename(fn)))
@@ -1440,7 +1440,7 @@ def update_nfs_nodes(nargs):
     os.system("rm ./deploy/kubelet/worker-kubeconfig.yaml")
 
 
-def update_mysql_nodes(nargs):
+def update_mysqlserver_nodes(nargs):
     """Internally use update_worker_node.
 
     TODO: Should be covered by update_role_nodes in deploy.py V2
@@ -1459,9 +1459,9 @@ def update_mysql_nodes(nargs):
 
     get_hyperkube_docker()
 
-    mysql_nodes = get_nodes_by_roles(["mysql"])
-    mysql_nodes = limit_nodes(mysql_nodes)
-    for node in mysql_nodes:
+    mysqlserver_nodes = get_nodes_by_roles(["mysqlserver"])
+    mysqlserver_nodes = limit_nodes(mysqlserver_nodes)
+    for node in mysqlserver_nodes:
         if in_list(node, nargs):
             update_worker_node(node)
 
@@ -1497,7 +1497,7 @@ def deploy_restful_API_on_node(ipAddress):
         utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP, "sudo chown -R %s /etc/kubernetes" % config["admin_username"])
         utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP, "sudo cp /etc/kubernetes/certs/client.crt /etc/kubernetes/ssl/apiserver.pem")
         utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP, "sudo cp /etc/kubernetes/certs/client.key /etc/kubernetes/ssl/apiserver-key.pem")
-        utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP, "sudo cp /etc/kubernetes/certs/ca.crt /etc/kubernetes/ssl/ca.pem")    
+        utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP, "sudo cp /etc/kubernetes/certs/ca.crt /etc/kubernetes/ssl/ca.pem")
         utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP, "sudo cp /home/%s/.kube/config /etc/kubernetes/restapi-kubeconfig.yaml" % config["admin_username"])
 
     print "==============================================="
@@ -1534,7 +1534,7 @@ def deploy_webUI_on_node(ipAddress):
     config["grafana_endpoint"] = "http://%s:%s" % (config["Dashboards"]["grafana"]["servers"], config["Dashboards"]["grafana"]["port"])
     config["prometheus_endpoint"] = "http://%s:%s" % (config["prometheus"]["host"], config["prometheus"]["port"])
 
-    
+
 
     reportConfig = config["Dashboards"]
     reportConfig["kuberneteAPI"] = {}
@@ -2009,7 +2009,7 @@ def mount_fileshares_by_service(perform_mount=True, mount_command_file=''):
             with open("./deploy/storage/auto_share/mounting.yaml",'w') as datafile:
                 yaml.dump(mountconfig, datafile, default_flow_style=False)
             remotecmd += "sudo systemctl stop auto_share.timer; "
-            if len(remotecmd)>0:                
+            if len(remotecmd)>0:
                 if mount_command_file == '':
                     utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
                     remotecmd = ""
@@ -2029,7 +2029,7 @@ def mount_fileshares_by_service(perform_mount=True, mount_command_file=''):
             remotecmd += "sudo systemctl daemon-reload; "
             remotecmd += "sudo systemctl enable auto_share.timer; "
             remotecmd += "sudo systemctl restart auto_share.timer; "
-            if len(remotecmd)>0:                
+            if len(remotecmd)>0:
                 if mount_command_file == '':
                     utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
                 else:
@@ -2905,8 +2905,8 @@ def get_node_lists_for_service(service):
         nodetype = labels[service] if service in labels else labels["default"]
         if nodetype == "worker_node":
             nodes = config["worker_node"]
-        elif nodetype == "mysql_node":
-            nodes = config["mysql_node"]
+        elif nodetype == "mysqlserver_node":
+            nodes = config["mysqlserver_node"]
         elif nodetype == "nfs_node":
             nodes = config["nfs_node"]
         elif nodetype == "etcd_node":
@@ -3341,7 +3341,7 @@ def run_command( args, command, nargs, parser ):
             role2connect = nargs[0]
             if len(nargs) < 1 or role2connect == "master":
                 nodes = config["kubernetes_master_node"]
-            elif role2connect in ["etcd", "worker", "nfs", "samba", "mysql"]:
+            elif role2connect in ["etcd", "worker", "nfs", "samba", "mysqlserver"]:
                 nodes = config["{}_node".format(role2connect)]
             else:
                 parser.print_help()
@@ -3499,7 +3499,7 @@ def run_command( args, command, nargs, parser ):
                             url = "http://%s:%s/AddUser?userName=%s&uid=%s&gid=%s&groups=%s" %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2], nargs[3], nargs[4], nargs[5])
                             response = requests.get(url)
                             print(response)
-    
+
     elif command == "packcloudinit":
         gen_configs()
         render_and_pack_worker_cloud_init_files()
@@ -3532,12 +3532,12 @@ def run_command( args, command, nargs, parser ):
             gen_configs()
             reset_worker_nodes()
 
-    elif command == "updatemysql":
-        response = raw_input_with_default("Deploy MySQL Node(s) (y/n)?")
+    elif command == "updatemysqlserver":
+        response = raw_input_with_default("Deploy MySQLServer Node(s) (y/n)?")
         if first_char(response) == "y":
             check_master_ETCD_status()
             gen_configs()
-            update_mysql_nodes(nargs)
+            update_mysqlserver_nodes(nargs)
 
     elif command == "updatenfs":
         response = raw_input_with_default("Deploy NFS Node(s) (y/n)?")
