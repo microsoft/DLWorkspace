@@ -37,7 +37,7 @@ from cluster_manager import setup_exporter_thread, manager_iteration_histogram, 
 
 logger = logging.getLogger(__name__)
 
-elasticsearch_deployed = len(config.get('elasticsearch', [])) > 0
+elasticsearch_deployed = config.get('elasticsearch') is list and len(config['elasticsearch']) > 0
 
 def create_log(logdir = '/var/log/dlworkspace'):
     if not os.path.exists( logdir ):

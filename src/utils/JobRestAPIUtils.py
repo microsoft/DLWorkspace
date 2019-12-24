@@ -42,7 +42,7 @@ ADMIN_JOB_PRIORITY_RANGE = (1, 1000)
 
 logger = logging.getLogger(__name__)
 
-elasticsearch_deployed = len(config.get('elasticsearch', [])) > 0
+elasticsearch_deployed = config.get('elasticsearch') is list and len(config['elasticsearch']) > 0
 
 def adjust_job_priority(priority, permission):
     priority_range = (DEFAULT_JOB_PRIORITY, DEFAULT_JOB_PRIORITY)
