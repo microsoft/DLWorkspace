@@ -659,13 +659,15 @@ class PythonLauncher(Launcher):
 
             jobMetaStr = base64.b64encode(json.dumps(jobMeta))
 
-            fields = {}
-            fields["jobStatus"] = "scheduling"
-            fields["jobDescriptionPath"] = job_description_path
-            fields["jobDescription"] = base64.b64encode(job_description)
-            fields["lastUpdated"] = datetime.datetime.now().isoformat()
-            fields["jobMeta"] = jobMetaStr
-            dataHandler.UpdateJobTextFields(job_object.job_id, fields)
+            dataFields = {
+                "jobStatus": "scheduling",
+                "jobDescriptionPath": job_description_path,
+                "jobDescription": base64.b64encode(job_description),
+                "lastUpdated": datetime.datetime.now().isoformat(),
+                "jobMeta": jobMetaStr
+            }
+            conditionFields = {"jobId": job_object.job_id}
+            dataHandler.UpdateJobTextFields(conditionFields, dataFields)
         except Exception as e:
             logger.error("Submit job failed: %s" % job, exc_info=True)
             ret["error"] = str(e)
@@ -674,11 +676,13 @@ class PythonLauncher(Launcher):
                 detail = get_job_status_detail(job)
                 detail = job_status_detail_with_finished_time(detail, "error", "Server error in job submission")
 
-                fields = {}
-                fields["jobStatus"] = "error"
-                fields["errorMsg"] = "Cannot submit job!" + str(e)
-                fields["jobStatusDetail"] = base64.b64encode(json.dumps(detail))
-                dataHandler.UpdateJobTextFields(job["jobId"], fields)
+                dataFields = {
+                    "jobStatus": "error",
+                    "errorMsg": "Cannot submit job!" + str(e),
+                    "jobStatusDetail": base64.b64encode(json.dumps(detail))
+                }
+                conditionFields = {"jobId": job["jobId"]}
+                dataHandler.UpdateJobTextFields(conditionFields, dataFields)
                 # Try to clean up the job
                 try:
                     job_deployer = JobDeployer()
@@ -708,18 +712,20 @@ class PythonLauncher(Launcher):
         job_deployer = JobDeployer()
         errors = job_deployer.delete_job(job_id, force=True)
 
-        fields = {}
-        fields["jobStatusDetail"] = base64.b64encode(json.dumps(detail))
-        fields["lastUpdated"] = datetime.datetime.now().isoformat()
+        dataFields = {
+            "jobStatusDetail": base64.b64encode(json.dumps(detail)),
+            "lastUpdated": datetime.datetime.now().isoformat()
+        }
+        conditionFields = {"jobId": job_id}
         if len(errors) == 0:
-            fields["jobStatus"] = desired_state
-            dataHandler.UpdateJobTextFields(job_id, fields)
+            dataFields["jobStatus"] = desired_state
+            dataHandler.UpdateJobTextFields(conditionFields, dataFields)
             if dataHandlerOri is None:
                 dataHandler.Close()
             return True
         else:
-            fields["jobStatus"] = "error"
-            dataHandler.UpdateJobTextFields(job_id, fields)
+            dataFields["jobStatus"] = "error"
+            dataHandler.UpdateJobTextFields(conditionFields, dataFields)
             if dataHandlerOri is None:
                 dataHandler.Close()
             logger.error("Kill job failed with errors: {}".format(errors))

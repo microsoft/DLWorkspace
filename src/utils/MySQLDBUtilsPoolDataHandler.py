@@ -530,12 +530,8 @@ class DataHandler(object):
             if (isinstance(groups, list)):
                 groups = json.dumps(groups)
 
-            if len(self.GetIdentityInfo(identityName)) == 0:
-                sql = "INSERT INTO `"+self.identitytablename+"` (identityName,uid,gid,groups) VALUES (%s,%s,%s,%s)"
-                cursor.execute(sql, (identityName, uid, gid, groups))
-            else:
-                sql = """update `%s` set uid = '%s', gid = '%s', groups = '%s' where `identityName` = '%s' """ % (self.identitytablename, uid, gid, groups, identityName)
-                cursor.execute(sql)
+            sql = "insert into {0} (identityName, uid, gid, groups) values ('{1}', '{2}', '{3}', '{4}') on duplicate key update uid='{2}', gid='{3}', groups='{4}'".format(self.identitytablename, identityName, uid, gid, groups)
+            cursor.execute(sql)
 
             conn.commit()
             ret = True
@@ -550,47 +546,16 @@ class DataHandler(object):
 
 
     @record
-    def GetAceCount(self, identityName, resource):
-        ret = 0
-        conn = None
-        cursor = None
-        try:
-            conn = self.pool.get_connection()
-            cursor = conn.cursor()
-            
-            query = "SELECT count(ALL id) as c FROM `%s` where `identityName` = '%s' and `resource` = '%s'" % (self.acltablename,identityName, resource)
-            cursor.execute(query)
-            for c in cursor:
-                ret = c[0]
-            conn.commit()
-        except Exception as e:
-            logger.error('GetAceCount Exception: %s', str(e))
-        finally:
-            if cursor is not None:
-                cursor.close()
-            if conn is not None:
-                conn.close()
-        return ret    
-
-
-    @record
     def UpdateAce(self, identityName, identityId, resource, permissions, isDeny):
         ret = False
         conn = None
         cursor = None
         try:
-            existingAceCount = self.GetAceCount(identityName, resource)
-            logger.info(existingAceCount)
-
             conn = self.pool.get_connection()
             cursor = conn.cursor()
             
-            if existingAceCount == 0:
-                sql = "INSERT INTO `"+self.acltablename+"` (identityName,identityId,resource,permissions,isDeny) VALUES (%s,%s,%s,%s,%s)"
-                cursor.execute(sql, (identityName, identityId, resource, permissions, isDeny))
-            else:
-                sql = """update `%s` set permissions = '%s' where `identityName` = '%s' and `resource` = '%s' """ % (self.acltablename, permissions, identityName, resource)
-                cursor.execute(sql)
+            sql = "insert into {0} (identityName, identityId, resource, permissions, isDeny) values ('{1}', '{2}', '{3}', '{4}', '{5}') on duplicate key update permissions='{4}'".format(self.acltablename, identityName, identityId, resource, permissions, isDeny)
+            cursor.execute(sql)
 
             conn.commit()
             ret = True
@@ -944,6 +909,36 @@ class DataHandler(object):
         return ret
 
     @record
+    def GetJobV2(self, jobId):
+        ret = []
+        conn = None
+        cursor = None
+        try:
+            conn = self.pool.get_connection()
+            cursor = conn.cursor()
+            query = "SELECT `jobId`, `jobName`, `userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobTime`, `jobParams`  FROM `%s` where `jobId` = '%s' " % (self.jobtablename, jobId)
+            cursor.execute(query)
+
+            columns = [column[0] for column in cursor.description]
+            data = cursor.fetchall()
+            for item in data:
+                record = dict(zip(columns, item))
+                if record["jobStatusDetail"] is not None:
+                    record["jobStatusDetail"] = self.load_json(base64.b64decode(record["jobStatusDetail"]))
+                if record["jobParams"] is not None:
+                    record["jobParams"] = self.load_json(base64.b64decode(record["jobParams"]))
+                ret.append(record)
+            conn.commit()
+        except Exception as e:
+            logger.error('GetJobV2 Exception: %s', str(e))
+        finally:
+            if cursor is not None:
+                cursor.close()
+            if conn is not None:
+                conn.close()
+        return ret
+
+    @record
     def AddCommand(self, jobId, command):
         ret = False
         conn = None
@@ -1068,7 +1063,7 @@ class DataHandler(object):
             self.conn.commit()
 
             # [ {endpoint1:{},endpoint2:{}}, {endpoint3:{}, ... }, ... ]
-            endpoints = map(lambda job: self.load_json(job[0]), jobs)
+            endpoints = map(lambda job: self.load_json(job["endpoints"]), jobs)
             # {endpoint1: {}, endpoint2: {}, ... }
             # endpoint["status"] == "pending"
             ret = {k: v for d in endpoints for k, v in d.items() if v["status"] == "pending"}
@@ -1095,7 +1090,7 @@ class DataHandler(object):
             self.conn.commit()
 
             # [ {endpoint1:{},endpoint2:{}}, {endpoint3:{}, ... }, ... ]
-            endpoints = map(lambda job: self.load_json(job[0]), jobs)
+            endpoints = map(lambda job: self.load_json(job["endpoints"]), jobs)
             # {endpoint1: {}, endpoint2: {}, ... }
             # endpoint["status"] == "pending"
             ret = {k: v for d in endpoints for k, v in d.items()}
@@ -1245,19 +1240,15 @@ class DataHandler(object):
         return ret
 
     @record
-    def UpdateJobTextFields(self, jobId, fields):
+    def UpdateJobTextFields(self, conditionFields, dataFields):
         conn = None
         cursor = None
         ret = False
-        if not isinstance(fields, dict) or not fields:
+        if not isinstance(conditionFields, dict) or not conditionFields or not isinstance(dataFields, dict) or not dataFields:
             return ret
 
         try:
-            sql = "update `%s` set" % (self.jobtablename)
-            for field, value in fields.items():
-                sql += " `%s` = '%s'," % (field, value)
-            sql = sql[:-1]
-            sql += " where `jobId` = '%s'" % (jobId)
+            sql = "update `%s` set" % (self.jobtablename) + ",".join([" `%s` = '%s'" % (field, value) for field, value in dataFields.items()]) + " where" + "and".join([" `%s` = '%s'" % (field, value) for field, value in conditionFields.items()])
 
             conn = self.pool.get_connection()
             cursor = conn.cursor()
@@ -1289,6 +1280,34 @@ class DataHandler(object):
             conn.commit()
         except Exception as e:
             logger.error('GetJobTextField Exception: %s', str(e))
+        finally:
+            if cursor is not None:
+                cursor.close()
+            if conn is not None:
+                conn.close()
+        return ret
+
+    @record
+    def GetJobTextFields(self, jobId, fields):
+        conn = None
+        cursor = None
+        ret = None
+        if not isinstance(fields, list) or not fields:
+            return ret
+
+        try:
+            sql = "select " + ",".join(fields) + " from " + self.jobtablename + " where jobId='%s'" % (jobId)
+
+            conn = self.pool.get_connection()
+            cursor = conn.cursor()
+            cursor.execute(sql)
+
+            columns = [column[0] for column in cursor.description]
+            for item in cursor.fetchall():
+                ret = dict(zip(columns, item))
+            self.conn.commit()
+        except Exception as e:
+            logger.error('GetJobTextFields Exception: %s', str(e))
         finally:
             if cursor is not None:
                 cursor.close()

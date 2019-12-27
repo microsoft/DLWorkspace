@@ -210,10 +210,12 @@ def ApproveJob(redis_conn, job, dataHandlerOri=None):
             logger.info("Job {} preemptible, approve!".format(job_id))
             detail = [{"message": "waiting for available preemptible resource."}]
 
-            fields = {}
-            fields["jobStatusDetail"] = base64.b64encode(json.dumps(detail))
-            fields["jobStatus"] = "queued"
-            dataHandler.UpdateJobTextFields(job_id, fields)
+            dataFields = {
+                "jobStatusDetail": base64.b64encode(json.dumps(detail)),
+                "jobStatus": "queued"
+            }
+            conditionFields = {"jobId": job_id}
+            dataHandler.UpdateJobTextFields(conditionFields, dataFields)
             update_job_state_latency(redis_conn, job_id, "approved")
             if dataHandlerOri is None:
                 dataHandler.Close()
@@ -254,10 +256,12 @@ def ApproveJob(redis_conn, job, dataHandlerOri=None):
 
         detail = [{"message": "waiting for available resource."}]
 
-        fields = {}
-        fields["jobStatusDetail"] = base64.b64encode(json.dumps(detail))
-        fields["jobStatus"] = "queued"
-        dataHandler.UpdateJobTextFields(job_id, fields)
+        dataFields = {
+            "jobStatusDetail": base64.b64encode(json.dumps(detail)),
+            "jobStatus": "queued"
+        }
+        conditionFields = {"jobId": job_id}
+        dataHandler.UpdateJobTextFields(conditionFields, dataFields)
         update_job_state_latency(redis_conn, job_id, "approved")
         if dataHandlerOri is None:
             dataHandler.Close()
@@ -300,10 +304,12 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
         detail = get_job_status_detail(job)
         detail = job_status_detail_with_finished_time(detail, "finished")
 
-        fields = {}
-        fields["jobStatusDetail"] = base64.b64encode(json.dumps(detail))
-        fields["jobStatus"] = "finished"
-        dataHandler.UpdateJobTextFields(job_id, fields)
+        dataFields = {
+            "jobStatusDetail": base64.b64encode(json.dumps(detail)),
+            "jobStatus": "finished"
+        }
+        conditionFields = {"jobId": job["jobId"]}
+        dataHandler.UpdateJobTextFields(conditionFields, dataFields)
 
         # Retain the old code for reference
         # if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
@@ -321,10 +327,12 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
             started_at = k8sUtils.localize_time(datetime.datetime.now())
             detail = [{"startedAt": started_at, "message": "started at: {}".format(started_at)}]
 
-            fields = {}
-            fields["jobStatusDetail"] = base64.b64encode(json.dumps(detail))
-            fields["jobStatus"] = "running"
-            dataHandler.UpdateJobTextFields(job_id, fields)
+            dataFields = {
+                "jobStatusDetail": base64.b64encode(json.dumps(detail)),
+                "jobStatus":"running"
+            }
+            conditionFields = {"jobId": job["jobId"]}
+            dataHandler.UpdateJobTextFields(conditionFields, dataFields)
 
     elif result == "Failed":
         logger.warning("Job %s fails, cleaning...", job["jobId"])
@@ -339,11 +347,13 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
         detail = get_job_status_detail(job)
         detail = job_status_detail_with_finished_time(detail, "failed")
 
-        fields = {}
-        fields["jobStatusDetail"] = base64.b64encode(json.dumps(detail))
-        fields["jobStatus"] = "failed"
-        fields["errorMsg"] = "pod failed"
-        dataHandler.UpdateJobTextFields(job_id, fields)
+        dataFields = {
+            "jobStatusDetail": base64.b64encode(json.dumps(detail)),
+            "jobStatus": "failed",
+            "errorMsg": "pod failed"
+        }
+        conditionFields = {"jobId": job["jobId"]}
+        dataHandler.UpdateJobTextFields(conditionFields, dataFields)
 
         # Retain the old code for reference
         # if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):

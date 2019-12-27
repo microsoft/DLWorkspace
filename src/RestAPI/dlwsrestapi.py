@@ -17,7 +17,7 @@ import thread
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
 #from JobRestAPIUtils import SubmitDistJob, GetJobList, GetJobStatus, DeleteJob, GetTensorboard, GetServiceAddress, GetLog, GetJob
 import JobRestAPIUtils
-from authorization import ResourceType, Permission, AuthorizationManager
+from authorization import ResourceType, Permission, AuthorizationManager, ACLManager
 from config import config
 from config import global_vars
 import authorization
@@ -48,7 +48,7 @@ if "initAdminAccess" not in global_vars or not global_vars["initAdminAccess"]:
     logger.info("===========Init Admin Access===============")
     global_vars["initAdminAccess"] = True
     logger.info('setting admin access!')
-    AuthorizationManager.UpdateAce("Administrator", AuthorizationManager.GetResourceAclPath("", ResourceType.Cluster), Permission.Admin, False)
+    ACLManager.UpdateAce("Administrator", AuthorizationManager.GetResourceAclPath("", ResourceType.Cluster), Permission.Admin, False)
     logger.info('admin access given!')
 
 
@@ -121,7 +121,7 @@ def remove_creds(job):
             i_p.pop("username", None)
             i_p.pop("password", None)
 
-def generateResponse(result):
+def generate_response(result):
     resp = jsonify(result)
     resp.headers["Access-Control-Allow-Origin"] = "*"
     resp.headers["dataType"] = "json"
@@ -415,7 +415,7 @@ class ListJobs(Resource):
 ##
 api.add_resource(ListJobs, '/ListJobs')
 
-# shows a list of all todos, and lets you POST to add new tasks
+# shows a list of all jobs, and lets you POST to add new tasks
 class ListJobsV2(Resource):
     def get(self):
         parser = reqparse.RequestParser()
@@ -432,7 +432,7 @@ class ListJobsV2(Resource):
                 pass
 
         jobs = JobRestAPIUtils.GetJobListV2(args["userName"], args["vcName"], args["jobOwner"], num)
-        resp = generateResponse(jobs)
+        resp = generate_response(jobs)
         return resp
 ##
 ## Actually setup the Api resource routing here
@@ -624,7 +624,6 @@ class GetJobDetail(Resource):
         resp = jsonify(job)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
-
         return resp
 ##
 ## Actually setup the Api resource routing here
@@ -641,7 +640,7 @@ class GetJobDetailV2(Resource):
         jobId = args["jobId"]
         userName = args["userName"]
         job = JobRestAPIUtils.GetJobDetailV2(userName, jobId)
-        resp = generateResponse(job)
+        resp = generate_response(job)
         return resp
 ##
 ## Actually setup the Api resource routing here
@@ -871,7 +870,7 @@ api.add_resource(GetACL, '/GetACL')
 class GetAllACL(Resource):
     def get(self):
         ret = {}
-        ret["result"] = AuthorizationManager.GetAllAcl()
+        ret["result"] = ACLManager.GetAllAcl()
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
@@ -1103,13 +1102,6 @@ class UpdateStorage(Resource):
 ## Actually setup the Api resource routing here
 ##
 api.add_resource(UpdateStorage, '/UpdateStorage')
-
-def getAlias(username):
-    if "@" in username:
-        return username.split("@")[0].strip()
-    if "/" in username:
-        return username.split("/")[1].strip()
-    return username
 
 
 class Endpoint(Resource):

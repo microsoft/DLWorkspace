@@ -20,7 +20,7 @@ import re
 import requests
 
 from config import global_vars
-from authorization import ResourceType, Permission, AuthorizationManager, IdentityManager
+from authorization import ResourceType, Permission, AuthorizationManager, IdentityManager, ACLManager
 import authorization
 from cache import CacheManager
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../ClusterManager"))
@@ -260,7 +260,6 @@ def SubmitJob(jobParamsJsonStr):
 
 
     dataHandler.Close()
-    InvalidateJobListCache(jobParams["vcName"])
     return ret
 
 
@@ -323,9 +322,10 @@ def GetUserPendingJobs(userName, vcName):
 def GetCommands(userName, jobId):
     commands = []
     dataHandler = DataHandler()
-    jobs = dataHandler.GetJobV2(jobId=jobId)
-    if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
-        commands = dataHandler.GetCommands(jobId=jobId)
+    job = dataHandler.GetJobTextFields(jobId, ["userName", "vcName"])
+    if job is not None:
+        if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Collaborator):
+            commands = dataHandler.GetCommands(jobId=jobId)
     dataHandler.Close()
     return commands
 
@@ -333,32 +333,24 @@ def GetCommands(userName, jobId):
 def KillJob(userName, jobId):
     ret = False
     dataHandler = DataHandler()
-    jobs = dataHandler.GetJobV2(jobId=jobId)
-    if len(jobs) == 1 and jobs[0]["jobStatus"] in pendingStatus.split(","):
-        job = jobs[0]
+    job = dataHandler.GetJobTextFields(jobId, ["userName", "vcName", "jobStatus", "isParent", "familyToken"])
+    if job is not None and job["jobStatus"] in pendingStatus.split(","):
         if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin):
+            dataFields = {"jobStatus": "killing"}
+            conditionFields = {"jobId": jobId}
             if job["isParent"] == 1:
-                ret = True
-                for currJob in dataHandler.GetJob(familyToken=job["familyToken"]):
-                    ret = ret and dataHandler.UpdateJobTextField(currJob["jobId"],"jobStatus","killing")
-            else:
-                ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","killing")
+                conditionFields = {"familyToken": job["familyToken"]}
+            ret = dataHandler.UpdateJobTextFields(conditionFields, dataFields)
     dataHandler.Close()
-    InvalidateJobListCache(jobs[0]["vcName"])
     return ret
-
-
-def InvalidateJobListCache(vcName):
-    CacheManager.Invalidate("GetAllPendingJobs", vcName)
-    DataManager.GetAllPendingJobs(vcName)
 
 
 def AddCommand(userName, jobId,command):
     dataHandler = DataHandler()
     ret = False
-    jobs =  dataHandler.GetJobV2(jobId=jobId)
-    if len(jobs) == 1:
-        if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
+    job = dataHandler.GetJobTextFields(jobId, ["userName", "vcName"])
+    if job is not None:
+        if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Collaborator):
             ret = dataHandler.AddCommand(jobId,command)
     dataHandler.Close()
     return ret
@@ -367,21 +359,20 @@ def AddCommand(userName, jobId,command):
 def ApproveJob(userName, jobId):
     dataHandler = DataHandler()
     ret = False
-    jobs =  dataHandler.GetJobV2(jobId=jobId)
-    if len(jobs) == 1 and jobs[0]["jobStatus"] == "unapproved":
-        if AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Admin):
+    job = dataHandler.GetJobTextFields(jobId, ["vcName", "jobStatus"])
+    if job is not None and job["jobStatus"] == "unapproved":
+        if AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin):
             ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","queued")
     dataHandler.Close()
-    InvalidateJobListCache(jobs[0]["vcName"])
     return ret
 
 
 def ResumeJob(userName, jobId):
     dataHandler = DataHandler()
     ret = False
-    jobs = dataHandler.GetJobV2(jobId=jobId)
-    if len(jobs) == 1 and jobs[0]["jobStatus"] == "paused":
-        if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
+    job = dataHandler.GetJobTextFields(jobId, ["userName", "vcName", "jobStatus"])
+    if job is not None and job["jobStatus"] == "paused":
+        if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Collaborator):
             ret = dataHandler.UpdateJobTextField(jobId, "jobStatus", "unapproved")
     dataHandler.Close()
     return ret
@@ -390,9 +381,9 @@ def ResumeJob(userName, jobId):
 def PauseJob(userName, jobId):
     dataHandler = DataHandler()
     ret = False
-    jobs =  dataHandler.GetJobV2(jobId=jobId)
-    if len(jobs) == 1 and jobs[0]["jobStatus"] in ["unapproved", "queued", "scheduling", "running"]:
-        if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Admin):
+    job = dataHandler.GetJobTextFields(jobId, ["userName", "vcName"])
+    if job is not None and job["jobStatus"] in ["unapproved", "queued", "scheduling", "running"]:
+        if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin):
             ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","pausing")
     dataHandler.Close()
     return ret
@@ -460,10 +451,7 @@ def GetJobDetailV2(userName, jobId):
 def GetJobStatus(jobId):
     result = None
     dataHandler = DataHandler()
-    jobs = dataHandler.GetJobV2(jobId=jobId)
-    if len(jobs) == 1:
-        key_list = ["jobStatus", "jobTime", "errorMsg"]
-        result = {key: jobs[0][key] for key in key_list}
+    result = dataHandler.GetJobTextFields(jobId, ["jobStatus", "jobTime", "errorMsg"])
     dataHandler.Close()
     return result
 
@@ -488,10 +476,8 @@ def AddUser(username,uid,gid,groups):
         needToUpdateDB = True
 
     if needToUpdateDB:
-        dataHandler = DataHandler()
-        ret =  dataHandler.UpdateIdentityInfo(username,uid,gid,groups)
-        ret = ret & dataHandler.UpdateAclIdentityId(username,uid)
-        dataHandler.Close()
+        ret = IdentityManager.UpdateIdentityInfo(username, uid, gid, groups)
+        ret = ret & ACLManager.UpdateAclIdentityId(username,uid)
     return ret
 
 
@@ -503,7 +489,7 @@ def UpdateAce(userName, identityName, resourceType, resourceName, permissions):
     ret = None
     resourceAclPath = AuthorizationManager.GetResourceAclPath(resourceName, resourceType)
     if AuthorizationManager.HasAccess(userName, resourceType, resourceName, Permission.Admin):
-        ret =  AuthorizationManager.UpdateAce(identityName, resourceAclPath, permissions, False)
+        ret =  ACLManager.UpdateAce(identityName, resourceAclPath, permissions, False)
     else:
         ret = "Access Denied!"
     return ret
@@ -513,7 +499,7 @@ def DeleteAce(userName, identityName, resourceType, resourceName):
     ret = None
     resourceAclPath = AuthorizationManager.GetResourceAclPath(resourceName, resourceType)
     if AuthorizationManager.HasAccess(userName, resourceType, resourceName, Permission.Admin):
-        ret =  AuthorizationManager.DeleteAce(identityName, resourceAclPath)
+        ret =  ACLManager.DeleteAce(identityName, resourceAclPath)
     else:
         ret = "Access Denied!"
     return ret
@@ -738,17 +724,10 @@ def update_job_priorites(username, job_priorities):
         # Fail job priority update if there is one unauthorized items.
         for job_id in job_priorities:
             priority = job_priorities[job_id]
-            jobs = data_handler.GetJobV2(jobId=job_id)
-            if len(jobs) == 0:
-                logger.warn("Update priority %s for non-existent job %s" %
-                            (priority, job_id))
+            job = dataHandler.GetJobTextFields(jobId, ["userName", "vcName"])
+            if job is None:
                 continue
 
-            if len(jobs) > 1:
-                logger.warn("Multiple job entries found that matches job %s. "
-                            "Most likely a platform bug." % job_id)
-
-            job = jobs[0]
             vc_admin = AuthorizationManager.HasAccess(username, ResourceType.VC, job["vcName"], Permission.Admin)
             if job["userName"] != username and (not vc_admin):
                 return False

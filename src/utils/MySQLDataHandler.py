@@ -437,14 +437,8 @@ class DataHandler(object):
 
             if (isinstance(groups, list)):
                 groups = json.dumps(groups)
-
-            if len(self.GetIdentityInfo(identityName)) == 0:
-                sql = "INSERT INTO `"+self.identitytablename+"` (identityName,uid,gid,groups) VALUES (%s,%s,%s,%s)"
-                cursor.execute(sql, (identityName, uid, gid, groups))
-            else:
-                sql = """update `%s` set uid = '%s', gid = '%s', groups = '%s' where `identityName` = '%s' """ % (self.identitytablename, uid, gid, groups, identityName)
-                cursor.execute(sql)
-
+            sql = "insert into {0} (identityName, uid, gid, groups) values ('{1}', '{2}', '{3}', '{4}') on duplicate key update uid='{2}', gid='{3}', groups='{4}'".format(self.identitytablename, identityName, uid, gid, groups)
+            cursor.execute(sql)
             self.conn.commit()
             cursor.close()
             return True
@@ -452,39 +446,18 @@ class DataHandler(object):
             logger.error('UpdateIdentityInfo Exception: %s', str(e))
             return False
 
-
-    @record
-    def GetAceCount(self, identityName, resource):
-        cursor = self.conn.cursor()
-        query = "SELECT count(ALL id) as c FROM `%s` where `identityName` = '%s' and `resource` = '%s'" % (self.acltablename,identityName, resource)
-        cursor.execute(query)
-        ret = 0
-        for c in cursor:
-            ret = c[0]
-        self.conn.commit()
-        cursor.close()
-        return ret
-
-
     @record
     def UpdateAce(self, identityName, identityId, resource, permissions, isDeny):
         try:
             cursor = self.conn.cursor()
-            existingAceCount = self.GetAceCount(identityName, resource)
-            logger.info(existingAceCount)
-
-            if existingAceCount == 0:
-                sql = "INSERT INTO `"+self.acltablename+"` (identityName,identityId,resource,permissions,isDeny) VALUES (%s,%s,%s,%s,%s)"
-                cursor.execute(sql, (identityName, identityId, resource, permissions, isDeny))
-            else:
-                sql = """update `%s` set permissions = '%s' where `identityName` = '%s' and `resource` = '%s' """ % (self.acltablename, permissions, identityName, resource)
-                cursor.execute(sql)
+            sql = "insert into {0} (identityName, identityId, resource, permissions, isDeny) values ('{1}', '{2}', '{3}', '{4}', '{5}') on duplicate key update permissions='{4}'".format(self.acltablename, identityName, identityId, resource, permissions, isDeny)
+            cursor.execute(sql)
 
             self.conn.commit()
             cursor.close()
             return True
         except Exception as e:
-            logger.error('Exception: %s', str(e))
+            logger.error('UpdateAce Exception: %s', str(e))
             return False
 
 
@@ -746,7 +719,7 @@ class DataHandler(object):
         query = "SELECT `jobId`,`familyToken`,`isParent`,`jobName`,`userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobDescriptionPath`, `jobDescription`, `jobTime`, `endpoints`, `jobParams`,`errorMsg` ,`jobMeta`  FROM `%s` where `%s` = '%s' " % (self.jobtablename,key,expected)
         cursor.execute(query)
         columns = [column[0] for column in cursor.description]
-        ret = [dict(zip(columns, row)) for row in curosr.fetchall()]
+        ret = [dict(zip(columns, row)) for row in cursor.fetchall()]
         self.conn.commit()
         cursor.close()
         return ret
@@ -858,7 +831,7 @@ class DataHandler(object):
             self.conn.commit()
 
             # [ {endpoint1:{},endpoint2:{}}, {endpoint3:{}, ... }, ... ]
-            endpoints = map(lambda job: self.load_json(job[0]), jobs)
+            endpoints = map(lambda job: self.load_json(job["endpoints"]), jobs)
             # {endpoint1: {}, endpoint2: {}, ... }
             # endpoint["status"] == "pending"
             ret = {k: v for d in endpoints for k, v in d.items() if v["status"] == "pending"}
@@ -881,7 +854,7 @@ class DataHandler(object):
             self.conn.commit()
 
             # [ {endpoint1:{},endpoint2:{}}, {endpoint3:{}, ... }, ... ]
-            endpoints = map(lambda job: self.load_json(job[0]), jobs)
+            endpoints = map(lambda job: self.load_json(job["endpoints"]), jobs)
             # {endpoint1: {}, endpoint2: {}, ... }
             # endpoint["status"] == "pending"
             ret = {k: v for d in endpoints for k, v in d.items()}
@@ -983,25 +956,21 @@ class DataHandler(object):
             return False
 
     @record
-    def UpdateJobTextFields(self, jobId, fields):
+    def UpdateJobTextFields(self, conditionFields, dataFields):
         cursor = None
         ret = False
-        if not isinstance(fields, dict) or not fields:
+        if not isinstance(conditionFields, dict) or not conditionFields or not isinstance(dataFields, dict) or not dataFields:
             return ret
 
         try:
-            sql = "update `%s` set" % (self.jobtablename)
-            for field, value in fields.items():
-                sql += " `%s` = '%s'," % (field, value)
-            sql = sql[:-1]
-            sql += " where `jobId` = '%s'" % (jobId)
+            sql = "update `%s` set" % (self.jobtablename) + ",".join([" `%s` = '%s'" % (field, value) for field, value in dataFields.items()]) + " where" + "and".join([" `%s` = '%s'" % (field, value) for field, value in conditionFields.items()])
 
             cursor = self.conn.cursor()
             cursor.execute(sql)
             self.conn.commit()
             ret = True
         except Exception as e:
-            logger.error('updateJobTextFields Exception: %s, ex: %s', fields, str(e))
+            logger.error('updateJobTextFields Exception: %s', str(e))
         finally:
             if cursor is not None:
                 cursor.close()
@@ -1022,6 +991,31 @@ class DataHandler(object):
         self.conn.commit()
         cursor.close()
         return ret
+
+    @record
+    def GetJobTextFields(self, jobId, fields):
+        cursor = None
+        ret = None
+        if not isinstance(fields, list) or not fields:
+            return ret
+
+        try:
+            sql = "select " + ",".join(fields) + " from " + self.jobtablename + " where jobId='%s'" % (jobId)
+
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+
+            columns = [column[0] for column in cursor.description]
+            for item in cursor.fetchall():
+                ret = dict(zip(columns, item))
+            self.conn.commit()
+        except Exception as e:
+            logger.error('GetJobTextFields Exception: %s', str(e))
+        finally:
+            if cursor is not None:
+                cursor.close()
+        return ret
+
 
     @record
     def AddandGetJobRetries(self, jobId):
