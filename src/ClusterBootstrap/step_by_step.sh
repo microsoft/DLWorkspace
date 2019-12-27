@@ -13,6 +13,7 @@ fi
 ./deploy.py runscriptonroles infra worker ./scripts/docker_network_gc_setup.sh
 ./deploy.py genscripts
 ./deploy.py runscriptonroles infra worker ./scripts/dns.sh
+./deploy.py runscriptonroles infra worker ./scripts/install-blobfuse.sh
 ./deploy.py -y deploy
 ./deploy.py -y updateworkerinparallel
 ./deploy.py -y kubernetes labels
