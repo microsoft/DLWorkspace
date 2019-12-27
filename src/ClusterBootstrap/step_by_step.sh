@@ -26,6 +26,7 @@ fi
 ./deploy.py docker push gpu-reporter
 ./deploy.py docker push reaper
 ./deploy.py docker push job-exporter
+./deploy.py docker push init-container
 ./deploy.py mount
 ./deploy.py kubernetes start mysql
 ./deploy.py kubernetes start jobmanager
