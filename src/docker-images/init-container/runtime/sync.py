@@ -8,6 +8,7 @@ import socket
 from contextlib import closing
 import json
 import time
+import random
 from pathlib import Path
 
 from kubernetes import client as k8s_client
@@ -22,13 +23,24 @@ ERROR_EXIT_CODE = {
         "environment": 1,
         "network": 2,
         "k8s_api": 3,
+        "port": 4,
         }
 
-def find_free_port():
-    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-        s.bind(("", 0))
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        return s.getsockname()[1]
+def find_free_port(min=40000, max=49999):
+    for i in range(100): # try 100 times
+        port = random.randint(min, max)
+
+        with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+            try:
+                s.bind(("", port))
+            except OSError:
+                if i > 10:
+                    logger.warning("failed %d times to get free port", i)
+                continue
+            return port
+
+    logger.error("failed to get free port")
+    sys.exit(ERROR_EXIT_CODE["port"])
 
 def get_pod_name():
     return os.environ.get("POD_NAME")
