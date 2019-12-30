@@ -46,13 +46,13 @@ const getDecodedIdToken = async context => {
     grant_type: 'authorization_code',
     client_secret: activeDirectoryConfig.clientSecret
   })
-  context.log.info({ body: params.toString() }, 'Token request')
+  context.log.info({ body: params.toString() }, 'Id Token request')
   const response = await fetch(OAUTH2_URL + '/token', {
     method: 'POST',
     body: params
   })
   const data = await response.json()
-  context.log.info({ data }, 'Token response')
+  context.log.info({ data }, 'Id Token response')
 
   context.assert(data['error'] == null, 502, data['error'])
 
@@ -70,7 +70,7 @@ module.exports = async context => {
     const data = await user.fillIdFromWinbind()
     user.addUserToCluster(data)
 
-    context.cookies.set('token', user.toCookie())
+    context.cookies.set('token', user.toCookieToken())
 
     return context.redirect('/')
   } else if (context.query.error != null) {

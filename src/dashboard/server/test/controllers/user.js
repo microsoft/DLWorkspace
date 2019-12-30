@@ -5,16 +5,16 @@ const api = require('../../api').callback()
 
 const userParams = {
   email: 'dlts@example.com',
-  token: User.generateToken('dlts@example.com').toString('hex')
+  password: User.generateToken('dlts@example.com').toString('hex')
 }
 
 describe('GET /user', () => {
-  it('should response user token', async () => {
+  it('should response user password', async () => {
     sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/user', {
       params: userParams
     })
-    response.data.should.have.property('token', `${userParams.token}`)
+    response.data.should.have.property('password', `${userParams.password}`)
   })
 })

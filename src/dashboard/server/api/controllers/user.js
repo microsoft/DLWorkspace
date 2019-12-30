@@ -6,5 +6,5 @@
 /** @type {import('koa').Middleware<State>} */
 module.exports = context => {
   const { user } = context.state
-  context.body = { token: user.token.toString('hex') }
+  context.body = user
 }

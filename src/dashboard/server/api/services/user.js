@@ -12,6 +12,8 @@ const winbind = config.has('winbind') ? config.get('winbind') : undefined
 const masterToken = config.get('masterToken')
 const clusterIds = Object.keys(config.get('clusters'))
 
+const TOKEN = Symbol('token')
+
 class User extends Service {
   /**
    * @param {import('koa').Context} context
@@ -37,13 +39,13 @@ class User extends Service {
   /**
    * @param {import('koa').Context} context
    * @param {string} email
-   * @param {string} token
+   * @param {string} password
    * @return {User}
    */
-  static fromToken (context, email, token) {
+  static fromPassword (context, email, password) {
     const user = new User(context, email)
     const expectedToken = user.token
-    const actualToken = Buffer.from(token, 'hex')
+    const actualToken = Buffer.from(password, 'hex')
     context.assert(expectedToken.equals(actualToken), 403, 'Invalid token')
 
     return user // No givenName nor familyName here
@@ -51,13 +53,12 @@ class User extends Service {
 
   /**
    * @param {import('koa').Context} context
-   * @param {string} token
+   * @param {string} cookieToken
    * @return {User}
    */
-  static fromCookie (context, token) {
-    const payload = jwt.verify(token, sign)
+  static fromCookieToken (context, cookieToken) {
+    const payload = jwt.verify(cookieToken, sign)
     const user = new User(context, payload['email'])
-    user.password = this.generateToken(user.email)
     user.givenName = payload['givenName']
     user.familyName = payload['familyName']
     user.uid = payload['uid']
@@ -76,12 +77,10 @@ class User extends Service {
   }
 
   get token () {
-    if (this._token == null) {
-      Object.defineProperty(this, '_token', {
-        value: User.generateToken(this.email)
-      })
+    if (this[TOKEN] == null) {
+      this[TOKEN] = User.generateToken(this.email)
     }
-    return this._token
+    return this[TOKEN]
   }
 
   async fillIdFromWinbind () {
@@ -118,15 +117,25 @@ class User extends Service {
   /**
    * @return {string}
    */
-  toCookie () {
+  toCookieToken () {
     return jwt.sign({
       email: this.email,
       uid: this.uid,
       gid: this.gid,
-      _token: this.token,
       familyName: this.familyName,
       givenName: this.givenName
     }, sign)
+  }
+
+  toJSON () {
+    return {
+      email: this.email,
+      password: this.token.toString('hex'),
+      uid: this.uid,
+      gid: this.gid,
+      familyName: this.familyName,
+      givenName: this.givenName
+    }
   }
 }
 
