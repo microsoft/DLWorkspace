@@ -83,8 +83,9 @@ then
         for i in `seq 1 100` ; do
             echo "testing $host"
             ssh $host "echo 1"
-            echo "done testing $host"
+            # do not add code here
             rtn=$?
+            echo "done testing $host"
             if [ "$rtn" -eq "0" ] ; then
                 succ=true
                 echo "$host has done sshd setup"
