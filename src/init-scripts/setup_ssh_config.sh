@@ -23,7 +23,7 @@ fi
 # generate host list
 host_list="${ps_host_list} ${worker_host_list}"
 
-# generate ~/ssh_config
+# generate ~/.ssh/config
 SSH_CONFIG_FILE=/home/${DLWS_USER_NAME}/.ssh/config
 >${SSH_CONFIG_FILE}
 chown ${DLWS_USER_NAME} ${SSH_CONFIG_FILE}
@@ -55,6 +55,12 @@ Host ${host}
 
 EOF
 done
+
+# generate ~/.ssh/environment to include variables containing 'NCCL|PATH|DLWS|DLTS'
+SSH_ENVIRONMENT_FILE=/home/${DLWS_USER_NAME}/.ssh/environment
+env | egrep 'NCCL|PATH|DLWS|DLTS' > ${SSH_ENVIRONMENT_FILE}
+chown ${DLWS_USER_NAME} ${SSH_ENVIRONMENT_FILE}
+chmod 600 ${SSH_ENVIRONMENT_FILE}
 
 mkdir -p /root/.ssh && cp /home/${DLWS_USER_NAME}/.ssh/* /root/.ssh/ && chown root /root/.ssh/* && chmod 600 /root/.ssh/*
 
