@@ -6,6 +6,7 @@ import uuid
 import subprocess
 import sys
 import collections
+import copy
 
 from jobs_tensorboard import GenTensorboardMeta
 
@@ -41,6 +42,9 @@ ADMIN_JOB_PRIORITY_RANGE = (1, 1000)
 logger = logging.getLogger(__name__)
 
 pendingStatus = "running,queued,scheduling,unapproved,pausing,paused"
+DEFAULT_EXPIRATION = 24 * 30 * 60
+vc_cache = TTLCache(maxsize=10240, ttl=DEFAULT_EXPIRATION)
+vc_cache_lock = Lock()
 
 def adjust_job_priority(priority, permission):
     priority_range = (DEFAULT_JOB_PRIORITY, DEFAULT_JOB_PRIORITY)
@@ -105,10 +109,11 @@ def SubmitJob(jobParamsJsonStr):
     else:
         jobParams["preemptionAllowed"] = ToBool(jobParams["preemptionAllowed"])
 
+    uniqId = str(uuid.uuid4())
     if "jobId" not in jobParams or jobParams["jobId"] == "":
         #jobParams["jobId"] = jobParams["jobName"] + "-" + str(uuid.uuid4())
         #jobParams["jobId"] = jobParams["jobName"] + "-" + str(time.time())
-        jobParams["jobId"] = str(uuid.uuid4())
+        jobParams["jobId"] = uniqId
     #jobParams["jobId"] = jobParams["jobId"].replace("_","-").replace(".","-")
 
     if "resourcegpu" not in jobParams:
@@ -121,7 +126,7 @@ def SubmitJob(jobParamsJsonStr):
             jobParams["resourcegpu"] = int(jobParams["resourcegpu"])
 
     if "familyToken" not in jobParams or jobParams["familyToken"].isspace():
-        jobParams["familyToken"] = str(uuid.uuid4())
+        jobParams["familyToken"] = uniqId
     if "isParent" not in jobParams:
         jobParams["isParent"] = 1
 
@@ -218,7 +223,7 @@ def SubmitJob(jobParamsJsonStr):
             #if not match is None:
             #    tensorboardParams["cmd"] = match.group(1) + "/worker0" + match.group(2)
 
-        tensorboardParams["jobId"] = str(uuid.uuid4())
+        tensorboardParams["jobId"] = uniqId
         tensorboardParams["jobName"] = "tensorboard-"+jobParams["jobName"]
         tensorboardParams["jobPath"] = jobPath
         tensorboardParams["jobType"] = "visualization"
@@ -232,7 +237,6 @@ def SubmitJob(jobParamsJsonStr):
         if "error" not in ret:
             if not dataHandler.AddJob(tensorboardParams):
                 ret["error"] = "Cannot schedule tensorboard job."
-
 
     if "error" not in ret:
         if dataHandler.AddJob(jobParams):
@@ -251,17 +255,12 @@ def SubmitJob(jobParamsJsonStr):
                 priority = adjust_job_priority(priority, permission)
 
                 job_priorities = {jobParams["jobId"]: priority}
-                update_job_priorites(jobParams["userName"], job_priorities)
+                dataHandler.update_job_priority(job_priorities)
         else:
             ret["error"] = "Cannot schedule job. Cannot add job into database."
 
-
-
-
-
     dataHandler.Close()
     return ret
-
 
 
 def GetJobList(userName, vcName, jobOwner, num=None):
@@ -552,23 +551,45 @@ def AddVC(userName, vcName, quota, metadata):
     dataHandler = DataHandler()
     if AuthorizationManager.IsClusterAdmin(userName):
         ret =  dataHandler.AddVC(vcName, quota, metadata)
+        if ret:
+            cacheItem = {
+                "vcName": vcName,
+                "quota": quota,
+                "metadata": metadata
+            }
+            with vc_cache_lock:
+                vc_cache[vcName] = cacheItem
     else:
         ret = "Access Denied!"
     dataHandler.Close()
     return ret
 
+def getClusterVCs():
+    vcList = None
+    try:
+        with vc_cache_lock:
+            vcList = copy.deepcopy(vc_cache.values())
+    except Exception:
+        pass
 
-@cached(cache=TTLCache(maxsize=10240, ttl=1800), lock=Lock())
+    if not vcList:
+        vcList = DataManager.ListVCs()
+        with vc_cache_lock:
+            for vc in vcList:
+                vc_cache[vc["vcName"]] = vc
+
+    return vcList
+
 def ListVCs(userName):
     ret = []
-    vcList =  DataManager.ListVCs()
+    vcList = getClusterVCs()
+
     for vc in vcList:
         if AuthorizationManager.HasAccess(userName, ResourceType.VC, vc["vcName"], Permission.User):
             vc['admin'] = AuthorizationManager.HasAccess(userName, ResourceType.VC, vc["vcName"], Permission.Admin)
             ret.append(vc)
     # web portal (client) can filter out Default VC
     return ret
-
 
 def GetVC(userName, vcName):
     ret = None
@@ -583,7 +604,7 @@ def GetVC(userName, vcName):
     user_status = collections.defaultdict(lambda : ResourceInfo())
     user_status_preemptable = collections.defaultdict(lambda : ResourceInfo())
 
-    vc_list =  data_handler.ListVCs()
+    vc_list = getClusterVCs()
     vc_info = {}
     vc_usage = collections.defaultdict(lambda :
             collections.defaultdict(lambda : 0))
@@ -670,6 +691,9 @@ def DeleteVC(userName, vcName):
     dataHandler = DataHandler()
     if AuthorizationManager.IsClusterAdmin(userName):
         ret =  dataHandler.DeleteVC(vcName)
+        if ret:
+            with vc_cache_lock:
+                vc_cache.pop(vcName, None)
     else:
         ret = "Access Denied!"
     dataHandler.Close()
@@ -681,10 +705,206 @@ def UpdateVC(userName, vcName, quota, metadata):
     dataHandler = DataHandler()
     if AuthorizationManager.IsClusterAdmin(userName):
         ret =  dataHandler.UpdateVC(vcName, quota, metadata)
+        if ret:
+            cacheItem = {
+                "vcName": vcName,
+                "quota": quota,
+                "metadata": metadata
+            }
+            with vc_cache_lock:
+                vc_cache[vcName] = cacheItem
     else:
         ret = "Access Denied!"
     dataHandler.Close()
     return ret
+
+def GetEndpoints(userName, jobId):
+    dataHandler = DataHandler()
+    ret = []
+    try:
+        job = dataHandler.GetJobTextFields(jobId, ["userName", "vcName", "endpoints"])
+        if job is not None:
+            if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin):
+                endpoints = {}
+                if job["endpoints"] is not None:
+                    endpoints = json.loads(job["endpoints"])
+                for [_, endpoint] in endpoints.items():
+                    epItem = {
+                        "id": endpoint["id"],
+                        "name": endpoint["name"],
+                        "username": endpoint["username"],
+                        "status": endpoint["status"],
+                        "hostNetwork": endpoint["hostNetwork"],
+                        "podName": endpoint["podName"],
+                        "domain": config["domain"],
+                    }
+                    if "podPort" in endpoint:
+                        epItem["podPort"] = endpoint["podPort"]
+                    if endpoint["status"] == "running":
+                        if endpoint["hostNetwork"]:
+                            port = int(endpoint["endpointDescription"]["spec"]["ports"][0]["port"])
+                        else:
+                            port = int(endpoint["endpointDescription"]["spec"]["ports"][0]["nodePort"])
+                        epItem["port"] = port
+                        if "nodeName" in endpoint:
+                            epItem["nodeName"] = endpoint["nodeName"]
+                    ret.append(epItem)
+    except Exception as e:
+        logger.error("Get endpoint exception, ex: %s", str(e))
+    finally:
+        dataHandler.Close()
+    return ret
+
+def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
+    dataHandler = DataHandler()
+    try:
+        job = dataHandler.GetJobTextFields(jobId, ["userName", "vcName", "jobParams", "endpoints"])
+        if job is None:
+            msg = "Job %s cannot be found in database" % jobId
+            logger.error(msg)
+            return msg, 404
+        if job["userName"] != userName and (not AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin)):
+            msg = "You are not authorized to enable endpoint for job %s" % jobId
+            logger.error(msg)
+            return msg, 403
+
+        job_params = json.loads(base64.b64decode(job["jobParams"]))
+        job_type = job_params["jobtrainingtype"]
+        job_endpoints = {}
+        if job["endpoints"] is not None:
+            job_endpoints = json.loads(job["endpoints"])
+
+        # get pods
+        pod_names = []
+        if job_type == "RegularJob":
+            pod_names.append(jobId)
+        else:
+            nums = {"ps": int(job_params["numps"]), "worker": int(job_params["numpsworker"])}
+            for role in ["ps", "worker"]:
+                for i in range(nums[role]):
+                    pod_names.append(jobId + "-" + role + str(i))
+
+        # HostNetwork
+        if "hostNetwork" in job_params and job_params["hostNetwork"] == True:
+            host_network = True
+        else:
+            host_network = False
+
+        # username
+        username = getAlias(job["userName"])
+
+        endpoints = job_endpoints
+
+        if "ssh" in requested_endpoints:
+            # setup ssh for each pod
+            for pod_name in pod_names:
+                endpoint_id = "e-" + pod_name + "-ssh"
+
+                if endpoint_id in job_endpoints:
+                    logger.info("Endpoint %s exists. Skip.", endpoint_id)
+                    continue
+                logger.info("Endpoint %s does not exist. Add.", endpoint_id)
+
+                endpoint = {
+                    "id": endpoint_id,
+                    "jobId": jobId,
+                    "podName": pod_name,
+                    "username": username,
+                    "name": "ssh",
+                    "status": "pending",
+                    "hostNetwork": host_network
+                }
+                endpoints[endpoint_id] = endpoint
+
+        # Only open Jupyter on the master
+        if 'ipython' in requested_endpoints:
+            if job_type == "RegularJob":
+                pod_name = pod_names[0]
+            else:
+                # For a distributed job, we set up jupyter on first worker node.
+                # PS node does not have GPU access.
+                # TODO: Simplify code logic after removing PS
+                pod_name = pod_names[1]
+
+            endpoint_id = "e-" + jobId + "-ipython"
+
+            if endpoint_id not in job_endpoints:
+                logger.info("Endpoint %s does not exist. Add.", endpoint_id)
+                endpoint = {
+                    "id": endpoint_id,
+                    "jobId": jobId,
+                    "podName": pod_name,
+                    "username": username,
+                    "name": "ipython",
+                    "status": "pending",
+                    "hostNetwork": host_network
+                }
+                endpoints[endpoint_id] = endpoint
+            else:
+                logger.info("Endpoint %s exists. Skip.", endpoint_id)
+
+        # Only open tensorboard on the master
+        if 'tensorboard' in requested_endpoints:
+            if job_type == "RegularJob":
+                pod_name = pod_names[0]
+            else:
+                # For a distributed job, we set up jupyter on first worker node.
+                # PS node does not have GPU access.
+                # TODO: Simplify code logic after removing PS
+                pod_name = pod_names[1]
+
+            endpoint_id = "e-" + jobId + "-tensorboard"
+
+            if endpoint_id not in job_endpoints:
+                logger.info("Endpoint %s does not exist. Add.", endpoint_id)
+                endpoint = {
+                    "id": endpoint_id,
+                    "jobId": jobId,
+                    "podName": pod_name,
+                    "username": username,
+                    "name": "tensorboard",
+                    "status": "pending",
+                    "hostNetwork": host_network
+                }
+                endpoints[endpoint_id] = endpoint
+            else:
+                logger.info("Endpoint %s exists. Skip.", endpoint_id)
+
+        # interactive port
+        for interactive_port in interactive_ports:
+            if job_type == "RegularJob":
+                pod_name = pod_names[0]
+            else:
+                # For a distributed job, we set up jupyter on first worker node.
+                # PS node does not have GPU access.
+                # TODO: Simplify code logic after removing PS
+                pod_name = pod_names[1]
+
+            endpoint_id = "e-" + jobId + "-port-" + str(interactive_port["podPort"])
+            if endpoint_id not in job_endpoints:
+                logger.info("Endpoint %s does not exist. Add.", endpoint_id)
+                endpoint = {
+                    "id": endpoint_id,
+                    "jobId": jobId,
+                    "podName": pod_name,
+                    "username": username,
+                    "name": interactive_port["name"],
+                    "podPort": interactive_port["podPort"],
+                    "status": "pending",
+                    "hostNetwork": host_network
+                }
+                endpoints[endpoint_id] = endpoint
+            else:
+                logger.info("Endpoint %s exists. Skip.", endpoint_id)
+
+        dataHandler.UpdateJobTextField(jobId, "endpoints", json.dumps(endpoints))
+        return endpoints, 200
+    except Exception as e:
+        logger.error("Get endpoint exception, ex: %s", str(e))
+    finally:
+        dataHandler.Close()
+    return "server error", 500
+
 
 
 def get_job(job_id):
@@ -722,9 +942,10 @@ def update_job_priorites(username, job_priorities):
 
         # Only job owner and VC admin can update job priority.
         # Fail job priority update if there is one unauthorized items.
+        pendingJobs = {}
         for job_id in job_priorities:
             priority = job_priorities[job_id]
-            job = dataHandler.GetJobTextFields(jobId, ["userName", "vcName"])
+            job = dataHandler.GetJobTextFields(job_id, ["userName", "vcName", "jobStatus"])
             if job is None:
                 continue
 
@@ -736,8 +957,11 @@ def update_job_priorites(username, job_priorities):
             permission = Permission.Admin if vc_admin else Permission.User
             job_priorities[job_id] = adjust_job_priority(priority, permission)
 
+            if job["jobStatus"] in pendingStatus.split(","):
+                pendingJobs[job_id] = job_priorities[job_id]
+
         ret_code = data_handler.update_job_priority(job_priorities)
-        return ret_code
+        return ret_code, pendingJobs
 
     except Exception as e:
         logger.error("Exception when updating job priorities: %s" % e)
@@ -745,6 +969,13 @@ def update_job_priorites(username, job_priorities):
     finally:
         if data_handler is not None:
             data_handler.Close()
+
+def getAlias(username):
+    if "@" in username:
+        username = username.split("@")[0].strip()
+    if "/" in username:
+        username = username.split("/")[1].strip()
+    return username
 
 
 if __name__ == '__main__':

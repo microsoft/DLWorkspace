@@ -1063,7 +1063,7 @@ class DataHandler(object):
             self.conn.commit()
 
             # [ {endpoint1:{},endpoint2:{}}, {endpoint3:{}, ... }, ... ]
-            endpoints = map(lambda job: self.load_json(job["endpoints"]), jobs)
+            endpoints = map(lambda job: self.load_json(job[0]), jobs)
             # {endpoint1: {}, endpoint2: {}, ... }
             # endpoint["status"] == "pending"
             ret = {k: v for d in endpoints for k, v in d.items() if v["status"] == "pending"}
@@ -1090,7 +1090,7 @@ class DataHandler(object):
             self.conn.commit()
 
             # [ {endpoint1:{},endpoint2:{}}, {endpoint3:{}, ... }, ... ]
-            endpoints = map(lambda job: self.load_json(job["endpoints"]), jobs)
+            endpoints = map(lambda job: self.load_json(job[0]), jobs)
             # {endpoint1: {}, endpoint2: {}, ... }
             # endpoint["status"] == "pending"
             ret = {k: v for d in endpoints for k, v in d.items()}
@@ -1143,7 +1143,7 @@ class DataHandler(object):
             cursor = conn.cursor()
             
             sql = "UPDATE jobs SET endpoints=%s where jobId=%s"
-            cursor.execute(sql, (json.dumps(job_endpoints), job_id))
+            cursor.execute(sql, (json.dumps(job_endpoints), endpoint["jobId"]))
             conn.commit()
             ret = True
         except Exception as e:
