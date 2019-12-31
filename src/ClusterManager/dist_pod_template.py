@@ -2,7 +2,6 @@ import os
 import sys
 import uuid
 import datetime
-import random
 import json
 import copy
 import yaml
@@ -48,12 +47,6 @@ class DistPodTemplate():
 
         pod["podName"] = "{}-{}".format(job_id, dist_id)
 
-        random.seed(datetime.datetime.now())
-        if "hostNetwork" in pod and pod["hostNetwork"]:
-            pod["sshPort"] = random.randint(40000, 49999)
-        else:
-            pod["sshPort"] = int(random.random() * 1000 + 3000)
-
         if (pod["distRole"] == "worker"):
             pod["gpuLimit"] = pod["resourcegpu"]
         else:
@@ -68,7 +61,6 @@ class DistPodTemplate():
             pod["labels"] = []
         pod["labels"].append({"name": "distRole", "value": pod["distRole"]})
         pod["labels"].append({"name": "distRoleIdx", "value": pod["distRoleIdx"]})
-        pod["labels"].append({"name": "sshPort", "value": pod["sshPort"]})
 
         cmd = pod["cmd"]
         pod["LaunchCMD"] = DistPodTemplate.generate_launch_script(pod["distRole"], pod["distRoleIdx"], pod["userId"], job_path, cmd)
@@ -149,8 +141,6 @@ class DistPodTemplate():
             params["envs"] = []
         params["envs"].append({"name": "DLWS_NUM_GPU_PER_WORKER", "value": params["resourcegpu"]})
 
-        if "hostNetwork" in params and params["hostNetwork"]:
-            params["envs"].append({"name": "DLWS_HOST_NETWORK", "value": "enable"})
         params["envs"].append({"name": "DLWS_WORKER_NUM", "value": params["numworker"]})
 
         job.add_plugins(job.get_plugins())
@@ -173,7 +163,6 @@ class DistPodTemplate():
                 # mount /pod
                 local_pod_path = job.get_hostpath(job.job_path, "%s-%d" % (role, idx))
                 pod["mountpoints"].append({"name": "pod", "containerPath": "/pod", "hostPath": local_pod_path, "enabled": True})
-
 
                 pods.append(pod)
 
