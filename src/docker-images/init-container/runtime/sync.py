@@ -92,7 +92,12 @@ def main(args):
     pod_name = get_pod_name()
     job_name = get_job_name()
     ip = get_pod_ip()
-    ssh_port = find_free_port()
+
+    if os.environ.get("DLWS_HOST_NETWORK") == "enable":
+        ssh_port = find_free_port()
+    else:
+        ssh_port = 22
+
     ps_num = get_ps_number()
     worker_num = get_worker_number()
     expected_num = ps_num + worker_num

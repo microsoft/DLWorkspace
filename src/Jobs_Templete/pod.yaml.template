@@ -132,6 +132,10 @@ spec:
       valueFrom:
         fieldRef:
           fieldPath: status.podIP
+    {% if job["hostNetwork"] %}
+    - name: DLWS_HOST_NETWORK
+      value: "enable"
+    {% endif %}
   containers:
   - name: {{ job["podName"] }}
     image: {{ job["image"] }}
@@ -254,6 +258,10 @@ spec:
       value: "{{ job["user_email"] }}"
     - name: DLWS_VC_NAME
       value: {{ job["vcName"] }}
+    {% if job["hostNetwork"] %}
+    - name: DLWS_HOST_NETWORK
+      value: "enable"
+    {% endif %}
     {% for env in job["envs"] %}
     - name: {{env.name}}
       value: "{{env.value}}"
