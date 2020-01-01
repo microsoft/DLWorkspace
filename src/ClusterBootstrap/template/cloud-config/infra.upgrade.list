@@ -47,5 +47,5 @@
 ./deploy/storage/auto_share/auto_share.target,/etc/systemd/system/auto_share.target
 ./deploy/storage/auto_share/auto_share.service,/etc/systemd/system/auto_share.service
 ./deploy/storage/auto_share/logging.yaml,{{cnf["folder_auto_share"]}}/logging.yaml
-./deploy/storage/auto_share/auto_share.py,{{cnf["folder_auto_share"]}}/auto_share.py
+./deploy/storage/auto_share/auto_share_nfs_v2.py,{{cnf["folder_auto_share"]}}/auto_share.py
 ./deploy/storage/auto_share/mounting.yaml,{{cnf["folder_auto_share"]}}/mounting.yaml

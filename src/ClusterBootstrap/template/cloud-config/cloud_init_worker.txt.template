@@ -12,6 +12,8 @@ runcmd:
  - echo "export ETCD_ENDPOINTS='{{cnf["etcd_endpoints"]}}'" >> boot.env
  - echo "export KUBE_API_SERVER='{{cnf["api_servers"]}}'" >> boot.env
  - echo "export GPU_TYPE='{{cnf["gpu_type"]}}'" >> boot.env
+ # file share mount
+ - echo "export MNT_N_LNK='{{cnf["mount_and_link"] | join(';')}}'" >> boot.env
  - curl -fsSL https://get.docker.com -o get-docker.sh; sh get-docker.sh
  - sudo usermod -aG docker {{cnf["worker_user"]}}
  - sudo setfacl -m user:{{cnf["worker_user"]}}:rw /var/run/docker.sock

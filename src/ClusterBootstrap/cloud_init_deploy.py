@@ -432,53 +432,52 @@ def gen_ETCD_certificates(config):
 
 def gen_mounting_yaml(config):
     allmountpoints = {}
-    bHasDefaultMountPoints = False
-    physicalmountpoint = config["physical-mount-path"]
-    storagemountpoint = config["storage-mount-path"]
     mountshares = {}
+    mountconfig = {}
+    mount_sources_set = set()
     os.system("mkdir -p ./deploy/storage/auto_share")
     for nfs in config["nfs_node"]:
-        spec = config["machines"][nfs.split('.')[0]]
+        nfs_machine_name = nfs.split('.')[0]
+        spec = config["machines"][nfs_machine_name]
         assert "private_ip_address" in spec and "Need IP for NFS node!"
-        for k, v in spec["mount"].items():
-            if ("mountpoints" in v):
-                if isinstance( v["mountpoints"], str):
-                    if len(v["mountpoints"])>0:
-                        mountpoints = [v["mountpoints"]]
-                    else:
-                        mountpoints = []
-                elif isinstance( v["mountpoints"], list):
-                    mountpoints = v["mountpoints"]
+        mount_triplets = []
+        if "fileshares" not in spec or len(spec["fileshares"]) == 0:
+            spec["fileshares"] = [[]]
+        for v in spec["fileshares"]:
+            if "from" in v:
+                if v['to_mnt'] in mount_sources_set:
+                    raise Exception("Duplicate mounting mount path detected:\n{}".format(v["to_mnt"]))
+                assert set(v.keys()) == set(['from', 'to_mnt', 'to_lnk']) and "invalid format of complete mounting items"
+                mount_sources_set.add(v['from'])
+                mount_triplets += v,
             else:
-                mountpoints = []
-            if len(mountpoints)==0:
-                if bHasDefaultMountPoints:
-                    errorMsg = "there are more than one default mount points in configuration. "
-                    raise ValueError(errorMsg)
+                full_mnt_item = {}
+                src_root = v['from_root'] if "from_root" in v else config["nfs-mnt-src-path"]
+                if 'to_root_mnt' in v:
+                    mnt_root = v['to_root_mnt']
                 else:
-                    bHasDefaultMountPoints = True
-                    mountpoints = config["default-storage-folders"]
-
-            mountsharename = v["mountsharename"] if "mountsharename" in v else v["filesharename"]
-            if "curphysicalmountpoint" not in v:
-                if os.path.isabs(mountsharename):
-                    curphysicalmountpoint = mountsharename
+                    mnt_root = config["physical-mount-path-vc"] if 'VC' in v else config["physical-mount-path"]
+                if 'to_root_lnk' in v:
+                    lnk_root = v['to_root_lnk']
                 else:
-                    curphysicalmountpoint = os.path.join( physicalmountpoint, mountsharename )
-                v["curphysicalmountpoint"] = curphysicalmountpoint
-            assert "filesharename" in v and "nfs fileshare %s, there is no filesharename or server parameter" % (k)
-            allmountpoints[k] = copy.deepcopy(v)
-            options = fetch_config(config, ["mountconfig", "nfs", "options"])
-            allmountpoints[k]["options"] = options
-            allmountpoints[k]["mountpoints"] = mountpoints
-            allmountpoints[k]["server"] = spec["private_ip_address"]
-    mountconfig = {}
-    mountconfig["mountpoints"] = allmountpoints
-    mountconfig["storage-mount-path"] = config["storage-mount-path"]
-    mountconfig["dltsdata-storage-mount-path"] = config["dltsdata-storage-mount-path"]
-    mountconfig["physical-mount-path"] = config["physical-mount-path"]
-    with open("./deploy/storage/auto_share/mounting.yaml",'w') as datafile:
-                yaml.dump(mountconfig, datafile, default_flow_style=False)
+                    lnk_root = config["dltsdata-storage-mount-path"] if 'VC' in v else config["storage-mount-path"]
+                vc = v["VC"] if "VC" in v else ""
+                #process leaves
+                if not "leaves" in v or len(v["leaves"]) == 0:
+                    v["leaves"] = [{"from": fldr, "to_mnt": fldr, "to_lnk": fldr} for fldr in config["default-storage-folders"]]
+                for leaf in v["leaves"]:
+                    # print(leaf)
+                    mnt_from = os.path.join(src_root, vc, leaf["from"])
+                    mnt_mnt = os.path.join(mnt_root, vc, leaf["to_mnt"])
+                    mnt_lnk = os.path.join(lnk_root, vc, leaf["to_lnk"])
+                    if mnt_mnt in mount_sources_set:
+                        raise Exception("Duplicate mounting source path detected:\n{}".format(mnt_mnt))
+                    mount_sources_set.add(mnt_from)
+                    mount_triplets += {"from": mnt_from, "to_mnt": mnt_mnt, "to_lnk": mnt_lnk},
+        options = spec["options"] if "options" in spec else config["mountconfig"]["nfs"]["options"]    
+        mountconfig[nfs_machine_name] = {"private_ip_address": spec["private_ip_address"], "fileshares": mount_triplets, "options": options}
+    with open("./deploy/storage/auto_share/mounting.yaml",'w') as mntfile:
+        yaml.dump(mountconfig, mntfile, default_flow_style=False)
     return allmountpoints
 
 
@@ -495,6 +494,13 @@ def render_infra_node_specific(config, args):
     config["etcd_endpoints"] = ",".join(
         ["https://"+x+":"+config["etcd3port1"] for x in config["etcd_node"]]).replace("/","\\/")
 
+    with open("./deploy/storage/auto_share/mounting.yaml", 'r') as mf:
+        mounting = yaml.safe_load(mf)
+    config["mount_and_link"] = []
+    for mnt_itm in mounting.values():
+        for fs in mnt_itm["fileshares"]:
+            config["mount_and_link"] += fs["to_mnt"],
+    
     for kubernetes_master in config["kubernetes_master_node"]: 
         hostname = kubernetes_master.split(".")[0]
         config["master_ip"] = config["machines"][hostname].get("private-ip", "127.0.0.1")
@@ -503,11 +509,19 @@ def render_infra_node_specific(config, args):
         utils.render_template("./template/cloud-config/cloud_init_infra.txt.template",
           "./deploy/cloud-config/cloud_init_{}.txt".format(hostname), config)
 
-
 def render_worker_node_specific(config, args):
     config["etcd_endpoints"] = ",".join(
     ["https://"+x+":"+config["etcd3port1"] for x in config["etcd_node"]]).replace("/","\\/")
+    
     config["api_servers"] = config["api_servers"].replace("/","\\/")
+    
+    with open("./deploy/storage/auto_share/mounting.yaml", 'r') as mf:
+        mounting = yaml.safe_load(mf)
+    config["mount_and_link"] = []
+    for mnt_itm in mounting.values():
+        for fs in mnt_itm["fileshares"]:
+            config["mount_and_link"] += fs["to_mnt"],
+    
     for worker in config["worker_node"]:  
         hostname = worker.split(".")[0]
         config["kube_label_groups"] = config["machines"][hostname].get("kube_label_groups", [])
@@ -518,15 +532,17 @@ def render_worker_node_specific(config, args):
 
 def render_nfs_node_specific(config, args):
     assert config["priority"] in ["regular", "low"]
+    with open("./deploy/storage/auto_share/mounting.yaml", 'r') as mf:
+        mounting = yaml.safe_load(mf)
     for nfs in config["nfs_node"]:
-        config["mnt_path"] = config["machines"][nfs.split(".")[0]]["mnt_path"]
-        config["fileshares"] = []
-        for k, v in config["machines"][nfs.split(".")[0]]["mount"].items():
-            config["fileshares"] += v["filesharename"],
+        nfs_machine_name = nfs.split(".")[0]
+        config["data_disk_mnt_path"] = config["machines"][nfs_machine_name]["data_disk_mnt_path"]
+        config["files2share"] = []
+        for itm in mounting[nfs_machine_name]["fileshares"]:
+            config["files2share"] += itm["from"],
         utils.render_template("./template/cloud-config/cloud_init_nfs.txt.template",
           "./deploy/cloud-config/cloud_init_{}.txt".format(nfs.split(".")[0]), config)
-    config.pop("mnt_path", "")
-    config.pop("fileshares", "")
+    config.pop("files2share", "")
 
 
 def render_ETCD(config):

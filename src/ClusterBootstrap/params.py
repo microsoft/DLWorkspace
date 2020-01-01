@@ -71,6 +71,7 @@ default_config_parameters = {
     "admin_username": "core",
     # the path of where dfs/nfs is source linked and consumed on each node,
     # default /dlwsdata
+    "nfs-mnt-src-path": "/data/share",
     "storage-mount-path": "/dlwsdata",
     # the path where dlts vc storages are linked and consumed on each node.
     # TODO: merge with storage-mount-path when dlts vc migration completes.
@@ -80,8 +81,10 @@ default_config_parameters = {
     # the path of where local device is mounted.
     "local-mount-path": "/mnt",
 
+    "physical-mount-path-vc": "/mntdlts/nfs",
+
     # required storage folder under storage-mount-path
-    "default-storage-folders": ["jobfiles", "storage", "work", "namenodeshare"],
+    "default-storage-folders": ["jobfiles", "storage", "work"],
     "per_user_gpu_limit": "-1",
 
     # the path of where nvidia driver is installed on each node, default

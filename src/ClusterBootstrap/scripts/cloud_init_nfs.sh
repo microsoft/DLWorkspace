@@ -11,17 +11,17 @@ if [ $PLATFORM_TYPE == "azure_cluster" ]; then
     sudo vgcreate dlts-data-lvm ${pv_list}
     sudo lvcreate -l 100%FREE -n dlts-data-lvm-vol1 dlts-data-lvm
     sudo mkfs.ext4 /dev/mapper/dlts--data--lvm-dlts--data--lvm--vol1
-    echo "UUID=$(sudo blkid | grep dlts | sed -n 's/.*UUID=\"\(.*\)\" TYPE.*/\1/p')     $MNT_PATH   ext4   defaults,discard      0 0" | sudo tee -a /etc/fstab
+    echo "UUID=$(sudo blkid | grep dlts | sed -n 's/.*UUID=\"\(.*\)\" TYPE.*/\1/p')     $DATA_DISK_MNT_PATH   ext4   defaults,discard      0 0" | sudo tee -a /etc/fstab
 fi
-sudo mkdir -p $MNT_PATH
-sudo mount $MNT_PATH
+sudo mkdir -p $DATA_DISK_MNT_PATH
+sudo mount $DATA_DISK_MNT_PATH
 
 # setup NFS service
 sudo apt-get update
 sudo apt-get install -y nfs-kernel-server
 
-IFS=';' read -ra fileshares <<< $FILE_SHARES
-for fs in "${fileshares[@]}"; do
+IFS=';' read -ra files2share <<< $FILES_2_SHARE
+for fs in "${files2share[@]}"; do
     sudo mkdir -p $fs
     sudo chmod -R 777 $fs
     sudo chown nobody:nogroup $fs

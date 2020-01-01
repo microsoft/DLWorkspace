@@ -17,6 +17,8 @@ runcmd:
  - echo "export KUBE_LABELS=\"{{cnf['kube_label_groups'] | join(' ')}}\"" >> boot.env
  - echo "export KUBE_SERVICES=\"{{cnf['kube_services'] | join(';')}}\"" >> boot.env
  - echo "export ETCD_ENDPOINTS='{{cnf["etcd_endpoints"]}}'" >> boot.env
+ # file share mount
+ - echo "export MNT_N_LNK='{{cnf["mount_and_link"] | join(';')}}'" >> boot.env
  - curl -fsSL https://get.docker.com -o get-docker.sh; sh get-docker.sh
  - sudo usermod -aG docker {{cnf["etcd_user"]}}
  - sudo setfacl -m user:{{cnf["etcd_user"]}}:rw /var/run/docker.sock
