@@ -1,18 +1,11 @@
 import React, {
   useCallback,
-  useState,
   useContext
 } from 'react';
-import {
-  Button,
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  Snackbar,
-  DialogActions,
-  DialogContentText
-} from '@material-ui/core';
 import { Action } from 'material-table';
+
+import useConfirm from '../../components/useConfirm';
+import useAlert from '../../components/useAlart';
 
 import ClusterContext from './ClusterContext';
 
@@ -35,66 +28,6 @@ const PAUSABLE_STATUSES = [
 const RESUMABLE_STATUSES = [
   'paused'
 ];
-
-const useConfirm = () => {
-  const [message, setMessage] = useState<string>();
-  const [resolve, setResolve] = useState<(value: boolean) => void>();
-  const confirm = useCallback((message: string) => {
-    setMessage(message);
-    return new Promise<boolean>((resolve) => {
-      setResolve(() => resolve); // To avoid callbackify set-action
-    });
-  }, [setResolve, setMessage])
-  const onNoClick = useCallback(() => {
-    setMessage(undefined);
-    if (resolve) resolve(false);
-  }, [setMessage, resolve]);
-  const onClose = onNoClick;
-  const onYesClick = useCallback(() => {
-    setMessage(undefined);
-    if (resolve) resolve(true);
-  }, [setMessage, resolve]);
-  const dialog = (
-    <Dialog open={message !== undefined} onClose={onClose}>
-      <DialogTitle>Confirm</DialogTitle>
-      <DialogContent>
-        <DialogContentText>{message}</DialogContentText>
-      </DialogContent>
-      <DialogActions>
-        <Button autoFocus color="primary" onClick={onNoClick}>No</Button>
-        <Button onClick={onYesClick}>Yes</Button>
-      </DialogActions>
-    </Dialog>
-  );
-  return {
-    confirm,
-    dialog,
-  }
-}
-
-const useAlert = () => {
-  const [message, setMessage] = useState<string>();
-  const alert = useCallback((message: string) => {
-    setMessage(message);
-  }, [setMessage]);
-  const onClose = useCallback(() => {
-    setMessage(undefined);
-  }, [setMessage]);
-
-  const snackbar = (
-    <Snackbar
-      open={message !== undefined}
-      message={message}
-      autoHideDuration={3000}
-      onClose={onClose}
-    />
-  )
-
-  return {
-    alert,
-    snackbar
-  }
-}
 
 const useActions = () => {
   const { cluster } = useContext(ClusterContext);

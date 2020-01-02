@@ -1,13 +1,13 @@
 import React, {
   FunctionComponent,
   KeyboardEvent,
+  createContext,
   useCallback,
   useContext,
   useState,
   useEffect,
   useMemo,
-  useRef,
-  MouseEvent
+  useRef
 } from 'react';
 import { useHistory } from 'react-router-dom';
 import { Button, TextField } from '@material-ui/core';
@@ -18,6 +18,7 @@ import TeamsContext from '../../contexts/Teams';
 
 import Loading from '../../components/Loading';
 import Error from '../../components/Error';
+import useAlert from '../../components/useAlart';
 
 import ClusterContext from './ClusterContext';
 import useActions from './useActions';
@@ -29,6 +30,10 @@ const getSubmittedDate = (job: any) => new Date(job['jobTime']);
 const getStartedDate = (job: any) => new Date(job['jobStatusDetail'] && job['jobStatusDetail'][0]['startedAt']);
 const getFinishedDate = (job: any) => new Date(job['jobStatusDetail'] && job['jobStatusDetail'][0]['finishedAt']);
 
+const AlertContext = createContext<{
+  alert: (message: string) => Promise<void>
+}>({ alert: () => Promise.resolve() })
+
 interface PriorityFieldProps {
   job: any;
 }
@@ -36,38 +41,64 @@ interface PriorityFieldProps {
 const PriorityField: FunctionComponent<PriorityFieldProps> = ({ job }) => {
   const { cluster } = useContext(ClusterContext);
   const [editing, setEditing] = useState(false);
+  const [disabled, setDisabled] = useState(false);
+  const { alert } = useContext(AlertContext);
   const input = useRef<HTMLInputElement>();
-  const onBlur = useCallback(() => {
-    setEditing(false);
-  }, []);
-  const onKeyPress = useCallback((event: KeyboardEvent) => {
-    if (event.key === 'Enter') {
-      const priority = input.current!.valueAsNumber;
-      if (priority !== undefined) {
-        fetch(`/api/clusters/${cluster.id}/jobs/${job['jobId']}/priority`, {
-          method: 'PUT',
-          body: JSON.stringify({ priority }),
-          headers: { 'Content-Type': 'application/json' }
-        });
+  const setPriority = useCallback((priority: number) => {
+    if (priority === job['priority']) return;
+    alert('Priority is being set');
+    setDisabled(true);
+
+    fetch(`/api/clusters/${cluster.id}/jobs/${job['jobId']}/priority`, {
+      method: 'PUT',
+      body: JSON.stringify({ priority }),
+      headers: { 'Content-Type': 'application/json' }
+    }).then((response) => {
+      if (response.ok) {
+        alert('Priority is set successfully');
+      } else {
+        throw null;
       }
+      setEditing(false);
+    }).catch(() => {
+      alert('Failed to set priority');
+    }).then(() => {
+      setDisabled(false);
+    });
+  }, [alert, job, cluster.id]);
+  const onBlur = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
+    setEditing(false);
+    setPriority(input.current!.valueAsNumber);
+  }, [setPriority]);
+  const onKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      setPriority(input.current!.valueAsNumber);
+    }
+    if (event.key === 'Escape') {
       setEditing(false);
     }
   }, [cluster.id, job['jobId']]);
-  const onClick = useCallback((event: MouseEvent) => {
+  const onClick = useCallback(() => {
     setEditing(true);
-  }, [])
-  if (editing) {
-    return (
-      <TextField
-        inputRef={input}
-        type="number"
-        defaultValue={job['priority']}
-        onBlur={onBlur}
-        onKeyPress={onKeyPress}
-      />
-    );
-  }
-  return <Button onClick={onClick}>{job['priority']}</Button>;
+  }, [setPriority])
+
+  const component = editing ? (
+    <TextField
+      inputRef={input}
+      type="number"
+      defaultValue={job['priority']}
+      disabled={disabled}
+      fullWidth
+      onBlur={onBlur}
+      onKeyDown={onKeyDown}
+    />
+  ) : (
+    <Button fullWidth onClick={onClick}>
+      {job['priority']}
+    </Button>
+  );
+
+  return component;
 }
 
 interface JobsTableProps {
@@ -115,22 +146,26 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({ title, jobs }) => {
     actionsColumnIndex: -1,
     pageSize
   }), [pageSize]);
+  const { alert, snackbar } = useAlert();
   const { approve, kill, pause, resume, component } = useActions();
   const actions = [approve, kill, pause, resume];
 
   return (
-    <>
-      <MaterialTable
-        title={title}
-        columns={columns}
-        data={jobs}
-        options={options}
-        actions={actions}
-        onRowClick={onRowClick}
-        onChangeRowsPerPage={onChangeRowsPerPage}
-      />
-      {component}
-    </>
+    <AlertContext.Provider value={{ alert }}>
+      <>
+        <MaterialTable
+          title={title}
+          columns={columns}
+          data={jobs}
+          options={options}
+          actions={actions}
+          onRowClick={onRowClick}
+          onChangeRowsPerPage={onChangeRowsPerPage}
+        />
+        {component}
+        {snackbar}
+      </>
+    </AlertContext.Provider>
   );
 
 }
