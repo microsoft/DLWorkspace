@@ -5,14 +5,11 @@ import yaml
 import signal
 import logging
 
-
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
-from config import config
 from logging.config import dictConfig
-from DataHandler import DataHandler
 from storage_manager import StorageManager
 
 LOGGING_FILE = "logging.yaml"
+CONFIG_FILE = "config.yaml"
 
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -20,6 +17,10 @@ with open(os.path.join(dir_path, LOGGING_FILE), "r") as f:
     logging_config = yaml.safe_load(f)
     dictConfig(logging_config)
 logger = logging.getLogger(__name__)
+
+
+with open(os.path.join(dir_path, CONFIG_FILE), "r") as f:
+    config = yaml.safe_load(f)
 
 
 def register_stack_trace_dump():
@@ -30,7 +31,7 @@ def main():
     while True:
         sm_config = config.get("storage_monitor", None)
         if sm_config is None or sm_config.get("enabled", False) is False:
-            logger.info("storage_monitor is not enabled.")
+            logger.info("storage_monitor is not enabled. Exiting ...")
             sys.exit(0)
 
         sm = StorageManager(sm_config)

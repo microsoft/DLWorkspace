@@ -1,13 +1,7 @@
-FROM dlws/restfulapi:v1.5
+FROM python:3.7
 
-RUN rm -rf /usr/lib/python2.7/dist-packages/yaml
-RUN rm -rf /usr/lib/python2.7/dist-packages/PyYAML-*
+RUN pip3 install requests==2.22.0 faulthandler==3.1 pyyaml==5.2
 
-RUN pip install faulthandler \
-                prometheus-client==0.7.1 \
-                PyYAML>=5.1.1
-
-ADD utils /DLWorkspace/src/utils
 ADD StorageManager /DLWorkspace/src/StorageManager
 
 COPY run.sh /

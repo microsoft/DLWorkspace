@@ -1,6 +1,7 @@
 import logging
 import time
 import os
+import subprocess
 
 from path_tree import PathTree
 from path_node import DATETIME_FMT, G, DAY
@@ -50,12 +51,36 @@ class StorageManager(object):
 
             self.last_now = time.time()
 
+    def should_scan(self, scan_point):
+        df = subprocess.Popen(["df", scan_point["device_mount"]], stdout=subprocess.PIPE)
+        output = df.communicate()[0].decode()
+        _, _, _, _, percent, _ = output.split("\n")[1].split()
+        return float(percent.strip("%")) > float(scan_point["used_percent_threshold"])
+
+    def send_email(self, scan_point):
+        pass
+
     def scan(self):
         """Scans each scan_point and finds overweight and expired nodes."""
         for scan_point in self.scan_points:
+            if "device_mount" not in scan_point:
+                self.logger.warning("device_mount does not exist in %s. "
+                                    "continue." % scan_point)
+                continue
+
+            if "used_percent_threshold" not in scan_point:
+                self.logger.warning("used_percent_threshold does not exist in "
+                                    "%s. continue." % scan_point)
+                continue
+
             if "path" not in scan_point:
                 self.logger.warning("path does not exist in %s. continue." %
                                     scan_point)
+                continue
+
+            if not self.should_scan(scan_point):
+                self.logger.info("%s used percent is smaller than threshold. "
+                                 "continue." % scan_point)
                 continue
 
             if "overweight_threshold" not in scan_point:

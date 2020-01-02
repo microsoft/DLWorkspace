@@ -32,6 +32,12 @@ class PathNode(object):
         atime: Access time of this node.
         subtree_atime: Access time of the subtree rooted at this node.
             Latest access time of the nodes in the subtree.
+        mtime: Modification time of this node.
+        subtree_mtime: Modification time of the subtree rooted at this node.
+            Latest modification time of the nodes in the subtree.
+        ctime: Permission change time of this node.
+        subtree_ctime: Permission change time of the subtree rooted at this
+            node. Latest permission change time of the nodes in the subtree.
         uid: User ID for this node.
         gid: Group ID for this node.
         owner: Username for this node.
@@ -54,6 +60,10 @@ class PathNode(object):
         self.subtree_size = stat.st_size
         self.atime = datetime.fromtimestamp(stat.st_atime)
         self.subtree_atime = datetime.fromtimestamp(stat.st_atime)
+        self.mtime = datetime.fromtimestamp(stat.st_mtime)
+        self.subtree_mtime = datetime.fromtimestamp(stat.st_mtime)
+        self.ctime = datetime.fromtimestamp(stat.st_ctime)
+        self.subtree_ctime = datetime.fromtimestamp(stat.st_ctime)
         self.uid = stat.st_uid
         self.gid = stat.st_gid
 
