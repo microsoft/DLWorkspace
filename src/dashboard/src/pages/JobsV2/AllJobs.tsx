@@ -12,13 +12,13 @@ import React, {
 import { useHistory } from 'react-router-dom';
 import { Button, TextField } from '@material-ui/core';
 import MaterialTable, { Column, Options } from 'material-table';
+import { useSnackbar } from 'notistack';
 import useFetch from 'use-http-2';
 
 import TeamsContext from '../../contexts/Teams';
 
 import Loading from '../../components/Loading';
 import Error from '../../components/Error';
-import useAlert from '../../components/useAlart';
 
 import ClusterContext from './ClusterContext';
 import useActions from './useActions';
@@ -30,23 +30,19 @@ const getSubmittedDate = (job: any) => new Date(job['jobTime']);
 const getStartedDate = (job: any) => new Date(job['jobStatusDetail'] && job['jobStatusDetail'][0]['startedAt']);
 const getFinishedDate = (job: any) => new Date(job['jobStatusDetail'] && job['jobStatusDetail'][0]['finishedAt']);
 
-const AlertContext = createContext<{
-  alert: (message: string) => Promise<void>
-}>({ alert: () => Promise.resolve() })
-
 interface PriorityFieldProps {
   job: any;
 }
 
 const PriorityField: FunctionComponent<PriorityFieldProps> = ({ job }) => {
+  const { enqueueSnackbar } = useSnackbar();
   const { cluster } = useContext(ClusterContext);
   const [editing, setEditing] = useState(false);
   const [disabled, setDisabled] = useState(false);
-  const { alert } = useContext(AlertContext);
   const input = useRef<HTMLInputElement>();
   const setPriority = useCallback((priority: number) => {
     if (priority === job['priority']) return;
-    alert('Priority is being set');
+    enqueueSnackbar('Priority is being set...');
     setDisabled(true);
 
     fetch(`/api/clusters/${cluster.id}/jobs/${job['jobId']}/priority`, {
@@ -55,17 +51,17 @@ const PriorityField: FunctionComponent<PriorityFieldProps> = ({ job }) => {
       headers: { 'Content-Type': 'application/json' }
     }).then((response) => {
       if (response.ok) {
-        alert('Priority is set successfully');
+        enqueueSnackbar('Priority is set successfully', { variant: 'success' });
       } else {
         throw null;
       }
       setEditing(false);
     }).catch(() => {
-      alert('Failed to set priority');
+      enqueueSnackbar('Failed to set priority', { variant: 'error' });
     }).then(() => {
       setDisabled(false);
     });
-  }, [alert, job, cluster.id]);
+  }, [enqueueSnackbar, job, cluster.id]);
   const onBlur = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
     setEditing(false);
     setPriority(input.current!.valueAsNumber);
@@ -146,28 +142,23 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({ title, jobs }) => {
     actionsColumnIndex: -1,
     pageSize
   }), [pageSize]);
-  const { alert, snackbar } = useAlert();
   const { approve, kill, pause, resume, component } = useActions();
   const actions = [approve, kill, pause, resume];
 
   return (
-    <AlertContext.Provider value={{ alert }}>
-      <>
-        <MaterialTable
-          title={title}
-          columns={columns}
-          data={jobs}
-          options={options}
-          actions={actions}
-          onRowClick={onRowClick}
-          onChangeRowsPerPage={onChangeRowsPerPage}
-        />
-        {component}
-        {snackbar}
-      </>
-    </AlertContext.Provider>
+    <>
+      <MaterialTable
+        title={title}
+        columns={columns}
+        data={jobs}
+        options={options}
+        actions={actions}
+        onRowClick={onRowClick}
+        onChangeRowsPerPage={onChangeRowsPerPage}
+      />
+      {component}
+    </>
   );
-
 }
 
 const AllJobs: FunctionComponent = () => {

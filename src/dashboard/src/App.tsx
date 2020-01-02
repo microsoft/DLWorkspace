@@ -7,6 +7,7 @@ import 'typeface-roboto-mono';
 
 import { Box, CssBaseline, createMuiTheme, CircularProgress } from '@material-ui/core';
 import { ThemeProvider } from "@material-ui/styles";
+import { SnackbarProvider } from "notistack";
 
 import ConfigContext, { Provider as ConfigProvider } from "./contexts/Config";
 import UserContext, { Provider as UserProvider } from "./contexts/User";
@@ -44,13 +45,15 @@ const Contexts: React.FC<BootstrapProps> = ({ config, user, children }) => {
     <BrowserRouter>
       <ConfigProvider {...config}>
         <UserProvider {...user}>
-          <TeamProvider>
-            <ClustersProvider>
-              <ThemeProvider theme={theme}>
-                {children}
-              </ThemeProvider>
-            </ClustersProvider>
-          </TeamProvider>
+          <SnackbarProvider>
+            <TeamProvider>
+              <ClustersProvider>
+                <ThemeProvider theme={theme}>
+                  {children}
+                </ThemeProvider>
+              </ClustersProvider>
+            </TeamProvider>
+          </SnackbarProvider>
         </UserProvider>
       </ConfigProvider>
     </BrowserRouter>

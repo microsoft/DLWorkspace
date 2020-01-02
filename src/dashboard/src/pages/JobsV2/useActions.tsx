@@ -2,10 +2,10 @@ import React, {
   useCallback,
   useContext
 } from 'react';
+import { useSnackbar } from 'notistack';
 import { Action } from 'material-table';
 
 import useConfirm from '../../components/useConfirm';
-import useAlert from '../../components/useAlart';
 
 import ClusterContext from './ClusterContext';
 
@@ -32,7 +32,7 @@ const RESUMABLE_STATUSES = [
 const useActions = () => {
   const { cluster } = useContext(ClusterContext);
   const { confirm, dialog } = useConfirm();
-  const { alert, snackbar } = useAlert();
+  const { enqueueSnackbar } = useSnackbar();
 
   const updateStatus = useCallback((jobId: string, status: string) => {
     const url = `/api/clusters/${cluster.id}/jobs/${jobId}/status`;
@@ -50,60 +50,64 @@ const useActions = () => {
     return confirm(`Approve job ${title} ?`).then((answer) => {
       if (answer === false) return;
 
+      enqueueSnackbar(`${title} is being approved.`);
       return updateStatus(job.jobId, 'approved').then((response) => {
         if (response.ok) {
-          alert(`${title} is being approved.`);
+          enqueueSnackbar(`${title} is approved.`, { variant: 'success' });
         } else {
-          alert(`${title} is failed to approve.`);
+          enqueueSnackbar(`${title} is failed to approve.`, { variant: 'error' });
         }
       });
     });
-  }, [confirm, alert]);
+  }, [confirm, enqueueSnackbar]);
 
   const onKill = useCallback((event: any, job: any) => {
     const title = `${job.jobName}(${job.jobId})`;
     return confirm(`Kill job ${title} ?`).then((answer) => {
       if (answer === false) return;
 
+      enqueueSnackbar(`${title} is being killed.`);
       return updateStatus(job.jobId, 'killing').then((response) => {
         if (response.ok) {
-          alert(`${title} is being killed.`);
+          enqueueSnackbar(`${title} is killed.`, { variant: 'success' });
         } else {
-          alert(`${title} is failed to kill.`);
+          enqueueSnackbar(`${title} is failed to kill.`, { variant: 'error' });
         }
       });
     });
-  }, [confirm, alert]);
+  }, [confirm, enqueueSnackbar]);
 
   const onPause = useCallback((event: any, job: any) => {
     const title = `${job.jobName}(${job.jobId})`;
     return confirm(`Pause job ${title} ?`).then((answer) => {
       if (answer === false) return;
 
+      enqueueSnackbar(`${title} is being paused.`);
       return updateStatus(job.jobId, 'pausing').then((response) => {
         if (response.ok) {
-          alert(`${title} is being paused.`);
+          enqueueSnackbar(`${title} is paused.`, { variant: 'success' });
         } else {
-          alert(`${title} is failed to pause.`);
+          enqueueSnackbar(`${title} is failed to pause.`, { variant: 'error' });
         }
       });
     });
-  }, [confirm, alert]);
+  }, [confirm, enqueueSnackbar]);
 
   const onResume = useCallback((event: any, job: any) => {
     const title = `${job.jobName}(${job.jobId})`;
     return confirm(`Resume job ${title} ?`).then((answer) => {
       if (answer === false) return;
 
+      enqueueSnackbar(`${title} is being resumed.`);
       return updateStatus(job.jobId, 'queued').then((response) => {
         if (response.ok) {
-          alert(`${title} is being resumed.`);
+          enqueueSnackbar(`${title} is resumed.`, { variant: 'success' });
         } else {
-          alert(`${title} is failed to resume.`);
+          enqueueSnackbar(`${title} is failed to resume.`, { variant: 'error' });
         }
       });
     });
-  }, [confirm, alert]);
+  }, [confirm, enqueueSnackbar]);
 
   const approve = useCallback((job: any): Action<any> => {
     const hidden = APPROVABLE_STATUSES.indexOf(job['jobStatus']) === -1;
@@ -141,12 +145,7 @@ const useActions = () => {
       onClick: onResume
     }
   }, []);
-  const component = (
-    <>
-      {dialog}
-      {snackbar}
-    </>
-  );
+  const component = dialog;
   return { approve, kill, pause, resume, component };
 }
 
