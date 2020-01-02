@@ -228,10 +228,9 @@ const AllJobs: FunctionComponent = () => {
       {pausedJobs && <JobsTable title="Pauses Jobs" jobs={pausedJobs}/>}
     </>
   );
-  if (loading) return <Loading/>;
   if (error) return <Error message="Failed to fetch the data, try reloading the page."/>;
 
-  return null;
+  return <Loading/>;
 };
 
 export default AllJobs;

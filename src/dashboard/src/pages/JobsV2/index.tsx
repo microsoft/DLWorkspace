@@ -56,8 +56,8 @@ const TabView: FunctionComponent = () => {
         index={index}
         onChangeIndex={onChangeIndex}
       >
-        <MyJobs/>
-        <AllJobs/>
+        {index === 0 ? <MyJobs/> : <div/>}
+        {index === 1 ? <AllJobs/> : <div/>}
       </SwipeableViews>
     </>
   );

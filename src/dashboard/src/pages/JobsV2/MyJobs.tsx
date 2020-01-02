@@ -121,10 +121,9 @@ const MyJobs: FunctionComponent = () => {
       onExpectMoreJobs={onExpectMoreJobs}
     />
   );
-  if (loading) return <Loading/>;
   if (error) return <Error message="Failed to fetch the data, try reloading the page."/>;
 
-  return null;
+  return <Loading/>;
 };
 
 export default MyJobs;
