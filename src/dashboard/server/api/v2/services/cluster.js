@@ -33,6 +33,9 @@ class Cluster extends ClusterV1 {
       data['runningJobs'],
       data['visualizationJobs']
     )
+    jobs.sort((jobA, jobB) => {
+      return Date.parse(jobB['jobTime']) - Date.parse(jobA['jobTime']);
+    });
     this.context.log.info('Got %d jobs from %s', jobs.length, this.id)
     return jobs
   }

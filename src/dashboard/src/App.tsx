@@ -22,6 +22,7 @@ const Home = React.lazy(() => import('./pages/Home'));
 const SignIn = React.lazy(() => import('./pages/SignIn'));
 const Submission = React.lazy(() => import('./pages/Submission'));
 const Jobs = React.lazy(() => import('./pages/Jobs'));
+const JobsV2 = React.lazy(() => import('./pages/JobsV2'));
 const Job = React.lazy(() => import('./pages/Job'));
 const ClusterStatus = React.lazy( () => import('./pages/ClusterStatus'));
 
@@ -81,6 +82,8 @@ const Layout: React.FC<RouteComponentProps> = ({ location, history }) => {
               <Route path="/submission" component={Submission}/>
               <Route path="/jobs/:cluster" component={Jobs}/>
               <Route path="/jobs" component={Jobs}/>
+              <Route path="/jobs-v2/:cluster" component={JobsV2}/>
+              <Route path="/jobs-v2" component={JobsV2}/>
               <Route path="/job/:team/:clusterId/:jobId" component={Job}/>
               <Route path="/cluster-status" component={ClusterStatus}/>
               <Redirect to="/"/>

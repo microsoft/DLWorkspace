@@ -30,7 +30,6 @@ export const Provider: React.FC = ({ children }) => {
         setClusters(filterCluster.clusters)
         setSelectedCluster(_.map((filterCluster.clusters),'id')[0]);
       }
-      console.log(clusters)
     }
 
   },[selectedTeam, teams]);
