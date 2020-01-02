@@ -993,7 +993,7 @@
   resolved "https://registry.yarnpkg.com/@csstools/normalize.css/-/normalize.css-10.1.0.tgz#f0950bba18819512d42f7197e56c518aa491cf18"
   integrity sha512-ij4wRiunFfaJxjB0BdrYHIH8FxBJpOwNPhhAcunlmPdXudL1WQV1qoP9un6JsEBAgQH+7UXyyjh0g7jTxXK6tg==
 
-"@date-io/core@^1.3.9":
+"@date-io/core@^1.3.6", "@date-io/core@^1.3.9":
   version "1.3.9"
   resolved "https://registry.yarnpkg.com/@date-io/core/-/core-1.3.9.tgz#c8483399782ab6cff776b50a0c05edecf9744219"
   integrity sha512-pGZK4DJcXUKHFDWws/smJXgmeHyaVyOFPQqDsYXoxg6rYTU/S+NEVTQnoYOFgrlJ8dkgjZ89D9d3Qx1V925OGw==
