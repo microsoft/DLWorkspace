@@ -37,14 +37,14 @@ const ClusterSelector: FunctionComponent<ClusterSelectorProps> = ({ defaultId: d
     if (event.target.value == null) return;
 
     setCluster(event.target.value);
-  }, [onChange]);
+  }, [setCluster]);
   useEffect(() => {
     if (clusters.length === 0) return;
     if (cluster !== undefined) return;
 
     const defaultCluster = clusters[0];
     setCluster(defaultCluster);
-  }, [clusters, cluster])
+  }, [clusters, cluster, setCluster])
 
   if (clusters.length === 0) return null;
   if (cluster === undefined) return null;
