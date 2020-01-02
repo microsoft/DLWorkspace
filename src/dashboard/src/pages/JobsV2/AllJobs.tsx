@@ -1,7 +1,6 @@
 import React, {
   FunctionComponent,
   KeyboardEvent,
-  createContext,
   useCallback,
   useContext,
   useState,
@@ -18,7 +17,7 @@ import useFetch from 'use-http-2';
 import TeamsContext from '../../contexts/Teams';
 
 import Loading from '../../components/Loading';
-import Error from '../../components/Error';
+import ErrorComponent from '../../components/Error';
 
 import ClusterContext from './ClusterContext';
 import useActions from './useActions';
@@ -53,7 +52,7 @@ const PriorityField: FunctionComponent<PriorityFieldProps> = ({ job }) => {
       if (response.ok) {
         enqueueSnackbar('Priority is set successfully', { variant: 'success' });
       } else {
-        throw null;
+        throw Error();
       }
       setEditing(false);
     }).catch(() => {
@@ -64,19 +63,21 @@ const PriorityField: FunctionComponent<PriorityFieldProps> = ({ job }) => {
   }, [enqueueSnackbar, job, cluster.id]);
   const onBlur = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
     setEditing(false);
-    setPriority(input.current!.valueAsNumber);
+    if (input.current) {
+      setPriority(input.current.valueAsNumber);
+    }
   }, [setPriority]);
   const onKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      setPriority(input.current!.valueAsNumber);
+    if (event.key === 'Enter' && input.current) {
+      setPriority(input.current.valueAsNumber);
     }
     if (event.key === 'Escape') {
       setEditing(false);
     }
-  }, [cluster.id, job['jobId']]);
+  }, [setPriority, setEditing]);
   const onClick = useCallback(() => {
     setEditing(true);
-  }, [setPriority])
+  }, [setEditing])
 
   const component = editing ? (
     <TextField
@@ -137,7 +138,7 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({ title, jobs }) => {
       render: renderDate(getStartedDate), customSort: sortDate(getStartedDate) },
     { title: 'Finished', type: 'datetime',
       render: renderDate(getFinishedDate), customSort: sortDate(getFinishedDate) },
-  ], []);
+  ], [renderPrioirty]);
   const options = useMemo<Options>(() => ({
     actionsColumnIndex: -1,
     pageSize
@@ -164,7 +165,7 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({ title, jobs }) => {
 const AllJobs: FunctionComponent = () => {
   const { cluster } = useContext(ClusterContext);
   const { selectedTeam } = useContext(TeamsContext);
-  const { loading, error, data, get } = useFetch(
+  const { error, data, get } = useFetch(
     `/api/v2/clusters/${cluster.id}/teams/${selectedTeam}/jobs?user=all&limit=100`,
     [cluster.id, selectedTeam]
   );
@@ -219,7 +220,7 @@ const AllJobs: FunctionComponent = () => {
       {pausedJobs && <JobsTable title="Pauses Jobs" jobs={pausedJobs}/>}
     </>
   );
-  if (error) return <Error message="Failed to fetch the data, try reloading the page."/>;
+  if (error) return <ErrorComponent message="Failed to fetch the data, try reloading the page."/>;
 
   return <Loading/>;
 };

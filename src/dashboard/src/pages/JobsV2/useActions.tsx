@@ -1,4 +1,4 @@
-import React, {
+import {
   useCallback,
   useContext
 } from 'react';
@@ -59,7 +59,7 @@ const useActions = () => {
         }
       });
     });
-  }, [confirm, enqueueSnackbar]);
+  }, [confirm, enqueueSnackbar, updateStatus]);
 
   const onKill = useCallback((event: any, job: any) => {
     const title = `${job.jobName}(${job.jobId})`;
@@ -75,7 +75,7 @@ const useActions = () => {
         }
       });
     });
-  }, [confirm, enqueueSnackbar]);
+  }, [confirm, enqueueSnackbar, updateStatus]);
 
   const onPause = useCallback((event: any, job: any) => {
     const title = `${job.jobName}(${job.jobId})`;
@@ -91,7 +91,7 @@ const useActions = () => {
         }
       });
     });
-  }, [confirm, enqueueSnackbar]);
+  }, [confirm, enqueueSnackbar, updateStatus]);
 
   const onResume = useCallback((event: any, job: any) => {
     const title = `${job.jobName}(${job.jobId})`;
@@ -107,7 +107,7 @@ const useActions = () => {
         }
       });
     });
-  }, [confirm, enqueueSnackbar]);
+  }, [confirm, enqueueSnackbar, updateStatus]);
 
   const approve = useCallback((job: any): Action<any> => {
     const hidden = APPROVABLE_STATUSES.indexOf(job['jobStatus']) === -1;
@@ -117,7 +117,7 @@ const useActions = () => {
       tooltip: 'Approve',
       onClick: onApprove
     }
-  }, []);
+  }, [onApprove]);
   const kill = useCallback((job: any): Action<any> => {
     const hidden = KILLABLE_STATUSES.indexOf(job['jobStatus']) === -1;
     return {
@@ -126,7 +126,7 @@ const useActions = () => {
       tooltip: 'Kill',
       onClick: onKill
     }
-  }, []);
+  }, [onKill]);
   const pause = useCallback((job: any): Action<any> => {
     const hidden = PAUSABLE_STATUSES.indexOf(job['jobStatus']) === -1;
     return {
@@ -135,7 +135,7 @@ const useActions = () => {
       tooltip: 'Pause',
       onClick: onPause
     }
-  }, []);
+  }, [onPause]);
   const resume = useCallback((job: any): Action<any> => {
     const hidden = RESUMABLE_STATUSES.indexOf(job['jobStatus']) === -1;
     return {
@@ -144,7 +144,7 @@ const useActions = () => {
       tooltip: 'Resume',
       onClick: onResume
     }
-  }, []);
+  }, [onResume]);
   const component = dialog;
   return { approve, kill, pause, resume, component };
 }

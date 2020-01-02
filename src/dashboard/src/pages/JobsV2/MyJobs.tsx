@@ -1,6 +1,5 @@
 import React, {
   FunctionComponent,
-  MouseEvent,
   useCallback,
   useContext,
   useEffect,
@@ -90,7 +89,7 @@ const MyJobs: FunctionComponent = () => {
   const { cluster } = useContext(ClusterContext);
   const { selectedTeam } = useContext(TeamsContext);
   const [limit, setLimit] = useState(20);
-  const { loading, error, data, get } = useFetch(
+  const { error, data, get } = useFetch(
     `/api/v2/clusters/${cluster.id}/teams/${selectedTeam}/jobs?limit=${limit}`,
     [cluster.id, selectedTeam, limit]
   );
