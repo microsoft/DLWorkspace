@@ -5,7 +5,12 @@ import subprocess
 import smtplib
 
 from path_tree import PathTree
-from path_node import DATETIME_FMT, G, DAY
+from path_node import G, DAY
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.charset import Charset, BASE64
+from email.mime.nonmultipart import MIMENonMultipart
+from path_node import bytes2human_readable
 
 
 class StorageManager(object):
@@ -128,11 +133,10 @@ class StorageManager(object):
                 self.logger.info("There is no recipient for %s" % scan_point)
                 continue
 
-            subject = "[Storage Alert][%s][%s][Used > %s percent]" % \
+            subject = "%s: [Storage usage > %s percent for %s]" % \
                       (self.cluster_name,
-                       scan_point["alias"],
-                       scan_point["used_percent_threshold"])
-            body = "\r\n".join([str(node).replace(scan_point["path"], scan_point["alias"]) for node in overweight_nodes])
+                       scan_point["used_percent_threshold"],
+                       scan_point["alias"])
             recipients = scan_point["alert_recipients"]
             if not isinstance(recipients, list):
                 recipients = recipients.split(",")
@@ -162,11 +166,36 @@ class StorageManager(object):
                 f"Subject: {subject}\r\n\r\n{body}"
             )
 
+            data = "atime,size,owner,path\n"
+            for node in overweight_nodes:
+                data += str(node).replace(scan_point["path"], scan_point["alias"]) + "\n"
+
+            # Create message container - the correct MIME type is multipart/mixed to allow attachment.
+            full_email = MIMEMultipart('mixed')
+            full_email["Subject"] = subject
+            full_email["From"] = self.smtp["smtp_from"]
+            full_email['To'] = recipients
+
+            # Create the body of the message (a plain-text version).
+            description = "%s storage mountpoint %s usage is > %s percent. Oversized boundary paths (> %s) is in the attachment. Please help reduce the size." % \
+                          (self.cluster_name, scan_point["alias"], scan_point["used_percent_threshold"], bytes2human_readable(self.overweight_threshold))
+            body = MIMEMultipart("alternative")
+            body.attach(MIMEText(description.encode("utf-8"), "plain", _charset="utf-8"))
+            full_email.attach(body)
+
+            # Create the attachment of the message in text/csv.
+            attachment = MIMENonMultipart('text', 'csv', charset='utf-8')
+            attachment.add_header('Content-Disposition', 'attachment', filename="oversized_boundary_paths.csv")
+            cs = Charset('utf-8')
+            cs.body_encoding = BASE64
+            attachment.set_payload(data.encode('utf-8'), charset=cs)
+            full_email.attach(attachment)
+
             try:
                 with smtplib.SMTP(self.smtp["smtp_url"]) as server:
                     server.starttls()
                     server.login(self.smtp["smtp_auth_username"], self.smtp['smtp_auth_password'])
-                    server.sendmail(self.smtp["smtp_from"], recipients, message)
+                    server.sendmail(self.smtp["smtp_from"], recipients, full_email.as_string())
                     self.logger.info(f"Email sent to {', '.join(recipients)}")
             except smtplib.SMTPAuthenticationError:
                 self.logger.warning('The server didn\'t accept the user\\password combination.')
