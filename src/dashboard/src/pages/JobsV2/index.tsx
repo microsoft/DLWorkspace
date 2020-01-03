@@ -88,7 +88,7 @@ const Jobs: FunctionComponent = () => {
   }, [history]);
 
   return (
-    <Container maxWidth="lg">
+    <Container maxWidth={false}>
       <FormControl fullWidth>
         <InputLabel>Choose Cluster</InputLabel>
         <ClusterSelector defaultId={clusterId} onChange={onClusterChange}/>
