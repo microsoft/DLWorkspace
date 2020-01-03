@@ -233,6 +233,8 @@ class StorageManager(object):
                                                node.path.replace(scan_point["path"],
                                                                  scan_point["alias"],
                                                                  1))
+                if preview_len < len(nodes):
+                    content += "...\n"
 
                 data = header
                 for node in nodes:
@@ -243,7 +245,7 @@ class StorageManager(object):
                     data += cur_node
 
                 report = {
-                    "filename": "oversized_boundary_paths %s.csv" % str(int(time.time())),
+                    "filename": "oversized_boundary_paths_%s.csv" % str(int(time.time())),
                     "data": data
                 }
 
