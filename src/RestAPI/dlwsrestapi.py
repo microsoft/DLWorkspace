@@ -92,13 +92,6 @@ def tolist(value):
     else:
         return value
 
-def getAlias(username):
-    if "@" in username:
-        username = username.split("@")[0].strip()
-    if "/" in username:
-        username = username.split("/")[1].strip()
-    return username
-
 
 def remove_creds(job):
     job_params = job.get("jobParams", None)
@@ -246,7 +239,7 @@ class SubmitJob(Resource):
             params["mountpoints"] = []
             addcmd = ""
             if "mounthomefolder" in config and istrue(config["mounthomefolder"]) and "storage-mount-path" in config:
-                alias = getAlias(params["userName"])
+                alias = JobRestAPIUtils.getAlias(params["userName"])
                 params["mountpoints"].append({"name":"homeholder","containerPath":os.path.join("/home", alias),"hostPath":os.path.join(config["storage-mount-path"], "work", alias)})
             if "mountpoints" in config and "storage-mount-path" in config:
                 # see link_fileshares in deploy.py
@@ -257,7 +250,7 @@ class SubmitJob(Resource):
                                 hostBase = os.path.join(config["storage-mount-path"], basename[1:]) if os.path.isabs(basename) else os.path.join(config["storage-mount-path"], basename)
                                 basealias = basename[1:] if os.path.isabs(basename) else basename
                                 containerBase = os.path.join("/", basename)
-                                alias = getAlias(params["userName"])
+                                alias = JobRestAPIUtils.getAlias(params["userName"])
                                 shares = [alias]
                                 if "publicshare" in v:
                                     if "all" in v["publicshare"]:
@@ -1149,7 +1142,7 @@ class Endpoint(Resource):
                 return ("Bad request, interactive port name length shoule be less than 16: %s" % requested_endpoints), 400
             interactive_ports.append(interactive_port)
 
-        msg, statusCode = JobRestAPIUtils.UpdateEndpoints(userName, job_id, requested_endpoints, interactive_ports)
+        msg, statusCode = JobRestAPIUtils.UpdateEndpoints(username, job_id, requested_endpoints, interactive_ports)
         if statusCode != 200:
             return msg, statusCode
 

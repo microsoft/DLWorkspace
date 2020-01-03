@@ -130,12 +130,7 @@ def SubmitJob(jobParamsJsonStr):
     if "isParent" not in jobParams:
         jobParams["isParent"] = 1
 
-    userName = jobParams["userName"]
-    if "@" in userName:
-        userName = userName.split("@")[0].strip()
-
-    if "/" in userName:
-        userName = userName.split("/")[1].strip()
+    userName = getAlias(jobParams["userName"])
 
     if not AuthorizationManager.HasAccess(jobParams["userName"], ResourceType.VC, jobParams["vcName"].strip(), Permission.User):
         ret["error"] = "Access Denied!"
@@ -380,7 +375,7 @@ def ResumeJob(userName, jobId):
 def PauseJob(userName, jobId):
     dataHandler = DataHandler()
     ret = False
-    job = dataHandler.GetJobTextFields(jobId, ["userName", "vcName"])
+    job = dataHandler.GetJobTextFields(jobId, ["userName", "vcName", "jobStatus"])
     if job is not None and job["jobStatus"] in ["unapproved", "queued", "scheduling", "running"]:
         if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin):
             ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","pausing")
@@ -945,7 +940,7 @@ def update_job_priorites(username, job_priorities):
         pendingJobs = {}
         for job_id in job_priorities:
             priority = job_priorities[job_id]
-            job = dataHandler.GetJobTextFields(job_id, ["userName", "vcName", "jobStatus"])
+            job = data_handler.GetJobTextFields(job_id, ["userName", "vcName", "jobStatus"])
             if job is None:
                 continue
 

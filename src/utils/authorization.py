@@ -77,7 +77,7 @@ class AuthorizationManager:
             return False
 
         except Exception as e:
-            logger.error("No (exception) for %s in time %s, ex: %s" % (requested_access, time.time() - start_time), str(e))
+            logger.error("No (exception) for %s in time %f, ex: %s", requested_access, time.time() - start_time, str(e))
             return False
 
 
