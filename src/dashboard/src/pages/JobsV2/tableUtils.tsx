@@ -2,10 +2,7 @@ import React from 'react';
 
 import JobStatus from '../../components/JobStatus';
 
-export const renderStatus = (job: any) => {
-  console.log(job);
-  return <JobStatus job={job}/>;
-}
+export const renderStatus = (job: any) => <JobStatus job={job}/>;
 
 export const renderDate = (getter: (job: any) => Date) => (job: any) => {
   const date = getter(job);
