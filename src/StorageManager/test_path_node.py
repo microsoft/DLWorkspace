@@ -1,5 +1,5 @@
 from unittest import TestCase
-from mock import patch
+from unittest.mock import patch
 from path_node import PathNode, DAY
 from testcase_utils import DummyNodeStat
 from datetime import datetime
@@ -33,12 +33,12 @@ class TestPathNode(TestCase):
         self.assertTrue(node.isdir)
         self.assertEqual(NODE_SIZE, node.size)
         self.assertEqual(NODE_SIZE, node.subtree_size)
-        self.assertEqual(datetime(2019, 11, 19, 14, 39, 27), node.atime)
-        self.assertEqual(datetime(2019, 11, 19, 14, 39, 27), node.subtree_atime)
-        self.assertEqual(datetime(2019, 11, 19, 14, 39, 27), node.mtime)
-        self.assertEqual(datetime(2019, 11, 19, 14, 39, 27), node.subtree_mtime)
-        self.assertEqual(datetime(2019, 11, 19, 14, 39, 27), node.ctime)
-        self.assertEqual(datetime(2019, 11, 19, 14, 39, 27), node.subtree_ctime)
+        self.assertEqual(datetime(2019, 11, 19, 22, 39, 27), node.atime)
+        self.assertEqual(datetime(2019, 11, 19, 22, 39, 27), node.subtree_atime)
+        self.assertEqual(datetime(2019, 11, 19, 22, 39, 27), node.mtime)
+        self.assertEqual(datetime(2019, 11, 19, 22, 39, 27), node.subtree_mtime)
+        self.assertEqual(datetime(2019, 11, 19, 22, 39, 27), node.ctime)
+        self.assertEqual(datetime(2019, 11, 19, 22, 39, 27), node.subtree_ctime)
         self.assertEqual(NODE_UID, node.uid)
         self.assertEqual(NODE_GID, node.gid)
         self.assertEqual("", node.owner)
@@ -55,4 +55,4 @@ class TestPathNode(TestCase):
         node = PathNode(NODE_PATH, uid_user)
         self.assertEqual(USER_NAME, node.owner)
 
-        self.assertEqual("2019/11/19 14:39:27,2G,dummy,/dummy", node.__str__())
+        self.assertEqual("2019/11/19 22:39:27,2G,dummy,/dummy", node.__str__())

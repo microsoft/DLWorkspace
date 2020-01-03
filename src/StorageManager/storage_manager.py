@@ -119,15 +119,54 @@ class StorageManager(object):
                              tree.overweight_threshold)
             for node in overweight_nodes:
                 self.logger.info(node)
-            self.logger.info("")
 
-            self.logger.info("Expired (access time < %s) boundary paths are:" %
-                             tree.expiry.strftime(DATETIME_FMT))
-            for node in tree.expired_boundary_nodes:
-                self.logger.info(node)
-            self.logger.info("")
+            if not "alert_recipients" in scan_point:
+                self.logger.info("There is no recipient for %s" % scan_point)
+                continue
 
-            self.logger.info("Emtpy boundary paths are:")
-            for node in tree.empty_boundary_nodes:
-                self.logger.info(node)
-            self.logger.info("")
+            subject = "[Storage Alert][%s][%s][Used > %s\%]" % (self.config["cluster_name_friendly"], scan_point["alias"], scan_point["used_percent_threshold"])
+            body = "\n".join([node.replace(scan_point["path"], scan_point["alias"])])
+            recipients = scan_point["alert_recipients"]
+            if not isinstance(recipients, list):
+                recipients = recipients.split(",")
+
+            #self.logger.info("")
+
+            #self.logger.info("Expired (access time < %s) boundary paths are:" %
+            #                 tree.expiry.strftime(DATETIME_FMT))
+            #for node in tree.expired_boundary_nodes:
+            #    self.logger.info(node)
+            #self.logger.info("")
+
+            #self.logger.info("Emtpy boundary paths are:")
+            #for node in tree.empty_boundary_nodes:
+            #    self.logger.info(node)
+            #self.logger.info("")
+
+
+
+            smtp = self.config["smtp"]
+            if smtp is None:
+                self.logger.warning("stmp is not configured.")
+                continue
+
+            message = (
+                f"From: {smtp['smtp_from']}\r\n"
+                f"To: {';'.join(recipients)}\r\n"
+                f"MIME-Version: 1.0\r\n"
+                f"Content-type: text/html\r\n"
+                f"Subject: {subject}\r\n\r\n{body}"
+            )
+
+            try:
+                with smtplib.SMTP(smtp["smtp_url"]) as server:
+                    server.starttls()
+                    server.login(smtp["smtp_auth_username"], smtp['smtp_auth_password'])
+                    server.sendmail(smtp["smtp_from"], recepients, message)
+                    self.logger.info(f"Email sent to {', '.join(recepients)}")
+            except smtplib.SMTPAuthenticationError:
+                self.logger.warning('The server didn\'t accept the user\\password combination.')
+            except smtplib.SMTPServerDisconnected:
+                self.logger.warning('Server unexpectedly disconnected')
+            except smtplib.SMTPException as e:
+                self.logger.exception('SMTP error occurred: ' + str(e))

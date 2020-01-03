@@ -34,7 +34,7 @@ def main():
             logger.info("storage_monitor is not enabled. Exiting ...")
             sys.exit(0)
 
-        sm = StorageManager(sm_config)
+        sm = StorageManager(config)
         try:
             sm.run()
         except Exception as e:
