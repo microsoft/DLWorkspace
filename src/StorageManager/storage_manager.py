@@ -5,7 +5,6 @@ import subprocess
 import smtplib
 import requests
 import json
-import time
 
 from path_tree import PathTree
 from email.mime.text import MIMEText
@@ -189,22 +188,23 @@ class StorageManager(object):
 
             sender = self.smtp["smtp_from"]
 
-            if not "alert_recipients" in scan_point:
-                self.logger.info("There is no recipient for %s" % scan_point)
-                continue
-
             # Group overweight nodes by user
             user_overweight_nodes = {}
-            default_recipient = scan_point["default_recipients"]
+            default_recipient = scan_point.get("default_recipients", None)
             for node in overweight_nodes:
-                if node.owner == "":
-                    user_overweight_nodes[default_recipient] = node
-                else:
-                    user_overweight_nodes[node.owner] = node
+                owner = node.owner
+                if owner == "" and default_recipient is None:
+                    continue
+                elif owner == "" and default_recipient is not None:
+                    owner = default_recipient
+
+                if owner not in user_overweight_nodes:
+                    user_overweight_nodes[owner] = []
+                user_overweight_nodes[owner].append(node)
 
             for recipient, nodes in user_overweight_nodes.items():
                 self.logger.info("Overweight (> %d) boundary paths for %s are:" %
-                                 (recipient, tree.overweight_threshold))
+                                 (tree.overweight_threshold, recipient))
                 for node in nodes:
                     self.logger.info(node)
 
