@@ -66,7 +66,7 @@ class StorageManager(object):
         _, _, _, _, percent, _ = output.split("\n")[1].split()
         return float(percent.strip("%")) > float(scan_point["used_percent_threshold"])
 
-    def send_email(self, sender, recipients, subject, content, report):
+    def send_email(self, sender, recipients, cc, subject, content, report):
         """Send an alert email to recipients
 
         # https://gist.github.com/BietteMaxime/f75ae41f7b4557274a9f
@@ -76,7 +76,8 @@ class StorageManager(object):
         full_email = MIMEMultipart("mixed")
         full_email["Subject"] = subject
         full_email["From"] = sender
-        full_email['To'] = recipients
+        full_email["To"] = recipients
+        full_email["CC"] = cc
 
         # Create the body of the message (a plain-text version).
         body = MIMEMultipart("alternative")
