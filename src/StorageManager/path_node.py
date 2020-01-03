@@ -1,25 +1,7 @@
 import os
 
 from datetime import datetime
-
-
-DATETIME_FMT = "%Y/%m/%d %H:%M:%S"
-K = 2 ** 10
-M = 2 ** 20
-G = 2 ** 30
-
-DAY = 86400
-
-
-def bytes2human_readable(value):
-    if value // G > 0:
-        return "%dG" % (value // G)
-    if value // M > 0:
-        return "%dM" % (value // M)
-    if value // K > 0:
-        return "%dK" % (value // K)
-    return "%d" % value
-
+from utils import DATETIME_FMT, bytes2human_readable
 
 class PathNode(object):
     """This class contains meta info for a file/directory.
@@ -32,6 +14,12 @@ class PathNode(object):
         atime: Access time of this node.
         subtree_atime: Access time of the subtree rooted at this node.
             Latest access time of the nodes in the subtree.
+        mtime: Modification time of this node.
+        subtree_mtime: Modification time of the subtree rooted at this node.
+            Latest modification time of the nodes in the subtree.
+        ctime: Permission change time of this node.
+        subtree_ctime: Permission change time of the subtree rooted at this
+            node. Latest permission change time of the nodes in the subtree.
         uid: User ID for this node.
         gid: Group ID for this node.
         owner: Username for this node.
@@ -54,6 +42,10 @@ class PathNode(object):
         self.subtree_size = stat.st_size
         self.atime = datetime.fromtimestamp(stat.st_atime)
         self.subtree_atime = datetime.fromtimestamp(stat.st_atime)
+        self.mtime = datetime.fromtimestamp(stat.st_mtime)
+        self.subtree_mtime = datetime.fromtimestamp(stat.st_mtime)
+        self.ctime = datetime.fromtimestamp(stat.st_ctime)
+        self.subtree_ctime = datetime.fromtimestamp(stat.st_ctime)
         self.uid = stat.st_uid
         self.gid = stat.st_gid
 

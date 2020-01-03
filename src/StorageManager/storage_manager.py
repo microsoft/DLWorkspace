@@ -1,9 +1,17 @@
 import logging
 import time
 import os
+import subprocess
+import smtplib
+import requests
+import json
 
 from path_tree import PathTree
-from path_node import DATETIME_FMT, G, DAY
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.charset import Charset, BASE64
+from email.mime.nonmultipart import MIMENonMultipart
+from utils import bytes2human_readable, G, DAY
 
 
 class StorageManager(object):
@@ -16,9 +24,13 @@ class StorageManager(object):
         last_now: The unix epoch time in seconds.
         scan_points: A list of scan point configurations.
     """
-    def __init__(self, config):
+    def __init__(self, config, smtp, cluster_name):
         self.logger = logging.getLogger()
         self.config = config
+        self.smtp = smtp
+        self.cluster_name = cluster_name
+
+        self.restful_url = self.config.get("restful_url", "http://192.168.255.1:5000")
         self.execution_interval_days = self.config.get("execution_interval_days", 1)
         self.last_now = None
         self.scan_points = self.config.get("scan_points", [])
@@ -50,12 +62,91 @@ class StorageManager(object):
 
             self.last_now = time.time()
 
+    def should_scan(self, scan_point):
+        df = subprocess.Popen(["df", scan_point["device_mount"]], stdout=subprocess.PIPE)
+        output = df.communicate()[0].decode()
+        _, _, _, _, percent, _ = output.split("\n")[1].split()
+        return float(percent.strip("%")) > float(scan_point["used_percent_threshold"])
+
+    def send_email(self, sender, recipients, cc, subject, content, report):
+        """Send an alert email to recipients
+
+        # https://gist.github.com/BietteMaxime/f75ae41f7b4557274a9f
+        """
+
+        # Create message container - the correct MIME type is multipart/mixed to allow attachment.
+        full_email = MIMEMultipart("mixed")
+        full_email["Subject"] = subject
+        full_email["From"] = sender
+        full_email["To"] = recipients
+        full_email["CC"] = cc
+
+        # Create the body of the message (a plain-text version).
+        body = MIMEMultipart("alternative")
+        body.attach(MIMEText(content.encode("utf-8"), "plain", _charset="utf-8"))
+        full_email.attach(body)
+
+        # Create the attachment of the message in text/csv.
+        attachment = MIMENonMultipart('text', 'csv', charset='utf-8')
+        attachment.add_header('Content-Disposition', 'attachment', filename=report["filename"])
+        cs = Charset('utf-8')
+        cs.body_encoding = BASE64
+        attachment.set_payload(report["data"].encode('utf-8'), charset=cs)
+        full_email.attach(attachment)
+
+        try:
+            with smtplib.SMTP(self.smtp["smtp_url"]) as server:
+                server.starttls()
+                server.login(self.smtp["smtp_auth_username"], self.smtp['smtp_auth_password'])
+                server.sendmail(self.smtp["smtp_from"], recipients, full_email.as_string())
+                self.logger.info("Successfully sent email to %s" % recipients)
+        except smtplib.SMTPAuthenticationError:
+            self.logger.warning("The server didn\'t accept the user\\password combination.")
+        except smtplib.SMTPServerDisconnected:
+            self.logger.warning("Server unexpectedly disconnected")
+        except smtplib.SMTPException as e:
+            self.logger.exception("SMTP error occurred: " + str(e))
+
+    def get_uid_user(self):
+        """Gets UID -> User mapping from restful url"""
+        resp = requests.get(self.restful_url + "/GetAllUsers")
+        if resp.status_code != 200:
+            return {}
+
+        data = json.loads(resp.text)
+        uid_user = {}
+        for item in data:
+            try:
+                uid = int(item[1])
+                user = item[0]
+                uid_user[uid] = user
+            except:
+                pass
+        return uid_user
+
     def scan(self):
-        """Scans each scan_point and finds overweight and expired nodes."""
+        """Scans each scan_point and finds overweight nodes. Sends alert."""
+        uid_user = self.get_uid_user()
+
         for scan_point in self.scan_points:
+            if "device_mount" not in scan_point:
+                self.logger.warning("device_mount does not exist in %s. "
+                                    "continue." % scan_point)
+                continue
+
+            if "used_percent_threshold" not in scan_point:
+                self.logger.warning("used_percent_threshold does not exist in "
+                                    "%s. continue." % scan_point)
+                continue
+
             if "path" not in scan_point:
                 self.logger.warning("path does not exist in %s. continue." %
                                     scan_point)
+                continue
+
+            if not self.should_scan(scan_point):
+                self.logger.info("%s used percent is smaller than threshold. "
+                                 "continue." % scan_point)
                 continue
 
             if "overweight_threshold" not in scan_point:
@@ -79,7 +170,7 @@ class StorageManager(object):
 
             self.logger.info("Scanning scan_point %s" % scan_point)
 
-            tree = PathTree(scan_point)
+            tree = PathTree(scan_point, uid_user=uid_user)
             tree.walk()
 
             root = tree.root
@@ -90,19 +181,74 @@ class StorageManager(object):
                 self.logger.warning("Tree root for path %s is None." % tree.path)
 
             overweight_nodes = tree.overweight_boundary_nodes
-            self.logger.info("Overweight (> %d) boundary paths are:" %
-                             tree.overweight_threshold)
+
+            if self.smtp is None:
+                self.logger.warning("stmp is not configured.")
+                continue
+
+            sender = self.smtp["smtp_from"]
+
+            # Group overweight nodes by user
+            user_overweight_nodes = {}
+            default_recipient = self.smtp.get("default_recipients", None)
             for node in overweight_nodes:
-                self.logger.info(node)
-            self.logger.info("")
+                owner = node.owner
+                if owner == "" and default_recipient is None:
+                    continue
+                elif owner == "" and default_recipient is not None:
+                    owner = default_recipient
 
-            self.logger.info("Expired (access time < %s) boundary paths are:" %
-                             tree.expiry.strftime(DATETIME_FMT))
-            for node in tree.expired_boundary_nodes:
-                self.logger.info(node)
-            self.logger.info("")
+                if owner not in user_overweight_nodes:
+                    user_overweight_nodes[owner] = []
+                user_overweight_nodes[owner].append(node)
 
-            self.logger.info("Emtpy boundary paths are:")
-            for node in tree.empty_boundary_nodes:
-                self.logger.info(node)
-            self.logger.info("")
+            for recipient, nodes in user_overweight_nodes.items():
+                self.logger.info("Overweight (> %d) boundary paths for %s are:" %
+                                 (tree.overweight_threshold, recipient))
+                for node in nodes:
+                    self.logger.info(node)
+
+                cc = self.smtp["cc"]
+
+                subject = "%s: %s usage > %s%% - %s" % \
+                          (self.cluster_name,
+                           scan_point["alias"],
+                           scan_point["used_percent_threshold"],
+                           recipient.split("@")[0])
+                if "vc" in scan_point:
+                    subject += " [VC:%s]" % scan_point["vc"]
+
+                content = "%s storage mountpoint %s usage is > %s%%. " \
+                          "Full list of your oversized boundary paths (> %s) is in the attached CSV. " \
+                          "Please help reduce the size.\n\n" % \
+                          (self.cluster_name,
+                           scan_point["alias"],
+                           scan_point["used_percent_threshold"],
+                           bytes2human_readable(self.overweight_threshold))
+
+                header = "size_in_bytes,owner,path\n"
+
+                preview_len = min(20, len(nodes))
+                content += header
+                for node in nodes[0:preview_len]:
+                    content += "%s,%s,%s\n" % (node.subtree_size, node.owner,
+                                               node.path.replace(scan_point["path"],
+                                                                 scan_point["alias"],
+                                                                 1))
+                if preview_len < len(nodes):
+                    content += "...\n"
+
+                data = header
+                for node in nodes:
+                    cur_node = "%s,%s,%s\n" % (node.subtree_size, node.owner,
+                                               node.path.replace(scan_point["path"],
+                                                                 scan_point["alias"],
+                                                                 1))
+                    data += cur_node
+
+                report = {
+                    "filename": "oversized_boundary_paths_%s.csv" % str(int(time.time())),
+                    "data": data
+                }
+
+                self.send_email(sender, recipient, cc, subject, content, report)

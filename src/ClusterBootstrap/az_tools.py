@@ -998,6 +998,7 @@ def run_command(args, command, nargs, parser):
     if command == "create":
         create_cluster(args.arm_password, args.parallelism)
         vm_interconnects()
+        nfs_allow_master()
 
     elif command == "addworkers":
         add_workers(args.arm_password, args.parallelism)

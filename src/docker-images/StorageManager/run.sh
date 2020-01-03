@@ -1,6 +1,5 @@
 #!/bin/bash
-rm /DLWorkspace/src/utils/config.yaml
-ln -s /StorageManager/config.yaml /DLWorkspace/src/utils/config.yaml
+rm -f /DLWorkspace/src/StorageManager/config.yaml
+ln -s /StorageManager/config.yaml /DLWorkspace/src/StorageManager/config.yaml
 
-sleep infinity
-#python /DLWorkspace/src/StorageManager/main.py
+python3 /DLWorkspace/src/StorageManager/main.py
