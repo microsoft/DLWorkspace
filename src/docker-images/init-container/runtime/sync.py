@@ -133,7 +133,7 @@ def main(args):
     labels = "run=%s" % (job_name)
 
     items = []
-    for i in range(600): # wait at most 10 minutes
+    for i in range(3600): # wait at most 1 hour
         resp = k8s_core_api.list_namespaced_config_map(
             namespace=job_namespace,
             label_selector=labels,
