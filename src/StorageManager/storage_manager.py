@@ -109,7 +109,7 @@ class StorageManager(object):
 
     def get_uid_user(self):
         """Gets UID -> User mapping from restful url"""
-        resp = requests.get(self.restful_url)
+        resp = requests.get(self.restful_url + "/GetAllUsers")
         if resp.status_code != 200:
             return {}
 
@@ -198,6 +198,8 @@ class StorageManager(object):
 
             recipients = scan_point["alert_recipients"]
 
+            cc = self.smtp["cc"]
+
             subject = "%s: %s storage usage > %s %%" % \
                       (self.cluster_name,
                        scan_point["alias"],
@@ -213,7 +215,7 @@ class StorageManager(object):
 
             data = "size_in_bytes,owner,path\n"
             for node in overweight_nodes:
-                cur_node = "%s,%s,%s\n" % (node.size, node.uid,
+                cur_node = "%s,%s,%s\n" % (node.size, node.owner,
                                            node.path.replace(scan_point["path"],
                                                              scan_point["alias"],
                                                              1))
@@ -224,4 +226,4 @@ class StorageManager(object):
                 "data": data
             }
 
-            self.send_email(sender, recipients, subject, content, report)
+            self.send_email(sender, recipients, cc, subject, content, report)
