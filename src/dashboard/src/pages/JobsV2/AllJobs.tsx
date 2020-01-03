@@ -218,6 +218,7 @@ const AllJobs: FunctionComponent = () => {
       {queuingJobs && <JobsTable title="Queuing Jobs" jobs={queuingJobs}/>}
       {unapprovedJobs && <JobsTable title="Unapproved Jobs" jobs={unapprovedJobs}/>}
       {pausedJobs && <JobsTable title="Pauses Jobs" jobs={pausedJobs}/>}
+      {jobs.length === 0 && <JobsTable title="All Jobs" jobs={jobs} />}
     </>
   );
   if (error) return <ErrorComponent message="Failed to fetch the data, try reloading the page."/>;
