@@ -101,7 +101,7 @@ class ECCRule(Rule):
     def take_action(self):
         status = []
         for node_name in self.ecc_hostnames:
-            output = k8s_util.cordon_node(node_name, dry_run=True)
+            output = k8s_util.cordon_node(node_name, dry_run=self.config['rules']['ecc_rule']['dry_run'])
             status.append([node_name, output])
 
         subject = f'Repair Manager Alert [ECC ERROR] [{self.config["cluster_name"]}]'
