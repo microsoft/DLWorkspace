@@ -190,7 +190,7 @@ class StorageManager(object):
 
             # Group overweight nodes by user
             user_overweight_nodes = {}
-            default_recipient = scan_point.get("default_recipients", None)
+            default_recipient = self.smtp.get("default_recipients", None)
             for node in overweight_nodes:
                 owner = node.owner
                 if owner == "" and default_recipient is None:
@@ -214,7 +214,9 @@ class StorageManager(object):
                           (self.cluster_name,
                            scan_point["alias"],
                            scan_point["used_percent_threshold"],
-                           recipient)
+                           recipient.split("@")[0])
+                if "vc" in scan_point:
+                    subject += " [VC:%s]" % scan_point["vc"]
 
                 content = "%s storage mountpoint %s usage is > %s%%. " \
                           "Full list of your oversized boundary paths (> %s) is in the attached CSV. " \
@@ -229,7 +231,7 @@ class StorageManager(object):
                 preview_len = min(20, len(nodes))
                 content += header
                 for node in nodes[0:preview_len]:
-                    content += "%s,%s,%s\n" % (node.size, node.owner,
+                    content += "%s,%s,%s\n" % (node.subtree_size, node.owner,
                                                node.path.replace(scan_point["path"],
                                                                  scan_point["alias"],
                                                                  1))
@@ -238,7 +240,7 @@ class StorageManager(object):
 
                 data = header
                 for node in nodes:
-                    cur_node = "%s,%s,%s\n" % (node.size, node.owner,
+                    cur_node = "%s,%s,%s\n" % (node.subtree_size, node.owner,
                                                node.path.replace(scan_point["path"],
                                                                  scan_point["alias"],
                                                                  1))
