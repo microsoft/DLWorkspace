@@ -119,7 +119,7 @@ class StorageManager(object):
         for item in data:
             try:
                 uid = int(item[1])
-                user = item[0].split("@")[0]
+                user = item[0]
                 uid_user[uid] = user
             except:
                 pass
@@ -205,7 +205,7 @@ class StorageManager(object):
             for recipient, nodes in user_overweight_nodes.items():
                 self.logger.info("Overweight (> %d) boundary paths for %s are:" %
                                  (recipient, tree.overweight_threshold))
-                for node in overweight_nodes:
+                for node in nodes:
                     self.logger.info(node)
 
                 cc = self.smtp["cc"]
@@ -218,14 +218,24 @@ class StorageManager(object):
 
                 content = "%s storage mountpoint %s usage is > %s%%. " \
                           "Full list of your oversized boundary paths (> %s) is in the attached CSV. " \
-                          "Please help reduce the size." % \
+                          "Please help reduce the size.\n\n" % \
                           (self.cluster_name,
                            scan_point["alias"],
                            scan_point["used_percent_threshold"],
                            bytes2human_readable(self.overweight_threshold))
 
-                data = "size_in_bytes,owner,path\n"
-                for node in overweight_nodes:
+                header = "size_in_bytes,owner,path\n"
+
+                preview_len = min(20, len(nodes))
+                content += header
+                for node in nodes[0:preview_len]:
+                    content += "%s,%s,%s\n" % (node.size, node.owner,
+                                               node.path.replace(scan_point["path"],
+                                                                 scan_point["alias"],
+                                                                 1))
+
+                data = header
+                for node in nodes:
                     cur_node = "%s,%s,%s\n" % (node.size, node.owner,
                                                node.path.replace(scan_point["path"],
                                                                  scan_point["alias"],
