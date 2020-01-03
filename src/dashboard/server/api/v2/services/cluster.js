@@ -9,7 +9,6 @@ const ClusterV1 = require('../../services/cluster')
  * @extends {ClusterV1<State>}
  */
 class Cluster extends ClusterV1 {
-
   /**
    * @param {string} teamId
    * @param {boolean} all
@@ -34,8 +33,8 @@ class Cluster extends ClusterV1 {
       data['visualizationJobs']
     )
     jobs.sort((jobA, jobB) => {
-      return Date.parse(jobB['jobTime']) - Date.parse(jobA['jobTime']);
-    });
+      return Date.parse(jobB['jobTime']) - Date.parse(jobA['jobTime'])
+    })
     this.context.log.info('Got %d jobs from %s', jobs.length, this.id)
     return jobs
   }
@@ -50,7 +49,7 @@ class Cluster extends ClusterV1 {
       userName: user.email,
       jobId
     })
-    const response = await this.fetch('/GetJobDetail?' + params)
+    const response = await this.fetch('/GetJobDetailV2?' + params)
     this.context.assert(response.ok, 502)
     const job = await response.json()
     this.context.log.debug('Got job %s', job['jobName'])

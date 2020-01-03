@@ -34,7 +34,7 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({ jobs, onExpectMoreJobs }
 
   const onRowClick = useCallback((event: any, job: any) => {
     const e = encodeURIComponent;
-    const to = `/job/${e(job['vcName'])}/${e(cluster.id)}/${e(job['jobId'])}`
+    const to = `/jobs-v2/${e(cluster.id)}/${e(job['jobId'])}`
     history.push(to);
   }, [cluster.id, history]);
   const [pageSize, setPageSize] = useState(10);
@@ -103,13 +103,10 @@ const MyJobs: FunctionComponent = () => {
     setLimit(20);
   }, [cluster.id]);
   useEffect(() => {
-    let timeout: number | undefined;
     if (data !== undefined) {
       setJobs(data);
-      timeout = setTimeout(get, 3000);
-    }
-    return () => {
-      if (timeout !== undefined) {
+      const timeout = setTimeout(get, 3000);
+      return () => {
         clearTimeout(timeout);
       }
     }

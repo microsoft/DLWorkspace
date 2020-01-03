@@ -109,7 +109,7 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({ title, jobs }) => {
 
   const onRowClick = useCallback((event: any, job: any) => {
     const e = encodeURIComponent;
-    const to = `/job/${e(job['vcName'])}/${e(cluster.id)}/${e(job['jobId'])}`
+    const to = `/jobs-v2/${e(cluster.id)}/${e(job['jobId'])}`
     history.push(to);
   }, [cluster.id, history]);
   const [pageSize, setPageSize] = useState(5);
@@ -173,13 +173,10 @@ const AllJobs: FunctionComponent = () => {
     setJobs(undefined);
   }, [cluster.id]);
   useEffect(() => {
-    let timeout: number | undefined;
     if (data !== undefined) {
       setJobs(data);
-      timeout = setTimeout(get, 3000);
-    }
-    return () => {
-      if (timeout !== undefined) {
+      const timeout = setTimeout(get, 3000);
+      return () => {
         clearTimeout(timeout);
       }
     }

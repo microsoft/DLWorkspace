@@ -5,7 +5,7 @@ import {
 import { useSnackbar } from 'notistack';
 import { Action } from 'material-table';
 
-import useConfirm from '../../components/useConfirm';
+import useConfirm from '../../hooks/useConfirm';
 
 import ClusterContext from './ClusterContext';
 

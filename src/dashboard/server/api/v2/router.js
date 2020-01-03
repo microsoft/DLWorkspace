@@ -11,6 +11,6 @@ router.param('clusterId',
 router.get('/clusters/:clusterId/teams/:teamId/jobs',
   require('../middlewares/user')(),
   require('./controllers/cluster/team/jobs'))
-router.get('/clusters/:clusterId/teams/:teamId/jobs/:jobId',
+router.get('/clusters/:clusterId/jobs/:jobId',
   require('../middlewares/user')(),
   require('./controllers/cluster/job'))

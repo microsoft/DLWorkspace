@@ -25,12 +25,12 @@ const useConfirm = () => {
   const onNoClick = useCallback(() => {
     setOpen(false);
     if (resolve) resolve(false);
-  }, [setMessage, resolve]);
+  }, [resolve]);
   const onClose = onNoClick;
   const onYesClick = useCallback(() => {
     setOpen(false);
     if (resolve) resolve(true);
-  }, [setMessage, resolve]);
+  }, [resolve]);
   const dialog = (
     <Dialog open={open} onClose={onClose}>
       <DialogTitle>Confirm</DialogTitle>
