@@ -5,6 +5,7 @@ import subprocess
 import smtplib
 import requests
 import json
+import time
 
 from path_tree import PathTree
 from email.mime.text import MIMEText
@@ -181,10 +182,6 @@ class StorageManager(object):
                 self.logger.warning("Tree root for path %s is None." % tree.path)
 
             overweight_nodes = tree.overweight_boundary_nodes
-            self.logger.info("Overweight (> %d) boundary paths are:" %
-                             tree.overweight_threshold)
-            for node in overweight_nodes:
-                self.logger.info(node)
 
             if self.smtp is None:
                 self.logger.warning("stmp is not configured.")
@@ -196,34 +193,48 @@ class StorageManager(object):
                 self.logger.info("There is no recipient for %s" % scan_point)
                 continue
 
-            recipients = scan_point["alert_recipients"]
-
-            cc = self.smtp["cc"]
-
-            subject = "%s: %s storage usage > %s %%" % \
-                      (self.cluster_name,
-                       scan_point["alias"],
-                       scan_point["used_percent_threshold"])
-
-            content = "%s storage mountpoint %s usage is > %s%%. " \
-                      "Oversized boundary paths (> %s) are listed in the attachment. " \
-                      "Please help reduce the size." % \
-                      (self.cluster_name,
-                       scan_point["alias"],
-                       scan_point["used_percent_threshold"],
-                       bytes2human_readable(self.overweight_threshold))
-
-            data = "size_in_bytes,owner,path\n"
+            # Group overweight nodes by user
+            user_overweight_nodes = {}
+            default_recipient = scan_point["default_recipients"]
             for node in overweight_nodes:
-                cur_node = "%s,%s,%s\n" % (node.size, node.owner,
-                                           node.path.replace(scan_point["path"],
-                                                             scan_point["alias"],
-                                                             1))
-                data += cur_node
+                if node.owner == "":
+                    user_overweight_nodes[default_recipient] = node
+                else:
+                    user_overweight_nodes[node.owner] = node
 
-            report = {
-                "filename": "oversized_boundary_paths.csv",
-                "data": data
-            }
+            for recipient, nodes in user_overweight_nodes.items():
+                self.logger.info("Overweight (> %d) boundary paths for %s are:" %
+                                 (recipient, tree.overweight_threshold))
+                for node in overweight_nodes:
+                    self.logger.info(node)
 
-            self.send_email(sender, recipients, cc, subject, content, report)
+                cc = self.smtp["cc"]
+
+                subject = "%s: %s usage > %s%% - %s" % \
+                          (self.cluster_name,
+                           scan_point["alias"],
+                           scan_point["used_percent_threshold"],
+                           recipient)
+
+                content = "%s storage mountpoint %s usage is > %s%%. " \
+                          "Full list of your oversized boundary paths (> %s) is in the attached CSV. " \
+                          "Please help reduce the size." % \
+                          (self.cluster_name,
+                           scan_point["alias"],
+                           scan_point["used_percent_threshold"],
+                           bytes2human_readable(self.overweight_threshold))
+
+                data = "size_in_bytes,owner,path\n"
+                for node in overweight_nodes:
+                    cur_node = "%s,%s,%s\n" % (node.size, node.owner,
+                                               node.path.replace(scan_point["path"],
+                                                                 scan_point["alias"],
+                                                                 1))
+                    data += cur_node
+
+                report = {
+                    "filename": "oversized_boundary_paths %s.csv" % str(int(time.time())),
+                    "data": data
+                }
+
+                self.send_email(sender, recipient, cc, subject, content, report)
