@@ -10,7 +10,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.charset import Charset, BASE64
 from email.mime.nonmultipart import MIMENonMultipart
-from path_node import bytes2human_readable
+from utils import bytes2human_readable
 
 
 class StorageManager(object):
@@ -66,11 +66,46 @@ class StorageManager(object):
         _, _, _, _, percent, _ = output.split("\n")[1].split()
         return float(percent.strip("%")) > float(scan_point["used_percent_threshold"])
 
-    def send_email(self, scan_point):
-        pass
+    def send_email(self, sender, recipients, subject, content, report):
+        """Send an alert email to recipients
+
+        # https://gist.github.com/BietteMaxime/f75ae41f7b4557274a9f
+        """
+
+        # Create message container - the correct MIME type is multipart/mixed to allow attachment.
+        full_email = MIMEMultipart("mixed")
+        full_email["Subject"] = subject
+        full_email["From"] = sender
+        full_email['To'] = recipients
+
+        # Create the body of the message (a plain-text version).
+        body = MIMEMultipart("alternative")
+        body.attach(MIMEText(content.encode("utf-8"), "plain", _charset="utf-8"))
+        full_email.attach(body)
+
+        # Create the attachment of the message in text/csv.
+        attachment = MIMENonMultipart('text', 'csv', charset='utf-8')
+        attachment.add_header('Content-Disposition', 'attachment', filename=report["filename"])
+        cs = Charset('utf-8')
+        cs.body_encoding = BASE64
+        attachment.set_payload(report["data"].encode('utf-8'), charset=cs)
+        full_email.attach(attachment)
+
+        try:
+            with smtplib.SMTP(self.smtp["smtp_url"]) as server:
+                server.starttls()
+                server.login(self.smtp["smtp_auth_username"], self.smtp['smtp_auth_password'])
+                server.sendmail(self.smtp["smtp_from"], recipients, full_email.as_string())
+                self.logger.info("Successfully sent email to %s" % recipients)
+        except smtplib.SMTPAuthenticationError:
+            self.logger.warning("The server didn\'t accept the user\\password combination.")
+        except smtplib.SMTPServerDisconnected:
+            self.logger.warning("Server unexpectedly disconnected")
+        except smtplib.SMTPException as e:
+            self.logger.exception("SMTP error occurred: " + str(e))
 
     def scan(self):
-        """Scans each scan_point and finds overweight and expired nodes."""
+        """Scans each scan_point and finds overweight nodes. Sends alert."""
         for scan_point in self.scan_points:
             if "device_mount" not in scan_point:
                 self.logger.warning("device_mount does not exist in %s. "
@@ -129,77 +164,42 @@ class StorageManager(object):
             for node in overweight_nodes:
                 self.logger.info(node)
 
-            if not "alert_recipients" in scan_point:
-                self.logger.info("There is no recipient for %s" % scan_point)
-                continue
-
-            subject = "%s: [Storage usage > %s percent for %s]" % \
-                      (self.cluster_name,
-                       scan_point["used_percent_threshold"],
-                       scan_point["alias"])
-            recipients = scan_point["alert_recipients"]
-            if not isinstance(recipients, list):
-                recipients = recipients.split(",")
-
-            #self.logger.info("")
-
-            #self.logger.info("Expired (access time < %s) boundary paths are:" %
-            #                 tree.expiry.strftime(DATETIME_FMT))
-            #for node in tree.expired_boundary_nodes:
-            #    self.logger.info(node)
-            #self.logger.info("")
-
-            #self.logger.info("Emtpy boundary paths are:")
-            #for node in tree.empty_boundary_nodes:
-            #    self.logger.info(node)
-            #self.logger.info("")
-
             if self.smtp is None:
                 self.logger.warning("stmp is not configured.")
                 continue
 
-            message = (
-                f"From: {self.smtp['smtp_from']}\r\n"
-                f"To: {';'.join(recipients)}\r\n"
-                f"MIME-Version: 1.0\r\n"
-                f"Content-type: text/html\r\n"
-                f"Subject: {subject}\r\n\r\n{body}"
-            )
+            sender = self.smtp["smtp_from"]
 
-            data = "atime,size,owner,path\n"
+            if not "alert_recipients" in scan_point:
+                self.logger.info("There is no recipient for %s" % scan_point)
+                continue
+
+            recipients = scan_point["alert_recipients"]
+
+            subject = "%s: %s storage usage > %s %%" % \
+                      (self.cluster_name,
+                       scan_point["alias"],
+                       scan_point["used_percent_threshold"])
+
+            content = "%s storage mountpoint %s usage is > %s%%. " \
+                      "Oversized boundary paths (> %s) are listed in the attachment. " \
+                      "Please help reduce the size." % \
+                      (self.cluster_name,
+                       scan_point["alias"],
+                       scan_point["used_percent_threshold"],
+                       bytes2human_readable(self.overweight_threshold))
+
+            data = "size_in_bytes,owner,path\n"
             for node in overweight_nodes:
-                data += str(node).replace(scan_point["path"], scan_point["alias"]) + "\n"
+                cur_node = "%s,%s,%s\n" % (node.size, node.uid,
+                                           node.path.replace(scan_point["path"],
+                                                             scan_point["alias"],
+                                                             1))
+                data += cur_node
 
-            # Create message container - the correct MIME type is multipart/mixed to allow attachment.
-            full_email = MIMEMultipart('mixed')
-            full_email["Subject"] = subject
-            full_email["From"] = self.smtp["smtp_from"]
-            full_email['To'] = recipients
+            report = {
+                "filename": "oversized_boundary_paths.csv",
+                "data": data
+            }
 
-            # Create the body of the message (a plain-text version).
-            description = "%s storage mountpoint %s usage is > %s percent. Oversized boundary paths (> %s) is in the attachment. Please help reduce the size." % \
-                          (self.cluster_name, scan_point["alias"], scan_point["used_percent_threshold"], bytes2human_readable(self.overweight_threshold))
-            body = MIMEMultipart("alternative")
-            body.attach(MIMEText(description.encode("utf-8"), "plain", _charset="utf-8"))
-            full_email.attach(body)
-
-            # Create the attachment of the message in text/csv.
-            attachment = MIMENonMultipart('text', 'csv', charset='utf-8')
-            attachment.add_header('Content-Disposition', 'attachment', filename="oversized_boundary_paths.csv")
-            cs = Charset('utf-8')
-            cs.body_encoding = BASE64
-            attachment.set_payload(data.encode('utf-8'), charset=cs)
-            full_email.attach(attachment)
-
-            try:
-                with smtplib.SMTP(self.smtp["smtp_url"]) as server:
-                    server.starttls()
-                    server.login(self.smtp["smtp_auth_username"], self.smtp['smtp_auth_password'])
-                    server.sendmail(self.smtp["smtp_from"], recipients, full_email.as_string())
-                    self.logger.info(f"Email sent to {', '.join(recipients)}")
-            except smtplib.SMTPAuthenticationError:
-                self.logger.warning('The server didn\'t accept the user\\password combination.')
-            except smtplib.SMTPServerDisconnected:
-                self.logger.warning('Server unexpectedly disconnected')
-            except smtplib.SMTPException as e:
-                self.logger.exception('SMTP error occurred: ' + str(e))
+            self.send_email(sender, recipients, subject, content, report)
