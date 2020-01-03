@@ -3,14 +3,15 @@ import time
 import os
 import subprocess
 import smtplib
+import requests
+import json
 
 from path_tree import PathTree
-from path_node import G, DAY
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.charset import Charset, BASE64
 from email.mime.nonmultipart import MIMENonMultipart
-from utils import bytes2human_readable
+from utils import bytes2human_readable, G, DAY
 
 
 class StorageManager(object):
@@ -29,6 +30,7 @@ class StorageManager(object):
         self.smtp = smtp
         self.cluster_name = cluster_name
 
+        self.restful_url = self.config.get("restful_url", "http://192.168.255.1:5000")
         self.execution_interval_days = self.config.get("execution_interval_days", 1)
         self.last_now = None
         self.scan_points = self.config.get("scan_points", [])
@@ -105,8 +107,27 @@ class StorageManager(object):
         except smtplib.SMTPException as e:
             self.logger.exception("SMTP error occurred: " + str(e))
 
+    def get_uid_user(self):
+        """Gets UID -> User mapping from restful url"""
+        resp = requests.get(self.restful_url)
+        if resp.status_code != 200:
+            return {}
+
+        data = json.loads(resp.text)
+        uid_user = {}
+        for item in data:
+            try:
+                uid = int(item[1])
+                user = item[0].split("@")[0]
+                uid_user[uid] = user
+            except:
+                pass
+        return uid_user
+
     def scan(self):
         """Scans each scan_point and finds overweight nodes. Sends alert."""
+        uid_user = self.get_uid_user()
+
         for scan_point in self.scan_points:
             if "device_mount" not in scan_point:
                 self.logger.warning("device_mount does not exist in %s. "
@@ -149,7 +170,7 @@ class StorageManager(object):
 
             self.logger.info("Scanning scan_point %s" % scan_point)
 
-            tree = PathTree(scan_point)
+            tree = PathTree(scan_point, uid_user=uid_user)
             tree.walk()
 
             root = tree.root
