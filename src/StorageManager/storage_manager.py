@@ -132,7 +132,7 @@ class StorageManager(object):
                       (self.cluster_name,
                        scan_point["alias"],
                        scan_point["used_percent_threshold"])
-            body = "\n".join([node.replace(scan_point["path"], scan_point["alias"]) for node in overweight_nodes])
+            body = "\r\n".join([str(node).replace(scan_point["path"], scan_point["alias"]) for node in overweight_nodes])
             recipients = scan_point["alert_recipients"]
             if not isinstance(recipients, list):
                 recipients = recipients.split(",")
