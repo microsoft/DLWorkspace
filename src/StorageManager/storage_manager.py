@@ -2,6 +2,7 @@ import logging
 import time
 import os
 import subprocess
+import smtplib
 
 from path_tree import PathTree
 from path_node import DATETIME_FMT, G, DAY
@@ -17,9 +18,12 @@ class StorageManager(object):
         last_now: The unix epoch time in seconds.
         scan_points: A list of scan point configurations.
     """
-    def __init__(self, config):
+    def __init__(self, config, smtp, cluster_name):
         self.logger = logging.getLogger()
         self.config = config
+        self.smtp = smtp
+        self.cluster_name = cluster_name
+
         self.execution_interval_days = self.config.get("execution_interval_days", 1)
         self.last_now = None
         self.scan_points = self.config.get("scan_points", [])
@@ -124,8 +128,11 @@ class StorageManager(object):
                 self.logger.info("There is no recipient for %s" % scan_point)
                 continue
 
-            subject = "[Storage Alert][%s][%s][Used > %s\%]" % (self.config["cluster_name_friendly"], scan_point["alias"], scan_point["used_percent_threshold"])
-            body = "\n".join([node.replace(scan_point["path"], scan_point["alias"])])
+            subject = "[Storage Alert][%s][%s][Used > %s percent]" % \
+                      (self.cluster_name,
+                       scan_point["alias"],
+                       scan_point["used_percent_threshold"])
+            body = "\n".join([node.replace(scan_point["path"], scan_point["alias"]) for node in overweight_nodes])
             recipients = scan_point["alert_recipients"]
             if not isinstance(recipients, list):
                 recipients = recipients.split(",")
@@ -143,15 +150,12 @@ class StorageManager(object):
             #    self.logger.info(node)
             #self.logger.info("")
 
-
-
-            smtp = self.config["smtp"]
-            if smtp is None:
+            if self.smtp is None:
                 self.logger.warning("stmp is not configured.")
                 continue
 
             message = (
-                f"From: {smtp['smtp_from']}\r\n"
+                f"From: {self.smtp['smtp_from']}\r\n"
                 f"To: {';'.join(recipients)}\r\n"
                 f"MIME-Version: 1.0\r\n"
                 f"Content-type: text/html\r\n"
@@ -159,11 +163,11 @@ class StorageManager(object):
             )
 
             try:
-                with smtplib.SMTP(smtp["smtp_url"]) as server:
+                with smtplib.SMTP(self.smtp["smtp_url"]) as server:
                     server.starttls()
-                    server.login(smtp["smtp_auth_username"], smtp['smtp_auth_password'])
-                    server.sendmail(smtp["smtp_from"], recepients, message)
-                    self.logger.info(f"Email sent to {', '.join(recepients)}")
+                    server.login(self.smtp["smtp_auth_username"], self.smtp['smtp_auth_password'])
+                    server.sendmail(self.smtp["smtp_from"], recipients, message)
+                    self.logger.info(f"Email sent to {', '.join(recipients)}")
             except smtplib.SMTPAuthenticationError:
                 self.logger.warning('The server didn\'t accept the user\\password combination.')
             except smtplib.SMTPServerDisconnected:

@@ -34,7 +34,10 @@ def main():
             logger.info("storage_monitor is not enabled. Exiting ...")
             sys.exit(0)
 
-        sm = StorageManager(config)
+        smtp = config.get("smtp", None)
+        cluster_name = config.get("cluster_name_friendly", None)
+
+        sm = StorageManager(sm_config, smtp, cluster_name)
         try:
             sm.run()
         except Exception as e:
