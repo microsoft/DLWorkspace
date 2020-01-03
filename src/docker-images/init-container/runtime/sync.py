@@ -70,18 +70,31 @@ def create_own_config(k8s_core_api, job_name, pod_name, ip, ssh_port):
 
     body = k8s_client.V1ConfigMap(data={"pod.json": data}, metadata=metadata)
 
-    try:
-        k8s_core_api.create_namespaced_config_map(
-                namespace=job_namespace,
-                body=body,
-                )
-    except ApiException as e:
-        logger.exception("create configmap with data %s failed", data)
-        sys.exit(ERROR_EXIT_CODE["k8s_api"])
-    except Exception as e:
-        logger.exception("create configmap with data %s failed", data)
-        sys.exit(ERROR_EXIT_CODE["network"])
-    return config_name
+    for i in range(2):
+        try:
+            k8s_core_api.create_namespaced_config_map(
+                    namespace=job_namespace,
+                    body=body,
+                    )
+        except ApiException as e:
+            if e.status == 409:
+                logger.info("configmap already exist, maybe from previous retry, delete it, retry %d", i)
+                try:
+                    api_response = k8s_core_api.delete_namespaced_config_map(
+                            config_name,
+                            job_namespace,
+                            )
+                except ApiException as e:
+                    logger.warning("delete configmap failed", exc_info=True)
+                continue
+            else:
+                logger.exception("create configmap with data %s failed", data)
+                sys.exit(ERROR_EXIT_CODE["k8s_api"])
+        except Exception as e:
+            logger.exception("create configmap with data %s failed", data)
+            sys.exit(ERROR_EXIT_CODE["network"])
+        return config_name
+    sys.exit(ERROR_EXIT_CODE["k8s_api"])
 
 def export_env(path, envs):
     with open(path, "w") as f:
