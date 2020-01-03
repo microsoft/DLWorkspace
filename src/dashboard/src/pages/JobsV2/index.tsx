@@ -29,7 +29,7 @@ import MyJobs from './MyJobs';
 import AllJobs from './AllJobs';
 
 interface RouteParams {
-  cluster: string;
+  clusterId: string;
 }
 
 const TabView: FunctionComponent = () => {
@@ -77,7 +77,7 @@ const Jobs: FunctionComponent = () => {
   const { clusters } = useContext(ClustersContext);
 
   const history = useHistory();
-  const { cluster: clusterId } = useParams<RouteParams>();
+  const { clusterId } = useParams<RouteParams>();
 
   const cluster = useMemo(() => {
     return clusters.filter(cluster => cluster.id === clusterId)[0]
