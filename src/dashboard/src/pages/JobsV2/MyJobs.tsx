@@ -17,7 +17,7 @@ import Error from '../../components/Error';
 
 import ClusterContext from './ClusterContext';
 import useActions from './useActions';
-import { renderDate, sortDate } from './tableUtils';
+import { renderStatus, renderDate, sortDate } from './tableUtils';
 
 const getSubmittedDate = (job: any) => new Date(job['jobTime']);
 const getStartedDate = (job: any) => new Date(job['jobStatusDetail'] && job['jobStatusDetail'][0]['startedAt']);
@@ -51,7 +51,7 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({ jobs, onExpectMoreJobs }
   const columns = useMemo<Array<Column<any>>>(() => [
     { title: 'Id', type: 'string', field: 'jobId' },
     { title: 'Name', type: 'string', field: 'jobName' },
-    { title: 'Status', type: 'string', field: 'jobStatus' },
+    { title: 'Status', type: 'string', field: 'jobStatus', render: renderStatus },
     { title: 'GPU', type: 'numeric', field: 'jobParams.resourcegpu' },
     { title: 'Preempable', type: 'boolean', field: 'jobParams.preemptionAllowed'},
     { title: 'Submitted', type: 'datetime',
@@ -62,6 +62,7 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({ jobs, onExpectMoreJobs }
       render: renderDate(getFinishedDate), customSort: sortDate(getFinishedDate) },
   ], []);
   const options = useMemo<Options>(() => ({
+    padding: 'dense',
     actionsColumnIndex: -1,
     pageSize
   }), [pageSize]);
@@ -105,7 +106,7 @@ const MyJobs: FunctionComponent = () => {
     let timeout: number | undefined;
     if (data !== undefined) {
       setJobs(data);
-      timeout = setTimeout(get, 10000);
+      timeout = setTimeout(get, 3000);
     }
     return () => {
       if (timeout !== undefined) {
