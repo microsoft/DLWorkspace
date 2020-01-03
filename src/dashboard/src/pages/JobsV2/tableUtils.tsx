@@ -8,7 +8,7 @@ import {
   HourglassEmpty,
   HourglassFull,
   CheckCircleOutline,
-  Error,
+  ErrorOutline,
   PauseCircleFilled,
   PauseCircleOutline,
   RemoveCircle,
@@ -23,7 +23,7 @@ export const renderStatus = (job: any) => {
     : status === 'scheduling' ? <HourglassEmpty/>
     : status === 'running' ? <HourglassFull/>
     : status === 'finished' ? <CheckCircleOutline/>
-    : status === 'failed' ? <Error/>
+    : status === 'failed' ? <ErrorOutline/>
     : status === 'pausing' ? <PauseCircleFilled/>
     : status === 'paused' ? <PauseCircleOutline/>
     : status === 'killing' ? <RemoveCircle/>
