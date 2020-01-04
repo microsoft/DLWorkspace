@@ -3142,7 +3142,7 @@ def start_kube_service(servicename, config_dir):
                     time.sleep(int(filename.split(" ")[1]))
                 else:
                     filename = filename.strip('\n')
-                    start_one_kube_service(os.path.join(dirname,filename))
+                    start_one_kube_service(os.path.join(dirname,filename), config_dir)
     else:
         start_one_kube_service(fname)
 
