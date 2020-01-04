@@ -5,6 +5,7 @@ import { BrowserRouter, Redirect, Route, RouteComponentProps, Switch } from "rea
 import 'typeface-roboto';
 import 'typeface-roboto-mono';
 
+import Helmet from 'react-helmet';
 import { Box, CssBaseline, createMuiTheme, CircularProgress } from '@material-ui/core';
 import { ThemeProvider } from "@material-ui/styles";
 import { SnackbarProvider } from "notistack";
@@ -101,17 +102,21 @@ const Layout: React.FC<RouteComponentProps> = ({ location, history }) => {
 }
 
 const App: React.FC<BootstrapProps> = (props) => (
-  <Contexts {...props}>
-    <CssBaseline/>
-    <Box display="flex" minHeight="100vh" maxWidth="100vw">
-      <React.Suspense fallback={Loading}>
-        <Switch>
-          <Route exact path="/sign-in" component={SignIn}/>
-          <Route component={Layout}/>
-        </Switch>
-      </React.Suspense>
-    </Box>
-  </Contexts>
+    <Contexts {...props}>
+      <Helmet
+        titleTemplate="%s - Deep Learning Training Service"
+        defaultTitle="Deep Learning Training Service"
+      />
+      <CssBaseline/>
+      <Box display="flex" minHeight="100vh" maxWidth="100vw">
+        <React.Suspense fallback={Loading}>
+          <Switch>
+            <Route exact path="/sign-in" component={SignIn}/>
+            <Route component={Layout}/>
+          </Switch>
+        </React.Suspense>
+      </Box>
+    </Contexts>
 );
 
 export default App;

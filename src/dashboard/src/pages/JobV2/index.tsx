@@ -8,6 +8,7 @@ import React, {
   useState
 } from 'react';
 import { useParams } from 'react-router-dom';
+import Helmet from 'react-helmet';
 import {
   Container,
   Paper,
@@ -164,6 +165,7 @@ const JobContent: FunctionComponent = () => {
 
   return (
     <Context.Provider value={{ cluster: clusterData, job }}>
+      <Helmet title={`(${job['jobStatus']}) ${job['jobName']}`}/>
       <Container maxWidth="lg">
         <Paper elevation={2}>
           <>
@@ -180,7 +182,9 @@ const JobContent: FunctionComponent = () => {
 const Job: FunctionComponent = () => {
   const { clusterId, jobId } = useParams<RouteParams>();
   const key = useMemo(() => `${clusterId}/${jobId}`, [clusterId, jobId]);
-  return <JobContent key={key}/>;
+  return (
+    <JobContent key={key}/>
+  );
 }
 
 export default Job;
