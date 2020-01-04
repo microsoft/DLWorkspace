@@ -8,12 +8,12 @@ import React, {
 } from 'react';
 import { useHistory } from 'react-router-dom';
 import MaterialTable, { Column, Options } from 'material-table';
+import { useSnackbar } from 'notistack';
 import useFetch from 'use-http-2';
 
 import TeamsContext from '../../contexts/Teams';
 
 import Loading from '../../components/Loading';
-import Error from '../../components/Error';
 
 import ClusterContext from './ClusterContext';
 import useActions from './useActions';
@@ -87,6 +87,7 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({ jobs, onExpectMoreJobs }
 };
 
 const MyJobs: FunctionComponent = () => {
+  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const { cluster } = useContext(ClusterContext);
   const { selectedTeam } = useContext(TeamsContext);
   const [limit, setLimit] = useState(20);
@@ -111,6 +112,17 @@ const MyJobs: FunctionComponent = () => {
       }
     }
   }, [data, get]);
+  useEffect(() => {
+    if (error !== undefined) {
+      const key = enqueueSnackbar(`Failed to fetch jobs from cluster: ${cluster.id}`, {
+        variant: 'error',
+        persist: true
+      });
+      return () => {
+        if (key !== null) closeSnackbar(key);
+      }
+    }
+  }, [error, enqueueSnackbar, closeSnackbar, cluster.id]);
 
   if (jobs !== undefined) return (
     <JobsTable
@@ -118,7 +130,7 @@ const MyJobs: FunctionComponent = () => {
       onExpectMoreJobs={onExpectMoreJobs}
     />
   );
-  if (error) return <Error message="Failed to fetch the data, try reloading the page."/>;
+  if (error) return null;
 
   return <Loading/>;
 };

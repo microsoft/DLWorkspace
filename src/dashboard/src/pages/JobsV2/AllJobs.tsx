@@ -17,7 +17,6 @@ import useFetch from 'use-http-2';
 import TeamsContext from '../../contexts/Teams';
 
 import Loading from '../../components/Loading';
-import ErrorComponent from '../../components/Error';
 
 import ClusterContext from './ClusterContext';
 import useActions from './useActions';
@@ -162,6 +161,7 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({ title, jobs }) => {
 }
 
 const AllJobs: FunctionComponent = () => {
+  const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const { cluster } = useContext(ClusterContext);
   const { selectedTeam } = useContext(TeamsContext);
   const { error, data, get } = useFetch(
@@ -181,6 +181,17 @@ const AllJobs: FunctionComponent = () => {
       }
     }
   }, [data, get]);
+  useEffect(() => {
+    if (error !== undefined) {
+      const key = enqueueSnackbar(`Failed to fetch jobs from cluster: ${cluster.id}`, {
+        variant: 'error',
+        persist: true
+      });
+      return () => {
+        if (key !== null) closeSnackbar(key);
+      }
+    }
+  }, [error, enqueueSnackbar, closeSnackbar, cluster.id]);
 
   const runningJobs = useMemo(() => {
     if (jobs === undefined) return undefined;
@@ -207,7 +218,6 @@ const AllJobs: FunctionComponent = () => {
     return pausedJobs
   }, [jobs]);
 
-
   if (jobs !== undefined) return (
     <>
       {runningJobs && <JobsTable title="Running Jobs" jobs={runningJobs}/>}
@@ -217,7 +227,7 @@ const AllJobs: FunctionComponent = () => {
       {jobs.length === 0 && <JobsTable title="All Jobs" jobs={jobs} />}
     </>
   );
-  if (error) return <ErrorComponent message="Failed to fetch the data, try reloading the page."/>;
+  if (error !== undefined) return null;
 
   return <Loading/>;
 };
