@@ -712,6 +712,28 @@ class AddUser(Resource):
 api.add_resource(AddUser, '/AddUser')
 
 
+class GetAllUsers(Resource):
+    def get(self):
+        data_handler = None
+        try:
+            data_handler = DataHandler()
+            ret = data_handler.GetUsers()
+            resp = jsonify(ret)
+            resp.headers["Access-Control-Allow-Origin"] = "*"
+            resp.headers["dataType"] = "json"
+            return resp
+        except Exception as e:
+            return "Internal Server Error. " + str(e), 400
+        finally:
+            if data_handler is not None:
+                data_handler.Close()
+
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(GetAllUsers, '/GetAllUsers')
+
+
 class UpdateAce(Resource):
     def get(self):
         parser = reqparse.RequestParser()

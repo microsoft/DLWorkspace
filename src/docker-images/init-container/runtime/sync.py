@@ -24,6 +24,7 @@ ERROR_EXIT_CODE = {
         "network": 2,
         "k8s_api": 3,
         "port": 4,
+        "wait_sync_fail": 5,
         }
 
 def find_free_port(min=40000, max=49999):
@@ -132,17 +133,21 @@ def main(args):
     labels = "run=%s" % (job_name)
 
     items = []
-    for i in range(600): # wait at most 10 minutes
+    for i in range(3600): # wait at most 1 hour
         resp = k8s_core_api.list_namespaced_config_map(
             namespace=job_namespace,
             label_selector=labels,
         )
 
-        logging.debug("Got %d config maps, expected %d", len(resp.items), expected_num)
+        logger.debug("Got %d config maps, expected %d", len(resp.items), expected_num)
         if len(resp.items) == expected_num:
             items = resp.items
             break
         time.sleep(1)
+
+    if len(items) != expected_num:
+        logger.error("timeout in waiting other's configmap, maybe because resource not enough")
+        sys.exit(ERROR_EXIT_CODE["wait_sync_fail"])
 
     # SD stands for service discovery
     envs = {

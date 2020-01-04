@@ -15,17 +15,20 @@ class PathTree(object):
         expiry: Nodes are expired if access time is earlier than this.
         root: Tree root that holds the file system PathTree.
     """
-    def __init__(self, config):
+    def __init__(self, config, uid_user=None):
         """Constructs a PathTree object.
 
         Args:
             config: Configuration for creating PathTree.
+            uid_user: UID -> user mapping
         """
         self.logger = logging.getLogger()
         self.path = config["path"]
         self.overweight_threshold = config["overweight_threshold"]
         self.expiry = datetime.fromtimestamp(config["now"]) - \
             timedelta(days=config["expiry_days"])
+
+        self.uid_user = uid_user
 
         self.root = None
 
@@ -52,7 +55,7 @@ class PathTree(object):
             self.logger.warning("Ignore path %s due to exception %s" % (root, e))
             return None
 
-        root_node = PathNode(root)
+        root_node = PathNode(root, uid_user=self.uid_user)
 
         dirs, nondirs = [], []
         for pathname in pathnames:
@@ -74,16 +77,24 @@ class PathTree(object):
                 root_node.subtree_size += child_dir_node.subtree_size
                 if child_dir_node.subtree_atime > root_node.subtree_atime:
                     root_node.subtree_atime = child_dir_node.subtree_atime
+                if child_dir_node.subtree_mtime > root_node.subtree_mtime:
+                    root_node.subtree_mtime = child_dir_node.subtree_mtime
+                if child_dir_node.subtree_ctime > root_node.subtree_ctime:
+                    root_node.subtree_ctime = child_dir_node.subtree_ctime
                 root_node.num_subtree_nodes += child_dir_node.num_subtree_nodes
                 root_node.num_subtree_files += child_dir_node.num_subtree_files
 
         for pathname in nondirs:
             child_file = os.path.join(root, pathname)
-            path_node = PathNode(child_file)
+            path_node = PathNode(child_file, uid_user=self.uid_user)
             children.append(path_node)
             root_node.subtree_size += path_node.subtree_size
             if path_node.subtree_atime > root_node.subtree_atime:
                 root_node.subtree_atime = path_node.subtree_atime
+            if path_node.subtree_mtime > root_node.subtree_mtime:
+                root_node.subtree_mtime = path_node.subtree_mtime
+            if path_node.subtree_ctime > root_node.subtree_ctime:
+                root_node.subtree_ctime = path_node.subtree_ctime
             root_node.num_subtree_nodes += path_node.num_subtree_nodes
             root_node.num_subtree_files += path_node.num_subtree_files
 

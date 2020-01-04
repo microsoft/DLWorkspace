@@ -86,7 +86,7 @@ then
     for host in ${host_list}
     do
         succ=false
-        for i in `seq 1 100` ; do
+        for i in `seq 1 3600` ; do
             echo "testing $host"
             ssh $host "echo 1"
             # do not add code here

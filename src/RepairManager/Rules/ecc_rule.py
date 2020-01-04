@@ -39,7 +39,7 @@ def get_ECC_error_data(ecc_url):
         response = requests.get(ecc_url)
         if response:
             data = json.loads(response.text)
-            
+
             if data:
                 ecc_metrics = data['data']['result']
                 logging.info('ECC error metrics from prometheus: ' + json.dumps(ecc_metrics))

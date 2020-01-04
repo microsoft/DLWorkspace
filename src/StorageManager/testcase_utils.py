@@ -1,3 +1,8 @@
+import os, time
+os.environ["TZ"] = "UTC"
+time.tzset()
+
+
 class DummyNodeStat(object):
     def __init__(self,
                  size=None,
