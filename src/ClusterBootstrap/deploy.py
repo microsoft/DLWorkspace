@@ -3136,7 +3136,7 @@ def start_kube_service( servicename ):
                     filename = filename.strip('\n')
                     start_one_kube_service(os.path.join(dirname,filename))
     else:
-        start_one_kube_service(fname, config_dir)
+        start_one_kube_service(fname)
 
 def stop_kube_service( servicename ):
     fname = get_service_yaml( servicename )
