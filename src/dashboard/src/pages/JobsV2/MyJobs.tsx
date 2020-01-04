@@ -66,23 +66,20 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({ jobs, onExpectMoreJobs }
     actionsColumnIndex: -1,
     pageSize
   }), [pageSize]);
-  const { kill, pause, resume, component } = useActions();
+  const { kill, pause, resume } = useActions();
   const actions = [kill, pause, resume];
 
   return (
-    <>
-      <MaterialTable
-        title="My Jobs"
-        columns={columns}
-        data={jobs}
-        options={options}
-        actions={actions}
-        onRowClick={onRowClick}
-        onChangeRowsPerPage={onChangeRowsPerPage}
-        onChangePage={onChangePage}
-      />
-      {component}
-    </>
+    <MaterialTable
+      title="My Jobs"
+      columns={columns}
+      data={jobs}
+      options={options}
+      actions={actions}
+      onRowClick={onRowClick}
+      onChangeRowsPerPage={onChangeRowsPerPage}
+      onChangePage={onChangePage}
+    />
   );
 };
 

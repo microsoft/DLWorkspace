@@ -141,22 +141,19 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({ title, jobs }) => {
     pageSize,
     padding: 'dense'
   }), [pageSize]);
-  const { approve, kill, pause, resume, component } = useActions();
+  const { approve, kill, pause, resume } = useActions();
   const actions = [approve, kill, pause, resume];
 
   return (
-    <>
-      <MaterialTable
-        title={title}
-        columns={columns}
-        data={jobs}
-        options={options}
-        actions={actions}
-        onRowClick={onRowClick}
-        onChangeRowsPerPage={onChangeRowsPerPage}
-      />
-      {component}
-    </>
+    <MaterialTable
+      title={title}
+      columns={columns}
+      data={jobs}
+      options={options}
+      actions={actions}
+      onRowClick={onRowClick}
+      onChangeRowsPerPage={onChangeRowsPerPage}
+    />
   );
 }
 

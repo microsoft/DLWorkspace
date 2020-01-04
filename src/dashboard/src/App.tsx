@@ -15,6 +15,8 @@ import UserContext, { Provider as UserProvider } from "./contexts/User";
 import { Provider as ClustersProvider } from "./contexts/Clusters";
 import { Provider as TeamProvider } from './contexts/Teams';
 
+import { ConfirmProvider } from './hooks/useConfirm';
+
 import AppBar from "./layout/AppBar";
 import Content from "./layout/Content";
 import Drawer from "./layout/Drawer";
@@ -48,13 +50,15 @@ const Contexts: React.FC<BootstrapProps> = ({ config, user, children }) => {
       <ConfigProvider {...config}>
         <UserProvider {...user}>
           <SnackbarProvider>
-            <TeamProvider>
-              <ClustersProvider>
-                <ThemeProvider theme={theme}>
-                  {children}
-                </ThemeProvider>
-              </ClustersProvider>
-            </TeamProvider>
+            <ConfirmProvider>
+              <TeamProvider>
+                <ClustersProvider>
+                  <ThemeProvider theme={theme}>
+                    {children}
+                  </ThemeProvider>
+                </ClustersProvider>
+              </TeamProvider>
+            </ConfirmProvider>
           </SnackbarProvider>
         </UserProvider>
       </ConfigProvider>

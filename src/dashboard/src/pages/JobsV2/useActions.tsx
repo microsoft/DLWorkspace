@@ -31,7 +31,7 @@ const RESUMABLE_STATUSES = [
 
 const useActions = () => {
   const { cluster } = useContext(ClusterContext);
-  const { confirm, dialog } = useConfirm();
+  const confirm = useConfirm();
   const { enqueueSnackbar } = useSnackbar();
 
   const updateStatus = useCallback((jobId: string, status: string) => {
@@ -145,8 +145,7 @@ const useActions = () => {
       onClick: onResume
     }
   }, [onResume]);
-  const component = dialog;
-  return { approve, kill, pause, resume, component };
+  return { approve, kill, pause, resume };
 }
 
 export default useActions;
