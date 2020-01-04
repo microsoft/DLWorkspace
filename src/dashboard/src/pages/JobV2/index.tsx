@@ -91,7 +91,6 @@ const UnmanagableJob: FunctionComponent = () => {
         {index === 0 ? <Brief/> : <div/>}
         {index === 1 ? <Metrics/> : <div/>}
         {index === 2 ? <Console/> : <div/>}
-        <div/>
       </SwipeableViews>
     </>
   );
@@ -165,7 +164,7 @@ const JobContent: FunctionComponent = () => {
 
   return (
     <Context.Provider value={{ cluster: clusterData, job }}>
-      <Container maxWidth={false}>
+      <Container maxWidth="lg">
         <Paper elevation={2}>
           <>
             {manageable && <ManagableJob/>}
