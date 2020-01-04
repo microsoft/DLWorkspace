@@ -47,6 +47,9 @@ router.put('/clusters/:clusterId/jobs/:jobId/priority',
   require('./middlewares/user')(),
   require('./middlewares/body')('priority'),
   require('./controllers/cluster/job/priority.put'))
+router.get('/clusters/:clusterId/jobs/:jobId/log',
+  require('./middlewares/user')(),
+  require('./controllers/cluster/job/log'))
 
 router.get('/clusters/:clusterId/jobs/:jobId/commands',
   require('./middlewares/user')(),
