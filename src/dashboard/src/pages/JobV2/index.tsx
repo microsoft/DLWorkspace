@@ -35,6 +35,7 @@ import ClustersContext from '../../contexts/Clusters';
 import Loading from '../../components/Loading';
 
 import useActions from '../../hooks/useActions';
+import useChange from '../../hooks/useChange';
 
 import Context from './Context';
 import Brief from './Brief';
@@ -213,6 +214,12 @@ const JobContent: FunctionComponent = () => {
       }
     }
   }, [jobData, getJob]);
+
+  useChange((status, prevStatus) => {
+    if (prevStatus !== undefined) {
+      enqueueSnackbar(`Job is ${status} now.`, { variant: "info" });
+    }
+  }, job && job['jobStatus'])
 
   if (job === undefined) {
     return <Loading/>;
