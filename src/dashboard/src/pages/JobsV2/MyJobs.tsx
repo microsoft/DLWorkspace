@@ -12,11 +12,10 @@ import { useSnackbar } from 'notistack';
 import useFetch from 'use-http-2';
 
 import TeamsContext from '../../contexts/Teams';
-
+import useActions from '../../hooks/useActions';
 import Loading from '../../components/Loading';
 
 import ClusterContext from './ClusterContext';
-import useActions from './useActions';
 import { renderStatus, renderDate, sortDate } from './tableUtils';
 
 const getSubmittedDate = (job: any) => new Date(job['jobTime']);
@@ -66,8 +65,8 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({ jobs, onExpectMoreJobs }
     actionsColumnIndex: -1,
     pageSize
   }), [pageSize]);
-  const { kill, pause, resume } = useActions();
-  const actions = [kill, pause, resume];
+  const { kill, pause, resume } = useActions(cluster.id);
+  const actions = [pause, resume, kill];
 
   return (
     <MaterialTable

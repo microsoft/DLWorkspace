@@ -69,8 +69,10 @@ const Console: FunctionComponent = () => {
   }
 
   return (
-    <Box m={0} p={1} component="pre">
-      {log}
+    <Box p={1} style={{ overflow: 'auto' }}>
+      <Box m={0} component="pre">
+        {log}
+      </Box>
     </Box>
   );
 }

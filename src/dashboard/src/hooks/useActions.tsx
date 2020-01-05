@@ -1,24 +1,11 @@
-import {
-  useCallback,
-  useContext
-} from 'react';
+import { useCallback } from 'react';
 import { useSnackbar } from 'notistack';
 import { Action } from 'material-table';
 
-import useConfirm from '../../hooks/useConfirm';
-
-import ClusterContext from './ClusterContext';
+import useConfirm from './useConfirm';
 
 const APPROVABLE_STATUSES = [
   'unapproved'
-];
-const KILLABLE_STATUSES = [
-  'unapproved',
-  'queued',
-  'scheduling',
-  'running',
-  'pausing',
-  'paused'
 ];
 const PAUSABLE_STATUSES = [
   'queued',
@@ -28,14 +15,21 @@ const PAUSABLE_STATUSES = [
 const RESUMABLE_STATUSES = [
   'paused'
 ];
+const KILLABLE_STATUSES = [
+  'unapproved',
+  'queued',
+  'scheduling',
+  'running',
+  'pausing',
+  'paused'
+];
 
-const useActions = () => {
-  const { cluster } = useContext(ClusterContext);
+const useActions = (clusterId: string) => {
   const confirm = useConfirm();
   const { enqueueSnackbar } = useSnackbar();
 
   const updateStatus = useCallback((jobId: string, status: string) => {
-    const url = `/api/clusters/${cluster.id}/jobs/${jobId}/status`;
+    const url = `/api/clusters/${clusterId}/jobs/${jobId}/status`;
     return fetch(url, {
       method: 'PUT',
       headers: {
@@ -43,7 +37,7 @@ const useActions = () => {
       },
       body: JSON.stringify({ status })
     })
-  }, [cluster.id])
+  }, [clusterId])
 
   const onApprove = useCallback((event: any, job: any) => {
     const title = `${job.jobName}(${job.jobId})`;
@@ -56,22 +50,6 @@ const useActions = () => {
           enqueueSnackbar(`${title} is approved.`, { variant: 'success' });
         } else {
           enqueueSnackbar(`${title} is failed to approve.`, { variant: 'error' });
-        }
-      });
-    });
-  }, [confirm, enqueueSnackbar, updateStatus]);
-
-  const onKill = useCallback((event: any, job: any) => {
-    const title = `${job.jobName}(${job.jobId})`;
-    return confirm(`Kill job ${title} ?`).then((answer) => {
-      if (answer === false) return;
-
-      enqueueSnackbar(`${title} is being killed.`);
-      return updateStatus(job.jobId, 'killing').then((response) => {
-        if (response.ok) {
-          enqueueSnackbar(`${title} is killed.`, { variant: 'success' });
-        } else {
-          enqueueSnackbar(`${title} is failed to kill.`, { variant: 'error' });
         }
       });
     });
@@ -109,6 +87,22 @@ const useActions = () => {
     });
   }, [confirm, enqueueSnackbar, updateStatus]);
 
+  const onKill = useCallback((event: any, job: any) => {
+    const title = `${job.jobName}(${job.jobId})`;
+    return confirm(`Kill job ${title} ?`).then((answer) => {
+      if (answer === false) return;
+
+      enqueueSnackbar(`${title} is being killed.`);
+      return updateStatus(job.jobId, 'killing').then((response) => {
+        if (response.ok) {
+          enqueueSnackbar(`${title} is killed.`, { variant: 'success' });
+        } else {
+          enqueueSnackbar(`${title} is failed to kill.`, { variant: 'error' });
+        }
+      });
+    });
+  }, [confirm, enqueueSnackbar, updateStatus]);
+
   const approve = useCallback((job: any): Action<any> => {
     const hidden = APPROVABLE_STATUSES.indexOf(job['jobStatus']) === -1;
     return {
@@ -118,15 +112,6 @@ const useActions = () => {
       onClick: onApprove
     }
   }, [onApprove]);
-  const kill = useCallback((job: any): Action<any> => {
-    const hidden = KILLABLE_STATUSES.indexOf(job['jobStatus']) === -1;
-    return {
-      hidden,
-      icon: 'clear',
-      tooltip: 'Kill',
-      onClick: onKill
-    }
-  }, [onKill]);
   const pause = useCallback((job: any): Action<any> => {
     const hidden = PAUSABLE_STATUSES.indexOf(job['jobStatus']) === -1;
     return {
@@ -145,7 +130,16 @@ const useActions = () => {
       onClick: onResume
     }
   }, [onResume]);
-  return { approve, kill, pause, resume };
+  const kill = useCallback((job: any): Action<any> => {
+    const hidden = KILLABLE_STATUSES.indexOf(job['jobStatus']) === -1;
+    return {
+      hidden,
+      icon: 'clear',
+      tooltip: 'Kill',
+      onClick: onKill
+    }
+  }, [onKill]);
+  return { approve, pause, resume, kill };
 }
 
 export default useActions;

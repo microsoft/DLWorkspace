@@ -16,7 +16,8 @@ import {
   InputLabel,
   Paper,
   Tabs,
-  Tab
+  Tab,
+  Toolbar
 } from '@material-ui/core';
 import SwipeableViews from 'react-swipeable-views';
 
@@ -89,10 +90,12 @@ const Jobs: FunctionComponent = () => {
 
   return (
     <Container maxWidth={false}>
-      <FormControl fullWidth>
-        <InputLabel>Choose Cluster</InputLabel>
-        <ClusterSelector defaultId={clusterId} onChange={onClusterChange}/>
-      </FormControl>
+      <Toolbar disableGutters>
+        <FormControl fullWidth>
+          <InputLabel>Choose Cluster</InputLabel>
+          <ClusterSelector defaultId={clusterId} onChange={onClusterChange}/>
+        </FormControl>
+      </Toolbar>
       {
         cluster !== undefined
           ? <ClusterJobs key={cluster.id} cluster={cluster}/>

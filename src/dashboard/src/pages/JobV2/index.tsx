@@ -7,14 +7,25 @@ import React, {
   useMemo,
   useState
 } from 'react';
-import { useParams } from 'react-router-dom';
+import {
+  Link,
+  useParams
+} from 'react-router-dom';
 import Helmet from 'react-helmet';
 import {
   Container,
+  IconButton,
   Paper,
   Tabs,
-  Tab
+  Tab,
+  Toolbar,
+  Typography,
+  Tooltip,
+  Icon
 } from '@material-ui/core';
+import {
+  ArrowBack
+} from '@material-ui/icons';
 import SwipeableViews from 'react-swipeable-views';
 import { useSnackbar } from 'notistack';
 import useFetch from 'use-http-2';
@@ -23,11 +34,60 @@ import UserContext from '../../contexts/User';
 import ClustersContext from '../../contexts/Clusters';
 import Loading from '../../components/Loading';
 
+import useActions from '../../hooks/useActions';
+
 import Context from './Context';
 import Brief from './Brief';
 import Endpoints from './Endpoints';
 import Metrics from './Metrics';
 import Console from './Console';
+
+interface RouteParams {
+  clusterId: string;
+  jobId: string;
+}
+
+const JobToolbar: FunctionComponent<{ manageable: boolean }> = ({ manageable }) => {
+  const { clusterId, jobId } = useParams<RouteParams>();
+  const { cluster, job } = useContext(Context);
+  const { approve, kill, pause, resume } = useActions(clusterId);
+
+  const availableActions = useMemo(() => {
+    const actions = [];
+    if (manageable && cluster.admin) actions.push(approve);
+    if (manageable) actions.push(pause, resume, kill);
+    return actions;
+  }, [manageable, cluster.admin, approve, kill, pause, resume]);
+
+  const actionButtons = availableActions.map((action) => {
+    const { hidden, icon, tooltip, onClick } = action(job);
+    if (hidden) return null;
+    return (
+      <Tooltip title={tooltip}>
+        <IconButton onClick={(event) => onClick(event, job)}>
+          <Icon>{icon}</Icon>
+        </IconButton>
+      </Tooltip>
+    )
+  })
+
+  return (
+    <Toolbar disableGutters variant="dense">
+      <IconButton
+        edge="start"
+        color="inherit"
+        component={Link}
+        to="./"
+      >
+        <ArrowBack />
+      </IconButton>
+      <Typography variant="h6" style={{ flexGrow: 1 }}>
+        {clusterId}/{jobId}
+      </Typography>
+      {actionButtons}
+    </Toolbar>
+  );
+}
 
 const ManagableJob: FunctionComponent = () => {
   const [index, setIndex] = useState(0);
@@ -97,11 +157,6 @@ const UnmanagableJob: FunctionComponent = () => {
   );
 }
 
-interface RouteParams {
-  clusterId: string;
-  jobId: string;
-}
-
 const JobContent: FunctionComponent = () => {
   const { clusterId, jobId } = useParams<RouteParams>();
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
@@ -167,6 +222,7 @@ const JobContent: FunctionComponent = () => {
     <Context.Provider value={{ cluster: clusterData, job }}>
       <Helmet title={`(${job['jobStatus']}) ${job['jobName']}`}/>
       <Container maxWidth="lg">
+        <JobToolbar manageable={manageable}/>
         <Paper elevation={2}>
           <>
             {manageable && <ManagableJob/>}

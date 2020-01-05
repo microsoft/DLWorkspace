@@ -15,11 +15,10 @@ import { useSnackbar } from 'notistack';
 import useFetch from 'use-http-2';
 
 import TeamsContext from '../../contexts/Teams';
-
 import Loading from '../../components/Loading';
+import useActions from '../../hooks/useActions';
 
 import ClusterContext from './ClusterContext';
-import useActions from './useActions';
 import { renderDate, sortDate, renderStatus } from './tableUtils';
 
 const renderUser = (job: any) => job['userName'].split('@', 1)[0];
@@ -141,8 +140,8 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({ title, jobs }) => {
     pageSize,
     padding: 'dense'
   }), [pageSize]);
-  const { approve, kill, pause, resume } = useActions();
-  const actions = [approve, kill, pause, resume];
+  const { approve, kill, pause, resume } = useActions(cluster.id);
+  const actions = [approve, pause, resume, kill];
 
   return (
     <MaterialTable
