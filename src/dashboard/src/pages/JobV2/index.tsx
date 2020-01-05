@@ -59,11 +59,11 @@ const JobToolbar: FunctionComponent<{ manageable: boolean }> = ({ manageable }) 
     return actions;
   }, [manageable, cluster.admin, approve, kill, pause, resume]);
 
-  const actionButtons = availableActions.map((action) => {
+  const actionButtons = availableActions.map((action, index) => {
     const { hidden, icon, tooltip, onClick } = action(job);
     if (hidden) return null;
     return (
-      <Tooltip title={tooltip}>
+      <Tooltip key={index} title={tooltip}>
         <IconButton onClick={(event) => onClick(event, job)}>
           <Icon>{icon}</Icon>
         </IconButton>
