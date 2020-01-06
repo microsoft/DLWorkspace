@@ -1,6 +1,8 @@
-import { useCallback } from 'react';
+import { useCallback, useContext } from 'react';
 import { useSnackbar } from 'notistack';
 import { Action } from 'material-table';
+
+import ConfigContext from '../contexts/Config';
 
 import useConfirm from './useConfirm';
 
@@ -25,6 +27,7 @@ const KILLABLE_STATUSES = [
 ];
 
 const useActions = (clusterId: string) => {
+  const { support: supportMail } = useContext(ConfigContext);
   const confirm = useConfirm();
   const { enqueueSnackbar } = useSnackbar();
 
@@ -37,7 +40,20 @@ const useActions = (clusterId: string) => {
       },
       body: JSON.stringify({ status })
     })
-  }, [clusterId])
+  }, [clusterId]);
+
+  const onSupport = useCallback((event: any, job: any) => {
+    const subject = `DLTS job issue: ${job['jobId']} in ${clusterId}`;
+    const body = `
+Hi DLTS support team,
+
+I have an issue in job ${window.location.origin}/jobs-v2/${encodeURIComponent(clusterId)}/${encodeURIComponent(job['jobId'])}
+
+[Replace this placeholder with your questions]
+    `.trim();
+    const link = `mailto:${supportMail || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.open(link);
+  }, [clusterId, supportMail]);
 
   const onApprove = useCallback((event: any, job: any) => {
     const title = `${job.jobName}(${job.jobId})`;
@@ -103,6 +119,14 @@ const useActions = (clusterId: string) => {
     });
   }, [confirm, enqueueSnackbar, updateStatus]);
 
+  const support = useCallback((job: any): Action<any> => {
+    return {
+      icon: 'help',
+      tooltip: 'Support',
+      onClick: onSupport
+    };
+  }, [onSupport]);
+
   const approve = useCallback((job: any): Action<any> => {
     const hidden = APPROVABLE_STATUSES.indexOf(job['jobStatus']) === -1;
     return {
@@ -139,7 +163,7 @@ const useActions = (clusterId: string) => {
       onClick: onKill
     }
   }, [onKill]);
-  return { approve, pause, resume, kill };
+  return { support, approve, pause, resume, kill };
 }
 
 export default useActions;
