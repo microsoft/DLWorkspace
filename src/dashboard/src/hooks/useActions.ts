@@ -3,6 +3,7 @@ import { useSnackbar } from 'notistack';
 import { Action } from 'material-table';
 
 import ConfigContext from '../contexts/Config';
+import UserContext from '../contexts/User';
 
 import useConfirm from './useConfirm';
 
@@ -27,6 +28,7 @@ const KILLABLE_STATUSES = [
 ];
 
 const useActions = (clusterId: string) => {
+  const { familyName, givenName } = useContext(UserContext);
   const { support: supportMail } = useContext(ConfigContext);
   const confirm = useConfirm();
   const { enqueueSnackbar } = useSnackbar();
@@ -50,10 +52,13 @@ Hi DLTS support team,
 I have an issue in job ${window.location.origin}/jobs-v2/${encodeURIComponent(clusterId)}/${encodeURIComponent(job['jobId'])}
 
 [Replace this placeholder with your questions]
+
+Regards,
+${givenName} ${familyName}
     `.trim();
     const link = `mailto:${supportMail || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.open(link);
-  }, [clusterId, supportMail]);
+  }, [clusterId, supportMail, familyName, givenName]);
 
   const onApprove = useCallback((event: any, job: any) => {
     const title = `${job.jobName}(${job.jobId})`;
