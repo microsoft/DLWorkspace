@@ -89,7 +89,7 @@ const Jobs: FunctionComponent = () => {
   }, [history]);
 
   return (
-    <Container maxWidth={false}>
+    <Container fixed maxWidth="lg">
       <Toolbar disableGutters>
         <FormControl fullWidth>
           <InputLabel>Choose Cluster</InputLabel>

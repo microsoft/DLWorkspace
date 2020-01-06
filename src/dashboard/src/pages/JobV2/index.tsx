@@ -228,7 +228,7 @@ const JobContent: FunctionComponent = () => {
   return (
     <Context.Provider value={{ cluster: clusterData, job }}>
       <Helmet title={`(${job['jobStatus']}) ${job['jobName']}`}/>
-      <Container maxWidth="lg">
+      <Container fixed maxWidth="lg">
         <JobToolbar manageable={manageable}/>
         <Paper elevation={2}>
           <>
