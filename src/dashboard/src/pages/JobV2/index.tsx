@@ -49,7 +49,7 @@ interface RouteParams {
 }
 
 const JobToolbar: FunctionComponent<{ manageable: boolean }> = ({ manageable }) => {
-  const { clusterId, jobId } = useParams<RouteParams>();
+  const { clusterId } = useParams<RouteParams>();
   const { cluster, job } = useContext(Context);
   const { approve, kill, pause, resume } = useActions(clusterId);
 
@@ -83,7 +83,7 @@ const JobToolbar: FunctionComponent<{ manageable: boolean }> = ({ manageable }) 
         <ArrowBack />
       </IconButton>
       <Typography variant="h6" style={{ flexGrow: 1 }}>
-        {clusterId}/{jobId}
+        {job['jobName']}
       </Typography>
       {actionButtons}
     </Toolbar>
