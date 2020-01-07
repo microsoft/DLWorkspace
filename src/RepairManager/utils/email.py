@@ -2,13 +2,13 @@ import smtplib
 import logging
 import yaml
 import datetime
-from cachetools import TTLCache
 
 class EmailHandler():
 
     def __init__(self):
         self.config=self.load_config()
-        self.alert_cache=TTLCache(maxsize=1000, ttl=self.config['alert_wait_seconds'])
+        self.ecc_alert_cache=[]
+        self.ecc_alert_reminder = None
 
     def load_config(self):
         with open('./config/email-config.yaml', 'r') as file:
@@ -40,8 +40,24 @@ class EmailHandler():
         except smtplib.SMTPException as e:
             logging.exception('SMTP error occurred: ' + str(e))
 
-    def handle_email_alert(self, subject, body, additional_recipients=None):
-        # to avoid email spam, send email based on configured alert wait time
-        if body not in self.alert_cache:
+    def handle_ecc_email_alert(self, subject, body, ecc_nodes, action_taken, additional_recipients=None):
+        if ecc_nodes is None:
+            ecc_nodes = []
+
+        # if a new node found to have ecc error, send email
+        if not set(ecc_nodes).issubset(self.ecc_alert_cache):
+            self.ecc_alert_reminder = datetime.datetime.now() + datetime.timedelta(seconds=self.config['alert_wait_seconds'])
             self.send(subject, body, additional_recipients)
-            self.alert_cache[body] = 1  
+            # TODO: send email to individual job owners on each new node
+
+        # if ecc errors remain on nodes after configured alert wait time, resend email 
+        # or if any action is taken on a node
+        elif action_taken or self.ecc_alert_reminder < datetime.datetime.now():
+            self.ecc_alert_reminder = datetime.datetime.now() + datetime.timedelta(seconds=self.config['alert_wait_seconds'])
+            self.send(subject, body, additional_recipients)
+
+        self.ecc_alert_cache = ecc_nodes
+
+    def clear_ecc_alert_cache(self):
+        self.ecc_alert_cache = []
+        self.ecc_alert_reminder = None

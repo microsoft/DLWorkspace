@@ -55,15 +55,9 @@ def Run():
 
                 except Exception as e:
                     logger.exception(f'Error executing {class_name} from module {module_name}\n')
-                    subject = f'Repair Manager Alert [Rule Error] [{class_name}] [{config["cluster_name"]}]'
-                    body = ''.join(traceback.format_exception(etype=type(e), value=e, tb=e.__traceback__))
-                    alert.handle_email_alert(subject, body)
 
     except Exception as e:
-         logger.exception('Repair manager has stopped due to an unhandled exception:')
-         subject = f'Repair Manager Alert [Repair Manager Crashed] [{config["cluster_name"]}]'
-         body = ''.join(traceback.format_exception(etype=type(e), value=e, tb=e.__traceback__))
-         alert.send(subject, body)
+         logger.exception('Repair manager has stopped due to an unhandled exception.')
 
 if __name__ == '__main__':
     Run()

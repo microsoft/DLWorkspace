@@ -96,12 +96,18 @@ class ECCRule(Rule):
             return True
         else:
             logging.debug('No uncorrectable ECC metrics found.')
+            self.alert.clear_ecc_alert_cache()
             return False
 
     def take_action(self):
         status = []
+        action_taken = False
         for node_name in self.ecc_hostnames:
-            output = k8s_util.cordon_node(node_name, dry_run=self.config['rules']['ecc_rule']['dry_run'])
+            if k8s_util.is_node_cordoned(self.node_info, node_name):
+                output = f'{node_name} already cordoned'
+            else:
+                output = k8s_util.cordon_node(node_name, dry_run=self.config['rules']['ecc_rule']['dry_run'])
+                action_taken = True
             status.append([node_name, output])
 
         subject = f'Repair Manager Alert [ECC ERROR] [{self.config["cluster_name"]}]'
@@ -117,7 +123,4 @@ class ECCRule(Rule):
             job_info.append([jobId, jobs[jobId]['userName'], jobs[jobId]['nodeName'], jobs[jobId]['vcName']])
         body += tabulate(job_info, headers=['job id', 'job owner', 'node name', 'vc name' ], tablefmt="html").replace('<table>','<table border="1">')
 
-        if self.config['rules']['ecc_rule']['alert_job_owners']:
-            self.alert.handle_email_alert(subject, body, additional_recipients=job_owners)
-        else:
-            self.alert.handle_email_alert(subject, body)
+        self.alert.handle_ecc_email_alert(subject, body, self.ecc_hostnames, action_taken)
