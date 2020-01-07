@@ -3267,7 +3267,7 @@ def run_command( args, command, nargs, parser ):
         merge_config(config, yaml.load(f, Loader=yaml.FullLoader))
     if os.path.exists("./deploy/clusterID.yml"):
         with open("./deploy/clusterID.yml") as f:
-            tmp = yaml.load(f)
+            tmp = yaml.load(f, Loader=yaml.FullLoader)
             if "clusterId" in tmp:
                 config["clusterId"] = tmp["clusterId"]
     if "copy_sshtemp" in config and config["copy_sshtemp"]:
