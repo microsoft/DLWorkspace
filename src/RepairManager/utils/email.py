@@ -52,7 +52,7 @@ class EmailHandler():
 
         # if ecc errors remain on nodes after configured alert wait time, resend email 
         # or if any action is taken on a node
-        elif action taken or self.ecc_alert_reminder < datetime.datetime.now():
+        elif action_taken or self.ecc_alert_reminder < datetime.datetime.now():
             self.ecc_alert_reminder = datetime.datetime.now() + datetime.timedelta(seconds=self.config['alert_wait_seconds'])
             self.send(subject, body, additional_recipients)
 
