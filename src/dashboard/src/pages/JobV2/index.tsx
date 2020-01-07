@@ -7,6 +7,7 @@ import React, {
   useMemo,
   useState
 } from 'react';
+import { usePrevious } from 'react-use';
 import {
   Link,
   useParams
@@ -35,7 +36,6 @@ import ClustersContext from '../../contexts/Clusters';
 import Loading from '../../components/Loading';
 
 import useActions from '../../hooks/useActions';
-import useChange from '../../hooks/useChange';
 
 import Context from './Context';
 import Brief from './Brief';
@@ -215,11 +215,11 @@ const JobContent: FunctionComponent = () => {
     }
   }, [jobData, getJob]);
 
-  useChange((status, prevStatus) => {
-    if (prevStatus !== undefined) {
-      enqueueSnackbar(`Job is ${status} now.`, { variant: "info" });
-    }
-  }, job && job['jobStatus'])
+  const status = useMemo(() => job && job['jobStatus'], [job]);
+  const previousStatus = usePrevious(status);
+  if (previousStatus !== undefined && status !== previousStatus) {
+    enqueueSnackbar(`Job is ${status} now.`, { variant: "info" });
+  }
 
   if (job === undefined) {
     return <Loading/>;
