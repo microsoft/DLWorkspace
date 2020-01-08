@@ -22,7 +22,7 @@ const PriorityField: FunctionComponent<Props> = ({ job }) => {
   const [editing, setEditing] = useState(false);
   const [textFieldDisabled, setTextFieldDisabled] = useState(false);
   const input = useRef<HTMLInputElement>();
-  const buttonDisabled = useMemo(() => {
+  const buttonEnabled = useMemo(() => {
     return (
       job['jobStatus'] === 'running' ||
       job['jobStatus'] === 'queued' ||
@@ -94,8 +94,8 @@ const PriorityField: FunctionComponent<Props> = ({ job }) => {
     return (
       <Button
         fullWidth
-        variant={buttonDisabled ? 'text' : 'outlined'}
-        onClick={buttonDisabled ? undefined : onClick}
+        variant={buttonEnabled ? 'outlined' : 'text'}
+        onClick={buttonEnabled ? onClick : undefined}
       >
         {priority}
       </Button>
