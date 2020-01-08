@@ -10,6 +10,7 @@ const api = require('../../api').callback()
  */
 const getBootstrapArgument = (code) => {
   const bootstrap = argument => argument
+  // eslint-disable-next-line no-new-func
   return new Function('bootstrap', `return ${code}`)(bootstrap)
 }
 
