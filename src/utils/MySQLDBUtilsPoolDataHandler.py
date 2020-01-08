@@ -46,14 +46,12 @@ class SingletonDBPool(object):
     __instance_lock = threading.Lock()
 
     def __init__(self, *args, **kwargs):
-        assert(kwargs.get('config') is not None)
-        config = kwargs.get('config')
         database = "DLWSCluster-%s" % config["clusterId"]
         server = config["mysql"]["hostname"]
         username = config["mysql"]["username"]
         password = config["mysql"]["password"]
         with db_connect_histogram.time():
-            self.pool = PooledDB(creator=MySQLdb, maxconnections=1000, blocking=False, 
+            self.pool = PooledDB(creator=MySQLdb, maxconnections=150, blocking=False,
                             host=server, db=database, user=username, passwd=password)
             logger.info("init MySQL DBUtils pool succeed")
 
@@ -81,9 +79,9 @@ class DataHandler(object):
         self.commandtablename = "commands"
         self.templatetablename = "templates"
         self.jobprioritytablename = "job_priorities"
-        self.pool = SingletonDBPool.instance(config=config)
+        self.pool = SingletonDBPool.instance()
         elapsed = timeit.default_timer() - start_time
-        logger.info("DataHandler initialization, time elapsed %f s", elapsed)
+        logger.info("DB Utils DataHandler initialization, time elapsed %f s", elapsed)
 
     def CreateDatabase(self):
         if "initSQLDB" not in global_vars or not global_vars["initSQLDB"]:
@@ -532,12 +530,8 @@ class DataHandler(object):
             if (isinstance(groups, list)):
                 groups = json.dumps(groups)
 
-            if len(self.GetIdentityInfo(identityName)) == 0:
-                sql = "INSERT INTO `"+self.identitytablename+"` (identityName,uid,gid,groups) VALUES (%s,%s,%s,%s)"
-                cursor.execute(sql, (identityName, uid, gid, groups))
-            else:
-                sql = """update `%s` set uid = '%s', gid = '%s', groups = '%s' where `identityName` = '%s' """ % (self.identitytablename, uid, gid, groups, identityName)
-                cursor.execute(sql)
+            sql = "insert into {0} (identityName, uid, gid, groups) values ('{1}', '{2}', '{3}', '{4}') on duplicate key update uid='{2}', gid='{3}', groups='{4}'".format(self.identitytablename, identityName, uid, gid, groups)
+            cursor.execute(sql)
 
             conn.commit()
             ret = True
@@ -552,47 +546,16 @@ class DataHandler(object):
 
 
     @record
-    def GetAceCount(self, identityName, resource):
-        ret = 0
-        conn = None
-        cursor = None
-        try:
-            conn = self.pool.get_connection()
-            cursor = conn.cursor()
-            
-            query = "SELECT count(ALL id) as c FROM `%s` where `identityName` = '%s' and `resource` = '%s'" % (self.acltablename,identityName, resource)
-            cursor.execute(query)
-            for c in cursor:
-                ret = c[0]
-            conn.commit()
-        except Exception as e:
-            logger.error('GetAceCount Exception: %s', str(e))
-        finally:
-            if cursor is not None:
-                cursor.close()
-            if conn is not None:
-                conn.close()
-        return ret    
-
-
-    @record
     def UpdateAce(self, identityName, identityId, resource, permissions, isDeny):
         ret = False
         conn = None
         cursor = None
         try:
-            existingAceCount = self.GetAceCount(identityName, resource)
-            logger.info(existingAceCount)
-
             conn = self.pool.get_connection()
             cursor = conn.cursor()
             
-            if existingAceCount == 0:
-                sql = "INSERT INTO `"+self.acltablename+"` (identityName,identityId,resource,permissions,isDeny) VALUES (%s,%s,%s,%s,%s)"
-                cursor.execute(sql, (identityName, identityId, resource, permissions, isDeny))
-            else:
-                sql = """update `%s` set permissions = '%s' where `identityName` = '%s' and `resource` = '%s' """ % (self.acltablename, permissions, identityName, resource)
-                cursor.execute(sql)
+            sql = "insert into {0} (identityName, identityId, resource, permissions, isDeny) values ('{1}', '{2}', '{3}', '{4}', '{5}') on duplicate key update permissions='{4}'".format(self.acltablename, identityName, identityId, resource, permissions, isDeny)
+            cursor.execute(sql)
 
             conn.commit()
             ret = True
@@ -818,6 +781,71 @@ class DataHandler(object):
         return ret
 
     @record
+    def GetJobListV2(self, userName, vcName, num = None, status = None, op = ("=","or")):
+        ret = {}
+        ret["queuedJobs"] = []
+        ret["runningJobs"] = []
+        ret["finishedJobs"] = []
+        ret["visualizationJobs"] = []
+
+        conn = None
+        cursor = None
+        try:
+            conn = self.pool.get_connection()
+            cursor = conn.cursor()
+
+            query = "SELECT {}.jobId, jobName, userName, vcName, jobStatus, jobStatusDetail, jobType, jobTime, jobParams, priority FROM {} left join {} on {}.jobId = {}.jobId where 1".format(self.jobtablename, self.jobtablename, self.jobprioritytablename, self.jobtablename, self.jobprioritytablename)
+            if userName != "all":
+                query += " and userName = '%s'" % userName
+
+            if vcName != "all":
+                query += " and vcName = '%s'" % vcName
+
+            if status is not None:
+                if "," not in status:
+                    query += " and jobStatus %s '%s'" % (op[0], status)
+                else:
+                    status_list = [" jobStatus %s '%s' " % (op[0], s) for s in status.split(',')]
+                    status_statement = (" "+op[1]+" ").join(status_list)
+                    query += " and ( %s ) " % status_statement
+
+            query += " order by jobTime Desc"
+
+            if num is not None:
+                query += " limit %s " % str(num)
+            cursor.execute(query)
+
+            columns = [column[0] for column in cursor.description]
+            data = cursor.fetchall()
+            for item in data:
+                record = dict(zip(columns, item))
+                if record["jobStatusDetail"] is not None:
+                    record["jobStatusDetail"] = self.load_json(base64.b64decode(record["jobStatusDetail"]))
+                if record["jobParams"] is not None:
+                    record["jobParams"] = self.load_json(base64.b64decode(record["jobParams"]))
+
+                if record["jobStatus"] == "running":
+                    if record["jobType"] == "training":
+                        ret["runningJobs"].append(record)
+                    elif record["jobType"] == "visualization":
+                        ret["visualizationJobs"].append(record)
+                elif record["jobStatus"] == "queued" or record["jobStatus"] == "scheduling" or record["jobStatus"] == "unapproved":
+                    ret["queuedJobs"].append(record)
+                else:
+                    ret["finishedJobs"].append(record)
+            conn.commit()
+        except Exception as e:
+            logger.error('GetJobListV2 Exception: %s', str(e))
+        finally:
+            if cursor is not None:
+                cursor.close()
+            if conn is not None:
+                conn.close()
+
+        ret["meta"] = {"queuedJobs": len(ret["queuedJobs"]),"runningJobs": len(ret["runningJobs"]),"finishedJobs": len(ret["finishedJobs"]),"visualizationJobs": len(ret["visualizationJobs"])}
+        return ret
+
+    @record
     def GetActiveJobList(self):
         ret = []
         conn = None
@@ -871,6 +899,36 @@ class DataHandler(object):
             conn.commit()
         except Exception as e:
             logger.error('GetJob Exception: %s', str(e))
+        finally:
+            if cursor is not None:
+                cursor.close()
+            if conn is not None:
+                conn.close()
+        return ret
+
+    @record
+    def GetJobV2(self, jobId):
+        ret = []
+        conn = None
+        cursor = None
+        try:
+            conn = self.pool.get_connection()
+            cursor = conn.cursor()
+            query = "SELECT `jobId`, `jobName`, `userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobTime`, `jobParams`  FROM `%s` where `jobId` = '%s' " % (self.jobtablename, jobId)
+            cursor.execute(query)
+
+            columns = [column[0] for column in cursor.description]
+            data = cursor.fetchall()
+            for item in data:
+                record = dict(zip(columns, item))
+                if record["jobStatusDetail"] is not None:
+                    record["jobStatusDetail"] = self.load_json(base64.b64decode(record["jobStatusDetail"]))
+                if record["jobParams"] is not None:
+                    record["jobParams"] = self.load_json(base64.b64decode(record["jobParams"]))
+                ret.append(record)
+            conn.commit()
+        except Exception as e:
+            logger.error('GetJobV2 Exception: %s', str(e))
         finally:
             if cursor is not None:
                 cursor.close()
@@ -980,6 +1038,8 @@ class DataHandler(object):
         return ret
 
     def load_json(self, raw_str):
+        if raw_str is None:
+            return {}
         if isinstance(raw_str, unicode):
             raw_str = str(raw_str)
         try:
@@ -989,35 +1049,57 @@ class DataHandler(object):
 
     @record
     def GetPendingEndpoints(self):
+        conn = None
+        cursor = None
+        ret = {}
         try:
-            jobs = self.GetJob(jobStatus="running")
+            conn = self.pool.get_connection()
+            cursor = conn.cursor()
+            query = "SELECT `endpoints` from `%s` where `jobStatus` = '%s' and `endpoints` is not null" % (self.jobtablename, "running")
+            cursor.execute(query)
+            jobs = cursor.fetchall()
+            self.conn.commit()
 
             # [ {endpoint1:{},endpoint2:{}}, {endpoint3:{}, ... }, ... ]
-            endpoints = map(lambda job: self.load_json(job["endpoints"]), jobs)
+            endpoints = map(lambda job: self.load_json(job[0]), jobs)
             # {endpoint1: {}, endpoint2: {}, ... }
             # endpoint["status"] == "pending"
-            pendingEndpoints = {k: v for d in endpoints for k, v in d.items() if v["status"] == "pending"}
-
-            return pendingEndpoints
+            ret = {k: v for d in endpoints for k, v in d.items() if v["status"] == "pending"}
         except Exception as e:
             logger.exception("Query pending endpoints failed!")
-            return {}
+        finally:
+            if cursor is not None:
+                cursor.close()
+            if conn is not None:
+                conn.close()
+        return ret
 
     @record
     def GetJobEndpoints(self, job_id):
+        conn = None
+        cursor = None
+        ret = {}
         try:
-            jobs = self.GetJob(jobId=job_id)
+            conn = self.pool.get_connection()
+            cursor = conn.cursor()
+            query = "SELECT `endpoints` from `%s` where `jobId` = '%s'" % (self.jobtablename, job_id)
+            cursor.execute(query)
+            jobs = cursor.fetchall()
+            self.conn.commit()
 
             # [ {endpoint1:{},endpoint2:{}}, {endpoint3:{}, ... }, ... ]
-            endpoints = map(lambda job: self.load_json(job["endpoints"]), jobs)
+            endpoints = map(lambda job: self.load_json(job[0]), jobs)
             # {endpoint1: {}, endpoint2: {}, ... }
             # endpoint["status"] == "pending"
-            endpoints = {k: v for d in endpoints for k, v in d.items()}
-
-            return endpoints
+            ret = {k: v for d in endpoints for k, v in d.items()}
         except Exception as e:
             logger.warning("Query job endpoints failed! Job {}".format(job_id), exc_info=True)
-            return {}
+        finally:
+            if cursor is not None:
+                cursor.close()
+            if conn is not None:
+                conn.close()
+        return ret
 
     @record
     def GetDeadEndpoints(self):
@@ -1050,9 +1132,7 @@ class DataHandler(object):
         conn = None
         cursor = None
         try:
-            job_id = endpoint["jobId"]
-            job = self.GetJob(jobId=job_id)[0]
-            job_endpoints = self.load_json(job["endpoints"])
+            job_endpoints = self.GetJobEndpoints(endpoint["jobId"])
 
             # update jobEndpoints
             job_endpoints[endpoint["id"]] = endpoint
@@ -1061,7 +1141,7 @@ class DataHandler(object):
             cursor = conn.cursor()
             
             sql = "UPDATE jobs SET endpoints=%s where jobId=%s"
-            cursor.execute(sql, (json.dumps(job_endpoints), job_id))
+            cursor.execute(sql, (json.dumps(job_endpoints), endpoint["jobId"]))
             conn.commit()
             ret = True
         except Exception as e:
@@ -1158,6 +1238,31 @@ class DataHandler(object):
         return ret
 
     @record
+    def UpdateJobTextFields(self, conditionFields, dataFields):
+        conn = None
+        cursor = None
+        ret = False
+        if not isinstance(conditionFields, dict) or not conditionFields or not isinstance(dataFields, dict) or not dataFields:
+            return ret
+
+        try:
+            sql = "update `%s` set" % (self.jobtablename) + ",".join([" `%s` = '%s'" % (field, value) for field, value in dataFields.items()]) + " where" + "and".join([" `%s` = '%s'" % (field, value) for field, value in conditionFields.items()])
+
+            conn = self.pool.get_connection()
+            cursor = conn.cursor()
+            cursor.execute(sql)
+            self.conn.commit()
+            ret = True
+        except Exception as e:
+            logger.error('updateJobTextFields Exception: %s, ex: %s', fields, str(e))
+        finally:
+            if cursor is not None:
+                cursor.close()
+            if conn is not None:
+                conn.close()
+        return ret
+
+    @record
     def GetJobTextField(self, jobId, field):
         ret = None
         conn = None
@@ -1173,6 +1278,34 @@ class DataHandler(object):
             conn.commit()
         except Exception as e:
             logger.error('GetJobTextField Exception: %s', str(e))
+        finally:
+            if cursor is not None:
+                cursor.close()
+            if conn is not None:
+                conn.close()
+        return ret
+
+    @record
+    def GetJobTextFields(self, jobId, fields):
+        conn = None
+        cursor = None
+        ret = None
+        if not isinstance(fields, list) or not fields:
+            return ret
+
+        try:
+            sql = "select " + ",".join(fields) + " from " + self.jobtablename + " where jobId='%s'" % (jobId)
+
+            conn = self.pool.get_connection()
+            cursor = conn.cursor()
+            cursor.execute(sql)
+
+            columns = [column[0] for column in cursor.description]
+            for item in cursor.fetchall():
+                ret = dict(zip(columns, item))
+            self.conn.commit()
+        except Exception as e:
+            logger.error('GetJobTextFields Exception: %s', str(e))
         finally:
             if cursor is not None:
                 cursor.close()

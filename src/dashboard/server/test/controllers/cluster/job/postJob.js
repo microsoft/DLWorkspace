@@ -7,7 +7,7 @@ const api = require('../../../../api').callback()
 const userParams = {
   jobId: 'testjob',
   email: 'dlts@example.com',
-  token: User.generateToken('dlts@example.com').toString('hex')
+  password: User.generateToken('dlts@example.com').toString('hex')
 }
 
 const addCommandParams = new URLSearchParams({

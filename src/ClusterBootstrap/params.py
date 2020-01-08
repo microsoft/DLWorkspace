@@ -1,7 +1,7 @@
 # These are the default configuration parameter
 default_config_parameters = {
     "supported_platform": ["azure_cluster", "onpremise"],
-    "allroles": {"infra", "infrastructure", "worker", "nfs", "sql", "dev", "etcd", "kubernetes_master"},
+    "allroles": {"infra", "infrastructure", "worker", "nfs", "sql", "dev", "etcd", "kubernetes_master", "mysqlserver"},
     # Kubernetes setting
     "service_cluster_ip_range": "10.3.0.0/16",
     "pod_ip_range": "10.2.0.0/16",
@@ -239,8 +239,10 @@ default_config_parameters = {
         "elasticsearch": "etcd_node_1",
         "kibana": "etcd_node_1",
         "mysql": "etcd_node_1",
+        "mysql-server": "mysqlserver_node",
         "nginx": "all",
-        "storagemanager": "nfs_node"
+        "storagemanager": "nfs_node",
+        "user-synchronizer": "etcd_node_1",
     },
 
     "kubemarks": ["rack", "sku"],
@@ -676,8 +678,31 @@ default_config_parameters = {
     },
     "infiniband_mounts": [],
     "custom_mounts": [],
+    "enable_blobfuse": False,
+
+    # To use CPU nodes,
+    # 1. CPU nodes must have node label cpuworker=active
+    # 2. enable_cpuworker is set to True
+    # 3. default_cpu_sku is set to a valid value that exists in sku_meta
     "enable_cpuworker": False,
-    "enable_blobfuse": False
+    "enable_blobfuse": False,
+    "enable_custom_registry_secrets": False,
+    "default_cpu_sku": "Standard_D2s_v3",
+
+    # SKU meta defines different types of resources for each SKU
+    # and their allowed usage ratio by user applications.
+    "sku_meta": {
+        "default": {
+            "cpu_ratio": 0.8,
+            "memory_ratio": 0.8
+        },
+        "Standard_D2s_v3": {
+            "cpu": 2,
+            "cpu_ratio": 0.9,
+            "memory": 8,
+            "memory_ratio": 0.9
+        }
+    }
 }
 
 # These are super scripts

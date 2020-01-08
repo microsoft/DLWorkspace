@@ -4,8 +4,10 @@ metadata:
   name: phpmyadmin
   namespace: kube-system
 spec:
+  type: NodePort
   ports:
   - port: 80
+    targetPort: 80
   selector:
     app: phpmyadmin
 ---
@@ -24,7 +26,11 @@ spec:
         app: phpmyadmin
     spec:
       nodeSelector:
+      {% if cnf["mysqlserver_node"]|length > 0 %}
+        mysql-server: active
+      {% else %}
         mysql: active
+      {% endif %}
       containers:
       - image: {{cnf["dockers"]["container"]["phpmyadmin"]["fullname"]}}
         name: phpmyadmin
@@ -33,7 +39,11 @@ spec:
         - name: MYSQL_ROOT_PASSWORD
           value: "{{cnf["mysql_password"]}}"
         - name: PMA_HOST
-          value: {{cnf["mysql_node"]}}   
+        {% if cnf["mysqlserver_node"]|length > 0 %}
+          value: {{cnf["mysqlserver_node"][0]}}
+        {% else %}
+          value: {{cnf["mysql_node"]}}
+        {% endif %}
         - name: PMA_PORT
           value: "{{cnf["mysql_port"]}}"                   
         ports:

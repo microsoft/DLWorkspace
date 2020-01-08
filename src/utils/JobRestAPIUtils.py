@@ -6,6 +6,7 @@ import uuid
 import subprocess
 import sys
 import collections
+import copy
 
 from jobs_tensorboard import GenTensorboardMeta
 
@@ -17,9 +18,10 @@ from config import config
 from DataHandler import DataHandler,DataManager
 import base64
 import re
+import requests
 
 from config import global_vars
-from authorization import ResourceType, Permission, AuthorizationManager, IdentityManager
+from authorization import ResourceType, Permission, AuthorizationManager, IdentityManager, ACLManager
 import authorization
 from cache import CacheManager
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../ClusterManager"))
@@ -39,6 +41,10 @@ ADMIN_JOB_PRIORITY_RANGE = (1, 1000)
 
 logger = logging.getLogger(__name__)
 
+pendingStatus = "running,queued,scheduling,unapproved,pausing,paused"
+DEFAULT_EXPIRATION = 24 * 30 * 60
+vc_cache = TTLCache(maxsize=10240, ttl=DEFAULT_EXPIRATION)
+vc_cache_lock = Lock()
 
 def adjust_job_priority(priority, permission):
     priority_range = (DEFAULT_JOB_PRIORITY, DEFAULT_JOB_PRIORITY)
@@ -103,10 +109,11 @@ def SubmitJob(jobParamsJsonStr):
     else:
         jobParams["preemptionAllowed"] = ToBool(jobParams["preemptionAllowed"])
 
+    uniqId = str(uuid.uuid4())
     if "jobId" not in jobParams or jobParams["jobId"] == "":
         #jobParams["jobId"] = jobParams["jobName"] + "-" + str(uuid.uuid4())
         #jobParams["jobId"] = jobParams["jobName"] + "-" + str(time.time())
-        jobParams["jobId"] = str(uuid.uuid4())
+        jobParams["jobId"] = uniqId
     #jobParams["jobId"] = jobParams["jobId"].replace("_","-").replace(".","-")
 
     if "resourcegpu" not in jobParams:
@@ -119,16 +126,11 @@ def SubmitJob(jobParamsJsonStr):
             jobParams["resourcegpu"] = int(jobParams["resourcegpu"])
 
     if "familyToken" not in jobParams or jobParams["familyToken"].isspace():
-        jobParams["familyToken"] = str(uuid.uuid4())
+        jobParams["familyToken"] = uniqId
     if "isParent" not in jobParams:
         jobParams["isParent"] = 1
 
-    userName = jobParams["userName"]
-    if "@" in userName:
-        userName = userName.split("@")[0].strip()
-
-    if "/" in userName:
-        userName = userName.split("/")[1].strip()
+    userName = getAlias(jobParams["userName"])
 
     if not AuthorizationManager.HasAccess(jobParams["userName"], ResourceType.VC, jobParams["vcName"].strip(), Permission.User):
         ret["error"] = "Access Denied!"
@@ -216,7 +218,7 @@ def SubmitJob(jobParamsJsonStr):
             #if not match is None:
             #    tensorboardParams["cmd"] = match.group(1) + "/worker0" + match.group(2)
 
-        tensorboardParams["jobId"] = str(uuid.uuid4())
+        tensorboardParams["jobId"] = uniqId
         tensorboardParams["jobName"] = "tensorboard-"+jobParams["jobName"]
         tensorboardParams["jobPath"] = jobPath
         tensorboardParams["jobType"] = "visualization"
@@ -230,7 +232,6 @@ def SubmitJob(jobParamsJsonStr):
         if "error" not in ret:
             if not dataHandler.AddJob(tensorboardParams):
                 ret["error"] = "Cannot schedule tensorboard job."
-
 
     if "error" not in ret:
         if dataHandler.AddJob(jobParams):
@@ -249,18 +250,12 @@ def SubmitJob(jobParamsJsonStr):
                 priority = adjust_job_priority(priority, permission)
 
                 job_priorities = {jobParams["jobId"]: priority}
-                update_job_priorites(jobParams["userName"], job_priorities)
+                dataHandler.update_job_priority(job_priorities)
         else:
             ret["error"] = "Cannot schedule job. Cannot add job into database."
 
-
-
-
-
     dataHandler.Close()
-    InvalidateJobListCache(jobParams["vcName"])
     return ret
-
 
 
 def GetJobList(userName, vcName, jobOwner, num=None):
@@ -287,6 +282,27 @@ def GetJobList(userName, vcName, jobOwner, num=None):
         logger.warn("Fail to get job list for user %s, return empty list", userName)
         return []
 
+def GetJobListV2(userName, vcName, jobOwner, num=None):
+    jobs = {}
+    dataHandler = None
+    try:
+        dataHandler = DataHandler()
+
+        hasAccessOnAllJobs = False
+        if jobOwner == "all":
+            hasAccessOnAllJobs = AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName, Permission.Collaborator)
+
+        # if user needs to access all jobs, and has been authorized, he could get all pending jobs; otherwise, he could get his own jobs with all status
+        if hasAccessOnAllJobs:
+            jobs = dataHandler.GetJobListV2("all", vcName, num, pendingStatus, ("=","or"))
+        else:
+            jobs = dataHandler.GetJobListV2(userName, vcName, num)
+    except Exception as e:
+        logger.error('get job list V2 Exception: user: %s, ex: %s', userName, str(e))
+    finally:
+        if dataHandler is not None:
+            dataHandler.Close()
+    return jobs
 
 def GetUserPendingJobs(userName, vcName):
     jobs = []
@@ -300,9 +316,10 @@ def GetUserPendingJobs(userName, vcName):
 def GetCommands(userName, jobId):
     commands = []
     dataHandler = DataHandler()
-    jobs = dataHandler.GetJob(jobId=jobId)
-    if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
-        commands = dataHandler.GetCommands(jobId=jobId)
+    job = dataHandler.GetJobTextFields(jobId, ["userName", "vcName"])
+    if job is not None:
+        if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Collaborator):
+            commands = dataHandler.GetCommands(jobId=jobId)
     dataHandler.Close()
     return commands
 
@@ -310,32 +327,24 @@ def GetCommands(userName, jobId):
 def KillJob(userName, jobId):
     ret = False
     dataHandler = DataHandler()
-    jobs = dataHandler.GetJob(jobId=jobId)
-    if len(jobs) == 1 and jobs[0]["jobStatus"] in ["unapproved", "queued", "scheduling", "running", "paused", "pausing"]:
-        job = jobs[0]
+    job = dataHandler.GetJobTextFields(jobId, ["userName", "vcName", "jobStatus", "isParent", "familyToken"])
+    if job is not None and job["jobStatus"] in pendingStatus.split(","):
         if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin):
+            dataFields = {"jobStatus": "killing"}
+            conditionFields = {"jobId": jobId}
             if job["isParent"] == 1:
-                ret = True
-                for currJob in dataHandler.GetJob(familyToken=job["familyToken"]):
-                    ret = ret and dataHandler.UpdateJobTextField(currJob["jobId"],"jobStatus","killing")
-            else:
-                ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","killing")
+                conditionFields = {"familyToken": job["familyToken"]}
+            ret = dataHandler.UpdateJobTextFields(conditionFields, dataFields)
     dataHandler.Close()
-    InvalidateJobListCache(jobs[0]["vcName"])
     return ret
-
-
-def InvalidateJobListCache(vcName):
-    CacheManager.Invalidate("GetAllPendingJobs", vcName)
-    DataManager.GetAllPendingJobs(vcName)
 
 
 def AddCommand(userName, jobId,command):
     dataHandler = DataHandler()
     ret = False
-    jobs =  dataHandler.GetJob(jobId=jobId)
-    if len(jobs) == 1:
-        if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
+    job = dataHandler.GetJobTextFields(jobId, ["userName", "vcName"])
+    if job is not None:
+        if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Collaborator):
             ret = dataHandler.AddCommand(jobId,command)
     dataHandler.Close()
     return ret
@@ -344,21 +353,20 @@ def AddCommand(userName, jobId,command):
 def ApproveJob(userName, jobId):
     dataHandler = DataHandler()
     ret = False
-    jobs =  dataHandler.GetJob(jobId=jobId)
-    if len(jobs) == 1 and jobs[0]["jobStatus"] == "unapproved":
-        if AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Admin):
+    job = dataHandler.GetJobTextFields(jobId, ["vcName", "jobStatus"])
+    if job is not None and job["jobStatus"] == "unapproved":
+        if AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin):
             ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","queued")
     dataHandler.Close()
-    InvalidateJobListCache(jobs[0]["vcName"])
     return ret
 
 
 def ResumeJob(userName, jobId):
     dataHandler = DataHandler()
     ret = False
-    jobs = dataHandler.GetJob(jobId=jobId)
-    if len(jobs) == 1 and jobs[0]["jobStatus"] == "paused":
-        if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
+    job = dataHandler.GetJobTextFields(jobId, ["userName", "vcName", "jobStatus"])
+    if job is not None and job["jobStatus"] == "paused":
+        if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Collaborator):
             ret = dataHandler.UpdateJobTextField(jobId, "jobStatus", "unapproved")
     dataHandler.Close()
     return ret
@@ -367,9 +375,9 @@ def ResumeJob(userName, jobId):
 def PauseJob(userName, jobId):
     dataHandler = DataHandler()
     ret = False
-    jobs =  dataHandler.GetJob(jobId=jobId)
-    if len(jobs) == 1 and jobs[0]["jobStatus"] in ["unapproved", "queued", "scheduling", "running"]:
-        if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Admin):
+    job = dataHandler.GetJobTextFields(jobId, ["userName", "vcName", "jobStatus"])
+    if job is not None and job["jobStatus"] in ["unapproved", "queued", "scheduling", "running"]:
+        if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin):
             ret = dataHandler.UpdateJobTextField(jobId,"jobStatus","pausing")
     dataHandler.Close()
     return ret
@@ -418,15 +426,52 @@ def GetJobDetail(userName, jobId):
     dataHandler.Close()
     return job
 
+def GetJobDetailV2(userName, jobId):
+    job = {}
+    dataHandler = None
+    try:
+        dataHandler = DataHandler()
+        jobs = dataHandler.GetJobV2(jobId)
+        if len(jobs) == 1:
+            if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
+                job = jobs[0]
+    except Exception as e:
+        logger.error("get job detail v2 exception for user: %s, jobId: %s, exception: %s", userName, jobId, str(e))
+    finally:
+        if dataHandler is not None:
+            dataHandler.Close()
+    return job
+
 def GetJobStatus(jobId):
     result = None
     dataHandler = DataHandler()
-    jobs = dataHandler.GetJob(jobId=jobId)
-    if len(jobs) == 1:
-        key_list = ["jobStatus", "jobTime", "errorMsg"]
-        result = {key: jobs[0][key] for key in key_list}
+    result = dataHandler.GetJobTextFields(jobId, ["jobStatus", "jobTime", "errorMsg"])
     dataHandler.Close()
     return result
+
+def GetJobLog(userName, jobId):
+    dataHandler = DataHandler()
+    jobs =  dataHandler.GetJob(jobId=jobId)
+    if len(jobs) == 1:
+        if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
+            try:
+                log = dataHandler.GetJobTextField(jobId,"jobLog")
+                try:
+                    if isBase64(log):
+                        log = base64.b64decode(log)
+                except Exception:
+                    pass
+                if log is not None:
+                    return {
+                        "log": log,
+                        "cursor": None,
+                    }
+            except:
+                pass
+    return {
+        "log": {},
+        "cursor": None,
+    }
 
 def GetClusterStatus():
     cluster_status,last_update_time =  DataManager.GetClusterStatus()
@@ -449,10 +494,8 @@ def AddUser(username,uid,gid,groups):
         needToUpdateDB = True
 
     if needToUpdateDB:
-        dataHandler = DataHandler()
-        ret =  dataHandler.UpdateIdentityInfo(username,uid,gid,groups)
-        ret = ret & dataHandler.UpdateAclIdentityId(username,uid)
-        dataHandler.Close()
+        ret = IdentityManager.UpdateIdentityInfo(username, uid, gid, groups)
+        ret = ret & ACLManager.UpdateAclIdentityId(username,uid)
     return ret
 
 
@@ -464,7 +507,7 @@ def UpdateAce(userName, identityName, resourceType, resourceName, permissions):
     ret = None
     resourceAclPath = AuthorizationManager.GetResourceAclPath(resourceName, resourceType)
     if AuthorizationManager.HasAccess(userName, resourceType, resourceName, Permission.Admin):
-        ret =  AuthorizationManager.UpdateAce(identityName, resourceAclPath, permissions, False)
+        ret =  ACLManager.UpdateAce(identityName, resourceAclPath, permissions, False)
     else:
         ret = "Access Denied!"
     return ret
@@ -474,7 +517,7 @@ def DeleteAce(userName, identityName, resourceType, resourceName):
     ret = None
     resourceAclPath = AuthorizationManager.GetResourceAclPath(resourceName, resourceType)
     if AuthorizationManager.HasAccess(userName, resourceType, resourceName, Permission.Admin):
-        ret =  AuthorizationManager.DeleteAce(identityName, resourceAclPath)
+        ret =  ACLManager.DeleteAce(identityName, resourceAclPath)
     else:
         ret = "Access Denied!"
     return ret
@@ -527,23 +570,45 @@ def AddVC(userName, vcName, quota, metadata):
     dataHandler = DataHandler()
     if AuthorizationManager.IsClusterAdmin(userName):
         ret =  dataHandler.AddVC(vcName, quota, metadata)
+        if ret:
+            cacheItem = {
+                "vcName": vcName,
+                "quota": quota,
+                "metadata": metadata
+            }
+            with vc_cache_lock:
+                vc_cache[vcName] = cacheItem
     else:
         ret = "Access Denied!"
     dataHandler.Close()
     return ret
 
+def getClusterVCs():
+    vcList = None
+    try:
+        with vc_cache_lock:
+            vcList = copy.deepcopy(vc_cache.values())
+    except Exception:
+        pass
 
-@cached(cache=TTLCache(maxsize=10240, ttl=1800), lock=Lock())
+    if not vcList:
+        vcList = DataManager.ListVCs()
+        with vc_cache_lock:
+            for vc in vcList:
+                vc_cache[vc["vcName"]] = vc
+
+    return vcList
+
 def ListVCs(userName):
     ret = []
-    vcList =  DataManager.ListVCs()
+    vcList = getClusterVCs()
+
     for vc in vcList:
         if AuthorizationManager.HasAccess(userName, ResourceType.VC, vc["vcName"], Permission.User):
             vc['admin'] = AuthorizationManager.HasAccess(userName, ResourceType.VC, vc["vcName"], Permission.Admin)
             ret.append(vc)
     # web portal (client) can filter out Default VC
     return ret
-
 
 def GetVC(userName, vcName):
     ret = None
@@ -558,7 +623,7 @@ def GetVC(userName, vcName):
     user_status = collections.defaultdict(lambda : ResourceInfo())
     user_status_preemptable = collections.defaultdict(lambda : ResourceInfo())
 
-    vc_list =  data_handler.ListVCs()
+    vc_list = getClusterVCs()
     vc_info = {}
     vc_usage = collections.defaultdict(lambda :
             collections.defaultdict(lambda : 0))
@@ -619,6 +684,15 @@ def GetVC(userName, vcName):
                 user_name = user_name.split("@")[0].strip()
                 vc["user_status_preemptable"].append({"userName": user_name, "userGPU": user_gpu.ToSerializable()})
 
+            try:
+                gpu_idle_url = config["gpu_reporter"] + '/gpu_idle'
+                gpu_idle_params = {"vc": vcName}
+                gpu_idle_response = requests.get(gpu_idle_url, params=gpu_idle_params)
+                gpu_idle_json = gpu_idle_response.json()
+                vc["gpu_idle"] = gpu_idle_json
+            except Exception:
+                logger.exception("Failed to fetch gpu_idle from gpu-exporter")
+
             ret = vc
             break
     return ret
@@ -636,6 +710,9 @@ def DeleteVC(userName, vcName):
     dataHandler = DataHandler()
     if AuthorizationManager.IsClusterAdmin(userName):
         ret =  dataHandler.DeleteVC(vcName)
+        if ret:
+            with vc_cache_lock:
+                vc_cache.pop(vcName, None)
     else:
         ret = "Access Denied!"
     dataHandler.Close()
@@ -647,10 +724,206 @@ def UpdateVC(userName, vcName, quota, metadata):
     dataHandler = DataHandler()
     if AuthorizationManager.IsClusterAdmin(userName):
         ret =  dataHandler.UpdateVC(vcName, quota, metadata)
+        if ret:
+            cacheItem = {
+                "vcName": vcName,
+                "quota": quota,
+                "metadata": metadata
+            }
+            with vc_cache_lock:
+                vc_cache[vcName] = cacheItem
     else:
         ret = "Access Denied!"
     dataHandler.Close()
     return ret
+
+def GetEndpoints(userName, jobId):
+    dataHandler = DataHandler()
+    ret = []
+    try:
+        job = dataHandler.GetJobTextFields(jobId, ["userName", "vcName", "endpoints"])
+        if job is not None:
+            if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin):
+                endpoints = {}
+                if job["endpoints"] is not None:
+                    endpoints = json.loads(job["endpoints"])
+                for [_, endpoint] in endpoints.items():
+                    epItem = {
+                        "id": endpoint["id"],
+                        "name": endpoint["name"],
+                        "username": endpoint["username"],
+                        "status": endpoint["status"],
+                        "hostNetwork": endpoint["hostNetwork"],
+                        "podName": endpoint["podName"],
+                        "domain": config["domain"],
+                    }
+                    if "podPort" in endpoint:
+                        epItem["podPort"] = endpoint["podPort"]
+                    if endpoint["status"] == "running":
+                        if endpoint["hostNetwork"]:
+                            port = int(endpoint["endpointDescription"]["spec"]["ports"][0]["port"])
+                        else:
+                            port = int(endpoint["endpointDescription"]["spec"]["ports"][0]["nodePort"])
+                        epItem["port"] = port
+                        if "nodeName" in endpoint:
+                            epItem["nodeName"] = endpoint["nodeName"]
+                    ret.append(epItem)
+    except Exception as e:
+        logger.error("Get endpoint exception, ex: %s", str(e))
+    finally:
+        dataHandler.Close()
+    return ret
+
+def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
+    dataHandler = DataHandler()
+    try:
+        job = dataHandler.GetJobTextFields(jobId, ["userName", "vcName", "jobParams", "endpoints"])
+        if job is None:
+            msg = "Job %s cannot be found in database" % jobId
+            logger.error(msg)
+            return msg, 404
+        if job["userName"] != userName and (not AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin)):
+            msg = "You are not authorized to enable endpoint for job %s" % jobId
+            logger.error(msg)
+            return msg, 403
+
+        job_params = json.loads(base64.b64decode(job["jobParams"]))
+        job_type = job_params["jobtrainingtype"]
+        job_endpoints = {}
+        if job["endpoints"] is not None:
+            job_endpoints = json.loads(job["endpoints"])
+
+        # get pods
+        pod_names = []
+        if job_type == "RegularJob":
+            pod_names.append(jobId)
+        else:
+            nums = {"ps": int(job_params["numps"]), "worker": int(job_params["numpsworker"])}
+            for role in ["ps", "worker"]:
+                for i in range(nums[role]):
+                    pod_names.append(jobId + "-" + role + str(i))
+
+        # HostNetwork
+        if "hostNetwork" in job_params and job_params["hostNetwork"] == True:
+            host_network = True
+        else:
+            host_network = False
+
+        # username
+        username = getAlias(job["userName"])
+
+        endpoints = job_endpoints
+
+        if "ssh" in requested_endpoints:
+            # setup ssh for each pod
+            for pod_name in pod_names:
+                endpoint_id = "e-" + pod_name + "-ssh"
+
+                if endpoint_id in job_endpoints:
+                    logger.info("Endpoint %s exists. Skip.", endpoint_id)
+                    continue
+                logger.info("Endpoint %s does not exist. Add.", endpoint_id)
+
+                endpoint = {
+                    "id": endpoint_id,
+                    "jobId": jobId,
+                    "podName": pod_name,
+                    "username": username,
+                    "name": "ssh",
+                    "status": "pending",
+                    "hostNetwork": host_network
+                }
+                endpoints[endpoint_id] = endpoint
+
+        # Only open Jupyter on the master
+        if 'ipython' in requested_endpoints:
+            if job_type == "RegularJob":
+                pod_name = pod_names[0]
+            else:
+                # For a distributed job, we set up jupyter on first worker node.
+                # PS node does not have GPU access.
+                # TODO: Simplify code logic after removing PS
+                pod_name = pod_names[1]
+
+            endpoint_id = "e-" + jobId + "-ipython"
+
+            if endpoint_id not in job_endpoints:
+                logger.info("Endpoint %s does not exist. Add.", endpoint_id)
+                endpoint = {
+                    "id": endpoint_id,
+                    "jobId": jobId,
+                    "podName": pod_name,
+                    "username": username,
+                    "name": "ipython",
+                    "status": "pending",
+                    "hostNetwork": host_network
+                }
+                endpoints[endpoint_id] = endpoint
+            else:
+                logger.info("Endpoint %s exists. Skip.", endpoint_id)
+
+        # Only open tensorboard on the master
+        if 'tensorboard' in requested_endpoints:
+            if job_type == "RegularJob":
+                pod_name = pod_names[0]
+            else:
+                # For a distributed job, we set up jupyter on first worker node.
+                # PS node does not have GPU access.
+                # TODO: Simplify code logic after removing PS
+                pod_name = pod_names[1]
+
+            endpoint_id = "e-" + jobId + "-tensorboard"
+
+            if endpoint_id not in job_endpoints:
+                logger.info("Endpoint %s does not exist. Add.", endpoint_id)
+                endpoint = {
+                    "id": endpoint_id,
+                    "jobId": jobId,
+                    "podName": pod_name,
+                    "username": username,
+                    "name": "tensorboard",
+                    "status": "pending",
+                    "hostNetwork": host_network
+                }
+                endpoints[endpoint_id] = endpoint
+            else:
+                logger.info("Endpoint %s exists. Skip.", endpoint_id)
+
+        # interactive port
+        for interactive_port in interactive_ports:
+            if job_type == "RegularJob":
+                pod_name = pod_names[0]
+            else:
+                # For a distributed job, we set up jupyter on first worker node.
+                # PS node does not have GPU access.
+                # TODO: Simplify code logic after removing PS
+                pod_name = pod_names[1]
+
+            endpoint_id = "e-" + jobId + "-port-" + str(interactive_port["podPort"])
+            if endpoint_id not in job_endpoints:
+                logger.info("Endpoint %s does not exist. Add.", endpoint_id)
+                endpoint = {
+                    "id": endpoint_id,
+                    "jobId": jobId,
+                    "podName": pod_name,
+                    "username": username,
+                    "name": interactive_port["name"],
+                    "podPort": interactive_port["podPort"],
+                    "status": "pending",
+                    "hostNetwork": host_network
+                }
+                endpoints[endpoint_id] = endpoint
+            else:
+                logger.info("Endpoint %s exists. Skip.", endpoint_id)
+
+        dataHandler.UpdateJobTextField(jobId, "endpoints", json.dumps(endpoints))
+        return endpoints, 200
+    except Exception as e:
+        logger.error("Get endpoint exception, ex: %s", str(e))
+    finally:
+        dataHandler.Close()
+    return "server error", 500
+
 
 
 def get_job(job_id):
@@ -688,19 +961,13 @@ def update_job_priorites(username, job_priorities):
 
         # Only job owner and VC admin can update job priority.
         # Fail job priority update if there is one unauthorized items.
+        pendingJobs = {}
         for job_id in job_priorities:
             priority = job_priorities[job_id]
-            jobs = data_handler.GetJob(jobId=job_id)
-            if len(jobs) == 0:
-                logger.warn("Update priority %s for non-existent job %s" %
-                            (priority, job_id))
+            job = data_handler.GetJobTextFields(job_id, ["userName", "vcName", "jobStatus"])
+            if job is None:
                 continue
 
-            if len(jobs) > 1:
-                logger.warn("Multiple job entries found that matches job %s. "
-                            "Most likely a platform bug." % job_id)
-
-            job = jobs[0]
             vc_admin = AuthorizationManager.HasAccess(username, ResourceType.VC, job["vcName"], Permission.Admin)
             if job["userName"] != username and (not vc_admin):
                 return False
@@ -709,8 +976,11 @@ def update_job_priorites(username, job_priorities):
             permission = Permission.Admin if vc_admin else Permission.User
             job_priorities[job_id] = adjust_job_priority(priority, permission)
 
+            if job["jobStatus"] in pendingStatus.split(","):
+                pendingJobs[job_id] = job_priorities[job_id]
+
         ret_code = data_handler.update_job_priority(job_priorities)
-        return ret_code
+        return ret_code, pendingJobs
 
     except Exception as e:
         logger.error("Exception when updating job priorities: %s" % e)
@@ -718,6 +988,13 @@ def update_job_priorites(username, job_priorities):
     finally:
         if data_handler is not None:
             data_handler.Close()
+
+def getAlias(username):
+    if "@" in username:
+        username = username.split("@")[0].strip()
+    if "/" in username:
+        username = username.split("/")[1].strip()
+    return username
 
 
 if __name__ == '__main__':

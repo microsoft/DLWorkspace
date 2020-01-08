@@ -9,14 +9,15 @@ import copy
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 from osUtils import mkdirsAsUser
+from pod_template_utils import enable_cpu_config
 
 
 class PodTemplate():
-    def __init__(self, template, deployment_template=None, enable_custom_scheduler=False, secret_template=None):
+    def __init__(self, template, deployment_template=None, enable_custom_scheduler=False, secret_templates=None):
         self.template = template
         self.deployment_template = deployment_template
         self.enable_custom_scheduler = enable_custom_scheduler
-        self.secret_template = secret_template
+        self.secret_templates = secret_templates
 
     @staticmethod
     def generate_launch_script(job_id, path_to_save, user_id, gpu_num, user_script):
@@ -117,24 +118,19 @@ class PodTemplate():
         if "gpuType" in params:
             params["nodeSelector"]["gpuType"] = params["gpuType"]
 
-        # CPU job should be assigned to CPU node if there is any available in the cluster
-        config = job.cluster
-        enable_cpuworker = config.get("enable_cpuworker", False)
-        default_cpurequest = config.get("default_cpurequest")
-        default_cpulimit = config.get("default_cpulimit")
-        default_memoryrequest = config.get("default_memoryrequest")
-        default_memorylimit = config.get("default_memorylimit")
+        # Set up VC dedicated node usage
+        vc_node_hard_assignment = job.get_vc_node_hard_assignment()
+        if isinstance(vc_node_hard_assignment, dict):
+            vc = params["vcName"]
+            # Only consider GPU jobs
+            if vc in vc_node_hard_assignment and \
+                    vc_node_hard_assignment[vc] is True and \
+                    params["resourcegpu"] > 0:
+                params["nodeSelector"]["vc"] = vc
+            else:
+                params["nodeSelector"]["vc"] = "default"
 
-        if enable_cpuworker and int(params["resourcegpu"]) == 0:
-            params["nodeSelector"]["cpuworker"] = "active"
-            if "cpurequest" not in params and default_cpurequest is not None:
-                params["cpurequest"] = default_cpurequest
-            if "cpulimit" not in params and default_cpulimit is not None:
-                params["cpulimit"] = default_cpulimit
-            if "memoryrequest" not in params and default_memoryrequest is not None:
-                params["memoryrequest"] = default_memoryrequest
-            if "memorylimit" not in params and default_memorylimit is not None:
-                params["memorylimit"] = default_memorylimit
+        params = enable_cpu_config(params, job.cluster)
 
         local_pod_path = job.get_hostpath(job.job_path, "master")
         params["LaunchCMD"] = PodTemplate.generate_launch_script(params["jobId"], local_pod_path, params["userId"], params["resourcegpu"], params["cmd"])
@@ -144,6 +140,11 @@ class PodTemplate():
 
         job.add_plugins(job.get_plugins())
         params["plugins"] = job.plugins
+
+        # Set NCCL_IB_DISABLE=1 if specified
+        nccl_ib_disable = job.get_nccl_ib_disable()
+        if nccl_ib_disable is not None and nccl_ib_disable is True:
+            params["nccl_ib_disable"] = True
 
         pods = []
         if all(hyper_parameter in params for hyper_parameter in ["hyperparametername", "hyperparameterstartvalue", "hyperparameterendvalue", "hyperparameterstep"]):
@@ -182,6 +183,7 @@ class PodTemplate():
             # mount /pod
             pod_path = job.get_hostpath(job.job_path, "master")
             pod["mountpoints"].append({"name": "pod", "containerPath": "/pod", "hostPath": pod_path, "enabled": True})
+            pod["init-container"] = os.environ["INIT_CONTAINER_IMAGE"]
 
             k8s_pod = self.generate_pod(pod)
             k8s_pods.append(k8s_pod)
@@ -226,15 +228,31 @@ class PodTemplate():
 
         # Create secret config for each plugins
         k8s_secrets = []
-        for plugin, config in plugins.items():
-            if plugin == "blobfuse" and isinstance(plugins["blobfuse"], list):
-                for bf in plugins["blobfuse"]:
-                    k8s_secret = self.generate_secret(bf)
+        for plugin, plugin_config in plugins.items():
+            if plugin == "blobfuse" and isinstance(plugin_config, list):
+                for bf in plugin_config:
+                    k8s_secret = self.generate_blobfuse_secret(bf)
+                    k8s_secrets.append(k8s_secret)
+            elif plugin == "imagePull" and isinstance(plugin_config, list):
+                for image_pull in plugin_config:
+                    k8s_secret = self.generate_image_pull_secret(image_pull)
                     k8s_secrets.append(k8s_secret)
         return k8s_secrets
 
-    def generate_secret(self, plugin):
-        assert self.secret_template is not None
-        assert isinstance(self.template, Template)
-        secret_yaml = self.secret_template.render(plugin=plugin)
+    def generate_blobfuse_secret(self, plugin):
+        assert self.secret_templates is not None
+        assert "blobfuse" in self.secret_templates
+        secret_template = self.secret_templates["blobfuse"]
+        assert isinstance(secret_template, Template)
+
+        secret_yaml = secret_template.render(plugin=plugin)
+        return yaml.full_load(secret_yaml)
+
+    def generate_image_pull_secret(self, plugin):
+        assert self.secret_templates is not None
+        assert "imagePull" in self.secret_templates
+        secret_template = self.secret_templates["imagePull"]
+        assert isinstance(secret_template, Template)
+
+        secret_yaml = secret_template.render(plugin=plugin)
         return yaml.full_load(secret_yaml)

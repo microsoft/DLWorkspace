@@ -113,9 +113,9 @@ def create_vm(vmname, vm_ip, role, vm_size, pwd, vmcnf):
     else:
         auth = """--generate-ssh-keys --authentication-type ssh --ssh-key-value '%s' """ % config["azure_cluster"]["sshkey"]
 
-    priv_IP = "--private-ip-address %s " % vm_ip if not role in ["worker","nfs"] else ""
+    priv_IP = "--private-ip-address %s " % vm_ip if not role in ["worker", "mysqlserver", "nfs"] else ""
     nsg = "nfs_nsg_name" if role == "nfs" else "nsg_name"
-    
+
     availability_set = ""
     if role == "worker" and "availability_set" in config["azure_cluster"]:
         availability_set = "--availability-set '%s'" % config["azure_cluster"]["availability_set"]
@@ -125,7 +125,7 @@ def create_vm(vmname, vm_ip, role, vm_size, pwd, vmcnf):
         assert os.path.exists(config["cloud_init_%s" % role])
         cloud_init = "--custom-data {}".format(config["cloud_init_%s" % role])
 
-    if role in ["infra", "worker"]:		
+    if role in ["infra", "worker", "mysqlserver"]:
         storage = "--storage-sku {} --data-disk-sizes-gb {} ".format(config["azure_cluster"]["vm_local_storage_sku"],
                 config["azure_cluster"]["%s_local_storage_sz" % role])
         # corner case: NFS on infra
@@ -157,7 +157,7 @@ def create_vm(vmname, vm_ip, role, vm_size, pwd, vmcnf):
                  %s \
                  %s \
                  %s \
-                 
+
         """ % (config["azure_cluster"]["resource_group_name"],
                vmname,
                config["azure_cluster"]["vm_image"],
@@ -489,6 +489,11 @@ def create_cluster(arm_vm_password=None, parallelism=1):
 
     add_workers(arm_vm_password, parallelism)
 
+    # create mysqlserver if specified
+    for i in range(int(config["azure_cluster"]["mysqlserver_node_num"])):
+        create_vm_param(i, "mysqlserver", config["azure_cluster"]["mysqlserver_vm_size"],
+                        arm_vm_password is not None, arm_vm_password)
+
     # create nfs server if specified.
     for i in range(int(config["azure_cluster"]["nfs_node_num"])):
             create_vm_param(i, "nfs", config["azure_cluster"]["nfs_vm_size"], False,
@@ -525,6 +530,8 @@ def create_vm_param(i, role, vm_size, no_az=False, arm_vm_password=None, vmcnf =
     elif role == "infra":
         vmname = "%s-infra%02d" % (config["azure_cluster"]
                                    ["cluster_name"], i + 1)
+    elif role == "mysqlserver":
+        vmname = "%s-mysqlserver%02d" % (config["azure_cluster"]["cluster_name"], i + 1)
     elif role == "dev":
         vmname = "%s-dev" % (config["azure_cluster"]["cluster_name"])
 
@@ -535,7 +542,7 @@ def create_vm_param(i, role, vm_size, no_az=False, arm_vm_password=None, vmcnf =
 
 def create_vm_role_suffix(i, role, vm_size, suffix, arm_vm_password=None, vmcnf = None):
     assert role in config["allroles"] and "invalid machine role, please select from {}".format(' '.join(config["allroles"]))
-    
+
     print "creating VM %s..." % vmname
     vm_ip = get_vm_ip(i, role)
     create_vm(vmname, vm_ip, role, vm_size, arm_vm_password, vmcnf)
@@ -723,7 +730,7 @@ def get_disk_from_vm(vmname):
 
 def gen_cluster_config(output_file_name, output_file=True, no_az=False):
     if config["priority"] == "low":
-        utils.render_template("./template/dns/cname_and_private_ips.sh.template", "scripts/cname_and_ips.sh", config)    
+        utils.render_template("./template/dns/cname_and_private_ips.sh.template", "scripts/cname_and_ips.sh", config)
         utils.exec_cmd_local("chmod +x scripts/cname_and_ips.sh; bash scripts/cname_and_ips.sh")
         print "\nPlease copy the commands in dns_add_commands and register the DNS records \n"
     bSQLOnly = (config["azure_cluster"]["infra_node_num"] <= 0)
@@ -777,7 +784,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
     cc["platform-scripts"] = "ubuntu"
     cc["basic_auth"] = "%s,admin,1000" % uuid.uuid4().hex[:16]
     domain_mapping = {
-        "regular":"%s.cloudapp.azure.com" % config["azure_cluster"]["azure_location"], 
+        "regular":"%s.cloudapp.azure.com" % config["azure_cluster"]["azure_location"],
         "low": config.get("network_domain",config["azure_cluster"]["default_low_priority_domain"])}
     if not bSQLOnly:
         cc["network"] = {"domain": domain_mapping[config["priority"]]}
@@ -823,6 +830,15 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
                 cc["machines"][vmname.lower()] = {
                     "role": "worker",
                     "node-group": vm["vmSize"],"gpu-type":sku_mapping.get(vm["vmSize"],sku_mapping["default"])["gpu-type"]}
+
+    # Add mysqlserver nodes
+    for vm in vm_list:
+        vmname = vm["name"]
+        if "-mysqlserver" in vmname:
+            cc["machines"][vmname.lower()] = {
+                "role": "mysqlserver",
+                "node-group": vm["vmSize"]}
+
     nfs_nodes = []
     for vm in vm_list:
         vmname = vm["name"]
@@ -900,7 +916,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
                     cc["mountpoints"][mntname]["type"] = "nfs"
                     cc["mountpoints"][mntname]["server"] = server_ip
                     cc["mountpoints"][mntname]["servername"] = server_name
-    
+
     if output_file:
         print yaml.dump(cc, default_flow_style=False)
         with open(output_file_name, 'w') as outfile:
@@ -982,6 +998,7 @@ def run_command(args, command, nargs, parser):
     if command == "create":
         create_cluster(args.arm_password, args.parallelism)
         vm_interconnects()
+        nfs_allow_master()
 
     elif command == "addworkers":
         add_workers(args.arm_password, args.parallelism)

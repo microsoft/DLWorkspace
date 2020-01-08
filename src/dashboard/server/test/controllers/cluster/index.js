@@ -5,7 +5,7 @@ const api = require('../../../api').callback()
 
 const userParams = {
   email: 'dlts@example.com',
-  token: User.generateToken('dlts@example.com').toString('hex')
+  password: User.generateToken('dlts@example.com').toString('hex')
 }
 
 describe('GET /clusters/:clusterId', () => {

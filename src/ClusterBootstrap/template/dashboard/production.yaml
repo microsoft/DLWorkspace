@@ -1,0 +1,22 @@
+sign: {{cnf["master_token"]}}
+
+{% if cnf["WinbindServers"][0] %}
+winbind: {{cnf["WinbindServers"][0]}}
+{% endif %}
+masterToken: {{cnf["master_token"]}}
+
+AddGroupLink: https://dlts.azurewebsites.net/v2/htmlfiles/Overview/VirtualClusters.html
+WikiLink: https://aka.ms/dltsuserwiki_v2
+
+activeDirectory:
+  tenant: {{cnf["activeDirectory"]["tenant"]}}
+  clientId: {{cnf["activeDirectory"]["clientId"]}}
+  clientSecret: {{cnf["activeDirectory"]["clientSecret"]}}
+
+clusters:
+  {{cnf["cluster_name"]}}:
+    restfulapi: {{cnf["restapi"]}}
+    grafana: {{cnf["grafana_endpoint"]}}
+    prometheus: {{cnf["prometheus_endpoint"]}}
+    workStorage: {{cnf["workFolderAccessPoint"]}}
+    dataStorage: {{cnf["dataFolderAccessPoint"]}}

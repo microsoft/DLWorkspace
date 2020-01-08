@@ -9,7 +9,7 @@ const clusterConfig = config.get('clusters')
 
 const userParams = {
   email: 'dlts@example.com',
-  token: User.generateToken('dlts@example.com').toString('hex'),
+  password: User.generateToken('dlts@example.com').toString('hex'),
   teamId: 'testteam',
   templateName: 'newtemplate'
 }

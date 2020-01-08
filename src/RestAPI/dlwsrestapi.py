@@ -17,7 +17,7 @@ import thread
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
 #from JobRestAPIUtils import SubmitDistJob, GetJobList, GetJobStatus, DeleteJob, GetTensorboard, GetServiceAddress, GetLog, GetJob
 import JobRestAPIUtils
-from authorization import ResourceType, Permission, AuthorizationManager
+from authorization import ResourceType, Permission, AuthorizationManager, ACLManager
 from config import config
 from config import global_vars
 import authorization
@@ -48,7 +48,7 @@ if "initAdminAccess" not in global_vars or not global_vars["initAdminAccess"]:
     logger.info("===========Init Admin Access===============")
     global_vars["initAdminAccess"] = True
     logger.info('setting admin access!')
-    AuthorizationManager.UpdateAce("Administrator", AuthorizationManager.GetResourceAclPath("", ResourceType.Cluster), Permission.Admin, False)
+    ACLManager.UpdateAce("Administrator", AuthorizationManager.GetResourceAclPath("", ResourceType.Cluster), Permission.Admin, False)
     logger.info('admin access given!')
 
 
@@ -92,12 +92,33 @@ def tolist(value):
     else:
         return value
 
-def getAlias(username):
-    if "@" in username:
-        username = username.split("@")[0].strip()
-    if "/" in username:
-        username = username.split("/")[1].strip()
-    return username
+
+def remove_creds(job):
+    job_params = job.get("jobParams", None)
+    if job_params is None:
+        return
+
+    plugins = job_params.get("plugins", None)
+    if plugins is None or not isinstance(plugins, dict):
+        return
+
+    blobfuse = plugins.get("blobfuse", None)
+    if blobfuse is not None and isinstance(blobfuse, list):
+        for bf in blobfuse:
+            bf.pop("accountName", None)
+            bf.pop("accountKey", None)
+
+    image_pull = plugins.get("imagePull", None)
+    if image_pull is not None and isinstance(image_pull, list):
+        for i_p in image_pull:
+            i_p.pop("username", None)
+            i_p.pop("password", None)
+
+def generate_response(result):
+    resp = jsonify(result)
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    resp.headers["dataType"] = "json"
+    return resp
 
 class SubmitJob(Resource):
     def get(self):
@@ -218,7 +239,7 @@ class SubmitJob(Resource):
             params["mountpoints"] = []
             addcmd = ""
             if "mounthomefolder" in config and istrue(config["mounthomefolder"]) and "storage-mount-path" in config:
-                alias = getAlias(params["userName"])
+                alias = JobRestAPIUtils.getAlias(params["userName"])
                 params["mountpoints"].append({"name":"homeholder","containerPath":os.path.join("/home", alias),"hostPath":os.path.join(config["storage-mount-path"], "work", alias)})
             if "mountpoints" in config and "storage-mount-path" in config:
                 # see link_fileshares in deploy.py
@@ -229,7 +250,7 @@ class SubmitJob(Resource):
                                 hostBase = os.path.join(config["storage-mount-path"], basename[1:]) if os.path.isabs(basename) else os.path.join(config["storage-mount-path"], basename)
                                 basealias = basename[1:] if os.path.isabs(basename) else basename
                                 containerBase = os.path.join("/", basename)
-                                alias = getAlias(params["userName"])
+                                alias = JobRestAPIUtils.getAlias(params["userName"])
                                 shares = [alias]
                                 if "publicshare" in v:
                                     if "all" in v["publicshare"]:
@@ -292,21 +313,20 @@ api.add_resource(SubmitJob, '/SubmitJob')
 class PostJob(Resource):
     def post(self):
         params = request.get_json(force=True)
-        monitor = yaml.safe_dump(params, default_flow_style=False)
         logger.info("Post Job")
-        logger.info(monitor)
-        ret = {}
-        if True:
-            output = JobRestAPIUtils.SubmitJob(json.dumps(params))
+        logger.info(params)
 
-            if "jobId" in output:
-                ret["jobId"] = output["jobId"]
+        ret = {}
+        output = JobRestAPIUtils.SubmitJob(json.dumps(params))
+
+        if "jobId" in output:
+            ret["jobId"] = output["jobId"]
+        else:
+            if "error" in output:
+                ret["error"] = "Cannot create job!" + output["error"]
             else:
-                if "error" in output:
-                    ret["error"] = "Cannot create job!" + output["error"]
-                else:
-                    ret["error"] = "Cannot create job!"
-            logger.info("Submit job through restapi, output is %s, ret is %s", output, ret)
+                ret["error"] = "Cannot create job!"
+        logger.info("Submit job through restapi, output is %s, ret is %s", output, ret)
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
@@ -359,6 +379,9 @@ class ListJobs(Resource):
                     job["jobStatusDetail"] = s
                     pass
 
+            # Remove credentials
+            remove_creds(job)
+
             if job["jobStatus"] == "running":
                 if job["jobType"] == "training":
                     runningJobs.append(job)
@@ -378,13 +401,40 @@ class ListJobs(Resource):
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
-
         return resp
 ##
 ## Actually setup the Api resource routing here
 ##
 api.add_resource(ListJobs, '/ListJobs')
 
+# shows a list of all jobs, and lets you POST to add new tasks
+class ListJobsV2(Resource):
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('userName')
+        parser.add_argument('num')
+        parser.add_argument('vcName')
+        parser.add_argument('jobOwner')
+        args = parser.parse_args()
+        num = None
+        if args["num"] is not None:
+            try:
+                num = int(args["num"])
+            except:
+                pass
+
+        jobs = JobRestAPIUtils.GetJobListV2(args["userName"], args["vcName"], args["jobOwner"], num)
+        for _, joblist in jobs.items():
+            if isinstance(joblist, list):
+                for job in joblist:
+                    remove_creds(job)
+
+        resp = generate_response(jobs)
+        return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(ListJobsV2, '/ListJobsV2')
 
 
 class KillJob(Resource):
@@ -559,20 +609,56 @@ class GetJobDetail(Resource):
             job["endpoints"] = json.loads(job["endpoints"])
         if "jobStatusDetail" in job and job["jobStatusDetail"] is not None and len(job["jobStatusDetail"].strip()) > 0:
             try:
-                job["jobStatusDetail"] = Json.loads(base64.b64decode(job["jobStatusDetail"]))
+                job["jobStatusDetail"] = json.loads(base64.b64decode(job["jobStatusDetail"]))
             except Exception as e:
                 pass
         if "jobMeta" in job:
             job.pop("jobMeta",None)
+
+        # Remove credentials
+        remove_creds(job)
+
         resp = jsonify(job)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
-
         return resp
 ##
 ## Actually setup the Api resource routing here
 ##
 api.add_resource(GetJobDetail, '/GetJobDetail')
+
+
+class GetJobDetailV2(Resource):
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('jobId')
+        parser.add_argument('userName')
+        args = parser.parse_args()
+        jobId = args["jobId"]
+        userName = args["userName"]
+        job = JobRestAPIUtils.GetJobDetailV2(userName, jobId)
+        remove_creds(job)
+        resp = generate_response(job)
+        return resp
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(GetJobDetailV2, '/GetJobDetailV2')
+
+
+class GetJobLog(Resource):
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('jobId', required=True)
+        parser.add_argument('userName', required=True)
+        args = parser.parse_args()
+        jobId = args["jobId"]
+        userName = args["userName"]
+        return JobRestAPIUtils.GetJobLog(userName, jobId)
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(GetJobLog, '/GetJobLog')
 
 
 class GetJobStatus(Resource):
@@ -682,6 +768,28 @@ class AddUser(Resource):
 api.add_resource(AddUser, '/AddUser')
 
 
+class GetAllUsers(Resource):
+    def get(self):
+        data_handler = None
+        try:
+            data_handler = DataHandler()
+            ret = data_handler.GetUsers()
+            resp = jsonify(ret)
+            resp.headers["Access-Control-Allow-Origin"] = "*"
+            resp.headers["dataType"] = "json"
+            return resp
+        except Exception as e:
+            return "Internal Server Error. " + str(e), 400
+        finally:
+            if data_handler is not None:
+                data_handler.Close()
+
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(GetAllUsers, '/GetAllUsers')
+
+
 class UpdateAce(Resource):
     def get(self):
         parser = reqparse.RequestParser()
@@ -775,7 +883,7 @@ api.add_resource(GetACL, '/GetACL')
 class GetAllACL(Resource):
     def get(self):
         ret = {}
-        ret["result"] = AuthorizationManager.GetAllAcl()
+        ret["result"] = ACLManager.GetAllAcl()
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
@@ -1008,13 +1116,6 @@ class UpdateStorage(Resource):
 ##
 api.add_resource(UpdateStorage, '/UpdateStorage')
 
-def getAlias(username):
-    if "@" in username:
-        return username.split("@")[0].strip()
-    if "/" in username:
-        return username.split("/")[1].strip()
-    return username
-
 
 class Endpoint(Resource):
     def get(self):
@@ -1025,44 +1126,12 @@ class Endpoint(Resource):
         args = parser.parse_args()
         jobId = args["jobId"]
         username = args["userName"]
-        job = JobRestAPIUtils.GetJobDetail(username, jobId)
 
-        rets = []
-
-        vc_admin = AuthorizationManager.HasAccess(username, ResourceType.VC, job["vcName"], Permission.Admin)
-        if job["userName"] == username or vc_admin:
-            try:
-                endpoints = json.loads(job["endpoints"])
-            except:
-                endpoints = {}
-
-            for [_, endpoint] in endpoints.items():
-                ret = {
-                    "id": endpoint["id"],
-                    "name": endpoint["name"],
-                    "username": endpoint["username"],
-                    "status": endpoint["status"],
-                    "hostNetwork": endpoint["hostNetwork"],
-                    "podName": endpoint["podName"],
-                    "domain": config["domain"],
-                }
-                if "podPort" in endpoint:
-                    ret["podPort"] = endpoint["podPort"]
-                if endpoint["status"] == "running":
-                    if endpoint["hostNetwork"]:
-                        port = int(endpoint["endpointDescription"]["spec"]["ports"][0]["port"])
-                    else:
-                        port = int(endpoint["endpointDescription"]["spec"]["ports"][0]["nodePort"])
-                    ret["port"] = port
-                    if "nodeName" in endpoint:
-                        ret["nodeName"] = endpoint["nodeName"]
-                rets.append(ret)
+        ret = JobRestAPIUtils.GetEndpoints(username, jobId)
 
         # TODO: return 403 error code
         # Return empty list for now to keep backward compatibility with old portal.
-        resp = jsonify(rets)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
+        resp = generate_response(ret)
         return resp
 
     def post(self):
@@ -1076,32 +1145,6 @@ class Endpoint(Resource):
         job_id = params["jobId"]
         requested_endpoints = params["endpoints"]
 
-        # get the job
-        job = JobRestAPIUtils.get_job(job_id)
-        if job is None:
-            msg = "Job %s cannot be found in database" % job_id
-            logger.error(msg)
-            return msg, 404
-
-        vc_admin = AuthorizationManager.HasAccess(username, ResourceType.VC, job["vcName"], Permission.Admin)
-        if job["userName"] != username and (not vc_admin):
-            msg = "You are not authorized to enable endpoint for job %s" % job_id
-            logger.error(msg)
-            return msg, 403
-
-        job_params = json.loads(base64.b64decode(job["jobParams"]))
-        job_type = job_params["jobtrainingtype"]
-
-        # get pods
-        pod_names = []
-        if job_type == "RegularJob":
-            pod_names.append(job_id)
-        else:
-            nums = {"ps": int(job_params["numps"]), "worker": int(job_params["numpsworker"])}
-            for role in ["ps", "worker"]:
-                for i in range(nums[role]):
-                    pod_names.append(job_id + "-" + role + str(i))
-
         interactive_ports = []
         # endpoints should be ["ssh", "ipython", "tensorboard", {"name": "port name", "podPort": "port on pod in 40000-49999"}]
         for interactive_port in [ elem for elem in requested_endpoints if elem not in ["ssh", "ipython", "tensorboard"] ]:
@@ -1114,137 +1157,11 @@ class Endpoint(Resource):
                 return ("Bad request, interactive port name length shoule be less than 16: %s" % requested_endpoints), 400
             interactive_ports.append(interactive_port)
 
-        # HostNetwork
-        if "hostNetwork" in job_params and job_params["hostNetwork"] == True:
-            host_network = True
-        else:
-            host_network = False
+        msg, statusCode = JobRestAPIUtils.UpdateEndpoints(username, job_id, requested_endpoints, interactive_ports)
+        if statusCode != 200:
+            return msg, statusCode
 
-        # username
-        username = getAlias(job["userName"])
-
-        endpoints = {}
-
-        def endpoint_exist(endpoint_id):
-            try:
-                curr_endpoints = json.loads(job["endpoints"])
-            except:
-                curr_endpoints = {}
-
-            if endpoint_id in curr_endpoints:
-                return True
-            return False
-
-        if "ssh" in requested_endpoints:
-            # setup ssh for each pod
-            for pod_name in pod_names:
-                endpoint_id = "e-" + pod_name + "-ssh"
-
-                if endpoint_exist(endpoint_id=endpoint_id):
-                    logger.info("Endpoint %s exists. Skip.", endpoint_id)
-                    continue
-                logger.info("Endpoint %s does not exist. Add.", endpoint_id)
-
-                endpoint = {
-                    "id": endpoint_id,
-                    "jobId": job_id,
-                    "podName": pod_name,
-                    "username": username,
-                    "name": "ssh",
-                    "status": "pending",
-                    "hostNetwork": host_network
-                }
-                endpoints[endpoint_id] = endpoint
-
-        # Only open Jupyter on the master
-        if 'ipython' in requested_endpoints:
-            if job_type == "RegularJob":
-                pod_name = pod_names[0]
-            else:
-                # For a distributed job, we set up jupyter on first worker node.
-                # PS node does not have GPU access.
-                # TODO: Simplify code logic after removing PS
-                pod_name = pod_names[1]
-
-            endpoint_id = "e-" + job_id + "-ipython"
-
-            if not endpoint_exist(endpoint_id=endpoint_id):
-                logger.info("Endpoint %s does not exist. Add.", endpoint_id)
-                endpoint = {
-                    "id": endpoint_id,
-                    "jobId": job_id,
-                    "podName": pod_name,
-                    "username": username,
-                    "name": "ipython",
-                    "status": "pending",
-                    "hostNetwork": host_network
-                }
-                endpoints[endpoint_id] = endpoint
-            else:
-                logger.info("Endpoint %s exists. Skip.", endpoint_id)
-
-        # Only open tensorboard on the master
-        if 'tensorboard' in requested_endpoints:
-            if job_type == "RegularJob":
-                pod_name = pod_names[0]
-            else:
-                # For a distributed job, we set up jupyter on first worker node.
-                # PS node does not have GPU access.
-                # TODO: Simplify code logic after removing PS
-                pod_name = pod_names[1]
-
-            endpoint_id = "e-" + job_id + "-tensorboard"
-
-            if not endpoint_exist(endpoint_id=endpoint_id):
-                logger.info("Endpoint %s does not exist. Add.", endpoint_id)
-                endpoint = {
-                    "id": endpoint_id,
-                    "jobId": job_id,
-                    "podName": pod_name,
-                    "username": username,
-                    "name": "tensorboard",
-                    "status": "pending",
-                    "hostNetwork": host_network
-                }
-                endpoints[endpoint_id] = endpoint
-            else:
-                logger.info("Endpoint %s exists. Skip.", endpoint_id)
-
-        # interactive port
-        for interactive_port in interactive_ports:
-            if job_type == "RegularJob":
-                pod_name = pod_names[0]
-            else:
-                # For a distributed job, we set up jupyter on first worker node.
-                # PS node does not have GPU access.
-                # TODO: Simplify code logic after removing PS
-                pod_name = pod_names[1]
-
-            endpoint_id = "e-" + job_id + "-port-" + str(interactive_port["podPort"])
-            if not endpoint_exist(endpoint_id=endpoint_id):
-                logger.info("Endpoint %s does not exist. Add.", endpoint_id)
-                endpoint = {
-                    "id": endpoint_id,
-                    "jobId": job_id,
-                    "podName": pod_name,
-                    "username": username,
-                    "name": interactive_port["name"],
-                    "podPort": interactive_port["podPort"],
-                    "status": "pending",
-                    "hostNetwork": host_network
-                }
-                endpoints[endpoint_id] = endpoint
-            else:
-                logger.info("Endpoint %s exists. Skip.", endpoint_id)
-
-        data_handler = DataHandler()
-        for [_, endpoint] in endpoints.items():
-            data_handler.UpdateEndpoint(endpoint)
-        data_handler.Close()
-
-        resp = jsonify(endpoints)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
+        resp = generate_response(msg)
         return resp
 
 
@@ -1366,10 +1283,8 @@ class JobPriority(Resource):
         username = args["userName"]
 
         payload = request.get_json(silent=True)
-        success = JobRestAPIUtils.update_job_priorites(username, payload)
+        success, all_job_priorities = JobRestAPIUtils.update_job_priorites(username, payload)
         http_status = 200 if success else 400
-
-        all_job_priorities = JobRestAPIUtils.get_job_priorities()
 
         # Only return job_priorities affected in the POST request
         job_priorities = {}

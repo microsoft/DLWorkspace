@@ -9,7 +9,6 @@ export ENV_FILE=/pod.env
 
 # install required pkgs
 export DEBIAN_FRONTEND=noninteractive
-time apt-get update && time apt-get install sudo openssl -y
 
 # setup user and group, fix permissions
 addgroup --force-badname --gid  ${DLWS_GID} domainusers
