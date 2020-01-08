@@ -181,15 +181,15 @@ class StorageManager(object):
                                     "Skip." % scan_point)
                 continue
 
-            if "user_percent_alert_threshold" not in scan_point:
-                self.logger.warning("user_percent_alert_threshold does not "
-                                    "exist in %s. Skip." % scan_point)
-                continue
-
             if "path" not in scan_point:
                 self.logger.warning("path does not exist in %s. Skip." %
                                     scan_point)
                 continue
+
+            if "used_percent_alert_threshold" not in scan_point:
+                self.logger.warning("user_percent_alert_threshold does not "
+                                    "exist in %s. Setting to 90." % scan_point)
+                scan_point["used_percent_alert_threshold"] = 90
 
             # Only scan if alert threshold is reached
             used_percent = self.scan_point_used_percent(scan_point)
