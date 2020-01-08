@@ -1,14 +1,13 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import threading
 import time
 import logging
-import urlparse
 import json
 import smtplib
 
-from Queue import Queue
-from Queue import Empty
+from queue import Queue
+from queue import Empty
 
 import requests
 

@@ -1,12 +1,14 @@
+#!/usr/bin/env python3
+
 import unittest
 import json
-import yaml
 import sys
 import os
 from job import Job, JobSchema
 from pod_template import PodTemplate
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
+
 from config import config
 
 VALID_JOB_ATTRIBUTES = {

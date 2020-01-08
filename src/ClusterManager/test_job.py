@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import unittest
 import json
 import sys
@@ -6,6 +8,7 @@ from job import Job, JobSchema
 from job import invalid_entry, dedup_add
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
+
 from config import config
 
 
@@ -150,7 +153,7 @@ class TestJob(unittest.TestCase):
         job.add_mountpoints(job.job_path_mountpoint())
         job.add_mountpoints(job.work_path_mountpoint())
         job.add_mountpoints(job.data_path_mountpoint())
-        self.assertEquals(3, len(job.mountpoints))
+        self.assertEqual(3, len(job.mountpoints))
 
     def test_get_template(self):
         job = self.create_a_job()
@@ -245,9 +248,9 @@ class TestJob(unittest.TestCase):
                     "containerName": "blobContainer0",
                     "mountPath": "/mnt/blobfuse/data0",
                     "enabled": True,
-                    "name": u"ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-0",
-                    "secreds": u"ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-0-secreds",
-                    "jobId": u"ce7dca49-28df-450a-a03b-51b9c2ecc69c"
+                    "name": "ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-0",
+                    "secreds": "ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-0-secreds",
+                    "jobId": "ce7dca49-28df-450a-a03b-51b9c2ecc69c"
                 },
                 {
                     "accountName":"WVdKag==",
@@ -255,9 +258,9 @@ class TestJob(unittest.TestCase):
                     "containerName":"blobContainer1",
                     "mountPath":"/mnt/blobfuse/data1",
                     "enabled": True,
-                    "name": u"ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-1",
-                    "secreds": u"ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-1-secreds",
-                    "jobId": u"ce7dca49-28df-450a-a03b-51b9c2ecc69c"
+                    "name": "ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-1",
+                    "secreds": "ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-1-secreds",
+                    "jobId": "ce7dca49-28df-450a-a03b-51b9c2ecc69c"
                 }
             ]
         }

@@ -59,8 +59,8 @@ default_config_mapping = {
 def load_az_params_as_default(config):
     from az_params import default_az_parameters
     # need az_params default, in case we don't have the key in config.yaml
-    default_cfg = { k: v for k, v in default_az_parameters.items() }
-    azure_cluster_cfg = { k: v for k, v in config["azure_cluster"].items() } if "azure_cluster" in config else {}
+    default_cfg = { k: v for k, v in list(default_az_parameters.items()) }
+    azure_cluster_cfg = { k: v for k, v in list(config["azure_cluster"].items()) } if "azure_cluster" in config else {}
     merge_config(config["azure_cluster"], default_cfg["azure_cluster"])
     merge_config(config["azure_cluster"], azure_cluster_cfg)
     domain_mapping = {"regular":"%s.cloudapp.azure.com" % config["azure_cluster"]["azure_location"], "low": config.get("network_domain",config["azure_cluster"]["default_low_priority_domain"])}
@@ -139,7 +139,7 @@ def get_nodes_from_config(machinerole, config):
     else:
         domain = get_domain(config)
         Nodes = []
-        for nodename, nodeInfo in config["machines"].items():
+        for nodename, nodeInfo in list(config["machines"].items()):
             if "role" in nodeInfo and machinerole in nodeInfo["role"]:
                 if len(nodename.split("."))<3:
                     Nodes.append(nodename+domain)
@@ -181,7 +181,7 @@ def get_node_lists_for_service(service, config):
     else:
         machines = fetch_config(config, ["machines"])
         if machines is None:
-            print("Service %s has a nodes type %s, but there is no machine configuration to identify node" % (service, nodetype))
+            print(("Service %s has a nodes type %s, but there is no machine configuration to identify node" % (service, nodetype)))
             exit(-1)
         allnodes = config["worker_node"] + config["etcd_node"]
         nodes = []
@@ -222,11 +222,11 @@ def create_cluster_id(overwrite = False):
         clusterId["clusterId"] = str(uuid.uuid4())
         with open('./deploy/clusterID.yml', 'w') as f:
             yaml.dump(clusterId, f)
-        print("Cluster ID generated: " + clusterId["clusterId"])
+        print(("Cluster ID generated: " + clusterId["clusterId"]))
     else:
         with open('./deploy/clusterID.yml', 'r') as f:
             ID = yaml.load(f)['clusterId']
-        print('Cluster ID file exists -- ./deploy/clusterID.yml:\n{}'.format(ID))
+        print(('Cluster ID file exists -- ./deploy/clusterID.yml:\n{}'.format(ID)))
 
 def load_cluster_ID():
     if (not os.path.exists('./deploy/clusterID.yml')):
@@ -239,14 +239,14 @@ def load_config(args):
     config = init_config(default_config_parameters)
     if args.verbose:
         utils.verbose = True
-        print("Args = {0}".format(args))
+        print(("Args = {0}".format(args)))
 
     # deploy new cluster or load info of an existing cluster? specify the yaml file to specify explicitly
     for cnf_fn in args.config:
         config_file = os.path.join(dirpath, cnf_fn)
         if not os.path.exists(config_file):
             parser.print_help()
-            print("ERROR: {} does not exist!".format(config_file))
+            print(("ERROR: {} does not exist!".format(config_file)))
             exit()
         with open(config_file) as cf:
             merge_config(config, yaml.safe_load(cf))
@@ -266,8 +266,8 @@ def load_config(args):
     config = get_ssh_config(config)
     configuration( config, args.verbose )
     if args.verbose:
-        print("deploy " + command + " " + (" ".join(args.nargs)))
-        print("PlatformScripts = {0}".format(config["platform-scripts"]))
+        print(("deploy " + command + " " + (" ".join(args.nargs))))
+        print(("PlatformScripts = {0}".format(config["platform-scripts"])))
 
     return config
 
@@ -406,6 +406,6 @@ if __name__ == '__main__':
             run_script_blocks(args.verbose, scriptblocks[nargs[0]])
         else:
             parser.print_help()
-            print("Error: Unknown scriptblocks " + nargs[0])
+            print(("Error: Unknown scriptblocks " + nargs[0]))
     else:
         run_command(args, command, parser)

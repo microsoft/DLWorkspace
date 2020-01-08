@@ -16,13 +16,13 @@ import az_tools
 # AZ ACS commands
 def az_cmd(cmd):
     if verbose:
-        print "az "+cmd
+        print("az "+cmd)
     output = subprocess.check_output("az "+cmd, shell=True)
     return yaml.load(output)
 
 def az_sys(cmd):
     if verbose:
-        print "az "+cmd
+        print("az "+cmd)
     os.system("az "+cmd)
 
 def az_tryuntil(cmd, stopFn, waitPeriod=5):
@@ -95,7 +95,7 @@ def acs_set_resource_grp(exitIfNotFound):
             if not bFoundMachines:
                 # try child resource group
                 tryGroup = "%s_%s_%s" % (config["resource_group"], config["cluster_name"], config["cluster_location"])
-                print "Grp %s has no matchines trying %s" % (config["resource_group"], tryGroup)
+                print("Grp %s has no matchines trying %s" % (config["resource_group"], tryGroup))
                 if (az_grp_exist(tryGroup)):
                     machines = az_cmd("vm list --resource-group=%s" % tryGroup)
                     if (len(machines) > 0):
@@ -105,9 +105,9 @@ def acs_set_resource_grp(exitIfNotFound):
         if bFoundMachines:
             config["resource_group_set"] = True
         if not bFoundMachines and exitIfNotFound:
-            print "No machines found -- quitting"
+            print("No machines found -- quitting")
             exit()
-        print "Resource group = %s" % config["resource_group"]
+        print("Resource group = %s" % config["resource_group"])
 
 # Get names of kubernetes nodes (machine names)
 def acs_get_kube_nodes():
@@ -145,7 +145,7 @@ def acs_wait_for_kube():
         nodes = yaml.load(nodeInfo)
         numNodes = len(nodes["items"])
         if numNodes < expectedNodes:
-            print "Waiting for {0} kubernetes nodes to start up, currently have only {1} nodes".format(expectedNodes, numNodes)
+            print("Waiting for {0} kubernetes nodes to start up, currently have only {1} nodes".format(expectedNodes, numNodes))
             time.sleep(5)
 
 # divide nodes into master / agent
@@ -242,7 +242,7 @@ def acs_create_public_ip(node):
     if "publicIp" not in nodeInfo:
         fullInfo = acs_get_ip_info_full(node)
         # Create IP
-        print "Creating public-IP: "+publicIpName
+        print("Creating public-IP: "+publicIpName)
         cmd = "network public-ip create --allocation-method=Dynamic"
         cmd += " --resource-group=%s" % config["resource_group"]
         cmd += " --name=%s" % publicIpName
@@ -297,7 +297,7 @@ def acs_add_nsg_rules(ports_to_add):
                 maxThreeDigitRule = max(maxThreeDigitRule, rule["priority"])
 
     if verbose:
-        print "Existing max three digit rule for NSG: %s is %d" % (nsg_name, maxThreeDigitRule)
+        print("Existing max three digit rule for NSG: %s is %d" % (nsg_name, maxThreeDigitRule))
 
     for port_rule in ports_to_add:
         port_num = ports_to_add[port_rule]
@@ -325,7 +325,7 @@ def acs_add_nsg_rules(ports_to_add):
                         found_port = rule["name"]
                         break
             if not (found_port is None):
-                print "Rule for %s : %d -- already satisfied by %s" % (port_rule, port_num, found_port)
+                print("Rule for %s : %d -- already satisfied by %s" % (port_rule, port_num, found_port))
                 createRule = False
         if createRule:
             maxThreeDigitRule = maxThreeDigitRule + 10

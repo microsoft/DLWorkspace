@@ -1,27 +1,25 @@
+#!/usr/bin/env python3
 
 import json
 import os
 import time
 import sys
 import datetime
-import copy
-import base64
-import traceback
 import random
 import re
 import logging
 import yaml
 import logging.config
-
 import argparse
+
 from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time
+from job_launcher import JobDeployer
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
-import k8sUtils
-from config import config, GetStoragePath, GetWorkPath
-from DataHandler import DataHandler
 
-from job_launcher import JobDeployer
+import k8sUtils
+from config import config
+from DataHandler import DataHandler
 
 logger = logging.getLogger(__name__)
 deployer = JobDeployer()
@@ -170,7 +168,7 @@ def start_endpoints():
         try:
             pending_endpoints = data_handler.GetPendingEndpoints()
 
-            for endpoint_id, endpoint in pending_endpoints.items():
+            for endpoint_id, endpoint in list(pending_endpoints.items()):
                 try:
                     job = data_handler.GetJob(jobId=endpoint["jobId"])[0]
                     if job["jobStatus"] != "running":
@@ -210,7 +208,7 @@ def cleanup_endpoints():
         data_handler = DataHandler()
         try:
             dead_endpoints = data_handler.GetDeadEndpoints()
-            for endpoint_id, dead_endpoint in dead_endpoints.items():
+            for endpoint_id, dead_endpoint in list(dead_endpoints.items()):
                 try:
                     logger.info("\n\n\n\n\n\n----------------Begin to cleanup endpoint %s", endpoint_id)
                     endpoint_description_path = os.path.join(config["storage-mount-path"], dead_endpoint["endpointDescriptionPath"])

@@ -1,33 +1,18 @@
+#!/usr/bin/env python3
+
 import json
 import os
-import time
-import argparse
-import uuid
-import subprocess32
 import sys
 from datetime import datetime
+import logging
+import yaml
+
 from tzlocal import get_localzone
 import pytz
-
-import logging
-
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
-
-from jobs_tensorboard import GenTensorboardMeta
-
-import yaml
-from jinja2 import Environment, FileSystemLoader, Template
-from config import config, GetStoragePath
-import base64
-
-import re
-
-import thread
-import threading
-import random
 import pycurl
-from StringIO import StringIO
+from io import StringIO
+
+from config import config
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +43,7 @@ def curl_get(url):
 def kubectl_create(jobfile, EXEC=True):
     if EXEC:
         try:
-            output = subprocess32.check_output(["bash", "-c", config["kubelet-path"] + " create -f " + jobfile])
+            output = subprocess.check_output(["bash", "-c", config["kubelet-path"] + " create -f " + jobfile])
         except Exception as e:
             logger.exception("kubectl create")
             output = ""
@@ -88,7 +73,7 @@ def kubectl_exec(params, timeout=None):
     try:
         #print ("bash -c %s %s" % (config["kubelet-path"], params))
         # TODO set the timeout
-        output = subprocess32.check_output(["bash", "-c", config["kubelet-path"] + " " + params], timeout=timeout)
+        output = subprocess.check_output(["bash", "-c", config["kubelet-path"] + " " + params], timeout=timeout)
     except Exception as e:
         logger.exception("kubectl exec")
         output = ""
@@ -385,6 +370,6 @@ def get_node_labels(key):
 if __name__ == '__main__':
 
     #Run()
-    print get_node_labels("rack")
+    print(get_node_labels("rack"))
 
     pass

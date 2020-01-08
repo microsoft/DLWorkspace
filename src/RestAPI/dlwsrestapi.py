@@ -1,34 +1,30 @@
+#!/usr/bin/env python3
+
 import sys
 import json
 import os
-
-from flask import Flask, Response
-from flask_restful import reqparse, abort, Api, Resource
-from flask import request, jsonify
 import base64
 import yaml
 import uuid
-
 import logging
-import timeit
 from logging.config import dictConfig
-import thread
-
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
-#from JobRestAPIUtils import SubmitDistJob, GetJobList, GetJobStatus, DeleteJob, GetTensorboard, GetServiceAddress, GetLog, GetJob
-import JobRestAPIUtils
-from authorization import ResourceType, Permission, AuthorizationManager, ACLManager
-from config import config
-from config import global_vars
-import authorization
-from DataHandler import DataHandler
-
 import time
-import sys
 import traceback
 import threading
 
+from flask import Flask, Response
+from flask_restful import reqparse, Api, Resource
+from flask import request, jsonify
 import prometheus_client
+
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
+
+import JobRestAPIUtils
+from authorization import ResourceType, Permission, AuthorizationManager, ACLManager
+from config import config, global_vars
+import authorization
+from DataHandler import DataHandler
+
 
 CONTENT_TYPE_LATEST = str("text/plain; version=0.0.4; charset=utf-8")
 
@@ -54,7 +50,7 @@ if "initAdminAccess" not in global_vars or not global_vars["initAdminAccess"]:
 
 def _stacktraces():
    code = []
-   for threadId, stack in sys._current_frames().items():
+   for threadId, stack in list(sys._current_frames().items()):
        code.append("\n# ThreadID: %s" % threadId)
        for filename, lineno, name, line in traceback.extract_stack(stack):
            code.append('File: "%s", line %d, in %s' % (filename, lineno, name))
@@ -62,7 +58,7 @@ def _stacktraces():
                code.append("  %s" % (line.strip()))
 
    for line in code:
-       print("_stacktrace: " + line)
+       print(("_stacktrace: " + line))
 
 
 def _WorkerThreadFunc():
@@ -78,13 +74,13 @@ def _WorkerThreadFunc():
 def istrue(value):
     if isinstance(value, bool):
         return value
-    elif isinstance(value, basestring):
+    elif isinstance(value, str):
         return value.lower()[0]=='y'
     else:
         return bool(value)
 
 def tolist(value):
-    if isinstance( value, basestring):
+    if isinstance( value, str):
         if len(value)>0:
             return [value]
         else:
@@ -157,7 +153,7 @@ class SubmitJob(Resource):
         params = {}
         ret = {}
 
-        for key, value in args.iteritems():
+        for key, value in args.items():
             if value is not None:
                 params[key] = value
 
@@ -243,7 +239,7 @@ class SubmitJob(Resource):
                 params["mountpoints"].append({"name":"homeholder","containerPath":os.path.join("/home", alias),"hostPath":os.path.join(config["storage-mount-path"], "work", alias)})
             if "mountpoints" in config and "storage-mount-path" in config:
                 # see link_fileshares in deploy.py
-                for k, v in config["mountpoints"].iteritems():
+                for k, v in config["mountpoints"].items():
                     if "mountpoints" in v:
                         for basename in tolist(v["mountpoints"]):
                             if basename!="" and basename not in config["default-storage-folders"] and basename in config["deploymounts"]:
@@ -424,7 +420,7 @@ class ListJobsV2(Resource):
                 pass
 
         jobs = JobRestAPIUtils.GetJobListV2(args["userName"], args["vcName"], args["jobOwner"], num)
-        for _, joblist in jobs.items():
+        for _, joblist in list(jobs.items()):
             if isinstance(joblist, list):
                 for job in joblist:
                     remove_creds(job)
@@ -1288,7 +1284,7 @@ class JobPriority(Resource):
 
         # Only return job_priorities affected in the POST request
         job_priorities = {}
-        for job_id, _ in payload.items():
+        for job_id, _ in list(payload.items()):
             if job_id in all_job_priorities:
                 job_priorities[job_id] = all_job_priorities[job_id]
             else:

@@ -12,9 +12,9 @@ import uuid
 
 def init_config():
     config = {}
-    for k, v in default_config_parameters.items():
+    for k, v in list(default_config_parameters.items()):
         config[k] = v
-    for k, v in default_az_parameters.items():
+    for k, v in list(default_az_parameters.items()):
         config[k] = v
     return config
 
@@ -54,7 +54,7 @@ def render_infra_and_nfs(complementary_file_name, config):
             cc["machines"][vmname] = {'role': spec["role"]}
 
     cc["etcd_node_num"] = len(
-        [mv for mv in cc["machines"].values() if 'infra' in mv['role']])
+        [mv for mv in list(cc["machines"].values()) if 'infra' in mv['role']])
     cc["admin_username"] = config["cloud_config"]["default_admin_username"]
     cc["network"] = {"domain": domain_mapping[config["priority"]]}
     if complementary_file_name != '':

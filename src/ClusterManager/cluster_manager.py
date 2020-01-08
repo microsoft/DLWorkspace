@@ -1,5 +1,6 @@
+#!/usr/bin/env python3
+
 import yaml
-import subprocess32
 import os
 import logging
 import logging.config
@@ -12,6 +13,7 @@ import traceback
 import signal
 import timeit
 import functools
+import subprocess
 
 from prometheus_client.twisted import MetricsResource
 from prometheus_client import Histogram
@@ -74,13 +76,13 @@ def create_log(logdir="/var/log/dlworkspace"):
 def dumpstacks(signal, frame):
     id2name = dict([(th.ident, th.name) for th in threading.enumerate()])
     code = []
-    for threadId, stack in sys._current_frames().items():
+    for threadId, stack in list(sys._current_frames().items()):
         code.append("\n# Thread: %s(%d)" % (id2name.get(threadId,""), threadId))
         for filename, lineno, name, line in traceback.extract_stack(stack):
             code.append('File: "%s", line %d, in %s' % (filename, lineno, name))
             if line:
                 code.append("  %s" % (line.strip()))
-    print "\n".join(code)
+    print("\n".join(code))
     sys.stdout.flush()
     sys.stderr.flush()
 
@@ -123,8 +125,6 @@ def Run(args):
         ["python", os.path.join(cwd, "node_manager.py"), "--port", str(args.n)],
         "joblog_manager":
         ["python", os.path.join(cwd, "joblog_manager.py"), "--port", str(args.l)],
-        "command_manager":
-        ["python", os.path.join(cwd, "command_manager.py"), "--port", str(args.c)],
         "endpoint_manager":
         ["python", os.path.join(cwd, "endpoint_manager.py"), "--port", str(args.e)],
     }
@@ -141,7 +141,7 @@ def Run(args):
         time.sleep(60)
 
 def work(cmds, childs, FNULL):
-    for key, cmd in cmds.items():
+    for key, cmd in list(cmds.items()):
         child = childs.get(key)
         need_start = False
 
@@ -165,7 +165,7 @@ def work(cmds, childs, FNULL):
         if need_start:
             update_file_modification_time(key)
             try:
-                childs[key] = subprocess32.Popen(cmd, stdin=FNULL)
+                childs[key] = subprocess.Popen(cmd, stdin=FNULL)
             except Exception as e:
                 logger.exception("caught exception when trying to start %s, ignore", cmd)
 
@@ -180,7 +180,6 @@ if __name__ == "__main__":
     parser.add_argument("-u", help="port of user_manager", type=int, default=9201)
     parser.add_argument("-n", help="port of node_manager", type=int, default=9202)
     parser.add_argument("-l", help="port of joblog_manager", type=int, default=9203)
-    parser.add_argument("-c", help="port of command_manager", type=int, default=9204)
     parser.add_argument("-e", help="port of endpoint_manager", type=int, default=9205)
     args = parser.parse_args()
 

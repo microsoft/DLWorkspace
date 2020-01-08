@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import math
 import collections
 import logging
@@ -32,8 +34,8 @@ def calculate_vc_gpu_counts(cluster_total, cluster_available, cluster_unschedula
     vc_unschedulable = collections.defaultdict(lambda : {})
 
     vc_quota_sum = 0
-    for vc_name, gpu_info in vc_info.items():
-        for gpu_type, total in gpu_info.items():
+    for vc_name, gpu_info in list(vc_info.items()):
+        for gpu_type, total in list(gpu_info.items()):
             vc_total[vc_name][gpu_type] = total
             vc_quota_sum += total
 
@@ -41,8 +43,8 @@ def calculate_vc_gpu_counts(cluster_total, cluster_available, cluster_unschedula
     # quota
     ratio = collections.defaultdict(lambda : {})
 
-    for vc_name, gpu_info in vc_info.items():
-        for gpu_type, quota in gpu_info.items():
+    for vc_name, gpu_info in list(vc_info.items()):
+        for gpu_type, quota in list(gpu_info.items()):
             if vc_quota_sum == 0:
                 unschedulable = 0
             else:
@@ -54,14 +56,14 @@ def calculate_vc_gpu_counts(cluster_total, cluster_available, cluster_unschedula
             ratio[vc_name][gpu_type] = max(vc_quota - used, 0)
 
     ratio_sum = 0
-    for vc_name, gpu_info in ratio.items():
-        for gpu_type, cur_ratio in gpu_info.items():
+    for vc_name, gpu_info in list(ratio.items()):
+        for gpu_type, cur_ratio in list(gpu_info.items()):
             ratio_sum += cur_ratio
 
     logger.debug("ratio %s, ratio_sum %s", ratio, ratio_sum)
 
-    for vc_name, gpu_info in ratio.items():
-        for gpu_type, cur_ratio in gpu_info.items():
+    for vc_name, gpu_info in list(ratio.items()):
+        for gpu_type, cur_ratio in list(gpu_info.items()):
             if vc_usage.get(vc_name, {}).get(gpu_type, 0) == 0:
                 # no job running in this vc.
                 if ratio_sum == 0:
@@ -74,8 +76,8 @@ def calculate_vc_gpu_counts(cluster_total, cluster_available, cluster_unschedula
                 vc_available[vc_name][gpu_type] = available
                 vc_unschedulable[vc_name][gpu_type] = max(0, quota - available)
 
-    for vc_name, vc_usage_info in vc_usage.items():
-        for gpu_type, vc_usage in vc_usage_info.items():
+    for vc_name, vc_usage_info in list(vc_usage.items()):
+        for gpu_type, vc_usage in list(vc_usage_info.items()):
             if vc_name not in vc_info:
                 logger.warning("ignore used gpu in %s, but vc quota do not have this vc, possible due to job template error", vc_name)
                 continue

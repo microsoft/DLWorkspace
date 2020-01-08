@@ -1,17 +1,14 @@
-import sys
+#!/usr/bin/env python3
+
 import os
 import random
-import re
 import json
-from marshmallow import Schema, fields, post_load, validate
-from jinja2 import Environment, FileSystemLoader, Template
-
 import logging
 import logging.config
 import base64
-import yaml
 
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
+from marshmallow import Schema, fields, post_load, validate
+from jinja2 import Environment, FileSystemLoader, Template
 
 logger = logging.getLogger(__name__)
 
@@ -303,7 +300,7 @@ class Job:
             return {}
 
         ret = {}
-        for plugin, plugin_config in plugins.items():
+        for plugin, plugin_config in list(plugins.items()):
             if plugin == "blobfuse" and isinstance(plugin_config, list):
                 blobfuse = self.get_blobfuse_plugins(plugin_config)
                 ret["blobfuse"] = blobfuse
