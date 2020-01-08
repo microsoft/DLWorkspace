@@ -75,6 +75,15 @@ bash ./mnt_fs_svc.sh
 IFS=';' read -ra services <<< $KUBE_SERVICES
 
 for svc in "${services[@]}"; do
-    kubectl create -f $svc
+    cntr=2
+    until kubectl create -f $svc ; do
+        sleep 5;
+        cntr=$((cntr-1))
+        echo "waiting for ${svc}, ${cntr} more attempts"
+        if [ "$cntr" -le 0 ]; then
+            break
+        fi
+    done
+
 done
 bash ./pass_secret.sh
