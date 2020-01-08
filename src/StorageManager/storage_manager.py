@@ -47,9 +47,9 @@ class StorageManager(object):
                                                     10 * G)
         self.expiry_days = self.config.get("expiry_days", 31)
 
-        self.logger.info("config: %s" % self.config)
-        self.logger.info("smtp: %s" % self.smtp)
-        self.logger.info("cluster_name: %s" % self.cluster_name)
+        self.logger.info("config: %s", self.config)
+        self.logger.info("smtp: %s", self.smtp)
+        self.logger.info("cluster_name: %s", self.cluster_name)
 
     def run(self):
         """Runs a while loop to monitor scan_points."""
@@ -61,11 +61,11 @@ class StorageManager(object):
                 self.scan()
             except Exception as e:
                 self.logger.error("StorageManager.scan failed with exception "
-                                  "%s" % str(e))
+                                  "%s", e)
 
             next_scan_time = self.last_now + self.execution_interval
             time2_next_scan = max(0, next_scan_time - time.time())
-            self.logger.info("Sleeping for %s sec before next scan." %
+            self.logger.info("Sleeping for %s sec before next scan.",
                              time2_next_scan)
             time.sleep(time2_next_scan)
 
@@ -82,13 +82,15 @@ class StorageManager(object):
         """
         try:
             df = subprocess.Popen(["df", scan_point["device_mount"]],
-                                  stdout=subprocess.PIPE)
+                                  stdout=subprocess.PIPE, timeout=3)
             output = df.communicate()[0].decode()
             _, _, _, _, percent, _ = output.split("\n")[1].split()
             return float(percent.strip("%"))
-        except:
-            self.logger.warning("Getting used percent for %s failed." %
-                                scan_point)
+        except subprocess.TimeoutExpired:
+            self.logger.warning("df %s timeout.", scan_point["device_mount"])
+        except Exception:
+            self.logger.exception("Getting used percent for %s failed.",
+                                  scan_point)
         return None
 
     def send_email(self, sender, recipients, cc, subject, content, report):
@@ -141,22 +143,22 @@ class StorageManager(object):
                              self.smtp["smtp_auth_password"])
                 server.sendmail(self.smtp["smtp_from"], recipients + cc,
                                 full_email.as_string())
-                self.logger.info("Successfully sent email to %s and cc %s" %
-                                 (", ".join(recipients), ", ".join(cc)))
+                self.logger.info("Successfully sent email to %s and cc %s",
+                                 ", ".join(recipients), ", ".join(cc))
         except smtplib.SMTPAuthenticationError:
             self.logger.warning("The server didn\'t accept the user\\password "
                                 "ombination.")
         except smtplib.SMTPServerDisconnected:
             self.logger.warning("Server unexpectedly disconnected")
         except smtplib.SMTPException as e:
-            self.logger.exception("SMTP error occurred: " + str(e))
+            self.logger.exception("SMTP error occurred: %s", e)
 
     def get_uid_user(self):
         """Gets uid -> user mapping from restful url"""
         query_url = self.restful_url + "/GetAllUsers"
         resp = requests.get(query_url)
         if resp.status_code != 200:
-            self.logger.warning("Querying %s failed." % query_url)
+            self.logger.warning("Querying %s failed.", query_url)
             return {}
 
         data = json.loads(resp.text)
@@ -167,7 +169,7 @@ class StorageManager(object):
                 user = item[0]
                 uid_user[uid] = user
             except:
-                self.logger.warning("Parsing item %s failed" % item)
+                self.logger.warning("Parsing item %s failed", item)
         return uid_user
 
     def scan(self):
@@ -177,60 +179,64 @@ class StorageManager(object):
         for scan_point in self.scan_points:
             # device_mount, user_percent_alert_threshold, path must exist
             if "device_mount" not in scan_point:
-                self.logger.warning("device_mount does not exist in %s. "
-                                    "Skip." % scan_point)
+                self.logger.warning("device_mount does not exist in %s. Skip.",
+                                    scan_point)
                 continue
 
             if "path" not in scan_point:
-                self.logger.warning("path does not exist in %s. Skip." %
+                self.logger.warning("path does not exist in %s. Skip.",
                                     scan_point)
                 continue
 
             if "used_percent_alert_threshold" not in scan_point:
                 self.logger.warning("user_percent_alert_threshold does not "
-                                    "exist in %s. Setting to 90." % scan_point)
+                                    "exist in %s. Setting to 90.", scan_point)
                 scan_point["used_percent_alert_threshold"] = 90
 
             # Only scan if alert threshold is reached
             used_percent = self.scan_point_used_percent(scan_point)
+            if used_percent is None:
+                self.logger.warning("used_percent is None. Skip.")
+                continue
+
             used_percent_alert_threshold = \
                 float(scan_point["used_percent_alert_threshold"])
 
             if used_percent < used_percent_alert_threshold:
                 self.logger.info("%s used percent is smaller than threshold. "
-                                 "Skip." % scan_point)
+                                 "Skip.", scan_point)
                 continue
 
             if "overweight_threshold" not in scan_point:
                 self.logger.info("overweight_threshold does not exist in "
-                                 "%s. Using parent overweight_threshold %d." %
-                                 (scan_point, self.overweight_threshold))
+                                 "%s. Using parent overweight_threshold %d.",
+                                 scan_point, self.overweight_threshold)
                 scan_point["overweight_threshold"] = self.overweight_threshold
 
             if "expiry_days" not in scan_point:
                 self.logger.info("expiry_days does not exist in %s. "
-                                 "Using parent expiry_days %d." %
-                                 (scan_point, self.expiry_days))
+                                 "Using parent expiry_days %d.",
+                                 scan_point, self.expiry_days)
                 scan_point["expiry_days"] = self.expiry_days
 
             if not os.path.exists(scan_point["path"]):
                 self.logger.warning("%s does not exist in file system. "
-                                    "continue." % scan_point)
+                                    "continue.", scan_point)
                 continue
 
             scan_point["now"] = self.last_now
 
-            self.logger.info("Scanning scan_point %s" % scan_point)
+            self.logger.info("Scanning scan_point %s", scan_point)
 
             tree = PathTree(scan_point, uid_user=uid_user)
             tree.walk()
 
             root = tree.root
             if root is not None:
-                self.logger.info("Total number of paths under %s found: %d" %
-                                 (tree.path, root.num_subtree_nodes))
+                self.logger.info("Total number of paths under %s found: %d",
+                                 tree.path, root.num_subtree_nodes)
             else:
-                self.logger.warning("Tree root for %s is None." % tree.path)
+                self.logger.warning("Tree root for %s is None.", tree.path)
 
             overweight_nodes = tree.overweight_boundary_nodes
 
@@ -255,8 +261,8 @@ class StorageManager(object):
                 user_overweight_nodes[owner].append(node)
 
             for owner, nodes in user_overweight_nodes.items():
-                self.logger.info("Overweight (> %d) boundary paths for %s:" %
-                                 (tree.overweight_threshold, owner))
+                self.logger.info("Overweight (> %d) boundary paths for %s:",
+                                 tree.overweight_threshold, owner)
                 for node in nodes:
                     self.logger.info(node)
 

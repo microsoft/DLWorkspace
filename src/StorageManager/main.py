@@ -41,7 +41,7 @@ def main():
         try:
             sm.run()
         except Exception as e:
-            logger.error("StorageManager.run failed with exception %s" % str(e))
+            logger.error("StorageManager.run failed with exception %s", e)
 
 
 if __name__ == "__main__":
