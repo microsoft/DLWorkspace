@@ -116,22 +116,22 @@ class StorageManager(object):
         full_email = MIMEMultipart("mixed")
         full_email["Subject"] = subject
         full_email["From"] = sender
-        full_email["To"] = recipients
-        full_email["CC"] = cc
+        full_email["To"] = ", ".join(recipients)
+        full_email["CC"] = ", ".join(cc)
 
         # Create the body of the message (a plain-text version).
-        utf8 = "utf-8"
         body = MIMEMultipart("alternative")
-        body.attach(MIMEText(content.encode(utf8), "plain", _charset=utf8))
+        body.attach(MIMEText(content.encode(ENCODING), "plain",
+                             _charset=ENCODING))
         full_email.attach(body)
 
         # Create the attachment of the message in text/csv.
-        attachment = MIMENonMultipart("text", "csv", charset=utf8)
+        attachment = MIMENonMultipart("text", "csv", charset=ENCODING)
         attachment.add_header('Content-Disposition', 'attachment',
                               filename=report["filename"])
-        cs = Charset(utf8)
+        cs = Charset(ENCODING)
         cs.body_encoding = BASE64
-        attachment.set_payload(report["data"].encode('utf-8'), charset=cs)
+        attachment.set_payload(report["data"].encode(ENCODING), charset=cs)
         full_email.attach(attachment)
 
         try:
@@ -141,7 +141,7 @@ class StorageManager(object):
                              self.smtp["smtp_auth_password"])
                 server.sendmail(self.smtp["smtp_from"], recipients + cc,
                                 full_email.as_string())
-                self.logger.info("Successfully sent email to %s and cc to %s" %
+                self.logger.info("Successfully sent email to %s and cc %s" %
                                  (", ".join(recipients), ", ".join(cc)))
         except smtplib.SMTPAuthenticationError:
             self.logger.warning("The server didn\'t accept the user\\password "
@@ -289,7 +289,7 @@ class StorageManager(object):
                 preview_len = min(20, len(nodes))
                 content += header
                 for node in nodes[0:preview_len]:
-                    content += "%s,%s%s,%s\n" % (
+                    content += "%s,%s,%s,%s\n" % (
                         node.subtree_size,
                         bytes2human_readable(node.subtree_size),
                         node.owner,
@@ -301,7 +301,7 @@ class StorageManager(object):
 
                 data = header
                 for node in nodes:
-                    cur_node = "%s,%s%s,%s\n" % (
+                    cur_node = "%s,%s,%s,%s\n" % (
                         node.subtree_size,
                         bytes2human_readable(node.subtree_size),
                         node.owner,
