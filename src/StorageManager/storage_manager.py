@@ -127,7 +127,7 @@ class StorageManager(object):
 
         # Create the attachment of the message in text/csv.
         attachment = MIMENonMultipart("text", "csv", charset=ENCODING)
-        attachment.add_header('Content-Disposition', 'attachment',
+        attachment.add_header("Content-Disposition", "attachment",
                               filename=report["filename"])
         cs = Charset(ENCODING)
         cs.body_encoding = BASE64
