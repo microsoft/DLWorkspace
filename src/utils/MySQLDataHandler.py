@@ -630,11 +630,9 @@ class DataHandler(object):
         try:
             cursor = self.conn.cursor()
 
-            query = ""
-            if userName == "all":
-                query = "SELECT {}.jobId, jobName, userName, vcName, jobStatus, jobStatusDetail, jobType, jobTime, jobParams, priority FROM {} left join {} on {}.jobId = {}.jobId where 1".format(self.jobtablename, self.jobtablename, self.jobprioritytablename, self.jobtablename, self.jobprioritytablename)
-            else:
-                query = "SELECT jobId, jobName, userName, vcName, jobStatus, jobStatusDetail, jobType, jobTime, jobParams FROM {} where userName = '{}'".format(self.jobtablename, userName)
+            query = "SELECT {}.jobId, jobName, userName, vcName, jobStatus, jobStatusDetail, jobType, jobTime, jobParams, priority FROM {} left join {} on {}.jobId = {}.jobId where 1".format(self.jobtablename, self.jobtablename, self.jobprioritytablename, self.jobtablename, self.jobprioritytablename)
+            if userName != "all":
+                query += " and userName = '%s'" % userName
 
             if vcName != "all":
                 query += " and vcName = '%s'" % vcName
