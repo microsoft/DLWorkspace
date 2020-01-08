@@ -39,8 +39,7 @@ class PathTree(object):
     def walk(self):
         """Traverse filesystem tree and find desired nodes."""
         if self.path is None or not os.path.exists(self.path):
-            self.logger.warning("Path %s is not valid. Skip walking.",
-                                self.path)
+            self.logger.warning("Path %s is invalid. Skip walking.", self.path)
 
         self.root = self._walk(self.path)
 

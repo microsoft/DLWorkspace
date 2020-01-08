@@ -44,7 +44,7 @@ class StorageManager(object):
         assert isinstance(self.scan_points, list)
 
         self.overweight_threshold = self.config.get("overweight_threshold",
-                                                    10 * G)
+                                                    200 * G)
         self.expiry_days = self.config.get("expiry_days", 31)
 
         self.logger.info("config: %s", self.config)
@@ -60,8 +60,7 @@ class StorageManager(object):
             try:
                 self.scan()
             except Exception as e:
-                self.logger.error("StorageManager.scan failed with exception "
-                                  "%s", e)
+                self.logger.error("scan failed with exception %s", e)
 
             next_scan_time = self.last_now + self.execution_interval
             time2_next_scan = max(0, next_scan_time - time.time())
@@ -71,33 +70,32 @@ class StorageManager(object):
 
             self.last_now = time.time()
 
-    def scan_point_used_percent(self, scan_point):
+    def scan_point_used_percent(self, path):
         """Returns the used percentage number for the specified scan_point.
 
         Args:
-            scan_point: Configuration for a mountpoint to scan.
+            path: Path of a mount point
 
         Returns:
             Used percentage number of the scan_point or None otherwise.
         """
         try:
-            df = subprocess.Popen(["df", scan_point["device_mount"]],
-                                  stdout=subprocess.PIPE, timeout=3)
-            output = df.communicate()[0].decode()
+            df = subprocess.Popen(["df", path], stdout=subprocess.PIPE)
+            output = df.communicate(timeout=3)[0].decode()
             _, _, _, _, percent, _ = output.split("\n")[1].split()
             return float(percent.strip("%"))
         except subprocess.TimeoutExpired:
-            self.logger.warning("df %s timeout.", scan_point["device_mount"])
+            self.logger.warning("df %s timeout.", path)
         except Exception:
-            self.logger.exception("Getting used percent for %s failed.",
-                                  scan_point)
+            self.logger.exception("Getting used percent for %s failed.", path)
+
         return None
 
-    def send_email(self, sender, recipients, cc, subject, content, report):
-        """Sends an email.
+    def send_email(self, recipients, cc, subject, content, report):
+        """Sends an email with attachment.
+        Refer to https://gist.github.com/BietteMaxime/f75ae41f7b4557274a9f
 
         Args:
-            sender: From whom to send the email.
             recipients: To whom to send the email.
             cc: To whom to cc the email.
             subject: Email subject.
@@ -108,10 +106,8 @@ class StorageManager(object):
         Returns:
             None
         """
-        """Send an alert email to recipients
-
-        # https://gist.github.com/BietteMaxime/f75ae41f7b4557274a9f
-        """
+        # Get sender from configuration
+        sender = self.smtp["smtp_from"]
 
         # Create message container - the correct MIME type is multipart/mixed
         # to allow attachment.
@@ -122,9 +118,10 @@ class StorageManager(object):
         full_email["CC"] = ", ".join(cc)
 
         # Create the body of the message (a plain-text version).
+        content = content.encode(ENCODING)
+        content = MIMEText(content, "plain", _charset=ENCODING)
         body = MIMEMultipart("alternative")
-        body.attach(MIMEText(content.encode(ENCODING), "plain",
-                             _charset=ENCODING))
+        body.attach(content)
         full_email.attach(body)
 
         # Create the attachment of the message in text/csv.
@@ -139,15 +136,18 @@ class StorageManager(object):
         try:
             with smtplib.SMTP(self.smtp["smtp_url"]) as server:
                 server.starttls()
-                server.login(self.smtp["smtp_auth_username"],
-                             self.smtp["smtp_auth_password"])
-                server.sendmail(self.smtp["smtp_from"], recipients + cc,
-                                full_email.as_string())
+
+                username = self.smtp["smtp_auth_username"]
+                password = self.smtp["smtp_auth_password"]
+                server.login(username, password)
+
+                receivers = recipients + cc
+                server.sendmail(sender, receivers, full_email.as_string())
                 self.logger.info("Successfully sent email to %s and cc %s",
                                  ", ".join(recipients), ", ".join(cc))
         except smtplib.SMTPAuthenticationError:
             self.logger.warning("The server didn\'t accept the user\\password "
-                                "ombination.")
+                                "combination.")
         except smtplib.SMTPServerDisconnected:
             self.logger.warning("Server unexpectedly disconnected")
         except smtplib.SMTPException as e:
@@ -168,67 +168,66 @@ class StorageManager(object):
                 uid = int(item[1])
                 user = item[0]
                 uid_user[uid] = user
-            except:
-                self.logger.warning("Parsing item %s failed", item)
+            except Exception as e:
+                self.logger.warning("Parsing %s failed: %s", item, e)
         return uid_user
 
     def scan(self):
         """Scans each scan_point and finds overweight nodes. Sends alert."""
         uid_user = self.get_uid_user()
 
-        for scan_point in self.scan_points:
+        for sp in self.scan_points:
             # device_mount, user_percent_alert_threshold, path must exist
-            if "device_mount" not in scan_point:
-                self.logger.warning("device_mount does not exist in %s. Skip.",
-                                    scan_point)
+            if "device_mount" not in sp:
+                self.logger.warning("device_mount missing in %s. Skip.", sp)
                 continue
+            device_mount = sp["device_mount"]
 
-            if "path" not in scan_point:
-                self.logger.warning("path does not exist in %s. Skip.",
-                                    scan_point)
+            if "path" not in sp:
+                self.logger.warning("path missing in %s. Skip.", sp)
                 continue
+            path = sp["path"]
+            alias = sp["alias"] if "alias" in sp else path
 
-            if "used_percent_alert_threshold" not in scan_point:
-                self.logger.warning("user_percent_alert_threshold does not "
-                                    "exist in %s. Setting to 90.", scan_point)
-                scan_point["used_percent_alert_threshold"] = 90
+            if "used_percent_alert_threshold" not in sp:
+                self.logger.warning("user_percent_alert_threshold missing in "
+                                    "%s. Setting to 90.", sp)
+                sp["used_percent_alert_threshold"] = 90
+            used_percent_alert_threshold = \
+                float(sp["used_percent_alert_threshold"])
 
             # Only scan if alert threshold is reached
-            used_percent = self.scan_point_used_percent(scan_point)
+            used_percent = self.scan_point_used_percent(device_mount)
             if used_percent is None:
                 self.logger.warning("used_percent is None. Skip.")
                 continue
 
-            used_percent_alert_threshold = \
-                float(scan_point["used_percent_alert_threshold"])
-
             if used_percent < used_percent_alert_threshold:
-                self.logger.info("%s used percent is smaller than threshold. "
-                                 "Skip.", scan_point)
+                self.logger.info("%s used percent %s < threshold %s. Skip.",
+                                 sp, used_percent, used_percent_alert_threshold)
                 continue
 
-            if "overweight_threshold" not in scan_point:
-                self.logger.info("overweight_threshold does not exist in "
-                                 "%s. Using parent overweight_threshold %d.",
-                                 scan_point, self.overweight_threshold)
-                scan_point["overweight_threshold"] = self.overweight_threshold
+            if "overweight_threshold" not in sp:
+                self.logger.info("overweight_threshold does not exist in %s. "
+                                 "Using parent overweight_threshold %d.",
+                                 sp, self.overweight_threshold)
+                sp["overweight_threshold"] = self.overweight_threshold
 
-            if "expiry_days" not in scan_point:
+            if "expiry_days" not in sp:
                 self.logger.info("expiry_days does not exist in %s. "
                                  "Using parent expiry_days %d.",
-                                 scan_point, self.expiry_days)
-                scan_point["expiry_days"] = self.expiry_days
+                                 sp, self.expiry_days)
+                sp["expiry_days"] = self.expiry_days
 
-            if not os.path.exists(scan_point["path"]):
-                self.logger.warning("%s does not exist in file system. "
-                                    "continue.", scan_point)
+            if not os.path.exists(sp["path"]):
+                self.logger.warning("%s is absent in file system. Skip.", sp)
                 continue
 
-            scan_point["now"] = self.last_now
+            sp["now"] = self.last_now
 
-            self.logger.info("Scanning scan_point %s", scan_point)
+            self.logger.info("Scanning scan point %s", sp)
 
-            tree = PathTree(scan_point, uid_user=uid_user)
+            tree = PathTree(sp, uid_user=uid_user)
             tree.walk()
 
             root = tree.root
@@ -241,14 +240,14 @@ class StorageManager(object):
             overweight_nodes = tree.overweight_boundary_nodes
 
             if self.smtp is None:
-                self.logger.warning("stmp is not configured.")
+                self.logger.warning("stmp is not configured. Skip email.")
                 continue
-
-            sender = self.smtp["smtp_from"]
 
             # Group overweight nodes by user
             user_overweight_nodes = {}
             default_recipient = self.smtp.get("default_recipients", None)
+            self.logger.info("default recipient is %s", default_recipient)
+
             for node in overweight_nodes:
                 owner = node.owner
                 if owner == "" and default_recipient is None:
@@ -270,13 +269,13 @@ class StorageManager(object):
                 cc = self.smtp["cc"].split(",")
 
                 subject = "[%s]" % self.cluster_name
-                if "vc" in scan_point:
-                    subject += "[%s]" % scan_point["vc"]
+                if "vc" in sp:
+                    subject += "[%s]" % sp["vc"]
 
                 subject += "[Storage Manager][%s] Storage usage of %s is at " \
                            "%s%% > %s%%" % \
                            (owner.split("@")[0],
-                            scan_point["alias"],
+                            alias,
                             used_percent,
                             used_percent_alert_threshold)
 
@@ -285,7 +284,7 @@ class StorageManager(object):
                           "is in the attached CSV. " \
                           "Please help reduce the size.\n\n" % \
                           (self.cluster_name,
-                           scan_point["alias"],
+                           alias,
                            used_percent,
                            used_percent_alert_threshold,
                            bytes2human_readable(self.overweight_threshold))
@@ -299,9 +298,7 @@ class StorageManager(object):
                         node.subtree_size,
                         bytes2human_readable(node.subtree_size),
                         node.owner,
-                        node.path.replace(scan_point["path"],
-                                          scan_point["alias"],
-                                          1))
+                        node.path.replace(path, alias, 1))
                 if preview_len < len(nodes):
                     content += "...\n"
 
@@ -311,9 +308,7 @@ class StorageManager(object):
                         node.subtree_size,
                         bytes2human_readable(node.subtree_size),
                         node.owner,
-                        node.path.replace(scan_point["path"],
-                                          scan_point["alias"],
-                                          1))
+                        node.path.replace(path, alias, 1))
                     data += cur_node
 
                 report = {
@@ -322,4 +317,4 @@ class StorageManager(object):
                     "data": data
                 }
 
-                self.send_email(sender, recipients, cc, subject, content, report)
+                self.send_email(recipients, cc, subject, content, report)
