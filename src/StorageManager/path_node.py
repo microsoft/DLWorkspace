@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 from utils import DATETIME_FMT, bytes2human_readable
 
+
 class PathNode(object):
     """This class contains meta info for a file/directory.
 

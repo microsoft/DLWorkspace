@@ -30,7 +30,7 @@ def register_stack_trace_dump():
 def main():
     while True:
         sm_config = config.get("storage_manager", None)
-        if sm_config is None or sm_config.get("enabled", False) is False:
+        if sm_config is None:
             logger.info("storage_manager is not enabled. Exiting ...")
             sys.exit(0)
 
@@ -41,7 +41,7 @@ def main():
         try:
             sm.run()
         except Exception as e:
-            logger.error("StorageManager.run failed with exception %s" % str(e))
+            logger.error("StorageManager.run failed with exception %s", e)
 
 
 if __name__ == "__main__":

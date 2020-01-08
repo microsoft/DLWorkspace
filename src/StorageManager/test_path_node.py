@@ -1,6 +1,5 @@
 from unittest import TestCase
 from unittest.mock import patch
-from path_node import PathNode, DAY
 from testcase_utils import DummyNodeStat
 from datetime import datetime
 
