@@ -1,7 +1,6 @@
 import os
 import platform
 
-from datetime import datetime, timedelta
 from unittest import TestCase
 from unittest.mock import patch
 from path_tree import PathTree

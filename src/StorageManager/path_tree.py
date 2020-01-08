@@ -52,7 +52,8 @@ class PathTree(object):
         try:
             pathnames = os.listdir(root)
         except Exception as e:
-            self.logger.warning("Ignore path %s due to exception %s" % (root, e))
+            self.logger.warning("Ignore path %s due to exception %s" %
+                                (root, e))
             return None
 
         root_node = PathNode(root, uid_user=self.uid_user)
