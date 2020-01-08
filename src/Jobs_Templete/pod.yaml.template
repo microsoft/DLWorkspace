@@ -140,7 +140,7 @@ spec:
   - name: {{ job["podName"] }}
     image: {{ job["image"] }}
     imagePullPolicy: Always
-    command: {{ job["LaunchCMD"] }}
+    command: ["bash", "/pod/scripts/bootstrap.sh"]
     readinessProbe:
       exec:
         command: ["ls", "/pod/running/ROLE_READY"]
