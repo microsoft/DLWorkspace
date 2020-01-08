@@ -17,6 +17,7 @@ import Loading from '../../components/Loading';
 
 import ClusterContext from './ClusterContext';
 import { renderStatus, renderDate, sortDate } from './tableUtils';
+import PriorityField from './PriorityField';
 
 const getSubmittedDate = (job: any) => new Date(job['jobTime']);
 const getStartedDate = (job: any) => new Date(job['jobStatusDetail'] && job['jobStatusDetail'][0]['startedAt']);
@@ -46,6 +47,9 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({ jobs, onExpectMoreJobs }
       onExpectMoreJobs(pageSize);
     }
   }, [jobs, pageSize, onExpectMoreJobs]);
+  const renderPrioirty = useCallback((job: any) => (
+    <PriorityField job={job}/>
+  ), [])
 
   const columns = useMemo<Array<Column<any>>>(() => [
     { title: 'Id', type: 'string', field: 'jobId' },
@@ -53,13 +57,15 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({ jobs, onExpectMoreJobs }
     { title: 'Status', type: 'string', field: 'jobStatus', render: renderStatus },
     { title: 'GPU', type: 'numeric', field: 'jobParams.resourcegpu' },
     { title: 'Preempable', type: 'boolean', field: 'jobParams.preemptionAllowed'},
+    { title: 'Priority', type: 'numeric',
+      render: renderPrioirty, disableClick: true },
     { title: 'Submitted', type: 'datetime',
       render: renderDate(getSubmittedDate), customSort: sortDate(getSubmittedDate) },
     { title: 'Started', type: 'datetime',
       render: renderDate(getStartedDate), customSort: sortDate(getStartedDate) },
     { title: 'Finished', type: 'datetime',
       render: renderDate(getFinishedDate), customSort: sortDate(getFinishedDate) },
-  ], []);
+  ], [renderPrioirty]);
   const options = useMemo<Options>(() => ({
     padding: 'dense',
     actionsColumnIndex: -1,

@@ -1,15 +1,12 @@
 import React, {
   FunctionComponent,
-  KeyboardEvent,
   useCallback,
   useContext,
   useState,
   useEffect,
-  useMemo,
-  useRef
+  useMemo
 } from 'react';
 import { useHistory } from 'react-router-dom';
-import { Button, TextField } from '@material-ui/core';
 import MaterialTable, { Column, Options } from 'material-table';
 import { useSnackbar } from 'notistack';
 import useFetch from 'use-http-2';
@@ -20,81 +17,13 @@ import useActions from '../../hooks/useActions';
 
 import ClusterContext from './ClusterContext';
 import { renderDate, sortDate, renderStatus } from './tableUtils';
+import PriorityField from './PriorityField';
 
 const renderUser = (job: any) => job['userName'].split('@', 1)[0];
 
 const getSubmittedDate = (job: any) => new Date(job['jobTime']);
 const getStartedDate = (job: any) => new Date(job['jobStatusDetail'] && job['jobStatusDetail'][0]['startedAt']);
 const getFinishedDate = (job: any) => new Date(job['jobStatusDetail'] && job['jobStatusDetail'][0]['finishedAt']);
-
-interface PriorityFieldProps {
-  job: any;
-}
-
-const PriorityField: FunctionComponent<PriorityFieldProps> = ({ job }) => {
-  const { enqueueSnackbar } = useSnackbar();
-  const { cluster } = useContext(ClusterContext);
-  const [editing, setEditing] = useState(false);
-  const [disabled, setDisabled] = useState(false);
-  const input = useRef<HTMLInputElement>();
-  const setPriority = useCallback((priority: number) => {
-    if (priority === job['priority']) return;
-    enqueueSnackbar('Priority is being set...');
-    setDisabled(true);
-
-    fetch(`/api/clusters/${cluster.id}/jobs/${job['jobId']}/priority`, {
-      method: 'PUT',
-      body: JSON.stringify({ priority }),
-      headers: { 'Content-Type': 'application/json' }
-    }).then((response) => {
-      if (response.ok) {
-        enqueueSnackbar('Priority is set successfully', { variant: 'success' });
-      } else {
-        throw Error();
-      }
-      setEditing(false);
-    }).catch(() => {
-      enqueueSnackbar('Failed to set priority', { variant: 'error' });
-    }).then(() => {
-      setDisabled(false);
-    });
-  }, [enqueueSnackbar, job, cluster.id]);
-  const onBlur = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
-    setEditing(false);
-    if (input.current) {
-      setPriority(input.current.valueAsNumber);
-    }
-  }, [setPriority]);
-  const onKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter' && input.current) {
-      setPriority(input.current.valueAsNumber);
-    }
-    if (event.key === 'Escape') {
-      setEditing(false);
-    }
-  }, [setPriority, setEditing]);
-  const onClick = useCallback(() => {
-    setEditing(true);
-  }, [setEditing])
-
-  const component = editing ? (
-    <TextField
-      inputRef={input}
-      type="number"
-      defaultValue={job['priority']}
-      disabled={disabled}
-      fullWidth
-      onBlur={onBlur}
-      onKeyDown={onKeyDown}
-    />
-  ) : (
-    <Button fullWidth onClick={onClick}>
-      {job['priority']}
-    </Button>
-  );
-
-  return component;
-}
 
 interface JobsTableProps {
   title: string;

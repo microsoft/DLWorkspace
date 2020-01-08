@@ -1,5 +1,3 @@
-const DEFAULT_PRIORITY = 100
-
 /**
  * @typedef {Object} State
  * @property {import('../../../services/cluster')} cluster
@@ -12,18 +10,6 @@ module.exports = async (context) => {
   const limit = Number(context.query.limit) || 10
   const all = context.query.user === 'all'
 
-  const [jobs, jobsPriority] = await Promise.all([
-    cluster.getJobs(teamId, all, limit),
-    all ? (cluster.getJobsPriority()) : Promise.resolve({})
-  ])
-  if (all) {
-    for (const job of jobs) {
-      if (job.jobId in jobsPriority) {
-        job.priority = jobsPriority[job.jobId]
-      } else {
-        job.priority = DEFAULT_PRIORITY
-      }
-    }
-  }
+  const jobs = await cluster.getJobs(teamId, all, limit)
   context.body = jobs
 }
