@@ -449,6 +449,30 @@ def GetJobStatus(jobId):
     dataHandler.Close()
     return result
 
+def GetJobLog(userName, jobId):
+    dataHandler = DataHandler()
+    jobs =  dataHandler.GetJob(jobId=jobId)
+    if len(jobs) == 1:
+        if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
+            try:
+                log = dataHandler.GetJobTextField(jobId,"jobLog")
+                try:
+                    if isBase64(log):
+                        log = base64.b64decode(log)
+                except Exception:
+                    pass
+                if log is not None:
+                    return {
+                        "log": log,
+                        "cursor": None,
+                    }
+            except:
+                pass
+    return {
+        "log": {},
+        "cursor": None,
+    }
+
 def GetClusterStatus():
     cluster_status,last_update_time =  DataManager.GetClusterStatus()
     return cluster_status,last_update_time
