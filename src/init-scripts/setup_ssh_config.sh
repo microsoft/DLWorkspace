@@ -56,9 +56,37 @@ Host ${host}
 EOF
 done
 
-# generate ~/.ssh/environment to include variables containing 'NCCL|PATH|DLWS|DLTS'
+envs=(
+LD_LIBRARY_PATH
+LIBRARY_PATH
+PATH
+PYTHONPATH
+NCCL_IB_DISABLE
+NCCL_VERSION
+DLWS_HOST_NETWORK
+DLWS_JOB_ID
+DLTS_JOB_TOKEN
+DLWS_NUM_PS
+DLWS_NUM_WORKER
+DLWS_NUM_GPU_PER_WORKER
+DLWS_NUM_WORKER
+DLWS_VC_NAME
+DLWS_UID
+DLWS_GID
+DLWS_USER_NAME
+DLWS_USER_EMAIL
+DLWS_ROLE_NAME
+DLWS_ROLE_IDX
+)
+
 SSH_ENVIRONMENT_FILE=/home/${DLWS_USER_NAME}/.ssh/environment
-env | egrep 'NCCL|PATH|DLWS|DLTS' > ${SSH_ENVIRONMENT_FILE}
+for env_key in "${envs[@]}" ; do
+    if [ `echo $env_key` != "" ] ; then
+        printf $env_key >> $SSH_ENVIRONMENT_FILE
+        printf = >> $SSH_ENVIRONMENT_FILE
+        printenv $env_key >> $SSH_ENVIRONMENT_FILE
+    fi
+done
 chown ${DLWS_USER_NAME} ${SSH_ENVIRONMENT_FILE}
 chmod 600 ${SSH_ENVIRONMENT_FILE}
 
