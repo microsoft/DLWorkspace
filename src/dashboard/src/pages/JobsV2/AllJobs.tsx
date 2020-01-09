@@ -15,7 +15,7 @@ import Loading from '../../components/Loading';
 import useActions from '../../hooks/useActions';
 
 import ClusterContext from './ClusterContext';
-import { renderId, renderDate, sortDate, renderStatus } from './tableUtils';
+import { renderId, renderGPU, sortGPU, renderDate, sortDate, renderStatus } from './tableUtils';
 import PriorityField from './PriorityField';
 
 const renderUser = (job: any) => job['userName'].split('@', 1)[0];
@@ -45,7 +45,8 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({ title, jobs }) => {
       render: renderId, disableClick: true },
     { title: 'Name', type: 'string', field: 'jobName' },
     { title: 'Status', type: 'string', field: 'jobStatus', render: renderStatus },
-    { title: 'GPU', type: 'numeric', field: 'jobParams.resourcegpu' },
+    { title: 'GPU', type: 'numeric',
+      render: renderGPU, customSort: sortGPU },
     { title: 'User', type: 'string', render: renderUser},
     { title: 'Preempable', type: 'boolean', field: 'jobParams.preemptionAllowed'},
     { title: 'Priority', type: 'numeric',

@@ -15,7 +15,7 @@ import useActions from '../../hooks/useActions';
 import Loading from '../../components/Loading';
 
 import ClusterContext from './ClusterContext';
-import { renderId, renderStatus, renderDate, sortDate } from './tableUtils';
+import { renderId, renderGPU, sortGPU, renderStatus, renderDate, sortDate } from './tableUtils';
 import PriorityField from './PriorityField';
 
 const getSubmittedDate = (job: any) => new Date(job['jobTime']);
@@ -48,7 +48,8 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({ jobs, onExpectMoreJobs }
       render: renderId, disableClick: true },
     { title: 'Name', type: 'string', field: 'jobName' },
     { title: 'Status', type: 'string', field: 'jobStatus', render: renderStatus },
-    { title: 'GPU', type: 'numeric', field: 'jobParams.resourcegpu' },
+    { title: 'GPU', type: 'numeric',
+      render: renderGPU, customSort: sortGPU },
     { title: 'Preempable', type: 'boolean', field: 'jobParams.preemptionAllowed'},
     { title: 'Priority', type: 'numeric',
       render: renderPrioirty, disableClick: true },
