@@ -29,73 +29,17 @@ Configure your location, should be the same as you specified in config.yaml file
 ```AZ_LOCATION="<your location>"```
 Execute this command, log out(exit) and log in back
 ```sudo usermod -aG docker zhe_ms```
-4. Initiate cluster and generate certificates and keys:
-```
-./deploy.py -y build
-```
 
-5. Create Azure Cluster:
-```
-./az_tools.py create
-```
+After these steps, there are two pipelines that could be used to deploy a cluster: phase-focused pipeline (v1) and cloud-init based pipeline(v2). v1 combines template rendering/file copying/remote command execution together, and a step usually focuses on one role-wise/functionality-wise phase, such as deploying master node, start a certain service etc., while v2 utilizes az cloud-init feature and explicitly seperates template rendering and command execution etc.
 
-6. Generate cluster config file:
-```
-./az_tools.py genconfig 
-```
+no matter which pipeline do you use, make sure you are at src/ClusterBootstrap/
 
-Please note that if you are not Microsoft user, you should remove the 
- 
-7. Run Azure deployment script block:
-  ```
-  ./deploy.py --verbose scriptblocks azure 
-  ```
-  After the script completes execution, you may still need to wait for a few minutes so that relevant docker images can be pulled to the target machine for execution. You can then access your cluster at:
-  ```
-  http://machine1.westus.cloudapp.azure.com/
-  ```
-  where machine1 is your azure infrastructure node. (you may get the address by ./deploy.py display)
+#phase-focused pipeline#
 
-  This command sequetially execute following steps:
-  1. Setup basic tools on VM and on the Ubuntu image. 
-  ```
-  ./deploy.py runscriptonall ./scripts/prepare_vm_disk.sh
-  ./deploy.py runscriptonall ./scripts/prepare_ubuntu.sh
-  ```
+invoke ```./step_by_step.sh azure``` to deploy a new cluster, use deploy.py to modify/check the cluster or connect to a certain machine etc.
 
-  2. Deploy etcd/master and workers. 
-  ```
-  ./deploy.py -y deploy
-  ./deploy.py -y updateworker
-  ```
+#cloud-init based pipeline#
 
-  3. Label nodels and deploy services:
-  ```
-  ./deploy.py -y kubernetes labels
-  ```
+```./v2deploy.sh```, and use maintain.py to update cluster machine list / connect to a certain machine etc.
 
-  4. Start Nvidia device plugins:
-  ```
-  ./deploy.py kubernetes start nvidia-device-plugin
-  ```
-
-  5. Build and deploy jobmanager, restfulapi, and webportal. Mount storage.
-  ```
-  ./deploy.py webui
-  ./deploy.py docker push restfulapi
-  ./deploy.py docker push webui
-  ./deploy.py mount
-  ./deploy.py kubernetes start jobmanager restfulapi webportal
-  ```
-
-8.  Manually connect to the infrastructure/master node:
-  ```./deploy.py connect master```
-  On master node(log in from devbox by ./deploy.py connect master), manually add ```"Grafana": "",``` to /etc/WebUI/userconfig.json, under "Restapi" entry.
-  Restart the WebUI docker:
-  Login to the master node, and use
-  ```docker ps | grep web``` 
-  to get the ID corresponding to Web UI, then restart that docker image: 
-  ```docker rm -f <WebUI ID>```
-  Wait for minutes for it to restart (can follow by using ```docker logs --follow <WebUI ID>```) and visit the infra node from web browser.
-
-9. If you run into a deployment issue, please check [here](FAQ.md) first.
+If you run into a deployment issue, please check [here](FAQ.md) first.

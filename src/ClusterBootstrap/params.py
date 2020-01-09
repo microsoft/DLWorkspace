@@ -416,8 +416,8 @@ default_config_parameters = {
     "DeployAuthentications": ["Corp", "Live", "Gmail"],
     # You should remove WinBindServers if you will use
     # UserGroups for authentication.
-    "workFolderAccessPoint": "",
-    "dataFolderAccessPoint": "",
+    "workFolderAccessPoint": "/",
+    "dataFolderAccessPoint": "/",
 
     "kube_configchanges": ["/opt/addons/kube-addons/weave.yaml"],
     "kube_addons": ["/opt/addons/kube-addons/dashboard.yaml",
