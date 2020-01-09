@@ -6,7 +6,6 @@ import React, {
   useEffect,
   useMemo
 } from 'react';
-import { useHistory } from 'react-router-dom';
 import MaterialTable, { Column, Options } from 'material-table';
 import { useSnackbar } from 'notistack';
 import useFetch from 'use-http-2';
@@ -16,7 +15,7 @@ import Loading from '../../components/Loading';
 import useActions from '../../hooks/useActions';
 
 import ClusterContext from './ClusterContext';
-import { renderDate, sortDate, renderStatus } from './tableUtils';
+import { renderId, renderDate, sortDate, renderStatus } from './tableUtils';
 import PriorityField from './PriorityField';
 
 const renderUser = (job: any) => job['userName'].split('@', 1)[0];
@@ -31,14 +30,7 @@ interface JobsTableProps {
 }
 
 const JobsTable: FunctionComponent<JobsTableProps> = ({ title, jobs }) => {
-  const history = useHistory();
   const { cluster } = useContext(ClusterContext);
-
-  const onRowClick = useCallback((event: any, job: any) => {
-    const e = encodeURIComponent;
-    const to = `/jobs-v2/${e(cluster.id)}/${e(job['jobId'])}`
-    history.push(to);
-  }, [cluster.id, history]);
   const [pageSize, setPageSize] = useState(5);
   const onChangeRowsPerPage = useCallback((pageSize: number) => {
     setPageSize(pageSize);
@@ -49,7 +41,8 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({ title, jobs }) => {
   ), [])
 
   const columns = useMemo<Array<Column<any>>>(() => [
-    { title: 'Id', type: 'string', field: 'jobId' },
+    { title: 'Id', type: 'string', field: 'jobId',
+      render: renderId, disableClick: true },
     { title: 'Name', type: 'string', field: 'jobName' },
     { title: 'Status', type: 'string', field: 'jobStatus', render: renderStatus },
     { title: 'GPU', type: 'numeric', field: 'jobParams.resourcegpu' },
@@ -79,7 +72,6 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({ title, jobs }) => {
       data={jobs}
       options={options}
       actions={actions}
-      onRowClick={onRowClick}
       onChangeRowsPerPage={onChangeRowsPerPage}
     />
   );
