@@ -96,6 +96,7 @@ class ECCRule(Rule):
             return True
         else:
             logging.debug('No uncorrectable ECC metrics found.')
+            self.alert.clear_ecc_alert_cache()
             return False
 
 

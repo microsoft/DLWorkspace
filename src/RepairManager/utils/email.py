@@ -2,7 +2,6 @@ import smtplib
 import logging
 import yaml
 import datetime
-from cachetools import TTLCache
 
 class EmailHandler():
 

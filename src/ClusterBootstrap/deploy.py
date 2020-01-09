@@ -2369,7 +2369,7 @@ def launch_glusterFS_endpoint( nodesinfo, glusterFSargs ):
     config_glusterFS = write_glusterFS_configuration( nodesinfo, glusterFSargs )
     glusterfs_groups = config_glusterFS["groups"]
     with open("./services/glusterFS_ep/glusterFS_ep.yaml",'r') as config_template_file:
-        config_template = yaml.load( config_template_file )
+        config_template = yaml.load(config_template_file, Loader=yaml.FullLoader)
         config_template_file.close()
     for group, group_config in glusterfs_groups.iteritems():
         config_template["metadata"]["name"] = "glusterfs-%s" % group
@@ -2869,7 +2869,7 @@ def get_all_services():
 def get_service_name(service_config_file):
     f = open(service_config_file)
     try:
-        service_config = yaml.load(f)
+        service_config = yaml.load(f, Loader=yaml.FullLoader)
     except:
         return None
     f.close()
@@ -3109,18 +3109,15 @@ def start_one_kube_service(fname):
         # use try/except because yaml.load cannot load yaml file with multiple documents.
         try:
             f = open(fname)
-            service_yaml = yaml.load(f)
+            service_yaml = yaml.load(f, Loader=yaml.FullLoader)
             f.close()
             print "Start service: "
             print service_yaml
         except Exception as e:
             pass
 
-    if fname == "./deploy/services/jobmanager/jobmanager.yaml":
-        # recreate the configmap dlws-scripts
-        run_kubectl( ["create configmap dlws-scripts --from-file=../Jobs_Templete/ -o yaml --dry-run | ./deploy/bin/kubectl apply -f -"] )
+    run_kubectl(["create", "-f", fname ])
 
-    run_kubectl( ["create", "-f", fname ] )
 
 def stop_one_kube_service(fname):
     run_kubectl( ["delete", "-f", fname ] )
@@ -3258,8 +3255,7 @@ def run_command( args, command, nargs, parser ):
     # Cluster Config
     config_cluster = os.path.join(dirpath,"cluster.yaml")
     if os.path.exists(config_cluster):
-        merge_config( config, yaml.load(open(config_cluster)))
-
+        merge_config(config, yaml.load(open(config_cluster), Loader=yaml.FullLoader))
 
     config_file = os.path.join(dirpath,"config.yaml")
     if not os.path.exists(config_file):
@@ -3267,15 +3263,13 @@ def run_command( args, command, nargs, parser ):
         print "ERROR: config.yaml does not exist!"
         exit()
 
-    f = open(config_file)
-    merge_config(config, yaml.load(f))
-    f.close()
+    with open(config_file) as f:
+        merge_config(config, yaml.load(f, Loader=yaml.FullLoader))
     if os.path.exists("./deploy/clusterID.yml"):
-        f = open("./deploy/clusterID.yml")
-        tmp = yaml.load(f)
-        f.close()
-        if "clusterId" in tmp:
-            config["clusterId"] = tmp["clusterId"]
+        with open("./deploy/clusterID.yml") as f:
+            tmp = yaml.load(f, Loader=yaml.FullLoader)
+            if "clusterId" in tmp:
+                config["clusterId"] = tmp["clusterId"]
     if "copy_sshtemp" in config and config["copy_sshtemp"]:
         if "ssh_origfile" not in config:
             config["ssh_origfile"] = config["ssh_cert"]
@@ -3290,6 +3284,7 @@ def run_command( args, command, nargs, parser ):
             config["ssh_cert"] = sshtempfile
         else:
             print "SSH Key {0} not found using original".format(sshfile)
+
     add_acs_config(command)
     if verbose and config["isacs"]:
         print "Using Azure Container Services"
@@ -3884,7 +3879,7 @@ def run_command( args, command, nargs, parser ):
                 for service in allservices:
                     servicenames.append(service)
             generate_hdfs_containermounts()
-            configuration( config, verbose )
+            configuration(config, verbose)
             if nargs[0] == "start":
                 if args.force and "hdfsformat" in servicenames:
                     print("This operation will WIPEOUT HDFS namenode, and erase all data on the HDFS cluster,  "  )

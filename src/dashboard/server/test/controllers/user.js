@@ -1,5 +1,4 @@
 const axiosist = require('axiosist')
-const sinon = require('sinon')
 const User = require('../../api/services/user')
 const api = require('../../api').callback()
 
@@ -10,8 +9,6 @@ const userParams = {
 
 describe('GET /user', () => {
   it('should response user password', async () => {
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
-
     const response = await axiosist(api).get('/user', {
       params: userParams
     })

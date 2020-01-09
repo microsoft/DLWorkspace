@@ -19,27 +19,13 @@ class PodTemplate():
         self.enable_custom_scheduler = enable_custom_scheduler
         self.secret_templates = secret_templates
 
-    @staticmethod
-    def generate_launch_script(job_id, path_to_save, user_id, gpu_num, user_script):
-        if not os.path.exists(path_to_save):
-            mkdirsAsUser(path_to_save, user_id)
-
-        file_name = "job_command.sh"
-        launch_script_file = os.path.join(path_to_save, file_name)
-        with open(launch_script_file, 'w') as f:
-            f.write(user_script)
-        os.system("sudo chown %s %s" % (user_id, launch_script_file))
-        luanch_cmd = ["bash", "/pod/scripts/bootstrap.sh"]
-        return luanch_cmd
-
-
     def generate_deployment(self, pod):
         assert(isinstance(self.template, Template))
         pod_yaml = self.deployment_template.render(job=pod)
         return yaml.full_load(pod_yaml)
 
 
-    def generate_pod(self, pod):
+    def generate_pod(self, pod, cmd):
         assert(isinstance(self.template, Template))
         if self.enable_custom_scheduler:
             if "useGPUTopology" in pod and pod["useGPUTopology"]:
@@ -69,7 +55,11 @@ class PodTemplate():
             pod["gpuLimit"] = 0
 
         pod_yaml = self.template.render(job=pod)
-        return yaml.full_load(pod_yaml)
+        # because user's cmd can be multiple lines, should add after yaml load
+        pod_obj = yaml.full_load(pod_yaml)
+        pod_obj["spec"]["containers"][0]["env"].append({"name": "DLWS_LAUNCH_CMD", "value": cmd})
+
+        return pod_obj
 
     def generate_pods(self, job):
         """
@@ -132,9 +122,6 @@ class PodTemplate():
 
         params = enable_cpu_config(params, job.cluster)
 
-        local_pod_path = job.get_hostpath(job.job_path, "master")
-        params["LaunchCMD"] = PodTemplate.generate_launch_script(params["jobId"], local_pod_path, params["userId"], params["resourcegpu"], params["cmd"])
-
         if "envs" not in params:
             params["envs"] =[]
 
@@ -167,7 +154,6 @@ class PodTemplate():
             pod["podName"] = job.job_id
             pods.append(pod)
 
-
         k8s_pods = []
         for idx,pod in enumerate(pods):
             pod["numps"] = 0
@@ -185,7 +171,7 @@ class PodTemplate():
             pod["mountpoints"].append({"name": "pod", "containerPath": "/pod", "hostPath": pod_path, "enabled": True})
             pod["init-container"] = os.environ["INIT_CONTAINER_IMAGE"]
 
-            k8s_pod = self.generate_pod(pod)
+            k8s_pod = self.generate_pod(pod, params["cmd"])
             k8s_pods.append(k8s_pod)
 
         if params["jobtrainingtype"] == "InferenceJob":

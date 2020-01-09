@@ -133,7 +133,10 @@ def main(args):
     labels = "run=%s" % (job_name)
 
     items = []
-    for i in range(3600): # wait at most 1 hour
+    # wait forever. If the resource is not enought, some worker will be in pending state, if
+    # we exit the job will fail, and user will be confused. Although this wastes some resource
+    # already allocated, we will wait forever until we have a better solution.
+    while True:
         resp = k8s_core_api.list_namespaced_config_map(
             namespace=job_namespace,
             label_selector=labels,

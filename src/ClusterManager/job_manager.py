@@ -209,8 +209,13 @@ def ApproveJob(redis_conn, job, dataHandlerOri=None):
         if "preemptionAllowed" in jobParams and jobParams["preemptionAllowed"] is True:
             logger.info("Job {} preemptible, approve!".format(job_id))
             detail = [{"message": "waiting for available preemptible resource."}]
-            dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
-            dataHandler.UpdateJobTextField(job_id, "jobStatus", "queued")
+
+            dataFields = {
+                "jobStatusDetail": base64.b64encode(json.dumps(detail)),
+                "jobStatus": "queued"
+            }
+            conditionFields = {"jobId": job_id}
+            dataHandler.UpdateJobTextFields(conditionFields, dataFields)
             update_job_state_latency(redis_conn, job_id, "approved")
             if dataHandlerOri is None:
                 dataHandler.Close()
@@ -250,8 +255,13 @@ def ApproveJob(redis_conn, job, dataHandlerOri=None):
                 return False
 
         detail = [{"message": "waiting for available resource."}]
-        dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
-        dataHandler.UpdateJobTextField(job_id, "jobStatus", "queued")
+
+        dataFields = {
+            "jobStatusDetail": base64.b64encode(json.dumps(detail)),
+            "jobStatus": "queued"
+        }
+        conditionFields = {"jobId": job_id}
+        dataHandler.UpdateJobTextFields(conditionFields, dataFields)
         update_job_state_latency(redis_conn, job_id, "approved")
         if dataHandlerOri is None:
             dataHandler.Close()
@@ -293,8 +303,13 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
         # TODO: Refactor
         detail = get_job_status_detail(job)
         detail = job_status_detail_with_finished_time(detail, "finished")
-        dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
-        dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "finished")
+
+        dataFields = {
+            "jobStatusDetail": base64.b64encode(json.dumps(detail)),
+            "jobStatus": "finished"
+        }
+        conditionFields = {"jobId": job["jobId"]}
+        dataHandler.UpdateJobTextFields(conditionFields, dataFields)
 
         # Retain the old code for reference
         # if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
@@ -311,8 +326,13 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
         if job["jobStatus"] != "running":
             started_at = k8sUtils.localize_time(datetime.datetime.now())
             detail = [{"startedAt": started_at, "message": "started at: {}".format(started_at)}]
-            dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
-            dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "running")
+
+            dataFields = {
+                "jobStatusDetail": base64.b64encode(json.dumps(detail)),
+                "jobStatus":"running"
+            }
+            conditionFields = {"jobId": job["jobId"]}
+            dataHandler.UpdateJobTextFields(conditionFields, dataFields)
 
     elif result == "Failed":
         logger.warning("Job %s fails, cleaning...", job["jobId"])
@@ -326,9 +346,14 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
         # TODO: Refactor
         detail = get_job_status_detail(job)
         detail = job_status_detail_with_finished_time(detail, "failed")
-        dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
-        dataHandler.UpdateJobTextField(job["jobId"], "jobStatus", "failed")
-        dataHandler.UpdateJobTextField(job["jobId"], "errorMsg", "pod failed")
+
+        dataFields = {
+            "jobStatusDetail": base64.b64encode(json.dumps(detail)),
+            "jobStatus": "failed",
+            "errorMsg": "pod failed"
+        }
+        conditionFields = {"jobId": job["jobId"]}
+        dataHandler.UpdateJobTextFields(conditionFields, dataFields)
 
         # Retain the old code for reference
         # if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):

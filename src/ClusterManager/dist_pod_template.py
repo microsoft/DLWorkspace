@@ -20,24 +20,6 @@ class DistPodTemplate():
         self.enable_custom_scheduler = enable_custom_scheduler
         self.secret_templates = secret_templates
 
-    @staticmethod
-    def generate_launch_script(dist_role, dist_role_idx, user_id, job_path, cmd):
-        # change ssh folder permission here because the setup permission
-        #  script in launch_ps_job function may have race condition with init_user.sh script.
-        # results in no such user error
-
-        local_pod_path = os.path.join(config["storage-mount-path"], "work/", job_path, "{}-{}".format(dist_role, dist_role_idx))
-        if not os.path.exists(local_pod_path):
-            mkdirsAsUser(local_pod_path, user_id)
-        file_name = "job_command.sh"
-        launch_script_file = os.path.join(local_pod_path, file_name)
-        with open(launch_script_file, 'w') as f:
-            f.write(cmd)
-        f.close()
-
-        launchCMD = ["bash", "/pod/scripts/bootstrap.sh"]
-        return launchCMD
-
     def generate_pod(self, pod):
         assert(isinstance(self.template, Template))
 
@@ -62,11 +44,10 @@ class DistPodTemplate():
         pod["labels"].append({"name": "distRole", "value": pod["distRole"]})
         pod["labels"].append({"name": "distRoleIdx", "value": pod["distRoleIdx"]})
 
-        cmd = pod["cmd"]
-        pod["LaunchCMD"] = DistPodTemplate.generate_launch_script(pod["distRole"], pod["distRoleIdx"], pod["userId"], job_path, cmd)
-
         pod_yaml = self.template.render(job=pod)
-        return yaml.full_load(pod_yaml)
+        pod_obj = yaml.full_load(pod_yaml)
+        pod_obj["spec"]["containers"][0]["env"].append({"name": "DLWS_LAUNCH_CMD", "value": pod["cmd"]})
+        return pod_obj
 
     def generate_pods(self, job):
         """
