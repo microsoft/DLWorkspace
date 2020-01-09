@@ -116,7 +116,7 @@ class PodTemplate():
         vc_node_hard_assignment = job.get_vc_node_hard_assignment()
         if isinstance(vc_node_hard_assignment, dict):
             vc = params["vcName"]
-            # Only consider GPU jobs
+            # TODO: Fix the case where CPU worker exists in a GPU pool
             if vc in vc_node_hard_assignment and \
                     vc_node_hard_assignment[vc] is True:
                 params["nodeSelector"]["vc"] = vc
