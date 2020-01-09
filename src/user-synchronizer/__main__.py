@@ -102,6 +102,8 @@ for group_identity in iter_group_identities():
                     'onPremisesSecurityIdentifier',
                 ]):
                     try:
+                        if member['@odata.type'] != '#microsoft.graph.user':
+                            continue
                         user_id = member['id']
                         user_name = member['userPrincipalName']
 
