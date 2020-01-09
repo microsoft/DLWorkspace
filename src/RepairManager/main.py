@@ -5,7 +5,7 @@ import logging
 import logging.config
 import importlib
 import traceback
-from utils import email
+from utils import rule_alert_handler
 
 import Rules
 
@@ -15,7 +15,7 @@ with open('./config/logging.yaml', 'r') as log_file:
 logging.config.dictConfig(log_config)
 logger = logging.getLogger(__name__)
 
-alert = email.EmailHandler()
+alert = rule_alert_handler.RuleAlertHandler()
 
 
 def refresh_rules():
