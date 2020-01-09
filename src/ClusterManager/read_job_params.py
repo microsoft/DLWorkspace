@@ -19,7 +19,7 @@ if __name__ == '__main__':
     handler = DataHandler()
     jobs = handler.GetJob(jobId=args.job_id)
     if len(jobs) == 0:
-        print(("didn't find job of %s" % (args.job_id)))
+        print("didn't find job of %s" % (args.job_id))
         sys.exit(1)
 
     job = jobs[0]

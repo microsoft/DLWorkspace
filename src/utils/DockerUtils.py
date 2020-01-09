@@ -11,11 +11,11 @@ def build_docker( dockername, dirname, verbose=False, nocache=False ):
     # docker name is designed to use lower case. 
     dockername = dockername.lower()
     if verbose:
-        print(("Building docker ... " + dockername + " .. @" + dirname))
+        print("Building docker ... " + dockername + " .. @" + dirname)
     with cd(dirname):
         # print "Test if prebuid.sh exists"
         if os.path.exists("prebuild.sh"):
-            print(("Execute prebuild.sh for docker %s" % dockername))
+            print("Execute prebuild.sh for docker %s" % dockername)
             os.system("bash prebuild.sh")
         if nocache:
             cmd = "docker build --no-cache -t "+ dockername + " ."
@@ -29,12 +29,12 @@ def build_docker( dockername, dirname, verbose=False, nocache=False ):
 def build_docker_with_config( dockername, config, verbose=False, nocache=False ):
     usedockername = dockername.lower()
     build_docker( config["dockers"]["container"][dockername]["name"], config["dockers"]["container"][dockername]["dirname"], verbose, nocache )
-    
+
 def push_docker( dockername, docker_register, verbose=False):
-    # docker name is designed to use lower case. 
+    # docker name is designed to use lower case.
     dockername = dockername.lower()
     if verbose:
-        print(("Pushing docker ... " + dockername + " to " + docker_register))
+        print("Pushing docker ... " + dockername + " to " + docker_register)
     cmd = "docker tag "+ dockername + " " + docker_register + dockername
     cmd += "; docker push " + docker_register + dockername
     os.system(cmd)
@@ -44,12 +44,12 @@ def push_docker_with_config( dockername, config, verbose=False, nocache=False ):
     usedockername = dockername.lower()
     # build_docker( config["dockers"]["container"][dockername]["name"], config["dockers"]["container"][dockername]["dirname"], verbose, nocache )
     if verbose:
-        print(("Pushing docker ... " + config["dockers"]["container"][dockername]["name"] + " to " + config["dockers"]["container"][dockername]["fullname"]))
+        print("Pushing docker ... " + config["dockers"]["container"][dockername]["name"] + " to " + config["dockers"]["container"][dockername]["fullname"])
     cmd = "docker tag "+ config["dockers"]["container"][dockername]["name"] + " " + config["dockers"]["container"][dockername]["fullname"]
     cmd += "; docker push " + config["dockers"]["container"][dockername]["fullname"]
     os.system(cmd)
     return config["dockers"]["container"][dockername]["name"]
-    
+
 def run_docker(dockername, prompt="", dockerConfig = None, sudo = False, options = "" ):
     if not (dockerConfig is None):
         if "su" in dockerConfig:
@@ -76,7 +76,7 @@ def run_docker(dockername, prompt="", dockerConfig = None, sudo = False, options
         if not (homedir in currentdir):
             mapVolume += " -v "+ currentdir + ":" + currentdir
     mapVolume += " --net=host"
-    print(("Running docker " + dockername + " as Userid: " + str(uid) + "(" + username +"), + Group:"+str(groupid) + "("+groupname+") at " + homedir))
+    print("Running docker " + dockername + " as Userid: " + str(uid) + "(" + username +"), + Group:"+str(groupid) + "("+groupname+") at " + homedir)
     dirname = tempfile.mkdtemp()
     wname = os.path.join(dirname,"run.sh")
     fw = open( wname, "w+" )
@@ -116,11 +116,11 @@ def run_docker(dockername, prompt="", dockerConfig = None, sudo = False, options
         cmd = "docker run --privileged --hostname " + hostname + " " + options + " --rm -ti " + mapVolume + " -v "+dirname+ ":/tmp/runcommand -w "+homedir + " " + dockername + " /tmp/runcommand/run.sh"
     else:
         cmd = "docker run --privileged --hostname " + hostname + " " + options + " --rm -ti " + mapVolume + " -v "+dirname+ ":/tmp/runcommand -w "+homedir + " " + dockername + " /tmp/runcommand/run.sh"
-    print(("Execute: " + cmd))
+    print("Execute: " + cmd)
     os.system(cmd)
-    
+
 def find_dockers( dockername):
-    print(("Search for dockers .... "+dockername))
+    print("Search for dockers .... "+dockername)
     tmpf = tempfile.NamedTemporaryFile()
     tmpfname = tmpf.name; 
     tmpf.close()

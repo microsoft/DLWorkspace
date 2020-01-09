@@ -1,37 +1,16 @@
-#!/usr/bin/python 
+#!/usr/bin/env python3
+
 import json
 import os
-import time
-import datetime
 import argparse
 import uuid
-import subprocess
 import sys
 import textwrap
-import re
-import math
-import distutils.dir_util
-import distutils.file_util
-import shutil
-import random
-import glob
-import copy
-import numbers
-
-from os.path import expanduser
 
 import yaml
-import json
-from jinja2 import Environment, FileSystemLoader, Template
-import base64
-import tempfile
-import urllib.parse
 
-from shutil import copyfile, copytree
-import urllib.request, urllib.parse, urllib.error
-import socket
-sys.path.append("utils")
 sys.path.append("../utils")
+
 import utils
 from apiclient.discovery import *
 from six.moves import input
@@ -346,19 +325,19 @@ def delete_address():
 def create_storage_with_config( configGrp, location ):
     storagename = configGrp["name"] + location
     output = create_storage_account( storagename, configGrp["sku"], location)
-    if verbose: 
-        print(( "Storage account %s" % output ))
+    if verbose:
+        print("Storage account %s" % output)
     if False:
         configGrp[location] = json.loads( output )
         configGrp[location]["fullname"] = storagename
         output = get_storage_keys( configGrp, location )
         if verbose: 
-            print(( "Storage keys %s" % output ))   
+            print("Storage keys %s" % output)
         keyConfig = json.loads( output )
         configGrp[location]["keys"] = keyConfig
         create_storage_containers( configGrp, location )
-        if "cors" in configGrp and configGrp["cors"]: 
-            add_cors(configGrp, location)    
+        if "cors" in configGrp and configGrp["cors"]:
+            add_cors(configGrp, location)
 
 def delete_storage_with_config( configGrp, location ):
     storagename = configGrp["name"] + location

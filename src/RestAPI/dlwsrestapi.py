@@ -58,7 +58,7 @@ def _stacktraces():
                code.append("  %s" % (line.strip()))
 
    for line in code:
-       print(("_stacktrace: " + line))
+       print("_stacktrace: " + line)
 
 
 def _WorkerThreadFunc():

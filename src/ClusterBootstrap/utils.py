@@ -1,4 +1,5 @@
-#!/usr/bin/python 
+#!/usr/bin/env python3
+
 import json
 import os
 import time
@@ -49,19 +50,19 @@ def render_template(template_file, target_file, config, verbose=False):
     if ("render-by-copy-ext" in config and file_extension in config["render-by-copy-ext"]) or ("render-by-copy" in config and basename in config["render-by-copy"]):
         copyfile(template_file, target_file)
         if verbose:
-            print(("Copy tempalte " + template_file + " --> " + target_file))
+            print("Copy tempalte " + template_file + " --> " + target_file)
     elif "render-by-copy-full" in config and template_file in config["render-by-copy-full"]:
         copyfile(template_file, target_file)
         if verbose:
-            print(("Copy tempalte " + template_file + " --> " + target_file))
+            print("Copy tempalte " + template_file + " --> " + target_file)
     elif ("render-by-line-ext" in config and file_extension in config["render-by-line-ext"]) or ("render-by-line" in config and basename in config["render-by-line"]):
         if verbose:
-            print(("Render template " + template_file + " --> " + target_file + " Line by Line .... "))
+            print("Render template " + template_file + " --> " + target_file + " Line by Line .... ")
         ENV_local = Environment(loader=FileSystemLoader("/"))
         with open(target_file, 'w') as f:
             with open(template_file, 'r') as fr:
                 for line in fr:
-                    print(("Read: " + line))
+                    print("Read: " + line)
                     try:
                         template = ENV_local.Template(line)
                         content = template.render(cnf=config)
@@ -74,7 +75,7 @@ def render_template(template_file, target_file, config, verbose=False):
 
     else:
         if verbose:
-            print(("Render template " + template_file + " --> " + target_file))
+            print("Render template " + template_file + " --> " + target_file)
         try:
             ENV_local = Environment(loader=FileSystemLoader("/"))
             template = ENV_local.get_template(os.path.abspath(template_file))
@@ -86,7 +87,7 @@ def render_template(template_file, target_file, config, verbose=False):
                 f.write(content)
             f.close()
         except Exception as e:
-            print(("!!! Failure !!! in render template " + template_file))
+            print("!!! Failure !!! in render template " + template_file)
             print(e)
             pass
     
@@ -141,14 +142,14 @@ def SSH_exec_cmd(identity_file, user,host,cmd,showCmd=True):
     if len(cmd)==0:
         return;
     if showCmd or verbose:
-        print(("""ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" "%s" """ % (identity_file, user, host, cmd) )) 
+        print("""ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" "%s" """ % (identity_file, user, host, cmd) )
     os.system("""ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" "%s" """ % (identity_file, user, host, cmd) )
 
 # SSH Connect to a remote host with identity file (private SSH key), user, host
 # Program usually exit here. 
 def SSH_connect(identity_file, user,host):
     if verbose:
-        print(("""ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" """ % (identity_file, user, host) )) 
+        print("""ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" """ % (identity_file, user, host) )
     os.system("""ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" """ % (identity_file, user, host) )
 
 # Copy a local file or directory (source) to remote (target) with identity file (private SSH key), user, host 
@@ -225,7 +226,7 @@ def SSH_exec_cmd_batchmode_with_output(identity_file, user,host,cmd):
 def scan_nodes( identity_file, user, iprange ):
     infos = iprange.split("/")
     if len(infos)!=2:
-        print(("IP range %s need to be formated as x.x.x.x/n" % iprange))
+        print("IP range %s need to be formated as x.x.x.x/n" % iprange)
     else:
         ip = infos[0]
         size = 32-int(infos[1])
@@ -241,8 +242,8 @@ def scan_nodes( identity_file, user, iprange ):
                 sys.stdout.flush()
                 output = SSH_exec_cmd_batchmode_with_output( identity_file, user, host, "echo hello")
                 if output.find("hello")>=0:
-                    print(("\n" + host ))
-    
+                    print("\n" + host )
+
 def json_load_byteified(file_handle):
     return _byteify(
         json.load(file_handle, object_hook=_byteify),
@@ -298,9 +299,9 @@ def get_mac_address( identity_file, user, host, show=True ):
     etherMatch = re.compile("ether [0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]:[0-9a-f][0-9a-f]")
     iterator = etherMatch.finditer(output)
     if show:
-        print(("Node "+host + " Mac address..."))
+        print("Node "+host + " Mac address...")
         for match in iterator:
-            print((match.group()))
+            print(match.group())
     macs = []
     for match in iterator:
         macs.append(match.group()[6:])
@@ -447,7 +448,7 @@ def execute_restore_and_decrypt(fname, key):
     cleanup_command = ""
     if fname.endswith(".enc"):
         if key is None:
-            print(("%s needs decrpytion key" % fname))
+            print("%s needs decrpytion key" % fname)
             exit(-1)
         fname = fname[:-4]
         os.system("openssl enc -d -aes-256-cbc -k %s -in %s.enc -out %s" % (key, fname, fname) )
@@ -563,13 +564,13 @@ def tryuntil(cmdLambda, stopFn, updateFn, waitPeriod=5):
             try:
                 toStop = stopFn()
             except Exception as e:
-                print(("Exception {0} -- stopping anyways".format(e)))
+                print("Exception {0} -- stopping anyways".format(e))
                 toStop = True
             if toStop:
                 #print "Returning {0}".format(output)
                 return output
         except Exception as e:
-            print(("Exception in command {0}".format(e)))
+            print("Exception in command {0}".format(e))
         if not stopFn():
             print("Not done yet - Sleep for 5 seconds and continue")
             time.sleep(waitPeriod)

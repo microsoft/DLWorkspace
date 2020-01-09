@@ -543,7 +543,7 @@ class PythonLauncher(Launcher):
         return all([status == "NotFound" for status in statuses])
 
     def submit_job(self, job):
-        self.queue.put(("submit_job", (job,), {}))
+        self.queue.put("submit_job", (job,), {})
 
     def submit_job_impl(self, job):
         # check if existing any pod with label: run=job_id
@@ -691,7 +691,7 @@ class PythonLauncher(Launcher):
         return ret
 
     def kill_job(self, job_id, desired_state="killed"):
-        self.queue.put(("kill_job", (job_id,), {"desired_state": desired_state}))
+        self.queue.put("kill_job", (job_id,), {"desired_state": desired_state})
 
     def kill_job_impl(self, job_id, desired_state="killed", dataHandlerOri=None):
         if dataHandlerOri is None:

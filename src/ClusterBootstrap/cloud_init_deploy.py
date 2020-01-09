@@ -1,6 +1,5 @@
-#!/usr/bin/python3
-from ConfigUtils import *
-from DockerUtils import push_one_docker, build_dockers, push_dockers, run_docker, find_dockers, build_docker_fullname, copy_from_docker_image, configuration
+#!/usr/bin/env python3
+
 import os
 import sys
 import uuid
@@ -8,8 +7,12 @@ import yaml
 import utils
 import argparse
 import textwrap
-from params import default_config_parameters
+
 sys.path.append("../utils")
+
+from params import default_config_parameters
+from ConfigUtils import *
+from DockerUtils import push_one_docker, build_dockers, push_dockers, run_docker, find_dockers, build_docker_fullname, copy_from_docker_image, configuration
 
 def generate_ip_from_cluster(cluster_ip_range, index):
     slash_pos = cluster_ip_range.find("/")
@@ -181,7 +184,7 @@ def get_node_lists_for_service(service, config):
     else:
         machines = fetch_config(config, ["machines"])
         if machines is None:
-            print(("Service %s has a nodes type %s, but there is no machine configuration to identify node" % (service, nodetype)))
+            print("Service %s has a nodes type %s, but there is no machine configuration to identify node" % (service, nodetype))
             exit(-1)
         allnodes = config["worker_node"] + config["etcd_node"]
         nodes = []
@@ -222,11 +225,11 @@ def create_cluster_id(overwrite = False):
         clusterId["clusterId"] = str(uuid.uuid4())
         with open('./deploy/clusterID.yml', 'w') as f:
             yaml.dump(clusterId, f)
-        print(("Cluster ID generated: " + clusterId["clusterId"]))
+        print("Cluster ID generated: " + clusterId["clusterId"])
     else:
         with open('./deploy/clusterID.yml', 'r') as f:
             ID = yaml.load(f)['clusterId']
-        print(('Cluster ID file exists -- ./deploy/clusterID.yml:\n{}'.format(ID)))
+        print('Cluster ID file exists -- ./deploy/clusterID.yml:\n{}'.format(ID))
 
 def load_cluster_ID():
     if (not os.path.exists('./deploy/clusterID.yml')):
@@ -239,14 +242,14 @@ def load_config(args):
     config = init_config(default_config_parameters)
     if args.verbose:
         utils.verbose = True
-        print(("Args = {0}".format(args)))
+        print("Args = {0}".format(args))
 
     # deploy new cluster or load info of an existing cluster? specify the yaml file to specify explicitly
     for cnf_fn in args.config:
         config_file = os.path.join(dirpath, cnf_fn)
         if not os.path.exists(config_file):
             parser.print_help()
-            print(("ERROR: {} does not exist!".format(config_file)))
+            print("ERROR: {} does not exist!".format(config_file))
             exit()
         with open(config_file) as cf:
             merge_config(config, yaml.safe_load(cf))
@@ -266,8 +269,8 @@ def load_config(args):
     config = get_ssh_config(config)
     configuration( config, args.verbose )
     if args.verbose:
-        print(("deploy " + command + " " + (" ".join(args.nargs))))
-        print(("PlatformScripts = {0}".format(config["platform-scripts"])))
+        print("deploy " + command + " " + (" ".join(args.nargs)))
+        print("PlatformScripts = {0}".format(config["platform-scripts"]))
 
     return config
 
@@ -406,6 +409,6 @@ if __name__ == '__main__':
             run_script_blocks(args.verbose, scriptblocks[nargs[0]])
         else:
             parser.print_help()
-            print(("Error: Unknown scriptblocks " + nargs[0]))
+            print("Error: Unknown scriptblocks " + nargs[0])
     else:
         run_command(args, command, parser)

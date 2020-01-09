@@ -1,34 +1,15 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
+
 import json
 import os
-import time
-import datetime
 import argparse
 import uuid
-import subprocess
-import sys
 import textwrap
 import re
-import math
-import distutils.dir_util
-import distutils.file_util
-import shutil
 import random
-import glob
-import copy
-import numbers
 import string
-
-from os.path import expanduser
-
 import yaml
-from jinja2 import Environment, FileSystemLoader, Template
-import base64
-import tempfile
 
-from shutil import copyfile, copytree
-import urllib.request, urllib.parse, urllib.error
-import socket
 import utils
 from az_params import *
 from params import *
@@ -53,15 +34,15 @@ def merge_config(config1, config2, verbose):
         if entry in config1:
             if isinstance(config1[entry], dict):
                 if verbose:
-                    print(("Merge entry %s " % entry))
+                    print("Merge entry %s " % entry)
                 merge_config(config1[entry], config2[entry], verbose)
             else:
                 if verbose:
-                    print(("Entry %s == %s " % (entry, config2[entry])))
+                    print("Entry %s == %s " % (entry, config2[entry]))
                 config1[entry] = config2[entry]
         else:
             if verbose:
-                print(("Entry %s == %s " % (entry, config2[entry])))
+                print("Entry %s == %s " % (entry, config2[entry]))
             config1[entry] = config2[entry]
 
 
@@ -907,7 +888,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
                         print("Error: Wrong filesharename {}! Mount path is {} !".format(mntcnf["filesharename"], mnt_parent_path))
                         raise ValueError
                     if mntname in cc["mountpoints"]:
-                        print(("Warning, duplicated mountpoints item name {}, skipping".format(mntname)))
+                        print("Warning, duplicated mountpoints item name {}, skipping".format(mntname))
                         continue
 
                     if server_name not in fullynamed_nfs:

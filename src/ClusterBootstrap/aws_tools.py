@@ -438,18 +438,18 @@ def create_storage_with_config( configGrp, location ):
     storagename = configGrp["name"] + location
     output = create_storage_account( storagename, configGrp["sku"], location)
     if verbose: 
-        print(( "Storage account %s" % output ))
+        print( "Storage account %s" % output )
     if False:
         configGrp[location] = json.loads( output )
         configGrp[location]["fullname"] = storagename
         output = get_storage_keys( configGrp, location )
         if verbose: 
-            print(( "Storage keys %s" % output ))   
+            print( "Storage keys %s" % output)
         keyConfig = json.loads( output )
         configGrp[location]["keys"] = keyConfig
         create_storage_containers( configGrp, location )
-        if "cors" in configGrp and configGrp["cors"]: 
-            add_cors(configGrp, location)    
+        if "cors" in configGrp and configGrp["cors"]:
+            add_cors(configGrp, location)
 
 def delete_storage_with_config( configGrp, location ):
     storagename = configGrp["name"] + location

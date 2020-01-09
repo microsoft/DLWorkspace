@@ -1097,7 +1097,7 @@ def create_PXE():
     os.system("cp -r ./deploy/cloud-config/* ./deploy/pxe/tftp/usr/share/oem")
 
     dockername = push_one_docker("./deploy/pxe", config["dockerprefix"], config["dockertag"], "pxe-coreos", config )
-    print(("A DL workspace docker is built at: "+ dockername))
+    print("A DL workspace docker is built at: "+ dockername)
 
 def config_ubuntu():
     ubuntuConfig = fetch_config( config, ["ubuntuconfig"] )
@@ -1115,7 +1115,7 @@ def create_PXE_ubuntu():
 
     dockername = push_one_docker("./deploy/pxe-ubuntu", config["dockerprefix"], config["dockertag"], "pxe-ubuntu", config )
 
-    print(("A DL workspace docker is built at: "+ dockername))
+    print("A DL workspace docker is built at: "+ dockername)
 
 
 def clean_worker_nodes():
@@ -2756,7 +2756,7 @@ def run_command( args, command, nargs, parser ):
                     elif nargs[1] == "list":
                         url = "http://%s:%s/ListVCs?userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"])
                         response = requests.get(url)
-                        print((response.text))
+                        print(response.text)
             elif nargs[0] == "storage":
                 if len(nargs) >= 2:
                     if nargs[1] == "add":
@@ -2774,7 +2774,7 @@ def run_command( args, command, nargs, parser ):
                     elif nargs[1] == "list":
                         url = "http://%s:%s/ListStorages?vcName=%s&userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2])
                         response = requests.get(url)
-                        print((response.text))
+                        print(response.text)
             elif nargs[0] == "acl":
                 if len(nargs) >= 2:
                     if nargs[1] == "update":
@@ -2784,28 +2784,28 @@ def run_command( args, command, nargs, parser ):
                     elif nargs[1] == "list":
                         url = "http://%s:%s/GetACL?userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"])
                         response = requests.get(url)
-                        print((response.text))
+                        print(response.text)
                     elif nargs[1] == "delete":
                         url = "http://%s:%s/DeleteAce?identityName=%s&resourceType=%s&resourceName=%s&userName=Administrator" %  (config["kubernetes_master_node"][0],config["restfulapiport"],nargs[2],nargs[3],nargs[4])
                         response = requests.get(url)
-                        print((response.text))
+                        print(response.text)
             elif nargs[0] == "job":
                 if len(nargs) >= 2:
                     if nargs[1] == "add":
                         url = "http://%s:%s/SubmitJob?jobName=%s&vcName=%s&resourcegpu=%s&gpuType=%s&dataPath=%s&workPath=%s&image=%s&jobType=%s&preemptionAllowed=%s&userName=Administrator" \
                             %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2], nargs[3], nargs[4], nargs[5], nargs[6], nargs[7], nargs[8], nargs[9], nargs[10])
                         response = requests.get(url)
-                        print((response.text))
+                        print(response.text)
                     elif nargs[1] == "delete":
                         url = "http://%s:%s/KillJob?jobId=%s&userName=Administrator" \
                             %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2])
                         response = requests.get(url)
-                        print((response.text))
+                        print(response.text)
                     elif nargs[1] == "list":
                         url = "http://%s:%s/ListJobs?vcName=%s&jobOwner=%s&num=%s&userName=Administrator" \
                             %  (config["kubernetes_master_node"][0],config["restfulapiport"], nargs[2], nargs[3], nargs[4])
                         response = requests.get(url)
-                        print((response.text))
+                        print(response.text)
             elif nargs[0] == "user":
                 if len(nargs) >= 2:
                     if nargs[1] == "add":
@@ -2921,7 +2921,7 @@ def run_command( args, command, nargs, parser ):
             elif len(partsInfo)==1 and partsInfo[0] < 30:
                 partsInfo = [100.0]*int(partsInfo[0])
             nodesinfo = show_partitions(nodes, config["data-disk"] )
-            print(("This operation will DELETE all existing partitions and repartition all data drives on the %d nodes to %d partitions of %s" % (len(nodes), len(partsInfo), str(partsInfo)) ))
+            print("This operation will DELETE all existing partitions and repartition all data drives on the %d nodes to %d partitions of %s" % (len(nodes), len(partsInfo), str(partsInfo)))
             response = input ("Please type (REPARTITION) in ALL CAPITALS to confirm the operation ---> ")
             if response == "REPARTITION":
                 repartition_nodes( nodes, nodesinfo, partsInfo)
