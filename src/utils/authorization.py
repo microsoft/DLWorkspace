@@ -196,7 +196,7 @@ class ACLManager:
             with acl_cache_lock:
                 for item in acl_cache.keys():
                     if item.startswith(resourceKeyPrefix):
-                        acl.append(acl_cache[item])
+                        acl.extend(acl_cache[item])
         except KeyError:
             pass
 
