@@ -48,7 +48,7 @@ const JobStatus: FunctionComponent<Props> = ({ job }) => {
     return <pre>{JSON.stringify(firstDetail, null, 2)}</pre>;
   }, [detail]);
   return (
-    <Tooltip title={title} interactive>
+    <Tooltip title={title} placement="right" interactive>
       <Chip icon={icon} label={label}/>
     </Tooltip>
   );
