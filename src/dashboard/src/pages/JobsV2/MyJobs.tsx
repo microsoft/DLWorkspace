@@ -50,7 +50,7 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({ jobs, onExpectMoreJobs }
     { title: 'Status', type: 'string', field: 'jobStatus', render: renderStatus },
     { title: 'GPU', type: 'numeric',
       render: renderGPU, customSort: sortGPU },
-    { title: 'Preempable', type: 'boolean', field: 'jobParams.preemptionAllowed'},
+    { title: 'Preemptible', type: 'boolean', field: 'jobParams.preemptionAllowed'},
     { title: 'Priority', type: 'numeric',
       render: renderPrioirty, disableClick: true },
     { title: 'Submitted', type: 'datetime',
