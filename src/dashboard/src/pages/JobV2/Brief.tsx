@@ -44,7 +44,7 @@ const Brief: FunctionComponent = () => {
       />
       <CopyableTextListItem
         primary="Work Path"
-        secondary={`${cluster['dataStorage'] || ''}/${job['jobParams']['workPath']}`}
+        secondary={`${cluster['workStorage'] || ''}/${job['jobParams']['workPath']}`}
       />
       <CopyableTextListItem
         primary="Job Path"
