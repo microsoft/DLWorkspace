@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import unittest
 import kubernetes
 import yaml
@@ -9,6 +11,7 @@ from kubernetes.client.rest import ApiException
 from job_launcher import JobDeployer
 
 import logging
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s",

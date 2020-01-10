@@ -1,6 +1,6 @@
 import yaml
 import os
-from Queue import Queue
+from queue import Queue
 import threading
 
 try:

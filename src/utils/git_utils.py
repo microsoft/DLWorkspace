@@ -1,4 +1,4 @@
-#!/usr/bin/python 
+#!/usr/bin/env python3
 
 import subprocess
 import yaml
@@ -7,10 +7,10 @@ def getresp(url, verbose):
     curlCmd = ['curl']
     curlCmd.append("https://api.github.com/" + url)
     if verbose:
-        print "Command: {0}".format(" ".join(curlCmd))
+        print("Command: {0}".format(" ".join(curlCmd)))
     output = subprocess.check_output(curlCmd)
     if verbose:
-        print "Output: {0}".format(output)
+        print("Output: {0}".format(output))
     return yaml.load(output)
 
 def github_hash(repo, branch, verbose=True) :

@@ -1,18 +1,15 @@
-import mysql.connector
+#!/usr/bin/env python3
+
 import json
 import base64
-import os
 import logging
 import functools
-
 import timeit
 
-from Queue import Queue
-
-from config import config
-from config import global_vars
-
+import mysql.connector
 from prometheus_client import Histogram
+
+from config import config, global_vars
 
 logger = logging.getLogger(__name__)
 
@@ -655,7 +652,7 @@ class DataHandler(object):
             columns = [column[0] for column in cursor.description]
             data = cursor.fetchall()
             for item in data:
-                record = dict(zip(columns, item))
+                record = dict(list(zip(columns, item)))
                 if record["jobStatusDetail"] is not None:
                     record["jobStatusDetail"] = self.load_json(base64.b64decode(record["jobStatusDetail"]))
                 if record["jobParams"] is not None:
@@ -716,7 +713,7 @@ class DataHandler(object):
         query = "SELECT `jobId`,`familyToken`,`isParent`,`jobName`,`userName`, `vcName`, `jobStatus`, `jobStatusDetail`, `jobType`, `jobDescriptionPath`, `jobDescription`, `jobTime`, `endpoints`, `jobParams`,`errorMsg` ,`jobMeta`  FROM `%s` where `%s` = '%s' " % (self.jobtablename,key,expected)
         cursor.execute(query)
         columns = [column[0] for column in cursor.description]
-        ret = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        ret = [dict(list(zip(columns, row))) for row in cursor.fetchall()]
         self.conn.commit()
         cursor.close()
         return ret
@@ -733,7 +730,7 @@ class DataHandler(object):
             columns = [column[0] for column in cursor.description]
             data = cursor.fetchall()
             for item in data:
-                record = dict(zip(columns, item))
+                record = dict(list(zip(columns, item)))
                 if record["jobStatusDetail"] is not None:
                     record["jobStatusDetail"] = self.load_json(base64.b64decode(record["jobStatusDetail"]))
                 if record["jobParams"] is not None:
@@ -809,7 +806,7 @@ class DataHandler(object):
     def load_json(self, raw_str):
         if raw_str is None:
             return {}
-        if isinstance(raw_str, unicode):
+        if isinstance(raw_str, str):
             raw_str = str(raw_str)
         try:
             return json.loads(raw_str)
@@ -828,10 +825,10 @@ class DataHandler(object):
             self.conn.commit()
 
             # [ {endpoint1:{},endpoint2:{}}, {endpoint3:{}, ... }, ... ]
-            endpoints = map(lambda job: self.load_json(job[0]), jobs)
+            endpoints = [self.load_json(job[0]) for job in jobs]
             # {endpoint1: {}, endpoint2: {}, ... }
             # endpoint["status"] == "pending"
-            ret = {k: v for d in endpoints for k, v in d.items() if v["status"] == "pending"}
+            ret = {k: v for d in endpoints for k, v in list(d.items()) if v["status"] == "pending"}
         except Exception as e:
             logger.exception("Query pending endpoints failed!")
         finally:
@@ -851,10 +848,10 @@ class DataHandler(object):
             self.conn.commit()
 
             # [ {endpoint1:{},endpoint2:{}}, {endpoint3:{}, ... }, ... ]
-            endpoints = map(lambda job: self.load_json(job[0]), jobs)
+            endpoints = [self.load_json(job[0]) for job in jobs]
             # {endpoint1: {}, endpoint2: {}, ... }
             # endpoint["status"] == "pending"
-            ret = {k: v for d in endpoints for k, v in d.items()}
+            ret = {k: v for d in endpoints for k, v in list(d.items())}
         except Exception as e:
             logger.warning("Query job endpoints failed! Job {}".format(job_id), exc_info=True)
         finally:
@@ -871,7 +868,7 @@ class DataHandler(object):
             cursor.execute(query)
             dead_endpoints = {}
             for [endpoints] in cursor:
-                endpoint_list = {k: v for k, v in self.load_json(endpoints).items() if v["status"] == "running"}
+                endpoint_list = {k: v for k, v in list(self.load_json(endpoints).items()) if v["status"] == "running"}
                 dead_endpoints.update(endpoint_list)
             self.conn.commit()
             cursor.close()
@@ -960,7 +957,7 @@ class DataHandler(object):
             return ret
 
         try:
-            sql = "update `%s` set" % (self.jobtablename) + ",".join([" `%s` = '%s'" % (field, value) for field, value in dataFields.items()]) + " where" + "and".join([" `%s` = '%s'" % (field, value) for field, value in conditionFields.items()])
+            sql = "update `%s` set" % (self.jobtablename) + ",".join([" `%s` = '%s'" % (field, value) for field, value in list(dataFields.items())]) + " where" + "and".join([" `%s` = '%s'" % (field, value) for field, value in list(conditionFields.items())])
 
             cursor = self.conn.cursor()
             cursor.execute(sql)
@@ -1004,7 +1001,7 @@ class DataHandler(object):
 
             columns = [column[0] for column in cursor.description]
             for item in cursor.fetchall():
-                ret = dict(zip(columns, item))
+                ret = dict(list(zip(columns, item)))
             self.conn.commit()
         except Exception as e:
             logger.error('GetJobTextFields Exception: %s', str(e))
@@ -1164,7 +1161,7 @@ class DataHandler(object):
     @record
     def update_job_priority(self, job_priorites):
         cursor = self.conn.cursor()
-        for job_id, priority in job_priorites.items():
+        for job_id, priority in list(job_priorites.items()):
             query = "INSERT INTO {0}(jobId, priority, time) VALUES('{1}', {2}, SYSDATE()) ON DUPLICATE KEY UPDATE jobId='{1}', priority='{2}' ".format(self.jobprioritytablename, job_id, priority)
             cursor.execute(query)
         self.conn.commit()
@@ -1189,7 +1186,7 @@ if __name__ == '__main__':
     CREATE_TABLE = False
     CREATE_DB = True
     dataHandler = DataHandler()
-    print dataHandler.GetJobList("hongzl@microsoft.com", num=1)
+    print(dataHandler.GetJobList("hongzl@microsoft.com", num=1))
     if TEST_INSERT_JOB:
         jobParams = {}
         jobParams["id"] = "dist-tf-00001"

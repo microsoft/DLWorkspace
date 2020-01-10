@@ -1,14 +1,16 @@
+#!/usr/bin/env python3
+
 import os
 import sys
-import uuid
-import datetime
-import json
 import copy
 import yaml
+
 from jinja2 import Template
+
 from job import Job
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
+
 from config import config
 from osUtils import mkdirsAsUser
 from pod_template_utils import enable_cpu_config
@@ -175,7 +177,7 @@ class DistPodTemplate():
 
         # Create secret config for each plugins
         k8s_secrets = []
-        for plugin, plugin_config in plugins.items():
+        for plugin, plugin_config in list(plugins.items()):
             if plugin == "blobfuse" and isinstance(plugin_config, list):
                 for bf in plugin_config:
                     k8s_secret = self.generate_blobfuse_secret(bf)

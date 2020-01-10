@@ -1,18 +1,22 @@
-from DataHandler import DataHandler, DataManager
+#!/usr/bin/env python3
+
 import logging
 import json
-import requests
 import random
-from config import config
 import time
 import threading
+
+import requests
+
+from config import config
+from DataHandler import DataHandler, DataManager
 from cachetools import cached, TTLCache
 
 logger = logging.getLogger(__name__)
 
 def enum(*sequential, **named):
-    enums = dict(zip(sequential, range(len(sequential))), **named)
-    reverse = dict((value, key) for key, value in enums.items())
+    enums = dict(list(zip(sequential, list(range(len(sequential))))), **named)
+    reverse = dict((value, key) for key, value in list(enums.items()))
     enums['reverse_mapping'] = reverse
     return type('Enum', (), enums)
 
@@ -53,7 +57,7 @@ class AuthorizationManager:
             identities = set([])
             try:
                 identities = IdentityManager.GetIdentityInfoFromDB(identity_name)["groups"]
-                identities = set(map(lambda x: int(x), identities))
+                identities = set([int(x) for x in identities])
             except Exception as e:
                 logger.warn("Failed to get identities list: %s" % e)
 
@@ -194,9 +198,9 @@ class ACLManager:
         acl = []
         try:
             with acl_cache_lock:
-                for item in acl_cache.keys():
+                for item in list(acl_cache.keys()):
                     if item.startswith(resourceKeyPrefix):
-                        acl.extend(acl_cache[item])
+                        acl.append(acl_cache[item])
         except KeyError:
             pass
 

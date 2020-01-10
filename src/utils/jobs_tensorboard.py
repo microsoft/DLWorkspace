@@ -1,13 +1,6 @@
-import json
-import os
-import time
-import argparse
-import uuid
-import subprocess
-import sys
+#!/usr/bin/env python3
 
-import yaml
-from jinja2 import Environment, FileSystemLoader, Template
+from jinja2 import Environment, FileSystemLoader
 
 
 def GenTensorboardMeta(jobParams, serviceTemplate, tensorboardAppTemplate):

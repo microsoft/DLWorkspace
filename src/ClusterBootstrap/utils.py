@@ -1,4 +1,5 @@
-#!/usr/bin/python 
+#!/usr/bin/env python3
+
 import json
 import os
 import time
@@ -22,7 +23,7 @@ from jinja2 import Environment, FileSystemLoader, Template
 import base64
 
 from shutil import copyfile, copytree
-import urllib
+import urllib.request, urllib.parse, urllib.error
 import socket,struct
 
 
@@ -141,14 +142,14 @@ def SSH_exec_cmd(identity_file, user,host,cmd,showCmd=True):
     if len(cmd)==0:
         return;
     if showCmd or verbose:
-        print("""ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" "%s" """ % (identity_file, user, host, cmd) ) 
+        print("""ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" "%s" """ % (identity_file, user, host, cmd) )
     os.system("""ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" "%s" """ % (identity_file, user, host, cmd) )
 
 # SSH Connect to a remote host with identity file (private SSH key), user, host
 # Program usually exit here. 
 def SSH_connect(identity_file, user,host):
     if verbose:
-        print("""ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" """ % (identity_file, user, host) ) 
+        print("""ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" """ % (identity_file, user, host) )
     os.system("""ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i %s "%s@%s" """ % (identity_file, user, host) )
 
 # Copy a local file or directory (source) to remote (target) with identity file (private SSH key), user, host 
@@ -242,7 +243,7 @@ def scan_nodes( identity_file, user, iprange ):
                 output = SSH_exec_cmd_batchmode_with_output( identity_file, user, host, "echo hello")
                 if output.find("hello")>=0:
                     print("\n" + host )
-    
+
 def json_load_byteified(file_handle):
     return _byteify(
         json.load(file_handle, object_hook=_byteify),
@@ -258,7 +259,7 @@ def json_loads_byteified(json_text):
 # Get string objects instead of Unicode from JSON
 def _byteify(data, ignore_dicts = False):
     # if this is a unicode string, return its string representation
-    if isinstance(data, unicode):
+    if isinstance(data, str):
         return data.encode('utf-8')
     # if this is a list of values, return list of byteified values
     if isinstance(data, list):
@@ -268,7 +269,7 @@ def _byteify(data, ignore_dicts = False):
     if isinstance(data, dict) and not ignore_dicts:
         return {
             _byteify(key, ignore_dicts=True): _byteify(value, ignore_dicts=True)
-            for key, value in data.iteritems()
+            for key, value in data.items()
         }
     # if it's anything else, return it in its original form
     return data
@@ -356,7 +357,7 @@ def get_ETCD_discovery_URL(size):
             output = "we don't use discovery url for 1 node etcd"
     else:
         try:
-            output = urllib.urlopen("https://discovery.etcd.io/new?size=%d" % size ).read()
+            output = urllib.request.urlopen("https://discovery.etcd.io/new?size=%d" % size ).read()
             if not "https://discovery.etcd.io" in output:
                 raise Exception("ERROR: we cannot get etcd discovery url from 'https://discovery.etcd.io/new?size=%d', got message %s" % (size,output)) 
         except Exception as e:
@@ -628,7 +629,7 @@ def check_covered_by_ipvals(ipvals, masked2check):
     return False
 
 def check_covered_by_wider_ips(mask2ip, ipval2check, mask4ipval):
-    for msk in mask2ip.keys():
+    for msk in list(mask2ip.keys()):
         # wider mask range
         if msk < mask4ipval:
             this_masked = ipval2check & mask_num(msk)

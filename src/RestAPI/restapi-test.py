@@ -7,4 +7,4 @@ f.close()
 
 data = {"cmd":"CreateJob", "params":jobParamsJsonStr}
 response = requests.post(url, data=data)
-print response.content
+print(response.content)

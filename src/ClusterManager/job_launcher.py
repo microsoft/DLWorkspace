@@ -1,12 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import json
 import yaml
 import os
 import logging
 import logging.config
-import timeit
-import functools
 import time
 import datetime
 import base64
@@ -17,8 +15,6 @@ from kubernetes import client, config as k8s_config
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream
 from kubernetes.stream.ws_client import ERROR_CHANNEL, STDERR_CHANNEL, STDOUT_CHANNEL
-
-from prometheus_client import Histogram
 
 import k8sUtils
 from DataHandler import DataHandler
@@ -547,7 +543,7 @@ class PythonLauncher(Launcher):
         return all([status == "NotFound" for status in statuses])
 
     def submit_job(self, job):
-        self.queue.put(("submit_job", (job,), {}))
+        self.queue.put("submit_job", (job,), {})
 
     def submit_job_impl(self, job):
         # check if existing any pod with label: run=job_id
@@ -569,7 +565,7 @@ class PythonLauncher(Launcher):
             # before resubmit the job, reset the endpoints
             # update all endpoint to status 'pending', so it would restart when job is ready
             endpoints = dataHandler.GetJobEndpoints(job_id)
-            for endpoint_id, endpoint in endpoints.items():
+            for endpoint_id, endpoint in list(endpoints.items()):
                 endpoint["status"] = "pending"
                 logger.info("Reset endpoint status to 'pending': {}".format(endpoint_id))
                 dataHandler.UpdateEndpoint(endpoint)
@@ -695,7 +691,7 @@ class PythonLauncher(Launcher):
         return ret
 
     def kill_job(self, job_id, desired_state="killed"):
-        self.queue.put(("kill_job", (job_id,), {"desired_state": desired_state}))
+        self.queue.put("kill_job", (job_id,), {"desired_state": desired_state})
 
     def kill_job_impl(self, job_id, desired_state="killed", dataHandlerOri=None):
         if dataHandlerOri is None:

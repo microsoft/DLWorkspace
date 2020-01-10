@@ -1,32 +1,17 @@
+#!/usr/bin/env python3
+
 import json
 import os
 import time
 import argparse
-import uuid
-import subprocess
 import sys
-import datetime
-
 import yaml
-from jinja2 import Environment, FileSystemLoader, Template
 import base64
-
-import re
-
-import thread
-import threading
-import random
-
-import textwrap
 import logging
 import logging.config
 
-from multiprocessing import Process, Manager
-
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
 
-from jobs_tensorboard import GenTensorboardMeta
 import k8sUtils
 from osUtils import mkdirsAsUser
 from config import config, GetStoragePath
