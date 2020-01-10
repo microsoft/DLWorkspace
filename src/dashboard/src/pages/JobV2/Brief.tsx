@@ -52,7 +52,7 @@ const Brief: FunctionComponent = () => {
       />
       <ListItem>
         <ListItemText
-          primary="Preempable"
+          primary="Preemptible"
           secondary={job['jobParams']['preemptionAllowed'] ? <Check/> : <Close/>}
         />
       </ListItem>

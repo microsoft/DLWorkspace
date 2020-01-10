@@ -48,7 +48,7 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({ title, jobs }) => {
     { title: 'GPU', type: 'numeric',
       render: renderGPU, customSort: sortGPU },
     { title: 'User', type: 'string', render: renderUser},
-    { title: 'Preempable', type: 'boolean', field: 'jobParams.preemptionAllowed'},
+    { title: 'Preemptible', type: 'boolean', field: 'jobParams.preemptionAllowed'},
     { title: 'Priority', type: 'numeric',
       render: renderPrioirty, disableClick: true },
     { title: 'Submitted', type: 'datetime',
