@@ -569,8 +569,8 @@ def render_ETCD(config):
                           "./deploy/etcd/init_network.sh", config)
 
 
-def check_buildable_images(args, config):
-    for imagename in args.nargs[1]:
+def check_buildable_images(image_list, config):
+    for imagename in image_list:
         imagename = imagename.lower()
         if imagename in config["build-docker-via-config"]:
             print("Docker image %s should be built via configuration. " % imagename)
@@ -975,16 +975,6 @@ def run_command(args, command, parser):
             render_nfs_node_specific(config, args)
     if command == "packcloud":
         pack_cloudinit_role(config, args, args.nargs[0])
-    if command == "dockerupdate":
-        nargs = args.nargs
-        if len(nargs) >= 1:
-            configuration(config, args.verbose)
-            if nargs[0] == "build":
-                check_buildable_images(args, config)
-                build_docker_images(args, config)
-            if nargs[0] == "push":
-                check_buildable_images(args, config)
-                push_docker_images(args, config)
     if command == "docker":
         nargs = args.nargs
         if len(nargs) >= 1:
