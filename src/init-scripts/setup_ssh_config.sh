@@ -81,7 +81,7 @@ DLWS_ROLE_IDX
 
 SSH_ENVIRONMENT_FILE=/home/${DLWS_USER_NAME}/.ssh/environment
 for env_key in "${envs[@]}" ; do
-    if [ `echo $env_key` != "" ] ; then
+    if [ "`printenv $env_key`" != "" ] ; then
         printf $env_key >> $SSH_ENVIRONMENT_FILE
         printf = >> $SSH_ENVIRONMENT_FILE
         printenv $env_key >> $SSH_ENVIRONMENT_FILE
