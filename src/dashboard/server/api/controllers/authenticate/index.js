@@ -69,8 +69,8 @@ module.exports = async context => {
     const user = User.fromIdToken(context, idToken)
 
     context.cookies.set('token', user.toCookieToken())
-
-    return context.redirect('/')
+    context.type = 'html'
+    context.body = '<script>location.replace("/")</script>'
   } else if (context.query.error != null) {
     context.log.error({ query: context.query }, 'Authentication failed callback')
     return context.redirect('/')
