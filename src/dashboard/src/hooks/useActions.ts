@@ -68,7 +68,7 @@ ${givenName} ${familyName}
       enqueueSnackbar(`${title} is being approved.`);
       return updateStatus(job.jobId, 'approved').then((response) => {
         if (response.ok) {
-          enqueueSnackbar(`${title} is approved.`, { variant: 'success' });
+          enqueueSnackbar(`${title}'s approve request is accepted.`, { variant: 'success' });
         } else {
           enqueueSnackbar(`${title} is failed to approve.`, { variant: 'error' });
         }
@@ -84,7 +84,7 @@ ${givenName} ${familyName}
       enqueueSnackbar(`${title} is being paused.`);
       return updateStatus(job.jobId, 'pausing').then((response) => {
         if (response.ok) {
-          enqueueSnackbar(`${title} is paused.`, { variant: 'success' });
+          enqueueSnackbar(`${title}'s pause request is accepted.`, { variant: 'success' });
         } else {
           enqueueSnackbar(`${title} is failed to pause.`, { variant: 'error' });
         }
@@ -100,7 +100,7 @@ ${givenName} ${familyName}
       enqueueSnackbar(`${title} is being resumed.`);
       return updateStatus(job.jobId, 'queued').then((response) => {
         if (response.ok) {
-          enqueueSnackbar(`${title} is resumed.`, { variant: 'success' });
+          enqueueSnackbar(`${title}'s resume request is accepted.`, { variant: 'success' });
         } else {
           enqueueSnackbar(`${title} is failed to resume.`, { variant: 'error' });
         }
@@ -116,7 +116,7 @@ ${givenName} ${familyName}
       enqueueSnackbar(`${title} is being killed.`);
       return updateStatus(job.jobId, 'killing').then((response) => {
         if (response.ok) {
-          enqueueSnackbar(`${title} is killed.`, { variant: 'success' });
+          enqueueSnackbar(`${title}'s kill request is accepted.`, { variant: 'success' });
         } else {
           enqueueSnackbar(`${title} is failed to kill.`, { variant: 'error' });
         }
