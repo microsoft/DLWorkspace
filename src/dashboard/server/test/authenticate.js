@@ -33,7 +33,7 @@ describe('GET /authenticate', () => {
       },
       maxRedirects: 0
     })
-    response.status.should.equal(302)
+    response.status.should.equal(200)
 
     /** @type {Array<import('tough-cookie').Cookie>} */
     const cookies = response.headers['set-cookie'].map(touge.Cookie.parse)
@@ -51,7 +51,7 @@ describe('GET /authenticate', () => {
       },
       maxRedirects: 0
     })
-    response.status.should.equal(302)
+    response.status.should.equal(200)
   })
 })
 
