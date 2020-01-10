@@ -1,5 +1,6 @@
-import React, { FunctionComponent } from 'react';
-import { Chip } from '@material-ui/core';
+import React, { FunctionComponent, useMemo } from 'react';
+import { capitalize } from 'lodash';
+import { Chip, Tooltip } from '@material-ui/core';
 import {
   HourglassEmpty,
   HourglassFull,
@@ -17,8 +18,9 @@ interface Props {
 }
 
 const JobStatus: FunctionComponent<Props> = ({ job }) => {
-  const status = job['jobStatus'];
-  const icon = status === 'unapproved' ? <HourglassEmpty/>
+  const status = useMemo<string>(() => job['jobStatus'], [job]);
+  const icon = useMemo(() =>
+    status === 'unapproved' ? <HourglassEmpty/>
     : status === 'queued' ? <HourglassEmpty/>
     : status === 'scheduling' ? <HourglassEmpty/>
     : status === 'running' ? <HourglassFull/>
@@ -28,9 +30,27 @@ const JobStatus: FunctionComponent<Props> = ({ job }) => {
     : status === 'paused' ? <PauseCircleOutline/>
     : status === 'killing' ? <RemoveCircle/>
     : status === 'killed' ? <RemoveCircleOutline/>
-    : <Help/>;
-  const label = status[0].toUpperCase() + status.slice(1)
-  return <Chip icon={icon} label={label}/>;
+    : <Help/>
+  , [status]);
+  const label = useMemo(() => capitalize(status), [status]);
+
+  const detail = useMemo<Array<any>>(() => job['jobStatusDetail'], [job]);
+  const titles = useMemo(() => {
+    if (!Array.isArray(detail)) return [];
+
+    return detail.map((d, index) => {
+      if (typeof d.message === 'string') {
+        return <div key={index}>{d.message}</div>
+      } else {
+        return <div key={index}>{JSON.stringify(d)}</div>
+      }
+    })
+  }, [detail])
+  return (
+    <Tooltip title={titles} interactive>
+      <Chip icon={icon} label={label}/>
+    </Tooltip>
+  );
 }
 
 export default JobStatus;
