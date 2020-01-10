@@ -19,8 +19,10 @@ import { renderId, renderGPU, sortGPU, renderStatus, renderDate, sortDate } from
 import PriorityField from './PriorityField';
 
 const getSubmittedDate = (job: any) => new Date(job['jobTime']);
-const getStartedDate = (job: any) => new Date(job['jobStatusDetail'] && job['jobStatusDetail'][0]['startedAt']);
-const getFinishedDate = (job: any) => new Date(job['jobStatusDetail'] && job['jobStatusDetail'][0]['finishedAt']);
+const getStartedDate = (job: any) => new Date(
+  job['jobStatusDetail'] && job['jobStatusDetail'][0] && job['jobStatusDetail'][0]['startedAt']);
+const getFinishedDate = (job: any) => new Date(
+  job['jobStatusDetail'] && job['jobStatusDetail'][0] && job['jobStatusDetail'][0]['finishedAt']);
 
 interface JobsTableProps {
   jobs: any[];
