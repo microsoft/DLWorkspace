@@ -7,6 +7,7 @@ import React, {
   useMemo,
   useState
 } from 'react';
+import { capitalize } from 'lodash';
 import { usePrevious } from 'react-use';
 import {
   Link,
@@ -227,7 +228,7 @@ const JobContent: FunctionComponent = () => {
 
   return (
     <Context.Provider value={{ cluster: clusterData, job }}>
-      <Helmet title={`(${job['jobStatus']}) ${job['jobName']}`}/>
+      <Helmet title={`(${capitalize(job['jobStatus'])}) ${job['jobName']}`}/>
       <Container fixed maxWidth="lg">
         <JobToolbar manageable={manageable}/>
         <Paper elevation={2}>
