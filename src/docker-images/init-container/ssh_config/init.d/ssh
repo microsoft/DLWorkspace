@@ -40,13 +40,13 @@ check_for_upstart() {
 }
 
 check_for_no_start() {
-    # forget it if we're trying to start, and /etc/ssh/sshd_not_to_be_run exists
-    if [ -e /etc/ssh/sshd_not_to_be_run ]; then 
+    # forget it if we're trying to start, and /usr/etc/sshd_not_to_be_run exists
+    if [ -e /usr/etc/sshd_not_to_be_run ]; then 
 	if [ "$1" = log_end_msg ]; then
 	    log_end_msg 0 || true
 	fi
 	if ! run_by_init; then
-	    log_action_msg "OpenBSD Secure Shell server not in use (/etc/ssh/sshd_not_to_be_run)" || true
+	    log_action_msg "OpenBSD Secure Shell server not in use (/usr/etc/sshd_not_to_be_run)" || true
 	fi
 	exit 0
     fi
@@ -73,7 +73,7 @@ check_privsep_dir() {
 }
 
 check_config() {
-    if [ ! -e /etc/ssh/sshd_not_to_be_run ]; then
+    if [ ! -e /usr/etc/sshd_not_to_be_run ]; then
 	/usr/sbin/sshd $SSHD_OPTS -t || exit 1
     fi
 }
