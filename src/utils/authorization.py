@@ -95,12 +95,10 @@ class AuthorizationManager:
             return False
 
     @staticmethod
-    def HasAccess(identity_name, resource_type, resource_name, permissions):
-        resource_acl_path = AuthorizationManager.GetResourceAclPath(
+    def HasAccess(name, resource_type, resource_name, perm):
+        resource = AuthorizationManager.GetResourceAclPath(
             resource_name, resource_type)
-        return AuthorizationManager._has_access(identity_name,
-                                                resource_acl_path,
-                                                permissions)
+        return AuthorizationManager._has_access(name, resource, perm)
 
     @staticmethod
     def __get_accessible_acl(name, perm):
