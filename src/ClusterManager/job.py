@@ -345,15 +345,16 @@ class Job:
                 name = "%s-blobfuse-%d" % (self.job_id, i)
 
             # Reassign everything for clarity
-            bf = dict()
-            bf["enabled"] = True
-            bf["name"] = name
-            bf["secreds"] = "%s-blobfuse-%d-secreds" % (self.job_id, i)
-            bf["accountName"] = base64.b64encode(account_name)
-            bf["accountKey"] = base64.b64encode(account_key)
-            bf["containerName"] = container_name
-            bf["mountPath"] = mount_path
-            bf["jobId"] = self.job_id
+            bf = {
+                "enabled": True,
+                "name": name,
+                "secreds": "%s-blobfuse-%d-secreds" % (self.job_id, i),
+                "accountName": base64.b64encode(account_name.encode("utf-8")).decode("utf-8"),
+                "accountKey": base64.b64encode(account_key.encode("utf-8")).decode("utf-8"),
+                "containerName": container_name,
+                "mountPath": mount_path,
+                "jobId": self.job_id,
+            }
 
             if root_tmppath is not None:
                 # Make tmppath unique for each blobfuse mount
@@ -390,7 +391,7 @@ class Job:
                     invalid_entry(password):
                 continue
 
-            auth = base64.b64encode("%s:%s" % (username, password))
+            auth = base64.b64encode(("%s:%s" % (username, password)).encode("utf-8")).decode("utf-8")
 
             auths = {
                 "auths": {
@@ -400,7 +401,7 @@ class Job:
                 }
             }
 
-            dockerconfigjson = base64.b64encode(json.dumps(auths))
+            dockerconfigjson = base64.b64encode(json.dumps(auths).encode("utf-8")).decode("utf-8")
 
             secret = {
                 "enabled": True,

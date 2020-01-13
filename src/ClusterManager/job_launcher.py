@@ -3,6 +3,7 @@
 import json
 import yaml
 import os
+import sys
 import logging
 import logging.config
 import time
@@ -15,6 +16,8 @@ from kubernetes import client, config as k8s_config
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream
 from kubernetes.stream.ws_client import ERROR_CHANNEL, STDERR_CHANNEL, STDOUT_CHANNEL
+
+sys.path.append("../utils")
 
 import k8sUtils
 from DataHandler import DataHandler
@@ -482,7 +485,7 @@ def get_job_status_detail(job):
         return job_status_detail
 
     if not isinstance(job_status_detail, list):
-        job_status_detail = base64.b64decode(job_status_detail)
+        job_status_detail = base64.b64decode(job_status_detail.encode("utf-8")).decode("utf-8")
         job_status_detail = json.loads(job_status_detail)
     return job_status_detail
 
@@ -543,7 +546,7 @@ class PythonLauncher(Launcher):
         return all([status == "NotFound" for status in statuses])
 
     def submit_job(self, job):
-        self.queue.put("submit_job", (job,), {})
+        self.queue.put(("submit_job", (job,), {}))
 
     def submit_job_impl(self, job):
         # check if existing any pod with label: run=job_id
@@ -575,7 +578,7 @@ class PythonLauncher(Launcher):
             # TODO assert job_object is a Job
             assert isinstance(job_object, Job), "job_object is not of Job, but " + str(type(job_object))
 
-            job_object.params = json.loads(base64.b64decode(job["jobParams"]))
+            job_object.params = json.loads(base64.b64decode(job["jobParams"].encode("utf-8")).decode("utf-8"))
 
             # inject gid, uid and user
             # TODO it should return only one entry
@@ -586,13 +589,14 @@ class PythonLauncher(Launcher):
 
             if "job_token" not in job_object.params:
                 if "master_token" in config and config["master_token"] is not None and "userName" in job_object.params:
-                    job_object.params["job_token"] = hashlib.md5(job_object.params["userName"]+":"+config["master_token"]).hexdigest()
+                    plain_token = job_object.params["userName"] + ":" + config["master_token"]
+                    job_object.params["job_token"] = hashlib.md5(plain_token.encode("utf-8")).hexdigest()
                 else:
                     job_object.params["job_token"] = "tryme2017"
 
             if "envs" not in job_object.params:
                 job_object.params["envs"] =[]
-            job_object.params["envs"].append({"name": "DLTS_JOB_TOKEN", "value": job_object.params["job_token"]})              
+            job_object.params["envs"].append({"name": "DLTS_JOB_TOKEN", "value": job_object.params["job_token"]})
 
             enable_custom_scheduler = job_object.is_custom_scheduler_enabled()
             blobfuse_secret_template = job_object.get_blobfuse_secret_template()
@@ -653,12 +657,12 @@ class PythonLauncher(Launcher):
             # the command of the first container
             jobMeta["LaunchCMD"] = pods[0].spec.containers[0].command
 
-            jobMetaStr = base64.b64encode(json.dumps(jobMeta))
+            jobMetaStr = base64.b64encode(json.dumps(jobMeta).encode("utf-8")).decode("utf-8")
 
             dataFields = {
                 "jobStatus": "scheduling",
                 "jobDescriptionPath": job_description_path,
-                "jobDescription": base64.b64encode(job_description),
+                "jobDescription": base64.b64encode(job_description.encode("utf-8")).decode("utf-8"),
                 "lastUpdated": datetime.datetime.now().isoformat(),
                 "jobMeta": jobMetaStr
             }
@@ -675,7 +679,7 @@ class PythonLauncher(Launcher):
                 dataFields = {
                     "jobStatus": "error",
                     "errorMsg": "Cannot submit job!" + str(e),
-                    "jobStatusDetail": base64.b64encode(json.dumps(detail))
+                    "jobStatusDetail": base64.b64encode(json.dumps(detail).encode("utf-8")).decode("utf-8")
                 }
                 conditionFields = {"jobId": job["jobId"]}
                 dataHandler.UpdateJobTextFields(conditionFields, dataFields)
@@ -691,7 +695,7 @@ class PythonLauncher(Launcher):
         return ret
 
     def kill_job(self, job_id, desired_state="killed"):
-        self.queue.put("kill_job", (job_id,), {"desired_state": desired_state})
+        self.queue.put(("kill_job", (job_id,), {"desired_state": desired_state}))
 
     def kill_job_impl(self, job_id, desired_state="killed", dataHandlerOri=None):
         if dataHandlerOri is None:
@@ -702,14 +706,14 @@ class PythonLauncher(Launcher):
         # TODO: Use JobDeployer?
         result, detail = k8sUtils.GetJobStatus(job_id)
         detail = job_status_detail_with_finished_time(detail, desired_state)
-        dataHandler.UpdateJobTextField(job_id, "jobStatusDetail", base64.b64encode(json.dumps(detail)))
+        dataHandler.UpdateJobTextField(job_id, "jobStatusDetail", base64.b64encode(json.dumps(detail).encode("utf-8")).decode("utf-8"))
         logger.info("Killing job %s, with status %s, %s" % (job_id, result, detail))
 
         job_deployer = JobDeployer()
         errors = job_deployer.delete_job(job_id, force=True)
 
         dataFields = {
-            "jobStatusDetail": base64.b64encode(json.dumps(detail)),
+            "jobStatusDetail": base64.b64encode(json.dumps(detail).encode("utf-8")).decode("utf-8"),
             "lastUpdated": datetime.datetime.now().isoformat()
         }
         conditionFields = {"jobId": job_id}

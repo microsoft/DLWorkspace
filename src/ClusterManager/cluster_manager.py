@@ -108,25 +108,25 @@ def Run(args):
     cwd = os.path.dirname(__file__)
     cmds = {
         "job_manager_killing,pausing,unapproved":
-        ["python", os.path.join(cwd, "job_manager.py"), "--port", str(args.j1),
+        ["python3", os.path.join(cwd, "job_manager.py"), "--port", str(args.j1),
             "--status", "killing,pausing,unapproved"],
         "job_manager_running":
-        ["python", os.path.join(cwd, "job_manager.py"), "--port", str(args.j2),
+        ["python3", os.path.join(cwd, "job_manager.py"), "--port", str(args.j2),
             "--status", "running"],
         "job_manager_scheduling":
-        ["python", os.path.join(cwd, "job_manager.py"), "--port", str(args.j3),
+        ["python3", os.path.join(cwd, "job_manager.py"), "--port", str(args.j3),
             "--status", "scheduling"],
         "job_manager_queued":
-        ["python", os.path.join(cwd, "job_manager.py"), "--port", str(args.j4),
+        ["python3", os.path.join(cwd, "job_manager.py"), "--port", str(args.j4),
             "--status", "queued"],
         "user_manager":
-        ["python", os.path.join(cwd, "user_manager.py"), "--port", str(args.u)],
+        ["python3", os.path.join(cwd, "user_manager.py"), "--port", str(args.u)],
         "node_manager":
-        ["python", os.path.join(cwd, "node_manager.py"), "--port", str(args.n)],
+        ["python3", os.path.join(cwd, "node_manager.py"), "--port", str(args.n)],
         "joblog_manager":
-        ["python", os.path.join(cwd, "joblog_manager.py"), "--port", str(args.l)],
+        ["python3", os.path.join(cwd, "joblog_manager.py"), "--port", str(args.l)],
         "endpoint_manager":
-        ["python", os.path.join(cwd, "endpoint_manager.py"), "--port", str(args.e)],
+        ["python3", os.path.join(cwd, "endpoint_manager.py"), "--port", str(args.e)],
     }
 
     FNULL = open(os.devnull, "w")

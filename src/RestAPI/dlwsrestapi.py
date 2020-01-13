@@ -28,6 +28,13 @@ from DataHandler import DataHandler
 
 CONTENT_TYPE_LATEST = str("text/plain; version=0.0.4; charset=utf-8")
 
+def base64encode(str_val):
+    return base64.b64encode(str_val.encode("utf-8")).decode("utf-8")
+
+def base64decode(str_val):
+    return base64.b64decode(str_val.encode("utf-8")).decode("utf-8")
+
+
 dir_path = os.path.dirname(os.path.realpath(__file__))
 with open(os.path.join(dir_path, 'logging.yaml'), 'r') as f:
     logging_config = yaml.load(f)
@@ -360,7 +367,7 @@ class ListJobs(Resource):
             job.pop("jobDescriptionPath",None)
             job.pop("jobDescription",None)
 
-            job["jobParams"] = json.loads(base64.b64decode(job["jobParams"]))
+            job["jobParams"] = json.loads(base64decode(job["jobParams"]))
 
             if "endpoints" in job and job["endpoints"] is not None and len(job["endpoints"].strip()) > 0:
                 job["endpoints"] = json.loads(job["endpoints"])
@@ -368,7 +375,7 @@ class ListJobs(Resource):
             if "jobStatusDetail" in job and job["jobStatusDetail"] is not None and len(job["jobStatusDetail"].strip()) > 0:
                 try:
                     s = job["jobStatusDetail"]
-                    s = base64.b64decode(s)
+                    s = base64decode(s)
                     s = json.loads(s)
                     job["jobStatusDetail"] = s
                 except Exception as e:
@@ -600,12 +607,12 @@ class GetJobDetail(Resource):
         jobId = args["jobId"]
         userName = args["userName"]
         job = JobRestAPIUtils.GetJobDetail(userName, jobId)
-        job["jobParams"] = json.loads(base64.b64decode(job["jobParams"]))
+        job["jobParams"] = json.loads(base64decode(job["jobParams"]))
         if "endpoints" in job and job["endpoints"] is not None and len(job["endpoints"].strip()) > 0:
             job["endpoints"] = json.loads(job["endpoints"])
         if "jobStatusDetail" in job and job["jobStatusDetail"] is not None and len(job["jobStatusDetail"].strip()) > 0:
             try:
-                job["jobStatusDetail"] = json.loads(base64.b64decode(job["jobStatusDetail"]))
+                job["jobStatusDetail"] = json.loads(base64decode(job["jobStatusDetail"]))
             except Exception as e:
                 pass
         if "jobMeta" in job:
