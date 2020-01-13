@@ -51,15 +51,15 @@ interface RouteParams {
 
 const JobToolbar: FunctionComponent<{ manageable: boolean }> = ({ manageable }) => {
   const { clusterId } = useParams<RouteParams>();
-  const { cluster, job } = useContext(Context);
+  const { admin, job } = useContext(Context);
   const { support, approve, kill, pause, resume } = useActions(clusterId);
 
   const availableActions = useMemo(() => {
     const actions = [support];
-    if (manageable && cluster.admin) actions.push(approve);
+    if (manageable && admin) actions.push(approve);
     if (manageable) actions.push(pause, resume, kill);
     return actions;
-  }, [manageable, cluster.admin, support, approve, kill, pause, resume]);
+  }, [manageable, admin, support, approve, kill, pause, resume]);
 
   const actionButtons = availableActions.map((action, index) => {
     const { hidden, icon, tooltip, onClick } = action(job);
@@ -222,12 +222,12 @@ const JobContent: FunctionComponent = () => {
     enqueueSnackbar(`Job is ${status} now.`, { variant: "info" });
   }
 
-  if (job === undefined) {
+  if (clusterData === undefined || job === undefined) {
     return <Loading/>;
   }
 
   return (
-    <Context.Provider value={{ cluster: clusterData, job }}>
+    <Context.Provider value={{ cluster: clusterData, admin: Boolean(cluster.admin), job }}>
       <Helmet title={`(${capitalize(job['jobStatus'])}) ${job['jobName']}`}/>
       <Container fixed maxWidth="lg">
         <JobToolbar manageable={manageable}/>
