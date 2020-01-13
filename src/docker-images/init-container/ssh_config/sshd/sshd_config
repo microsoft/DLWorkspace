@@ -15,9 +15,9 @@ Port 22
 #ListenAddress 0.0.0.0
 #ListenAddress ::
 
-#HostKey /etc/ssh/ssh_host_rsa_key
-#HostKey /etc/ssh/ssh_host_ecdsa_key
-#HostKey /etc/ssh/ssh_host_ed25519_key
+#HostKey /usr/etc/ssh_host_rsa_key
+#HostKey /usr/etc/ssh_host_ecdsa_key
+#HostKey /usr/etc/ssh_host_ed25519_key
 
 # Ciphers and keying
 #RekeyLimit default none
@@ -44,7 +44,7 @@ Port 22
 #AuthorizedKeysCommand none
 #AuthorizedKeysCommandUser nobody
 
-# For this to work you will also need host keys in /etc/ssh/ssh_known_hosts
+# For this to work you will also need host keys in /usr/etc/ssh_known_hosts
 #HostbasedAuthentication no
 # Change to yes if you don't trust ~/.ssh/known_hosts for
 # HostbasedAuthentication

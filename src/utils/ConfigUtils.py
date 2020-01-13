@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import os.path
 import os
 from os.path import *
@@ -28,11 +30,11 @@ def fetch_dictionary(dic, entry):
             return None
     else:
         print("fetch_config expects to take a list, but gets " + str(entry))
-    
+
 # Test if a certain Config entry exist
 def fetch_config(config, entry):
     return fetch_dictionary( config, entry )
-    
+
 # Test if a certain Config entry exist
 def fetch_config_and_check(config, entry):
     ret = fetch_config( entry )
@@ -41,20 +43,20 @@ def fetch_config_and_check(config, entry):
         exit()
     return ret
 
-    
-# Merge entries in config2 to that of config1, if entries are dictionary. 
-# If entry is list or other variable, it will just be replaced. 
+
+# Merge entries in config2 to that of config1, if entries are dictionary.
+# If entry is list or other variable, it will just be replaced.
 # say config1 = { "A" : { "B": 1 } }, config2 = { "A" : { "C": 2 } }
 # C python operation: config1.update(config2) give you { "A" : { "C": 2 } }
 # merge_config will give you: { "A" : { "B": 1, "C":2 } }
 def merge_config( config1, config2 ):
     for entry in config2:
         if entry in config1:
-            if isinstance( config1[entry], dict): 
-                if isinstance( config2[entry], dict): 
+            if isinstance( config1[entry], dict):
+                if isinstance( config2[entry], dict):
                     merge_config( config1[entry], config2[entry] )
                 else:
-                    print("Error in configuration: %s should be of type %s, but is written as type %s in configuration" %(entry, type(config1[entry]), type(config2[entry]) ))
+                    print("Error in configuration: %s should be of type %s, but is written as type %s in configuration" %(entry, type(config1[entry]), type(config2[entry])))
                     exit(1)
             else:
                 config1[entry] = config2[entry]
@@ -65,7 +67,7 @@ def merge_config( config1, config2 ):
 def diff_config( config1, config2 ):
     if isinstance( config1, dict) and isinstance(config2, dict):
         config3 = { }
-        for (key, value) in config1.iteritems():
+        for (key, value) in config1.items():
             if key in config2:
                 diffConfig = diff_config( config1[key], config2[key])
                 if diffConfig is not None and len( diffConfig ) >0:
@@ -86,7 +88,7 @@ def diff_config( config1, config2 ):
 # Config, tuple to dictionary
 def config_to_dict( inconfig ):
     outconfig = {}
-    for k,v in inconfig.iteritems():
+    for k,v in inconfig.items():
         outconfig[ k ] = v
     return outconfig
 
@@ -110,7 +112,7 @@ def update_one_config(config, name, entry, type, defval):
 
 def update_config(config, default_config_mapping):
     apply_config_mapping(config, default_config_mapping)
-    
+
 # translate a config entry to another, check type and do format conversion along the way
 def translate_config_entry( config, entry, name, type, leading_space = 0 ):
     content = fetch_config( config, entry )
@@ -125,22 +127,22 @@ def translate_config_entry( config, entry, name, type, leading_space = 0 ):
                 print("Configuration entry: " + name)
                 print(adj_content)
         else:
-            print("In configuration file, " + str( entry ) + " should be type of " +str(type) + ", rather than: "+ str(content ))
+            print("In configuration file, " + str(entry) + " should be type of " + str(type) + ", rather than: "+ str(content))
             exit()
 
 # Certain configuration that is default in system 
 def init_config(default_config_parameters):
     config = {}
-    for k,v in default_config_parameters.items():
+    for k,v in list(default_config_parameters.items()):
         config[ k ] = v
     return config
 
 def apply_config_mapping(config, default_config_mapping):
-    for k, tupl in default_config_mapping.items():
+    for k, tupl in list(default_config_mapping.items()):
         if not ( k in config ) or len(config[k])<=0:
             dstname = tupl[0]
             value = fetch_config(config, dstname)
             if not (value is None):
                 config[k] = tupl[1](value)
                 if verbose:
-                    print("Config[%s] = %s" %(k, config[k]))
+                    print("Config[%s] = %s" % (k, config[k]))

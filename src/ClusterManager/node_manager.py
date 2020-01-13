@@ -1,47 +1,29 @@
+#!/usr/bin/env python3
+
 import json
 import os
 import time
 import argparse
-import uuid
-import subprocess
 import sys
-import datetime
-
 import yaml
-from jinja2 import Environment, FileSystemLoader, Template
-import base64
-from ResourceInfo import ResourceInfo
-
-import re
-
-import thread
-import threading
-import random
-
-import textwrap
 import logging
 import logging.config
 import copy
 
-logger = logging.getLogger(__name__)
-
 import pycurl
-from StringIO import StringIO
+from io import StringIO
 
-from multiprocessing import Process, Manager
-
-
-
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
 
-from jobs_tensorboard import GenTensorboardMeta
+from ResourceInfo import ResourceInfo
 import k8sUtils
 
 from config import config
 from DataHandler import DataHandler
 
 from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time
+
+logger = logging.getLogger(__name__)
 
 
 def create_log(logdir = '/var/log/dlworkspace'):
@@ -106,7 +88,7 @@ def get_cluster_status():
                 node_status["gpuType"] = ""
 
                 node_status["scheduled_service"] = []
-                for l,s in node_status["labels"].iteritems():
+                for l,s in node_status["labels"].items():
                     if s == "active" and l != "all" and l != "default":
                         node_status["scheduled_service"].append(l)
                     if l == "gpuType":
@@ -227,7 +209,7 @@ def get_cluster_status():
         gpu_unschedulable = ResourceInfo()
         gpu_used = ResourceInfo()
 
-        for node_name, node_status in nodes_status.iteritems():
+        for node_name, node_status in nodes_status.items():
             if node_status["unschedulable"]:
                 gpu_unschedulable.Add(ResourceInfo(node_status["gpu_capacity"]))
                 gpu_reserved.Add(ResourceInfo.Difference(ResourceInfo(node_status["gpu_capacity"]), ResourceInfo(node_status["gpu_used"])))
@@ -241,11 +223,11 @@ def get_cluster_status():
             gpu_capacity.Add(ResourceInfo(node_status["gpu_capacity"]))
 
         cluster_status["user_status"] = []
-        for user_name, user_gpu in user_status.iteritems():
+        for user_name, user_gpu in user_status.items():
             cluster_status["user_status"].append({"userName":user_name, "userGPU":user_gpu.ToSerializable()})
 
         cluster_status["user_status_preemptable"] = []
-        for user_name, user_gpu in user_status_preemptable.iteritems():
+        for user_name, user_gpu in user_status_preemptable.items():
             cluster_status["user_status_preemptable"].append({"userName": user_name, "userGPU": user_gpu.ToSerializable()})
 
         logger.info("gpu_capacity %s, gpu_avaliable %s, gpu_unschedulable %s, gpu_used %s",
@@ -260,7 +242,7 @@ def get_cluster_status():
         cluster_status["gpu_unschedulable"] = gpu_unschedulable.ToSerializable()
         cluster_status["gpu_used"] = gpu_used.ToSerializable()
         cluster_status["gpu_reserved"] = gpu_reserved.ToSerializable()
-        cluster_status["node_status"] = [node_status for node_name, node_status in nodes_status.iteritems()]
+        cluster_status["node_status"] = [node_status for node_name, node_status in nodes_status.items()]
 
     except Exception as e:
         logger.exception("get cluster status")

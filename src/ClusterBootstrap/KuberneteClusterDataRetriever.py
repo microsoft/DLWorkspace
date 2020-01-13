@@ -27,7 +27,7 @@ class KuberneteClusterDataRetriever:
     def fetch_dictionary(self, dic, entry):
         if isinstance(entry, list):
             if self.verbose:
-                print "Fetch " + str(dic) + "@" + str(entry) + "==" + str( dic[entry[0]] ) 
+                print("Fetch " + str(dic) + "@" + str(entry) + "==" + str( dic[entry[0]] )) 
             if isinstance( dic, list ):
                 for subdic in dic:
                     if entry[0] in subdic:
@@ -44,7 +44,7 @@ class KuberneteClusterDataRetriever:
             else:
                 return None
         else:
-            print "fetch_config expects to take a list, but gets " + str(entry)
+            print("fetch_config expects to take a list, but gets " + str(entry))
 
     # Run a kubenete command, parse the output in json
     def run_kubectl( self, command ):
@@ -54,12 +54,12 @@ class KuberneteClusterDataRetriever:
             else:
                 run_command = self.kubectl_prog + (" --server https://%s:8443/ " %self.kube_masternode) + self.kubectl_opt + " " + command
             try:
-                print run_command
+                print(run_command)
                 kubectl_output = subprocess.check_output(run_command, shell=True)
                 kubectl_ctl_json = json.loads(kubectl_output)
                 return kubectl_ctl_json
             except subprocess.CalledProcessError as e:
-                print "kubectl failed, code %d" % (e.returncode)
+                print("kubectl failed, code %d" % (e.returncode))
                 return {}
         else:
             return {}
@@ -76,7 +76,7 @@ class KuberneteClusterDataRetriever:
                     if not namespace is None:
                         namespaces.append(namespace)
         if self.verbose:
-            print "Kubernete Namespace: " + str(namespaces)
+            print("Kubernete Namespace: " + str(namespaces))
         return namespaces
     
     # list all pods in a certain namespace
@@ -133,7 +133,7 @@ class KuberneteClusterDataRetriever:
                         for key in container_state_dic:
                             container_state = key
                     if self.verbose:
-                        print "Node %s, pod %s, container %s (%d) " %( nodeName, pod_name,  container_state,  restart_count)
+                        print("Node %s, pod %s, container %s (%d) " %( nodeName, pod_name,  container_state,  restart_count))
                         
                     if not nodeName in self.hostStatusPerMachineMap:
                         self.hostStatusPerMachineMap[nodeName] = HostStatus(nodeName)
@@ -195,12 +195,12 @@ Usage:
         retriever.retrieve()
         if inprepeat<=0:
             for node in hostStatusPerMachineMap:
-                print "Node %s" % node
+                print("Node %s" % node)
                 hostStatus = hostStatusPerMachineMap[node].services
                 for service in hostStatus:
-                    print "  Service: %s, state: %s" % ( service, hostStatus[service].state )
+                    print("  Service: %s, state: %s" % ( service, hostStatus[service].state ))
         time1 = time.time()
         timing.append(time1-time0)
         time0 = time1
     if args.time >= 1:
-        print "Execution time: " + str(timing)
+        print("Execution time: " + str(timing))

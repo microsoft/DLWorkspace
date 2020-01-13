@@ -1,6 +1,5 @@
-#!/usr/bin/python3
-from ConfigUtils import *
-from DockerUtils import push_one_docker, build_dockers, push_dockers, run_docker, find_dockers, build_docker_fullname, copy_from_docker_image, configuration
+#!/usr/bin/env python3
+
 import os
 import sys
 import uuid
@@ -8,8 +7,12 @@ import yaml
 import utils
 import argparse
 import textwrap
-from params import default_config_parameters
+
 sys.path.append("../utils")
+
+from params import default_config_parameters
+from ConfigUtils import *
+from DockerUtils import push_one_docker, build_dockers, push_dockers, run_docker, find_dockers, build_docker_fullname, copy_from_docker_image, configuration
 
 def generate_ip_from_cluster(cluster_ip_range, index):
     slash_pos = cluster_ip_range.find("/")
@@ -59,8 +62,8 @@ default_config_mapping = {
 def load_az_params_as_default(config):
     from az_params import default_az_parameters
     # need az_params default, in case we don't have the key in config.yaml
-    default_cfg = { k: v for k, v in default_az_parameters.items() }
-    azure_cluster_cfg = { k: v for k, v in config["azure_cluster"].items() } if "azure_cluster" in config else {}
+    default_cfg = { k: v for k, v in list(default_az_parameters.items()) }
+    azure_cluster_cfg = { k: v for k, v in list(config["azure_cluster"].items()) } if "azure_cluster" in config else {}
     merge_config(config["azure_cluster"], default_cfg["azure_cluster"])
     merge_config(config["azure_cluster"], azure_cluster_cfg)
     domain_mapping = {"regular":"%s.cloudapp.azure.com" % config["azure_cluster"]["azure_location"], "low": config.get("network_domain",config["azure_cluster"]["default_low_priority_domain"])}
@@ -139,7 +142,7 @@ def get_nodes_from_config(machinerole, config):
     else:
         domain = get_domain(config)
         Nodes = []
-        for nodename, nodeInfo in config["machines"].items():
+        for nodename, nodeInfo in list(config["machines"].items()):
             if "role" in nodeInfo and machinerole in nodeInfo["role"]:
                 if len(nodename.split("."))<3:
                     Nodes.append(nodename+domain)

@@ -1,37 +1,30 @@
+#!/usr/bin/env python3
+
 import json
 import os
 import time
 import argparse
 import uuid
-import subprocess
 import sys
 import collections
 import copy
-
-from jobs_tensorboard import GenTensorboardMeta
-
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
-
-import yaml
-from jinja2 import Environment, FileSystemLoader, Template
-from config import config
-from DataHandler import DataHandler,DataManager
 import base64
 import re
-import requests
-
-from config import global_vars
-from authorization import ResourceType, Permission, AuthorizationManager, IdentityManager, ACLManager
-import authorization
-from cache import CacheManager
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../ClusterManager"))
-from ResourceInfo import ResourceInfo
-import quota
-
-import copy
 import logging
 from cachetools import cached, TTLCache
 from threading import Lock
+
+import requests
+
+from config import config
+from DataHandler import DataHandler, DataManager
+from authorization import ResourceType, Permission, AuthorizationManager, IdentityManager, ACLManager
+import authorization
+import quota
+
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../ClusterManager"))
+
+from ResourceInfo import ResourceInfo
 
 
 DEFAULT_JOB_PRIORITY = 100
@@ -66,7 +59,7 @@ def LoadJobParams(jobParamsJsonStr):
 
 
 def ToBool(value):
-    if isinstance(value, basestring):
+    if isinstance(value, str):
         value = str(value)
         if str.isdigit(value):
             ret = int(value)
@@ -119,7 +112,7 @@ def SubmitJob(jobParamsJsonStr):
     if "resourcegpu" not in jobParams:
         jobParams["resourcegpu"] = 0
 
-    if isinstance(jobParams["resourcegpu"], basestring):
+    if isinstance(jobParams["resourcegpu"], str):
         if len(jobParams["resourcegpu"].strip()) == 0:
             jobParams["resourcegpu"] = 0
         else:
@@ -587,7 +580,7 @@ def getClusterVCs():
     vcList = None
     try:
         with vc_cache_lock:
-            vcList = copy.deepcopy(vc_cache.values())
+            vcList = copy.deepcopy(list(vc_cache.values()))
     except Exception:
         pass
 
@@ -674,13 +667,13 @@ def GetVC(userName, vcName):
             vc["AvaliableJobNum"] = num_active_jobs
             vc["node_status"] = cluster_status["node_status"]
             vc["user_status"] = []
-            for user_name, user_gpu in user_status.iteritems():
+            for user_name, user_gpu in user_status.items():
                 # TODO: job_manager.getAlias should be put in a util file
                 user_name = user_name.split("@")[0].strip()
                 vc["user_status"].append({"userName":user_name, "userGPU":user_gpu.ToSerializable()})
 
             vc["user_status_preemptable"] = []
-            for user_name, user_gpu in user_status_preemptable.iteritems():
+            for user_name, user_gpu in user_status_preemptable.items():
                 user_name = user_name.split("@")[0].strip()
                 vc["user_status_preemptable"].append({"userName": user_name, "userGPU": user_gpu.ToSerializable()})
 
@@ -747,7 +740,7 @@ def GetEndpoints(userName, jobId):
                 endpoints = {}
                 if job["endpoints"] is not None:
                     endpoints = json.loads(job["endpoints"])
-                for [_, endpoint] in endpoints.items():
+                for [_, endpoint] in list(endpoints.items()):
                     epItem = {
                         "id": endpoint["id"],
                         "name": endpoint["name"],
@@ -1019,16 +1012,16 @@ if __name__ == '__main__':
         SubmitRegularJob(jobParamsJsonStr,args.template_file)
 
     if TEST_JOB_STATUS:
-        print GetJobStatus(sys.argv[1])
+        print(GetJobStatus(sys.argv[1]))
 
     if TEST_DEL_JOB:
-        print DeleteJob("tf-dist-1483504085-13")
+        print(DeleteJob("tf-dist-1483504085-13"))
 
     if TEST_GET_TB:
-        print GetTensorboard("tf-resnet18-1483509537-31")
+        print(GetTensorboard("tf-resnet18-1483509537-31"))
 
     if TEST_GET_SVC:
-        print GetServiceAddress("tf-i-1483566214-12")
+        print(GetServiceAddress("tf-i-1483566214-12"))
 
     if TEST_GET_LOG:
-        print GetLog("tf-i-1483566214-12")
+        print(GetLog("tf-i-1483566214-12"))

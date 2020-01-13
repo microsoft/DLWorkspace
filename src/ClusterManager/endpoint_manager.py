@@ -1,27 +1,25 @@
+#!/usr/bin/env python3
 
 import json
 import os
 import time
 import sys
 import datetime
-import copy
-import base64
-import traceback
 import random
 import re
 import logging
 import yaml
 import logging.config
-
 import argparse
+
 from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time
+from job_launcher import JobDeployer
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
-import k8sUtils
-from config import config, GetStoragePath, GetWorkPath
-from DataHandler import DataHandler
 
-from job_launcher import JobDeployer
+import k8sUtils
+from config import config
+from DataHandler import DataHandler
 
 logger = logging.getLogger(__name__)
 deployer = JobDeployer()
@@ -36,7 +34,7 @@ def is_ssh_server_ready(pod_name):
 
 
 def query_ssh_port(pod_name):
-    bash_script = "grep ^Port /etc/ssh/sshd_config | cut -d' ' -f2"
+    bash_script = "grep ^Port /usr/etc/sshd_config | cut -d' ' -f2"
     status_code, output = deployer.pod_exec(pod_name, ["/bin/bash", "-c", bash_script])
     if status_code != 0:
         raise RuntimeError("Query ssh port failed: {}".format(pod_name))
@@ -45,27 +43,15 @@ def query_ssh_port(pod_name):
     return int(output)
 
 
-def start_ssh_server(pod_name, user_name, host_network=False, ssh_port=22):
+def start_ssh_server(pod_name):
     '''Setup the ssh server in container, and return the listening port.'''
-    bash_script = "bash -c 'apt-get update && apt-get install -y openssh-server && cd /home/" + user_name + " && (chown " + user_name + " -R .ssh; chmod 600 -R .ssh/*; chmod 700 .ssh; true) && service ssh restart'"
-
-    # ssh_port = 22
-
-    # modify the script for HostNewtork
-    if host_network:
-        # if the ssh_port is default value 22, randomly choose one
-        if ssh_port == 22:
-            ssh_port = random.randint(40000, 49999)
-        # bash_script = "sed -i '/^Port 22/c Port "+str(ssh_port)+"' /etc/ssh/sshd_config && "+bash_script
-        # TODO refine the script later
-        bash_script = "bash -c 'apt-get update && apt-get install -y openssh-server && sed -i \"s/^Port/#&/\" /etc/ssh/sshd_config && echo \"Port " + str(ssh_port) + "\" >> /etc/ssh/sshd_config && cd /home/" + user_name + " && (chown " + user_name + " -R .ssh; chmod 600 -R .ssh/*; chmod 700 .ssh; true) && service ssh restart'"
+    bash_script = "service ssh start" # assume ssh server already setup
 
     # TODO setup reasonable timeout
     # output = k8sUtils.kubectl_exec("exec %s %s" % (jobId, " -- " + bash_script), 1)
     output = k8sUtils.kubectl_exec("exec %s %s" % (pod_name, " -- " + bash_script))
     if output == "":
         raise Exception("Failed to setup ssh server in container. JobId: %s " % pod_name)
-    return ssh_port
 
 
 def get_k8s_endpoint(endpoint_description_path):
@@ -115,9 +101,8 @@ def setup_ssh_server(user_name, pod_name, host_network=False):
     # setup ssh server only is the ssh server is not up
     if not is_ssh_server_ready(pod_name):
         logger.info("Ssh server is not ready for pod: %s. Setup ...", pod_name)
-        ssh_port = start_ssh_server(pod_name, user_name, host_network)
-    else:
-        ssh_port = query_ssh_port(pod_name)
+        start_ssh_server(pod_name)
+    ssh_port = query_ssh_port(pod_name)
     logger.info("Ssh server is ready for pod: %s. Ssh listen on %s", pod_name, ssh_port)
     return ssh_port
 
@@ -170,7 +155,7 @@ def start_endpoints():
         try:
             pending_endpoints = data_handler.GetPendingEndpoints()
 
-            for endpoint_id, endpoint in pending_endpoints.items():
+            for endpoint_id, endpoint in list(pending_endpoints.items()):
                 try:
                     job = data_handler.GetJob(jobId=endpoint["jobId"])[0]
                     if job["jobStatus"] != "running":
@@ -210,7 +195,7 @@ def cleanup_endpoints():
         data_handler = DataHandler()
         try:
             dead_endpoints = data_handler.GetDeadEndpoints()
-            for endpoint_id, dead_endpoint in dead_endpoints.items():
+            for endpoint_id, dead_endpoint in list(dead_endpoints.items()):
                 try:
                     logger.info("\n\n\n\n\n\n----------------Begin to cleanup endpoint %s", endpoint_id)
                     endpoint_description_path = os.path.join(config["storage-mount-path"], dead_endpoint["endpointDescriptionPath"])

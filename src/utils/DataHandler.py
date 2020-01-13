@@ -1,5 +1,10 @@
+#!/usr/bin/env python3
+
 from config import config
-from cache import fcache
+import logging
+
+
+logger = logging.getLogger(__file__)
 
 if "datasource" in config and config["datasource"] == "MySQL":
     from MySQLDataHandler import DataHandler
@@ -8,7 +13,7 @@ elif "datasource" in config and config["datasource"] == "MySQLPool":
 elif "datasource" in config and config["datasource"] == "MySQLDBUtilsPool":
     from MySQLDBUtilsPoolDataHandler import DataHandler
 else:
-    from SQLDataHandler import DataHandler
+    logger.error("configured database not supported")
 
 
 class DataManager:

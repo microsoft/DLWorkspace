@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import logging
 import json
 import requests
@@ -13,8 +14,8 @@ logger = logging.getLogger(__name__)
 
 
 def enum(*sequential, **named):
-    enums = dict(zip(sequential, range(len(sequential))), **named)
-    reverse = dict((value, key) for key, value in enums.items())
+    enums = dict(list(zip(sequential, list(range(len(sequential))))), **named)
+    reverse = dict((value, key) for key, value in list(enums.items()))
     enums["reverse_mapping"] = reverse
     return type("Enum", (), enums)
 

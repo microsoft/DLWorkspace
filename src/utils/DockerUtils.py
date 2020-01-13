@@ -1,10 +1,5 @@
 import os
-import time
-import datetime
-import argparse
-import uuid
 import subprocess
-import sys
 import tempfile
 import getpass
 import pwd
@@ -34,9 +29,9 @@ def build_docker( dockername, dirname, verbose=False, nocache=False ):
 def build_docker_with_config( dockername, config, verbose=False, nocache=False ):
     usedockername = dockername.lower()
     build_docker( config["dockers"]["container"][dockername]["name"], config["dockers"]["container"][dockername]["dirname"], verbose, nocache )
-    
+
 def push_docker( dockername, docker_register, verbose=False):
-    # docker name is designed to use lower case. 
+    # docker name is designed to use lower case.
     dockername = dockername.lower()
     if verbose:
         print("Pushing docker ... " + dockername + " to " + docker_register)
@@ -54,7 +49,7 @@ def push_docker_with_config( dockername, config, verbose=False, nocache=False ):
     cmd += "; docker push " + config["dockers"]["container"][dockername]["fullname"]
     os.system(cmd)
     return config["dockers"]["container"][dockername]["name"]
-    
+
 def run_docker(dockername, prompt="", dockerConfig = None, sudo = False, options = "" ):
     if not (dockerConfig is None):
         if "su" in dockerConfig:
@@ -73,7 +68,7 @@ def run_docker(dockername, prompt="", dockerConfig = None, sudo = False, options
     if not (dockerConfig is None) and "workdir" in dockerConfig:
         currentdir = dockerConfig["workdir"]
         if "volumes" in dockerConfig:
-            for volume,mapping in dockerConfig["volumes"].iteritems():
+            for volume,mapping in dockerConfig["volumes"].items():
                 if "from" in mapping and "to" in mapping:
                     mapdir = os.path.abspath(mapping["from"])
                     mapVolume += " -v " + mapdir + ":" + mapping["to"]
@@ -123,7 +118,7 @@ def run_docker(dockername, prompt="", dockerConfig = None, sudo = False, options
         cmd = "docker run --privileged --hostname " + hostname + " " + options + " --rm -ti " + mapVolume + " -v "+dirname+ ":/tmp/runcommand -w "+homedir + " " + dockername + " /tmp/runcommand/run.sh"
     print("Execute: " + cmd)
     os.system(cmd)
-    
+
 def find_dockers( dockername):
     print("Search for dockers .... "+dockername)
     tmpf = tempfile.NamedTemporaryFile()
@@ -144,7 +139,7 @@ def find_dockers( dockername):
             imagename = imageinfo[0]+":"+imageinfo[1]
         if dockername in imagename:
             dockerdics[imagename] = True
-    matchdockers = dockerdics.keys()
+    matchdockers = list(dockerdics.keys())
     return matchdockers
     
 def build_docker_fullname( config, dockername, verbose = False ):
@@ -166,7 +161,7 @@ def get_docker_list(rootdir, dockerprefix, dockertag, nargs, verbose = False ):
     # print nargs
     docker_list = {}
     if not (nargs is None) and len(nargs)>0:
-        nargs = map(lambda x:x.lower(), nargs )
+        nargs = [x.lower() for x in nargs]
     fnames = os.listdir(rootdir)
     for fname in fnames:
         if nargs is None or len(nargs)==0 or fname.lower() in nargs:
@@ -188,7 +183,7 @@ def config_dockers_use_tag( rootdir, config, verbose):
         docker_tag = config["dockers"]["tag"]
         docker_list = get_docker_list(rootdir, "", "", None, verbose )
         # Populate system dockers 
-        for assemblename, tupl in docker_list.iteritems():
+        for assemblename, tupl in docker_list.items():
             # print assemblename
             dockername, deploydir = tupl
             usedockername = docker_registry + "/" + docker_prefix + ":" + dockername + "-" + docker_tag
@@ -219,7 +214,7 @@ def config_dockers(rootdir, dockerprefix, dockertag, verbose, config):
         system_docker_dic = config["dockers"]["system"]
         docker_list = get_docker_list(rootdir, dockerprefix, dockertag, None, verbose )
         # Populate system dockers 
-        for assemblename, tupl in docker_list.items():
+        for assemblename, tupl in list(docker_list.items()):
             # print assemblename
             dockername, deploydir = tupl
             if dockername in system_docker_dic:
@@ -273,7 +268,7 @@ def build_dockers(rootdir, dockerprefix, dockertag, nargs, config, verbose = Fal
     configuration(config, verbose)
     docker_list = get_docker_list(rootdir, dockerprefix, dockertag, nargs, verbose ); 
     # print rootdir
-    for _, tupl in docker_list.iteritems():
+    for _, tupl in docker_list.items():
         dockername, _ = tupl
         build_docker_with_config( dockername, config, verbose, nocache = nocache )
 
@@ -289,7 +284,7 @@ def push_one_docker(dirname, dockerprefix, tag, basename, config, verbose = Fals
 def push_dockers(rootdir, dockerprefix, dockertag, nargs, config, verbose = False, nocache = False ):
     configuration(config, verbose)
     docker_list = get_docker_list(rootdir, dockerprefix, dockertag, nargs, verbose ); 
-    for _, tupl in docker_list.iteritems():
+    for _, tupl in docker_list.items():
         dockername, _ = tupl
         build_docker_with_config( dockername, config, verbose, nocache = nocache )
         push_docker_with_config( dockername, config, verbose, nocache = nocache )

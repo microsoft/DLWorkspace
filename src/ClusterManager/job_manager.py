@@ -1,39 +1,34 @@
+#!/usr/bin/env python3
+
 import json
 import os
 import time
 import argparse
 import sys
 import datetime
-import functools
-import timeit
 import collections
-
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../storage"))
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
-
-import k8sUtils
-import joblog_manager
-import notify
-
 import yaml
-from config import config, GetStoragePath, GetWorkPath
-from DataHandler import DataHandler
-from node_manager import get_cluster_status
 import base64
-from ResourceInfo import ResourceInfo
-import quota
+import logging
+import logging.config
 
 from prometheus_client import Histogram
 import redis
 
-import logging
-import logging.config
-from job import Job, JobSchema
-from job_launcher import JobDeployer, JobRole, PythonLauncher
-
 from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time, record
 
+from job_launcher import JobDeployer, JobRole, PythonLauncher
+import joblog_manager
 from job_launcher import get_job_status_detail, job_status_detail_with_finished_time
+
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
+
+import quota
+import k8sUtils
+import notify
+from config import config, GetStoragePath
+from DataHandler import DataHandler
+from ResourceInfo import ResourceInfo
 
 logger = logging.getLogger(__name__)
 
@@ -377,7 +372,7 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
             # before resubmit the job, reset the endpoints
             # update all endpoint to status 'pending', so it would restart when job is ready
             endpoints = dataHandler.GetJobEndpoints(job["jobId"])
-            for endpoint_id, endpoint in endpoints.items():
+            for endpoint_id, endpoint in list(endpoints.items()):
                 endpoint["status"] = "pending"
                 logger.info("Reset endpoint status to 'pending': {}".format(endpoint_id))
                 dataHandler.UpdateEndpoint(endpoint)
@@ -462,7 +457,7 @@ def get_priority_dict():
 
 
 def get_job_priority(priority_dict, job_id):
-    if job_id in priority_dict.keys():
+    if job_id in list(priority_dict.keys()):
         return priority_dict[job_id]
     return 100
 
@@ -506,7 +501,7 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
     for vc in vc_list:
         vc_name = vc["vcName"]
         vc_schedulable = {}
-        for gpu_type, total in vc_total[vc_name].items():
+        for gpu_type, total in list(vc_total[vc_name].items()):
             vc_schedulable[gpu_type] = total - vc_unschedulable[vc_name][gpu_type]
         vc_resources[vc_name] = ResourceInfo(vc_schedulable)
 
