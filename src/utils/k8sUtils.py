@@ -6,11 +6,13 @@ import sys
 from datetime import datetime
 import logging
 import yaml
+import subprocess
+
+from kubernetes import client, config as k8s_config
+from kubernetes.client.rest import ApiException
 
 from tzlocal import get_localzone
 import pytz
-import pycurl
-from io import StringIO
 
 from config import config
 
@@ -21,29 +23,11 @@ def localize_time(date):
         date = datetime.strptime(date, "%Y-%m-%dT%H:%M:%SZ")
     return pytz.utc.localize(date).isoformat()
 
-def curl_get(url):
-    curl = pycurl.Curl()
-    curl.setopt(pycurl.URL, url)
-    curl.setopt(pycurl.SSL_VERIFYPEER, 1)
-    curl.setopt(pycurl.SSL_VERIFYHOST, 0)
-    curl.setopt(pycurl.CAINFO, config["certificate-authority"])
-    curl.setopt(pycurl.SSLKEYTYPE, "PEM")
-    curl.setopt(pycurl.SSLKEY, config["client-key"])
-    curl.setopt(pycurl.SSLCERTTYPE, "PEM")
-    curl.setopt(pycurl.SSLCERT, config["client-certificate"])
-    curl.setopt(curl.FOLLOWLOCATION, True)
-    buff = StringIO()
-    curl.setopt(pycurl.WRITEFUNCTION, buff.write)
-    curl.perform()
-    responseStr = buff.getvalue()
-    curl.close()
-    return responseStr
-
 
 def kubectl_create(jobfile, EXEC=True):
     if EXEC:
         try:
-            output = subprocess.check_output(["bash", "-c", config["kubelet-path"] + " create -f " + jobfile])
+            output = subprocess.check_output(["bash", "-c", config["kubelet-path"] + " create -f " + jobfile]).decode("utf-8")
         except Exception as e:
             logger.exception("kubectl create")
             output = ""
@@ -73,7 +57,7 @@ def kubectl_exec(params, timeout=None):
     try:
         #print ("bash -c %s %s" % (config["kubelet-path"], params))
         # TODO set the timeout
-        output = subprocess.check_output(["bash", "-c", config["kubelet-path"] + " " + params], timeout=timeout)
+        output = subprocess.check_output(["bash", "-c", config["kubelet-path"] + " " + params], timeout=timeout).decode("utf-8")
     except Exception as e:
         logger.exception("kubectl exec")
         output = ""
@@ -228,15 +212,6 @@ def check_pod_status(pod):
     return "Unknown"
 
 
-def get_pod_events(pod):
-    description = kubectl_exec("describe pod %s" % pod["metadata"]["name"])
-    ret = []
-    for line in description.split("\n"):
-        if "fit failure summary on nodes" in line:
-             ret += [item.strip() for item in line.replace("fit failure summary on nodes : ", "").replace("(.*)", "").strip().split(",")]
-    return ret
-
-
 def get_pod_pending_detail(pod):
     description = kubectl_exec("describe pod %s" % pod["metadata"]["name"])
     ret = []
@@ -251,20 +226,21 @@ def check_pending_reason(pod, reason):
     return any([reason in item for item in reasons])
 
 
-def get_pod_events(podname):
-    url = "%s/api/v1/namespaces/default/events?fieldSelector=involvedObject.name=%s" % (config["apiserver"], podname)
-    responseStr = curl_get(url)
-    events = json.loads(responseStr)
-    return events
-
-
 def get_pod_unscheduled_reason(podname):
-    events = get_pod_events(podname)
+    k8s_config.load_kube_config()
+    k8s_core_api = client.CoreV1Api()
+
     ret = ""
-    if "items" in events:
-        for event in events["items"]:
-            if "reason" in event and event["reason"] == "FailedScheduling":
-                ret = event["message"]
+
+    try:
+        resp = k8s_core_api.list_namespaced_event("default",
+                field_selector="involvedObject.name=%s" % (podname))
+        for event in resp.items:
+            if event.reason == "FailedScheduling":
+                ret = event.message
+    except ApiException as e:
+        logger.exception("get_pod_events failed for %s", podname)
+
     return ret
 
 
@@ -352,20 +328,19 @@ def GetJobStatus(jobId):
 
 
 def get_node_labels(key):
-    url = "%s/api/v1/nodes" % (config["apiserver"])
-    responseStr = curl_get(url)
-    nodes = json.loads(responseStr)
-    ret = []
+    k8s_config.load_kube_config()
+    k8s_core_api = client.CoreV1Api()
 
-    if "items" in nodes:
-        for node in nodes["items"]:
-            if "metadata" in node and "labels" in node["metadata"]:
-                if key in node["metadata"]["labels"]:
-                    v = node["metadata"]["labels"][key]
-                    if not v in ret:
-                        ret.append(v)
-    return ret
+    ret = set()
 
+    try:
+        nodes = k8s_core_api.list_node()
+        for node in nodes.items:
+            if node.metadata.labels.get(key) is not None:
+                ret.add(node.metadata.labels.get(key))
+    except ApiException as e:
+        logger.exception("list node from k8s failed")
+    return list(ret)
 
 if __name__ == '__main__':
 
