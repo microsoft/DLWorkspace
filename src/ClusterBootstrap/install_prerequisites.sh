@@ -1,4 +1,4 @@
-# !/bin/bash 
+#!/bin/bash
 sudo apt-get update 
 sudo apt-get install -y --no-install-recommends \
         apt-utils \
@@ -7,6 +7,7 @@ sudo apt-get install -y --no-install-recommends \
         curl \
         python-dev \
         python-pip \
+        python3-dev \
         wget \
         cpio \
         mkisofs \
@@ -34,10 +35,15 @@ sudo apt-key --keyring /etc/apt/trusted.gpg.d/Microsoft.gpg adv \
 
 sudo apt-get update
 sudo apt-get install -y --no-install-recommends
-curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash 
+curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 
-pip install --upgrade pip
-pip install setuptools && pip install pyyaml && pip install jinja2 && pip install requests && pip install tzlocal && pip install pycurl
+sudo pip install --upgrade pip
+sudo pip install setuptools pyyaml jinja2 requests tzlocal pycurl
+
+curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
+sudo python3 get-pip.py
+sudo pip3 install --upgrade pip
+sudo pip3 install setuptools pyyaml jinja2 requests tzlocal pycurl
 
 sudo echo "dockerd > /dev/null 2>&1 &" | cat >> /etc/bash.bashrc
 sudo usermod -aG docker $USER
