@@ -21,29 +21,29 @@ top="$(pwd)"
 root="$top/root"
 build="$top/build"
 
-export CFLAGS="-I$root/include -L. -fPIC"
-export CPPFLAGS="-I$root/include -L. -fPIC"
+export CFLAGS="-I$root/usr/include -L. -fPIC"
+export CPPFLAGS="-I$root/usr/include -L. -fPIC"
 
 rm -rf "$root" "$build"
 mkdir -p "$root" "$build"
 
 gzip -dc dist/zlib-*.tar.gz |(cd "$build" && tar xf -)
 cd "$build"/zlib-*
-./configure --prefix="$root" --static
+./configure --prefix="$root/usr" --static
 make -j12
 make install
 cd "$top"
 
 gzip -dc dist/openssl-*.tar.gz |(cd "$build" && tar xf -)
 cd "$build"/openssl-*
-./config --prefix="$root" no-shared
+./config --prefix="/usr" no-shared
 make -j12
-make install
+make INSTALL_PREFIX="$root" install
 cd "$top"
 
 gzip -dc dist/openssh-*.tar.gz |(cd "$build" && tar xf -)
 cd "$build"/openssh-*
-cp -p "$root"/lib/*.a .
+cp -p "$root"/usr/lib/*.a .
 [ -f sshd_config.orig ] || cp -p sshd_config sshd_config.orig
 sed \
   -e 's/^#\(PubkeyAuthentication\) .*/\1 yes/' \
@@ -53,6 +53,6 @@ sed \
   sshd_config.orig \
   >sshd_config \
 ;
-./configure --prefix="$root" --with-privsep-user=nobody --with-privsep-path="/var/run/sshd"
+./configure --prefix="/usr" --with-privsep-user=nobody --with-privsep-path="/var/run/sshd"
 make -j12
-make install
+make DESTDIR="$root" install
