@@ -506,7 +506,7 @@ def UpdateAce(userName, identityName, resourceType, resourceName, permissions):
     ret = None
     resourceAclPath = AuthorizationManager.GetResourceAclPath(resourceName, resourceType)
     if AuthorizationManager.HasAccess(userName, resourceType, resourceName, Permission.Admin):
-        ret =  ACLManager.UpdateAce(identityName, resourceAclPath, permissions, False)
+        ret =  ACLManager.UpdateAce(identityName, resourceAclPath, permissions, 0)
     else:
         ret = "Access Denied!"
     return ret

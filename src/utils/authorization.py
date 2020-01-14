@@ -225,8 +225,8 @@ class ACLManager:
                 identities[identityKey].append(ace)
 
             with acl_cache_lock:
-                acl_cache.update((resources))
-                acl_cache.update((identities))
+                acl_cache.update(resources)
+                acl_cache.update(identities)
 
         except Exception as e:
             logger.warn("Fail to get ACL for user %s, ex: %s" , userName, str(e))
@@ -257,7 +257,7 @@ class ACLManager:
 
             with acl_cache_lock:
                 acl_cache[resourceKeyPrefix + resource] = ret
-                acl_cache.update((identities))
+                acl_cache.update(identities)
         except Exception as e:
             logger.error("Get resoure acl error for resource: %s, ex: %s", resource, str(e))
         finally:
