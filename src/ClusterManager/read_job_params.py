@@ -23,6 +23,6 @@ if __name__ == '__main__':
         sys.exit(1)
 
     job = jobs[0]
-    job_params = json.loads(base64.b64decode(job["jobParams"]))
+    job_params = json.loads(base64.b64decode(job["jobParams"].encode("utf-8")).decode("utf-8"))
 
     pprint.pprint(job_params)

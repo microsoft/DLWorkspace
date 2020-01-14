@@ -8,7 +8,7 @@ def getresp(url, verbose):
     curlCmd.append("https://api.github.com/" + url)
     if verbose:
         print("Command: {0}".format(" ".join(curlCmd)))
-    output = subprocess.check_output(curlCmd)
+    output = subprocess.check_output(curlCmd).decode("utf-8")
     if verbose:
         print("Output: {0}".format(output))
     return yaml.load(output)

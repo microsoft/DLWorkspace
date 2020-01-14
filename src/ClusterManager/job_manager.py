@@ -89,6 +89,7 @@ def load_job_status(redis_conn, job_id):
     try:
         val = redis_conn.get(to_job_status_key(job_id))
         if val is not None:
+            val = val.decode("utf-8")
             return JobTimeRecord.parse(json.loads(val))
     except Exception:
         logger.exception("load job status failed")
@@ -193,7 +194,7 @@ def ApproveJob(redis_conn, job, dataHandlerOri=None):
 
         update_job_state_latency(redis_conn, job_id, "created", event_time=job["jobTime"])
 
-        jobParams = json.loads(base64.b64decode(job["jobParams"]))
+        jobParams = json.loads(base64.b64decode(job["jobParams"].encode("utf-8")).decode("utf-8"))
         job_total_gpus = GetJobTotalGpu(jobParams)
 
         if dataHandlerOri is None:
@@ -206,7 +207,7 @@ def ApproveJob(redis_conn, job, dataHandlerOri=None):
             detail = [{"message": "waiting for available preemptible resource."}]
 
             dataFields = {
-                "jobStatusDetail": base64.b64encode(json.dumps(detail)),
+                "jobStatusDetail": base64.b64encode(json.dumps(detail).encode("utf-8")).decode("utf-8"),
                 "jobStatus": "queued"
             }
             conditionFields = {"jobId": job_id}
@@ -233,7 +234,7 @@ def ApproveJob(redis_conn, job, dataHandlerOri=None):
             user_running_jobs = dataHandler.GetJobList(job["userName"], vcName, status="running,queued,scheduling", op=("=", "or"))
             running_gpus = 0
             for running_job in user_running_jobs:
-                running_jobParams = json.loads(base64.b64decode(running_job["jobParams"]))
+                running_jobParams = json.loads(base64.b64decode(running_job["jobParams"].encode("utf-8")).decode("utf-8"))
                 # ignore preemptible GPUs
                 if "preemptionAllowed" in running_jobParams and running_jobParams["preemptionAllowed"] is True:
                     continue
@@ -244,7 +245,7 @@ def ApproveJob(redis_conn, job, dataHandlerOri=None):
             if job_total_gpus > 0 and int(metadata["user_quota"]) < (running_gpus + job_total_gpus):
                 logger.info("Job {} excesses the user quota: {} + {} > {}. Will need approve from admin.".format(job_id, running_gpus, job_total_gpus, metadata["user_quota"]))
                 detail = [{"message": "exceeds the user quota in VC: {} (used) + {} (requested) > {} (user quota). Will need admin approval.".format(running_gpus, job_total_gpus, metadata["user_quota"])}]
-                dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
+                dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail).encode("utf-8")).decode("utf-8"))
                 if dataHandlerOri is None:
                     dataHandler.Close()
                 return False
@@ -252,7 +253,7 @@ def ApproveJob(redis_conn, job, dataHandlerOri=None):
         detail = [{"message": "waiting for available resource."}]
 
         dataFields = {
-            "jobStatusDetail": base64.b64encode(json.dumps(detail)),
+            "jobStatusDetail": base64.b64encode(json.dumps(detail).encode("utf-8")).decode("utf-8"),
             "jobStatus": "queued"
         }
         conditionFields = {"jobId": job_id}
@@ -277,7 +278,7 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
         dataHandler = DataHandler()
     else:
         dataHandler = dataHandlerOri
-    jobParams = json.loads(base64.b64decode(job["jobParams"]))
+    jobParams = json.loads(base64.b64decode(job["jobParams"].encode("utf-8")).decode("utf-8"))
 
     result, details = check_job_status(job["jobId"])
     logger.info("++++++++ Job status: {} {}".format(job["jobId"], result))
@@ -300,7 +301,7 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
         detail = job_status_detail_with_finished_time(detail, "finished")
 
         dataFields = {
-            "jobStatusDetail": base64.b64encode(json.dumps(detail)),
+            "jobStatusDetail": base64.b64encode(json.dumps(detail).encode("utf-8")).decode("utf-8"),
             "jobStatus": "finished"
         }
         conditionFields = {"jobId": job["jobId"]}
@@ -323,7 +324,7 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
             detail = [{"startedAt": started_at, "message": "started at: {}".format(started_at)}]
 
             dataFields = {
-                "jobStatusDetail": base64.b64encode(json.dumps(detail)),
+                "jobStatusDetail": base64.b64encode(json.dumps(detail).encode("utf-8")).decode("utf-8"),
                 "jobStatus":"running"
             }
             conditionFields = {"jobId": job["jobId"]}
@@ -343,7 +344,7 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
         detail = job_status_detail_with_finished_time(detail, "failed")
 
         dataFields = {
-            "jobStatusDetail": base64.b64encode(json.dumps(detail)),
+            "jobStatusDetail": base64.b64encode(json.dumps(detail).encode("utf-8")).decode("utf-8"),
             "jobStatus": "failed",
             "errorMsg": "pod failed"
         }
@@ -382,7 +383,7 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
 
     elif result == "Pending":
         detail = get_scheduling_job_details(details)
-        dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
+        dataHandler.UpdateJobTextField(job["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail).encode("utf-8")).decode("utf-8"))
 
     if result != "Unknown" and result != "NotFound" and job["jobId"] in UnusualJobs:
         del UnusualJobs[job["jobId"]]
@@ -479,7 +480,7 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
 
     active_job_list = data_handler.GetActiveJobList()
     for job in active_job_list:
-        jobParam = json.loads(base64.b64decode(job["jobParams"]))
+        jobParam = json.loads(base64.b64decode(job["jobParams"].encode("utf-8")).decode("utf-8"))
         if "gpuType" in jobParam:
             vc_usage[job["vcName"]][jobParam["gpuType"]] += GetJobTotalGpu(jobParam)
 
@@ -510,7 +511,7 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
         if job["jobStatus"] in ["queued", "scheduling", "running"]:
             singleJobInfo = {}
             singleJobInfo["job"] = job
-            job_params = json.loads(base64.b64decode(job["jobParams"]))
+            job_params = json.loads(base64.b64decode(job["jobParams"].encode("utf-8")).decode("utf-8"))
             singleJobInfo["preemptionAllowed"] = job_params["preemptionAllowed"]
             singleJobInfo["jobId"] = job_params["jobId"]
             jobGpuType = "any"
@@ -587,7 +588,7 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
                 available_resource = vc_resources[vc_name]
                 requested_resource = sji["globalResInfo"]
                 detail = [{"message": "waiting for available resource. requested: %s. available: %s" % (requested_resource, available_resource)}]
-                data_handler.UpdateJobTextField(sji["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail)))
+                data_handler.UpdateJobTextField(sji["jobId"], "jobStatusDetail", base64.b64encode(json.dumps(detail).encode("utf-8")).encode("utf-8"))
         except Exception as e:
             logger.error("Process job failed {}".format(sji["job"]), exc_info=True)
 

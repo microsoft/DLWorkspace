@@ -108,15 +108,13 @@ def extract_job_log(jobId,logPath,userId):
 
 
         if len(trimlogstr.strip()) > 0:
-            dataHandler.UpdateJobTextField(jobId,"jobLog",base64.b64encode(trimlogstr))
+            dataHandler.UpdateJobTextField(jobId,"jobLog",base64.b64encode(trimlogstr.encode("utf-8")).decode("utf-8"))
             with open(logPath, 'w') as f:
                 f.write(logStr)
             f.close()
             os.system("chown -R %s %s" % (userId, logPath))
-
     except Exception as e:
-        logger.error(e)
-
+        logger.exception("update log for job %s failed", jobId)
 
 
 def update_job_logs():
@@ -128,7 +126,7 @@ def update_job_logs():
                 try:
                     if job["jobStatus"] == "running" :
                         logger.info("updating job logs for job %s" % job["jobId"])
-                        jobParams = json.loads(base64.b64decode(job["jobParams"]))
+                        jobParams = json.loads(base64.b64decode(job["jobParams"].encode("utf-8")).decode("utf-8"))
                         jobPath,workPath,dataPath = GetStoragePath(jobParams["jobPath"],jobParams["workPath"],jobParams["dataPath"])
                         localJobPath = os.path.join(config["storage-mount-path"],jobPath)
                         logPath = os.path.join(localJobPath,"logs/joblog.txt")

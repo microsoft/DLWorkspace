@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends apt-transport-h
         apt-utils \
         ssh \
         apache2 \
-        libapache2-mod-wsgi \
+        libapache2-mod-wsgi-py3 \
         build-essential \
         libssl-dev \
         libmysqlclient-dev \

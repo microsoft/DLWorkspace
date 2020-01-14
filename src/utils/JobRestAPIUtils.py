@@ -39,6 +39,12 @@ DEFAULT_EXPIRATION = 24 * 30 * 60
 vc_cache = TTLCache(maxsize=10240, ttl=DEFAULT_EXPIRATION)
 vc_cache_lock = Lock()
 
+def base64encode(str_val):
+    return base64.b64encode(str_val.encode("utf-8")).decode("utf-8")
+
+def base64decode(str_val):
+    return base64.b64decode(str_val.encode("utf-8")).decode("utf-8")
+
 def adjust_job_priority(priority, permission):
     priority_range = (DEFAULT_JOB_PRIORITY, DEFAULT_JOB_PRIORITY)
     if permission == Permission.User:
@@ -378,7 +384,7 @@ def PauseJob(userName, jobId):
 
 def isBase64(s):
     try:
-        if base64.b64encode(base64.b64decode(s)) == s:
+        if base64encode(base64decode(s)) == s:
             return True
     except Exception as e:
         pass
@@ -409,7 +415,7 @@ def GetJobDetail(userName, jobId):
                 log = dataHandler.GetJobTextField(jobId,"jobLog")
                 try:
                     if isBase64(log):
-                        log = base64.b64decode(log)
+                        log = base64decode(log)
                 except Exception:
                     pass
                 if log is not None:
@@ -451,7 +457,7 @@ def GetJobLog(userName, jobId):
                 log = dataHandler.GetJobTextField(jobId,"jobLog")
                 try:
                     if isBase64(log):
-                        log = base64.b64decode(log)
+                        log = base64decode(log)
                 except Exception:
                     pass
                 if log is not None:
@@ -500,7 +506,7 @@ def UpdateAce(userName, identityName, resourceType, resourceName, permissions):
     ret = None
     resourceAclPath = AuthorizationManager.GetResourceAclPath(resourceName, resourceType)
     if AuthorizationManager.HasAccess(userName, resourceType, resourceName, Permission.Admin):
-        ret =  ACLManager.UpdateAce(identityName, resourceAclPath, permissions, False)
+        ret =  ACLManager.UpdateAce(identityName, resourceAclPath, permissions, 0)
     else:
         ret = "Access Denied!"
     return ret
@@ -628,7 +634,7 @@ def GetVC(userName, vcName):
 
     active_job_list = data_handler.GetActiveJobList()
     for job in active_job_list:
-        jobParam = json.loads(base64.b64decode(job["jobParams"]))
+        jobParam = json.loads(base64decode(job["jobParams"]))
         if "gpuType" in jobParam:
             if not jobParam["preemptionAllowed"]:
                 vc_usage[job["vcName"]][jobParam["gpuType"]] += GetJobTotalGpu(jobParam)
@@ -648,7 +654,7 @@ def GetVC(userName, vcName):
                 if job["vcName"] == vcName and job["jobStatus"] == "running":
                     num_active_jobs += 1
                     username = job["userName"]
-                    jobParam = json.loads(base64.b64decode(job["jobParams"]))
+                    jobParam = json.loads(base64decode(job["jobParams"]))
                     if "gpuType" in jobParam:
                         if not jobParam["preemptionAllowed"]:
                             if username not in user_status:
@@ -780,7 +786,7 @@ def UpdateEndpoints(userName, jobId, requested_endpoints, interactive_ports):
             logger.error(msg)
             return msg, 403
 
-        job_params = json.loads(base64.b64decode(job["jobParams"]))
+        job_params = json.loads(base64decode(job["jobParams"]))
         job_type = job_params["jobtrainingtype"]
         job_endpoints = {}
         if job["endpoints"] is not None:

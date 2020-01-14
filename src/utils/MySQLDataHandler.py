@@ -36,6 +36,12 @@ def record(fn):
     return wrapped
 
 
+def base64encode(str_val):
+    return base64.b64encode(str_val.encode("utf-8")).decode("utf-8")
+
+def base64decode(str_val):
+    return base64.b64decode(str_val.encode("utf-8")).decode("utf-8")
+
 class DataHandler(object):
     def __init__(self):
         start_time = timeit.default_timer()
@@ -554,7 +560,7 @@ class DataHandler(object):
         try:
             sql = "INSERT INTO `"+self.jobtablename+"` (jobId, familyToken, isParent, jobName, userName, vcName, jobType,jobParams ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)"
             cursor = self.conn.cursor()
-            jobParam = base64.b64encode(json.dumps(jobParams))
+            jobParam = base64encode(json.dumps(jobParams))
             cursor.execute(sql, (jobParams["jobId"], jobParams["familyToken"], jobParams["isParent"], jobParams["jobName"], jobParams["userName"], jobParams["vcName"], jobParams["jobType"],jobParam))
             self.conn.commit()
             cursor.close()
@@ -654,9 +660,9 @@ class DataHandler(object):
             for item in data:
                 record = dict(list(zip(columns, item)))
                 if record["jobStatusDetail"] is not None:
-                    record["jobStatusDetail"] = self.load_json(base64.b64decode(record["jobStatusDetail"]))
+                    record["jobStatusDetail"] = self.load_json(base64decode(record["jobStatusDetail"]))
                 if record["jobParams"] is not None:
-                    record["jobParams"] = self.load_json(base64.b64decode(record["jobParams"]))
+                    record["jobParams"] = self.load_json(base64decode(record["jobParams"]))
 
                 if record["jobStatus"] == "running":
                     if record["jobType"] == "training":
@@ -732,9 +738,9 @@ class DataHandler(object):
             for item in data:
                 record = dict(list(zip(columns, item)))
                 if record["jobStatusDetail"] is not None:
-                    record["jobStatusDetail"] = self.load_json(base64.b64decode(record["jobStatusDetail"]))
+                    record["jobStatusDetail"] = self.load_json(base64decode(record["jobStatusDetail"]))
                 if record["jobParams"] is not None:
-                    record["jobParams"] = self.load_json(base64.b64decode(record["jobParams"]))
+                    record["jobParams"] = self.load_json(base64decode(record["jobParams"]))
                 ret.append(record)
             self.conn.commit()
         except Exception as e:
@@ -1033,7 +1039,7 @@ class DataHandler(object):
     @record
     def UpdateClusterStatus(self, clusterStatus):
         try:
-            status = base64.b64encode(json.dumps(clusterStatus))
+            status = base64encode(json.dumps(clusterStatus))
 
             sql = "INSERT INTO `%s` (status) VALUES ('%s')" % (self.clusterstatustablename, status)
             cursor = self.conn.cursor()
@@ -1054,7 +1060,7 @@ class DataHandler(object):
         try:
             cursor.execute(query)
             for (t, value) in cursor:
-                ret = json.loads(base64.b64decode(value))
+                ret = json.loads(base64decode(value))
                 time = t
         except Exception as e:
             logger.error('GetClusterStatus Exception: %s', str(e))
