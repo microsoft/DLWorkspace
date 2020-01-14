@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+
 def cpu_format(cpu, ratio=1.0):
     """Convert number of cpu to cpu cycle.
 

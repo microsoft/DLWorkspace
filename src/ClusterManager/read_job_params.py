@@ -7,7 +7,8 @@ import base64
 import json
 import pprint
 
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),"../utils"))
+sys.path.append(os.path.join(os.path.dirname(
+    os.path.abspath(__file__)), "../utils"))
 
 from DataHandler import DataHandler
 
@@ -23,6 +24,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     job = jobs[0]
-    job_params = json.loads(base64.b64decode(job["jobParams"].encode("utf-8")).decode("utf-8"))
+    job_params = json.loads(base64.b64decode(
+        job["jobParams"].encode("utf-8")).decode("utf-8"))
 
     pprint.pprint(job_params)

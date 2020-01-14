@@ -12,11 +12,12 @@ from jinja2 import Environment, FileSystemLoader, Template
 
 logger = logging.getLogger(__name__)
 
+
 def invalid_entry(s):
     return s is None or \
-           s == "" or \
-           s.lower() == "null" or \
-           s.lower() == "none"
+        s == "" or \
+        s.lower() == "null" or \
+        s.lower() == "none"
 
 
 def dedup_add(item, entries, identical):
@@ -84,13 +85,15 @@ class Job:
         # only allow alphanumeric in "name"
         if "name" not in mountpoint or mountpoint["name"] == "":
             mountpoint["name"] = mountpoint["containerPath"]
-        mountpoint["name"] = ''.join(c for c in mountpoint["name"] if c.isalnum() or c == "-")
+        mountpoint["name"] = ''.join(
+            c for c in mountpoint["name"] if c.isalnum() or c == "-")
 
         # skip duplicate entry
         # NOTE: mountPath "/data" is the same as "data" in k8s
         for item in self.mountpoints:
             if item["name"] == mountpoint["name"] or item["containerPath"].strip("/") == mountpoint["containerPath"].strip("/"):
-                logger.warn("Current mountpoint: %s is a duplicate of mountpoint: %s" % (mountpoint, item))
+                logger.warn(
+                    "Current mountpoint: %s is a duplicate of mountpoint: %s" % (mountpoint, item))
                 return
 
         self.mountpoints.append(mountpoint)
@@ -120,7 +123,8 @@ class Job:
 
     def data_path_mountpoint(self):
         assert(self.data_path is not None)
-        data_host_path = os.path.join(self.cluster["storage-mount-path"], "storage", self.data_path)
+        data_host_path = os.path.join(
+            self.cluster["storage-mount-path"], "storage", self.data_path)
         return {"name": "data", "containerPath": "/data", "hostPath": data_host_path, "enabled": True}
 
     def vc_custom_storage_mountpoints(self):
@@ -152,7 +156,8 @@ class Job:
 
     def vc_storage_mountpoints(self):
         vc_name = self.params["vcName"]
-        dltsdata_vc_path = os.path.join(self.cluster["dltsdata-storage-mount-path"], vc_name)
+        dltsdata_vc_path = os.path.join(
+            self.cluster["dltsdata-storage-mount-path"], vc_name)
         if not os.path.isdir(dltsdata_vc_path):
             return None
 
@@ -201,7 +206,8 @@ class Job:
 
     def _get_template(self, template_name):
         """Returns template instance based on template_name."""
-        path = os.path.abspath(os.path.join(self.cluster["root-path"], "Jobs_Templete", template_name))
+        path = os.path.abspath(os.path.join(
+            self.cluster["root-path"], "Jobs_Templete", template_name))
         env = Environment(loader=FileSystemLoader("/"))
         template = env.get_template(path)
         assert (isinstance(template, Template))
@@ -318,7 +324,7 @@ class Job:
 
         def identical(e1, e2):
             return e1["name"] == e2["name"] or \
-                    e1["mountPath"] == e2["mountPath"]
+                e1["mountPath"] == e2["mountPath"]
 
         root_tmppath = None
         local_fast_storage = self.get_local_fast_storage()
@@ -391,7 +397,8 @@ class Job:
                     invalid_entry(password):
                 continue
 
-            auth = base64.b64encode(("%s:%s" % (username, password)).encode("utf-8")).decode("utf-8")
+            auth = base64.b64encode(
+                ("%s:%s" % (username, password)).encode("utf-8")).decode("utf-8")
 
             auths = {
                 "auths": {
@@ -401,7 +408,8 @@ class Job:
                 }
             }
 
-            dockerconfigjson = base64.b64encode(json.dumps(auths).encode("utf-8")).decode("utf-8")
+            dockerconfigjson = base64.b64encode(
+                json.dumps(auths).encode("utf-8")).decode("utf-8")
 
             secret = {
                 "enabled": True,
@@ -426,11 +434,15 @@ class JobSchema(Schema):
                            # but certain resources have more specific restrictions.
                            validate=validate.Regexp(r'^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
                                                     error="'{input}' does not match expected pattern {regex}."))
-    email = fields.Email(required=True, dump_to="userName", load_from="userName")
+    email = fields.Email(required=True, dump_to="userName",
+                         load_from="userName")
     mountpoints = fields.Dict(required=False)
-    job_path = fields.String(required=False, dump_to="jobPath", load_from="jobPath")
-    work_path = fields.String(required=False, dump_to="workPath", load_from="workPath")
-    data_path = fields.String(required=False, dump_to="dataPath", load_from="dataPath")
+    job_path = fields.String(
+        required=False, dump_to="jobPath", load_from="jobPath")
+    work_path = fields.String(
+        required=False, dump_to="workPath", load_from="workPath")
+    data_path = fields.String(
+        required=False, dump_to="dataPath", load_from="dataPath")
     params = fields.Dict(required=False)
     plugins = fields.Dict(required=False)
 

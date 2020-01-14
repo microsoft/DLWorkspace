@@ -13,6 +13,7 @@ import requests
 
 logger = logging.getLogger(__name__)
 
+
 class NotifyMsg(object):
     def __init__(self, email, alert_name):
         self.email = email
@@ -73,16 +74,17 @@ class Notifier(object):
 
         if self.cluster is None or \
                 self.alert_manager_url is None and (
-                        self.smtp_url is None or \
-                        self.smtp_from is None or \
-                        self.smtp_auth_name is None or \
-                        self.smtp_auth_pass is None):
+                    self.smtp_url is None or
+                    self.smtp_from is None or
+                    self.smtp_auth_name is None or
+                    self.smtp_auth_pass is None):
             logger.warning("Notifier not configured")
 
     def start(self):
         if not self.running:
             self.running = True
-            self.thread = threading.Thread(target=self.process, name="notifier")
+            self.thread = threading.Thread(
+                target=self.process, name="notifier")
             self.thread.start()
 
     def stop(self):
@@ -97,7 +99,7 @@ class Notifier(object):
     def process(self):
         while self.running:
             try:
-                msg = self.queue.get(block=True, timeout=1) # 1s timeout
+                msg = self.queue.get(block=True, timeout=1)  # 1s timeout
             except Empty:
                 continue
 
@@ -126,10 +128,10 @@ class Notifier(object):
                     "cluster": self.cluster,
                     "user_email": msg.email,
                     "subject": subject,
-                    })
+                })
 
                 resp = requests.post(self.alert_manager_url, timeout=5,
-                        data=json.dumps([{"labels": labels}]))
+                                     data=json.dumps([{"labels": labels}]))
                 resp.raise_for_status()
                 return True
             elif self.smtp_url is not None and \
@@ -137,8 +139,8 @@ class Notifier(object):
                     self.smtp_auth_name is not None and \
                     self.smtp_auth_pass is not None:
                 smtp_send_email(self.smtp_url, self.smtp_from,
-                        self.smtp_auth_name, self.smtp_auth_pass,
-                        msg.email, subject, msg.body())
+                                self.smtp_auth_name, self.smtp_auth_pass,
+                                msg.email, subject, msg.body())
                 return True
             else:
                 # not configured, discard message
@@ -149,7 +151,8 @@ class Notifier(object):
 
 
 def smtp_send_email(smtp_url, smtp_from, smtp_auth_name, smtp_auth_pass, to, subject, body):
-    msg = "From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s" % (smtp_from, to, subject, body)
+    msg = "From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s" % (
+        smtp_from, to, subject, body)
     conn = smtplib.SMTP(smtp_url)
     conn.starttls()
     conn.login(smtp_auth_name, smtp_auth_pass)
@@ -157,9 +160,12 @@ def smtp_send_email(smtp_url, smtp_from, smtp_auth_name, smtp_auth_pass, to, sub
 
 
 if __name__ == "__main__":
-    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
-    notifier = Notifier({"notifier": {"cluster": "local", "alert-manager-url": "http://localhost:9093/alert-manager"}})
+    logging.basicConfig(
+        format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
+    notifier = Notifier({"notifier": {
+                        "cluster": "local", "alert-manager-url": "http://localhost:9093/alert-manager"}})
     notifier.start()
 
-    notifier.notify(new_job_state_change_message("dixu@microsoft.com", "job-id", "stopped"))
+    notifier.notify(new_job_state_change_message(
+        "dixu@microsoft.com", "job-id", "stopped"))
     notifier.stop()
