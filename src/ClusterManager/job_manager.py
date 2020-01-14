@@ -333,6 +333,9 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
             }
             conditionFields = {"jobId": job["jobId"]}
             dataHandler.UpdateJobTextFields(conditionFields, dataFields)
+            if notifier is not None:
+                notifier.notify(notify.new_job_state_change_message(
+                    job["userName"], job["jobId"], result.strip()))
 
     elif result == "Failed":
         logger.warning("Job %s fails, cleaning...", job["jobId"])
@@ -384,6 +387,9 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
 
             logger.warning("Job {} fails in Kubernetes as {}, delete and re-submit.".format(job["jobId"], result))
             launcher.kill_job(job["jobId"], "queued")
+            if notifier is not None:
+                notifier.notify(notify.new_job_state_change_message(
+                    job["userName"], job["jobId"], result.strip()))
 
     elif result == "Pending":
         detail = get_scheduling_job_details(details)
