@@ -168,7 +168,7 @@ class TestWatchdog(unittest.TestCase):
         self.assertEqual(4, gauges[3].samples[0].value)
         self.assertEqual("k8s_node_gpu_allocatable", gauges[4].name)
         self.assertEqual(1, len(gauges[4].samples))
-        self.assertEqual(2, gauges[4].samples[0].value)
+        self.assertEqual(0, gauges[4].samples[0].value)
 
         for gauge in gauges:
             self.assertTrue(len(gauge.samples) > 0)
