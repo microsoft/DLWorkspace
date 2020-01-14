@@ -49,7 +49,8 @@ spec:
         job_deployer._create_pod(body)
 
     def test_delete_pod(self):
-        pod_name = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(16))
+        pod_name = ''.join(random.choice(
+            string.ascii_lowercase + string.digits) for _ in range(16))
         self.create_pod(pod_name)
 
         job_deployer = self.create_job_deployer()
@@ -106,7 +107,8 @@ spec:
     def test_pod_exec(self):
         job_deployer = self.create_job_deployer()
 
-        pod_name = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(16))
+        pod_name = ''.join(random.choice(
+            string.ascii_lowercase + string.digits) for _ in range(16))
         self.create_pod(pod_name)
         time.sleep(3)
 

@@ -19,14 +19,13 @@ from kubernetes.stream.ws_client import ERROR_CHANNEL, STDERR_CHANNEL, STDOUT_CH
 
 sys.path.append("../utils")
 
-import k8sUtils
-from DataHandler import DataHandler
-from job import Job, JobSchema
-from pod_template import PodTemplate
-from dist_pod_template import DistPodTemplate
-from config import config
-
 from cluster_manager import record
+from config import config
+from dist_pod_template import DistPodTemplate
+from pod_template import PodTemplate
+from job import Job, JobSchema
+from DataHandler import DataHandler
+import k8sUtils
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +33,7 @@ logger = logging.getLogger(__name__)
 k8s_config.load_kube_config()
 k8s_CoreAPI = client.CoreV1Api()
 k8s_AppsAPI = client.AppsV1Api()
+
 
 class JobDeployer:
     def __init__(self):
@@ -72,7 +72,7 @@ class JobDeployer:
                 self.namespace,
                 pretty=self.pretty,
                 label_selector=label_selector,
-                )
+            )
         except ApiException as e:
             message = "Delete pods failed: {}".format(label_selector)
             logger.warning(message, exc_info=True)
@@ -87,7 +87,7 @@ class JobDeployer:
                 self.namespace,
                 pretty=self.pretty,
                 label_selector=label_selector,
-                )
+            )
         except ApiException as e:
             message = "Delete configmap failed: {}".format(label_selector)
             logger.warning(message, exc_info=True)
@@ -234,9 +234,11 @@ class JobDeployer:
     @record
     def create_pods(self, pods):
         # TODO instead of delete, we could check update existiong ones. During refactoring, keeping the old way.
-        pod_names = [pod["metadata"]["name"] for pod in pods if pod["kind"] == "Pod"]
+        pod_names = [pod["metadata"]["name"]
+                     for pod in pods if pod["kind"] == "Pod"]
         self._cleanup_pods(pod_names)
-        deployment_names = [pod["metadata"]["name"] for pod in pods if pod["kind"] == "Deployment"]
+        deployment_names = [pod["metadata"]["name"]
+                            for pod in pods if pod["kind"] == "Deployment"]
         self._cleanup_deployment(pod_names)
         created = []
         for pod in pods:
@@ -251,7 +253,8 @@ class JobDeployer:
     @record
     def create_secrets(self, secrets):
         # Clean up secrets first
-        secret_names = [secret["metadata"]["name"] for secret in secrets if secret["kind"] == "Secret"]
+        secret_names = [secret["metadata"]["name"]
+                        for secret in secrets if secret["kind"] == "Secret"]
         logger.info("Trying to delete secrets %s" % secret_names)
         self._cleanup_secrets(secret_names)
 
@@ -259,7 +262,8 @@ class JobDeployer:
         for secret in secrets:
             created_secret = self._create_secret(secret)
             created.append(created_secret)
-            logger.info("Creating secret succeeded: %s" % created_secret.metadata.name)
+            logger.info("Creating secret succeeded: %s" %
+                        created_secret.metadata.name)
         return created
 
     @record
@@ -316,7 +320,8 @@ class JobDeployer:
         service_errors = self._cleanup_services(services)
 
         deployments = self._get_deployments(label_selector=label_selector)
-        deployment_names = [deployment.metadata.name for deployment in deployments]
+        deployment_names = [
+            deployment.metadata.name for deployment in deployments]
         deployment_errors = self._cleanup_deployment(deployment_names, force)
 
         logger.info("deleting deployments %s" % ",".join(deployment_names))
@@ -330,7 +335,7 @@ class JobDeployer:
         configmap_errors = self._cleanup_configmap(label_selector)
 
         errors = pod_errors + service_errors + deployment_errors + secret_errors + \
-                configmap_errors
+            configmap_errors
         return errors
 
     @record
@@ -358,13 +363,16 @@ class JobDeployer:
             if err["status"] == "Success":
                 status_code = 0
             else:
-                logger.debug("Exec on pod {} failed. cmd: {}, err: {}.".format(pod_name, exec_command, err))
+                logger.debug("Exec on pod {} failed. cmd: {}, err: {}.".format(
+                    pod_name, exec_command, err))
                 status_code = int(err["details"]["causes"][0]["message"])
             output = client.read_all()
-            logger.info("Exec on pod {}, status: {}, cmd: {}, output: {}".format(pod_name, status_code, exec_command, output))
+            logger.info("Exec on pod {}, status: {}, cmd: {}, output: {}".format(
+                pod_name, status_code, exec_command, output))
             return [status_code, output]
         except ApiException as err:
-            logger.error("Exec on pod {} error. cmd: {}, err: {}.".format(pod_name, exec_command, err), exc_info=True)
+            logger.error("Exec on pod {} error. cmd: {}, err: {}.".format(
+                pod_name, exec_command, err), exc_info=True)
             return [-1, err.message]
 
 
@@ -403,7 +411,8 @@ class JobRole(object):
         # node condition: https://kubernetes.io/docs/concepts/architecture/nodes/#condition
         if refresh:
             deployer = JobDeployer()
-            pods = deployer.get_pods(field_selector="metadata.name={}".format(self.pod_name))
+            pods = deployer.get_pods(
+                field_selector="metadata.name={}".format(self.pod_name))
             logger.debug("Pods: {}".format(pods))
             if len(pods) < 1:
                 return "NotFound"
@@ -448,7 +457,8 @@ class JobRole(object):
 
     def _is_file_exist(self, file):
         deployer = JobDeployer()
-        status_code, _ = deployer.pod_exec(self.pod_name, ["/bin/sh", "-c", "ls -lrt {}".format(file)])
+        status_code, _ = deployer.pod_exec(
+            self.pod_name, ["/bin/sh", "-c", "ls -lrt {}".format(file)])
         return status_code == 0
 
     def _is_role_ready(self):
@@ -456,7 +466,8 @@ class JobRole(object):
             if container.name == self.pod_name and container.readiness_probe is not None:
                 for status in self.pod.status.container_statuses:
                     if status.name == self.pod_name:
-                        logger.info("pod %s have readiness_probe result", self.pod_name)
+                        logger.info(
+                            "pod %s have readiness_probe result", self.pod_name)
                         return status.ready
         # no readiness_probe defined, fallback to old way
         return self._is_file_exist(JobRole.MARK_ROLE_READY_FILE)
@@ -476,6 +487,7 @@ class Launcher(object):
     def kill_job(self, job_id, desired_state="killed"):
         pass
 
+
 def get_job_status_detail(job):
     if "jobStatusDetail" not in job:
         return None
@@ -485,7 +497,8 @@ def get_job_status_detail(job):
         return job_status_detail
 
     if not isinstance(job_status_detail, list):
-        job_status_detail = base64.b64decode(job_status_detail.encode("utf-8")).decode("utf-8")
+        job_status_detail = base64.b64decode(
+            job_status_detail.encode("utf-8")).decode("utf-8")
         job_status_detail = json.loads(job_status_detail)
     return job_status_detail
 
@@ -512,7 +525,8 @@ def job_status_detail_with_finished_time(job_status_detail, status, msg=""):
         if "finishedAt" not in pod_status_detail:
             pod_status_detail["finishedAt"] = finished_at
 
-        pod_status_detail["message"] = "{} at {}. {}".format(status, finished_at, msg)
+        pod_status_detail["message"] = "{} at {}. {}".format(
+            status, finished_at, msg)
         new_job_status_detail.append(pod_status_detail)
 
     return new_job_status_detail
@@ -531,7 +545,7 @@ class PythonLauncher(Launcher):
 
             for i in range(self.pool_size):
                 p = multiprocessing.Process(target=self.run,
-                        args=(self.queue,), name="py-launcher-" + str(i))
+                                            args=(self.queue,), name="py-launcher-" + str(i))
                 self.processes.append(p)
                 p.start()
 
@@ -553,11 +567,13 @@ class PythonLauncher(Launcher):
         assert("jobId" in job)
         job_id = job["jobId"]
         if not self._all_pods_not_existing(job_id):
-            logger.warning("Waiting until previously pods are cleaned up! Job {}".format(job_id))
+            logger.warning(
+                "Waiting until previously pods are cleaned up! Job {}".format(job_id))
             job_deployer = JobDeployer()
             errors = job_deployer.delete_job(job_id, force=True)
             if errors:
-                logger.warning("Force delete job {}: {}".format(job_id, errors))
+                logger.warning(
+                    "Force delete job {}: {}".format(job_id, errors))
             return
 
         ret = {}
@@ -570,33 +586,40 @@ class PythonLauncher(Launcher):
             endpoints = dataHandler.GetJobEndpoints(job_id)
             for endpoint_id, endpoint in list(endpoints.items()):
                 endpoint["status"] = "pending"
-                logger.info("Reset endpoint status to 'pending': {}".format(endpoint_id))
+                logger.info(
+                    "Reset endpoint status to 'pending': {}".format(endpoint_id))
                 dataHandler.UpdateEndpoint(endpoint)
 
             job["cluster"] = config
             job_object, errors = JobSchema().load(job)
             # TODO assert job_object is a Job
-            assert isinstance(job_object, Job), "job_object is not of Job, but " + str(type(job_object))
+            assert isinstance(
+                job_object, Job), "job_object is not of Job, but " + str(type(job_object))
 
-            job_object.params = json.loads(base64.b64decode(job["jobParams"].encode("utf-8")).decode("utf-8"))
+            job_object.params = json.loads(base64.b64decode(
+                job["jobParams"].encode("utf-8")).decode("utf-8"))
 
             # inject gid, uid and user
             # TODO it should return only one entry
-            user_info = dataHandler.GetIdentityInfo(job_object.params["userName"])[0]
+            user_info = dataHandler.GetIdentityInfo(
+                job_object.params["userName"])[0]
             job_object.params["gid"] = user_info["gid"]
             job_object.params["uid"] = user_info["uid"]
             job_object.params["user"] = job_object.get_alias()
 
             if "job_token" not in job_object.params:
                 if "master_token" in config and config["master_token"] is not None and "userName" in job_object.params:
-                    plain_token = job_object.params["userName"] + ":" + config["master_token"]
-                    job_object.params["job_token"] = hashlib.md5(plain_token.encode("utf-8")).hexdigest()
+                    plain_token = job_object.params["userName"] + \
+                        ":" + config["master_token"]
+                    job_object.params["job_token"] = hashlib.md5(
+                        plain_token.encode("utf-8")).hexdigest()
                 else:
                     job_object.params["job_token"] = "tryme2017"
 
             if "envs" not in job_object.params:
-                job_object.params["envs"] =[]
-            job_object.params["envs"].append({"name": "DLTS_JOB_TOKEN", "value": job_object.params["job_token"]})
+                job_object.params["envs"] = []
+            job_object.params["envs"].append(
+                {"name": "DLTS_JOB_TOKEN", "value": job_object.params["job_token"]})
 
             enable_custom_scheduler = job_object.is_custom_scheduler_enabled()
             blobfuse_secret_template = job_object.get_blobfuse_secret_template()
@@ -618,7 +641,8 @@ class PythonLauncher(Launcher):
                                            enable_custom_scheduler=False,
                                            secret_templates=secret_templates)
             else:
-                dataHandler.SetJobError(job_object.job_id, "ERROR: invalid jobtrainingtype: %s" % job_object.params["jobtrainingtype"])
+                dataHandler.SetJobError(
+                    job_object.job_id, "ERROR: invalid jobtrainingtype: %s" % job_object.params["jobtrainingtype"])
                 dataHandler.Close()
                 return False
 
@@ -629,8 +653,11 @@ class PythonLauncher(Launcher):
                 return False
 
             job_description = "\n---\n".join([yaml.dump(pod) for pod in pods])
-            job_description_path = "jobfiles/" + time.strftime("%y%m%d") + "/" + job_object.job_id + "/" + job_object.job_id + ".yaml"
-            local_jobDescriptionPath = os.path.realpath(os.path.join(config["storage-mount-path"], job_description_path))
+            job_description_path = "jobfiles/" + \
+                time.strftime("%y%m%d") + "/" + job_object.job_id + \
+                "/" + job_object.job_id + ".yaml"
+            local_jobDescriptionPath = os.path.realpath(os.path.join(
+                config["storage-mount-path"], job_description_path))
             if not os.path.exists(os.path.dirname(local_jobDescriptionPath)):
                 os.makedirs(os.path.dirname(local_jobDescriptionPath))
             with open(local_jobDescriptionPath, 'w') as f:
@@ -641,9 +668,11 @@ class PythonLauncher(Launcher):
             job_deployer = JobDeployer()
             try:
                 secrets = job_deployer.create_secrets(secrets)
-                ret["output"] = "Created secrets: {}. ".format([secret.metadata.name for secret in secrets])
+                ret["output"] = "Created secrets: {}. ".format(
+                    [secret.metadata.name for secret in secrets])
                 pods = job_deployer.create_pods(pods)
-                ret["output"] += "Created pods: {}".format([pod.metadata.name for pod in pods])
+                ret["output"] += "Created pods: {}".format(
+                    [pod.metadata.name for pod in pods])
             except Exception as e:
                 ret["output"] = "Error: %s" % e.message
                 logger.error(e, exc_info=True)
@@ -657,7 +686,8 @@ class PythonLauncher(Launcher):
             # the command of the first container
             jobMeta["LaunchCMD"] = pods[0].spec.containers[0].command
 
-            jobMetaStr = base64.b64encode(json.dumps(jobMeta).encode("utf-8")).decode("utf-8")
+            jobMetaStr = base64.b64encode(json.dumps(
+                jobMeta).encode("utf-8")).decode("utf-8")
 
             dataFields = {
                 "jobStatus": "scheduling",
@@ -674,7 +704,8 @@ class PythonLauncher(Launcher):
             retries = dataHandler.AddandGetJobRetries(job["jobId"])
             if retries >= 5:
                 detail = get_job_status_detail(job)
-                detail = job_status_detail_with_finished_time(detail, "error", "Server error in job submission")
+                detail = job_status_detail_with_finished_time(
+                    detail, "error", "Server error in job submission")
 
                 dataFields = {
                     "jobStatus": "error",
@@ -687,15 +718,18 @@ class PythonLauncher(Launcher):
                 try:
                     job_deployer = JobDeployer()
                     job_deployer.delete_job(job_id, force=True)
-                    logger.info("Cleaning up job %s succeeded after %d retries of job submission" % (job["jobId"], retries))
+                    logger.info("Cleaning up job %s succeeded after %d retries of job submission" % (
+                        job["jobId"], retries))
                 except:
-                    logger.warning("Cleaning up job %s failed after %d retries of job submission" % (job["jobId"], retries))
+                    logger.warning("Cleaning up job %s failed after %d retries of job submission" % (
+                        job["jobId"], retries))
 
         dataHandler.Close()
         return ret
 
     def kill_job(self, job_id, desired_state="killed"):
-        self.queue.put(("kill_job", (job_id,), {"desired_state": desired_state}))
+        self.queue.put(
+            ("kill_job", (job_id,), {"desired_state": desired_state}))
 
     def kill_job_impl(self, job_id, desired_state="killed", dataHandlerOri=None):
         if dataHandlerOri is None:
@@ -706,8 +740,10 @@ class PythonLauncher(Launcher):
         # TODO: Use JobDeployer?
         result, detail = k8sUtils.GetJobStatus(job_id)
         detail = job_status_detail_with_finished_time(detail, desired_state)
-        dataHandler.UpdateJobTextField(job_id, "jobStatusDetail", base64.b64encode(json.dumps(detail).encode("utf-8")).decode("utf-8"))
-        logger.info("Killing job %s, with status %s, %s" % (job_id, result, detail))
+        dataHandler.UpdateJobTextField(job_id, "jobStatusDetail", base64.b64encode(
+            json.dumps(detail).encode("utf-8")).decode("utf-8"))
+        logger.info("Killing job %s, with status %s, %s" %
+                    (job_id, result, detail))
 
         job_deployer = JobDeployer()
         errors = job_deployer.delete_job(job_id, force=True)
@@ -743,7 +779,7 @@ class PythonLauncher(Launcher):
                     self.kill_job_impl(*args, **kwargs)
                 else:
                     logger.error("unknown func_name %s, with args %s %s",
-                            func_name, args, kwargs)
+                                 func_name, args, kwargs)
             except Exception:
                 logger.exception("processing job failed")
             finally:

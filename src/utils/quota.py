@@ -26,12 +26,12 @@ logger = logging.getLogger(__name__)
 # * unschedulable gpu: Qi - Ui - Ai
 def calculate_vc_gpu_counts(cluster_total, cluster_available, cluster_unschedulable, vc_info, vc_usage):
     logger.debug("cluster_total %s, cluster_available %s, cluster_unschedulable %s",
-            cluster_total, cluster_available, cluster_unschedulable)
+                 cluster_total, cluster_available, cluster_unschedulable)
     logger.debug("vc_info %s, vc_usage %s", vc_info, vc_usage)
-    vc_total = collections.defaultdict(lambda : {})
-    vc_used = collections.defaultdict(lambda : {})
-    vc_available = collections.defaultdict(lambda : {})
-    vc_unschedulable = collections.defaultdict(lambda : {})
+    vc_total = collections.defaultdict(lambda: {})
+    vc_used = collections.defaultdict(lambda: {})
+    vc_available = collections.defaultdict(lambda: {})
+    vc_unschedulable = collections.defaultdict(lambda: {})
 
     vc_quota_sum = 0
     for vc_name, gpu_info in list(vc_info.items()):
@@ -41,14 +41,15 @@ def calculate_vc_gpu_counts(cluster_total, cluster_available, cluster_unschedula
 
     # key is vc_name, value is a map with key to be gpu_type and value to be real
     # quota
-    ratio = collections.defaultdict(lambda : {})
+    ratio = collections.defaultdict(lambda: {})
 
     for vc_name, gpu_info in list(vc_info.items()):
         for gpu_type, quota in list(gpu_info.items()):
             if vc_quota_sum == 0:
                 unschedulable = 0
             else:
-                unschedulable = float(cluster_unschedulable.get(gpu_type, 0)) * quota / vc_quota_sum
+                unschedulable = float(cluster_unschedulable.get(
+                    gpu_type, 0)) * quota / vc_quota_sum
             vc_quota = quota - int(math.ceil(unschedulable))
 
             used = vc_usage.get(vc_name, {}).get(gpu_type, 0)
@@ -69,7 +70,8 @@ def calculate_vc_gpu_counts(cluster_total, cluster_available, cluster_unschedula
                 if ratio_sum == 0:
                     available = 0
                 else:
-                    available = int(math.floor(float(cluster_available.get(gpu_type, 0)) * cur_ratio / ratio_sum))
+                    available = int(math.floor(
+                        float(cluster_available.get(gpu_type, 0)) * cur_ratio / ratio_sum))
                 quota = vc_info[vc_name][gpu_type]
 
                 vc_used[vc_name][gpu_type] = 0
@@ -79,11 +81,13 @@ def calculate_vc_gpu_counts(cluster_total, cluster_available, cluster_unschedula
     for vc_name, vc_usage_info in list(vc_usage.items()):
         for gpu_type, vc_usage in list(vc_usage_info.items()):
             if vc_name not in vc_info:
-                logger.warning("ignore used gpu in %s, but vc quota do not have this vc, possible due to job template error", vc_name)
+                logger.warning(
+                    "ignore used gpu in %s, but vc quota do not have this vc, possible due to job template error", vc_name)
                 continue
 
             if gpu_type not in vc_info[vc_name]:
-                logger.warning("ignore used gpu %s in %s, but vc quota do not have this gpu_type", gpu_type, vc_name)
+                logger.warning(
+                    "ignore used gpu %s in %s, but vc quota do not have this gpu_type", gpu_type, vc_name)
                 continue
 
             cur_ratio = ratio[vc_name][gpu_type]
@@ -91,11 +95,13 @@ def calculate_vc_gpu_counts(cluster_total, cluster_available, cluster_unschedula
             if ratio_sum == 0:
                 available = 0
             else:
-                available = int(math.floor(float(cluster_available.get(gpu_type, 0)) * cur_ratio / ratio_sum))
+                available = int(math.floor(
+                    float(cluster_available.get(gpu_type, 0)) * cur_ratio / ratio_sum))
             vc_used[vc_name][gpu_type] = vc_usage
             vc_available[vc_name][gpu_type] = available
-            vc_unschedulable[vc_name][gpu_type] = max(0, quota - vc_usage - available)
+            vc_unschedulable[vc_name][gpu_type] = max(
+                0, quota - vc_usage - available)
 
     logger.debug("vc_total %s, vc_used %s, vc_available %s, vc_unschedulable %s",
-            vc_total, vc_used, vc_available, vc_unschedulable)
+                 vc_total, vc_used, vc_available, vc_unschedulable)
     return vc_total, vc_used, vc_available, vc_unschedulable
