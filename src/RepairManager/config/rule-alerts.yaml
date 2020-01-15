@@ -1,0 +1,7 @@
+ecc_rule:
+  alerts_enabled: True # send email alerts
+  reminders_enabled: True
+  reminder_wait_time: 86400 # time to wait before resending email alert (seconds)
+  alert_job_owners: False # alert all impacted job owners
+
+cache-ttl: 600 # time until cache expires (seconds)

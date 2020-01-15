@@ -7,20 +7,30 @@ import datetime
 
 logger = logging.getLogger(__name__)
 
-
-def format_prometheus_url(prometheus_url, query, since, until):
+def format_prometheus_url(prometheus_url, query, since, until, step):
     args = urllib.parse.urlencode({
         "query": query,
         "start": str(since),
         "end": str(until),
-        "step": "5m",
+        "step": str(step),
         })
 
     return urllib.parse.urljoin(prometheus_url,
             "/prometheus/api/v1/query_range") + "?" + args
 
+
+def format_prometheus_url_from_interval(prometheus_url, query, step, interval):
+    now = datetime.datetime.now()
+    delta = datetime.timedelta(minutes=interval)
+    since = int(datetime.datetime.timestamp(now - delta))
+    until = int(datetime.datetime.timestamp(now))
+
+    return format_prometheus_url(prometheus_url, query, since, until, step)
+
+
 def main(args):
-    print(format_prometheus_url(args.prometheus_url, args.query, args.since, args.until))
+    print(format_prometheus_url(args.prometheus_url, args.query,
+            args.since, args.until, args.step))
 
 
 if __name__ == "__main__":
@@ -41,7 +51,8 @@ if __name__ == "__main__":
             help="start time for generating report")
     parser.add_argument("--until", "-u", type=int, default=now,
             help="end time for generating report")
+    parser.add_argument("--step", "-i", type=int, default="5m",
+            help="data resolution for generating report")
 
     args = parser.parse_args()
-
     main(args)

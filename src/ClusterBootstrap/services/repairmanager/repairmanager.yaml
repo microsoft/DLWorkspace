@@ -29,8 +29,8 @@ spec:
         command: ["/run.sh"]
         imagePullPolicy: Always
         env:
-        - name: PROMETHEUS_HOST
-          value: {{cnf["prometheus"]["host"]}}        
+        - name: PROMETHEUS_URL
+          value: http://{{cnf["repair-manager"]["prometheus-ip"]}}:{{cnf["repair-manager"]["prometheus-port"]}}
         volumeMounts:
         - mountPath: /etc/kubernetes/ssl
           name: certs
