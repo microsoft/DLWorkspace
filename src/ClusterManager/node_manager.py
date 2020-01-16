@@ -22,6 +22,9 @@ from config import config
 import k8sUtils
 from ResourceInfo import ResourceInfo
 
+import k8s_utils
+k8s = k8s_utils.K8sUtil()
+
 logger = logging.getLogger(__name__)
 
 
@@ -73,7 +76,11 @@ def get_job_gpu_usage(jobId):
     return gpuUsage
 
 
-def get_cluster_status():
+def str2bool(s):
+    return s.lower() in ["true", "1", "t", "y", "yes"]
+
+
+def _get_cluster_status():
     cluster_status = {}
     gpuStr = "nvidia.com/gpu"
     try:
@@ -289,6 +296,314 @@ def get_cluster_status():
 
     config["cluster_status"] = copy.deepcopy(cluster_status)
     dataHandler.Close()
+    return cluster_status
+
+
+def get_node_statuses():
+    """Selects specific fields from Kubernetes node information.
+
+    Returns:
+        A dictionary of nodes with selected fields.
+    """
+    gpu_str = "nvidia.com/gpu"
+    nodes = k8s.get_all_nodes()
+
+    node_statuses = {}
+
+    for node in nodes:
+        # node is of class 'kubernetes.client.models.v1_node.V1Node'
+        name = node.metadata.name
+        labels = node.metadata.labels
+
+        gpu_type = ""
+        scheduled_service = []
+        for label, status in labels.items():
+            if status == "active" and label not in ["all", "default"]:
+                scheduled_service.append(label)
+            if label == "gpuType":
+                scheduled_service.append(status)
+                gpu_type = status
+
+        allocatable = node.status.allocatable
+        gpu_allocatable = ResourceInfo().ToSerializable()
+        if allocatable is not None and gpu_str in allocatable:
+            gpu_num = int(allocatable[gpu_str])
+            gpu_allocatable = ResourceInfo({gpu_type: gpu_num}).ToSerializable()
+
+        capacity = node.status.capacity
+        gpu_capacity = ResourceInfo().ToSerializable()
+        if capacity is not None and gpu_str in capacity:
+            gpu_num = int(capacity[gpu_str])
+            gpu_capacity = ResourceInfo({gpu_type: gpu_num}).ToSerializable()
+
+        gpu_used = ResourceInfo().ToSerializable()
+        gpu_preemptable_used = ResourceInfo.ToSerializable()
+        internal_ip = "unknown"
+        # To be filled in get_cluster_pods
+        pods = []
+
+        addresses = node.status.addresses
+        if addresses is not None:
+            for addr in addresses:
+                if "type" in addr and addr["type"] == "InternalIP":
+                    address = addr.get("address", "unknown")
+                    internal_ip = address
+
+        unschedulable = node.spec.unschedulable
+        if unschedulable is not None and unschedulable is True:
+            unschedulable = True
+        else:
+            unschedulable = False
+
+        conditions = node.status.conditions
+        if conditions is not None:
+            for cond in conditions:
+                # cond is of class
+                # 'kubernetes.client.models.v1_node_condition.V1NodeCondition'
+                if cond.type == "Ready" and cond.status != "True":
+                    unschedulable = True
+
+        node_status = {
+            "name": name,
+            "labels": labels,
+            "gpuType": gpu_type,
+            "scheduled_service": scheduled_service,
+            "gpu_allocatable": gpu_allocatable,
+            "gpu_capacity": gpu_capacity,
+            "gpu_used": gpu_used,
+            "gpu_preemptable_used": gpu_preemptable_used,
+            "InternalIP": internal_ip,
+            "pods": pods,
+            "unschedulable": unschedulable
+        }
+
+        node_statuses[name] = node_status
+
+    return node_statuses
+
+
+def get_pod_statuses():
+    """Selects specific fields from Kubernetes pods information.
+
+    Returns:
+        A dictionary of pods with selected fields.
+    """
+    gpu_str = "nvidia.com/gpu"
+    pods = k8s.get_all_pods()
+
+    pod_statuses = {}
+    for pod in pods:
+        # pod is of class 'kubernetes.client.models.v1_pod.V1Pod'
+        phase = pod.status.phase
+        if phase in ["Succeeded", "Failed"]:
+            continue
+
+        name = pod.metadata.name
+        labels = pod.metadata.labels
+
+        gpu_type = ""
+        for label, status in labels.items():
+            if label == "gpuType":
+                gpu_type = status
+
+        gpus = 0
+        preemptable_gpus = 0
+
+        username = None
+        if labels is not None and "userName" in labels:
+            username = labels.get("userName")
+
+        preemption_allowed = False
+        if labels is not None and "preemptionAllowed" in labels:
+            preemption_allowed = str2bool(labels["preemptionAllowed"])
+
+        node_name = pod.spec.node_name
+        pod_name = name
+        if username is not None:
+            pod_name += " : " + username
+
+        gpu_usage = get_job_gpu_usage(name)
+        if gpu_usage is not None:
+            pod_name += " (gpu usage:%s%%)" % gpu_usage
+            if gpu_usage <= 25:
+                pod_name += "!!!!!!"
+
+        containers = pod.spec.containers
+        if containers is not None:
+            for container in containers:
+                # container is of class
+                # 'kubernetes.client.models.v1_container.V1Container'
+                container_gpus = 0
+                resources = container.resources
+                requests = {}
+                if "requests" in resources:
+                    requests = resources.get("requests", {})
+
+                if gpu_str in requests:
+                    container_gpus = int(requests[gpu_str])
+
+                if preemption_allowed:
+                    preemptable_gpus += container_gpus
+                else:
+                    gpus += container_gpus
+
+                pod_name += " (gpu #:%s)" % container_gpus
+
+        gpus = ResourceInfo({gpu_type: gpus}).ToSerializable()
+        preemptable_gpus = ResourceInfo({
+            gpu_type: preemptable_gpus
+        }).ToSerializable()
+
+        pod_status = {
+            "pod_name": pod_name,
+            "node_name": node_name,
+            "username": username,
+            "gpus": gpus,
+            "preemptable_gpus": preemptable_gpus,
+            "gpuType": gpu_type
+        }
+        pod_statuses[name] = pod_status
+
+    return pod_statuses
+
+
+def update_node_statuses(node_statuses, pod_statuses):
+    for _, pod_status in pod_statuses.items():
+        pod_name = pod_status["pod_name"]
+        node_name = pod_status["node_name"]
+        gpus = pod_status["gpus"]
+        preemptable_gpus = pod_status["preemptable_gpus"]
+
+        if node_name not in node_statuses:
+            continue
+
+        # NOTE gpu_used may include those unallocatable gpus
+        node_gpu_used = ResourceInfo(node_statuses[node_name]["gpu_used"])
+        pod_gpu_used = ResourceInfo(gpus)
+        node_statuses[node_name]["gpu_used"] = node_gpu_used.Add(
+            pod_gpu_used).ToSerializable()
+
+        node_gpu_preemptable_used = ResourceInfo(
+            node_statuses[node_name]["gpu_preemptable_used"])
+        pod_gpu_preemptable_used = ResourceInfo(preemptable_gpus)
+        node_statuses[node_name]["gpu_preemptable_used"] = \
+            node_gpu_preemptable_used.Add(
+                pod_gpu_preemptable_used).ToSerializable()
+
+        node_statuses[node_name]["pods"].append(pod_name)
+
+
+def get_user_status(pod_statuses):
+    user_status = {}
+    user_status_preemptable = {}
+
+    for _, pod_status in pod_statuses.items():
+        username = pod_status["username"]
+        gpus = pod_status["gpus"]
+        preemptable_gpus = pod_status["preemptable_gpus"]
+        gpu_type = pod_status["gpuType"]
+        if username is not None:
+            if username not in user_status:
+                user_status[username] = ResourceInfo(
+                    {gpu_type: gpus})
+                user_status_preemptable[username] = \
+                    ResourceInfo(preemptable_gpus)
+            else:
+                user_status[username].Add(ResourceInfo(gpus))
+                user_status_preemptable[username].Add(
+                    ResourceInfo(preemptable_gpus))
+
+    return user_status, user_status_preemptable
+
+
+def get_cluster_status():
+    """Update in DB and returns cluster status.
+
+    Returns:
+        A dictionary representing cluster status.
+    """
+    cluster_status = {}
+    try:
+        node_statuses = get_node_statuses()
+        pod_statuses = get_pod_statuses()
+
+        update_node_statuses(node_statuses, pod_statuses)
+
+        user_status, user_status_preemptable = get_user_status(pod_statuses)
+
+        # Compute cluster resources
+        gpu_available = ResourceInfo()
+        gpu_reserved = ResourceInfo()
+        gpu_capacity = ResourceInfo()
+        gpu_unschedulable = ResourceInfo()
+        gpu_used = ResourceInfo()
+
+        for node_name, node_status in node_statuses.items():
+            if node_status["unschedulable"]:
+                gpu_unschedulable.Add(ResourceInfo(
+                    node_status["gpu_capacity"]))
+                gpu_reserved.Add(ResourceInfo.Difference(ResourceInfo(
+                    node_status["gpu_capacity"]), ResourceInfo(node_status["gpu_used"])))
+            else:
+                # gpu_used may larger than allocatable: used one GPU that has uncorrectable errors
+                gpu_available.Add(ResourceInfo.DifferenceMinZero(ResourceInfo(
+                    node_status["gpu_allocatable"]), ResourceInfo(node_status["gpu_used"])))
+                gpu_unschedulable.Add(ResourceInfo.Difference(ResourceInfo(
+                    node_status["gpu_capacity"]), ResourceInfo(node_status["gpu_allocatable"])))
+                gpu_reserved.Add(ResourceInfo.Difference(ResourceInfo(
+                    node_status["gpu_capacity"]), ResourceInfo(node_status["gpu_allocatable"])))
+
+            gpu_used.Add(ResourceInfo(node_status["gpu_used"]))
+            gpu_capacity.Add(ResourceInfo(node_status["gpu_capacity"]))
+
+        cluster_status["user_status"] = []
+        for user_name, user_gpu in user_status.items():
+            cluster_status["user_status"].append(
+                {"userName": user_name, "userGPU": user_gpu.ToSerializable()})
+
+        cluster_status["user_status_preemptable"] = []
+        for user_name, user_gpu in user_status_preemptable.items():
+            cluster_status["user_status_preemptable"].append(
+                {"userName": user_name, "userGPU": user_gpu.ToSerializable()})
+
+        logger.info("gpu_capacity %s, gpu_available %s, gpu_unschedulable %s, gpu_used %s",
+                    gpu_capacity.ToSerializable(),
+                    gpu_available.ToSerializable(),
+                    gpu_unschedulable.ToSerializable(),
+                    gpu_used.ToSerializable(),
+                    )
+
+        cluster_status["gpu_avaliable"] = gpu_available.ToSerializable()
+        cluster_status["gpu_available"] = gpu_available.ToSerializable()
+        cluster_status["gpu_capacity"] = gpu_capacity.ToSerializable()
+        cluster_status["gpu_unschedulable"] = gpu_unschedulable.ToSerializable()
+        cluster_status["gpu_used"] = gpu_used.ToSerializable()
+        cluster_status["gpu_reserved"] = gpu_reserved.ToSerializable()
+        cluster_status["node_status"] = [
+            node_status for _, node_status in node_statuses.items()]
+
+    except Exception:
+        logger.exception("Exception in getting cluster status", exc_info=True)
+
+    data_handler = None
+    try:
+        data_handler = DataHandler()
+        cluster_status["AvaliableJobNum"] = data_handler.GetActiveJobsCount()
+
+        if "cluster_status" in config and check_cluster_status_change(
+                config["cluster_status"], cluster_status):
+            logger.info("updating the cluster status...")
+            data_handler.UpdateClusterStatus(cluster_status)
+        else:
+            logger.info(
+                "nothing changed in cluster, skipping the cluster status update...")
+    except Exception:
+        logger.warning("Error in updating cluster status", exc_info=True)
+    finally:
+        if data_handler is not None:
+            data_handler.Close()
+
+    config["cluster_status"] = copy.deepcopy(cluster_status)
     return cluster_status
 
 
