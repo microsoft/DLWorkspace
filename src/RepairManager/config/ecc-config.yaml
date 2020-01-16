@@ -6,3 +6,4 @@ prometheus:
   step: 1m
   interval: 10 # minutes
   percent_threshold: 90 # percentage of data points with ecc error to be considered a bad node
+  

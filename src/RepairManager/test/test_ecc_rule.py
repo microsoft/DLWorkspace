@@ -94,16 +94,14 @@ class Testing(unittest.TestCase):
     @mock.patch('rules.ecc_rule.k8s_util.list_node')
     @mock.patch('rules.ecc_rule.requests.get')
     @mock.patch('rules.ecc_rule.ECCRule.load_ecc_config')
-    @mock.patch('rules.ecc_rule.ECCRule.load_rule_config')
-    def test_check_status_ecc_error_found(self,
-            mock_load_rule_config, 
+    def test_check_status_ecc_error_found(self, 
             mock_load_ecc_config,
             mock_request_get,
             mock_list_node,
             mock_rule_alert_handler,
             mock_get_node_address_info):
 
-        mock_load_rule_config.return_value = {}
+        rule_config = {}
 
         mock_load_ecc_config.return_value = {
             "prometheus": {
@@ -147,7 +145,7 @@ class Testing(unittest.TestCase):
             "192.168.0.2": "mock-worker-two"
         }
 
-        ecc_rule_instance = ecc_rule.ECCRule(mock_rule_alert_handler)
+        ecc_rule_instance = ecc_rule.ECCRule(mock_rule_alert_handler, rule_config)
         check_status_response = ecc_rule_instance.check_status()
 
         self.assertTrue(check_status_response)
@@ -159,14 +157,12 @@ class Testing(unittest.TestCase):
     @mock.patch('utils.rule_alert_handler.RuleAlertHandler')
     @mock.patch('rules.ecc_rule.requests.get')
     @mock.patch('rules.ecc_rule.ECCRule.load_ecc_config')
-    @mock.patch('rules.ecc_rule.ECCRule.load_rule_config')
     def test_check_status_ecc_error_not_found(self,
-            mock_load_rule_config, 
             mock_load_ecc_config,
             mock_request_get,
             mock_rule_alert_handler):
 
-        mock_load_rule_config.return_value = {}
+        rule_config = {}
 
         mock_load_ecc_config.return_value = {
             "prometheus": {
@@ -202,7 +198,7 @@ class Testing(unittest.TestCase):
         }
 
 
-        ecc_rule_instance = ecc_rule.ECCRule(mock_rule_alert_handler)
+        ecc_rule_instance = ecc_rule.ECCRule(mock_rule_alert_handler, rule_config)
         check_status_response = ecc_rule_instance.check_status()
 
         self.assertFalse(check_status_response)
@@ -214,16 +210,14 @@ class Testing(unittest.TestCase):
     @mock.patch('rules.ecc_rule.k8s_util.is_node_cordoned')
     @mock.patch('utils.rule_alert_handler.RuleAlertHandler')
     @mock.patch('rules.ecc_rule.ECCRule.load_ecc_config')
-    @mock.patch('rules.ecc_rule.ECCRule.load_rule_config')
     def test_take_action(self,
-            mock_load_rule_config,
             mock_load_ecc_config,
             mock_rule_alert_handler,
             mock_is_node_cordoned,
             mock_cordon_node,
             mock_get_job_info_from_nodes):
 
-        mock_load_rule_config.return_value = {
+        rule_config = {
             "cluster_name": "mock_cluster"
         }
 
@@ -241,7 +235,7 @@ class Testing(unittest.TestCase):
 
         mock_is_node_cordoned.return_value = False
         
-        ecc_rule_instance = ecc_rule.ECCRule(mock_rule_alert_handler)
+        ecc_rule_instance = ecc_rule.ECCRule(mock_rule_alert_handler, rule_config)
         ecc_rule_instance.ecc_node_hostnames = {"mock_worker_one", "mock_worker_two"}
 
         ecc_rule_instance.take_action()
