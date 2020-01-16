@@ -33,7 +33,7 @@ def extract_ips_from_ecc_data(ecc_data, ecc_percent_threshold, interval):
         ecc_node_ips = []
         for m in metrics:
             # percentage of data points with ecc error
-            percent_ecc = len(m['values'])/(interval+1) * 100
+            percent_ecc = len(m['values']) / (interval+1) * 100
             if percent_ecc >= ecc_percent_threshold:
                 offending_node_ip = m['metric']['instance'].split(':')[0]
                 ecc_node_ips.append(offending_node_ip)
@@ -69,17 +69,13 @@ def create_email_body(cluster_name, node_status, jobs):
 
 class ECCRule(Rule):
 
-    def __init__(self, alert):
-        self.config = self.load_rule_config()
+    def __init__(self, alert, config):
+        self.config = config
         self.ecc_config = self.load_ecc_config()
         self.ecc_node_hostnames = []
         self.node_info = {}
         self.alert = alert
 
-
-    def load_rule_config(self):
-        with open('./config/rule-config.yaml', 'r') as file:
-            return yaml.safe_load(file)
 
     def load_ecc_config(self):
         with open('./config/ecc-config.yaml', 'r') as file:

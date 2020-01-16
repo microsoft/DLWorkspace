@@ -11,10 +11,10 @@ def load_rule_config():
 class RuleAlertHandler():
 
     def __init__(self):
-        self.email_handler=email.EmailHandler()
-        self.config={}
-        self.rule_cache={}
-        self.next_reminder={}
+        self.email_handler = email.EmailHandler()
+        self.config = {}
+        self.rule_cache = {}
+        self.next_reminder = {}
 
     def _reminders_are_enabled(self, rule):
         return rule in self.config \

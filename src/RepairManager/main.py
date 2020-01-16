@@ -33,7 +33,7 @@ def Run():
                     class_name = rules_config[r_key]['class_name']
                     rule_module = importlib.import_module(module_name)
                     r_class = getattr(rule_module, class_name)
-                    rule = r_class(alert)
+                    rule = r_class(alert, config)
 
                     logger.debug(f'Executing {class_name} from module {module_name}')
 
