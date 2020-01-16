@@ -320,12 +320,13 @@ def get_node_statuses():
 
         gpu_type = ""
         scheduled_service = []
-        for label, status in labels.items():
-            if status == "active" and label not in ["all", "default"]:
-                scheduled_service.append(label)
-            if label == "gpuType":
-                scheduled_service.append(status)
-                gpu_type = status
+        if labels is not None:
+            for label, status in labels.items():
+                if status == "active" and label not in ["all", "default"]:
+                    scheduled_service.append(label)
+                if label == "gpuType":
+                    scheduled_service.append(status)
+                    gpu_type = status
 
         allocatable = node.status.allocatable
         gpu_allocatable = Gpu()
@@ -344,9 +345,10 @@ def get_node_statuses():
         addresses = node.status.addresses
         if addresses is not None:
             for addr in addresses:
-                if "type" in addr and addr["type"] == "InternalIP":
-                    address = addr.get("address", "unknown")
-                    internal_ip = address
+                # addr is of class
+                # 'kubernetes.client.models.v1_node_address.V1NodeAddress'
+                if addr.type == "InternalIP":
+                    internal_ip = addr.address
 
         unschedulable = node.spec.unschedulable
         if unschedulable is not None and unschedulable is True:
@@ -401,9 +403,10 @@ def get_pod_statuses():
         labels = pod.metadata.labels
 
         gpu_type = ""
-        for label, status in labels.items():
-            if label == "gpuType":
-                gpu_type = status
+        if labels is not None:
+            for label, status in labels.items():
+                if label == "gpuType":
+                    gpu_type = status
 
         gpus = 0
         preemptable_gpus = 0
@@ -433,10 +436,12 @@ def get_pod_statuses():
                 # container is of class
                 # 'kubernetes.client.models.v1_container.V1Container'
                 container_gpus = 0
+                # resources is of class
+                # 'kubernetes.client.models.v1_resource_requirements.V1ResourceRequirements'
                 resources = container.resources
                 requests = {}
-                if "requests" in resources:
-                    requests = resources.get("requests", {})
+                if resources.requests is not None:
+                    requests = resources.requests
 
                 if gpu_str in requests:
                     container_gpus = int(requests[gpu_str])
@@ -486,15 +491,13 @@ def get_user_status(pod_statuses):
         username = pod_status["username"]
         gpus = pod_status["gpus"]
         preemptable_gpus = pod_status["preemptable_gpus"]
-        gpu_type = pod_status["gpuType"]
         if username is not None:
             if username not in user_status:
                 user_status[username] = Gpu()
-                user_status_preemptable = Gpu()
+                user_status_preemptable[username] = Gpu()
 
-            user_status[username] += Gpu({gpu_type: gpus})
-            user_status_preemptable[username] += \
-                Gpu({gpu_type: preemptable_gpus})
+            user_status[username] += gpus
+            user_status_preemptable[username] += preemptable_gpus
 
     return user_status, user_status_preemptable
 

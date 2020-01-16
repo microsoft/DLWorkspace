@@ -181,6 +181,9 @@ class TestGpu(TestResource):
     def init_with_class(self):
         self.cls_name = Gpu
 
+    def test_empty_gpu_type(self):
+        self.assertEqual(Gpu(), Gpu({"": 1}))
+
 
 class TestCpu(TestResource):
     def init_with_class(self):
