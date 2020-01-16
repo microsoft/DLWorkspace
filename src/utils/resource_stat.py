@@ -3,11 +3,11 @@
 import copy
 
 
-class Resource(object):
+class ResourceStat(object):
     def __init__(self, res=None, unit=None):
         if res is None:
             res = {}
-        elif isinstance(res, Resource):
+        elif isinstance(res, ResourceStat):
             res = res.resource
         elif not isinstance(res, dict):
             res = {}
@@ -52,7 +52,7 @@ class Resource(object):
             if k not in res:
                 res[k] = 0
             res[k] += v
-        return Resource(res=res, unit=self.unit)
+        return ResourceStat(res=res, unit=self.unit)
 
     def __sub__(self, other):
         if self.unit != other.unit:
@@ -64,7 +64,7 @@ class Resource(object):
             if k not in res:
                 res[k] = 0
             res[k] -= v
-        return Resource(res=res, unit=self.unit)
+        return ResourceStat(res=res, unit=self.unit)
 
     def __iadd__(self, other):
         if self.unit != other.unit:
@@ -112,10 +112,10 @@ class Resource(object):
     def __prune(self):
         res = {k: v for k, v in self.resource.items() if v != 0}
         unit = self.unit
-        return Resource(res=res, unit=unit)
+        return ResourceStat(res=res, unit=unit)
 
     def __eq__(self, other):
-        if not isinstance(other, Resource):
+        if not isinstance(other, ResourceStat):
             return False
 
         r_self = self.__prune()
@@ -130,16 +130,16 @@ class Resource(object):
         return not self.__eq__(other)
 
 
-class Gpu(Resource):
+class Gpu(ResourceStat):
     def __init__(self, res=None):
-        Resource.__init__(self, res=res)
+        ResourceStat.__init__(self, res=res)
 
 
-class Cpu(Resource):
+class Cpu(ResourceStat):
     def __init__(self, res=None):
-        Resource.__init__(self, res=res)
+        ResourceStat.__init__(self, res=res)
 
 
-class Memory(Resource):
+class Memory(ResourceStat):
     def __init__(self, res=None):
-        Resource.__init__(self, res=res, unit="Ki")
+        ResourceStat.__init__(self, res=res, unit="Ki")

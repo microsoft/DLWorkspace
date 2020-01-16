@@ -24,7 +24,7 @@ from ResourceInfo import ResourceInfo
 
 import k8s_utils
 
-from resource import Gpu
+from resource_stat import Gpu
 
 k8s = k8s_utils.K8sUtil()
 

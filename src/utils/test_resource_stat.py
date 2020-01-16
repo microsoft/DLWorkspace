@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
 from unittest import TestCase
-from resource import Resource, Gpu, Cpu, Memory
+from resource_stat import ResourceStat, Gpu, Cpu, Memory
 
 
 class TestResource(TestCase):
     def init_with_class(self):
-        self.cls_name = Resource
+        self.cls_name = ResourceStat
 
     def setUp(self):
         self.init_with_class()
@@ -17,7 +17,7 @@ class TestResource(TestCase):
 
         self.neg = self.cls_name(res={"r1": -1})
         self.zero = self.cls_name()
-        self.r_with_unit = Resource(res={"r1": 1}, unit="u")
+        self.r_with_unit = ResourceStat(res={"r1": 1}, unit="u")
 
     def test_min_zero_and_prune(self):
         t1 = self.cls_name(res={"r1": 0})
@@ -166,14 +166,14 @@ class TestResource(TestCase):
         t1 = self.cls_name(res={"r1": 3, "r2": 5})
         self.assertTrue(t1 == self.a)
 
-        t2 = Resource(res={"r1": 3, "r2": 5}, unit="dummy")
+        t2 = ResourceStat(res={"r1": 3, "r2": 5}, unit="dummy")
         self.assertFalse(t2 == self.a)
 
     def test_ne(self):
         t1 = self.cls_name(res={"r1": 3, "r2": 5})
         self.assertFalse(t1 != self.a)
 
-        t2 = Resource(res={"r1": 3, "r2": 5}, unit="dummy")
+        t2 = ResourceStat(res={"r1": 3, "r2": 5}, unit="dummy")
         self.assertTrue(t2 != self.a)
 
 
