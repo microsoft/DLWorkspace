@@ -83,7 +83,7 @@ def GetServiceAddress(jobId):
     #print "output=\n" + output
     #svcs = output.split("\n\n\n")
     outputYaml = kubectl_exec("  get svc -l run={0} -o=yaml".format(jobId))
-    output = yaml.load(outputYaml)
+    output = yaml.load(outputYaml, Loader=yaml.FullLoader)
     svcs = output["items"]
 
     for svc in svcs:
@@ -144,7 +144,7 @@ def GetPod(selector):
     podInfo = {}
     try:
         output = kubectl_exec(" get pod -o yaml -l " + selector)
-        podInfo = yaml.load(output)
+        podInfo = yaml.load(output, Loader=yaml.FullLoader)
     except Exception as e:
         logger.exception("kubectl get pod")
         podInfo = None
