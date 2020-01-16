@@ -15,6 +15,22 @@ matrix:
   - language: python
     python: 3.6
     before_install:
+      - cd src/docker-images/watchdog/test
+    install:
+      - pip install paramiko pyyaml requests prometheus_client twisted
+    script:
+      - python -m unittest discover .
+  - language: python
+    python: 3.6
+    before_install:
+      - cd src/docker-images/job-exporter/test
+    install:
+      - pip install prometheus_client
+    script:
+      - python3 -m unittest discover .
+  - language: python
+    python: 3.6
+    before_install:
       - cd src/RepairManager/test
     install:
       - pip install pyyaml requests tabulate cachetools kubernetes

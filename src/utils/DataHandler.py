@@ -1,5 +1,10 @@
+#!/usr/bin/env python3
+
 from config import config
-from cache import fcache
+import logging
+
+
+logger = logging.getLogger(__file__)
 
 if "datasource" in config and config["datasource"] == "MySQL":
     from MySQLDataHandler import DataHandler
@@ -8,7 +13,7 @@ elif "datasource" in config and config["datasource"] == "MySQLPool":
 elif "datasource" in config and config["datasource"] == "MySQLDBUtilsPool":
     from MySQLDBUtilsPoolDataHandler import DataHandler
 else:
-    from SQLDataHandler import DataHandler
+    logger.error("configured database not supported")
 
 
 class DataManager:
@@ -22,7 +27,6 @@ class DataManager:
             dataHandler.Close()
         return ret
 
-
     @staticmethod
     def ListVCs():
         dataHandler = DataHandler()
@@ -33,7 +37,6 @@ class DataManager:
             dataHandler.Close()
         return ret
 
-    
     @staticmethod
     def GetResourceAcl(resourceAclPath):
         dataHandler = DataHandler()
@@ -43,7 +46,6 @@ class DataManager:
         finally:
             dataHandler.Close()
         return ret
-
 
     @staticmethod
     def GetIdentityInfo(identityName):
@@ -55,17 +57,16 @@ class DataManager:
             dataHandler.Close()
         return ret
 
-
     @staticmethod
     def GetAllPendingJobs(vcName):
         dataHandler = DataHandler()
         ret = None
         try:
-            ret = dataHandler.GetJobList("all",vcName,None, "running,queued,scheduling,unapproved,pausing,paused", ("=","or"))
+            ret = dataHandler.GetJobList(
+                "all", vcName, None, "running,queued,scheduling,unapproved,pausing,paused", ("=", "or"))
         finally:
             dataHandler.Close()
         return ret
-    
 
     @staticmethod
     def GetTemplates(scope):

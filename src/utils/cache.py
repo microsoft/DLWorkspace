@@ -1,9 +1,11 @@
+#!/usr/bin/env python3
+
 from functools import wraps
 import threading
 from datetime import datetime
 from datetime import timedelta
 import time
-import Queue
+import queue
 import copy
 import logging
 
@@ -28,7 +30,7 @@ def fcache(TTLInSec=30):
 
 class CacheManager(object):
     data = {}
-    taskQueue = Queue.Queue()
+    taskQueue = queue.Queue()
     pendingTasks = set()
 
     @staticmethod
