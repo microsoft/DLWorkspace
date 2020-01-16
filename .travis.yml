@@ -12,3 +12,11 @@ matrix:
     - npm run lint:backend
     - npm run coverage:backend
     after_success: npx nyc --nycrc-path server/.nycrc.js report --reporter=text-lcov | npx coveralls
+  - language: python
+    python: 3.6
+    before_install:
+      - cd src/RepairManager/test
+    install:
+      - pip install pyyaml requests tabulate cachetools kubernetes
+    script:
+      - python -m unittest discover .
