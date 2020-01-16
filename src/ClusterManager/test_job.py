@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import unittest
 import json
 import sys
@@ -5,9 +7,10 @@ import os
 from job import Job, JobSchema
 from job import invalid_entry, dedup_add
 
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
-from config import config
+sys.path.append(os.path.join(os.path.dirname(
+    os.path.abspath(__file__)), "../utils"))
 
+from config import config
 
 VALID_JOB_ATTRIBUTES = {
     "cluster": config,
@@ -134,7 +137,8 @@ class TestJob(unittest.TestCase):
     def test_get_hostpath(self):
         job = self.create_a_job()
         self.assertEqual("user_alias/jobs/date/job_id", job.job_path)
-        self.assertEqual("/dlwsdata/work/user_alias/jobs/date/job_id", job.get_hostpath(job.job_path))
+        self.assertEqual(
+            "/dlwsdata/work/user_alias/jobs/date/job_id", job.get_hostpath(job.job_path))
 
     def test_job_work_data_mountpoints(self):
         job = self.create_a_job()
@@ -143,14 +147,17 @@ class TestJob(unittest.TestCase):
         job.work_path = "user_alias"
         job.data_path = ""
 
-        self.assertEqual("/dlwsdata/work/user_alias/jobs/date/job_id", job.job_path_mountpoint()["hostPath"])
-        self.assertEqual("/dlwsdata/work/user_alias", job.work_path_mountpoint()["hostPath"])
-        self.assertEqual("/dlwsdata/storage/", job.data_path_mountpoint()["hostPath"])
+        self.assertEqual("/dlwsdata/work/user_alias/jobs/date/job_id",
+                         job.job_path_mountpoint()["hostPath"])
+        self.assertEqual("/dlwsdata/work/user_alias",
+                         job.work_path_mountpoint()["hostPath"])
+        self.assertEqual("/dlwsdata/storage/",
+                         job.data_path_mountpoint()["hostPath"])
 
         job.add_mountpoints(job.job_path_mountpoint())
         job.add_mountpoints(job.work_path_mountpoint())
         job.add_mountpoints(job.data_path_mountpoint())
-        self.assertEquals(3, len(job.mountpoints))
+        self.assertEqual(3, len(job.mountpoints))
 
     def test_get_template(self):
         job = self.create_a_job()
@@ -245,19 +252,19 @@ class TestJob(unittest.TestCase):
                     "containerName": "blobContainer0",
                     "mountPath": "/mnt/blobfuse/data0",
                     "enabled": True,
-                    "name": u"ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-0",
-                    "secreds": u"ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-0-secreds",
-                    "jobId": u"ce7dca49-28df-450a-a03b-51b9c2ecc69c"
+                    "name": "ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-0",
+                    "secreds": "ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-0-secreds",
+                    "jobId": "ce7dca49-28df-450a-a03b-51b9c2ecc69c"
                 },
                 {
-                    "accountName":"WVdKag==",
-                    "accountKey":"Y0dGemMzZHZjbVE9",
-                    "containerName":"blobContainer1",
-                    "mountPath":"/mnt/blobfuse/data1",
+                    "accountName": "WVdKag==",
+                    "accountKey": "Y0dGemMzZHZjbVE9",
+                    "containerName": "blobContainer1",
+                    "mountPath": "/mnt/blobfuse/data1",
                     "enabled": True,
-                    "name": u"ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-1",
-                    "secreds": u"ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-1-secreds",
-                    "jobId": u"ce7dca49-28df-450a-a03b-51b9c2ecc69c"
+                    "name": "ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-1",
+                    "secreds": "ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-1-secreds",
+                    "jobId": "ce7dca49-28df-450a-a03b-51b9c2ecc69c"
                 }
             ]
         }
@@ -282,4 +289,3 @@ class TestJobUtil(unittest.TestCase):
 
         entries2 = [{"name": "item2"}]
         self.assertEqual(entries1, dedup_add(item, entries2, identical))
-

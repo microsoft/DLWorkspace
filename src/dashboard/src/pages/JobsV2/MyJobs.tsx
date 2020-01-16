@@ -6,7 +6,6 @@ import React, {
   useMemo,
   useState
 } from 'react';
-import { useHistory } from 'react-router-dom';
 import MaterialTable, { Column, Options } from 'material-table';
 import { useSnackbar } from 'notistack';
 import useFetch from 'use-http-2';
@@ -16,12 +15,14 @@ import useActions from '../../hooks/useActions';
 import Loading from '../../components/Loading';
 
 import ClusterContext from './ClusterContext';
-import { renderStatus, renderDate, sortDate } from './tableUtils';
+import { renderId, renderGPU, sortGPU, renderStatus, renderDate, sortDate } from './tableUtils';
 import PriorityField from './PriorityField';
 
 const getSubmittedDate = (job: any) => new Date(job['jobTime']);
-const getStartedDate = (job: any) => new Date(job['jobStatusDetail'] && job['jobStatusDetail'][0]['startedAt']);
-const getFinishedDate = (job: any) => new Date(job['jobStatusDetail'] && job['jobStatusDetail'][0]['finishedAt']);
+const getStartedDate = (job: any) => new Date(
+  job['jobStatusDetail'] && job['jobStatusDetail'][0] && job['jobStatusDetail'][0]['startedAt']);
+const getFinishedDate = (job: any) => new Date(
+  job['jobStatusDetail'] && job['jobStatusDetail'][0] && job['jobStatusDetail'][0]['finishedAt']);
 
 interface JobsTableProps {
   jobs: any[];
@@ -29,14 +30,7 @@ interface JobsTableProps {
 }
 
 const JobsTable: FunctionComponent<JobsTableProps> = ({ jobs, onExpectMoreJobs }) => {
-  const history = useHistory();
   const { cluster } = useContext(ClusterContext);
-
-  const onRowClick = useCallback((event: any, job: any) => {
-    const e = encodeURIComponent;
-    const to = `/jobs-v2/${e(cluster.id)}/${e(job['jobId'])}`
-    history.push(to);
-  }, [cluster.id, history]);
   const [pageSize, setPageSize] = useState(10);
   const onChangeRowsPerPage = useCallback((pageSize: number) => {
     setPageSize(pageSize);
@@ -52,11 +46,13 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({ jobs, onExpectMoreJobs }
   ), [])
 
   const columns = useMemo<Array<Column<any>>>(() => [
-    { title: 'Id', type: 'string', field: 'jobId' },
+    { title: 'Id', type: 'string', field: 'jobId',
+      render: renderId, disableClick: true },
     { title: 'Name', type: 'string', field: 'jobName' },
     { title: 'Status', type: 'string', field: 'jobStatus', render: renderStatus },
-    { title: 'GPU', type: 'numeric', field: 'jobParams.resourcegpu' },
-    { title: 'Preempable', type: 'boolean', field: 'jobParams.preemptionAllowed'},
+    { title: 'GPU', type: 'numeric',
+      render: renderGPU, customSort: sortGPU },
+    { title: 'Preemptible', type: 'boolean', field: 'jobParams.preemptionAllowed'},
     { title: 'Priority', type: 'numeric',
       render: renderPrioirty, disableClick: true },
     { title: 'Submitted', type: 'datetime',
@@ -81,7 +77,6 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({ jobs, onExpectMoreJobs }
       data={jobs}
       options={options}
       actions={actions}
-      onRowClick={onRowClick}
       onChangeRowsPerPage={onChangeRowsPerPage}
       onChangePage={onChangePage}
     />

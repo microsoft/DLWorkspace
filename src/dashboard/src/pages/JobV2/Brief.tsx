@@ -44,7 +44,7 @@ const Brief: FunctionComponent = () => {
       />
       <CopyableTextListItem
         primary="Work Path"
-        secondary={`${cluster['dataStorage'] || ''}/${job['jobParams']['workPath']}`}
+        secondary={`${cluster['workStorage'] || ''}/${job['jobParams']['workPath']}`}
       />
       <CopyableTextListItem
         primary="Job Path"
@@ -52,7 +52,7 @@ const Brief: FunctionComponent = () => {
       />
       <ListItem>
         <ListItemText
-          primary="Preempable"
+          primary="Preemptible"
           secondary={job['jobParams']['preemptionAllowed'] ? <Check/> : <Close/>}
         />
       </ListItem>
@@ -70,7 +70,7 @@ const Brief: FunctionComponent = () => {
         job['jobParams']['jobtrainingtype'] === 'PSDistJob' && (
           <ListItem>
             <ListItemText
-              primary="Total of GPUS"
+              primary="Total of GPUs"
               secondary={job['jobParams']['numpsworker'] * job['jobParams']['resourcegpu']}
             />
           </ListItem>
