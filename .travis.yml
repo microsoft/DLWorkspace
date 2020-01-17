@@ -45,10 +45,10 @@ matrix:
   - language: python
     python: 3.6
     before_install:
-      - sudo apt-get update
-      - sudo apt-get -y install python3-pycurl
+      - pip -V
+      - python -V
       - cd src/ClusterManager
     install:
-      - pip install kubernetes
+      - pip install kubernetes pycurl
     script:
       - python -m unittest test_cluster_status.py
