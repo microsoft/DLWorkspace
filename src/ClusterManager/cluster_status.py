@@ -58,23 +58,23 @@ class ClusterStatus(object):
             A dictionary representing cluster status.
         """
         # Retrieve cluster information on nodes, pods, and users
-        self.get_node_statuses()
-        self.get_pod_statuses()
-        self.update_node_statuses()
-        self.get_user_info()
+        self.__parse_node_statuses()
+        self.__parse_pod_statuses()
+        self.__update_node_statuses()
+        self.__parse_user_info()
 
         # Compute GPU cluster status
-        self.compute_cluster_gpu_status()
+        self.__set_cluster_gpu_status()
 
         # TODO: Compute CPU cluster status
 
         # TODO: Compute memory cluster status
 
         # Compute cluster node status
-        self.compute_cluster_node_status()
+        self.__set_cluster_node_status()
 
         # Compute cluster user status
-        self.compute_cluster_user_status()
+        self.__set_cluster_user_status()
 
     def to_dict(self):
         """Returns a dictionary representing the properties of ClusterStatus"""
@@ -84,7 +84,7 @@ class ClusterStatus(object):
             if k not in self.dict_exclusion
         }
 
-    def get_job_gpu_usage(self, job_id):
+    def __job_gpu_usage(self, job_id):
         try:
             hostaddress = self.prometheus_node
 
@@ -109,12 +109,7 @@ class ClusterStatus(object):
 
         return gpu_usage
 
-    def get_node_statuses(self):
-        """Selects specific fields from Kubernetes node information.
-
-        Returns:
-            A dictionary of nodes with selected fields.
-        """
+    def __parse_node_statuses(self):
         gpu_str = "nvidia.com/gpu"
 
         self.node_statuses = {}
@@ -187,12 +182,7 @@ class ClusterStatus(object):
 
             self.node_statuses[name] = node_status
 
-    def get_pod_statuses(self):
-        """Selects specific fields from Kubernetes pods information.
-
-        Returns:
-            A dictionary of pods with selected fields.
-        """
+    def __parse_pod_statuses(self):
         gpu_str = "nvidia.com/gpu"
 
         self.pod_statuses = {}
@@ -227,7 +217,7 @@ class ClusterStatus(object):
             if username is not None:
                 pod_name += " : " + username
 
-            gpu_usage = self.get_job_gpu_usage(name)
+            gpu_usage = self.__job_gpu_usage(name)
             if gpu_usage is not None:
                 pod_name += " (gpu usage:%s%%)" % gpu_usage
                 if gpu_usage <= 25:
@@ -261,13 +251,13 @@ class ClusterStatus(object):
                 "pod_name": pod_name,
                 "node_name": node_name,
                 "username": username,
-                "gpus": Gpu({gpu_type: gpus}),
-                "preemptable_gpus": Gpu({gpu_type: preemptable_gpus}),
+                "gpus": Gpu({gpu_type: gpus}).prune(),
+                "preemptable_gpus": Gpu({gpu_type: preemptable_gpus}).prune(),
                 "gpuType": gpu_type
             }
             self.pod_statuses[name] = pod_status
 
-    def update_node_statuses(self):
+    def __update_node_statuses(self):
         for _, pod_status in self.pod_statuses.items():
             pod_name = pod_status["pod_name"]
             node_name = pod_status["node_name"]
@@ -283,7 +273,7 @@ class ClusterStatus(object):
             node_status["gpu_preemptable_used"] += pod_preemptable_gpus
             node_status["pods"].append(pod_name)
 
-    def get_user_info(self):
+    def __parse_user_info(self):
         u_info = {}
         u_info_preemptable = {}
 
@@ -301,7 +291,7 @@ class ClusterStatus(object):
         self.user_info = u_info
         self.user_info_preemptable = u_info_preemptable
 
-    def compute_cluster_gpu_status(self):
+    def __set_cluster_gpu_status(self):
         capacity = Gpu()
         used = Gpu()
         avail = Gpu()
@@ -334,7 +324,7 @@ class ClusterStatus(object):
         self.gpu_unschedulable = unschedulable.resource
         self.gpu_reserved = reserved.resource
 
-    def compute_cluster_node_status(self):
+    def __set_cluster_node_status(self):
         for _, node_status in self.node_statuses.items():
             gpu_capacity = node_status["gpu_capacity"].resource
             gpu_used = node_status["gpu_used"].resource
@@ -350,7 +340,7 @@ class ClusterStatus(object):
             node_status for _, node_status in self.node_statuses.items()
         ]
 
-    def compute_cluster_user_status(self):
+    def __set_cluster_user_status(self):
         self.user_status = [
             {
                 "userName": username,
