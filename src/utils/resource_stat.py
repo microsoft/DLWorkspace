@@ -132,19 +132,6 @@ class ResourceStat(object):
 
 class Gpu(ResourceStat):
     def __init__(self, res=None):
-        if res is None:
-            res = {}
-        elif isinstance(res, Gpu):
-            res = res.resource
-        elif not isinstance(res, dict):
-            res = {}
-
-        # Disallow empty string for gpu type
-        res_keys = list(res.keys())
-        for k in res_keys:
-            if k == "":
-                res.pop(k)
-
         ResourceStat.__init__(self, res=res)
 
 
