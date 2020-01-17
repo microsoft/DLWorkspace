@@ -41,6 +41,18 @@ vc_cache = TTLCache(maxsize=10240, ttl=DEFAULT_EXPIRATION)
 vc_cache_lock = Lock()
 
 
+def walk_json_field_safe(obj, *fields):
+    """ for example a=[{"a": {"b": 2}}]
+    walk_json_field_safe(a, 0, "a", "b") will get 2
+    walk_json_field_safe(a, 0, "not_exist") will get None
+    """
+    try:
+        for f in fields:
+            obj = obj[f]
+        return obj
+    except:
+        return None
+
 def base64encode(str_val):
     return base64.b64encode(str_val.encode("utf-8")).decode("utf-8")
 
@@ -807,7 +819,11 @@ def GetEndpoints(userName, jobId):
                                 endpoint["endpointDescription"]["spec"]["ports"][0]["port"])
                         else:
                             port = int(
-                                endpoint["endpointDescription"]["spec"]["ports"][0]["nodePort"])
+                                walk_json_field_safe(endpoint,
+                                    "endpointDescription", "spec", "ports", 0, "nodePort") or \
+                                walk_json_field_safe(endpoint,
+                                    "endpointDescription", "spec", "ports", 0, "node_port")
+                                            )
                         epItem["port"] = port
                         if "nodeName" in endpoint:
                             epItem["nodeName"] = endpoint["nodeName"]

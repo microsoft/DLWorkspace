@@ -14,6 +14,7 @@ import signal
 import timeit
 import functools
 import subprocess
+import faulthandler
 
 from prometheus_client.twisted import MetricsResource
 from prometheus_client import Histogram
@@ -82,24 +83,8 @@ def create_log(logdir="/var/log/dlworkspace"):
     logging.config.dictConfig(logging_config)
 
 
-def dumpstacks(signal, frame):
-    id2name = dict([(th.ident, th.name) for th in threading.enumerate()])
-    code = []
-    for threadId, stack in list(sys._current_frames().items()):
-        code.append("\n# Thread: %s(%d)" %
-                    (id2name.get(threadId, ""), threadId))
-        for filename, lineno, name, line in traceback.extract_stack(stack):
-            code.append('File: "%s", line %d, in %s' %
-                        (filename, lineno, name))
-            if line:
-                code.append("  %s" % (line.strip()))
-    print("\n".join(code))
-    sys.stdout.flush()
-    sys.stderr.flush()
-
-
 def register_stack_trace_dump():
-    signal.signal(signal.SIGTRAP, dumpstacks)
+    faulthandler.register(signal.SIGTRAP, all_threads=True, chain=False)
 
 
 def update_file_modification_time(path):
