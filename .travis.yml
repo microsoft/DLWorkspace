@@ -49,6 +49,6 @@ matrix:
       - python -V
       - cd src/ClusterManager
     install:
-      - pip install kubernetes pycurl
+      - pip install requests kubernetes
     script:
       - python -m unittest test_cluster_status.py
