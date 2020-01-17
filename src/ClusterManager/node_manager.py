@@ -314,10 +314,15 @@ def get_cluster_status():
     except Exception:
         logger.exception("Error in computing cluster status", exc_info=True)
 
+    # TODO: Deprecate typo "gpu_avaliable" in legacy code
+    cluster_status["gpu_avaliable"] = cluster_status["gpu_available"]
+
     data_handler = None
     try:
         data_handler = DataHandler()
+        # TODO: Deprecate typo "AvaliableJobNum" in legacy code
         cluster_status["AvaliableJobNum"] = data_handler.GetActiveJobsCount()
+        cluster_status["available_job_num"] = cluster_status["AvaliableJobNum"]
 
         if "cluster_status" in config and check_cluster_status_change(
                 config["cluster_status"], cluster_status):
