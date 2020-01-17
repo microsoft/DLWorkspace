@@ -27,6 +27,7 @@ tar -cvf cloudinit.tar cloudinit
 ./cloud_init_deploy.py -cnf config.yaml -cnf az_complementary.yaml docker push init-container
 ./cloud_init_deploy.py -cnf config.yaml -cnf az_complementary.yaml docker push repairmanager
 ./cloud_init_aztools.py -cnf config.yaml -cnf az_complementary.yaml -o scripts/add_machines.sh addmachines
+# # # deploy
 ./scripts/deploy_framework.sh
 ./scripts/add_machines.sh
 ./cloud_init_aztools.py -cnf config.yaml -cnf az_complementary.yaml interconnect
