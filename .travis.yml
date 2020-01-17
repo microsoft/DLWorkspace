@@ -36,3 +36,17 @@ matrix:
       - pip install pyyaml requests tabulate cachetools kubernetes
     script:
       - python -m unittest discover .
+  - language: python
+    python: 3.6
+    before_install:
+      - cd src/utils
+    script:
+      - python -m unittest discover .
+  - language: python
+    python: 3.6
+    before_install:
+      - cd src/ClusterManager
+    install:
+      - pip install pycurl kubernetes
+    script:
+      - python -m unittest test_cluster_status.py
