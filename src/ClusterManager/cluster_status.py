@@ -30,13 +30,15 @@ class ClusterStatus(object):
         self.pod_statuses = None
         self.user_info = None
         self.user_info_preemptable = None
-
         self.dict_exclusion = [
             "prometheus_node",
             "nodes",
             "pods",
+            "node_statuses",
+            "pod_statuses",
             "user_info",
-            "user_info_preemptable"
+            "user_info_preemptable",
+            "dict_exclusion"
         ]
 
         self.gpu_capacity = None
@@ -102,7 +104,7 @@ class ClusterStatus(object):
             gpu_usage = int(float(json.loads(response)["data"]["result"][0]["value"][1]))
 
         except Exception:
-            logger.exception("Failed to get gpu usage for job id %s", job_id)
+            logger.debug("Failed to get gpu usage for job id %s", job_id)
             gpu_usage = None
 
         return gpu_usage
@@ -185,8 +187,6 @@ class ClusterStatus(object):
 
             self.node_statuses[name] = node_status
 
-        return self.node_statuses
-
     def get_pod_statuses(self):
         """Selects specific fields from Kubernetes pods information.
 
@@ -267,8 +267,6 @@ class ClusterStatus(object):
             }
             self.pod_statuses[name] = pod_status
 
-        return self.pod_statuses
-
     def update_node_statuses(self):
         for _, pod_status in self.pod_statuses.items():
             pod_name = pod_status["pod_name"]
@@ -348,7 +346,9 @@ class ClusterStatus(object):
             node_status["gpu_preemptable_used"] = gpu_preemptable_used
             node_status["gpu_allocatable"] = gpu_allocatable
 
-        return [node_status for _, node_status in self.node_statuses.items()]
+        self.node_status = [
+            node_status for _, node_status in self.node_statuses.items()
+        ]
 
     def compute_cluster_user_status(self):
         self.user_status = [

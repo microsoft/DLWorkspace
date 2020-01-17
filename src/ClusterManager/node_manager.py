@@ -309,6 +309,7 @@ def get_cluster_status():
         nodes = k8s.get_all_nodes()
         pods = k8s.get_all_pods()
         cs = ClusterStatus(config, nodes, pods)
+        cs.compute()
         cluster_status = cs.to_dict()
     except Exception:
         logger.exception("Error in computing cluster status", exc_info=True)
