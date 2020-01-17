@@ -4,7 +4,7 @@ from unittest import TestCase
 from resource_stat import ResourceStat, Gpu, Cpu, Memory
 
 
-class TestResourceStat(TestCase):
+class TestResource(TestCase):
     def init_with_class(self):
         self.cls_name = ResourceStat
 
@@ -177,16 +177,19 @@ class TestResourceStat(TestCase):
         self.assertTrue(t2 != self.a)
 
 
-class TestGpu(TestResourceStat):
+class TestGpu(TestResource):
     def init_with_class(self):
         self.cls_name = Gpu
 
+    def test_empty_gpu_type(self):
+        self.assertEqual(Gpu(), Gpu({"": 1}))
 
-class TestCpu(TestResourceStat):
+
+class TestCpu(TestResource):
     def init_with_class(self):
         self.cls_name = Cpu
 
 
-class TestMemory(TestResourceStat):
+class TestMemory(TestResource):
     def init_with_class(self):
         self.cls_name = Memory
