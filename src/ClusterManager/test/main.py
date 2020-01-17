@@ -1,23 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import urllib.parse
-import json
 import argparse
 import logging
 import time
-
-import requests
 
 import utils
 
 logger = logging.getLogger(__file__)
 
+
 def test_regular_job_running(args):
     expected = "wantThisInLog"
     cmd = "echo %s ; sleep 1800" % (expected)
 
-    with utils.run_job(args.rest, "regular", args.email, args.uid, args.vc, cmd) as job:
+    image = "indexserveregistry.azurecr.io/deepscale:1.0.post0"
+    with utils.run_job(args.rest, "regular", args.email, args.uid, args.vc, image, cmd) as job:
         utils.block_until_running(args.rest, job.jid)
 
         for _ in range(10):
@@ -27,11 +25,13 @@ def test_regular_job_running(args):
                 time.sleep(0.5)
         assert expected in log["log"]
 
+
 def test_distributed_job_running(args):
     expected = "wantThisInLog"
     cmd = "echo %s ; sleep 1800" % (expected)
 
-    with utils.run_job(args.rest, "distributed", args.email, args.uid, args.vc, cmd) as job:
+    image = "indexserveregistry.azurecr.io/deepscale:1.0.post0"
+    with utils.run_job(args.rest, "distributed", args.email, args.uid, args.vc, image, cmd) as job:
         utils.block_until_running(args.rest, job.jid)
 
         for _ in range(10):
@@ -42,9 +42,35 @@ def test_distributed_job_running(args):
         time.sleep(100)
         assert expected in log["log"]
 
+
+def test_data_job_running(args):
+    expected_status = "finished'"
+    expected_word = "wantThisInLog"
+    cmd = "mkdir -p /tmp/dlts_test_dir; " \
+          "echo %s > /tmp/dlts_test_dir/testfile; " \
+          "cd /DataUtils; " \
+          "./copy_data.sh /tmp/dlts_test_dir adl://indexserveplatform-experiment-c09.azuredatalakestore.net/local/dlts_test_dir True 4194304 4 2; " \
+          "./copy_data.sh adl://indexserveplatform-experiment-c09.azuredatalakestore.net/local/dlts_test_dir /tmp/dlts_test_dir_copyback False 33554432 4 2; " \
+          "cat /tmp/dlts_test_dir_copyback/testfile; " \
+          "sleep 10" % expected_word
+
+    image = "indexserveregistry.azurecr.io/dlts-data-transfer-image:latest"
+    with utils.run_job(args.rest, "data", args.email, args.uid, args.vc, image, cmd) as job:
+        utils.block_until_running(args.rest, job.jid)
+        utils.block_until_finished(args.rest, job.jid)
+
+        final_status = utils.get_job_status(args.rest, job.jid)["jobStatus"]
+        assert expected_status == final_status
+
+        log = utils.get_job_log(args.rest, args.email, job.jid)
+        assert expected_word in log["log"]
+
+
 def main(args):
     test_regular_job_running(args)
     test_distributed_job_running(args)
+    test_data_job_running(args)
+
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
