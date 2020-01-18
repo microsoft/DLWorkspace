@@ -12,7 +12,7 @@ logger = logging.getLogger(__file__)
 
 def test_regular_job_running(args):
     expected = "wantThisInLog"
-    cmd = "echo %s ; sleep 1800" % (expected)
+    cmd = "echo %s ; sleep 1800" % expected
 
     image = "indexserveregistry.azurecr.io/deepscale:1.0.post0"
     with utils.run_job(args.rest, "regular", args.email, args.uid, args.vc, image, cmd) as job:
@@ -28,7 +28,7 @@ def test_regular_job_running(args):
 
 def test_distributed_job_running(args):
     expected = "wantThisInLog"
-    cmd = "echo %s ; sleep 1800" % (expected)
+    cmd = "echo %s ; sleep 1800" % expected
 
     image = "indexserveregistry.azurecr.io/deepscale:1.0.post0"
     with utils.run_job(args.rest, "distributed", args.email, args.uid, args.vc, image, cmd) as job:
@@ -39,12 +39,11 @@ def test_distributed_job_running(args):
 
             if expected not in log["log"]:
                 time.sleep(0.5)
-        time.sleep(100)
         assert expected in log["log"]
 
 
 def test_data_job_running(args):
-    expected_status = "finished'"
+    expected_state = "finished"
     expected_word = "wantThisInLog"
     cmd = "mkdir -p /tmp/dlts_test_dir; " \
           "echo %s > /tmp/dlts_test_dir/testfile; " \
@@ -57,10 +56,8 @@ def test_data_job_running(args):
     image = "indexserveregistry.azurecr.io/dlts-data-transfer-image:latest"
     with utils.run_job(args.rest, "data", args.email, args.uid, args.vc, image, cmd) as job:
         utils.block_until_running(args.rest, job.jid)
-        utils.block_until_finished(args.rest, job.jid)
-
-        final_status = utils.get_job_status(args.rest, job.jid)["jobStatus"]
-        assert expected_status == final_status
+        final_state = utils.block_until_finished(args.rest, job.jid)
+        assert expected_state == final_state
 
         log = utils.get_job_log(args.rest, args.email, job.jid)
         assert expected_word in log["log"]

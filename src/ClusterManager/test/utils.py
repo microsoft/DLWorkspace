@@ -34,13 +34,13 @@ def post_regular_job(rest_url, email, uid, vc, image, cmd):
         "env": [],
         "hostNetwork": False,
         "isPrivileged": False,
-        "resourcegpu": 0,
+        "resourcegpu": 1,
         "cpulimit": 1,
     }
     url = urllib.parse.urljoin(rest_url, "/PostJob")
     resp = requests.post(url, data=json.dumps(args)) # do not handle exception here
     jid = resp.json()["jobId"]
-    logger.info("job %s created", jid)
+    logger.info("regular job %s created", jid)
     return jid
 
 
@@ -67,13 +67,13 @@ def post_distributed_job(rest_url, email, uid, vc, image, cmd):
         "hostNetwork": True,
         "isPrivileged": True,
         "numps": 1,
-        "resourcegpu": 0,
+        "resourcegpu": 4,
         "numpsworker": 1
     }
     url = urllib.parse.urljoin(rest_url, "/PostJob")
     resp = requests.post(url, data=json.dumps(args)) # do not handle exception here
     jid = resp.json()["jobId"]
-    logger.info("job %s created", jid)
+    logger.info("distributed job %s created", jid)
     return jid
 
 
@@ -84,7 +84,7 @@ def post_data_job(rest_url, email, uid, vc, image, cmd):
         "jobType": "training",
         "vcName": vc,
         "containerUserId": 0,
-        "jobName": "DeepScale1.0-Regular",
+        "jobName": "DLTS-Data-Job",
         "jobtrainingtype": "RegularJob",
         "preemptionAllowed": "False",
         "image": image,
@@ -104,7 +104,7 @@ def post_data_job(rest_url, email, uid, vc, image, cmd):
     url = urllib.parse.urljoin(rest_url, "/PostJob")
     resp = requests.post(url, data=json.dumps(args)) # do not handle exception here
     jid = resp.json()["jobId"]
-    logger.info("job %s created", jid)
+    logger.info("data job %s created", jid)
     return jid
 
 
@@ -154,18 +154,18 @@ class run_job(object):
         elif self.job_type == "distributed":
             self.jid = post_distributed_job(self.rest_url, self.email, self.uid, self.vc, self.image, self.cmd)
         elif self.job_type == "data":
-            self.jid = post_data_job(self.rest_url, self.email, self.vc, self.image, self.cmd)
+            self.jid = post_data_job(self.rest_url, self.email, self.uid, self.vc, self.image, self.cmd)
         return self
 
     def __exit__(self, type, value, traceback):
         try:
             resp = kill_job(self.rest_url, self.email, self.jid)
-            logger.info("killed job %s", self.jid)
+            logger.info("killed %s job %s", self.job_type, self.jid)
         except Exception:
-            logger.exception("failed to kill job %s", self.jid)
+            logger.exception("failed to kill %s job %s", self.job_type, self.jid)
 
 
-def block_until_running(rest_url, jid, timeout=60):
+def block_until_running(rest_url, jid, timeout=300):
     start = datetime.datetime.now()
     delta = datetime.timedelta(seconds=timeout)
     waiting_state = {"unapproved", "queued", "scheduling"}
@@ -186,7 +186,7 @@ def block_until_running(rest_url, jid, timeout=60):
             raise RuntimeError("Got unexpected job status %s for job %s" % (status, jid))
 
 
-def block_until_finished(rest_url, jid, timeout=60):
+def block_until_finished(rest_url, jid, timeout=300):
     start = datetime.datetime.now()
     delta = datetime.timedelta(seconds=timeout)
     final_state = {"finished", "killed", "failed", "error"}
@@ -202,6 +202,7 @@ def block_until_finished(rest_url, jid, timeout=60):
                 raise RuntimeError("Job is running for more than %d seconds" % timeout)
         elif status in final_state:
             logger.info("spent %s in running, finishes with state %s", datetime.datetime.now() - start, status)
+            return status
         else:
             raise RuntimeError("Got unexpected job status %s for job %s" % (status, jid))
 
