@@ -25,10 +25,8 @@ az login
 az account set --subscription "${SUBSCRIPTION_NAME}" 
 az account list | grep -A5 -B5 '"isDefault": true'
 ```
-Configure your location, should be the same as you specified in config.yaml file:
-```AZ_LOCATION="<your location>"```
-Execute this command, log out(exit) and log in back
-```sudo usermod -aG docker zhe_ms```
+Execute this command, log out (exit) and log in back
+```sudo usermod -aG docker <your username>```
 
 After these steps, there are two pipelines that could be used to deploy a cluster: phase-focused pipeline (v1) and cloud-init based pipeline(v2). v1 combines template rendering/file copying/remote command execution together, and a step usually focuses on one role-wise/functionality-wise phase, such as deploying master node, start a certain service etc., while v2 utilizes az cloud-init feature and explicitly seperates template rendering and command execution etc.
 

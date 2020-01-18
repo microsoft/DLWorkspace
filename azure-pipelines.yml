@@ -20,17 +20,17 @@ steps:
 
 - script: |
     cd src/ClusterBootstrap/scripts
-    CONFIG_TYPE="${CONFIG_TYPE:-cpu}"
+    CONFIG_TYPE="${CONFIG_TYPE:-cloudinit}"
     echo $CONFIG_TYPE
     ./set_config.sh $CONFIG_TYPE
     cd ..
-    ./step_by_step.sh azure
+    ./v2deploy.sh
   displayName: 'Deploy DLWorkspace'
 
 - script: |
     cd src/ClusterBootstrap/
     USER=$(grep -B3 admin_username cluster.yaml | awk '{print $2}')
-    CONFIG_TYPE="${CONFIG_TYPE:-cpu}"
+    CONFIG_TYPE="${CONFIG_TYPE:-cloudinit}"
     WAITMIN="${WAITMIN:-5}"
     POLLSEC="${POLLSEC:-30}"
     echo $CONFIG_TYPE $WAITMIN $POLLSEC

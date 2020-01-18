@@ -35,6 +35,51 @@ def run_kubectl(config, args, commands):
     os.system(kube_command)
 
 
+def run_script(node, args, sudo=False, supressWarning=False):
+    if ".py" in args[0]:
+        if sudo:
+            fullcmd = "sudo /opt/bin/python"
+        else:
+            fullcmd = "/opt/bin/python"
+    else:
+        if sudo:
+            fullcmd = "sudo bash"
+        else:
+            fullcmd = "bash"
+    nargs = len(args)
+    for i in range(nargs):
+        if i == 0:
+            fullcmd += " " + os.path.basename(args[i])
+        else:
+            fullcmd += " " + args[i]
+    srcdir = os.path.dirname(args[0])
+    utils.SSH_exec_cmd_with_directory(
+        config["ssh_cert"], config["admin_username"], node, srcdir, fullcmd, supressWarning)
+
+
+def run_script_wrapper(arg_tuple):
+    node, args, sudo, supressWarning = arg_tuple
+    run_script(node, args, sudo, supressWarning)
+
+
+def run_script_on_all_in_parallel(nodes, args, sudo=False, supressWarning=False):
+    args_list = [(node, args, sudo, supressWarning) for node in nodes]
+    from multiprocessing import Pool
+    pool = Pool(processes=len(nodes))
+    pool.map(run_script_wrapper, args_list)
+    pool.close()
+
+
+def runonroles(config, args):
+    invalid_roles = set(config['allroles']) - set(args.roles)
+    if invalid_roles:
+        print("Warning: invalid roles detected: " + ",".join(list(invalid_roles)))
+    nodes, _ = load_node_list_by_role_from_config(config, list(set(args.roles) & set(config['allroles'])))
+    pssh_cmd = 'parallel-ssh {} -t 0 -p {} -H {} -x "-oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i deploy/sshkey/id_rsa" -l core {}'.format(
+        log_option, len(nodes), ' '.join(nodes), args.nargs[0])
+    os.system(pssh_cmd)
+
+
 def run_command(args, command):
     config = init_config(default_config_parameters)
     config = add_configs_in_order(args.config, config)
@@ -43,7 +88,10 @@ def run_command(args, command):
         connect_to_machine(config, args)
     if command == "kubectl":
         run_kubectl(config, args, args.nargs[0:])
-
+    if command == "runonroles":
+        pass
+    if command == "copy2roles":
+        pass
 
 if __name__ == '__main__':
     # the program always run at the current directory.
@@ -68,6 +116,9 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--out', help='File to dump to as output')
     parser.add_argument("-v", "--verbose",
                         help="verbose print", action="store_true")
+    parser.add_argument('-r', '--roles', action='append', default=[], help='Specify the roles of machines that you want to copy file \
+        to or execute command on')
+    parser.add_argument("-s", "--sudo", action="store_true", help='Execute scripts in sudo')
     parser.add_argument("command",
                         help="See above for the list of valid command")
     parser.add_argument('nargs', nargs=argparse.REMAINDER,

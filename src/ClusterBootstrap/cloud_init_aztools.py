@@ -241,6 +241,7 @@ def render_infra_and_nfs(complementary_file_name, config):
                 vmname_pref = spec["prefix"] if "prefix" in spec else "{}-{}".format(
                     config["cluster_name"], spec["role"][0])
                 vmname = vmname_pref + '-' + random_str(6)
+            vmname = vmname.lower()
             cc["machines"][vmname] = {'role': spec["role"]}
             for k, v in spec.items():
                 if k == "num":
@@ -264,13 +265,13 @@ def render_infra_and_nfs(complementary_file_name, config):
     return cc
 
 
-def add_machines(config, args):
-    os.system('rm -f ' + args.output)
+def add_machines(config, args, outputfile):
+    os.system('rm -f ' + outputfile)
     for vmname, spec in config["machines"].items():
-        updated_spec = add_machine(vmname, spec, args.verbose, args.output)
+        updated_spec = add_machine(vmname, spec, args.verbose, outputfile)
         config["machines"][vmname] = updated_spec
-    if os.path.exists(args.output):
-        os.system('chmod +x ' + args.output)
+    if os.path.exists(outputfile):
+        os.system('chmod +x ' + outputfile)
 
 
 def is_independent_nfs(role):
@@ -305,8 +306,13 @@ def add_machine(vmname, spec, verbose, output_file):
             config["azure_cluster"]["availability_set"])
 
     cloud_init = ""
+    cldinit_appendix = "cloud_init_{}.txt".format(vmname)
+    if "infra" in spec["role"]:
+        cldinit_appendix = "cloud_init_infra.txt"
+    elif "worker" in spec["role"]:
+        cldinit_appendix = "cloud_init_worker.txt"
     cloud_init_file = spec.get(
-        "cloud_init_file", 'deploy/cloud-config/cloud_init_{}.txt'.format(vmname))
+        "cloud_init_file", 'deploy/cloud-config/{}'.format(cldinit_appendix))
     if os.path.exists(cloud_init_file):
         cloud_init = "--custom-data {}".format(cloud_init_file)
 
@@ -474,14 +480,15 @@ def run_command(command, config, args, nargs):
         render_infra_and_nfs(args.output, config)
     config = update_config_resgrp(config)
     if command == "deploy":
-        # config = update_config_resgrp(config)
+        deploy_cluster(config, args.verbose, "scripts/deploy_framework.sh")
+        config = load_sshkey(config)
+        add_machines(config, args, "scripts/add_machines.sh")
+    if command == "deployframework":
         deploy_cluster(config, args.verbose, args.output)
     if command == "addmachines":
-        # config = update_config_resgrp(config)
         config = load_sshkey(config)
-        add_machines(config, args)
+        add_machines(config, args, args.output)
     if command == "interconnect":
-        # config = update_config_resgrp(config)
         vm_interconnects(config, args.verbose, args.output)
     if command == "listcluster":
         get_deployed_cluster_info(config, args)

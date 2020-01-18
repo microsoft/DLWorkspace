@@ -287,7 +287,7 @@ def create_cluster_id(overwrite=False):
         return clusterId["clusterId"]
     else:
         with open('./deploy/clusterID.yml', 'r') as f:
-            ID = yaml.load(f)['clusterId']
+            ID = yaml.safe_load(f)['clusterId']
         print('Cluster ID file exists -- ./deploy/clusterID.yml:\n{}'.format(ID))
         return ID
 
@@ -296,7 +296,7 @@ def load_cluster_ID():
     if (not os.path.exists('./deploy/clusterID.yml')):
         return None
     with open('./deploy/clusterID.yml', 'r') as f:
-        ID = yaml.load(f).get('clusterId', None)
+        ID = yaml.safe_load(f).get('clusterId', None)
         return ID
 
 
@@ -503,16 +503,16 @@ def render_infra_node_specific(config, args):
         for fs in mnt_itm["fileshares"]:
             config["mount_and_link"] += fs["to_mnt"],
 
-    for kubernetes_master in config["kubernetes_master_node"]:
-        hostname = kubernetes_master.split(".")[0]
-        config["master_ip"] = config["machines"][hostname].get(
-            "private-ip", "127.0.0.1")
-        config["kube_services"] = get_services_path_list(
-            config["machines"][hostname].get("kube_services", []))
-        config["kube_label_groups"] = config["machines"][hostname].get(
-            "kube_label_groups", [])
-        utils.render_template("./template/cloud-config/cloud_init_infra.txt.template",
-                              "./deploy/cloud-config/cloud_init_{}.txt".format(hostname), config)
+    # for kubernetes_master in config["kubernetes_master_node"]:
+    hostname = config["kubernetes_master_node"][0].split(".")[0]
+    config["master_ip"] = config["machines"][hostname].get(
+        "private-ip", "127.0.0.1")
+    config["kube_services"] = get_services_path_list(
+        config["machines"][hostname].get("kube_services", []))
+    config["kube_label_groups"] = config["machines"][hostname].get(
+        "kube_label_groups", [])
+    utils.render_template("./template/cloud-config/cloud_init_infra.txt.template",
+                          "./deploy/cloud-config/cloud_init_infra.txt", config)
 
 
 def render_worker_node_specific(config, args):
@@ -528,13 +528,12 @@ def render_worker_node_specific(config, args):
         for fs in mnt_itm["fileshares"]:
             config["mount_and_link"] += fs["to_mnt"],
 
-    for worker in config["worker_node"]:
-        hostname = worker.split(".")[0]
-        config["kube_label_groups"] = config["machines"][hostname].get(
-            "kube_label_groups", [])
-        config["gpu_type"] = config["machines"][hostname]["gpu_type"]
-        utils.render_template("./template/cloud-config/cloud_init_worker.txt.template",
-                              "./deploy/cloud-config/cloud_init_{}.txt".format(worker.split(".")[0]), config)
+    hostname = config["worker_node"][0].split(".")[0]
+    config["kube_label_groups"] = config["machines"][hostname].get(
+        "kube_label_groups", [])
+    config["gpu_type"] = config["machines"][hostname]["gpu_type"]
+    utils.render_template("./template/cloud-config/cloud_init_worker.txt.template",
+                          "./deploy/cloud-config/cloud_init_worker.txt", config)
 
 
 def render_nfs_node_specific(config, args):
@@ -760,9 +759,18 @@ def gen_dns_config_script(config):
     os.system('chmod 755 scripts/dns.sh')
 
 
-def pack_cloudinit_role(config, args, role):
+def pack_cloudinit_roles(config, args):
+    gen_tar = "tar -cvf cloudinit.tar cloudinit" if not args.nargs else ""
+    roles = args.nargs if args.nargs else ["common", "infra", "worker", "nfs"]
+    for role in roles:
+        pack_cloudinit_role(config, role)
+    if gen_tar:
+        os.system(gen_tar)
+
+
+
+def pack_cloudinit_role(config, role):
     os.system('mkdir -p cloudinit/{}'.format(role))
-    role = args.nargs[0]
     if role in ["infra", "worker"]:
         with open("./deploy/cloud-config/{}.upgrade.list".format(role), "r") as f:
             deploy_files = [s.split(",")
@@ -871,7 +879,7 @@ def get_all_services():
 def get_service_name(service_config_file):
     try:
         with open(service_config_file) as f:
-            service_config = yaml.load(f)
+            service_config = yaml.safe_load(f)
         name = fetch_dictionary(service_config, ["metadata", "name"])
         if not name is None:
             return name
@@ -959,6 +967,13 @@ def run_command(args, command, parser):
     if command == "dumpconfig":
         with open("todeploy.yaml", "w") as wf:
             yaml.dump(config, wf)
+    if command == "render":
+        render_mount(config, args)
+        render_nfs_node_specific(config, args)
+        render_for_infra_generic(config, args)
+        render_for_worker_generic(config, args)
+        render_infra_node_specific(config, args)
+        render_worker_node_specific(config, args)
     if command == "rendergeneric":
         if args.nargs[0] == 'infra':
             render_for_infra_generic(config, args)
@@ -973,8 +988,8 @@ def run_command(args, command, parser):
             render_worker_node_specific(config, args)
         if args.nargs[0] == 'nfs':
             render_nfs_node_specific(config, args)
-    if command == "packcloud":
-        pack_cloudinit_role(config, args, args.nargs[0])
+    if command == "pack":
+        pack_cloudinit_roles(config, args)
     if command == "docker":
         nargs = args.nargs
         if len(nargs) >= 1:

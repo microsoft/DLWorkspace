@@ -327,10 +327,11 @@ def exec_cmd_local(execmd, supressWarning=False):
         print(execmd)
     try:
         output = subprocess.check_output(execmd, shell=True)
+        if sys.version_info >= (3, 0):
+            output = output.decode()
     except subprocess.CalledProcessError as e:
         output = "Return code: " + \
             str(e.returncode) + ", output: " + e.output.strip()
-    # print output
     return output
 
 
@@ -425,7 +426,7 @@ def get_cluster_ID_from_file():
     clusterID = None
     if os.path.exists("./deploy/clusterID.yml"):
         f = open("./deploy/clusterID.yml")
-        tmp = yaml.load(f)
+        tmp = yaml.safe_load(f)
         f.close()
         if "clusterId" in tmp:
             clusterID = tmp["clusterId"]
