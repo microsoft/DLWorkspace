@@ -11,14 +11,15 @@ First require the manager to add you into a subscription group., then either
 then use the devbox to deploy node on cloud.
 
 Workflow:
-1. Please [configure](configure.md) your azure cluster. Put config.yaml under src/ClusterBootstrap
 
-2. Change directory to src/ClusterBootstrap on devbox, and install prerequisite packages:
+First we need to setup the devbox that we use to operate on.
+
+1. Change directory to src/ClusterBootstrap on devbox, and install prerequisite packages:
 ```
 cd src/ClusterBootstrap/ 
 sudo ./install_prerequisites.sh
 ```
-3. Login to Azure, setup proper subscription and confirm
+2. Login to Azure, setup proper subscription and confirm
 ```
 SUBSCRIPTION_NAME="<subscription name>" 
 az login
@@ -31,6 +32,8 @@ Execute this command, log out (exit) and log in back
 After these steps, there are two pipelines that could be used to deploy a cluster: phase-focused pipeline (v1) and cloud-init based pipeline(v2). v1 combines template rendering/file copying/remote command execution together, and a step usually focuses on one role-wise/functionality-wise phase, such as deploying master node, start a certain service etc., while v2 utilizes az cloud-init feature and explicitly seperates template rendering and command execution etc.
 
 no matter which pipeline do you use, make sure you are at src/ClusterBootstrap/
+
+Please [configure](configure.md) your azure cluster. Put config.yaml under src/ClusterBootstrap
 
 #phase-focused pipeline#
 

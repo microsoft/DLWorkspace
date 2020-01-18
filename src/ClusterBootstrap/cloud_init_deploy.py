@@ -17,10 +17,6 @@ from DockerUtils import push_one_docker, build_dockers, push_dockers, run_docker
 from ConfigUtils import *
 
 
-from params import default_config_parameters
-from ConfigUtils import *
-from DockerUtils import push_one_docker, build_dockers, push_dockers, run_docker, find_dockers, build_docker_fullname, copy_from_docker_image, configuration
-
 def generate_ip_from_cluster(cluster_ip_range, index):
     slash_pos = cluster_ip_range.find("/")
     ips = cluster_ip_range if slash_pos < 0 else cluster_ip_range[:slash_pos]
@@ -168,7 +164,7 @@ def get_nodes_from_config(machinerole, config):
     else:
         domain = get_domain(config)
         Nodes = []
-        for nodename, nodeInfo in list(config["machines"].items()):
+        for nodename, nodeInfo in config["machines"].items():
             if "role" in nodeInfo and machinerole in nodeInfo["role"]:
                 if len(nodename.split(".")) < 3:
                     Nodes.append(nodename+domain)
@@ -572,7 +568,7 @@ def check_buildable_images(image_list, config):
     for imagename in image_list:
         imagename = imagename.lower()
         if imagename in config["build-docker-via-config"]:
-            print("Docker image %s should be built via configuration. " % imagename)
+            print("Docker image {} should be built via configuration. ".format(imagename))
             exit()
 
 
@@ -595,6 +591,22 @@ def push_docker_images(args, config):
     render_docker_images(config, args.verbose)
     push_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"],
                  args.nargs[1:], config, args.verbose, nocache=args.nocache)
+
+
+def docker_required_by_services(config):
+    dockers2push = ["cloudinit", "init-container"]
+    for itm in config["machines"].values():
+        for svc in itm.get("kube_services", []):
+            dockers2push += config["service_2_docker_map"].get(svc, [])
+    return dockers2push
+
+
+def push_all_prerequisite_docker_images(args, config):
+    render_docker_images(config, args.verbose)
+    docker_list = docker_required_by_services(config)
+    check_buildable_images(docker_list, config)
+    push_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"],
+                 docker_list, config, args.verbose, nocache=args.nocache)
 
 
 def set_zookeeper_cluster(config):
@@ -951,11 +963,14 @@ def render_kube_services(config):
 def render_for_worker_generic(config, args):
     # TODO: split into generic + specific node for options.env and worker-kubeconfig.yaml
     config["etcd_endpoints"] = "$ETCD_ENDPOINTS"
+    orig_api_servers = config["api_servers"] if "api_servers" in config else ''
     config["api_servers"] = "$KUBE_API_SERVER"
     utils.render_template_directory(
         "template/kubelet", "deploy/kubelet", config)
     utils.render_template("template/cloud-config/worker.upgrade.list",
                           "./deploy/cloud-config/worker.upgrade.list", config)
+    if orig_api_servers:
+        config["api_servers"] = orig_api_servers
 
 
 def run_command(args, command, parser):
@@ -995,13 +1010,15 @@ def run_command(args, command, parser):
         if len(nargs) >= 1:
             configuration(config, args.verbose)
             if nargs[0] == "build":
-                check_buildable_images(args, config)
+                check_buildable_images(args.nargs[1], config)
                 build_docker_images(args, config)
             if nargs[0] == "push":
-                check_buildable_images(args, config)
+                check_buildable_images(args.nargs[1], config)
                 push_docker_images(args, config)
+            if nargs[0] == "servicesprerequisite":
+                push_all_prerequisite_docker_images(args, config)
     if command == "test":
-        render_repairmanager(config)
+        print(config["api_servers"])
 
 
 if __name__ == '__main__':

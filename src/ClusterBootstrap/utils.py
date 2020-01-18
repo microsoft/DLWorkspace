@@ -24,9 +24,7 @@ from jinja2 import Environment, FileSystemLoader, Template
 import base64
 
 from shutil import copyfile, copytree
-import urllib.request
-import urllib.parse
-import urllib.error
+import urllib
 import socket
 import struct
 
@@ -411,7 +409,7 @@ def get_ETCD_discovery_URL(size):
         output = "we don't use discovery url for 1 node etcd"
     else:
         try:
-            output = urllib.request.urlopen(
+            output = urllib.urlopen(
                 "https://discovery.etcd.io/new?size=%d" % size).read()
             if not "https://discovery.etcd.io" in output:
                 raise Exception(
