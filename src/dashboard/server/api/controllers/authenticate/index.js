@@ -73,8 +73,7 @@ module.exports = async context => {
     context.body = '<script>location.replace("/")</script>'
   } else if (context.query.error != null) {
     context.log.error({ query: context.query }, 'Authentication failed callback')
-    context.type = 'html'
-    context.body = '<script>location.replace("/")</script>'
+    return context.redirect('/')
   } else {
     return context.redirect(getAuthenticationUrl(context))
   }
