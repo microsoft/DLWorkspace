@@ -164,21 +164,22 @@ const JobContent: FunctionComponent = () => {
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const { email } = useContext(UserContext);
   const { clusters } = useContext(ClustersContext);
-  const cluster = useMemo(() => {
-    return clusters.filter((cluster) => cluster.id === clusterId)[0];
+  const admin = useMemo(() => {
+    const teamCluster = clusters.filter((cluster) => cluster.id === clusterId)[0];
+    if (teamCluster === undefined) return false;
+    return Boolean(teamCluster.admin);
   }, [clusterId, clusters]);
   const { error: jobError, data: jobData, get: getJob } =
     useFetch(`/api/v2/clusters/${clusterId}/jobs/${jobId}`,
       [clusterId, jobId]);
-  const { error: clusterError, data: clusterData } =
+  const { error: clusterError, data: cluster } =
     useFetch(`/api/clusters/${clusterId}`, [clusterId]);
   const manageable = useMemo(() => {
     if (jobData === undefined) return false;
-    if (cluster === undefined) return false;
-    if (cluster.admin === true) return true;
+    if (admin === true) return true;
     if (jobData['userName'] === email) return true;
     return false;
-  }, [jobData, cluster, email]);
+  }, [jobData, admin, email]);
   const [job, setJob] = useState<any>();
 
   useEffect(() => {
@@ -222,12 +223,12 @@ const JobContent: FunctionComponent = () => {
     enqueueSnackbar(`Job is ${status} now.`, { variant: "info" });
   }
 
-  if (clusterData === undefined || job === undefined) {
+  if (cluster === undefined || job === undefined) {
     return <Loading/>;
   }
 
   return (
-    <Context.Provider value={{ cluster: clusterData, admin: Boolean(cluster.admin), job }}>
+    <Context.Provider value={{ cluster, admin, job }}>
       <Helmet title={`(${capitalize(job['jobStatus'])}) ${job['jobName']}`}/>
       <Container fixed maxWidth="lg">
         <JobToolbar manageable={manageable}/>
