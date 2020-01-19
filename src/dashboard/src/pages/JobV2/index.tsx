@@ -51,7 +51,7 @@ interface RouteParams {
 
 const JobToolbar: FunctionComponent<{ manageable: boolean }> = ({ manageable }) => {
   const { clusterId } = useParams<RouteParams>();
-  const { admin, job } = useContext(Context);
+  const { accessible, admin, job } = useContext(Context);
   const { support, approve, kill, pause, resume } = useActions(clusterId);
 
   const availableActions = useMemo(() => {
@@ -75,14 +75,16 @@ const JobToolbar: FunctionComponent<{ manageable: boolean }> = ({ manageable }) 
 
   return (
     <Toolbar disableGutters variant="dense">
-      <IconButton
-        edge="start"
-        color="inherit"
-        component={Link}
-        to="./"
-      >
-        <ArrowBack />
-      </IconButton>
+      {accessible && (
+        <IconButton
+          edge="start"
+          color="inherit"
+          component={Link}
+          to="./"
+        >
+          <ArrowBack />
+        </IconButton>
+      )}
       <Typography variant="h6" style={{ flexGrow: 1 }}>
         {job['jobName']}
       </Typography>
@@ -164,11 +166,15 @@ const JobContent: FunctionComponent = () => {
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const { email } = useContext(UserContext);
   const { clusters } = useContext(ClustersContext);
+  const teamCluster = useMemo(() => {
+    return clusters.filter((cluster) => cluster.id === clusterId)[0];
+  }, [clusters, clusterId]);
+  const accessible = useMemo(() => {
+    return teamCluster !== undefined;
+  }, [teamCluster]);
   const admin = useMemo(() => {
-    const teamCluster = clusters.filter((cluster) => cluster.id === clusterId)[0];
-    if (teamCluster === undefined) return false;
-    return Boolean(teamCluster.admin);
-  }, [clusterId, clusters]);
+    return accessible && Boolean(teamCluster.admin);
+  }, [accessible, teamCluster]);
   const { error: jobError, data: jobData, get: getJob } =
     useFetch(`/api/v2/clusters/${clusterId}/jobs/${jobId}`,
       [clusterId, jobId]);
@@ -228,7 +234,7 @@ const JobContent: FunctionComponent = () => {
   }
 
   return (
-    <Context.Provider value={{ cluster, admin, job }}>
+    <Context.Provider value={{ cluster, accessible, admin, job }}>
       <Helmet title={`(${capitalize(job['jobStatus'])}) ${job['jobName']}`}/>
       <Container fixed maxWidth="lg">
         <JobToolbar manageable={manageable}/>
