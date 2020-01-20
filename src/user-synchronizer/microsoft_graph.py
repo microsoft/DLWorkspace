@@ -49,7 +49,7 @@ def iter_groups(group_mail, fields):
 
 def iter_group_members(group_id, fields):
     ''' Iterate member objects '''
-    url_template = 'https://graph.microsoft.com/v1.0/groups/{}/members'
+    url_template = 'https://graph.microsoft.com/v1.0/groups/{}/transitiveMembers'
     url = url_template.format(group_id)
     yield from _iter_objects(url, params={"$select": ','.join(fields)})
 
