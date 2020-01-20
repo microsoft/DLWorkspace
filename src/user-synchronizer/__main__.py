@@ -85,6 +85,7 @@ def update_identity(user_name, identity):
 
     logger.info('Updated {} to cluster'.format(user_name))
 
+updated_users_id = set()
 
 for group_identity in iter_group_identities():
     try:
@@ -106,6 +107,9 @@ for group_identity in iter_group_identities():
                             continue
                         user_id = member['id']
                         user_name = member['userPrincipalName']
+                        if user_id in updated_users_id:
+                            logger.info('Already updated {}, skip.'.format(user_name))
+                            continue
 
                         identity = get_identity(
                             user_id,
@@ -113,6 +117,8 @@ for group_identity in iter_group_identities():
                             member['onPremisesSecurityIdentifier'],
                         )
                         update_identity(user_name, identity)
+
+                        updated_users_id.add(user_id)
                     except Exception:
                         logger.exception('Exception in member {}'.format(member))
 
