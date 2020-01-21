@@ -45,15 +45,15 @@ const useActions = (clusterId: string) => {
   }, [clusterId]);
 
   const onSupport = useCallback((event: any, job: any) => {
-    const subject = `DLTS job issue: ${job['jobId']} in ${clusterId}`;
+    const subject = `[DLTS Job][${clusterId}][${job['vcName']}]: <Issue Title by User>`;
     const body = `
 Hi DLTS support team,
 
-I have an issue in job ${window.location.origin}/jobs-v2/${encodeURIComponent(clusterId)}/${encodeURIComponent(job['jobId'])}
+There is some issue in my job ${window.location.origin}/jobs-v2/${encodeURIComponent(clusterId)}/${encodeURIComponent(job['jobId'])}
 
-[Replace this placeholder with your questions]
+<Issue description by user>
 
-Regards,
+Thanks,
 ${givenName} ${familyName}
     `.trim();
     const link = `mailto:${supportMail || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
