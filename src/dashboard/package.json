@@ -40,7 +40,7 @@
     "recharts": "^1.6.2",
     "typeface-roboto": "^0.0.54",
     "typeface-roboto-mono": "^0.0.54",
-    "use-http": "0.1.91",
+    "use-http": "0.1.97",
     "use-http-2": "npm:use-http@^0.2.0",
     "uuid": "^3.3.2"
   },
