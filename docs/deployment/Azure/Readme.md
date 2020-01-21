@@ -10,7 +10,7 @@ First require the manager to add you into a subscription group., then either
 2. if you have a physical machine, install ubuntu server system(18.04) on that and use it as your devbox
 then use the devbox to deploy node on cloud.
 
-Workflow:
+## Workflow:
 
 First we need to setup the devbox that we use to operate on.
 
@@ -26,21 +26,46 @@ az login
 az account set --subscription "${SUBSCRIPTION_NAME}" 
 az account list | grep -A5 -B5 '"isDefault": true'
 ```
-Execute this command, log out (exit) and log in back
-```sudo usermod -aG docker <your username>```
 
-After these steps, there are two pipelines that could be used to deploy a cluster: phase-focused pipeline (v1) and cloud-init based pipeline(v2). v1 combines template rendering/file copying/remote command execution together, and a step usually focuses on one role-wise/functionality-wise phase, such as deploying master node, start a certain service etc., while v2 utilizes az cloud-init feature and explicitly seperates template rendering and command execution etc.
+3. Go to work directiry "src/ClusterBootstrap"
+```
+cd src/ClusterBootstrap
+```
 
-no matter which pipeline do you use, make sure you are at src/ClusterBootstrap/
 
-Please [configure](configure.md) your azure cluster. Put config.yaml under src/ClusterBootstrap
+4. [configure](configure.md) your azure cluster. Put config.yaml under src/ClusterBootstrap
 
-#phase-focused pipeline#
+5. run batch script to deploy the cluster
 
-invoke ```./step_by_step.sh azure``` to deploy a new cluster, use deploy.py to modify/check the cluster or connect to a certain machine etc.
+```./deploy.sh```
 
-#cloud-init based pipeline#
 
-```./v2deploy.sh```, and use maintain.py to update cluster machine list / connect to a certain machine etc.
 
 If you run into a deployment issue, please check [here](FAQ.md) first.
+
+## Details in deploy.sh
+
+We will explain the operations behind deploy.sh in this section. 
+
+```
+#!/bin/bash
+rm -rf deploy/* cloudinit* az_complementary.yaml
+# # render
+./cloud_init_deploy.py clusterID
+./cloud_init_aztools.py -cnf config.yaml -o az_complementary.yaml prerender
+# # render templates and prepare binaries
+./cloud_init_deploy.py -cnf config.yaml -cnf az_complementary.yaml render
+# # pack, push dockers, generate az cli commands to add machines
+./cloud_init_deploy.py -cnf config.yaml -cnf az_complementary.yaml pack
+# # push dockers
+./cloud_init_deploy.py -cnf config.yaml -cnf az_complementary.yaml docker servicesprerequisite
+# # # generate
+./cloud_init_aztools.py -cnf config.yaml -cnf az_complementary.yaml deploy
+# # deploy
+./scripts/deploy_framework.sh
+./scripts/add_machines.sh
+./cloud_init_aztools.py -cnf config.yaml -cnf az_complementary.yaml interconnect
+# # get status
+./cloud_init_aztools.py -cnf config.yaml -o brief.yaml listcluster
+
+```
