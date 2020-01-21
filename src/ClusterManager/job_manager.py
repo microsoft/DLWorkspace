@@ -592,35 +592,42 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
 
     jobsInfo.sort(key=lambda x: x["sortKey"])
 
-    logger.info("TakeJobActions : local resources : %s" % (vc_resources))
-    logger.info("TakeJobActions : global resources : %s" %
+    logger.info("local resources : %s" % (vc_resources))
+    logger.info("global resources : %s" %
                 (globalResInfo.CategoryToCountMap))
 
     for sji in jobsInfo:
-        logger.info("TakeJobActions : job : %s : %s : %s" % (
+        logger.info("job : %s : %s : %s" % (
             sji["jobId"], sji["globalResInfo"].CategoryToCountMap, sji["sortKey"]))
         vc_name = sji["job"]["vcName"]
         vc_resource = vc_resources[vc_name]
 
-        if (not sji["preemptionAllowed"]) and (vc_resource.CanSatisfy(sji["globalResInfo"])):
+        if sji["preemptionAllowed"]:
+            continue # schedule non preemptable first
+
+        if vc_resource.CanSatisfy(sji["globalResInfo"]):
             vc_resource.Subtract(sji["globalResInfo"])
             globalResInfo.Subtract(sji["globalResInfo"])
             sji["allowed"] = True
-            logger.info("TakeJobActions : local assignment : %s : %s" % (
+            logger.info("allow non-preemptible %s to run, used resource %s" % (
                 sji["jobId"], sji["globalResInfo"].CategoryToCountMap))
+        else:
+            logger.info("do not allow non-preemptible %s to run for vc resource not enough, vc resource %s, required %s",
+                    sji["jobId"], vc_resource, sji["globalResInfo"])
 
     for sji in jobsInfo:
         if sji["preemptionAllowed"] and (sji["allowed"] is False):
             if globalResInfo.CanSatisfy(sji["globalResInfo"]):
-                logger.info("TakeJobActions : job : %s : %s" % (
+                logger.info("allow preemptible %s to run, used resource %s" % (
                     sji["jobId"], sji["globalResInfo"].CategoryToCountMap))
                 # Strict FIFO policy not required for global (bonus) tokens since these jobs are anyway pre-emptible.
                 globalResInfo.Subtract(sji["globalResInfo"])
                 sji["allowed"] = True
-                logger.info("TakeJobActions : global assignment : %s : %s" % (
-                    sji["jobId"], sji["globalResInfo"].CategoryToCountMap))
+            else:
+                logger.info("do not allow preemptible %s to run for global resource not enough, global resource %s, required %s",
+                        sji["jobId"], globalResInfo, sji["globalResInfo"])
 
-    logger.info("TakeJobActions : global resources : %s" %
+    logger.info("global resources remain after this round of scheduling: %s" %
                 (globalResInfo.CategoryToCountMap))
 
     for sji in jobsInfo:
@@ -629,11 +636,11 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
                 launcher.submit_job(sji["job"])
                 update_job_state_latency(
                     redis_conn, sji["jobId"], "scheduling")
-                logger.info("TakeJobActions : submitting job : %s : %s" %
+                logger.info("submitting job : %s : %s" %
                             (sji["jobId"], sji["sortKey"]))
             elif sji["preemptionAllowed"] and (sji["job"]["jobStatus"] == "scheduling" or sji["job"]["jobStatus"] == "running") and (sji["allowed"] is False):
                 launcher.kill_job(sji["job"]["jobId"], "queued")
-                logger.info("TakeJobActions : pre-empting job : %s : %s" %
+                logger.info("preempting job : %s : %s" %
                             (sji["jobId"], sji["sortKey"]))
             elif sji["job"]["jobStatus"] == "queued" and sji["allowed"] is False:
                 vc_name = sji["job"]["vcName"]
@@ -646,8 +653,6 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
         except Exception as e:
             logger.error("Process job failed {}".format(
                 sji["job"]), exc_info=True)
-
-    logger.info("TakeJobActions : job desired actions taken")
 
 
 def Run(redis_port, target_status):

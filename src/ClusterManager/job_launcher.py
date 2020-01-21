@@ -466,8 +466,6 @@ class JobRole(object):
             if container.name == self.pod_name and container.readiness_probe is not None:
                 for status in self.pod.status.container_statuses:
                     if status.name == self.pod_name:
-                        logger.info(
-                            "pod %s have readiness_probe result", self.pod_name)
                         return status.ready
         # no readiness_probe defined, fallback to old way
         return self._is_file_exist(JobRole.MARK_ROLE_READY_FILE)
