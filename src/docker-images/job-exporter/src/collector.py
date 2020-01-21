@@ -282,7 +282,9 @@ def make_collector(name, sleep_time, decay_time, collector_class, *args):
 
 class DockerCollector(Collector):
     cmd_histogram = Histogram("cmd_docker_active_latency_seconds",
-            "Command call latency for checking docker daemon activeness (seconds)")
+            "Command call latency for checking docker daemon activeness (seconds)",
+            buckets=(1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0, 1024.0,
+                float("inf")))
 
     cmd_timeout = 1 # 99th latency is 0.01s
 
@@ -314,7 +316,9 @@ class DockerCollector(Collector):
 
 class GpuCollector(Collector):
     cmd_histogram = Histogram("cmd_nvidia_smi_latency_seconds",
-            "Command call latency for nvidia-smi (seconds)")
+            "Command call latency for nvidia-smi (seconds)",
+            buckets=(1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0, 1024.0,
+                float("inf")))
 
     cmd_timeout = 60 # 99th latency is 0.97s
 
@@ -659,7 +663,9 @@ class ContainerCollector(Collector):
 
 class ZombieCollector(Collector):
     logs_histogram = Histogram("cmd_docker_logs_latency_seconds",
-            "Command call latency for docker logs (seconds)")
+            "Command call latency for docker logs (seconds)",
+            buckets=(1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0, 1024.0,
+                float("inf")))
     logs_timeout = 1 # 99th latency is 0.04s
 
     zombie_container_count = Gauge("zombie_container_count",

@@ -1,9 +1,16 @@
 ---  
 rules:
-  ecc_rule:
-    module_name : rules.ecc_rule
-    class_name : ECCRule
+  ecc_detect_error_rule:
+    module_name : rules.ecc_detect_error_rule
+    class_name : ECCDetectErrorRule
+  ecc_reboot_node_rule:
+    module_name: rules.ecc_reboot_node_rule
+    class_name: ECCRebootNodeRule
 
 rule_wait_time: 10 # time to sleep between rule execution (seconds)
 
 cluster_name: {{cnf['repair-manager']['cluster_name']}}
+
+domain_name: {{cnf['repair-manager']['domain_name']}}
+
+job_owner_email_domain: {{cnf['repair-manager']['ecc_rule']['job_owner_email_domain']}}

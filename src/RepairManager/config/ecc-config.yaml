@@ -1,9 +1,15 @@
 cordon_dry_run: {{cnf['repair-manager']['ecc_rule']['cordon_dry_run']}}
+reboot_dry_run: {{cnf['repair-manager']['ecc_rule']['reboot_dry_run']}}
+
 prometheus:
   ip: {{cnf['repair-manager']['prometheus-ip']}}
   port: {{cnf['repair-manager']['prometheus-port']}}
   ecc_error_query: 'nvidiasmi_ecc_error_count{type="volatile_double"}>0'
   step: 1m
-  interval: 10 # minutes
-  percent_threshold: 90 # percentage of data points with ecc error to be considered a bad node
-  
+  interval: 9
+
+alert_job_owners: False # alert all impacted job owners
+
+dri_email: {{cnf['repair-manager']['ecc_rule']['dri_email']}}
+
+days_until_node_reboot: 5

@@ -2,6 +2,9 @@ import smtplib
 import logging
 import yaml
 import datetime
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
 
 class EmailHandler():
 
@@ -12,23 +15,15 @@ class EmailHandler():
         with open('./config/email-config.yaml', 'r') as file:
             return yaml.safe_load(file)
 
-    def send(self, subject, body):
-        recepients = self.config['receiver']
-
-        message = (
-            f"From: {self.config['sender']}\r\n"
-            f"To: {';'.join(recepients)}\r\n"
-            f"MIME-Version: 1.0\r\n"
-            f"Content-type: text/html\r\n"
-            f"Subject: {subject}\r\n\r\n{body}"
-        )
+    def send(self, message):
+        message['From'] = self.config['sender']
 
         try:
             with smtplib.SMTP(self.config['smtp_url']) as server:
                 server.starttls()
                 server.login(self.config['login'], self.config['password'])
-                server.sendmail(self.config['sender'], recepients, message)
-                logging.info(f"Email sent to {', '.join(recepients)}")
+                server.send_message(message)
+                logging.info(f"Email sent: {message}")
         except smtplib.SMTPAuthenticationError:
             logging.warning('The server didn\'t accept the user\\password combination.')
         except smtplib.SMTPServerDisconnected:
