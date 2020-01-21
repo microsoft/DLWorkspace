@@ -34,7 +34,7 @@ def post_regular_job(rest_url, email, uid, vc, image, cmd):
         "env": [],
         "hostNetwork": False,
         "isPrivileged": False,
-        "resourcegpu": 1,
+        "resourcegpu": 0,
         "cpulimit": 1,
     }
     url = urllib.parse.urljoin(rest_url, "/PostJob")
@@ -67,7 +67,7 @@ def post_distributed_job(rest_url, email, uid, vc, image, cmd):
         "hostNetwork": True,
         "isPrivileged": True,
         "numps": 1,
-        "resourcegpu": 4,
+        "resourcegpu": 0,
         "numpsworker": 1
     }
     url = urllib.parse.urljoin(rest_url, "/PostJob")
