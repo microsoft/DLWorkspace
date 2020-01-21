@@ -71,9 +71,12 @@ const Layout: React.FC<RouteComponentProps> = ({ location, history }) => {
 
   React.useEffect(() => {
     if (email === undefined) {
-      history.replace('/sign-in');
+      history.replace({
+        pathname: '/sign-in',
+        state: { to: location.pathname }
+      });
     }
-  }, [email, history]);
+  }, [email, history, location]);
 
   if (email === undefined) {
     return null;
