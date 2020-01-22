@@ -77,10 +77,10 @@ class ClusterStatus(object):
         # Compute GPU cluster status
         self.__set_cluster_gpu_status()
 
-        # TODO: Compute CPU cluster status
+        # Compute CPU cluster status
         self.__set_cluster_cpu_status()
 
-        # TODO: Compute memory cluster status
+        # Compute memory cluster status
         self.__set_cluster_memory_status()
 
         # Compute cluster node status
