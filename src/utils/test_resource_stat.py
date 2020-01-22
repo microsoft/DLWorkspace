@@ -166,7 +166,7 @@ class TestCpu(TestResource):
         self.a_e_eq = False
 
     def test_repr(self):
-        self.assertEqual("{'r1': 100} (m)", repr(Cpu(res={"r1": "1"})))
+        self.assertEqual("{'r1': 1000} (m)", repr(Cpu(res={"r1": "1"})))
 
 
 class TestMemory(TestResource):
