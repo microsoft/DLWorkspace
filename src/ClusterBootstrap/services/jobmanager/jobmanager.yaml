@@ -67,10 +67,6 @@ spec:
           hostPort: 9203
           name: joblog-mgr
           protocol: TCP
-        - containerPort: 9204
-          hostPort: 9204
-          name: cmd-mgr
-          protocol: TCP
         - containerPort: 9205
           hostPort: 9205
           name: endpoint-mgr

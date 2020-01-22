@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import unittest
 import kubernetes
 import yaml
@@ -9,6 +11,7 @@ from kubernetes.client.rest import ApiException
 from job_launcher import JobDeployer
 
 import logging
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s",
@@ -46,7 +49,8 @@ spec:
         job_deployer._create_pod(body)
 
     def test_delete_pod(self):
-        pod_name = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(16))
+        pod_name = ''.join(random.choice(
+            string.ascii_lowercase + string.digits) for _ in range(16))
         self.create_pod(pod_name)
 
         job_deployer = self.create_job_deployer()
@@ -103,7 +107,8 @@ spec:
     def test_pod_exec(self):
         job_deployer = self.create_job_deployer()
 
-        pod_name = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(16))
+        pod_name = ''.join(random.choice(
+            string.ascii_lowercase + string.digits) for _ in range(16))
         self.create_pod(pod_name)
         time.sleep(3)
 

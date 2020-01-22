@@ -1,16 +1,19 @@
+#!/usr/bin/env python3
+
 import os
 import sys
 import json
 import yaml
-from jinja2 import Template
 from job import Job
 import copy
 
+from jinja2 import Template
 
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
-from osUtils import mkdirsAsUser
+sys.path.append(os.path.join(os.path.dirname(
+    os.path.abspath(__file__)), "../utils"))
+
 from pod_template_utils import enable_cpu_config
-
+from osUtils import mkdirsAsUser
 
 class PodTemplate():
     def __init__(self, template, deployment_template=None, enable_custom_scheduler=False, secret_templates=None):
@@ -19,27 +22,12 @@ class PodTemplate():
         self.enable_custom_scheduler = enable_custom_scheduler
         self.secret_templates = secret_templates
 
-    @staticmethod
-    def generate_launch_script(job_id, path_to_save, user_id, gpu_num, user_script):
-        if not os.path.exists(path_to_save):
-            mkdirsAsUser(path_to_save, user_id)
-
-        file_name = "job_command.sh"
-        launch_script_file = os.path.join(path_to_save, file_name)
-        with open(launch_script_file, 'w') as f:
-            f.write(user_script)
-        os.system("sudo chown %s %s" % (user_id, launch_script_file))
-        luanch_cmd = ["bash", "/pod/scripts/bootstrap.sh"]
-        return luanch_cmd
-
-
     def generate_deployment(self, pod):
         assert(isinstance(self.template, Template))
         pod_yaml = self.deployment_template.render(job=pod)
         return yaml.full_load(pod_yaml)
 
-
-    def generate_pod(self, pod):
+    def generate_pod(self, pod, cmd):
         assert(isinstance(self.template, Template))
         if self.enable_custom_scheduler:
             if "useGPUTopology" in pod and pod["useGPUTopology"]:
@@ -64,12 +52,18 @@ class PodTemplate():
 
             if "annotations" not in pod:
                 pod["annotations"] = {}
-            pod["annotations"]["pod.alpha/DeviceInformation"] = "'" + json.dumps(podInfo) + "'"
+            pod["annotations"]["pod.alpha/DeviceInformation"] = "'" + \
+                json.dumps(podInfo) + "'"
             # gpu requests specified through annotation
             pod["gpuLimit"] = 0
 
         pod_yaml = self.template.render(job=pod)
-        return yaml.full_load(pod_yaml)
+        # because user's cmd can be multiple lines, should add after yaml load
+        pod_obj = yaml.full_load(pod_yaml)
+        pod_obj["spec"]["containers"][0]["env"].append(
+            {"name": "DLWS_LAUNCH_CMD", "value": cmd})
+
+        return pod_obj
 
     def generate_pods(self, job):
         """
@@ -97,11 +91,16 @@ class PodTemplate():
         job.data_path = params["dataPath"]
         # TODO user's mountpoints first, but should after 'job_path'
         job.add_mountpoints(job.job_path_mountpoint())
-        job.add_mountpoints({"name": "home", "containerPath": "/home/{}".format(job.get_alias()), "hostPath": job.get_homefolder_hostpath(), "enabled": True})
+        # TODO: Remove VC name dependency
+        if params["vcName"] != "MMBellevue":
+            job.add_mountpoints({"name": "home", "containerPath": "/home/{}".format(
+                job.get_alias()), "hostPath": job.get_homefolder_hostpath(), "enabled": True})
         if "mountpoints" in params:
             job.add_mountpoints(params["mountpoints"])
-        job.add_mountpoints(job.work_path_mountpoint())
-        job.add_mountpoints(job.data_path_mountpoint())
+        # TODO: Remove VC name dependency
+        if params["vcName"] != "MMBellevue":
+            job.add_mountpoints(job.work_path_mountpoint())
+            job.add_mountpoints(job.data_path_mountpoint())
         job.add_mountpoints(job.vc_custom_storage_mountpoints())
         job.add_mountpoints(job.vc_storage_mountpoints())
         params["mountpoints"] = job.mountpoints
@@ -110,7 +109,8 @@ class PodTemplate():
         params["homeFolderHostpath"] = job.get_homefolder_hostpath()
         params["pod_ip_range"] = job.get_pod_ip_range()
         params["usefreeflow"] = job.is_freeflow_enabled()
-        params["jobNameLabel"] = ''.join(e for e in params["jobName"] if e.isalnum())
+        params["jobNameLabel"] = ''.join(
+            e for e in params["jobName"] if e.isalnum())
         params["rest-api"] = job.get_rest_api_url()
 
         if "nodeSelector" not in params:
@@ -122,21 +122,17 @@ class PodTemplate():
         vc_node_hard_assignment = job.get_vc_node_hard_assignment()
         if isinstance(vc_node_hard_assignment, dict):
             vc = params["vcName"]
-            # Only consider GPU jobs
+            # TODO: Fix the case where CPU worker exists in a GPU pool
             if vc in vc_node_hard_assignment and \
-                    vc_node_hard_assignment[vc] is True and \
-                    params["resourcegpu"] > 0:
+                    vc_node_hard_assignment[vc] is True:
                 params["nodeSelector"]["vc"] = vc
             else:
                 params["nodeSelector"]["vc"] = "default"
 
         params = enable_cpu_config(params, job.cluster)
 
-        local_pod_path = job.get_hostpath(job.job_path, "master")
-        params["LaunchCMD"] = PodTemplate.generate_launch_script(params["jobId"], local_pod_path, params["userId"], params["resourcegpu"], params["cmd"])
-
         if "envs" not in params:
-            params["envs"] =[]
+            params["envs"] = []
 
         job.add_plugins(job.get_plugins())
         params["plugins"] = job.plugins
@@ -155,37 +151,39 @@ class PodTemplate():
 
             for idx, val in enumerate(range(start, end, step)):
                 pod = copy.deepcopy(params)
-                params["envs"].append({"name": "DLWS_ROLE_NAME", "value": "master"})
-                params["envs"].append({"name": "DLWS_NUM_GPU_PER_WORKER", "value": params["resourcegpu"]})
+                params["envs"].append(
+                    {"name": "DLWS_ROLE_NAME", "value": "master"})
+                params["envs"].append(
+                    {"name": "DLWS_NUM_GPU_PER_WORKER", "value": params["resourcegpu"]})
                 pod["podName"] = "{0}-pod-{1}".format(job.job_id, idx)
                 pod["envs"].append({"name": env_name, "value": val})
                 pods.append(pod)
         else:
             pod = copy.deepcopy(params)
             pod["envs"].append({"name": "DLWS_ROLE_NAME", "value": "master"})
-            pod["envs"].append({"name": "DLWS_NUM_GPU_PER_WORKER", "value": params["resourcegpu"]})
+            pod["envs"].append(
+                {"name": "DLWS_NUM_GPU_PER_WORKER", "value": params["resourcegpu"]})
             pod["podName"] = job.job_id
             pods.append(pod)
 
-
         k8s_pods = []
-        for idx,pod in enumerate(pods):
+        for idx, pod in enumerate(pods):
             pod["numps"] = 0
             pod["numworker"] = 1
             pod["fragmentGpuJob"] = True
             if "gpuLimit" not in pod:
                 pod["gpuLimit"] = pod["resourcegpu"]
 
-
             if params["jobtrainingtype"] == "InferenceJob":
                 pod["gpuLimit"] = 0
 
             # mount /pod
             pod_path = job.get_hostpath(job.job_path, "master")
-            pod["mountpoints"].append({"name": "pod", "containerPath": "/pod", "hostPath": pod_path, "enabled": True})
+            pod["mountpoints"].append(
+                {"name": "pod", "containerPath": "/pod", "hostPath": pod_path, "enabled": True})
             pod["init-container"] = os.environ["INIT_CONTAINER_IMAGE"]
 
-            k8s_pod = self.generate_pod(pod)
+            k8s_pod = self.generate_pod(pod, params["cmd"])
             k8s_pods.append(k8s_pod)
 
         if params["jobtrainingtype"] == "InferenceJob":
@@ -196,12 +194,13 @@ class PodTemplate():
             if "gpuLimit" not in pod:
                 pod["gpuLimit"] = pod["resourcegpu"]
 
-            pod["envs"].append({"name": "DLWS_ROLE_NAME", "value": "inferenceworker"})
+            pod["envs"].append(
+                {"name": "DLWS_ROLE_NAME", "value": "inferenceworker"})
             pod["envs"].append({"name": "DLWS_NUM_GPU_PER_WORKER", "value": 1})
 
             pod_path = job.get_hostpath(job.job_path, "master")
-            pod["mountpoints"].append({"name": "pod", "containerPath": "/pod", "hostPath": pod_path, "enabled": True})
-
+            pod["mountpoints"].append(
+                {"name": "pod", "containerPath": "/pod", "hostPath": pod_path, "enabled": True})
 
             pod["podName"] = job.job_id
             pod["deployment_replicas"] = params["resourcegpu"]
@@ -228,7 +227,7 @@ class PodTemplate():
 
         # Create secret config for each plugins
         k8s_secrets = []
-        for plugin, plugin_config in plugins.items():
+        for plugin, plugin_config in list(plugins.items()):
             if plugin == "blobfuse" and isinstance(plugin_config, list):
                 for bf in plugin_config:
                     k8s_secret = self.generate_blobfuse_secret(bf)

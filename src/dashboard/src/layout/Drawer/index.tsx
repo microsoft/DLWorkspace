@@ -1,5 +1,5 @@
 import React from "react";
-import { Link, LinkProps, matchPath, RouteComponentProps, withRouter } from "react-router-dom";
+import { Link, LinkProps, matchPath, useLocation } from "react-router-dom";
 
 import {
   Drawer,
@@ -39,9 +39,13 @@ export const ListLink = React.forwardRef<Link, LinkProps>(
   ({ to, ...props }, ref) => <Link ref={ref} to={to} {...props}/>
 );
 
-const LinkListItem = withRouter<LinkProps & RouteComponentProps>(({ location, to, children }) => {
+const LinkListItem: React.FC<LinkProps> = ({ to, children }) => {
+  const location = useLocation();
+
   const locationPathname = location.pathname;
-  const toPathname = typeof to === "string" ? to : to.pathname;
+  const toPathname = typeof to === "string" ? to
+    : typeof to === "object" ? to.pathname
+      : undefined;
   const selected = typeof toPathname === "string"
     ? matchPath(locationPathname, toPathname) !== null
     : true;
@@ -50,7 +54,7 @@ const LinkListItem = withRouter<LinkProps & RouteComponentProps>(({ location, to
       {children}
     </ListItem>
   );
-});
+};
 
 const NavigationList: React.FC = () => {
   const styles = useStyles();
@@ -65,6 +69,9 @@ const NavigationList: React.FC = () => {
       </LinkListItem>
       <LinkListItem to="/jobs">
         <ListItemText>View and Manage Jobs</ListItemText>
+      </LinkListItem>
+      <LinkListItem to="/jobs-v2">
+        <ListItemText>View and Manage Jobs V2</ListItemText>
       </LinkListItem>
       <LinkListItem to="/cluster-status">
         <ListItemText>Cluster Status</ListItemText>

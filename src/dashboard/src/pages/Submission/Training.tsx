@@ -74,7 +74,7 @@ const sanitizePath = (path: string) => {
 }
 const Training: React.ComponentClass = withRouter(({ history }) => {
   const { selectedCluster,saveSelectedCluster } = React.useContext(ClustersContext);
-  const { email, uid } = React.useContext(UserContext);
+  const { email } = React.useContext(UserContext);
   const { teams, selectedTeam }= React.useContext(TeamsContext);
   //const team = 'platform';
   const [showGPUFragmentation, setShowGPUFragmentation] = React.useState(false)
@@ -603,7 +603,6 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     plugins['imagePull'].push(imagePullObj)
     const job: any = {
       userName: email,
-      userId: uid,
       jobType: 'training',
       gpuType: gpuModel,
       vcName: selectedTeam,

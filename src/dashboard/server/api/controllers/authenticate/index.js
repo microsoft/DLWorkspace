@@ -27,7 +27,8 @@ const getAuthenticationUrl = context => {
     response_type: 'code',
     redirect_uri: getUriWithoutQuery(context),
     response_mode: 'query',
-    scope: 'openid profile email'
+    scope: 'openid profile email',
+    state: context.querystring
   })
   return OAUTH2_URL + '/authorize?' + params
 }
@@ -67,11 +68,15 @@ module.exports = async context => {
     context.log.info(idToken, 'Id token')
 
     const user = User.fromIdToken(context, idToken)
-    const data = await user.fillIdFromWinbind()
-    user.addUserToCluster(data)
 
     context.cookies.set('token', user.toCookieToken())
 
+    try {
+      const stateParams = new URLSearchParams(context.query.state)
+      if (stateParams.has('to')) {
+        return context.redirect(stateParams.get('to'))
+      }
+    } finally {}
     return context.redirect('/')
   } else if (context.query.error != null) {
     context.log.error({ query: context.query }, 'Authentication failed callback')

@@ -1,0 +1,114 @@
+{
+  "status": "success",
+  "data": {
+    "resultType": "matrix",
+    "result": [
+      {
+        "metric": {
+          "__name__": "nvidiasmi_ecc_error_count",
+          "exporter_name": "job-exporter",
+          "instance": "192.168.0.4:9102",
+          "job": "serivce_exporter",
+          "minor_number": "1",
+          "scraped_from": "job-exporter-jmgn4",
+          "type": "volatile_double"
+        },
+        "values": [
+          [
+            1578453042,
+            "2"
+          ],
+          [
+            1578453102,
+            "2"
+          ],
+          [
+            1578453162,
+            "2"
+          ],
+          [
+            1578453222,
+            "2"
+          ],
+          [
+            1578453282,
+            "2"
+          ],
+          [
+            1578453342,
+            "2"
+          ],
+          [
+            1578453402,
+            "2"
+          ],
+          [
+            1578453462,
+            "2"
+          ],
+          [
+            1578453522,
+            "2"
+          ],
+          [
+            1578453582,
+            "2"
+          ],
+          [
+            1578453642,
+            "2"
+          ]
+        ]
+      },
+      {
+        "metric": {
+          "__name__": "nvidiasmi_ecc_error_count",
+          "exporter_name": "job-exporter",
+          "instance": "192.168.0.5:9102",
+          "job": "serivce_exporter",
+          "minor_number": "0",
+          "scraped_from": "job-exporter-mj8fl",
+          "type": "volatile_double"
+        },
+        "values": [
+          [
+            1578453042,
+            "2"
+          ],
+          [
+            1578453102,
+            "2"
+          ],
+          [
+            1578453162,
+            "2"
+          ],
+          [
+            1578453222,
+            "2"
+          ],
+          [
+            1578453342,
+            "2"
+          ],
+          [
+            1578453402,
+            "2"
+          ],
+          [
+            1578453462,
+            "2"
+          ],
+          [
+            1578453522,
+            "2"
+          ],
+          [
+            1578453582,
+            "2"
+          ]
+        ]
+      }
+    ]
+  }
+}

@@ -1,17 +1,21 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-from json import dumps
 from os import environ
 
-from requests import get
 from yaml import safe_load
 
 from logger import logger
-from microsoft_graph import iter_groups, iter_group_members, iter_user_member_of
+from restfulapi import iter_acls, update_identity
+from microsoft_graph import (
+    iter_groups_by_mail,
+    get_user,
+    iter_user_member_of,
+    iter_group_member_of,
+    iter_group_members,
+)
 
 # Read environment variables
-restfulapi_url = environ['RESTFULAPI_URL']
 domain_offset_file = environ.get('DOMAIN_OFFSET_FILE', None)
 
 # Initialize domain offset map
@@ -29,93 +33,149 @@ def add_domain_offset(domain_name, security_identifier):
     return domain_offset.get(domain_name, defult_domain_offset) + rid
 
 
-def iter_group_identities():
-    ''' Iterate group identities from RestfulAPI '''
-    response = get(restfulapi_url + '/GetAllACL')
-    response.raise_for_status()
-    response_json = response.json()
-    result = response_json['result']
+def cache_processed_member(func):
+    id_cache = set()
 
-    logger.info('Fetched {} group identities'.format(len(result)))
+    def wrapped(member):
+        if member['id'] in id_cache:
+            logger.info('Already processed {}, skip.'.format(member['displayName']))
+            return
 
-    yield from result
+        try:
+            func(member)
+        except Exception:
+            logger.exception('Exception in process {}'.format(member))
+        else:
+            id_cache.add(member['id'])
+
+    return wrapped
 
 
-def get_identity(user_id, on_premises_domain_name, on_premises_security_identifier):
-    ''' Get identity info of the member '''
-    uid = add_domain_offset(on_premises_domain_name, on_premises_security_identifier)
-    gid = add_domain_offset(on_premises_domain_name, '513')
+@cache_processed_member
+def process_user(user):
+    ''' process user '''
 
+    if user['onPremisesDomainName'] is None:
+        return
+    if user['onPremisesSecurityIdentifier'] is None:
+        return
+
+    uid = add_domain_offset(
+        user['onPremisesDomainName'],
+        user['onPremisesSecurityIdentifier']
+    )
+    gid = add_domain_offset(
+        user['onPremisesDomainName'],
+        '513'
+    )
     groups = [str(gid)]
-    for group in iter_user_member_of(user_id, [
+
+    for member_of_group in iter_user_member_of(user['id'], [
         'id',
         'displayName',
         'onPremisesDomainName',
         'onPremisesSecurityIdentifier',
     ]):
         try:
-            if group['onPremisesDomainName'] is None:
+            if member_of_group['onPremisesDomainName'] is None:
                 continue
-            if group['onPremisesSecurityIdentifier'] is None:
+            if member_of_group['onPremisesSecurityIdentifier'] is None:
                 continue
-            groups.append(str(add_domain_offset(
-                group['onPremisesDomainName'],
-                group['onPremisesSecurityIdentifier']
-            )))
+
+            member_of_group_id = add_domain_offset(
+                member_of_group['onPremisesDomainName'],
+                member_of_group['onPremisesSecurityIdentifier']
+            )
+            groups.append(str(member_of_group_id))
         except Exception:
-            logger.exception('Exception in processing group', group)
+            logger.exception('Exception in processing group', member_of_group)
 
-    return {
-        'uid': uid,
-        'gid': gid,
-        'groups': groups,
-    }
+    update_identity(user['userPrincipalName'], uid, gid, groups)
 
 
-def update_identity(user_name, identity):
-    ''' Update identity info to the cluster '''
-    params = {
-        'userName': user_name,
-        'uid': int(identity['uid']),
-        'gid': int(identity['gid']),
-        'groups': dumps(identity['groups'], separators=(',', ':')),
-    }
-    response = get(restfulapi_url + '/AddUser', params=params)
-    response.raise_for_status()
+@cache_processed_member
+def process_group(group):
+    ''' process group '''
 
-    logger.info('Updated {} to cluster'.format(user_name))
+    if group['onPremisesDomainName'] is None:
+        return
+    if group['onPremisesSecurityIdentifier'] is None:
+        return
 
+    uid = gid = add_domain_offset(
+        group['onPremisesDomainName'],
+        group['onPremisesSecurityIdentifier']
+    )
+    groups = [str(gid)]
 
-for group_identity in iter_group_identities():
+    for member_of_group in iter_group_member_of(group['id'], [
+        'id',
+        'displayName',
+        'mail',
+        'onPremisesDomainName',
+        'onPremisesSecurityIdentifier',
+    ]):
+        try:
+            if member_of_group['onPremisesDomainName'] is None:
+                continue
+            if member_of_group['onPremisesSecurityIdentifier'] is None:
+                continue
+
+            member_of_group_id = add_domain_offset(
+                member_of_group['onPremisesDomainName'],
+                member_of_group['onPremisesSecurityIdentifier']
+            )
+            groups.append(str(member_of_group_id))
+        except Exception:
+            logger.exception('Exception in processing group', member_of_group)
+
+    update_identity(group['mail'], uid, gid, groups)
+
     try:
-        group_mail = group_identity['identityName']
-
-        for group in iter_groups(group_mail, ['id', 'displayName']):
-            try:
-                group_id = group['id']
-
-                for member in iter_group_members(group_id, [
-                    'id',
-                    'displayName',
-                    'userPrincipalName',
-                    'onPremisesDomainName',
-                    'onPremisesSecurityIdentifier',
-                ]):
-                    try:
-                        user_id = member['id']
-                        user_name = member['userPrincipalName']
-
-                        identity = get_identity(
-                            user_id,
-                            member['onPremisesDomainName'],
-                            member['onPremisesSecurityIdentifier'],
-                        )
-                        update_identity(user_name, identity)
-                    except Exception:
-                        logger.exception('Exception in member {}'.format(member))
-
-            except Exception:
-                logger.exception('Exception in processing group {}'.format(group))
-
+        for member in iter_group_members(group['id'], [
+            'id',
+            'displayName',
+            'userPrincipalName',
+            'onPremisesDomainName',
+            'onPremisesSecurityIdentifier',
+        ]):
+            if member['@odata.type'] == '#microsoft.graph.user':
+                process_user(member)
+            # elif member['@odata.type'] == '#microsoft.graph.group':
+            #     process_group(member)
+            else:
+                logger.warning('Skip {}'.format(member['displayName']))
     except Exception:
-        logger.exception('Exception in processing group identity {}'.format(group_identity))
+        logger.exception('Exception in process group members {}'.format(member))
+
+
+def main():
+    for acl in iter_acls():
+        try:
+            acl_name = acl['identityName']
+
+            for group in iter_groups_by_mail(acl_name, [
+                'id',
+                'displayName',
+                'mail',
+                'onPremisesDomainName',
+                'onPremisesSecurityIdentifier',
+            ]):
+                process_group(group)
+
+            user = get_user(acl_name, [
+                'id',
+                'displayName',
+                'userPrincipalName',
+                'onPremisesDomainName',
+                'onPremisesSecurityIdentifier',
+            ])
+            if user is not None:
+                process_user(user)
+
+        except Exception:
+            logger.exception('Exception in processing ACL {}'.format(acl))
+
+
+if __name__ == "__main__":
+    main()
