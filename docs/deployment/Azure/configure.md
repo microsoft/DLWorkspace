@@ -21,19 +21,20 @@ If you are not building a cluster for Microsoft employee usage, you will also ne
 
 You may provide/change the specification of the deployed Azure cluster by adding the following information on config.yaml file.
 ```
-cluster_name: zxcldexample
+cluster_name: imprvcnf
+
 cloud-init: True
 azure_cluster:
+  # name_of_cluster should match cluster name used above.
   azure_location: eastus
-  vm:
-    - num: 1
-      vm_size : Standard_B2s
+  virtual_machines:
+    - vm_size : Standard_B2s
       vm_image: Canonical:UbuntuServer:18.04-LTS:18.04.201910030
       role: 
         - infra
         - kubernetes_master
         - etcd
-      storage:
+      managed_disks:
         - sku: Premium_LRS
           is_os: True
           size_gb: 50
@@ -49,12 +50,13 @@ azure_cluster:
         - restfulapi
         - monitor
         - dashboard
+        - user-synchronizer
       # availability_set: <availability_set>
-    - num: 1
-      vm_size : Standard_B2s
+      number_of_instance: 1
+    - vm_size : Standard_B2s
       role: 
         - nfs
-      storage:
+      managed_disks:
         - sku: Premium_LRS
           is_os: True
           size_gb: 50
@@ -65,35 +67,35 @@ azure_cluster:
       data_disk_mnt_path: /data
       private_ip_address: 192.168.0.9
       fileshares:
-        - from: /data/share/ads/jobfiles
-          to_mnt: /mntdlws/nfs/ads/jobfiles
-          to_lnk: /dlwsdata/ads/jobfiles
-        - from: /data/share/ads_not_expected_before/jobfiles
-          to_mnt: /mntdlws/nfs/ads1/jobfiles
-          to_lnk: /dlwsdata/ads1/jobfiles
-        # below: /data/share/Ads/jobfiles --mount-to--> /mntdlws/nfs/Ads/jobfiles --link-to--> /dlwsdata/Ads/just;
-        #        /data/share/Ads/storage --mount-to-->     /mntdlws/nfs/Ads/demo     --link-to--> /dlwsdata/Ads/demo;
-        - from_root: /data/share/
-          to_root_mnt: /mntdlws/nfs
-          to_root_lnk: /dlwsdata
+        - nfs_local_path: /data/share/ads/jobfiles
+          remote_mount_path: /mntdlws/nfs/ads/jobfiles
+          remote_link_path: /dlwsdata/ads/jobfiles
+        - nfs_local_path: /data/share/ads_not_expected_before/jobfiles
+          remote_mount_path: /mntdlws/nfs/ads1/jobfiles
+          remote_link_path: /dlwsdata/ads1/jobfiles
+        - nfs_local_path_root: /data/share/
+          remote_mount_path_root: /mntdlws/nfs
+          remote_link_path_root: /dlwsdata
           leaves: 
-            - from: jobfiles
-              to_mnt: jobfiles
-              to_lnk: jobfiles
-            - from: storage
-              to_mnt: storage
-              to_lnk: storage
-            - from: work
-              to_mnt: work
-              to_lnk: work  
+            - nfs_local_path: jobfiles
+              remote_mount_path: jobfiles
+              remote_link_path: jobfiles
+            - nfs_local_path: storage
+              remote_mount_path: storage
+              remote_link_path: storage
+            - nfs_local_path: work
+              remote_mount_path: work
+              remote_link_path: work  
           # VC: Ads
-
-    - num: 1
-      vm_size : Standard_B2s
+      number_of_instance: 1
+      
+    - vm_size : Standard_B2s
       vm_image: Canonical:UbuntuServer:18.04-LTS:18.04.201910030
       role: 
         - worker
       gpu_type: None
+      number_of_instance: 1
+
 master_token: <a master token used for front end>
 activeDirectory:
   tenant: <tenant ID, usually associated with a corp, such as Microsoft>
@@ -101,7 +103,6 @@ activeDirectory:
   clientSecret: <AAD app secret>
 
 repair-manager:
-  cluster_name: <clustername of a repair-manager>
   alert:
     smtp_url: <smtp_url>
     login: <email account that would send email to receivers, such as 'dlts-bot@microsoft.com'>
@@ -115,7 +116,7 @@ repair-manager:
     dry_run: False
     
 datasource: MySQL    
-mysql_password: msqpwd
+mysql_password: <pass word>
 WinbindServers: []
 
 priority: regular
@@ -125,18 +126,7 @@ nfs_client_CIDR:
   samba_range:
     - "s.a.m.0/24"
 
-WebUIregisterGroups:
-- MicrosoftUsers
-
-WebUIauthorizedGroups : []
-WebUIadminGroups : ["CCSAdmins"]
-WebUIregisterGroups: [ "MicrosoftUsers" ]
-
-DeployAuthentications : ["Corp"]
-
-webuiport: 80
-
-cloud_config:
+cloud_config_nsg_rules:
   default_admin_username: core
   dev_network:
     source_addresses_prefixes:
@@ -155,9 +145,6 @@ cloud_config:
       - "r.f.0.0/16"
     port: "22"
 
-prometheus:
-  cluster_name: zxdashboard # will be used in link to job detail page
-
 registry_credential:
   <docker registry 1>:
     username: <docker username 1>
@@ -169,15 +156,31 @@ registry_credential:
   
 ```
 
-for each item in cnf["azure_cluster"]["vm"], we specify a machine spec, including role(s), storage, how many instance we want that follow this spec etc. Depending on role specified, we could further configure mounting plan/kubernetes service we want to run etc.
+Each item in cnf["azure_cluster"]["virtual_machines"] means spec for a set of machines, and meaning of keys are explained as follows: 
 
-* cluster_name: A name without underscore or numbers (purely consisting of lower case letters) is recommended.
+* role: Functional role (DLTS-wise) of the set of machines
+* managed_disks: storage setting of the set of machines
+* kube_services: kubernetes-initiated services we want to run on the machines
+* availability_set: availability set under which we want to put the machines, this is usually set for billing convenience
+* number_of_instance: number of instances we want that go with this spec
+* data_disk_mnt_path: the path that all data disks are mounted to
+* private_ip_address: use to bind certain private IP to a machine. It's obvious that when this parameter is specified, number_of_instance should be 1
+* fileshares: mounting paths for NFS service. `nfs_local_path` on NFS machines are mounted to `remote_mount_path`, then soft-linked to `remote_link_path`. NFS service might fail, which is inevitable. We use the soft-link trick because it guarantees that when NFS service fails, operations would also fail, and we could know. Before we fix it, attempted operations would fail, but no vital damage would be caused. To allow less user effort, we also support stem-leaves mode, where users specify "stem" of paths, (such as `nfs_local_path_root`), and probably VC if the NFS machine is for dedicated storage, then several sub paths under `leaves`, and then a joined path would be generated.
+* gpu_type: specified for worker machines. Currently all workers in a cluster have the same type of GPU
 
-* azure_location: 
+Now we would explain other items that might be confusing.
+
+* cluster_name: a name without underscore or numbers (purely consisting of lower case letters) is recommended.
+
+* azure_location: azure location of the cluster
 
 Please use the following to find all available azure locations. 
 ```
 az account list-locations
 ```
+
+* nfs_client_CIDR: used to specify IP ranges that NFS service on storage nodes open to
+
+* cloud_config_nsg_rules: specifies the Azure network security group rules, `dev_network` defines the IP ranges that have access (including ssh etc.) to the cluster, `nfs_share` defines IP ranges that could communicate with storage nodes, and `nfs_ssh` defines the IP ranges from where we can ssh to the storage nodes
 
 * registry_credential: defines your access to certain dockers. A docker image name consists of three parts - registry name, image name, and image tag. If your job needs a certain private docker, then use 0. the registry name of that docker, 1. your user name and 2. your password to specify your access to it.

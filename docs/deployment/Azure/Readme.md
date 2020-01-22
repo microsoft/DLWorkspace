@@ -50,22 +50,58 @@ We will explain the operations behind deploy.sh in this section.
 ```
 #!/bin/bash
 rm -rf deploy/* cloudinit* az_complementary.yaml
-# # render
+```
+
+This line cleans all existing binaries/certificates etc. and complementary yaml files.
+
+```# # render
 ./cloud_init_deploy.py clusterID
 ./cloud_init_aztools.py -cnf config.yaml -o az_complementary.yaml prerender
+```
+
+These lines generate complementary yaml files based on given configuration of a cluster. Machine names would also be generated if not specified.
+
+```
 # # render templates and prepare binaries
 ./cloud_init_deploy.py -cnf config.yaml -cnf az_complementary.yaml render
+```
+
+Renders templates, generate certificates and prepare binaries that later would be used for setting up the cluster.
+
+```
 # # pack, push dockers, generate az cli commands to add machines
 ./cloud_init_deploy.py -cnf config.yaml -cnf az_complementary.yaml pack
+```
+
+Pack all the files generated in last step into a tar file.
+
+```
 # # push dockers
 ./cloud_init_deploy.py -cnf config.yaml -cnf az_complementary.yaml docker servicesprerequisite
+```
+
+Push dockers that are required by services specied in configuration.
+
+```
 # # # generate
 ./cloud_init_aztools.py -cnf config.yaml -cnf az_complementary.yaml deploy
+```
+
+Generate scripts that later would be executed to deploy a cluster.
+
+```
 # # deploy
 ./scripts/deploy_framework.sh
 ./scripts/add_machines.sh
 ./cloud_init_aztools.py -cnf config.yaml -cnf az_complementary.yaml interconnect
+```
+
+Deploy a cluster.
+
+```
 # # get status
 ./cloud_init_aztools.py -cnf config.yaml -o brief.yaml listcluster
 
 ```
+
+Generate a yaml file that would later be used to maintain the cluster.

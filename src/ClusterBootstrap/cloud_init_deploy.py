@@ -269,6 +269,8 @@ def load_default_config(config):
 
         "nfs": ["./scripts/cloud_init_nfs.sh"]}
 
+    config["repair-manager"]["cluster_name"] = config["cluster_name"]
+    config["prometheus"]["cluster_name"] = config["cluster_name"]
     return config
 
 
@@ -435,41 +437,40 @@ def gen_mounting_yaml(config):
         if "fileshares" not in spec or len(spec["fileshares"]) == 0:
             spec["fileshares"] = [[]]
         for v in spec["fileshares"]:
-            if "from" in v:
-                if v['to_mnt'] in mount_sources_set:
+            if "nfs_local_path" in v:
+                if v['remote_mount_path'] in mount_sources_set:
                     raise Exception(
-                        "Duplicate mounting mount path detected:\n{}".format(v["to_mnt"]))
+                        "Duplicate mounting mount path detected:\n{}".format(v["remote_mount_path"]))
                 assert set(v.keys()) == set(
-                    ['from', 'to_mnt', 'to_lnk']) and "invalid format of complete mounting items"
-                mount_sources_set.add(v['from'])
+                    ['nfs_local_path', 'remote_mount_path', 'remote_link_path']) and "invalid format of complete mounting items"
+                mount_sources_set.add(v['nfs_local_path'])
                 mount_triplets += v,
             else:
                 full_mnt_item = {}
-                src_root = v['from_root'] if "from_root" in v else config["nfs-mnt-src-path"]
-                if 'to_root_mnt' in v:
-                    mnt_root = v['to_root_mnt']
+                src_root = v['nfs_local_path_root'] if "nfs_local_path_root" in v else config["nfs-mnt-src-path"]
+                if 'remote_mount_path_root' in v:
+                    mnt_root = v['remote_mount_path_root']
                 else:
                     mnt_root = config["physical-mount-path-vc"] if 'VC' in v else config["physical-mount-path"]
-                if 'to_root_lnk' in v:
-                    lnk_root = v['to_root_lnk']
+                if 'remote_link_path_root' in v:
+                    lnk_root = v['remote_link_path_root']
                 else:
                     lnk_root = config["dltsdata-storage-mount-path"] if 'VC' in v else config["storage-mount-path"]
                 vc = v["VC"] if "VC" in v else ""
                 # process leaves
                 if not "leaves" in v or len(v["leaves"]) == 0:
-                    v["leaves"] = [{"from": fldr, "to_mnt": fldr, "to_lnk": fldr}
+                    v["leaves"] = [{"nfs_local_path": fldr, "remote_mount_path": fldr, "remote_link_path": fldr}
                                    for fldr in config["default-storage-folders"]]
                 for leaf in v["leaves"]:
-                    # print(leaf)
-                    mnt_from = os.path.join(src_root, vc, leaf["from"])
-                    mnt_mnt = os.path.join(mnt_root, vc, leaf["to_mnt"])
-                    mnt_lnk = os.path.join(lnk_root, vc, leaf["to_lnk"])
+                    mnt_from = os.path.join(src_root, vc, leaf["nfs_local_path"])
+                    mnt_mnt = os.path.join(mnt_root, vc, leaf["remote_mount_path"])
+                    mnt_lnk = os.path.join(lnk_root, vc, leaf["remote_link_path"])
                     if mnt_mnt in mount_sources_set:
                         raise Exception(
                             "Duplicate mounting source path detected:\n{}".format(mnt_mnt))
                     mount_sources_set.add(mnt_from)
-                    mount_triplets += {"from": mnt_from,
-                                       "to_mnt": mnt_mnt, "to_lnk": mnt_lnk},
+                    mount_triplets += {"nfs_local_path": mnt_from,
+                                       "remote_mount_path": mnt_mnt, "remote_link_path": mnt_lnk},
         options = spec["options"] if "options" in spec else config["mountconfig"]["nfs"]["options"]
         mountconfig[nfs_machine_name] = {
             "private_ip_address": spec["private_ip_address"], "fileshares": mount_triplets, "options": options}
@@ -497,7 +498,7 @@ def render_infra_node_specific(config, args):
     config["mount_and_link"] = []
     for mnt_itm in mounting.values():
         for fs in mnt_itm["fileshares"]:
-            config["mount_and_link"] += fs["to_mnt"],
+            config["mount_and_link"] += fs["remote_mount_path"],
 
     # for kubernetes_master in config["kubernetes_master_node"]:
     hostname = config["kubernetes_master_node"][0].split(".")[0]
@@ -522,7 +523,7 @@ def render_worker_node_specific(config, args):
     config["mount_and_link"] = []
     for mnt_itm in mounting.values():
         for fs in mnt_itm["fileshares"]:
-            config["mount_and_link"] += fs["to_mnt"],
+            config["mount_and_link"] += fs["remote_mount_path"],
 
     hostname = config["worker_node"][0].split(".")[0]
     config["kube_label_groups"] = config["machines"][hostname].get(
@@ -541,7 +542,7 @@ def render_nfs_node_specific(config, args):
         config["data_disk_mnt_path"] = config["machines"][nfs_machine_name]["data_disk_mnt_path"]
         config["files2share"] = []
         for itm in mounting[nfs_machine_name]["fileshares"]:
-            config["files2share"] += itm["from"],
+            config["files2share"] += itm["nfs_local_path"],
         utils.render_template("./template/cloud-config/cloud_init_nfs.txt.template",
                               "./deploy/cloud-config/cloud_init_{}.txt".format(nfs.split(".")[0]), config)
     config.pop("files2share", "")
