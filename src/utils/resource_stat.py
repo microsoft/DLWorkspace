@@ -1,16 +1,22 @@
 #!/usr/bin/env python3
 
 import copy
+import re
 
 
 class ResourceStat(object):
     def __init__(self, res=None, unit=None):
-        if res is None:
-            res = {}
-        elif isinstance(res, ResourceStat):
+        """Constructor for ResourceStat.
+
+        Args:
+            res: A dictionary or ResourceStat.
+            unit: Unit of the ResourceStat.
+        """
+        if isinstance(res, ResourceStat):
             res = res.resource
         elif not isinstance(res, dict):
             res = {}
+
         self.resource = {k: int(v) for k, v in res.items()}
         self.unit = unit
 
@@ -111,8 +117,7 @@ class ResourceStat(object):
 
     def __prune(self):
         res = {k: v for k, v in self.resource.items() if v != 0}
-        unit = self.unit
-        return ResourceStat(res=res, unit=unit)
+        return ResourceStat(res=res, unit=self.unit)
 
     def __eq__(self, other):
         if not isinstance(other, ResourceStat):
@@ -132,9 +137,7 @@ class ResourceStat(object):
 
 class Gpu(ResourceStat):
     def __init__(self, res=None):
-        if res is None:
-            res = {}
-        elif isinstance(res, Gpu):
+        if isinstance(res, Gpu):
             res = res.resource
         elif not isinstance(res, dict):
             res = {}
@@ -150,9 +153,61 @@ class Gpu(ResourceStat):
 
 class Cpu(ResourceStat):
     def __init__(self, res=None):
-        ResourceStat.__init__(self, res=res)
+        if not isinstance(res, Cpu):
+            if not isinstance(res, dict):
+                res = {}
+            for k, v in res.items():
+                res[k] = Cpu.to_millicpu(v)
+
+        ResourceStat.__init__(self, res=res, unit="m")
+
+    @staticmethod
+    def to_millicpu(data):
+        data = str(data).lower()
+        number = float(re.findall(r"[-+]?[0-9]*[.]?[0-9]+", data)[0])
+        if "m" not in data:
+            return number * 1000
+        else:
+            return number
 
 
 class Memory(ResourceStat):
     def __init__(self, res=None):
-        ResourceStat.__init__(self, res=res, unit="Ki")
+        if not isinstance(res, Memory):
+            if not isinstance(res, dict):
+                res = {}
+            for k, v in res.items():
+                res[k] = Memory.to_byte(v)
+
+        ResourceStat.__init__(self, res=res, unit="B")
+
+    @staticmethod
+    def to_byte(data):
+        data = str(data).lower()
+        number = float(re.findall(r"[-+]?[0-9]*[.]?[0-9]+", data)[0])
+        if "ki" in data:
+            return number * 2 ** 10
+        elif "mi" in data:
+            return number * 2 ** 20
+        elif "gi" in data:
+            return number * 2 ** 30
+        elif "ti" in data:
+            return number * 2 ** 40
+        elif "pi" in data:
+            return number * 2 ** 50
+        elif "ei" in data:
+            return number * 2 ** 60
+        elif "k" in data:
+            return number * 10 ** 3
+        elif "m" in data:
+            return number * 10 ** 6
+        elif "g" in data:
+            return number * 10 ** 9
+        elif "t" in data:
+            return number * 10 ** 12
+        elif "p" in data:
+            return number * 10 ** 15
+        elif "e" in data:
+            return number * 10 ** 18
+        else:
+            return number
