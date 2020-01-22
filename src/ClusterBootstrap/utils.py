@@ -189,9 +189,11 @@ def scp(identity_file, source, target, user, host, verbose=False):
 def sudo_scp(identity_file, source, target, user, host, changePermission=False, verbose=False):
     tmp = str(uuid.uuid4())
     scp(identity_file, source, "~/%s" % tmp, user, host, verbose)
-    targetPath = os.path.dirname(target)
     if (os.path.isfile(source)):
-        cmd = "sudo mkdir -p %s ; sudo mv ~/%s %s" % (targetPath, tmp, target)
+        target_path, target_base = os.path.split(target)
+        target_base = os.path.basename(source) if target_base == '' else target_base
+        target = os.path.join(target_path, target_base)
+        cmd = "sudo mkdir -p %s ; sudo mv ~/%s %s" % (target_path, tmp, target)
     else:
         cmd = "sudo mkdir -p %s ; sudo rm -r %s/*; sudo mv ~/%s/* %s; sudo rm -rf ~/%s" % (
             target, target, tmp, target, tmp)
@@ -374,8 +376,7 @@ def SSH_exec_cmd_with_directory(identity_file, user, host, srcdir, cmd, supressW
 
     if preRemove:
         SSH_exec_cmd(identity_file, user, host, "sudo rm -rf " + tmpdir)
-
-    scp(identity_file, srcdir, tmpdir, user, host)
+    scp(identity_file, srcdir, tmpdir, user, host, not supressWarning)
     dstcmd = "cd "+tmpdir + "; "
     if supressWarning:
         dstcmd += cmd + " 2>/dev/null; "

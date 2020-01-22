@@ -8,10 +8,9 @@ import argparse
 import textwrap
 import random
 sys.path.append("../utils")
-from cloud_init_deploy import load_node_list_by_role_from_config
-from params import default_config_parameters
 from ConfigUtils import *
-
+from params import default_config_parameters
+from cloud_init_deploy import load_node_list_by_role_from_config
 
 def connect_to_machine(config, args):
     if args.nargs[0] in config['allroles']:
@@ -35,8 +34,8 @@ def run_kubectl(config, args, commands):
     os.system(kube_command)
 
 
-def run_script(node, args, sudo=False, supressWarning=False):
-    if ".py" in args[0]:
+def run_script(node, ssh_cert, adm_usr, nargs, sudo=False, noSupressWarning=True):
+    if ".py" in nargs[0]:
         if sudo:
             fullcmd = "sudo /opt/bin/python"
         else:
@@ -46,38 +45,64 @@ def run_script(node, args, sudo=False, supressWarning=False):
             fullcmd = "sudo bash"
         else:
             fullcmd = "bash"
-    nargs = len(args)
-    for i in range(nargs):
+    len_args = len(nargs)
+    for i in range(len_args):
         if i == 0:
-            fullcmd += " " + os.path.basename(args[i])
+            fullcmd += " " + os.path.basename(nargs[i])
         else:
-            fullcmd += " " + args[i]
-    srcdir = os.path.dirname(args[0])
+            fullcmd += " " + nargs[i]
+    srcdir = os.path.dirname(nargs[0])
     utils.SSH_exec_cmd_with_directory(
-        config["ssh_cert"], config["admin_username"], node, srcdir, fullcmd, supressWarning)
+        ssh_cert, adm_usr, node, srcdir, fullcmd, noSupressWarning)
 
 
 def run_script_wrapper(arg_tuple):
-    node, args, sudo, supressWarning = arg_tuple
-    run_script(node, args, sudo, supressWarning)
+    node, ssh_cert, adm_usr, nargs, sudo, noSupressWarning = arg_tuple
+    run_script(node, ssh_cert, adm_usr, nargs, sudo, noSupressWarning)
 
 
-def run_script_on_all_in_parallel(nodes, args, sudo=False, supressWarning=False):
-    args_list = [(node, args, sudo, supressWarning) for node in nodes]
+def copy2_wrapper(arg_tuple):
+    node, ssh_cert, adm_usr, nargs, sudo, noSupressWarning = arg_tuple
+    source, target = nargs[0], nargs[1]
+    if sudo:
+        utils.sudo_scp(ssh_cert, source, target, adm_usr,
+                       node, verbose=noSupressWarning)
+    else:
+        utils.scp(ssh_cert, source, target, adm_usr,
+                  node, verbose=noSupressWarning)
+
+
+def execute_in_in_parallel(config, nodes, nargs, func, sudo=False, noSupressWarning=True):
+    args_list = [(config["machines"][node]["fqdns"], config["ssh_cert"],
+                  config["admin_username"], nargs, sudo, noSupressWarning) for node in nodes]
     from multiprocessing import Pool
     pool = Pool(processes=len(nodes))
-    pool.map(run_script_wrapper, args_list)
+    pool.map(func, args_list)
     pool.close()
 
 
-def runonroles(config, args):
-    invalid_roles = set(config['allroles']) - set(args.roles)
-    if invalid_roles:
-        print("Warning: invalid roles detected: " + ",".join(list(invalid_roles)))
-    nodes, _ = load_node_list_by_role_from_config(config, list(set(args.roles) & set(config['allroles'])))
-    pssh_cmd = 'parallel-ssh {} -t 0 -p {} -H {} -x "-oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i deploy/sshkey/id_rsa" -l core {}'.format(
-        log_option, len(nodes), ' '.join(nodes), args.nargs[0])
-    os.system(pssh_cmd)
+def get_multiple_machines(config, args):
+    valid_roles = set(config['allroles']) & set(args.roles_or_machine)
+    valid_machine_names = set(config['machines']) & set(args.roles_or_machine)
+    invalid_rom = set(args.roles_or_machine) - \
+        valid_roles - valid_machine_names
+    if invalid_rom:
+        print("Warning: invalid roles/machine names detected, the following names \\\
+            are neither valid role names nor machines in our cluster: " + ",".join(list(invalid_rom)))
+    nodes, _ = load_node_list_by_role_from_config(config, list(valid_roles))
+    return nodes + list(valid_machine_names)
+
+
+def run_scripts_on_nodes(config, args):
+    nodes = get_multiple_machines(config, args)
+    execute_in_in_parallel(config, nodes, args.nargs, run_script_wrapper,
+                           sudo=args.sudo, noSupressWarning=args.verbose)
+
+
+def copy_2_nodes(config, args):
+    nodes = get_multiple_machines(config, args)
+    execute_in_in_parallel(config, nodes, args.nargs, copy2_wrapper,
+                           sudo=args.sudo, noSupressWarning=args.verbose)
 
 
 def run_command(args, command):
@@ -88,10 +113,11 @@ def run_command(args, command):
         connect_to_machine(config, args)
     if command == "kubectl":
         run_kubectl(config, args, args.nargs[0:])
-    if command == "runonroles":
-        pass
-    if command == "copy2roles":
-        pass
+    if command == "runscript":
+        run_scripts_on_nodes(config, args)
+    if command == "copy2":
+        copy_2_nodes(config, args)
+
 
 if __name__ == '__main__':
     # the program always run at the current directory.
@@ -116,9 +142,10 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--out', help='File to dump to as output')
     parser.add_argument("-v", "--verbose",
                         help="verbose print", action="store_true")
-    parser.add_argument('-r', '--roles', action='append', default=[], help='Specify the roles of machines that you want to copy file \
+    parser.add_argument('-r', '--roles_or_machine', action='append', default=[], help='Specify the roles of machines that you want to copy file \
         to or execute command on')
-    parser.add_argument("-s", "--sudo", action="store_true", help='Execute scripts in sudo')
+    parser.add_argument("-s", "--sudo", action="store_true",
+                        help='Execute scripts in sudo')
     parser.add_argument("command",
                         help="See above for the list of valid command")
     parser.add_argument('nargs', nargs=argparse.REMAINDER,
