@@ -9,7 +9,7 @@ import requests
 sys.path.append(os.path.join(os.path.dirname(
     os.path.abspath(__file__)), "../utils"))
 
-from resource_stat import Gpu
+from resource_stat import Gpu, Cpu, Memory
 
 
 logger = logging.getLogger(__name__)
@@ -46,6 +46,18 @@ class ClusterStatus(object):
         self.gpu_unschedulable = None
         self.gpu_reserved = None
 
+        self.cpu_capacity = None
+        self.cpu_used = None
+        self.cpu_available = None
+        self.cpu_unschedulable = None
+        self.cpu_reserved = None
+
+        self.memory_capacity = None
+        self.memory_used = None
+        self.memory_available = None
+        self.memory_unschedulable = None
+        self.memory_reserved = None
+
         self.node_status = None
         self.user_status = None
         self.user_status_preemptable = None
@@ -65,9 +77,11 @@ class ClusterStatus(object):
         # Compute GPU cluster status
         self.__set_cluster_gpu_status()
 
-        # TODO: Compute CPU cluster status
+        # Compute CPU cluster status
+        self.__set_cluster_cpu_status()
 
-        # TODO: Compute memory cluster status
+        # Compute memory cluster status
+        self.__set_cluster_memory_status()
 
         # Compute cluster node status
         self.__set_cluster_node_status()
@@ -102,15 +116,21 @@ class ClusterStatus(object):
 
     def __parse_node_statuses(self):
         gpu_str = "nvidia.com/gpu"
+        cpu_str = "cpu"
+        mem_str = "memory"
 
         self.node_statuses = {}
 
         for node in self.nodes:
             # node is of class 'kubernetes.client.models.v1_node.V1Node'
+            if node.metadata is None:
+                continue
+
             name = node.metadata.name
             labels = node.metadata.labels
 
             gpu_type = ""
+            sku = ""
             scheduled_service = []
             if labels is not None:
                 for label, status in labels.items():
@@ -119,18 +139,39 @@ class ClusterStatus(object):
                     if label == "gpuType":
                         scheduled_service.append(status)
                         gpu_type = status
+                    if label == "sku":
+                        scheduled_service.append(status)
+                        sku = status
 
             allocatable = node.status.allocatable
             gpu_allocatable = Gpu()
-            if allocatable is not None and gpu_str in allocatable:
-                gpu_num = int(allocatable[gpu_str])
-                gpu_allocatable = Gpu({gpu_type: gpu_num})
+            cpu_allocatable = Cpu()
+            mem_allocatable = Memory()
+            if allocatable is not None:
+                if gpu_str in allocatable:
+                    gpu_num = int(allocatable[gpu_str])
+                    gpu_allocatable = Gpu({gpu_type: gpu_num})
+                if cpu_str in allocatable:
+                    cpu_num = allocatable[cpu_str]
+                    cpu_allocatable = Cpu({sku: cpu_num})
+                if mem_str in allocatable:
+                    mem_num = allocatable[mem_str]
+                    mem_allocatable = Memory({sku: mem_num})
 
             capacity = node.status.capacity
             gpu_capacity = Gpu()
-            if capacity is not None and gpu_str in capacity:
-                gpu_num = int(capacity[gpu_str])
-                gpu_capacity = Gpu({gpu_type: gpu_num})
+            cpu_capacity = Cpu()
+            mem_capacity = Memory()
+            if capacity is not None:
+                if gpu_str in capacity:
+                    gpu_num = int(capacity[gpu_str])
+                    gpu_capacity = Gpu({gpu_type: gpu_num})
+                if cpu_str in capacity:
+                    cpu_num = capacity[cpu_str]
+                    cpu_capacity = Cpu({sku: cpu_num})
+                if mem_str in capacity:
+                    mem_num = capacity[mem_str]
+                    mem_capacity = Memory({sku: mem_num})
 
             internal_ip = "unknown"
 
@@ -166,6 +207,14 @@ class ClusterStatus(object):
                 "gpu_capacity": gpu_capacity,
                 "gpu_used": Gpu(),
                 "gpu_preemptable_used": Gpu(),
+                "cpu_allocatable": cpu_allocatable,
+                "cpu_capacity": cpu_capacity,
+                "cpu_used": Cpu(),
+                "cpu_preemptable_used": Cpu(),
+                "memory_allocatable": mem_allocatable,
+                "memory_capacity": mem_capacity,
+                "memory_used": Memory(),
+                "memory_preemptable_used": Memory(),
                 "InternalIP": internal_ip,
                 "pods": [],
                 "unschedulable": unschedulable
@@ -175,25 +224,34 @@ class ClusterStatus(object):
 
     def __parse_pod_statuses(self):
         gpu_str = "nvidia.com/gpu"
+        cpu_str = "cpu"
+        mem_str = "memory"
 
         self.pod_statuses = {}
         for pod in self.pods:
             # pod is of class 'kubernetes.client.models.v1_pod.V1Pod'
+            if pod.metadata is None:
+                continue
+
+            name = pod.metadata.name
+            namespace = pod.metadata.namespace
+            labels = pod.metadata.labels
+
+            if pod.status is None:
+                continue
+
             phase = pod.status.phase
             if phase in ["Succeeded", "Failed"]:
                 continue
 
-            name = pod.metadata.name
-            labels = pod.metadata.labels
-
             gpu_type = ""
+            sku = ""
             if labels is not None:
                 for label, status in labels.items():
                     if label == "gpuType":
                         gpu_type = status
-
-            gpus = 0
-            preemptable_gpus = 0
+                    if label == "sku":
+                        sku = status
 
             username = None
             if labels is not None and "userName" in labels:
@@ -214,36 +272,62 @@ class ClusterStatus(object):
                 if gpu_usage <= 25:
                     pod_name += "!!!!!!"
 
+            gpus = Gpu()
+            preemptable_gpus = Gpu()
+            cpus = Cpu()
+            preemptable_cpus = Cpu()
+            mems = Memory()
+            preemptable_mems = Memory()
+
             containers = pod.spec.containers
             if containers is not None:
                 for container in containers:
                     # container is of class
                     # 'kubernetes.client.models.v1_container.V1Container'
-                    container_gpus = 0
+                    curr_container_gpus = 0
+                    container_gpus = Gpu()
+                    container_cpus = Cpu()
+                    container_mems = Memory()
                     # resources is of class
                     # 'kubernetes.client.models.v1_resource_requirements
                     # .V1ResourceRequirements'
                     resources = container.resources
-                    requests = {}
+                    r_requests = {}
                     if resources.requests is not None:
-                        requests = resources.requests
+                        r_requests = resources.requests
 
-                    if gpu_str in requests:
-                        container_gpus = int(requests[gpu_str])
+                    if gpu_str in r_requests:
+                        curr_container_gpus = int(r_requests[gpu_str])
+                        container_gpus = Gpu({gpu_type: curr_container_gpus})
+
+                    if cpu_str in r_requests:
+                        container_cpus = Cpu({sku: r_requests[cpu_str]})
+
+                    if mem_str in r_requests:
+                        container_mems = Memory({sku: r_requests[mem_str]})
 
                     if preemption_allowed:
                         preemptable_gpus += container_gpus
+                        preemptable_cpus += container_cpus
+                        preemptable_mems += container_mems
                     else:
                         gpus += container_gpus
+                        cpus += container_cpus
+                        mems += container_mems
 
-                    pod_name += " (gpu #:%s)" % container_gpus
+                    pod_name += " (gpu #:%s)" % curr_container_gpus
 
             pod_status = {
                 "pod_name": pod_name,
+                "namespace": namespace,
                 "node_name": node_name,
                 "username": username,
-                "gpus": Gpu({gpu_type: gpus}).prune(),
-                "preemptable_gpus": Gpu({gpu_type: preemptable_gpus}).prune(),
+                "gpus": gpus.prune(),
+                "preemptable_gpus": preemptable_gpus.prune(),
+                "cpus": cpus.prune(),
+                "preemptable_cpus": preemptable_cpus.prune(),
+                "mems": mems.prune(),
+                "preemptable_mems": preemptable_mems.prune(),
                 "gpuType": gpu_type
             }
             self.pod_statuses[name] = pod_status
@@ -251,9 +335,14 @@ class ClusterStatus(object):
     def __update_node_statuses(self):
         for _, pod_status in self.pod_statuses.items():
             pod_name = pod_status["pod_name"]
+            namespace = pod_status["namespace"]
             node_name = pod_status["node_name"]
             pod_gpus = pod_status["gpus"]
             pod_preemptable_gpus = pod_status["preemptable_gpus"]
+            pod_cpus = pod_status["cpus"]
+            pod_preemptable_cpus = pod_status["preemptable_cpus"]
+            pod_mems = pod_status["mems"]
+            pod_preemptable_mems = pod_status["preemptable_mems"]
 
             if node_name not in self.node_statuses:
                 continue
@@ -262,7 +351,14 @@ class ClusterStatus(object):
             node_status = self.node_statuses[node_name]
             node_status["gpu_used"] += pod_gpus
             node_status["gpu_preemptable_used"] += pod_preemptable_gpus
-            node_status["pods"].append(pod_name)
+            node_status["cpu_used"] += pod_cpus
+            node_status["cpu_preemptable_used"] += pod_preemptable_cpus
+            node_status["memory_used"] += pod_mems
+            node_status["memory_preemptable_used"] += pod_preemptable_mems
+
+            # Only append a list pods in default namespace
+            if namespace == "default":
+                node_status["pods"].append(pod_name)
 
     def __parse_user_info(self):
         u_info = {}
@@ -272,27 +368,47 @@ class ClusterStatus(object):
             username = pod_status["username"]
             gpus = pod_status["gpus"]
             preemptable_gpus = pod_status["preemptable_gpus"]
+            cpus = pod_status["cpus"]
+            preemptable_cpus = pod_status["preemptable_cpus"]
+            mems = pod_status["mems"]
+            preemptable_mems = pod_status["preemptable_mems"]
             if username is not None:
                 if username not in u_info:
-                    u_info[username] = Gpu()
-                    u_info_preemptable[username] = Gpu()
-                u_info[username] += gpus
-                u_info_preemptable[username] += preemptable_gpus
+                    u_info[username] = {
+                        "gpu": Gpu(),
+                        "cpu": Cpu(),
+                        "memory": Memory()
+                    }
+                    u_info_preemptable[username] = {
+                        "gpu": Gpu(),
+                        "cpu": Cpu(),
+                        "memory": Memory()
+                    }
+
+                u_info[username]["gpu"] += gpus
+                u_info[username]["cpu"] += cpus
+                u_info[username]["memory"] += mems
+
+                u_info_preemptable[username]["gpu"] += preemptable_gpus
+                u_info_preemptable[username]["cpu"] += preemptable_cpus
+                u_info_preemptable[username]["memory"] += preemptable_mems
 
         self.user_info = u_info
         self.user_info_preemptable = u_info_preemptable
 
-    def __set_cluster_gpu_status(self):
-        capacity = Gpu()
-        used = Gpu()
-        avail = Gpu()
-        unschedulable = Gpu()
-        reserved = Gpu()
+    def __set_cluster_resource_status(self, r_type):
+        capacity = r_type()
+        used = r_type()
+        avail = r_type()
+        unschedulable = r_type()
+        reserved = r_type()
+
+        r_name = r_type.__name__.lower()
 
         for node_name, node_status in self.node_statuses.items():
-            node_capacity = node_status["gpu_capacity"]
-            node_used = node_status["gpu_used"]
-            node_allocatable = node_status["gpu_allocatable"]
+            node_capacity = node_status[r_name + "_capacity"]
+            node_used = node_status[r_name + "_used"]
+            node_allocatable = node_status[r_name + "_allocatable"]
             if node_status["unschedulable"]:
                 unschedulable += node_capacity
                 reserved += (node_capacity - node_used)
@@ -305,9 +421,20 @@ class ClusterStatus(object):
             used += node_used
             capacity += node_capacity
 
-        logger.info("Cluster GPU status: capacity %s, used %s, avail %s, "
-                    "unschedulable %s, reserved %s",
+        capacity.prune()
+        used.prune()
+        avail.prune()
+        unschedulable.prune()
+        reserved.prune()
+
+        logger.info("Cluster %s status: capacity %s, used %s, avail %s, "
+                    "unschedulable %s, reserved %s", r_name,
                     capacity, used, avail, unschedulable, reserved)
+        return capacity, used, avail, unschedulable, reserved
+
+    def __set_cluster_gpu_status(self):
+        capacity, used, avail, unschedulable, reserved = \
+            self.__set_cluster_resource_status(Gpu)
 
         self.gpu_capacity = capacity.resource
         self.gpu_used = used.resource
@@ -315,17 +442,43 @@ class ClusterStatus(object):
         self.gpu_unschedulable = unschedulable.resource
         self.gpu_reserved = reserved.resource
 
+    def __set_cluster_cpu_status(self):
+        capacity, used, avail, unschedulable, reserved = \
+            self.__set_cluster_resource_status(Cpu)
+
+        self.cpu_capacity = capacity.resource
+        self.cpu_used = used.resource
+        self.cpu_available = avail.resource
+        self.cpu_unschedulable = unschedulable.resource
+        self.cpu_reserved = reserved.resource
+
+    def __set_cluster_memory_status(self):
+        capacity, used, avail, unschedulable, reserved = \
+            self.__set_cluster_resource_status(Memory)
+
+        self.memory_capacity = capacity.resource
+        self.memory_used = used.resource
+        self.memory_available = avail.resource
+        self.memory_unschedulable = unschedulable.resource
+        self.memory_reserved = reserved.resource
+
     def __set_cluster_node_status(self):
         for _, node_status in self.node_statuses.items():
-            gpu_capacity = node_status["gpu_capacity"].resource
-            gpu_used = node_status["gpu_used"].resource
-            gpu_preemptable_used = node_status["gpu_preemptable_used"].resource
-            gpu_allocatable = node_status["gpu_allocatable"].resource
+            for r_type in ["gpu", "cpu", "memory"]:
+                k_capacity = r_type + "_capacity"
+                k_used = r_type + "_used"
+                k_preemptable_used = r_type + "_preemptable_used"
+                k_allocatable = r_type + "_allocatable"
 
-            node_status["gpu_capacity"] = gpu_capacity
-            node_status["gpu_used"] = gpu_used
-            node_status["gpu_preemptable_used"] = gpu_preemptable_used
-            node_status["gpu_allocatable"] = gpu_allocatable
+                capacity = node_status[k_capacity].resource
+                used = node_status[k_used].resource
+                preemptable_used = node_status[k_preemptable_used].resource
+                allocatable = node_status[k_allocatable].resource
+
+                node_status[k_capacity] = capacity
+                node_status[k_used] = used
+                node_status[k_preemptable_used] = preemptable_used
+                node_status[k_allocatable] = allocatable
 
         self.node_status = [
             node_status for _, node_status in self.node_statuses.items()
@@ -335,13 +488,17 @@ class ClusterStatus(object):
         self.user_status = [
             {
                 "userName": username,
-                "userGPU": user_gpu.resource
-            } for username, user_gpu in self.user_info.items()
+                "userGPU": u_info["gpu"].resource,
+                "userCPU": u_info["cpu"].resource,
+                "userMemory": u_info["memory"].resource
+            } for username, u_info in self.user_info.items()
         ]
 
         self.user_status_preemptable = [
             {
                 "userName": username,
-                "userGPU": user_gpu.resource
-            } for username, user_gpu in self.user_info_preemptable.items()
+                "userGPU": u_info["gpu"].resource,
+                "userCPU": u_info["cpu"].resource,
+                "userMemory": u_info["memory"].resource
+            } for username, u_info in self.user_info_preemptable.items()
         ]

@@ -307,8 +307,7 @@ def get_cluster_status():
     cluster_status = {}
     try:
         nodes = k8s.get_all_nodes()
-        #pods = k8s.get_all_pods()
-        pods = k8s.get_namespaced_pods(namespace="default")
+        pods = k8s.get_all_pods()
         cs = ClusterStatus(config, nodes, pods)
         cs.compute()
         cluster_status = cs.to_dict()

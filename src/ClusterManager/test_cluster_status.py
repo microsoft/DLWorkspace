@@ -16,6 +16,10 @@ from kubernetes.client.models.v1_resource_requirements import \
 from cluster_status import str2bool, ClusterStatus
 
 
+Mi = 1024 * 1024
+MilliCPU = 1000
+
+
 class MockK8sConfig(object):
     def is_initialized(self):
         for _, v in self.__dict__.items():
@@ -39,6 +43,7 @@ class MockK8sPodConfig(MockK8sConfig):
     def __int__(self):
         self.name = None
         self.labels = None
+        self.namespace = None
         self.phase = None
         self.node_name = None
         # A list of container resource requests
@@ -81,7 +86,8 @@ def mock_k8s_pod(config):
     pod = V1Pod()
 
     pod.metadata = V1ObjectMeta(name=config.name,
-                                labels=config.labels)
+                                labels=config.labels,
+                                namespace=config.namespace)
 
     containers = []
     for i, requests in enumerate(config.container_requests):
@@ -142,15 +148,24 @@ class TestClusterStatus(TestCase):
         """
         3 nodes
           node1:
+            sku: m_type1
             gpu:
               P40: 4
+            cpu: 10
+            memory: 102400Mi
           node2:
+            sku: m_type2
             gpu:
               P40: 0
+            cpu: 20
+            memory: 409600Mi
           node3:
+            sku: m_type3
             gpu:
               P40: 4
             unschedulable: True
+            cpu: 12
+            memory: 102400Mi
 
         4 pods
           pod1:
@@ -158,32 +173,48 @@ class TestClusterStatus(TestCase):
               node1
             gpu:
               P40: 1
+            cpu: 4
+            memory: 81920Mi
             user: user1
           pod2:
             node:
               node2
             gpu:
               P40: 0
+            cpu: 16
+            memory: 348160Mi
             user: user2
           pod3:
             node:
               node1
             gpu:
               P40: 2
+            cpu: 2
+            memory: 2048Mi
             user: user3
           pod4:
             node:
               node3
             gpu:
               P40: 2
+            cpu: 6
+            memory: 61440Mi
             user: user1
         """
         # Create node1
         n1_config = MockK8sNodeConfig()
         n1_config.name = "node1"
-        n1_config.labels = {"gpuType": "P40"}
-        n1_config.capacity = {"nvidia.com/gpu": 4}
-        n1_config.allocatable = {"nvidia.com/gpu": 4}
+        n1_config.labels = {"gpuType": "P40", "sku": "m_type1"}
+        n1_config.capacity = {
+            "nvidia.com/gpu": "4",
+            "cpu": "10",
+            "memory": "102400Mi"
+        }
+        n1_config.allocatable = {
+            "nvidia.com/gpu": "4",
+            "cpu": "10",
+            "memory": "102400Mi"
+        }
         n1_config.internal_ip = "10.0.0.1"
         n1_config.unschedulable = False
         n1_config.ready = "True"
@@ -192,9 +223,15 @@ class TestClusterStatus(TestCase):
         # Create node2
         n2_config = MockK8sNodeConfig()
         n2_config.name = "node2"
-        n2_config.labels = {}
-        n2_config.capacity = {}
-        n2_config.allocatable = {}
+        n2_config.labels = {"sku": "m_type2"}
+        n2_config.capacity = {
+            "cpu": "20",
+            "memory": "409600Mi"
+        }
+        n2_config.allocatable = {
+            "cpu": "20",
+            "memory": "409600Mi"
+        }
         n2_config.internal_ip = "10.0.0.2"
         n2_config.unschedulable = False
         n2_config.ready = "True"
@@ -203,9 +240,17 @@ class TestClusterStatus(TestCase):
         # Create node3
         n3_config = MockK8sNodeConfig()
         n3_config.name = "node3"
-        n3_config.labels = {"gpuType": "P40"}
-        n3_config.capacity = {"nvidia.com/gpu": 4}
-        n3_config.allocatable = {"nvidia.com/gpu": 4}
+        n3_config.labels = {"gpuType": "P40", "sku": "m_type3"}
+        n3_config.capacity = {
+            "nvidia.com/gpu": "4",
+            "cpu": "12",
+            "memory": "102400Mi"
+        }
+        n3_config.allocatable = {
+            "nvidia.com/gpu": "4",
+            "cpu": "12",
+            "memory": "102400Mi"
+        }
         n3_config.internal_ip = "10.0.0.3"
         n3_config.unschedulable = False
         n3_config.ready = "Unknown"
@@ -217,37 +262,71 @@ class TestClusterStatus(TestCase):
         # Create pod1
         p1_config = MockK8sPodConfig()
         p1_config.name = "pod1"
-        p1_config.labels = {"gpuType": "P40", "userName": "user1"}
+        p1_config.labels = {
+            "gpuType": "P40",
+            "sku": "m_type1",
+            "userName": "user1"
+        }
+        p1_config.namespace = "default"
         p1_config.phase = "Running"
         p1_config.node_name = "node1"
-        p1_config.container_requests = [{"nvidia.com/gpu": 1}]
+        p1_config.container_requests = [{
+            "nvidia.com/gpu": "1",
+            "cpu": "4",
+            "memory": "81920Mi"
+        }]
         pod1 = mock_k8s_pod(p1_config)
 
         # Create pod2
         p2_config = MockK8sPodConfig()
         p2_config.name = "pod2"
-        p2_config.labels = {"userName": "user2"}
+        p2_config.labels = {
+            "userName": "user2",
+            "sku": "m_type2"
+        }
+        p2_config.namespace = "default"
         p2_config.phase = "Running"
         p2_config.node_name = "node2"
-        p2_config.container_requests = [{"nvidia.com/gpu": 0}]
+        p2_config.container_requests = [{
+            "cpu": "16",
+            "memory": "348160Mi"
+        }]
         pod2 = mock_k8s_pod(p2_config)
 
         # Create pod3
         p3_config = MockK8sPodConfig()
         p3_config.name = "pod3"
-        p3_config.labels = {"gpuType": "P40", "userName": "user3"}
+        p3_config.labels = {
+            "gpuType": "P40",
+            "sku": "m_type1",
+            "userName": "user3"
+        }
+        p3_config.namespace = "kube-system"
         p3_config.phase = "Running"
         p3_config.node_name = "node1"
-        p3_config.container_requests = [{"nvidia.com/gpu": 2}]
+        p3_config.container_requests = [{
+            "nvidia.com/gpu": "2",
+            "cpu": "2",
+            "memory": "2048Mi"
+        }]
         pod3 = mock_k8s_pod(p3_config)
 
         # Create pod4
         p4_config = MockK8sPodConfig()
         p4_config.name = "pod4"
-        p4_config.labels = {"gpuType": "P40", "userName": "user1"}
+        p4_config.labels = {
+            "gpuType": "P40",
+            "sku": "m_type3",
+            "userName": "user1"
+        }
+        p4_config.namespace = "default"
         p4_config.phase = "Running"
         p4_config.node_name = "node3"
-        p4_config.container_requests = [{"nvidia.com/gpu": 2}]
+        p4_config.container_requests = [{
+            "nvidia.com/gpu": "2",
+            "cpu": "6",
+            "memory": "61440Mi"
+        }]
         pod4 = mock_k8s_pod(p4_config)
 
         # Create pods list
@@ -263,33 +342,92 @@ class TestClusterStatus(TestCase):
         self.assertEqual({"P40": 4}, cs.gpu_unschedulable)
         self.assertEqual({"P40": 2}, cs.gpu_reserved)
 
+        # Cluster CPU status
+        self.assertEqual({
+            "m_type1": 10 * MilliCPU,
+            "m_type2": 20 * MilliCPU,
+            "m_type3": 12 * MilliCPU
+        }, cs.cpu_capacity)
+        self.assertEqual({
+            "m_type1": 6 * MilliCPU,
+            "m_type2": 16 * MilliCPU,
+            "m_type3": 6 * MilliCPU
+        }, cs.cpu_used)
+        self.assertEqual({
+            "m_type1": 4 * MilliCPU,
+            "m_type2": 4 * MilliCPU
+        }, cs.cpu_available)
+        self.assertEqual({
+            "m_type3": 12 * MilliCPU
+        }, cs.cpu_unschedulable)
+        self.assertEqual({
+            "m_type3": 6 * MilliCPU
+        }, cs.cpu_reserved)
+
+        # Cluster memory status
+        self.assertEqual({
+            "m_type1": 102400 * Mi,
+            "m_type2": 409600 * Mi,
+            "m_type3": 102400 * Mi
+        }, cs.memory_capacity)
+        self.assertEqual({
+            "m_type1": 83968 * Mi,
+            "m_type2": 348160 * Mi,
+            "m_type3": 61440 * Mi
+        }, cs.memory_used)
+        self.assertEqual({
+            "m_type1": 18432 * Mi,
+            "m_type2": 61440 * Mi
+        }, cs.memory_available)
+        self.assertEqual({
+            "m_type3": 102400 * Mi
+        }, cs.memory_unschedulable)
+        self.assertEqual({
+            "m_type3": 40960 * Mi
+        }, cs.memory_reserved)
+
         # Cluster node status
         t_node1_status = {
             "name": "node1",
-            "labels": {"gpuType": "P40"},
+            "labels": {"gpuType": "P40", "sku": "m_type1"},
             "gpuType": "P40",
-            "scheduled_service": ["P40"],
+            "scheduled_service": ["P40", "m_type1"],
             "gpu_allocatable": {"P40": 4},
             "gpu_capacity": {"P40": 4},
             "gpu_used": {"P40": 3},
             "gpu_preemptable_used": {},
+            "cpu_allocatable": {"m_type1": 10 * MilliCPU},
+            "cpu_capacity": {"m_type1": 10 * MilliCPU},
+            "cpu_used": {"m_type1": 6 * MilliCPU},
+            "cpu_preemptable_used": {},
+            "memory_allocatable": {"m_type1": 102400 * Mi},
+            "memory_capacity": {"m_type1": 102400 * Mi},
+            "memory_used": {"m_type1": 83968 * Mi},
+            "memory_preemptable_used": {},
             "InternalIP": "10.0.0.1",
             "pods": [
-                "pod1 : user1 (gpu #:1)",
-                "pod3 : user3 (gpu #:2)"
+                "pod1 : user1 (gpu #:1)"
             ],
             "unschedulable": False
         }
 
         t_node2_status = {
             "name": "node2",
-            "labels": {},
+            "labels": {"sku": "m_type2"},
             "gpuType": "",
-            "scheduled_service": [],
+            "scheduled_service": ["m_type2"],
             "gpu_allocatable": {},
             "gpu_capacity": {},
             "gpu_used": {},
             "gpu_preemptable_used": {},
+            "cpu_allocatable": {"m_type2": 20 * MilliCPU},
+            "cpu_capacity": {"m_type2": 20 * MilliCPU},
+            "cpu_used": {"m_type2": 16 * MilliCPU},
+            "cpu_preemptable_used": {},
+            "memory_allocatable": {"m_type2": 409600 * Mi},
+            "memory_capacity": {"m_type2": 409600 * Mi},
+            "memory_used": {"m_type2": 348160 * Mi},
+            "memory_preemptable_used": {},
             "InternalIP": "10.0.0.2",
             "pods": [
                 "pod2 : user2 (gpu #:0)"
@@ -299,13 +437,21 @@ class TestClusterStatus(TestCase):
 
         t_node3_status = {
             "name": "node3",
-            "labels": {"gpuType": "P40"},
+            "labels": {"gpuType": "P40", "sku": "m_type3"},
             "gpuType": "P40",
-            "scheduled_service": ["P40"],
+            "scheduled_service": ["P40", "m_type3"],
             "gpu_allocatable": {"P40": 4},
             "gpu_capacity": {"P40": 4},
             "gpu_used": {"P40": 2},
             "gpu_preemptable_used": {},
+            "cpu_allocatable": {"m_type3": 12 * MilliCPU},
+            "cpu_capacity": {"m_type3": 12 * MilliCPU},
+            "cpu_used": {"m_type3": 6 * MilliCPU},
+            "cpu_preemptable_used": {},
+            "memory_allocatable": {"m_type3": 102400 * Mi},
+            "memory_capacity": {"m_type3": 102400 * Mi},
+            "memory_used": {"m_type3": 61440 * Mi},
+            "memory_preemptable_used": {},
             "InternalIP": "10.0.0.3",
             "pods": [
                 "pod4 : user1 (gpu #:2)"
@@ -325,15 +471,27 @@ class TestClusterStatus(TestCase):
         t_user_status = [
             {
                 "userName": "user1",
-                "userGPU": {"P40": 3}
+                "userGPU": {"P40": 3},
+                "userCPU": {
+                    "m_type1": 4 * MilliCPU,
+                    "m_type3": 6 * MilliCPU
+                },
+                "userMemory": {
+                    "m_type1": 81920 * Mi,
+                    "m_type3": 61440 * Mi
+                }
             },
             {
                 "userName": "user2",
-                "userGPU": {}
+                "userGPU": {},
+                "userCPU": {"m_type2": 16 * MilliCPU},
+                "userMemory": {"m_type2": 348160 * Mi}
             },
             {
                 "userName": "user3",
-                "userGPU": {"P40": 2}
+                "userGPU": {"P40": 2},
+                "userCPU": {"m_type1": 2 * MilliCPU},
+                "userMemory": {"m_type1": 2048 * Mi}
             }
         ]
         self.assertEqual(t_user_status, cs.user_status)
@@ -341,7 +499,9 @@ class TestClusterStatus(TestCase):
         t_user_status_preemptable = [
             {
                 "userName": "user%s" % i,
-                "userGPU": {}
+                "userGPU": {},
+                "userCPU": {},
+                "userMemory": {}
             }
             for i in range(1, 4)
         ]
