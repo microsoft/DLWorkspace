@@ -136,16 +136,15 @@ def process_group(group):
             'id',
             'displayName',
             'userPrincipalName',
-            'mail',
             'onPremisesDomainName',
             'onPremisesSecurityIdentifier',
         ]):
             if member['@odata.type'] == '#microsoft.graph.user':
                 process_user(member)
-            elif member['@odata.type'] == '#microsoft.graph.group':
-                process_group(member)
+            # elif member['@odata.type'] == '#microsoft.graph.group':
+            #     process_group(member)
             else:
-                logger.warning('Unexpected @odata.type: {}'.format(member['@odata.type']))
+                logger.warning('Skip {}'.format(member['displayName']))
     except Exception:
         logger.exception('Exception in process group members {}'.format(member))
 
