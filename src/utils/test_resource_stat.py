@@ -38,20 +38,21 @@ class TestResource(TestCase):
 
     def test_repr(self):
         v = self.cls_name(res={"r1": "1"})
-        t = "{'r1': 1} "
-        if v.unit is not None:
-            t += "(%s)" % v.unit
+        unit = v.unit if v.unit is not None else ""
+        t = "{'r1': '1%s'}" % unit
         self.assertEqual(t, repr(v))
 
         v = ResourceStat(res={"r1": "1"}, unit="u")
-        self.assertEqual("{'r1': 1} (u)", repr(v))
+        self.assertEqual("{'r1': '1u'}", repr(v))
 
     def test_add(self):
         # a + b
         self.assertEqual(self.a_b_sum, self.a + self.b)
+        self.assertTrue(isinstance(self.a + self.b, self.cls_name))
 
         # a + c
         self.assertEqual(self.a_c_sum, self.a + self.c)
+        self.assertTrue(isinstance(self.a + self.c, self.cls_name))
 
     def test_sub(self):
         # a - b
@@ -166,7 +167,7 @@ class TestCpu(TestResource):
         self.a_e_eq = False
 
     def test_repr(self):
-        self.assertEqual("{'r1': 1000} (m)", repr(Cpu(res={"r1": "1"})))
+        self.assertEqual("{'r1': '1000m'}", repr(Cpu(res={"r1": "1"})))
 
 
 class TestMemory(TestResource):
@@ -192,7 +193,7 @@ class TestMemory(TestResource):
         self.a_e_eq = False
 
     def test_repr(self):
-        self.assertEqual("{'r1': 104857600, 'r2': 102400} (B)",
+        self.assertEqual("{'r1': '104857600B', 'r2': '102400B'}",
                          repr(Memory(res={"r1": "100Mi", "r2": "100Ki"})))
 
 
@@ -219,5 +220,5 @@ class TestMemoryDifferentUnit(TestResource):
         self.a_e_eq = False
 
     def test_repr(self):
-        self.assertEqual("{'r1': 104857600, 'r2': 102400} (B)",
+        self.assertEqual("{'r1': '104857600B', 'r2': '102400B'}",
                          repr(Memory(res={"r1": "100Mi", "r2": "100Ki"})))

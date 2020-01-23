@@ -204,7 +204,11 @@ class TestClusterStatus(TestCase):
         # Create node1
         n1_config = MockK8sNodeConfig()
         n1_config.name = "node1"
-        n1_config.labels = {"gpuType": "P40", "sku": "m_type1"}
+        n1_config.labels = {
+            "gpuType": "P40",
+            "sku": "m_type1",
+            "worker": "active"
+        }
         n1_config.capacity = {
             "nvidia.com/gpu": "4",
             "cpu": "10",
@@ -223,7 +227,10 @@ class TestClusterStatus(TestCase):
         # Create node2
         n2_config = MockK8sNodeConfig()
         n2_config.name = "node2"
-        n2_config.labels = {"sku": "m_type2"}
+        n2_config.labels = {
+            "sku": "m_type2",
+            "worker": "active"
+        }
         n2_config.capacity = {
             "cpu": "20",
             "memory": "409600Mi"
@@ -240,7 +247,11 @@ class TestClusterStatus(TestCase):
         # Create node3
         n3_config = MockK8sNodeConfig()
         n3_config.name = "node3"
-        n3_config.labels = {"gpuType": "P40", "sku": "m_type3"}
+        n3_config.labels = {
+            "gpuType": "P40",
+            "sku": "m_type3",
+            "worker": "active"
+        }
         n3_config.capacity = {
             "nvidia.com/gpu": "4",
             "cpu": "12",
@@ -344,24 +355,24 @@ class TestClusterStatus(TestCase):
 
         # Cluster CPU status
         self.assertEqual({
-            "m_type1": 10 * MilliCPU,
-            "m_type2": 20 * MilliCPU,
-            "m_type3": 12 * MilliCPU
+            "m_type1": "%dm" % (10 * MilliCPU),
+            "m_type2": "%dm" % (20 * MilliCPU),
+            "m_type3": "%dm" % (12 * MilliCPU)
         }, cs.cpu_capacity)
         self.assertEqual({
-            "m_type1": 6 * MilliCPU,
-            "m_type2": 16 * MilliCPU,
-            "m_type3": 6 * MilliCPU
+            "m_type1": "%dm" % (6 * MilliCPU),
+            "m_type2": "%dm" % (16 * MilliCPU),
+            "m_type3": "%dm" % (6 * MilliCPU)
         }, cs.cpu_used)
         self.assertEqual({
-            "m_type1": 4 * MilliCPU,
-            "m_type2": 4 * MilliCPU
+            "m_type1": "%dm" % (4 * MilliCPU),
+            "m_type2": "%dm" % (4 * MilliCPU)
         }, cs.cpu_available)
         self.assertEqual({
-            "m_type3": 12 * MilliCPU
+            "m_type3": "%dm" % (12 * MilliCPU)
         }, cs.cpu_unschedulable)
         self.assertEqual({
-            "m_type3": 6 * MilliCPU
+            "m_type3": "%dm" % (6 * MilliCPU)
         }, cs.cpu_reserved)
 
         # Cluster memory status
@@ -389,16 +400,16 @@ class TestClusterStatus(TestCase):
         # Cluster node status
         t_node1_status = {
             "name": "node1",
-            "labels": {"gpuType": "P40", "sku": "m_type1"},
+            "labels": {"gpuType": "P40", "sku": "m_type1", "worker": "active"},
             "gpuType": "P40",
-            "scheduled_service": ["P40", "m_type1"],
+            "scheduled_service": ["P40", "m_type1", "worker"],
             "gpu_allocatable": {"P40": 4},
             "gpu_capacity": {"P40": 4},
             "gpu_used": {"P40": 3},
             "gpu_preemptable_used": {},
-            "cpu_allocatable": {"m_type1": 10 * MilliCPU},
-            "cpu_capacity": {"m_type1": 10 * MilliCPU},
-            "cpu_used": {"m_type1": 6 * MilliCPU},
+            "cpu_allocatable": {"m_type1": "%dm" % (10 * MilliCPU)},
+            "cpu_capacity": {"m_type1": "%dm" % (10 * MilliCPU)},
+            "cpu_used": {"m_type1": "%dm" % (6 * MilliCPU)},
             "cpu_preemptable_used": {},
             "memory_allocatable": {"m_type1": 102400 * Mi},
             "memory_capacity": {"m_type1": 102400 * Mi},
@@ -413,16 +424,16 @@ class TestClusterStatus(TestCase):
 
         t_node2_status = {
             "name": "node2",
-            "labels": {"sku": "m_type2"},
+            "labels": {"sku": "m_type2", "worker": "active"},
             "gpuType": "",
-            "scheduled_service": ["m_type2"],
+            "scheduled_service": ["m_type2", "worker"],
             "gpu_allocatable": {},
             "gpu_capacity": {},
             "gpu_used": {},
             "gpu_preemptable_used": {},
-            "cpu_allocatable": {"m_type2": 20 * MilliCPU},
-            "cpu_capacity": {"m_type2": 20 * MilliCPU},
-            "cpu_used": {"m_type2": 16 * MilliCPU},
+            "cpu_allocatable": {"m_type2": "%dm" % (20 * MilliCPU)},
+            "cpu_capacity": {"m_type2": "%dm" % (20 * MilliCPU)},
+            "cpu_used": {"m_type2": "%dm" % (16 * MilliCPU)},
             "cpu_preemptable_used": {},
             "memory_allocatable": {"m_type2": 409600 * Mi},
             "memory_capacity": {"m_type2": 409600 * Mi},
@@ -437,16 +448,16 @@ class TestClusterStatus(TestCase):
 
         t_node3_status = {
             "name": "node3",
-            "labels": {"gpuType": "P40", "sku": "m_type3"},
+            "labels": {"gpuType": "P40", "sku": "m_type3", "worker": "active"},
             "gpuType": "P40",
-            "scheduled_service": ["P40", "m_type3"],
+            "scheduled_service": ["P40", "m_type3", "worker"],
             "gpu_allocatable": {"P40": 4},
             "gpu_capacity": {"P40": 4},
             "gpu_used": {"P40": 2},
             "gpu_preemptable_used": {},
-            "cpu_allocatable": {"m_type3": 12 * MilliCPU},
-            "cpu_capacity": {"m_type3": 12 * MilliCPU},
-            "cpu_used": {"m_type3": 6 * MilliCPU},
+            "cpu_allocatable": {"m_type3": "%dm" % (12 * MilliCPU)},
+            "cpu_capacity": {"m_type3": "%dm" % (12 * MilliCPU)},
+            "cpu_used": {"m_type3": "%dm" % (6 * MilliCPU)},
             "cpu_preemptable_used": {},
             "memory_allocatable": {"m_type3": 102400 * Mi},
             "memory_capacity": {"m_type3": 102400 * Mi},
@@ -473,8 +484,8 @@ class TestClusterStatus(TestCase):
                 "userName": "user1",
                 "userGPU": {"P40": 3},
                 "userCPU": {
-                    "m_type1": 4 * MilliCPU,
-                    "m_type3": 6 * MilliCPU
+                    "m_type1": "%dm" % (4 * MilliCPU),
+                    "m_type3": "%dm" % (6 * MilliCPU)
                 },
                 "userMemory": {
                     "m_type1": 81920 * Mi,
@@ -484,13 +495,13 @@ class TestClusterStatus(TestCase):
             {
                 "userName": "user2",
                 "userGPU": {},
-                "userCPU": {"m_type2": 16 * MilliCPU},
+                "userCPU": {"m_type2": "%dm" % (16 * MilliCPU)},
                 "userMemory": {"m_type2": 348160 * Mi}
             },
             {
                 "userName": "user3",
                 "userGPU": {"P40": 2},
-                "userCPU": {"m_type1": 2 * MilliCPU},
+                "userCPU": {"m_type1": "%dm" % (2 * MilliCPU)},
                 "userMemory": {"m_type1": 2048 * Mi}
             }
         ]

@@ -406,6 +406,11 @@ class ClusterStatus(object):
         r_name = r_type.__name__.lower()
 
         for node_name, node_status in self.node_statuses.items():
+            # Only do accounting for nodes with label "worker=active"
+            active_worker = node_status["labels"].get("worker") == "active"
+            if not active_worker:
+                continue
+
             node_capacity = node_status[r_name + "_capacity"]
             node_used = node_status[r_name + "_used"]
             node_allocatable = node_status[r_name + "_allocatable"]

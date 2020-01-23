@@ -30,6 +30,8 @@ from config import config, GetStoragePath
 import notify
 import k8sUtils
 import quota
+from resource_stat import Cpu, Memory
+from job_resource import JobResource
 
 logger = logging.getLogger(__name__)
 
@@ -504,8 +506,13 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
     vc_list = data_handler.ListVCs()
     cluster_status, _ = data_handler.GetClusterStatus()
     cluster_total = cluster_status["gpu_capacity"]
-    cluster_available = cluster_status["gpu_avaliable"]
+    cluster_available = cluster_status["gpu_available"]
     cluster_reserved = cluster_status["gpu_reserved"]
+
+    cluster_resource_available = JobResource(resource={
+        "cpu": cluster_status["cpu_available"],
+        "memory": cluster_status["memory_available"]
+    })
 
     vc_info = {}
     vc_usage = collections.defaultdict(lambda:
@@ -560,6 +567,9 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
             singleJobInfo["globalResInfo"] = ResourceInfo(
                 {jobGpuType: GetJobTotalGpu(job_params)})
 
+            job_resource = JobResource(params=job_params)
+            singleJobInfo["job_resource"] = job_resource
+
             # Job lists will be sorted based on and in the order of below
             # 1. non-preemptible precedes preemptible
             # 2. running precedes scheduling, precedes queued
@@ -592,9 +602,8 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
 
     jobsInfo.sort(key=lambda x: x["sortKey"])
 
-    logger.info("local resources : %s" % (vc_resources))
-    logger.info("global resources : %s" %
-                (globalResInfo.CategoryToCountMap))
+    logger.info("local resources : %s" % vc_resources)
+    logger.info("global resources : %s" % globalResInfo.CategoryToCountMap)
 
     for sji in jobsInfo:
         logger.info("job : %s : %s : %s" % (
@@ -628,7 +637,7 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
                         sji["jobId"], globalResInfo, sji["globalResInfo"])
 
     logger.info("global resources remain after this round of scheduling: %s" %
-                (globalResInfo.CategoryToCountMap))
+                globalResInfo.CategoryToCountMap)
 
     for sji in jobsInfo:
         try:
