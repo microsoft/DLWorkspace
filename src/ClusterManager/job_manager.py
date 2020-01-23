@@ -601,8 +601,9 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
 
     jobsInfo.sort(key=lambda x: x["sortKey"])
 
-    logger.info("local resources : %s" % vc_resources)
-    logger.info("global resources : %s" % globalResInfo.CategoryToCountMap)
+    logger.info("local resources : %s", vc_resources)
+    logger.info("global resources : %s", globalResInfo.CategoryToCountMap)
+    logger.info("cluster_available_resource: %s", cluster_resource_available)
 
     for sji in jobsInfo:
         logger.info("job : %s : %s : %s" % (
@@ -635,6 +636,7 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
                             cluster_resource_available, job_resource)
                 # Strict FIFO policy not required for global (bonus) tokens since these jobs are anyway pre-emptible.
                 globalResInfo.Subtract(sji["globalResInfo"])
+                cluster_resource_available -= job_resource
                 sji["allowed"] = True
             else:
                 logger.info("do not allow preemptible %s to run for global resource not enough, global resource %s, required %s. cluster_resource_available %s, job_resource %s",
