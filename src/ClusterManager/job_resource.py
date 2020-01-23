@@ -2,6 +2,7 @@
 
 import copy
 import logging
+import numbers
 
 from resource_stat import Cpu, Memory
 
@@ -114,4 +115,21 @@ class JobResource(object):
 
         self.cpu -= other.cpu
         self.memory -= other.memory
+        return self
+
+    def __mul__(self, other):
+        if not isinstance(other, numbers.Number):
+            raise ValueError("Multiplier is not a number")
+
+        ret = copy.deepcopy(self)
+        ret.cpu *= other
+        ret.memory *= other
+        return ret
+
+    def __imul__(self, other):
+        if not isinstance(other, numbers.Number):
+            raise ValueError("Multiplier is not a number")
+
+        self.cpu *= other
+        self.memory *= other
         return self

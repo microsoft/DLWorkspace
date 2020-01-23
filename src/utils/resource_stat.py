@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import copy
+import numbers
 import re
 
 
@@ -112,6 +113,26 @@ class ResourceStat(object):
             if k not in self.resource_num:
                 self.resource_num[k] = 0
             self.resource_num[k] -= v
+        return self
+
+    def __mul__(self, other):
+        if not isinstance(other, numbers.Number):
+            raise ValueError("Multiplier is not a number")
+
+        tmp = copy.deepcopy(self)
+        for k, v in self.resource_num.items():
+            new_v = int(v * float(other))
+            tmp.resource_num[k] = new_v
+        return self.__class__(res=tmp.resource, unit=self.unit)
+
+    def __imul__(self, other):
+        if not isinstance(other, numbers.Number):
+            raise ValueError("Multiplier is not a number")
+
+        for k, v in self.resource_num.items():
+            new_v = int(v * float(other))
+            self.resource_num[k] = new_v
+
         return self
 
     def __ge__(self, other):

@@ -48,6 +48,8 @@ class TestJobResource(TestCase):
         }
         self.c = JobResource(resource=c_res)
 
+        self.scalar = 0.8
+
     def test_init_from_params(self):
         regular_params = {
             "jobtrainingtype": "RegularJob",
@@ -187,6 +189,34 @@ class TestJobResource(TestCase):
             "memory": {
                 "r1": "-200Ki",
                 "r2": "100Ki"
+            }
+        })
+        self.assertEqual(expected, self.a)
+
+    def test_mul(self):
+        result = self.a * self.scalar
+        expected = JobResource(resource={
+            "cpu": {
+                "r1": "8m",
+                "r2": "80m"
+            },
+            "memory": {
+                "r1": "80Ki",
+                "r2": "160Ki"
+            }
+        })
+        self.assertEqual(expected, result)
+
+    def test_imul(self):
+        self.a *= self.scalar
+        expected = JobResource(resource={
+            "cpu": {
+                "r1": "8m",
+                "r2": "80m"
+            },
+            "memory": {
+                "r1": "80Ki",
+                "r2": "160Ki"
             }
         })
         self.assertEqual(expected, self.a)

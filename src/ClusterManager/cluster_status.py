@@ -126,6 +126,12 @@ class ClusterStatus(object):
             if node.metadata is None:
                 continue
 
+            if node.spec is None:
+                continue
+
+            if node.status is None:
+                continue
+
             name = node.metadata.name
             labels = node.metadata.labels
 
@@ -142,6 +148,9 @@ class ClusterStatus(object):
                     if label == "sku":
                         scheduled_service.append(status)
                         sku = status
+
+            if node.status is None:
+                continue
 
             allocatable = node.status.allocatable
             gpu_allocatable = Gpu()
@@ -233,16 +242,19 @@ class ClusterStatus(object):
             if pod.metadata is None:
                 continue
 
-            name = pod.metadata.name
-            namespace = pod.metadata.namespace
-            labels = pod.metadata.labels
-
             if pod.status is None:
                 continue
 
             phase = pod.status.phase
             if phase in ["Succeeded", "Failed"]:
                 continue
+
+            if pod.spec is None:
+                continue
+
+            name = pod.metadata.name
+            namespace = pod.metadata.namespace
+            labels = pod.metadata.labels
 
             gpu_type = ""
             sku = ""

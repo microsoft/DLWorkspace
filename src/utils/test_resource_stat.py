@@ -10,6 +10,8 @@ class TestResource(TestCase):
 
     def init_variables(self):
         self.a = self.cls_name(res={"r1": "3", "r2": "5", "r3": "0"})
+        self.scalar = 0.8
+        self.a_scalar_mul = self.cls_name(res={"r1": "2", "r2": "4", "r3": "0"})
         self.b = self.cls_name(res={"r1": "3", "r2": "6"})
         self.c = self.cls_name(res={"r1": "-1"})
         self.d = self.cls_name(res={"r1": "3", "r2": "5"})
@@ -63,13 +65,6 @@ class TestResource(TestCase):
         self.assertEqual(self.a_c_sum, self.a + self.c)
         self.assertTrue(isinstance(self.a + self.c, self.cls_name))
 
-    def test_sub(self):
-        # a - b
-        self.assertEqual(self.a_b_diff, self.a - self.b)
-
-        # a - c
-        self.assertEqual(self.a_c_diff, self.a - self.c)
-
     def test_iadd(self):
         # a += b
         v = self.cls_name(self.a)
@@ -81,6 +76,13 @@ class TestResource(TestCase):
         v += self.c
         self.assertEqual(self.a_c_sum, v)
 
+    def test_sub(self):
+        # a - b
+        self.assertEqual(self.a_b_diff, self.a - self.b)
+
+        # a - c
+        self.assertEqual(self.a_c_diff, self.a - self.c)
+
     def test_isub(self):
         # a -= b
         v = self.cls_name(self.a)
@@ -91,6 +93,15 @@ class TestResource(TestCase):
         v = self.cls_name(self.a)
         v -= self.c
         self.assertEqual(self.a_c_diff, v)
+
+    def test_mul(self):
+        # a * scalar
+        self.assertEqual(self.a_scalar_mul, self.a * self.scalar)
+
+    def test_imul(self):
+        # a *= scalar
+        self.a *= self.scalar
+        self.assertEqual(self.a_scalar_mul, self.a)
 
     def test_ge(self):
         # >= a number
@@ -168,6 +179,7 @@ class TestCpu(TestResource):
 
     def mutate_variables(self):
         self.a = Cpu(res={"r1": "3m", "r2": "5m", "r3": "0m"})
+        self.a_scalar_mul = Cpu(res={"r1": "2m", "r2": "4m", "r3": "0m"})
         self.b = Cpu(res={"r1": "3m", "r2": "6m"})
         self.c = Cpu(res={"r1": "-1m"})
         self.d = Cpu(res={"r1": "3m", "r2": "5m"})
@@ -188,6 +200,9 @@ class TestMemory(TestResource):
 
     def mutate_variables(self):
         self.a = Memory(res={"r1": "3Mi", "r2": "5Mi", "r3": "0Mi"})
+        self.a_scalar_mul = Memory(res={
+            "r1": "2516582", "r2": "4194304", "r3": "0"
+        })
         self.b = Memory(res={"r1": "3Mi", "r2": "6Mi"})
         self.c = Memory(res={"r1": "-1Mi"})
         self.d = Memory(res={"r1": "3Mi", "r2": "5Mi"})
@@ -209,6 +224,9 @@ class TestMemoryDifferentUnit(TestResource):
 
     def mutate_variables(self):
         self.a = Memory(res={"r1": "3Gi", "r2": "5Mi", "r3": "0Gi"})
+        self.a_scalar_mul = Memory(res={
+            "r1": "2576980377", "r2": "4194304", "r3": "0"
+        })
         self.b = Memory(res={"r1": "3Mi", "r2": "6Mi"})
         self.c = Memory(res={"r1": "-1Gi"})
         self.d = Memory(res={"r1": "3Gi", "r2": "5Mi"})
