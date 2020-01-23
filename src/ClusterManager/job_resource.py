@@ -15,16 +15,23 @@ class JobResource(object):
 
         Args:
             params: Job params dictionary.
-            resource: A dictionary containing "cpu" and "memory".
+            resource: A dictionary containing "cpu" and "memory", i.e.
+                resource = {
+                    "cpu": {
+                        "r1": ...
+                    },
+                    "memory": {
+                        "r1": ...
+                    }
         """
         self.params = params
         self.resource = resource
 
         self.cpu = Cpu()
         self.memory = Memory()
-        if params is not None:
+        if self.params is not None:
             self.__set_from_params()
-        elif resource is None:
+        elif self.resource is not None:
             self.__set_from_resource()
 
     def __set_from_params(self):
@@ -39,10 +46,10 @@ class JobResource(object):
             self.cpu = Cpu({sku: cpu_request})
             self.memory = Memory({sku: mem_request})
         elif job_type == "PSDistJob":
-            # Each ps requires 1 CPU
+            # Each ps reserves 1 CPU and 0 memory
             num_ps = int(self.params.get("numps", 0))
             self.cpu += Cpu({sku: num_ps})
-            self.memory += Memory({sku: num_ps})
+            self.memory += Memory({sku: 0})
 
             # Add worker CPU requirement
             num_worker = int(self.params.get("numpsworker", 0))
@@ -56,12 +63,39 @@ class JobResource(object):
         self.cpu = Cpu(self.resource.get("cpu"))
         self.memory = Memory(self.resource.get("memory"))
 
+    def __repr__(self):
+        return "cpu: %s. memory: %s." % (self.cpu, self.memory)
+
+    def __eq__(self, other):
+        if self.__class__ != other.__class__:
+            return False
+        return self.cpu == other.cpu and self.memory == other.memory
+
     def __ge__(self, other):
         if self.__class__ != other.__class__:
             raise ValueError("Incompatible class %s and %s" %
                              (self.__class__, other.__class__))
 
         return self.cpu >= other.cpu and self.memory >= other.memory
+
+    def __add__(self, other):
+        if self.__class__ != other.__class__:
+            raise ValueError("Incompatible class %s and %s" %
+                             (self.__class__, other.__class__))
+
+        ret = copy.deepcopy(self)
+        ret.cpu += other.cpu
+        ret.memory += other.memory
+        return ret
+
+    def __iadd__(self, other):
+        if self.__class__ != other.__class__:
+            raise ValueError("Incompatible class %s and %s" %
+                             (self.__class__, other.__class__))
+
+        self.cpu += other.cpu
+        self.memory += other.memory
+        return self
 
     def __sub__(self, other):
         if self.__class__ != other.__class__:
@@ -70,7 +104,7 @@ class JobResource(object):
 
         ret = copy.deepcopy(self)
         ret.cpu -= other.cpu
-        ret.memory -= other.cpu
+        ret.memory -= other.memory
         return ret
 
     def __isub__(self, other):

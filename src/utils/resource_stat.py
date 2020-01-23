@@ -136,7 +136,7 @@ class ResourceStat(object):
             d1 = d1.min_zero().prune()
             d2 = (other - self).min_zero().prune()
 
-            # Unlabled resource can be satisfied by any type of resource
+            # Unlabeled resource can be satisfied by any type of resource
             if len(d2.resource_num) == 1 and "" in d2.resource_num:
                 remaining_res = 0
                 for _, v in d1.resource_num.items():

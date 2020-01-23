@@ -14,6 +14,7 @@ class TestResource(TestCase):
         self.c = self.cls_name(res={"r1": "-1"})
         self.d = self.cls_name(res={"r1": "3", "r2": "5"})
         self.e = ResourceStat(res={"r1": "3", "r2": "5"}, unit="u")
+        self.f = self.cls_name(res={"r1": "3", "": "6"})
 
         self.a_b_sum = self.cls_name(res={"r1": "6", "r2": "11", "r3": "0"})
         self.a_b_diff = self.cls_name(res={"r1": "0", "r2": "-1", "r3": "0"})
@@ -23,12 +24,20 @@ class TestResource(TestCase):
         self.a_one_ge = False
         self.a_b_ge = False
         self.b_a_ge = True
+        self.a_f_ge = False
+        self.f_a_ge = False
+        self.b_f_ge = True
+        self.f_b_ge = False
         self.a_d_eq = True
         self.a_e_eq = False
+
+    def mutate_variables(self):
+        pass
 
     def setUp(self):
         self.init_class()
         self.init_variables()
+        self.mutate_variables()
 
     def test_min_zero(self):
         self.assertEqual(self.cls_name(res={"r1": "0"}), self.c.min_zero())
@@ -93,6 +102,12 @@ class TestResource(TestCase):
         self.assertEqual(self.a_b_ge, self.a >= self.b)
         self.assertEqual(self.b_a_ge, self.b >= self.a)
 
+        # Contains unlabeled resource
+        self.assertEqual(self.a_f_ge, self.a >= self.f)
+        self.assertEqual(self.f_a_ge, self.f >= self.a)
+        self.assertEqual(self.b_f_ge, self.b >= self.f)
+        self.assertEqual(self.f_b_ge, self.f >= self.b)
+
     def test_eq(self):
         self.assertEqual(self.a_d_eq, self.a == self.d)
         self.assertEqual(self.a_e_eq, self.a == self.e)
@@ -140,6 +155,9 @@ class TestGpu(TestResource):
     def init_class(self):
         self.cls_name = Gpu
 
+    def mutate_variables(self):
+        self.a_f_ge = True
+
     def test_empty_gpu_type(self):
         self.assertEqual(Gpu(), Gpu({"": 1}))
 
@@ -148,23 +166,17 @@ class TestCpu(TestResource):
     def init_class(self):
         self.cls_name = Cpu
 
-    def init_variables(self):
+    def mutate_variables(self):
         self.a = Cpu(res={"r1": "3m", "r2": "5m", "r3": "0m"})
         self.b = Cpu(res={"r1": "3m", "r2": "6m"})
         self.c = Cpu(res={"r1": "-1m"})
         self.d = Cpu(res={"r1": "3m", "r2": "5m"})
-        self.e = ResourceStat(res={"r1": "3", "r2": "5"}, unit="u")
+        self.f = Cpu(res={"r1": "3m", "": "6m"})
 
         self.a_b_sum = Cpu(res={"r1": "6m", "r2": "11m", "r3": "0m"})
         self.a_b_diff = Cpu(res={"r1": "0m", "r2": "-1m", "r3": "0m"})
         self.a_c_sum = Cpu(res={"r1": "2m", "r2": "5m", "r3": "0m"})
         self.a_c_diff = Cpu(res={"r1": "4m", "r2": "5m", "r3": "0m"})
-        self.a_zero_ge = True
-        self.a_one_ge = False
-        self.a_b_ge = False
-        self.b_a_ge = True
-        self.a_d_eq = True
-        self.a_e_eq = False
 
     def test_repr(self):
         self.assertEqual("{'r1': '1000m'}", repr(Cpu(res={"r1": "1"})))
@@ -174,23 +186,17 @@ class TestMemory(TestResource):
     def init_class(self):
         self.cls_name = Memory
 
-    def init_variables(self):
+    def mutate_variables(self):
         self.a = Memory(res={"r1": "3Mi", "r2": "5Mi", "r3": "0Mi"})
         self.b = Memory(res={"r1": "3Mi", "r2": "6Mi"})
         self.c = Memory(res={"r1": "-1Mi"})
         self.d = Memory(res={"r1": "3Mi", "r2": "5Mi"})
-        self.e = ResourceStat(res={"r1": "3", "r2": "5"}, unit="u")
+        self.f = Memory(res={"r1": "3Mi", "": "6Mi"})
 
         self.a_b_sum = Memory(res={"r1": "6Mi", "r2": "11Mi", "r3": "0Mi"})
         self.a_b_diff = Memory(res={"r1": "0Mi", "r2": "-1Mi", "r3": "0Mi"})
         self.a_c_sum = Memory(res={"r1": "2Mi", "r2": "5Mi", "r3": "0Mi"})
         self.a_c_diff = Memory(res={"r1": "4Mi", "r2": "5Mi", "r3": "0Mi"})
-        self.a_zero_ge = True
-        self.a_one_ge = False
-        self.a_b_ge = False
-        self.b_a_ge = True
-        self.a_d_eq = True
-        self.a_e_eq = False
 
     def test_repr(self):
         self.assertEqual("{'r1': '104857600B', 'r2': '102400B'}",
@@ -201,23 +207,20 @@ class TestMemoryDifferentUnit(TestResource):
     def init_class(self):
         self.cls_name = Memory
 
-    def init_variables(self):
+    def mutate_variables(self):
         self.a = Memory(res={"r1": "3Gi", "r2": "5Mi", "r3": "0Gi"})
         self.b = Memory(res={"r1": "3Mi", "r2": "6Mi"})
         self.c = Memory(res={"r1": "-1Gi"})
         self.d = Memory(res={"r1": "3Gi", "r2": "5Mi"})
-        self.e = ResourceStat(res={"r1": "3", "r2": "5"}, unit="u")
+        self.f = Memory(res={"r1": "3Mi", "": "6Mi"})
 
         self.a_b_sum = Memory(res={"r1": "3075Mi", "r2": "11Mi", "r3": "0Mi"})
         self.a_b_diff = Memory(res={"r1": "3069Mi", "r2": "-1Mi", "r3": "0Mi"})
         self.a_c_sum = Memory(res={"r1": "2Gi", "r2": "5Mi", "r3": "0Mi"})
         self.a_c_diff = Memory(res={"r1": "4Gi", "r2": "5Mi", "r3": "0Mi"})
-        self.a_zero_ge = True
-        self.a_one_ge = False
-        self.a_b_ge = False
+
         self.b_a_ge = False
-        self.a_d_eq = True
-        self.a_e_eq = False
+        self.a_f_ge = True
 
     def test_repr(self):
         self.assertEqual("{'r1': '104857600B', 'r2': '102400B'}",
