@@ -508,7 +508,7 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
     cluster_available = cluster_status["gpu_available"]
     cluster_reserved = cluster_status["gpu_reserved"]
 
-    _cluster_resource_capacity = JobResource(resource={
+    cluster_resource_capacity = JobResource(resource={
         "cpu": cluster_status["cpu_capacity"],
         "memory": cluster_status["memory_capacity"]
     })
