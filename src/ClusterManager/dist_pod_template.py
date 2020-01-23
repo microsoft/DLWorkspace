@@ -155,6 +155,14 @@ class DistPodTemplate():
                 pod["distRoleIdx"] = idx
                 pod["distId"] = "%s%d" % (role, idx)
                 pod = enable_cpu_config(pod, job.cluster)
+
+                # ps should use the default 1 CPU and 0 memory configuration
+                if role == "ps":
+                    pod.pop("cpurequest", None)
+                    pod.pop("cpulimit", None)
+                    pod.pop("memoryrequest", None)
+                    pod.pop("memorylimit", None)
+
                 # mount /pod
                 local_pod_path = job.get_hostpath(
                     job.job_path, "%s-%d" % (role, idx))
