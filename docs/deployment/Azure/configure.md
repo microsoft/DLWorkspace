@@ -20,10 +20,6 @@ If you are not building a cluster for Microsoft employee usage, you will also ne
 ### Additional configuration. 
 
 You may provide/change the specification of the deployed Azure cluster by adding the following information on config.yaml file.
-The details of configuration depend on the pipeline that is used for deployment.
-
-## cloud-init deployment pipeline ##
-For cloud-init based deployment, following entries need to be specified:
 ```
 cluster_name: zxcldexample
 cloud-init: True
@@ -98,79 +94,6 @@ azure_cluster:
       role: 
         - worker
       gpu_type: None
-```
-
-for each item in cnf["azure_cluster"]["vm"], we specify a machine spec, including role(s), storage, how many instance we want that follow this spec etc. Depending on role specified, we could further configure mounting plan/kubernetes service we want to run etc.
-
-## phase-focused deployment pipeline ##
-for phase-focused deployment, start with config in following format instead.
-
-```
-cluster_name: {{cnf["cluster_name"]}}
-
-azure_cluster:
-    infra_node_num: 1
-    infra_vm_size : Standard_B2s
-    azure_location: eastus
-    worker_node_num: 1
-    nfs_node_num: 1
-    nfs_data_disk_sz : 31
-    nfs_data_disk_num: 2
-    worker_vm_size: Standard_B2s
-    nfs_vm_size: Standard_B2s
-    nfs_local_storage_sz: 1023
-    vm_image: Canonical:UbuntuServer:18.04-LTS:18.04.201910030
-    nfs_vm:
-    - suffix: toad
-      data_disk_num: 2
-      data_disk_sz_gb: 31
-      data_disk_sku: Premium_LRS
-      data_disk_mnt_path: /data
-
-nfs_mnt_setup:
-  - server_suffix: toad
-    mnt_point:
-      firstshare:
-        curphysicalmountpoint: /mntdlws/nfs
-        filesharename: /data/share
-        mountpoints: ''
-```
-* cluster_name: A name without underscore or numbers (purely consisting of lower case letters) is recommended.
-
-* infra_node_num: Should be odd (1, 3 or 5), number of infrastructure node for the deployment. 3 infrastructure nodes tolerate 1 failure, and 5 infrastructure nodes tolerate 2 failures. However, more infrastructure nodes (and more failure tolerance) will reduce performance of the node. 
-
-* worker_node_num: Number of worker nodes used for deployment. 
-
-* nfs_node_num: Number of worker nodes used for deployment. 
-
-* vm_image: Used to fix the image version if the changing LTS is breaking the consistency of the deployment.
-
-* azure_location: 
-
-Please use the following to find all available azure locations. 
-```
-az account list-locations
-```
-
-* nfs_local_storage_sz: specifies size of the local storage (which won't be shared with infra/worker nodes) of nfs node.
-
-* infra_vm_size, worker_vm_size, nfs_vm_size: infrastructure and worker VM size. 
-
-Usually, a CPU VM will be used for infra_vm_size, and a GPU VM will be used for worker_vm_size. Please use the following to find all available Azure VM size. 
-```
-az vm list-sizes --location westus2
-```
-* nfs_data_disk_sz, nfs_data_disk_num: specify default data disk size/number of data disk of an NFS node, this would be overwritten by items in nfs_vm. 
-
-* nfs_vm: specifies the specs of a certain NFS node, and we could further specify the suffix/name of the NFS machine that we want to apply this spec to, and it needs to be consistent with nfs_mnt_setup item
-
-* nfs_mnt_setup: configures mounting source path (filesharename) and destination path (curphysicalmountpoint)
-
-
-## remaining configuration items for both pipelines ##
-No matter which pipeline is chosen, following items should be specified:
-
-```
 master_token: <a master token used for front end>
 activeDirectory:
   tenant: <tenant ID, usually associated with a corp, such as Microsoft>
@@ -243,32 +166,18 @@ registry_credential:
     username: <docker username 2>
     password: <docker password 2>
   ...
-
+  
 ```
 
+for each item in cnf["azure_cluster"]["vm"], we specify a machine spec, including role(s), storage, how many instance we want that follow this spec etc. Depending on role specified, we could further configure mounting plan/kubernetes service we want to run etc.
+
+* cluster_name: A name without underscore or numbers (purely consisting of lower case letters) is recommended.
+
+* azure_location: 
+
+Please use the following to find all available azure locations. 
 ```
-cluster_name: exitedtoad
-azure_cluster: 
-  <your cluster name>:
-    "infra_node_num": 1
-    "worker_node_num": 2 
-    "azure_location": "westus2"
-    "infra_vm_size": "Standard_DS1_v2"
-    "worker_vm_size": "Standard_NC6"
-    "vm_image" : "Canonical:UbuntuServer:18.04-LTS:18.04.201907221"
-datasource: MySQL
-webuiport: 80
-mysql_password: <your password>
-cloud_config:
-   default_admin_username: core
-   dev_network:
-     source_addresses_prefixes:
-     # These are the dev box of the cluster, only the machine in the IP address below will have access to the cluster.
-     - "<devbox IP>/32"
-registry_credential:
-  <docker image registry name 1>:
-    username: <user name>
-    password: <pass word>
-``` 
+az account list-locations
+```
 
 * registry_credential: defines your access to certain dockers. A docker image name consists of three parts - registry name, image name, and image tag. If your job needs a certain private docker, then use 0. the registry name of that docker, 1. your user name and 2. your password to specify your access to it.
