@@ -30,7 +30,6 @@ from config import config, GetStoragePath
 import notify
 import k8sUtils
 import quota
-from resource_stat import Cpu, Memory
 from job_resource import JobResource
 
 logger = logging.getLogger(__name__)
@@ -614,30 +613,38 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
         if sji["preemptionAllowed"]:
             continue # schedule non preemptable first
 
-        if vc_resource.CanSatisfy(sji["globalResInfo"]):
+        job_resource = sji["job_resource"]
+        if vc_resource.CanSatisfy(sji["globalResInfo"]) and cluster_resource_available >= job_resource:
             vc_resource.Subtract(sji["globalResInfo"])
             globalResInfo.Subtract(sji["globalResInfo"])
+            cluster_resource_available -= job_resource
             sji["allowed"] = True
             logger.info("allow non-preemptible %s to run, used resource %s" % (
                 sji["jobId"], sji["globalResInfo"].CategoryToCountMap))
         else:
-            logger.info("do not allow non-preemptible %s to run for vc resource not enough, vc resource %s, required %s",
-                    sji["jobId"], vc_resource, sji["globalResInfo"])
+            logger.info("do not allow non-preemptible %s to run for vc resource not enough, vc resource %s, required %s. cluster_resource_available %s, job_resource %s",
+                        sji["jobId"], vc_resource, sji["globalResInfo"],
+                        cluster_resource_available, job_resource)
 
     for sji in jobsInfo:
         if sji["preemptionAllowed"] and (sji["allowed"] is False):
-            if globalResInfo.CanSatisfy(sji["globalResInfo"]):
-                logger.info("allow preemptible %s to run, used resource %s" % (
-                    sji["jobId"], sji["globalResInfo"].CategoryToCountMap))
+            job_resource = sji["job_resource"]
+            if globalResInfo.CanSatisfy(sji["globalResInfo"]) and cluster_resource_available >= job_resource:
+                logger.info("allow preemptible %s to run, used resource %s. cluster_resource_available %s, job_resource %s",
+                            sji["jobId"], sji["globalResInfo"].CategoryToCountMap,
+                            cluster_resource_available, job_resource)
                 # Strict FIFO policy not required for global (bonus) tokens since these jobs are anyway pre-emptible.
                 globalResInfo.Subtract(sji["globalResInfo"])
                 sji["allowed"] = True
             else:
-                logger.info("do not allow preemptible %s to run for global resource not enough, global resource %s, required %s",
-                        sji["jobId"], globalResInfo, sji["globalResInfo"])
+                logger.info("do not allow preemptible %s to run for global resource not enough, global resource %s, required %s. cluster_resource_available %s, job_resource %s",
+                            sji["jobId"], globalResInfo, sji["globalResInfo"],
+                            cluster_resource_available, job_resource)
 
     logger.info("global resources remain after this round of scheduling: %s" %
                 globalResInfo.CategoryToCountMap)
+    logger.info("cluster_available_resource after this round of scheduling: %s",
+                cluster_resource_available)
 
     for sji in jobsInfo:
         try:
@@ -655,8 +662,12 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
                 vc_name = sji["job"]["vcName"]
                 available_resource = vc_resources[vc_name]
                 requested_resource = sji["globalResInfo"]
-                detail = [{"message": "waiting for available resource. requested: %s. available: %s" % (
-                    requested_resource, available_resource)}]
+                job_resource = sji["job_resource"]
+                detail = [{
+                    "message": "waiting for available resource. requested GPU: %s. available GPU: %s. requested resource: %s. available resource: %s" % (
+                        requested_resource, available_resource, job_resource,
+                        cluster_resource_available)
+                }]
                 data_handler.UpdateJobTextField(sji["jobId"], "jobStatusDetail", base64.b64encode(
                     json.dumps(detail).encode("utf-8")).encode("utf-8"))
         except Exception as e:

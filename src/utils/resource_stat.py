@@ -129,19 +129,22 @@ class ResourceStat(object):
                 raise ValueError("Incompatible resource type %s and %s" %
                                  (self.unit, other.unit))
 
-            diff = self - other
-            if diff >= 0:
+            d1 = self - other
+            if d1 >= 0:
                 return True
 
-            for k, v in other.resource_num.items():
-                if k not in self.resource_num:
-                    v_self = 0
-                else:
-                    v_self = self.resource_num[k]
+            d1 = d1.min_zero().prune()
+            d2 = (other - self).min_zero().prune()
 
-                if v_self < v:
-                    return False
-            return True
+            # Unlabled resource can be satisfied by any type of resource
+            if len(d2.resource_num) == 1 and "" in d2.resource_num:
+                remaining_res = 0
+                for _, v in d1.resource_num.items():
+                    remaining_res += v
+                if remaining_res >= d2.resource_num[""]:
+                    return True
+
+            return False
 
     def __prune(self):
         res = {k: v for k, v in self.resource_num.items() if v != 0}

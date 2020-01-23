@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import copy
 import logging
 
 from resource_stat import Cpu, Memory
@@ -56,10 +57,27 @@ class JobResource(object):
         self.memory = Memory(self.resource.get("memory"))
 
     def __ge__(self, other):
+        if self.__class__ != other.__class__:
+            raise ValueError("Incompatible class %s and %s" %
+                             (self.__class__, other.__class__))
+
         return self.cpu >= other.cpu and self.memory >= other.memory
 
     def __sub__(self, other):
-        pass
+        if self.__class__ != other.__class__:
+            raise ValueError("Incompatible class %s and %s" %
+                             (self.__class__, other.__class__))
+
+        ret = copy.deepcopy(self)
+        ret.cpu -= other.cpu
+        ret.memory -= other.cpu
+        return ret
 
     def __isub__(self, other):
+        if self.__class__ != other.__class__:
+            raise ValueError("Incompatible class %s and %s" %
+                             (self.__class__, other.__class__))
+
+        self.cpu -= other.cpu
+        self.memory -= other.memory
         return self
