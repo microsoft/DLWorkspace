@@ -6,11 +6,11 @@ sys.path.append(os.path.join(os.path.dirname(
     os.path.abspath(__file__)), "../utils"))
 
 from unittest import TestCase
-from job_resource import JobResource
+from cluster_resource import ClusterResource
 from resource_stat import Cpu, Memory
 
 
-class TestJobResource(TestCase):
+class TestClusterResource(TestCase):
     def setUp(self):
         a_res = {
             "cpu": {
@@ -22,7 +22,7 @@ class TestJobResource(TestCase):
                 "r2": "200Ki"
             }
         }
-        self.a = JobResource(resource=a_res)
+        self.a = ClusterResource(resource=a_res)
 
         b_res = {
             "cpu": {
@@ -34,7 +34,7 @@ class TestJobResource(TestCase):
                 "r2": "100Ki"
             }
         }
-        self.b = JobResource(resource=b_res)
+        self.b = ClusterResource(resource=b_res)
 
         c_res = {
             "cpu": {
@@ -46,7 +46,7 @@ class TestJobResource(TestCase):
                 "": "200Ki"
             }
         }
-        self.c = JobResource(resource=c_res)
+        self.c = ClusterResource(resource=c_res)
 
         self.scalar = 0.8
 
@@ -55,7 +55,7 @@ class TestJobResource(TestCase):
             "jobtrainingtype": "RegularJob",
             "sku": "r1"
         }
-        r_res = JobResource(params=regular_params)
+        r_res = ClusterResource(params=regular_params)
         self.assertEqual(Cpu({"r1": 1}), r_res.cpu)
         self.assertEqual(Memory(), r_res.memory)
 
@@ -66,20 +66,20 @@ class TestJobResource(TestCase):
             "cpurequest": 4,
             "memoryrequest": 102400
         }
-        d_res = JobResource(params=distributed_params)
+        d_res = ClusterResource(params=distributed_params)
         self.assertEqual(Cpu({"": 9}), d_res.cpu)
         self.assertEqual(Memory({"": 204800}), d_res.memory)
 
         unrecognized_params = {
             "jobtrainingtype": "Unknown"
         }
-        u_res = JobResource(params=unrecognized_params)
+        u_res = ClusterResource(params=unrecognized_params)
         self.assertEqual(Cpu(), u_res.cpu)
         self.assertEqual(Memory(), u_res.memory)
 
     def test_init_from_resource(self):
         res0 = {}
-        ret0 = JobResource(resource=res0)
+        ret0 = ClusterResource(resource=res0)
         self.assertEqual(Cpu(), ret0.cpu)
         self.assertEqual(Memory(), ret0.memory)
 
@@ -88,7 +88,7 @@ class TestJobResource(TestCase):
                 "r1": "1m"
             }
         }
-        ret1 = JobResource(resource=res1)
+        ret1 = ClusterResource(resource=res1)
         self.assertEqual(Cpu({"r1": "1m"}), ret1.cpu)
         self.assertEqual(Memory(), ret1.memory)
 
@@ -97,7 +97,7 @@ class TestJobResource(TestCase):
                 "r1": "100Mi"
             }
         }
-        ret2 = JobResource(resource=res2)
+        ret2 = ClusterResource(resource=res2)
         self.assertEqual(Cpu(), ret2.cpu)
         self.assertEqual(Memory({"r1": "100Mi"}), ret2.memory)
 
@@ -109,7 +109,7 @@ class TestJobResource(TestCase):
                 "r1": "100Mi"
             }
         }
-        ret3 = JobResource(resource=res3)
+        ret3 = ClusterResource(resource=res3)
         self.assertEqual(Cpu({"r1": "1m"}), ret3.cpu)
         self.assertEqual(Memory({"r1": "100Mi"}), ret3.memory)
 
@@ -122,7 +122,7 @@ class TestJobResource(TestCase):
                 "r1": "100Ki"
             }
         }
-        ret = JobResource(resource=res)
+        ret = ClusterResource(resource=res)
         self.assertEqual("cpu: {'r1': '1m'}. memory: {'r1': '102400B'}.",
                          repr(ret))
 
@@ -139,7 +139,7 @@ class TestJobResource(TestCase):
 
     def test_add(self):
         result = self.a + self.b
-        expected = JobResource(resource={
+        expected = ClusterResource(resource={
             "cpu": {
                 "r1": "110m",
                 "r2": "110m"
@@ -153,7 +153,7 @@ class TestJobResource(TestCase):
 
     def test_iadd(self):
         self.a += self.b
-        expected = JobResource(resource={
+        expected = ClusterResource(resource={
             "cpu": {
                 "r1": "110m",
                 "r2": "110m"
@@ -167,7 +167,7 @@ class TestJobResource(TestCase):
 
     def test_sub(self):
         result = self.a - self.b
-        expected = JobResource(resource={
+        expected = ClusterResource(resource={
             "cpu": {
                 "r1": "-90m",
                 "r2": "90m"
@@ -181,7 +181,7 @@ class TestJobResource(TestCase):
 
     def test_isub(self):
         self.a -= self.b
-        expected = JobResource(resource={
+        expected = ClusterResource(resource={
             "cpu": {
                 "r1": "-90m",
                 "r2": "90m"
@@ -195,7 +195,7 @@ class TestJobResource(TestCase):
 
     def test_mul(self):
         result = self.a * self.scalar
-        expected = JobResource(resource={
+        expected = ClusterResource(resource={
             "cpu": {
                 "r1": "8m",
                 "r2": "80m"
@@ -209,7 +209,7 @@ class TestJobResource(TestCase):
 
     def test_imul(self):
         self.a *= self.scalar
-        expected = JobResource(resource={
+        expected = ClusterResource(resource={
             "cpu": {
                 "r1": "8m",
                 "r2": "80m"

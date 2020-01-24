@@ -10,7 +10,7 @@ from resource_stat import Cpu, Memory
 logger = logging.getLogger(__name__)
 
 
-class JobResource(object):
+class ClusterResource(object):
     def __init__(self, params=None, resource=None):
         """Class for job resource requirement.
 

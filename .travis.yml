@@ -52,3 +52,4 @@ matrix:
       - pip install requests kubernetes
     script:
       - python -m unittest test_cluster_status.py
+      - python -m unittest test_cluster_resource.py

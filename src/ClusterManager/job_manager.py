@@ -30,7 +30,7 @@ from config import config, GetStoragePath
 import notify
 import k8sUtils
 import quota
-from job_resource import JobResource
+from cluster_resource import ClusterResource
 
 logger = logging.getLogger(__name__)
 
@@ -508,11 +508,11 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
     cluster_available = cluster_status["gpu_available"]
     cluster_reserved = cluster_status["gpu_reserved"]
 
-    cluster_resource_capacity = JobResource(resource={
+    cluster_resource_capacity = ClusterResource(resource={
         "cpu": cluster_status["cpu_capacity"],
         "memory": cluster_status["memory_capacity"]
     })
-    cluster_resource_unschedulable = JobResource(resource={
+    cluster_resource_unschedulable = ClusterResource(resource={
         "cpu": cluster_status["cpu_unschedulable"],
         "memory": cluster_status["memory_unschedulable"]
     })
@@ -574,7 +574,7 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
             singleJobInfo["globalResInfo"] = ResourceInfo(
                 {jobGpuType: GetJobTotalGpu(job_params)})
 
-            job_resource = JobResource(params=job_params)
+            job_resource = ClusterResource(params=job_params)
             singleJobInfo["job_resource"] = job_resource
 
             # Job lists will be sorted based on and in the order of below
