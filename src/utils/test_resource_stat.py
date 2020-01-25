@@ -10,8 +10,10 @@ class TestResource(TestCase):
 
     def init_variables(self):
         self.a = self.cls_name(res={"r1": "3", "r2": "5", "r3": "0"})
-        self.scalar = 0.8
-        self.a_scalar_mul = self.cls_name(res={"r1": "2", "r2": "4", "r3": "0"})
+        self.scalar = 0.5
+        self.a_scalar_mul = self.cls_name(res={
+            "r1": "1.5", "r2": "2.5", "r3": "0"
+        })
         self.b = self.cls_name(res={"r1": "3", "r2": "6"})
         self.c = self.cls_name(res={"r1": "-1"})
         self.d = self.cls_name(res={"r1": "3", "r2": "5"})
@@ -50,11 +52,11 @@ class TestResource(TestCase):
     def test_repr(self):
         v = self.cls_name(res={"r1": "1"})
         unit = v.unit if v.unit is not None else ""
-        t = "{'r1': '1%s'}" % unit
+        t = "{'r1': '%s%s'}" % (float(1), unit)
         self.assertEqual(t, repr(v))
 
         v = ResourceStat(res={"r1": "1"}, unit="u")
-        self.assertEqual("{'r1': '1u'}", repr(v))
+        self.assertEqual("{'r1': '%su'}" % float(1), repr(v))
 
     def test_add(self):
         # a + b
@@ -179,7 +181,7 @@ class TestCpu(TestResource):
 
     def mutate_variables(self):
         self.a = Cpu(res={"r1": "3m", "r2": "5m", "r3": "0m"})
-        self.a_scalar_mul = Cpu(res={"r1": "2m", "r2": "4m", "r3": "0m"})
+        self.a_scalar_mul = Cpu(res={"r1": "1.5m", "r2": "2.5m", "r3": "0m"})
         self.b = Cpu(res={"r1": "3m", "r2": "6m"})
         self.c = Cpu(res={"r1": "-1m"})
         self.d = Cpu(res={"r1": "3m", "r2": "5m"})
@@ -191,7 +193,8 @@ class TestCpu(TestResource):
         self.a_c_diff = Cpu(res={"r1": "4m", "r2": "5m", "r3": "0m"})
 
     def test_repr(self):
-        self.assertEqual("{'r1': '1000m'}", repr(Cpu(res={"r1": "1"})))
+        self.assertEqual("{'r1': '%sm'}" % float(1000),
+                         repr(Cpu(res={"r1": "1"})))
 
 
 class TestMemory(TestResource):
@@ -201,7 +204,7 @@ class TestMemory(TestResource):
     def mutate_variables(self):
         self.a = Memory(res={"r1": "3Mi", "r2": "5Mi", "r3": "0Mi"})
         self.a_scalar_mul = Memory(res={
-            "r1": "2516582", "r2": "4194304", "r3": "0"
+            "r1": "1.5Mi", "r2": "2.5Mi", "r3": "0"
         })
         self.b = Memory(res={"r1": "3Mi", "r2": "6Mi"})
         self.c = Memory(res={"r1": "-1Mi"})
@@ -214,7 +217,8 @@ class TestMemory(TestResource):
         self.a_c_diff = Memory(res={"r1": "4Mi", "r2": "5Mi", "r3": "0Mi"})
 
     def test_repr(self):
-        self.assertEqual("{'r1': '104857600B', 'r2': '102400B'}",
+        self.assertEqual("{'r1': '%sB', 'r2': '%sB'}" % (float(104857600),
+                                                         float(102400)),
                          repr(Memory(res={"r1": "100Mi", "r2": "100Ki"})))
 
 
@@ -225,7 +229,7 @@ class TestMemoryDifferentUnit(TestResource):
     def mutate_variables(self):
         self.a = Memory(res={"r1": "3Gi", "r2": "5Mi", "r3": "0Gi"})
         self.a_scalar_mul = Memory(res={
-            "r1": "2576980377", "r2": "4194304", "r3": "0"
+            "r1": "1.5Gi", "r2": "2.5Mi", "r3": "0"
         })
         self.b = Memory(res={"r1": "3Mi", "r2": "6Mi"})
         self.c = Memory(res={"r1": "-1Gi"})
@@ -241,5 +245,6 @@ class TestMemoryDifferentUnit(TestResource):
         self.a_f_ge = True
 
     def test_repr(self):
-        self.assertEqual("{'r1': '104857600B', 'r2': '102400B'}",
+        self.assertEqual("{'r1': '%sB', 'r2': '%sB'}" % (float(104857600),
+                                                         float(102400)),
                          repr(Memory(res={"r1": "100Mi", "r2": "100Ki"})))

@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
 
-import os
-import sys
-sys.path.append(os.path.join(os.path.dirname(
-    os.path.abspath(__file__)), "../utils"))
-
 from unittest import TestCase
 from cluster_resource import ClusterResource
 from resource_stat import Cpu, Memory
@@ -123,8 +118,8 @@ class TestClusterResource(TestCase):
             }
         }
         ret = ClusterResource(resource=res)
-        self.assertEqual("cpu: {'r1': '1m'}. memory: {'r1': '102400B'}.",
-                         repr(ret))
+        self.assertEqual("cpu: {'r1': '%sm'}. memory: {'r1': '%sB'}." %
+                         (float(1), float(102400)), repr(ret))
 
     def test_eq(self):
         self.assertTrue(self.a == self.a)
