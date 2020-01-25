@@ -179,8 +179,8 @@ Please use the following to find all available azure locations.
 az account list-locations
 ```
 
-* nfs_client_CIDR: used to specify IP ranges that NFS service on storage nodes open to
+* nfs_client_CIDR: used to specify IP ranges that NFS service on storage nodes open to, its field could be private IP 
 
-* cloud_config_nsg_rules: specifies the Azure network security group rules, `dev_network` defines the IP ranges that have access (including ssh etc.) to the cluster, `nfs_share` defines IP ranges that could communicate with storage nodes, and `nfs_ssh` defines the IP ranges from where we can ssh to the storage nodes
+* cloud_config_nsg_rules: specifies the Azure network security group rules, `dev_network` defines the IP ranges that have access (including ssh etc.) to the cluster, `nfs_share` defines IP ranges that could communicate with storage nodes, and `nfs_ssh` defines the IP ranges from where we can ssh to the storage nodes, and the IPs should be public IPs
 
 * registry_credential: defines your access to certain dockers. A docker image name consists of three parts - registry name, image name, and image tag. If your job needs a certain private docker, then use 0. the registry name of that docker, 1. your user name and 2. your password to specify your access to it.

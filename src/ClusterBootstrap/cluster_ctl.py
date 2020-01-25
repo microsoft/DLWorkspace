@@ -56,9 +56,20 @@ def run_script(node, ssh_cert, adm_usr, nargs, sudo=False, noSupressWarning=True
         ssh_cert, adm_usr, node, srcdir, fullcmd, noSupressWarning)
 
 
+def run_cmd(node, ssh_cert, adm_usr, nargs, sudo=False, noSupressWarning=True):
+    fullcmd = " ".join(nargs)
+    utils.SSH_exec_cmd(
+        ssh_cert, adm_usr, node, fullcmd, noSupressWarning)
+
+
 def run_script_wrapper(arg_tuple):
     node, ssh_cert, adm_usr, nargs, sudo, noSupressWarning = arg_tuple
     run_script(node, ssh_cert, adm_usr, nargs, sudo, noSupressWarning)
+
+
+def run_cmd_wrapper(arg_tuple):
+    node, ssh_cert, adm_usr, nargs, sudo, noSupressWarning = arg_tuple
+    run_cmd(node, ssh_cert, adm_usr, nargs, sudo, noSupressWarning)
 
 
 def copy2_wrapper(arg_tuple):
@@ -72,13 +83,10 @@ def copy2_wrapper(arg_tuple):
                   node, verbose=noSupressWarning)
 
 
-def execute_in_in_parallel(config, nodes, nargs, func, sudo=False, noSupressWarning=True):
+def execute_in_in_parallel(config, nodes, args, func, noSupressWarning=True):
     args_list = [(config["machines"][node]["fqdns"], config["ssh_cert"],
-                  config["admin_username"], nargs, sudo, noSupressWarning) for node in nodes]
-    from multiprocessing import Pool
-    pool = Pool(processes=len(nodes))
-    pool.map(func, args_list)
-    pool.close()
+                  config["admin_username"], args.nargs, args.sudo, noSupressWarning) for node in nodes]
+    utils.multiprocess_exec(func, args_list, len(nodes))
 
 
 def get_multiple_machines(config, args):
@@ -93,19 +101,13 @@ def get_multiple_machines(config, args):
     return nodes + list(valid_machine_names)
 
 
-def run_scripts_on_nodes(config, args):
+def parallel_action_by_role(config, args, func):
     nodes = get_multiple_machines(config, args)
-    execute_in_in_parallel(config, nodes, args.nargs, run_script_wrapper,
-                           sudo=args.sudo, noSupressWarning=args.verbose)
-
-
-def copy_2_nodes(config, args):
-    nodes = get_multiple_machines(config, args)
-    execute_in_in_parallel(config, nodes, args.nargs, copy2_wrapper,
-                           sudo=args.sudo, noSupressWarning=args.verbose)
+    execute_in_in_parallel(config, nodes, args, func, noSupressWarning=args.verbose)
 
 
 def run_command(args, command):
+    args.config = ["status.yaml"] if not args.config else args.config
     config = init_config(default_config_parameters)
     config = add_configs_in_order(args.config, config)
     config["ssh_cert"] = config.get("ssh_cert", "./deploy/sshkey/id_rsa")
@@ -114,9 +116,13 @@ def run_command(args, command):
     if command == "kubectl":
         run_kubectl(config, args, args.nargs[0:])
     if command == "runscript":
-        run_scripts_on_nodes(config, args)
+        parallel_action_by_role(config, args, run_script_wrapper)
+    if command == "runcmd":
+        parallel_action_by_role(config, args, run_cmd_wrapper)
     if command == "copy2":
-        copy_2_nodes(config, args)
+        parallel_action_by_role(config, args, copy2_wrapper)
+    if command == "backuptodir":
+        utils.backup_keys_to_dir(args.nargs)
 
 
 if __name__ == '__main__':

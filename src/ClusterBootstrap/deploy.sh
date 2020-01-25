@@ -2,18 +2,16 @@
 rm -rf deploy/* cloudinit* az_complementary.yaml
 # # render
 ./cloud_init_deploy.py clusterID
-./cloud_init_aztools.py -cnf config.yaml -o az_complementary.yaml prerender
+./cloud_init_aztools.py prerender
 # # render templates and prepare binaries
-./cloud_init_deploy.py -cnf config.yaml -cnf az_complementary.yaml render
+./cloud_init_deploy.py render
 # # pack, push dockers, generate az cli commands to add machines
-./cloud_init_deploy.py -cnf config.yaml -cnf az_complementary.yaml pack
+./cloud_init_deploy.py pack
 # # push dockers
-./cloud_init_deploy.py -cnf config.yaml -cnf az_complementary.yaml docker servicesprerequisite
-# # # generate
-./cloud_init_aztools.py -cnf config.yaml -cnf az_complementary.yaml deploy
+./cloud_init_deploy.py docker servicesprerequisite
+# # generate scripts
+./cloud_init_aztools.py deploy
 # # deploy
-./scripts/deploy_framework.sh
-./scripts/add_machines.sh
-./cloud_init_aztools.py -cnf config.yaml -cnf az_complementary.yaml interconnect
+./cloud_init_aztools.py interconnect
 # # get status
-./cloud_init_aztools.py -cnf config.yaml -o brief.yaml listcluster
+./cloud_init_aztools.py listcluster

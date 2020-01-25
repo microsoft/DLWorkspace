@@ -8,6 +8,7 @@ import datetime
 import argparse
 import uuid
 import subprocess
+from multiprocessing import Pool
 import sys
 import textwrap
 import re
@@ -738,3 +739,9 @@ def keep_widest_subnet(ips):
 
 def random_str(length):
     return ''.join(random.choice(string.ascii_lowercase) for x in range(length))
+
+
+def multiprocess_exec(func, args_list, process_num):
+    pool = Pool(process_num)
+    pool.map(func, args_list)
+    pool.close()

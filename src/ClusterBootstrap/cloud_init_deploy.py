@@ -977,8 +977,8 @@ def render_for_worker_generic(config, args):
 def run_command(args, command, parser):
     if command == "clusterID":
         create_cluster_id(args.force)
-    # otherwise, load config
     else:
+        args.config = ["config.yaml", "az_complementary.yaml"] if len(args.config) == 0 else args.config
         config = load_config(args)
     if command == "dumpconfig":
         with open("todeploy.yaml", "w") as wf:
@@ -1079,11 +1079,4 @@ if __name__ == '__main__':
     if not os.path.exists("./deploy"):
         os.system("mkdir -p ./deploy")
 
-    if command == "scriptblocks":
-        if nargs[0] in scriptblocks:
-            run_script_blocks(args.verbose, scriptblocks[nargs[0]])
-        else:
-            parser.print_help()
-            print("Error: Unknown scriptblocks " + nargs[0])
-    else:
-        run_command(args, command, parser)
+    run_command(args, command, parser)

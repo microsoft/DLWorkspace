@@ -23,6 +23,20 @@ def init_config():
     return config
 
 
+def load_config_based_on_command(command):
+    default_config = init_config()
+    if not args.config:
+        config_file_list = ["config.yaml"]
+        if command in ["deploy", "interconnect"]:
+            config_file_list += "az_complementary.yaml",
+    config = add_configs_in_order(config_file_list, default_config)
+    if command not in ["prerender"]:
+        config = update_config_resgrp(config)
+    if command in ["deploy", "addmachines"]:
+        config = load_sshkey(config)
+    return config
+
+
 def update_config_resgrp(config):
     """load resource group related config info"""
     if "resource_group_name" not in config["azure_cluster"]:
@@ -43,27 +57,27 @@ def load_sshkey(config):
     return config
 
 
-def execute_or_dump_locally(cmd, verbose, output_file):
+def execute_or_dump_locally(cmd, verbose, dryrun, output_file):
     cmd = ' '.join(cmd.split())+'\n'
     if verbose:
         print(cmd)
-    if output_file == '':
+    if output_file:
+        with open(output_file, 'a') as wf:
+            wf.write(cmd)
+    if not dryrun:
         output = utils.exec_cmd_local(cmd)
         if verbose:
             print(output)
         return output
-    else:
-        with open(output_file, 'a') as wf:
-            wf.write(cmd)
 
 
-def create_group(config, verbose, output_file):
+def create_group(config, args):
     cmd = """az group create --name %s --location %s
         """ % (config["azure_cluster"]["resource_group_name"], config["azure_cluster"]["azure_location"])
-    execute_or_dump_locally(cmd, verbose, output_file)
+    execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
 
-def create_vnet(config, verbose, output_file):
+def create_vnet(config, args):
     cmd = """az network vnet create \
             --resource-group %s \
             --name %s \
@@ -74,28 +88,25 @@ def create_vnet(config, verbose, output_file):
                config["azure_cluster"]["vnet_name"],
                config["cloud_config_nsg_rules"]["vnet_range"],
                config["cloud_config_nsg_rules"]["vnet_range"])
-    execute_or_dump_locally(cmd, verbose, output_file)
+    execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
 
-def create_nsg(config, verbose, output_file):
+def create_nsg(config, args):
     assert "source_addresses_prefixes" in config["cloud_config_nsg_rules"]["dev_network"] and "Please \
     setup source_addresses_prefixes in config.yaml, otherwise, your cluster cannot be accessed"
-    # if "source_addresses_prefixes" in config["cloud_config_nsg_rules"]["dev_network"]:
     source_addresses_prefixes = config["cloud_config_nsg_rules"][
         "dev_network"]["source_addresses_prefixes"]
+
     if isinstance(source_addresses_prefixes, list):
         source_addresses_prefixes = " ".join(
             list(set(source_addresses_prefixes)))
-    # else:
-    #     print("Please setup source_addresses_prefixes in config.yaml, otherwise, your cluster cannot be accessed \
-    #         from outside")
-    #     exit()
+
     cmd = """az network nsg create \
             --resource-group %s \
             --name %s
         """ % (config["azure_cluster"]["resource_group_name"],
                config["azure_cluster"]["nsg_name"])
-    execute_or_dump_locally(cmd, verbose, output_file)
+    execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
     if "tcp_port_ranges" in config["cloud_config_nsg_rules"]:
         cmd = """az network nsg rule create \
@@ -110,7 +121,7 @@ def create_nsg(config, verbose, output_file):
                    config["azure_cluster"]["nsg_name"],
                    config["cloud_config_nsg_rules"]["tcp_port_ranges"]
                    )
-        execute_or_dump_locally(cmd, verbose, output_file)
+        execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
     if "udp_port_ranges" in config["cloud_config_nsg_rules"]:
         cmd = """az network nsg rule create \
@@ -125,7 +136,7 @@ def create_nsg(config, verbose, output_file):
                    config["azure_cluster"]["nsg_name"],
                    config["cloud_config_nsg_rules"]["udp_port_ranges"]
                    )
-        execute_or_dump_locally(cmd, verbose, output_file)
+        execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
     cmd = """az network nsg rule create \
             --resource-group %s \
@@ -141,10 +152,10 @@ def create_nsg(config, verbose, output_file):
                config["cloud_config_nsg_rules"]["dev_network"]["tcp_port_ranges"],
                source_addresses_prefixes
                )
-    execute_or_dump_locally(cmd, verbose, output_file)
+    execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
 
-def create_nfs_nsg(config, verbose, output_file):
+def create_nfs_nsg(config, args):
     assert "source_addresses_prefixes" in config["cloud_config_nsg_rules"]["dev_network"] and "Please \
     setup source_addresses_prefixes in config.yaml, otherwise, your cluster cannot be accessed"
     source_addresses_prefixes = config["cloud_config_nsg_rules"][
@@ -155,7 +166,7 @@ def create_nfs_nsg(config, verbose, output_file):
                 --name %s
             """ % (config["azure_cluster"]["resource_group_name"],
                    config["azure_cluster"]["nfs_nsg_name"])
-        execute_or_dump_locally(cmd, verbose, output_file)
+        execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
     merged_ip = keep_widest_subnet(
         config["cloud_config_nsg_rules"]["nfs_ssh"]["source_ips"] + source_addresses_prefixes)
@@ -172,7 +183,7 @@ def create_nfs_nsg(config, verbose, output_file):
                config["cloud_config_nsg_rules"]["nfs_ssh"]["port"],
                " ".join(merged_ip),
                )
-    execute_or_dump_locally(cmd, verbose, output_file)
+    execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
     cmd = """az network nsg rule create \
             --resource-group %s \
@@ -184,20 +195,22 @@ def create_nfs_nsg(config, verbose, output_file):
             --access allow
         """ % (config["azure_cluster"]["resource_group_name"],
                config["azure_cluster"]["nfs_nsg_name"],
-               " ".join(config["cloud_config_nsg_rules"]["nfs_share"]["source_ips"]),
+               " ".join(config["cloud_config_nsg_rules"]
+                        ["nfs_share"]["source_ips"]),
                )
-    execute_or_dump_locally(cmd, verbose, output_file)
+    execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
 
-def deploy_cluster(config, verbose, output_file):
-    if output_file != "":
-        with open(output_file, 'w') as f:
+def deploy_cluster(config, args):
+    if args.output != "":
+        with open(args.output, 'w') as f:
             f.write("#!/bin/bash\n")
-    create_group(config, verbose, output_file)
-    create_vnet(config, verbose, output_file)
-    create_nsg(config, verbose, output_file)
-    create_nfs_nsg(config, verbose, output_file)
-    os.system('chmod +x ' + output_file)
+    create_group(config, args)
+    create_vnet(config, args)
+    create_nsg(config, args)
+    create_nfs_nsg(config, args)
+    if args.output and os.path.exists(args.output):
+        os.system('chmod +x ' + args.output)
 
 
 def validate_machine_spec(config, spec):
@@ -211,16 +224,8 @@ def validate_machine_spec(config, spec):
         assert "gpu_type" in spec and "Must specify gpu_type for worker node!"
 
 
-def render_infra_and_nfs(complementary_file_name, config):
+def gen_machine_list_4_deploy_action(complementary_file_name, config):
     """based on info from config.yaml, generate the expected machine names etc."""
-
-    # generate infra and nfs vmname, infer infra ip, dump to cluster.yaml, skip nfs ip
-
-    # cloud_init_deploy.py render templates.
-
-    # deploy master and nfs node.
-
-    # complete nfs mount ip info in cluster.yaml['mountpoints']
     cc = {}
     cc["cluster_name"] = config["cluster_name"]
     cc["useclusterfile"] = True
@@ -259,19 +264,19 @@ def render_infra_and_nfs(complementary_file_name, config):
         [mv for mv in list(cc["machines"].values()) if 'infra' in mv['role']])
     cc["admin_username"] = config["cloud_config_nsg_rules"]["default_admin_username"]
     cc["network"] = {"domain": domain_mapping[config["priority"]]}
-    if complementary_file_name != '':
-        with open(complementary_file_name, 'w') as outfile:
+    complementary_file_name = "az_complementary.yaml" if complementary_file_name == '' else complementary_file_name
+    with open(complementary_file_name, 'w') as outfile:
             yaml.dump(cc, outfile, default_flow_style=False)
     return cc
 
 
-def add_machines(config, args, outputfile):
-    os.system('rm -f ' + outputfile)
+def add_machines(config, args):
+    os.system('rm -f ' + args.output)
     for vmname, spec in config["machines"].items():
-        updated_spec = add_machine(vmname, spec, args.verbose, outputfile)
+        updated_spec = add_machine(vmname, spec, args.verbose, args.output)
         config["machines"][vmname] = updated_spec
-    if os.path.exists(outputfile):
-        os.system('chmod +x ' + outputfile)
+    if os.path.exists(args.output):
+        os.system('chmod +x ' + args.output)
 
 
 def is_independent_nfs(role):
@@ -412,9 +417,9 @@ def add_machine(vmname, spec, verbose, output_file):
     if "other_params" in spec:
         for k, v in spec["other_params"]:
             cmd += " --{} {}".format(k, v)
-    # cmd += ' &'
-    execute_or_dump_locally(cmd, verbose, output_file)
-
+    if args.batch_size <= 1:
+        execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
+    return cmd
 
 def list_vm(config, verbose=True):
     cmd = """
@@ -436,7 +441,7 @@ def list_vm(config, verbose=True):
     return vminfo
 
 
-def vm_interconnects(config, verbose, output_file):
+def vm_interconnects(config, args):
     vminfo = list_vm(config, False)
     ports = []
     for name, onevm in vminfo.items():
@@ -457,7 +462,7 @@ def vm_interconnects(config, verbose, output_file):
                config["cloud_config_nsg_rules"]["inter_connect"]["tcp_port_ranges"],
                portinfo
                )
-    execute_or_dump_locally(cmd, verbose, output_file)
+    execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
 
 def get_deployed_cluster_info(config, args):
@@ -471,25 +476,23 @@ def get_deployed_cluster_info(config, args):
         brief_spec["fqdns"] = spec["fqdns"]
         brief_spec["role"] = spec["tags"]["role"].split('-')
         brief[name] = brief_spec
+    args.output = "status.yaml" if not args.output else args.output
     with open(args.output, "w") as wf:
         yaml.dump({"machines": brief}, wf)
 
 
 def run_command(command, config, args, nargs):
     if command == "prerender":
-        render_infra_and_nfs(args.output, config)
-    config = update_config_resgrp(config)
+        gen_machine_list_4_deploy_action(args.output, config)
     if command == "deploy":
-        deploy_cluster(config, args.verbose, "scripts/deploy_framework.sh")
-        config = load_sshkey(config)
-        add_machines(config, args, "scripts/add_machines.sh")
+        deploy_cluster(config, args)
+        add_machines(config, args)
     if command == "deployframework":
-        deploy_cluster(config, args.verbose, args.output)
+        deploy_cluster(config, args)
     if command == "addmachines":
-        config = load_sshkey(config)
-        add_machines(config, args, args.output)
+        add_machines(config, args)
     if command == "interconnect":
-        vm_interconnects(config, args.verbose, args.output)
+        vm_interconnects(config, args)
     if command == "listcluster":
         get_deployed_cluster_info(config, args)
 
@@ -497,7 +500,7 @@ def run_command(command, config, args, nargs):
 if __name__ == "__main__":
     dirpath = os.path.dirname(os.path.abspath(os.path.realpath(__file__)))
     os.chdir(dirpath)
-    parser = argparse.ArgumentParser(prog='az_utils.py',
+    parser = argparse.ArgumentParser(prog='cloud_init_aztools.py',
                                      formatter_class=argparse.RawDescriptionHelpFormatter,
                                      description=textwrap.dedent('''\
 Create and manage a Azure VM cluster.
@@ -520,13 +523,16 @@ Command:
                         help="Additional command argument")
     parser.add_argument('-cnf', '--config', action='append', help='Specify the config files you want to load, later ones \
         would overwrite former ones, e.g., -cnf config.yaml -cnf az_complementary.yaml')
+    parser.add_argument('-b', '--batch_size', default=1,
+                        help='batch size that we add machines')
     parser.add_argument('-o', '--output', default='',
                         help='Specify the output file path')
     parser.add_argument('-v', '--verbose', type=bool,
-                        help='Verbose mode', default='False')
+                        help='Verbose mode', default=True)
+    parser.add_argument('-d', '--dryrun', type=bool,
+                        help='Dry run -- no actual execution', default=False)
     args = parser.parse_args()
     command = args.command
     nargs = args.nargs
-    default_config = init_config()
-    config = add_configs_in_order(args.config, default_config)
+    config = load_config_based_on_command(command)
     run_command(command, config, args, nargs)

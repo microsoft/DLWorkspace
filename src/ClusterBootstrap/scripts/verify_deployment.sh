@@ -8,13 +8,12 @@ pollsec=$4
 echo $USER
 echo $CONFIG_TYPE
 
-./timed_check.sh $waitmin $pollsec ./pscp_role.sh worker check_machine.sh /home/${USER}
-./timed_check.sh $waitmin $pollsec ./pssh_role.sh worker \"bash check_machine.sh $CONFIG_TYPE\"
-./timed_check.sh $waitmin $pollsec ./check_node_ready.sh infra
-./timed_check.sh $waitmin $pollsec ./pscp_role.sh infra check_docker_ready.sh /home/${USER}
-./timed_check.sh $waitmin $pollsec ./pssh_role.sh infra \"bash ./check_docker_ready.sh infra\"
-./timed_check.sh $waitmin $pollsec ./check_node_ready.sh worker
-./timed_check.sh $waitmin $pollsec ./pscp_role.sh worker check_docker_ready.sh /home/${USER}
-./timed_check.sh $waitmin $pollsec ./pssh_role.sh worker \"bash ./check_docker_ready.sh worker\"
-./timed_check.sh $waitmin $pollsec ./pssh_role.sh worker \"bash ./check_docker_ready.sh postlbl\"
-./timed_check.sh $waitmin $pollsec ./pssh_role.sh infra \"bash check_docker_ready.sh services\"
+./timed_check.sh $waitmin $pollsec "cd ..; ./cluster_ctl.py -v -r worker copy2 ./scripts/check_machine.sh /home/${USER}"
+./timed_check.sh $waitmin $pollsec "cd ..; ./cluster_ctl.py -v -r worker runcmd \"bash check_machine.sh $CONFIG_TYPE\""
+# check all node ready
+./timed_check.sh $waitmin $pollsec "cd ..; ./cluster_ctl.py -v -r infra copy2 ./scripts/check_docker_ready.sh /home/${USER}"
+./timed_check.sh $waitmin $pollsec "cd ..; ./cluster_ctl.py -v -r infra runcmd \"bash check_docker_ready.sh $CONFIG_TYPE\""
+./timed_check.sh $waitmin $pollsec "cd ..; ./cluster_ctl.py -v -r worker copy2 ./scripts/check_docker_ready.sh /home/${USER}"
+./timed_check.sh $waitmin $pollsec "cd ..; ./cluster_ctl.py -v -r worker runcmd \"bash check_docker_ready.sh $CONFIG_TYPE\""
+./timed_check.sh $waitmin $pollsec "cd ..; ./cluster_ctl.py -v -r worker runcmd \"bash check_docker_ready.sh postlbl\""
+./timed_check.sh $waitmin $pollsec "cd ..; ./cluster_ctl.py -v -r infra runcmd \"bash check_docker_ready.sh services\""
