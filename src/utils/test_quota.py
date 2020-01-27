@@ -196,6 +196,9 @@ class TestQuota(unittest.TestCase):
 
         self.assertEqual(target_vc_unschedulable, vc_unschedulable)
 
+    def test_calculate_vc_resources(self):
+        pass
+
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s',

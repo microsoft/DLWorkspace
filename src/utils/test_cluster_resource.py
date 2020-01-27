@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import copy
+
 from unittest import TestCase
 from cluster_resource import ClusterResource
 from resource_stat import Cpu, Memory
@@ -44,6 +46,18 @@ class TestClusterResource(TestCase):
         self.c = ClusterResource(resource=c_res)
 
         self.scalar = 0.8
+
+        d_res = {
+            "cpu": {
+                "r1": "0.5m",
+                "r2": "0.2m"
+            },
+            "memory": {
+                "r1": "0.8",
+                "r2": "0.5"
+            }
+        }
+        self.d = ClusterResource(resource=d_res)
 
     def test_init_from_params(self):
         regular_params = {
@@ -107,6 +121,52 @@ class TestClusterResource(TestCase):
         ret3 = ClusterResource(resource=res3)
         self.assertEqual(Cpu({"r1": "1m"}), ret3.cpu)
         self.assertEqual(Memory({"r1": "100Mi"}), ret3.memory)
+
+    def test_floor_ceil(self):
+        res = {
+            "cpu": {
+                "r1": "10.4m"
+            },
+            "memory": {
+                "r1": "199.9"
+            }
+        }
+        ret = ClusterResource(resource=res)
+        ret_floor = ret.floor()
+        self.assertEqual(Cpu({"r1": "10m"}), ret_floor.cpu)
+        self.assertEqual(Memory({"r1": "199"}), ret_floor.memory)
+
+        ret_ceil = ret.ceil()
+        self.assertEqual(Cpu({"r1": "11m"}), ret_ceil.cpu)
+        self.assertEqual(Memory({"r1": "200"}), ret_ceil.memory)
+
+    def test_min_zero(self):
+        res = {
+            "cpu": {
+                "r1": "-10m"
+            },
+            "memory": {
+                "r1": "-100Ki"
+            }
+        }
+        ret = ClusterResource(resource=res)
+        ret_min_zero = ret.min_zero()
+        self.assertEqual(Cpu(), ret_min_zero.cpu)
+        self.assertEqual(Memory(), ret_min_zero.memory)
+
+    def test_prune(self):
+        res = {
+            "cpu": {
+                "r1": "0m"
+            },
+            "memory": {
+                "r1": "0"
+            }
+        }
+        ret = ClusterResource(resource=res)
+        ret_prune = ret.prune()
+        self.assertEqual(Cpu(), ret_prune.cpu)
+        self.assertEqual(Memory(), ret_prune.memory)
 
     def test_repr(self):
         res = {
@@ -202,8 +262,22 @@ class TestClusterResource(TestCase):
         })
         self.assertEqual(expected, result)
 
+        result = self.a * self.d
+        expected = ClusterResource(resource={
+            "cpu": {
+                "r1": "5m",
+                "r2": "20m"
+            },
+            "memory": {
+                "r1": "80Ki",
+                "r2": "100Ki"
+            }
+        })
+        self.assertEqual(expected, result)
+
     def test_imul(self):
-        self.a *= self.scalar
+        v = copy.deepcopy(self.a)
+        v *= self.scalar
         expected = ClusterResource(resource={
             "cpu": {
                 "r1": "8m",
@@ -214,4 +288,74 @@ class TestClusterResource(TestCase):
                 "r2": "160Ki"
             }
         })
-        self.assertEqual(expected, self.a)
+        self.assertEqual(expected, v)
+
+        v = copy.deepcopy(self.a)
+        v *= self.d
+        expected = ClusterResource(resource={
+            "cpu": {
+                "r1": "5m",
+                "r2": "20m"
+            },
+            "memory": {
+                "r1": "80Ki",
+                "r2": "100Ki"
+            }
+        })
+        self.assertEqual(expected, v)
+
+    def test_truediv(self):
+        result = self.a / self.scalar
+        expected = ClusterResource(resource={
+            "cpu": {
+                "r1": "12.5m",
+                "r2": "125m"
+            },
+            "memory": {
+                "r1": "125Ki",
+                "r2": "250Ki"
+            }
+        })
+        self.assertEqual(expected, result)
+
+        result = self.a / self.d
+        expected = ClusterResource(resource={
+            "cpu": {
+                "r1": "20m",
+                "r2": "500m"
+            },
+            "memory": {
+                "r1": "125Ki",
+                "r2": "400Ki"
+            }
+        })
+        self.assertEqual(expected, result)
+
+    def test_idiv(self):
+        v = copy.deepcopy(self.a)
+        v /= self.scalar
+        expected = ClusterResource(resource={
+            "cpu": {
+                "r1": "12.5m",
+                "r2": "125m"
+            },
+            "memory": {
+                "r1": "125Ki",
+                "r2": "250Ki"
+            }
+        })
+        self.assertEqual(expected, v)
+
+        v = copy.deepcopy(self.a)
+        v /= self.d
+        expected = ClusterResource(resource={
+            "cpu": {
+                "r1": "20m",
+                "r2": "500m"
+            },
+            "memory": {
+                "r1": "125Ki",
+                "r2": "400Ki"
+            }
+        })
+        self.assertEqual(expected, v)

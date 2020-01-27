@@ -453,31 +453,31 @@ class ClusterStatus(object):
         capacity, used, avail, unschedulable, reserved = \
             self.__set_cluster_resource_status(Gpu)
 
-        self.gpu_capacity = capacity.resource_int
-        self.gpu_used = used.resource_int
-        self.gpu_available = avail.resource_int
-        self.gpu_unschedulable = unschedulable.resource_int
-        self.gpu_reserved = reserved.resource_int
+        self.gpu_capacity = capacity.floor
+        self.gpu_used = used.floor
+        self.gpu_available = avail.floor
+        self.gpu_unschedulable = unschedulable.floor
+        self.gpu_reserved = reserved.floor
 
     def __set_cluster_cpu_status(self):
         capacity, used, avail, unschedulable, reserved = \
             self.__set_cluster_resource_status(Cpu)
 
-        self.cpu_capacity = capacity.resource_int
-        self.cpu_used = used.resource_int
-        self.cpu_available = avail.resource_int
-        self.cpu_unschedulable = unschedulable.resource_int
-        self.cpu_reserved = reserved.resource_int
+        self.cpu_capacity = capacity.floor
+        self.cpu_used = used.floor
+        self.cpu_available = avail.floor
+        self.cpu_unschedulable = unschedulable.floor
+        self.cpu_reserved = reserved.floor
 
     def __set_cluster_memory_status(self):
         capacity, used, avail, unschedulable, reserved = \
             self.__set_cluster_resource_status(Memory)
 
-        self.memory_capacity = capacity.resource_int
-        self.memory_used = used.resource_int
-        self.memory_available = avail.resource_int
-        self.memory_unschedulable = unschedulable.resource_int
-        self.memory_reserved = reserved.resource_int
+        self.memory_capacity = capacity.floor
+        self.memory_used = used.floor
+        self.memory_available = avail.floor
+        self.memory_unschedulable = unschedulable.floor
+        self.memory_reserved = reserved.floor
 
     def __set_cluster_node_status(self):
         for _, node_status in self.node_statuses.items():
@@ -487,10 +487,10 @@ class ClusterStatus(object):
                 k_preemptable_used = r_type + "_preemptable_used"
                 k_allocatable = r_type + "_allocatable"
 
-                capacity = node_status[k_capacity].resource_int
-                used = node_status[k_used].resource_int
-                preemptable_used = node_status[k_preemptable_used].resource_int
-                allocatable = node_status[k_allocatable].resource_int
+                capacity = node_status[k_capacity].floor
+                used = node_status[k_used].floor
+                preemptable_used = node_status[k_preemptable_used].floor
+                allocatable = node_status[k_allocatable].floor
 
                 node_status[k_capacity] = capacity
                 node_status[k_used] = used
@@ -505,17 +505,17 @@ class ClusterStatus(object):
         self.user_status = [
             {
                 "userName": username,
-                "userGPU": u_info["gpu"].resource_int,
-                "userCPU": u_info["cpu"].resource_int,
-                "userMemory": u_info["memory"].resource_int
+                "userGPU": u_info["gpu"].floor,
+                "userCPU": u_info["cpu"].floor,
+                "userMemory": u_info["memory"].floor
             } for username, u_info in self.user_info.items()
         ]
 
         self.user_status_preemptable = [
             {
                 "userName": username,
-                "userGPU": u_info["gpu"].resource_int,
-                "userCPU": u_info["cpu"].resource_int,
-                "userMemory": u_info["memory"].resource_int
+                "userGPU": u_info["gpu"].floor,
+                "userCPU": u_info["cpu"].floor,
+                "userMemory": u_info["memory"].floor
             } for username, u_info in self.user_info_preemptable.items()
         ]
