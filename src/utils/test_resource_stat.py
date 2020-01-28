@@ -230,27 +230,11 @@ class TestCpu(TestResource):
     def init_class(self):
         self.cls_name = Cpu
 
-    def mutate_variables(self):
-        self.a = Cpu(res={"r1": "3m", "r2": "5m", "r3": "0m"})
-        self.a_scalar_mul = Cpu(res={"r1": "1.5m", "r2": "2.5m", "r3": "0m"})
-        self.a_scalar_div = self.cls_name(res={
-            "r1": "6m", "r2": "10m", "r3": "0m"
-        })
-        self.b = Cpu(res={"r1": "3m", "r2": "6m"})
-        self.c = Cpu(res={"r1": "-1m"})
-        self.d = Cpu(res={"r1": "3m", "r2": "5m"})
-        self.f = Cpu(res={"r1": "3m", "": "6m"})
-
-        self.a_b_sum = Cpu(res={"r1": "6m", "r2": "11m", "r3": "0m"})
-        self.a_b_diff = Cpu(res={"r1": "0m", "r2": "-1m", "r3": "0m"})
-        self.a_c_sum = Cpu(res={"r1": "2m", "r2": "5m", "r3": "0m"})
-        self.a_c_diff = Cpu(res={"r1": "4m", "r2": "5m", "r3": "0m"})
-        self.a_f_mul = self.cls_name(res={"r1": "9m"})
-        self.b_d_div = self.cls_name(res={"r1": "1m", "r2": "1.2m"})
+    def test_millicpu2cpu(self):
+        self.assertEqual(Cpu(res={"r1": "1"}), Cpu(res={"r1": "1000m"}))
 
     def test_repr(self):
-        self.assertEqual("{'r1': '%sm'}" % float(1000),
-                         repr(Cpu(res={"r1": "1"})))
+        self.assertEqual("{'r1': '%s'}" % float(1), repr(Cpu(res={"r1": "1"})))
 
 
 class TestMemory(TestResource):

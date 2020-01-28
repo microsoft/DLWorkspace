@@ -11,8 +11,8 @@ class TestClusterResource(TestCase):
     def setUp(self):
         a_res = {
             "cpu": {
-                "r1": "10m",
-                "r2": "100m"
+                "r1": "10",
+                "r2": "100"
             },
             "memory": {
                 "r1": "100Ki",
@@ -23,8 +23,8 @@ class TestClusterResource(TestCase):
 
         b_res = {
             "cpu": {
-                "r1": "100m",
-                "r2": "10m"
+                "r1": "100",
+                "r2": "10"
             },
             "memory": {
                 "r1": "300Ki",
@@ -35,8 +35,8 @@ class TestClusterResource(TestCase):
 
         c_res = {
             "cpu": {
-                "r1": "10m",
-                "": "100m"
+                "r1": "10",
+                "": "100"
             },
             "memory": {
                 "r1": "100Ki",
@@ -49,8 +49,8 @@ class TestClusterResource(TestCase):
 
         d_res = {
             "cpu": {
-                "r1": "0.5m",
-                "r2": "0.2m"
+                "r1": "0.5",
+                "r2": "0.2"
             },
             "memory": {
                 "r1": "0.8",
@@ -125,7 +125,7 @@ class TestClusterResource(TestCase):
     def test_floor_ceil(self):
         res = {
             "cpu": {
-                "r1": "10.4m"
+                "r1": "10.4"
             },
             "memory": {
                 "r1": "199.9"
@@ -133,11 +133,11 @@ class TestClusterResource(TestCase):
         }
         ret = ClusterResource(resource=res)
         ret_floor = ret.floor()
-        self.assertEqual(Cpu({"r1": "10m"}), ret_floor.cpu)
+        self.assertEqual(Cpu({"r1": "10"}), ret_floor.cpu)
         self.assertEqual(Memory({"r1": "199"}), ret_floor.memory)
 
         ret_ceil = ret.ceil()
-        self.assertEqual(Cpu({"r1": "11m"}), ret_ceil.cpu)
+        self.assertEqual(Cpu({"r1": "11"}), ret_ceil.cpu)
         self.assertEqual(Memory({"r1": "200"}), ret_ceil.memory)
 
     def test_min_zero(self):
@@ -157,7 +157,7 @@ class TestClusterResource(TestCase):
     def test_prune(self):
         res = {
             "cpu": {
-                "r1": "0m"
+                "r1": "0"
             },
             "memory": {
                 "r1": "0"
@@ -178,8 +178,8 @@ class TestClusterResource(TestCase):
             }
         }
         ret = ClusterResource(resource=res)
-        self.assertEqual("cpu: {'r1': '%sm'}. memory: {'r1': '%sB'}." %
-                         (float(1), float(102400)), repr(ret))
+        self.assertEqual("cpu: {'r1': '%s'}. memory: {'r1': '%sB'}." %
+                         (0.001, float(102400)), repr(ret))
 
     def test_eq(self):
         self.assertTrue(self.a == self.a)
@@ -196,8 +196,8 @@ class TestClusterResource(TestCase):
         result = self.a + self.b
         expected = ClusterResource(resource={
             "cpu": {
-                "r1": "110m",
-                "r2": "110m"
+                "r1": "110",
+                "r2": "110"
             },
             "memory": {
                 "r1": "400Ki",
@@ -210,8 +210,8 @@ class TestClusterResource(TestCase):
         self.a += self.b
         expected = ClusterResource(resource={
             "cpu": {
-                "r1": "110m",
-                "r2": "110m"
+                "r1": "110",
+                "r2": "110"
             },
             "memory": {
                 "r1": "400Ki",
@@ -224,8 +224,8 @@ class TestClusterResource(TestCase):
         result = self.a - self.b
         expected = ClusterResource(resource={
             "cpu": {
-                "r1": "-90m",
-                "r2": "90m"
+                "r1": "-90",
+                "r2": "90"
             },
             "memory": {
                 "r1": "-200Ki",
@@ -238,8 +238,8 @@ class TestClusterResource(TestCase):
         self.a -= self.b
         expected = ClusterResource(resource={
             "cpu": {
-                "r1": "-90m",
-                "r2": "90m"
+                "r1": "-90",
+                "r2": "90"
             },
             "memory": {
                 "r1": "-200Ki",
@@ -252,8 +252,8 @@ class TestClusterResource(TestCase):
         result = self.a * self.scalar
         expected = ClusterResource(resource={
             "cpu": {
-                "r1": "8m",
-                "r2": "80m"
+                "r1": "8",
+                "r2": "80"
             },
             "memory": {
                 "r1": "80Ki",
@@ -265,8 +265,8 @@ class TestClusterResource(TestCase):
         result = self.a * self.d
         expected = ClusterResource(resource={
             "cpu": {
-                "r1": "5m",
-                "r2": "20m"
+                "r1": "5",
+                "r2": "20"
             },
             "memory": {
                 "r1": "80Ki",
@@ -280,8 +280,8 @@ class TestClusterResource(TestCase):
         v *= self.scalar
         expected = ClusterResource(resource={
             "cpu": {
-                "r1": "8m",
-                "r2": "80m"
+                "r1": "8",
+                "r2": "80"
             },
             "memory": {
                 "r1": "80Ki",
@@ -294,8 +294,8 @@ class TestClusterResource(TestCase):
         v *= self.d
         expected = ClusterResource(resource={
             "cpu": {
-                "r1": "5m",
-                "r2": "20m"
+                "r1": "5",
+                "r2": "20"
             },
             "memory": {
                 "r1": "80Ki",
@@ -308,8 +308,8 @@ class TestClusterResource(TestCase):
         result = self.a / self.scalar
         expected = ClusterResource(resource={
             "cpu": {
-                "r1": "12.5m",
-                "r2": "125m"
+                "r1": "12.5",
+                "r2": "125"
             },
             "memory": {
                 "r1": "125Ki",
@@ -321,8 +321,8 @@ class TestClusterResource(TestCase):
         result = self.a / self.d
         expected = ClusterResource(resource={
             "cpu": {
-                "r1": "20m",
-                "r2": "500m"
+                "r1": "20",
+                "r2": "500"
             },
             "memory": {
                 "r1": "125Ki",
@@ -336,8 +336,8 @@ class TestClusterResource(TestCase):
         v /= self.scalar
         expected = ClusterResource(resource={
             "cpu": {
-                "r1": "12.5m",
-                "r2": "125m"
+                "r1": "12.5",
+                "r2": "125"
             },
             "memory": {
                 "r1": "125Ki",
@@ -350,8 +350,8 @@ class TestClusterResource(TestCase):
         v /= self.d
         expected = ClusterResource(resource={
             "cpu": {
-                "r1": "20m",
-                "r2": "500m"
+                "r1": "20",
+                "r2": "500"
             },
             "memory": {
                 "r1": "125Ki",

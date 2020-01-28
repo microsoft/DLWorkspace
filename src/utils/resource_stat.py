@@ -304,37 +304,25 @@ class Gpu(ResourceStat):
 
 
 class Cpu(ResourceStat):
-    def __init__(self, res=None, unit="m"):
+    def __init__(self, res=None, unit=None):
         if isinstance(res, Cpu):
             res = res.resource
         elif not isinstance(res, dict):
             res = {}
 
         for k, v in res.items():
-            res[k] = Cpu.to_millicpu(v)
+            res[k] = Cpu.to_cpu(v)
 
         super().__init__(res=res, unit=unit)
 
     @staticmethod
-    def to_millicpu(data):
+    def to_cpu(data):
         data = str(data).lower()
         number = float(re.findall(r"[-+]?[0-9]*[.]?[0-9]+", data)[0])
-        if "m" not in data:
-            return number * 1000
+        if "m" in data:
+            return number / 1000.0
         else:
             return number
-
-    @property
-    def resource(self):
-        return {k: "%sm" % v for k, v in self.res.items()}
-
-    @property
-    def floor(self):
-        return {k: "%sm" % math.floor(v) for k, v in self.res.items()}
-
-    @property
-    def ceil(self):
-        return {k: "%sm" % math.ceil(v) for k, v in self.res.items()}
 
 
 class Memory(ResourceStat):
