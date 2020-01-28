@@ -71,4 +71,4 @@ vc_node_hard_assignment: {{cnf["vc_node_hard_assignment"]}}
 
 gpu_reporter: 'http://{{cnf["prometheus"]["host"]}}:{{cnf["prometheus"]["reporter"]["port"]}}'
 
-vc_without_data_work: {{cnf["vc_without_data_work"]}}
+vc_without_shared_storage: {{cnf["vc_without_shared_storage"]}}
