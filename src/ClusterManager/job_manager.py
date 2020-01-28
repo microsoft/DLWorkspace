@@ -509,19 +509,19 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
     cluster_reserved = cluster_status["gpu_reserved"]
 
     vc_info = {}
-    vc_usage = collections.defaultdict(lambda:
-                                       collections.defaultdict(lambda: 0))
+    vc_usage = collections.defaultdict(
+        lambda: collections.defaultdict(lambda: 0))
 
     for vc in vc_list:
         vc_info[vc["vcName"]] = json.loads(vc["quota"])
 
     active_job_list = data_handler.GetActiveJobList()
     for job in active_job_list:
-        jobParam = json.loads(base64.b64decode(
+        job_param = json.loads(base64.b64decode(
             job["jobParams"].encode("utf-8")).decode("utf-8"))
-        if "gpuType" in jobParam:
-            vc_usage[job["vcName"]][jobParam["gpuType"]
-                                    ] += GetJobTotalGpu(jobParam)
+        if "gpuType" in job_param:
+            vc_usage[job["vcName"]][job_param["gpuType"]] += \
+                GetJobTotalGpu(job_param)
 
     result = quota.calculate_vc_gpu_counts(cluster_total, cluster_available,
                                            cluster_reserved, vc_info, vc_usage)

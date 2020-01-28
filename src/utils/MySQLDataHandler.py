@@ -42,6 +42,7 @@ def base64encode(str_val):
 def base64decode(str_val):
     return base64.b64decode(str_val.encode("utf-8")).decode("utf-8")
 
+
 class DataHandler(object):
     def __init__(self):
         start_time = timeit.default_timer()
@@ -67,7 +68,11 @@ class DataHandler(object):
 
         self.CreateTable()
 
-        elapsed = timeit.default_timer() - start_time
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.Close()
 
     def CreateDatabase(self):
         if "initSQLDB" not in global_vars or not global_vars["initSQLDB"]:
