@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 
+import copy
 import math
 import collections
 import logging
+
+from cluster_resource import ClusterResource
 
 logger = logging.getLogger(__name__)
 
@@ -105,3 +108,97 @@ def calculate_vc_gpu_counts(cluster_total, cluster_available, cluster_unschedula
     logger.debug("vc_total %s, vc_used %s, vc_available %s, vc_unschedulable %s",
                  vc_total, vc_used, vc_available, vc_unschedulable)
     return vc_total, vc_used, vc_available, vc_unschedulable
+
+
+def __get_valid_vc_usage(vc_info, vc_usage):
+    valid_vc_usage = collections.defaultdict(
+        lambda: collections.defaultdict(lambda: ClusterResource()))
+
+    for vc_name, usage in vc_usage.items():
+        if vc_name not in vc_info:
+            logger.warning(
+                "ignore used resource in %s. vc quota do not have this vc, "
+                "possible due to job template error", vc_name)
+        else:
+            valid_vc_usage[vc_name] = usage
+
+    return valid_vc_usage
+
+
+def calculate_vc_resources(cluster_capacity, cluster_avail,
+                           cluster_reserved, vc_info, vc_usage):
+    """Calculates vc resources based on cluster resources and vc info.
+
+    Qi' = Qi - R * (Qi / sum(Qi))
+    Qi'' = max(Qi' - Ui, 0)
+    Ai = A * (Qi'' / sum(Qi''))
+
+    Where
+    - R: cluster reserved
+    - A: cluster avail
+    - Qi: vc quota
+    - Ui: vc used
+
+    Args:
+        cluster_capacity: Total resource capacity in the cluster
+        cluster_avail: Currently available resource in the cluster
+        cluster_reserved: Currently reserved resource in the cluster
+        vc_info: VC quota information
+        vc_usage: Currently used resource by VC in the cluster
+
+    Returns:
+        Qi: vc_total
+        Ui: vc_used
+        Ai: vc_avail
+        max(Qi - Ui - Ai, 0): vc_unschedulable
+    """
+    logger.debug("cluster_capacity %s, cluster_avail %s, cluster_reserved %s",
+                 cluster_capacity, cluster_avail, cluster_reserved)
+    logger.debug("vc_info %s, vc_usage %s", vc_info, vc_usage)
+
+    vc_usage = __get_valid_vc_usage(vc_info, vc_usage)
+
+    vc_total = collections.defaultdict(lambda: ClusterResource())
+    vc_used = collections.defaultdict(lambda: ClusterResource())
+    vc_avail = collections.defaultdict(lambda: ClusterResource())
+    vc_unschedulable = collections.defaultdict(lambda: ClusterResource())
+
+    # vc total == assigned quota
+    for vc_name, quota in vc_info.items():
+        vc_total[vc_name] = copy.deepcopy(quota)
+
+    quota_sum = ClusterResource()
+    for vc_name, quota in vc_info.items():
+        quota_sum += quota
+
+    # ratios for calculating vc avail
+    #   Qi' = Qi - R * (Qi / sum(Qi))
+    #   Qi'' = max(Qi' - Ui, 0)
+    ratios = collections.defaultdict(lambda: ClusterResource())
+    for vc_name, quota in vc_info.items():
+        reserved = (cluster_reserved * quota / quota_sum).ceil()  # over-reserve
+        used = vc_usage.get(vc_name, ClusterResource())
+        ratio = quota - reserved
+        ratios[vc_name] = (ratio - used).min_zero()
+
+    ratio_sum = ClusterResource()
+    for vc_name, ratio in ratios.items():
+        ratio_sum += ratio
+
+    logger.debug("ratios %s, ratio_sum %s", ratios, ratio_sum)
+
+    # calculate avail and unschedulable
+    # Ai = A * (Qi'' / sum(Qi''))
+    # max(Qi - Ui - Ai, 0)
+    for vc_name, ratio in ratios.items():
+        used = copy.deepcopy(vc_usage.get(vc_name, ClusterResource()))
+        avail = (cluster_avail * ratio / ratio_sum).floor()  # under-avail
+        quota = vc_total.get(vc_name, ClusterResource())
+
+        vc_used[vc_name] = used
+        vc_avail[vc_name] = avail
+        vc_unschedulable[vc_name] = (quota - used - avail).min_zero()
+
+    logger.debug("vc_total %s, vc_used %s, vc_avail %s, vc_unschedulable %s",
+                 vc_total, vc_used, vc_avail, vc_unschedulable)
+    return vc_total, vc_used, vc_avail, vc_unschedulable

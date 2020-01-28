@@ -6,6 +6,8 @@ import logging.config
 
 import quota
 
+from cluster_resource import ClusterResource
+
 log = logging.getLogger(__name__)
 
 
@@ -195,6 +197,138 @@ class TestQuota(unittest.TestCase):
         }
 
         self.assertEqual(target_vc_unschedulable, vc_unschedulable)
+
+    def test_calculate_vc_resources(self):
+        cluster_capacity = ClusterResource(resource={
+            "cpu": {
+                "r1": 30,
+                "r2": 40,
+                "": 4
+            },
+            "memory": {
+                "r1": "300Gi",
+                "r2": "400Gi",
+                "": "16Gi"
+            }
+        })
+        cluster_avail = ClusterResource(resource={
+            "cpu": {
+                "r1": 17,
+                "r2": 2,
+                "": 2
+            },
+            "memory": {
+                "r1": "230Gi",
+                "r2": "100Gi",
+                "": "8Gi"
+            }
+        })
+        cluster_reserved = ClusterResource(resource={
+            "cpu": {
+                "r1": 4
+            },
+            "memory": {
+                "r1": "20Gi"
+            }
+        })
+        vc_info = {
+            "vc1": ClusterResource(resource={
+                "cpu": {
+                    "r1": 10,
+                    "r2": 40
+                },
+                "memory": {
+                    "r1": "100Gi",
+                    "r2": "400Gi"
+                }
+            }),
+            "vc2": ClusterResource(resource={
+                "cpu": {
+                    "r1": 20,
+                    "": 4
+                },
+                "memory": {
+                    "r1": "200Gi",
+                    "": "16Gi"
+                }
+            })
+        }
+        vc_usage = {
+            "vc1": ClusterResource(resource={
+                "cpu": {
+                    "r1": 9,
+                    "r2": 38
+                },
+                "memory": {
+                    "r1": "50Gi",
+                    "r2": "300Gi"
+                }
+            }),
+            "vc2": ClusterResource(resource={
+                "cpu": {
+                    "": 2
+                },
+                "memory": {
+                    "": "8Gi"
+                }
+            })
+        }
+
+        result = quota.calculate_vc_resources(cluster_capacity, cluster_avail,
+                                              cluster_reserved, vc_info,
+                                              vc_usage)
+        vc_total, vc_used, vc_avail, vc_unschedulable = result
+
+        self.assertEqual(vc_info, vc_total)
+        self.assertEqual(vc_usage, vc_used)
+
+        expected_vc_avail = {
+            "vc1": ClusterResource(resource={
+                "cpu": {
+                    "r1": 0,
+                    "r2": 2
+                },
+                "memory": {
+                    "r1": "46528812373",
+                    "r2": "100Gi"
+                }
+            }),
+            "vc2": ClusterResource(resource={
+                "cpu": {
+                    "r1": 17,
+                    "": 2
+                },
+                "memory": {
+                    "r1": "200431807146",
+                    "": "8Gi"
+                }
+            })
+        }
+        self.assertEqual(expected_vc_avail, vc_avail)
+
+        expected_vc_unschedulable = {
+            "vc1": ClusterResource(resource={
+                "cpu": {
+                    "r1": 1,
+                    "r2": 0
+                },
+                "memory": {
+                    "r1": "7158278827",
+                    "r2": "0"
+                }
+            }),
+            "vc2": ClusterResource(resource={
+                "cpu": {
+                    "r1": 3,
+                    "": 0
+                },
+                "memory": {
+                    "r1": "14316557654",
+                    "": "0"
+                }
+            })
+        }
+        self.assertEqual(expected_vc_unschedulable, vc_unschedulable)
 
 
 if __name__ == '__main__':

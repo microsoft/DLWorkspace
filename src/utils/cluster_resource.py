@@ -10,7 +10,7 @@ from resource_stat import Cpu, Memory
 logger = logging.getLogger(__name__)
 
 
-class JobResource(object):
+class ClusterResource(object):
     def __init__(self, params=None, resource=None):
         """Class for job resource requirement.
 
@@ -64,6 +64,30 @@ class JobResource(object):
         self.cpu = Cpu(self.resource.get("cpu"))
         self.memory = Memory(self.resource.get("memory"))
 
+    def floor(self):
+        resource = {
+            "cpu": self.cpu.floor,
+            "memory": self.memory.floor
+        }
+        return self.__class__(resource=resource)
+
+    def ceil(self):
+        resource = {
+            "cpu": self.cpu.ceil,
+            "memory": self.memory.ceil
+        }
+        return self.__class__(resource=resource)
+
+    def min_zero(self):
+        self.cpu.min_zero()
+        self.memory.min_zero()
+        return self
+
+    def prune(self):
+        self.cpu.prune()
+        self.memory.prune()
+        return self
+
     def __repr__(self):
         return "cpu: %s. memory: %s." % (self.cpu, self.memory)
 
@@ -84,10 +108,10 @@ class JobResource(object):
             raise ValueError("Incompatible class %s and %s" %
                              (self.__class__, other.__class__))
 
-        ret = copy.deepcopy(self)
-        ret.cpu += other.cpu
-        ret.memory += other.memory
-        return ret
+        result = copy.deepcopy(self)
+        result.cpu += other.cpu
+        result.memory += other.memory
+        return result
 
     def __iadd__(self, other):
         if self.__class__ != other.__class__:
@@ -103,10 +127,10 @@ class JobResource(object):
             raise ValueError("Incompatible class %s and %s" %
                              (self.__class__, other.__class__))
 
-        ret = copy.deepcopy(self)
-        ret.cpu -= other.cpu
-        ret.memory -= other.memory
-        return ret
+        result = copy.deepcopy(self)
+        result.cpu -= other.cpu
+        result.memory -= other.memory
+        return result
 
     def __isub__(self, other):
         if self.__class__ != other.__class__:
@@ -118,18 +142,51 @@ class JobResource(object):
         return self
 
     def __mul__(self, other):
-        if not isinstance(other, numbers.Number):
-            raise ValueError("Multiplier is not a number")
-
-        ret = copy.deepcopy(self)
-        ret.cpu *= other
-        ret.memory *= other
-        return ret
+        result = copy.deepcopy(self)
+        if isinstance(other, numbers.Number):
+            result.cpu *= other
+            result.memory *= other
+        elif isinstance(other, ClusterResource):
+            result.cpu *= other.cpu
+            result.memory *= other.memory
+        else:
+            raise TypeError("Incompatible type %s and %s" %
+                            (self.__class__, other.__class__))
+        return result
 
     def __imul__(self, other):
-        if not isinstance(other, numbers.Number):
-            raise ValueError("Multiplier is not a number")
+        if isinstance(other, numbers.Number):
+            self.cpu *= other
+            self.memory *= other
+        elif isinstance(other, ClusterResource):
+            self.cpu *= other.cpu
+            self.memory *= other.memory
+        else:
+            raise TypeError("Incompatible type %s and %s" %
+                            (self.__class__, other.__class__))
+        return self
 
-        self.cpu *= other
-        self.memory *= other
+    def __truediv__(self, other):
+        result = copy.deepcopy(self)
+        if isinstance(other, numbers.Number):
+            result.cpu /= other
+            result.memory /= other
+        elif isinstance(other, ClusterResource):
+            result.cpu /= other.cpu
+            result.memory /= other.memory
+        else:
+            raise TypeError("Incompatible type %s and %s" %
+                            (self.__class__, other.__class__))
+        return result
+
+    def __idiv__(self, other):
+        if isinstance(other, numbers.Number):
+            self.cpu /= other
+            self.memory /= other
+        elif isinstance(other, ClusterResource):
+            self.cpu /= other.cpu
+            self.memory /= other.memory
+        else:
+            raise TypeError("Incompatible type %s and %s" %
+                            (self.__class__, other.__class__))
         return self

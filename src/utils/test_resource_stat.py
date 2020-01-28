@@ -10,8 +10,13 @@ class TestResource(TestCase):
 
     def init_variables(self):
         self.a = self.cls_name(res={"r1": "3", "r2": "5", "r3": "0"})
-        self.scalar = 0.8
-        self.a_scalar_mul = self.cls_name(res={"r1": "2", "r2": "4", "r3": "0"})
+        self.scalar = 0.5
+        self.a_scalar_mul = self.cls_name(res={
+            "r1": "1.5", "r2": "2.5", "r3": "0"
+        })
+        self.a_scalar_div = self.cls_name(res={
+            "r1": "6", "r2": "10", "r3": "0"
+        })
         self.b = self.cls_name(res={"r1": "3", "r2": "6"})
         self.c = self.cls_name(res={"r1": "-1"})
         self.d = self.cls_name(res={"r1": "3", "r2": "5"})
@@ -22,6 +27,8 @@ class TestResource(TestCase):
         self.a_b_diff = self.cls_name(res={"r1": "0", "r2": "-1", "r3": "0"})
         self.a_c_sum = self.cls_name(res={"r1": "2", "r2": "5", "r3": "0"})
         self.a_c_diff = self.cls_name(res={"r1": "4", "r2": "5", "r3": "0"})
+        self.a_f_mul = self.cls_name(res={"r1": "9"})
+        self.b_d_div = self.cls_name(res={"r1": "1", "r2": "1.2"})
         self.a_zero_ge = True
         self.a_one_ge = False
         self.a_b_ge = False
@@ -50,11 +57,11 @@ class TestResource(TestCase):
     def test_repr(self):
         v = self.cls_name(res={"r1": "1"})
         unit = v.unit if v.unit is not None else ""
-        t = "{'r1': '1%s'}" % unit
+        t = "{'r1': '%s%s'}" % (float(1), unit)
         self.assertEqual(t, repr(v))
 
         v = ResourceStat(res={"r1": "1"}, unit="u")
-        self.assertEqual("{'r1': '1u'}", repr(v))
+        self.assertEqual("{'r1': '%su'}" % float(1), repr(v))
 
     def test_add(self):
         # a + b
@@ -98,10 +105,56 @@ class TestResource(TestCase):
         # a * scalar
         self.assertEqual(self.a_scalar_mul, self.a * self.scalar)
 
+        # a * f
+        self.assertEqual(self.a_f_mul, self.a * self.f)
+
     def test_imul(self):
         # a *= scalar
-        self.a *= self.scalar
-        self.assertEqual(self.a_scalar_mul, self.a)
+        v = self.cls_name(self.a)
+        v *= self.scalar
+        self.assertEqual(self.a_scalar_mul, v)
+
+        # a *= f
+        v = self.cls_name(self.a)
+        v *= self.f
+        self.assertEqual(self.a_f_mul, v)
+
+    def test_truediv(self):
+        # a / scalar
+        self.assertEqual(self.a_scalar_div, self.a / self.scalar)
+
+        # a / b => ValueError
+        try:
+            self.a / self.b
+            self.fail("Should raise ValueError")
+        except ValueError:
+            self.assertTrue(True)
+        except Exception:
+            self.fail("Should raise ValueError")
+
+        # b / d
+        self.assertEqual(self.b_d_div, self.b / self.d)
+
+    def test_idiv(self):
+        # a /= scalar
+        v = self.cls_name(self.a)
+        v /= self.scalar
+        self.assertEqual(self.a_scalar_div, v)
+
+        # a /= b => ValueError
+        try:
+            v = self.cls_name(self.a)
+            v /= self.b
+            self.fail("Should raise ValueError")
+        except ValueError:
+            self.assertTrue(True)
+        except Exception:
+            self.fail("Should raise ValueError")
+
+        # b /= d
+        v = self.cls_name(self.b)
+        v /= self.d
+        self.assertEqual(self.b_d_div, v)
 
     def test_ge(self):
         # >= a number
@@ -133,31 +186,31 @@ class TestResource(TestCase):
 
         try:
             r1 + r2
-            self.assertTrue(False, "incompatible + should have crashed")
+            self.fail("incompatible + should have crashed")
         except ValueError:
             self.assertTrue(True)
 
         try:
             r1 - r2
-            self.assertTrue(False, "incompatible - should have crashed")
+            self.fail("incompatible - should have crashed")
         except ValueError:
             self.assertTrue(True)
 
         try:
             r1 += r2
-            self.assertTrue(False, "incompatible += should have crashed")
+            self.fail("incompatible += should have crashed")
         except ValueError:
             self.assertTrue(True)
 
         try:
             r1 -= r2
-            self.assertTrue(False, "incompatible -= should have crashed")
+            self.fail("incompatible -= should have crashed")
         except ValueError:
             self.assertTrue(True)
 
         try:
             _ = r1 >= r2
-            self.assertTrue(False, "incompatible >= should have crashed")
+            self.fail("incompatible >= should have crashed")
         except ValueError:
             self.assertTrue(True)
 
@@ -177,21 +230,11 @@ class TestCpu(TestResource):
     def init_class(self):
         self.cls_name = Cpu
 
-    def mutate_variables(self):
-        self.a = Cpu(res={"r1": "3m", "r2": "5m", "r3": "0m"})
-        self.a_scalar_mul = Cpu(res={"r1": "2m", "r2": "4m", "r3": "0m"})
-        self.b = Cpu(res={"r1": "3m", "r2": "6m"})
-        self.c = Cpu(res={"r1": "-1m"})
-        self.d = Cpu(res={"r1": "3m", "r2": "5m"})
-        self.f = Cpu(res={"r1": "3m", "": "6m"})
-
-        self.a_b_sum = Cpu(res={"r1": "6m", "r2": "11m", "r3": "0m"})
-        self.a_b_diff = Cpu(res={"r1": "0m", "r2": "-1m", "r3": "0m"})
-        self.a_c_sum = Cpu(res={"r1": "2m", "r2": "5m", "r3": "0m"})
-        self.a_c_diff = Cpu(res={"r1": "4m", "r2": "5m", "r3": "0m"})
+    def test_millicpu2cpu(self):
+        self.assertEqual(Cpu(res={"r1": "1"}), Cpu(res={"r1": "1000m"}))
 
     def test_repr(self):
-        self.assertEqual("{'r1': '1000m'}", repr(Cpu(res={"r1": "1"})))
+        self.assertEqual("{'r1': '%s'}" % float(1), repr(Cpu(res={"r1": "1"})))
 
 
 class TestMemory(TestResource):
@@ -201,7 +244,10 @@ class TestMemory(TestResource):
     def mutate_variables(self):
         self.a = Memory(res={"r1": "3Mi", "r2": "5Mi", "r3": "0Mi"})
         self.a_scalar_mul = Memory(res={
-            "r1": "2516582", "r2": "4194304", "r3": "0"
+            "r1": "1.5Mi", "r2": "2.5Mi", "r3": "0"
+        })
+        self.a_scalar_div = self.cls_name(res={
+            "r1": "6Mi", "r2": "10Mi", "r3": "0Mi"
         })
         self.b = Memory(res={"r1": "3Mi", "r2": "6Mi"})
         self.c = Memory(res={"r1": "-1Mi"})
@@ -212,9 +258,12 @@ class TestMemory(TestResource):
         self.a_b_diff = Memory(res={"r1": "0Mi", "r2": "-1Mi", "r3": "0Mi"})
         self.a_c_sum = Memory(res={"r1": "2Mi", "r2": "5Mi", "r3": "0Mi"})
         self.a_c_diff = Memory(res={"r1": "4Mi", "r2": "5Mi", "r3": "0Mi"})
+        self.a_f_mul = self.cls_name(res={"r1": "9Ti"})
+        self.b_d_div = self.cls_name(res={"r1": "1", "r2": "1.2"})
 
     def test_repr(self):
-        self.assertEqual("{'r1': '104857600B', 'r2': '102400B'}",
+        self.assertEqual("{'r1': '%sB', 'r2': '%sB'}" % (float(104857600),
+                                                         float(102400)),
                          repr(Memory(res={"r1": "100Mi", "r2": "100Ki"})))
 
 
@@ -225,7 +274,10 @@ class TestMemoryDifferentUnit(TestResource):
     def mutate_variables(self):
         self.a = Memory(res={"r1": "3Gi", "r2": "5Mi", "r3": "0Gi"})
         self.a_scalar_mul = Memory(res={
-            "r1": "2576980377", "r2": "4194304", "r3": "0"
+            "r1": "1.5Gi", "r2": "2.5Mi", "r3": "0"
+        })
+        self.a_scalar_div = self.cls_name(res={
+            "r1": "6Gi", "r2": "10Mi", "r3": "0Mi"
         })
         self.b = Memory(res={"r1": "3Mi", "r2": "6Mi"})
         self.c = Memory(res={"r1": "-1Gi"})
@@ -236,10 +288,13 @@ class TestMemoryDifferentUnit(TestResource):
         self.a_b_diff = Memory(res={"r1": "3069Mi", "r2": "-1Mi", "r3": "0Mi"})
         self.a_c_sum = Memory(res={"r1": "2Gi", "r2": "5Mi", "r3": "0Mi"})
         self.a_c_diff = Memory(res={"r1": "4Gi", "r2": "5Mi", "r3": "0Mi"})
+        self.a_f_mul = self.cls_name(res={"r1": "9Pi"})
+        self.b_d_div = self.cls_name(res={"r1": "0.0009765625", "r2": "1.2"})
 
         self.b_a_ge = False
         self.a_f_ge = True
 
     def test_repr(self):
-        self.assertEqual("{'r1': '104857600B', 'r2': '102400B'}",
+        self.assertEqual("{'r1': '%sB', 'r2': '%sB'}" % (float(104857600),
+                                                         float(102400)),
                          repr(Memory(res={"r1": "100Mi", "r2": "100Ki"})))

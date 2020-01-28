@@ -3,6 +3,7 @@
 import copy
 import numbers
 import re
+import math
 
 
 class ResourceStat(object):
@@ -18,12 +19,20 @@ class ResourceStat(object):
         elif not isinstance(res, dict):
             res = {}
 
-        self.resource_num = {k: int(v) for k, v in res.items()}
+        self.res = {k: float(v) for k, v in res.items()}
         self.unit = unit
 
     @property
     def resource(self):
-        return self.resource_num
+        return {k: v for k, v in self.res.items()}
+
+    @property
+    def floor(self):
+        return {k: math.floor(v) for k, v in self.res.items()}
+
+    @property
+    def ceil(self):
+        return {k: math.ceil(v) for k, v in self.res.items()}
 
     def min_zero(self):
         """Zero all resources in this object with negative value.
@@ -31,8 +40,8 @@ class ResourceStat(object):
         Returns:
             self after zeroing all resources with negative value.
         """
-        for k, v in self.resource_num.items():
-            self.resource_num[k] = max(0, v)
+        for k, v in self.res.items():
+            self.res[k] = max(0, v)
         return self
 
     def prune(self):
@@ -41,16 +50,16 @@ class ResourceStat(object):
         Returns:
             self after removing all zero resources.
         """
-        keys = list(self.resource_num.keys())
+        keys = list(self.res.keys())
         for k in keys:
-            if self.resource_num[k] == 0:
-                self.resource_num.pop(k)
+            if self.res[k] == 0:
+                self.res.pop(k)
         return self
 
     def __repr__(self):
         unit = self.unit if self.unit is not None else ""
         return str({
-            k: "%s%s" % (v, unit) for k, v in self.resource_num.items()
+            k: "%s%s" % (v, unit) for k, v in self.res.items()
         })
 
     def __add__(self, other):
@@ -62,28 +71,12 @@ class ResourceStat(object):
             raise ValueError("Incompatible resource type %s and %s" %
                              (self.unit, other.unit))
 
-        tmp = copy.deepcopy(self)
-        for k, v in other.resource_num.items():
-            if k not in tmp.resource_num:
-                tmp.resource_num[k] = 0
-            tmp.resource_num[k] += v
-        return self.__class__(res=tmp.resource, unit=self.unit)
-
-    def __sub__(self, other):
-        if self.__class__ != other.__class__:
-            raise ValueError("Incompatible class %s and %s" %
-                             (self.__class__, other.__class__))
-
-        if self.unit != other.unit:
-            raise ValueError("Incompatible resource type %s and %s" %
-                             (self.unit, other.unit))
-
-        tmp = copy.deepcopy(self)
-        for k, v in other.resource_num.items():
-            if k not in tmp.resource_num:
-                tmp.resource_num[k] = 0
-            tmp.resource_num[k] -= v
-        return self.__class__(res=tmp.resource, unit=self.unit)
+        result = copy.deepcopy(self)
+        for k, v in other.res.items():
+            if k not in result.res:
+                result.res[k] = 0
+            result.res[k] += v
+        return result
 
     def __iadd__(self, other):
         if self.__class__ != other.__class__:
@@ -94,11 +87,27 @@ class ResourceStat(object):
             raise ValueError("Incompatible resource type %s and %s" %
                              (self.unit, other.unit))
 
-        for k, v in other.resource_num.items():
-            if k not in self.resource_num:
-                self.resource_num[k] = 0
-            self.resource_num[k] += v
+        for k, v in other.res.items():
+            if k not in self.res:
+                self.res[k] = 0
+            self.res[k] += v
         return self
+
+    def __sub__(self, other):
+        if self.__class__ != other.__class__:
+            raise ValueError("Incompatible class %s and %s" %
+                             (self.__class__, other.__class__))
+
+        if self.unit != other.unit:
+            raise ValueError("Incompatible resource type %s and %s" %
+                             (self.unit, other.unit))
+
+        result = copy.deepcopy(self)
+        for k, v in other.res.items():
+            if k not in result.res:
+                result.res[k] = 0
+            result.res[k] -= v
+        return result
 
     def __isub__(self, other):
         if self.__class__ != other.__class__:
@@ -109,35 +118,125 @@ class ResourceStat(object):
             raise ValueError("Incompatible resource type %s and %s" %
                              (self.unit, other.unit))
 
-        for k, v in other.resource_num.items():
-            if k not in self.resource_num:
-                self.resource_num[k] = 0
-            self.resource_num[k] -= v
+        for k, v in other.res.items():
+            if k not in self.res:
+                self.res[k] = 0
+            self.res[k] -= v
         return self
 
     def __mul__(self, other):
-        if not isinstance(other, numbers.Number):
-            raise ValueError("Multiplier is not a number")
+        if isinstance(other, numbers.Number):
+            result = copy.deepcopy(self)
+            for k, v in self.res.items():
+                result.res[k] = v * other
+            return result
+        else:
+            if self.__class__ != other.__class__:
+                raise ValueError("Incompatible class %s and %s" %
+                                 (self.__class__, other.__class__))
 
-        tmp = copy.deepcopy(self)
-        for k, v in self.resource_num.items():
-            new_v = int(v * float(other))
-            tmp.resource_num[k] = new_v
-        return self.__class__(res=tmp.resource, unit=self.unit)
+            if self.unit != other.unit:
+                raise ValueError("Incompatible resource type %s and %s" %
+                                 (self.unit, other.unit))
+
+            # Pairwise multiplication
+            self_keys = set(self.res.keys())
+            other_keys = set(other.res.keys())
+            all_keys = self_keys.union(other_keys)
+
+            result = self.__class__(res=None, unit=self.unit)
+            for k in all_keys:
+                self_v = self.res.get(k, 0)
+                other_v = other.res.get(k, 0)
+                result.res[k] = self_v * other_v
+            return result
 
     def __imul__(self, other):
-        if not isinstance(other, numbers.Number):
-            raise ValueError("Multiplier is not a number")
+        if isinstance(other, numbers.Number):
+            for k, v in self.res.items():
+                self.res[k] = v * other
+            return self
+        else:
+            if self.__class__ != other.__class__:
+                raise ValueError("Incompatible class %s and %s" %
+                                 (self.__class__, other.__class__))
 
-        for k, v in self.resource_num.items():
-            new_v = int(v * float(other))
-            self.resource_num[k] = new_v
+            if self.unit != other.unit:
+                raise ValueError("Incompatible resource type %s and %s" %
+                                 (self.unit, other.unit))
 
-        return self
+            # Pairwise multiplication
+            self_keys = set(self.res.keys())
+            other_keys = set(other.res.keys())
+            all_keys = self_keys.union(other_keys)
+
+            for k in all_keys:
+                self_v = self.res.get(k, 0)
+                other_v = other.res.get(k, 0)
+                self.res[k] = self_v * other_v
+            return self
+
+    def __truediv__(self, other):
+        if isinstance(other, numbers.Number):
+            result = copy.deepcopy(self)
+            for k, v in self.res.items():
+                result.res[k] = v / other
+            return result
+        else:
+            if self.__class__ != other.__class__:
+                raise ValueError("Incompatible class %s and %s" %
+                                 (self.__class__, other.__class__))
+
+            if self.unit != other.unit:
+                raise ValueError("Incompatible resource type %s and %s" %
+                                 (self.unit, other.unit))
+
+            # Pairwise division
+            self_keys = set(self.res.keys())
+            other_keys = set(other.res.keys())
+            all_keys = self_keys.union(other_keys)
+
+            result = self.__class__(res=None, unit=self.unit)
+            for k in all_keys:
+                self_v = self.res.get(k, 0)
+                other_v = other.res.get(k, 0)
+                if other_v == 0:
+                    raise ValueError("Division by zero. %s / %s" %
+                                     (self, other))
+                result.res[k] = self_v / other_v
+            return result
+
+    def __idiv__(self, other):
+        if isinstance(other, numbers.Number):
+            for k, v in self.res.items():
+                self.res[k] = v / other
+            return self
+        else:
+            if self.__class__ != other.__class__:
+                raise ValueError("Incompatible class %s and %s" %
+                                 (self.__class__, other.__class__))
+
+            if self.unit != other.unit:
+                raise ValueError("Incompatible resource type %s and %s" %
+                                 (self.unit, other.unit))
+
+            # Pairwise division
+            self_keys = set(self.res.keys())
+            other_keys = set(other.res.keys())
+            all_keys = self_keys.union(other_keys)
+
+            for k in all_keys:
+                self_v = self.res.get(k, 0)
+                other_v = other.res.get(k, 0)
+                if other_v == 0:
+                    raise ValueError("Division by zero. %s / %s" %
+                                     (self, other))
+                self.res[k] = self_v / other_v
+            return self
 
     def __ge__(self, other):
-        if isinstance(other, int):
-            for _, v in self.resource_num.items():
+        if isinstance(other, numbers.Number):
+            for _, v in self.res.items():
                 if v < other:
                     return False
             return True
@@ -158,30 +257,31 @@ class ResourceStat(object):
             d2 = (other - self).min_zero().prune()
 
             # Unlabeled resource can be satisfied by any type of resource
-            if len(d2.resource_num) == 1 and "" in d2.resource_num:
+            if len(d2.res) == 1 and "" in d2.res:
                 remaining_res = 0
-                for _, v in d1.resource_num.items():
+                for _, v in d1.res.items():
                     remaining_res += v
-                if remaining_res >= d2.resource_num[""]:
+                if remaining_res >= d2.res[""]:
                     return True
 
             return False
 
     def __prune(self):
-        res = {k: v for k, v in self.resource_num.items() if v != 0}
-        return self.__class__(res=res, unit=self.unit)
+        result = copy.deepcopy(self)
+        result.res = {k: v for k, v in self.res.items() if v != 0}
+        return result
 
     def __eq__(self, other):
         if self.__class__ != other.__class__:
             return False
 
+        if self.unit != other.unit:
+            return False
+
         r_self = self.__prune()
         r_other = other.__prune()
 
-        if r_self.unit != r_other.unit:
-            return False
-
-        return r_self.resource_num == r_other.resource_num
+        return r_self.res == r_other.res
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -204,29 +304,25 @@ class Gpu(ResourceStat):
 
 
 class Cpu(ResourceStat):
-    def __init__(self, res=None, unit="m"):
+    def __init__(self, res=None, unit=None):
         if isinstance(res, Cpu):
             res = res.resource
         elif not isinstance(res, dict):
             res = {}
 
         for k, v in res.items():
-            res[k] = Cpu.to_millicpu(v)
+            res[k] = Cpu.to_cpu(v)
 
         super().__init__(res=res, unit=unit)
 
     @staticmethod
-    def to_millicpu(data):
+    def to_cpu(data):
         data = str(data).lower()
         number = float(re.findall(r"[-+]?[0-9]*[.]?[0-9]+", data)[0])
-        if "m" not in data:
-            return number * 1000
+        if "m" in data:
+            return number / 1000.0
         else:
             return number
-
-    @property
-    def resource(self):
-        return {k: "%sm" % v for k, v in self.resource_num.items()}
 
 
 class Memory(ResourceStat):

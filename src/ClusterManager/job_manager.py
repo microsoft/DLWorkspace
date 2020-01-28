@@ -30,7 +30,7 @@ from config import config, GetStoragePath
 import notify
 import k8sUtils
 import quota
-from job_resource import JobResource
+from cluster_resource import ClusterResource
 
 logger = logging.getLogger(__name__)
 
@@ -508,33 +508,20 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
     cluster_available = cluster_status["gpu_available"]
     cluster_reserved = cluster_status["gpu_reserved"]
 
-    cluster_resource_capacity = JobResource(resource={
-        "cpu": cluster_status["cpu_capacity"],
-        "memory": cluster_status["memory_capacity"]
-    })
-    cluster_resource_unschedulable = JobResource(resource={
-        "cpu": cluster_status["cpu_unschedulable"],
-        "memory": cluster_status["memory_unschedulable"]
-    })
-    # Hard-code 95% of the total capacity is application usable
-    # TODO: Find a better way to manage system and user resource quota
-    cluster_resource_quota = \
-        (cluster_resource_capacity - cluster_resource_unschedulable) * 0.95
-
     vc_info = {}
-    vc_usage = collections.defaultdict(lambda:
-                                       collections.defaultdict(lambda: 0))
+    vc_usage = collections.defaultdict(
+        lambda: collections.defaultdict(lambda: 0))
 
     for vc in vc_list:
         vc_info[vc["vcName"]] = json.loads(vc["quota"])
 
     active_job_list = data_handler.GetActiveJobList()
     for job in active_job_list:
-        jobParam = json.loads(base64.b64decode(
+        job_param = json.loads(base64.b64decode(
             job["jobParams"].encode("utf-8")).decode("utf-8"))
-        if "gpuType" in jobParam:
-            vc_usage[job["vcName"]][jobParam["gpuType"]
-                                    ] += GetJobTotalGpu(jobParam)
+        if "gpuType" in job_param:
+            vc_usage[job["vcName"]][job_param["gpuType"]] += \
+                GetJobTotalGpu(job_param)
 
     result = quota.calculate_vc_gpu_counts(cluster_total, cluster_available,
                                            cluster_reserved, vc_info, vc_usage)
@@ -559,6 +546,65 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
                 vc_unschedulable[vc_name][gpu_type]
         vc_resources[vc_name] = ResourceInfo(vc_schedulable)
 
+    # Cluster resource calculation
+    # Currently including CPU and memory
+    cluster_resource_capacity = ClusterResource(resource={
+        "cpu": cluster_status["cpu_capacity"],
+        "memory": cluster_status["memory_capacity"]
+    })
+    cluster_resource_available = ClusterResource(resource={
+        "cpu": cluster_status["cpu_available"],
+        "memory": cluster_status["memory_available"]
+    })
+    cluster_resource_reserved = ClusterResource(resource={
+        "cpu": cluster_status["cpu_reserved"],
+        "memory": cluster_status["memory_reserved"]
+    })
+    cluster_resource_unschedulable = ClusterResource(resource={
+        "cpu": cluster_status["cpu_unschedulable"],
+        "memory": cluster_status["memory_unschedulable"]
+    })
+    # Hard-code 95% of the total capacity is application usable
+    # TODO: Find a better way to manage system and user resource quota
+    cluster_resource_quota = \
+        (cluster_resource_capacity - cluster_resource_unschedulable) * 0.95
+
+    vc_resource_info = {}
+    vc_resource_usage = collections.defaultdict(lambda: ClusterResource())
+
+    for vc in vc_list:
+        res_quota = {}
+        try:
+            res_quota = json.loads(vc["resourceQuota"])
+        except:
+            logger.exception("Parsing resourceQuota failed for %s", vc)
+        vc_resource_info[vc["vcName"]] = ClusterResource(resource=res_quota)
+
+    for job in active_job_list:
+        job_params = json.loads(base64.b64decode(
+            job["jobParams"].encode("utf-8")).decode("utf-8"))
+        vc_resource_usage[job["vcName"]] += ClusterResource(params=job_params)
+
+    result = quota.calculate_vc_resources(cluster_resource_capacity,
+                                          cluster_resource_available,
+                                          cluster_resource_reserved,
+                                          vc_resource_info,
+                                          vc_resource_usage)
+    (
+        vc_resource_total,
+        vc_resource_used,
+        vc_resource_available,
+        vc_resource_unschedulable
+    ) = result
+
+    vc_resource_quotas = {}
+    for vc in vc_list:
+        vc_name = vc["vcName"]
+        vc_r_total = vc_resource_total[vc_name]
+        vc_r_unschedulable = vc_resource_unschedulable[vc_name]
+        vc_r_schedulable = vc_r_total - vc_r_unschedulable
+        vc_resource_quotas[vc_name] = vc_r_schedulable
+
     jobsInfo = []
     for job in jobs:
         if job["jobStatus"] in ["queued", "scheduling", "running"]:
@@ -574,7 +620,7 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
             singleJobInfo["globalResInfo"] = ResourceInfo(
                 {jobGpuType: GetJobTotalGpu(job_params)})
 
-            job_resource = JobResource(params=job_params)
+            job_resource = ClusterResource(params=job_params)
             singleJobInfo["job_resource"] = job_resource
 
             # Job lists will be sorted based on and in the order of below
@@ -611,6 +657,8 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
 
     logger.info("local resources : %s", vc_resources)
     logger.info("global resources : %s", globalResInfo.CategoryToCountMap)
+
+    logger.info("vc resource quotas: %s", vc_resource_quotas)
     logger.info("cluster resource quota: %s", cluster_resource_quota)
 
     for sji in jobsInfo:
@@ -618,22 +666,28 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
             sji["jobId"], sji["globalResInfo"].CategoryToCountMap, sji["sortKey"]))
         vc_name = sji["job"]["vcName"]
         vc_resource = vc_resources[vc_name]
+        vc_resource_quota = vc_resource_quotas[vc_name]
 
         if sji["preemptionAllowed"]:
             continue # schedule non preemptable first
 
         job_resource = sji["job_resource"]
-        if vc_resource.CanSatisfy(sji["globalResInfo"]) and cluster_resource_quota >= job_resource:
+        if vc_resource.CanSatisfy(sji["globalResInfo"]) and cluster_resource_quota >= job_resource and vc_resource_quota >= job_resource:
             vc_resource.Subtract(sji["globalResInfo"])
             globalResInfo.Subtract(sji["globalResInfo"])
+            vc_resource_quota -= job_resource
             cluster_resource_quota -= job_resource
             sji["allowed"] = True
-            logger.info("allow non-preemptible %s to run, used resource %s" % (
-                sji["jobId"], sji["globalResInfo"].CategoryToCountMap))
+            logger.info("allow non-preemptible %s to run, used resource %s, job resource %s",
+                sji["jobId"], sji["globalResInfo"].CategoryToCountMap, job_resource)
         else:
-            logger.info("do not allow non-preemptible %s to run for vc resource not enough, vc resource %s, required %s. cluster resource quota %s, job resource %s",
-                        sji["jobId"], vc_resource, sji["globalResInfo"],
-                        cluster_resource_quota, job_resource)
+            logger.info("do not allow non-preemptible %s to run for vc %s."
+                        "resource not enough, vc resource %s, required %s. "
+                        "cluster_resource_quota %s, vc resource quota %s, "
+                        "job resource %s",
+                        vc_name, sji["jobId"], vc_resource,
+                        sji["globalResInfo"], cluster_resource_quota,
+                        vc_resource_quota, job_resource)
 
     for sji in jobsInfo:
         if sji["preemptionAllowed"] and (sji["allowed"] is False):
@@ -672,14 +726,19 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
                 vc_name = sji["job"]["vcName"]
                 available_resource = vc_resources[vc_name]
                 requested_resource = sji["globalResInfo"]
+                cur_vc_resource_quota = vc_resource_quotas[vc_name]
                 job_resource = sji["job_resource"]
                 detail = [{
-                    "message": "waiting for available resource. requested GPU: %s. available GPU: %s. requested resource: %s. available resource: %s" % (
-                        requested_resource, available_resource, job_resource,
-                        cluster_resource_quota)
+                    "message": "waiting for available resource. requested "
+                               "GPU: %s. available GPU: %s. requested "
+                               "resource: %s. cluster available quota: %s."
+                               " vc available quota: %s" %
+                               (requested_resource, available_resource,
+                                job_resource, cluster_resource_quota,
+                                cur_vc_resource_quota)
                 }]
                 data_handler.UpdateJobTextField(sji["jobId"], "jobStatusDetail", base64.b64encode(
-                    json.dumps(detail).encode("utf-8")).encode("utf-8"))
+                    json.dumps(detail).encode("utf-8")).decode("utf-8"))
         except Exception as e:
             logger.error("Process job failed {}".format(
                 sji["job"]), exc_info=True)
