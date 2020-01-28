@@ -203,7 +203,7 @@ class DataHandler(object):
                     PRIMARY KEY (`id`),
                     CONSTRAINT `hierarchy` FOREIGN KEY (`parent`) REFERENCES `%s` (`vcName`)
                 )
-                AS SELECT \'%s\' AS vcName, NULL AS parent, '{\\\"%s\\\":%s}' AS quota, '{\\\"%s\\\":{\\\"num_gpu_per_node\\\":%s}}' AS metadata;
+                AS SELECT \'%s\' AS vcName, NULL AS parent, '{\\\"%s\\\":%s}' AS quota, '{\\\"%s\\\":{\\\"num_gpu_per_node\\\":%s}}' AS metadata, '{}' as resourceQuota, '{}' as resourceMetadata;
                 """ % (self.vctablename, self.vctablename, config['defalt_virtual_cluster_name'], gpu_type, gpu_count_per_node*worker_node_num, gpu_type,gpu_count_per_node)
 
             cursor = self.conn.cursor()
@@ -367,16 +367,19 @@ class DataHandler(object):
     @record
     def ListVCs(self):
         cursor = self.conn.cursor()
-        query = "SELECT `vcName`,`quota`,`metadata` FROM `%s`" % (self.vctablename)
+        query = "SELECT `vcName`,`quota`,`metadata`, `resourceQuota`, `resourceMetadata` FROM `%s`" % self.vctablename
         ret = []
         try:
             cursor.execute(query)
-            for (vcName,quota,metadata) in cursor:
-                record = {}
-                record["vcName"] = vcName
-                record["quota"] = quota
-                record["metadata"] = metadata
-                ret.append(record)
+            for vc_name, quota, metadata, resource_quota, resource_metadata in cursor:
+                rec = {
+                    "vcName": vc_name,
+                    "quota": quota,
+                    "metadata": metadata,
+                    "resourceQuota": resource_quota,
+                    "resourceMetadata": resource_metadata
+                }
+                ret.append(rec)
         except Exception as e:
             logger.error('Exception: %s', str(e))
             pass
