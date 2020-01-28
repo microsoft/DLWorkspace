@@ -258,7 +258,7 @@ def load_default_config(config):
                   config["postmasterdeploymentscript"],
                   "./scripts/cloud_init_infra.sh", "deploy/cloud-config/etcd_node_labels.yaml",
                   "deploy/cloud-config/etcd_node_1_labels.yaml", "deploy/cloud-config/etcd_node_2_labels.yaml",
-                  "deploy/cloud-config/infra.kubelet.service.template", "scripts/pass_secret.sh",
+                  "deploy/cloud-config/infra.kubelet.service.template", "deploy/scripts/pass_secret.sh",
                   "deploy/services"],
 
         "worker": ["./deploy/kubelet/" + config["preworkerdeploymentscript"],
@@ -809,7 +809,7 @@ def pack_cloudinit_role(config, role):
 
 def gen_pass_secret_script(config):
     utils.render_template(
-        "./template/secret/pass_secret.sh.template", "scripts/pass_secret.sh", config)
+        "./template/secret/pass_secret.sh.template", "deploy/scripts/pass_secret.sh", config)
 
 
 def render_repairmanager(config):

@@ -9,6 +9,8 @@ import argparse
 from az_params import *
 from params import *
 import utils
+from multiprocessing import Pool
+import subprocess
 from utils import random_str, keep_widest_subnet
 sys.path.append("../utils")
 from ConfigUtils import add_configs_in_order
@@ -25,6 +27,7 @@ def init_config():
 
 def load_config_based_on_command(command):
     default_config = init_config()
+    config_file_list = args.config
     if not args.config:
         config_file_list = ["config.yaml"]
         if command in ["deploy", "interconnect"]:
@@ -272,11 +275,18 @@ def gen_machine_list_4_deploy_action(complementary_file_name, config):
 
 def add_machines(config, args):
     os.system('rm -f ' + args.output)
+    # we don't run az command in add_machine when batch_size is larger than 1, regardless of args.dryrun
+    # instead, we would run those commands in parallel, and dump output sequentially
+    delay_run = (args.batch_size > 1) and (not args.dryrun)
+    commands_list = []
     for vmname, spec in config["machines"].items():
-        updated_spec = add_machine(vmname, spec, args.verbose, args.output)
-        config["machines"][vmname] = updated_spec
+        cmd = add_machine(vmname, spec, args.verbose, delay_run or args.dryrun, args.output)
+        if delay_run:
+            commands_list += cmd,
     if os.path.exists(args.output):
         os.system('chmod +x ' + args.output)
+    if delay_run:
+        add_machine_in_parallel(commands_list, args)
 
 
 def is_independent_nfs(role):
@@ -284,7 +294,34 @@ def is_independent_nfs(role):
     return "nfs" in role and not (set(["infra", "etcd", "kubernetes_master"]) & set(role))
 
 
-def add_machine(vmname, spec, verbose, output_file):
+def add_machine_in_parallel(cmds, args):
+    tuples = [(cmd, args.verbose, args.wait_time) for cmd in cmds]
+    pool = Pool(args.batch_size)
+    # returned would be in (return code, output err) format
+    returned = pool.map(add_machine_and_collect_output, tuples)
+    pool.close()
+
+
+def add_machine_and_collect_output(arg_tuple):
+    cmd, verbose, max_run = arg_tuple
+    try:
+        # https://stackoverflow.com/questions/4814970/subprocess-check-output-doesnt-seem-to-exist-python-2-6-5         
+        # here we use shell=True without spliting cmd
+        sp = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        output, err = sp.communicate()
+        count = 0
+        while sp.poll() == None and count < max_run:
+            time.sleep(1)
+            count += 1
+        if verbose:
+            print(output, err)
+        return (sp.returncode, output, err)
+    except subprocess.CalledProcessError as e:
+        print("Exception " + str(e.returncode) + ", output: " + e.output.strip())
+        return (e.returncode, e.output, "Error")
+
+
+def add_machine(vmname, spec, verbose, dryrun, output_file):
     if "pwd" in spec:
         auth = "--authentication-type password --admin-password '{}' ".format(
             spec["pwd"])
@@ -417,8 +454,9 @@ def add_machine(vmname, spec, verbose, output_file):
     if "other_params" in spec:
         for k, v in spec["other_params"]:
             cmd += " --{} {}".format(k, v)
-    if args.batch_size <= 1:
-        execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
+
+    execute_or_dump_locally(cmd, verbose, dryrun, output_file)
+    cmd = ' '.join(cmd.split())
     return cmd
 
 def list_vm(config, verbose=True):
@@ -523,16 +561,17 @@ Command:
                         help="Additional command argument")
     parser.add_argument('-cnf', '--config', action='append', help='Specify the config files you want to load, later ones \
         would overwrite former ones, e.g., -cnf config.yaml -cnf az_complementary.yaml')
-    parser.add_argument('-b', '--batch_size', default=1,
+    parser.add_argument('-b', '--batch_size', type=int, default=1,
                         help='batch size that we add machines')
+    parser.add_argument('-wt', '--wait_time', type=int, default=360,
+                        help='max time that we would wait for a command to execute')
     parser.add_argument('-o', '--output', default='',
                         help='Specify the output file path')
-    parser.add_argument('-v', '--verbose', type=bool,
-                        help='Verbose mode', default=True)
-    parser.add_argument('-d', '--dryrun', type=bool,
-                        help='Dry run -- no actual execution', default=False)
+    parser.add_argument('-v', '--verbose', help='Verbose mode', action="store_true")
+    parser.add_argument('-d', '--dryrun', help='Dry run -- no actual execution', action="store_true")
     args = parser.parse_args()
     command = args.command
     nargs = args.nargs
     config = load_config_based_on_command(command)
+    print(args.verbose)
     run_command(command, config, args, nargs)
