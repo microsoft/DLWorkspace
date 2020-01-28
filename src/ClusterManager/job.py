@@ -253,6 +253,14 @@ class Job:
     def get_vc_node_hard_assignment(self):
         return self._get_cluster_config("vc_node_hard_assignment")
 
+    def get_vc_without_data_work(self):
+        """Special VCs that do not have /data and /work"""
+        vc_without_data_work = self._get_cluster_config("vc_without_data_work")
+        if vc_without_data_work is None or \
+            not isinstance(vc_without_data_work, list):
+            vc_without_data_work = []
+        return vc_without_data_work
+
     def _get_cluster_config(self, key):
         if key in self.cluster:
             return self.cluster[key]

@@ -77,19 +77,21 @@ class DistPodTemplate():
             return None, "Missing required parameters!"
         assert(params["jobtrainingtype"] == "PSDistJob")
 
+        vc_without_data_work = job.get_vc_without_data_work()
+
         job.job_path = params["jobPath"]
         job.work_path = params["workPath"]
         job.data_path = params["dataPath"]
         # TODO user's mountpoints first, but should after 'job_path'
         job.add_mountpoints(job.job_path_mountpoint())
-        # TODO: Remove VC name dependency
-        if params["vcName"] != "MMBellevue":
+        # TODO: Refactor special VC dependency
+        if params["vcName"] not in vc_without_data_work:
             job.add_mountpoints({"name": "home", "containerPath": "/home/{}".format(
                 job.get_alias()), "hostPath": job.get_homefolder_hostpath(), "enabled": True})
         if "mountpoints" in params:
             job.add_mountpoints(params["mountpoints"])
-        # TODO: Remove VC name dependency
-        if params["vcName"] != "MMBellevue":
+        # TODO: Refactor special VC dependency
+        if params["vcName"] not in vc_without_data_work:
             job.add_mountpoints(job.work_path_mountpoint())
             job.add_mountpoints(job.data_path_mountpoint())
         job.add_mountpoints(job.vc_custom_storage_mountpoints())
