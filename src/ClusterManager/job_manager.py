@@ -673,7 +673,7 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
             continue # schedule non preemptable first
 
         job_resource = sji["job_resource"]
-        if vc_resource.CanSatisfy(sji["globalResInfo"]) and vc_resource_quota >= job_resource:
+        if vc_resource.CanSatisfy(sji["globalResInfo"]) and cluster_resource_quota >= job_resource and vc_resource_quota >= job_resource:
             vc_resource.Subtract(sji["globalResInfo"])
             globalResInfo.Subtract(sji["globalResInfo"])
             vc_resource_quota -= job_resource
@@ -682,9 +682,12 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
             logger.info("allow non-preemptible %s to run, used resource %s, job resource %s",
                 sji["jobId"], sji["globalResInfo"].CategoryToCountMap, job_resource)
         else:
-            logger.info("do not allow non-preemptible %s to run for vc resource not enough, vc resource %s, required %s. vc resource quota %s, job resource %s",
+            logger.info("do not allow non-preemptible %s to run for vc "
+                        "resource not enough, vc resource %s, required %s. "
+                        "cluster_resource_quota %s, vc resource quota %s, "
+                        "job resource %s",
                         sji["jobId"], vc_resource, sji["globalResInfo"],
-                        vc_resource_quota, job_resource)
+                        cluster_resource_quota, vc_resource_quota, job_resource)
 
     for sji in jobsInfo:
         if sji["preemptionAllowed"] and (sji["allowed"] is False):
@@ -726,9 +729,12 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
                 cur_vc_resource_quota = vc_resource_quotas[vc_name]
                 job_resource = sji["job_resource"]
                 detail = [{
-                    "message": "waiting for available resource. requested GPU: %s. available GPU: %s. requested resource: %s. vc available quota: %s" % (
+                    "message": "waiting for available resource. requested "
+                               "GPU: %s. available GPU: %s. requested "
+                               "resource: %s. cluster available quota: %s."
+                               " vc available quota: %s" % (
                         requested_resource, available_resource, job_resource,
-                        cur_vc_resource_quota)
+                        cluster_resource_quota, cur_vc_resource_quota)
                 }]
                 data_handler.UpdateJobTextField(sji["jobId"], "jobStatusDetail", base64.b64encode(
                     json.dumps(detail).encode("utf-8")).encode("utf-8"))
