@@ -570,8 +570,7 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
         (cluster_resource_capacity - cluster_resource_unschedulable) * 0.95
 
     vc_resource_info = {}
-    vc_resource_usage = collections.defaultdict(
-        lambda: collections.defaultdict(lambda: ClusterResource()))
+    vc_resource_usage = collections.defaultdict(lambda: ClusterResource())
 
     for vc in vc_list:
         res_quota = {}
