@@ -17,7 +17,7 @@ import redis
 
 from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time, record
 
-from job_launcher import JobDeployer, JobRole, PythonLauncher
+from job_launcher import PythonLauncher
 import joblog_manager
 from job_launcher import get_job_status_detail, job_status_detail_with_finished_time
 
@@ -300,7 +300,7 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
     jobParams = json.loads(base64.b64decode(
         job["jobParams"].encode("utf-8")).decode("utf-8"))
 
-    result, details = check_job_status(job["jobId"])
+    result, details = check_job_status(launcher, job["jobId"])
     logger.info("++++++++ Job status: {} {}".format(job["jobId"], result))
 
     jobPath, workPath, dataPath = GetStoragePath(
@@ -308,10 +308,6 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
     localJobPath = os.path.join(config["storage-mount-path"], jobPath)
     logPath = os.path.join(localJobPath, "logs/joblog.txt")
 
-    jobDescriptionPath = None
-    if "jobDescriptionPath" in job and job["jobDescriptionPath"] is not None:
-        jobDescriptionPath = os.path.join(
-            config["storage-mount-path"], job["jobDescriptionPath"])
     if "userId" not in jobParams:
         jobParams["userId"] = "0"
 
@@ -330,12 +326,7 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
         conditionFields = {"jobId": job["jobId"]}
         dataHandler.UpdateJobTextFields(conditionFields, dataFields)
 
-        # Retain the old code for reference
-        # if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
-        #     k8sUtils.kubectl_delete(jobDescriptionPath)
-
-        job_deployer = JobDeployer()
-        job_deployer.delete_job(job["jobId"], force=True)
+        launcher.delete_job(job["jobId"], force=True)
 
         if notifier is not None:
             notifier.notify(notify.new_job_state_change_message(
@@ -379,12 +370,7 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
         conditionFields = {"jobId": job["jobId"]}
         dataHandler.UpdateJobTextFields(conditionFields, dataFields)
 
-        # Retain the old code for reference
-        # if jobDescriptionPath is not None and os.path.isfile(jobDescriptionPath):
-        #     k8sUtils.kubectl_delete(jobDescriptionPath)
-
-        job_deployer = JobDeployer()
-        job_deployer.delete_job(job["jobId"], force=True)
+        launcher.delete_job(job["jobId"], force=True)
 
     elif result == "Unknown" or result == "NotFound":
         if job["jobId"] not in UnusualJobs:
@@ -427,9 +413,8 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
 
 
 # TODO refine later
-def check_job_status(job_id):
-    job_deployer = JobDeployer()
-    job_roles = JobRole.get_job_roles(job_id)
+def check_job_status(launcher, job_id):
+    job_roles = launcher.get_job_roles(job_id)
 
     if len(job_roles) < 1:
         return "NotFound", []

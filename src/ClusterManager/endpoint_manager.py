@@ -14,9 +14,9 @@ import argparse
 
 from kubernetes import client, config as k8s_config
 from kubernetes.client.rest import ApiException
+from kubernetes.stream.ws_client import ERROR_CHANNEL, STDERR_CHANNEL, STDOUT_CHANNEL
 
 from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time
-from job_launcher import JobDeployer
 
 sys.path.append(os.path.join(os.path.dirname(
     os.path.abspath(__file__)), "../utils"))
@@ -26,7 +26,6 @@ from config import config
 import k8sUtils
 
 logger = logging.getLogger(__name__)
-deployer = JobDeployer()
 
 k8s_config.load_kube_config()
 k8s_core_api = client.CoreV1Api()
@@ -39,10 +38,45 @@ def is_ssh_server_ready(pod_name):
         return False
     return True
 
+def pod_exec(self, pod_name, exec_command, timeout=60):
+    """work as the command (with timeout): kubectl exec 'pod_name' 'exec_command'"""
+    try:
+        logger.info("Exec on pod %s: %s", pod_name, exec_command)
+        client = stream(
+                k8s_core_api.connect_get_namespaced_pod_exec,
+                name=pod_name,
+            namespace="default",
+            command=exec_command,
+            stderr=True,
+            stdin=False,
+            stdout=True,
+            tty=False,
+            _preload_content=False,
+        )
+        client.run_forever(timeout=timeout)
+
+        err = yaml.full_load(client.read_channel(ERROR_CHANNEL))
+        if err is None:
+            return [-1, "Timeout"]
+
+        if err["status"] == "Success":
+            status_code = 0
+        else:
+            logger.debug("Exec on pod %s failed. cmd: %s, err: %s.",
+                    pod_name, exec_command, err)
+            status_code = int(err["details"]["causes"][0]["message"])
+        output = client.read_all()
+        logger.info("Exec on pod %s, status: %s, cmd: %s, output: %s",
+                pod_name, status_code, exec_command, output)
+        return [status_code, output]
+    except ApiException as err:
+        logger.exception("Exec on pod %s error. cmd: %s, err: %s.",
+                pod_name, exec_command, err)
+        return [-1, err.message]
 
 def query_ssh_port(pod_name):
     bash_script = "grep ^Port /usr/etc/sshd_config | cut -d' ' -f2"
-    status_code, output = deployer.pod_exec(
+    status_code, output = pod_exec(
         pod_name, ["/bin/bash", "-c", bash_script])
     if status_code != 0:
         raise RuntimeError("Query ssh port failed: {}".format(pod_name))

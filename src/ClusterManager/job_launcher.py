@@ -26,6 +26,7 @@ from pod_template import PodTemplate
 from job import Job, JobSchema
 from DataHandler import DataHandler
 import k8sUtils
+import framework
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ logger = logging.getLogger(__name__)
 k8s_config.load_kube_config()
 k8s_CoreAPI = client.CoreV1Api()
 k8s_AppsAPI = client.AppsV1Api()
+k8s_custom_obj_api = client.CustomObjectsApi()
 
 
 class JobDeployer:
@@ -42,25 +44,284 @@ class JobDeployer:
         self.namespace = "default"
         self.pretty = "pretty_example"
 
+
+    @record
+    def _create_framework(self, body):
+        resp = k8s_custom_obj_api.create_namespaced_custom_object(
+                "frameworkcontroller.microsoft.com",
+                "v1",
+                self.namespace,
+                "frameworks",
+                body,
+                pretty=self.pretty,
+                )
+        return resp
+
+    @record
+    def _delete_framework(self, name, grace_period_seconds=None):
+        body = client.V1DeleteOptions()
+
+        resp = k8s_custom_obj_api.delete_namespaced_custom_object(
+                "frameworkcontroller.microsoft.com",
+                "v1",
+                self.namespace,
+                "frameworks",
+                framework.transform_name(name),
+                body,
+                grace_period_seconds=grace_period_seconds,
+                )
+        return resp
+
+    @record
+    def _cleanup_framework(self, framework_names, force=False):
+        errors = []
+        grace_period_seconds = 0 if force else None
+        for framework_name in framework_names:
+            try:
+                self._delete_framework(framework_name, grace_period_seconds)
+            except Exception as e:
+                if isinstance(e, ApiException) and 404 == e.status:
+                    return []
+                message = "Delete framework failed: {}".format(framework_name)
+                logger.exception(message)
+                errors.append({"message": message, "exception": e})
+        return errors
+
+
+
+class JobRole(object):
+    MARK_ROLE_READY_FILE = "/pod/running/ROLE_READY"
+
+    def __init__(self, launcher, role_name, pod_name, pod):
+        self.launcher = launcher
+        self.role_name = role_name
+        self.pod_name = pod_name
+        self.pod = pod
+
+    # will query api server if refresh is True
+    def status(self, refresh=False):
+        """
+        Return role status in ["NotFound", "Pending", "Running", "Succeeded", "Failed", "Unknown"]
+        It's slightly different from pod phase, when pod is running:
+            CONTAINER_READY -> WORKER_READY -> JOB_READY (then the job finally in "Running" status.)
+        """
+        # pod-phase: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase
+        # node condition: https://kubernetes.io/docs/concepts/architecture/nodes/#condition
+        if refresh:
+            pods = self.launcher.get_pods(
+                field_selector="metadata.name={}".format(self.pod_name))
+            logger.debug("Pods: {}".format(pods))
+            if len(pods) < 1:
+                return "NotFound"
+
+            assert(len(pods) == 1)
+            self.pod = pods[0]
+
+        phase = self.pod.status.phase
+
+        # !!! Pod is running, doesn't mean "Role" is ready and running.
+        if phase == "Running":
+            # Found that phase won't turn into "Unkonwn" even when we get 'unknown' from kubectl
+            if self.pod.status.reason == "NodeLost":
+                return "Unknown"
+
+            # Starting from v1.13, TaintBasedEvictions are enabled by default. NodeLost no longer
+            # exists. Use deletionTimstamp to signal node lost.
+            # See below for details:
+            # https://github.com/kubernetes/kubernetes/issues/72226
+            # https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+            if self.pod.metadata.deletion_timestamp is not None:
+                logger.info("pod %s has deletion_timestamp %s. Marking pod as Unknown." %
+                            (self.pod_name, self.pod.metadata.deletion_timestamp))
+                return "Unknown"
+
+            # Check if the user command had been ran.
+            if not self._is_role_ready():
+                return "Pending"
+
+        return phase
+
+    def pod_restricted_details(self):
+        detail = {
+            "node_name": self.pod.spec.node_name,
+            "host_ip": self.pod.status.host_ip,
+            "pod_ip": self.pod.status.pod_ip
+        }
+        return detail
+
+    def pod_details(self):
+        return self.pod
+
+    def _is_file_exist(self, file):
+        status_code, _ = self.launcher.pod_exec(
+            self.pod_name, ["/bin/sh", "-c", "ls -lrt {}".format(file)])
+        return status_code == 0
+
+    def _is_role_ready(self):
+        for container in self.pod.spec.containers:
+            if container.name == self.pod_name and container.readiness_probe is not None:
+                for status in self.pod.status.container_statuses:
+                    if status.name == self.pod_name:
+                        logger.info(
+                            "pod %s have readiness_probe result", self.pod_name)
+                        return status.ready
+        # no readiness_probe defined, fallback to old way
+        return self._is_file_exist(JobRole.MARK_ROLE_READY_FILE)
+
+
+# Interface class for managing life time of job
+class Launcher(object):
+    def __init__(self):
+        pass
+
+    def start(self):
+        pass
+
+    def submit_job(self, job_desc):
+        pass
+
+    def kill_job(self, job_id, desired_state="killed"):
+        pass
+
+    def delete_job(self, job_id, force=False):
+        pass
+
+
+def get_job_status_detail(job):
+    if "jobStatusDetail" not in job:
+        return None
+
+    job_status_detail = job["jobStatusDetail"]
+    if job_status_detail is None:
+        return job_status_detail
+
+    if not isinstance(job_status_detail, list):
+        job_status_detail = base64.b64decode(
+            job_status_detail.encode("utf-8")).decode("utf-8")
+        job_status_detail = json.loads(job_status_detail)
+    return job_status_detail
+
+
+def job_status_detail_with_finished_time(job_status_detail, status, msg=""):
+    # This method is called when a job succeeds/fails/is killed/has an error
+
+    # job_status_detail must be None or a list
+    if (job_status_detail is not None) and (not isinstance(job_status_detail, list)):
+        return job_status_detail
+
+    # Force adding an item for empty detail
+    if (job_status_detail is None) or (len(job_status_detail) == 0):
+        job_status_detail = [{}]
+
+    finished_at = k8sUtils.localize_time(datetime.datetime.now())
+    new_job_status_detail = []
+    # Override finishedAt for all pods if absent
+    for pod_status_detail in job_status_detail:
+        # Mark started time the same as finished time for a fast finishing job
+        if "startedAt" not in pod_status_detail:
+            pod_status_detail["startedAt"] = finished_at
+
+        if "finishedAt" not in pod_status_detail:
+            pod_status_detail["finishedAt"] = finished_at
+
+        pod_status_detail["message"] = "{} at {}. {}".format(
+            status, finished_at, msg)
+        new_job_status_detail.append(pod_status_detail)
+
+    return new_job_status_detail
+
+
+# Interface class for managing life time of job
+class Launcher(object):
+    def __init__(self):
+        pass
+
+    def start(self):
+        pass
+
+    def submit_job(self, job_desc):
+        pass
+
+    def kill_job(self, job_id, desired_state="killed"):
+        pass
+
+
+def get_job_status_detail(job):
+    if "jobStatusDetail" not in job:
+        return None
+
+    job_status_detail = job["jobStatusDetail"]
+    if job_status_detail is None:
+        return job_status_detail
+
+    if not isinstance(job_status_detail, list):
+        job_status_detail = base64.b64decode(
+            job_status_detail.encode("utf-8")).decode("utf-8")
+        job_status_detail = json.loads(job_status_detail)
+    return job_status_detail
+
+
+def job_status_detail_with_finished_time(job_status_detail, status, msg=""):
+    # This method is called when a job succeeds/fails/is killed/has an error
+
+    # job_status_detail must be None or a list
+    if (job_status_detail is not None) and (not isinstance(job_status_detail, list)):
+        return job_status_detail
+
+    # Force adding an item for empty detail
+    if (job_status_detail is None) or (len(job_status_detail) == 0):
+        job_status_detail = [{}]
+
+    finished_at = k8sUtils.localize_time(datetime.datetime.now())
+    new_job_status_detail = []
+    # Override finishedAt for all pods if absent
+    for pod_status_detail in job_status_detail:
+        # Mark started time the same as finished time for a fast finishing job
+        if "startedAt" not in pod_status_detail:
+            pod_status_detail["startedAt"] = finished_at
+
+        if "finishedAt" not in pod_status_detail:
+            pod_status_detail["finishedAt"] = finished_at
+
+        pod_status_detail["message"] = "{} at {}. {}".format(
+            status, finished_at, msg)
+        new_job_status_detail.append(pod_status_detail)
+
+    return new_job_status_detail
+
+
+class PythonLauncher(Launcher):
+    def __init__(self, pool_size=3):
+        self.processes = []
+        self.queue = None
+        self.pool_size = pool_size
+        # items in queue should be tuple of 3 elements: (function name, args, kwargs)
+
+        k8s_config.load_kube_config()
+        self.k8s_CoreAPI = client.CoreV1Api()
+        self.k8s_AppsAPI = client.AppsV1Api()
+        self.namespace = "default"
+        self.pretty = "pretty_example"
+
+    def start(self):
+        if len(self.processes) == 0:
+            self.queue = multiprocessing.JoinableQueue()
+
+            for i in range(self.pool_size):
+                p = multiprocessing.Process(target=self.run,
+                                            args=(self.queue,), name="py-launcher-" + str(i))
+                self.processes.append(p)
+                p.start()
+
+    def wait_tasks_done(self):
+        self.queue.join()
+
     @record
     def _create_pod(self, body):
         api_response = self.k8s_CoreAPI.create_namespaced_pod(
             namespace=self.namespace,
             body=body,
             pretty=self.pretty,
-        )
-        return api_response
-
-    @record
-    def _delete_pod(self, name, grace_period_seconds=None):
-        body = client.V1DeleteOptions()
-        body.grace_period_seconds = grace_period_seconds
-        api_response = self.k8s_CoreAPI.delete_namespaced_pod(
-            name=name,
-            namespace=self.namespace,
-            pretty=self.pretty,
-            body=body,
-            grace_period_seconds=grace_period_seconds,
         )
         return api_response
 
@@ -158,6 +419,19 @@ class JobDeployer:
         return api_response
 
     @record
+    def _delete_pod(self, name, grace_period_seconds=None):
+        body = client.V1DeleteOptions()
+        body.grace_period_seconds = grace_period_seconds
+        api_response = self.k8s_CoreAPI.delete_namespaced_pod(
+            name=name,
+            namespace=self.namespace,
+            pretty=self.pretty,
+            body=body,
+            grace_period_seconds=grace_period_seconds,
+        )
+        return api_response
+
+    @record
     def _cleanup_pods(self, pod_names, force=False):
         errors = []
         grace_period_seconds = 0 if force else None
@@ -246,6 +520,8 @@ class JobDeployer:
                 created_pod = self._create_pod(pod)
             elif pod["kind"] == "Deployment":
                 created_pod = self._create_deployment(pod)
+            else:
+                logger.error("unknown kind %s, with body %s", pod["kind"], pod)
             created.append(created_pod)
             logger.info("Create pod succeed: %s" % created_pod.metadata.name)
         return created
@@ -344,8 +620,8 @@ class JobDeployer:
         try:
             logger.info("Exec on pod {}: {}".format(pod_name, exec_command))
             client = stream(
-                self.k8s_CoreAPI.connect_get_namespaced_pod_exec,
-                name=pod_name,
+                    self.k8s_CoreAPI.connect_get_namespaced_pod_exec,
+                    name=pod_name,
                 namespace=self.namespace,
                 command=exec_command,
                 stderr=True,
@@ -375,14 +651,8 @@ class JobDeployer:
                 pod_name, exec_command, err), exc_info=True)
             return [-1, err.message]
 
-
-class JobRole(object):
-    MARK_ROLE_READY_FILE = "/pod/running/ROLE_READY"
-
-    @staticmethod
-    def get_job_roles(job_id):
-        deployer = JobDeployer()
-        pods = deployer.get_pods(label_selector="run={}".format(job_id))
+    def get_job_roles(self, job_id):
+        pods = self.get_pods(label_selector="run={}".format(job_id))
 
         job_roles = []
         for pod in pods:
@@ -391,168 +661,13 @@ class JobRole(object):
                 role = pod.metadata.labels["distRole"]
             else:
                 role = "master"
-            job_role = JobRole(role, pod_name, pod)
+            job_role = JobRole(self, role, pod_name, pod)
             job_roles.append(job_role)
         return job_roles
 
-    def __init__(self, role_name, pod_name, pod):
-        self.role_name = role_name
-        self.pod_name = pod_name
-        self.pod = pod
-
-    # will query api server if refresh is True
-    def status(self, refresh=False):
-        """
-        Return role status in ["NotFound", "Pending", "Running", "Succeeded", "Failed", "Unknown"]
-        It's slightly different from pod phase, when pod is running:
-            CONTAINER_READY -> WORKER_READY -> JOB_READY (then the job finally in "Running" status.)
-        """
-        # pod-phase: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase
-        # node condition: https://kubernetes.io/docs/concepts/architecture/nodes/#condition
-        if refresh:
-            deployer = JobDeployer()
-            pods = deployer.get_pods(
-                field_selector="metadata.name={}".format(self.pod_name))
-            logger.debug("Pods: {}".format(pods))
-            if len(pods) < 1:
-                return "NotFound"
-
-            assert(len(pods) == 1)
-            self.pod = pods[0]
-
-        phase = self.pod.status.phase
-
-        # !!! Pod is running, doesn't mean "Role" is ready and running.
-        if phase == "Running":
-            # Found that phase won't turn into "Unkonwn" even when we get 'unknown' from kubectl
-            if self.pod.status.reason == "NodeLost":
-                return "Unknown"
-
-            # Starting from v1.13, TaintBasedEvictions are enabled by default. NodeLost no longer
-            # exists. Use deletionTimstamp to signal node lost.
-            # See below for details:
-            # https://github.com/kubernetes/kubernetes/issues/72226
-            # https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
-            if self.pod.metadata.deletion_timestamp is not None:
-                logger.info("pod %s has deletion_timestamp %s. Marking pod as Unknown." %
-                            (self.pod_name, self.pod.metadata.deletion_timestamp))
-                return "Unknown"
-
-            # Check if the user command had been ran.
-            if not self._is_role_ready():
-                return "Pending"
-
-        return phase
-
-    def pod_restricted_details(self):
-        detail = {
-            "node_name": self.pod.spec.node_name,
-            "host_ip": self.pod.status.host_ip,
-            "pod_ip": self.pod.status.pod_ip
-        }
-        return detail
-
-    def pod_details(self):
-        return self.pod
-
-    def _is_file_exist(self, file):
-        deployer = JobDeployer()
-        status_code, _ = deployer.pod_exec(
-            self.pod_name, ["/bin/sh", "-c", "ls -lrt {}".format(file)])
-        return status_code == 0
-
-    def _is_role_ready(self):
-        for container in self.pod.spec.containers:
-            if container.name == self.pod_name and container.readiness_probe is not None:
-                for status in self.pod.status.container_statuses:
-                    if status.name == self.pod_name:
-                        return status.ready
-        # no readiness_probe defined, fallback to old way
-        return self._is_file_exist(JobRole.MARK_ROLE_READY_FILE)
-
-
-# Interface class for managing life time of job
-class Launcher(object):
-    def __init__(self):
-        pass
-
-    def start(self):
-        pass
-
-    def submit_job(self, job_desc):
-        pass
-
-    def kill_job(self, job_id, desired_state="killed"):
-        pass
-
-
-def get_job_status_detail(job):
-    if "jobStatusDetail" not in job:
-        return None
-
-    job_status_detail = job["jobStatusDetail"]
-    if job_status_detail is None:
-        return job_status_detail
-
-    if not isinstance(job_status_detail, list):
-        job_status_detail = base64.b64decode(
-            job_status_detail.encode("utf-8")).decode("utf-8")
-        job_status_detail = json.loads(job_status_detail)
-    return job_status_detail
-
-
-def job_status_detail_with_finished_time(job_status_detail, status, msg=""):
-    # This method is called when a job succeeds/fails/is killed/has an error
-
-    # job_status_detail must be None or a list
-    if (job_status_detail is not None) and (not isinstance(job_status_detail, list)):
-        return job_status_detail
-
-    # Force adding an item for empty detail
-    if (job_status_detail is None) or (len(job_status_detail) == 0):
-        job_status_detail = [{}]
-
-    finished_at = k8sUtils.localize_time(datetime.datetime.now())
-    new_job_status_detail = []
-    # Override finishedAt for all pods if absent
-    for pod_status_detail in job_status_detail:
-        # Mark started time the same as finished time for a fast finishing job
-        if "startedAt" not in pod_status_detail:
-            pod_status_detail["startedAt"] = finished_at
-
-        if "finishedAt" not in pod_status_detail:
-            pod_status_detail["finishedAt"] = finished_at
-
-        pod_status_detail["message"] = "{} at {}. {}".format(
-            status, finished_at, msg)
-        new_job_status_detail.append(pod_status_detail)
-
-    return new_job_status_detail
-
-
-class PythonLauncher(Launcher):
-    def __init__(self, pool_size=3):
-        self.processes = []
-        self.queue = None
-        self.pool_size = pool_size
-        # items in queue should be tuple of 3 elements: (function name, args, kwargs)
-
-    def start(self):
-        if len(self.processes) == 0:
-            self.queue = multiprocessing.JoinableQueue()
-
-            for i in range(self.pool_size):
-                p = multiprocessing.Process(target=self.run,
-                                            args=(self.queue,), name="py-launcher-" + str(i))
-                self.processes.append(p)
-                p.start()
-
-    def wait_tasks_done(self):
-        self.queue.join()
 
     def _all_pods_not_existing(self, job_id):
-        job_deployer = JobDeployer()
-        job_roles = JobRole.get_job_roles(job_id)
+        job_roles = self.get_job_roles(job_id)
         statuses = [job_role.status() for job_role in job_roles]
         logger.info("Job: {}, status: {}".format(job_id, statuses))
         return all([status == "NotFound" for status in statuses])
@@ -567,8 +682,7 @@ class PythonLauncher(Launcher):
         if not self._all_pods_not_existing(job_id):
             logger.warning(
                 "Waiting until previously pods are cleaned up! Job {}".format(job_id))
-            job_deployer = JobDeployer()
-            errors = job_deployer.delete_job(job_id, force=True)
+            errors = self.delete_job(job_id, force=True)
             if errors:
                 logger.warning(
                     "Force delete job {}: {}".format(job_id, errors))
@@ -651,45 +765,33 @@ class PythonLauncher(Launcher):
                 return False
 
             job_description = "\n---\n".join([yaml.dump(pod) for pod in pods])
-            job_description_path = "jobfiles/" + \
-                time.strftime("%y%m%d") + "/" + job_object.job_id + \
-                "/" + job_object.job_id + ".yaml"
-            local_jobDescriptionPath = os.path.realpath(os.path.join(
-                config["storage-mount-path"], job_description_path))
-            if not os.path.exists(os.path.dirname(local_jobDescriptionPath)):
-                os.makedirs(os.path.dirname(local_jobDescriptionPath))
-            with open(local_jobDescriptionPath, 'w') as f:
-                f.write(job_description)
 
             secrets = pod_template.generate_secrets(job_object)
 
-            job_deployer = JobDeployer()
             try:
-                secrets = job_deployer.create_secrets(secrets)
+                secrets = self.create_secrets(secrets)
                 ret["output"] = "Created secrets: {}. ".format(
                     [secret.metadata.name for secret in secrets])
-                pods = job_deployer.create_pods(pods)
+                created_pods = self.create_pods(pods)
                 ret["output"] += "Created pods: {}".format(
-                    [pod.metadata.name for pod in pods])
+                        [pod.metadata.name for pod in created_pods])
             except Exception as e:
                 ret["output"] = "Error: %s" % e.message
-                logger.error(e, exc_info=True)
+                logger.exception(e)
 
             ret["jobId"] = job_object.job_id
 
             jobMeta = {}
-            jobMeta["jobDescriptionPath"] = job_description_path
             jobMeta["jobPath"] = job_object.job_path
             jobMeta["workPath"] = job_object.work_path
             # the command of the first container
-            jobMeta["LaunchCMD"] = pods[0].spec.containers[0].command
+            jobMeta["LaunchCMD"] = job_object.params["cmd"]
 
             jobMetaStr = base64.b64encode(json.dumps(
                 jobMeta).encode("utf-8")).decode("utf-8")
 
             dataFields = {
                 "jobStatus": "scheduling",
-                "jobDescriptionPath": job_description_path,
                 "jobDescription": base64.b64encode(job_description.encode("utf-8")).decode("utf-8"),
                 "lastUpdated": datetime.datetime.now().isoformat(),
                 "jobMeta": jobMetaStr
@@ -714,8 +816,7 @@ class PythonLauncher(Launcher):
                 dataHandler.UpdateJobTextFields(conditionFields, dataFields)
                 # Try to clean up the job
                 try:
-                    job_deployer = JobDeployer()
-                    job_deployer.delete_job(job_id, force=True)
+                    self.delete_job(job_id, force=True)
                     logger.info("Cleaning up job %s succeeded after %d retries of job submission" % (
                         job["jobId"], retries))
                 except:
@@ -743,8 +844,7 @@ class PythonLauncher(Launcher):
         logger.info("Killing job %s, with status %s, %s" %
                     (job_id, result, detail))
 
-        job_deployer = JobDeployer()
-        errors = job_deployer.delete_job(job_id, force=True)
+        errors = self.delete_job(job_id, force=True)
 
         dataFields = {
             "jobStatusDetail": base64.b64encode(json.dumps(detail).encode("utf-8")).decode("utf-8"),

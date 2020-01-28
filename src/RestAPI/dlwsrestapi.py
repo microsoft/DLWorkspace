@@ -364,8 +364,7 @@ class ListJobs(Resource):
         finishedJobs = []
         visualizationJobs = []
         for job in jobs:
-            job.pop("jobDescriptionPath",None)
-            job.pop("jobDescription",None)
+            job.pop("jobDescription", None)
 
             job["jobParams"] = json.loads(base64decode(job["jobParams"]))
 

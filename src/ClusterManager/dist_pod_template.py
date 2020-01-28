@@ -59,6 +59,46 @@ class DistPodTemplate():
         """
         Return (pods, errors)
         """
+        params, errors = self.generate_params(job)
+        if errors is not None:
+            return None, errors
+
+        pods = []
+        nums = {"ps": int(params["numps"]),
+                "worker": int(params["numpsworker"])}
+        for role in ["ps", "worker"]:
+            for idx in range(nums[role]):
+                pod = copy.deepcopy(params)
+                pod["distRole"] = role
+                pod["distRoleIdx"] = idx
+                pod["distId"] = "%s%d" % (role, idx)
+                pod = enable_cpu_config(pod, job.cluster)
+                # ps should use the default 1 CPU and 0 memory configuration
+                if role == "ps":
+                    pod.pop("cpurequest", None)
+                    pod.pop("cpulimit", None)
+                    pod.pop("memoryrequest", None)
+                    pod.pop("memorylimit", None)
+
+                # mount /pod
+                local_pod_path = job.get_hostpath(
+                    job.job_path, "%s-%d" % (role, idx))
+                pod["mountpoints"].append(
+                    {"name": "pod", "containerPath": "/pod", "hostPath": local_pod_path, "enabled": True})
+
+                pods.append(pod)
+
+        k8s_pods = []
+        for pod in pods:
+            k8s_pod = self.generate_pod(pod)
+            k8s_pods.append(k8s_pod)
+
+        return k8s_pods, None
+
+    def generate_params(self, job):
+        """
+        Return (pods, errors)
+        """
         assert(isinstance(job, Job))
         params = job.params
 
@@ -147,38 +187,8 @@ class DistPodTemplate():
         if nccl_ib_disable is not None and nccl_ib_disable is True:
             params["nccl_ib_disable"] = True
 
-        pods = []
-        nums = {"ps": int(params["numps"]),
-                "worker": int(params["numpsworker"])}
-        for role in ["ps", "worker"]:
-            for idx in range(nums[role]):
-                pod = copy.deepcopy(params)
-                pod["distRole"] = role
-                pod["distRoleIdx"] = idx
-                pod["distId"] = "%s%d" % (role, idx)
-                pod = enable_cpu_config(pod, job.cluster)
+        return params, None
 
-                # ps should use the default 1 CPU and 0 memory configuration
-                if role == "ps":
-                    pod.pop("cpurequest", None)
-                    pod.pop("cpulimit", None)
-                    pod.pop("memoryrequest", None)
-                    pod.pop("memorylimit", None)
-
-                # mount /pod
-                local_pod_path = job.get_hostpath(
-                    job.job_path, "%s-%d" % (role, idx))
-                pod["mountpoints"].append(
-                    {"name": "pod", "containerPath": "/pod", "hostPath": local_pod_path, "enabled": True})
-
-                pods.append(pod)
-
-        k8s_pods = []
-        for pod in pods:
-            k8s_pod = self.generate_pod(pod)
-            k8s_pods.append(k8s_pod)
-
-        return k8s_pods, None
 
     # TODO: Merge with pod_template.py
     def generate_secrets(self, job):
