@@ -197,6 +197,8 @@ class DataHandler(object):
                     `parent`    varchar(255) DEFAULT NULL,
                     `quota`     varchar(255) NOT NULL,
                     `metadata`  TEXT NOT NULL,
+                    `resourceQuota` TEXT NOT NULL,
+                    `resourceMetadata`  TEXT NOT NULL,
                     `time`      DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
                     PRIMARY KEY (`id`),
                     CONSTRAINT `hierarchy` FOREIGN KEY (`parent`) REFERENCES `%s` (`vcName`)
