@@ -17,6 +17,8 @@ def enable_cpu_config(pod, config):
     # Add node selector cpuworker=active
     if "nodeSelector" not in pod:
         pod["nodeSelector"] = {}
+    if "sku" in pod:
+        pod["nodeSelector"]["sku"] = pod["sku"]
     pod["nodeSelector"]["cpuworker"] = "active"
 
     # Use default resouce request
