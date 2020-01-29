@@ -62,15 +62,11 @@ def load_sshkey(config):
 
 def execute_or_dump_locally(cmd, verbose, dryrun, output_file):
     cmd = ' '.join(cmd.split())+'\n'
-    if verbose:
-        print(cmd)
     if output_file:
         with open(output_file, 'a') as wf:
             wf.write(cmd)
     if not dryrun:
-        output = utils.exec_cmd_local(cmd)
-        if verbose:
-            print(output)
+        output = utils.exec_cmd_local(cmd, verbose)
         return output
 
 
@@ -274,9 +270,10 @@ def gen_machine_list_4_deploy_action(complementary_file_name, config):
 
 
 def add_machines(config, args):
-    os.system('rm -f ' + args.output)
     # we don't run az command in add_machine when batch_size is larger than 1, regardless of args.dryrun
-    # instead, we would run those commands in parallel, and dump output sequentially
+    # instead, we would run those commands in parallel, and dump output sequentially. the machines would still
+    # be added sequentially, but we could avoid overburdening devbox(sending too many request at one batch)
+    os.system('rm -f ' + args.output)
     delay_run = (args.batch_size > 1) and (not args.dryrun)
     commands_list = []
     for vmname, spec in config["machines"].items():
@@ -286,8 +283,8 @@ def add_machines(config, args):
     if os.path.exists(args.output):
         os.system('chmod +x ' + args.output)
     if delay_run:
-        add_machine_in_parallel(commands_list, args)
-
+        outputs = add_machine_in_parallel(commands_list, args)
+    return outputs
 
 def is_independent_nfs(role):
     """NFS not on infra"""
@@ -295,30 +292,9 @@ def is_independent_nfs(role):
 
 
 def add_machine_in_parallel(cmds, args):
-    tuples = [(cmd, args.verbose, args.wait_time) for cmd in cmds]
-    pool = Pool(args.batch_size)
-    # returned would be in (return code, output err) format
-    returned = pool.map(add_machine_and_collect_output, tuples)
-    pool.close()
-
-
-def add_machine_and_collect_output(arg_tuple):
-    cmd, verbose, max_run = arg_tuple
-    try:
-        # https://stackoverflow.com/questions/4814970/subprocess-check-output-doesnt-seem-to-exist-python-2-6-5         
-        # here we use shell=True without spliting cmd
-        sp = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-        output, err = sp.communicate()
-        count = 0
-        while sp.poll() == None and count < max_run:
-            time.sleep(1)
-            count += 1
-        if verbose:
-            print(output, err)
-        return (sp.returncode, output, err)
-    except subprocess.CalledProcessError as e:
-        print("Exception " + str(e.returncode) + ", output: " + e.output.strip())
-        return (e.returncode, e.output, "Error")
+    tuples = [(utils.exec_cmd_local, cmd, args.verbose, args.wait_time) for cmd in cmds]
+    res = utils.multiprocess_with_func_arg_tuples(args.batch_size, tuples)
+    return res
 
 
 def add_machine(vmname, spec, verbose, dryrun, output_file):
@@ -459,11 +435,12 @@ def add_machine(vmname, spec, verbose, dryrun, output_file):
     cmd = ' '.join(cmd.split())
     return cmd
 
+
 def list_vm(config, verbose=True):
     cmd = """
         az vm list --resource-group %s
         """ % (config["azure_cluster"]["resource_group_name"])
-    output = utils.exec_cmd_local(cmd)
+    output = utils.exec_cmd_local(cmd, verbose)
     allvm = json.loads(output)
     vminfo = {}
     for onevm in allvm:
@@ -471,7 +448,7 @@ def list_vm(config, verbose=True):
         print("VM ... %s" % vmname)
         cmd1 = """ az vm show -d -g %s -n %s""" % (
             config["azure_cluster"]["resource_group_name"], vmname)
-        output1 = utils.exec_cmd_local(cmd1)
+        output1 = utils.exec_cmd_local(cmd1, verbose)
         json1 = json.loads(output1)
         vminfo[vmname] = json1
         if verbose:
@@ -561,7 +538,7 @@ Command:
                         help="Additional command argument")
     parser.add_argument('-cnf', '--config', action='append', help='Specify the config files you want to load, later ones \
         would overwrite former ones, e.g., -cnf config.yaml -cnf az_complementary.yaml')
-    parser.add_argument('-b', '--batch_size', type=int, default=1,
+    parser.add_argument('-b', '--batch_size', type=int, default=8,
                         help='batch size that we add machines')
     parser.add_argument('-wt', '--wait_time', type=int, default=360,
                         help='max time that we would wait for a command to execute')
@@ -573,5 +550,4 @@ Command:
     command = args.command
     nargs = args.nargs
     config = load_config_based_on_command(command)
-    print(args.verbose)
     run_command(command, config, args, nargs)

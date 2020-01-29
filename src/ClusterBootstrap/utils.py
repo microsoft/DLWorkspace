@@ -321,19 +321,35 @@ def _byteify(data, ignore_dicts=False):
     return data
 
 
-def exec_cmd_local(execmd, supressWarning=False):
+def exec_cmd_local(execmd, verbose=False, max_run=300, supressWarning=False):
+    """subprocess.check_output is blocking function. for nonblocking option, resort to subprocess.Popen"""
     if supressWarning:
         cmd += " 2>/dev/null"
     if verbose:
         print(execmd)
     try:
-        output = subprocess.check_output(execmd, shell=True)
-        if sys.version_info >= (3, 0):
-            output = output.decode()
+        output = subprocess.check_output(execmd, timeout=max_run, shell=True, universal_newlines=True)
     except subprocess.CalledProcessError as e:
         output = "Return code: " + \
             str(e.returncode) + ", output: " + e.output.strip()
+    if verbose:
+        print(output)
     return output
+
+
+def multiprocess_with_func_arg_tuples(process_num, list_of_func_arg_tpls):
+    pool = Pool(process_num)
+    print("parallel pool of size {}".format(process_num))
+    # returned would be in (return code, output err) format
+    results = pool.map(multiprocess_func_wrapper, list_of_func_arg_tpls)
+    pool.close()
+    return results
+
+
+def multiprocess_func_wrapper(func_arg_tpl):
+    func, args = func_arg_tpl[0], func_arg_tpl[1:]
+    result = func(*args)
+    return result
 
 
 def get_host_name(identity_file, user, host):

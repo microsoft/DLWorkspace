@@ -10,7 +10,7 @@ rm -rf deploy/* cloudinit* az_complementary.yaml
 # # push dockers
 ./cloud_init_deploy.py docker servicesprerequisite
 # # generate scripts
-./cloud_init_aztools.py deploy
+./cloud_init_aztools.py -v deploy
 # # deploy
 ./cloud_init_aztools.py interconnect
 # # get status

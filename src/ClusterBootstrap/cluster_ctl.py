@@ -31,7 +31,8 @@ def run_kubectl(config, args, commands):
     master_node = random.choice(nodes)
     kube_command = "./deploy/bin/kubectl --server=https://{}:{} --certificate-authority={} --client-key={} --client-certificate={} {}".format(
         config["machines"][master_node]["fqdns"], config["k8sAPIport"], "./deploy/ssl/ca/ca.pem", "./deploy/ssl/kubelet/apiserver-key.pem", "./deploy/ssl/kubelet/apiserver.pem", one_command)
-    os.system(kube_command)
+    output = utils.exec_cmd_local(kube_command, verbose=True)
+    return output
 
 
 def run_script(node, ssh_cert, adm_usr, nargs, sudo=False, noSupressWarning=True):
@@ -106,6 +107,18 @@ def parallel_action_by_role(config, args, func):
     execute_in_in_parallel(config, nodes, args, func, noSupressWarning=args.verbose)
 
 
+def verify_all_nodes_ready(config, args):
+    """
+    return unready nodes
+    """
+    nodes_info_raw = run_kubectl(config, args, ["get nodes"])
+    ready_machines = set([entry.split("Ready")[0].strip() for entry in nodes_info_raw.split('\n')[1:]])
+    expected_nodes = set(config["machines"].keys())
+    nodes_expected_but_not_ready = expected_nodes - ready_machines
+    if len(list(nodes_expected_but_not_ready)) > 0:
+        exit(1)
+
+
 def run_command(args, command):
     args.config = ["status.yaml"] if not args.config else args.config
     config = init_config(default_config_parameters)
@@ -123,6 +136,8 @@ def run_command(args, command):
         parallel_action_by_role(config, args, copy2_wrapper)
     if command == "backuptodir":
         utils.backup_keys_to_dir(args.nargs)
+    if command == "verifyallnodes":
+        verify_all_nodes_ready(config, args)
 
 
 if __name__ == '__main__':

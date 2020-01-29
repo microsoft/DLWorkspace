@@ -7,7 +7,7 @@ waitmin=$3
 pollsec=$4
 echo $USER
 echo $CONFIG_TYPE
-
+# check docker and nvidia driver on worker
 ./timed_check.sh $waitmin $pollsec "cd ..; ./cluster_ctl.py -v -r worker copy2 ./scripts/check_machine.sh /home/${USER}"
 ./timed_check.sh $waitmin $pollsec "cd ..; ./cluster_ctl.py -v -r worker runcmd \"bash check_machine.sh $CONFIG_TYPE\""
 # check all node ready
