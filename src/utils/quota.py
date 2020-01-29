@@ -111,8 +111,7 @@ def calculate_vc_gpu_counts(cluster_total, cluster_available, cluster_unschedula
 
 
 def __get_valid_vc_usage(vc_info, vc_usage):
-    valid_vc_usage = collections.defaultdict(
-        lambda: collections.defaultdict(lambda: ClusterResource()))
+    valid_vc_usage = collections.defaultdict(lambda: ClusterResource())
 
     for vc_name, usage in vc_usage.items():
         if vc_name not in vc_info:
@@ -176,10 +175,10 @@ def calculate_vc_resources(cluster_capacity, cluster_avail,
     #   Qi'' = max(Qi' - Ui, 0)
     ratios = collections.defaultdict(lambda: ClusterResource())
     for vc_name, quota in vc_info.items():
-        reserved = (cluster_reserved * quota / quota_sum).ceil()  # over-reserve
+        reserved = (cluster_reserved * (quota / quota_sum)).ceil()  # over-reserve
         used = vc_usage.get(vc_name, ClusterResource())
         ratio = quota - reserved
-        ratios[vc_name] = (ratio - used).min_zero()
+        ratios[vc_name] = (ratio - used).min_zero().prune()
 
     ratio_sum = ClusterResource()
     for vc_name, ratio in ratios.items():
@@ -197,7 +196,7 @@ def calculate_vc_resources(cluster_capacity, cluster_avail,
 
         vc_used[vc_name] = used
         vc_avail[vc_name] = avail
-        vc_unschedulable[vc_name] = (quota - used - avail).min_zero()
+        vc_unschedulable[vc_name] = (quota - used - avail).min_zero().prune()
 
     logger.debug("vc_total %s, vc_used %s, vc_avail %s, vc_unschedulable %s",
                  vc_total, vc_used, vc_avail, vc_unschedulable)

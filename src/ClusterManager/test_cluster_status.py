@@ -42,6 +42,7 @@ class MockK8sPodConfig(MockK8sConfig):
     def __int__(self):
         self.name = None
         self.labels = None
+        self.node_selector = None
         self.namespace = None
         self.phase = None
         self.node_name = None
@@ -95,7 +96,8 @@ def mock_k8s_pod(config):
         containers.append(c)
 
     pod.spec = V1PodSpec(node_name=config.node_name,
-                         containers=containers)
+                         containers=containers,
+                         node_selector=config.node_selector)
 
     pod.status = V1PodStatus(phase=config.phase)
 
@@ -274,9 +276,9 @@ class TestClusterStatus(TestCase):
         p1_config.name = "pod1"
         p1_config.labels = {
             "gpuType": "P40",
-            "sku": "m_type1",
             "userName": "user1"
         }
+        p1_config.node_selector = {"sku": "m_type1"}
         p1_config.namespace = "default"
         p1_config.phase = "Running"
         p1_config.node_name = "node1"
@@ -291,9 +293,9 @@ class TestClusterStatus(TestCase):
         p2_config = MockK8sPodConfig()
         p2_config.name = "pod2"
         p2_config.labels = {
-            "userName": "user2",
-            "sku": "m_type2"
+            "userName": "user2"
         }
+        p2_config.node_selector = {"sku": "m_type2"}
         p2_config.namespace = "default"
         p2_config.phase = "Running"
         p2_config.node_name = "node2"
@@ -308,9 +310,9 @@ class TestClusterStatus(TestCase):
         p3_config.name = "pod3"
         p3_config.labels = {
             "gpuType": "P40",
-            "sku": "m_type1",
             "userName": "user3"
         }
+        p3_config.node_selector = {"sku": "m_type1"}
         p3_config.namespace = "kube-system"
         p3_config.phase = "Running"
         p3_config.node_name = "node1"
@@ -326,9 +328,9 @@ class TestClusterStatus(TestCase):
         p4_config.name = "pod4"
         p4_config.labels = {
             "gpuType": "P40",
-            "sku": "m_type3",
             "userName": "user1"
         }
+        p4_config.node_selector = {"sku": "m_type3"}
         p4_config.namespace = "default"
         p4_config.phase = "Running"
         p4_config.node_name = "node3"

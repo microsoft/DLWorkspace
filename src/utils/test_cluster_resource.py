@@ -43,7 +43,6 @@ class TestClusterResource(TestCase):
                 "": "200Ki"
             }
         }
-        self.c = ClusterResource(resource=c_res)
 
         self.scalar = 0.8
 
@@ -57,7 +56,7 @@ class TestClusterResource(TestCase):
                 "r2": "0.5"
             }
         }
-        self.d = ClusterResource(resource=d_res)
+        self.c = ClusterResource(resource=d_res)
 
     def test_init_from_params(self):
         regular_params = {
@@ -184,13 +183,9 @@ class TestClusterResource(TestCase):
     def test_eq(self):
         self.assertTrue(self.a == self.a)
         self.assertFalse(self.a == self.b)
-        self.assertFalse(self.a == self.c)
-        self.assertFalse(self.b == self.c)
 
     def test_ge(self):
         self.assertFalse(self.a >= self.b)
-        self.assertTrue(self.a >= self.c)
-        self.assertFalse(self.c >= self.a)
 
     def test_add(self):
         result = self.a + self.b
@@ -262,7 +257,7 @@ class TestClusterResource(TestCase):
         })
         self.assertEqual(expected, result)
 
-        result = self.a * self.d
+        result = self.a * self.c
         expected = ClusterResource(resource={
             "cpu": {
                 "r1": "5",
@@ -291,7 +286,7 @@ class TestClusterResource(TestCase):
         self.assertEqual(expected, v)
 
         v = copy.deepcopy(self.a)
-        v *= self.d
+        v *= self.c
         expected = ClusterResource(resource={
             "cpu": {
                 "r1": "5",
@@ -318,7 +313,7 @@ class TestClusterResource(TestCase):
         })
         self.assertEqual(expected, result)
 
-        result = self.a / self.d
+        result = self.a / self.c
         expected = ClusterResource(resource={
             "cpu": {
                 "r1": "20",
@@ -347,7 +342,7 @@ class TestClusterResource(TestCase):
         self.assertEqual(expected, v)
 
         v = copy.deepcopy(self.a)
-        v /= self.d
+        v /= self.c
         expected = ClusterResource(resource={
             "cpu": {
                 "r1": "20",
