@@ -30,11 +30,12 @@ class Role(object):
 # FIXME with pod_name, we may can not use blobfuse
 
 class Framework(object):
-    def __init__(self, labels, annotations, roles, job_id, pod_name, user_cmd, alias, email,
-            gid, uid, mount_points, plugins, family_token, vc_name,
+    def __init__(self, init_image, labels, annotations, roles, job_id, pod_name, user_cmd,
+            alias, email, gid, uid, mount_points, plugins, family_token, vc_name,
             dns_policy, node_selector, home_folder_host_path,
             is_fragment_gpu_job, is_preemption_allowed,
             is_host_network, is_host_ipc, is_privileged, is_nccl_ib_disabled):
+        self.init_image = init_image # str
         self.labels = labels # map
         self.annotations = annotations # map
         self.roles = roles # a map, key is role name, value is Role object
@@ -82,7 +83,8 @@ def gen_init_container(job, role):
     return [{
         "name": "init",
         "imagePullPolicy": "Always",
-        "image": role.image,
+        "image": job.init_image,
+        "command": ["sh", "/dlts-init/init.sh"],
         "env": envs,
         "volumeMounts": [{"mountPath": "/dlts-runtime", "name": "dlts-runtime" }],
         }]
@@ -110,15 +112,15 @@ def gen_container_envs(job, role):
 
     result = [
             {"name": "FAMILY_TOKEN", "value": job.family_token},
-            {"name": "DLWS_JOB_ID", "value": job.job_id},
-            {"name": "DLWS_NUM_PS", "value": ps_count},
-            {"name": "DLWS_NUM_WORKER", "value": worker_count},
+            {"name": "DLWS_JOB_ID", "value": str(job.job_id)},
+            {"name": "DLWS_NUM_PS", "value": str(ps_count)},
+            {"name": "DLWS_NUM_WORKER", "value": str(worker_count)},
             {"name": "POD_NAME",
                 "valueFrom": {"fieldRef": {"fieldPath": "metadata.name"}}},
             {"name": "POD_IP",
                 "valueFrom": {"fieldRef": {"fieldPath": "status.podIP"}}},
-            {"name": "DLWS_GID", "value": job.gid},
-            {"name": "DLWS_UID", "value": job.uid},
+            {"name": "DLWS_GID", "value": str(job.gid)},
+            {"name": "DLWS_UID", "value": str(job.uid)},
             {"name": "DLWS_USER_NAME", "value": job.alias},
             {"name": "DLWS_USER_EMAIL", "value": job.email},
             {"name": "DLWS_VC_NAME", "value": job.vc_name},
@@ -146,13 +148,13 @@ def gen_containers(job, role):
             {"name": "ssh-volume", "mountPath": "/home/%s/.ssh" % (job.alias)},
             {"name": "id-rsa-volume",
                 "mountPath": "/home/%s/.ssh/id_rsa" % (job.alias),
-                "readOnly": "true"},
+                "readOnly": True},
             {"name": "id-rsa-pub-volume",
                 "mountPath": "/home/%s/.ssh/id_rsa.pub" % (job.alias),
-                "readOnly": "true"},
+                "readOnly": True},
             {"name": "authorized-keys-volume",
                 "mountPath": "/home/%s/.ssh/authorized_keys" % (job.alias),
-                "readOnly": "true"},
+                "readOnly": True},
             {"name": "dshm", "mountPath": "/dev/shm"},
             ]
 
@@ -172,7 +174,7 @@ def gen_containers(job, role):
             "periodSeconds": 30
             },
         "securityContext": {
-            "runAsUser": job.uid,
+            #"runAsUser": job.uid,
             "privileged": job.is_privileged,
             "capabilities": {"add": ["IPC_LOCK", "SYS_ADMIN"]},
             },
@@ -280,7 +282,7 @@ def gen_task_role(job, role):
             {"name": "dshm", "emptyDir": {"medium": "Memory"}},
             ]
 
-    if job.dns_policy is not None:
+    if job.dns_policy is None:
         volumes.append({"name": "resolv", "hostPath": {"path": "/etc/resolv.conf"}})
 
     for mp in job.mount_points:
@@ -320,7 +322,6 @@ def gen_task_role(job, role):
         "hostNetwork": job.is_host_network,
         "hostIPC": job.is_host_ipc,
         "imagePullSecrets": image_pull_secrets,
-        "serviceAccountName": "frameworkbarrier",
         "affinity": gen_affinity(job, role),
         "initContainers": gen_init_container(job, role),
         "containers": gen_containers(job, role),
@@ -444,6 +445,7 @@ def transform_distributed_job(params, cluster_config):
     annotations = params.get("annotations", {})
 
     framework = Framework(
+            params["init-container"],
             labels,
             annotations,
             roles,

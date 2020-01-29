@@ -73,10 +73,11 @@ def create_own_config(k8s_core_api, job_name, pod_name, ip, ssh_port):
 
     for i in range(2):
         try:
-            k8s_core_api.create_namespaced_config_map(
+            resp = k8s_core_api.create_namespaced_config_map(
                     namespace=job_namespace,
                     body=body,
                     )
+            logger.debug("created configmap %s, resp is %s", config_name, resp)
         except ApiException as e:
             if e.status == 409:
                 logger.info("configmap already exist, maybe from previous retry, delete it, retry %d", i)
@@ -169,6 +170,9 @@ def main(args):
     for configmap in items:
         c_name = configmap.metadata.name
         role_idx = c_name.split("-")[-1]
+        if role_idx.isnumeric():
+            # created by launcher, have name "xxx-yyy-zzz-role-idx"
+            role_idx = c_name.split("-")[-2] + role_idx
 
         sd_info = json.loads(configmap.data["pod.json"])
         ip = sd_info["ip"]

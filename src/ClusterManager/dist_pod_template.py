@@ -174,10 +174,10 @@ class DistPodTemplate():
         if "envs" not in params:
             params["envs"] = []
         params["envs"].append(
-            {"name": "DLWS_NUM_GPU_PER_WORKER", "value": params["resourcegpu"]})
+            {"name": "DLWS_NUM_GPU_PER_WORKER", "value": str(params["resourcegpu"])})
 
         params["envs"].append(
-            {"name": "DLWS_WORKER_NUM", "value": params["numworker"]})
+            {"name": "DLWS_WORKER_NUM", "value": str(params["numworker"])})
 
         job.add_plugins(job.get_plugins())
         params["plugins"] = job.plugins

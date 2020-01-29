@@ -30,63 +30,6 @@ import framework
 
 logger = logging.getLogger(__name__)
 
-# The config will be loaded from default location.
-k8s_config.load_kube_config()
-k8s_CoreAPI = client.CoreV1Api()
-k8s_AppsAPI = client.AppsV1Api()
-k8s_custom_obj_api = client.CustomObjectsApi()
-
-
-class JobDeployer:
-    def __init__(self):
-        self.k8s_CoreAPI = k8s_CoreAPI
-        self.k8s_AppsAPI = k8s_AppsAPI
-        self.namespace = "default"
-        self.pretty = "pretty_example"
-
-
-    @record
-    def _create_framework(self, body):
-        resp = k8s_custom_obj_api.create_namespaced_custom_object(
-                "frameworkcontroller.microsoft.com",
-                "v1",
-                self.namespace,
-                "frameworks",
-                body,
-                pretty=self.pretty,
-                )
-        return resp
-
-    @record
-    def _delete_framework(self, name, grace_period_seconds=None):
-        body = client.V1DeleteOptions()
-
-        resp = k8s_custom_obj_api.delete_namespaced_custom_object(
-                "frameworkcontroller.microsoft.com",
-                "v1",
-                self.namespace,
-                "frameworks",
-                framework.transform_name(name),
-                body,
-                grace_period_seconds=grace_period_seconds,
-                )
-        return resp
-
-    @record
-    def _cleanup_framework(self, framework_names, force=False):
-        errors = []
-        grace_period_seconds = 0 if force else None
-        for framework_name in framework_names:
-            try:
-                self._delete_framework(framework_name, grace_period_seconds)
-            except Exception as e:
-                if isinstance(e, ApiException) and 404 == e.status:
-                    return []
-                message = "Delete framework failed: {}".format(framework_name)
-                logger.exception(message)
-                errors.append({"message": message, "exception": e})
-        return errors
-
 
 
 class JobRole(object):
@@ -169,23 +112,48 @@ class JobRole(object):
         return self._is_file_exist(JobRole.MARK_ROLE_READY_FILE)
 
 
-# Interface class for managing life time of job
-class Launcher(object):
-    def __init__(self):
-        pass
+def get_job_status_detail(job):
+    if "jobStatusDetail" not in job:
+        return None
 
-    def start(self):
-        pass
+    job_status_detail = job["jobStatusDetail"]
+    if job_status_detail is None:
+        return job_status_detail
 
-    def submit_job(self, job_desc):
-        pass
+    if not isinstance(job_status_detail, list):
+        job_status_detail = base64.b64decode(
+            job_status_detail.encode("utf-8")).decode("utf-8")
+        job_status_detail = json.loads(job_status_detail)
+    return job_status_detail
 
-    def kill_job(self, job_id, desired_state="killed"):
-        pass
 
-    def delete_job(self, job_id, force=False):
-        pass
+def job_status_detail_with_finished_time(job_status_detail, status, msg=""):
+    # This method is called when a job succeeds/fails/is killed/has an error
 
+    # job_status_detail must be None or a list
+    if (job_status_detail is not None) and (not isinstance(job_status_detail, list)):
+        return job_status_detail
+
+    # Force adding an item for empty detail
+    if (job_status_detail is None) or (len(job_status_detail) == 0):
+        job_status_detail = [{}]
+
+    finished_at = k8sUtils.localize_time(datetime.datetime.now())
+    new_job_status_detail = []
+    # Override finishedAt for all pods if absent
+    for pod_status_detail in job_status_detail:
+        # Mark started time the same as finished time for a fast finishing job
+        if "startedAt" not in pod_status_detail:
+            pod_status_detail["startedAt"] = finished_at
+
+        if "finishedAt" not in pod_status_detail:
+            pod_status_detail["finishedAt"] = finished_at
+
+        pod_status_detail["message"] = "{} at {}. {}".format(
+            status, finished_at, msg)
+        new_job_status_detail.append(pod_status_detail)
+
+    return new_job_status_detail
 
 def get_job_status_detail(job):
     if "jobStatusDetail" not in job:
@@ -234,87 +202,12 @@ def job_status_detail_with_finished_time(job_status_detail, status, msg=""):
 # Interface class for managing life time of job
 class Launcher(object):
     def __init__(self):
-        pass
-
-    def start(self):
-        pass
-
-    def submit_job(self, job_desc):
-        pass
-
-    def kill_job(self, job_id, desired_state="killed"):
-        pass
-
-
-def get_job_status_detail(job):
-    if "jobStatusDetail" not in job:
-        return None
-
-    job_status_detail = job["jobStatusDetail"]
-    if job_status_detail is None:
-        return job_status_detail
-
-    if not isinstance(job_status_detail, list):
-        job_status_detail = base64.b64decode(
-            job_status_detail.encode("utf-8")).decode("utf-8")
-        job_status_detail = json.loads(job_status_detail)
-    return job_status_detail
-
-
-def job_status_detail_with_finished_time(job_status_detail, status, msg=""):
-    # This method is called when a job succeeds/fails/is killed/has an error
-
-    # job_status_detail must be None or a list
-    if (job_status_detail is not None) and (not isinstance(job_status_detail, list)):
-        return job_status_detail
-
-    # Force adding an item for empty detail
-    if (job_status_detail is None) or (len(job_status_detail) == 0):
-        job_status_detail = [{}]
-
-    finished_at = k8sUtils.localize_time(datetime.datetime.now())
-    new_job_status_detail = []
-    # Override finishedAt for all pods if absent
-    for pod_status_detail in job_status_detail:
-        # Mark started time the same as finished time for a fast finishing job
-        if "startedAt" not in pod_status_detail:
-            pod_status_detail["startedAt"] = finished_at
-
-        if "finishedAt" not in pod_status_detail:
-            pod_status_detail["finishedAt"] = finished_at
-
-        pod_status_detail["message"] = "{} at {}. {}".format(
-            status, finished_at, msg)
-        new_job_status_detail.append(pod_status_detail)
-
-    return new_job_status_detail
-
-
-class PythonLauncher(Launcher):
-    def __init__(self, pool_size=3):
-        self.processes = []
-        self.queue = None
-        self.pool_size = pool_size
-        # items in queue should be tuple of 3 elements: (function name, args, kwargs)
-
         k8s_config.load_kube_config()
         self.k8s_CoreAPI = client.CoreV1Api()
         self.k8s_AppsAPI = client.AppsV1Api()
+        self.k8s_custom_obj_api = client.CustomObjectsApi()
         self.namespace = "default"
         self.pretty = "pretty_example"
-
-    def start(self):
-        if len(self.processes) == 0:
-            self.queue = multiprocessing.JoinableQueue()
-
-            for i in range(self.pool_size):
-                p = multiprocessing.Process(target=self.run,
-                                            args=(self.queue,), name="py-launcher-" + str(i))
-                self.processes.append(p)
-                p.start()
-
-    def wait_tasks_done(self):
-        self.queue.join()
 
     @record
     def _create_pod(self, body):
@@ -506,27 +399,6 @@ class PythonLauncher(Launcher):
         return errors
 
     @record
-    def create_pods(self, pods):
-        # TODO instead of delete, we could check update existiong ones. During refactoring, keeping the old way.
-        pod_names = [pod["metadata"]["name"]
-                     for pod in pods if pod["kind"] == "Pod"]
-        self._cleanup_pods(pod_names)
-        deployment_names = [pod["metadata"]["name"]
-                            for pod in pods if pod["kind"] == "Deployment"]
-        self._cleanup_deployment(pod_names)
-        created = []
-        for pod in pods:
-            if pod["kind"] == "Pod":
-                created_pod = self._create_pod(pod)
-            elif pod["kind"] == "Deployment":
-                created_pod = self._create_deployment(pod)
-            else:
-                logger.error("unknown kind %s, with body %s", pod["kind"], pod)
-            created.append(created_pod)
-            logger.info("Create pod succeed: %s" % created_pod.metadata.name)
-        return created
-
-    @record
     def create_secrets(self, secrets):
         # Clean up secrets first
         secret_names = [secret["metadata"]["name"]
@@ -585,36 +457,6 @@ class PythonLauncher(Launcher):
         return api_response.items
 
     @record
-    def delete_job(self, job_id, force=False):
-        label_selector = "run={}".format(job_id)
-
-        # query pods then delete
-        pod_errors = self._cleanup_pods_with_labels(label_selector)
-        logger.info("deleting pods %s" % label_selector)
-        # query services then delete
-        services = self._get_services_by_label(label_selector)
-        service_errors = self._cleanup_services(services)
-
-        deployments = self._get_deployments(label_selector=label_selector)
-        deployment_names = [
-            deployment.metadata.name for deployment in deployments]
-        deployment_errors = self._cleanup_deployment(deployment_names, force)
-
-        logger.info("deleting deployments %s" % ",".join(deployment_names))
-
-        # query and delete secrets
-        secrets = self.get_secrets(label_selector=label_selector)
-        secret_names = [secret.metadata.name for secret in secrets]
-        secret_errors = self._cleanup_secrets_with_labels(label_selector)
-        logger.info("deleting secrets for %s" % label_selector)
-
-        configmap_errors = self._cleanup_configmap(label_selector)
-
-        errors = pod_errors + service_errors + deployment_errors + secret_errors + \
-            configmap_errors
-        return errors
-
-    @record
     def pod_exec(self, pod_name, exec_command, timeout=60):
         """work as the command (with timeout): kubectl exec 'pod_name' 'exec_command'"""
         try:
@@ -651,6 +493,335 @@ class PythonLauncher(Launcher):
                 pod_name, exec_command, err), exc_info=True)
             return [-1, err.message]
 
+
+class LauncherStub(Launcher):
+    def __init__(self):
+        super(LauncherStub, self).__init__()
+
+    def start(self):
+        pass
+
+    def wait_tasks_done(self):
+        pass
+
+    @record
+    def _create_framework(self, body):
+        resp = self.k8s_custom_obj_api.create_namespaced_custom_object(
+                "frameworkcontroller.microsoft.com",
+                "v1",
+                self.namespace,
+                "frameworks",
+                body,
+                pretty=self.pretty,
+                )
+        return resp
+
+    @record
+    def _delete_framework(self, name, grace_period_seconds=None):
+        body = client.V1DeleteOptions()
+
+        resp = self.k8s_custom_obj_api.delete_namespaced_custom_object(
+                "frameworkcontroller.microsoft.com",
+                "v1",
+                self.namespace,
+                "frameworks",
+                framework.transform_name(name),
+                body,
+                grace_period_seconds=grace_period_seconds,
+                )
+        return resp
+
+    @record
+    def _cleanup_framework(self, framework_names, force=False):
+        errors = []
+        grace_period_seconds = 0 if force else None
+        for framework_name in framework_names:
+            try:
+                self._delete_framework(framework_name, grace_period_seconds)
+            except Exception as e:
+                if isinstance(e, ApiException) and 404 == e.status:
+                    return []
+                message = "Delete framework failed: {}".format(framework_name)
+                logger.exception(message)
+                errors.append({"message": message, "exception": e})
+        return errors
+
+    def submit_job(self, job):
+        # check if existing any pod with label: run=job_id
+        assert("jobId" in job)
+        job_id = job["jobId"]
+        pods = self.get_pods(label_selector="run={}".format(job_id))
+        if len(pods) > 0:
+            logger.warning(
+                "Waiting until previously pods are cleaned up! Job %s", job_id)
+            errors = self.delete_job(job_id, force=True)
+            if errors:
+                logger.warning("Force delete job %s: %s", job_id, errors)
+            return
+
+        ret = {}
+        dataHandler = DataHandler()
+
+        try:
+            # TODO refine later
+            # before resubmit the job, reset the endpoints
+            # update all endpoint to status 'pending', so it would restart when job is ready
+            endpoints = dataHandler.GetJobEndpoints(job_id)
+            for endpoint_id, endpoint in list(endpoints.items()):
+                endpoint["status"] = "pending"
+                logger.info(
+                    "Reset endpoint status to 'pending': %s", endpoint_id)
+                dataHandler.UpdateEndpoint(endpoint)
+
+            job["cluster"] = config
+            job_object, errors = JobSchema().load(job)
+
+            job_object.params = json.loads(base64.b64decode(
+                job["jobParams"].encode("utf-8")).decode("utf-8"))
+
+            # inject gid, uid and user
+            # TODO it should return only one entry
+            user_info = dataHandler.GetIdentityInfo(
+                job_object.params["userName"])[0]
+            job_object.params["gid"] = user_info["gid"]
+            job_object.params["uid"] = user_info["uid"]
+            job_object.params["user"] = job_object.get_alias()
+
+            if "job_token" not in job_object.params:
+                if "master_token" in config and config["master_token"] is not None and "userName" in job_object.params:
+                    plain_token = job_object.params["userName"] + \
+                        ":" + config["master_token"]
+                    job_object.params["job_token"] = hashlib.md5(
+                        plain_token.encode("utf-8")).hexdigest()
+                else:
+                    job_object.params["job_token"] = "tryme2017"
+
+            if "envs" not in job_object.params:
+                job_object.params["envs"] = []
+            job_object.params["envs"].append(
+                {"name": "DLTS_JOB_TOKEN", "value": job_object.params["job_token"]})
+
+            enable_custom_scheduler = job_object.is_custom_scheduler_enabled()
+            blobfuse_secret_template = job_object.get_blobfuse_secret_template()
+            image_pull_secret_template = job_object.get_image_pull_secret_template()
+            secret_templates = {
+                "blobfuse": blobfuse_secret_template,
+                "imagePull": image_pull_secret_template
+            }
+            if job_object.params["jobtrainingtype"] == "RegularJob":
+                pod_template = PodTemplate(job_object.get_template(),
+                                           enable_custom_scheduler=enable_custom_scheduler,
+                                           secret_templates=secret_templates)
+            elif job_object.params["jobtrainingtype"] == "PSDistJob":
+                pod_template = DistPodTemplate(job_object.get_template(),
+                                               secret_templates=secret_templates)
+            elif job_object.params["jobtrainingtype"] == "InferenceJob":
+                pod_template = PodTemplate(job_object.get_template(),
+                                           deployment_template=job_object.get_deployment_template(),
+                                           enable_custom_scheduler=False,
+                                           secret_templates=secret_templates)
+            else:
+                dataHandler.SetJobError(
+                    job_object.job_id, "ERROR: invalid jobtrainingtype: %s" % job_object.params["jobtrainingtype"])
+                dataHandler.Close()
+                return False
+
+            if job_object.params["jobtrainingtype"] == "PSDistJob":
+                params, error = pod_template.generate_params(job_object)
+                if error:
+                    logger.error("failed to geerate params for distributed job %s", error)
+                    return False
+                pods = [framework.transform_distributed_job(params, config)]
+                logger.info("generate framework success")
+            else:
+                pods, error = pod_template.generate_pods(job_object)
+            if error:
+                dataHandler.SetJobError(job_object.job_id, "ERROR: %s" % error)
+                dataHandler.Close()
+                return False
+
+            job_description = "\n---\n".join([yaml.dump(pod) for pod in pods])
+
+            secrets = pod_template.generate_secrets(job_object)
+
+            try:
+                secrets = self.create_secrets(secrets)
+                ret["output"] = "Created secrets: {}. ".format(
+                    [secret.metadata.name for secret in secrets])
+                if job_object.params["jobtrainingtype"] == "PSDistJob":
+                    created_pods = self._create_framework(pods[0])
+                    logger.info("created_pods is %s, type is %s", created_pods, type(created_pods))
+                    ret["output"] += "Created pods: {}".format(
+                            [pod["metadata"]["name"] for pod in created_pods])
+                else:
+                    logger.error("unsupported job type %s", job_object.params["jobtrainingtype"])
+            except Exception as e:
+                ret["output"] = "Error: %s" % e.message
+                logger.exception(e)
+                return False
+
+            ret["jobId"] = job_object.job_id
+
+            jobMeta = {}
+            jobMeta["jobPath"] = job_object.job_path
+            jobMeta["workPath"] = job_object.work_path
+            # the command of the first container
+            jobMeta["LaunchCMD"] = job_object.params["cmd"]
+
+            jobMetaStr = base64.b64encode(json.dumps(
+                jobMeta).encode("utf-8")).decode("utf-8")
+
+            dataFields = {
+                "jobStatus": "scheduling",
+                "jobDescription": base64.b64encode(job_description.encode("utf-8")).decode("utf-8"),
+                "lastUpdated": datetime.datetime.now().isoformat(),
+                "jobMeta": jobMetaStr
+            }
+            conditionFields = {"jobId": job_object.job_id}
+            dataHandler.UpdateJobTextFields(conditionFields, dataFields)
+        except Exception as e:
+            logger.error("Submit job failed: %s" % job, exc_info=True)
+            ret["error"] = str(e)
+            retries = dataHandler.AddandGetJobRetries(job["jobId"])
+            if retries >= 5:
+                detail = get_job_status_detail(job)
+                detail = job_status_detail_with_finished_time(
+                    detail, "error", "Server error in job submission")
+
+                dataFields = {
+                    "jobStatus": "error",
+                    "errorMsg": "Cannot submit job!" + str(e),
+                    "jobStatusDetail": base64.b64encode(json.dumps(detail).encode("utf-8")).decode("utf-8")
+                }
+                conditionFields = {"jobId": job["jobId"]}
+                dataHandler.UpdateJobTextFields(conditionFields, dataFields)
+                # Try to clean up the job
+                try:
+                    self.delete_job(job_id, force=True)
+                    logger.info("Cleaning up job %s succeeded after %d retries of job submission" % (
+                        job["jobId"], retries))
+                except:
+                    logger.warning("Cleaning up job %s failed after %d retries of job submission" % (
+                        job["jobId"], retries))
+            return False
+
+        dataHandler.Close()
+        return ret
+
+    def delete_job(self, job_id, force=False):
+        framework_name = framework.transform_name(job_id)
+        logger.info("deleting framework %s", framework_name)
+        framework_errors = self._cleanup_framework(framework_name, force=force)
+
+        label_selector = "run={}".format(job_id)
+
+        configmap_errors = self._cleanup_configmap(label_selector)
+
+        errors = framework_errors + configmap_errors
+        return errors
+
+    def kill_job(self, job_id, desired_state="killed"):
+        dataHandler = DataHandler()
+
+        result, detail = k8sUtils.GetJobStatus(job_id)
+        detail = job_status_detail_with_finished_time(detail, desired_state)
+        dataHandler.UpdateJobTextField(job_id, "jobStatusDetail", base64.b64encode(
+            json.dumps(detail).encode("utf-8")).decode("utf-8"))
+        logger.info("Killing job %s, with status %s, %s" %
+                    (job_id, result, detail))
+
+        errors = self.delete_job(job_id, force=True)
+
+        dataFields = {
+            "jobStatusDetail": base64.b64encode(json.dumps(detail).encode("utf-8")).decode("utf-8"),
+            "lastUpdated": datetime.datetime.now().isoformat()
+        }
+        conditionFields = {"jobId": job_id}
+        if len(errors) == 0:
+            dataFields["jobStatus"] = desired_state
+            dataHandler.UpdateJobTextFields(conditionFields, dataFields)
+            dataHandler.Close()
+            return True
+        else:
+            dataFields["jobStatus"] = "error"
+            dataHandler.UpdateJobTextFields(conditionFields, dataFields)
+            dataHandler.Close()
+            logger.error("Kill job failed with errors: {}".format(errors))
+            return False
+
+class PythonLauncher(Launcher):
+    def __init__(self, pool_size=3):
+        super(LauncherStub, self).__init__()
+
+        self.processes = []
+        self.queue = None
+        self.pool_size = pool_size
+        # items in queue should be tuple of 3 elements: (function name, args, kwargs)
+
+    def start(self):
+        if len(self.processes) == 0:
+            self.queue = multiprocessing.JoinableQueue()
+
+            for i in range(self.pool_size):
+                p = multiprocessing.Process(target=self.run,
+                                            args=(self.queue,), name="py-launcher-" + str(i))
+                self.processes.append(p)
+                p.start()
+
+    def wait_tasks_done(self):
+        self.queue.join()
+
+    @record
+    def create_pods(self, pods):
+        # TODO instead of delete, we could check update existiong ones. During refactoring, keeping the old way.
+        pod_names = [pod["metadata"]["name"]
+                     for pod in pods if pod["kind"] == "Pod"]
+        self._cleanup_pods(pod_names)
+        deployment_names = [pod["metadata"]["name"]
+                            for pod in pods if pod["kind"] == "Deployment"]
+        self._cleanup_deployment(pod_names)
+        created = []
+        for pod in pods:
+            if pod["kind"] == "Pod":
+                created_pod = self._create_pod(pod)
+            elif pod["kind"] == "Deployment":
+                created_pod = self._create_deployment(pod)
+            else:
+                logger.error("unknown kind %s, with body %s", pod["kind"], pod)
+            created.append(created_pod)
+            logger.info("Create pod succeed: %s" % created_pod.metadata.name)
+        return created
+
+    @record
+    def delete_job(self, job_id, force=False):
+        label_selector = "run={}".format(job_id)
+
+        # query pods then delete
+        pod_errors = self._cleanup_pods_with_labels(label_selector)
+        logger.info("deleting pods %s" % label_selector)
+        # query services then delete
+        services = self._get_services_by_label(label_selector)
+        service_errors = self._cleanup_services(services)
+
+        deployments = self._get_deployments(label_selector=label_selector)
+        deployment_names = [
+            deployment.metadata.name for deployment in deployments]
+        deployment_errors = self._cleanup_deployment(deployment_names, force)
+
+        logger.info("deleting deployments %s" % ",".join(deployment_names))
+
+        # query and delete secrets
+        secrets = self.get_secrets(label_selector=label_selector)
+        secret_names = [secret.metadata.name for secret in secrets]
+        secret_errors = self._cleanup_secrets_with_labels(label_selector)
+        logger.info("deleting secrets for %s" % label_selector)
+
+        configmap_errors = self._cleanup_configmap(label_selector)
+
+        errors = pod_errors + service_errors + deployment_errors + secret_errors + \
+            configmap_errors
+        return errors
+
     def get_job_roles(self, job_id):
         pods = self.get_pods(label_selector="run={}".format(job_id))
 
@@ -664,7 +835,6 @@ class PythonLauncher(Launcher):
             job_role = JobRole(self, role, pod_name, pod)
             job_roles.append(job_role)
         return job_roles
-
 
     def _all_pods_not_existing(self, job_id):
         job_roles = self.get_job_roles(job_id)

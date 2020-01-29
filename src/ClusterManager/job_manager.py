@@ -17,7 +17,7 @@ import redis
 
 from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time, record
 
-from job_launcher import PythonLauncher
+from job_launcher import PythonLauncher, LauncherStub
 import joblog_manager
 from job_launcher import get_job_status_detail, job_status_detail_with_finished_time
 
@@ -738,7 +738,7 @@ def Run(redis_port, target_status):
     notifier = notify.Notifier(config.get("job-manager"))
     notifier.start()
 
-    launcher = PythonLauncher()
+    launcher = LauncherStub()
     launcher.start()
 
     redis_conn = redis.StrictRedis(host="localhost",
