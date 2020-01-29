@@ -69,6 +69,13 @@
                 "intervalFactor": 2,
                 "legendFormat": "Available",
                 "refId": "B"
+              },
+              {
+                "expr": "sum(k8s_vc_gpu_preemptive_availabe{vc_name=\"$vc_name\"})",
+                "format": "time_series",
+                "intervalFactor": 2,
+                "legendFormat": "Preemptive available",
+                "refId": "C"
               }
             ],
             "thresholds": [],
@@ -124,7 +131,6 @@
         {
           "allValue": null,
           "current": {
-            "tags": [],
             "text": "platform",
             "value": "platform"
           },

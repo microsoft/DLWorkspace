@@ -19,7 +19,7 @@ spec:
       name: job-exporter
     spec:
       containers:
-      - image: openpai/job-exporter:dlws
+      - image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}job-exporter:{{cnf["dockertag"]}}
         imagePullPolicy: Always
         livenessProbe: # in case job-exporter hangs
           httpGet:

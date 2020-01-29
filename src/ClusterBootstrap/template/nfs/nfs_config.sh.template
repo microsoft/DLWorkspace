@@ -1,3 +1,4 @@
+{% if cnf["platform_type"] == "azure_cluster" %}
 sudo parted -l 2>&1 >/dev/null | awk -F': ' '{print $2}' > unlabeled_disk_file
 # Partition
 for disk in `cat unlabeled_disk_file`; do printf "n\n1\n\n\n8e00\nw\nY\n" | sudo gdisk ${disk}; done
@@ -9,6 +10,7 @@ sudo vgcreate dlts-data-lvm ${pv_list}
 sudo lvcreate -l 100%FREE -n dlts-data-lvm-vol1 dlts-data-lvm
 sudo mkfs.ext4 /dev/mapper/dlts--data--lvm-dlts--data--lvm--vol1
 echo "UUID=$(sudo blkid | grep dlts | sed -n 's/.*UUID=\"\(.*\)\" TYPE.*/\1/p')     {{cnf["path"]}}   ext4   defaults,discard      0 0" | sudo tee -a /etc/fstab
+{% endif %}
 sudo mkdir -p {{cnf["path"]}}
 sudo mount {{cnf["path"]}}
 
@@ -20,8 +22,12 @@ sudo apt-get install -y nfs-kernel-server
 sudo mkdir -p {{ fileshare }}
 sudo chmod -R 777 {{ fileshare }}
 sudo chown nobody:nogroup {{fileshare}}
-echo "{{ fileshare }} {{cnf["cloud_config"]["vnet_range"]}}(rw,sync,no_subtree_check,no_root_squash)" | sudo tee -a /etc/exports
-echo "{{ fileshare }} {{cnf["cloud_config"]["samba_range"]}}(rw,fsid=1,nohide,insecure,sync,no_subtree_check,no_root_squash)" | sudo tee -a /etc/exports
+{% for range in cnf["nfs_client_CIDR"]["node_range"] %}
+echo "{{ fileshare }} {{range}}(rw,sync,no_subtree_check,no_root_squash)" | sudo tee -a /etc/exports
+{% endfor %}
+{% for range in cnf["nfs_client_CIDR"]["samba_range"] %}
+echo "{{ fileshare }} {{range}}(rw,fsid=1,nohide,insecure,sync,no_subtree_check,no_root_squash)" | sudo tee -a /etc/exports
+{% endfor %}
 {% endfor %}
 
 # Get number of CPU

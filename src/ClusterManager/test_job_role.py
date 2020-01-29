@@ -1,17 +1,21 @@
+#!/usr/bin/env python3
+
 import unittest
-from job_role import JobRole
+from job_launcher import JobRole
 
 
 class TestJobRole(unittest.TestCase):
 
     def test_status_Running(self):
-        job_role = JobRole("master", "bd3d090a-53b6-4616-9b6c-fe4a86fd68ea-ps0")
+        job_role = JobRole(
+            "master", "bd3d090a-53b6-4616-9b6c-fe4a86fd68ea-ps0")
 
         role_status = job_role.status()
         self.assertEqual("Running", role_status)
 
     def test_status_NotFound(self):
-        job_role = JobRole("master", "bd3d090a-53b6-4616-9b6c-fe4a86fd68ea-ps0-not-found")
+        job_role = JobRole(
+            "master", "bd3d090a-53b6-4616-9b6c-fe4a86fd68ea-ps0-not-found")
 
         role_status = job_role.status()
         self.assertEqual("NotFound", role_status)
@@ -24,11 +28,13 @@ class TestJobRole(unittest.TestCase):
         self.assertEqual("Pending", role_status)
 
     def test_get_job_roles_dist_job(self):
-        job_roles = JobRole.get_job_roles("bd3d090a-53b6-4616-9b6c-fe4a86fd68ea")
+        job_roles = JobRole.get_job_roles(
+            "bd3d090a-53b6-4616-9b6c-fe4a86fd68ea")
 
         self.assertEqual(3, len(job_roles))
 
     def test_get_job_roles_regular_job(self):
-        job_roles = JobRole.get_job_roles("8ca7fcdf-c4e7-4687-a3fa-1eeea97415c4")
+        job_roles = JobRole.get_job_roles(
+            "8ca7fcdf-c4e7-4687-a3fa-1eeea97415c4")
 
         self.assertEqual(1, len(job_roles))

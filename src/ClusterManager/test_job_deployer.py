@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import unittest
 import kubernetes
 import yaml
@@ -6,9 +8,10 @@ import random
 import time
 from kubernetes.client.rest import ApiException
 
-from job_deployer import JobDeployer
+from job_launcher import JobDeployer
 
 import logging
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s",
@@ -43,21 +46,22 @@ spec:
         body = yaml.full_load(raw_yaml)
 
         # with self.assertRaises(ApiException):
-        job_deployer.create_pod(body)
+        job_deployer._create_pod(body)
 
     def test_delete_pod(self):
-        pod_name = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(16))
+        pod_name = ''.join(random.choice(
+            string.ascii_lowercase + string.digits) for _ in range(16))
         self.create_pod(pod_name)
 
         job_deployer = self.create_job_deployer()
 
-        job_deployer.delete_pod(pod_name)
+        job_deployer._delete_pod(pod_name)
 
     def test_cleanup_pods(self):
         job_deployer = self.create_job_deployer()
         pod_names = ["pod-1", "pod-2"]
 
-        job_deployer.cleanup_pods(pod_names)
+        job_deployer._cleanup_pods(pod_names)
 
     def test_get_pod_by_label(self):
         job_deployer = self.create_job_deployer()
@@ -71,7 +75,7 @@ spec:
         job_deployer = self.create_job_deployer()
         label_selector = "run=some_job_id"
 
-        services = job_deployer.get_services_by_label(label_selector)
+        services = job_deployer._get_services_by_label(label_selector)
 
         self.assertEqual(0, len(services))
 
@@ -103,7 +107,8 @@ spec:
     def test_pod_exec(self):
         job_deployer = self.create_job_deployer()
 
-        pod_name = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(16))
+        pod_name = ''.join(random.choice(
+            string.ascii_lowercase + string.digits) for _ in range(16))
         self.create_pod(pod_name)
         time.sleep(3)
 
@@ -132,4 +137,4 @@ spec:
         status_code, ouput = job_deployer.pod_exec(pod_name, bad_command, 1)
         self.assertEqual(-1, status_code)
 
-        job_deployer.delete_pod(pod_name)
+        job_deployer._delete_pod(pod_name)

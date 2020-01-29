@@ -11,11 +11,13 @@
 **/id_rsa
 **/id_rsa.pub
 **/deploy/*
+src/ClusterBootstrap/*.yaml
 
 *.iso
 *.srl
 *.swp
 
+src/RepairManager/id_rsa
 src/ClusterBootstrap/ssl/ca/ca.srl
 **/run.sh.generated
 
@@ -28,8 +30,12 @@ src/ClusterBootstrap/.nfs*
 src/ClusterBootstrap/iso-creator/mkimg.sh
 
 src/ClusterBootstrap/deploy_backup/*
+src/ClusterBootstrap/cloudinit/*
+src/ClusterBootstrap/cloudinit.tar
 
-
+src/ClusterBootstrap/scripts/deploy_framework.sh
+src/ClusterBootstrap/scripts/add_machines.sh
+src/ClusterBootstrap/scripts/pass_secret.sh
 
 #ASP.NET core
 src/WebUI/dotnet/.vs/**
@@ -56,6 +62,8 @@ src/WebUI/dotnet/WebPortal/hosting.json
 **/.suo
 **/storage.ide
 
+src/RepairManager/.vs/*
+src/RepairManager/mock-data/*
 /.vs/slnx.sqlite
 /.vs/ProjectSettings.json
 /.vs/VSWorkspaceState.json
@@ -67,3 +75,8 @@ src/ClusterBootstrap/services/monitor/prometheus-alerting.yaml
 src/ClusterBootstrap/services/monitor/alert-templates.yaml
 src/ClusterBootstrap/services/jobmanager/dlws-scripts.yaml
 src/ClusterBootstrap/services/monitor/alerting/kill-idle.rules
+src/ClusterBootstrap/template/*config.yaml.template
+
+**/.vscode/*
+.idea
+venv

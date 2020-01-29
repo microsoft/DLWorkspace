@@ -1,9 +1,12 @@
 # These are the default configuration parameter
 default_config_parameters = {
-    "allroles": {"infra", "infrastructure", "worker", "nfs", "sql", "dev"},
+    "supported_platform": ["azure_cluster", "onpremise"],
+    "allroles": {"infra", "infrastructure", "worker", "nfs", "sql", "dev", "etcd", "kubernetes_master", "mysqlserver"},
     # Kubernetes setting
     "service_cluster_ip_range": "10.3.0.0/16",
     "pod_ip_range": "10.2.0.0/16",
+    "ssl_localhost_ips": [ "127.0.0.1", "127.0.1.1" ],
+    "dns_server": {"azure_cluster": '8.8.8.8', 'onpremise':'10.50.10.50'},
     # Home in server, to aide Kubernete setup
     "homeinserver": "http://dlws-clusterportal.westus.cloudapp.azure.com:5000",
     "cloud_influxdb_node": "dlws-influxdb.westus.cloudapp.azure.com",
@@ -38,6 +41,7 @@ default_config_parameters = {
             "restful-url": "http://localhost:5000",
         }
     },
+    "repair-manager": { "prometheus-ip": "localhost", "prometheus-port": 9091},
 
     "mysql_port": "3306",
     "mysql_username": "root",
@@ -60,10 +64,14 @@ default_config_parameters = {
     "webuiport": "3080",
     "restfulapiport": "5000",
     "restfulapi": "restfulapi",
+    # StorageManager mapping
+    "storagemanager": "storagemanager",
+    "repairmanager": "repairmanager",
     "ssh_cert": "./deploy/sshkey/id_rsa",
     "admin_username": "core",
     # the path of where dfs/nfs is source linked and consumed on each node,
     # default /dlwsdata
+    "nfs-mnt-src-path": "/data/share",
     "storage-mount-path": "/dlwsdata",
     # the path where dlts vc storages are linked and consumed on each node.
     # TODO: merge with storage-mount-path when dlts vc migration completes.
@@ -73,8 +81,10 @@ default_config_parameters = {
     # the path of where local device is mounted.
     "local-mount-path": "/mnt",
 
+    "physical-mount-path-vc": "/mntdlts/nfs",
+
     # required storage folder under storage-mount-path
-    "default-storage-folders": ["jobfiles", "storage", "work", "namenodeshare"],
+    "default-storage-folders": ["jobfiles", "storage", "work"],
     "per_user_gpu_limit": "-1",
 
     # the path of where nvidia driver is installed on each node, default
@@ -99,6 +109,7 @@ default_config_parameters = {
         ".gzip": True,
         ".rules": True,
         ".tmpl": True,
+        ".py": True,
     },
     "render-by-copy": {
         # The following file will be copied (not rendered for configuration)
@@ -223,6 +234,7 @@ default_config_parameters = {
         "webportal": "etcd_node_1",
         "restfulapi": "etcd_node_1",
         "jobmanager": "etcd_node_1",
+        "repairmanager": "etcd_node_1",
         "FragmentGPUJob": "all",
         "grafana": "etcd_node_1",
         "prometheus": "etcd_node_1",
@@ -231,7 +243,10 @@ default_config_parameters = {
         "elasticsearch": "etcd_node_1",
         "kibana": "etcd_node_1",
         "mysql": "etcd_node_1",
+        "mysql-server": "mysqlserver_node",
         "nginx": "all",
+        "storagemanager": "nfs_node",
+        "user-synchronizer": "etcd_node_1",
     },
 
     "kubemarks": ["rack", "sku"],
@@ -401,8 +416,8 @@ default_config_parameters = {
     "DeployAuthentications": ["Corp", "Live", "Gmail"],
     # You should remove WinBindServers if you will use
     # UserGroups for authentication.
-    "workFolderAccessPoint": "",
-    "dataFolderAccessPoint": "",
+    "workFolderAccessPoint": "/",
+    "dataFolderAccessPoint": "/",
 
     "kube_configchanges": ["/opt/addons/kube-addons/weave.yaml"],
     "kube_addons": ["/opt/addons/kube-addons/dashboard.yaml",
@@ -595,6 +610,7 @@ default_config_parameters = {
             "mysql":{"fullname":"dlws/mysql:5.6"},
             "phpmyadmin":{"fullname":"dlws/phpmyadmin:4.7.6"},
             "fluentd-elasticsearch":{"fullname":"dlws/fluentd-elasticsearch:v2.0.2"},
+            "binstore":{"fullname":"dlws/binstore:v1.0"},
 
         },
         "infrastructure": {
@@ -606,12 +622,13 @@ default_config_parameters = {
         "container": {},
     },
 
-    "cloud_config": {
+    "cloud_config_nsg_rules": {
         "vnet_range": "192.168.0.0/16",
         "default_admin_username": "dlwsadmin",
         "tcp_port_for_pods": "30000-49999",
         "tcp_port_ranges": "80 443 30000-49999 25826 3000 22222 9091 9092",
-        "udp_port_ranges": "25826",
+        # There is no udp port requirement for now
+        #"udp_port_ranges": "25826",
         "inter_connect": {
             "tcp_port_ranges": "22 1443 2379 3306 5000 8086 10250",
             # Need to white list dev machines to connect
@@ -622,6 +639,14 @@ default_config_parameters = {
             # Need to white list dev machines to connect
             # "source_addresses_prefixes": [ "52.151.0.0/16"]
         },
+        "nfs_allow_master": {
+            "tcp_port_ranges": "10250",
+        },
+    },
+
+    "nfs_client_CIDR": {
+        "node_range": ["192.168.0.0/16"],
+        "samba_range": [],
     },
 
     "nfs_mnt_setup": [
@@ -632,7 +657,6 @@ default_config_parameters = {
         "VC-Default":["*"],
     },
     "registry_credential": {},
-    "domain_name": "redmond.corp.microsoft.com",
     "priority": "regular",
     "sku_mapping": {
         "Standard_ND6s":{"gpu-type": "P40","gpu-count": 1},
@@ -655,6 +679,41 @@ default_config_parameters = {
         "Standard_NC24rs_v3": {"gpu-type": "V100", "gpu-count": 4},
         "Standard_NC24rs_v2": {"gpu-type": "P100", "gpu-count": 4},
         "default": {"gpu-type": "None", "gpu-count": 0},
+    },
+    "service_2_docker_map": {
+        "monitor": ["watchdog", "gpu-reporter", "reaper", "job-exporter"],
+        "dashboard": ["dashboard"],
+        "restfulapi": ["restfulapi"],
+        "repairmanager": ["repairmanager"],
+        "storagemanager": ["storagemanager"],
+        "user-synchronizer": ["user-synchronizer"],
+    },
+    "infiniband_mounts": [],
+    "custom_mounts": [],
+    "enable_blobfuse": False,
+
+    # To use CPU nodes,
+    # 1. CPU nodes must have node label cpuworker=active
+    # 2. enable_cpuworker is set to True
+    # 3. default_cpu_sku is set to a valid value that exists in sku_meta
+    "enable_cpuworker": False,
+    "enable_blobfuse": False,
+    "enable_custom_registry_secrets": False,
+    "default_cpu_sku": "Standard_D2s_v3",
+
+    # SKU meta defines different types of resources for each SKU
+    # and their allowed usage ratio by user applications.
+    "sku_meta": {
+        "default": {
+            "cpu_ratio": 0.8,
+            "memory_ratio": 0.8
+        },
+        "Standard_D2s_v3": {
+            "cpu": 2,
+            "cpu_ratio": 0.9,
+            "memory": 8,
+            "memory_ratio": 0.9
+        }
     }
 }
 
@@ -669,7 +728,7 @@ scriptblocks = {
         "genscripts",
         "runscriptonroles infra worker ./scripts/dns.sh",
         "-y deploy",
-        "-y updateworker",
+        "-y updateworkerinparallel",
         "-y kubernetes labels",
         "-y gpulabel",
         "kubernetes start nvidia-device-plugin",
@@ -826,5 +885,5 @@ scriptblocks = {
     "build_kube": [
         "docker push gobld",
         "docker push kubernetes",
-    ],
+    ]
 }

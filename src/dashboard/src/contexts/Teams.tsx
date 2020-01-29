@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import useFetch from "use-http/dist";
+import React, { useContext, useEffect } from 'react';
+import useFetch from "use-http";
 import {
   Box, Button,
   Dialog, DialogActions,
@@ -7,8 +7,10 @@ import {
   DialogContentText,
   DialogTitle
 } from "@material-ui/core";
-import {Redirect} from "react-router";
+
 import _ from "lodash";
+
+import ConfigContext from './Config';
 
 interface Context {
   teams: any;
@@ -19,13 +21,14 @@ interface Context {
 const Context = React.createContext<Context>({
   teams: [],
   selectedTeam: '',
-  saveSelectedTeam: function(team: React.SetStateAction<string>) {}
+  saveSelectedTeam: function(team: React.SetStateAction<string>) {},
 });
 
 export default Context;
 export const Provider: React.FC = ({ children }) => {
   const fetchTeamsUrl = '/api/teams';
-  const [teams] = useFetch(fetchTeamsUrl, { onMount: true });
+  const { addGroup } = useContext(ConfigContext);
+  const { data: teams } = useFetch(fetchTeamsUrl, { onMount: true });
   const [selectedTeam, setSelectedTeam] = React.useState<string>('');
   const saveSelectedTeam = (team: React.SetStateAction<string>) => {
     setSelectedTeam(team);
@@ -38,31 +41,25 @@ export const Provider: React.FC = ({ children }) => {
     } else {
       setSelectedTeam(_.map(teams, 'id')[0]);
     }
-    // if (typeof(Storage) !== "undefined" && localStorage.getItem('team') === undefined) {
-    //   setSelectedTeam(_.map(teams, 'id')[0]);
-    //   localStorage.setItem('team',_.map(teams, 'id')[0])
-    // }
   },[teams])
   const EmptyTeam: React.FC = () => {
     const onClick = () => {
-      return (
-        <Redirect to="/"/>
-      )
+      window.open(addGroup, "_blank");
     }
     return (
       <Box display="flex">
         <Dialog open>
-          <DialogTitle>
+          <DialogTitle style={{ color: 'red' }}>
             {"warning"}
           </DialogTitle>
           <DialogContent>
             <DialogContentText>
-              {"Your name is number empty team"}
+              {"You are not an authorized user for this cluster. Please request to join a security group by following the button below."}
             </DialogContentText>
           </DialogContent>
           <DialogActions>
             <Button onClick={onClick} color="primary">
-              Back
+              JOIN SG
             </Button>
           </DialogActions>
         </Dialog>
@@ -71,16 +68,10 @@ export const Provider: React.FC = ({ children }) => {
   };
   if (teams !== undefined && teams.length === 0) {
     return (
-      <Context.Provider
-        value={{ teams, selectedTeam, saveSelectedTeam }}
-        children={EmptyTeam}
-      />
+      <Context.Provider value={{ teams, selectedTeam ,saveSelectedTeam }}>
+        <EmptyTeam/>
+      </Context.Provider>
     )
   }
-  return (
-    <Context.Provider
-      value={{ teams, selectedTeam, saveSelectedTeam }}
-      children={children}
-    />
-  );
+  return <Context.Provider value={{ teams, selectedTeam, saveSelectedTeam }} children={children}/>;
 };

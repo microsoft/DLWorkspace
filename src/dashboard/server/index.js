@@ -6,6 +6,27 @@ const app = module.exports = new Koa()
 app.use(mount('/api', require('./api')))
 app.use(require('./frontend'))
 
+/* istanbul ignore if */
 if (require.main === module) {
-  app.listen(process.env.PORT || 3000, process.env.HOST)
+  const http = require('http')
+  const http2 = require('http2')
+  const fs = require('fs')
+
+  const {
+    HOST,
+    PORT = 3000,
+    SSL_KEY,
+    SSL_CERT
+  } = process.env
+
+  const server = SSL_KEY && SSL_CERT
+    ? http2.createSecureServer({
+      allowHTTP1: true,
+      key: fs.readFileSync(SSL_KEY),
+      cert: fs.readFileSync(SSL_CERT)
+    })
+    : http.createServer()
+
+  server.on('request', app.callback())
+  server.listen(PORT, HOST)
 }

@@ -1,0 +1,50 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: user-synchronizer-cronjob
+  labels:
+    app: user-synchronizer
+spec:
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      name: user-synchronizer-job
+      labels:
+        app: user-synchronizer
+    spec:
+      template:
+        metadata:
+          name: user-synchronizer-pod
+          labels:
+            app: user-synchronizer
+        spec:
+          containers:
+          - name: user-synchronizer
+            image: '{{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}user-synchronizer:{{cnf["dockertag"]}}'
+            imagePullPolicy: Always
+            env:
+            - name: TENANT_ID
+              value: '{{cnf["activeDirectory"]["tenant"]}}'
+            - name: CLIENT_ID
+              value: '{{cnf["activeDirectory"]["clientId"]}}'
+            - name: CLIENT_SECRET
+              value: '{{cnf["activeDirectory"]["clientSecret"]}}'
+            - name: RESTFULAPI_URL
+              value: 'http://{{cnf["kubernetes_master_node"][0]}}:{{cnf["restfulapiport"]}}'
+            - name: DOMAIN_OFFSET_FILE
+              value: /etc/domain-offset/domain_offset.yaml
+            volumeMounts:
+            - name: domain-offset
+              mountPath: /etc/domain-offset
+          volumes:
+          - name: domain-offset
+            configMap:
+              name: domain-offset
+          nodeSelector:
+            user-synchronizer: active
+          hostNetwork: true
+          restartPolicy: Never
+          tolerations:
+            - key: node-role.kubernetes.io/master
+              effect: NoSchedule
+  schedule: '0 * * * *'

@@ -1,13 +1,13 @@
 database :
   hostname : {{cnf["sqlserver-hostname"]}}
   username : {{cnf["sqlserver-username"]}}
-  password : {{cnf["sqlserver-password"]}}
+  password : "{{cnf["sqlserver-password"]}}"
   database : {{cnf["sqlserver-database"]}}
 mysql :
   hostname : {{cnf["mysql_node"]}}
   port : {{cnf["mysql_port"]}}
   username : {{cnf["mysql_username"]}}
-  password : {{cnf["mysql_password"]}}
+  password : "{{cnf["mysql_password"]}}"
 kubelet-path : /usr/local/bin/kubectl
 storage-mount-path : {{cnf["storage-mount-path"]}}
 dltsdata-storage-mount-path : {{cnf["dltsdata-storage-mount-path"]}}
@@ -33,10 +33,9 @@ webportal_node: {{cnf["webportal_node"]}}
 datasource : {{cnf["datasource"]}}
 kube_custom_scheduler: {{cnf["kube_custom_scheduler"]}}
 WinbindServers: {{cnf["WinbindServers"]}}
-azure_cluster :
-  worker_node_num : {{cnf["azure_cluster"][cnf["cluster_name"]]["worker_node_num"]}}
-  worker_vm_size : {{cnf["azure_cluster"][cnf["cluster_name"]]["worker_vm_size"]}}
-sku_mapping: {{cnf["sku_mapping"]}}
+gpu_count_per_node: {{cnf["gpu_count_per_node"]}}
+worker_node_num: {{cnf["worker_node_num"]}}
+gpu_type: {{cnf["gpu_type"]}}
 defalt_virtual_cluster_name: {{cnf["defalt_virtual_cluster_name"]}}
 {% if cnf["job-manager"] %}
 job-manager:
@@ -50,3 +49,24 @@ job-manager:
     {% endif %}
   {% endif %}
 {% endif %}
+
+infiniband_mounts: {{cnf["infiniband_mounts"]}}
+custom_mounts: {{cnf["custom_mounts"]}}
+
+enable_cpuworker: {{cnf["enable_cpuworker"]}}
+default_cpurequest: {{cnf["default_cpurequest"]}}
+default_cpulimit: {{cnf["default_cpulimit"]}}
+default_memoryrequest: {{cnf["default_memoryrequest"]}}
+default_memorylimit: {{cnf["default_memorylimit"]}}
+default_cpu_sku: {{cnf["default_cpu_sku"]}}
+sku_meta: {{cnf["sku_meta"]}}
+
+enable_blobfuse: {{cnf["enable_blobfuse"]}}
+
+local_fast_storage: {{cnf["local_fast_storage"]}}
+enable_custom_registry_secrets: {{cnf["enable_custom_registry_secrets"]}}
+master_token: {{cnf["master_token"]}}
+nccl_ib_disable: {{cnf["nccl_ib_disable"]}}
+vc_node_hard_assignment: {{cnf["vc_node_hard_assignment"]}}
+
+gpu_reporter: 'http://{{cnf["prometheus"]["host"]}}:{{cnf["prometheus"]["reporter"]["port"]}}'

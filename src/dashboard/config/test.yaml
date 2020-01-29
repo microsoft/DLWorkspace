@@ -1,0 +1,17 @@
+sign: DashboardSign
+
+masterToken: DashboardMasterToken
+
+activeDirectory:
+  tenant: 00000000-0000-0000-0000-000000000000
+  clientId: 11111111-1111-1111-1111-111111111111
+  clientSecret: DashboardActiveDirectoryClientSecret
+
+clusters:
+  Universe:
+    restfulapi: http://universe
+  Targaryen:
+    restfulapi: http://targaryen
+
+frontend:
+  key: value

@@ -1,0 +1,5 @@
+smtp_url: {{cnf['repair-manager']['alert']['smtp_url']}}
+login: {{cnf['repair-manager']['alert']['login']}}
+password: {{cnf['repair-manager']['alert']['password']}}
+sender: {{cnf['repair-manager']['alert']['sender']}}
+receiver: {{cnf['repair-manager']['alert']['receiver']}}

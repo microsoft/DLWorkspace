@@ -1,4 +1,5 @@
 const compose = require('koa-compose')
+const compress = require('koa-compress')
 const send = require('koa-send')
 const serve = require('koa-static')
 
@@ -9,6 +10,7 @@ const index = (context, next) => {
 }
 
 module.exports = compose([
-  serve('build'),
+  compress(),
+  serve('build', { maxage: 10 * 60 * 1000 }),
   index
 ])

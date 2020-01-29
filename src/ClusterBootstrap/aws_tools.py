@@ -25,10 +25,10 @@ import json
 from jinja2 import Environment, FileSystemLoader, Template
 import base64
 import tempfile
-import urlparse
+import urllib.parse
 
 from shutil import copyfile, copytree
-import urllib
+import urllib.request, urllib.parse, urllib.error
 import socket
 sys.path.append("utils")
 sys.path.append("../utils")
@@ -81,7 +81,7 @@ def get_aws_ssh_key_v1(location):
 def get_aws_ssh_key_v0(location):
     cmd1 = "cd ./deploy/sshkey/; ssh-keygen -f id_rsa.pub -e -m pem"
     keyinfo = utils.exec_cmd_local(cmd1)
-    print keyinfo
+    print(keyinfo)
     keylines = keyinfo.splitlines()
     sshkey = "".join(keylines[1:-1])
     return sshkey
@@ -120,7 +120,7 @@ def create_group():
         "project_id": config["gs_cluster"]["project"]["id"], 
         "name": config["gs_cluster"]["project"]["name"], 
     }
-    print "Body = %s" % body
+    print("Body = %s" % body)
 
     operation = crm.projects().create(body = body).execute()
     output = utils.exec_cmd_local(cmd)
@@ -130,9 +130,9 @@ def create_group():
 def create_storage_account(name, sku, location):
     actual_location = get_region_string(location)
     actual_sku = get_sku( sku )
-    print "name == %s, sku == %s, location == %s" %( name, actual_sku, actual_location)   
+    print("name == %s, sku == %s, location == %s" %( name, actual_sku, actual_location))   
     if actual_location is not None:
-        print "name == %s, sku == %s, location == %s" %( name, actual_sku, actual_location)
+        print("name == %s, sku == %s, location == %s" %( name, actual_sku, actual_location))
         cmd = """
         gsutil mb -c %s \
                  -l %s \
@@ -160,7 +160,7 @@ def delete_storage_account(name, sku, location):
     actual_location = get_region_string(location)
     actual_sku = get_sku( sku )
     if actual_location is not None:
-        print "name == %s, sku == %s, location == %s" %( name, actual_sku, actual_location)
+        print("name == %s, sku == %s, location == %s" %( name, actual_sku, actual_location))
         cmd = """
         gsutil rm -r gs://%s """ % ( name)
         if verbose:
@@ -212,14 +212,14 @@ def import_key_pair(location):
                 """ \
             % ( location )
     output = utils.exec_cmd_local(cmd)
-    print output
+    print(output)
 
 def delete_key_pair(location):
     cmd = """
         aws ec2 delete-key-pair --key-name publickey-%s """ \
             % ( location )
     output = utils.exec_cmd_local(cmd)
-    print output
+    print(output)
 
 def get_security_group_name( cluster_name, location):
     group_name = "deployenv-"+cluster_name
@@ -237,7 +237,7 @@ def create_security_group(config, cluster_name, location):
     if location not in config["aws_cluster"]:
         config["aws_cluster"][location] = {}
     merge_config( config["aws_cluster"][location], json.loads(output1))
-    print config["aws_cluster"][location]["SecurityGroups"]
+    print(config["aws_cluster"][location]["SecurityGroups"])
     
 def delete_security_group(cluster_name, location):
     group_name = get_security_group_name(cluster_name, location)
@@ -246,7 +246,7 @@ def delete_security_group(cluster_name, location):
                 """ \
             % ( group_name )
     output = utils.exec_cmd_local(cmd)
-    print group_name
+    print(group_name)
 
 def hasVM(vmname, location):
     # print config["aws_cluster"][location]
@@ -255,7 +255,7 @@ def hasVM(vmname, location):
 
 def create_aws_vm( vmname, addrname, vmsize, location, configCluster, docreate):
     if not hasVM(vmname, location):
-        print "creating VM %s, size %s ..." % ( vmname, vmsize)
+        print("creating VM %s, size %s ..." % ( vmname, vmsize))
         uselocation = get_location_string(location)
         sgid = config["aws_cluster"][location]["SecurityGroups"][0]["GroupId"]
         # print configCluster
@@ -286,7 +286,7 @@ def get_public_dns( vmname, location):
 
 def delete_aws_vm( vmname, vmsize, location, configCluster, docreate):
     if vmname in config["aws_cluster"][location]:
-        print "delete VM %s" % ( vmname)
+        print("delete VM %s" % ( vmname))
         instanceid = config["aws_cluster"][location][vmname]["InstanceId"]
         cmd = """
             aws ec2 terminate-instances --instance-ids %s \
@@ -343,15 +343,15 @@ def update_vm_config( jsonvms, location, vmname):
     if hasVM(vmname, location):
         instanceid = config["aws_cluster"][location][vmname]["InstanceId"]
         vmconfig = find_vm_description( jsonvms, instanceid )
-        print "Find VM of ... %s ==> %s " % ( instanceid, vmconfig)
+        print("Find VM of ... %s ==> %s " % ( instanceid, vmconfig))
         if vmconfig is not None:
             config["aws_cluster"][location][vmname] = vmconfig
             # print vmconfig
             publicDns, domain = get_public_dns(vmname, location)
             if domain is not None:
-                print "VM %s ==== %s.%s" %( vmname, publicDns, domain)
+                print("VM %s ==== %s.%s" %( vmname, publicDns, domain))
             else:
-                print "VM %s ==== public DNS not available"
+                print("VM %s ==== public DNS not available")
 
 def describe_vm_cluster(location, configCluster, docreate):
     output = utils.exec_cmd_local("aws ec2 describe-instances")
@@ -438,18 +438,18 @@ def create_storage_with_config( configGrp, location ):
     storagename = configGrp["name"] + location
     output = create_storage_account( storagename, configGrp["sku"], location)
     if verbose: 
-        print ( "Storage account %s" % output )
+        print( "Storage account %s" % output )
     if False:
         configGrp[location] = json.loads( output )
         configGrp[location]["fullname"] = storagename
         output = get_storage_keys( configGrp, location )
         if verbose: 
-            print ( "Storage keys %s" % output )   
+            print( "Storage keys %s" % output)
         keyConfig = json.loads( output )
         configGrp[location]["keys"] = keyConfig
         create_storage_containers( configGrp, location )
-        if "cors" in configGrp and configGrp["cors"]: 
-            add_cors(configGrp, location)    
+        if "cors" in configGrp and configGrp["cors"]:
+            add_cors(configGrp, location)
 
 def delete_storage_with_config( configGrp, location ):
     storagename = configGrp["name"] + location
@@ -457,7 +457,7 @@ def delete_storage_with_config( configGrp, location ):
 
 def create_storage_group( locations, configGrp, docreate = True ):
     locations = get_locations()
-    print "locations == %s" % locations
+    print("locations == %s" % locations)
     for location in locations:
         create_storage_with_config( configGrp, location )
 
@@ -500,36 +500,36 @@ def create_service_accounts():
     projectid = config["gs_cluster"]["project"]["id"]
     output1 = utils.exec_cmd_local("gcloud iam service-accounts create administrator")
     admin_account = "administrator@%s.iam.gserviceaccount.com" % projectid
-    print output1
+    print(output1)
     output2 = utils.exec_cmd_local("""gcloud projects add-iam-policy-binding %s \
         --member serviceAccount:%s \
         --role roles/storage.admin """ % (projectid, admin_account))
-    print output2
+    print(output2)
     output3 = utils.exec_cmd_local("""mkdir -p ./deploy/storage
     gcloud iam service-accounts keys create ./deploy/storage/google_administrator.json \
     --iam-account %s """ % (admin_account))
-    print output3
+    print(output3)
 
     output5 = utils.exec_cmd_local("gcloud iam service-accounts create reader")
     reader_account = "reader@%s.iam.gserviceaccount.com" % projectid
-    print output5
+    print(output5)
     output6 = utils.exec_cmd_local("""gcloud projects add-iam-policy-binding %s \
         --member serviceAccount:%s \
         --role roles/storage.objectViewer """ % (projectid, reader_account) )
-    print output6
+    print(output6)
     output7 = utils.exec_cmd_local("""gcloud iam service-accounts keys create ./deploy/storage/google_reader.json \
     --iam-account %s """ % (reader_account))
-    print output7
+    print(output7)
 
 
 def delete_service_accounts():
     projectid = config["gs_cluster"]["project"]["id"]
     admin_account = "administrator@%s.iam.gserviceaccount.com" % projectid
     output1 = utils.exec_cmd_local("gcloud iam service-accounts delete %s" % admin_account )
-    print output1
+    print(output1)
     reader_account = "reader@%s.iam.gserviceaccount.com" % projectid
     output2 = utils.exec_cmd_local("gcloud iam service-accounts delete %s" % reader_account )
-    print output2
+    print(output2)
 
 def create_vm( docreate = True):
     locations = get_vm_locations()
@@ -551,7 +551,7 @@ def delete_vm( docreate = True):
     locations = get_vm_locations()
     for location in locations:
         configCluster = config["aws_cluster"]
-        print "Location = %s, config = %s" %( location, configCluster )
+        print("Location = %s, config = %s" %( location, configCluster ))
         delete_vm_cluster( location, configCluster, docreate)
     save_config() 
 
@@ -559,10 +559,10 @@ def prepare_vm(docreate = True):
     create_firewall(docreate)
     cmd1 = "./deploy.py --verbose --sudo runscriptonall ./scripts/platform/gce/configure-vm.sh"
     output1 = utils.exec_cmd_local(cmd1)
-    print output1
+    print(output1)
     cmd2 = "./deploy.py --verbose --sudo runscriptonall ./scripts/prepare_vm_disk.sh"
     output2 = utils.exec_cmd_local(cmd2)
-    print output2
+    print(output2)
 
 def create_firewall(docreate = True):
     cmd = """
@@ -570,25 +570,25 @@ def create_firewall(docreate = True):
                 --allow tcp:80\
                 """ 
     output = utils.exec_cmd_local(cmd)
-    print output
+    print(output)
     cmd1 = """
         gcloud compute firewall-rules create allow-all \
                 --allow tcp:0-65535\
                 """ 
     output1 = utils.exec_cmd_local(cmd1)
-    print output1
+    print(output1)
 
 def delete_firewall(docreate = True):
     cmd = """
         gcloud compute firewall-rules delete tcp80 \
                 """ 
     output = utils.exec_cmd_local(cmd)
-    print output
+    print(output)
     cmd1 = """
         gcloud compute firewall-rules delete allow-all \
                 """ 
     output1 = utils.exec_cmd_local(cmd1)
-    print output1
+    print(output1)
 
 
 def gen_cluster_config(output_file_name, output_file=True):
@@ -614,7 +614,7 @@ def gen_cluster_config(output_file_name, output_file=True):
     cc["admin_username"] = config["aws_cluster"]["default_admin_username"]
 
     if output_file:
-        print yaml.dump(cc, default_flow_style=False)
+        print(yaml.dump(cc, default_flow_style=False))
         with open(output_file_name, 'w') as outfile:
             yaml.dump(cc, outfile, default_flow_style=False)
 
@@ -624,10 +624,10 @@ def run_command( args, command, nargs, parser ):
     bExecute = True
     if command =="group" and len(nargs) >= 1:
         if nargs[0] == "create":
-            print "At this moment, please create project from console. "
+            print("At this moment, please create project from console. ")
 
         elif nargs[0] == "delete":
-            print "At this moment, please delete project from console. "
+            print("At this moment, please delete project from console. ")
         ()
 
     if command == "storage":
@@ -678,7 +678,7 @@ def run_command( args, command, nargs, parser ):
 
     elif command == "delete":
         # print "!!! WARNING !!! You are deleting the entire cluster %s " % config["gs_cluster"]["cluster_name"]
-        response = raw_input ("!!! WARNING !!! You are performing a dangerous operation that will permanently delete the entire cluster. Please type (DELETE) in ALL CAPITALS to confirm the operation ---> ")
+        response = input ("!!! WARNING !!! You are performing a dangerous operation that will permanently delete the entire cluster. Please type (DELETE) in ALL CAPITALS to confirm the operation ---> ")
         if response == "DELETE":
             delete_vm()
             delete_storage()
