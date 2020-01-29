@@ -31,6 +31,17 @@ import framework
 logger = logging.getLogger(__name__)
 
 
+def walk_json_field_safe(obj, *fields):
+    """ for example a=[{"a": {"b": 2}}]
+    walk_json_field_safe(a, 0, "a", "b") will get 2
+    walk_json_field_safe(a, 0, "not_exist") will get None
+    """
+    try:
+        for f in fields:
+            obj = obj[f]
+        return obj
+    except:
+        return None
 
 class JobRole(object):
     MARK_ROLE_READY_FILE = "/pod/running/ROLE_READY"
@@ -504,6 +515,32 @@ class LauncherStub(Launcher):
     def wait_tasks_done(self):
         pass
 
+    def transform_state(self, framework_state, completion_status):
+        # https://github.com/microsoft/frameworkcontroller/blob/master/pkg/apis/frameworkcontroller/v1/types.go#L441
+        if framework_state in {"AttemptCreationPending", "AttemptCreationRequested",
+                "AttemptPreparing"}:
+            return "Pending"
+        elif framework_state == "AttemptRunning":
+            return "Running"
+        elif framework_state in {"AttemptDeletionPending", "AttemptDeletionRequested",
+                "AttemptDeleting"}:
+            return "Deleting"
+        elif framework_state in {"AttemptCompleted", "Completed"}:
+            if completion_status is None:
+                logger.info("framework_state is %s, but completion_status still not posted, assume running")
+                return "Running"
+            return completion_status
+        else:
+            logger.error("unknown framework_state %s, completion_status %s",
+                    framework_state, completion_status)
+            return "Unknown"
+
+    def get_job_status(self, job_id):
+        framework_obj = self._get_framework(framework.transform_name(job_id))
+        result = self.transform_state(walk_json_field_safe(framework_obj, "status", "state"),
+                walk_json_field_safe(framework_obj, "status", "attemptStatus", "completionStatus"))
+        return result, []
+
     @record
     def _create_framework(self, body):
         resp = self.k8s_custom_obj_api.create_namespaced_custom_object(
@@ -515,6 +552,16 @@ class LauncherStub(Launcher):
                 pretty=self.pretty,
                 )
         return resp
+
+    @record
+    def _get_framework(self, framework_name):
+        return self.k8s_custom_obj_api.get_namespaced_custom_object(
+                "frameworkcontroller.microsoft.com",
+                "v1",
+                self.namespace,
+                "frameworks",
+                framework_name,
+                )
 
     @record
     def _delete_framework(self, name, grace_period_seconds=None):
@@ -532,18 +579,17 @@ class LauncherStub(Launcher):
         return resp
 
     @record
-    def _cleanup_framework(self, framework_names, force=False):
+    def _cleanup_framework(self, framework_name, force=False):
         errors = []
         grace_period_seconds = 0 if force else None
-        for framework_name in framework_names:
-            try:
-                self._delete_framework(framework_name, grace_period_seconds)
-            except Exception as e:
-                if isinstance(e, ApiException) and 404 == e.status:
-                    return []
-                message = "Delete framework failed: {}".format(framework_name)
-                logger.exception(message)
-                errors.append({"message": message, "exception": e})
+        try:
+            self._delete_framework(framework_name, grace_period_seconds)
+        except Exception as e:
+            if isinstance(e, ApiException) and 404 == e.status:
+                return []
+            message = "Delete framework failed: {}".format(framework_name)
+            logger.exception(message)
+            errors.append({"message": message, "exception": e})
         return errors
 
     def submit_job(self, job):
@@ -651,8 +697,7 @@ class LauncherStub(Launcher):
                 if job_object.params["jobtrainingtype"] == "PSDistJob":
                     created_pods = self._create_framework(pods[0])
                     logger.info("created_pods is %s, type is %s", created_pods, type(created_pods))
-                    ret["output"] += "Created pods: {}".format(
-                            [pod["metadata"]["name"] for pod in created_pods])
+                    ret["output"] += "Created framework: {}".format(pods[0]["metadata"]["name"])
                 else:
                     logger.error("unsupported job type %s", job_object.params["jobtrainingtype"])
             except Exception as e:
@@ -767,6 +812,48 @@ class PythonLauncher(Launcher):
                                             args=(self.queue,), name="py-launcher-" + str(i))
                 self.processes.append(p)
                 p.start()
+
+    def get_job_status(self, job_id):
+        job_roles = self.get_job_roles(job_id)
+
+        if len(job_roles) < 1:
+            return "NotFound", []
+
+        # role status in ["NotFound", "Pending", "Running", "Succeeded", "Failed", "Unknown"]
+        # TODO ??? when ps/master role "Succeeded", return Succeeded
+        for job_role in job_roles:
+            if job_role.role_name not in ["master", "ps"]:
+                continue
+            if job_role.status() == "Succeeded":
+                logger.info("Job: {}, Succeeded!".format(job_id))
+                return "Succeeded", []
+
+        statuses = [job_role.status() for job_role in job_roles]
+        logger.info("Job: {}, status: {}".format(job_id, statuses))
+
+        details = []
+        for job_role in job_roles:
+            details.append(job_role.pod_details().to_dict())
+        logger.debug("Job {}, details: {}".format(job_id, details))
+
+        restricted_details = [
+            job_role.pod_restricted_details() for job_role in job_roles
+        ]
+        logger.info("Job: {}, restricted details: {}".format(
+            job_id, restricted_details))
+
+        job_status = "Running"
+
+        if "Failed" in statuses:
+            job_status = "Failed"
+        elif "Unknown" in statuses:
+            job_status = "Unknown"
+        elif "NotFound" in statuses:
+            job_status = "NotFound"
+        elif "Pending" in statuses:
+            job_status = "Pending"
+
+        return job_status, details
 
     def wait_tasks_done(self):
         self.queue.join()

@@ -300,7 +300,7 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
     jobParams = json.loads(base64.b64decode(
         job["jobParams"].encode("utf-8")).decode("utf-8"))
 
-    result, details = check_job_status(launcher, job["jobId"])
+    result, details = launcher.get_job_status(job["jobId"])
     logger.info("++++++++ Job status: {} {}".format(job["jobId"], result))
 
     jobPath, workPath, dataPath = GetStoragePath(
@@ -341,7 +341,7 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
             dataFields = {
                 "jobStatusDetail": base64.b64encode(json.dumps(detail).encode("utf-8")).decode("utf-8"),
                 "jobStatus": "running"
-            }
+                }
             conditionFields = {"jobId": job["jobId"]}
             dataHandler.UpdateJobTextFields(conditionFields, dataFields)
             if notifier is not None:
@@ -411,49 +411,6 @@ def UpdateJobStatus(redis_conn, launcher, job, notifier=None, dataHandlerOri=Non
     if dataHandlerOri is None:
         dataHandler.Close()
 
-
-# TODO refine later
-def check_job_status(launcher, job_id):
-    job_roles = launcher.get_job_roles(job_id)
-
-    if len(job_roles) < 1:
-        return "NotFound", []
-
-    # role status in ["NotFound", "Pending", "Running", "Succeeded", "Failed", "Unknown"]
-    # TODO ??? when ps/master role "Succeeded", return Succeeded
-    for job_role in job_roles:
-        if job_role.role_name not in ["master", "ps"]:
-            continue
-        if job_role.status() == "Succeeded":
-            logger.info("Job: {}, Succeeded!".format(job_id))
-            return "Succeeded", []
-
-    statuses = [job_role.status() for job_role in job_roles]
-    logger.info("Job: {}, status: {}".format(job_id, statuses))
-
-    details = []
-    for job_role in job_roles:
-        details.append(job_role.pod_details().to_dict())
-    logger.debug("Job {}, details: {}".format(job_id, details))
-
-    restricted_details = [
-        job_role.pod_restricted_details() for job_role in job_roles
-    ]
-    logger.info("Job: {}, restricted details: {}".format(
-        job_id, restricted_details))
-
-    job_status = "Running"
-
-    if "Failed" in statuses:
-        job_status = "Failed"
-    elif "Unknown" in statuses:
-        job_status = "Unknown"
-    elif "NotFound" in statuses:
-        job_status = "NotFound"
-    elif "Pending" in statuses:
-        job_status = "Pending"
-
-    return job_status, details
 
 
 def create_log(logdir="/var/log/dlworkspace", process_name="jobmanager"):
