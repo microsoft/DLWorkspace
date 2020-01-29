@@ -54,6 +54,8 @@ Host ${host}
   UserKnownHostsFile /dev/null
 
 EOF
+    # also add entry to /etc/hosts
+    echo -e "${ip}\t${host}" >> /etc/hosts
 done
 
 envs=(
