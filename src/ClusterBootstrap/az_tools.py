@@ -803,8 +803,10 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
         vm_list = get_vm_list_by_enum()
 
     vm_ip_names = get_vm_private_ip()
+    # 2 to 3
+    vm_list = [{k.decode():v.decode() for k,v in itm.items()} for itm in vm_list]
+    vm_ip_names = [{k.decode():[vi.decode() for vi in v] if isinstance(v, list) else v.decode() for k,v in itm.items()} for itm in vm_ip_names]
     vm_ip_names = sorted(vm_ip_names, key = lambda x:x['name'])
-
     sku_mapping = config["sku_mapping"]
 
     worker_machines = []
@@ -945,6 +947,8 @@ def get_vm_list_by_grp():
     if verbose:
         print(cmd)
     output = utils.exec_cmd_local(cmd)
+    print("raw")
+    print(output)
 
     return utils.json_loads_byteified(output)
 
@@ -970,7 +974,7 @@ def get_vm_list_by_enum():
     return vm_list
 
 def random_str(length):
-    return ''.join(random.choice(string.lowercase) for x in range(length))
+    return ''.join(random.choice(string.ascii_lowercase) for x in range(length))
 
 
 def delete_cluster():
@@ -982,13 +986,13 @@ def delete_cluster():
 
 def check_subscription():
     chkcmd ="az account list | grep -A5 -B5 '\"isDefault\": true'"
-    output = utils.exec_cmd_local(chkcmd)
+    output = utils.exec_cmd_local(chkcmd).decode()
     if not config["azure_cluster"]["subscription"] in output:
         setcmd = "az account set --subscription \"{}\"".format(config["azure_cluster"]["subscription"])
         setout = utils.exec_cmd_local(setcmd)
         print "Set your subscription to {}, please login.\nIf you want to specify another subscription, please configure azure_cluster.subscription".format(config["azure_cluster"]["subscription"])
         utils.exec_cmd_local("az login")
-    assert config["azure_cluster"]["subscription"] in utils.exec_cmd_local(chkcmd)
+    assert config["azure_cluster"]["subscription"] in utils.exec_cmd_local(chkcmd).decode()
 
 def run_command(args, command, nargs, parser):
     if command == "genconfig":
