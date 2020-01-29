@@ -40,6 +40,7 @@ curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 sudo pip install --upgrade pip
 sudo pip install setuptools pyyaml jinja2 requests tzlocal pycurl
 
+
 sudo apt install python3-pip
 sudo pip3 install --upgrade pip
 sudo pip3 install setuptools pyyaml jinja2 requests tzlocal pycurl
