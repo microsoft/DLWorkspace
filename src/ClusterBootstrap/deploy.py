@@ -385,7 +385,9 @@ def add_kubelet_config():
     for file in kubemaster_cfg_files:
         with open(os.path.join("./deploy/kubelet", file), 'r') as f:
             content = f.read()
-        config[file] = base64.b64encode(content)
+        # encode to base64 and decode when used. this is to make STRUCTURED content more robust.
+        # refer to {{cnf["ca.pem"]}} in template/cloud-config/cloud-config-worker.yml
+        config[file] = base64.b64encode(content.encode('utf-8')).decode('utf-8')
 
 # fill in additional entry of cloud config
 
@@ -465,17 +467,17 @@ def init_deployment():
 
     with open("./deploy/ssl/ca/ca.pem", 'r') as f:
         content = f.read()
-    config["ca.pem"] = base64.b64encode(content)
+    config["ca.pem"] = base64.b64encode(content.encode('utf-8')).decode('utf-8')
 
     with open("./deploy/ssl/kubelet/apiserver.pem", 'r') as f:
         content = f.read()
-    config["apiserver.pem"] = base64.b64encode(content)
-    config["worker.pem"] = base64.b64encode(content)
+    config["apiserver.pem"] = base64.b64encode(content.encode('utf-8')).decode('utf-8')
+    config["worker.pem"] = base64.b64encode(content.encode('utf-8')).decode('utf-8')
 
     with open("./deploy/ssl/kubelet/apiserver-key.pem", 'r') as f:
         content = f.read()
-    config["apiserver-key.pem"] = base64.b64encode(content)
-    config["worker-key.pem"] = base64.b64encode(content)
+    config["apiserver-key.pem"] = base64.b64encode(content.encode('utf-8')).decode('utf-8')
+    config["worker-key.pem"] = base64.b64encode(content.encode('utf-8')).decode('utf-8')
 
     add_additional_cloud_config()
     add_kubelet_config()
