@@ -197,7 +197,9 @@ def populate_cpu_resource(job_params):
         return
 
     job_training_type = job_params.get("jobtrainingtype", None)
-    default_cpu_sku = config.get("default_cpu_sku", None)
+    default_cpu_sku = config.get("default_cpu_sku", "")
+    if "sku" not in job_params:
+        job_params["sku"] = default_cpu_sku
 
     default_cpu_request = None
     default_cpu_limit = None
@@ -210,7 +212,8 @@ def populate_cpu_resource(job_params):
         full_node = False
 
     if full_node is True:
-        sku_info = get_sku_info(sku=default_cpu_sku, config=config)
+        sku = job_params["sku"]
+        sku_info = get_sku_info(sku=sku, config=config)
         if sku_info is not None:
             # Do not restrict the limit for full node worker
             default_cpu_request = cpu_format(sku_info["cpu"],
