@@ -116,6 +116,7 @@ def verify_all_nodes_ready(config, args):
     expected_nodes = set(config["machines"].keys())
     nodes_expected_but_not_ready = expected_nodes - ready_machines
     if len(list(nodes_expected_but_not_ready)) > 0:
+        print("following nodes not ready:\n{}".format(','.join(list(nodes_expected_but_not_ready))))
         exit(1)
 
 
