@@ -252,18 +252,6 @@ class ResourceStat(object):
             d1 = self - other
             if d1 >= 0:
                 return True
-
-            d1 = d1.min_zero().prune()
-            d2 = (other - self).min_zero().prune()
-
-            # Unlabeled resource can be satisfied by any type of resource
-            if len(d2.res) == 1 and "" in d2.res:
-                remaining_res = 0
-                for _, v in d1.res.items():
-                    remaining_res += v
-                if remaining_res >= d2.res[""]:
-                    return True
-
             return False
 
     def __prune(self):

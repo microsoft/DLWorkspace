@@ -255,15 +255,15 @@ class ClusterStatus(object):
             name = pod.metadata.name
             namespace = pod.metadata.namespace
             labels = pod.metadata.labels
+            node_selector = pod.spec.node_selector
 
             gpu_type = ""
-            sku = ""
             if labels is not None:
-                for label, status in labels.items():
-                    if label == "gpuType":
-                        gpu_type = status
-                    if label == "sku":
-                        sku = status
+                gpu_type = labels.get("gpuType", "")
+
+            sku = ""
+            if node_selector is not None:
+                sku = node_selector.get("sku", "")
 
             username = None
             if labels is not None and "userName" in labels:
