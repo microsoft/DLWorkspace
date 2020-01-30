@@ -67,6 +67,8 @@ def gen_init_container(job, role):
         ps_count = job.roles["ps"].task_count
     if job.roles.get("worker") is not None:
         worker_count = job.roles["worker"].task_count
+    else:
+        worker_count = 1 # regular job, role will be master
 
     envs = [
             {"name": "LOGGING_LEVEL", "value": "DEBUG"},
@@ -99,7 +101,7 @@ def transform_mount_points(mount_points, plugins):
     result.extend([{
         "name": bf["name"],
         "mountPath": bf["mountPath"],
-        } for bf in plugins["blobfuse"] if bf.get("enabled")])
+        } for bf in plugins.get("blobfuse", []) if bf.get("enabled")])
 
     return result
 
@@ -109,6 +111,8 @@ def gen_container_envs(job, role):
         ps_count = job.roles["ps"].task_count
     if job.roles.get("worker") is not None:
         worker_count = job.roles["worker"].task_count
+    else:
+        worker_count = 1 # regular job, role will be master
 
     result = [
             {"name": "FAMILY_TOKEN", "value": job.family_token},
@@ -267,7 +271,7 @@ def gen_task_role(job, role):
     image_pull_secrets = [{"name": "regcred"}]
 
     image_pull_secrets.extend([{"name": secret["name"]}
-        for secret in job.plugins["imagePull"] if secret["enabled"]])
+        for secret in job.plugins.get("imagePull", []) if secret["enabled"]])
 
     volumes = [
             {"name": "dlws-scripts", "configMap": {"name": "dlws-scripts"}},
@@ -296,7 +300,7 @@ def gen_task_role(job, role):
                     volume["hostPath"]["type"] = mp["type"]
             volumes.append(volume)
 
-    for bf in job.plugins["blobfuse"]:
+    for bf in job.plugins.get("blobfuse", []):
         if not bf.get("enabled"):
             continue
 
@@ -416,6 +420,54 @@ def transform_resource(params, default_cpu_req, default_cpu_limit, default_mem_r
 def transform_name(name):
     return str(re.sub(r"[-]", "", name.lower()))
 
+def transform_regular_job(params, cluster_config):
+    resource = transform_resource(params,
+            cluster_config.get("default_cpurequest", "500m"),
+            cluster_config.get("default_cpulimit", "500m"),
+            cluster_config.get("default_memoryrequest", "2048M"),
+            cluster_config.get("default_memorylimit", "2560M"),
+            )
+
+    image = params["image"]
+
+    envs = params.get("envs", [])
+
+    roles = {
+        "master": Role("master", 1, image, envs, resource, 1, 1),
+    }
+
+    labels = params.get("label", {})
+    annotations = params.get("annotations", {})
+
+    framework = Framework(
+            params["init-container"],
+            labels,
+            annotations,
+            roles,
+            params["jobId"],
+            params["jobId"], # pod_name here, should fix this before using blobfuse
+            params["cmd"],
+            params["user"],
+            params["user_email"],
+            params["gid"],
+            params["uid"],
+            params["mountpoints"],
+            params["plugins"],
+            params["familyToken"],
+            params["vcName"],
+            params.get("dnsPolicy"),
+            params.get("nodeSelector", {}),
+            params["homeFolderHostpath"],
+            params.get("fragmentGpuJob", False),
+            params.get("preemptionAllowed", False),
+            params.get("hostNetwork", False),
+            params.get("hostIPC", False),
+            params.get("isPrivileged", False),
+            params.get("nccl_ib_disable", False),
+            )
+
+    return gen_framework_spec(framework)
+
 def transform_distributed_job(params, cluster_config):
     worker_resource = transform_resource(params,
             cluster_config.get("default_cpurequest", "500m"),
@@ -434,7 +486,6 @@ def transform_distributed_job(params, cluster_config):
     image = params["image"]
 
     envs = params.get("envs", [])
-    # TODO generate DLWS_ROLE_NAME in sync.py
 
     roles = {
         "ps": Role("ps", int(params["numps"]), image, envs, ps_resource, 1, 1),

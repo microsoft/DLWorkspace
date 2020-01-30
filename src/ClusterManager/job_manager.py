@@ -695,7 +695,7 @@ def Run(redis_port, target_status):
     notifier = notify.Notifier(config.get("job-manager"))
     notifier.start()
 
-    launcher = LauncherStub()
+    launcher = PythonLauncher() # LauncherStub()
     launcher.start()
 
     redis_conn = redis.StrictRedis(host="localhost",

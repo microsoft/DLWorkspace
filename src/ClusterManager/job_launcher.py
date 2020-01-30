@@ -529,7 +529,10 @@ class LauncherStub(Launcher):
             if completion_status is None:
                 logger.info("framework_state is %s, but completion_status still not posted, assume running")
                 return "Running"
-            return completion_status
+            result = walk_json_field_safe(completion_status, "type", "name")
+            if result is None:
+                logger.warning("unknown completion_status %s, assuming Running", completion_status)
+            return result or "Running"
         else:
             logger.error("unknown framework_state %s, completion_status %s",
                     framework_state, completion_status)
@@ -647,7 +650,6 @@ class LauncherStub(Launcher):
             job_object.params["envs"].append(
                 {"name": "DLTS_JOB_TOKEN", "value": job_object.params["job_token"]})
 
-            enable_custom_scheduler = job_object.is_custom_scheduler_enabled()
             blobfuse_secret_template = job_object.get_blobfuse_secret_template()
             image_pull_secret_template = job_object.get_image_pull_secret_template()
             secret_templates = {
@@ -656,7 +658,6 @@ class LauncherStub(Launcher):
             }
             if job_object.params["jobtrainingtype"] == "RegularJob":
                 pod_template = PodTemplate(job_object.get_template(),
-                                           enable_custom_scheduler=enable_custom_scheduler,
                                            secret_templates=secret_templates)
             elif job_object.params["jobtrainingtype"] == "PSDistJob":
                 pod_template = DistPodTemplate(job_object.get_template(),
@@ -664,7 +665,6 @@ class LauncherStub(Launcher):
             elif job_object.params["jobtrainingtype"] == "InferenceJob":
                 pod_template = PodTemplate(job_object.get_template(),
                                            deployment_template=job_object.get_deployment_template(),
-                                           enable_custom_scheduler=False,
                                            secret_templates=secret_templates)
             else:
                 dataHandler.SetJobError(
@@ -672,10 +672,19 @@ class LauncherStub(Launcher):
                 dataHandler.Close()
                 return False
 
-            if job_object.params["jobtrainingtype"] == "PSDistJob":
+            if job_object.params["jobtrainingtype"] == "RegularJob":
                 params, error = pod_template.generate_params(job_object)
                 if error:
-                    logger.error("failed to geerate params for distributed job %s", error)
+                    logger.error("failed to generate params for %s job %s",
+                            job_object.params["jobtrainingtype"], error)
+                    return False
+                pods = [framework.transform_regular_job(params, config)]
+                logger.info("generate framework success")
+            elif job_object.params["jobtrainingtype"] == "PSDistJob":
+                params, error = pod_template.generate_params(job_object)
+                if error:
+                    logger.error("failed to generate params for %s job %s",
+                            job_object.params["jobtrainingtype"], error)
                     return False
                 pods = [framework.transform_distributed_job(params, config)]
                 logger.info("generate framework success")
@@ -694,7 +703,7 @@ class LauncherStub(Launcher):
                 secrets = self.create_secrets(secrets)
                 ret["output"] = "Created secrets: {}. ".format(
                     [secret.metadata.name for secret in secrets])
-                if job_object.params["jobtrainingtype"] == "PSDistJob":
+                if job_object.params["jobtrainingtype"] in {"RegularJob", "PSDistJob"}:
                     created_pods = self._create_framework(pods[0])
                     logger.info("created_pods is %s, type is %s", created_pods, type(created_pods))
                     ret["output"] += "Created framework: {}".format(pods[0]["metadata"]["name"])
@@ -796,7 +805,7 @@ class LauncherStub(Launcher):
 
 class PythonLauncher(Launcher):
     def __init__(self, pool_size=3):
-        super(LauncherStub, self).__init__()
+        super(PythonLauncher, self).__init__()
 
         self.processes = []
         self.queue = None
@@ -990,7 +999,6 @@ class PythonLauncher(Launcher):
             job_object.params["envs"].append(
                 {"name": "DLTS_JOB_TOKEN", "value": job_object.params["job_token"]})
 
-            enable_custom_scheduler = job_object.is_custom_scheduler_enabled()
             blobfuse_secret_template = job_object.get_blobfuse_secret_template()
             image_pull_secret_template = job_object.get_image_pull_secret_template()
             secret_templates = {
@@ -999,7 +1007,6 @@ class PythonLauncher(Launcher):
             }
             if job_object.params["jobtrainingtype"] == "RegularJob":
                 pod_template = PodTemplate(job_object.get_template(),
-                                           enable_custom_scheduler=enable_custom_scheduler,
                                            secret_templates=secret_templates)
             elif job_object.params["jobtrainingtype"] == "PSDistJob":
                 pod_template = DistPodTemplate(job_object.get_template(),
@@ -1007,7 +1014,6 @@ class PythonLauncher(Launcher):
             elif job_object.params["jobtrainingtype"] == "InferenceJob":
                 pod_template = PodTemplate(job_object.get_template(),
                                            deployment_template=job_object.get_deployment_template(),
-                                           enable_custom_scheduler=False,
                                            secret_templates=secret_templates)
             else:
                 dataHandler.SetJobError(
