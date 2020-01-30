@@ -155,6 +155,8 @@ class run_job(object):
             self.jid = post_distributed_job(self.rest_url, self.email, self.uid, self.vc, self.image, self.cmd)
         elif self.job_type == "data":
             self.jid = post_data_job(self.rest_url, self.email, self.uid, self.vc, self.image, self.cmd)
+        else:
+            logger.error("unknown job_type %s, wrong test case", self.job_type)
         return self
 
     def __exit__(self, type, value, traceback):
@@ -165,7 +167,7 @@ class run_job(object):
             logger.exception("failed to kill %s job %s", self.job_type, self.jid)
 
 
-def block_until_running(rest_url, jid, timeout=300):
+def block_until_state_not_in(rest_url, jid, states, timeout=300):
     start = datetime.datetime.now()
     delta = datetime.timedelta(seconds=timeout)
     waiting_state = {"unapproved", "queued", "scheduling"}
@@ -173,38 +175,16 @@ def block_until_running(rest_url, jid, timeout=300):
     while True:
         status = get_job_status(rest_url, jid)["jobStatus"]
 
-        if status in waiting_state:
+        if status in states:
             logger.debug("waiting status in %s", status)
             if datetime.datetime.now() - start < delta:
                 time.sleep(1)
             else:
                 raise RuntimeError("Job stays in %s for more than %d seconds" % (status, timeout))
-        elif status == "running":
-            logger.info("spent %s in waiting job running", datetime.datetime.now() - start)
-            return status
         else:
-            raise RuntimeError("Got unexpected job status %s for job %s" % (status, jid))
-
-
-def block_until_finished(rest_url, jid, timeout=300):
-    start = datetime.datetime.now()
-    delta = datetime.timedelta(seconds=timeout)
-    final_state = {"finished", "killed", "failed", "error"}
-
-    while True:
-        status = get_job_status(rest_url, jid)["jobStatus"]
-
-        if status == "running":
-            logger.debug("job is still running")
-            if datetime.datetime.now() - start < delta:
-                time.sleep(1)
-            else:
-                raise RuntimeError("Job is running for more than %d seconds" % timeout)
-        elif status in final_state:
-            logger.info("spent %s in running, finishes with state %s", datetime.datetime.now() - start, status)
+            logger.info("spent %s in waiting job become %s",
+                    datetime.datetime.now() - start, status)
             return status
-        else:
-            raise RuntimeError("Got unexpected job status %s for job %s" % (status, jid))
 
 
 def get_job_log(rest_url, email, jid):
