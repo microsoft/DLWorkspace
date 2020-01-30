@@ -49,14 +49,14 @@ Clean up existing binaries/certificates etc. and complementary yaml files:
 rm -rf deploy/* cloudinit* az_complementary.yaml
 ```
 
-generate complementary yaml file `az_complementary.yaml` based on given configuration file `config.yaml` of a cluster (mchine names are generated if not specified):
+Generate complementary yaml file `az_complementary.yaml` based on given configuration file `config.yaml` of a cluster (mchine names are generated if not specified):
 ```
 # render
 ./cloud_init_deploy.py clusterID
 ./cloud_init_aztools.py -cnf config.yaml -o az_complementary.yaml prerender
 ```
 
-Renders templates, generate certificates and prepare binaries for cluster setup:
+Render templates, generate certificates and prepare binaries for cluster setup:
 ```
 # render templates and prepare binaries
 ./cloud_init_deploy.py -cnf config.yaml -cnf az_complementary.yaml render
@@ -92,5 +92,4 @@ Generate a yaml file `brief.yaml` for cluster maintenance:
 ```
 # get status
 ./cloud_init_aztools.py -cnf config.yaml -o brief.yaml listcluster
-
 ```
