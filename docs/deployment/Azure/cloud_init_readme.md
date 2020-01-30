@@ -30,7 +30,7 @@ First we need to setup the devbox that we use to operate on.
     ```
     cd src/ClusterBootstrap
     ```
-4. [configure](configure.md) your azure cluster. Put `config.yaml` under `src/ClusterBootstrap`
+4. [configure](cloud_init_configure.md) your azure cluster. Put `config.yaml` under `src/ClusterBootstrap`
 
 5. run batch script to deploy the cluster
     ```
