@@ -71,8 +71,10 @@ def execute_or_dump_locally(cmd, verbose, dryrun, output_file):
 
 
 def create_group(config, args):
-    cmd = """az group create --name %s --location %s
-        """ % (config["azure_cluster"]["resource_group_name"], config["azure_cluster"]["azure_location"])
+    subscription = "--subscription {}".format(
+        config["azure_cluster"]["subscription"]) if "subscription" in config["azure_cluster"] else ""
+    cmd = """az group create --name {} --location {} {}
+        """.format(config["azure_cluster"]["resource_group_name"], config["azure_cluster"]["azure_location"], subscription)
     execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
 
@@ -265,7 +267,7 @@ def gen_machine_list_4_deploy_action(complementary_file_name, config):
     cc["network"] = {"domain": domain_mapping[config["priority"]]}
     complementary_file_name = "az_complementary.yaml" if complementary_file_name == '' else complementary_file_name
     with open(complementary_file_name, 'w') as outfile:
-            yaml.dump(cc, outfile, default_flow_style=False)
+        yaml.dump(cc, outfile, default_flow_style=False)
     return cc
 
 
@@ -277,7 +279,8 @@ def add_machines(config, args):
     delay_run = (args.batch_size > 1) and (not args.dryrun)
     commands_list = []
     for vmname, spec in config["machines"].items():
-        cmd = add_machine(vmname, spec, args.verbose, delay_run or args.dryrun, args.output)
+        cmd = add_machine(vmname, spec, args.verbose,
+                          delay_run or args.dryrun, args.output)
         if delay_run:
             commands_list += cmd,
     if os.path.exists(args.output):
@@ -286,13 +289,15 @@ def add_machines(config, args):
         outputs = add_machine_in_parallel(commands_list, args)
     return outputs
 
+
 def is_independent_nfs(role):
     """NFS not on infra"""
     return "nfs" in role and not (set(["infra", "etcd", "kubernetes_master"]) & set(role))
 
 
 def add_machine_in_parallel(cmds, args):
-    tuples = [(utils.exec_cmd_local, cmd, args.verbose, args.wait_time) for cmd in cmds]
+    tuples = [(utils.exec_cmd_local, cmd, args.verbose, args.wait_time)
+              for cmd in cmds]
     res = utils.multiprocess_with_func_arg_tuples(args.batch_size, tuples)
     return res
 
@@ -544,8 +549,10 @@ Command:
                         help='max time that we would wait for a command to execute')
     parser.add_argument('-o', '--output', default='',
                         help='Specify the output file path')
-    parser.add_argument('-v', '--verbose', help='Verbose mode', action="store_true")
-    parser.add_argument('-d', '--dryrun', help='Dry run -- no actual execution', action="store_true")
+    parser.add_argument('-v', '--verbose',
+                        help='Verbose mode', action="store_true")
+    parser.add_argument(
+        '-d', '--dryrun', help='Dry run -- no actual execution', action="store_true")
     args = parser.parse_args()
     command = args.command
     nargs = args.nargs

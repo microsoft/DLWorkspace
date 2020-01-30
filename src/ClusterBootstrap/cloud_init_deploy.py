@@ -450,12 +450,12 @@ def gen_mounting_yaml(config):
                 if 'remote_mount_path_root' in v:
                     mnt_root = v['remote_mount_path_root']
                 else:
-                    mnt_root = config["physical-mount-path-vc"] if 'VC' in v else config["physical-mount-path"]
+                    mnt_root = config["physical-mount-path-vc"] if 'vc' in v else config["physical-mount-path"]
                 if 'remote_link_path_root' in v:
                     lnk_root = v['remote_link_path_root']
                 else:
-                    lnk_root = config["dltsdata-storage-mount-path"] if 'VC' in v else config["storage-mount-path"]
-                vc = v["VC"] if "VC" in v else ""
+                    lnk_root = config["dltsdata-storage-mount-path"] if 'vc' in v else config["storage-mount-path"]
+                vc = v["vc"] if "vc" in v else ""
                 # process leaves
                 if not "leaves" in v or len(v["leaves"]) == 0:
                     v["leaves"] = [{"nfs_local_path": fldr, "remote_mount_path": fldr, "remote_link_path": fldr}
