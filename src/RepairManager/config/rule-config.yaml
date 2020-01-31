@@ -14,3 +14,6 @@ cluster_name: {{cnf['repair-manager']['cluster_name']}}
 domain_name: {{cnf['repair-manager']['domain_name']}}
 
 job_owner_email_domain: {{cnf['repair-manager']['ecc_rule']['job_owner_email_domain']}}
+
+restore_from_rule_cache_dump: True
+rule_cache_dump: ./repair-mananger-rule-cache.json

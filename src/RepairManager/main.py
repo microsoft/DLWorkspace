@@ -5,6 +5,7 @@ import logging
 import logging.config
 import importlib
 import traceback
+from pathlib import Path
 from utils import rule_alert_handler
 
 import rules
@@ -17,6 +18,8 @@ logger = logging.getLogger(__name__)
 
 alert = rule_alert_handler.RuleAlertHandler()
 
+with open('./config/rule-config.yaml', 'r') as config_file:
+    config = yaml.safe_load(config_file)
 
 def Run():
     try:        
@@ -49,4 +52,11 @@ def Run():
          logger.exception('Repair manager has stopped due to an unhandled exception.')
 
 if __name__ == '__main__':
+
+    if config['restore_from_rule_cache_dump']:
+        rule_cache_dump_path = config["rule_cache_dump"]
+        rule_cache_dump_file = Path(rule_cache_dump_path)
+        if rule_cache_dump_file.is_file():
+            alert.load_rule_cache()
+
     Run()
