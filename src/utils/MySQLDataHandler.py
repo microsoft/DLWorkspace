@@ -42,6 +42,7 @@ def base64encode(str_val):
 def base64decode(str_val):
     return base64.b64decode(str_val.encode("utf-8")).decode("utf-8")
 
+
 class DataHandler(object):
     def __init__(self):
         start_time = timeit.default_timer()
@@ -67,7 +68,11 @@ class DataHandler(object):
 
         self.CreateTable()
 
-        elapsed = timeit.default_timer() - start_time
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.Close()
 
     def CreateDatabase(self):
         if "initSQLDB" not in global_vars or not global_vars["initSQLDB"]:
@@ -197,11 +202,13 @@ class DataHandler(object):
                     `parent`    varchar(255) DEFAULT NULL,
                     `quota`     varchar(255) NOT NULL,
                     `metadata`  TEXT NOT NULL,
+                    `resourceQuota` TEXT NOT NULL,
+                    `resourceMetadata`  TEXT NOT NULL,
                     `time`      DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
                     PRIMARY KEY (`id`),
                     CONSTRAINT `hierarchy` FOREIGN KEY (`parent`) REFERENCES `%s` (`vcName`)
                 )
-                AS SELECT \'%s\' AS vcName, NULL AS parent, '{\\\"%s\\\":%s}' AS quota, '{\\\"%s\\\":{\\\"num_gpu_per_node\\\":%s}}' AS metadata;
+                AS SELECT \'%s\' AS vcName, NULL AS parent, '{\\\"%s\\\":%s}' AS quota, '{\\\"%s\\\":{\\\"num_gpu_per_node\\\":%s}}' AS metadata, '{}' as resourceQuota, '{}' as resourceMetadata;
                 """ % (self.vctablename, self.vctablename, config['defalt_virtual_cluster_name'], gpu_type, gpu_count_per_node*worker_node_num, gpu_type,gpu_count_per_node)
 
             cursor = self.conn.cursor()
@@ -365,16 +372,19 @@ class DataHandler(object):
     @record
     def ListVCs(self):
         cursor = self.conn.cursor()
-        query = "SELECT `vcName`,`quota`,`metadata` FROM `%s`" % (self.vctablename)
+        query = "SELECT `vcName`,`quota`,`metadata`, `resourceQuota`, `resourceMetadata` FROM `%s`" % self.vctablename
         ret = []
         try:
             cursor.execute(query)
-            for (vcName,quota,metadata) in cursor:
-                record = {}
-                record["vcName"] = vcName
-                record["quota"] = quota
-                record["metadata"] = metadata
-                ret.append(record)
+            for vc_name, quota, metadata, resource_quota, resource_metadata in cursor:
+                rec = {
+                    "vcName": vc_name,
+                    "quota": quota,
+                    "metadata": metadata,
+                    "resourceQuota": resource_quota,
+                    "resourceMetadata": resource_metadata
+                }
+                ret.append(rec)
         except Exception as e:
             logger.error('Exception: %s', str(e))
             pass

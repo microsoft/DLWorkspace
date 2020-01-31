@@ -21,7 +21,6 @@ sys.path.append("../utils")
 
 from ConfigUtils import *
 from params import default_config_parameters, scriptblocks
-import acs_tools
 import az_tools
 from config import config as k8sconfig
 import k8sUtils
@@ -137,8 +136,7 @@ def _check_config_items(cnfitem, cnf):
 
 
 def check_config(cnf):
-    if not config["isacs"]:
-        _check_config_items("discovery_url", cnf)
+    _check_config_items("discovery_url", cnf)
     _check_config_items("kubernetes_master_node", cnf)
     _check_config_items("kubernetes_master_ssh_user", cnf)
     _check_config_items("api_servers", cnf)
@@ -221,7 +219,7 @@ default_config_mapping = {
 
 
 def isInstallOnCoreOS():
-    return config["platform-scripts"] != "ubuntu" and config["platform-scripts"] != "acs"
+    return config["platform-scripts"] != "ubuntu"
 
 
 def update_docker_image_config():
@@ -289,88 +287,6 @@ def create_cluster_id():
         print("Cluster ID is " + config["clusterId"])
 
 
-def add_acs_config(command):
-    if (command == "kubectl" and os.path.exists("./deploy/"+config["acskubeconfig"])):
-        # optimize for faster execution
-        config["isacs"] = True
-    elif (command == "acs" or os.path.exists("./deploy/"+config["acskubeconfig"])):
-        config["isacs"] = True
-        create_cluster_id()
-
-        #print "Config:{0}".format(config)
-        #print "Dockerprefix:{0}".format(config["dockerprefix"])
-
-        # Set ACS params to match
-        acs_tools.config = config
-        acs_tools.verbose = verbose
-
-        config["master_dns_name"] = config["cluster_name"]
-
-        # Use az tools to generate default config params and overwrite if they don't exist
-        configAzure = acs_tools.acs_update_azconfig(False)
-        if verbose:
-            print("AzureConfig:\n{0}".format(configAzure))
-        # ovewrites defaults with Azure defaults
-        utils.mergeDict(config, configAzure, True)
-        if verbose:
-            print("Config:\n{0}".format(config))
-
-        if ("resource_group" in config and "acs_resource_group" in config):
-            config["resource_group_set"] = True
-            az_tools.config["azure_cluster"]["resource_group_name"] = config["resource_group"]
-
-        config["resource_group"] = az_tools.config["azure_cluster"]["resource_group_name"]
-        config["platform-scripts"] = "acs"
-        config["WinbindServers"] = []
-        config["etcd_node_num"] = config["master_node_num"]
-        config["kube_addons"] = []  # no addons
-        # config["mountpoints"]["rootshare"]["azstoragesku"] = config["azstoragesku"]
-        # config["mountpoints"]["rootshare"]["azfilesharequota"] = config["azfilesharequota"]
-        config["freeflow"] = True
-        config["useclusterfile"] = True
-
-        if ("azure-sqlservername" in config) and (not "sqlserver-hostname" in config):
-            config["sqlserver-hostname"] = ("tcp:%s.database.windows.net" %
-                                            config["azure-sqlservername"])
-        else:
-            # find name for SQL Azure
-            match = re.match('tcp:(.*)\.database\.windows\.net',
-                             config["sqlserver-hostname"])
-            config["azure-sqlservername"] = match.group(1)
-
-        # Some locations put VMs in child resource groups
-        acs_tools.acs_set_resource_grp(False)
-
-        # check for GPU sku
-        match = re.match('.*\_N.*', config["acsagentsize"])
-        if not match is None:
-            config["acs_isgpu"] = True
-        else:
-            config["acs_isgpu"] = False
-
-        # Add users -- hacky going into CCSAdmins group!!
-        if "webui_admins" in config:
-            for name in config["webui_admins"]:
-                if not name in config["UserGroups"]["CCSAdmins"]["Allowed"]:
-                    config["UserGroups"]["CCSAdmins"]["Allowed"].append(name)
-
-        # domain name
-        config["network"] = {}
-        config["network"]["domain"] = "{0}.cloudapp.azure.com".format(
-            config["cluster_location"])
-
-        try:
-            if not ("accesskey" in config["mountpoints"]["rootshare"]):
-                azureKey = acs_get_storage_key()
-                #print "ACS Storage Key: " + azureKey
-                config["mountpoints"]["rootshare"]["accesskey"] = azureKey
-        except:
-            ()
-
-        if verbose:
-            print("Config:{0}".format(config))
-
-# Render scripts for kubenete nodes
 
 
 def add_kubelet_config():
@@ -385,7 +301,9 @@ def add_kubelet_config():
     for file in kubemaster_cfg_files:
         with open(os.path.join("./deploy/kubelet", file), 'r') as f:
             content = f.read()
-        config[file] = base64.b64encode(content)
+        # encode to base64 and decode when used. this is to make STRUCTURED content more robust.
+        # refer to {{cnf["ca.pem"]}} in template/cloud-config/cloud-config-worker.yml
+        config[file] = base64.b64encode(content.encode('utf-8')).decode('utf-8')
 
 # fill in additional entry of cloud config
 
@@ -465,17 +383,17 @@ def init_deployment():
 
     with open("./deploy/ssl/ca/ca.pem", 'r') as f:
         content = f.read()
-    config["ca.pem"] = base64.b64encode(content)
+    config["ca.pem"] = base64.b64encode(content.encode('utf-8')).decode('utf-8')
 
     with open("./deploy/ssl/kubelet/apiserver.pem", 'r') as f:
         content = f.read()
-    config["apiserver.pem"] = base64.b64encode(content)
-    config["worker.pem"] = base64.b64encode(content)
+    config["apiserver.pem"] = base64.b64encode(content.encode('utf-8')).decode('utf-8')
+    config["worker.pem"] = base64.b64encode(content.encode('utf-8')).decode('utf-8')
 
     with open("./deploy/ssl/kubelet/apiserver-key.pem", 'r') as f:
         content = f.read()
-    config["apiserver-key.pem"] = base64.b64encode(content)
-    config["worker-key.pem"] = base64.b64encode(content)
+    config["apiserver-key.pem"] = base64.b64encode(content.encode('utf-8')).decode('utf-8')
+    config["worker-key.pem"] = base64.b64encode(content.encode('utf-8')).decode('utf-8')
 
     add_additional_cloud_config()
     add_kubelet_config()
@@ -489,7 +407,6 @@ def check_node_availability(ipAddress):
                        (config["admin_username"], config["ssh_cert"], ipAddress))
     return status == 0
 
-# Get domain of the node, assigned in add_acs_config (line config["network"]["domain"])
 
 
 def get_domain():
@@ -851,9 +768,8 @@ def gen_configs():
     else:
         kubernetes_masters = []
 
-    if not config["isacs"]:
-        config["discovery_url"] = utils.get_ETCD_discovery_URL(
-            int(config["etcd_node_num"]))
+    config["discovery_url"] = utils.get_ETCD_discovery_URL(
+        int(config["etcd_node_num"]))
 
     if "ssh_cert" not in config and os.path.isfile("./deploy/sshkey/id_rsa"):
         config["ssh_cert"] = expand_path("./deploy/sshkey/id_rsa")
@@ -1645,21 +1561,6 @@ def deploy_restful_API_on_node(ipAddress):
     utils.sudo_scp(config["ssh_cert"], "./deploy/master/restapi-kubeconfig.yaml",
                    "/etc/kubernetes/restapi-kubeconfig.yaml", config["admin_username"], masterIP)
 
-    if config["isacs"]:
-        # copy needed keys
-        utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"],
-                           masterIP, "sudo mkdir -p /etc/kubernetes/ssl")
-        utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP,
-                           "sudo chown -R %s /etc/kubernetes" % config["admin_username"])
-        utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP,
-                           "sudo cp /etc/kubernetes/certs/client.crt /etc/kubernetes/ssl/apiserver.pem")
-        utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP,
-                           "sudo cp /etc/kubernetes/certs/client.key /etc/kubernetes/ssl/apiserver-key.pem")
-        utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP,
-                           "sudo cp /etc/kubernetes/certs/ca.crt /etc/kubernetes/ssl/ca.pem")
-        utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP,
-                           "sudo cp /home/%s/.kube/config /etc/kubernetes/restapi-kubeconfig.yaml" % config["admin_username"])
-
     print("===============================================")
     print("restful api is running at: http://%s:%s" %
           (masterIP, config["restfulapiport"]))
@@ -2035,12 +1936,6 @@ def fileshare_install(mount_command_file=''):
     for node in nodes:
         allmountpoints, fstab = get_mount_fileshares(node)
         remotecmd = ""
-        if (config["isacs"]):
-            # when started, ACS machines don't have PIP which is needed to install pyyaml
-            # pyyaml is needed by auto_share.py to load mounting.yaml
-            remotecmd += "sudo apt-get -y install python-pip; "
-            remotecmd += "sudo apt-get -y install python-yaml; "
-            remotecmd += "pip install pyyaml; "
         filesharetype = {}
         if isInstallOnCoreOS():
             for k, v in allmountpoints.items():
@@ -2499,13 +2394,9 @@ def update_config_nodes():
 def run_kube(prog, commands):
     one_command = " ".join(commands)
     kube_command = ""
-    if (config["isacs"]):
-        kube_command = "%s --kubeconfig=./deploy/%s %s" % (
-            prog, config["acskubeconfig"], one_command)
-    else:
-        nodes = get_ETCD_master_nodes(config["clusterId"])
-        master_node = random.choice(nodes)
-        kube_command = ("%s --server=https://%s:%s --certificate-authority=%s --client-key=%s --client-certificate=%s %s" % (prog, master_node,
+    nodes = get_ETCD_master_nodes(config["clusterId"])
+    master_node = random.choice(nodes)
+    kube_command = ("%s --server=https://%s:%s --certificate-authority=%s --client-key=%s --client-certificate=%s %s" % (prog, master_node,
                                                                                                                              config["k8sAPIport"], "./deploy/ssl/ca/ca.pem", "./deploy/ssl/kubelet/apiserver-key.pem", "./deploy/ssl/kubelet/apiserver.pem", one_command))
     if verbose:
         print(kube_command)
@@ -2525,9 +2416,6 @@ def kubernetes_get_node_name(node):
         kube_node_name = node[:-(len(domain))]
     else:
         kube_node_name = node
-    if config["isacs"]:
-        acs_tools.acs_set_node_from_dns(kube_node_name)
-        kube_node_name = config["acs_node_from_dns"][kube_node_name]
     return kube_node_name
 
 
@@ -3035,9 +2923,6 @@ def run_command(args, command, nargs, parser):
         else:
             print("SSH Key {0} not found using original".format(sshfile))
 
-    add_acs_config(command)
-    if verbose and config["isacs"]:
-        print("Using Azure Container Services")
     if os.path.exists("./deploy/clusterID.yml"):
         update_config()
     else:
@@ -3059,8 +2944,6 @@ def run_command(args, command, nargs, parser):
 
     if command == "restore":
         # Second part of restore, after config has been read.
-        if os.path.exists("./deploy/acs_kubeclusterconfig"):
-            acs_tools.acs_get_config()
         bForce = args.force if args.force is not None else False
         get_kubectl_binary(force=args.force)
         exit()
@@ -3480,67 +3363,6 @@ def run_command(args, command, nargs, parser):
     elif command == "azure":
         config["WinbindServers"] = []
         run_script_blocks(args.verbose, scriptblocks["azure"])
-
-    elif command == "acs":
-        k8sconfig["kubelet-path"] = "./deploy/bin/kubectl --kubeconfig=./deploy/%s" % (
-            config["acskubeconfig"])
-        if (len(nargs) == 0):
-            run_script_blocks(args.verbose, scriptblocks["acs"])
-        elif (len(nargs) >= 1):
-            if nargs[0] == "deploy":
-                acs_tools.acs_deploy()  # Core K8s cluster deployment
-                # reset for next round
-                config = init_config(default_config_parameters)
-            elif nargs[0] == "getconfig":
-                acs_tools.acs_get_config()
-            elif nargs[0] == "getip":
-                ip = acs_tools.acs_get_ip_info_nodes(False)
-                print(ip)
-            elif nargs[0] == "getallip":
-                ip = acs_tools.acs_get_ip_info_nodes(True)
-                print(ip)
-            elif nargs[0] == "createip":
-                ip = acs_tools.acs_create_node_ips()
-                print(ip)
-            elif nargs[0] == "label":
-                get_nodes(config["clusterId"])
-                acs_label_webui()
-            elif nargs[0] == "openports":
-                acs_tools.acs_add_nsg_rules(
-                    {"HTTPAllow": 80, "RestfulAPIAllow": 5000, "AllowKubernetesServicePorts": "30000-32767"})
-            elif nargs[0] == "getserviceaddr":
-                print("Address: =" +
-                      json.dumps(k8sUtils.GetServiceAddress(nargs[1])))
-            elif nargs[0] == "storagemount":
-                acs_tools.acs_create_storage()
-                fileshare_install()
-                allmountpoints = mount_fileshares_by_service(True)
-                del_fileshare_links()
-                link_fileshares(allmountpoints, args.force)
-            elif nargs[0] == "prepare":
-                acs_prepare_machines()
-            elif nargs[0] == "addons":
-                # deploy addons / config changes (i.e. weave.yaml)
-                acs_deploy_addons()
-            elif nargs[0] == "freeflow":
-                if ("freeflow" in config) and (config["freeflow"]):
-                    kube_deploy_configchanges()  # starte weave.yaml
-                    run_script_blocks(
-                        args.verbose, ["kubernetes start freeflow"])
-            elif nargs[0] == "jobendpt":
-                acs_get_jobendpt(nargs[1])
-            elif nargs[0] == "postdeploy":
-                acs_post_deploy()
-            elif nargs[0] == "genconfig":
-                acs_tools.acs_update_azconfig(True)
-            elif nargs[0] == "delete":
-                # for delete, delete the acs_resource_group (the parent group for westus2)
-                az_tools.config["azure_cluster"]["resource_group_name"] = config["acs_resource_group"]
-                az_tools.delete_cluster()
-            elif nargs[0] == "vm":
-                if (len(nargs) == 2):
-                    acs_tools.az_sys("vm {0} --ids $(az vm list -g {1} --query \"[].id\" -o tsv)".format(
-                        nargs[1], config["resource_group"]))
 
     elif command == "jobendpt":
         print(get_jobendpt(nargs[0]))

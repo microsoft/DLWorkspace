@@ -14581,10 +14581,10 @@ url@^0.11.0:
   dependencies:
     use-ssr "^1.0.22"
 
-use-http@0.1.91:
-  version "0.1.91"
-  resolved "https://registry.yarnpkg.com/use-http/-/use-http-0.1.91.tgz#cac5600f727cfdcd3751a734dcfa9ba4840b0d54"
-  integrity sha512-PG2KfM8f233P2/P3epglAqPZKVSMacbLPKiRtWIdoH2eNQXHHSSWrRX+9oMr7npdGGBmwwEJylhVrR7NKuUvHQ==
+use-http@0.1.97:
+  version "0.1.97"
+  resolved "https://registry.yarnpkg.com/use-http/-/use-http-0.1.97.tgz#b19d7f43c6ae2a471d43a87a1daff25f131909cb"
+  integrity sha512-wu+iSglKl2SZaLj1JKf4NrVZVu/6WQECbF3Dn4EBzZ8PO1KTGB/WxK3lCYIIT5AVKUbG/uhwVrQUBEQCXGF6Mw==
   dependencies:
     use-ssr "^1.0.19"
 

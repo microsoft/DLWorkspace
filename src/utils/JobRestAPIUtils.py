@@ -26,6 +26,7 @@ sys.path.append(os.path.join(os.path.dirname(
     os.path.abspath(__file__)), "../ClusterManager"))
 
 from ResourceInfo import ResourceInfo
+from cluster_resource import ClusterResource
 
 
 DEFAULT_JOB_PRIORITY = 100
@@ -105,6 +106,136 @@ def ToBool(value):
         return value
 
 
+def cpu_format(cpu, ratio=1.0):
+    """Convert number of cpu to cpu cycle.
+
+    Args:
+        cpu: Number of cpu.
+        ratio: The percent that can be used.
+
+    Returns:
+        Formatted string of cpu cycle if cpu is valid, None otherwise.
+    """
+    try:
+        cpu = float(cpu)
+    except:
+        return None
+    else:
+        return "%dm" % int(ratio * cpu * 1000)
+
+
+def mem_format(memory, ratio=1.0):
+    """Convert memory in G to memory requirement.
+
+    Args:
+        memory: Memory size in G.
+        ratio: The percent that can be used.
+
+    Returns:
+        Formatted string of memory size if memory is valid, None otherwise.
+    """
+    try:
+        memory = float(memory)
+    except:
+        return None
+    else:
+        return "%dMi" % int(ratio * memory * 1024)
+
+
+def get_sku_info(sku, config):
+    """Returns a sku info dictionary for sku.
+
+    Args:
+        sku: String specifying machine's SKU.
+        config: Configuration containing sku_meta.
+
+    Returns:
+        A dictionary containing sku info for the given machine sku, including
+        - cpu
+        - cpu usable ratio
+        - memory
+        - memory usable ratio
+        if sku and sku_info in config["sku_meta"] are valid, None otherwise.
+    """
+    # Ignore invalid sku and sku_info.
+    if sku is None:
+        return None
+
+    sku_meta = config.get("sku_meta", {})
+    sku_info = sku_meta.get(sku, None)
+    if sku_info is None:
+        return None
+
+    for key in ["cpu", "memory"]:
+        if key not in sku_info:
+            return None
+
+    # Default sku_info must contain ratio info.
+    # Assign 0.8 as default if default values are not defined.
+    default_sku_info = sku_meta.get("default", {})
+
+    for key in ["cpu_ratio", "memory_ratio"]:
+        if key not in default_sku_info:
+            default_sku_info[key] = 0.8
+
+    # Override ratios in sku_info with default values if absent.
+    for key in ["cpu_ratio", "memory_ratio"]:
+        if key not in sku_info:
+            sku_info[key] = default_sku_info[key]
+
+    return sku_info
+
+
+def populate_cpu_resource(job_params):
+    # Ignore if cpuworker is not enabled
+    enable_cpuworker = config.get("enable_cpuworker", False)
+    if enable_cpuworker is False:
+        return
+
+    # Only works for 0-GPU job
+    if "resourcegpu" not in job_params or int(job_params["resourcegpu"]) != 0:
+        return
+
+    job_training_type = job_params.get("jobtrainingtype", None)
+    default_cpu_sku = config.get("default_cpu_sku", "")
+    if "sku" not in job_params:
+        job_params["sku"] = default_cpu_sku
+
+    default_cpu_request = None
+    default_cpu_limit = None
+    default_mem_request = None
+    default_mem_limit = None
+
+    if job_training_type == "PSDistJob":
+        full_node = True
+    else:
+        full_node = False
+
+    if full_node is True:
+        sku = job_params["sku"]
+        sku_info = get_sku_info(sku=sku, config=config)
+        if sku_info is not None:
+            # Do not restrict the limit for full node worker
+            default_cpu_request = cpu_format(sku_info["cpu"],
+                                             sku_info["cpu_ratio"])
+            default_mem_request = mem_format(sku_info["memory"],
+                                             sku_info["memory_ratio"])
+    else:
+        default_cpu_request = cpu_format(config.get("default_cpurequest"))
+        default_cpu_limit = cpu_format(config.get("default_cpulimit"))
+        default_mem_request = mem_format(config.get("default_memoryrequest"))
+        default_mem_limit = mem_format(config.get("default_memorylimit"))
+
+    if "cpurequest" not in job_params and default_cpu_request is not None:
+        job_params["cpurequest"] = default_cpu_request
+    if "cpulimit" not in job_params and default_cpu_limit is not None:
+        job_params["cpulimit"] = default_cpu_limit
+    if "memoryrequest" not in job_params and default_mem_request is not None:
+        job_params["memoryrequest"] = default_mem_request
+    if "memorylimit" not in job_params and default_mem_limit is not None:
+        job_params["memorylimit"] = default_mem_limit
+
+
 def SubmitJob(jobParamsJsonStr):
     ret = {}
 
@@ -139,6 +270,9 @@ def SubmitJob(jobParamsJsonStr):
             jobParams["resourcegpu"] = 0
         else:
             jobParams["resourcegpu"] = int(jobParams["resourcegpu"])
+
+    # Populate CPU resource requirement
+    populate_cpu_resource(jobParams)
 
     if "familyToken" not in jobParams or jobParams["familyToken"].isspace():
         jobParams["familyToken"] = uniqId
@@ -654,99 +788,172 @@ def ListVCs(userName):
     return ret
 
 
-def GetVC(userName, vcName):
+def GetVC(user_name, vc_name):
+    # TODO: Expose CPU/memory usage for users
     ret = None
+    try:
+        with DataHandler() as data_handler:
+            cluster_status, _ = data_handler.GetClusterStatus()
+            cluster_total = cluster_status["gpu_capacity"]
+            cluster_available = cluster_status["gpu_available"]
+            cluster_reserved = cluster_status["gpu_reserved"]
 
-    data_handler = DataHandler()
+            vc_list = getClusterVCs()
+            vc_info = {}
+            vc_usage = collections.defaultdict(
+                lambda:collections.defaultdict(lambda: 0))
+            vc_preemptable_usage = collections.defaultdict(
+                lambda: collections.defaultdict(lambda: 0))
 
-    cluster_status, _ = data_handler.GetClusterStatus()
-    cluster_total = cluster_status["gpu_capacity"]
-    cluster_available = cluster_status["gpu_avaliable"]
-    cluster_reserved = cluster_status["gpu_reserved"]
+            for vc in vc_list:
+                vc_info[vc["vcName"]] = json.loads(vc["quota"])
 
-    user_status = collections.defaultdict(lambda: ResourceInfo())
-    user_status_preemptable = collections.defaultdict(lambda: ResourceInfo())
-
-    vc_list = getClusterVCs()
-    vc_info = {}
-    vc_usage = collections.defaultdict(lambda:
-                                       collections.defaultdict(lambda: 0))
-    vc_preemptable_usage = collections.defaultdict(lambda:
-                                                   collections.defaultdict(lambda: 0))
-
-    for vc in vc_list:
-        vc_info[vc["vcName"]] = json.loads(vc["quota"])
-
-    active_job_list = data_handler.GetActiveJobList()
-    for job in active_job_list:
-        jobParam = json.loads(base64decode(job["jobParams"]))
-        if "gpuType" in jobParam:
-            if not jobParam["preemptionAllowed"]:
-                vc_usage[job["vcName"]][jobParam["gpuType"]
-                                        ] += GetJobTotalGpu(jobParam)
-            else:
-                vc_preemptable_usage[job["vcName"]
-                                     ][jobParam["gpuType"]] += GetJobTotalGpu(jobParam)
-
-    result = quota.calculate_vc_gpu_counts(cluster_total, cluster_available,
-                                           cluster_reserved, vc_info, vc_usage)
-
-    vc_total, vc_used, vc_available, vc_unschedulable = result
-
-    for vc in vc_list:
-        if vc["vcName"] == vcName and AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName, Permission.User):
-
-            num_active_jobs = 0
+            active_job_list = data_handler.GetActiveJobList()
             for job in active_job_list:
-                if job["vcName"] == vcName and job["jobStatus"] == "running":
-                    num_active_jobs += 1
-                    username = job["userName"]
-                    jobParam = json.loads(base64decode(job["jobParams"]))
-                    if "gpuType" in jobParam:
-                        if not jobParam["preemptionAllowed"]:
-                            if username not in user_status:
-                                user_status[username] = ResourceInfo()
-                            user_status[username].Add(ResourceInfo(
-                                {jobParam["gpuType"]: GetJobTotalGpu(jobParam)}))
-                        else:
-                            if username not in user_status_preemptable:
-                                user_status_preemptable[username] = ResourceInfo(
-                                )
-                            user_status_preemptable[username].Add(ResourceInfo(
-                                {jobParam["gpuType"]: GetJobTotalGpu(jobParam)}))
+                job_vc = job["vcName"]
+                job_param = json.loads(base64decode(job["jobParams"]))
+                if "gpuType" in job_param:
+                    gpu_type = job_param["gpuType"]
+                    if not job_param["preemptionAllowed"]:
+                        vc_usage[job_vc][gpu_type] += GetJobTotalGpu(job_param)
+                    else:
+                        vc_preemptable_usage[job_vc][gpu_type] += \
+                            GetJobTotalGpu(job_param)
 
-            vc["gpu_capacity"] = vc_total[vcName]
-            vc["gpu_used"] = vc_used[vcName]
-            vc["gpu_preemptable_used"] = vc_preemptable_usage[vcName]
-            vc["gpu_unschedulable"] = vc_unschedulable[vcName]
-            vc["gpu_avaliable"] = vc_available[vcName]
-            vc["AvaliableJobNum"] = num_active_jobs
-            vc["node_status"] = cluster_status["node_status"]
-            vc["user_status"] = []
-            for user_name, user_gpu in user_status.items():
-                # TODO: job_manager.getAlias should be put in a util file
-                user_name = user_name.split("@")[0].strip()
-                vc["user_status"].append(
-                    {"userName": user_name, "userGPU": user_gpu.ToSerializable()})
+            result = quota.calculate_vc_gpu_counts(cluster_total,
+                                                   cluster_available,
+                                                   cluster_reserved,
+                                                   vc_info,
+                                                   vc_usage)
 
-            vc["user_status_preemptable"] = []
-            for user_name, user_gpu in user_status_preemptable.items():
-                user_name = user_name.split("@")[0].strip()
-                vc["user_status_preemptable"].append(
-                    {"userName": user_name, "userGPU": user_gpu.ToSerializable()})
+            vc_total, vc_used, vc_available, vc_unschedulable = result
 
-            try:
-                gpu_idle_url = config["gpu_reporter"] + '/gpu_idle'
-                gpu_idle_params = {"vc": vcName}
-                gpu_idle_response = requests.get(
-                    gpu_idle_url, params=gpu_idle_params)
-                gpu_idle_json = gpu_idle_response.json()
-                vc["gpu_idle"] = gpu_idle_json
-            except Exception:
-                logger.exception("Failed to fetch gpu_idle from gpu-exporter")
+            # Cluster resource calculation
+            # Currently including CPU and memory
+            cluster_resource_capacity = ClusterResource(resource={
+                "cpu": cluster_status["cpu_capacity"],
+                "memory": cluster_status["memory_capacity"]
+            })
+            cluster_resource_available = ClusterResource(resource={
+                "cpu": cluster_status["cpu_available"],
+                "memory": cluster_status["memory_available"]
+            })
+            cluster_resource_reserved = ClusterResource(resource={
+                "cpu": cluster_status["cpu_reserved"],
+                "memory": cluster_status["memory_reserved"]
+            })
+            cluster_resource_unschedulable = ClusterResource(resource={
+                "cpu": cluster_status["cpu_unschedulable"],
+                "memory": cluster_status["memory_unschedulable"]
+            })
 
-            ret = vc
-            break
+            vc_resource_info = {}
+            vc_resource_usage = collections.defaultdict(
+                lambda: ClusterResource())
+
+            for vc in vc_list:
+                res_quota = {}
+                try:
+                    res_quota = json.loads(vc["resourceQuota"])
+                except:
+                    logger.exception("Parsing resourceQuota failed for %s", vc)
+                vc_resource_info[vc["vcName"]] = ClusterResource(
+                    resource=res_quota)
+
+            for job in active_job_list:
+                job_params = json.loads(base64.b64decode(
+                    job["jobParams"].encode("utf-8")).decode("utf-8"))
+                vc_resource_usage[job["vcName"]] += ClusterResource(
+                    params=job_params)
+
+            result = quota.calculate_vc_resources(cluster_resource_capacity,
+                                                  cluster_resource_available,
+                                                  cluster_resource_reserved,
+                                                  vc_resource_info,
+                                                  vc_resource_usage)
+            (
+                vc_resource_total,
+                vc_resource_used,
+                vc_resource_available,
+                vc_resource_unschedulable
+            ) = result
+
+            for vc in vc_list:
+                if vc["vcName"] == vc_name and AuthorizationManager.HasAccess(
+                        user_name, ResourceType.VC, vc_name, Permission.User):
+
+                    user_status = collections.defaultdict(
+                        lambda: ResourceInfo())
+                    user_status_preemptable = collections.defaultdict(
+                        lambda: ResourceInfo())
+
+                    num_active_jobs = 0
+                    for job in active_job_list:
+                        if job["vcName"] == vc_name and job["jobStatus"] == "running":
+                            num_active_jobs += 1
+                            username = job["userName"]
+                            job_param = json.loads(base64decode(job["jobParams"]))
+                            if "gpuType" in job_param:
+                                if not job_param["preemptionAllowed"]:
+                                    if username not in user_status:
+                                        user_status[username] = ResourceInfo()
+                                    user_status[username].Add(ResourceInfo({job_param["gpuType"]: GetJobTotalGpu(job_param)}))
+                                else:
+                                    if username not in user_status_preemptable:
+                                        user_status_preemptable[username] = ResourceInfo()
+                                    user_status_preemptable[username].Add(ResourceInfo({job_param["gpuType"]: GetJobTotalGpu(job_param)}))
+
+                    vc["gpu_capacity"] = vc_total[vc_name]
+                    vc["gpu_used"] = vc_used[vc_name]
+                    vc["gpu_preemptable_used"] = vc_preemptable_usage[vc_name]
+                    vc["gpu_unschedulable"] = vc_unschedulable[vc_name]
+                    # TODO: deprecate typo "gpu_avaliable" in legacy code
+                    vc["gpu_avaliable"] = vc_available[vc_name]
+                    vc["gpu_available"] = vc_available[vc_name]
+
+                    vc["cpu_capacity"] = vc_resource_total[vc_name].cpu.floor
+                    vc["cpu_used"] = vc_resource_used[vc_name].cpu.floor
+                    vc["cpu_unschedulable"] = vc_resource_unschedulable[vc_name].cpu.floor
+                    vc["cpu_available"] = vc_resource_available[vc_name].cpu.floor
+
+                    vc["memory_capacity"] = vc_resource_total[vc_name].memory.floor
+                    vc["memory_used"] = vc_resource_used[vc_name].memory.floor
+                    vc["memory_unschedulable"] = vc_resource_unschedulable[vc_name].memory.floor
+                    vc["memory_available"] = vc_resource_available[vc_name].memory.floor
+
+                    # TODO: deprecate typo "AvaliableJobNum" in legacy code
+                    vc["AvaliableJobNum"] = num_active_jobs
+                    vc["available_job_num"] = num_active_jobs
+
+                    vc["node_status"] = cluster_status["node_status"]
+
+                    vc["user_status"] = []
+                    for user_name, user_gpu in user_status.items():
+                        # TODO: job_manager.getAlias should be put in a util file
+                        user_name = user_name.split("@")[0].strip()
+                        vc["user_status"].append({"userName": user_name, "userGPU": user_gpu.ToSerializable()})
+
+                    vc["user_status_preemptable"] = []
+                    for user_name, user_gpu in user_status_preemptable.items():
+                        user_name = user_name.split("@")[0].strip()
+                        vc["user_status_preemptable"].append({"userName": user_name, "userGPU": user_gpu.ToSerializable()})
+
+                    try:
+                        gpu_idle_url = config["gpu_reporter"] + '/gpu_idle'
+                        gpu_idle_params = {"vc": vc_name}
+                        gpu_idle_response = requests.get(
+                            gpu_idle_url, params=gpu_idle_params)
+                        gpu_idle_json = gpu_idle_response.json()
+                        vc["gpu_idle"] = gpu_idle_json
+                    except Exception:
+                        logger.exception("Failed to fetch gpu_idle from "
+                                         "gpu-exporter")
+                    ret = vc
+                    break
+
+    except Exception:
+        logger.exception("Exception in GetVC", exc_info=True)
+
     return ret
 
 

@@ -29,6 +29,9 @@ const Brief: FunctionComponent = () => {
         <ListItemText primary="Job Name" secondary={job['jobName']}/>
       </ListItem>
       <ListItem>
+        <ListItemText primary="Team Name" secondary={job['vcName']}/>
+      </ListItem>
+      <ListItem>
         <ListItemText primary="Docker Image" secondary={job['jobParams']['image']}/>
       </ListItem>
       <ListItem>
