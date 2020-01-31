@@ -105,3 +105,6 @@ class Testing(unittest.TestCase):
         self.assertEqual(cache_value, rule_alert_handler_instance.rule_cache[rule][cache_key])
 
         _clean_up_dump_file(rule_cache_dump_file)
+
+if __name__ == '__main__':
+    unittest.main()
