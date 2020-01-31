@@ -1,9 +1,5 @@
 matrix:
   include:
-  - language: ruby
-    rvm: 
-    - 2.1
-    script: "cd docs && bundle install && bundle exec jekyll build"
   - language: node_js
     node_js: lts/*
     before_install: cd src/dashboard
