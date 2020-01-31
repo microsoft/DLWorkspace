@@ -105,6 +105,11 @@ activeDirectory:
   clientId: <AAD app ID>
   clientSecret: <AAD app secret>
 
+domain-offset:
+  <url1>: <value1>
+  <url2>: <value2>
+  <can also set '*'>: <value0>
+
 repair-manager:
   alert:
     smtp_url: <smtp url>

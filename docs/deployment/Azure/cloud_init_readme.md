@@ -26,7 +26,7 @@ First we need to setup the devbox that we use to operate on.
     az account set --subscription "${SUBSCRIPTION_NAME}" 
     az account list | grep --color -A5 -B5 '"isDefault": true'
     ```
-3. Go to work directiry "src/ClusterBootstrap"
+3. Go to work directiry `src/ClusterBootstrap`
     ```
     cd src/ClusterBootstrap
     ```
@@ -49,47 +49,34 @@ Clean up existing binaries/certificates etc. and complementary yaml files:
 rm -rf deploy/* cloudinit* az_complementary.yaml
 ```
 
-Generate complementary yaml file `az_complementary.yaml` based on given configuration file `config.yaml` of a cluster (mchine names are generated if not specified):
+Generate complementary yaml file `az_complementary.yaml` based on given configuration file `config.yaml` of a cluster (machine names are generated if not specified):
 ```
 # render
 ./cloud_init_deploy.py clusterID
-./cloud_init_aztools.py -cnf config.yaml -o az_complementary.yaml prerender
+./cloud_init_aztools.py prerender
 ```
 
 Render templates, generate certificates and prepare binaries for cluster setup:
 ```
-# render templates and prepare binaries
-./cloud_init_deploy.py -cnf config.yaml -cnf az_complementary.yaml render
+./cloud_init_deploy.py render
 ```
 
 Pack all the generated files in the previous step into a tar file:
 ```
-# pack, push dockers, generate az cli commands to add machines
-./cloud_init_deploy.py -cnf config.yaml -cnf az_complementary.yaml pack
+./cloud_init_deploy.py pack
 ```
 
 Push docker images that are required by services specified in configuration:
 ```
-# push dockers
-./cloud_init_deploy.py -cnf config.yaml -cnf az_complementary.yaml docker servicesprerequisite
-```
-
-Generate scripts for cluster deployment:
-```
-# generate
-./cloud_init_aztools.py -cnf config.yaml -cnf az_complementary.yaml deploy
+./cloud_init_deploy.py docker servicesprerequisite
 ```
 
 Deploy a cluster:
 ```
-# deploy
-./scripts/deploy_framework.sh
-./scripts/add_machines.sh
-./cloud_init_aztools.py -cnf config.yaml -cnf az_complementary.yaml interconnect
+./cloud_init_aztools.py interconnect
 ```
 
 Generate a yaml file `brief.yaml` for cluster maintenance:
 ```
-# get status
-./cloud_init_aztools.py -cnf config.yaml -o brief.yaml listcluster
+./cloud_init_aztools.py listcluster
 ```

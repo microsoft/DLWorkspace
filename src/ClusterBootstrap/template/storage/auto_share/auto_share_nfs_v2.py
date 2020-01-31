@@ -113,11 +113,11 @@ def mount_fileshare(verbose=True):
     for mnt_itm in config.values():
         # gives mounted information only, would not write anything or carry out mount action
         for triplet in mnt_itm["fileshares"]:
-            output = pipe_with_output("mount", "grep {}".format(triplet["to_mnt"]), verbose=False)
+            output = pipe_with_output("mount", "grep {}".format(triplet["remote_mount_path"]), verbose=False)
             umounts, existmounts = [], []
             # we would have only 1 line, since we now mount at leaf-path level
             for line in output.splitlines():
-                umounts, existmounts = confirm_mounted(line, triplet["to_mnt"], umounts, existmounts, verbose)
+                umounts, existmounts = confirm_mounted(line, triplet["remote_mount_path"], umounts, existmounts, verbose)
             umounts.sort()
             # Examine mount point, unmount those file shares that fails. 
             for um in umounts:
@@ -128,7 +128,7 @@ def mount_fileshare(verbose=True):
             if len(existmounts) <= 0:
                 nMounts += 1
                 exec_with_output("mount {}:{} {} -o {} ".format(mnt_itm["private_ip_address"],
-                    triplet["from"], triplet["to_mnt"], mnt_itm["options"]), verbose=verbose)
+                    triplet["nfs_local_path"], triplet["remote_mount_path"], mnt_itm["options"]), verbose=verbose)
     if nMounts > 0:
         time.sleep(1)
 
@@ -139,13 +139,13 @@ def link_fileshare():
     (retcode, output, err) = exec_with_output("sudo mount")
     for mnt_itm in config.values():
         for triplet in mnt_itm["fileshares"]:
-            if output.find(triplet["to_mnt"]) < 0:
-                logging.debug("!!!Warning!!! {} has not been mounted at {} ".format(triplet["from"], triplet["to_mnt"]))
+            if output.find(triplet["remote_mount_path"]) < 0:
+                logging.debug("!!!Warning!!! {} has not been mounted at {} ".format(triplet["nfs_local_path"], triplet["remote_mount_path"]))
                 logging.debug(output)
                 continue
-            if not os.path.exists(triplet["to_lnk"]):
+            if not os.path.exists(triplet["remote_link_path"]):
                 exec_wo_output("mkdir -p {}; sudo ln -s {} {}; ".format(
-                    os.path.dirname(triplet["to_lnk"]), triplet["to_mnt"], triplet["to_lnk"]))
+                    os.path.dirname(triplet["remote_link_path"]), triplet["remote_mount_path"], triplet["remote_link_path"]))
 
 def start_logging( logdir = '/var/log/auto_share' ):
     if not os.path.exists( logdir ):

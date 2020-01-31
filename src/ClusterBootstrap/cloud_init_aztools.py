@@ -42,8 +42,8 @@ def load_config_based_on_command(command):
 
 def update_config_resgrp(config):
     """load resource group related config info"""
-    if "resource_group_name" not in config["azure_cluster"]:
-        config["azure_cluster"]["resource_group_name"] = config["cluster_name"] + "ResGrp"
+    if "resource_group" not in config["azure_cluster"]:
+        config["azure_cluster"]["resource_group"] = config["cluster_name"] + "ResGrp"
     config["azure_cluster"]["vnet_name"] = config["cluster_name"] + "-VNet"
     config["azure_cluster"]["storage_account_name"] = config["cluster_name"] + "storage"
     config["azure_cluster"]["nsg_name"] = config["cluster_name"] + "-nsg"
@@ -70,11 +70,24 @@ def execute_or_dump_locally(cmd, verbose, dryrun, output_file):
         return output
 
 
+def check_subscription(config):
+    chkcmd ="az account list | grep -A5 -B5 '\"isDefault\": true'"
+    output = utils.exec_cmd_local(chkcmd, True)
+    if not config["azure_cluster"]["subscription"] in output:
+        setcmd = "az account set --subscription \"{}\"".format(config["azure_cluster"]["subscription"])
+        setout = utils.exec_cmd_local(setcmd)
+        print("Set your subscription to {}, please login.\nIf you want to specify another subscription, please configure azure_cluster.subscription".format(config["azure_cluster"]["subscription"]))
+        utils.exec_cmd_local("az login")
+    assert config["azure_cluster"]["subscription"] in utils.exec_cmd_local(chkcmd)
+
+
 def create_group(config, args):
-    subscription = "--subscription {}".format(
+    subscription = "--subscription \"{}\"".format(
         config["azure_cluster"]["subscription"]) if "subscription" in config["azure_cluster"] else ""
+    if subscription != "":
+        check_subscription(config)
     cmd = """az group create --name {} --location {} {}
-        """.format(config["azure_cluster"]["resource_group_name"], config["azure_cluster"]["azure_location"], subscription)
+        """.format(config["azure_cluster"]["resource_group"], config["azure_cluster"]["azure_location"], subscription)
     execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
 
@@ -85,7 +98,7 @@ def create_vnet(config, args):
             --address-prefix %s \
             --subnet-name mySubnet \
             --subnet-prefix %s
-        """ % (config["azure_cluster"]["resource_group_name"],
+        """ % (config["azure_cluster"]["resource_group"],
                config["azure_cluster"]["vnet_name"],
                config["cloud_config_nsg_rules"]["vnet_range"],
                config["cloud_config_nsg_rules"]["vnet_range"])
@@ -105,7 +118,7 @@ def create_nsg(config, args):
     cmd = """az network nsg create \
             --resource-group %s \
             --name %s
-        """ % (config["azure_cluster"]["resource_group_name"],
+        """ % (config["azure_cluster"]["resource_group"],
                config["azure_cluster"]["nsg_name"])
     execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
@@ -118,7 +131,7 @@ def create_nsg(config, args):
                 --priority 1000 \
                 --destination-port-ranges %s \
                 --access allow
-            """ % (config["azure_cluster"]["resource_group_name"],
+            """ % (config["azure_cluster"]["resource_group"],
                    config["azure_cluster"]["nsg_name"],
                    config["cloud_config_nsg_rules"]["tcp_port_ranges"]
                    )
@@ -133,7 +146,7 @@ def create_nsg(config, args):
                 --priority 1010 \
                 --destination-port-ranges %s \
                 --access allow
-            """ % (config["azure_cluster"]["resource_group_name"],
+            """ % (config["azure_cluster"]["resource_group"],
                    config["azure_cluster"]["nsg_name"],
                    config["cloud_config_nsg_rules"]["udp_port_ranges"]
                    )
@@ -148,7 +161,7 @@ def create_nsg(config, args):
             --destination-port-ranges %s \
             --source-address-prefixes %s \
             --access allow
-        """ % (config["azure_cluster"]["resource_group_name"],
+        """ % (config["azure_cluster"]["resource_group"],
                config["azure_cluster"]["nsg_name"],
                config["cloud_config_nsg_rules"]["dev_network"]["tcp_port_ranges"],
                source_addresses_prefixes
@@ -165,7 +178,7 @@ def create_nfs_nsg(config, args):
         cmd = """az network nsg create \
                 --resource-group %s \
                 --name %s
-            """ % (config["azure_cluster"]["resource_group_name"],
+            """ % (config["azure_cluster"]["resource_group"],
                    config["azure_cluster"]["nfs_nsg_name"])
         execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
@@ -179,7 +192,7 @@ def create_nfs_nsg(config, args):
             --destination-port-ranges %s \
             --source-address-prefixes %s \
             --access allow
-        """ % (config["azure_cluster"]["resource_group_name"],
+        """ % (config["azure_cluster"]["resource_group"],
                config["azure_cluster"]["nfs_nsg_name"],
                config["cloud_config_nsg_rules"]["nfs_ssh"]["port"],
                " ".join(merged_ip),
@@ -194,7 +207,7 @@ def create_nfs_nsg(config, args):
             --source-address-prefixes %s \
             --destination-port-ranges \'*\' \
             --access allow
-        """ % (config["azure_cluster"]["resource_group_name"],
+        """ % (config["azure_cluster"]["resource_group"],
                config["azure_cluster"]["nfs_nsg_name"],
                " ".join(config["cloud_config_nsg_rules"]
                         ["nfs_share"]["source_ips"]),
@@ -414,7 +427,7 @@ def add_machine(vmname, spec, verbose, dryrun, output_file):
              --data-disk-sizes-gb {}\
              {} \
              {} \
-    """.format(config["azure_cluster"]["resource_group_name"],
+    """.format(config["azure_cluster"]["resource_group"],
                vmname,
                "role=" + '-'.join(spec["role"]),
                spec.get("vm_image", config["azure_cluster"]["vm_image"]),
@@ -444,7 +457,7 @@ def add_machine(vmname, spec, verbose, dryrun, output_file):
 def list_vm(config, verbose=True):
     cmd = """
         az vm list --resource-group %s
-        """ % (config["azure_cluster"]["resource_group_name"])
+        """ % (config["azure_cluster"]["resource_group"])
     output = utils.exec_cmd_local(cmd, verbose)
     allvm = json.loads(output)
     vminfo = {}
@@ -452,7 +465,7 @@ def list_vm(config, verbose=True):
         vmname = onevm["name"]
         print("VM ... %s" % vmname)
         cmd1 = """ az vm show -d -g %s -n %s""" % (
-            config["azure_cluster"]["resource_group_name"], vmname)
+            config["azure_cluster"]["resource_group"], vmname)
         output1 = utils.exec_cmd_local(cmd1, verbose)
         json1 = json.loads(output1)
         vminfo[vmname] = json1
@@ -477,7 +490,7 @@ def vm_interconnects(config, args):
             --destination-port-ranges %s \
             --source-address-prefixes %s \
             --access allow
-        """ % (config["azure_cluster"]["resource_group_name"],
+        """ % (config["azure_cluster"]["resource_group"],
                config["azure_cluster"]["nsg_name"],
                config["cloud_config_nsg_rules"]["inter_connect"]["tcp_port_ranges"],
                portinfo
