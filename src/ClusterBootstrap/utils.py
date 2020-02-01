@@ -321,7 +321,7 @@ def _byteify(data, ignore_dicts=False):
     return data
 
 
-def exec_cmd_local(execmd, verbose=False, max_run=300, supressWarning=False):
+def exec_cmd_local(execmd, verbose=False, max_run=1200, supressWarning=False):
     """subprocess.check_output is blocking function. for nonblocking option, resort to subprocess.Popen"""
     if supressWarning:
         cmd += " 2>/dev/null"
