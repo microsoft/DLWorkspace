@@ -5,7 +5,7 @@ stage=$1
 declare -a infra=("k8s_weave-npc_weave-net" "k8s_weave_weave-net" "k8s_kube-proxy_kube-proxy" "k8s_kube-apiserver_kube-apiserver-" "k8s_kube-controller-manager_kube-controller-manager" "k8s_kube-scheduler_kube-scheduler" "etcd")
 declare -a worker=("k8s_weave_weave-net" "k8s_kube-proxy_kube-proxy" "k8s_weave-npc_weave-net")
 postlbl="k8s_nvidia-device-plugin-ctr_nvidia-device-plugin-daemonset"
-declare -a services=("k8s_mysql_mysql" "k8s_jobmanager_jobmanager" "k8s_restfulapi_restfulapi" "k8s_webportal_webportal")
+declare -a services=("k8s_mysql_mysql" "k8s_jobmanager_jobmanager" "k8s_restfulapi_restfulapi" "k8s_dashboard_dashboard")
 
 dockerps=`docker ps --format '{{.Names}}'`
 

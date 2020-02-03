@@ -40,11 +40,10 @@ curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 sudo pip install --upgrade pip
 sudo pip install setuptools pyyaml jinja2 requests tzlocal pycurl
 
-curl "https://bootstrap.pypa.io/get-pip.py" -o "get-pip.py"
-sudo python3 get-pip.py
+sudo apt install python3-pip
 sudo pip3 install --upgrade pip
 sudo pip3 install setuptools pyyaml jinja2 requests tzlocal pycurl
 
 sudo echo "dockerd > /dev/null 2>&1 &" | cat >> /etc/bash.bashrc
 sudo usermod -aG docker $USER
-sudo shutdown -r
+echo "logout and log in to apply docker user setting"
