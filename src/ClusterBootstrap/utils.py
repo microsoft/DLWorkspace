@@ -8,6 +8,7 @@ import datetime
 import argparse
 import uuid
 import subprocess
+from multiprocessing import Pool
 import sys
 import textwrap
 import re
@@ -24,9 +25,7 @@ from jinja2 import Environment, FileSystemLoader, Template
 import base64
 
 from shutil import copyfile, copytree
-import urllib.request
-import urllib.parse
-import urllib.error
+import urllib
 import socket
 import struct
 
@@ -191,9 +190,11 @@ def scp(identity_file, source, target, user, host, verbose=False):
 def sudo_scp(identity_file, source, target, user, host, changePermission=False, verbose=False):
     tmp = str(uuid.uuid4())
     scp(identity_file, source, "~/%s" % tmp, user, host, verbose)
-    targetPath = os.path.dirname(target)
     if (os.path.isfile(source)):
-        cmd = "sudo mkdir -p %s ; sudo mv ~/%s %s" % (targetPath, tmp, target)
+        target_path, target_base = os.path.split(target)
+        target_base = os.path.basename(source) if target_base == '' else target_base
+        target = os.path.join(target_path, target_base)
+        cmd = "sudo mkdir -p %s ; sudo mv ~/%s %s" % (target_path, tmp, target)
     else:
         cmd = "sudo mkdir -p %s ; sudo rm -r %s/*; sudo mv ~/%s/* %s; sudo rm -rf ~/%s" % (
             target, target, tmp, target, tmp)
@@ -320,18 +321,35 @@ def _byteify(data, ignore_dicts=False):
     return data
 
 
-def exec_cmd_local(execmd, supressWarning=False):
+def exec_cmd_local(execmd, verbose=False, max_run=1200, supressWarning=False):
+    """subprocess.check_output is blocking function. for nonblocking option, resort to subprocess.Popen"""
     if supressWarning:
         cmd += " 2>/dev/null"
     if verbose:
         print(execmd)
     try:
-        output = subprocess.check_output(execmd, shell=True)
+        output = subprocess.check_output(execmd, timeout=max_run, shell=True, universal_newlines=True)
     except subprocess.CalledProcessError as e:
         output = "Return code: " + \
             str(e.returncode) + ", output: " + e.output.strip()
-    # print output
+    if verbose:
+        print(output)
     return output
+
+
+def multiprocess_with_func_arg_tuples(process_num, list_of_func_arg_tpls):
+    pool = Pool(process_num)
+    print("parallel pool of size {}".format(process_num))
+    # returned would be in (return code, output err) format
+    results = pool.map(multiprocess_func_wrapper, list_of_func_arg_tpls)
+    pool.close()
+    return results
+
+
+def multiprocess_func_wrapper(func_arg_tpl):
+    func, args = func_arg_tpl[0], func_arg_tpl[1:]
+    result = func(*args)
+    return result
 
 
 def get_host_name(identity_file, user, host):
@@ -375,8 +393,7 @@ def SSH_exec_cmd_with_directory(identity_file, user, host, srcdir, cmd, supressW
 
     if preRemove:
         SSH_exec_cmd(identity_file, user, host, "sudo rm -rf " + tmpdir)
-
-    scp(identity_file, srcdir, tmpdir, user, host)
+    scp(identity_file, srcdir, tmpdir, user, host, not supressWarning)
     dstcmd = "cd "+tmpdir + "; "
     if supressWarning:
         dstcmd += cmd + " 2>/dev/null; "
@@ -410,7 +427,7 @@ def get_ETCD_discovery_URL(size):
         output = "we don't use discovery url for 1 node etcd"
     else:
         try:
-            output = urllib.request.urlopen(
+            output = urllib.urlopen(
                 "https://discovery.etcd.io/new?size=%d" % size).read()
             if not "https://discovery.etcd.io" in output:
                 raise Exception(
@@ -425,7 +442,7 @@ def get_cluster_ID_from_file():
     clusterID = None
     if os.path.exists("./deploy/clusterID.yml"):
         f = open("./deploy/clusterID.yml")
-        tmp = yaml.load(f)
+        tmp = yaml.safe_load(f)
         f.close()
         if "clusterId" in tmp:
             clusterID = tmp["clusterId"]
@@ -738,3 +755,9 @@ def keep_widest_subnet(ips):
 
 def random_str(length):
     return ''.join(random.choice(string.ascii_lowercase) for x in range(length))
+
+
+def multiprocess_exec(func, args_list, process_num):
+    pool = Pool(process_num)
+    pool.map(func, args_list)
+    pool.close()

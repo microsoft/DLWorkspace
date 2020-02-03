@@ -2558,7 +2558,6 @@ def kubernetes_label_nodes(verb, servicelists, force):
     for service, serviceinfo in servicedic.items():
         servicename = get_service_name(servicedic[service])
         if (not service in labels) and (not servicename in labels) and "default" in labels and (not servicename is None):
-            print("not in: {},{}\n".format(service, serviceinfo))
             labels[servicename] = labels["default"]
     if len(servicelists) == 0:
         servicelists = labels
