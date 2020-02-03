@@ -83,11 +83,33 @@ def test_job_fail(args):
         assert expected_state == state
 
 
+def test_batch_kill_jobs(args):
+    expected_state = "killed"
+    cmd = "sleep 1800"
+
+    image = "indexserveregistry.azurecr.io/deepscale:1.0.post0"
+
+    job_ids = []
+    for i in range(30):
+        job_id = utils.post_regular_job(args.rest_url, args.email, args.uid,
+                                        args.vc, image, cmd)
+        job_ids.append(job_id)
+
+    utils.kill_jobs(args.rest, args.email, [job_id for job_id in job_ids])
+
+    for job_id in job_ids:
+        state = utils.block_until_state_not_in(
+            args.rest, job_id,
+            {"unapproved", "queued", "scheduling", "running"})
+        assert expected_state == state
+
+
 def main(args):
     test_regular_job_running(args)
     test_distributed_job_running(args)
     test_data_job_running(args)
     test_job_fail(args)
+    test_batch_kill_jobs(args)
 
 
 if __name__ == '__main__':
