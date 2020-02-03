@@ -15,7 +15,6 @@ sudo chown $USER /etc/etcd/ssl
 chmod +x /opt/etcd_ssl.sh
 sudo /opt/etcd_ssl.sh
 echo $ETCDSERVER1
-# wait curl --cacert /etc/etcd/ssl/ca.pem --cert /etc/etcd/ssl/etcd.pem --key /etc/etcd/ssl/etcd-key.pem 'https://$ETCDSERVER1:$ETCDPORT1/v2/keys';
 
 # or reference:
 until curl --cacert /etc/etcd/ssl/ca.pem --cert /etc/etcd/ssl/etcd.pem --key /etc/etcd/ssl/etcd-key.pem https://$ETCDSERVER1:$ETCDPORT1/v2/keys; do
@@ -84,6 +83,5 @@ for svc in "${services[@]}"; do
             break
         fi
     done
-
 done
 bash ./pass_secret.sh

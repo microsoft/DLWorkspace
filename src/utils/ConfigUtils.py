@@ -11,12 +11,10 @@ verbose = False
 def expand_path(path):
     return expanduser(path)
 
+
 # Test if a certain Config entry exist
-
-
 def fetch_dictionary(dic, entry):
     if isinstance(entry, list):
-        # print "Fetch " + str(dic) + "@" + str(entry) + "==" + str( dic[entry[0]] )
         if isinstance(dic, list):
             for subdic in dic:
                 if entry[0] in subdic:
@@ -35,15 +33,13 @@ def fetch_dictionary(dic, entry):
     else:
         print("fetch_config expects to take a list, but gets " + str(entry))
 
+
 # Test if a certain Config entry exist
-
-
 def fetch_config(config, entry):
     return fetch_dictionary(config, entry)
 
+
 # Test if a certain Config entry exist
-
-
 def fetch_config_and_check(config, entry):
     ret = fetch_config(entry)
     if ret is None:
@@ -84,13 +80,10 @@ def diff_config(config1, config2):
                 if diffConfig is not None and len(diffConfig) > 0:
                     config3[key] = diffConfig
             else:
-                # print "diff_config, copy key %s" % key
                 config3[key] = config1[key]
-        # print "Diff %s, %s === %s " % (config1, config2, config3 )
         return config3
     else:
         if config1 != config2:
-            # print "diff_config, copy value %s" % config1
             return config1
         else:
             return None

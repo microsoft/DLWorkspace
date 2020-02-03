@@ -46,7 +46,7 @@ def get_platform_script_directory(target):
 
 
 default_config_mapping = {
-    "dockerprefix": (["cluster_name"], lambda x: x.lower()+"/"),
+    "dockerprefix": (["cluster_name"], lambda x: x.lower() + "/"),
     "infrastructure-dockerregistry": (["dockerregistry"], lambda x: x),  # keep
     "worker-dockerregistry": (["dockerregistry"], lambda x: x),  # keep
     "api-server-ip": (["service_cluster_ip_range"], lambda x: generate_ip_from_cluster(x, 1)),
@@ -185,8 +185,6 @@ def load_node_list_by_role_from_config(config, roles):
         Nodes += temp_nodes
     return Nodes, config
 
-# Get the list of nodes for a particular service
-
 
 def get_node_lists_for_service(service, config):
     if "etcd_node" not in config or "worker_node" not in config:
@@ -238,11 +236,11 @@ def load_default_config(config):
     config = update_docker_image_config(config)
 
     config["api_servers"] = "https://" + \
-        config["kubernetes_master_node"][0]+":"+str(config["k8sAPIport"])
+        config["kubernetes_master_node"][0] + ":" + str(config["k8sAPIport"])
 
     config["restapi"] = "http://%s:%s" % (
         config["kubernetes_master_node"][0], config["restfulapiport"])
-    if os.path.isfile(config["ssh_cert"]+".pub"):
+    if os.path.isfile(config["ssh_cert"] + ".pub"):
         with open(config["ssh_cert"]+".pub") as f:
             config["sshkey"] = f.read()
     config["files2cp"] = {
@@ -364,7 +362,7 @@ def GetCertificateProperty(config):
     for i, value in enumerate(config["kubernetes_master_node"]):
         masternames.append(value)
     config["apiserver_names_ssl_aggregator"] = ",".join(
-        ["DNS:"+name for i, name in enumerate(masternames)])
+        ["DNS:" + name for i, name in enumerate(masternames)])
     # TODO(harry): this only works for single master, if we have multiple masters, we need to have a reserved static IP to be used here and for the whole cluster.
     config["master_ip_ssl_aggregator"] = utils.getIP(
         config["kubernetes_master_node"][0])
@@ -871,7 +869,7 @@ def get_all_services():
                         filename = filename.strip()
                         filename = os.path.join(dirname, filename)
                         if os.path.isfile(filename):
-                            servicedic[service+"/"+os.path.splitext(
+                            servicedic[service + "/" + os.path.splitext(
                                 os.path.basename(filename))[0]] = filename
 
             else:
