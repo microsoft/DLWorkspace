@@ -90,7 +90,7 @@ class ECCDetectErrorRule(Rule):
     def __init__(self, alert, config):
         self.config = config
         self.ecc_config = self.load_ecc_config()
-        self.ecc_node_hostnames = []
+        self.ecc_node_hostnames = {}
         self.node_info = {}
         self.alert = alert
 
@@ -102,9 +102,7 @@ class ECCDetectErrorRule(Rule):
     def check_status(self):
         url = f"http://{self.ecc_config['prometheus']['ip']}:{self.ecc_config['prometheus']['port']}"
         query = self.ecc_config['prometheus']['ecc_error_query']
-        step = self.ecc_config['prometheus']['step']
-        interval = self.ecc_config['prometheus']['interval']
-        ecc_url = prometheus_url.format_prometheus_url_from_interval(url, query, step, interval)
+        ecc_url = prometheus_url.format_prometheus_url_query(url, query)
 
         try:
             response = requests.get(ecc_url, timeout=10)
@@ -115,7 +113,7 @@ class ECCDetectErrorRule(Rule):
                     self.node_info = k8s_util.list_node() # save node info to reduce API calls
                     address_map = _get_node_address_info(self.node_info)
                     for ip in ecc_node_ips:
-                        self.ecc_node_hostnames.append(address_map[ip])
+                        self.ecc_node_hostnames[address_map[ip]] = ip
                     logging.info(f'Uncorrectable ECC metrics found: {self.ecc_node_hostnames}')
                     return True
                 else:
@@ -162,6 +160,7 @@ class ECCDetectErrorRule(Rule):
         for node_name in self.ecc_node_hostnames:
             if not self.alert.check_rule_cache('ecc_rule', node_name):
                 cache_value = {
-                    'time_found': datetime.datetime.now(datetime.timezone.utc)
+                    'time_found': datetime.datetime.now(datetime.timezone.utc),
+                    'instance': self.ecc_node_hostnames[node_name]
                 }
                 self.alert.update_rule_cache('ecc_rule', node_name, cache_value)

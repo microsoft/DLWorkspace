@@ -5,8 +5,7 @@ prometheus:
   ip: {{cnf['repair-manager']['prometheus-ip']}}
   port: {{cnf['repair-manager']['prometheus-port']}}
   ecc_error_query: 'nvidiasmi_ecc_error_count{type="volatile_double"}>0'
-  step: 1m
-  interval: 9
+  node_boot_time_query: 'node_boot_time_seconds'
 
 alert_job_owners: False # alert all impacted job owners
 

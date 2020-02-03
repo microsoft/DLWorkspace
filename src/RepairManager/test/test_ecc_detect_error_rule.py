@@ -51,10 +51,7 @@ def _mock_ecc_config():
             "prometheus": {
                 "ip": "localhost",
                 "port": 9091,
-                "ecc_error_query": 'nvidiasmi_ecc_error_count{type="volatile_double"}>0',
-                "step": "1m",
-                "interval": 9,
-                "percent_threshold": 90
+                "ecc_error_query": 'nvidiasmi_ecc_error_count{type="volatile_double"}>0'
             },
             "alert_job_owners": False,
             "dri_email": "dri@email.com",
@@ -222,7 +219,10 @@ class Testing(unittest.TestCase):
 
         alert = rule_alert_handler.RuleAlertHandler()
         ecc_rule_instance = ECCDetectErrorRule(alert, _mock_rule_config())
-        ecc_rule_instance.ecc_node_hostnames = {"mock_worker_one", "mock_worker_two"}
+        ecc_rule_instance.ecc_node_hostnames = {
+            "mock_worker_one": "192.168.0.1",
+            "mock_worker_two": "192.168.0.2"
+        }
         ecc_rule_instance.take_action()
 
         # assert only one node was cordoned
@@ -234,7 +234,9 @@ class Testing(unittest.TestCase):
         # assert rule cache is updated for both nodes
         self.assertTrue("ecc_rule" in alert.rule_cache)
         self.assertTrue("mock_worker_one" in alert.rule_cache["ecc_rule"])
+        self.assertEqual("192.168.0.1", alert.rule_cache["ecc_rule"]["mock_worker_one"]["instance"])
         self.assertTrue("mock_worker_two" in alert.rule_cache["ecc_rule"])
+        self.assertEqual("192.168.0.2", alert.rule_cache["ecc_rule"]["mock_worker_two"]["instance"])
 
 
 
@@ -256,16 +258,25 @@ class Testing(unittest.TestCase):
         # therefore already exists in rule cache
         alert = rule_alert_handler.RuleAlertHandler()
         alert.rule_cache["ecc_rule"] = {
-            "mock_worker_one": {"time_found": datetime.datetime.now},
-            "mock_worker_two": {"time_found": datetime.datetime.now}
-            }
+            "mock_worker_one": {
+                "time_found": datetime.datetime.now,
+                "instance": "192.168.0.1"
+            },
+            "mock_worker_two": {
+                "time_found": datetime.datetime.now,
+                "instance": "192.168.0.2"
+                }
+        }
 
         # first node is schedulable
         # second node has already been marked as unschedulable
         mock_is_node_cordoned.side_effect = [False, True]
 
         ecc_rule_instance = ECCDetectErrorRule(alert, _mock_rule_config())
-        ecc_rule_instance.ecc_node_hostnames = {"mock_worker_one", "mock_worker_two"}
+        ecc_rule_instance.ecc_node_hostnames = {
+            "mock_worker_one": "192.168.0.1",
+            "mock_worker_two": "192.168.0.2"
+        }
         ecc_rule_instance.take_action()
 
         # assert only one node was cordoned
@@ -363,7 +374,10 @@ class Testing(unittest.TestCase):
             mock_rule_config["job_owner_email_domain"] = mock_job_owner_email_domain
 
             ecc_rule_instance = ECCDetectErrorRule(alert, mock_rule_config)
-            ecc_rule_instance.ecc_node_hostnames = {"mock_worker_one", "mock_worker_two"}
+            ecc_rule_instance.ecc_node_hostnames = {
+                "mock_worker_one": "192.168.0.1",
+                "mock_worker_two": "192.168.0.2"
+            }
             ecc_rule_instance.take_action()
 
 
