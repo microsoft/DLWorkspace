@@ -552,7 +552,7 @@ def kill_jobs(username, job_ids, batch_size=20):
     elif not isinstance(job_ids, list):
         t = type(job_ids)
         err_msg = "Unsupported type %s of job_ids %s" % (t, job_ids)
-        return False, err_msg
+        return err_msg
 
     # Partition jobs into processing batches
     batch_starts = range(0, len(job_ids), batch_size)
@@ -564,7 +564,7 @@ def kill_jobs(username, job_ids, batch_size=20):
             batch_result = _kill_jobs_in_one_batch(
                 username, job_id_batch, data_handler)
             result.update(batch_result)
-    return True, result
+    return result
 
 
 def AddCommand(userName, jobId, command):

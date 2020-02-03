@@ -94,6 +94,7 @@ def test_job_fail(args):
 def test_batch_kill_jobs(args):
     logger.info("\ntest_batch_kill_jobs ...")
 
+    expected_msg = "Successfully killed"
     expected_state = "killed"
     cmd = "sleep 1800"
 
@@ -105,7 +106,11 @@ def test_batch_kill_jobs(args):
                                         args.vc, image, cmd)
         job_ids.append(job_id)
 
-    utils.kill_jobs(args.rest, args.email, [job_id for job_id in job_ids])
+    resp = utils.kill_jobs(args.rest, args.email, [job_id for job_id in job_ids])
+
+    assert isinstance(resp["result"], dict)
+    for _, msg in resp["result"].items():
+        assert expected_msg == msg
 
     for job_id in job_ids:
         state = utils.block_until_state_not_in(
