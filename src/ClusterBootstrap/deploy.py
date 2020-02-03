@@ -2466,7 +2466,6 @@ def get_all_services():
                             content.find("ReplicaSet") >= 0 or \
                             content.find("CronJob") >= 0 or \
                             content.find("StatefulSet") >= 0:
-                        # Only add service if it is a daemonset.
                         servicedic[service] = yamlname
     return servicedic
 

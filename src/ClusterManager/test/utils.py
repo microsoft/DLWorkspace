@@ -38,7 +38,8 @@ def post_regular_job(rest_url, email, uid, vc, image, cmd):
         "cpulimit": 1,
     }
     url = urllib.parse.urljoin(rest_url, "/PostJob")
-    resp = requests.post(url, data=json.dumps(args)) # do not handle exception here
+    resp = requests.post(url,
+                         data=json.dumps(args))  # do not handle exception here
     jid = resp.json()["jobId"]
     logger.info("regular job %s created", jid)
     return jid
@@ -71,7 +72,8 @@ def post_distributed_job(rest_url, email, uid, vc, image, cmd):
         "numpsworker": 1
     }
     url = urllib.parse.urljoin(rest_url, "/PostJob")
-    resp = requests.post(url, data=json.dumps(args)) # do not handle exception here
+    resp = requests.post(url,
+                         data=json.dumps(args))  # do not handle exception here
     jid = resp.json()["jobId"]
     logger.info("distributed job %s created", jid)
     return jid
@@ -102,7 +104,8 @@ def post_data_job(rest_url, email, uid, vc, image, cmd):
         "cpulimit": 1
     }
     url = urllib.parse.urljoin(rest_url, "/PostJob")
-    resp = requests.post(url, data=json.dumps(args)) # do not handle exception here
+    resp = requests.post(url,
+                         data=json.dumps(args))  # do not handle exception here
     jid = resp.json()["jobId"]
     logger.info("data job %s created", jid)
     return jid
@@ -111,7 +114,7 @@ def post_data_job(rest_url, email, uid, vc, image, cmd):
 def get_job_status(rest_url, job_id):
     args = urllib.parse.urlencode({
         "jobId": job_id,
-        })
+    })
     url = urllib.parse.urljoin(rest_url, "/GetJobStatus") + "?" + args
     resp = requests.get(url)
     return resp.json()
@@ -121,7 +124,7 @@ def get_job_detail(rest_url, email, job_id):
     args = urllib.parse.urlencode({
         "userName": email,
         "jobId": job_id,
-        })
+    })
     url = urllib.parse.urljoin(rest_url, "/GetJobDetail") + "?" + args
     resp = requests.get(url)
     return resp.json()
@@ -131,7 +134,7 @@ def kill_job(rest_url, email, job_id):
     args = urllib.parse.urlencode({
         "userName": email,
         "jobId": job_id,
-        })
+    })
     url = urllib.parse.urljoin(rest_url, "/KillJob") + "?" + args
     resp = requests.get(url)
     return resp.json()
@@ -150,11 +153,15 @@ class run_job(object):
 
     def __enter__(self):
         if self.job_type == "regular":
-            self.jid = post_regular_job(self.rest_url, self.email, self.uid, self.vc, self.image, self.cmd)
+            self.jid = post_regular_job(self.rest_url, self.email, self.uid,
+                                        self.vc, self.image, self.cmd)
         elif self.job_type == "distributed":
-            self.jid = post_distributed_job(self.rest_url, self.email, self.uid, self.vc, self.image, self.cmd)
+            self.jid = post_distributed_job(self.rest_url, self.email,
+                                            self.uid, self.vc, self.image,
+                                            self.cmd)
         elif self.job_type == "data":
-            self.jid = post_data_job(self.rest_url, self.email, self.uid, self.vc, self.image, self.cmd)
+            self.jid = post_data_job(self.rest_url, self.email, self.uid,
+                                     self.vc, self.image, self.cmd)
         else:
             logger.error("unknown job_type %s, wrong test case", self.job_type)
         return self
@@ -164,7 +171,8 @@ class run_job(object):
             resp = kill_job(self.rest_url, self.email, self.jid)
             logger.info("killed %s job %s", self.job_type, self.jid)
         except Exception:
-            logger.exception("failed to kill %s job %s", self.job_type, self.jid)
+            logger.exception("failed to kill %s job %s", self.job_type,
+                             self.jid)
 
 
 def block_until_state_not_in(rest_url, jid, states, timeout=300):
@@ -180,10 +188,11 @@ def block_until_state_not_in(rest_url, jid, states, timeout=300):
             if datetime.datetime.now() - start < delta:
                 time.sleep(1)
             else:
-                raise RuntimeError("Job stays in %s for more than %d seconds" % (status, timeout))
+                raise RuntimeError("Job stays in %s for more than %d seconds" %
+                                   (status, timeout))
         else:
             logger.info("spent %s in waiting job become %s",
-                    datetime.datetime.now() - start, status)
+                        datetime.datetime.now() - start, status)
             return status
 
 
@@ -191,7 +200,7 @@ def get_job_log(rest_url, email, jid):
     args = urllib.parse.urlencode({
         "userName": email,
         "jobId": jid,
-        })
+    })
     url = urllib.parse.urljoin(rest_url, "/GetJobLog") + "?" + args
     resp = requests.get(url)
     return resp.json()

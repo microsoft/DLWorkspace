@@ -9,21 +9,21 @@ from jinja2 import Template
 
 from job import Job
 
-sys.path.append(os.path.join(os.path.dirname(
-    os.path.abspath(__file__)), "../utils"))
+sys.path.append(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 
 from pod_template_utils import enable_cpu_config
 from osUtils import mkdirsAsUser
 from config import config
 
-class DistPodTemplate():
-    def __init__(self, template, enable_custom_scheduler=False, secret_templates=None):
+
+class DistPodTemplate(object):
+    def __init__(self, template, secret_templates=None):
         self.template = template
-        self.enable_custom_scheduler = enable_custom_scheduler
         self.secret_templates = secret_templates
 
     def generate_pod(self, pod):
-        assert(isinstance(self.template, Template))
+        assert (isinstance(self.template, Template))
 
         dist_id = pod["distId"]
         job_id = pod["jobId"]
@@ -38,21 +38,29 @@ class DistPodTemplate():
 
         if "envs" not in pod:
             pod["envs"] = []
-        pod["envs"].append(
-            {"name": "DLWS_ROLE_NAME", "value": pod["distRole"]})
-        pod["envs"].append(
-            {"name": "DLWS_ROLE_IDX", "value": pod["distRoleIdx"]})
+        pod["envs"].append({
+            "name": "DLWS_ROLE_NAME",
+            "value": pod["distRole"]
+        })
+        pod["envs"].append({
+            "name": "DLWS_ROLE_IDX",
+            "value": pod["distRoleIdx"]
+        })
 
         if "labels" not in pod:
             pod["labels"] = []
         pod["labels"].append({"name": "distRole", "value": pod["distRole"]})
-        pod["labels"].append(
-            {"name": "distRoleIdx", "value": pod["distRoleIdx"]})
+        pod["labels"].append({
+            "name": "distRoleIdx",
+            "value": pod["distRoleIdx"]
+        })
 
         pod_yaml = self.template.render(job=pod)
         pod_obj = yaml.full_load(pod_yaml)
-        pod_obj["spec"]["containers"][0]["env"].append(
-            {"name": "DLWS_LAUNCH_CMD", "value": pod["cmd"]})
+        pod_obj["spec"]["containers"][0]["env"].append({
+            "name": "DLWS_LAUNCH_CMD",
+            "value": pod["cmd"]
+        })
         return pod_obj
 
     def generate_pods(self, job):
@@ -64,8 +72,10 @@ class DistPodTemplate():
             return None, errors
 
         pods = []
-        nums = {"ps": int(params["numps"]),
-                "worker": int(params["numpsworker"])}
+        nums = {
+            "ps": int(params["numps"]),
+            "worker": int(params["numpsworker"])
+        }
         for role in ["ps", "worker"]:
             for idx in range(nums[role]):
                 pod = copy.deepcopy(params)
@@ -81,10 +91,14 @@ class DistPodTemplate():
                     pod.pop("memorylimit", None)
 
                 # mount /pod
-                local_pod_path = job.get_hostpath(
-                    job.job_path, "%s-%d" % (role, idx))
-                pod["mountpoints"].append(
-                    {"name": "pod", "containerPath": "/pod", "hostPath": local_pod_path, "enabled": True})
+                local_pod_path = job.get_hostpath(job.job_path,
+                                                  "%s-%d" % (role, idx))
+                pod["mountpoints"].append({
+                    "name": "pod",
+                    "containerPath": "/pod",
+                    "hostPath": local_pod_path,
+                    "enabled": True
+                })
 
                 pods.append(pod)
 
@@ -99,23 +113,22 @@ class DistPodTemplate():
         """
         Return (pods, errors)
         """
-        assert(isinstance(job, Job))
+        assert (isinstance(job, Job))
         params = job.params
 
-        if any(required_field not in params for required_field in
-               [
-                   "jobtrainingtype",
-                   "jobName",
-                   "jobPath",
-                   "workPath",
-                   "dataPath",
-                   "cmd",
-                   "userId",
-                   "resourcegpu",
-                   "userName",
-               ]):
+        if any(required_field not in params for required_field in [
+                "jobtrainingtype",
+                "jobName",
+                "jobPath",
+                "workPath",
+                "dataPath",
+                "cmd",
+                "userId",
+                "resourcegpu",
+                "userName",
+        ]):
             return None, "Missing required parameters!"
-        assert(params["jobtrainingtype"] == "PSDistJob")
+        assert (params["jobtrainingtype"] == "PSDistJob")
 
         vc_without_shared_storage = job.get_vc_without_shared_storage()
 
@@ -126,8 +139,16 @@ class DistPodTemplate():
         job.add_mountpoints(job.job_path_mountpoint())
         # TODO: Refactor special VC dependency
         if params["vcName"] not in vc_without_shared_storage:
-            job.add_mountpoints({"name": "home", "containerPath": "/home/{}".format(
-                job.get_alias()), "hostPath": job.get_homefolder_hostpath(), "enabled": True})
+            job.add_mountpoints({
+                "name":
+                "home",
+                "containerPath":
+                "/home/{}".format(job.get_alias()),
+                "hostPath":
+                job.get_homefolder_hostpath(),
+                "enabled":
+                True
+            })
         if "mountpoints" in params:
             job.add_mountpoints(params["mountpoints"])
         # TODO: Refactor special VC dependency
@@ -144,8 +165,8 @@ class DistPodTemplate():
         params["homeFolderHostpath"] = job.get_homefolder_hostpath()
         params["pod_ip_range"] = job.get_pod_ip_range()
         params["usefreeflow"] = job.is_freeflow_enabled()
-        params["jobNameLabel"] = ''.join(
-            e for e in params["jobName"] if e.isalnum())
+        params["jobNameLabel"] = ''.join(e for e in params["jobName"]
+                                         if e.isalnum())
         params["rest-api"] = job.get_rest_api_url()
 
         if "nodeSelector" not in params:
@@ -173,11 +194,15 @@ class DistPodTemplate():
 
         if "envs" not in params:
             params["envs"] = []
-        params["envs"].append(
-            {"name": "DLWS_NUM_GPU_PER_WORKER", "value": str(params["resourcegpu"])})
+        params["envs"].append({
+            "name": "DLWS_NUM_GPU_PER_WORKER",
+            "value": str(params["resourcegpu"])
+        })
 
-        params["envs"].append(
-            {"name": "DLWS_WORKER_NUM", "value": str(params["numworker"])})
+        params["envs"].append({
+            "name": "DLWS_WORKER_NUM",
+            "value": str(params["numworker"])
+        })
 
         job.add_plugins(job.get_plugins())
         params["plugins"] = job.plugins
@@ -188,7 +213,6 @@ class DistPodTemplate():
             params["nccl_ib_disable"] = True
 
         return params, None
-
 
     # TODO: Merge with pod_template.py
     def generate_secrets(self, job):
