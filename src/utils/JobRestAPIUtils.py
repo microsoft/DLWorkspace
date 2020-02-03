@@ -559,7 +559,7 @@ def kill_jobs(username, job_ids, batch_size=20):
     job_id_batches = [job_ids[x:x+batch_size] for x in batch_starts]
 
     result = {}
-    with DataManager() as data_handler:
+    with DataHandler() as data_handler:
         for job_id_batch in job_id_batches:
             batch_result = _kill_jobs_in_one_batch(
                 username, job_id_batch, data_handler)

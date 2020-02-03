@@ -11,7 +11,7 @@ logger = logging.getLogger(__file__)
 
 
 def test_regular_job_running(args):
-    logger.info("\ntest_regular_job_running ...")
+    logger.info("test_regular_job_running ...")
 
     expected = "wantThisInLog"
     cmd = "echo %s ; sleep 1800" % expected
@@ -32,7 +32,7 @@ def test_regular_job_running(args):
 
 
 def test_distributed_job_running(args):
-    logger.info("\ntest_distributed_job_running ...")
+    logger.info("test_distributed_job_running ...")
 
     expected = "wantThisInLog"
     cmd = "echo %s ; sleep 1800" % expected
@@ -53,7 +53,7 @@ def test_distributed_job_running(args):
 
 
 def test_data_job_running(args):
-    logger.info("\ntest_data_job_running ...")
+    logger.info("test_data_job_running ...")
 
     expected_state = "finished"
     expected_word = "wantThisInLog"
@@ -77,7 +77,7 @@ def test_data_job_running(args):
 
 
 def test_job_fail(args):
-    logger.info("\ntest_job_fail ...")
+    logger.info("test_job_fail ...")
 
     expected_state = "failed"
     cmd = "false"
@@ -92,7 +92,7 @@ def test_job_fail(args):
 
 
 def test_batch_kill_jobs(args):
-    logger.info("\ntest_batch_kill_jobs ...")
+    logger.info("test_batch_kill_jobs ...")
 
     expected_msg = "Successfully killed"
     expected_state = "killed"
@@ -101,10 +101,18 @@ def test_batch_kill_jobs(args):
     image = "indexserveregistry.azurecr.io/deepscale:1.0.post0"
 
     job_ids = []
-    for i in range(30):
-        job_id = utils.post_regular_job(args.rest_url, args.email, args.uid,
+    for i in range(2):
+        job_id = utils.post_regular_job(args.rest, args.email, args.uid,
                                         args.vc, image, cmd)
         job_ids.append(job_id)
+
+    # FIXME there is a race condition between rest and jobmanager
+    # E.g. kill job request comes in when jobmanager is processing an unapproved
+    # job. "killing" will be overriden by "queued".
+    for job_id in job_ids:
+        state = utils.block_until_state_not_in(args.rest, job_id,
+            {"unapproved", "queued", "scheduling"})
+        assert state == "running"
 
     resp = utils.kill_jobs(args.rest, args.email, [job_id for job_id in job_ids])
 
@@ -113,9 +121,7 @@ def test_batch_kill_jobs(args):
         assert expected_msg == msg
 
     for job_id in job_ids:
-        state = utils.block_until_state_not_in(
-            args.rest, job_id,
-            {"unapproved", "queued", "scheduling", "running"})
+        state = utils.block_until_state_not_in(args.rest, job_id, {"killing"})
         assert expected_state == state
 
 

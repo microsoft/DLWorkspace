@@ -146,7 +146,7 @@ def kill_jobs(rest_url, email, job_ids):
 
     args = urllib.parse.urlencode({
         "userName": email,
-        "jobId": job_ids,
+        "jobIds": job_ids,
     })
     url = urllib.parse.urljoin(rest_url, "/KillJobs") + "?" + args
     resp = requests.get(url)
