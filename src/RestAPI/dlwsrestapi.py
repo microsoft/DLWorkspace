@@ -468,6 +468,27 @@ class KillJob(Resource):
 api.add_resource(KillJob, '/KillJob')
 
 
+class KillJobs(Resource):
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('jobIds')
+        parser.add_argument('userName')
+        args = parser.parse_args()
+        job_ids = args["jobIds"]
+        username = args["userName"]
+        result = JobRestAPIUtils.kill_jobs(username, job_ids)
+        ret = {"result": result}
+
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+
+
+# Set up the Api resource routing for KillJobs
+api.add_resource(KillJobs, "/KillJobs")
+
 
 class PauseJob(Resource):
     def get(self):

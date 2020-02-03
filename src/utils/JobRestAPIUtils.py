@@ -37,6 +37,17 @@ ADMIN_JOB_PRIORITY_RANGE = (1, 1000)
 logger = logging.getLogger(__name__)
 
 pendingStatus = "running,queued,scheduling,unapproved,pausing,paused"
+unfinished_states = {
+    "running",
+    "queued",
+    "scheduling",
+    "unapproved",
+    "pausing",
+    "paused",
+}
+has_access = AuthorizationManager.HasAccess
+VC = ResourceType.VC
+ADMIN = Permission.Admin
 DEFAULT_EXPIRATION = 24 * 30 * 60
 vc_cache = TTLCache(maxsize=10240, ttl=DEFAULT_EXPIRATION)
 vc_cache_lock = Lock()
@@ -498,6 +509,61 @@ def KillJob(userName, jobId):
             ret = dataHandler.UpdateJobTextFields(conditionFields, dataFields)
     dataHandler.Close()
     return ret
+
+
+def _kill_jobs_in_one_batch(username, job_ids, data_handler):
+    fields = [
+        "jobId",
+        "userName",
+        "vcName",
+        "jobStatus",
+    ]
+    # Get all jobs to kill
+    jobs = data_handler.get_fields_for_jobs(job_ids, fields)
+
+    result = {}
+
+    job_ids_to_kill = []
+    for job in jobs:
+        job_id = job["jobId"]
+        job_status = job["jobStatus"]
+        if job_status in unfinished_states:
+            is_owner = job["userName"] == username
+            is_admin = has_access(username, VC, job["vcName"], ADMIN)
+            if is_owner or is_admin:
+                job_ids_to_kill.append(job_id)
+            else:
+                result[job_id] = {"Unauthorized to kill"}
+        else:
+            result[job_id] = {"Cannot kill a(n) \"%s\" job" % job_status}
+
+    data_fields = {"jobStatus": "killing"}
+    killed = data_handler.update_fields_for_jobs(job_ids_to_kill, data_fields)
+
+    msg = "Successfully killed" if killed else "Failed to kill"
+    result.update({job_id: msg for job_id in job_ids_to_kill})
+    return result
+
+
+def kill_jobs(username, job_ids, batch_size=20):
+    if isinstance(job_ids, str):
+        job_ids = job_ids.split(",")
+    elif not isinstance(job_ids, list):
+        t = type(job_ids)
+        err_msg = "Unsupported type %s of job_ids %s" % (t, job_ids)
+        return False, err_msg
+
+    # Partition jobs into processing batches
+    batch_starts = range(0, len(job_ids), batch_size)
+    job_id_batches = [job_ids[x:x+batch_size] for x in batch_starts]
+
+    result = {}
+    with DataManager() as data_handler:
+        for job_id_batch in job_id_batches:
+            batch_result = _kill_jobs_in_one_batch(
+                username, job_id_batch, data_handler)
+            result.update(batch_result)
+    return True, result
 
 
 def AddCommand(userName, jobId, command):
