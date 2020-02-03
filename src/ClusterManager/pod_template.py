@@ -16,10 +16,9 @@ from pod_template_utils import enable_cpu_config
 from osUtils import mkdirsAsUser
 
 class PodTemplate():
-    def __init__(self, template, deployment_template=None, enable_custom_scheduler=False, secret_templates=None):
+    def __init__(self, template, deployment_template=None, secret_templates=None):
         self.template = template
         self.deployment_template = deployment_template
-        self.enable_custom_scheduler = enable_custom_scheduler
         self.secret_templates = secret_templates
 
     def generate_deployment(self, pod):
@@ -29,33 +28,6 @@ class PodTemplate():
 
     def generate_pod(self, pod, cmd):
         assert(isinstance(self.template, Template))
-        if self.enable_custom_scheduler:
-            if "useGPUTopology" in pod and pod["useGPUTopology"]:
-                gpu_topology_flag = 1
-            else:
-                # for cases when desired topology is explictly given or not desired
-                gpu_topology_flag = 0
-            pod_name = pod["podName"]
-            request_gpu = int(pod["gpuLimit"])
-
-            podInfo = {
-                "podname": pod_name,
-                "requests": {
-                    "alpha.gpu/gpu-generate-topology": gpu_topology_flag
-                },
-                "runningcontainer": {
-                    pod_name: {
-                        "requests": {"alpha.gpu/numgpu": request_gpu}
-                    },
-                },
-            }
-
-            if "annotations" not in pod:
-                pod["annotations"] = {}
-            pod["annotations"]["pod.alpha/DeviceInformation"] = "'" + \
-                json.dumps(podInfo) + "'"
-            # gpu requests specified through annotation
-            pod["gpuLimit"] = 0
 
         pod_yaml = self.template.render(job=pod)
         # because user's cmd can be multiple lines, should add after yaml load
@@ -69,7 +41,43 @@ class PodTemplate():
         """
         Return (pods, errors)
         """
+        params, errors = self.generate_params(job)
+        if errors is not None:
+            return None, errors
 
+        k8s_pods = []
+        k8s_pod = self.generate_pod(params, params["cmd"])
+        k8s_pods.append(k8s_pod)
+
+        if params["jobtrainingtype"] == "InferenceJob":
+            pod = copy.deepcopy(params)
+            pod["numps"] = 0
+            pod["numworker"] = 1
+            pod["fragmentGpuJob"] = True
+            if "gpuLimit" not in pod:
+                pod["gpuLimit"] = pod["resourcegpu"]
+
+            pod["envs"].append(
+                {"name": "DLWS_ROLE_NAME", "value": "inferenceworker"})
+            pod["envs"].append({"name": "DLWS_NUM_GPU_PER_WORKER", "value": "1"})
+
+            pod_path = job.get_hostpath(job.job_path, "master")
+            pod["mountpoints"].append(
+                {"name": "pod", "containerPath": "/pod", "hostPath": pod_path, "enabled": True})
+
+            pod["podName"] = job.job_id
+            pod["deployment_replicas"] = params["resourcegpu"]
+            pod["gpu_per_pod"] = 1
+
+            k8s_deployment = self.generate_deployment(pod)
+            k8s_pods.append(k8s_deployment)
+
+        return k8s_pods, None
+
+    def generate_params(self, job):
+        """
+        Return (pods, errors)
+        """
         assert(isinstance(job, Job))
         params = job.params
         if any(required_field not in params for required_field in
@@ -144,73 +152,27 @@ class PodTemplate():
         if nccl_ib_disable is not None and nccl_ib_disable is True:
             params["nccl_ib_disable"] = True
 
-        pods = []
-        if all(hyper_parameter in params for hyper_parameter in ["hyperparametername", "hyperparameterstartvalue", "hyperparameterendvalue", "hyperparameterstep"]):
-            env_name = params["hyperparametername"]
-            start = int(params["hyperparameterstartvalue"])
-            end = int(params["hyperparameterendvalue"])
-            step = int(params["hyperparameterstep"])
+        params["envs"].append({"name": "DLWS_ROLE_NAME", "value": "master"})
+        params["envs"].append(
+            {"name": "DLWS_NUM_GPU_PER_WORKER", "value": str(params["resourcegpu"])})
+        params["podName"] = job.job_id
 
-            for idx, val in enumerate(range(start, end, step)):
-                pod = copy.deepcopy(params)
-                params["envs"].append(
-                    {"name": "DLWS_ROLE_NAME", "value": "master"})
-                params["envs"].append(
-                    {"name": "DLWS_NUM_GPU_PER_WORKER", "value": params["resourcegpu"]})
-                pod["podName"] = "{0}-pod-{1}".format(job.job_id, idx)
-                pod["envs"].append({"name": env_name, "value": val})
-                pods.append(pod)
-        else:
-            pod = copy.deepcopy(params)
-            pod["envs"].append({"name": "DLWS_ROLE_NAME", "value": "master"})
-            pod["envs"].append(
-                {"name": "DLWS_NUM_GPU_PER_WORKER", "value": params["resourcegpu"]})
-            pod["podName"] = job.job_id
-            pods.append(pod)
-
-        k8s_pods = []
-        for idx, pod in enumerate(pods):
-            pod["numps"] = 0
-            pod["numworker"] = 1
-            pod["fragmentGpuJob"] = True
-            if "gpuLimit" not in pod:
-                pod["gpuLimit"] = pod["resourcegpu"]
-
-            if params["jobtrainingtype"] == "InferenceJob":
-                pod["gpuLimit"] = 0
-
-            # mount /pod
-            pod_path = job.get_hostpath(job.job_path, "master")
-            pod["mountpoints"].append(
-                {"name": "pod", "containerPath": "/pod", "hostPath": pod_path, "enabled": True})
-            pod["init-container"] = os.environ["INIT_CONTAINER_IMAGE"]
-
-            k8s_pod = self.generate_pod(pod, params["cmd"])
-            k8s_pods.append(k8s_pod)
+        params["numps"] = 0
+        params["numworker"] = 1
+        params["fragmentGpuJob"] = True
+        if "gpuLimit" not in params:
+            params["gpuLimit"] = params["resourcegpu"]
 
         if params["jobtrainingtype"] == "InferenceJob":
-            pod = copy.deepcopy(params)
-            pod["numps"] = 0
-            pod["numworker"] = 1
-            pod["fragmentGpuJob"] = True
-            if "gpuLimit" not in pod:
-                pod["gpuLimit"] = pod["resourcegpu"]
+            params["gpuLimit"] = 0
 
-            pod["envs"].append(
-                {"name": "DLWS_ROLE_NAME", "value": "inferenceworker"})
-            pod["envs"].append({"name": "DLWS_NUM_GPU_PER_WORKER", "value": 1})
+        # mount /pod
+        pod_path = job.get_hostpath(job.job_path, "master")
+        params["mountpoints"].append(
+            {"name": "pod", "containerPath": "/pod", "hostPath": pod_path, "enabled": True})
+        params["init-container"] = os.environ["INIT_CONTAINER_IMAGE"]
 
-            pod_path = job.get_hostpath(job.job_path, "master")
-            pod["mountpoints"].append(
-                {"name": "pod", "containerPath": "/pod", "hostPath": pod_path, "enabled": True})
-
-            pod["podName"] = job.job_id
-            pod["deployment_replicas"] = params["resourcegpu"]
-            pod["gpu_per_pod"] = 1
-            k8s_deployment = self.generate_deployment(pod)
-            k8s_pods.append(k8s_deployment)
-
-        return k8s_pods, None
+        return params, None
 
     def generate_secrets(self, job):
         """generate_plugin_secrets must be called after generate_pods"""

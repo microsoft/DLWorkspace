@@ -980,7 +980,8 @@ class DataHandler(object):
             self.conn.commit()
             ret = True
         except Exception as e:
-            logger.error('updateJobTextFields Exception: %s', str(e))
+            logger.exception('failed to UpdateJobTextFields conditions %s, data %s',
+                    conditionFields, dataFields)
         finally:
             if cursor is not None:
                 cursor.close()
