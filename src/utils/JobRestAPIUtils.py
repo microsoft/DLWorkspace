@@ -538,7 +538,8 @@ def _kill_jobs_in_one_batch(username, job_ids, data_handler):
             result[job_id] = {"Cannot kill a(n) \"%s\" job" % job_status}
 
     data_fields = {"jobStatus": "killing"}
-    killed = data_handler.update_fields_for_jobs(job_ids_to_kill, data_fields)
+    killed = data_handler.update_text_fields_for_jobs(job_ids_to_kill,
+                                                      data_fields)
 
     msg = "Successfully killed" if killed else "Failed to kill"
     result.update({job_id: msg for job_id in job_ids_to_kill})
