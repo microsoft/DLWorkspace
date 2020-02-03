@@ -11,6 +11,8 @@ logger = logging.getLogger(__file__)
 
 
 def test_regular_job_running(args):
+    logger.info("\ntest_regular_job_running ...")
+
     expected = "wantThisInLog"
     cmd = "echo %s ; sleep 1800" % expected
 
@@ -30,6 +32,8 @@ def test_regular_job_running(args):
 
 
 def test_distributed_job_running(args):
+    logger.info("\ntest_distributed_job_running ...")
+
     expected = "wantThisInLog"
     cmd = "echo %s ; sleep 1800" % expected
 
@@ -49,6 +53,8 @@ def test_distributed_job_running(args):
 
 
 def test_data_job_running(args):
+    logger.info("\ntest_data_job_running ...")
+
     expected_state = "finished"
     expected_word = "wantThisInLog"
     cmd = "mkdir -p /tmp/dlts_test_dir; " \
@@ -71,6 +77,8 @@ def test_data_job_running(args):
 
 
 def test_job_fail(args):
+    logger.info("\ntest_job_fail ...")
+
     expected_state = "failed"
     cmd = "false"
 
@@ -84,6 +92,8 @@ def test_job_fail(args):
 
 
 def test_batch_kill_jobs(args):
+    logger.info("\ntest_batch_kill_jobs ...")
+
     expected_state = "killed"
     cmd = "sleep 1800"
 
