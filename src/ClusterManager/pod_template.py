@@ -9,31 +9,37 @@ import copy
 
 from jinja2 import Template
 
-sys.path.append(os.path.join(os.path.dirname(
-    os.path.abspath(__file__)), "../utils"))
+sys.path.append(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 
 from pod_template_utils import enable_cpu_config
 from osUtils import mkdirsAsUser
 
+
 class PodTemplate():
-    def __init__(self, template, deployment_template=None, secret_templates=None):
+    def __init__(self,
+                 template,
+                 deployment_template=None,
+                 secret_templates=None):
         self.template = template
         self.deployment_template = deployment_template
         self.secret_templates = secret_templates
 
     def generate_deployment(self, pod):
-        assert(isinstance(self.template, Template))
+        assert (isinstance(self.template, Template))
         pod_yaml = self.deployment_template.render(job=pod)
         return yaml.full_load(pod_yaml)
 
     def generate_pod(self, pod, cmd):
-        assert(isinstance(self.template, Template))
+        assert (isinstance(self.template, Template))
 
         pod_yaml = self.template.render(job=pod)
         # because user's cmd can be multiple lines, should add after yaml load
         pod_obj = yaml.full_load(pod_yaml)
-        pod_obj["spec"]["containers"][0]["env"].append(
-            {"name": "DLWS_LAUNCH_CMD", "value": cmd})
+        pod_obj["spec"]["containers"][0]["env"].append({
+            "name": "DLWS_LAUNCH_CMD",
+            "value": cmd
+        })
 
         return pod_obj
 
@@ -57,13 +63,22 @@ class PodTemplate():
             if "gpuLimit" not in pod:
                 pod["gpuLimit"] = pod["resourcegpu"]
 
-            pod["envs"].append(
-                {"name": "DLWS_ROLE_NAME", "value": "inferenceworker"})
-            pod["envs"].append({"name": "DLWS_NUM_GPU_PER_WORKER", "value": "1"})
+            pod["envs"].append({
+                "name": "DLWS_ROLE_NAME",
+                "value": "inferenceworker"
+            })
+            pod["envs"].append({
+                "name": "DLWS_NUM_GPU_PER_WORKER",
+                "value": "1"
+            })
 
             pod_path = job.get_hostpath(job.job_path, "master")
-            pod["mountpoints"].append(
-                {"name": "pod", "containerPath": "/pod", "hostPath": pod_path, "enabled": True})
+            pod["mountpoints"].append({
+                "name": "pod",
+                "containerPath": "/pod",
+                "hostPath": pod_path,
+                "enabled": True
+            })
 
             pod["podName"] = job.job_id
             pod["deployment_replicas"] = params["resourcegpu"]
@@ -78,20 +93,19 @@ class PodTemplate():
         """
         Return (pods, errors)
         """
-        assert(isinstance(job, Job))
+        assert (isinstance(job, Job))
         params = job.params
-        if any(required_field not in params for required_field in
-                [
-                    "jobtrainingtype",
-                    "jobName",
-                    "jobPath",
-                    "workPath",
-                    "dataPath",
-                    "cmd",
-                    "userId",
-                    "resourcegpu",
-                    "userName",
-                ]):
+        if any(required_field not in params for required_field in [
+                "jobtrainingtype",
+                "jobName",
+                "jobPath",
+                "workPath",
+                "dataPath",
+                "cmd",
+                "userId",
+                "resourcegpu",
+                "userName",
+        ]):
             return None, "Missing required parameters!"
 
         vc_without_shared_storage = job.get_vc_without_shared_storage()
@@ -103,8 +117,16 @@ class PodTemplate():
         job.add_mountpoints(job.job_path_mountpoint())
         # TODO: Refactor special VC dependency
         if params["vcName"] not in vc_without_shared_storage:
-            job.add_mountpoints({"name": "home", "containerPath": "/home/{}".format(
-                job.get_alias()), "hostPath": job.get_homefolder_hostpath(), "enabled": True})
+            job.add_mountpoints({
+                "name":
+                "home",
+                "containerPath":
+                "/home/{}".format(job.get_alias()),
+                "hostPath":
+                job.get_homefolder_hostpath(),
+                "enabled":
+                True
+            })
         if "mountpoints" in params:
             job.add_mountpoints(params["mountpoints"])
         # TODO: Refactor special VC dependency
@@ -119,8 +141,8 @@ class PodTemplate():
         params["homeFolderHostpath"] = job.get_homefolder_hostpath()
         params["pod_ip_range"] = job.get_pod_ip_range()
         params["usefreeflow"] = job.is_freeflow_enabled()
-        params["jobNameLabel"] = ''.join(
-            e for e in params["jobName"] if e.isalnum())
+        params["jobNameLabel"] = ''.join(e for e in params["jobName"]
+                                         if e.isalnum())
         params["rest-api"] = job.get_rest_api_url()
 
         if "nodeSelector" not in params:
@@ -153,8 +175,10 @@ class PodTemplate():
             params["nccl_ib_disable"] = True
 
         params["envs"].append({"name": "DLWS_ROLE_NAME", "value": "master"})
-        params["envs"].append(
-            {"name": "DLWS_NUM_GPU_PER_WORKER", "value": str(params["resourcegpu"])})
+        params["envs"].append({
+            "name": "DLWS_NUM_GPU_PER_WORKER",
+            "value": str(params["resourcegpu"])
+        })
         params["podName"] = job.job_id
 
         params["numps"] = 0
@@ -168,8 +192,12 @@ class PodTemplate():
 
         # mount /pod
         pod_path = job.get_hostpath(job.job_path, "master")
-        params["mountpoints"].append(
-            {"name": "pod", "containerPath": "/pod", "hostPath": pod_path, "enabled": True})
+        params["mountpoints"].append({
+            "name": "pod",
+            "containerPath": "/pod",
+            "hostPath": pod_path,
+            "enabled": True
+        })
         params["init-container"] = os.environ["INIT_CONTAINER_IMAGE"]
 
         return params, None
