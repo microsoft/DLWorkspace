@@ -8,6 +8,8 @@ import time
 from datetime import datetime, timedelta
 from rules_abc import Rule
 from utils import prometheus_url, k8s_util
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 def _extract_node_boot_time_info(response):
     node_boot_times = {}
@@ -22,7 +24,7 @@ def _extract_node_boot_time_info(response):
     return node_boot_times
 
 
-def _get_job_info_from_nodes(nodes, pods, job_owner_email_domain):
+def _get_job_info_from_nodes(pods, nodes, domain_name, cluster_name):
     jobs = {}
     for pod in pods.items:
         if pod.metadata and pod.metadata.labels:
@@ -30,9 +32,16 @@ def _get_job_info_from_nodes(nodes, pods, job_owner_email_domain):
                 if pod.spec.node_name in nodes:
                     job_id = pod.metadata.labels['jobId']
                     user_name = pod.metadata.labels['userName']
-                    jobs[job_id] = {
-                        'user_email': f'{user_name}@{job_owner_email_domain}'
-                    }
+                    node_name = pod.spec.node_name
+                    vc_name = pod.metadata.labels['vcName']
+                    if job_id not in jobs:
+                        jobs[job_id] = {
+                        'user_name': user_name,
+                        'node_names': {node_name},
+                        'vc_names': vc_name,
+                        'job_link': f'http://{domain_name}/job/{vc_name}/{cluster_name}/{job_id}'}
+                    else:
+                        jobs[job_id]['node_names'].add(node_name)
     return jobs
 
 
@@ -70,6 +79,22 @@ def _get_job_status(job_pause_url, job_id):
     status_url = f'{job_pause_url}/GetJobStatus?jobId={job_id}'
     status_resp = requests.get(status_url)
     return status_resp
+
+
+def _create_email_for_pause_resume_job(job_id, node_names, job_link, job_owner_email, dri_email):
+    message = MIMEMultipart()
+    message['Subject'] = f'Repair Manager Alert [{job_id} will be paused/resumed]'
+    message['To'] = job_owner_email
+    message['CC'] = dri_email
+    body = f'''<h3>Pausing/Resuming job <a href="{job_link}">{job_id}</a>.</h3>
+    <p>As previously notified, the following node(s) need to be rebooted due to uncorrectable ecc error:</p>
+    <ul>'''
+    for node in node_names:
+        body += f'<li>{node}</li>'
+    body += f'''</ul>
+    <p> Job <a href="{job_link}">{job_id}</a> will be now be paused/resumed so node(s) can be repaired.</p>'''
+    message.attach(MIMEText(body, 'html'))
+    return message
 
 
 class ECCRebootNodeRule(Rule):
@@ -121,14 +146,20 @@ class ECCRebootNodeRule(Rule):
 
     def take_action(self):
         pods = k8s_util.list_pod_for_all_namespaces()
-        job_info = _get_job_info_from_nodes(self.nodes_ready_for_action, pods, self.config["job_owner_email_domain"])
+        job_info = _get_job_info_from_nodes(pods, 
+                                            self.nodes_ready_for_action,
+                                            self.config["domain_name"],
+                                            self.config["cluster_name"])
 
         for job_id in job_info:
-            job_owner_email = job_info[job_id]["user_email"]
+            job_owner_email = f"{job_info[job_id]['user_name']}@{self.config['job_owner_email_domain']}"
+            node_names = job_info[job_id]["node_names"]
             result = _pause_resume_job(self.ecc_config["job_pause_resume_url"], job_id, job_owner_email, 10, self.ecc_config["time_sleep_after_pausing"])
             if result:
-                # send email alerting of pause/resume job
-                pass
+                if self.ecc_config["alert_job_owners"]:
+                    job_link = job_info[job_id]['job_link']
+                    message = _create_email_for_pause_resume_job(job_id, node_names, job_link, job_owner_email, self.ecc_config["dri_email"])
+                    self.alert.send_alert(message)
 
         # TODO: reboot node
 

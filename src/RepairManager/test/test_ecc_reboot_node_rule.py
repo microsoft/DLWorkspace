@@ -68,26 +68,6 @@ class Testing(unittest.TestCase):
         self.assertEqual(mock_datetime_two, result_boot_times["192.168.0.2:9090"])
 
 
-    def test_get_job_info_from_nodes(self):
-        
-        mock_nodes = {"node1", "node2"}
-
-        pod_one = _mock_v1_pod("87654321-wxyz", "user1", "vc1", "node1")
-        pod_two = _mock_v1_pod("12345678-abcd", "user2", "vc2", "node1")
-        pod_three = _mock_v1_pod("12345678-abcd", "user2", "vc2", "node2")
-        pod_four = _mock_v1_pod("99999999-efgh", "user3", "vc3", "node3")
-        mock_pod_list = V1PodList(items=[pod_one, pod_two, pod_three, pod_four])
-        
-        job_info = ecc_reboot_node_rule._get_job_info_from_nodes(mock_nodes, mock_pod_list, "example.com")
-
-        self.assertTrue("87654321-wxyz" in job_info)
-        self.assertEqual("user1@example.com", job_info["87654321-wxyz"]["user_email"])
-        self.assertTrue("12345678-abcd" in job_info)
-        self.assertEqual("user2@example.com", job_info["12345678-abcd"]["user_email"])
-        self.assertEqual(2, len(job_info))
-
-
-
     @mock.patch('rules.ecc_detect_error_rule.requests.get')
     @mock.patch('rules.ecc_reboot_node_rule.ECCRebootNodeRule.load_ecc_config')
     @mock.patch('utils.email_util.EmailHandler')
@@ -241,13 +221,16 @@ class Testing(unittest.TestCase):
         }
 
         rule_config = {
+            "cluster_name": "mock-cluster",
+            "domain_name": "dltshub.example.com",
             "job_owner_email_domain": "example.com"
         }
 
         mock_load_ecc_config.return_value = {
             "days_until_node_reboot": 5,
             "job_pause_resume_url": "http://localhost:5000",
-            "time_sleep_after_pausing": 0
+            "time_sleep_after_pausing": 0,
+            "alert_job_owners": False
         }
 
         pod_one = _mock_v1_pod("87654321-wxyz", "user1", "vc1", "node1")
@@ -273,6 +256,37 @@ class Testing(unittest.TestCase):
         self.assertEqual(1, len(rule_alert_handler_instance.rule_cache["ecc_rule"]))
 
 
+    @mock.patch('utils.email_util.EmailHandler.load_config')
+    def test_create_email_for_job_owner(self, mock_email_load_config):
+
+        ###################################################
+        ##  Please fill in SMTP info for sending emails  ##
+        ###################################################
+        enable_test = False
+        smtp_url = "[SMTP URL]"
+        login = "[SMTP LOGIN]"
+        password = "[SMTP PASSWORD]"
+        sender = "[SENDER EMAIL]"
+        mock_dri_email = "[DRI EMAIL]"
+        mock_job_owner_email = "[JOB OWNER EMAIL]"
+        ####################################################
+
+        if enable_test:
+            mock_email_load_config.return_value = {
+                "smtp_url": smtp_url,
+                "login": login,
+                "password": password,
+                "sender": sender
+            }
+
+            rule_alert_handler_instance = rule_alert_handler.RuleAlertHandler()
+
+            job_id = "job-abc-123"
+            node_names = ["node1", "node2"]
+            job_link = 'http://fake-job-link/job/job-abc-123'
+
+            message = ecc_reboot_node_rule._create_email_for_pause_resume_job(job_id, node_names, job_link, mock_job_owner_email, mock_dri_email)
+            rule_alert_handler_instance.send_alert(message)
 
 if __name__ == '__main__':
     unittest.main()
