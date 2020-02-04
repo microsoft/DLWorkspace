@@ -6,6 +6,23 @@ import mock
 from datetime import datetime, timedelta, timezone
 from rules import ecc_reboot_node_rule
 from utils import rule_alert_handler
+from kubernetes.client.models.v1_pod_list import V1PodList
+from kubernetes.client.models.v1_pod import V1Pod
+from kubernetes.client.models.v1_object_meta import V1ObjectMeta
+from kubernetes.client.models.v1_pod_spec import V1PodSpec
+
+def _mock_v1_pod(jobId, userName, vcName, nodeName):
+    pod = V1Pod()
+    pod.metadata = V1ObjectMeta()
+    pod.metadata.labels = {
+        "jobId": jobId,
+        "type": "job",
+        "userName": userName,
+        "vcName": vcName
+    }
+    pod.spec = V1PodSpec(containers=[])
+    pod.spec.node_name = nodeName
+    return pod
 
 class Testing(unittest.TestCase):
 
@@ -49,6 +66,26 @@ class Testing(unittest.TestCase):
 
         self.assertTrue("192.168.0.2:9090" in result_boot_times)
         self.assertEqual(mock_datetime_two, result_boot_times["192.168.0.2:9090"])
+
+
+    def test_get_job_info_from_nodes(self):
+        
+        mock_nodes = {"node1", "node2"}
+
+        pod_one = _mock_v1_pod("87654321-wxyz", "user1", "vc1", "node1")
+        pod_two = _mock_v1_pod("12345678-abcd", "user2", "vc2", "node1")
+        pod_three = _mock_v1_pod("12345678-abcd", "user2", "vc2", "node2")
+        pod_four = _mock_v1_pod("99999999-efgh", "user3", "vc3", "node3")
+        mock_pod_list = V1PodList(items=[pod_one, pod_two, pod_three, pod_four])
+        
+        job_info = ecc_reboot_node_rule._get_job_info_from_nodes(mock_nodes, mock_pod_list, "example.com")
+
+        self.assertTrue("87654321-wxyz" in job_info)
+        self.assertEqual("user1@example.com", job_info["87654321-wxyz"]["user_email"])
+        self.assertTrue("12345678-abcd" in job_info)
+        self.assertEqual("user2@example.com", job_info["12345678-abcd"]["user_email"])
+        self.assertEqual(2, len(job_info))
+
 
 
     @mock.patch('rules.ecc_detect_error_rule.requests.get')
@@ -172,6 +209,70 @@ class Testing(unittest.TestCase):
 
         self.assertFalse(response)
         self.assertEqual(0, len(ecc_reboot_node_rule_instance.nodes_ready_for_action))
+
+    @mock.patch('rules.ecc_detect_error_rule.k8s_util.list_pod_for_all_namespaces')
+    @mock.patch('rules.ecc_reboot_node_rule.ECCRebootNodeRule.load_ecc_config')
+    @mock.patch('utils.email_util.EmailHandler')
+    @mock.patch('rules.ecc_detect_error_rule.requests.get')
+    @mock.patch('rules.ecc_reboot_node_rule._get_job_status')
+    @mock.patch('rules.ecc_reboot_node_rule._pause_job')
+    def test_take_action(self, mock_pause_job,
+                               mock_get_job_status, 
+                               mock_get_requests,
+                               mock_email_handler,
+                               mock_load_ecc_config,
+                               mock_list_pods):
+
+        mock_pause_job.return_value = {
+            "result": "Success, the job is scheduled to be paused."
+        }
+
+        rule_alert_handler_instance = rule_alert_handler.RuleAlertHandler()
+        rule_alert_handler_instance.rule_cache["ecc_rule"] = {
+            "node1": {
+                "instance": "192.168.0.1:9090"
+            },
+            "node2": {
+                "instance": "192.168.0.2:9090"
+            },
+            "node3": {
+                "instance": "192.168.0.3:9090"
+            }
+        }
+
+        rule_config = {
+            "job_owner_email_domain": "example.com"
+        }
+
+        mock_load_ecc_config.return_value = {
+            "days_until_node_reboot": 5,
+            "job_pause_resume_url": "http://localhost:5000",
+            "time_sleep_after_pausing": 0
+        }
+
+        pod_one = _mock_v1_pod("87654321-wxyz", "user1", "vc1", "node1")
+        pod_two = _mock_v1_pod("12345678-abcd", "user2", "vc2", "node1")
+        pod_three = _mock_v1_pod("99999999-efgh", "user3", "vc3", "node3")
+        mock_pod_list = V1PodList(items=[pod_one, pod_two, pod_three])
+        mock_list_pods.return_value = mock_pod_list
+
+        mock_get_job_status.return_value = {
+            "errorMsg": None,
+            "jobStatus":"paused",
+            "jobTime":"Thu, 30 Jan 2020 23:43:00 GMT"
+            }
+
+        ecc_reboot_node_rule_instance = ecc_reboot_node_rule.ECCRebootNodeRule(rule_alert_handler_instance, rule_config)
+        ecc_reboot_node_rule_instance.nodes_ready_for_action = ["node1", "node3"]
+
+        ecc_reboot_node_rule_instance.take_action()
+
+        self.assertTrue("node1" not in rule_alert_handler_instance.rule_cache["ecc_rule"])
+        self.assertTrue("node2" in rule_alert_handler_instance.rule_cache["ecc_rule"])
+        self.assertTrue("node3" not in rule_alert_handler_instance.rule_cache["ecc_rule"])
+        self.assertEqual(1, len(rule_alert_handler_instance.rule_cache["ecc_rule"]))
+
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -300,13 +300,13 @@ class Testing(unittest.TestCase):
         self.assertTrue("87654321-wxyz" in job_response)
         self.assertEqual(1, len(job_response["87654321-wxyz"]["node_names"]))
         self.assertTrue("node1" in job_response["87654321-wxyz"]["node_names"])
-        self.assertEqual("dlts.domain.com/job/vc1/cluster1/87654321-wxyz", job_response["87654321-wxyz"]["job_link"])
+        self.assertEqual("http://dlts.domain.com/job/vc1/cluster1/87654321-wxyz", job_response["87654321-wxyz"]["job_link"])
 
         self.assertTrue("12345678-abcd" in job_response)
         self.assertEqual(2, len(job_response["12345678-abcd"]["node_names"]))
         self.assertTrue("node1" in job_response["12345678-abcd"]["node_names"])
         self.assertTrue("node2" in job_response["12345678-abcd"]["node_names"])
-        self.assertEqual("dlts.domain.com/job/vc2/cluster1/12345678-abcd", job_response["12345678-abcd"]["job_link"])
+        self.assertEqual("http://dlts.domain.com/job/vc2/cluster1/12345678-abcd", job_response["12345678-abcd"]["job_link"])
 
 
     ###############################################################################

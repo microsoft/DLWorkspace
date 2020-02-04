@@ -4,7 +4,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from rules_abc import Rule
 from kubernetes import client, config
 from utils import k8s_util, email_util, prometheus_url
-from tabulate import tabulate
 import datetime
 import requests
 import json
@@ -56,7 +55,7 @@ def _get_job_info_from_nodes(nodes, domain_name, cluster_name):
                         'user_name': user_name,
                         'node_names': {node_name},
                         'vc_names': vc_name,
-                        'job_link': f'{domain_name}/job/{vc_name}/{cluster_name}/{job_id}'}
+                        'job_link': f'http://{domain_name}/job/{vc_name}/{cluster_name}/{job_id}'}
                     else:
                         jobs[job_id]['node_names'].add(node_name)
     return jobs

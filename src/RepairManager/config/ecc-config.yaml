@@ -7,8 +7,11 @@ prometheus:
   ecc_error_query: 'nvidiasmi_ecc_error_count{type="volatile_double"}>0'
   node_boot_time_query: 'node_boot_time_seconds'
 
-alert_job_owners: False # alert all impacted job owners
+job_pause_resume_url: {{cnf['repair-manager']['job_pause_resume_url']}}
+time_sleep_after_pausing: {{cnf['repair-manager']['time_sleep_after_pausing']}}
+
+alert_job_owners: {{cnf['repair-manager']['ecc_rule']['alert_job_owners']}}
 
 dri_email: {{cnf['repair-manager']['ecc_rule']['dri_email']}}
 
-days_until_node_reboot: 5
+days_until_node_reboot: {{cnf['repair-manager']['ecc_rule']['days_until_node_reboot']}}
