@@ -1,6 +1,9 @@
 #! /bin/bash
 set -ex
 
+. /dlts-runtime/env/init.env
+sh -x /dlts-runtime/install.sh
+
 SCRIPT_DIR=/pod/scripts
 
 echo bootstrap starts at `date` &>> ${LOG_DIR}/bootstrap.log
@@ -33,13 +36,9 @@ fi
 # Setup roles
 bash ${SCRIPT_DIR}/setup_sshd.sh &>> ${LOG_DIR}/bootstrap.log
 
-if [ "$DLWS_ROLE_NAME" = "master" ] || [ "$DLWS_ROLE_NAME" = "ps" ];
-then
-    bash ${SCRIPT_DIR}/setup_ssh_config.sh &>> ${LOG_DIR}/bootstrap.log
-fi
-
 if [ "$DLWS_ROLE_NAME" != "inferenceworker" ];
 then
+    bash ${SCRIPT_DIR}/setup_ssh_config.sh &>> ${LOG_DIR}/bootstrap.log
 	touch ${PROC_DIR}/ROLE_READY
 
 	# Setup job
@@ -55,6 +54,7 @@ if [ "$DLWS_ROLE_NAME" = "worker" ];
 then
     runuser -l ${DLWS_USER_NAME} -c "sleep infinity"
 else
+    printenv DLWS_LAUNCH_CMD > /pod/job_command.sh
     chmod +x /pod/job_command.sh
     runuser -l ${DLWS_USER_NAME} -c /pod/job_command.sh
     # Save exit code

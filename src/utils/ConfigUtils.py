@@ -27,7 +27,7 @@ def fetch_dictionary(dic, entry):
         else:
             return None
     else:
-        print "fetch_config expects to take a list, but gets " + str(entry)
+        print("fetch_config expects to take a list, but gets " + str(entry))
     
 # Test if a certain Config entry exist
 def fetch_config(config, entry):
@@ -37,7 +37,7 @@ def fetch_config(config, entry):
 def fetch_config_and_check(config, entry):
     ret = fetch_config( entry )
     if ret is None:
-        print "Error: config entry %s doesn't exist" % entry
+        print("Error: config entry %s doesn't exist" % entry)
         exit()
     return ret
 
@@ -54,7 +54,7 @@ def merge_config( config1, config2 ):
                 if isinstance( config2[entry], dict): 
                     merge_config( config1[entry], config2[entry] )
                 else:
-                    print "Error in configuration: %s should be of type %s, but is written as type %s in configuration" %(entry, type(config1[entry]), type(config2[entry]) )
+                    print("Error in configuration: %s should be of type %s, but is written as type %s in configuration" %(entry, type(config1[entry]), type(config2[entry]) ))
                     exit(1)
             else:
                 config1[entry] = config2[entry]
@@ -104,9 +104,9 @@ def update_one_config(config, name, entry, type, defval):
     elif isinstance( val, type ):
         config[name] = val
         if verbose:
-            print "config["+name+"]="+str(val)
+            print("config["+name+"]="+str(val))
     else:
-        print "Error: Configuration " + name + " needs a " + str(type) +", but is given:" + str(val)
+        print("Error: Configuration " + name + " needs a " + str(type) +", but is given:" + str(val))
 
 def update_config(config, default_config_mapping):
     apply_config_mapping(config, default_config_mapping)
@@ -122,25 +122,25 @@ def translate_config_entry( config, entry, name, type, leading_space = 0 ):
                 adj_content = content
             config[name] = adj_content
             if verbose: 
-                print "Configuration entry: " + name
-                print adj_content
+                print("Configuration entry: " + name)
+                print(adj_content)
         else:
-            print "In configuration file, " + str( entry ) + " should be type of " +str(type) + ", rather than: "+ str(content )
+            print("In configuration file, " + str( entry ) + " should be type of " +str(type) + ", rather than: "+ str(content ))
             exit()
 
 # Certain configuration that is default in system 
 def init_config(default_config_parameters):
     config = {}
-    for k,v in default_config_parameters.iteritems():
+    for k,v in default_config_parameters.items():
         config[ k ] = v
     return config
 
 def apply_config_mapping(config, default_config_mapping):
-    for k,tuple in default_config_mapping.iteritems():
+    for k, tupl in default_config_mapping.items():
         if not ( k in config ) or len(config[k])<=0:
-            dstname = tuple[0]
+            dstname = tupl[0]
             value = fetch_config(config, dstname)
             if not (value is None):
-                config[k] = tuple[1](value)
+                config[k] = tupl[1](value)
                 if verbose:
-                    print "Config[%s] = %s" %(k, config[k])
+                    print("Config[%s] = %s" %(k, config[k]))

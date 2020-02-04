@@ -74,11 +74,11 @@ const sanitizePath = (path: string) => {
 }
 const Training: React.ComponentClass = withRouter(({ history }) => {
   const { selectedCluster,saveSelectedCluster } = React.useContext(ClustersContext);
-  const { email, uid } = React.useContext(UserContext);
+  const { email } = React.useContext(UserContext);
   const { teams, selectedTeam }= React.useContext(TeamsContext);
   //const team = 'platform';
   const [showGPUFragmentation, setShowGPUFragmentation] = React.useState(false)
-  const [prometheusUrl, setPrometheusUrl] = React.useState('');
+  const [grafanaUrl, setGrafanaUrl] = React.useState('');
   const [name, setName] = React.useState("");
   const [gpuFragmentation, setGpuFragmentation] = React.useState<any[]>([]);
   const onNameChange = React.useCallback(
@@ -199,7 +199,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   const [accountKey, setAccountKey] = React.useState("");
   const [containerName, setContainerName] = React.useState("");
   const [mountPath, setMountPath] = React.useState("");
-  const [mountOptions, setMoutOptions] = React.useState("--file-cache-timeout-in-seconds=120");
+  const [mountOptions, setMountOptions] = React.useState("");
   const onAccountNameChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       setAccountName(event.target.value);
@@ -226,9 +226,9 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   )
   const onMountOptionsChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      setMoutOptions(event.target.value);
+      setMountOptions(event.target.value);
     },
-    [setMoutOptions]
+    [setMountOptions]
   )
   const [workPath, setWorkPath] = React.useState("");
   const onWorkPathChange = React.useCallback(
@@ -237,7 +237,27 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     },
     [setWorkPath]
   )
-
+  const [dockerRegistry, setDockerRegistry] = React.useState("");
+  const [dockerUsername, setDockerUsername] = React.useState("");
+  const [dockerPassword, setDockerPassword] = React.useState("");
+  const onDockerRegistryChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setDockerRegistry(event.target.value)
+    },
+    [setDockerRegistry]
+  )
+  const onDockerUsernameChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setDockerUsername(event.target.value)
+    },
+    [setDockerUsername]
+  )
+  const onDockerPasswordChange = React.useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setDockerPassword(event.target.value)
+    },
+    [setDockerPassword]
+  )
   const [enableWorkPath, setEnableWorkPath] = React.useState(true);
   const onEnableWorkPathChange = React.useCallback(
     (event: unknown, checked: boolean) => {
@@ -353,13 +373,22 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     try {
       let plugins: any = {};
       plugins['blobfuse'] = [];
-      let blobfuseObj: any = new Object();
+
+      let blobfuseObj: any = {};
       blobfuseObj['accountName'] = accountName || '';
       blobfuseObj['accountKey'] = accountKey || '';
       blobfuseObj['containerName'] = containerName || '';
       blobfuseObj['mountPath'] = mountPath || '';
-      blobfuseObj['mountOptions'] = mountOptions;
+      blobfuseObj['mountOptions'] = mountOptions || '';
       plugins['blobfuse'].push(blobfuseObj);
+
+      plugins['imagePull'] = [];
+      let imagePullObj: any = {};
+      imagePullObj['registry'] = dockerRegistry
+      imagePullObj['username'] = dockerUsername
+      imagePullObj['password'] = dockerPassword
+      plugins['imagePull'].push(imagePullObj)
+
       const template = {
         name,
         type,
@@ -393,12 +422,18 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     try {
       let plugins: any = {};
       plugins['blobfuse'] = [];
-      let blobfuseObj: any = new Object();
+      let blobfuseObj: any = {};
       blobfuseObj['accountName'] = accountName || '';
       blobfuseObj['accountKey'] = accountKey || '';
       blobfuseObj['containerName'] = containerName || '';
       blobfuseObj['mountPath'] = mountPath || '';
       plugins['blobfuse'].push(blobfuseObj);
+      plugins['imagePull'] = [];
+      let imagePullObj: any = {};
+      imagePullObj['registry'] = dockerRegistry
+      imagePullObj['username'] = dockerUsername
+      imagePullObj['password'] = dockerPassword
+      plugins['imagePull'].push(imagePullObj)
       const template = {
         name,
         type,
@@ -468,7 +503,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
           tensorboard,
           plugins
         } = JSON.parse(event.target.value as string);
-        console.log('jobpath', jobPath)
+        console.log('jobpath', plugins)
         if (name !== undefined) setName(name);
         if (type !== undefined) setType(type);
         if (gpus !== undefined) setGpus(gpus);
@@ -485,12 +520,32 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
         if (ssh !== undefined) setSsh(ssh);
         if (ipython !== undefined) setIpython(ipython);
         if (tensorboard !== undefined) setTensorboard(tensorboard);
-        if (plugins !== undefined && plugins.hasOwnProperty("blobfuse") && Array.isArray(plugins['blobfuse'])) {
-          let blobfuseObj = plugins['blobfuse'][0];
-          setAccountName(blobfuseObj['accountName']);
-          setAccountKey(blobfuseObj['accountKey']);
-          setContainerName(blobfuseObj['containerName']);
-          setMountPath(blobfuseObj['mountPath']);
+        if (plugins === undefined) {
+          setAccountName("");
+          setAccountKey("");
+          setContainerName("");
+          setMountPath("");
+          setMountOptions("");
+          setDockerRegistry("")
+          setDockerUsername("")
+          setDockerPassword("")
+        }
+        if (plugins !== undefined) {
+          if (plugins.hasOwnProperty("blobfuse") && Array.isArray(plugins['blobfuse'])) {
+            let blobfuseObj = plugins['blobfuse'][0];
+            setAccountName(blobfuseObj['accountName']);
+            setAccountKey(blobfuseObj['accountKey']);
+            setContainerName(blobfuseObj['containerName']);
+            setMountPath(blobfuseObj['mountPath']);
+            setMountOptions(blobfuseObj['mountOptions']);
+          }
+
+          if (plugins.hasOwnProperty('imagePull') && Array.isArray(plugins['imagePull'])) {
+            let imagePullObj = plugins['imagePull'][0];
+            setDockerRegistry(imagePullObj['registry'])
+            setDockerUsername(imagePullObj['username'])
+            setDockerPassword(imagePullObj['password'])
+          }
         }
       }
     },
@@ -533,17 +588,21 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     if (!submittable) return;
     let plugins: any = {};
     plugins['blobfuse'] = [];
-    let blobfuseObj: any = new Object();
+    let blobfuseObj: any = {};
     blobfuseObj['accountName'] = accountName || '';
     blobfuseObj['accountKey'] = accountKey || '';
     blobfuseObj['containerName'] = containerName || '';
     blobfuseObj['mountPath'] = mountPath || '';
-    blobfuseObj['mountOptions'] = mountOptions;
+    blobfuseObj['mountOptions'] = mountOptions || '';
     plugins['blobfuse'].push(blobfuseObj);
-
+    plugins['imagePull'] = [];
+    let imagePullObj: any = {};
+    imagePullObj['registry'] = dockerRegistry
+    imagePullObj['username'] = dockerUsername
+    imagePullObj['password'] = dockerPassword
+    plugins['imagePull'].push(imagePullObj)
     const job: any = {
       userName: email,
-      userId: uid,
       jobType: 'training',
       gpuType: gpuModel,
       vcName: selectedTeam,
@@ -627,18 +686,18 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       history.push(`/job/${selectedTeam}/${selectedCluster}/${jobId.current}`);
     }
   }, [postJobData, ssh, ipython, tensorboard, interactivePorts, history, selectedCluster, postEndpoints, selectedTeam]);
-  const fetchPrometheusUrl = `/api/clusters`;
-  const request = useFetch(fetchPrometheusUrl);
-  const fetchPrometheus = async () => {
-    const {prometheus} = await request.get(`/${selectedCluster}`);
-    setPrometheusUrl(prometheus);
+  const fetchGrafanaUrl = `/api/clusters`;
+  const request = useFetch(fetchGrafanaUrl);
+  const fetchGrafana = async () => {
+    const {grafana} = await request.get(`/${selectedCluster}`);
+    setGrafanaUrl(grafana);
   }
   const handleCloseGPUGramentation = () => {
     setShowGPUFragmentation(false);
   }
 
   React.useEffect(() => {
-    fetchPrometheus()
+    fetchGrafana()
     if (postEndpointsData) {
       setOpen(true);
       setTimeout(()=>{
@@ -670,8 +729,8 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     setShowDeleteTemplate(false)
   }
   React.useEffect(() => {
-    if (!prometheusUrl) return;
-    let getNodeGpuAva = `${prometheusUrl}/prometheus/api/v1/query?`;
+    if (!grafanaUrl) return;
+    let getNodeGpuAva = `${grafanaUrl}/api/datasources/proxy/1/api/v1/query?`;
     const params = new URLSearchParams({
       query:'count_values("gpu_available", k8s_node_gpu_available)'
     });
@@ -681,7 +740,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       const sortededResult = result.sort((a: any, b: any)=>a['metric']['gpu_available'] - b['metric']['gpu_available']);
       setGpuFragmentation(sortededResult)
     })
-  }, [prometheusUrl])
+  }, [grafanaUrl])
 
   const isDesktop = useMediaQuery(theme.breakpoints.up("sm"));
 
@@ -917,7 +976,6 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
             <Divider/>
             <CardContent>
               <Typography component="div" variant="h6" >Azure Blob</Typography>
-              <Typography component="div" variant="caption" color={"textSecondary"}>Fill in all fields for Azure blob to take effect.</Typography>
               <Grid
                 container
                 wrap="wrap"
@@ -965,6 +1023,43 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
                     value={mountOptions}
                     onChange={onMountOptionsChange}
                     label="Mount Options"
+                    fullWidth
+                    variant="filled"
+                  />
+                </Grid>
+              </Grid>
+            </CardContent>
+            <CardContent>
+              <Typography component="div" variant="h6" >Custom Docker Registry</Typography>
+              <Grid
+                container
+                wrap="wrap"
+                spacing={1}
+                align-items-xs-baseline
+              >
+                <Grid item xs={12}>
+                  <TextField
+                    value={dockerRegistry}
+                    onChange={onDockerRegistryChange}
+                    label="Registry"
+                    fullWidth
+                    variant="filled"
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    value={dockerUsername}
+                    onChange={onDockerUsernameChange}
+                    label="Username"
+                    fullWidth
+                    variant="filled"
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    value={dockerPassword}
+                    onChange={onDockerPasswordChange}
+                    label="Password"
                     fullWidth
                     variant="filled"
                   />

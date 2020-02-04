@@ -2,17 +2,13 @@ const { createHash } = require('crypto')
 
 const config = require('config')
 const jwt = require('jsonwebtoken')
-const fetch = require('node-fetch')
 
 const Service = require('./service')
-const Cluster = require('./cluster')
 
 const sign = config.get('sign')
-const winbind = config.has('winbind') ? config.get('winbind') : undefined
 const masterToken = config.get('masterToken')
-const addGroupLink = config.get('AddGroupLink')
-const WikiLink = config.get('WikiLink')
-const clusterIds = Object.keys(config.get('clusters'))
+
+const TOKEN = Symbol('token')
 
 class User extends Service {
   /**
@@ -32,22 +28,20 @@ class User extends Service {
   static fromIdToken (context, idToken) {
     const user = new User(context, idToken['upn'])
     user.givenName = idToken['given_name']
-    user.addGroupLink = addGroupLink
     user.familyName = idToken['family_name']
-    user.WikiLink = WikiLink
     return user
   }
 
   /**
    * @param {import('koa').Context} context
    * @param {string} email
-   * @param {string} token
+   * @param {string} password
    * @return {User}
    */
-  static fromToken (context, email, token) {
+  static fromPassword (context, email, password) {
     const user = new User(context, email)
     const expectedToken = user.token
-    const actualToken = Buffer.from(token, 'hex')
+    const actualToken = Buffer.from(password, 'hex')
     context.assert(expectedToken.equals(actualToken), 403, 'Invalid token')
 
     return user // No givenName nor familyName here
@@ -55,16 +49,13 @@ class User extends Service {
 
   /**
    * @param {import('koa').Context} context
-   * @param {string} token
+   * @param {string} cookieToken
    * @return {User}
    */
-  static fromCookie (context, token) {
-    const payload = jwt.verify(token, sign)
+  static fromCookieToken (context, cookieToken) {
+    const payload = jwt.verify(cookieToken, sign)
     const user = new User(context, payload['email'])
-    user.password = this.generateToken(user.email)
     user.givenName = payload['givenName']
-    user.addGroupLink = addGroupLink
-    user.WikiLink = WikiLink
     user.familyName = payload['familyName']
     user.uid = payload['uid']
     user.gid = payload['gid']
@@ -82,59 +73,34 @@ class User extends Service {
   }
 
   get token () {
-    if (this._token == null) {
-      Object.defineProperty(this, '_token', {
-        value: User.generateToken(this.email)
-      })
+    if (this[TOKEN] == null) {
+      this[TOKEN] = User.generateToken(this.email)
     }
-    return this._token
-  }
-
-  async fillIdFromWinbind () {
-    if (winbind == null) {
-      this.context.log.warn('No winbind server, user will have no uid / gid, and will not sync user info to any cluster.')
-      return null
-    }
-
-    const params = new URLSearchParams({ userName: this.email })
-    const url = `${winbind}/domaininfo/GetUserId?${params}`
-    this.context.log.info({ url }, 'Winbind request')
-    const response = await fetch(url)
-    const data = await response.json()
-    this.context.log.info({ data }, 'Winbind response')
-
-    this.uid = data['uid']
-    this.gid = data['gid']
-    return data
-  }
-
-  async addUserToCluster (data) {
-    if (data == null) return
-
-    // Fix groups format
-    if (Array.isArray(data['groups'])) {
-      data['groups'] = JSON.stringify(data['groups'].map(e => String(e)))
-    }
-    const params = new URLSearchParams(Object.assign({ userName: this.email }, data))
-    for (const clusterId of clusterIds) {
-      new Cluster(this.context, clusterId).fetch('/AddUser?' + params)
-    }
+    return this[TOKEN]
   }
 
   /**
    * @return {string}
    */
-  toCookie () {
+  toCookieToken () {
     return jwt.sign({
       email: this.email,
       uid: this.uid,
       gid: this.gid,
-      _token: this.token,
       familyName: this.familyName,
-      givenName: this.givenName,
-      addGroupLink: addGroupLink,
-      WikiLink: WikiLink
+      givenName: this.givenName
     }, sign)
+  }
+
+  toJSON () {
+    return {
+      email: this.email,
+      password: this.token.toString('hex'),
+      uid: this.uid,
+      gid: this.gid,
+      familyName: this.familyName,
+      givenName: this.givenName
+    }
   }
 }
 

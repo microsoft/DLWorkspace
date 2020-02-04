@@ -1,12 +1,11 @@
 const axiosist = require('axiosist')
-const sinon = require('sinon')
 const nock = require('nock')
 const api = require('../../../api').callback()
 const User = require('../../../api/services/user')
 
 const userParams = {
   email: 'dlts@example.com',
-  token: User.generateToken('dlts@example.com').toString('hex'),
+  password: User.generateToken('dlts@example.com').toString('hex'),
   teamId: 'testteam'
 }
 
@@ -22,7 +21,6 @@ describe('GET /teams/:teamId/clusters/:clusterId', () => {
       .reply(200, {
         message: 'test team info'
       })
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/teams/testteam/clusters/Universe', {
       params: userParams
@@ -36,7 +34,6 @@ describe('GET /teams/:teamId/clusters/:clusterId', () => {
     nock('http://Universe')
       .get('/GetVC?' + getTeamParams)
       .reply(500)
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/teams/testteam/clusters/Universe', {
       params: userParams
@@ -49,7 +46,6 @@ describe('GET /teams/:teamId/clusters/:clusterId', () => {
     nock('http://Universe')
       .get('/GetVC?' + getTeamParams)
       .reply(200, null)
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/teams/testteam/clusters/Universe', {
       params: userParams

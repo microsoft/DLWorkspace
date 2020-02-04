@@ -58,7 +58,7 @@ coreosbaseurl = ""
 verbose = False
 nocache = False
 limitnodes = None
-allroles = {"infra", "infrastructure", "worker", "nfs", "sql", "samba"}
+allroles = {"infra", "infrastructure", "worker", "nfs", "sql", "samba", "mysqlserver"}
 
 
 # default search for all partitions of hdb, hdc, hdd, and sdb, sdc, sdd
@@ -372,7 +372,9 @@ def add_kubelet_config():
     for file in kubemaster_cfg_files:
         with open(os.path.join("./deploy/kubelet", file), 'r') as f:
             content = f.read()
-        config[file] = base64.b64encode(content)
+        # encode to base64 and decode when used. this is to make STRUCTURED content more robust.
+        # refer to {{cnf["ca.pem"]}} in template/cloud-config/cloud-config-worker.yml
+        config[file] = base64.b64encode(content.encode('utf-8')).decode('utf-8')
 
 def add_dns_entries():
     addCoreOSNetwork = ""
@@ -431,6 +433,9 @@ def init_deployment():
     else:
         create_cluster_id()
     if gen_new_key:
+        os.system("mkdir -p ./deploy/cloud-config")
+        os.system("rm -r ./deploy/cloud-config")
+        os.system("mkdir -p ./deploy/cloud-config")
         utils.gen_SSH_key(regenerate_key)
         gen_CA_certificates()
         gen_worker_certificates()
@@ -480,17 +485,17 @@ def init_deployment():
 
     with open("./deploy/ssl/ca/ca.pem", 'r') as f:
         content = f.read()
-    config["ca.pem"] = base64.b64encode(content)
+    config["ca.pem"] = base64.b64encode(content.encode('utf-8')).decode('utf-8')
 
     with open("./deploy/ssl/kubelet/apiserver.pem", 'r') as f:
         content = f.read()
-    config["apiserver.pem"] = base64.b64encode(content)
-    config["worker.pem"] = base64.b64encode(content)
+    config["apiserver.pem"] = base64.b64encode(content.encode('utf-8')).decode('utf-8')
+    config["worker.pem"] = base64.b64encode(content.encode('utf-8')).decode('utf-8')
 
     with open("./deploy/ssl/kubelet/apiserver-key.pem", 'r') as f:
         content = f.read()
-    config["apiserver-key.pem"] = base64.b64encode(content)
-    config["worker-key.pem"] = base64.b64encode(content)
+    config["apiserver-key.pem"] = base64.b64encode(content.encode('utf-8')).decode('utf-8')
+    config["worker-key.pem"] = base64.b64encode(content.encode('utf-8')).decode('utf-8')
 
     add_additional_cloud_config()
     add_kubelet_config()
@@ -585,7 +590,7 @@ def get_ETCD_master_nodes(clusterId):
     if "etcd_node" in config and len(config["etcd_node"]) > 0:
         Nodes = config["etcd_node"]
         config["kubernetes_master_node"] = Nodes
-        #print ("From etcd_node " + " ".join(map(str, Nodes)))
+        #print("From etcd_node " + " ".join(map(str, Nodes)))
         return Nodes
     if "useclusterfile" not in config or not config["useclusterfile"]:
         #print "From cluster portal"
@@ -676,12 +681,14 @@ def check_master_ETCD_status():
     print "Checking Available Nodes for Deployment..."
     get_ETCD_master_nodes(config["clusterId"])
     get_worker_nodes(config["clusterId"], False)
+    get_nodes_by_roles(["mysqlserver"])
     get_nodes_by_roles(["nfs"])
     get_nodes_by_roles(["samba"])
     print "==============================================="
     print "Activate Master Node(s): %s\n %s \n" % (len(config["kubernetes_master_node"]),",".join(config["kubernetes_master_node"]))
     print "Activate ETCD Node(s):%s\n %s \n" % (len(config["etcd_node"]),",".join(config["etcd_node"]))
     print "Activate Worker Node(s):%s\n %s \n" % (len(config["worker_node"]),",".join(config["worker_node"]))
+    print "Activate MySQLServer Node(s):%s\n %s \n" % (len(config["mysqlserver_node"]), ",".join(config["mysqlserver_node"]))
     print "Activate NFS Node(s):%s\n %s \n" % (len(config["nfs_node"]),",".join(config["nfs_node"]))
     print "Activate Samba Node(s):%s\n %s \n" % (len(config["samba_node"]), ",".join(config["samba_node"]))
 
@@ -712,8 +719,6 @@ def GetCertificateProperty():
 
     config["apiserver_ssl_dns"] = "\n".join(["DNS."+str(i+5)+" = "+dns for i,dns in enumerate(masterdns)])
     config["apiserver_ssl_ip"] = "\n".join(["IP.{} = {}".format(i, sslip) for i, sslip in enumerate([config["api-server-ip"]] + config["ssl_localhost_ips"] + masterips)])
-    # config["apiserver_ssl_ip"] = "IP.1 = "+config["api-server-ip"]+"\nIP.2 = 127.0.0.1\n"+ "\n".join(["IP."+str(i+3)+" = "+ip for i,ip in enumerate(masterips)])
-
     # kube-apiserver aggregator use easyrsa to generate crt files, we need to generate a group of master names for it.
     # It does not care if it's a DNS name or IP.
     masternames = []
@@ -732,7 +737,6 @@ def GetCertificateProperty():
 
     config["etcd_ssl_dns"] = "\n".join(["DNS."+str(i+5)+" = "+dns for i,dns in enumerate(etcddns)])
     config["etcd_ssl_ip"] = "\n".join(["IP.{} = {}".format(i, sslip) for i, sslip in enumerate(config["ssl_localhost_ips"] + etcdips)])
-    # config["etcd_ssl_ip"] = "IP.1 = 127.0.0.1\n" + "\n".join(["IP."+str(i+2)+" = "+ip for i,ip in enumerate(etcdips)])
 
 def gen_worker_certificates():
 
@@ -774,16 +778,19 @@ def load_platform_type():
 
 def gen_platform_wise_config():
     load_platform_type()
-    azdefault = { 'network_domain':"config['network']['domain']", 
-        'worker_node_num':"config['azure_cluster']['worker_node_num']", 
+    azdefault = { 'network_domain':"config['network']['domain']",
+        'worker_node_num':"config['azure_cluster']['worker_node_num']",
         'gpu_count_per_node':'config["sku_mapping"].get(config["azure_cluster"]["worker_vm_size"],config["sku_mapping"]["default"])["gpu-count"]',
-        'gpu_type':'config["sku_mapping"].get(config["azure_cluster"]["worker_vm_size"],config["sku_mapping"]["default"])["gpu-type"]' }
+        'gpu_type':'config["sku_mapping"].get(config["azure_cluster"]["worker_vm_size"],config["sku_mapping"]["default"])["gpu-type"]',
+        'etcd_node_num': "config['azure_cluster']['infra_node_num']" }
     on_premise_default = {'network_domain':"config['network']['domain']"}
     platform_dict = { 'azure_cluster': azdefault, 'onpremise': on_premise_default }
-    platform_func = { 'azure_cluster': load_az_params_as_default, 'onpremise': on_premise_params } 
+    platform_func = { 'azure_cluster': load_az_params_as_default, 'onpremise': on_premise_params }
     default_dict, default_func = platform_dict[config["platform_type"]], platform_func[config["platform_type"]]
     default_func()
     need_val = ['network_domain', 'worker_node_num', 'gpu_count_per_node', 'gpu_type']
+    config['etcd_node_num'] = config.get('etcd_node_num')
+
     for ky in need_val:
         if ky not in config:
             config[ky] = eval(default_dict[ky])
@@ -809,15 +816,11 @@ def gen_configs():
     else:
         etcd_servers = []
 
-    #if int(config["etcd_node_num"]) <= 0:
-    #    raise Exception("ERROR: we need at least one etcd_server.")
     if "kubernetes_master_node" in config:
         kubernetes_masters = config["kubernetes_master_node"]
     else:
         kubernetes_masters = []
 
-    #if len(kubernetes_masters) <= 0:
-    #    raise Exception("ERROR: we need at least one etcd_server.")
     if not config["isacs"]:
         config["discovery_url"] = utils.get_ETCD_discovery_URL(int(config["etcd_node_num"]))
 
@@ -828,7 +831,6 @@ def gen_configs():
     config["nfs_user"] = config["admin_username"]
     config["kubernetes_master_ssh_user"] = config["admin_username"]
 
-    #config["api_servers"] = ",".join(["https://"+x for x in config["kubernetes_master_node"]])
     config["api_servers"] = "https://"+config["kubernetes_master_node"][0]+":"+str(config["k8sAPIport"])
     config["etcd_endpoints"] = ",".join(["https://"+x+":"+config["etcd3port1"] for x in config["etcd_node"]])
 
@@ -931,7 +933,6 @@ def deploy_master(kubernetes_master):
 def get_cni_binary():
     os.system("mkdir -p ./deploy/bin")
     # This tar file contains binary build from https://github.com/containernetworking/cni which used by weave
-    #urllib.urlretrieve("https://github.com/microsoft/DLWorkspace/releases/download/v1.2.0/cni-v0.7.1.tgz", "./deploy/bin/cni-v0.7.1.tgz")
     copy_from_docker_image(config["dockers"]["container"]["binstore"]["fullname"], "/data/cni/cni-v0.7.1.tgz", "./deploy/bin/cni-v0.7.1.tgz")
     if verbose:
         print "Extracting CNI binaries"
@@ -1030,7 +1031,6 @@ def clean_etcd():
     for etcd_server_address in etcd_servers:
         print "==============================================="
         print "Clean up etcd servers %s... (It is OK to see 'Errors' in this section)" % etcd_server_address
-        #utils.SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "timeout 10 docker rm -f \$(timeout 3 docker ps -q -a)")
         cmd = "sudo systemctl stop etcd3; "
         cmd += "sudo rm -r /var/etcd/data ; "
         cmd += "sudo rm -r /etc/etcd/ssl; "
@@ -1054,10 +1054,6 @@ def deploy_ETCD_docker():
     utils.render_template_directory("./template/etcd", "./deploy/etcd",config)
 
     for etcd_server_address in etcd_servers:
-        #print "==============================================="
-        #print "deploy configuration files to web server..."
-        #scp(config["ssh_cert"],"./deploy","/var/www/html", config["webserver_user"], config["webserver"] )
-
         print "==============================================="
         print "deploy certificates to etcd server %s" % etcd_server_address
         utils.SSH_exec_cmd (config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo mkdir -p /etc/etcd/ssl ; sudo chown %s /etc/etcd/ssl " % (etcd_server_user), showCmd=verbose)
@@ -1099,9 +1095,6 @@ def deploy_ETCD():
     clean_etcd()
 
     for i,etcd_server_address in enumerate(etcd_servers):
-        #print "==============================================="
-        #print "deploy configuration files to web server..."
-        #utils.scp(config["ssh_cert"],"./deploy","/var/www/html", config["webserver_user"], config["webserver"] )
 
         utils.SSH_exec_cmd(config["ssh_cert"], etcd_server_user, etcd_server_address, "sudo systemctl stop etcd3")
 
@@ -1181,7 +1174,7 @@ def create_PXE():
     os.system("cp -r ./deploy/cloud-config/* ./deploy/pxe/tftp/usr/share/oem")
 
     dockername = push_one_docker("./deploy/pxe", config["dockerprefix"], config["dockertag"], "pxe-coreos", config )
-    print ("A DL workspace docker is built at: "+ dockername)
+    print("A DL workspace docker is built at: "+ dockername)
 
 def config_ubuntu():
     ubuntuConfig = fetch_config( config, ["ubuntuconfig"] )
@@ -1199,7 +1192,7 @@ def create_PXE_ubuntu():
 
     dockername = push_one_docker("./deploy/pxe-ubuntu", config["dockerprefix"], config["dockertag"], "pxe-ubuntu", config )
 
-    print ("A DL workspace docker is built at: "+ dockername)
+    print("A DL workspace docker is built at: "+ dockername)
 
 
 def clean_worker_nodes():
@@ -1277,6 +1270,94 @@ def update_scaled_worker_nodes( nargs ):
     os.system("rm ./deploy/kubelet/kubelet.service")
     os.system("rm ./deploy/kubelet/worker-kubeconfig.yaml")
 
+def default_node_type4kubernetes_services():
+    servicedic = get_all_services()
+    nodetype4service = fetch_config(config, ["kubelabels"])
+    if "default" in nodetype4service:
+        for service, servicefile in servicedic.iteritems():
+            servicename = get_service_name(servicefile)
+            if servicename is None or service in nodetype4service or servicename in nodetype4service:
+                continue
+            nodetype4service[servicename] = nodetype4service["default"]
+    return nodetype4service
+
+def service4nodetype(nodetypes, nodetype4service):
+    """not including 'all'. if you want it, add it explicitly, e.g., ['worker', 'all']"""
+    servicelist = []
+    for nodetype in nodetypes:
+        for service, type4svc in nodetype4service.items():
+          if type4svc == nodetype:
+            servicelist += service,
+    return servicelist
+
+def render_kubelet_service_by_node_type(nodetype, nodetype4service={}):
+    """since this is for cloud init, we only consider the case where we want to label the service as active, and
+    we don't consider the overwriting case
+    nodetypes should be a kind of nodetype, e.g., 'worker',
+    nodetype4service is a dict if specified to overwrite the default dict"""
+    temp_keys = ['labels']
+    for ky in temp_keys:
+        config.pop(ky, None)
+    if nodetype in ['worker', 'etcd']:
+        nodetype += '_node'
+    assert (nodetype in ['worker_node', 'etcd_node'] or (nodetype[:10] == 'etcd_node_' and nodetype[10:].isdigit()))  and \
+    'invalid nodetype'
+    nd_type4svc = default_node_type4kubernetes_services()
+    # overwrite if specified
+    for svc in nodetype4service:
+        nd_type4svc[svc] = nodetype4service[svc]
+    # tried to get rid of this but failed. this doesn't work: https://docs.ansible.com/ansible/latest/user_guide/playbooks_filters.html#regular-expression-filters
+    config['labels'] = ["{}=active".format(svc) for svc in service4nodetype([nodetype, 'all'], nd_type4svc)]
+    utils.render_template("template/cloud-config/cloudinit.kubelet.service.template",
+        "./deploy/cloud-config/{}.kubelet.service".format(nodetype), config)
+    for ky in temp_keys:
+        config.pop(ky)
+
+def render_mount_script():
+    os.system('rm -f deploy/cloud-config/fileshare_install.sh')
+    os.system('rm -f deploy/cloud-config/mnt_fs_svc.sh')
+    fileshare_install('deploy/cloud-config/fileshare_install.sh')
+    allmountpoints = mount_fileshares_by_service(True, 'deploy/cloud-config/mnt_fs_svc.sh')
+
+def render_and_pack_worker_cloud_init_files():
+    role = 'worker_node'
+    os.system('rm -rf worker_cld_init; mkdir -p worker_cld_init')
+    utils.render_template_directory("./template/kubelet", "./deploy/kubelet", config)
+    utils.render_template("template/cloud-config/cloud_init_worker.txt.template", "./scripts/cloud_init_worker.txt", config)
+    config['role'] = role
+    utils.render_template("template/cloud-config/cloudinit.upgrade.list",
+        "./deploy/cloud-config/cloudinit.{}.upgrade.list".format(role), config)
+    render_kubelet_service_by_node_type('worker_node')
+    # write_nodelist_yaml() TODO verify whether this step is necessary
+    os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"'
+        % config["etcd_endpoints"].replace("/","\\/"))
+    os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/worker-kubeconfig.yaml.template > ./deploy/kubelet/worker-kubeconfig.yaml'
+        % config["api_servers"].replace("/","\\/"))
+    get_hyperkube_docker()
+    render_mount_script()
+    with open("./deploy/cloud-config/cloudinit.{}.upgrade.list".format(role),"r") as f:
+        deploy_files = [s.split(",") for s in f.readlines() if len(s.split(",")) == 2]
+    with open("worker_cld_init/filemap", "w") as wf:
+        for (source, target) in deploy_files:
+            src_strip, tgt_strip = source.strip(), target.strip()
+            if os.path.exists(src_strip):
+                fbn = os.path.basename(src_strip)
+                os.system('cp {} worker_cld_init/{}'.format(src_strip, fbn))
+                wf.write("{},{}\n".format(fbn, tgt_strip))
+
+    files2cp = [ "./deploy/kubelet/%s" % config["preworkerdeploymentscript"], "./deploy/kubelet/%s" % config["postworkerdeploymentscript"],
+                "./scripts/cloud_init_worker.sh", "./scripts/mkdir_and_cp.sh", "./scripts/prepare_vm_disk.sh", "./scripts/prepare_ubuntu.sh",
+                "./scripts/disable_kernel_auto_updates.sh", "./scripts/docker_network_gc_setup.sh", "./scripts/dns.sh",
+                "deploy/cloud-config/fileshare_install.sh", "deploy/cloud-config/mnt_fs_svc.sh", "scripts/lnk_fs.sh"]
+    for fn in files2cp:
+        os.system('cp {} worker_cld_init/{}'.format(fn, os.path.basename(fn)))
+
+    os.system("tar -cvf worker_cld_init.tar worker_cld_init;")
+
+    # TODO we want to upload to infra node, use a service in a container to serve workers requesting this package.
+    os.system("rm ./deploy/kubelet/options.env")
+    os.system("rm ./deploy/kubelet/worker-kubeconfig.yaml")
+
 def update_worker_nodes( nargs ):
     utils.render_template_directory("./template/kubelet", "./deploy/kubelet",config)
     write_nodelist_yaml()
@@ -1331,6 +1412,65 @@ def reset_worker_nodes():
         reset_worker_node(node)
 
 
+def update_nfs_nodes(nargs):
+    """Internally use update_worker_node.
+
+    TODO: Should be covered by update_role_nodes in deploy.py V2
+    """
+    # This is to temporarily replace gpu_type with None to disallow nvidia runtime config to appear in /etc/docker/daemon.json
+    prev_gpu_type = config["gpu_type"]
+    config["gpu_type"] = "None"
+    utils.render_template_directory("./template/kubelet", "./deploy/kubelet", config)
+    config["gpu_type"] = prev_gpu_type
+
+    write_nodelist_yaml()
+
+    os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' % config["etcd_endpoints"].replace("/","\\/"))
+    os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' % config["api_servers"].replace("/","\\/"))
+    os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/worker-kubeconfig.yaml.template > ./deploy/kubelet/worker-kubeconfig.yaml' % config["api_servers"].replace("/","\\/"))
+
+    get_hyperkube_docker()
+
+    nfs_nodes = get_nodes_by_roles(["nfs"])
+    nfs_nodes = limit_nodes(nfs_nodes)
+    for node in nfs_nodes:
+        if in_list(node, nargs):
+            update_worker_node(node)
+
+    os.system("rm ./deploy/kubelet/options.env")
+    os.system("rm ./deploy/kubelet/kubelet.service")
+    os.system("rm ./deploy/kubelet/worker-kubeconfig.yaml")
+
+
+def update_mysqlserver_nodes(nargs):
+    """Internally use update_worker_node.
+
+    TODO: Should be covered by update_role_nodes in deploy.py V2
+    """
+    # This is to temporarily replace gpu_type with None to disallow nvidia runtime config to appear in /etc/docker/daemon.json
+    prev_gpu_type = config["gpu_type"]
+    config["gpu_type"] = "None"
+    utils.render_template_directory("./template/kubelet", "./deploy/kubelet", config)
+    config["gpu_type"] = prev_gpu_type
+
+    write_nodelist_yaml()
+
+    os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' % config["etcd_endpoints"].replace("/", "\\/"))
+    os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' % config["api_servers"].replace("/", "\\/"))
+    os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/worker-kubeconfig.yaml.template > ./deploy/kubelet/worker-kubeconfig.yaml' % config["api_servers"].replace("/", "\\/"))
+
+    get_hyperkube_docker()
+
+    mysqlserver_nodes = get_nodes_by_roles(["mysqlserver"])
+    mysqlserver_nodes = limit_nodes(mysqlserver_nodes)
+    for node in mysqlserver_nodes:
+        if in_list(node, nargs):
+            update_worker_node(node)
+
+    os.system("rm ./deploy/kubelet/options.env")
+    os.system("rm ./deploy/kubelet/kubelet.service")
+    os.system("rm ./deploy/kubelet/worker-kubeconfig.yaml")
+
 
 def create_MYSQL_for_WebUI():
     #todo: create a mysql database, and set "mysql-hostname", "mysql-username", "mysql-password", "mysql-database"
@@ -1359,7 +1499,7 @@ def deploy_restful_API_on_node(ipAddress):
         utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP, "sudo chown -R %s /etc/kubernetes" % config["admin_username"])
         utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP, "sudo cp /etc/kubernetes/certs/client.crt /etc/kubernetes/ssl/apiserver.pem")
         utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP, "sudo cp /etc/kubernetes/certs/client.key /etc/kubernetes/ssl/apiserver-key.pem")
-        utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP, "sudo cp /etc/kubernetes/certs/ca.crt /etc/kubernetes/ssl/ca.pem")    
+        utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP, "sudo cp /etc/kubernetes/certs/ca.crt /etc/kubernetes/ssl/ca.pem")
         utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], masterIP, "sudo cp /home/%s/.kube/config /etc/kubernetes/restapi-kubeconfig.yaml" % config["admin_username"])
 
     print "==============================================="
@@ -1393,6 +1533,11 @@ def deploy_webUI_on_node(ipAddress):
     if ( "servers" not in config["Dashboards"]["grafana"]):
         config["Dashboards"]["grafana"]["servers"] = masternodes[0]
 
+    config["grafana_endpoint"] = "http://%s:%s" % (config["Dashboards"]["grafana"]["servers"], config["Dashboards"]["grafana"]["port"])
+    config["prometheus_endpoint"] = "http://%s:%s" % (config["prometheus"]["host"], config["prometheus"]["port"])
+
+
+
     reportConfig = config["Dashboards"]
     reportConfig["kuberneteAPI"] = {}
     reportConfig["kuberneteAPI"]["port"] = config["k8sAPIport"]
@@ -1414,6 +1559,8 @@ def deploy_webUI_on_node(ipAddress):
     utils.render_template_directory("./template/RestfulAPI", "./deploy/RestfulAPI",config)
     utils.sudo_scp(config["ssh_cert"],"./deploy/RestfulAPI/config.yaml","/etc/RestfulAPI/config.yaml", sshUser, webUIIP )
 
+    utils.render_template_directory("./template/dashboard", "./deploy/dashboard",config)
+    utils.sudo_scp(config["ssh_cert"],"./deploy/dashboard/production.yaml","/etc/dashboard/production.yaml", sshUser, webUIIP )
 
     print "==============================================="
     print "Web UI is running at: http://%s:%s" % (webUIIP,str(config["webuiport"]))
@@ -1633,7 +1780,6 @@ def get_mount_fileshares(curNode = None):
                     raise ValueError(errorMsg)
                 else:
                     bHasDefaultMountPoints = True
-                    print "default storage folders:", config["default-storage-folders"], "\n"
                     mountpoints = config["default-storage-folders"]
 
             mountsharename = v["mountsharename"] if "mountsharename" in v else v["filesharename"]
@@ -1767,7 +1913,7 @@ def remove_fstab_section( node, secname):
                 f.close()
             utils.sudo_scp( config["ssh_cert"], "./deploy/etc/fstab", "/etc/fstab", config["admin_username"], node)
 
-def fileshare_install():
+def fileshare_install(mount_command_file=''):
     all_nodes = get_nodes(config["clusterId"])
     nodes = all_nodes
     for node in nodes:
@@ -1822,7 +1968,12 @@ def fileshare_install():
                             remotecmd += "sudo apt-get install -y default-jre; "
                             remotecmd += "sudo apt-get install -y --allow-unauthenticated hadoop-hdfs-fuse; "
         if len(remotecmd)>0:
-            utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
+            if mount_command_file == '':
+                utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
+            else:
+                with open(mount_command_file, 'w') as wf:
+                    wf.write(remotecmd)
+                break
 
 def config_fqdn():
     all_nodes = get_nodes(config["clusterId"])
@@ -1838,36 +1989,33 @@ def config_nginx():
     for node in all_nodes:
         utils.sudo_scp(config["ssh_cert"],"./deploy/services/nginx/","/etc/nginx/conf.other", config["admin_username"], node )
     # See https://github.com/kubernetes/examples/blob/master/staging/https-nginx/README.md
-    # Please use
-    # kubectl create configmap nginxconfigmap --from-file=services/nginx/default.conf
-    # run_kubectl( ["delete", "configmap", "nginxconfigmap"] )
-    # run_kubectl( ["create", "configmap", "nginxconfigmap", "--from-file=%s/default.conf" % target_dir ] )
 
-def mount_fileshares_by_service(perform_mount=True):
+def mount_fileshares_by_service(perform_mount=True, mount_command_file=''):
     all_nodes = get_nodes(config["clusterId"])
     if perform_mount:
         nodes = all_nodes
         for node in nodes:
             allmountpoints, fstab = get_mount_fileshares(node)
-            remotecmd = ""
+            remotecmd = "sudo mkdir -p %s; " % config["folder_auto_share"] #''
             remotecmd += "sudo mkdir -p %s; " % config["storage-mount-path"]
             remotecmd += "sudo mkdir -p %s; " % config["physical-mount-path"]
             mountconfig = { }
             mountconfig["mountpoints"] = allmountpoints
             mountconfig["storage-mount-path"] = config["storage-mount-path"]
+            mountconfig["dltsdata-storage-mount-path"] = config["dltsdata-storage-mount-path"]
             mountconfig["physical-mount-path"] = config["physical-mount-path"]
             for k,v in allmountpoints.iteritems():
                 if "curphysicalmountpoint" in v:
                     remotecmd += "sudo mkdir -p %s; " % v["curphysicalmountpoint"]
-            utils.SSH_exec_cmd( config["ssh_cert"], config["admin_username"], node, "sudo mkdir -p %s; " % config["folder_auto_share"] )
             utils.render_template_directory("./template/storage/auto_share", "./deploy/storage/auto_share", config)
             with open("./deploy/storage/auto_share/mounting.yaml",'w') as datafile:
                 yaml.dump(mountconfig, datafile, default_flow_style=False)
             remotecmd += "sudo systemctl stop auto_share.timer; "
-            # remotecmd += "sudo systemctl stop auto_share.service; "
             if len(remotecmd)>0:
-                utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
-            remotecmd = ""
+                if mount_command_file == '':
+                    utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
+                    remotecmd = ""
+            # copy the files & binaries to remote nodes
             utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.timer","/etc/systemd/system/auto_share.timer", config["admin_username"], node )
             utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.target","/etc/systemd/system/auto_share.target", config["admin_username"], node )
             utils.sudo_scp( config["ssh_cert"], "./deploy/storage/auto_share/auto_share.service","/etc/systemd/system/auto_share.service", config["admin_username"], node )
@@ -1881,12 +2029,15 @@ def mount_fileshares_by_service(perform_mount=True):
                 remotecmd += "sudo sed -i 's/\/usr\/bin/\/opt\/bin/g' %s; " % os.path.join(config["folder_auto_share"], "auto_share.py")
             remotecmd += "sudo " + os.path.join(config["folder_auto_share"], "auto_share.py") + "; " # run it once now
             remotecmd += "sudo systemctl daemon-reload; "
-            remotecmd += "sudo rm /opt/auto_share/lock; "
             remotecmd += "sudo systemctl enable auto_share.timer; "
             remotecmd += "sudo systemctl restart auto_share.timer; "
-            # remotecmd += "sudo systemctl stop auto_share.service; "
             if len(remotecmd)>0:
-                utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
+                if mount_command_file == '':
+                    utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
+                else:
+                    with open(mount_command_file, 'w') as wf:
+                        wf.write(remotecmd)
+                        break
             # We no longer recommend to insert fstabl into /etc/fstab file, instead,
             # we recommend to use service to start auto mount if needed
             # insert_fstab_section( node, "DLWS", fstab )
@@ -1928,14 +2079,11 @@ def del_fileshare_links():
         remotecmd += "sudo mkdir -p %s; " % config["storage-mount-path"]
         exec_rmt_cmd(node, remotecmd)
 
-def link_fileshares(allmountpoints, bForce=False):
+def link_fileshares(allmountpoints, bForce=False, mount_command_file=''):
     all_nodes = get_nodes(config["clusterId"])
     if True:
         nodes = all_nodes
         firstdirs = {}
-        for k,v in allmountpoints.iteritems():
-            if "mountpoints" in v:
-                firstdirs[v["curphysicalmountpoint"]] = True
         for node in nodes:
             remotecmd = ""
             if bForce:
@@ -1947,18 +2095,19 @@ def link_fileshares(allmountpoints, bForce=False):
                 remotecmd += "sudo rm -r %s; " % config["storage-mount-path"]
                 remotecmd += "sudo mkdir -p %s; " % config["storage-mount-path"]
 
-            output = utils.SSH_exec_cmd_with_output(config["ssh_cert"], config["admin_username"], node, "sudo mount" )
+            if mount_command_file == '':
+                output = utils.SSH_exec_cmd_with_output(config["ssh_cert"], config["admin_username"], node, "sudo mount")
+            else:
+                remotecmd += "sudo mount;"
             for k,v in allmountpoints.iteritems():
                 if "mountpoints" in v and v["type"]!="emptyDir":
-                    if output.find(v["curphysicalmountpoint"])<0:
+                    if mount_command_file == '' and output.find(v["curphysicalmountpoint"]) < 0:
                         print "!!!Warning!!! %s has not been mounted at %s " % (k, v["curphysicalmountpoint"])
                     else:
-                        if ( firstdirs[v["curphysicalmountpoint"]]):
-                            firstdirs[v["curphysicalmountpoint"]] = True
-                            for basename in v["mountpoints"]:
-                                dirname = os.path.join(v["curphysicalmountpoint"], basename )
-                                remotecmd += "sudo mkdir -p %s; " % dirname
-                                remotecmd += "sudo chmod ugo+rwx %s; " %dirname
+                        for basename in v["mountpoints"]:
+                            dirname = os.path.join(v["curphysicalmountpoint"], basename )
+                            remotecmd += "sudo mkdir -p %s; " % dirname
+                            remotecmd += "sudo chmod ugo+rwx %s; " %dirname
                     for basename in v["mountpoints"]:
                         dirname = os.path.join(v["curphysicalmountpoint"], basename )
                         storage_mount_path = config["storage-mount-path"]
@@ -1971,13 +2120,27 @@ def link_fileshares(allmountpoints, bForce=False):
                         remotecmd += "if [ ! -e %s ]; then sudo ln -s %s %s; fi; " % (linkdir, dirname, linkdir)
             # following node need not make the directory
             if len(remotecmd)>0:
-                utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
-
+                if mount_command_file == '':
+                    utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
+                else:
+                    with open(mount_command_file, 'w') as wf:
+                        wf.write(remotecmd)
+                    break
 
 def deploy_webUI():
     masterIP = config["kubernetes_master_node"][0]
     deploy_restful_API_on_node(masterIP)
     deploy_webUI_on_node(masterIP)
+
+
+def deploy_nfs_config():
+    nfs_nodes = get_nodes_by_roles(["nfs"])
+    for node in nfs_nodes:
+        utils.clean_rendered_target_directory()
+        config["cur_nfs_node"] = node.split(".")[0]
+        utils.render_template_directory("./template/StorageManager", "./deploy/StorageManager", config)
+        utils.sudo_scp(config["ssh_cert"], "./deploy/StorageManager/config.yaml", "/etc/StorageManager/config.yaml", config["admin_username"], node)
+        del config["cur_nfs_node"]
 
 
 def label_webUI(nodename):
@@ -2208,7 +2371,7 @@ def launch_glusterFS_endpoint( nodesinfo, glusterFSargs ):
     config_glusterFS = write_glusterFS_configuration( nodesinfo, glusterFSargs )
     glusterfs_groups = config_glusterFS["groups"]
     with open("./services/glusterFS_ep/glusterFS_ep.yaml",'r') as config_template_file:
-        config_template = yaml.load( config_template_file )
+        config_template = yaml.load(config_template_file, Loader=yaml.FullLoader)
         config_template_file.close()
     for group, group_config in glusterfs_groups.iteritems():
         config_template["metadata"]["name"] = "glusterfs-%s" % group
@@ -2574,10 +2737,6 @@ def set_host_names_by_lookup():
                 print "Set hostname of node " + node + " to " + hostname
                 utils.SSH_exec_cmd( config["ssh_cert"], config["admin_username"], node, cmd )
             else:
-                #if isinstance( domainEntry, basestring):
-                #    usename = namelist[0] + "." + domainEntry
-                #else:
-                #    usename = namelist[0]
                 usename = namelist[0]
                 cmd = "sudo hostnamectl set-hostname " + usename
                 print "Set hostname of node " + node + " ... " + usename
@@ -2621,22 +2780,6 @@ def deploy_ETCD_master(force = False):
             if first_char(response) == "y":
                 gen_master_certificates()
                 deploy_masters(force)
-
-            #response = raw_input_with_default("Allow Workers to register (y/n)?")
-            #if first_char(response) == "y":
-
-            #    urllib.urlretrieve (config["homeinserver"]+"/SetClusterInfo?clusterId=%s&key=etcd_endpoints&value=%s" %  (config["clusterId"],config["etcd_endpoints"]))
-            #    urllib.urlretrieve (config["homeinserver"]+"/SetClusterInfo?clusterId=%s&key=api_server&value=%s" % (config["clusterId"],config["api_servers"]))
-            #    return True
-            #return False
-
-#            response = raw_input_with_default("Create ISO file for deployment (y/n)?")
-#            if first_char(response) == "y":
-#                create_ISO()
-
-#            response = raw_input_with_default("Create PXE docker image for deployment (y/n)?")
-#            if first_char(response) == "y":
-#                create_PXE()
             return True
         else:
             print "Cannot deploy cluster since there are insufficient number of etcd server or master server. \n To continue deploy the cluster we need at least %d etcd server(s)" % (int(config["etcd_node_num"]))
@@ -2720,7 +2863,7 @@ def get_all_services():
                 with open( yamlname ) as f:
                     content = f.read()
                     f.close()
-                    if content.find( "Deployment" )>=0 or content.find( "DaemonSet" )>=0 or content.find("ReplicaSet")>=0:
+                    if content.find( "Deployment" )>=0 or content.find( "DaemonSet" )>=0 or content.find("ReplicaSet")>=0 or content.find("CronJob")>=0:
                         # Only add service if it is a daemonset.
                         servicedic[service] = yamlname
     return servicedic
@@ -2728,7 +2871,7 @@ def get_all_services():
 def get_service_name(service_config_file):
     f = open(service_config_file)
     try:
-        service_config = yaml.load(f)
+        service_config = yaml.load(f, Loader=yaml.FullLoader)
     except:
         return None
     f.close()
@@ -2764,6 +2907,10 @@ def get_node_lists_for_service(service):
         nodetype = labels[service] if service in labels else labels["default"]
         if nodetype == "worker_node":
             nodes = config["worker_node"]
+        elif nodetype == "mysqlserver_node":
+            nodes = config["mysqlserver_node"]
+        elif nodetype == "nfs_node":
+            nodes = config["nfs_node"]
         elif nodetype == "etcd_node":
             nodes = config["etcd_node"]
         elif nodetype.find( "etcd_node_" )>=0:
@@ -2794,13 +2941,17 @@ def get_node_lists_for_service(service):
 # etcd_node_n: a particular etcd node
 # worker_node: all worker node
 # The kubernete node will be marked accordingly to facilitate the running of daemon service.
+
 def kubernetes_label_nodes( verb, servicelists, force ):
     servicedic = get_all_services()
+    print "servicedic\n", servicedic
     get_nodes(config["clusterId"])
     labels = fetch_config(config, ["kubelabels"])
+    print "labels\n", labels
     for service, serviceinfo in servicedic.iteritems():
         servicename = get_service_name(servicedic[service])
         if (not service in labels) and (not servicename in labels) and "default" in labels and (not servicename is None):
+            print "not in: {},{}\n".format(service, serviceinfo)
             labels[servicename] = labels["default"]
     if len(servicelists)==0:
         servicelists = labels
@@ -2834,12 +2985,92 @@ def kubernetes_label_GpuTypes():
             kubernetes_label_node("--overwrite", nodename, "gpuType="+nodeInfo["gpu-type"])
 
 
-# Label kubernetes nodes with custom node labels defined for each node under "custom_node_labels"
-def kubernetes_label_custom_node_labels():
-    for nodename, nodeinfo in config["machines"].items():
-        if "custom_node_labels" in nodeinfo:
-            for nodelabel in nodeinfo["custom_node_labels"]:
-                kubernetes_label_node("--overwrite", nodename, nodelabel)
+def populate_machine_sku(machine_info):
+    """Potentially adds sku for and returns the modified machine_info.
+
+    Args:
+        machine_info: A dictionary containing machine information.
+
+    Returns:
+        Modified machine_info
+    """
+    if "sku" not in machine_info and "node-group" in machine_info:
+        machine_info["sku"] = machine_info["node-group"]
+    return machine_info
+
+
+def get_machines_by_roles(roles, cnf):
+    """Get machines from cnf that has role in roles.
+
+    Args:
+        roles: A comma separated string or a list of roles.
+        cnf: Configuration dictionary containing machines.
+
+    Returns:
+        A dictionary of machines that has role in roles.
+    """
+    if roles == "all":
+        roles = cnf.get("allroles", [])
+
+    if isinstance(roles, str):
+        roles = [role.strip() for role in roles.split(",")]
+
+    machines = cnf.get("machines", {})
+
+    machines_by_roles = {}
+    for machine_name, machine_info in machines.items():
+        machine_info = populate_machine_sku(machine_info)
+        if "role" in machine_info and machine_info["role"] in roles:
+            machines_by_roles[machine_name] = machine_info
+
+    return machines_by_roles
+
+
+def get_sku_meta(cnf):
+    """Get SKU meta information from cnf.
+
+    Args:
+        cnf: Configuration dictionary containing machines.
+
+    Returns:
+        SKU meta dictionary from configuration.
+    """
+    return cnf.get("sku_meta", {})
+
+
+def kubernetes_label_cpuworker():
+    """Label kubernetes nodes with cpuworker=active."""
+    label = "cpuworker=active"
+    sku_meta = get_sku_meta(config)
+    workers = get_machines_by_roles("worker", config)
+
+    for machine_name, machine_info in workers.items():
+        if "sku" in machine_info and machine_info["sku"] in sku_meta:
+            sku = machine_info["sku"]
+            if "gpu" not in sku_meta[sku]:
+                kubernetes_label_node("--overwrite", machine_name, label)
+
+
+def kubernetes_label_sku():
+    """Label kubernetes nodes with sku=<sku_value>"""
+    sku_meta = get_sku_meta(config)
+    machines = get_machines_by_roles("all", config)
+
+    for machine_name, machine_info in machines.items():
+        if "sku" in machine_info and machine_info["sku"] in sku_meta:
+            sku = machine_info["sku"]
+            kubernetes_label_node("--overwrite", machine_name, "sku=%s" % sku)
+
+
+def kubernetes_label_vc():
+    """Label kubernetes nodes with vc=<vc_value>"""
+    machines = get_machines_by_roles("all", config)
+
+    for machine_name, machine_info in machines.items():
+        vc = "default"
+        if "vc" in machine_info and machine_info["vc"] is not None:
+            vc = machine_info["vc"]
+        kubernetes_label_node("--overwrite", machine_name, "vc=%s" % vc)
 
 
 def kubernetes_patch_nodes_provider (provider, scaledOnly):
@@ -2880,18 +3111,15 @@ def start_one_kube_service(fname):
         # use try/except because yaml.load cannot load yaml file with multiple documents.
         try:
             f = open(fname)
-            service_yaml = yaml.load(f)
+            service_yaml = yaml.load(f, Loader=yaml.FullLoader)
             f.close()
             print "Start service: "
             print service_yaml
         except Exception as e:
             pass
 
-    if fname == "./deploy/services/jobmanager/jobmanager.yaml":
-        # recreate the configmap dlws-scripts
-        run_kubectl( ["create configmap dlws-scripts --from-file=../Jobs_Templete/ -o yaml --dry-run | ./deploy/bin/kubectl apply -f -"] )
+    run_kubectl(["create", "-f", fname ])
 
-    run_kubectl( ["create", "-f", fname ] )
 
 def stop_one_kube_service(fname):
     run_kubectl( ["delete", "-f", fname ] )
@@ -3029,8 +3257,7 @@ def run_command( args, command, nargs, parser ):
     # Cluster Config
     config_cluster = os.path.join(dirpath,"cluster.yaml")
     if os.path.exists(config_cluster):
-        merge_config( config, yaml.load(open(config_cluster)))
-
+        merge_config(config, yaml.load(open(config_cluster), Loader=yaml.FullLoader))
 
     config_file = os.path.join(dirpath,"config.yaml")
     if not os.path.exists(config_file):
@@ -3038,32 +3265,28 @@ def run_command( args, command, nargs, parser ):
         print "ERROR: config.yaml does not exist!"
         exit()
 
-    f = open(config_file)
-    merge_config(config, yaml.load(f))
-    f.close()
+    with open(config_file) as f:
+        merge_config(config, yaml.load(f, Loader=yaml.FullLoader))
     if os.path.exists("./deploy/clusterID.yml"):
-        f = open("./deploy/clusterID.yml")
-        tmp = yaml.load(f)
-        f.close()
-        if "clusterId" in tmp:
-            config["clusterId"] = tmp["clusterId"]
+        with open("./deploy/clusterID.yml") as f:
+            tmp = yaml.load(f, Loader=yaml.FullLoader)
+            if "clusterId" in tmp:
+                config["clusterId"] = tmp["clusterId"]
     if "copy_sshtemp" in config and config["copy_sshtemp"]:
         if "ssh_origfile" not in config:
             config["ssh_origfile"] = config["ssh_cert"]
         sshfile = os.path.join(dirpath,config["ssh_origfile"])
         if os.path.exists(sshfile):
-            #sshtemp = tempfile.NamedTemporaryFile('w+b', delete=True) # global var to prevent garbage collection
             _, sshtempfile = tempfile.mkstemp(dir='/tmp')
             if verbose:
                 print "SSH file is now {0}".format(sshtempfile)
             with open (sshtempfile, 'wb') as output:
                 with open (sshfile, 'rb') as input:
                     output.write(input.read())
-            #config["ssh_cert"] = sshtemp.name
             config["ssh_cert"] = sshtempfile
         else:
             print "SSH Key {0} not found using original".format(sshfile)
-        #    exit()
+
     add_acs_config(command)
     if verbose and config["isacs"]:
         print "Using Azure Container Services"
@@ -3115,7 +3338,7 @@ def run_command( args, command, nargs, parser ):
             role2connect = nargs[0]
             if len(nargs) < 1 or role2connect == "master":
                 nodes = config["kubernetes_master_node"]
-            elif role2connect in ["etcd", "worker", "nfs", "samba"]:
+            elif role2connect in ["etcd", "worker", "nfs", "samba", "mysqlserver"]:
                 nodes = config["{}_node".format(role2connect)]
             else:
                 parser.print_help()
@@ -3160,12 +3383,6 @@ def run_command( args, command, nargs, parser ):
         configuration( config, verbose )
         if len(nargs) <=0:
             init_deployment()
-#            response = raw_input_with_default("Create ISO file for deployment (y/n)?")
-#            if first_char(response) == "y":
-#                create_ISO()
-#            response = raw_input_with_default("Create PXE docker image for deployment (y/n)?")
-#            if first_char(response) == "y":
-#                create_PXE()
         elif nargs[0] == "iso-coreos":
             create_ISO()
         elif nargs[0] == "pxe-coreos":
@@ -3280,11 +3497,13 @@ def run_command( args, command, nargs, parser ):
                             response = requests.get(url)
                             print(response)
 
+    elif command == "packcloudinit":
+        gen_configs()
+        render_and_pack_worker_cloud_init_files()
 
     elif command == "updateworker":
         response = raw_input_with_default("Deploy Worker Nodes (y/n)?")
         if first_char(response) == "y":
-            #utils.render_template_directory("./template/kubelet", "./deploy/kubelet",config)
             check_master_ETCD_status()
             gen_configs()
             update_worker_nodes( nargs )
@@ -3292,7 +3511,6 @@ def run_command( args, command, nargs, parser ):
     elif command == "updateworkerinparallel":
         response = raw_input_with_default("Deploy Worker Nodes In Parallel (y/n)?")
         if first_char(response) == "y":
-            #utils.render_template_directory("./template/kubelet", "./deploy/kubelet",config)
             check_master_ETCD_status()
             gen_configs()
             update_worker_nodes_in_parallel(nargs)
@@ -3300,7 +3518,6 @@ def run_command( args, command, nargs, parser ):
     elif command == "updatescaledworker":
         response = raw_input_with_default("Deploy Scaled Worker Nodes (y/n)?")
         if first_char(response) == "y":
-            #utils.render_template_directory("./template/kubelet", "./deploy/kubelet",config)
             check_master_ETCD_status()
             gen_configs()
             update_scaled_worker_nodes( nargs )
@@ -3311,6 +3528,23 @@ def run_command( args, command, nargs, parser ):
             check_master_ETCD_status()
             gen_configs()
             reset_worker_nodes()
+
+    elif command == "updatemysqlserver":
+        response = raw_input_with_default("Deploy MySQLServer Node(s) (y/n)?")
+        if first_char(response) == "y":
+            check_master_ETCD_status()
+            gen_configs()
+            update_mysqlserver_nodes(nargs)
+
+    elif command == "updatenfs":
+        response = raw_input_with_default("Deploy NFS Node(s) (y/n)?")
+        if first_char(response) == "y":
+            check_master_ETCD_status()
+            gen_configs()
+            update_nfs_nodes(nargs)
+
+    elif command == "deploynfsconfig":
+        deploy_nfs_config()
 
     elif command == "listmac":
         nodes = get_nodes(config["clusterId"])
@@ -3366,7 +3600,7 @@ def run_command( args, command, nargs, parser ):
             elif len(partsInfo)==1 and partsInfo[0] < 30:
                 partsInfo = [100.0]*int(partsInfo[0])
             nodesinfo = show_partitions(nodes, config["data-disk"] )
-            print ("This operation will DELETE all existing partitions and repartition all data drives on the %d nodes to %d partitions of %s" % (len(nodes), len(partsInfo), str(partsInfo)) )
+            print("This operation will DELETE all existing partitions and repartition all data drives on the %d nodes to %d partitions of %s" % (len(nodes), len(partsInfo), str(partsInfo)) )
             response = raw_input ("Please type (REPARTITION) in ALL CAPITALS to confirm the operation ---> ")
             if response == "REPARTITION":
                 repartition_nodes( nodes, nodesinfo, partsInfo)
@@ -3377,7 +3611,6 @@ def run_command( args, command, nargs, parser ):
             exit()
 
     elif command == "glusterFS_heketi" and len(nargs) >= 1:
-        # nodes = get_nodes(config["clusterId"])
         # ToDo: change pending, schedule glusterFS on master & ETCD nodes,
         if nargs[0] == "start" or nargs[0] == "update" or nargs[0] == "stop" or nargs[0] == "clear":
             nodes = get_worker_nodes(config["clusterId"], False)
@@ -3419,12 +3652,12 @@ def run_command( args, command, nargs, parser ):
             print "Need to configure partitions which glusterFS will deploy..."
             exit()
         if nargs[0] == "create":
-            print ("This operation will CREATE new volume over all existing glusterFS partitions, and will erase the data on those partitions "  )
+            print("This operation will CREATE new volume over all existing glusterFS partitions, and will erase the data on those partitions "  )
             response = raw_input ("Please type (CREATE) in ALL CAPITALS to confirm the operation ---> ")
             if response == "CREATE":
                 create_glusterFS_volume( nodesinfo, glusterFSargs )
         elif nargs[0] == "remove":
-            print ("This operation will REMOVE volumes over all existing glusterFS partitions, and will erase the data on those partitions "  )
+            print("This operation will REMOVE volumes over all existing glusterFS partitions, and will erase the data on those partitions "  )
             response = raw_input ("Please type (REMOVE) in ALL CAPITALS to confirm the operation ---> ")
             if response == "REMOVE":
                 remove_glusterFS_volume( nodesinfo, glusterFSargs )
@@ -3447,7 +3680,7 @@ def run_command( args, command, nargs, parser ):
         allnodes = get_nodes(config["clusterId"])
         nodes = get_node_lists_for_service("hdfs")
         if nargs[0] == "create":
-            print ("This operation will CREATE new volume over all existing hdfs partitions, and will erase the data on those partitions "  )
+            print("This operation will CREATE new volume over all existing hdfs partitions, and will erase the data on those partitions "  )
             response = raw_input ("Please type (CREATE) in ALL CAPITALS to confirm the operation ---> ")
             if response == "CREATE":
                 format_mount_partition_volume( nodes, fetch_config(config, ["hdfs", "partitions"]), True )
@@ -3523,6 +3756,7 @@ def run_command( args, command, nargs, parser ):
 
     elif command == "display" or command == "clusterinfo":
         configuration( config, verbose )
+        configuration( config, verbose )
         check_master_ETCD_status()
 
     elif command == "webui":
@@ -3534,7 +3768,9 @@ def run_command( args, command, nargs, parser ):
         if len(nargs)<=0:
             fileshare_install()
             allmountpoints = mount_fileshares_by_service(True)
-            link_fileshares(allmountpoints, args.force)
+            if args.force:
+                print "forced to re-link fileshares"
+                link_fileshares(allmountpoints, args.force)
         elif nargs[0]=="install":
             fileshare_install()
         elif nargs[0]=="start":
@@ -3543,7 +3779,7 @@ def run_command( args, command, nargs, parser ):
         elif nargs[0]=="stop":
             unmount_fileshares_by_service(False)
         elif nargs[0]=="clean":
-            print ("This operation will CLEAN local content in the physical mount point, and may erase the data on those locations. "  )
+            print("This operation will CLEAN local content in the physical mount point, and may erase the data on those locations. "  )
             response = raw_input ("Please type (CLEAN) in ALL CAPITALS to confirm the operation ---> ")
             if response == "CLEAN":
                 unmount_fileshares_by_service(True)
@@ -3571,7 +3807,6 @@ def run_command( args, command, nargs, parser ):
 
     elif command == "acs":
         k8sconfig["kubelet-path"] = "./deploy/bin/kubectl --kubeconfig=./deploy/%s" % (config["acskubeconfig"])
-        #print "Config: " + k8sconfig["kubelet-path"]
         if (len(nargs) == 0):
             run_script_blocks(args.verbose, scriptblocks["acs"])
         elif (len(nargs) >= 1):
@@ -3646,10 +3881,10 @@ def run_command( args, command, nargs, parser ):
                 for service in allservices:
                     servicenames.append(service)
             generate_hdfs_containermounts()
-            configuration( config, verbose )
+            configuration(config, verbose)
             if nargs[0] == "start":
                 if args.force and "hdfsformat" in servicenames:
-                    print ("This operation will WIPEOUT HDFS namenode, and erase all data on the HDFS cluster,  "  )
+                    print("This operation will WIPEOUT HDFS namenode, and erase all data on the HDFS cluster,  "  )
                     response = raw_input ("Please type (WIPEOUT) in ALL CAPITALS to confirm the operation ---> ")
                     if response == "WIPEOUT":
                         config["hdfsconfig"]["formatoptions"] = "--force "
@@ -3700,8 +3935,14 @@ def run_command( args, command, nargs, parser ):
     elif command == "gpulabel":
         kubernetes_label_GpuTypes()
 
-    elif command == "customlabel":
-        kubernetes_label_custom_node_labels()
+    elif command == "labelcpuworker":
+        kubernetes_label_cpuworker()
+
+    elif command == "labelsku":
+        kubernetes_label_sku()
+
+    elif command == "labelvc":
+        kubernetes_label_vc()
 
     elif command == "genscripts":
         gen_platform_wise_config()
@@ -4026,7 +4267,11 @@ Command:
   upgrade_masters Upgrade the master nodes.
   upgrade_workers [nodes] Upgrade the worker nodes. If no additional node is specified, all nodes will be updated.
   upgrade [nodes] Upgrade the cluster and nodes. If no additional node is specified, all nodes will be updated.
-  customlabel Label nodes with custom defined node labels under custom_node_labels
+  labelcpuworker Label CPU nodes with "worker" role with cpuworker=active if their SKU is defined in sku_meta.
+  labelsku       Label nodes with "sku=<sku_value>" if their SKU is defined in sku_meta. In order to run distributed
+                 CPU jobs, ./deploy.py labelcpuworker must be executed as well.
+  labelvc        Label nodes with "vc=<vc_value>" if vc is defined in machine's property in machines sections in config.
+                 Default to "vc=default".
   ''') )
     parser.add_argument("-y", "--yes",
         help="Answer yes automatically for all prompt",

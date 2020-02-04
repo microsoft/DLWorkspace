@@ -137,7 +137,7 @@ TeamMenu = () => {
 const UserButton: React.FC = () => {
   const [openUserProfile, setOpenUserProfile] = React.useState(false);
   const [openCopyWarn, setOpenCopyWarn] = React.useState(false);
-  const { givenName, familyName,email,token } = React.useContext(UserContext);
+  const { givenName, familyName, email, password } = React.useContext(UserContext);
   const styles = useStyles();
   const name = typeof email === 'string' ?  email.split('@', 1)[0] : email;
   const handleClose = () => {
@@ -183,7 +183,7 @@ const UserButton: React.FC = () => {
             </ListItem>
             <Divider />
             <ListItem button >
-              <ListItemText primary="Password" secondary={token} onClick={()=>handleCopy(token)}/>
+              <ListItemText primary="Password" secondary={password} onClick={()=>handleCopy(password)}/>
             </ListItem>
           </List>
         </Box>
@@ -260,7 +260,7 @@ const DashboardAppBar: React.FC = () => {
           <Grid item >
             <TeamMenu />
           </Grid>
-          <Grid item style={{ marginLeft:'5' }}>
+          <Grid item style={{ marginLeft:'10px' }}>
             <UserButton />
           </Grid>
           <Grid item>

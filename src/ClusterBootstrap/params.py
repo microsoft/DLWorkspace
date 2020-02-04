@@ -1,7 +1,7 @@
 # These are the default configuration parameter
 default_config_parameters = {
     "supported_platform": ["azure_cluster", "onpremise"],
-    "allroles": {"infra", "infrastructure", "worker", "nfs", "sql", "dev"},
+    "allroles": {"infra", "infrastructure", "worker", "nfs", "sql", "dev", "etcd", "kubernetes_master", "mysqlserver"},
     # Kubernetes setting
     "service_cluster_ip_range": "10.3.0.0/16",
     "pod_ip_range": "10.2.0.0/16",
@@ -41,6 +41,7 @@ default_config_parameters = {
             "restful-url": "http://localhost:5000",
         }
     },
+    "repair-manager": { "prometheus-ip": "localhost", "prometheus-port": 9091},
 
     "mysql_port": "3306",
     "mysql_username": "root",
@@ -63,6 +64,8 @@ default_config_parameters = {
     "webuiport": "3080",
     "restfulapiport": "5000",
     "restfulapi": "restfulapi",
+    # StorageManager mapping
+    "storagemanager": "storagemanager",
     "repairmanager": "repairmanager",
     "ssh_cert": "./deploy/sshkey/id_rsa",
     "admin_username": "core",
@@ -237,7 +240,10 @@ default_config_parameters = {
         "elasticsearch": "etcd_node_1",
         "kibana": "etcd_node_1",
         "mysql": "etcd_node_1",
+        "mysql-server": "mysqlserver_node",
         "nginx": "all",
+        "storagemanager": "nfs_node",
+        "user-synchronizer": "etcd_node_1",
     },
 
     "kubemarks": ["rack", "sku"],
@@ -618,7 +624,8 @@ default_config_parameters = {
         "default_admin_username": "dlwsadmin",
         "tcp_port_for_pods": "30000-49999",
         "tcp_port_ranges": "80 443 30000-49999 25826 3000 22222 9091 9092",
-        "udp_port_ranges": "25826",
+        # There is no udp port requirement for now
+        #"udp_port_ranges": "25826",
         "inter_connect": {
             "tcp_port_ranges": "22 1443 2379 3306 5000 8086 10250",
             # Need to white list dev machines to connect
@@ -628,6 +635,9 @@ default_config_parameters = {
             "tcp_port_ranges": "22 1443 2379 3306 5000 8086 10250 10255 22222",
             # Need to white list dev machines to connect
             # "source_addresses_prefixes": [ "52.151.0.0/16"]
+        },
+        "nfs_allow_master": {
+            "tcp_port_ranges": "10250",
         },
     },
 
@@ -669,8 +679,31 @@ default_config_parameters = {
     },
     "infiniband_mounts": [],
     "custom_mounts": [],
+    "enable_blobfuse": False,
+
+    # To use CPU nodes,
+    # 1. CPU nodes must have node label cpuworker=active
+    # 2. enable_cpuworker is set to True
+    # 3. default_cpu_sku is set to a valid value that exists in sku_meta
     "enable_cpuworker": False,
-    "enable_blobfuse": False
+    "enable_blobfuse": False,
+    "enable_custom_registry_secrets": False,
+    "default_cpu_sku": "Standard_D2s_v3",
+
+    # SKU meta defines different types of resources for each SKU
+    # and their allowed usage ratio by user applications.
+    "sku_meta": {
+        "default": {
+            "cpu_ratio": 0.8,
+            "memory_ratio": 0.8
+        },
+        "Standard_D2s_v3": {
+            "cpu": 2,
+            "cpu_ratio": 0.9,
+            "memory": 8,
+            "memory_ratio": 0.9
+        }
+    }
 }
 
 # These are super scripts

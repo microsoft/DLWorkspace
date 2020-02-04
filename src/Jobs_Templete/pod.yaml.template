@@ -105,11 +105,42 @@ spec:
   {% if job["hostIPC"] %}
   hostIPC: true
   {% endif %}
+  initContainers:
+  - name: init
+    imagePullPolicy: Always
+    image: {{ job["init-container"] }}
+    volumeMounts:
+    - mountPath: /dlts-runtime
+      name: dlts-runtime
+    command:
+    - sh
+    - /dlts-init/init.sh
+    env:
+    - name: LOGGING_LEVEL
+      value: DEBUG
+    - name: DLWS_JOB_ID
+      value: {{ job["jobId"] }}
+    - name: DLWS_NUM_PS
+      value: "{{ job["numps"] }}"
+    - name: DLWS_NUM_WORKER
+      value: "{{ job["numworker"] }}"
+    - name: POD_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.name
+    - name: POD_IP
+      valueFrom:
+        fieldRef:
+          fieldPath: status.podIP
+    {% if job["hostNetwork"] %}
+    - name: DLWS_HOST_NETWORK
+      value: "enable"
+    {% endif %}
   containers:
   - name: {{ job["podName"] }}
     image: {{ job["image"] }}
     imagePullPolicy: Always
-    command: {{ job["LaunchCMD"] }}
+    command: ["bash", "/pod/scripts/bootstrap.sh"]
     readinessProbe:
       exec:
         command: ["ls", "/pod/running/ROLE_READY"]
@@ -143,6 +174,8 @@ spec:
         memory: {{ job["memoryrequest"] }}
       {% endif %}
     volumeMounts:
+    - mountPath: /dlts-runtime
+      name: dlts-runtime
     - name: "dlws-scripts"
       mountPath: /pod/scripts
       readOnly: true
@@ -225,12 +258,29 @@ spec:
       value: "{{ job["user_email"] }}"
     - name: DLWS_VC_NAME
       value: {{ job["vcName"] }}
+    {% if job["hostNetwork"] %}
+    - name: DLWS_HOST_NETWORK
+      value: "enable"
+    {% endif %}
     {% for env in job["envs"] %}
     - name: {{env.name}}
       value: "{{env.value}}"
     {% endfor %}
+    {% if job["nccl_ib_disable"] %}
+    - name: NCCL_IB_DISABLE
+      value: "1"
+    {% endif %}
 
   imagePullSecrets:
+  {% if job["plugins"] %}
+    {% if job["plugins"]["imagePull"] %}
+      {% for secret in job["plugins"]["imagePull"] %}
+        {% if secret.enabled %}
+  - name: {{ secret.name }}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+  {% endif %}
   - name: regcred
 
   restartPolicy: Never
@@ -249,6 +299,8 @@ spec:
   - name: authorized-keys-volume
     hostPath:
       path: {{ job["homeFolderHostpath"] }}/.ssh/authorized_keys
+  - name: dlts-runtime
+    emptyDir: {}
   {% if not job["dnsPolicy"] %}
   - name: resolv
     hostPath:
@@ -288,10 +340,12 @@ spec:
         name: {{ bf.secreds }}
       options:
         container: {{ bf.containerName }}
-        {% if bf["tmppath"] %}
-        tmppath: {{ bf["tmppath"] }}/{{ job["podName"] }}
+        {% if bf["root_tmppath"] and bf["tmppath"] %}
+        tmppath: {{ bf["root_tmppath"] }}/{{ job["jobId"] }}/{{ job["podName"] }}/{{ bf["tmppath"] }}
         {% endif %}
-        mountoptions: "--file-cache-timeout-in-seconds=120"
+        {% if bf["mountOptions"] %}
+        mountoptions: {{ bf["mountOptions"] }}
+        {% endif %}
         {% endif %}
       {% endfor %}
     {% endif %}

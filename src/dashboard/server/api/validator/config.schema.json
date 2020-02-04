@@ -7,11 +7,6 @@
       "description": "Sign key for JWT",
       "type": "string"
     },
-    "winbind": {
-      "title": "WinBind server for get user's id info",
-      "description": "Will call /domaininfo/GetUserId with userName query to get the user's id info",
-      "type": "string"
-    },
     "masterToken": {
       "title": "Access token of all users",
       "type": "string"
@@ -61,6 +56,10 @@
           }
         }
       }
+    },
+    "frontend": {
+      "title": "Configuration for frontend use",
+      "type": "object"
     }
   }
 }

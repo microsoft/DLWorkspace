@@ -9,28 +9,15 @@ import copy
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 from osUtils import mkdirsAsUser
+from pod_template_utils import enable_cpu_config
 
 
 class PodTemplate():
-    def __init__(self, template, deployment_template=None, enable_custom_scheduler=False, secret_template=None):
+    def __init__(self, template, deployment_template=None, enable_custom_scheduler=False, secret_templates=None):
         self.template = template
         self.deployment_template = deployment_template
         self.enable_custom_scheduler = enable_custom_scheduler
-        self.secret_template = secret_template
-
-    @staticmethod
-    def generate_launch_script(job_id, path_to_save, user_id, gpu_num, user_script):
-        if not os.path.exists(path_to_save):
-            mkdirsAsUser(path_to_save, user_id)
-
-        file_name = "job_command.sh"
-        launch_script_file = os.path.join(path_to_save, file_name)
-        with open(launch_script_file, 'w') as f:
-            f.write(user_script)
-        os.system("sudo chown %s %s" % (user_id, launch_script_file))
-        luanch_cmd = ["bash", "/pod/scripts/bootstrap.sh"]
-        return luanch_cmd
-
+        self.secret_templates = secret_templates
 
     def generate_deployment(self, pod):
         assert(isinstance(self.template, Template))
@@ -38,7 +25,7 @@ class PodTemplate():
         return yaml.full_load(pod_yaml)
 
 
-    def generate_pod(self, pod):
+    def generate_pod(self, pod, cmd):
         assert(isinstance(self.template, Template))
         if self.enable_custom_scheduler:
             if "useGPUTopology" in pod and pod["useGPUTopology"]:
@@ -68,7 +55,11 @@ class PodTemplate():
             pod["gpuLimit"] = 0
 
         pod_yaml = self.template.render(job=pod)
-        return yaml.full_load(pod_yaml)
+        # because user's cmd can be multiple lines, should add after yaml load
+        pod_obj = yaml.full_load(pod_yaml)
+        pod_obj["spec"]["containers"][0]["env"].append({"name": "DLWS_LAUNCH_CMD", "value": cmd})
+
+        return pod_obj
 
     def generate_pods(self, job):
         """
@@ -91,16 +82,23 @@ class PodTemplate():
                 ]):
             return None, "Missing required parameters!"
 
+        vc_without_shared_storage = job.get_vc_without_shared_storage()
+
         job.job_path = params["jobPath"]
         job.work_path = params["workPath"]
         job.data_path = params["dataPath"]
         # TODO user's mountpoints first, but should after 'job_path'
         job.add_mountpoints(job.job_path_mountpoint())
-        job.add_mountpoints({"name": "home", "containerPath": "/home/{}".format(job.get_alias()), "hostPath": job.get_homefolder_hostpath(), "enabled": True})
+        # TODO: Refactor special VC dependency
+        if params["vcName"] not in vc_without_shared_storage:
+            job.add_mountpoints({"name": "home", "containerPath": "/home/{}".format(
+                job.get_alias()), "hostPath": job.get_homefolder_hostpath(), "enabled": True})
         if "mountpoints" in params:
             job.add_mountpoints(params["mountpoints"])
-        job.add_mountpoints(job.work_path_mountpoint())
-        job.add_mountpoints(job.data_path_mountpoint())
+        # TODO: Refactor special VC dependency
+        if params["vcName"] not in vc_without_shared_storage:
+            job.add_mountpoints(job.work_path_mountpoint())
+            job.add_mountpoints(job.data_path_mountpoint())
         job.add_mountpoints(job.vc_custom_storage_mountpoints())
         job.add_mountpoints(job.vc_storage_mountpoints())
         params["mountpoints"] = job.mountpoints
@@ -117,33 +115,29 @@ class PodTemplate():
         if "gpuType" in params:
             params["nodeSelector"]["gpuType"] = params["gpuType"]
 
-        # CPU job should be assigned to CPU node if there is any available in the cluster
-        config = job.cluster
-        enable_cpuworker = config.get("enable_cpuworker", False)
-        default_cpurequest = config.get("default_cpurequest")
-        default_cpulimit = config.get("default_cpulimit")
-        default_memoryrequest = config.get("default_memoryrequest")
-        default_memorylimit = config.get("default_memorylimit")
+        # Set up VC dedicated node usage
+        vc_node_hard_assignment = job.get_vc_node_hard_assignment()
+        if isinstance(vc_node_hard_assignment, dict):
+            vc = params["vcName"]
+            # TODO: Fix the case where CPU worker exists in a GPU pool
+            if vc in vc_node_hard_assignment and \
+                    vc_node_hard_assignment[vc] is True:
+                params["nodeSelector"]["vc"] = vc
+            else:
+                params["nodeSelector"]["vc"] = "default"
 
-        if enable_cpuworker and int(params["resourcegpu"]) == 0:
-            params["nodeSelector"]["cpuworker"] = "active"
-            if "cpurequest" not in params and default_cpurequest is not None:
-                params["cpurequest"] = default_cpurequest
-            if "cpulimit" not in params and default_cpulimit is not None:
-                params["cpulimit"] = default_cpulimit
-            if "memoryrequest" not in params and default_memoryrequest is not None:
-                params["memoryrequest"] = default_memoryrequest
-            if "memorylimit" not in params and default_memorylimit is not None:
-                params["memorylimit"] = default_memorylimit
-
-        local_pod_path = job.get_hostpath(job.job_path, "master")
-        params["LaunchCMD"] = PodTemplate.generate_launch_script(params["jobId"], local_pod_path, params["userId"], params["resourcegpu"], params["cmd"])
+        params = enable_cpu_config(params, job.cluster)
 
         if "envs" not in params:
             params["envs"] =[]
 
         job.add_plugins(job.get_plugins())
         params["plugins"] = job.plugins
+
+        # Set NCCL_IB_DISABLE=1 if specified
+        nccl_ib_disable = job.get_nccl_ib_disable()
+        if nccl_ib_disable is not None and nccl_ib_disable is True:
+            params["nccl_ib_disable"] = True
 
         pods = []
         if all(hyper_parameter in params for hyper_parameter in ["hyperparametername", "hyperparameterstartvalue", "hyperparameterendvalue", "hyperparameterstep"]):
@@ -166,7 +160,6 @@ class PodTemplate():
             pod["podName"] = job.job_id
             pods.append(pod)
 
-
         k8s_pods = []
         for idx,pod in enumerate(pods):
             pod["numps"] = 0
@@ -182,8 +175,9 @@ class PodTemplate():
             # mount /pod
             pod_path = job.get_hostpath(job.job_path, "master")
             pod["mountpoints"].append({"name": "pod", "containerPath": "/pod", "hostPath": pod_path, "enabled": True})
+            pod["init-container"] = os.environ["INIT_CONTAINER_IMAGE"]
 
-            k8s_pod = self.generate_pod(pod)
+            k8s_pod = self.generate_pod(pod, params["cmd"])
             k8s_pods.append(k8s_pod)
 
         if params["jobtrainingtype"] == "InferenceJob":
@@ -226,15 +220,31 @@ class PodTemplate():
 
         # Create secret config for each plugins
         k8s_secrets = []
-        for plugin, config in plugins.items():
-            if plugin == "blobfuse" and isinstance(plugins["blobfuse"], list):
-                for bf in plugins["blobfuse"]:
-                    k8s_secret = self.generate_secret(bf)
+        for plugin, plugin_config in plugins.items():
+            if plugin == "blobfuse" and isinstance(plugin_config, list):
+                for bf in plugin_config:
+                    k8s_secret = self.generate_blobfuse_secret(bf)
+                    k8s_secrets.append(k8s_secret)
+            elif plugin == "imagePull" and isinstance(plugin_config, list):
+                for image_pull in plugin_config:
+                    k8s_secret = self.generate_image_pull_secret(image_pull)
                     k8s_secrets.append(k8s_secret)
         return k8s_secrets
 
-    def generate_secret(self, plugin):
-        assert self.secret_template is not None
-        assert isinstance(self.template, Template)
-        secret_yaml = self.secret_template.render(plugin=plugin)
+    def generate_blobfuse_secret(self, plugin):
+        assert self.secret_templates is not None
+        assert "blobfuse" in self.secret_templates
+        secret_template = self.secret_templates["blobfuse"]
+        assert isinstance(secret_template, Template)
+
+        secret_yaml = secret_template.render(plugin=plugin)
+        return yaml.full_load(secret_yaml)
+
+    def generate_image_pull_secret(self, plugin):
+        assert self.secret_templates is not None
+        assert "imagePull" in self.secret_templates
+        secret_template = self.secret_templates["imagePull"]
+        assert isinstance(secret_template, Template)
+
+        secret_yaml = secret_template.render(plugin=plugin)
         return yaml.full_load(secret_yaml)

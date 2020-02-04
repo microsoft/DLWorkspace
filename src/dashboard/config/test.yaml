@@ -1,9 +1,6 @@
 sign: DashboardSign
 
-winbind: http://winbind
 masterToken: DashboardMasterToken
-AddGroupLink: http://add-group/
-WikiLink: http://wiki/
 
 activeDirectory:
   tenant: 00000000-0000-0000-0000-000000000000
@@ -15,3 +12,6 @@ clusters:
     restfulapi: http://universe
   Targaryen:
     restfulapi: http://targaryen
+
+frontend:
+  key: value

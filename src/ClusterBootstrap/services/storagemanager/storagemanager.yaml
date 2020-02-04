@@ -1,0 +1,50 @@
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: storagemanager
+  namespace: default
+  labels:
+     run: storagemanager
+spec:
+  selector:
+    matchLabels:
+      storagemanager-node: pod
+  template:
+    metadata:
+      name: storagemanager
+      labels:
+        storagemanager-node: pod
+        app: storagemanager
+    spec:
+      {% if cnf["dnsPolicy"] %}
+      dnsPolicy: {{cnf["dnsPolicy"]}}
+      {% endif %}
+      nodeSelector:
+        storagemanager: active
+      hostNetwork: true
+      containers:
+      - name: storagemanager
+        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}{{cnf["storagemanager"]}}:{{cnf["dockertag"]}}
+        imagePullPolicy: Always
+        volumeMounts:
+        - mountPath: /StorageManager
+          name: storagemanager-config
+        - mountPath: /var/log/storagemanager
+          name: storagemanager-log
+        - mountPath: /data/share
+          name: data-share
+      volumes:
+      - name: storagemanager-config
+        hostPath:
+          path: /etc/StorageManager
+      - name: storagemanager-log
+        hostPath:
+          path: /var/log/storagemanager
+      - name: data-share
+        hostPath:
+          path: /data/share
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule

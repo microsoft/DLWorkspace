@@ -8,5 +8,31 @@ matrix:
     node_js: lts/*
     before_install: cd src/dashboard
     install: yarn --frozen-lockfile
-    script: npm run coverage:backend
+    script:
+    - npm run lint:backend
+    - npm run coverage:backend
     after_success: npx nyc --nycrc-path server/.nycrc.js report --reporter=text-lcov | npx coveralls
+  - language: python
+    python: 3.6
+    before_install:
+      - cd src/docker-images/watchdog/test
+    install:
+      - pip install paramiko pyyaml requests prometheus_client twisted
+    script:
+      - python -m unittest discover .
+  - language: python
+    python: 3.6
+    before_install:
+      - cd src/docker-images/job-exporter/test
+    install:
+      - pip install prometheus_client
+    script:
+      - python3 -m unittest discover .
+  - language: python
+    python: 3.6
+    before_install:
+      - cd src/RepairManager/test
+    install:
+      - pip install pyyaml requests tabulate cachetools kubernetes
+    script:
+      - python -m unittest discover .

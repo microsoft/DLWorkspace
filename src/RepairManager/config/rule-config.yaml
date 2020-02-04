@@ -1,0 +1,9 @@
+---  
+rules:
+  ecc_rule:
+    module_name : rules.ecc_rule
+    class_name : ECCRule
+
+rule_wait_time: 10 # time to sleep between rule execution (seconds)
+
+cluster_name: {{cnf['repair-manager']['cluster_name']}}

@@ -19,12 +19,19 @@ const useStyles = makeStyles(() => createStyles({
   }
 }));
 
-const SignIn: React.FC<RouteComponentProps> = ({ history }) => {
+const SignIn: React.FC<RouteComponentProps> = ({ history, location }) => {
   const { email } = React.useContext(UserContext);
   const [ signIn, setSignIn ] = React.useState(false);
   const onButtonClick = React.useCallback(() => {
     setSignIn(true);
   }, []);
+  const href = React.useMemo(() => {
+    let href = '/api/authenticate';
+    if (typeof location.state === 'object' && typeof location.state.to === 'string') {
+      href += `?to=${encodeURIComponent(location.state.to)}`;
+    }
+    return href;
+  }, [location.state]);
   React.useEffect(() => {
     if (email !== undefined) {
       history.replace('/');
@@ -51,7 +58,7 @@ const SignIn: React.FC<RouteComponentProps> = ({ history }) => {
                 <Button
                   variant="outlined"
                   color="primary"
-                  href="/api/authenticate"
+                  href={href}
                   disabled={signIn}
                   onClick={onButtonClick}
                 >

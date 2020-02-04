@@ -1,6 +1,8 @@
 import sys
 import os
 import random
+import re
+import json
 from marshmallow import Schema, fields, post_load, validate
 from jinja2 import Environment, FileSystemLoader, Template
 
@@ -11,17 +13,7 @@ import yaml
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 
-
-# TODO remove it later
-def create_log(logdir='.'):
-    if not os.path.exists(logdir):
-        os.system("mkdir -p " + logdir)
-    with open('logging.yaml') as f:
-        logging_config = yaml.full_load(f)
-        f.close()
-        logging_config["handlers"]["file"]["filename"] = logdir + "/jobmanager.log"
-        logging.config.dictConfig(logging_config)
-
+logger = logging.getLogger(__name__)
 
 def invalid_entry(s):
     return s is None or \
@@ -101,7 +93,7 @@ class Job:
         # NOTE: mountPath "/data" is the same as "data" in k8s
         for item in self.mountpoints:
             if item["name"] == mountpoint["name"] or item["containerPath"].strip("/") == mountpoint["containerPath"].strip("/"):
-                logging.warn("Current mountpoint: %s is a duplicate of mountpoint: %s" % (mountpoint, item))
+                logger.warn("Current mountpoint: %s is a duplicate of mountpoint: %s" % (mountpoint, item))
                 return
 
         self.mountpoints.append(mountpoint)
@@ -149,7 +141,7 @@ class Job:
             if vc is None or vc != vc_name:
                 continue
             if name is None or host_path is None or container_path is None:
-                logging.warn("Ignore invalid mount %s" % mount)
+                logger.warn("Ignore invalid mount %s" % mount)
                 continue
             vc_mount = {
                 "name": name.lower(),
@@ -206,6 +198,10 @@ class Job:
         """Returns azure blobfuse secret template."""
         return self._get_template("blobfuse_secret.yaml.template")
 
+    def get_image_pull_secret_template(self):
+        """Returns image pull secret template."""
+        return self._get_template("image_pull_secret.yaml.template")
+
     def _get_template(self, template_name):
         """Returns template instance based on template_name."""
         path = os.path.abspath(os.path.join(self.cluster["root-path"], "Jobs_Templete", template_name))
@@ -245,6 +241,24 @@ class Job:
     def get_enable_blobfuse(self):
         return self._get_cluster_config("enable_blobfuse")
 
+    def get_enable_custom_registry_secrets(self):
+        return self._get_cluster_config("enable_custom_registry_secrets")
+
+    def get_nccl_ib_disable(self):
+        return self._get_cluster_config("nccl_ib_disable")
+
+    def get_vc_node_hard_assignment(self):
+        return self._get_cluster_config("vc_node_hard_assignment")
+
+    def get_vc_without_shared_storage(self):
+        """Special VCs that do not have /data and /work"""
+        vc_without_shared_storage = self._get_cluster_config(
+            "vc_without_shared_storage")
+        if vc_without_shared_storage is None or \
+                not isinstance(vc_without_shared_storage, list):
+            vc_without_shared_storage = []
+        return vc_without_shared_storage
+
     def _get_cluster_config(self, key):
         if key in self.cluster:
             return self.cluster[key]
@@ -269,7 +283,9 @@ class Job:
                         "accountKey": "MWYyZDFlMmU2N2Rm",
                         "containerName": "blobContainer0",
                         "mountPath": "/mnt/blobfuse/data0",
-                        "secreds": "bb9cd821-711c-40fd-bb6f-e5dbc1b772a7-blobfuse-0-secreds"
+                        "secreds": "bb9cd821-711c-40fd-bb6f-e5dbc1b772a7-blobfuse-0-secreds",
+                        "mountoptions": (optional),
+                        "tmppath": system-defined (optional)
                      },
                      {
                         "enabled": True,
@@ -278,7 +294,9 @@ class Job:
                         "accountKey":"cGFzc3dvcmQ=",
                         "containerName":"blobContainer1",
                         "mountPath":"/mnt/blobfuse/data1",
-                        "secreds":"bb9cd821-711c-40fd-bb6f-e5dbc1b772a7-blobfuse-1-secreds"
+                        "secreds":"bb9cd821-711c-40fd-bb6f-e5dbc1b772a7-blobfuse-1-secreds",
+                        "mountoptions": (optional),
+                        "tmppath": system-defined (optional)
                      }],
                 "some-other-plugin": [...]
             }
@@ -294,10 +312,13 @@ class Job:
             return {}
 
         ret = {}
-        for plugin, config in plugins.items():
-            if plugin == "blobfuse" and isinstance(plugins["blobfuse"], list):
-                blobfuse = self.get_blobfuse_plugins(plugins["blobfuse"])
+        for plugin, plugin_config in plugins.items():
+            if plugin == "blobfuse" and isinstance(plugin_config, list):
+                blobfuse = self.get_blobfuse_plugins(plugin_config)
                 ret["blobfuse"] = blobfuse
+            elif plugin == "imagePull" and isinstance(plugin_config, list):
+                image_pulls = self.get_image_pull_secret_plugins(plugin_config)
+                ret["imagePull"] = image_pulls
         return ret
 
     def get_blobfuse_plugins(self, plugins):
@@ -311,17 +332,18 @@ class Job:
             return e1["name"] == e2["name"] or \
                     e1["mountPath"] == e2["mountPath"]
 
-        tmppath = None
+        root_tmppath = None
         local_fast_storage = self.get_local_fast_storage()
         if local_fast_storage is not None and local_fast_storage != "":
-            tmppath = local_fast_storage.rstrip("/")
+            root_tmppath = local_fast_storage.rstrip("/")
 
         blobfuse = []
-        for i, bf in enumerate(plugins):
-            account_name = bf.get("accountName")
-            account_key = bf.get("accountKey")
-            container_name = bf.get("containerName")
-            mount_path = bf.get("mountPath")
+        for i, p_bf in enumerate(plugins):
+            account_name = p_bf.get("accountName")
+            account_key = p_bf.get("accountKey")
+            container_name = p_bf.get("containerName")
+            mount_path = p_bf.get("mountPath")
+            mount_options = p_bf.get("mountOptions")
 
             # Ignore Azure blobfuse with incomplete configurations
             if invalid_entry(account_name) or \
@@ -330,11 +352,12 @@ class Job:
                     invalid_entry(mount_path):
                 continue
 
-            name = bf.get("name")
+            name = p_bf.get("name")
             if name is None:
                 name = "%s-blobfuse-%d" % (self.job_id, i)
 
             # Reassign everything for clarity
+            bf = dict()
             bf["enabled"] = True
             bf["name"] = name
             bf["secreds"] = "%s-blobfuse-%d-secreds" % (self.job_id, i)
@@ -344,12 +367,62 @@ class Job:
             bf["mountPath"] = mount_path
             bf["jobId"] = self.job_id
 
-            if tmppath is not None:
-                bf["tmppath"] = tmppath
+            if root_tmppath is not None:
+                # Make tmppath unique for each blobfuse mount
+                bf["root_tmppath"] = root_tmppath
+                bf["tmppath"] = name
+
+            # Also support a list of strings
+            if isinstance(mount_options, list):
+                mount_options = " ".join(mount_options)
+
+            if not invalid_entry(mount_options):
+                bf["mountOptions"] = mount_options
 
             # TODO: Deduplicate blobfuse plugins
             blobfuse = dedup_add(bf, blobfuse, identical)
         return blobfuse
+
+    def get_image_pull_secret_plugins(self, plugins):
+        """Constructs and returns a list of imagePullSecrets plugins."""
+
+        enable_custom_registry_secrets = self.get_enable_custom_registry_secrets()
+        if enable_custom_registry_secrets is None or \
+                enable_custom_registry_secrets is False:
+            return []
+
+        image_pull_secrets = []
+        for i, image_pull in enumerate(plugins):
+            registry = image_pull.get("registry")
+            username = image_pull.get("username")
+            password = image_pull.get("password")
+
+            if invalid_entry(registry) or \
+                    invalid_entry(username) or \
+                    invalid_entry(password):
+                continue
+
+            auth = base64.b64encode("%s:%s" % (username, password))
+
+            auths = {
+                "auths": {
+                    registry: {
+                        "auth": auth
+                    }
+                }
+            }
+
+            dockerconfigjson = base64.b64encode(json.dumps(auths))
+
+            secret = {
+                "enabled": True,
+                "name": "%s-imagepull-%d-secreds" % (self.job_id, i),
+                "dockerconfigjson": dockerconfigjson,
+                "jobId": self.job_id
+            }
+            image_pull_secrets.append(secret)
+
+        return image_pull_secrets
 
 
 class JobSchema(Schema):
