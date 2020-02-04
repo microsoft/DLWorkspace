@@ -94,7 +94,7 @@ def test_job_fail(args):
 def test_batch_kill_jobs(args):
     logger.info("test_batch_kill_jobs ...")
 
-    expected_msg = "Successfully killed"
+    expected_msg = "successfully killed"
     expected_state = "killed"
     cmd = "sleep 1800"
 
