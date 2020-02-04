@@ -1185,6 +1185,73 @@ class DataHandler(object):
         cursor.close()
         return True
 
+    @record
+    def get_fields_for_jobs(self, job_ids, fields):
+        cursor = None
+        ret = []
+        if job_ids is None or not isinstance(job_ids, list):
+            logger.error("job_ids has to be a list. job_ids: %s", job_ids)
+            return ret
+        if fields is None or not isinstance(fields, list):
+            logger.error("fields has to be a list. fields: %s", fields)
+            return ret
+
+        try:
+            sql_cols = ",".join(fields)
+            sql_job_ids = ",".join(["'%s'" % job_id for job_id in job_ids])
+            sql = "SELECT %s FROM %s WHERE jobId IN (%s)" % (
+                sql_cols, self.jobtablename, sql_job_ids)
+
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+
+            cols = [col[0] for col in cursor.description]
+            for item in cursor.fetchall():
+                ret.append(dict(zip(cols, item)))
+            self.conn.commit()
+        except Exception:
+            logger.exception("Exception in getting fields %s for jobs %s",
+                             fields, job_ids, exc_info=True)
+        finally:
+            if cursor is not None:
+                cursor.close()
+        return ret
+
+    @record
+    def update_text_fields_for_jobs(self, job_ids, fields):
+        cursor = None
+        ret = False
+        if job_ids is None or not isinstance(job_ids, list):
+            logger.error("job_ids has to be a list. job_ids: %s", job_ids)
+            return ret
+        if fields is None or not isinstance(fields, dict):
+            logger.error("fields has to be a dict. fields: %s", fields)
+            return ret
+        for k, v in fields.items():
+            if not isinstance(v, str):
+                logger.error("fields can only contain str value. %s: %s", k, v)
+                return ret
+
+        try:
+            sql_col_vals = ",".join(
+                [" %s = '%s'" % (k, v) for k, v in fields.items()]
+            )
+            sql_job_ids = ",".join(["'%s'" % job_id for job_id in job_ids])
+            sql = "UPDATE %s SET %s WHERE jobId IN (%s)" % (
+                self.jobtablename, sql_col_vals, sql_job_ids)
+
+            cursor = self.conn.cursor()
+            cursor.execute(sql)
+            self.conn.commit()
+            ret = True
+        except Exception:
+            logger.exception("Exception in updating fields %s for jobs %s",
+                             fields, job_ids, exc_info=True)
+        finally:
+            if cursor is not None:
+                cursor.close()
+        return ret
+
     def __del__(self):
         logger.debug("********************** deleted a DataHandler instance *******************")
         self.Close()

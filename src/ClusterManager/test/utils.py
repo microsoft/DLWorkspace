@@ -140,6 +140,19 @@ def kill_job(rest_url, email, job_id):
     return resp.json()
 
 
+def kill_jobs(rest_url, email, job_ids):
+    if isinstance(job_ids, list):
+        job_ids = ",".join(job_ids)
+
+    args = urllib.parse.urlencode({
+        "userName": email,
+        "jobIds": job_ids,
+    })
+    url = urllib.parse.urljoin(rest_url, "/KillJobs") + "?" + args
+    resp = requests.get(url)
+    return resp.json()
+
+
 class run_job(object):
     def __init__(self, rest_url, job_type, email, uid, vc, image, cmd):
         self.rest_url = rest_url
@@ -178,7 +191,6 @@ class run_job(object):
 def block_until_state_not_in(rest_url, jid, states, timeout=300):
     start = datetime.datetime.now()
     delta = datetime.timedelta(seconds=timeout)
-    waiting_state = {"unapproved", "queued", "scheduling"}
 
     while True:
         status = get_job_status(rest_url, jid)["jobStatus"]

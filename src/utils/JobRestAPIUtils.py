@@ -37,6 +37,17 @@ ADMIN_JOB_PRIORITY_RANGE = (1, 1000)
 logger = logging.getLogger(__name__)
 
 pendingStatus = "running,queued,scheduling,unapproved,pausing,paused"
+unfinished_states = {
+    "running",
+    "queued",
+    "scheduling",
+    "unapproved",
+    "pausing",
+    "paused",
+}
+has_access = AuthorizationManager.HasAccess
+VC = ResourceType.VC
+ADMIN = Permission.Admin
 DEFAULT_EXPIRATION = 24 * 30 * 60
 vc_cache = TTLCache(maxsize=10240, ttl=DEFAULT_EXPIRATION)
 vc_cache_lock = Lock()
@@ -484,20 +495,124 @@ def GetCommands(userName, jobId):
     return commands
 
 
-def KillJob(userName, jobId):
+def get_access_to_job(username, job):
+    is_owner = job["userName"] == username
+    is_admin = has_access(username, VC, job["vcName"], ADMIN)
+    allowed = is_owner or is_admin
+
+    role = "unauthorized"
+    if is_owner:
+        role = "owner"
+    elif is_admin:
+        role = "admin"
+    return allowed, role
+
+
+def kill_job(username, job_id):
     ret = False
-    dataHandler = DataHandler()
-    job = dataHandler.GetJobTextFields(
-        jobId, ["userName", "vcName", "jobStatus", "isParent", "familyToken"])
-    if job is not None and job["jobStatus"] in pendingStatus.split(","):
-        if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin):
-            dataFields = {"jobStatus": "killing"}
-            conditionFields = {"jobId": jobId}
-            if job["isParent"] == 1:
-                conditionFields = {"familyToken": job["familyToken"]}
-            ret = dataHandler.UpdateJobTextFields(conditionFields, dataFields)
-    dataHandler.Close()
+    with DataHandler() as data_handler:
+        job = data_handler.GetJobTextFields(
+            job_id, ["userName", "vcName", "jobStatus"])
+
+        if job is None:
+            return ret
+
+        allowed, role = get_access_to_job(username, job)
+
+        if not allowed:
+            logger.info("%s (%s) attempted to kill job %",
+                        username, role, job_id)
+            return ret
+
+        job_status = job["jobStatus"]
+        if job_status not in unfinished_states:
+            logger.info("%s (%s) attempted to kill a(n) \"%s\" job %",
+                        username, role, job_status, job_id)
+            return ret
+
+        data_fields = {"jobStatus": "killing"}
+        cond_fields = {"jobId": job_id}
+        ret = data_handler.UpdateJobTextFields(cond_fields, data_fields)
+        if ret is True:
+            logger.info("%s (%s) successfully killed job %s",
+                        username, role, job_id)
+        else:
+            logger.info("%s (%s) failed to kill job %s",
+                        username, role, job_id)
     return ret
+
+
+def _kill_jobs_in_one_batch(username, job_ids, data_handler):
+    fields = [
+        "jobId",
+        "userName",
+        "vcName",
+        "jobStatus",
+    ]
+    # Get all jobs to kill
+    jobs = data_handler.get_fields_for_jobs(job_ids, fields)
+
+    result = {}
+
+    if jobs is None:
+        return result
+
+    job_ids_to_kill = []
+    roles_for_jobs = []
+    for job in jobs:
+        job_id = job["jobId"]
+        job_status = job["jobStatus"]
+
+        allowed, role = get_access_to_job(username, job)
+
+        if not allowed:
+            result[job_id] = {"unauthorized to kill"}
+            logger.info("%s (%s) attempted to kill job %",
+                        username, role, job_id)
+            continue
+
+        if job_status not in unfinished_states:
+            result[job_id] = {"cannot kill a(n) \"%s\" job" % job_status}
+            logger.info("%s (%s) attempted to kill a(n) \"%s\" job %",
+                        username, role, job_status, job_id)
+            continue
+
+        job_ids_to_kill.append(job_id)
+        roles_for_jobs.append(role)
+
+    data_fields = {"jobStatus": "killing"}
+    killed = data_handler.update_text_fields_for_jobs(job_ids_to_kill,
+                                                      data_fields)
+
+    msg = "successfully killed" if killed else "failed to kill"
+    result.update({job_id: msg for job_id in job_ids_to_kill})
+
+    for i, job_id in enumerate(job_ids_to_kill):
+        role = roles_for_jobs[i]
+        logger.info("%s (%s) %s job %s", username, role, msg, job_id)
+
+    return result
+
+
+def kill_jobs(username, job_ids, batch_size=20):
+    if isinstance(job_ids, str):
+        job_ids = job_ids.split(",")
+    elif not isinstance(job_ids, list):
+        t = type(job_ids)
+        err_msg = "Unsupported type %s of job_ids %s" % (t, job_ids)
+        return err_msg
+
+    # Partition jobs into processing batches
+    batch_starts = range(0, len(job_ids), batch_size)
+    job_id_batches = [job_ids[x:x+batch_size] for x in batch_starts]
+
+    result = {}
+    with DataHandler() as data_handler:
+        for job_id_batch in job_id_batches:
+            batch_result = _kill_jobs_in_one_batch(
+                username, job_id_batch, data_handler)
+            result.update(batch_result)
+    return result
 
 
 def AddCommand(userName, jobId, command):
