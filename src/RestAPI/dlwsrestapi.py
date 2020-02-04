@@ -445,16 +445,16 @@ class KillJob(Resource):
         parser.add_argument('jobId')
         parser.add_argument('userName')
         args = parser.parse_args()
-        jobId = args["jobId"]
-        userName = args["userName"]
-        result = JobRestAPIUtils.KillJob(userName, jobId)
+        job_id = args["jobId"]
+        username = args["userName"]
+        result = JobRestAPIUtils.kill_job(username, job_id)
         ret = {}
         if result:
             # NOTE "Success" prefix is used in reaper, please also update reaper code
             # if need to change it.
             ret["result"] = "Success, the job is scheduled to be terminated."
         else:
-            ret["result"] = "Cannot Kill the job. Job ID:" + jobId
+            ret["result"] = "Cannot Kill the job. Job ID:" + job_id
 
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"

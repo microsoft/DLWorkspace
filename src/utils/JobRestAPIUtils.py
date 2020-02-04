@@ -495,19 +495,50 @@ def GetCommands(userName, jobId):
     return commands
 
 
-def KillJob(userName, jobId):
+def get_access_to_job(username, job):
+    is_owner = job["userName"] == username
+    is_admin = has_access(username, VC, job["vcName"], ADMIN)
+    allowed = is_owner or is_admin
+
+    role = "unauthorized"
+    if is_owner:
+        role = "owner"
+    elif is_admin:
+        role = "admin"
+    return allowed, role
+
+
+def kill_job(username, job_id):
     ret = False
-    dataHandler = DataHandler()
-    job = dataHandler.GetJobTextFields(
-        jobId, ["userName", "vcName", "jobStatus", "isParent", "familyToken"])
-    if job is not None and job["jobStatus"] in pendingStatus.split(","):
-        if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin):
-            dataFields = {"jobStatus": "killing"}
-            conditionFields = {"jobId": jobId}
-            if job["isParent"] == 1:
-                conditionFields = {"familyToken": job["familyToken"]}
-            ret = dataHandler.UpdateJobTextFields(conditionFields, dataFields)
-    dataHandler.Close()
+    with DataHandler() as data_handler:
+        job = data_handler.GetJobTextFields(
+            job_id, ["userName", "vcName", "jobStatus"])
+
+        if job is None:
+            return ret
+
+        allowed, role = get_access_to_job(username, job)
+
+        if not allowed:
+            logger.info("%s (%s) attempted to kill job %",
+                        username, role, job_id)
+            return ret
+
+        job_status = job["jobStatus"]
+        if job_status not in unfinished_states:
+            logger.info("%s (%s) attempted to kill a(n) \"%s\" job %",
+                        username, role, job_status, job_id)
+            return ret
+
+        data_fields = {"jobStatus": "killing"}
+        cond_fields = {"jobId": job_id}
+        ret = data_handler.UpdateJobTextFields(cond_fields, data_fields)
+        if ret is True:
+            logger.info("%s (%s) successfully killed job %s",
+                        username, role, job_id)
+        else:
+            logger.info("%s (%s) failed to kill job %s",
+                        username, role, job_id)
     return ret
 
 
@@ -523,26 +554,43 @@ def _kill_jobs_in_one_batch(username, job_ids, data_handler):
 
     result = {}
 
+    if jobs is None:
+        return result
+
     job_ids_to_kill = []
+    roles_for_jobs = []
     for job in jobs:
         job_id = job["jobId"]
         job_status = job["jobStatus"]
-        if job_status in unfinished_states:
-            is_owner = job["userName"] == username
-            is_admin = has_access(username, VC, job["vcName"], ADMIN)
-            if is_owner or is_admin:
-                job_ids_to_kill.append(job_id)
-            else:
-                result[job_id] = {"Unauthorized to kill"}
-        else:
-            result[job_id] = {"Cannot kill a(n) \"%s\" job" % job_status}
+
+        allowed, role = get_access_to_job(username, job)
+
+        if not allowed:
+            result[job_id] = {"unauthorized to kill"}
+            logger.info("%s (%s) attempted to kill job %",
+                        username, role, job_id)
+            continue
+
+        if job_status not in unfinished_states:
+            result[job_id] = {"cannot kill a(n) \"%s\" job" % job_status}
+            logger.info("%s (%s) attempted to kill a(n) \"%s\" job %",
+                        username, role, job_status, job_id)
+            continue
+
+        job_ids_to_kill.append(job_id)
+        roles_for_jobs.append(role)
 
     data_fields = {"jobStatus": "killing"}
     killed = data_handler.update_text_fields_for_jobs(job_ids_to_kill,
                                                       data_fields)
 
-    msg = "Successfully killed" if killed else "Failed to kill"
+    msg = "successfully killed" if killed else "failed to kill"
     result.update({job_id: msg for job_id in job_ids_to_kill})
+
+    for i, job_id in enumerate(job_ids_to_kill):
+        role = roles_for_jobs[i]
+        logger.info("%s (%s) %s job %s", username, role, msg, job_id)
+
     return result
 
 

@@ -100,8 +100,9 @@ def test_batch_kill_jobs(args):
 
     image = "indexserveregistry.azurecr.io/deepscale:1.0.post0"
 
+    num_jobs = 2
     job_ids = []
-    for i in range(2):
+    for i in range(num_jobs):
         job_id = utils.post_regular_job(args.rest, args.email, args.uid,
                                         args.vc, image, cmd)
         job_ids.append(job_id)
@@ -117,6 +118,7 @@ def test_batch_kill_jobs(args):
     resp = utils.kill_jobs(args.rest, args.email, [job_id for job_id in job_ids])
 
     assert isinstance(resp["result"], dict)
+    assert len(resp["result"]) == num_jobs
     for _, msg in resp["result"].items():
         assert expected_msg == msg
 
