@@ -194,10 +194,12 @@ class Testing(unittest.TestCase):
     @mock.patch('rules.ecc_reboot_node_rule.ECCRebootNodeRule.load_ecc_config')
     @mock.patch('utils.email_util.EmailHandler')
     @mock.patch('rules.ecc_detect_error_rule.requests.get')
-    @mock.patch('rules.ecc_reboot_node_rule._get_job_status')
+    @mock.patch('rules.ecc_reboot_node_rule._wait_for_job_to_pause')
     @mock.patch('rules.ecc_reboot_node_rule._pause_job')
-    def test_take_action(self, mock_pause_job,
-                               mock_get_job_status, 
+    @mock.patch('rules.ecc_reboot_node_rule._resume_job')
+    def test_take_action(self, mock_resume_job,
+                               mock_pause_job,
+                               mock_wait_for_job_to_pause, 
                                mock_get_requests,
                                mock_email_handler,
                                mock_load_ecc_config,
@@ -205,6 +207,10 @@ class Testing(unittest.TestCase):
 
         mock_pause_job.return_value = {
             "result": "Success, the job is scheduled to be paused."
+        }
+
+        mock_resume_job.return_value = {
+            "result": "Success, the job is scheduled to be resumed."
         }
 
         rule_alert_handler_instance = rule_alert_handler.RuleAlertHandler()
@@ -239,7 +245,7 @@ class Testing(unittest.TestCase):
         mock_pod_list = V1PodList(items=[pod_one, pod_two, pod_three])
         mock_list_pods.return_value = mock_pod_list
 
-        mock_get_job_status.return_value = {
+        mock_wait_for_job_to_pause.return_value = {
             "errorMsg": None,
             "jobStatus":"paused",
             "jobTime":"Thu, 30 Jan 2020 23:43:00 GMT"
@@ -257,7 +263,7 @@ class Testing(unittest.TestCase):
 
 
     @mock.patch('utils.email_util.EmailHandler.load_config')
-    def test_create_email_for_job_owner(self, mock_email_load_config):
+    def test_create_email_for_pause_resume_job(self, mock_email_load_config):
 
         ###################################################
         ##  Please fill in SMTP info for sending emails  ##
@@ -287,6 +293,39 @@ class Testing(unittest.TestCase):
 
             message = ecc_reboot_node_rule._create_email_for_pause_resume_job(job_id, node_names, job_link, mock_job_owner_email, mock_dri_email)
             rule_alert_handler_instance.send_alert(message)
+
+
+    @mock.patch('utils.email_util.EmailHandler.load_config')
+    def test_create_email_for_issue_with_pause_resume_job(self, mock_email_load_config):
+
+        ###################################################
+        ##  Please fill in SMTP info for sending emails  ##
+        ###################################################
+        enable_test = False
+        smtp_url = "[SMTP URL]"
+        login = "[SMTP LOGIN]"
+        password = "[SMTP PASSWORD]"
+        sender = "[SENDER EMAIL]"
+        mock_dri_email = "[DRI EMAIL]"
+        ####################################################
+
+        if enable_test:
+            mock_email_load_config.return_value = {
+                "smtp_url": smtp_url,
+                "login": login,
+                "password": password,
+                "sender": sender
+            }
+
+            rule_alert_handler_instance = rule_alert_handler.RuleAlertHandler()
+
+            job_id = "job-abc-123"
+            node_names = ["node1", "node2"]
+            job_link = 'http://fake-job-link/job/job-abc-123'
+
+            message = ecc_reboot_node_rule._create_email_for_issue_with_pause_resume_job(job_id, node_names, job_link, mock_dri_email)
+            rule_alert_handler_instance.send_alert(message)
+
 
 if __name__ == '__main__':
     unittest.main()

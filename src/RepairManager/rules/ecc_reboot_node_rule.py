@@ -47,37 +47,55 @@ def _get_job_info_from_nodes(pods, nodes, domain_name, cluster_name):
 
 def _pause_resume_job(job_pause_url, job_id, job_owner_email, attempts, wait_time):
     try:
-        for index in range(attempts):
-            pause_resp = _pause_job(job_pause_url, job_id, job_owner_email)
-            if pause_resp["result"] == "Success, the job is scheduled to be paused.":
-                for index in range(attempts):
-                    time.sleep(wait_time)
-                    job_response = _get_job_status(job_pause_url, job_id)
-                    if job_response:
-                        if job_response["jobStatus"] == "paused":
-                            _resume_job(job_pause_url, job_id, job_owner_email)
-                            return True
+        pause_resp = _pause_job(job_pause_url, job_id, job_owner_email, attempts) 
+        if pause_resp["result"] == "Success, the job is scheduled to be paused.":
+                
+            status_resp = _wait_for_job_to_pause(job_pause_url, job_id, attempts, wait_time)
+            if status_resp["jobStatus"] == "paused":
+
+                resume_resp = _resume_job(job_pause_url, job_id, job_owner_email, attempts)
+                if resume_resp["result"] == "Success, the job is scheduled to be resumed.":
+                    return True
         return False
     except:
         logging.exception(f'Error pausing/resuming job')
         return False
 
 
-def _pause_job(job_pause_url, job_id, job_owner_email):
-    pause_url = f'{job_pause_url}/PauseJob?userName={job_owner_email}&jobId={job_id}'
-    pause_resp = requests.get(pause_url)
+def _pause_job(job_pause_url, job_id, job_owner_email, attempts):
+    for i in range(attempts):
+        pause_url = f'{job_pause_url}/PauseJob?userName={job_owner_email}&jobId={job_id}'
+        pause_resp = requests.get(pause_url)
+        if pause_resp is not None \
+            and "result" in pause_resp \
+            and pause_resp["result"] == "Success, the job is scheduled to be paused.":
+            break
+
     return pause_resp
 
 
-def _resume_job(job_pause_url, job_id, job_owner_email):
-    resume_url = f'{job_pause_url}/ResumeJob?userName={job_owner_email}&jobId={job_id}'
-    resume_resp = requests.get(resume_url)
+def _resume_job(job_pause_url, job_id, job_owner_email, attempts):
+    for i in range(attempts):
+        resume_url = f'{job_pause_url}/ResumeJob?userName={job_owner_email}&jobId={job_id}'
+        resume_resp = requests.get(resume_url)
+        if resume_resp is not None \
+            and "result" in resume_resp \
+            and resume_resp["result"] == "Success, the job is scheduled to be resumed.":
+            break
+
     return resume_resp
 
 
-def _get_job_status(job_pause_url, job_id):
-    status_url = f'{job_pause_url}/GetJobStatus?jobId={job_id}'
-    status_resp = requests.get(status_url)
+def _wait_for_job_to_pause(job_pause_url, job_id, attempts, wait_time):
+    for i in range(attempts):
+        time.sleep(wait_time)
+        status_url = f'{job_pause_url}/GetJobStatus?jobId={job_id}'
+        status_resp = requests.get(status_url)
+        if status_resp is not None \
+            and "jobStatus" in status_resp \
+            and status_resp["jobStatus"] == "paused":
+            break
+
     return status_resp
 
 
@@ -93,6 +111,21 @@ def _create_email_for_pause_resume_job(job_id, node_names, job_link, job_owner_e
         body += f'<li>{node}</li>'
     body += f'''</ul>
     <p> Job <a href="{job_link}">{job_id}</a> will be now be paused/resumed so node(s) can be repaired.</p>'''
+    message.attach(MIMEText(body, 'html'))
+    return message
+
+
+def _create_email_for_issue_with_pause_resume_job(job_id, node_names, job_link, dri_email):
+    message = MIMEMultipart()
+    message['Subject'] = f'Repair Manager Alert [Could not pause/resume job {job_id}]'
+    message['To'] = dri_email
+    body = f'''<h3>Unable to pause/resume job <a href="{job_link}">{job_id}</a>.</h3>
+    <p>This job is found on the following node(s) which are due to be rebooted due to ecc error:</p>
+    <ul>'''
+    for node in node_names:
+        body += f'<li>{node}</li>'
+    body += f'''</ul>
+    <p> Please investigate so node(s) can be repaired.</p>'''
     message.attach(MIMEText(body, 'html'))
     return message
 
@@ -154,12 +187,16 @@ class ECCRebootNodeRule(Rule):
         for job_id in job_info:
             job_owner_email = f"{job_info[job_id]['user_name']}@{self.config['job_owner_email_domain']}"
             node_names = job_info[job_id]["node_names"]
+            job_link = job_info[job_id]['job_link']
+
             result = _pause_resume_job(self.ecc_config["job_pause_resume_url"], job_id, job_owner_email, 10, self.ecc_config["time_sleep_after_pausing"])
             if result:
                 if self.ecc_config["alert_job_owners"]:
-                    job_link = job_info[job_id]['job_link']
                     message = _create_email_for_pause_resume_job(job_id, node_names, job_link, job_owner_email, self.ecc_config["dri_email"])
                     self.alert.send_alert(message)
+            else:
+                logging.warning(f"Could not pause/resume the following job: {job_id}")
+                message = _create_email_for_issue_with_pause_resume_job(job_id, node_names, job_link, self.ecc_config["dri_email"])
 
         # TODO: reboot node
 
