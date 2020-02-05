@@ -130,17 +130,33 @@ def get_job_detail(rest_url, email, job_id):
     return resp.json()
 
 
-def kill_job(rest_url, email, job_id):
+def _op_job(rest_url, email, job_id, op):
     args = urllib.parse.urlencode({
         "userName": email,
         "jobId": job_id,
     })
-    url = urllib.parse.urljoin(rest_url, "/KillJob") + "?" + args
+    url = urllib.parse.urljoin(rest_url, "/%sJob" % op) + "?" + args
     resp = requests.get(url)
     return resp.json()
 
 
-def kill_jobs(rest_url, email, job_ids):
+def kill_job(rest_url, email, job_id):
+    return _op_job(rest_url, email, job_id, "Kill")
+
+
+def pause_job(rest_url, email, job_id):
+    return _op_job(rest_url, email, job_id, "Pause")
+
+
+def resume_job(rest_url, email, job_id):
+    return _op_job(rest_url, email, job_id, "Resume")
+
+
+def approve_job(rest_url, email, job_id):
+    return _op_job(rest_url, email, job_id, "Approve")
+
+
+def _op_jobs(rest_url, email, job_ids, op):
     if isinstance(job_ids, list):
         job_ids = ",".join(job_ids)
 
@@ -148,9 +164,25 @@ def kill_jobs(rest_url, email, job_ids):
         "userName": email,
         "jobIds": job_ids,
     })
-    url = urllib.parse.urljoin(rest_url, "/KillJobs") + "?" + args
+    url = urllib.parse.urljoin(rest_url, "/%sJobs" % op) + "?" + args
     resp = requests.get(url)
     return resp.json()
+
+
+def kill_jobs(rest_url, email, job_ids):
+    return _op_jobs(rest_url, email, job_ids, "Kill")
+
+
+def pause_jobs(rest_url, email, job_ids):
+    return _op_job(rest_url, email, job_ids, "Pause")
+
+
+def resume_jobs(rest_url, email, job_ids):
+    return _op_job(rest_url, email, job_ids, "Resume")
+
+
+def approve_jobs(rest_url, email, job_ids):
+    return _op_job(rest_url, email, job_ids, "Approve")
 
 
 class run_job(object):
@@ -188,14 +220,16 @@ class run_job(object):
                              self.jid)
 
 
-def block_until_state_not_in(rest_url, jid, states, timeout=300):
+def block_until_state(rest_url, jid, not_in, states, timeout=300):
     start = datetime.datetime.now()
     delta = datetime.timedelta(seconds=timeout)
 
     while True:
         status = get_job_status(rest_url, jid)["jobStatus"]
 
-        if status in states:
+        cond = status in states if not_in else status not in states
+
+        if cond:
             logger.debug("waiting status in %s", status)
             if datetime.datetime.now() - start < delta:
                 time.sleep(1)
@@ -206,6 +240,14 @@ def block_until_state_not_in(rest_url, jid, states, timeout=300):
             logger.info("spent %s in waiting job become %s",
                         datetime.datetime.now() - start, status)
             return status
+
+
+def block_until_state_not_in(rest_url, jid, states, timeout=300):
+    return block_until_state(rest_url, jid, True, states, timeout=timeout)
+
+
+def block_until_state_in(rest_url, jid, states, timeout=300):
+    return block_until_state(rest_url, jid, False, states, timeout=timeout)
 
 
 def get_job_log(rest_url, email, jid):

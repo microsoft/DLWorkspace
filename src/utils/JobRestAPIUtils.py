@@ -21,13 +21,13 @@ from DataHandler import DataHandler, DataManager
 from authorization import ResourceType, Permission, AuthorizationManager, IdentityManager, ACLManager
 import authorization
 import quota
+from job_op import KillOp, PauseOp, ResumeOp, ApproveOp
 
 sys.path.append(os.path.join(os.path.dirname(
     os.path.abspath(__file__)), "../ClusterManager"))
 
 from ResourceInfo import ResourceInfo
 from cluster_resource import ClusterResource
-
 
 DEFAULT_JOB_PRIORITY = 100
 USER_JOB_PRIORITY_RANGE = (100, 200)
@@ -37,14 +37,27 @@ ADMIN_JOB_PRIORITY_RANGE = (1, 1000)
 logger = logging.getLogger(__name__)
 
 pendingStatus = "running,queued,scheduling,unapproved,pausing,paused"
-unfinished_states = {
-    "running",
+states_to_killing = {
+    "unapproved",
     "queued",
     "scheduling",
-    "unapproved",
+    "running",
     "pausing",
     "paused",
 }
+states_to_pausing = {
+    "unapproved",
+    "queued",
+    "scheduling",
+    "running",
+}
+states_to_unapproved = {
+    "paused",
+}
+states_to_queued = {
+    "unapproved",
+}
+
 has_access = AuthorizationManager.HasAccess
 VC = ResourceType.VC
 ADMIN = Permission.Admin
@@ -508,7 +521,12 @@ def get_access_to_job(username, job):
     return allowed, role
 
 
-def kill_job(username, job_id):
+def op_job(username, job_id, op):
+    op_name = op.name
+    op_past_tense = op.past_tense
+    from_states = op.from_states
+    to_state = op.to_state
+
     ret = False
     with DataHandler() as data_handler:
         job = data_handler.GetJobTextFields(
@@ -520,36 +538,57 @@ def kill_job(username, job_id):
         allowed, role = get_access_to_job(username, job)
 
         if not allowed:
-            logger.info("%s (%s) attempted to kill job %",
-                        username, role, job_id)
+            logger.info("%s (%s) attempted to %s job %",
+                        username, role, op_name, job_id)
             return ret
 
         job_status = job["jobStatus"]
-        if job_status not in unfinished_states:
-            logger.info("%s (%s) attempted to kill a(n) \"%s\" job %",
-                        username, role, job_status, job_id)
+        if job_status not in from_states:
+            logger.info("%s (%s) attempted to %s a(n) \"%s\" job %",
+                        username, role, op_name, job_status, job_id)
             return ret
 
-        data_fields = {"jobStatus": "killing"}
+        data_fields = {"jobStatus": to_state}
         cond_fields = {"jobId": job_id}
         ret = data_handler.UpdateJobTextFields(cond_fields, data_fields)
         if ret is True:
-            logger.info("%s (%s) successfully killed job %s",
-                        username, role, job_id)
+            logger.info("%s (%s) successfully %s job %s",
+                        username, role, op_past_tense, job_id)
         else:
-            logger.info("%s (%s) failed to kill job %s",
-                        username, role, job_id)
+            logger.info("%s (%s) failed to %s job %s",
+                        username, role, op_name, job_id)
     return ret
 
 
-def _kill_jobs_in_one_batch(username, job_ids, data_handler):
+def kill_job(username, job_id):
+    return op_job(username, job_id, KillOp())
+
+
+def pause_job(username, job_id):
+    return op_job(username, job_id, PauseOp())
+
+
+def resume_job(username, job_id):
+    return op_job(username, job_id, ResumeOp())
+
+
+def approve_job(username, job_id):
+    return op_job(username, job_id, ApproveOp())
+
+
+def _op_jobs_in_one_batch(username, job_ids, op, data_handler):
+    op_name = op.name
+    op_past_tense = op.past_tense
+    from_states = op.from_states
+    to_state = op.to_state
+
+    # Get all jobs to op
     fields = [
         "jobId",
         "userName",
         "vcName",
         "jobStatus",
     ]
-    # Get all jobs to kill
     jobs = data_handler.get_fields_for_jobs(job_ids, fields)
 
     result = {}
@@ -557,7 +596,7 @@ def _kill_jobs_in_one_batch(username, job_ids, data_handler):
     if jobs is None:
         return result
 
-    job_ids_to_kill = []
+    job_ids_to_op = []
     roles_for_jobs = []
     for job in jobs:
         job_id = job["jobId"]
@@ -566,35 +605,38 @@ def _kill_jobs_in_one_batch(username, job_ids, data_handler):
         allowed, role = get_access_to_job(username, job)
 
         if not allowed:
-            result[job_id] = {"unauthorized to kill"}
-            logger.info("%s (%s) attempted to kill job %",
-                        username, role, job_id)
+            result[job_id] = {"unauthorized to %s" % op_name}
+            logger.info("%s (%s) attempted to %s job %",
+                        username, role, op_name, job_id)
             continue
 
-        if job_status not in unfinished_states:
-            result[job_id] = {"cannot kill a(n) \"%s\" job" % job_status}
-            logger.info("%s (%s) attempted to kill a(n) \"%s\" job %",
-                        username, role, job_status, job_id)
+        if job_status not in from_states:
+            result[job_id] = {
+                "cannot %s a(n) \"%s\" job" % (op_name, job_status)
+            }
+            logger.info("%s (%s) attempted to %s a(n) \"%s\" job %",
+                        username, role, op_name, job_status, job_id)
             continue
 
-        job_ids_to_kill.append(job_id)
+        job_ids_to_op.append(job_id)
         roles_for_jobs.append(role)
 
-    data_fields = {"jobStatus": "killing"}
-    killed = data_handler.update_text_fields_for_jobs(job_ids_to_kill,
-                                                      data_fields)
+    data_fields = {"jobStatus": to_state}
+    success = data_handler.update_text_fields_for_jobs(job_ids_to_op,
+                                                       data_fields)
 
-    msg = "successfully killed" if killed else "failed to kill"
-    result.update({job_id: msg for job_id in job_ids_to_kill})
+    msg = "successfully %s" % op_past_tense \
+        if success else "failed to %s" % op_name
+    result.update({job_id: msg for job_id in job_ids_to_op})
 
-    for i, job_id in enumerate(job_ids_to_kill):
+    for i, job_id in enumerate(job_ids_to_op):
         role = roles_for_jobs[i]
         logger.info("%s (%s) %s job %s", username, role, msg, job_id)
 
     return result
 
 
-def kill_jobs(username, job_ids, batch_size=20):
+def op_jobs(username, job_ids, op, batch_size=20):
     if isinstance(job_ids, str):
         job_ids = job_ids.split(",")
     elif not isinstance(job_ids, list):
@@ -609,10 +651,26 @@ def kill_jobs(username, job_ids, batch_size=20):
     result = {}
     with DataHandler() as data_handler:
         for job_id_batch in job_id_batches:
-            batch_result = _kill_jobs_in_one_batch(
-                username, job_id_batch, data_handler)
+            batch_result = _op_jobs_in_one_batch(
+                username, job_id_batch, op, data_handler)
             result.update(batch_result)
     return result
+
+
+def kill_jobs(username, job_ids):
+    return op_jobs(username, job_ids, KillOp())
+
+
+def pause_jobs(username, job_ids):
+    return op_jobs(username, job_ids, PauseOp())
+
+
+def resume_jobs(username, job_ids):
+    return op_jobs(username, job_ids, ResumeOp())
+
+
+def approve_jobs(username, job_ids):
+    return op_jobs(username, job_ids, ApproveOp())
 
 
 def AddCommand(userName, jobId, command):
@@ -622,42 +680,6 @@ def AddCommand(userName, jobId, command):
     if job is not None:
         if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Collaborator):
             ret = dataHandler.AddCommand(jobId, command)
-    dataHandler.Close()
-    return ret
-
-
-def ApproveJob(userName, jobId):
-    dataHandler = DataHandler()
-    ret = False
-    job = dataHandler.GetJobTextFields(jobId, ["vcName", "jobStatus"])
-    if job is not None and job["jobStatus"] == "unapproved":
-        if AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin):
-            ret = dataHandler.UpdateJobTextField(jobId, "jobStatus", "queued")
-    dataHandler.Close()
-    return ret
-
-
-def ResumeJob(userName, jobId):
-    dataHandler = DataHandler()
-    ret = False
-    job = dataHandler.GetJobTextFields(
-        jobId, ["userName", "vcName", "jobStatus"])
-    if job is not None and job["jobStatus"] == "paused":
-        if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Collaborator):
-            ret = dataHandler.UpdateJobTextField(
-                jobId, "jobStatus", "unapproved")
-    dataHandler.Close()
-    return ret
-
-
-def PauseJob(userName, jobId):
-    dataHandler = DataHandler()
-    ret = False
-    job = dataHandler.GetJobTextFields(
-        jobId, ["userName", "vcName", "jobStatus"])
-    if job is not None and job["jobStatus"] in ["unapproved", "queued", "scheduling", "running"]:
-        if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin):
-            ret = dataHandler.UpdateJobTextField(jobId, "jobStatus", "pausing")
     dataHandler.Close()
     return ret
 

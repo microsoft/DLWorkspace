@@ -91,15 +91,41 @@ def test_job_fail(args):
         assert expected_state == state
 
 
-def test_batch_kill_jobs(args):
-    logger.info("test_batch_kill_jobs ...")
+def test_op_job(args):
+    logger.info("test_op_job ...")
 
-    expected_msg = "successfully killed"
-    expected_state = "killed"
     cmd = "sleep 1800"
-
     image = "indexserveregistry.azurecr.io/deepscale:1.0.post0"
+    job_id = utils.post_regular_job(args.rest, args.email, args.uid,
+                                    args.vc, image, cmd)
 
+    # Try to ApproveJob
+    resp = utils.approve_job(args.rest, args.email, job_id)
+    assert "Cannot approve the job. Job ID:%s" % job_id == resp["result"]
+
+    # PauseJob
+    resp = utils.pause_job(args.rest, args.email, job_id)
+    assert "Success, the job is scheduled to be paused." == resp["result"]
+
+    # ResumeJob
+    utils.block_until_state_in(args.rest, job_id, {"paused"})
+    resp = utils.resume_job(args.rest, args.email, job_id)
+    assert "Success, the job is scheduled to be resumed." == resp["result"]
+
+    # KillJob
+    utils.block_until_state_in(args.rest, job_id, {"running"})
+    resp = utils.resume_job(args.rest, args.email, job_id)
+    assert "Success, the job is scheduled to be terminated." == resp["result"]
+
+    state = utils.block_until_state_not_in(args.rest, job_id, {"killing"})
+    assert "killed" == state
+
+
+def test_batch_op_jobs(args):
+    logger.info("test_batch_op_jobs ...")
+
+    cmd = "sleep 1800"
+    image = "indexserveregistry.azurecr.io/deepscale:1.0.post0"
     num_jobs = 2
     job_ids = []
     for i in range(num_jobs):
@@ -111,20 +137,35 @@ def test_batch_kill_jobs(args):
     # E.g. kill job request comes in when jobmanager is processing an unapproved
     # job. "killing" will be overriden by "queued".
     for job_id in job_ids:
-        state = utils.block_until_state_not_in(args.rest, job_id,
-            {"unapproved", "queued", "scheduling"})
-        assert state == "running"
+        utils.block_until_state_in(args.rest, job_id, {"running"})
 
-    resp = utils.kill_jobs(args.rest, args.email, [job_id for job_id in job_ids])
-
-    assert isinstance(resp["result"], dict)
-    assert len(resp["result"]) == num_jobs
+    # Try to ApproveJobs
+    resp = utils.approve_jobs(args.rest, args.email, job_ids)
     for _, msg in resp["result"].items():
-        assert expected_msg == msg
+        assert "cannot approve a(n) \"running\" job" == msg
+
+    # PauseJobs
+    resp = utils.pause_jobs(args.rest, args.email, job_ids)
+    for _, msg in resp["result"].items():
+        assert "successfully paused" == msg
+
+    # ResumeJob
+    for job_id in job_ids:
+        utils.block_until_state_in(args.rest, job_id, {"paused"})
+    resp = utils.resume_jobs(args.rest, args.email, job_ids)
+    for _, msg in resp["result"].items():
+        assert "successfully resumed" == msg
+
+    # KillJob
+    for job_id in job_ids:
+        utils.block_until_state_in(args.rest, job_id, {"running"})
+    resp = utils.kill_jobs(args.rest, args.email, job_ids)
+    for _, msg in resp["result"].items():
+        assert "successfully killed" == msg
 
     for job_id in job_ids:
         state = utils.block_until_state_not_in(args.rest, job_id, {"killing"})
-        assert expected_state == state
+        assert "killed" == state
 
 
 def main(args):
