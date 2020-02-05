@@ -36,7 +36,14 @@ ADMIN_JOB_PRIORITY_RANGE = (1, 1000)
 
 logger = logging.getLogger(__name__)
 
-pending_status = "running,queued,scheduling,unapproved,pausing,paused"
+ACTIVE_STATUS = {
+    "unapproved",
+    "queued",
+    "scheduling",
+    "running",
+    "pausing",
+    "paused",
+}
 has_access = AuthorizationManager.HasAccess
 VC = ResourceType.VC
 ADMIN = Permission.Admin
@@ -415,39 +422,23 @@ def SubmitJob(jobParamsJsonStr):
     return ret
 
 
-def get_job_list(username, vc_name, job_owner, num=None):
+def get_job_list(username, vc_name, job_owner, num=20):
     try:
         with DataHandler() as data_handler:
             if job_owner == "all" and \
                     has_access(username, VC, vc_name, COLLABORATOR):
-                jobs = data_handler.GetJobList(
-                    "all",
-                    vc_name,
-                    None,
-                    pending_status,
-                    ("=", "or")
-                )
-                jobs += data_handler.GetJobList(
+                jobs = data_handler.get_union_job_list(
                     "all",
                     vc_name,
                     num,
-                    pending_status,
-                    ("<>", "and")
+                    ACTIVE_STATUS
                 )
             else:
-                jobs = data_handler.GetJobList(
-                    username,
-                    vc_name,
-                    None,
-                    pending_status,
-                    ("=", "or")
-                )
-                jobs += data_handler.GetJobList(
+                jobs = data_handler.get_union_job_list(
                     username,
                     vc_name,
                     num,
-                    pending_status,
-                    ("<>", "and")
+                    ACTIVE_STATUS
                 )
             for job in jobs:
                 job.pop('jobMeta', None)
@@ -464,9 +455,19 @@ def get_job_list_v2(username, vc_name, job_owner, num=None):
         with DataHandler() as data_handler:
             if job_owner == "all" and \
                     has_access(username, VC, vc_name, COLLABORATOR):
-                jobs = data_handler.GetJobListV2("all", vc_name, num)
+                jobs = data_handler.get_union_job_list_v2(
+                    "all",
+                    vc_name,
+                    num,
+                    ACTIVE_STATUS
+                )
             else:
-                jobs = data_handler.GetJobListV2(username, vc_name, num)
+                jobs = data_handler.get_union_job_list_v2(
+                    username,
+                    vc_name,
+                    num,
+                    ACTIVE_STATUS
+                )
     except:
         logger.exception("Exception in getting job list v2 for username %s",
                          username, exc_info=True)
@@ -1371,7 +1372,7 @@ def update_job_priorites(username, job_priorities):
             permission = Permission.Admin if vc_admin else Permission.User
             job_priorities[job_id] = adjust_job_priority(priority, permission)
 
-            if job["jobStatus"] in pending_status.split(","):
+            if job["jobStatus"] in ACTIVE_STATUS:
                 pendingJobs[job_id] = job_priorities[job_id]
 
         ret_code = data_handler.update_job_priority(job_priorities)

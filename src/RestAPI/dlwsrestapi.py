@@ -358,6 +358,8 @@ class ListJobs(Resource):
             try:
                 num = int(args["num"])
             except:
+                # Set default number of inactive jobs to 20
+                num = 20
                 pass
         jobs = JobRestAPIUtils.get_job_list(username, vc_name, job_owner, num)
 
@@ -429,6 +431,8 @@ class ListJobsV2(Resource):
             try:
                 num = int(args["num"])
             except:
+                # Set default number of inactive jobs to 20
+                num = 20
                 pass
 
         jobs = JobRestAPIUtils.get_job_list_v2(
