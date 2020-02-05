@@ -6,8 +6,17 @@ import json
 import logging
 import datetime
 import time
+import os
+import yaml
+import base64
 
 import requests
+
+from kubernetes import client as k8s_client
+from kubernetes.client.rest import ApiException
+from kubernetes.client import Configuration, ApiClient
+from kubernetes.stream import stream
+from kubernetes.stream.ws_client import ERROR_CHANNEL, STDERR_CHANNEL, STDOUT_CHANNEL
 
 logger = logging.getLogger(__file__)
 
@@ -222,6 +231,7 @@ class run_job(object):
 
 def block_until_state(rest_url, jid, not_in, states, timeout=300):
     start = datetime.datetime.now()
+
     delta = datetime.timedelta(seconds=timeout)
 
     while True:
@@ -258,3 +268,134 @@ def get_job_log(rest_url, email, jid):
     url = urllib.parse.urljoin(rest_url, "/GetJobLog") + "?" + args
     resp = requests.get(url)
     return resp.json()
+
+
+def get_endpoints(rest_url, email, jid):
+    args = urllib.parse.urlencode({
+        "userName": email,
+        "jobId": jid,
+    })
+    url = urllib.parse.urljoin(rest_url, "/endpoints") + "?" + args
+    resp = requests.get(url)
+    return resp.json()
+
+
+def create_endpoint(rest_url, email, jid, point_names):
+    args = urllib.parse.urlencode({
+        "userName": email,
+    })
+    url = urllib.parse.urljoin(rest_url, "/endpoints") + "?" + args
+    payload = {"jobId": jid, "endpoints": point_names}
+    resp = requests.post(url, json=payload)
+    return resp.json()
+
+
+def wait_endpoint_ready(rest_url, email, jid, endpoint_id, timeout=30):
+    start = datetime.datetime.now()
+    delta = datetime.timedelta(seconds=timeout)
+
+    while True:
+        points = get_endpoints(rest_url, email, jid)
+        for p in points:
+            if p["id"] != endpoint_id or p["status"] != "running":
+                continue
+            logger.info("spent %s in waiting endpoint %s become running",
+                        datetime.datetime.now() - start, endpoint_id)
+            return p
+        logger.debug("waiting endpoint %s become running", endpoint_id)
+        if datetime.datetime.now() - start < delta:
+            time.sleep(1)
+        else:
+            raise RuntimeError(
+                "endpoint %s did not become running for more than %d seconds" %
+                (endpoint_id, timeout))
+
+
+def find_infra_node_name(machines):
+    for hostname, val in machines.items():
+        if val.get("role") == "infrastructure":
+            return hostname
+
+
+def build_k8s_config(config_path):
+    cluster_path = os.path.join(config_path, "cluster.yaml")
+
+    with open(cluster_path) as f:
+        cluster_config = yaml.load(f, Loader=yaml.FullLoader)
+
+    config = Configuration()
+
+    infra_host = find_infra_node_name(cluster_config["machines"])
+    config.host = "https://%s.%s:1443" % (infra_host,
+                                          cluster_config["network"]["domain"])
+
+    basic_auth = cluster_config["basic_auth"]
+    config.username = basic_auth.split(",")[1]
+    config.password = basic_auth.split(",")[0]
+    bearer = "%s:%s" % (config.username, config.password)
+    encoded = base64.b64encode(bearer.encode("utf-8")).decode("utf-8")
+    config.api_key["authorization"] = "Basic " + encoded
+
+    config.ssl_ca_cert = os.path.join(config_path, "ssl/apiserver/ca.pem")
+    return config
+
+
+def kube_get_pods(config_path, namespace, label_selector):
+    k8s_config = build_k8s_config(config_path)
+    api_client = ApiClient(configuration=k8s_config)
+
+    k8s_core_api = k8s_client.CoreV1Api(api_client)
+
+    api_response = k8s_core_api.list_namespaced_pod(
+        namespace=namespace,
+        pretty="pretty_example",
+        label_selector=label_selector,
+    )
+    logger.debug("%s got pods from namespace %s: api_response", label_selector,
+                 namespace, api_response)
+    return api_response.items
+
+
+def kube_pod_exec(config_path,
+                  namespace,
+                  pod_name,
+                  container_name,
+                  exec_command,
+                  timeout=60):
+    k8s_config = build_k8s_config(config_path)
+    api_client = ApiClient(configuration=k8s_config)
+
+    k8s_core_api = k8s_client.CoreV1Api(api_client)
+    try:
+        stream_client = stream(
+            k8s_core_api.connect_get_namespaced_pod_exec,
+            namespace="default",
+            name=pod_name,
+            container=container_name,
+            command=exec_command,
+            stderr=True,
+            stdin=False,
+            stdout=True,
+            tty=False,
+            _preload_content=False,
+        )
+        stream_client.run_forever(timeout=timeout)
+
+        err = yaml.full_load(stream_client.read_channel(ERROR_CHANNEL))
+        if err is None:
+            return [-1, "Timeout"]
+
+        if err["status"] == "Success":
+            status_code = 0
+        else:
+            logger.debug("exec on pod %s failed. cmd: %s, err: %s.", pod_name,
+                         exec_command, err)
+            status_code = int(err["details"]["causes"][0]["message"])
+        output = stream_client.read_all()
+        logger.debug("exec on pod %s, status: %s, cmd: %s, output: %s",
+                     pod_name, status_code, exec_command, output)
+        return [status_code, output]
+    except ApiException as err:
+        logger.exception("exec on pod %s error. cmd: %s", pod_name,
+                         exec_command)
+        return [-1, str(err)]

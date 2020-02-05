@@ -14,6 +14,7 @@ import argparse
 
 from kubernetes import client, config as k8s_config
 from kubernetes.client.rest import ApiException
+from kubernetes.stream import stream
 from kubernetes.stream.ws_client import ERROR_CHANNEL, STDERR_CHANNEL, STDOUT_CHANNEL
 
 from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time
@@ -296,8 +297,7 @@ def cleanup_endpoints():
                         logger.info("Endpoint already gone %s", endpoint_id)
                         status = "stopped"
                     else:
-                        delete_resp = delete_k8s_endpoint(
-                            endpoint.metadata.name)
+                        delete_resp = delete_k8s_endpoint(point.metadata.name)
                         logger.info("delete_resp for endpoint is %s",
                                     delete_resp)
                     # we are not changing status from "pending", "pending" endpoints are planed to setup later

@@ -4,6 +4,7 @@
 import argparse
 import logging
 import time
+import copy
 
 import utils
 
@@ -96,8 +97,8 @@ def test_op_job(args):
 
     cmd = "sleep 1800"
     image = "indexserveregistry.azurecr.io/deepscale:1.0.post0"
-    job_id = utils.post_regular_job(args.rest, args.email, args.uid,
-                                    args.vc, image, cmd)
+    job_id = utils.post_regular_job(args.rest, args.email, args.uid, args.vc,
+                                    image, cmd)
     utils.block_until_state_in(args.rest, job_id, {"running"})
 
     # Try to ApproveJob
@@ -177,6 +178,112 @@ def test_batch_op_jobs(args):
         assert "killed" == state
 
 
+def test_regular_job_ssh(args):
+    logger.info("test_regular_job_ssh ...")
+    cmd = "sleep 1800"
+
+    image = "indexserveregistry.azurecr.io/deepscale:1.0.post0"
+    with utils.run_job(args.rest, "regular", args.email, args.uid, args.vc,
+                       image, cmd) as job:
+        endpoints = utils.create_endpoint(args.rest, args.email, job.jid,
+                                          ["ssh"])
+        endpoints_ids = list(endpoints.keys())
+        assert len(endpoints_ids) == 1
+        endpoint_id = endpoints_ids[0]
+
+        state = utils.block_until_state_not_in(
+            args.rest, job.jid, {"unapproved", "queued", "scheduling"})
+        assert state == "running"
+
+        ssh_endpoint = utils.wait_endpoint_ready(args.rest, args.email,
+                                                 job.jid, endpoint_id)
+        logger.debug("endpoints resp is %s", ssh_endpoint)
+
+        ssh_host = "%s.%s" % (ssh_endpoint["nodeName"], ssh_endpoint["domain"])
+        ssh_port = ssh_endpoint["port"]
+
+        # exec into jobmanager to execute ssh to avoid firewall
+        job_manager_pod = utils.kube_get_pods(args.config, "default",
+                                              "app=jobmanager")[0]
+        job_manager_pod_name = job_manager_pod.metadata.name
+
+        alias = args.email.split("@")[0]
+
+        cmd = [
+            "ssh", "-i",
+            "/dlwsdata/work/%s/.ssh/id_rsa" % alias, "-p", ssh_port, "-o",
+            "StrictHostKeyChecking=no", "-o", "LogLevel=ERROR",
+            "%s@%s" % (alias, ssh_host), "--", "echo", "dummy"
+        ]
+        code, output = utils.kube_pod_exec(args.config, "default",
+                                           job_manager_pod_name, "jobmanager",
+                                           cmd)
+        assert code == 0
+        assert output == "dummy\n"
+
+
+def test_distributed_job_ssh(args):
+    logger.info("test_distributed_job_ssh ...")
+
+    cmd = "sleep 1800"
+
+    image = "indexserveregistry.azurecr.io/deepscale:1.0.post0"
+    with utils.run_job(args.rest, "distributed", args.email, args.uid, args.vc,
+                       image, cmd) as job:
+        endpoints = utils.create_endpoint(args.rest, args.email, job.jid,
+                                          ["ssh"])
+        endpoints_ids = list(endpoints.keys())
+        assert len(endpoints_ids) == 2
+
+        state = utils.block_until_state_not_in(
+            args.rest, job.jid, {"unapproved", "queued", "scheduling"})
+        assert state == "running"
+
+        for endpoint_id in endpoints_ids:
+            ssh_endpoint = utils.wait_endpoint_ready(args.rest, args.email,
+                                                     job.jid, endpoint_id)
+            logger.debug("endpoint_id is %s, endpoints resp is %s",
+                         endpoint_id, ssh_endpoint)
+
+            ssh_host = "%s.%s" % (ssh_endpoint["nodeName"],
+                                  ssh_endpoint["domain"])
+            ssh_port = ssh_endpoint["port"]
+
+            # exec into jobmanager to execute ssh to avoid firewall
+            job_manager_pod = utils.kube_get_pods(args.config, "default",
+                                                  "app=jobmanager")[0]
+            job_manager_pod_name = job_manager_pod.metadata.name
+
+            alias = args.email.split("@")[0]
+
+            cmd_prefix = [
+                "ssh",
+                "-i",
+                "/dlwsdata/work/%s/.ssh/id_rsa" % alias,
+                "-p",
+                ssh_port,
+                "-o",
+                "StrictHostKeyChecking=no",
+                "-o",
+                "LogLevel=ERROR",
+                "%s@%s" % (alias, ssh_host),
+                "--",
+            ]
+
+            # check they can connect to each other
+            for role in ["ps-0", "worker-0"]:
+                cmd = copy.deepcopy(cmd_prefix)
+                cmd.extend([
+                    "ssh", role, "-o", "LogLevel=ERROR", "--", "echo", "dummy"
+                ])
+                code, output = utils.kube_pod_exec(args.config, "default",
+                                                   job_manager_pod_name,
+                                                   "jobmanager", cmd)
+                logger.debug("code %s, output '%s'", code, output)
+                assert code == 0
+                assert output == "dummy\n"
+
+
 def main(args):
     test_regular_job_running(args)
     test_distributed_job_running(args)
@@ -184,6 +291,8 @@ def main(args):
     test_job_fail(args)
     test_op_job(args)
     test_batch_op_jobs(args)
+    test_regular_job_ssh(args)
+    test_distributed_job_ssh(args)
 
 
 if __name__ == '__main__':
@@ -204,9 +313,10 @@ if __name__ == '__main__':
                         "-u",
                         required=True,
                         help="uid to submit job to rest")
-    #parser.add_argument("--jid", "-j", required=True, help="job_id to query")
-    #parser.add_argument("--k8s", "-l", required=True, help="kubernetes api uri eg. http://10.151.40.133:143")
-    #parser.add_argument("--config", "-i", required=True, help="path to config dir")
+    parser.add_argument("--config",
+                        "-i",
+                        required=True,
+                        help="path to config dir")
     args = parser.parse_args()
 
     main(args)
