@@ -694,6 +694,266 @@ class DataHandler(object):
         return ret
 
     @record
+    def get_union_job_list(self, username, vc_name, num, status):
+        """Get jobs in status and the latest num jobs that are not in status.
+
+        Args:
+            username: Username for jobs
+            vc_name: VC name for jobs
+            num: Number of the latest jobs that are not in status
+            status: Job status
+
+        Returns:
+            A list of jobs including all jobs in status and the latest num
+            jobs that are not in status.
+        """
+        ret = []
+
+        if not isinstance(username, str):
+            logger.error("username has to be a str")
+            return ret
+
+        if not isinstance(vc_name, str):
+            logger.error("vc_name has to be a str")
+            return ret
+
+        try:
+            num = int(num)
+        except:
+            num = None
+        if num is None:
+            logger.error("num has to be a number or string of digits")
+            return ret
+
+        if isinstance(status, str):
+            status = status.split(",")
+        elif not isinstance(status, list):
+            status = set(status)
+        elif not isinstance(status, set):
+            logger.error("status has to be a str or a list")
+            return ret
+        if len(status) == 0:
+            logger.error("status must contain at least one item")
+            return ret
+
+        cursor = None
+
+        try:
+            jobs = self.jobtablename
+
+            cols = [
+                "jobId",
+                "jobName",
+                "userName",
+                "vcName",
+                "jobStatus",
+                "jobStatusDetail",
+                "jobType",
+                "jobDescriptionPath",
+                "jobDescription",
+                "jobTime",
+                "endpoints",
+                "jobParams",
+                "errorMsg",
+                "jobMeta",
+            ]
+            query_prefix = "SELECT %s FROM %s WHERE 1" % (
+                ",".join(cols),
+                jobs,
+            )
+
+            if username != "all":
+                query_prefix += " AND userName = '%s'" % username
+
+            if vc_name != "all":
+                query_prefix += " AND vcName = '%s'" % vc_name
+
+            in_status = ",".join(["'%s'" % e for e in status])
+
+            q_in_status = "%s AND jobStatus IN (%s)" % (
+                query_prefix,
+                in_status,
+            )
+            q_in_status += " ORDER BY jobTime DESC"
+            q_not_in_status = "%s AND jobStatus NOT IN (%s)" % (
+                query_prefix,
+                in_status,
+            )
+            q_not_in_status += " ORDER BY jobTime DESC LIMIT %s" % num
+            query = "(%s) UNION (%s)" % (q_in_status, q_not_in_status)
+
+            cursor = self.conn.cursor()
+            cursor.execute(query)
+
+            columns = [column[0] for column in cursor.description]
+            data = cursor.fetchall()
+            for item in data:
+                rec = dict(list(zip(columns, item)))
+                ret.append(rec)
+
+            self.conn.commit()
+        except:
+            logger.error("Exception in getting union job list. status %s",
+                         status, exc_info=True)
+        finally:
+            if cursor is not None:
+                cursor.close()
+
+        cursor.close()
+        return ret
+
+    @record
+    def get_union_job_list_v2(self, username, vc_name, num, status):
+        """Get jobs in status and the latest num jobs that are not in status.
+
+        Args:
+            username: Username for jobs
+            vc_name: VC name for jobs
+            num: Number of the latest jobs that are not in status
+            status: Job status
+
+        Returns:
+            A list of jobs including all jobs in status and the latest num
+            jobs that are not in status.
+        """
+        ret = {
+            "queuedJobs": [],
+            "runningJobs": [],
+            "finishedJobs": [],
+            "visualizationJobs": [],
+            "meta": {
+                "queuedJobs": 0,
+                "runningJobs": 0,
+                "finishedJobs": 0,
+                "visualizationJobs": 0,
+            }
+        }
+
+        if not isinstance(username, str):
+            logger.error("username has to be a str")
+            return ret
+
+        if not isinstance(vc_name, str):
+            logger.error("vc_name has to be a str")
+            return ret
+
+        try:
+            num = int(num)
+        except:
+            num = None
+        if num is None:
+            logger.error("num has to be a number or string of digits")
+            return ret
+
+        if isinstance(status, str):
+            status = status.split(",")
+        elif not isinstance(status, list):
+            status = set(status)
+        elif not isinstance(status, set):
+            logger.error("status has to be a str or a list")
+            return ret
+        if len(status) == 0:
+            logger.error("status must contain at least one item")
+            return ret
+
+        cursor = None
+        queued_jobs = []
+        running_jobs = []
+        finished_jobs = []
+        visualization_jobs = []
+        try:
+            jobs = self.jobtablename
+            job_priorities = self.jobprioritytablename
+
+            cols = [
+                "%s.jobId" % jobs,
+                "jobName",
+                "userName",
+                "vcName",
+                "jobStatus",
+                "jobStatusDetail",
+                "jobType",
+                "jobTime",
+                "jobParams",
+                "priority",
+            ]
+            cond = "%s.jobId = %s.jobId" % (jobs, job_priorities)
+            query_prefix = "SELECT %s FROM %s LEFT JOIN %s ON %s WHERE 1" % (
+                ",".join(cols),
+                jobs,
+                job_priorities,
+                cond,
+            )
+
+            if username != "all":
+                query_prefix += " AND userName = '%s'" % username
+
+            if vc_name != "all":
+                query_prefix += " AND vcName = '%s'" % vc_name
+
+            in_status = ",".join(["'%s'" % e for e in status])
+
+            q_in_status = "%s AND jobStatus IN (%s)" % (
+                query_prefix,
+                in_status,
+            )
+            q_in_status += " ORDER BY jobTime DESC"
+            q_not_in_status = "%s AND jobStatus NOT IN (%s)" % (
+                query_prefix,
+                in_status,
+            )
+            q_not_in_status += " ORDER BY jobTime DESC LIMIT %s" % num
+            query = "(%s) UNION (%s)" % (q_in_status, q_not_in_status)
+
+            cursor = self.conn.cursor()
+            cursor.execute(query)
+
+            columns = [column[0] for column in cursor.description]
+            data = cursor.fetchall()
+            for item in data:
+                rec = dict(list(zip(columns, item)))
+                j_detail = rec["jobStatusDetail"]
+                j_params = rec["jobParams"]
+                j_status = rec["jobStatus"]
+                j_type = rec["jobType"]
+
+                if j_detail is not None:
+                    rec["jobStatusDetail"] = self.load_json(
+                        base64decode(j_detail))
+
+                if j_params is not None:
+                    rec["jobParams"] = self.load_json(base64decode(j_params))
+
+                if j_status == "running":
+                    if j_type == "training":
+                        running_jobs.append(rec)
+                    elif j_type == "visualization":
+                        visualization_jobs.append(rec)
+                elif j_status in ["unapproved", "queued", "scheduling"]:
+                    queued_jobs.append(rec)
+                else:
+                    finished_jobs.append(rec)
+
+            self.conn.commit()
+        except:
+            logger.exception("Exception in getting union job list. status %s",
+                             status, exc_info=True)
+        finally:
+            if cursor is not None:
+                cursor.close()
+
+        ret["queuedJobs"] = queued_jobs
+        ret["runningJobs"] = running_jobs
+        ret["finishedJobs"] = finished_jobs
+        ret["visualizationJobs"] = visualization_jobs
+        ret["meta"]["queuedJobs"] = len(queued_jobs)
+        ret["meta"]["runningJobs"] = len(running_jobs)
+        ret["meta"]["finishedJobs"] = len(finished_jobs)
+        ret["meta"]["visualizationJobs"] = len(visualization_jobs)
+
+        return ret
+
+    @record
     def GetActiveJobList(self):
         ret = []
         cursor = self.conn.cursor()
