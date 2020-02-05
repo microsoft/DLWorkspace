@@ -24,219 +24,240 @@ def _mock_v1_pod(jobId, userName, vcName, nodeName):
     pod.spec.node_name = nodeName
     return pod
 
+
+def _mock_rule_config():
+    rule_config = {
+        "cluster_name": "mock-cluster",
+        "domain_name": "dltshub.example.com",
+        "job_owner_email_domain": "example.com"
+    }
+
+    return rule_config
+
+def _mock_ecc_config():
+    ecc_config = {
+        "prometheus": {
+            "ip": "localhost",
+            "port": 9091,
+            "node_boot_time_query": 'node_boot_time_seconds'
+        },
+        "job_pause_resume_url": "http://localhost:5000",
+        "time_sleep_after_pausing": 0,
+        "alert_job_owners": False,
+        "days_until_node_reboot": 5
+    }
+
+    return ecc_config
+
+
+def _mock_prometheus_node_boot_time_response(node_boot_times):
+    mock_response = {
+        "status": "success",
+        "data": {
+            "resultType": "vector",
+            "result": []
+        }
+    }
+
+    for node_ip in node_boot_times:
+        metric = {
+            "metric": {
+                "__name__": "node_boot_time_seconds",
+                            "exporter_name": "node-exporter",
+                            "instance": f"{node_ip}:9090",
+                            "job": "serivce_exporter",
+                            "scraped_from": "node-exporter"
+            },
+            "value": [1580517453.696, node_boot_times[node_ip]]
+        }
+        mock_response["data"]["result"].append(metric)
+
+    return mock_response
+
 class Testing(unittest.TestCase):
 
     def test_extract_node_boot_time_info(self):
+        ############################### Set Up ###############################
         mock_datetime_one = datetime.utcnow()
         mock_timestamp_one = mock_datetime_one.replace(tzinfo=timezone.utc).timestamp()
 
         mock_datetime_two = datetime.utcnow() + timedelta(days=1)
-        mock_timestamp_two = mock_datetime_two.replace(tzinfo=timezone.utc).timestamp()
+        mock_timestamp_two = str(mock_datetime_two.replace(tzinfo=timezone.utc).timestamp())
+
+        node_boot_times = {
+            "192.168.0.1": str(mock_timestamp_one),
+            "192.168.0.2": str(mock_timestamp_two)
+        }
+        prometheus_resp = _mock_prometheus_node_boot_time_response(node_boot_times)
 
 
-        mock_response = {
-            "status": "success",
-            "data": {
-                "resultType": "vector",
-                "result": [
-                    {
-                        "metric": {
-                            "__name__": "node_boot_time_seconds",
-                            "exporter_name": "node-exporter",
-                            "instance": "192.168.0.1:9090",
-                            "job": "serivce_exporter",
-                            "scraped_from": "node-exporter-1"
-                        },
-                        "value": [1580517453.696, str(mock_timestamp_one)]},
-                    {
-                        "metric": {
-                            "__name__": "node_boot_time_seconds",
-                            "exporter_name": "node-exporter",
-                            "instance": "192.168.0.2:9090",
-                            "job": "serivce_exporter",
-                            "scraped_from": "node-exporter-2"
-                        },
-                        "value": [1580517453.696, str(mock_timestamp_two)]
-                    }]}}
+        result_boot_times = ecc_reboot_node_rule._extract_node_boot_time_info(prometheus_resp)
 
-        result_boot_times = ecc_reboot_node_rule._extract_node_boot_time_info(mock_response)
 
-        self.assertTrue("192.168.0.1:9090" in result_boot_times)
-        self.assertEqual(mock_datetime_one, result_boot_times["192.168.0.1:9090"])
+        self.assertTrue("192.168.0.1" in result_boot_times)
+        self.assertEqual(mock_datetime_one, result_boot_times["192.168.0.1"])
 
-        self.assertTrue("192.168.0.2:9090" in result_boot_times)
-        self.assertEqual(mock_datetime_two, result_boot_times["192.168.0.2:9090"])
+        self.assertTrue("192.168.0.2" in result_boot_times)
+        self.assertEqual(mock_datetime_two, result_boot_times["192.168.0.2"])
 
 
     @mock.patch('rules.ecc_detect_error_rule.requests.get')
     @mock.patch('rules.ecc_reboot_node_rule.ECCRebootNodeRule.load_ecc_config')
     @mock.patch('utils.email_util.EmailHandler')
-    def test_check_status_true(self, mock_email_handler,
-                                mock_ecc_config,
-                                mock_request_get):
+    def test_check_status_time_to_take_action(self,
+            mock_email_handler,
+            mock_ecc_config,
+            mock_request_get):
 
-        time_six_days_ago = datetime.now() - timedelta(days=6)
+        rule_config = _mock_rule_config()
 
-        time_five_days_ago = datetime.now() - timedelta(days=5, minutes=1)
+        mock_ecc_config.return_value = _mock_ecc_config()
+        mock_ecc_config.return_value["days_until_node_reboot"] = 5
 
-        time_three_days_ago = datetime.now() - timedelta(days=3)
+        time_six_days_ago = datetime.utcnow() - timedelta(days=6)
+        time_five_days_ago = datetime.utcnow() - timedelta(days=5, minutes=1)
 
-        time_one_days_ago = datetime.now() - timedelta(days=1)
-
+        #  ecc error detection occured in previous iteration
         rule_alert_handler_instance = rule_alert_handler.RuleAlertHandler()
         rule_alert_handler_instance.rule_cache["ecc_rule"] = {
-            # this node to be rebooted (> 5 days since first detected)
             "node1": {
                 "time_found": time_five_days_ago,
-                "instance": "192.168.0.1:9090"
-            },
-            "node2": {
-                "time_found": time_three_days_ago,
-                "instance": "192.168.0.2:9090"
-            },
-            "node3": {
-                "time_found": time_three_days_ago,
-                "instance": "192.168.0.3:9090"
-            },
+                "instance": "192.168.0.1"
+            }
         }
 
-        rule_config = {}
-
-        mock_ecc_config.return_value = {
-            "prometheus": {
-                "ip": "localhost",
-                "port": 9091,
-                "node_boot_time_query": 'node_boot_time_seconds'
-            },
-            "days_until_node_reboot": 5
+        node_boot_times = {
+            "192.168.0.1": str(time_six_days_ago.replace(tzinfo=timezone.utc).timestamp())
         }
+        mock_request_get.return_value.json.return_value = _mock_prometheus_node_boot_time_response(node_boot_times)
 
-        mock_request_get.return_value.json.return_value = {
-            "status": "success",
-            "data": {
-                "resultType": "vector",
-                "result": [
-                    {
-                        "metric": {
-                            "__name__": "node_boot_time_seconds",
-                            "exporter_name": "node-exporter",
-                            "instance": "192.168.0.1:9090",
-                            "job": "serivce_exporter",
-                            "scraped_from": "node-exporter-1"
-                        },
-                        "value": [1580517453.696, str(time_six_days_ago.timestamp())]},
-                    {
-                        "metric": {
-                            "__name__": "node_boot_time_seconds",
-                            "exporter_name": "node-exporter",
-                            "instance": "192.168.0.2:9090",
-                            "job": "serivce_exporter",
-                            "scraped_from": "node-exporter-2"
-                        },
-                        "value": [1580517453.696, str(time_six_days_ago.timestamp())]},
-                    {
-                        # this node to be removed from cache (reboot time < time ecc error found)
-                        "metric": {
-                            "__name__": "node_boot_time_seconds",
-                            "exporter_name": "node-exporter",
-                            "instance": "192.168.0.3:9090",
-                            "job": "serivce_exporter",
-                            "scraped_from": "node-exporter-3"
-                        },
-                        "value": [1580517453.696, str(time_one_days_ago.timestamp())]},
-                    ]}}
 
         ecc_reboot_node_rule_instance = ecc_reboot_node_rule.ECCRebootNodeRule(rule_alert_handler_instance, rule_config)
-
         response = ecc_reboot_node_rule_instance.check_status()
+
 
         self.assertTrue(response)
         self.assertEqual(1, len(ecc_reboot_node_rule_instance.nodes_ready_for_action))
         self.assertEqual("node1", ecc_reboot_node_rule_instance.nodes_ready_for_action[0])
-        self.assertTrue("node3" not in rule_alert_handler_instance.rule_cache["ecc_rule"])
 
 
     @mock.patch('rules.ecc_detect_error_rule.requests.get')
     @mock.patch('rules.ecc_reboot_node_rule.ECCRebootNodeRule.load_ecc_config')
     @mock.patch('utils.email_util.EmailHandler')
-    def test_check_status_false(self, mock_email_handler, 
-                                mock_ecc_config,
-                                mock_request_get):
+    def test_check_status_node_rebooted_after_detection(self, 
+            mock_email_handler,
+            mock_ecc_config,
+            mock_request_get):
 
-        time_three_days_ago = datetime.now() - timedelta(days=3)
+        rule_config = _mock_rule_config()
 
+        mock_ecc_config.return_value = _mock_ecc_config()
+        mock_ecc_config.return_value["days_until_node_reboot"] = 5
+
+        time_one_days_ago = datetime.utcnow() - timedelta(days=1)
+        now = datetime.utcnow()
+
+        #  ecc error detection occured in previous iteration
         rule_alert_handler_instance = rule_alert_handler.RuleAlertHandler()
         rule_alert_handler_instance.rule_cache["ecc_rule"] = {
             "node1": {
-                "time_found": time_three_days_ago
+                "time_found": time_one_days_ago,
+                "instance": "192.168.0.1"
             }
         }
 
-        rule_config = {}
-
-        mock_ecc_config.return_value = {
-            "prometheus": {
-                "ip": "localhost",
-                "port": 9091,
-                "node_boot_time_query": 'node_boot_time_seconds'
-            },
-            "days_until_node_reboot": 5
+        # node rebooted *after* initial ecc error detection
+        node_boot_times = {
+            "192.168.0.1": str(now.replace(tzinfo=timezone.utc).timestamp())
         }
+        mock_request_get.return_value.json.return_value = _mock_prometheus_node_boot_time_response(node_boot_times)
+
 
         ecc_reboot_node_rule_instance = ecc_reboot_node_rule.ECCRebootNodeRule(rule_alert_handler_instance, rule_config)
-
         response = ecc_reboot_node_rule_instance.check_status()
+
+
+        self.assertFalse(response)
+        self.assertEqual(0, len(ecc_reboot_node_rule_instance.nodes_ready_for_action))
+        self.assertTrue("node1" not in rule_alert_handler_instance.rule_cache["ecc_rule"])
+
+
+    @mock.patch('rules.ecc_detect_error_rule.requests.get')
+    @mock.patch('rules.ecc_reboot_node_rule.ECCRebootNodeRule.load_ecc_config')
+    @mock.patch('utils.email_util.EmailHandler')
+    def test_check_status_no_action_needed(self, 
+        mock_email_handler, 
+        mock_ecc_config,
+        mock_request_get):
+
+        rule_config = _mock_rule_config()
+
+        mock_ecc_config.return_value = _mock_ecc_config()
+        mock_ecc_config.return_value["days_until_node_reboot"] = 5
+
+        time_two_days_ago = datetime.utcnow() - timedelta(days=2)
+        time_three_days_ago = datetime.utcnow() - timedelta(days=3)
+
+        #  ecc error detection occured in previous iteration
+        rule_alert_handler_instance = rule_alert_handler.RuleAlertHandler()
+        rule_alert_handler_instance.rule_cache["ecc_rule"] = {
+            "node1": {
+                "time_found": time_two_days_ago,
+                "instance": "192.168.0.1"
+            }
+        }
+
+        # node rebooted *before* initial ecc error detection
+        node_boot_times = {
+            "192.168.0.1": str(time_three_days_ago.replace(tzinfo=timezone.utc).timestamp())
+        }
+        mock_request_get.return_value.json.return_value = _mock_prometheus_node_boot_time_response(node_boot_times)
+
+
+        ecc_reboot_node_rule_instance = ecc_reboot_node_rule.ECCRebootNodeRule(rule_alert_handler_instance, rule_config)
+        response = ecc_reboot_node_rule_instance.check_status()
+
 
         self.assertFalse(response)
         self.assertEqual(0, len(ecc_reboot_node_rule_instance.nodes_ready_for_action))
 
-    @mock.patch('rules.ecc_detect_error_rule.k8s_util.list_pod_for_all_namespaces')
+
+    @mock.patch('rules.ecc_detect_error_rule.k8s_util.list_namespaced_pod')
     @mock.patch('rules.ecc_reboot_node_rule.ECCRebootNodeRule.load_ecc_config')
     @mock.patch('utils.email_util.EmailHandler')
     @mock.patch('rules.ecc_detect_error_rule.requests.get')
     @mock.patch('rules.ecc_reboot_node_rule._wait_for_job_to_pause')
     @mock.patch('rules.ecc_reboot_node_rule._pause_job')
     @mock.patch('rules.ecc_reboot_node_rule._resume_job')
-    def test_take_action(self, mock_resume_job,
-                               mock_pause_job,
-                               mock_wait_for_job_to_pause, 
-                               mock_get_requests,
-                               mock_email_handler,
-                               mock_load_ecc_config,
-                               mock_list_pods):
+    def test_take_action(self, 
+        mock_resume_job,
+        mock_pause_job,
+        mock_wait_for_job_to_pause, 
+        mock_get_requests,
+        mock_email_handler,
+        mock_load_ecc_config,
+        mock_list_pods):
 
-        mock_pause_job.return_value = {
-            "result": "Success, the job is scheduled to be paused."
+
+        rule_config = _mock_rule_config()
+
+        mock_load_ecc_config.return_value = _mock_ecc_config()
+
+        mock_pause_job.return_value = {"result": "Success, the job is scheduled to be paused."}
+
+        mock_wait_for_job_to_pause.return_value = {
+            "errorMsg": None,
+            "jobStatus": "paused",
+            "jobTime": "Thu, 30 Jan 2020 23:43:00 GMT"
         }
 
-        mock_resume_job.return_value = {
-            "result": "Success, the job is scheduled to be resumed."
-        }
+        mock_resume_job.return_value = {"result": "Success, the job is scheduled to be resumed."}
 
         rule_alert_handler_instance = rule_alert_handler.RuleAlertHandler()
         rule_alert_handler_instance.rule_cache["ecc_rule"] = {
-            "node1": {
-                "instance": "192.168.0.1:9090"
-            },
-            "node2": {
-                "instance": "192.168.0.2:9090"
-            },
-            "node3": {
-                "instance": "192.168.0.3:9090"
-            }
-        }
-
-        rule_config = {
-            "cluster_name": "mock-cluster",
-            "domain_name": "dltshub.example.com",
-            "job_owner_email_domain": "example.com"
-        }
-
-        mock_load_ecc_config.return_value = {
-            "days_until_node_reboot": 5,
-            "job_pause_resume_url": "http://localhost:5000",
-            "time_sleep_after_pausing": 0,
-            "alert_job_owners": False
+            "node1": {"instance": "192.168.0.1:9090"},
+            "node2": {"instance": "192.168.0.2:9090"},
+            "node3": {"instance": "192.168.0.3:9090"}
         }
 
         pod_one = _mock_v1_pod("87654321-wxyz", "user1", "vc1", "node1")
@@ -245,16 +266,12 @@ class Testing(unittest.TestCase):
         mock_pod_list = V1PodList(items=[pod_one, pod_two, pod_three])
         mock_list_pods.return_value = mock_pod_list
 
-        mock_wait_for_job_to_pause.return_value = {
-            "errorMsg": None,
-            "jobStatus":"paused",
-            "jobTime":"Thu, 30 Jan 2020 23:43:00 GMT"
-            }
-
         ecc_reboot_node_rule_instance = ecc_reboot_node_rule.ECCRebootNodeRule(rule_alert_handler_instance, rule_config)
         ecc_reboot_node_rule_instance.nodes_ready_for_action = ["node1", "node3"]
 
+
         ecc_reboot_node_rule_instance.take_action()
+
 
         self.assertTrue("node1" not in rule_alert_handler_instance.rule_cache["ecc_rule"])
         self.assertTrue("node2" in rule_alert_handler_instance.rule_cache["ecc_rule"])

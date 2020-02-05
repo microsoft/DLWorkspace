@@ -1,8 +1,8 @@
 ---  
 rules:
   ecc_detect_error_rule:
-    module_name : rules.ecc_detect_error_rule
-    class_name : ECCDetectErrorRule
+    module_name: rules.ecc_detect_error_rule
+    class_name: ECCDetectErrorRule
   ecc_reboot_node_rule:
     module_name: rules.ecc_reboot_node_rule
     class_name: ECCRebootNodeRule

@@ -47,7 +47,7 @@ def _mock_rule_config():
 
 def _mock_ecc_config():
     mock_ecc_config = {
-            "cordon_dry_run": False,
+            "dry_run": False,
             "prometheus": {
                 "ip": "localhost",
                 "port": 9091,
@@ -124,7 +124,9 @@ class Testing(unittest.TestCase):
 
     def test_get_node_address_info_empty(self):
         mock_node_list = V1NodeList(items=[])
+
         address_info = ecc_detect_error_rule._get_node_address_info(mock_node_list)
+
         self.assertEqual(len(address_info), 0)
 
     
@@ -138,7 +140,7 @@ class Testing(unittest.TestCase):
         self.assertTrue('192.168.0.2' in ecc_node_ips)
 
 
-    def test_extract_ips_from_ecc_data_None(self):
+    def test_extract_ips_from_ecc_data_empty(self):
         prometheus_error_data = _mock_empty_prometheus_error_data()
 
         ecc_node_ips = ecc_detect_error_rule._extract_ips_from_ecc_data(prometheus_error_data)
@@ -157,7 +159,6 @@ class Testing(unittest.TestCase):
             mock_list_node,
             mock_rule_alert_handler,
             mock_get_node_address_info):
-
         mock_load_ecc_config.return_value = _mock_ecc_config()
 
         mock_request_get.return_value.json.return_value = _mock_prometheus_error_data()
@@ -187,7 +188,6 @@ class Testing(unittest.TestCase):
             mock_list_node,
             mock_rule_alert_handler,
             mock_get_node_address_info):
-
         mock_load_ecc_config.return_value = _mock_ecc_config()
 
         mock_request_get.return_value.json.return_value = _mock_empty_prometheus_error_data()
@@ -199,18 +199,19 @@ class Testing(unittest.TestCase):
         self.assertEqual(len(ecc_rule_instance.ecc_node_hostnames), 0)
 
 
-    @mock.patch('rules.ecc_detect_error_rule._create_email_for_DRIs')
+    @mock.patch('rules.ecc_detect_error_rule._create_email_for_dris')
     @mock.patch('rules.ecc_detect_error_rule.k8s_util.cordon_node')
     @mock.patch('rules.ecc_detect_error_rule.k8s_util.is_node_cordoned')
+    @mock.patch('rules.ecc_detect_error_rule.k8s_util.list_namespaced_pod')
     @mock.patch('utils.email_util.EmailHandler')
     @mock.patch('rules.ecc_detect_error_rule.ECCDetectErrorRule.load_ecc_config')
     def test_take_action_new_ecc_found(self,
             mock_load_ecc_config,
             mock_email_handler,
+            mock_pod_list,
             mock_is_node_cordoned,
             mock_cordon_node,
-            mock_create_email_for_DRIs):
-
+            mock_create_email_for_dris):
         mock_load_ecc_config.return_value = _mock_ecc_config()
 
         # first node is schedulable
@@ -223,15 +224,18 @@ class Testing(unittest.TestCase):
             "mock_worker_one": "192.168.0.1",
             "mock_worker_two": "192.168.0.2"
         }
+
+        pod_one = _mock_v1_pod("87654321-wxyz", "user1", "vc1", "node1")
+        pod_two = _mock_v1_pod("12345678-abcd", "user2", "vc2", "node1")
+        pod_three = _mock_v1_pod("12345678-abcd", "user2", "vc2", "node2")
+        pod_four = _mock_v1_pod("99999999-efgh", "user3", "vc3", "node3")
+        mock_pod_list.return_value = V1PodList(items=[pod_one, pod_two, pod_three, pod_four])
+
         ecc_rule_instance.take_action()
 
-        # assert only one node was cordoned
         self.assertEqual(1, mock_cordon_node.call_count)
+        self.assertEqual(2, mock_create_email_for_dris.call_count)
 
-        # assert DRIs were alerted for both nodes
-        self.assertEqual(2, mock_create_email_for_DRIs.call_count)
-
-        # assert rule cache is updated for both nodes
         self.assertTrue("ecc_rule" in alert.rule_cache)
         self.assertTrue("mock_worker_one" in alert.rule_cache["ecc_rule"])
         self.assertEqual("192.168.0.1", alert.rule_cache["ecc_rule"]["mock_worker_one"]["instance"])
@@ -240,19 +244,26 @@ class Testing(unittest.TestCase):
 
 
 
-    @mock.patch('rules.ecc_detect_error_rule._create_email_for_DRIs')
+    @mock.patch('rules.ecc_detect_error_rule._create_email_for_dris')
     @mock.patch('rules.ecc_detect_error_rule.k8s_util.cordon_node')
     @mock.patch('rules.ecc_detect_error_rule.k8s_util.is_node_cordoned')
+    @mock.patch('rules.ecc_detect_error_rule.k8s_util.list_namespaced_pod')
     @mock.patch('utils.email_util.EmailHandler')
     @mock.patch('rules.ecc_detect_error_rule.ECCDetectErrorRule.load_ecc_config')
     def test_take_action_new_ecc_not_found(self,
             mock_load_ecc_config,
             mock_email_handler,
+            mock_pod_list,
             mock_is_node_cordoned,
             mock_cordon_node,
-            mock_create_email_for_DRIs):
-
+            mock_create_email_for_dris):
         mock_load_ecc_config.return_value = _mock_ecc_config()
+
+        pod_one = _mock_v1_pod("87654321-wxyz", "user1", "vc1", "node1")
+        pod_two = _mock_v1_pod("12345678-abcd", "user2", "vc2", "node1")
+        pod_three = _mock_v1_pod("12345678-abcd", "user2", "vc2", "node2")
+        pod_four = _mock_v1_pod("99999999-efgh", "user3", "vc3", "node3")
+        mock_pod_list.return_value = V1PodList(items=[pod_one, pod_two, pod_three, pod_four])
 
         # simulate ecc error detected in previous run and
         # therefore already exists in rule cache
@@ -277,36 +288,36 @@ class Testing(unittest.TestCase):
             "mock_worker_one": "192.168.0.1",
             "mock_worker_two": "192.168.0.2"
         }
+
         ecc_rule_instance.take_action()
 
-        # assert only one node was cordoned
         self.assertEqual(1, mock_cordon_node.call_count)
-
-        # assert DRIs were alerted for one of the nodes (because an action was taken)
-        self.assertEqual(1, mock_create_email_for_DRIs.call_count)
+        self.assertEqual(1, mock_create_email_for_dris.call_count)
 
 
-    @mock.patch('rules.ecc_detect_error_rule.k8s_util.list_pod_for_all_namespaces')
-    def test_get_job_info_from_nodes(self, mock_pod_info):
+    def test_get_job_info_from_nodes(self):
         pod_one = _mock_v1_pod("87654321-wxyz", "user1", "vc1", "node1")
         pod_two = _mock_v1_pod("12345678-abcd", "user2", "vc2", "node1")
         pod_three = _mock_v1_pod("12345678-abcd", "user2", "vc2", "node2")
         pod_four = _mock_v1_pod("99999999-efgh", "user3", "vc3", "node3")
         mock_pod_list = V1PodList(items=[pod_one, pod_two, pod_three, pod_four])
-        mock_pod_info.return_value = mock_pod_list
 
-        job_response = ecc_detect_error_rule._get_job_info_from_nodes(["node1", "node2"], "dlts.domain.com", "cluster1")
+
+        job_response = ecc_detect_error_rule._get_job_info_from_nodes(
+            ["node1", "node2"], mock_pod_list, "dlts.domain.com", "cluster1")
 
         self.assertTrue("87654321-wxyz" in job_response)
         self.assertEqual(1, len(job_response["87654321-wxyz"]["node_names"]))
         self.assertTrue("node1" in job_response["87654321-wxyz"]["node_names"])
-        self.assertEqual("http://dlts.domain.com/job/vc1/cluster1/87654321-wxyz", job_response["87654321-wxyz"]["job_link"])
+        self.assertEqual("http://dlts.domain.com/job/vc1/cluster1/87654321-wxyz",
+         job_response["87654321-wxyz"]["job_link"])
 
         self.assertTrue("12345678-abcd" in job_response)
         self.assertEqual(2, len(job_response["12345678-abcd"]["node_names"]))
         self.assertTrue("node1" in job_response["12345678-abcd"]["node_names"])
         self.assertTrue("node2" in job_response["12345678-abcd"]["node_names"])
-        self.assertEqual("http://dlts.domain.com/job/vc2/cluster1/12345678-abcd", job_response["12345678-abcd"]["job_link"])
+        self.assertEqual("http://dlts.domain.com/job/vc2/cluster1/12345678-abcd", 
+        job_response["12345678-abcd"]["job_link"])
 
 
     ###############################################################################
@@ -314,7 +325,7 @@ class Testing(unittest.TestCase):
     ###        to test and receive emails. This test will send emails for       ###
     ###        two bad nodes and two jobs.                                      ###
     ###############################################################################
-    @mock.patch('rules.ecc_detect_error_rule.k8s_util.list_pod_for_all_namespaces')
+    @mock.patch('rules.ecc_detect_error_rule.k8s_util.list_namespaced_pod')
     @mock.patch('rules.ecc_detect_error_rule.k8s_util.cordon_node')
     @mock.patch('rules.ecc_detect_error_rule.k8s_util.is_node_cordoned')
     @mock.patch('utils.email_util.EmailHandler.load_config')
@@ -330,12 +341,12 @@ class Testing(unittest.TestCase):
         ##  Please fill in SMTP info for sending emails  ##
         ###################################################
         enable_test = False
-        smtp_url = "[SMTP URL]"
-        login = "[SMTP LOGIN]"
-        password = "[SMTP PASSWORD]"
-        sender = "[SENDER EMAIL]"
-        mock_dri_email = "[DRI EMAIL]"
-        mock_job_owner_email = "[JOB OWNER EMAIL]"
+        smtp_url = '[SMTP URL]'
+        login = '[LOGIN]'
+        password = '[PASSWORD]'
+        sender = '[SENDER]'
+        mock_dri_email = '[DRI EMAIL]'
+        mock_job_owner_email = '[JOB OWNER EMAIL]'
         ####################################################
 
         if enable_test:
@@ -378,8 +389,8 @@ class Testing(unittest.TestCase):
                 "mock_worker_one": "192.168.0.1",
                 "mock_worker_two": "192.168.0.2"
             }
+            
             ecc_rule_instance.take_action()
-
 
 if __name__ == '__main__':
     unittest.main()
