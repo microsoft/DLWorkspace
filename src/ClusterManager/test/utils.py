@@ -174,15 +174,15 @@ def kill_jobs(rest_url, email, job_ids):
 
 
 def pause_jobs(rest_url, email, job_ids):
-    return _op_job(rest_url, email, job_ids, "Pause")
+    return _op_jobs(rest_url, email, job_ids, "Pause")
 
 
 def resume_jobs(rest_url, email, job_ids):
-    return _op_job(rest_url, email, job_ids, "Resume")
+    return _op_jobs(rest_url, email, job_ids, "Resume")
 
 
 def approve_jobs(rest_url, email, job_ids):
-    return _op_job(rest_url, email, job_ids, "Approve")
+    return _op_jobs(rest_url, email, job_ids, "Approve")
 
 
 class run_job(object):

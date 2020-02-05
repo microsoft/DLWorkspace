@@ -538,13 +538,13 @@ def op_job(username, job_id, op):
         allowed, role = get_access_to_job(username, job)
 
         if not allowed:
-            logger.info("%s (%s) attempted to %s job %",
+            logger.info("%s (%s) attempted to %s job %s",
                         username, role, op_name, job_id)
             return ret
 
         job_status = job["jobStatus"]
         if job_status not in from_states:
-            logger.info("%s (%s) attempted to %s a(n) \"%s\" job %",
+            logger.info("%s (%s) attempted to %s a(n) \"%s\" job %s",
                         username, role, op_name, job_status, job_id)
             return ret
 
@@ -605,16 +605,14 @@ def _op_jobs_in_one_batch(username, job_ids, op, data_handler):
         allowed, role = get_access_to_job(username, job)
 
         if not allowed:
-            result[job_id] = {"unauthorized to %s" % op_name}
-            logger.info("%s (%s) attempted to %s job %",
+            result[job_id] = "unauthorized to %s" % op_name
+            logger.info("%s (%s) attempted to %s job %s",
                         username, role, op_name, job_id)
             continue
 
         if job_status not in from_states:
-            result[job_id] = {
-                "cannot %s a(n) \"%s\" job" % (op_name, job_status)
-            }
-            logger.info("%s (%s) attempted to %s a(n) \"%s\" job %",
+            result[job_id] = "cannot %s a(n) \"%s\" job" % (op_name, job_status)
+            logger.info("%s (%s) attempted to %s a(n) \"%s\" job %s",
                         username, role, op_name, job_status, job_id)
             continue
 

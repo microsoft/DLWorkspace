@@ -1189,11 +1189,19 @@ class DataHandler(object):
     def get_fields_for_jobs(self, job_ids, fields):
         cursor = None
         ret = []
+
         if job_ids is None or not isinstance(job_ids, list):
             logger.error("job_ids has to be a list. job_ids: %s", job_ids)
             return ret
+        if len(job_ids) == 0:
+            logger.error("job_ids is an empty list")
+            return ret
+
         if fields is None or not isinstance(fields, list):
             logger.error("fields has to be a list. fields: %s", fields)
+            return ret
+        if len(fields) == 0:
+            logger.error("fields is an empty list")
             return ret
 
         try:
@@ -1221,11 +1229,19 @@ class DataHandler(object):
     def update_text_fields_for_jobs(self, job_ids, fields):
         cursor = None
         ret = False
+
         if job_ids is None or not isinstance(job_ids, list):
             logger.error("job_ids has to be a list. job_ids: %s", job_ids)
             return ret
+        if len(job_ids) == 0:
+            logger.error("job_ids is an empty list")
+            return ret
+
         if fields is None or not isinstance(fields, dict):
             logger.error("fields has to be a dict. fields: %s", fields)
+            return ret
+        if len(fields) == 0:
+            logger.error("fields is an empty dict")
             return ret
         for k, v in fields.items():
             if not isinstance(v, str):

@@ -98,6 +98,7 @@ def test_op_job(args):
     image = "indexserveregistry.azurecr.io/deepscale:1.0.post0"
     job_id = utils.post_regular_job(args.rest, args.email, args.uid,
                                     args.vc, image, cmd)
+    utils.block_until_state_in(args.rest, job_id, {"running"})
 
     # Try to ApproveJob
     resp = utils.approve_job(args.rest, args.email, job_id)
@@ -114,7 +115,7 @@ def test_op_job(args):
 
     # KillJob
     utils.block_until_state_in(args.rest, job_id, {"running"})
-    resp = utils.resume_job(args.rest, args.email, job_id)
+    resp = utils.kill_job(args.rest, args.email, job_id)
     assert "Success, the job is scheduled to be terminated." == resp["result"]
 
     state = utils.block_until_state_not_in(args.rest, job_id, {"killing"})
@@ -173,7 +174,8 @@ def main(args):
     test_distributed_job_running(args)
     test_data_job_running(args)
     test_job_fail(args)
-    test_batch_kill_jobs(args)
+    test_op_job(args)
+    test_batch_op_jobs(args)
 
 
 if __name__ == '__main__':
