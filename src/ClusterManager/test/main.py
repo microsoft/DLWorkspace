@@ -101,20 +101,24 @@ def test_op_job(args):
     utils.block_until_state_in(args.rest, job_id, {"running"})
 
     # Try to ApproveJob
+    logger.info("approve job %s" % job_id)
     resp = utils.approve_job(args.rest, args.email, job_id)
     assert "Cannot approve the job. Job ID:%s" % job_id == resp["result"]
 
     # PauseJob
+    logger.info("pause job %s" % job_id)
     resp = utils.pause_job(args.rest, args.email, job_id)
     assert "Success, the job is scheduled to be paused." == resp["result"]
 
     # ResumeJob
     utils.block_until_state_in(args.rest, job_id, {"paused"})
+    logger.info("resume job %s" % job_id)
     resp = utils.resume_job(args.rest, args.email, job_id)
     assert "Success, the job is scheduled to be resumed." == resp["result"]
 
     # KillJob
     utils.block_until_state_in(args.rest, job_id, {"running"})
+    logger.info("kill job %s" % job_id)
     resp = utils.kill_job(args.rest, args.email, job_id)
     assert "Success, the job is scheduled to be terminated." == resp["result"]
 
@@ -141,11 +145,13 @@ def test_batch_op_jobs(args):
         utils.block_until_state_in(args.rest, job_id, {"running"})
 
     # Try to ApproveJobs
+    logger.info("approve jobs %s" % job_ids)
     resp = utils.approve_jobs(args.rest, args.email, job_ids)
     for _, msg in resp["result"].items():
         assert "cannot approve a(n) \"running\" job" == msg
 
     # PauseJobs
+    logger.info("pause jobs %s" % job_ids)
     resp = utils.pause_jobs(args.rest, args.email, job_ids)
     for _, msg in resp["result"].items():
         assert "successfully paused" == msg
@@ -153,6 +159,7 @@ def test_batch_op_jobs(args):
     # ResumeJob
     for job_id in job_ids:
         utils.block_until_state_in(args.rest, job_id, {"paused"})
+    logger.info("resume jobs %s" % job_ids)
     resp = utils.resume_jobs(args.rest, args.email, job_ids)
     for _, msg in resp["result"].items():
         assert "successfully resumed" == msg
@@ -160,6 +167,7 @@ def test_batch_op_jobs(args):
     # KillJob
     for job_id in job_ids:
         utils.block_until_state_in(args.rest, job_id, {"running"})
+    logger.info("kill jobs %s" % job_ids)
     resp = utils.kill_jobs(args.rest, args.email, job_ids)
     for _, msg in resp["result"].items():
         assert "successfully killed" == msg
