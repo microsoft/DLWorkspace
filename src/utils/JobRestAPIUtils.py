@@ -36,31 +36,11 @@ ADMIN_JOB_PRIORITY_RANGE = (1, 1000)
 
 logger = logging.getLogger(__name__)
 
-pendingStatus = "running,queued,scheduling,unapproved,pausing,paused"
-states_to_killing = {
-    "unapproved",
-    "queued",
-    "scheduling",
-    "running",
-    "pausing",
-    "paused",
-}
-states_to_pausing = {
-    "unapproved",
-    "queued",
-    "scheduling",
-    "running",
-}
-states_to_unapproved = {
-    "paused",
-}
-states_to_queued = {
-    "unapproved",
-}
-
+pending_status = "running,queued,scheduling,unapproved,pausing,paused"
 has_access = AuthorizationManager.HasAccess
 VC = ResourceType.VC
 ADMIN = Permission.Admin
+COLLABORATOR = Permission.Collaborator
 DEFAULT_EXPIRATION = 24 * 30 * 60
 vc_cache = TTLCache(maxsize=10240, ttl=DEFAULT_EXPIRATION)
 vc_cache_lock = Lock()
@@ -435,56 +415,63 @@ def SubmitJob(jobParamsJsonStr):
     return ret
 
 
-def GetJobList(userName, vcName, jobOwner, num=None):
+def get_job_list(username, vc_name, job_owner, num=None):
     try:
-        dataHandler = DataHandler()
+        with DataHandler() as data_handler:
+            if job_owner == "all" and \
+                    has_access(username, VC, vc_name, COLLABORATOR):
+                jobs = data_handler.GetJobList(
+                    "all",
+                    vc_name,
+                    None,
+                    pending_status,
+                    ("=", "or")
+                )
+                jobs += data_handler.GetJobList(
+                    "all",
+                    vc_name,
+                    num,
+                    pending_status,
+                    ("<>", "and")
+                )
+            else:
+                jobs = data_handler.GetJobList(
+                    username,
+                    vc_name,
+                    None,
+                    pending_status,
+                    ("=", "or")
+                )
+                jobs += data_handler.GetJobList(
+                    username,
+                    vc_name,
+                    num,
+                    pending_status,
+                    ("<>", "and")
+                )
+            for job in jobs:
+                job.pop('jobMeta', None)
+    except:
+        logger.exception("Exception in getting job list for username %s",
+                         username, exc_info=True)
         jobs = []
-        hasAccessOnAllJobs = False
 
-        if AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName, Permission.Collaborator):
-            hasAccessOnAllJobs = True
-
-        if jobOwner != "all" or not hasAccessOnAllJobs:
-            jobs = jobs + GetUserPendingJobs(userName, vcName)
-            jobs = jobs + dataHandler.GetJobList(
-                userName, vcName, num, "running,queued,scheduling,unapproved,pausing,paused", ("<>", "and"))
-        else:
-            jobs = GetUserPendingJobs(jobOwner, vcName)
-
-        for job in jobs:
-            job.pop('jobMeta', None)
-        dataHandler.Close()
-        return jobs
-    except Exception as e:
-        logger.error('Exception: %s', str(e))
-        logger.warn(
-            "Fail to get job list for user %s, return empty list", userName)
-        return []
+    return jobs
 
 
-def GetJobListV2(userName, vcName, jobOwner, num=None):
-    jobs = {}
-    dataHandler = None
+def get_job_list_v2(username, vc_name, job_owner, num=None):
     try:
-        dataHandler = DataHandler()
+        with DataHandler() as data_handler:
+            if job_owner == "all" and \
+                    has_access(username, VC, vc_name, COLLABORATOR):
+                jobs = data_handler.GetJobListV2("all", vc_name, num)
+            else:
+                jobs = data_handler.GetJobListV2(username, vc_name, num)
+    except:
+        logger.exception("Exception in getting job list v2 for username %s",
+                         username, exc_info=True)
+        jobs = {}
 
-        hasAccessOnAllJobs = False
-        if jobOwner == "all":
-            hasAccessOnAllJobs = AuthorizationManager.HasAccess(
-                userName, ResourceType.VC, vcName, Permission.Collaborator)
-
-        # if user needs to access all jobs, and has been authorized, he could get all pending jobs; otherwise, he could get his own jobs with all status
-        if hasAccessOnAllJobs:
-            jobs = dataHandler.GetJobListV2(
-                "all", vcName, num, pendingStatus, ("=", "or"))
-        else:
-            jobs = dataHandler.GetJobListV2(userName, vcName, num)
-    except Exception as e:
-        logger.error('get job list V2 Exception: user: %s, ex: %s',
-                     userName, str(e))
-    finally:
-        if dataHandler is not None:
-            dataHandler.Close()
     return jobs
 
 
@@ -1384,7 +1371,7 @@ def update_job_priorites(username, job_priorities):
             permission = Permission.Admin if vc_admin else Permission.User
             job_priorities[job_id] = adjust_job_priority(priority, permission)
 
-            if job["jobStatus"] in pendingStatus.split(","):
+            if job["jobStatus"] in pending_status.split(","):
                 pendingJobs[job_id] = job_priorities[job_id]
 
         ret_code = data_handler.update_job_priority(job_priorities)

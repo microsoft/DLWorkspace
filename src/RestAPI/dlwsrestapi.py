@@ -346,19 +346,21 @@ class ListJobs(Resource):
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument('userName')
-        parser.add_argument('num')
         parser.add_argument('vcName')
         parser.add_argument('jobOwner')
+        parser.add_argument('num')
         args = parser.parse_args()
+        username = args["userName"]
+        vc_name = args["vcName"]
+        job_owner = args["jobOwner"]
         num = None
         if args["num"] is not None:
             try:
                 num = int(args["num"])
             except:
                 pass
-        jobs = JobRestAPIUtils.GetJobList(args["userName"], args["vcName"], args["jobOwner"], num)
+        jobs = JobRestAPIUtils.get_job_list(username, vc_name, job_owner, num)
 
-        jobList = []
         queuedJobs = []
         runningJobs = []
         finishedJobs = []
@@ -409,15 +411,19 @@ class ListJobs(Resource):
 ##
 api.add_resource(ListJobs, '/ListJobs')
 
-# shows a list of all jobs, and lets you POST to add new tasks
+
+# shows a list of all jobs
 class ListJobsV2(Resource):
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('userName')
-        parser.add_argument('num')
-        parser.add_argument('vcName')
-        parser.add_argument('jobOwner')
+        parser.add_argument("userName")
+        parser.add_argument("vcName")
+        parser.add_argument("jobOwner")
+        parser.add_argument("num")
         args = parser.parse_args()
+        username = args["userName"]
+        vc_name = args["vcName"]
+        job_owner = args["jobOwner"]
         num = None
         if args["num"] is not None:
             try:
@@ -425,17 +431,19 @@ class ListJobsV2(Resource):
             except:
                 pass
 
-        jobs = JobRestAPIUtils.GetJobListV2(args["userName"], args["vcName"], args["jobOwner"], num)
-        for _, joblist in list(jobs.items()):
-            if isinstance(joblist, list):
-                for job in joblist:
+        jobs = JobRestAPIUtils.get_job_list_v2(
+            username, vc_name, job_owner, num)
+
+        for _, job_list in jobs.items():
+            if isinstance(job_list, list):
+                for job in job_list:
                     remove_creds(job)
 
         resp = generate_response(jobs)
         return resp
-##
-## Actually setup the Api resource routing here
-##
+
+
+# Set up the Api resource routing for ListJobsV2
 api.add_resource(ListJobsV2, '/ListJobsV2')
 
 
