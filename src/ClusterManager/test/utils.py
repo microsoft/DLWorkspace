@@ -9,6 +9,7 @@ import time
 import os
 import yaml
 import base64
+import functools
 
 import requests
 
@@ -19,6 +20,25 @@ from kubernetes.stream import stream
 from kubernetes.stream.ws_client import ERROR_CHANNEL, STDERR_CHANNEL, STDOUT_CHANNEL
 
 logger = logging.getLogger(__file__)
+
+
+def case(fn):
+    @functools.wraps(fn)
+    def wrapped(*args, **kwargs):
+        start = datetime.datetime.now()
+        full_name = fn.__module__ + "." + fn.__name__
+        try:
+            logger.info("%s ...", full_name)
+            return fn(*args, **kwargs)
+        except Exception:
+            logger.exception("executing %s failed", full_name)
+            # let other test case continue
+        finally:
+            logger.info("spent %s in executing test case %s",
+                        datetime.datetime.now() - start, full_name)
+
+    wrapped.is_case = True
+    return wrapped
 
 
 def post_regular_job(rest_url, email, uid, vc, image, cmd):
@@ -195,7 +215,14 @@ def approve_jobs(rest_url, email, job_ids):
 
 
 class run_job(object):
-    def __init__(self, rest_url, job_type, email, uid, vc, image, cmd):
+    def __init__(self,
+                 rest_url,
+                 job_type,
+                 email,
+                 uid,
+                 vc,
+                 image="indexserveregistry.azurecr.io/deepscale:1.0.post0",
+                 cmd="sleep 120"):
         self.rest_url = rest_url
         self.job_type = job_type
         self.email = email
