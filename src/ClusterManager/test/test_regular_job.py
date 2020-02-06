@@ -244,8 +244,12 @@ def test_regular_job_ssh(args):
 @utils.case
 def test_list_all_jobs(args):
     # All jobs should include finished jobs
-    with utils.run_job(args.rest, "regular", args.email, args.uid,
-                       args.vc, cmd="") as job:
+    with utils.run_job(args.rest,
+                       "regular",
+                       args.email,
+                       args.uid,
+                       args.vc,
+                       cmd="") as job:
         job_id = job.jid
         state = utils.block_until_state_not_in(
             args.rest, job_id,
@@ -258,3 +262,46 @@ def test_list_all_jobs(args):
 
     finished_job_ids = [job["jobId"] for job in finished_jobs]
     assert job_id in finished_job_ids
+
+
+@utils.case
+def test_regular_job_env(args):
+    envs = {
+        "DLWS_HOST_NETWORK": "",
+        "DLWS_NUM_PS": "0",
+        "DLWS_NUM_WORKER": "1",
+        "DLWS_NUM_GPU_PER_WORKER": "0",
+        "DLWS_VC_NAME": str(args.vc),
+        "DLWS_UID": str(args.uid),
+        "DLWS_USER_NAME": args.email.split("@")[0],
+        "DLWS_USER_EMAIL": args.email,
+        "DLWS_ROLE_NAME": "master",
+        "DLWS_JOB_ID": "unknown",
+    }
+
+    cmd = []
+    for key, _ in envs.items():
+        cmd.append("printf %s=" % key)
+        cmd.append("printenv %s" % key)
+
+    cmd = "\n".join(cmd)
+
+    with utils.run_job(args.rest,
+                       "regular",
+                       args.email,
+                       args.uid,
+                       args.vc,
+                       cmd=cmd) as job:
+        state = utils.block_until_state_not_in(
+            args.rest, job.jid,
+            {"unapproved", "queued", "scheduling", "running"})
+        assert state == "finished"
+        envs["DLWS_JOB_ID"] = job.jid
+
+        log = utils.get_job_log(args.rest, args.email, job.jid)["log"]
+
+        for key, val in envs.items():
+            expected_output = "%s=%s" % (key, val)
+            assert log.find(
+                expected_output) != -1, "could not find %s in log" % (
+                    expected_output)

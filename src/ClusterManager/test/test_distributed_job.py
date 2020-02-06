@@ -89,3 +89,56 @@ def test_distributed_job_ssh(args):
                 logger.debug("code %s, output '%s'", code, output)
                 assert code == 0
                 assert output == "dummy\n"
+
+
+@utils.case
+def test_distributed_job_env(args):
+    envs = {
+        "DLWS_HOST_NETWORK": "enable",
+        "DLWS_NUM_PS": "1",
+        "DLWS_NUM_WORKER": "1",
+        "DLWS_NUM_GPU_PER_WORKER": "0",
+        "DLWS_VC_NAME": str(args.vc),
+        "DLWS_UID": str(args.uid),
+        "DLWS_USER_NAME": args.email.split("@")[0],
+        "DLWS_USER_EMAIL": args.email,
+        "DLWS_ROLE_NAME": "master",
+        "DLWS_JOB_ID": "unknown",
+        "DLWS_ROLE_IDX": "0",
+    }
+
+    with utils.run_job(args.rest, "distributed", args.email, args.uid,
+                       args.vc) as job:
+        state = utils.block_until_state_not_in(
+            args.rest, job.jid, {"unapproved", "queued", "scheduling"})
+        assert state == "running"
+        envs["DLWS_JOB_ID"] = job.jid
+
+        pods = utils.kube_get_pods(args.config, "default", "jobId=" + job.jid)
+        assert len(pods) == 2
+
+        for pod in pods:
+            envs["DLWS_ROLE_NAME"] = pod.metadata.labels["jobRole"]
+            pod_name = pod.metadata.name
+            container_name = pod.spec.containers[0].name
+
+            cmd = ["bash", "-c"]
+
+            remain_cmd = [
+                "printf %s= ; printenv %s" % (key, key)
+                for key, _ in envs.items()
+            ]
+
+            cmd.append(";".join(remain_cmd))
+
+            code, output = utils.kube_pod_exec(args.config, "default",
+                                               pod_name, container_name, cmd)
+
+            logger.debug("cmd %s output for %s.%s is %s", cmd, pod_name,
+                         container_name, output)
+
+            for key, val in envs.items():
+                expected_output = "%s=%s" % (key, val)
+                assert output.find(
+                    expected_output) != -1, "could not find %s in log %s" % (
+                        expected_output, output)
