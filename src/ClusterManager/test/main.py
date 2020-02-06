@@ -4,6 +4,7 @@
 import argparse
 import logging
 import glob
+import datetime
 from multiprocessing import Pool
 
 import utils
@@ -30,6 +31,8 @@ def should_run(model_name, case_name, full_name, targets):
 
 
 def main(args):
+    start = datetime.datetime.now()
+
     f_names = glob.glob("*.py")
 
     if args.case == "":
@@ -60,11 +63,14 @@ def main(args):
             cases.append(obj)
             case_names.append(full_name)
 
-    logger.info("will run cases %s", case_names)
+    logger.info("will run %d cases %s", len(case_names), case_names)
     num_proc = min(args.process, len(cases))
 
     with Pool(processes=num_proc) as pool:
         pool.map(run_case, cases)
+
+    logger.info("spent %s in executing %d cases %s",
+                datetime.datetime.now() - start, len(case_names), case_names)
 
 
 if __name__ == '__main__':

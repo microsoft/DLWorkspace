@@ -39,8 +39,7 @@ class Job:
                  work_path="",
                  data_path="",
                  params=None,
-                 plugins=None
-                 ):
+                 plugins=None):
         """
         job_id: an unique string for the job.
         email: user's email.
@@ -85,15 +84,18 @@ class Job:
         # only allow alphanumeric in "name"
         if "name" not in mountpoint or mountpoint["name"] == "":
             mountpoint["name"] = mountpoint["containerPath"]
-        mountpoint["name"] = ''.join(
-            c for c in mountpoint["name"] if c.isalnum() or c == "-")
+        mountpoint["name"] = ''.join(c for c in mountpoint["name"]
+                                     if c.isalnum() or c == "-")
 
         # skip duplicate entry
         # NOTE: mountPath "/data" is the same as "data" in k8s
         for item in self.mountpoints:
-            if item["name"] == mountpoint["name"] or item["containerPath"].strip("/") == mountpoint["containerPath"].strip("/"):
+            if item["name"] == mountpoint["name"] or item[
+                    "containerPath"].strip(
+                        "/") == mountpoint["containerPath"].strip("/"):
                 logger.warn(
-                    "Current mountpoint: %s is a duplicate of mountpoint: %s" % (mountpoint, item))
+                    "Current mountpoint: %s is a duplicate of mountpoint: %s" %
+                    (mountpoint, item))
                 return
 
         self.mountpoints.append(mountpoint)
@@ -106,26 +108,42 @@ class Job:
 
     def get_hostpath(self, *path_relate_to_workpath):
         """return os.path.join(self.cluster["storage-mount-path"], "work", *path_relate_to_workpath)"""
-        return os.path.join(self.cluster["storage-mount-path"], "work", *path_relate_to_workpath)
+        return os.path.join(self.cluster["storage-mount-path"], "work",
+                            *path_relate_to_workpath)
 
     def get_homefolder_hostpath(self):
         return self.get_hostpath(self.get_alias())
 
     def job_path_mountpoint(self):
-        assert(len(self.job_path) > 0)
+        assert (len(self.job_path) > 0)
         job_host_path = self.get_hostpath(self.job_path)
-        return {"name": "job", "containerPath": "/job", "hostPath": job_host_path, "enabled": True}
+        return {
+            "name": "job",
+            "containerPath": "/job",
+            "hostPath": job_host_path,
+            "enabled": True
+        }
 
     def work_path_mountpoint(self):
-        assert(len(self.work_path) > 0)
+        assert (len(self.work_path) > 0)
         work_host_path = self.get_hostpath(self.work_path)
-        return {"name": "work", "containerPath": "/work", "hostPath": work_host_path, "enabled": True}
+        return {
+            "name": "work",
+            "containerPath": "/work",
+            "hostPath": work_host_path,
+            "enabled": True
+        }
 
     def data_path_mountpoint(self):
-        assert(self.data_path is not None)
-        data_host_path = os.path.join(
-            self.cluster["storage-mount-path"], "storage", self.data_path)
-        return {"name": "data", "containerPath": "/data", "hostPath": data_host_path, "enabled": True}
+        assert (self.data_path is not None)
+        data_host_path = os.path.join(self.cluster["storage-mount-path"],
+                                      "storage", self.data_path)
+        return {
+            "name": "data",
+            "containerPath": "/data",
+            "hostPath": data_host_path,
+            "enabled": True
+        }
 
     def vc_custom_storage_mountpoints(self):
         vc_name = self.params["vcName"]
@@ -167,7 +185,8 @@ class Job:
                 "name": ("%s-%s" % (vc_name, storage)).lower(),
                 "containerPath": "/" + storage,
                 "hostPath": os.path.join(dltsdata_vc_path, storage),
-                "enabled": True}
+                "enabled": True
+            }
             vc_mountpoints.append(vc_mountpoint)
 
         return vc_mountpoints
@@ -183,7 +202,8 @@ class Job:
                 "name": infiniband_mount["name"].lower(),
                 "containerPath": infiniband_mount["containerPath"],
                 "hostPath": infiniband_mount["hostPath"],
-                "enabled": True}
+                "enabled": True
+            }
             ib_mountpoints.append(ib_mountpoint)
 
         return ib_mountpoints
@@ -206,31 +226,16 @@ class Job:
 
     def _get_template(self, template_name):
         """Returns template instance based on template_name."""
-        path = os.path.abspath(os.path.join(
-            self.cluster["root-path"], "Jobs_Templete", template_name))
+        path = os.path.abspath(
+            os.path.join(self.cluster["root-path"], "Jobs_Templete",
+                         template_name))
         env = Environment(loader=FileSystemLoader("/"))
         template = env.get_template(path)
         assert (isinstance(template, Template))
         return template
 
-    def is_custom_scheduler_enabled(self):
-        return self._get_cluster_config("kube_custom_scheduler")
-
-    def get_rest_api_url(self):
-        return self._get_cluster_config("rest-api")
-
     def get_pod_ip_range(self):
         return self._get_cluster_config("pod_ip_range")
-
-    def is_freeflow_enabled(self):
-        return self._get_cluster_config("usefreeflow")
-
-    def get_rack(self):
-        racks = self._get_cluster_config("racks")
-        if racks is None or len(racks) == 0:
-            return None
-        # TODO why random.choice?
-        return random.choice(racks)
 
     def get_custom_mounts(self):
         return self._get_cluster_config("custom_mounts")
@@ -361,14 +366,22 @@ class Job:
 
             # Reassign everything for clarity
             bf = {
-                "enabled": True,
-                "name": name,
-                "secreds": "%s-blobfuse-%d-secreds" % (self.job_id, i),
-                "accountName": base64.b64encode(account_name.encode("utf-8")).decode("utf-8"),
-                "accountKey": base64.b64encode(account_key.encode("utf-8")).decode("utf-8"),
-                "containerName": container_name,
-                "mountPath": mount_path,
-                "jobId": self.job_id,
+                "enabled":
+                True,
+                "name":
+                name,
+                "secreds":
+                "%s-blobfuse-%d-secreds" % (self.job_id, i),
+                "accountName":
+                base64.b64encode(account_name.encode("utf-8")).decode("utf-8"),
+                "accountKey":
+                base64.b64encode(account_key.encode("utf-8")).decode("utf-8"),
+                "containerName":
+                container_name,
+                "mountPath":
+                mount_path,
+                "jobId":
+                self.job_id,
             }
 
             if root_tmppath is not None:
@@ -390,7 +403,8 @@ class Job:
     def get_image_pull_secret_plugins(self, plugins):
         """Constructs and returns a list of imagePullSecrets plugins."""
 
-        enable_custom_registry_secrets = self.get_enable_custom_registry_secrets()
+        enable_custom_registry_secrets = self.get_enable_custom_registry_secrets(
+        )
         if enable_custom_registry_secrets is None or \
                 enable_custom_registry_secrets is False:
             return []
@@ -407,15 +421,10 @@ class Job:
                 continue
 
             auth = base64.b64encode(
-                ("%s:%s" % (username, password)).encode("utf-8")).decode("utf-8")
+                ("%s:%s" %
+                 (username, password)).encode("utf-8")).decode("utf-8")
 
-            auths = {
-                "auths": {
-                    registry: {
-                        "auth": auth
-                    }
-                }
-            }
+            auths = {"auths": {registry: {"auth": auth}}}
 
             dockerconfigjson = base64.b64encode(
                 json.dumps(auths).encode("utf-8")).decode("utf-8")
@@ -433,25 +442,32 @@ class Job:
 
 class JobSchema(Schema):
     cluster = fields.Dict(required=True)
-    job_id = fields.String(required=True,
-                           # Correctly mappging the name
-                           dump_to="jobId", load_from="jobId",
-                           # We use the id as "name" in k8s object.
-                           # By convention, the "names" of Kubernetes resources should be
-                           #  up to maximum length of 253 characters and consist of lower case
-                           # alphanumeric characters, -, and .,
-                           # but certain resources have more specific restrictions.
-                           validate=validate.Regexp(r'^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
-                                                    error="'{input}' does not match expected pattern {regex}."))
-    email = fields.Email(required=True, dump_to="userName",
+    job_id = fields.String(
+        required=True,
+        # Correctly mappging the name
+        dump_to="jobId",
+        load_from="jobId",
+        # We use the id as "name" in k8s object.
+        # By convention, the "names" of Kubernetes resources should be
+        #  up to maximum length of 253 characters and consist of lower case
+        # alphanumeric characters, -, and .,
+        # but certain resources have more specific restrictions.
+        validate=validate.Regexp(
+            r'^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+            error="'{input}' does not match expected pattern {regex}."))
+    email = fields.Email(required=True,
+                         dump_to="userName",
                          load_from="userName")
     mountpoints = fields.Dict(required=False)
-    job_path = fields.String(
-        required=False, dump_to="jobPath", load_from="jobPath")
-    work_path = fields.String(
-        required=False, dump_to="workPath", load_from="workPath")
-    data_path = fields.String(
-        required=False, dump_to="dataPath", load_from="dataPath")
+    job_path = fields.String(required=False,
+                             dump_to="jobPath",
+                             load_from="jobPath")
+    work_path = fields.String(required=False,
+                              dump_to="workPath",
+                              load_from="workPath")
+    data_path = fields.String(required=False,
+                              dump_to="dataPath",
+                              load_from="dataPath")
     params = fields.Dict(required=False)
     plugins = fields.Dict(required=False)
 
