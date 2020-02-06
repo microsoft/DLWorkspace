@@ -252,7 +252,7 @@ def test_list_all_jobs(args):
             {"unapproved", "queued", "scheduling", "running"})
         assert state == "finished"
 
-    resp = utils.get_job_list(args.email, args.vc, "all", 10)
+    resp = utils.get_job_list(args.rest, args.email, args.vc, "all", 10)
     finished_jobs = resp.get("finishedJobs", None)
     assert isinstance(finished_jobs, list)
 
