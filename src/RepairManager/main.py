@@ -52,11 +52,4 @@ def Run():
          logger.exception('Repair manager has stopped due to an unhandled exception.')
 
 if __name__ == '__main__':
-
-    if config['restore_from_rule_cache_dump']:
-        rule_cache_dump_path = config["rule_cache_dump"]
-        rule_cache_dump_file = Path(rule_cache_dump_path)
-        if rule_cache_dump_file.is_file():
-            alert.load_rule_cache()
-
     Run()
