@@ -8,7 +8,7 @@ if grep "PRUNEPATHS=" /etc/updatedb.conf | grep -q "/mnt"; then
     echo "/mnt exists under PRUNEPATHS"
 else
     line=$(grep "PRUNEPATHS=" /etc/updatedb.conf)
-    new_line=$(echo "${line::-1} /mnt\"")
+    new_line=$(echo "${line::-1} /mnt /var/lib/kubelet\"")
     line=$(echo ${line} | sed 's/\//\\\//g')
     new_line=$(echo ${new_line} | sed 's/\//\\\//g')
     sudo sed -i "s/${line}/${new_line}/g" /etc/updatedb.conf
