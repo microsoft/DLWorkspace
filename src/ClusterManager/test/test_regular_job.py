@@ -239,3 +239,22 @@ def test_regular_job_ssh(args):
                                            cmd)
         assert code == 0
         assert output == "dummy\n"
+
+
+@utils.case
+def test_list_all_jobs(args):
+    # All jobs should include finished jobs
+    with utils.run_job(args.rest, "regular", args.email, args.uid,
+                       args.vc, cmd="") as job:
+        job_id = job.jid
+        state = utils.block_until_state_not_in(
+            args.rest, job_id,
+            {"unapproved", "queued", "scheduling", "running"})
+        assert state == "finished"
+
+    resp = utils.get_job_list(args.rest, args.email, args.vc, "all", 10)
+    finished_jobs = resp.get("finishedJobs", None)
+    assert isinstance(finished_jobs, list)
+
+    finished_job_ids = [job["jobId"] for job in finished_jobs]
+    assert job_id in finished_job_ids
