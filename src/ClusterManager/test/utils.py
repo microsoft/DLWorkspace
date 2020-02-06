@@ -214,6 +214,18 @@ def approve_jobs(rest_url, email, job_ids):
     return _op_jobs(rest_url, email, job_ids, "Approve")
 
 
+def get_job_list(rest_url, email, vc_name, job_owner, num=10):
+    args = urllib.parse.urlencode({
+        "userName": email,
+        "vcName": vc_name,
+        "jobOwner": job_owner,
+        "num": num,
+    })
+    url = urllib.parse.urljoin(rest_url, "/ListJobsV2") + "?" + args
+    resp = requests.get(url)
+    return resp.json()
+
+
 class run_job(object):
     def __init__(self,
                  rest_url,
