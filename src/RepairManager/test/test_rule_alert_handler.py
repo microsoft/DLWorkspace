@@ -22,13 +22,13 @@ class Testing(unittest.TestCase):
     @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
     @mock.patch('utils.email_util.EmailHandler')
     def test_update_rule_cache(self, mock_email_handler, mock_config):
+        mock_config.return_value = _mock_rule_config()
+
         rule_alert_handler_instance = rule_alert_handler.RuleAlertHandler()
 
         rule = "TestRule"
         cache_key = "test_key"
         cache_value = "test_value"
-
-        mock_config.return_value = _mock_rule_config()
 
         rule_alert_handler_instance.update_rule_cache(rule, cache_key, cache_value)
 
@@ -40,14 +40,14 @@ class Testing(unittest.TestCase):
     @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
     @mock.patch('utils.email_util.EmailHandler')
     def test_remove_from_rule_cache(self, mock_email_handler, mock_config):
+        mock_config.return_value = _mock_rule_config()
+
         rule_alert_handler_instance = rule_alert_handler.RuleAlertHandler()
 
         rule = "TestRule"
         cache_key = "test_key"
         cache_value = "test_value"
         rule_alert_handler_instance.rule_cache[rule] = {cache_key: cache_value}
-
-        mock_config.return_value = _mock_rule_config()
 
         rule_alert_handler_instance.remove_from_rule_cache(rule, cache_key)
 
@@ -58,14 +58,14 @@ class Testing(unittest.TestCase):
     @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
     @mock.patch('utils.email_util.EmailHandler')
     def test_get_rule_cache(self, mock_email_handler, mock_config):
+        mock_config.return_value = _mock_rule_config()
+
         rule_alert_handler_instance = rule_alert_handler.RuleAlertHandler()
 
         rule = "TestRule"
         cache_key = "test_key"
         cache_value = "test_value"
         rule_alert_handler_instance.rule_cache[rule] = {cache_key: cache_value}
-
-        mock_config.return_value = _mock_rule_config()
 
         result = rule_alert_handler_instance.get_rule_cache(rule, cache_key)
         self.assertEqual(result, cache_value)
@@ -77,14 +77,14 @@ class Testing(unittest.TestCase):
     @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
     @mock.patch('utils.email_util.EmailHandler')
     def test_check_rule_cache(self, mock_email_handler, mock_config):
+        mock_config.return_value = _mock_rule_config()
+
         rule_alert_handler_instance = rule_alert_handler.RuleAlertHandler()
 
         rule = "TestRule"
         cache_key = "test_key"
         cache_value = "test_value"
         rule_alert_handler_instance.rule_cache[rule] = {cache_key: cache_value}
-
-        mock_config.return_value = _mock_rule_config()
 
         result = rule_alert_handler_instance.check_rule_cache(rule, cache_key)
         self.assertTrue(result)
