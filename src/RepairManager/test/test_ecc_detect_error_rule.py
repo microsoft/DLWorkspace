@@ -17,6 +17,15 @@ from kubernetes.client.models.v1_pod import V1Pod
 from kubernetes.client.models.v1_object_meta import V1ObjectMeta
 from kubernetes.client.models.v1_pod_spec import V1PodSpec
 
+### Please fill in SMTP info and enable tests to receive emails ###
+SMTP_URL = '[SMTP_URL]'
+LOGIN = '[LOGIN]'
+PASSWORD = "[PASSWORD]"
+SENDER = '[SENDER]'
+JOB_OWNER_EMAIL = "[JOB_OWNER_EMAIL]"
+DRI_EMAIL = "[DRI_EMAIL]"
+
+
 def _mock_v1_node(internal_ip, hostname):
     node = V1Node()
     address_ip = V1NodeAddress(internal_ip, "InternalIP")
@@ -41,7 +50,8 @@ def _mock_rule_config():
     rule_config = {
         "cluster_name": "mock-cluster",
         "domain_name": "dltshub.example.com",
-        "job_owner_email_domain": "example.com"
+        "job_owner_email_domain": "example.com",
+        "restore_from_rule_cache_dump": False
     }
     return rule_config
 
@@ -205,13 +215,17 @@ class Testing(unittest.TestCase):
     @mock.patch('rules.ecc_detect_error_rule.k8s_util.list_namespaced_pod')
     @mock.patch('utils.email_util.EmailHandler')
     @mock.patch('rules.ecc_detect_error_rule.ECCDetectErrorRule.load_ecc_config')
+    @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
     def test_take_action_new_ecc_found(self,
+            mock_load_rule_config,
             mock_load_ecc_config,
             mock_email_handler,
             mock_pod_list,
             mock_is_node_cordoned,
             mock_cordon_node,
             mock_create_email_for_dris):
+        mock_rule_config = _mock_rule_config()
+        mock_load_rule_config.return_value = mock_rule_config
         mock_load_ecc_config.return_value = _mock_ecc_config()
 
         # first node is schedulable
@@ -219,7 +233,7 @@ class Testing(unittest.TestCase):
         mock_is_node_cordoned.side_effect = [False, True]
 
         alert = rule_alert_handler.RuleAlertHandler()
-        ecc_rule_instance = ECCDetectErrorRule(alert, _mock_rule_config())
+        ecc_rule_instance = ECCDetectErrorRule(alert, mock_rule_config)
         ecc_rule_instance.ecc_node_hostnames = {
             "mock_worker_one": "192.168.0.1",
             "mock_worker_two": "192.168.0.2"
@@ -234,7 +248,7 @@ class Testing(unittest.TestCase):
         ecc_rule_instance.take_action()
 
         self.assertEqual(1, mock_cordon_node.call_count)
-        self.assertEqual(2, mock_create_email_for_dris.call_count)
+        self.assertEqual(1, mock_create_email_for_dris.call_count)
 
         self.assertTrue("ecc_rule" in alert.rule_cache)
         self.assertTrue("mock_worker_one" in alert.rule_cache["ecc_rule"])
@@ -250,13 +264,17 @@ class Testing(unittest.TestCase):
     @mock.patch('rules.ecc_detect_error_rule.k8s_util.list_namespaced_pod')
     @mock.patch('utils.email_util.EmailHandler')
     @mock.patch('rules.ecc_detect_error_rule.ECCDetectErrorRule.load_ecc_config')
+    @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
     def test_take_action_new_ecc_not_found(self,
+            mock_load_rule_config,
             mock_load_ecc_config,
             mock_email_handler,
             mock_pod_list,
             mock_is_node_cordoned,
             mock_cordon_node,
             mock_create_email_for_dris):
+        mock_rule_config = _mock_rule_config()
+        mock_load_rule_config.return_value = mock_rule_config
         mock_load_ecc_config.return_value = _mock_ecc_config()
 
         pod_one = _mock_v1_pod("87654321-wxyz", "user1", "vc1", "node1")
@@ -283,7 +301,7 @@ class Testing(unittest.TestCase):
         # second node has already been marked as unschedulable
         mock_is_node_cordoned.side_effect = [False, True]
 
-        ecc_rule_instance = ECCDetectErrorRule(alert, _mock_rule_config())
+        ecc_rule_instance = ECCDetectErrorRule(alert, mock_rule_config)
         ecc_rule_instance.ecc_node_hostnames = {
             "mock_worker_one": "192.168.0.1",
             "mock_worker_two": "192.168.0.2"
@@ -320,48 +338,39 @@ class Testing(unittest.TestCase):
         job_response["12345678-abcd"]["job_link"])
 
 
-    ###############################################################################
-    ###        Please enable and fill in [CONFIGURATIONS] below                 ###
-    ###        to test and receive emails. This test will send emails for       ###
-    ###        two bad nodes and two jobs.                                      ###
-    ###############################################################################
     @mock.patch('rules.ecc_detect_error_rule.k8s_util.list_namespaced_pod')
     @mock.patch('rules.ecc_detect_error_rule.k8s_util.cordon_node')
     @mock.patch('rules.ecc_detect_error_rule.k8s_util.is_node_cordoned')
     @mock.patch('utils.email_util.EmailHandler.load_config')
     @mock.patch('rules.ecc_detect_error_rule.ECCDetectErrorRule.load_ecc_config')
+    @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
     def test_take_action_send_emails(self,
+            mock_load_rule_config,
             mock_load_ecc_config,
             mock_email_load_config,
             mock_is_node_cordoned,
             mock_cordon_node,
             mock_pod_info):
 
-        ###################################################
-        ##  Please fill in SMTP info for sending emails  ##
-        ###################################################
+        #####################################################
+        ##  Please fill in SMTP info above to send emails  ##
+        #####################################################
         enable_test = False
-        smtp_url = '[SMTP URL]'
-        login = '[LOGIN]'
-        password = '[PASSWORD]'
-        sender = '[SENDER]'
-        mock_dri_email = '[DRI EMAIL]'
-        mock_job_owner_email = '[JOB OWNER EMAIL]'
         ####################################################
 
         if enable_test:
             mock_load_ecc_config.return_value = _mock_ecc_config()
             mock_load_ecc_config.return_value["alert_job_owners"] = True
-            mock_load_ecc_config.return_value["dri_email"] = mock_dri_email
+            mock_load_ecc_config.return_value["dri_email"] = DRI_EMAIL
 
             mock_email_load_config.return_value = {
-                "smtp_url": smtp_url,
-                "login": login,
-                "password": password,
-                "sender": sender
+                "smtp_url": SMTP_URL,
+                "login": LOGIN,
+                "password": PASSWORD,
+                "sender": SENDER
             }
 
-            owner_email_split = mock_job_owner_email.split('@')
+            owner_email_split = JOB_OWNER_EMAIL.split('@')
             mock_job_owner_username = owner_email_split[0]
             mock_job_owner_email_domain = owner_email_split[1]
 
@@ -383,6 +392,7 @@ class Testing(unittest.TestCase):
 
             mock_rule_config = _mock_rule_config()
             mock_rule_config["job_owner_email_domain"] = mock_job_owner_email_domain
+            mock_load_rule_config.return_value = mock_rule_config
 
             ecc_rule_instance = ECCDetectErrorRule(alert, mock_rule_config)
             ecc_rule_instance.ecc_node_hostnames = {

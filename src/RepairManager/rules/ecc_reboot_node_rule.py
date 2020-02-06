@@ -46,47 +46,49 @@ def _get_job_info_from_nodes(pods, nodes, domain_name, cluster_name):
     return jobs
 
 
-def _pause_resume_job(job_pause_url, job_id, job_owner_email, attempts, wait_time):
+def _pause_resume_job(rest_url, job_id, job_owner_email, attempts, wait_time):
     try:
-        pause_resp = _pause_job(job_pause_url, job_id, job_owner_email, attempts) 
+        pause_resp = _pause_job(rest_url, job_id, job_owner_email, attempts) 
         if pause_resp:      
-            status_resp = _wait_for_job_to_pause(job_pause_url, job_id, attempts, wait_time)
+            status_resp = _wait_for_job_to_pause(rest_url, job_id, attempts, wait_time)
             if status_resp:
-                resume_resp = _resume_job(job_pause_url, job_id, job_owner_email, attempts)
+                resume_resp = _resume_job(rest_url, job_id, job_owner_email, attempts)
                 if resume_resp:
                     return True
     except:
-        logging.exception(f'Error pausing/resuming job')
+        logging.exception(f'Error pausing/resuming job {job_id}')
     
     return False
 
 
-def _pause_job(job_pause_url, job_id, job_owner_email, attempts):
+def _pause_job(rest_url, job_id, job_owner_email, attempts):
     for i in range(attempts):
-        pause_url = f'{job_pause_url}/PauseJob?userName={job_owner_email}&jobId={job_id}'
+        pause_url = f'{rest_url}/PauseJob?userName={job_owner_email}&jobId={job_id}'
         pause_resp = requests.get(pause_url)
         if pause_resp is not None \
             and "result" in pause_resp \
             and "success" in pause_resp["result"].lower():
             return True
+        time.sleep(5)
     return False
 
 
-def _resume_job(job_pause_url, job_id, job_owner_email, attempts):
+def _resume_job(rest_url, job_id, job_owner_email, attempts):
     for i in range(attempts):
-        resume_url = f'{job_pause_url}/ResumeJob?userName={job_owner_email}&jobId={job_id}'
+        resume_url = f'{rest_url}/ResumeJob?userName={job_owner_email}&jobId={job_id}'
         resume_resp = requests.get(resume_url)
         if resume_resp is not None \
             and "result" in resume_resp \
             and "success" in resume_resp["result"].lower():
             return True
+        time.sleep(5)
     return False
 
 
-def _wait_for_job_to_pause(job_pause_url, job_id, attempts, wait_time):
+def _wait_for_job_to_pause(rest_url, job_id, attempts, wait_time):
     for i in range(attempts):
         time.sleep(wait_time)
-        status_url = f'{job_pause_url}/GetJobStatus?jobId={job_id}'
+        status_url = f'{rest_url}/GetJobStatus?jobId={job_id}'
         status_resp = requests.get(status_url)
         if status_resp is not None \
             and "jobStatus" in status_resp \
@@ -97,31 +99,30 @@ def _wait_for_job_to_pause(job_pause_url, job_id, attempts, wait_time):
 
 def _create_email_for_pause_resume_job(job_id, node_names, job_link, job_owner_email, dri_email):
     message = MIMEMultipart()
-    message['Subject'] = f'Repair Manager Alert [{job_id} will be paused/resumed]'
+    message['Subject'] = f'Repair Manager Alert [{job_id} paused/resumed]'
     message['To'] = job_owner_email
     message['CC'] = dri_email
-    body = f'''<h3>Pausing/Resuming job <a href="{job_link}">{job_id}</a>.</h3>
-    <p>As previously notified, the following node(s) need to be rebooted due to uncorrectable ecc error:</p>
-    <ul>'''
+    body = f'''<p>As previously notified, the following node(s) require reboot due to uncorrectable ECC error:</p>
+    <table border="1">'''
     for node in node_names:
-        body += f'<li>{node}</li>'
-    body += f'''</ul>
-    <p> Job <a href="{job_link}">{job_id}</a> will be now be paused/resumed so node(s) can be repaired.</p>'''
+        body += f'''<tr><td>{node}</td></tr>'''
+    body += f'''</table><p>
+    <p> Job <a href="{job_link}">{job_id}</a> has been paused/resumed so node(s) can be repaired.</p>'''
     message.attach(MIMEText(body, 'html'))
     return message
 
 
-def _create_email_for_issue_with_pause_resume_job(job_id, node_names, job_link, dri_email):
+def _create_email_for_issue_with_pause_resume_job(unsuccessful_pause_resume_jobs, dri_email):
     message = MIMEMultipart()
-    message['Subject'] = f'Repair Manager Alert [Could not pause/resume job {job_id}]'
+    message['Subject'] = 'Repair Manager Alert [Failed to Pause/Resume Job(s)]'
     message['To'] = dri_email
-    body = f'''<h3>Unable to pause/resume job <a href="{job_link}">{job_id}</a>.</h3>
-    <p>This job is found on the following node(s) which are due to be rebooted due to ecc error:</p>
-    <ul>'''
-    for node in node_names:
-        body += f'<li>{node}</li>'
-    body += f'''</ul>
-    <p> Please investigate so node(s) can be repaired.</p>'''
+    body = f'''<p>Repair manager failed to pause/resume the following job(s):</p>
+     <table border="1"><tr><th>Job Id</th><th>Job Owner</th><th>Node(s)</th></tr>'''
+    for job_id, job_info in unsuccessful_pause_resume_jobs.items():
+        body += f'''<tr><td><a href="{job_info['job_link']}">{job_id}</a></td>
+            <td>{job_info['user_name']}</td>
+            <td>{', '.join(job_info['node_names'])}</td></tr>'''
+    body += '</table><p> Please investigate so node(s) can be repaired.</p>'
     message.attach(MIMEText(body, 'html'))
     return message
 
@@ -175,35 +176,47 @@ class ECCRebootNodeRule(Rule):
                 if now - time_found > delta:
                     self.nodes_ready_for_action.append(node)
 
-        if len(self.nodes_ready_for_action) > 0:
-            return True
-        else:
-            return False
+        return len(self.nodes_ready_for_action) > 0
 
 
     def take_action(self):
         pods = k8s_util.list_namespaced_pod("default")
-        job_info = _get_job_info_from_nodes(pods, 
-                                            self.nodes_ready_for_action,
-                                            self.config["domain_name"],
-                                            self.config["cluster_name"])
+        job_params = {
+            "pods": pods,
+            "nodes": self.nodes_ready_for_action,
+            "domain_name": self.config["domain_name"],
+            "cluster_name": self.config["cluster_name"]
+        }
+        job_info = _get_job_info_from_nodes(**job_params)
+
+        unsuccessful_pause_resume_jobs = {}
 
         for job_id in job_info:
-            job_owner_email = f"{job_info[job_id]['user_name']}@{self.config['job_owner_email_domain']}"
+            dri_email = self.ecc_config["dri_email"]
+            job_owner = job_info[job_id]['user_name']
+            job_owner_email = f"{job_owner}@{self.config['job_owner_email_domain']}"
             node_names = job_info[job_id]["node_names"]
             job_link = job_info[job_id]['job_link']
 
-            result = _pause_resume_job(self.ecc_config["job_pause_resume_url"], job_id, job_owner_email, 10, self.ecc_config["time_sleep_after_pausing"])
-            if result:
+            # attempt to pause/resume job
+            pause_resume_params = {
+                "rest_url": self.ecc_config["rest_url"],
+                "job_id": job_id,
+                "job_owner_email": job_owner_email,
+                "attempts": 10,
+                "wait_time": self.ecc_config["time_sleep_after_pausing"]            }
+            success = _pause_resume_job(**pause_resume_params)
+
+            if success:
                 if self.ecc_config["alert_job_owners"]:
-                    message = _create_email_for_pause_resume_job(job_id, node_names, job_link, job_owner_email, self.ecc_config["dri_email"])
+                    message = _create_email_for_pause_resume_job(job_id, node_names, job_link, job_owner_email, dri_email)
                     self.alert.send_alert(message)
             else:
                 logging.warning(f"Could not pause/resume the following job: {job_id}")
-                message = _create_email_for_issue_with_pause_resume_job(job_id, node_names, job_link, self.ecc_config["dri_email"])
+                unsuccessful_pause_resume_jobs[job_id] = job_info
+            
+            if len(unsuccessful_pause_resume_jobs) > 0:
+                message = _create_email_for_issue_with_pause_resume_job(unsuccessful_pause_resume_jobs, dri_email)
                 self.alert.send_alert(message)
 
-        # TODO: reboot node
-
-        for node in self.nodes_ready_for_action:
-            self.alert.remove_from_rule_cache(self.rule, node)
+        # TODO: reboot node and remove from cache

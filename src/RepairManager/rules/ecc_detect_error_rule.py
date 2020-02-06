@@ -59,34 +59,41 @@ def _get_job_info_from_nodes(nodes, pods, domain_name, cluster_name):
                         jobs[job_id]['node_names'].add(node_name)
     return jobs
 
-def _create_email_for_dris(node_name, output, jobs, cluster_name, dri_email):
+def _create_email_for_dris(nodes, action_status, jobs, cluster_name, dri_email):
     message = MIMEMultipart()
-    message['Subject'] = f'Repair Manager Alert [ECC ERROR] [{cluster_name}] [{node_name}]'
+    message['Subject'] = f'Repair Manager Alert [ECC ERROR] [{cluster_name}]'
     message['To'] = dri_email
-    body = f'''<h3>Uncorrectable ECC Error found in {cluster_name} cluster on node {node_name}.</h3>
-    <p>Node Status: {output}</p>
-    <h3>Impacted Jobs</h3>
-    <table border="1"><tr><th>Job Id</th><th>Job Owner</th><th>VC</th></tr>'''
+    body = f'<p>Uncorrectable ECC Error found in cluster {cluster_name} on the following node(s):</p>'
+    body += f'<table border="1"><tr><th>Node Name</th><th>Action Status</th></tr>'
+    for node in action_status:
+        body += f'''<tr><td>{node}</td><td>{action_status[node]}</td></tr>'''
+    body += '</table>'
+    body += f'''<p>Impacted Jobs:</p>
+    <table border="1"><tr><th>Job Id</th><th>Job Owner</th><th>Node Names</th><th>VC</th></tr>'''
     for job_id, job_info in jobs.items():
-        if node_name in job_info['node_names']:
-            body += f'''<tr><td><a href="{job_info['job_link']}">{job_id}</a></td>
-            <td>{job_info['user_name']}</td>
-            <td>{job_info['vc_name']}</td></tr>'''
+        body += f'''<tr><td><a href="{job_info['job_link']}">{job_id}</a></td>
+        <td>{job_info['user_name']}</td>
+        <td>{', '.join(job_info['node_names'])}</td>
+        <td>{job_info['vc_name']}</td></tr>'''
     body += '</table>'
     message.attach(MIMEText(body, 'html'))
     return message
 
 
-def _create_email_for_job_owner(job_id, job_owner_email, node_names, job_link, dri_email, cluster_name, days_until_reboot):
+def _create_email_for_job_owner(job_id, job_owner_email, node_names, job_link, 
+                                dri_email, cluster_name, days_until_reboot):
     message = MIMEMultipart()
     message['Subject'] = f'Repair Manager Alert [ECC ERROR] [{job_id}]'
     message['To'] = job_owner_email
     message['CC'] = dri_email
-    body = f'''<h3>Uncorrectable ECC Error found in {cluster_name} cluster on node(s) {', '.join(node_names)}</h3>
-    <p>The following job is impacted:</p>
-    <a href="{job_link}">{job_id}</a>
-    <p>Please save and end your job ASAP. Node(s) {', '.join(node_names)} will be restarted in \
-        {days_until_reboot} days and all progress will be lost.</p>'''
+    body = f'''<p>Uncorrectable ECC Error found in {cluster_name} cluster on following node(s):</p>
+    <table border="1">'''
+    for node in node_names:
+        body += f'''<tr><td>{node}</td></tr>'''
+    body += f'''</table><p>The node(s) will require reboot in order to repair.
+    The following job is impacted:</p> <a href="{job_link}">{job_id}</a>
+    <p>Please save and end your job ASAP. Node(s) will be rebooted in {days_until_reboot} days
+    and all progress will be lost.</p>'''
     message.attach(MIMEText(body, 'html'))
     return message
 
@@ -117,7 +124,7 @@ class ECCDetectErrorRule(Rule):
                 ecc_data = response.json()
                 ecc_node_ips = _extract_ips_from_ecc_data(ecc_data)
                 if ecc_node_ips:
-                    self.node_info = k8s_util.list_node() # save node info to reduce API calls
+                    self.node_info = k8s_util.list_node()
                     address_map = _get_node_address_info(self.node_info)
                     for ip in ecc_node_ips:
                         self.ecc_node_hostnames[address_map[ip]] = ip
@@ -137,18 +144,29 @@ class ECCDetectErrorRule(Rule):
         pods = k8s_util.list_namespaced_pod("default")
         jobs = _get_job_info_from_nodes(self.ecc_node_hostnames, pods, self.config['domain_name'], self.config['cluster_name'])
 
+        action_status = {}
+        node_cordoned = False
+        new_error_detected = False
         for node_name in self.ecc_node_hostnames:
-            node_cordoned = False
             if k8s_util.is_node_cordoned(self.node_info, node_name):
-                action_output = f'no action taken: {node_name} already cordoned'
+                action_status[node_name] = f'no action taken: {node_name} already cordoned'
             else:
-                action_output = k8s_util.cordon_node(node_name, dry_run=self.ecc_config['dry_run'])
+                action_status[node_name] = k8s_util.cordon_node(node_name, dry_run=self.ecc_config['dry_run'])
                 node_cordoned = True
+                        
+            if not self.alert.check_rule_cache(self.rule, node_name):
+                new_error_detected = True
 
-            if node_cordoned or not self.alert.check_rule_cache(self.rule, node_name):
-                logging.info(f'Alerting DRIs --> node {node_name} with ecc error: {action_output}')
-                dri_message = _create_email_for_dris(node_name, action_output, jobs, self.config['cluster_name'], self.ecc_config['dri_email'])
-                self.alert.send_alert(dri_message)
+        if node_cordoned or new_error_detected:
+            email_params = {
+                "nodes": self.ecc_node_hostnames,
+                "action_status": action_status,
+                "jobs": jobs,
+                "cluster_name": self.config['cluster_name'],
+                "dri_email": self.ecc_config['dri_email']
+            }
+            dri_message = _create_email_for_dris(**email_params)
+            self.alert.send_alert(dri_message)
 
         if self.ecc_config['alert_job_owners']:
             for job_id, job_info in jobs.items():

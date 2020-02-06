@@ -23,7 +23,7 @@ class EmailHandler():
                 server.starttls()
                 server.login(self.config['login'], self.config['password'])
                 server.send_message(message)
-                logging.info(f"Email sent: {message}")
+                logging.info(f"Email sent to {message['To']}: {message['Subject']}")
         except smtplib.SMTPAuthenticationError:
             logging.warning('The server didn\'t accept the user\\password combination.')
         except smtplib.SMTPServerDisconnected:
