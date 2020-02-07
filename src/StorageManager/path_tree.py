@@ -144,29 +144,4 @@ class PathTree(object):
 
         return root_node
 
-    def __in_regex_whitelist(self, node):
-        for pattern in self.regex_whitelist:
-            if re.match(pattern, node.path):
-                return True
-        return False
 
-    def __filter_with_regex_whitelist(self, nodes):
-        new_nodes = []
-        for node in nodes:
-            if not self.__in_regex_whitelist(node):
-                new_nodes.append(node)
-        return new_nodes
-
-    def filter(self):
-        self.overweight_boundary_nodes = \
-            self.__filter_with_regex_whitelist(self.overweight_boundary_nodes)
-
-        self.expired_boundary_nodes = \
-            self.__filter_with_regex_whitelist(self.expired_boundary_nodes)
-
-        self.expired_boundary_nodes_to_delete = \
-            self.__filter_with_regex_whitelist(
-                self.expired_boundary_nodes_to_delete)
-
-        self.empty_boundary_nodes = \
-            self.__filter_with_regex_whitelist(self.empty_boundary_nodes)
