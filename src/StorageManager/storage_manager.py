@@ -11,6 +11,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.charset import Charset, BASE64
 from email.mime.nonmultipart import MIMENonMultipart
+from datetime import datetime
 from utils import bytes2human_readable, G
 
 
@@ -46,6 +47,8 @@ class StorageManager(object):
         self.overweight_threshold = self.config.get("overweight_threshold",
                                                     200 * G)
         self.expiry_days = self.config.get("expiry_days", 31)
+        self.days_to_delete_after_expiry = \
+            self.config.get("days_to_delete_after_expiry", None)
 
         self.logger.info("config: %s", self.config)
         self.logger.info("smtp: %s", self.smtp)
@@ -91,7 +94,7 @@ class StorageManager(object):
 
         return None
 
-    def send_email(self, recipients, cc, subject, content, report):
+    def send_email(self, recipients, cc, subject, content, reports):
         """Sends an email with attachment.
         Refer to https://gist.github.com/BietteMaxime/f75ae41f7b4557274a9f
 
@@ -100,7 +103,7 @@ class StorageManager(object):
             cc: To whom to cc the email.
             subject: Email subject.
             content: Email body content
-            report: A dictionary containing "filename", "data" to construct a
+            reports: A dictionary containing "filename", "data" to construct a
                 CSV attachment.
 
         Returns:
@@ -125,13 +128,14 @@ class StorageManager(object):
         full_email.attach(body)
 
         # Create the attachment of the message in text/csv.
-        attachment = MIMENonMultipart("text", "csv", charset=ENCODING)
-        attachment.add_header("Content-Disposition", "attachment",
-                              filename=report["filename"])
-        cs = Charset(ENCODING)
-        cs.body_encoding = BASE64
-        attachment.set_payload(report["data"].encode(ENCODING), charset=cs)
-        full_email.attach(attachment)
+        for report in reports:
+            attachment = MIMENonMultipart("text", "csv", charset=ENCODING)
+            attachment.add_header("Content-Disposition", "attachment",
+                                  filename=report["filename"])
+            cs = Charset(ENCODING)
+            cs.body_encoding = BASE64
+            attachment.set_payload(report["data"].encode(ENCODING), charset=cs)
+            full_email.attach(attachment)
 
         try:
             with smtplib.SMTP(self.smtp["smtp_url"]) as server:
@@ -153,7 +157,7 @@ class StorageManager(object):
         except smtplib.SMTPException as e:
             self.logger.exception("SMTP error occurred: %s", e)
 
-    def get_uid_user(self):
+    def get_uid_to_user(self):
         """Gets uid -> user mapping from restful url"""
         query_url = self.restful_url + "/GetAllUsers"
         resp = requests.get(query_url)
@@ -162,159 +166,293 @@ class StorageManager(object):
             return {}
 
         data = json.loads(resp.text)
-        uid_user = {}
+        uid_to_user = {}
         for item in data:
             try:
                 uid = int(item[1])
                 user = item[0]
-                uid_user[uid] = user
+                uid_to_user[uid] = user
             except Exception as e:
                 self.logger.warning("Parsing %s failed: %s", item, e)
-        return uid_user
+        return uid_to_user
+
+    def group_nodes_by_owner(self, nodes):
+        nodes_by_owner = {}
+        default_recipient = self.smtp.get("default_recipients", None)
+        self.logger.info("default recipient is %s", default_recipient)
+
+        for node in nodes:
+            owner = node.owner
+            if owner == "" and default_recipient is None:
+                continue
+            elif owner == "" and default_recipient is not None:
+                owner = default_recipient
+
+            if owner not in nodes_by_owner:
+                nodes_by_owner[owner] = []
+            nodes_by_owner[owner].append(node)
+
+        return nodes_by_owner
+
+    def assemble_node_list_by_owner(self,
+                                    overweight_nodes_by_owner,
+                                    expired_nodes_by_owner,
+                                    empty_nodes_by_owner):
+        node_list_by_owner = {}
+        overweight_owners = set(overweight_nodes_by_owner.keys())
+        expired_owners = set(expired_nodes_by_owner.keys())
+        empty_owners = set(empty_nodes_by_owner.keys())
+        all_owners = overweight_owners.union(expired_owners).union(empty_owners)
+
+        for owner in all_owners:
+            node_list_by_owner[owner] = {
+                "overweight": overweight_nodes_by_owner.get(owner, []),
+                "expired": expired_nodes_by_owner.get(owner, []),
+                "empty": empty_nodes_by_owner.get(owner, []),
+            }
+
+        return node_list_by_owner
+
+    def generate_report(self, nodes, scan_point, node_type, preview_len=20):
+        # Log all nodes
+        for node in nodes:
+            self.logger.info(node)
+
+        path = scan_point["path"]
+        alias = scan_point["alias"]
+
+        header = "last_access_time,size_in_bytes,readable_size,owner,path\n"
+
+        preview_len = min(preview_len, len(nodes))
+        preview = header
+        for node in nodes[0:preview_len]:
+            preview += "%s,%s,%s,%s,%s\n" % (
+                node.subtree_atime,
+                node.subtree_size,
+                bytes2human_readable(node.subtree_size),
+                node.owner,
+                node.path.replace(path, alias, 1))
+        if preview_len < len(nodes):
+            preview += "...\n"
+
+        data = header
+        for node in nodes:
+            cur_node = "%s,%s,%s,%s,%s\n" % (
+                node.subtree_atime,
+                node.subtree_size,
+                bytes2human_readable(node.subtree_size),
+                node.owner,
+                node.path.replace(path, alias, 1))
+            data += cur_node
+
+        report = {
+            "filename": "%s_boundary_paths_%s.csv" % (
+                node_type, datetime.fromtimestamp(int(time.time()))),
+            "data": data
+        }
+
+        return preview, report
+
+    def send_email_to_owners(self, node_list_by_owner, scan_point):
+        alias = scan_point["alias"]
+        used_percent = scan_point["used_percent"]
+        used_percent_alert_threshold = \
+            scan_point["used_percent_alert_threshold"]
+        overweight_threshold = scan_point["overweight_threshold"]
+        expiry_days = scan_point["expiry_days"]
+        days_to_delete_after_expiry = scan_point["days_to_delete_after_expiry"]
+
+        for owner, nodes_info in node_list_by_owner.items():
+            overweight_nodes = nodes_info["overweight"]
+            expired_nodes = nodes_info["expired"]
+            empty_nodes = nodes_info["empty"]
+
+            self.logger.info("Generating overweight report for owner %s", owner)
+            overweight_preview, overweight_report = \
+                self.generate_report(overweight_nodes, scan_point, "overweight")
+            self.logger.info("Generating expired report for owner %s", owner)
+            expired_preview, expired_report = \
+                self.generate_report(expired_nodes, scan_point, "expired")
+            self.logger.info("Generating empty report for owner %s", owner)
+            empty_preview, empty_report = \
+                self.generate_report(empty_nodes, scan_point, "empty")
+
+            reports = [
+                overweight_report,
+                expired_report,
+                empty_report,
+            ]
+
+            recipients = owner.split(",")
+            cc = self.smtp["cc"].split(",")
+
+            subject = "[%s]" % self.cluster_name
+            if "vc" in scan_point:
+                subject += "[%s]" % scan_point["vc"]
+
+            subject += "[Storage Manager][%s] Storage usage of %s is at " \
+                       "%s%% > %s%%" % \
+                       (owner.split("@")[0],
+                        alias,
+                        used_percent,
+                        used_percent_alert_threshold)
+
+            content = "%s storage mountpoint %s usage is at %s%% > %s%%.\n" % \
+                      (self.cluster_name,
+                       alias,
+                       used_percent,
+                       used_percent_alert_threshold)
+
+            # Content for overweight nodes
+            content += "\nPlease help reduce the size of your over-sized " \
+                       "boundary paths (> %s) in the attached report %s.\n" % \
+                       (bytes2human_readable(overweight_threshold),
+                        overweight_report["filename"])
+            content += overweight_preview
+
+            # Content for expired nodes
+            content += "\nPlease remove/use the expired boundary paths (last " \
+                       "access time older than %s days ago) in the attached " \
+                       "report %s. " % \
+                       (expiry_days,
+                        expired_report["filename"])
+            if days_to_delete_after_expiry is not None:
+                content += "They are automatically deleted if their last " \
+                           "access time are older than %s days ago.\n" % \
+                           (int(expiry_days) + int(days_to_delete_after_expiry))
+            content += expired_preview
+
+            # Content for empty nodes
+            content += "\nPlease consider removing your empty directories in " \
+                       "the attached report %s." % empty_report["filename"]
+            content += empty_preview
+
+            self.send_email(recipients, cc, subject, content, reports)
+
+    def scan_point_is_valid(self, scan_point):
+        """scan_point is mutated"""
+        # device_mount, used_percent_alert_threshold, path must exist
+        if "device_mount" not in scan_point:
+            self.logger.warning("device_mount missing in %s. Skip.", scan_point)
+            return False
+        device_mount = scan_point["device_mount"]
+
+        if "path" not in scan_point:
+            self.logger.warning("path missing in %s. Skip.", scan_point)
+            return False
+
+        if "alias" not in scan_point:
+            scan_point["alias"] = scan_point["path"]
+
+        if "used_percent_alert_threshold" not in scan_point:
+            self.logger.warning("user_percent_alert_threshold missing in "
+                                "%s. Setting to 90.", scan_point)
+            scan_point["used_percent_alert_threshold"] = 90
+        used_percent_alert_threshold = \
+            float(scan_point["used_percent_alert_threshold"])
+
+        # Only scan if alert threshold is reached
+        used_percent = self.scan_point_used_percent(device_mount)
+        scan_point["used_percent"] = used_percent
+        if used_percent is None:
+            self.logger.warning("used_percent is None. Skip.")
+            return False
+
+        if used_percent < used_percent_alert_threshold:
+            self.logger.info("%s used percent %s < threshold %s. Skip.",
+                             scan_point,
+                             used_percent,
+                             used_percent_alert_threshold)
+            return False
+
+        if "overweight_threshold" not in scan_point:
+            self.logger.info("overweight_threshold does not exist in %s. "
+                             "Using parent overweight_threshold %d.",
+                             scan_point, self.overweight_threshold)
+            scan_point["overweight_threshold"] = self.overweight_threshold
+
+        if "expiry_days" not in scan_point:
+            self.logger.info("expiry_days does not exist in %s. "
+                             "Using parent expiry_days %d.",
+                             scan_point, self.expiry_days)
+            scan_point["expiry_days"] = self.expiry_days
+
+        if "days_to_delete_after_expiry" not in scan_point:
+            self.logger.info("days_to_delete_after_expiry does not exist in "
+                             "%s. Using parent days_to_delete_after_expiry %s",
+                             scan_point, self.days_to_delete_after_expiry)
+            scan_point["days_to_delete_after_expiry"] = \
+                self.days_to_delete_after_expiry
+
+        if not os.path.exists(scan_point["path"]):
+            self.logger.warning("%s is absent in file system. Skip.",
+                                scan_point)
+            return False
+
+        scan_point["now"] = self.last_now
+        return True
+
+    def process_emails_for_tree(self, tree, scan_point):
+        # Get overweight, expired, and empty nodes
+        overweight_nodes = tree.overweight_boundary_nodes
+        expired_nodes = tree.expired_boundary_nodes
+        empty_nodes = tree.empty_boundary_nodes
+
+        # Group nodes by owner
+        overweight_nodes_by_owner = \
+            self.group_nodes_by_owner(overweight_nodes)
+        expired_nodes_by_owner = self.group_nodes_by_owner(expired_nodes)
+        empty_nodes_by_owner = self.group_nodes_by_owner(empty_nodes)
+
+        # Assemble node list by owner
+        node_list_by_owner = self.assemble_node_list_by_owner(
+            overweight_nodes_by_owner,
+            expired_nodes_by_owner,
+            empty_nodes_by_owner
+        )
+
+        # Send emails to owners
+        self.send_email_to_owners(node_list_by_owner, scan_point)
+
+    def delete_expired_nodes(self, tree):
+        self.logger.info("Deleting expired nodes ...")
+        for node in tree.expired_boundary_nodes_to_delete:
+            if os.path.exists(node.path):
+                if node.isdir:
+                    os.rmdir(node.path)
+                else:
+                    os.remove(node.path)
+            else:
+                self.logger.warning("%s does not exist")
+    
+    def scan_a_scan_point(self, scan_point, uid_to_user=None):
+        if not self.scan_point_is_valid(scan_point):
+            return
+
+        self.logger.info("Scanning scan point %s", scan_point)
+
+        tree = PathTree(scan_point, uid_to_user=uid_to_user)
+        tree.walk()
+
+        root = tree.root
+        if root is not None:
+            self.logger.info("Total number of paths under %s found: %d",
+                             tree.path, root.num_subtree_nodes)
+        else:
+            self.logger.warning("Tree root for %s is None.", tree.path)
+
+        if self.smtp is None:
+            self.logger.warning("stmp is not configured. Skip email.")
+            return
+
+        self.process_emails_for_tree(tree, scan_point)
+
+        self.delete_expired_nodes(tree)
 
     def scan(self):
         """Scans each scan_point and finds overweight nodes. Sends alert."""
-        uid_user = self.get_uid_user()
+        uid_to_user = self.get_uid_to_user()
 
         for sp in self.scan_points:
-            # device_mount, user_percent_alert_threshold, path must exist
-            if "device_mount" not in sp:
-                self.logger.warning("device_mount missing in %s. Skip.", sp)
-                continue
-            device_mount = sp["device_mount"]
-
-            if "path" not in sp:
-                self.logger.warning("path missing in %s. Skip.", sp)
-                continue
-            path = sp["path"]
-            alias = sp["alias"] if "alias" in sp else path
-
-            if "used_percent_alert_threshold" not in sp:
-                self.logger.warning("user_percent_alert_threshold missing in "
-                                    "%s. Setting to 90.", sp)
-                sp["used_percent_alert_threshold"] = 90
-            used_percent_alert_threshold = \
-                float(sp["used_percent_alert_threshold"])
-
-            # Only scan if alert threshold is reached
-            used_percent = self.scan_point_used_percent(device_mount)
-            if used_percent is None:
-                self.logger.warning("used_percent is None. Skip.")
-                continue
-
-            if used_percent < used_percent_alert_threshold:
-                self.logger.info("%s used percent %s < threshold %s. Skip.",
-                                 sp, used_percent, used_percent_alert_threshold)
-                continue
-
-            if "overweight_threshold" not in sp:
-                self.logger.info("overweight_threshold does not exist in %s. "
-                                 "Using parent overweight_threshold %d.",
-                                 sp, self.overweight_threshold)
-                sp["overweight_threshold"] = self.overweight_threshold
-
-            if "expiry_days" not in sp:
-                self.logger.info("expiry_days does not exist in %s. "
-                                 "Using parent expiry_days %d.",
-                                 sp, self.expiry_days)
-                sp["expiry_days"] = self.expiry_days
-
-            if not os.path.exists(sp["path"]):
-                self.logger.warning("%s is absent in file system. Skip.", sp)
-                continue
-
-            sp["now"] = self.last_now
-
-            self.logger.info("Scanning scan point %s", sp)
-
-            tree = PathTree(sp, uid_user=uid_user)
-            tree.walk()
-
-            root = tree.root
-            if root is not None:
-                self.logger.info("Total number of paths under %s found: %d",
-                                 tree.path, root.num_subtree_nodes)
-            else:
-                self.logger.warning("Tree root for %s is None.", tree.path)
-
-            overweight_nodes = tree.overweight_boundary_nodes
-
-            if self.smtp is None:
-                self.logger.warning("stmp is not configured. Skip email.")
-                continue
-
-            # Group overweight nodes by user
-            user_overweight_nodes = {}
-            default_recipient = self.smtp.get("default_recipients", None)
-            self.logger.info("default recipient is %s", default_recipient)
-
-            for node in overweight_nodes:
-                owner = node.owner
-                if owner == "" and default_recipient is None:
-                    continue
-                elif owner == "" and default_recipient is not None:
-                    owner = default_recipient
-
-                if owner not in user_overweight_nodes:
-                    user_overweight_nodes[owner] = []
-                user_overweight_nodes[owner].append(node)
-
-            for owner, nodes in user_overweight_nodes.items():
-                self.logger.info("Overweight (> %d) boundary paths for %s:",
-                                 tree.overweight_threshold, owner)
-                for node in nodes:
-                    self.logger.info(node)
-
-                recipients = owner.split(",")
-                cc = self.smtp["cc"].split(",")
-
-                subject = "[%s]" % self.cluster_name
-                if "vc" in sp:
-                    subject += "[%s]" % sp["vc"]
-
-                subject += "[Storage Manager][%s] Storage usage of %s is at " \
-                           "%s%% > %s%%" % \
-                           (owner.split("@")[0],
-                            alias,
-                            used_percent,
-                            used_percent_alert_threshold)
-
-                content = "%s storage mountpoint %s usage is at %s%% > %s%%. " \
-                          "Full list of your oversized boundary paths (> %s) " \
-                          "is in the attached CSV. " \
-                          "Please help reduce the size.\n\n" % \
-                          (self.cluster_name,
-                           alias,
-                           used_percent,
-                           used_percent_alert_threshold,
-                           bytes2human_readable(self.overweight_threshold))
-
-                header = "size_in_bytes,readable_size,owner,path\n"
-
-                preview_len = min(20, len(nodes))
-                content += header
-                for node in nodes[0:preview_len]:
-                    content += "%s,%s,%s,%s\n" % (
-                        node.subtree_size,
-                        bytes2human_readable(node.subtree_size),
-                        node.owner,
-                        node.path.replace(path, alias, 1))
-                if preview_len < len(nodes):
-                    content += "...\n"
-
-                data = header
-                for node in nodes:
-                    cur_node = "%s,%s,%s,%s\n" % (
-                        node.subtree_size,
-                        bytes2human_readable(node.subtree_size),
-                        node.owner,
-                        node.path.replace(path, alias, 1))
-                    data += cur_node
-
-                report = {
-                    "filename": "oversized_boundary_paths_%s.csv" %
-                                str(int(time.time())),
-                    "data": data
-                }
-
-                self.send_email(recipients, cc, subject, content, report)
+            self.logger.info("Scanning scan_point: %s", sp)
+            self.scan_a_scan_point(sp, uid_to_user=uid_to_user)

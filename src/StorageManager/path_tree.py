@@ -15,25 +15,32 @@ class PathTree(object):
         expiry: Nodes are expired if access time is earlier than this.
         root: Tree root that holds the file system PathTree.
     """
-    def __init__(self, config, uid_user=None):
+    def __init__(self, config, uid_to_user=None):
         """Constructs a PathTree object.
 
         Args:
             config: Configuration for creating PathTree.
-            uid_user: UID -> user mapping
+            uid_to_user: UID -> user mapping
         """
         self.logger = logging.getLogger()
         self.path = config["path"]
         self.overweight_threshold = config["overweight_threshold"]
         self.expiry = datetime.fromtimestamp(config["now"]) - \
-            timedelta(days=config["expiry_days"])
+            timedelta(days=int(config["expiry_days"]))
+        self.expiry_delete = None
+        if config.get("days_to_delete_after_expiry") is not None:
+            expiry_delete_days = int(config["expiry_days"]) + \
+                                 int(config["days_to_delete_after_expiry"])
+            self.expiry_delete = datetime.fromtimestamp(config["now"]) - \
+                timedelta(days=expiry_delete_days)
 
-        self.uid_user = uid_user
+        self.uid_to_user = uid_to_user
 
         self.root = None
 
         self.overweight_boundary_nodes = []
         self.expired_boundary_nodes = []
+        self.expired_boundary_nodes_to_delete = []
         self.empty_boundary_nodes = []
 
     def walk(self):
@@ -54,7 +61,7 @@ class PathTree(object):
             self.logger.warning("Ignore path %s due to exception %s", root, e)
             return None
 
-        root_node = PathNode(root, uid_user=self.uid_user)
+        root_node = PathNode(root, uid_to_user=self.uid_to_user)
 
         dirs, nondirs = [], []
         for pathname in pathnames:
@@ -85,7 +92,7 @@ class PathTree(object):
 
         for pathname in nondirs:
             child_file = os.path.join(root, pathname)
-            path_node = PathNode(child_file, uid_user=self.uid_user)
+            path_node = PathNode(child_file, uid_to_user=self.uid_to_user)
             children.append(path_node)
             root_node.subtree_size += path_node.subtree_size
             if path_node.subtree_atime > root_node.subtree_atime:
@@ -111,6 +118,12 @@ class PathTree(object):
             for child in children:
                 if child.subtree_atime < self.expiry:
                     self.expired_boundary_nodes.append(child)
+
+        if self.expiry_delete is not None:
+            if root_node.subtree_atime > self.expiry_delete:
+                for child in children:
+                    if child.subtree_atime < self.expiry_delete:
+                        self.expired_boundary_nodes_to_delete.append(child)
 
         if root_node.num_subtree_files > 0:
             for child in children:

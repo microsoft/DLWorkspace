@@ -89,10 +89,10 @@ class TestPathTree(TestCase):
     @patch("os.path.isdir")
     @patch("os.stat")
     def test_walk_on_valid_path(self,
-                  mock_stat,
-                  mock_isdir,
-                  mock_islink,
-                  mock_listdir):
+                                mock_stat,
+                                mock_isdir,
+                                mock_islink,
+                                mock_listdir):
         mock_stat.side_effect = stat_side_effect
         mock_isdir.side_effect = isdir_side_effect
         mock_islink.return_value = False
