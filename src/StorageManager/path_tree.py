@@ -126,13 +126,13 @@ class PathTree(object):
             if all_children_underweight:
                 self.overweight_boundary_nodes.append(root_node)
 
-        if root_node.subtree_atime > self.expiry:
+        if root_node.subtree_atime >= self.expiry:
             for child in children:
                 if child.subtree_atime < self.expiry:
                     self.expired_boundary_nodes.append(child)
 
         if self.expiry_delete is not None:
-            if root_node.subtree_atime > self.expiry_delete:
+            if root_node.subtree_atime >= self.expiry_delete:
                 for child in children:
                     if child.subtree_atime < self.expiry_delete:
                         self.expired_boundary_nodes_to_delete.append(child)

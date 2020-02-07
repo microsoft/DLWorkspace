@@ -102,7 +102,7 @@ class TestPathTree(TestCase):
             "path": TEST_DIR,
             "overweight_threshold": 10000,
             "expiry_days": 1,
-            "days_to_delete_after_expiry": 2,
+            "days_to_delete_after_expiry": 1,
             "now": 1574203167,
             "regex_whitelist": ["^%s$" % FILE2_2]
         }

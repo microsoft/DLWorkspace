@@ -1,6 +1,7 @@
-import os, time
-os.environ["TZ"] = "UTC"
-time.tzset()
+import os
+import time
+# os.environ["TZ"] = "UTC"
+# time.tzset()
 
 
 class DummyNodeStat(object):
