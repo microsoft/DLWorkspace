@@ -29,6 +29,10 @@ def dedup_add(item, entries, identical):
     return entries
 
 
+def b64encode(str_val):
+    return base64.b64encode(str_val.encode("utf-8")).decode("utf-8")
+
+
 class Job:
     def __init__(self,
                  cluster,
@@ -366,22 +370,14 @@ class Job:
 
             # Reassign everything for clarity
             bf = {
-                "enabled":
-                True,
-                "name":
-                name,
-                "secreds":
-                "%s-blobfuse-%d-secreds" % (self.job_id, i),
-                "accountName":
-                base64.b64encode(account_name.encode("utf-8")).decode("utf-8"),
-                "accountKey":
-                base64.b64encode(account_key.encode("utf-8")).decode("utf-8"),
-                "containerName":
-                container_name,
-                "mountPath":
-                mount_path,
-                "jobId":
-                self.job_id,
+                "enabled": True,
+                "name": name,
+                "secreds": "%s-blobfuse-%d-secreds" % (self.job_id, i),
+                "accountName": b64encode(account_name),
+                "accountKey": b64encode(account_key),
+                "containerName": container_name,
+                "mountPath": mount_path,
+                "jobId": self.job_id,
             }
 
             if root_tmppath is not None:
@@ -403,10 +399,8 @@ class Job:
     def get_image_pull_secret_plugins(self, plugins):
         """Constructs and returns a list of imagePullSecrets plugins."""
 
-        enable_custom_registry_secrets = self.get_enable_custom_registry_secrets(
-        )
-        if enable_custom_registry_secrets is None or \
-                enable_custom_registry_secrets is False:
+        is_enabled = self.get_enable_custom_registry_secrets()
+        if is_enabled is None or is_enabled is False:
             return []
 
         image_pull_secrets = []
@@ -420,14 +414,11 @@ class Job:
                     invalid_entry(password):
                 continue
 
-            auth = base64.b64encode(
-                ("%s:%s" %
-                 (username, password)).encode("utf-8")).decode("utf-8")
+            auth = b64encode(("%s:%s" % (username, password)))
 
             auths = {"auths": {registry: {"auth": auth}}}
 
-            dockerconfigjson = base64.b64encode(
-                json.dumps(auths).encode("utf-8")).decode("utf-8")
+            dockerconfigjson = b64encode(json.dumps(auths))
 
             secret = {
                 "enabled": True,

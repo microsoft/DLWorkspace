@@ -636,14 +636,15 @@ class LauncherStub(Launcher):
                 "imagePull": image_pull_secret_template
             }
             if job_object.params["jobtrainingtype"] == "RegularJob":
-                pod_template = RegularJob(job_object.get_template(),
-                                          secret_templates=secret_templates)
+                pod_template = RegularJobTemplate(
+                    job_object.get_template(),
+                    secret_templates=secret_templates)
             elif job_object.params["jobtrainingtype"] == "PSDistJob":
                 pod_template = DistributeJobTemplate(
                     job_object.get_template(),
                     secret_templates=secret_templates)
             elif job_object.params["jobtrainingtype"] == "InferenceJob":
-                pod_template = InferenceJob(
+                pod_template = InferenceJobTemplate(
                     job_object.get_template(),
                     deployment_template=job_object.get_deployment_template(),
                     secret_templates=secret_templates)
