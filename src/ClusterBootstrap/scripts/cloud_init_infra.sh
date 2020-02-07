@@ -1,0 +1,87 @@
+#!/bin/bash
+# read in env variables if necessary
+bash ./prepare_vm_disk.sh
+bash ./prepare_ubuntu.sh
+bash ./disable_kernel_auto_updates.sh
+bash ./docker_network_gc_setup.sh
+bash ./dns.sh
+
+# TODO if necessary, later make it filemap4$ROLE
+source ../boot.env
+awk -F, '{print $1, $2}' infra.filemap | xargs -l ./mkdir_and_cp.sh
+sudo systemctl stop etcd3
+sudo mkdir -p /etc/etcd/ssl
+sudo chown $USER /etc/etcd/ssl
+chmod +x /opt/etcd_ssl.sh
+sudo /opt/etcd_ssl.sh
+echo $ETCDSERVER1
+
+# or reference:
+until curl --cacert /etc/etcd/ssl/ca.pem --cert /etc/etcd/ssl/etcd.pem --key /etc/etcd/ssl/etcd-key.pem https://$ETCDSERVER1:$ETCDPORT1/v2/keys; do
+    sleep 5;
+    echo 'waiting for ETCD service...';
+done;
+
+bash ./init_network.sh
+# render ip to kube-apiserver.yaml
+
+MASTER_IP=$(cat /opt/defaultip)
+sed 's/$MASTER_IP/'"$MASTER_IP"'/g;s/$ETCD_ENDPOINTS/'"$ETCD_ENDPOINTS"'/g' /etc/kubernetes/manifests/kube-apiserver.yaml > rendered.kube-apiserver.yaml
+sudo cp rendered.kube-apiserver.yaml /etc/kubernetes/manifests/kube-apiserver.yaml
+
+# start kubernetes service
+python3 render_kube_service.py -t infra.kubelet.service.template -r infra.kubelet.service -nt $KUBE_LABELS
+sudo cp infra.kubelet.service /etc/systemd/system/kubelet.service
+bash ./pre-master-deploy.sh
+bash ./post-master-deploy.sh
+
+until curl -q http://127.0.0.1:8080/version/ ; do
+    sleep 30;
+    echo 'waiting for master kubernetes service...';
+done;
+
+until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/weave.yaml --validate=false ; do
+    sleep 5;
+    echo 'waiting for master kube-addons weave...';
+done ;
+
+until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/dashboard.yaml --validate=false ; do
+    sleep 5;
+    echo 'waiting for master kube-addons dashboard...';
+done ;
+
+until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/dns-addon.yml --validate=false ;  do
+    sleep 5;
+    echo 'waiting for master kube-addons dns-addon...';
+done ;
+
+until sudo /opt/bin/kubectl apply -f /opt/addons/kube-addons/kube-proxy.json --validate=false ;  do
+    sleep 5;
+    echo 'waiting for master kube-addons kube-proxy.json...';
+done ;
+
+until sudo /opt/bin/kubectl create -f /etc/kubernetes/clusterroles/ ;  do
+    sleep 5;
+    echo 'waiting for master kubernetes clusterroles...';
+done ;
+sudo ln -s /opt/bin/kubectl /usr/bin/;
+
+#mount
+bash ./fileshare_install.sh
+bash ./mnt_fs_svc.sh
+
+#start services
+IFS=';' read -ra services <<< $KUBE_SERVICES
+
+for svc in "${services[@]}"; do
+    cntr=2
+    until kubectl create -f $svc ; do
+        sleep 5;
+        cntr=$((cntr-1))
+        echo "waiting for ${svc}, ${cntr} more attempts"
+        if [ "$cntr" -le 0 ]; then
+            break
+        fi
+    done
+done
+bash ./pass_secret.sh

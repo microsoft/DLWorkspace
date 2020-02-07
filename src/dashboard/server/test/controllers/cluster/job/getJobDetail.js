@@ -1,12 +1,11 @@
 const axiosist = require('axiosist')
-const sinon = require('sinon')
 const nock = require('nock')
 const User = require('../../../../api/services/user')
 const api = require('../../../../api').callback()
 
 const userParams = {
   email: 'dlts@example.com',
-  token: User.generateToken('dlts@example.com').toString('hex')
+  password: User.generateToken('dlts@example.com').toString('hex')
 }
 
 // search params for getJob, getCommands and getEndpoints
@@ -27,7 +26,6 @@ describe('GET /clusters/:clusterId/jobs/:jobId', () => {
       .reply(200, {
         message: 'job detail retrieved'
       })
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/clusters/Universe/jobs/testjob', {
       params: userParams
@@ -41,7 +39,6 @@ describe('GET /clusters/:clusterId/jobs/:jobId', () => {
     nock('http://universe')
       .get('/GetJobDetail?' + getJobParams)
       .reply(500)
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/clusters/Universe/jobs/testjob', {
       params: userParams
@@ -59,7 +56,6 @@ describe('GET /clusters/:clusterId/jobs/:jobId/status', () => {
         jobStatus: 'OK',
         errorMsg: null
       })
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/clusters/Universe/jobs/testjob/status', {
       params: userParams
@@ -73,7 +69,6 @@ describe('GET /clusters/:clusterId/jobs/:jobId/status', () => {
     nock('http://universe')
       .get('/GetJobStatus?' + getJobStatusParams)
       .reply(500)
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/clusters/Universe/jobs/testjob/status', {
       params: userParams
@@ -89,7 +84,6 @@ describe('GET /clusters/:clusterId/jobs/:jobId/status', () => {
         jobStatus: 'an error happened',
         errorMsg: 'Job Status Not Found'
       })
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/clusters/Universe/jobs/testjob/status', {
       params: userParams
@@ -107,7 +101,6 @@ describe('GET /clusters/:clusterId/jobs/:jobId/commands', () => {
       .reply(200, {
         commands: 'test job commands'
       })
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/clusters/Universe/jobs/testjob/commands', {
       params: userParams
@@ -121,7 +114,6 @@ describe('GET /clusters/:clusterId/jobs/:jobId/commands', () => {
     nock('http://universe')
       .get('/GetCommands?' + getJobParams)
       .reply(500)
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/clusters/Universe/jobs/testjob/commands', {
       params: userParams
@@ -138,7 +130,6 @@ describe('GET /clusters/:clusterId/jobs/:jobId/endpoints', () => {
       .reply(200, {
         endpoints: 'test job endpoints'
       })
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/clusters/Universe/jobs/testjob/endpoints', {
       params: userParams
@@ -152,7 +143,6 @@ describe('GET /clusters/:clusterId/jobs/:jobId/endpoints', () => {
     nock('http://universe')
       .get('/endpoints?' + getJobParams)
       .reply(500)
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/clusters/Universe/jobs/testjob/endpoints', {
       params: userParams

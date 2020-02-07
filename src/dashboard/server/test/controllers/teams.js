@@ -1,6 +1,5 @@
 const axiosist = require('axiosist')
 const config = require('config')
-const sinon = require('sinon')
 const nock = require('nock')
 const api = require('../../api').callback()
 const User = require('../../api/services/user')
@@ -30,7 +29,7 @@ posTeamData['Targaryen'] = {
 
 const userParams = {
   email: 'dlts@example.com',
-  token: User.generateToken('dlts@example.com').toString('hex')
+  password: User.generateToken('dlts@example.com').toString('hex')
 }
 
 const fetchParams = new URLSearchParams({
@@ -39,12 +38,11 @@ const fetchParams = new URLSearchParams({
 
 describe('GET /teams', () => {
   it('[P-01] should return the teams info of cluster', async () => {
-    for(let key in clusterConfig) {
+    for (let key in clusterConfig) {
       nock(clusterConfig[key]['restfulapi'])
         .get('/ListVCs?' + fetchParams)
         .reply(200, posTeamData[key])
     }
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/teams', {
       params: userParams
@@ -57,7 +55,7 @@ describe('GET /teams', () => {
   })
 
   it('[N-01] should return empty gpus info with incorrect metadata or quota format', async () => {
-    for(let key in clusterConfig) {
+    for (let key in clusterConfig) {
       // team data for the wrong format negative case
       const negTeamData = {
         result: [{
@@ -72,7 +70,6 @@ describe('GET /teams', () => {
         .get('/ListVCs?' + fetchParams)
         .reply(200, negTeamData)
     }
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/teams', {
       params: userParams
@@ -85,7 +82,7 @@ describe('GET /teams', () => {
   })
 
   it('[N-02] response data should be empty when there is a server error', async () => {
-    for(let key in clusterConfig) {
+    for (let key in clusterConfig) {
       // team data for the empty data case
       const negTeamData = {
         result: {}
@@ -95,7 +92,6 @@ describe('GET /teams', () => {
         .get('/ListVCs?' + fetchParams)
         .reply(500, negTeamData)
     }
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/teams', {
       params: userParams

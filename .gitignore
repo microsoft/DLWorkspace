@@ -11,6 +11,7 @@
 **/id_rsa
 **/id_rsa.pub
 **/deploy/*
+src/ClusterBootstrap/*.yaml
 
 *.iso
 *.srl
@@ -29,8 +30,12 @@ src/ClusterBootstrap/.nfs*
 src/ClusterBootstrap/iso-creator/mkimg.sh
 
 src/ClusterBootstrap/deploy_backup/*
+src/ClusterBootstrap/cloudinit/*
+src/ClusterBootstrap/cloudinit.tar
 
-
+src/ClusterBootstrap/scripts/deploy_framework.sh
+src/ClusterBootstrap/scripts/add_machines.sh
+src/ClusterBootstrap/scripts/pass_secret.sh
 
 #ASP.NET core
 src/WebUI/dotnet/.vs/**
@@ -72,5 +77,6 @@ src/ClusterBootstrap/services/jobmanager/dlws-scripts.yaml
 src/ClusterBootstrap/services/monitor/alerting/kill-idle.rules
 src/ClusterBootstrap/template/*config.yaml.template
 
+**/.vscode/*
 .idea
 venv

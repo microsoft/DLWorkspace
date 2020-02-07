@@ -208,7 +208,7 @@
         "schedulerName": "default-scheduler"
     },
     "status": {
-        "phase": "Failed",
+        "phase": "Running",
         "conditions": [
             {
                 "type": "Initialized",

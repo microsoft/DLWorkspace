@@ -1,5 +1,4 @@
 const axiosist = require('axiosist')
-const sinon = require('sinon')
 const nock = require('nock')
 const config = require('config')
 const api = require('../../../api').callback()
@@ -9,7 +8,7 @@ const clusterConfig = config.get('clusters')
 
 const userParams = {
   email: 'dlts@example.com',
-  token: User.generateToken('dlts@example.com').toString('hex'),
+  password: User.generateToken('dlts@example.com').toString('hex'),
   teamId: 'testteam',
   templateName: 'newtemplate'
 }
@@ -23,14 +22,13 @@ const deleteTemplateParams = new URLSearchParams({
 
 describe('DELETE /teams/:teamId/templates/:templateName', () => {
   it('should return 204 if template deleted successfully', async () => {
-    for(let key in clusterConfig) {
+    for (let key in clusterConfig) {
       nock(clusterConfig[key]['restfulapi'])
         .delete('/templates?' + deleteTemplateParams)
         .reply(200, {
           message: 'template deleted successfully'
         })
     }
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).delete('/teams/testteam/templates/newtemplate', {
       params: userParams
@@ -40,12 +38,11 @@ describe('DELETE /teams/:teamId/templates/:templateName', () => {
   })
 
   it('should return 502 if template deleting failed', async () => {
-    for(let key in clusterConfig) {
+    for (let key in clusterConfig) {
       nock(clusterConfig[key]['restfulapi'])
         .delete('/templates?' + deleteTemplateParams)
         .reply(500)
     }
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).delete('/teams/testteam/templates/newtemplate', {
       params: userParams

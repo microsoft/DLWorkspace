@@ -24,14 +24,9 @@ function retry {
 }
 
 function setup_sshd {
-    # if "DLWS_HOST_NETWORK" enabled, randomly generate port in range: 40000-49999
-    if [ "$DLWS_HOST_NETWORK" = "enable" ];
-    then
-        SSH_PORT=$DLWS_SD_SELF_SSH_PORT
-        sed -i -E "s/^#?Port 22/Port ${SSH_PORT}/" /etc/ssh/sshd_config || exit 1
-    else
-        SSH_PORT=22
-    fi
+    SSH_PORT=$DLWS_SD_SELF_SSH_PORT
+    sed -i -E "s/^#?Port 22/Port ${SSH_PORT}/" /usr/etc/sshd_config || exit 1
+
     echo "${SSH_PORT}" > ${PROC_DIR}/SSH_PORT
     echo "${POD_IP}" > ${PROC_DIR}/POD_IP
 

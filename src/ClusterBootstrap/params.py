@@ -51,6 +51,7 @@ default_config_parameters = {
             "restful-url": "http://localhost:5000",
         }
     },
+    "repair-manager": { "prometheus-ip": "localhost", "prometheus-port": 9091},
 
     "mysql_port": "3306",
     "mysql_username": "root",
@@ -80,6 +81,7 @@ default_config_parameters = {
     "admin_username": "core",
     # the path of where dfs/nfs is source linked and consumed on each node,
     # default /dlwsdata
+    "nfs-mnt-src-path": "/data/share",
     "storage-mount-path": "/dlwsdata",
     # the path where dlts vc storages are linked and consumed on each node.
     # TODO: merge with storage-mount-path when dlts vc migration completes.
@@ -89,8 +91,10 @@ default_config_parameters = {
     # the path of where local device is mounted.
     "local-mount-path": "/mnt",
 
+    "physical-mount-path-vc": "/mntdlts/nfs",
+
     # required storage folder under storage-mount-path
-    "default-storage-folders": ["jobfiles", "storage", "work", "namenodeshare"],
+    "default-storage-folders": ["jobfiles", "storage", "work"],
     "per_user_gpu_limit": "-1",
 
     # the path of where nvidia driver is installed on each node, default
@@ -422,8 +426,8 @@ default_config_parameters = {
     "DeployAuthentications": ["Corp", "Live", "Gmail"],
     # You should remove WinBindServers if you will use
     # UserGroups for authentication.
-    "workFolderAccessPoint": "",
-    "dataFolderAccessPoint": "",
+    "workFolderAccessPoint": "/",
+    "dataFolderAccessPoint": "/",
 
     "kube_configchanges": ["/opt/addons/kube-addons/weave.yaml"],
     "kube_addons": ["/opt/addons/kube-addons/dashboard.yaml",
@@ -632,7 +636,7 @@ default_config_parameters = {
         "container": {},
     },
 
-    "cloud_config": {
+    "cloud_config_nsg_rules": {
         "vnet_range": "192.168.0.0/16",
         "default_admin_username": "dlwsadmin",
         "tcp_port_for_pods": "30000-49999",
@@ -689,6 +693,14 @@ default_config_parameters = {
         "Standard_NC24rs_v3": {"gpu-type": "V100", "gpu-count": 4},
         "Standard_NC24rs_v2": {"gpu-type": "P100", "gpu-count": 4},
         "default": {"gpu-type": "None", "gpu-count": 0},
+    },
+    "service_2_docker_map": {
+        "monitor": ["watchdog", "gpu-reporter", "reaper", "job-exporter"],
+        "dashboard": ["dashboard"],
+        "restfulapi": ["restfulapi"],
+        "repairmanager": ["repairmanager"],
+        "storagemanager": ["storagemanager"],
+        "user-synchronizer": ["user-synchronizer"],
     },
     "infiniband_mounts": [],
     "custom_mounts": [],

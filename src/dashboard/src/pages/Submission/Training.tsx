@@ -74,7 +74,7 @@ const sanitizePath = (path: string) => {
 }
 const Training: React.ComponentClass = withRouter(({ history }) => {
   const { selectedCluster,saveSelectedCluster } = React.useContext(ClustersContext);
-  const { email, uid } = React.useContext(UserContext);
+  const { email } = React.useContext(UserContext);
   const { teams, selectedTeam }= React.useContext(TeamsContext);
   //const team = 'platform';
   const [showGPUFragmentation, setShowGPUFragmentation] = React.useState(false)
@@ -199,7 +199,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
   const [accountKey, setAccountKey] = React.useState("");
   const [containerName, setContainerName] = React.useState("");
   const [mountPath, setMountPath] = React.useState("");
-  const [mountOptions, setMountOptions] = React.useState("--file-cache-timeout-in-seconds=120");
+  const [mountOptions, setMountOptions] = React.useState("");
   const onAccountNameChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       setAccountName(event.target.value);
@@ -379,7 +379,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       blobfuseObj['accountKey'] = accountKey || '';
       blobfuseObj['containerName'] = containerName || '';
       blobfuseObj['mountPath'] = mountPath || '';
-      blobfuseObj['mountOptions'] = mountOptions;
+      blobfuseObj['mountOptions'] = mountOptions || '';
       plugins['blobfuse'].push(blobfuseObj);
 
       plugins['imagePull'] = [];
@@ -525,7 +525,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
           setAccountKey("");
           setContainerName("");
           setMountPath("");
-          setMountOptions("--file-cache-timeout-in-seconds=120");
+          setMountOptions("");
           setDockerRegistry("")
           setDockerUsername("")
           setDockerPassword("")
@@ -593,7 +593,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     blobfuseObj['accountKey'] = accountKey || '';
     blobfuseObj['containerName'] = containerName || '';
     blobfuseObj['mountPath'] = mountPath || '';
-    blobfuseObj['mountOptions'] = mountOptions;
+    blobfuseObj['mountOptions'] = mountOptions || '';
     plugins['blobfuse'].push(blobfuseObj);
     plugins['imagePull'] = [];
     let imagePullObj: any = {};
@@ -603,7 +603,6 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
     plugins['imagePull'].push(imagePullObj)
     const job: any = {
       userName: email,
-      userId: uid,
       jobType: 'training',
       gpuType: gpuModel,
       vcName: selectedTeam,

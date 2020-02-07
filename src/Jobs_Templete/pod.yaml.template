@@ -132,11 +132,15 @@ spec:
       valueFrom:
         fieldRef:
           fieldPath: status.podIP
+    {% if job["hostNetwork"] %}
+    - name: DLWS_HOST_NETWORK
+      value: "enable"
+    {% endif %}
   containers:
   - name: {{ job["podName"] }}
     image: {{ job["image"] }}
     imagePullPolicy: Always
-    command: {{ job["LaunchCMD"] }}
+    command: ["bash", "/pod/scripts/bootstrap.sh"]
     readinessProbe:
       exec:
         command: ["ls", "/pod/running/ROLE_READY"]
@@ -254,6 +258,10 @@ spec:
       value: "{{ job["user_email"] }}"
     - name: DLWS_VC_NAME
       value: {{ job["vcName"] }}
+    {% if job["hostNetwork"] %}
+    - name: DLWS_HOST_NETWORK
+      value: "enable"
+    {% endif %}
     {% for env in job["envs"] %}
     - name: {{env.name}}
       value: "{{env.value}}"
@@ -337,8 +345,6 @@ spec:
         {% endif %}
         {% if bf["mountOptions"] %}
         mountoptions: {{ bf["mountOptions"] }}
-        {% else %}
-        mountoptions: "--file-cache-timeout-in-seconds=120"
         {% endif %}
         {% endif %}
       {% endfor %}

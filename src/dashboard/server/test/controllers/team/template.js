@@ -1,5 +1,4 @@
 const axiosist = require('axiosist')
-const sinon = require('sinon')
 const nock = require('nock')
 const config = require('config')
 const api = require('../../../api').callback()
@@ -9,7 +8,7 @@ const clusterConfig = config.get('clusters')
 
 const userParams = {
   email: 'dlts@example.com',
-  token: User.generateToken('dlts@example.com').toString('hex'),
+  password: User.generateToken('dlts@example.com').toString('hex'),
   teamId: 'testteam',
   templateName: 'newtemplate'
 }
@@ -21,14 +20,13 @@ const getTemplatesParams = new URLSearchParams({
 
 describe('GET /teams/:teamId/templates', () => {
   it('should return template info', async () => {
-    for(let key in clusterConfig) {
+    for (let key in clusterConfig) {
       nock(clusterConfig[key]['restfulapi'])
         .get('/templates?' + getTemplatesParams)
         .reply(200, {
           name: key
         })
     }
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/teams/testteam/templates', {
       params: userParams
@@ -40,12 +38,11 @@ describe('GET /teams/:teamId/templates', () => {
   })
 
   it('response should be empty if templates getting failed', async () => {
-    for(let key in clusterConfig) {
+    for (let key in clusterConfig) {
       nock(clusterConfig[key]['restfulapi'])
         .get('/templates?' + getTemplatesParams)
         .reply(500)
     }
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/teams/testteam/templates', {
       params: userParams

@@ -17,7 +17,7 @@ def cordon_node(node_name, dry_run=True):
         return e.output.decode()
 
 
-def is_node_unschedulable(node_info, node_name):
+def is_node_cordoned(node_info, node_name):
     for node in node_info.items:
         for address in node.status.addresses:
             if address.type == 'Hostname' and address.address == node_name:

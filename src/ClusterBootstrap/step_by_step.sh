@@ -11,6 +11,7 @@ fi
 ./deploy.py runscriptonroles infra worker ./scripts/prepare_ubuntu.sh
 ./deploy.py runscriptonroles infra worker ./scripts/disable_kernel_auto_updates.sh
 ./deploy.py runscriptonroles infra worker ./scripts/docker_network_gc_setup.sh
+./deploy.py runscriptonroles infra worker ./script/disable_mlocate.sh
 ./deploy.py genscripts
 ./deploy.py runscriptonroles infra worker ./scripts/dns.sh
 ./deploy.py -y deploy
@@ -26,6 +27,7 @@ fi
 ./deploy.py docker push gpu-reporter
 ./deploy.py docker push reaper
 ./deploy.py docker push job-exporter
+./deploy.py docker push init-container
 ./deploy.py mount
 ./deploy.py kubernetes start mysql
 ./deploy.py kubernetes start jobmanager

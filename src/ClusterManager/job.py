@@ -1,25 +1,23 @@
-import sys
+#!/usr/bin/env python3
+
 import os
 import random
-import re
 import json
-from marshmallow import Schema, fields, post_load, validate
-from jinja2 import Environment, FileSystemLoader, Template
-
 import logging
 import logging.config
 import base64
-import yaml
 
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
+from marshmallow import Schema, fields, post_load, validate
+from jinja2 import Environment, FileSystemLoader, Template
 
 logger = logging.getLogger(__name__)
 
+
 def invalid_entry(s):
     return s is None or \
-           s == "" or \
-           s.lower() == "null" or \
-           s.lower() == "none"
+        s == "" or \
+        s.lower() == "null" or \
+        s.lower() == "none"
 
 
 def dedup_add(item, entries, identical):
@@ -87,13 +85,15 @@ class Job:
         # only allow alphanumeric in "name"
         if "name" not in mountpoint or mountpoint["name"] == "":
             mountpoint["name"] = mountpoint["containerPath"]
-        mountpoint["name"] = ''.join(c for c in mountpoint["name"] if c.isalnum() or c == "-")
+        mountpoint["name"] = ''.join(
+            c for c in mountpoint["name"] if c.isalnum() or c == "-")
 
         # skip duplicate entry
         # NOTE: mountPath "/data" is the same as "data" in k8s
         for item in self.mountpoints:
             if item["name"] == mountpoint["name"] or item["containerPath"].strip("/") == mountpoint["containerPath"].strip("/"):
-                logger.warn("Current mountpoint: %s is a duplicate of mountpoint: %s" % (mountpoint, item))
+                logger.warn(
+                    "Current mountpoint: %s is a duplicate of mountpoint: %s" % (mountpoint, item))
                 return
 
         self.mountpoints.append(mountpoint)
@@ -123,7 +123,8 @@ class Job:
 
     def data_path_mountpoint(self):
         assert(self.data_path is not None)
-        data_host_path = os.path.join(self.cluster["storage-mount-path"], "storage", self.data_path)
+        data_host_path = os.path.join(
+            self.cluster["storage-mount-path"], "storage", self.data_path)
         return {"name": "data", "containerPath": "/data", "hostPath": data_host_path, "enabled": True}
 
     def vc_custom_storage_mountpoints(self):
@@ -155,7 +156,8 @@ class Job:
 
     def vc_storage_mountpoints(self):
         vc_name = self.params["vcName"]
-        dltsdata_vc_path = os.path.join(self.cluster["dltsdata-storage-mount-path"], vc_name)
+        dltsdata_vc_path = os.path.join(
+            self.cluster["dltsdata-storage-mount-path"], vc_name)
         if not os.path.isdir(dltsdata_vc_path):
             return None
 
@@ -204,7 +206,8 @@ class Job:
 
     def _get_template(self, template_name):
         """Returns template instance based on template_name."""
-        path = os.path.abspath(os.path.join(self.cluster["root-path"], "Jobs_Templete", template_name))
+        path = os.path.abspath(os.path.join(
+            self.cluster["root-path"], "Jobs_Templete", template_name))
         env = Environment(loader=FileSystemLoader("/"))
         template = env.get_template(path)
         assert (isinstance(template, Template))
@@ -249,6 +252,15 @@ class Job:
 
     def get_vc_node_hard_assignment(self):
         return self._get_cluster_config("vc_node_hard_assignment")
+
+    def get_vc_without_shared_storage(self):
+        """Special VCs that do not have /data and /work"""
+        vc_without_shared_storage = self._get_cluster_config(
+            "vc_without_shared_storage")
+        if vc_without_shared_storage is None or \
+                not isinstance(vc_without_shared_storage, list):
+            vc_without_shared_storage = []
+        return vc_without_shared_storage
 
     def _get_cluster_config(self, key):
         if key in self.cluster:
@@ -303,7 +315,7 @@ class Job:
             return {}
 
         ret = {}
-        for plugin, plugin_config in plugins.items():
+        for plugin, plugin_config in list(plugins.items()):
             if plugin == "blobfuse" and isinstance(plugin_config, list):
                 blobfuse = self.get_blobfuse_plugins(plugin_config)
                 ret["blobfuse"] = blobfuse
@@ -321,7 +333,7 @@ class Job:
 
         def identical(e1, e2):
             return e1["name"] == e2["name"] or \
-                    e1["mountPath"] == e2["mountPath"]
+                e1["mountPath"] == e2["mountPath"]
 
         root_tmppath = None
         local_fast_storage = self.get_local_fast_storage()
@@ -348,15 +360,16 @@ class Job:
                 name = "%s-blobfuse-%d" % (self.job_id, i)
 
             # Reassign everything for clarity
-            bf = dict()
-            bf["enabled"] = True
-            bf["name"] = name
-            bf["secreds"] = "%s-blobfuse-%d-secreds" % (self.job_id, i)
-            bf["accountName"] = base64.b64encode(account_name)
-            bf["accountKey"] = base64.b64encode(account_key)
-            bf["containerName"] = container_name
-            bf["mountPath"] = mount_path
-            bf["jobId"] = self.job_id
+            bf = {
+                "enabled": True,
+                "name": name,
+                "secreds": "%s-blobfuse-%d-secreds" % (self.job_id, i),
+                "accountName": base64.b64encode(account_name.encode("utf-8")).decode("utf-8"),
+                "accountKey": base64.b64encode(account_key.encode("utf-8")).decode("utf-8"),
+                "containerName": container_name,
+                "mountPath": mount_path,
+                "jobId": self.job_id,
+            }
 
             if root_tmppath is not None:
                 # Make tmppath unique for each blobfuse mount
@@ -393,7 +406,8 @@ class Job:
                     invalid_entry(password):
                 continue
 
-            auth = base64.b64encode("%s:%s" % (username, password))
+            auth = base64.b64encode(
+                ("%s:%s" % (username, password)).encode("utf-8")).decode("utf-8")
 
             auths = {
                 "auths": {
@@ -403,7 +417,8 @@ class Job:
                 }
             }
 
-            dockerconfigjson = base64.b64encode(json.dumps(auths))
+            dockerconfigjson = base64.b64encode(
+                json.dumps(auths).encode("utf-8")).decode("utf-8")
 
             secret = {
                 "enabled": True,
@@ -428,11 +443,15 @@ class JobSchema(Schema):
                            # but certain resources have more specific restrictions.
                            validate=validate.Regexp(r'^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
                                                     error="'{input}' does not match expected pattern {regex}."))
-    email = fields.Email(required=True, dump_to="userName", load_from="userName")
+    email = fields.Email(required=True, dump_to="userName",
+                         load_from="userName")
     mountpoints = fields.Dict(required=False)
-    job_path = fields.String(required=False, dump_to="jobPath", load_from="jobPath")
-    work_path = fields.String(required=False, dump_to="workPath", load_from="workPath")
-    data_path = fields.String(required=False, dump_to="dataPath", load_from="dataPath")
+    job_path = fields.String(
+        required=False, dump_to="jobPath", load_from="jobPath")
+    work_path = fields.String(
+        required=False, dump_to="workPath", load_from="workPath")
+    data_path = fields.String(
+        required=False, dump_to="dataPath", load_from="dataPath")
     params = fields.Dict(required=False)
     plugins = fields.Dict(required=False)
 

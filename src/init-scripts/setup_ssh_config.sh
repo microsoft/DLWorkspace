@@ -23,7 +23,7 @@ fi
 # generate host list
 host_list="${ps_host_list} ${worker_host_list}"
 
-# generate ~/ssh_config
+# generate ~/.ssh/config
 SSH_CONFIG_FILE=/home/${DLWS_USER_NAME}/.ssh/config
 >${SSH_CONFIG_FILE}
 chown ${DLWS_USER_NAME} ${SSH_CONFIG_FILE}
@@ -54,7 +54,43 @@ Host ${host}
   UserKnownHostsFile /dev/null
 
 EOF
+    # also add entry to /etc/hosts
+    echo -e "${ip}\t${host}" >> /etc/hosts
 done
+
+envs=(
+LD_LIBRARY_PATH
+LIBRARY_PATH
+PATH
+PYTHONPATH
+NCCL_IB_DISABLE
+NCCL_VERSION
+DLWS_HOST_NETWORK
+DLWS_JOB_ID
+DLTS_JOB_TOKEN
+DLWS_NUM_PS
+DLWS_NUM_WORKER
+DLWS_NUM_GPU_PER_WORKER
+DLWS_NUM_WORKER
+DLWS_VC_NAME
+DLWS_UID
+DLWS_GID
+DLWS_USER_NAME
+DLWS_USER_EMAIL
+DLWS_ROLE_NAME
+DLWS_ROLE_IDX
+)
+
+SSH_ENVIRONMENT_FILE=/home/${DLWS_USER_NAME}/.ssh/environment
+for env_key in "${envs[@]}" ; do
+    if [ "`printenv $env_key`" != "" ] ; then
+        printf $env_key >> $SSH_ENVIRONMENT_FILE
+        printf = >> $SSH_ENVIRONMENT_FILE
+        printenv $env_key >> $SSH_ENVIRONMENT_FILE
+    fi
+done
+chown ${DLWS_USER_NAME} ${SSH_ENVIRONMENT_FILE}
+chmod 600 ${SSH_ENVIRONMENT_FILE}
 
 mkdir -p /root/.ssh && cp /home/${DLWS_USER_NAME}/.ssh/* /root/.ssh/ && chown root /root/.ssh/* && chmod 600 /root/.ssh/*
 
@@ -80,11 +116,12 @@ then
     for host in ${host_list}
     do
         succ=false
-        for i in `seq 1 100` ; do
+        for i in `seq 1 3600` ; do
             echo "testing $host"
             ssh $host "echo 1"
-            echo "done testing $host"
+            # do not add code here
             rtn=$?
+            echo "done testing $host"
             if [ "$rtn" -eq "0" ] ; then
                 succ=true
                 echo "$host has done sshd setup"
