@@ -2,10 +2,10 @@
 
 import os
 import sys
-import json
 import yaml
-from job import Job
 import copy
+
+from job import Job
 
 from jinja2 import Template
 
@@ -13,88 +13,16 @@ sys.path.append(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 
 from pod_template_utils import enable_cpu_config
-from osUtils import mkdirsAsUser
 
 
-class PodTemplate():
-    def __init__(self,
-                 template,
-                 deployment_template=None,
-                 secret_templates=None):
-        self.template = template
-        self.deployment_template = deployment_template
-        self.secret_templates = secret_templates
-
-    def generate_deployment(self, pod):
-        assert (isinstance(self.template, Template))
-        pod_yaml = self.deployment_template.render(job=pod)
-        return yaml.full_load(pod_yaml)
-
-    def generate_pod(self, pod, cmd):
-        assert (isinstance(self.template, Template))
-
-        pod_yaml = self.template.render(job=pod)
-        # because user's cmd can be multiple lines, should add after yaml load
-        pod_obj = yaml.full_load(pod_yaml)
-        pod_obj["spec"]["containers"][0]["env"].append({
-            "name": "DLWS_LAUNCH_CMD",
-            "value": cmd
-        })
-
-        return pod_obj
-
-    def generate_pods(self, job):
-        """
-        Return (pods, errors)
-        """
-        params, errors = self.generate_params(job)
-        if errors is not None:
-            return None, errors
-
-        k8s_pods = []
-        k8s_pod = self.generate_pod(params, params["cmd"])
-        k8s_pods.append(k8s_pod)
-
-        if params["jobtrainingtype"] == "InferenceJob":
-            pod = copy.deepcopy(params)
-            pod["numps"] = 0
-            pod["numworker"] = 1
-            pod["fragmentGpuJob"] = True
-            if "gpuLimit" not in pod:
-                pod["gpuLimit"] = pod["resourcegpu"]
-
-            pod["envs"].append({
-                "name": "DLWS_ROLE_NAME",
-                "value": "inferenceworker"
-            })
-            pod["envs"].append({
-                "name": "DLWS_NUM_GPU_PER_WORKER",
-                "value": "1"
-            })
-
-            pod_path = job.get_hostpath(job.job_path, "master")
-            pod["mountpoints"].append({
-                "name": "pod",
-                "containerPath": "/pod",
-                "hostPath": pod_path,
-                "enabled": True
-            })
-
-            pod["podName"] = job.job_id
-            pod["deployment_replicas"] = params["resourcegpu"]
-            pod["gpu_per_pod"] = 1
-
-            k8s_deployment = self.generate_deployment(pod)
-            k8s_pods.append(k8s_deployment)
-
-        return k8s_pods, None
-
+class JobTemplate(object):
     def generate_params(self, job):
         """
         Return (pods, errors)
         """
         assert (isinstance(job, Job))
         params = job.params
+
         if any(required_field not in params for required_field in [
                 "jobtrainingtype",
                 "jobName",
@@ -136,14 +64,13 @@ class PodTemplate():
         job.add_mountpoints(job.vc_custom_storage_mountpoints())
         job.add_mountpoints(job.vc_storage_mountpoints())
         params["mountpoints"] = job.mountpoints
+        params["init-container"] = os.environ["INIT_CONTAINER_IMAGE"]
 
         params["user_email"] = params["userName"]
         params["homeFolderHostpath"] = job.get_homefolder_hostpath()
         params["pod_ip_range"] = job.get_pod_ip_range()
-        params["usefreeflow"] = job.is_freeflow_enabled()
         params["jobNameLabel"] = ''.join(e for e in params["jobName"]
                                          if e.isalnum())
-        params["rest-api"] = job.get_rest_api_url()
 
         if "nodeSelector" not in params:
             params["nodeSelector"] = {}
@@ -161,10 +88,13 @@ class PodTemplate():
             else:
                 params["nodeSelector"]["vc"] = "default"
 
-        params = enable_cpu_config(params, job.cluster)
-
         if "envs" not in params:
             params["envs"] = []
+
+        params["envs"].append({
+            "name": "DLWS_NUM_GPU_PER_WORKER",
+            "value": str(params["resourcegpu"])
+        })
 
         job.add_plugins(job.get_plugins())
         params["plugins"] = job.plugins
@@ -173,32 +103,6 @@ class PodTemplate():
         nccl_ib_disable = job.get_nccl_ib_disable()
         if nccl_ib_disable is not None and nccl_ib_disable is True:
             params["nccl_ib_disable"] = True
-
-        params["envs"].append({"name": "DLWS_ROLE_NAME", "value": "master"})
-        params["envs"].append({
-            "name": "DLWS_NUM_GPU_PER_WORKER",
-            "value": str(params["resourcegpu"])
-        })
-        params["podName"] = job.job_id
-
-        params["numps"] = 0
-        params["numworker"] = 1
-        params["fragmentGpuJob"] = True
-        if "gpuLimit" not in params:
-            params["gpuLimit"] = params["resourcegpu"]
-
-        if params["jobtrainingtype"] == "InferenceJob":
-            params["gpuLimit"] = 0
-
-        # mount /pod
-        pod_path = job.get_hostpath(job.job_path, "master")
-        params["mountpoints"].append({
-            "name": "pod",
-            "containerPath": "/pod",
-            "hostPath": pod_path,
-            "enabled": True
-        })
-        params["init-container"] = os.environ["INIT_CONTAINER_IMAGE"]
 
         return params, None
 
@@ -247,3 +151,219 @@ class PodTemplate():
 
         secret_yaml = secret_template.render(plugin=plugin)
         return yaml.full_load(secret_yaml)
+
+
+class RegularJobTemplate(JobTemplate):
+    def __init__(self, template, secret_templates=None):
+        self.template = template
+        self.secret_templates = secret_templates
+
+    def generate_pods(self, job):
+        """
+        Return (pods, errors)
+        """
+        params, errors = self.generate_params(job)
+        if errors is not None:
+            return None, errors
+
+        pod_yaml = self.template.render(job=params)
+        # because user's cmd can be multiple lines, should add after yaml load
+        pod_obj = yaml.full_load(pod_yaml)
+        pod_obj["spec"]["containers"][0]["env"].append({
+            "name": "DLWS_LAUNCH_CMD",
+            "value": params["cmd"]
+        })
+
+        return [pod_obj], None
+
+    def generate_params(self, job):
+        params, error = super(RegularJobTemplate, self).generate_params(job)
+
+        params = enable_cpu_config(params, job.cluster)
+
+        params["envs"].append({"name": "DLWS_ROLE_NAME", "value": "master"})
+        params["podName"] = job.job_id
+
+        params["numps"] = 0
+        params["numworker"] = 1
+        params["fragmentGpuJob"] = True
+        if "gpuLimit" not in params:
+            params["gpuLimit"] = params["resourcegpu"]
+
+        # mount /pod
+        pod_path = job.get_hostpath(job.job_path, "master")
+        params["mountpoints"].append({
+            "name": "pod",
+            "containerPath": "/pod",
+            "hostPath": pod_path,
+            "enabled": True
+        })
+
+        return params, None
+
+
+class InferenceJobTemplate(JobTemplate):
+    def __init__(self,
+                 template,
+                 deployment_template=None,
+                 secret_templates=None):
+        self.template = template
+        self.deployment_template = deployment_template
+        self.secret_templates = secret_templates
+
+    def generate_pods(self, job):
+        """
+        Return (pods, errors)
+        """
+        params, errors = self.generate_params(job)
+        if errors is not None:
+            return None, errors
+
+        k8s_pods = []
+
+        pod_yaml = self.template.render(job=params)
+        pod_obj = yaml.full_load(pod_yaml)
+        # because user's cmd can be multiple lines, should add after yaml load
+        pod_obj["spec"]["containers"][0]["env"].append({
+            "name": "DLWS_LAUNCH_CMD",
+            "value": params["cmd"]
+        })
+        k8s_pods.append(pod_obj)
+
+        deployment_params = copy.deepcopy(params)
+
+        deployment_params["deployment_replicas"] = params["resourcegpu"]
+        deployment_params["LaunchCMD"] = params["cmd"]
+
+        deployment_yaml = self.deployment_template.render(
+            job=deployment_params)
+        deployment_obj = yaml.full_load(deployment_yaml)
+        # because user's cmd can be multiple lines, should add after yaml load
+        deployment_obj["spec"]["template"]["spec"]["containers"][0][
+            "env"].append({
+                "name": "DLWS_LAUNCH_CMD",
+                "value": params["cmd"]
+            })
+        k8s_pods.append(deployment_obj)
+
+        return k8s_pods, None
+
+    def generate_params(self, job):
+        params, error = super(InferenceJobTemplate, self).generate_params(job)
+
+        params = enable_cpu_config(params, job.cluster)
+
+        params["role_name"] = "master"
+        params["podName"] = job.job_id
+
+        params["numps"] = 0
+        params["numworker"] = 1
+        params["fragmentGpuJob"] = True
+        params["gpuLimit"] = 0
+
+        # mount /pod
+        pod_path = job.get_hostpath(job.job_path, "master")
+        params["mountpoints"].append({
+            "name": "pod",
+            "containerPath": "/pod",
+            "hostPath": pod_path,
+            "enabled": True
+        })
+
+        return params, None
+
+
+class DistributeJobTemplate(JobTemplate):
+    def __init__(self, template, secret_templates=None):
+        self.template = template
+        self.secret_templates = secret_templates
+
+    def generate_pod(self, pod):
+        assert (isinstance(self.template, Template))
+
+        dist_id = pod["distId"]
+        job_id = pod["jobId"]
+        job_path = pod["jobPath"]
+
+        pod["podName"] = "{}-{}".format(job_id, dist_id)
+
+        if (pod["role_name"] == "worker"):
+            pod["gpuLimit"] = pod["resourcegpu"]
+        else:
+            pod["gpuLimit"] = 0
+
+        if "envs" not in pod:
+            pod["envs"] = []
+        pod["envs"].append({"name": "DLWS_ROLE_IDX", "value": pod["role_idx"]})
+
+        pod_yaml = self.template.render(job=pod)
+        pod_obj = yaml.full_load(pod_yaml)
+        pod_obj["spec"]["containers"][0]["env"].append({
+            "name": "DLWS_LAUNCH_CMD",
+            "value": pod["cmd"]
+        })
+        return pod_obj
+
+    def generate_pods(self, job):
+        """
+        Return (pods, errors)
+        """
+        params, errors = self.generate_params(job)
+        if errors is not None:
+            return None, errors
+
+        pods = []
+        nums = {
+            "ps": int(params["numps"]),
+            "worker": int(params["numpsworker"])
+        }
+        for role in ["ps", "worker"]:
+            for idx in range(nums[role]):
+                pod = copy.deepcopy(params)
+                pod["role_name"] = role
+                pod["role_idx"] = idx
+                pod["distId"] = "%s%d" % (role, idx)
+                pod = enable_cpu_config(pod, job.cluster)
+                # ps should use the default 1 CPU and 0 memory configuration
+                if role == "ps":
+                    pod.pop("cpurequest", None)
+                    pod.pop("cpulimit", None)
+                    pod.pop("memoryrequest", None)
+                    pod.pop("memorylimit", None)
+
+                # mount /pod
+                local_pod_path = job.get_hostpath(job.job_path,
+                                                  "%s-%d" % (role, idx))
+                pod["mountpoints"].append({
+                    "name": "pod",
+                    "containerPath": "/pod",
+                    "hostPath": local_pod_path,
+                    "enabled": True
+                })
+
+                pods.append(pod)
+
+        k8s_pods = []
+        for pod in pods:
+            k8s_pod = self.generate_pod(pod)
+            k8s_pods.append(k8s_pod)
+
+        return k8s_pods, None
+
+    def generate_params(self, job):
+        params, error = super(DistributeJobTemplate, self).generate_params(job)
+
+        if error is not None:
+            return params, error
+
+        job.add_mountpoints(job.infiniband_mountpoints())
+
+        params["numworker"] = int(params["numpsworker"])
+        params["numps"] = int(params["numps"])
+
+        params["envs"].append({
+            "name": "DLWS_WORKER_NUM",
+            "value": str(params["numworker"])
+        })
+
+        return params, None

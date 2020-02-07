@@ -49,7 +49,7 @@ def post_regular_job(rest_url, email, uid, vc, image, cmd):
         "gpuType": "P40",
         "vcName": vc,
         "containerUserId": 0,
-        "jobName": "DeepScale1.0-Regular",
+        "jobName": "integration test case",
         "jobtrainingtype": "RegularJob",
         "preemptionAllowed": "False",
         "image": image,
@@ -82,7 +82,7 @@ def post_distributed_job(rest_url, email, uid, vc, image, cmd):
         "gpuType": "P40",
         "vcName": vc,
         "containerUserId": 0,
-        "jobName": "DeepScale1.0-Distributed",
+        "jobName": "integration test case",
         "jobtrainingtype": "PSDistJob",
         "preemptionAllowed": "False",
         "image": image,
@@ -115,7 +115,7 @@ def post_data_job(rest_url, email, uid, vc, image, cmd):
         "jobType": "training",
         "vcName": vc,
         "containerUserId": 0,
-        "jobName": "DLTS-Data-Job",
+        "jobName": "integration test case",
         "jobtrainingtype": "RegularJob",
         "preemptionAllowed": "False",
         "image": image,
@@ -137,6 +137,37 @@ def post_data_job(rest_url, email, uid, vc, image, cmd):
                          data=json.dumps(args))  # do not handle exception here
     jid = resp.json()["jobId"]
     logger.info("data job %s created", jid)
+    return jid
+
+
+def post_inference_job(rest_url, email, uid, vc, image, cmd):
+    args = {
+        "userName": email,
+        "jobType": "training",
+        "gpuType": "P40",
+        "vcName": vc,
+        "containerUserId": 0,
+        "jobName": "integration test case",
+        "jobtrainingtype": "InferenceJob",
+        "preemptionAllowed": "False",
+        "image": image,
+        "cmd": cmd,
+        "workPath": "./",
+        "enableworkpath": True,
+        "dataPath": "./",
+        "enabledatapath": True,
+        "jobPath": "",
+        "enablejobpath": True,
+        "env": [],
+        "hostNetwork": False,
+        "isPrivileged": False,
+        "resourcegpu": 1,  # num of worker
+    }
+    url = urllib.parse.urljoin(rest_url, "/PostJob")
+    resp = requests.post(url,
+                         data=json.dumps(args))  # do not handle exception here
+    jid = resp.json()["jobId"]
+    logger.info("inference job %s created", jid)
     return jid
 
 
@@ -255,6 +286,9 @@ class run_job(object):
         elif self.job_type == "data":
             self.jid = post_data_job(self.rest_url, self.email, self.uid,
                                      self.vc, self.image, self.cmd)
+        elif self.job_type == "inference":
+            self.jid = post_inference_job(self.rest_url, self.email, self.uid,
+                                          self.vc, self.image, self.cmd)
         else:
             logger.error("unknown job_type %s, wrong test case", self.job_type)
         return self
