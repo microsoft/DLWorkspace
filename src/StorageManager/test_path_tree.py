@@ -102,11 +102,20 @@ class TestPathTree(TestCase):
             "path": TEST_DIR,
             "overweight_threshold": 10000,
             "expiry_days": 1,
-            "now": 1574203167
+            "days_to_delete_after_expiry": 2,
+            "now": 1574203167,
+            "regex_whitelist": ["^%s$" % FILE2_2]
         }
         tree = PathTree(config)
         tree.walk()
 
         self.assertEqual(1, len(tree.overweight_boundary_nodes))
         self.assertEqual(2, len(tree.expired_boundary_nodes))
+        self.assertEqual(2, len(tree.expired_boundary_nodes_to_delete))
+        self.assertEqual(1, len(tree.empty_boundary_nodes))
+
+        tree.filter()
+        self.assertEqual(1, len(tree.overweight_boundary_nodes))
+        self.assertEqual(2, len(tree.expired_boundary_nodes))
+        self.assertEqual(1, len(tree.expired_boundary_nodes_to_delete))
         self.assertEqual(1, len(tree.empty_boundary_nodes))

@@ -59,12 +59,18 @@ class PathTree(object):
             return None
 
         try:
-            pathnames = os.listdir(root)
-        except Exception as e:
-            self.logger.warning("Ignore path %s due to exception %s", root, e)
+            root_node = PathNode(root, uid_to_user=self.uid_to_user)
+        except:
+            self.logger.warning("Ignore path %s due to exception", root,
+                                exc_info=True)
             return None
 
-        root_node = PathNode(root, uid_to_user=self.uid_to_user)
+        try:
+            pathnames = os.listdir(root)
+        except:
+            self.logger.warning("Ignore path %s due to exception", root,
+                                exc_info=True)
+            return None
 
         dirs, nondirs = [], []
         for pathname in pathnames:
@@ -95,7 +101,10 @@ class PathTree(object):
 
         for pathname in nondirs:
             child_file = os.path.join(root, pathname)
-            path_node = PathNode(child_file, uid_to_user=self.uid_to_user)
+            try:
+                path_node = PathNode(child_file, uid_to_user=self.uid_to_user)
+            except:
+                continue
             children.append(path_node)
             root_node.subtree_size += path_node.subtree_size
             if path_node.subtree_atime > root_node.subtree_atime:
