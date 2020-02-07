@@ -1289,7 +1289,7 @@ def update_scaled_worker_nodes(nargs):
         "./template/kubelet", "./deploy/kubelet", config)
     write_nodelist_yaml()
 
-    os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' %
+    os.system("sed 's/$ETCD_ENDPOINTS/%s/g' ./deploy/kubelet/options.env.template > ./deploy/kubelet/options.env" %
               config["etcd_endpoints"].replace("/", "\\/"))
     os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' %
               config["api_servers"].replace("/", "\\/"))
@@ -1376,8 +1376,8 @@ def render_and_pack_worker_cloud_init_files():
                           "./deploy/cloud-config/cloudinit.{}.upgrade.list".format(role), config)
     render_kubelet_service_by_node_type('worker_node')
     # write_nodelist_yaml() TODO verify whether this step is necessary
-    os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"'
-              % config["etcd_endpoints"].replace("/", "\\/"))
+    os.system("sed 's/$ETCD_ENDPOINTS/%s/g' ./deploy/kubelet/options.env.template > ./deploy/kubelet/options.env" %
+              config["etcd_endpoints"].replace("/", "\\/"))
     os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/worker-kubeconfig.yaml.template > ./deploy/kubelet/worker-kubeconfig.yaml'
               % config["api_servers"].replace("/", "\\/"))
     get_hyperkube_docker()
@@ -1412,7 +1412,7 @@ def update_worker_nodes(nargs):
         "./template/kubelet", "./deploy/kubelet", config)
     write_nodelist_yaml()
 
-    os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' %
+    os.system("sed 's/$ETCD_ENDPOINTS/%s/g' ./deploy/kubelet/options.env.template > ./deploy/kubelet/options.env" %
               config["etcd_endpoints"].replace("/", "\\/"))
     os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' %
               config["api_servers"].replace("/", "\\/"))
@@ -1438,7 +1438,7 @@ def update_worker_nodes_in_parallel(nargs):
         "./template/kubelet", "./deploy/kubelet", config)
     write_nodelist_yaml()
 
-    os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' %
+    os.system("sed 's/$ETCD_ENDPOINTS/%s/g' ./deploy/kubelet/options.env.template > ./deploy/kubelet/options.env" %
               config["etcd_endpoints"].replace("/", "\\/"))
     os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' %
               config["api_servers"].replace("/", "\\/"))
@@ -1486,7 +1486,7 @@ def update_nfs_nodes(nargs):
 
     write_nodelist_yaml()
 
-    os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' %
+    os.system("sed 's/$ETCD_ENDPOINTS/%s/g' ./deploy/kubelet/options.env.template > ./deploy/kubelet/options.env" %
               config["etcd_endpoints"].replace("/", "\\/"))
     os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' %
               config["api_servers"].replace("/", "\\/"))
@@ -1520,7 +1520,7 @@ def update_mysqlserver_nodes(nargs):
 
     write_nodelist_yaml()
 
-    os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' %
+    os.system("sed 's/$ETCD_ENDPOINTS/%s/g' ./deploy/kubelet/options.env.template > ./deploy/kubelet/options.env" %
               config["etcd_endpoints"].replace("/", "\\/"))
     os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' %
               config["api_servers"].replace("/", "\\/"))
@@ -3588,7 +3588,7 @@ def upgrade_workers(nargs, hypekube_url="gcr.io/google-containers/hyperkube:v1.1
         "./template/kubelet", "./deploy/kubelet", config)
     write_nodelist_yaml()
 
-    os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' %
+    os.system("sed 's/$ETCD_ENDPOINTS/%s/g' ./deploy/kubelet/options.env.template > ./deploy/kubelet/options.env" %
               config["etcd_endpoints"].replace("/", "\\/"))
     os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' %
               config["api_servers"].replace("/", "\\/"))
