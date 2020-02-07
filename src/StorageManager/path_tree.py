@@ -1,5 +1,6 @@
 import os
 import logging
+import re
 
 from path_node import PathNode
 from datetime import datetime, timedelta
@@ -33,6 +34,8 @@ class PathTree(object):
                                  int(config["days_to_delete_after_expiry"])
             self.expiry_delete = datetime.fromtimestamp(config["now"]) - \
                 timedelta(days=expiry_delete_days)
+
+        self.regex_whitelist = config.get("regex_whitelist", [])
 
         self.uid_to_user = uid_to_user
 
@@ -131,3 +134,30 @@ class PathTree(object):
                     self.empty_boundary_nodes.append(child)
 
         return root_node
+
+    def __in_regex_whitelist(self, node):
+        for pattern in self.regex_whitelist:
+            if re.match(pattern, node.path):
+                return True
+        return False
+
+    def __filter_with_regex_whitelist(self, nodes):
+        new_nodes = []
+        for node in nodes:
+            if not self.__in_regex_whitelist(node):
+                new_nodes.append(node)
+        return new_nodes
+
+    def filter(self):
+        self.overweight_boundary_nodes = \
+            self.__filter_with_regex_whitelist(self.overweight_boundary_nodes)
+
+        self.expired_boundary_nodes = \
+            self.__filter_with_regex_whitelist(self.expired_boundary_nodes)
+
+        self.expired_boundary_nodes_to_delete = \
+            self.__filter_with_regex_whitelist(
+                self.expired_boundary_nodes_to_delete)
+
+        self.empty_boundary_nodes = \
+            self.__filter_with_regex_whitelist(self.empty_boundary_nodes)

@@ -16,6 +16,13 @@ from utils import bytes2human_readable, G
 
 
 ENCODING = "utf-8"
+MAX_NODES_IN_REPORT = 10000
+DEFAULT_REGEX_WHITELIST = {
+    "/data/share/work": [
+        r"^/data/share/work/[0-9a-zA-Z\-]+$",
+        r"^/data/share/work/[0-9a-zA-Z\-]+/\..*"
+    ]
+}
 
 
 class StorageManager(object):
@@ -103,8 +110,8 @@ class StorageManager(object):
             cc: To whom to cc the email.
             subject: Email subject.
             content: Email body content
-            reports: A dictionary containing "filename", "data" to construct a
-                CSV attachment.
+            reports: List of dictionaries containing "filename", "data" to
+                construct CSV attachments.
 
         Returns:
             None
@@ -236,7 +243,8 @@ class StorageManager(object):
             preview += "...\n"
 
         data = header
-        for node in nodes:
+        max_len = min(MAX_NODES_IN_REPORT, len(nodes))
+        for node in nodes[0:max_len]:
             cur_node = "%s,%s,%s,%s,%s\n" % (
                 node.subtree_atime,
                 node.subtree_size,
@@ -305,17 +313,21 @@ class StorageManager(object):
 
             # Content for overweight nodes
             content += "\nPlease help reduce the size of your over-sized " \
-                       "boundary paths (> %s) in the attached report %s.\n" % \
+                       "boundary paths (> %s) in the attached report %s. The " \
+                       "report only contains up to %s paths\n" % \
                        (bytes2human_readable(overweight_threshold),
-                        overweight_report["filename"])
+                        overweight_report["filename"],
+                        MAX_NODES_IN_REPORT)
             content += overweight_preview
 
             # Content for expired nodes
             content += "\nPlease remove/use the expired boundary paths (last " \
                        "access time older than %s days ago) in the attached " \
-                       "report %s. " % \
+                       "report %s. The report only contains up to %s paths." \
+                       "\n" % \
                        (expiry_days,
-                        expired_report["filename"])
+                        expired_report["filename"],
+                        MAX_NODES_IN_REPORT)
             if days_to_delete_after_expiry is not None:
                 content += "They are automatically deleted if their last " \
                            "access time are older than %s days ago.\n" % \
@@ -324,7 +336,10 @@ class StorageManager(object):
 
             # Content for empty nodes
             content += "\nPlease consider removing your empty directories in " \
-                       "the attached report %s." % empty_report["filename"]
+                       "the attached report %s. The report only contains up " \
+                       "to %s paths\n" % \
+                       (empty_report["filename"],
+                        MAX_NODES_IN_REPORT)
             content += empty_preview
 
             self.send_email(recipients, cc, subject, content, reports)
@@ -390,6 +405,13 @@ class StorageManager(object):
             return False
 
         scan_point["now"] = self.last_now
+
+        if scan_point["path"] in DEFAULT_REGEX_WHITELIST:
+            default_regex = DEFAULT_REGEX_WHITELIST[scan_point["path"]]
+            if "regex_whitelist" not in scan_point:
+                scan_point["regex_whitelist"] = []
+            scan_point["regex_whitelist"].extend(default_regex)
+
         return True
 
     def process_emails_for_tree(self, tree, scan_point):
@@ -415,6 +437,10 @@ class StorageManager(object):
         self.send_email_to_owners(node_list_by_owner, scan_point)
 
     def delete_expired_nodes(self, tree):
+        if len(tree.expired_boundary_nodes_to_delete) == 0:
+            self.logger.info("No expired nodes to delete.")
+            return
+
         self.logger.info("Deleting expired nodes ...")
         for node in tree.expired_boundary_nodes_to_delete:
             if os.path.exists(node.path):
@@ -424,7 +450,7 @@ class StorageManager(object):
                     os.remove(node.path)
             else:
                 self.logger.warning("%s does not exist")
-    
+
     def scan_a_scan_point(self, scan_point, uid_to_user=None):
         if not self.scan_point_is_valid(scan_point):
             return
@@ -433,6 +459,7 @@ class StorageManager(object):
 
         tree = PathTree(scan_point, uid_to_user=uid_to_user)
         tree.walk()
+        tree.filter()
 
         root = tree.root
         if root is not None:
@@ -443,9 +470,8 @@ class StorageManager(object):
 
         if self.smtp is None:
             self.logger.warning("stmp is not configured. Skip email.")
-            return
-
-        self.process_emails_for_tree(tree, scan_point)
+        else:
+            self.process_emails_for_tree(tree, scan_point)
 
         self.delete_expired_nodes(tree)
 
