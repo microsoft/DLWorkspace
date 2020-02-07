@@ -16,7 +16,7 @@ from utils import bytes2human_readable, G
 
 
 ENCODING = "utf-8"
-MAX_NODES_IN_REPORT = 10000
+MAX_NODES_IN_REPORT = 5000
 DEFAULT_REGEX_WHITELIST = {
     "/data/share/work": [
         r"^/data/share/work/[0-9a-zA-Z\-]+$",
@@ -337,7 +337,7 @@ class StorageManager(object):
             # Content for empty nodes
             content += "\nPlease consider removing your empty directories in " \
                        "the attached report %s. The report only contains up " \
-                       "to %s paths\n" % \
+                       "to %s paths.\n" % \
                        (empty_report["filename"],
                         MAX_NODES_IN_REPORT)
             content += empty_preview
