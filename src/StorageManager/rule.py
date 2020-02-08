@@ -254,6 +254,11 @@ class ExpiredToDeleteRule(Rule):
                                                   name="expired_to_delete")
 
         self.enabled = config.get("expired_to_delete_rule", False)
+        expiry_days = self.config.get("expiry_days", 31)
+        days_to_delete_after_expiry = \
+            self.config.get("days_to_delete_after_expiry", None)
+        logger.info("expiry_days is %s. days_to_delete_after_expiry is %s",
+                    expiry_days, days_to_delete_after_expiry)
 
     def run_rule(self):
         super(ExpiredToDeleteRule, self).run_rule()
