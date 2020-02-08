@@ -1,5 +1,4 @@
 const axiosist = require('axiosist')
-const sinon = require('sinon')
 const nock = require('nock')
 const User = require('../../../../api/services/user')
 const api = require('../../../../api').callback()
@@ -18,7 +17,6 @@ describe('GET /clusters/:clusterId/jobs/:jobId/log', () => {
         log: { "pod": "log" },
         cursor: 0123456789
       })
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/clusters/Universe/jobs/testjob/log', {
       params: userParams
@@ -39,7 +37,6 @@ describe('GET /clusters/:clusterId/jobs/:jobId/log', () => {
         log: { "pod": "log" },
         cursor: 9876543210
       })
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/clusters/Universe/jobs/testjob/log', {
       params: Object.assign({
@@ -62,7 +59,6 @@ describe('GET /clusters/:clusterId/jobs/:jobId/log', () => {
       log: {},
       cursor: null
     })
-    sinon.stub(User.prototype, 'fillIdFromWinbind').resolves();
 
     const response = await axiosist(api).get('/clusters/Universe/jobs/testjob/log', {
       params: userParams
