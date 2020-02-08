@@ -178,7 +178,10 @@ def test_blobfuse(args):
 
         worker_pod_name = pods[0].metadata.name
         worker_container_name = pods[0].spec.containers[0].name
-        worker_cmd = ["bash", "-c", "cat /tmp/blob/${DLWS_JOB_ID}"]
+        worker_cmd = [
+            "bash", "-c",
+            "cat /tmp/blob/${DLWS_JOB_ID} ; rm /tmp/blob/${DLWS_JOB_ID}"
+        ]
 
         code, output = utils.kube_pod_exec(args.config, "default",
                                            worker_pod_name,
