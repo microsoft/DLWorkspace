@@ -22,8 +22,10 @@ def test_inference_job_running(args):
         "DLWS_JOB_ID": "unknown",
     }
 
-    with utils.run_job(args.rest, "inference", args.email, args.uid,
-                       args.vc) as job:
+    job_spec = utils.gen_default_job_description("inference", args.email,
+                                                 args.uid, args.vc)
+
+    with utils.run_job(args.rest, job_spec) as job:
         state = utils.block_until_state_not_in(
             args.rest, job.jid, {"unapproved", "queued", "scheduling"})
         assert state == "running"

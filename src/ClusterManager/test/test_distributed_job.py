@@ -15,12 +15,12 @@ def test_distributed_job_running(args):
     expected = "wantThisInLog"
     cmd = "echo %s ; sleep 1800" % expected
 
-    with utils.run_job(args.rest,
-                       "distributed",
-                       args.email,
-                       args.uid,
-                       args.vc,
-                       cmd=cmd) as job:
+    job_spec = utils.gen_default_job_description("distributed",
+                                                 args.email,
+                                                 args.uid,
+                                                 args.vc,
+                                                 cmd=cmd)
+    with utils.run_job(args.rest, job_spec) as job:
         state = utils.block_until_state_not_in(
             args.rest, job.jid, {"unapproved", "queued", "scheduling"})
         assert state == "running"
@@ -35,8 +35,9 @@ def test_distributed_job_running(args):
 
 @utils.case
 def test_distributed_job_ssh(args):
-    with utils.run_job(args.rest, "distributed", args.email, args.uid,
-                       args.vc) as job:
+    job_spec = utils.gen_default_job_description("distributed", args.email,
+                                                 args.uid, args.vc)
+    with utils.run_job(args.rest, job_spec) as job:
         endpoints = utils.create_endpoint(args.rest, args.email, job.jid,
                                           ["ssh"])
         endpoints_ids = list(endpoints.keys())
@@ -107,8 +108,9 @@ def test_distributed_job_env(args):
         "DLWS_ROLE_IDX": "0",
     }
 
-    with utils.run_job(args.rest, "distributed", args.email, args.uid,
-                       args.vc) as job:
+    job_spec = utils.gen_default_job_description("distributed", args.email,
+                                                 args.uid, args.vc)
+    with utils.run_job(args.rest, job_spec) as job:
         state = utils.block_until_state_not_in(
             args.rest, job.jid, {"unapproved", "queued", "scheduling"})
         assert state == "running"
@@ -142,3 +144,45 @@ def test_distributed_job_env(args):
                 assert output.find(
                     expected_output) != -1, "could not find %s in log %s" % (
                         expected_output, output)
+
+
+@utils.case
+def test_blobfuse(args):
+    job_spec = utils.gen_default_job_description("distributed", args.email,
+                                                 args.uid, args.vc)
+
+    job_spec["plugins"] = utils.load_azure_blob_config(args.config,
+                                                       "/tmp/blob")
+
+    with utils.run_job(args.rest, job_spec) as job:
+        state = utils.block_until_state_not_in(
+            args.rest, job.jid, {"unapproved", "queued", "scheduling"})
+        assert state == "running"
+
+        ps_label = "jobId=%s,jobRole=ps" % job.jid
+        pods = utils.kube_get_pods(args.config, "default", ps_label)
+        assert len(pods) == 1
+
+        ps_pod_name = pods[0].metadata.name
+        ps_container_name = pods[0].spec.containers[0].name
+        msg = "this is dummy from ps"
+        ps_cmd = ["bash", "-c", "echo %s > /tmp/blob/${DLWS_JOB_ID}" % (msg)]
+
+        code, output = utils.kube_pod_exec(args.config, "default", ps_pod_name,
+                                           ps_container_name, ps_cmd)
+        assert code == 0, "code is %d, output is %s" % (code, output)
+
+        worker_label = "jobId=%s,jobRole=worker" % job.jid
+        pods = utils.kube_get_pods(args.config, "default", worker_label)
+        assert len(pods) == 1
+
+        worker_pod_name = pods[0].metadata.name
+        worker_container_name = pods[0].spec.containers[0].name
+        worker_cmd = ["bash", "-c", "cat /tmp/blob/${DLWS_JOB_ID}"]
+
+        code, output = utils.kube_pod_exec(args.config, "default",
+                                           worker_pod_name,
+                                           worker_container_name, worker_cmd)
+        assert code == 0, "code is %d, output is %s" % (code, output)
+        assert msg + "\n" == output, "code is %d, output is %s" % (code,
+                                                                   output)
