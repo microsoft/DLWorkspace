@@ -264,7 +264,7 @@ class EmptyRule(Rule):
     def __init__(self, config, nodes):
         super(EmptyRule, self).__init__(config, nodes, name="empty")
 
-        self.enabled = config.get("empty_rule", True)
+        self.enabled = config.get("empty_rule", False)
 
     def run_rule(self):
         super(EmptyRule, self).run_rule()
