@@ -52,5 +52,7 @@ matrix:
     python: 3.6
     before_install:
       - cd src/StorageManager
+    install:
+      - pip install requests
     script:
       - python -m unittest discover .
