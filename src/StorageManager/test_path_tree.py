@@ -106,10 +106,3 @@ class TestPathTree(TestCase):
         self.assertEqual(2, len(tree.expired_boundary_nodes))
         self.assertEqual(2, len(tree.expired_boundary_nodes_to_delete))
         self.assertEqual(1, len(tree.empty_boundary_nodes))
-
-        tree.filter()
-        self.assertEqual(1, len(tree.overweight_boundary_nodes))
-        self.assertEqual(2, len(tree.expired_boundary_nodes))
-        self.assertEqual(1 if SYSTEM is LINUX else 2,
-                         len(tree.expired_boundary_nodes_to_delete))
-        self.assertEqual(1, len(tree.empty_boundary_nodes))

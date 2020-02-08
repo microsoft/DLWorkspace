@@ -42,7 +42,7 @@ class Rule(object):
                            self.path)
             return
 
-        logger.info("Rule % is enabled for %s. Processing ...",
+        logger.info("Rule %s is enabled for %s. Processing ...",
                     self.name,
                     self.path)
         self.run_rule()
@@ -137,15 +137,17 @@ class Rule(object):
 
     def delete_nodes(self):
         if len(self.nodes) == 0:
-            logger.info("No %s nodes to delete.", )
+            logger.info("No nodes to delete for rule %s.", self.name)
             return
 
-        logger.info("Deleting nodes ...")
+        logger.info("Deleting nodes for rule %s...", self.name)
         for node in self.nodes:
             if os.path.exists(node.path):
                 if node.isdir:
+                    logger.info("Deleting directory %s...", node.path)
                     os.rmdir(node.path)
                 else:
+                    logger.info("Deleting file %s...", node.path)
                     os.remove(node.path)
             else:
                 logger.warning("%s does not exist", node.path)
@@ -228,14 +230,13 @@ class ExpiredRule(Rule):
         return subject
 
     def generate_content(self, owner, nodes, preview, report):
-        content = ""
-        content += "\nPlease remove/use the expired boundary paths (last " \
-                   "access time older than %s days ago) in the attached " \
-                   "report \"%s\". The report only contains up to %s paths." \
-                   "\n" % \
-                   (self.expiry_days,
-                    report["filename"],
-                    MAX_NODES_IN_REPORT)
+        content = "\nPlease remove/use the expired boundary paths (last " \
+                  "access time older than %s days ago) in the attached " \
+                  "report \"%s\". The report only contains up to %s paths." \
+                  "\n" % \
+                  (self.expiry_days,
+                   report["filename"],
+                   MAX_NODES_IN_REPORT)
         if self.days_to_delete_after_expiry is not None:
             content += "They are automatically deleted if their last " \
                        "access time are older than %s days ago.\n" % \
@@ -278,12 +279,11 @@ class EmptyRule(Rule):
         return subject
 
     def generate_content(self, owner, nodes, preview, report):
-        content = ""
-        content += "\nPlease remove the empty boundary paths in the attached " \
-                   "report \"%s\". The report only contains up to %s paths." \
-                   "\n" % \
-                   (report["filename"],
-                    MAX_NODES_IN_REPORT)
+        content = "\nPlease consider removing the empty boundary paths in " \
+                  "the attached report \"%s\". The report only contains " \
+                  "up to %s paths. \n" % \
+                  (report["filename"],
+                   MAX_NODES_IN_REPORT)
         content += preview
 
         return content

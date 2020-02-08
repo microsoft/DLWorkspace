@@ -66,7 +66,7 @@ class StorageManager(object):
             next_scan_time = self.last_now + self.execution_interval
             time2_next_scan = max(0, next_scan_time - time.time())
             logger.info("Sleeping for %s sec before next scan.",
-                             time2_next_scan)
+                        time2_next_scan)
             time.sleep(time2_next_scan)
 
             self.last_now = time.time()
@@ -90,8 +90,8 @@ class StorageManager(object):
         root = tree.root
         if root is not None:
             logger.info("Total number of paths under %s found: %d",
-                             tree.path,
-                             root.num_subtree_nodes)
+                        tree.path,
+                        root.num_subtree_nodes)
         else:
             logger.warning("Tree root for %s is None.", tree.path)
             return
@@ -105,8 +105,7 @@ class StorageManager(object):
             return False
 
         if not os.path.exists(scan_point["path"]):
-            logger.warning("%s is absent in file system. Skip.",
-                                scan_point)
+            logger.warning("%s is absent in file system. Skip.", scan_point)
             return False
 
         if "alias" not in scan_point:
@@ -114,7 +113,7 @@ class StorageManager(object):
 
         if "used_percent_alert_threshold" not in scan_point:
             logger.warning("user_percent_alert_threshold missing in "
-                                "%s. Setting to 90.", scan_point)
+                           "%s. Setting to 90.", scan_point)
             scan_point["used_percent_alert_threshold"] = 90
         scan_point["used_percent_alert_threshold"] = \
             float(scan_point["used_percent_alert_threshold"])
@@ -130,20 +129,20 @@ class StorageManager(object):
 
         if "overweight_threshold" not in scan_point:
             logger.info("overweight_threshold does not exist in %s. "
-                             "Using parent overweight_threshold %d.",
-                             scan_point, self.overweight_threshold)
+                        "Using parent overweight_threshold %d.",
+                        scan_point, self.overweight_threshold)
             scan_point["overweight_threshold"] = self.overweight_threshold
 
         if "expiry_days" not in scan_point:
             logger.info("expiry_days does not exist in %s. "
-                             "Using parent expiry_days %d.",
-                             scan_point, self.expiry_days)
+                        "Using parent expiry_days %d.",
+                        scan_point, self.expiry_days)
             scan_point["expiry_days"] = self.expiry_days
 
         if "days_to_delete_after_expiry" not in scan_point:
             logger.info("days_to_delete_after_expiry does not exist in "
-                             "%s. Using parent days_to_delete_after_expiry %s",
-                             scan_point, self.days_to_delete_after_expiry)
+                        "%s. Using parent days_to_delete_after_expiry %s",
+                        scan_point, self.days_to_delete_after_expiry)
             scan_point["days_to_delete_after_expiry"] = \
                 self.days_to_delete_after_expiry
 
