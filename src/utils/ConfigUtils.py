@@ -164,7 +164,6 @@ def add_configs_in_order(config_file_list, config):
     """read in config specified in a config file list, later ones overwrite former ones"""
     for config_file in config_file_list:
         if not os.path.exists(config_file):
-            parser.print_help()
             print("ERROR: {} does not exist!".format(config_file))
             exit()
         with open(config_file) as cf:

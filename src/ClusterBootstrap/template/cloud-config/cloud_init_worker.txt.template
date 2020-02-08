@@ -8,7 +8,7 @@ users:
 runcmd:
  - cd /home/{{cnf["worker_user"]}}
  - echo "export USER={{cnf["worker_user"]}}" >> boot.env
- - echo "export KUBE_LABELS=\"{{cnf['kube_label_groups'] | join(' ')}}\"" >> boot.env
+ - echo "export KUBE_LABELS=\"{{cnf['kube_labels'] | join(',')}}\"" >> boot.env
  - echo "export ETCD_ENDPOINTS='{{cnf["etcd_endpoints"]}}'" >> boot.env
  - echo "export KUBE_API_SERVER='{{cnf["api_servers"]}}'" >> boot.env
  - echo "export GPU_TYPE='{{cnf["gpu_type"]}}'" >> boot.env

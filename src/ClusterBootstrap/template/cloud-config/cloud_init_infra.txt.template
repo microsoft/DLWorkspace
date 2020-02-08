@@ -14,7 +14,7 @@ runcmd:
  # try to delete ETCDIP
  - echo "export ETCDIP={{cnf["master_ip"]}}" >> boot.env
  - echo "export USER={{cnf["etcd_user"]}}" >> boot.env
- - echo "export KUBE_LABELS=\"{{cnf['kube_label_groups'] | join(' ')}}\"" >> boot.env
+ - echo "export KUBE_LABELS=\"{{cnf['kube_labels'] | join(',')}}\"" >> boot.env
  - echo "export KUBE_SERVICES=\"{{cnf['kube_services'] | join(';')}}\"" >> boot.env
  - echo "export ETCD_ENDPOINTS='{{cnf["etcd_endpoints"]}}'" >> boot.env
  # file share mount

@@ -121,6 +121,8 @@ def verify_all_nodes_ready(config, args):
 
 
 def run_command(args, command):
+    if command == "restorefromdir":
+        utils.restore_keys_from_dir(args.nargs)
     args.config = ["status.yaml"] if not args.config else args.config
     config = init_config(default_config_parameters)
     config = add_configs_in_order(args.config, config)

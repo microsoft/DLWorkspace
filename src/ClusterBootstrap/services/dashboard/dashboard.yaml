@@ -31,7 +31,7 @@ spec:
       dnsPolicy: {{cnf["dnsPolicy"]}}
       {% endif %}
       nodeSelector:
-        webportal: active
+        dashboard: active
       {% if true %}  
       hostNetwork: true
       {% endif %}
