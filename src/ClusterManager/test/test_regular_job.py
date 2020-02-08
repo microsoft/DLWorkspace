@@ -14,12 +14,13 @@ def test_regular_job_running(args):
     expected = "wantThisInLog"
     cmd = "echo %s ; sleep 1800" % expected
 
-    with utils.run_job(args.rest,
-                       "regular",
-                       args.email,
-                       args.uid,
-                       args.vc,
-                       cmd=cmd) as job:
+    job_spec = utils.gen_default_job_description("regular",
+                                                 args.email,
+                                                 args.uid,
+                                                 args.vc,
+                                                 cmd=cmd)
+
+    with utils.run_job(args.rest, job_spec) as job:
         state = utils.block_until_state_not_in(
             args.rest, job.jid, {"unapproved", "queued", "scheduling"})
         assert state == "running"
@@ -44,13 +45,14 @@ def test_data_job_running(args):
           "cat /tmp/dlts_test_dir_copyback/testfile; " % expected_word
 
     image = "indexserveregistry.azurecr.io/dlts-data-transfer-image:latest"
-    with utils.run_job(args.rest,
-                       "data",
-                       args.email,
-                       args.uid,
-                       args.vc,
-                       image=image,
-                       cmd=cmd) as job:
+
+    job_spec = utils.gen_default_job_description("data",
+                                                 args.email,
+                                                 args.uid,
+                                                 args.vc,
+                                                 cmd=cmd,
+                                                 image=image)
+    with utils.run_job(args.rest, job_spec) as job:
         state = utils.block_until_state_not_in(
             args.rest, job.jid,
             {"unapproved", "queued", "scheduling", "running"})
@@ -65,12 +67,12 @@ def test_job_fail(args):
     expected_state = "failed"
     cmd = "false"
 
-    with utils.run_job(args.rest,
-                       "regular",
-                       args.email,
-                       args.uid,
-                       args.vc,
-                       cmd=cmd) as job:
+    job_spec = utils.gen_default_job_description("regular",
+                                                 args.email,
+                                                 args.uid,
+                                                 args.vc,
+                                                 cmd=cmd)
+    with utils.run_job(args.rest, job_spec) as job:
         state = utils.block_until_state_not_in(
             args.rest, job.jid,
             {"unapproved", "queued", "scheduling", "running"})
@@ -79,50 +81,49 @@ def test_job_fail(args):
 
 @utils.case
 def test_op_job(args):
-    cmd = "sleep 1800"
+    job_spec = utils.gen_default_job_description("regular", args.email,
+                                                 args.uid, args.vc)
 
-    image = "indexserveregistry.azurecr.io/deepscale:1.0.post0"
+    with utils.run_job(args.rest, job_spec) as job:
+        job_id = job.jid
+        utils.block_until_state_in(args.rest, job_id, {"running"})
 
-    job_id = utils.post_regular_job(args.rest, args.email, args.uid, args.vc,
-                                    image, cmd)
-    utils.block_until_state_in(args.rest, job_id, {"running"})
+        # Try to ApproveJob
+        logger.info("approve job %s" % job_id)
+        resp = utils.approve_job(args.rest, args.email, job_id)
+        assert "Cannot approve the job. Job ID:%s" % job_id == resp["result"]
 
-    # Try to ApproveJob
-    logger.info("approve job %s" % job_id)
-    resp = utils.approve_job(args.rest, args.email, job_id)
-    assert "Cannot approve the job. Job ID:%s" % job_id == resp["result"]
+        # PauseJob
+        logger.info("pause job %s" % job_id)
+        resp = utils.pause_job(args.rest, args.email, job_id)
+        assert "Success, the job is scheduled to be paused." == resp["result"]
 
-    # PauseJob
-    logger.info("pause job %s" % job_id)
-    resp = utils.pause_job(args.rest, args.email, job_id)
-    assert "Success, the job is scheduled to be paused." == resp["result"]
+        # ResumeJob
+        utils.block_until_state_in(args.rest, job_id, {"paused"})
+        logger.info("resume job %s" % job_id)
+        resp = utils.resume_job(args.rest, args.email, job_id)
+        assert "Success, the job is scheduled to be resumed." == resp["result"]
 
-    # ResumeJob
-    utils.block_until_state_in(args.rest, job_id, {"paused"})
-    logger.info("resume job %s" % job_id)
-    resp = utils.resume_job(args.rest, args.email, job_id)
-    assert "Success, the job is scheduled to be resumed." == resp["result"]
+        # KillJob
+        utils.block_until_state_in(args.rest, job_id, {"running"})
+        logger.info("kill job %s" % job_id)
+        resp = utils.kill_job(args.rest, args.email, job_id)
+        assert "Success, the job is scheduled to be terminated." == resp[
+            "result"]
 
-    # KillJob
-    utils.block_until_state_in(args.rest, job_id, {"running"})
-    logger.info("kill job %s" % job_id)
-    resp = utils.kill_job(args.rest, args.email, job_id)
-    assert "Success, the job is scheduled to be terminated." == resp["result"]
-
-    state = utils.block_until_state_not_in(args.rest, job_id, {"killing"})
-    assert "killed" == state
+        state = utils.block_until_state_not_in(args.rest, job_id, {"killing"})
+        assert "killed" == state
 
 
 @utils.case
 def test_batch_op_jobs(args):
-    cmd = "sleep 1800"
-
-    image = "indexserveregistry.azurecr.io/deepscale:1.0.post0"
     num_jobs = 2
     job_ids = []
+
+    job_spec = utils.gen_default_job_description("regular", args.email,
+                                                 args.uid, args.vc)
     for i in range(num_jobs):
-        job_id = utils.post_regular_job(args.rest, args.email, args.uid,
-                                        args.vc, image, cmd)
+        job_id = utils.post_job(args.rest, job_spec)
         job_ids.append(job_id)
 
     # FIXME there is a race condition between rest and jobmanager
@@ -168,15 +169,14 @@ def test_batch_op_jobs(args):
 def test_batch_kill_jobs(args):
     expected_msg = "successfully killed"
     expected_state = "killed"
-    cmd = "sleep 1800"
 
-    image = "indexserveregistry.azurecr.io/deepscale:1.0.post0"
+    job_spec = utils.gen_default_job_description("regular", args.email,
+                                                 args.uid, args.vc)
 
     num_jobs = 2
     job_ids = []
     for i in range(num_jobs):
-        job_id = utils.post_regular_job(args.rest, args.email, args.uid,
-                                        args.vc, image, cmd)
+        job_id = utils.post_job(args.rest, job_spec)
         job_ids.append(job_id)
 
     # FIXME there is a race condition between rest and jobmanager
@@ -202,8 +202,10 @@ def test_batch_kill_jobs(args):
 
 @utils.case
 def test_regular_job_ssh(args):
-    with utils.run_job(args.rest, "regular", args.email, args.uid,
-                       args.vc) as job:
+    job_spec = utils.gen_default_job_description("regular", args.email,
+                                                 args.uid, args.vc)
+
+    with utils.run_job(args.rest, job_spec) as job:
         endpoints = utils.create_endpoint(args.rest, args.email, job.jid,
                                           ["ssh"])
         endpoints_ids = list(endpoints.keys())
@@ -243,13 +245,14 @@ def test_regular_job_ssh(args):
 
 @utils.case
 def test_list_all_jobs(args):
+    job_spec = utils.gen_default_job_description("regular",
+                                                 args.email,
+                                                 args.uid,
+                                                 args.vc,
+                                                 cmd="")
+
     # All jobs should include finished jobs
-    with utils.run_job(args.rest,
-                       "regular",
-                       args.email,
-                       args.uid,
-                       args.vc,
-                       cmd="") as job:
+    with utils.run_job(args.rest, job_spec) as job:
         job_id = job.jid
         state = utils.block_until_state_not_in(
             args.rest, job_id,
@@ -286,12 +289,13 @@ def test_regular_job_env(args):
 
     cmd = "\n".join(cmd)
 
-    with utils.run_job(args.rest,
-                       "regular",
-                       args.email,
-                       args.uid,
-                       args.vc,
-                       cmd=cmd) as job:
+    job_spec = utils.gen_default_job_description("regular",
+                                                 args.email,
+                                                 args.uid,
+                                                 args.vc,
+                                                 cmd=cmd)
+
+    with utils.run_job(args.rest, job_spec) as job:
         state = utils.block_until_state_not_in(
             args.rest, job.jid,
             {"unapproved", "queued", "scheduling", "running"})
@@ -305,3 +309,29 @@ def test_regular_job_env(args):
             assert log.find(
                 expected_output) != -1, "could not find %s in log" % (
                     expected_output)
+
+
+@utils.case
+def test_blobfuse(args):
+    path = "/tmp/blob/${DLWS_JOB_ID}"
+    cmd = "echo dummy > %s; cat %s ; rm %s" % (path, path, path)
+
+    job_spec = utils.gen_default_job_description("regular",
+                                                 args.email,
+                                                 args.uid,
+                                                 args.vc,
+                                                 cmd=cmd)
+
+    job_spec["plugins"] = utils.load_azure_blob_config(args.config,
+                                                       "/tmp/blob")
+
+    with utils.run_job(args.rest, job_spec) as job:
+        state = utils.block_until_state_not_in(
+            args.rest, job.jid,
+            {"unapproved", "queued", "scheduling", "running"})
+        assert state == "finished"
+
+        log = utils.get_job_log(args.rest, args.email, job.jid)["log"]
+
+        assert log.find("dummy") != -1, "could not find %s in log" % (
+            expected_output)
