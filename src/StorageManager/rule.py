@@ -42,6 +42,9 @@ class Rule(object):
                            self.path)
             return
 
+        logger.info("Rule % is enabled for %s. Processing ...",
+                    self.name,
+                    self.path)
         self.run_rule()
 
     @override
@@ -89,8 +92,9 @@ class Rule(object):
         content = self.generate_content(owner, nodes, preview, report)
         send_email(self.smtp, recipients, cc, subject, content, [report])
 
-    def generate_report(self, nodes, preview_len=20):
-        logger.info("Generating %s report for %s", self.name, self.config)
+    def generate_report(self, owner, nodes, preview_len=20):
+        logger.info("Generating %s report for owner %s under %s",
+                    self.name, owner, self.path)
         # Log all nodes
         for node in nodes:
             logger.info(node)
@@ -201,7 +205,7 @@ class OverweightRule(Rule):
 
 
 class ExpiredRule(Rule):
-    def __int__(self, config, nodes):
+    def __init__(self, config, nodes):
         super(ExpiredRule, self).__init__(config,
                                           nodes,
                                           name="expired")
@@ -243,7 +247,7 @@ class ExpiredRule(Rule):
 
 
 class ExpiredToDeleteRule(Rule):
-    def __int__(self, config, nodes):
+    def __init__(self, config, nodes):
         super(ExpiredToDeleteRule, self).__init__(config,
                                                   nodes,
                                                   name="expired_to_delete")
@@ -256,7 +260,7 @@ class ExpiredToDeleteRule(Rule):
 
 
 class EmptyRule(Rule):
-    def __int__(self, config, nodes):
+    def __init__(self, config, nodes):
         super(EmptyRule, self).__init__(config, nodes, name="empty")
 
         self.enabled = config.get("empty_rule", True)

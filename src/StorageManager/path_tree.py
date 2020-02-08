@@ -1,6 +1,5 @@
 import os
 import logging
-import re
 
 from path_node import PathNode
 from datetime import datetime, timedelta
@@ -34,8 +33,6 @@ class PathTree(object):
                                  int(config["days_to_delete_after_expiry"])
             self.expiry_delete = datetime.fromtimestamp(config["now"]) - \
                 timedelta(days=expiry_delete_days)
-
-        self.regex_whitelist = config.get("regex_whitelist", [])
 
         self.uid_to_user = uid_to_user
 
