@@ -14,8 +14,8 @@ describe('GET /clusters/:clusterId/jobs/:jobId/log', () => {
       .get('/GetJobLog')
       .query({ jobId: 'testjob', userName: 'dlts@example.com' })
       .reply(200, {
-        log: { "pod": "log" },
-        cursor: 0123456789
+        log: { 'pod': 'log' },
+        cursor: 123456789
       })
 
     const response = await axiosist(api).get('/clusters/Universe/jobs/testjob/log', {
@@ -24,8 +24,8 @@ describe('GET /clusters/:clusterId/jobs/:jobId/log', () => {
 
     response.status.should.equal(200)
     response.data.should.deepEqual({
-      log: { "pod": "log" },
-      cursor: 0123456789
+      log: { 'pod': 'log' },
+      cursor: 123456789
     })
   })
 
@@ -34,8 +34,8 @@ describe('GET /clusters/:clusterId/jobs/:jobId/log', () => {
       .get('/GetJobLog')
       .query({ jobId: 'testjob', cursor: '1234567890', userName: 'dlts@example.com' })
       .reply(200, {
-        log: { "pod": "log" },
-        cursor: 9876543210
+        log: { 'pod': 'log' },
+        cursor: 987654321
       })
 
     const response = await axiosist(api).get('/clusters/Universe/jobs/testjob/log', {
@@ -46,19 +46,19 @@ describe('GET /clusters/:clusterId/jobs/:jobId/log', () => {
 
     response.status.should.equal(200)
     response.data.should.deepEqual({
-      log: { "pod": "log" },
-      cursor: 9876543210
+      log: { 'pod': 'log' },
+      cursor: 987654321
     })
   })
 
   it('should return 404 when there is no (more) log', async () => {
     nock('http://universe')
-    .get('/GetJobLog')
-    .query({ jobId: 'testjob', userName: 'dlts@example.com' })
-    .reply(200, {
-      log: {},
-      cursor: null
-    })
+      .get('/GetJobLog')
+      .query({ jobId: 'testjob', userName: 'dlts@example.com' })
+      .reply(200, {
+        log: {},
+        cursor: null
+      })
 
     const response = await axiosist(api).get('/clusters/Universe/jobs/testjob/log', {
       params: userParams
