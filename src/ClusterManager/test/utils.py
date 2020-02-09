@@ -22,6 +22,19 @@ from kubernetes.stream.ws_client import ERROR_CHANNEL, STDERR_CHANNEL, STDOUT_CH
 logger = logging.getLogger(__file__)
 
 
+def walk_json_safe(obj, *fields):
+    """ for example a=[{"a": {"b": 2}}]
+    walk_json_safe(a, 0, "a", "b") will get 2
+    walk_json_safe(a, 0, "not_exist") will get None
+    """
+    try:
+        for f in fields:
+            obj = obj[f]
+        return obj
+    except:
+        return None
+
+
 def case(fn):
     @functools.wraps(fn)
     def wrapped(*args, **kwargs):
@@ -41,7 +54,36 @@ def case(fn):
     return wrapped
 
 
-def post_regular_job(rest_url, email, uid, vc, image, cmd):
+def load_azure_blob_config(config_path, mount_path):
+    config_path = os.path.join(config_path, "config.yaml")
+
+    with open(config_path) as f:
+        config = yaml.full_load(f)
+
+    blob_config = walk_json_safe(config, "integration-test", "azure-blob")
+
+    if walk_json_safe(blob_config, "account") is None or \
+            walk_json_safe(blob_config, "key") is None or \
+            walk_json_safe(blob_config, "container") is None:
+        raise RuntimeError("no azure blob configured for integration test")
+
+    return {
+        "blobfuse": [{
+            "accountName": walk_json_safe(blob_config, "account"),
+            "accountKey": walk_json_safe(blob_config, "key"),
+            "containerName": walk_json_safe(blob_config, "container"),
+            "mountPath": mount_path,
+        }]
+    }
+
+
+def gen_default_job_description(
+    job_type,
+    email,
+    uid,
+    vc,
+    image="indexserveregistry.azurecr.io/deepscale:1.0.post0",
+    cmd="sleep 120"):
     args = {
         "userName": email,
         "userId": uid,
@@ -49,8 +91,7 @@ def post_regular_job(rest_url, email, uid, vc, image, cmd):
         "gpuType": "P40",
         "vcName": vc,
         "containerUserId": 0,
-        "jobName": "DeepScale1.0-Regular",
-        "jobtrainingtype": "RegularJob",
+        "jobName": "integration test case",
         "preemptionAllowed": "False",
         "image": image,
         "cmd": cmd,
@@ -61,83 +102,31 @@ def post_regular_job(rest_url, email, uid, vc, image, cmd):
         "jobPath": "",
         "enablejobpath": True,
         "env": [],
-        "hostNetwork": False,
-        "isPrivileged": False,
         "resourcegpu": 0,
         "cpulimit": 1,
     }
-    url = urllib.parse.urljoin(rest_url, "/PostJob")
-    resp = requests.post(url,
-                         data=json.dumps(args))  # do not handle exception here
-    jid = resp.json()["jobId"]
-    logger.info("regular job %s created", jid)
-    return jid
 
+    if job_type in {"regular", "data"}:
+        args["jobtrainingtype"] = "RegularJob"
+        args["hostNetwork"] = False
+        args["isPrivileged"] = False
+    elif job_type == "distributed":
+        args["jobtrainingtype"] = "PSDistJob"
+        args["hostNetwork"] = True
+        args["isPrivileged"] = True
+        args["numps"] = 1
+        args["resourcegpu"] = 0
+        args["numpsworker"] = 1
+    elif job_type == "inference":
+        args["jobtrainingtype"] = "InferenceJob"
+        args["hostNetwork"] = False
+        args["isPrivileged"] = False
+        args["resourcegpu"] = 1  # num of worker
+    else:
+        logger.error("unknown job_type %s, wrong test case", job_type)
+        raise RuntimeError("unknown job_type %s" % (job_type))
 
-def post_distributed_job(rest_url, email, uid, vc, image, cmd):
-    args = {
-        "userName": email,
-        "userId": uid,
-        "jobType": "training",
-        "gpuType": "P40",
-        "vcName": vc,
-        "containerUserId": 0,
-        "jobName": "DeepScale1.0-Distributed",
-        "jobtrainingtype": "PSDistJob",
-        "preemptionAllowed": "False",
-        "image": image,
-        "cmd": cmd,
-        "workPath": "./",
-        "enableworkpath": True,
-        "dataPath": "./",
-        "enabledatapath": True,
-        "jobPath": "",
-        "enablejobpath": False,
-        "env": [],
-        "hostNetwork": True,
-        "isPrivileged": True,
-        "numps": 1,
-        "resourcegpu": 0,
-        "numpsworker": 1
-    }
-    url = urllib.parse.urljoin(rest_url, "/PostJob")
-    resp = requests.post(url,
-                         data=json.dumps(args))  # do not handle exception here
-    jid = resp.json()["jobId"]
-    logger.info("distributed job %s created", jid)
-    return jid
-
-
-def post_data_job(rest_url, email, uid, vc, image, cmd):
-    args = {
-        "userName": email,
-        "userId": uid,
-        "jobType": "training",
-        "vcName": vc,
-        "containerUserId": 0,
-        "jobName": "DLTS-Data-Job",
-        "jobtrainingtype": "RegularJob",
-        "preemptionAllowed": "False",
-        "image": image,
-        "cmd": cmd,
-        "workPath": "./",
-        "enableworkpath": True,
-        "dataPath": "./",
-        "enabledatapath": True,
-        "jobPath": "",
-        "enablejobpath": True,
-        "env": [],
-        "hostNetwork": False,
-        "isPrivileged": False,
-        "resourcegpu": 0,
-        "cpulimit": 1
-    }
-    url = urllib.parse.urljoin(rest_url, "/PostJob")
-    resp = requests.post(url,
-                         data=json.dumps(args))  # do not handle exception here
-    jid = resp.json()["jobId"]
-    logger.info("data job %s created", jid)
-    return jid
+    return args
 
 
 def get_job_status(rest_url, job_id):
@@ -226,46 +215,31 @@ def get_job_list(rest_url, email, vc_name, job_owner, num=10):
     return resp.json()
 
 
+def post_job(rest_url, job_spec):
+    url = urllib.parse.urljoin(rest_url, "/PostJob")
+    resp = requests.post(url, data=json.dumps(job_spec))
+    jid = resp.json()["jobId"]
+    logger.info("job %s created", jid)
+    return jid
+
+
 class run_job(object):
-    def __init__(self,
-                 rest_url,
-                 job_type,
-                 email,
-                 uid,
-                 vc,
-                 image="indexserveregistry.azurecr.io/deepscale:1.0.post0",
-                 cmd="sleep 120"):
+    def __init__(self, rest_url, job_spec):
         self.rest_url = rest_url
-        self.job_type = job_type
-        self.email = email
-        self.uid = uid
-        self.vc = vc
-        self.image = image
-        self.cmd = cmd
+        self.job_spec = job_spec
         self.jid = None
 
     def __enter__(self):
-        if self.job_type == "regular":
-            self.jid = post_regular_job(self.rest_url, self.email, self.uid,
-                                        self.vc, self.image, self.cmd)
-        elif self.job_type == "distributed":
-            self.jid = post_distributed_job(self.rest_url, self.email,
-                                            self.uid, self.vc, self.image,
-                                            self.cmd)
-        elif self.job_type == "data":
-            self.jid = post_data_job(self.rest_url, self.email, self.uid,
-                                     self.vc, self.image, self.cmd)
-        else:
-            logger.error("unknown job_type %s, wrong test case", self.job_type)
+        self.jid = post_job(self.rest_url, self.job_spec)
         return self
 
     def __exit__(self, type, value, traceback):
+        email = self.job_spec["userName"]
         try:
-            resp = kill_job(self.rest_url, self.email, self.jid)
-            logger.info("killed %s job %s", self.job_type, self.jid)
+            resp = kill_job(self.rest_url, email, self.jid)
+            logger.info("killed job %s", self.jid)
         except Exception:
-            logger.exception("failed to kill %s job %s", self.job_type,
-                             self.jid)
+            logger.exception("failed to kill job %s", self.jid)
 
 
 def block_until_state(rest_url, jid, not_in, states, timeout=300):
@@ -360,7 +334,7 @@ def build_k8s_config(config_path):
     cluster_path = os.path.join(config_path, "cluster.yaml")
 
     with open(cluster_path) as f:
-        cluster_config = yaml.load(f, Loader=yaml.FullLoader)
+        cluster_config = yaml.full_load(f)
 
     config = Configuration()
 
@@ -401,6 +375,7 @@ def kube_pod_exec(config_path,
                   container_name,
                   exec_command,
                   timeout=60):
+    """ exec_command should be an array, e.g. ["bash", "-c", "echo abc > /tmp/abc"] """
     k8s_config = build_k8s_config(config_path)
     api_client = ApiClient(configuration=k8s_config)
 

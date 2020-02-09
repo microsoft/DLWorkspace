@@ -259,6 +259,46 @@ default_config_parameters = {
         "user-synchronizer": "etcd_node_1",
     },
 
+    "default_kube_labels_by_node_role": {
+        'infra': {
+            "infrastructure": "active",
+            "alert-manager": "active",
+            "jobmanager": "active",
+            "watchdog": "active",
+            "mysql": "active",
+            "dashboard": "active",
+            "repairmanager": "active",
+            "grafana": "active",
+            "prometheus": "active",
+            "restfulapi": "active",
+            "user-synchronizer": "active",
+            "alert-manager": "active",
+            "elasticsearch": "active",
+            "beta.kubernetes.io/os": "linux"
+            },
+        'worker': {
+            "worker": "active",
+            "beta.kubernetes.io/os": "linux",
+            },
+        'mysqlserver': {
+            "mysql-server": "active"
+            },
+        'nfs': {
+            "storagemanager": "active"
+            },
+    },
+
+    "kube_services_2_start": [
+        "nvidia-device-plugin",
+        "flexvolume",
+        "mysql",
+        "jobmanager",
+        "restfulapi",
+        "monitor",
+        "dashboard",
+        "user-synchronizer",
+    ],
+
     "kubemarks": ["rack", "sku"],
 
     "network": {

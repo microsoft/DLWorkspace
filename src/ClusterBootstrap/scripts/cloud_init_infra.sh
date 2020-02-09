@@ -24,14 +24,11 @@ done;
 
 bash ./init_network.sh
 # render ip to kube-apiserver.yaml
+export MASTER_IP=$(cat /opt/defaultip)
+./render_env_vars.sh infra/deploy/master/kube-apiserver.yaml infra/deploy/master/kube-apiserver.yaml.1st MASTER_IP
+./render_env_vars.sh infra/deploy/master/kube-apiserver.yaml.1st /etc/kubernetes/manifests/kube-apiserver.yaml ETCD_ENDPOINTS 
+./render_env_vars.sh infra.kubelet.service.template /etc/systemd/system/kubelet.service KUBE_LABELS 
 
-MASTER_IP=$(cat /opt/defaultip)
-sed 's/$MASTER_IP/'"$MASTER_IP"'/g;s/$ETCD_ENDPOINTS/'"$ETCD_ENDPOINTS"'/g' /etc/kubernetes/manifests/kube-apiserver.yaml > rendered.kube-apiserver.yaml
-sudo cp rendered.kube-apiserver.yaml /etc/kubernetes/manifests/kube-apiserver.yaml
-
-# start kubernetes service
-python3 render_kube_service.py -t infra.kubelet.service.template -r infra.kubelet.service -nt $KUBE_LABELS
-sudo cp infra.kubelet.service /etc/systemd/system/kubelet.service
 bash ./pre-master-deploy.sh
 bash ./post-master-deploy.sh
 

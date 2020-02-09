@@ -71,14 +71,17 @@ def execute_or_dump_locally(cmd, verbose, dryrun, output_file):
 
 
 def check_subscription(config):
-    chkcmd ="az account list | grep -A5 -B5 '\"isDefault\": true'"
+    chkcmd = "az account list | grep -A5 -B5 '\"isDefault\": true'"
     output = utils.exec_cmd_local(chkcmd, True)
     if not config["azure_cluster"]["subscription"] in output:
-        setcmd = "az account set --subscription \"{}\"".format(config["azure_cluster"]["subscription"])
+        setcmd = "az account set --subscription \"{}\"".format(
+            config["azure_cluster"]["subscription"])
         setout = utils.exec_cmd_local(setcmd)
-        print("Set your subscription to {}, please login.\nIf you want to specify another subscription, please configure azure_cluster.subscription".format(config["azure_cluster"]["subscription"]))
+        print("Set your subscription to {}, please login.\nIf you want to specify another subscription, please configure azure_cluster.subscription".format(
+            config["azure_cluster"]["subscription"]))
         utils.exec_cmd_local("az login")
-    assert config["azure_cluster"]["subscription"] in utils.exec_cmd_local(chkcmd)
+    assert config["azure_cluster"]["subscription"] in utils.exec_cmd_local(
+        chkcmd)
 
 
 def create_group(config, args):
@@ -267,12 +270,10 @@ def gen_machine_list_4_deploy_action(complementary_file_name, config):
                     continue
                 cc["machines"][vmname][k] = v
             if "kube_label_groups" not in spec:
-                if "infra" in spec["role"]:
-                    cc["machines"][vmname]["kube_label_groups"] = [
-                        "all", "etcd_node", "etcd_node_1"]
-                elif "worker" in spec["role"]:
-                    cc["machines"][vmname]["kube_label_groups"] = [
-                        "all", "worker_node"]
+                cc["machines"][vmname]["kube_label_groups"] = []
+                for role in spec["role"]:
+                    if role in config["default_kube_labels_by_node_role"]:
+                        cc["machines"][vmname]["kube_label_groups"].append(role)
 
     cc["etcd_node_num"] = len(
         [mv for mv in list(cc["machines"].values()) if 'infra' in mv['role']])
