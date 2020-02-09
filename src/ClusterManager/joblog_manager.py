@@ -22,7 +22,7 @@ import k8sUtils
 
 logger = logging.getLogger(__name__)
 
-elasticsearch_deployed = config.get('elasticsearch') is list and len(config['elasticsearch']) > 0
+elasticsearch_deployed = isinstance(config.get('elasticsearch'), list) and len(config['elasticsearch']) > 0
 
 def create_log(logdir='/var/log/dlworkspace'):
     if not os.path.exists(logdir):
@@ -37,6 +37,7 @@ def create_log(logdir='/var/log/dlworkspace'):
 
 @record
 def extract_job_log(jobId, logPath, userId):
+    dataHandler = None
     try:
         dataHandler = DataHandler()
 
@@ -78,10 +79,14 @@ def extract_job_log(jobId, logPath, userId):
 
     except Exception as e:
         logging.error(e)
+    finally:
+        if dataHandler is not None:
+            dataHandler.Close()
 
 
 @record
 def extract_job_log_legacy(jobId, logPath, userId):
+    dataHandler = None
     try:
         dataHandler = DataHandler()
 
@@ -162,6 +167,9 @@ def extract_job_log_legacy(jobId, logPath, userId):
             os.system("chown -R %s %s" % (userId, logPath))
     except Exception as e:
         logger.exception("update log for job %s failed", jobId)
+    finally:
+        if dataHandler is not None:
+            dataHandler.Close()
 
 
 def update_job_logs():
@@ -169,6 +177,7 @@ def update_job_logs():
         try:
             dataHandler = DataHandler()
             pendingJobs = dataHandler.GetPendingJobs()
+            dataHandler.Close()
             for job in pendingJobs:
                 try:
                     if job["jobStatus"] == "running":
