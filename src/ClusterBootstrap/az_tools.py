@@ -983,13 +983,18 @@ def delete_cluster():
 
 def check_subscription():
     chkcmd ="az account list | grep -A5 -B5 '\"isDefault\": true'"
-    output = utils.exec_cmd_local(chkcmd).decode()
+    output = utils.exec_cmd_local(chkcmd)
+    if isinstance(output, bytes):
+        output = output.decode()
     if not config["azure_cluster"]["subscription"] in output:
         setcmd = "az account set --subscription \"{}\"".format(config["azure_cluster"]["subscription"])
         setout = utils.exec_cmd_local(setcmd)
         print("Set your subscription to {}, please login.\nIf you want to specify another subscription, please configure azure_cluster.subscription".format(config["azure_cluster"]["subscription"]))
         utils.exec_cmd_local("az login")
-    assert config["azure_cluster"]["subscription"] in utils.exec_cmd_local(chkcmd).decode()
+    output = utils.exec_cmd_local(chkcmd)
+    if isinstance(output, bytes):
+        output = output.decode()
+    assert config["azure_cluster"]["subscription"] in output
 
 def run_command(args, command, nargs, parser):
     if command == "genconfig":
