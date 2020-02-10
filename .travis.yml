@@ -48,3 +48,11 @@ matrix:
       - pip install requests kubernetes
     script:
       - python -m unittest test_cluster_status.py
+  - language: python
+    python: 3.6
+    before_install:
+      - cd src/StorageManager
+    install:
+      - pip install requests
+    script:
+      - python -m unittest discover .

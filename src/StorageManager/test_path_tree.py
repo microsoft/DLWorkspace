@@ -1,18 +1,11 @@
 import os
-import platform
 
 from unittest import TestCase
 from unittest.mock import patch
 from path_tree import PathTree
 from utils import DAY
-from testcase_utils import DummyNodeStat
+from testcase_utils import SYSTEM, LINUX, EMPTY_DIR_SIZE, DummyNodeStat
 
-
-SYSTEM = platform.system()
-WINDOWS = "Windows"
-LINUX = "Linux"
-
-EMPTY_DIR_SIZE = 4096 if SYSTEM is LINUX else 0
 
 """Test Example:
 
@@ -89,10 +82,10 @@ class TestPathTree(TestCase):
     @patch("os.path.isdir")
     @patch("os.stat")
     def test_walk_on_valid_path(self,
-                  mock_stat,
-                  mock_isdir,
-                  mock_islink,
-                  mock_listdir):
+                                mock_stat,
+                                mock_isdir,
+                                mock_islink,
+                                mock_listdir):
         mock_stat.side_effect = stat_side_effect
         mock_isdir.side_effect = isdir_side_effect
         mock_islink.return_value = False
@@ -102,11 +95,14 @@ class TestPathTree(TestCase):
             "path": TEST_DIR,
             "overweight_threshold": 10000,
             "expiry_days": 1,
-            "now": 1574203167
+            "days_to_delete_after_expiry": 1,
+            "now": 1574203167,
+            "regex_whitelist": ["^%s$" % FILE2_2]
         }
         tree = PathTree(config)
         tree.walk()
 
         self.assertEqual(1, len(tree.overweight_boundary_nodes))
         self.assertEqual(2, len(tree.expired_boundary_nodes))
+        self.assertEqual(2, len(tree.expired_boundary_nodes_to_delete))
         self.assertEqual(1, len(tree.empty_boundary_nodes))
