@@ -875,7 +875,7 @@ class DataHandler(object):
                 "jobType",
                 "jobTime",
                 "jobParams",
-                "priority",
+                "%s.priority" % job_priorities,
             ]
             cond = "%s.jobId = %s.jobId" % (jobs, job_priorities)
             query_prefix = "SELECT %s FROM %s LEFT JOIN %s ON %s WHERE 1" % (
