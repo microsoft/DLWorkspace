@@ -335,3 +335,26 @@ def test_blobfuse(args):
 
         assert log.find("dummy") != -1, "could not find %s in log" % (
             expected_output)
+
+
+@utils.case
+def test_sudo_installed(args):
+    cmd = "sudo ls"
+    image = "pytorch/pytorch:latest"  # no sudo installed in this image
+
+    job_spec = utils.gen_default_job_description(
+        "regular",
+        args.email,
+        args.uid,
+        args.vc,
+        cmd=cmd,
+        image=image,
+    )
+
+    with utils.run_job(args.rest, job_spec) as job:
+        state = utils.block_until_state_not_in(
+            args.rest, job.jid,
+            {"unapproved", "queued", "scheduling", "running"})
+        log = utils.get_job_log(args.rest, args.email, job.jid)["log"]
+
+        assert state == "finished"
