@@ -346,26 +346,29 @@ class ListJobs(Resource):
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument('userName')
-        parser.add_argument('num')
         parser.add_argument('vcName')
         parser.add_argument('jobOwner')
+        parser.add_argument('num')
         args = parser.parse_args()
+        username = args["userName"]
+        vc_name = args["vcName"]
+        job_owner = args["jobOwner"]
         num = None
         if args["num"] is not None:
             try:
                 num = int(args["num"])
             except:
+                # Set default number of inactive jobs to 20
+                num = 20
                 pass
-        jobs = JobRestAPIUtils.GetJobList(args["userName"], args["vcName"], args["jobOwner"], num)
+        jobs = JobRestAPIUtils.get_job_list(username, vc_name, job_owner, num)
 
-        jobList = []
         queuedJobs = []
         runningJobs = []
         finishedJobs = []
         visualizationJobs = []
         for job in jobs:
-            job.pop("jobDescriptionPath",None)
-            job.pop("jobDescription",None)
+            job.pop("jobDescription", None)
 
             job["jobParams"] = json.loads(base64decode(job["jobParams"]))
 
@@ -410,33 +413,41 @@ class ListJobs(Resource):
 ##
 api.add_resource(ListJobs, '/ListJobs')
 
-# shows a list of all jobs, and lets you POST to add new tasks
+
+# shows a list of all jobs
 class ListJobsV2(Resource):
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('userName')
-        parser.add_argument('num')
-        parser.add_argument('vcName')
-        parser.add_argument('jobOwner')
+        parser.add_argument("userName")
+        parser.add_argument("vcName")
+        parser.add_argument("jobOwner")
+        parser.add_argument("num")
         args = parser.parse_args()
+        username = args["userName"]
+        vc_name = args["vcName"]
+        job_owner = args["jobOwner"]
         num = None
         if args["num"] is not None:
             try:
                 num = int(args["num"])
             except:
+                # Set default number of inactive jobs to 20
+                num = 20
                 pass
 
-        jobs = JobRestAPIUtils.GetJobListV2(args["userName"], args["vcName"], args["jobOwner"], num)
-        for _, joblist in list(jobs.items()):
-            if isinstance(joblist, list):
-                for job in joblist:
+        jobs = JobRestAPIUtils.get_job_list_v2(
+            username, vc_name, job_owner, num)
+
+        for _, job_list in jobs.items():
+            if isinstance(job_list, list):
+                for job in job_list:
                     remove_creds(job)
 
         resp = generate_response(jobs)
         return resp
-##
-## Actually setup the Api resource routing here
-##
+
+
+# Set up the Api resource routing for ListJobsV2
 api.add_resource(ListJobsV2, '/ListJobsV2')
 
 
@@ -446,27 +457,26 @@ class KillJob(Resource):
         parser.add_argument('jobId')
         parser.add_argument('userName')
         args = parser.parse_args()
-        jobId = args["jobId"]
-        userName = args["userName"]
-        result = JobRestAPIUtils.KillJob(userName, jobId)
+        job_id = args["jobId"]
+        username = args["userName"]
+        result = JobRestAPIUtils.kill_job(username, job_id)
         ret = {}
         if result:
             # NOTE "Success" prefix is used in reaper, please also update reaper code
             # if need to change it.
             ret["result"] = "Success, the job is scheduled to be terminated."
         else:
-            ret["result"] = "Cannot Kill the job. Job ID:" + jobId
+            ret["result"] = "Cannot Kill the job. Job ID:" + job_id
 
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
 
         return resp
-##
-## Actually setup the Api resource routing here
-##
-api.add_resource(KillJob, '/KillJob')
 
+
+# Set up the Api resource routing for KillJob
+api.add_resource(KillJob, '/KillJob')
 
 
 class PauseJob(Resource):
@@ -475,25 +485,24 @@ class PauseJob(Resource):
         parser.add_argument('jobId')
         parser.add_argument('userName')
         args = parser.parse_args()
-        jobId = args["jobId"]
-        userName = args["userName"]
-        result = JobRestAPIUtils.PauseJob(userName, jobId)
+        job_id = args["jobId"]
+        username = args["userName"]
+        result = JobRestAPIUtils.pause_job(username, job_id)
         ret = {}
         if result:
             ret["result"] = "Success, the job is scheduled to be paused."
         else:
-            ret["result"] = "Cannot pause the job. Job ID:" + jobId
+            ret["result"] = "Cannot pause the job. Job ID:" + job_id
 
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
 
         return resp
-##
-## Actually setup the Api resource routing here
-##
-api.add_resource(PauseJob, '/PauseJob')
 
+
+# Set up the Api resource routing for PauseJob
+api.add_resource(PauseJob, '/PauseJob')
 
 
 class ResumeJob(Resource):
@@ -502,52 +511,24 @@ class ResumeJob(Resource):
         parser.add_argument('jobId')
         parser.add_argument('userName')
         args = parser.parse_args()
-        jobId = args["jobId"]
-        userName = args["userName"]
-        result = JobRestAPIUtils.ResumeJob(userName, jobId)
+        job_id = args["jobId"]
+        username = args["userName"]
+        result = JobRestAPIUtils.resume_job(username, job_id)
         ret = {}
         if result:
             ret["result"] = "Success, the job is scheduled to be resumed."
         else:
-            ret["result"] = "Cannot resume the job. Job ID:" + jobId
+            ret["result"] = "Cannot resume the job. Job ID:" + job_id
 
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
 
         return resp
-##
-## Actually setup the Api resource routing here
-##
+
+
+# Set up the Api resource routing for ResumeJob
 api.add_resource(ResumeJob, '/ResumeJob')
-
-
-
-class CloneJob(Resource):
-    def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument('jobId')
-        parser.add_argument('userName')
-        args = parser.parse_args()
-        jobId = args["jobId"]
-        userName = args["userName"]
-        result = JobRestAPIUtils.CloneJob(userName, jobId)
-        ret = {}
-        if result:
-            ret["result"] = "Success, the job is scheduled to be cloned."
-        else:
-            ret["result"] = "Cannot clone the job. Job ID:" + jobId
-
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
-##
-## Actually setup the Api resource routing here
-##
-api.add_resource(CloneJob, '/CloneJob')
-
 
 
 class ApproveJob(Resource):
@@ -556,24 +537,139 @@ class ApproveJob(Resource):
         parser.add_argument('jobId')
         parser.add_argument('userName')
         args = parser.parse_args()
-        jobId = args["jobId"]
-        userName = args["userName"]
-        result = JobRestAPIUtils.ApproveJob(userName, jobId)
+        job_id = args["jobId"]
+        username = args["userName"]
+        result = JobRestAPIUtils.approve_job(username, job_id)
         ret = {}
         if result:
             ret["result"] = "Success, the job has been approved."
         else:
-            ret["result"] = "Cannot approve the job. Job ID:" + jobId
+            ret["result"] = "Cannot approve the job. Job ID:" + job_id
 
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
         resp.headers["dataType"] = "json"
 
         return resp
-##
-## Actually setup the Api resource routing here
-##
+
+
+# Set up the Api resource routing for ApproveJob
 api.add_resource(ApproveJob, '/ApproveJob')
+
+
+class KillJobs(Resource):
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('jobIds')
+        parser.add_argument('userName')
+        args = parser.parse_args()
+        job_ids = args["jobIds"]
+        username = args["userName"]
+        result = JobRestAPIUtils.kill_jobs(username, job_ids)
+        ret = {"result": result}
+
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+
+
+# Set up the Api resource routing for KillJobs
+api.add_resource(KillJobs, "/KillJobs")
+
+
+class PauseJobs(Resource):
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('jobIds')
+        parser.add_argument('userName')
+        args = parser.parse_args()
+        job_ids = args["jobIds"]
+        username = args["userName"]
+        result = JobRestAPIUtils.pause_jobs(username, job_ids)
+        ret = {"result": result}
+
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+
+
+# Set up the Api resource routing for PauseJobs
+api.add_resource(PauseJobs, "/PauseJobs")
+
+
+class ResumeJobs(Resource):
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('jobIds')
+        parser.add_argument('userName')
+        args = parser.parse_args()
+        job_ids = args["jobIds"]
+        username = args["userName"]
+        result = JobRestAPIUtils.resume_jobs(username, job_ids)
+        ret = {"result": result}
+
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+
+
+# Set up the Api resource routing for ResumeJobs
+api.add_resource(ResumeJobs, "/ResumeJobs")
+
+
+class ApproveJobs(Resource):
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('jobIds')
+        parser.add_argument('userName')
+        args = parser.parse_args()
+        job_ids = args["jobIds"]
+        username = args["userName"]
+        result = JobRestAPIUtils.approve_jobs(username, job_ids)
+        ret = {"result": result}
+
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+
+
+# Set up the Api resource routing for ApproveJobs
+api.add_resource(ApproveJobs, "/ApproveJobs")
+
+
+# FIXME JobRestAPIUtils.CloneJob is not implemented
+# class CloneJob(Resource):
+#     def get(self):
+#         parser = reqparse.RequestParser()
+#         parser.add_argument('jobId')
+#         parser.add_argument('userName')
+#         args = parser.parse_args()
+#         jobId = args["jobId"]
+#         userName = args["userName"]
+#         result = JobRestAPIUtils.CloneJob(userName, jobId)
+#         ret = {}
+#         if result:
+#             ret["result"] = "Success, the job is scheduled to be cloned."
+#         else:
+#             ret["result"] = "Cannot clone the job. Job ID:" + jobId
+#
+#         resp = jsonify(ret)
+#         resp.headers["Access-Control-Allow-Origin"] = "*"
+#         resp.headers["dataType"] = "json"
+#
+#         return resp
+# ##
+# ## Actually setup the Api resource routing here
+# ##
+# api.add_resource(CloneJob, '/CloneJob')
 
 
 
@@ -654,10 +750,12 @@ class GetJobLog(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('jobId', required=True)
         parser.add_argument('userName', required=True)
+        parser.add_argument('cursor', type=int)
         args = parser.parse_args()
         jobId = args["jobId"]
         userName = args["userName"]
-        return JobRestAPIUtils.GetJobLog(userName, jobId)
+        cursor = args["cursor"]
+        return JobRestAPIUtils.GetJobLog(userName, jobId, cursor)
 ##
 ## Actually setup the Api resource routing here
 ##

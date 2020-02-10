@@ -7,4 +7,4 @@ if [ ! -z "$dirdst" ]; then
 	sudo mkdir -p $dirdst
 	sudo chown -R $USER:$USER $dirdst
 fi;
-sudo cp $src $dst
+sudo cp -r $src $dst

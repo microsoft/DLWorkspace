@@ -1,23 +1,10 @@
-{% if job["distRole"] %}
-{% set jobRole = job["distRole"] %}
-{% else %}
-{% set jobRole = "worker" %} # treat regular job's pod as worker role
-{% endif %}
-
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ job["jobId"] }}-deployment
   labels:
     run: {{ job["jobId"] }}
-    podName: {{ job["podName"] }}-deployment
-    jobName: {{ job["jobNameLabel"] }}-deployment
     jobId: {{ job["jobId"] }}
-    jobRole: {{ jobRole }}
-    userName: {{ job["user"] }}
-    vcName: {{ job["vcName"] }}
-    type: job
-    'gpu-request': '{{ job["gpuLimit"]|int }}'
 spec:
   replicas: {{ job["deployment_replicas"] }}
   selector:
@@ -29,6 +16,10 @@ spec:
       labels:
         jobId: {{ job["jobId"] }}
         worker: active
+        jobRole: worker
+        userName: {{ job["user"] }}
+        vcName: {{ job["vcName"] }}
+        type: job
     affinity:
       podAffinity:
         preferredDuringSchedulingIgnoredDuringExecution:
@@ -43,10 +34,10 @@ spec:
             topologyKey: kubernetes.io/hostname
     spec:
       containers:
-      - name: {{ job["podName"] }}-deployment
+      - name: main
         image: {{ job["image"] }}
         imagePullPolicy: Always
-        command: {{ job["LaunchCMD"] }}
+        command: ["sh", "-c", "printenv DLWS_LAUNCH_CMD > /pod/job_command.sh ; sh /pod/job_command.sh"]
         securityContext:
           runAsUser: {{ job["containerUserId"] }}
           capabilities:
@@ -55,7 +46,7 @@ spec:
             - SYS_ADMIN
         resources:
           limits:
-            nvidia.com/gpu: {{ job["gpu_per_pod"] }}
+            nvidia.com/gpu: 1
         {% if not job["cpurequest"] %}
           requests:
             cpu: 1.0
@@ -99,28 +90,12 @@ spec:
         env:
         - name: FAMILY_TOKEN
           value: {{ job["familyToken"] }}
-        - name: DLWS_REST_API
-          value: {{ job["rest-api"] }}
+        - name: DLWS_ROLE_NAME
+          value: worker
         - name: DLWS_JOB_ID
           value: {{ job["jobId"] }}
-        - name: DLWS_NUM_PS
-          value: "{{ job["numps"] }}"
-        - name: DLWS_NUM_WORKER
-          value: "{{ job["numworker"] }}"
-        {% if job["gpuLimit"]|int < 1  %}
-        - name: NVIDIA_VISIBLE_DEVICES
-          value: ""
-        {% endif %}
-        {% if job["usefreeflow"] %}
-        - name: VNET_PREFIX
-          value: {{ job["pod_ip_range"] }}
-        - name: LD_PRELOAD
-          value: "/freeflow/libfsocket.so"
-        {% endif %}
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
+        - name: DLWS_NUM_GPU_PER_WORKER
+          value: "1"
         - name: POD_IP
           valueFrom:
             fieldRef:

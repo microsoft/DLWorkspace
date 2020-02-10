@@ -1,0 +1,29 @@
+#cloud-config
+users:
+  - default
+  - name: {{cnf["nfs_user"]}}
+    groups: sudo
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+runcmd:
+ - cd /home/{{cnf["nfs_user"]}}
+ # render env variables
+ - echo "export DATA_DISK_MNT_PATH={{cnf["data_disk_mnt_path"]}}" > boot.env
+ - echo "export PLATFORM_TYPE={{cnf["platform_type"]}}" >> boot.env
+ - echo "export FILES_2_SHARE='{{cnf["files2share"] | join(';')}}'" >> boot.env
+ - echo "export CIDR_NODE_RANGES='{{cnf["nfs_client_CIDR"]["node_range"]  | join(';')}}'" >> boot.env
+ - echo "export CIDR_SAMBA_RANGES='{{cnf["nfs_client_CIDR"]["samba_range"]  | join(';')}}'" >> boot.env
+ - echo "export KUBE_LABELS=\"{{cnf['kube_labels'] | join(',')}}\"" >> boot.env
+ - echo "export ETCD_ENDPOINTS='{{cnf["etcd_endpoints"]}}'" >> boot.env
+ - echo "export KUBE_API_SERVER='{{cnf["api_servers"]}}'" >> boot.env
+ # pull docker and install NFS service kits
+ - curl -fsSL https://get.docker.com -o get-docker.sh; sh get-docker.sh
+ - sudo usermod -aG docker {{cnf["nfs_user"]}}
+ - sudo setfacl -m user:{{cnf["nfs_user"]}}:rw /var/run/docker.sock
+ - docker pull {{cnf["dockerregistry"]}}{{cnf["cluster_name"]}}/cloudinit
+ - docker create -ti --name bootpack {{cnf["dockerregistry"]}}{{cnf["cluster_name"]}}/cloudinit bash
+ - docker cp bootpack:/usr/cloudinit.tar ./
+ - tar -xvf cloudinit.tar
+ - cd cloudinit
+ - ./cloud_init_nfs.sh
+output: {all: '| tee -a /home/{{cnf["nfs_user"]}}/cloud-init-output.log'}

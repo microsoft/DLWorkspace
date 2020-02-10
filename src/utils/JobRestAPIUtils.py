@@ -8,6 +8,8 @@ import uuid
 import sys
 import collections
 import copy
+import requests
+
 import base64
 import re
 import logging
@@ -21,13 +23,14 @@ from DataHandler import DataHandler, DataManager
 from authorization import ResourceType, Permission, AuthorizationManager, IdentityManager, ACLManager
 import authorization
 import quota
+from job_op import KillOp, PauseOp, ResumeOp, ApproveOp
 
 sys.path.append(os.path.join(os.path.dirname(
     os.path.abspath(__file__)), "../ClusterManager"))
 
 from ResourceInfo import ResourceInfo
 from cluster_resource import ClusterResource
-
+from JobLogUtils import GetJobLog as UtilsGetJobLog
 
 DEFAULT_JOB_PRIORITY = 100
 USER_JOB_PRIORITY_RANGE = (100, 200)
@@ -36,7 +39,18 @@ ADMIN_JOB_PRIORITY_RANGE = (1, 1000)
 
 logger = logging.getLogger(__name__)
 
-pendingStatus = "running,queued,scheduling,unapproved,pausing,paused"
+ACTIVE_STATUS = {
+    "unapproved",
+    "queued",
+    "scheduling",
+    "running",
+    "pausing",
+    "paused",
+}
+has_access = AuthorizationManager.HasAccess
+VC = ResourceType.VC
+ADMIN = Permission.Admin
+COLLABORATOR = Permission.Collaborator
 DEFAULT_EXPIRATION = 24 * 30 * 60
 vc_cache = TTLCache(maxsize=10240, ttl=DEFAULT_EXPIRATION)
 vc_cache_lock = Lock()
@@ -61,6 +75,7 @@ def base64encode(str_val):
 def base64decode(str_val):
     return base64.b64decode(str_val.encode("utf-8")).decode("utf-8")
 
+elasticsearch_deployed = isinstance(config.get('elasticsearch'), list) and len(config['elasticsearch']) > 0
 
 def adjust_job_priority(priority, permission):
     priority_range = (DEFAULT_JOB_PRIORITY, DEFAULT_JOB_PRIORITY)
@@ -411,56 +426,57 @@ def SubmitJob(jobParamsJsonStr):
     return ret
 
 
-def GetJobList(userName, vcName, jobOwner, num=None):
+def get_job_list(username, vc_name, job_owner, num=20):
     try:
-        dataHandler = DataHandler()
+        with DataHandler() as data_handler:
+            if job_owner == "all" and \
+                    has_access(username, VC, vc_name, COLLABORATOR):
+                jobs = data_handler.get_union_job_list(
+                    "all",
+                    vc_name,
+                    num,
+                    ACTIVE_STATUS
+                )
+            else:
+                jobs = data_handler.get_union_job_list(
+                    username,
+                    vc_name,
+                    num,
+                    ACTIVE_STATUS
+                )
+            for job in jobs:
+                job.pop('jobMeta', None)
+    except:
+        logger.exception("Exception in getting job list for username %s",
+                         username, exc_info=True)
         jobs = []
-        hasAccessOnAllJobs = False
 
-        if AuthorizationManager.HasAccess(userName, ResourceType.VC, vcName, Permission.Collaborator):
-            hasAccessOnAllJobs = True
-
-        if jobOwner != "all" or not hasAccessOnAllJobs:
-            jobs = jobs + GetUserPendingJobs(userName, vcName)
-            jobs = jobs + dataHandler.GetJobList(
-                userName, vcName, num, "running,queued,scheduling,unapproved,pausing,paused", ("<>", "and"))
-        else:
-            jobs = GetUserPendingJobs(jobOwner, vcName)
-
-        for job in jobs:
-            job.pop('jobMeta', None)
-        dataHandler.Close()
-        return jobs
-    except Exception as e:
-        logger.error('Exception: %s', str(e))
-        logger.warn(
-            "Fail to get job list for user %s, return empty list", userName)
-        return []
+    return jobs
 
 
-def GetJobListV2(userName, vcName, jobOwner, num=None):
-    jobs = {}
-    dataHandler = None
+def get_job_list_v2(username, vc_name, job_owner, num=None):
     try:
-        dataHandler = DataHandler()
+        with DataHandler() as data_handler:
+            if job_owner == "all" and \
+                    has_access(username, VC, vc_name, COLLABORATOR):
+                jobs = data_handler.get_union_job_list_v2(
+                    "all",
+                    vc_name,
+                    num,
+                    ACTIVE_STATUS
+                )
+            else:
+                jobs = data_handler.get_union_job_list_v2(
+                    username,
+                    vc_name,
+                    num,
+                    ACTIVE_STATUS
+                )
+    except:
+        logger.exception("Exception in getting job list v2 for username %s",
+                         username, exc_info=True)
+        jobs = {}
 
-        hasAccessOnAllJobs = False
-        if jobOwner == "all":
-            hasAccessOnAllJobs = AuthorizationManager.HasAccess(
-                userName, ResourceType.VC, vcName, Permission.Collaborator)
-
-        # if user needs to access all jobs, and has been authorized, he could get all pending jobs; otherwise, he could get his own jobs with all status
-        if hasAccessOnAllJobs:
-            jobs = dataHandler.GetJobListV2(
-                "all", vcName, num, pendingStatus, ("=", "or"))
-        else:
-            jobs = dataHandler.GetJobListV2(userName, vcName, num)
-    except Exception as e:
-        logger.error('get job list V2 Exception: user: %s, ex: %s',
-                     userName, str(e))
-    finally:
-        if dataHandler is not None:
-            dataHandler.Close()
     return jobs
 
 
@@ -484,20 +500,167 @@ def GetCommands(userName, jobId):
     return commands
 
 
-def KillJob(userName, jobId):
+def get_access_to_job(username, job):
+    is_owner = job["userName"] == username
+    is_admin = has_access(username, VC, job["vcName"], ADMIN)
+    allowed = is_owner or is_admin
+
+    role = "unauthorized"
+    if is_owner:
+        role = "owner"
+    elif is_admin:
+        role = "admin"
+    return allowed, role
+
+
+def op_job(username, job_id, op):
+    op_name = op.name
+    op_past_tense = op.past_tense
+    from_states = op.from_states
+    to_state = op.to_state
+
     ret = False
-    dataHandler = DataHandler()
-    job = dataHandler.GetJobTextFields(
-        jobId, ["userName", "vcName", "jobStatus", "isParent", "familyToken"])
-    if job is not None and job["jobStatus"] in pendingStatus.split(","):
-        if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin):
-            dataFields = {"jobStatus": "killing"}
-            conditionFields = {"jobId": jobId}
-            if job["isParent"] == 1:
-                conditionFields = {"familyToken": job["familyToken"]}
-            ret = dataHandler.UpdateJobTextFields(conditionFields, dataFields)
-    dataHandler.Close()
+    with DataHandler() as data_handler:
+        job = data_handler.GetJobTextFields(
+            job_id, ["userName", "vcName", "jobStatus"])
+
+        if job is None:
+            return ret
+
+        allowed, role = get_access_to_job(username, job)
+
+        if not allowed:
+            logger.info("%s (%s) attempted to %s job %s",
+                        username, role, op_name, job_id)
+            return ret
+
+        job_status = job["jobStatus"]
+        if job_status not in from_states:
+            logger.info("%s (%s) attempted to %s a(n) \"%s\" job %s",
+                        username, role, op_name, job_status, job_id)
+            return ret
+
+        data_fields = {"jobStatus": to_state}
+        cond_fields = {"jobId": job_id}
+        ret = data_handler.UpdateJobTextFields(cond_fields, data_fields)
+        if ret is True:
+            logger.info("%s (%s) successfully %s job %s",
+                        username, role, op_past_tense, job_id)
+        else:
+            logger.info("%s (%s) failed to %s job %s",
+                        username, role, op_name, job_id)
     return ret
+
+
+def kill_job(username, job_id):
+    return op_job(username, job_id, KillOp())
+
+
+def pause_job(username, job_id):
+    return op_job(username, job_id, PauseOp())
+
+
+def resume_job(username, job_id):
+    return op_job(username, job_id, ResumeOp())
+
+
+def approve_job(username, job_id):
+    return op_job(username, job_id, ApproveOp())
+
+
+def _op_jobs_in_one_batch(username, job_ids, op, data_handler):
+    op_name = op.name
+    op_past_tense = op.past_tense
+    from_states = op.from_states
+    to_state = op.to_state
+
+    # Get all jobs to op
+    fields = [
+        "jobId",
+        "userName",
+        "vcName",
+        "jobStatus",
+    ]
+    jobs = data_handler.get_fields_for_jobs(job_ids, fields)
+
+    result = {}
+
+    if jobs is None:
+        return result
+
+    job_ids_to_op = []
+    roles_for_jobs = []
+    for job in jobs:
+        job_id = job["jobId"]
+        job_status = job["jobStatus"]
+
+        allowed, role = get_access_to_job(username, job)
+
+        if not allowed:
+            result[job_id] = "unauthorized to %s" % op_name
+            logger.info("%s (%s) attempted to %s job %s",
+                        username, role, op_name, job_id)
+            continue
+
+        if job_status not in from_states:
+            result[job_id] = "cannot %s a(n) \"%s\" job" % (op_name, job_status)
+            logger.info("%s (%s) attempted to %s a(n) \"%s\" job %s",
+                        username, role, op_name, job_status, job_id)
+            continue
+
+        job_ids_to_op.append(job_id)
+        roles_for_jobs.append(role)
+
+    data_fields = {"jobStatus": to_state}
+    success = data_handler.update_text_fields_for_jobs(job_ids_to_op,
+                                                       data_fields)
+
+    msg = "successfully %s" % op_past_tense \
+        if success else "failed to %s" % op_name
+    result.update({job_id: msg for job_id in job_ids_to_op})
+
+    for i, job_id in enumerate(job_ids_to_op):
+        role = roles_for_jobs[i]
+        logger.info("%s (%s) %s job %s", username, role, msg, job_id)
+
+    return result
+
+
+def op_jobs(username, job_ids, op, batch_size=20):
+    if isinstance(job_ids, str):
+        job_ids = job_ids.split(",")
+    elif not isinstance(job_ids, list):
+        t = type(job_ids)
+        err_msg = "Unsupported type %s of job_ids %s" % (t, job_ids)
+        return err_msg
+
+    # Partition jobs into processing batches
+    batch_starts = range(0, len(job_ids), batch_size)
+    job_id_batches = [job_ids[x:x+batch_size] for x in batch_starts]
+
+    result = {}
+    with DataHandler() as data_handler:
+        for job_id_batch in job_id_batches:
+            batch_result = _op_jobs_in_one_batch(
+                username, job_id_batch, op, data_handler)
+            result.update(batch_result)
+    return result
+
+
+def kill_jobs(username, job_ids):
+    return op_jobs(username, job_ids, KillOp())
+
+
+def pause_jobs(username, job_ids):
+    return op_jobs(username, job_ids, PauseOp())
+
+
+def resume_jobs(username, job_ids):
+    return op_jobs(username, job_ids, ResumeOp())
+
+
+def approve_jobs(username, job_ids):
+    return op_jobs(username, job_ids, ApproveOp())
 
 
 def AddCommand(userName, jobId, command):
@@ -507,42 +670,6 @@ def AddCommand(userName, jobId, command):
     if job is not None:
         if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Collaborator):
             ret = dataHandler.AddCommand(jobId, command)
-    dataHandler.Close()
-    return ret
-
-
-def ApproveJob(userName, jobId):
-    dataHandler = DataHandler()
-    ret = False
-    job = dataHandler.GetJobTextFields(jobId, ["vcName", "jobStatus"])
-    if job is not None and job["jobStatus"] == "unapproved":
-        if AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin):
-            ret = dataHandler.UpdateJobTextField(jobId, "jobStatus", "queued")
-    dataHandler.Close()
-    return ret
-
-
-def ResumeJob(userName, jobId):
-    dataHandler = DataHandler()
-    ret = False
-    job = dataHandler.GetJobTextFields(
-        jobId, ["userName", "vcName", "jobStatus"])
-    if job is not None and job["jobStatus"] == "paused":
-        if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Collaborator):
-            ret = dataHandler.UpdateJobTextField(
-                jobId, "jobStatus", "unapproved")
-    dataHandler.Close()
-    return ret
-
-
-def PauseJob(userName, jobId):
-    dataHandler = DataHandler()
-    ret = False
-    job = dataHandler.GetJobTextFields(
-        jobId, ["userName", "vcName", "jobStatus"])
-    if job is not None and job["jobStatus"] in ["unapproved", "queued", "scheduling", "running"]:
-        if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin):
-            ret = dataHandler.UpdateJobTextField(jobId, "jobStatus", "pausing")
     dataHandler.Close()
     return ret
 
@@ -563,30 +690,8 @@ def GetJobDetail(userName, jobId):
     if len(jobs) == 1:
         if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
             job = jobs[0]
-            job["log"] = ""
-            #jobParams = json.loads(base64.b64decode(job["jobMeta"]))
-            #jobPath,workPath,dataPath = GetStoragePath(jobParams["jobPath"],jobParams["workPath"],jobParams["dataPath"])
-            #localJobPath = os.path.join(config["storage-mount-path"],jobPath)
-            #logPath = os.path.join(localJobPath,"joblog.txt")
-            #print logPath
-            # if os.path.isfile(logPath):
-            #    with open(logPath, 'r') as f:
-            #        log = f.read()
-            #        job["log"] = log
-            #    f.close()
             if "jobDescription" in job:
                 job.pop("jobDescription", None)
-            try:
-                log = dataHandler.GetJobTextField(jobId, "jobLog")
-                try:
-                    if isBase64(log):
-                        log = base64decode(log)
-                except Exception:
-                    pass
-                if log is not None:
-                    job["log"] = log
-            except:
-                job["log"] = "fail-to-get-logs"
     dataHandler.Close()
     return job
 
@@ -618,25 +723,45 @@ def GetJobStatus(jobId):
     return result
 
 
-def GetJobLog(userName, jobId):
+def GetJobLog(userName, jobId, cursor=None, size=100):
     dataHandler = DataHandler()
     jobs = dataHandler.GetJob(jobId=jobId)
     if len(jobs) == 1:
         if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
-            try:
-                log = dataHandler.GetJobTextField(jobId, "jobLog")
+            if elasticsearch_deployed:
+                (logs, cursor) = UtilsGetJobLog(jobId, cursor, size)
+
+                pod_logs = {}
+                for log in logs:
+                    try:
+                        pod_name = log["_source"]["kubernetes"]["pod_name"]
+                        log = log["_source"]["log"]
+                        if pod_name in pod_logs:
+                            pod_logs[pod_name] += log
+                        else:
+                            pod_logs[pod_name] = log
+                    except Exception:
+                        logging.exception("Failed to parse elasticsearch log: {}".format(log))
+
+                return {
+                    "log": pod_logs,
+                    "cursor": cursor,
+                }
+            else:
                 try:
-                    if isBase64(log):
-                        log = base64decode(log)
-                except Exception:
+                    log = dataHandler.GetJobTextField(jobId, "jobLog")
+                    try:
+                        if isBase64(log):
+                            log = base64decode(log)
+                    except Exception:
+                        pass
+                    if log is not None:
+                        return {
+                            "log": log,
+                            "cursor": None,
+                        }
+                except:
                     pass
-                if log is not None:
-                    return {
-                        "log": log,
-                        "cursor": None,
-                    }
-            except:
-                pass
     return {
         "log": {},
         "cursor": None,
@@ -1249,7 +1374,7 @@ def update_job_priorites(username, job_priorities):
             permission = Permission.Admin if vc_admin else Permission.User
             job_priorities[job_id] = adjust_job_priority(priority, permission)
 
-            if job["jobStatus"] in pendingStatus.split(","):
+            if job["jobStatus"] in ACTIVE_STATUS:
                 pendingJobs[job_id] = job_priorities[job_id]
 
         ret_code = data_handler.update_job_priority(job_priorities)

@@ -1,5 +1,5 @@
-{% if job["distRole"] %}
-{% set jobRole = job["distRole"] %}
+{% if job["role_name"] %}
+{% set jobRole = job["role_name"] %}
 {% else %}
 {% set jobRole = "worker" %} # treat regular job's pod as worker role
 {% endif %}
@@ -203,10 +203,6 @@ spec:
       {% endif %}
     {% endif %}
     {% endfor %}
-    {% if job["usefreeflow"] %}
-    - mountPath: /freeflow
-      name: freeflow
-    {% endif %}
     - mountPath: /dev/shm
       name: dshm
     {% if job["plugins"] %}
@@ -222,10 +218,10 @@ spec:
     env:
     - name: FAMILY_TOKEN
       value: {{ job["familyToken"] }}
-    - name: DLWS_REST_API
-      value: {{ job["rest-api"] }}
     - name: DLWS_JOB_ID
       value: {{ job["jobId"] }}
+    - name: DLWS_ROLE_NAME
+      value: {{ job["role_name"] }}
     - name: DLWS_NUM_PS
       value: "{{ job["numps"] }}"
     - name: DLWS_NUM_WORKER
@@ -233,12 +229,6 @@ spec:
     {% if job["gpuLimit"]|int < 1  %}
     - name: NVIDIA_VISIBLE_DEVICES
       value: ""
-    {% endif %}
-    {% if job["usefreeflow"] %}
-    - name: VNET_PREFIX
-      value: {{ job["pod_ip_range"] }}
-    - name: LD_PRELOAD
-      value: "/freeflow/libfsocket.so"
     {% endif %}
     - name: POD_NAME
       valueFrom:
@@ -320,11 +310,6 @@ spec:
     {% endif %}
   {% endif %}
   {% endfor %}
-  {% if job["usefreeflow"] %}
-  - name: freeflow
-    hostPath:
-      path: /freeflow
-  {% endif %}
   - name: dshm
     emptyDir:
       medium: Memory

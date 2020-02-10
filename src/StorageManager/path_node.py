@@ -27,7 +27,7 @@ class PathNode(object):
         children: A list of child nodes of this node.
         num_subtree_nodes: Number of nodes in the subtree including itself.
     """
-    def __init__(self, path, uid_user=None):
+    def __init__(self, path, uid_to_user=None):
         """Constructs PathNode.
 
         Args:
@@ -51,8 +51,8 @@ class PathNode(object):
         self.gid = stat.st_gid
 
         self.owner = ""
-        if isinstance(uid_user, dict):
-            self.owner = uid_user.get(self.uid, "")
+        if isinstance(uid_to_user, dict):
+            self.owner = uid_to_user.get(self.uid, "")
 
         self.num_subtree_nodes = 1
         self.num_subtree_files = 0 if self.isdir else 1

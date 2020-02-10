@@ -3,83 +3,108 @@
 
 import argparse
 import logging
-import time
+import glob
+import datetime
+from multiprocessing import Pool
 
 import utils
 
 logger = logging.getLogger(__file__)
 
 
-def test_regular_job_running(args):
-    expected = "wantThisInLog"
-    cmd = "echo %s ; sleep 1800" % expected
-
-    image = "indexserveregistry.azurecr.io/deepscale:1.0.post0"
-    with utils.run_job(args.rest, "regular", args.email, args.uid, args.vc, image, cmd) as job:
-        utils.block_until_running(args.rest, job.jid)
-
-        for _ in range(10):
-            log = utils.get_job_log(args.rest, args.email, job.jid)
-
-            if expected not in log["log"]:
-                time.sleep(0.5)
-        assert expected in log["log"]
+def run_case(case):
+    case(args)
 
 
-def test_distributed_job_running(args):
-    expected = "wantThisInLog"
-    cmd = "echo %s ; sleep 1800" % expected
+def should_run(model_name, case_name, full_name, targets):
+    if len(targets) == 0:
+        return True
 
-    image = "indexserveregistry.azurecr.io/deepscale:1.0.post0"
-    with utils.run_job(args.rest, "distributed", args.email, args.uid, args.vc, image, cmd) as job:
-        utils.block_until_running(args.rest, job.jid)
+    bucket = {model_name, case_name, full_name}
 
-        for _ in range(10):
-            log = utils.get_job_log(args.rest, args.email, job.jid)
-
-            if expected not in log["log"]:
-                time.sleep(0.5)
-        assert expected in log["log"]
-
-
-def test_data_job_running(args):
-    expected_state = "finished"
-    expected_word = "wantThisInLog"
-    cmd = "mkdir -p /tmp/dlts_test_dir; " \
-          "echo %s > /tmp/dlts_test_dir/testfile; " \
-          "cd /DataUtils; " \
-          "./copy_data.sh /tmp/dlts_test_dir adl://indexserveplatform-experiment-c09.azuredatalakestore.net/local/dlts_test_dir True 4194304 4 2; " \
-          "./copy_data.sh adl://indexserveplatform-experiment-c09.azuredatalakestore.net/local/dlts_test_dir /tmp/dlts_test_dir_copyback False 33554432 4 2; " \
-          "cat /tmp/dlts_test_dir_copyback/testfile; " \
-          "sleep 10" % expected_word
-
-    image = "indexserveregistry.azurecr.io/dlts-data-transfer-image:latest"
-    with utils.run_job(args.rest, "data", args.email, args.uid, args.vc, image, cmd) as job:
-        utils.block_until_running(args.rest, job.jid)
-        final_state = utils.block_until_finished(args.rest, job.jid)
-        assert expected_state == final_state
-
-        log = utils.get_job_log(args.rest, args.email, job.jid)
-        assert expected_word in log["log"]
+    for target_name in targets:
+        if target_name == "":
+            continue
+        if target_name in bucket:
+            return True
+    return False
 
 
 def main(args):
-    test_regular_job_running(args)
-    test_distributed_job_running(args)
-    test_data_job_running(args)
+    start = datetime.datetime.now()
+
+    f_names = glob.glob("*.py")
+
+    if args.case == "":
+        targets = []
+    else:
+        targets = args.case.split(",")
+
+    cases = []
+    case_names = []
+
+    for name in f_names:
+        model_name = name[:-3]
+        model = __import__(model_name)
+
+        for obj_name in dir(model):
+            obj = getattr(model, obj_name)
+            if not hasattr(obj, "is_case"):
+                continue
+            if not getattr(obj, "is_case"):
+                continue
+            logger.debug("found case %s.%s", model_name, obj_name)
+
+            full_name = model_name + "." + obj_name
+
+            if not should_run(model_name, obj_name, full_name, targets):
+                continue
+
+            cases.append(obj)
+            case_names.append(full_name)
+
+    logger.info("will run %d cases %s", len(case_names), case_names)
+    num_proc = min(args.process, len(cases))
+
+    with Pool(processes=num_proc) as pool:
+        pool.map(run_case, cases)
+
+    logger.info("spent %s in executing %d cases %s",
+                datetime.datetime.now() - start, len(case_names), case_names)
 
 
 if __name__ == '__main__':
-    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
-
+    logging.basicConfig(
+        format=
+        "%(asctime)s: %(levelname)s - %(filename)s:%(lineno)d@%(process)d: %(message)s",
+        level=logging.INFO)
     parser = argparse.ArgumentParser()
-    parser.add_argument("--rest", "-r", required=True, help="rest api url, http://localhost:5000")
+    parser.add_argument("--process",
+                        "-p",
+                        default=5,
+                        type=int,
+                        help="how many process used to run cases")
+    parser.add_argument("--case",
+                        "-a",
+                        default="",
+                        help="which case(s) to run, comma seperated")
+    parser.add_argument("--rest",
+                        "-r",
+                        required=True,
+                        help="rest api url, http://localhost:5000")
     parser.add_argument("--vc", "-v", required=True, help="vc to submit job")
-    parser.add_argument("--email", "-e", required=True, help="email to submit job to rest")
-    parser.add_argument("--uid", "-u", required=True, help="uid to submit job to rest")
-    #parser.add_argument("--jid", "-j", required=True, help="job_id to query")
-    #parser.add_argument("--k8s", "-l", required=True, help="kubernetes api uri eg. http://10.151.40.133:143")
-    #parser.add_argument("--config", "-i", required=True, help="path to config dir")
+    parser.add_argument("--email",
+                        "-e",
+                        required=True,
+                        help="email to submit job to rest")
+    parser.add_argument("--uid",
+                        "-u",
+                        required=True,
+                        help="uid to submit job to rest")
+    parser.add_argument("--config",
+                        "-c",
+                        required=True,
+                        help="path to config dir")
     args = parser.parse_args()
 
     main(args)

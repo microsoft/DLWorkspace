@@ -40,7 +40,8 @@ verbose = False
 nocache = False
 limitnodes = None
 allroles = {"infra", "infrastructure", "worker",
-            "nfs", "sql", "samba", "mysqlserver"}
+            "nfs", "sql", "samba", "mysqlserver", 
+            "elasticsearch"}
 
 
 # Path to mount name
@@ -256,7 +257,8 @@ def update_config():
     if ("influxdb_node" not in config):
         config["influxdb_node"] = config["webportal_node"]
     if ("elasticsearch_node" not in config):
-        config["elasticsearch_node"] = config["webportal_node"]
+        config["elasticsearch_node"] = None if len(get_node_lists_for_service(
+            "elasticsearch"))==0 else get_node_lists_for_service("elasticsearch")[0]
     if ("mysql_node" not in config):
         config["mysql_node"] = None if len(get_node_lists_for_service(
             "mysql")) == 0 else get_node_lists_for_service("mysql")[0]
@@ -604,6 +606,7 @@ def check_master_ETCD_status():
     get_ETCD_master_nodes(config["clusterId"])
     get_worker_nodes(config["clusterId"], False)
     get_nodes_by_roles(["mysqlserver"])
+    get_nodes_by_roles(["elasticsearch"])
     get_nodes_by_roles(["nfs"])
     get_nodes_by_roles(["samba"])
     print("===============================================")
@@ -615,6 +618,8 @@ def check_master_ETCD_status():
           (len(config["worker_node"]), ",".join(config["worker_node"])))
     print("Activate MySQLServer Node(s):%s\n %s \n" %
           (len(config["mysqlserver_node"]), ",".join(config["mysqlserver_node"])))
+    print("Activate Elasticsearch Node(s):%s\n %s \n" %
+          (len(config["elasticsearch_node"]), ",".join(config["elasticsearch_node"])))
     print("Activate NFS Node(s):%s\n %s \n" %
           (len(config["nfs_node"]), ",".join(config["nfs_node"])))
     print("Activate Samba Node(s):%s\n %s \n" %
@@ -1289,7 +1294,7 @@ def update_scaled_worker_nodes(nargs):
         "./template/kubelet", "./deploy/kubelet", config)
     write_nodelist_yaml()
 
-    os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' %
+    os.system("sed 's/$ETCD_ENDPOINTS/%s/g' ./deploy/kubelet/options.env.template > ./deploy/kubelet/options.env" %
               config["etcd_endpoints"].replace("/", "\\/"))
     os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' %
               config["api_servers"].replace("/", "\\/"))
@@ -1376,8 +1381,8 @@ def render_and_pack_worker_cloud_init_files():
                           "./deploy/cloud-config/cloudinit.{}.upgrade.list".format(role), config)
     render_kubelet_service_by_node_type('worker_node')
     # write_nodelist_yaml() TODO verify whether this step is necessary
-    os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"'
-              % config["etcd_endpoints"].replace("/", "\\/"))
+    os.system("sed 's/$ETCD_ENDPOINTS/%s/g' ./deploy/kubelet/options.env.template > ./deploy/kubelet/options.env" %
+              config["etcd_endpoints"].replace("/", "\\/"))
     os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/worker-kubeconfig.yaml.template > ./deploy/kubelet/worker-kubeconfig.yaml'
               % config["api_servers"].replace("/", "\\/"))
     get_hyperkube_docker()
@@ -1412,7 +1417,7 @@ def update_worker_nodes(nargs):
         "./template/kubelet", "./deploy/kubelet", config)
     write_nodelist_yaml()
 
-    os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' %
+    os.system("sed 's/$ETCD_ENDPOINTS/%s/g' ./deploy/kubelet/options.env.template > ./deploy/kubelet/options.env" %
               config["etcd_endpoints"].replace("/", "\\/"))
     os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' %
               config["api_servers"].replace("/", "\\/"))
@@ -1438,7 +1443,7 @@ def update_worker_nodes_in_parallel(nargs):
         "./template/kubelet", "./deploy/kubelet", config)
     write_nodelist_yaml()
 
-    os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' %
+    os.system("sed 's/$ETCD_ENDPOINTS/%s/g' ./deploy/kubelet/options.env.template > ./deploy/kubelet/options.env" %
               config["etcd_endpoints"].replace("/", "\\/"))
     os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' %
               config["api_servers"].replace("/", "\\/"))
@@ -1486,7 +1491,7 @@ def update_nfs_nodes(nargs):
 
     write_nodelist_yaml()
 
-    os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' %
+    os.system("sed 's/$ETCD_ENDPOINTS/%s/g' ./deploy/kubelet/options.env.template > ./deploy/kubelet/options.env" %
               config["etcd_endpoints"].replace("/", "\\/"))
     os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' %
               config["api_servers"].replace("/", "\\/"))
@@ -1520,7 +1525,7 @@ def update_mysqlserver_nodes(nargs):
 
     write_nodelist_yaml()
 
-    os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' %
+    os.system("sed 's/$ETCD_ENDPOINTS/%s/g' ./deploy/kubelet/options.env.template > ./deploy/kubelet/options.env" %
               config["etcd_endpoints"].replace("/", "\\/"))
     os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' %
               config["api_servers"].replace("/", "\\/"))
@@ -1532,6 +1537,35 @@ def update_mysqlserver_nodes(nargs):
     mysqlserver_nodes = get_nodes_by_roles(["mysqlserver"])
     mysqlserver_nodes = limit_nodes(mysqlserver_nodes)
     for node in mysqlserver_nodes:
+        if in_list(node, nargs):
+            update_worker_node(node)
+
+    os.system("rm ./deploy/kubelet/options.env")
+    os.system("rm ./deploy/kubelet/kubelet.service")
+    os.system("rm ./deploy/kubelet/worker-kubeconfig.yaml")
+
+
+def update_elasticsearch_nodes(nargs):
+    """Internally use update_worker_node.
+    TODO: Should be covered by update_role_nodes in deploy.py V2
+    """
+    # This is to temporarily replace gpu_type with None to disallow nvidia runtime config to appear in /etc/docker/daemon.json
+    prev_gpu_type = config["gpu_type"]
+    config["gpu_type"] = "None"
+    utils.render_template_directory("./template/kubelet", "./deploy/kubelet", config)
+    config["gpu_type"] = prev_gpu_type
+
+    write_nodelist_yaml()
+
+    os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' % config["etcd_endpoints"].replace("/", "\\/"))
+    os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' % config["api_servers"].replace("/", "\\/"))
+    os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/worker-kubeconfig.yaml.template > ./deploy/kubelet/worker-kubeconfig.yaml' % config["api_servers"].replace("/", "\\/"))
+
+    get_hyperkube_docker()
+
+    elasticsearch_nodes = get_nodes_by_roles(["elasticsearch"])
+    elasticsearch_nodes = limit_nodes(elasticsearch_nodes)
+    for node in elasticsearch_nodes:
         if in_list(node, nargs):
             update_worker_node(node)
 
@@ -2461,8 +2495,11 @@ def get_all_services():
                 with open(yamlname) as f:
                     content = f.read()
                     f.close()
-                    if content.find("Deployment") >= 0 or content.find("DaemonSet") >= 0 or content.find("ReplicaSet") >= 0 or content.find("CronJob") >= 0:
-                        # Only add service if it is a daemonset.
+                    if content.find("Deployment") >= 0 or \
+                            content.find("DaemonSet") >= 0 or \
+                            content.find("ReplicaSet") >= 0 or \
+                            content.find("CronJob") >= 0 or \
+                            content.find("StatefulSet") >= 0:
                         servicedic[service] = yamlname
     return servicedic
 
@@ -2513,6 +2550,8 @@ def get_node_lists_for_service(service):
         nodes = config["worker_node"]
     elif nodetype == "mysqlserver_node":
         nodes = config["mysqlserver_node"]
+    elif nodetype == "elasticsearch_node":
+        nodes = config["elasticsearch_node"]
     elif nodetype == "nfs_node":
         nodes = config["nfs_node"]
     elif nodetype == "etcd_node":
@@ -2558,7 +2597,6 @@ def kubernetes_label_nodes(verb, servicelists, force):
     for service, serviceinfo in servicedic.items():
         servicename = get_service_name(servicedic[service])
         if (not service in labels) and (not servicename in labels) and "default" in labels and (not servicename is None):
-            print("not in: {},{}\n".format(service, serviceinfo))
             labels[servicename] = labels["default"]
     if len(servicelists) == 0:
         servicelists = labels
@@ -2965,7 +3003,7 @@ def run_command(args, command, nargs, parser):
         role2connect = nargs[0]
         if len(nargs) < 1 or role2connect == "master":
             nodes = config["kubernetes_master_node"]
-        elif role2connect in ["etcd", "worker", "nfs", "samba", "mysqlserver"]:
+        elif role2connect in ["etcd", "worker", "nfs", "samba", "mysqlserver", "elasticsearch"]:
             nodes = config["{}_node".format(role2connect)]
         else:
             parser.print_help()
@@ -3179,6 +3217,13 @@ def run_command(args, command, nargs, parser):
             check_master_ETCD_status()
             gen_configs()
             update_mysqlserver_nodes(nargs)
+
+    elif command == "updateelasticsearch":
+        response = raw_input_with_default("Deploy Elasticsearch Node(s) (y/n)?")
+        if first_char(response) == "y":
+            check_master_ETCD_status()
+            gen_configs()
+            update_elasticsearch_nodes(nargs)
 
     elif command == "updatenfs":
         response = raw_input_with_default("Deploy NFS Node(s) (y/n)?")
@@ -3586,7 +3631,7 @@ def upgrade_workers(nargs, hypekube_url="gcr.io/google-containers/hyperkube:v1.1
         "./template/kubelet", "./deploy/kubelet", config)
     write_nodelist_yaml()
 
-    os.system('sed "s/##etcd_endpoints##/%s/" "./deploy/kubelet/options.env.template" > "./deploy/kubelet/options.env"' %
+    os.system("sed 's/$ETCD_ENDPOINTS/%s/g' ./deploy/kubelet/options.env.template > ./deploy/kubelet/options.env" %
               config["etcd_endpoints"].replace("/", "\\/"))
     os.system('sed "s/##api_servers##/%s/" ./deploy/kubelet/kubelet.service.template > ./deploy/kubelet/kubelet.service' %
               config["api_servers"].replace("/", "\\/"))

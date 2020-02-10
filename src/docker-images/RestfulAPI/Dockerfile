@@ -59,4 +59,7 @@ ADD utils /DLWorkspace/src/utils
 ADD RestAPI /DLWorkspace/src/RestAPI
 ADD ClusterManager /DLWorkspace/src/ClusterManager
 
+ARG GIT_HASH
+RUN printenv GIT_HASH > /DLWorkspace/GIT_HASH
+
 CMD /run.sh
