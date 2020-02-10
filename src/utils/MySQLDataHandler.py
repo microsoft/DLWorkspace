@@ -55,7 +55,6 @@ class DataHandler(object):
         self.clusterstatustablename = "clusterstatus"
         self.commandtablename = "commands"
         self.templatetablename = "templates"
-        self.jobprioritytablename = "job_priorities"
         server = config["mysql"]["hostname"]
         username = config["mysql"]["username"]
         password = config["mysql"]["password"]
@@ -275,23 +274,6 @@ class DataHandler(object):
             self.conn.commit()
             cursor.close()
 
-
-            sql = """
-                CREATE TABLE IF NOT EXISTS  `%s`
-                (
-                    `id`             INT     NOT NULL AUTO_INCREMENT,
-                    `jobId`   varchar(50)   NOT NULL,
-                    `priority`     INT NOT NULL,
-                    `time`           DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
-                    PRIMARY KEY (`id`),
-                    CONSTRAINT identityName_jobId UNIQUE(`jobId`)
-                )
-                """ % (self.jobprioritytablename)
-
-            cursor = self.conn.cursor()
-            cursor.execute(sql)
-            self.conn.commit()
-            cursor.close()
 
     @record
     def AddStorage(self, vcName, url, storageType, metadata, defaultMountPath):
@@ -643,7 +625,7 @@ class DataHandler(object):
         try:
             cursor = self.conn.cursor()
 
-            query = "SELECT {}.jobId, jobName, userName, vcName, jobStatus, jobStatusDetail, jobType, jobTime, jobParams, priority FROM {} left join {} on {}.jobId = {}.jobId where 1".format(self.jobtablename, self.jobtablename, self.jobprioritytablename, self.jobtablename, self.jobprioritytablename)
+            query = "SELECT jobId, jobName, userName, vcName, jobStatus, jobStatusDetail, jobType, jobTime, jobParams, priority FROM %s where 1" % self.jobtablename
             if userName != "all":
                 query += " and userName = '%s'" % userName
 
@@ -863,10 +845,9 @@ class DataHandler(object):
         visualization_jobs = []
         try:
             jobs = self.jobtablename
-            job_priorities = self.jobprioritytablename
-
+            
             cols = [
-                "%s.jobId" % jobs,
+                "jobId",
                 "jobName",
                 "userName",
                 "vcName",
@@ -875,14 +856,11 @@ class DataHandler(object):
                 "jobType",
                 "jobTime",
                 "jobParams",
-                "%s.priority" % job_priorities,
+                "priority",
             ]
-            cond = "%s.jobId = %s.jobId" % (jobs, job_priorities)
-            query_prefix = "SELECT %s FROM %s LEFT JOIN %s ON %s WHERE 1" % (
+            query_prefix = "SELECT %s FROM %s WHERE 1" % (
                 ",".join(cols),
-                jobs,
-                job_priorities,
-                cond,
+                jobs
             )
 
             if username != "all":
@@ -1425,7 +1403,7 @@ class DataHandler(object):
     @record
     def get_job_priority(self):
         cursor = self.conn.cursor()
-        query = "select jobId, priority from {} where jobId in (select jobId from {} where jobStatus in (\"queued\", \"scheduling\", \"running\", \"unapproved\", \"pausing\", \"paused\"))".format(self.jobprioritytablename, self.jobtablename)
+        query = "select jobId, priority from %s where jobStatus in (\"queued\", \"scheduling\", \"running\", \"unapproved\", \"pausing\", \"paused\")" % self.jobtablename
         cursor.execute(query)
         priority_dict = {}
         for job_id, priority in cursor:
@@ -1437,10 +1415,11 @@ class DataHandler(object):
 
     @record
     def update_job_priority(self, job_priorites):
+        cases = " ".join(["WHEN '%s' THEN %i" % (jobId, priority) for jobId, priority in list(job_priorites.items())])
+        jobIds = ",".join(["'%s'" % jobId for jobId in list(job_priorites.keys())])
+        query = "update {0} set priority = CASE jobId {1} END WHERE jobId in ({2})".format(self.jobtablename, cases, jobIds)
         cursor = self.conn.cursor()
-        for job_id, priority in list(job_priorites.items()):
-            query = "INSERT INTO {0}(jobId, priority, time) VALUES('{1}', {2}, SYSDATE()) ON DUPLICATE KEY UPDATE jobId='{1}', priority='{2}' ".format(self.jobprioritytablename, job_id, priority)
-            cursor.execute(query)
+        cursor.execute(query)
         self.conn.commit()
         cursor.close()
         return True
