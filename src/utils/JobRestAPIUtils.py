@@ -75,7 +75,7 @@ def base64encode(str_val):
 def base64decode(str_val):
     return base64.b64decode(str_val.encode("utf-8")).decode("utf-8")
 
-elasticsearch_deployed = config.get('elasticsearch') is list and len(config['elasticsearch']) > 0
+elasticsearch_deployed = isinstance(config.get('elasticsearch'), list) and len(config['elasticsearch']) > 0
 
 def adjust_job_priority(priority, permission):
     priority_range = (DEFAULT_JOB_PRIORITY, DEFAULT_JOB_PRIORITY)
