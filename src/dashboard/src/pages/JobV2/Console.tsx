@@ -9,6 +9,7 @@ import {
 import { useParams } from 'react-router-dom';
 import useFetch from 'use-http-2';
 import { useSnackbar } from 'notistack';
+import { mergeWith } from 'lodash';
 
 import Loading from '../../components/Loading';
 
@@ -26,20 +27,58 @@ const Console: FunctionComponent = () => {
         if (currentData === undefined || currentData.cursor == null) {
           return newData;
         }
+        if (newData === undefined || newData.cursor == null) {
+          return currentData;
+        }
+        if (typeof currentData.log !== typeof newData.log) {
+          return newData;
+        }
+        if (typeof currentData.log === 'string') {
+          return {
+            log: currentData.log + newData.log,
+            cursor: newData.cursor
+          };
+        }
         return {
-          log: currentData.log + newData.log,
+          log: mergeWith(currentData.log, newData.log, (a, b) => a + b),
           cursor: newData.cursor
         };
       }
     }, [clusterId, jobId]);
 
-  const log = useMemo<string | undefined>(() => {
+  const log = useMemo<{ [podName: string]: string } | string | undefined>(() => {
     if (data !== undefined) {
       return data.log;
     } else {
       return undefined;
     }
   }, [data]);
+
+  const logText = useMemo(() => {
+    if (typeof log !== 'object') {
+      return log;
+    }
+    const logText: string[] = [];
+    const podNames = Object.keys(log).sort()
+    for (const podName of podNames) {
+      logText.push(`
+=========================================================
+=========================================================
+=========================================================
+        logs from pod: ${podName}
+=========================================================
+=========================================================
+=========================================================
+${log[podName]}
+=========================================================
+        end of logs from pod: ${podName}
+=========================================================
+
+
+`);
+    }
+    return logText.join("");
+  }, [log]);
 
   useEffect(() => {
     if (data === undefined) return;
@@ -54,6 +93,7 @@ const Console: FunctionComponent = () => {
 
   useEffect(() => {
     if (error === undefined) return;
+    if (error.message === 'Not Found') return;
 
     const key = enqueueSnackbar(`Failed to fetch job log: ${clusterId}/${jobId}`, {
       variant: 'error',
@@ -71,7 +111,7 @@ const Console: FunctionComponent = () => {
   return (
     <Box p={1} style={{ overflow: 'auto' }}>
       <Box m={0} component="pre">
-        {log}
+        {logText}
       </Box>
     </Box>
   );
