@@ -7,11 +7,7 @@ from config import config
 
 def GetJobLog(jobId, cursor=None, size=None):
     try:
-        elasticsearch = Elasticsearch(
-            config['elasticsearch'],
-            sniff_on_start=True,
-            sniff_on_connection_fail=True,
-        )
+        elasticsearch = Elasticsearch(config['elasticsearch'])
         request_json = {
             "query": {
                 "match_phrase": {
