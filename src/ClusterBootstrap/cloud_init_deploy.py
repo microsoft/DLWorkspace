@@ -39,7 +39,7 @@ def generate_trusted_domains(network_config, start_idx):
 
 
 def get_platform_script_directory(target):
-    targetdir = target+"/"
+    targetdir = target + "/"
     if target is None or target == "default":
         targetdir = "./"
     return targetdir
@@ -151,7 +151,7 @@ def get_ssh_config(config):
 
 def get_domain(config):
     if "network" in config and "domain" in config["network"] and len(config["network"]["domain"]) > 0:
-        domain = "."+config["network"]["domain"]
+        domain = "." + config["network"]["domain"]
     else:
         domain = ""
     return domain
@@ -166,7 +166,7 @@ def get_nodes_from_config(machinerole, config):
         for nodename, nodeInfo in config["machines"].items():
             if "role" in nodeInfo and machinerole in nodeInfo["role"]:
                 if len(nodename.split(".")) < 3:
-                    Nodes.append(nodename+domain)
+                    Nodes.append(nodename + domain)
                 else:
                     Nodes.append(nodename)
         return sorted(Nodes)
@@ -186,6 +186,7 @@ def load_node_list_by_role_from_config(config, roles):
     return Nodes, config
 
 
+# Get the list of nodes for a particular service
 def get_node_lists_for_service(service, config):
     if "etcd_node" not in config or "worker_node" not in config:
         print("cluster not ready! nodes unknown!")
@@ -197,7 +198,7 @@ def get_node_lists_for_service(service, config):
         nodes = config["etcd_node"]
     elif nodetype.find("etcd_node_") >= 0:
         nodenumber = int(nodetype[nodetype.find(
-            "etcd_node_")+len("etcd_node_"):])
+            "etcd_node_") + len("etcd_node_"):])
         if len(config["etcd_node"]) >= nodenumber:
             nodes = [config["etcd_node"][nodenumber-1]]
         else:
@@ -241,27 +242,26 @@ def load_default_config(config):
     config["restapi"] = "http://%s:%s" % (
         config["kubernetes_master_node"][0], config["restfulapiport"])
     if os.path.isfile(config["ssh_cert"] + ".pub"):
-        with open(config["ssh_cert"]+".pub") as f:
+        with open(config["ssh_cert"] + ".pub") as f:
             config["sshkey"] = f.read()
     config["files2cp"] = {
         "common": ["./scripts/mkdir_and_cp.sh",
                    "./scripts/prepare_vm_disk.sh", "./scripts/prepare_ubuntu.sh",
                    "./scripts/disable_kernel_auto_updates.sh", "./scripts/docker_network_gc_setup.sh",
-                   "./scripts/dns.sh", "./deploy/etcd/init_network.sh", "scripts/render_kube_service.py",
-                   "scripts/fileshare_install.sh", "scripts/mnt_fs_svc.sh", "deploy/cloud-config/all_labels.yaml"],
+                   "./scripts/dns.sh", "./deploy/etcd/init_network.sh", "scripts/render_env_vars.sh",
+                   "scripts/fileshare_install.sh", "scripts/mnt_fs_svc.sh"],
 
-        "infra": ["./deploy/master/"+config["premasterdeploymentscript"],
+        "infra": ["./deploy/master/" + config["premasterdeploymentscript"],
                   "./deploy/master/" +
                   config["postmasterdeploymentscript"],
                   "./scripts/cloud_init_infra.sh", "deploy/cloud-config/etcd_node_labels.yaml",
-                  "deploy/cloud-config/etcd_node_1_labels.yaml", "deploy/cloud-config/etcd_node_2_labels.yaml",
                   "deploy/cloud-config/infra.kubelet.service.template", "deploy/scripts/pass_secret.sh",
                   "deploy/services"],
 
         "worker": ["./deploy/kubelet/" + config["preworkerdeploymentscript"],
                    "./deploy/kubelet/" +
                    config["postworkerdeploymentscript"],
-                   "./scripts/cloud_init_worker.sh", "deploy/cloud-config/worker_node_labels.yaml",
+                   "./scripts/cloud_init_worker.sh",
                    "deploy/cloud-config/worker.kubelet.service.template"],
 
         "nfs": ["./scripts/cloud_init_nfs.sh"]}
@@ -352,7 +352,7 @@ def GetCertificateProperty(config):
             masterdns.append(value)
 
     config["apiserver_ssl_dns"] = "\n".join(
-        ["DNS."+str(i+5)+" = "+dns for i, dns in enumerate(masterdns)])
+        ["DNS." + str(i + 5) + " = " + dns for i, dns in enumerate(masterdns)])
     config["apiserver_ssl_ip"] = "\n".join(["IP.{} = {}".format(i, sslip) for i, sslip in enumerate(
         [config["api-server-ip"]] + config["ssl_localhost_ips"] + masterips)])
 
@@ -373,7 +373,7 @@ def GetCertificateProperty(config):
             etcddns.append(value)
 
     config["etcd_ssl_dns"] = "\n".join(
-        ["DNS."+str(i+5)+" = "+dns for i, dns in enumerate(etcddns)])
+        ["DNS." + str(i + 5) + " = " + dns for i, dns in enumerate(etcddns)])
     config["etcd_ssl_ip"] = "\n".join(["IP.{} = {}".format(
         i, sslip) for i, sslip in enumerate(config["ssl_localhost_ips"] + etcdips)])
     return config
@@ -483,12 +483,20 @@ def render_mount(config, args):
     gen_mounting_yaml(config)
 
 
+def get_kube_labels_of_machine_name(config, node_name):
+    default_grp = config["machines"][node_name].get("kube_label_groups", [])
+    default_labels = {}
+    for grp in default_grp:
+        default_labels.update(config["default_kube_labels_by_node_role"].get(grp,{}))
+    default_labels.update(config["machines"][node_name].get("kube_labels",{}))
+    return [ky.replace("/", "\\/") + '=' + val.replace("/", "\\/") for ky, val in default_labels.items()]
+
+
 def render_infra_node_specific(config, args):
-    # kubernetes_master_user = config["kubernetes_master_ssh_user"]
     assert config["priority"] in ["regular", "low"]
 
     config["etcd_endpoints"] = ",".join(
-        ["https://"+x+":"+config["etcd3port1"] for x in config["etcd_node"]]).replace("/", "\\/")
+        ["https://" + x + ":" + config["etcd3port1"] for x in config["etcd_node"]]).replace("/", "\\/")
 
     with open("./deploy/storage/auto_share/mounting.yaml", 'r') as mf:
         mounting = yaml.safe_load(mf)
@@ -497,35 +505,30 @@ def render_infra_node_specific(config, args):
         for fs in mnt_itm["fileshares"]:
             config["mount_and_link"] += fs["remote_mount_path"],
 
-    # for kubernetes_master in config["kubernetes_master_node"]:
     hostname = config["kubernetes_master_node"][0].split(".")[0]
     config["master_ip"] = config["machines"][hostname].get(
         "private-ip", "127.0.0.1")
     config["kube_services"] = get_services_path_list(
-        config["machines"][hostname].get("kube_services", []))
-    config["kube_label_groups"] = config["machines"][hostname].get(
-        "kube_label_groups", [])
+        config["machines"][hostname].get("kube_services", config["kube_services_2_start"]))
+    config["kube_labels"] = get_kube_labels_of_machine_name(config, hostname)
     utils.render_template("./template/cloud-config/cloud_init_infra.txt.template",
                           "./deploy/cloud-config/cloud_init_infra.txt", config)
 
 
 def render_worker_node_specific(config, args):
     config["etcd_endpoints"] = ",".join(
-        ["https://"+x+":"+config["etcd3port1"] for x in config["etcd_node"]]).replace("/", "\\/")
-
+        ["https://" + x + ":" + config["etcd3port1"] for x in config["etcd_node"]]).replace("/", "\\/")
     config["api_servers"] = config["api_servers"].replace("/", "\\/")
-
     with open("./deploy/storage/auto_share/mounting.yaml", 'r') as mf:
         mounting = yaml.safe_load(mf)
     config["mount_and_link"] = []
     for mnt_itm in mounting.values():
         for fs in mnt_itm["fileshares"]:
             config["mount_and_link"] += fs["remote_mount_path"],
-
-    hostname = config["worker_node"][0].split(".")[0]
-    config["kube_label_groups"] = config["machines"][hostname].get(
-        "kube_label_groups", [])
-    config["gpu_type"] = config["machines"][hostname]["gpu_type"]
+    worker_name = config["worker_node"][0].split(".")[0]
+    config["kube_labels"] = get_kube_labels_of_machine_name(config, worker_name)
+    config["kube_labels"] += ["gpuType=$GPU_TYPE"]
+    config["gpu_type"] = config["machines"][worker_name]["gpu_type"]
     utils.render_template("./template/cloud-config/cloud_init_worker.txt.template",
                           "./deploy/cloud-config/cloud_init_worker.txt", config)
 
@@ -534,12 +537,16 @@ def render_nfs_node_specific(config, args):
     assert config["priority"] in ["regular", "low"]
     with open("./deploy/storage/auto_share/mounting.yaml", 'r') as mf:
         mounting = yaml.safe_load(mf)
+    config["etcd_endpoints"] = ",".join(
+        ["https://" + x + ":" + config["etcd3port1"] for x in config["etcd_node"]]).replace("/", "\\/")
+    config["api_servers"] = config["api_servers"].replace("/", "\\/")
     for nfs in config["nfs_node"]:
         nfs_machine_name = nfs.split(".")[0]
         config["data_disk_mnt_path"] = config["machines"][nfs_machine_name]["data_disk_mnt_path"]
         config["files2share"] = []
         for itm in mounting[nfs_machine_name]["fileshares"]:
             config["files2share"] += itm["nfs_local_path"],
+        config["kube_labels"] = get_kube_labels_of_machine_name(config, nfs_machine_name)
         utils.render_template("./template/cloud-config/cloud_init_nfs.txt.template",
                               "./deploy/cloud-config/cloud_init_{}.txt".format(nfs.split(".")[0]), config)
     config.pop("files2share", "")
@@ -605,13 +612,6 @@ def push_all_prerequisite_docker_images(args, config):
     check_buildable_images(docker_list, config)
     push_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"],
                  docker_list, config, args.verbose, nocache=args.nocache)
-
-
-def set_zookeeper_cluster(config):
-    nodes = get_node_lists_for_service("zookeeper", config)
-    config["zookeepernodes"] = ";".join(nodes)
-    config["zookeepernumberofnodes"] = str(len(nodes))
-    return config
 
 
 def get_hyperkube_docker(config, force=False):
@@ -701,7 +701,6 @@ def render_kubelet(config, args):
         "./template/web-docker", "./deploy/web-docker", config)
     utils.render_template_directory(
         "./template/RestfulAPI", "./deploy/RestfulAPI", config)
-    config = set_zookeeper_cluster(config)
     get_kubectl_binary(config, args.force)
     render_kube_services(config)
     # render files for originally "specific" nodes (in v2 we use env vars)
@@ -709,11 +708,10 @@ def render_kubelet(config, args):
                           "./deploy/master/kube-apiserver.yaml", config)
     utils.render_template("./template/master/dns-kubeconfig.yaml",
                           "./deploy/master/dns-kubeconfig.yaml", config)
-    # utils.render_template("./template/master/kubelet.service","./deploy/master/kubelet.service",config)
     utils.render_template("./template/master/" + config["premasterdeploymentscript"],
-                          "./deploy/master/"+config["premasterdeploymentscript"], config)
+                          "./deploy/master/" + config["premasterdeploymentscript"], config)
     utils.render_template("./template/master/" + config["postmasterdeploymentscript"],
-                          "./deploy/master/"+config["postmasterdeploymentscript"], config)
+                          "./deploy/master/" + config["postmasterdeploymentscript"], config)
 
 
 def render_restfulapi(config):
@@ -871,7 +869,6 @@ def get_all_services():
                         if os.path.isfile(filename):
                             servicedic[service + "/" + os.path.splitext(
                                 os.path.basename(filename))[0]] = filename
-
             else:
                 yamlname = os.path.join(dirname, service + ".yaml")
                 if not os.path.isfile(yamlname):
@@ -913,45 +910,11 @@ def service4nodetype(nodetypes, nodetype4service):
     return servicelist
 
 
-def default_node_type4kubernetes_services(config):
-    servicedic = get_all_services()
-    default_nodetype4service = fetch_config(config, ["kubelabels"])
-    # if there's subfolder under ./services but we don't know it's node type
-    if "default" in default_nodetype4service:
-        for service, servicefile in servicedic.items():
-            servicename = get_service_name(servicefile)
-            if servicename is None or service in default_nodetype4service or servicename in default_nodetype4service:
-                continue
-            default_nodetype4service[servicename] = default_nodetype4service["default"]
-    return default_nodetype4service
-
-
-def render_kubelet_service_by_nodetype(nd_type4svc):
-    """since this is for cloud init, we only consider the case where we want to label the service as active, and
-    we don't consider the overwriting case
-    nodetypes should be a kind of nodetype, e.g., 'worker', 
-    """
-    svc4type = {}
-    for k, v in nd_type4svc.items():
-        if v not in svc4type:
-            svc4type[v] = set()
-        svc4type[v].add(k)
-    for k in svc4type:
-        svc4type[k] = ["{}=active".format(svc) for svc in list(svc4type[k])]
-        if k == "worker_node":
-            svc4type[k] += ["gpuType=$GPU_TYPE"]
-        with open(os.path.join('deploy/cloud-config/', k + '_labels.yaml'), 'w') as f:
-            yaml.dump(svc4type[k], f)
-
-
 def render_kube_services(config):
     """overwrite config['kubelables'] if want to change node type for certain services"""
     """prepare /etc/kubernetes/kubelet.service for nodes by roles"""
     utils.render_template_directory(
         "./services/", "./deploy/services/", config)
-    nd_type4svc = default_node_type4kubernetes_services(config)
-    render_kubelet_service_by_nodetype(nd_type4svc)
-    # render framework, we use a trick here to skip rendering labels
     config['labels'] = ["{{cnf['labels'] | join(',')}}"]
     for role in ["infra", "worker"]:
         utils.render_template("template/cloud-config/{}.kubelet.service.template".format(role),
@@ -982,11 +945,11 @@ def run_command(args, command, parser):
             yaml.dump(config, wf)
     if command == "render":
         render_mount(config, args)
-        render_nfs_node_specific(config, args)
         render_for_infra_generic(config, args)
         render_for_worker_generic(config, args)
         render_infra_node_specific(config, args)
         render_worker_node_specific(config, args)
+        render_nfs_node_specific(config, args)
     if command == "rendergeneric":
         if args.nargs[0] == 'infra':
             render_for_infra_generic(config, args)
@@ -1016,8 +979,7 @@ def run_command(args, command, parser):
             if nargs[0] == "servicesprerequisite":
                 push_all_prerequisite_docker_images(args, config)
     if command == "test":
-        print(config["api_servers"])
-
+        print(rs)
 
 if __name__ == '__main__':
     # the program always run at the current directory.

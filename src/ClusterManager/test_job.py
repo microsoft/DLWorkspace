@@ -7,8 +7,8 @@ import os
 from job import Job, JobSchema
 from job import invalid_entry, dedup_add
 
-sys.path.append(os.path.join(os.path.dirname(
-    os.path.abspath(__file__)), "../utils"))
+sys.path.append(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 
 from config import config
 
@@ -21,7 +21,6 @@ VALID_JOB_ATTRIBUTES = {
 
 
 class TestJobSchema(unittest.TestCase):
-
     def test_loads(self):
         job_json = json.dumps(VALID_JOB_ATTRIBUTES)
 
@@ -47,11 +46,7 @@ class TestJobSchema(unittest.TestCase):
         self.assertTrue("jobId" in errors)
 
     def test_dump(self):
-        job = Job(
-            cluster=config,
-            job_id="test-job",
-            email="user@foo.com"
-        )
+        job = Job(cluster=config, job_id="test-job", email="user@foo.com")
 
         result, errors = JobSchema().dump(job)
 
@@ -61,7 +56,6 @@ class TestJobSchema(unittest.TestCase):
 
 
 class TestJob(unittest.TestCase):
-
     def create_a_job(self):
         job, errors = JobSchema().load(VALID_JOB_ATTRIBUTES)
         self.assertFalse(errors)
@@ -137,8 +131,8 @@ class TestJob(unittest.TestCase):
     def test_get_hostpath(self):
         job = self.create_a_job()
         self.assertEqual("user_alias/jobs/date/job_id", job.job_path)
-        self.assertEqual(
-            "/dlwsdata/work/user_alias/jobs/date/job_id", job.get_hostpath(job.job_path))
+        self.assertEqual("/dlwsdata/work/user_alias/jobs/date/job_id",
+                         job.get_hostpath(job.job_path))
 
     def test_job_work_data_mountpoints(self):
         job = self.create_a_job()
@@ -171,25 +165,6 @@ class TestJob(unittest.TestCase):
         job = self.create_a_job()
         self.assertIsNotNone(job.get_blobfuse_secret_template())
 
-    def test_is_custom_scheduler_enabled(self):
-        job = self.create_a_job()
-
-        self.assertFalse(job.is_custom_scheduler_enabled())
-
-        # TODO !!! notice, it would change all the 'cluster' settings
-        job.cluster["kube_custom_scheduler"] = True
-        self.assertTrue(job.is_custom_scheduler_enabled())
-
-    def test_get_rest_api_url(self):
-        job = self.create_a_job()
-
-        self.assertEqual("http://faked.uri/", job.get_rest_api_url())
-
-    def test_get_rack(self):
-        job = self.create_a_job()
-
-        self.assertEqual(None, job.get_rack())
-
     def test_get_plugins(self):
         self.maxDiff = None
 
@@ -214,12 +189,10 @@ class TestJob(unittest.TestCase):
         # Test when plugins have blobfuse but incomplete config
         job.params = {
             "plugins": {
-                "blobfuse": [
-                    {
-                        "accountName": "YWRtaW4=",
-                        "accountKey": "MWYyZDFlMmU2N2Rm"
-                    }
-                ]
+                "blobfuse": [{
+                    "accountName": "YWRtaW4=",
+                    "accountKey": "MWYyZDFlMmU2N2Rm"
+                }]
             }
         }
         self.assertEqual({"blobfuse": []}, job.get_plugins())
@@ -227,46 +200,42 @@ class TestJob(unittest.TestCase):
         # Test when plugins contain valid blobfuse items
         job.params = {
             "plugins": {
-                "blobfuse": [
-                    {
-                        "accountName": "YWRtaW4=",
-                        "accountKey": "MWYyZDFlMmU2N2Rm",
-                        "containerName": "blobContainer0",
-                        "mountPath": "/mnt/blobfuse/data0"
-                    },
-                    {
-                        "accountName": "YWJj",
-                        "accountKey": "cGFzc3dvcmQ=",
-                        "containerName": "blobContainer1",
-                        "mountPath": "/mnt/blobfuse/data1"
-                    }
-                ]
+                "blobfuse": [{
+                    "accountName": "YWRtaW4=",
+                    "accountKey": "MWYyZDFlMmU2N2Rm",
+                    "containerName": "blobContainer0",
+                    "mountPath": "/mnt/blobfuse/data0"
+                }, {
+                    "accountName": "YWJj",
+                    "accountKey": "cGFzc3dvcmQ=",
+                    "containerName": "blobContainer1",
+                    "mountPath": "/mnt/blobfuse/data1"
+                }]
             }
         }
 
         expected_plugins = {
-            "blobfuse": [
-                {
-                    "accountName": "WVdSdGFXND0=",
-                    "accountKey": "TVdZeVpERmxNbVUyTjJSbQ==",
-                    "containerName": "blobContainer0",
-                    "mountPath": "/mnt/blobfuse/data0",
-                    "enabled": True,
-                    "name": "ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-0",
-                    "secreds": "ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-0-secreds",
-                    "jobId": "ce7dca49-28df-450a-a03b-51b9c2ecc69c"
-                },
-                {
-                    "accountName": "WVdKag==",
-                    "accountKey": "Y0dGemMzZHZjbVE9",
-                    "containerName": "blobContainer1",
-                    "mountPath": "/mnt/blobfuse/data1",
-                    "enabled": True,
-                    "name": "ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-1",
-                    "secreds": "ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-1-secreds",
-                    "jobId": "ce7dca49-28df-450a-a03b-51b9c2ecc69c"
-                }
-            ]
+            "blobfuse": [{
+                "accountName": "WVdSdGFXND0=",
+                "accountKey": "TVdZeVpERmxNbVUyTjJSbQ==",
+                "containerName": "blobContainer0",
+                "mountPath": "/mnt/blobfuse/data0",
+                "enabled": True,
+                "name": "ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-0",
+                "secreds":
+                "ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-0-secreds",
+                "jobId": "ce7dca49-28df-450a-a03b-51b9c2ecc69c"
+            }, {
+                "accountName": "WVdKag==",
+                "accountKey": "Y0dGemMzZHZjbVE9",
+                "containerName": "blobContainer1",
+                "mountPath": "/mnt/blobfuse/data1",
+                "enabled": True,
+                "name": "ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-1",
+                "secreds":
+                "ce7dca49-28df-450a-a03b-51b9c2ecc69c-blobfuse-1-secreds",
+                "jobId": "ce7dca49-28df-450a-a03b-51b9c2ecc69c"
+            }]
         }
         self.assertEqual(expected_plugins, job.get_plugins())
 
