@@ -60,12 +60,6 @@ spec:
           value: '{{cnf["elasticsearch"]["port"]["http"]}}'
         - name: "transport.port"
           value: '{{cnf["elasticsearch"]["port"]["transport"]}}'
-        resources:
-          # need more cpu upon initialization, therefore burstable class
-          limits:
-            cpu: 1000m
-          requests:
-            cpu: 100m
         ports:
         - containerPort: {{cnf["elasticsearch"]["port"]["http"]}}
           name: http
