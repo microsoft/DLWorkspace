@@ -8,6 +8,8 @@ import uuid
 import sys
 import collections
 import copy
+import requests
+
 import base64
 import re
 import logging
@@ -28,6 +30,7 @@ sys.path.append(os.path.join(os.path.dirname(
 
 from ResourceInfo import ResourceInfo
 from cluster_resource import ClusterResource
+from JobLogUtils import GetJobLog as UtilsGetJobLog
 
 DEFAULT_JOB_PRIORITY = 100
 USER_JOB_PRIORITY_RANGE = (100, 200)
@@ -72,6 +75,7 @@ def base64encode(str_val):
 def base64decode(str_val):
     return base64.b64decode(str_val.encode("utf-8")).decode("utf-8")
 
+elasticsearch_deployed = isinstance(config.get('elasticsearch'), list) and len(config['elasticsearch']) > 0
 
 def adjust_job_priority(priority, permission):
     priority_range = (DEFAULT_JOB_PRIORITY, DEFAULT_JOB_PRIORITY)
@@ -686,30 +690,8 @@ def GetJobDetail(userName, jobId):
     if len(jobs) == 1:
         if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
             job = jobs[0]
-            job["log"] = ""
-            #jobParams = json.loads(base64.b64decode(job["jobMeta"]))
-            #jobPath,workPath,dataPath = GetStoragePath(jobParams["jobPath"],jobParams["workPath"],jobParams["dataPath"])
-            #localJobPath = os.path.join(config["storage-mount-path"],jobPath)
-            #logPath = os.path.join(localJobPath,"joblog.txt")
-            #print logPath
-            # if os.path.isfile(logPath):
-            #    with open(logPath, 'r') as f:
-            #        log = f.read()
-            #        job["log"] = log
-            #    f.close()
             if "jobDescription" in job:
                 job.pop("jobDescription", None)
-            try:
-                log = dataHandler.GetJobTextField(jobId, "jobLog")
-                try:
-                    if isBase64(log):
-                        log = base64decode(log)
-                except Exception:
-                    pass
-                if log is not None:
-                    job["log"] = log
-            except:
-                job["log"] = "fail-to-get-logs"
     dataHandler.Close()
     return job
 
@@ -741,25 +723,45 @@ def GetJobStatus(jobId):
     return result
 
 
-def GetJobLog(userName, jobId):
+def GetJobLog(userName, jobId, cursor=None, size=100):
     dataHandler = DataHandler()
     jobs = dataHandler.GetJob(jobId=jobId)
     if len(jobs) == 1:
         if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
-            try:
-                log = dataHandler.GetJobTextField(jobId, "jobLog")
+            if elasticsearch_deployed:
+                (logs, cursor) = UtilsGetJobLog(jobId, cursor, size)
+
+                pod_logs = {}
+                for log in logs:
+                    try:
+                        pod_name = log["_source"]["kubernetes"]["pod_name"]
+                        log = log["_source"]["log"]
+                        if pod_name in pod_logs:
+                            pod_logs[pod_name] += log
+                        else:
+                            pod_logs[pod_name] = log
+                    except Exception:
+                        logging.exception("Failed to parse elasticsearch log: {}".format(log))
+
+                return {
+                    "log": pod_logs,
+                    "cursor": cursor,
+                }
+            else:
                 try:
-                    if isBase64(log):
-                        log = base64decode(log)
-                except Exception:
+                    log = dataHandler.GetJobTextField(jobId, "jobLog")
+                    try:
+                        if isBase64(log):
+                            log = base64decode(log)
+                    except Exception:
+                        pass
+                    if log is not None:
+                        return {
+                            "log": log,
+                            "cursor": None,
+                        }
+                except:
                     pass
-                if log is not None:
-                    return {
-                        "log": log,
-                        "cursor": None,
-                    }
-            except:
-                pass
     return {
         "log": {},
         "cursor": None,

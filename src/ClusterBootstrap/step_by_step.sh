@@ -11,7 +11,7 @@ fi
 ./deploy.py runscriptonroles infra worker ./scripts/prepare_ubuntu.sh
 ./deploy.py runscriptonroles infra worker ./scripts/disable_kernel_auto_updates.sh
 ./deploy.py runscriptonroles infra worker ./scripts/docker_network_gc_setup.sh
-./deploy.py runscriptonroles infra worker ./script/disable_mlocate.sh
+./deploy.py runscriptonroles infra worker ./scripts/disable_mlocate.sh
 ./deploy.py genscripts
 ./deploy.py runscriptonroles infra worker ./scripts/dns.sh
 ./deploy.py -y deploy
