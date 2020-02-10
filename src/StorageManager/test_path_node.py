@@ -2,7 +2,7 @@ from unittest import TestCase
 from unittest.mock import patch
 from testcase_utils import DummyNodeStat
 from datetime import datetime
-
+from path_node import PathNode
 
 NODE_PATH = "/dummy"
 NODE_SIZE = 2147483648
@@ -50,8 +50,8 @@ class TestPathNode(TestCase):
         self.assertFalse(node.isdir)
         self.assertEqual(1, node.num_subtree_files)
 
-        uid_user = {NODE_UID: USER_NAME}
-        node = PathNode(NODE_PATH, uid_user)
+        uid_to_user = {NODE_UID: USER_NAME}
+        node = PathNode(NODE_PATH, uid_to_user)
         self.assertEqual(USER_NAME, node.owner)
 
         self.assertEqual("2019/11/19 22:39:27,2G,dummy,/dummy", node.__str__())

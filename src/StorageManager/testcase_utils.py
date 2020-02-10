@@ -1,6 +1,16 @@
-import os, time
-os.environ["TZ"] = "UTC"
-time.tzset()
+import os
+import time
+import platform
+
+SYSTEM = platform.system()
+WINDOWS = "Windows"
+LINUX = "Linux"
+
+if SYSTEM is LINUX:
+    os.environ["TZ"] = "UTC"
+    time.tzset()
+
+EMPTY_DIR_SIZE = 4096 if SYSTEM is LINUX else 0
 
 
 class DummyNodeStat(object):
