@@ -118,6 +118,7 @@ class DataHandler(object):
                     `jobLog` LONGTEXT  NULL,
                     `retries`             int    NULL DEFAULT 0,
                     `lastUpdated` DATETIME     DEFAULT CURRENT_TIMESTAMP NOT NULL,
+                    `priority` INT   DEFAULT 100 NOT NULL,
                     PRIMARY KEY (`id`),
                     UNIQUE(`jobId`),
                     INDEX (`userName`),
