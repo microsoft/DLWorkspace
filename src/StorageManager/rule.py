@@ -142,15 +142,23 @@ class Rule(object):
 
         logger.info("Deleting nodes for rule %s...", self.name)
         for node in self.nodes:
-            if os.path.exists(node.path):
-                if node.isdir:
-                    logger.info("Deleting directory %s...", node.path)
-                    os.rmdir(node.path)
+            if "*" in node.path:
+                logger.warning("Skip path %s containing wildcard '*' to "
+                               "prevent mass deleting", node.path)
+                continue
+            try:
+                if os.path.exists(node.path):
+                    if node.isdir:
+                        logger.info("Deleting directory %s...", node.path)
+                        os.rmdir(node.path)
+                    else:
+                        logger.info("Deleting file %s...", node.path)
+                        os.remove(node.path)
                 else:
-                    logger.info("Deleting file %s...", node.path)
-                    os.remove(node.path)
-            else:
-                logger.warning("%s does not exist", node.path)
+                    logger.warning("%s does not exist", node.path)
+            except:
+                logger.exception("Exception in deleting path %s.", node.path,
+                                 exc_info=True)
 
 
 class OverweightRule(Rule):
