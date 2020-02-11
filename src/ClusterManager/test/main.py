@@ -6,6 +6,7 @@ import logging
 import glob
 import datetime
 from multiprocessing import Pool
+import sys
 
 import utils
 
@@ -13,7 +14,7 @@ logger = logging.getLogger(__file__)
 
 
 def run_case(case):
-    case(args)
+    return case(args)
 
 
 def should_run(model_name, case_name, full_name, targets):
@@ -67,10 +68,18 @@ def main(args):
     num_proc = min(args.process, len(cases))
 
     with Pool(processes=num_proc) as pool:
-        pool.map(run_case, cases)
+        result = pool.map(run_case, cases)
 
-    logger.info("spent %s in executing %d cases %s",
-                datetime.datetime.now() - start, len(case_names), case_names)
+    failed_num = len(list(filter(lambda x: x is True, result)))
+
+    logger.info("spent %s in executing %d cases %s, %d failed",
+                datetime.datetime.now() - start, len(case_names), case_names,
+                failed_num)
+
+    if failed_num > 0:
+        sys.exit(1)
+    else:
+        sys.exit(0)
 
 
 if __name__ == '__main__':

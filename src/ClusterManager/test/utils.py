@@ -42,10 +42,12 @@ def case(fn):
         full_name = fn.__module__ + "." + fn.__name__
         try:
             logger.info("%s ...", full_name)
-            return fn(*args, **kwargs)
+            fn(*args, **kwargs)
+            return False
         except Exception:
             logger.exception("executing %s failed", full_name)
             # let other test case continue
+            return True
         finally:
             logger.info("spent %s in executing test case %s",
                         datetime.datetime.now() - start, full_name)
