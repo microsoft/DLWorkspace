@@ -3,6 +3,7 @@
 import logging
 import logging.config
 import os
+import shutil
 import time
 
 from datetime import datetime
@@ -154,7 +155,7 @@ class Rule(object):
                 if os.path.exists(node.path):
                     if node.isdir:
                         logger.info("Deleting directory %s...", node.path)
-                        os.rmdir(node.path)
+                        shutil.rmtree(node.path)
                     else:
                         logger.info("Deleting file %s...", node.path)
                         os.remove(node.path)
