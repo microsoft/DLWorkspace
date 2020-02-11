@@ -153,16 +153,17 @@ class ECCRebootNodeRule(Rule):
                 
                 # if node has been rebooted since ecc error first detected,
                 # remove from rule_cache
-                remove_from_cache = []
-                for node in self.alert.rule_cache[self.rule]:
-                    instance = self.alert.rule_cache[self.rule][node]["instance"]
-                    time_found = self.alert.rule_cache[self.rule][node]["time_found"]
-                    last_reboot_time = reboot_times[instance]
-                    if last_reboot_time > time_found:
-                        remove_from_cache.append(node)
+                if self.rule in self.alert.rule_cache:
+                    remove_from_cache = []
+                    for node in self.alert.rule_cache[self.rule]:
+                        instance = self.alert.rule_cache[self.rule][node]["instance"]
+                        time_found = self.alert.rule_cache[self.rule][node]["time_found"]
+                        last_reboot_time = reboot_times[instance]
+                        if last_reboot_time > time_found:
+                            remove_from_cache.append(node)
 
-                for node in remove_from_cache:
-                    self.alert.remove_from_rule_cache(self.rule, node)
+                    for node in remove_from_cache:
+                        self.alert.remove_from_rule_cache(self.rule, node)
         except:
             logging.exception(f'Error retrieving data from {reboot_url}')
 
