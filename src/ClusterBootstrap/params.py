@@ -619,7 +619,7 @@ default_config_parameters = {
         "container": {},
     },
 
-    "cloud_config": {
+    "cloud_config_nsg_rules": {
         "vnet_range": "192.168.0.0/16",
         "default_admin_username": "dlwsadmin",
         "tcp_port_for_pods": "30000-49999",
