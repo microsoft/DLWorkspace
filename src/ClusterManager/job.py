@@ -136,7 +136,7 @@ class Job:
         # add each items in the list one by one
         if isinstance(nfs_mountpoint, list):
             for m in nfs_mountpoint:
-                self.add_mountpoints(m)
+                self.add_nfs_mountpoints(m)
             return
 
         # Skip invalid nfs_mountpoint
@@ -144,7 +144,7 @@ class Job:
         server = nfs_mountpoint.get("server")
         path = nfs_mountpoint.get("path")
         mount_path = nfs_mountpoint.get("mountPath")
-        if invalid_entry(enabled) or \
+        if enabled is None or \
                 invalid_entry(server) or \
                 invalid_entry(path) or \
                 invalid_entry(mount_path):
@@ -176,6 +176,10 @@ class Job:
                 item.get("mountPath").strip("/") == mount_path.strip("/") and \
                 item.get("vc") == vc
             if dup_name or dup_mount_path:
+                logger.warning("nfs_mountpoint %s is a duplicate of an "
+                               "existing nfs_mountpoint %s",
+                               nfs_mountpoint,
+                               item)
                 return True
         return False
 

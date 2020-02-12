@@ -67,6 +67,8 @@ class JobTemplate(object):
             job.add_mountpoints(job.data_path_mountpoint())
         job.add_mountpoints(job.vc_custom_storage_mountpoints())
         job.add_mountpoints(job.vc_storage_mountpoints())
+
+        params["nfs_mountpoints"] = job.nfs_mountpoints
         params["mountpoints"] = job.mountpoints
         params["init-container"] = os.environ["INIT_CONTAINER_IMAGE"]
 
