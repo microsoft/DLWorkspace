@@ -9,6 +9,11 @@ import Helmet from 'react-helmet';
 import { Box, CssBaseline, createMuiTheme, CircularProgress } from '@material-ui/core';
 import { ThemeProvider } from "@material-ui/styles";
 import { SnackbarProvider } from "notistack";
+import {
+  Provider as UseHttpProvider,
+  Options as UseHttpOptions,
+  CachePolicies,
+} from "use-http-2";
 
 import ConfigContext, { Provider as ConfigProvider } from "./contexts/Config";
 import UserContext, { Provider as UserProvider } from "./contexts/User";
@@ -32,6 +37,9 @@ const JobV2 = React.lazy(() => import('./pages/JobV2'));
 const ClusterStatus = React.lazy( () => import('./pages/ClusterStatus'));
 
 const theme = createMuiTheme();
+const useHttpOptions: UseHttpOptions = {
+  cachePolicy: CachePolicies.NO_CACHE
+};
 
 interface BootstrapProps {
   config: ConfigContext;
@@ -47,21 +55,23 @@ const Loading = (
 const Contexts: React.FC<BootstrapProps> = ({ config, user, children }) => {
   return (
     <BrowserRouter>
-      <ConfigProvider {...config}>
-        <UserProvider {...user}>
-          <SnackbarProvider>
-            <ConfirmProvider>
-              <TeamProvider>
-                <ClustersProvider>
-                  <ThemeProvider theme={theme}>
-                    {children}
-                  </ThemeProvider>
-                </ClustersProvider>
-              </TeamProvider>
-            </ConfirmProvider>
-          </SnackbarProvider>
-        </UserProvider>
-      </ConfigProvider>
+      <UseHttpProvider options={useHttpOptions}>
+        <ConfigProvider {...config}>
+          <UserProvider {...user}>
+            <SnackbarProvider>
+              <ConfirmProvider>
+                <TeamProvider>
+                  <ClustersProvider>
+                    <ThemeProvider theme={theme}>
+                      {children}
+                    </ThemeProvider>
+                  </ClustersProvider>
+                </TeamProvider>
+              </ConfirmProvider>
+            </SnackbarProvider>
+          </UserProvider>
+        </ConfigProvider>
+      </UseHttpProvider>
     </BrowserRouter>
   );
 }
