@@ -55,6 +55,14 @@ class JobTemplate(object):
                 "enabled":
                 True
             })
+
+        # Add NFS mountpoints before hostPath mountpoints.
+        # mountpoints added by NFS mountpoint should not appear in hostPath
+        # mountpoints again.
+        if "nfs_mountpoints" in params:
+            job.add_nfs_mountpoints(params["nfs_mountpoints"])
+        job.add_nfs_mountpoints(job.nfs_mountpoints())
+
         if "mountpoints" in params:
             job.add_mountpoints(params["mountpoints"])
         # TODO: Refactor special VC dependency

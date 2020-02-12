@@ -55,6 +55,7 @@ class Job:
         self.job_id = job_id
         self.email = email
         self.mountpoints = mountpoints
+        self.nfs_mountpoints = []
         self.job_path = job_path
         self.work_path = work_path
         self.data_path = data_path
@@ -104,6 +105,88 @@ class Job:
 
         self.mountpoints.append(mountpoint)
 
+    def add_nfs_mountpoints(self, nfs_mountpoint):
+        """ Adds unique nfs_mountpoint with a normalized name.
+
+        1. Skip if either of the following is true:
+           - name of the nfs_mountpoint already exists.
+           - mountPath of the nfs_mountpoint already exists in the same VC
+        2. A normalized name only contains alphanumeric character or dash.
+        Args:
+            nfs_mountpoint: An nfs_mountpoint or a list of nfs_mountpoints
+
+        nfs nfs_mountpoint example:
+        {
+            "name": mountpoint0,  # optional
+            "enabled": True,
+            "server": 192.168.0.10,
+            "path": /data/share/storage,
+            "mountPath": /data,
+            "vc": platform,  # optional
+        }
+
+        Returns:
+            None
+        """
+        # Skip None
+        if nfs_mountpoint is None:
+            logger.warning("Skip None nfs_mountpoint")
+            return
+
+        # add each items in the list one by one
+        if isinstance(nfs_mountpoint, list):
+            for m in nfs_mountpoint:
+                self.add_mountpoints(m)
+            return
+
+        # Skip invalid nfs_mountpoint
+        enabled = nfs_mountpoint.get("enabled")
+        server = nfs_mountpoint.get("server")
+        path = nfs_mountpoint.get("path")
+        mount_path = nfs_mountpoint.get("mountPath")
+        if invalid_entry(enabled) or \
+                invalid_entry(server) or \
+                invalid_entry(path) or \
+                invalid_entry(mount_path):
+            logger.warning("Skip invalid nfs_mountpoint %s", nfs_mountpoint)
+            return
+
+        # only allow alphanumeric and dash in "name"
+        name = nfs_mountpoint.get("name")
+        vc = nfs_mountpoint.get("vc")
+        if invalid_entry(name):
+            vc_prefix = "" if invalid_entry(vc) else "%s-" % vc
+            name = "%s%s" % (vc_prefix, mount_path)
+        nfs_mountpoint["name"] = "".join(
+            [c for c in name if c.isalnum() or c == "-"]
+        ).lower()
+
+        if not self._nfs_mountpoint_exists(nfs_mountpoint):
+            self.nfs_mountpoints.append(nfs_mountpoint)
+
+    def _nfs_mountpoint_exists(self, nfs_mountpoint):
+        name = nfs_mountpoint.get("name")
+        mount_path = nfs_mountpoint.get("mountPath")
+        vc = nfs_mountpoint.get("vc")
+
+        # NOTE: mountPath "/data" is the same as "data" in k8s
+        for item in self.nfs_mountpoints:
+            dup_name = item.get("name") == name
+            dup_mount_path = \
+                item.get("mountPath").strip("/") == mount_path.strip("/") and \
+                item.get("vc") == vc
+            if dup_name or dup_mount_path:
+                return True
+        return False
+
+    def _mountpoint_in_nfs_mountpoints(self, mountpoint):
+        # Function to check if a hostPath mountpoint already exists in
+        # self.nfs_mountpoints. Used to migrate NFS mount from hostPath to
+        # kubernetes NFS plugin
+        container_path = mountpoint.get("containerPath")
+        mountpoint["mountPath"] = container_path
+        return self._nfs_mountpoint_exists(mountpoint)
+
     def add_plugins(self, plugins):
         self.plugins = plugins
 
@@ -149,6 +232,19 @@ class Job:
             "enabled": True
         }
 
+    def nfs_mountpoints(self):
+        """Returns all nfs mountpoints for this job, including global and vc.
+        """
+        vc_name = self.params["vcName"]
+        nfs_mountpoints = [
+            mountpoint for mountpoint in self.get_nfs_mountpoints()
+            if mountpoint.get("vc") is None or mountpoint.get("vc") == vc_name
+        ]
+
+        for mountpoint in nfs_mountpoints:
+            mountpoint["enabled"] = True
+        return nfs_mountpoints
+
     def vc_custom_storage_mountpoints(self):
         vc_name = self.params["vcName"]
         custom_mounts = self.get_custom_mounts()
@@ -164,15 +260,18 @@ class Job:
             if vc is None or vc != vc_name:
                 continue
             if name is None or host_path is None or container_path is None:
-                logger.warn("Ignore invalid mount %s" % mount)
+                logger.warning("Ignore invalid mount %s", mount)
                 continue
             vc_mount = {
                 "name": name.lower(),
                 "containerPath": container_path,
                 "hostPath": host_path,
-                "enabled": True
+                "enabled": True,
+                "vc": vc_name,
             }
-            vc_custom_mounts.append(vc_mount)
+
+            if not self._mountpoint_in_nfs_mountpoints(vc_mount):
+                vc_custom_mounts.append(vc_mount)
 
         return vc_custom_mounts
 
@@ -189,9 +288,12 @@ class Job:
                 "name": ("%s-%s" % (vc_name, storage)).lower(),
                 "containerPath": "/" + storage,
                 "hostPath": os.path.join(dltsdata_vc_path, storage),
-                "enabled": True
+                "enabled": True,
+                "vc": vc_name,
             }
-            vc_mountpoints.append(vc_mountpoint)
+
+            if not self._mountpoint_in_nfs_mountpoints(vc_mountpoint):
+                vc_mountpoints.append(vc_mountpoint)
 
         return vc_mountpoints
 
@@ -270,6 +372,12 @@ class Job:
                 not isinstance(vc_without_shared_storage, list):
             vc_without_shared_storage = []
         return vc_without_shared_storage
+
+    def get_nfs_mountpoints(self):
+        nfs_mountpoints = self._get_cluster_config("nfs_mountpoints")
+        if nfs_mountpoints is None or not isinstance(nfs_mountpoints, list):
+            nfs_mountpoints = []
+        return nfs_mountpoints
 
     def _get_cluster_config(self, key):
         if key in self.cluster:
