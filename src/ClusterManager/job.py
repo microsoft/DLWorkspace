@@ -232,7 +232,7 @@ class Job:
             "enabled": True
         }
 
-    def nfs_mountpoints(self):
+    def nfs_mountpoints_for_job(self):
         """Returns all nfs mountpoints for this job, including global and vc.
         """
         vc_name = self.params["vcName"]

@@ -36,6 +36,13 @@ class JobTemplate(object):
         ]):
             return None, "Missing required parameters!"
 
+        # Add NFS mountpoints before hostPath mountpoints.
+        # mountpoints added by NFS mountpoint should not appear in hostPath
+        # mountpoints again.
+        if "nfs_mountpoints" in params:
+            job.add_nfs_mountpoints(params["nfs_mountpoints"])
+        job.add_nfs_mountpoints(job.nfs_mountpoints_for_job())
+
         vc_without_shared_storage = job.get_vc_without_shared_storage()
 
         job.job_path = params["jobPath"]
@@ -46,22 +53,11 @@ class JobTemplate(object):
         # TODO: Refactor special VC dependency
         if params["vcName"] not in vc_without_shared_storage:
             job.add_mountpoints({
-                "name":
-                "home",
-                "containerPath":
-                "/home/{}".format(job.get_alias()),
-                "hostPath":
-                job.get_homefolder_hostpath(),
-                "enabled":
-                True
+                "name": "home",
+                "containerPath": "/home/{}".format(job.get_alias()),
+                "hostPath": job.get_homefolder_hostpath(),
+                "enabled": True
             })
-
-        # Add NFS mountpoints before hostPath mountpoints.
-        # mountpoints added by NFS mountpoint should not appear in hostPath
-        # mountpoints again.
-        if "nfs_mountpoints" in params:
-            job.add_nfs_mountpoints(params["nfs_mountpoints"])
-        job.add_nfs_mountpoints(job.nfs_mountpoints())
 
         if "mountpoints" in params:
             job.add_mountpoints(params["mountpoints"])
