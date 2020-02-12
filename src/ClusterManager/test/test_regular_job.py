@@ -25,12 +25,14 @@ def test_regular_job_running(args):
             args.rest, job.jid, {"unapproved", "queued", "scheduling"})
         assert state == "running"
 
-        for _ in range(10):
+        for _ in range(50):
             log = utils.get_job_log(args.rest, args.email, job.jid)
 
-            if expected not in log["log"]:
-                time.sleep(0.5)
-        assert expected in log["log"]
+            if expected in log:
+                break
+
+            time.sleep(0.5)
+        assert expected in log, 'assert {} in {}'.format(expected, log)
 
 
 @utils.case
@@ -59,7 +61,7 @@ def test_data_job_running(args):
         assert expected_state == state
 
         log = utils.get_job_log(args.rest, args.email, job.jid)
-        assert expected_word in log["log"]
+        assert expected_word in log, 'assert {} in {}'.format(expected_word, log)
 
 
 @utils.case
@@ -302,7 +304,7 @@ def test_regular_job_env(args):
         assert state == "finished"
         envs["DLWS_JOB_ID"] = job.jid
 
-        log = utils.get_job_log(args.rest, args.email, job.jid)["log"]
+        log = utils.get_job_log(args.rest, args.email, job.jid)
 
         for key, val in envs.items():
             expected_output = "%s=%s" % (key, val)
@@ -331,7 +333,7 @@ def test_blobfuse(args):
             {"unapproved", "queued", "scheduling", "running"})
         assert state == "finished"
 
-        log = utils.get_job_log(args.rest, args.email, job.jid)["log"]
+        log = utils.get_job_log(args.rest, args.email, job.jid)
 
         assert log.find("dummy") != -1, "could not find %s in log" % (
             expected_output)
@@ -355,6 +357,6 @@ def test_sudo_installed(args):
         state = utils.block_until_state_not_in(
             args.rest, job.jid,
             {"unapproved", "queued", "scheduling", "running"})
-        log = utils.get_job_log(args.rest, args.email, job.jid)["log"]
+        log = utils.get_job_log(args.rest, args.email, job.jid)
 
         assert state == "finished"

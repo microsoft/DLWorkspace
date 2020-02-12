@@ -25,12 +25,14 @@ def test_distributed_job_running(args):
             args.rest, job.jid, {"unapproved", "queued", "scheduling"})
         assert state == "running"
 
-        for _ in range(10):
+        for _ in range(50):
             log = utils.get_job_log(args.rest, args.email, job.jid)
 
-            if expected not in log["log"]:
-                time.sleep(0.5)
-        assert expected in log["log"]
+            if expected in log:
+                break
+
+            time.sleep(0.5)
+        assert expected in log, "assert {} in {}".format(expected, log)
 
 
 @utils.case
