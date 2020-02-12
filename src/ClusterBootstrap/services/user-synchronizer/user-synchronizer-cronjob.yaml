@@ -12,6 +12,7 @@ spec:
       labels:
         app: user-synchronizer
     spec:
+      activeDeadlineSeconds: 3600
       template:
         metadata:
           name: user-synchronizer-pod
