@@ -1,10 +1,6 @@
 #/bin/bash
 set -ex
 
-#export POD_NAME=
-#export DLWS_GID=
-#export DLWS_UID=
-#export DLWS_USER_NAME=
 export ENV_FILE=/pod.env
 
 # install required pkgs
@@ -38,6 +34,3 @@ if [ -f ${ENV_FILE} ]; then
     . ${ENV_FILE}
 fi
 SCRIPT
-
-# any command should run as ${DLWS_USER_NAME}
-#runuser -l ${DLWS_USER_NAME} -c your_commands

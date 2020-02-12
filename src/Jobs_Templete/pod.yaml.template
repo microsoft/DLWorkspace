@@ -140,10 +140,10 @@ spec:
   - name: {{ job["podName"] }}
     image: {{ job["image"] }}
     imagePullPolicy: Always
-    command: ["bash", "/pod/scripts/bootstrap.sh"]
+    command: ["bash", "/dlws-scripts/bootstrap.sh"]
     readinessProbe:
       exec:
-        command: ["ls", "/pod/running/ROLE_READY"]
+        command: ["ls", "/dlts-runtime/status/READY"]
       initialDelaySeconds: 3
       periodSeconds: 30
     securityContext:
@@ -177,7 +177,7 @@ spec:
     - mountPath: /dlts-runtime
       name: dlts-runtime
     - name: "dlws-scripts"
-      mountPath: /pod/scripts
+      mountPath: /dlws-scripts
       readOnly: true
     - name: ssh-volume
       mountPath: /home/{{ job["user"] }}/.ssh

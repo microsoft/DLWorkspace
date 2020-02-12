@@ -95,6 +95,103 @@ def test_distributed_job_ssh(args):
 
 
 @utils.case
+def test_distributed_with_default_cmd(args):
+    cmd = """
+##################################################
+# DeepScale 1.0 redirect (Start)
+##################################################
+set -e
+
+hostname
+whoami
+
+# Create DeepScale 1.0 redirect on master node
+sudo chmod -R 777 /root && mkdir -p /root/.ssh && rm -f /root/.ssh/config && ln -s ~/.ssh/config /root/.ssh/config && echo "/root/.ssh/config created" && ls -l /root/.ssh
+mkdir -p /opt && sudo rm -f /opt/hostfile && sudo ln -s /job/hostfile /opt/hostfile && cat /opt/hostfile
+
+# Create DeepScale 1.0 redirect for all workers
+for i in $(seq 0 $(( ${DLWS_NUM_WORKER} - 1 ))); do
+    echo "Creating DeepScale 1.0 redirect for worker ${i}"
+    ssh worker-${i} "sudo chmod -R 777 /root && mkdir -p /root/.ssh && rm -f /root/.ssh/config && ln -s ~/.ssh/config /root/.ssh/config && echo "/root/.ssh/config created" && ls -l /root/.ssh"
+    ssh worker-${i} "mkdir -p /opt && sudo rm -f /opt/hostfile && sudo ln -s /job/hostfile /opt/hostfile && cat /opt/hostfile"
+done
+##################################################
+# DeepScale 1.0 redirect (End)
+##################################################
+
+##################################################
+# Unlimit memlock (Start)
+##################################################
+for i in $(seq 0 $(( ${DLWS_NUM_WORKER} - 1 ))); do
+    echo "Creating redirect for worker ${i}"
+    ssh worker-${i} "sudo bash -c 'echo -e \"*                soft   memlock         unlimited\n*                hard   memlock         unlimited\" | cat >> /etc/security/limits.conf'"
+done
+##################################################
+# Unlimit memlock (End)
+##################################################
+
+##################################################
+# User command starts here
+##################################################
+sleep infinity"""
+    job_spec = utils.gen_default_job_description("distributed", args.email,
+                                                 args.uid, args.vc)
+    with utils.run_job(args.rest, job_spec) as job:
+        endpoints = utils.create_endpoint(args.rest, args.email, job.jid,
+                                          ["ssh"])
+        endpoints_ids = list(endpoints.keys())
+        assert len(endpoints_ids) == 2
+
+        state = utils.block_until_state_not_in(
+            args.rest, job.jid, {"unapproved", "queued", "scheduling"})
+        assert state == "running"
+
+        for endpoint_id in endpoints_ids:
+            ssh_endpoint = utils.wait_endpoint_ready(args.rest, args.email,
+                                                     job.jid, endpoint_id)
+            logger.debug("endpoint_id is %s, endpoints resp is %s",
+                         endpoint_id, ssh_endpoint)
+
+            ssh_host = "%s.%s" % (ssh_endpoint["nodeName"],
+                                  ssh_endpoint["domain"])
+            ssh_port = ssh_endpoint["port"]
+
+            # exec into jobmanager to execute ssh to avoid firewall
+            job_manager_pod = utils.kube_get_pods(args.config, "default",
+                                                  "app=jobmanager")[0]
+            job_manager_pod_name = job_manager_pod.metadata.name
+
+            alias = args.email.split("@")[0]
+
+            cmd_prefix = [
+                "ssh",
+                "-i",
+                "/dlwsdata/work/%s/.ssh/id_rsa" % alias,
+                "-p",
+                ssh_port,
+                "-o",
+                "StrictHostKeyChecking=no",
+                "-o",
+                "LogLevel=ERROR",
+                "%s@%s" % (alias, ssh_host),
+                "--",
+            ]
+
+            # check they can connect to each other
+            for role in ["ps-0", "worker-0"]:
+                cmd = copy.deepcopy(cmd_prefix)
+                cmd.extend([
+                    "ssh", role, "-o", "LogLevel=ERROR", "--", "echo", "dummy"
+                ])
+                code, output = utils.kube_pod_exec(args.config, "default",
+                                                   job_manager_pod_name,
+                                                   "jobmanager", cmd)
+                logger.debug("code %s, output '%s'", code, output)
+                assert code == 0
+                assert output == "dummy\n"
+
+
+@utils.case
 def test_distributed_job_env(args):
     envs = {
         "DLWS_HOST_NETWORK": "enable",
