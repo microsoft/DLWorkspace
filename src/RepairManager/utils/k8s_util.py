@@ -31,12 +31,37 @@ def list_node():
     api_instance = client.CoreV1Api()
     return api_instance.list_node()
 
+
+
 def list_pod_for_all_namespaces():
     config.load_kube_config(config_file='/etc/kubernetes/restapi-kubeconfig.yaml',)
     api_instance = client.CoreV1Api()
     return api_instance.list_pod_for_all_namespaces()
 
+
+
 def list_namespaced_pod(namespace):
     config.load_kube_config(config_file='/etc/kubernetes/restapi-kubeconfig.yaml',)
     api_instance = client.CoreV1Api()
     return api_instance.list_namespaced_pod(namespace)
+
+
+def _get_job_info_from_nodes(pods, nodes, domain_name, cluster_name):
+    jobs = {}
+    for pod in pods.items:
+        if pod.metadata and pod.metadata.labels:
+            if 'jobId' in pod.metadata.labels and 'userName' in pod.metadata.labels:
+                if pod.spec.node_name in nodes:
+                    job_id = pod.metadata.labels['jobId']
+                    user_name = pod.metadata.labels['userName']
+                    node_name = pod.spec.node_name
+                    vc_name = pod.metadata.labels['vcName']
+                    if job_id not in jobs:
+                        jobs[job_id] = {
+                        'user_name': user_name,
+                        'node_names': {node_name},
+                        'vc_name': vc_name,
+                        'job_link': f'https://{domain_name}/job/{vc_name}/{cluster_name}/{job_id}'}
+                    else:
+                        jobs[job_id]['node_names'].add(node_name)
+    return jobs

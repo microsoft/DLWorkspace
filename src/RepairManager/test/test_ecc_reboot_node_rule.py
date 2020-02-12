@@ -14,11 +14,12 @@ from kubernetes.client.models.v1_pod_spec import V1PodSpec
 ### Please fill in SMTP info and enable tests to receive emails ###
 SMTP_URL = '[SMTP_URL]'
 LOGIN = '[LOGIN]'
-PASSWORD = "[PASSWORD]"
+PASSWORD = '[PASSWORD]'
 SENDER = '[SENDER]'
-JOB_OWNER_EMAIL = "[JOB_OWNER_EMAIL]"
-DRI_EMAIL = "[DRI_EMAIL]"
+JOB_OWNER_EMAIL = '[JOB_OWNER_EMAIL]'
+DRI_EMAIL = '[DRI_EMAIL]'
 
+DATE_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 
 def _mock_v1_pod(jobId, userName, vcName, nodeName):
     pod = V1Pod()
@@ -88,7 +89,6 @@ def _mock_prometheus_node_boot_time_response(node_boot_times):
 class Testing(unittest.TestCase):
 
     def test_extract_node_boot_time_info(self):
-        ############################### Set Up ###############################
         mock_datetime_one = datetime.utcnow()
         mock_timestamp_one = mock_datetime_one.replace(tzinfo=timezone.utc).timestamp()
 
@@ -135,7 +135,7 @@ class Testing(unittest.TestCase):
         rule_alert_handler_instance = rule_alert_handler.RuleAlertHandler()
         rule_alert_handler_instance.rule_cache["ecc_rule"] = {
             "node1": {
-                "time_found": time_five_days_ago,
+                "time_found": time_five_days_ago.strftime(DATE_FORMAT),
                 "instance": "192.168.0.1"
             }
         }
@@ -178,7 +178,7 @@ class Testing(unittest.TestCase):
         rule_alert_handler_instance = rule_alert_handler.RuleAlertHandler()
         rule_alert_handler_instance.rule_cache["ecc_rule"] = {
             "node1": {
-                "time_found": time_one_days_ago,
+                "time_found": time_one_days_ago.strftime(DATE_FORMAT),
                 "instance": "192.168.0.1"
             }
         }
@@ -222,7 +222,7 @@ class Testing(unittest.TestCase):
         rule_alert_handler_instance = rule_alert_handler.RuleAlertHandler()
         rule_alert_handler_instance.rule_cache["ecc_rule"] = {
             "node1": {
-                "time_found": time_two_days_ago,
+                "time_found": time_two_days_ago.strftime(DATE_FORMAT),
                 "instance": "192.168.0.1"
             }
         }
@@ -247,13 +247,11 @@ class Testing(unittest.TestCase):
     @mock.patch('utils.email_util.EmailHandler')
     @mock.patch('rules.ecc_detect_error_rule.requests.get')
     @mock.patch('rules.ecc_reboot_node_rule._wait_for_job_to_pause')
-    @mock.patch('rules.ecc_reboot_node_rule._pause_job')
-    @mock.patch('rules.ecc_reboot_node_rule._resume_job')
+    @mock.patch('rules.ecc_reboot_node_rule._create_email_for_pause_resume_job')
     @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
     def test_take_action(self, 
         mock_load_rule_config,
-        mock_resume_job,
-        mock_pause_job,
+        mock_create_email_for_pause_resume_job,
         mock_wait_for_job_to_pause, 
         mock_get_requests,
         mock_email_handler,
@@ -264,16 +262,15 @@ class Testing(unittest.TestCase):
         mock_load_rule_config.return_value = rule_config
 
         mock_load_ecc_config.return_value = _mock_ecc_config()
+        mock_load_ecc_config.return_value["alert_job_owners"] = True
 
-        mock_pause_job.return_value = {"result": "Success, the job is scheduled to be paused."}
+        mock_get_requests.return_value.json.return_value = {"result": "Success, something happened."}
 
         mock_wait_for_job_to_pause.return_value = {
             "errorMsg": None,
             "jobStatus": "paused",
             "jobTime": "Thu, 30 Jan 2020 23:43:00 GMT"
         }
-
-        mock_resume_job.return_value = {"result": "Success, the job is scheduled to be resumed."}
 
         rule_alert_handler_instance = rule_alert_handler.RuleAlertHandler()
         rule_alert_handler_instance.rule_cache["ecc_rule"] = {
@@ -294,9 +291,60 @@ class Testing(unittest.TestCase):
 
         ecc_reboot_node_rule_instance.take_action()
 
-        self.assertEqual(3, mock_pause_job.call_count)
-        self.assertEqual(3, mock_resume_job.call_count)
+        self.assertEqual(3, mock_create_email_for_pause_resume_job.call_count)
 
+    @mock.patch('rules.ecc_reboot_node_rule._create_email_for_issue_with_pause_resume_job')
+    @mock.patch('rules.ecc_detect_error_rule.k8s_util.list_namespaced_pod')
+    @mock.patch('rules.ecc_reboot_node_rule.ECCRebootNodeRule.load_ecc_config')
+    @mock.patch('utils.email_util.EmailHandler.load_config')
+    @mock.patch('rules.ecc_detect_error_rule.requests.get')
+    @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
+    def test_take_action_pause_failed(self, 
+        mock_load_rule_config,
+        mock_get_requests,
+        mock_email_load_config,
+        mock_load_ecc_config,
+        mock_list_pods,
+        mock_create_email_for_issue_with_pause_resume_job):
+
+        #####################################################
+        ##  Please fill in SMTP info above to send emails  ##
+        #####################################################
+        enable_test = False
+        ####################################################
+
+        if enable_test:
+
+            rule_config = _mock_rule_config()
+            mock_load_rule_config.return_value = rule_config
+
+            mock_email_load_config.return_value = {
+                "smtp_url": SMTP_URL,
+                "login": LOGIN,
+                "password": PASSWORD,
+                "sender": SENDER
+            }
+
+            mock_load_ecc_config.return_value = _mock_ecc_config()
+            mock_load_ecc_config.return_value["alert_job_owners"] = True
+
+            mock_get_requests.return_value.json.return_value = {"result": "Sorry, something went wrong."}
+
+            rule_alert_handler_instance = rule_alert_handler.RuleAlertHandler()
+            rule_alert_handler_instance.rule_cache["ecc_rule"] = {
+                "node1": {"instance": "192.168.0.1:9090"}
+            }
+
+            pod_one = _mock_v1_pod("87654321-wxyz", "user1", "vc1", "node1")
+            mock_pod_list = V1PodList(items=[pod_one])
+            mock_list_pods.return_value = mock_pod_list
+
+            ecc_reboot_node_rule_instance = ecc_reboot_node_rule.ECCRebootNodeRule(rule_alert_handler_instance, rule_config)
+            ecc_reboot_node_rule_instance.nodes_ready_for_action = ["node1"]
+
+            ecc_reboot_node_rule_instance.take_action()
+
+            self.assertEqual(1, mock_create_email_for_issue_with_pause_resume_job.call_count)
 
     @mock.patch('utils.email_util.EmailHandler.load_config')
     @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')

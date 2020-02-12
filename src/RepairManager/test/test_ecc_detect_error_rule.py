@@ -20,10 +20,10 @@ from kubernetes.client.models.v1_pod_spec import V1PodSpec
 ### Please fill in SMTP info and enable tests to receive emails ###
 SMTP_URL = '[SMTP_URL]'
 LOGIN = '[LOGIN]'
-PASSWORD = "[PASSWORD]"
+PASSWORD = '[PASSWORD]'
 SENDER = '[SENDER]'
-JOB_OWNER_EMAIL = "[JOB_OWNER_EMAIL]"
-DRI_EMAIL = "[DRI_EMAIL]"
+JOB_OWNER_EMAIL = '[JOB_OWNER_EMAIL]'
+DRI_EMAIL = '[DRI_EMAIL]'
 
 
 def _mock_v1_node(internal_ip, hostname):
@@ -311,31 +311,6 @@ class Testing(unittest.TestCase):
 
         self.assertEqual(1, mock_cordon_node.call_count)
         self.assertEqual(1, mock_create_email_for_dris.call_count)
-
-
-    def test_get_job_info_from_nodes(self):
-        pod_one = _mock_v1_pod("87654321-wxyz", "user1", "vc1", "node1")
-        pod_two = _mock_v1_pod("12345678-abcd", "user2", "vc2", "node1")
-        pod_three = _mock_v1_pod("12345678-abcd", "user2", "vc2", "node2")
-        pod_four = _mock_v1_pod("99999999-efgh", "user3", "vc3", "node3")
-        mock_pod_list = V1PodList(items=[pod_one, pod_two, pod_three, pod_four])
-
-
-        job_response = ecc_detect_error_rule._get_job_info_from_nodes(
-            ["node1", "node2"], mock_pod_list, "dlts.domain.com", "cluster1")
-
-        self.assertTrue("87654321-wxyz" in job_response)
-        self.assertEqual(1, len(job_response["87654321-wxyz"]["node_names"]))
-        self.assertTrue("node1" in job_response["87654321-wxyz"]["node_names"])
-        self.assertEqual("http://dlts.domain.com/job/vc1/cluster1/87654321-wxyz",
-         job_response["87654321-wxyz"]["job_link"])
-
-        self.assertTrue("12345678-abcd" in job_response)
-        self.assertEqual(2, len(job_response["12345678-abcd"]["node_names"]))
-        self.assertTrue("node1" in job_response["12345678-abcd"]["node_names"])
-        self.assertTrue("node2" in job_response["12345678-abcd"]["node_names"])
-        self.assertEqual("http://dlts.domain.com/job/vc2/cluster1/12345678-abcd", 
-        job_response["12345678-abcd"]["job_link"])
 
 
     @mock.patch('rules.ecc_detect_error_rule.k8s_util.list_namespaced_pod')

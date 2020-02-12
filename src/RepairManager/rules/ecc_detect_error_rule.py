@@ -12,6 +12,8 @@ import logging
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+DATE_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
+
 def _get_node_address_info(node_info):
     # map InternalIP to Hostname
     address_map = {}
@@ -38,26 +40,6 @@ def _extract_ips_from_ecc_data(ecc_data):
             ecc_node_ips.append(offending_node_ip)
         return ecc_node_ips
 
-
-def _get_job_info_from_nodes(nodes, pods, domain_name, cluster_name):
-    jobs = {}
-    for pod in pods.items:
-        if pod.metadata and pod.metadata.labels:
-            if 'jobId' in pod.metadata.labels and 'userName' in pod.metadata.labels:
-                if pod.spec.node_name in nodes:
-                    job_id = pod.metadata.labels['jobId']
-                    user_name = pod.metadata.labels['userName']
-                    node_name = pod.spec.node_name
-                    vc_name = pod.metadata.labels['vcName']
-                    if job_id not in jobs:
-                        jobs[job_id] = {
-                        'user_name': user_name,
-                        'node_names': {node_name},
-                        'vc_name': vc_name,
-                        'job_link': f'http://{domain_name}/job/{vc_name}/{cluster_name}/{job_id}'}
-                    else:
-                        jobs[job_id]['node_names'].add(node_name)
-    return jobs
 
 def _create_email_for_dris(nodes, action_status, jobs, cluster_name, dri_email):
     message = MIMEMultipart()
@@ -142,22 +124,28 @@ class ECCDetectErrorRule(Rule):
 
     def take_action(self):
         pods = k8s_util.list_namespaced_pod("default")
-        jobs = _get_job_info_from_nodes(self.ecc_node_hostnames, pods, self.config['domain_name'], self.config['cluster_name'])
+        job_params = {
+            "pods": pods,
+            "nodes": self.ecc_node_hostnames,
+            "domain_name": self.config["domain_name"],
+            "cluster_name": self.config["cluster_name"]
+        }
+        jobs = k8s_util._get_job_info_from_nodes(**job_params)
 
         action_status = {}
-        node_cordoned = False
-        new_error_detected = False
+        node_cordoned = set()
+        new_error_detected = set()
         for node_name in self.ecc_node_hostnames:
             if k8s_util.is_node_cordoned(self.node_info, node_name):
                 action_status[node_name] = f'no action taken: {node_name} already cordoned'
             else:
                 action_status[node_name] = k8s_util.cordon_node(node_name, dry_run=self.ecc_config['dry_run'])
-                node_cordoned = True
+                node_cordoned.add(node_name)
                         
             if not self.alert.check_rule_cache(self.rule, node_name):
-                new_error_detected = True
+                new_error_detected.add(node_name)
 
-        if node_cordoned or new_error_detected:
+        if len(node_cordoned) > 0 or len(new_error_detected) > 0:
             email_params = {
                 "nodes": self.ecc_node_hostnames,
                 "action_status": action_status,
@@ -170,7 +158,7 @@ class ECCDetectErrorRule(Rule):
 
         if self.ecc_config['alert_job_owners']:
             for job_id, job_info in jobs.items():
-                if not self.alert.check_rule_cache(self.rule, node_name):
+                if len(job_info['node_names'].intersection(new_error_detected)) > 0:
                     email_params = {
                         'job_id': job_id,
                         'job_owner_email': f"{job_info['user_name']}@{self.config['job_owner_email_domain']}",
@@ -186,7 +174,10 @@ class ECCDetectErrorRule(Rule):
         for node_name in self.ecc_node_hostnames:
             if not self.alert.check_rule_cache(self.rule, node_name):
                 cache_value = {
-                    'time_found': datetime.utcnow(),
+                    'time_found': datetime.utcnow().strftime(DATE_FORMAT),
                     'instance': self.ecc_node_hostnames[node_name]
                 }
                 self.alert.update_rule_cache(self.rule, node_name, cache_value)
+        
+        logging.debug(f"rule_cache: {json.dumps(self.alert.rule_cache, default=str)}")
+

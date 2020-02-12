@@ -48,6 +48,8 @@ spec:
           name: folderautoshare
         - mountPath: /var/log/dlworkspace
           name: log
+        - mountPath: /etc/RepairManager
+          name: backup
         readinessProbe:
           failureThreshold: 3
           initialDelaySeconds: 3
@@ -71,7 +73,7 @@ spec:
           path: {{cnf["storage-mount-path"]}}/storage
       - name: dlwsdatajobfiles
         hostPath:
-          path: {{cnf["storage-mount-path"]}}/jobfiles           
+          path: {{cnf["storage-mount-path"]}}/jobfiles
       - name: dltsdata
         hostPath:
           path: {{cnf["dltsdata-storage-mount-path"]}}
@@ -80,9 +82,12 @@ spec:
           path: {{cnf["folder_auto_share"]}}
       - name: log
         hostPath:
-          path: /var/log/clustermanager   
+          path: /var/log/clustermanager
+      - name: backup
+        hostPath:
+          path: /etc/RepairManager
       tolerations:
       - key: CriticalAddonsOnly
         operator: Exists
       - key: node-role.kubernetes.io/master
-        effect: NoSchedule           
+        effect: NoSchedule

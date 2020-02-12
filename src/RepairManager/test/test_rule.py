@@ -4,8 +4,9 @@ from rules_abc import Rule
 # Reference for new Rule
 class TestRule(Rule):
 
-    def __init__(self, alert):
+    def __init__(self, alert, config):
         self.alert = alert
+        self.config = config
 
     def check_status(self):
         logging.debug("checking status!")

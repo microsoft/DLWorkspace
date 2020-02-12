@@ -12,6 +12,8 @@ from utils import prometheus_url, k8s_util
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+DATE_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
+
 def _extract_node_boot_time_info(response):
     node_boot_times = {}
 
@@ -23,28 +25,6 @@ def _extract_node_boot_time_info(response):
                 node_boot_times[instance] = boot_datetime
     
     return node_boot_times
-
-
-def _get_job_info_from_nodes(pods, nodes, domain_name, cluster_name):
-    jobs = {}
-    for pod in pods.items:
-        if pod.metadata and pod.metadata.labels:
-            if 'jobId' in pod.metadata.labels and 'userName' in pod.metadata.labels:
-                if pod.spec.node_name in nodes:
-                    job_id = pod.metadata.labels['jobId']
-                    user_name = pod.metadata.labels['userName']
-                    node_name = pod.spec.node_name
-                    vc_name = pod.metadata.labels['vcName']
-                    if job_id not in jobs:
-                        jobs[job_id] = {
-                        'user_name': user_name,
-                        'node_names': {node_name},
-                        'vc_name': vc_name,
-                        'job_link': f'http://{domain_name}/job/{vc_name}/{cluster_name}/{job_id}'}
-                    else:
-                        jobs[job_id]['node_names'].add(node_name)
-    return jobs
-
 
 def _pause_resume_job(rest_url, job_id, job_owner_email, attempts, wait_time):
     try:
@@ -64,7 +44,7 @@ def _pause_resume_job(rest_url, job_id, job_owner_email, attempts, wait_time):
 def _pause_job(rest_url, job_id, job_owner_email, attempts):
     for i in range(attempts):
         pause_url = f'{rest_url}/PauseJob?userName={job_owner_email}&jobId={job_id}'
-        pause_resp = requests.get(pause_url)
+        pause_resp = requests.get(pause_url).json()
         if pause_resp is not None \
             and "result" in pause_resp \
             and "success" in pause_resp["result"].lower():
@@ -76,7 +56,7 @@ def _pause_job(rest_url, job_id, job_owner_email, attempts):
 def _resume_job(rest_url, job_id, job_owner_email, attempts):
     for i in range(attempts):
         resume_url = f'{rest_url}/ResumeJob?userName={job_owner_email}&jobId={job_id}'
-        resume_resp = requests.get(resume_url)
+        resume_resp = requests.get(resume_url).json()
         if resume_resp is not None \
             and "result" in resume_resp \
             and "success" in resume_resp["result"].lower():
@@ -89,7 +69,7 @@ def _wait_for_job_to_pause(rest_url, job_id, attempts, wait_time):
     for i in range(attempts):
         time.sleep(wait_time)
         status_url = f'{rest_url}/GetJobStatus?jobId={job_id}'
-        status_resp = requests.get(status_url)
+        status_resp = requests.get(status_url).json()
         if status_resp is not None \
             and "jobStatus" in status_resp \
             and status_resp["jobStatus"] == "paused":
@@ -120,8 +100,8 @@ def _create_email_for_issue_with_pause_resume_job(unsuccessful_pause_resume_jobs
      <table border="1"><tr><th>Job Id</th><th>Job Owner</th><th>Node(s)</th></tr>'''
     for job_id, job_info in unsuccessful_pause_resume_jobs.items():
         body += f'''<tr><td><a href="{job_info['job_link']}">{job_id}</a></td>
-            <td>{job_info['user_name']}</td>
-            <td>{', '.join(job_info['node_names'])}</td></tr>'''
+        <td>{job_info['user_name']}</td>
+        <td>{', '.join(job_info['node_names'])}</td></tr>'''
     body += '</table><p> Please investigate so node(s) can be repaired.</p>'
     message.attach(MIMEText(body, 'html'))
     return message
@@ -157,9 +137,10 @@ class ECCRebootNodeRule(Rule):
                     remove_from_cache = []
                     for node in self.alert.rule_cache[self.rule]:
                         instance = self.alert.rule_cache[self.rule][node]["instance"]
-                        time_found = self.alert.rule_cache[self.rule][node]["time_found"]
+                        time_found_string = self.alert.rule_cache[self.rule][node]["time_found"]
+                        time_found_datetime = datetime.strptime(time_found_string, DATE_FORMAT)
                         last_reboot_time = reboot_times[instance]
-                        if last_reboot_time > time_found:
+                        if last_reboot_time > time_found_datetime:
                             remove_from_cache.append(node)
 
                     for node in remove_from_cache:
@@ -168,15 +149,20 @@ class ECCRebootNodeRule(Rule):
             logging.exception(f'Error retrieving data from {reboot_url}')
 
 
-        # if configured time has elapsed since first detection, take action on node
+        # if configured time has elapsed since first detection, take action on node (if not done already)
         if self.rule in self.alert.rule_cache:
             for node in self.alert.rule_cache[self.rule]:
-                time_found = self.alert.rule_cache[self.rule][node]["time_found"]
-                delta = timedelta(days=self.ecc_config["days_until_node_reboot"])
-                now = datetime.utcnow()
-                if now - time_found > delta:
-                    self.nodes_ready_for_action.append(node)
+                cache_value = self.alert.get_rule_cache(self.rule, node)
+                if 'paused/resumed' not in cache_value:
+                    time_found_string = self.alert.rule_cache[self.rule][node]["time_found"]
+                    time_found_datetime = datetime.strptime(time_found_string, DATE_FORMAT)
+                    delta = timedelta(days=self.ecc_config["days_until_node_reboot"])
+                    now = datetime.utcnow()
+                    if now - time_found_datetime > delta:
+                        logging.info(f'Configured time has passed for node {node}')
+                        self.nodes_ready_for_action.append(node)
 
+        logging.debug(f"rule_cache: {json.dumps(self.alert.rule_cache, default=str)}")
         return len(self.nodes_ready_for_action) > 0
 
 
@@ -188,7 +174,7 @@ class ECCRebootNodeRule(Rule):
             "domain_name": self.config["domain_name"],
             "cluster_name": self.config["cluster_name"]
         }
-        job_info = _get_job_info_from_nodes(**job_params)
+        job_info = k8s_util._get_job_info_from_nodes(**job_params)
 
         unsuccessful_pause_resume_jobs = {}
 
@@ -214,10 +200,16 @@ class ECCRebootNodeRule(Rule):
                     self.alert.send_alert(message)
             else:
                 logging.warning(f"Could not pause/resume the following job: {job_id}")
-                unsuccessful_pause_resume_jobs[job_id] = job_info
+                unsuccessful_pause_resume_jobs[job_id] = job_info[job_id]
             
             if len(unsuccessful_pause_resume_jobs) > 0:
                 message = _create_email_for_issue_with_pause_resume_job(unsuccessful_pause_resume_jobs, dri_email)
                 self.alert.send_alert(message)
 
         # TODO: reboot node and remove from cache
+
+        # update status on all nodes, so action is not taken again
+        for node in self.nodes_ready_for_action:
+            cache_value = self.alert.get_rule_cache(self.rule, node)
+            cache_value['paused/resumed'] = True
+            self.alert.update_rule_cache(self.rule, node, cache_value)
