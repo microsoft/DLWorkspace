@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import copy
 import os
 import random
 import json
@@ -9,6 +10,7 @@ import base64
 
 from marshmallow import Schema, fields, post_load, validate
 from jinja2 import Environment, FileSystemLoader, Template
+from mountpoint import MountPoint, make_mountpoint
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +57,7 @@ class Job:
         self.job_id = job_id
         self.email = email
         self.mountpoints = mountpoints
+        self.job_mountpoints = []
         self.nfs_mountpoints = []
         self.job_path = job_path
         self.work_path = work_path
@@ -105,91 +108,53 @@ class Job:
 
         self.mountpoints.append(mountpoint)
 
-    def add_nfs_mountpoints(self, nfs_mountpoint):
-        """ Adds unique nfs_mountpoint with a normalized name.
+    def add_job_mountpoints(self, mountpoint):
+        """Adds unique mountpoint to job_mountpoints.
 
-        1. Skip if either of the following is true:
-           - name of the nfs_mountpoint already exists.
-           - mountPath of the nfs_mountpoint already exists in the same VC
-        2. A normalized name only contains alphanumeric character or dash.
         Args:
-            nfs_mountpoint: An nfs_mountpoint or a list of nfs_mountpoints
-
-        nfs nfs_mountpoint example:
-        {
-            "name": mountpoint0,  # optional
-            "enabled": True,
-            "server": 192.168.0.10,
-            "path": /data/share/storage,
-            "mountPath": /data,
-            "vc": platform,  # optional
-        }
+            mountpoint: A MountPoint.
 
         Returns:
             None
         """
-        # Skip None
-        if nfs_mountpoint is None:
-            logger.warning("Skip None nfs_mountpoint")
+        if mountpoint is None:
             return
 
-        # add each items in the list one by one
-        if isinstance(nfs_mountpoint, list):
-            for m in nfs_mountpoint:
-                self.add_nfs_mountpoints(m)
+        if isinstance(mountpoint, list):
+            for m in mountpoint:
+                self.add_job_mountpoints(m)
             return
 
-        # Skip invalid nfs_mountpoint
-        enabled = nfs_mountpoint.get("enabled")
-        server = nfs_mountpoint.get("server")
-        path = nfs_mountpoint.get("path")
-        mount_path = nfs_mountpoint.get("mountPath")
-        if enabled is None or \
-                invalid_entry(server) or \
-                invalid_entry(path) or \
-                invalid_entry(mount_path):
-            logger.warning("Skip invalid nfs_mountpoint %s", nfs_mountpoint)
+        # Skip invalid mountpoint
+        if not mountpoint.is_valid():
+            logger.warning("Skip invalid mountpoint %s", mountpoint)
             return
 
-        # only allow alphanumeric and dash in "name"
-        name = nfs_mountpoint.get("name")
-        vc = nfs_mountpoint.get("vc")
-        if invalid_entry(name):
-            vc_prefix = "" if invalid_entry(vc) else "%s-" % vc
-            name = "%s%s" % (vc_prefix, mount_path)
-        nfs_mountpoint["name"] = "".join(
-            [c for c in name if c.isalnum() or c == "-"]
-        ).lower()
+        if not self._job_mountpoint_exists(mountpoint):
+            self.job_mountpoints.append(mountpoint)
 
-        if not self._nfs_mountpoint_exists(nfs_mountpoint):
-            self.nfs_mountpoints.append(nfs_mountpoint)
+    def _job_mountpoint_exists(self, mountpoint):
+        # Consider None as present in order not to add None
+        if mountpoint is None:
+            return True
 
-    def _nfs_mountpoint_exists(self, nfs_mountpoint):
-        name = nfs_mountpoint.get("name")
-        mount_path = nfs_mountpoint.get("mountPath")
-        vc = nfs_mountpoint.get("vc")
-
-        # NOTE: mountPath "/data" is the same as "data" in k8s
-        for item in self.nfs_mountpoints:
-            dup_name = item.get("name") == name
-            dup_mount_path = \
-                item.get("mountPath").strip("/") == mount_path.strip("/") and \
-                item.get("vc") == vc
-            if dup_name or dup_mount_path:
-                logger.warning("nfs_mountpoint %s is a duplicate of an "
-                               "existing nfs_mountpoint %s",
-                               nfs_mountpoint,
-                               item)
+        for job_mountpoint in self.job_mountpoints:
+            if mountpoint == job_mountpoint:
+                logger.warning("mountpoint %s is a duplicate of an existing "
+                               "job mountpoint %s",
+                               mountpoint,
+                               job_mountpoint)
                 return True
         return False
 
-    def _mountpoint_in_nfs_mountpoints(self, mountpoint):
-        # Function to check if a hostPath mountpoint already exists in
-        # self.nfs_mountpoints. Used to migrate NFS mount from hostPath to
-        # kubernetes NFS plugin
-        container_path = mountpoint.get("containerPath")
-        mountpoint["mountPath"] = container_path
-        return self._nfs_mountpoint_exists(mountpoint)
+    def _host_path_as_nfs_in_job_mountpoints(self, mount):
+        # Transitional function to check if a hostPath mountpoint in
+        # dictionary format already exists as an NFSMountPoint
+        params = copy.deepcopy(mount)
+        params["mountType"] = "nfs"
+        params["mountPath"] = params["containerPath"]
+        mountpoint = make_mountpoint(params)
+        return self._job_mountpoint_exists(mountpoint)
 
     def add_plugins(self, plugins):
         self.plugins = plugins
@@ -236,18 +201,19 @@ class Job:
             "enabled": True
         }
 
-    def nfs_mountpoints_for_job(self):
+    def mountpoints_for_job(self):
         """Returns all nfs mountpoints for this job, including global and vc.
         """
         vc_name = self.params["vcName"]
-        nfs_mountpoints = [
-            mountpoint for mountpoint in self.get_nfs_mountpoints()
+        job_mountpoint_params = [
+            mountpoint for mountpoint in self.get_job_mountpoints()
             if mountpoint.get("vc") is None or mountpoint.get("vc") == vc_name
         ]
 
-        for mountpoint in nfs_mountpoints:
-            mountpoint["enabled"] = True
-        return nfs_mountpoints
+        job_mountpoints = [
+            make_mountpoint(params) for params in job_mountpoint_params
+        ]
+        return job_mountpoints
 
     def vc_custom_storage_mountpoints(self):
         vc_name = self.params["vcName"]
@@ -268,13 +234,15 @@ class Job:
                 continue
             vc_mount = {
                 "name": name.lower(),
-                "containerPath": container_path,
+                "containerPath": container_path,  # TODO deprecate containerPath
+                "mountPath": container_path,
                 "hostPath": host_path,
                 "enabled": True,
                 "vc": vc_name,
+                "mountType": "hostPath",
             }
 
-            if not self._mountpoint_in_nfs_mountpoints(vc_mount):
+            if not self._host_path_as_nfs_in_job_mountpoints(vc_mount):
                 vc_custom_mounts.append(vc_mount)
 
         return vc_custom_mounts
@@ -290,13 +258,15 @@ class Job:
         for storage in os.listdir(dltsdata_vc_path):
             vc_mountpoint = {
                 "name": ("%s-%s" % (vc_name, storage)).lower(),
-                "containerPath": "/" + storage,
+                "containerPath": "/" + storage,  # TODO deprecate containerPath
+                "mountPath": "/" + storage,
                 "hostPath": os.path.join(dltsdata_vc_path, storage),
                 "enabled": True,
                 "vc": vc_name,
+                "mountType": "hostPath",
             }
 
-            if not self._mountpoint_in_nfs_mountpoints(vc_mountpoint):
+            if not self._host_path_as_nfs_in_job_mountpoints(vc_mountpoint):
                 vc_mountpoints.append(vc_mountpoint)
 
         return vc_mountpoints
@@ -377,11 +347,11 @@ class Job:
             vc_without_shared_storage = []
         return vc_without_shared_storage
 
-    def get_nfs_mountpoints(self):
-        nfs_mountpoints = self._get_cluster_config("nfs_mountpoints")
-        if nfs_mountpoints is None or not isinstance(nfs_mountpoints, list):
-            nfs_mountpoints = []
-        return nfs_mountpoints
+    def get_job_mountpoints(self):
+        job_mountpoints = self._get_cluster_config("job_mountpoints")
+        if job_mountpoints is None or not isinstance(job_mountpoints, list):
+            job_mountpoints = []
+        return job_mountpoints
 
     def _get_cluster_config(self, key):
         if key in self.cluster:

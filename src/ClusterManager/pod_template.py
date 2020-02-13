@@ -13,6 +13,7 @@ sys.path.append(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 
 from pod_template_utils import enable_cpu_config
+from mountpoint import make_mountpoint
 
 
 class JobTemplate(object):
@@ -39,9 +40,10 @@ class JobTemplate(object):
         # Add NFS mountpoints before hostPath mountpoints.
         # mountpoints added by NFS mountpoint should not appear in hostPath
         # mountpoints again.
-        if "nfs_mountpoints" in params:
-            job.add_nfs_mountpoints(params["nfs_mountpoints"])
-        job.add_nfs_mountpoints(job.nfs_mountpoints_for_job())
+        if "job_mountpoints" in params:
+            for mountpoint_params in params["job_mountpoints"]:
+                job.add_job_mountpoints(make_mountpoint(mountpoint_params))
+        job.add_job_mountpoints(job.mountpoints_for_job())
 
         vc_without_shared_storage = job.get_vc_without_shared_storage()
 
@@ -68,7 +70,9 @@ class JobTemplate(object):
         job.add_mountpoints(job.vc_custom_storage_mountpoints())
         job.add_mountpoints(job.vc_storage_mountpoints())
 
-        params["nfs_mountpoints"] = job.nfs_mountpoints
+        params["job_mountpoints"] = [
+            mp.to_dict() for mp in job.job_mountpoints
+        ]
         params["mountpoints"] = job.mountpoints
         params["init-container"] = os.environ["INIT_CONTAINER_IMAGE"]
 
