@@ -17,7 +17,6 @@ class StorageManager(object):
      on regular basis.
 
     Attributes:
-        logger: Logging tool.
         config: Configuration for StorageManager.
         execution_interval: Number of seconds in between for consecutive runs.
         last_now: The unix epoch time in seconds.

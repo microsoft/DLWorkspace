@@ -3,6 +3,7 @@
 import logging
 import logging.config
 import os
+import shutil
 import time
 
 from datetime import datetime
@@ -102,13 +103,15 @@ class Rule(object):
         path = self.config["path"]
         alias = self.config["alias"]
 
-        header = "last_access_time,size_in_bytes,readable_size,owner,path\n"
+        header = "atime,mtime,time,size_in_bytes,readable_size,owner,path\n"
 
         preview_len = min(preview_len, len(nodes))
         preview = header
         for node in nodes[0:preview_len]:
-            preview += "%s,%s,%s,%s,%s\n" % (
+            preview += "%s,%s,%s,%s,%s,%s,%s\n" % (
                 node.subtree_atime,
+                node.subtree_mtime,
+                node.subtree_time,
                 node.subtree_size,
                 bytes2human_readable(node.subtree_size),
                 node.owner,
@@ -119,8 +122,10 @@ class Rule(object):
         data = header
         max_len = min(MAX_NODES_IN_REPORT, len(nodes))
         for node in nodes[0:max_len]:
-            cur_node = "%s,%s,%s,%s,%s\n" % (
+            cur_node = "%s,%s,%s,%s,%s,%s,%s\n" % (
                 node.subtree_atime,
+                node.subtree_mtime,
+                node.subtree_time,
                 node.subtree_size,
                 bytes2human_readable(node.subtree_size),
                 node.owner,
@@ -150,7 +155,7 @@ class Rule(object):
                 if os.path.exists(node.path):
                     if node.isdir:
                         logger.info("Deleting directory %s...", node.path)
-                        os.rmdir(node.path)
+                        shutil.rmtree(node.path)
                     else:
                         logger.info("Deleting file %s...", node.path)
                         os.remove(node.path)
