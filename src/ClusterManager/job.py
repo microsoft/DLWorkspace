@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import copy
 import os
 import random
 import json
@@ -9,6 +10,7 @@ import base64
 
 from marshmallow import Schema, fields, post_load, validate
 from jinja2 import Environment, FileSystemLoader, Template
+from mountpoint import MountPoint, make_mountpoint
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +57,8 @@ class Job:
         self.job_id = job_id
         self.email = email
         self.mountpoints = mountpoints
+        self.job_mountpoints = []
+        self.nfs_mountpoints = []
         self.job_path = job_path
         self.work_path = work_path
         self.data_path = data_path
@@ -104,6 +108,54 @@ class Job:
 
         self.mountpoints.append(mountpoint)
 
+    def add_job_mountpoints(self, mountpoint):
+        """Adds unique mountpoint to job_mountpoints.
+
+        Args:
+            mountpoint: A MountPoint.
+
+        Returns:
+            None
+        """
+        if mountpoint is None:
+            return
+
+        if isinstance(mountpoint, list):
+            for m in mountpoint:
+                self.add_job_mountpoints(m)
+            return
+
+        # Skip invalid mountpoint
+        if not mountpoint.is_valid():
+            logger.warning("Skip invalid mountpoint %s", mountpoint)
+            return
+
+        if not self._job_mountpoint_exists(mountpoint):
+            self.job_mountpoints.append(mountpoint)
+
+    def _job_mountpoint_exists(self, mountpoint):
+        # Consider None as present in order not to add None
+        if mountpoint is None:
+            return True
+
+        for job_mountpoint in self.job_mountpoints:
+            if mountpoint == job_mountpoint:
+                logger.warning("mountpoint %s is a duplicate of an existing "
+                               "job mountpoint %s",
+                               mountpoint,
+                               job_mountpoint)
+                return True
+        return False
+
+    def _host_path_as_nfs_in_job_mountpoints(self, mount):
+        # Transitional function to check if a hostPath mountpoint in
+        # dictionary format already exists as an NFSMountPoint
+        params = copy.deepcopy(mount)
+        params["mountType"] = "nfs"
+        params["mountPath"] = params["containerPath"]
+        mountpoint = make_mountpoint(params)
+        return self._job_mountpoint_exists(mountpoint)
+
     def add_plugins(self, plugins):
         self.plugins = plugins
 
@@ -149,6 +201,20 @@ class Job:
             "enabled": True
         }
 
+    def mountpoints_for_job(self):
+        """Returns all nfs mountpoints for this job, including global and vc.
+        """
+        vc_name = self.params["vcName"]
+        job_mountpoint_params = [
+            mountpoint for mountpoint in self.get_job_mountpoints()
+            if mountpoint.get("vc") is None or mountpoint.get("vc") == vc_name
+        ]
+
+        job_mountpoints = [
+            make_mountpoint(params) for params in job_mountpoint_params
+        ]
+        return job_mountpoints
+
     def vc_custom_storage_mountpoints(self):
         vc_name = self.params["vcName"]
         custom_mounts = self.get_custom_mounts()
@@ -164,15 +230,20 @@ class Job:
             if vc is None or vc != vc_name:
                 continue
             if name is None or host_path is None or container_path is None:
-                logger.warn("Ignore invalid mount %s" % mount)
+                logger.warning("Ignore invalid mount %s", mount)
                 continue
             vc_mount = {
                 "name": name.lower(),
-                "containerPath": container_path,
+                "containerPath": container_path,  # TODO deprecate containerPath
+                "mountPath": container_path,
                 "hostPath": host_path,
-                "enabled": True
+                "enabled": True,
+                "vc": vc_name,
+                "mountType": "hostPath",
             }
-            vc_custom_mounts.append(vc_mount)
+
+            if not self._host_path_as_nfs_in_job_mountpoints(vc_mount):
+                vc_custom_mounts.append(vc_mount)
 
         return vc_custom_mounts
 
@@ -187,11 +258,16 @@ class Job:
         for storage in os.listdir(dltsdata_vc_path):
             vc_mountpoint = {
                 "name": ("%s-%s" % (vc_name, storage)).lower(),
-                "containerPath": "/" + storage,
+                "containerPath": "/" + storage,  # TODO deprecate containerPath
+                "mountPath": "/" + storage,
                 "hostPath": os.path.join(dltsdata_vc_path, storage),
-                "enabled": True
+                "enabled": True,
+                "vc": vc_name,
+                "mountType": "hostPath",
             }
-            vc_mountpoints.append(vc_mountpoint)
+
+            if not self._host_path_as_nfs_in_job_mountpoints(vc_mountpoint):
+                vc_mountpoints.append(vc_mountpoint)
 
         return vc_mountpoints
 
@@ -270,6 +346,12 @@ class Job:
                 not isinstance(vc_without_shared_storage, list):
             vc_without_shared_storage = []
         return vc_without_shared_storage
+
+    def get_job_mountpoints(self):
+        job_mountpoints = self._get_cluster_config("job_mountpoints")
+        if job_mountpoints is None or not isinstance(job_mountpoints, list):
+            job_mountpoints = []
+        return job_mountpoints
 
     def _get_cluster_config(self, key):
         if key in self.cluster:

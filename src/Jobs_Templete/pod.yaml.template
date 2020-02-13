@@ -215,6 +215,16 @@ spec:
         {% endfor %}
       {% endif %}
     {% endif %}
+    {% if job["job_mountpoints"] %}
+      {% for mp in job["job_mountpoints"] %}
+        {% if mp["enabled"] %}
+          {% if mp["mountType"] == "nfs" %}
+    - name: {{ mp["name"] }}
+      mountPath: {{ mp["mountPath"] }}
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+    {% endif %}
     env:
     - name: FAMILY_TOKEN
       value: {{ job["familyToken"] }}
@@ -334,4 +344,16 @@ spec:
         {% endif %}
       {% endfor %}
     {% endif %}
+  {% endif %}
+  {% if job["job_mountpoints"] %}
+    {% for mp in job["job_mountpoints"] %}
+      {% if mp["enabled"] %}
+        {% if mp["mountType"] == "nfs" %}
+  - name: {{ mp["name"] }}
+    nfs:
+      server: {{ mp["server"] }}
+      path: {{ mp["path"] }}
+        {% endif %}
+      {% endif %}
+    {% endfor %}
   {% endif %}

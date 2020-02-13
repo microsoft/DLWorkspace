@@ -76,3 +76,5 @@ elasticsearch:
   {% for elasticsearch_node in cnf["elasticsearch_node"] %}
   - 'http://{{elasticsearch_node}}:{{cnf["elasticsearch"]["port"]["http"]}}'
   {% endfor %}
+
+job_mountpoints: {{cnf["job_mountpoints"]}}
