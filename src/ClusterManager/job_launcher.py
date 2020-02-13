@@ -44,7 +44,7 @@ def walk_json_field_safe(obj, *fields):
 
 
 class JobRole(object):
-    MARK_ROLE_READY_FILE = "/pod/running/ROLE_READY"
+    MARK_ROLE_READY_FILE = "/dlts-runtime/status/READY"
 
     def __init__(self, launcher, role_name, pod_name, pod):
         self.launcher = launcher

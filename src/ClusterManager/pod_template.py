@@ -200,15 +200,6 @@ class RegularJobTemplate(JobTemplate):
         if "gpuLimit" not in params:
             params["gpuLimit"] = params["resourcegpu"]
 
-        # mount /pod
-        pod_path = job.get_hostpath(job.job_path, "master")
-        params["mountpoints"].append({
-            "name": "pod",
-            "containerPath": "/pod",
-            "hostPath": pod_path,
-            "enabled": True
-        })
-
         return params, None
 
 
@@ -271,15 +262,6 @@ class InferenceJobTemplate(JobTemplate):
         params["fragmentGpuJob"] = True
         params["gpuLimit"] = 0
 
-        # mount /pod
-        pod_path = job.get_hostpath(job.job_path, "master")
-        params["mountpoints"].append({
-            "name": "pod",
-            "containerPath": "/pod",
-            "hostPath": pod_path,
-            "enabled": True
-        })
-
         return params, None
 
 
@@ -340,16 +322,6 @@ class DistributeJobTemplate(JobTemplate):
                     pod.pop("cpulimit", None)
                     pod.pop("memoryrequest", None)
                     pod.pop("memorylimit", None)
-
-                # mount /pod
-                local_pod_path = job.get_hostpath(job.job_path,
-                                                  "%s-%d" % (role, idx))
-                pod["mountpoints"].append({
-                    "name": "pod",
-                    "containerPath": "/pod",
-                    "hostPath": local_pod_path,
-                    "enabled": True
-                })
 
                 pods.append(pod)
 
