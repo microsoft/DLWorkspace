@@ -5,6 +5,7 @@ import logging
 import logging.config
 import importlib
 import traceback
+from pathlib import Path
 from utils import rule_alert_handler
 
 import rules
@@ -17,6 +18,8 @@ logger = logging.getLogger(__name__)
 
 alert = rule_alert_handler.RuleAlertHandler()
 
+with open('./config/rule-config.yaml', 'r') as config_file:
+    config = yaml.safe_load(config_file)
 
 def Run():
     try:        
