@@ -43,6 +43,38 @@ def base64decode(str_val):
     return base64.b64decode(str_val.encode("utf-8")).decode("utf-8")
 
 
+def default_vc_entries(config):
+    if "worker_sku_cnt" not in config or "sku_mapping" not in config:
+        print("Warning: no default value would be added to VC table. Need to manually specify")
+        return ""
+
+    worker_sku_cnt, sku_mapping = config["worker_sku_cnt"], config["sku_mapping"]
+    quota_dict = {}
+    old_meta = {}
+    resource_quota = {"cpu":{}, "memory":{}, "gpu":{}, "gpu_memory":{}}
+    for sku, cnt in worker_sku_cnt.items():
+        gpu_type = sku_mapping.get(sku, {}).get("gpu-type", "None")
+        num_gpu_per_node = sku_mapping.get(sku, {}).get("gpu", 0)
+        quota_dict[gpu_type] = quota_dict.get(gpu_type, 0) + cnt * num_gpu_per_node
+        old_meta[gpu_type] = num_gpu_per_node
+        sku_name_in_map = sku if sku in sku_mapping else ""
+        meta_tmp = sku_mapping.get(sku_name_in_map, {})
+        for r_type in resource_quota.keys():
+            resource_quota[r_type][sku_name_in_map] = resource_quota[r_type].get(sku_name_in_map, 0) + meta_tmp.get(r_type, 0) * cnt
+
+    for r_type, r_qt in resource_quota.items():
+        for sku, val in r_qt.items():
+            resource_quota[r_type][sku] = int(resource_quota[r_type][sku]) - int(0.1*val)
+
+    # if a string would be formatted, then need to escape { by using {{
+    name_and_par = "AS SELECT \'{}\' AS vcName, NULL AS parent".format(config['defalt_virtual_cluster_name'])
+    quota = "'{" + ",".join(['\\\"{}\\\":{}'.format(ky, cnt) for ky, cnt in quota_dict.items()]) + "}' AS quota"
+    metadata = "'{" + ",".join(['\\\"{}\\\":{{\\\"num_gpu_per_node\\\":{}}}'.format(ky, cnt) for ky, cnt in old_meta.items()]) + "}' AS metadata"
+    res_quota = "'{" + ",".join(['\\\"{}\\\":{{{}}}'.format(res, ",".join(["\\\"{}\\\":{}".format(sku, cnt if "memory" not in res else '\\\"{}Gi\\\"'.format(cnt) ) for sku, cnt in res_q.items()])) for res, res_q in resource_quota.items()]) + "}' AS resourceQuota" 
+    res_meta = "'{}' as resourceMetadata"
+    return ", ".join([name_and_par, quota, metadata, res_quota, res_meta]) + ";"
+
+
 class DataHandler(object):
     def __init__(self):
         start_time = timeit.default_timer()
@@ -190,10 +222,6 @@ class DataHandler(object):
             # when the VC has vm of same GPU type but different VMsizes, e.g., when VC has Standard_NC6s_v3 and Standard_NC12s_v3 both?
             # impossible since there's no way to do it with current config mechanism
 
-            gpu_count_per_node = config["gpu_count_per_node"]
-            worker_node_num = config["worker_node_num"]
-            gpu_type = config["gpu_type"]
-
             sql = """
                 CREATE TABLE IF NOT EXISTS  `%s`
                 (
@@ -207,9 +235,11 @@ class DataHandler(object):
                     `time`      DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
                     PRIMARY KEY (`id`),
                     CONSTRAINT `hierarchy` FOREIGN KEY (`parent`) REFERENCES `%s` (`vcName`)
-                )
-                AS SELECT \'%s\' AS vcName, NULL AS parent, '{\\\"%s\\\":%s}' AS quota, '{\\\"%s\\\":{\\\"num_gpu_per_node\\\":%s}}' AS metadata, '{}' as resourceQuota, '{}' as resourceMetadata;
-                """ % (self.vctablename, self.vctablename, config['defalt_virtual_cluster_name'], gpu_type, gpu_count_per_node*worker_node_num, gpu_type,gpu_count_per_node)
+                )                
+                """ % (self.vctablename, self.vctablename)
+
+            default_vc_value = default_vc_entries(config)
+            sql += default_vc_value
 
             cursor = self.conn.cursor()
             cursor.execute(sql)

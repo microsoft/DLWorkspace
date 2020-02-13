@@ -251,7 +251,7 @@ def gen_machine_list_4_deploy_action(complementary_file_name, config):
     cc["basic_auth"] = "%s,admin,1000" % uuid.uuid4().hex[:16]
     domain_mapping = {
         "regular": "%s.cloudapp.azure.com" % config["azure_cluster"]["azure_location"],
-        "low": config.get("network_domain", config["azure_cluster"]["default_low_priority_domain"])}
+        "low": config.get("network", {}).get("domain", config["azure_cluster"]["default_low_priority_domain"])}
     cc["machines"] = {}
     for spec in config["azure_cluster"]["virtual_machines"]:
         validate_machine_spec(config, spec)
@@ -273,7 +273,7 @@ def gen_machine_list_4_deploy_action(complementary_file_name, config):
                 cc["machines"][vmname]["kube_label_groups"] = []
                 for role in spec["role"]:
                     if role in config["default_kube_labels_by_node_role"]:
-                        cc["machines"][vmname]["kube_label_groups"].append(role)
+                        cc["machines"][vmname]["kube_label_groups"].append(role)    
 
     cc["etcd_node_num"] = len(
         [mv for mv in list(cc["machines"].values()) if 'infra' in mv['role']])

@@ -53,7 +53,6 @@ class PodTemplate():
             pod = copy.deepcopy(params)
             pod["numps"] = 0
             pod["numworker"] = 1
-            pod["fragmentGpuJob"] = True
             if "gpuLimit" not in pod:
                 pod["gpuLimit"] = pod["resourcegpu"]
 
@@ -159,7 +158,6 @@ class PodTemplate():
 
         params["numps"] = 0
         params["numworker"] = 1
-        params["fragmentGpuJob"] = True
         if "gpuLimit" not in params:
             params["gpuLimit"] = params["resourcegpu"]
 

@@ -44,9 +44,6 @@ spec:
     {{key}}: {{value}}
   {% endfor %}
   {% endif %}
-  {% if job["fragmentGpuJob"] %}
-    FragmentGPUJob: active
-  {% endif %}
   {% if job["gpuLimit"]|int != 0 or jobRole == "ps" %}
   affinity:
     podAffinity:

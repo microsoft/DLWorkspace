@@ -265,8 +265,6 @@ def gen_task_role(job, role):
     node_selector = {"worker": "active"}
     for key, val in job.node_selector.items():
         node_selector[key] = val
-    if job.is_fragment_gpu_job:
-        node_selector["FragmentGPUJob"] = "active"
 
     image_pull_secrets = [{"name": "regcred"}]
 
@@ -458,7 +456,6 @@ def transform_regular_job(params, cluster_config):
             params.get("dnsPolicy"),
             params.get("nodeSelector", {}),
             params["homeFolderHostpath"],
-            params.get("fragmentGpuJob", False),
             params.get("preemptionAllowed", False),
             params.get("hostNetwork", False),
             params.get("hostIPC", False),
@@ -514,7 +511,6 @@ def transform_distributed_job(params, cluster_config):
             params.get("dnsPolicy"),
             params.get("nodeSelector", {}),
             params["homeFolderHostpath"],
-            params.get("fragmentGpuJob", False),
             params.get("preemptionAllowed", False),
             params.get("hostNetwork", False),
             params.get("hostIPC", False),

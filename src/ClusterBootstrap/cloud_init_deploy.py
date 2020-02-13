@@ -74,8 +74,10 @@ def load_az_params_as_default(config):
     )} if "azure_cluster" in config else {}
     merge_config(config["azure_cluster"], default_cfg["azure_cluster"])
     merge_config(config["azure_cluster"], azure_cluster_cfg)
+    if "sku_mapping" in default_cfg and not "sku_mapping" in config:
+        config["sku_mapping"] = default_cfg["sku_mapping"]
     domain_mapping = {"regular": "%s.cloudapp.azure.com" % config["azure_cluster"]["azure_location"], "low": config.get(
-        "network_domain", config["azure_cluster"]["default_low_priority_domain"])}
+        "network", {}).get("domain", config["azure_cluster"]["default_low_priority_domain"])}
     config["network"] = {"domain": domain_mapping[config["priority"]]}
     return config
 
@@ -96,23 +98,20 @@ def load_platform_type(config):
 
 def gen_platform_wise_config(config):
     config = load_platform_type(config)
-    azdefault = {'network_domain': "config['network']['domain']",
-                 'worker_node_num': "config['azure_cluster']['worker_node_num']",
-                 'gpu_count_per_node': 'config["sku_mapping"].get(config["azure_cluster"]["worker_vm_size"],config["sku_mapping"]["default"])["gpu-count"]',
-                 'gpu_type': 'config["sku_mapping"].get(config["azure_cluster"]["worker_vm_size"],config["sku_mapping"]["default"])["gpu-type"]'}
-    on_premise_default = {'network_domain': "config['network']['domain']"}
-    platform_dict = {'azure_cluster': azdefault,
-                     'onpremise': on_premise_default}
     platform_func = {'azure_cluster': load_az_params_as_default,
                      'onpremise': on_premise_params}
-    default_dict, default_func = platform_dict[config["platform_type"]
-                                               ], platform_func[config["platform_type"]]
+    default_func = platform_func[config["platform_type"]]
     config = default_func(config)
-    need_val = ['network_domain', 'worker_node_num',
-                'gpu_count_per_node', 'gpu_type']
-    for ky in need_val:
-        if ky not in config:
-            config[ky] = eval(default_dict[ky])
+    return config
+
+
+def get_stat_of_sku(config):
+    cntr = {}
+    for mc in config["machines"].values():
+        if not "worker" in mc["role"]:
+            continue
+        cntr[mc["vm_size"]] = cntr.get(mc["vm_size"], 0) + 1
+    config["worker_sku_cnt"] = cntr
     return config
 
 
@@ -248,7 +247,7 @@ def load_default_config(config):
         "common": ["./scripts/mkdir_and_cp.sh",
                    "./scripts/prepare_vm_disk.sh", "./scripts/prepare_ubuntu.sh",
                    "./scripts/disable_kernel_auto_updates.sh", "./scripts/docker_network_gc_setup.sh",
-                   "./scripts/dns.sh", "./deploy/etcd/init_network.sh", "scripts/render_env_vars.sh",
+                   "./deploy/scripts/dns.sh", "./deploy/etcd/init_network.sh", "scripts/render_env_vars.sh",
                    "scripts/fileshare_install.sh", "scripts/mnt_fs_svc.sh"],
 
         "infra": ["./deploy/master/" + config["premasterdeploymentscript"],
@@ -717,6 +716,7 @@ def render_kubelet(config, args):
 def render_restfulapi(config):
     if not os.path.exists("./deploy/RestfulAPI"):
         os.system("mkdir -p ./deploy/RestfulAPI")
+    config = get_stat_of_sku(config)
     utils.render_template("./template/RestfulAPI/config.yaml",
                           "./deploy/RestfulAPI/config.yaml", config)
     utils.render_template("./template/master/restapi-kubeconfig.yaml",
@@ -763,8 +763,8 @@ def render_webui(config):
 
 def gen_dns_config_script(config):
     utils.render_template("./template/dns/dns.sh.template",
-                          "scripts/dns.sh", config)
-    os.system('chmod 755 scripts/dns.sh')
+                          "deploy/scripts/dns.sh", config)
+    os.system('chmod 755 deploy/scripts/dns.sh')
 
 
 def pack_cloudinit_roles(config, args):
@@ -934,6 +934,38 @@ def render_for_worker_generic(config, args):
         config["api_servers"] = orig_api_servers
 
 
+def default_vc_entries(config):
+    if "worker_sku_cnt" not in config or "sku_mapping" not in config:
+        print("Warning: no default value would be added to VC table. Need to manually specify")
+        return ""
+
+    worker_sku_cnt, sku_mapping = config["worker_sku_cnt"], config["sku_mapping"]
+    quota_dict = {}
+    old_meta = {}
+    resource_quota = {"cpu":{}, "memory":{}, "gpu":{}, "gpu_memory":{}}
+    for sku, cnt in worker_sku_cnt.items():
+        gpu_type = sku_mapping.get(sku, {}).get("gpu-type", "None")
+        num_gpu_per_node = sku_mapping.get(sku, {}).get("gpu", 0)
+        quota_dict[gpu_type] = quota_dict.get(gpu_type, 0) + cnt * num_gpu_per_node
+        old_meta[gpu_type] = num_gpu_per_node
+        sku_name_in_map = sku if sku in sku_mapping else ""
+        meta_tmp = sku_mapping.get(sku_name_in_map, {})
+        for r_type in resource_quota.keys():
+            resource_quota[r_type][sku_name_in_map] = resource_quota[r_type].get(sku_name_in_map, 0) + meta_tmp.get(r_type, 0) * cnt
+
+    for r_type, r_qt in resource_quota.items():
+        for sku, val in r_qt.items():
+            resource_quota[r_type][sku] = int(resource_quota[r_type][sku]) - int(0.1*val)
+
+    # if a string would be formatted, then need to escape { by using {{
+    name_and_par = "AS SELECT \'{}\' AS vcName, NULL AS parent".format(config['defalt_virtual_cluster_name'])
+    quota = "'{" + ",".join(['\\\"{}\\\":{}'.format(ky, cnt) for ky, cnt in quota_dict.items()]) + "}' AS quota"
+    metadata = "'{" + ",".join(['\\\"{}\\\":{{\\\"num_gpu_per_node\\\":{}}}'.format(ky, cnt) for ky, cnt in old_meta.items()]) + "}' AS metadata"
+    res_quota = "'{" + ",".join(['\\\"{}\\\":{{{}}}'.format(res, ",".join(["\\\"{}\\\":{}".format(sku, cnt if "memory" not in res else '\\\"{}Gi\\\"'.format(cnt) ) for sku, cnt in res_q.items()])) for res, res_q in resource_quota.items()]) + "}' AS resourceQuota" 
+    res_meta = "'{}' as resourceMetadata"
+    return ", ".join([name_and_par, quota, metadata, res_quota, res_meta]) + ";"
+
+
 def run_command(args, command, parser):
     if command == "clusterID":
         create_cluster_id(args.force)
@@ -979,7 +1011,8 @@ def run_command(args, command, parser):
             if nargs[0] == "servicesprerequisite":
                 push_all_prerequisite_docker_images(args, config)
     if command == "test":
-        print(rs)
+        config = render_restfulapi(config)
+
 
 if __name__ == '__main__':
     # the program always run at the current directory.
