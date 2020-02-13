@@ -215,11 +215,13 @@ spec:
         {% endfor %}
       {% endif %}
     {% endif %}
-    {% if job["nfs_mountpoints"] %}
-      {% for nfs in job["nfs_mountpoints"] %}
-        {% if nfs.enabled %}
-    - name: {{ nfs.name }}
-      mountPath: {{ nfs.mountPath }}
+    {% if job["job_mountpoints"] %}
+      {% for mp in job["job_mountpoints"] %}
+        {% if mp["enabled"] %}
+          {% if mp["mountType"] == "nfs" %}
+    - name: {{ mp["name"] }}
+      mountPath: {{ mp["mountPath"] }}
+          {% endif %}
         {% endif %}
       {% endfor %}
     {% endif %}
@@ -343,13 +345,15 @@ spec:
       {% endfor %}
     {% endif %}
   {% endif %}
-  {% if job["nfs_mountpoints"] %}
-    {% for nfs in job["nfs_mountpoints"] %}
-      {% if nfs.enabled %}
-  - name: {{ nfs.name }}
+  {% if job["job_mountpoints"] %}
+    {% for mp in job["job_mountpoints"] %}
+      {% if mp["enabled"] %}
+        {% if mp["mountType"] == "nfs" %}
+  - name: {{ mp["name"] }}
     nfs:
-      server: {{ nfs.server }}
-      path: {{ nfs.path }}
+      server: {{ mp["server"] }}
+      path: {{ mp["path"] }}
+        {% endif %}
       {% endif %}
     {% endfor %}
   {% endif %}
