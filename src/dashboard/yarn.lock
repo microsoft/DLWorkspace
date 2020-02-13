@@ -14575,9 +14575,9 @@ url@^0.11.0:
     querystring "0.2.0"
 
 "use-http-2@npm:use-http@^0.2.0":
-  version "0.2.4"
-  resolved "https://registry.yarnpkg.com/use-http/-/use-http-0.2.4.tgz#d107b5c809d6f9fc4ed44d9a37cf7fa37cb94a6e"
-  integrity sha512-4bkXaZc7Ac44N2VnewYkla1fsy4jX1j2wf2JMUfJD3j/e8W4RHbF6qZOJfbU0keaPTk+aUe8XYYN12IMIFsqEQ==
+  version "0.2.7"
+  resolved "https://registry.yarnpkg.com/use-http/-/use-http-0.2.7.tgz#d76a699f78721024771baba55e412b880a64b0e1"
+  integrity sha512-3jlfDerBVJMSXdbv2Aj4eihqoBlECcPo6rLJN0hWRZHxBGcmxPxBpqp7RZV8lpidTXQ1s+oiKzCnXV+m8kuoDg==
   dependencies:
     use-ssr "^1.0.22"
 

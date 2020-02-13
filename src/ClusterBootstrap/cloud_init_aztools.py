@@ -273,7 +273,7 @@ def gen_machine_list_4_deploy_action(complementary_file_name, config):
                 cc["machines"][vmname]["kube_label_groups"] = []
                 for role in spec["role"]:
                     if role in config["default_kube_labels_by_node_role"]:
-                        cc["machines"][vmname]["kube_label_groups"].append(role)    
+                        cc["machines"][vmname]["kube_label_groups"].append(role)
 
     cc["etcd_node_num"] = len(
         [mv for mv in list(cc["machines"].values()) if 'infra' in mv['role']])

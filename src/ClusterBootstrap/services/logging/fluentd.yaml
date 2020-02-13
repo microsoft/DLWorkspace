@@ -1,52 +1,58 @@
-kind: DaemonSet
 apiVersion: apps/v1
+kind: DaemonSet
 metadata:
-  name: fluentd-es-v2.0.2
+  name: fluentd
   namespace: kube-system
   labels:
-    k8s-app: fluentd-es
-    version: v2.0.2
+    k8s-app: fluentd
     kubernetes.io/cluster-service: "true"
     addonmanager.kubernetes.io/mode: Reconcile
 spec:
   selector:
     matchLabels:
-      k8s-app: fluentd-es
+      k8s-app: fluentd
   template:
     metadata:
       labels:
-        k8s-app: fluentd-es
+        k8s-app: fluentd
         kubernetes.io/cluster-service: "true"
-        version: v2.0.2
-      # This annotation ensures that fluentd does not get evicted if the node
-      # supports critical pod annotation based priority scheme.
-      # Note that this does not guarantee admission on the nodes (#40573).
       annotations:
-        scheduler.alpha.kubernetes.io/critical-pod: ''
+        prometheus.io/scrape: 'true'
+        prometheus.io/path: '/metrics'
+        prometheus.io/port: '{{cnf["fluentd"]["port"]}}'
     spec:
+      hostNetwork: true
       containers:
-      - name: fluentd-es
-        image: {{cnf["dockers"]["container"]["fluentd-elasticsearch"]["fullname"]}}
+      - name: fluentd
+        image: '{{cnf["dockers"]["container"]["fluentd-kubernetes-daemonset"]["fullname"]}}'
         env:
-        - name: FLUENTD_ARGS
-          value: --no-supervisor -q
+        - name: FLUENT_ELASTICSEARCH_SCHEME
+          value: "http"
+        - name: FLUENT_ELASTICSEARCH_HOST
+          value: '$(ELASTICSEARCH_SERVICE_HOST)'
+        - name: FLUENT_ELASTICSEARCH_PORT
+          value: '$(ELASTICSEARCH_SERVICE_PORT)'
+        - name: FLUENTD_PROMETHEUS_PORT
+          value: '{{cnf["fluentd"]["port"]}}'
         resources:
           limits:
-            memory: 500Mi
+            memory: 200Mi
           requests:
             cpu: 100m
             memory: 200Mi
+        ports:
+        - containerPort: {{cnf["fluentd"]["port"]}}
+          name: http
+          protocol: TCP
         volumeMounts:
         - name: varlog
           mountPath: /var/log
         - name: varlibdockercontainers
           mountPath: /var/lib/docker/containers
           readOnly: true
-        - name: libsystemddir
-          mountPath: /host/lib
+        - name: datalibdockercontainers
+          mountPath: /data/lib/docker/containers
           readOnly: true
-        - name: config-volume
-          mountPath: /etc/fluent/config.d
       terminationGracePeriodSeconds: 30
       volumes:
       - name: varlog
@@ -55,10 +61,6 @@ spec:
       - name: varlibdockercontainers
         hostPath:
           path: /var/lib/docker/containers
-      # It is needed to copy systemd library to decompress journals
-      - name: libsystemddir
+      - name: datalibdockercontainers
         hostPath:
-          path: /usr/lib64
-      - name: config-volume
-        configMap:
-          name: fluentd-es-config-v0.1.0
+          path: /data/lib/docker/containers

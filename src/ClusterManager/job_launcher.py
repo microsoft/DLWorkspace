@@ -21,8 +21,7 @@ sys.path.append("../utils")
 
 from cluster_manager import record
 from config import config
-from dist_pod_template import DistPodTemplate
-from pod_template import PodTemplate
+from pod_template import RegularJobTemplate, DistributeJobTemplate, InferenceJobTemplate
 from job import Job, JobSchema
 from DataHandler import DataHandler
 import k8sUtils
@@ -45,7 +44,7 @@ def walk_json_field_safe(obj, *fields):
 
 
 class JobRole(object):
-    MARK_ROLE_READY_FILE = "/pod/running/ROLE_READY"
+    MARK_ROLE_READY_FILE = "/dlts-runtime/status/READY"
 
     def __init__(self, launcher, role_name, pod_name, pod):
         self.launcher = launcher
@@ -637,14 +636,15 @@ class LauncherStub(Launcher):
                 "imagePull": image_pull_secret_template
             }
             if job_object.params["jobtrainingtype"] == "RegularJob":
-                pod_template = PodTemplate(job_object.get_template(),
-                                           secret_templates=secret_templates)
+                pod_template = RegularJobTemplate(
+                    job_object.get_template(),
+                    secret_templates=secret_templates)
             elif job_object.params["jobtrainingtype"] == "PSDistJob":
-                pod_template = DistPodTemplate(
+                pod_template = DistributeJobTemplate(
                     job_object.get_template(),
                     secret_templates=secret_templates)
             elif job_object.params["jobtrainingtype"] == "InferenceJob":
-                pod_template = PodTemplate(
+                pod_template = InferenceJobTemplate(
                     job_object.get_template(),
                     deployment_template=job_object.get_deployment_template(),
                     secret_templates=secret_templates)
@@ -1026,14 +1026,15 @@ class PythonLauncher(Launcher):
                 "imagePull": image_pull_secret_template
             }
             if job_object.params["jobtrainingtype"] == "RegularJob":
-                pod_template = PodTemplate(job_object.get_template(),
-                                           secret_templates=secret_templates)
+                pod_template = RegularJobTemplate(
+                    job_object.get_template(),
+                    secret_templates=secret_templates)
             elif job_object.params["jobtrainingtype"] == "PSDistJob":
-                pod_template = DistPodTemplate(
+                pod_template = DistributeJobTemplate(
                     job_object.get_template(),
                     secret_templates=secret_templates)
             elif job_object.params["jobtrainingtype"] == "InferenceJob":
-                pod_template = PodTemplate(
+                pod_template = InferenceJobTemplate(
                     job_object.get_template(),
                     deployment_template=job_object.get_deployment_template(),
                     secret_templates=secret_templates)

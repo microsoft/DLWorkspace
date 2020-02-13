@@ -1013,7 +1013,6 @@ def run_command(args, command, parser):
     if command == "test":
         config = render_restfulapi(config)
 
-
 if __name__ == '__main__':
     # the program always run at the current directory.
     # ssh -q -o "StrictHostKeyChecking no" -o "UserKnownHostsFile=/dev/null" -i deploy/sshkey/id_rsa core@
