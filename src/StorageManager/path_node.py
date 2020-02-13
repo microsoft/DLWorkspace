@@ -47,6 +47,12 @@ class PathNode(object):
         self.subtree_mtime = datetime.fromtimestamp(stat.st_mtime)
         self.ctime = datetime.fromtimestamp(stat.st_ctime)
         self.subtree_ctime = datetime.fromtimestamp(stat.st_ctime)
+        if self.isdir:
+            self.time = self.mtime
+            self.subtree_time = self.subtree_mtime
+        else:
+            self.time = max(self.atime, self.mtime)
+            self.subtree_time = max(self.subtree_atime, self.subtree_mtime)
         self.uid = stat.st_uid
         self.gid = stat.st_gid
 
@@ -60,9 +66,14 @@ class PathNode(object):
         self.children = []
 
     def __str__(self):
-        """Returns PathNode string in format atime,size,owner,path."""
-        node_info = "%s,%s,%s,%s" % (
+        """Returns PathNode string in format
+        time,atime,mtime,ctime,size,owner,path.
+        """
+        node_info = "%s,%s,%s,%s,%s,%s,%s" % (
             self.subtree_atime.strftime(DATETIME_FMT),
+            self.subtree_mtime.strftime(DATETIME_FMT),
+            self.subtree_ctime.strftime(DATETIME_FMT),
+            self.subtree_time.strftime(DATETIME_FMT),
             bytes2human_readable(self.subtree_size),
             self.owner,
             self.path)

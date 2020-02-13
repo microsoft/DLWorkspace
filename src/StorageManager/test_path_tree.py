@@ -4,7 +4,7 @@ from unittest import TestCase
 from unittest.mock import patch
 from path_tree import PathTree
 from utils import DAY
-from testcase_utils import SYSTEM, LINUX, EMPTY_DIR_SIZE, DummyNodeStat
+from testcase_utils import EMPTY_DIR_SIZE, DummyNodeStat
 
 
 """Test Example:
@@ -37,16 +37,19 @@ def stat_side_effect(value):
         node.st_size = EMPTY_DIR_SIZE
     elif value == DIR2:
         node.st_size = EMPTY_DIR_SIZE
-        node.st_atime -= 3 * DAY
+        node.st_mtime -= 3 * DAY
     elif value == FILE2_1:
         node.st_size = FILE2_1_LEN
         node.st_atime -= 2 * DAY
+        node.st_mtime -= 14 * DAY
     elif value == FILE2_2:
         node.st_size = FILE2_2_LEN
-        node.st_atime -= 4 * DAY
+        node.st_atime -= 7 * DAY
+        node.st_mtime -= 5 * DAY
     elif value == FILE1:
         node.st_size = FILE1_LEN
         node.st_atime -= 3 * DAY
+        node.st_mtime -= 3 * DAY
 
     return node
 

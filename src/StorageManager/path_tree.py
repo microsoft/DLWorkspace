@@ -12,7 +12,9 @@ class PathTree(object):
         logger: Logging tool.
         path: Root path for the tree.
         overweight_threshold: The threshold of overweight nodes.
-        expiry: Nodes are expired if access time is earlier than this.
+        expiry: Nodes are expired if either of the below is true:
+            - node is a file, and both atime and mtime are earlier than this
+            - node is a directory, and mtime is earlier than this
         root: Tree root that holds the file system PathTree.
     """
     def __init__(self, config, uid_to_user=None):
@@ -93,6 +95,8 @@ class PathTree(object):
                     root_node.subtree_mtime = child_dir_node.subtree_mtime
                 if child_dir_node.subtree_ctime > root_node.subtree_ctime:
                     root_node.subtree_ctime = child_dir_node.subtree_ctime
+                if child_dir_node.subtree_time > root_node.subtree_time:
+                    root_node.subtree_time = child_dir_node.subtree_time
                 root_node.num_subtree_nodes += child_dir_node.num_subtree_nodes
                 root_node.num_subtree_files += child_dir_node.num_subtree_files
 
@@ -110,6 +114,8 @@ class PathTree(object):
                 root_node.subtree_mtime = path_node.subtree_mtime
             if path_node.subtree_ctime > root_node.subtree_ctime:
                 root_node.subtree_ctime = path_node.subtree_ctime
+            if path_node.subtree_time > root_node.subtree_time:
+                root_node.subtree_time = path_node.subtree_time
             root_node.num_subtree_nodes += path_node.num_subtree_nodes
             root_node.num_subtree_files += path_node.num_subtree_files
 
@@ -123,15 +129,15 @@ class PathTree(object):
             if all_children_underweight:
                 self.overweight_boundary_nodes.append(root_node)
 
-        if root_node.subtree_atime >= self.expiry:
+        if root_node.subtree_time >= self.expiry:
             for child in children:
-                if child.subtree_atime < self.expiry:
+                if child.subtree_time < self.expiry:
                     self.expired_boundary_nodes.append(child)
 
         if self.expiry_delete is not None:
-            if root_node.subtree_atime >= self.expiry_delete:
+            if root_node.subtree_time >= self.expiry_delete:
                 for child in children:
-                    if child.subtree_atime < self.expiry_delete:
+                    if child.subtree_time < self.expiry_delete:
                         self.expired_boundary_nodes_to_delete.append(child)
 
         if root_node.num_subtree_files > 0:
