@@ -1,4 +1,5 @@
-dry_run: {{cnf['repair-manager']['ecc_rule']['cordon_dry_run']}}
+cordon_dry_run: {{cnf['repair-manager']['ecc_rule']['cordon_dry_run']}}
+reboot_dry_run: {{cnf['repair-manager']['ecc_rule']['reboot_dry_run']}}
 
 prometheus:
   ip: {{cnf['repair-manager']['prometheus-ip']}}

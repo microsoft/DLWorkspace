@@ -57,7 +57,7 @@ def _mock_rule_config():
 
 def _mock_ecc_config():
     mock_ecc_config = {
-            "dry_run": False,
+            "cordon_dry_run": False,
             "prometheus": {
                 "ip": "localhost",
                 "port": 9091,

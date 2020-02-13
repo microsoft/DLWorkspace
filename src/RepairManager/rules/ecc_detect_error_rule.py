@@ -139,8 +139,9 @@ class ECCDetectErrorRule(Rule):
             if k8s_util.is_node_cordoned(self.node_info, node_name):
                 action_status[node_name] = f'no action taken: {node_name} already cordoned'
             else:
-                action_status[node_name] = k8s_util.cordon_node(node_name, dry_run=self.ecc_config['dry_run'])
-                node_cordoned.add(node_name)
+                action_status[node_name] = k8s_util.cordon_node(node_name, dry_run=self.ecc_config['cordon_dry_run'])
+                if not self.ecc_config['cordon_dry_run']:
+                    node_cordoned.add(node_name)
                         
             if not self.alert.check_rule_cache(self.rule, node_name):
                 new_error_detected.add(node_name)
@@ -156,7 +157,7 @@ class ECCDetectErrorRule(Rule):
             dri_message = _create_email_for_dris(**email_params)
             self.alert.send_alert(dri_message)
 
-        if self.ecc_config['alert_job_owners']:
+        if self.ecc_config['alert_job_owners'] and not self.ecc_config['cordon_dry_run']:
             for job_id, job_info in jobs.items():
                 if len(job_info['node_names'].intersection(new_error_detected)) > 0:
                     email_params = {

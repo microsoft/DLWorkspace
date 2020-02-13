@@ -191,24 +191,29 @@ class ECCRebootNodeRule(Rule):
                 "job_id": job_id,
                 "job_owner_email": job_owner_email,
                 "attempts": 10,
-                "wait_time": self.ecc_config["time_sleep_after_pausing"]            }
-            success = _pause_resume_job(**pause_resume_params)
+                "wait_time": self.ecc_config["time_sleep_after_pausing"]
+            }
 
-            if success:
-                if self.ecc_config["alert_job_owners"]:
-                    message = _create_email_for_pause_resume_job(job_id, node_names, job_link, job_owner_email, dri_email)
-                    self.alert.send_alert(message)
+            if self.ecc_config['reboot_dry_run']:
+                logging.info(f"Dry-Run Pause/Resume job {job_id}, job owner {job_owner_email}")
             else:
-                logging.warning(f"Could not pause/resume the following job: {job_id}")
-                unsuccessful_pause_resume_jobs[job_id] = job_info[job_id]
-            
-            if len(unsuccessful_pause_resume_jobs) > 0:
-                message = _create_email_for_issue_with_pause_resume_job(unsuccessful_pause_resume_jobs, dri_email)
-                self.alert.send_alert(message)
+                success = _pause_resume_job(**pause_resume_params)
+
+                if success:
+                    if self.ecc_config["alert_job_owners"]:
+                        message = _create_email_for_pause_resume_job(job_id, node_names, job_link, job_owner_email, dri_email)
+                        self.alert.send_alert(message)
+                else:
+                    logging.warning(f"Could not pause/resume the following job: {job_id}")
+                    unsuccessful_pause_resume_jobs[job_id] = job_info[job_id]
+                
+                if len(unsuccessful_pause_resume_jobs) > 0:
+                    message = _create_email_for_issue_with_pause_resume_job(unsuccessful_pause_resume_jobs, dri_email)
+                    self.alert.send_alert(message)
 
         # TODO: reboot node and remove from cache
 
-        # update status on all nodes, so action is not taken again
+        # update pause/resume status so action is not taken again
         for node in self.nodes_ready_for_action:
             cache_value = self.alert.get_rule_cache(self.rule, node)
             cache_value['paused/resumed'] = True

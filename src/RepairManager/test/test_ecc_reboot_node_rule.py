@@ -56,7 +56,8 @@ def _mock_ecc_config():
         "rest_url": "http://localhost:5000",
         "time_sleep_after_pausing": 0,
         "alert_job_owners": False,
-        "days_until_node_reboot": 5
+        "days_until_node_reboot": 5,
+        "reboot_dry_run": False
     }
 
     return ecc_config
