@@ -13,6 +13,7 @@ import requests
 import base64
 import re
 import logging
+import itertools
 from cachetools import cached, TTLCache
 from threading import Lock
 
@@ -723,30 +724,22 @@ def GetJobStatus(jobId):
     return result
 
 
-def GetJobLog(userName, jobId, cursor=None, size=100):
+def GetJobLog(userName, jobId):
     dataHandler = DataHandler()
     jobs = dataHandler.GetJob(jobId=jobId)
     if len(jobs) == 1:
         if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
             if elasticsearch_deployed:
-                (logs, cursor) = UtilsGetJobLog(jobId, cursor, size)
+                lines = UtilsGetJobLog(jobId)
 
-                pod_logs = {}
-                for log in logs:
-                    try:
-                        pod_name = log["_source"]["kubernetes"]["pod_name"]
-                        log = log["_source"]["log"]
-                        if pod_name in pod_logs:
-                            pod_logs[pod_name] += log
-                        else:
-                            pod_logs[pod_name] = log
-                    except Exception:
-                        logging.exception("Failed to parse elasticsearch log: {}".format(log))
+                podLog = {}
+                for podName, podLines in itertools.groupby(
+                    lines,
+                    lambda line: line['kubernetes']['pod_name']
+                ):
+                    podLog[podName] = ''.join(line['log'] for line in podLines)
 
-                return {
-                    "log": pod_logs,
-                    "cursor": cursor,
-                }
+                return { "log": podLog }
             else:
                 try:
                     log = dataHandler.GetJobTextField(jobId, "jobLog")
@@ -756,16 +749,10 @@ def GetJobLog(userName, jobId, cursor=None, size=100):
                     except Exception:
                         pass
                     if log is not None:
-                        return {
-                            "log": log,
-                            "cursor": None,
-                        }
+                        return { "log": log }
                 except:
                     pass
-    return {
-        "log": {},
-        "cursor": None,
-    }
+    return { "log": None }
 
 
 def GetClusterStatus():

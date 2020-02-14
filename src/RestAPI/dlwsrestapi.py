@@ -750,12 +750,10 @@ class GetJobLog(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('jobId', required=True)
         parser.add_argument('userName', required=True)
-        parser.add_argument('cursor', type=int)
         args = parser.parse_args()
         jobId = args["jobId"]
         userName = args["userName"]
-        cursor = args["cursor"]
-        return JobRestAPIUtils.GetJobLog(userName, jobId, cursor)
+        return JobRestAPIUtils.GetJobLog(userName, jobId)
 ##
 ## Actually setup the Api resource routing here
 ##

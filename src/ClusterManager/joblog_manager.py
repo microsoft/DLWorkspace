@@ -3,6 +3,7 @@
 import json
 import os
 import time
+import itertools
 import argparse
 import sys
 import yaml
@@ -40,42 +41,23 @@ def extract_job_log(jobId, logPath, userId):
     dataHandler = None
     try:
         dataHandler = DataHandler()
-
-        old_cursor_text = dataHandler.GetJobTextField(jobId, "jobLog")
-        if old_cursor_text is not None and old_cursor_text.startswith("$$cursor: "):
-            old_cursor = old_cursor_text[10:]
-        else:
-            old_cursor = None
-        (logs, new_cursor) = GetJobLog(jobId, cursor=old_cursor)
-
-        container_logs = {}
-        for log in logs:
-            try:
-                container_id = log["_source"]["docker"]["container_id"]
-                log_text = log["_source"]["log"]
-                if container_id in container_logs:
-                    container_logs[container_id] += log_text
-                else:
-                    container_logs[container_id] = log_text
-            except Exception:
-                logging.exception("Failed to parse elasticsearch log: {}".format(log))
+        lines = GetJobLog(jobId)
 
         jobLogDir = os.path.dirname(logPath)
         if not os.path.exists(jobLogDir):
             mkdirsAsUser(jobLogDir,userId)
 
-        for (container_id, log_text) in container_logs.items():
+        for containerId, containerLogLines in itertools.groupby(
+            lines,
+            key=lambda line: line["docker"]["container_id"]
+        ):
             try:
-                containerLogPath = os.path.join(jobLogDir, "log-conatainer-" + container_id + ".txt")
-                with open(containerLogPath, 'a') as f:
-                    f.write(log_text)
+                containerLogPath = os.path.join(jobLogDir, "log-conatainer-" + containerId + ".txt")
+                with open(containerLogPath, 'w+') as logFile:
+                    logFile.writelines(line['log'] for line in containerLogLines)
                 os.system("chown -R %s %s" % (userId, containerLogPath))
-            except Exception as e:
-                logger.exception("write container log failed")
-
-        logging.info("cursor of job %s: %s" % (jobId, new_cursor))
-        if new_cursor is not None:
-            dataHandler.UpdateJobTextField(jobId, "jobLog", "$$cursor: %d" % (new_cursor,))
+            except Exception:
+                logging.exception("Failed to write log of container %s".format(containerId))
 
     except Exception as e:
         logging.error(e)
