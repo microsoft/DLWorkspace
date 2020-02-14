@@ -502,13 +502,10 @@ def get_ETCD_master_nodes(clusterId):
     if "etcd_node" in config and len(config["etcd_node"]) > 0:
         Nodes = config["etcd_node"]
         config["kubernetes_master_node"] = Nodes
-        #print("From etcd_node " + " ".join(map(str, Nodes)))
         return Nodes
     if "useclusterfile" not in config or not config["useclusterfile"]:
-        #print "From cluster portal"
         return get_ETCD_master_nodes_from_cluster_portal(clusterId)
     else:
-        #print "From master nodes from config"
         return get_ETCD_master_nodes_from_config(clusterId)
 
 
@@ -560,8 +557,6 @@ def get_worker_nodes(clusterId, isScaledOnly):
     if "useclusterfile" not in config or not config["useclusterfile"]:
         nodes = get_worker_nodes_from_cluster_report(clusterId)
     else:
-        print("from console")
-        # get_worker_nodes_from_config(clusterId)
         nodes = get_nodes_by_roles(["worker"])
 
     if isScaledOnly:
@@ -601,29 +596,31 @@ def get_scaled_nodes(clusterId):
 def check_master_ETCD_status():
     masterNodes = []
     etcdNodes = []
-    print("===============================================")
-    print("Checking Available Nodes for Deployment...")
+    if verbose:
+        print("===============================================")
+        print("Checking Available Nodes for Deployment...")
     get_ETCD_master_nodes(config["clusterId"])
     get_worker_nodes(config["clusterId"], False)
     get_nodes_by_roles(["mysqlserver"])
     get_nodes_by_roles(["elasticsearch"])
     get_nodes_by_roles(["nfs"])
     get_nodes_by_roles(["samba"])
-    print("===============================================")
-    print("Activate Master Node(s): %s\n %s \n" % (len(
-        config["kubernetes_master_node"]), ",".join(config["kubernetes_master_node"])))
-    print("Activate ETCD Node(s):%s\n %s \n" %
-          (len(config["etcd_node"]), ",".join(config["etcd_node"])))
-    print("Activate Worker Node(s):%s\n %s \n" %
-          (len(config["worker_node"]), ",".join(config["worker_node"])))
-    print("Activate MySQLServer Node(s):%s\n %s \n" %
-          (len(config["mysqlserver_node"]), ",".join(config["mysqlserver_node"])))
-    print("Activate Elasticsearch Node(s):%s\n %s \n" %
-          (len(config["elasticsearch_node"]), ",".join(config["elasticsearch_node"])))
-    print("Activate NFS Node(s):%s\n %s \n" %
-          (len(config["nfs_node"]), ",".join(config["nfs_node"])))
-    print("Activate Samba Node(s):%s\n %s \n" %
-          (len(config["samba_node"]), ",".join(config["samba_node"])))
+    if verbose:
+        print("===============================================")
+        print("Activate Master Node(s): %s\n %s \n" % (len(
+            config["kubernetes_master_node"]), ",".join(config["kubernetes_master_node"])))
+        print("Activate ETCD Node(s):%s\n %s \n" %
+              (len(config["etcd_node"]), ",".join(config["etcd_node"])))
+        print("Activate Worker Node(s):%s\n %s \n" %
+              (len(config["worker_node"]), ",".join(config["worker_node"])))
+        print("Activate MySQLServer Node(s):%s\n %s \n" %
+              (len(config["mysqlserver_node"]), ",".join(config["mysqlserver_node"])))
+        print("Activate Elasticsearch Node(s):%s\n %s \n" %
+              (len(config["elasticsearch_node"]), ",".join(config["elasticsearch_node"])))
+        print("Activate NFS Node(s):%s\n %s \n" %
+              (len(config["nfs_node"]), ",".join(config["nfs_node"])))
+        print("Activate Samba Node(s):%s\n %s \n" %
+              (len(config["samba_node"]), ",".join(config["samba_node"])))
 
 
 def clean_deployment():
@@ -2507,7 +2504,7 @@ def get_all_services():
 def get_service_name(service_config_file):
     f = open(service_config_file)
     try:
-        service_config = yaml.load(f)
+        service_config = yaml.full_load(f)
     except:
         return None
     f.close()
@@ -2763,7 +2760,7 @@ def start_one_kube_service(fname):
         # use try/except because yaml.load cannot load yaml file with multiple documents.
         try:
             f = open(fname)
-            service_yaml = yaml.load(f)
+            service_yaml = yaml.full_load(f)
             f.close()
             print("Start service: ")
             print(service_yaml)
@@ -2931,7 +2928,7 @@ def run_command(args, command, nargs, parser):
     # Cluster Config
     config_cluster = os.path.join(dirpath, "cluster.yaml")
     if os.path.exists(config_cluster):
-        merge_config(config, yaml.load(open(config_cluster)))
+        merge_config(config, yaml.full_load(open(config_cluster)))
 
     config_file = os.path.join(dirpath, "config.yaml")
     if not os.path.exists(config_file):
@@ -2940,10 +2937,10 @@ def run_command(args, command, nargs, parser):
         exit()
 
     with open(config_file) as f:
-        merge_config(config, yaml.load(f))
+        merge_config(config, yaml.full_load(f))
     if os.path.exists("./deploy/clusterID.yml"):
         with open("./deploy/clusterID.yml") as f:
-            tmp = yaml.load(f)
+            tmp = yaml.full_load(f)
             if "clusterId" in tmp:
                 config["clusterId"] = tmp["clusterId"]
     if "copy_sshtemp" in config and config["copy_sshtemp"]:
