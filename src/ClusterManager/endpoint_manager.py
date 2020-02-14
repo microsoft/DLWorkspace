@@ -212,12 +212,32 @@ def setup_tensorboard(user_name, pod_name):
     return tensorboard_port
 
 
+def infer_real_pod_name(origin_pod_name):
+    """ Because restfulapi will generate pod name according to rule previous launcher do,
+    but framework controller will not do this, so we try to generate a real pod name if we
+    used framework controller """
+    if k8sUtils.get_pod("default", origin_pod_name) is not None:
+        return origin_pod_name
+
+    # must be controller jobs
+    name_part = origin_pod_name.split("-")
+    if len(name_part) == 5:  # regular job
+        return "".join(name_part) + "-master-0"
+    else:
+        match = re.match("([a-z]+)([0-9]+)", name_part[-1])
+        if match:
+            role, idx = match.groups()
+            name_part.pop()
+            return "".join(name_part) + "-%s-%s" % (role, idx)
+        logger.warning("unknown pod_name format %s", origin_pod_name)
+        return origin_pod_name
+
+
 def start_endpoint(endpoint):
-    # pending, running, stopped
     logger.info("Starting endpoint: %s", endpoint)
 
-    # podName
-    pod_name = endpoint["podName"]
+    pod_name = infer_real_pod_name(endpoint["podName"])
+    endpoint["podName"] = pod_name
     user_name = endpoint["username"]
     host_network = endpoint["hostNetwork"]
 
@@ -260,12 +280,11 @@ def start_endpoints():
                         endpoint["endpointDescription"] = {
                             "spec": point.spec.to_dict()
                         }
-                        pod = k8sUtils.GetPod("podName=" + endpoint["podName"])
-                        if "items" in pod and len(pod["items"]) > 0:
-                            logger.info("update endpoint's nodeName %s",
-                                        endpoint["jobId"])
-                            endpoint["nodeName"] = pod["items"][0]["spec"][
-                                "nodeName"]
+                        pod = k8sUtils.get_pod("default", endpoint["podName"])
+                        if pod is not None:
+                            logger.info("update endpoint's nodeName %s, %s",
+                                        endpoint["jobId"], pod.spec.node_name)
+                            endpoint["nodeName"] = pod.spec.node_name
                     else:
                         start_endpoint(endpoint)
 

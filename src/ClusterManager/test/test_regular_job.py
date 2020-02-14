@@ -21,8 +21,8 @@ def test_regular_job_running(args):
                                                  cmd=cmd)
 
     with utils.run_job(args.rest, job_spec) as job:
-        state = utils.block_until_state_not_in(
-            args.rest, job.jid, {"unapproved", "queued", "scheduling"})
+        state = job.block_until_state_not_in(
+            {"unapproved", "queued", "scheduling"})
         assert state == "running"
 
         for _ in range(50):
@@ -55,13 +55,13 @@ def test_data_job_running(args):
                                                  cmd=cmd,
                                                  image=image)
     with utils.run_job(args.rest, job_spec) as job:
-        state = utils.block_until_state_not_in(
-            args.rest, job.jid,
+        state = job.block_until_state_not_in(
             {"unapproved", "queued", "scheduling", "running"})
         assert expected_state == state
 
         log = utils.get_job_log(args.rest, args.email, job.jid)
-        assert expected_word in log, 'assert {} in {}'.format(expected_word, log)
+        assert expected_word in log, 'assert {} in {}'.format(
+            expected_word, log)
 
 
 @utils.case
@@ -75,8 +75,7 @@ def test_job_fail(args):
                                                  args.vc,
                                                  cmd=cmd)
     with utils.run_job(args.rest, job_spec) as job:
-        state = utils.block_until_state_not_in(
-            args.rest, job.jid,
+        state = job.block_until_state_not_in(
             {"unapproved", "queued", "scheduling", "running"})
         assert expected_state == state
 
@@ -113,7 +112,7 @@ def test_op_job(args):
         assert "Success, the job is scheduled to be terminated." == resp[
             "result"]
 
-        state = utils.block_until_state_not_in(args.rest, job_id, {"killing"})
+        state = job.block_until_state_not_in({"killing"})
         assert "killed" == state
 
 
@@ -214,8 +213,8 @@ def test_regular_job_ssh(args):
         assert len(endpoints_ids) == 1
         endpoint_id = endpoints_ids[0]
 
-        state = utils.block_until_state_not_in(
-            args.rest, job.jid, {"unapproved", "queued", "scheduling"})
+        state = job.block_until_state_not_in(
+            {"unapproved", "queued", "scheduling"})
         assert state == "running"
 
         ssh_endpoint = utils.wait_endpoint_ready(args.rest, args.email,
@@ -241,8 +240,8 @@ def test_regular_job_ssh(args):
         code, output = utils.kube_pod_exec(args.config, "default",
                                            job_manager_pod_name, "jobmanager",
                                            cmd)
-        assert code == 0
-        assert output == "dummy\n"
+        assert code == 0, "code is %s, output is %s" % (code, output)
+        assert output == "dummy\n", "output is %s" % (output)
 
 
 @utils.case
@@ -256,8 +255,7 @@ def test_list_all_jobs(args):
     # All jobs should include finished jobs
     with utils.run_job(args.rest, job_spec) as job:
         job_id = job.jid
-        state = utils.block_until_state_not_in(
-            args.rest, job_id,
+        state = job.block_until_state_not_in(
             {"unapproved", "queued", "scheduling", "running"})
         assert state == "finished"
 
@@ -298,8 +296,7 @@ def test_regular_job_env(args):
                                                  cmd=cmd)
 
     with utils.run_job(args.rest, job_spec) as job:
-        state = utils.block_until_state_not_in(
-            args.rest, job.jid,
+        state = job.block_until_state_not_in(
             {"unapproved", "queued", "scheduling", "running"})
         assert state == "finished"
         envs["DLWS_JOB_ID"] = job.jid
@@ -328,8 +325,7 @@ def test_blobfuse(args):
                                                        "/tmp/blob")
 
     with utils.run_job(args.rest, job_spec) as job:
-        state = utils.block_until_state_not_in(
-            args.rest, job.jid,
+        state = job.block_until_state_not_in(
             {"unapproved", "queued", "scheduling", "running"})
         assert state == "finished"
 
@@ -354,8 +350,7 @@ def test_sudo_installed(args):
     )
 
     with utils.run_job(args.rest, job_spec) as job:
-        state = utils.block_until_state_not_in(
-            args.rest, job.jid,
+        state = job.block_until_state_not_in(
             {"unapproved", "queued", "scheduling", "running"})
         log = utils.get_job_log(args.rest, args.email, job.jid)
 
