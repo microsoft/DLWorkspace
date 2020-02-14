@@ -6,6 +6,37 @@ import re
 import math
 
 
+def to_byte(data):
+    data = str(data).lower()
+    number = float(re.findall(r"[-+]?[0-9]*[.]?[0-9]+", data)[0])
+    if "ki" in data:
+        return number * 2 ** 10
+    elif "mi" in data:
+        return number * 2 ** 20
+    elif "gi" in data:
+        return number * 2 ** 30
+    elif "ti" in data:
+        return number * 2 ** 40
+    elif "pi" in data:
+        return number * 2 ** 50
+    elif "ei" in data:
+        return number * 2 ** 60
+    elif "k" in data:
+        return number * 10 ** 3
+    elif "m" in data:
+        return number * 10 ** 6
+    elif "g" in data:
+        return number * 10 ** 9
+    elif "t" in data:
+        return number * 10 ** 12
+    elif "p" in data:
+        return number * 10 ** 15
+    elif "e" in data:
+        return number * 10 ** 18
+    else:
+        return number
+
+
 class ResourceStat(object):
     def __init__(self, res=None, unit=None):
         """Constructor for ResourceStat.
@@ -319,37 +350,17 @@ class Memory(ResourceStat):
             if not isinstance(res, dict):
                 res = {}
             for k, v in res.items():
-                res[k] = Memory.to_byte(v)
+                res[k] = to_byte(v)
 
         super().__init__(res=res, unit=unit)
 
-    @staticmethod
-    def to_byte(data):
-        data = str(data).lower()
-        number = float(re.findall(r"[-+]?[0-9]*[.]?[0-9]+", data)[0])
-        if "ki" in data:
-            return number * 2 ** 10
-        elif "mi" in data:
-            return number * 2 ** 20
-        elif "gi" in data:
-            return number * 2 ** 30
-        elif "ti" in data:
-            return number * 2 ** 40
-        elif "pi" in data:
-            return number * 2 ** 50
-        elif "ei" in data:
-            return number * 2 ** 60
-        elif "k" in data:
-            return number * 10 ** 3
-        elif "m" in data:
-            return number * 10 ** 6
-        elif "g" in data:
-            return number * 10 ** 9
-        elif "t" in data:
-            return number * 10 ** 12
-        elif "p" in data:
-            return number * 10 ** 15
-        elif "e" in data:
-            return number * 10 ** 18
-        else:
-            return number
+
+class GpuMemory(ResourceStat):
+    def __init__(self, res=None, unit="B"):
+        if not isinstance(res, GpuMemory):
+            if not isinstance(res, dict):
+                res = {}
+            for k, v in res.items():
+                res[k] = to_byte(v)
+
+        super().__init__(res=res, unit=unit)

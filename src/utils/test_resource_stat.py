@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from unittest import TestCase
-from resource_stat import ResourceStat, Gpu, Cpu, Memory
+from resource_stat import ResourceStat, Gpu, Cpu, Memory, GpuMemory
 
 
 class TestResource(TestCase):
@@ -282,3 +282,57 @@ class TestMemoryDifferentUnit(TestResource):
         self.assertEqual("{'r1': '%sB', 'r2': '%sB'}" % (float(104857600),
                                                          float(102400)),
                          repr(Memory(res={"r1": "100Mi", "r2": "100Ki"})))
+
+
+class TestGpuMemory(TestResource):
+    def init_class(self):
+        self.cls_name = GpuMemory
+
+    def mutate_variables(self):
+        self.a = GpuMemory(res={"r1": "3Gi", "r2": "5Mi", "r3": "0Gi"})
+        self.a_scalar_mul = GpuMemory(res={
+            "r1": "1.5Gi", "r2": "2.5Mi", "r3": "0"
+        })
+        self.a_scalar_div = self.cls_name(res={
+            "r1": "6Gi", "r2": "10Mi", "r3": "0Mi"
+        })
+        self.b = GpuMemory(res={"r1": "3Mi", "r2": "6Mi"})
+        self.c = GpuMemory(res={"r1": "-1Gi"})
+        self.d = GpuMemory(res={"r1": "3Gi", "r2": "5Mi"})
+
+        self.a_b_sum = GpuMemory(res={
+            "r1": "3075Mi",
+            "r2": "11Mi",
+            "r3": "0Mi"
+        })
+        self.a_b_diff = GpuMemory(res={
+            "r1": "3069Mi",
+            "r2": "-1Mi",
+            "r3": "0Mi"
+        })
+        self.a_c_sum = GpuMemory(res={
+            "r1": "2Gi",
+            "r2": "5Mi",
+            "r3": "0Mi"
+        })
+        self.a_c_diff = GpuMemory(res={
+            "r1": "4Gi",
+            "r2": "5Mi",
+            "r3": "0Mi"
+        })
+        self.a_b_mul = self.cls_name(res={
+            "r1": "9Pi",
+            "r2": "30Ti"
+        })
+        self.b_d_div = self.cls_name(res={
+            "r1": "0.0009765625",
+            "r2": "1.2"
+        })
+
+        self.b_a_ge = False
+        self.a_f_ge = True
+
+    def test_repr(self):
+        self.assertEqual("{'r1': '%sB', 'r2': '%sB'}" % (float(104857600),
+                                                         float(102400)),
+                         repr(GpuMemory(res={"r1": "100Mi", "r2": "100Ki"})))

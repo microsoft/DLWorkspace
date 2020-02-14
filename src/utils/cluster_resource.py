@@ -4,7 +4,7 @@ import copy
 import logging
 import numbers
 
-from resource_stat import Cpu, Memory
+from resource_stat import Cpu, Memory, Gpu, GpuMemory
 
 
 logger = logging.getLogger(__name__)
@@ -23,13 +23,22 @@ class ClusterResource(object):
                     },
                     "memory": {
                         "r1": ...
-                    }
+                    },
+                    "gpu": {
+                        "r1": ...
+                    },
+                    "gpu_memory": {
+                        "r1": ...
+                    },
+                }
         """
         self.params = params
         self.resource = resource
 
         self.cpu = Cpu()
         self.memory = Memory()
+        self.gpu = Gpu()
+        self.gpu_memory = GpuMemory()
         if self.params is not None:
             self.__set_from_params()
         elif self.resource is not None:
@@ -67,41 +76,60 @@ class ClusterResource(object):
     def floor(self):
         resource = {
             "cpu": self.cpu.floor,
-            "memory": self.memory.floor
+            "memory": self.memory.floor,
+            "gpu": self.gpu.floor,
+            "gpu_memory": self.gpu_memory.floor,
         }
         return self.__class__(resource=resource)
 
     def ceil(self):
         resource = {
             "cpu": self.cpu.ceil,
-            "memory": self.memory.ceil
+            "memory": self.memory.ceil,
+            "gpu": self.gpu.ceil,
+            "gpu_memory": self.gpu_memory.ceil,
         }
         return self.__class__(resource=resource)
 
     def min_zero(self):
         self.cpu.min_zero()
         self.memory.min_zero()
+        self.gpu.min_zero()
+        self.gpu_memory.min_zero()
         return self
 
     def prune(self):
         self.cpu.prune()
         self.memory.prune()
+        self.gpu.prune()
+        self.gpu_memory.prune()
         return self
 
     def __repr__(self):
-        return "cpu: %s. memory: %s." % (self.cpu, self.memory)
+        return "cpu: %s. memory: %s. gpu: %s. gpu_memory: %s" % (
+            self.cpu,
+            self.memory,
+            self.gpu,
+            self.gpu_memory,
+        )
 
     def __eq__(self, other):
         if self.__class__ != other.__class__:
             return False
-        return self.cpu == other.cpu and self.memory == other.memory
+        return self.cpu == other.cpu and \
+            self.memory == other.memory and \
+            self.gpu == other.gpu and \
+            self.gpu_memory == other.gpu_memory
 
     def __ge__(self, other):
         if self.__class__ != other.__class__:
             raise ValueError("Incompatible class %s and %s" %
                              (self.__class__, other.__class__))
 
-        return self.cpu >= other.cpu and self.memory >= other.memory
+        return self.cpu >= other.cpu and \
+            self.memory >= other.memory and \
+            self.gpu >= other.gpu and \
+            self.gpu_memory >= other.gpu_memory
 
     def __add__(self, other):
         if self.__class__ != other.__class__:
@@ -111,6 +139,8 @@ class ClusterResource(object):
         result = copy.deepcopy(self)
         result.cpu += other.cpu
         result.memory += other.memory
+        result.gpu += other.gpu
+        result.gpu_memory += other.gpu_memory
         return result
 
     def __iadd__(self, other):
@@ -120,6 +150,8 @@ class ClusterResource(object):
 
         self.cpu += other.cpu
         self.memory += other.memory
+        self.gpu += other.gpu
+        self.gpu_memory += other.gpu_memory
         return self
 
     def __sub__(self, other):
@@ -130,6 +162,8 @@ class ClusterResource(object):
         result = copy.deepcopy(self)
         result.cpu -= other.cpu
         result.memory -= other.memory
+        result.gpu -= other.gpu
+        result.gpu_memory -= other.gpu_memory
         return result
 
     def __isub__(self, other):
@@ -139,6 +173,8 @@ class ClusterResource(object):
 
         self.cpu -= other.cpu
         self.memory -= other.memory
+        self.gpu -= other.gpu
+        self.gpu_memory -= other.gpu_memory
         return self
 
     def __mul__(self, other):
@@ -146,9 +182,13 @@ class ClusterResource(object):
         if isinstance(other, numbers.Number):
             result.cpu *= other
             result.memory *= other
+            result.gpu *= other
+            result.gpu_memory *= other
         elif isinstance(other, ClusterResource):
             result.cpu *= other.cpu
             result.memory *= other.memory
+            result.gpu *= other.gpu
+            result.gpu_memory *= other.gpu_memory
         else:
             raise TypeError("Incompatible type %s and %s" %
                             (self.__class__, other.__class__))
@@ -158,9 +198,13 @@ class ClusterResource(object):
         if isinstance(other, numbers.Number):
             self.cpu *= other
             self.memory *= other
+            self.gpu *= other
+            self.gpu_memory *= other
         elif isinstance(other, ClusterResource):
             self.cpu *= other.cpu
             self.memory *= other.memory
+            self.gpu *= other.gpu
+            self.gpu_memory *= other.gpu_memory
         else:
             raise TypeError("Incompatible type %s and %s" %
                             (self.__class__, other.__class__))
@@ -171,9 +215,13 @@ class ClusterResource(object):
         if isinstance(other, numbers.Number):
             result.cpu /= other
             result.memory /= other
+            result.gpu /= other
+            result.gpu_memory /= other
         elif isinstance(other, ClusterResource):
             result.cpu /= other.cpu
             result.memory /= other.memory
+            result.gpu /= other.gpu
+            result.gpu_memory /= other.gpu_memory
         else:
             raise TypeError("Incompatible type %s and %s" %
                             (self.__class__, other.__class__))
@@ -183,9 +231,13 @@ class ClusterResource(object):
         if isinstance(other, numbers.Number):
             self.cpu /= other
             self.memory /= other
+            self.gpu /= other
+            self.gpu_memory /= other
         elif isinstance(other, ClusterResource):
             self.cpu /= other.cpu
             self.memory /= other.memory
+            self.gpu /= other.gpu
+            self.gpu_memory /= other.gpu_memory
         else:
             raise TypeError("Incompatible type %s and %s" %
                             (self.__class__, other.__class__))
