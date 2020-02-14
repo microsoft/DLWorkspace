@@ -62,17 +62,45 @@ def default_vc_entries(config):
         for r_type in resource_quota.keys():
             resource_quota[r_type][sku_name_in_map] = resource_quota[r_type].get(sku_name_in_map, 0) + meta_tmp.get(r_type, 0) * cnt
 
-    for r_type, r_qt in resource_quota.items():
-        for sku, val in r_qt.items():
-            resource_quota[r_type][sku] = int(resource_quota[r_type][sku]) - int(0.1*val)
+    for r_type in ["cpu", "memory"]:
+        for sku, val in resource_quota[r_type].items():
+            resource_quota[r_type][sku] *= 0.9
 
     # if a string would be formatted, then need to escape { by using {{
     name_and_par = "AS SELECT \'{}\' AS vcName, NULL AS parent".format(config['defalt_virtual_cluster_name'])
-    quota = "'{" + ",".join(['\\\"{}\\\":{}'.format(ky, cnt) for ky, cnt in quota_dict.items()]) + "}' AS quota"
-    metadata = "'{" + ",".join(['\\\"{}\\\":{{\\\"num_gpu_per_node\\\":{}}}'.format(ky, cnt) for ky, cnt in old_meta.items()]) + "}' AS metadata"
-    res_quota = "'{" + ",".join(['\\\"{}\\\":{{{}}}'.format(res, ",".join(["\\\"{}\\\":{}".format(sku, cnt if "memory" not in res else '\\\"{}Gi\\\"'.format(cnt) ) for sku, cnt in res_q.items()])) for res, res_q in resource_quota.items()]) + "}' AS resourceQuota" 
-    res_meta = "'{}' as resourceMetadata"
-    return ", ".join([name_and_par, quota, metadata, res_quota, res_meta]) + ";"
+    quota = "'{" + ",".join(['"{}":{}'.format(ky, cnt) for ky, cnt in quota_dict.items()]) + "}' AS quota"
+    metadata = "'{" + ",".join(['"{}":{{"num_gpu_per_node":{}}}'.format(ky, cnt) for ky, cnt in old_meta.items()]) + "}' AS metadata"
+    res_quota = "'{"
+    res_quota_lst = []
+    for res, res_q in resource_quota.items():
+        quot_str = '"{}":{{'.format(res)
+        sku_lst = []
+        for sku, cnt in res_q.items():
+            cnt_p = cnt
+            if "memory" in res:
+                cnt_p = '"{}Gi"'.format(cnt)
+            sku_lst.append('"{}":{}'.format(sku, cnt_p))
+        quot_str += ", ".join(sku_lst) + '}'
+        res_quota_lst.append(quot_str)
+    res_quota += ", ".join(res_quota_lst) + " }' AS resourceQuota"
+
+    res_meta = "'{" 
+    res_meta_lst = []
+    for r_type in ["cpu", "memory", "gpu", "gpu_memory"]:
+        res_str = '"{}":{{'.format(r_type)
+        sku_lst = []
+        for sku in worker_sku_cnt:
+            sku_name_in_map = sku if sku in sku_mapping else ""
+            pernode_cnt = sku_mapping.get(sku_name_in_map, {}).get(r_type, 0)
+            if "memory" in r_type:
+                pernode_cnt = '"{}Gi"'.format(pernode_cnt)
+            sku_lst.append('"{}":{{"per_node":{}}}'.format(sku, pernode_cnt))
+        res_str += ", ".join(sku_lst) + "}"
+        res_meta_lst.append(res_str)
+    res_meta += ", ".join(res_meta_lst) + "}' AS resourceMetadata"
+    vc_init_val = ", ".join([name_and_par, quota, metadata, res_quota, res_meta]) + ";"
+    vc_init_val = vc_init_val.replace('"', '\\\"')
+    return vc_init_val
 
 
 class DataHandler(object):

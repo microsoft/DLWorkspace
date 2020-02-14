@@ -310,7 +310,7 @@ def is_independent_nfs(role):
 
 
 def add_machine_in_parallel(cmds, args):
-    tuples = [(utils.exec_cmd_local, cmd, args.verbose, args.wait_time)
+    tuples = [(utils.exec_cmd_local, cmd, args.verbose, 600 * args.batch_size)
               for cmd in cmds]
     res = utils.multiprocess_with_func_arg_tuples(args.batch_size, tuples)
     return res
@@ -343,11 +343,15 @@ def add_machine(vmname, spec, verbose, dryrun, output_file):
             config["azure_cluster"]["availability_set"])
 
     cloud_init = ""
+    # by default, if this is a unique machine, then itself would have a cloud-init file
     cldinit_appendix = "cloud_init_{}.txt".format(vmname)
     if "infra" in spec["role"]:
         cldinit_appendix = "cloud_init_infra.txt"
+    # we support heterogeneous cluster that has several different types of worker nodes
+    # if later there are differences other than vm_size, we can consider adding a field
+    # called "spec_name" for a spec. as for now, workers are different only in vm_size
     elif "worker" in spec["role"]:
-        cldinit_appendix = "cloud_init_worker.txt"
+        cldinit_appendix = "cloud_init_worker_{}.txt".format(spec["vm_size"])
     cloud_init_file = spec.get(
         "cloud_init_file", 'deploy/cloud-config/{}'.format(cldinit_appendix))
     if os.path.exists(cloud_init_file):
