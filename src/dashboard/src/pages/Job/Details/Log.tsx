@@ -14,28 +14,22 @@ const Log: React.FC = () => {
   const { clusterId, jobId } = useContext(Context);
 
   const [log, setLog] = useState<{ [podName: string]: string } | string>({});
-  const [cursor, setCursor] = useState<string | null>(null);
   useEffect(() => {
     setLog({});
-    setCursor(null);
   }, [clusterId, jobId])
 
   const { data, error, get } = useFetch('/api');
   const getMore = useCallback(() => {
     let url = `/clusters/${clusterId}/jobs/${jobId}/log`;
-    if (cursor != null) {
-      url += `?cursor=${cursor}`;
-    }
     get(url);
-  }, [clusterId, jobId, cursor]);
+  }, [clusterId, jobId]);
   useEffect(() => { getMore(); }, [getMore]);
 
   useEffect(() => {
     if (data != null) {
-      const { log: nextLog, cursor } = data;
+      const { log: nextLog } = data;
       if (typeof nextLog == 'string') {
         setLog(nextLog);
-        setCursor(cursor);
         return;
       }
       const newLog = Object.assign(Object.create(null), log)
@@ -43,7 +37,6 @@ const Log: React.FC = () => {
         newLog[podName] = (newLog[podName] || "") + nextLog[podName]
       }
       setLog(newLog);
-      setCursor(cursor);
     }
   }, [data])
 

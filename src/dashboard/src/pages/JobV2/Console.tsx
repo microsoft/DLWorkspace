@@ -22,29 +22,7 @@ const Console: FunctionComponent = () => {
   const { clusterId, jobId } = useParams<RouteParams>();
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const { error, data, get } = useFetch(
-    `/api/clusters/${clusterId}/jobs/${jobId}/log`, {
-      onNewData (currentData, newData) {
-        if (currentData === undefined || currentData.cursor == null) {
-          return newData;
-        }
-        if (newData === undefined || newData.cursor == null) {
-          return currentData;
-        }
-        if (typeof currentData.log !== typeof newData.log) {
-          return newData;
-        }
-        if (typeof currentData.log === 'string') {
-          return {
-            log: currentData.log + newData.log,
-            cursor: newData.cursor
-          };
-        }
-        return {
-          log: mergeWith(currentData.log, newData.log, (a, b) => a + b),
-          cursor: newData.cursor
-        };
-      }
-    }, [clusterId, jobId]);
+    `/api/clusters/${clusterId}/jobs/${jobId}/log`, [clusterId, jobId]);
 
   const log = useMemo<{ [podName: string]: string } | string | undefined>(() => {
     if (data !== undefined) {
@@ -83,9 +61,7 @@ ${log[podName]}
   useEffect(() => {
     if (data === undefined) return;
 
-    const cursor = data.cursor;
-    const timeout = setTimeout(get, 3000,
-      cursor ? `?cursor=${encodeURIComponent(cursor)}` : '');
+    const timeout = setTimeout(get, 3000);
     return () => {
       clearTimeout(timeout);
     }
