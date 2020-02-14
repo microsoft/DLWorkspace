@@ -332,8 +332,6 @@ def KillJob(userName, jobId):
         if job["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, job["vcName"], Permission.Admin):
             dataFields = {"jobStatus": "killing"}
             conditionFields = {"jobId": jobId}
-            if job["isParent"] == 1:
-                conditionFields = {"familyToken": job["familyToken"]}
             ret = dataHandler.UpdateJobTextFields(conditionFields, dataFields)
     dataHandler.Close()
     return ret
