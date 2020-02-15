@@ -277,10 +277,6 @@ def test_distributed_job_env(args):
 
             for key, val in envs.items():
                 expected_output = "%s=%s" % (key, val)
-                if output.find(expected_output) == -1:
-                    logger.info("could not find %s in output %s",
-                                expected_output, output)
-                    time.sleep(1800)
                 assert output.find(
                     expected_output) != -1, "could not find %s in log %s" % (
                         expected_output, output)

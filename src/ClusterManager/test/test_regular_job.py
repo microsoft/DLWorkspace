@@ -306,8 +306,8 @@ def test_regular_job_env(args):
         for key, val in envs.items():
             expected_output = "%s=%s" % (key, val)
             assert log.find(
-                expected_output) != -1, "could not find %s in log" % (
-                    expected_output)
+                expected_output) != -1, "could not find %s in log %s" % (
+                    expected_output, log)
 
 
 @utils.case

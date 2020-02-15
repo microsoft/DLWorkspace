@@ -286,7 +286,7 @@ def gen_containers(job, role):
                 "command": ["ls", "/dlts-runtime/status/READY"]
             },
             "initialDelaySeconds": 3,
-            "periodSeconds": 30
+            "periodSeconds": 10
         },
         "securityContext": {
             #"runAsUser": job.uid,

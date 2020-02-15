@@ -119,6 +119,26 @@ def delete_k8s_endpoint(service_name):
         logger.exception("delete k8s service %s failed")
 
 
+def generate_service_selector(pod_name):
+    """
+                |   python launcher  | framework controller
+    ------------------------------------------------
+    regular     | ab8e7a11-bff7-497f-bd6d-22a326d2c304 | 9cfb453b7afc453bb40a963be1225549-master-0
+    distributed | 842e9fc8-a4a1-425c-b551-4e5b4fad4337-{ps,worker}[0-9]+ | eb43c114365a441881faf95ac24a9f88-{ps,worker}-[0-9]+
+    """
+    parts = pod_name.split("-")
+    if len(parts) == 3:
+        # job created by framework controller
+        uuid, role, idx = parts
+        return {
+            "FC_FRAMEWORK_NAME": uuid,
+            "FC_TASKROLE_NAME": role,
+            "FC_TASK_INDEX": idx
+        }
+    else:
+        return {"podName": pod_name}
+
+
 def generate_node_port_service(job_id, pod_name, endpoint_id, name,
                                target_port):
     endpoint = {
@@ -135,9 +155,8 @@ def generate_node_port_service(job_id, pod_name, endpoint_id, name,
         "spec": {
             "type":
             "NodePort",
-            "selector": {
-                "podName": pod_name
-            },
+            "selector":
+            generate_service_selector(pod_name),
             "ports": [{
                 "name": name,
                 "protocol": "TCP",
