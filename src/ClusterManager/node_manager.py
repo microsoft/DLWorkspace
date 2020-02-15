@@ -35,7 +35,7 @@ def create_log(logdir='/var/log/dlworkspace'):
     if not os.path.exists(logdir):
         os.system("mkdir -p " + logdir)
     with open('logging.yaml') as f:
-        logging_config = yaml.load(f)
+        logging_config = yaml.full_load(f)
         f.close()
         logging_config["handlers"]["file"]["filename"] = logdir + \
             "/nodemanager.log"
@@ -84,7 +84,7 @@ def _get_cluster_status():
     gpuStr = "nvidia.com/gpu"
     try:
         output = k8sUtils.kubectl_exec(" get nodes -o yaml")
-        nodeInfo = yaml.load(output)
+        nodeInfo = yaml.full_load(output)
         nodes_status = {}
         user_status = {}
         user_status_preemptable = {}
@@ -150,7 +150,7 @@ def _get_cluster_status():
                 nodes_status[node_status["name"]] = node_status
 
         output = k8sUtils.kubectl_exec(" get pods -o yaml")
-        podsInfo = yaml.load(output)
+        podsInfo = yaml.full_load(output)
         if "items" in podsInfo:
             for pod in podsInfo["items"]:
                 if "status" in pod and "phase" in pod["status"]:

@@ -243,6 +243,9 @@ class run_job(object):
         except Exception:
             logger.exception("failed to kill job %s", self.jid)
 
+    def block_until_state_not_in(self, states):
+        return block_until_state_not_in(self.rest_url, self.jid, states)
+
 
 def block_until_state(rest_url, jid, not_in, states, timeout=300):
     start = datetime.datetime.now()
