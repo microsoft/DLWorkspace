@@ -62,8 +62,8 @@ def _create_email_for_dris(nodes, action_status, jobs, cluster_name, dri_email):
     return message
 
 
-def _create_email_for_job_owner(job_id, job_owner_email, node_names, job_link, 
-                                dri_email, cluster_name, days_until_reboot):
+def _create_email_for_job_owner(job_id, job_owner_email, node_names, job_link, dri_email, 
+                                cluster_name, reboot_dry_run, days_until_reboot):
     message = MIMEMultipart()
     message['Subject'] = f'Repair Manager Alert [ECC ERROR] [{job_id}]'
     message['To'] = job_owner_email
@@ -74,8 +74,13 @@ def _create_email_for_job_owner(job_id, job_owner_email, node_names, job_link,
         body += f'''<tr><td>{node}</td></tr>'''
     body += f'''</table><p>The node(s) will require reboot in order to repair.
     The following job is impacted:</p> <a href="{job_link}">{job_id}</a>
-    <p>Please save and end your job ASAP. Node(s) will be rebooted in {days_until_reboot} days
-    and all progress will be lost.</p>'''
+    <p>Please save and end your job ASAP. '''
+
+    if reboot_dry_run:
+        body += f'''Node(s) will be rebooted soon for repair and all progress will be lost</p>'''
+    else:
+        body += f'''Node(s) will be rebooted in {days_until_reboot} days and all progress will be lost.</p>'''
+
     message.attach(MIMEText(body, 'html'))
     return message
 
@@ -167,6 +172,7 @@ class ECCDetectErrorRule(Rule):
                         'job_link': job_info['job_link'],
                         'dri_email': self.ecc_config['dri_email'],
                         'cluster_name': self.config['cluster_name'],
+                        'reboot_dry_run': self.config['reboot_dry_run'],
                         'days_until_reboot': self.ecc_config['days_until_node_reboot']
                     }
                     job_owner_message = _create_email_for_job_owner(**email_params)
