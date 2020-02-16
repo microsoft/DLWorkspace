@@ -985,8 +985,7 @@ def run_command(args, command, parser):
             if nargs[0] == "servicesprerequisite":
                 push_all_prerequisite_docker_images(args, config)
     if command == "test":
-        config = get_stat_of_sku(config)
-        def_val = default_vc_entries(config)
+        pass
 
 
 if __name__ == '__main__':
