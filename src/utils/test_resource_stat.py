@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from unittest import TestCase
-from resource_stat import make_resource, ResourceStat
+from resource_stat import make_resource, dictionarize, ResourceStat
 
 
 class DummyResource(ResourceStat):
@@ -233,3 +233,24 @@ class TestGpuMemory(TestResource):
         v = make_resource(self.r_type, {"r1": "16Gi"})
         expected = make_resource(self.r_type, {"r1": "17179869184"})
         self.assertEqual(expected, v)
+
+
+class TestDictionarize(TestCase):
+    def test_dictionarize(self):
+        v = {
+            "gpu_capacity": make_resource("gpu", {"r1": "8"}),
+            "user_status": {
+                "username": "user1",
+                "user_gpu": make_resource("gpu", {"r1": "4"}),
+            }
+        }
+        expected = {
+            "gpu_capacity": {"r1": 8.0},
+            "user_status": {
+                "username": "user1",
+                "user_gpu": {"r1": 4.0},
+            }
+        }
+
+        result = dictionarize(v)
+        self.assertEqual(expected, result)

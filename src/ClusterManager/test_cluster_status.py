@@ -14,6 +14,7 @@ from kubernetes.client.models.v1_container import V1Container
 from kubernetes.client.models.v1_resource_requirements import \
     V1ResourceRequirements
 from cluster_status import str2bool, ClusterStatus
+from resource_stat import Cpu, Memory, Gpu
 
 
 Mi = 1024 * 1024
@@ -348,55 +349,55 @@ class TestClusterStatus(TestCase):
         cs.compute()
 
         # Cluster GPU status
-        self.assertEqual({"P40": 8}, cs.gpu_capacity)
-        self.assertEqual({"P40": 5}, cs.gpu_used)
-        self.assertEqual({"P40": 1}, cs.gpu_available)
-        self.assertEqual({"P40": 4}, cs.gpu_unschedulable)
-        self.assertEqual({"P40": 2}, cs.gpu_reserved)
+        self.assertEqual(Gpu({"P40": 8}), cs.gpu_capacity)
+        self.assertEqual(Gpu({"P40": 5}), cs.gpu_used)
+        self.assertEqual(Gpu({"P40": 1}), cs.gpu_available)
+        self.assertEqual(Gpu({"P40": 4}), cs.gpu_unschedulable)
+        self.assertEqual(Gpu({"P40": 2}), cs.gpu_reserved)
 
         # Cluster CPU status
-        self.assertEqual({
+        self.assertEqual(Cpu({
             "m_type1": 10,
             "m_type2": 20,
             "m_type3": 12
-        }, cs.cpu_capacity)
-        self.assertEqual({
+        }), cs.cpu_capacity)
+        self.assertEqual(Cpu({
             "m_type1": 6,
             "m_type2": 16,
             "m_type3": 6
-        }, cs.cpu_used)
-        self.assertEqual({
+        }), cs.cpu_used)
+        self.assertEqual(Cpu({
             "m_type1": 4,
             "m_type2": 4
-        }, cs.cpu_available)
-        self.assertEqual({
+        }), cs.cpu_available)
+        self.assertEqual(Cpu({
             "m_type3": 12
-        }, cs.cpu_unschedulable)
-        self.assertEqual({
+        }), cs.cpu_unschedulable)
+        self.assertEqual(Cpu({
             "m_type3": 6
-        }, cs.cpu_reserved)
+        }), cs.cpu_reserved)
 
         # Cluster memory status
-        self.assertEqual({
+        self.assertEqual(Memory({
             "m_type1": 102400 * Mi,
             "m_type2": 409600 * Mi,
             "m_type3": 102400 * Mi
-        }, cs.memory_capacity)
-        self.assertEqual({
+        }), cs.memory_capacity)
+        self.assertEqual(Memory({
             "m_type1": 83968 * Mi,
             "m_type2": 348160 * Mi,
             "m_type3": 61440 * Mi
-        }, cs.memory_used)
-        self.assertEqual({
+        }), cs.memory_used)
+        self.assertEqual(Memory({
             "m_type1": 18432 * Mi,
             "m_type2": 61440 * Mi
-        }, cs.memory_available)
-        self.assertEqual({
+        }), cs.memory_available)
+        self.assertEqual(Memory({
             "m_type3": 102400 * Mi
-        }, cs.memory_unschedulable)
-        self.assertEqual({
+        }), cs.memory_unschedulable)
+        self.assertEqual(Memory({
             "m_type3": 40960 * Mi
-        }, cs.memory_reserved)
+        }), cs.memory_reserved)
 
         # Cluster node status
         t_node1_status = {
@@ -404,18 +405,18 @@ class TestClusterStatus(TestCase):
             "labels": {"gpuType": "P40", "sku": "m_type1", "worker": "active"},
             "gpuType": "P40",
             "scheduled_service": ["P40", "m_type1", "worker"],
-            "gpu_allocatable": {"P40": 4},
-            "gpu_capacity": {"P40": 4},
-            "gpu_used": {"P40": 3},
-            "gpu_preemptable_used": {},
-            "cpu_allocatable": {"m_type1": 10},
-            "cpu_capacity": {"m_type1": 10},
-            "cpu_used": {"m_type1": 6},
-            "cpu_preemptable_used": {},
-            "memory_allocatable": {"m_type1": 102400 * Mi},
-            "memory_capacity": {"m_type1": 102400 * Mi},
-            "memory_used": {"m_type1": 83968 * Mi},
-            "memory_preemptable_used": {},
+            "gpu_allocatable": Gpu({"P40": 4}),
+            "gpu_capacity": Gpu({"P40": 4}),
+            "gpu_used": Gpu({"P40": 3}),
+            "gpu_preemptable_used": Gpu({}),
+            "cpu_allocatable": Cpu({"m_type1": 10}),
+            "cpu_capacity": Cpu({"m_type1": 10}),
+            "cpu_used": Cpu({"m_type1": 6}),
+            "cpu_preemptable_used": Cpu({}),
+            "memory_allocatable": Memory({"m_type1": 102400 * Mi}),
+            "memory_capacity": Memory({"m_type1": 102400 * Mi}),
+            "memory_used": Memory({"m_type1": 83968 * Mi}),
+            "memory_preemptable_used": Memory({}),
             "InternalIP": "10.0.0.1",
             "pods": [
                 "pod1 : user1 (gpu #:1)"
@@ -428,18 +429,18 @@ class TestClusterStatus(TestCase):
             "labels": {"sku": "m_type2", "worker": "active"},
             "gpuType": "",
             "scheduled_service": ["m_type2", "worker"],
-            "gpu_allocatable": {},
-            "gpu_capacity": {},
-            "gpu_used": {},
-            "gpu_preemptable_used": {},
-            "cpu_allocatable": {"m_type2": 20},
-            "cpu_capacity": {"m_type2": 20},
-            "cpu_used": {"m_type2": 16},
-            "cpu_preemptable_used": {},
-            "memory_allocatable": {"m_type2": 409600 * Mi},
-            "memory_capacity": {"m_type2": 409600 * Mi},
-            "memory_used": {"m_type2": 348160 * Mi},
-            "memory_preemptable_used": {},
+            "gpu_allocatable": Gpu({}),
+            "gpu_capacity": Gpu({}),
+            "gpu_used": Gpu({}),
+            "gpu_preemptable_used": Gpu({}),
+            "cpu_allocatable": Cpu({"m_type2": 20}),
+            "cpu_capacity": Cpu({"m_type2": 20}),
+            "cpu_used": Cpu({"m_type2": 16}),
+            "cpu_preemptable_used": Cpu({}),
+            "memory_allocatable": Memory({"m_type2": 409600 * Mi}),
+            "memory_capacity": Memory({"m_type2": 409600 * Mi}),
+            "memory_used": Memory({"m_type2": 348160 * Mi}),
+            "memory_preemptable_used": Memory({}),
             "InternalIP": "10.0.0.2",
             "pods": [
                 "pod2 : user2 (gpu #:0)"
@@ -452,18 +453,18 @@ class TestClusterStatus(TestCase):
             "labels": {"gpuType": "P40", "sku": "m_type3", "worker": "active"},
             "gpuType": "P40",
             "scheduled_service": ["P40", "m_type3", "worker"],
-            "gpu_allocatable": {"P40": 4},
-            "gpu_capacity": {"P40": 4},
-            "gpu_used": {"P40": 2},
-            "gpu_preemptable_used": {},
-            "cpu_allocatable": {"m_type3": 12},
-            "cpu_capacity": {"m_type3": 12},
-            "cpu_used": {"m_type3": 6},
-            "cpu_preemptable_used": {},
-            "memory_allocatable": {"m_type3": 102400 * Mi},
-            "memory_capacity": {"m_type3": 102400 * Mi},
-            "memory_used": {"m_type3": 61440 * Mi},
-            "memory_preemptable_used": {},
+            "gpu_allocatable": Gpu({"P40": 4}),
+            "gpu_capacity": Gpu({"P40": 4}),
+            "gpu_used": Gpu({"P40": 2}),
+            "gpu_preemptable_used": Gpu({}),
+            "cpu_allocatable": Cpu({"m_type3": 12}),
+            "cpu_capacity": Cpu({"m_type3": 12}),
+            "cpu_used": Cpu({"m_type3": 6}),
+            "cpu_preemptable_used": Cpu({}),
+            "memory_allocatable": Memory({"m_type3": 102400 * Mi}),
+            "memory_capacity": Memory({"m_type3": 102400 * Mi}),
+            "memory_used": Memory({"m_type3": 61440 * Mi}),
+            "memory_preemptable_used": Memory({}),
             "InternalIP": "10.0.0.3",
             "pods": [
                 "pod4 : user1 (gpu #:2)"
@@ -483,37 +484,37 @@ class TestClusterStatus(TestCase):
         t_user_status = [
             {
                 "userName": "user1",
-                "userGPU": {"P40": 3},
-                "userCPU": {
+                "userGPU": Gpu({"P40": 3}),
+                "userCPU": Cpu({
                     "m_type1": 4,
-                    "m_type3": 6
-                },
-                "userMemory": {
+                    "m_type3": 6,
+                }),
+                "userMemory": Memory({
                     "m_type1": 81920 * Mi,
-                    "m_type3": 61440 * Mi
-                }
+                    "m_type3": 61440 * Mi,
+                }),
             },
             {
                 "userName": "user2",
-                "userGPU": {},
-                "userCPU": {"m_type2": 16},
-                "userMemory": {"m_type2": 348160 * Mi}
+                "userGPU": Gpu({}),
+                "userCPU": Cpu({"m_type2": 16}),
+                "userMemory": Memory({"m_type2": 348160 * Mi}),
             },
             {
                 "userName": "user3",
-                "userGPU": {"P40": 2},
-                "userCPU": {"m_type1": 2},
-                "userMemory": {"m_type1": 2048 * Mi}
-            }
+                "userGPU": Gpu({"P40": 2}),
+                "userCPU": Cpu({"m_type1": 2}),
+                "userMemory": Memory({"m_type1": 2048 * Mi}),
+            },
         ]
         self.assertEqual(t_user_status, cs.user_status)
 
         t_user_status_preemptable = [
             {
                 "userName": "user%s" % i,
-                "userGPU": {},
-                "userCPU": {},
-                "userMemory": {}
+                "userGPU": Gpu({}),
+                "userCPU": Cpu({}),
+                "userMemory": Memory({}),
             }
             for i in range(1, 4)
         ]

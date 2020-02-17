@@ -360,7 +360,7 @@ class GpuMemory(ResourceStat):
         return to_byte(data)
 
 
-def make_resource(resource_type, params):
+def make_resource(resource_type, params=None):
     resource = None
     try:
         if resource_type is None:
@@ -378,3 +378,14 @@ def make_resource(resource_type, params):
                          params,
                          exc_info=True)
     return resource
+
+
+def dictionarize(d):
+    if isinstance(d, ResourceStat):
+        return d.to_dict()
+    elif not isinstance(d, dict):
+        return d
+
+    for k in d:
+        d[k] = dictionarize(d[k])
+    return d

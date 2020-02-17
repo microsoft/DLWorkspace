@@ -9,7 +9,7 @@ import requests
 sys.path.append(os.path.join(os.path.dirname(
     os.path.abspath(__file__)), "../utils"))
 
-from resource_stat import Gpu, Cpu, Memory
+from resource_stat import dictionarize, Gpu, Cpu, Memory
 
 
 logger = logging.getLogger(__name__)
@@ -91,11 +91,12 @@ class ClusterStatus(object):
 
     def to_dict(self):
         """Returns a dictionary representing the properties of ClusterStatus"""
-        return {
+        d = {
             k: v
             for k, v in self.__dict__.items()
             if k not in self.dict_exclusion
         }
+        return dictionarize(d)
 
     def __job_gpu_usage(self, job_id):
         try:
@@ -334,12 +335,12 @@ class ClusterStatus(object):
                 "namespace": namespace,
                 "node_name": node_name,
                 "username": username,
-                "gpus": gpus.prune(),
-                "preemptable_gpus": preemptable_gpus.prune(),
-                "cpus": cpus.prune(),
-                "preemptable_cpus": preemptable_cpus.prune(),
-                "mems": mems.prune(),
-                "preemptable_mems": preemptable_mems.prune(),
+                "gpus": gpus,
+                "preemptable_gpus": preemptable_gpus,
+                "cpus": cpus,
+                "preemptable_cpus": preemptable_cpus,
+                "mems": mems,
+                "preemptable_mems": preemptable_mems,
                 "gpuType": gpu_type
             }
             self.pod_statuses[name] = pod_status
@@ -432,17 +433,11 @@ class ClusterStatus(object):
             else:
                 # gpu_used may larger than allocatable: used one GPU that has
                 # uncorrectable errors
-                avail += (node_allocatable - node_used).min_zero()
+                avail += (node_allocatable - node_used)
                 unschedulable += (node_capacity - node_allocatable)
                 reserved += (node_capacity - node_allocatable)
             used += node_used
             capacity += node_capacity
-
-        capacity.prune()
-        used.prune()
-        avail.prune()
-        unschedulable.prune()
-        reserved.prune()
 
         logger.info("Cluster %s status: capacity %s, used %s, avail %s, "
                     "unschedulable %s, reserved %s", r_name,
