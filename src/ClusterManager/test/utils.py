@@ -289,7 +289,6 @@ def get_job_log(rest_url, email, jid):
     resp = requests.get(url)
     resp_json = resp.json()
     log = resp_json["log"]
-    logger.info("%s, %s", jid, repr(log)[:10])
     if isinstance(log, dict):
         job_logs.extend(log.values())
     else:
