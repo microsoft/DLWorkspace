@@ -1,11 +1,12 @@
 from elasticsearch import Elasticsearch
+from elasticsearch.helpers import scan
 import logging
 
 logger = logging.getLogger(__name__)
 
 from config import config
 
-def GetJobLog(jobId, size=10000):
+def GetJobLog(jobId):
     try:
         elasticsearch = Elasticsearch(config['elasticsearch'])
         request_json = {
@@ -14,18 +15,9 @@ def GetJobLog(jobId, size=10000):
                     "kubernetes.labels.jobId": jobId,
                 },
             },
-            # Fetch (maybe) last $size lines.
-            # Lines in head microseconds might be
-            # skiped if there are more than $size lines.
-            "size": size,
-            "sort": [
-                { "@timestamp": "desc" },
-            ],
             "_source": ["log", "kubernetes.pod_name", "docker.container_id", "@timestamp"],
         }
-
-        response_json = elasticsearch.search(index="logstash-*", body=request_json)
-        documents = response_json["hits"]["hits"]
+        documents = scan(elasticsearch, request_json)
 
         # Sore lines in microseconds asc
         return sorted((document['_source'] for document in documents),
