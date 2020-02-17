@@ -26,8 +26,8 @@ def test_inference_job_running(args):
                                                  args.uid, args.vc)
 
     with utils.run_job(args.rest, job_spec) as job:
-        state = utils.block_until_state_not_in(
-            args.rest, job.jid, {"unapproved", "queued", "scheduling"})
+        state = job.block_until_state_not_in(
+            {"unapproved", "queued", "scheduling"})
         assert state == "running"
 
         envs["DLWS_JOB_ID"] = job.jid

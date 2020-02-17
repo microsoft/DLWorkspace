@@ -28,8 +28,9 @@ def localize_time(date):
 def kubectl_create(jobfile, EXEC=True):
     if EXEC:
         try:
-            output = subprocess.check_output(
-                ["bash", "-c", config["kubelet-path"] + " create -f " + jobfile]).decode("utf-8")
+            output = subprocess.check_output([
+                "bash", "-c", config["kubelet-path"] + " create -f " + jobfile
+            ]).decode("utf-8")
         except Exception as e:
             logger.exception("kubectl create")
             output = ""
@@ -52,6 +53,7 @@ def kubectl_delete(jobfile, EXEC=True):
         output = -1
     return output
 
+
 # timeout=0 means never timeout
 
 
@@ -61,7 +63,8 @@ def kubectl_exec(params, timeout=None):
         #print ("bash -c %s %s" % (config["kubelet-path"], params))
         # TODO set the timeout
         output = subprocess.check_output(
-            ["bash", "-c", config["kubelet-path"] + " " + params], timeout=timeout).decode("utf-8")
+            ["bash", "-c", config["kubelet-path"] + " " + params],
+            timeout=timeout).decode("utf-8")
     except Exception as e:
         logger.exception("kubectl exec")
         output = ""
@@ -131,8 +134,10 @@ def GetServiceAddress(jobId):
             svcMapping["containerPort"] = containerPort
             svcMapping["hostPort"] = hostPort
 
-            if "." not in hostName and "domain" in config and (not config["domain"] is None) and len(config["domain"].strip()) > 0:
-                hostName += "."+config["domain"]
+            if "." not in hostName and "domain" in config and (
+                    not config["domain"] is None) and len(
+                        config["domain"].strip()) > 0:
+                hostName += "." + config["domain"]
 
             svcMapping["hostIP"] = hostIP
             svcMapping["hostName"] = hostName
@@ -164,16 +169,18 @@ def GetLog(jobId, tail=None):
             if "metadata" in item and "name" in item["metadata"]:
                 log["podName"] = item["metadata"]["name"]
                 log["podMetadata"] = item["metadata"]
-                if "status" in item and "containerStatuses" in item["status"] and "containerID" in item["status"]["containerStatuses"][0]:
-                    containerID = item["status"]["containerStatuses"][0]["containerID"].replace(
-                        "docker://", "")
+                if "status" in item and "containerStatuses" in item[
+                        "status"] and "containerID" in item["status"][
+                            "containerStatuses"][0]:
+                    containerID = item["status"]["containerStatuses"][0][
+                        "containerID"].replace("docker://", "")
                     log["containerID"] = containerID
                     if tail is not None:
                         log["containerLog"] = kubectl_exec(
                             " logs %s --tail=%s" % (log["podName"], str(tail)))
                     else:
-                        log["containerLog"] = kubectl_exec(
-                            " logs " + log["podName"])
+                        log["containerLog"] = kubectl_exec(" logs " +
+                                                           log["podName"])
                     logs.append(log)
     return logs
 
@@ -211,7 +218,9 @@ def check_pod_status(pod):
         pass
 
     try:
-        if pod["status"]["phase"] == "Running" and all("ready" in item and item["ready"] for item in pod["status"]["containerStatuses"]):
+        if pod["status"]["phase"] == "Running" and all(
+                "ready" in item and item["ready"]
+                for item in pod["status"]["containerStatuses"]):
             return "Running"
     except Exception as e:
         return "Pending"
@@ -224,8 +233,11 @@ def get_pod_pending_detail(pod):
     ret = []
     for line in description.split("\n"):
         if "fit failure summary on nodes" in line:
-            ret += [item.strip() for item in line.replace("fit failure summary on nodes : ",
-                                                          "").replace("(.*)", "").strip().split(",")]
+            ret += [
+                item.strip()
+                for item in line.replace("fit failure summary on nodes : ", "")
+                .replace("(.*)", "").strip().split(",")
+            ]
     return ret
 
 
@@ -241,8 +253,8 @@ def get_pod_unscheduled_reason(podname):
     ret = ""
 
     try:
-        resp = k8s_core_api.list_namespaced_event("default",
-                                                  field_selector="involvedObject.name=%s" % (podname))
+        resp = k8s_core_api.list_namespaced_event(
+            "default", field_selector="involvedObject.name=%s" % (podname))
         for event in resp.items:
             if event.reason == "FailedScheduling":
                 ret = event.message
@@ -257,7 +269,8 @@ def get_pod_status(pod):
     if "status" in pod and "conditions" in pod["status"]:
         for condition in pod["status"]["conditions"]:
             try:
-                if condition["type"] == "PodScheduled" and condition["status"] == "False" and "reason" in condition:
+                if condition["type"] == "PodScheduled" and condition[
+                        "status"] == "False" and "reason" in condition:
                     unscheduledReason = get_pod_unscheduled_reason(
                         pod["metadata"]["name"])
                     podstatus["message"] = condition["reason"] + \
@@ -275,7 +288,8 @@ def get_pod_status(pod):
             if "message" in containerStatus["state"]["waiting"]:
                 ret += ":\n" + containerStatus["state"]["waiting"]["message"]
             podstatus["message"] = ret
-        elif "state" in containerStatus and "terminated" in containerStatus["state"]:
+        elif "state" in containerStatus and "terminated" in containerStatus[
+                "state"]:
             ret = ""
             if "reason" in containerStatus["state"]["terminated"]:
                 ret += containerStatus["state"]["terminated"]["reason"]
@@ -283,14 +297,19 @@ def get_pod_status(pod):
                 ret += ":\n" + \
                     containerStatus["state"]["terminated"]["message"]
             podstatus["message"] = ret
-            if "finishedAt" in containerStatus["state"]["terminated"] and containerStatus["state"]["terminated"]["finishedAt"] is not None:
+            if "finishedAt" in containerStatus["state"][
+                    "terminated"] and containerStatus["state"]["terminated"][
+                        "finishedAt"] is not None:
                 podstatus["finishedAt"] = localize_time(
                     containerStatus["state"]["terminated"]["finishedAt"])
 
-            if "startedAt" in containerStatus["state"]["terminated"] and containerStatus["state"]["terminated"]["startedAt"] is not None:
+            if "startedAt" in containerStatus["state"][
+                    "terminated"] and containerStatus["state"]["terminated"][
+                        "startedAt"] is not None:
                 podstatus["startedAt"] = localize_time(
                     containerStatus["state"]["terminated"]["startedAt"])
-        elif "state" in containerStatus and "running" in containerStatus["state"] and "startedAt" in containerStatus["state"]["running"]:
+        elif "state" in containerStatus and "running" in containerStatus[
+                "state"] and "startedAt" in containerStatus["state"]["running"]:
             podstatus["message"] = "started at: " + \
                 localize_time(containerStatus["state"]["running"]["startedAt"])
             if "startedAt" in containerStatus["state"]["running"]:
@@ -327,7 +346,10 @@ def GetJobStatus(jobId):
         elif any([status == "Unknown" for status in podStatus]):
             output = "Unknown"
         elif any([status == "Pending" for status in podStatus]):
-            if any([check_pending_reason(pod, "PodFitsHostPorts") for pod in podInfo["items"]]):
+            if any([
+                    check_pending_reason(pod, "PodFitsHostPorts")
+                    for pod in podInfo["items"]
+            ]):
                 output = "PendingHostPort"
             else:
                 output = "Pending"
@@ -338,8 +360,9 @@ def GetJobStatus(jobId):
         elif any([status == "Running" for status in podStatus]):
             output = "Running"
 
-        detail = [get_pod_status(pod)
-                  for i, pod in enumerate(podInfo["items"])]
+        detail = [
+            get_pod_status(pod) for i, pod in enumerate(podInfo["items"])
+        ]
 
     return output, detail
 
@@ -358,6 +381,19 @@ def get_node_labels(key):
     except ApiException as e:
         logger.exception("list node from k8s failed")
     return list(ret)
+
+
+def get_pod(namespace, name):
+    k8s_config.load_kube_config()
+    k8s_core_api = client.CoreV1Api()
+
+    try:
+        return k8s_core_api.read_namespaced_pod(name, namespace)
+    except ApiException as e:
+        if e.status == 404:
+            return None
+        else:
+            raise e
 
 
 if __name__ == '__main__':
