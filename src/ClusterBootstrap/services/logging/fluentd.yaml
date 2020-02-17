@@ -26,8 +26,6 @@ spec:
       - name: fluentd
         image: '{{cnf["dockers"]["container"]["fluentd-kubernetes-daemonset"]["fullname"]}}'
         env:
-        - name: FLUENTD_OPT
-          value: "-vv"
         - name: FLUENT_ELASTICSEARCH_SED_DISABLE
           value: "true"
         - name: FLUENT_ELASTICSEARCH_SCHEME
