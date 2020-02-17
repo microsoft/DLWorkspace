@@ -290,3 +290,4 @@ data:
       read_from_head true
       tag bootkube
     </source>
+  disable.conf: ""
