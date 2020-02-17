@@ -287,6 +287,7 @@ def test_regular_job_env(args):
         cmd.append("printf %s=" % key)
         cmd.append("printenv %s" % key)
 
+    cmd.append("echo 'well done'")
     cmd = "\n".join(cmd)
 
     job_spec = utils.gen_default_job_description("regular",
@@ -301,7 +302,11 @@ def test_regular_job_env(args):
         assert state == "finished"
         envs["DLWS_JOB_ID"] = job.jid
 
-        log = utils.get_job_log(args.rest, args.email, job.jid)
+        for _ in range(10):
+            log = utils.get_job_log(args.rest, args.email, job.jid)
+            if 'well done' in log:
+                break
+            time.sleep(0.5)
 
         for key, val in envs.items():
             expected_output = "%s=%s" % (key, val)
@@ -329,10 +334,14 @@ def test_blobfuse(args):
             {"unapproved", "queued", "scheduling", "running"})
         assert state == "finished"
 
-        log = utils.get_job_log(args.rest, args.email, job.jid)
+        for _ in range(10):
+            log = utils.get_job_log(args.rest, args.email, job.jid)
+            if log.find("dummy") != -1:
+                break
+            time.sleep(0.5)
 
-        assert log.find("dummy") != -1, "could not find %s in log" % (
-            expected_output)
+        assert log.find("dummy") != -1, "could not find %s in log %s" % (
+            "dummy", log)
 
 
 @utils.case
