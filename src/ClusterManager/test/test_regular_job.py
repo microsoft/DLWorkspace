@@ -59,7 +59,12 @@ def test_data_job_running(args):
             {"unapproved", "queued", "scheduling", "running"})
         assert expected_state == state
 
-        log = utils.get_job_log(args.rest, args.email, job.jid)
+        for _ in range(10):
+            log = utils.get_job_log(args.rest, args.email, job.jid)
+            if expected_word in log:
+                break
+            time.sleep(0.5)
+
         assert expected_word in log, 'assert {} in {}'.format(
             expected_word, log)
 
@@ -287,7 +292,7 @@ def test_regular_job_env(args):
         cmd.append("printf %s=" % key)
         cmd.append("printenv %s" % key)
 
-    cmd.append("echo 'well done'")
+    cmd.append("echo 'well' 'done'")
     cmd = "\n".join(cmd)
 
     job_spec = utils.gen_default_job_description("regular",
