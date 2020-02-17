@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from unittest import TestCase
-from resource_stat import make_resource, ResourceStat, Cpu, Memory, Gpu, GpuMemory
+from resource_stat import make_resource, ResourceStat
 
 
 class DummyResource(ResourceStat):
@@ -119,6 +119,20 @@ class TestResource(TestCase):
         v1 /= v2
         expected = make_resource(self.r_type, {"r1": "0.25", "r2": "4"})
         self.assertEqual(expected, v1)
+
+    def test_div_by_zero(self):
+        # scalar
+        v1 = make_resource(self.r_type, {"r1": "1", "r2": "2"})
+        result = v1 / 0
+        expected = make_resource(self.r_type, {"r1": "0", "r2": "0"})
+        self.assertEqual(expected, result)
+
+        # v1 * v2
+        v1 = make_resource(self.r_type, {"r1": "1", "r2": "2"})
+        v2 = make_resource(self.r_type, {"r1": "4", "r2": "0"})
+        result = v1 / v2
+        expected = make_resource(self.r_type, {"r1": "0.25", "r2": "0"})
+        self.assertEqual(expected, result)
 
     def test_ge(self):
         v = make_resource(self.r_type, {"r1": "1", "r2": "0"})
