@@ -55,10 +55,14 @@ class JobTemplate(object):
         # TODO: Refactor special VC dependency
         if params["vcName"] not in vc_without_shared_storage:
             job.add_mountpoints({
-                "name": "home",
-                "containerPath": "/home/{}".format(job.get_alias()),
-                "hostPath": job.get_homefolder_hostpath(),
-                "enabled": True
+                "name":
+                "home",
+                "containerPath":
+                "/home/{}".format(job.get_alias()),
+                "hostPath":
+                job.get_homefolder_hostpath(),
+                "enabled":
+                True
             })
 
         if "mountpoints" in params:
@@ -313,7 +317,7 @@ class DistributeJobTemplate(JobTemplate):
             for idx in range(nums[role]):
                 pod = copy.deepcopy(params)
                 pod["role_name"] = role
-                pod["role_idx"] = idx
+                pod["role_idx"] = str(idx)
                 pod["distId"] = "%s%d" % (role, idx)
                 pod = enable_cpu_config(pod, job.cluster)
                 # ps should use the default 1 CPU and 0 memory configuration
