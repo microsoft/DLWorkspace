@@ -30,6 +30,7 @@ sys.path.append(os.path.join(os.path.dirname(
 
 from ResourceInfo import ResourceInfo
 from cluster_resource import ClusterResource
+from resource_stat import dictionarize
 from job_params_util import get_resource_params_from_job_params
 from JobLogUtils import GetJobLog as UtilsGetJobLog
 
@@ -1080,7 +1081,7 @@ def GetVC(user_name, vc_name):
                     except Exception:
                         logger.exception("Failed to fetch gpu_idle from "
                                          "gpu-exporter")
-                    ret = vc
+                    ret = dictionarize(vc)
                     break
 
     except Exception:
@@ -1438,3 +1439,4 @@ if __name__ == '__main__':
 
     if TEST_GET_LOG:
         print(GetLog("tf-i-1483566214-12"))
+
