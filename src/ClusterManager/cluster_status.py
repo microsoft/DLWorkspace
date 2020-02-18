@@ -59,6 +59,7 @@ class ClusterStatus(object):
         self.memory_reserved = None
 
         self.node_status = None
+        self.pod_status = None
         self.user_status = None
         self.user_status_preemptable = None
 

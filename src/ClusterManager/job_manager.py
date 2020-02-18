@@ -645,7 +645,8 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
             singleJobInfo["globalResInfo"] = ResourceInfo(
                 {jobGpuType: GetJobTotalGpu(job_params)})
 
-            job_resource = ClusterResource(params=job_params)
+            job_res = get_resource_params_from_job_params(job_params)
+            job_resource = ClusterResource(params=job_res)
             singleJobInfo["job_resource"] = job_resource
 
             # Job lists will be sorted based on and in the order of below

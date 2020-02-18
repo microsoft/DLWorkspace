@@ -53,6 +53,7 @@ has_access = AuthorizationManager.HasAccess
 VC = ResourceType.VC
 ADMIN = Permission.Admin
 COLLABORATOR = Permission.Collaborator
+USER = Permission.User
 DEFAULT_EXPIRATION = 24 * 30 * 60
 vc_cache = TTLCache(maxsize=10240, ttl=DEFAULT_EXPIRATION)
 vc_cache_lock = Lock()
@@ -253,6 +254,37 @@ def populate_cpu_resource(job_params):
         job_params["memorylimit"] = default_mem_limit
 
 
+def populate_sku(job_params):
+    # Job params already specify sku
+    sku = job_params.get("sku", "")
+    if sku != "":
+        return
+
+    # Populate sku with one from vc info in DB
+    vc_name = job_params["vcName"]
+    vc_lists = getClusterVCs()
+    vc_info = None
+    for vc in vc_lists:
+        if vc["vcName"] == vc_name:
+            vc_info = vc
+            break
+
+    if vc_info is None:
+        logger.warning("vc info for %s is None", vc_name)
+        return
+
+    resource_quota = vc_info.get("resourceQuota", {})
+    resource_gpu = job_params["resourcegpu"]
+    if resource_gpu > 0:
+        gpu = resource_quota.get("gpu", {})
+        if len(gpu) > 0:
+            job_params["sku"] = list(gpu.keys())[0]
+    else:
+        cpu = resource_quota.get("cpu", {})
+        if len(cpu) > 0:
+            job_params["sku"] = list(cpu.keys())[0]
+
+
 def SubmitJob(jobParamsJsonStr):
     ret = {}
 
@@ -289,7 +321,10 @@ def SubmitJob(jobParamsJsonStr):
             jobParams["resourcegpu"] = int(jobParams["resourcegpu"])
 
     # Populate CPU resource requirement
+    # TODO: Remove this
     populate_cpu_resource(jobParams)
+
+    populate_sku(jobParams)
 
     if "familyToken" not in jobParams or jobParams["familyToken"].isspace():
         jobParams["familyToken"] = uniqId
@@ -915,6 +950,21 @@ def ListVCs(userName):
     return ret
 
 
+def get_gpu_idle(vc_name):
+    ret = None
+    try:
+        gpu_idle_url = config["gpu_reporter"] + '/gpu_idle'
+        gpu_idle_params = {"vc": vc_name}
+        gpu_idle_response = requests.get(
+            gpu_idle_url, params=gpu_idle_params)
+        gpu_idle_json = gpu_idle_response.json()
+        ret = gpu_idle_json
+    except Exception:
+        logger.exception("Failed to fetch gpu_idle from "
+                         "gpu-exporter")
+    return ret
+
+
 def GetVC(user_name, vc_name):
     # TODO: Expose CPU/memory usage for users
     ret = None
@@ -1071,16 +1121,9 @@ def GetVC(user_name, vc_name):
                         user_name = user_name.split("@")[0].strip()
                         vc["user_status_preemptable"].append({"userName": user_name, "userGPU": user_gpu.ToSerializable()})
 
-                    try:
-                        gpu_idle_url = config["gpu_reporter"] + '/gpu_idle'
-                        gpu_idle_params = {"vc": vc_name}
-                        gpu_idle_response = requests.get(
-                            gpu_idle_url, params=gpu_idle_params)
-                        gpu_idle_json = gpu_idle_response.json()
-                        vc["gpu_idle"] = gpu_idle_json
-                    except Exception:
-                        logger.exception("Failed to fetch gpu_idle from "
-                                         "gpu-exporter")
+                    gpu_idle = get_gpu_idle(vc_name)
+                    if gpu_idle is not None:
+                        vc["gpu_idle"] = gpu_idle
                     ret = dictionarize(vc)
                     break
 

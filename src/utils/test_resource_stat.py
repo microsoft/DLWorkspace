@@ -247,7 +247,8 @@ class TestDictionarize(TestCase):
                 {
                     "gpu_used": make_resource("gpu", {"r1": "6"}),
                 }
-            ]
+            ],
+            "none_field": None,
         }
         expected = {
             "gpu_capacity": {"r1": 8.0},
@@ -259,7 +260,8 @@ class TestDictionarize(TestCase):
                 {
                     "gpu_used": {"r1": 6.0}
                 }
-            ]
+            ],
+            "none_field": None,
         }
 
         result = dictionarize(v)
