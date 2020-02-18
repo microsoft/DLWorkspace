@@ -266,7 +266,8 @@ class ClusterStatus(object):
             sku = ""
             if node_selector is not None:
                 sku = node_selector.get("sku", "")
-            elif node_name is not None:
+
+            if sku == "" and node_name is not None:
                 node = self.node_statuses.get(node_name, {})
                 node_labels = node.get("labels")
                 if node_labels is not None:

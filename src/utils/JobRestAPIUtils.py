@@ -30,6 +30,7 @@ sys.path.append(os.path.join(os.path.dirname(
 
 from ResourceInfo import ResourceInfo
 from cluster_resource import ClusterResource
+from job_params_util import get_resource_params_from_job_params
 from JobLogUtils import GetJobLog as UtilsGetJobLog
 
 DEFAULT_JOB_PRIORITY = 100
@@ -955,22 +956,27 @@ def GetVC(user_name, vc_name):
 
             # Cluster resource calculation
             # Currently including CPU and memory
-            cluster_resource_capacity = ClusterResource(resource={
-                "cpu": cluster_status["cpu_capacity"],
-                "memory": cluster_status["memory_capacity"]
-            })
-            cluster_resource_available = ClusterResource(resource={
-                "cpu": cluster_status["cpu_available"],
-                "memory": cluster_status["memory_available"]
-            })
-            cluster_resource_reserved = ClusterResource(resource={
-                "cpu": cluster_status["cpu_reserved"],
-                "memory": cluster_status["memory_reserved"]
-            })
-            cluster_resource_unschedulable = ClusterResource(resource={
-                "cpu": cluster_status["cpu_unschedulable"],
-                "memory": cluster_status["memory_unschedulable"]
-            })
+            cluster_resource_capacity = ClusterResource(
+                params={
+                    "cpu": cluster_status["cpu_capacity"],
+                    "memory": cluster_status["memory_capacity"],
+                    "gpu": cluster_status["gpu_capacity"],
+                }
+            )
+            cluster_resource_available = ClusterResource(
+                params={
+                    "cpu": cluster_status["cpu_available"],
+                    "memory": cluster_status["memory_available"],
+                    "gpu": cluster_status["gpu_available"],
+                }
+            )
+            cluster_resource_reserved = ClusterResource(
+                params={
+                    "cpu": cluster_status["cpu_reserved"],
+                    "memory": cluster_status["memory_reserved"],
+                    "gpu": cluster_status["gpu_reserved"],
+                }
+            )
 
             vc_resource_info = {}
             vc_resource_usage = collections.defaultdict(
@@ -983,13 +989,14 @@ def GetVC(user_name, vc_name):
                 except:
                     logger.exception("Parsing resourceQuota failed for %s", vc)
                 vc_resource_info[vc["vcName"]] = ClusterResource(
-                    resource=res_quota)
+                    params=res_quota)
 
             for job in active_job_list:
                 job_params = json.loads(base64.b64decode(
                     job["jobParams"].encode("utf-8")).decode("utf-8"))
+                job_res = get_resource_params_from_job_params(job_params)
                 vc_resource_usage[job["vcName"]] += ClusterResource(
-                    params=job_params)
+                    params=job_res)
 
             result = quota.calculate_vc_resources(cluster_resource_capacity,
                                                   cluster_resource_available,
