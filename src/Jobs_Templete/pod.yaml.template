@@ -142,7 +142,7 @@ spec:
       exec:
         command: ["ls", "/dlts-runtime/status/READY"]
       initialDelaySeconds: 3
-      periodSeconds: 30
+      periodSeconds: 10
     securityContext:
       runAsUser: {{ job["containerUserId"] }}
     {% if job["isPrivileged"] %}

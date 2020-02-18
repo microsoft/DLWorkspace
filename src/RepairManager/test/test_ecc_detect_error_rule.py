@@ -65,6 +65,7 @@ def _mock_ecc_config():
             },
             "alert_job_owners": False,
             "dri_email": "dri@email.com",
+            "reboot_dry_run": False,
             "days_until_node_reboot": 5
         }
     return mock_ecc_config
@@ -376,6 +377,70 @@ class Testing(unittest.TestCase):
             }
             
             ecc_rule_instance.take_action()
+
+
+    @mock.patch('rules.ecc_detect_error_rule.k8s_util.list_namespaced_pod')
+    @mock.patch('rules.ecc_detect_error_rule.k8s_util.cordon_node')
+    @mock.patch('rules.ecc_detect_error_rule.k8s_util.is_node_cordoned')
+    @mock.patch('utils.email_util.EmailHandler.load_config')
+    @mock.patch('rules.ecc_detect_error_rule.ECCDetectErrorRule.load_ecc_config')
+    @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
+    def test_create_email_for_job_owner(self,
+            mock_load_rule_config,
+            mock_load_ecc_config,
+            mock_email_load_config,
+            mock_is_node_cordoned,
+            mock_cordon_node,
+            mock_pod_info):
+
+        #####################################################
+        ##  Please fill in SMTP info above to send emails  ##
+        #####################################################
+        enable_test = False
+        ####################################################
+
+        if enable_test:
+            mock_load_ecc_config.return_value = _mock_ecc_config()
+            mock_load_ecc_config.return_value["alert_job_owners"] = True
+            mock_load_ecc_config.return_value["dri_email"] = DRI_EMAIL
+
+            mock_email_load_config.return_value = {
+                "smtp_url": SMTP_URL,
+                "login": LOGIN,
+                "password": PASSWORD,
+                "sender": SENDER
+            }
+
+            rule_alert_handler_instance = rule_alert_handler.RuleAlertHandler()
+
+            # reboot_dry_run = True
+            email_params = {
+                "job_id": "job-abc-123",
+                "job_owner_email":  JOB_OWNER_EMAIL,
+                "node_names": ["node1", "node2"], 
+                "job_link": "example.dlts.com/fake-cluster/fake-link",
+                "dri_email": DRI_EMAIL, 
+                "cluster_name": "mock-cluster",
+                "reboot_dry_run": True,
+                "days_until_reboot": 5
+            }
+            message = ecc_detect_error_rule._create_email_for_job_owner(**email_params)
+            rule_alert_handler_instance.send_alert(message)
+
+            # reboot_dry_run = False
+            email_params = {
+                "job_id": "job-abc-123",
+                "job_owner_email":  JOB_OWNER_EMAIL,
+                "node_names": ["node1", "node2"], 
+                "job_link": "example.dlts.com/fake-cluster/fake-link",
+                "dri_email": DRI_EMAIL, 
+                "cluster_name": "mock-cluster",
+                "reboot_dry_run": False,
+                "days_until_reboot": 5
+            }
+            message = ecc_detect_error_rule._create_email_for_job_owner(**email_params)
+            rule_alert_handler_instance.send_alert(message)            
+
 
 if __name__ == '__main__':
     unittest.main()
