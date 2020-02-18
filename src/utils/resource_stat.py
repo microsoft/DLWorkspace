@@ -173,7 +173,7 @@ class ResourceStat(object):
     def __mul__(self, other):
         if isinstance(other, numbers.Number):
             result = copy.deepcopy(self)
-            for k, v in self.res.items():
+            for k, v in result.res.items():
                 result.res[k] = v * other
 
             result.normalize()

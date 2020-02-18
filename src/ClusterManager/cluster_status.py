@@ -160,7 +160,7 @@ class ClusterStatus(object):
             if allocatable is not None:
                 if gpu_str in allocatable:
                     gpu_num = int(allocatable[gpu_str])
-                    gpu_allocatable = Gpu({gpu_type: gpu_num})
+                    gpu_allocatable = Gpu({sku: gpu_num})
                 if cpu_str in allocatable:
                     cpu_num = allocatable[cpu_str]
                     cpu_allocatable = Cpu({sku: cpu_num})
@@ -175,7 +175,7 @@ class ClusterStatus(object):
             if capacity is not None:
                 if gpu_str in capacity:
                     gpu_num = int(capacity[gpu_str])
-                    gpu_capacity = Gpu({gpu_type: gpu_num})
+                    gpu_capacity = Gpu({sku: gpu_num})
                 if cpu_str in capacity:
                     cpu_num = capacity[cpu_str]
                     cpu_capacity = Cpu({sku: cpu_num})
@@ -311,7 +311,7 @@ class ClusterStatus(object):
 
                     if gpu_str in r_requests:
                         curr_container_gpus = int(r_requests[gpu_str])
-                        container_gpus = Gpu({gpu_type: curr_container_gpus})
+                        container_gpus = Gpu({sku: curr_container_gpus})
 
                     if cpu_str in r_requests:
                         container_cpus = Cpu({sku: r_requests[cpu_str]})

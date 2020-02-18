@@ -31,6 +31,7 @@ import notify
 import k8sUtils
 import quota
 from cluster_resource import ClusterResource
+from job_params_util import get_resource_params_from_job_params
 
 logger = logging.getLogger(__name__)
 
@@ -550,29 +551,45 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
     # Cluster resource calculation
     # Currently including CPU and memory
     cluster_resource_capacity = ClusterResource(
-        resource={
+        params={
             "cpu": cluster_status["cpu_capacity"],
-            "memory": cluster_status["memory_capacity"]
-        })
+            "memory": cluster_status["memory_capacity"],
+            "gpu": cluster_status["gpu_capacity"],
+        }
+    )
     cluster_resource_available = ClusterResource(
-        resource={
+        params={
             "cpu": cluster_status["cpu_available"],
-            "memory": cluster_status["memory_available"]
-        })
+            "memory": cluster_status["memory_available"],
+            "gpu": cluster_status["gpu_available"],
+        }
+    )
     cluster_resource_reserved = ClusterResource(
-        resource={
+        params={
             "cpu": cluster_status["cpu_reserved"],
-            "memory": cluster_status["memory_reserved"]
-        })
+            "memory": cluster_status["memory_reserved"],
+            "gpu": cluster_status["gpu_reserved"],
+        }
+    )
     cluster_resource_unschedulable = ClusterResource(
-        resource={
+        params={
             "cpu": cluster_status["cpu_unschedulable"],
-            "memory": cluster_status["memory_unschedulable"]
-        })
+            "memory": cluster_status["memory_unschedulable"],
+            "gpu": cluster_status["gpu_unschedulable"],
+        }
+    )
     # Hard-code 95% of the total capacity is application usable
     # TODO: Find a better way to manage system and user resource quota
+    ratio = ClusterResource(
+        params={
+            "cpu": 0.95,
+            "memory": 0.95,
+            "gpu": 1.0,
+            "gpu_memory": 1.0,
+        }
+    )
     cluster_resource_quota = \
-        (cluster_resource_capacity - cluster_resource_unschedulable) * 0.95
+        (cluster_resource_capacity - cluster_resource_unschedulable) * ratio
 
     vc_resource_info = {}
     vc_resource_usage = collections.defaultdict(lambda: ClusterResource())
@@ -583,19 +600,25 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
             res_quota = json.loads(vc["resourceQuota"])
         except:
             logger.exception("Parsing resourceQuota failed for %s", vc)
-        vc_resource_info[vc["vcName"]] = ClusterResource(resource=res_quota)
+        vc_resource_info[vc["vcName"]] = ClusterResource(params=res_quota)
 
     for job in active_job_list:
         job_params = json.loads(
             base64.b64decode(job["jobParams"].encode("utf-8")).decode("utf-8"))
-        vc_resource_usage[job["vcName"]] += ClusterResource(params=job_params)
+        job_res = get_resource_params_from_job_params(job_params)
+        vc_resource_usage[job["vcName"]] += ClusterResource(params=job_res)
 
     result = quota.calculate_vc_resources(cluster_resource_capacity,
                                           cluster_resource_available,
                                           cluster_resource_reserved,
-                                          vc_resource_info, vc_resource_usage)
-    (vc_resource_total, vc_resource_used, vc_resource_available,
-     vc_resource_unschedulable) = result
+                                          vc_resource_info,
+                                          vc_resource_usage)
+    (
+        vc_resource_total,
+        vc_resource_used,
+        vc_resource_available,
+        vc_resource_unschedulable
+    ) = result
 
     vc_resource_quotas = {}
     for vc in vc_list:

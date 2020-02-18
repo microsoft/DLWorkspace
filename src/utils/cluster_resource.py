@@ -37,6 +37,9 @@ class ClusterResource(object):
         self.gpu = None
         self.gpu_memory = None
 
+        if params is None:
+            params = {}
+
         for r_type in self.__dict__:
             self.__dict__[r_type] = make_resource(r_type, params.get(r_type))
 
