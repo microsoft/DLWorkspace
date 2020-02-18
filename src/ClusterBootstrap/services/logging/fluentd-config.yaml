@@ -228,6 +228,14 @@ data:
       @type kubernetes_metadata
       @id filter_kube_metadata
     </filter>
+
+    <filter kubernetes.**>
+      @type record_transformer
+      enable_ruby
+      <record>
+        time_nsec ${time.nsec}
+      </record>
+    </filter>
   prometheus.conf: |
     # Prometheus metric exposed on 0.0.0.0:24231/metrics
     <source>
