@@ -38,7 +38,7 @@ class Framework(object):
     def __init__(self, init_image, labels, annotations, roles, job_id,
                  pod_name, user_cmd, alias, email, gid, uid, mount_points,
                  plugins, family_token, vc_name, dns_policy, node_selector,
-                 home_folder_host_path, is_fragment_gpu_job,
+                 home_folder_host_path,
                  is_preemption_allowed, is_host_network, is_host_ipc,
                  is_privileged, is_nccl_ib_disabled):
         self.init_image = init_image  # str
@@ -59,7 +59,6 @@ class Framework(object):
         self.dns_policy = dns_policy  # str
         self.node_selector = node_selector  # map
         self.home_folder_host_path = home_folder_host_path  # str
-        self.is_fragment_gpu_job = is_fragment_gpu_job  # bool
         self.is_preemption_allowed = is_preemption_allowed  # bool
         self.is_host_network = is_host_network  # bool
         self.is_host_ipc = is_host_ipc  # bool

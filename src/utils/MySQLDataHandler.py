@@ -56,7 +56,7 @@ def default_vc_entries(config):
         gpu_type = sku_mapping.get(sku, {}).get("gpu-type", "None")
         num_gpu_per_node = sku_mapping.get(sku, {}).get("gpu", 0)
         quota_dict[gpu_type] = quota_dict.get(gpu_type, 0) + cnt * num_gpu_per_node
-        old_meta[gpu_type] = num_gpu_per_node
+        old_meta[gpu_type] = {"num_gpu_per_node": num_gpu_per_node}
         sku_name_in_map = sku if sku in sku_mapping else ""
         meta_tmp = sku_mapping.get(sku_name_in_map, {})
         for r_type in resource_quota.keys():
@@ -66,38 +66,35 @@ def default_vc_entries(config):
         for sku, val in resource_quota[r_type].items():
             resource_quota[r_type][sku] *= 0.9
 
-    # if a string would be formatted, then need to escape { by using {{
     name_and_par = "AS SELECT \'{}\' AS vcName, NULL AS parent".format(config['defalt_virtual_cluster_name'])
-    quota = "'{" + ",".join(['"{}":{}'.format(ky, cnt) for ky, cnt in quota_dict.items()]) + "}' AS quota"
-    metadata = "'{" + ",".join(['"{}":{{"num_gpu_per_node":{}}}'.format(ky, cnt) for ky, cnt in old_meta.items()]) + "}' AS metadata"
-    res_quota = "'{"
-    res_quota_lst = []
+    quota = "'{}' AS quota".format(json.dumps(quota_dict, separators=(",", ":")))
+    metadata = "'{}' AS metadata".format(json.dumps(old_meta, separators=(",", ":")))
+
+    res_quota_dict = {}
     for res, res_q in resource_quota.items():
-        quot_str = '"{}":{{'.format(res)
-        sku_lst = []
+        tmp_res_quota = {}
         for sku, cnt in res_q.items():
             cnt_p = cnt
             if "memory" in res:
-                cnt_p = '"{}Gi"'.format(cnt)
-            sku_lst.append('"{}":{}'.format(sku, cnt_p))
-        quot_str += ", ".join(sku_lst) + '}'
-        res_quota_lst.append(quot_str)
-    res_quota += ", ".join(res_quota_lst) + " }' AS resourceQuota"
+                cnt_p = '{}Gi'.format(cnt)
+            tmp_res_quota[sku] = cnt_p
+        res_quota_dict[res] = tmp_res_quota
+    res_quota = "'{}' AS resourceQuota".format(json.dumps(res_quota_dict, separators=(",", ":")))
 
-    res_meta = "'{" 
-    res_meta_lst = []
+    res_meta_dict = {}
     for r_type in ["cpu", "memory", "gpu", "gpu_memory"]:
-        res_str = '"{}":{{'.format(r_type)
-        sku_lst = []
+        tmp_res_meta = {}
         for sku in worker_sku_cnt:
             sku_name_in_map = sku if sku in sku_mapping else ""
             pernode_cnt = sku_mapping.get(sku_name_in_map, {}).get(r_type, 0)
             if "memory" in r_type:
-                pernode_cnt = '"{}Gi"'.format(pernode_cnt)
-            sku_lst.append('"{}":{{"per_node":{}}}'.format(sku, pernode_cnt))
-        res_str += ", ".join(sku_lst) + "}"
-        res_meta_lst.append(res_str)
-    res_meta += ", ".join(res_meta_lst) + "}' AS resourceMetadata"
+                pernode_cnt = '{}Gi'.format(pernode_cnt)
+            tmp_res_meta[sku_name_in_map] = {"per_node": pernode_cnt}
+            if r_type == "gpu":
+                tmp_res_meta[sku_name_in_map]["gpu_type"] = sku_mapping.get(sku_name_in_map, {}).get("gpu-type", "None")
+        res_meta_dict[r_type] = tmp_res_meta
+    res_meta = "'{}' AS resourceMetadata".format(json.dumps(res_meta_dict, separators=(",", ":")))
+
     vc_init_val = ", ".join([name_and_par, quota, metadata, res_quota, res_meta]) + ";"
     vc_init_val = vc_init_val.replace('"', '\\\"')
     return vc_init_val
