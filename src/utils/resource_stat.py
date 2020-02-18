@@ -383,9 +383,16 @@ def make_resource(resource_type, params=None):
 def dictionarize(d):
     if isinstance(d, ResourceStat):
         return d.to_dict()
-    elif not isinstance(d, dict):
+    elif isinstance(d, list):
+        new_d = []
+        for item in d:
+            new_d.append(dictionarize(item))
+        return new_d
+    elif isinstance(d, dict):
+        for k in d:
+            d[k] = dictionarize(d[k])
+        return d
+    else:
         return d
 
-    for k in d:
-        d[k] = dictionarize(d[k])
-    return d
+
