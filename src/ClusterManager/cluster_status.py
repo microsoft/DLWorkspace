@@ -257,6 +257,7 @@ class ClusterStatus(object):
             namespace = pod.metadata.namespace
             labels = pod.metadata.labels
             node_selector = pod.spec.node_selector
+            node_name = pod.spec.node_name
 
             gpu_type = ""
             if labels is not None:
@@ -265,6 +266,11 @@ class ClusterStatus(object):
             sku = ""
             if node_selector is not None:
                 sku = node_selector.get("sku", "")
+            elif node_name is not None:
+                node = self.node_statuses.get(node_name, {})
+                node_labels = node.get("labels")
+                if node_labels is not None:
+                    sku = node_labels.get("sku", "")
 
             username = None
             if labels is not None and "userName" in labels:
@@ -274,7 +280,6 @@ class ClusterStatus(object):
             if labels is not None and "preemptionAllowed" in labels:
                 preemption_allowed = str2bool(labels["preemptionAllowed"])
 
-            node_name = pod.spec.node_name
             pod_name = name
             if username is not None:
                 pod_name += " : " + username
