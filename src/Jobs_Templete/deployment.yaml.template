@@ -37,7 +37,7 @@ spec:
       - name: main
         image: {{ job["image"] }}
         imagePullPolicy: Always
-        command: ["sh", "-c", "printenv DLWS_LAUNCH_CMD > /pod/job_command.sh ; sh /pod/job_command.sh"]
+        command: ["sh", "-c", "printenv DLTS_LAUNCH_CMD > /pod/job_command.sh ; sh /pod/job_command.sh"]
         securityContext:
           runAsUser: {{ job["containerUserId"] }}
           capabilities:
@@ -92,9 +92,15 @@ spec:
           value: {{ job["familyToken"] }}
         - name: DLWS_ROLE_NAME
           value: worker
+        - name: DLTS_ROLE_NAME
+          value: worker
         - name: DLWS_JOB_ID
           value: {{ job["jobId"] }}
+        - name: DLTS_JOB_ID
+          value: {{ job["jobId"] }}
         - name: DLWS_NUM_GPU_PER_WORKER
+          value: "1"
+        - name: DLTS_NUM_GPU_PER_WORKER
           value: "1"
         - name: POD_IP
           valueFrom:
@@ -102,13 +108,23 @@ spec:
               fieldPath: status.podIP
         - name: DLWS_GID
           value: "{{ job["gid"] }}"
+        - name: DLTS_GID
+          value: "{{ job["gid"] }}"
         - name: DLWS_UID
+          value: "{{ job["uid"] }}"
+        - name: DLTS_UID
           value: "{{ job["uid"] }}"
         - name: DLWS_USER_NAME
           value: "{{ job["user"] }}"
+        - name: DLTS_USER_NAME
+          value: "{{ job["user"] }}"
         - name: DLWS_USER_EMAIL
           value: "{{ job["user_email"] }}"
+        - name: DLTS_USER_EMAIL
+          value: "{{ job["user_email"] }}"
         - name: DLWS_VC_NAME
+          value: {{ job["vcName"] }}
+        - name: DLTS_VC_NAME
           value: {{ job["vcName"] }}
         {% for env in job["envs"] %}
         - name: {{env.name}}
