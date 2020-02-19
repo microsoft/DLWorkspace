@@ -265,6 +265,7 @@ class ResourceStat(object):
             for k, v in self.res.items():
                 # Division by zero gives zero
                 if other == 0:
+                    logger.warning("Div by 0 by other %s. Set to 0.", other)
                     self.res[k] = 0
                 else:
                     self.res[k] = v / other
@@ -285,6 +286,8 @@ class ResourceStat(object):
                 self_v = self.res.get(k, 0)
                 other_v = other.res.get(k, 0)
                 if other_v == 0:
+                    logger.warning("Div by 0 at key %s by value %s in other "
+                                   "%s. Set to 0.", k, other_v, other)
                     self.res[k] = 0
                 else:
                     self.res[k] = self_v / other_v
