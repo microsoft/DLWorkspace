@@ -159,33 +159,72 @@ class Testing(unittest.TestCase):
         self.assertIsNone(ecc_node_ips)
 
 
-    @mock.patch('rules.ecc_detect_error_rule._get_node_address_info')
-    @mock.patch('utils.rule_alert_handler.RuleAlertHandler')
+    @mock.patch('utils.email_util.EmailHandler')
+    @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
     @mock.patch('rules.ecc_detect_error_rule.k8s_util.list_node')
     @mock.patch('rules.ecc_detect_error_rule.requests.get')
     @mock.patch('rules.ecc_detect_error_rule.ECCDetectErrorRule.load_ecc_config')
-    def test_check_status_ecc_error_found(self, 
+    def test_check_status_ecc_error_detected(self, 
             mock_load_ecc_config,
             mock_request_get,
             mock_list_node,
-            mock_rule_alert_handler,
-            mock_get_node_address_info):
+            mock_rule_alert_handler_load_config,
+            mock_email_handler):
+
+        mock_rule_config = _mock_rule_config()
         mock_load_ecc_config.return_value = _mock_ecc_config()
-
+        mock_rule_alert_handler = rule_alert_handler.RuleAlertHandler()
         mock_request_get.return_value.json.return_value = _mock_prometheus_error_data()
+        mock_node_one = _mock_v1_node("192.168.0.1", "mock-worker-one")
+        mock_node_two = _mock_v1_node("192.168.0.2", "mock-worker-two")
+        mock_node_list = V1NodeList(items=[mock_node_one, mock_node_two])
+        mock_list_node.return_value = mock_node_list
 
-        mock_get_node_address_info.return_value = {
-            "192.168.0.1": "mock-worker-one",
-            "192.168.0.2": "mock-worker-two"
-        }
-
-        ecc_rule_instance = ECCDetectErrorRule(mock_rule_alert_handler, _mock_rule_config())
+        ecc_rule_instance = ECCDetectErrorRule(mock_rule_alert_handler, mock_rule_config)
         check_status_response = ecc_rule_instance.check_status()
 
         self.assertTrue(check_status_response)
-        self.assertEqual(len(ecc_rule_instance.ecc_node_hostnames), 2)
-        self.assertTrue("mock-worker-one" in ecc_rule_instance.ecc_node_hostnames)
-        self.assertTrue("mock-worker-two" in ecc_rule_instance.ecc_node_hostnames)
+        self.assertEqual(len(ecc_rule_instance.new_bad_nodes), 2)
+        self.assertTrue("mock-worker-one" in ecc_rule_instance.new_bad_nodes)
+        self.assertTrue("mock-worker-two" in ecc_rule_instance.new_bad_nodes)
+
+    
+    @mock.patch('utils.email_util.EmailHandler')
+    @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
+    @mock.patch('rules.ecc_detect_error_rule.k8s_util.list_node')
+    @mock.patch('rules.ecc_detect_error_rule.requests.get')
+    @mock.patch('rules.ecc_detect_error_rule.ECCDetectErrorRule.load_ecc_config')
+    def test_check_status_ecc_error_already_detected(self, 
+            mock_load_ecc_config,
+            mock_request_get,
+            mock_list_node,
+            mock_rule_alert_handler_load_config,
+            mock_email_handler):
+
+        mock_rule_config = _mock_rule_config()
+        mock_load_ecc_config.return_value = _mock_ecc_config()
+        mock_rule_alert_handler = rule_alert_handler.RuleAlertHandler()
+        # nodes already detected in previous run
+        mock_rule_alert_handler.rule_cache = {
+            "ecc_rule": {
+                "mock-worker-one": {
+                    "time_found": "2020-02-18 21:14:20.351019",
+                    "instance": "192.168.0.1"
+                }
+            }
+        }
+        mock_request_get.return_value.json.return_value = _mock_prometheus_error_data()
+        node_one = _mock_v1_node("192.168.0.1", "mock-worker-one")
+        node_two = _mock_v1_node("192.168.0.2", "mock-worker-two")
+        mock_node_list = V1NodeList(items=[node_one, node_two])
+        mock_list_node.return_value = mock_node_list
+
+        ecc_rule_instance = ECCDetectErrorRule(mock_rule_alert_handler, mock_rule_config)
+        check_status_response = ecc_rule_instance.check_status()
+
+        self.assertTrue(check_status_response)
+        self.assertEqual(len(ecc_rule_instance.new_bad_nodes), 1)
+        self.assertTrue("mock-worker-two" in ecc_rule_instance.new_bad_nodes)
 
 
     @mock.patch('rules.ecc_detect_error_rule._get_node_address_info')
@@ -207,7 +246,7 @@ class Testing(unittest.TestCase):
         check_status_response = ecc_rule_instance.check_status()
 
         self.assertFalse(check_status_response)
-        self.assertEqual(len(ecc_rule_instance.ecc_node_hostnames), 0)
+        self.assertEqual(len(ecc_rule_instance.new_bad_nodes), 0)
 
 
     @mock.patch('rules.ecc_detect_error_rule._create_email_for_dris')
@@ -235,7 +274,7 @@ class Testing(unittest.TestCase):
 
         alert = rule_alert_handler.RuleAlertHandler()
         ecc_rule_instance = ECCDetectErrorRule(alert, mock_rule_config)
-        ecc_rule_instance.ecc_node_hostnames = {
+        ecc_rule_instance.new_bad_nodes = {
             "mock_worker_one": "192.168.0.1",
             "mock_worker_two": "192.168.0.2"
         }
@@ -303,7 +342,7 @@ class Testing(unittest.TestCase):
         mock_is_node_cordoned.side_effect = [False, True]
 
         ecc_rule_instance = ECCDetectErrorRule(alert, mock_rule_config)
-        ecc_rule_instance.ecc_node_hostnames = {
+        ecc_rule_instance.new_bad_nodes = {
             "mock_worker_one": "192.168.0.1",
             "mock_worker_two": "192.168.0.2"
         }
@@ -371,7 +410,7 @@ class Testing(unittest.TestCase):
             mock_load_rule_config.return_value = mock_rule_config
 
             ecc_rule_instance = ECCDetectErrorRule(alert, mock_rule_config)
-            ecc_rule_instance.ecc_node_hostnames = {
+            ecc_rule_instance.new_bad_nodes = {
                 "mock_worker_one": "192.168.0.1",
                 "mock_worker_two": "192.168.0.2"
             }
