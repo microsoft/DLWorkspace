@@ -356,6 +356,9 @@ class TestClusterStatus(TestCase):
             Gpu({'m_type1': 3, 'm_type3': 2}),
             cs.gpu_used)
         self.assertEqual(
+            Gpu(),
+            cs.gpu_preemptable_used)
+        self.assertEqual(
             Gpu({'m_type1': 1}),
             cs.gpu_available)
         self.assertEqual(
@@ -366,48 +369,74 @@ class TestClusterStatus(TestCase):
             cs.gpu_reserved)
 
         # Cluster CPU status
-        self.assertEqual(Cpu({
-            "m_type1": 10,
-            "m_type2": 20,
-            "m_type3": 12
-        }), cs.cpu_capacity)
-        self.assertEqual(Cpu({
-            "m_type1": 6,
-            "m_type2": 16,
-            "m_type3": 6
-        }), cs.cpu_used)
-        self.assertEqual(Cpu({
-            "m_type1": 4,
-            "m_type2": 4
-        }), cs.cpu_available)
-        self.assertEqual(Cpu({
-            "m_type3": 12
-        }), cs.cpu_unschedulable)
-        self.assertEqual(Cpu({
-            "m_type3": 6
-        }), cs.cpu_reserved)
+        self.assertEqual(
+            Cpu({
+                "m_type1": 10,
+                "m_type2": 20,
+                "m_type3": 12
+            }),
+            cs.cpu_capacity)
+        self.assertEqual(
+            Cpu({
+                "m_type1": 6,
+                "m_type2": 16,
+                "m_type3": 6
+            }),
+            cs.cpu_used)
+        self.assertEqual(
+            Cpu(),
+            cs.cpu_preemptable_used)
+        self.assertEqual(
+            Cpu({
+                "m_type1": 4,
+                "m_type2": 4
+            }),
+            cs.cpu_available)
+        self.assertEqual(
+            Cpu({
+                "m_type3": 12
+            }),
+            cs.cpu_unschedulable)
+        self.assertEqual(
+            Cpu({
+                "m_type3": 6
+            }),
+            cs.cpu_reserved)
 
         # Cluster memory status
-        self.assertEqual(Memory({
-            "m_type1": 102400 * Mi,
-            "m_type2": 409600 * Mi,
-            "m_type3": 102400 * Mi
-        }), cs.memory_capacity)
-        self.assertEqual(Memory({
-            "m_type1": 83968 * Mi,
-            "m_type2": 348160 * Mi,
-            "m_type3": 61440 * Mi
-        }), cs.memory_used)
-        self.assertEqual(Memory({
-            "m_type1": 18432 * Mi,
-            "m_type2": 61440 * Mi
-        }), cs.memory_available)
-        self.assertEqual(Memory({
-            "m_type3": 102400 * Mi
-        }), cs.memory_unschedulable)
-        self.assertEqual(Memory({
-            "m_type3": 40960 * Mi
-        }), cs.memory_reserved)
+        self.assertEqual(
+            Memory({
+                "m_type1": 102400 * Mi,
+                "m_type2": 409600 * Mi,
+                "m_type3": 102400 * Mi
+            }),
+            cs.memory_capacity)
+        self.assertEqual(
+            Memory({
+                "m_type1": 83968 * Mi,
+                "m_type2": 348160 * Mi,
+                "m_type3": 61440 * Mi
+            }),
+            cs.memory_used)
+        self.assertEqual(
+            Memory(),
+            cs.memory_preemptable_used)
+        self.assertEqual(
+            Memory({
+                "m_type1": 18432 * Mi,
+                "m_type2": 61440 * Mi
+            }),
+            cs.memory_available)
+        self.assertEqual(
+            Memory({
+                "m_type3": 102400 * Mi
+            }),
+            cs.memory_unschedulable)
+        self.assertEqual(
+            Memory({
+                "m_type3": 40960 * Mi
+            }),
+            cs.memory_reserved)
 
         # Cluster node status
         t_node1_status = {
