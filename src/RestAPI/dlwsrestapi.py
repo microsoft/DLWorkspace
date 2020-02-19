@@ -750,7 +750,7 @@ class GetJobLog(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument('jobId', required=True)
         parser.add_argument('userName', required=True)
-        parser.add_argument('cursor', type=int)
+        parser.add_argument('cursor')
         args = parser.parse_args()
         jobId = args["jobId"]
         userName = args["userName"]
