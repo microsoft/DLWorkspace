@@ -655,30 +655,14 @@ class LauncherStub(Launcher):
                 dataHandler.Close()
                 return False
 
-            if job_object.params["jobtrainingtype"] == "RegularJob":
-                params, error = pod_template.generate_params(job_object)
-                if error:
-                    logger.error("failed to generate params for %s job %s",
-                                 job_object.params["jobtrainingtype"], error)
-                    return False
-                pods = [framework.transform_regular_job(params, config)]
-                logger.info("generate framework success")
-            elif job_object.params["jobtrainingtype"] == "PSDistJob":
-                params, error = pod_template.generate_params(job_object)
-                if error:
-                    logger.error("failed to generate params for %s job %s",
-                                 job_object.params["jobtrainingtype"], error)
-                    return False
-                pods = [framework.transform_distributed_job(params, config)]
-                logger.info("generate framework success")
-            else:
-                pods, error = pod_template.generate_pods(job_object)
+            params, error = pod_template.generate_params(job_object)
             if error:
-                dataHandler.SetJobError(job_object.job_id, "ERROR: %s" % error)
-                dataHandler.Close()
+                logger.error("failed to generate params for %s job %s",
+                             job_object.params["jobtrainingtype"], error)
                 return False
+            framework_desc = framework.transform_job(job_object.params["jobtrainingtype"], params, config)
 
-            job_description = "\n---\n".join([yaml.dump(pod) for pod in pods])
+            job_description = yaml.dump(framework_desc)
 
             secrets = pod_template.generate_secrets(job_object)
 
@@ -686,17 +670,11 @@ class LauncherStub(Launcher):
                 secrets = self.create_secrets(secrets)
                 ret["output"] = "Created secrets: {}. ".format(
                     [secret.metadata.name for secret in secrets])
-                if job_object.params["jobtrainingtype"] in {
-                        "RegularJob", "PSDistJob"
-                }:
-                    created_pods = self._create_framework(pods[0])
-                    logger.info("created_pods is %s, type is %s", created_pods,
-                                type(created_pods))
-                    ret["output"] += "Created framework: {}".format(
-                        pods[0]["metadata"]["name"])
-                else:
-                    logger.error("unsupported job type %s",
-                                 job_object.params["jobtrainingtype"])
+                created_pods = self._create_framework(framework_desc)
+                logger.info("created_pods is %s, type is %s", created_pods,
+                            type(created_pods))
+                ret["output"] += "Created framework: {}".format(
+                    framework_desc["metadata"]["name"])
             except Exception as e:
                 ret["output"] = "Error: %s" % e.message
                 logger.exception(e)
