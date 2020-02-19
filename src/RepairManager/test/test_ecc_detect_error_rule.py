@@ -172,6 +172,7 @@ class Testing(unittest.TestCase):
             mock_email_handler):
 
         mock_rule_config = _mock_rule_config()
+        mock_rule_alert_handler_load_config.return_value = mock_rule_config
         mock_load_ecc_config.return_value = _mock_ecc_config()
         mock_rule_alert_handler = rule_alert_handler.RuleAlertHandler()
         mock_request_get.return_value.json.return_value = _mock_prometheus_error_data()
@@ -202,6 +203,7 @@ class Testing(unittest.TestCase):
             mock_email_handler):
 
         mock_rule_config = _mock_rule_config()
+        mock_rule_alert_handler_load_config.return_value = mock_rule_config
         mock_load_ecc_config.return_value = _mock_ecc_config()
         mock_rule_alert_handler = rule_alert_handler.RuleAlertHandler()
         # nodes already detected in previous run
