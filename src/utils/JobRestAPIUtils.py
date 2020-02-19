@@ -273,7 +273,12 @@ def populate_sku(job_params):
         logger.warning("vc info for %s is None", vc_name)
         return
 
-    resource_quota = vc_info.get("resourceQuota", {})
+    try:
+        resource_quota = json.loads(vc_info["resourceQuota"])
+    except:
+        logger.exception("Failed to parse resource_quota")
+        return
+
     resource_gpu = job_params["resourcegpu"]
     if resource_gpu > 0:
         gpu = resource_quota.get("gpu", {})
