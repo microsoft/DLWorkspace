@@ -20,7 +20,12 @@ def get_resource_params_from_job_params(params):
     # Consistent with pod.yaml.template
     cpu_request = params.get("cpurequest", 1)
     mem_request = params.get("memoryrequest", 0)
-    resource_gpu = params.get("resourcegpu", 0)
+    try:
+        resource_gpu = max(0, int(params.get("resourcegpu", 0)))
+    except:
+        logger.warning("Parsing resourcegpu in %s failed. Set to 0.", params)
+        resource_gpu = 0
+
     if job_type == "RegularJob":
         cpu = make_resource("cpu", {sku: cpu_request})
         memory = make_resource("memory", {sku: mem_request})
@@ -34,6 +39,16 @@ def get_resource_params_from_job_params(params):
         # Add worker CPU requirement
         num_worker = int(params.get("numpsworker", 0))
         for i in range(num_worker):
+            cpu += make_resource("cpu", {sku: cpu_request})
+            memory += make_resource("memory", {sku: mem_request})
+            gpu += make_resource("gpu", {sku: resource_gpu})
+    elif job_type == "InferenceJob":
+        # Master
+        cpu += make_resource("cpu", {sku: cpu_request})
+        memory += make_resource("memory", {sku: mem_request})
+
+        # Inference workers
+        for i in range(resource_gpu):
             cpu += make_resource("cpu", {sku: cpu_request})
             memory += make_resource("memory", {sku: mem_request})
             gpu += make_resource("gpu", {sku: resource_gpu})
