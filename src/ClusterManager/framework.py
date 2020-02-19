@@ -277,7 +277,10 @@ def gen_containers(job, role):
     volume_mounts.extend(transform_mount_points(job.mount_points, job.plugins))
 
     if job.init_image is None:
-        cmd = ["sh", "-c", "printenv DLWS_LAUNCH_CMD > /job_command.sh ; mkdir -p /dlts-runtime/status ; touch /dlts-runtime/status/READY ; sh /job_command.sh"]
+        cmd = [
+            "sh", "-c",
+            "printenv DLWS_LAUNCH_CMD > /job_command.sh ; mkdir -p /dlts-runtime/status ; touch /dlts-runtime/status/READY ; sh /job_command.sh"
+        ]
     else:
         cmd = ["bash", "/dlws-scripts/bootstrap.sh"]
 
@@ -751,7 +754,7 @@ def transform_inference_job(params, cluster_config):
         cluster_config.get("default_memorylimit", "2560M"),
     )
     master_resource.gpu_limit = 0
-    worker_resource.gpu_limit = 0
+    worker_resource.gpu_limit = 1
 
     image = params["image"]
 
@@ -769,7 +772,7 @@ def transform_inference_job(params, cluster_config):
     annotations = params.get("annotations", {})
 
     framework = Framework(
-        None, # init container
+        None,  # init container
         labels,
         annotations,
         roles,
@@ -798,6 +801,7 @@ def transform_inference_job(params, cluster_config):
 
     return gen_framework_spec(framework)
 
+
 def transform_job(job_type, params, cluster_config):
     if job_type == "RegularJob":
         return transform_regular_job(params, cluster_config)
@@ -808,6 +812,7 @@ def transform_job(job_type, params, cluster_config):
     else:
         logger.error("Unknown job type %s, params is %s", job_type, params)
         raise RuntimeError("Unknown job type %s" % (job_type))
+
 
 if __name__ == '__main__':
     pass
