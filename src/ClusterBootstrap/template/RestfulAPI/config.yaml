@@ -33,9 +33,12 @@ webportal_node: {{cnf["webportal_node"]}}
 datasource : {{cnf["datasource"]}}
 kube_custom_scheduler: {{cnf["kube_custom_scheduler"]}}
 WinbindServers: {{cnf["WinbindServers"]}}
-gpu_count_per_node: {{cnf["gpu_count_per_node"]}}
-worker_node_num: {{cnf["worker_node_num"]}}
-gpu_type: {{cnf["gpu_type"]}}
+{% if "worker_sku_cnt" in cnf %}
+worker_sku_cnt: {{ cnf["worker_sku_cnt"] }}
+{% endif %}
+{% if "sku_mapping" in cnf %}
+sku_mapping: {{ cnf["sku_mapping"] }}
+{% endif %}
 defalt_virtual_cluster_name: {{cnf["defalt_virtual_cluster_name"]}}
 {% if cnf["job-manager"] %}
 job-manager:

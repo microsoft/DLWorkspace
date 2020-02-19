@@ -172,7 +172,7 @@ class ECCDetectErrorRule(Rule):
                         'job_link': job_info['job_link'],
                         'dri_email': self.ecc_config['dri_email'],
                         'cluster_name': self.config['cluster_name'],
-                        'reboot_dry_run': self.config['reboot_dry_run'],
+                        'reboot_dry_run': self.ecc_config['reboot_dry_run'],
                         'days_until_reboot': self.ecc_config['days_until_node_reboot']
                     }
                     job_owner_message = _create_email_for_job_owner(**email_params)
