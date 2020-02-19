@@ -541,16 +541,11 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
     )
     # Hard-code 95% of the total capacity is application usable
     # TODO: Find a better way to manage system and user resource quota
-    ratio = ClusterResource(
-        params={
-            "cpu": 0.95,
-            "memory": 0.95,
-            "gpu": 1.0,
-            "gpu_memory": 1.0,
-        }
-    )
     cluster_resource_quota = \
-        (cluster_resource_capacity - cluster_resource_unschedulable) * ratio
+        cluster_resource_capacity - cluster_resource_unschedulable
+
+    cluster_resource_quota.cpu *= 0.95
+    cluster_resource_quota.memory *= 0.95
 
     vc_resource_info = {}
     vc_resource_usage = collections.defaultdict(lambda: ClusterResource())
