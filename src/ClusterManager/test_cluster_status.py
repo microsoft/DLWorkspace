@@ -349,11 +349,21 @@ class TestClusterStatus(TestCase):
         cs.compute()
 
         # Cluster GPU status
-        self.assertEqual(Gpu({"P40": 8}), cs.gpu_capacity)
-        self.assertEqual(Gpu({"P40": 5}), cs.gpu_used)
-        self.assertEqual(Gpu({"P40": 1}), cs.gpu_available)
-        self.assertEqual(Gpu({"P40": 4}), cs.gpu_unschedulable)
-        self.assertEqual(Gpu({"P40": 2}), cs.gpu_reserved)
+        self.assertEqual(
+            Gpu({'m_type1': 4, 'm_type3': 4}),
+            cs.gpu_capacity)
+        self.assertEqual(
+            Gpu({'m_type1': 3, 'm_type3': 2}),
+            cs.gpu_used)
+        self.assertEqual(
+            Gpu({'m_type1': 1}),
+            cs.gpu_available)
+        self.assertEqual(
+            Gpu({"m_type3": 4}),
+            cs.gpu_unschedulable)
+        self.assertEqual(
+            Gpu({"m_type3": 2}),
+            cs.gpu_reserved)
 
         # Cluster CPU status
         self.assertEqual(Cpu({
@@ -405,9 +415,9 @@ class TestClusterStatus(TestCase):
             "labels": {"gpuType": "P40", "sku": "m_type1", "worker": "active"},
             "gpuType": "P40",
             "scheduled_service": ["P40", "m_type1", "worker"],
-            "gpu_allocatable": Gpu({"P40": 4}),
-            "gpu_capacity": Gpu({"P40": 4}),
-            "gpu_used": Gpu({"P40": 3}),
+            "gpu_allocatable": Gpu({"m_type1": 4}),
+            "gpu_capacity": Gpu({"m_type1": 4}),
+            "gpu_used": Gpu({"m_type1": 3}),
             "gpu_preemptable_used": Gpu({}),
             "cpu_allocatable": Cpu({"m_type1": 10}),
             "cpu_capacity": Cpu({"m_type1": 10}),
@@ -453,9 +463,9 @@ class TestClusterStatus(TestCase):
             "labels": {"gpuType": "P40", "sku": "m_type3", "worker": "active"},
             "gpuType": "P40",
             "scheduled_service": ["P40", "m_type3", "worker"],
-            "gpu_allocatable": Gpu({"P40": 4}),
-            "gpu_capacity": Gpu({"P40": 4}),
-            "gpu_used": Gpu({"P40": 2}),
+            "gpu_allocatable": Gpu({"m_type3": 4}),
+            "gpu_capacity": Gpu({"m_type3": 4}),
+            "gpu_used": Gpu({"m_type3": 2}),
             "gpu_preemptable_used": Gpu({}),
             "cpu_allocatable": Cpu({"m_type3": 12}),
             "cpu_capacity": Cpu({"m_type3": 12}),
@@ -484,7 +494,10 @@ class TestClusterStatus(TestCase):
         t_user_status = [
             {
                 "userName": "user1",
-                "userGPU": Gpu({"P40": 3}),
+                "userGPU": Gpu({
+                    "m_type1": 1,
+                    "m_type3": 2
+                }),
                 "userCPU": Cpu({
                     "m_type1": 4,
                     "m_type3": 6,
@@ -502,7 +515,7 @@ class TestClusterStatus(TestCase):
             },
             {
                 "userName": "user3",
-                "userGPU": Gpu({"P40": 2}),
+                "userGPU": Gpu({"m_type1": 2}),
                 "userCPU": Cpu({"m_type1": 2}),
                 "userMemory": Memory({"m_type1": 2048 * Mi}),
             },
