@@ -142,14 +142,14 @@ class TestClusterStatus(TestCase):
             "available_job_num",
         ]
         exclusion = [
-            "__prometheus_node",
-            "__nodes",
-            "__pods",
-            "__jobs",
-            "__node_statuses",
-            "__pod_statuses",
-            "__user_info",
-            "__user_info_preemptable",
+            "prometheus_node",
+            "nodes",
+            "pods",
+            "jobs",
+            "node_statuses",
+            "pod_statuses",
+            "user_info",
+            "user_info_preemptable",
         ]
 
         cs = ClusterStatus({}, [], [])
@@ -362,6 +362,7 @@ class TestClusterStatus(TestCase):
 
         cs = ClusterStatus({}, nodes, pods)
         cs.compute()
+        cs = cs.cluster
 
         # Cluster GPU status
         self.assertEqual(
@@ -533,6 +534,84 @@ class TestClusterStatus(TestCase):
         ]
 
         self.assertEqual(t_node_status, cs.node_status)
+
+        # Cluster pod status
+        t_pod1_status = {
+            "pod_name": "pod1 : user1 (gpu #:1)",
+            "job_id": None,
+            "vc_name": None,
+            "namespace": "default",
+            "node_name": "node1",
+            "username": "user1",
+            "preemption_allowed": False,
+            "gpus": Gpu({"m_type1": 1}),
+            "preemptable_gpus": Gpu(),
+            "cpus": Cpu({"m_type1": 4}),
+            "preemptable_cpus": Cpu(),
+            "memory": Memory({"m_type1": "81920Mi"}),
+            "preemptable_memory": Memory(),
+            "gpuType": "P40",
+        }
+
+        t_pod2_status = {
+            "pod_name": "pod2 : user2 (gpu #:0)",
+            "job_id": None,
+            "vc_name": None,
+            "namespace": "default",
+            "node_name": "node2",
+            "username": "user2",
+            "preemption_allowed": False,
+            "gpus": Gpu(),
+            "preemptable_gpus": Gpu(),
+            "cpus": Cpu({"m_type2": 16}),
+            "preemptable_cpus": Cpu(),
+            "memory": Memory({"m_type2": "348160Mi"}),
+            "preemptable_memory": Memory(),
+            "gpuType": "",
+        }
+
+        t_pod3_status = {
+            "pod_name": "pod3 : user3 (gpu #:2)",
+            "job_id": None,
+            "vc_name": None,
+            "namespace": "kube-system",
+            "node_name": "node1",
+            "username": "user3",
+            "preemption_allowed": False,
+            "gpus": Gpu({"m_type1": 2}),
+            "preemptable_gpus": Gpu(),
+            "cpus": Cpu({"m_type1": 2}),
+            "preemptable_cpus": Cpu(),
+            "memory": Memory({"m_type1": "2048Mi"}),
+            "preemptable_memory": Memory(),
+            "gpuType": "P40",
+        }
+
+        t_pod4_status = {
+            "pod_name": "pod4 : user1 (gpu #:2)",
+            "job_id": None,
+            "vc_name": None,
+            "namespace": "default",
+            "node_name": "node3",
+            "username": "user1",
+            "preemption_allowed": False,
+            "gpus": Gpu({"m_type3": 2}),
+            "preemptable_gpus": Gpu(),
+            "cpus": Cpu({"m_type3": 6}),
+            "preemptable_cpus": Cpu(),
+            "memory": Memory({"m_type3": "61440Mi"}),
+            "preemptable_memory": Memory(),
+            "gpuType": "P40",
+        }
+
+        t_pod_status = [
+            t_pod1_status,
+            t_pod2_status,
+            t_pod3_status,
+            t_pod4_status,
+        ]
+
+        self.assertEqual(t_pod_status, cs.pod_status)
 
         # Cluster user status
         t_user_status = [

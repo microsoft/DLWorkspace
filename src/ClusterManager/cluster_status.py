@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import copy
 import sys
 import os
 import json
@@ -19,84 +20,89 @@ def str2bool(s):
     return s.lower() in ["true", "1", "t", "y", "yes"]
 
 
-class ClusterStatus(object):
-    def __init__(self, prometheus_node, nodes, pods, jobs=None):
-        self.__prometheus_node = prometheus_node
-        self.__nodes = nodes
-        self.__pods = pods
-        self.__jobs = jobs
+class ClusterInfo(object):
+    def __init__(self):
+        self.gpu_capacity = Gpu()
+        self.gpu_used = Gpu()
+        self.gpu_preemptable_used = Gpu()
+        self.gpu_available = Gpu()
+        self.gpu_unschedulable = Gpu()
+        self.gpu_reserved = Gpu()
 
-        self.__node_statuses = None
-        self.__pod_statuses = None
-        self.__user_info = None
-        self.__user_info_preemptable = None
+        self.cpu_capacity = Cpu()
+        self.cpu_used = Cpu()
+        self.cpu_preemptable_used = Cpu()
+        self.cpu_available = Cpu()
+        self.cpu_unschedulable = Cpu()
+        self.cpu_reserved = Cpu()
 
-        self.gpu_capacity = None
-        self.gpu_used = None
-        self.gpu_preemptable_used = None
-        self.gpu_available = None
-        self.gpu_unschedulable = None
-        self.gpu_reserved = None
-
-        self.cpu_capacity = None
-        self.cpu_used = None
-        self.cpu_preemptable_used = None
-        self.cpu_available = None
-        self.cpu_unschedulable = None
-        self.cpu_reserved = None
-
-        self.memory_capacity = None
-        self.memory_used = None
-        self.memory_preemptable_used = None
-        self.memory_available = None
-        self.memory_unschedulable = None
-        self.memory_reserved = None
+        self.memory_capacity = Memory()
+        self.memory_used = Memory()
+        self.memory_preemptable_used = Memory()
+        self.memory_available = Memory()
+        self.memory_unschedulable = Memory()
+        self.memory_reserved = Memory()
 
         self.node_status = None
         self.pod_status = None
         self.user_status = None
         self.user_status_preemptable = None
 
-        self.available_job_num = None
+        self.available_job_num = 0
+
+    def to_dict(self):
+        return dictionarize(copy.deepcopy(self.__dict__))
+
+
+class ClusterStatus(object):
+    def __init__(self, prometheus_node, nodes, pods, jobs=None):
+        self.prometheus_node = prometheus_node
+        self.nodes = nodes
+        self.pods = pods
+        self.jobs = jobs
+
+        self.node_statuses = None
+        self.pod_statuses = None
+        self.user_info = None
+        self.user_info_preemptable = None
+
+        self.cluster = ClusterInfo()
+
+    def to_dict(self):
+        return dictionarize(copy.deepcopy(self.cluster.to_dict()))
 
     def compute(self):
         """Compute the cluster status"""
-        # Retrieve cluster information on nodes, pods, and users
-        self.__parse_node_statuses()
-        self.__parse_pod_statuses()
+        # Generate cluster information on nodes, pods, and users
+        self.__gen_node_statuses()
+        self.__gen_pod_statuses()
         self.__update_node_statuses()
-        self.__parse_user_info()
+        self.__gen_user_info()
 
-        # Compute GPU cluster status
-        self.__set_cluster_gpu_status()
+        # Generate GPU cluster status
+        self.__gen_cluster_gpu_status()
 
-        # Compute CPU cluster status
-        self.__set_cluster_cpu_status()
+        # Generate CPU cluster status
+        self.__gen_cluster_cpu_status()
 
-        # Compute memory cluster status
-        self.__set_cluster_memory_status()
+        # Generate memory cluster status
+        self.__gen_cluster_memory_status()
 
-        # Compute cluster node status
-        self.__set_cluster_node_status()
+        # Generate cluster node status
+        self.__gen_cluster_node_status()
 
-        # Compute cluster user status
-        self.__set_cluster_user_status()
+        # Generate cluster pod status
+        self.__gen_cluster_pod_status()
 
-        # Set available job number
-        self.__set_available_job_num()
+        # Generate cluster user status
+        self.__gen_cluster_user_status()
 
-    def to_dict(self):
-        """Returns a dictionary representing the properties of ClusterStatus"""
-        d = {
-            k: v
-            for k, v in self.__dict__.items()
-            if not k.startswith("__")
-        }
-        return dictionarize(d)
+        # Generate available job number
+        self.__gen_available_job_num()
 
     def __job_gpu_usage(self, job_id):
         try:
-            hostaddress = self.__prometheus_node
+            hostaddress = self.prometheus_node
 
             url = """http://"""+hostaddress+""":9091/prometheus/api/v1/query?query=avg%28avg_over_time%28task_gpu_percent%7Bpod_name%3D%22""" + \
                   job_id + """%22%7D%5B4h%5D%29%29+by+%28pod_name%2C+instance%2C+username%29"""
@@ -111,14 +117,14 @@ class ClusterStatus(object):
 
         return gpu_usage
 
-    def __parse_node_statuses(self):
+    def __gen_node_statuses(self):
         gpu_str = "nvidia.com/gpu"
         cpu_str = "cpu"
         mem_str = "memory"
 
         self.node_statuses = {}
 
-        for node in self.__nodes:
+        for node in self.nodes:
             # node is of class 'kubernetes.client.models.v1_node.V1Node'
             if node.metadata is None:
                 continue
@@ -228,13 +234,13 @@ class ClusterStatus(object):
 
             self.node_statuses[name] = node_status
 
-    def __parse_pod_statuses(self):
+    def __gen_pod_statuses(self):
         gpu_str = "nvidia.com/gpu"
         cpu_str = "cpu"
         mem_str = "memory"
 
         self.pod_statuses = {}
-        for pod in self.__pods:
+        for pod in self.pods:
             # pod is of class 'kubernetes.client.models.v1_pod.V1Pod'
             if pod.metadata is None:
                 continue
@@ -295,8 +301,8 @@ class ClusterStatus(object):
             preemptable_gpus = Gpu()
             cpus = Cpu()
             preemptable_cpus = Cpu()
-            mems = Memory()
-            preemptable_mems = Memory()
+            memory = Memory()
+            preemptable_memory = Memory()
 
             containers = pod.spec.containers
             if containers is not None:
@@ -306,7 +312,7 @@ class ClusterStatus(object):
                     curr_container_gpus = 0
                     container_gpus = Gpu()
                     container_cpus = Cpu()
-                    container_mems = Memory()
+                    container_memory = Memory()
                     # resources is of class
                     # 'kubernetes.client.models.v1_resource_requirements
                     # .V1ResourceRequirements'
@@ -323,16 +329,16 @@ class ClusterStatus(object):
                         container_cpus = Cpu({sku: r_requests[cpu_str]})
 
                     if mem_str in r_requests:
-                        container_mems = Memory({sku: r_requests[mem_str]})
+                        container_memory = Memory({sku: r_requests[mem_str]})
 
                     if preemption_allowed:
                         preemptable_gpus += container_gpus
                         preemptable_cpus += container_cpus
-                        preemptable_mems += container_mems
+                        preemptable_memory += container_memory
                     else:
                         gpus += container_gpus
                         cpus += container_cpus
-                        mems += container_mems
+                        memory += container_memory
 
                     pod_name += " (gpu #:%s)" % curr_container_gpus
 
@@ -348,8 +354,8 @@ class ClusterStatus(object):
                 "preemptable_gpus": preemptable_gpus,
                 "cpus": cpus,
                 "preemptable_cpus": preemptable_cpus,
-                "mems": mems,
-                "preemptable_mems": preemptable_mems,
+                "memory": memory,
+                "preemptable_memory": preemptable_memory,
                 "gpuType": gpu_type
             }
             self.pod_statuses[name] = pod_status
@@ -363,8 +369,8 @@ class ClusterStatus(object):
             pod_preemptable_gpus = pod_status["preemptable_gpus"]
             pod_cpus = pod_status["cpus"]
             pod_preemptable_cpus = pod_status["preemptable_cpus"]
-            pod_mems = pod_status["mems"]
-            pod_preemptable_mems = pod_status["preemptable_mems"]
+            pod_memory = pod_status["memory"]
+            pod_preemptable_memory = pod_status["preemptable_memory"]
 
             if node_name not in self.node_statuses:
                 continue
@@ -375,14 +381,14 @@ class ClusterStatus(object):
             node_status["gpu_preemptable_used"] += pod_preemptable_gpus
             node_status["cpu_used"] += pod_cpus
             node_status["cpu_preemptable_used"] += pod_preemptable_cpus
-            node_status["memory_used"] += pod_mems
-            node_status["memory_preemptable_used"] += pod_preemptable_mems
+            node_status["memory_used"] += pod_memory
+            node_status["memory_preemptable_used"] += pod_preemptable_memory
 
             # Only append a list pods in default namespace
             if namespace == "default":
                 node_status["pods"].append(pod_name)
 
-    def __parse_user_info(self):
+    def __gen_user_info(self):
         u_info = {}
         u_info_preemptable = {}
 
@@ -392,8 +398,8 @@ class ClusterStatus(object):
             preemptable_gpus = pod_status["preemptable_gpus"]
             cpus = pod_status["cpus"]
             preemptable_cpus = pod_status["preemptable_cpus"]
-            mems = pod_status["mems"]
-            preemptable_mems = pod_status["preemptable_mems"]
+            memory = pod_status["memory"]
+            preemptable_memory = pod_status["preemptable_memory"]
             if username is not None:
                 if username not in u_info:
                     u_info[username] = {
@@ -409,16 +415,16 @@ class ClusterStatus(object):
 
                 u_info[username]["gpu"] += gpus
                 u_info[username]["cpu"] += cpus
-                u_info[username]["memory"] += mems
+                u_info[username]["memory"] += memory
 
                 u_info_preemptable[username]["gpu"] += preemptable_gpus
                 u_info_preemptable[username]["cpu"] += preemptable_cpus
-                u_info_preemptable[username]["memory"] += preemptable_mems
+                u_info_preemptable[username]["memory"] += preemptable_memory
 
         self.user_info = u_info
         self.user_info_preemptable = u_info_preemptable
 
-    def __get_cluster_resource_status(self, r_type):
+    def __gen_cluster_resource_status(self, r_type):
         capacity = r_type()
         used = r_type()
         preemptable_used = r_type()
@@ -457,84 +463,55 @@ class ClusterStatus(object):
                     r_name, capacity, used,
                     preemptable_used, avail,
                     unschedulable, reserved)
-        return capacity, used, preemptable_used, avail, unschedulable, reserved
 
-    def __set_cluster_gpu_status(self):
-        capacity, used, preemptable_used, avail, unschedulable, reserved = \
-            self.__get_cluster_resource_status(Gpu)
+        cluster = self.cluster
+        cluster.__dict__[r_name + "_capacity"] = capacity
+        cluster.__dict__[r_name + "_used"] = used
+        cluster.__dict__[r_name + "_preemptable_used"] = preemptable_used
+        cluster.__dict__[r_name + "_available"] = avail
+        cluster.__dict__[r_name + "_unschedulable"] = unschedulable
+        cluster.__dict__[r_name + "_reserved"] = reserved
 
-        self.gpu_capacity = capacity.floor
-        self.gpu_used = used.floor
-        self.gpu_preemptable_used = preemptable_used.floor
-        self.gpu_available = avail.floor
-        self.gpu_unschedulable = unschedulable.floor
-        self.gpu_reserved = reserved.floor
+    def __gen_cluster_gpu_status(self):
+        self.__gen_cluster_resource_status(Gpu)
 
-    def __set_cluster_cpu_status(self):
-        capacity, used, preemptable_used, avail, unschedulable, reserved = \
-            self.__get_cluster_resource_status(Cpu)
+    def __gen_cluster_cpu_status(self):
+        self.__gen_cluster_resource_status(Cpu)
 
-        self.cpu_capacity = capacity.floor
-        self.cpu_used = used.floor
-        self.cpu_preemptable_used = preemptable_used.floor
-        self.cpu_available = avail.floor
-        self.cpu_unschedulable = unschedulable.floor
-        self.cpu_reserved = reserved.floor
+    def __gen_cluster_memory_status(self):
+        self.__gen_cluster_resource_status(Memory)
 
-    def __set_cluster_memory_status(self):
-        capacity, used, preemptable_used, avail, unschedulable, reserved = \
-            self.__get_cluster_resource_status(Memory)
-
-        self.memory_capacity = capacity.floor
-        self.memory_used = used.floor
-        self.memory_preemptable_used = preemptable_used.floor
-        self.memory_available = avail.floor
-        self.memory_unschedulable = unschedulable.floor
-        self.memory_reserved = reserved.floor
-
-    def __set_cluster_node_status(self):
-        for _, node_status in self.node_statuses.items():
-            for r_type in ["gpu", "cpu", "memory"]:
-                k_capacity = r_type + "_capacity"
-                k_used = r_type + "_used"
-                k_preemptable_used = r_type + "_preemptable_used"
-                k_allocatable = r_type + "_allocatable"
-
-                capacity = node_status[k_capacity].floor
-                used = node_status[k_used].floor
-                preemptable_used = node_status[k_preemptable_used].floor
-                allocatable = node_status[k_allocatable].floor
-
-                node_status[k_capacity] = capacity
-                node_status[k_used] = used
-                node_status[k_preemptable_used] = preemptable_used
-                node_status[k_allocatable] = allocatable
-
-        self.node_status = [
+    def __gen_cluster_node_status(self):
+        self.cluster.node_status = [
             node_status for _, node_status in self.node_statuses.items()
         ]
 
-    def __set_cluster_user_status(self):
-        self.user_status = [
+    def __gen_cluster_pod_status(self):
+        self.cluster.pod_status = [
+            pod_status for _, pod_status in self.pod_statuses.items()
+        ]
+
+    def __gen_cluster_user_status(self):
+        self.cluster.user_status = [
             {
                 "userName": username,
-                "userGPU": u_info["gpu"].floor,
-                "userCPU": u_info["cpu"].floor,
-                "userMemory": u_info["memory"].floor
+                "userGPU": u_info["gpu"],
+                "userCPU": u_info["cpu"],
+                "userMemory": u_info["memory"]
             } for username, u_info in self.user_info.items()
         ]
 
-        self.user_status_preemptable = [
+        self.cluster.user_status_preemptable = [
             {
                 "userName": username,
-                "userGPU": u_info["gpu"].floor,
-                "userCPU": u_info["cpu"].floor,
-                "userMemory": u_info["memory"].floor
+                "userGPU": u_info["gpu"],
+                "userCPU": u_info["cpu"],
+                "userMemory": u_info["memory"]
             } for username, u_info in self.user_info_preemptable.items()
         ]
 
-    def __set_available_job_num(self):
-        if isinstance(self.__jobs, list):
-            self.available_job_num = len(self.__jobs)
+    def __gen_available_job_num(self):
+        if isinstance(self.jobs, list):
+            self.available_job_num = len(self.jobs)
         else:
             self.available_job_num = 0

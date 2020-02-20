@@ -25,7 +25,7 @@ from ResourceInfo import ResourceInfo
 import k8s_utils
 
 from cluster_status import ClusterStatus
-from virtual_cluster_view import VirtualClusterView
+from virtual_cluster_status import VirtualClusterView
 
 k8s = k8s_utils.K8sUtil()
 
