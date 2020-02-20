@@ -18,10 +18,20 @@ handlers:
     maxBytes: 10240000
     # At most 10 logging files
     backupCount: 10
+  stats:
+    class : logging.handlers.RotatingFileHandler
+    formatter: simple
+    filename: /etc/RepairManager/activity.log
+    maxBytes: 10240000
+    backupCount: 2
 loggers:
   basic:
     level: DEBUG
     handlers: ['console','file']
+    propagate: no
+  activity:
+    level: INFO
+    handlers: ['console','stats']
     propagate: no
 root:
   level: DEBUG
