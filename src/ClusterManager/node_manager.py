@@ -25,6 +25,7 @@ from ResourceInfo import ResourceInfo
 import k8s_utils
 
 from cluster_status import ClusterStatus
+from virtual_cluster_view import VirtualClusterView
 
 k8s = k8s_utils.K8sUtil()
 
@@ -305,28 +306,40 @@ def get_cluster_status():
         A dictionary representing cluster status.
     """
     cluster_status = {}
+
     try:
+        with DataHandler() as data_handler:
+            vc_list = data_handler.ListVCs()
+            jobs = data_handler.GetActiveJobList()
+
+        # Set up cluster status
         nodes = k8s.get_all_nodes()
         pods = k8s.get_all_pods()
-        cs = ClusterStatus(config, nodes, pods)
+        prometheus_node = config.get("prometheus_node", "127.0.0.1")
+        cs = ClusterStatus(prometheus_node, nodes, pods, jobs)
         cs.compute()
         cluster_status = cs.to_dict()
-    except Exception:
-        logger.exception("Error in computing cluster status", exc_info=True)
 
-    # TODO: Deprecate typo "gpu_avaliable" in legacy code
-    cluster_status["gpu_avaliable"] = cluster_status["gpu_available"]
+        # TODO: Deprecate typo "gpu_avaliable" in legacy code
+        cluster_status["gpu_avaliable"] = cluster_status["gpu_available"]
+
+        # TODO: Deprecate typo "AvaliableJobNum" in legacy code
+        cluster_status["AvaliableJobNum"] = cluster_status["available_job_num"]
+
+        # Set up virtual cluster views
+        vc_view = VirtualClusterView(cs, vc_list)
+        cluster_status["vc"] = vc_view.to_dict().get("vc")
+    except:
+        logger.exception("Exception in setting up cluster status",
+                         exc_info=True)
 
     data_handler = None
     try:
         data_handler = DataHandler()
-        # TODO: Deprecate typo "AvaliableJobNum" in legacy code
-        cluster_status["AvaliableJobNum"] = data_handler.GetActiveJobsCount()
-        cluster_status["available_job_num"] = cluster_status["AvaliableJobNum"]
-
         if "cluster_status" in config and check_cluster_status_change(
                 config["cluster_status"], cluster_status):
-            logger.info("updating the cluster status...")
+            size = len(json.dumps(cluster_status))
+            logger.info("updating the cluster status (of len %s)...", size)
             data_handler.UpdateClusterStatus(cluster_status)
         else:
             logger.info("No diff in cluster status, skipping update in DB...")

@@ -970,6 +970,57 @@ def get_gpu_idle(vc_name):
     return ret
 
 
+def get_vc(username, vc_name):
+    ret = None
+    try:
+        with DataHandler() as data_handler:
+            cluster_status, _ = data_handler.GetClusterStatus()
+
+        vc_list = getClusterVCs()
+        for vc in vc_list:
+            if vc["vcName"] == vc_name and has_access(username, VC, vc_name, USER):
+                ret = copy.deepcopy(vc)
+
+                vc["gpu_capacity"] = cluster_status["vc_gpu_capacity"][vc_name]
+                vc["gpu_used"] = cluster_status["vc_gpu_used"][vc_name]
+                vc["gpu_preemptable_used"] = cluster_status["vc_gpu_preemptable_used"][vc_name]
+                vc["gpu_unschedulable"] = cluster_status["vc_gpu_unschedulable"][vc_name]
+                # TODO: deprecate typo "gpu_avaliable" in legacy code
+                vc["gpu_avaliable"] = cluster_status["vc_gpu_available"][vc_name]
+                vc["gpu_available"] = cluster_status["vc_gpu_available"][vc_name]
+
+                vc["cpu_capacity"] = cluster_status["vc_cpu_capacity"][vc_name]
+                vc["cpu_used"] = cluster_status["vc_cpu_used"][vc_name]
+                vc["cpu_preemptable_used"] = cluster_status["vc_cpu_preemptable_used"][vc_name]
+                vc["cpu_unschedulable"] = cluster_status["vc_cpu_unschedulable"][vc_name]
+                vc["cpu_available"] = cluster_status["vc_cpu_available"][vc_name]
+
+                vc["memory_capacity"] = cluster_status["vc_memory_capacity"][vc_name]
+                vc["memory_used"] = cluster_status["vc_memory_used"][vc_name]
+                vc["memory_preemptable_used"] = cluster_status["vc_memory_preemptable_used"][vc_name]
+                vc["memory_unschedulable"] = cluster_status["vc_memory_unschedulable"][vc_name]
+                vc["memory_available"] = cluster_status["vc_memory_available"][vc_name]
+
+                # TODO: deprecate typo "AvaliableJobNum" in legacy code
+                vc["AvaliableJobNum"] = cluster_status["vc_num_active_jobs"][vc_name]
+                vc["available_job_num"] = cluster_status["vc_num_active_jobs"][vc_name]
+
+                vc["node_status"] = cluster_status["node_status"]
+                vc["user_status"] = cluster_status["vc_user_status"]
+                vc["user_status_preemptable"] = cluster_status["vc_user_status_preemptable"]
+
+                gpu_idle = get_gpu_idle(vc_name)
+                if gpu_idle is not None:
+                    vc["gpu_idle"] = gpu_idle
+
+                ret = dictionarize(ret)
+                break
+    except:
+        logger.exception("Exception in getting VC", exc_info=True)
+
+    return ret
+
+
 def GetVC(user_name, vc_name):
     # TODO: Expose CPU/memory usage for users
     ret = None

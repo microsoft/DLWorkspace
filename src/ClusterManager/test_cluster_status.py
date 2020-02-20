@@ -119,22 +119,37 @@ class TestClusterStatus(TestCase):
         inclusion = [
             "gpu_capacity",
             "gpu_used",
+            "gpu_preemptable_used",
             "gpu_available",
             "gpu_unschedulable",
             "gpu_reserved",
+            "cpu_capacity",
+            "cpu_used",
+            "cpu_preemptable_used",
+            "cpu_available",
+            "cpu_unschedulable",
+            "cpu_reserved",
+            "memory_capacity",
+            "memory_used",
+            "memory_preemptable_used",
+            "memory_available",
+            "memory_unschedulable",
+            "memory_reserved",
             "node_status",
+            "pod_status",
             "user_status",
-            "user_status_preemptable"
+            "user_status_preemptable",
+            "available_job_num",
         ]
         exclusion = [
-            "prometheus_node",
-            "nodes",
-            "pods",
-            "node_statuses",
-            "pod_statuses",
-            "user_info",
-            "user_info_preemptable",
-            "dict_exclusion"
+            "__prometheus_node",
+            "__nodes",
+            "__pods",
+            "__jobs",
+            "__node_statuses",
+            "__pod_statuses",
+            "__user_info",
+            "__user_info_preemptable",
         ]
 
         cs = ClusterStatus({}, [], [])
@@ -562,3 +577,5 @@ class TestClusterStatus(TestCase):
         ]
         self.assertEqual(t_user_status_preemptable,
                          cs.user_status_preemptable)
+
+        self.assertEqual(0, cs.available_job_num)

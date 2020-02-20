@@ -317,7 +317,6 @@ class PostJob(Resource):
     def post(self):
         params = request.get_json(force=True)
         logger.info("Post Job")
-        logger.info(params)
 
         ret = {}
         output = JobRestAPIUtils.SubmitJob(json.dumps(params))
@@ -329,6 +328,8 @@ class PostJob(Resource):
                 ret["error"] = "Cannot create job!" + output["error"]
             else:
                 ret["error"] = "Cannot create job!"
+
+        logger.info(params)
         logger.info("Submit job through restapi, output is %s, ret is %s", output, ret)
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
