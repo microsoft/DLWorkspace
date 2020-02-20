@@ -26,7 +26,7 @@ sys.path.append(
 
 from ResourceInfo import ResourceInfo
 from DataHandler import DataHandler
-from config import config, GetStoragePath
+from config import config
 import notify
 import k8sUtils
 import quota
@@ -334,24 +334,12 @@ def UpdateJobStatus(redis_conn,
         dataHandler = DataHandler()
     else:
         dataHandler = dataHandlerOri
-    jobParams = json.loads(
-        base64.b64decode(job["jobParams"].encode("utf-8")).decode("utf-8"))
 
     result, details = launcher.get_job_status(job["jobId"])
     logger.info("++++++++ Job status: {} {}".format(job["jobId"], result))
 
-    jobPath, workPath, dataPath = GetStoragePath(jobParams["jobPath"],
-                                                 jobParams["workPath"],
-                                                 jobParams["dataPath"])
-    localJobPath = os.path.join(config["storage-mount-path"], jobPath)
-    logPath = os.path.join(localJobPath, "logs/joblog.txt")
-
-    if "userId" not in jobParams:
-        jobParams["userId"] = "0"
-
     if result == "Succeeded":
-        joblog_manager.extract_job_log(job["jobId"], logPath,
-                                       jobParams["userId"])
+        joblog_manager.extract_job_log(job["jobId"])
 
         # TODO: Refactor
         detail = get_job_status_detail(job)
@@ -406,8 +394,7 @@ def UpdateJobStatus(redis_conn,
                                                     job["jobId"],
                                                     result.strip()))
 
-        joblog_manager.extract_job_log(job["jobId"], logPath,
-                                       jobParams["userId"])
+        joblog_manager.extract_job_log(job["jobId"])
 
         # TODO: Refactor
         detail = get_job_status_detail(job)
