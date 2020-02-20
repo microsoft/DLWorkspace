@@ -325,3 +325,23 @@ def test_blobfuse(args):
         assert code == 0, "code is %d, output is %s" % (code, output)
         assert msg + "\n" == output, "code is %d, output is %s" % (code,
                                                                    output)
+
+
+# uncomment to run perf case
+#@utils.case
+def perf(args):
+    cmd = "sleep 30"
+
+    job_spec = utils.gen_default_job_description("distributed",
+                                                 args.email,
+                                                 args.uid,
+                                                 args.vc,
+                                                 cmd=cmd)
+    jids = []
+    for _ in range(50):
+        jids.append(utils.post_job(args.rest, job_spec))
+
+    for jid in jids:
+        state = utils.block_until_state_not_in(
+            args.rest, jid, {"unapproved", "queued", "scheduling", "running"})
+        logger.info("%s is in state %s", jid, state)

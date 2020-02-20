@@ -19,4 +19,4 @@ spec:
       # serviceAccountName: frameworkcontroller
       containers:
       - name: frameworkcontroller
-        image: frameworkcontroller/frameworkcontroller:v0.5.1
+        image: xudifsd/frameworkcontroller
