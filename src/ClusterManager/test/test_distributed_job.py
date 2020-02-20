@@ -337,11 +337,13 @@ def perf(args):
                                                  args.uid,
                                                  args.vc,
                                                  cmd=cmd)
-    jids = []
-    for _ in range(50):
-        jids.append(utils.post_job(args.rest, job_spec))
+    for _ in range(10):
+        jids = []
+        for _ in range(5):
+            jids.append(utils.post_job(args.rest, job_spec))
 
-    for jid in jids:
-        state = utils.block_until_state_not_in(
-            args.rest, jid, {"unapproved", "queued", "scheduling", "running"})
-        logger.info("%s is in state %s", jid, state)
+        for jid in jids:
+            state = utils.block_until_state_not_in(
+                args.rest, jid,
+                {"unapproved", "queued", "scheduling", "running"})
+            logger.info("%s is in state %s", jid, state)
