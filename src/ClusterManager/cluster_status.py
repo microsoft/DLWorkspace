@@ -297,10 +297,10 @@ class ClusterStatus(object):
                 if gpu_usage <= 25:
                     pod_name += "!!!!!!"
 
-            gpus = Gpu()
-            preemptable_gpus = Gpu()
-            cpus = Cpu()
-            preemptable_cpus = Cpu()
+            gpu = Gpu()
+            preemptable_gpu = Gpu()
+            cpu = Cpu()
+            preemptable_cpu = Cpu()
             memory = Memory()
             preemptable_memory = Memory()
 
@@ -309,9 +309,9 @@ class ClusterStatus(object):
                 for container in containers:
                     # container is of class
                     # 'kubernetes.client.models.v1_container.V1Container'
-                    curr_container_gpus = 0
-                    container_gpus = Gpu()
-                    container_cpus = Cpu()
+                    curr_container_gpu = 0
+                    container_gpu = Gpu()
+                    container_cpu = Cpu()
                     container_memory = Memory()
                     # resources is of class
                     # 'kubernetes.client.models.v1_resource_requirements
@@ -322,25 +322,25 @@ class ClusterStatus(object):
                         r_requests = resources.requests
 
                     if gpu_str in r_requests:
-                        curr_container_gpus = int(r_requests[gpu_str])
-                        container_gpus = Gpu({sku: curr_container_gpus})
+                        curr_container_gpu = int(r_requests[gpu_str])
+                        container_gpu = Gpu({sku: curr_container_gpu})
 
                     if cpu_str in r_requests:
-                        container_cpus = Cpu({sku: r_requests[cpu_str]})
+                        container_cpu = Cpu({sku: r_requests[cpu_str]})
 
                     if mem_str in r_requests:
                         container_memory = Memory({sku: r_requests[mem_str]})
 
                     if preemption_allowed:
-                        preemptable_gpus += container_gpus
-                        preemptable_cpus += container_cpus
+                        preemptable_gpu += container_gpu
+                        preemptable_cpu += container_cpu
                         preemptable_memory += container_memory
                     else:
-                        gpus += container_gpus
-                        cpus += container_cpus
+                        gpu += container_gpu
+                        cpu += container_cpu
                         memory += container_memory
 
-                    pod_name += " (gpu #:%s)" % curr_container_gpus
+                    pod_name += " (gpu #:%s)" % curr_container_gpu
 
             pod_status = {
                 "pod_name": pod_name,
@@ -350,10 +350,10 @@ class ClusterStatus(object):
                 "node_name": node_name,
                 "username": username,
                 "preemption_allowed": preemption_allowed,
-                "gpus": gpus,
-                "preemptable_gpus": preemptable_gpus,
-                "cpus": cpus,
-                "preemptable_cpus": preemptable_cpus,
+                "gpu": gpu,
+                "preemptable_gpu": preemptable_gpu,
+                "cpu": cpu,
+                "preemptable_cpu": preemptable_cpu,
                 "memory": memory,
                 "preemptable_memory": preemptable_memory,
                 "gpuType": gpu_type
@@ -365,22 +365,22 @@ class ClusterStatus(object):
             pod_name = pod_status["pod_name"]
             namespace = pod_status["namespace"]
             node_name = pod_status["node_name"]
-            pod_gpus = pod_status["gpus"]
-            pod_preemptable_gpus = pod_status["preemptable_gpus"]
-            pod_cpus = pod_status["cpus"]
-            pod_preemptable_cpus = pod_status["preemptable_cpus"]
+            pod_gpu = pod_status["gpu"]
+            pod_preemptable_gpu = pod_status["preemptable_gpu"]
+            pod_cpu = pod_status["cpu"]
+            pod_preemptable_cpu = pod_status["preemptable_cpu"]
             pod_memory = pod_status["memory"]
             pod_preemptable_memory = pod_status["preemptable_memory"]
 
             if node_name not in self.node_statuses:
                 continue
 
-            # NOTE gpu_used may include those unallocatable gpus
+            # NOTE gpu_used may include those unallocatable gpu
             node_status = self.node_statuses[node_name]
-            node_status["gpu_used"] += pod_gpus
-            node_status["gpu_preemptable_used"] += pod_preemptable_gpus
-            node_status["cpu_used"] += pod_cpus
-            node_status["cpu_preemptable_used"] += pod_preemptable_cpus
+            node_status["gpu_used"] += pod_gpu
+            node_status["gpu_preemptable_used"] += pod_preemptable_gpu
+            node_status["cpu_used"] += pod_cpu
+            node_status["cpu_preemptable_used"] += pod_preemptable_cpu
             node_status["memory_used"] += pod_memory
             node_status["memory_preemptable_used"] += pod_preemptable_memory
 
@@ -394,10 +394,10 @@ class ClusterStatus(object):
 
         for _, pod_status in self.pod_statuses.items():
             username = pod_status["username"]
-            gpus = pod_status["gpus"]
-            preemptable_gpus = pod_status["preemptable_gpus"]
-            cpus = pod_status["cpus"]
-            preemptable_cpus = pod_status["preemptable_cpus"]
+            gpu = pod_status["gpu"]
+            preemptable_gpu = pod_status["preemptable_gpu"]
+            cpu = pod_status["cpu"]
+            preemptable_cpu = pod_status["preemptable_cpu"]
             memory = pod_status["memory"]
             preemptable_memory = pod_status["preemptable_memory"]
             if username is not None:
@@ -413,12 +413,12 @@ class ClusterStatus(object):
                         "memory": Memory()
                     }
 
-                u_info[username]["gpu"] += gpus
-                u_info[username]["cpu"] += cpus
+                u_info[username]["gpu"] += gpu
+                u_info[username]["cpu"] += cpu
                 u_info[username]["memory"] += memory
 
-                u_info_preemptable[username]["gpu"] += preemptable_gpus
-                u_info_preemptable[username]["cpu"] += preemptable_cpus
+                u_info_preemptable[username]["gpu"] += preemptable_gpu
+                u_info_preemptable[username]["cpu"] += preemptable_cpu
                 u_info_preemptable[username]["memory"] += preemptable_memory
 
         self.user_info = u_info

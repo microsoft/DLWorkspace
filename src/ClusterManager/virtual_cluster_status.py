@@ -57,7 +57,7 @@ class VirtualClusterStatus(object):
         return ret
 
     def compute(self):
-        self.__gen_used_resource()
+        vc_used, vc_preemptable_used = self.__get_vc_usage()
 
         (
             vc_total,
@@ -78,9 +78,6 @@ class VirtualClusterStatus(object):
         self.__gen_memory_status(metric_map)
 
     def __get_vc_usage(self):
-        def base64decode(s):
-            return base64.b64decode(s.encode("utf-8")).decode("utf-8")
-
         vc_used = collections.defaultdict(lambda: ClusterResource())
         vc_preemptable_used = collections.defaultdict(lambda: ClusterResource())
 
@@ -148,6 +145,10 @@ class VirtualClusterStatus(object):
             if job_id is not None:
                 job_id_to_pods[job_id].append(pod_status)
 
+        # Account jobs that do not have pods yet
+        def base64decode(s):
+            return base64.b64decode(s.encode("utf-8")).decode("utf-8")
+
         for job in self.jobs:
             job_params = json.loads(base64decode(job["jobParams"]))
 
@@ -160,9 +161,17 @@ class VirtualClusterStatus(object):
                 logger.debug("Job %s is accounted in k8s pods", job_id)
                 continue
 
-            job_res = get_resource_params_from_job_params(job_params)
-            vc_used[job["vcName"]] += ClusterResource(params=job_res)
-            logger.info("Added job %s resource to vc usage", job_id)
+            job_res_params = get_resource_params_from_job_params(job_params)
+            job_res = ClusterResource(params=job_res_params)
+
+            vc_name = job_params["vcName"]
+            if not job_params["preemptionAllowed"]:
+                vc_used[vc_name] += job_res
+            else:
+                vc_preemptable_used[vc_name] += job_res
+            logger.info("Added job %s resource to the usage of vc %s",
+                        job_id,
+                        vc_name)
 
         return vc_used, vc_preemptable_used
 
