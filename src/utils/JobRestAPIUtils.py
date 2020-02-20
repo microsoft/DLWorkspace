@@ -30,6 +30,8 @@ sys.path.append(os.path.join(os.path.dirname(
 
 from ResourceInfo import ResourceInfo
 from cluster_resource import ClusterResource
+from resource_stat import dictionarize
+from job_params_util import get_resource_params_from_job_params
 from JobLogUtils import GetJobLog as UtilsGetJobLog
 
 DEFAULT_JOB_PRIORITY = 100
@@ -51,6 +53,7 @@ has_access = AuthorizationManager.HasAccess
 VC = ResourceType.VC
 ADMIN = Permission.Admin
 COLLABORATOR = Permission.Collaborator
+USER = Permission.User
 DEFAULT_EXPIRATION = 24 * 30 * 60
 vc_cache = TTLCache(maxsize=10240, ttl=DEFAULT_EXPIRATION)
 vc_cache_lock = Lock()
@@ -251,6 +254,42 @@ def populate_cpu_resource(job_params):
         job_params["memorylimit"] = default_mem_limit
 
 
+def populate_sku(job_params):
+    # Job params already specify sku
+    sku = job_params.get("sku", "")
+    if sku != "":
+        return
+
+    # Populate sku with one from vc info in DB
+    vc_name = job_params["vcName"]
+    vc_lists = getClusterVCs()
+    vc_info = None
+    for vc in vc_lists:
+        if vc["vcName"] == vc_name:
+            vc_info = vc
+            break
+
+    if vc_info is None:
+        logger.warning("vc info for %s is None", vc_name)
+        return
+
+    try:
+        resource_quota = json.loads(vc_info["resourceQuota"])
+    except:
+        logger.exception("Failed to parse resource_quota")
+        return
+
+    resource_gpu = job_params["resourcegpu"]
+    if resource_gpu > 0:
+        gpu = resource_quota.get("gpu", {})
+        if len(gpu) > 0:
+            job_params["sku"] = list(gpu.keys())[0]
+    else:
+        cpu = resource_quota.get("cpu", {})
+        if len(cpu) > 0:
+            job_params["sku"] = list(cpu.keys())[0]
+
+
 def SubmitJob(jobParamsJsonStr):
     ret = {}
 
@@ -287,7 +326,10 @@ def SubmitJob(jobParamsJsonStr):
             jobParams["resourcegpu"] = int(jobParams["resourcegpu"])
 
     # Populate CPU resource requirement
+    # TODO: Remove this
     populate_cpu_resource(jobParams)
+
+    populate_sku(jobParams)
 
     if "familyToken" not in jobParams or jobParams["familyToken"].isspace():
         jobParams["familyToken"] = uniqId
@@ -913,6 +955,21 @@ def ListVCs(userName):
     return ret
 
 
+def get_gpu_idle(vc_name):
+    ret = None
+    try:
+        gpu_idle_url = config["gpu_reporter"] + '/gpu_idle'
+        gpu_idle_params = {"vc": vc_name}
+        gpu_idle_response = requests.get(
+            gpu_idle_url, params=gpu_idle_params)
+        gpu_idle_json = gpu_idle_response.json()
+        ret = gpu_idle_json
+    except Exception:
+        logger.exception("Failed to fetch gpu_idle from "
+                         "gpu-exporter")
+    return ret
+
+
 def GetVC(user_name, vc_name):
     # TODO: Expose CPU/memory usage for users
     ret = None
@@ -955,22 +1012,27 @@ def GetVC(user_name, vc_name):
 
             # Cluster resource calculation
             # Currently including CPU and memory
-            cluster_resource_capacity = ClusterResource(resource={
-                "cpu": cluster_status["cpu_capacity"],
-                "memory": cluster_status["memory_capacity"]
-            })
-            cluster_resource_available = ClusterResource(resource={
-                "cpu": cluster_status["cpu_available"],
-                "memory": cluster_status["memory_available"]
-            })
-            cluster_resource_reserved = ClusterResource(resource={
-                "cpu": cluster_status["cpu_reserved"],
-                "memory": cluster_status["memory_reserved"]
-            })
-            cluster_resource_unschedulable = ClusterResource(resource={
-                "cpu": cluster_status["cpu_unschedulable"],
-                "memory": cluster_status["memory_unschedulable"]
-            })
+            cluster_resource_capacity = ClusterResource(
+                params={
+                    "cpu": cluster_status["cpu_capacity"],
+                    "memory": cluster_status["memory_capacity"],
+                    "gpu": cluster_status["gpu_capacity"],
+                }
+            )
+            cluster_resource_available = ClusterResource(
+                params={
+                    "cpu": cluster_status["cpu_available"],
+                    "memory": cluster_status["memory_available"],
+                    "gpu": cluster_status["gpu_available"],
+                }
+            )
+            cluster_resource_reserved = ClusterResource(
+                params={
+                    "cpu": cluster_status["cpu_reserved"],
+                    "memory": cluster_status["memory_reserved"],
+                    "gpu": cluster_status["gpu_reserved"],
+                }
+            )
 
             vc_resource_info = {}
             vc_resource_usage = collections.defaultdict(
@@ -983,13 +1045,14 @@ def GetVC(user_name, vc_name):
                 except:
                     logger.exception("Parsing resourceQuota failed for %s", vc)
                 vc_resource_info[vc["vcName"]] = ClusterResource(
-                    resource=res_quota)
+                    params=res_quota)
 
             for job in active_job_list:
                 job_params = json.loads(base64.b64decode(
                     job["jobParams"].encode("utf-8")).decode("utf-8"))
+                job_res = get_resource_params_from_job_params(job_params)
                 vc_resource_usage[job["vcName"]] += ClusterResource(
-                    params=job_params)
+                    params=job_res)
 
             result = quota.calculate_vc_resources(cluster_resource_capacity,
                                                   cluster_resource_available,
@@ -1063,17 +1126,10 @@ def GetVC(user_name, vc_name):
                         user_name = user_name.split("@")[0].strip()
                         vc["user_status_preemptable"].append({"userName": user_name, "userGPU": user_gpu.ToSerializable()})
 
-                    try:
-                        gpu_idle_url = config["gpu_reporter"] + '/gpu_idle'
-                        gpu_idle_params = {"vc": vc_name}
-                        gpu_idle_response = requests.get(
-                            gpu_idle_url, params=gpu_idle_params)
-                        gpu_idle_json = gpu_idle_response.json()
-                        vc["gpu_idle"] = gpu_idle_json
-                    except Exception:
-                        logger.exception("Failed to fetch gpu_idle from "
-                                         "gpu-exporter")
-                    ret = vc
+                    gpu_idle = get_gpu_idle(vc_name)
+                    if gpu_idle is not None:
+                        vc["gpu_idle"] = gpu_idle
+                    ret = dictionarize(vc)
                     break
 
     except Exception:
@@ -1431,3 +1487,4 @@ if __name__ == '__main__':
 
     if TEST_GET_LOG:
         print(GetLog("tf-i-1483566214-12"))
+

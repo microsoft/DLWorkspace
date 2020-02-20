@@ -20,6 +20,9 @@ class Cluster extends Service {
    */
   constructor (context, id) {
     super(context)
+    if (id === '.default') {
+      id = Object.keys(clustersConfig)[0]
+    }
     this.id = id
     this.config = clustersConfig[id]
     context.assert(this.config != null, 404, 'Cluster is not found')

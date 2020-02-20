@@ -11,10 +11,9 @@ import utils
 import textwrap
 import argparse
 sys.path.append("../utils")
-from params import default_config_parameters
-from DockerUtils import push_one_docker, build_dockers, push_dockers, run_docker, find_dockers, build_docker_fullname, copy_from_docker_image, configuration
 from ConfigUtils import *
-
+from DockerUtils import push_one_docker, build_dockers, push_dockers, run_docker, find_dockers, build_docker_fullname, copy_from_docker_image, configuration
+from params import default_config_parameters
 
 def generate_ip_from_cluster(cluster_ip_range, index):
     slash_pos = cluster_ip_range.find("/")
@@ -74,9 +73,14 @@ def load_az_params_as_default(config):
     )} if "azure_cluster" in config else {}
     merge_config(config["azure_cluster"], default_cfg["azure_cluster"])
     merge_config(config["azure_cluster"], azure_cluster_cfg)
+    if "sku_mapping" in default_cfg and not "sku_mapping" in config:
+        config["sku_mapping"] = default_cfg["sku_mapping"]
     domain_mapping = {"regular": "%s.cloudapp.azure.com" % config["azure_cluster"]["azure_location"], "low": config.get(
-        "network_domain", config["azure_cluster"]["default_low_priority_domain"])}
+        "network", {}).get("domain", config["azure_cluster"]["default_low_priority_domain"])}
     config["network"] = {"domain": domain_mapping[config["priority"]]}
+    homo_vmsize = config["machines"][config["worker_node"][0].split('.')[0]]["vm_size"]
+    config['gpu_type'] = config.get("sku_mapping", {}).get(homo_vmsize, {}).get("gpu-type", "None")
+    print(config['gpu_type'])
     return config
 
 
@@ -96,23 +100,20 @@ def load_platform_type(config):
 
 def gen_platform_wise_config(config):
     config = load_platform_type(config)
-    azdefault = {'network_domain': "config['network']['domain']",
-                 'worker_node_num': "config['azure_cluster']['worker_node_num']",
-                 'gpu_count_per_node': 'config["sku_mapping"].get(config["azure_cluster"]["worker_vm_size"],config["sku_mapping"]["default"])["gpu-count"]',
-                 'gpu_type': 'config["sku_mapping"].get(config["azure_cluster"]["worker_vm_size"],config["sku_mapping"]["default"])["gpu-type"]'}
-    on_premise_default = {'network_domain': "config['network']['domain']"}
-    platform_dict = {'azure_cluster': azdefault,
-                     'onpremise': on_premise_default}
     platform_func = {'azure_cluster': load_az_params_as_default,
                      'onpremise': on_premise_params}
-    default_dict, default_func = platform_dict[config["platform_type"]
-                                               ], platform_func[config["platform_type"]]
+    default_func = platform_func[config["platform_type"]]
     config = default_func(config)
-    need_val = ['network_domain', 'worker_node_num',
-                'gpu_count_per_node', 'gpu_type']
-    for ky in need_val:
-        if ky not in config:
-            config[ky] = eval(default_dict[ky])
+    return config
+
+
+def get_stat_of_sku(config):
+    cntr = {}
+    for mc in config["worker_node"]:
+        mn = mc.split('.')[0]
+        vm_sz = config["machines"][mn]["vm_size"]
+        cntr[vm_sz] = cntr.get(vm_sz, 0) + 1
+    config["worker_sku_cnt"] = cntr
     return config
 
 
@@ -178,9 +179,6 @@ def load_node_list_by_role_from_config(config, roles):
         role = "infra" if role == "infrastructure" else role
         temp_nodes = []
         temp_nodes = get_nodes_from_config(role, config)
-        # if role == "infra":
-        #   config["etcd_node"] = temp_nodes
-        #   config["kubernetes_master_node"] = temp_nodes
         config["{}_node".format(role)] = temp_nodes
         Nodes += temp_nodes
     return Nodes, config
@@ -248,7 +246,7 @@ def load_default_config(config):
         "common": ["./scripts/mkdir_and_cp.sh",
                    "./scripts/prepare_vm_disk.sh", "./scripts/prepare_ubuntu.sh",
                    "./scripts/disable_kernel_auto_updates.sh", "./scripts/docker_network_gc_setup.sh",
-                   "./scripts/dns.sh", "./deploy/etcd/init_network.sh", "scripts/render_env_vars.sh",
+                   "./deploy/scripts/dns.sh", "./deploy/etcd/init_network.sh", "scripts/render_env_vars.sh",
                    "scripts/fileshare_install.sh", "scripts/mnt_fs_svc.sh"],
 
         "infra": ["./deploy/master/" + config["premasterdeploymentscript"],
@@ -459,9 +457,12 @@ def gen_mounting_yaml(config):
                     v["leaves"] = [{"nfs_local_path": fldr, "remote_mount_path": fldr, "remote_link_path": fldr}
                                    for fldr in config["default-storage-folders"]]
                 for leaf in v["leaves"]:
-                    mnt_from = os.path.join(src_root, vc, leaf["nfs_local_path"])
-                    mnt_mnt = os.path.join(mnt_root, vc, leaf["remote_mount_path"])
-                    mnt_lnk = os.path.join(lnk_root, vc, leaf["remote_link_path"])
+                    mnt_from = os.path.join(
+                        src_root, vc, leaf["nfs_local_path"])
+                    mnt_mnt = os.path.join(
+                        mnt_root, vc, leaf["remote_mount_path"])
+                    mnt_lnk = os.path.join(
+                        lnk_root, vc, leaf["remote_link_path"])
                     if mnt_mnt in mount_sources_set:
                         raise Exception(
                             "Duplicate mounting source path detected:\n{}".format(mnt_mnt))
@@ -487,8 +488,9 @@ def get_kube_labels_of_machine_name(config, node_name):
     default_grp = config["machines"][node_name].get("kube_label_groups", [])
     default_labels = {}
     for grp in default_grp:
-        default_labels.update(config["default_kube_labels_by_node_role"].get(grp,{}))
-    default_labels.update(config["machines"][node_name].get("kube_labels",{}))
+        default_labels.update(
+            config["default_kube_labels_by_node_role"].get(grp, {}))
+    default_labels.update(config["machines"][node_name].get("kube_labels", {}))
     return [ky.replace("/", "\\/") + '=' + val.replace("/", "\\/") for ky, val in default_labels.items()]
 
 
@@ -526,11 +528,13 @@ def render_worker_node_specific(config, args):
         for fs in mnt_itm["fileshares"]:
             config["mount_and_link"] += fs["remote_mount_path"],
     worker_name = config["worker_node"][0].split(".")[0]
-    config["kube_labels"] = get_kube_labels_of_machine_name(config, worker_name)
-    config["kube_labels"] += ["gpuType=$GPU_TYPE"]
-    config["gpu_type"] = config["machines"][worker_name]["gpu_type"]
-    utils.render_template("./template/cloud-config/cloud_init_worker.txt.template",
-                          "./deploy/cloud-config/cloud_init_worker.txt", config)
+    common_worker_labels = get_kube_labels_of_machine_name(config, worker_name)
+    config = get_stat_of_sku(config)
+    for sku in config["worker_sku_cnt"]:
+        config["kube_labels"] = common_worker_labels + ["sku={}".format(sku), "gpuType={}".format(
+            config.get("sku_mapping", {}).get(sku, {}).get("gpu-type", "None"))]
+        utils.render_template("./template/cloud-config/cloud_init_worker.txt.template",
+                              "./deploy/cloud-config/cloud_init_worker_{}.txt".format(sku), config)
 
 
 def render_nfs_node_specific(config, args):
@@ -546,7 +550,8 @@ def render_nfs_node_specific(config, args):
         config["files2share"] = []
         for itm in mounting[nfs_machine_name]["fileshares"]:
             config["files2share"] += itm["nfs_local_path"],
-        config["kube_labels"] = get_kube_labels_of_machine_name(config, nfs_machine_name)
+        config["kube_labels"] = get_kube_labels_of_machine_name(
+            config, nfs_machine_name)
         utils.render_template("./template/cloud-config/cloud_init_nfs.txt.template",
                               "./deploy/cloud-config/cloud_init_{}.txt".format(nfs.split(".")[0]), config)
     config.pop("files2share", "")
@@ -717,6 +722,7 @@ def render_kubelet(config, args):
 def render_restfulapi(config):
     if not os.path.exists("./deploy/RestfulAPI"):
         os.system("mkdir -p ./deploy/RestfulAPI")
+    config = get_stat_of_sku(config)
     utils.render_template("./template/RestfulAPI/config.yaml",
                           "./deploy/RestfulAPI/config.yaml", config)
     utils.render_template("./template/master/restapi-kubeconfig.yaml",
@@ -763,8 +769,8 @@ def render_webui(config):
 
 def gen_dns_config_script(config):
     utils.render_template("./template/dns/dns.sh.template",
-                          "scripts/dns.sh", config)
-    os.system('chmod 755 scripts/dns.sh')
+                          "deploy/scripts/dns.sh", config)
+    os.system('chmod 755 deploy/scripts/dns.sh')
 
 
 def pack_cloudinit_roles(config, args):
@@ -774,7 +780,6 @@ def pack_cloudinit_roles(config, args):
         pack_cloudinit_role(config, role)
     if gen_tar:
         os.system(gen_tar)
-
 
 
 def pack_cloudinit_role(config, role):
@@ -938,7 +943,8 @@ def run_command(args, command, parser):
     if command == "clusterID":
         create_cluster_id(args.force)
     else:
-        args.config = ["config.yaml", "az_complementary.yaml"] if len(args.config) == 0 else args.config
+        args.config = ["config.yaml", "az_complementary.yaml"] if len(
+            args.config) == 0 else args.config
         config = load_config(args)
     if command == "dumpconfig":
         with open("todeploy.yaml", "w") as wf:
@@ -979,7 +985,8 @@ def run_command(args, command, parser):
             if nargs[0] == "servicesprerequisite":
                 push_all_prerequisite_docker_images(args, config)
     if command == "test":
-        print(rs)
+        pass
+
 
 if __name__ == '__main__':
     # the program always run at the current directory.

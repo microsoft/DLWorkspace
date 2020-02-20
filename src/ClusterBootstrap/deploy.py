@@ -723,8 +723,6 @@ def gen_platform_wise_config():
     load_platform_type()
     azdefault = {'network_domain': "config['network']['domain']",
                  'worker_node_num': "config['azure_cluster']['worker_node_num']",
-                 'gpu_count_per_node': 'config["sku_mapping"].get(config["azure_cluster"]["worker_vm_size"],config["sku_mapping"]["default"])["gpu-count"]',
-                 'gpu_type': 'config["sku_mapping"].get(config["azure_cluster"]["worker_vm_size"],config["sku_mapping"]["default"])["gpu-type"]',
                  'etcd_node_num': "config['azure_cluster']['infra_node_num']"}
     on_premise_default = {'network_domain': "config['network']['domain']"}
     platform_dict = {'azure_cluster': azdefault,
@@ -734,8 +732,7 @@ def gen_platform_wise_config():
     default_dict, default_func = platform_dict[config["platform_type"]
                                                ], platform_func[config["platform_type"]]
     default_func()
-    need_val = ['network_domain', 'worker_node_num',
-                'gpu_count_per_node', 'gpu_type']
+    need_val = ['network_domain', 'worker_node_num']
     config['etcd_node_num'] = config.get('etcd_node_num')
 
     for ky in need_val:
@@ -2600,10 +2597,8 @@ def get_node_lists_for_service(service):
 
 def kubernetes_label_nodes(verb, servicelists, force):
     servicedic = get_all_services()
-    print("servicedic\n", servicedic)
     get_nodes(config["clusterId"])
     labels = fetch_config(config, ["kubelabels"])
-    print("labels\n", labels)
     for service, serviceinfo in servicedic.items():
         servicename = get_service_name(servicedic[service])
         if (not service in labels) and (not servicename in labels) and "default" in labels and (not servicename is None):
@@ -2614,7 +2609,6 @@ def kubernetes_label_nodes(verb, servicelists, force):
         for service in servicelists:
             if (not service in labels) and "default" in labels:
                 labels[service] = labels["default"]
-    print(servicelists)
     for label in servicelists:
         nodes = get_node_lists_for_service(label)
         if verbose:
@@ -2638,8 +2632,9 @@ def kubernetes_label_nodes(verb, servicelists, force):
 def kubernetes_label_GpuTypes():
     for nodename, nodeInfo in list(config["machines"].items()):
         if nodeInfo["role"] == "worker":
+            gpu_type = config.get("sku_mapping", {}).get(nodeInfo["node-group"], {}).get("gpu-type", "None")
             kubernetes_label_node("--overwrite", nodename,
-                                  "gpuType="+nodeInfo["gpu-type"])
+                                  "gpuType={}".format(gpu_type))
 
 
 def populate_machine_sku(machine_info):

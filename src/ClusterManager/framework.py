@@ -38,10 +38,10 @@ class Framework(object):
     def __init__(self, init_image, labels, annotations, roles, job_id,
                  pod_name, user_cmd, alias, email, gid, uid, mount_points,
                  plugins, family_token, vc_name, dns_policy, node_selector,
-                 home_folder_host_path, is_fragment_gpu_job,
+                 home_folder_host_path,
                  is_preemption_allowed, is_host_network, is_host_ipc,
                  is_privileged, is_nccl_ib_disabled):
-        self.init_image = init_image  # str
+        self.init_image = init_image  # str, maybe None
         self.labels = labels  # map
         self.annotations = annotations  # map
         self.roles = roles  # a map, key is role name, value is Role object
@@ -59,7 +59,6 @@ class Framework(object):
         self.dns_policy = dns_policy  # str
         self.node_selector = node_selector  # map
         self.home_folder_host_path = home_folder_host_path  # str
-        self.is_fragment_gpu_job = is_fragment_gpu_job  # bool
         self.is_preemption_allowed = is_preemption_allowed  # bool
         self.is_host_network = is_host_network  # bool
         self.is_host_ipc = is_host_ipc  # bool
@@ -82,15 +81,15 @@ def gen_init_container(job, role):
             "value": "DEBUG"
         },
         {
-            "name": "DLWS_JOB_ID",
+            "name": "DLTS_JOB_ID",
             "value": str(job.job_id)
         },
         {
-            "name": "DLWS_NUM_PS",
+            "name": "DLTS_NUM_PS",
             "value": str(ps_count)
         },
         {
-            "name": "DLWS_NUM_WORKER",
+            "name": "DLTS_NUM_WORKER",
             "value": str(worker_count)
         },
         {
@@ -112,7 +111,7 @@ def gen_init_container(job, role):
     ]
 
     if job.is_host_network:
-        envs.append({"name": "DLWS_HOST_NETWORK", "value": "enable"})
+        envs.append({"name": "DLTS_HOST_NETWORK", "value": "enable"})
 
     return [{
         "name":
@@ -165,11 +164,23 @@ def gen_container_envs(job, role):
             "value": str(job.job_id)
         },
         {
+            "name": "DLTS_JOB_ID",
+            "value": str(job.job_id)
+        },
+        {
             "name": "DLWS_NUM_PS",
             "value": str(ps_count)
         },
         {
+            "name": "DLTS_NUM_PS",
+            "value": str(ps_count)
+        },
+        {
             "name": "DLWS_NUM_WORKER",
+            "value": str(worker_count)
+        },
+        {
+            "name": "DLTS_NUM_WORKER",
             "value": str(worker_count)
         },
         {
@@ -193,7 +204,15 @@ def gen_container_envs(job, role):
             "value": str(job.gid)
         },
         {
+            "name": "DLTS_GID",
+            "value": str(job.gid)
+        },
+        {
             "name": "DLWS_UID",
+            "value": str(job.uid)
+        },
+        {
+            "name": "DLTS_UID",
             "value": str(job.uid)
         },
         {
@@ -201,7 +220,15 @@ def gen_container_envs(job, role):
             "value": job.alias
         },
         {
+            "name": "DLTS_USER_NAME",
+            "value": job.alias
+        },
+        {
             "name": "DLWS_USER_EMAIL",
+            "value": job.email
+        },
+        {
+            "name": "DLTS_USER_EMAIL",
             "value": job.email
         },
         {
@@ -209,11 +236,23 @@ def gen_container_envs(job, role):
             "value": job.vc_name
         },
         {
+            "name": "DLTS_VC_NAME",
+            "value": job.vc_name
+        },
+        {
             "name": "DLWS_ROLE_NAME",
             "value": role.name
         },
         {
+            "name": "DLTS_ROLE_NAME",
+            "value": role.name
+        },
+        {
             "name": "DLWS_LAUNCH_CMD",
+            "value": job.user_cmd
+        },
+        {
+            "name": "DLTS_LAUNCH_CMD",
             "value": job.user_cmd
         },
     ]
@@ -223,6 +262,7 @@ def gen_container_envs(job, role):
 
     if job.is_host_network:
         result.append({"name": "DLWS_HOST_NETWORK", "value": "enable"})
+        result.append({"name": "DLTS_HOST_NETWORK", "value": "enable"})
 
     if job.is_nccl_ib_disabled:
         result.append({"name": "NCCL_IB_DISABLE", "value": "1"})
@@ -276,11 +316,19 @@ def gen_containers(job, role):
 
     volume_mounts.extend(transform_mount_points(job.mount_points, job.plugins))
 
+    if job.init_image is None:
+        cmd = [
+            "sh", "-c",
+            "printenv DLWS_LAUNCH_CMD > /job_command.sh ; mkdir -p /dlts-runtime/status ; touch /dlts-runtime/status/READY ; sh /job_command.sh"
+        ]
+    else:
+        cmd = ["bash", "/dlws-scripts/bootstrap.sh"]
+
     spec = [{
         "name": job.job_id,
         "image": role.image,
         "imagePullPolicy": "Always",
-        "command": ["bash", "/dlws-scripts/bootstrap.sh"],
+        "command": cmd,
         "readinessProbe": {
             "exec": {
                 "command": ["ls", "/dlts-runtime/status/READY"]
@@ -400,8 +448,6 @@ def gen_task_role(job, role):
     node_selector = {"worker": "active"}
     for key, val in job.node_selector.items():
         node_selector[key] = val
-    if job.is_fragment_gpu_job:
-        node_selector["FragmentGPUJob"] = "active"
 
     image_pull_secrets = [{"name": "regcred"}]
 
@@ -500,10 +546,12 @@ def gen_task_role(job, role):
         "hostIPC": job.is_host_ipc,
         "imagePullSecrets": image_pull_secrets,
         "affinity": gen_affinity(job, role),
-        "initContainers": gen_init_container(job, role),
         "containers": gen_containers(job, role),
         "volumes": volumes,
     }
+
+    if job.init_image is not None:
+        pod_spec["initContainers"] = gen_init_container(job, role)
 
     if job.dns_policy is not None:
         pod_spec["dnsPolicy"] = job.dns_policy
@@ -654,7 +702,6 @@ def transform_regular_job(params, cluster_config):
         params.get("dnsPolicy"),
         params.get("nodeSelector", {}),
         params["homeFolderHostpath"],
-        params.get("fragmentGpuJob", False),
         params.get("preemptionAllowed", False),
         params.get("hostNetwork", False),
         params.get("hostIPC", False),
@@ -717,6 +764,69 @@ def transform_distributed_job(params, cluster_config):
         params.get("dnsPolicy"),
         params.get("nodeSelector", {}),
         params["homeFolderHostpath"],
+        params.get("preemptionAllowed", False),
+        params.get("hostNetwork", False),
+        params.get("hostIPC", False),
+        params.get("isPrivileged", False),
+        params.get("nccl_ib_disable", False),
+    )
+
+    return gen_framework_spec(framework)
+
+
+def transform_inference_job(params, cluster_config):
+    master_resource = transform_resource(
+        params,
+        cluster_config.get("default_cpurequest", "500m"),
+        cluster_config.get("default_cpulimit", "500m"),
+        cluster_config.get("default_memoryrequest", "2048M"),
+        cluster_config.get("default_memorylimit", "2560M"),
+    )
+    worker_resource = transform_resource(
+        params,
+        cluster_config.get("default_cpurequest", "500m"),
+        cluster_config.get("default_cpulimit", "500m"),
+        cluster_config.get("default_memoryrequest", "2048M"),
+        cluster_config.get("default_memorylimit", "2560M"),
+    )
+    master_resource.gpu_limit = 0
+    worker_resource.gpu_limit = 1
+
+    image = params["image"]
+
+    envs = params.get("envs", [])
+
+    roles = {
+        "master":
+        Role("master", 1, image, envs, master_resource, 1, 1),
+        "worker":
+        Role("worker", int(params["resourcegpu"]), image, envs,
+             worker_resource, 1, 1),
+    }
+
+    labels = params.get("label", {})
+    annotations = params.get("annotations", {})
+
+    framework = Framework(
+        None,  # init container
+        labels,
+        annotations,
+        roles,
+        params["jobId"],
+        params[
+            "jobId"],  # pod_name here, should fix this before using blobfuse
+        params["cmd"],
+        params["user"],
+        params["user_email"],
+        params["gid"],
+        params["uid"],
+        params["mountpoints"],
+        params["plugins"],
+        params["familyToken"],
+        params["vcName"],
+        params.get("dnsPolicy"),
+        params.get("nodeSelector", {}),
+        params["homeFolderHostpath"],
         params.get("fragmentGpuJob", False),
         params.get("preemptionAllowed", False),
         params.get("hostNetwork", False),
@@ -726,6 +836,18 @@ def transform_distributed_job(params, cluster_config):
     )
 
     return gen_framework_spec(framework)
+
+
+def transform_job(job_type, params, cluster_config):
+    if job_type == "RegularJob":
+        return transform_regular_job(params, cluster_config)
+    elif job_type == "PSDistJob":
+        return transform_distributed_job(params, cluster_config)
+    elif job_type == "InferenceJob":
+        return transform_inference_job(params, cluster_config)
+    else:
+        logger.error("Unknown job type %s, params is %s", job_type, params)
+        raise RuntimeError("Unknown job type %s" % (job_type))
 
 
 if __name__ == '__main__':

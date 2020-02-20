@@ -12,8 +12,7 @@ awk -F, '{print $1, $2}' worker.filemap | xargs -l ./mkdir_and_cp.sh
 
 ./render_env_vars.sh worker/kubelet/options.env.template /etc/flannel/options.env ETCD_ENDPOINTS
 ./render_env_vars.sh worker/kubelet/worker-kubeconfig.yaml.template /etc/kubernetes/worker-kubeconfig.yaml KUBE_API_SERVER
-./render_env_vars.sh worker.kubelet.service.template worker.kubelet.service.1st KUBE_LABELS
-./render_env_vars.sh worker.kubelet.service.1st /etc/systemd/system/kubelet.service GPU_TYPE
+./render_env_vars.sh worker.kubelet.service.template /etc/systemd/system/kubelet.service KUBE_LABELS
 
 bash ./post-worker-deploy.sh
 bash ./fileshare_install.sh

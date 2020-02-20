@@ -51,7 +51,7 @@ def get_pod_name():
 
 
 def get_job_name():
-    return os.environ.get("DLWS_JOB_ID")
+    return os.environ.get("DLTS_JOB_ID")
 
 
 def get_pod_ip():
@@ -59,11 +59,11 @@ def get_pod_ip():
 
 
 def get_ps_number():
-    return int(os.environ.get("DLWS_NUM_PS", 0))
+    return int(os.environ.get("DLTS_NUM_PS", 0))
 
 
 def get_worker_number():
-    return int(os.environ.get("DLWS_NUM_WORKER", 0))
+    return int(os.environ.get("DLTS_NUM_WORKER", 0))
 
 
 def create_own_config(k8s_core_api, job_name, pod_name, ip, ssh_port):
@@ -135,7 +135,7 @@ def main(args):
     ip = get_pod_ip()
     self_role_idx = get_role_idx()
 
-    if os.environ.get("DLWS_HOST_NETWORK") == "enable":
+    if os.environ.get("DLTS_HOST_NETWORK") == "enable":
         ssh_port = find_free_port()
     else:
         ssh_port = 22
@@ -190,9 +190,10 @@ def main(args):
 
     # SD stands for service discovery
     envs = {
-        "DLWS_SD_SELF_IP": ip,
-        "DLWS_SD_SELF_SSH_PORT": ssh_port,
+        "DLTS_SD_SELF_IP": ip,
+        "DLTS_SD_SELF_SSH_PORT": ssh_port,
         "DLWS_ROLE_IDX": self_role_idx,
+        "DLTS_ROLE_IDX": self_role_idx,
     }
 
     for configmap in items:
@@ -205,8 +206,8 @@ def main(args):
         sd_info = json.loads(configmap.data["pod.json"])
         ip = sd_info["ip"]
         ssh_port = sd_info["ssh_port"]
-        envs["DLWS_SD_%s_IP" % role_idx] = ip
-        envs["DLWS_SD_%s_SSH_PORT" % role_idx] = ssh_port
+        envs["DLTS_SD_%s_IP" % role_idx] = ip
+        envs["DLTS_SD_%s_SSH_PORT" % role_idx] = ssh_port
 
     path = Path(os.path.dirname(args.environment))
     path.mkdir(parents=True, exist_ok=True)

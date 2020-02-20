@@ -804,8 +804,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
             for l in rf:
                 worker_machines += l.split()[0],
         for vmname in worker_machines:
-            cc["machines"][vmname.lower()] = {"role": "worker","node-group": config["azure_cluster"]["worker_vm_size"],
-                                        "gpu-type":sku_mapping[config["azure_cluster"]["worker_vm_size"]]["gpu-type"]}
+            cc["machines"][vmname.lower()] = {"role": "worker","node-group": config["azure_cluster"]["worker_vm_size"]}
     elif config["priority"] == "regular":
         for vm in vm_list:
             vmname = vm["name"]
@@ -815,12 +814,10 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
             vmname = vm["name"]
             if isNewlyScaledMachine(vmname):
                 cc["machines"][vmname.lower()] = {
-                    "role": "worker", "scaled": True,
-                    "node-group": vm["vmSize"],"gpu-type":sku_mapping.get(vm["vmSize"],sku_mapping["default"])["gpu-type"]}
+                    "role": "worker", "scaled": True, "node-group": vm["vmSize"]}
             else:
                 cc["machines"][vmname.lower()] = {
-                    "role": "worker",
-                    "node-group": vm["vmSize"],"gpu-type":sku_mapping.get(vm["vmSize"],sku_mapping["default"])["gpu-type"]}
+                    "role": "worker", "node-group": vm["vmSize"]}
 
     # Add mysqlserver nodes
     for vm in vm_list:
@@ -915,6 +912,15 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
                     cc["mountpoints"][mntname]["type"] = "nfs"
                     cc["mountpoints"][mntname]["server"] = server_ip
                     cc["mountpoints"][mntname]["servername"] = server_name
+    
+    cntr = {}
+    for mc in worker_machines:
+        vm_sz = mc["vmSize"]
+        cntr[vm_sz] = cntr.get(vm_sz, 0) + 1
+    cc["worker_sku_cnt"] = cntr
+
+    if "sku_mapping" in config:
+        cc["sku_mapping"] = config["sku_mapping"]
 
     if output_file:
         print(yaml.dump(cc, default_flow_style=False))

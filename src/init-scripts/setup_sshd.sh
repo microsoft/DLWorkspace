@@ -24,7 +24,7 @@ function retry {
 }
 
 function setup_sshd {
-    SSH_PORT=$DLWS_SD_SELF_SSH_PORT
+    SSH_PORT=$DLTS_SD_SELF_SSH_PORT
     sed -i -E "s/^#?Port 22/Port ${SSH_PORT}/" /usr/etc/sshd_config || exit 1
 
     echo "${SSH_PORT}" > ${PROC_DIR}/SSH_PORT
