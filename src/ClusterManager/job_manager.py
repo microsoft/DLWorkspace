@@ -712,7 +712,14 @@ def Run(redis_port, target_status):
     notifier = notify.Notifier(config.get("job-manager"))
     notifier.start()
 
-    launcher = PythonLauncher()  # LauncherStub()
+    launcher_type = config.get("job-manager", {}).get("launcher", "python")
+    if launcher_type == "python":
+        launcher = PythonLauncher()
+    elif launcher_type == "controller":
+        launcher = LauncherStub()
+    else:
+        logger.error("unknown launcher_type %s", launcher_type)
+        sys.exit(2)
     launcher.start()
 
     redis_conn = redis.StrictRedis(host="localhost", port=redis_port, db=0)
