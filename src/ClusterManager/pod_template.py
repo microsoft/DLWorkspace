@@ -109,6 +109,10 @@ class JobTemplate(object):
             "name": "DLWS_NUM_GPU_PER_WORKER",
             "value": str(params["resourcegpu"])
         })
+        params["envs"].append({
+            "name": "DLTS_NUM_GPU_PER_WORKER",
+            "value": str(params["resourcegpu"])
+        })
 
         job.add_plugins(job.get_plugins())
         params["plugins"] = job.plugins
@@ -184,7 +188,7 @@ class RegularJobTemplate(JobTemplate):
         # because user's cmd can be multiple lines, should add after yaml load
         pod_obj = yaml.full_load(pod_yaml)
         pod_obj["spec"]["containers"][0]["env"].append({
-            "name": "DLWS_LAUNCH_CMD",
+            "name": "DLTS_LAUNCH_CMD",
             "value": params["cmd"]
         })
 
@@ -195,8 +199,8 @@ class RegularJobTemplate(JobTemplate):
 
         params = enable_cpu_config(params, job.cluster)
 
-        params["envs"].append({"name": "DLWS_ROLE_NAME", "value": "master"})
         params["podName"] = job.job_id
+        params["role_name"] = "master"
 
         params["numps"] = 0
         params["numworker"] = 1
@@ -230,7 +234,7 @@ class InferenceJobTemplate(JobTemplate):
         pod_obj = yaml.full_load(pod_yaml)
         # because user's cmd can be multiple lines, should add after yaml load
         pod_obj["spec"]["containers"][0]["env"].append({
-            "name": "DLWS_LAUNCH_CMD",
+            "name": "DLTS_LAUNCH_CMD",
             "value": params["cmd"]
         })
         k8s_pods.append(pod_obj)
@@ -246,7 +250,7 @@ class InferenceJobTemplate(JobTemplate):
         # because user's cmd can be multiple lines, should add after yaml load
         deployment_obj["spec"]["template"]["spec"]["containers"][0][
             "env"].append({
-                "name": "DLWS_LAUNCH_CMD",
+                "name": "DLTS_LAUNCH_CMD",
                 "value": params["cmd"]
             })
         k8s_pods.append(deployment_obj)
@@ -295,7 +299,7 @@ class DistributeJobTemplate(JobTemplate):
         pod_yaml = self.template.render(job=pod)
         pod_obj = yaml.full_load(pod_yaml)
         pod_obj["spec"]["containers"][0]["env"].append({
-            "name": "DLWS_LAUNCH_CMD",
+            "name": "DLTS_LAUNCH_CMD",
             "value": pod["cmd"]
         })
         return pod_obj

@@ -81,15 +81,15 @@ def gen_init_container(job, role):
             "value": "DEBUG"
         },
         {
-            "name": "DLWS_JOB_ID",
+            "name": "DLTS_JOB_ID",
             "value": str(job.job_id)
         },
         {
-            "name": "DLWS_NUM_PS",
+            "name": "DLTS_NUM_PS",
             "value": str(ps_count)
         },
         {
-            "name": "DLWS_NUM_WORKER",
+            "name": "DLTS_NUM_WORKER",
             "value": str(worker_count)
         },
         {
@@ -111,7 +111,7 @@ def gen_init_container(job, role):
     ]
 
     if job.is_host_network:
-        envs.append({"name": "DLWS_HOST_NETWORK", "value": "enable"})
+        envs.append({"name": "DLTS_HOST_NETWORK", "value": "enable"})
 
     return [{
         "name":
@@ -164,11 +164,23 @@ def gen_container_envs(job, role):
             "value": str(job.job_id)
         },
         {
+            "name": "DLTS_JOB_ID",
+            "value": str(job.job_id)
+        },
+        {
             "name": "DLWS_NUM_PS",
             "value": str(ps_count)
         },
         {
+            "name": "DLTS_NUM_PS",
+            "value": str(ps_count)
+        },
+        {
             "name": "DLWS_NUM_WORKER",
+            "value": str(worker_count)
+        },
+        {
+            "name": "DLTS_NUM_WORKER",
             "value": str(worker_count)
         },
         {
@@ -192,7 +204,15 @@ def gen_container_envs(job, role):
             "value": str(job.gid)
         },
         {
+            "name": "DLTS_GID",
+            "value": str(job.gid)
+        },
+        {
             "name": "DLWS_UID",
+            "value": str(job.uid)
+        },
+        {
+            "name": "DLTS_UID",
             "value": str(job.uid)
         },
         {
@@ -200,7 +220,15 @@ def gen_container_envs(job, role):
             "value": job.alias
         },
         {
+            "name": "DLTS_USER_NAME",
+            "value": job.alias
+        },
+        {
             "name": "DLWS_USER_EMAIL",
+            "value": job.email
+        },
+        {
+            "name": "DLTS_USER_EMAIL",
             "value": job.email
         },
         {
@@ -208,11 +236,23 @@ def gen_container_envs(job, role):
             "value": job.vc_name
         },
         {
+            "name": "DLTS_VC_NAME",
+            "value": job.vc_name
+        },
+        {
             "name": "DLWS_ROLE_NAME",
             "value": role.name
         },
         {
+            "name": "DLTS_ROLE_NAME",
+            "value": role.name
+        },
+        {
             "name": "DLWS_LAUNCH_CMD",
+            "value": job.user_cmd
+        },
+        {
+            "name": "DLTS_LAUNCH_CMD",
             "value": job.user_cmd
         },
     ]
@@ -222,6 +262,7 @@ def gen_container_envs(job, role):
 
     if job.is_host_network:
         result.append({"name": "DLWS_HOST_NETWORK", "value": "enable"})
+        result.append({"name": "DLTS_HOST_NETWORK", "value": "enable"})
 
     if job.is_nccl_ib_disabled:
         result.append({"name": "NCCL_IB_DISABLE", "value": "1"})
