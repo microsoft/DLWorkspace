@@ -70,13 +70,17 @@ def main(args):
     with Pool(processes=num_proc) as pool:
         result = pool.map(run_case, cases)
 
-    failed_num = len(list(filter(lambda x: x is True, result)))
+    failed = []
+    for i in range(len(case_names)):
+        if result[i] is not True:
+            continue
+        failed.append(case_names[i])
 
-    logger.info("spent %s in executing %d cases %s, %d failed",
+    logger.info("spent %s in executing %d cases %s, %d failed %s",
                 datetime.datetime.now() - start, len(case_names), case_names,
-                failed_num)
+                len(failed), failed)
 
-    if failed_num > 0:
+    if len(failed) > 0:
         sys.exit(1)
     else:
         sys.exit(0)

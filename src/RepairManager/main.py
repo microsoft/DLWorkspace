@@ -18,9 +18,6 @@ logger = logging.getLogger(__name__)
 
 alert = rule_alert_handler.RuleAlertHandler()
 
-with open('./config/rule-config.yaml', 'r') as config_file:
-    config = yaml.safe_load(config_file)
-
 def Run():
     try:        
         while True:
@@ -45,10 +42,10 @@ def Run():
 
                     time.sleep(config['rule_wait_time'])
 
-                except Exception as e:
+                except Exception:
                     logger.exception(f'Error executing {class_name} from module {module_name}\n')
 
-    except Exception as e:
+    except Exception:
          logger.exception('Repair manager has stopped due to an unhandled exception.')
 
 if __name__ == '__main__':
