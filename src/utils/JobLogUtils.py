@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 def TryParseCursor(cursor):
     try:
-        return map(int, cursor.split('.', 2))
+        return list(int(s) for s in cursor.split('.', 2))
     except Exception:
         logger.exception('Failed to parse cursor %s'.format(cursor))
         return None
@@ -45,7 +45,7 @@ def GetJobLog(jobId, cursor=None, size=None):
 
         next_cursor = None
         if len(documents) > 0:
-            next_cursor = '.'.join(map(str, documents[-1]["sort"]))
+            next_cursor = '.'.join(str(i) for i in documents[-1]["sort"])
 
         return (documents, next_cursor)
     except Exception:
