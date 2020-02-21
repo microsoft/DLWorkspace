@@ -41,9 +41,30 @@ to deploy a cluster. `<platform>` here could be `azure` if you want a cluster on
 After finishing deploying the cluster, we need to further configure it. 
 Connect to infra node, and use following command to enter the mysql docker container:
 
+Login to infra node by `./deploy.py connect master`, then on infra node,
+
 ```docker exec -it $(sudo docker ps | grep mysql_mysql | awk '{print $1}') bash```
 
-then add users to `acl` and `identity` table, and setup `vc` table properly based on quota of each VC
+to enter the mysql docker container.
+
+Enter the mysql container, run (-u -p according to your own setting in config):
+`mysql -u <user name> -<password>`
+
+Enter mysql, use `show databases` to list db, and run:
+`use <DLWS-initiated db>;`
+
+Add following entries for users:
+
+INSERT INTO \`acl\` (\`id\`, \`identityName\`, \`identityId\`, \`resource\`, \`permissions\`, \`isDeny\`) VALUES (2, '<user account>', <uid>, 'Cluster', <3 for general users, 7 for cluster managers who is maintaining the cluster>, 0);
+
+INSERT INTO \`identity\` (\`id\`, \`identityName\`, \`uid\`, \`gid\`, \`groups\`) VALUES (2, '<user account>', <uid>, <gid>, < group info, e.g. `"[\"CCSAdmins\", \"MicrosoftUsers\"]"`);
+
+Then after existing the mysql docker container, we need to refresh the RestfulAPI cache:
+`kubectl get pods` to get RestfulAPI pod, then run
+```kubectl exec -it <RestfulAPI> bash```
+and execute `apachectl restart` in the pod.
+
+After all these configurations, you should be able to submit jobs.
 
 5. If you run into a deployment issue, please check [here](FAQ.md) first.
 
