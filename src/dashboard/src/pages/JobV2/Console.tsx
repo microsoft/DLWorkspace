@@ -40,7 +40,7 @@ const Console: FunctionComponent = () => {
           };
         }
         return {
-          log: mergeWith(currentData.log, newData.log, (a, b) => a + b),
+          log: mergeWith({}, currentData.log, newData.log, (a, b) => a + b),
           cursor: newData.cursor
         };
       }
@@ -84,7 +84,7 @@ ${log[podName]}
     if (data === undefined) return;
 
     const cursor = data.cursor;
-    const timeout = setTimeout(get, 3000,
+    const timeout = setTimeout(get, 1000,
       cursor ? `?cursor=${encodeURIComponent(cursor)}` : '');
     return () => {
       clearTimeout(timeout);
