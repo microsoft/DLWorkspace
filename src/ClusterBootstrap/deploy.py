@@ -707,7 +707,7 @@ def load_az_params_as_default():
 
 
 def on_premise_params():
-    print("Warning: remember to set parameters:\ngpu_count_per_node, gpu_type, worker_node_num\n when using on premise machine!")
+    print("Warning: remember to set parameters:\nworker_node_num, node-group(for each worker machine)\n when using on premise machine!")
 
 
 def load_platform_type():
@@ -2615,7 +2615,6 @@ def kubernetes_label_nodes(verb, servicelists, force):
                 kubernetes_label_node(cmdoptions, nodename, label+"-")
 
 
-# Label kubernete nodes with gpu types.skip for CPU workers
 def kubernetes_label_GpuTypes():
     for nodename, nodeInfo in list(config["machines"].items()):
         if nodeInfo["role"] == "worker":
@@ -2692,11 +2691,10 @@ def kubernetes_label_cpuworker():
 
 def kubernetes_label_sku():
     """Label kubernetes nodes with sku=<sku_value>"""
-    sku_meta = get_sku_meta(config)
     machines = get_machines_by_roles("all", config)
 
     for machine_name, machine_info in list(machines.items()):
-        if "sku" in machine_info and machine_info["sku"] in sku_meta:
+        if "sku" in machine_info:
             sku = machine_info["sku"]
             kubernetes_label_node("--overwrite", machine_name, "sku=%s" % sku)
 

@@ -1,4 +1,4 @@
-{% if cnf["gpu_type"] != "None" %}
+{% if "gpu_type" in cnf and cnf["gpu_type"] != "None" %}
 {
     "default-runtime": "nvidia",
     "runtimes": {
