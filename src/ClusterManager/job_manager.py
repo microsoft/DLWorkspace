@@ -26,7 +26,7 @@ sys.path.append(
 
 from ResourceInfo import ResourceInfo
 from DataHandler import DataHandler
-from config import config, GetStoragePath
+from config import config
 import notify
 import k8sUtils
 import quota
@@ -334,24 +334,12 @@ def UpdateJobStatus(redis_conn,
         dataHandler = DataHandler()
     else:
         dataHandler = dataHandlerOri
-    jobParams = json.loads(
-        base64.b64decode(job["jobParams"].encode("utf-8")).decode("utf-8"))
 
     result, details = launcher.get_job_status(job["jobId"])
     logger.info("++++++++ Job status: {} {}".format(job["jobId"], result))
 
-    jobPath, workPath, dataPath = GetStoragePath(jobParams["jobPath"],
-                                                 jobParams["workPath"],
-                                                 jobParams["dataPath"])
-    localJobPath = os.path.join(config["storage-mount-path"], jobPath)
-    logPath = os.path.join(localJobPath, "logs/joblog.txt")
-
-    if "userId" not in jobParams:
-        jobParams["userId"] = "0"
-
     if result == "Succeeded":
-        joblog_manager.extract_job_log(job["jobId"], logPath,
-                                       jobParams["userId"])
+        joblog_manager.extract_job_log(job["jobId"])
 
         # TODO: Refactor
         detail = get_job_status_detail(job)
@@ -406,8 +394,7 @@ def UpdateJobStatus(redis_conn,
                                                     job["jobId"],
                                                     result.strip()))
 
-        joblog_manager.extract_job_log(job["jobId"], logPath,
-                                       jobParams["userId"])
+        joblog_manager.extract_job_log(job["jobId"])
 
         # TODO: Refactor
         detail = get_job_status_detail(job)
@@ -516,29 +503,25 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
             "cpu": cluster_status["cpu_capacity"],
             "memory": cluster_status["memory_capacity"],
             "gpu": cluster_status["gpu_capacity"],
-        }
-    )
+        })
     cluster_resource_available = ClusterResource(
         params={
             "cpu": cluster_status["cpu_available"],
             "memory": cluster_status["memory_available"],
             "gpu": cluster_status["gpu_available"],
-        }
-    )
+        })
     cluster_resource_reserved = ClusterResource(
         params={
             "cpu": cluster_status["cpu_reserved"],
             "memory": cluster_status["memory_reserved"],
             "gpu": cluster_status["gpu_reserved"],
-        }
-    )
+        })
     cluster_resource_unschedulable = ClusterResource(
         params={
             "cpu": cluster_status["cpu_unschedulable"],
             "memory": cluster_status["memory_unschedulable"],
             "gpu": cluster_status["gpu_unschedulable"],
-        }
-    )
+        })
     # Hard-code 95% of the total capacity is application usable
     # TODO: Find a better way to manage system and user resource quota
     cluster_resource_quota = \
@@ -567,14 +550,9 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
     result = quota.calculate_vc_resources(cluster_resource_capacity,
                                           cluster_resource_available,
                                           cluster_resource_reserved,
-                                          vc_resource_info,
-                                          vc_resource_usage)
-    (
-        vc_resource_total,
-        vc_resource_used,
-        vc_resource_available,
-        vc_resource_unschedulable
-    ) = result
+                                          vc_resource_info, vc_resource_usage)
+    (vc_resource_total, vc_resource_used, vc_resource_available,
+     vc_resource_unschedulable) = result
 
     vc_resource_quotas = {}
     for vc in vc_list:
@@ -639,10 +617,7 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
         job_resource = sji["job_resource"]
         job_id = sji["jobId"]
 
-        logger.info("job : %s : %s : %s",
-                    job_id,
-                    job_resource,
-                    sji["sortKey"])
+        logger.info("job : %s : %s : %s", job_id, job_resource, sji["sortKey"])
 
         vc_name = sji["job"]["vcName"]
         vc_resource_quota = vc_resource_quotas[vc_name]
@@ -656,17 +631,13 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
             cluster_resource_quota -= job_resource
             sji["allowed"] = True
             logger.info("allow non-preemptible %s to run, job resource %s",
-                        job_id,
-                        job_resource)
+                        job_id, job_resource)
         else:
             logger.info(
                 "do not allow non-preemptible %s to run in vc %s."
                 "resource not enough, required job resource %s. "
-                "cluster resource quota %s, vc resource quota %s",
-                job_id,
-                vc_name,
-                job_resource,
-                cluster_resource_quota,
+                "cluster resource quota %s, vc resource quota %s", job_id,
+                vc_name, job_resource, cluster_resource_quota,
                 vc_resource_quota)
 
     for sji in jobsInfo:
@@ -674,24 +645,22 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
             job_resource = sji["job_resource"]
             job_id = sji["job_id"]
             if cluster_resource_quota >= job_resource:
-                logger.info("allow preemptible %s to run. "
-                            "cluster resource quota %s. "
-                            "used job resource %s.",
-                            job_id,
-                            cluster_resource_quota,
-                            job_resource)
+                logger.info(
+                    "allow preemptible %s to run. "
+                    "cluster resource quota %s. "
+                    "used job resource %s.", job_id, cluster_resource_quota,
+                    job_resource)
                 # Strict FIFO policy not required for global (bonus) tokens
                 # since these jobs are anyway pre-emptible.
                 cluster_resource_quota -= job_resource
                 sji["allowed"] = True
             else:
-                logger.info("do not allow preemptible %s to run, "
-                            "insufficient cluster resource: "
-                            "cluster resource quota %s, "
-                            "required job resource %s.",
-                            job_id,
-                            cluster_resource_quota,
-                            job_resource)
+                logger.info(
+                    "do not allow preemptible %s to run, "
+                    "insufficient cluster resource: "
+                    "cluster resource quota %s, "
+                    "required job resource %s.", job_id,
+                    cluster_resource_quota, job_resource)
 
     logger.info("cluster resource quota after this round of scheduling: %s",
                 cluster_resource_quota)
@@ -722,11 +691,8 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
                     "Waiting for resource. job requested %s. "
                     "vc resource quota %s. "
                     "cluster resource quota %s." %
-                    (
-                        job_resource,
-                        cur_vc_resource_quota,
-                        cluster_resource_quota
-                    )
+                    (job_resource, cur_vc_resource_quota,
+                     cluster_resource_quota)
                 }]
                 data_handler.UpdateJobTextField(
                     sji["jobId"], "jobStatusDetail",
@@ -746,7 +712,14 @@ def Run(redis_port, target_status):
     notifier = notify.Notifier(config.get("job-manager"))
     notifier.start()
 
-    launcher = PythonLauncher()  # LauncherStub()
+    launcher_type = config.get("job-manager", {}).get("launcher", "python")
+    if launcher_type == "python":
+        launcher = PythonLauncher()
+    elif launcher_type == "controller":
+        launcher = LauncherStub()
+    else:
+        logger.error("unknown launcher_type %s", launcher_type)
+        sys.exit(2)
     launcher.start()
 
     redis_conn = redis.StrictRedis(host="localhost", port=redis_port, db=0)

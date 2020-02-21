@@ -3,18 +3,18 @@ set -x
 
 # generate ps host list
 ps_host_list=""
-for i in $(seq 0 $(( ${DLWS_NUM_PS} - 1 )) )
+for i in $(seq 0 $(( ${DLTS_NUM_PS} - 1 )) )
 do
     ps_host_list+="ps-${i} "
 done
 
 # generate worker host list
 worker_host_list=""
-if [ "$DLWS_ROLE_NAME" = "master" ];
+if [ "$DLTS_ROLE_NAME" = "master" ];
 then
-    worker_host_list="${DLWS_ROLE_NAME}"
+    worker_host_list="${DLTS_ROLE_NAME}"
 else
-    for i in $(seq 0 $(( ${DLWS_NUM_WORKER} - 1 )) )
+    for i in $(seq 0 $(( ${DLTS_NUM_WORKER} - 1 )) )
     do
         worker_host_list+="worker-${i} "
     done
@@ -24,23 +24,23 @@ fi
 host_list="${ps_host_list} ${worker_host_list}"
 
 # generate ~/.ssh/config
-SSH_CONFIG_FILE=/home/${DLWS_USER_NAME}/.ssh/config
+SSH_CONFIG_FILE=/home/${DLTS_USER_NAME}/.ssh/config
 >${SSH_CONFIG_FILE}
-chown ${DLWS_USER_NAME} ${SSH_CONFIG_FILE}
+chown ${DLTS_USER_NAME} ${SSH_CONFIG_FILE}
 chmod 600 ${SSH_CONFIG_FILE}
 
 for host in ${host_list}
 do
-    if [ "$DLWS_ROLE_NAME" = "master" ];
+    if [ "$DLTS_ROLE_NAME" = "master" ];
     then
-        ip=$DLWS_SD_SELF_IP
-        port=$DLWS_SD_SELF_SSH_PORT
+        ip=$DLTS_SD_SELF_IP
+        port=$DLTS_SD_SELF_SSH_PORT
     else
         role=${host%%-*}
         idx=${host##*-}
 
-        ip_key=DLWS_SD_${role}${idx}_IP
-        port_key=DLWS_SD_${role}${idx}_SSH_PORT
+        ip_key=DLTS_SD_${role}${idx}_IP
+        port_key=DLTS_SD_${role}${idx}_SSH_PORT
         ip=$(printenv $ip_key)
         port=$(printenv $port_key)
     fi
@@ -49,7 +49,7 @@ do
 Host ${host}
   HostName ${ip}
   Port ${port}
-  User ${DLWS_USER_NAME}
+  User ${DLTS_USER_NAME}
   StrictHostKeyChecking no
   UserKnownHostsFile /dev/null
 
@@ -66,22 +66,35 @@ PYTHONPATH
 NCCL_IB_DISABLE
 NCCL_VERSION
 DLWS_HOST_NETWORK
+DLTS_HOST_NETWORK
 DLWS_JOB_ID
+DLTS_JOB_ID
 DLTS_JOB_TOKEN
 DLWS_NUM_PS
+DLTS_NUM_PS
 DLWS_NUM_WORKER
+DLTS_NUM_WORKER
 DLWS_NUM_GPU_PER_WORKER
+DLTS_NUM_GPU_PER_WORKER
 DLWS_NUM_WORKER
+DLTS_NUM_WORKER
 DLWS_VC_NAME
+DLTS_VC_NAME
 DLWS_UID
+DLTS_UID
 DLWS_GID
+DLTS_GID
 DLWS_USER_NAME
+DLTS_USER_NAME
 DLWS_USER_EMAIL
+DLTS_USER_EMAIL
 DLWS_ROLE_NAME
+DLTS_ROLE_NAME
 DLWS_ROLE_IDX
+DLTS_ROLE_IDX
 )
 
-SSH_ENVIRONMENT_FILE=/home/${DLWS_USER_NAME}/.ssh/environment
+SSH_ENVIRONMENT_FILE=/home/${DLTS_USER_NAME}/.ssh/environment
 for env_key in "${envs[@]}" ; do
     if [ "`printenv $env_key`" != "" ] ; then
         printf $env_key >> $SSH_ENVIRONMENT_FILE
@@ -89,21 +102,21 @@ for env_key in "${envs[@]}" ; do
         printenv $env_key >> $SSH_ENVIRONMENT_FILE
     fi
 done
-chown ${DLWS_USER_NAME} ${SSH_ENVIRONMENT_FILE}
+chown ${DLTS_USER_NAME} ${SSH_ENVIRONMENT_FILE}
 chmod 600 ${SSH_ENVIRONMENT_FILE}
 
-mkdir -p /root/.ssh && cp /home/${DLWS_USER_NAME}/.ssh/* /root/.ssh/ && chown root /root/.ssh/* && chmod 600 /root/.ssh/*
+mkdir -p /root/.ssh && cp /home/${DLTS_USER_NAME}/.ssh/* /root/.ssh/ && chown root /root/.ssh/* && chmod 600 /root/.ssh/*
 
 # generate /job/hostfile
-if [ "$DLWS_ROLE_NAME" = "master" ] || [ "$DLWS_ROLE_NAME" = "ps" ];
+if [ "$DLTS_ROLE_NAME" = "master" ] || [ "$DLTS_ROLE_NAME" = "ps" ];
 then
     SLOT_FILE="/job/hostfile"
     >${SLOT_FILE}
-    chown ${DLWS_USER_NAME} ${SLOT_FILE}
+    chown ${DLTS_USER_NAME} ${SLOT_FILE}
 
     for host in ${worker_host_list}
     do
-        slots=${DLWS_NUM_GPU_PER_WORKER}
+        slots=${DLTS_NUM_GPU_PER_WORKER}
         cat >>${SLOT_FILE} <<EOF
 ${host} slots=${slots}
 EOF
@@ -111,7 +124,7 @@ EOF
 fi
 
 # make sure worker have sshd up and running
-if [ "$DLWS_ROLE_NAME" = "ps" ];
+if [ "$DLTS_ROLE_NAME" = "ps" ];
 then
     for host in ${host_list}
     do

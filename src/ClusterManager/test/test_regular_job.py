@@ -271,48 +271,96 @@ def test_list_all_jobs(args):
 def test_regular_job_env(args):
     envs = {
         "DLWS_HOST_NETWORK": "",
+        "DLTS_HOST_NETWORK": "",
         "DLWS_NUM_PS": "0",
+        "DLTS_NUM_PS": "0",
         "DLWS_NUM_WORKER": "1",
+        "DLTS_NUM_WORKER": "1",
         "DLWS_NUM_GPU_PER_WORKER": "0",
+        "DLTS_NUM_GPU_PER_WORKER": "0",
         "DLWS_VC_NAME": str(args.vc),
+        "DLTS_VC_NAME": str(args.vc),
         "DLWS_UID": str(args.uid),
+        "DLTS_UID": str(args.uid),
         "DLWS_USER_NAME": args.email.split("@")[0],
+        "DLTS_USER_NAME": args.email.split("@")[0],
         "DLWS_USER_EMAIL": args.email,
+        "DLTS_USER_EMAIL": args.email,
         "DLWS_ROLE_NAME": "master",
+        "DLTS_ROLE_NAME": "master",
         "DLWS_JOB_ID": "unknown",
+        "DLTS_JOB_ID": "unknown",
     }
 
-    cmd = []
-    for key, _ in envs.items():
-        cmd.append("printf %s=" % key)
-        cmd.append("printenv %s" % key)
-
-    cmd = "\n".join(cmd)
-
-    job_spec = utils.gen_default_job_description("regular",
-                                                 args.email,
-                                                 args.uid,
-                                                 args.vc,
-                                                 cmd=cmd)
+    job_spec = utils.gen_default_job_description("regular", args.email,
+                                                 args.uid, args.vc)
 
     with utils.run_job(args.rest, job_spec) as job:
-        state = job.block_until_state_not_in(
-            {"unapproved", "queued", "scheduling", "running"})
-        assert state == "finished"
         envs["DLWS_JOB_ID"] = job.jid
+        envs["DLTS_JOB_ID"] = job.jid
 
-        log = utils.get_job_log(args.rest, args.email, job.jid)
+        endpoints = utils.create_endpoint(args.rest, args.email, job.jid,
+                                          ["ssh"])
+        endpoints_ids = list(endpoints.keys())
+        assert len(endpoints_ids) == 1
+        endpoint_id = endpoints_ids[0]
+
+        state = job.block_until_state_not_in(
+            {"unapproved", "queued", "scheduling"})
+        assert state == "running"
+
+        ssh_endpoint = utils.wait_endpoint_ready(args.rest, args.email,
+                                                 job.jid, endpoint_id)
+        logger.debug("endpoints resp is %s", ssh_endpoint)
+
+        ssh_host = "%s.%s" % (ssh_endpoint["nodeName"], ssh_endpoint["domain"])
+        ssh_port = ssh_endpoint["port"]
+
+        # exec into jobmanager to execute ssh to avoid firewall
+        job_manager_pod = utils.kube_get_pods(args.config, "default",
+                                              "app=jobmanager")[0]
+        job_manager_pod_name = job_manager_pod.metadata.name
+
+        alias = args.email.split("@")[0]
+
+        bash_cmd = ";".join([
+            "printf '%s=' ; printenv %s" % (key, key)
+            for key, _ in envs.items()
+        ])
+
+        ssh_cmd = [
+            "ssh",
+            "-i",
+            "/dlwsdata/work/%s/.ssh/id_rsa" % alias,
+            "-p",
+            ssh_port,
+            "-o",
+            "StrictHostKeyChecking=no",
+            "-o",
+            "LogLevel=ERROR",
+            "%s@%s" % (alias, ssh_host),
+            "--",
+        ]
+        ssh_cmd.append(bash_cmd)
+        code, output = utils.kube_pod_exec(args.config, "default",
+                                           job_manager_pod_name, "jobmanager",
+                                           ssh_cmd)
+        assert code == 0, "code is %s, output is %s" % (code, output)
 
         for key, val in envs.items():
             expected_output = "%s=%s" % (key, val)
-            assert log.find(
+            if output.find(expected_output) == -1:
+                logger.info("could not find %s in log %s", expected_output,
+                            output)
+                time.sleep(120)
+            assert output.find(
                 expected_output) != -1, "could not find %s in log %s" % (
-                    expected_output, log)
+                    expected_output, output)
 
 
 @utils.case
 def test_blobfuse(args):
-    path = "/tmp/blob/${DLWS_JOB_ID}"
+    path = "/tmp/blob/${DLTS_JOB_ID}"
     cmd = "echo dummy > %s; cat %s ; rm %s" % (path, path, path)
 
     job_spec = utils.gen_default_job_description("regular",
@@ -331,8 +379,8 @@ def test_blobfuse(args):
 
         log = utils.get_job_log(args.rest, args.email, job.jid)
 
-        assert log.find("dummy") != -1, "could not find %s in log" % (
-            expected_output)
+        assert log.find("dummy") != -1, "could not find dummy in log %s" % (
+            log)
 
 
 @utils.case

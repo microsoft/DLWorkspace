@@ -9,6 +9,7 @@ import sys
 import collections
 import copy
 import requests
+import itertools
 
 import base64
 import re
@@ -771,19 +772,11 @@ def GetJobLog(userName, jobId, cursor=None, size=100):
     if len(jobs) == 1:
         if jobs[0]["userName"] == userName or AuthorizationManager.HasAccess(userName, ResourceType.VC, jobs[0]["vcName"], Permission.Collaborator):
             if elasticsearch_deployed:
-                (logs, cursor) = UtilsGetJobLog(jobId, cursor, size)
+                (lines, cursor) = UtilsGetJobLog(jobId, cursor, size)
 
                 pod_logs = {}
-                for log in logs:
-                    try:
-                        pod_name = log["_source"]["kubernetes"]["pod_name"]
-                        log = log["_source"]["log"]
-                        if pod_name in pod_logs:
-                            pod_logs[pod_name] += log
-                        else:
-                            pod_logs[pod_name] = log
-                    except Exception:
-                        logging.exception("Failed to parse elasticsearch log: {}".format(log))
+                for (pod_name, pod_lines) in itertools.groupby(lines, lambda line: line["_source"]["kubernetes"]["pod_name"]):
+                    pod_logs[pod_name] = ''.join(line["_source"]["log"] for line in pod_lines)                   
 
                 return {
                     "log": pod_logs,
