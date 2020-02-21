@@ -13,7 +13,7 @@ from kubernetes.client.models.v1_pod_status import V1PodStatus
 from kubernetes.client.models.v1_container import V1Container
 from kubernetes.client.models.v1_resource_requirements import \
     V1ResourceRequirements
-from cluster_status import str2bool, ClusterStatus
+from cluster_status import str2bool, ClusterStatus, ClusterStatusFactory
 from resource_stat import Cpu, Memory, Gpu
 
 
@@ -142,17 +142,14 @@ class TestClusterStatus(TestCase):
             "available_job_num",
         ]
         exclusion = [
-            "prometheus_node",
-            "nodes",
-            "pods",
             "jobs",
             "node_statuses",
             "pod_statuses",
-            "user_info",
-            "user_info_preemptable",
+            "user_statuses",
+            "user_statuses_preemptable",
         ]
 
-        cs = ClusterStatus({}, [], [])
+        cs = ClusterStatus({}, {}, [])
         d = cs.to_dict()
 
         for inc in inclusion:
@@ -360,9 +357,8 @@ class TestClusterStatus(TestCase):
         # Create pods list
         pods = [pod1, pod2, pod3, pod4]
 
-        cs = ClusterStatus({}, nodes, pods)
-        cs.compute()
-        cs = cs.cluster
+        factory = ClusterStatusFactory({}, nodes, pods, [])
+        cs = factory.make()
 
         # Cluster GPU status
         self.assertEqual(

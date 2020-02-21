@@ -1,20 +1,17 @@
 #!/usr/bin/env python3
 
-import base64
 import collections
 import json
 import logging
 import os
 import sys
 
-from cluster_status import ClusterStatus
-
 sys.path.append(os.path.join(os.path.dirname(
     os.path.abspath(__file__)), "../utils"))
 
-from resource_stat import dictionarize, Cpu, Memory, Gpu
+from resource_stat import Cpu, Memory, Gpu
 from cluster_resource import ClusterResource
-from cluster_status import ClusterInfo
+from cluster_status import ClusterStatus
 from job_params_util import get_resource_params_from_job_params
 from quota import calculate_vc_resources
 
@@ -23,217 +20,230 @@ logger = logging.getLogger(__name__)
 
 def get_vc_info(vc_list):
     vc_info = {}
-
     for vc in vc_list:
         resource_quota = {}
         try:
             resource_quota = json.loads(vc["resourceQuota"])
         except:
-            logger.exception("Parsing resourceQuota failed for %s",
-                             vc,
+            logger.exception("Parsing resourceQuota failed for %s", vc,
                              exc_info=True)
         vc_info[vc["vcName"]] = ClusterResource(params=resource_quota)
-
     return vc_info
 
 
-class VirtualClusterStatus(object):
-    def __init__(self, cluster_status, vc_list, jobs):
+class VCStatus(ClusterStatus):
+    def __init__(self, vc_name, vc_metrics_map, vc_jobs_without_pods,
+                 node_statuses, pod_statuses, jobs):
+        self.vc_name = vc_name
+        self.vc_metrics_map = vc_metrics_map
+        self.vc_jobs_without_pods = vc_jobs_without_pods
+
+        super(VCStatus, self).__init__(node_statuses, pod_statuses, jobs)
+
+        self.exclusion.append("vc_metrics_map")
+        self.exclusion.append("vc_jobs_without_pods")
+
+    def gen_user_statuses(self):
+        super(VCStatus, self).gen_user_statuses()
+
+        vc_name = self.vc_name
+        jobs_without_pods = self.vc_jobs_without_pods.get(vc_name, [])
+        for job in jobs_without_pods:
+            username = job["userName"].split("@")[0].strip()
+            job_res_params = get_resource_params_from_job_params(job)
+            job_res = ClusterResource(params=job_res_params)
+
+            if not job["preemptionAllowed"]:
+                self.user_statuses[username]["gpu"] += job_res.gpu
+                self.user_statuses[username]["cpu"] += job_res.cpu
+                self.user_statuses[username]["memory"] += job_res.memory
+            else:
+                self.user_statuses_preemptable[username]["gpu"] += job_res.gpu
+                self.user_statuses_preemptable[username]["cpu"] += job_res.cpu
+                self.user_statuses_preemptable[username]["memory"] += \
+                    job_res.memory
+            logger.info("Added job %s resource %s to the usage of user %s in "
+                        "vc %s", job, job_res, username, vc_name)
+
+    def gen_resource_status(self):
+        for r_type in ["cpu", "memory", "gpu"]:
+            for metric, vc_metrics in self.vc_metrics_map.items():
+                vc_metric = vc_metrics.get(self.vc_name)
+                if vc_metric is None:
+                    continue
+
+                self.__dict__["%s_%s" % (r_type, metric)] = \
+                    vc_metric.__dict__[r_type]
+
+
+class VCStatusesFactory(object):
+    def __init__(self, cluster_status, vc_list):
         self.cluster_status = cluster_status
         self.vc_info = get_vc_info(vc_list)
-        self.jobs = jobs
 
-        self.virtual_cluster = {
-            vc_name: ClusterInfo()
-            for vc_name in self.vc_info
+    def make(self):
+        try:
+            vc_node_statuses = self.__get_vc_node_statuses()
+            vc_pod_statuses = self.__get_vc_pod_statuses()
+            vc_jobs = self.__get_vc_jobs()
+            vc_jobs_without_pods = self.__get_vc_jobs_without_pods(
+                vc_jobs, vc_pod_statuses)
+            vc_metrics_map = self.__get_vc_metrics_map(
+                vc_pod_statuses, vc_jobs_without_pods)
+
+            vc_statuses = {
+                vc_name: VCStatus(
+                    vc_name,
+                    vc_metrics_map,
+                    vc_jobs_without_pods,
+                    vc_node_statuses,
+                    vc_pod_statuses,
+                    vc_jobs
+                ) for vc_name in self.vc_info
+            }
+        except:
+            logger.exception("Failed to make vc status", exc_info=True)
+            vc_statuses = None
+
+        return vc_statuses
+
+    def __get_vc_node_statuses(self):
+        node_statuses = self.cluster_status.node_statuses
+        vc_node_statuses = {
+            vc_name: node_statuses for vc_name in self.vc_info
         }
+        return vc_node_statuses
 
-    def to_dict(self):
-        ret = {
-            # ClusterInfo.to_dict() calls dictionarize()
-            vc_name: cluster_info.to_dict()
-            for vc_name, cluster_info in self.virtual_cluster
-        }
-        return ret
+    def __get_vc_pod_statuses(self):
+        pod_statuses = self.cluster_status.pod_statuses
+        vc_pod_statuses = {}
+        for vc_name in self.vc_info:
+            vc_pod_statuses[vc_name] = {
+                name: pod_status
+                for name, pod_status in pod_statuses.items()
+                if pod_status.get("vc_name") == vc_name
+            }
+        return vc_pod_statuses
 
-    def compute(self):
-        vc_used, vc_preemptable_used = self.__get_vc_usage()
+    def __get_vc_jobs(self):
+        jobs = self.cluster_status.jobs
+        vc_jobs = {}
+        for vc_name in self.vc_info:
+            vc_jobs[vc_name] = [
+                job for job in jobs if job.get("vcName") == vc_name
+            ]
+        return vc_jobs
 
-        (
-            vc_total,
-            vc_used,
-            vc_avail,
-            vc_unschedulable
-        ) = self.__vc_accounting()
+    def __get_vc_jobs_without_pods(self, vc_jobs, vc_pod_statuses):
+        vc_jobs_without_pods = collections.defaultdict(lambda: list())
+        for vc_name in self.vc_info:
+            jobs = vc_jobs.get(vc_name, [])
+            pod_statuses = vc_pod_statuses.get(vc_name, {})
 
-        metric_map = {
-            "capacity": vc_total,
+            job_ids_with_pods = set()
+            for _, pod_status in pod_statuses.items():
+                job_id = pod_status.get("job_id")
+                if job_id is not None:
+                    job_ids_with_pods.add(job_id)
+
+            for job in jobs:
+                job_id = job.get("jobId")
+                if job_id is None:
+                    logger.warning("Skip job %s", job_id)
+                    continue
+
+                if job_id in job_ids_with_pods:
+                    logger.debug("Job %s is accounted in k8s pods", job_id)
+                    continue
+
+                vc_jobs_without_pods[vc_name].append(job)
+
+        return vc_jobs_without_pods
+
+    def __get_vc_metrics_map(self, vc_pod_statuses, vc_jobs_without_pods):
+        capacity, avail, reserved = self.__get_cluster_status()
+        vc_used, vc_preemptable_used = self.__get_vc_used(
+            vc_pod_statuses, vc_jobs_without_pods)
+
+        vc_capacity, vc_used, vc_avail, vc_unschedulable = \
+            calculate_vc_resources(capacity, avail, reserved, self.vc_info,
+                                   vc_used)
+
+        vc_metrics_map = {
+            "capacity": vc_capacity,
             "used": vc_used,
+            "preemptable_used": vc_preemptable_used,
             "available": vc_avail,
             "unschedulable": vc_unschedulable,
+            # reserved is set to unschedulable for vc
+            "reserved": vc_unschedulable,
         }
 
-        self.__gen_gpu_status(metric_map)
-        self.__gen_cpu_status(metric_map)
-        self.__gen_memory_status(metric_map)
+        return vc_metrics_map
 
-    def __get_vc_usage(self):
+    def __get_vc_used(self, vc_pod_statuses, vc_jobs_without_pods):
         vc_used = collections.defaultdict(lambda: ClusterResource())
         vc_preemptable_used = collections.defaultdict(lambda: ClusterResource())
 
-        pod_statuses = self.cluster_status.pod_statuses
-        node_statuses = self.cluster_status.node_statuses
+        for vc_name in self.vc_info:
+            # Account all pods in vc
+            pod_statuses = vc_pod_statuses.get(vc_name, {})
 
-        # Account all pods on workers
-        job_id_to_pods = collections.defaultdict(lambda: list())
-        for _, pod_status in pod_statuses.items():
-            vc_name = pod_status.get("vc_name")
-            if vc_name is None:
-                logger.debug("Skip pod %s. Not in vc %s", pod_status, vc_name)
-                continue
-
-            node_name = pod_status.get("node_name")
-            if node_name is None:
-                logger.warning("Skip pod %s in vc %s. node_name is None.",
-                               pod_status,
-                               vc_name)
-                continue
-
-            node_status = node_statuses.get(node_name)
-            if node_status is None:
-                logger.warning("Skip pod %s in vc %s. node_name %s. "
-                               "node_status is None",
-                               pod_status,
-                               vc_name,
-                               node_name)
-                continue
-
-            active_worker = node_status.get("labels").get("worker") == "active"
-            if not active_worker:
-                logger.debug("Skip pod %s in vc %s. node_name %s. "
-                             "node_status %s. Not worker node.",
-                             pod_status,
-                             vc_name,
-                             node_name,
-                             node_status)
-                continue
-
-            pod_res = ClusterResource(
-                params={
+            for _, pod_status in pod_statuses.items():
+                pod_res = ClusterResource(params={
                     "cpu": pod_status.get("cpu", Cpu()).to_dict(),
                     "memory": pod_status.get("memory", Memory()).to_dict(),
                     "gpu": pod_status.get("gpu", Gpu()).to_dict(),
-                }
-            )
+                })
+                vc_used[vc_name] += pod_res
 
-            vc_used[vc_name] += pod_res
-
-            pod_preemptable_res = ClusterResource(
-                params={
+                pod_preemptable_res = ClusterResource(params={
                     "preemptable_cpu":
                         pod_status.get("preemptable_cpu", Cpu()).to_dict(),
                     "preemptable_memory":
                         pod_status.get("preemptable_memory", Memory()).to_dict(),
                     "preemptable_gpu":
                         pod_status.get("preemptable_gpu", Gpu()).to_dict(),
-                }
-            )
+                })
+                vc_preemptable_used[vc_name] += pod_preemptable_res
 
-            vc_preemptable_used[vc_name] += pod_preemptable_res
+            # Account all jobs without pods in vc
+            jobs_without_pods = vc_jobs_without_pods.get(vc_name, [])
+            for job in jobs_without_pods:
+                job_res_params = get_resource_params_from_job_params(job)
+                job_res = ClusterResource(params=job_res_params)
 
-            job_id = pod_status.get("job_id")
-            if job_id is not None:
-                job_id_to_pods[job_id].append(pod_status)
-
-        # Account jobs that do not have pods yet
-        def base64decode(s):
-            return base64.b64decode(s.encode("utf-8")).decode("utf-8")
-
-        for job in self.jobs:
-            job_params = json.loads(base64decode(job["jobParams"]))
-
-            job_id = job_params.get("jobId")
-            if job_id is None:
-                logger.warning("Skip job %s", job_id)
-                continue
-
-            if job_id in job_id_to_pods:
-                logger.debug("Job %s is accounted in k8s pods", job_id)
-                continue
-
-            job_res_params = get_resource_params_from_job_params(job_params)
-            job_res = ClusterResource(params=job_res_params)
-
-            vc_name = job_params["vcName"]
-            if not job_params["preemptionAllowed"]:
-                vc_used[vc_name] += job_res
-            else:
-                vc_preemptable_used[vc_name] += job_res
-            logger.info("Added job %s resource to the usage of vc %s",
-                        job_id,
-                        vc_name)
+                vc_name = job["vcName"]
+                if not job["preemptionAllowed"]:
+                    vc_used[vc_name] += job_res
+                else:
+                    vc_preemptable_used[vc_name] += job_res
+                logger.info("Added job %s resource %s to the usage of vc %s",
+                            job, job_res, vc_name)
 
         return vc_used, vc_preemptable_used
 
-    def __vc_accounting(self):
-        cluster = self.cluster_status.cluster
-        cluster_capacity = ClusterResource(
+    def __get_cluster_status(self):
+        cluster = self.cluster_status
+        capacity = ClusterResource(
             params={
                 "cpu": cluster.cpu_capacity,
                 "memory": cluster.memory_capacity,
                 "gpu": cluster.gpu_capacity,
             }
         )
-        cluster_available = ClusterResource(
+        avail = ClusterResource(
             params={
                 "cpu": cluster.cpu_available,
                 "memory": cluster.memory_available,
                 "gpu": cluster.gpu_available,
             }
         )
-        cluster_reserved = ClusterResource(
+        reserved = ClusterResource(
             params={
                 "cpu": cluster.cpu_reserved,
                 "memory": cluster.memory_reserved,
                 "gpu": cluster.gpu_reserved,
             }
         )
-
-        vc_usage = {
-            k: ClusterResource(
-                params={
-                    "cpu": self.cpu_used,
-                    "memory": self.memory_used,
-                    "gpu": self.gpu_used,
-                }
-            )
-            for k in self.vc_info
-        }
-
-        return calculate_vc_resources(cluster_capacity,
-                                      cluster_available,
-                                      cluster_reserved,
-                                      self.vc_info,
-                                      vc_usage)
-
-    def __gen_resource_status(self, r_type, metric_map):
-        for metric, vc_resource in metric_map.items():
-            self.__dict__["%s_%s" % (r_type, metric)] = {
-                vc_name: res.__dict__[r_type]
-                for vc_name, res in vc_resource.items()
-            }
-
-    def __gen_gpu_status(self, metric_map):
-        self.__gen_resource_status("gpu", metric_map)
-
-    def __gen_cpu_status(self, metric_map):
-        self.__gen_resource_status("cpu", metric_map)
-
-    def __gen_memory_status(self, metric_map):
-        self.__gen_resource_status("memory", metric_map)
-
-    def __set_user_status(self):
-        pass
-
-    def __set_available_job_num(self):
-        pass
+        return capacity, avail, reserved

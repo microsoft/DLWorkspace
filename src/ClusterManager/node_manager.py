@@ -24,8 +24,8 @@ from ResourceInfo import ResourceInfo
 
 import k8s_utils
 
-from cluster_status import ClusterStatus
-from virtual_cluster_status import VirtualClusterView
+from cluster_status import ClusterStatusFactory
+from virtual_cluster_status import VCStatusesFactory
 
 k8s = k8s_utils.K8sUtil()
 
@@ -316,8 +316,8 @@ def get_cluster_status():
         nodes = k8s.get_all_nodes()
         pods = k8s.get_all_pods()
         prometheus_node = config.get("prometheus_node", "127.0.0.1")
-        cs = ClusterStatus(prometheus_node, nodes, pods, jobs)
-        cs.compute()
+        cs_factory = ClusterStatusFactory(prometheus_node, nodes, pods, jobs)
+        cs = cs_factory.make()
         cluster_status = cs.to_dict()
 
         # TODO: Deprecate typo "gpu_avaliable" in legacy code
@@ -327,8 +327,13 @@ def get_cluster_status():
         cluster_status["AvaliableJobNum"] = cluster_status["available_job_num"]
 
         # Set up virtual cluster views
-        vc_view = VirtualClusterView(cs, vc_list)
-        cluster_status["vc"] = vc_view.to_dict().get("vc")
+        vc_factory = VCStatusesFactory(cs, vc_list)
+        vc_statuses = vc_factory.make()
+        vc_statuses = {
+            vc_name: vc_status.to_dict() for vc_name, vc_status in vc_statuses
+        }
+
+        cluster_status["vc_statuses"] = vc_statuses
     except:
         logger.exception("Exception in setting up cluster status",
                          exc_info=True)
@@ -338,7 +343,7 @@ def get_cluster_status():
         data_handler = DataHandler()
         if "cluster_status" in config and check_cluster_status_change(
                 config["cluster_status"], cluster_status):
-            size = len(json.dumps(cluster_status))
+            size = len(json.dumps(cluster_status, separators=(",", ":")))
             logger.info("updating the cluster status (of len %s)...", size)
             data_handler.UpdateClusterStatus(cluster_status)
         else:
