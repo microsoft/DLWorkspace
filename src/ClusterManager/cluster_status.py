@@ -105,6 +105,7 @@ class ClusterStatus(object):
         self.user_statuses_preemptable = None
 
         self.exclusion = [
+            "exclusion",  # exclude self
             "jobs",
             "jobs_without_pods",
             "node_statuses",
