@@ -976,11 +976,12 @@ def get_vc(username, vc_name):
         with DataHandler() as data_handler:
             cluster_status, _ = data_handler.GetClusterStatus()
 
-        vc_statuses = cluster_status.get("vc_statuses")
-
+        vc_statuses = cluster_status.get("vc_statuses", {})
         vc_list = getClusterVCs()
+
         for vc in vc_list:
-            if vc["vcName"] == vc_name and has_access(username, VC, vc_name, USER):
+            if vc["vcName"] == vc_name and \
+                    has_access(username, VC, vc_name, USER):
                 ret = copy.deepcopy(vc)
                 ret.update(vc_statuses.get(vc_name, {}))
 
