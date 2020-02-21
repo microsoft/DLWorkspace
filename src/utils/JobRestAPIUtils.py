@@ -976,47 +976,27 @@ def get_vc(username, vc_name):
         with DataHandler() as data_handler:
             cluster_status, _ = data_handler.GetClusterStatus()
 
+        vc_statuses = cluster_status.get("vc_statuses")
+
         vc_list = getClusterVCs()
         for vc in vc_list:
             if vc["vcName"] == vc_name and has_access(username, VC, vc_name, USER):
                 ret = copy.deepcopy(vc)
+                ret.update(vc_statuses.get(vc_name, {}))
 
-                vc["gpu_capacity"] = cluster_status["vc_gpu_capacity"][vc_name]
-                vc["gpu_used"] = cluster_status["vc_gpu_used"][vc_name]
-                vc["gpu_preemptable_used"] = cluster_status["vc_gpu_preemptable_used"][vc_name]
-                vc["gpu_unschedulable"] = cluster_status["vc_gpu_unschedulable"][vc_name]
                 # TODO: deprecate typo "gpu_avaliable" in legacy code
-                vc["gpu_avaliable"] = cluster_status["vc_gpu_available"][vc_name]
-                vc["gpu_available"] = cluster_status["vc_gpu_available"][vc_name]
-
-                vc["cpu_capacity"] = cluster_status["vc_cpu_capacity"][vc_name]
-                vc["cpu_used"] = cluster_status["vc_cpu_used"][vc_name]
-                vc["cpu_preemptable_used"] = cluster_status["vc_cpu_preemptable_used"][vc_name]
-                vc["cpu_unschedulable"] = cluster_status["vc_cpu_unschedulable"][vc_name]
-                vc["cpu_available"] = cluster_status["vc_cpu_available"][vc_name]
-
-                vc["memory_capacity"] = cluster_status["vc_memory_capacity"][vc_name]
-                vc["memory_used"] = cluster_status["vc_memory_used"][vc_name]
-                vc["memory_preemptable_used"] = cluster_status["vc_memory_preemptable_used"][vc_name]
-                vc["memory_unschedulable"] = cluster_status["vc_memory_unschedulable"][vc_name]
-                vc["memory_available"] = cluster_status["vc_memory_available"][vc_name]
+                ret["gpu_avaliable"] = ret["gpu_available"]
 
                 # TODO: deprecate typo "AvaliableJobNum" in legacy code
-                vc["AvaliableJobNum"] = cluster_status["vc_num_active_jobs"][vc_name]
-                vc["available_job_num"] = cluster_status["vc_num_active_jobs"][vc_name]
-
-                vc["node_status"] = cluster_status["node_status"]
-                vc["user_status"] = cluster_status["vc_user_status"]
-                vc["user_status_preemptable"] = cluster_status["vc_user_status_preemptable"]
+                ret["AvaliableJobNum"] = ret["available_job_num"]
 
                 gpu_idle = get_gpu_idle(vc_name)
                 if gpu_idle is not None:
-                    vc["gpu_idle"] = gpu_idle
-
-                ret = dictionarize(ret)
+                    ret["gpu_idle"] = gpu_idle
                 break
     except:
-        logger.exception("Exception in getting VC", exc_info=True)
+        logger.exception("Exception in getting VC %s for user %s", vc_name,
+                         username, exc_info=True)
 
     return ret
 
