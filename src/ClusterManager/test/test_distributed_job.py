@@ -196,15 +196,25 @@ sleep infinity"""
 def test_distributed_job_env(args):
     envs = {
         "DLWS_HOST_NETWORK": "enable",
+        "DLTS_HOST_NETWORK": "enable",
         "DLWS_NUM_PS": "1",
+        "DLTS_NUM_PS": "1",
         "DLWS_NUM_WORKER": "1",
+        "DLTS_NUM_WORKER": "1",
         "DLWS_NUM_GPU_PER_WORKER": "0",
+        "DLTS_NUM_GPU_PER_WORKER": "0",
         "DLWS_VC_NAME": str(args.vc),
+        "DLTS_VC_NAME": str(args.vc),
         "DLWS_UID": str(args.uid),
+        "DLTS_UID": str(args.uid),
         "DLWS_USER_NAME": args.email.split("@")[0],
+        "DLTS_USER_NAME": args.email.split("@")[0],
         "DLWS_USER_EMAIL": args.email,
+        "DLTS_USER_EMAIL": args.email,
         "DLWS_ROLE_NAME": "master",
+        "DLTS_ROLE_NAME": "master",
         "DLWS_JOB_ID": "unknown",
+        "DLTS_JOB_ID": "unknown",
     }
 
     job_spec = utils.gen_default_job_description("distributed",
@@ -221,6 +231,7 @@ def test_distributed_job_env(args):
             {"unapproved", "queued", "scheduling"})
         assert state == "running"
         envs["DLWS_JOB_ID"] = job.jid
+        envs["DLTS_JOB_ID"] = job.jid
 
         for endpoint_id in endpoints_ids:
             ssh_endpoint = utils.wait_endpoint_ready(args.rest, args.email,
@@ -239,7 +250,9 @@ def test_distributed_job_env(args):
             role, idx = match.groups()
 
             envs["DLWS_ROLE_NAME"] = role
+            envs["DLTS_ROLE_NAME"] = role
             envs["DLWS_ROLE_IDX"] = idx
+            envs["DLTS_ROLE_IDX"] = idx
 
             bash_cmd = ";".join([
                 "printf '%s=' ; printenv %s" % (key, key)
@@ -325,3 +338,25 @@ def test_blobfuse(args):
         assert code == 0, "code is %d, output is %s" % (code, output)
         assert msg + "\n" == output, "code is %d, output is %s" % (code,
                                                                    output)
+
+
+# uncomment to run perf case
+#@utils.case
+def perf(args):
+    cmd = "sleep 30"
+
+    job_spec = utils.gen_default_job_description("distributed",
+                                                 args.email,
+                                                 args.uid,
+                                                 args.vc,
+                                                 cmd=cmd)
+    for _ in range(10):
+        jids = []
+        for _ in range(5):
+            jids.append(utils.post_job(args.rest, job_spec))
+
+        for jid in jids:
+            state = utils.block_until_state_not_in(
+                args.rest, jid,
+                {"unapproved", "queued", "scheduling", "running"})
+            logger.info("%s is in state %s", jid, state)

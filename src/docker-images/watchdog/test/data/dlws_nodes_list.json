@@ -57,7 +57,6 @@
           "hdfsformat": "active",
           "hdfsnn2": "active",
           "zk-headless": "active",
-          "FragmentGPUJob": "active",
           "dlws-grafana": "active",
           "influxdb": "active",
           "beta.kubernetes.io/arch": "amd64"

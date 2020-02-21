@@ -12,6 +12,8 @@ from utils import prometheus_url, k8s_util
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
+activity_log = logging.getLogger('activity')
+
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 
 def _extract_node_boot_time_info(response):
@@ -26,15 +28,18 @@ def _extract_node_boot_time_info(response):
     
     return node_boot_times
 
-def _pause_resume_job(rest_url, job_id, job_owner_email, attempts, wait_time):
+def _pause_resume_job(rest_url, job_id, job_owner_email, attempts, wait_time, dry_run):
     try:
-        pause_resp = _pause_job(rest_url, job_id, job_owner_email, attempts) 
-        if pause_resp:      
-            status_resp = _wait_for_job_to_pause(rest_url, job_id, attempts, wait_time)
-            if status_resp:
-                resume_resp = _resume_job(rest_url, job_id, job_owner_email, attempts)
-                if resume_resp:
-                    return True
+        if dry_run:
+            return True
+        else:
+            pause_resp = _pause_job(rest_url, job_id, job_owner_email, attempts) 
+            if pause_resp:      
+                status_resp = _wait_for_job_to_pause(rest_url, job_id, attempts, wait_time)
+                if status_resp:
+                    resume_resp = _resume_job(rest_url, job_id, job_owner_email, attempts)
+                    if resume_resp:
+                        return True
     except:
         logging.exception(f'Error pausing/resuming job {job_id}')
     
@@ -142,6 +147,7 @@ class ECCRebootNodeRule(Rule):
                         last_reboot_time = reboot_times[instance]
                         if last_reboot_time > time_found_datetime:
                             remove_from_cache.append(node)
+                            activity_log.info({"action":"node marked as resolved","node":node})
 
                     for node in remove_from_cache:
                         self.alert.remove_from_rule_cache(self.rule, node)
@@ -184,6 +190,7 @@ class ECCRebootNodeRule(Rule):
             job_owner_email = f"{job_owner}@{self.config['job_owner_email_domain']}"
             node_names = job_info[job_id]["node_names"]
             job_link = job_info[job_id]['job_link']
+            dry_run = self.ecc_config["reboot_dry_run"]
 
             # attempt to pause/resume job
             pause_resume_params = {
@@ -191,25 +198,26 @@ class ECCRebootNodeRule(Rule):
                 "job_id": job_id,
                 "job_owner_email": job_owner_email,
                 "attempts": 10,
-                "wait_time": self.ecc_config["time_sleep_after_pausing"]
+                "wait_time": self.ecc_config["time_sleep_after_pausing"],
+                "dry_run": dry_run
             }
 
-            if self.ecc_config['reboot_dry_run']:
-                logging.info(f"Dry-Run Pause/Resume job {job_id}, job owner {job_owner_email}")
-            else:
-                success = _pause_resume_job(**pause_resume_params)
+            success = _pause_resume_job(**pause_resume_params)
+            activity_log.info({"action":"pause/resume job","job_id":job_id,"job_owner":job_owner,"success":success,"dry_run":dry_run})
 
-                if success:
-                    if self.ecc_config["alert_job_owners"]:
-                        message = _create_email_for_pause_resume_job(job_id, node_names, job_link, job_owner_email, dri_email)
-                        self.alert.send_alert(message)
-                else:
-                    logging.warning(f"Could not pause/resume the following job: {job_id}")
-                    unsuccessful_pause_resume_jobs[job_id] = job_info[job_id]
-                
-                if len(unsuccessful_pause_resume_jobs) > 0:
-                    message = _create_email_for_issue_with_pause_resume_job(unsuccessful_pause_resume_jobs, dri_email)
+            if success:
+                if self.ecc_config["alert_job_owners"] and not self.ecc_config["reboot_dry_run"]:
+                    message = _create_email_for_pause_resume_job(job_id, node_names, job_link, job_owner_email, dri_email)
                     self.alert.send_alert(message)
+                    activity_log.info({"action":"job owner alert - pause/resume","job_id":job_id,"job_owner":job_owner})
+            else:
+                logging.warning(f"Could not pause/resume the following job: {job_id}")
+                unsuccessful_pause_resume_jobs[job_id] = job_info[job_id]
+            
+            if len(unsuccessful_pause_resume_jobs) > 0:
+                message = _create_email_for_issue_with_pause_resume_job(unsuccessful_pause_resume_jobs, dri_email)
+                self.alert.send_alert(message)
+                activity_log.info(activity_log.info({"action":"dri alert - failed to pause/resume","job_id":job_id,"job_owner":job_owner}))
 
         # TODO: reboot node and remove from cache
 

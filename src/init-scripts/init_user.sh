@@ -7,14 +7,14 @@ export ENV_FILE=/pod.env
 export DEBIAN_FRONTEND=noninteractive
 
 # setup user and group, fix permissions
-addgroup --force-badname --gid  ${DLWS_GID} domainusers
-adduser --force-badname --home /home/${DLWS_USER_NAME} --shell /bin/bash --uid ${DLWS_UID}  -gecos '' --gid ${DLWS_GID} --disabled-password ${DLWS_USER_NAME}
-usermod -p $(echo ${DLTS_JOB_TOKEN} | openssl passwd -1 -stdin) ${DLWS_USER_NAME}
-chown ${DLWS_USER_NAME} /home/${DLWS_USER_NAME}/ /home/${DLWS_USER_NAME}/.profile /home/${DLWS_USER_NAME}/.ssh || /bin/true
-chmod 700 /home/${DLWS_USER_NAME}/.ssh || /bin/true
+addgroup --force-badname --gid  ${DLTS_GID} domainusers
+adduser --force-badname --home /home/${DLTS_USER_NAME} --shell /bin/bash --uid ${DLTS_UID}  -gecos '' --gid ${DLTS_GID} --disabled-password ${DLTS_USER_NAME}
+usermod -p $(echo ${DLTS_JOB_TOKEN} | openssl passwd -1 -stdin) ${DLTS_USER_NAME}
+chown ${DLTS_USER_NAME} /home/${DLTS_USER_NAME}/ /home/${DLTS_USER_NAME}/.profile /home/${DLTS_USER_NAME}/.ssh || /bin/true
+chmod 700 /home/${DLTS_USER_NAME}/.ssh || /bin/true
 
 # setup sudoers
-adduser $DLWS_USER_NAME sudo
+adduser $DLTS_USER_NAME sudo
 echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 # export envs
@@ -29,7 +29,7 @@ compgen -e | while read line; do
 echo "export PATH=$PATH:\${PATH}" >> "${ENV_FILE}"
 echo "export LD_LIBRARY_PATH=/usr/local/nvidia/lib64/:\${LD_LIBRARY_PATH}" >> "${ENV_FILE}"
 # source the envs
-grep -qx "^\s*. ${ENV_FILE}" /home/${DLWS_USER_NAME}/.profile || cat << SCRIPT >> "/home/${DLWS_USER_NAME}/.profile"
+grep -qx "^\s*. ${ENV_FILE}" /home/${DLTS_USER_NAME}/.profile || cat << SCRIPT >> "/home/${DLTS_USER_NAME}/.profile"
 if [ -f ${ENV_FILE} ]; then
     . ${ENV_FILE}
 fi
