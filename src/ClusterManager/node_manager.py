@@ -87,7 +87,8 @@ def get_cluster_status():
         vc_statuses_factory = VirtualClusterStatusesFactory(cs, vc_list)
         vc_statuses = vc_statuses_factory.make()
         vc_statuses = {
-            vc_name: vc_status.to_dict() for vc_name, vc_status in vc_statuses
+            vc_name: vc_status.to_dict()
+            for vc_name, vc_status in vc_statuses.items()
         }
 
         cluster_status["vc_statuses"] = vc_statuses

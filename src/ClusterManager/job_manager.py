@@ -527,7 +527,7 @@ def get_vc_schedulables(cluster_status):
     # Compute VC schedulable resources
     vc_statuses = cluster_status.get("vc_statuses", {})
     vc_schedulables = {}
-    for vc_name, vc_status in vc_statuses:
+    for vc_name, vc_status in vc_statuses.items():
         vc_capacity = ClusterResource(params={
             "cpu": vc_status["cpu_capacity"],
             "memory": vc_status["memory_capacity"],
