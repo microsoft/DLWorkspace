@@ -105,7 +105,7 @@ def mock_k8s_pod(config):
     return pod
 
 
-class TestClusterStatus(TestCase):
+class TestUtils(TestCase):
     def test_str2bool(self):
         self.assertTrue(str2bool("True"))
         self.assertTrue(str2bool("1"))
@@ -115,6 +115,8 @@ class TestClusterStatus(TestCase):
         self.assertFalse(str2bool("false"))
         self.assertFalse(str2bool("0"))
 
+
+class TestClusterStatus(TestCase):
     def test_to_dict(self):
         inclusion = [
             "gpu_capacity",

@@ -22,7 +22,7 @@ from config import config
 import k8s_utils
 
 from cluster_status import ClusterStatusFactory
-from virtual_cluster_status import VCStatusesFactory
+from virtual_cluster_status import VirtualClusterStatusesFactory
 
 k8s = k8s_utils.K8sUtil()
 
@@ -84,8 +84,8 @@ def get_cluster_status():
         cluster_status["AvaliableJobNum"] = cluster_status["available_job_num"]
 
         # Set up virtual cluster views
-        vc_factory = VCStatusesFactory(cs, vc_list)
-        vc_statuses = vc_factory.make()
+        vc_statuses_factory = VirtualClusterStatusesFactory(cs, vc_list)
+        vc_statuses = vc_statuses_factory.make()
         vc_statuses = {
             vc_name: vc_status.to_dict() for vc_name, vc_status in vc_statuses
         }

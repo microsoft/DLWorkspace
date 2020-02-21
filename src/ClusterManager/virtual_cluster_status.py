@@ -31,20 +31,20 @@ def get_vc_info(vc_list):
     return vc_info
 
 
-class VCStatus(ClusterStatus):
+class VirtualClusterStatus(ClusterStatus):
     def __init__(self, vc_name, vc_metrics_map, vc_jobs_without_pods,
                  node_statuses, pod_statuses, jobs):
         self.vc_name = vc_name
         self.vc_metrics_map = vc_metrics_map
         self.vc_jobs_without_pods = vc_jobs_without_pods
 
-        super(VCStatus, self).__init__(node_statuses, pod_statuses, jobs)
+        super(VirtualClusterStatus, self).__init__(node_statuses, pod_statuses, jobs)
 
         self.exclusion.append("vc_metrics_map")
         self.exclusion.append("vc_jobs_without_pods")
 
     def gen_user_statuses(self):
-        super(VCStatus, self).gen_user_statuses()
+        super(VirtualClusterStatus, self).gen_user_statuses()
 
         vc_name = self.vc_name
         jobs_without_pods = self.vc_jobs_without_pods.get(vc_name, [])
@@ -76,7 +76,7 @@ class VCStatus(ClusterStatus):
                     vc_metric.__dict__[r_type]
 
 
-class VCStatusesFactory(object):
+class VirtualClusterStatusesFactory(object):
     def __init__(self, cluster_status, vc_list):
         self.cluster_status = cluster_status
         self.vc_info = get_vc_info(vc_list)
@@ -92,7 +92,7 @@ class VCStatusesFactory(object):
                 vc_pod_statuses, vc_jobs_without_pods)
 
             vc_statuses = {
-                vc_name: VCStatus(
+                vc_name: VirtualClusterStatus(
                     vc_name,
                     vc_metrics_map,
                     vc_jobs_without_pods,
