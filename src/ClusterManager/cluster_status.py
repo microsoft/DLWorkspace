@@ -25,8 +25,12 @@ def str2bool(s):
     return s.lower() in ["true", "1", "t", "y", "yes"]
 
 
-def base64decode(s):
-    return base64.b64decode(s.encode("utf-8")).decode("utf-8")
+def base64encode(str_val):
+    return base64.b64encode(str_val.encode("utf-8")).decode("utf-8")
+
+
+def base64decode(str_val):
+    return base64.b64decode(str_val.encode("utf-8")).decode("utf-8")
 
 
 def get_jobs(job_list):
