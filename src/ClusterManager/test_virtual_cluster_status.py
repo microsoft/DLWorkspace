@@ -1,8 +1,16 @@
 #!/usr/bin/env python3
 
+import os
+import sys
+
 from unittest import TestCase
+from cluster_status import ClusterStatus, ClusterStatusFactory
 from virtual_cluster_status import VirtualClusterStatus, \
     VirtualClusterStatusesFactory
+from cluster_test_utils import BaseTestClusterSetup
+
+sys.path.append(os.path.join(os.path.dirname(
+    os.path.abspath(__file__)), "../utils"))
 
 
 class TestVirtualClusterStatus(TestCase):
@@ -39,11 +47,15 @@ class TestVirtualClusterStatus(TestCase):
             "pod_statuses",
             "user_statuses",
             "user_statuses_preemptable",
-            "vc_metrics_map",
             "jobs_without_pods",
+            "vc_info",
+            "vc_pod_statuses",
+            "vc_jobs",
+            "vc_jobs_without_pods",
         ]
 
-        vcs = VirtualClusterStatus("", {}, {}, {}, {}, [])
+        cs = ClusterStatus({}, {}, [])
+        vcs = VirtualClusterStatus("", {}, cs, {}, {}, {})
         d = vcs.to_dict()
 
         for inc in inclusion:
@@ -53,4 +65,18 @@ class TestVirtualClusterStatus(TestCase):
             self.assertFalse(exc in d)
 
     def test_compute_vc_statuses(self):
-        pass
+        test_cluster = BaseTestClusterSetup()
+        nodes = test_cluster.nodes
+        pods = test_cluster.pods
+        jobs = test_cluster.jobs
+        vc_list = test_cluster.vc_list
+
+        cs_factory = ClusterStatusFactory("", nodes, pods, jobs)
+        cs = cs_factory.make()
+
+        vcs_factory = VirtualClusterStatusesFactory(cs, vc_list)
+        vc_statuses = vcs_factory.make()
+        self.assertIsNotNone(vc_statuses)
+
+        t_vc_statuses = test_cluster.vc_statuses
+        self.assertEqual(t_vc_statuses, vc_statuses)

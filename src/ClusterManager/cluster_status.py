@@ -12,6 +12,8 @@ sys.path.append(os.path.join(os.path.dirname(
     os.path.abspath(__file__)), "../utils"))
 
 from resource_stat import dictionarize, Gpu, Cpu, Memory
+from cluster_resource import ClusterResource
+from job_params_util import get_resource_params_from_job_params
 
 
 logger = logging.getLogger(__name__)
@@ -98,9 +100,9 @@ class ClusterStatus(object):
 
         # Not included in returning dict
         self.jobs = get_jobs(jobs)
-        self.jobs_without_pods = None
         self.node_statuses = node_statuses
         self.pod_statuses = pod_statuses
+        self.jobs_without_pods = None
         self.user_statuses = None
         self.user_statuses_preemptable = None
 
@@ -123,15 +125,69 @@ class ClusterStatus(object):
         })
 
     def compute(self):
-        self.gen_user_statuses()
-        self.gen_node_status()
-        self.gen_pod_status()
-        self.gen_resource_status()
-        self.gen_user_status()
-        self.gen_available_job_num()
+        # Generate jobs without k8s pods
         self.gen_jobs_without_pods()
 
-    @override
+        # Generate node_status list and pod_status list
+        self.gen_node_status()
+        self.gen_pod_status()
+
+        # Generate user statuses
+        self.gen_user_statuses()
+
+        # Generate cluster resource status
+        self.gen_resource_status()
+
+        # Generate user_status list
+        self.gen_user_status()
+
+        # Generate active job count
+        self.gen_available_job_num()
+
+    def __eq__(self, other):
+        if self.__class__ != other.__class__:
+            logger.debug("self class %s, other class %s", self.__class__,
+                         other.__class__)
+            return False
+
+        for k in self.__dict__:
+            if k in self.exclusion:
+                continue
+
+            self_val = self.__dict__[k]
+            other_val = other.__dict__[k]
+            if isinstance(self_val, list) and isinstance(other_val, list):
+                for item in self_val:
+                    if item not in other_val:
+                        logger.debug("For %s: self %s, other %s", k,
+                                     self.__dict__[k], other.__dict__[k])
+                        return False
+                for item in other_val:
+                    if item not in self_val:
+                        logger.debug("For %s: self %s, other %s", k,
+                                     self.__dict__[k], other.__dict__[k])
+                        return False
+            elif self_val != other_val:
+                logger.debug("For %s: self %s, other %s", k,
+                             self.__dict__[k], other.__dict__[k])
+                return False
+
+        return True
+
+    def gen_jobs_without_pods(self):
+        self.jobs_without_pods = get_jobs_without_pods(
+            self.jobs, self.pod_statuses)
+
+    def gen_node_status(self):
+        self.node_status = [
+            node_status for _, node_status in self.node_statuses.items()
+        ]
+
+    def gen_pod_status(self):
+        self.pod_status = [
+            pod_status for _, pod_status in self.pod_statuses.items()
+        ]
+
     def gen_user_statuses(self):
         user_statuses = {}
         user_statuses_preemptable = {}
@@ -169,69 +225,87 @@ class ClusterStatus(object):
         self.user_statuses = user_statuses
         self.user_statuses_preemptable = user_statuses_preemptable
 
-    def gen_node_status(self):
-        self.node_status = [
-            node_status for _, node_status in self.node_statuses.items()
-        ]
+        self.__adjust_user_statuses()
 
-    def gen_pod_status(self):
-        self.pod_status = [
-            pod_status for _, pod_status in self.pod_statuses.items()
-        ]
+    def __adjust_user_statuses(self):
+        # Adjust with jobs that have not been scheduled on k8s.
+        # Add to corresponding user usage
+        for job in self.jobs_without_pods:
+            job_params = job["jobParams"]
+            job_res_params = get_resource_params_from_job_params(job_params)
+            job_res = ClusterResource(params=job_res_params)
+            username = job["userName"].split("@")[0].strip()
 
-    def gen_user_status(self):
-        self.user_status = [
-            {
-                "userName": username,
-                "userGPU": u_info["gpu"],
-                "userCPU": u_info["cpu"],
-                "userMemory": u_info["memory"]
-            } for username, u_info in self.user_statuses.items()
-        ]
-
-        self.user_status_preemptable = [
-            {
-                "userName": username,
-                "userGPU": u_info["gpu"],
-                "userCPU": u_info["cpu"],
-                "userMemory": u_info["memory"]
-            } for username, u_info in self.user_statuses_preemptable.items()
-        ]
-
-    def gen_available_job_num(self):
-        if self.jobs is not None:
-            self.available_job_num = len(self.jobs)
-        else:
-            self.available_job_num = 0
-
-    def gen_jobs_without_pods(self):
-        self.jobs_without_pods = []
-
-        job_ids_with_pods = set()
-        for _, pod_status in self.pod_statuses.items():
-            job_id = pod_status.get("job_id")
-            if job_id is not None:
-                job_ids_with_pods.add(job_id)
-
-        for job in self.jobs:
-            job_id = job.get("jobId")
-            if job_id is None:
-                logger.warning("Skip job %s", job_id)
-                continue
-
-            if job_id in job_ids_with_pods:
-                logger.debug("Job %s is accounted in k8s pods", job_id)
-                continue
-
-            self.jobs_without_pods.append(job)
-
-        return self.jobs_without_pods
+            if not job["preemptionAllowed"]:
+                self.user_statuses[username]["gpu"] += job_res.gpu
+                self.user_statuses[username]["cpu"] += job_res.cpu
+                self.user_statuses[username]["memory"] += job_res.memory
+                logger.info("Added job %s resource %s to used for user %s",
+                            job, job_res, username)
+            else:
+                self.user_statuses_preemptable[username]["gpu"] += job_res.gpu
+                self.user_statuses_preemptable[username]["cpu"] += job_res.cpu
+                self.user_statuses_preemptable[username]["memory"] += \
+                    job_res.memory
+                logger.info("Added job %s resource %s to preemptable used for "
+                            "user %s", job, job_res, username)
 
     @override
     def gen_resource_status(self):
         self.__gen_cpu_status()
         self.__gen_memory_status()
         self.__gen_gpu_status()
+        self.__adjust_resource_status()
+
+    def __adjust_resource_status(self):
+        # Adjust with jobs that have not been scheduled on k8s.
+        # Subtract from cluster available
+        # Add to cluster used
+        for job in self.jobs_without_pods:
+            job_params = job["jobParams"]
+            job_res_params = get_resource_params_from_job_params(job_params)
+            job_res = ClusterResource(params=job_res_params)
+
+            if not job["preemptionAllowed"]:
+                self.gpu_available -= job_res.gpu
+                self.cpu_available -= job_res.cpu
+                self.memory_available -= job_res.memory
+
+                self.gpu_used += job_res.gpu
+                self.cpu_used += job_res.cpu
+                self.memory_used += job_res.memory
+                logger.info("Added job %s resource %s to used", job, job_res)
+            else:
+                self.gpu_preemptable_used += job_res.gpu
+                self.cpu_preemptable_used += job_res.cpu
+                self.memory_preemptable_used += job_res.memory
+                logger.info("Added job %s resource %s to preemptable used",
+                            job, job_res)
+
+    def gen_user_status(self):
+        self.user_status = [
+            {
+                "userName": username,
+                "userGPU": user_status["gpu"],
+                "userCPU": user_status["cpu"],
+                "userMemory": user_status["memory"]
+            } for username, user_status in self.user_statuses.items()
+        ]
+
+        self.user_status_preemptable = [
+            {
+                "userName": username,
+                "userGPU": user_status["gpu"],
+                "userCPU": user_status["cpu"],
+                "userMemory": user_status["memory"]
+            } for username, user_status in
+            self.user_statuses_preemptable.items()
+        ]
+
+    def gen_available_job_num(self):
+        self.available_job_num = 0
+        if isinstance(self.jobs, list):
+            self.available_job_num = len(self.jobs)
 
     def __gen_r_type_status(self, r_type):
         capacity = r_type()

@@ -655,7 +655,7 @@ def mark_schedulable_preemptable_jobs(jobs_info, cluster_schedulable):
                     cluster_schedulable, job_resource)
 
 
-def schedulable_jobs(jobs_info, data_handler, redis_conn, launcher,
+def schedule_jobs(jobs_info, data_handler, redis_conn, launcher,
                      cluster_schedulable, vc_schedulables):
     for job_info in jobs_info:
         try:
@@ -711,8 +711,8 @@ def take_job_actions(data_handler, redis_conn, launcher, jobs):
                 cluster_schedulable)
 
     # Submit/kill jobs based on schedulable marking
-    schedulable_jobs(jobs_info, data_handler, redis_conn, launcher,
-                     cluster_schedulable, vc_schedulables)
+    schedule_jobs(jobs_info, data_handler, redis_conn, launcher,
+                  cluster_schedulable, vc_schedulables)
 
 
 def Run(redis_port, target_status):
