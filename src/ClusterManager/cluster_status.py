@@ -162,7 +162,8 @@ class ClusterStatus(object):
 
                 user_statuses_preemptable[username]["gpu"] += preemptable_gpu
                 user_statuses_preemptable[username]["cpu"] += preemptable_cpu
-                user_statuses_preemptable[username]["memory"] += preemptable_memory
+                user_statuses_preemptable[username]["memory"] += \
+                    preemptable_memory
 
         self.user_statuses = user_statuses
         self.user_statuses_preemptable = user_statuses_preemptable

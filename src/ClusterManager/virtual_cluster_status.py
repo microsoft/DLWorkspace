@@ -38,7 +38,8 @@ class VirtualClusterStatus(ClusterStatus):
         self.vc_metrics_map = vc_metrics_map
         self.vc_jobs_without_pods = vc_jobs_without_pods
 
-        super(VirtualClusterStatus, self).__init__(node_statuses, pod_statuses, jobs)
+        super(VirtualClusterStatus, self).__init__(
+            node_statuses, pod_statuses, jobs)
 
         self.exclusion.append("vc_metrics_map")
         self.exclusion.append("vc_jobs_without_pods")
