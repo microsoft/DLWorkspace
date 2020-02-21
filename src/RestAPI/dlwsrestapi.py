@@ -1021,12 +1021,12 @@ api.add_resource(ListVCs, '/ListVCs')
 class GetVC(Resource):
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('userName')
-        parser.add_argument('vcName')
+        parser.add_argument("userName")
+        parser.add_argument("vcName")
         args = parser.parse_args()
-        userName = args["userName"]
-        vcName = args["vcName"]
-        ret = JobRestAPIUtils.GetVC(userName, vcName)
+        username = args["userName"]
+        vc_name = args["vcName"]
+        ret = JobRestAPIUtils.get_vc(username, vc_name)
 
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
