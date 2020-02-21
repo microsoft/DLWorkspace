@@ -1345,7 +1345,7 @@ class DataHandler(object):
         conn = None
         cursor = None
         try:
-            status = base64.b64encode(json.dumps(clusterStatus, separators=(",", ":")))
+            status = base64.b64encode(json.dumps(clusterStatus))
 
             conn = self.pool.get_connection()
             cursor = conn.cursor()
