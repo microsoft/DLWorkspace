@@ -553,7 +553,7 @@ def get_jobs_info(jobs):
         job_status = job.get("jobStatus")
         if job_status in ["queued", "scheduling", "running"]:
             job_params = json.loads(base64decode(job["jobParams"]))
-            preemption_allowed = job_params["preemptionAllowed"]
+            preemption_allowed = job_params.get("preemptionAllowed", False)
             job_id = job_params["jobId"]
 
             job_res = get_resource_params_from_job_params(job_params)
@@ -612,7 +612,8 @@ def mark_schedulable_non_preemptable_jobs(jobs_info, cluster_schedulable,
         vc_name = job_info["job"]["vcName"]
         vc_schedulable = vc_schedulables[vc_name]
 
-        if job_info["preemptionAllowed"]:
+        preemption_allowed = job_info.get("preemptionAllowed", False)
+        if preemption_allowed:
             continue  # schedule non preemptable first
 
         if cluster_schedulable >= job_resource and \
@@ -633,7 +634,8 @@ def mark_schedulable_non_preemptable_jobs(jobs_info, cluster_schedulable,
 
 def mark_schedulable_preemptable_jobs(jobs_info, cluster_schedulable):
     for job_info in jobs_info:
-        if job_info["preemptionAllowed"] and (job_info["allowed"] is False):
+        preemption_allowed = job_info.get("preemptionAllowed", False)
+        if preemption_allowed and (job_info["allowed"] is False):
             job_resource = job_info["job_resource"]
             job_id = job_info["job_id"]
             if cluster_schedulable >= job_resource:
@@ -664,7 +666,7 @@ def schedule_jobs(jobs_info, data_handler, redis_conn, launcher,
             job_resource = job_info["job_resource"]
             vc_name = job["vcName"]
             job_status = job["jobStatus"]
-            preemption_allowed = job_info["preemptionAllowed"]
+            preemption_allowed = job_info.get("preemptionAllowed", False)
             allowed = job_info["allowed"]
             sort_key = job_info["sort_key"]
 
