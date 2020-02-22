@@ -10,7 +10,7 @@ from utils import rule_alert_handler
 
 import rules
 
-with open('./config/logging.yaml', 'r') as log_file:
+with open('./logging.yaml', 'r') as log_file:
     log_config = yaml.safe_load(log_file)
 
 logging.config.dictConfig(log_config)
@@ -21,7 +21,7 @@ alert = rule_alert_handler.RuleAlertHandler()
 def Run():
     try:        
         while True:
-            with open('./config/rule-config.yaml', 'r') as config_file:
+            with open('/etc/RepairManager/config/rule-config.yaml', 'r') as config_file:
                 config = yaml.safe_load(config_file)
 
             # execute all rules listed in config
