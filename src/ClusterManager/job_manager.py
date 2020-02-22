@@ -656,13 +656,13 @@ def mark_schedulable_preemptable_jobs(jobs_info, cluster_schedulable):
 
 
 def schedule_jobs(jobs_info, data_handler, redis_conn, launcher,
-                     cluster_schedulable, vc_schedulables):
+                  cluster_schedulable, vc_schedulables):
     for job_info in jobs_info:
         try:
             job = job_info["job"]
             job_id = job_info["jobId"]
             job_resource = job_info["job_resource"]
-            vc_name = job["vc_name"]
+            vc_name = job["vcName"]
             job_status = job["jobStatus"]
             preemption_allowed = job_info["preemptionAllowed"]
             allowed = job_info["allowed"]
