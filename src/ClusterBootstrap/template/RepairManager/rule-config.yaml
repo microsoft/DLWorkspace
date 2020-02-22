@@ -7,11 +7,11 @@ rules:
     module_name: rules.ecc_reboot_node_rule
     class_name: ECCRebootNodeRule
 
-rule_wait_time: 10 # time to sleep between rule execution (seconds)
+rule_wait_time: 30 # time to sleep between rule execution (seconds)
 
-cluster_name: {{cnf['repair-manager']['cluster_name']}}
+cluster_name: {{cnf['cluster_name_friendly']}}
 
-domain_name: {{cnf['repair-manager']['domain_name']}}
+portal_url: {{cnf['repair-manager']['portal_url']}}
 
 job_owner_email_domain: {{cnf['repair-manager']['job_owner_email_domain']}}
 

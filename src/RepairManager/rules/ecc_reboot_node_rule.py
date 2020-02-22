@@ -82,11 +82,10 @@ def _wait_for_job_to_pause(rest_url, job_id, attempts, wait_time):
     return False
 
 
-def _create_email_for_pause_resume_job(job_id, node_names, job_link, job_owner_email, dri_email):
+def _create_email_for_pause_resume_job(job_id, node_names, job_link, job_owner_email):
     message = MIMEMultipart()
     message['Subject'] = f'Repair Manager Alert [{job_id} paused/resumed]'
     message['To'] = job_owner_email
-    message['CC'] = dri_email
     body = f'''<p>As previously notified, the following node(s) require reboot due to uncorrectable ECC error:</p>
     <table border="1">'''
     for node in node_names:
@@ -97,10 +96,9 @@ def _create_email_for_pause_resume_job(job_id, node_names, job_link, job_owner_e
     return message
 
 
-def _create_email_for_issue_with_pause_resume_job(unsuccessful_pause_resume_jobs, dri_email):
+def _create_email_for_issue_with_pause_resume_job(unsuccessful_pause_resume_jobs):
     message = MIMEMultipart()
     message['Subject'] = 'Repair Manager Alert [Failed to Pause/Resume Job(s)]'
-    message['To'] = dri_email
     body = f'''<p>Repair manager failed to pause/resume the following job(s):</p>
      <table border="1"><tr><th>Job Id</th><th>Job Owner</th><th>Node(s)</th></tr>'''
     for job_id, job_info in unsuccessful_pause_resume_jobs.items():
@@ -122,7 +120,7 @@ class ECCRebootNodeRule(Rule):
         self.nodes_ready_for_action = []
 
     def load_ecc_config(self):
-        with open('./config/ecc-config.yaml', 'r') as file:
+        with open('/etc/RepairManager/config/ecc-config.yaml', 'r') as file:
             return yaml.safe_load(file)
 
     def check_status(self):
@@ -162,7 +160,7 @@ class ECCRebootNodeRule(Rule):
                 if 'paused/resumed' not in cache_value:
                     time_found_string = self.alert.rule_cache[self.rule][node]["time_found"]
                     time_found_datetime = datetime.strptime(time_found_string, DATE_FORMAT)
-                    delta = timedelta(days=self.ecc_config["days_until_node_reboot"])
+                    delta = timedelta(days=self.ecc_config.get("days_until_node_reboot", 5))
                     now = datetime.utcnow()
                     if now - time_found_datetime > delta:
                         logging.info(f'Configured time has passed for node {node}')
@@ -177,7 +175,7 @@ class ECCRebootNodeRule(Rule):
         job_params = {
             "pods": pods,
             "nodes": self.nodes_ready_for_action,
-            "domain_name": self.config["domain_name"],
+            "portal_url": self.config["portal_url"],
             "cluster_name": self.config["cluster_name"]
         }
         job_info = k8s_util._get_job_info_from_nodes(**job_params)
@@ -185,29 +183,27 @@ class ECCRebootNodeRule(Rule):
         unsuccessful_pause_resume_jobs = {}
 
         for job_id in job_info:
-            dri_email = self.ecc_config["dri_email"]
             job_owner = job_info[job_id]['user_name']
             job_owner_email = f"{job_owner}@{self.config['job_owner_email_domain']}"
             node_names = job_info[job_id]["node_names"]
             job_link = job_info[job_id]['job_link']
-            dry_run = self.ecc_config["reboot_dry_run"]
+            reboot_dry_run = self.ecc_config.get("reboot_dry_run", True)
 
             # attempt to pause/resume job
             pause_resume_params = {
                 "rest_url": self.ecc_config["rest_url"],
                 "job_id": job_id,
                 "job_owner_email": job_owner_email,
-                "attempts": 10,
-                "wait_time": self.ecc_config["time_sleep_after_pausing"],
-                "dry_run": dry_run
+                "attempts": self.ecc_config.get("attempts_for_pause_resume_jobs", 5),
+                "wait_time": self.ecc_config.get("time_sleep_after_pausing", 30),
+                "dry_run": reboot_dry_run
             }
-
             success = _pause_resume_job(**pause_resume_params)
-            activity_log.info({"action":"pause/resume job","job_id":job_id,"job_owner":job_owner,"success":success,"dry_run":dry_run})
+            activity_log.info({"action":"pause/resume job","job_id":job_id,"job_owner":job_owner,"success":success,"dry_run":reboot_dry_run})
 
             if success:
-                if self.ecc_config["alert_job_owners"] and not self.ecc_config["reboot_dry_run"]:
-                    message = _create_email_for_pause_resume_job(job_id, node_names, job_link, job_owner_email, dri_email)
+                if self.ecc_config["alert_job_owners"] and not reboot_dry_run:
+                    message = _create_email_for_pause_resume_job(job_id, node_names, job_link, job_owner_email)
                     self.alert.send_alert(message)
                     activity_log.info({"action":"job owner alert - pause/resume","job_id":job_id,"job_owner":job_owner})
             else:
@@ -215,7 +211,7 @@ class ECCRebootNodeRule(Rule):
                 unsuccessful_pause_resume_jobs[job_id] = job_info[job_id]
             
             if len(unsuccessful_pause_resume_jobs) > 0:
-                message = _create_email_for_issue_with_pause_resume_job(unsuccessful_pause_resume_jobs, dri_email)
+                message = _create_email_for_issue_with_pause_resume_job(unsuccessful_pause_resume_jobs)
                 self.alert.send_alert(message)
                 activity_log.info(activity_log.info({"action":"dri alert - failed to pause/resume","job_id":job_id,"job_owner":job_owner}))
 
