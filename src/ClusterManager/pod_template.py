@@ -17,6 +17,10 @@ from mountpoint import make_mountpoint
 
 
 class JobTemplate(object):
+    def __init__(self, template, secret_templates=None):
+        self.template = template
+        self.secret_templates = secret_templates
+
     def generate_params(self, job):
         """
         Return (pods, errors)
@@ -173,8 +177,7 @@ class JobTemplate(object):
 
 class RegularJobTemplate(JobTemplate):
     def __init__(self, template, secret_templates=None):
-        self.template = template
-        self.secret_templates = secret_templates
+        super(RegularJobTemplate, self).__init__(template, secret_templates)
 
     def generate_pods(self, job):
         """
@@ -216,9 +219,8 @@ class InferenceJobTemplate(JobTemplate):
                  template,
                  deployment_template=None,
                  secret_templates=None):
-        self.template = template
         self.deployment_template = deployment_template
-        self.secret_templates = secret_templates
+        super(InferenceJobTemplate, self).__init__(template, secret_templates)
 
     def generate_pods(self, job):
         """
@@ -275,8 +277,7 @@ class InferenceJobTemplate(JobTemplate):
 
 class DistributeJobTemplate(JobTemplate):
     def __init__(self, template, secret_templates=None):
-        self.template = template
-        self.secret_templates = secret_templates
+        super(DistributeJobTemplate, self).__init__(template, secret_templates)
 
     def generate_pod(self, pod):
         assert (isinstance(self.template, Template))
