@@ -3408,6 +3408,12 @@ def run_command(args, command, nargs, parser):
         if nargs[0] == "config":
             update_config_nodes()
 
+    elif command == "updatemysqlvc":
+        from MySQLDataHandler import update_db
+        with open("deploy/RestfulAPI/config.yaml") as f:
+            config.update(yaml.safe_load(f))
+        update_db(config)
+
     elif command == "kubectl":
         run_kubectl(nargs)
 

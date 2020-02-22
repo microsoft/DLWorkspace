@@ -43,10 +43,102 @@ def base64decode(str_val):
     return base64.b64decode(str_val.encode("utf-8")).decode("utf-8")
 
 
-def default_vc_entries(config):
+def get_vc_resource_ratio(config):
+    if "vc_gpu_quota" in config:
+        ratio = get_ratio_from_config(config)
+    else:
+        ratio = query_vc_4_ratio(config)
+    print("ratio is:\n")
+    print(ratio)
+    return ratio
+
+
+def get_ratio_from_config(config):
+    total = 0
+    ratio = {}
+    for vc_val in config["vc_gpu_quota"].values():
+        for num in vc_val.values():
+            if isinstance(3, int):
+                total += num
+    for vc, vc_val in config["vc_gpu_quota"].items():
+        tmp_sum = 0
+        for num in vc_val.values():
+            if isinstance(3, int):
+                tmp_sum += num
+        ratio[vc] = tmp_sum / total
+    return ratio
+
+
+def connect2DB(config):
+    database = "DLWSCluster-%s" % config["clusterId"]
+    server = config["mysql"]["hostname"]
+    username = config["mysql"]["username"]
+    password = config["mysql"]["password"]
+    conn = mysql.connector.connect(user=username, password=password, host=server, database=database)
+    return conn
+
+
+def query_vc_4_ratio(config):
+    conn = connect2DB(config)
+    mycursor = conn.cursor()
+    mycursor.execute("SELECT * FROM vc;")
+    myresult = mycursor.fetchall()
+    total = 0
+    for entry in myresult:
+        total += sum(eval(entry[4]).values())
+    ratio = {}
+    for entry in myresult:
+        ratio[str(entry[2])] = sum(eval(entry[4]).values()) / total
+    return ratio
+
+
+def update_db(config):
+    ratio_dict = get_vc_resource_ratio(config)
+    _, _, res_quota, res_meta = vc_value_str(config, ratio_dict)
+    conn = connect2DB(config)
+    sqls = []
+    if not column_exists(conn, 'vc', 'resourceQuota'):
+        sqls = ["ALTER TABLE vc ADD COLUMN `resourceQuota` TEXT NOT NULL AFTER `metadata`;", 
+            "ALTER TABLE vc ADD COLUMN `resourceMetadata` TEXT NOT NULL AFTER `resourceQuota`;"]
+    for vc, vc_res in res_quota.items():
+        sqls.append("UPDATE vc SET resourceQuota = '{}' where vcName = '{}'".format(vc_res, vc).replace('"', '\\\"'))
+        sqls.append("UPDATE vc SET resourceMetadata = '{}' where vcName = '{}'".format(res_meta, vc).replace('"', '\\\"'))
+    print(sqls)
+    execute_mysql(conn, sqls)
+    return sqls
+
+
+def column_exists(conn, tablename, columnname):
+    sql = "SHOW COLUMNS FROM `{}` LIKE '{}';".format(tablename, columnname)
+    cursor = conn.cursor()
+    cursor.execute(sql)
+    result = cursor.fetchone()
+    print(result)
+    return not result is None
+
+
+def table_exists(conn, tablename):
+    sql = "SHOW TABLES LIKE '{}'".format(tablename)
+    cursor = conn.cursor()
+    cursor.execute(sql)
+    result = cursor.fetchone()
+    print(result)
+    return not result is None
+
+def execute_mysql(conn, sqls):
+    if isinstance(sqls, str):
+        sqls = [sqls]
+    for sql in sqls:
+        cursor = conn.cursor()
+        cursor.execute(sql)
+        conn.commit()
+        cursor.close()
+
+
+def vc_value_str(config, ratio_dict):
     if "worker_sku_cnt" not in config or "sku_mapping" not in config:
         print("Warning: no default value would be added to VC table. Need to manually specify")
-        return ""
+        return "", "", [], ""
 
     worker_sku_cnt, sku_mapping = config["worker_sku_cnt"], config["sku_mapping"]
     quota_dict = {}
@@ -64,22 +156,25 @@ def default_vc_entries(config):
 
     for r_type in ["cpu", "memory"]:
         for sku, val in resource_quota[r_type].items():
-            resource_quota[r_type][sku] *= 0.9
+            resource_quota[r_type][sku] *= config.get("vc_rsc_discount", 0.9)
 
-    name_and_par = "AS SELECT \'{}\' AS vcName, NULL AS parent".format(config['defalt_virtual_cluster_name'])
-    quota = "'{}' AS quota".format(json.dumps(quota_dict, separators=(",", ":")))
-    metadata = "'{}' AS metadata".format(json.dumps(old_meta, separators=(",", ":")))
+    # default value of quota and metadata are based on the assumption that there's only one default VC, this is not reasonable, and 
+    # these 2 fields would also finally get removed
+    quota = json.dumps(quota_dict, separators=(",", ":"))
+    metadata = json.dumps(old_meta, separators=(",", ":"))
 
-    res_quota_dict = {}
-    for res, res_q in resource_quota.items():
-        tmp_res_quota = {}
-        for sku, cnt in res_q.items():
-            cnt_p = cnt
-            if "memory" in res:
-                cnt_p = '{}Gi'.format(cnt)
-            tmp_res_quota[sku] = cnt_p
-        res_quota_dict[res] = tmp_res_quota
-    res_quota = "'{}' AS resourceQuota".format(json.dumps(res_quota_dict, separators=(",", ":")))
+    res_quota = {}
+    for vc, ratio in ratio_dict.items():
+        res_quota_dict = {}
+        for res, res_q in resource_quota.items():
+            tmp_res_quota = {}
+            for sku, cnt in res_q.items():
+                cnt_p = cnt * ratio
+                if "memory" in res:
+                    cnt_p = '{}Gi'.format(cnt)
+                tmp_res_quota[sku] = cnt_p
+            res_quota_dict[res] = tmp_res_quota
+        res_quota[vc] = json.dumps(res_quota_dict, separators=(",", ":"))
 
     res_meta_dict = {}
     for r_type in ["cpu", "memory", "gpu", "gpu_memory"]:
@@ -93,11 +188,22 @@ def default_vc_entries(config):
             if r_type == "gpu":
                 tmp_res_meta[sku_name_in_map]["gpu_type"] = sku_mapping.get(sku_name_in_map, {}).get("gpu-type", "None")
         res_meta_dict[r_type] = tmp_res_meta
-    res_meta = "'{}' AS resourceMetadata".format(json.dumps(res_meta_dict, separators=(",", ":")))
+    res_meta = json.dumps(res_meta_dict, separators=(",", ":"))
+    return quota, metadata, res_quota, res_meta
 
-    vc_init_val = ", ".join([name_and_par, quota, metadata, res_quota, res_meta]) + ";"
-    vc_init_val = vc_init_val.replace('"', '\\\"')
-    return vc_init_val
+def insert_vc_sqls(config):
+    ratio_dict = {config['defalt_virtual_cluster_name']: 1.0}
+    if "vc_resource_ratio" in config:
+        ratio_dict = config["vc_resource_ratio"]
+    quota, metadata, res_quota, res_meta = vc_value_str(config, ratio_dict)
+    if quota == "":
+        return ""
+    sqls = []
+    for i, (vc, vc_res_quota) in enumerate(res_quota.items()):
+        sql = "INSERT INTO `vc` (`id`, `vcName`, `parent`, `quota`, `metadata`, `resourceQuota`, `resourceMetadata`) VALUES ({}, '{}', NULL, '{}', '{}', '{}', '{}')".format(
+            i+1, vc, quota, metadata, vc_res_quota, res_meta)
+        sqls.append(sql)
+    return sqls
 
 
 class DataHandler(object):
@@ -247,6 +353,8 @@ class DataHandler(object):
             # when the VC has vm of same GPU type but different VMsizes, e.g., when VC has Standard_NC6s_v3 and Standard_NC12s_v3 both?
             # impossible since there's no way to do it with current config mechanism
 
+            vc_table_exist = table_exists(self.conn, self.vctablename)
+
             sql = """
                 CREATE TABLE IF NOT EXISTS  `%s`
                 (
@@ -260,16 +368,18 @@ class DataHandler(object):
                     `time`      DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
                     PRIMARY KEY (`id`),
                     CONSTRAINT `hierarchy` FOREIGN KEY (`parent`) REFERENCES `%s` (`vcName`)
-                )                
+                );
                 """ % (self.vctablename, self.vctablename)
-
-            default_vc_value = default_vc_entries(config)
-            sql += default_vc_value
 
             cursor = self.conn.cursor()
             cursor.execute(sql)
             self.conn.commit()
             cursor.close()
+
+            if not vc_table_exist:
+                defalult_vc_rows = insert_vc_sqls(config)
+                execute_mysql(self.conn, defalult_vc_rows)
+
 
 
             sql = """
