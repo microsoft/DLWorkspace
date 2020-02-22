@@ -117,8 +117,6 @@ spec:
       value: DEBUG
     - name: DLTS_JOB_ID
       value: {{ job["jobId"] }}
-    - name: DLTS_JOB_ID
-      value: {{ job["jobId"] }}
     - name: DLTS_NUM_PS
       value: "{{ job["numps"] }}"
     - name: DLTS_NUM_WORKER
