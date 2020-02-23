@@ -97,8 +97,8 @@ def get_cluster_status():
                          exc_info=True)
 
     try:
-        if "cluster_status" in config and check_cluster_status_change(
-                config["cluster_status"], cluster_status):
+        if "cluster_status" in config and \
+                config["cluster_status"] != cluster_status:
             size = len(json.dumps(cluster_status, separators=(",", ":")))
             logger.info("updating the cluster status (of len %s)...", size)
             with DataHandler() as data_handler:
@@ -126,7 +126,7 @@ def run():
                 get_cluster_status()
             except:
                 logger.exception("get cluster status failed", exc_info=True)
-        time.sleep(30)
+        time.sleep(10)
 
 
 if __name__ == '__main__':
