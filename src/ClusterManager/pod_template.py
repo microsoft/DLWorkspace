@@ -38,6 +38,7 @@ class JobTemplate(object):
                 "userId",
                 "resourcegpu",
                 "userName",
+                "sku",
         ]):
             return None, "Missing required parameters!"
 
@@ -94,6 +95,8 @@ class JobTemplate(object):
             params["nodeSelector"] = {}
         if "gpuType" in params:
             params["nodeSelector"]["gpuType"] = params["gpuType"]
+        if "sku" in params:
+            params["nodeSelector"]["sku"] = params["sku"]
 
         # Set up VC dedicated node usage
         vc_node_hard_assignment = job.get_vc_node_hard_assignment()
