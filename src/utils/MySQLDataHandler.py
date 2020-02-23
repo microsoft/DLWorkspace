@@ -102,7 +102,6 @@ def default_vc_entries(config):
 
 class DataHandler(object):
     def __init__(self):
-        start_time = timeit.default_timer()
         self.database = "DLWSCluster-%s" % config["clusterId"]
         self.jobtablename = "jobs"
         self.identitytablename = "identity"
@@ -1562,6 +1561,31 @@ class DataHandler(object):
             if cursor is not None:
                 cursor.close()
         return ret
+
+    @record
+    def count_rows(self, table):
+        cursor = None
+        ret = None
+        try:
+            query = "SELECT COUNT(*) AS num_rows FROM %s" % table
+            cursor = self.conn.cursor()
+            cursor.execute(query)
+
+            for num_rows in cursor:
+                ret = num_rows
+                break
+
+            self.conn.commit()
+        except:
+            logger.error("Exception in counting rows for table %s", table)
+        finally:
+            if cursor is not None:
+                cursor.close()
+        return ret
+
+    def delete_rows_from_table_older_than_days(self, table, days_ago,
+                                               col="time"):
+        return False
 
     def __del__(self):
         logger.debug("********************** deleted a DataHandler instance *******************")
