@@ -210,7 +210,6 @@ class RegularJobTemplate(JobTemplate):
 
         params["numps"] = 0
         params["numworker"] = 1
-        params["fragmentGpuJob"] = True
         if "gpuLimit" not in params:
             params["gpuLimit"] = params["resourcegpu"]
 
@@ -272,7 +271,6 @@ class InferenceJobTemplate(JobTemplate):
 
         params["numps"] = 0
         params["numworker"] = 1
-        params["fragmentGpuJob"] = True
         params["gpuLimit"] = 0
 
         return params, None
@@ -291,7 +289,7 @@ class DistributeJobTemplate(JobTemplate):
 
         pod["podName"] = "{}-{}".format(job_id, dist_id)
 
-        if (pod["role_name"] == "worker"):
+        if pod["role_name"] == "worker":
             pod["gpuLimit"] = pod["resourcegpu"]
         else:
             pod["gpuLimit"] = 0
