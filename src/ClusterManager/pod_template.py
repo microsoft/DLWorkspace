@@ -355,6 +355,11 @@ class DistributeJobTemplate(JobTemplate):
         params["numworker"] = int(params["numpsworker"])
         params["numps"] = int(params["numps"])
 
+        # In LauncherStub, only generate_params is called. Need to fill in
+        # gpuLimit here for workers.
+        if "gpuLimit" not in params:
+            params["gpuLimit"] = params["resourcegpu"]
+
         params["envs"].append({
             "name": "DLWS_WORKER_NUM",
             "value": str(params["numworker"])
