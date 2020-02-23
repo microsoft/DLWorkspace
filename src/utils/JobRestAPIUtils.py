@@ -256,39 +256,42 @@ def populate_cpu_resource(job_params):
 
 
 def populate_sku(job_params):
-    # Job params already specify sku
-    sku = job_params.get("sku", "")
-    if sku != "":
-        return
-
-    # Populate sku with one from vc info in DB
-    vc_name = job_params["vcName"]
-    vc_lists = getClusterVCs()
-    vc_info = None
-    for vc in vc_lists:
-        if vc["vcName"] == vc_name:
-            vc_info = vc
-            break
-
-    if vc_info is None:
-        logger.warning("vc info for %s is None", vc_name)
-        return
-
     try:
-        resource_quota = json.loads(vc_info["resourceQuota"])
-    except:
-        logger.exception("Failed to parse resource_quota")
-        return
+        # Job params already specify sku
+        sku = job_params.get("sku", "")
+        if sku != "":
+            return
 
-    resource_gpu = job_params["resourcegpu"]
-    if resource_gpu > 0:
-        gpu = resource_quota.get("gpu", {})
-        if len(gpu) > 0:
-            job_params["sku"] = list(gpu.keys())[0]
-    else:
-        cpu = resource_quota.get("cpu", {})
-        if len(cpu) > 0:
-            job_params["sku"] = list(cpu.keys())[0]
+        # Populate sku with one from vc info in DB
+        vc_name = job_params["vcName"]
+        vc_lists = getClusterVCs()
+        vc_info = None
+        for vc in vc_lists:
+            if vc["vcName"] == vc_name:
+                vc_info = vc
+                break
+
+        if vc_info is None:
+            logger.warning("vc info for %s is None", vc_name)
+            return
+
+        try:
+            resource_quota = json.loads(vc_info["resourceQuota"])
+        except:
+            logger.exception("Failed to parse resource_quota")
+            return
+
+        resource_gpu = job_params["resourcegpu"]
+        if resource_gpu > 0:
+            gpu = resource_quota.get("gpu", {})
+            if len(gpu) > 0:
+                job_params["sku"] = list(gpu.keys())[0]
+        else:
+            cpu = resource_quota.get("cpu", {})
+            if len(cpu) > 0:
+                job_params["sku"] = list(cpu.keys())[0]
+    except:
+        logger.exception("Failed to populate SKU", exc_info=True)
 
 
 def SubmitJob(jobParamsJsonStr):
