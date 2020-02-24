@@ -44,21 +44,18 @@ def delete_old_cluster_status():
         if num_rows <= 10:  # Retain 10 rows for safety
             return
 
-        logger.info("Deleting rows from table %s older than %s", table,
+        logger.info("Deleting rows from table %s older than %s day(s)", table,
                     DAYS_AGO)
         ret = data_handler.delete_rows_from_table_older_than_days(
             table, DAYS_AGO)
         ret_status = "succeeded" if ret is True else "failed"
-        logger.info("Deleting rows from table %s older than %s %s", table,
-                    DAYS_AGO, ret_status)
+        logger.info("Deleting rows from table %s older than %s day(s) %s",
+                    table, DAYS_AGO, ret_status)
 
 
 def run():
     register_stack_trace_dump()
     create_log()
-    logger.info("start to update nodes usage information ...")
-    config["cluster_status"] = None
-
     while True:
         update_file_modification_time("db_manager")
 
@@ -66,14 +63,15 @@ def run():
             try:
                 delete_old_cluster_status()
             except:
-                logger.exception("get cluster status failed", exc_info=True)
+                logger.exception("Deleting old cluster status failed",
+                                 exc_info=True)
         time.sleep(600)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--port", "-p", help="port of exporter", type=int, default=9202)
+        "--port", "-p", help="port of exporter", type=int, default=9209)
     args = parser.parse_args()
     setup_exporter_thread(args.port)
 
