@@ -27,7 +27,7 @@ job:
     envs: # optional
       key1: val1
       key2: val2
-    ssh_public_key: # optional, these will be appended to /home/alias/.ssh/authorized_keys
+    ssh_public_keys: # optional, these will be appended to /home/alias/.ssh/authorized_keys
     - xxxxx
     - yyyyy
     - zzzzz
