@@ -83,6 +83,10 @@ spec:
           hostPort: 9208
           name: job-mgr4
           protocol: TCP
+        - containerPort: 9209
+          hostPort: 9209
+          name: db-mgr
+          protocol: TCP
         readinessProbe:
           failureThreshold: 3
           initialDelaySeconds: 3

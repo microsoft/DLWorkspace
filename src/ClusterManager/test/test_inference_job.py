@@ -9,7 +9,7 @@ import utils
 logger = logging.getLogger(__file__)
 
 
-@utils.case
+@utils.case()
 def test_inference_job_running(args):
     envs = {
         "DLWS_HOST_NETWORK": "",

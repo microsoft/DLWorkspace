@@ -9,7 +9,7 @@ import utils
 logger = logging.getLogger(__file__)
 
 
-@utils.case
+@utils.case(unstable=True)
 def test_regular_job_running(args):
     expected = "wantThisInLog"
     cmd = "echo %s ; sleep 1800" % expected
@@ -35,7 +35,7 @@ def test_regular_job_running(args):
         assert expected in log, 'assert {} in {}'.format(expected, log)
 
 
-@utils.case
+@utils.case(unstable=True)
 def test_data_job_running(args):
     expected_state = "finished"
     expected_word = "wantThisInLog"
@@ -64,7 +64,7 @@ def test_data_job_running(args):
             expected_word, log)
 
 
-@utils.case
+@utils.case()
 def test_job_fail(args):
     expected_state = "failed"
     cmd = "false"
@@ -80,7 +80,7 @@ def test_job_fail(args):
         assert expected_state == state
 
 
-@utils.case
+@utils.case()
 def test_op_job(args):
     job_spec = utils.gen_default_job_description("regular", args.email,
                                                  args.uid, args.vc)
@@ -116,7 +116,7 @@ def test_op_job(args):
         assert "killed" == state
 
 
-@utils.case
+@utils.case()
 def test_batch_op_jobs(args):
     num_jobs = 2
     job_ids = []
@@ -166,7 +166,7 @@ def test_batch_op_jobs(args):
         assert "killed" == state
 
 
-@utils.case
+@utils.case()
 def test_batch_kill_jobs(args):
     expected_msg = "successfully killed"
     expected_state = "killed"
@@ -201,7 +201,7 @@ def test_batch_kill_jobs(args):
         assert expected_state == state
 
 
-@utils.case
+@utils.case()
 def test_regular_job_ssh(args):
     job_spec = utils.gen_default_job_description("regular", args.email,
                                                  args.uid, args.vc)
@@ -244,7 +244,7 @@ def test_regular_job_ssh(args):
         assert output == "dummy\n", "output is %s" % (output)
 
 
-@utils.case
+@utils.case(unstable=True)
 def test_list_all_jobs(args):
     job_spec = utils.gen_default_job_description("regular",
                                                  args.email,
@@ -267,7 +267,7 @@ def test_list_all_jobs(args):
     assert job_id in finished_job_ids
 
 
-@utils.case
+@utils.case()
 def test_regular_job_env(args):
     envs = {
         "DLWS_HOST_NETWORK": "",
@@ -358,7 +358,7 @@ def test_regular_job_env(args):
                     expected_output, output)
 
 
-@utils.case
+@utils.case(unstable=True)
 def test_blobfuse(args):
     path = "/tmp/blob/${DLTS_JOB_ID}"
     cmd = "echo dummy > %s; cat %s ; rm %s" % (path, path, path)
@@ -383,7 +383,7 @@ def test_blobfuse(args):
             log)
 
 
-@utils.case
+@utils.case(unstable=True)
 def test_sudo_installed(args):
     cmd = "sudo ls"
     image = "pytorch/pytorch:latest"  # no sudo installed in this image
