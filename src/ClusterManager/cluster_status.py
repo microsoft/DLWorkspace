@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import base64
 import copy
 import sys
 import os
@@ -14,6 +13,7 @@ sys.path.append(os.path.join(os.path.dirname(
 from resource_stat import dictionarize, Gpu, Cpu, Memory
 from cluster_resource import ClusterResource
 from job_params_util import get_resource_params_from_job_params
+from common import base64decode
 
 
 logger = logging.getLogger(__name__)
@@ -27,14 +27,6 @@ def str2bool(s):
     return s.lower() in ["true", "1", "t", "y", "yes"]
 
 
-def base64encode(str_val):
-    return base64.b64encode(str_val.encode("utf-8")).decode("utf-8")
-
-
-def base64decode(str_val):
-    return base64.b64decode(str_val.encode("utf-8")).decode("utf-8")
-
-
 def get_jobs(job_list):
     jobs = []
     for job in job_list:
@@ -46,6 +38,10 @@ def get_jobs(job_list):
 
 
 def get_jobs_without_pods(jobs, pod_statuses):
+    """This function is to find all the jobs which has entered 'scheduling'
+    status in DLTS database, but k8s hasn't started to schedule them.
+    We need to count these jobs for accurate available resource in cluster.
+    """
     jobs_without_pods = []
 
     job_ids_with_pods = set()
@@ -386,7 +382,7 @@ class ClusterStatusFactory(object):
                                            self.pod_statuses,
                                            self.jobs)
         except:
-            logger.exception("Failed to create cluster_status", exc_info=True)
+            logger.exception("Failed to create cluster_status")
             cluster_status = None
 
         return cluster_status

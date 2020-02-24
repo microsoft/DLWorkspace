@@ -24,14 +24,13 @@ from job_launcher import get_job_status_detail, job_status_detail_with_finished_
 sys.path.append(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 
-from ResourceInfo import ResourceInfo
 from DataHandler import DataHandler
 from config import config
 import notify
 import k8sUtils
-import quota
 from cluster_resource import ClusterResource
 from job_params_util import get_resource_params_from_job_params
+from common import base64decode, base64encode
 
 logger = logging.getLogger(__name__)
 
@@ -48,13 +47,6 @@ job_state_change_histogram = Histogram(
     buckets=(1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0, 512.0, 1024.0,
              float("inf")),
     labelnames=("current_state", ))
-
-
-def base64encode(str_val):
-    return base64.b64encode(str_val.encode("utf-8")).decode("utf-8")
-
-def base64decode(str_val):
-    return base64.b64decode(str_val.encode("utf-8")).decode("utf-8")
 
 
 class JobTimeRecord(object):

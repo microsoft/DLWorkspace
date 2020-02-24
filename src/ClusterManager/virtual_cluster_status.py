@@ -25,8 +25,7 @@ def get_vc_info(vc_list):
         try:
             resource_quota = json.loads(vc["resourceQuota"])
         except:
-            logger.exception("Parsing resourceQuota failed for %s", vc,
-                             exc_info=True)
+            logger.exception("Parsing resourceQuota failed for %s", vc)
         vc_info[vc["vcName"]] = ClusterResource(params=resource_quota)
     return vc_info
 
@@ -179,27 +178,25 @@ class VirtualClusterStatusesFactory(object):
                 ) for vc_name in self.vc_info
             }
         except:
-            logger.exception("Failed to make vc statuses", exc_info=True)
+            logger.exception("Failed to make vc statuses")
             vc_statuses = None
 
         return vc_statuses
 
     def __get_vc_pod_statuses(self):
         pod_statuses = self.cluster_status.pod_statuses
-        vc_pod_statuses = {}
-        for vc_name in self.vc_info:
-            vc_pod_statuses[vc_name] = {
-                name: pod_status
-                for name, pod_status in pod_statuses.items()
-                if pod_status.get("vc_name") == vc_name
-            }
+        vc_pod_statuses = {vc_name: {} for vc_name in self.vc_info}
+        for name, pod_status in pod_statuses.items():
+            pod_vc = pod_status.get("vc_name")
+            if pod_vc in self.vc_info:
+                vc_pod_statuses[pod_vc][name] = pod_status
         return vc_pod_statuses
 
     def __get_vc_jobs(self):
         jobs = self.cluster_status.jobs
-        vc_jobs = {}
-        for vc_name in self.vc_info:
-            vc_jobs[vc_name] = [
-                job for job in jobs if job.get("vcName") == vc_name
-            ]
+        vc_jobs = {vc_name: [] for vc_name in self.vc_info}
+        for job in jobs:
+            job_vc = job.get("vcName")
+            if job_vc in self.vc_info:
+                vc_jobs[job_vc].append(job)
         return vc_jobs
