@@ -6,6 +6,7 @@ import React, {
   useState
 } from 'react';
 import {
+  Box,
   Paper,
   Tabs,
   Tab
@@ -30,33 +31,35 @@ const JobTabs: FunctionComponent<{ manageable: boolean }> = ({ manageable }) => 
     setIndex(index);
   }, [setIndex]);
   return (
-    <Paper elevation={2}>
-      <Tabs
-        value={index}
-        onChange={onChange}
-        variant="fullWidth"
-        textColor="primary"
-        indicatorColor="primary"
-      >
-        {
-          components.map((Component, key) => (
-            <Tab key={key} label={Component.displayName || Component.name}/>
-          ))
-        }
-      </Tabs>
-      <SwipeableViews
-        index={index}
-        onChangeIndex={onChangeIndex}
-      >
-        {
-          components.map((Component, key) =>
-            index === key
-              ? <Component key={key}/>
-              : <div key={key}/>
-          )
-        }
-      </SwipeableViews>
-    </Paper>
+    <Box paddingBottom={4}>
+      <Paper elevation={2}>
+        <Tabs
+          value={index}
+          onChange={onChange}
+          variant="fullWidth"
+          textColor="primary"
+          indicatorColor="primary"
+        >
+          {
+            components.map((Component, key) => (
+              <Tab key={key} label={Component.displayName || Component.name}/>
+            ))
+          }
+        </Tabs>
+        <SwipeableViews
+          index={index}
+          onChangeIndex={onChangeIndex}
+        >
+          {
+            components.map((Component, key) =>
+              index === key
+                ? <Component key={key}/>
+                : <div key={key}/>
+            )
+          }
+        </SwipeableViews>
+      </Paper>
+    </Box>
   );
 }
 
