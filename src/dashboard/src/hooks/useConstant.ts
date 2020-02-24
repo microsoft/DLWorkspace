@@ -1,6 +1,5 @@
-import { useMemo } from 'react';
+import { useRef } from 'react';
 
-// eslint-disable-next-line react-hooks/exhaustive-deps
-const useConstant = <T>(value: T) => useMemo(() => value, []);
+const useConstant = <T>(value: T) => useRef(value).current;
 
 export default useConstant
