@@ -1,7 +1,10 @@
 # Job spec to  Restfulapi
 
-We use yaml format because it allow comments will note each field if it is required or optional, and gives example whenever possible.
+We use yaml format because it allow commenting each field. We will comment about if the field is required
+or optional, and gives example whenever possible.
+
 The yaml format is only for demostration purpose, we use json actually, so all keys are snake case.
+
 All fields are string unless specified otherwise.
 
 
@@ -60,4 +63,5 @@ job:
       cmd: text_that_be_interpreted_by_bash # required
 ```
 
-Restfulapi will validate each field, and return 400 http code when validation failed. Will return uuid if job submission succeed.
+Restfulapi will validate each field, and return 400 http code when validation fails. Restfulapi Will return
+uuid if job submission is successful.
