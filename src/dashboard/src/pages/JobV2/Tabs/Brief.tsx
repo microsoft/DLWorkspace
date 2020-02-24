@@ -24,9 +24,10 @@ const Brief: FunctionComponent = () => {
 
   return (
     <List dense>
-      <ListItem>
-        <ListItemText primary="Job Id" secondary={jobId}/>
-      </ListItem>
+      <CopyableTextListItem
+        primary="Job Link"
+        secondary={`${window.location.origin}/jobs-v2/${encodeURIComponent(clusterId)}/${encodeURIComponent(jobId)}`}
+      />
       <ListItem>
         <ListItemText
           primary="Job Submission Time"
@@ -71,12 +72,6 @@ const Brief: FunctionComponent = () => {
           secondary={clusterId}
         />
       </ListItem>
-      <ListItem>
-        <ListItemText
-          primary="Preemptible"
-          secondary={job['jobParams']['preemptionAllowed'] ? <Check/> : <Close/>}
-        />
-      </ListItem>
       {
         job['jobParams']['jobtrainingtype'] === 'PSDistJob' && (
           <ListItem>
@@ -107,6 +102,12 @@ const Brief: FunctionComponent = () => {
           </ListItem>
         )
       }
+      <ListItem>
+        <ListItemText
+          primary="Preemptible"
+          secondary={job['jobParams']['preemptionAllowed'] ? <Check/> : <Close/>}
+        />
+      </ListItem>
     </List>
   );
 };
