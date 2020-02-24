@@ -3,16 +3,21 @@ import React, {
   useContext
 } from 'react';
 import {
+  Box,
   Divider,
   List,
   ListItem,
   ListItemText
 } from '@material-ui/core';
+
 import {
+  AccountBox,
   Check,
-  Close
+  Close,
+  Group
 } from '@material-ui/icons';
 
+import CodeBlock from '../../../components/CodeBlock';
 import CopyableTextListItem from '../../../components/CopyableTextListItem';
 
 import useRouteParams from '../useRouteParams';
@@ -30,6 +35,20 @@ const Brief: FunctionComponent = () => {
       />
       <ListItem>
         <ListItemText
+          primary="Job Owner"
+          secondary={(
+            <Box display="flex" alignItems="center">
+              <Group/>
+              <Box paddingLeft={1} paddingRight={2}>{job['vcName']}</Box>
+              <AccountBox/>
+              <Box paddingLeft={1}>{job['userName']}</Box>
+            </Box>
+          )}
+          secondaryTypographyProps={{ component: 'div' }}
+        />
+      </ListItem>
+      <ListItem>
+        <ListItemText
           primary="Job Submission Time"
           secondary={new Date(job['jobTime']).toLocaleString()}
         />
@@ -41,8 +60,8 @@ const Brief: FunctionComponent = () => {
       <ListItem>
         <ListItemText
           primary="Command"
-          secondary={job['jobParams']['cmd']}
-          secondaryTypographyProps={{ component: 'pre' }}
+          secondary={<CodeBlock>{job['jobParams']['cmd']}</CodeBlock>}
+          secondaryTypographyProps={{ component: 'div' }}
         />
       </ListItem>
       <Divider />
@@ -58,13 +77,6 @@ const Brief: FunctionComponent = () => {
         primary="Job Path"
         secondary={`${cluster['workStorage'] || ''}/${job['jobParams']['jobPath']}`}
       />
-      <Divider />
-      <ListItem>
-        <ListItemText primary="Team Name" secondary={job['vcName']}/>
-      </ListItem>
-      <ListItem>
-        <ListItemText primary="Email" secondary={job['userName']}/>
-      </ListItem>
       <Divider />
       <ListItem>
         <ListItemText

@@ -10,6 +10,7 @@ import useFetch from 'use-http-2';
 import { useSnackbar } from 'notistack';
 import { mergeWith } from 'lodash';
 
+import CodeBlock from '../../../components/CodeBlock';
 import Loading from '../../../components/Loading';
 import useConstant from '../../../hooks/useConstant';
 
@@ -37,7 +38,7 @@ const Console: FunctionComponent = () => {
           };
         }
         return {
-          log: mergeWith({}, currentData.log, newData.log, (a, b) => a + b),
+          log: mergeWith({}, currentData.log, newData.log, (a, b) => (a || '') + (b || '')),
           cursor: newData.cursor
         };
       }
@@ -102,15 +103,15 @@ ${log[podName]}
     }
   }, [error, enqueueSnackbar, closeSnackbar, clusterId, jobId]);
 
-  if (log === undefined) {
+  if (logText === undefined) {
     return <Loading/>;
   }
 
   return (
     <Box p={1} style={{ overflow: 'auto' }}>
-      <Box m={0} component="pre">
+      <CodeBlock>
         {logText}
-      </Box>
+      </CodeBlock>
       {error === undefined && <Loading/>}
     </Box>
   );
