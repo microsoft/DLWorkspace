@@ -18,7 +18,6 @@ sys.path.append(os.path.join(os.path.dirname(
     os.path.abspath(__file__)), "../utils"))
 
 from DataHandler import DataHandler
-from config import config
 
 
 DAYS_AGO = 1
@@ -65,10 +64,11 @@ def run():
             except:
                 logger.exception("Deleting old cluster status failed",
                                  exc_info=True)
-        time.sleep(600)
+        time.sleep(86400)
 
 
 if __name__ == '__main__':
+    # TODO: This can be made as a separate service to GC DB and orphaned pods
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--port", "-p", help="port of exporter", type=int, default=9209)
