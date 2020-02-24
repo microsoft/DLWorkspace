@@ -2,8 +2,7 @@ import React, {
   FunctionComponent,
   useContext,
   useEffect,
-  useMemo,
-  useState
+  useMemo
 } from 'react';
 import { capitalize } from 'lodash';
 import { usePrevious } from 'react-use';
@@ -40,20 +39,18 @@ const JobContent: FunctionComponent = () => {
     return accessible && Boolean(teamCluster.admin);
   }, [accessible, teamCluster]);
 
-  const { error: jobError, data: jobData, get: getJob } =
-    useFetch(`/api/v2/clusters/${clusterId}/jobs/${jobId}`,
-      [clusterId, jobId]);
-  const { error: clusterError, data: cluster } =
-    useFetch(`/api/clusters/${clusterId}`, [clusterId]);
+  const { data: job, loading: jobLoading, error: jobError, get: getJob } =
+    useFetch(`/api/v2/clusters/${clusterId}/jobs/${jobId}`, undefined, [clusterId, jobId]);
+
+  const { data: cluster, error: clusterError } =
+    useFetch(`/api/clusters/${clusterId}`, undefined, [clusterId]);
 
   const manageable = useMemo(() => {
-    if (jobData === undefined) return false;
+    if (job === undefined) return false;
     if (admin === true) return true;
-    if (jobData['userName'] === email) return true;
+    if (job['userName'] === email) return true;
     return false;
-  }, [jobData, admin, email]);
-
-  const [job, setJob] = useState<any>();
+  }, [job, admin, email]);
 
   useEffect(() => {
     if (jobError !== undefined) {
@@ -79,16 +76,14 @@ const JobContent: FunctionComponent = () => {
     }
   }, [clusterError, enqueueSnackbar, closeSnackbar, clusterId, jobId]);
 
-  useEffect(() => {
-    if (jobData !== undefined) {
-      setJob(jobData);
+  useEffect(() => { // refresh job info
+    if (jobLoading) return;
 
-      const timeout = setTimeout(getJob, 3000);
-      return () => {
-        clearTimeout(timeout);
-      }
-    }
-  }, [jobData, getJob]);
+    const timeout = setTimeout(getJob, 3000);
+    return () => {
+      clearTimeout(timeout);
+    };
+  }, [job, jobLoading, jobError, getJob]);
 
   const status = useMemo(() => job && job['jobStatus'], [job]);
   const previousStatus = usePrevious(status);
