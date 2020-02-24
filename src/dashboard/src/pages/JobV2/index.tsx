@@ -87,9 +87,11 @@ const JobContent: FunctionComponent = () => {
 
   const status = useMemo(() => job && job['jobStatus'], [job]);
   const previousStatus = usePrevious(status);
-  if (previousStatus !== undefined && status !== previousStatus) {
-    enqueueSnackbar(`Job is ${status} now.`, { variant: "info" });
-  }
+  useEffect(() => {
+    if (previousStatus !== undefined && status !== previousStatus) {
+      enqueueSnackbar(`Job is ${status} now.`, { variant: "info" });
+    }
+  }, [previousStatus, status, enqueueSnackbar])
 
   if (cluster === undefined || job === undefined) {
     return <Loading/>;
