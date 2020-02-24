@@ -3,6 +3,7 @@ import React, {
   useContext
 } from 'react';
 import {
+  Divider,
   List,
   ListItem,
   ListItemText
@@ -15,22 +16,32 @@ import {
 import CopyableTextListItem from '../../../components/CopyableTextListItem';
 import JobStatus from '../../../components/JobStatus';
 
+import useRouteParams from '../useRouteParams';
 import Context from '../Context';
 
 const Brief: FunctionComponent = () => {
+  const { clusterId, jobId } = useRouteParams();
   const { cluster, job } = useContext(Context);
 
   return (
     <List dense>
       <ListItem>
-        <ListItemText primary="Job Id" secondary={job['jobId']}/>
+        <ListItemText primary="Job Id" secondary={jobId}/>
       </ListItem>
       <ListItem>
-        <ListItemText primary="Job Name" secondary={job['jobName']}/>
+        <ListItemText
+          primary="Job Status"
+          secondary={<JobStatus job={job}/>}
+          secondaryTypographyProps={{ component: 'div' }}
+        />
       </ListItem>
       <ListItem>
-        <ListItemText primary="Team Name" secondary={job['vcName']}/>
+        <ListItemText
+          primary="Job Submission Time"
+          secondary={new Date(job['jobTime']).toLocaleString()}
+        />
       </ListItem>
+      <Divider />
       <ListItem>
         <ListItemText primary="Docker Image" secondary={job['jobParams']['image']}/>
       </ListItem>
@@ -41,6 +52,7 @@ const Brief: FunctionComponent = () => {
           secondaryTypographyProps={{ component: 'pre' }}
         />
       </ListItem>
+      <Divider />
       <CopyableTextListItem
         primary="Data Path"
         secondary={`${cluster['dataStorage'] || ''}/${job['jobParams']['dataPath']}`}
@@ -53,6 +65,20 @@ const Brief: FunctionComponent = () => {
         primary="Job Path"
         secondary={`${cluster['workStorage'] || ''}/${job['jobParams']['jobPath']}`}
       />
+      <Divider />
+      <ListItem>
+        <ListItemText primary="Team Name" secondary={job['vcName']}/>
+      </ListItem>
+      <ListItem>
+        <ListItemText primary="Email" secondary={job['userName']}/>
+      </ListItem>
+      <Divider />
+      <ListItem>
+        <ListItemText
+          primary="Cluster"
+          secondary={clusterId}
+        />
+      </ListItem>
       <ListItem>
         <ListItemText
           primary="Preemptible"
@@ -89,19 +115,6 @@ const Brief: FunctionComponent = () => {
           </ListItem>
         )
       }
-      <ListItem>
-        <ListItemText
-          primary="Job Status"
-          secondary={<JobStatus job={job}/>}
-          secondaryTypographyProps={{ component: 'div' }}
-        />
-      </ListItem>
-      <ListItem>
-        <ListItemText
-          primary="Job Submission Time"
-          secondary={new Date(job['jobTime']).toLocaleString()}
-        />
-      </ListItem>
     </List>
   );
 };
