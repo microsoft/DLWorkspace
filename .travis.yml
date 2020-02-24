@@ -48,6 +48,7 @@ matrix:
       - pip install requests kubernetes
     script:
       - python -m unittest test_cluster_status.py
+      - python -m unittest test_virtual_cluster_status.py
       - python -m unittest test_mountpoint.py
   - language: python
     python: 3.6

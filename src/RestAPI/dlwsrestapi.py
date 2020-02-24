@@ -312,7 +312,6 @@ class SubmitJob(Resource):
 api.add_resource(SubmitJob, '/SubmitJob')
 
 
-
 class PostJob(Resource):
     def post(self):
         params = request.get_json(force=True)
@@ -329,6 +328,7 @@ class PostJob(Resource):
                 ret["error"] = "Cannot create job!" + output["error"]
             else:
                 ret["error"] = "Cannot create job!"
+
         logger.info("Submit job through restapi, output is %s, ret is %s", output, ret)
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"
@@ -1020,12 +1020,12 @@ api.add_resource(ListVCs, '/ListVCs')
 class GetVC(Resource):
     def get(self):
         parser = reqparse.RequestParser()
-        parser.add_argument('userName')
-        parser.add_argument('vcName')
+        parser.add_argument("userName")
+        parser.add_argument("vcName")
         args = parser.parse_args()
-        userName = args["userName"]
-        vcName = args["vcName"]
-        ret = JobRestAPIUtils.GetVC(userName, vcName)
+        username = args["userName"]
+        vc_name = args["vcName"]
+        ret = JobRestAPIUtils.get_vc(username, vc_name)
 
         resp = jsonify(ret)
         resp.headers["Access-Control-Allow-Origin"] = "*"

@@ -38,6 +38,7 @@ class JobTemplate(object):
                 "userId",
                 "resourcegpu",
                 "userName",
+                "sku",
         ]):
             return None, "Missing required parameters!"
 
@@ -94,6 +95,8 @@ class JobTemplate(object):
             params["nodeSelector"] = {}
         if "gpuType" in params:
             params["nodeSelector"]["gpuType"] = params["gpuType"]
+        if "sku" in params:
+            params["nodeSelector"]["sku"] = params["sku"]
 
         # Set up VC dedicated node usage
         vc_node_hard_assignment = job.get_vc_node_hard_assignment()
@@ -207,7 +210,6 @@ class RegularJobTemplate(JobTemplate):
 
         params["numps"] = 0
         params["numworker"] = 1
-        params["fragmentGpuJob"] = True
         if "gpuLimit" not in params:
             params["gpuLimit"] = params["resourcegpu"]
 
@@ -269,7 +271,6 @@ class InferenceJobTemplate(JobTemplate):
 
         params["numps"] = 0
         params["numworker"] = 1
-        params["fragmentGpuJob"] = True
         params["gpuLimit"] = 0
 
         return params, None
@@ -288,7 +289,7 @@ class DistributeJobTemplate(JobTemplate):
 
         pod["podName"] = "{}-{}".format(job_id, dist_id)
 
-        if (pod["role_name"] == "worker"):
+        if pod["role_name"] == "worker":
             pod["gpuLimit"] = pod["resourcegpu"]
         else:
             pod["gpuLimit"] = 0
@@ -351,6 +352,11 @@ class DistributeJobTemplate(JobTemplate):
 
         params["numworker"] = int(params["numpsworker"])
         params["numps"] = int(params["numps"])
+
+        # In LauncherStub, only generate_params is called. Need to fill in
+        # gpuLimit here for workers.
+        if "gpuLimit" not in params:
+            params["gpuLimit"] = params["resourcegpu"]
 
         params["envs"].append({
             "name": "DLWS_WORKER_NUM",

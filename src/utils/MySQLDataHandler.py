@@ -39,6 +39,7 @@ def record(fn):
 def base64encode(str_val):
     return base64.b64encode(str_val.encode("utf-8")).decode("utf-8")
 
+
 def base64decode(str_val):
     return base64.b64decode(str_val.encode("utf-8")).decode("utf-8")
 
@@ -1343,7 +1344,7 @@ class DataHandler(object):
     @record
     def UpdateClusterStatus(self, clusterStatus):
         try:
-            status = base64encode(json.dumps(clusterStatus))
+            status = base64encode(json.dumps(clusterStatus, separators=(",", ":")))
 
             sql = "INSERT INTO `%s` (status) VALUES ('%s')" % (self.clusterstatustablename, status)
             cursor = self.conn.cursor()
