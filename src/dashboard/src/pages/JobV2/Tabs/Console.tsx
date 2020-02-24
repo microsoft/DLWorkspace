@@ -6,20 +6,16 @@ import React, {
 import {
   Box
 } from '@material-ui/core';
-import { useParams } from 'react-router-dom';
 import useFetch from 'use-http-2';
 import { useSnackbar } from 'notistack';
 import { mergeWith } from 'lodash';
 
-import Loading from '../../components/Loading';
+import Loading from '../../../components/Loading';
 
-interface RouteParams {
-  clusterId: string;
-  jobId: string;
-}
+import useRouteParams from '../useRouteParams';
 
 const Console: FunctionComponent = () => {
-  const { clusterId, jobId } = useParams<RouteParams>();
+  const { clusterId, jobId } = useRouteParams();
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const { error, data, get } = useFetch(
     `/api/clusters/${clusterId}/jobs/${jobId}/log`, {

@@ -12,10 +12,10 @@ import {
   Close
 } from '@material-ui/icons';
 
-import CopyableTextListItem from '../../components/CopyableTextListItem';
-import JobStatus from '../../components/JobStatus';
+import CopyableTextListItem from '../../../components/CopyableTextListItem';
+import JobStatus from '../../../components/JobStatus';
 
-import Context from './Context';
+import Context from '../Context';
 
 const Brief: FunctionComponent = () => {
   const { cluster, job } = useContext(Context);
