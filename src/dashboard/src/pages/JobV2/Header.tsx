@@ -5,6 +5,7 @@ import React, {
 } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  Box,
   IconButton,
   Toolbar,
   Typography,
@@ -16,6 +17,7 @@ import {
 } from '@material-ui/icons';
 
 import useActions from '../../hooks/useActions';
+import JobStatus from '../../components/JobStatus';
 
 import useRouteParams from './useRouteParams';
 import Context from './Context';
@@ -56,9 +58,12 @@ const Header: FunctionComponent<{ manageable: boolean }> = ({ manageable }) => {
           <ArrowBack />
         </IconButton>
       )}
-      <Typography variant="h6" style={{ flexGrow: 1 }}>
+      <Typography variant="h6">
         {job['jobName']}
       </Typography>
+      <Box flexGrow={1} paddingX={1}>
+        <JobStatus job={job}/>
+      </Box>
       {actionButtons}
     </Toolbar>
   );

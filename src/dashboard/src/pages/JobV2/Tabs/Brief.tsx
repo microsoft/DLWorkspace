@@ -14,7 +14,6 @@ import {
 } from '@material-ui/icons';
 
 import CopyableTextListItem from '../../../components/CopyableTextListItem';
-import JobStatus from '../../../components/JobStatus';
 
 import useRouteParams from '../useRouteParams';
 import Context from '../Context';
@@ -27,13 +26,6 @@ const Brief: FunctionComponent = () => {
     <List dense>
       <ListItem>
         <ListItemText primary="Job Id" secondary={jobId}/>
-      </ListItem>
-      <ListItem>
-        <ListItemText
-          primary="Job Status"
-          secondary={<JobStatus job={job}/>}
-          secondaryTypographyProps={{ component: 'div' }}
-        />
       </ListItem>
       <ListItem>
         <ListItemText
