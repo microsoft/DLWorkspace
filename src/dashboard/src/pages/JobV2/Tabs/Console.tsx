@@ -11,14 +11,15 @@ import { useSnackbar } from 'notistack';
 import { mergeWith } from 'lodash';
 
 import Loading from '../../../components/Loading';
+import useConstant from '../../../hooks/useConstant';
 
 import useRouteParams from '../useRouteParams';
 
 const Console: FunctionComponent = () => {
   const { clusterId, jobId } = useRouteParams();
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
-  const { error, data, get } = useFetch(
-    `/api/clusters/${clusterId}/jobs/${jobId}/log`, {
+  const { data, loading, error, get } = useFetch(
+    `/api/clusters/${clusterId}/jobs/${jobId}/log`, useConstant({
       onNewData (currentData, newData) {
         if (currentData === undefined || currentData.cursor == null) {
           return newData;
@@ -40,7 +41,7 @@ const Console: FunctionComponent = () => {
           cursor: newData.cursor
         };
       }
-    }, [clusterId, jobId]);
+    }), [clusterId, jobId]);
 
   const log = useMemo<{ [podName: string]: string } | string | undefined>(() => {
     if (data !== undefined) {
@@ -77,15 +78,16 @@ ${log[podName]}
   }, [log]);
 
   useEffect(() => {
-    if (data === undefined) return;
+    if (loading) return;
 
-    const cursor = data.cursor;
-    const timeout = setTimeout(get, 1000,
-      cursor ? `?cursor=${encodeURIComponent(cursor)}` : '');
+    const cursor = data && data.cursor;
+    const delay = error ? 3000 : 0;
+    const querystring = cursor && `?cursor=${encodeURIComponent(cursor)}`;
+    const timeout = setTimeout(get, delay, querystring);
     return () => {
       clearTimeout(timeout);
     }
-  }, [data, get]);
+  }, [data, loading, error, get]);
 
   useEffect(() => {
     if (error === undefined) return;
@@ -109,6 +111,7 @@ ${log[podName]}
       <Box m={0} component="pre">
         {logText}
       </Box>
+      {error === undefined && <Loading/>}
     </Box>
   );
 }
