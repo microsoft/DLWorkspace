@@ -40,7 +40,7 @@ def create_log(logdir='/var/log/dlworkspace'):
 def delete_old_cluster_status():
     table = "clusterstatus"
     with DataHandler() as data_handler:
-        num_rows = data_handler.count_rows("table")
+        num_rows = data_handler.count_rows(table)
         if num_rows <= 10:  # Retain 10 rows for safety
             return
 

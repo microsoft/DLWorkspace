@@ -1572,7 +1572,7 @@ class DataHandler(object):
             cursor.execute(query)
 
             for num_rows in cursor:
-                ret = num_rows
+                ret = num_rows[0]
                 break
 
             self.conn.commit()
@@ -1585,7 +1585,22 @@ class DataHandler(object):
 
     def delete_rows_from_table_older_than_days(self, table, days_ago,
                                                col="time"):
-        return False
+        cursor = None
+        ret = False
+        try:
+            query = "DELETE FROM %s WHERE %s < NOW() - INTERVAL %s DAY" % \
+                    (table, col, days_ago)
+            cursor = self.conn.cursor()
+            cursor.execute(query)
+            self.conn.commit()
+            ret = True
+        except:
+            logger.error("Exception in deleting rows older than %s in col %s "
+                         "for table %s", days_ago, col, table)
+        finally:
+            if cursor is not None:
+                cursor.close()
+        return ret
 
     def __del__(self):
         logger.debug("********************** deleted a DataHandler instance *******************")
