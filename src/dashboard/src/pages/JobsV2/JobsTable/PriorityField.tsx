@@ -1,5 +1,6 @@
 import React, {
   FunctionComponent,
+  FocusEvent,
   KeyboardEvent,
   useCallback,
   useContext,
@@ -7,7 +8,7 @@ import React, {
   useState,
   useRef
 } from 'react';
-import { Button, TextField } from '@material-ui/core';
+import { Input } from '@material-ui/core';
 import { useSnackbar } from 'notistack';
 
 import ClusterContext from '../ClusterContext';
@@ -16,21 +17,22 @@ interface Props {
   job: any;
 }
 
+const EDITABLE_STATUSES = new Set([
+  'running',
+  'queued',
+  'scheduling',
+  'unapproved',
+  'paused',
+  'pausing'
+])
+
 const PriorityField: FunctionComponent<Props> = ({ job }) => {
   const { enqueueSnackbar } = useSnackbar();
   const { cluster } = useContext(ClusterContext);
-  const [editing, setEditing] = useState(false);
-  const [textFieldDisabled, setTextFieldDisabled] = useState(false);
+  const [busy, setBusy] = useState(false);
   const input = useRef<HTMLInputElement>();
-  const buttonEnabled = useMemo(() => {
-    return (
-      job['jobStatus'] === 'running' ||
-      job['jobStatus'] === 'queued' ||
-      job['jobStatus'] === 'scheduling' ||
-      job['jobStatus'] === 'unapproved' ||
-      job['jobStatus'] === 'paused' ||
-      job['jobStatus'] === 'pausing'
-    )
+  const editable = useMemo(() => {
+    return EDITABLE_STATUSES.has(job['jobStatus'])
   }, [job])
   const priority = useMemo(() => {
     if (job['priority'] == null) {
@@ -41,7 +43,7 @@ const PriorityField: FunctionComponent<Props> = ({ job }) => {
   const setPriority = useCallback((priority: number) => {
     if (priority === job['priority']) return;
     enqueueSnackbar('Priority is being set...');
-    setTextFieldDisabled(true);
+    setBusy(true);
 
     fetch(`/api/clusters/${cluster.id}/jobs/${job['jobId']}/priority`, {
       method: 'PUT',
@@ -53,53 +55,50 @@ const PriorityField: FunctionComponent<Props> = ({ job }) => {
       } else {
         throw Error();
       }
-      setEditing(false);
     }).catch(() => {
       enqueueSnackbar('Failed to set priority', { variant: 'error' });
     }).then(() => {
-      setTextFieldDisabled(false);
+      setBusy(false);
     });
   }, [enqueueSnackbar, job, cluster.id]);
-  const onBlur = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
-    setEditing(false);
+  const onBlur = useCallback((event: FocusEvent<HTMLInputElement>) => {
     if (input.current) {
       setPriority(input.current.valueAsNumber);
     }
   }, [setPriority]);
   const onKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter' && input.current) {
+    if (input.current === undefined) return;
+    if (event.key === 'Enter') {
       setPriority(input.current.valueAsNumber);
     }
     if (event.key === 'Escape') {
-      setEditing(false);
+      input.current.value = priority;
     }
-  }, [setPriority, setEditing]);
-  const onClick = useCallback(() => {
-    setEditing(true);
-  }, [setEditing])
+  }, [setPriority, priority]);
 
-  if (editing) {
+  if (editable) {
     return (
-      <TextField
+      <Input
         inputRef={input}
         type="number"
         defaultValue={priority}
-        disabled={textFieldDisabled}
+        disabled={busy}
         fullWidth
-        onBlur={onBlur}
+        disableUnderline
+        style={{ color: 'inherit', fontSize: 'inherit' }}
+        inputProps={{
+          style: {
+            color: 'inherit',
+            fontSize: 'inherit',
+            textAlign: 'right'
+          },
+          onBlur
+        }}
         onKeyDown={onKeyDown}
       />
     );
   } else {
-    return (
-      <Button
-        fullWidth
-        variant={buttonEnabled ? 'outlined' : 'text'}
-        onClick={buttonEnabled ? onClick : undefined}
-      >
-        {priority}
-      </Button>
-    );
+    return <>{priority}</>
   }
 };
 
