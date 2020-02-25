@@ -7,8 +7,8 @@ from resource_stat import make_resource
 logger = logging.getLogger(__name__)
 
 
-DEFAULT_CPU_REQUEST = 1
-DEFAULT_CPU_LIMIT = 1
+DEFAULT_CPU_REQUEST = "1000m"
+DEFAULT_CPU_LIMIT = "1000m"
 DEFAULT_MEMORY_REQUEST = "2048Mi"
 DEFAULT_MEMORY_LIMIT = "2560Mi"
 
@@ -19,6 +19,10 @@ def override(func):
 
 def get_resourcegpu(params):
     return max(0, int(params.get("resourcegpu", 0)))
+
+
+def get_gpu_limit(params):
+    return int(params.get("gpu_limit", get_resourcegpu(params)))
 
 
 def get_resource_params_from_job_params(params):
@@ -35,7 +39,7 @@ def get_resource_params_from_job_params(params):
     cpu_request = params.get("cpurequest", 1)
     mem_request = params.get("memoryrequest", 0)
     try:
-        resource_gpu = get_resourcegpu(params)
+        resource_gpu = get_gpu_limit(params)
     except:
         logger.warning("Parsing resourcegpu in %s failed. Set to 0.", params)
         resource_gpu = 0
@@ -94,10 +98,18 @@ class JobParams(object):
         return cls.subclasses[job_type](params, quota, metadata)
 
     def __init__(self, params, quota, metadata):
-        self.params = params
-        self.quota = quota
-        self.metadata = metadata
+        """Constructor for JobParams.
+
+        Args:
+            params: A dictionary of job parameters
+            quota: Resource quota for all vc
+            metadata: Resource metadata for all vc
+        """
         self.job_id = params.get("jobId")
+        self.vc_name = params.get("vcName")
+        self.params = params
+        self.quota = quota.get(self.vc_name)
+        self.metadata = metadata.get(self.vc_name)
 
         self.sku = None
         self.gpu_limit = None
@@ -116,6 +128,7 @@ class JobParams(object):
 
     def is_valid(self):
         checklist = [
+            "vc_name",
             "sku",
             "gpu_limit",
             "cpu_request",
@@ -134,23 +147,25 @@ class JobParams(object):
             self.sku = sku
             return
 
-        gpu_limit = max(0, int(self.params.get("resourcegpu", 0)))
-        if gpu_limit > 0:
-            sku_from_key = "gpu"
-        else:
-            sku_from_key = "cpu"
-        sku_list = [
-            sku_val for sku_val, _ in self.quota.get(sku_from_key, {}).items()
-        ]
+        sku_list = self.get_sku_list()
         if len(sku_list) > 0:
             self.sku = sku_list[0]
 
     def gen_gpu(self):
-        self.gpu_limit = self.get_gpu_limit()
+        # TODO: Deprecate resource_gpu in the future
+        resource_gpu = self.params.get("resourcegpu")
+        self.gpu_limit = self.params.get("gpu_limit", resource_gpu)
+
+        gpu_limit = self.get_gpu_limit()
+
+        if self.gpu_limit is None:
+            self.gpu_limit = gpu_limit
+        if self.gpu_limit is not None:
+            self.gpu_limit = int(self.gpu_limit)
 
     def gen_cpu(self):
         self.cpu_request = self.params.get("cpurequest")
-        self.cpu_limit = self.params.get("cpulimit")
+        self.cpu_limit = self.params.get("cpulimit", self.cpu_request)
 
         request, limit = self.get_cpu_request_and_limit()
 
@@ -161,7 +176,7 @@ class JobParams(object):
 
     def gen_memory(self):
         self.memory_request = self.params.get("memoryrequest")
-        self.memory_limit = self.params.get("memorylimit")
+        self.memory_limit = self.params.get("memorylimit", self.memory_request)
 
         request, limit = self.get_memory_request_and_limit()
 
@@ -170,18 +185,53 @@ class JobParams(object):
         if self.memory_limit is None:
             self.memory_limit = limit
 
+    def get_sku_list(self):
+        gpu_sku_list = [
+            sku_val for sku_val, _ in self.quota.get("gpu", {}).items()
+        ]
+        cpu_sku_list = [
+            sku_val for sku_val, _ in self.quota.get("cpu", {}).items()
+            if self.metadata.get("gpu", {}).get(sku_val) is None
+        ]
+        if len(cpu_sku_list) == 0:
+            cpu_sku_list = gpu_sku_list
+
+        gpu_limit = get_gpu_limit(self.params)
+        if gpu_limit > 0:
+            return gpu_sku_list
+        else:
+            return cpu_sku_list
+
     @override
     def get_gpu_limit(self):
-        return get_resourcegpu(self.params)
+        return get_gpu_limit(self.params)
 
     @override
     def get_cpu_request_and_limit(self):
-        request = self.params.get("cpurequest", DEFAULT_CPU_REQUEST)
-        limit = self.params.get("cpulimit", DEFAULT_CPU_LIMIT)
+        if self.gpu_limit > 0:
+            # For a gpu job, proportionally assign cpu according to gpu.
+            request, limit = self.get_cpu_proportional()
+        else:
+            # For a cpu job, assign system default.
+            request, limit = self.get_default_cpu_request_and_limit()
         return request, limit
 
     @override
     def get_memory_request_and_limit(self):
+        if self.gpu_limit > 0:
+            # For a gpu job, proportionally assign memory according to gpu.
+            request, limit = self.get_memory_proportional()
+        else:
+            # For a cpu job, assign system default.
+            request, limit = self.get_default_memory_request_and_limit()
+        return request, limit
+
+    def get_default_cpu_request_and_limit(self):
+        request = self.params.get("cpurequest", DEFAULT_CPU_REQUEST)
+        limit = self.params.get("cpulimit", DEFAULT_CPU_LIMIT)
+        return request, limit
+
+    def get_default_memory_request_and_limit(self):
         request = self.params.get("memoryrequest", DEFAULT_MEMORY_REQUEST)
         limit = self.params.get("memorylimit", DEFAULT_MEMORY_LIMIT)
         return request, limit
@@ -197,26 +247,25 @@ class JobParams(object):
             "memory_limit": self.memory_limit,
         }
 
-    def get_sku_resource_info(self, resource_type):
+    def get_sku_resource_info(self, r_type):
         """Returns resource per node and the corresponding schedulable ratio.
 
         Args:
-            resource_type: "gpu", "cpu", or "memory".
+            r_type: "gpu", "cpu", or "memory".
 
         Returns:
             per_node resource, schedulable_ratio
         """
-        sku_info = self.metadata.get(resource_type, {}).get(self.sku, {})
-        per_node = make_resource(resource_type,
-                                 {self.sku: sku_info.get("per_node", 0)})
-        schedulable_ratio = float(sku_info.get("schedulable_ratio", 1))
+        info = self.metadata.get(r_type, {}).get(self.sku, {})
+        per_node = make_resource(r_type, {self.sku: info.get("per_node", 0)})
+        schedulable_ratio = float(info.get("schedulable_ratio", 1))
         return per_node, schedulable_ratio
 
-    def get_resource_proportional(self, resource_type):
+    def get_resource_proportional(self, r_type):
         """Returns request and limit value for resource proportional to GPU.
 
         Args:
-            resource_type: "gpu", "cpu", or "memory".
+            r_type: "gpu", "cpu", or "memory".
 
         Returns:
             request, limit for resource
@@ -224,7 +273,7 @@ class JobParams(object):
         gpu_per_node, _ = self.get_sku_resource_info("gpu")
         gpu_per_node = gpu_per_node.scalar(self.sku)
 
-        per_node, schedulable_ratio = self.get_sku_resource_info(resource_type)
+        per_node, schedulable_ratio = self.get_sku_resource_info(r_type)
         schedulable_per_node = per_node * schedulable_ratio
 
         request = schedulable_per_node * self.gpu_limit / gpu_per_node
@@ -247,22 +296,6 @@ class RegularJobParams(JobParams):
     def __init__(self, params, quota, metadata):
         super(RegularJobParams, self).__init__(params, quota, metadata)
 
-    def get_cpu_request_and_limit(self):
-        if self.gpu_limit > 0:
-            request, limit = self.get_cpu_proportional()
-        else:
-            request = self.params.get("cpurequest", DEFAULT_CPU_REQUEST)
-            limit = self.params.get("cpulimit", DEFAULT_CPU_LIMIT)
-        return request, limit
-
-    def get_memory_request_and_limit(self):
-        if self.gpu_limit > 0:
-            request, limit = self.get_memory_proportional()
-        else:
-            request = self.params.get("memoryrequest", DEFAULT_MEMORY_REQUEST)
-            limit = self.params.get("memorylimit", DEFAULT_MEMORY_LIMIT)
-        return request, limit
-
 
 @JobParams.register_subclass("PSDistJob")
 class PSDistJobParams(JobParams):
@@ -271,53 +304,43 @@ class PSDistJobParams(JobParams):
     def __init__(self, params, quota, metadata):
         super(PSDistJobParams, self).__init__(params, quota, metadata)
 
-    def get_gpu_limit(self):
-        per_node, _ = self.get_sku_resource_info("gpu")
-        return per_node.scalar(self.sku)
-
     def get_cpu_request_and_limit(self):
-        per_node, schedulable_ratio = self.get_sku_resource_info("cpu")
-        request = (per_node * schedulable_ratio).scalar(self.sku)
-        limit = per_node.scalar(self.sku)
+        if self.gpu_limit > 0:
+            # For a gpu job, proportionally assign cpu according to gpu
+            request, limit = self.get_cpu_proportional()
+        else:
+            # For a cpu job, if it's running on cpu nodes, assign whole nodes;
+            # if it's running on gpu nodes, assign system default.
+            if self.metadata.get("gpu", {}).get(self.sku) is None:
+                per_node, schedulable_ratio = self.get_sku_resource_info("cpu")
+                request = (per_node * schedulable_ratio).scalar(self.sku)
+                limit = per_node.scalar(self.sku)
+            else:
+                request, limit = self.get_default_cpu_request_and_limit()
         return request, limit
 
     def get_memory_request_and_limit(self):
-        per_node, schedulable_ratio = self.get_sku_resource_info("memory")
-        request = (per_node * schedulable_ratio).scalar(self.sku)
-        limit = per_node.scalar(self.sku)
+        if self.gpu_limit > 0:
+            # For a gpu job, proportionally assign memory according to gpu
+            request, limit = self.get_memory_proportional()
+        else:
+            # For a cpu job, if it's running on cpu nodes, assign whole nodes;
+            # if it's running on gpu nodes, assign system default.
+            if self.metadata.get("gpu", {}).get(self.sku) is None:
+                per_node, schedulable_ratio = \
+                    self.get_sku_resource_info("memory")
+                request = (per_node * schedulable_ratio).scalar(self.sku)
+                limit = per_node.scalar(self.sku)
+            else:
+                request, limit = self.get_default_memory_request_and_limit()
         return request, limit
 
 
 @JobParams.register_subclass("InferenceJob")
 class InferenceJobParams(JobParams):
-    """Always allocate 1 GPU for each worker if any.
-
-    TODO: inference job should also support CPU workload.
-    """
+    """Always allocate 1 GPU for each worker if any."""
     def __init__(self, params, quota, metadata):
         super(InferenceJobParams, self).__init__(params, quota, metadata)
-
-    def get_gpu_limit(self):
-        gpu_limit = get_resourcegpu(self.params)
-        if gpu_limit > 1:
-            gpu_limit = 1
-        return gpu_limit
-
-    def get_cpu_request_and_limit(self):
-        if self.gpu_limit > 0:
-            request, limit = self.get_cpu_proportional()
-        else:
-            request = self.params.get("cpurequest", DEFAULT_CPU_REQUEST)
-            limit = self.params.get("cpulimit", DEFAULT_CPU_LIMIT)
-        return request, limit
-
-    def get_memory_request_and_limit(self):
-        if self.gpu_limit > 0:
-            request, limit = self.get_memory_proportional()
-        else:
-            request = self.params.get("memoryrequest", DEFAULT_MEMORY_REQUEST)
-            limit = self.params.get("memorylimit", DEFAULT_MEMORY_LIMIT)
-        return request, limit
 
 
 def make_job_params(params, quota, metadata):

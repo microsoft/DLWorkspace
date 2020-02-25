@@ -122,6 +122,9 @@ def ToBool(value):
 
 
 def populate_job_resource(params):
+    if config.get("enable_job_resource", False) is not True:
+        return
+
     try:
         # Populate sku with one from vc info in DB
         vc_name = params["vcName"]
@@ -148,10 +151,10 @@ def populate_job_resource(params):
             logger.info("job_params %s is valid. Populating.", job_params)
             params["sku"] = job_params.sku
             params["resourcegpu"] = job_params.gpu_limit
-            params["cpu_request"] = job_params.cpu_request
-            params["cpu_limit"] = job_params.cpu_limit
-            params["memory_request"] = job_params.memory_request
-            params["memory_limit"] = job_params.memory_limit
+            params["cpurequest"] = job_params.cpu_request
+            params["cpulimit"] = job_params.cpu_limit
+            params["memoryrequest"] = job_params.memory_request
+            params["memorylimit"] = job_params.memory_limit
         else:
             logger.warning("job_params %s is invalid. Not populating.",
                            job_params)

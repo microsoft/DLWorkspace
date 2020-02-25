@@ -25,7 +25,7 @@ def to_cpu(data):
 
 
 def millicpu(cpu):
-    return "%sm" % int(cpu * 1000.0)
+    return "%sm" % (int(cpu) * 1000)
 
 
 def to_byte(data):
