@@ -28,4 +28,6 @@ const Metrics: FunctionComponent = () => {
   )
 }
 
+Metrics.displayName = 'Metrics'
+
 export default Metrics;

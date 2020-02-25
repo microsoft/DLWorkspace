@@ -117,4 +117,6 @@ ${log[podName]}
   );
 }
 
+Console.displayName = 'Console';
+
 export default Console;

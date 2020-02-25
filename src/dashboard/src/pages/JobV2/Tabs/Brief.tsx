@@ -137,4 +137,6 @@ const Brief: FunctionComponent = () => {
   );
 };
 
+Brief.displayName = 'Brief';
+
 export default Brief;
