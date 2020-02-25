@@ -16,6 +16,8 @@ user:
 job:
   name: 'some name or even description' # required. At most 1024 characters
   options: # optional
+    dlts: # reserved by dlts platform
+      debug: True # output rich debug info about job
     priority: 100 # optional, int, default to 100
     family_token: xxx # optional
     is_host_network: False # optional, bool, default to False
