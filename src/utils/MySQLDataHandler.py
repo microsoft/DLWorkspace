@@ -39,6 +39,7 @@ def record(fn):
 def base64encode(str_val):
     return base64.b64encode(str_val.encode("utf-8")).decode("utf-8")
 
+
 def base64decode(str_val):
     return base64.b64decode(str_val.encode("utf-8")).decode("utf-8")
 
@@ -102,7 +103,6 @@ def default_vc_entries(config):
 
 class DataHandler(object):
     def __init__(self):
-        start_time = timeit.default_timer()
         self.database = "DLWSCluster-%s" % config["clusterId"]
         self.jobtablename = "jobs"
         self.identitytablename = "identity"
@@ -1344,7 +1344,7 @@ class DataHandler(object):
     @record
     def UpdateClusterStatus(self, clusterStatus):
         try:
-            status = base64encode(json.dumps(clusterStatus))
+            status = base64encode(json.dumps(clusterStatus, separators=(",", ":")))
 
             sql = "INSERT INTO `%s` (status) VALUES ('%s')" % (self.clusterstatustablename, status)
             cursor = self.conn.cursor()
@@ -1558,6 +1558,46 @@ class DataHandler(object):
         except Exception:
             logger.exception("Exception in updating fields %s for jobs %s",
                              fields, job_ids, exc_info=True)
+        finally:
+            if cursor is not None:
+                cursor.close()
+        return ret
+
+    @record
+    def count_rows(self, table):
+        cursor = None
+        ret = None
+        try:
+            query = "SELECT COUNT(*) AS num_rows FROM %s" % table
+            cursor = self.conn.cursor()
+            cursor.execute(query)
+
+            for num_rows in cursor:
+                ret = num_rows[0]
+                break
+
+            self.conn.commit()
+        except:
+            logger.error("Exception in counting rows for table %s", table)
+        finally:
+            if cursor is not None:
+                cursor.close()
+        return ret
+
+    def delete_rows_from_table_older_than_days(self, table, days_ago,
+                                               col="time"):
+        cursor = None
+        ret = False
+        try:
+            query = "DELETE FROM %s WHERE %s < NOW() - INTERVAL %s DAY" % \
+                    (table, col, days_ago)
+            cursor = self.conn.cursor()
+            cursor.execute(query)
+            self.conn.commit()
+            ret = True
+        except:
+            logger.error("Exception in deleting rows older than %s in col %s "
+                         "for table %s", days_ago, col, table)
         finally:
             if cursor is not None:
                 cursor.close()
