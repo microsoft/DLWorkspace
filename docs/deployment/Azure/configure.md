@@ -77,7 +77,7 @@ domain-offset:
 
 repair-manager:
   cluster_name: <the unique cluster name>
-  domain_name: <a domain name, e.g. dltshub.mydomain.com>
+  portal_url: <a domain name, e.g. dltshub.mydomain.com>
   alert:
     smtp_url: <smtp url>
     login: <email account that would send email to receivers, such as 'dlts-bot@microsoft.com'>
@@ -155,7 +155,7 @@ registry_credential:
 
 * nfs_vm: each item identified by `suffix` specs would describe an NFS node, and this item would overwrite default NFS specs. A `server_suffix` entry in `nfs_mnt_setup` should map to this item.
 
-* azure_location: 
+* azure_location: azure location of the cluster.
 
 Please use the following to find all available azure locations. 
 ```
@@ -164,9 +164,9 @@ az account list-locations
 
 * infra_vm_size, worker_vm_size: infrastructure and worker VM size. 
 
-Usually, a CPU VM will be used for infra_vm_size, and a GPU VM will be used for worker_vm_size. Please use the following to find all available Azure VM size. 
+Usually, a CPU VM will be used for infra_vm_size, and a GPU VM will be used for worker_vm_size. Please find all available Azure VM size in a specific region, e.g. West US 2 in the below command: 
 ```
-az vm list-sizes --location westus2
+az vm list-sizes --location <location, e.g. westus2>
 ```
 
 * registry_credential: defines your access to certain dockers. A docker image name consists of three parts - registry name, image name, and image tag. If your job needs a certain private docker, then use 0. the registry name of that docker, 1. your user name and 2. your password to specify your access to it.

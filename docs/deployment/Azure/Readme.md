@@ -64,6 +64,8 @@ Then after existing the mysql docker container, we need to refresh the RestfulAP
 ```kubectl exec -it <RestfulAPI> bash```
 and execute `apachectl restart` in the pod.
 
+`vc` table would be setup with a default `platform` vc(virtual cluster). To assign a certain user/sg to a vc, the corresponding `resource` field should be filled with `Cluster/VC:<vc name>`
+
 After all these configurations, you should be able to submit jobs.
 
 5. If you run into a deployment issue, please check [here](FAQ.md) first.

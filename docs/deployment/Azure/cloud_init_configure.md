@@ -112,7 +112,7 @@ domain-offset:
 
 repair-manager:
   cluster_name: <the unique cluster name>
-  domain_name: <a domain name, e.g. dltshub.mydomain.com>
+  portal_url: <a domain name, e.g. dltshub.mydomain.com>
   alert:
     smtp_url: <smtp url>
     login: <email account that would send email to receivers, such as 'dlts-bot@microsoft.com'>
@@ -184,6 +184,11 @@ registry_credential:
 
 Each item in `cnf["azure_cluster"]["virtual_machines"]` means spec for a set of machines, the properties of which are explained as follows: 
 
+* `vm_size`: vm_size that azure requires when specifying what type of node is to be used
+Usually, CPU VMs will be used as infra node, and GPU VMs will be used for worker node. Please find all available Azure VM size in a specific region, e.g. West US 2 in the below command: 
+```
+az vm list-sizes --location <location, e.g. westus2>
+```
 * `role`: functional role (DLTS-wise) of the set of machines.
 * `managed_disks`: storage setting of the set of machines.
 * `kube_services`: kubernetes services to run on the machines.
