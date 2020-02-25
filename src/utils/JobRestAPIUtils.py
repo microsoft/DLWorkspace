@@ -122,9 +122,6 @@ def ToBool(value):
 
 
 def populate_job_resource(params):
-    if config.get("enable_job_resource", False) is not True:
-        return
-
     try:
         # Populate sku with one from vc info in DB
         vc_name = params["vcName"]
