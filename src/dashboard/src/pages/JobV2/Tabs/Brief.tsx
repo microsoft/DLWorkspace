@@ -9,13 +9,13 @@ import {
   ListItem,
   ListItemText
 } from '@material-ui/core';
-
 import {
   AccountBox,
   Check,
   Close,
   Group
 } from '@material-ui/icons';
+import { get } from 'lodash';
 
 import CodeBlock from '../../../components/CodeBlock';
 import CopyableTextListItem from '../../../components/CopyableTextListItem';
@@ -27,12 +27,13 @@ const Brief: FunctionComponent = () => {
   const { clusterId, jobId } = useRouteParams();
   const { cluster, job } = useContext(Context);
 
+  const link = `${window.location.origin}/jobs-v2/${encodeURIComponent(clusterId)}/${encodeURIComponent(jobId)}`
+  const submitted = new Date(get(job, 'jobTime'));
+  const started = new Date(get(job, 'jobStatusDetail.0.startedAt'));
+  const finished = new Date(get(job, 'jobStatusDetail.0.finishedAt'));
   return (
-    <List dense>
-      <CopyableTextListItem
-        primary="Job Link"
-        secondary={`${window.location.origin}/jobs-v2/${encodeURIComponent(clusterId)}/${encodeURIComponent(jobId)}`}
-      />
+    <List dense disablePadding>
+      <CopyableTextListItem primary="Job Link" secondary={link}/>
       <ListItem>
         <ListItemText
           primary="Job Owner"
@@ -47,12 +48,21 @@ const Brief: FunctionComponent = () => {
           secondaryTypographyProps={{ component: 'div' }}
         />
       </ListItem>
-      <ListItem>
-        <ListItemText
-          primary="Job Submission Time"
-          secondary={new Date(job['jobTime']).toLocaleString()}
-        />
-      </ListItem>
+      { isNaN(submitted.valueOf()) || (
+        <ListItem>
+          <ListItemText primary="Job Submitted Time" secondary={submitted.toLocaleString()}/>
+        </ListItem>
+      ) }
+      { isNaN(started.valueOf()) || (
+        <ListItem>
+          <ListItemText primary="Job Started Time" secondary={started.toLocaleString()}/>
+        </ListItem>
+      ) }
+      { isNaN(finished.valueOf()) || (
+        <ListItem>
+          <ListItemText primary="Job Finished Time" secondary={finished.toLocaleString()}/>
+        </ListItem>
+      ) }
       <Divider />
       <ListItem>
         <ListItemText primary="Docker Image" secondary={job['jobParams']['image']}/>
