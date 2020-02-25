@@ -105,7 +105,7 @@ class Cluster extends Service {
 
   /**
    * @param {string} jobId
-   * @param {'approved'|'killing'} status
+   * @param {'approved'|'killing'|'pausing'|'queued'} status
    * @return {Promise<string>}
    */
   async setJobStatus (jobId, status) {
@@ -136,6 +136,46 @@ class Cluster extends Service {
       const response = await this.fetch('/ResumeJob?' + params)
       const text = await response.text()
       this.context.log.debug({ text }, 'Resume job response')
+      this.context.assert(response.ok, response.status, response.statusText)
+      return text
+    } else {
+      this.context.throw(400, 'Invalid status')
+    }
+  }
+
+  /**
+   * @param {string[]} jobIds
+   * @param {'approved'|'killing'|'pausing'|'queued'} status
+   * @return {Promise<string>}
+   */
+  async setJobsStatus (jobIds, status) {
+    const { user } = this.context.state
+    const params = new URLSearchParams({
+      jobIds: jobIds.join(','),
+      userName: user.email
+    })
+    if (status === 'approved') {
+      const response = await this.fetch('/ApproveJobs?' + params)
+      const text = await response.text()
+      this.context.log.debug({ text }, 'Approve jobs response')
+      this.context.assert(response.ok, response.status, response.statusText)
+      return text
+    } else if (status === 'killing') {
+      const response = await this.fetch('/KillJobs?' + params)
+      const text = await response.text()
+      this.context.log.debug({ text }, 'Kill jobs response')
+      this.context.assert(response.ok, response.status, response.statusText)
+      return text
+    } else if (status === 'pausing') {
+      const response = await this.fetch('/PauseJobs?' + params)
+      const text = await response.text()
+      this.context.log.debug({ text }, 'Pause jobs response')
+      this.context.assert(response.ok, response.status, response.statusText)
+      return text
+    } else if (status === 'queued') { // resume
+      const response = await this.fetch('/ResumeJobs?' + params)
+      const text = await response.text()
+      this.context.log.debug({ text }, 'Resume jobs response')
       this.context.assert(response.ok, response.status, response.statusText)
       return text
     } else {
