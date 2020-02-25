@@ -84,7 +84,6 @@ const PriorityField: FunctionComponent<Props> = ({ job }) => {
         defaultValue={priority}
         disabled={busy}
         fullWidth
-        disableUnderline
         style={{ color: 'inherit', fontSize: 'inherit' }}
         inputProps={{
           style: {
