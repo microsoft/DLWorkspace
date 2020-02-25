@@ -7,7 +7,6 @@ import { Job } from '../../utils';
 
 export default {
   title: 'Name',
-  type: 'string',
   field: 'jobName',
   render(job: Job) {
     return (

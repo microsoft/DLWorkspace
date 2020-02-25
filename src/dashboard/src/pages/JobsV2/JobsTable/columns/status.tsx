@@ -7,7 +7,6 @@ import { Job } from '../../utils';
 
 export default {
   title: 'Status',
-  type: 'string',
   field: 'jobStatus',
   render(job: Job) {
     return <JobStatus job={job}/>;
