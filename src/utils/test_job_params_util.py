@@ -11,48 +11,45 @@ from job_params_util import make_job_params, \
 class TestJobParams(TestCase):
     def setUp(self):
         self.quota = {
-            "platform": {
-                "cpu": {
-                    "Standard_D2s_v3": 4,
-                    "Standard_ND24rs": 72,
-                },
-                "memory": {
-                    "Standard_D2s_v3": "16Gi",
-                    "Standard_ND24rs": "1344Gi",
-                },
-                "gpu": {
-                    "Standard_ND24rs": 12,
-                },
+            "cpu": {
+                "Standard_D2s_v3": 4,
+                "Standard_ND24rs": 72,
+            },
+            "memory": {
+                "Standard_D2s_v3": "16Gi",
+                "Standard_ND24rs": "1344Gi",
+            },
+            "gpu": {
+                "Standard_ND24rs": 12,
             },
         }
+
         self.metadata = {
-            "platform": {
-                "cpu": {
-                    "Standard_D2s_v3": {
-                        "per_node": 2,
-                        "schedulable_ratio": 0.9,
-                    },
-                    "Standard_ND24rs": {
-                        "per_node": 24,
-                        "schedulable_ratio": 0.9,
-                    },
+            "cpu": {
+                "Standard_D2s_v3": {
+                    "per_node": 2,
+                    "schedulable_ratio": 0.9,
                 },
-                "memory": {
-                    "Standard_D2s_v3": {
-                        "per_node": "8Gi",
-                        "schedulable_ratio": 0.9,
-                    },
-                    "Standard_ND24rs": {
-                        "per_node": "448Gi",
-                        "schedulable_ratio": 0.9,
-                    },
+                "Standard_ND24rs": {
+                    "per_node": 24,
+                    "schedulable_ratio": 0.9,
                 },
-                "gpu": {
-                    "Standard_ND24rs": {
-                        "per_node": 4,
-                        "gpu_type": "P40",
-                        "schedulable_ratio": 1,
-                    },
+            },
+            "memory": {
+                "Standard_D2s_v3": {
+                    "per_node": "8Gi",
+                    "schedulable_ratio": 0.9,
+                },
+                "Standard_ND24rs": {
+                    "per_node": "448Gi",
+                    "schedulable_ratio": 0.9,
+                },
+            },
+            "gpu": {
+                "Standard_ND24rs": {
+                    "per_node": 4,
+                    "gpu_type": "P40",
+                    "schedulable_ratio": 1,
                 },
             },
         }
@@ -84,7 +81,7 @@ class TestRegularJobParams(TestJobParams):
         self.assertEqual(DEFAULT_MEMORY_LIMIT, job_params.memory_limit)
 
         # Cpu job on gpu node
-        self.quota["platform"]["cpu"].pop("Standard_D2s_v3", None)
+        self.quota["cpu"].pop("Standard_D2s_v3", None)
         job_params = make_job_params(self.params, self.quota, self.metadata)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
