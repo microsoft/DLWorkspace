@@ -23,16 +23,12 @@ from config import config
 from DataHandler import DataHandler, DataManager
 from authorization import ResourceType, Permission, AuthorizationManager, IdentityManager, ACLManager
 import authorization
-import quota
 from job_op import KillOp, PauseOp, ResumeOp, ApproveOp
 
 sys.path.append(os.path.join(os.path.dirname(
     os.path.abspath(__file__)), "../ClusterManager"))
 
-from ResourceInfo import ResourceInfo
-from cluster_resource import ClusterResource
-from resource_stat import dictionarize
-from job_params_util import get_resource_params_from_job_params
+from job_params_util import make_job_params
 from JobLogUtils import GetJobLog as UtilsGetJobLog
 
 DEFAULT_JOB_PRIORITY = 100
@@ -125,15 +121,10 @@ def ToBool(value):
         return value
 
 
-def populate_sku(job_params):
+def populate_job_resource(params):
     try:
-        # Job params already specify sku
-        sku = job_params.get("sku", "")
-        if sku != "":
-            return
-
         # Populate sku with one from vc info in DB
-        vc_name = job_params["vcName"]
+        vc_name = params["vcName"]
         vc_lists = getClusterVCs()
         vc_info = None
         for vc in vc_lists:
@@ -146,20 +137,24 @@ def populate_sku(job_params):
             return
 
         try:
-            resource_quota = json.loads(vc_info["resourceQuota"])
+            quota = json.loads(vc_info["resourceQuota"])
+            metadata = json.loads(vc_info["resourceMetadata"])
         except:
-            logger.exception("Failed to parse resource_quota")
+            logger.exception("Failed to parse resource quota and metadata")
             return
 
-        resource_gpu = job_params["resourcegpu"]
-        if resource_gpu > 0:
-            gpu = resource_quota.get("gpu", {})
-            if len(gpu) > 0:
-                job_params["sku"] = list(gpu.keys())[0]
+        job_params = make_job_params(params, quota, metadata)
+        if job_params.is_valid():
+            logger.info("job_params %s is valid. Populating.", job_params)
+            params["sku"] = job_params.sku
+            params["resourcegpu"] = job_params.gpu_limit
+            params["cpu_request"] = job_params.cpu_request
+            params["cpu_limit"] = job_params.cpu_limit
+            params["memory_request"] = job_params.memory_request
+            params["memory_limit"] = job_params.memory_limit
         else:
-            cpu = resource_quota.get("cpu", {})
-            if len(cpu) > 0:
-                job_params["sku"] = list(cpu.keys())[0]
+            logger.warning("job_params %s is invalid. Not populating.",
+                           job_params)
     except:
         logger.exception("Failed to populate SKU", exc_info=True)
 
@@ -199,7 +194,7 @@ def SubmitJob(jobParamsJsonStr):
         else:
             jobParams["resourcegpu"] = int(jobParams["resourcegpu"])
 
-    populate_sku(jobParams)
+    populate_job_resource(jobParams)
 
     if "familyToken" not in jobParams or jobParams["familyToken"].isspace():
         jobParams["familyToken"] = uniqId
