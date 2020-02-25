@@ -31,7 +31,10 @@ const MyJobs: FunctionComponent = () => {
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const { cluster } = useContext(ClusterContext);
   const { selectedTeam } = useContext(TeamsContext);
-  const { support, approve, pause, resume, kill } = useActions(cluster.id);
+  const {
+    support, approve, pause, resume, kill,
+    batchApprove, batchPause, batchResume, batchKill
+  } = useActions(cluster.id);
 
   const [limit, setLimit] = useState(30);
 
@@ -79,6 +82,7 @@ const MyJobs: FunctionComponent = () => {
         jobs={activeJobs}
         isLoading={data === undefined}
         defaultPageSize={5}
+        selection
         columns={[
           name,
           user,
@@ -95,6 +99,10 @@ const MyJobs: FunctionComponent = () => {
           pause,
           resume,
           kill,
+          batchApprove,
+          batchPause,
+          batchResume,
+          batchKill
         ]}
       />
       <JobsTable

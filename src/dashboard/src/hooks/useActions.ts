@@ -44,6 +44,21 @@ const useActions = (clusterId: string) => {
     })
   }, [clusterId]);
 
+  const batchUpdateStatus = useCallback((jobIds: string[], statusValue: string) => {
+    const url = `/api/clusters/${clusterId}/jobs/status`;
+    const status = Object.create(null);
+    for (const jobId of jobIds) {
+      status[jobId] = statusValue
+    }
+    return fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ status })
+    })
+  }, [clusterId]);
+
   const onSupport = useCallback((event: any, job: any) => {
     const subject = `[DLTS Job][${clusterId}][${job['vcName']}]: <Issue Title by User>`;
     const body = `
@@ -124,15 +139,87 @@ ${givenName} ${familyName}
     });
   }, [confirm, enqueueSnackbar, updateStatus]);
 
-  const support = useCallback((job: any): Action<any> => {
+  const onBatchApprove = useCallback((event: any, jobs: any[]) => {
+    const title = `${jobs.length} jobs`;
+    return confirm(`Approve ${title}?`).then((answer) => {
+      if (answer === false) return;
+
+      const jobIds = jobs.map((job) => job['jobId'])
+
+      enqueueSnackbar(`${title} are being approved.`);
+      return batchUpdateStatus(jobIds, 'approved').then((response) => {
+        if (response.ok) {
+          enqueueSnackbar(`${title}'s approve request is accepted.`, { variant: 'success' });
+        } else {
+          enqueueSnackbar(`${title} are failed to approve.`, { variant: 'error' });
+        }
+      });
+    });
+  }, [confirm, enqueueSnackbar, batchUpdateStatus]);
+
+  const onBatchPause = useCallback((event: any, jobs: any[]) => {
+    const title = `${jobs.length} jobs`;
+    return confirm(`Pause ${title}?`).then((answer) => {
+      if (answer === false) return;
+
+      const jobIds = jobs.map((job) => job['jobId'])
+
+      enqueueSnackbar(`${title} are being paused.`);
+      return batchUpdateStatus(jobIds, 'pausing').then((response) => {
+        if (response.ok) {
+          enqueueSnackbar(`${title}'s pause request is accepted.`, { variant: 'success' });
+        } else {
+          enqueueSnackbar(`${title} are failed to pause.`, { variant: 'error' });
+        }
+      });
+    });
+  }, [confirm, enqueueSnackbar, batchUpdateStatus]);
+
+  const onBatchResume = useCallback((event: any, jobs: any[]) => {
+    const title = `${jobs.length} jobs`;
+    return confirm(`Resume ${title}?`).then((answer) => {
+      if (answer === false) return;
+
+      const jobIds = jobs.map((job) => job['jobId'])
+
+      enqueueSnackbar(`${title} are being resumed.`);
+      return batchUpdateStatus(jobIds, 'queued').then((response) => {
+        if (response.ok) {
+          enqueueSnackbar(`${title}'s resume request is accepted.`, { variant: 'success' });
+        } else {
+          enqueueSnackbar(`${title} are failed to resume.`, { variant: 'error' });
+        }
+      });
+    });
+  }, [confirm, enqueueSnackbar, batchUpdateStatus]);
+
+  const onBatchKill = useCallback((event: any, jobs: any[]) => {
+    const title = `${jobs.length} jobs`;
+    return confirm(`Kill ${title}?`).then((answer) => {
+      if (answer === false) return;
+
+      const jobIds = jobs.map((job) => job['jobId'])
+
+      enqueueSnackbar(`${title} are being killed.`);
+      return batchUpdateStatus(jobIds, 'killing').then((response) => {
+        if (response.ok) {
+          enqueueSnackbar(`${title}'s kill request is accepted.`, { variant: 'success' });
+        } else {
+          enqueueSnackbar(`${title} are failed to kill.`, { variant: 'error' });
+        }
+      });
+    });
+  }, [confirm, enqueueSnackbar, batchUpdateStatus]);
+
+  const support = useCallback(Object.assign((job: any): Action<any> => {
     return {
       icon: 'help',
       tooltip: 'Support',
       onClick: onSupport
     };
-  }, [onSupport]);
+  }, { position: 'row' }), [onSupport]);
 
-  const approve = useCallback((job: any): Action<any> => {
+  const approve = useCallback(Object.assign((job: any): Action<any> => {
     const hidden = APPROVABLE_STATUSES.indexOf(job['jobStatus']) === -1;
     return {
       hidden,
@@ -140,8 +227,8 @@ ${givenName} ${familyName}
       tooltip: 'Approve',
       onClick: onApprove
     }
-  }, [onApprove]);
-  const pause = useCallback((job: any): Action<any> => {
+  }, { position: 'row' }), [onApprove]);
+  const pause = useCallback(Object.assign((job: any): Action<any> => {
     const hidden = PAUSABLE_STATUSES.indexOf(job['jobStatus']) === -1;
     return {
       hidden,
@@ -149,8 +236,8 @@ ${givenName} ${familyName}
       tooltip: 'Pause',
       onClick: onPause
     }
-  }, [onPause]);
-  const resume = useCallback((job: any): Action<any> => {
+  }, { position: 'row' }), [onPause]);
+  const resume = useCallback(Object.assign((job: any): Action<any> => {
     const hidden = RESUMABLE_STATUSES.indexOf(job['jobStatus']) === -1;
     return {
       hidden,
@@ -158,8 +245,8 @@ ${givenName} ${familyName}
       tooltip: 'Resume',
       onClick: onResume
     }
-  }, [onResume]);
-  const kill = useCallback((job: any): Action<any> => {
+  }, { position: 'row' }), [onResume]);
+  const kill = useCallback(Object.assign((job: any): Action<any> => {
     const hidden = KILLABLE_STATUSES.indexOf(job['jobStatus']) === -1;
     return {
       hidden,
@@ -167,8 +254,50 @@ ${givenName} ${familyName}
       tooltip: 'Kill',
       onClick: onKill
     }
-  }, [onKill]);
-  return { support, approve, pause, resume, kill };
+  }, { position: 'row' }), [onKill]);
+
+  const batchApprove = useCallback(Object.assign((jobs: any[]): Action<any> => {
+    const hidden = !Array.isArray(jobs) || jobs.some(job => APPROVABLE_STATUSES.indexOf(job['jobStatus']) === -1);
+    return {
+      hidden,
+      icon: 'check',
+      tooltip: 'Approve',
+      onClick: onBatchApprove
+    }
+  }, { position: 'toolbarOnSelect' }), [onBatchApprove]);
+  const batchPause = useCallback(Object.assign((jobs: any[]): Action<any> => {
+    const hidden = !Array.isArray(jobs) || jobs.some(job => PAUSABLE_STATUSES.indexOf(job['jobStatus']) === -1);
+    return {
+      hidden,
+      icon: 'pause',
+      tooltip: 'Pause',
+      onClick: onBatchPause
+    }
+  }, { position: 'toolbarOnSelect' }), [onBatchPause]);
+  const batchResume = useCallback(Object.assign((jobs: any[]): Action<any> => {
+    const hidden = !Array.isArray(jobs) || jobs.some(job => RESUMABLE_STATUSES.indexOf(job['jobStatus']) === -1);
+    return {
+      hidden,
+      icon: 'play_arrow',
+      tooltip: 'Resume',
+      onClick: onBatchResume
+    }
+  }, { position: 'toolbarOnSelect' }), [onBatchResume]);
+  const batchKill = useCallback(Object.assign((jobs: any[]): Action<any> => {
+    const hidden = !Array.isArray(jobs) || jobs.some(job => KILLABLE_STATUSES.indexOf(job['jobStatus']) === -1);
+    return {
+      hidden,
+      icon: 'clear',
+      tooltip: 'Kill',
+      onClick: onBatchKill
+    }
+  }, { position: 'toolbarOnSelect' }), [onBatchKill]);
+
+  return {
+    support,
+    approve, pause, resume, kill,
+    batchApprove, batchPause, batchResume, batchKill
+  };
 }
 
 export default useActions;

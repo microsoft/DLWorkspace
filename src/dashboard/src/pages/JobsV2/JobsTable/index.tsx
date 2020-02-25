@@ -2,7 +2,7 @@ import React, {
   FunctionComponent,
   useCallback,
   useEffect,
-  useMemo,
+  useRef,
   useState,
 } from 'react';
 import MaterialTable, { Options, MaterialTableProps } from 'material-table';
@@ -18,12 +18,14 @@ interface JobsTableProps extends Omit<
 > {
   jobs: Array<Job>;
   defaultPageSize?: number;
+  selection?: boolean;
   onLastPage?(pageSize: number): void;
 }
 
 const JobsTable: FunctionComponent<JobsTableProps> = ({
   jobs,
   defaultPageSize=10,
+  selection=false,
   onLastPage,
   ...props
 }) => {
@@ -43,12 +45,13 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({
     }
   }, [data, pageSize, onLastPage]);
 
-  const options = useMemo<Options>(() => ({
+  const options = useRef<Options>({
     padding: 'dense',
     actionsColumnIndex: -1,
     sorting: false,
-    pageSize: defaultPageSize
-  }), [defaultPageSize]);
+    pageSize: defaultPageSize,
+    selection
+  }).current;
 
   useEffect(() => {
     setData((data) => {
@@ -68,6 +71,18 @@ const JobsTable: FunctionComponent<JobsTableProps> = ({
       data={data}
       options={options}
       detailPanel={detailPanel}
+      localization={{
+        body: {
+          emptyDataSourceMessage: 'No jobs to display'
+        },
+        pagination: {
+          labelRowsSelect: 'jobs',
+          labelRowsPerPage: 'Jobs per page',
+        },
+        toolbar: {
+          nRowsSelected: '{0} job(s) selected:'
+        }
+      }}
       onChangeRowsPerPage={handleChangeRowsPerPage}
       onChangePage={handleChangePage}
       {...props}
