@@ -24,6 +24,10 @@ def to_cpu(data):
         return number
 
 
+def millicpu(cpu):
+    return "%sm" % int(cpu * 1000.0)
+
+
 def to_byte(data):
     data = str(data).lower()
     number = float(re.findall(r"[-+]?[0-9]*[.]?[0-9]+", data)[0])
@@ -53,6 +57,10 @@ def to_byte(data):
         return number * 10 ** 18
     else:
         return number
+
+
+def mbyte(byte):
+    return "%sMi" % int(byte / 2 ** 20)
 
 
 class ResourceStat(object):
@@ -106,6 +114,11 @@ class ResourceStat(object):
     @override
     def convert(self, data):
         return data
+
+    @override
+    def scalar(self, key):
+        """Returns resource for the key in human readable format"""
+        return self.res.get(key)
 
     def normalize(self):
         """All resource values should be >= 0."""
@@ -348,11 +361,25 @@ class Cpu(ResourceStat):
     def convert(self, data):
         return to_cpu(data)
 
+    @override
+    def scalar(self, key):
+        val = self.res.get(key)
+        if val is None:
+            return None
+        return millicpu(val)
+
 
 @ResourceStat.register_subclass("memory")
 class Memory(ResourceStat):
     def convert(self, data):
         return to_byte(data)
+
+    @override
+    def scalar(self, key):
+        val = self.res.get(key)
+        if val is None:
+            return None
+        return mbyte(val)
 
 
 @ResourceStat.register_subclass("gpu")
@@ -364,6 +391,13 @@ class Gpu(ResourceStat):
 class GpuMemory(ResourceStat):
     def convert(self, data):
         return to_byte(data)
+
+    @override
+    def scalar(self, key):
+        val = self.res.get(key)
+        if val is None:
+            return None
+        return mbyte(val)
 
 
 def make_resource(resource_type, params=None):
