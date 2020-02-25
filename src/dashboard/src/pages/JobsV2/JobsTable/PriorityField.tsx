@@ -10,7 +10,7 @@ import React, {
 import { Button, TextField } from '@material-ui/core';
 import { useSnackbar } from 'notistack';
 
-import ClusterContext from './ClusterContext';
+import ClusterContext from '../ClusterContext';
 
 interface Props {
   job: any;
