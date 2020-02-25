@@ -11,7 +11,7 @@ import utils
 logger = logging.getLogger(__file__)
 
 
-@utils.case
+@utils.case()
 def test_distributed_job_running(args):
     expected = "wantThisInLog"
     cmd = "echo %s ; sleep 1800" % expected
@@ -36,7 +36,7 @@ def test_distributed_job_running(args):
         assert expected in log, "assert {} in {}".format(expected, log)
 
 
-@utils.case
+@utils.case()
 def test_distributed_job_ssh(args):
     job_spec = utils.gen_default_job_description("distributed", args.email,
                                                  args.uid, args.vc)
@@ -95,7 +95,7 @@ def test_distributed_job_ssh(args):
                 assert output == "dummy\n"
 
 
-@utils.case
+@utils.case()
 def test_distributed_with_default_cmd(args):
     cmd = """
 ##################################################
@@ -192,7 +192,7 @@ sleep infinity"""
                 assert output == "dummy\n"
 
 
-@utils.case
+@utils.case()
 def test_distributed_job_env(args):
     envs = {
         "DLWS_HOST_NETWORK": "enable",
@@ -295,7 +295,7 @@ def test_distributed_job_env(args):
                         expected_output, output)
 
 
-@utils.case
+@utils.case()
 def test_blobfuse(args):
     job_spec = utils.gen_default_job_description("distributed", args.email,
                                                  args.uid, args.vc)
@@ -338,3 +338,25 @@ def test_blobfuse(args):
         assert code == 0, "code is %d, output is %s" % (code, output)
         assert msg + "\n" == output, "code is %d, output is %s" % (code,
                                                                    output)
+
+
+# uncomment to run perf case
+#@utils.case()
+def perf(args):
+    cmd = "sleep 30"
+
+    job_spec = utils.gen_default_job_description("distributed",
+                                                 args.email,
+                                                 args.uid,
+                                                 args.vc,
+                                                 cmd=cmd)
+    for _ in range(10):
+        jids = []
+        for _ in range(5):
+            jids.append(utils.post_job(args.rest, job_spec))
+
+        for jid in jids:
+            state = utils.block_until_state_not_in(
+                args.rest, jid,
+                {"unapproved", "queued", "scheduling", "running"})
+            logger.info("%s is in state %s", jid, state)

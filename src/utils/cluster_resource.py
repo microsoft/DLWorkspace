@@ -4,7 +4,7 @@ import copy
 import logging
 import numbers
 
-from resource_stat import make_resource
+from resource_stat import make_resource, dictionarize
 
 
 logger = logging.getLogger(__name__)
@@ -44,7 +44,7 @@ class ClusterResource(object):
             self.__dict__[r_type] = make_resource(r_type, params.get(r_type))
 
     def to_dict(self):
-        return copy.deepcopy(self.__dict__)
+        return dictionarize(copy.deepcopy(self.__dict__))
 
     @property
     def floor(self):

@@ -15,7 +15,7 @@ class RuleAlertHandler():
 
 
     def load_config(self):
-        with open('./config/rule-config.yaml', 'r') as file:
+        with open('/etc/RepairManager/config/rule-config.yaml', 'r') as file:
             return yaml.safe_load(file)
 
 

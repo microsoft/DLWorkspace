@@ -827,7 +827,6 @@ def transform_inference_job(params, cluster_config):
         params.get("dnsPolicy"),
         params.get("nodeSelector", {}),
         params["homeFolderHostpath"],
-        params.get("fragmentGpuJob", False),
         params.get("preemptionAllowed", False),
         params.get("hostNetwork", False),
         params.get("hostIPC", False),

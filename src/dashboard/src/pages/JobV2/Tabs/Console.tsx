@@ -6,23 +6,21 @@ import React, {
 import {
   Box
 } from '@material-ui/core';
-import { useParams } from 'react-router-dom';
 import useFetch from 'use-http-2';
 import { useSnackbar } from 'notistack';
 import { mergeWith } from 'lodash';
 
-import Loading from '../../components/Loading';
+import CodeBlock from '../../../components/CodeBlock';
+import Loading from '../../../components/Loading';
+import useConstant from '../../../hooks/useConstant';
 
-interface RouteParams {
-  clusterId: string;
-  jobId: string;
-}
+import useRouteParams from '../useRouteParams';
 
 const Console: FunctionComponent = () => {
-  const { clusterId, jobId } = useParams<RouteParams>();
+  const { clusterId, jobId } = useRouteParams();
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
-  const { error, data, get } = useFetch(
-    `/api/clusters/${clusterId}/jobs/${jobId}/log`, {
+  const { data, loading, error, get } = useFetch(
+    `/api/clusters/${clusterId}/jobs/${jobId}/log`, useConstant({
       onNewData (currentData, newData) {
         if (currentData === undefined || currentData.cursor == null) {
           return newData;
@@ -40,11 +38,11 @@ const Console: FunctionComponent = () => {
           };
         }
         return {
-          log: mergeWith(currentData.log, newData.log, (a, b) => a + b),
+          log: mergeWith({}, currentData.log, newData.log, (a, b) => (a || '') + (b || '')),
           cursor: newData.cursor
         };
       }
-    }, [clusterId, jobId]);
+    }), [clusterId, jobId]);
 
   const log = useMemo<{ [podName: string]: string } | string | undefined>(() => {
     if (data !== undefined) {
@@ -81,15 +79,16 @@ ${log[podName]}
   }, [log]);
 
   useEffect(() => {
-    if (data === undefined) return;
+    if (loading) return;
 
-    const cursor = data.cursor;
-    const timeout = setTimeout(get, 3000,
-      cursor ? `?cursor=${encodeURIComponent(cursor)}` : '');
+    const cursor = data && data.cursor;
+    const delay = error ? 3000 : 0;
+    const querystring = cursor && `?cursor=${encodeURIComponent(cursor)}`;
+    const timeout = setTimeout(get, delay, querystring);
     return () => {
       clearTimeout(timeout);
     }
-  }, [data, get]);
+  }, [data, loading, error, get]);
 
   useEffect(() => {
     if (error === undefined) return;
@@ -104,15 +103,16 @@ ${log[podName]}
     }
   }, [error, enqueueSnackbar, closeSnackbar, clusterId, jobId]);
 
-  if (log === undefined) {
+  if (logText === undefined) {
     return <Loading/>;
   }
 
   return (
     <Box p={1} style={{ overflow: 'auto' }}>
-      <Box m={0} component="pre">
+      <CodeBlock>
         {logText}
-      </Box>
+      </CodeBlock>
+      {error === undefined && <Loading/>}
     </Box>
   );
 }

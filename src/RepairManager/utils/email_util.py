@@ -12,11 +12,16 @@ class EmailHandler():
         self.config=self.load_config()
 
     def load_config(self):
-        with open('./config/email-config.yaml', 'r') as file:
+        with open('/etc/RepairManager/config/email-config.yaml', 'r') as file:
             return yaml.safe_load(file)
 
     def send(self, message):
         message['From'] = self.config['sender']
+
+        if 'To' not in message:
+            message['To'] = self.config['default_recepient']
+        else:
+            message['CC'] = self.config['default_recepient']
 
         try:
             with smtplib.SMTP(self.config['smtp_url']) as server:

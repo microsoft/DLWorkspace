@@ -51,6 +51,11 @@ job-manager:
     alert-manager-url: {{ cnf["job-manager"]["notifier"]["alert-manager-url"] }}
     {% endif %}
   {% endif %}
+  {% if cnf["job-manager"]["launcher"] %}
+  launcher: {{ cnf["job-manager"]["launcher"] }}
+  {% else %}
+  launcher: python
+  {% endif %}
 {% endif %}
 
 infiniband_mounts: {{cnf["infiniband_mounts"]}}
