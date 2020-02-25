@@ -94,6 +94,9 @@ const Brief: FunctionComponent = () => {
           secondary={clusterId}
         />
       </ListItem>
+      <ListItem>
+        <ListItemText primary="Training Type" secondary={get(job, 'jobParams.jobtrainingtype')}/>
+      </ListItem>
       {
         job['jobParams']['jobtrainingtype'] === 'PSDistJob' && (
           <ListItem>
