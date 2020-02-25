@@ -10,9 +10,9 @@ export default {
   field: 'jobName',
   render(job: Job) {
     return (
-      <RouterLink to={job['jobId']} component={UILink}>
+      <UILink variant="subtitle2" component={RouterLink} to={job['jobId']}>
         {job['jobName']}
-      </RouterLink>
+      </UILink>
     );
   }
 } as Column<Job>;

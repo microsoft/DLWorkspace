@@ -1,15 +1,15 @@
-import React from 'react';
 import { Column } from 'material-table';
 import { get } from 'lodash';
 
 import { Job } from '../../utils';
+
+import renderDate from './renderDate';
 
 export default {
   title: 'Finished',
   type: 'datetime',
   render(job: Job) {
     const date = new Date(get(job, 'jobStatusDetail.0.finishedAt'));
-    if (isNaN(date.valueOf())) return null;
-    return <>{date.toLocaleString()}</>;
+    return renderDate(date);
   }
 } as Column<Job>;

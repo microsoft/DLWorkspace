@@ -21,7 +21,6 @@ import {
   preemptible,
   priority,
   submitted,
-  started,
   finished,
 } from './JobsTable/columns';
 import { groupByActive } from './utils';
@@ -75,7 +74,7 @@ const MyJobs: FunctionComponent = () => {
     <>
       <JobsTable
         title="Active Jobs"
-        data={activeJobs}
+        jobs={activeJobs}
         isLoading={activeJobs === undefined}
         defaultPageSize={5}
         columns={[
@@ -85,7 +84,6 @@ const MyJobs: FunctionComponent = () => {
           preemptible,
           priority,
           submitted,
-          started,
         ]}
         actions={[
           support,
@@ -96,7 +94,7 @@ const MyJobs: FunctionComponent = () => {
       />
       <JobsTable
         title="Inactive Jobs"
-        data={inactiveJobs}
+        jobs={inactiveJobs}
         isLoading={inactiveJobs === undefined}
         defaultPageSize={10}
         columns={[
@@ -105,7 +103,6 @@ const MyJobs: FunctionComponent = () => {
           gpu,
           preemptible,
           priority,
-          submitted,
           finished,
         ]}
         actions={[
