@@ -130,6 +130,10 @@ spec:
         - name: {{env.name}}
           value: "{{env.value}}"
         {% endfor %}
+        {% for key_value in job["ssh_public_keys"] %}
+        - name: DLTS_PUBLIC_SSH_KEY_{{loop.index}}
+          value: "{{key_value}}"
+        {% endfor %}
 
       imagePullSecrets:
       - name: regcred

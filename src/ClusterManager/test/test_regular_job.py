@@ -361,7 +361,7 @@ def test_regular_job_env(args):
 @utils.case(unstable=True)
 def test_blobfuse(args):
     path = "/tmp/blob/${DLTS_JOB_ID}"
-    cmd = "echo dummy > %s; cat %s ; rm %s" % (path, path, path)
+    cmd = "echo dummy > %s; cat %s ; rm %s ;" % (path, path, path)
 
     job_spec = utils.gen_default_job_description("regular",
                                                  args.email,
@@ -375,7 +375,7 @@ def test_blobfuse(args):
     with utils.run_job(args.rest, job_spec) as job:
         state = job.block_until_state_not_in(
             {"unapproved", "queued", "scheduling", "running"})
-        assert state == "finished"
+        assert state == "finished", "state is not finished, but %s" % state
 
         log = utils.get_job_log(args.rest, args.email, job.jid)
 
@@ -403,3 +403,72 @@ def test_sudo_installed(args):
         log = utils.get_job_log(args.rest, args.email, job.jid)
 
         assert state == "finished"
+
+@utils.case()
+def test_regular_job_custom_ssh_key(args):
+    job_spec = utils.gen_default_job_description("regular", args.email,
+                                                 args.uid, args.vc)
+    with open("data/id_rsa.pub") as f:
+        job_spec["ssh_public_keys"] = [f.read()]
+
+    with utils.run_job(args.rest, job_spec) as job:
+        endpoints = utils.create_endpoint(args.rest, args.email, job.jid,
+                                          ["ssh"])
+        endpoints_ids = list(endpoints.keys())
+        assert len(endpoints_ids) == 1
+        endpoint_id = endpoints_ids[0]
+
+        state = job.block_until_state_not_in(
+            {"unapproved", "queued", "scheduling"})
+        assert state == "running"
+
+        ssh_endpoint = utils.wait_endpoint_ready(args.rest, args.email,
+                                                 job.jid, endpoint_id)
+        logger.debug("endpoints resp is %s", ssh_endpoint)
+
+        ssh_host = "%s.%s" % (ssh_endpoint["nodeName"], ssh_endpoint["domain"])
+        ssh_port = ssh_endpoint["port"]
+
+        # exec into jobmanager to execute ssh to avoid firewall
+        job_manager_pod = utils.kube_get_pods(args.config, "default",
+                                              "app=jobmanager")[0]
+        job_manager_pod_name = job_manager_pod.metadata.name
+
+        alias = args.email.split("@")[0]
+
+        dest = "/tmp/test_regular_job_customer_ssh_key"
+
+        script_cmd = []
+
+        with open("data/id_rsa") as f:
+            script_cmd.append("rm %s ; " % dest)
+
+            for line in f.readlines():
+                script_cmd.append("echo")
+                script_cmd.append(line.strip())
+                script_cmd.append(">> %s ;" % dest)
+
+            script_cmd.append("chmod 400 %s ;" % dest)
+
+
+        cmd = ["sh", "-c", " ".join(script_cmd)]
+
+        code, output = utils.kube_pod_exec(args.config, "default",
+                                           job_manager_pod_name, "jobmanager",
+                                           cmd)
+        assert code == 0, "code is %s, output is %s" % (code, output)
+
+        cmd = [
+            "ssh", "-i",
+            dest, "-p", ssh_port, "-o",
+            "StrictHostKeyChecking=no", "-o", "LogLevel=ERROR",
+            "%s@%s" % (alias, ssh_host), "--", "echo", "dummy"
+        ]
+        code, output = utils.kube_pod_exec(args.config, "default",
+                                           job_manager_pod_name, "jobmanager",
+                                           cmd)
+        if code != 0:
+            logger.info("code is %s, output is %s", code, output)
+            time.sleep(120)
+        assert code == 0, "code is %s, output is %s" % (code, output)
+        assert output == "dummy\n", "output is %s" % (output)

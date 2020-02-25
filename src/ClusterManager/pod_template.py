@@ -129,6 +129,12 @@ class JobTemplate(object):
         if nccl_ib_disable is not None and nccl_ib_disable is True:
             params["nccl_ib_disable"] = True
 
+        public_key_path = job.get_hostpath(job.get_alias(), ".ssh", "id_rsa.pub")
+        if os.path.isfile(public_key_path):
+            with open(public_key_path) as f:
+                params["ssh_public_keys"] = params.get("ssh_public_keys", [])
+                params["ssh_public_keys"].append(f.read())
+
         return params, None
 
     def generate_secrets(self, job):
