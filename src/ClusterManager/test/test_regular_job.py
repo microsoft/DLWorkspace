@@ -377,7 +377,11 @@ def test_blobfuse(args):
             {"unapproved", "queued", "scheduling", "running"})
         assert state == "finished", "state is not finished, but %s" % state
 
-        log = utils.get_job_log(args.rest, args.email, job.jid)
+        for _ in range(5):
+            log = utils.get_job_log(args.rest, args.email, job.jid)
+            if log.find("dummy") != -1:
+                break
+            time.sleep(0.5)
 
         assert log.find("dummy") != -1, "could not find dummy in log %s" % (
             log)
