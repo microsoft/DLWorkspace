@@ -93,8 +93,6 @@ class JobTemplate(object):
 
         if "nodeSelector" not in params:
             params["nodeSelector"] = {}
-        if "gpuType" in params:
-            params["nodeSelector"]["gpuType"] = params["gpuType"]
         if "sku" in params:
             params["nodeSelector"]["sku"] = params["sku"]
 
