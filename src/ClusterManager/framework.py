@@ -728,6 +728,11 @@ def transform_distributed_job(params, cluster_config):
         cluster_config.get("default_memorylimit", "2560M"),
     )
     ps_resource.gpu_limit = 0
+    # To be backward compatible
+    ps_resource.cpu_req = "1000m"
+    ps_resource.cpu_limit = "1000m"
+    ps_resource.mem_req = "0Mi"
+    ps_resource.mem_limit = "2048Mi"
 
     image = params["image"]
 

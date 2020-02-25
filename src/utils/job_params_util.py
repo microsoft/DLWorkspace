@@ -102,14 +102,13 @@ class JobParams(object):
 
         Args:
             params: A dictionary of job parameters
-            quota: Resource quota for all vc
-            metadata: Resource metadata for all vc
+            quota: Resource quota
+            metadata: Resource metadata
         """
         self.job_id = params.get("jobId")
-        self.vc_name = params.get("vcName")
         self.params = params
-        self.quota = quota.get(self.vc_name)
-        self.metadata = metadata.get(self.vc_name)
+        self.quota = quota
+        self.metadata = metadata
 
         self.sku = None
         self.gpu_limit = None
@@ -128,7 +127,6 @@ class JobParams(object):
 
     def is_valid(self):
         checklist = [
-            "vc_name",
             "sku",
             "gpu_limit",
             "cpu_request",
