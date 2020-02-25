@@ -74,6 +74,21 @@ and execute `apachectl restart` in the pod.
 After all these configurations, you should be able to submit jobs.
 If you run into a deployment issue, please check [here](FAQ.md) first.
 
+## Adding more machines
+To add more nodes to the cluster, re-configure `config.yaml` and use below command:
+```
+./cloud_init_aztools.py prerender
+```
+to generate new machine list. You can also edit `az_complementary.yaml` directly.
+You may want to save the previous config files in advance.
+
+If you just want to add more worker nodes, after getting ready, simply invoke
+```
+./cloud_init_aztools.py -cnf config.yaml -cnf az_complementary.yaml addmachines
+```
+
+Sometimes you might also want to add a new NFS node, that's considered a cluster change. Contact us for more details.
+
 ## Details in deploy.sh
 
 We will explain the operations behind `deploy.sh` in this section. 
@@ -108,6 +123,7 @@ Push docker images that are required by services specified in configuration:
 
 Deploy a cluster:
 ```
+./cloud_init_aztools.py -v deploy
 ./cloud_init_aztools.py interconnect
 ```
 

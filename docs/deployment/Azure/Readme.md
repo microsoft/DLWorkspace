@@ -70,11 +70,18 @@ After all these configurations, you should be able to submit jobs.
 
 5. If you run into a deployment issue, please check [here](FAQ.md) first.
 
+
+# Adding more machines
+To add more nodes to the cluster, re-configure `config.yaml`, delete `azure_cluster_config.yaml` if it exists.
+If the nodes you want to add are worker nodes, invoke `az_tools.py addworkers`,
+
+Sometimes you might also want to add a new NFS node, that's considered a cluster change. Contact us for more details.
+
 # Detail of `step_by_step.sh`
 
 Here's the detail of `step_by_step.sh`, which might be helpful in figuring out failures during deployment:
 
-compared to cloud-init deployment, this pipeline works in a synchronous manner. A typical step in this pipeline generates files/binaries used for a certain function module on devbox, copies them to all applicable machines in the cluster, and then executes scripts on all those machines. 
+compared to cloud-init deployment, this pipeline works in a synchronous manner. A typical step in this pipeline generates files/binaries used for a certain function module on devbox, copies them to all applicable machines in the cluster, and then executes scripts on all those machines.
 
 If the cluster is deployed on Azure, we have some automation to simplify the procedure:
 

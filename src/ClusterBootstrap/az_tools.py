@@ -1176,11 +1176,6 @@ Command:
         print("{0}".format(args))
 
     # Cluster Config
-    config_cluster = os.path.join(dirpath, "azure_cluster_config.yaml")
-    if os.path.exists(config_cluster):
-        tmpconfig = yaml.load(open(config_cluster))
-        if tmpconfig is not None:
-            merge_config(config, tmpconfig, verbose)
 
     config_file = os.path.join(dirpath, "config.yaml")
     if os.path.exists(config_file):
