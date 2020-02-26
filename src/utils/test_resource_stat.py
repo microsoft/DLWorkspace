@@ -20,6 +20,11 @@ class TestResource(TestCase):
         t = "{'r1': %s}" % (float(1))
         self.assertEqual(t, repr(v))
 
+    def test_scalar(self):
+        v = make_resource(self.r_type, {"r1": "1"})
+        self.assertEqual(1, v.scalar("r1"))
+        self.assertIsNone(v.scalar("r2"))
+
     def test_normalize(self):
         v = make_resource(self.r_type, None)
         v.res = {"r1": 1.0, "r2": -1.0}
@@ -209,6 +214,11 @@ class TestCpu(TestResource):
         expected = make_resource(self.r_type, {"r1": "0.1"})
         self.assertEqual(expected, v)
 
+    def test_scalar(self):
+        v = make_resource(self.r_type, {"r1": "1"})
+        self.assertEqual("1000m", v.scalar("r1"))
+        self.assertIsNone(v.scalar("r2"))
+
 
 class TestMemory(TestResource):
     def init_class(self):
@@ -218,6 +228,11 @@ class TestMemory(TestResource):
         v = make_resource(self.r_type, {"r1": "1Gi"})
         expected = make_resource(self.r_type, {"r1": "1073741824"})
         self.assertEqual(expected, v)
+
+    def test_scalar(self):
+        v = make_resource(self.r_type, {"r1": 1048576})
+        self.assertEqual("1Mi", v.scalar("r1"))
+        self.assertIsNone(v.scalar("r2"))
 
 
 class TestGpu(TestResource):
@@ -233,6 +248,11 @@ class TestGpuMemory(TestResource):
         v = make_resource(self.r_type, {"r1": "16Gi"})
         expected = make_resource(self.r_type, {"r1": "17179869184"})
         self.assertEqual(expected, v)
+
+    def test_scalar(self):
+        v = make_resource(self.r_type, {"r1": 1048576})
+        self.assertEqual("1Mi", v.scalar("r1"))
+        self.assertIsNone(v.scalar("r2"))
 
 
 class TestDictionarize(TestCase):
