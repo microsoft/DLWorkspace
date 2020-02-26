@@ -17,6 +17,7 @@ import JobsTable from './JobsTable';
 import {
   name,
   status,
+  type,
   gpu,
   preemptible,
   priority,
@@ -80,6 +81,7 @@ const MyJobs: FunctionComponent = () => {
         columns={[
           name,
           status,
+          type,
           gpu,
           preemptible,
           priority,
@@ -100,6 +102,7 @@ const MyJobs: FunctionComponent = () => {
         columns={[
           name,
           status,
+          type,
           gpu,
           preemptible,
           priority,

@@ -1,5 +1,6 @@
 export { default as name } from './name';
 export { default as status } from './status';
+export { default as type } from './type';
 export { default as gpu } from './gpu';
 export { default as user } from './user';
 export { default as preemptible } from './preemptible';
