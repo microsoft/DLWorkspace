@@ -1,6 +1,5 @@
 import React, {
   FunctionComponent,
-  useContext,
 } from 'react';
 import {
   List,
@@ -11,7 +10,6 @@ import { get } from 'lodash';
 
 import CopyableTextListItem from '../../../components/CopyableTextListItem';
 
-import ClusterContext from '../ClusterContext';
 import { Job } from '../utils';
 
 interface Props {
@@ -19,9 +17,6 @@ interface Props {
 }
 
 const DetailPanel: FunctionComponent<Props> = ({ job }) => {
-  const { cluster } = useContext(ClusterContext);
-
-  const link = `${window.location.origin}/jobs-v2/${encodeURIComponent(cluster.id)}/${encodeURIComponent(job['jobId'])}`
   const submitted = new Date(get(job, 'jobTime'));
   const started = new Date(get(job, 'jobStatusDetail.0.startedAt'));
   const finished = new Date(get(job, 'jobStatusDetail.0.finishedAt'));
@@ -29,8 +24,8 @@ const DetailPanel: FunctionComponent<Props> = ({ job }) => {
   return (
     <List dense disablePadding>
       <CopyableTextListItem
-        primary="Job Link"
-        secondary={link}
+        primary="Job Id"
+        secondary={job['jobId']}
       />
       { isNaN(submitted.valueOf()) || (
         <ListItem>
