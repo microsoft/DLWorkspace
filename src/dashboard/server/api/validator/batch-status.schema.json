@@ -4,7 +4,7 @@
     "status": {
       "type": "object",
       "patternProperties": {
-        "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}": {
+        "[\\w-]+": {
           "enum": [
             "approved",
             "killing",
