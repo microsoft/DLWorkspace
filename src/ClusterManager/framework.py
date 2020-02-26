@@ -38,7 +38,7 @@ class Framework(object):
     def __init__(self, init_image, labels, annotations, roles, job_id,
                  pod_name, user_cmd, alias, email, gid, uid, mount_points,
                  plugins, family_token, vc_name, dns_policy, node_selector,
-                 home_folder_host_path,
+                 home_folder_host_path, ssh_public_keys,
                  is_preemption_allowed, is_host_network, is_host_ipc,
                  is_privileged, is_nccl_ib_disabled):
         self.init_image = init_image  # str, maybe None
@@ -59,6 +59,7 @@ class Framework(object):
         self.dns_policy = dns_policy  # str
         self.node_selector = node_selector  # map
         self.home_folder_host_path = home_folder_host_path  # str
+        self.ssh_public_keys = ssh_public_keys  # list of str
         self.is_preemption_allowed = is_preemption_allowed  # bool
         self.is_host_network = is_host_network  # bool
         self.is_host_ipc = is_host_ipc  # bool
@@ -267,6 +268,9 @@ def gen_container_envs(job, role):
     if job.is_nccl_ib_disabled:
         result.append({"name": "NCCL_IB_DISABLE", "value": "1"})
 
+    for i, key_value in enumerate(job.ssh_public_keys):
+        result.append({"name": "DLTS_PUBLIC_SSH_KEY_%d" % i, "value": key_value})
+
     result.extend(role.envs)
 
     return result
@@ -290,16 +294,6 @@ def gen_containers(job, role):
         {
             "name": "id-rsa-volume",
             "mountPath": "/home/%s/.ssh/id_rsa" % (job.alias),
-            "readOnly": True
-        },
-        {
-            "name": "id-rsa-pub-volume",
-            "mountPath": "/home/%s/.ssh/id_rsa.pub" % (job.alias),
-            "readOnly": True
-        },
-        {
-            "name": "authorized-keys-volume",
-            "mountPath": "/home/%s/.ssh/authorized_keys" % (job.alias),
             "readOnly": True
         },
         {
@@ -702,6 +696,7 @@ def transform_regular_job(params, cluster_config):
         params.get("dnsPolicy"),
         params.get("nodeSelector", {}),
         params["homeFolderHostpath"],
+        params.get("ssh_public_keys", []),
         params.get("preemptionAllowed", False),
         params.get("hostNetwork", False),
         params.get("hostIPC", False),
@@ -764,6 +759,7 @@ def transform_distributed_job(params, cluster_config):
         params.get("dnsPolicy"),
         params.get("nodeSelector", {}),
         params["homeFolderHostpath"],
+        params.get("ssh_public_keys", []),
         params.get("preemptionAllowed", False),
         params.get("hostNetwork", False),
         params.get("hostIPC", False),
@@ -827,6 +823,7 @@ def transform_inference_job(params, cluster_config):
         params.get("dnsPolicy"),
         params.get("nodeSelector", {}),
         params["homeFolderHostpath"],
+        params.get("ssh_public_keys", []),
         params.get("preemptionAllowed", False),
         params.get("hostNetwork", False),
         params.get("hostIPC", False),

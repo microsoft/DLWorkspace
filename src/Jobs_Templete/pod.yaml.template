@@ -181,12 +181,6 @@ spec:
     - name: id-rsa-volume
       mountPath: /home/{{ job["user"] }}/.ssh/id_rsa
       readOnly: true
-    - name: id-rsa-pub-volume
-      mountPath: /home/{{ job["user"] }}/.ssh/id_rsa.pub
-      readOnly: true
-    - name: authorized-keys-volume
-      mountPath: /home/{{ job["user"] }}/.ssh/authorized_keys
-      readOnly: true
     {% if not job["dnsPolicy"] %}
     - mountPath: /etc/resolv.conf
       name: resolv
@@ -283,6 +277,10 @@ spec:
     - name: {{env.name}}
       value: "{{env.value}}"
     {% endfor %}
+    {% for key_value in job["ssh_public_keys"] %}
+    - name: DLTS_PUBLIC_SSH_KEY_{{loop.index}}
+      value: "{{key_value}}"
+    {% endfor %}
     {% if job["nccl_ib_disable"] %}
     - name: NCCL_IB_DISABLE
       value: "1"
@@ -310,12 +308,6 @@ spec:
   - name: id-rsa-volume
     hostPath:
       path: {{ job["homeFolderHostpath"] }}/.ssh/id_rsa
-  - name: id-rsa-pub-volume
-    hostPath:
-      path: {{ job["homeFolderHostpath"] }}/.ssh/id_rsa.pub
-  - name: authorized-keys-volume
-    hostPath:
-      path: {{ job["homeFolderHostpath"] }}/.ssh/authorized_keys
   - name: dlts-runtime
     emptyDir: {}
   {% if not job["dnsPolicy"] %}
