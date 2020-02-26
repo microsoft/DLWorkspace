@@ -385,6 +385,11 @@ def UpdateJobStatus(redis_conn,
                         job["userName"], job["jobId"], result.strip()))
 
     elif result == "Failed":
+        now = datetime.datetime.now()
+        params = json.loads(base64decode(job["jobParams"]))
+        if params.get("debug") is True and (now - job["jobTime"]).seconds < 60:
+            logger.info("leave job %s there for debug for 60s", job["jobId"])
+            return
         logger.warning("Job %s fails, cleaning...", job["jobId"])
 
         if notifier is not None:
@@ -412,7 +417,6 @@ def UpdateJobStatus(redis_conn,
         dataHandler.UpdateJobTextFields(conditionFields, dataFields)
 
         launcher.delete_job(job["jobId"], force=True)
-
     elif result == "Unknown" or result == "NotFound":
         if job["jobId"] not in UnusualJobs:
             logger.warning("!!! Job status ---{}---, job: {}".format(
@@ -498,16 +502,18 @@ def discount_cluster_resource(cluster_resource):
 
 def get_cluster_schedulable(cluster_status):
     # Compute cluster schedulable resource
-    cluster_capacity = ClusterResource(params={
-        "cpu": cluster_status["cpu_capacity"],
-        "memory": cluster_status["memory_capacity"],
-        "gpu": cluster_status["gpu_capacity"],
-    })
-    cluster_unschedulable = ClusterResource(params={
-        "cpu": cluster_status["cpu_unschedulable"],
-        "memory": cluster_status["memory_unschedulable"],
-        "gpu": cluster_status["gpu_unschedulable"],
-    })
+    cluster_capacity = ClusterResource(
+        params={
+            "cpu": cluster_status["cpu_capacity"],
+            "memory": cluster_status["memory_capacity"],
+            "gpu": cluster_status["gpu_capacity"],
+        })
+    cluster_unschedulable = ClusterResource(
+        params={
+            "cpu": cluster_status["cpu_unschedulable"],
+            "memory": cluster_status["memory_unschedulable"],
+            "gpu": cluster_status["gpu_unschedulable"],
+        })
 
     cluster_schedulable = cluster_capacity - cluster_unschedulable
     cluster_schedulable = discount_cluster_resource(cluster_schedulable)
@@ -520,16 +526,18 @@ def get_vc_schedulables(cluster_status):
     vc_statuses = cluster_status.get("vc_statuses", {})
     vc_schedulables = {}
     for vc_name, vc_status in vc_statuses.items():
-        vc_capacity = ClusterResource(params={
-            "cpu": vc_status["cpu_capacity"],
-            "memory": vc_status["memory_capacity"],
-            "gpu": vc_status["gpu_capacity"],
-        })
-        vc_unschedulable = ClusterResource(params={
-            "cpu": vc_status["cpu_unschedulable"],
-            "memory": vc_status["memory_unschedulable"],
-            "gpu": vc_status["gpu_unschedulable"],
-        })
+        vc_capacity = ClusterResource(
+            params={
+                "cpu": vc_status["cpu_capacity"],
+                "memory": vc_status["memory_capacity"],
+                "gpu": vc_status["gpu_capacity"],
+            })
+        vc_unschedulable = ClusterResource(
+            params={
+                "cpu": vc_status["cpu_unschedulable"],
+                "memory": vc_status["memory_unschedulable"],
+                "gpu": vc_status["gpu_unschedulable"],
+            })
         vc_schedulable = vc_capacity - vc_unschedulable
         vc_schedulables[vc_name] = discount_cluster_resource(vc_schedulable)
 
@@ -574,8 +582,8 @@ def get_jobs_info(jobs):
             # Job time
             job_time = str(job["jobTime"])
 
-            sort_key = "{}_{}_{:06d}_{}".format(
-                preemptible, job_status_key, priority, job_time)
+            sort_key = "{}_{}_{:06d}_{}".format(preemptible, job_status_key,
+                                                priority, job_time)
 
             single_job_info = {
                 "job": job,
@@ -619,9 +627,8 @@ def mark_schedulable_non_preemptable_jobs(jobs_info, cluster_schedulable,
             logger.info(
                 "Do not allow non-preemptable job %s to run in vc %s."
                 "resource not enough, required job resource %s. "
-                "cluster schedulable %s, vc schedulables %s", job_id,
-                vc_name, job_resource, cluster_schedulable,
-                vc_schedulable)
+                "cluster schedulable %s, vc schedulables %s", job_id, vc_name,
+                job_resource, cluster_schedulable, vc_schedulable)
 
 
 def mark_schedulable_preemptable_jobs(jobs_info, cluster_schedulable):
@@ -645,8 +652,8 @@ def mark_schedulable_preemptable_jobs(jobs_info, cluster_schedulable):
                     "Do not allow preemptable job %s to run, "
                     "insufficient cluster resource: "
                     "cluster schedulable %s, "
-                    "required job resource %s.", job_id,
-                    cluster_schedulable, job_resource)
+                    "required job resource %s.", job_id, cluster_schedulable,
+                    job_resource)
 
 
 def schedule_jobs(jobs_info, data_handler, redis_conn, launcher,
@@ -677,7 +684,8 @@ def schedule_jobs(jobs_info, data_handler, redis_conn, launcher,
                           (job_resource, vc_schedulable, cluster_schedulable)
                 detail = [{"message": message}]
                 data_handler.UpdateJobTextField(
-                    job_id, "jobStatusDetail", base64encode(json.dumps(detail)))
+                    job_id, "jobStatusDetail",
+                    base64encode(json.dumps(detail)))
         except:
             logger.error("Process job failed: %s", job_info, exc_info=True)
 

@@ -38,9 +38,9 @@ class Framework(object):
     def __init__(self, init_image, labels, annotations, roles, job_id,
                  pod_name, user_cmd, alias, email, gid, uid, mount_points,
                  plugins, family_token, vc_name, dns_policy, node_selector,
-                 home_folder_host_path, ssh_public_keys,
-                 is_preemption_allowed, is_host_network, is_host_ipc,
-                 is_privileged, is_nccl_ib_disabled):
+                 home_folder_host_path, ssh_public_keys, is_preemption_allowed,
+                 is_host_network, is_host_ipc, is_privileged,
+                 is_nccl_ib_disabled):
         self.init_image = init_image  # str, maybe None
         self.labels = labels  # map
         self.annotations = annotations  # map
@@ -269,7 +269,10 @@ def gen_container_envs(job, role):
         result.append({"name": "NCCL_IB_DISABLE", "value": "1"})
 
     for i, key_value in enumerate(job.ssh_public_keys):
-        result.append({"name": "DLTS_PUBLIC_SSH_KEY_%d" % i, "value": key_value})
+        result.append({
+            "name": "DLTS_PUBLIC_SSH_KEY_%d" % i,
+            "value": key_value
+        })
 
     result.extend(role.envs)
 
@@ -381,9 +384,9 @@ def gen_affinity(job, role):
                             {"key": "jobId", "operator": "In", "values": [job.job_id]},
                             {"key": "jobRole", "operator": "In", "values": ["worker"]},
                             ],
-                        "topologyKey": "kubernetes.io/hostname",
-                        }
-                    }]
+                        },
+                    "topologyKey": "kubernetes.io/hostname",
+                    }],
                 }
     else:
         result["podAffinity"] = {
@@ -398,9 +401,8 @@ def gen_affinity(job, role):
                                 "operator": "In",
                                 "values": ["job"]
                             }],
-                            "topologyKey":
-                            "kubernetes.io/hostname",
-                        }
+                        },
+                        "topologyKey": "kubernetes.io/hostname",
                     }
                 },
                 # for distributed jobs, try to cluster pod of same job into one region
@@ -413,9 +415,9 @@ def gen_affinity(job, role):
                                 "operator": "In",
                                 "values": [job.job_id]
                             }],
-                            "topologyKey":
-                            "failure-domain.beta.kubernetes.io/region",
-                        }
+                        },
+                        "topologyKey":
+                        "failure-domain.beta.kubernetes.io/region",
                     }
                 },
             ]
@@ -430,12 +432,12 @@ def gen_affinity(job, role):
                             "operator": "In",
                             "values": [job.job_id]
                         }],
-                        "topologyKey":
-                        "failure-domain.beta.kubernetes.io/zone",
-                    }
+                    },
+                    "topologyKey": "failure-domain.beta.kubernetes.io/zone",
                 }
             }]
         }
+    return result
 
 
 def gen_task_role(job, role):

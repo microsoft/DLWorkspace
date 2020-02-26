@@ -408,6 +408,7 @@ def test_sudo_installed(args):
 
         assert state == "finished"
 
+
 @utils.case()
 def test_regular_job_custom_ssh_key(args):
     job_spec = utils.gen_default_job_description("regular", args.email,
@@ -454,7 +455,6 @@ def test_regular_job_custom_ssh_key(args):
 
             script_cmd.append("chmod 400 %s ;" % dest)
 
-
         cmd = ["sh", "-c", " ".join(script_cmd)]
 
         code, output = utils.kube_pod_exec(args.config, "default",
@@ -463,8 +463,7 @@ def test_regular_job_custom_ssh_key(args):
         assert code == 0, "code is %s, output is %s" % (code, output)
 
         cmd = [
-            "ssh", "-i",
-            dest, "-p", ssh_port, "-o",
+            "ssh", "-i", dest, "-p", ssh_port, "-o",
             "StrictHostKeyChecking=no", "-o", "LogLevel=ERROR",
             "%s@%s" % (alias, ssh_host), "--", "echo", "dummy"
         ]
