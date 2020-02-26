@@ -82,21 +82,6 @@ def get_resource_params_from_job_params(params):
 
 
 class JobParams(object):
-    subclasses = {}
-
-    @classmethod
-    def register_subclass(cls, job_type):
-        def decorator(subclass):
-            cls.subclasses[job_type] = subclass
-            return subclass
-        return decorator
-
-    @classmethod
-    def create(cls, job_type, params, quota, metadata):
-        if job_type not in cls.subclasses:
-            raise ValueError("Bad job type %s" % job_type)
-        return cls.subclasses[job_type](params, quota, metadata)
-
     def __init__(self, params, quota, metadata):
         """Constructor for JobParams.
 
@@ -289,13 +274,11 @@ class JobParams(object):
         return self.get_resource_proportional("memory")
 
 
-@JobParams.register_subclass("RegularJob")
 class RegularJobParams(JobParams):
     def __init__(self, params, quota, metadata):
         super(RegularJobParams, self).__init__(params, quota, metadata)
 
 
-@JobParams.register_subclass("PSDistJob")
 class PSDistJobParams(JobParams):
     """Always allocate entire nodes for workers if no resource request.
     """
@@ -334,18 +317,24 @@ class PSDistJobParams(JobParams):
         return request, limit
 
 
-@JobParams.register_subclass("InferenceJob")
 class InferenceJobParams(JobParams):
     """Always allocate 1 GPU for each worker if any."""
     def __init__(self, params, quota, metadata):
         super(InferenceJobParams, self).__init__(params, quota, metadata)
 
 
+JOB_PARAMS_MAPPING = {
+    "RegularJob": RegularJobParams,
+    "PSDistJob": PSDistJobParams,
+    "InferenceJob": InferenceJobParams,
+}
+
+
 def make_job_params(params, quota, metadata):
     job_params = None
     try:
         job_type = params.get("jobtrainingtype")
-        job_params = JobParams.create(job_type, params, quota, metadata)
+        job_params = JOB_PARAMS_MAPPING[job_type](params, quota, metadata)
     except ValueError:
         logger.exception("Bad job type in params %s", params)
     except Exception:
