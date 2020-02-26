@@ -12,8 +12,8 @@ import {
 import {
   AccountBox,
   Check,
-  Close,
-  Group
+  Group,
+  Remove
 } from '@material-ui/icons';
 import { get } from 'lodash';
 
@@ -27,13 +27,12 @@ const Brief: FunctionComponent = () => {
   const { clusterId, jobId } = useRouteParams();
   const { cluster, job } = useContext(Context);
 
-  const link = `${window.location.origin}/jobs-v2/${encodeURIComponent(clusterId)}/${encodeURIComponent(jobId)}`
   const submitted = new Date(get(job, 'jobTime'));
   const started = new Date(get(job, 'jobStatusDetail.0.startedAt'));
   const finished = new Date(get(job, 'jobStatusDetail.0.finishedAt'));
   return (
     <List dense disablePadding>
-      <CopyableTextListItem primary="Job Link" secondary={link}/>
+      <CopyableTextListItem primary="Job Id" secondary={jobId}/>
       <ListItem>
         <ListItemText
           primary="Job Owner"
@@ -65,37 +64,13 @@ const Brief: FunctionComponent = () => {
       ) }
       <Divider />
       <ListItem>
-        <ListItemText primary="Docker Image" secondary={job['jobParams']['image']}/>
+        <ListItemText primary="Job Type" secondary={get(job, 'jobParams.jobtrainingtype')}/>
       </ListItem>
-      <ListItem>
-        <ListItemText
-          primary="Command"
-          secondary={<CodeBlock>{job['jobParams']['cmd']}</CodeBlock>}
-          secondaryTypographyProps={{ component: 'div' }}
-        />
-      </ListItem>
-      <Divider />
-      <CopyableTextListItem
-        primary="Data Path"
-        secondary={`${cluster['dataStorage'] || ''}/${job['jobParams']['dataPath']}`}
-      />
-      <CopyableTextListItem
-        primary="Work Path"
-        secondary={`${cluster['workStorage'] || ''}/${job['jobParams']['workPath']}`}
-      />
-      <CopyableTextListItem
-        primary="Job Path"
-        secondary={`${cluster['workStorage'] || ''}/${job['jobParams']['jobPath']}`}
-      />
-      <Divider />
       <ListItem>
         <ListItemText
           primary="Cluster"
           secondary={clusterId}
         />
-      </ListItem>
-      <ListItem>
-        <ListItemText primary="Training Type" secondary={get(job, 'jobParams.jobtrainingtype')}/>
       </ListItem>
       {
         job['jobParams']['jobtrainingtype'] === 'PSDistJob' && (
@@ -130,7 +105,31 @@ const Brief: FunctionComponent = () => {
       <ListItem>
         <ListItemText
           primary="Preemptible"
-          secondary={job['jobParams']['preemptionAllowed'] ? <Check/> : <Close/>}
+          secondary={job['jobParams']['preemptionAllowed'] ? <Check/> : <Remove/>}
+        />
+      </ListItem>
+      <Divider />
+      <CopyableTextListItem
+        primary="Data Path"
+        secondary={`${cluster['dataStorage'] || ''}/${job['jobParams']['dataPath']}`}
+      />
+      <CopyableTextListItem
+        primary="Work Path"
+        secondary={`${cluster['workStorage'] || ''}/${job['jobParams']['workPath']}`}
+      />
+      <CopyableTextListItem
+        primary="Job Path"
+        secondary={`${cluster['workStorage'] || ''}/${job['jobParams']['jobPath']}`}
+      />
+      <Divider />
+      <ListItem>
+        <ListItemText primary="Docker Image" secondary={job['jobParams']['image']}/>
+      </ListItem>
+      <ListItem>
+        <ListItemText
+          primary="Command"
+          secondary={<CodeBlock>{job['jobParams']['cmd']}</CodeBlock>}
+          secondaryTypographyProps={{ component: 'div' }}
         />
       </ListItem>
     </List>
