@@ -27,13 +27,12 @@ const Brief: FunctionComponent = () => {
   const { clusterId, jobId } = useRouteParams();
   const { cluster, job } = useContext(Context);
 
-  const link = `${window.location.origin}/jobs-v2/${encodeURIComponent(clusterId)}/${encodeURIComponent(jobId)}`
   const submitted = new Date(get(job, 'jobTime'));
   const started = new Date(get(job, 'jobStatusDetail.0.startedAt'));
   const finished = new Date(get(job, 'jobStatusDetail.0.finishedAt'));
   return (
     <List dense disablePadding>
-      <CopyableTextListItem primary="Job Link" secondary={link}/>
+      <CopyableTextListItem primary="Job Id" secondary={jobId}/>
       <ListItem>
         <ListItemText
           primary="Job Owner"
