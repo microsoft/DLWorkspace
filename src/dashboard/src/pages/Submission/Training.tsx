@@ -618,7 +618,7 @@ const Training: React.ComponentClass = withRouter(({ history }) => {
       enabledatapath: enableDataPath,
       jobPath: jobPath || '',
       enablejobpath: enableJobPath,
-      env: environmentVariables,
+      envs: environmentVariables,
       hostNetwork : type === 'PSDistJob',
       isPrivileged : type === 'PSDistJob',
       plugins: plugins,

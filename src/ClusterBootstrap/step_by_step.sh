@@ -18,8 +18,7 @@ fi
 ./deploy.py -y updateworkerinparallel
 ./deploy.py -y kubernetes labels
 ./deploy.py -y gpulabel
-./deploy.py kubernetes start nvidia-device-plugin
-./deploy.py kubernetes start flexvolume
+./deploy.py labelsku
 ./deploy.py webui
 ./deploy.py docker push restfulapi
 ./deploy.py docker push webui
@@ -28,10 +27,16 @@ fi
 ./deploy.py docker push reaper
 ./deploy.py docker push job-exporter
 ./deploy.py docker push init-container
+./deploy.py docker push dashboard
+./deploy.py docker push user-synchronizer
 ./deploy.py mount
+./deploy.py kubernetes start nvidia-device-plugin
+./deploy.py kubernetes start flexvolume
 ./deploy.py kubernetes start mysql
 ./deploy.py kubernetes start jobmanager
 ./deploy.py kubernetes start restfulapi
-./deploy.py kubernetes start webportal
+./deploy.py kubernetes start monitor
+./deploy.py kubernetes start dashboard
+./deploy.py kubernetes start user-synchronizer
 ./deploy.py --sudo runscriptonrandmaster ./scripts/pass_secret.sh
 ./deploy.py runscriptonroles worker scripts/pre_download_images.sh

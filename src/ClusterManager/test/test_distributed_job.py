@@ -11,7 +11,7 @@ import utils
 logger = logging.getLogger(__file__)
 
 
-@utils.case
+@utils.case()
 def test_distributed_job_running(args):
     expected = "wantThisInLog"
     cmd = "echo %s ; sleep 1800" % expected
@@ -36,7 +36,7 @@ def test_distributed_job_running(args):
         assert expected in log, "assert {} in {}".format(expected, log)
 
 
-@utils.case
+@utils.case()
 def test_distributed_job_ssh(args):
     job_spec = utils.gen_default_job_description("distributed", args.email,
                                                  args.uid, args.vc)
@@ -95,7 +95,7 @@ def test_distributed_job_ssh(args):
                 assert output == "dummy\n"
 
 
-@utils.case
+@utils.case()
 def test_distributed_with_default_cmd(args):
     cmd = """
 ##################################################
@@ -192,7 +192,7 @@ sleep infinity"""
                 assert output == "dummy\n"
 
 
-@utils.case
+@utils.case()
 def test_distributed_job_env(args):
     envs = {
         "DLWS_HOST_NETWORK": "enable",
@@ -295,7 +295,7 @@ def test_distributed_job_env(args):
                         expected_output, output)
 
 
-@utils.case
+@utils.case()
 def test_blobfuse(args):
     job_spec = utils.gen_default_job_description("distributed", args.email,
                                                  args.uid, args.vc)
@@ -341,7 +341,7 @@ def test_blobfuse(args):
 
 
 # uncomment to run perf case
-#@utils.case
+#@utils.case()
 def perf(args):
     cmd = "sleep 30"
 

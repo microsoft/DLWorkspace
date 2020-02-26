@@ -105,6 +105,13 @@ done
 chown ${DLTS_USER_NAME} ${SSH_ENVIRONMENT_FILE}
 chmod 600 ${SSH_ENVIRONMENT_FILE}
 
+AUTHORIZED_FILE=/home/${DLTS_USER_NAME}/.ssh/authorized_keys
+for env_key in `env | grep DLTS_PUBLIC_SSH_KEY_| cut -d = -f 1` ; do
+    printenv $env_key >> $AUTHORIZED_FILE
+done
+chown ${DLTS_USER_NAME} ${AUTHORIZED_FILE}
+chmod 600 ${AUTHORIZED_FILE}
+
 mkdir -p /root/.ssh && cp /home/${DLTS_USER_NAME}/.ssh/* /root/.ssh/ && chown root /root/.ssh/* && chmod 600 /root/.ssh/*
 
 # generate /job/hostfile

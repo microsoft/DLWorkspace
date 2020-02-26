@@ -49,7 +49,7 @@ def _mock_v1_pod(jobId, userName, vcName, nodeName):
 def _mock_rule_config():
     rule_config = {
         "cluster_name": "mock-cluster",
-        "domain_name": "dltshub.example.com",
+        "portal_url": "dltshub.example.com",
         "job_owner_email_domain": "example.com",
         "restore_from_rule_cache_dump": False
     }
@@ -384,7 +384,9 @@ class Testing(unittest.TestCase):
                 "smtp_url": SMTP_URL,
                 "login": LOGIN,
                 "password": PASSWORD,
-                "sender": SENDER
+                "sender": SENDER,
+                "default_recepient": DRI_EMAIL
+
             }
 
             owner_email_split = JOB_OWNER_EMAIL.split('@')
@@ -449,7 +451,8 @@ class Testing(unittest.TestCase):
                 "smtp_url": SMTP_URL,
                 "login": LOGIN,
                 "password": PASSWORD,
-                "sender": SENDER
+                "sender": SENDER,
+                "default_recepient": DRI_EMAIL
             }
 
             rule_alert_handler_instance = rule_alert_handler.RuleAlertHandler()
@@ -460,7 +463,6 @@ class Testing(unittest.TestCase):
                 "job_owner_email":  JOB_OWNER_EMAIL,
                 "node_names": ["node1", "node2"], 
                 "job_link": "example.dlts.com/fake-cluster/fake-link",
-                "dri_email": DRI_EMAIL, 
                 "cluster_name": "mock-cluster",
                 "reboot_dry_run": True,
                 "days_until_reboot": 5
@@ -474,7 +476,6 @@ class Testing(unittest.TestCase):
                 "job_owner_email":  JOB_OWNER_EMAIL,
                 "node_names": ["node1", "node2"], 
                 "job_link": "example.dlts.com/fake-cluster/fake-link",
-                "dri_email": DRI_EMAIL, 
                 "cluster_name": "mock-cluster",
                 "reboot_dry_run": False,
                 "days_until_reboot": 5

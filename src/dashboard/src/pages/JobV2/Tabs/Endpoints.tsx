@@ -9,7 +9,6 @@ import React, {
   useState,
   useMemo
 } from 'react';
-import { useParams } from 'react-router-dom';
 import {
   Box,
   FormGroup,
@@ -29,15 +28,11 @@ import {
 import useFetch from 'use-http-2';
 import { useSnackbar } from 'notistack';
 
-import Loading from '../../components/Loading';
-import CopyableTextListItem from '../../components/CopyableTextListItem';
+import Loading from '../../../components/Loading';
+import CopyableTextListItem from '../../../components/CopyableTextListItem';
 
-import Context from './Context';
-
-interface RouteParams {
-  clusterId: string;
-  jobId: string;
-}
+import useRouteParams from '../useRouteParams';
+import Context from '../Context';
 
 const EndpointListItem: FunctionComponent<{ endpoint: any }> = ({ endpoint }) => {
   const { cluster, job } = useContext(Context);
@@ -101,7 +96,7 @@ const EndpointsList: FunctionComponent<{
 
 
 const EndpointsController: FunctionComponent<{ endpoints: any[] }> = ({ endpoints }) => {
-  const { clusterId, jobId } = useParams<RouteParams>();
+  const { clusterId, jobId } = useRouteParams();
   const { enqueueSnackbar } = useSnackbar();
   const ssh = useMemo(() => {
     return endpoints.some((endpoint) => endpoint.name === 'ssh');
@@ -198,7 +193,7 @@ const EndpointsController: FunctionComponent<{ endpoints: any[] }> = ({ endpoint
 };
 
 const Endpoints: FunctionComponent = () => {
-  const { clusterId, jobId } = useParams<RouteParams>();
+  const { clusterId, jobId } = useRouteParams();
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const { job } = useContext(Context);
   const { error, data, get } =
@@ -239,5 +234,7 @@ const Endpoints: FunctionComponent = () => {
     </>
   );
 };
+
+Endpoints.displayName = 'Endpoints'
 
 export default Endpoints;

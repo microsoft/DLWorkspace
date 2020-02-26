@@ -11,6 +11,7 @@ import {
   useParams
 } from 'react-router-dom';
 import {
+  Box,
   Container,
   FormControl,
   InputLabel,
@@ -67,9 +68,11 @@ const TabView: FunctionComponent = () => {
 const ClusterJobs: FunctionComponent<{ cluster: any }> = ({ cluster }) => {
   return (
     <ClusterContext.Provider value={{ cluster: cluster }}>
-      <Paper elevation={2}>
-        {cluster.admin ? <TabView/> : <MyJobs/>}
-      </Paper>
+      <Box paddingBottom={4}>
+        <Paper elevation={2}>
+          {cluster.admin ? <TabView/> : <MyJobs/>}
+        </Paper>
+      </Box>
     </ClusterContext.Provider>
   );
 }

@@ -2,6 +2,8 @@ import subprocess
 import logging
 from kubernetes import client, config
 
+kubernetes_config_file = '/etc/kubernetes/restapi-kubeconfig.yaml'
+
 def cordon_node(node_name, dry_run=True):
     args = ['kubectl', 'cordon', node_name]
 
@@ -27,26 +29,26 @@ def is_node_cordoned(node_info, node_name):
 
 
 def list_node():
-    config.load_kube_config(config_file='/etc/kubernetes/restapi-kubeconfig.yaml')
+    config.load_kube_config(config_file=kubernetes_config_file)
     api_instance = client.CoreV1Api()
     return api_instance.list_node()
 
 
 
 def list_pod_for_all_namespaces():
-    config.load_kube_config(config_file='/etc/kubernetes/restapi-kubeconfig.yaml',)
+    config.load_kube_config(config_file=kubernetes_config_file)
     api_instance = client.CoreV1Api()
     return api_instance.list_pod_for_all_namespaces()
 
 
 
 def list_namespaced_pod(namespace):
-    config.load_kube_config(config_file='/etc/kubernetes/restapi-kubeconfig.yaml',)
+    config.load_kube_config(config_file=kubernetes_config_file)
     api_instance = client.CoreV1Api()
     return api_instance.list_namespaced_pod(namespace)
 
 
-def _get_job_info_from_nodes(pods, nodes, domain_name, cluster_name):
+def _get_job_info_from_nodes(pods, nodes, portal_url, cluster_name):
     jobs = {}
     for pod in pods.items:
         if pod.metadata and pod.metadata.labels:
@@ -61,7 +63,7 @@ def _get_job_info_from_nodes(pods, nodes, domain_name, cluster_name):
                         'user_name': user_name,
                         'node_names': {node_name},
                         'vc_name': vc_name,
-                        'job_link': f'https://{domain_name}/job/{vc_name}/{cluster_name}/{job_id}'}
+                        'job_link': f'https://{portal_url}/job/{vc_name}/{cluster_name}/{job_id}'}
                     else:
                         jobs[job_id]['node_names'].add(node_name)
     return jobs

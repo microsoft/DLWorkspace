@@ -10,6 +10,7 @@
     "clipboard-copy": "^3.1.0",
     "clsx": "^1.0.4",
     "config": "^3.2.1",
+    "date-fns": "^2.9.0",
     "js-yaml": "^3.13.1",
     "jsonwebtoken": "^8.5.1",
     "koa": "^2.7.0",

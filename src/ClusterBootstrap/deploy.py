@@ -707,7 +707,7 @@ def load_az_params_as_default():
 
 
 def on_premise_params():
-    print("Warning: remember to set parameters:\ngpu_count_per_node, gpu_type, worker_node_num\n when using on premise machine!")
+    print("Warning: remember to set parameters:\nworker_node_num, node-group(for each worker machine)\n when using on premise machine!")
 
 
 def load_platform_type():
@@ -2205,6 +2205,19 @@ def deploy_nfs_config():
         del config["cur_nfs_node"]
 
 
+def deploy_repairmanager_config():
+    infra_node = get_nodes_by_roles(["infra"])
+    utils.clean_rendered_target_directory()
+    utils.render_template_directory(
+        "./template/RepairManager", "./deploy/RepairManager/", config)
+    utils.sudo_scp(config["ssh_cert"], "./deploy/RepairManager/email-config.yaml",
+        "/etc/RepairManager/config/email-config.yaml", config["admin_username"], infra_node[0])
+    utils.sudo_scp(config["ssh_cert"], "./deploy/RepairManager/rule-config.yaml",
+        "/etc/RepairManager/config/rule-config.yaml", config["admin_username"], infra_node[0])
+    utils.sudo_scp(config["ssh_cert"], "./deploy/RepairManager/ecc-config.yaml",
+        "/etc/RepairManager/config/ecc-config.yaml", config["admin_username"], infra_node[0])
+
+
 def label_webUI(nodename):
     kubernetes_label_node("--overwrite", nodename, "webportal=active")
     kubernetes_label_node("--overwrite", nodename, "restfulapi=active")
@@ -2615,7 +2628,6 @@ def kubernetes_label_nodes(verb, servicelists, force):
                 kubernetes_label_node(cmdoptions, nodename, label+"-")
 
 
-# Label kubernete nodes with gpu types.skip for CPU workers
 def kubernetes_label_GpuTypes():
     for nodename, nodeInfo in list(config["machines"].items()):
         if nodeInfo["role"] == "worker":
@@ -2692,11 +2704,10 @@ def kubernetes_label_cpuworker():
 
 def kubernetes_label_sku():
     """Label kubernetes nodes with sku=<sku_value>"""
-    sku_meta = get_sku_meta(config)
     machines = get_machines_by_roles("all", config)
 
     for machine_name, machine_info in list(machines.items()):
-        if "sku" in machine_info and machine_info["sku"] in sku_meta:
+        if "sku" in machine_info:
             sku = machine_info["sku"]
             kubernetes_label_node("--overwrite", machine_name, "sku=%s" % sku)
 
@@ -3226,6 +3237,9 @@ def run_command(args, command, nargs, parser):
 
     elif command == "deploynfsconfig":
         deploy_nfs_config()
+
+    elif command == "deployrepairmanagerconfig":
+        deploy_repairmanager_config()
 
     elif command == "listmac":
         nodes = get_nodes(config["clusterId"])
