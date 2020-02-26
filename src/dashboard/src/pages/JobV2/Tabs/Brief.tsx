@@ -65,37 +65,13 @@ const Brief: FunctionComponent = () => {
       ) }
       <Divider />
       <ListItem>
-        <ListItemText primary="Docker Image" secondary={job['jobParams']['image']}/>
+        <ListItemText primary="Job Type" secondary={get(job, 'jobParams.jobtrainingtype')}/>
       </ListItem>
-      <ListItem>
-        <ListItemText
-          primary="Command"
-          secondary={<CodeBlock>{job['jobParams']['cmd']}</CodeBlock>}
-          secondaryTypographyProps={{ component: 'div' }}
-        />
-      </ListItem>
-      <Divider />
-      <CopyableTextListItem
-        primary="Data Path"
-        secondary={`${cluster['dataStorage'] || ''}/${job['jobParams']['dataPath']}`}
-      />
-      <CopyableTextListItem
-        primary="Work Path"
-        secondary={`${cluster['workStorage'] || ''}/${job['jobParams']['workPath']}`}
-      />
-      <CopyableTextListItem
-        primary="Job Path"
-        secondary={`${cluster['workStorage'] || ''}/${job['jobParams']['jobPath']}`}
-      />
-      <Divider />
       <ListItem>
         <ListItemText
           primary="Cluster"
           secondary={clusterId}
         />
-      </ListItem>
-      <ListItem>
-        <ListItemText primary="Training Type" secondary={get(job, 'jobParams.jobtrainingtype')}/>
       </ListItem>
       {
         job['jobParams']['jobtrainingtype'] === 'PSDistJob' && (
@@ -131,6 +107,30 @@ const Brief: FunctionComponent = () => {
         <ListItemText
           primary="Preemptible"
           secondary={job['jobParams']['preemptionAllowed'] ? <Check/> : <Close/>}
+        />
+      </ListItem>
+      <Divider />
+      <CopyableTextListItem
+        primary="Data Path"
+        secondary={`${cluster['dataStorage'] || ''}/${job['jobParams']['dataPath']}`}
+      />
+      <CopyableTextListItem
+        primary="Work Path"
+        secondary={`${cluster['workStorage'] || ''}/${job['jobParams']['workPath']}`}
+      />
+      <CopyableTextListItem
+        primary="Job Path"
+        secondary={`${cluster['workStorage'] || ''}/${job['jobParams']['jobPath']}`}
+      />
+      <Divider />
+      <ListItem>
+        <ListItemText primary="Docker Image" secondary={job['jobParams']['image']}/>
+      </ListItem>
+      <ListItem>
+        <ListItemText
+          primary="Command"
+          secondary={<CodeBlock>{job['jobParams']['cmd']}</CodeBlock>}
+          secondaryTypographyProps={{ component: 'div' }}
         />
       </ListItem>
     </List>
