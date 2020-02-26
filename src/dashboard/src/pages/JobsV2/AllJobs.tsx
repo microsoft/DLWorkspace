@@ -33,7 +33,7 @@ const MyJobs: FunctionComponent = () => {
   const { selectedTeam } = useContext(TeamsContext);
   const { support, approve, pause, resume, kill } = useActions(cluster.id);
 
-  const [limit, setLimit] = useState(20);
+  const [limit, setLimit] = useState(30);
 
   const { data, loading, error, get, abort } = useFetch(
     `/api/v2/clusters/${cluster.id}/teams/${selectedTeam}/jobs?user=all&limit=${limit}`,
@@ -48,7 +48,7 @@ const MyJobs: FunctionComponent = () => {
 
   const handleLastPage = useCallback((pageSize: number) => {
     abort();
-    setLimit((limit) => limit + pageSize);
+    setLimit((limit) => Math.ceil((limit + pageSize) / pageSize) * pageSize);
   }, [abort, setLimit]);
 
   useEffect(() => {
