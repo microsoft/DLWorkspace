@@ -74,7 +74,7 @@ const JobContent: FunctionComponent = () => {
         if (key !== null) closeSnackbar(key);
       }
     }
-  }, [clusterError, enqueueSnackbar, closeSnackbar, clusterId, jobId]);
+  }, [clusterError, enqueueSnackbar, closeSnackbar, clusterId]);
 
   useEffect(() => { // refresh job info
     if (jobLoading) return;
@@ -83,7 +83,7 @@ const JobContent: FunctionComponent = () => {
     return () => {
       clearTimeout(timeout);
     };
-  }, [job, jobLoading, jobError, getJob]);
+  }, [jobLoading, getJob]);
 
   const status = useMemo(() => job && job['jobStatus'], [job]);
   const previousStatus = usePrevious(status);
