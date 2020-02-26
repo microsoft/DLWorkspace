@@ -12,8 +12,8 @@ import {
 import {
   AccountBox,
   Check,
-  Close,
-  Group
+  Group,
+  Remove
 } from '@material-ui/icons';
 import { get } from 'lodash';
 
@@ -105,7 +105,7 @@ const Brief: FunctionComponent = () => {
       <ListItem>
         <ListItemText
           primary="Preemptible"
-          secondary={job['jobParams']['preemptionAllowed'] ? <Check/> : <Close/>}
+          secondary={job['jobParams']['preemptionAllowed'] ? <Check/> : <Remove/>}
         />
       </ListItem>
       <Divider />
