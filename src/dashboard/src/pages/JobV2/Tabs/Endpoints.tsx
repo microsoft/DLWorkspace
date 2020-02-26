@@ -235,4 +235,6 @@ const Endpoints: FunctionComponent = () => {
   );
 };
 
+Endpoints.displayName = 'Endpoints'
+
 export default Endpoints;
