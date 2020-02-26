@@ -33,6 +33,10 @@ router.post('/clusters/:clusterId/jobs',
   require('./middlewares/user')(),
   require('./middlewares/body')('job'),
   require('./controllers/cluster/jobs.post'))
+router.post('/clusters/:clusterId/jobs/status',
+  require('./middlewares/user')(),
+  require('./middlewares/body')('batch-status'),
+  require('./controllers/cluster/jobs/status.post'))
 router.get('/clusters/:clusterId/jobs/:jobId',
   require('./middlewares/user')(),
   require('./controllers/cluster/job'))
