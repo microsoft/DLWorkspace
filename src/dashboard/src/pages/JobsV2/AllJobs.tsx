@@ -76,7 +76,7 @@ const MyJobs: FunctionComponent = () => {
       <JobsTable
         title="Active Jobs"
         jobs={activeJobs}
-        isLoading={activeJobs === undefined}
+        isLoading={data === undefined}
         defaultPageSize={5}
         columns={[
           name,
@@ -98,7 +98,7 @@ const MyJobs: FunctionComponent = () => {
       <JobsTable
         title="Inactive Jobs"
         jobs={inactiveJobs}
-        isLoading={inactiveJobs === undefined}
+        isLoading={data === undefined}
         defaultPageSize={10}
         columns={[
           name,
