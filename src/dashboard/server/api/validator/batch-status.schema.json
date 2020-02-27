@@ -1,0 +1,20 @@
+{
+  "type": "object",
+  "properties": {
+    "status": {
+      "type": "object",
+      "patternProperties": {
+        "[\\w-]+": {
+          "enum": [
+            "approved",
+            "killing",
+            "pausing",
+            "queued"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["status"]
+}

@@ -707,7 +707,7 @@ def load_az_params_as_default():
 
 
 def on_premise_params():
-    print("Warning: remember to set parameters:\ngpu_count_per_node, gpu_type, worker_node_num\n when using on premise machine!")
+    print("Warning: remember to set parameters:\nworker_node_num, node-group(for each worker machine)\n when using on premise machine!")
 
 
 def load_platform_type():
@@ -1477,11 +1477,14 @@ def update_nfs_nodes(nargs):
     TODO: Should be covered by update_role_nodes in deploy.py V2
     """
     # This is to temporarily replace gpu_type with None to disallow nvidia runtime config to appear in /etc/docker/daemon.json
-    prev_gpu_type = config["gpu_type"]
+    prev_gpu_type = config.get("gpu_type")
     config["gpu_type"] = "None"
     utils.render_template_directory(
         "./template/kubelet", "./deploy/kubelet", config)
-    config["gpu_type"] = prev_gpu_type
+    if prev_gpu_type is None:
+        config.pop("gpu_type", None)
+    else:
+        config["gpu_type"] = prev_gpu_type
 
     write_nodelist_yaml()
 
@@ -1544,10 +1547,13 @@ def update_elasticsearch_nodes(nargs):
     TODO: Should be covered by update_role_nodes in deploy.py V2
     """
     # This is to temporarily replace gpu_type with None to disallow nvidia runtime config to appear in /etc/docker/daemon.json
-    prev_gpu_type = config["gpu_type"]
+    prev_gpu_type = config.get("gpu_type")
     config["gpu_type"] = "None"
     utils.render_template_directory("./template/kubelet", "./deploy/kubelet", config)
-    config["gpu_type"] = prev_gpu_type
+    if prev_gpu_type is None:
+        config.pop("gpu_type", None)
+    else:
+        config["gpu_type"] = prev_gpu_type
 
     write_nodelist_yaml()
 
@@ -2628,7 +2634,6 @@ def kubernetes_label_nodes(verb, servicelists, force):
                 kubernetes_label_node(cmdoptions, nodename, label+"-")
 
 
-# Label kubernete nodes with gpu types.skip for CPU workers
 def kubernetes_label_GpuTypes():
     for nodename, nodeInfo in list(config["machines"].items()):
         if nodeInfo["role"] == "worker":
@@ -2705,11 +2710,10 @@ def kubernetes_label_cpuworker():
 
 def kubernetes_label_sku():
     """Label kubernetes nodes with sku=<sku_value>"""
-    sku_meta = get_sku_meta(config)
     machines = get_machines_by_roles("all", config)
 
     for machine_name, machine_info in list(machines.items()):
-        if "sku" in machine_info and machine_info["sku"] in sku_meta:
+        if "sku" in machine_info:
             sku = machine_info["sku"]
             kubernetes_label_node("--overwrite", machine_name, "sku=%s" % sku)
 

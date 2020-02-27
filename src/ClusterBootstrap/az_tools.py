@@ -921,6 +921,10 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
 
     if "sku_mapping" in config:
         cc["sku_mapping"] = config["sku_mapping"]
+        for sku in cc["worker_sku_cnt"]:
+            # this means that the cluster deployed with this pipeline cannot be heterogeneous
+            cc["gpu_type"] = cc["sku_mapping"].get(sku, {}).get('gpu-type', "None")
+            break
 
     if output_file:
         print(yaml.dump(cc, default_flow_style=False))
@@ -1172,11 +1176,6 @@ Command:
         print("{0}".format(args))
 
     # Cluster Config
-    config_cluster = os.path.join(dirpath, "azure_cluster_config.yaml")
-    if os.path.exists(config_cluster):
-        tmpconfig = yaml.load(open(config_cluster))
-        if tmpconfig is not None:
-            merge_config(config, tmpconfig, verbose)
 
     config_file = os.path.join(dirpath, "config.yaml")
     if os.path.exists(config_file):
@@ -1212,9 +1211,6 @@ Command:
         config["azure_cluster"]["file_share_name"] = args.file_share_name
 
     config = update_config(config)
-
-    with open(config_cluster, 'w') as outfile:
-        yaml.dump(config, outfile, default_flow_style=False)
 
     if "cluster_name" not in config["azure_cluster"] or config["azure_cluster"]["cluster_name"] is None:
         print("Cluster Name cannot be empty")

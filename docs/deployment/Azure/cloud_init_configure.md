@@ -111,18 +111,37 @@ domain-offset:
   <can also set '*'>: <value0>
 
 repair-manager:
+  cluster_name: <the unique cluster name>
+  portal_url: <a domain name, e.g. dltshub.mydomain.com>
   alert:
     smtp_url: <smtp url>
     login: <email account that would send email to receivers, such as 'dlts-bot@microsoft.com'>
     password: <password for the email account above>
-    sender: 'dlts-bot@microsoft.com'
+    sender: <email address used to send alert emails, e.g. 'dlts-bot@microsoft.com'>
     receiver:
     # list of recepients to be included in all alert emails
     - DLTSDRI@microsoft.com
   # rule details
   ecc_rule:
-    dry_run: False
-    
+    cordon_dry_run: False
+    reboot_dry_run: True
+    dri_email: DLTSDRI@microsoft.com
+    alert_job_owners: True
+    days_until_node_reboot: 5
+
+alert-manager:
+  configured: True
+  alert_users: False # True if we want to send out alert email to users, default False
+  smtp_url: <smtp url>
+  smtp_from: <email address used to send alert emails, e.g. 'dlts-bot@microsoft.com'>
+  smtp_auth_username: <email account that would send email to receivers, such as 'dlts-bot@microsoft.com'>
+  smtp_auth_password: <password for the email account above>
+  receiver: <email address to send alert email to>
+
+  reaper:
+    dry-run: True # change to False if we want to kill idle job
+    restful-url: http://localhost:5000
+
 datasource: MySQL
 mysql_password: <password>
 WinbindServers: []
@@ -165,6 +184,11 @@ registry_credential:
 
 Each item in `cnf["azure_cluster"]["virtual_machines"]` means spec for a set of machines, the properties of which are explained as follows: 
 
+* `vm_size`: vm_size that azure requires when specifying what type of node is to be used
+Usually, CPU VMs will be used as infra node, and GPU VMs will be used for worker node. Please find all available Azure VM size in a specific region, e.g. West US 2 in the below command: 
+```
+az vm list-sizes --location <location, e.g. westus2>
+```
 * `role`: functional role (DLTS-wise) of the set of machines.
 * `managed_disks`: storage setting of the set of machines.
 * `kube_services`: kubernetes services to run on the machines.
@@ -173,7 +197,6 @@ Each item in `cnf["azure_cluster"]["virtual_machines"]` means spec for a set of 
 * `data_disk_mnt_path`: the path that all data disks are mounted to.
 * `private_ip_address`: use to bind certain private IP to a machine. If this parameter is specified, number_of_instance should be 1.
 * `fileshares`: mounting paths for NFS service. `nfs_local_path` on NFS machines are mounted to `remote_mount_path`, then soft-linked to `remote_link_path`. NFS service might fail. We use the soft-link trick because it guarantees that when NFS service fails, operations would also fail, and we could know. Before we fix it, attempted operations would fail, but no vital damage would be caused. To allow less user effort, we also support stem-leaves mode, where users specify "stem" of paths, (such as `nfs_local_path_root`), and probably `vc` if the NFS machine is for dedicated storage, then several sub paths under `leaves`, and then a joined path would be generated.
-* `gpu_type`: specified for worker machines. Currently all workers in a cluster have the same type of GPU
 
 Some other properties that worth mentioning:
 

@@ -58,6 +58,8 @@ EOF
     echo -e "${ip}\t${host}" >> /etc/hosts
 done
 
+set +x
+
 envs=(
 LD_LIBRARY_PATH
 LIBRARY_PATH
@@ -104,6 +106,15 @@ for env_key in "${envs[@]}" ; do
 done
 chown ${DLTS_USER_NAME} ${SSH_ENVIRONMENT_FILE}
 chmod 600 ${SSH_ENVIRONMENT_FILE}
+
+AUTHORIZED_FILE=/home/${DLTS_USER_NAME}/.ssh/authorized_keys
+for env_key in `env | grep DLTS_PUBLIC_SSH_KEY_| cut -d = -f 1` ; do
+    printenv $env_key >> $AUTHORIZED_FILE
+done
+chown ${DLTS_USER_NAME} ${AUTHORIZED_FILE}
+chmod 600 ${AUTHORIZED_FILE}
+
+set -x
 
 mkdir -p /root/.ssh && cp /home/${DLTS_USER_NAME}/.ssh/* /root/.ssh/ && chown root /root/.ssh/* && chmod 600 /root/.ssh/*
 

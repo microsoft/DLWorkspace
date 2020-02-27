@@ -101,7 +101,7 @@ def get_elapsed_seconds(path):
     return (datetime.datetime.now() - mtime).seconds
 
 
-def Run(args):
+def run(args):
     register_stack_trace_dump()
     create_log()
 
@@ -131,6 +131,9 @@ def Run(args):
         "endpoint_manager":
         ["python3", os.path.join(
             cwd, "endpoint_manager.py"), "--port", str(args.e)],
+        "db_manager":
+            ["python3", os.path.join(
+                cwd, "db_manager.py"), "--port", str(args.d)],
     }
 
     FNULL = open(os.devnull, "w")
@@ -194,8 +197,10 @@ if __name__ == "__main__":
                         type=int, default=9202)
     parser.add_argument("-l", help="port of joblog_manager",
                         type=int, default=9203)
-    parser.add_argument(
-        "-e", help="port of endpoint_manager", type=int, default=9205)
+    parser.add_argument("-e", help="port of endpoint_manager",
+                        type=int, default=9205)
+    parser.add_argument("-d", help="port of db_manager",
+                        type=int, default=9209)
     args = parser.parse_args()
 
-    sys.exit(Run(args))
+    sys.exit(run(args))

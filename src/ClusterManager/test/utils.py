@@ -35,25 +35,31 @@ def walk_json_safe(obj, *fields):
         return None
 
 
-def case(fn):
-    @functools.wraps(fn)
-    def wrapped(*args, **kwargs):
-        start = datetime.datetime.now()
-        full_name = fn.__module__ + "." + fn.__name__
-        try:
-            logger.info("%s ...", full_name)
-            fn(*args, **kwargs)
-            return False
-        except Exception:
-            logger.exception("executing %s failed", full_name)
-            # let other test case continue
-            return True
-        finally:
-            logger.info("spent %s in executing test case %s",
-                        datetime.datetime.now() - start, full_name)
+def case(unstable=False):
+    def decorator(fn):
+        @functools.wraps(fn)
+        def wrapped(*args, **kwargs):
+            start = datetime.datetime.now()
+            full_name = fn.__module__ + "." + fn.__name__
+            max_retry = 3 if unstable else 1
 
-    wrapped.is_case = True
-    return wrapped
+            for times in range(max_retry):
+                try:
+                    logger.info("%s ...(%s times)", full_name, times)
+                    fn(*args, **kwargs)
+                    return False
+                except Exception:
+                    logger.exception("executing %s failed", full_name)
+                    continue
+                finally:
+                    logger.info("spent %s in executing test case %s",
+                                datetime.datetime.now() - start, full_name)
+            return True
+
+        wrapped.is_case = True
+        return wrapped
+
+    return decorator
 
 
 def load_azure_blob_config(config_path, mount_path):
@@ -105,7 +111,6 @@ def gen_default_job_description(
         "enablejobpath": True,
         "env": [],
         "resourcegpu": 0,
-        "cpulimit": 1,
     }
 
     if job_type in {"regular", "data"}:

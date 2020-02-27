@@ -55,7 +55,6 @@ def _get_impacted_jobs(new_bad_nodes, portal_url, cluster_name):
     impacted_jobs = k8s_util._get_job_info_from_nodes(**job_params)
     return impacted_jobs
 
-
 def _create_email_for_dris(nodes, action_status, jobs, cluster_name):
     message = MIMEMultipart()
     message['Subject'] = f'Repair Manager Alert [ECC ERROR] [{cluster_name}]'

@@ -17,6 +17,10 @@ from mountpoint import make_mountpoint
 
 
 class JobTemplate(object):
+    def __init__(self, template, secret_templates=None):
+        self.template = template
+        self.secret_templates = secret_templates
+
     def generate_params(self, job):
         """
         Return (pods, errors)
@@ -34,6 +38,7 @@ class JobTemplate(object):
                 "userId",
                 "resourcegpu",
                 "userName",
+                "sku",
         ]):
             return None, "Missing required parameters!"
 
@@ -88,8 +93,8 @@ class JobTemplate(object):
 
         if "nodeSelector" not in params:
             params["nodeSelector"] = {}
-        if "gpuType" in params:
-            params["nodeSelector"]["gpuType"] = params["gpuType"]
+        if "sku" in params:
+            params["nodeSelector"]["sku"] = params["sku"]
 
         # Set up VC dedicated node usage
         vc_node_hard_assignment = job.get_vc_node_hard_assignment()
@@ -121,6 +126,12 @@ class JobTemplate(object):
         nccl_ib_disable = job.get_nccl_ib_disable()
         if nccl_ib_disable is not None and nccl_ib_disable is True:
             params["nccl_ib_disable"] = True
+
+        public_key_path = job.get_hostpath(job.get_alias(), ".ssh", "id_rsa.pub")
+        if os.path.isfile(public_key_path):
+            with open(public_key_path) as f:
+                params["ssh_public_keys"] = params.get("ssh_public_keys", [])
+                params["ssh_public_keys"].append(f.read())
 
         return params, None
 
@@ -173,8 +184,7 @@ class JobTemplate(object):
 
 class RegularJobTemplate(JobTemplate):
     def __init__(self, template, secret_templates=None):
-        self.template = template
-        self.secret_templates = secret_templates
+        super(RegularJobTemplate, self).__init__(template, secret_templates)
 
     def generate_pods(self, job):
         """
@@ -204,7 +214,6 @@ class RegularJobTemplate(JobTemplate):
 
         params["numps"] = 0
         params["numworker"] = 1
-        params["fragmentGpuJob"] = True
         if "gpuLimit" not in params:
             params["gpuLimit"] = params["resourcegpu"]
 
@@ -216,9 +225,8 @@ class InferenceJobTemplate(JobTemplate):
                  template,
                  deployment_template=None,
                  secret_templates=None):
-        self.template = template
         self.deployment_template = deployment_template
-        self.secret_templates = secret_templates
+        super(InferenceJobTemplate, self).__init__(template, secret_templates)
 
     def generate_pods(self, job):
         """
@@ -267,7 +275,6 @@ class InferenceJobTemplate(JobTemplate):
 
         params["numps"] = 0
         params["numworker"] = 1
-        params["fragmentGpuJob"] = True
         params["gpuLimit"] = 0
 
         return params, None
@@ -275,8 +282,7 @@ class InferenceJobTemplate(JobTemplate):
 
 class DistributeJobTemplate(JobTemplate):
     def __init__(self, template, secret_templates=None):
-        self.template = template
-        self.secret_templates = secret_templates
+        super(DistributeJobTemplate, self).__init__(template, secret_templates)
 
     def generate_pod(self, pod):
         assert (isinstance(self.template, Template))
@@ -287,7 +293,7 @@ class DistributeJobTemplate(JobTemplate):
 
         pod["podName"] = "{}-{}".format(job_id, dist_id)
 
-        if (pod["role_name"] == "worker"):
+        if pod["role_name"] == "worker":
             pod["gpuLimit"] = pod["resourcegpu"]
         else:
             pod["gpuLimit"] = 0
@@ -350,6 +356,11 @@ class DistributeJobTemplate(JobTemplate):
 
         params["numworker"] = int(params["numpsworker"])
         params["numps"] = int(params["numps"])
+
+        # In LauncherStub, only generate_params is called. Need to fill in
+        # gpuLimit here for workers.
+        if "gpuLimit" not in params:
+            params["gpuLimit"] = params["resourcegpu"]
 
         params["envs"].append({
             "name": "DLWS_WORKER_NUM",

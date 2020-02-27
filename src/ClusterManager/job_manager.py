@@ -24,14 +24,13 @@ from job_launcher import get_job_status_detail, job_status_detail_with_finished_
 sys.path.append(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 
-from ResourceInfo import ResourceInfo
 from DataHandler import DataHandler
 from config import config
 import notify
 import k8sUtils
-import quota
 from cluster_resource import ClusterResource
 from job_params_util import get_resource_params_from_job_params
+from common import base64decode, base64encode
 
 logger = logging.getLogger(__name__)
 
@@ -386,6 +385,11 @@ def UpdateJobStatus(redis_conn,
                         job["userName"], job["jobId"], result.strip()))
 
     elif result == "Failed":
+        now = datetime.datetime.now()
+        params = json.loads(base64decode(job["jobParams"]))
+        if params.get("debug") is True and (now - job["jobTime"]).seconds < 60:
+            logger.info("leave job %s there for debug for 60s", job["jobId"])
+            return
         logger.warning("Job %s fails, cleaning...", job["jobId"])
 
         if notifier is not None:
@@ -413,7 +417,6 @@ def UpdateJobStatus(redis_conn,
         dataHandler.UpdateJobTextFields(conditionFields, dataFields)
 
         launcher.delete_job(job["jobId"], force=True)
-
     elif result == "Unknown" or result == "NotFound":
         if job["jobId"] not in UnusualJobs:
             logger.warning("!!! Job status ---{}---, job: {}".format(
@@ -489,94 +492,72 @@ def get_job_priority(priority_dict, job_id):
     return 100
 
 
-@record
-def TakeJobActions(data_handler, redis_conn, launcher, jobs):
-    vc_list = data_handler.ListVCs()
-    cluster_status, _ = data_handler.GetClusterStatus()
-    active_job_list = data_handler.GetActiveJobList()
-    priority_dict = get_priority_dict()
+def discount_cluster_resource(cluster_resource):
+    # Hard-code 95% of the total capacity is application usable
+    # TODO: Find a better way to manage system and user resource quota
+    cluster_resource.cpu *= 0.95
+    cluster_resource.memory *= 0.95
+    return cluster_resource
 
-    # Cluster resource calculation
-    # Currently including CPU and memory
-    cluster_resource_capacity = ClusterResource(
+
+def get_cluster_schedulable(cluster_status):
+    # Compute cluster schedulable resource
+    cluster_capacity = ClusterResource(
         params={
             "cpu": cluster_status["cpu_capacity"],
             "memory": cluster_status["memory_capacity"],
             "gpu": cluster_status["gpu_capacity"],
         })
-    cluster_resource_available = ClusterResource(
-        params={
-            "cpu": cluster_status["cpu_available"],
-            "memory": cluster_status["memory_available"],
-            "gpu": cluster_status["gpu_available"],
-        })
-    cluster_resource_reserved = ClusterResource(
-        params={
-            "cpu": cluster_status["cpu_reserved"],
-            "memory": cluster_status["memory_reserved"],
-            "gpu": cluster_status["gpu_reserved"],
-        })
-    cluster_resource_unschedulable = ClusterResource(
+    cluster_unschedulable = ClusterResource(
         params={
             "cpu": cluster_status["cpu_unschedulable"],
             "memory": cluster_status["memory_unschedulable"],
             "gpu": cluster_status["gpu_unschedulable"],
         })
-    # Hard-code 95% of the total capacity is application usable
-    # TODO: Find a better way to manage system and user resource quota
-    cluster_resource_quota = \
-        cluster_resource_capacity - cluster_resource_unschedulable
 
-    cluster_resource_quota.cpu *= 0.95
-    cluster_resource_quota.memory *= 0.95
+    cluster_schedulable = cluster_capacity - cluster_unschedulable
+    cluster_schedulable = discount_cluster_resource(cluster_schedulable)
+    logger.info("cluster schedulable: %s", cluster_schedulable)
+    return cluster_schedulable
 
-    vc_resource_info = {}
-    vc_resource_usage = collections.defaultdict(lambda: ClusterResource())
 
-    for vc in vc_list:
-        res_quota = {}
-        try:
-            res_quota = json.loads(vc["resourceQuota"])
-        except:
-            logger.exception("Parsing resourceQuota failed for %s", vc)
-        vc_resource_info[vc["vcName"]] = ClusterResource(params=res_quota)
+def get_vc_schedulables(cluster_status):
+    # Compute VC schedulable resources
+    vc_statuses = cluster_status.get("vc_statuses", {})
+    vc_schedulables = {}
+    for vc_name, vc_status in vc_statuses.items():
+        vc_capacity = ClusterResource(
+            params={
+                "cpu": vc_status["cpu_capacity"],
+                "memory": vc_status["memory_capacity"],
+                "gpu": vc_status["gpu_capacity"],
+            })
+        vc_unschedulable = ClusterResource(
+            params={
+                "cpu": vc_status["cpu_unschedulable"],
+                "memory": vc_status["memory_unschedulable"],
+                "gpu": vc_status["gpu_unschedulable"],
+            })
+        vc_schedulable = vc_capacity - vc_unschedulable
+        vc_schedulables[vc_name] = discount_cluster_resource(vc_schedulable)
 
-    for job in active_job_list:
-        job_params = json.loads(
-            base64.b64decode(job["jobParams"].encode("utf-8")).decode("utf-8"))
-        job_res = get_resource_params_from_job_params(job_params)
-        vc_resource_usage[job["vcName"]] += ClusterResource(params=job_res)
+    logger.info("vc schedulables: %s", vc_schedulables)
+    return vc_schedulables
 
-    result = quota.calculate_vc_resources(cluster_resource_capacity,
-                                          cluster_resource_available,
-                                          cluster_resource_reserved,
-                                          vc_resource_info, vc_resource_usage)
-    (vc_resource_total, vc_resource_used, vc_resource_available,
-     vc_resource_unschedulable) = result
 
-    vc_resource_quotas = {}
-    for vc in vc_list:
-        vc_name = vc["vcName"]
-        vc_r_total = vc_resource_total[vc_name]
-        vc_r_unschedulable = vc_resource_unschedulable[vc_name]
-        vc_r_schedulable = vc_r_total - vc_r_unschedulable
-        vc_resource_quotas[vc_name] = vc_r_schedulable
+def get_jobs_info(jobs):
+    priority_dict = get_priority_dict()
 
-    jobsInfo = []
+    jobs_info = []
     for job in jobs:
-        if job["jobStatus"] in ["queued", "scheduling", "running"]:
-            singleJobInfo = {}
-            singleJobInfo["job"] = job
-            job_params = json.loads(
-                base64.b64decode(
-                    job["jobParams"].encode("utf-8")).decode("utf-8"))
-            singleJobInfo["preemptionAllowed"] = job_params[
-                "preemptionAllowed"]
-            singleJobInfo["jobId"] = job_params["jobId"]
+        job_status = job.get("jobStatus")
+        if job_status in ["queued", "scheduling", "running"]:
+            job_params = json.loads(base64decode(job["jobParams"]))
+            preemption_allowed = job_params.get("preemptionAllowed", False)
+            job_id = job_params["jobId"]
 
             job_res = get_resource_params_from_job_params(job_params)
             job_resource = ClusterResource(params=job_res)
-            singleJobInfo["job_resource"] = job_resource
 
             # Job lists will be sorted based on and in the order of below
             # 1. non-preemptible precedes preemptible
@@ -585,122 +566,155 @@ def TakeJobActions(data_handler, redis_conn, launcher, jobs):
             # 4. early job time precedes later job time
 
             # Non-Preemptible jobs first
-            preemptible = 1 if singleJobInfo["preemptionAllowed"] else 0
+            preemptible = 1 if preemption_allowed else 0
 
             # Job status
-            job_status = 0
+            job_status_key = 0
             if job["jobStatus"] == "scheduling":
-                job_status = 1
+                job_status_key = 1
             elif job["jobStatus"] == "queued":
-                job_status = 2
+                job_status_key = 2
 
             # Priority value
-            reverse_priority = get_job_priority(priority_dict,
-                                                singleJobInfo["jobId"])
+            reverse_priority = get_job_priority(priority_dict, job_id)
             priority = 999999 - reverse_priority
 
             # Job time
             job_time = str(job["jobTime"])
 
-            singleJobInfo["sortKey"] = "{}_{}_{:06d}_{}".format(
-                preemptible, job_status, priority, job_time)
+            sort_key = "{}_{}_{:06d}_{}".format(preemptible, job_status_key,
+                                                priority, job_time)
 
-            singleJobInfo["allowed"] = False
-            jobsInfo.append(singleJobInfo)
+            single_job_info = {
+                "job": job,
+                "preemptionAllowed": preemption_allowed,
+                "jobId": job_id,
+                "job_resource": job_resource,
+                "sort_key": sort_key,
+                "allowed": False,
+            }
 
-    jobsInfo.sort(key=lambda x: x["sortKey"])
+            jobs_info.append(single_job_info)
 
-    logger.info("vc resource quotas: %s", vc_resource_quotas)
-    logger.info("cluster resource quota: %s", cluster_resource_quota)
+    jobs_info.sort(key=lambda x: x["sort_key"])
+    return jobs_info
 
-    for sji in jobsInfo:
-        job_resource = sji["job_resource"]
-        job_id = sji["jobId"]
 
-        logger.info("job : %s : %s : %s", job_id, job_resource, sji["sortKey"])
+def mark_schedulable_non_preemptable_jobs(jobs_info, cluster_schedulable,
+                                          vc_schedulables):
+    for job_info in jobs_info:
+        job_resource = job_info["job_resource"]
+        job_id = job_info["jobId"]
 
-        vc_name = sji["job"]["vcName"]
-        vc_resource_quota = vc_resource_quotas[vc_name]
+        logger.info("Job %s : %s : %s", job_id, job_resource,
+                    job_info["sort_key"])
 
-        if sji["preemptionAllowed"]:
+        vc_name = job_info["job"]["vcName"]
+        vc_schedulable = vc_schedulables[vc_name]
+
+        preemption_allowed = job_info.get("preemptionAllowed", False)
+        if preemption_allowed:
             continue  # schedule non preemptable first
 
-        if cluster_resource_quota >= job_resource and \
-                vc_resource_quota >= job_resource:
-            vc_resource_quota -= job_resource
-            cluster_resource_quota -= job_resource
-            sji["allowed"] = True
-            logger.info("allow non-preemptible %s to run, job resource %s",
+        if cluster_schedulable >= job_resource and \
+                vc_schedulable >= job_resource:
+            vc_schedulable -= job_resource
+            cluster_schedulable -= job_resource
+            job_info["allowed"] = True
+            logger.info("Allow non-preemptable job %s to run, job resource %s",
                         job_id, job_resource)
         else:
             logger.info(
-                "do not allow non-preemptible %s to run in vc %s."
+                "Do not allow non-preemptable job %s to run in vc %s."
                 "resource not enough, required job resource %s. "
-                "cluster resource quota %s, vc resource quota %s", job_id,
-                vc_name, job_resource, cluster_resource_quota,
-                vc_resource_quota)
+                "cluster schedulable %s, vc schedulables %s", job_id, vc_name,
+                job_resource, cluster_schedulable, vc_schedulable)
 
-    for sji in jobsInfo:
-        if sji["preemptionAllowed"] and (sji["allowed"] is False):
-            job_resource = sji["job_resource"]
-            job_id = sji["job_id"]
-            if cluster_resource_quota >= job_resource:
+
+def mark_schedulable_preemptable_jobs(jobs_info, cluster_schedulable):
+    for job_info in jobs_info:
+        preemption_allowed = job_info.get("preemptionAllowed", False)
+        if preemption_allowed and (job_info["allowed"] is False):
+            job_resource = job_info["job_resource"]
+            job_id = job_info["job_id"]
+            if cluster_schedulable >= job_resource:
                 logger.info(
-                    "allow preemptible %s to run. "
-                    "cluster resource quota %s. "
-                    "used job resource %s.", job_id, cluster_resource_quota,
+                    "Allow preemptable job %s to run. "
+                    "cluster schedulable %s. "
+                    "used job resource %s.", job_id, cluster_schedulable,
                     job_resource)
                 # Strict FIFO policy not required for global (bonus) tokens
-                # since these jobs are anyway pre-emptible.
-                cluster_resource_quota -= job_resource
-                sji["allowed"] = True
+                # since these jobs are anyway preemptable.
+                cluster_schedulable -= job_resource
+                job_info["allowed"] = True
             else:
                 logger.info(
-                    "do not allow preemptible %s to run, "
+                    "Do not allow preemptable job %s to run, "
                     "insufficient cluster resource: "
-                    "cluster resource quota %s, "
-                    "required job resource %s.", job_id,
-                    cluster_resource_quota, job_resource)
+                    "cluster schedulable %s, "
+                    "required job resource %s.", job_id, cluster_schedulable,
+                    job_resource)
 
-    logger.info("cluster resource quota after this round of scheduling: %s",
-                cluster_resource_quota)
 
-    for sji in jobsInfo:
+def schedule_jobs(jobs_info, data_handler, redis_conn, launcher,
+                  cluster_schedulable, vc_schedulables):
+    for job_info in jobs_info:
         try:
-            if sji["job"]["jobStatus"] == "queued" and (sji["allowed"] is
-                                                        True):
-                launcher.submit_job(sji["job"])
-                update_job_state_latency(redis_conn, sji["jobId"],
-                                         "scheduling")
-                logger.info("submitting job : %s : %s" %
-                            (sji["jobId"], sji["sortKey"]))
-            elif sji["preemptionAllowed"] and (
-                    sji["job"]["jobStatus"] == "scheduling"
-                    or sji["job"]["jobStatus"] == "running") and (
-                        sji["allowed"] is False):
-                launcher.kill_job(sji["job"]["jobId"], "queued")
-                logger.info("preempting job : %s : %s" %
-                            (sji["jobId"], sji["sortKey"]))
-            elif sji["job"][
-                    "jobStatus"] == "queued" and sji["allowed"] is False:
-                vc_name = sji["job"]["vcName"]
-                cur_vc_resource_quota = vc_resource_quotas[vc_name]
-                job_resource = sji["job_resource"]
-                detail = [{
-                    "message":
-                    "Waiting for resource. job requested %s. "
-                    "vc resource quota %s. "
-                    "cluster resource quota %s." %
-                    (job_resource, cur_vc_resource_quota,
-                     cluster_resource_quota)
-                }]
+            job = job_info["job"]
+            job_id = job_info["jobId"]
+            job_resource = job_info["job_resource"]
+            vc_name = job["vcName"]
+            job_status = job["jobStatus"]
+            preemption_allowed = job_info.get("preemptionAllowed", False)
+            allowed = job_info["allowed"]
+            sort_key = job_info["sort_key"]
+
+            if job_status == "queued" and allowed:
+                launcher.submit_job(job)
+                update_job_state_latency(redis_conn, job_id, "scheduling")
+                logger.info("Submitting job %s : %s", job_id, sort_key)
+            elif preemption_allowed and \
+                    (job_status in ["scheduling", "running"]) and (not allowed):
+                launcher.kill_job(job_id, "queued")
+                logger.info("Preempting job %s : %s", job_id, sort_key)
+            elif job_status == "queued" and (not allowed):
+                vc_schedulable = vc_schedulables[vc_name]
+                message = "Waiting for resource. Job request %s. " \
+                          "VC schedulable %s. Cluster schedulable %s" % \
+                          (job_resource, vc_schedulable, cluster_schedulable)
+                detail = [{"message": message}]
                 data_handler.UpdateJobTextField(
-                    sji["jobId"], "jobStatusDetail",
-                    base64.b64encode(
-                        json.dumps(detail).encode("utf-8")).decode("utf-8"))
-        except Exception:
-            logger.error("Process job failed {}".format(sji["job"]),
-                         exc_info=True)
+                    job_id, "jobStatusDetail",
+                    base64encode(json.dumps(detail)))
+        except:
+            logger.error("Process job failed: %s", job_info, exc_info=True)
+
+
+@record
+def take_job_actions(data_handler, redis_conn, launcher, jobs):
+    # Compute from the latest ClusterStatus in DB:
+    # 1. cluster_schedulable
+    # 2. vc_schedulables
+    cluster_status, _ = data_handler.GetClusterStatus()
+    cluster_schedulable = get_cluster_schedulable(cluster_status)
+    vc_schedulables = get_vc_schedulables(cluster_status)
+
+    # Parse and sort jobs based on priority and submission time
+    jobs_info = get_jobs_info(jobs)
+
+    # Mark schedulable non-preemptable jobs
+    mark_schedulable_non_preemptable_jobs(jobs_info, cluster_schedulable,
+                                          vc_schedulables)
+
+    # Mark schedulable preemptable jobs
+    mark_schedulable_preemptable_jobs(jobs_info, cluster_schedulable)
+
+    logger.info("cluster schedulable after this round of scheduling: %s",
+                cluster_schedulable)
+
+    # Submit/kill jobs based on schedulable marking
+    schedule_jobs(jobs_info, data_handler, redis_conn, launcher,
+                  cluster_schedulable, vc_schedulables)
 
 
 def Run(redis_port, target_status):
@@ -712,7 +726,14 @@ def Run(redis_port, target_status):
     notifier = notify.Notifier(config.get("job-manager"))
     notifier.start()
 
-    launcher = PythonLauncher()  # LauncherStub()
+    launcher_type = config.get("job-manager", {}).get("launcher", "python")
+    if launcher_type == "python":
+        launcher = PythonLauncher()
+    elif launcher_type == "controller":
+        launcher = LauncherStub()
+    else:
+        logger.error("unknown launcher_type %s", launcher_type)
+        sys.exit(2)
     launcher.start()
 
     redis_conn = redis.StrictRedis(host="localhost", port=redis_port, db=0)
@@ -731,20 +752,20 @@ def Run(redis_port, target_status):
                 launcher.wait_tasks_done(
                 )  # wait for tasks from previous batch done
 
-                dataHandler = DataHandler()
+                data_handler = DataHandler()
 
                 if target_status == "queued":
-                    jobs = dataHandler.GetJobList(
+                    jobs = data_handler.GetJobList(
                         "all",
                         "all",
                         num=None,
                         status="queued,scheduling,running")
-                    TakeJobActions(dataHandler, redis_conn, launcher, jobs)
+                    take_job_actions(data_handler, redis_conn, launcher, jobs)
                 else:
-                    jobs = dataHandler.GetJobList("all",
-                                                  "all",
-                                                  num=None,
-                                                  status=target_status)
+                    jobs = data_handler.GetJobList("all",
+                                                   "all",
+                                                   num=None,
+                                                   status=target_status)
                     logger.info("Updating status for %d %s jobs", len(jobs),
                                 target_status)
 
@@ -760,17 +781,17 @@ def Run(redis_port, target_status):
                                             launcher,
                                             job,
                                             notifier,
-                                            dataHandlerOri=dataHandler)
+                                            dataHandlerOri=data_handler)
                         elif job["jobStatus"] == "scheduling":
                             UpdateJobStatus(redis_conn,
                                             launcher,
                                             job,
                                             notifier,
-                                            dataHandlerOri=dataHandler)
+                                            dataHandlerOri=data_handler)
                         elif job["jobStatus"] == "unapproved":
                             ApproveJob(redis_conn,
                                        job,
-                                       dataHandlerOri=dataHandler)
+                                       dataHandlerOri=data_handler)
                         else:
                             logger.error("unknown job status %s for job %s",
                                          job["jobStatus"], job["jobId"])
@@ -778,7 +799,7 @@ def Run(redis_port, target_status):
                 logger.warning("Process job failed!", exc_info=True)
             finally:
                 try:
-                    dataHandler.Close()
+                    data_handler.Close()
                 except:
                     pass
 
