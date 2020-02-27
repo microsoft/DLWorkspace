@@ -143,17 +143,15 @@ def populate_job_resource(params):
             logger.exception("Failed to parse resource quota and metadata")
             return
 
-        job_params = make_job_params(params, quota, metadata)
+        job_params = make_job_params(params, quota, metadata, config)
         if job_params.is_valid():
             logger.info("job_params %s is valid. Populating.", job_params)
             params["sku"] = job_params.sku
-            if config.get("enable_job_resource_limit", False) is True:
-                logger.info("Job resource is enabled. Populating resource.")
-                params["resourcegpu"] = job_params.gpu_limit
-                params["cpurequest"] = job_params.cpu_request
-                params["cpulimit"] = job_params.cpu_limit
-                params["memoryrequest"] = job_params.memory_request
-                params["memorylimit"] = job_params.memory_limit
+            params["resourcegpu"] = job_params.gpu_limit
+            params["cpurequest"] = job_params.cpu_request
+            params["cpulimit"] = job_params.cpu_limit
+            params["memoryrequest"] = job_params.memory_request
+            params["memorylimit"] = job_params.memory_limit
         else:
             logger.warning("job_params %s is invalid. Not populating.",
                            job_params)

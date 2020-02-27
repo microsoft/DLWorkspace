@@ -261,7 +261,6 @@ default_config_parameters = {
     "default_kube_labels_by_node_role": {
         'infra': {
             "infrastructure": "active",
-            "alert-manager": "active",
             "jobmanager": "active",
             "watchdog": "active",
             "mysql": "active",
@@ -728,7 +727,6 @@ default_config_parameters = {
     # 2. enable_cpuworker is set to True
     # 3. default_cpu_sku is set to a valid value that exists in sku_meta
     "enable_cpuworker": False,
-    "enable_blobfuse": False,
     "enable_custom_registry_secrets": False,
     "default_cpu_sku": "Standard_D2s_v3",
 
@@ -745,7 +743,7 @@ default_config_parameters = {
             "memory": 8,
             "memory_ratio": 0.9
         }
-    }
+    },
 }
 
 # These are super scripts

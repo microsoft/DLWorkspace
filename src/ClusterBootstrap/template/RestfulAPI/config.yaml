@@ -61,11 +61,8 @@ job-manager:
 infiniband_mounts: {{cnf["infiniband_mounts"]}}
 custom_mounts: {{cnf["custom_mounts"]}}
 
+# TODO: Remove special cpuworker configuration
 enable_cpuworker: {{cnf["enable_cpuworker"]}}
-default_cpurequest: {{cnf["default_cpurequest"]}}
-default_cpulimit: {{cnf["default_cpulimit"]}}
-default_memoryrequest: {{cnf["default_memoryrequest"]}}
-default_memorylimit: {{cnf["default_memorylimit"]}}
 default_cpu_sku: {{cnf["default_cpu_sku"]}}
 sku_meta: {{cnf["sku_meta"]}}
 
@@ -86,4 +83,19 @@ elasticsearch:
   {% endfor %}
 
 job_mountpoints: {{cnf["job_mountpoints"]}}
-enable_job_resource_limit: {{cnf["enable_job_resource_limit"]}}
+
+{% if cnf["job_resource_policy"] %}
+job_resource_policy: {{cnf["job_resource_policy"]}}
+{% endif %}
+{% if cnf["default_cpurequest"] %}
+default_cpurequest: {{cnf["default_cpurequest"]}}
+{% endif %}
+{% if cnf["default_cpulimit"] %}
+default_cpulimit: {{cnf["default_cpulimit"]}}
+{% endif %}
+{% if cnf["default_memoryrequest"] %}
+default_memoryrequest: {{cnf["default_memoryrequest"]}}
+{% endif %}
+{% if cnf["default_memorylimit"] %}
+default_memorylimit: {{cnf["default_memorylimit"]}}
+{% endif %}

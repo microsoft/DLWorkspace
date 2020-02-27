@@ -58,6 +58,7 @@ def case(unstable=False):
 
         wrapped.is_case = True
         return wrapped
+
     return decorator
 
 
