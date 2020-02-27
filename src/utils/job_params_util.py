@@ -8,12 +8,6 @@ from job_resource_policy import make_job_resource_policy
 logger = logging.getLogger(__name__)
 
 
-DEFAULT_CPU_REQUEST = "1000m"
-DEFAULT_CPU_LIMIT = "1000m"
-DEFAULT_MEMORY_REQUEST = "2048Mi"
-DEFAULT_MEMORY_LIMIT = "2560Mi"
-
-
 def override(func):
     return func
 
@@ -159,24 +153,28 @@ class JobParams(object):
 
     def gen_cpu(self):
         self.cpu_request = self.params.get("cpurequest")
-        self.cpu_limit = self.params.get("cpulimit", self.cpu_request)
+        self.cpu_limit = self.params.get("cpulimit")
+        self.cpu_request, self.cpu_limit = \
+            self.normalize("cpu", self.cpu_request, self.cpu_limit)
 
-        request, limit = self.get_cpu_request_and_limit()
+        request, limit = self.get_default_cpu_request_and_limit()
+        request, limit = self.normalize("cpu", request, limit)
 
         if self.cpu_request is None:
             self.cpu_request = request
-        if self.cpu_limit is None:
             self.cpu_limit = limit
 
     def gen_memory(self):
         self.memory_request = self.params.get("memoryrequest")
-        self.memory_limit = self.params.get("memorylimit", self.memory_request)
+        self.memory_limit = self.params.get("memorylimit")
+        self.memory_request, self.memory_limit = \
+            self.normalize("memory", self.memory_request, self.memory_limit)
 
-        request, limit = self.get_memory_request_and_limit()
+        request, limit = self.get_default_memory_request_and_limit()
+        request, limit = self.normalize("memory", request, limit)
 
         if self.memory_request is None:
             self.memory_request = request
-        if self.memory_limit is None:
             self.memory_limit = limit
 
     def get_sku_list(self):
@@ -201,13 +199,13 @@ class JobParams(object):
         return get_gpu_limit(self.params)
 
     @override
-    def get_cpu_request_and_limit(self):
+    def get_default_cpu_request_and_limit(self):
         request = self.policy.default_cpu_request
         limit = self.policy.default_cpu_limit
         return request, limit
 
     @override
-    def get_memory_request_and_limit(self):
+    def get_default_memory_request_and_limit(self):
         request = self.policy.default_memory_request
         limit = self.policy.default_memory_limit
         return request, limit
@@ -223,6 +221,18 @@ class JobParams(object):
             "memory_limit": self.memory_limit,
         }
 
+    def normalize(self, r_type, request, limit):
+        if request is None and limit is not None:
+            request = limit
+        elif request is not None and limit is None:
+            limit = request
+        elif request is not None and limit is not None:
+            request_res = make_resource(r_type, {self.sku: request})
+            limit_res = make_resource(r_type, {self.sku: limit})
+            if request_res >= limit_res:
+                request = limit
+        return request, limit
+
 
 class RegularJobParams(JobParams):
     def __init__(self, params, quota, metadata, config):
@@ -235,7 +245,7 @@ class PSDistJobParams(JobParams):
     def __init__(self, params, quota, metadata, config):
         super(PSDistJobParams, self).__init__(params, quota, metadata, config)
 
-    def get_cpu_request_and_limit(self):
+    def get_default_cpu_request_and_limit(self):
         if self.cpu_job_on_cpu_node:
             policy = self.policy
             per_node, schedulable_ratio = policy.get_sku_resource_info("cpu")
@@ -243,10 +253,10 @@ class PSDistJobParams(JobParams):
             limit = per_node.scalar(self.sku)
         else:
             request, limit = super(PSDistJobParams, self).\
-                get_cpu_request_and_limit()
+                get_default_cpu_request_and_limit()
         return request, limit
 
-    def get_memory_request_and_limit(self):
+    def get_default_memory_request_and_limit(self):
         if self.cpu_job_on_cpu_node:
             policy = self.policy
             per_node, schedulable_ratio = policy.get_sku_resource_info("memory")
@@ -254,7 +264,7 @@ class PSDistJobParams(JobParams):
             limit = per_node.scalar(self.sku)
         else:
             request, limit = super(PSDistJobParams, self).\
-                get_memory_request_and_limit()
+                get_default_memory_request_and_limit()
         return request, limit
 
     @property
