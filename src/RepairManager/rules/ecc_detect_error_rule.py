@@ -1,5 +1,5 @@
 import os, sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from rules_abc import Rule
 from actions.cordon_action import CordonAction
@@ -157,7 +157,7 @@ class ECCDetectErrorRule(Rule):
         # cordon nodes
         action_status = {}
         for node_name in self.new_bad_nodes:
-            cordon_action = CordonAction(activity_log)
+            cordon_action = CordonAction()
             action_status[node_name] = cordon_action.execute(node_name, self.ecc_config['cordon_dry_run'])
 
         impacted_jobs = _get_impacted_jobs(self.new_bad_nodes, self.config['portal_url'], self.config['cluster_name'])
@@ -169,7 +169,7 @@ class ECCDetectErrorRule(Rule):
             jobs=impacted_jobs,
             cluster_name=self.config['cluster_name']
         )
-        alert_action = SendAlert(activity_log, self.alert)
+        alert_action = SendAlert(self.alert)
         alert_action.execute(dri_message, {"bad_nodes": self.new_bad_nodes})
 
         # send alert email to impacted job owners
