@@ -6,6 +6,7 @@ import React, {
   useMemo,
   useState
 } from 'react';
+import Helmet from 'react-helmet';
 import { useSnackbar } from 'notistack';
 import useFetch from 'use-http-2';
 
@@ -54,6 +55,14 @@ const MyJobs: FunctionComponent = () => {
     setLimit((limit) => Math.ceil((limit + pageSize) / pageSize) * pageSize);
   }, [abort, setLimit]);
 
+  const title = useMemo(() => {
+    if (data === undefined) return cluster.id;
+    if (activeJobs === undefined) {
+      return `(0) ${cluster.id}`;
+    }
+    return `(${activeJobs.length}) ${cluster.id}`;
+  }, [data, activeJobs, cluster]);
+
   useEffect(() => {
     if (loading === false) {
       const timeout = setTimeout(get, 3000);
@@ -77,6 +86,7 @@ const MyJobs: FunctionComponent = () => {
 
   return (
     <>
+      { title && <Helmet title={title}/> }
       <JobsTable
         title="Active Jobs"
         jobs={activeJobs}
