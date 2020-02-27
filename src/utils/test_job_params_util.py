@@ -66,6 +66,7 @@ class TestRegularJobParams(TestCase):
         job_params = make_job_params(self.params, self.quota, self.metadata,
                                      self.config)
         self.assertIsNotNone(job_params)
+        self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_D2s_v3", job_params.sku)
         self.assertEqual(0, job_params.gpu_limit)
         self.assertEqual("1000m", job_params.cpu_request)
@@ -78,11 +79,28 @@ class TestRegularJobParams(TestCase):
         job_params = make_job_params(self.params, self.quota, self.metadata,
                                      self.config)
         self.assertIsNotNone(job_params)
+        self.assertTrue(job_params.is_valid())
+        self.assertEqual("Standard_D2s_v3", job_params.sku)
         self.assertEqual("1000m", job_params.cpu_request)
         self.assertEqual("1000m", job_params.cpu_limit)
+        self.assertEqual("2048Mi", job_params.memory_request)
+        self.assertEqual("2048Mi", job_params.memory_limit)
 
     def test_cpu_job_on_cpu_node(self):
         self.params["gpu_limit"] = 0
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
+        self.assertIsNotNone(job_params)
+        self.assertTrue(job_params.is_valid())
+        self.assertEqual("Standard_D2s_v3", job_params.sku)
+        self.assertEqual(0, job_params.gpu_limit)
+        self.assertEqual("1000m", job_params.cpu_request)
+        self.assertEqual("2000m", job_params.cpu_limit)
+        self.assertEqual("0Mi", job_params.memory_request)
+        self.assertEqual("8192Mi", job_params.memory_limit)
+
+        # Gpu proportional should show the same
+        self.config["job_resource_policy"] = "gpu_proportional"
         job_params = make_job_params(self.params, self.quota, self.metadata,
                                      self.config)
         self.assertIsNotNone(job_params)
@@ -138,10 +156,23 @@ class TestRegularJobParams(TestCase):
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_ND24rs", job_params.sku)
         self.assertEqual(0, job_params.gpu_limit)
-        self.assertEqual(DEFAULT_CPU_REQUEST, job_params.cpu_request)
-        self.assertEqual(DEFAULT_CPU_LIMIT, job_params.cpu_limit)
-        self.assertEqual(DEFAULT_MEMORY_REQUEST, job_params.memory_request)
-        self.assertEqual(DEFAULT_MEMORY_LIMIT, job_params.memory_limit)
+        self.assertEqual("1000m", job_params.cpu_request)
+        self.assertEqual("24000m", job_params.cpu_limit)
+        self.assertEqual("0Mi", job_params.memory_request)
+        self.assertEqual("458752Mi", job_params.memory_limit)
+
+        # Gpu proportional should show the same
+        self.config["job_resource_policy"] = "gpu_proportional"
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
+        self.assertIsNotNone(job_params)
+        self.assertTrue(job_params.is_valid())
+        self.assertEqual("Standard_ND24rs", job_params.sku)
+        self.assertEqual(0, job_params.gpu_limit)
+        self.assertEqual("1000m", job_params.cpu_request)
+        self.assertEqual("24000m", job_params.cpu_limit)
+        self.assertEqual("0Mi", job_params.memory_request)
+        self.assertEqual("458752Mi", job_params.memory_limit)
 
     def test_gpu_job(self):
         # gpu_limit precedes resourcegpu
@@ -157,6 +188,19 @@ class TestRegularJobParams(TestCase):
         self.assertEqual("24000m", job_params.cpu_limit)
         self.assertEqual("0Mi", job_params.memory_request)
         self.assertEqual("458752Mi", job_params.memory_limit)
+
+        # Gpu proportional
+        self.config["job_resource_policy"] = "gpu_proportional"
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
+        self.assertIsNotNone(job_params)
+        self.assertTrue(job_params.is_valid())
+        self.assertEqual("Standard_ND24rs", job_params.sku)
+        self.assertEqual(3, job_params.gpu_limit)
+        self.assertEqual("16000m", job_params.cpu_request)
+        self.assertEqual("18000m", job_params.cpu_limit)
+        self.assertEqual("309657Mi", job_params.memory_request)
+        self.assertEqual("344064Mi", job_params.memory_limit)
 
         # Request override
         self.params.update({
@@ -269,69 +313,6 @@ class TestPSDistJobParams(TestRegularJobParams):
         self.assertEqual("4096Mi", job_params.memory_request)
         self.assertEqual("4608Mi", job_params.memory_limit)
 
-    def test_cpu_job_on_gpu_node(self):
-        self.params.update({
-            "gpu_limit": 0,
-            "sku": "Standard_ND24rs",
-        })
-        job_params = make_job_params(self.params, self.quota, self.metadata,
-                                     self.config)
-        self.assertIsNotNone(job_params)
-        self.assertTrue(job_params.is_valid())
-        self.assertEqual("Standard_ND24rs", job_params.sku)
-        self.assertEqual(0, job_params.gpu_limit)
-        self.assertEqual(DEFAULT_CPU_REQUEST, job_params.cpu_request)
-        self.assertEqual(DEFAULT_CPU_LIMIT, job_params.cpu_limit)
-        self.assertEqual(DEFAULT_MEMORY_REQUEST, job_params.memory_request)
-        self.assertEqual(DEFAULT_MEMORY_LIMIT, job_params.memory_limit)
-
-    def test_gpu_job(self):
-        # gpu_limit precedes resourcegpu
-        self.params["resourcegpu"] = 0
-        self.params["gpu_limit"] = 3
-        job_params = make_job_params(self.params, self.quota, self.metadata,
-                                     self.config)
-        self.assertIsNotNone(job_params)
-        self.assertTrue(job_params.is_valid())
-        self.assertEqual("Standard_ND24rs", job_params.sku)
-        self.assertEqual(3, job_params.gpu_limit)
-        self.assertEqual("16000m", job_params.cpu_request)
-        self.assertEqual("18000m", job_params.cpu_limit)
-        self.assertEqual("309657Mi", job_params.memory_request)
-        self.assertEqual("344064Mi", job_params.memory_limit)
-
-        # Request override
-        self.params.update({
-            "cpurequest": "1200m",
-            "memoryrequest": "4096Mi",
-        })
-        job_params = make_job_params(self.params, self.quota, self.metadata,
-                                     self.config)
-        self.assertIsNotNone(job_params)
-        self.assertTrue(job_params.is_valid())
-        self.assertEqual("Standard_ND24rs", job_params.sku)
-        self.assertEqual(3, job_params.gpu_limit)
-        self.assertEqual("1200m", job_params.cpu_request)
-        self.assertEqual("1200m", job_params.cpu_limit)
-        self.assertEqual("4096Mi", job_params.memory_request)
-        self.assertEqual("4096Mi", job_params.memory_limit)
-
-        # Limit override
-        self.params.update({
-            "cpulimit": "1500m",
-            "memorylimit": "4608Mi",
-        })
-        job_params = make_job_params(self.params, self.quota, self.metadata,
-                                     self.config)
-        self.assertIsNotNone(job_params)
-        self.assertTrue(job_params.is_valid())
-        self.assertEqual("Standard_ND24rs", job_params.sku)
-        self.assertEqual(3, job_params.gpu_limit)
-        self.assertEqual("1200m", job_params.cpu_request)
-        self.assertEqual("1500m", job_params.cpu_limit)
-        self.assertEqual("4096Mi", job_params.memory_request)
-        self.assertEqual("4608Mi", job_params.memory_limit)
-
 
 class TestInferenceJobParams(TestRegularJobParams):
     def setUp(self):
@@ -351,112 +332,3 @@ class TestInferenceJobParams(TestRegularJobParams):
         self.assertEqual("24000m", job_params.cpu_limit)
         self.assertEqual("0Mi", job_params.memory_request)
         self.assertEqual("458752Mi", job_params.memory_limit)
-
-    def test_cpu_job_on_cpu_node(self):
-        self.params["gpu_limit"] = 0
-        job_params = make_job_params(self.params, self.quota, self.metadata,
-                                     self.config)
-        self.assertIsNotNone(job_params)
-        self.assertTrue(job_params.is_valid())
-        self.assertEqual("Standard_D2s_v3", job_params.sku)
-        self.assertEqual(0, job_params.gpu_limit)
-        self.assertEqual(DEFAULT_CPU_REQUEST, job_params.cpu_request)
-        self.assertEqual(DEFAULT_CPU_LIMIT, job_params.cpu_limit)
-        self.assertEqual(DEFAULT_MEMORY_REQUEST, job_params.memory_request)
-        self.assertEqual(DEFAULT_MEMORY_LIMIT, job_params.memory_limit)
-
-        # Request override
-        self.params.update({
-            "cpurequest": "1200m",
-            "memoryrequest": "4096Mi",
-        })
-        job_params = make_job_params(self.params, self.quota, self.metadata,
-                                     self.config)
-        self.assertIsNotNone(job_params)
-        self.assertTrue(job_params.is_valid())
-        self.assertEqual("Standard_D2s_v3", job_params.sku)
-        self.assertEqual(0, job_params.gpu_limit)
-        self.assertEqual("1200m", job_params.cpu_request)
-        self.assertEqual("1200m", job_params.cpu_limit)
-        self.assertEqual("4096Mi", job_params.memory_request)
-        self.assertEqual("4096Mi", job_params.memory_limit)
-
-        # Limit override
-        self.params.update({
-            "cpulimit": "1500m",
-            "memorylimit": "4608Mi",
-        })
-        job_params = make_job_params(self.params, self.quota, self.metadata,
-                                     self.config)
-        self.assertIsNotNone(job_params)
-        self.assertTrue(job_params.is_valid())
-        self.assertEqual("Standard_D2s_v3", job_params.sku)
-        self.assertEqual(0, job_params.gpu_limit)
-        self.assertEqual("1200m", job_params.cpu_request)
-        self.assertEqual("1500m", job_params.cpu_limit)
-        self.assertEqual("4096Mi", job_params.memory_request)
-        self.assertEqual("4608Mi", job_params.memory_limit)
-
-    def test_cpu_job_on_gpu_node(self):
-        # Cpu job on gpu node will have default value
-        self.params.update({
-            "gpu_limit": 0,
-            "sku": "Standard_ND24rs",
-        })
-        job_params = make_job_params(self.params, self.quota, self.metadata,
-                                     self.config)
-        self.assertIsNotNone(job_params)
-        self.assertTrue(job_params.is_valid())
-        self.assertEqual("Standard_ND24rs", job_params.sku)
-        self.assertEqual(0, job_params.gpu_limit)
-        self.assertEqual(DEFAULT_CPU_REQUEST, job_params.cpu_request)
-        self.assertEqual(DEFAULT_CPU_LIMIT, job_params.cpu_limit)
-        self.assertEqual(DEFAULT_MEMORY_REQUEST, job_params.memory_request)
-        self.assertEqual(DEFAULT_MEMORY_LIMIT, job_params.memory_limit)
-
-    def test_gpu_job(self):
-        # gpu_limit precedes resourcegpu
-        self.params["resourcegpu"] = 0
-        self.params["gpu_limit"] = 3
-        job_params = make_job_params(self.params, self.quota, self.metadata,
-                                     self.config)
-        self.assertIsNotNone(job_params)
-        self.assertTrue(job_params.is_valid())
-        self.assertEqual("Standard_ND24rs", job_params.sku)
-        self.assertEqual(3, job_params.gpu_limit)
-        self.assertEqual("16000m", job_params.cpu_request)
-        self.assertEqual("18000m", job_params.cpu_limit)
-        self.assertEqual("309657Mi", job_params.memory_request)
-        self.assertEqual("344064Mi", job_params.memory_limit)
-
-        # Request override
-        self.params.update({
-            "cpurequest": "1200m",
-            "memoryrequest": "4096Mi",
-        })
-        job_params = make_job_params(self.params, self.quota, self.metadata,
-                                     self.config)
-        self.assertIsNotNone(job_params)
-        self.assertTrue(job_params.is_valid())
-        self.assertEqual("Standard_ND24rs", job_params.sku)
-        self.assertEqual(3, job_params.gpu_limit)
-        self.assertEqual("1200m", job_params.cpu_request)
-        self.assertEqual("1200m", job_params.cpu_limit)
-        self.assertEqual("4096Mi", job_params.memory_request)
-        self.assertEqual("4096Mi", job_params.memory_limit)
-
-        # Limit override
-        self.params.update({
-            "cpulimit": "1500m",
-            "memorylimit": "4608Mi",
-        })
-        job_params = make_job_params(self.params, self.quota, self.metadata,
-                                     self.config)
-        self.assertIsNotNone(job_params)
-        self.assertTrue(job_params.is_valid())
-        self.assertEqual("Standard_ND24rs", job_params.sku)
-        self.assertEqual(3, job_params.gpu_limit)
-        self.assertEqual("1200m", job_params.cpu_request)
-        self.assertEqual("1500m", job_params.cpu_limit)
-        self.assertEqual("4096Mi", job_params.memory_request)
-        self.assertEqual("4608Mi", job_params.memory_limit)
