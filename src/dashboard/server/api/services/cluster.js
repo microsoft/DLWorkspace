@@ -10,12 +10,9 @@ const clustersConfig = config.get('clusters')
  * @property {import('./user')} user
  */
 
-/**
- * @extends {Service<State>}
- */
 class Cluster extends Service {
   /**
-   * @param {import('koa').Context<State>} context
+   * @param {import('koa').ParameterizedContext<State>} context
    * @param {string} id
    */
   constructor (context, id) {
