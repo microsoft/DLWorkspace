@@ -4,6 +4,7 @@ const User = require('../services/user')
  * @return {import('koa').Middleware}
  */
 module.exports = (forceAuthenticated = true) => async (context, next) => {
+  console.log({ forceAuthenticated })
   if ('email' in context.query) {
     let { email, password } = context.query
 
