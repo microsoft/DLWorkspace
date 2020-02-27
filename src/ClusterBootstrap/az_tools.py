@@ -1212,9 +1212,6 @@ Command:
 
     config = update_config(config)
 
-    with open(config_cluster, 'w') as outfile:
-        yaml.dump(config, outfile, default_flow_style=False)
-
     if "cluster_name" not in config["azure_cluster"] or config["azure_cluster"]["cluster_name"] is None:
         print("Cluster Name cannot be empty")
         exit()
