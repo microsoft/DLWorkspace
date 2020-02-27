@@ -859,6 +859,153 @@ def get_vc(username, vc_name):
     return ret
 
 
+def get_node_status_simplified(node_status):
+    if node_status is None:
+        return None
+
+    simplified_node_status = []
+    for node in node_status:
+        # Skip non-workers
+        labels = node.get("labels", {})
+        not_worker = "worker" not in labels
+        if not_worker:
+            continue
+
+        # Only keep worker, sku, and vc node labels
+        worker_labels = {
+            k: v for k, v in labels.items() if k in ["worker", "sku", "vc"]
+        }
+
+        simplified_node = {
+            "name": node.get("name"),
+
+            "gpu_capacity": node.get("gpu_capacity"),
+            "gpu_allocatable": node.get("gpu_capacity"),
+            "gpu_used": node.get("gpu_used"),
+            "gpu_preemptable_used": node.get("gpu_preemptable_used"),
+
+            "cpu_capacity": node.get("cpu_capacity"),
+            "cpu_allocatable": node.get("cpu_allocatable"),
+            "cpu_used": node.get("cpu_used"),
+            "cpu_preemptable_used": node.get("cpu_preemptable_used"),
+
+            "memory_capacity": node.get("memory_capacity"),
+            "memory_allocatable": node.get("memory_allocatable"),
+            "memory_used": node.get("memory_used"),
+            "memory_preemptable_used": node.get("memory_preemptable_used"),
+
+            "labels": worker_labels,
+
+            "InternalIP": node.get("InternalIP"),
+            "unschedulable": node.get("unschedulable"),
+
+            "pods": node.get("pods")
+        }
+        simplified_node_status.append(simplified_node)
+
+    return simplified_node_status
+
+
+def get_pod_status_simplified(pod_status):
+    if pod_status is None:
+        return None
+
+    simplified_pod_status = []
+    for pod in pod_status:
+        simplified_pod = {
+            "name": pod.get("name"),
+            "job_id": pod.get("job_id"),
+            "username": pod.get("username"),
+            "preemption_allowed": pod.get("preemption_allowed"),
+            "node_name": pod.get("node_name"),
+            "preemptable_gpu": pod.get("preemptable_gpu"),
+            "preemptable_cpu": pod.get("preemptable_cpu"),
+            "preemptable_memory": pod.get("preemptable_memory"),
+        }
+        simplified_pod_status.append(simplified_pod)
+
+    return simplified_pod_status
+
+
+def get_vc_simplified(vc_status):
+    if vc_status is None:
+        return None
+
+    simplified_vc_status = {
+        # VC name
+        "vc_name": vc_status.get("vc_name"),
+
+        # Active job count
+        "available_job_num": vc_status.get("available_job_num"),
+
+        # GPU overview
+        "gpu_capacity": vc_status.get("gpu_capacity"),
+        "gpu_used": vc_status.get("gpu_used"),
+        "gpu_preemptable_used": vc_status.get("gpu_preemptable_used"),
+        "gpu_available": vc_status.get("gpu_available"),
+        "gpu_unschedulable": vc_status.get("gpu_unschedulable"),
+
+        # CPU overview
+        "cpu_capacity": vc_status.get("cpu_capacity"),
+        "cpu_used": vc_status.get("cpu_used"),
+        "cpu_preemptable_used": vc_status.get("cpu_preemptable_used"),
+        "cpu_available": vc_status.get("cpu_available"),
+        "cpu_unschedulable": vc_status.get("cpu_unschedulable"),
+
+        # Memory overview
+        "memory_capacity": vc_status.get("memory_capacity"),
+        "memory_used": vc_status.get("memory_used"),
+        "memory_preemptable_used": vc_status.get("memory_preemptable_used"),
+        "memory_available": vc_status.get("memory_available"),
+        "memory_unschedulable": vc_status.get("memory_unschedulable"),
+
+        # Nodes
+        "node_status": get_node_status_simplified(vc_status.get("node_status")),
+
+        # Pods
+        "pod_status": get_pod_status_simplified(vc_status.get("pod_status")),
+
+        # Users
+        "user_status": vc_status.get("user_status"),
+        "user_status_preemptable": vc_status.get("user_status"),
+
+        # GPU idleness
+        "gpu_idle": vc_status.get("gpu_idle"),
+    }
+
+    return simplified_vc_status
+
+
+def get_vc_v2(username, vc_name):
+    vc_status = None
+    try:
+        with DataHandler() as data_handler:
+            cluster_status, _ = data_handler.GetClusterStatus()
+
+        vc_statuses = cluster_status.get("vc_statuses", {})
+        vc_list = getClusterVCs()
+
+        for vc in vc_list:
+            if vc["vcName"] == vc_name and \
+                    has_access(username, VC, vc_name, USER):
+                vc_status = vc_statuses.get(vc_name, {})
+                vc_status["vc_name"] = vc_name
+                vc_status["node_status"] = cluster_status.get("node_status")
+
+                gpu_idle = get_gpu_idle(vc_name)
+                if gpu_idle is not None:
+                    vc_status["gpu_idle"] = gpu_idle
+                break
+
+        vc_status = get_vc_simplified(vc_status)
+
+    except:
+        logger.exception("Exception in getting VC %s for user %s", vc_name,
+                         username)
+
+    return vc_status
+
+
 def DeleteVC(userName, vcName):
     ret = None
     dataHandler = DataHandler()

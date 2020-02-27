@@ -760,6 +760,26 @@ class GetVC(Resource):
 api.add_resource(GetVC, "/GetVC")
 
 
+class GetVCV2(Resource):
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument("userName")
+        parser.add_argument("vcName")
+        args = parser.parse_args()
+        username = args["userName"]
+        vc_name = args["vcName"]
+        ret = JobRestAPIUtils.get_vc_v2(username, vc_name)
+
+        resp = jsonify(ret)
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["dataType"] = "json"
+
+        return resp
+
+
+api.add_resource(GetVC, "/GetVCV2")
+
+
 class AddVC(Resource):
     def get(self):
         parser = reqparse.RequestParser()

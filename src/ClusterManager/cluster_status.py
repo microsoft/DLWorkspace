@@ -613,6 +613,7 @@ class ClusterStatusFactory(object):
                     pod_name += " (gpu #:%s)" % curr_container_gpu
 
             pod_status = {
+                "name": name,
                 "pod_name": pod_name,
                 "job_id": job_id,
                 "vc_name": vc_name,
@@ -626,7 +627,8 @@ class ClusterStatusFactory(object):
                 "preemptable_cpu": preemptable_cpu,
                 "memory": memory,
                 "preemptable_memory": preemptable_memory,
-                "gpuType": gpu_type
+                "gpuType": gpu_type,
+                "gpu_usage": gpu_usage,
             }
             self.pod_statuses[name] = pod_status
 
