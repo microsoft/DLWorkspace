@@ -22,7 +22,7 @@ def vc_value_str(config, ratio_dict):
 
     for r_type in ["cpu", "memory"]:
         for sku, val in resource_quota[r_type].items():
-            resource_quota[r_type][sku] *= config.get("vc_rsc_discount", 0.9)
+            resource_quota[r_type][sku] *= config.get("schedulable_ratio", 0.9)
 
     # default value of quota and metadata are based on the assumption that there's only one default VC, this is not reasonable, and 
     # these 2 fields would also finally get removed
@@ -53,6 +53,8 @@ def vc_value_str(config, ratio_dict):
             if "memory" in r_type:
                 pernode_cnt = '{}Gi'.format(pernode_cnt)
             tmp_res_meta[sku_name_in_map] = {"per_node": pernode_cnt}
+            if r_type in ["cpu", "memory"]:
+                tmp_res_meta[sku_name_in_map]["schedulable_ratio"] = 0.9
             if r_type == "gpu":
                 tmp_res_meta[sku_name_in_map]["gpu_type"] = sku_mapping.get(sku_name_in_map, {}).get("gpu-type", "None")
         res_meta_dict[r_type] = tmp_res_meta

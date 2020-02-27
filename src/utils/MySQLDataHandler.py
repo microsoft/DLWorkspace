@@ -280,7 +280,6 @@ class DataHandler(object):
         cursor = self.conn.cursor()
         cursor.execute(sql)
         result = cursor.fetchone()
-        print(result)
         return result is not None
 
     @record
@@ -289,7 +288,6 @@ class DataHandler(object):
         cursor = self.conn.cursor()
         cursor.execute(sql)
         result = cursor.fetchone()
-        print(result)
         return result is not None
 
     @record
@@ -362,15 +360,13 @@ class DataHandler(object):
         quota, metadata, res_quota, res_meta = vc_value_str(config, ratio_dict)
         if quota == "":
             return
-        sqls = []
-        for i, (vc, vc_res_quota) in enumerate(res_quota.items()):
-            print(vc, quota, metadata, vc_res_quota, res_meta)
+        for vc, vc_res_quota in res_quota.items():
             self.AddVC(vc, quota, metadata, vc_res_quota, res_meta)
 
+    @record
     def AddVC(self, vcName, quota, metadata, res_quota, res_meta):
         try:
             sql = "INSERT INTO `{}` (vcName, quota, metadata, resourceQuota, resourceMetadata) VALUES ('{}', '{}', '{}', '{}', '{}')".format(self.vctablename, vcName, quota, metadata, res_quota, res_meta)
-            print(sql)
             cursor = self.conn.cursor()
             cursor.execute(sql)
             self.conn.commit()
