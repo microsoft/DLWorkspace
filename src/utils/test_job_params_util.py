@@ -59,6 +59,8 @@ class TestJobParams(TestCase):
             "vcName": "platform",
         }
 
+        self.config = {}
+
 
 class TestRegularJobParams(TestJobParams):
     def setUp(self):
@@ -70,7 +72,8 @@ class TestRegularJobParams(TestJobParams):
     def test_backward_compatibility_cpu_job(self):
         # Cpu job on cpu node
         self.params["resourcegpu"] = 0
-        job_params = make_job_params(self.params, self.quota, self.metadata)
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_D2s_v3", job_params.sku)
@@ -82,7 +85,8 @@ class TestRegularJobParams(TestJobParams):
 
         # Cpu job on gpu node
         self.quota["cpu"].pop("Standard_D2s_v3", None)
-        job_params = make_job_params(self.params, self.quota, self.metadata)
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_ND24rs", job_params.sku)
@@ -95,7 +99,8 @@ class TestRegularJobParams(TestJobParams):
     def test_backward_compatibility_gpu_job(self):
         # Gpu job with proportionally assigned cpu and memory
         self.params["resourcegpu"] = 3
-        job_params = make_job_params(self.params, self.quota, self.metadata)
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_ND24rs", job_params.sku)
@@ -107,7 +112,8 @@ class TestRegularJobParams(TestJobParams):
 
     def test_cpu_job_on_cpu_node(self):
         self.params["gpu_limit"] = 0
-        job_params = make_job_params(self.params, self.quota, self.metadata)
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_D2s_v3", job_params.sku)
@@ -122,7 +128,8 @@ class TestRegularJobParams(TestJobParams):
             "cpurequest": "1200m",
             "memoryrequest": "4096Mi",
         })
-        job_params = make_job_params(self.params, self.quota, self.metadata)
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_D2s_v3", job_params.sku)
@@ -137,7 +144,8 @@ class TestRegularJobParams(TestJobParams):
             "cpulimit": "1500m",
             "memorylimit": "4608Mi",
         })
-        job_params = make_job_params(self.params, self.quota, self.metadata)
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_D2s_v3", job_params.sku)
@@ -153,7 +161,8 @@ class TestRegularJobParams(TestJobParams):
             "gpu_limit": 0,
             "sku": "Standard_ND24rs",
         })
-        job_params = make_job_params(self.params, self.quota, self.metadata)
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_ND24rs", job_params.sku)
@@ -167,7 +176,8 @@ class TestRegularJobParams(TestJobParams):
         # gpu_limit precedes resourcegpu
         self.params["resourcegpu"] = 0
         self.params["gpu_limit"] = 3
-        job_params = make_job_params(self.params, self.quota, self.metadata)
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_ND24rs", job_params.sku)
@@ -182,7 +192,8 @@ class TestRegularJobParams(TestJobParams):
             "cpurequest": "1200m",
             "memoryrequest": "4096Mi",
         })
-        job_params = make_job_params(self.params, self.quota, self.metadata)
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_ND24rs", job_params.sku)
@@ -197,7 +208,8 @@ class TestRegularJobParams(TestJobParams):
             "cpulimit": "1500m",
             "memorylimit": "4608Mi",
         })
-        job_params = make_job_params(self.params, self.quota, self.metadata)
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_ND24rs", job_params.sku)
@@ -218,7 +230,8 @@ class TestPSDistJobParams(TestJobParams):
     def test_backward_compatibility_cpu_job(self):
         # Cpu job running on cpu nodes occupy entire nodes
         self.params["resourcegpu"] = 0
-        job_params = make_job_params(self.params, self.quota, self.metadata)
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_D2s_v3", job_params.sku)
@@ -231,7 +244,8 @@ class TestPSDistJobParams(TestJobParams):
     def test_backward_compatibility_gpu_job(self):
         # Gpu jobs asking for all gpus on nodes
         self.params["resourcegpu"] = 4
-        job_params = make_job_params(self.params, self.quota, self.metadata)
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_ND24rs", job_params.sku)
@@ -243,7 +257,8 @@ class TestPSDistJobParams(TestJobParams):
 
     def test_cpu_job_on_cpu_node(self):
         self.params["gpu_limit"] = 0
-        job_params = make_job_params(self.params, self.quota, self.metadata)
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_D2s_v3", job_params.sku)
@@ -258,7 +273,8 @@ class TestPSDistJobParams(TestJobParams):
             "cpurequest": "1200m",
             "memoryrequest": "4096Mi",
         })
-        job_params = make_job_params(self.params, self.quota, self.metadata)
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_D2s_v3", job_params.sku)
@@ -273,7 +289,8 @@ class TestPSDistJobParams(TestJobParams):
             "cpulimit": "1500m",
             "memorylimit": "4608Mi",
         })
-        job_params = make_job_params(self.params, self.quota, self.metadata)
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_D2s_v3", job_params.sku)
@@ -288,7 +305,8 @@ class TestPSDistJobParams(TestJobParams):
             "gpu_limit": 0,
             "sku": "Standard_ND24rs",
         })
-        job_params = make_job_params(self.params, self.quota, self.metadata)
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_ND24rs", job_params.sku)
@@ -302,7 +320,8 @@ class TestPSDistJobParams(TestJobParams):
         # gpu_limit precedes resourcegpu
         self.params["resourcegpu"] = 0
         self.params["gpu_limit"] = 3
-        job_params = make_job_params(self.params, self.quota, self.metadata)
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_ND24rs", job_params.sku)
@@ -317,7 +336,8 @@ class TestPSDistJobParams(TestJobParams):
             "cpurequest": "1200m",
             "memoryrequest": "4096Mi",
         })
-        job_params = make_job_params(self.params, self.quota, self.metadata)
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_ND24rs", job_params.sku)
@@ -332,7 +352,8 @@ class TestPSDistJobParams(TestJobParams):
             "cpulimit": "1500m",
             "memorylimit": "4608Mi",
         })
-        job_params = make_job_params(self.params, self.quota, self.metadata)
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_ND24rs", job_params.sku)
@@ -353,7 +374,8 @@ class TestInferenceJobParams(TestJobParams):
     def test_backward_compatibility_gpu_job(self):
         # 1 gpu per pod for workers on gpu nodes
         self.params["resourcegpu"] = 1
-        job_params = make_job_params(self.params, self.quota, self.metadata)
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_ND24rs", job_params.sku)
@@ -365,7 +387,8 @@ class TestInferenceJobParams(TestJobParams):
 
     def test_cpu_job_on_cpu_node(self):
         self.params["gpu_limit"] = 0
-        job_params = make_job_params(self.params, self.quota, self.metadata)
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_D2s_v3", job_params.sku)
@@ -380,7 +403,8 @@ class TestInferenceJobParams(TestJobParams):
             "cpurequest": "1200m",
             "memoryrequest": "4096Mi",
         })
-        job_params = make_job_params(self.params, self.quota, self.metadata)
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_D2s_v3", job_params.sku)
@@ -395,7 +419,8 @@ class TestInferenceJobParams(TestJobParams):
             "cpulimit": "1500m",
             "memorylimit": "4608Mi",
         })
-        job_params = make_job_params(self.params, self.quota, self.metadata)
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_D2s_v3", job_params.sku)
@@ -411,7 +436,8 @@ class TestInferenceJobParams(TestJobParams):
             "gpu_limit": 0,
             "sku": "Standard_ND24rs",
         })
-        job_params = make_job_params(self.params, self.quota, self.metadata)
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_ND24rs", job_params.sku)
@@ -425,7 +451,8 @@ class TestInferenceJobParams(TestJobParams):
         # gpu_limit precedes resourcegpu
         self.params["resourcegpu"] = 0
         self.params["gpu_limit"] = 3
-        job_params = make_job_params(self.params, self.quota, self.metadata)
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_ND24rs", job_params.sku)
@@ -440,7 +467,8 @@ class TestInferenceJobParams(TestJobParams):
             "cpurequest": "1200m",
             "memoryrequest": "4096Mi",
         })
-        job_params = make_job_params(self.params, self.quota, self.metadata)
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_ND24rs", job_params.sku)
@@ -455,7 +483,8 @@ class TestInferenceJobParams(TestJobParams):
             "cpulimit": "1500m",
             "memorylimit": "4608Mi",
         })
-        job_params = make_job_params(self.params, self.quota, self.metadata)
+        job_params = make_job_params(self.params, self.quota, self.metadata,
+                                     self.config)
         self.assertIsNotNone(job_params)
         self.assertTrue(job_params.is_valid())
         self.assertEqual("Standard_ND24rs", job_params.sku)
