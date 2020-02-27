@@ -841,6 +841,7 @@ def get_vc(username, vc_name):
                     has_access(username, VC, vc_name, USER):
                 ret = copy.deepcopy(vc)
                 ret.update(vc_statuses.get(vc_name, {}))
+                ret["node_status"] = cluster_status.get("node_status")
 
                 # TODO: deprecate typo "gpu_avaliable" in legacy code
                 ret["gpu_avaliable"] = ret["gpu_available"]
@@ -854,7 +855,7 @@ def get_vc(username, vc_name):
                 break
     except:
         logger.exception("Exception in getting VC %s for user %s", vc_name,
-                         username, exc_info=True)
+                         username)
 
     return ret
 
@@ -918,9 +919,13 @@ def get_pod_status_simplified(pod_status):
             "username": pod.get("username"),
             "preemption_allowed": pod.get("preemption_allowed"),
             "node_name": pod.get("node_name"),
+            "gpu": pod.get("gpu"),
+            "cpu": pod.get("cpu"),
+            "memory": pod.get("memory"),
             "preemptable_gpu": pod.get("preemptable_gpu"),
             "preemptable_cpu": pod.get("preemptable_cpu"),
             "preemptable_memory": pod.get("preemptable_memory"),
+            "gpu_usage": pod.get("gpu_usage"),
         }
         simplified_pod_status.append(simplified_pod)
 
