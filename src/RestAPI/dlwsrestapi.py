@@ -777,7 +777,7 @@ class GetVCV2(Resource):
         return resp
 
 
-api.add_resource(GetVC, "/GetVCV2")
+api.add_resource(GetVCV2, "/GetVCV2")
 
 
 class AddVC(Resource):
