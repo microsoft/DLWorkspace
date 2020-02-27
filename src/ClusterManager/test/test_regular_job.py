@@ -42,8 +42,8 @@ def test_data_job_running(args):
     cmd = "mkdir -p /tmp/dlts_test_dir; " \
           "echo %s > /tmp/dlts_test_dir/testfile; " \
           "cd /DataUtils; " \
-          "./copy_data.sh /tmp/dlts_test_dir adl://indexserveplatform-experiment-c09.azuredatalakestore.net/local/dlts_test_dir True 4194304 4 2; " \
-          "./copy_data.sh adl://indexserveplatform-experiment-c09.azuredatalakestore.net/local/dlts_test_dir /tmp/dlts_test_dir_copyback False 33554432 4 2; " \
+          "./copy_data.sh /tmp/dlts_test_dir adl://indexserveplatform-experiment-c09.azuredatalakestore.net/local/dlts_test_dir True 4194304 4 2 >/dev/null 2>&1;" \
+          "./copy_data.sh adl://indexserveplatform-experiment-c09.azuredatalakestore.net/local/dlts_test_dir /tmp/dlts_test_dir_copyback False 33554432 4 2 >/dev/null 2>&1;" \
           "cat /tmp/dlts_test_dir_copyback/testfile; " % expected_word
 
     image = "indexserveregistry.azurecr.io/dlts-data-transfer-image:latest"
@@ -59,7 +59,11 @@ def test_data_job_running(args):
             {"unapproved", "queued", "scheduling", "running"})
         assert expected_state == state
 
-        log = utils.get_job_log(args.rest, args.email, job.jid)
+        for _ in range(10):
+            log = utils.get_job_log(args.rest, args.email, job.jid)
+            if expected_word in log:
+                break
+            time.sleep(0.5)
         assert expected_word in log, 'assert {} in {}'.format(
             expected_word, log)
 
