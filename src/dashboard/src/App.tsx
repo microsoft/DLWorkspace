@@ -6,7 +6,8 @@ import 'typeface-roboto';
 import 'typeface-roboto-mono';
 
 import Helmet from 'react-helmet';
-import { Box, CssBaseline, createMuiTheme, CircularProgress } from '@material-ui/core';
+import { Typography } from '@material-ui/core';
+import { Box, CssBaseline, createMuiTheme } from '@material-ui/core';
 import { ThemeProvider } from "@material-ui/styles";
 import { SnackbarProvider } from "notistack";
 import {
@@ -14,6 +15,8 @@ import {
   Options as UseHttpOptions,
   CachePolicies,
 } from "use-http-2";
+
+import Loading from './components/Loading';
 
 import ConfigContext, { Provider as ConfigProvider } from "./contexts/Config";
 import UserContext, { Provider as UserProvider } from "./contexts/User";
@@ -46,9 +49,16 @@ interface BootstrapProps {
   user: UserContext;
 }
 
-const Loading = (
-  <Box flex={1} display="flex" alignItems="center" justifyContent="center">
-    <CircularProgress/>
+const PageLoading = (
+  <Box
+    flex={1}
+    display="flex"
+    flexDirection="column"
+    justifyContent="center"
+    alignItems="center"
+  >
+    <Loading/>
+    <Typography component="p" variant="subtitle1">Loading Page</Typography>
   </Box>
 );
 
@@ -98,7 +108,7 @@ const Layout: React.FC<RouteComponentProps> = ({ location, history }) => {
         <Content>
           <AppBar/>
           <Drawer/>
-          <React.Suspense fallback={Loading}>
+          <React.Suspense fallback={PageLoading}>
             <Switch location={location}>
               <Route exact path="/" component={Home}/>
               <Route path="/submission" component={Submission}/>
