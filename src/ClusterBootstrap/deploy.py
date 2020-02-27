@@ -1477,11 +1477,14 @@ def update_nfs_nodes(nargs):
     TODO: Should be covered by update_role_nodes in deploy.py V2
     """
     # This is to temporarily replace gpu_type with None to disallow nvidia runtime config to appear in /etc/docker/daemon.json
-    prev_gpu_type = config["gpu_type"]
+    prev_gpu_type = config.get("gpu_type")
     config["gpu_type"] = "None"
     utils.render_template_directory(
         "./template/kubelet", "./deploy/kubelet", config)
-    config["gpu_type"] = prev_gpu_type
+    if prev_gpu_type is None:
+        config.pop("gpu_type", None)
+    else:
+        config["gpu_type"] = prev_gpu_type
 
     write_nodelist_yaml()
 
@@ -1544,10 +1547,13 @@ def update_elasticsearch_nodes(nargs):
     TODO: Should be covered by update_role_nodes in deploy.py V2
     """
     # This is to temporarily replace gpu_type with None to disallow nvidia runtime config to appear in /etc/docker/daemon.json
-    prev_gpu_type = config["gpu_type"]
+    prev_gpu_type = config.get("gpu_type")
     config["gpu_type"] = "None"
     utils.render_template_directory("./template/kubelet", "./deploy/kubelet", config)
-    config["gpu_type"] = prev_gpu_type
+    if prev_gpu_type is None:
+        config.pop("gpu_type", None)
+    else:
+        config["gpu_type"] = prev_gpu_type
 
     write_nodelist_yaml()
 
