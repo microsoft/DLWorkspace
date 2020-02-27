@@ -114,7 +114,11 @@ spec:
     - /dlts-init/init.sh
     env:
     - name: LOGGING_LEVEL
+    {% if job["debug"] %}
       value: DEBUG
+    {% else %}
+      value: INFO
+    {% endif %}
     - name: DLTS_JOB_ID
       value: {{ job["jobId"] }}
     - name: DLTS_NUM_PS
