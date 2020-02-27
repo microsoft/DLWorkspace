@@ -352,7 +352,7 @@ class DataHandler(object):
             logger.error('Exception: %s', str(e))
             return False
 
-    @record
+
     def init_vc_sqls(self, config):
         ratio_dict = {config['defalt_virtual_cluster_name']: 1.0}
         if "vc_resource_ratio" in config:
@@ -362,6 +362,7 @@ class DataHandler(object):
             return
         for vc, vc_res_quota in res_quota.items():
             self.AddVC(vc, quota, metadata, vc_res_quota, res_meta)
+
 
     @record
     def AddVC(self, vcName, quota, metadata, res_quota, res_meta):
