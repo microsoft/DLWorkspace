@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 import sys
 import json
 import os
@@ -103,11 +102,10 @@ def generate_response(result):
     return resp
 
 
+@api.resource("/PostJob")
 class PostJob(Resource):
     def post(self):
         params = request.get_json(force=True)
-        logger.info("Post Job")
-        logger.info(params)
 
         ret = {}
         output = JobRestAPIUtils.SubmitJob(json.dumps(params))
@@ -120,36 +118,25 @@ class PostJob(Resource):
             else:
                 ret["error"] = "Cannot create job!"
 
-        logger.info("Submit job through restapi, output is %s, ret is %s",
-                    output, ret)
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-        return resp
+        logger.info("Submit job output is %s, ret is %s", output, ret)
+        return generate_response(ret)
 
 
-api.add_resource(PostJob, "/PostJob")
-
-
+@api.resource("/ListJobs")
 class ListJobs(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("userName", required=True)
+        self.get_parser.add_argument("vcName", required=True)
+        self.get_parser.add_argument("jobOwner", required=True)
+        self.get_parser.add_argument("num", type=int, default=20)
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("userName")
-        parser.add_argument("vcName")
-        parser.add_argument("jobOwner")
-        parser.add_argument("num")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         username = args["userName"]
         vc_name = args["vcName"]
         job_owner = args["jobOwner"]
-        num = None
-        if args["num"] is not None:
-            try:
-                num = int(args["num"])
-            except:
-                # Set default number of inactive jobs to 20
-                num = 20
-                pass
+        num = args["num"]
         jobs = JobRestAPIUtils.get_job_list(username, vc_name, job_owner, num)
 
         queuedJobs = []
@@ -175,7 +162,6 @@ class ListJobs(Resource):
                     job["jobStatusDetail"] = s
                 except Exception as e:
                     job["jobStatusDetail"] = s
-                    pass
 
             # Remove credentials
             remove_creds(job)
@@ -203,34 +189,24 @@ class ListJobs(Resource):
             "finishedJobs": len(finishedJobs),
             "visualizationJobs": len(visualizationJobs)
         }
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-        return resp
+        return generate_response(ret)
 
 
-api.add_resource(ListJobs, "/ListJobs")
-
-
+@api.resource("/ListJobsV2")
 class ListJobsV2(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("userName", required=True)
+        self.get_parser.add_argument("vcName", required=True)
+        self.get_parser.add_argument("jobOwner", required=True)
+        self.get_parser.add_argument("num", type=int, default=20)
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("userName")
-        parser.add_argument("vcName")
-        parser.add_argument("jobOwner")
-        parser.add_argument("num")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         username = args["userName"]
         vc_name = args["vcName"]
         job_owner = args["jobOwner"]
-        num = None
-        if args["num"] is not None:
-            try:
-                num = int(args["num"])
-            except:
-                # Set default number of inactive jobs to 20
-                num = 20
-                pass
+        num = args["num"]
 
         jobs = JobRestAPIUtils.get_job_list_v2(username, vc_name, job_owner,
                                                num)
@@ -240,19 +216,18 @@ class ListJobsV2(Resource):
                 for job in job_list:
                     remove_creds(job)
 
-        resp = generate_response(jobs)
-        return resp
+        return generate_response(jobs)
 
 
-api.add_resource(ListJobsV2, "/ListJobsV2")
-
-
+@api.resource("/KillJob")
 class KillJob(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("jobId", required=True)
+        self.get_parser.add_argument("userName", required=True)
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("jobId")
-        parser.add_argument("userName")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         job_id = args["jobId"]
         username = args["userName"]
         result = JobRestAPIUtils.kill_job(username, job_id)
@@ -264,22 +239,18 @@ class KillJob(Resource):
         else:
             ret["result"] = "Cannot Kill the job. Job ID:" + job_id
 
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
+        return generate_response(ret)
 
 
-api.add_resource(KillJob, "/KillJob")
-
-
+@api.resource("/PauseJob")
 class PauseJob(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("jobId", required=True)
+        self.get_parser.add_argument("userName", required=True)
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("jobId")
-        parser.add_argument("userName")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         job_id = args["jobId"]
         username = args["userName"]
         result = JobRestAPIUtils.pause_job(username, job_id)
@@ -296,15 +267,15 @@ class PauseJob(Resource):
         return resp
 
 
-api.add_resource(PauseJob, "/PauseJob")
-
-
+@api.resource("/ResumeJob")
 class ResumeJob(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("jobId", required=True)
+        self.get_parser.add_argument("userName", required=True)
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("jobId")
-        parser.add_argument("userName")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         job_id = args["jobId"]
         username = args["userName"]
         result = JobRestAPIUtils.resume_job(username, job_id)
@@ -314,22 +285,18 @@ class ResumeJob(Resource):
         else:
             ret["result"] = "Cannot resume the job. Job ID:" + job_id
 
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
+        return generate_response(ret)
 
 
-api.add_resource(ResumeJob, "/ResumeJob")
-
-
+@api.resource("/ApproveJob")
 class ApproveJob(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("jobId", required=True)
+        self.get_parser.add_argument("userName", required=True)
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("jobId")
-        parser.add_argument("userName")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         job_id = args["jobId"]
         username = args["userName"]
         result = JobRestAPIUtils.approve_job(username, job_id)
@@ -339,100 +306,79 @@ class ApproveJob(Resource):
         else:
             ret["result"] = "Cannot approve the job. Job ID:" + job_id
 
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
+        return generate_response(ret)
 
 
-api.add_resource(ApproveJob, "/ApproveJob")
-
-
+@api.resource("/KillJobs")
 class KillJobs(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("jobIds", required=True)
+        self.get_parser.add_argument("userName", required=True)
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("jobIds")
-        parser.add_argument("userName")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         job_ids = args["jobIds"]
         username = args["userName"]
         result = JobRestAPIUtils.kill_jobs(username, job_ids)
         ret = {"result": result}
 
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
+        return generate_response(ret)
 
 
-api.add_resource(KillJobs, "/KillJobs")
-
-
+@api.resource("/PauseJobs")
 class PauseJobs(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("jobIds", required=True)
+        self.get_parser.add_argument("userName", required=True)
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("jobIds")
-        parser.add_argument("userName")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         job_ids = args["jobIds"]
         username = args["userName"]
         result = JobRestAPIUtils.pause_jobs(username, job_ids)
         ret = {"result": result}
 
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
+        return generate_response(ret)
 
 
-api.add_resource(PauseJobs, "/PauseJobs")
-
-
+@api.resource("/ResumeJobs")
 class ResumeJobs(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("jobIds", required=True)
+        self.get_parser.add_argument("userName", required=True)
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("jobIds")
-        parser.add_argument("userName")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         job_ids = args["jobIds"]
         username = args["userName"]
         result = JobRestAPIUtils.resume_jobs(username, job_ids)
         ret = {"result": result}
 
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
+        return generate_response(ret)
 
 
-api.add_resource(ResumeJobs, "/ResumeJobs")
-
-
+@api.resource("/ApproveJobs")
 class ApproveJobs(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("jobIds", required=True)
+        self.get_parser.add_argument("userName", required=True)
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("jobIds")
-        parser.add_argument("userName")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         job_ids = args["jobIds"]
         username = args["userName"]
         result = JobRestAPIUtils.approve_jobs(username, job_ids)
         ret = {"result": result}
 
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
+        return generate_response(ret)
 
-        return resp
-
-
-api.add_resource(ApproveJobs, "/ApproveJobs")
 
 # FIXME JobRestAPIUtils.CloneJob is not implemented
+# @api.resource("/CloneJob")
 # class CloneJob(Resource):
 #     def get(self):
 #         parser = reqparse.RequestParser()
@@ -454,15 +400,16 @@ api.add_resource(ApproveJobs, "/ApproveJobs")
 #
 #         return resp
 
-# api.add_resource(CloneJob, "/CloneJob")
 
-
+@api.resource("/GetJobDetail")
 class GetJobDetail(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("jobId", required=True)
+        self.get_parser.add_argument("userName", required=True)
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("jobId")
-        parser.add_argument("userName")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         jobId = args["jobId"]
         userName = args["userName"]
         job = JobRestAPIUtils.GetJobDetail(userName, jobId)
@@ -484,21 +431,18 @@ class GetJobDetail(Resource):
         # Remove credentials
         remove_creds(job)
 
-        resp = jsonify(job)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-        return resp
+        return generate_response(job)
 
 
-api.add_resource(GetJobDetail, "/GetJobDetail")
-
-
+@api.resource("/GetJobDetailV2")
 class GetJobDetailV2(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("jobId", required=True)
+        self.get_parser.add_argument("userName", required=True)
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("jobId")
-        parser.add_argument("userName")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         jobId = args["jobId"]
         userName = args["userName"]
         job = JobRestAPIUtils.GetJobDetailV2(userName, jobId)
@@ -507,107 +451,79 @@ class GetJobDetailV2(Resource):
         return resp
 
 
-api.add_resource(GetJobDetailV2, "/GetJobDetailV2")
-
-
+@api.resource("/GetJobLog")
 class GetJobLog(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("jobId", required=True)
+        self.get_parser.add_argument("userName", required=True)
+        self.get_parser.add_argument("cursor")
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("jobId", required=True)
-        parser.add_argument("userName", required=True)
-        parser.add_argument("cursor")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         jobId = args["jobId"]
         userName = args["userName"]
         cursor = args["cursor"]
         return JobRestAPIUtils.GetJobLog(userName, jobId, cursor)
 
 
-api.add_resource(GetJobLog, "/GetJobLog")
-
-
+@api.resource("/GetJobStatus")
 class GetJobStatus(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("jobId", required=True)
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("jobId")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         jobId = args["jobId"]
         job = JobRestAPIUtils.GetJobStatus(jobId)
-        resp = jsonify(job)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
+        return generate_response(job)
 
 
-api.add_resource(GetJobStatus, "/GetJobStatus")
-
-
+@api.resource("/GetClusterStatus")
 class GetClusterStatus(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("userName", required=True)
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("userName")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         userName = args["userName"]
         cluster_status, last_updated_time = JobRestAPIUtils.GetClusterStatus()
         cluster_status["last_updated_time"] = last_updated_time
-        resp = jsonify(cluster_status)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
+        return generate_response(cluster_status)
 
 
-api.add_resource(GetClusterStatus, "/GetClusterStatus")
-
-
+@api.resource("/AddUser")
 class AddUser(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("userName", required=True)
+        self.get_parser.add_argument("uid", default=authorization.INVALID_ID)
+        self.get_parser.add_argument("gid", default=authorization.INVALID_ID)
+        self.get_parser.add_argument("groups", default=[])
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("userName")
-        parser.add_argument("uid")
-        parser.add_argument("gid")
-        parser.add_argument("groups")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
 
         ret = {}
         userName = args["userName"]
-        if args["uid"] is None or len(args["uid"].strip()) == 0:
-            uid = authorization.INVALID_ID
-        else:
-            uid = args["uid"]
-
-        if args["gid"] is None or len(args["gid"].strip()) == 0:
-            gid = authorization.INVALID_ID
-        else:
-            gid = args["gid"]
-
-        if args["groups"] is None or len(args["groups"].strip()) == 0:
-            groups = []
-        else:
-            groups = args["groups"]
+        uid = args["uid"]
+        gid = args["gid"]
+        groups = args["groups"]
 
         ret["status"] = JobRestAPIUtils.AddUser(userName, uid, gid, groups)
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
+        return generate_response(ret)
 
 
-api.add_resource(AddUser, "/AddUser")
-
-
+@api.resource("/GetAllUsers")
 class GetAllUsers(Resource):
     def get(self):
         data_handler = None
         try:
             data_handler = DataHandler()
             ret = data_handler.GetUsers()
-            resp = jsonify(ret)
-            resp.headers["Access-Control-Allow-Origin"] = "*"
-            resp.headers["dataType"] = "json"
-            return resp
+            return generate_response(ret)
         except Exception as e:
             return "Internal Server Error. " + str(e), 400
         finally:
@@ -615,159 +531,127 @@ class GetAllUsers(Resource):
                 data_handler.Close()
 
 
-api.add_resource(GetAllUsers, "/GetAllUsers")
-
-
+@api.resource("/UpdateAce")
 class UpdateAce(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("userName", required=True)
+        self.get_parser.add_argument("identityName", required=True)
+        self.get_parser.add_argument("resourceType", required=True, type=int)
+        self.get_parser.add_argument("resourceName", required=True)
+        self.get_parser.add_argument("permissions", required=True, type=int)
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("userName")
-        parser.add_argument("identityName")
-        parser.add_argument("resourceType")
-        parser.add_argument("resourceName")
-        parser.add_argument("permissions")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         username = args["userName"]
-        identityName = str(args["identityName"])
-        resourceType = int(args["resourceType"])
-        resourceName = str(args["resourceName"])
-        permissions = int(args["permissions"])
+        identityName = args["identityName"]
+        resourceType = args["resourceType"]
+        resourceName = args["resourceName"]
+        permissions = args["permissions"]
         ret = {}
         ret["result"] = JobRestAPIUtils.UpdateAce(username, identityName,
                                                   resourceType, resourceName,
                                                   permissions)
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
+        return generate_response(ret)
 
 
-api.add_resource(UpdateAce, "/UpdateAce")
-
-
+@api.resource("/DeleteAce")
 class DeleteAce(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("userName", required=True)
+        self.get_parser.add_argument("identityName", required=True)
+        self.get_parser.add_argument("resourceType", required=True, type=int)
+        self.get_parser.add_argument("resourceName", required=True)
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("userName")
-        parser.add_argument("identityName")
-        parser.add_argument("resourceType")
-        parser.add_argument("resourceName")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         username = args["userName"]
-        identityName = str(args["identityName"])
-        resourceType = int(args["resourceType"])
-        resourceName = str(args["resourceName"])
+        identityName = args["identityName"]
+        resourceType = args["resourceType"]
+        resourceName = args["resourceName"]
         ret = {}
         ret["result"] = JobRestAPIUtils.DeleteAce(username, identityName,
                                                   resourceType, resourceName)
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
+        return generate_response(ret)
 
 
-api.add_resource(DeleteAce, "/DeleteAce")
-
-
+@api.resource("/IsClusterAdmin")
 class IsClusterAdmin(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("userName", required=True)
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("userName")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         username = args["userName"]
         ret = {}
         ret["result"] = AuthorizationManager.IsClusterAdmin(username)
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
+        return generate_response(ret)
 
 
-api.add_resource(IsClusterAdmin, "/IsClusterAdmin")
-
-
+@api.resource("/GetACL")
 class GetACL(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("userName", required=True)
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("userName")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         username = args["userName"]
         ret = {}
         ret["result"] = AuthorizationManager.GetAcl(username)
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
+        return generate_response(ret)
 
 
-api.add_resource(GetACL, "/GetACL")
-
-
+@api.resource("/GetAllACL")
 class GetAllACL(Resource):
     def get(self):
         ret = {}
         ret["result"] = ACLManager.GetAllAcl()
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
+        return generate_response(ret)
 
 
-api.add_resource(GetAllACL, "/GetAllACL")
-
-
+@api.resource("/ListVCs")
 class ListVCs(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("userName", required=True)
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("userName")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         userName = args["userName"]
         ret = {}
         ret["result"] = JobRestAPIUtils.ListVCs(userName)
-
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
+        return generate_response(ret)
 
 
-api.add_resource(ListVCs, "/ListVCs")
-
-
+@api.resource("/GetVC")
 class GetVC(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("userName", required=True)
+        self.get_parser.add_argument("vcName", required=True)
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("userName")
-        parser.add_argument("vcName")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         username = args["userName"]
         vc_name = args["vcName"]
         ret = JobRestAPIUtils.get_vc(username, vc_name)
-
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
+        return generate_response(ret)
 
 
-api.add_resource(GetVC, "/GetVC")
-
-
+@api.resource("/AddVC")
 class AddVC(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("userName", required=True)
+        self.get_parser.add_argument("vcName", required=True)
+        self.get_parser.add_argument("quota", required=True)
+        self.get_parser.add_argument("metadata", required=True)
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("vcName")
-        parser.add_argument("quota")
-        parser.add_argument("metadata")
-        parser.add_argument("userName")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         vcName = args["vcName"]
         quota = args["quota"]
         metadata = args["metadata"]
@@ -775,45 +659,36 @@ class AddVC(Resource):
         ret = {}
         ret["result"] = JobRestAPIUtils.AddVC(userName, vcName, quota,
                                               metadata)
-
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
+        return generate_response(ret)
 
 
-api.add_resource(AddVC, "/AddVC")
-
-
+@api.resource("/DeleteVC")
 class DeleteVC(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("userName", required=True)
+        self.get_parser.add_argument("vcName", required=True)
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("vcName")
-        parser.add_argument("userName")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         vcName = args["vcName"]
         userName = args["userName"]
         ret = {}
         ret["result"] = JobRestAPIUtils.DeleteVC(userName, vcName)
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
+        return generate_response(ret)
 
 
-api.add_resource(DeleteVC, "/DeleteVC")
-
-
+@api.resource("/UpdateVC")
 class UpdateVC(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("userName", required=True)
+        self.get_parser.add_argument("vcName", required=True)
+        self.get_parser.add_argument("quota", required=True)
+        self.get_parser.add_argument("metadata", required=True)
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("vcName")
-        parser.add_argument("quota")
-        parser.add_argument("metadata")
-        parser.add_argument("userName")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         vcName = args["vcName"]
         quota = args["quota"]
         metadata = args["metadata"]
@@ -822,51 +697,41 @@ class UpdateVC(Resource):
         ret["result"] = JobRestAPIUtils.UpdateVC(userName, vcName, quota,
                                                  metadata)
 
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
+        return generate_response(ret)
 
 
-api.add_resource(UpdateVC, "/UpdateVC")
-
-
+@api.resource("/ListStorages")
 class ListStorages(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("userName", required=True)
+        self.get_parser.add_argument("vcName", required=True)
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("vcName")
-        parser.add_argument("userName")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         vcName = args["vcName"]
         userName = args["userName"]
         ret = {}
         ret["result"] = JobRestAPIUtils.ListStorages(userName, vcName)
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
+        return generate_response(ret)
 
 
-api.add_resource(ListStorages, "/ListStorages")
-
-
+@api.resource("/AddStorage")
 class AddStorage(Resource):
-    def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("vcName")
-        parser.add_argument("storageType")
-        parser.add_argument("url")
-        parser.add_argument("metadata")
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("userName", required=True)
+        self.get_parser.add_argument("vcName", required=True)
+        self.get_parser.add_argument("storageType", required=True)
+        self.get_parser.add_argument("url", required=True)
+        self.get_parser.add_argument("metadata", required=True)
+        self.get_parser.add_argument("defaultMountPath", required=True)
 
-        parser.add_argument("defaultMountPath")
-        parser.add_argument("userName")
-        args = parser.parse_args()
+    def get(self):
+        args = self.get_parser.parse_args()
         vcName = args["vcName"]
         storageType = args["storageType"]
         url = args["url"]
-
         metadata = args["metadata"]
         defaultMountPath = args["defaultMountPath"]
         userName = args["userName"]
@@ -874,49 +739,40 @@ class AddStorage(Resource):
         ret["result"] = JobRestAPIUtils.AddStorage(userName, vcName, url,
                                                    storageType, metadata,
                                                    defaultMountPath)
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
+        return generate_response(ret)
 
 
-api.add_resource(AddStorage, "/AddStorage")
-
-
+@api.resource("/DeleteStorage")
 class DeleteStorage(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("userName", required=True)
+        self.get_parser.add_argument("vcName", required=True)
+        self.get_parser.add_argument("url", required=True)
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("vcName")
-        parser.add_argument("userName")
-        parser.add_argument("url")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         vcName = args["vcName"]
         userName = args["userName"]
         url = args["url"]
         ret = {}
         ret["result"] = JobRestAPIUtils.DeleteStorage(userName, vcName, url)
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
+        return generate_response(ret)
 
 
-api.add_resource(DeleteStorage, "/DeleteStorage")
-
-
+@api.resource("/UpdateStorage")
 class UpdateStorage(Resource):
-    def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("vcName")
-        parser.add_argument("storageType")
-        parser.add_argument("url")
-        parser.add_argument("metadata")
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("userName", required=True)
+        self.get_parser.add_argument("vcName", required=True)
+        self.get_parser.add_argument("storageType", required=True)
+        self.get_parser.add_argument("url", required=True)
+        self.get_parser.add_argument("metadata", required=True)
+        self.get_parser.add_argument("defaultMountPath", required=True)
 
-        parser.add_argument("defaultMountPath")
-        parser.add_argument("userName")
-        args = parser.parse_args()
+    def get(self):
+        args = self.get_parser.parse_args()
         vcName = args["vcName"]
         storageType = args["storageType"]
         url = args["url"]
@@ -927,24 +783,22 @@ class UpdateStorage(Resource):
         ret["result"] = JobRestAPIUtils.UpdateStorage(userName, vcName, url,
                                                       storageType, metadata,
                                                       defaultMountPath)
-
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
+        return generate_response(ret)
 
 
-api.add_resource(UpdateStorage, "/UpdateStorage")
-
-
+@api.resource("/endpoints")
 class Endpoint(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("jobId", required=True)
+        self.get_parser.add_argument("userName", required=True)
+
+        self.post_parser = reqparse.RequestParser()
+        self.post_parser.add_argument("userName", required=True)
+
     def get(self):
         """return job["endpoints"]: curl -X GET /endpoints?jobId=...&userName=..."""
-        parser = reqparse.RequestParser()
-        parser.add_argument("jobId")
-        parser.add_argument("userName")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         jobId = args["jobId"]
         username = args["userName"]
 
@@ -957,9 +811,7 @@ class Endpoint(Resource):
 
     def post(self):
         """set job["endpoints"]: curl -X POST -H "Content-Type: application/json" /endpoints --data "{"jobId": ..., "endpoints": ["ssh", "ipython"] }"""
-        parser = reqparse.RequestParser()
-        parser.add_argument("userName")
-        args = parser.parse_args()
+        args = self.post_parser.parse_args()
         username = args["userName"]
 
         params = request.get_json(silent=True)
@@ -998,15 +850,29 @@ class Endpoint(Resource):
         return resp
 
 
-api.add_resource(Endpoint, "/endpoints")
-
-
+@api.resource("/templates")
 class Templates(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("vcName", required=True)
+        self.get_parser.add_argument("userName", required=True)
+
+        self.post_parser = reqparse.RequestParser()
+        self.post_parser.add_argument("vcName", required=True, location="args")
+        self.post_parser.add_argument("userName",
+                                      required=True,
+                                      location="args")
+        self.post_parser.add_argument("database",
+                                      required=True,
+                                      location="args")
+        self.post_parser.add_argument("templateName",
+                                      required=True,
+                                      location="args")
+
+        self.delete_parser = self.post_parser.copy()
+
     def get(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("vcName", location="args")
-        parser.add_argument("userName", location="args")
-        args = parser.parse_args()
+        args = self.get_parser.parse_args()
         vcName = args["vcName"]
         userName = args["userName"]
 
@@ -1015,19 +881,10 @@ class Templates(Resource):
         ret += dataHandler.GetTemplates("vc:" + vcName) or []
         ret += dataHandler.GetTemplates("user:" + userName) or []
         dataHandler.Close()
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
+        return generate_response(ret)
 
     def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("vcName", location="args")
-        parser.add_argument("userName", location="args")
-        parser.add_argument("database", location="args")
-        parser.add_argument("templateName", location="args")
-        args = parser.parse_args()
+        args = self.post_parser.parse_args()
         vcName = args["vcName"]
         userName = args["userName"]
         database = args["database"]
@@ -1057,19 +914,10 @@ class Templates(Resource):
         ret["result"] = dataHandler.UpdateTemplate(templateName, scope,
                                                    json.dumps(template_json))
         dataHandler.Close()
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
+        return generate_response(ret)
 
     def delete(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("vcName", location="args")
-        parser.add_argument("userName", location="args")
-        parser.add_argument("database", location="args")
-        parser.add_argument("templateName", location="args")
-        args = parser.parse_args()
+        args = self.delete_parser.parse_args()
         vcName = args["vcName"]
         userName = args["userName"]
         database = args["database"]
@@ -1094,28 +942,21 @@ class Templates(Resource):
         ret = {}
         ret["result"] = dataHandler.DeleteTemplate(templateName, scope)
         dataHandler.Close()
-        resp = jsonify(ret)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-
-        return resp
+        return generate_response(ret)
 
 
-api.add_resource(Templates, "/templates")
-
-
+@api.resource("/jobs/priorities")
 class JobPriority(Resource):
+    def __init__(self):
+        self.post_parser = reqparse.RequestParser()
+        self.post_parser.add_argument("userName", required=True)
+
     def get(self):
         job_priorites = JobRestAPIUtils.get_job_priorities()
-        resp = jsonify(job_priorites)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-        return resp
+        return generate_response(job_priorites)
 
     def post(self):
-        parser = reqparse.RequestParser()
-        parser.add_argument("userName", location="args")
-        args = parser.parse_args()
+        args = self.post_parser.parse_args()
         username = args["userName"]
 
         payload = request.get_json(silent=True)
@@ -1131,14 +972,7 @@ class JobPriority(Resource):
             else:
                 job_priorities[job_id] = JobRestAPIUtils.DEFAULT_JOB_PRIORITY
 
-        resp = jsonify(job_priorities)
-        resp.headers["Access-Control-Allow-Origin"] = "*"
-        resp.headers["dataType"] = "json"
-        resp.status_code = http_status
-        return resp
-
-
-api.add_resource(JobPriority, "/jobs/priorities")
+        return generate_response(job_priorites)
 
 
 @app.route("/metrics")
