@@ -641,6 +641,21 @@ class GetVC(Resource):
         return generate_response(ret)
 
 
+@api.resource("/GetVCV2")
+class GetVCV2(Resource):
+    def __init__(self):
+        self.get_parser = reqparse.RequestParser()
+        self.get_parser.add_argument("userName", required=True)
+        self.get_parser.add_argument("vcName", required=True)
+
+    def get(self):
+        args = self.get_parser.parse_args()
+        username = args["userName"]
+        vc_name = args["vcName"]
+        ret = JobRestAPIUtils.get_vc_v2(username, vc_name)
+        return generate_response(ret)
+
+
 @api.resource("/AddVC")
 class AddVC(Resource):
     def __init__(self):
@@ -972,7 +987,7 @@ class JobPriority(Resource):
             else:
                 job_priorities[job_id] = JobRestAPIUtils.DEFAULT_JOB_PRIORITY
 
-        return generate_response(job_priorites)
+        return generate_response(job_priorities)
 
 
 @app.route("/metrics")

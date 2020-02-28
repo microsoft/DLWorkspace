@@ -56,6 +56,8 @@ class VirtualClusterStatus(ClusterStatus):
         self.exclusion.append("vc_pod_statuses")
         self.exclusion.append("vc_jobs")
         self.exclusion.append("vc_jobs_without_pods")
+        # node_status is the same as the one in cluster_status
+        self.exclusion.append("node_status")
 
     def gen_resource_status(self):
         vc_metrics_map = self.__get_vc_metrics_map()

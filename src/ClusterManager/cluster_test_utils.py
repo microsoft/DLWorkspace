@@ -489,6 +489,7 @@ class BaseTestClusterSetup(object):
     def get_pod_status(self):
         # Cluster pod status
         pod1_status = {
+            "name": "pod1",
             "pod_name": "pod1 : user1 (gpu #:1)",
             "job_id": "j1",
             "vc_name": "vc1",
@@ -503,9 +504,11 @@ class BaseTestClusterSetup(object):
             "memory": Memory({"m_type1": "81920Mi"}),
             "preemptable_memory": Memory(),
             "gpuType": "P40",
+            "gpu_usage": None,
         }
 
         pod2_status = {
+            "name": "pod2",
             "pod_name": "pod2 : user2 (gpu #:0)",
             "job_id": "j2",
             "vc_name": "vc1",
@@ -520,9 +523,11 @@ class BaseTestClusterSetup(object):
             "memory": Memory({"m_type2": "348160Mi"}),
             "preemptable_memory": Memory(),
             "gpuType": "",
+            "gpu_usage": None,
         }
 
         pod3_status = {
+            "name": "pod3",
             "pod_name": "pod3 : user3 (gpu #:2)",
             "job_id": "j3",
             "vc_name": "vc2",
@@ -537,9 +542,11 @@ class BaseTestClusterSetup(object):
             "memory": Memory({"m_type1": "2048Mi"}),
             "preemptable_memory": Memory(),
             "gpuType": "P40",
+            "gpu_usage": None,
         }
 
         pod4_status = {
+            "name": "pod4",
             "pod_name": "pod4 : user1 (gpu #:2)",
             "job_id": "j4",
             "vc_name": "vc2",
@@ -554,6 +561,7 @@ class BaseTestClusterSetup(object):
             "memory": Memory({"m_type3": "61440Mi"}),
             "preemptable_memory": Memory(),
             "gpuType": "P40",
+            "gpu_usage": None,
         }
 
         return [pod1_status, pod2_status, pod3_status, pod4_status]
