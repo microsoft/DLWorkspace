@@ -253,7 +253,6 @@ class Testing(unittest.TestCase):
 
     @mock.patch('rules.ecc_detect_error_rule._create_email_for_dris')
     @mock.patch('rules.ecc_detect_error_rule.k8s_util.cordon_node')
-    @mock.patch('rules.ecc_detect_error_rule.k8s_util.is_node_cordoned')
     @mock.patch('rules.ecc_detect_error_rule.k8s_util.list_namespaced_pod')
     @mock.patch('utils.email_util.EmailHandler')
     @mock.patch('rules.ecc_detect_error_rule.ECCDetectErrorRule.load_ecc_config')
@@ -263,16 +262,11 @@ class Testing(unittest.TestCase):
             mock_load_ecc_config,
             mock_email_handler,
             mock_pod_list,
-            mock_is_node_cordoned,
             mock_cordon_node,
             mock_create_email_for_dris):
         mock_rule_config = _mock_rule_config()
         mock_load_rule_config.return_value = mock_rule_config
         mock_load_ecc_config.return_value = _mock_ecc_config()
-
-        # first node is schedulable
-        # second node has already been marked as unschedulable
-        mock_is_node_cordoned.side_effect = [False, True]
 
         alert = rule_alert_handler.RuleAlertHandler()
         ecc_rule_instance = ECCDetectErrorRule(alert, mock_rule_config)
@@ -289,7 +283,7 @@ class Testing(unittest.TestCase):
 
         ecc_rule_instance.take_action()
 
-        self.assertEqual(1, mock_cordon_node.call_count)
+        self.assertEqual(2, mock_cordon_node.call_count)
         self.assertEqual(1, mock_create_email_for_dris.call_count)
 
         self.assertTrue("ecc_rule" in alert.rule_cache)
@@ -297,62 +291,6 @@ class Testing(unittest.TestCase):
         self.assertEqual("192.168.0.1", alert.rule_cache["ecc_rule"]["mock_worker_one"]["instance"])
         self.assertTrue("mock_worker_two" in alert.rule_cache["ecc_rule"])
         self.assertEqual("192.168.0.2", alert.rule_cache["ecc_rule"]["mock_worker_two"]["instance"])
-
-
-
-    @mock.patch('rules.ecc_detect_error_rule._create_email_for_dris')
-    @mock.patch('rules.ecc_detect_error_rule.k8s_util.cordon_node')
-    @mock.patch('rules.ecc_detect_error_rule.k8s_util.is_node_cordoned')
-    @mock.patch('rules.ecc_detect_error_rule.k8s_util.list_namespaced_pod')
-    @mock.patch('utils.email_util.EmailHandler')
-    @mock.patch('rules.ecc_detect_error_rule.ECCDetectErrorRule.load_ecc_config')
-    @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
-    def test_take_action_new_ecc_not_found(self,
-            mock_load_rule_config,
-            mock_load_ecc_config,
-            mock_email_handler,
-            mock_pod_list,
-            mock_is_node_cordoned,
-            mock_cordon_node,
-            mock_create_email_for_dris):
-        mock_rule_config = _mock_rule_config()
-        mock_load_rule_config.return_value = mock_rule_config
-        mock_load_ecc_config.return_value = _mock_ecc_config()
-
-        pod_one = _mock_v1_pod("87654321-wxyz", "user1", "vc1", "node1")
-        pod_two = _mock_v1_pod("12345678-abcd", "user2", "vc2", "node1")
-        pod_three = _mock_v1_pod("12345678-abcd", "user2", "vc2", "node2")
-        pod_four = _mock_v1_pod("99999999-efgh", "user3", "vc3", "node3")
-        mock_pod_list.return_value = V1PodList(items=[pod_one, pod_two, pod_three, pod_four])
-
-        # simulate ecc error detected in previous run and
-        # therefore already exists in rule cache
-        alert = rule_alert_handler.RuleAlertHandler()
-        alert.rule_cache["ecc_rule"] = {
-            "mock_worker_one": {
-                "time_found": datetime.datetime.now,
-                "instance": "192.168.0.1"
-            },
-            "mock_worker_two": {
-                "time_found": datetime.datetime.now,
-                "instance": "192.168.0.2"
-                }
-        }
-
-        # first node is schedulable
-        # second node has already been marked as unschedulable
-        mock_is_node_cordoned.side_effect = [False, True]
-
-        ecc_rule_instance = ECCDetectErrorRule(alert, mock_rule_config)
-        ecc_rule_instance.new_bad_nodes = {
-            "mock_worker_one": "192.168.0.1",
-            "mock_worker_two": "192.168.0.2"
-        }
-
-        ecc_rule_instance.take_action()
-
-        self.assertEqual(1, mock_cordon_node.call_count)
-        self.assertEqual(1, mock_create_email_for_dris.call_count)
 
 
     @mock.patch('rules.ecc_detect_error_rule.k8s_util.list_namespaced_pod')
