@@ -46,7 +46,11 @@ spec:
       - name: elasticsearch
         image: '{{cnf["dockers"]["container"]["elasticsearch"]["fullname"]}}'
         env:
-        - name: "node.name"
+        {% if cnf["elasticsearch"]["heap_size"] %}
+        - name: 'ES_JAVA_OPTS'
+          value: '-Xms{{cnf["elasticsearch"]["heap_size"]}} -Xmx{{cnf["elasticsearch"]["heap_size"]}}'
+        {% endif %}
+        - name: 'node.name'
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
