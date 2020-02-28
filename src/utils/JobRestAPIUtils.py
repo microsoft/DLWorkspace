@@ -672,24 +672,10 @@ def GetClusterStatus():
     return cluster_status, last_update_time
 
 
-def AddUser(username, uid, gid, groups):
-    ret = None
-    needToUpdateDB = False
-
-    if uid == authorization.INVALID_ID:
-        info = IdentityManager.GetIdentityInfoFromDB(username)
-        if info["uid"] == authorization.INVALID_ID:
-            needToUpdateDB = True
-            info = IdentityManager.GetIdentityInfoFromAD(username)
-        uid = info["uid"]
-        gid = info["gid"]
-        groups = info["groups"]
-    else:
-        needToUpdateDB = True
-
-    if needToUpdateDB:
-        ret = IdentityManager.UpdateIdentityInfo(username, uid, gid, groups)
-        ret = ret & ACLManager.UpdateAclIdentityId(username, uid)
+def AddUser(username, uid, gid, groups, public_key, private_key):
+    ret = IdentityManager.UpdateIdentityInfo(username, uid, gid, groups,
+                                             public_key, private_key)
+    ret = ret & ACLManager.UpdateAclIdentityId(username, uid)
     return ret
 
 

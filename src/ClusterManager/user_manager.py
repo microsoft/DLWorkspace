@@ -9,8 +9,8 @@ import random
 import logging
 import logging.config
 
-sys.path.append(os.path.join(os.path.dirname(
-    os.path.abspath(__file__)), "../utils"))
+sys.path.append(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 
 from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time
 from DataHandler import DataHandler
@@ -33,37 +33,49 @@ def create_log(logdir='/var/log/dlworkspace'):
 def set_user_directory():
     dataHandler = DataHandler()
     users = dataHandler.GetUsers()
-    for username, userid in users:
+    for username, userid, public_key, private_key in users:
         if "@" in username:
             username = username.split("@")[0]
         if "/" in username:
             username = username.split("/")[1]
         if "\\" in username:
             username = username.split("\\")[1]
-        userpath = os.path.join(config["storage-mount-path"], "work/"+username)
+        userpath = os.path.join(config["storage-mount-path"],
+                                "work/" + username)
         if not os.path.exists(userpath):
             logger.info("Found a new user %s" % username)
             logger.info("Creating home directory %s for user %s" %
                         (userpath, username))
-            os.system("mkdir -p "+userpath)
-            os.system("chown -R "+str(userid)+":"+"500000513 "+userpath)
+            os.system("mkdir -p " + userpath)
+            os.system("chown -R " + str(userid) + ":" + "500000513 " +
+                      userpath)
+
+        ssh_path = os.path.join(userpath, ".ssh")
+        if not os.path.exists(ssh_path):
+            os.system("mkdir -p " + ssh_path)
 
         sshkeypath = os.path.join(userpath, ".ssh/id_rsa")
         pubkeypath = os.path.join(userpath, ".ssh/id_rsa.pub")
         authorized_keyspath = os.path.join(userpath, ".ssh/authorized_keys")
+
         if not os.path.exists(sshkeypath):
             logger.info("Creating sshkey for user %s" % (username))
-            os.system("mkdir -p "+os.path.dirname(sshkeypath))
-            os.system("ssh-keygen -t rsa -b 4096 -f %s -P ''" % sshkeypath)
-            os.system("chown -R "+str(userid)+":"+"500000513 "+userpath)
-            os.system("chmod 700 -R "+os.path.dirname(sshkeypath))
+            with open(sshkeypath, "w") as wf:
+                wf.write(private_key)
+            with open(pubkeypath, "w") as wf:
+                wf.write(public_key)
+            os.system("chown -R " + str(userid) + ":" + "500000513 " +
+                      userpath)
+            os.system("chmod 700 -R " + os.path.dirname(sshkeypath))
 
         if not os.path.exists(authorized_keyspath):
             logger.info("Creating authorized_keys for user %s" % (username))
-            os.system("chown -R "+str(userid)+":" +
-                      "500000513 "+authorized_keyspath)
-            os.system("cat "+pubkeypath+" >> "+authorized_keyspath)
-            os.system("chmod 644 "+authorized_keyspath)
+            with open(authorized_keyspath, "w") as wf:
+                wf.write("\n")
+                wf.write(public_key)
+            os.system("chown -R " + str(userid) + ":" + "500000513 " +
+                      authorized_keyspath)
+            os.system("chmod 644 " + authorized_keyspath)
 
 
 def Run():
@@ -84,8 +96,11 @@ def Run():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--port", "-p", help="port of exporter", type=int, default=9201)
+    parser.add_argument("--port",
+                        "-p",
+                        help="port of exporter",
+                        type=int,
+                        default=9201)
     args = parser.parse_args()
     setup_exporter_thread(args.port)
 

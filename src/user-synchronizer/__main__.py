@@ -17,6 +17,7 @@ from microsoft_graph import (
 
 # Read environment variables
 domain_offset_file = environ.get('DOMAIN_OFFSET_FILE', None)
+restfulapi_url = environ['RESTFULAPI_URL']
 
 # Initialize domain offset map
 domain_offset = {}
@@ -38,7 +39,8 @@ def cache_processed_member(func):
 
     def wrapped(member):
         if member['id'] in id_cache:
-            logger.info('Already processed {}, skip.'.format(member['displayName']))
+            logger.info('Already processed {}, skip.'.format(
+                member['displayName']))
             return
 
         try:
@@ -60,21 +62,16 @@ def process_user(user):
     if user['onPremisesSecurityIdentifier'] is None:
         return
 
-    uid = add_domain_offset(
-        user['onPremisesDomainName'],
-        user['onPremisesSecurityIdentifier']
-    )
-    gid = add_domain_offset(
-        user['onPremisesDomainName'],
-        '513'
-    )
+    uid = add_domain_offset(user['onPremisesDomainName'],
+                            user['onPremisesSecurityIdentifier'])
+    gid = add_domain_offset(user['onPremisesDomainName'], '513')
     groups = [str(gid)]
 
     for member_of_group in iter_user_member_of(user['id'], [
-        'id',
-        'displayName',
-        'onPremisesDomainName',
-        'onPremisesSecurityIdentifier',
+            'id',
+            'displayName',
+            'onPremisesDomainName',
+            'onPremisesSecurityIdentifier',
     ]):
         try:
             if member_of_group['onPremisesDomainName'] is None:
@@ -84,13 +81,13 @@ def process_user(user):
 
             member_of_group_id = add_domain_offset(
                 member_of_group['onPremisesDomainName'],
-                member_of_group['onPremisesSecurityIdentifier']
-            )
+                member_of_group['onPremisesSecurityIdentifier'])
             groups.append(str(member_of_group_id))
         except Exception:
             logger.exception('Exception in processing group', member_of_group)
 
-    update_identity(user['userPrincipalName'], uid, gid, groups)
+    update_identity(restfulapi_url, user['userPrincipalName'], uid, gid,
+                    groups)
 
 
 @cache_processed_member
@@ -102,18 +99,16 @@ def process_group(group):
     if group['onPremisesSecurityIdentifier'] is None:
         return
 
-    uid = gid = add_domain_offset(
-        group['onPremisesDomainName'],
-        group['onPremisesSecurityIdentifier']
-    )
+    uid = gid = add_domain_offset(group['onPremisesDomainName'],
+                                  group['onPremisesSecurityIdentifier'])
     groups = [str(gid)]
 
     for member_of_group in iter_group_member_of(group['id'], [
-        'id',
-        'displayName',
-        'mail',
-        'onPremisesDomainName',
-        'onPremisesSecurityIdentifier',
+            'id',
+            'displayName',
+            'mail',
+            'onPremisesDomainName',
+            'onPremisesSecurityIdentifier',
     ]):
         try:
             if member_of_group['onPremisesDomainName'] is None:
@@ -123,21 +118,20 @@ def process_group(group):
 
             member_of_group_id = add_domain_offset(
                 member_of_group['onPremisesDomainName'],
-                member_of_group['onPremisesSecurityIdentifier']
-            )
+                member_of_group['onPremisesSecurityIdentifier'])
             groups.append(str(member_of_group_id))
         except Exception:
             logger.exception('Exception in processing group', member_of_group)
 
-    update_identity(group['mail'], uid, gid, groups)
+    update_identity(restfulapi_url, group['mail'], uid, gid, groups)
 
     try:
         for member in iter_group_members(group['id'], [
-            'id',
-            'displayName',
-            'userPrincipalName',
-            'onPremisesDomainName',
-            'onPremisesSecurityIdentifier',
+                'id',
+                'displayName',
+                'userPrincipalName',
+                'onPremisesDomainName',
+                'onPremisesSecurityIdentifier',
         ]):
             if member['@odata.type'] == '#microsoft.graph.user':
                 process_user(member)
@@ -146,20 +140,21 @@ def process_group(group):
             else:
                 logger.warning('Skip {}'.format(member['displayName']))
     except Exception:
-        logger.exception('Exception in process group members {}'.format(member))
+        logger.exception(
+            'Exception in process group members {}'.format(member))
 
 
 def main():
-    for acl in iter_acls():
+    for acl in iter_acls(restfulapi_url):
         try:
             acl_name = acl['identityName']
 
             for group in iter_groups_by_mail(acl_name, [
-                'id',
-                'displayName',
-                'mail',
-                'onPremisesDomainName',
-                'onPremisesSecurityIdentifier',
+                    'id',
+                    'displayName',
+                    'mail',
+                    'onPremisesDomainName',
+                    'onPremisesSecurityIdentifier',
             ]):
                 process_group(group)
 
