@@ -21,7 +21,6 @@ fi
 ./deploy.py labelsku
 ./deploy.py webui
 ./deploy.py docker push restfulapi
-./deploy.py docker push webui
 ./deploy.py docker push watchdog
 ./deploy.py docker push gpu-reporter
 ./deploy.py docker push reaper
