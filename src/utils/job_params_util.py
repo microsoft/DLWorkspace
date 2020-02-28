@@ -56,6 +56,7 @@ def get_resource_params_from_job_params(params):
             memory += make_resource("memory", {sku: mem_request})
             gpu += make_resource("gpu", {sku: resource_gpu})
     elif job_type == "InferenceJob":
+        # Only support 1 GPU per worker now
         # Master
         cpu += make_resource("cpu", {sku: cpu_request})
         memory += make_resource("memory", {sku: mem_request})
@@ -64,7 +65,7 @@ def get_resource_params_from_job_params(params):
         for i in range(resource_gpu):
             cpu += make_resource("cpu", {sku: cpu_request})
             memory += make_resource("memory", {sku: mem_request})
-            gpu += make_resource("gpu", {sku: resource_gpu})
+            gpu += make_resource("gpu", {sku: 1})
     else:
         logger.warning("Unrecognized job type %s", job_type)
 
@@ -134,6 +135,7 @@ class JobParams(object):
         if len(sku_list) > 0:
             self.sku = sku_list[0]
 
+    @override
     def gen_gpu(self):
         # TODO: Deprecate resource_gpu in the future
         resource_gpu = self.params.get("resourcegpu")
@@ -146,6 +148,7 @@ class JobParams(object):
         if self.gpu_limit is not None:
             self.gpu_limit = int(self.gpu_limit)
 
+    @override
     def gen_policy(self):
         self.policy = make_job_resource_policy(self.sku, self.gpu_limit,
                                                self.config, self.quota,
@@ -275,10 +278,17 @@ class PSDistJobParams(JobParams):
 
 
 class InferenceJobParams(JobParams):
-    """Always allocate 1 GPU for each worker if any."""
+    """Always allocate 1 GPU for each worker if any.
+    NOTE: The behavior of a CPU inference job is undefined.
+    """
     def __init__(self, params, quota, metadata, config):
         super(InferenceJobParams, self).__init__(params, quota, metadata,
                                                  config)
+
+    def gen_policy(self):
+        self.policy = make_job_resource_policy(self.sku, 1,  # 1 GPU per worker
+                                               self.config, self.quota,
+                                               self.metadata)
 
 
 JOB_PARAMS_MAPPING = {
