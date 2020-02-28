@@ -34,7 +34,6 @@ class TestVirtualClusterStatus(TestCase):
             "memory_available",
             "memory_unschedulable",
             "memory_reserved",
-            "node_status",
             "pod_status",
             "user_status",
             "user_status_preemptable",
@@ -52,6 +51,7 @@ class TestVirtualClusterStatus(TestCase):
             "vc_pod_statuses",
             "vc_jobs",
             "vc_jobs_without_pods",
+            "node_status",
         ]
 
         cs = ClusterStatus({}, {}, [])
