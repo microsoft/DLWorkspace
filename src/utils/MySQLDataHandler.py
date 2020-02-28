@@ -8,6 +8,7 @@ import timeit
 
 import mysql.connector
 from prometheus_client import Histogram
+from vc_quota import vc_value_str
 
 from config import config, global_vars
 
@@ -42,63 +43,6 @@ def base64encode(str_val):
 
 def base64decode(str_val):
     return base64.b64decode(str_val.encode("utf-8")).decode("utf-8")
-
-
-def default_vc_entries(config):
-    if "worker_sku_cnt" not in config or "sku_mapping" not in config:
-        print("Warning: no default value would be added to VC table. Need to manually specify")
-        return ""
-
-    worker_sku_cnt, sku_mapping = config["worker_sku_cnt"], config["sku_mapping"]
-    quota_dict = {}
-    old_meta = {}
-    resource_quota = {"cpu":{}, "memory":{}, "gpu":{}, "gpu_memory":{}}
-    for sku, cnt in worker_sku_cnt.items():
-        gpu_type = sku_mapping.get(sku, {}).get("gpu-type", "None")
-        num_gpu_per_node = sku_mapping.get(sku, {}).get("gpu", 0)
-        quota_dict[gpu_type] = quota_dict.get(gpu_type, 0) + cnt * num_gpu_per_node
-        old_meta[gpu_type] = {"num_gpu_per_node": num_gpu_per_node}
-        sku_name_in_map = sku if sku in sku_mapping else ""
-        meta_tmp = sku_mapping.get(sku_name_in_map, {})
-        for r_type in resource_quota.keys():
-            resource_quota[r_type][sku_name_in_map] = resource_quota[r_type].get(sku_name_in_map, 0) + meta_tmp.get(r_type, 0) * cnt
-
-    for r_type in ["cpu", "memory"]:
-        for sku, val in resource_quota[r_type].items():
-            resource_quota[r_type][sku] *= 0.9
-
-    name_and_par = "AS SELECT \'{}\' AS vcName, NULL AS parent".format(config['defalt_virtual_cluster_name'])
-    quota = "'{}' AS quota".format(json.dumps(quota_dict, separators=(",", ":")))
-    metadata = "'{}' AS metadata".format(json.dumps(old_meta, separators=(",", ":")))
-
-    res_quota_dict = {}
-    for res, res_q in resource_quota.items():
-        tmp_res_quota = {}
-        for sku, cnt in res_q.items():
-            cnt_p = cnt
-            if "memory" in res:
-                cnt_p = '{}Gi'.format(cnt)
-            tmp_res_quota[sku] = cnt_p
-        res_quota_dict[res] = tmp_res_quota
-    res_quota = "'{}' AS resourceQuota".format(json.dumps(res_quota_dict, separators=(",", ":")))
-
-    res_meta_dict = {}
-    for r_type in ["cpu", "memory", "gpu", "gpu_memory"]:
-        tmp_res_meta = {}
-        for sku in worker_sku_cnt:
-            sku_name_in_map = sku if sku in sku_mapping else ""
-            pernode_cnt = sku_mapping.get(sku_name_in_map, {}).get(r_type, 0)
-            if "memory" in r_type:
-                pernode_cnt = '{}Gi'.format(pernode_cnt)
-            tmp_res_meta[sku_name_in_map] = {"per_node": pernode_cnt}
-            if r_type == "gpu":
-                tmp_res_meta[sku_name_in_map]["gpu_type"] = sku_mapping.get(sku_name_in_map, {}).get("gpu-type", "None")
-        res_meta_dict[r_type] = tmp_res_meta
-    res_meta = "'{}' AS resourceMetadata".format(json.dumps(res_meta_dict, separators=(",", ":")))
-
-    vc_init_val = ", ".join([name_and_par, quota, metadata, res_quota, res_meta]) + ";"
-    vc_init_val = vc_init_val.replace('"', '\\\"')
-    return vc_init_val
 
 
 class DataHandler(object):
@@ -260,16 +204,16 @@ class DataHandler(object):
                     `time`      DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
                     PRIMARY KEY (`id`),
                     CONSTRAINT `hierarchy` FOREIGN KEY (`parent`) REFERENCES `%s` (`vcName`)
-                )                
+                );
                 """ % (self.vctablename, self.vctablename)
-
-            default_vc_value = default_vc_entries(config)
-            sql += default_vc_value
 
             cursor = self.conn.cursor()
             cursor.execute(sql)
             self.conn.commit()
             cursor.close()
+
+            self.init_vc_sqls(config)
+
 
 
             sql = """
@@ -330,6 +274,21 @@ class DataHandler(object):
             self.conn.commit()
             cursor.close()
 
+    @record
+    def column_exists(self, tablename, columnname):
+        sql = "SHOW COLUMNS FROM `{}` LIKE '{}';".format(tablename, columnname)
+        cursor = self.conn.cursor()
+        cursor.execute(sql)
+        result = cursor.fetchone()
+        return result is not None
+
+    @record
+    def table_exists(self, tablename):
+        sql = "SHOW TABLES LIKE '{}'".format(tablename)
+        cursor = self.conn.cursor()
+        cursor.execute(sql)
+        result = cursor.fetchone()
+        return result is not None
 
     @record
     def AddStorage(self, vcName, url, storageType, metadata, defaultMountPath):
@@ -394,12 +353,23 @@ class DataHandler(object):
             return False
 
 
+    def init_vc_sqls(self, config):
+        ratio_dict = {config['defalt_virtual_cluster_name']: 1.0}
+        if "vc_resource_ratio" in config:
+            ratio_dict = config["vc_resource_ratio"]
+        quota, metadata, res_quota, res_meta = vc_value_str(config, ratio_dict)
+        if quota == "":
+            return
+        for vc, vc_res_quota in res_quota.items():
+            self.AddVC(vc, quota, metadata, vc_res_quota, res_meta)
+
+
     @record
-    def AddVC(self, vcName, quota, metadata):
+    def AddVC(self, vcName, quota, metadata, res_quota, res_meta):
         try:
-            sql = "INSERT INTO `"+self.vctablename+"` (vcName, quota, metadata) VALUES (%s,%s,%s)"
+            sql = "INSERT INTO `{}` (vcName, quota, metadata, resourceQuota, resourceMetadata) VALUES ('{}', '{}', '{}', '{}', '{}')".format(self.vctablename, vcName, quota, metadata, res_quota, res_meta)
             cursor = self.conn.cursor()
-            cursor.execute(sql, (vcName, quota, metadata))
+            cursor.execute(sql)
             self.conn.commit()
             cursor.close()
             return True
