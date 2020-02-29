@@ -64,6 +64,13 @@ spec:
           value: '{{cnf["elasticsearch"]["port"]["http"]}}'
         - name: "transport.port"
           value: '{{cnf["elasticsearch"]["port"]["transport"]}}'
+        resources:
+          requests:
+            cpu: 100m
+        {% if cnf["elasticsearch"]["cpu_limit"] %}
+          limits:
+            cpu: {{cnf["elasticsearch"]["cpu_limit"]}}
+        {% endif %}
         ports:
         - containerPort: {{cnf["elasticsearch"]["port"]["http"]}}
           name: http
