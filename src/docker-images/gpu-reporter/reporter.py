@@ -113,14 +113,22 @@ def get_monthly_idleness(prometheus_url):
     default = lambda: {"booked": 0, "idle": 0, "nonidle_util_sum": 0.0}
 
     # the first level is vc, the second level is user
-    result = collections.defaultdict(lambda: collections.defaultdict(default))
+    vc_level = collections.defaultdict(
+        lambda: collections.defaultdict(default))
+
+    # the first level is vc, the second level is user, the third level is job
+    user_level = collections.defaultdict(lambda: collections.defaultdict(
+        lambda: collections.defaultdict(default)))
 
     for metric in metrics:
         username = walk_json_field_safe(metric, "metric", "username")
         vc_name = walk_json_field_safe(metric, "metric", "vc_name")
-        if username is None or vc_name is None:
-            logger.warning("username or vc_name is missing for metric %s",
-                           walk_json_field_safe(metric, "metric"))
+        job_id = walk_json_field_safe(metric, "metric", "job_name")
+
+        if username is None or vc_name is None or job_id is None:
+            logger.warning(
+                "username or vc_name or job_id is missing for metric %s",
+                walk_json_field_safe(metric, "metric"))
             continue
 
         values = walk_json_field_safe(metric, "values")
@@ -138,11 +146,16 @@ def get_monthly_idleness(prometheus_url):
             else:
                 nonidle_util_sum += utils * step_seconds
 
-        result[vc_name][username]["booked"] += booked_seconds
-        result[vc_name][username]["idle"] += idleness_seconds
-        result[vc_name][username]["nonidle_util_sum"] += nonidle_util_sum
+        vc_level[vc_name][username]["booked"] += booked_seconds
+        vc_level[vc_name][username]["idle"] += idleness_seconds
+        vc_level[vc_name][username]["nonidle_util_sum"] += nonidle_util_sum
 
-    for vc_name, vc_values in result.items():
+        user_level[vc_name][username][job_id]["booked"] += booked_seconds
+        user_level[vc_name][username][job_id]["idle"] += idleness_seconds
+        user_level[vc_name][username][job_id][
+            "nonidle_util_sum"] += nonidle_util_sum
+
+    for vc_name, vc_values in vc_level.items():
         for username, user_val in vc_values.items():
             nonidle_time = user_val["booked"] - user_val["idle"]
             nonidle_util_sum = user_val["nonidle_util_sum"]
@@ -153,7 +166,19 @@ def get_monthly_idleness(prometheus_url):
                 user_val["nonidle_util"] = nonidle_util_sum / nonidle_time
             user_val.pop("nonidle_util_sum")
 
-    return result
+    for vc_name, vc_values in user_level.items():
+        for username, user_values in vc_values.items():
+            for job_id, job_val in user_values.items():
+                nonidle_time = job_val["booked"] - job_val["idle"]
+                nonidle_util_sum = job_val["nonidle_util_sum"]
+
+                if nonidle_time == 0:
+                    job_val["nonidle_util"] = 0.0
+                else:
+                    job_val["nonidle_util"] = nonidle_util_sum / nonidle_time
+                job_val.pop("nonidle_util_sum")
+
+    return {"vc_level": vc_level, "user_level": user_level}
 
 
 def refresher(prometheus_url, atomic_ref):
@@ -183,14 +208,25 @@ def serve(prometheus_url, port):
     @app.route("/gpu_idle", methods=["GET"])
     def get_gpu_idleness():
         vc_name = request.args.get("vc")
+        user_name = request.args.get("user")
         if vc_name is None:
             return Response("should provide vc parameter", 400)
 
-        result = atomic_ref.get()
-        if result is None or result.get(vc_name) is None:
-            return flask.jsonify({})
+        if user_name is None:
+            result = atomic_ref.get()
+            vc_level = result["vc_level"]
+            if result is None or vc_level.get(vc_name) is None:
+                return flask.jsonify({})
 
-        return flask.jsonify(result[vc_name])
+            return flask.jsonify(vc_level[vc_name])
+        else:
+            result = atomic_ref.get()
+            user_level = result["user_level"]
+            if result is None or user_level.get(vc_name) is None or user_level[
+                    vc_name].get(user_name) is None:
+                return flask.jsonify({})
+
+            return flask.jsonify(user_level[vc_name][user_name])
 
     @app.route("/metrics")
     def metrics():
