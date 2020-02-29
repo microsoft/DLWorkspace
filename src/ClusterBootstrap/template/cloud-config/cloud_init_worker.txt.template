@@ -11,6 +11,7 @@ runcmd:
  - echo "export KUBE_LABELS=\"{{cnf['kube_labels'] | join(',')}}\"" >> boot.env
  - echo "export ETCD_ENDPOINTS='{{cnf["etcd_endpoints"]}}'" >> boot.env
  - echo "export KUBE_API_SERVER='{{cnf["api_servers"]}}'" >> boot.env
+ - echo "export MOD_2_CP='{{cnf["file_modules_2_copy"] | join(';')}}'" >> boot.env
  # file share mount
  - echo "export MNT_N_LNK='{{cnf["mount_and_link"] | join(';')}}'" >> boot.env
  - curl -fsSL https://get.docker.com -o get-docker.sh; sh get-docker.sh

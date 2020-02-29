@@ -43,3 +43,18 @@ grep RPCNFSDCOUNT /etc/default/nfs-kernel-server
 
 sudo systemctl restart nfs-kernel-server.service
 sudo exportfs -a
+
+bash ./prepare_ubuntu.sh
+bash ./disable_kernel_auto_updates.sh
+bash ./docker_network_gc_setup.sh
+bash ./dns.sh
+
+bash ./pre-worker-deploy.sh
+source ../boot.env
+./cloud_init_mkdir_and_cp.py -p file_map.yaml -u $USER -m $MOD_2_CP
+
+./render_env_vars.sh kubelet_worker/deploy/kubelet/options.env.template /etc/flannel/options.env ETCD_ENDPOINTS
+./render_env_vars.sh kubelet_worker/deploy/kubelet/worker-kubeconfig.yaml.template /etc/kubernetes/worker-kubeconfig.yaml KUBE_API_SERVER
+./render_env_vars.sh worker.kubelet.service.template /etc/systemd/system/kubelet.service KUBE_LABELS
+
+bash ./post-worker-deploy.sh

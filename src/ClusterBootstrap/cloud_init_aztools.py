@@ -301,7 +301,7 @@ def add_machines(config, args):
         os.system('chmod +x ' + args.output)
     if delay_run:
         outputs = add_machine_in_parallel(commands_list, args)
-    return outputs
+        return outputs
 
 
 def is_independent_nfs(role):

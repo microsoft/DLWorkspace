@@ -8,7 +8,9 @@ bash ./dns.sh
 
 # TODO if necessary, later make it filemap4$ROLE
 source ../boot.env
-awk -F, '{print $1, $2}' infra.filemap | xargs -l ./mkdir_and_cp.sh
+# awk -F, '{print $1, $2}' infra.filemap | xargs -l ./mkdir_and_cp.sh
+./cloud_init_mkdir_and_cp.py -p file_map.yaml -u $USER -m $MOD_2_CP
+
 sudo systemctl stop etcd3
 sudo mkdir -p /etc/etcd/ssl
 sudo chown $USER /etc/etcd/ssl
@@ -25,8 +27,8 @@ done;
 bash ./init_network.sh
 # render ip to kube-apiserver.yaml
 export MASTER_IP=$(cat /opt/defaultip)
-./render_env_vars.sh infra/deploy/master/kube-apiserver.yaml infra/deploy/master/kube-apiserver.yaml.1st MASTER_IP
-./render_env_vars.sh infra/deploy/master/kube-apiserver.yaml.1st /etc/kubernetes/manifests/kube-apiserver.yaml ETCD_ENDPOINTS 
+./render_env_vars.sh kubernetes_infra/deploy/master/kube-apiserver.yaml kubernetes_infra/deploy/master/kube-apiserver.yaml.1st MASTER_IP
+./render_env_vars.sh kubernetes_infra/deploy/master/kube-apiserver.yaml.1st /etc/kubernetes/manifests/kube-apiserver.yaml ETCD_ENDPOINTS 
 ./render_env_vars.sh infra.kubelet.service.template /etc/systemd/system/kubelet.service KUBE_LABELS 
 
 bash ./pre-master-deploy.sh
