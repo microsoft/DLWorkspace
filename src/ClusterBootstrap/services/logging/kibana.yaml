@@ -4,17 +4,17 @@ metadata:
   name: kibana
   namespace: kube-system
   labels:
-    k8s-app: kibana
+    app: kibana
     kubernetes.io/cluster-service: "true"
     addonmanager.kubernetes.io/mode: Reconcile
 spec:
   selector:
     matchLabels:
-      k8s-app: kibana
+      app: kibana
   template:
     metadata:
       labels:
-        k8s-app: kibana
+        app: kibana
     spec:
       hostNetwork: true
       nodeSelector:

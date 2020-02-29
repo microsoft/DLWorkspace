@@ -4,17 +4,17 @@ metadata:
   name: fluentd
   namespace: kube-system
   labels:
-    k8s-app: fluentd
+    app: fluentd
     kubernetes.io/cluster-service: "true"
     addonmanager.kubernetes.io/mode: Reconcile
 spec:
   selector:
     matchLabels:
-      k8s-app: fluentd
+      app: fluentd
   template:
     metadata:
       labels:
-        k8s-app: fluentd
+        app: fluentd
         kubernetes.io/cluster-service: "true"
       annotations:
         prometheus.io/scrape: 'true'

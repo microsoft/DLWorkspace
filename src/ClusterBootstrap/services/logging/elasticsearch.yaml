@@ -4,17 +4,17 @@ metadata:
   name: elasticsearch
   namespace: kube-system
   labels:
-    k8s-app: elasticsearch
+    app: elasticsearch
     kubernetes.io/cluster-service: "true"
     addonmanager.kubernetes.io/mode: Reconcile
 spec:
   selector:
     matchLabels:
-      k8s-app: elasticsearch
+      app: elasticsearch
   template:
     metadata:
       labels:
-        k8s-app: elasticsearch
+        app: elasticsearch
       annotations:
         prometheus.io/scrape: 'true'
         prometheus.io/path: '/metrics'
@@ -111,11 +111,11 @@ metadata:
   name: elasticsearch
   namespace: kube-system
   labels:
-    k8s-app: elasticsearch
+    app: elasticsearch
     addonmanager.kubernetes.io/mode: Reconcile
 spec:
   selector:
-    k8s-app: elasticsearch
+    app: elasticsearch
   ports:
   - name: http
     port: {{cnf["elasticsearch"]["port"]["http"]}}
