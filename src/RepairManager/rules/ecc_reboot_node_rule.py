@@ -16,8 +16,6 @@ from email.mime.text import MIMEText
 
 activity_log = logging.getLogger('activity')
 
-DATE_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
-
 def _extract_node_boot_time_info(response):
     node_boot_times = {}
 
@@ -72,16 +70,6 @@ class ECCRebootNodeRule(Rule):
         with open('/etc/RepairManager/config/ecc-config.yaml', 'r') as file:
             return yaml.safe_load(file)
 
-    def _get_job_info(self, nodes):
-        pods = k8s_util.list_namespaced_pod("default")
-        job_params = {
-            "pods": pods,
-            "nodes": nodes,
-            "portal_url": self.config["portal_url"],
-            "cluster_name": self.config["cluster_name"]
-        }
-        job_info = k8s_util._get_job_info_from_nodes(**job_params)
-        return job_info
 
     def check_status(self):
         url = f"http://{self.ecc_config['prometheus']['ip']}:{self.ecc_config['prometheus']['port']}"
@@ -101,7 +89,7 @@ class ECCRebootNodeRule(Rule):
                     for node in self.alert.rule_cache[self.rule]:
                         instance = self.alert.rule_cache[self.rule][node]["instance"]
                         time_found_string = self.alert.rule_cache[self.rule][node]["time_found"]
-                        time_found_datetime = datetime.strptime(time_found_string, DATE_FORMAT)
+                        time_found_datetime = datetime.strptime(time_found_string, self.config['date_time_format'])
                         last_reboot_time = reboot_times[instance]
                         if last_reboot_time > time_found_datetime:
                             remove_from_cache.append(node)
@@ -119,7 +107,7 @@ class ECCRebootNodeRule(Rule):
                 cache_value = self.alert.get_rule_cache(self.rule, node)
                 if 'paused/resumed' not in cache_value:
                     time_found_string = self.alert.rule_cache[self.rule][node]["time_found"]
-                    time_found_datetime = datetime.strptime(time_found_string, DATE_FORMAT)
+                    time_found_datetime = datetime.strptime(time_found_string, self.config['date_time_format'])
                     delta = timedelta(days=self.ecc_config.get("days_until_node_reboot", 5))
                     now = datetime.utcnow()
                     if now - time_found_datetime > delta:
@@ -133,7 +121,10 @@ class ECCRebootNodeRule(Rule):
     def take_action(self):
         alert_action = SendAlertAction(self.alert)
         unsuccessful_pause_resume_jobs = {}
-        job_info = self._get_job_info(self.nodes_ready_for_action)
+        job_info = k8s_util._get_job_info_from_nodes(
+            nodes=self.nodes_ready_for_action,
+            portal_url=self.config['portal_url'],
+            cluster_name=self.config['cluster_name'])
 
         for job_id in job_info:
             job_owner = job_info[job_id]['user_name']

@@ -17,15 +17,6 @@ from kubernetes.client.models.v1_pod import V1Pod
 from kubernetes.client.models.v1_object_meta import V1ObjectMeta
 from kubernetes.client.models.v1_pod_spec import V1PodSpec
 
-### Please fill in SMTP info and enable tests to receive emails ###
-SMTP_URL = '[SMTP_URL]'
-LOGIN = '[LOGIN]'
-PASSWORD = '[PASSWORD]'
-SENDER = '[SENDER]'
-JOB_OWNER_EMAIL = '[JOB_OWNER_EMAIL]'
-DRI_EMAIL = '[DRI_EMAIL]'
-
-
 def _mock_v1_node(internal_ip, hostname):
     node = V1Node()
     address_ip = V1NodeAddress(internal_ip, "InternalIP")
@@ -51,7 +42,8 @@ def _mock_rule_config():
         "cluster_name": "mock-cluster",
         "portal_url": "dltshub.example.com",
         "job_owner_email_domain": "example.com",
-        "restore_from_rule_cache_dump": False
+        "restore_from_rule_cache_dump": False,
+        "date_time_format": "%Y-%m-%d %H:%M:%S.%f"
     }
     return rule_config
 
@@ -63,7 +55,7 @@ def _mock_ecc_config():
                 "port": 9091,
                 "ecc_error_query": 'nvidiasmi_ecc_error_count{type="volatile_double"}>0'
             },
-            "alert_job_owners": False,
+            "alert_job_owners": True,
             "dri_email": "dri@email.com",
             "reboot_dry_run": False,
             "days_until_node_reboot": 5
@@ -195,7 +187,7 @@ class Testing(unittest.TestCase):
     @mock.patch('rules.ecc_detect_error_rule.k8s_util.list_node')
     @mock.patch('rules.ecc_detect_error_rule.requests.get')
     @mock.patch('rules.ecc_detect_error_rule.ECCDetectErrorRule.load_ecc_config')
-    def test_check_status_ecc_error_already_detected(self, 
+    def test_check_status_ecc_error_node_already_detected(self, 
             mock_load_ecc_config,
             mock_request_get,
             mock_list_node,
@@ -251,19 +243,21 @@ class Testing(unittest.TestCase):
         self.assertEqual(len(ecc_rule_instance.new_bad_nodes), 0)
 
 
+    @mock.patch('rules.ecc_detect_error_rule._create_email_for_job_owner')
     @mock.patch('rules.ecc_detect_error_rule._create_email_for_dris')
     @mock.patch('rules.ecc_detect_error_rule.k8s_util.cordon_node')
-    @mock.patch('rules.ecc_detect_error_rule.k8s_util.list_namespaced_pod')
+    @mock.patch('utils.k8s_util.list_namespaced_pod')
     @mock.patch('utils.email_util.EmailHandler')
     @mock.patch('rules.ecc_detect_error_rule.ECCDetectErrorRule.load_ecc_config')
     @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
-    def test_take_action_new_ecc_found(self,
+    def test_take_action(self,
             mock_load_rule_config,
             mock_load_ecc_config,
             mock_email_handler,
             mock_pod_list,
             mock_cordon_node,
-            mock_create_email_for_dris):
+            mock_create_email_for_dris,
+            mock_create_email_for_job_owner):
         mock_rule_config = _mock_rule_config()
         mock_load_rule_config.return_value = mock_rule_config
         mock_load_ecc_config.return_value = _mock_ecc_config()
@@ -275,151 +269,23 @@ class Testing(unittest.TestCase):
             "mock_worker_two": "192.168.0.2"
         }
 
-        pod_one = _mock_v1_pod("87654321-wxyz", "user1", "vc1", "node1")
-        pod_two = _mock_v1_pod("12345678-abcd", "user2", "vc2", "node1")
-        pod_three = _mock_v1_pod("12345678-abcd", "user2", "vc2", "node2")
-        pod_four = _mock_v1_pod("99999999-efgh", "user3", "vc3", "node3")
+        pod_one = _mock_v1_pod("87654321-wxyz", "user1", "vc1", "mock_worker_one")
+        pod_two = _mock_v1_pod("12345678-abcd", "user2", "vc2", "mock_worker_one")
+        pod_three = _mock_v1_pod("12345678-abcd", "user2", "vc2", "mock_worker_two")
+        pod_four = _mock_v1_pod("99999999-efgh", "user3", "vc3", "mock_worker_three")
         mock_pod_list.return_value = V1PodList(items=[pod_one, pod_two, pod_three, pod_four])
 
         ecc_rule_instance.take_action()
 
         self.assertEqual(2, mock_cordon_node.call_count)
         self.assertEqual(1, mock_create_email_for_dris.call_count)
+        self.assertEqual(2, mock_create_email_for_job_owner.call_count)
 
         self.assertTrue("ecc_rule" in alert.rule_cache)
         self.assertTrue("mock_worker_one" in alert.rule_cache["ecc_rule"])
         self.assertEqual("192.168.0.1", alert.rule_cache["ecc_rule"]["mock_worker_one"]["instance"])
         self.assertTrue("mock_worker_two" in alert.rule_cache["ecc_rule"])
         self.assertEqual("192.168.0.2", alert.rule_cache["ecc_rule"]["mock_worker_two"]["instance"])
-
-
-    @mock.patch('rules.ecc_detect_error_rule.k8s_util.list_namespaced_pod')
-    @mock.patch('rules.ecc_detect_error_rule.k8s_util.cordon_node')
-    @mock.patch('rules.ecc_detect_error_rule.k8s_util.is_node_cordoned')
-    @mock.patch('utils.email_util.EmailHandler.load_config')
-    @mock.patch('rules.ecc_detect_error_rule.ECCDetectErrorRule.load_ecc_config')
-    @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
-    def test_take_action_send_emails(self,
-            mock_load_rule_config,
-            mock_load_ecc_config,
-            mock_email_load_config,
-            mock_is_node_cordoned,
-            mock_cordon_node,
-            mock_pod_info):
-
-        #####################################################
-        ##  Please fill in SMTP info above to send emails  ##
-        #####################################################
-        enable_test = False
-        ####################################################
-
-        if enable_test:
-            mock_load_ecc_config.return_value = _mock_ecc_config()
-            mock_load_ecc_config.return_value["alert_job_owners"] = True
-            mock_load_ecc_config.return_value["dri_email"] = DRI_EMAIL
-
-            mock_email_load_config.return_value = {
-                "smtp_url": SMTP_URL,
-                "login": LOGIN,
-                "password": PASSWORD,
-                "sender": SENDER,
-                "default_recepient": DRI_EMAIL
-
-            }
-
-            owner_email_split = JOB_OWNER_EMAIL.split('@')
-            mock_job_owner_username = owner_email_split[0]
-            mock_job_owner_email_domain = owner_email_split[1]
-
-            # Mock Job and Job Owner Info
-            pod_one = _mock_v1_pod("87654321-wxyz", mock_job_owner_username, "vc1", "mock_worker_one")
-            pod_two = _mock_v1_pod("12345678-abcd", mock_job_owner_username, "vc2", "mock_worker_one")
-            pod_three = _mock_v1_pod("12345678-abcd", mock_job_owner_username, "vc2", "mock_worker_two")
-            pod_four = _mock_v1_pod("99999999-efgh", mock_job_owner_username, "vc3", "mock_worker_three")
-            mock_pod_list = V1PodList(items=[pod_one, pod_two, pod_three, pod_four])
-            mock_pod_info.return_value = mock_pod_list
-
-            mock_cordon_node.return_value = "node cordoned successfully"
-
-            alert = rule_alert_handler.RuleAlertHandler()
-
-            # first node is schedulable
-            # second node has already been marked as unschedulable
-            mock_is_node_cordoned.side_effect = [False, True]
-
-            mock_rule_config = _mock_rule_config()
-            mock_rule_config["job_owner_email_domain"] = mock_job_owner_email_domain
-            mock_load_rule_config.return_value = mock_rule_config
-
-            ecc_rule_instance = ECCDetectErrorRule(alert, mock_rule_config)
-            ecc_rule_instance.new_bad_nodes = {
-                "mock_worker_one": "192.168.0.1",
-                "mock_worker_two": "192.168.0.2"
-            }
-            
-            ecc_rule_instance.take_action()
-
-
-    @mock.patch('rules.ecc_detect_error_rule.k8s_util.list_namespaced_pod')
-    @mock.patch('rules.ecc_detect_error_rule.k8s_util.cordon_node')
-    @mock.patch('rules.ecc_detect_error_rule.k8s_util.is_node_cordoned')
-    @mock.patch('utils.email_util.EmailHandler.load_config')
-    @mock.patch('rules.ecc_detect_error_rule.ECCDetectErrorRule.load_ecc_config')
-    @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
-    def test_create_email_for_job_owner(self,
-            mock_load_rule_config,
-            mock_load_ecc_config,
-            mock_email_load_config,
-            mock_is_node_cordoned,
-            mock_cordon_node,
-            mock_pod_info):
-
-        #####################################################
-        ##  Please fill in SMTP info above to send emails  ##
-        #####################################################
-        enable_test = False
-        ####################################################
-
-        if enable_test:
-            mock_load_ecc_config.return_value = _mock_ecc_config()
-            mock_load_ecc_config.return_value["alert_job_owners"] = True
-            mock_load_ecc_config.return_value["dri_email"] = DRI_EMAIL
-
-            mock_email_load_config.return_value = {
-                "smtp_url": SMTP_URL,
-                "login": LOGIN,
-                "password": PASSWORD,
-                "sender": SENDER,
-                "default_recepient": DRI_EMAIL
-            }
-
-            rule_alert_handler_instance = rule_alert_handler.RuleAlertHandler()
-
-            # reboot_dry_run = True
-            email_params = {
-                "job_id": "job-abc-123",
-                "job_owner_email":  JOB_OWNER_EMAIL,
-                "node_names": ["node1", "node2"], 
-                "job_link": "example.dlts.com/fake-cluster/fake-link",
-                "cluster_name": "mock-cluster",
-                "reboot_dry_run": True,
-                "days_until_reboot": 5
-            }
-            message = ecc_detect_error_rule._create_email_for_job_owner(**email_params)
-            rule_alert_handler_instance.send_alert(message)
-
-            # reboot_dry_run = False
-            email_params = {
-                "job_id": "job-abc-123",
-                "job_owner_email":  JOB_OWNER_EMAIL,
-                "node_names": ["node1", "node2"], 
-                "job_link": "example.dlts.com/fake-cluster/fake-link",
-                "cluster_name": "mock-cluster",
-                "reboot_dry_run": False,
-                "days_until_reboot": 5
-            }
-            message = ecc_detect_error_rule._create_email_for_job_owner(**email_params)
-            rule_alert_handler_instance.send_alert(message)            
 
 
 if __name__ == '__main__':

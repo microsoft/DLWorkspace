@@ -48,7 +48,8 @@ def list_namespaced_pod(namespace):
     return api_instance.list_namespaced_pod(namespace)
 
 
-def _get_job_info_from_nodes(pods, nodes, portal_url, cluster_name):
+def _get_job_info_from_nodes(nodes, portal_url, cluster_name):
+    pods = list_namespaced_pod()
     jobs = {}
     for pod in pods.items:
         if pod.metadata and pod.metadata.labels:

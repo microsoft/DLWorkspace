@@ -16,8 +16,6 @@ from email.mime.text import MIMEText
 
 activity_log = logging.getLogger('activity')
 
-DATE_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
-
 def _get_node_address_info(node_info):
     # map InternalIP to Hostname
     address_map = {}
@@ -44,16 +42,6 @@ def _extract_ips_from_ecc_data(ecc_data):
             ecc_node_ips.append(offending_node_ip)
         return ecc_node_ips
 
-def _get_impacted_jobs(new_bad_nodes, portal_url, cluster_name):
-    pods = k8s_util.list_namespaced_pod("default")
-    job_params = {
-        "pods": pods,
-        "nodes": new_bad_nodes,
-        "portal_url": portal_url,
-        "cluster_name": cluster_name
-    }
-    impacted_jobs = k8s_util._get_job_info_from_nodes(**job_params)
-    return impacted_jobs
 
 def _create_email_for_dris(nodes, action_status, jobs, cluster_name):
     message = MIMEMultipart()
@@ -116,7 +104,7 @@ class ECCDetectErrorRule(Rule):
     def update_rule_cache_with_bad_nodes(self):
         for node_name in self.new_bad_nodes:
             cache_value = {
-                'time_found': datetime.utcnow().strftime(DATE_FORMAT),
+                'time_found': datetime.utcnow().strftime(self.config['date_time_format']),
                 'instance': self.new_bad_nodes[node_name]
             }
             self.alert.update_rule_cache(self.rule, node_name, cache_value)
@@ -160,7 +148,10 @@ class ECCDetectErrorRule(Rule):
             cordon_action = CordonAction()
             action_status[node_name] = cordon_action.execute(node_name, self.ecc_config['cordon_dry_run'])
 
-        impacted_jobs = _get_impacted_jobs(self.new_bad_nodes, self.config['portal_url'], self.config['cluster_name'])
+        impacted_jobs = k8s_util._get_job_info_from_nodes(
+            nodes=self.new_bad_nodes,
+            portal_url=self.config['portal_url'],
+            cluster_name=self.config['cluster_name'])
 
         # send alert email to DRI
         dri_message = _create_email_for_dris(
@@ -184,7 +175,10 @@ class ECCDetectErrorRule(Rule):
                     reboot_dry_run=self.ecc_config['reboot_dry_run'],
                     days_until_reboot=self.ecc_config.get('days_until_node_reboot', 5)
                 )
-                additional_log = {"job_id":job_id,"job_owner":job_info['user_name'],"nodes":job_info['node_names']}
+                additional_log = {
+                    "job_id": job_id,
+                    "job_owner": job_info['user_name'],
+                    "nodes": job_info['node_names']}
                 alert_action.execute(job_owner_message, additional_log)
 
         self.update_rule_cache_with_bad_nodes()
