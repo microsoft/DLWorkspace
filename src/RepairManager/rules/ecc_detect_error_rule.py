@@ -3,7 +3,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from rules_abc import Rule
 from actions.cordon_action import CordonAction
-from actions.send_alert import SendAlert
+from actions.send_alert_action import SendAlertAction
 from kubernetes import client, config
 from utils import k8s_util, email_util, prometheus_url
 from datetime import datetime, timezone
@@ -169,7 +169,7 @@ class ECCDetectErrorRule(Rule):
             jobs=impacted_jobs,
             cluster_name=self.config['cluster_name']
         )
-        alert_action = SendAlert(self.alert)
+        alert_action = SendAlertAction(self.alert)
         alert_action.execute(dri_message, {"bad_nodes": self.new_bad_nodes})
 
         # send alert email to impacted job owners
@@ -184,7 +184,7 @@ class ECCDetectErrorRule(Rule):
                     reboot_dry_run=self.ecc_config['reboot_dry_run'],
                     days_until_reboot=self.ecc_config.get('days_until_node_reboot', 5)
                 )
-                additional_log = {"job_id":job_id, "job_owner":job_info['user_name'],"nodes":job_info['node_names']}
+                additional_log = {"job_id":job_id,"job_owner":job_info['user_name'],"nodes":job_info['node_names']}
                 alert_action.execute(job_owner_message, additional_log)
 
         self.update_rule_cache_with_bad_nodes()

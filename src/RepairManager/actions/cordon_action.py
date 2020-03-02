@@ -10,7 +10,7 @@ class CordonAction(Action):
     def __init__(self):
         self.action_logger = logging.getLogger('activity')
 
-    def execute(self, node_name, dry_run):
+    def execute(self, node_name, dry_run=False):
         cordon_status = k8s_util.cordon_node(node_name, dry_run=dry_run)
 
         self.action_logger.info({

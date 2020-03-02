@@ -6,6 +6,8 @@ import logging
 import yaml
 import requests
 import time
+from actions.migrate_job_action import MigrateJobAction
+from actions.send_alert_action import SendAlertAction
 from datetime import datetime, timedelta, timezone
 from rules_abc import Rule
 from utils import prometheus_url, k8s_util
@@ -27,59 +29,6 @@ def _extract_node_boot_time_info(response):
                 node_boot_times[instance] = boot_datetime
     
     return node_boot_times
-
-def _pause_resume_job(rest_url, job_id, job_owner_email, attempts, wait_time, dry_run):
-    try:
-        if dry_run:
-            return True
-        else:
-            pause_resp = _pause_job(rest_url, job_id, job_owner_email, attempts) 
-            if pause_resp:      
-                status_resp = _wait_for_job_to_pause(rest_url, job_id, attempts, wait_time)
-                if status_resp:
-                    resume_resp = _resume_job(rest_url, job_id, job_owner_email, attempts)
-                    if resume_resp:
-                        return True
-    except:
-        logging.exception(f'Error pausing/resuming job {job_id}')
-    
-    return False
-
-
-def _pause_job(rest_url, job_id, job_owner_email, attempts):
-    for i in range(attempts):
-        pause_url = f'{rest_url}/PauseJob?userName={job_owner_email}&jobId={job_id}'
-        pause_resp = requests.get(pause_url).json()
-        if pause_resp is not None \
-            and "result" in pause_resp \
-            and "success" in pause_resp["result"].lower():
-            return True
-        time.sleep(5)
-    return False
-
-
-def _resume_job(rest_url, job_id, job_owner_email, attempts):
-    for i in range(attempts):
-        resume_url = f'{rest_url}/ResumeJob?userName={job_owner_email}&jobId={job_id}'
-        resume_resp = requests.get(resume_url).json()
-        if resume_resp is not None \
-            and "result" in resume_resp \
-            and "success" in resume_resp["result"].lower():
-            return True
-        time.sleep(5)
-    return False
-
-
-def _wait_for_job_to_pause(rest_url, job_id, attempts, wait_time):
-    for i in range(attempts):
-        time.sleep(wait_time)
-        status_url = f'{rest_url}/GetJobStatus?jobId={job_id}'
-        status_resp = requests.get(status_url).json()
-        if status_resp is not None \
-            and "jobStatus" in status_resp \
-            and status_resp["jobStatus"] == "paused":
-            return True
-    return False
 
 
 def _create_email_for_pause_resume_job(job_id, node_names, job_link, job_owner_email):
@@ -122,6 +71,17 @@ class ECCRebootNodeRule(Rule):
     def load_ecc_config(self):
         with open('/etc/RepairManager/config/ecc-config.yaml', 'r') as file:
             return yaml.safe_load(file)
+
+    def _get_job_info(self, nodes):
+        pods = k8s_util.list_namespaced_pod("default")
+        job_params = {
+            "pods": pods,
+            "nodes": nodes,
+            "portal_url": self.config["portal_url"],
+            "cluster_name": self.config["cluster_name"]
+        }
+        job_info = k8s_util._get_job_info_from_nodes(**job_params)
+        return job_info
 
     def check_status(self):
         url = f"http://{self.ecc_config['prometheus']['ip']}:{self.ecc_config['prometheus']['port']}"
@@ -171,16 +131,9 @@ class ECCRebootNodeRule(Rule):
 
 
     def take_action(self):
-        pods = k8s_util.list_namespaced_pod("default")
-        job_params = {
-            "pods": pods,
-            "nodes": self.nodes_ready_for_action,
-            "portal_url": self.config["portal_url"],
-            "cluster_name": self.config["cluster_name"]
-        }
-        job_info = k8s_util._get_job_info_from_nodes(**job_params)
-
+        alert_action = SendAlertAction(self.alert)
         unsuccessful_pause_resume_jobs = {}
+        job_info = self._get_job_info(self.nodes_ready_for_action)
 
         for job_id in job_info:
             job_owner = job_info[job_id]['user_name']
@@ -188,32 +141,25 @@ class ECCRebootNodeRule(Rule):
             node_names = job_info[job_id]["node_names"]
             job_link = job_info[job_id]['job_link']
             reboot_dry_run = self.ecc_config.get("reboot_dry_run", True)
+            rest_url = self.ecc_config["rest_url"]
+            max_attempts = self.ecc_config.get("attempts_for_pause_resume_jobs", 5)
+            wait_time = self.ecc_config.get("time_sleep_after_pausing", 30)
 
-            # attempt to pause/resume job
-            pause_resume_params = {
-                "rest_url": self.ecc_config["rest_url"],
-                "job_id": job_id,
-                "job_owner_email": job_owner_email,
-                "attempts": self.ecc_config.get("attempts_for_pause_resume_jobs", 5),
-                "wait_time": self.ecc_config.get("time_sleep_after_pausing", 30),
-                "dry_run": reboot_dry_run
-            }
-            success = _pause_resume_job(**pause_resume_params)
-            activity_log.info({"action":"pause/resume job","job_id":job_id,"job_owner":job_owner,"success":success,"dry_run":reboot_dry_run})
+            # migrate all jobs
+            migrate_job = MigrateJobAction(rest_url, max_attempts)
+            success = migrate_job.execute(job_id, job_owner_email, wait_time, reboot_dry_run)
 
             if success:
                 if self.ecc_config["alert_job_owners"] and not reboot_dry_run:
                     message = _create_email_for_pause_resume_job(job_id, node_names, job_link, job_owner_email)
-                    self.alert.send_alert(message)
-                    activity_log.info({"action":"job owner alert - pause/resume","job_id":job_id,"job_owner":job_owner})
+                    alert_action.execute(message, {"job_id":job_id,"job_owner":job_owner})
             else:
                 logging.warning(f"Could not pause/resume the following job: {job_id}")
                 unsuccessful_pause_resume_jobs[job_id] = job_info[job_id]
             
-            if len(unsuccessful_pause_resume_jobs) > 0:
-                message = _create_email_for_issue_with_pause_resume_job(unsuccessful_pause_resume_jobs)
-                self.alert.send_alert(message)
-                activity_log.info(activity_log.info({"action":"dri alert - failed to pause/resume","job_id":job_id,"job_owner":job_owner}))
+        if len(unsuccessful_pause_resume_jobs) > 0:
+            dri_message = _create_email_for_issue_with_pause_resume_job(unsuccessful_pause_resume_jobs)
+            alert_action.execute(dri_message, {"job_id":job_id,"job_owner":job_owner})
 
         # TODO: reboot node and remove from cache
 

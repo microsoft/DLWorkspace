@@ -246,14 +246,12 @@ class Testing(unittest.TestCase):
     @mock.patch('rules.ecc_detect_error_rule.k8s_util.list_namespaced_pod')
     @mock.patch('rules.ecc_reboot_node_rule.ECCRebootNodeRule.load_ecc_config')
     @mock.patch('utils.email_util.EmailHandler')
-    @mock.patch('rules.ecc_detect_error_rule.requests.get')
-    @mock.patch('rules.ecc_reboot_node_rule._wait_for_job_to_pause')
+    @mock.patch('requests.get')
     @mock.patch('rules.ecc_reboot_node_rule._create_email_for_pause_resume_job')
     @mock.patch('utils.rule_alert_handler.RuleAlertHandler.load_config')
     def test_take_action(self, 
         mock_load_rule_config,
         mock_create_email_for_pause_resume_job,
-        mock_wait_for_job_to_pause, 
         mock_get_requests,
         mock_email_handler,
         mock_load_ecc_config,
@@ -265,13 +263,26 @@ class Testing(unittest.TestCase):
         mock_load_ecc_config.return_value = _mock_ecc_config()
         mock_load_ecc_config.return_value["alert_job_owners"] = True
 
-        mock_get_requests.return_value.json.return_value = {"result": "Success, something happened."}
-
-        mock_wait_for_job_to_pause.return_value = {
-            "errorMsg": None,
+        mock_get_requests.return_value.json.side_effect = [
+            # job 1
+            {"result": "Success, job paused."},
+            {"errorMsg": None,
             "jobStatus": "paused",
-            "jobTime": "Thu, 30 Jan 2020 23:43:00 GMT"
-        }
+            "jobTime": "Thu, 30 Jan 2020 23:43:00 GMT"},
+            {"result": "Success, job resumed."},
+            # job 2
+            {"result": "Success, job paused."},
+            {"errorMsg": None,
+            "jobStatus": "paused",
+            "jobTime": "Thu, 30 Jan 2020 23:43:00 GMT"},
+            {"result": "Success, job resumed."},
+            # job 3
+            {"result": "Success, job paused."},
+            {"errorMsg": None,
+            "jobStatus": "paused",
+            "jobTime": "Thu, 30 Jan 2020 23:43:00 GMT"},
+            {"result": "Success, job resumed."}
+        ]
 
         rule_alert_handler_instance = rule_alert_handler.RuleAlertHandler()
         rule_alert_handler_instance.rule_cache["ecc_rule"] = {

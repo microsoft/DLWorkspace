@@ -6,7 +6,7 @@ from action_abc import Action
 from utils import k8s_util
 
 
-class SendAlert(Action):
+class SendAlertAction(Action):
 
     def __init__(self, alert_handler):
         self.action_logger = logging.getLogger('activity')
