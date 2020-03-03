@@ -21,8 +21,8 @@ module.exports = async context => {
   for (const [type, number] of _team.get('cpu_capacity').entries()) {
     _setBody(['types', type, 'cpu', 'total'], number)
   }
-  for (const [type, number] of _team.get('cpu_reserved').entries()) {
-    _setBody(['types', type, 'cpu', 'reserved'], number)
+  for (const [type, number] of _team.get('cpu_unschedulable').entries()) {
+    _setBody(['types', type, 'cpu', 'unschedulable'], number)
   }
   for (const [type, number] of _team.get('cpu_used').entries()) {
     _setBody(['types', type, 'cpu', 'used'], number)
@@ -37,8 +37,8 @@ module.exports = async context => {
   for (const [type, number] of _team.get('gpu_capacity').entries()) {
     _setBody(['types', type, 'gpu', 'total'], number)
   }
-  for (const [type, number] of _team.get('gpu_reserved').entries()) {
-    _setBody(['types', type, 'gpu', 'reserved'], number)
+  for (const [type, number] of _team.get('gpu_unschedulable').entries()) {
+    _setBody(['types', type, 'gpu', 'unschedulable'], number)
   }
   for (const [type, number] of _team.get('gpu_used').entries()) {
     _setBody(['types', type, 'gpu', 'used'], number)
@@ -53,8 +53,8 @@ module.exports = async context => {
   for (const [type, number] of _team.get('memory_capacity').entries()) {
     _setBody(['types', type, 'memory', 'total'], number)
   }
-  for (const [type, number] of _team.get('memory_reserved').entries()) {
-    _setBody(['types', type, 'memory', 'reserved'], number)
+  for (const [type, number] of _team.get('memory_unschedulable').entries()) {
+    _setBody(['types', type, 'memory', 'unschedulable'], number)
   }
   for (const [type, number] of _team.get('memory_used').entries()) {
     _setBody(['types', type, 'memory', 'used'], number)
