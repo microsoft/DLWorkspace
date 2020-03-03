@@ -1,17 +1,27 @@
 import React, {
   FunctionComponent,
+  useCallback,
   useContext,
-  useEffect
+  useEffect,
+  useRef,
+  useState,
+  useMemo
 } from 'react';
 
-import { get, values } from 'lodash';
+import { entries, find, identity, get, set } from 'lodash';
 
 import { Link as RouterLink } from 'react-router-dom';
 import {
   Container,
   Link as UILink,
-  Tooltip
+  TableSortLabel,
+  Tooltip,
+  Typography,
+  useTheme
 } from '@material-ui/core';
+import {
+  More
+} from '@material-ui/icons';
 import MaterialTable, {
   Column,
   Options
@@ -22,13 +32,7 @@ import useFetch from 'use-http-2';
 
 import TeamsContext from '../../contexts/Teams';
 import ClustersContext from '../../contexts/Clusters';
-import useConstant from '../../hooks/useConstant';
-
-const sumFields = (object: object, fieldPath: string | string[]) => {
-  return values(object)
-    .map(value => get(value, fieldPath, 0))
-    .reduce((a, b) => a + b);
-}
+import useTableData from '../../hooks/useTableData';
 
 const humanBytes = (bytes: number) => {
   if (bytes >= 1024 * 1024 * 1024 * 1024) {
@@ -45,28 +49,6 @@ const humanBytes = (bytes: number) => {
   }
   return bytes + ' B'
 }
-
-const getNumericColumn = (title: string, fieldPath: string | string[], bytes=false): Column<any> => ({
-  title,
-  type: 'numeric',
-  searchable: false,
-  render(cluster) {
-    if (!cluster.status) return null;
-
-    const value = sumFields(cluster.status.types, fieldPath)
-    return <>{bytes ? humanBytes(value) : value}</>
-  },
-  customSort(clusterA, clusterB) {
-    return sumFields(clusterA.status.types, fieldPath)
-      - sumFields(clusterB.status.types, fieldPath)
-  },
-  cellStyle: {
-    whiteSpace: 'nowrap'
-  },
-  // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-  // @ts-ignore
-  width: 130
-});
 
 const useClusterStatus = ({ id: clusterId }: { id: string }) => {
   const { selectedTeam } = useContext(TeamsContext);
@@ -97,79 +79,156 @@ const useClusterStatus = ({ id: clusterId }: { id: string }) => {
     }
   }, [error, clusterId, enqueueSnackbar, closeSnackbar]);
 
-  return { id: clusterId, tableData: { width: 'auto' }, status: data };
+  return useMemo(() => ({ id: clusterId, status: data }), [clusterId, data]);
 };
 
 const Clusters: FunctionComponent = () => {
   const { clusters } = useContext(ClustersContext);
+  const theme = useTheme();
+
+  type ResourceType = 'cpu' | 'gpu' | 'memory';
+  const [expandedResourceType, setExpandedResourceType] = useState<ResourceType>('gpu');
 
   const clustersStatus = clusters.map(useClusterStatus);
 
-  const columns = useConstant<Column<any>[]>([{
-    field: 'id',
-    headerStyle: { width: 'auto' },
-    render(cluster) {
-      return (
-        <UILink
-          variant="subtitle2"
-          component={RouterLink}
-          to={cluster['id']}
-        >
-          {cluster['id']}
-        </UILink>
-      );
-    },
-    // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-    // @ts-ignore
-    width: 200
-  },
-  getNumericColumn('Total CPU', ['cpu', 'total']),
-  getNumericColumn('Unschedulable CPU', ['cpu', 'unschedulable']),
-  getNumericColumn('Used CPU', ['cpu', 'used']),
-  getNumericColumn('Preempable CPU', ['cpu', 'preempable']),
-  getNumericColumn('Available CPU', ['cpu', 'available']),
-  getNumericColumn('Total GPU', ['gpu', 'total']),
-  getNumericColumn('Unschedulable GPU', ['gpu', 'unschedulable']),
-  getNumericColumn('Used GPU', ['gpu', 'used']),
-  getNumericColumn('Preempable GPU', ['gpu', 'preempable']),
-  getNumericColumn('Available GPU', ['gpu', 'available']),
-  getNumericColumn('Total Memory', ['memory', 'total'], true),
-  getNumericColumn('Unschedulable Memory', ['memory', 'unschedulable'], true),
-  getNumericColumn('Used Memory', ['memory', 'used'], true),
-  getNumericColumn('Preempable Memory', ['memory', 'preempable'], true),
-  getNumericColumn('Available Memory', ['memory', 'available'], true),
-  {
-    title: 'Running Jobs',
-    type: 'numeric' as 'numeric',
-    field: 'status.runningJobs',
-    render(cluster) {
-      if (!cluster.status) return null;
+  const clusterTypesStatus = useMemo(() => {
+    const clusterTypesStatus = [];
+    for (const { id: clusterId, status: clusterStatus } of clustersStatus) {
+      if (clusterStatus == null) {
+        clusterTypesStatus.push({ id: clusterId })
+        continue;
+      }
 
-      return (
-        <Tooltip title={`View jobs in ${cluster.id}`}>
-          <UILink variant="subtitle2" component={RouterLink} to={`/jobs-v2/${cluster.id}`}>
-            {get(cluster, 'status.runningJobs', 0)}
+      const clusterSumStatus = Object.create(null)
+      clusterTypesStatus.push({
+        id: clusterId,
+        status: clusterSumStatus,
+        runningJobs: clusterStatus.runningJobs
+      })
+
+      for (const [typeId, typeStatus] of entries(clusterStatus.types)) {
+        clusterTypesStatus.push({
+          id: typeId,
+          clusterId,
+          status: typeStatus
+        })
+
+        for (const type of ['cpu', 'gpu', 'memory']) {
+          for (const kind of ['total', 'unschedulable', 'used', 'preempable', 'available']) {
+            const path = [type, kind]
+            set(clusterSumStatus, path, get(clusterSumStatus, path, 0) + get(typeStatus, path, 0));
+          }
+        }
+      }
+    }
+    return clusterTypesStatus;
+  }, clustersStatus); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const data = useTableData(clusterTypesStatus);
+  const typeColor = useMemo(() => ({
+    cpu: theme.palette.background.default, // blue[50],
+    gpu: theme.palette.background.paper, // cyan[50],
+    memory: theme.palette.background.default, // teal[50]
+  }), [theme]);
+
+  const columns = useMemo(() => {
+    const columns: Array<Column<any>> = [];
+
+    columns.push({
+      field: 'id',
+      render: (data) => data.clusterId == null
+        ? <UILink variant="subtitle2" component={RouterLink} to={data.id}>{data.id}</UILink>
+        : <Typography variant="subtitle2">{data.id}</Typography>,
+      // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+      // @ts-ignore: https://github.com/mbrn/material-table/pull/1659
+      width: 'auto'
+    });
+
+    for (const title of ['CPU', 'GPU', 'Memory']) {
+      const type = title.toLowerCase() as 'cpu' | 'gpu' | 'memory';
+      const process = type === 'memory' ? humanBytes : identity;
+      const style = { backgroundColor: typeColor[type] };
+      columns.push({
+        title: (
+          <TableSortLabel
+            active
+            IconComponent={More}
+            onClick={() => setExpandedResourceType(type)}
+          >
+            {title}
+          </TableSortLabel>
+        ),
+        tooltip: 'Expand',
+        hidden: expandedResourceType === type,
+        headerStyle: { whiteSpace: 'nowrap', ...style },
+        cellStyle: { whiteSpace: 'nowrap', ...style },
+        render: ({ status }) => status && (
+          <>
+            {process(get(status, [type, 'available'], 0))}
+            /
+            {process(get(status, [type, 'total'], 0))}
+          </>
+        ),
+        sorting: false,
+        searchable: false,
+        // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+        // @ts-ignore: https://github.com/mbrn/material-table/pull/1659
+        width: 'auto'
+      });
+      for (const adjective of ['Total', 'Unschedulable', 'Used', 'Preempable', 'Available']) {
+        const kind = adjective.toLowerCase();
+        columns.push({
+          title: `${title} ${adjective}`,
+          type: 'numeric',
+          field: `status.${type}.${kind}`,
+          hidden: expandedResourceType !== type,
+          render: ({ status }) => status && (
+            <>{process(get(status, [type, kind], 0))}</>
+          ),
+          headerStyle: style,
+          cellStyle: style,
+          // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+          // @ts-ignore: https://github.com/mbrn/material-table/pull/1659
+          width: 'auto'
+        });
+      }
+    }
+
+    columns.push({
+      title: 'Running Jobs',
+      type: 'numeric',
+      field: 'runningJobs',
+      render: (data: any) => data.clusterId == null ? (
+        <Tooltip title={`View jobs in ${data.id}`}>
+          <UILink variant="subtitle2" component={RouterLink} to={`/jobs-v2/${data.id}`}>
+            {get(data, 'runningJobs', 0)}
           </UILink>
         </Tooltip>
-      );
-    },
-    // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-    // @ts-ignore
-    width: 200
-  }]);
-  const options = useConstant<Options>({
+      ) : null,
+      // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+      // @ts-ignore: https://github.com/mbrn/material-table/pull/1659
+      width: 'auto'
+    })
+
+    return columns;
+  }, [expandedResourceType, typeColor]);
+  const options = useRef<Options>({
     padding: "dense",
-    fixedColumns: { left: 1, right: 1 },
     pageSize: 10,
-  });
+    draggable: false
+  }).current;
+  const parentChildData = useCallback(({ clusterId }, rows: any[]) => {
+    return find(rows, ({ id }) => clusterId === id);
+  }, []);
 
   return (
     <Container>
       <MaterialTable
         title="Clusters"
-        data={clustersStatus}
+        data={data}
         columns={columns}
         options={options}
+        parentChildData={parentChildData}
       />
     </Container>
   )
