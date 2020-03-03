@@ -42,7 +42,7 @@ def extract_job_log(jobId, logPath, userId):
         dataHandler = DataHandler()
 
         old_cursor = dataHandler.GetJobTextField(jobId, "jobLogCursor")
-        if len(old_cursor) == 0:
+        if old_cursor is not None and len(old_cursor) == 0:
             old_cursor = None
         (logs, new_cursor) = GetJobLog(jobId, cursor=old_cursor)
 
