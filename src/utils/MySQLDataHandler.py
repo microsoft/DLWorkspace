@@ -117,6 +117,7 @@ class DataHandler(object):
                     `jobParams` LONGTEXT  NOT NULL,
                     `jobMeta` LONGTEXT  NULL,
                     `jobLog` LONGTEXT  NULL,
+                    `jobLogCursor` LONGTEXT  NULL,
                     `retries`             int    NULL DEFAULT 0,
                     `lastUpdated` DATETIME     DEFAULT CURRENT_TIMESTAMP NOT NULL,
                     `priority` INT   DEFAULT 100 NOT NULL,
