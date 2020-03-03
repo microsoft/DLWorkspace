@@ -32,16 +32,16 @@ const sumFields = (object: object, fieldPath: string | string[]) => {
 
 const humanBytes = (bytes: number) => {
   if (bytes >= 1024 * 1024 * 1024 * 1024) {
-    return (bytes / 1024 / 1024 / 1024 / 1024).toFixed(1) + ' TB'
+    return (bytes / 1024 / 1024 / 1024 / 1024).toFixed(1) + ' TiB'
   }
   if (bytes >= 1024 * 1024 * 1024) {
-    return (bytes / 1024 / 1024 / 1024).toFixed(1) + ' GB'
+    return (bytes / 1024 / 1024 / 1024).toFixed(1) + ' GiB'
   }
   if (bytes >= 1024 * 1024) {
-    return (bytes / 1024 / 1024).toFixed(1) + ' MB'
+    return (bytes / 1024 / 1024).toFixed(1) + ' MiB'
   }
   if (bytes >= 1024) {
-    return (bytes / 1024).toFixed(1) + ' KB'
+    return (bytes / 1024).toFixed(1) + ' KiB'
   }
   return bytes + ' B'
 }
