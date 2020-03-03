@@ -4,24 +4,19 @@ import React, {
   useContext,
   useEffect,
   useRef,
-  useState,
   useMemo
 } from 'react';
 
-import { entries, find, identity, get, set } from 'lodash';
+import { entries, find, get, set } from 'lodash';
 
 import { Link as RouterLink } from 'react-router-dom';
 import {
   Container,
   Link as UILink,
-  TableSortLabel,
   Tooltip,
-  Typography,
-  useTheme
+  Typography
 } from '@material-ui/core';
-import {
-  More
-} from '@material-ui/icons';
+
 import MaterialTable, {
   Column,
   Options
@@ -34,21 +29,7 @@ import TeamsContext from '../../contexts/Teams';
 import ClustersContext from '../../contexts/Clusters';
 import useTableData from '../../hooks/useTableData';
 
-const humanBytes = (bytes: number) => {
-  if (bytes >= 1024 * 1024 * 1024 * 1024) {
-    return (bytes / 1024 / 1024 / 1024 / 1024).toFixed(1) + ' TiB'
-  }
-  if (bytes >= 1024 * 1024 * 1024) {
-    return (bytes / 1024 / 1024 / 1024).toFixed(1) + ' GiB'
-  }
-  if (bytes >= 1024 * 1024) {
-    return (bytes / 1024 / 1024).toFixed(1) + ' MiB'
-  }
-  if (bytes >= 1024) {
-    return (bytes / 1024).toFixed(1) + ' KiB'
-  }
-  return bytes + ' B'
-}
+import useResourceColumns, { ResourceKind } from './useResourceColumns';
 
 const useClusterStatus = ({ id: clusterId }: { id: string }) => {
   const { selectedTeam } = useContext(TeamsContext);
@@ -84,10 +65,6 @@ const useClusterStatus = ({ id: clusterId }: { id: string }) => {
 
 const Clusters: FunctionComponent = () => {
   const { clusters } = useContext(ClustersContext);
-  const theme = useTheme();
-
-  type ResourceType = 'cpu' | 'gpu' | 'memory';
-  const [expandedResourceType, setExpandedResourceType] = useState<ResourceType>('gpu');
 
   const clustersStatus = clusters.map(useClusterStatus);
 
@@ -125,74 +102,25 @@ const Clusters: FunctionComponent = () => {
   }, clustersStatus); // eslint-disable-line react-hooks/exhaustive-deps
 
   const data = useTableData(clusterTypesStatus);
-  const typeColor = useMemo(() => ({
-    cpu: theme.palette.background.default, // blue[50],
-    gpu: theme.palette.background.paper, // cyan[50],
-    memory: theme.palette.background.default, // teal[50]
-  }), [theme]);
 
+  const resourceKinds = useRef<ResourceKind[]>(
+    ['total', 'unschedulable', 'used', 'preempable', 'available']
+  ).current;
+  const resourceColumns = useResourceColumns(resourceKinds);
   const columns = useMemo(() => {
     const columns: Array<Column<any>> = [];
 
     columns.push({
       field: 'id',
       render: (data) => data.clusterId == null
-        ? <UILink variant="subtitle2" component={RouterLink} to={data.id}>{data.id}</UILink>
+        ? <UILink variant="subtitle1" component={RouterLink} to={data.id}>{data.id}</UILink>
         : <Typography variant="subtitle2">{data.id}</Typography>,
       // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
       // @ts-ignore: https://github.com/mbrn/material-table/pull/1659
       width: 'auto'
     });
 
-    for (const title of ['CPU', 'GPU', 'Memory']) {
-      const type = title.toLowerCase() as 'cpu' | 'gpu' | 'memory';
-      const process = type === 'memory' ? humanBytes : identity;
-      const style = { backgroundColor: typeColor[type] };
-      columns.push({
-        title: (
-          <TableSortLabel
-            active
-            IconComponent={More}
-            onClick={() => setExpandedResourceType(type)}
-          >
-            {title}
-          </TableSortLabel>
-        ),
-        tooltip: 'Expand',
-        hidden: expandedResourceType === type,
-        headerStyle: { whiteSpace: 'nowrap', ...style },
-        cellStyle: { whiteSpace: 'nowrap', ...style },
-        render: ({ status }) => status && (
-          <>
-            {process(get(status, [type, 'available'], 0))}
-            /
-            {process(get(status, [type, 'total'], 0))}
-          </>
-        ),
-        sorting: false,
-        searchable: false,
-        // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-        // @ts-ignore: https://github.com/mbrn/material-table/pull/1659
-        width: 'auto'
-      });
-      for (const adjective of ['Total', 'Unschedulable', 'Used', 'Preempable', 'Available']) {
-        const kind = adjective.toLowerCase();
-        columns.push({
-          title: `${title} ${adjective}`,
-          type: 'numeric',
-          field: `status.${type}.${kind}`,
-          hidden: expandedResourceType !== type,
-          render: ({ status }) => status && (
-            <>{process(get(status, [type, kind], 0))}</>
-          ),
-          headerStyle: style,
-          cellStyle: style,
-          // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-          // @ts-ignore: https://github.com/mbrn/material-table/pull/1659
-          width: 'auto'
-        });
-      }
-    }
+    columns.push(...resourceColumns);
 
     columns.push({
       title: 'Running Jobs',
@@ -211,11 +139,11 @@ const Clusters: FunctionComponent = () => {
     })
 
     return columns;
-  }, [expandedResourceType, typeColor]);
+  }, [resourceColumns]);
   const options = useRef<Options>({
     padding: "dense",
-    pageSize: 10,
-    draggable: false
+    draggable: false,
+    paging: false
   }).current;
   const parentChildData = useCallback(({ clusterId }, rows: any[]) => {
     return find(rows, ({ id }) => clusterId === id);

@@ -101,40 +101,41 @@ module.exports = async context => {
     const _node = _.chain(node)
     _setBody(['workers', node.name, 'healthy'], !node['unschedulable'])
     for (const [type, number] of _node.get('cpu_capacity').entries()) {
-      _setBody(['workers', node.name, 'types', type, 'cpu', 'total'], number)
+      _setBody(['workers', node.name, 'type'], type)
+      _setBody(['workers', node.name, 'status', 'cpu', 'total'], number)
     }
-    for (const [type, number] of _node.get('cpu_used').entries()) {
-      _setBody(['workers', node.name, 'types', type, 'cpu', 'used'], number)
+    for (const number of _node.get('cpu_used').values()) {
+      _setBody(['workers', node.name, 'status', 'cpu', 'used'], number)
     }
-    for (const [type, number] of _node.get('cpu_preemptable_used').entries()) {
-      _setBody(['workers', node.name, 'types', type, 'cpu', 'preemptable'], number)
+    for (const number of _node.get('cpu_preemptable_used').values()) {
+      _setBody(['workers', node.name, 'status', 'cpu', 'preemptable'], number)
     }
-    for (const [type, number] of _node.get('cpu_allocatable').entries()) {
-      _setBody(['workers', node.name, 'types', type, 'cpu', 'available'], number)
+    for (const number of _node.get('cpu_allocatable').values()) {
+      _setBody(['workers', node.name, 'status', 'cpu', 'allocatable'], number)
     }
-    for (const [type, number] of _node.get('gpu_capacity').entries()) {
-      _setBody(['workers', node.name, 'types', type, 'gpu', 'total'], number)
+    for (const number of _node.get('gpu_capacity').values()) {
+      _setBody(['workers', node.name, 'status', 'gpu', 'total'], number)
     }
-    for (const [type, number] of _node.get('gpu_used').entries()) {
-      _setBody(['workers', node.name, 'types', type, 'gpu', 'used'], number)
+    for (const number of _node.get('gpu_used').values()) {
+      _setBody(['workers', node.name, 'status', 'gpu', 'used'], number)
     }
-    for (const [type, number] of _node.get('gpu_preemptable_used').entries()) {
-      _setBody(['workers', node.name, 'types', type, 'gpu', 'preemptable'], number)
+    for (const number of _node.get('gpu_preemptable_used').values()) {
+      _setBody(['workers', node.name, 'status', 'gpu', 'preemptable'], number)
     }
-    for (const [type, number] of _node.get('gpu_allocatable').entries()) {
-      _setBody(['workers', node.name, 'types', type, 'gpu', 'available'], number)
+    for (const number of _node.get('gpu_allocatable').values()) {
+      _setBody(['workers', node.name, 'status', 'gpu', 'allocatable'], number)
     }
-    for (const [type, number] of _node.get('memory_capacity').entries()) {
-      _setBody(['workers', node.name, 'types', type, 'memory', 'total'], number)
+    for (const number of _node.get('memory_capacity').values()) {
+      _setBody(['workers', node.name, 'status', 'memory', 'total'], number)
     }
-    for (const [type, number] of _node.get('memory_used').entries()) {
-      _setBody(['workers', node.name, 'types', type, 'memory', 'used'], number)
+    for (const number of _node.get('memory_used').values()) {
+      _setBody(['workers', node.name, 'status', 'memory', 'used'], number)
     }
-    for (const [type, number] of _node.get('memory_preemptable_used').entries()) {
-      _setBody(['workers', node.name, 'types', type, 'memory', 'preemptable'], number)
+    for (const number of _node.get('memory_preemptable_used').values()) {
+      _setBody(['workers', node.name, 'status', 'memory', 'preemptable'], number)
     }
-    for (const [type, number] of _node.get('memory_allocatable').entries()) {
-      _setBody(['workers', node.name, 'types', type, 'memory', 'available'], number)
+    for (const number of _node.get('memory_allocatable').values()) {
+      _setBody(['workers', node.name, 'status', 'memory', 'allocatable'], number)
     }
   }
 
@@ -142,18 +143,18 @@ module.exports = async context => {
     const _pod = _.chain(pod)
 
     const nodeName = _pod.get('node_name')
-    const jobId = _pod.get('job_id')
-    _setBody(['workers', nodeName, 'jobs', jobId, 'team'], _pod.get('vc_name'))
-    _setBody(['workers', nodeName, 'jobs', jobId, 'user'], _pod.get('username'))
-    for (const [type, number] of _pod.get('cpu').entries()) {
-      _setBody(['workers', nodeName, 'jobs', jobId, 'types', type, 'cpu'], number)
+    const podName = _pod.get('name')
+    _setBody(['workers', nodeName, 'pods', podName, 'jobId'], _pod.get('job_id'))
+    _setBody(['workers', nodeName, 'pods', podName, 'team'], _pod.get('vc_name'))
+    _setBody(['workers', nodeName, 'pods', podName, 'user'], _pod.get('username'))
+    for (const number of _pod.get('cpu').values()) {
+      _setBody(['workers', nodeName, 'pods', podName, 'cpu'], number)
     }
-    for (const [type, number] of _pod.get('gpu').entries()) {
-      _setBody(['workers', nodeName, 'jobs', jobId, 'types', type, 'gpu'], number)
+    for (const number of _pod.get('gpu').values()) {
+      _setBody(['workers', nodeName, 'pods', podName, 'gpu'], number)
     }
-    for (const [type, number] of _pod.get('memory').entries()) {
-      _setBody(['workers', nodeName, 'jobs', jobId, 'types', type, 'memory'], number)
+    for (const number of _pod.get('memory').values()) {
+      _setBody(['workers', nodeName, 'pods', podName, 'memory'], number)
     }
-    _setBody(['workers', nodeName, 'jobs', jobId, '__to_convert_to_gpu_usage__'], _pod.get('pod_name'))
   }
 }
