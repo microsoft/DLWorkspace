@@ -434,19 +434,24 @@ class DataHandler(object):
     @record
     def GetIdentityInfo(self, identityName):
         cursor = self.conn.cursor()
-        query = "SELECT `identityName`,`uid`,`gid`,`groups` FROM `%s` where `identityName` = '%s'" % (self.identitytablename, identityName)
+        query = """SELECT `identityName`,`uid`,`gid`,`groups`,`public_key`,`private_key`
+        FROM `%s` WHERE `identityName` = '%s'""" % (self.identitytablename, identityName)
         ret = []
+
         try:
             cursor.execute(query)
-            for (identityName,uid,gid,groups) in cursor:
+            for (identity_name, uid, gid, groups, public_key, private_key) in cursor:
                 record = {}
-                record["identityName"] = identityName
+                record["identityName"] = identity_name
                 record["uid"] = uid
                 record["gid"] = gid
                 record["groups"] = json.loads(groups)
+                record["public_key"] = public_key
+                record["private_key"] = private_key
                 ret.append(record)
         except Exception as e:
-            logger.error('GetIdentityInfo Exception: %s', str(e))
+            logger.exception("failed to get identity of %s", identityName)
+
         self.conn.commit()
         cursor.close()
         return ret

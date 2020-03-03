@@ -8,6 +8,7 @@ export DEBIAN_FRONTEND=noninteractive
 addgroup --force-badname --gid  ${DLTS_GID} domainusers
 adduser --force-badname --home /home/${DLTS_USER_NAME} --shell /bin/bash --uid ${DLTS_UID}  -gecos '' --gid ${DLTS_GID} --disabled-password ${DLTS_USER_NAME}
 usermod -p $(echo ${DLTS_JOB_TOKEN} | openssl passwd -1 -stdin) ${DLTS_USER_NAME}
+mkdir -p /home/${DLTS_USER_NAME}/.ssh
 chown ${DLTS_USER_NAME} /home/${DLTS_USER_NAME}/ /home/${DLTS_USER_NAME}/.profile /home/${DLTS_USER_NAME}/.ssh || /bin/true
 chmod 700 /home/${DLTS_USER_NAME}/.ssh || /bin/true
 
@@ -19,7 +20,7 @@ ENV_FILE=/dlts-runtime/env/pod.env
 
 set +x
 compgen -e | while read line; do
-        if [[ $line != HOME* ]] && [[ $line != INTERACTIVE* ]] && [[ $line != LS_COLORS* ]]  && [[ $line != PATH* ]] && [[ $line != PWD* ]]; then
+        if [[ $line != HOME* ]] && [[ $line != INTERACTIVE* ]] && [[ $line != LS_COLORS* ]]  && [[ $line != PATH* ]] && [[ $line != PWD* ]] && [[ $line != DLTS_SSH_PRIVATE_KEY ]]; then
             # Since bash >= 4.4 we could use
             # echo "export ${line}=${!line@Q}" >> "${ENV_FILE}" ;
             # For compatible with bash < 4.4

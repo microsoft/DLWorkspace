@@ -66,7 +66,7 @@ def set_user_directory():
                 wf.write(public_key)
             os.system("chown -R " + str(userid) + ":" + "500000513 " +
                       userpath)
-            os.system("chmod 700 -R " + os.path.dirname(sshkeypath))
+            os.system("chmod 600 -R " + os.path.dirname(sshkeypath))
 
         if not os.path.exists(authorized_keyspath):
             logger.info("Creating authorized_keys for user %s" % (username))

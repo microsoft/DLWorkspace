@@ -111,6 +111,8 @@ def gen_default_job_description(
         "enablejobpath": True,
         "env": [],
         "resourcegpu": 0,
+        "memorylimit": "2G",
+        "cpulimit": 1,
     }
 
     if job_type in {"regular", "data"}:

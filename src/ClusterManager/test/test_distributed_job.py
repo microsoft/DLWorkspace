@@ -222,6 +222,7 @@ def test_distributed_job_env(args):
                                                  args.uid,
                                                  args.vc,
                                                  cmd="sleep infinity")
+    job_spec["debug"] = True
     with utils.run_job(args.rest, job_spec) as job:
         endpoints = utils.create_endpoint(args.rest, args.email, job.jid,
                                           ["ssh"])
@@ -290,6 +291,9 @@ def test_distributed_job_env(args):
 
             for key, val in envs.items():
                 expected_output = "%s=%s" % (key, val)
+                if output.find(expected_output) == -1:
+                    logger.info("debug")
+                    time.sleep(1800)
                 assert output.find(
                     expected_output) != -1, "could not find %s in log %s" % (
                         expected_output, output)

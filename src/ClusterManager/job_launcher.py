@@ -607,6 +607,10 @@ class LauncherStub(Launcher):
             job_object.params["gid"] = user_info["gid"]
             job_object.params["uid"] = user_info["uid"]
             job_object.params["user"] = job_object.get_alias()
+            job_object.params["private_key"] = user_info["private_key"]
+            job_object.params["ssh_public_keys"] = job_object.params.get("ssh_public_keys", [])
+            job_object.params["ssh_public_keys"].append(user_info["public_key"])
+
 
             if "job_token" not in job_object.params:
                 if "master_token" in config and config[
@@ -975,6 +979,9 @@ class PythonLauncher(Launcher):
             job_object.params["gid"] = user_info["gid"]
             job_object.params["uid"] = user_info["uid"]
             job_object.params["user"] = job_object.get_alias()
+            job_object.params["private_key"] = user_info["private_key"]
+            job_object.params["ssh_public_keys"] = job_object.params.get("ssh_public_keys", [])
+            job_object.params["ssh_public_keys"].append(user_info["public_key"])
 
             if "job_token" not in job_object.params:
                 if "master_token" in config and config[
