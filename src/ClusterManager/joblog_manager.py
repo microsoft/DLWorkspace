@@ -188,7 +188,7 @@ def update_job_logs():
                         localJobPath = os.path.join(
                             config["storage-mount-path"], jobPath)
                         logPath = os.path.join(localJobPath, "logs/joblog.txt")
-                        if elasticsearch_deployed:
+                        if elasticsearch_deployed and not config.get('__extract_job_log_legacy', False):
                             extract_job_log(
                                 job["jobId"], logPath, jobParams["userId"])
                         else:
