@@ -73,7 +73,7 @@ bash ./mnt_fs_svc.sh
 IFS=';' read -ra services <<< $KUBE_SERVICES
 
 for svc in "${services[@]}"; do
-    cntr=2
+    cntr=10
     until kubectl create -f $svc ; do
         sleep 5;
         cntr=$((cntr-1))

@@ -8,7 +8,8 @@ users:
 runcmd:
  - cd /home/{{cnf["nfs_user"]}}
  # render env variables
- - echo "export DATA_DISK_MNT_PATH={{cnf["data_disk_mnt_path"]}}" > boot.env
+ - echo "export USER={{cnf["nfs_user"]}}" >> boot.env
+ - echo "export DATA_DISK_MNT_PATH={{cnf["data_disk_mnt_path"]}}" >> boot.env
  - echo "export PLATFORM_TYPE={{cnf["platform_type"]}}" >> boot.env
  - echo "export FILES_2_SHARE='{{cnf["files2share"] | join(';')}}'" >> boot.env
  - echo "export CIDR_NODE_RANGES='{{cnf["nfs_client_CIDR"]["node_range"]  | join(';')}}'" >> boot.env

@@ -11,8 +11,6 @@ rm -rf deploy/* cloudinit* az_complementary.yaml
 ./cloud_init_deploy.py docker servicesprerequisite
 # generate scripts
 ./cloud_init_aztools.py -v deploy
-# ./cloud_init_aztools.py -cnf config.yaml -cnf az_complementary.yaml -v --dryrun --output scripts/framework.sh deployframework
-# ./cloud_init_aztools.py -cnf config.yaml -cnf az_complementary.yaml -v --dryrun --output scripts/add_machines.sh addmachines
 # deploy
 ./cloud_init_aztools.py interconnect
 # get status
