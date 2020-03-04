@@ -114,7 +114,7 @@ const Workers: FunctionComponent<Props> = ({ types, workers }) => {
     })
     return typesData.concat(workersData)
   }, [types, workers]);
-  const tableData = useTableData(data);
+  const tableData = useTableData(data, { isTreeExpanded: true });
 
   const resourceKinds = useRef<ResourceKind[]>(
     ['total', 'unschedulable', 'used', 'preemptable', 'available']
