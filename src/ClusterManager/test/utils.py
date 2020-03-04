@@ -111,7 +111,7 @@ def gen_default_job_description(
         "enablejobpath": True,
         "env": [],
         "resourcegpu": 0,
-        "memorylimit": "2G",
+        "memorylimit": "500M",
         "cpulimit": 1,
     }
 
