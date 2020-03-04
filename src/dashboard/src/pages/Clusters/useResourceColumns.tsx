@@ -44,7 +44,7 @@ const useResourceColumns = (kinds: ResourceKind[]) => {
     memory: theme.palette.background.default,
   }), [theme]);
 
-  const expandable = kinds.indexOf('available') > -1 && kinds.indexOf('total') > -1;
+  const expandable = kinds.indexOf('used') > -1 && kinds.indexOf('total') > -1;
 
   return useMemo(() => {
     const columns: Column<any>[] = [];
@@ -69,7 +69,7 @@ const useResourceColumns = (kinds: ResourceKind[]) => {
         cellStyle: { whiteSpace: 'nowrap', ...style },
         render: ({ status }) => status && (
           <>
-            {process(get(status, [type, 'available'], 0))}
+            {process(get(status, [type, 'used'], 0))}
             /
             {process(get(status, [type, 'total'], 0))}
           </>
