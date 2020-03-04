@@ -6,20 +6,23 @@ from action_abc import Action
 from utils import k8s_util
 
 
-class SendAlert(Action):
+class SendAlertAction(Action):
 
     def __init__(self, alert_handler):
         self.action_logger = logging.getLogger('activity')
         self.alert_handler = alert_handler
 
-    def execute(self, message, additional_log=None):
-        self.alert_handler.send_alert(message)
+    def execute(self, message, dry_run=False, additional_log=None):
+        if not dry_run:
+            self.alert_handler.send_alert(message)
 
         if additional_log is None:
             additional_log = {}
         self.action_logger.info({
             "action": "send alert",
-            "email": message['To'],
+            "dry_run": dry_run,
+            "email_to": message['To'],
+            "email_cc": message['CC'],
             "message": message['Subject'],
             **additional_log
         })

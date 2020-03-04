@@ -31,16 +31,17 @@ def _mock_v1_pod(jobId, userName, vcName, nodeName):
 
 class Testing(unittest.TestCase):
 
-    def test_get_job_info_from_nodes(self):
+    @mock.patch('rules.ecc_detect_error_rule.k8s_util.list_namespaced_pod')
+    def test_get_job_info_from_nodes(self, mock_list_namespaced_pod):
         pod_one = _mock_v1_pod("87654321-wxyz", "user1", "vc1", "node1")
         pod_two = _mock_v1_pod("12345678-abcd", "user2", "vc2", "node1")
         pod_three = _mock_v1_pod("12345678-abcd", "user2", "vc2", "node2")
         pod_four = _mock_v1_pod("99999999-efgh", "user3", "vc3", "node3")
         mock_pod_list = V1PodList(items=[pod_one, pod_two, pod_three, pod_four])
-
+        mock_list_namespaced_pod.return_value = mock_pod_list
 
         job_response = k8s_util._get_job_info_from_nodes(
-            mock_pod_list, ["node1", "node2"], "dlts.domain.com", "cluster1")
+            ["node1", "node2"], "dlts.domain.com", "cluster1")
 
         self.assertTrue("87654321-wxyz" in job_response)
         self.assertEqual(1, len(job_response["87654321-wxyz"]["node_names"]))

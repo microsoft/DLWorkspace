@@ -17,3 +17,5 @@ job_owner_email_domain: {{cnf['repair-manager']['job_owner_email_domain']}}
 
 restore_from_rule_cache_dump: {{cnf['repair-manager']['restore_from_rule_cache_dump']}}
 rule_cache_dump: {{cnf['repair-manager']['rule_cache_dump']}}
+
+date_time_format: "%Y-%m-%d %H:%M:%S.%f"

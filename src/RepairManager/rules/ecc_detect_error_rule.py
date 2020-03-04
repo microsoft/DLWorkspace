@@ -3,7 +3,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from rules_abc import Rule
 from actions.cordon_action import CordonAction
-from actions.send_alert import SendAlert
+from actions.send_alert_action import SendAlertAction
 from kubernetes import client, config
 from utils import k8s_util, email_util, prometheus_url
 from datetime import datetime, timezone
@@ -15,8 +15,6 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 activity_log = logging.getLogger('activity')
-
-DATE_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 
 def _get_node_address_info(node_info):
     # map InternalIP to Hostname
@@ -44,16 +42,6 @@ def _extract_ips_from_ecc_data(ecc_data):
             ecc_node_ips.append(offending_node_ip)
         return ecc_node_ips
 
-def _get_impacted_jobs(new_bad_nodes, portal_url, cluster_name):
-    pods = k8s_util.list_namespaced_pod("default")
-    job_params = {
-        "pods": pods,
-        "nodes": new_bad_nodes,
-        "portal_url": portal_url,
-        "cluster_name": cluster_name
-    }
-    impacted_jobs = k8s_util._get_job_info_from_nodes(**job_params)
-    return impacted_jobs
 
 def _create_email_for_dris(nodes, action_status, jobs, cluster_name):
     message = MIMEMultipart()
@@ -116,7 +104,7 @@ class ECCDetectErrorRule(Rule):
     def update_rule_cache_with_bad_nodes(self):
         for node_name in self.new_bad_nodes:
             cache_value = {
-                'time_found': datetime.utcnow().strftime(DATE_FORMAT),
+                'time_found': datetime.utcnow().strftime(self.config['date_time_format']),
                 'instance': self.new_bad_nodes[node_name]
             }
             self.alert.update_rule_cache(self.rule, node_name, cache_value)
@@ -160,7 +148,10 @@ class ECCDetectErrorRule(Rule):
             cordon_action = CordonAction()
             action_status[node_name] = cordon_action.execute(node_name, self.ecc_config['cordon_dry_run'])
 
-        impacted_jobs = _get_impacted_jobs(self.new_bad_nodes, self.config['portal_url'], self.config['cluster_name'])
+        impacted_jobs = k8s_util._get_job_info_from_nodes(
+            nodes=self.new_bad_nodes,
+            portal_url=self.config['portal_url'],
+            cluster_name=self.config['cluster_name'])
 
         # send alert email to DRI
         dri_message = _create_email_for_dris(
@@ -169,23 +160,25 @@ class ECCDetectErrorRule(Rule):
             jobs=impacted_jobs,
             cluster_name=self.config['cluster_name']
         )
-        alert_action = SendAlert(self.alert)
-        alert_action.execute(dri_message, {"bad_nodes": self.new_bad_nodes})
+        alert_action = SendAlertAction(self.alert)
+        alert_action.execute(dri_message, additional_log={"bad_nodes": self.new_bad_nodes})
 
         # send alert email to impacted job owners
-        if self.ecc_config['alert_job_owners']:
-            for job_id, job_info in impacted_jobs.items():
-                job_owner_message = _create_email_for_job_owner(
-                    job_id=job_id,
-                    job_owner_email=f"{job_info['user_name']}@{self.config['job_owner_email_domain']}",
-                    node_names=job_info['node_names'],
-                    job_link=job_info['job_link'],
-                    cluster_name=self.config['cluster_name'],
-                    reboot_dry_run=self.ecc_config['reboot_dry_run'],
-                    days_until_reboot=self.ecc_config.get('days_until_node_reboot', 5)
-                )
-                additional_log = {"job_id":job_id, "job_owner":job_info['user_name'],"nodes":job_info['node_names']}
-                alert_action.execute(job_owner_message, additional_log)
+        for job_id, job_info in impacted_jobs.items():
+            job_owner_message = _create_email_for_job_owner(
+                job_id=job_id,
+                job_owner_email=f"{job_info['user_name']}@{self.config['job_owner_email_domain']}",
+                node_names=job_info['node_names'],
+                job_link=job_info['job_link'],
+                cluster_name=self.config['cluster_name'],
+                reboot_dry_run=self.ecc_config['reboot_dry_run'],
+                days_until_reboot=self.ecc_config.get('days_until_node_reboot', 5)
+            )
+            additional_log = {
+                "job_id": job_id,
+                "job_owner": job_info['user_name'],
+                "nodes": job_info['node_names']}
+            dry_run = not self.ecc_config['alert_job_owners']
+            alert_action.execute(job_owner_message, dry_run, additional_log)
 
         self.update_rule_cache_with_bad_nodes()
-
