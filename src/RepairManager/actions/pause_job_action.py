@@ -31,9 +31,9 @@ class PauseJobAction(Action):
                         success = True
                     else:
                         time.sleep(5)
-                        attempts+=1
                 except:
                     logging.exception(f'Error retrieving data from {pause_url}')
+                attempts+=1
 
         self.action_logger.info({
             "action": "pause job",

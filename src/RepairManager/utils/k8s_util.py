@@ -49,7 +49,7 @@ def list_namespaced_pod(namespace):
 
 
 def _get_job_info_from_nodes(nodes, portal_url, cluster_name):
-    pods = list_namespaced_pod()
+    pods = list_namespaced_pod("default")
     jobs = {}
     for pod in pods.items:
         if pod.metadata and pod.metadata.labels:

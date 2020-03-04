@@ -161,25 +161,24 @@ class ECCDetectErrorRule(Rule):
             cluster_name=self.config['cluster_name']
         )
         alert_action = SendAlertAction(self.alert)
-        alert_action.execute(dri_message, {"bad_nodes": self.new_bad_nodes})
+        alert_action.execute(dri_message, additional_log={"bad_nodes": self.new_bad_nodes})
 
         # send alert email to impacted job owners
-        if self.ecc_config['alert_job_owners']:
-            for job_id, job_info in impacted_jobs.items():
-                job_owner_message = _create_email_for_job_owner(
-                    job_id=job_id,
-                    job_owner_email=f"{job_info['user_name']}@{self.config['job_owner_email_domain']}",
-                    node_names=job_info['node_names'],
-                    job_link=job_info['job_link'],
-                    cluster_name=self.config['cluster_name'],
-                    reboot_dry_run=self.ecc_config['reboot_dry_run'],
-                    days_until_reboot=self.ecc_config.get('days_until_node_reboot', 5)
-                )
-                additional_log = {
-                    "job_id": job_id,
-                    "job_owner": job_info['user_name'],
-                    "nodes": job_info['node_names']}
-                alert_action.execute(job_owner_message, additional_log)
+        for job_id, job_info in impacted_jobs.items():
+            job_owner_message = _create_email_for_job_owner(
+                job_id=job_id,
+                job_owner_email=f"{job_info['user_name']}@{self.config['job_owner_email_domain']}",
+                node_names=job_info['node_names'],
+                job_link=job_info['job_link'],
+                cluster_name=self.config['cluster_name'],
+                reboot_dry_run=self.ecc_config['reboot_dry_run'],
+                days_until_reboot=self.ecc_config.get('days_until_node_reboot', 5)
+            )
+            additional_log = {
+                "job_id": job_id,
+                "job_owner": job_info['user_name'],
+                "nodes": job_info['node_names']}
+            dry_run = not self.ecc_config['alert_job_owners']
+            alert_action.execute(job_owner_message, dry_run, additional_log)
 
         self.update_rule_cache_with_bad_nodes()
-

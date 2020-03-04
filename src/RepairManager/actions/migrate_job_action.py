@@ -33,10 +33,9 @@ class MigrateJobAction(Action):
                         and "jobStatus" in status_resp \
                         and status_resp["jobStatus"] == "paused":
                         pause_complete = True
-                    else:
-                        attempt+=1
                 except:
                     logging.exception(f'Error retrieving data from {status_url}')
+                attempts+=1
         return pause_complete
 
 

@@ -141,16 +141,16 @@ class ECCRebootNodeRule(Rule):
             success = migrate_job.execute(job_id, job_owner_email, wait_time, reboot_dry_run)
 
             if success:
-                if self.ecc_config["alert_job_owners"] and not reboot_dry_run:
+                if not reboot_dry_run:
                     message = _create_email_for_pause_resume_job(job_id, node_names, job_link, job_owner_email)
-                    alert_action.execute(message, {"job_id":job_id,"job_owner":job_owner})
+                    alert_action.execute(message, self.ecc_config["alert_job_owners"], {"job_id":job_id,"job_owner":job_owner})
             else:
                 logging.warning(f"Could not pause/resume the following job: {job_id}")
                 unsuccessful_pause_resume_jobs[job_id] = job_info[job_id]
             
         if len(unsuccessful_pause_resume_jobs) > 0:
             dri_message = _create_email_for_issue_with_pause_resume_job(unsuccessful_pause_resume_jobs)
-            alert_action.execute(dri_message, {"job_id":job_id,"job_owner":job_owner})
+            alert_action.execute(dri_message, additional_log={"job_id":job_id,"job_owner":job_owner})
 
         # TODO: reboot node and remove from cache
 
