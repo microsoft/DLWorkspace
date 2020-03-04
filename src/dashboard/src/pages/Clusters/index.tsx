@@ -113,7 +113,7 @@ const Clusters: FunctionComponent = () => {
     columns.push({
       field: 'id',
       render: (data) => data.clusterId == null
-        ? <UILink variant="subtitle1" component={RouterLink} to={data.id}>{data.id}</UILink>
+        ? <UILink variant="subtitle2" component={RouterLink} to={data.id}>{data.id}</UILink>
         : <Typography variant="subtitle2">{data.id}</Typography>,
       // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
       // @ts-ignore: https://github.com/mbrn/material-table/pull/1659

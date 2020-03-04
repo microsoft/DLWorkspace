@@ -73,7 +73,7 @@ const Users: FunctionComponent<{ users: any }> = ({ users }) => {
     field: 'id',
     render: (row) => row.userName
       ? <Typography variant="subtitle2">{row.id}</Typography>
-      : <Typography variant="subtitle1">{row.id}</Typography>
+      : <Typography variant="subtitle2">{row.id}</Typography>
   }, {
     title: 'CPU',
     field: 'status.cpu.used',
