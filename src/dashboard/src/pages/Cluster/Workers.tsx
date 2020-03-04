@@ -5,8 +5,7 @@ import React, {
   useRef
 } from 'react';
 import {
-  Link as RouterLink,
-  useParams
+  Link as RouterLink
 } from 'react-router-dom';
 import {
   each,
@@ -15,84 +14,20 @@ import {
   mapValues
 } from 'lodash';
 import {
-  Box,
   Link as UILink,
   Typography
 } from '@material-ui/core';
 import {
-  LibraryBooks
+  Favorite
 } from '@material-ui/icons';
 import MaterialTable, {
   Column,
-  DetailPanel,
   Options
 } from 'material-table';
 
 import useTableData from '../../hooks/useTableData';
 
-import useResourceColumns, { ResourceKind, humanBytes } from '../Clusters/useResourceColumns';
-
-const Pods: FunctionComponent<{ pods: any }> = ({ pods }) => {
-  const { clusterId } = useParams();
-  const data = useMemo(() => {
-    return map(pods, (pod, name) => ({ name, ...pod }));
-  }, [pods]);
-  const tableData = useTableData(data);
-
-  const columns = useRef<Column<any>[]>([{
-    field: 'name',
-    width: 'auto',
-    render: ({ name, jobId }) => (
-      <UILink
-        variant="subtitle2"
-        component={RouterLink}
-        to={`/jobs-v2/${clusterId}/${jobId}`}
-      >
-        {name}
-      </UILink>
-    )
-  } as Column<any>, {
-    title: 'Team',
-    field: 'team',
-    width: 'auto'
-  } as Column<any>, {
-    title: 'User',
-    field: 'user',
-    width: 'auto'
-  } as Column<any>, {
-    title: 'CPU',
-    type: 'numeric',
-    field: 'cpu',
-    width: 'auto'
-  } as Column<any>, {
-    title: 'GPU',
-    type: 'numeric',
-    field: 'gpu',
-    width: 'auto'
-  } as Column<any>, {
-    title: 'Memory',
-    type: 'numeric',
-    field: 'memory',
-    render: ({ memory }) => <>{humanBytes(memory)}</>,
-    width: 'auto'
-  } as Column<any>]).current;
-
-  const options = useRef<Options>({
-    toolbar: false,
-    padding: 'dense',
-    draggable: false,
-    paging: false
-  }).current;
-  return (
-    <Box p={4}>
-      <MaterialTable
-        data={tableData}
-        columns={columns}
-        options={options}
-      />
-    </Box>
-  );
-}
+import useResourceColumns, { ResourceKind } from '../Clusters/useResourceColumns';
 
 interface Props {
   types: any;
@@ -124,12 +59,15 @@ const Workers: FunctionComponent<Props> = ({ types, workers }) => {
     const columns: Column<any>[] = [{
       field: 'id',
       render: ({ id, healthy }) => {
-        if (healthy === true) {
-          return <Typography variant="subtitle2">{id}</Typography>;
-        } else if (healthy === false) {
-          return <Typography variant="subtitle2" color="error">{id}</Typography>;
+        if (typeof healthy === 'boolean') {
+          return (
+            <UILink variant="subtitle2" component={RouterLink} to={`./${id}`}>
+              { healthy || <Favorite color="error" fontSize="inherit"/> }
+              {id}
+            </UILink>
+          );
         } else {
-          return <Typography variant="subtitle1">{id}</Typography>;
+          return <Typography variant="subtitle2">{id}</Typography>;
         }
       }
     }];
@@ -145,21 +83,6 @@ const Workers: FunctionComponent<Props> = ({ types, workers }) => {
     detailPanelColumnAlignment: 'right'
   }).current;
 
-  const detailPanel = useCallback(({ pods }: any): DetailPanel<any> => {
-    if (!pods) {
-      return {
-        icon: ' ',
-        disabled: true,
-        render: () => <div/>
-      };
-    }
-    return {
-      icon: LibraryBooks,
-      tooltip: 'Pods',
-      render: () => <Pods pods={pods}/>
-    };
-  }, []);
-
   const parentChildData = useCallback(({ type }, rows: any[]) => {
     return find(rows, ({ id }) => type === id);
   }, []);
@@ -169,7 +92,6 @@ const Workers: FunctionComponent<Props> = ({ types, workers }) => {
       data={tableData}
       columns={columns}
       options={options}
-      detailPanel={[detailPanel]}
       parentChildData={parentChildData}
     />
   );
