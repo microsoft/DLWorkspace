@@ -91,7 +91,7 @@ const Clusters: FunctionComponent = () => {
         })
 
         for (const type of ['cpu', 'gpu', 'memory']) {
-          for (const kind of ['total', 'unschedulable', 'used', 'preempable', 'available']) {
+          for (const kind of ['total', 'unschedulable', 'used', 'preemptable', 'available']) {
             const path = [type, kind]
             set(clusterSumStatus, path, get(clusterSumStatus, path, 0) + get(typeStatus, path, 0));
           }
@@ -104,7 +104,7 @@ const Clusters: FunctionComponent = () => {
   const data = useTableData(clusterTypesStatus);
 
   const resourceKinds = useRef<ResourceKind[]>(
-    ['total', 'unschedulable', 'used', 'preempable', 'available']
+    ['total', 'unschedulable', 'used', 'preemptable', 'available']
   ).current;
   const resourceColumns = useResourceColumns(resourceKinds);
   const columns = useMemo(() => {

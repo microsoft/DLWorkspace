@@ -11,7 +11,7 @@ import { Column } from 'material-table';
 import { capitalize, get } from 'lodash';
 
 export type ResourceType = 'cpu' | 'gpu' | 'memory';
-export type ResourceKind = 'total' | 'unschedulable' | 'used' | 'preempable' | 'available';
+export type ResourceKind = 'total' | 'unschedulable' | 'used' | 'preemptable' | 'available';
 
 export const humanBytes = (bytes: number) => {
   if (bytes >= 1024 * 1024 * 1024 * 1024) {

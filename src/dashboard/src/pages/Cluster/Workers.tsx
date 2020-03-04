@@ -117,7 +117,7 @@ const Workers: FunctionComponent<Props> = ({ types, workers }) => {
   const tableData = useTableData(data);
 
   const resourceKinds = useRef<ResourceKind[]>(
-    ['total', 'unschedulable', 'used', 'preempable', 'available']
+    ['total', 'unschedulable', 'used', 'preemptable', 'available']
   ).current;
   const resourceColumns = useResourceColumns(resourceKinds);
   const columns = useMemo(() => {

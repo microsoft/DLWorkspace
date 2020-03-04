@@ -47,7 +47,7 @@ const Users: FunctionComponent<{ users: any }> = ({ users }) => {
       for (const [typeName, status] of entries(types)) {
         data.push({ id: typeName, userName, status })
         for (const resourceType of ['cpu', 'gpu', 'memory']) {
-          for (const resourceKind of ['used', 'preempable']) {
+          for (const resourceKind of ['used', 'preemptable']) {
             set(userStatus, [resourceType, resourceKind],
               get(userStatus, [resourceType, resourceKind], 0) +
               get(status, [resourceType, resourceKind], 0))
