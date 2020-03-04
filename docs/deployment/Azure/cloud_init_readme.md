@@ -41,12 +41,12 @@ First we need to setup the devbox that we use to operate on.
 
 To manually connect to the node, run:
 
-```./cluster_ctl.py connect <role> [id]```
+```./ctl.py connect <role> [id]```
 
 After finishing deploying the cluster, we need to further configure it. 
 Connect to infra node, and use following command to enter the mysql docker container:
 
-Login to infra node by `./cluster_ctl.py connect infra 0`, then on infra node,
+Login to infra node by `./ctl.py connect infra 0`, then on infra node,
 
 ```docker exec -it $(sudo docker ps | grep mysql_mysql | awk '{print $1}') bash```
 

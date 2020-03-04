@@ -15,6 +15,8 @@ from ConfigUtils import *
 from DockerUtils import push_one_docker, build_dockers, push_dockers, run_docker, find_dockers, build_docker_fullname, copy_from_docker_image, configuration
 from params import default_config_parameters
 
+CLOUD_INIT_FILE_MAP = "cloudinit/file_map.yaml"
+
 def generate_ip_from_cluster(cluster_ip_range, index):
     slash_pos = cluster_ip_range.find("/")
     ips = cluster_ip_range if slash_pos < 0 else cluster_ip_range[:slash_pos]
@@ -80,7 +82,6 @@ def load_az_params_as_default(config):
     config["network"] = {"domain": domain_mapping[config["priority"]]}
     homo_vmsize = config["machines"][config["worker_node"][0].split('.')[0]]["vm_size"]
     config['gpu_type'] = config.get("sku_mapping", {}).get(homo_vmsize, {}).get("gpu-type", "None")
-    print(config['gpu_type'])
     return config
 
 
@@ -243,7 +244,7 @@ def load_default_config(config):
         with open(config["ssh_cert"] + ".pub") as f:
             config["sshkey"] = f.read()
     config["files2cp"] = {
-        "common": ["./scripts/mkdir_and_cp.sh",
+        "common": ["./cloud_init_mkdir_and_cp.py",
                    "./scripts/prepare_vm_disk.sh", "./scripts/prepare_ubuntu.sh",
                    "./scripts/disable_kernel_auto_updates.sh", "./scripts/docker_network_gc_setup.sh",
                    "./deploy/scripts/dns.sh", "./deploy/etcd/init_network.sh", "scripts/render_env_vars.sh",
@@ -251,8 +252,7 @@ def load_default_config(config):
 
         "infra": ["./deploy/master/" + config["premasterdeploymentscript"],
                   "./deploy/master/" +
-                  config["postmasterdeploymentscript"],
-                  "./scripts/cloud_init_infra.sh", "deploy/cloud-config/etcd_node_labels.yaml",
+                  config["postmasterdeploymentscript"], "./scripts/cloud_init_infra.sh",
                   "deploy/cloud-config/infra.kubelet.service.template", "deploy/scripts/pass_secret.sh",
                   "deploy/services"],
 
@@ -307,7 +307,6 @@ def load_config(args):
 
     # deploy new cluster or load info of an existing cluster? specify the yaml file to specify explicitly
     config = add_configs_in_order(args.config, config)
-
     load_node_list_by_role_from_config(
         config, ['infra', 'worker', 'nfs', 'etcd', 'kubernetes_master'])
     config = gen_platform_wise_config(config)
@@ -513,6 +512,7 @@ def render_infra_node_specific(config, args):
     config["kube_services"] = get_services_path_list(
         config["machines"][hostname].get("kube_services", config["kube_services_2_start"]))
     config["kube_labels"] = get_kube_labels_of_machine_name(config, hostname)
+    config["file_modules_2_copy"] = ["kubernetes_common", "kubernetes_infra", "etcd", "ip_resolve", "restful_api", "front_end", "nfs_client"]
     utils.render_template("./template/cloud-config/cloud_init_infra.txt.template",
                           "./deploy/cloud-config/cloud_init_infra.txt", config)
 
@@ -530,9 +530,13 @@ def render_worker_node_specific(config, args):
     worker_name = config["worker_node"][0].split(".")[0]
     common_worker_labels = get_kube_labels_of_machine_name(config, worker_name)
     config = get_stat_of_sku(config)
+    default_worker_f2cp = ["kubernetes_common", "kubelet_worker", "nfs_client"]
     for sku in config["worker_sku_cnt"]:
-        config["kube_labels"] = common_worker_labels + ["sku={}".format(sku), "gpuType={}".format(
-            config.get("sku_mapping", {}).get(sku, {}).get("gpu-type", "None"))]
+        gpu_type = config.get("sku_mapping", {}).get(sku, {}).get("gpu-type", "None")
+        config["kube_labels"] = common_worker_labels + ["sku={}".format(sku), "gpuType={}".format(gpu_type)]
+        config["file_modules_2_copy"] = default_worker_f2cp
+        if gpu_type != "None":
+            config["file_modules_2_copy"].append("gpu_docker_daemon")
         utils.render_template("./template/cloud-config/cloud_init_worker.txt.template",
                               "./deploy/cloud-config/cloud_init_worker_{}.txt".format(sku), config)
 
@@ -544,6 +548,7 @@ def render_nfs_node_specific(config, args):
     config["etcd_endpoints"] = ",".join(
         ["https://" + x + ":" + config["etcd3port1"] for x in config["etcd_node"]]).replace("/", "\\/")
     config["api_servers"] = config["api_servers"].replace("/", "\\/")
+    default_nfs_f2cp = ["kubernetes_common", "kubelet_worker"]
     for nfs in config["nfs_node"]:
         nfs_machine_name = nfs.split(".")[0]
         config["data_disk_mnt_path"] = config["machines"][nfs_machine_name]["data_disk_mnt_path"]
@@ -552,6 +557,10 @@ def render_nfs_node_specific(config, args):
             config["files2share"] += itm["nfs_local_path"],
         config["kube_labels"] = get_kube_labels_of_machine_name(
             config, nfs_machine_name)
+        config["storage_manager"] = config["machines"][nfs_machine_name]["storage_manager"]
+        # each NFS has a unique config file for its storage manager
+        render_storagemanager(config, nfs_machine_name)
+        config["file_modules_2_copy"] = default_nfs_f2cp + ["{}_storage_manager".format(nfs_machine_name)]
         utils.render_template("./template/cloud-config/cloud_init_nfs.txt.template",
                               "./deploy/cloud-config/cloud_init_{}.txt".format(nfs.split(".")[0]), config)
     config.pop("files2share", "")
@@ -783,26 +792,21 @@ def pack_cloudinit_roles(config, args):
 
 
 def pack_cloudinit_role(config, role):
-    os.system('mkdir -p cloudinit/{}'.format(role))
-    if role in ["infra", "worker"]:
-        with open("./deploy/cloud-config/{}.upgrade.list".format(role), "r") as f:
-            deploy_files = [s.split(",")
-                            for s in f.readlines() if len(s.split(",")) == 2]
-        dp_src, dp_tgt = map(lambda x: list(x), list(zip(*deploy_files)))
-        src_root = os.path.commonpath(dp_src)
-        with open("cloudinit/{}.filemap".format(role), "w") as wf:
-            for (source, target) in deploy_files:
-                src_strip, tgt_strip = source.strip(), target.strip()
-                if os.path.exists(src_strip):
-                    fbn = os.path.basename(src_strip)
+    if not os.path.exists(CLOUD_INIT_FILE_MAP):
+        with open("./deploy/cloud-config/file_map.yaml") as rf:
+            file_map = yaml.safe_load(rf)           
+            deploy_files = [itm["src"] for mod_val in file_map.values() for itm in mod_val]
+            src_root = os.path.commonpath(deploy_files)
+            print(src_root)
+            for mod_name, map_list in file_map.items():
+                for map_itm in map_list:
                     de_root_fn = os.path.join(
-                        role, os.path.relpath(src_strip, start=src_root))
-                    os.system(
-                        'mkdir -p cloudinit/{}'.format(os.path.dirname(de_root_fn)))
-                    os.system(
-                        'cp -r {} cloudinit/{}'.format(src_strip, de_root_fn))
-                    wf.write("{},{}\n".format(de_root_fn, tgt_strip))
-
+                        mod_name, os.path.relpath(map_itm["src"], start=src_root))
+                    os.system('mkdir -p cloudinit/{}'.format(os.path.dirname(de_root_fn)))
+                    os.system('cp -r {} cloudinit/{}'.format(map_itm["src"], de_root_fn))
+                    map_itm["cld"] = de_root_fn
+        with open(CLOUD_INIT_FILE_MAP, "w") as wf:
+            yaml.dump(file_map, wf)
     for fn in config["files2cp"].get(role, []):
         os.system('cp -r {} cloudinit/{}'.format(fn, os.path.basename(fn)))
 
@@ -815,6 +819,17 @@ def gen_pass_secret_script(config):
 def render_repairmanager(config):
     utils.render_template_directory(
         "../RepairManager/", "./deploy/RepairManager/", config)
+
+
+def render_storagemanager(config, nodename):
+    deploy_path = "./deploy/StorageManager/{}_storage_manager.yaml".format(nodename)
+    utils.render_template(
+        "./template/StorageManager/config.yaml", deploy_path, config)
+    with open("./deploy/cloud-config/file_map.yaml") as rf:
+        file_map = yaml.safe_load(rf)
+        file_map["{}_storage_manager".format(nodename)] = [{"src": deploy_path, "dst": "/etc/StorageManager/config.yaml"}]
+    with open("./deploy/cloud-config/file_map.yaml", "w") as wf:
+        yaml.dump(file_map, wf)
 
 
 def render_for_infra_generic(config, args):
@@ -845,8 +860,8 @@ def render_for_infra_generic(config, args):
     gen_worker_certificates(config)
     gen_master_certificates(config)
     gen_ETCD_certificates(config)
-    utils.render_template("./template/cloud-config/infra.upgrade.list",
-                          "./deploy/cloud-config/infra.upgrade.list", config)
+    utils.render_template("./template/cloud-config/file_map.yaml",
+                          "./deploy/cloud-config/file_map.yaml", config)
     render_ETCD(config)
     render_kubelet(config, args)
     config = render_restfulapi(config)
