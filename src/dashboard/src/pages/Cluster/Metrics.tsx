@@ -38,7 +38,7 @@ const Metrics: FunctionComponent = () => {
   return (
     <>
       <Card>
-        <CardHeader title="VC GPU Usage"/>
+        <CardHeader title="Team GPU Usage"/>
         <CardMedia
           component="iframe"
           src={vcUrl}
