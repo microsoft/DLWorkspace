@@ -113,19 +113,19 @@ const Users: FunctionComponent<{ users: any }> = ({ users }) => {
   } as Column<any>, {
     title: 'Idle GPU'
   }, {
-    title: 'Booked GPU Last Month',
+    title: 'Booked GPU Last 30 days',
     field: 'gpu.booked',
     type: 'numeric',
     render: (data) => <>{humanSeconds(get(data, 'gpu.booked'))}</>,
     width: 'auto'
   } as Column<any>, {
-    title: 'Idle GPU Last Month',
+    title: 'Idle GPU Last 30 days',
     field: 'gpu.idle',
     type: 'numeric',
     render: (data) => <>{humanSeconds(get(data, 'gpu.idle'))}</>,
     width: 'auto'
   } as Column<any>, {
-    title: 'Idle GPU % Last Month',
+    title: 'Idle GPU % Last 30 days',
     field: 'gpu.idle',
     type: 'numeric',
     render: (data) => {
