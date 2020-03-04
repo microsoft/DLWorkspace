@@ -10,6 +10,7 @@ import {
 import {
   each,
   find,
+  keys,
   map,
   mapValues
 } from 'lodash';
@@ -72,6 +73,11 @@ const Workers: FunctionComponent<Props> = ({ types, workers }) => {
       }
     }];
     columns.push(...resourceColumns);
+    columns.push({
+      title: 'Pods',
+      type: 'numeric',
+      render: ({ ip, pods }) => ip ?  <>{keys(pods).length}</> : null
+    });
     return columns;
   }, [resourceColumns]);
 
