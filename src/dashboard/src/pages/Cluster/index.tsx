@@ -7,22 +7,20 @@ import React, {
   useState
 } from 'react';
 import { useParams } from 'react-router';
-import { Link } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router-dom';
 import { Helmet } from 'react-helmet';
 import SwipeableViews from 'react-swipeable-views';
 import {
+  Breadcrumbs,
   Container,
   Hidden,
-  IconButton,
+  Link as UILink,
   Tabs,
   Tab,
   Toolbar,
   Typography,
   Paper,
 } from '@material-ui/core';
-import {
-  ArrowBack
-} from '@material-ui/icons';
 import useFetch from 'use-http-2';
 import { useSnackbar } from 'notistack';
 
@@ -37,15 +35,12 @@ const Header: FunctionComponent = () => {
   const { clusterId } = useParams();
   return (
     <Toolbar disableGutters variant="dense">
-      <IconButton
-        edge="start"
-        color="inherit"
-        component={Link}
-        to="./"
-      >
-        <ArrowBack />
-      </IconButton>
-      <Typography variant="h6">{clusterId}</Typography>
+      <Breadcrumbs aria-label="breadcrumb">
+        <UILink color="inherit" component={RouterLink} to="../">
+          Clusters
+        </UILink>
+        <Typography color="textPrimary">{clusterId}</Typography>
+      </Breadcrumbs>
     </Toolbar>
   );
 };
