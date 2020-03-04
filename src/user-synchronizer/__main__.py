@@ -2,12 +2,14 @@
 # Licensed under the MIT License.
 
 from os import environ
+from sys import stdout
 
 from yaml import safe_load
 
-from logger import logger
+from logging import getLogger, FileHandler, StreamHandler
 from restfulapi import iter_acls, update_identity
 from microsoft_graph import (
+    build_oauth,
     iter_groups_by_mail,
     get_user,
     iter_user_member_of,
@@ -15,9 +17,14 @@ from microsoft_graph import (
     iter_group_members,
 )
 
+logger = getLogger(__name__)
+
 # Read environment variables
 domain_offset_file = environ.get('DOMAIN_OFFSET_FILE', None)
 restfulapi_url = environ['RESTFULAPI_URL']
+tenant_id = environ['TENANT_ID']
+client_id = environ['CLIENT_ID']
+client_secret = environ['CLIENT_SECRET']
 
 # Initialize domain offset map
 domain_offset = {}
@@ -37,14 +44,14 @@ def add_domain_offset(domain_name, security_identifier):
 def cache_processed_member(func):
     id_cache = set()
 
-    def wrapped(member):
+    def wrapped(oauth, member):
         if member['id'] in id_cache:
             logger.info('Already processed {}, skip.'.format(
                 member['displayName']))
             return
 
         try:
-            func(member)
+            func(oauth, member)
         except Exception:
             logger.exception('Exception in process {}'.format(member))
         else:
@@ -54,7 +61,7 @@ def cache_processed_member(func):
 
 
 @cache_processed_member
-def process_user(user):
+def process_user(oauth, user):
     ''' process user '''
 
     if user['onPremisesDomainName'] is None:
@@ -67,7 +74,7 @@ def process_user(user):
     gid = add_domain_offset(user['onPremisesDomainName'], '513')
     groups = [str(gid)]
 
-    for member_of_group in iter_user_member_of(user['id'], [
+    for member_of_group in iter_user_member_of(oauth, user['id'], [
             'id',
             'displayName',
             'onPremisesDomainName',
@@ -91,7 +98,7 @@ def process_user(user):
 
 
 @cache_processed_member
-def process_group(group):
+def process_group(oauth, group):
     ''' process group '''
 
     if group['onPremisesDomainName'] is None:
@@ -103,7 +110,7 @@ def process_group(group):
                                   group['onPremisesSecurityIdentifier'])
     groups = [str(gid)]
 
-    for member_of_group in iter_group_member_of(group['id'], [
+    for member_of_group in iter_group_member_of(oauth, group['id'], [
             'id',
             'displayName',
             'mail',
@@ -126,7 +133,7 @@ def process_group(group):
     update_identity(restfulapi_url, group['mail'], uid, gid, groups)
 
     try:
-        for member in iter_group_members(group['id'], [
+        for member in iter_group_members(oauth, group['id'], [
                 'id',
                 'displayName',
                 'userPrincipalName',
@@ -134,9 +141,9 @@ def process_group(group):
                 'onPremisesSecurityIdentifier',
         ]):
             if member['@odata.type'] == '#microsoft.graph.user':
-                process_user(member)
+                process_user(oauth, member)
             # elif member['@odata.type'] == '#microsoft.graph.group':
-            #     process_group(member)
+            #     process_group(oauth, member)
             else:
                 logger.warning('Skip {}'.format(member['displayName']))
     except Exception:
@@ -145,20 +152,22 @@ def process_group(group):
 
 
 def main():
+    oauth = build_oauth(tenant_id, client_id, client_secret)
+
     for acl in iter_acls(restfulapi_url):
         try:
             acl_name = acl['identityName']
 
-            for group in iter_groups_by_mail(acl_name, [
+            for group in iter_groups_by_mail(oauth, acl_name, [
                     'id',
                     'displayName',
                     'mail',
                     'onPremisesDomainName',
                     'onPremisesSecurityIdentifier',
             ]):
-                process_group(group)
+                process_group(oauth, group)
 
-            user = get_user(acl_name, [
+            user = get_user(oauth, acl_name, [
                 'id',
                 'displayName',
                 'userPrincipalName',
@@ -166,11 +175,22 @@ def main():
                 'onPremisesSecurityIdentifier',
             ])
             if user is not None:
-                process_user(user)
+                process_user(oauth, user)
 
         except Exception:
             logger.exception('Exception in processing ACL {}'.format(acl))
 
 
+def config_logging():
+    log_level = environ.get('LOG_LEVEL', 'INFO')
+    log_file = environ.get('LOG_FILE')
+    root_logger = getLogger()
+    root_logger.setLevel(log_level)
+    root_logger.addHandler(StreamHandler(stdout))
+    if log_file is not None:
+        root_logger.addHandler(FileHandler(log_file))
+
+
 if __name__ == "__main__":
+    config_logging()
     main()

@@ -3,13 +3,14 @@
 
 from json import dumps
 from os import environ
+import logging
 
 from requests import get
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 
-from logger import logger
+logger = logging.getLogger(__name__)
 
 
 def generate_ssh_key_pair():
