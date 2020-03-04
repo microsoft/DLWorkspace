@@ -100,6 +100,7 @@ module.exports = async context => {
   for (const node of _team.get('node_status').filter(_.matches({ 'labels': { 'worker': 'active' } }))) {
     const _node = _.chain(node)
     _setBody(['workers', node.name, 'healthy'], !node['unschedulable'])
+    _setBody(['workers', node.name, 'ip'], node['InternalIP'])
     for (const [type, number] of _node.get('cpu_capacity').entries()) {
       _setBody(['workers', node.name, 'type'], type)
       _setBody(['workers', node.name, 'status', 'cpu', 'total'], number)
