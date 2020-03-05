@@ -3173,20 +3173,6 @@ def run_command(args, command, nargs, parser):
                             % (config["kubernetes_master_node"][0], config["restfulapiport"], nargs[2], nargs[3], nargs[4])
                         response = requests.get(url)
                         print(response.text)
-            elif nargs[0] == "user":
-                if len(nargs) >= 2:
-                    if nargs[1] == "add":
-                        if len(nargs) <= 3:
-                            url = "http://%s:%s/AddUser?userName=%s" % (
-                                config["kubernetes_master_node"][0], config["restfulapiport"], nargs[2])
-                            response = requests.get(url)
-                            print(response)
-                        else:
-                            url = "http://%s:%s/AddUser?userName=%s&uid=%s&gid=%s&groups=%s" % (
-                                config["kubernetes_master_node"][0], config["restfulapiport"], nargs[2], nargs[3], nargs[4], nargs[5])
-                            response = requests.get(url)
-                            print(response)
-
     elif command == "packcloudinit":
         gen_configs()
         render_and_pack_worker_cloud_init_files()

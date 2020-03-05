@@ -158,13 +158,6 @@ class ACLManager:
             else:
                 info = IdentityManager.GetIdentityInfoFromDB(name)
                 uid = info["uid"]
-                if uid == INVALID_ID:
-                    info = IdentityManager.GetIdentityInfoFromAD(name)
-                    IdentityManager.UpdateIdentityInfo(name,
-                                                       info["uid"],
-                                                       info["gid"],
-                                                       info["groups"])
-                    uid = info["uid"]
             ret = data_handler.UpdateAce(name, uid, resource, perm, is_deny)
 
             with acl_cache_lock:
@@ -325,37 +318,6 @@ class ACLManager:
 
 class IdentityManager:
     @staticmethod
-    def GetIdentityInfoFromAD(name):
-        winbind = False
-
-        if "WinbindServers" in config:
-            winbind_servers = config.get("WinbindServers")
-            if not winbind_servers and len(winbind_servers) > 0:
-                if not winbind_servers[0]:
-                    try:
-                        winbind = True
-                        logger.info("Getting Identity Info From AD ...")
-
-                        # winbind (depending on configs) handles nested groups
-                        # for userIds
-                        response = requests.get(winbind_servers[0].format(name))
-                        info = json.loads(response.text)
-                        return info
-                    except Exception as e:
-                        logger.error("Exception in getting info from AD: %s", e)
-                        raise e
-
-        if not winbind:
-            random_id = random.randrange(INVALID_RANGE_START, INVALID_RANGE_END)
-            info = {
-                "uid": random_id,
-                "gid": random_id,
-                "groups": [random_id]
-            }
-
-            return info
-
-    @staticmethod
     @cached(cache=id_cache, key=lambda name: name, lock=id_cache_lock)
     def GetIdentityInfoFromDB(name):
         lst = DataManager.GetIdentityInfo(name)
@@ -366,17 +328,17 @@ class IdentityManager:
             return INVALID_INFO
 
     @staticmethod
-    def UpdateIdentityInfo(name, uid, gid, groups):
+    def UpdateIdentityInfo(name, uid, gid, groups, public_key, private_key):
         ret = False
         data_handler = None
         try:
             data_handler = DataHandler()
-            ret = data_handler.UpdateIdentityInfo(name, uid, gid, groups)
+            ret = data_handler.UpdateIdentityInfo(name, uid, gid, groups,
+                                                  public_key, private_key)
             with id_cache_lock:
                 id_cache.pop(name, None)
         except Exception as e:
-            logger.error("Failed to update identity info for %s. Ex: %s",
-                         name, e)
+            logger.exception("Failed to update identity info for %s", name)
         finally:
             if data_handler is not None:
                 data_handler.Close()

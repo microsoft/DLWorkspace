@@ -224,6 +224,8 @@ class DataHandler(object):
                     `uid`           INT NOT NULL,
                     `gid`           INT NOT NULL,
                     `groups`        MEDIUMTEXT NOT NULL,
+                    `public_key`    TEXT NOT NULL,
+                    `private_key`   TEXT NOT NULL,
                     `time`          DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
                     PRIMARY KEY (`id`)
                 )
@@ -432,38 +434,52 @@ class DataHandler(object):
     @record
     def GetIdentityInfo(self, identityName):
         cursor = self.conn.cursor()
-        query = "SELECT `identityName`,`uid`,`gid`,`groups` FROM `%s` where `identityName` = '%s'" % (self.identitytablename, identityName)
+        query = """SELECT `identityName`,`uid`,`gid`,`groups`,`public_key`,`private_key`
+        FROM `%s` WHERE `identityName` = '%s'""" % (self.identitytablename, identityName)
         ret = []
+
         try:
             cursor.execute(query)
-            for (identityName,uid,gid,groups) in cursor:
+            for (identity_name, uid, gid, groups, public_key, private_key) in cursor:
                 record = {}
-                record["identityName"] = identityName
+                record["identityName"] = identity_name
                 record["uid"] = uid
                 record["gid"] = gid
                 record["groups"] = json.loads(groups)
+                record["public_key"] = public_key
+                record["private_key"] = private_key
                 ret.append(record)
         except Exception as e:
-            logger.error('GetIdentityInfo Exception: %s', str(e))
+            logger.exception("failed to get identity of %s", identityName)
+
         self.conn.commit()
         cursor.close()
         return ret
 
 
     @record
-    def UpdateIdentityInfo(self, identityName, uid, gid, groups):
+    def UpdateIdentityInfo(self, identityName, uid, gid, groups, public_key, private_key):
         try:
             cursor = self.conn.cursor()
 
             if (isinstance(groups, list)):
                 groups = json.dumps(groups)
-            sql = "insert into {0} (identityName, uid, gid, groups) values ('{1}', '{2}', '{3}', '{4}') on duplicate key update uid='{2}', gid='{3}', groups='{4}'".format(self.identitytablename, identityName, uid, gid, groups)
-            cursor.execute(sql)
+
+            sql = """INSERT INTO {0}
+            (identityName, uid, gid, groups, public_key, private_key)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+            uid=%s, gid=%s, groups=%s""".format(self.identitytablename)
+
+            # do not update public_key and private_key if already exist, maybe
+            # this key is currently in use
+            cursor.execute(sql, (identityName, uid, gid, groups, public_key,
+                           private_key, uid, gid, groups))
             self.conn.commit()
             cursor.close()
             return True
         except Exception as e:
-            logger.error('UpdateIdentityInfo Exception: %s', str(e))
+            logger.exception('UpdateIdentityInfo Exception %s', identityName)
             return False
 
     @record
@@ -1347,12 +1363,12 @@ class DataHandler(object):
     @record
     def GetUsers(self):
         cursor = self.conn.cursor()
-        query = "SELECT `identityName`,`uid` FROM `%s`" % (self.identitytablename)
+        query = "SELECT `identityName`,`uid`,`public_key`,`private_key` FROM `%s`" % (self.identitytablename)
         ret = []
         try:
             cursor.execute(query)
-            for (identityName,uid) in cursor:
-                ret.append((identityName,uid))
+            for (identityName, uid, public_key, private_key) in cursor:
+                ret.append((identityName,uid, public_key, private_key))
         except Exception as e:
             logger.error('Exception: %s', str(e))
         self.conn.commit()

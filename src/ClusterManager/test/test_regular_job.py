@@ -353,10 +353,6 @@ def test_regular_job_env(args):
 
         for key, val in envs.items():
             expected_output = "%s=%s" % (key, val)
-            if output.find(expected_output) == -1:
-                logger.info("could not find %s in log %s", expected_output,
-                            output)
-                time.sleep(120)
             assert output.find(
                 expected_output) != -1, "could not find %s in log %s" % (
                     expected_output, output)
@@ -474,8 +470,85 @@ def test_regular_job_custom_ssh_key(args):
         code, output = utils.kube_pod_exec(args.config, "default",
                                            job_manager_pod_name, "jobmanager",
                                            cmd)
-        if code != 0:
-            logger.info("code is %s, output is %s", code, output)
-            time.sleep(120)
         assert code == 0, "code is %s, output is %s" % (code, output)
         assert output == "dummy\n", "output is %s" % (output)
+
+
+@utils.case(unstable=True)
+def test_do_not_expose_private_key(args):
+    cmd = "echo a ; printenv DLTS_SSH_PRIVATE_KEY ; echo b"
+
+    job_spec = utils.gen_default_job_description("regular",
+                                                 args.email,
+                                                 args.uid,
+                                                 args.vc,
+                                                 cmd=cmd)
+
+    with utils.run_job(args.rest, job_spec) as job:
+        state = job.block_until_state_not_in(
+            {"unapproved", "queued", "scheduling", "running"})
+        assert state == "finished"
+
+        expected = "a\nb"
+
+        for _ in range(50):
+            log = utils.get_job_log(args.rest, args.email, job.jid)
+
+            if expected in log:
+                break
+
+            time.sleep(0.5)
+        assert expected in log, 'assert {} in {}'.format(expected, log)
+
+
+@utils.case()
+def test_ssh_do_not_expose_private_key(args):
+    job_spec = utils.gen_default_job_description("regular", args.email,
+                                                 args.uid, args.vc)
+
+    with utils.run_job(args.rest, job_spec) as job:
+        endpoints = utils.create_endpoint(args.rest, args.email, job.jid,
+                                          ["ssh"])
+        endpoints_ids = list(endpoints.keys())
+        assert len(endpoints_ids) == 1
+        endpoint_id = endpoints_ids[0]
+
+        state = job.block_until_state_not_in(
+            {"unapproved", "queued", "scheduling"})
+        assert state == "running"
+
+        ssh_endpoint = utils.wait_endpoint_ready(args.rest, args.email,
+                                                 job.jid, endpoint_id)
+
+        ssh_host = "%s.%s" % (ssh_endpoint["nodeName"], ssh_endpoint["domain"])
+        ssh_port = ssh_endpoint["port"]
+
+        # exec into jobmanager to execute ssh to avoid firewall
+        job_manager_pod = utils.kube_get_pods(args.config, "default",
+                                              "app=jobmanager")[0]
+        job_manager_pod_name = job_manager_pod.metadata.name
+
+        alias = args.email.split("@")[0]
+
+        ssh_cmd = [
+            "ssh",
+            "-i",
+            "/dlwsdata/work/%s/.ssh/id_rsa" % alias,
+            "-p",
+            ssh_port,
+            "-o",
+            "StrictHostKeyChecking=no",
+            "-o",
+            "LogLevel=ERROR",
+            "%s@%s" % (alias, ssh_host),
+            "--",
+            "echo a ; printenv DLTS_SSH_PRIVATE_KEY ; echo b",
+        ]
+        code, output = utils.kube_pod_exec(args.config, "default",
+                                           job_manager_pod_name, "jobmanager",
+                                           ssh_cmd)
+        assert code == 0, "code is %s, output is %s" % (code, output)
+
+        expected = "a\nb"
+        assert expected in output, "could not find %s in output %s" % (
+            expected, output)

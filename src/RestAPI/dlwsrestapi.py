@@ -499,9 +499,11 @@ class AddUser(Resource):
     def __init__(self):
         self.get_parser = reqparse.RequestParser()
         self.get_parser.add_argument("userName", required=True)
-        self.get_parser.add_argument("uid", default=authorization.INVALID_ID)
-        self.get_parser.add_argument("gid", default=authorization.INVALID_ID)
+        self.get_parser.add_argument("uid", required=True)
+        self.get_parser.add_argument("gid", required=True)
         self.get_parser.add_argument("groups", default=[])
+        self.get_parser.add_argument("public_key", required=True)
+        self.get_parser.add_argument("private_key", required=True)
 
     def get(self):
         args = self.get_parser.parse_args()
@@ -511,8 +513,11 @@ class AddUser(Resource):
         uid = args["uid"]
         gid = args["gid"]
         groups = args["groups"]
+        public_key = args["public_key"]
+        private_key = args["private_key"]
 
-        ret["status"] = JobRestAPIUtils.AddUser(userName, uid, gid, groups)
+        ret["status"] = JobRestAPIUtils.AddUser(userName, uid, gid, groups,
+                                                public_key, private_key)
         return generate_response(ret)
 
 
@@ -523,6 +528,7 @@ class GetAllUsers(Resource):
         try:
             data_handler = DataHandler()
             ret = data_handler.GetUsers()
+            ret = [(x[0], x[1]) for x in ret] # remove key info
             return generate_response(ret)
         except Exception as e:
             return "Internal Server Error. " + str(e), 400
