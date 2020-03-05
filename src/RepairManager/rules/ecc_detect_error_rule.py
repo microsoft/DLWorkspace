@@ -143,7 +143,7 @@ class ECCDetectErrorRule(Rule):
 
     def take_action(self):
         # cordon nodes
-        cordon_dry_run = False if self.ecc_config['enable_cordon'] else True
+        cordon_dry_run = not self.ecc_config['enable_cordon']
         action_status = {}
         for node_name in self.new_bad_nodes:
             cordon_action = CordonAction()
@@ -177,9 +177,13 @@ class ECCDetectErrorRule(Rule):
                 reboot_enabled=self.ecc_config['enable_reboot'],
                 days_until_reboot=self.ecc_config.get('days_until_node_reboot', 5)
             )
+            if not cordon_dry_run and self.ecc_config['enable_alert_job_owners']:
+                alert_dry_run = False
+            else:
+                alert_dry_run = True
             alert_action.execute(
                 message=job_owner_message,
-                dry_run=True if cordon_dry_run else False,
+                dry_run=alert_dry_run,
                 additional_log={"job_id": job_id,
                                 "job_owner": job_info['user_name'],
                                 "nodes": job_info['node_names']})
