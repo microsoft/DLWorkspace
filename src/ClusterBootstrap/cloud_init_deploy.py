@@ -512,7 +512,8 @@ def render_infra_node_specific(config, args):
     config["kube_services"] = get_services_path_list(
         config["machines"][hostname].get("kube_services", config["kube_services_2_start"]))
     config["kube_labels"] = get_kube_labels_of_machine_name(config, hostname)
-    config["file_modules_2_copy"] = ["kubernetes_common", "kubernetes_infra", "etcd", "ip_resolve", "restful_api", "front_end", "nfs_client"]
+    # TODO zx: we may need to def get_file_modules_2_copy_by_node_role() to make it more extendable.
+    config["file_modules_2_copy"] = ["kubernetes_common", "kubernetes_infra", "etcd", "ip_resolve", "restful_api", "front_end", "nfs_client", "repair_manager"]
     utils.render_template("./template/cloud-config/cloud_init_infra.txt.template",
                           "./deploy/cloud-config/cloud_init_infra.txt", config)
 
@@ -818,7 +819,7 @@ def gen_pass_secret_script(config):
 
 def render_repairmanager(config):
     utils.render_template_directory(
-        "../RepairManager/", "./deploy/RepairManager/", config)
+        "./template/RepairManager", "./deploy/RepairManager/", config)
 
 
 def render_storagemanager(config, nodename):
