@@ -94,23 +94,15 @@ DLTS_ROLE_IDX
 )
 
 SSH_ENVIRONMENT_FILE=/home/${DLTS_USER_NAME}/.ssh/environment
-# debug
-echo before gen env
-cat $SSH_ENVIRONMENT_FILE
 
 for env_key in "${envs[@]}" ; do
     if [ "`printenv $env_key`" != "" ] ; then
         printf $env_key >> $SSH_ENVIRONMENT_FILE
         printf = >> $SSH_ENVIRONMENT_FILE
         printenv $env_key >> $SSH_ENVIRONMENT_FILE
-        # debug
-        cat $SSH_ENVIRONMENT_FILE
     fi
 done
 
-# debug
-echo after gen env
-cat $SSH_ENVIRONMENT_FILE
 AUTHORIZED_FILE=/home/${DLTS_USER_NAME}/.ssh/authorized_keys
 for env_key in `env | grep DLTS_PUBLIC_SSH_KEY_| cut -d = -f 1` ; do
     printenv $env_key >> $AUTHORIZED_FILE
@@ -120,12 +112,6 @@ PRIVATE_KEY_FILE=/home/${DLTS_USER_NAME}/.ssh/id_rsa
 printenv DLTS_SSH_PRIVATE_KEY > $PRIVATE_KEY_FILE
 chown ${DLTS_USER_NAME} ${SSH_ENVIRONMENT_FILE} ${AUTHORIZED_FILE} ${PRIVATE_KEY_FILE}
 chmod 600 ${SSH_ENVIRONMENT_FILE} ${AUTHORIZED_FILE} ${PRIVATE_KEY_FILE}
-
-PRIVATE_KEY_FILE=/home/${DLTS_USER_NAME}/.ssh/id_rsa
-printenv DLTS_SSH_PRIVATE_KEY > $PRIVATE_KEY_FILE
-chown ${DLTS_USER_NAME} ${SSH_ENVIRONMENT_FILE} ${AUTHORIZED_FILE} ${PRIVATE_KEY_FILE}
-chmod 600 ${SSH_ENVIRONMENT_FILE} ${AUTHORIZED_FILE} ${PRIVATE_KEY_FILE}
-
 
 mkdir -p /root/.ssh && cp /home/${DLTS_USER_NAME}/.ssh/* /root/.ssh/ && chown root /root/.ssh/* && chmod 600 /root/.ssh/*
 
