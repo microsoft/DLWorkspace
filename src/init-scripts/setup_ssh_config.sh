@@ -58,6 +58,7 @@ EOF
     echo -e "${ip}\t${host}" >> /etc/hosts
 done
 
+set +x
 
 envs=(
 LD_LIBRARY_PATH
@@ -112,6 +113,8 @@ PRIVATE_KEY_FILE=/home/${DLTS_USER_NAME}/.ssh/id_rsa
 printenv DLTS_SSH_PRIVATE_KEY > $PRIVATE_KEY_FILE
 chown ${DLTS_USER_NAME} ${SSH_ENVIRONMENT_FILE} ${AUTHORIZED_FILE} ${PRIVATE_KEY_FILE}
 chmod 600 ${SSH_ENVIRONMENT_FILE} ${AUTHORIZED_FILE} ${PRIVATE_KEY_FILE}
+
+set -x
 
 mkdir -p /root/.ssh && cp /home/${DLTS_USER_NAME}/.ssh/* /root/.ssh/ && chown root /root/.ssh/* && chmod 600 /root/.ssh/*
 
