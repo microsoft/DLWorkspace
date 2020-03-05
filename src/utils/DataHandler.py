@@ -3,15 +3,10 @@
 from config import config
 import logging
 
-
 logger = logging.getLogger(__file__)
 
 if "datasource" in config and config["datasource"] == "MySQL":
     from MySQLDataHandler import DataHandler
-elif "datasource" in config and config["datasource"] == "MySQLPool":
-    from MySQLPoolDataHandler import DataHandler
-elif "datasource" in config and config["datasource"] == "MySQLDBUtilsPool":
-    from MySQLDBUtilsPoolDataHandler import DataHandler
 else:
     logger.error("configured database not supported")
 
@@ -63,7 +58,9 @@ class DataManager:
         ret = None
         try:
             ret = dataHandler.GetJobList(
-                "all", vcName, None, "running,queued,scheduling,unapproved,pausing,paused", ("=", "or"))
+                "all", vcName, None,
+                "running,queued,scheduling,unapproved,pausing,paused",
+                ("=", "or"))
         finally:
             dataHandler.Close()
         return ret
