@@ -68,9 +68,10 @@ def iftop(interface, histogram, timeout):
 
     try:
         output = utils.exec_cmd(
-                cmd,
-                stderr=subprocess.STDOUT, # also capture stderr output
-                histogram=histogram, timeout=timeout)
+            cmd,
+            stderr=subprocess.STDOUT,  # also capture stderr output
+            histogram=histogram,
+            timeout=timeout)
         return parse_iftop(output)
     except subprocess.TimeoutExpired:
         logger.warning("iftop timeout")
@@ -83,7 +84,7 @@ def iftop(interface, histogram, timeout):
 # duration can only could be 2 or 10 or 40.
 def parse_iftop(iftop_output, duration=40):
     """ parse output of iftop to map which key is ip:port value is map of in/out statistic """
-    result = collections.defaultdict(lambda : {"in": 0, "out": 0})
+    result = collections.defaultdict(lambda: {"in": 0, "out": 0})
     raw = [line.strip() for line in iftop_output.splitlines()]
     data = []
 
@@ -131,15 +132,18 @@ def lsof(pid, histogram, timeout):
         return None
 
     try:
-        output = utils.exec_cmd(["infilter", str(pid), "/usr/bin/lsof", "-i", "-n", "-P"],
-                histogram=histogram,
-                stderr=subprocess.STDOUT, # also capture stderr output
-                timeout=timeout)
+        output = utils.exec_cmd(
+            ["infilter",
+             str(pid), "/usr/bin/lsof", "-i", "-n", "-P"],
+            histogram=histogram,
+            stderr=subprocess.STDOUT,  # also capture stderr output
+            timeout=timeout)
         return parse_lsof(output)
     except subprocess.TimeoutExpired:
         logger.warning("lsof timeout")
     except subprocess.CalledProcessError as e:
-        logger.warning("infilter lsof returns %d, output %s", e.returncode, e.output)
+        logger.warning("infilter lsof returns %d, output %s", e.returncode,
+                       e.output)
     except Exception:
         logger.exception("exec lsof error")
         return None
@@ -148,7 +152,7 @@ def lsof(pid, histogram, timeout):
 def parse_lsof(lsof_output):
     """ parse output by lsof. For each socket link, lsof will output two lines,
     return a map with string pid as key and list of ip:port that pid is connected from """
-    conns = collections.defaultdict(lambda : set())
+    conns = collections.defaultdict(lambda: set())
     data = [line.strip() for line in lsof_output.splitlines()[1:]]
 
     for line in data:
@@ -198,26 +202,27 @@ def get_interfaces():
     bytes = max_possible * 32
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     names = array.array("B", b"\0" * bytes)
-    outbytes = struct.unpack("iL", fcntl.ioctl(
-        s.fileno(),
-        0x8912,  # SIOCGIFCONF
-        struct.pack("iL", bytes, names.buffer_info()[0])
-    ))[0]
+    outbytes = struct.unpack(
+        "iL",
+        fcntl.ioctl(
+            s.fileno(),
+            0x8912,  # SIOCGIFCONF
+            struct.pack("iL", bytes,
+                        names.buffer_info()[0])))[0]
 
     namestr = names.tostring()
 
     result = {}
     for i in range(0, outbytes, 40):
-        name = namestr[i:i+16].split(b"\0", 1)[0].decode("ascii")
-        ip   = namestr[i+20:i+24]
+        name = namestr[i:i + 16].split(b"\0", 1)[0].decode("ascii")
+        ip = namestr[i + 20:i + 24]
         result[name] = format_ip(ip)
     return result
 
 
 def get_ip_can_access_internet(target="hub.docker.com"):
     """ return None on error """
-    s = socket.socket(
-            socket.AF_INET, socket.SOCK_STREAM)
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         s.connect((target, 80))
     except socket.gaierror:
@@ -240,8 +245,9 @@ def try_to_get_right_interface(configured_ifs):
         if interface in ifs:
             return interface
 
-    logger.info("didn't find correct network interface in this node, configured %s, found %s",
-            configured_ifs, ifs)
+    logger.info(
+        "didn't find correct network interface in this node, configured %s, found %s",
+        configured_ifs, ifs)
 
     ip = get_ip_can_access_internet()
     if ip is not None:
@@ -250,3 +256,88 @@ def try_to_get_right_interface(configured_ifs):
                 return if_name
 
     return None
+
+
+def get_network_consumption(interface_name):
+    with open("/proc/net/dev") as f:
+        content = f.readlines()
+
+    pattern = re.compile("^[ ]*%s:" % (interface_name))
+    for line in content:
+        if re.match(pattern, line):
+            data = line.split(":")[1].strip().split()
+            net_in = data[0]
+            net_out = data[8]
+            return net_in, net_out
+    logger.error(
+        "failed to read node wise network traffic from interface %s, content is %s",
+        interface_name, content)
+    return 0, 0
+
+
+def get_interface_sequence(ip_addr_output):
+    """
+    output interface sequence paired to eth0, None on not found
+    ip_addr_output will be like:
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+3063: eth0@if3064: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1376 qdisc noqueue state UP group default
+    link/ether 9a:43:8c:97:4d:ec brd ff:ff:ff:ff:ff:ff link-netnsid 0
+    inet 10.42.0.4/12 brd 10.47.255.255 scope global eth0
+       valid_lft forever preferred_lft forever
+    """
+    for line in ip_addr_output.split("\n"):
+        try:
+            if line.startswith(" ") or line == "":
+                continue
+            parts = line.split(":")
+            interface_name = parts[1].strip()
+            if "@" not in interface_name:
+                continue
+            inner_intface, out_interface = interface_name.split("@")
+            if inner_intface == "eth0":
+                return int(out_interface[2:])
+        except Exception as e:
+            logger.exception("processing line '%s'", line)
+            return None
+    return None
+
+
+def get_non_host_network_consumption(pid):
+    """ assume non host network container have only one virtual ethernet interface,
+    ref https://www.digitalocean.com/community/tutorials/how-to-inspect-kubernetes-networking#finding-a-pod%E2%80%99s-virtual-ethernet-interface """
+    cmd = ["nsenter", "-t", str(pid), "-n", "ip", "addr"]
+
+    try:
+        output = utils.exec_cmd(cmd, timeout=3)
+        seq = get_interface_sequence(output)
+        if seq is None:
+            logger.warning(
+                "failed to get interface seq paired to eth0 of %s, output %s",
+                pid, output)
+            return 0, 0
+
+        prefix = str(seq) + ":"
+
+        output = utils.exec_cmd(["ip", "addr"], timeout=3)
+        for line in output.split("\n"):
+            if line.startswith(" ") or line == "":
+                continue
+            if line.startswith(prefix):
+                veth_name = line.split(":")[1].strip().split("@")[0]
+                return get_network_consumption(veth_name)
+        logger.warning(
+            "failed to get interface consumption with seq %s, ip addr output is %s",
+            seq, output)
+        return 0, 0
+    except subprocess.TimeoutExpired:
+        logger.warning("nsenter ip addr timeout")
+    except Exception:
+        logger.exception("exec nsenter ip addr failed")
+        return 0, 0
+
+
+if __name__ == "__main__":
+    print(get_non_host_network_consumption(99465))
