@@ -997,7 +997,7 @@ def gen_cluster_config(output_file_name, output_file=True, no_az=False):
                     cc["mountpoints"][mntname]["type"] = "nfs"
                     cc["mountpoints"][mntname]["server"] = server_ip
                     cc["mountpoints"][mntname]["servername"] = server_name
-    
+
     cntr = {}
     for mc in worker_machines:
         vm_sz = mc["vmSize"]
@@ -1084,8 +1084,6 @@ def check_subscription():
     if not config["azure_cluster"]["subscription"] in output:
         setcmd = "az account set --subscription \"{}\"".format(config["azure_cluster"]["subscription"])
         setout = utils.exec_cmd_local(setcmd)
-        print("Set your subscription to {}, please login.\nIf you want to specify another subscription, please configure azure_cluster.subscription".format(config["azure_cluster"]["subscription"]))
-        utils.exec_cmd_local("az login")
     output = utils.exec_cmd_local(chkcmd)
     if isinstance(output, bytes):
         output = output.decode()
