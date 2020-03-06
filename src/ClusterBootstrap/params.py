@@ -271,7 +271,6 @@ default_config_parameters = {
             "restfulapi": "active",
             "user-synchronizer": "active",
             "alert-manager": "active",
-            "elasticsearch": "active",
             "beta.kubernetes.io/os": "linux"
             },
         'worker': {
@@ -284,6 +283,9 @@ default_config_parameters = {
         'nfs': {
             "storagemanager": "active"
             },
+        'elasticsearch': {
+            "elasticsearch": "active"
+        },
     },
 
     "kube_services_2_start": [
