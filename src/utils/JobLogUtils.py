@@ -29,7 +29,7 @@ def GetJobLog(jobId, cursor=None, size=None):
                 "@timestamp",
                 {"time_nsec": {"unmapped_type": "long", "missing": 0}},
             ],
-            "_source": ["kubernetes.pod_name", "stream", "log"]
+            "_source": ["docker.container_id", "kubernetes.pod_name", "stream", "log"]
         }
         if cursor is not None:
             search_after = TryParseCursor(cursor)
