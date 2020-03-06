@@ -31,14 +31,14 @@ RUN curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > mic
 RUN mv microsoft.gpg /etc/apt/trusted.gpg.d/microsoft.gpg
 RUN sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/microsoft-ubuntu-xenial-prod xenial main" > /etc/apt/sources.list.d/dotnetdev.list'
 RUN apt-get update
-RUN apt-get install -y dotnet-sdk-2.0.0
-RUN apt-get install -y aspnetcore-store-2.0.0
+RUN apt-get install -y --no-install-recommends dotnet-sdk-2.0.0
+RUN apt-get install -y --no-install-recommends aspnetcore-store-2.0.0
 RUN apt-get update -y && \
     apt-get -y install apache2 libapache2-mod-wsgi-py3
 
 RUN mkdir -p /var/www/html/
 
-RUN apt-get update -y && apt-get install -y python3-pycurl locales ssh-askpass
+RUN apt-get update -y && apt-get install -y --no-install-recommends python3-pycurl locales ssh-askpass
 RUN pip install --upgrade pip 
 RUN pip install setuptools 
 RUN pip install flask flask.restful 
@@ -71,7 +71,7 @@ WORKDIR /detectron/tools
 RUN wget https://s3-us-west-2.amazonaws.com/detectron/35861858/12_2017_baselines/e2e_mask_rcnn_R-101-FPN_2x.yaml.02_32_51.SgT4y1cO/output/train/coco_2014_train:coco_2014_valminusminival/generalized_rcnn/model_final.pkl
 WORKDIR /detectron
 
-RUN apt-get update -y && apt-get install -y nodejs  
+RUN apt-get update -y && apt-get install -y --no-install-recommends nodejs  
 # RUN sudo npm install bower -g 
 
 
@@ -100,7 +100,7 @@ RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
 ADD run.sh /run.sh
 RUN chmod +x /run.sh
 
-RUN apt-get update -y && apt-get install -y openssh-server sudo
+RUN apt-get update -y && apt-get install -y --no-install-recommends openssh-server sudo
 
 RUN mkdir -p /var/log/apache2
 RUN chmod 0777 /var/log/apache2

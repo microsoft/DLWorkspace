@@ -9,8 +9,8 @@ sudo rm -rf /var/lib/hyperv/.kvp_pool_0
 sudo systemctl restart hv-kvp-daemon.service
 
 sudo apt-get update
-sudo apt-get install -y build-essential python-setuptools libibverbs-dev bison flex ibverbs-utils net-tools gfortran python3-pip
-sudo apt-get install -y perftest infiniband-diags
+sudo apt-get install -y --no-install-recommends build-essential python-setuptools libibverbs-dev bison flex ibverbs-utils net-tools gfortran python3-pip
+sudo apt-get install -y --no-install-recommends perftest infiniband-diags
 sudo python3 -m pip install --upgrade pip setuptools wheel
 
 sudo apt-get remove -y walinuxagent

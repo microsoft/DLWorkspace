@@ -16,13 +16,13 @@ sudo apt-get install -y --no-install-recommends \
         network-manager
 
 sudo apt-get install libcurl4-openssl-dev libssl-dev gcc libnss3-dev libgnutls28-dev
-sudo apt-get install -y python-subprocess32
+sudo apt-get install -y --no-install-recommends python-subprocess32
 # Install docker
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
 
 sudo add-apt-repository  "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-sudo apt install docker.io
-sudo apt install pssh
+sudo apt-get install -y --no-install-recommends docker.io
+sudo apt-get install -y --no-install-recommends pssh
 
 AZ_REPO=$(lsb_release -cs)
 echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ $AZ_REPO main" | \

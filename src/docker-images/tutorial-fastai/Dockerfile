@@ -30,14 +30,14 @@ RUN curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > mic
 RUN mv microsoft.gpg /etc/apt/trusted.gpg.d/microsoft.gpg
 RUN sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/microsoft-ubuntu-xenial-prod xenial main" > /etc/apt/sources.list.d/dotnetdev.list'
 RUN apt-get update
-RUN apt-get install -y dotnet-sdk-2.0.0
-RUN apt-get install -y aspnetcore-store-2.0.0
+RUN apt-get install -y --no-install-recommends dotnet-sdk-2.0.0
+RUN apt-get install -y --no-install-recommends aspnetcore-store-2.0.0
 RUN apt-get update -y && \
     apt-get -y install apache2 libapache2-mod-wsgi-py3
 
 RUN mkdir -p /var/www/html/
 
-RUN apt-get update -y && apt-get install -y python3-pycurl python3-pip python3-dev locales ssh-askpass
+RUN apt-get update -y && apt-get install -y --no-install-recommends python3-pycurl python3-pip python3-dev locales ssh-askpass
 RUN pip install --upgrade pip 
 RUN pip install setuptools 
 RUN pip install flask flask.restful 
@@ -47,7 +47,7 @@ RUN pip install opencv-python pandas jupyter
 RUN pip3 install spacy
 RUN python3 -m spacy download en
 
-RUN apt-get update -y && apt-get install -y nodejs  
+RUN apt-get update -y && apt-get install -y --no-install-recommends nodejs  
 # RUN sudo npm install bower -g 
 
 
@@ -76,7 +76,7 @@ RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
 ADD run.sh /run.sh
 RUN chmod +x /run.sh
 
-RUN apt-get update -y && apt-get install -y openssh-server sudo
+RUN apt-get update -y && apt-get install -y --no-install-recommends openssh-server sudo
 
 RUN mkdir -p /var/log/apache2
 RUN chmod 0777 /var/log/apache2

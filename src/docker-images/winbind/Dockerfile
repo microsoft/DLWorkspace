@@ -6,7 +6,7 @@ ADD krb5.conf /etc/krb5.conf
 ADD nsswitch.conf /etc/nsswitch.conf
 
 RUN apt-get update && \
-    apt-get install -y \
+    apt-get install -y --no-install-recommends \
         samba \
         cifs-utils  \
         libnss-winbind \
@@ -15,9 +15,9 @@ RUN apt-get update && \
         krb5-user \
         krb5-config 
 
- RUN apt-get install -y apache2 libapache2-mod-wsgi
+ RUN apt-get install -y --no-install-recommends apache2 libapache2-mod-wsgi
 
- RUN apt-get install -y \
+ RUN apt-get install -y --no-install-recommends \
         python-dev \
         python-pip 
 

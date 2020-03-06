@@ -34,7 +34,7 @@ yes | sudo apt-get install -y --no-install-recommends \
         dos2unix
         
 
-yes | sudo apt-get install -y bison curl parted
+yes | sudo apt-get install -y --no-install-recommends bison curl parted
 
 # Install docker
 which docker
@@ -50,7 +50,7 @@ sudo add-apt-repository \
    $(lsb_release -cs) \
    stable"
 sudo apt-get update
-yes | sudo apt-get install -y docker-ce
+yes | sudo apt-get install -y --no-install-recommends docker-ce
 fi
 
 yes | sudo pip install --upgrade pip
@@ -117,9 +117,9 @@ if  lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VG
 
     sudo apt-get purge -y nvidia*
     sudo apt-get update
-    yes | sudo apt-get install -y nvidia-driver-430
+    yes | sudo apt-get install -y --no-install-recommends nvidia-driver-430
 
-        yes | sudo apt install -y nvidia-modprobe
+        yes | sudo apt-get install -y --no-install-recommends nvidia-modprobe
 
         sudo rm -r /opt/nvidia-driver || true
 
@@ -133,7 +133,7 @@ if  lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VG
         curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
         sudo apt-get update
 
-        yes | sudo apt-get install -y nvidia-docker2
+        yes | sudo apt-get install -y --no-install-recommends nvidia-docker2
         sudo pkill -SIGHUP dockerd
 
         # Test nvidia-smi
@@ -155,5 +155,5 @@ sudo rm -f packages-microsoft-prod.deb
 wget https://packages.microsoft.com/config/ubuntu/16.04/packages-microsoft-prod.deb
 sudo dpkg -i packages-microsoft-prod.deb
 sudo apt-get update
-sudo apt-get install -y blobfuse fuse jq
+sudo apt-get install -y --no-install-recommends blobfuse fuse jq
 sudo rm -f packages-microsoft-prod.deb

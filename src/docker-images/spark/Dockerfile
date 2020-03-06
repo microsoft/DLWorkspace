@@ -3,7 +3,7 @@ MAINTAINER Jin Li <jinlmsft@hotmail.com>
 
 VOLUME /mnt/hadoop/
 RUN apt-get update \
-  && apt-get install -y jq curl 
+  && apt-get install -y --no-install-recommends jq curl 
 
 RUN curl -s http://www.apache.org/dist/hadoop/common/hadoop-2.8.0/hadoop-2.8.0.tar.gz | tar -xz -C /usr/local/ \
   && cd /usr/local \
@@ -26,7 +26,7 @@ RUN sed -i '/^export JAVA_HOME/ s:.*:export JAVA_HOME=/usr/lib/jvm/java-8-oracle
 # NameNode                Secondary NameNode  DataNode                     JournalNode  NFS Gateway    HttpFS         ZKFC
 EXPOSE 8020 50070 50470   50090 50495         50010 1004 50075 1006 50020  8485 8480    2049 4242 111  14000 14001    8019
 
-RUN apt-get update && apt-get install -y python-pip attr
+RUN apt-get update && apt-get install -y --no-install-recommends python-pip attr
 RUN pip install pyyaml jinja2 argparse logutils
 
 
@@ -43,7 +43,7 @@ RUN chmod 777 $SPARK_HOME/yarn-remote-client
 #RUN rpm -ivh http://dl.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm
 #RUN yum -y install R
 RUN apt-get update \
-  && apt-get install -y r-base r-base-dev
+  && apt-get install -y --no-install-recommends r-base r-base-dev
 
 
 ENV YARN_CONF_DIR $HADOOP_PREFIX/etc/hadoop

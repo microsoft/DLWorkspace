@@ -26,7 +26,7 @@ RUN 7z x -o/tmp/ubuntu {{cnf["ubuntuImageName"]}}
 RUN rm {{cnf["ubuntuImageName"]}}
 RUN cp -fr /tmp/ubuntu/install/* /var/www/html/ubuntu/install
 
-RUN apt-get update -y && apt-get install -y python-dev python-pip 
+RUN apt-get update -y && apt-get install -y --no-install-recommends python-dev python-pip 
 RUN pip install Flask
 RUN pip install flask_restful
 ENV APACHE_RUN_USER www-data

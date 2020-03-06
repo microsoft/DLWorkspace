@@ -33,7 +33,7 @@ RUN pip install requests
 
 RUN wget http://ccsdatarepo.westus.cloudapp.azure.com/data/tools/mysql-connector-python_2.1.7-1ubuntu16.04_all.deb -O /mysql-connector-python_2.1.7-1ubuntu16.04_all.deb
 RUN dpkg -i /mysql-connector-python_2.1.7-1ubuntu16.04_all.deb
-RUN apt-get install -y libmysqlclient-dev mysql-connector-python
+RUN apt-get install -y --no-install-recommends libmysqlclient-dev mysql-connector-python
 
 
 # Install python for Azure SQL
@@ -42,7 +42,7 @@ RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
 
 RUN curl https://packages.microsoft.com/config/ubuntu/16.04/prod.list > /etc/apt/sources.list.d/mssql-release.list
 
-RUN apt-get update; ACCEPT_EULA=Y apt-get install -y msodbcsql=13.1.4.0-1 unixodbc-dev
+RUN apt-get update; ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql=13.1.4.0-1 unixodbc-dev
 
 
 RUN pip install pyodbc

@@ -1947,11 +1947,11 @@ def fileshare_install(mount_command_file=''):
                     elif v["type"] == "glusterfs":
                         if not ("glusterfs" in filesharetype):
                             filesharetype["glusterfs"] = True
-                            remotecmd += "sudo apt-get install -y glusterfs-client attr; "
+                            remotecmd += "sudo apt-get install -y --no-install-recommends glusterfs-client attr; "
                     elif v["type"] == "nfs":
                         if not ("nfs" in filesharetype):
                             filesharetype["nfs"] = True
-                            remotecmd += "sudo apt-get install -y nfs-common; "
+                            remotecmd += "sudo apt-get install -y --no-install-recommends nfs-common; "
                             # Ubuntu has issue of rpc.statd not started automatically
                             # https://bugs.launchpad.net/ubuntu/+source/nfs-utils/+bug/1624715
                             remotecmd += "sudo cp /lib/systemd/system/rpc-statd.service /etc/systemd/system/; "
@@ -1965,8 +1965,8 @@ def fileshare_install(mount_command_file=''):
                             remotecmd += "sudo dpkg -i cdh5-repository_1.0_all.deb; "
                             remotecmd += "sudo rm cdh5-repository_1.0_all.deb; "
                             remotecmd += "sudo apt-get update; "
-                            remotecmd += "sudo apt-get install -y default-jre; "
-                            remotecmd += "sudo apt-get install -y --allow-unauthenticated hadoop-hdfs-fuse; "
+                            remotecmd += "sudo apt-get install -y --no-install-recommends default-jre; "
+                            remotecmd += "sudo apt-get install -y --no-install-recommends --allow-unauthenticated hadoop-hdfs-fuse; "
         if len(remotecmd)>0:
             if mount_command_file == '':
                 utils.SSH_exec_cmd(config["ssh_cert"], config["admin_username"], node, remotecmd)
@@ -2518,7 +2518,7 @@ def create_glusterFS_volume( nodesinfo, glusterFSargs ):
         print "................. Node %s ................." % node
         remotecmd = ""
         remotecmd += "sudo modprobe dm_thin_pool; "
-        remotecmd += "sudo apt-get install -y thin-provisioning-tools; "
+        remotecmd += "sudo apt-get install -y --no-install-recommends thin-provisioning-tools; "
         capacityGB = 0.0
         for volume in volumes:
             remotecmd += "sudo pvcreate -f "

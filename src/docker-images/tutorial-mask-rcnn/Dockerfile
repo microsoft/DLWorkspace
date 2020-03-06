@@ -37,7 +37,7 @@ RUN git clone https://github.com/tensorflow/models
 
 RUN mkdir -p /var/www/html/
 
-RUN apt-get update -y && apt-get install -y python3-dev python3-pip python3-yaml python3-pycurl locales ssh-askpass
+RUN apt-get update -y && apt-get install -y --no-install-recommends python3-dev python3-pip python3-yaml python3-pycurl locales ssh-askpass
 RUN pip3 install --upgrade pip 
 RUN pip3 install setuptools 
 RUN pip3 install flask flask.restful 
@@ -46,7 +46,7 @@ RUN pip3 install -U flask-cors
 RUN pip3 install opencv-python pandas
 RUN pip3 install -U --no-cache-dir git+https://github.com/ppwwyyxx/tensorpack.git
 
-RUN apt-get update -y && apt-get install -y nodejs  
+RUN apt-get update -y && apt-get install -y --no-install-recommends nodejs  
 # RUN sudo npm install bower -g 
 
 # netcore 2.0
@@ -54,8 +54,8 @@ RUN curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > mic
 RUN mv microsoft.gpg /etc/apt/trusted.gpg.d/microsoft.gpg
 RUN sh -c 'echo "deb [arch=amd64] https://packages.microsoft.com/repos/microsoft-ubuntu-xenial-prod xenial main" > /etc/apt/sources.list.d/dotnetdev.list'
 RUN apt-get update
-RUN apt-get install -y dotnet-sdk-2.0.0
-RUN apt-get install -y aspnetcore-store-2.0.0
+RUN apt-get install -y --no-install-recommends dotnet-sdk-2.0.0
+RUN apt-get install -y --no-install-recommends aspnetcore-store-2.0.0
 
 ENV APACHE_RUN_USER www-data
 ENV APACHE_RUN_GROUP www-data
@@ -80,7 +80,7 @@ RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
 ADD run.sh /run.sh
 RUN chmod +x /run.sh
 
-RUN apt-get update -y && apt-get install -y openssh-server sudo
+RUN apt-get update -y && apt-get install -y --no-install-recommends openssh-server sudo
 RUN pip3 install --upgrade --ignore-installed setuptools 
 
 RUN git clone https://github.com/ppwwyyxx/tensorpack.git
@@ -123,7 +123,7 @@ RUN cd /root/Mask_RCNN; pip3 install -r requirements.txt; python3 setup.py insta
 # Instal cocotool
 RUN git clone https://github.com/waleedka/coco.git
 RUN cd /root/coco/PythonAPI; make; make install; python3 setup.py install
-RUN apt-get update -y && apt-get install -y libxrender1
+RUN apt-get update -y && apt-get install -y --no-install-recommends libxrender1
 
 
 CMD /bin/bash -c /run.sh

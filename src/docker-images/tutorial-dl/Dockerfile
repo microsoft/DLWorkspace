@@ -27,10 +27,10 @@ RUN cd /utils && \
 RUN cd /utils && git clone https://github.com/matterport/Mask_RCNN
 
 # For audio demo
-RUN add-apt-repository ppa:jonathonf/ffmpeg-3 && apt-get update && apt-get install -y ffmpeg libav-tools x264 x265 
+RUN add-apt-repository ppa:jonathonf/ffmpeg-3 && apt-get update && apt-get install -y --no-install-recommends ffmpeg libav-tools x264 x265 
 
 # data for final task 
-RUN apt-get update && apt-get install -y p7zip-full
+RUN apt-get update && apt-get install -y --no-install-recommends p7zip-full
 RUN cd /utils && \
     git clone https://github.com/stormstone/deeplearning.ai && \
     mkdir -p /utils/data/trigger_word && \
