@@ -17,8 +17,8 @@ runcmd:
  - curl -fsSL https://get.docker.com -o get-docker.sh; sh get-docker.sh
  - sudo usermod -aG docker {{cnf["worker_user"]}}
  - sudo setfacl -m user:{{cnf["worker_user"]}}:rw /var/run/docker.sock
- - docker pull {{cnf["dockerregistry"]}}{{cnf["cluster_name"]}}/cloudinit
- - docker create -ti --name bootpack {{cnf["dockerregistry"]}}{{cnf["cluster_name"]}}/cloudinit bash
+ - docker pull {{cnf["dockerregistry"]}}{{cnf["cluster_name"].lower()}}/cloudinit
+ - docker create -ti --name bootpack {{cnf["dockerregistry"]}}{{cnf["cluster_name"].lower()}}/cloudinit bash
  - docker cp bootpack:/usr/cloudinit.tar ./
  - tar -xvf cloudinit.tar
  - cd cloudinit

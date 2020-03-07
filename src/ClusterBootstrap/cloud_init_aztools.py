@@ -237,8 +237,6 @@ def validate_machine_spec(config, spec):
         assert spec["number_of_instance"] <= 1 and "cannot overwirte name for multiple machines one time!"
     if "nfs" in spec["role"]:
         assert spec["number_of_instance"] <= 1 and "NFS machine spec must be configured one by one!"
-    if "worker" in spec["role"]:
-        assert "gpu_type" in spec and "Must specify gpu_type for worker node!"
 
 
 def gen_machine_list_4_deploy_action(complementary_file_name, config):

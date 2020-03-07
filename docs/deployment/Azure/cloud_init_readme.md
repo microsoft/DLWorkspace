@@ -89,6 +89,12 @@ If you just want to add more worker nodes, after getting ready, simply invoke
 
 Sometimes you might also want to add a new NFS node, that's considered a cluster change. Contact us for more details.
 
+## Adding services
+We illustrate with elastic search.
+
+If elasticsearch could be available if a worker node was set aside and labeled as `elasticsearch=active`
+this could be done by `kubectl label nodes <elasticsearch node hostname> elasticsearch=active`
+
 ## Details in deploy.sh
 
 We will explain the operations behind `deploy.sh` in this section. 

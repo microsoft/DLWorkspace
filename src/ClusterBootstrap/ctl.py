@@ -31,7 +31,7 @@ def run_kubectl(config, args, commands):
     master_node = random.choice(nodes)
     kube_command = "./deploy/bin/kubectl --server=https://{}:{} --certificate-authority={} --client-key={} --client-certificate={} {}".format(
         config["machines"][master_node]["fqdns"], config["k8sAPIport"], "./deploy/ssl/ca/ca.pem", "./deploy/ssl/kubelet/apiserver-key.pem", "./deploy/ssl/kubelet/apiserver.pem", one_command)
-    output = utils.exec_cmd_local(kube_command, verbose=True)
+    output = utils.exec_cmd_local(kube_command, verbose=args.verbose)
     return output
 
 
@@ -139,6 +139,8 @@ def run_command(args, command):
         parallel_action_by_role(config, args, copy2_wrapper)
     if command == "backuptodir":
         utils.backup_keys_to_dir(args.nargs)
+    if command == "restorefromdir":
+        utils.restore_keys_from_dir(args.nargs)
     if command == "verifyallnodes":
         verify_all_nodes_ready(config, args)
 

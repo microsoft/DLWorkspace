@@ -552,7 +552,7 @@ def execute_restore_from_dir(pname):
     os.system("mkdir -p ./deploy/ssl")
     os.system("cp -r %s/sshkey/* ./deploy/sshkey" % backup_dir)
     # Make ssh for the current user work
-    os.system("chmod 700 ./deploy/sshkey/id_rsa")
+    os.system("chmod 600 ./deploy/sshkey/id_rsa")
     if os.path.exists("%s/ssl/kubelet" % backup_dir):
         os.system("cp -r %s/ssl/* ./deploy/ssl" % backup_dir)
     os.system("cp %s/clusterID/*.yml ./deploy/" % backup_dir)
