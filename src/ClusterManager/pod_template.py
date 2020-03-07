@@ -196,8 +196,10 @@ class RegularJobTemplate(JobTemplate):
             "value": params["cmd"]
         })
         pod_obj["spec"]["containers"][0]["env"].append({
-            "name": "DLTS_SSH_PRIVATE_KEY",
-            "value": params["private_key"]
+            "name":
+            "DLTS_SSH_PRIVATE_KEY",
+            "value":
+            params["private_key"]
         })
 
         return [pod_obj], None
@@ -305,6 +307,12 @@ class DistributeJobTemplate(JobTemplate):
         pod_obj["spec"]["containers"][0]["env"].append({
             "name": "DLTS_LAUNCH_CMD",
             "value": pod["cmd"]
+        })
+        pod_obj["spec"]["containers"][0]["env"].append({
+            "name":
+            "DLTS_SSH_PRIVATE_KEY",
+            "value":
+            params["private_key"]
         })
         return pod_obj
 
