@@ -41,10 +41,8 @@ def extract_job_log(jobId, logPath, userId):
     try:
         dataHandler = DataHandler()
 
-        old_cursor_text = dataHandler.GetJobTextField(jobId, "jobLog")
-        if old_cursor_text is not None and old_cursor_text.startswith("$$cursor: "):
-            old_cursor = old_cursor_text[10:]
-        else:
+        old_cursor = dataHandler.GetJobTextField(jobId, "jobLogCursor")
+        if old_cursor is not None and len(old_cursor) == 0:
             old_cursor = None
         (logs, new_cursor) = GetJobLog(jobId, cursor=old_cursor)
 
@@ -70,12 +68,12 @@ def extract_job_log(jobId, logPath, userId):
                 with open(containerLogPath, 'a') as f:
                     f.write(log_text)
                 os.system("chown -R %s %s" % (userId, containerLogPath))
-            except Exception as e:
+            except Exception:
                 logger.exception("write container log failed")
 
         logging.info("cursor of job %s: %s" % (jobId, new_cursor))
         if new_cursor is not None:
-            dataHandler.UpdateJobTextField(jobId, "jobLog", "$$cursor: %d" % (new_cursor,))
+            dataHandler.UpdateJobTextField(jobId, "jobLogCursor", new_cursor)
 
     except Exception as e:
         logging.error(e)
@@ -190,7 +188,7 @@ def update_job_logs():
                         localJobPath = os.path.join(
                             config["storage-mount-path"], jobPath)
                         logPath = os.path.join(localJobPath, "logs/joblog.txt")
-                        if elasticsearch_deployed:
+                        if elasticsearch_deployed and not config.get('__extract_job_log_legacy', False):
                             extract_job_log(
                                 job["jobId"], logPath, jobParams["userId"])
                         else:
