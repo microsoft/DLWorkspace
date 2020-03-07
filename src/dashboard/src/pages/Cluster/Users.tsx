@@ -144,6 +144,11 @@ const Users: FunctionComponent<Props> = ({ clusterConfig, users, onSearchPods })
     title: 'GPU Idle',
     field: 'gpuIdle',
     type: 'numeric',
+    render: ({ gpuIdle }) => typeof gpuIdle === 'number' && (
+      <Typography variant="inherit" color={gpuIdle > 0 ? "error" : "inherit"}>
+        {gpuIdle}
+      </Typography>
+    ),
     width: 'auto'
   } as Column<any>, {
     title: 'Booked GPU Last 30 days',

@@ -14,7 +14,8 @@ import { filter, flatMap, map, set } from 'lodash';
 import {
   Button,
   Link as UILink,
-  Tooltip
+  Tooltip,
+  Typography
 } from '@material-ui/core';
 import MaterialTable, {
   Column,
@@ -120,11 +121,16 @@ const Pods: FunctionComponent<Props> = ({ clusterConfig, workers, query }) => {
     title: 'GPU Utilization',
     field: 'gpuMetrics.utilization',
     type: 'numeric',
-    render: ({ gpuMetrics }) => gpuMetrics && <>{Number(gpuMetrics.utilization).toPrecision(2)}%</>
+    render: ({ gpuMetrics }) => gpuMetrics && gpuMetrics.utilization && <>{Number(gpuMetrics.utilization).toPrecision(2)}%</>
   } as Column<any>, {
     title: 'GPU Idle',
     field: 'gpuMetrics.idle',
     type: 'numeric',
+    render: ({ gpuMetrics }) => gpuMetrics && typeof gpuMetrics.idle === 'number' && (
+      <Typography variant="inherit" color={gpuMetrics.idle > 0 ? "error" : "inherit"}>
+        {gpuMetrics.idle}
+      </Typography>
+    )
   } as Column<any>]).current;
   const options = useMemo<Options>(() => ({
     padding: "dense",
