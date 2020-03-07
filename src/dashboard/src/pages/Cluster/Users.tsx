@@ -1,6 +1,7 @@
 import React, {
   FunctionComponent,
   useCallback,
+  useContext,
   useMemo,
   useRef,
   useState
@@ -9,7 +10,8 @@ import { entries, find, get, set } from 'lodash';
 
 import {
   Button,
-  ButtonGroup,
+  Link,
+  Tooltip,
   Typography
 } from '@material-ui/core';
 import MaterialTable, {
@@ -17,6 +19,8 @@ import MaterialTable, {
   Options
 } from 'material-table';
 
+import TeamsContext from '../../contexts/Teams';
+import usePrometheus from '../../hooks/usePrometheus';
 import useTableData from '../../hooks/useTableData';
 import { humanBytes } from '../Clusters/useResourceColumns';
 
@@ -31,49 +35,75 @@ const humanSeconds = (seconds: number) => {
   return seconds + ' s'
 }
 
-const Users: FunctionComponent<{ users: any }> = ({ users }) => {
+interface Props {
+  clusterConfig: any;
+  users: any;
+  onSearchPods: (query: string) => void;
+}
+
+const Users: FunctionComponent<Props> = ({ clusterConfig, users, onSearchPods }) => {
+  const { selectedTeam } = useContext(TeamsContext);
+
   const [filterCurrent, setFilterCurrent] = useState(true);
 
-  const handleAllClick = useCallback(() => setFilterCurrent(false), [setFilterCurrent]);
-  const handleCurrentClick = useCallback(() => setFilterCurrent(true), [setFilterCurrent]);
+  const gpuIdleMetrics = usePrometheus(clusterConfig, `count (task_gpu_percent{vc_name="${selectedTeam}"} == 0) by (username)`);
+
+  const handleButtonClick = useCallback(() => {
+    setFilterCurrent((filterCurrent) => !filterCurrent);
+  }, [setFilterCurrent]);
+
+  const usersGPUIdle = useMemo(() => {
+    const usersGPUIdle: { [user: string]: number } = Object.create(null);
+    if (gpuIdleMetrics != null)  {
+      for (const { metric, value } of gpuIdleMetrics.result) {
+        usersGPUIdle[metric.username] = Number(value[1]);
+      }
+    }
+    return usersGPUIdle;
+  }, [gpuIdleMetrics]);
 
   const data = useMemo(() => {
     const data = [];
-    const total = { id: 'Total' };
     for (const [userName, {types, gpu}] of entries<any>(users)) {
       if (types == null && filterCurrent) continue;
-      const userStatus = Object.create(null)
-      data.push({ id: userName, status: userStatus, gpu });
+      const userStatus = Object.create(null);
+      const gpuIdle = usersGPUIdle[userName];
+      data.push({ id: userName, status: userStatus, gpu, gpuIdle });
       for (const [typeName, status] of entries(types)) {
         data.push({ id: typeName, userName, status })
         for (const resourceType of ['cpu', 'gpu', 'memory']) {
           for (const resourceKind of ['used', 'preemptable']) {
             set(userStatus, [resourceType, resourceKind],
               get(userStatus, [resourceType, resourceKind], 0) +
-              get(status, [resourceType, resourceKind], 0))
-            set(total, ['status', resourceType, resourceKind],
-              get(total, ['status', resourceType, resourceKind], 0) +
-              get(status, [resourceType, resourceKind], 0))
+              get(status, [resourceType, resourceKind], 0));
           }
         }
       }
-      set(total, ['gpu', 'booked'],
-        get(total, ['gpu', 'booked'], 0) +
-        get(gpu, ['booked'], 0));
-      set(total, ['gpu', 'idle'],
-        get(total, ['gpu', 'idle'], 0) +
-        get(gpu, ['idle'], 0));
     }
-    data.push(total);
     return data;
-  }, [filterCurrent, users]);
+  }, [filterCurrent, users, usersGPUIdle]);
   const tableData = useTableData(data);
+
+  const handleUserClick = useCallback((userName: string) => () => {
+    onSearchPods(userName);
+  }, [onSearchPods]);
 
   const columns = useRef<Column<any>[]>([{
     field: 'id',
     render: (row) => row.userName
       ? <Typography variant="subtitle2">{row.id}</Typography>
-      : <Typography variant="subtitle2">{row.id}</Typography>
+      : (
+        <Tooltip title={`Show ${row.id}'s Pods`}>
+          <Link
+            component="button"
+            variant="subtitle2"
+            style={{ textAlign: 'left' }}
+            onClick={handleUserClick(row.id)}
+          >
+            {row.id}
+          </Link>
+        </Tooltip>
+      )
   }, {
     title: 'CPU',
     field: 'status.cpu.used',
@@ -111,8 +141,11 @@ const Users: FunctionComponent<{ users: any }> = ({ users }) => {
     searchable: false,
     width: 'auto'
   } as Column<any>, {
-    title: 'Idle GPU'
-  }, {
+    title: 'GPU Idle',
+    field: 'gpuIdle',
+    type: 'numeric',
+    width: 'auto'
+  } as Column<any>, {
     title: 'Booked GPU Last 30 days',
     field: 'gpu.booked',
     type: 'numeric',
@@ -159,10 +192,9 @@ const Users: FunctionComponent<{ users: any }> = ({ users }) => {
   return (
     <MaterialTable
       title={
-        <ButtonGroup size="small">
-          <Button disabled={!filterCurrent} onClick={handleAllClick}>All Users</Button>
-          <Button disabled={filterCurrent} onClick={handleCurrentClick}>Current Users</Button>
-        </ButtonGroup>
+        <Button variant="outlined" onClick={handleButtonClick}>
+          { filterCurrent ? "Show All Users" : "Show Current Users Only" }
+        </Button>
       }
       data={tableData}
       columns={columns}

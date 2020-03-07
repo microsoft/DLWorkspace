@@ -1,21 +1,19 @@
 import React, {
   FunctionComponent,
   useCallback,
+  useContext,
   useMemo,
   useRef
 } from 'react';
 import {
-  Link as RouterLink
-} from 'react-router-dom';
-import {
   each,
   find,
-  keys,
   map,
   mapValues
 } from 'lodash';
 import {
-  Link as UILink,
+  Link,
+  Tooltip,
   Typography
 } from '@material-ui/core';
 import {
@@ -26,16 +24,33 @@ import MaterialTable, {
   Options
 } from 'material-table';
 
+import TeamsContext from '../../contexts/Teams';
 import useTableData from '../../hooks/useTableData';
+import usePrometheus from '../../hooks/usePrometheus';
 
 import useResourceColumns, { ResourceKind } from '../Clusters/useResourceColumns';
 
 interface Props {
+  clusterConfig: any;
   types: any;
   workers: any;
+  onSearchPods: (query: string) => void;
 }
 
-const Workers: FunctionComponent<Props> = ({ types, workers }) => {
+const Workers: FunctionComponent<Props> = ({ clusterConfig, types, workers, onSearchPods }) => {
+  const { selectedTeam } = useContext(TeamsContext);
+  const metrics = usePrometheus(clusterConfig, `avg(task_gpu_percent{vc_name="${selectedTeam}"}) by (instance)`);
+  const workersGPUUtilization = useMemo(() => {
+    const workersGPUUtilization: { [workerName: string]: number } = Object.create(null);
+    if (metrics) {
+      for (const { metric, value } of metrics.result) {
+        const instanceIP = metric.instance.split(':', 1)[0];
+        workersGPUUtilization[instanceIP] = value[1];
+      }
+    }
+    return workersGPUUtilization;
+  }, [metrics])
+
   const data = useMemo(() => {
     const typesData = map(types, (status, id) => ({ id, status }));
     const workersData = map(workers, (worker, id) => ({ id, ...worker }));
@@ -47,10 +62,15 @@ const Workers: FunctionComponent<Props> = ({ types, workers }) => {
           available: (value.allocatable || 0) - (value.used || 0)
         }
       });
+      workerData.gpuUtilization = workersGPUUtilization[workerData.ip];
     })
     return typesData.concat(workersData)
-  }, [types, workers]);
+  }, [types, workers, workersGPUUtilization]);
   const tableData = useTableData(data, { isTreeExpanded: true });
+
+  const handleWorkerClick = useCallback((workerName: string) => () => {
+    onSearchPods(workerName);
+  }, [onSearchPods]);
 
   const resourceKinds = useRef<ResourceKind[]>(
     ['total', 'unschedulable', 'used', 'preemptable', 'available']
@@ -62,10 +82,19 @@ const Workers: FunctionComponent<Props> = ({ types, workers }) => {
       render: ({ id, healthy }) => {
         if (typeof healthy === 'boolean') {
           return (
-            <UILink variant="subtitle2" component={RouterLink} to={`./${id}`}>
-              { healthy || <Favorite color="error" fontSize="inherit"/> }
-              {id}
-            </UILink>
+            <Tooltip title={`Show Pods on ${id}`}>
+              <Link
+                component="button"
+                variant="subtitle2"
+                style={{ textAlign: 'left' }}
+                onClick={handleWorkerClick(id)}
+              >
+                <>
+                  { healthy || <Favorite color="error" fontSize="inherit"/> }
+                  {id}
+                </>
+              </Link>
+            </Tooltip>
           );
         } else {
           return <Typography variant="subtitle2">{id}</Typography>;
@@ -74,12 +103,13 @@ const Workers: FunctionComponent<Props> = ({ types, workers }) => {
     }];
     columns.push(...resourceColumns);
     columns.push({
-      title: 'Pods',
+      title: 'GPU Utilization',
+      field: 'gpuUtilization',
       type: 'numeric',
-      render: ({ ip, pods }) => ip ?  <>{keys(pods).length}</> : null
+      render: ({ gpuUtilization }) => gpuUtilization && <>{Number(gpuUtilization).toPrecision(2)}%</>
     });
     return columns;
-  }, [resourceColumns]);
+  }, [resourceColumns, handleWorkerClick]);
 
   const options = useRef<Options>({
     padding: 'dense',

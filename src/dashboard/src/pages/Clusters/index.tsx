@@ -7,7 +7,7 @@ import React, {
   useMemo
 } from 'react';
 
-import { entries, find, get, set } from 'lodash';
+import { entries, find, get, set, zipWith } from 'lodash';
 
 import { Link as RouterLink } from 'react-router-dom';
 import {
@@ -30,8 +30,9 @@ import ClustersContext from '../../contexts/Clusters';
 import useTableData from '../../hooks/useTableData';
 
 import useResourceColumns, { ResourceKind } from './useResourceColumns';
+import usePrometheus from '../../hooks/usePrometheus';
 
-const useClusterStatus = ({ id: clusterId }: { id: string }) => {
+const useClusterStatus = (clusterId: string) => {
   const { selectedTeam } = useContext(TeamsContext);
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
@@ -60,46 +61,62 @@ const useClusterStatus = ({ id: clusterId }: { id: string }) => {
     }
   }, [error, clusterId, enqueueSnackbar, closeSnackbar]);
 
-  return useMemo(() => ({ id: clusterId, status: data }), [clusterId, data]);
+  return data;
 };
+
+const useClusterMetrics = (clusterId: string) => { // Actually Cluster-Team Metrics
+  const { selectedTeam } = useContext(TeamsContext);
+  const { data: clusterConfig } = useFetch(`/api/clusters/${clusterId}`, undefined, []);
+
+  const metrics = usePrometheus(clusterConfig, `avg(task_gpu_percent {vc_name="${selectedTeam}"})`);
+
+  return get(metrics, 'result[0].value[1]');
+}
 
 const Clusters: FunctionComponent = () => {
   const { clusters } = useContext(ClustersContext);
 
-  const clustersStatus = clusters.map(useClusterStatus);
+  const clustersId = clusters.map(({ id }) => id);
+  const clustersStatus = clustersId.map(useClusterStatus);
+  const clustersMetrics = clustersId.map(useClusterMetrics);
+
+  const clustersData = zipWith(
+    clustersId, clustersStatus, clustersMetrics,
+    (id, status, metrics) => ({ id, status, metrics }));
 
   const clusterTypesStatus = useMemo(() => {
     const clusterTypesStatus = [];
-    for (const { id: clusterId, status: clusterStatus } of clustersStatus) {
+    for (const { id: clusterId, status: clusterStatus, metrics: clusterMetrics } of clustersData) {
       if (clusterStatus == null) {
-        clusterTypesStatus.push({ id: clusterId })
+        clusterTypesStatus.push({ id: clusterId, metrics: clusterMetrics })
         continue;
       }
 
-      const clusterSumStatus = Object.create(null)
+      const clusterSumStatus = Object.create(null);
       clusterTypesStatus.push({
         id: clusterId,
         status: clusterSumStatus,
-        runningJobs: clusterStatus.runningJobs
-      })
+        runningJobs: clusterStatus.runningJobs,
+        metrics: clusterMetrics
+      });
 
       for (const [typeId, typeStatus] of entries(clusterStatus.types)) {
         clusterTypesStatus.push({
           id: typeId,
           clusterId,
           status: typeStatus
-        })
+        });
 
         for (const type of ['cpu', 'gpu', 'memory']) {
           for (const kind of ['total', 'unschedulable', 'used', 'preemptable', 'available']) {
-            const path = [type, kind]
+            const path = [type, kind];
             set(clusterSumStatus, path, get(clusterSumStatus, path, 0) + get(typeStatus, path, 0));
           }
         }
       }
     }
     return clusterTypesStatus;
-  }, clustersStatus); // eslint-disable-line react-hooks/exhaustive-deps
+  }, clustersData); // eslint-disable-line react-hooks/exhaustive-deps
 
   const data = useTableData(clusterTypesStatus);
 
@@ -123,6 +140,16 @@ const Clusters: FunctionComponent = () => {
     columns.push(...resourceColumns);
 
     columns.push({
+      title: 'GPU Utilization',
+      type: 'numeric',
+      field: 'metrics',
+      render: ({ metrics }) => metrics !== undefined ? (
+        <>{Number(metrics).toFixed(2)}%</>
+      ): null,
+      // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+      // @ts-ignore: https://github.com/mbrn/material-table/pull/1659
+      width: 'auto'
+    }, {
       title: 'Running Jobs',
       type: 'numeric',
       field: 'runningJobs',
@@ -136,7 +163,7 @@ const Clusters: FunctionComponent = () => {
       // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
       // @ts-ignore: https://github.com/mbrn/material-table/pull/1659
       width: 'auto'
-    })
+    });
 
     return columns;
   }, [resourceColumns]);

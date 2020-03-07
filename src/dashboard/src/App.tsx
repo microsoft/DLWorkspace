@@ -40,7 +40,6 @@ const JobV2 = React.lazy(() => import('./pages/JobV2'));
 const ClusterStatus = React.lazy( () => import('./pages/ClusterStatus'));
 const Clusters = React.lazy(() => import('./pages/Clusters'));
 const Cluster = React.lazy(() => import('./pages/Cluster'));
-const Worker = React.lazy(() => import('./pages/Worker'));
 
 const theme = createMuiTheme();
 const useHttpOptions: UseHttpOptions = {
@@ -126,9 +125,7 @@ const Layout: React.FC<RouteComponentProps> = ({ location, history }) => {
               <Route path="/cluster-status" component={ClusterStatus}/>
               <Redirect strict exact from="/clusters" to="/clusters/"/>
               <Route strict exact path="/clusters/" component={Clusters}/>
-              <Redirect strict exact from="/clusters/:clusterId" to="/clusters/:clusterId/"/>
-              <Route strict exact path="/clusters/:clusterId/" component={Cluster}/>
-              <Route strict exact path="/clusters/:clusterId/:workerName" component={Worker}/>
+              <Route strict exact path="/clusters/:clusterId" component={Cluster}/>
               <Redirect to="/"/>
             </Switch>
           </React.Suspense>

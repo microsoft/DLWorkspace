@@ -13,7 +13,6 @@ import SwipeableViews from 'react-swipeable-views';
 import {
   Breadcrumbs,
   Container,
-  Hidden,
   Link as UILink,
   Tabs,
   Tab,
@@ -29,6 +28,7 @@ import Loading from '../../components/Loading';
 
 import Users from './Users';
 import Workers from './Workers';
+import Pods from './Pods';
 import Metrics from './Metrics';
 
 const Header: FunctionComponent = () => {
@@ -36,7 +36,7 @@ const Header: FunctionComponent = () => {
   return (
     <Toolbar disableGutters variant="dense">
       <Breadcrumbs aria-label="breadcrumb">
-        <UILink color="inherit" component={RouterLink} to="../">
+        <UILink color="inherit" component={RouterLink} to="./">
           Clusters
         </UILink>
         <Typography color="textPrimary">{clusterId}</Typography>
@@ -45,8 +45,14 @@ const Header: FunctionComponent = () => {
   );
 };
 
-const TabView: FunctionComponent<{ data: any }> = ({ data }) => {
+interface TabViewProps {
+  clusterConfig: any;
+  data: any;
+}
+
+const TabView: FunctionComponent<TabViewProps> = ({ clusterConfig, data }) => {
   const [index, setIndex] = useState(0);
+  const [query, setQuery] = useState<{ current: string }>();
 
   const handleChange = useCallback((event: ChangeEvent<{}>, value: number) => {
     setIndex(value);
@@ -54,6 +60,16 @@ const TabView: FunctionComponent<{ data: any }> = ({ data }) => {
   const handleChangeIndex = useCallback((index: number) => {
     setIndex(index);
   }, [setIndex]);
+
+  const handleSearchPods = useCallback((query: string) => {
+    setQuery({ current: query });
+  }, [setQuery]);
+
+  useEffect(() => {
+    if (query !== undefined) {
+      setIndex(2); // Pods
+    }
+  }, [query]);
 
   return (
     <Paper elevation={2}>
@@ -66,21 +82,38 @@ const TabView: FunctionComponent<{ data: any }> = ({ data }) => {
       >
         <Tab label="Users"/>
         <Tab label="Workers"/>
+        <Tab label="Pods"/>
         <Tab label="Metrics"/>
       </Tabs>
       <SwipeableViews
         index={index}
         onChangeIndex={handleChangeIndex}
       >
-        <Hidden implementation="css" xsUp={index !== 0}>
-          <Users users={data.users}/>
-        </Hidden>
-        <Hidden implementation="css" xsUp={index !== 1}>
-          <Workers types={data.types} workers={data.workers}/>
-        </Hidden>
-        <Hidden implementation="css" xsUp={index !== 2}>
-          <Metrics/>
-        </Hidden>
+        {index === 0 ? (
+          <Users
+            clusterConfig={clusterConfig}
+            users={data.users}
+            onSearchPods={handleSearchPods}
+          />
+        ) : <div/>}
+        {index === 1 ? (
+          <Workers
+            clusterConfig={clusterConfig}
+            types={data.types}
+            workers={data.workers}
+            onSearchPods={handleSearchPods}
+          />
+        ) : <div/>}
+        {index === 2 ? (
+          <Pods
+            clusterConfig={clusterConfig}
+            query={query && query.current}
+            workers={data.workers}
+          />
+        ) : <div/>}
+        {index === 3 ? (
+          <Metrics clusterConfig={clusterConfig}/>
+        ) : <div/>}
       </SwipeableViews>
     </Paper>
   )
@@ -90,6 +123,8 @@ const ClusterContent: FunctionComponent = () => {
   const { clusterId } = useParams();
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const { selectedTeam } = useContext(TeamsContext);
+
+  const { data: clusterConfig } = useFetch(`/api/clusters/${clusterId}`, undefined, []);
   const { data, error, loading, get } = useFetch(
     `/api/v2/clusters/${clusterId}/teams/${selectedTeam}`,
     undefined,
@@ -123,8 +158,11 @@ const ClusterContent: FunctionComponent = () => {
       <Helmet title={clusterId}/>
       <Container maxWidth="lg">
         <Header/>
-        { data === undefined && <Loading/> }
-        { data !== undefined && <TabView data={data}/> }
+        {
+          clusterConfig !== undefined && data !== undefined
+            ? <TabView clusterConfig={clusterConfig} data={data}/>
+            : <Loading/>
+        }
       </Container>
     </>
   );

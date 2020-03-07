@@ -1,9 +1,6 @@
 import React, {
   FunctionComponent,
-  useContext,
-  useMemo
-} from 'react';
-import { useParams } from 'react-router';
+  useContext} from 'react';
 
 import {
   Card,
@@ -11,29 +8,15 @@ import {
   CardHeader
 } from '@material-ui/core';
 
-import useFetch from 'use-http-2';
 
 import TeamsContext from '../../contexts/Teams';
-import Loading from '../../components/Loading';
 
-const Metrics: FunctionComponent = () => {
-  const { clusterId } = useParams();
+interface Props {
+  clusterConfig: any;
+}
+
+const Metrics: FunctionComponent<Props> = ({ clusterConfig }) => {
   const { selectedTeam } = useContext(TeamsContext);
-
-  const { data } = useFetch(`/api/clusters/${clusterId}`, undefined, [clusterId]);
-
-  const vcUrl = useMemo(() => {
-    if (data === undefined) return;
-    return `${data['grafana']}/dashboard/db/per-vc-gpu-statistic?var-vc_name=${selectedTeam}`;
-  }, [data, selectedTeam]);
-  const clusterUrl = useMemo(() => {
-    if (data === undefined) return;
-    return `${data['grafana']}/dashboard/db/gpu-usage?refresh=30s&orgId=1`;
-  }, [data]);
-
-  if (data === undefined) {
-    return <Loading/>;
-  }
 
   return (
     <>
@@ -41,7 +24,7 @@ const Metrics: FunctionComponent = () => {
         <CardHeader title="Team GPU Usage"/>
         <CardMedia
           component="iframe"
-          src={vcUrl}
+          src={`${clusterConfig['grafana']}/dashboard/db/per-vc-gpu-statistic?var-vc_name=${selectedTeam}`}
           height="480"
           frameBorder="0"
         />
@@ -50,7 +33,7 @@ const Metrics: FunctionComponent = () => {
         <CardHeader title="Cluster GPU Usage"/>
         <CardMedia
           component="iframe"
-          src={clusterUrl}
+          src={`${clusterConfig['grafana']}/dashboard/db/gpu-usage?refresh=30s&orgId=1`}
           height="480"
           frameBorder="0"
         />
