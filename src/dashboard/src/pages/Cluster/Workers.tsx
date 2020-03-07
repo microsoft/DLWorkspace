@@ -1,18 +1,24 @@
 import React, {
+  ChangeEvent,
   FunctionComponent,
   useCallback,
   useContext,
   useMemo,
-  useRef
+  useRef,
+  useState
 } from 'react';
 import {
   each,
-  find,
+  filter,
   map,
   mapValues
 } from 'lodash';
 import {
+  Card,
+  CardMedia,
   Link,
+  MenuItem,
+  Select,
   Tooltip,
   Typography
 } from '@material-ui/core';
@@ -21,7 +27,8 @@ import {
 } from '@material-ui/icons';
 import MaterialTable, {
   Column,
-  Options
+  Options,
+  DetailPanel
 } from 'material-table';
 
 import TeamsContext from '../../contexts/Teams';
@@ -39,6 +46,9 @@ interface Props {
 
 const Workers: FunctionComponent<Props> = ({ clusterConfig, types, workers, onSearchPods }) => {
   const { selectedTeam } = useContext(TeamsContext);
+
+  const [filterType, setFilterType] = useState<string>('__all__');
+
   const metrics = usePrometheus(clusterConfig, `avg(task_gpu_percent{vc_name="${selectedTeam}"}) by (instance)`);
   const workersGPUUtilization = useMemo(() => {
     const workersGPUUtilization: { [workerName: string]: number } = Object.create(null);
@@ -49,11 +59,13 @@ const Workers: FunctionComponent<Props> = ({ clusterConfig, types, workers, onSe
       }
     }
     return workersGPUUtilization;
-  }, [metrics])
+  }, [metrics]);
 
   const data = useMemo(() => {
-    const typesData = map(types, (status, id) => ({ id, status }));
-    const workersData = map(workers, (worker, id) => ({ id, ...worker }));
+    let workersData = map(workers, (worker, id) => ({ id, ...worker }));
+    if (filterType !== '__all__') {
+      workersData = filter(workersData, ({ type }) => type === filterType);
+    }
     each(workersData, (workerData) => {
       workerData.status = mapValues(workerData.status, (value) => {
         return {
@@ -64,8 +76,8 @@ const Workers: FunctionComponent<Props> = ({ clusterConfig, types, workers, onSe
       });
       workerData.gpuUtilization = workersGPUUtilization[workerData.ip];
     })
-    return typesData.concat(workersData)
-  }, [types, workers, workersGPUUtilization]);
+    return workersData
+  }, [workers, workersGPUUtilization, filterType]);
   const tableData = useTableData(data, { isTreeExpanded: true });
 
   const handleWorkerClick = useCallback((workerName: string) => () => {
@@ -113,22 +125,47 @@ const Workers: FunctionComponent<Props> = ({ clusterConfig, types, workers, onSe
 
   const options = useRef<Options>({
     padding: 'dense',
-    toolbar: false,
     draggable: false,
     paging: false,
-    detailPanelColumnAlignment: 'right'
+    detailPanelType: 'single'
   }).current;
 
-  const parentChildData = useCallback(({ type }, rows: any[]) => {
-    return find(rows, ({ id }) => type === id);
+  const handleSelectChange = useCallback((event: ChangeEvent<{ value: unknown }>) => {
+    setFilterType(event.target.value as string);
   }, []);
+
+  const detailPanel = useMemo<DetailPanel<any>[]>(() => {
+    return [{
+      tooltip: 'View Metrics',
+      render: ({ ip }) => (
+        <Card>
+          <CardMedia
+            component="iframe"
+            src={`${clusterConfig['grafana']}/dashboard/db/node-status?orgId=1&var-node=${ip}`}
+            height="384"
+            frameBorder="0"
+          />
+        </Card>
+      )
+    }];
+  }, [clusterConfig]);
 
   return (
     <MaterialTable
+      title={(
+        <>
+          Show Type: <Select value={filterType} onChange={handleSelectChange}>
+            <MenuItem value="__all__">All</MenuItem>
+            {map(types, (type, name) => (
+              <MenuItem key={name} value={name}>{name}</MenuItem>
+            ))}
+          </Select>
+        </>
+      )}
       data={tableData}
       columns={columns}
       options={options}
-      parentChildData={parentChildData}
+      detailPanel={detailPanel}
     />
   );
 };
