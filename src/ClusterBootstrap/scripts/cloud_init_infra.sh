@@ -69,6 +69,7 @@ sudo ln -s /opt/bin/kubectl /usr/bin/;
 bash ./fileshare_install.sh
 bash ./mnt_fs_svc.sh
 
+bash ./pass_secret.sh
 #start services
 IFS=';' read -ra services <<< $KUBE_SERVICES
 
@@ -83,4 +84,3 @@ for svc in "${services[@]}"; do
         fi
     done
 done
-bash ./pass_secret.sh

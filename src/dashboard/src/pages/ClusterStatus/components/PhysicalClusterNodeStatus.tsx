@@ -78,7 +78,7 @@ export const PhysicalClusterNodeStatus = (props: PhClusterNSType) => {
               </>}
           ]}
           data={nodeStatus}
-          options={{filtering: false,paging: true, pageSizeOptions:[10],pageSize:nodeStatus.length < 10 ? nodeStatus.length : 10,sorting: true}}
+          options={{filtering: false,paging: true, pageSizeOptions:[10],pageSize: 10,sorting: true}}
         /> :
           <CircularProgress/>
       }
