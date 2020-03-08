@@ -95,6 +95,10 @@ spec:
         - containerPort: {{cnf["elasticsearch"]["port"]["exporter"]}}
           name: web
           protocol: TCP
+      {% if cnf["private_docker_registry_username"] %}
+      imagePullSecrets:
+      - name: svccred
+      {% endif %}
       volumes:
       - name: elasticsearch
         hostPath:

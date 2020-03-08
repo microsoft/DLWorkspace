@@ -61,6 +61,8 @@ kubernetes_infra:
     src: ./deploy/services/clusterroles/clusterrolebindings.yaml
   - dst: /etc/kubernetes/clusterroles/clusterroles.yaml
     src: ./deploy/services/clusterroles/clusterroles.yaml
+  - dst: /etc/kubernetes/restapi-kubeconfig.yaml
+    src: ./deploy/master/restapi-kubeconfig.yaml
 
 kubelet_worker:
   - dst: /etc/flannel/options.env
@@ -106,8 +108,6 @@ ip_resolve:
 restful_api:
   - dst: /etc/RestfulAPI/config.yaml
     src: ./deploy/RestfulAPI/config.yaml
-  - dst: /etc/kubernetes/restapi-kubeconfig.yaml
-    src: ./deploy/master/restapi-kubeconfig.yaml
 front_end:
   - dst: /etc/dashboard/production.yaml
     src: ./deploy/dashboard/production.yaml

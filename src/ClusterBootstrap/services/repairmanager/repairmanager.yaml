@@ -25,7 +25,7 @@ spec:
         repairmanager: active
       containers:
       - name: repairmanager
-        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}{{cnf["repairmanager"]}}:{{cnf["dockertag"]}}
+        image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/{{cnf["repairmanager"]}}:{{cnf["dockertag"]}}
         command: ["/run.sh"]
         imagePullPolicy: Always
         env:
@@ -58,6 +58,10 @@ spec:
           tcpSocket:
             port: 9200
           timeoutSeconds: 10
+      {% if cnf["private_docker_registry_username"] %}
+      imagePullSecrets:
+      - name: svccred
+      {% endif %}
       volumes:
       - name: certs
         hostPath:

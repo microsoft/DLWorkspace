@@ -616,7 +616,7 @@ default_config_parameters = {
     # We will gradually migrate mroe and more docker in DLWorkspace to system
     # dockers
     "heketi-docker": "heketi/heketi:dev",
-    "dockerregistry": "mlcloudreg.westus.cloudapp.azure.com:5000/",
+    "dockerregistry": "mlcloudreg.westus.cloudapp.azure.com:5000",
     "dockers": {
         # Hub is docker.io/
         "hub": "dlws/",

@@ -71,6 +71,8 @@ def push_docker_with_config(dockername, config, verbose=False, nocache=False):
         "name"] + " " + config["dockers"]["container"][dockername]["fullname"]
     cmd += "; docker push " + config["dockers"]["container"][dockername][
         "fullname"]
+    if verbose:
+        print(cmd)
     os.system(cmd)
     return config["dockers"]["container"][dockername]["name"]
 
@@ -295,14 +297,15 @@ def config_dockers(rootdir, dockerprefix, dockertag, verbose, config):
                     dockerregistry = infra_docker_registry
                 else:
                     dockerregistry = worker_docker_registry
+            # overwrite dockerregistry below if want to use other registry
             usedockername = dockername.lower()
             if "container" not in config["dockers"]:
                 config["dockers"]["container"] = {}
             config["dockers"]["container"][dockername] = {
                 "dirname": os.path.join("./deploy/docker-images", dockername),
                 "fullname":
-                dockerregistry + prefix + usedockername + ":" + tag,
-                "name": prefix + usedockername + ":" + tag,
+                '/'.join([dockerregistry, prefix, usedockername]) + ":" + tag,
+                "name": '/'.join([prefix, usedockername]) + ":" + tag,
             }
         # pxe-ubuntu and pxe-coreos is in template
         for dockername in config["dockers"]["infrastructure"]:
@@ -310,10 +313,10 @@ def config_dockers(rootdir, dockerprefix, dockertag, verbose, config):
                 "dirname":
                 os.path.join("./deploy/docker-images", dockername),
                 "fullname":
-                infra_docker_registry + dockerprefix + dockername + ":" +
+                '/'.join([infra_docker_registry, dockerprefix, dockername]) + ":" +
                 dockertag,
                 "name":
-                dockerprefix + dockername + ":" + dockertag,
+                '/'.join([dockerprefix, dockername]) + ":" + dockertag,
             }
         # pxe-ubuntu and pxe-coreos is in template
         for dockername in config["dockers"]["external"]:

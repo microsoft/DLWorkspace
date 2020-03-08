@@ -23,8 +23,11 @@ runcmd:
  - curl -fsSL https://get.docker.com -o get-docker.sh; sh get-docker.sh
  - sudo usermod -aG docker {{cnf["etcd_user"]}}
  - sudo setfacl -m user:{{cnf["etcd_user"]}}:rw /var/run/docker.sock
- - docker pull {{cnf["dockerregistry"]}}{{cnf["cluster_name"].lower()}}/cloudinit
- - docker create -ti --name bootpack {{cnf["dockerregistry"]}}{{cnf["cluster_name"].lower()}}/cloudinit bash
+ {% if "private_docker_registry_username" in cnf %}
+ - docker login {{cnf["dockerregistry"]}} -u {{cnf["private_docker_registry_username"]}} -p {{cnf["private_docker_registry_password"]}}
+ {% endif %}
+ - docker pull {{cnf["dockerregistry"]}}/{{cnf["cluster_name"].lower()}}/cloudinit
+ - docker create -ti --name bootpack {{cnf["dockerregistry"]}}/{{cnf["cluster_name"].lower()}}/cloudinit bash
  - docker cp bootpack:/usr/cloudinit.tar ./
  - tar -xvf cloudinit.tar
  - cd cloudinit
