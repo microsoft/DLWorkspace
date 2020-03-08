@@ -20,13 +20,13 @@ FILE_MAP_PATH = 'deploy/cloud-config/file_map.yaml'
 
 def load_config_4_ctl(args, command):
     need_deploy_config = False
-    if (command == "svc" and args.nargs[0] == "render") or command == "render_template":
+    if (command == "svc" and args.nargs[0] == "render") or command in ["render_template", "download"]:
         need_deploy_config = True
     if not args.config and need_deploy_config:
         args.config = ['config.yaml', 'az_complementary.yaml', 'status.yaml']
         config = load_deploy_config(args)
     else:
-        if not args.config:
+        if not args.config and command != "restorefromdir":
             args.config = ['status.yaml']
         config = init_config(default_config_parameters)
         config = add_configs_in_order(args.config, config)
