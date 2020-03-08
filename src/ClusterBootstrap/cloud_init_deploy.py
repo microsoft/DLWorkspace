@@ -607,15 +607,15 @@ def build_docker_images(args, config):
 
 
 def login_private_docker(config):
-    assert "private_docker_registry_password" in config and "need password of private docker registry"
-    os.system("docker login {} -u {} -p {}".format(config["dockerregistry"],
-                                                   config["private_docker_registry_username"], config["private_docker_registry_password"]))
+    for docker_registry, credential in config["private_docker_credential"].items():
+        os.system("docker login {} -u {} -p {}".format(docker_registry,
+           credential["username"], credential["password"]))
 
 
 def push_docker_images(args, config):
     # use docker build if you want to check rendering info
     render_docker_images(config, False)
-    if "private_docker_registry_username" in config:
+    if "private_docker_credential" in config:
         login_private_docker(config)
     push_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"],
                  args.nargs[1:], config, args.verbose, nocache=args.nocache)
@@ -633,7 +633,7 @@ def push_all_prerequisite_docker_images(args, config):
     render_docker_images(config, args.verbose)
     docker_list = docker_required_by_services(config)
     check_buildable_images(docker_list, config)
-    if "private_docker_registry_username" in config:
+    if "private_docker_credential" in config:
         login_private_docker(config)
     push_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"],
                  docker_list, config, args.verbose, nocache=args.nocache)

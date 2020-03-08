@@ -297,7 +297,9 @@ def config_dockers(rootdir, dockerprefix, dockertag, verbose, config):
                     dockerregistry = infra_docker_registry
                 else:
                     dockerregistry = worker_docker_registry
-            # overwrite dockerregistry below if want to use other registry
+            # overwrite dockerregistry if want to use other registry
+            if "private_docker_registry" in config:
+                dockerregistry = config["private_docker_registry"].get(dockername, dockerregistry)
             usedockername = dockername.lower()
             if "container" not in config["dockers"]:
                 config["dockers"]["container"] = {}
