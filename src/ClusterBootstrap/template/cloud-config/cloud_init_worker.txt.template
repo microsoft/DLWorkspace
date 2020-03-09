@@ -24,6 +24,7 @@ runcmd:
  {% set cldinit_regname = cnf["dockerregistry"] %}
  {% endif %}
  - docker pull {{cldinit_regname}}/{{cnf["cluster_name"].lower()}}/cloudinit
+ - docker logout {{cldinit_regname}}
  - docker create -ti --name bootpack {{cldinit_regname}}/{{cnf["cluster_name"].lower()}}/cloudinit bash
  - docker cp bootpack:/usr/cloudinit.tar ./
  - tar -xvf cloudinit.tar

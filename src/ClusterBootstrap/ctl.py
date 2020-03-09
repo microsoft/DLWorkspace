@@ -254,7 +254,7 @@ def run_command(args, command):
         render_template_or_dir(config, args)
     if command == "download":
         if not os.path.exists('deploy/bin/kubectl') or args.force:
-          get_kubectl_binary(config)
+            get_kubectl_binary(config)
 
 
 if __name__ == '__main__':
