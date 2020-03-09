@@ -4,14 +4,12 @@ import {
 } from 'react';
 import useFetch from 'use-http-2';
 
-const usePrometheus = (clusterConfig: any, query: string) => {
+const usePrometheus = (grafana: string | undefined, query: string) => {
   const url = useMemo(() => {
-    if (clusterConfig === undefined) return;
-
-    const grafana = clusterConfig.grafana;
+    if (grafana === undefined) return;
     const encodedQuery = encodeURIComponent(query);
     return `${grafana}/api/datasources/proxy/1/api/v1/query?query=${encodedQuery}`;
-  }, [clusterConfig, query]);
+  }, [grafana, query]);
 
   const { data, error, get } = useFetch(url);
 
@@ -22,7 +20,9 @@ const usePrometheus = (clusterConfig: any, query: string) => {
   }, [data]);
 
   useEffect(() => {
-    if (url !== undefined && data === undefined && error === undefined) get();
+    if (url !== undefined && data === undefined && error === undefined) {
+      get();
+    }
   }, [url, data, error, get]);
 
   useEffect(() => {

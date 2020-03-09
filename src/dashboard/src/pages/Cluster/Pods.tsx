@@ -29,17 +29,16 @@ import { humanBytes } from '../Clusters/useResourceColumns';
 import usePrometheus from '../../hooks/usePrometheus';
 
 interface Props {
-  clusterConfig: any;
-  workers: any;
+  data: any;
   query?: string;
 }
 
-const Pods: FunctionComponent<Props> = ({ clusterConfig, workers, query }) => {
+const Pods: FunctionComponent<Props> = ({ data: { config, workers }, query }) => {
   const { clusterId } = useParams();
   const { selectedTeam } = useContext(TeamsContext);
 
-  const gpuUtilizationMetrics = usePrometheus(clusterConfig, `avg(task_gpu_percent {vc_name="${selectedTeam}"}) by (pod_name)`);
-  const gpuIdleMetrics = usePrometheus(clusterConfig, `count(task_gpu_percent {vc_name="${selectedTeam}"} == 0) by (pod_name)`);
+  const gpuUtilizationMetrics = usePrometheus(config['grafana'], `avg(task_gpu_percent {vc_name="${selectedTeam}"}) by (pod_name)`);
+  const gpuIdleMetrics = usePrometheus(config['grafana'], `count(task_gpu_percent {vc_name="${selectedTeam}"} == 0) by (pod_name)`);
 
   const [filterCurrentTeam, setFilterCurrentTeam] = useState(true);
 

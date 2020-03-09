@@ -12,10 +12,10 @@ import {
 import TeamsContext from '../../contexts/Teams';
 
 interface Props {
-  clusterConfig: any;
+  data: any;
 }
 
-const Metrics: FunctionComponent<Props> = ({ clusterConfig }) => {
+const Metrics: FunctionComponent<Props> = ({ data: { config } }) => {
   const { selectedTeam } = useContext(TeamsContext);
 
   return (
@@ -24,7 +24,7 @@ const Metrics: FunctionComponent<Props> = ({ clusterConfig }) => {
         <CardHeader title="Team GPU Usage"/>
         <CardMedia
           component="iframe"
-          src={`${clusterConfig['grafana']}/dashboard/db/per-vc-gpu-statistic?var-vc_name=${selectedTeam}`}
+          src={`${config['grafana']}/dashboard/db/per-vc-gpu-statistic?var-vc_name=${selectedTeam}`}
           height="480"
           frameBorder="0"
         />
@@ -33,7 +33,7 @@ const Metrics: FunctionComponent<Props> = ({ clusterConfig }) => {
         <CardHeader title="Cluster GPU Usage"/>
         <CardMedia
           component="iframe"
-          src={`${clusterConfig['grafana']}/dashboard/db/gpu-usage?refresh=30s&orgId=1`}
+          src={`${config['grafana']}/dashboard/db/gpu-usage?refresh=30s&orgId=1`}
           height="480"
           frameBorder="0"
         />

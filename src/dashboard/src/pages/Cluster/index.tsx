@@ -46,11 +46,10 @@ const Header: FunctionComponent = () => {
 };
 
 interface TabViewProps {
-  clusterConfig: any;
   data: any;
 }
 
-const TabView: FunctionComponent<TabViewProps> = ({ clusterConfig, data }) => {
+const TabView: FunctionComponent<TabViewProps> = ({ data }) => {
   const [index, setIndex] = useState(0);
   const [query, setQuery] = useState<{ current: string }>();
 
@@ -89,31 +88,10 @@ const TabView: FunctionComponent<TabViewProps> = ({ clusterConfig, data }) => {
         index={index}
         onChangeIndex={handleChangeIndex}
       >
-        {index === 0 ? (
-          <Users
-            clusterConfig={clusterConfig}
-            users={data.users}
-            onSearchPods={handleSearchPods}
-          />
-        ) : <div/>}
-        {index === 1 ? (
-          <Workers
-            clusterConfig={clusterConfig}
-            types={data.types}
-            workers={data.workers}
-            onSearchPods={handleSearchPods}
-          />
-        ) : <div/>}
-        {index === 2 ? (
-          <Pods
-            clusterConfig={clusterConfig}
-            query={query && query.current}
-            workers={data.workers}
-          />
-        ) : <div/>}
-        {index === 3 ? (
-          <Metrics clusterConfig={clusterConfig}/>
-        ) : <div/>}
+        {index === 0 ? <Users data={data} onSearchPods={handleSearchPods}/> : <div/>}
+        {index === 1 ? <Workers data={data} onSearchPods={handleSearchPods}/> : <div/>}
+        {index === 2 ? <Pods data={data} query={query && query.current}/> : <div/>}
+        {index === 3 ? <Metrics data={data}/> : <div/>}
       </SwipeableViews>
     </Paper>
   )
@@ -124,7 +102,6 @@ const ClusterContent: FunctionComponent = () => {
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
   const { selectedTeam } = useContext(TeamsContext);
 
-  const { data: clusterConfig } = useFetch(`/api/clusters/${clusterId}`, undefined, []);
   const { data, error, loading, get } = useFetch(
     `/api/v2/teams/${selectedTeam}/clusters/${clusterId}`,
     undefined,
@@ -158,11 +135,7 @@ const ClusterContent: FunctionComponent = () => {
       <Helmet title={clusterId}/>
       <Container maxWidth="lg">
         <Header/>
-        {
-          clusterConfig !== undefined && data !== undefined
-            ? <TabView clusterConfig={clusterConfig} data={data}/>
-            : <Loading/>
-        }
+        {data !== undefined ? <TabView data={data}/> : <Loading/>}
       </Container>
     </>
   );

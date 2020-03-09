@@ -36,17 +36,16 @@ const humanSeconds = (seconds: number) => {
 }
 
 interface Props {
-  clusterConfig: any;
-  users: any;
+  data: any;
   onSearchPods: (query: string) => void;
 }
 
-const Users: FunctionComponent<Props> = ({ clusterConfig, users, onSearchPods }) => {
+const Users: FunctionComponent<Props> = ({ data: { config, users }, onSearchPods }) => {
   const { selectedTeam } = useContext(TeamsContext);
 
   const [filterCurrent, setFilterCurrent] = useState(true);
 
-  const gpuIdleMetrics = usePrometheus(clusterConfig, `count (task_gpu_percent{vc_name="${selectedTeam}"} == 0) by (username)`);
+  const gpuIdleMetrics = usePrometheus(config.grafana, `count (task_gpu_percent{vc_name="${selectedTeam}"} == 0) by (username)`);
 
   const handleButtonClick = useCallback(() => {
     setFilterCurrent((filterCurrent) => !filterCurrent);

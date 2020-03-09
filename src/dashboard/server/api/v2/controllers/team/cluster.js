@@ -16,6 +16,7 @@ module.exports = async context => {
   const _team = _.chain(team)
   const _setBody = _.partial(_.set, body)
 
+  _setBody('config', cluster.config)
   _setBody('runningJobs', _team.get('AvaliableJobNum'))
 
   for (const [type, number] of _team.get('cpu_capacity').entries()) {

@@ -64,11 +64,11 @@ const useClusterStatus = (clusterId: string) => {
   return data;
 };
 
-const useClusterMetrics = (clusterId: string) => { // Actually Cluster-Team Metrics
+const useClusterMetrics = (status: any) => { // Actually Cluster-Team Metrics
   const { selectedTeam } = useContext(TeamsContext);
-  const { data: clusterConfig } = useFetch(`/api/clusters/${clusterId}`, undefined, []);
 
-  const metrics = usePrometheus(clusterConfig, `avg(task_gpu_percent {vc_name="${selectedTeam}"})`);
+  const metrics = usePrometheus(status ? status.config['grafana'] : undefined,
+    `avg(task_gpu_percent {vc_name="${selectedTeam}"})`);
 
   return get(metrics, 'result[0].value[1]');
 }
@@ -78,7 +78,7 @@ const Clusters: FunctionComponent = () => {
 
   const clustersId = clusters.map(({ id }) => id);
   const clustersStatus = clustersId.map(useClusterStatus);
-  const clustersMetrics = clustersId.map(useClusterMetrics);
+  const clustersMetrics = clustersStatus.map(useClusterMetrics);
 
   const clustersData = zipWith(
     clustersId, clustersStatus, clustersMetrics,

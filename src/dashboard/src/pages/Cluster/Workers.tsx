@@ -38,18 +38,16 @@ import usePrometheus from '../../hooks/usePrometheus';
 import useResourceColumns, { ResourceKind } from '../Clusters/useResourceColumns';
 
 interface Props {
-  clusterConfig: any;
-  types: any;
-  workers: any;
+  data: any;
   onSearchPods: (query: string) => void;
 }
 
-const Workers: FunctionComponent<Props> = ({ clusterConfig, types, workers, onSearchPods }) => {
+const Workers: FunctionComponent<Props> = ({ data: { config, types, workers }, onSearchPods }) => {
   const { selectedTeam } = useContext(TeamsContext);
 
   const [filterType, setFilterType] = useState<string>('__all__');
 
-  const metrics = usePrometheus(clusterConfig, `avg(task_gpu_percent{vc_name="${selectedTeam}"}) by (instance)`);
+  const metrics = usePrometheus(config['grafana'], `avg(task_gpu_percent{vc_name="${selectedTeam}"}) by (instance)`);
   const workersGPUUtilization = useMemo(() => {
     const workersGPUUtilization: { [workerName: string]: number } = Object.create(null);
     if (metrics) {
@@ -141,14 +139,14 @@ const Workers: FunctionComponent<Props> = ({ clusterConfig, types, workers, onSe
         <Card>
           <CardMedia
             component="iframe"
-            src={`${clusterConfig['grafana']}/dashboard/db/node-status?orgId=1&var-node=${ip}`}
+            src={`${config['grafana']}/dashboard/db/node-status?orgId=1&var-node=${ip}`}
             height="384"
             frameBorder="0"
           />
         </Card>
       )
     }];
-  }, [clusterConfig]);
+  }, [config]);
 
   return (
     <MaterialTable
