@@ -24,7 +24,7 @@ describe('POST /clusters/:clusterid/jobs', () => {
     response.status.should.equal(200)
     response.data.should.have.property('message', 'job adding succeeded')
   })
-  it('should response returning messages if job POST succeeded', async () => {
+  it('should response returning messages if job POST succeeded even if team is null', async () => {
     nock('http://universe')
       .post('/PostJob')
       .reply(200, {
