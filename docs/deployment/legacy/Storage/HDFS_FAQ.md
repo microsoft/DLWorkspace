@@ -17,8 +17,8 @@
 	sudo dpkg -i cdh5-repository_1.0_all.deb; 
 	sudo rm cdh5-repository_1.0_all.deb; 
 	sudo apt-get update; 
-	sudo apt-get install -y default-jre; 
-	sudo apt-get install -y --allow-unauthenticated hadoop-hdfs-fuse;
+	sudo apt-get --no-install-recommends install -y default-jre; 
+	sudo apt-get --no-install-recommends install -y --allow-unauthenticated hadoop-hdfs-fuse;
     ```
     Then, you can mount HDFS share via:
     ```

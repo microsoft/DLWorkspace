@@ -268,7 +268,7 @@ apt-get-install() {
     fi
   done
   if [[ "${installed}" == "true" ]]; then
-    echo "== ${packages[@]} already installed, skipped apt-get install ${packages[@]} =="
+    echo "== ${packages[@]} already installed, skipped apt-get --no-install-recommends install -y ${packages[@]} =="
     return
   fi
 
@@ -392,8 +392,8 @@ EOF
 
   # This will install any of the unmet dependencies from above.
   echo "== Installing unmet dependencies =="
-  until apt-get install -f -y; do
-    echo "== apt-get install failed, retrying =="
+  until apt-get --no-install-recommends install -y -f; do
+    echo "== apt-get --no-install-recommends install -y failed, retrying =="
     sleep 5
   done
 

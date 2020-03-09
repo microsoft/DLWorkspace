@@ -1,7 +1,7 @@
 #!/bin/bash
 sudo apt-get update 
 sudo apt-get upgrade -y
-sudo apt-get install -y --no-install-recommends \
+sudo apt-get --no-install-recommends install -y \
         apt-utils \
         software-properties-common \
         build-essential \
@@ -55,7 +55,7 @@ if  lspci | grep -qE "[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F].[0-9] (3D|VG
         chmod +x /tmp/NVIDIA-Linux-x86_64-$NVIDIA_VERSION.run
         sudo bash /tmp/NVIDIA-Linux-x86_64-$NVIDIA_VERSION.run -a -s
 
-        sudo apt install -y nvidia-modprobe
+        sudo apt-get --no-install-recommends install -y nvidia-modprobe
 
         sudo rm -r /opt/nvidia-driver || true
 

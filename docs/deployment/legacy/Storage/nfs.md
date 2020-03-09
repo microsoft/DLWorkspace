@@ -5,7 +5,7 @@ The document describes the procedure to setup NFS server. We follow the procedur
 1.  Install nfs kernel.
   ```
   sudo apt-get update
-  sudo apt-get install nfs-kernel-server
+  sudo apt-get --no-install-recommends install -y nfs-kernel-server
   ```
 
 2. Format ext4 partition, and mount the partition to a particular mount point

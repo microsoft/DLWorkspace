@@ -3,7 +3,7 @@ FROM ubuntu:16.04
 MAINTAINER Jin Li <jinlmsft@hotmail.com>
 
 # Software package installation
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get --no-install-recommends install -y \
         apt-utils \
         software-properties-common \
         build-essential \
@@ -37,7 +37,7 @@ RUN add-apt-repository \
 RUN apt-key fingerprint 0EBFCD88
 
 # Install docker
-RUN apt-get update && apt-get install -y --no-install-recommends docker-ce
+RUN apt-get update && apt-get --no-install-recommends install -y docker-ce
 
 # PIP installation
 RUN pip install --upgrade pip && pip install setuptools && pip install pyyaml jinja2 flask flask.restful tzlocal pycurl
@@ -45,7 +45,7 @@ RUN pip install --upgrade pip && pip install setuptools && pip install pyyaml ji
 RUN echo "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ wheezy main" > /etc/apt/sources.list.d/azure-cli.list
 
 RUN apt-key adv --keyserver packages.microsoft.com --recv-keys 417A0893
-RUN apt-get update && apt-get install azure-cli
+RUN apt-get update && apt-get --no-install-recommends install -y azure-cli
 
 
 
