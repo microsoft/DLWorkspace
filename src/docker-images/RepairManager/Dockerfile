@@ -1,7 +1,7 @@
 FROM ubuntu:18.04
 MAINTAINER Deborah Sandoval <Deborah.Sandoval@microsoft.com>
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get --no-install-recommends install -y \
     python3.5 \
     python3-pip
 

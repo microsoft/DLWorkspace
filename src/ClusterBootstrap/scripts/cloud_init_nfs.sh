@@ -18,7 +18,7 @@ sudo mount $DATA_DISK_MNT_PATH
 
 # setup NFS service
 sudo apt-get update
-sudo apt-get install -y nfs-kernel-server
+sudo apt-get --no-install-recommends install -y nfs-kernel-server
 
 IFS=';' read -ra files2share <<< $FILES_2_SHARE
 for fs in "${files2share[@]}"; do

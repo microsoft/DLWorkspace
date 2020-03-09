@@ -201,7 +201,7 @@ def setup_ssh_server(user_name, pod_name, host_network=False):
 
 def setup_jupyter_server(user_name, pod_name):
     jupyter_port = random.randint(40000, 49999)
-    bash_script = "bash -c 'export DEBIAN_FRONTEND=noninteractive; apt-get update && apt-get install -y python3-pip && python3 -m pip install --upgrade pip && python3 -m pip install jupyter && cd /home/" + \
+    bash_script = "bash -c 'export DEBIAN_FRONTEND=noninteractive; apt-get update && apt-get --no-install-recommends install -y python3-pip && python3 -m pip install --upgrade pip && python3 -m pip install jupyter && cd /home/" + \
         user_name + " && runuser -l " + user_name + \
         " -c \"jupyter notebook --no-browser --ip=0.0.0.0 --NotebookApp.token= --port=" + \
         str(jupyter_port) + " &>/dev/null &\"'"
