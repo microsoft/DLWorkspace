@@ -7,8 +7,8 @@ const userParams = {
   password: User.generateToken('dlts@example.com').toString('hex')
 }
 
-describe('GET /user', () => {
-  it('should response user password', async () => {
+describe('GET /user', function () {
+  it('should response user password', async function () {
     const response = await axiosist(api).get('/user', {
       params: userParams
     })

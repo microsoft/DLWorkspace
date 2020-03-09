@@ -19,8 +19,8 @@ const getJobStatusParams = new URLSearchParams({
   jobId: 'testjob'
 })
 
-describe('GET /clusters/:clusterId/jobs/:jobId', () => {
-  it('should return job detail', async () => {
+describe('GET /clusters/:clusterId/jobs/:jobId', function () {
+  it('should return job detail', async function () {
     nock('http://universe')
       .get('/GetJobDetail?' + getJobParams)
       .reply(200, {
@@ -35,7 +35,7 @@ describe('GET /clusters/:clusterId/jobs/:jobId', () => {
     response.data.should.have.property('message', 'job detail retrieved')
   })
 
-  it('should return 502 Bad Gateway Error when the job does not exist', async () => {
+  it('should return 502 Bad Gateway Error when the job does not exist', async function () {
     nock('http://universe')
       .get('/GetJobDetail?' + getJobParams)
       .reply(500)
@@ -48,8 +48,8 @@ describe('GET /clusters/:clusterId/jobs/:jobId', () => {
   })
 })
 
-describe('GET /clusters/:clusterId/jobs/:jobId/status', () => {
-  it('[P-01] should return job status', async () => {
+describe('GET /clusters/:clusterId/jobs/:jobId/status', function () {
+  it('[P-01] should return job status', async function () {
     nock('http://universe')
       .get('/GetJobStatus?' + getJobStatusParams)
       .reply(200, {
@@ -65,7 +65,7 @@ describe('GET /clusters/:clusterId/jobs/:jobId/status', () => {
     response.data.should.have.property('status', 'OK')
   })
 
-  it('[N-01] should return 502 Bad Gateway Error when the job does not exist', async () => {
+  it('[N-01] should return 502 Bad Gateway Error when the job does not exist', async function () {
     nock('http://universe')
       .get('/GetJobStatus?' + getJobStatusParams)
       .reply(500)
@@ -77,7 +77,7 @@ describe('GET /clusters/:clusterId/jobs/:jobId/status', () => {
     response.status.should.equal(502)
   })
 
-  it('[N-02] should return 404 Not Found when there is an error message', async () => {
+  it('[N-02] should return 404 Not Found when there is an error message', async function () {
     nock('http://universe')
       .get('/GetJobStatus?' + getJobStatusParams)
       .reply(200, {
@@ -94,8 +94,8 @@ describe('GET /clusters/:clusterId/jobs/:jobId/status', () => {
   })
 })
 
-describe('GET /clusters/:clusterId/jobs/:jobId/commands', () => {
-  it('should return job commands', async () => {
+describe('GET /clusters/:clusterId/jobs/:jobId/commands', function () {
+  it('should return job commands', async function () {
     nock('http://universe')
       .get('/GetCommands?' + getJobParams)
       .reply(200, {
@@ -110,7 +110,7 @@ describe('GET /clusters/:clusterId/jobs/:jobId/commands', () => {
     response.data.should.have.property('commands', 'test job commands')
   })
 
-  it('should return 502 Bad Gateway Error when the job does not exist', async () => {
+  it('should return 502 Bad Gateway Error when the job does not exist', async function () {
     nock('http://universe')
       .get('/GetCommands?' + getJobParams)
       .reply(500)
@@ -123,8 +123,8 @@ describe('GET /clusters/:clusterId/jobs/:jobId/commands', () => {
   })
 })
 
-describe('GET /clusters/:clusterId/jobs/:jobId/endpoints', () => {
-  it('should return job endpoints', async () => {
+describe('GET /clusters/:clusterId/jobs/:jobId/endpoints', function () {
+  it('should return job endpoints', async function () {
     nock('http://universe')
       .get('/endpoints?' + getJobParams)
       .reply(200, {
@@ -139,7 +139,7 @@ describe('GET /clusters/:clusterId/jobs/:jobId/endpoints', () => {
     response.data.should.have.property('endpoints', 'test job endpoints')
   })
 
-  it('should return 502 Bad Gateway Error when the job does not exist', async () => {
+  it('should return 502 Bad Gateway Error when the job does not exist', async function () {
     nock('http://universe')
       .get('/endpoints?' + getJobParams)
       .reply(500)
