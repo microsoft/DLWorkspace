@@ -312,7 +312,7 @@ class DistributeJobTemplate(JobTemplate):
             "name":
             "DLTS_SSH_PRIVATE_KEY",
             "value":
-            params["private_key"]
+            pod["private_key"]
         })
         return pod_obj
 

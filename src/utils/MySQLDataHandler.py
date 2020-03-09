@@ -472,10 +472,17 @@ class DataHandler(object):
             ON DUPLICATE KEY UPDATE
             uid=%s, gid=%s, groups=%s""".format(self.identitytablename)
 
+            cursor.execute(sql, (identityName, uid, gid, groups, public_key,
+                private_key, uid, gid, groups))
+
             # do not update public_key and private_key if already exist, maybe
             # this key is currently in use
-            cursor.execute(sql, (identityName, uid, gid, groups, public_key,
-                           private_key, uid, gid, groups))
+            sql = """UPDATE {0}
+            SET public_key = %s, private_key = %s
+            WHERE identityName=%s AND public_key="" AND private_key=""
+            """.format(self.identitytablename)
+
+            cursor.execute(sql, (public_key, private_key, identityName))
             self.conn.commit()
             cursor.close()
             return True
