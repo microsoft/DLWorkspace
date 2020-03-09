@@ -38,6 +38,8 @@ def _mock_rule_config():
 
 def _mock_ecc_config():
     ecc_config = {
+        "enable_reboot": True,
+        "enable_alert_job_owners": True,
         "prometheus": {
             "ip": "localhost",
             "port": 9091,
@@ -47,9 +49,7 @@ def _mock_ecc_config():
         "rest_url": "http://localhost:5000",
         "time_sleep_after_pausing": 0,
         "attempts_for_pause_resume_job": 1,
-        "alert_job_owners": False,
         "days_until_node_reboot": 5,
-        "reboot_dry_run": False
     }
 
     return ecc_config

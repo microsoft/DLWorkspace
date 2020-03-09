@@ -49,15 +49,15 @@ def _mock_rule_config():
 
 def _mock_ecc_config():
     mock_ecc_config = {
-            "cordon_dry_run": False,
+            "enable_cordon": True,
+            "enable_reboot": True,
+            "enable_alert_job_owners": True,
             "prometheus": {
                 "ip": "localhost",
                 "port": 9091,
                 "ecc_error_query": 'nvidiasmi_ecc_error_count{type="volatile_double"}>0'
             },
-            "alert_job_owners": True,
             "dri_email": "dri@email.com",
-            "reboot_dry_run": False,
             "days_until_node_reboot": 5
         }
     return mock_ecc_config
