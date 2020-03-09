@@ -63,6 +63,35 @@ const MyJobs: FunctionComponent = () => {
     return `(${activeJobs.length}) ${cluster.id}`;
   }, [data, activeJobs, cluster]);
 
+  const actions = useMemo(() => {
+    if (cluster.admin) {
+      return [
+        support,
+        approve,
+        pause,
+        resume,
+        kill,
+        batchApprove,
+        batchPause,
+        batchResume,
+        batchKill
+      ];
+    } else {
+      return [support];
+    }
+  }, [
+    cluster.admin,
+    support,
+    approve,
+    pause,
+    resume,
+    kill,
+    batchApprove,
+    batchPause,
+    batchResume,
+    batchKill
+  ]);
+
   useEffect(() => {
     if (loading === false) {
       const timeout = setTimeout(get, 3000);
@@ -103,17 +132,7 @@ const MyJobs: FunctionComponent = () => {
           priority,
           submitted,
         ]}
-        actions={[
-          support,
-          approve,
-          pause,
-          resume,
-          kill,
-          batchApprove,
-          batchPause,
-          batchResume,
-          batchKill
-        ]}
+        actions={actions}
       />
       <JobsTable
         title="Inactive Jobs"
