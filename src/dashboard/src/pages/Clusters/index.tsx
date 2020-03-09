@@ -37,7 +37,7 @@ const useClusterStatus = (clusterId: string) => {
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
   const { data, loading, error, get } = useFetch(
-    `/api/v2/clusters/${clusterId}/teams/${selectedTeam}`,
+    `/api/v2/teams/${selectedTeam}/clusters/${clusterId}`,
     undefined,
     [clusterId, selectedTeam]);
 
