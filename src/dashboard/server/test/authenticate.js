@@ -5,8 +5,8 @@ const touge = require('tough-cookie')
 
 const api = require('../api').callback()
 
-describe('GET /authenticate', () => {
-  it('should redirect the user to login page.', async () => {
+describe('GET /authenticate', function () {
+  it('should redirect the user to login page.', async function () {
     const response = await axiosist(api).get('/authenticate', {
       maxRedirects: 0
     })
@@ -17,7 +17,7 @@ describe('GET /authenticate', () => {
       .and.match(/\b11111111-1111-1111-1111-111111111111\b/)
   })
 
-  it('should sign the user in with code from active directory', async () => {
+  it('should sign the user in with code from active directory', async function () {
     const email = 'dlts@example.com'
     nock('https://login.microsoftonline.com/00000000-0000-0000-0000-000000000000/oauth2')
       .filteringRequestBody(/\bclient_id=11111111-1111-1111-1111-111111111111\b/)
@@ -44,7 +44,7 @@ describe('GET /authenticate', () => {
     payload.email.should.be.equal(email)
   })
 
-  it('should bring ths user back when authentication failed', async () => {
+  it('should bring ths user back when authentication failed', async function () {
     const response = await axiosist(api).get('/authenticate', {
       params: {
         error: 'Invalid code'
@@ -55,8 +55,8 @@ describe('GET /authenticate', () => {
   })
 })
 
-describe('GET /authenticate/logout', () => {
-  it('should bring user to log out page in active directory', async () => {
+describe('GET /authenticate/logout', function () {
+  it('should bring user to log out page in active directory', async function () {
     const response = await axiosist(api).get('/authenticate/logout', {
       maxRedirects: 0
     })
