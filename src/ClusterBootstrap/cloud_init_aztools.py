@@ -15,7 +15,6 @@ from utils import random_str, keep_widest_subnet
 sys.path.append("../utils")
 from ConfigUtils import add_configs_in_order
 
-
 def init_config():
     config = {}
     for k, v in list(default_config_parameters.items()):
@@ -94,6 +93,21 @@ def create_group(config, args):
     execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
 
+def create_availability_set(config, args):
+    subscription = "--subscription \"{}\"".format(
+        config["azure_cluster"]["subscription"]) if "subscription" in config["azure_cluster"] else ""
+    availability_sets = []
+    if "availability_set" in config["azure_cluster"]:
+        availability_sets.append(config["azure_cluster"]["availability_set"])
+    for vmname, spec in config["machines"].items():
+        if "availability_set" in spec:
+            availability_sets.append(spec["availability_set"])
+
+    cmd = ';'.join(["""az vm availability-set create --name {} --resource-group {} --location {} {}
+        """.format(avs, config["azure_cluster"]["resource_group"], config["azure_cluster"]["azure_location"], subscription) for avs in availability_sets])
+    execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
+
+
 def create_vnet(config, args):
     cmd = """az network vnet create \
             --resource-group %s \
@@ -118,6 +132,15 @@ def create_nsg(config, args):
         source_addresses_prefixes = " ".join(
             list(set(source_addresses_prefixes)))
 
+    restricted_source_address_prefixes = "'*'"
+    if "restricted_source_address_prefixes" in config["cloud_config_nsg_rules"]:
+        restricted_source_address_prefixes = config["cloud_config_nsg_rules"]["restricted_source_address_prefixes"]
+        if isinstance(restricted_source_address_prefixes, list):
+            restricted_source_address_prefixes = " ".join(
+                list(set(restricted_source_address_prefixes)))
+
+    print(restricted_source_address_prefixes)
+    
     cmd = """az network nsg create \
             --resource-group %s \
             --name %s
@@ -133,10 +156,12 @@ def create_nsg(config, args):
                 --protocol tcp \
                 --priority 1000 \
                 --destination-port-ranges %s \
+                --source-address-prefixes %s \
                 --access allow
             """ % (config["azure_cluster"]["resource_group"],
                    config["azure_cluster"]["nsg_name"],
-                   config["cloud_config_nsg_rules"]["tcp_port_ranges"]
+                   config["cloud_config_nsg_rules"]["tcp_port_ranges"],
+                   restricted_source_address_prefixes
                    )
         execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
@@ -148,10 +173,12 @@ def create_nsg(config, args):
                 --protocol udp \
                 --priority 1010 \
                 --destination-port-ranges %s \
+                --source-address-prefixes %s \
                 --access allow
             """ % (config["azure_cluster"]["resource_group"],
                    config["azure_cluster"]["nsg_name"],
-                   config["cloud_config_nsg_rules"]["udp_port_ranges"]
+                   config["cloud_config_nsg_rules"]["udp_port_ranges"],
+                   restricted_source_address_prefixes
                    )
         execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
@@ -224,6 +251,7 @@ def deploy_cluster(config, args):
             f.write("#!/bin/bash\n")
     create_group(config, args)
     create_vnet(config, args)
+    create_availability_set(config, args)
     create_nsg(config, args)
     create_nfs_nsg(config, args)
     if args.output and os.path.exists(args.output):
@@ -237,8 +265,6 @@ def validate_machine_spec(config, spec):
         assert spec["number_of_instance"] <= 1 and "cannot overwirte name for multiple machines one time!"
     if "nfs" in spec["role"]:
         assert spec["number_of_instance"] <= 1 and "NFS machine spec must be configured one by one!"
-    if "worker" in spec["role"]:
-        assert "gpu_type" in spec and "Must specify gpu_type for worker node!"
 
 
 def gen_machine_list_4_deploy_action(complementary_file_name, config):
@@ -273,7 +299,8 @@ def gen_machine_list_4_deploy_action(complementary_file_name, config):
                 cc["machines"][vmname]["kube_label_groups"] = []
                 for role in spec["role"]:
                     if role in config["default_kube_labels_by_node_role"]:
-                        cc["machines"][vmname]["kube_label_groups"].append(role)
+                        cc["machines"][vmname]["kube_label_groups"].append(
+                            role)
 
     cc["etcd_node_num"] = len(
         [mv for mv in list(cc["machines"].values()) if 'infra' in mv['role']])
@@ -281,7 +308,7 @@ def gen_machine_list_4_deploy_action(complementary_file_name, config):
     cc["network"] = {"domain": domain_mapping[config["priority"]]}
     complementary_file_name = "az_complementary.yaml" if complementary_file_name == '' else complementary_file_name
     with open(complementary_file_name, 'w') as outfile:
-        yaml.dump(cc, outfile, default_flow_style=False)
+        yaml.safe_dump(cc, outfile, default_flow_style=False)
     return cc
 
 
@@ -481,10 +508,12 @@ def list_vm(config, verbose=True):
 
 def vm_interconnects(config, args):
     vminfo = list_vm(config, False)
-    ports = []
+    ip_list, infra_ip_list = [], []
     for name, onevm in vminfo.items():
-        ports.append(onevm["publicIps"] + "/32")
-    portinfo = " ".join(ports)
+        ip_list.append(onevm["publicIps"] + "/32")
+        if 'infra' in onevm['tags']['role']:
+            infra_ip_list.append(onevm["publicIps"] + "/32")
+    allowed_incoming_ips = " ".join(ip_list)
     cmd = """
         az network nsg rule create \
             --resource-group %s \
@@ -498,7 +527,23 @@ def vm_interconnects(config, args):
         """ % (config["azure_cluster"]["resource_group"],
                config["azure_cluster"]["nsg_name"],
                config["cloud_config_nsg_rules"]["inter_connect"]["tcp_port_ranges"],
-               portinfo
+               allowed_incoming_ips
+               )
+    allowed_incoming_infra_ips = " ".join(infra_ip_list)
+    cmd += """
+        ; az network nsg rule create \
+            --resource-group %s \
+            --nsg-name %s \
+            --name nfs_allow_master \
+            --protocol tcp \
+            --priority 1400 \
+            --destination-port-ranges %s \
+            --source-address-prefixes %s \
+            --access allow
+        """ % (config["azure_cluster"]["resource_group"],
+               config["azure_cluster"]["nfs_nsg_name"],
+               config["cloud_config_nsg_rules"]["nfs_allow_master"]["tcp_port_ranges"],
+               allowed_incoming_infra_ips
                )
     execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
 
@@ -516,7 +561,7 @@ def get_deployed_cluster_info(config, args):
         brief[name] = brief_spec
     args.output = "status.yaml" if not args.output else args.output
     with open(args.output, "w") as wf:
-        yaml.dump({"machines": brief}, wf)
+        yaml.safe_dump({"machines": brief}, wf)
 
 
 def run_command(command, config, args, nargs):

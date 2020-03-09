@@ -28,7 +28,7 @@ spec:
       hostNetwork: true
       containers:
       - name: restfulapi
-        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}{{cnf["restfulapi"]}}:{{cnf["dockertag"]}}
+        image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/{{cnf["restfulapi"]}}:{{cnf["dockertag"]}}
         imagePullPolicy: Always
         volumeMounts:
         - mountPath: /RestfulAPI
@@ -52,6 +52,10 @@ spec:
         {% endif %}
         {% endfor %}
         {% endif %}
+      {% if cnf["private_docker_registry_username"] %}
+      imagePullSecrets:
+      - name: svccred
+      {% endif %}
       volumes:
       - name: apiconfig
         hostPath:

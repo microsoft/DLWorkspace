@@ -17,6 +17,7 @@ from params import default_config_parameters
 
 CLOUD_INIT_FILE_MAP = "cloudinit/file_map.yaml"
 
+
 def generate_ip_from_cluster(cluster_ip_range, index):
     slash_pos = cluster_ip_range.find("/")
     ips = cluster_ip_range if slash_pos < 0 else cluster_ip_range[:slash_pos]
@@ -47,7 +48,7 @@ def get_platform_script_directory(target):
 
 
 default_config_mapping = {
-    "dockerprefix": (["cluster_name"], lambda x: x.lower() + "/"),
+    "dockerprefix": (["cluster_name"], lambda x: x.lower()),
     "infrastructure-dockerregistry": (["dockerregistry"], lambda x: x),  # keep
     "worker-dockerregistry": (["dockerregistry"], lambda x: x),  # keep
     "api-server-ip": (["service_cluster_ip_range"], lambda x: generate_ip_from_cluster(x, 1)),
@@ -80,8 +81,10 @@ def load_az_params_as_default(config):
     domain_mapping = {"regular": "%s.cloudapp.azure.com" % config["azure_cluster"]["azure_location"], "low": config.get(
         "network", {}).get("domain", config["azure_cluster"]["default_low_priority_domain"])}
     config["network"] = {"domain": domain_mapping[config["priority"]]}
-    homo_vmsize = config["machines"][config["worker_node"][0].split('.')[0]]["vm_size"]
-    config['gpu_type'] = config.get("sku_mapping", {}).get(homo_vmsize, {}).get("gpu-type", "None")
+    homo_vmsize = config["machines"][config["worker_node"][0].split('.')[
+        0]]["vm_size"]
+    config['gpu_type'] = config.get("sku_mapping", {}).get(
+        homo_vmsize, {}).get("gpu-type", "None")
     return config
 
 
@@ -177,6 +180,7 @@ def get_nodes_from_config(machinerole, config):
 def load_node_list_by_role_from_config(config, roles):
     Nodes = []
     for role in roles:
+        assert role in config["allroles"] and "invalid role, check your list of valid roles in config"
         role = "infra" if role == "infrastructure" else role
         temp_nodes = []
         temp_nodes = get_nodes_from_config(role, config)
@@ -221,12 +225,6 @@ def get_node_lists_for_service(service, config):
 
 def load_default_config(config):
     apply_config_mapping(config, default_config_mapping)
-    config["webportal_node"] = None if len(get_node_lists_for_service("webportal", config)) == 0 \
-        else get_node_lists_for_service("webportal", config)[0]
-    if ("influxdb_node" not in config):
-        config["influxdb_node"] = config["webportal_node"]
-    if ("elasticsearch_node" not in config):
-        config["elasticsearch_node"] = config["webportal_node"]
     if ("mysql_node" not in config):
         config["mysql_node"] = None if len(get_node_lists_for_service("mysql", config)) == 0 \
             else get_node_lists_for_service("mysql", config)[0]
@@ -298,23 +296,22 @@ def load_config(args):
     assert (not clusterID is None) and "All operation cancelled, \
     please make sure you have cluster ID ready. You may call \
     `cloud_init_deploy.py clusterID` to generate one."
-
     config = init_config(default_config_parameters)
     config["clusterId"] = clusterID
     if args.verbose:
         utils.verbose = True
         print("Args = {0}".format(args))
-
     # deploy new cluster or load info of an existing cluster? specify the yaml file to specify explicitly
     config = add_configs_in_order(args.config, config)
     load_node_list_by_role_from_config(
-        config, ['infra', 'worker', 'nfs', 'etcd', 'kubernetes_master'])
+        config, ['infra', 'worker', 'nfs', 'etcd', 'kubernetes_master', 'elasticsearch'])
     config = gen_platform_wise_config(config)
+
     config = load_default_config(config)
+
     config = get_ssh_config(config)
     configuration(config, args.verbose)
     if args.verbose:
-        print("deploy " + command + " " + (" ".join(args.nargs)))
         print("PlatformScripts = {0}".format(config["platform-scripts"]))
 
     return config
@@ -388,32 +385,25 @@ def get_easy_rsa_and_cfssl(config):
 
 def gen_CA_certificates(config):
     """Prerequisite: template/ssl has been rendered to deploy/ssl"""
-    # utils.render_template_directory("./template/ssl", "./deploy/ssl", config)
     os.system("cd ./deploy/ssl && bash ./gencerts_ca.sh")
 
 
 def gen_worker_certificates(config):
     """Prerequisite: template/ssl has been rendered to deploy/ssl"""
-    # utils.render_template_directory("./template/ssl", "./deploy/ssl", config)
     os.system("cd ./deploy/ssl && bash ./gencerts_kubelet.sh")
 
 
 def gen_master_certificates(config):
     """Prerequisite: template/ssl has been rendered to deploy/ssl"""
     """Prerequisite: GetCertificateProperty has been invoked"""
-    # print(config["apiserver_names_ssl_aggregator"], "1")
-    # utils.render_template_directory("./template/ssl", "./deploy/ssl", config, verbose = True)
     os.system("cd ./deploy/ssl && bash ./gencerts_master.sh")
-    # print(config["apiserver_names_ssl_aggregator"], "2")
     get_easy_rsa_and_cfssl(config)
-    # print(config["apiserver_names_ssl_aggregator"], "3")
     os.system("cd ./deploy/ssl && bash ./gencerts_aggregator.sh")
 
 
 def gen_ETCD_certificates(config):
     """Prerequisite: template/ssl has been rendered to deploy/ssl"""
     """GetCertificateProperty is prerequisite"""
-    # utils.render_template_directory("./template/ssl", "./deploy/ssl", config)
     os.system("cd ./deploy/ssl && bash ./gencerts_etcd.sh")
 
 
@@ -513,7 +503,8 @@ def render_infra_node_specific(config, args):
         config["machines"][hostname].get("kube_services", config["kube_services_2_start"]))
     config["kube_labels"] = get_kube_labels_of_machine_name(config, hostname)
     # TODO zx: we may need to def get_file_modules_2_copy_by_node_role() to make it more extendable.
-    config["file_modules_2_copy"] = ["kubernetes_common", "kubernetes_infra", "etcd", "ip_resolve", "restful_api", "front_end", "nfs_client", "repair_manager"]
+    config["file_modules_2_copy"] = ["kubernetes_common", "kubernetes_infra", "etcd",
+                                     "ip_resolve", "restful_api", "front_end", "nfs_client", "repair_manager"]
     utils.render_template("./template/cloud-config/cloud_init_infra.txt.template",
                           "./deploy/cloud-config/cloud_init_infra.txt", config)
 
@@ -533,9 +524,11 @@ def render_worker_node_specific(config, args):
     config = get_stat_of_sku(config)
     default_worker_f2cp = ["kubernetes_common", "kubelet_worker", "nfs_client"]
     for sku in config["worker_sku_cnt"]:
-        gpu_type = config.get("sku_mapping", {}).get(sku, {}).get("gpu-type", "None")
-        config["kube_labels"] = common_worker_labels + ["sku={}".format(sku), "gpuType={}".format(gpu_type)]
-        config["file_modules_2_copy"] = default_worker_f2cp
+        gpu_type = config.get("sku_mapping", {}).get(
+            sku, {}).get("gpu-type", "None")
+        config["kube_labels"] = common_worker_labels + \
+            ["sku={}".format(sku), "gpuType={}".format(gpu_type)]
+        config["file_modules_2_copy"] = [mod for mod in default_worker_f2cp]
         if gpu_type != "None":
             config["file_modules_2_copy"].append("gpu_docker_daemon")
         utils.render_template("./template/cloud-config/cloud_init_worker.txt.template",
@@ -561,7 +554,8 @@ def render_nfs_node_specific(config, args):
         config["storage_manager"] = config["machines"][nfs_machine_name]["storage_manager"]
         # each NFS has a unique config file for its storage manager
         render_storagemanager(config, nfs_machine_name)
-        config["file_modules_2_copy"] = default_nfs_f2cp + ["{}_storage_manager".format(nfs_machine_name)]
+        config["file_modules_2_copy"] = default_nfs_f2cp + \
+            ["{}_storage_manager".format(nfs_machine_name)]
         utils.render_template("./template/cloud-config/cloud_init_nfs.txt.template",
                               "./deploy/cloud-config/cloud_init_{}.txt".format(nfs.split(".")[0]), config)
     config.pop("files2share", "")
@@ -607,8 +601,17 @@ def build_docker_images(args, config):
                   args.nargs[1:], config, args.verbose, nocache=args.nocache)
 
 
+def login_private_docker(config):
+    for docker_registry, credential in config["private_docker_credential"].items():
+        os.system("docker login {} -u {} -p {}".format(docker_registry,
+           credential["username"], credential["password"]))
+
+
 def push_docker_images(args, config):
-    render_docker_images(config, args.verbose)
+    # use docker build if you want to check rendering info
+    render_docker_images(config, False)
+    if "private_docker_credential" in config:
+        login_private_docker(config)
     push_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"],
                  args.nargs[1:], config, args.verbose, nocache=args.nocache)
 
@@ -625,6 +628,8 @@ def push_all_prerequisite_docker_images(args, config):
     render_docker_images(config, args.verbose)
     docker_list = docker_required_by_services(config)
     check_buildable_images(docker_list, config)
+    if "private_docker_credential" in config:
+        login_private_docker(config)
     push_dockers("./deploy/docker-images/", config["dockerprefix"], config["dockertag"],
                  docker_list, config, args.verbose, nocache=args.nocache)
 
@@ -711,11 +716,7 @@ def render_kubelet(config, args):
         "./template/kube-addons", "./deploy/kube-addons", config)
     # temporary hard-coding, will be fixed after refactoring of config/render logic
     utils.render_template_directory(
-        "./template/WebUI", "./deploy/WebUI", config)
-    utils.render_template_directory(
         "./template/web-docker", "./deploy/web-docker", config)
-    utils.render_template_directory(
-        "./template/RestfulAPI", "./deploy/RestfulAPI", config)
     get_kubectl_binary(config, args.force)
     render_kube_services(config)
     # render files for originally "specific" nodes (in v2 we use env vars)
@@ -746,9 +747,6 @@ def render_webui(config):
     sshUser = config["admin_username"]
     webUIIP = config["kubernetes_master_node"][0]
     dockername = "%s/dlws-webui" % (config["dockerregistry"])
-    os.system("mkdir -p ./deploy/WebUI")
-    utils.render_template_directory(
-        "./template/WebUI", "./deploy/WebUI", config)
     # write report configuration
     masternodes = config["etcd_node"]
     if ("servers" not in config["Dashboards"]["influxDB"]):
@@ -761,18 +759,6 @@ def render_webui(config):
     config["prometheus_endpoint"] = "http://%s:%s" % (
         config["prometheus"]["host"], config["prometheus"]["port"])
 
-    reportConfig = config["Dashboards"]
-    reportConfig["kuberneteAPI"] = {}
-    reportConfig["kuberneteAPI"]["port"] = config["k8sAPIport"]
-    reportConfig["kuberneteAPI"]["servers"] = masternodes
-    reportConfig["kuberneteAPI"]["https"] = True
-
-    with open("./deploy/WebUI/dashboardConfig.json", "w") as fp:
-        json.dump(reportConfig, fp)
-    utils.render_template("./template/WebUI/Master-Templates.json",
-                          "./deploy/WebUI/Master-Templates.json", config)
-    utils.render_template_directory(
-        "./template/RestfulAPI", "./deploy/RestfulAPI", config)
     utils.render_template_directory(
         "./template/dashboard", "./deploy/dashboard", config)
 
@@ -795,16 +781,19 @@ def pack_cloudinit_roles(config, args):
 def pack_cloudinit_role(config, role):
     if not os.path.exists(CLOUD_INIT_FILE_MAP):
         with open("./deploy/cloud-config/file_map.yaml") as rf:
-            file_map = yaml.safe_load(rf)           
-            deploy_files = [itm["src"] for mod_val in file_map.values() for itm in mod_val]
+            file_map = yaml.safe_load(rf)
+            deploy_files = [itm["src"]
+                            for mod_val in file_map.values() for itm in mod_val]
             src_root = os.path.commonpath(deploy_files)
             print(src_root)
             for mod_name, map_list in file_map.items():
                 for map_itm in map_list:
                     de_root_fn = os.path.join(
                         mod_name, os.path.relpath(map_itm["src"], start=src_root))
-                    os.system('mkdir -p cloudinit/{}'.format(os.path.dirname(de_root_fn)))
-                    os.system('cp -r {} cloudinit/{}'.format(map_itm["src"], de_root_fn))
+                    os.system(
+                        'mkdir -p cloudinit/{}'.format(os.path.dirname(de_root_fn)))
+                    os.system(
+                        'cp -r {} cloudinit/{}'.format(map_itm["src"], de_root_fn))
                     map_itm["cld"] = de_root_fn
         with open(CLOUD_INIT_FILE_MAP, "w") as wf:
             yaml.dump(file_map, wf)
@@ -823,12 +812,14 @@ def render_repairmanager(config):
 
 
 def render_storagemanager(config, nodename):
-    deploy_path = "./deploy/StorageManager/{}_storage_manager.yaml".format(nodename)
+    deploy_path = "./deploy/StorageManager/{}_storage_manager.yaml".format(
+        nodename)
     utils.render_template(
         "./template/StorageManager/config.yaml", deploy_path, config)
     with open("./deploy/cloud-config/file_map.yaml") as rf:
         file_map = yaml.safe_load(rf)
-        file_map["{}_storage_manager".format(nodename)] = [{"src": deploy_path, "dst": "/etc/StorageManager/config.yaml"}]
+        file_map["{}_storage_manager".format(nodename)] = [
+            {"src": deploy_path, "dst": "/etc/StorageManager/config.yaml"}]
     with open("./deploy/cloud-config/file_map.yaml", "w") as wf:
         yaml.dump(file_map, wf)
 
@@ -864,8 +855,8 @@ def render_for_infra_generic(config, args):
     utils.render_template("./template/cloud-config/file_map.yaml",
                           "./deploy/cloud-config/file_map.yaml", config)
     render_ETCD(config)
-    render_kubelet(config, args)
     config = render_restfulapi(config)
+    render_kubelet(config, args)
     render_webui(config)
     render_mount(config, args)
     render_repairmanager(config)

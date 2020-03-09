@@ -22,8 +22,15 @@ runcmd:
  - curl -fsSL https://get.docker.com -o get-docker.sh; sh get-docker.sh
  - sudo usermod -aG docker {{cnf["nfs_user"]}}
  - sudo setfacl -m user:{{cnf["nfs_user"]}}:rw /var/run/docker.sock
- - docker pull {{cnf["dockerregistry"]}}{{cnf["cluster_name"]}}/cloudinit
- - docker create -ti --name bootpack {{cnf["dockerregistry"]}}{{cnf["cluster_name"]}}/cloudinit bash
+ {% if "private_docker_registry" in cnf and "cloudinit" in cnf["private_docker_registry"] %}
+ {% set cldinit_regname = cnf["private_docker_registry"]["cloudinit"] %}
+ - docker login {{cldinit_regname}} -u {{cnf["private_docker_credential"][cldinit_regname]["username"]}} -p {{cnf["private_docker_credential"][cldinit_regname]["password"]}}
+ {% else %}
+ {% set cldinit_regname = cnf["dockerregistry"] %}
+ {% endif %}
+ - docker pull {{cldinit_regname}}/{{cnf["cluster_name"].lower()}}/cloudinit
+ - docker logout {{cldinit_regname}}
+ - docker create -ti --name bootpack {{cldinit_regname}}/{{cnf["cluster_name"].lower()}}/cloudinit bash
  - docker cp bootpack:/usr/cloudinit.tar ./
  - tar -xvf cloudinit.tar
  - cd cloudinit

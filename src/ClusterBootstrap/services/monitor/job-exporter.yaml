@@ -19,7 +19,7 @@ spec:
       name: job-exporter
     spec:
       containers:
-      - image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}job-exporter:{{cnf["dockertag"]}}
+      - image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/job-exporter:{{cnf["dockertag"]}}
         imagePullPolicy: Always
         livenessProbe: # in case job-exporter hangs
           httpGet:
@@ -65,6 +65,10 @@ spec:
         - containerPort: {{cnf['job-exporter']['port']}}
           hostPort: {{cnf['job-exporter']['port']}}
           name: main
+      {% if cnf["private_docker_registry_username"] %}
+      imagePullSecrets:
+      - name: svccred
+      {% endif %}
       volumes:
         - name: docker-socket
           hostPath:

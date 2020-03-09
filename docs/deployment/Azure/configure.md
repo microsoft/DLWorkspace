@@ -76,19 +76,26 @@ domain-offset:
   <can also set '*'>: <value0>
 
 repair-manager:
-  cluster_name: <the unique cluster name>
-  portal_url: <a domain name, e.g. dltshub.mydomain.com>
-  alert:
-    smtp_url: <smtp url>
-    login: <email account that would send email to receivers, such as 'dlts-bot@microsoft.com'>
-    password: <password for the email account above>
-    sender: <email address used to send alert emails, e.g. 'dlts-bot@microsoft.com'>
+  portal_url:  <a domain name, e.g. dltshub.mydomain.com>
   ecc_rule:
     cordon_dry_run: False
     reboot_dry_run: True
-    dri_email: DLTSDRI@microsoft.com
     alert_job_owners: True
     days_until_node_reboot: 5
+    time_sleep_after_pausing: 30
+    attempts_for_pause_resume_jobs: 10
+  rest_url: http://localhost:5000
+  restore_from_rule_cache_dump: True
+  rule_cache_dump: /etc/RepairManager/rule-cache.json
+  job_owner_email_domain: <an email domain name like microsoft.com>
+
+smtp:
+  smtp_url: <smtp, like xxx.com:587>
+  smtp_from: <email address that is used to send alert emails>
+  smtp_auth_username: <username used for authentication, e.g. same as smtp_from>
+  smtp_auth_password: <password for the username above>
+  default_recipients: <email address that would receive alert email>
+  cc: <email address that alert email would be cc to>
 
 WebUIregisterGroups:
 - MicrosoftUsers
@@ -135,6 +142,17 @@ alert-manager:
 
 prometheus:
   cluster_name: <the unique cluster name> # will be used in link to job detail page
+
+watchdog:
+  vc_url: <url used for listing vc, e.g. http://localhost:5000/ListVCs?userName=Administrator>
+
+prometheus:
+  cluster_name: <the unique cluster name> # will be used in link to job detail page
+
+job-manager:
+  notifier:
+    cluster: <cluster name>
+    alert-manager-url: <url like http://localhost:9093/alert-manager>
 
 registry_credential:
   <docker registry name 1>:

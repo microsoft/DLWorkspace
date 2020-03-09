@@ -24,7 +24,7 @@ spec:
       hostNetwork: true
       containers:
       - name: storagemanager
-        image: {{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}{{cnf["storagemanager"]}}:{{cnf["dockertag"]}}
+        image: {{cnf["worker-dockerregistry"]}}/{{cnf["dockerprefix"]}}/{{cnf["storagemanager"]}}:{{cnf["dockertag"]}}
         imagePullPolicy: Always
         volumeMounts:
         - mountPath: /StorageManager
@@ -33,6 +33,10 @@ spec:
           name: storagemanager-log
         - mountPath: /data/share
           name: data-share
+      {% if cnf["private_docker_registry_username"] %}
+      imagePullSecrets:
+      - name: svccred
+      {% endif %}
       volumes:
       - name: storagemanager-config
         hostPath:

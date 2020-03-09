@@ -31,6 +31,10 @@ spec:
       {% else %}
         mysql: active
       {% endif %}
+      {% if cnf["private_docker_registry_username"] %}
+      imagePullSecrets:
+      - name: svccred
+      {% endif %}
       containers:
       - image: {{cnf["dockers"]["container"]["phpmyadmin"]["fullname"]}}
         name: phpmyadmin

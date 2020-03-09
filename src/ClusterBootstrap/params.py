@@ -616,7 +616,7 @@ default_config_parameters = {
     # We will gradually migrate mroe and more docker in DLWorkspace to system
     # dockers
     "heketi-docker": "heketi/heketi:dev",
-    "dockerregistry": "mlcloudreg.westus.cloudapp.azure.com:5000/",
+    "dockerregistry": "mlcloudreg.westus.cloudapp.azure.com:5000",
     "dockers": {
         # Hub is docker.io/
         "hub": "dlws/",
@@ -684,7 +684,7 @@ default_config_parameters = {
         # There is no udp port requirement for now
         #"udp_port_ranges": "25826",
         "inter_connect": {
-            "tcp_port_ranges": "22 1443 2379 3306 5000 8086 9114 9200 9300 10250",
+            "tcp_port_ranges": "22 1443 2379 3306 5000 8086 9092 9114 9200 9300 10250",
             # Need to white list dev machines to connect
             # "source_addresses_prefixes": [ "52.151.0.0/16"]
         },
