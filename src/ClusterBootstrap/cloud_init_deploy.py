@@ -180,6 +180,7 @@ def get_nodes_from_config(machinerole, config):
 def load_node_list_by_role_from_config(config, roles):
     Nodes = []
     for role in roles:
+        assert role in config["allroles"] and "invalid role, check your list of valid roles in config"
         role = "infra" if role == "infrastructure" else role
         temp_nodes = []
         temp_nodes = get_nodes_from_config(role, config)
@@ -224,12 +225,6 @@ def get_node_lists_for_service(service, config):
 
 def load_default_config(config):
     apply_config_mapping(config, default_config_mapping)
-    config["webportal_node"] = None if len(get_node_lists_for_service("webportal", config)) == 0 \
-        else get_node_lists_for_service("webportal", config)[0]
-    if ("influxdb_node" not in config):
-        config["influxdb_node"] = config["webportal_node"]
-    if ("elasticsearch_node" not in config):
-        config["elasticsearch_node"] = config["webportal_node"]
     if ("mysql_node" not in config):
         config["mysql_node"] = None if len(get_node_lists_for_service("mysql", config)) == 0 \
             else get_node_lists_for_service("mysql", config)[0]
@@ -309,7 +304,7 @@ def load_config(args):
     # deploy new cluster or load info of an existing cluster? specify the yaml file to specify explicitly
     config = add_configs_in_order(args.config, config)
     load_node_list_by_role_from_config(
-        config, ['infra', 'worker', 'nfs', 'etcd', 'kubernetes_master'])
+        config, ['infra', 'worker', 'nfs', 'etcd', 'kubernetes_master', 'elasticsearch'])
     config = gen_platform_wise_config(config)
 
     config = load_default_config(config)
@@ -721,11 +716,7 @@ def render_kubelet(config, args):
         "./template/kube-addons", "./deploy/kube-addons", config)
     # temporary hard-coding, will be fixed after refactoring of config/render logic
     utils.render_template_directory(
-        "./template/WebUI", "./deploy/WebUI", config)
-    utils.render_template_directory(
         "./template/web-docker", "./deploy/web-docker", config)
-    utils.render_template_directory(
-        "./template/RestfulAPI", "./deploy/RestfulAPI", config)
     get_kubectl_binary(config, args.force)
     render_kube_services(config)
     # render files for originally "specific" nodes (in v2 we use env vars)
@@ -756,9 +747,6 @@ def render_webui(config):
     sshUser = config["admin_username"]
     webUIIP = config["kubernetes_master_node"][0]
     dockername = "%s/dlws-webui" % (config["dockerregistry"])
-    os.system("mkdir -p ./deploy/WebUI")
-    utils.render_template_directory(
-        "./template/WebUI", "./deploy/WebUI", config)
     # write report configuration
     masternodes = config["etcd_node"]
     if ("servers" not in config["Dashboards"]["influxDB"]):
@@ -771,18 +759,6 @@ def render_webui(config):
     config["prometheus_endpoint"] = "http://%s:%s" % (
         config["prometheus"]["host"], config["prometheus"]["port"])
 
-    reportConfig = config["Dashboards"]
-    reportConfig["kuberneteAPI"] = {}
-    reportConfig["kuberneteAPI"]["port"] = config["k8sAPIport"]
-    reportConfig["kuberneteAPI"]["servers"] = masternodes
-    reportConfig["kuberneteAPI"]["https"] = True
-
-    with open("./deploy/WebUI/dashboardConfig.json", "w") as fp:
-        json.dump(reportConfig, fp)
-    utils.render_template("./template/WebUI/Master-Templates.json",
-                          "./deploy/WebUI/Master-Templates.json", config)
-    utils.render_template_directory(
-        "./template/RestfulAPI", "./deploy/RestfulAPI", config)
     utils.render_template_directory(
         "./template/dashboard", "./deploy/dashboard", config)
 
@@ -879,8 +855,8 @@ def render_for_infra_generic(config, args):
     utils.render_template("./template/cloud-config/file_map.yaml",
                           "./deploy/cloud-config/file_map.yaml", config)
     render_ETCD(config)
-    render_kubelet(config, args)
     config = render_restfulapi(config)
+    render_kubelet(config, args)
     render_webui(config)
     render_mount(config, args)
     render_repairmanager(config)
@@ -1016,8 +992,7 @@ def run_command(args, command, parser):
             if nargs[0] == "servicesprerequisite":
                 push_all_prerequisite_docker_images(args, config)
     if command == "test":
-        utils.render_template_directory(
-        "./services/", "./deploy/services/", config)
+        pass
 
 
 if __name__ == '__main__':
