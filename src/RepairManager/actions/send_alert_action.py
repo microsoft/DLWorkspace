@@ -13,12 +13,11 @@ class SendAlertAction(Action):
         self.alert_handler = alert_handler
 
     def execute(self, message, dry_run=False, additional_log=None):
-        dri_email = self.alert_handler.email_handler.config['default_recepient']
+        default_email = self.alert_handler.email_handler.config['default_recepient']
         if 'To' not in message:
-            message['To'] = dri_email
+            message['To'] = default_email
         else:
-            # CC dri on all messages
-            message['CC'] = dri_email
+            message['CC'] = default_email
 
         if not dry_run:
             self.alert_handler.send_alert(message)
