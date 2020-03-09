@@ -96,12 +96,12 @@ def create_group(config, args):
 def create_availability_set(config, args):
     subscription = "--subscription \"{}\"".format(
         config["azure_cluster"]["subscription"]) if "subscription" in config["azure_cluster"] else ""
-    availability_sets = []
+    availability_sets = set()
     if "availability_set" in config["azure_cluster"]:
-        availability_sets.append(config["azure_cluster"]["availability_set"])
+        availability_sets.add(config["azure_cluster"]["availability_set"])
     for vmname, spec in config["machines"].items():
         if "availability_set" in spec:
-            availability_sets.append(spec["availability_set"])
+            availability_sets.add(spec["availability_set"])
 
     cmd = ';'.join(["""az vm availability-set create --name {} --resource-group {} --location {} {}
         """.format(avs, config["azure_cluster"]["resource_group"], config["azure_cluster"]["azure_location"], subscription) for avs in availability_sets])
