@@ -14,17 +14,20 @@ from cloud_init_deploy import load_node_list_by_role_from_config
 from cloud_init_deploy import update_service_path
 from cloud_init_deploy import get_kubectl_binary
 from cloud_init_deploy import load_config as load_deploy_config
+from cloud_init_deploy import render_restfulapi, render_webui, render_storagemanager
+
 
 FILE_MAP_PATH = 'deploy/cloud-config/file_map.yaml'
 
 
 def load_config_4_ctl(args, command):
     need_deploy_config = False
-    if (command == "svc" and args.nargs[0] == "render") or command in ["render_template", "download"]:
+    if (command == "svc" and args.nargs[0] in ["render", "configupdate"]) or command in ["render_template", "download"]:
         need_deploy_config = True
     if not args.config and need_deploy_config:
-        args.config = ['config.yaml', 'az_complementary.yaml', 'status.yaml']
+        args.config = ['config.yaml', 'az_complementary.yaml']
         config = load_deploy_config(args)
+        # for configupdate, need extra step to load status.yaml
     else:
         if not args.config and command != "restorefromdir":
             args.config = ['status.yaml']
@@ -126,7 +129,8 @@ def get_multiple_machines(config, args):
 
 def parallel_action_by_role(config, args, func):
     nodes = get_multiple_machines(config, args)
-    execute_in_parallel(config, nodes, args.nargs, args.sudo, func, noSupressWarning=args.verbose)
+    execute_in_parallel(config, nodes, args.nargs, args.sudo,
+                        func, noSupressWarning=args.verbose)
 
 
 def verify_all_nodes_ready(config, args):
@@ -134,16 +138,19 @@ def verify_all_nodes_ready(config, args):
     return unready nodes
     """
     nodes_info_raw = run_kubectl(config, args, ["get nodes"])
-    ready_machines = set([entry.split("Ready")[0].strip() for entry in nodes_info_raw.split('\n')[1:]])
+    ready_machines = set([entry.split("Ready")[0].strip()
+                          for entry in nodes_info_raw.split('\n')[1:]])
     expected_nodes = set(config["machines"].keys())
     nodes_expected_but_not_ready = expected_nodes - ready_machines
     if len(list(nodes_expected_but_not_ready)) > 0:
-        print("following nodes not ready:\n{}".format(','.join(list(nodes_expected_but_not_ready))))
+        print("following nodes not ready:\n{}".format(
+            ','.join(list(nodes_expected_but_not_ready))))
         exit(1)
 
 
 def change_kube_service(config, args, operation, service_list):
-    assert operation in ["start", "stop"] and "you can only start or stop a service"
+    assert operation in [
+        "start", "stop"] and "you can only start or stop a service"
     kubectl_action = "create" if operation == "start" else "delete"
     service2path = update_service_path()
     for service_name in service_list:
@@ -162,9 +169,11 @@ def change_kube_service(config, args, operation, service_list):
                         else:
                             continue
                     filename = filename.strip('\n')
-                    run_kubectl(config, args, ["{} -f {}".format(kubectl_action, os.path.join(dirname, filename))])
+                    run_kubectl(config, args, [
+                                "{} -f {}".format(kubectl_action, os.path.join(dirname, filename))])
         else:
-            run_kubectl(config, args, ["{} -f {}".format(kubectl_action, fname)])
+            run_kubectl(config, args, [
+                        "{} -f {}".format(kubectl_action, fname)])
 
 
 def render_services(config, args):
@@ -183,26 +192,37 @@ def remote_config_update(config, args):
     ./ctl.py -s svc configupdate restful_api
     ./ctl.py [-r storage_machine1 [-r storage_machine2]] -s svc configupdate storage_manager
     '''
-    assert args.nargs[1] in ["restful_api", "storage_manager"] and "only support updating config file of restfulapi and storagemanager"
+    assert args.nargs[1] in ["restful_api", "storage_manager",
+                             "dashboard"] and "only support updating config file of restfulapi and storagemanager"
     # need to get node list for this subcommand of svc, so load status.yaml
-    config = add_configs_in_order(["status.yaml"], config)
     with open(FILE_MAP_PATH) as f:
         file_map = yaml.load(f)
-    if args.nargs[1] == "restful_api":
-        infra_nodes, _ = load_node_list_by_role_from_config(config, ["infra"])
-        src_dst_list = [file_map["restful_api"][0]["src"], file_map["restful_api"][0]["dst"]]
-        execute_in_parallel(config, infra_nodes, src_dst_list, args.sudo, copy2_wrapper, noSupressWarning=args.verbose)
+    if args.nargs[1] in ["restful_api", "dashboard"]:
+        render_func = {"restful_api": render_restfulapi,
+                       "dashboard": render_webui}
+        render_func[args.nargs[1]](config)
+        # pop out the machine list in az_complementary.yaml, which describe action instead of status
+        config.pop("machines", [])
+        config = add_configs_in_order(["status.yaml"], config)
+        infra_nodes, _ = load_node_list_by_role_from_config(config, ["infra"], False)
+        src_dst_list = [file_map[args.nargs[1]][0]
+                        ["src"], file_map[args.nargs[1]][0]["dst"]]
+        execute_in_parallel(config, infra_nodes, src_dst_list,
+                            args.sudo, copy2_wrapper, noSupressWarning=args.verbose)
     elif args.nargs[1] == "storage_manager":
-        nfs_nodes, _ = load_node_list_by_role_from_config(config, ["nfs"])
+        config.pop("machines", [])
+        config = add_configs_in_order(["status.yaml"], config)
+        nfs_nodes, _ = load_node_list_by_role_from_config(config, ["nfs"], False)
         if args.roles_or_machine == ['nfs'] or not args.roles_or_machine:
             nodes_2_update = nfs_nodes
         else:
             nodes_2_update = list(set(nfs_nodes) & set(args.roles_or_machine))
         for node in nodes_2_update:
-            src_dst_list = ["./deploy/StorageManager/{}_storage_manager.yaml".format(node), "/etc/StorageManager/config.yaml"]
-            print(src_dst_list)
+            render_storagemanager(config, node)
+            src_dst_list = ["./deploy/StorageManager/{}_storage_manager.yaml".format(
+                node), "/etc/StorageManager/config.yaml"]
             args_list = (config["machines"][node]["fqdns"], config["ssh_cert"],
-                  config["admin_username"], src_dst_list, args.sudo, args.verbose)
+                         config["admin_username"], src_dst_list, args.sudo, args.verbose)
             copy2_wrapper(args_list)
 
 
@@ -241,7 +261,8 @@ def run_command(args, command):
     if command == "verifyallnodes":
         verify_all_nodes_ready(config, args)
     if command == "svc":
-        assert len(args.nargs) > 1 and "at least 1 action and 1 kubernetes service name should be provided"
+        assert len(
+            args.nargs) > 1 and "at least 1 action and 1 kubernetes service name should be provided"
         if args.nargs[0] == "start":
             change_kube_service(config, args, "start", args.nargs[1:])
         elif args.nargs[0] == "stop":
