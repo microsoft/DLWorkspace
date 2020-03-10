@@ -44,7 +44,7 @@ const MyJobs: FunctionComponent = () => {
     [cluster.id, selectedTeam, limit]
   );
 
-  const { true: activeJobs, false: inactiveJobs } = useMemo(() => {
+  const { true: activeJobs=[], false: inactiveJobs=[] } = useMemo(() => {
     if (data === undefined) return {};
     return groupByActive(data);
   }, [data]);
