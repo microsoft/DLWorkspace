@@ -10,8 +10,8 @@ import base64
 import logging
 import logging.config
 
-sys.path.append(os.path.join(os.path.dirname(
-    os.path.abspath(__file__)), "../utils"))
+sys.path.append(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "../utils"))
 
 from JobLogUtils import GetJobLog
 from cluster_manager import setup_exporter_thread, manager_iteration_histogram, register_stack_trace_dump, update_file_modification_time, record
@@ -22,7 +22,9 @@ import k8sUtils
 
 logger = logging.getLogger(__name__)
 
-elasticsearch_deployed = isinstance(config.get('elasticsearch'), list) and len(config['elasticsearch']) > 0
+elasticsearch_deployed = isinstance(config.get('elasticsearch'),
+                                    list) and len(config['elasticsearch']) > 0
+
 
 def create_log(logdir='/var/log/dlworkspace'):
     if not os.path.exists(logdir):
@@ -35,8 +37,16 @@ def create_log(logdir='/var/log/dlworkspace'):
         logging.config.dictConfig(logging_config)
 
 
+def extract_job_log(job_id, log_path, user_id):
+    if elasticsearch_deployed and not config.get('__extract_job_log_legacy',
+                                                 False):
+        extract_job_log_with_elastic_search(job_id, log_path, user_id)
+    else:
+        extract_job_log_legacy(job_id, log_path, user_id)
+
+
 @record
-def extract_job_log(jobId, logPath, userId):
+def extract_job_log_with_elastic_search(jobId, logPath, userId):
     dataHandler = None
     try:
         dataHandler = DataHandler()
@@ -56,15 +66,17 @@ def extract_job_log(jobId, logPath, userId):
                 else:
                     container_logs[container_id] = log_text
             except Exception:
-                logging.exception("Failed to parse elasticsearch log: {}".format(log))
+                logging.exception(
+                    "Failed to parse elasticsearch log: {}".format(log))
 
         jobLogDir = os.path.dirname(logPath)
         if not os.path.exists(jobLogDir):
-            mkdirsAsUser(jobLogDir,userId)
+            mkdirsAsUser(jobLogDir, userId)
 
         for (container_id, log_text) in container_logs.items():
             try:
-                containerLogPath = os.path.join(jobLogDir, "log-conatainer-" + container_id + ".txt")
+                containerLogPath = os.path.join(
+                    jobLogDir, "log-conatainer-" + container_id + ".txt")
                 with open(containerLogPath, 'a') as f:
                     f.write(log_text)
                 os.system("chown -R %s %s" % (userId, containerLogPath))
@@ -132,14 +144,16 @@ def extract_job_log_legacy(jobId, logPath, userId):
                     trimlogstr += log["containerLog"]
                     trimlogstr += "\n\n\n"
                     trimlogstr += "=========================================================\n"
-                    trimlogstr += "        end of logs from pod: %s\n" % log["podName"]
+                    trimlogstr += "        end of logs from pod: %s\n" % log[
+                        "podName"]
                     trimlogstr += "=========================================================\n"
                     trimlogstr += "\n\n\n"
                 else:
                     trimlogstr += "\n".join(logLines[-2000:])
                     trimlogstr += "\n\n\n"
                     trimlogstr += "=========================================================\n"
-                    trimlogstr += "        end of logs from pod: %s\n" % log["podName"]
+                    trimlogstr += "        end of logs from pod: %s\n" % log[
+                        "podName"]
                     trimlogstr += "        Note: the log is too long to display in the webpage.\n"
                     trimlogstr += "        Only the last 2000 lines are shown here.\n"
                     trimlogstr += "        Please check the log file (in Job Folder) for the full logs.\n"
@@ -148,7 +162,8 @@ def extract_job_log_legacy(jobId, logPath, userId):
 
                 try:
                     containerLogPath = os.path.join(
-                        jobLogDir, "log-container-" + log["containerID"] + ".txt")
+                        jobLogDir,
+                        "log-container-" + log["containerID"] + ".txt")
                     with open(containerLogPath, 'w') as f:
                         f.write(log["containerLog"])
                     f.close()
@@ -157,8 +172,9 @@ def extract_job_log_legacy(jobId, logPath, userId):
                     logger.exception("write container log failed")
 
         if len(trimlogstr.strip()) > 0:
-            dataHandler.UpdateJobTextField(jobId, "jobLog", base64.b64encode(
-                trimlogstr.encode("utf-8")).decode("utf-8"))
+            dataHandler.UpdateJobTextField(
+                jobId, "jobLog",
+                base64.b64encode(trimlogstr.encode("utf-8")).decode("utf-8"))
             with open(logPath, 'w') as f:
                 f.write(logStr)
             f.close()
@@ -181,19 +197,18 @@ def update_job_logs():
                     if job["jobStatus"] == "running":
                         logger.info("updating job logs for job %s" %
                                     job["jobId"])
-                        jobParams = json.loads(base64.b64decode(
-                            job["jobParams"].encode("utf-8")).decode("utf-8"))
+                        jobParams = json.loads(
+                            base64.b64decode(job["jobParams"].encode(
+                                "utf-8")).decode("utf-8"))
                         jobPath, workPath, dataPath = GetStoragePath(
-                            jobParams["jobPath"], jobParams["workPath"], jobParams["dataPath"])
+                            jobParams["jobPath"], jobParams["workPath"],
+                            jobParams["dataPath"])
                         localJobPath = os.path.join(
                             config["storage-mount-path"], jobPath)
                         logPath = os.path.join(localJobPath, "logs/joblog.txt")
-                        if elasticsearch_deployed and not config.get('__extract_job_log_legacy', False):
-                            extract_job_log(
-                                job["jobId"], logPath, jobParams["userId"])
-                        else:
-                            extract_job_log_legacy(
-                                job["jobId"], logPath, jobParams["userId"])
+
+                        extract_job_log(job["jobId"], logPath,
+                                        jobParams["userId"])
                 except Exception as e:
                     logger.exception("handling logs from %s", job["jobId"])
         except Exception as e:
@@ -220,8 +235,11 @@ def Run():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--port", "-p", help="port of exporter", type=int, default=9203)
+    parser.add_argument("--port",
+                        "-p",
+                        help="port of exporter",
+                        type=int,
+                        default=9203)
     args = parser.parse_args()
     setup_exporter_thread(args.port)
 
