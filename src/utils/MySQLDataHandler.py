@@ -363,6 +363,10 @@ class DataHandler(object):
         quota, metadata, res_quota, res_meta = vc_value_str(config, ratio_dict)
         if quota == "":
             return
+
+        if len(self.ListVCs()) != 0:
+            return
+
         for vc, vc_res_quota in res_quota.items():
             self.AddVC(vc, quota, metadata, vc_res_quota, res_meta)
 
