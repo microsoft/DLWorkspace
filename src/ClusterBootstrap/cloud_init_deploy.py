@@ -850,10 +850,11 @@ def render_for_infra_generic(config, args):
         "./template/ssl", "./deploy/ssl", config, verbose=True)
 
     gen_dns_config_script(config)
-    gen_CA_certificates(config)
-    gen_worker_certificates(config)
-    gen_master_certificates(config)
-    gen_ETCD_certificates(config)
+    if gen_new_key:
+        gen_CA_certificates(config)
+        gen_worker_certificates(config)
+        gen_master_certificates(config)
+        gen_ETCD_certificates(config)
     utils.render_template("./template/cloud-config/file_map.yaml",
                           "./deploy/cloud-config/file_map.yaml", config)
     render_ETCD(config)

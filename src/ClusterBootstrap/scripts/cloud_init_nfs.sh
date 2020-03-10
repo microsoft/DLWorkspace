@@ -21,6 +21,7 @@ sudo apt-get update
 sudo apt-get --no-install-recommends install -y nfs-kernel-server
 
 IFS=';' read -ra files2share <<< $FILES_2_SHARE
+fsid_ctr=0
 for fs in "${files2share[@]}"; do
     sudo mkdir -p $fs
     sudo chmod -R 777 $fs
@@ -31,7 +32,8 @@ for fs in "${files2share[@]}"; do
     done
     IFS=';' read -ra samba_ranges <<< $CIDR_SAMBA_RANGES
     for ns in "${samba_ranges[@]}"; do
-    echo "$fs $ns(rw,fsid=1,nohide,insecure,sync,no_subtree_check,no_root_squash)" | sudo tee -a /etc/exports
+    fsid_ctr=$((fsid_ctr + 1))
+    echo "$fs $ns(rw,fsid=$fsid_ctr,nohide,insecure,sync,no_subtree_check,no_root_squash)" | sudo tee -a /etc/exports
     done
 done
 
