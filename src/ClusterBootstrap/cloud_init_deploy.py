@@ -162,7 +162,7 @@ def get_domain(config):
     return domain
 
 
-def get_nodes_from_config(machinerole, config):
+def get_nodes_from_config(machinerole, config, with_domain=True):
     if "machines" not in config:
         return []
     else:
@@ -170,20 +170,20 @@ def get_nodes_from_config(machinerole, config):
         Nodes = []
         for nodename, nodeInfo in config["machines"].items():
             if "role" in nodeInfo and machinerole in nodeInfo["role"]:
-                if len(nodename.split(".")) < 3:
+                if len(nodename.split(".")) < 3 and with_domain:
                     Nodes.append(nodename + domain)
                 else:
                     Nodes.append(nodename)
         return sorted(Nodes)
 
 
-def load_node_list_by_role_from_config(config, roles):
+def load_node_list_by_role_from_config(config, roles, with_domain=True):
     Nodes = []
     for role in roles:
         assert role in config["allroles"] and "invalid role, check your list of valid roles in config"
         role = "infra" if role == "infrastructure" else role
         temp_nodes = []
-        temp_nodes = get_nodes_from_config(role, config)
+        temp_nodes = get_nodes_from_config(role, config, with_domain)
         config["{}_node".format(role)] = temp_nodes
         Nodes += temp_nodes
     return Nodes, config
@@ -506,7 +506,7 @@ def render_infra_node_specific(config, args):
     config["kube_labels"] = get_kube_labels_of_machine_name(config, hostname)
     # TODO zx: we may need to def get_file_modules_2_copy_by_node_role() to make it more extendable.
     config["file_modules_2_copy"] = ["kubernetes_common", "kubernetes_infra", "etcd",
-                                     "ip_resolve", "restful_api", "front_end", "nfs_client", "repair_manager"]
+                                     "ip_resolve", "restful_api", "dashboard", "nfs_client", "repair_manager"]
     utils.render_template("./template/cloud-config/cloud_init_infra.txt.template",
                           "./deploy/cloud-config/cloud_init_infra.txt", config)
 
