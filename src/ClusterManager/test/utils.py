@@ -90,6 +90,7 @@ def gen_default_job_description(
     email,
     uid,
     vc,
+    preemptable=False,
     image="indexserveregistry.azurecr.io/deepscale:1.0.post0",
     cmd="sleep 120"):
     args = {
@@ -100,7 +101,7 @@ def gen_default_job_description(
         "vcName": vc,
         "containerUserId": 0,
         "jobName": "integration test case",
-        "preemptionAllowed": "False",
+        "preemptionAllowed": preemptable,
         "image": image,
         "cmd": cmd,
         "workPath": "./",

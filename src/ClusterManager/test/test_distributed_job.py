@@ -11,8 +11,7 @@ import utils
 logger = logging.getLogger(__file__)
 
 
-@utils.case()
-def test_distributed_job_running(args):
+def test_distributed_job_running(args, preemptable=False):
     expected = "wantThisInLog"
     cmd = "echo %s ; sleep 1800" % expected
 
@@ -20,6 +19,7 @@ def test_distributed_job_running(args):
                                                  args.email,
                                                  args.uid,
                                                  args.vc,
+                                                 preemptable=preemptable,
                                                  cmd=cmd)
     with utils.run_job(args.rest, job_spec) as job:
         state = job.block_until_state_not_in(
@@ -34,6 +34,16 @@ def test_distributed_job_running(args):
 
             time.sleep(0.5)
         assert expected in log, "assert {} in {}".format(expected, log)
+
+
+@utils.case()
+def test_distributed_non_preemptable_job_running(args):
+    test_distributed_job_running(args)
+
+
+@utils.case()
+def test_distributed_preemptable_job_running(args):
+    test_distributed_job_running(args, True)
 
 
 @utils.case()

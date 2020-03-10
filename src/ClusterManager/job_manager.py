@@ -649,7 +649,7 @@ def mark_schedulable_preemptable_jobs(jobs_info, cluster_schedulable):
         preemption_allowed = job_info.get("preemptionAllowed", False)
         if preemption_allowed and (job_info["allowed"] is False):
             job_resource = job_info["job_resource"]
-            job_id = job_info["job_id"]
+            job_id = job_info["jobId"]
             if cluster_schedulable >= job_resource:
                 logger.info(
                     "Allow preemptable job %s to run. "
