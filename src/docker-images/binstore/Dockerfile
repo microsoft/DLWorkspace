@@ -2,7 +2,7 @@ FROM ubuntu:18.04
 MAINTAINER Hongzhi Li  <Hongzhi.Li@microsoft.com>
 
 RUN apt-get update && \
-    apt-get install -y apache2 libapache2-mod-wsgi curl
+    apt-get --no-install-recommends install -y apache2 libapache2-mod-wsgi curl
 
 RUN mkdir -p /data
 ADD 000-default.conf /etc/apache2/sites-enabled/000-default.conf

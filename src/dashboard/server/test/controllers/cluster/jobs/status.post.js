@@ -9,8 +9,8 @@ const userParams = {
   password: User.generateToken('dlts@example.com').toString('hex')
 }
 
-describe('POST /clusters/:clusterid/jobs/status', () => {
-  it('should response successful message of each type of status', async () => {
+describe('POST /clusters/:clusterid/jobs/status', function () {
+  it('should response successful message of each type of status', async function () {
     nock('http://universe')
       .get('/ApproveJobs')
       .query({ jobIds: 'approve1,approve2', userName: userParams.email })

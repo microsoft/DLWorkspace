@@ -14,8 +14,8 @@ const getBootstrapArgument = (code) => {
   return new Function('bootstrap', `return ${code}`)(bootstrap)
 }
 
-describe('GET /bootstrap.js', () => {
-  it('should response user info as JavaScript type', async () => {
+describe('GET /bootstrap.js', function () {
+  it('should response user info as JavaScript type', async function () {
     const user = { email: 'dlts@example.com' }
     const cookieToken = jwt.sign(user, 'DashboardSign')
     const cookie = new touge.Cookie({ key: 'token', value: cookieToken })
@@ -29,7 +29,7 @@ describe('GET /bootstrap.js', () => {
     arg.user.should.have.property('password')
   })
 
-  it('should response undefined if unauthenticated', async () => {
+  it('should response undefined if unauthenticated', async function () {
     const response = await axiosist(api).get('/bootstrap.js')
     response.headers['content-type'].should.startWith('application/javascript')
     const arg = getBootstrapArgument(response.data)
@@ -37,7 +37,7 @@ describe('GET /bootstrap.js', () => {
     arg.should.not.have.property('user')
   })
 
-  it('should response undefined if token is invalid', async () => {
+  it('should response undefined if token is invalid', async function () {
     const user = { email: 'dlts@example.com' }
     const cookieToken = jwt.sign(user, 'BadSign')
     const cookie = new touge.Cookie({ key: 'token', value: cookieToken })

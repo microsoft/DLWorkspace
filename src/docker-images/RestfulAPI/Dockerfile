@@ -7,9 +7,9 @@ MAINTAINER Hongzhi Li <Hongzhi.Li@microsoft.com>
 #
 #RUN curl https://packages.microsoft.com/config/ubuntu/16.04/prod.list > /etc/apt/sources.list.d/mssql-release.list
 #
-#RUN apt-get update; ACCEPT_EULA=Y apt-get install -y msodbcsql=13.1.4.0-1 unixodbc-dev
+#RUN apt-get update; ACCEPT_EULA=Y apt-get --no-install-recommends install -y msodbcsql=13.1.4.0-1 unixodbc-dev
 
-RUN apt-get update && apt-get install -y --no-install-recommends apt-transport-https \
+RUN apt-get update && apt-get --no-install-recommends install -y apt-transport-https \
         python3-dev \
         python3-pip \
         python3-yaml \

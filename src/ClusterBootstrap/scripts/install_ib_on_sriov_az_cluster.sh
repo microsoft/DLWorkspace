@@ -9,13 +9,13 @@ sudo rm -rf /var/lib/hyperv/.kvp_pool_0
 sudo systemctl restart hv-kvp-daemon.service
 
 sudo apt-get update
-sudo apt-get install -y build-essential python-setuptools libibverbs-dev bison flex ibverbs-utils net-tools gfortran python3-pip
-sudo apt-get install -y perftest infiniband-diags
+sudo apt-get --no-install-recommends install -y build-essential python-setuptools libibverbs-dev bison flex ibverbs-utils net-tools gfortran python3-pip
+sudo apt-get --no-install-recommends install -y perftest infiniband-diags
 sudo python3 -m pip install --upgrade pip setuptools wheel
 
 sudo apt-get remove -y walinuxagent
 sudo apt-get -qq update
-sudo apt-get install walinuxagent
+sudo apt-get --no-install-recommends install -y walinuxagent
 
 #wget https://github.com/Azure/WALinuxAgent/archive/v2.2.40.tar.gz
 

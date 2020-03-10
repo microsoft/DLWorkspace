@@ -10,7 +10,7 @@ echo bootstrap starts at `date`
 
 # https://stackoverflow.com/a/26759734/845762
 if ! [ -x "$(command -v sudo)" ] ; then
-    time apt-get update && time apt-get install -y sudo
+    time apt-get update && time apt-get --no-install-recommends install -y sudo
 fi
 
 bash ${CWD}/init_user.sh

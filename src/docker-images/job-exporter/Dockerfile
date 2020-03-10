@@ -17,7 +17,7 @@
 
 FROM python:3.7
 
-RUN apt-get update && apt-get install --no-install-recommends -y build-essential git && \
+RUN apt-get update && apt-get --no-install-recommends install -y build-essential git && \
     git clone https://github.com/yadutaf/infilter --depth 1 && \
     cd infilter && make
 
@@ -26,7 +26,7 @@ FROM python:3.7
 RUN curl -SL https://download.docker.com/linux/static/stable/x86_64/docker-17.06.2-ce.tgz \
     | tar -xzvC /usr/local && \
     mv /usr/local/docker/* /usr/bin && \
-    apt-get update && apt-get install --no-install-recommends -y iftop lsof && \
+    apt-get update && apt-get --no-install-recommends install -y iftop lsof && \
     mkdir -p /job_exporter && \
     rm -rf /var/lib/apt/lists/*
 

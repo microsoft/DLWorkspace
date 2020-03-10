@@ -131,19 +131,31 @@ class ECCRebootNodeRule(Rule):
             job_owner_email = f"{job_owner}@{self.config['job_owner_email_domain']}"
             node_names = job_info[job_id]["node_names"]
             job_link = job_info[job_id]['job_link']
-            reboot_dry_run = self.ecc_config.get("reboot_dry_run", True)
             rest_url = self.ecc_config["rest_url"]
             max_attempts = self.ecc_config.get("attempts_for_pause_resume_jobs", 5)
             wait_time = self.ecc_config.get("time_sleep_after_pausing", 30)
+            reboot_enabled = self.ecc_config["enable_reboot"]
 
             # migrate all jobs
+            reboot_dry_run = not reboot_enabled
             migrate_job = MigrateJobAction(rest_url, max_attempts)
-            success = migrate_job.execute(job_id, job_owner_email, wait_time, reboot_dry_run)
+            success = migrate_job.execute(
+                job_id=job_id,
+                job_owner_email=job_owner_email,
+                wait_time=wait_time, 
+                dry_run=reboot_dry_run)
 
+            # alert job owners
             if success:
-                if not reboot_dry_run:
                     message = _create_email_for_pause_resume_job(job_id, node_names, job_link, job_owner_email)
-                    alert_action.execute(message, self.ecc_config["alert_job_owners"], {"job_id":job_id,"job_owner":job_owner})
+                    if not reboot_dry_run and self.ecc_config['enable_alert_job_owners']:
+                        alert_dry_run = False
+                    else:
+                        alert_dry_run = True
+                    alert_action.execute(
+                        message=message,
+                        dry_run=alert_dry_run,
+                        additional_log={"job_id":job_id,"job_owner":job_owner})
             else:
                 logging.warning(f"Could not pause/resume the following job: {job_id}")
                 unsuccessful_pause_resume_jobs[job_id] = job_info[job_id]

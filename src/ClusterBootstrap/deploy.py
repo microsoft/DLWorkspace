@@ -1989,11 +1989,11 @@ def fileshare_install(mount_command_file=''):
                     if v["type"] == "azurefileshare":
                         if not ("azurefileshare" in filesharetype):
                             filesharetype["azurefileshare"] = True
-                            remotecmd += "sudo apt-get -y install cifs-utils attr; "
+                            remotecmd += "sudo apt-get --no-install-recommends install -y cifs-utils attr; "
                     elif v["type"] == "nfs":
                         if not ("nfs" in filesharetype):
                             filesharetype["nfs"] = True
-                            remotecmd += "sudo apt-get install -y nfs-common; "
+                            remotecmd += "sudo apt-get --no-install-recommends install -y nfs-common; "
                             # Ubuntu has issue of rpc.statd not started automatically
                             # https://bugs.launchpad.net/ubuntu/+source/nfs-utils/+bug/1624715
                             remotecmd += "sudo cp /lib/systemd/system/rpc-statd.service /etc/systemd/system/; "

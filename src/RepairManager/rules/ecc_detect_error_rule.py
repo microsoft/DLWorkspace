@@ -64,7 +64,7 @@ def _create_email_for_dris(nodes, action_status, jobs, cluster_name):
 
 
 def _create_email_for_job_owner(job_id, job_owner_email, node_names, job_link, 
-                                cluster_name, reboot_dry_run, days_until_reboot):
+                                cluster_name, reboot_enabled, days_until_reboot):
     message = MIMEMultipart()
     message['Subject'] = f'Repair Manager Alert [ECC ERROR] [{job_id}]'
     message['To'] = job_owner_email
@@ -76,10 +76,10 @@ def _create_email_for_job_owner(job_id, job_owner_email, node_names, job_link,
     The following job is impacted:</p> <a href="{job_link}">{job_id}</a>
     <p>Please save and end your job ASAP. '''
 
-    if reboot_dry_run:
-        body += f'''Node(s) will be rebooted soon for repair and all progress will be lost</p>'''
-    else:
+    if reboot_enabled:
         body += f'''Node(s) will be rebooted in {days_until_reboot} days and all progress will be lost.</p>'''
+    else:
+        body += f'''Node(s) will be rebooted soon for repair and all progress will be lost</p>'''
 
     message.attach(MIMEText(body, 'html'))
     return message
@@ -143,10 +143,13 @@ class ECCDetectErrorRule(Rule):
 
     def take_action(self):
         # cordon nodes
+        cordon_dry_run = not self.ecc_config['enable_cordon']
         action_status = {}
         for node_name in self.new_bad_nodes:
             cordon_action = CordonAction()
-            action_status[node_name] = cordon_action.execute(node_name, self.ecc_config['cordon_dry_run'])
+            action_status[node_name] = cordon_action.execute(
+                node_name=node_name,
+                dry_run=cordon_dry_run)
 
         impacted_jobs = k8s_util._get_job_info_from_nodes(
             nodes=self.new_bad_nodes,
@@ -171,14 +174,18 @@ class ECCDetectErrorRule(Rule):
                 node_names=job_info['node_names'],
                 job_link=job_info['job_link'],
                 cluster_name=self.config['cluster_name'],
-                reboot_dry_run=self.ecc_config['reboot_dry_run'],
+                reboot_enabled=self.ecc_config['enable_reboot'],
                 days_until_reboot=self.ecc_config.get('days_until_node_reboot', 5)
             )
-            additional_log = {
-                "job_id": job_id,
-                "job_owner": job_info['user_name'],
-                "nodes": job_info['node_names']}
-            dry_run = not self.ecc_config['alert_job_owners']
-            alert_action.execute(job_owner_message, dry_run, additional_log)
+            if not cordon_dry_run and self.ecc_config['enable_alert_job_owners']:
+                alert_dry_run = False
+            else:
+                alert_dry_run = True
+            alert_action.execute(
+                message=job_owner_message,
+                dry_run=alert_dry_run,
+                additional_log={"job_id": job_id,
+                                "job_owner": job_info['user_name'],
+                                "nodes": job_info['node_names']})
 
         self.update_rule_cache_with_bad_nodes()

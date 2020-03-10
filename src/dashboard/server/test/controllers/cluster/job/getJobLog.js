@@ -8,8 +8,8 @@ const userParams = {
   token: User.generateToken('dlts@example.com').toString('hex')
 }
 
-describe('GET /clusters/:clusterId/jobs/:jobId/log', () => {
-  it('should return job log', async () => {
+describe('GET /clusters/:clusterId/jobs/:jobId/log', function () {
+  it('should return job log', async function () {
     nock('http://universe')
       .get('/GetJobLog')
       .query({ jobId: 'testjob', userName: 'dlts@example.com' })
@@ -29,7 +29,7 @@ describe('GET /clusters/:clusterId/jobs/:jobId/log', () => {
     })
   })
 
-  it('should return job log with cursor', async () => {
+  it('should return job log with cursor', async function () {
     nock('http://universe')
       .get('/GetJobLog')
       .query({ jobId: 'testjob', cursor: '1234567890', userName: 'dlts@example.com' })
@@ -51,7 +51,7 @@ describe('GET /clusters/:clusterId/jobs/:jobId/log', () => {
     })
   })
 
-  it('should return 404 when there is no (more) log', async () => {
+  it('should return 404 when there is no (more) log', async function () {
     nock('http://universe')
       .get('/GetJobLog')
       .query({ jobId: 'testjob', userName: 'dlts@example.com' })
