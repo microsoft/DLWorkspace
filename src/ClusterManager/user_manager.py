@@ -66,6 +66,8 @@ def set_user_directory():
                 wf.write(public_key)
             os.system("chown -R " + str(userid) + ":" + "500000513 " +
                       userpath)
+            # Permission of .ssh has to be 700, otherwise, users cannot access
+            # .ssh via Samba file share.
             os.system("chmod 700 " + os.path.dirname(sshkeypath))
             os.system("chmod 600 " + sshkeypath)
             os.system("chmod 600 " + pubkeypath)
