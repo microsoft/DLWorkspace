@@ -102,7 +102,10 @@ def create_availability_set(config, args):
     for vmname, spec in config["machines"].items():
         if "availability_set" in spec:
             availability_sets.add(spec["availability_set"])
-
+    listcmd = "az vm availability-set list --resource-group {} --query \"[].name\"".format(config["azure_cluster"]["resource_group"])
+    as_res = execute_or_dump_locally(listcmd, args.verbose, False, args.output)
+    existing_as = set(json.loads(as_res))
+    availability_sets -= existing_as
     cmd = ';'.join(["""az vm availability-set create --name {} --resource-group {} --location {} {}
         """.format(avs, config["azure_cluster"]["resource_group"], config["azure_cluster"]["azure_location"], subscription) for avs in availability_sets])
     execute_or_dump_locally(cmd, args.verbose, args.dryrun, args.output)
@@ -138,8 +141,6 @@ def create_nsg(config, args):
         if isinstance(restricted_source_address_prefixes, list):
             restricted_source_address_prefixes = " ".join(
                 list(set(restricted_source_address_prefixes)))
-
-    print(restricted_source_address_prefixes)
     
     cmd = """az network nsg create \
             --resource-group %s \
@@ -578,6 +579,7 @@ def run_command(command, config, args, nargs):
         vm_interconnects(config, args)
     if command == "listcluster":
         get_deployed_cluster_info(config, args)
+        
 
 
 if __name__ == "__main__":
