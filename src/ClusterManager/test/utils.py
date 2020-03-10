@@ -357,12 +357,19 @@ def wait_endpoint_ready(rest_url, email, jid, endpoint_id, timeout=30):
 
 def find_infra_node_name(machines):
     for hostname, val in machines.items():
-        if val.get("role") == "infrastructure":
+        role_val = val.get("role")
+        if type(role_val) == str and role_val == "infrastructure":
             return hostname
+        elif type(role_val) == list:
+            for role in role_val:
+                if role == "infra":
+                    return hostname
 
 
 def build_k8s_config(config_path):
     cluster_path = os.path.join(config_path, "cluster.yaml")
+    if not os.path.isfile(cluster_path):
+        cluster_path = os.path.join(config_path, "az_complementary.yaml")
 
     with open(cluster_path) as f:
         cluster_config = yaml.full_load(f)
