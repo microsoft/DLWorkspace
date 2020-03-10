@@ -313,7 +313,9 @@ def load_config(args):
     configuration(config, args.verbose)
     if args.verbose:
         print("PlatformScripts = {0}".format(config["platform-scripts"]))
-
+    if not "private_docker_registry" in config or not "cloudinit" in config["private_docker_registry"]:
+        print("mush specify a private docker registry to put the cloudinit docker that contains sensitive information of this cluster!")
+        exit(-1)
     return config
 
 
@@ -942,6 +944,8 @@ def render_for_worker_generic(config, args):
         "template/kubelet", "deploy/kubelet", config)
     utils.render_template("template/cloud-config/worker.upgrade.list",
                           "./deploy/cloud-config/worker.upgrade.list", config)
+    utils.render_template("template/cloud-config/worker_fallback.sh.template",
+                          "./deploy/cloud-config/worker_fallback.sh", config)
     if orig_api_servers:
         config["api_servers"] = orig_api_servers
 
