@@ -108,7 +108,7 @@ ip_resolve:
 restful_api:
   - dst: /etc/RestfulAPI/config.yaml
     src: ./deploy/RestfulAPI/config.yaml
-front_end:
+dashboard:
   - dst: /etc/dashboard/production.yaml
     src: ./deploy/dashboard/production.yaml
 nfs_client:
