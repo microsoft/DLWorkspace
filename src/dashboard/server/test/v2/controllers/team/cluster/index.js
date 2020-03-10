@@ -12,8 +12,8 @@ const WORKER_NAME = 'worker'
 const POD_NAME = 'pod'
 const JOB_ID = 'job'
 
-describe('GET /teams/:teamId/clusters/:clusterId', () => {
-  it('should return cluster status', async () => {
+describe('GET /teams/:teamId/clusters/:clusterId', function () {
+  it('should return cluster status', async function () {
     nock('http://Universe')
       .get('/GetVC?' + new URLSearchParams({ userName: EMAIL, vcName: TEAM_ID }))
       .reply(200, {
