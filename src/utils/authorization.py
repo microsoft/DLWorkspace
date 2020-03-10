@@ -24,7 +24,6 @@ Permission = enum(Unauthorized=0, User=1, Collaborator=3, Admin=7)
 ResourceType = enum(Cluster=1, VC=2, Job=3)
 
 INVALID_RANGE_START = 900000000
-INVALID_RANGE_END = 999999998
 INVALID_ID = 999999999
 
 INVALID_INFO = {
@@ -73,8 +72,7 @@ class AuthorizationManager:
                 for ace in acl:
                     ace_id = int(ace["identityId"])
                     in_groups = ace_id in groups
-                    in_range = ace_id < INVALID_RANGE_START or \
-                        ace_id > INVALID_RANGE_END
+                    in_range = ace_id < INVALID_RANGE_START
 
                     if ace["identityName"] == name or (in_groups and in_range):
                         if not (perm & (~ace["permissions"])):
