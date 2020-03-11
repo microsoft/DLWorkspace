@@ -2,30 +2,27 @@ kind: DaemonSet
 apiVersion: apps/v1
 metadata:
   name: dashboard
-  namespace: default
 spec:
   selector:
     matchLabels:
-      dashboard-node: pod
+      app: dashboard
   template:
     metadata:
       name: dashboard
       labels:
         app: dashboard
-        dashboard-node: pod
     spec:
-      {% if cnf["dnsPolicy"] %}
-      dnsPolicy: '{{cnf["dnsPolicy"]}}'
-      {% endif %}
       nodeSelector:
         dashboard: active
-      hostNetwork: true
       containers:
       - name: dashboard
         image: '{{cnf["worker-dockerregistry"]}}{{cnf["dockerprefix"]}}dashboard:{{cnf["dockertag"]}}'
         imagePullPolicy: Always
+        env:
+        - name: TRUST_PROXY
+          value: "true"
         ports:
-        - name: dashboard
+        - name: http
           containerPort: 80
         volumeMounts:
         - name: config
@@ -43,3 +40,65 @@ spec:
         operator: Exists
       - key: node-role.kubernetes.io/master
         effect: NoSchedule
+
+---
+
+kind: Service
+apiVersion: v1
+metadata:
+  name: dashboard
+spec:
+  selector:
+    app: dashboard
+  ports:
+  - port: 80
+    targetPort: http
+
+---
+
+kind: Ingress
+apiVersion: networking.k8s.io/v1beta1
+metadata:
+  name: dashboard
+spec:
+  rules:
+  - host: '{{cnf["kubernetes_master_node"][0]}}'
+    http:
+      paths:
+      - backend:
+          serviceName: dashboard
+          servicePort: 80
+  tls:
+    - hosts:
+      - '{{cnf["kubernetes_master_node"][0]}}'
+      secretName: domain-tls
+
+---
+
+kind: Issuer
+apiVersion: cert-manager.io/v1alpha2
+metadata:
+  name: letsencrypt
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt
+    solvers:
+    - selector: {}
+      http01:
+        ingress:
+          class: nginx
+
+---
+
+kind: Certificate
+apiVersion: cert-manager.io/v1alpha2
+metadata:
+  name: domain-certificate
+spec:
+  secretName: domain-tls
+  issuerRef:
+    name: letsencrypt
+  dnsNames:
+  - '{{cnf["kubernetes_master_node"][0]}}'
